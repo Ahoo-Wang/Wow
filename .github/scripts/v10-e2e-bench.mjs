@@ -232,6 +232,23 @@ export const SUITES = {
 export const suitesOf = group =>
   Object.keys(SUITES).filter(name => SUITES[name].group === group);
 
+// The tiers of D224's benchmark ladder that this workflow runs: run the smallest one that answers the question. L2, an
+// end-to-end point (one scenario on one backend, head against baseline), is the default and never the whole grid;
+// L3 is the end-to-end grid (before an rc or after a major merge); L4 the special runs: sustainable rates, overload
+// cliffs and the three-node cluster. L0 is benchmark-ab.yml (JMH). `suites` given by name replaces the tier's list.
+export const TIERS = {
+  L2: ['e1-mongo-uniform', 'e1-pg-uniform', 'e3-mongo', 'e3-pg'],
+  L3: suitesOf('ab'),
+  L4: [
+    'sustainable-mongo',
+    'sustainable-pg',
+    'cliff-e3-mongo',
+    'cliff-e3-pg',
+    'e5-mongo',
+    'e5-pg',
+  ],
+};
+
 // kind `steps` (the cliff suites): one arm in open loop at rising fixed rates, each step on fresh containers, a
 // minute measured, until two steps in a row are not sustained.
 export const CLIFF = {
@@ -433,7 +450,8 @@ const integer = (name, value, min, max) => {
 // The run's settings when a push to `v10-bench-run/**` starts it: the defaults, over which
 // wow-benchmarks/e2e/bench-run.json at the pushed commit may set any of these keys.
 export const DEFAULTS = {
-  suites: 'all',
+  tier: 'L2',
+  suites: '',
   warm_up: '20',
   measure: '40',
   repeats: '2',
@@ -469,6 +487,7 @@ export function runSettings({ event, inputs = {}, config }) {
  * the group names `ab`, `head` and `vs-9x` among them.
  */
 export function resolveInputs({
+  tier = DEFAULTS.tier,
   suites,
   warmUp,
   measure,
@@ -482,9 +501,14 @@ export function resolveInputs({
     head: ['head'],
     'vs-9x': ['9x'],
   };
+  if (!suites?.trim() && !TIERS[tier]) {
+    throw new Error(
+      `Unknown tier: ${tier}; known: ${Object.keys(TIERS).join(', ')}`,
+    );
+  }
   const names = [
     ...new Set(
-      (suites?.trim() ? suites : 'all')
+      (suites?.trim() ? suites : TIERS[tier].join(','))
         .split(/[\s,]+/)
         .filter(Boolean)
         .flatMap(name =>
@@ -512,6 +536,7 @@ export function resolveInputs({
     repeats: integer('repeats', repeats, 1, 5),
     fraction: share,
     p99LimitMs: integer('p99_limit_ms', p99LimitMs, 1, 60000),
+    tier: suites?.trim() ? 'custom' : tier,
   };
 }
 
@@ -1384,6 +1409,8 @@ export function renderReport(suites, meta = {}) {
     `Head: \`${meta.headRef ?? '?'}\` ${meta.headSha ?? ''}; V10 baseline: ${meta.baseSha ? `\`${meta.baseRef}\` ${meta.baseSha}` : 'none'}; ` +
       `9.x: ${meta.nineXSha ? `\`${meta.nineXRef}\` ${meta.nineXSha}` : 'not run'}; harness and load generator from ${meta.harness ?? '?'}.`,
     '',
+    `Tier: ${meta.tier ?? '?'}; coverage: ${suites.map(suite => suite.name).join(', ') || 'none'}.`,
+    '',
     "Each suite ran on one runner of its own, so only its ratios compare across suites; absolute numbers are that runner's. Ratios are b/a per pair (head/base, head/9x): median (min–max, n pairs). Lower is better except throughput.",
     '',
   ];
@@ -1593,6 +1620,7 @@ if (
       event: env.EVENT,
       config,
       inputs: {
+        tier: env.TIER,
         suites: env.SUITES,
         warm_up: env.WARM_UP,
         measure: env.MEASURE,
@@ -1609,6 +1637,7 @@ if (
       // The settings, checked, and which commits the suites need resolved.
       const settings = settingsOf();
       const inputs = resolveInputs({
+        tier: settings.tier,
         suites: settings.suites,
         warmUp: settings.warm_up,
         measure: settings.measure,
@@ -1624,6 +1653,7 @@ if (
         repeats: inputs.repeats,
         fraction: inputs.fraction,
         'p99-limit-ms': inputs.p99LimitMs,
+        tier: inputs.tier,
         'base-ref': settings.base_ref,
         'needs-base': groups.has('ab'),
         'nine-x-ref': groups.has('9x') ? settings.nine_x_ref : '',
@@ -1671,6 +1701,7 @@ if (
           nineXRef: env.NINE_X_REF,
           nineXSha: env.NINE_X_SHA,
           harness: env.HARNESS,
+          tier: env.TIER,
         },
       });
       process.exitCode = suite.failures > 0 ? 1 : 0;

@@ -110,13 +110,19 @@ A run starts when a branch under `v10-bench-run/` is pushed. The head is the pus
 git push origin v10:v10-bench-run/20261020
 ```
 
-The defaults are every suite except the vs-9x ones, 20 s warm-up, 40 s measured, 2 rounds, 80% of saturation before calibration, and a p99 limit of 200 ms for the sustainable rates. The baseline is the newest `v10.*` release tag that has `bench-v10/`; without one, and without `base_ref`, the baseline suites are skipped and the report says so. To change any of this, commit `wow-benchmarks/e2e/bench-run.json` on the run branch:
+Runs follow D224's tiers: run the smallest one that answers the question. L0 is the JMH A/B (`benchmark-ab.yml`). The others are:
+
+- **L2** (the default): end-to-end points, head against baseline. They are `e1-mongo-uniform`, `e1-pg-uniform`, `e3-mongo` and `e3-pg`.
+- **L3**: the end-to-end grid, every `ab` suite, run before an rc or after a major merge.
+- **L4**: the special runs, the sustainable rates, cliffs and the cluster.
+
+Named `suites` replace the tier's list. The other defaults are 20 s warm-up, 40 s measured, 2 rounds, 80% of saturation before calibration, and a p99 limit of 200 ms for the sustainable rates. The baseline is the newest `v10.*` release tag that has `bench-v10/`; without one, and without `base_ref`, the baseline suites are skipped and the report says so. To change any of this, commit `wow-benchmarks/e2e/bench-run.json` on the run branch:
 
 ```json
-{ "suites": ["ab", "sustainable-mongo"], "base_ref": "v10.0.0-beta.1", "repeats": 3, "p99_limit_ms": 500 }
+{ "tier": "L4", "base_ref": "v10.0.0-beta.1", "p99_limit_ms": 500 }
 ```
 
-The keys are `suites`, `warm_up`, `measure`, `repeats`, `fraction`, `p99_limit_ms`, `base_ref` and `nine_x_ref`. `suites` takes suite names and the group names below. When the run has finished, delete the branch; its results stay with the run:
+The keys are `tier`, `suites`, `warm_up`, `measure`, `repeats`, `fraction`, `p99_limit_ms`, `base_ref` and `nine_x_ref`. `suites` takes suite names and the group names below (`all` is every group but `vs-9x`). When the run has finished, delete the branch; its results stay with the run:
 
 ```bash
 git push origin --delete v10-bench-run/20261020

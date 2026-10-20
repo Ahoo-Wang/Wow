@@ -23,8 +23,8 @@
 # into report.md and the run summary.
 #
 # A run starts when a branch `v10-bench-run/**` is pushed (`git push origin v10:v10-bench-run/<name>`), with the
-# defaults, over which `wow-benchmarks/e2e/bench-run.json` at the pushed commit may set `suites`, `warm_up`, `measure`,
-# `repeats`, `fraction`, `p99_limit_ms`, `base_ref` and `nine_x_ref`. Delete the branch afterwards. It can also be
+# defaults (tier L2), over which `wow-benchmarks/e2e/bench-run.json` at the pushed commit may set `tier`, `suites`,
+# `warm_up`, `measure`, `repeats`, `fraction`, `p99_limit_ms`, `base_ref` and `nine_x_ref`. Delete the branch afterwards. It can also be
 # dispatched by hand once the file is on the default branch (GitHub dispatches only workflows that are there). Never on
 # a pull request or a schedule, and no merge signal.
 name: V10 E2E Benchmark
@@ -39,10 +39,15 @@ on:
         description: 'V10 baseline ref (empty: the newest v10.* release tag that has wow-benchmarks/e2e/bench-v10)'
         type: string
         default: ''
+      tier:
+        description: 'L2 (end-to-end points, the default), L3 (the grid) or L4 (sustainable rates, cliffs, cluster); see wow-benchmarks/e2e/README.md'
+        type: choice
+        options: [L2, L3, L4]
+        default: L2
       suites:
-        description: '`all` (every suite but vs-9x), or suites or groups (ab, head, vs-9x) separated by commas; see wow-benchmarks/e2e/README.md'
+        description: 'Suites or groups (all, ab, head, vs-9x) separated by commas, instead of the tier'
         type: string
-        default: 'all'
+        default: ''
       warm_up:
         description: 'Warm-up seconds of each open-loop run'
         type: string
@@ -97,6 +102,7 @@ jobs:
       repeats: ${{ steps.settings.outputs.repeats }}
       fraction: ${{ steps.settings.outputs.fraction }}
       p99-limit-ms: ${{ steps.settings.outputs.p99-limit-ms }}
+      tier: ${{ steps.settings.outputs.tier }}
       head-ref: ${{ steps.refs.outputs.head-ref }}
       head-sha: ${{ steps.refs.outputs.head-sha }}
       base-ref: ${{ steps.refs.outputs.base-ref }}
@@ -119,6 +125,7 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
           CONFIG: wow-benchmarks/e2e/bench-run.json
+          TIER: ${{ inputs.tier }}
           SUITES: ${{ inputs.suites }}
           WARM_UP: ${{ inputs.warm_up }}
           MEASURE: ${{ inputs.measure }}
@@ -248,6 +255,7 @@ jobs:
       BASE_SHA: ${{ needs.plan.outputs.base-sha }}
       NINE_X_REF: ${{ needs.plan.outputs.nine-x-ref }}
       NINE_X_SHA: ${{ needs.plan.outputs.nine-x-sha }}
+      TIER: ${{ needs.plan.outputs.tier }}
     steps:
       # The steps' script comes from the workflow's own commit; the harness from the measured head.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

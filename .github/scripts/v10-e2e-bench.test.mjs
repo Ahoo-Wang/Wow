@@ -75,8 +75,24 @@ test('resolveInputs checks the inputs and expands all', () => {
       repeats: 1,
       fraction: 1,
       p99LimitMs: 500,
+      tier: 'custom',
     },
   );
+  // No suites named: the tier's list, L2 by default.
+  const byTier = tier =>
+    resolveInputs({ tier, warmUp: 30, measure: 60, repeats: 2, fraction: 0.8 });
+  assert.deepEqual(byTier(undefined).suites, [
+    'e1-mongo-uniform',
+    'e1-pg-uniform',
+    'e3-mongo',
+    'e3-pg',
+  ]);
+  assert.equal(byTier(undefined).tier, 'L2');
+  assert.deepEqual(byTier('L4').suites.slice(0, 2), [
+    'sustainable-mongo',
+    'sustainable-pg',
+  ]);
+  assert.throws(() => byTier('L9'), /Unknown tier/);
   assert.deepEqual(
     resolveInputs({
       suites: 'e3-pg, e1-mongo-zipf e3-pg',
