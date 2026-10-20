@@ -38,6 +38,7 @@ import me.ahoo.wow.http.ops.parkedRoutes
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.wowRoutes
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.Manifest
@@ -391,6 +392,7 @@ class WowAutoConfiguration {
         observers: ObjectProvider<Observer>,
         callers: ObjectProvider<CommandCaller>,
         classifiers: ObjectProvider<FailureClassifier>,
+        queries: ObjectProvider<ContextQueries>,
     ): ServiceNode {
         checkShutdownTimeout(environment)
         val routing = routing(properties, backends.local)
@@ -455,7 +457,17 @@ class WowAutoConfiguration {
             observer = observers.getIfUnique { Observer.NONE },
             caller = callers.ifAvailable,
             failureClassifiers = classifiers.orderedStream().toList(),
+            queries = lazyQueries(queries),
         )
+    }
+
+    /**
+     * The handlers' queries (decision D259), the query plane's [ContextQueries] bean resolved when a handler first reads:
+     * the query plane is built over the node, so it cannot be one of the node's parameters.
+     */
+    private fun lazyQueries(queries: ObjectProvider<ContextQueries>): ContextQueries {
+        val resolved by lazy { queries.getIfAvailable { ContextQueries.NONE } }
+        return ContextQueries { tenantId -> resolved.of(tenantId) }
     }
 
     @Bean

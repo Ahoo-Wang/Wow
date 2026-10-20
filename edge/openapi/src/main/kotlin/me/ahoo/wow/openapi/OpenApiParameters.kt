@@ -78,6 +78,11 @@ internal object OpenApiParameters {
             Http.IF_NONE_MATCH_HEADER,
             "The entity tag the client holds: 304 when it is still the current one.",
         ),
+        Http.LAST_EVENT_ID_HEADER to header(
+            Http.LAST_EVENT_ID_HEADER,
+            "Resumes a streamed `list` strictly after this position, the `id` of the last `row` event read (decision " +
+                "D253): send the same query body again. A position of another model or sort is `wow.query.invalid`.",
+        ),
         Http.VERSION_PARAMETER to query(Http.VERSION_PARAMETER, minimum(1), "Reads the state at this version."),
         Http.AT_PARAMETER to query(
             Http.AT_PARAMETER,

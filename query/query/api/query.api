@@ -147,6 +147,13 @@ public final class me/ahoo/wow/query/PageWindow$Offset : me/ahoo/wow/query/PageW
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/query/PositionedRecord {
+	public fun <init> (Ltools/jackson/databind/node/ObjectNode;Ljava/lang/String;)V
+	public final fun getPosition ()Ljava/lang/String;
+	public final fun getRecord ()Ltools/jackson/databind/node/ObjectNode;
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/query/QueryAdmission {
 	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/QueryEntryPolicy;)V
 	public synthetic fun <init> (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/QueryEntryPolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -260,6 +267,7 @@ public final class me/ahoo/wow/query/QueryBudget {
 	public static final field DEFAULT_MAX_FILTER_NODES I
 	public static final field DEFAULT_MAX_RESIDUAL_GROUPS I
 	public static final field HTTP_LABEL Ljava/lang/String;
+	public static final field IN_PROCESS_LABEL Ljava/lang/String;
 	public synthetic fun <init> (Ljava/lang/String;IIJIIZIIZJZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (Ljava/lang/String;IIJIIZIIZJZLkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun check (Lme/ahoo/wow/api/query/AggregationQuery;Lme/ahoo/wow/api/query/FilterExpression;)V
@@ -274,6 +282,8 @@ public final class me/ahoo/wow/query/QueryBudget {
 	public static synthetic fun check$default (Lme/ahoo/wow/query/QueryBudget;Lme/ahoo/wow/api/query/IListQuery;Lme/ahoo/wow/api/query/FilterExpression;ILjava/lang/Object;)V
 	public static synthetic fun check$default (Lme/ahoo/wow/query/QueryBudget;Lme/ahoo/wow/api/query/IPagedQuery;Lme/ahoo/wow/api/query/FilterExpression;ILjava/lang/Object;)V
 	public static synthetic fun check$default (Lme/ahoo/wow/query/QueryBudget;Lme/ahoo/wow/api/query/ISingleQuery;Lme/ahoo/wow/api/query/FilterExpression;ILjava/lang/Object;)V
+	public final fun checkStream (Lme/ahoo/wow/api/query/ICursorQuery;Lme/ahoo/wow/api/query/FilterExpression;)V
+	public static synthetic fun checkStream$default (Lme/ahoo/wow/query/QueryBudget;Lme/ahoo/wow/api/query/ICursorQuery;Lme/ahoo/wow/api/query/FilterExpression;ILjava/lang/Object;)V
 	public final fun countLimit (Lme/ahoo/wow/api/query/ICountQuery;)Ljava/lang/Integer;
 	public final fun getAllowExactCount ()Z
 	public final fun getAllowExpensiveOperators ()Z
@@ -294,6 +304,7 @@ public final class me/ahoo/wow/query/QueryBudget {
 public final class me/ahoo/wow/query/QueryBudget$Companion {
 	public final fun getDEFAULT_TIMEOUT-UwyO8pc ()J
 	public final fun getHTTP_DEFAULT ()Lme/ahoo/wow/query/QueryBudget;
+	public final fun getIN_PROCESS_DEFAULT ()Lme/ahoo/wow/query/QueryBudget;
 }
 
 public final class me/ahoo/wow/query/QueryBusyException : me/ahoo/wow/query/QueryExecutionException {
@@ -366,6 +377,7 @@ public final class me/ahoo/wow/query/QueryCountCacheOptions$Companion {
 public final class me/ahoo/wow/query/QueryEntry : java/lang/Enum {
 	public static final field HTTP Lme/ahoo/wow/query/QueryEntry;
 	public static final field IN_PROCESS Lme/ahoo/wow/query/QueryEntry;
+	public static final field UNBOUNDED Lme/ahoo/wow/query/QueryEntry;
 	public static final field UNSPECIFIED Lme/ahoo/wow/query/QueryEntry;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/query/QueryEntry;
@@ -415,6 +427,8 @@ public class me/ahoo/wow/query/QueryExecutionException : java/lang/RuntimeExcept
 }
 
 public abstract interface class me/ahoo/wow/query/QueryGateway {
+	public static final field Companion Lme/ahoo/wow/query/QueryGateway$Companion;
+	public static final field DEFAULT_STREAM_CHUNK_SIZE I
 	public fun admitRecord (Lme/ahoo/wow/api/query/FilterExpression;Ltools/jackson/databind/node/ObjectNode;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;Lme/ahoo/wow/query/QueryCaller;)Lkotlinx/coroutines/flow/Flow;
 	public abstract fun count (Lme/ahoo/wow/api/query/ICountQuery;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -425,7 +439,14 @@ public abstract interface class me/ahoo/wow/query/QueryGateway {
 	public abstract fun getEntryPolicy ()Lme/ahoo/wow/query/QueryEntryPolicy;
 	public abstract fun list (Lme/ahoo/wow/api/query/IListQuery;Lme/ahoo/wow/query/QueryCaller;)Lkotlinx/coroutines/flow/Flow;
 	public abstract fun paged (Lme/ahoo/wow/api/query/IPagedQuery;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun resumes (Lme/ahoo/wow/api/query/IListQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun single (Lme/ahoo/wow/api/query/ISingleQuery;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun stream (Lme/ahoo/wow/api/query/IListQuery;Lme/ahoo/wow/query/QueryCaller;Ljava/lang/String;I)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun stream$default (Lme/ahoo/wow/query/QueryGateway;Lme/ahoo/wow/api/query/IListQuery;Lme/ahoo/wow/query/QueryCaller;Ljava/lang/String;IILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+}
+
+public final class me/ahoo/wow/query/QueryGateway$Companion {
+	public static final field DEFAULT_STREAM_CHUNK_SIZE I
 }
 
 public abstract interface class me/ahoo/wow/query/QueryObserver {
@@ -493,6 +514,11 @@ public final class me/ahoo/wow/query/QueryScope {
 
 public final class me/ahoo/wow/query/QueryScope$Companion {
 	public final fun getNONE ()Lme/ahoo/wow/query/QueryScope;
+}
+
+public final class me/ahoo/wow/query/QueryStreams {
+	public static final fun chunks (Lme/ahoo/wow/query/QueryBackend;Lme/ahoo/wow/query/AdmittedQuery;I)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun chunks$default (Lme/ahoo/wow/query/QueryBackend;Lme/ahoo/wow/query/AdmittedQuery;IILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
 }
 
 public final class me/ahoo/wow/query/QueryTimeoutException : me/ahoo/wow/query/QueryExecutionException {
@@ -633,7 +659,9 @@ public final class me/ahoo/wow/query/dataset/DefaultDatasetQueryGateway : me/aho
 	public fun getEntryPolicy ()Lme/ahoo/wow/query/QueryEntryPolicy;
 	public fun list (Lme/ahoo/wow/api/query/IListQuery;Lme/ahoo/wow/query/QueryCaller;)Lkotlinx/coroutines/flow/Flow;
 	public fun paged (Lme/ahoo/wow/api/query/IPagedQuery;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun resumes (Lme/ahoo/wow/api/query/IListQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun single (Lme/ahoo/wow/api/query/ISingleQuery;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun stream (Lme/ahoo/wow/api/query/IListQuery;Lme/ahoo/wow/query/QueryCaller;Ljava/lang/String;I)Lkotlinx/coroutines/flow/Flow;
 }
 
 public final class me/ahoo/wow/query/dataset/QueryDataset {
@@ -909,6 +937,22 @@ public final class me/ahoo/wow/query/memory/InMemoryQueryStorage : me/ahoo/wow/q
 	public final fun records (Lme/ahoo/wow/api/aggregate/AggregateType;)Ljava/util/List;
 	public final fun rewrite (Lme/ahoo/wow/spi/snapshot/SnapshotRecord;)Z
 	public final fun save (Lme/ahoo/wow/spi/snapshot/SnapshotRecord;)Z
+}
+
+public final class me/ahoo/wow/query/read/InProcessQueryApi : me/ahoo/wow/api/read/QueryApi {
+	public static final field Companion Lme/ahoo/wow/query/read/InProcessQueryApi$Companion;
+	public static final field DEFAULT_LIST_SIZE I
+	public fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/read/Queries;
+	public fun trusted ()Lme/ahoo/wow/api/read/TrustedQueries;
+}
+
+public final class me/ahoo/wow/query/read/InProcessQueryApi$Companion {
+}
+
+public final class me/ahoo/wow/query/read/QueryApiTrees {
+	public static final fun datasetTrees (Lme/ahoo/wow/api/read/Queries;Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/api/read/RowQueries;
+	public static final fun groupTrees (Lme/ahoo/wow/api/read/RowQueries;Lme/ahoo/wow/api/query/AggregationQuery;)Lkotlinx/coroutines/flow/Flow;
+	public static final fun trees (Lme/ahoo/wow/api/read/ModelQueries;)Lme/ahoo/wow/api/read/RowQueries;
 }
 
 public final class me/ahoo/wow/query/schema/AbsentValues : java/lang/Enum {

@@ -238,6 +238,11 @@ class WowContractFunctionalTest {
             .assert().isEqualTo(Manifest.schemaRef("shopapi.CreateCart"))
         contract.defs.keys.assert().contains("shopapi.CreateCart", "shopapi.CartCreated", "shop_domain.CartState")
         contract.contexts.flatMap { it.aggregates }.flatMap { it.commands }.flatMap { it.routes }.assert().isEmpty()
+        // The domain modules are evaluated before it, so the plugin configures it once it is (decision D259).
+        ZipFile(File(projectDir, "shop-api/build/libs/shop-api-1.0.0.jar")).use { jar ->
+            listOf("shopapi/ShopContract.class", "shopapi/audit/AuditContract.class")
+                .forEach { jar.getEntry(it).assert().isNotNull() }
+        }
     }
 
     @Test
@@ -252,7 +257,7 @@ class WowContractFunctionalTest {
         contractOf(File(published, "shop-api-1.0.0.jar"))!!.contexts.map { it.name }
             .assert().containsExactly("audit", "shop")
         listOf("shop-api-1.0.0.pom", "shop-api-1.0.0.module").forEach { metadata ->
-            File(published, metadata).readText().assert().doesNotContain("domain", "wow-contract")
+            File(published, metadata).readText().assert().doesNotContain("domain", "wow-contract", "api-view")
         }
     }
 

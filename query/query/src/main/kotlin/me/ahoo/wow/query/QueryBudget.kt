@@ -122,6 +122,15 @@ class QueryBudget(
         checkFilter(query.filter, scope, counting = false)
     }
 
+    /**
+     * A resumable stream of a list (decision D253), run as keyset chunks of the server's size: bounded by time and
+     * bulkhead permits, not by rows (decision D254, Q-15), so neither its limit nor its chunk size is checked, only
+     * its filter.
+     */
+    fun checkStream(query: ICursorQuery, scope: FilterExpression = MatchAllFilter) {
+        checkFilter(query.filter, scope, counting = false)
+    }
+
     fun check(query: AggregationQuery, scope: FilterExpression = MatchAllFilter) {
         checkResultSize(query.limit, "aggregation")
         val filterNodes = checkFilters(
@@ -289,8 +298,12 @@ class QueryBudget(
         /** The default [timeout] (decision D150). */
         val DEFAULT_TIMEOUT: Duration = 30.seconds
         const val HTTP_LABEL: String = "HTTP"
+        const val IN_PROCESS_LABEL: String = "In-process"
 
         /** The HTTP budget with the default limits. */
         val HTTP_DEFAULT: QueryBudget = QueryBudget(HTTP_LABEL)
+
+        /** The in-process budget with the default limits, the HTTP ones (review R4-Q, Q-3). */
+        val IN_PROCESS_DEFAULT: QueryBudget = QueryBudget(IN_PROCESS_LABEL)
     }
 }

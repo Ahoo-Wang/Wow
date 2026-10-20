@@ -44,6 +44,7 @@ import me.ahoo.wow.query.descriptor.QueryModelDescriptor
 import me.ahoo.wow.query.descriptor.RecordDescriptor
 import me.ahoo.wow.query.descriptor.SearchDescriptor
 import me.ahoo.wow.query.descriptor.SensitivityDescriptor
+import me.ahoo.wow.query.descriptor.StreamDescriptor
 import me.ahoo.wow.query.json.QueryJson
 import me.ahoo.wow.query.spec.MetricSpec
 import me.ahoo.wow.query.spec.OperatorCost
@@ -223,6 +224,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             defaultScope = (schema.profile?.defaultScope(MatchAllFilter) as? DeletionFilter)?.deletionState,
             rootOperators = rootOperators,
             search = if (modes.isEmpty() && searchFields.isEmpty()) null else SearchDescriptor(modes, searchFields),
+            stream = StreamDescriptor(resumable = cursor),
         )
     }
 

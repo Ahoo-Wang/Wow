@@ -387,14 +387,28 @@ internal class OpenApiPaths(
             "summary" to summary,
             "description" to "The body's `kind` is the operation: `list` (an array, or with " +
                 "`Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count` " +
-                "or `aggregate` (an array of groups).",
+                "or `aggregate` (an array of groups). A streamed `list` is resumable (decision D253): each `row` " +
+                "event's `id` is the record's position, an opaque cursor token; the stream reads keyset chunks, " +
+                "bounded by time and query permits rather than rows, and ends with an `end` event " +
+                "`{\"reason\", \"resumable\"}` (`complete`, or the resumable `hold-expired`, `permit-reclaimed` " +
+                "and `node-stopping`); the same request with `Last-Event-ID` continues strictly after that position. " +
+                "Chunks are not one snapshot: a record written meanwhile is read when it sorts after the position. A " +
+                "list whose sort cannot order a cursor (or a model whose descriptor says `record.stream.resumable: " +
+                "false`) streams without `id`s, and every `end` it sends says `\"resumable\": false`.",
             "operationId" to operationId,
-            "parameters" to (pathParameters + Http.SCOPE_HEADER).map(OpenApiParameters::ref),
+            "parameters" to (pathParameters + Http.SCOPE_HEADER + Http.LAST_EVENT_ID_HEADER).map(OpenApiParameters::ref),
             "requestBody" to obj("required" to true, "content" to json(schemaRef(WowSchemas.QUERY_REQUEST))),
             "responses" to obj(
                 "200" to obj(
                     "description" to "The query's answer, by its kind.",
-                    "content" to json(obj("anyOf" to kinds)) + events(listOf(Http.ROW_EVENT, Http.ERROR_EVENT), record),
+                    "content" to json(obj("anyOf" to kinds)) + events(
+                        listOf(Http.ROW_EVENT, Http.END_EVENT, Http.ERROR_EVENT),
+                        record,
+                        obj(
+                            "id" to "The record's position: send it as `Last-Event-ID` to resume after it.",
+                            "end" to streamEnd(),
+                        ),
+                    ),
                 ),
             ) + errors.of(
                 if (missing == null) "query" else "dataset-query",
@@ -437,11 +451,25 @@ internal class OpenApiPaths(
 
     private fun json(schema: Map<String, Any?>): Map<String, Any?> = obj(JSON to obj("schema" to schema))
 
-    /** Server-sent events named [names], each with [data] as its data. */
-    private fun events(names: List<String>, data: Map<String, Any?>): Map<String, Any?> = obj(
+    /** Server-sent events named [names], each with [data] as its data, and the [extra] facts of the stream. */
+    private fun events(
+        names: List<String>,
+        data: Map<String, Any?>,
+        extra: Map<String, Any?> = emptyMap(),
+    ): Map<String, Any?> = obj(
         EVENT_STREAM to obj(
             "schema" to type("string", description = "Server-sent events."),
-            "x-wow-events" to obj("event" to names, "data" to data),
+            "x-wow-events" to obj("event" to names, "data" to data) + extra,
+        ),
+    )
+
+    /** The data of a resumable stream's `end` event (decision D253). */
+    private fun streamEnd(): Map<String, Any?> = obj(
+        "type" to "object",
+        "required" to listOf("reason", "resumable"),
+        "properties" to obj(
+            "reason" to obj("type" to "string", "enum" to Http.END_REASONS),
+            "resumable" to type("boolean"),
         ),
     )
 

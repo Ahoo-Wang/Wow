@@ -20,6 +20,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
+import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.SetSchedule
@@ -117,6 +118,7 @@ fun rejectionContextOf(
     rejected: CommandRejected<*>,
     ids: Ids,
     commandTypes: CommandTypes,
+    queries: ContextQueries = ContextQueries.NONE,
 ): SagaContext = ReceiptSagaContext(
     ExecutionId(handler.name, rejected.executionId.ref, rejected.executionId.version),
     rejected.commandId,
@@ -126,6 +128,7 @@ fun rejectionContextOf(
     ids,
     rejected.headers,
     commandTypes,
+    queries,
 )
 
 /**
@@ -163,8 +166,12 @@ class ReceiptSagaContext(
     private val headers: Map<String, String> = emptyMap(),
     /** Assigns the commands whose ref the handler leaves out their aggregate type (decision D234 ⑤). */
     private val commandTypes: CommandTypes = CommandTypes.NONE,
+    /** The handler's queries, of the commit's tenant (decision D259). */
+    private val contextQueries: ContextQueries = ContextQueries.NONE,
 ) : SagaContext {
     private val calls = AtomicInteger()
+
+    override val queries: SubscriptionQueries get() = contextQueries.of(executionId.ref.tenantId)
 
     /**
      * A command to the aggregate [id] of the type that decides [body]'s class ([CommandTypes.aggregatesOf]), in the

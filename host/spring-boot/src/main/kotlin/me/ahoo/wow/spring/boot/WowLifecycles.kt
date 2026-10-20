@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.http.query.QueryStreams
 import me.ahoo.wow.runtime.node.ServiceNode
 import org.springframework.boot.availability.ApplicationAvailability
 import org.springframework.boot.availability.AvailabilityChangeEvent
@@ -54,6 +55,35 @@ internal object WowLifecycles {
 
     /** [QueryIndexesLifecycle]: after the backends' schemas exist, before the internal server starts. */
     const val QUERY_INDEXES_PHASE: Int = BACKENDS_PHASE + 512
+
+    /**
+     * [QueryStreamsLifecycle]: stops before the public server's graceful shutdown (`DEFAULT_PHASE - 1024`), which
+     * waits for the open requests, so a query stream ends at once rather than at its hold time.
+     */
+    const val QUERY_STREAMS_PHASE: Int = SmartLifecycle.DEFAULT_PHASE - 512
+}
+
+/**
+ * Ends every open query stream of the public port with `end` `{"reason":"node-stopping","resumable":true}`, and refuses
+ * new ones, as the node starts to stop (decision D253): its clients resume them on another node.
+ */
+@InternalWowApi
+class QueryStreamsLifecycle(private val streams: QueryStreams) : SmartLifecycle {
+    @Volatile
+    private var running = false
+
+    override fun start() {
+        running = true
+    }
+
+    override fun stop() {
+        running = false
+        streams.close()
+    }
+
+    override fun isRunning(): Boolean = running
+
+    override fun getPhase(): Int = WowLifecycles.QUERY_STREAMS_PHASE
 }
 
 /** Creates the schemas of the backends the node opened, where they are missing, before anything uses them. */

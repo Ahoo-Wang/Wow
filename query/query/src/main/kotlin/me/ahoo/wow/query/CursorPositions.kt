@@ -94,47 +94,63 @@ internal object CursorTokens {
     private val encoder = Base64.getUrlEncoder().withoutPadding()
     private val decoder = Base64.getUrlDecoder()
 
-    @Suppress("TooGenericExceptionCaught")
     fun encode(
         position: CursorPosition,
         aggregate: AggregateType,
         schema: QueryModelSchema,
         sort: List<Sort>,
         codec: CursorPositionCodec,
-    ): String {
-        val payload = try {
-            codec.encode(position)
-        } catch (error: Exception) {
-            throw QueryExecutionException("Cursor position could not be encoded.", error)
-        }
-        val token = ByteBuffer.allocate(1 + FINGERPRINT_BYTES + payload.size)
-            .put(VERSION)
-            .put(fingerprint(aggregate, schema, sort))
-            .put(payload)
-            .array()
-        return encoder.encodeToString(token)
-    }
+    ): String = of(aggregate, schema, sort, codec).encode(position)
 
     /** Decodes a token issued for the same model and effective sort, or throws the invalid cursor error. */
-    @Suppress("TooGenericExceptionCaught")
     fun decode(
         token: String,
         aggregate: AggregateType,
         schema: QueryModelSchema,
         sort: List<Sort>,
         codec: CursorPositionCodec,
-    ): CursorPosition = try {
-        require(sort.size in 1..Sort.MAX_FIELDS)
-        val bytes = decoder.decode(token)
-        require(bytes.size > 1 + FINGERPRINT_BYTES && bytes[0] == VERSION)
-        require(
-            MessageDigest.isEqual(bytes.copyOfRange(1, 1 + FINGERPRINT_BYTES), fingerprint(aggregate, schema, sort))
-        )
-        codec.decode(bytes.copyOfRange(1 + FINGERPRINT_BYTES, bytes.size), sort.size).also {
-            require(it.values.size == sort.size)
+    ): CursorPosition = of(aggregate, schema, sort, codec).decode(token)
+
+    /**
+     * The tokens of one model and effective sort, its fingerprint computed once: a stream encodes the position of
+     * every record it emits (decision D253).
+     */
+    fun of(aggregate: AggregateType, schema: QueryModelSchema, sort: List<Sort>, codec: CursorPositionCodec): Bound =
+        Bound(fingerprint(aggregate, schema, sort), sort.size, codec)
+
+    class Bound internal constructor(
+        private val fingerprint: ByteArray,
+        private val size: Int,
+        private val codec: CursorPositionCodec,
+    ) {
+        @Suppress("TooGenericExceptionCaught")
+        fun encode(position: CursorPosition): String {
+            val payload = try {
+                codec.encode(position)
+            } catch (error: Exception) {
+                throw QueryExecutionException("Cursor position could not be encoded.", error)
+            }
+            val token = ByteBuffer.allocate(1 + FINGERPRINT_BYTES + payload.size)
+                .put(VERSION)
+                .put(fingerprint)
+                .put(payload)
+                .array()
+            return encoder.encodeToString(token)
         }
-    } catch (_: Exception) {
-        throw QueryViolation.InvalidCursor.rejection()
+
+        /** Decodes a token issued for the same model and effective sort, or throws the invalid cursor error. */
+        @Suppress("TooGenericExceptionCaught")
+        fun decode(token: String): CursorPosition = try {
+            require(size in 1..Sort.MAX_FIELDS)
+            val bytes = decoder.decode(token)
+            require(bytes.size > 1 + FINGERPRINT_BYTES && bytes[0] == VERSION)
+            require(MessageDigest.isEqual(bytes.copyOfRange(1, 1 + FINGERPRINT_BYTES), fingerprint))
+            codec.decode(bytes.copyOfRange(1 + FINGERPRINT_BYTES, bytes.size), size).also {
+                require(it.values.size == size)
+            }
+        } catch (_: Exception) {
+            throw QueryViolation.InvalidCursor.rejection()
+        }
     }
 
     private fun fingerprint(aggregate: AggregateType, schema: QueryModelSchema, sort: List<Sort>): ByteArray {

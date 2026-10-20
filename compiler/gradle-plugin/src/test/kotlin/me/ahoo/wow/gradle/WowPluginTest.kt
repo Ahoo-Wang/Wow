@@ -326,6 +326,7 @@ class WowPluginTest {
             domain.dependencies.add("api", domain.dependencies.project(mapOf("path" to ":shop-api")))
             domain.dependencies.add("implementation", "sample:library:1.0.0")
         }
+        (api as ProjectInternal).evaluate()
         return api
     }
 
@@ -347,6 +348,96 @@ class WowPluginTest {
         // A module dependency is no api module of the domain.
         api.rootProject.allprojects.mapNotNull { it.configurations.findByName(WowPlugin.CONTRACT_CONFIGURATION) }
             .assert().hasSize(1)
+    }
+
+    @Test
+    fun `an api project should compile the code generated from its contract in a source set of its own`() {
+        val api = paired("shop-domain", "audit-domain")
+        val sourceSets = api.extensions.getByType(SourceSetContainer::class.java)
+        val generated = sourceSets.getByName(WowPlugin.CONTRACT_SOURCE_SET)
+        val generate = api.tasks.getByName(WowPlugin.GENERATE_CONTRACT_SOURCES_TASK) as GenerateContractSources
+        generate.contract.files.single().invariantSeparatorsPath.assert()
+            .endsWith("shop-api/build/wow/contract/${PeerContracts.RESOURCE}")
+        generate.taskDependencies.getDependencies(null).map { it.name }
+            .assert().contains(WowPlugin.ASSEMBLE_CONTRACT_TASK)
+        // It compiles against the api's main classes and dependencies.
+        generated.compileClasspath.buildDependencies.getDependencies(null).map { it.name }
+            .assert().contains("compileKotlin")
+        api.configurations.getByName(generated.implementationConfigurationName).extendsFrom.map { it.name }
+            .assert().contains("implementation")
+        (api.tasks.getByName("jar") as Jar).taskDependencies.getDependencies(null).map { it.name }
+            .assert().contains("compileWowContractKotlin")
+        val wowContractClasses = File(directory, "shop-api/build/classes/kotlin/wowContract").canonicalFile
+        listOf("apiElements", "runtimeElements").forEach { name ->
+            val variants = api.configurations.getByName(name).outgoing.variants
+            variants.getByName("classes").artifacts.map { it.file.canonicalFile }.assert().contains(wowContractClasses)
+            // One core view per paired domain module, without the generated classes.
+            val cores = variants.filter { it.attributes.contains(WowPlugin.API_VIEW) }
+            cores.map { it.attributes.getAttribute(WowPlugin.API_VIEW) }
+                .assert().containsExactlyInAnyOrder(
+                    WowPlugin.coreView(":shop-domain"),
+                    WowPlugin.coreView(":audit-domain")
+                )
+            cores.flatMap { it.artifacts }.map { it.file.canonicalFile }.assert().doesNotContain(wowContractClasses)
+        }
+        // The domain module compiles against its core view.
+        api.rootProject.project(":shop-domain").configurations.getByName("compileClasspath").attributes
+            .getAttribute(WowPlugin.API_VIEW).assert().isEqualTo(WowPlugin.coreView(":shop-domain"))
+    }
+
+    @Test
+    fun `generating the contract sources should write one object per context`() {
+        val api = paired("shop-domain")
+        val task = api.tasks.getByName(WowPlugin.GENERATE_CONTRACT_SOURCES_TASK) as GenerateContractSources
+        val output = task.outputDirectory.get().asFile
+        File(output, "stale.kt").apply { parentFile.mkdirs() }.writeText("stale")
+        task.contract.setFrom(contractFile("shop-cart", "sample.AddItem"), File(directory, "missing.json"))
+
+        task.generate()
+
+        File(output, "stale.kt").exists().assert().isFalse()
+        File(output, "sample/ShopCartContract.kt").readText().assert().contains(
+            "package sample",
+            "object ShopCartContract",
+            "const val NAME: String = \"shop-cart\"",
+            "object Cart",
+            "AggregateType(NAME, \"cart\")",
+            "fun ref(tenantId: String, id: String): AggregateRef = TYPE.ref(tenantId, id)",
+        )
+    }
+
+    @Test
+    fun `an api project evaluated before its domain module should be configured at once`() {
+        val root = ProjectBuilder.builder().withProjectDir(directory).withName("services").build()
+        val api = ProjectBuilder.builder().withParent(root).withName("shop-api")
+            .withProjectDir(File(directory, "shop-api")).build()
+        api.pluginManager.apply("org.jetbrains.kotlin.jvm")
+        (api as ProjectInternal).evaluate()
+        val domain = ProjectBuilder.builder().withParent(root).withName("shop-domain")
+            .withProjectDir(File(directory, "shop-domain")).build()
+        domain.pluginManager.apply("me.ahoo.wow")
+        domain.pluginManager.apply("org.jetbrains.kotlin.jvm")
+        domain.dependencies.add("api", domain.dependencies.project(mapOf("path" to ":shop-api")))
+        api.tasks.findByName(WowPlugin.GENERATE_CONTRACT_SOURCES_TASK).assert().isNotNull()
+        val views = api.configurations.getByName("apiElements").outgoing.variants
+            .map { it.attributes.getAttribute(WowPlugin.API_VIEW) }
+        views.assert().contains(WowPlugin.coreView(":shop-domain"))
+    }
+
+    @Test
+    fun `an api project without the Kotlin plugin should carry no generated code`() {
+        val root = ProjectBuilder.builder().withProjectDir(directory).withName("services").build()
+        val api = ProjectBuilder.builder().withParent(root).withName("java-api")
+            .withProjectDir(File(directory, "java-api")).build()
+        api.pluginManager.apply("java")
+        val domain = ProjectBuilder.builder().withParent(root).withName("domain")
+            .withProjectDir(File(directory, "domain")).build()
+        domain.pluginManager.apply("me.ahoo.wow")
+        domain.pluginManager.apply("org.jetbrains.kotlin.jvm")
+        domain.dependencies.add("api", domain.dependencies.project(mapOf("path" to ":java-api")))
+        (api as ProjectInternal).evaluate()
+        api.tasks.findByName(WowPlugin.ASSEMBLE_CONTRACT_TASK).assert().isNotNull()
+        api.tasks.findByName(WowPlugin.GENERATE_CONTRACT_SOURCES_TASK).assert().isNull()
     }
 
     private fun contractFile(name: String, vararg classes: String): File =

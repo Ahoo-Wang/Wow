@@ -17,9 +17,9 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.cosec.context.DefaultSecurityContextParser
 import me.ahoo.cosec.context.SecurityContextParser
 import me.ahoo.cosec.token.TokenVerifier
+import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
@@ -93,7 +93,7 @@ class ViewStoreConfiguration {
 
     /** Looks the queries up on use: they are built with the node, which this binding is part of. */
     @Bean
-    fun sharedBoardReferences(queries: ObjectProvider<HttpQueries>): SharedBoardReferences =
+    fun sharedBoardReferences(queries: ObjectProvider<QueryApi>): SharedBoardReferences =
         QueriedBoardReferences { queries.getObject() }
 
     /** `wow.view-store.system-views`, checked at startup. */
@@ -102,8 +102,8 @@ class ViewStoreConfiguration {
         ConfiguredSystemViews(properties.systemViews)
 
     @Bean
-    fun storedSystemViews(configured: ConfiguredSystemViews, queries: ObjectProvider<HttpQueries>): StoredSystemViews =
-        StoredSystemViews(configured) { queries.getIfAvailable { HttpQueries.NONE } }
+    fun storedSystemViews(configured: ConfiguredSystemViews, queries: ObjectProvider<QueryApi>): StoredSystemViews =
+        StoredSystemViews(configured) { queries.ifAvailable }
 
     /** Before Wow's routes, whose catch-all answers every other path under `/view-store` with a 404. */
     @Bean

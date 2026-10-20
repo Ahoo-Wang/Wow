@@ -14,12 +14,14 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.http.query.QueryStreams
 import me.ahoo.wow.query.AbacQueryOptions
 import me.ahoo.wow.query.AdaptiveLimitOptions
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.QueryCountCacheOptions
 import me.ahoo.wow.query.QueryEntryPolicy
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.schema.QuerySensitivityPolicy
@@ -40,7 +42,11 @@ import kotlin.time.toKotlinDuration
  *   `allow-expensive-operators` (true), `max-residual-groups` (10000), `count-limit` (10000; the bound of a count and
  *   of a paged total, D150), `allow-exact-count` (false), `timeout` (30s), `unindexed-sort-expensive` (false); and
  *   `default-list-size` (100), the limit of a list that names none. A limit of `0` is off.
- * - `wow.query.in-process-timeout` (30s): the timeout of an in-process query, which has no budget.
+ * - `wow.query.in-process.*` (review R4-Q, Q-3): the budget of in-process queries, the typed
+ *   [me.ahoo.wow.api.read.QueryApi]'s, of trusted code too: the same keys and defaults as `wow.query.http.*`, its
+ *   `default-list-size` the limit of an in-process list that names none.
+ * - `wow.query.in-process-timeout` (30s): the timeout of an in-process query that has no budget, trusted code's that
+ *   dropped it (`QueryApi.trusted().unbounded()`).
  * - `wow.query.require-explicit-entry`, `wow.query.require-authenticated-scope` (both false): the entry gates.
  * - `wow.query.abac.*` (D129): `enabled` (false), `require-principal-tags` (false), `match-missing-tag-key` (true),
  *   `attribute-prefix` (`abac.`): the caller's `abac.<key>` attributes matched against the snapshots' `tags`.
@@ -82,11 +88,18 @@ import kotlin.time.toKotlinDuration
  * - `wow.query.state.max-replay` (10000; review R4-Q, Q-1): the most commits a state point read replays from the
  *   aggregate's snapshot, or from version 1 (`GET …/state?version=` or `?at=`, `…/state/trace`, the latest state
  *   before the first snapshot); a state further away is 400 `wow.query.invalid` (`REPLAY_TOO_LONG`).
+ * - `wow.query.stream.*` (decision D253, [Stream]): a `list` streamed as server-sent events reads keyset chunks of
+ *   `chunk-size` (500) records, a query permit per chunk, each record's `id` its position; after `max-hold` (30s; `0`
+ *   for no bound) it ends with `end` `{"reason":"hold-expired","resumable":true}` and the client resumes it with
+ *   `Last-Event-ID`. Neither `http.max-list-size` nor `http.default-list-size` bounds such a stream. A list whose
+ *   sort cannot order a cursor streams without positions, under those bounds, and every `end` it sends (the hold
+ *   time's included) says `"resumable":false`.
  */
 @ConfigurationProperties(prefix = QueryProperties.PREFIX)
 class QueryProperties {
     var enabled: Boolean = true
     var http: Http = Http()
+    var inProcess: InProcess = InProcess()
     var inProcessTimeout: Duration = QueryBudget.DEFAULT_TIMEOUT.toJavaDuration()
     var requireExplicitEntry: Boolean = false
     var requireAuthenticatedScope: Boolean = false
@@ -102,16 +115,19 @@ class QueryProperties {
     var maxWait: Duration = QueryBulkhead.DEFAULT_MAX_WAIT.toJavaDuration()
     var maxQueued: Int? = null
     var adaptive: Adaptive = Adaptive()
+    var stream: Stream = Stream()
 
     /** The entry policy these settings give every gateway. */
     fun entryPolicy(): QueryEntryPolicy = QueryEntryPolicy(
         requireExplicitEntry = requireExplicitEntry,
         requireAuthenticatedScope = requireAuthenticatedScope,
         http = http.budget(),
+        inProcess = inProcess.budget(),
         inProcessTimeout = inProcessTimeout.takeUnless { it.isZero }?.toKotlinDuration(),
     )
 
-    class Http {
+    /** A query entry's budget ([QueryBudget]) and the limit of a list that names none, under [label]. */
+    open class Budget internal constructor(private val label: String) {
         var maxListSize: Int = DEFAULT.maxListSize
         var maxPageSize: Int = DEFAULT.maxPageSize
         var maxPageWindow: Long = DEFAULT.maxPageWindow
@@ -126,7 +142,7 @@ class QueryProperties {
         var defaultListSize: Int = HttpQueries.DEFAULT_LIST_SIZE
 
         fun budget(): QueryBudget = QueryBudget(
-            label = QueryBudget.HTTP_LABEL,
+            label = label,
             maxListSize = maxListSize,
             maxPageSize = maxPageSize,
             maxPageWindow = maxPageWindow,
@@ -144,6 +160,12 @@ class QueryProperties {
             val DEFAULT = QueryBudget.HTTP_DEFAULT
         }
     }
+
+    /** The budget of the query routes, `wow.query.http.*`. */
+    class Http : Budget(QueryBudget.HTTP_LABEL)
+
+    /** The budget of the in-process [me.ahoo.wow.api.read.QueryApi], `wow.query.in-process.*`: the HTTP defaults. */
+    class InProcess : Budget(QueryBudget.IN_PROCESS_LABEL)
 
     class Abac {
         var enabled: Boolean = AbacQueryOptions.DEFAULT.enabled
@@ -206,6 +228,14 @@ class QueryProperties {
             connectionWaits = connectionWaits,
             periods = periods,
         )
+    }
+
+    /** `wow.query.stream.*` (decision D253): how a streamed `list` reads its chunks and how long it runs. */
+    class Stream {
+        var chunkSize: Int = QueryGateway.DEFAULT_STREAM_CHUNK_SIZE
+        var maxHold: Duration = QueryStreams.DEFAULT_MAX_HOLD.toJavaDuration()
+
+        internal fun streams(): QueryStreams = QueryStreams(chunkSize, maxHold.toKotlinDuration())
     }
 
     class Events {

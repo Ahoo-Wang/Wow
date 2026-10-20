@@ -245,7 +245,9 @@ class CommandIntakeTest {
             val sales = salesNode().also { it.start() }
             val facts = mapOf(RequestFacts.APP_ID to "console", RequestFacts.REMOTE_IP to "10.0.0.7", "X-T" to "t")
             sales.place("o-3", AVAILABLE + 1, facts)
-            eventually { cancelled.size == 1 }
+            // The decide function runs before the commit: wait for the compensation in the log, not for the decision.
+            val log = salesBackends.backends(SALES).log
+            eventually { log.read(ORDER.ref(TENANT, "o-3")).toList().lastOrNull()?.commandType == "sales.order.CancelOrder" }
             val propagated = mapOf(RequestFacts.APP_ID to "console")
             // Decision D232: the application goes along the chain, the client's address does not.
             CommandMessages.commandOf(EnvelopeCodec.decode(topics.messages(COMMANDS).single().value)).headers
@@ -253,7 +255,8 @@ class CommandIntakeTest {
             CommandMessages.rejectedOf(EnvelopeCodec.decode(topics.messages(RECEIPTS).single().value)).headers
                 .assert().isEqualTo(propagated)
             rejections.single().headers.assert().isEqualTo(propagated)
-            val compensated = salesBackends.backends(SALES).log.read(ORDER.ref(TENANT, "o-3")).toList().last()
+            cancelled.size.assert().isEqualTo(1)
+            val compensated = log.read(ORDER.ref(TENANT, "o-3")).toList().last()
             compensated.commandType.assert().isEqualTo("sales.order.CancelOrder")
             compensated.headers.assert().isEqualTo(propagated)
         }

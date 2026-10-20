@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
@@ -30,6 +31,7 @@ import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.CommandCalls
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.CommittedBinding
+import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionBinding
@@ -246,6 +248,9 @@ class ProcessorSpec private constructor(
     /** How the targets answer the saga's synchronous calls. */
     private var answer: (Command<*>) -> CommandResult = origin?.answer ?: { committedResult(it) }
 
+    /** What the handlers read through their context's queries (decision D259); none until [givenQueries]. */
+    private var queries: ContextQueries = origin?.queries ?: ContextQueries.NONE
+
     private var forkName: String? = null
     private var forks = 0
 
@@ -257,6 +262,16 @@ class ProcessorSpec private constructor(
      */
     fun answerCalls(answer: (Command<*>) -> CommandResult) {
         this.answer = answer
+    }
+
+    /**
+     * Serves the handlers' reads (`context.queries`, decision D259) from [queries], a fake of the read side (a stub,
+     * a mock or an engine over states the test gives): a handler's reads in the tenant of the commit it handles are
+     * [QueryApi.of] a caller of that tenant, its [trusted][me.ahoo.wow.api.read.SubscriptionQueries.trusted] ones
+     * [QueryApi.trusted]. Without it, a handler that reads fails.
+     */
+    fun givenQueries(queries: QueryApi) {
+        this.queries = ContextQueries.of(queries)
     }
 
     init {
@@ -452,6 +467,7 @@ class ProcessorSpec private constructor(
                 SequentialIds(),
                 commandTypes,
                 answering,
+                queries,
             )
             val derived = runBlocking { handler.invoke(event, context) }
             derived.forEach { derivedBy[it.id] = context.executionId }
@@ -462,7 +478,7 @@ class ProcessorSpec private constructor(
 
     private fun reject(handler: RejectionBinding<*>, rejected: CommandRejected<*>): Result<Handled> =
         runCatchingAll {
-            val context = rejectionContextOf(handler, rejected, SequentialIds(), commandTypes)
+            val context = rejectionContextOf(handler, rejected, SequentialIds(), commandTypes, queries)
             val derived = runBlocking { handler.invoke(rejected, context) }
             derived.forEach { derivedBy[it.id] = context.executionId }
             Handled(derived)
@@ -470,7 +486,7 @@ class ProcessorSpec private constructor(
 
     private fun commit(handler: CommittedBinding<*>, committed: CommandCommitted<*>): Result<Handled> =
         runCatchingAll {
-            val context = committedContextOf(handler, committed, SequentialIds(), commandTypes)
+            val context = committedContextOf(handler, committed, SequentialIds(), commandTypes, queries)
             val derived = runBlocking { handler.invoke(committed, context) }
             derived.forEach { derivedBy[it.id] = context.executionId }
             Handled(derived)

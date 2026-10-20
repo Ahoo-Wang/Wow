@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
+import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.ScheduleRule
@@ -42,6 +43,18 @@ data class ExecutionId(val subscription: String, val ref: AggregateRef, val vers
 interface SubscriptionContext {
     /** This execution: stable across every time the same commit is handled by the same subscription. */
     val executionId: ExecutionId
+
+    /**
+     * The read side of the node (decision D259): the snapshots, events and datasets of the tenant of the commit this
+     * execution handles, the whole tenant; another tenant's only through [SubscriptionQueries.trusted]. Reads are not
+     * part of the execution's determinism: handling the commit again reads the read side as it is then.
+     *
+     * @throws UnsupportedOperationException when the node gives its handlers no queries.
+     */
+    val queries: SubscriptionQueries
+        get() = throw UnsupportedOperationException(
+            "This handler has no queries: the node serves none (decision D259)."
+        )
 }
 
 /** The context of a [me.ahoo.wow.api.annotation.Projection]'s handler. */

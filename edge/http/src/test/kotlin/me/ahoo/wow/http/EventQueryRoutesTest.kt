@@ -141,7 +141,7 @@ class EventQueryRoutesTest {
             QueryRoutes.EVENTS
         )
         streamed.status.assert().isEqualTo(200)
-        streamed.events.map { it.data["version"].asInt() }.assert().containsExactly(1, 2)
+        streamed.rows.map { it.data["version"].asInt() }.assert().containsExactly(1, 2)
     }
 
     @Test

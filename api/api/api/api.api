@@ -775,6 +775,140 @@ public final class me/ahoo/wow/api/lifecycle/TransferSpace$Companion {
 	public final fun of (Ljava/lang/String;)Lme/ahoo/wow/api/lifecycle/TransferSpace;
 }
 
+public final class me/ahoo/wow/api/read/AggregateState {
+	public static final field Companion Lme/ahoo/wow/api/read/AggregateState$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDeleted ()Z
+	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun getState ()Ljava/lang/Object;
+	public final fun getTags ()Ljava/util/Map;
+	public final fun getVersion ()I
+	public fun hashCode ()I
+	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Ljava/lang/Object;)Lme/ahoo/wow/api/read/AggregateState;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/read/AggregateState$Companion {
+	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Ljava/lang/Object;)Lme/ahoo/wow/api/read/AggregateState;
+}
+
+public final class me/ahoo/wow/api/read/CommittedEvent {
+	public static final field Companion Lme/ahoo/wow/api/read/CommittedEvent$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBody ()Ljava/lang/Object;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getRevision ()I
+	public fun hashCode ()I
+	public static final fun of (Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/read/CommittedEvent;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/read/CommittedEvent$Companion {
+	public final fun of (Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/read/CommittedEvent;
+}
+
+public abstract interface class me/ahoo/wow/api/read/EventQueries : me/ahoo/wow/api/read/ModelQueries {
+}
+
+public final class me/ahoo/wow/api/read/EventStream {
+	public static final field Companion Lme/ahoo/wow/api/read/EventStream$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCommandId ()Ljava/lang/String;
+	public final fun getCommandType ()Ljava/lang/String;
+	public final fun getCommitTime ()J
+	public final fun getEvents ()Ljava/util/List;
+	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
+	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getRequestId ()Ljava/lang/String;
+	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun getVersion ()I
+	public fun hashCode ()I
+	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;IJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/caller/Operator;Ljava/util/List;)Lme/ahoo/wow/api/read/EventStream;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/read/EventStream$Companion {
+	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;IJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/caller/Operator;Ljava/util/List;)Lme/ahoo/wow/api/read/EventStream;
+}
+
+public abstract interface class me/ahoo/wow/api/read/ModelQueries : me/ahoo/wow/api/read/RowQueries {
+	public abstract fun dynamic (Ljava/lang/Class;)Lme/ahoo/wow/api/read/RowQueries;
+	public abstract fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+}
+
+public final class me/ahoo/wow/api/read/Positioned {
+	public static final field Companion Lme/ahoo/wow/api/read/Positioned$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPosition ()Ljava/lang/String;
+	public final fun getRow ()Ljava/lang/Object;
+	public fun hashCode ()I
+	public static final fun of (Ljava/lang/Object;Ljava/lang/String;)Lme/ahoo/wow/api/read/Positioned;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/read/Positioned$Companion {
+	public final fun of (Ljava/lang/Object;Ljava/lang/String;)Lme/ahoo/wow/api/read/Positioned;
+}
+
+public abstract interface class me/ahoo/wow/api/read/Queries {
+	public abstract fun datasets (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/Class;)Lme/ahoo/wow/api/read/RowQueries;
+	public abstract fun events (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/api/read/EventQueries;
+	public abstract fun snapshots (Ljava/lang/Class;)Lme/ahoo/wow/api/read/SnapshotQueries;
+	public abstract fun snapshots (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/api/read/SnapshotQueries;
+}
+
+public abstract interface class me/ahoo/wow/api/read/QueryApi {
+	public abstract fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/read/Queries;
+	public abstract fun trusted ()Lme/ahoo/wow/api/read/TrustedQueries;
+}
+
+public abstract interface class me/ahoo/wow/api/read/RowQueries {
+	public abstract fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;Ljava/lang/Class;)Lkotlinx/coroutines/flow/Flow;
+	public abstract fun count (Lme/ahoo/wow/api/query/ICountQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun cursor (Lme/ahoo/wow/api/query/ICursorQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun list (Lme/ahoo/wow/api/query/IListQuery;)Lkotlinx/coroutines/flow/Flow;
+	public abstract fun paged (Lme/ahoo/wow/api/query/IPagedQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun single (Lme/ahoo/wow/api/query/ISingleQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun stream (Lme/ahoo/wow/api/query/IListQuery;Ljava/lang/String;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun stream$default (Lme/ahoo/wow/api/read/RowQueries;Lme/ahoo/wow/api/query/IListQuery;Ljava/lang/String;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+}
+
+public final class me/ahoo/wow/api/read/Snapshot {
+	public static final field Companion Lme/ahoo/wow/api/read/Snapshot$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDeleted ()Z
+	public final fun getFirstEventTime ()J
+	public final fun getLastEventTime ()J
+	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
+	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun getState ()Ljava/lang/Object;
+	public final fun getTags ()Ljava/util/Map;
+	public final fun getVersion ()I
+	public fun hashCode ()I
+	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;ZLme/ahoo/wow/api/caller/Operator;JJLjava/lang/Object;)Lme/ahoo/wow/api/read/Snapshot;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/read/Snapshot$Companion {
+	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;ZLme/ahoo/wow/api/caller/Operator;JJLjava/lang/Object;)Lme/ahoo/wow/api/read/Snapshot;
+}
+
+public abstract interface class me/ahoo/wow/api/read/SnapshotQueries : me/ahoo/wow/api/read/ModelQueries {
+	public abstract fun state (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun state (Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public abstract interface class me/ahoo/wow/api/read/SubscriptionQueries : me/ahoo/wow/api/read/Queries {
+	public abstract fun getTenantId ()Ljava/lang/String;
+	public abstract fun trusted ()Lme/ahoo/wow/api/read/TrustedQueries;
+}
+
+public abstract interface class me/ahoo/wow/api/read/TrustedQueries : me/ahoo/wow/api/read/Queries {
+	public abstract fun unbounded ()Lme/ahoo/wow/api/read/Queries;
+}
+
 public final class me/ahoo/wow/api/result/CommandResult {
 	public static final field Companion Lme/ahoo/wow/api/result/CommandResult$Companion;
 	public static final field FORMAT I
@@ -1483,5 +1617,6 @@ public final class me/ahoo/wow/api/subscribe/StateEvent {
 
 public abstract interface class me/ahoo/wow/api/subscribe/SubscriptionContext {
 	public abstract fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
+	public fun getQueries ()Lme/ahoo/wow/api/read/SubscriptionQueries;
 }
 
