@@ -152,6 +152,15 @@ class InProcessCommandClientTest {
             commands.last().scope.assert().isEqualTo(Scope("alice"))
             commands.last().wait.timeout.assert().isEqualTo(5.seconds)
             // A target tenant alone acts in the target tenant, in no scope.
+            InProcessCommandClient(gateway).of(admin)
+                .wait(
+                    AddItem("fig"),
+                    cart.ref(TENANT, "c-6"),
+                    SendOptions.of(wait = WaitPlan.COMMITTED, targetTenant = TENANT)
+                )
+            commands.last().scope.assert().isEqualTo(Scope.NONE)
+            client.send(AddItem("lime"), cart.ref(TENANT, "c-7"), SendOptions.of(timeout = 3.seconds))
+                .hop.stage.assert().isEqualTo(Stage.ACCEPTED)
             SendOptions.of(targetTenant = TENANT).targeted.assert().isTrue()
             SendOptions.of(timeout = 3.seconds).plan.assert().isEqualTo(WaitPlan.DEFAULT.within(3.seconds))
             SendOptions.DEFAULT.plan.assert().isNull()
@@ -219,6 +228,10 @@ class InProcessCommandClientTest {
         crashed.status.assert().isEqualTo(500)
         crashed.retryHint.assert().isEqualTo(RetryHint.NONE)
         InProcessCommandClient.problemOf(failed("wow.something.new")).status.assert().isEqualTo(500)
+        val down = InProcessCommandClient.problemOf(failed(ResultCodes.STORAGE_UNAVAILABLE))
+        down.status.assert().isEqualTo(503)
+        down.retryHint.retryAfter.assert().isEqualTo(1.seconds)
+        down.message.assert().contains(ResultCodes.STORAGE_UNAVAILABLE).endsWith("It failed.")
         assertThrows<IllegalArgumentException> { CommandRejectedException(failed(ResultCodes.BUSY)) }
     }
 

@@ -103,7 +103,8 @@ class InProcessCommandClient @InternalWowApi constructor(
         /** The problem of [result], a command that failed. */
         @InternalWowApi
         fun problemOf(result: CommandResult): WowProblemException {
-            val code = result.error?.code ?: ResultCodes.FAILED
+            val error = checkNotNull(result.error) { "A result that did not succeed has an error." }
+            val code = error.code
             val status = FrameworkErrors.BY_CODE[code]?.status ?: INTERNAL_ERROR
             val retryAfter = RETRY_AFTER.takeIf { status == UNAVAILABLE || status == TOO_MANY_REQUESTS }
             val hint = if (code in RETRYABLE) RetryHint(true, true, retryAfter) else RetryHint.NONE
@@ -111,7 +112,7 @@ class InProcessCommandClient @InternalWowApi constructor(
                 code,
                 status,
                 hint,
-                "${result.ref} did not take the command: $code ${result.error?.message.orEmpty()}".trimEnd(),
+                "${result.ref} did not take the command: $code ${error.message}",
                 result,
             )
         }
