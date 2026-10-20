@@ -40,7 +40,7 @@ class AnalyticsCatalogQueryPolicy : QueryPolicy {
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
         val who = caller.caller ?: return MatchAllFilter
         val catalog = context.aggregateType.context == AnalyticsCatalogContext.NAME &&
-            context.schema.model != QueryModel.DATASET
+            context.model != QueryModel.DATASET
         if (catalog && AnalyticsCatalogCallers.rolesOf(who).none { it in AnalyticsCatalogCallers.READERS }) {
             throw QueryRequestException(
                 "${who.subject} reads no source: it needs one of ${AnalyticsCatalogCallers.READERS}.",

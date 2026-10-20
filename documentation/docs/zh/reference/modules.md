@@ -7,7 +7,7 @@ description: "Wow 每次发布到 Maven Central 的每个制品，以及它包�
 
 # 模块与制品
 
-每次发布以 `me.ahoo.wow` 为 group 发布到 Maven Central 的每个制品，由构建（[`build.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/v10/build.gradle.kts) 里的 `v10PublishedProjects` 与 `v10PublishedLibraries`）与每个模块自己的 description 生成；说明取自源码，为英文。导入 BOM，其余制品不写版本：
+每次发布以 `me.ahoo.wow` 为 group 发布到 Maven Central 的每个制品，由构建（[`build.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/v10/build.gradle.kts) 里的 `abiProjects` 与 `publishedLibraries`）与每个模块自己的 description 生成；说明取自源码，为英文。导入 BOM，其余制品不写版本：
 
 `implementation(platform("me.ahoo.wow:wow-bom:<version>"))`，然后 `implementation("me.ahoo.wow:wow-spring-boot")` 等都不带版本。Gradle 插件 `me.ahoo.wow` 接好编译器（KSP）并汇总服务的 Manifest。
 

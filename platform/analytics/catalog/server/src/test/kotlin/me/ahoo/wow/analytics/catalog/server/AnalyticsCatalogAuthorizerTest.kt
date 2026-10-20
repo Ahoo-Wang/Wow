@@ -86,10 +86,10 @@ class AnalyticsCatalogAuthorizerTest {
     @Test
     fun `the catalog's own models should be read by its roles and in-process code only, its datasets by anyone`(): Unit = runBlocking {
         val policy = AnalyticsCatalogQueryPolicy()
-        fun context(context: String, model: me.ahoo.wow.query.schema.QueryModel) =
+        fun context(context: String, queried: me.ahoo.wow.query.schema.QueryModel) =
             io.mockk.mockk<me.ahoo.wow.query.filter.QueryContext<*>> {
                 io.mockk.every { aggregateType } returns AggregateType(context, "x")
-                io.mockk.every { schema.model } returns model
+                io.mockk.every { model } returns queried
             }
         val sources = context(AnalyticsCatalogContext.NAME, me.ahoo.wow.query.schema.QueryModel.SNAPSHOT)
         policy.evaluate(QueryCaller.IN_PROCESS, sources).assert().isEqualTo(me.ahoo.wow.api.query.MatchAllFilter)

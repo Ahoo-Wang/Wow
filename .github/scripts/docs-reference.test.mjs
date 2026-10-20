@@ -179,11 +179,11 @@ test('a failed check names the pages, their sources and the command that fixes t
 
 test('the published modules come from the build, in its order, with their directories and descriptions', () => {
   const files = {
-    'build.gradle.kts': `val v10PublishedProjects = includedProjects(
+    'build.gradle.kts': `val abiProjects = includedProjects(
     ":api", ":test-dsl",
 )
-val v10PublishedLibraries = v10PublishedProjects + includedProjects(":migrate-data")
-val v10ArtifactIds = mapOf("test-dsl" to "wow-test")`,
+val publishedLibraries = abiProjects + includedProjects(":migrate-data")
+val artifactIds = mapOf("test-dsl" to "wow-test")`,
     'settings.gradle.kts': `project(":api").projectDir = file("api/api")
 project(":test-dsl").projectDir = file("test/test-dsl")
 project(":migrate-data").projectDir = file("migration/migrate-data")`,

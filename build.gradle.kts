@@ -48,8 +48,8 @@ fun Project.testLogbackConfiguration(): String =
 
 val dependenciesProject = project(":wow-dependencies")
 // The V10 BOM (`:bom` in bom/bom, artifact wow-bom per D87).
-val v10BomProject = project(":bom")
-val bomProjects = setOf(dependenciesProject, v10BomProject)
+val bomProject = project(":bom")
+val bomProjects = setOf(dependenciesProject, bomProject)
 
 // The V10 example, the eShop (D158, D159, D204): built and checked with the V10 modules, never published, and named
 // like an application's modules, without the `wow-` prefix of a V10 artifact. It is five contexts of an API, a domain
@@ -60,20 +60,19 @@ val eshopProjects = listOf("catalog", "basket", "ordering", "inventory", "paymen
 // The V10 quickstart (D217): the sample of documentation/docs/{en,zh}/guide/v10/quickstart.md, one module that is its
 // domain and its server, built and tested like the eShop, never published. The Java smoke test (D229 G-8): a domain
 // written in Java, built by the compiler and tested with the test DSL, never published.
-val v10ExampleNames = eshopProjects + "quickstart" + "java-smoke"
-val v10ExampleProjects = includedProjects(*v10ExampleNames.map { ":$it" }.toTypedArray())
-val exampleProjects = v10ExampleProjects
+val exampleNames = eshopProjects + "quickstart" + "java-smoke"
+val exampleProjects = includedProjects(*exampleNames.map { ":$it" }.toTypedArray())
 
 val codeCoverageReportProject = project(":code-coverage-report")
 // The end-to-end architecture benchmark (decision D224, roadmap M7.5 B.0) under test/benchmarks/: the V10 benchmark
 // domain and server and the load generator (the 9.x twin runs from v10-9x-baseline, D262). Applications, like the
 // examples: never published, without an ABI dump, and left out of the coverage reports (code-coverage-report reads
-// `e2eBenchmarkProjects`). The V10 one builds and checks with the V10 modules (`v10Check`) as a user of them.
+// `e2eBenchmarkProjects`). The V10 one builds and checks with the V10 modules (`:check`) as a user of them.
 val e2eBenchmarkProjects = includedProjects(":benchmark-server", ":benchmark-load")
 // The V10 modules (documentation/designs/v10/06-modules.md). Every module builds on JDK 21 (decision D29); these stay
 // incubating until their API settles; :architecture (V10's dependency rules), :routing-spike (spike H2), :lease-spike
 // (spike H6) and the examples (:eshop-*, :quickstart, :java-smoke) are never published.
-val v10Projects = listOf(
+val moduleProjects = listOf(
     "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query", "query-tck",
     "postgres", "mongo", "kafka", "clickhouse", "elasticsearch", "openapi", "http", "client", "cosec",
     "opentelemetry", "spring-boot", "cosid",
@@ -83,13 +82,13 @@ val v10Projects = listOf(
     "analytics-catalog-api", "analytics-catalog-domain", "analytics-catalog-server",
     "compiler", "gradle-plugin", "manifest-tools",
     "routing-spike", "lease-spike", "benchmark-server",
-).plus(v10ExampleNames).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
+).plus(exampleNames).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
 
 // The V10 modules a 10.x release publishes (06-modules.md §6; R.1 turns their publication on). Their ABI is kept in
 // `api/<module>.api` (D88, D147, D216; see `abiValidation` below). :migrate-data (a CLI
 // application) and :manifest-tools (run in an isolated worker by the same-version Gradle plugin, D83) keep no dump:
 // their contract is not a JVM signature.
-val v10PublishedProjects = includedProjects(
+val abiProjects = includedProjects(
     ":api", ":manifest", ":query-api", ":spi", ":kernel", ":runtime", ":reactor", ":query",
     ":postgres", ":mongo", ":kafka", ":clickhouse", ":elasticsearch", ":openapi", ":http", ":client", ":cosec",
     ":opentelemetry", ":spring-boot",
@@ -97,17 +96,14 @@ val v10PublishedProjects = includedProjects(
     ":compiler", ":gradle-plugin",
 )
 // What a 10.x release publishes to Maven (R.1, D205): the published modules above, :migrate-data and :manifest-tools
-// (published, without a dump), and the V10 BOM. :wow-dependencies goes out with them (see `v10ReleaseProjects`'
+// (published, without a dump), and the V10 BOM. :wow-dependencies goes out with them (see `releaseProjects`'
 // use below): every V10 POM imports it.
-val v10PublishedLibraries = v10PublishedProjects + includedProjects(":migrate-data", ":manifest-tools")
-val v10ReleaseProjects = v10PublishedLibraries + v10BomProject
-// The V10 modules whose ABI is checked: every published one but :migrate-data and :manifest-tools, frozen at the M7
-// exit (D216 F.5, which committed their first dumps).
-val v10AbiProjects = v10PublishedProjects
+val publishedLibraries = abiProjects + includedProjects(":migrate-data", ":manifest-tools")
+val releaseProjects = publishedLibraries + bomProject
 // V10 modules that use Wow the way an application does (D216): the eShop, the platform services' domains and servers,
 // and :architecture. They do not opt in to `@InternalWowApi` or `@ExperimentalWowApi`, so the compiler shows where
 // they reach past the public API.
-val v10UserProjects = v10ExampleProjects + includedProjects(
+val userProjects = exampleProjects + includedProjects(
     ":ops-domain", ":ops-server", ":view-store-domain", ":view-store-server", ":analytics-catalog-domain",
     ":analytics-catalog-server", ":architecture", ":benchmark-server",
 )
@@ -115,24 +111,24 @@ val v10UserProjects = v10ExampleProjects + includedProjects(
 // D87: a V10 project's name and directory carry no `wow-` prefix (`:kernel` in core/kernel); its jar, Kotlin module and
 // Maven artifactId do (`wow-kernel`), so the coordinates users see are unchanged. A project whose name cannot be its
 // artifact minus the prefix (a Gradle task name, such as the test DSL's `:test-dsl`) is mapped here.
-val v10ArtifactIds = mapOf("test-dsl" to "wow-test")
+val artifactIds = mapOf("test-dsl" to "wow-test")
 fun Project.artifactName(): String =
-    if (this == v10BomProject || this in v10Projects && this !in v10ExampleProjects && this !in e2eBenchmarkProjects) {
-        v10ArtifactIds[name] ?: "wow-$name"
+    if (this == bomProject || this in moduleProjects && this !in exampleProjects && this !in e2eBenchmarkProjects) {
+        artifactIds[name] ?: "wow-$name"
     } else {
         name
     }
 // Libraries that build and test like the others but are not published yet: the V10 modules a release does not publish
 // (the platform's domains and servers, :architecture, the spikes and the eShop).
-val incubatingProjects = v10Projects - v10PublishedLibraries
+val incubatingProjects = moduleProjects - publishedLibraries
 val publishProjects = subprojects - exampleProjects - codeCoverageReportProject - e2eBenchmarkProjects - incubatingProjects
 val libraryProjects = publishProjects - bomProjects + incubatingProjects + e2eBenchmarkProjects
 // What the V10 BOM constrains: exactly the V10 libraries a 10.x release publishes.
-val v10BomConstrainedProjects = v10PublishedLibraries
+val bomConstrainedProjects = publishedLibraries
 val isInCI = !System.getenv("CI").isNullOrEmpty()
 ext.set("libraryProjects", libraryProjects)
 ext.set("e2eBenchmarkProjects", e2eBenchmarkProjects)
-ext.set("v10BomConstrainedProjects", v10BomConstrainedProjects)
+ext.set("bomConstrainedProjects", bomConstrainedProjects)
 
 enum class WowTestLayer(
     val sourceSetName: String,
@@ -147,7 +143,7 @@ enum class WowTestLayer(
 }
 
 val localTestProjects = libraryProjects
-val v10IntegrationTestProjects = includedProjects(
+val integrationTestProjects = includedProjects(
     ":postgres",
     ":mongo",
     ":kafka",
@@ -163,23 +159,21 @@ val v10IntegrationTestProjects = includedProjects(
     ":analytics-catalog-server",
     ":migrate-data",
 )
-val integrationTestProjects = v10IntegrationTestProjects
 // v10.yml runs the integration tests in shards (its `integration` matrix): `-Pwow.integration.projects=":mongo :postgres"`
-// narrows `v10IntegrationTest`, and the test data `v10IntegrationCoverageReport` reads, to those projects. The report
+// narrows `:integrationTest`, and the test data `integrationCoverageReport` reads, to those projects. The report
 // still covers the classes of every project above, so a shard's tests count on the modules of the other shards too.
-val v10IntegrationShardProjects = providers.gradleProperty("wow.integration.projects").orNull?.let { paths ->
+val integrationShardProjects = providers.gradleProperty("wow.integration.projects").orNull?.let { paths ->
     paths.split(' ', ',').filter(String::isNotBlank).map { path ->
         project(path).also {
-            require(it in v10IntegrationTestProjects) { "$path is not a V10 integration test project" }
+            require(it in integrationTestProjects) { "$path is not an integration test project" }
         }
     }.toSet()
-} ?: v10IntegrationTestProjects
+} ?: integrationTestProjects
 
 ext.set("localTestProjects", localTestProjects)
 ext.set("integrationTestProjects", integrationTestProjects)
-ext.set("v10Projects", v10Projects)
-ext.set("v10IntegrationTestProjects", v10IntegrationTestProjects)
-ext.set("v10IntegrationShardProjects", v10IntegrationShardProjects)
+ext.set("moduleProjects", moduleProjects)
+ext.set("integrationShardProjects", integrationShardProjects)
 
 fun Project.registerJvmTestLayer(
     layer: WowTestLayer,
@@ -271,7 +265,7 @@ configure(libraryProjects) {
     }
     apply<JacocoPlugin>()
     apply<JavaLibraryPlugin>()
-    if (project in v10Projects) {
+    if (project in moduleProjects) {
         configure<BasePluginExtension> {
             archivesName.set(artifactName())
         }
@@ -288,8 +282,8 @@ configure(libraryProjects) {
         compilerOptions {
             freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
             // Wow's own modules share internal declarations and build on its experimental ones; a user module
-            // (`v10UserProjects`, the end-to-end benchmark) does not (D216).
-            if (project !in v10UserProjects && project !in e2eBenchmarkProjects) {
+            // (`userProjects`, the end-to-end benchmark) does not (D216).
+            if (project !in userProjects && project !in e2eBenchmarkProjects) {
                 optIn.addAll(
                     "me.ahoo.wow.api.annotation.InternalWowApi",
                     "me.ahoo.wow.api.annotation.ExperimentalWowApi",
@@ -297,8 +291,8 @@ configure(libraryProjects) {
             }
             // Test, contract and benchmark code exercises the SPI directly; main code opts in per module. Wow's own V10
             // modules implement or wire the `:spi` ports (D216), so they opt in whole; a user module does not.
-            val wowV10Module = project in v10Projects && project !in v10UserProjects
-            if (wowV10Module || name != "compileKotlin") {
+            val wowModule = project in moduleProjects && project !in userProjects
+            if (wowModule || name != "compileKotlin") {
                 optIn.add("me.ahoo.wow.api.annotation.WowSpi")
             }
             javaParameters = true
@@ -306,7 +300,7 @@ configure(libraryProjects) {
     }
     // V10 interfaces compile to plain JVM default methods, without the `DefaultImpls` classes (`-jvm-default=
     // no-compatibility`, D216): free before the API freeze, a binary break after it.
-    if (project in v10Projects) {
+    if (project in moduleProjects) {
         tasks.withType<KotlinCompile> {
             compilerOptions.jvmDefault.set(JvmDefaultMode.NO_COMPATIBILITY)
         }
@@ -360,37 +354,30 @@ tasks.register("allLocalTest") {
     dependsOn(localTestProjects.map { it.tasks.named("test") })
 }
 
-tasks.register("allIntegrationTest") {
-    description = "Runs all container-backed integration tests."
-    group = LifecycleBasePlugin.VERIFICATION_GROUP
-    dependsOn(integrationTestProjects.map { it.tasks.named(WowTestLayer.INTEGRATION.taskName) })
-}
-
-// The V10 checks (v10.yml). `check` of every V10 module compiles it and runs its unit tests (`:architecture:test` holds
-// the V10 dependency rules); detekt covers the same modules. The ABI of the published V10 modules is checked from the
-// API freeze at the M7 exit (D88, D147, D216): `checkKotlinAbi` of `v10AbiProjects` against their `api/<module>.api`.
-tasks.register("v10Check") {
-    description = "Compiles, unit-tests and runs detekt over the V10 modules."
-    group = LifecycleBasePlugin.VERIFICATION_GROUP
-    dependsOn(v10Projects.map { it.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) })
-    dependsOn(v10Projects.map { it.tasks.named("detekt") })
-    dependsOn(v10AbiProjects.map { it.tasks.named("checkKotlinAbi") })
+// The root `check` (`./gradlew :check`, CI's check job): `check` of every module compiles it and runs its unit tests
+// (`:architecture:test` holds the dependency rules); detekt covers the same modules. The ABI of the published modules
+// is checked from the API freeze at the M7 exit (D88, D147, D216): `checkKotlinAbi` of `abiProjects` against their
+// `api/<module>.api`. `./gradlew check` also runs it, with the `check` of the projects outside `moduleProjects`.
+tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) {
+    dependsOn(moduleProjects.map { it.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) })
+    dependsOn(moduleProjects.map { it.tasks.named("detekt") })
+    dependsOn(abiProjects.map { it.tasks.named("checkKotlinAbi") })
 }
 
 // Container-backed (Docker/Testcontainers). The spikes' suites skip themselves unless their flags are set.
-tasks.register("v10IntegrationTest") {
-    description = "Runs the container-backed integration tests of the V10 modules."
+tasks.register(WowTestLayer.INTEGRATION.taskName) {
+    description = "Runs the container-backed integration tests of the modules."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    dependsOn(v10IntegrationShardProjects.map { it.tasks.named(WowTestLayer.INTEGRATION.taskName) })
+    dependsOn(integrationShardProjects.map { it.tasks.named(WowTestLayer.INTEGRATION.taskName) })
 }
 
 // Signatures: a release signs in CI with the key in SIGNING_*; elsewhere the signing.* properties of
 // ~/.gradle/gradle.properties sign. A V10 publication requires them with `-Pwow.publication.signed=true` (the
-// release's preflight). Without it, `v10PublicationCheck` signs the V10 publications with a throwaway key it generates
+// release's preflight). Without it, `publicationCheck` signs the V10 publications with a throwaway key it generates
 // (GnuPG, in a home of its own), so a pull request, which has no key, checks the signatures a release publishes too.
-val requireV10Signatures = providers.gradleProperty("wow.publication.signed").orNull.toBoolean()
+val requireSignatures = providers.gradleProperty("wow.publication.signed").orNull.toBoolean()
 val prebuiltPublication = providers.gradleProperty("wow.publication.prebuilt").orNull.toBoolean()
-val v10PublicationProjects = v10ReleaseProjects + dependenciesProject
+val publicationProjects = releaseProjects + dependenciesProject
 
 fun runProcess(command: List<String>, stdin: String? = null): String {
     val errors = File.createTempFile("wow-process", ".log")
@@ -424,17 +411,17 @@ class GnupgHome {
     }
 }
 
-val v10PublicationCheckRequested =
-    gradle.startParameter.taskNames.any { it.substringAfterLast(':') == "v10PublicationCheck" }
-val v10ThrowawaySigning: GnupgHome? = if (v10PublicationCheckRequested && !requireV10Signatures) {
+val publicationCheckRequested =
+    gradle.startParameter.taskNames.any { it.substringAfterLast(':') == "publicationCheck" }
+val throwawaySigningHome: GnupgHome? = if (publicationCheckRequested && !requireSignatures) {
     GnupgHome().apply {
         val unprotected = arrayOf("--pinentry-mode", "loopback", "--passphrase", "")
-        gpg(*unprotected, "--quick-gen-key", "Wow v10PublicationCheck (throwaway)", "rsa3072", "sign", "1d")
+        gpg(*unprotected, "--quick-gen-key", "Wow publicationCheck (throwaway)", "rsa3072", "sign", "1d")
     }
 } else {
     null
 }
-val v10ThrowawaySigningKey: String? = v10ThrowawaySigning
+val throwawaySigningKey: String? = throwawaySigningHome
     ?.gpg("--pinentry-mode", "loopback", "--passphrase", "", "--armor", "--export-secret-keys")
 
 configure(publishProjects) {
@@ -513,9 +500,9 @@ configure(publishProjects) {
         }
     }
     configure<SigningExtension> {
-        val v10Publication = project in v10PublicationProjects
-        if (v10Publication && v10ThrowawaySigningKey != null) {
-            useInMemoryPgpKeys(v10ThrowawaySigningKey, "")
+        val releasePublication = project in publicationProjects
+        if (releasePublication && throwawaySigningKey != null) {
+            useInMemoryPgpKeys(throwawaySigningKey, "")
         } else if (isInCI) {
             val signingKeyId = System.getenv("SIGNING_KEYID")
             val signingKey = System.getenv("SIGNING_SECRETKEY")
@@ -526,8 +513,8 @@ configure(publishProjects) {
         // (the signing plugin's `shouldBePublished`). The deploy jobs (`-Pwow.publication.prebuilt=true`) have no key
         // and leave the Sign tasks out (settings.gradle.kts), so they require the signatures: the publications then
         // upload the `.asc` files the preflight made beside the files it signed, and a missing one fails the publish.
-        if (v10Publication) {
-            isRequired = requireV10Signatures || v10ThrowawaySigningKey != null || prebuiltPublication
+        if (releasePublication) {
+            isRequired = requireSignatures || throwawaySigningKey != null || prebuiltPublication
         }
         sign(extensions.getByType(PublishingExtension::class).publications)
     }
@@ -536,7 +523,7 @@ configure(publishProjects) {
 // A V10 module's test fixtures (`:manifest`'s, say) are for Wow's own modules and stay unpublished
 // (09-capability-parity.md, "端口 TCK"); the published TCKs are `:tck` and `:query-tck` (review R3.3-2). `java-test-fixtures` would add them to the `java`
 // component, so the release would build and ship a `-test-fixtures` jar.
-configure(v10ReleaseProjects) {
+configure(releaseProjects) {
     pluginManager.withPlugin("java-test-fixtures") {
         val java = components["java"] as AdhocComponentWithVariants
         listOf("testFixturesApiElements", "testFixturesRuntimeElements").forEach {
@@ -545,10 +532,10 @@ configure(v10ReleaseProjects) {
     }
 }
 
-// The release rehearsal of the V10 publications (R.1): `./gradlew v10PublicationCheck` builds and
+// The release rehearsal of the V10 publications (R.1): `./gradlew publicationCheck` builds and
 // signs every V10 release module and :wow-dependencies as the release's preflight does (with the release key and
 // `-Pwow.publication.signed=true` there, with a throwaway key elsewhere, see Signatures), publishes them into
-// build/v10-publication-check/repo, then checks that each library has its jar, sources and javadoc jars, POM and
+// build/publication-check/repo, then checks that each library has its jar, sources and javadoc jars, POM and
 // Gradle module metadata, each with its signature; that every POM carries what Maven Central requires; that no
 // published POM depends on a Wow module the release leaves out, or on another version; that the V10 BOM constrains
 // exactly the published libraries; and that nothing else was published.
@@ -560,43 +547,43 @@ configure(v10ReleaseProjects) {
 // and requires that only publish tasks remain: a published variant whose files the left-out tasks do not make (as
 // `:query`'s test fixtures did, compiled against the left-out `jar`) would be rebuilt there, or fail as 10.0.0-alpha.1's
 // deploy jobs did, so it fails here first. Then it runs that publish: a Gradle build of its own, as the deploy jobs run
-// it (`-Pwow.publication.prebuilt=true`, CI set, no SIGNING_* key), into build/v10-publication-check/deploy, and
+// it (`-Pwow.publication.prebuilt=true`, CI set, no SIGNING_* key), into build/publication-check/deploy, and
 // requires that it uploads exactly the files this build published, byte for byte, and that every signature verifies.
 // 10.0.0-alpha.2's deploy jobs uploaded no signature at all, which Maven Central refused.
-val v10PublicationCheckRepository: Provider<Directory> = layout.buildDirectory.dir("v10-publication-check/repo")
-val v10DeployCheckRepository: Provider<Directory> = layout.buildDirectory.dir("v10-publication-check/deploy")
-val cleanV10PublicationCheck = tasks.register<Delete>("cleanV10PublicationCheck") {
-    delete(v10PublicationCheckRepository, v10DeployCheckRepository)
+val publicationCheckRepository: Provider<Directory> = layout.buildDirectory.dir("publication-check/repo")
+val deployCheckRepository: Provider<Directory> = layout.buildDirectory.dir("publication-check/deploy")
+val cleanPublicationCheck = tasks.register<Delete>("cleanPublicationCheck") {
+    delete(publicationCheckRepository, deployCheckRepository)
 }
-configure(v10PublicationProjects) {
+configure(publicationProjects) {
     configure<PublishingExtension> {
         repositories {
             maven {
-                name = "v10PublicationCheck"
-                url = uri(v10PublicationCheckRepository)
+                name = "publicationCheck"
+                url = uri(publicationCheckRepository)
             }
             maven {
-                name = "v10DeployCheck"
-                url = uri(v10DeployCheckRepository)
+                name = "deployCheck"
+                url = uri(deployCheckRepository)
             }
         }
     }
     tasks.withType<PublishToMavenRepository>().configureEach {
-        if (name.endsWith("ToV10PublicationCheckRepository")) mustRunAfter(cleanV10PublicationCheck)
+        if (name.endsWith("ToPublicationCheckRepository")) mustRunAfter(cleanPublicationCheck)
     }
 }
 @Suppress("UNCHECKED_CAST")
 val prebuiltPublicationTasks = gradle.extensions.extraProperties["wowPublicationPrebuiltTasks"] as List<String>
 val deployGraphProblems = mutableListOf<String>()
-tasks.register("v10PublicationCheck") {
+tasks.register("publicationCheck") {
     description = "Publishes the V10 release modules into a scratch repository and checks what a release would ship."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    val publishTasks = v10PublicationProjects.map {
-        it.tasks.named("publishAllPublicationsToV10PublicationCheckRepository")
+    val publishTasks = publicationProjects.map {
+        it.tasks.named("publishAllPublicationsToPublicationCheckRepository")
     }
-    dependsOn(cleanV10PublicationCheck)
+    dependsOn(cleanPublicationCheck)
     dependsOn(publishTasks)
-    val repository = v10PublicationCheckRepository.get().asFile
+    val repository = publicationCheckRepository.get().asFile
     // The deploy jobs' graph: the publish tasks' dependencies, minus the left-out tasks and what only they need.
     gradle.taskGraph.whenReady {
         if (!hasTask(this@register)) return@whenReady
@@ -606,7 +593,7 @@ tasks.register("v10PublicationCheck") {
             if (task.name in prebuiltPublicationTasks || !deployed.add(task)) return
             graph.getDependencies(task).forEach(::visit)
         }
-        allTasks.filter { it is PublishToMavenRepository && it.name.endsWith("ToV10PublicationCheckRepository") }
+        allTasks.filter { it is PublishToMavenRepository && it.name.endsWith("ToPublicationCheckRepository") }
             .forEach(::visit)
         deployed.filter { it !is PublishToMavenRepository && !it.name.startsWith("publishAllPublicationsTo") }
             .map { it.path }.sorted()
@@ -614,14 +601,14 @@ tasks.register("v10PublicationCheck") {
     }
     val groupId = project.group.toString()
     val releaseVersion = project.version.toString()
-    val libraries = v10PublicationProjects.filter { it !in bomProjects }.map { it.artifactName() }.toSortedSet()
-    val platforms = v10PublicationProjects.filter { it in bomProjects }.map { it.artifactName() }.toSortedSet()
-    val bomArtifactId = v10BomProject.artifactName()
-    val bomConstrained = v10BomConstrainedProjects.map { it.artifactName() }.toSortedSet()
-    val deployRepository = v10DeployCheckRepository.get().asFile
+    val libraries = publicationProjects.filter { it !in bomProjects }.map { it.artifactName() }.toSortedSet()
+    val platforms = publicationProjects.filter { it in bomProjects }.map { it.artifactName() }.toSortedSet()
+    val bomArtifactId = bomProject.artifactName()
+    val bomConstrained = bomConstrainedProjects.map { it.artifactName() }.toSortedSet()
+    val deployRepository = deployCheckRepository.get().asFile
     val rootDirectory = rootDir
     val offline = gradle.startParameter.isOffline
-    val throwawaySigning = v10ThrowawaySigning
+    val throwawaySigning = throwawaySigningHome
     // The release key, to verify its signatures with, from where this build's signatory takes it.
     val releaseKey = if (isInCI) {
         System.getenv("SIGNING_SECRETKEY")
@@ -670,7 +657,7 @@ tasks.register("v10PublicationCheck") {
             listOf(
                 File(rootDirectory, "gradlew").path, "--no-daemon", "--quiet",
                 "-Pwow.publication.prebuilt=true", "-Pversion=$releaseVersion",
-                "publishAllPublicationsToV10DeployCheckRepository",
+                "publishAllPublicationsToDeployCheckRepository",
             ) + listOfNotNull("--offline".takeIf { offline }),
         ).directory(rootDirectory).inheritIO()
         deploy.environment().keys.removeAll { it.startsWith("SIGNING_") }
@@ -759,12 +746,12 @@ tasks.register("v10PublicationCheck") {
     }
 }
 
-// The JVM ABI of every published library but :migrate-data and :manifest-tools (`v10AbiProjects`) is kept in its
-// `api/<module>.api`; `check` and `v10Check` run `checkKotlinAbi` against it, so a public signature cannot change
+// The JVM ABI of every published library but :migrate-data and :manifest-tools (`abiProjects`) is kept in its
+// `api/<module>.api`; `check` and `:check` run `checkKotlinAbi` against it, so a public signature cannot change
 // unnoticed. AGENTS.md ("Binary Compatibility") says when a dump may change. The dumps date from the
 // API freeze (D216); `./gradlew updateKotlinAbi` rewrites their dumps, and between the M7 exit and
 // 10.0.0 GA a removed or changed line there takes the `breaking-change` label.
-configure(v10AbiProjects) {
+configure(abiProjects) {
     configure<KotlinJvmProjectExtension> {
         @OptIn(ExperimentalAbiValidation::class)
         abiValidation {

@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.postgres.snapshot
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
@@ -131,7 +135,23 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
 
     private fun table(context: String, aggregate: String) = "wow_snapshot__" + context.replace('-', '_') + "__" + aggregate
 
+    @Test
+    fun `concurrent first loads make sure of the table once, and each load is then one statement`(): Unit =
+        runBlocking {
+            val counted = CountedDataSource(PostgresFixture.dataSource)
+            val context = PostgresFixture.newContext()
+            val store = PostgresSnapshotStore(counted.dataSource, context)
+            val ref = AggregateType(context, "order").ref("tenant", "a")
+            val mark = counted.begin()
+            coroutineScope { (1..FIRST_LOADS).map { async(Dispatchers.IO) { store.load(ref) } }.awaitAll() }
+            counted.since(mark).count { it.startsWith("SELECT pg_advisory_xact_lock") }.assert().isEqualTo(1)
+            val again = counted.begin()
+            repeat(FIRST_LOADS) { store.load(ref).assert().isNull() }
+            counted.since(again).size.assert().isEqualTo(FIRST_LOADS)
+        }
+
     private companion object {
         const val BATCH = 20
+        const val FIRST_LOADS = 32
     }
 }

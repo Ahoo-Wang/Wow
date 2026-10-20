@@ -151,7 +151,7 @@ A limit of `0` is off.
 
 ## Kafka
 
-Read when `wow-kafka` is on the class path; nothing is wired until `wow.kafka.bootstrap-servers` is set.
+Read when `wow-kafka` is on the class path; nothing is wired until `wow.kafka.bootstrap-servers` is set. Without Kafka, `wow.topics.in-memory: true` (false by default) keeps the node's command topics and published streams in its JVM, for local development only; it refuses to start with `wow.kafka.bootstrap-servers` set too.
 
 | Key | Default | Means |
 | --- | --- | --- |
