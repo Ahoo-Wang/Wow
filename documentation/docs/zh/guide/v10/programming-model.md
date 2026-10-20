@@ -106,19 +106,24 @@ class CartState(val id: String) {
 
 ### 拒绝与错误码
 
-拒绝码是一个 `String` 类型的 `const val`，顶层的或在 `object` 里，标注 `@ErrorCode`，放在领域模块里、用它拒绝的函数旁边：
+拒绝码是一个 `String` 类型、标注 `@ErrorCode` 的 `const val`，放在领域模块里、用它拒绝的函数旁边。写它的本地名，放在嵌套于 `@AggregateRoot` 类中的 `object` 里（决策 D259）：
 
 ```kotlin
-object OrderRejections {
-    @ErrorCode(description = "The order has no item.")
-    const val NO_ITEMS = "example.order.no-items"
+@AggregateRoot
+class Order(private val state: OrderState) {
+    // … command functions: Decision.reject(Rejections.WRONG_STATUS, "The order is ${state.status}.")
 
-    @ErrorCode(description = "The order's status does not allow the command.", status = 409)
-    const val WRONG_STATUS = "example.order.wrong-status"
+    object Rejections {
+        @ErrorCode(description = "The order has no item.")
+        const val NO_ITEMS = "no-items"
+
+        @ErrorCode(description = "The order's status does not allow the command.", status = 409)
+        const val WRONG_STATUS = "wrong-status"
+    }
 }
 ```
 
-编译器把模块的错误码列入 Manifest 中该上下文的 `errors`，带上 HTTP 状态码（400 至 599，默认 422）与说明。错误码不能以框架的 `wow.` 开头，一个模块里每个错误码只声明一次。内核自己的错误码有 `wow.command.unhandled`、`wow.aggregate.not-found`、`wow.aggregate.exists`、`wow.aggregate.version-mismatch`、`wow.command.request-id-reused`、`wow.aggregate.deleted` 与 `wow.aggregate.forbidden`（`KernelRejections`）。
+编译器给本地名补上上下文与聚合，成为 `example.order.wrong-status`；内核也以这个全名给出拒绝，所以结果、回执、HTTP 应答与 Manifest 里只出现全名，测试 DSL 的 `expectRejected` 两种写法都接受。api 模块生成的契约为对端提供全名常量：`ExampleContract.Order.Errors.WRONG_STATUS`。含点号的错误码是全名、原样使用，例如上下文内各聚合共用的 `example.closed`。编译器把模块的错误码列入 Manifest 中该上下文的 `errors`，带上 HTTP 状态码（400 至 599，默认 422）与说明。错误码不能以框架的 `wow.` 开头，一个模块里每个错误码只声明一次。内核自己的错误码有 `wow.command.unhandled`、`wow.aggregate.not-found`、`wow.aggregate.exists`、`wow.aggregate.version-mismatch`、`wow.command.request-id-reused`、`wow.aggregate.deleted` 与 `wow.aggregate.forbidden`（`KernelRejections`）。
 
 ### 生命周期命令
 

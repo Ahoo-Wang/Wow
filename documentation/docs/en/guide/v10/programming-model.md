@@ -106,19 +106,24 @@ class CartState(val id: String) {
 
 ### Rejections and error codes
 
-A rejection code is a `const val` of type `String`, top-level or in an `object`, annotated `@ErrorCode`, in the domain module beside the functions that reject with it:
+A rejection code is a `const val` of type `String` annotated `@ErrorCode`, in the domain module beside the functions that reject with it. Write its local name, in an `object` nested in the `@AggregateRoot` class (decision D259):
 
 ```kotlin
-object OrderRejections {
-    @ErrorCode(description = "The order has no item.")
-    const val NO_ITEMS = "example.order.no-items"
+@AggregateRoot
+class Order(private val state: OrderState) {
+    // … command functions: Decision.reject(Rejections.WRONG_STATUS, "The order is ${state.status}.")
 
-    @ErrorCode(description = "The order's status does not allow the command.", status = 409)
-    const val WRONG_STATUS = "example.order.wrong-status"
+    object Rejections {
+        @ErrorCode(description = "The order has no item.")
+        const val NO_ITEMS = "no-items"
+
+        @ErrorCode(description = "The order's status does not allow the command.", status = 409)
+        const val WRONG_STATUS = "wrong-status"
+    }
 }
 ```
 
-The compiler lists the module's codes in the context's `errors` of the Manifest, with their HTTP status (400 to 599, 422 by default) and description. A code may not start with the framework's `wow.`, and a module declares each code once. The kernel's own codes are `wow.command.unhandled`, `wow.aggregate.not-found`, `wow.aggregate.exists`, `wow.aggregate.version-mismatch`, `wow.command.request-id-reused`, `wow.aggregate.deleted` and `wow.aggregate.forbidden` (`KernelRejections`).
+The compiler names a local code after its context and aggregate, `example.order.wrong-status`, and the kernel gives a rejection with it that name, so results, receipts, HTTP answers and the Manifest only carry the full code; the test DSL's `expectRejected` takes either. The api module's generated contract holds the full codes for the peers: `ExampleContract.Order.Errors.WRONG_STATUS`. A code with a dot is full, as written: `example.closed` for one the context's aggregates share. The compiler lists the module's codes in the context's `errors` of the Manifest, with their HTTP status (400 to 599, 422 by default) and description. A code may not start with the framework's `wow.`, and a module declares each code once. The kernel's own codes are `wow.command.unhandled`, `wow.aggregate.not-found`, `wow.aggregate.exists`, `wow.aggregate.version-mismatch`, `wow.command.request-id-reused`, `wow.aggregate.deleted` and `wow.aggregate.forbidden` (`KernelRejections`).
 
 ### Lifecycle commands
 
