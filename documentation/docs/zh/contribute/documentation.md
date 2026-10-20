@@ -119,7 +119,7 @@ Wow 按读者决定每类文档的位置，每类只放一处。本页给出原�
 
 ## 自动检查
 
-`.github/scripts/docs-layout.mjs`（`pnpm check:docs-layout`）作为 `typescript.yml` 的 `docs-layout` 作业在每个 Pull Request 上运行，计入 `typescript-gate`。它只读取受跟踪的文件，遇到以下情况失败：
+`.github/scripts/docs-layout.mjs`（`pnpm check:docs-layout`）作为 `ci.yml` 的 `docs-layout` 作业在每个 Pull Request 上运行，计入 `ci-gate`。它只读取受跟踪的文件，遇到以下情况失败：
 
 - `document/` 或 `docs/superpowers/` 下有受跟踪的文件；
 - Markdown 出现在[规范目录](#规范目录)之外；
