@@ -412,11 +412,11 @@ These tests run in Node. Where the host's Vitest is a browser project, give them
 
 The compensation console is the view engine's reference host and does every section above; its wiring is three files:
 
-- [`ConsoleHost.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/App/ConsoleHost.tsx): one `ViewHost` — the engine, React Router, the language following the console's own i18n, the `porcelain` preset with Wow's blue as the brand, light or dark kept on this machine.
-- [`views/routes.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/views/routes.ts): a `bind` for each of three resources, one line of route each; the failed executions also carry their reading and declared commands. A test passes its own command client.
-- [`views/engine.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/views/engine.ts): the resources and their sources.
+- [`ConsoleHost.tsx`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/compensation/dashboard/src/features/App/ConsoleHost.tsx): one `ViewHost` — the engine, React Router, the language following the console's own i18n, the `porcelain` preset with Wow's blue as the brand, light or dark kept on this machine.
+- [`views/routes.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/compensation/dashboard/src/views/routes.ts): a `bind` for each of three resources, one line of route each; the failed executions also carry their reading and declared commands. A test passes its own command client.
+- [`views/engine.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/compensation/dashboard/src/views/engine.ts): the resources and their sources.
 
-Beside them, [`routes.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/views/routes.test.ts) and [`admit.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/views/admit.test.ts) are the previous section's two kinds of test as a real host writes them.
+Beside them, [`routes.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/compensation/dashboard/src/views/routes.test.ts) and [`admit.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/compensation/dashboard/src/views/admit.test.ts) are the previous section's two kinds of test as a real host writes them.
 
 ## The full working version
 

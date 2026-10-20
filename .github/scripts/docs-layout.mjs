@@ -31,11 +31,11 @@ export const MARKDOWN_LOCATIONS = [
   /^documentation\/docs\//,
   /^documentation\/designs\/(?:v\d+\/)?[^/]+\.md$/,
   // The design of one TypeScript package or application.
-  /^(?:typescript\/[^/]+|compensation\/dashboard)\/docs\/design\//,
+  /^typescript\/[^/]+\/docs\/design\//,
   // Storybook's scenario catalog, which the stories cite by section.
   /^typescript\/storybook\/docs\/scenarios\.md$/,
   // Ledgers and release runbooks.
-  /^docs\/(?:compat-debt|todo)\.md$/,
+  /^docs\/todo\.md$/,
   // The eShop's developer-experience gaps, to close before V10's M7.
   /^example\/eshop\/DX-GAPS\.md$/,
   /^typescript\/(?:TODO|MIGRATION|RELEASING|RELEASE_NOTES_TEMPLATE)\.md$/,

@@ -89,7 +89,7 @@ What the rows mean in practice:
 
 An application that has to work against a server older than 9.1.5 passes `limit` in every `listQuery()`. CI holds each row to a released server: the smoke test of the 8.11.5, 9.1.3 and 9.1.5 images sends a list and a list stream without `limit` and expects exactly this. The wow-react hooks take the query as given, so the same holds for `useListQuery` and `useListStreamQuery`.
 
-The CI jobs are in [`typescript-contract.yml`](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/typescript-contract.yml); the compatibility code they protect is listed in [`docs/compat-debt.md`](https://github.com/Ahoo-Wang/Wow/blob/main/docs/compat-debt.md).
+The CI jobs are in [`typescript-contract.yml`](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/typescript-contract.yml); the compatibility code they protect is listed in [`docs/compat-debt.md`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/docs/compat-debt.md).
 
 ## Runtimes and peers
 
@@ -116,4 +116,4 @@ Wow 9.x keeps everything below working; v10 removes all of it in one breaking re
 | The `fetcher-generator` command | `wow-generator` |
 | Reading `fetcher-generator.config.json` and `.fetcher-generator.json` | `wow-generator.config.json` and `.wow-generator.json` |
 
-The complete list, with the code that implements each item, is [`docs/compat-debt.md`](https://github.com/Ahoo-Wang/Wow/blob/main/docs/compat-debt.md).
+The complete list, with the code that implements each item, is [`docs/compat-debt.md`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/docs/compat-debt.md).

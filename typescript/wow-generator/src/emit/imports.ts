@@ -13,7 +13,7 @@
 
 import { join, relative, sep } from 'path';
 import type { ModelInfo } from '../naming/modelInfo';
-import { boundedContextFilePath, MODEL_FILE_NAME } from '../naming/paths';
+import { MODEL_FILE_NAME } from '../naming/paths';
 import type { NamedImport } from './importRegistry';
 import type { ModuleBuilder } from './moduleBuilder';
 
@@ -96,28 +96,4 @@ export function relativeModuleSpecifier(
     ? relativePath.replace(/\.ts$/, '.js')
     : `${relativePath}/index.js`;
   return relativePath.startsWith('.') ? relativePath : `./${relativePath}`;
-}
-
-/**
- * Imports a bounded context's alias constant into a generated file.
- *
- * @param module - The importing module
- * @param outputDir - The output directory
- * @param contextAlias - The bounded context alias
- * @param declarationName - The name of the alias constant
- */
-export function addImportBoundedContext(
-  module: ModuleBuilder,
-  outputDir: string,
-  contextAlias: string,
-  declarationName: string,
-): readonly NamedImport[] {
-  return addImport(
-    module,
-    relativeModuleSpecifier(
-      module.directoryPath,
-      join(outputDir, boundedContextFilePath(contextAlias)),
-    ),
-    [declarationName],
-  );
 }

@@ -15,7 +15,6 @@ import { resolve } from 'path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CONFIG_PATH } from '../../src/api/configuration';
 import {
-  LEGACY_CONFIG_PATH,
   loadConfiguration,
   resolveConfiguration,
 } from '../../src/input/configuration';
@@ -296,32 +295,13 @@ describe('resolveConfiguration', () => {
     expect(logger.warn).not.toHaveBeenCalled();
   });
 
-  it('falls back to fetcher-generator.config.json with a deprecation warning', async () => {
-    mockLoadResource.mockImplementation(async (path: string) => {
-      if (path === DEFAULT_CONFIG_PATH) throw notFound();
-      return '{ "apiClients": { "Catalog": {} } }';
-    });
-    const logger = testLogger();
-
-    const resolved = await resolveConfiguration(undefined, logger);
-
-    expect(resolved).toEqual({
-      config: { apiClients: { Catalog: {} } },
-      origin: resolve(LEGACY_CONFIG_PATH),
-      warnings: [
-        `${resolve(LEGACY_CONFIG_PATH)} uses the deprecated name; rename it to wow-generator.config.json. The old name is no longer read from v10.`,
-      ],
-    });
-    expect(logger.warn).not.toHaveBeenCalled();
-  });
-
-  it('generates with defaults when neither name exists', async () => {
+  it('generates with defaults when the default file does not exist', async () => {
     mockLoadResource.mockRejectedValue(notFound());
 
     await expect(
       resolveConfiguration(undefined, testLogger()),
     ).resolves.toEqual({ config: {}, warnings: [] });
-    expect(mockLoadResource).toHaveBeenCalledTimes(2);
+    expect(mockLoadResource).toHaveBeenCalledTimes(1);
   });
 
   it('never falls back from a path the caller named', async () => {

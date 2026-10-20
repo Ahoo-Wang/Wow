@@ -18,11 +18,11 @@
 
 import { describe, expect, it } from 'vitest';
 import { generateCompiling, generateFailing } from '../support/probes';
-import { document, getOperation, wowDocument } from '../support/specs';
+import { document, getOperation } from '../support/specs';
 
 describe('names that are not identifiers', () => {
-  it('turns path parameters, schema names and command names into identifiers', async () => {
-    const spec = wowDocument({ commands: ['pay-order', 'create_order'] });
+  it('turns path parameters and schema names into identifiers', async () => {
+    const spec = document({});
     spec.paths['/items/{item-id}'] = getOperation(
       'getItem',
       { $ref: '#/components/schemas/Page«User»' },
@@ -51,12 +51,9 @@ describe('names that are not identifiers', () => {
        const first: _1stThing = 'x';
        void page; void first;`,
     );
-    expect(read('shop/itemsApiClient.ts')).toContain(
+    expect(read('itemsApiClient.ts')).toContain(
       "@path('item-id') itemId: string",
     );
-    const commandClient = read('shop/order/commandClient.ts');
-    expect(commandClient).toContain("PAY_ORDER = '/order/pay-order'");
-    expect(commandClient).toContain('payOrder(');
   });
 
   it('keeps the acronyms of type names as the document writes them', async () => {
@@ -89,17 +86,6 @@ describe('names that are not identifiers', () => {
     );
     expect(read('types.ts')).toContain('export interface MCPListTools {');
     expect(read('types.ts')).not.toContain('Mcp');
-  });
-
-  it('escapes quotes in event titles', async () => {
-    const { read } = await generateCompiling(
-      wowDocument({
-        events: [{ name: 'order_created', title: "Customer's order" }],
-      }),
-    );
-    expect(read('shop/order/queryClient.ts')).toContain(
-      "order_created = 'Customer\\'s order'",
-    );
   });
 });
 

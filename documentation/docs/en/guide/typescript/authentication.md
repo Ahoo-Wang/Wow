@@ -9,7 +9,7 @@ This page answers: **how do the generated Wow clients send the user's token, and
 
 Wow clients do not authenticate by themselves. Every request goes through a [Fetcher](https://fetcher.ahoo.me/), and whatever a request needs besides its path and body — a token, attribution headers, a refresh when the token expires — is added by that Fetcher's interceptors. Configure them once per service, and every client that uses the Fetcher inherits them.
 
-<!-- typecheck-generated: typescript/integration-test/src/generated -->
+<!-- typecheck-generated: example/eshop/web/src/generated/basket -->
 
 ## Which Fetcher a client uses
 
@@ -87,6 +87,7 @@ What `applyTo` adds to every request of that Fetcher:
 
 Resource attribution is why generated clients leave `tenantId` and `ownerId` out of their method parameters: for a tenant- or owner-scoped aggregate (`/tenant/{tenantId}/…`, `/owner/{ownerId}/…`), the signed-in user supplies them. Without CoSec, supply them yourself through `urlParams.path`, per client or per request:
 
+<!-- typecheck: skip — the 9.x generated client of the OpenAPI path that V10 deleted (D266); the V10 rewrite of this page uses the Manifest clients -->
 ```ts
 import { CartCommandClient } from './generated/index.js';
 
@@ -100,6 +101,7 @@ The query side works the same way: `cartQueryClientFactory.createSnapshotQueryCl
 
 A spaced aggregate (`@Spaced`) reads its space from the `Wow-Space-Id` header, on commands and queries alike; any other aggregate ignores the header. CoSec's own `spaceIdProvider` sends `CoSec-Space-Id`, which only a server with Wow's CoSec integration reads, as a fallback, and also only for a spaced aggregate. Send Wow's header per command with `commandHeaders({ spaceId })`, or for every request of a client through its `headers`:
 
+<!-- typecheck: skip — the 9.x generated client of the OpenAPI path that V10 deleted (D266); the V10 rewrite of this page uses the Manifest clients -->
 ```ts
 import { WowHeaders } from '@ahoo-wang/wow-client';
 import { orderQueryClientFactory } from './generated/index.js';

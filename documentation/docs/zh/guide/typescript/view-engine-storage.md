@@ -226,7 +226,7 @@ export class ViewStoreDefaults implements RequestInterceptor {
 }
 ```
 
-补偿控制台就是这种宿主：它的视图存在补偿服务内嵌的视图存储里，租户 `(0)`、所有者 `(shared)`（[`viewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/views/viewStore.ts)）。它的网关按网络或服务令牌放行它，和控制台的其余请求一样。
+补偿控制台就是这种宿主：它的视图存在补偿服务内嵌的视图存储里，租户 `(0)`、所有者 `(shared)`（[`viewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/compensation/dashboard/src/views/viewStore.ts)）。它的网关按网络或服务令牌放行它，和控制台的其余请求一样。
 
 ### 写入、重试与创建
 
@@ -327,14 +327,14 @@ describeViewStoreConformance({
 });
 ```
 
-`WowViewStore` 在仓库里怎样跑同一套用例，见 [`wowViewStore.conformance.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/integration-test/test/view-store/wowViewStore.conformance.test.ts)；`MemoryViewStore` 与 `localStorageSnapshot` 的见 [`viewStoreConformance.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/viewStoreConformance.test.ts)。
+`WowViewStore` 在仓库里怎样跑同一套用例，见 [`wowViewStore.conformance.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/typescript/integration-test/test/view-store/wowViewStore.conformance.test.ts)；`MemoryViewStore` 与 `localStorageSnapshot` 的见 [`viewStoreConformance.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/viewStoreConformance.test.ts)。
 
 ## 完整的可运行版本
 
 - Storybook 里，存储的系统视图由管理员[编辑](/storybook/?path=/story/view-engine-组件状态-记录工作台-回归--edit-stored-system-view)、[发布](/storybook/?path=/story/view-engine-组件状态-记录工作台-回归--publish-as-system-view)，对其他人[只读](/storybook/?path=/story/view-engine-组件状态-记录工作台-回归--system-views-read-only-for-others)；[管理视图](/storybook/?path=/story/view-engine-组件状态-记录工作台--manage-views)里每颗按钮都按 store 的权限出现。它们都跑在 `MemoryViewStore` 上。
 - 它们的 store：[`fixtures.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/fixtures.ts) 的 `systemViewsStore`。
 - 实现：[`MemoryViewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/store/MemoryViewStore.ts)、[`wowViewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/src/wowViewStore.ts)。
-- 一个真实的宿主：补偿控制台的 [`viewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/views/viewStore.ts)。
+- 一个真实的宿主：补偿控制台的 [`viewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/compensation/dashboard/src/views/viewStore.ts)。
 
 ## 下一步
 

@@ -113,7 +113,7 @@
       "commitMessageTopic": "Ahoo platform BOMs"
     },
     {
-      "description": "Group Ahoo Fetcher packages because the dashboard uses the generated client stack as one version family.",
+      "description": "Group Ahoo Fetcher packages because the generated clients and the published packages use them as one version family.",
       "matchDatasources": [
         "npm"
       ],
@@ -124,7 +124,7 @@
       "commitMessageTopic": "Fetcher packages"
     },
     {
-      "description": "Group React runtime packages used by the compensation dashboard.",
+      "description": "Group React runtime packages used by the workspace packages and apps.",
       "matchDatasources": [
         "npm"
       ],
@@ -139,7 +139,7 @@
       "commitMessageTopic": "React ecosystem"
     },
     {
-      "description": "Group Vite and Vitest tooling used by the compensation dashboard.",
+      "description": "Group Vite and Vitest tooling used across the pnpm workspace.",
       "matchDatasources": [
         "npm"
       ],

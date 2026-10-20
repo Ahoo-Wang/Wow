@@ -99,18 +99,6 @@ describe('API client analysis', () => {
     ]);
   });
 
-  it('puts the clients of a Wow document under its bounded context, which is their base path', () => {
-    const [client] = analysis({
-      info: { title: 'T', version: '1', 'x-wow-context-alias': 'shop' },
-      paths: { '/items': { get: operation() } },
-    }).model.apiClients;
-    expect(client.file).toBe('shop/itemsApiClient.ts');
-    expect(client.basePath).toEqual({
-      alias: 'shop',
-      constantName: 'SHOP_BOUNDED_CONTEXT_ALIAS',
-    });
-  });
-
   it.each([
     [
       'operationId, last segment, camel-cased',
@@ -427,18 +415,9 @@ describe('API client analysis', () => {
   });
 
   describe('resource attribution parameters', () => {
-    const tenantItems = (wow: boolean, config?: GeneratorConfiguration) =>
+    const tenantItems = (config?: GeneratorConfiguration) =>
       methodOf(
         {
-          ...(wow
-            ? {
-                info: {
-                  title: 'T',
-                  version: '1',
-                  'x-wow-context-alias': 'shop',
-                },
-              }
-            : {}),
           paths: {
             '/tenant/{tenantId}/items': {
               get: operation({
@@ -450,17 +429,16 @@ describe('API client analysis', () => {
         config,
       ).parameters.map(parameter => parameter.name);
 
-    it("leaves tenantId to Wow's interceptor in a Wow document only", () => {
-      expect(tenantItems(true)).toEqual([]);
-      expect(tenantItems(false)).toEqual(['tenantId']);
+    it('keeps every path parameter by default', () => {
+      expect(tenantItems()).toEqual(['tenantId']);
     });
 
-    it('leaves out the path parameters the configuration names instead', () => {
+    it('leaves out the path parameters the configuration names', () => {
       expect(
-        tenantItems(true, {
-          apiClients: { Items: { ignorePathParameters: [] } },
+        tenantItems({
+          apiClients: { Items: { ignorePathParameters: ['tenantId'] } },
         }),
-      ).toEqual(['tenantId']);
+      ).toEqual([]);
     });
   });
 
@@ -479,27 +457,17 @@ describe('API client analysis', () => {
       ]);
     });
 
-    it("leaves Wow's, the actuator's and the aggregates' tags to their own clients, without a warning", () => {
-      const { model, warnings } = analyzeDocument(
-        openAPIDocument({
-          paths: {
-            '/a': { get: operation({ tags: ['wow'], operationId: 'a' }) },
-            '/b': { get: operation({ tags: ['Actuator'], operationId: 'b' }) },
-            '/c': {
-              get: operation({ tags: ['shop.order'], operationId: 'c' }),
-            },
-            '/d': {
-              get: operation({
-                tags: ['shop.order', 'Items'],
-                operationId: 'd',
-              }),
-            },
-          },
-          tags: [{ name: 'wow' }, { name: 'shop.order' }],
-        }),
-        { aggregateTags: ['shop.order'] },
-      );
-      expect(model.apiClients).toEqual([]);
+    it("gives every tag a client, Wow's and the actuator's included", () => {
+      const { model, warnings } = analysis({
+        paths: {
+          '/a': { get: operation({ tags: ['wow'], operationId: 'a' }) },
+          '/b': { get: operation({ tags: ['Actuator'], operationId: 'b' }) },
+        },
+      });
+      expect(model.apiClients.map(({ className }) => className)).toEqual([
+        'ActuatorApiClient',
+        'WowApiClient',
+      ]);
       expect(warnings).toEqual([]);
     });
 
