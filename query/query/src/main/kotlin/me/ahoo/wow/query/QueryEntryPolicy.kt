@@ -38,9 +38,11 @@ import kotlin.time.Duration
  * say) still filters the query but never satisfies this check. Off by default: the declared scope is trusted.
  * @property http the budget of [QueryEntry.HTTP] queries.
  * @property inProcess the budget of [QueryEntry.IN_PROCESS] and [QueryEntry.UNSPECIFIED] queries; `null`, the
- * default, checks nothing: in-process callers are trusted code.
- * @property inProcessTimeout the execution timeout of a query whose entry has no budget (decision D150: every query
- * has one); `null` runs such a query without one.
+ * default, checks nothing. A host gives it [QueryBudget.IN_PROCESS_DEFAULT] by default (`wow.query.in-process.*`,
+ * review R4-Q, Q-3), so in-process code is bounded as a request is.
+ * @property inProcessTimeout the execution timeout of a query whose entry has no budget ([QueryEntry.UNBOUNDED], or
+ * every in-process query when [inProcess] is `null`; decision D150: every query has one); `null` runs such a query
+ * without one.
  */
 data class QueryEntryPolicy(
     val requireExplicitEntry: Boolean = false,
@@ -56,6 +58,7 @@ data class QueryEntryPolicy(
     fun budget(entry: QueryEntry): QueryBudget? = when (entry) {
         QueryEntry.HTTP -> http
         QueryEntry.IN_PROCESS, QueryEntry.UNSPECIFIED -> inProcess
+        QueryEntry.UNBOUNDED -> null
     }
 
     /** The execution timeout of [entry]'s queries: its budget's, or [inProcessTimeout] for an entry without one. */

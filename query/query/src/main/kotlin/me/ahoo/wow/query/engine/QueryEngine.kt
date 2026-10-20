@@ -95,6 +95,12 @@ class QueryEngine private constructor(
     /** The policy gateways of the types whose snapshots are not queried while policies may hide one (R3.3-3). */
     val policies: Collection<QueryGateway> get() = policyGateways.values
 
+    /** The snapshot query gateway of [type], or null when no backend serves its snapshots. */
+    fun snapshots(type: AggregateType): QueryGateway? = snapshotGateways[type]
+
+    /** The events query gateway of [type], or null when no backend serves its events. */
+    fun events(type: AggregateType): QueryGateway? = eventGateways[type]
+
     /** The gateway whose policies decide which of [type]'s states a caller sees, or null when none applies. */
     fun visibility(type: AggregateType): QueryGateway? = snapshotGateways[type] ?: policyGateways[type]
 

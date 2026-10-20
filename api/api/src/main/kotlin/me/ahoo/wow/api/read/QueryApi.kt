@@ -14,7 +14,9 @@
 package me.ahoo.wow.api.read
 
 import kotlinx.coroutines.flow.Flow
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountResult
@@ -58,23 +60,34 @@ interface Queries {
      * The snapshots of the aggregate whose state is of [stateType] (its root's class when the root is its own state),
      * their rows decoded as [Snapshot]s of it. The node finds the aggregate type from its models.
      *
-     * @throws IllegalArgumentException when no aggregate of the node has a state of [stateType].
+     * @throws IllegalArgumentException when no aggregate of the node has a state of [stateType], or this node serves
+     * no snapshot query of it.
      */
     fun <S : Any> snapshots(stateType: Class<S>): SnapshotQueries<S>
 
-    /** The snapshots of [type], their states decoded as its model's state class. */
+    /**
+     * The snapshots of [type], their states decoded as its model's state class.
+     *
+     * @throws IllegalArgumentException when this node serves no snapshot query of [type].
+     */
     fun snapshots(type: AggregateType): SnapshotQueries<Any>
 
     /**
      * The event streams of [type] (decision D235): one row per commit, its events decoded as the model's event
      * classes.
+     *
+     * @throws IllegalArgumentException when this node serves no events query of [type].
      */
     fun events(type: AggregateType): EventQueries
 
     /**
      * The rows of the dataset [name] (`context.dataset`, decision D145), decoded as [rowType]: a class of the dataset's
-     * columns, a `Map`, or a JSON object type of the implementation (`ObjectNode` in process).
+     * columns, a `Map`, or a JSON object type of the implementation (`ObjectNode` in process). Experimental, as the
+     * dataset queries are (decision D216).
+     *
+     * @throws IllegalArgumentException when no dataset [name] is served, or the caller does not see it, alike.
      */
+    @ExperimentalWowApi
     fun <R : Any> datasets(name: AggregateType, rowType: Class<R>): RowQueries<R>
 }
 
@@ -146,9 +159,18 @@ interface SnapshotQueries<S : Any> : ModelQueries<Snapshot<S>> {
      * its log before the first one), as the public port's state read reads it: `null` when there is none or the
      * caller may not see it, alike.
      *
-     * @throws IllegalStateException for trusted queries of a type without a fixed tenant: they name no tenant.
+     * @throws IllegalStateException for trusted queries of a type without a fixed tenant: they name no tenant, read
+     * the state of a ref instead.
      */
     suspend fun state(id: String): AggregateState<S>?
+
+    /**
+     * The latest committed state of the aggregate [ref], as [state] of an id reads it: `null` as well when [ref] is
+     * outside the caller's tenant. Trusted code reads any tenant's.
+     *
+     * @throws IllegalArgumentException when [ref] is not an aggregate of [type].
+     */
+    suspend fun state(ref: AggregateRef): AggregateState<S>?
 }
 
 /** The events queries of an aggregate type (decision D235): one row per commit, an [EventStream]. */
@@ -158,6 +180,7 @@ interface EventQueries : ModelQueries<EventStream>
 inline fun <reified S : Any> Queries.snapshots(): SnapshotQueries<S> = snapshots(S::class.java)
 
 /** The rows of the dataset [name] decoded as [R]; see [Queries.datasets]. */
+@ExperimentalWowApi
 inline fun <reified R : Any> Queries.datasets(name: AggregateType): RowQueries<R> = datasets(name, R::class.java)
 
 /** These queries with each row decoded as [T]; see [ModelQueries.dynamic]. */
