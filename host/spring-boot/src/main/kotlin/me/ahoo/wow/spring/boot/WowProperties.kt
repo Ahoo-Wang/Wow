@@ -18,7 +18,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.Misfire
-import me.ahoo.wow.http.call.HttpCommandCaller
+import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.ops.WebhookNotifier
@@ -973,7 +973,7 @@ class WowProperties {
      * context's base URL ([contexts], `wow.calls.contexts.<context>.url`: the target's internal port, `http://host:port`
      * of an address in its internal network, never its public port, which refuses calls), the service token the node
      * presents as `Authorization: Bearer` ([token]; an application's
-     * [me.ahoo.wow.http.call.ServiceCredential] bean, such as one that renews a CoSec token, replaces it), how long one
+     * [me.ahoo.wow.client.ServiceCredential] bean, such as one that renews a CoSec token, replaces it), how long one
      * call may take ([timeout]) and connect ([connectTimeout]). A saga that calls a context without a URL fails, then
      * parks.
      */

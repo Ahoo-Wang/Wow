@@ -56,6 +56,28 @@ count_tree_files_response() {
   jq -r '[.tree[] | select(.type == "blob")] | length' <<<"$response"
 }
 
+# The changed and removed file counts of `git diff --name-status` output.
+count_name_status() {
+  local changes=$1
+  local changed removed
+  changed=$(grep -c . <<<"$changes" || true)
+  removed=$(grep -c $'^D\t' <<<"$changes" || true)
+  printf '%s %s\n' "$changed" "$removed"
+}
+
+expect_output() {
+  local name=$1
+  local expected=$2
+  shift 2
+
+  local actual
+  actual=$("$@" 2>/dev/null) || true
+  if [[ $actual != "$expected" ]]; then
+    printf 'FAIL: %s (expected %s, got %s)\n' "$name" "$expected" "$actual" >&2
+    return 1
+  fi
+}
+
 expect_exit() {
   local name=$1
   local expected=$2
@@ -85,9 +107,30 @@ if [[ ${1:-} == '--self-test' ]]; then
   expect_exit 'incomplete PR file pages fail closed' 1 check_safety false 0 2 2834 1 || ((failures += 1))
   expect_exit 'complete tree response passes' 0 count_tree_files_response test-tree '{"truncated":false,"tree":[]}' || ((failures += 1))
   expect_exit 'missing truncated flag fails closed' 1 count_tree_files_response test-tree '{"tree":[]}' || ((failures += 1))
+  expect_output 'name-status counts changes and removals' '3 1' \
+    count_name_status $'M\ta.txt\nD\tb.txt\nA\tc.txt' || ((failures += 1))
+  expect_output 'an empty diff counts nothing' '0 0' count_name_status '' || ((failures += 1))
   (( failures == 0 )) || exit 1
   printf 'PR safety self-test passed.\n'
   exit 0
+fi
+
+# A merge queue's group: its PRs passed this check one by one, and together
+# they must too. Its commit against the branch's tip, from git: no GitHub file
+# list, so nothing is truncated, and no dependency rule, which is per PR.
+if [[ -n ${MERGE_GROUP_HEAD_SHA:-} ]]; then
+  : "${MERGE_GROUP_BASE_SHA:?MERGE_GROUP_BASE_SHA is required}"
+  # No --depth: on the checkout's one-commit clone it fetches only the group's
+  # commits above the base, and it never makes a full clone shallow.
+  git cat-file -e "${MERGE_GROUP_HEAD_SHA}^{commit}" 2>/dev/null ||
+    git fetch --quiet --no-tags origin "$MERGE_GROUP_HEAD_SHA"
+  read -r changed_files removed_files < <(count_name_status \
+    "$(git diff --no-renames --name-status "$MERGE_GROUP_BASE_SHA" "$MERGE_GROUP_HEAD_SHA")")
+  base_files=$(git ls-tree -r "$MERGE_GROUP_BASE_SHA" | awk '$2 == "blob"' | wc -l | tr -d ' ')
+  printf 'Merge group safety: changed=%s, removed=%s, base=%s\n' \
+    "$changed_files" "$removed_files" "$base_files"
+  check_safety false "$removed_files" "$changed_files" "$base_files" "$changed_files"
+  exit
 fi
 
 : "${GH_REPO:?GH_REPO is required}"

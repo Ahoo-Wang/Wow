@@ -16,7 +16,7 @@ Plain manifests for the view store service (`platform/view-store/view-store-serv
 1. Build the image, from the repository root:
 
    ```bash
-   ./gradlew -Pwow.scope=v10 :view-store-server:installDist
+   ./gradlew :view-store-server:installDist
    docker build -t wow-view-store-server:local platform/view-store/view-store-server
    ```
 

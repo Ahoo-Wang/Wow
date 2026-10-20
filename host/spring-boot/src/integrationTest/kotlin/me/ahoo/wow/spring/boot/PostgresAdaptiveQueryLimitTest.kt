@@ -15,7 +15,7 @@ package me.ahoo.wow.spring.boot
 
 import com.zaxxer.hikari.HikariPoolMXBean
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.http.WowHeaders
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.AdaptiveQueryLimit
 import me.ahoo.wow.query.QueryBulkhead

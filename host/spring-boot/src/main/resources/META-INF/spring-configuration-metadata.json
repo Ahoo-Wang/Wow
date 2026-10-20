@@ -6,7 +6,7 @@
   }, {
     "name" : "wow.calls",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Calls",
-    "description" : "The synchronous calls of the node's sagas to the command gateways of other contexts (decision D193): each context's base URL (contexts, `wow.calls.contexts.<context>.url`: the target's internal port, `http://host:port` of an address in its internal network, never its public port, which refuses calls), the service token the node presents as `Authorization: Bearer` (token; an application's me.ahoo.wow.http.call.ServiceCredential bean, such as one that renews a CoSec token, replaces it), how long one call may take (timeout) and connect (connectTimeout). A saga that calls a context without a URL fails, then parks.",
+    "description" : "The synchronous calls of the node's sagas to the command gateways of other contexts (decision D193): each context's base URL (contexts, `wow.calls.contexts.<context>.url`: the target's internal port, `http://host:port` of an address in its internal network, never its public port, which refuses calls), the service token the node presents as `Authorization: Bearer` (token; an application's me.ahoo.wow.client.ServiceCredential bean, such as one that renews a CoSec token, replaces it), how long one call may take (timeout) and connect (connectTimeout). A saga that calls a context without a URL fails, then parks.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.clickhouse",

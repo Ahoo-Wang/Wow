@@ -25,6 +25,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.command.JakartaCommandValidator
 import me.ahoo.wow.runtime.FrameworkCodes
 import org.junit.jupiter.api.Test
