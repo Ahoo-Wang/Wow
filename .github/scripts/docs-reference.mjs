@@ -479,27 +479,26 @@ export function publishedModules(read) {
     ].map(match => [match[1], match[2]]),
   );
   const settings = read(SETTINGS);
-  return [
-    ...list('abiProjects'),
-    ...list('publishedLibraries'),
-  ].map(project => {
-    const dir = new RegExp(
-      `project\\(":${project}"\\)\\.projectDir = file\\("([^"]+)"\\)`,
-    ).exec(settings)?.[1];
-    if (!dir) throw new Error(`${SETTINGS}: no directory for :${project}`);
-    const description =
-      /^description = ((?:"(?:[^"\\]|\\.)*"\s*\+?\s*)+)/m.exec(
-        read(`${dir}/build.gradle.kts`),
-      )?.[1];
-    if (!description)
-      throw new Error(`${dir}/build.gradle.kts: no description`);
-    return {
-      project,
-      artifact: artifactIds[project] ?? `wow-${project}`,
-      dir,
-      description: kotlinStrings(description),
-    };
-  });
+  return [...list('abiProjects'), ...list('publishedLibraries')].map(
+    project => {
+      const dir = new RegExp(
+        `project\\(":${project}"\\)\\.projectDir = file\\("([^"]+)"\\)`,
+      ).exec(settings)?.[1];
+      if (!dir) throw new Error(`${SETTINGS}: no directory for :${project}`);
+      const description =
+        /^description = ((?:"(?:[^"\\]|\\.)*"\s*\+?\s*)+)/m.exec(
+          read(`${dir}/build.gradle.kts`),
+        )?.[1];
+      if (!description)
+        throw new Error(`${dir}/build.gradle.kts: no description`);
+      return {
+        project,
+        artifact: artifactIds[project] ?? `wow-${project}`,
+        dir,
+        description: kotlinStrings(description),
+      };
+    },
+  );
 }
 
 /** A module's description without the artifact's name it starts with ("Wow Kernel: …"). */
