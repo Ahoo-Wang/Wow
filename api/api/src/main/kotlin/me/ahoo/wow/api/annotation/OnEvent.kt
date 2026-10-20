@@ -35,6 +35,12 @@ import kotlin.reflect.KClass
  * @param schedules the commands a [Saga]'s handler may schedule with `SagaContext.schedule` (decision D166), each by
  *   its full type name `context.aggregate.Command`, which the Manifest lists as the subscription's `schedules`. Empty,
  *   the default, declares none; a projection or a reactor schedules none.
+ * @param calls the commands a [Saga]'s handler sends to another context with `SagaContext.call` (decisions D193, D259),
+ *   by their classes, as [derives] names them: the compiler lists them as the subscription's `calls` in the Manifest,
+ *   which a wait chain follows as it follows [derives], the node does not build when a called context is its own, is
+ *   unknown, or is one its command caller says it does not reach (`wow.calls.contexts.<context>.url`), and `call` refuses a command of a class the handler does not
+ *   declare. A called command needs no command topic, and is not one the handler derives. A command of the handler's
+ *   own context is derived, never called. A projection or a reactor calls none.
  * @param start where the handler's subscription starts in a partition it has no checkpoint in yet (decision D194),
  *   which the compiler writes into the Manifest; the host's `wow.subscriptions.[<processor.function>].start` overrides
  *   it. [Start.DEFAULT] starts a projection, and any handler reading another context's stream, at the
@@ -49,6 +55,7 @@ annotation class OnEvent(
     val aggregates: Array<String> = [],
     val derives: Array<KClass<*>> = [],
     val schedules: Array<String> = [],
+    val calls: Array<KClass<*>> = [],
     val start: Start = Start.DEFAULT,
 ) {
     /** Where a subscription without a checkpoint starts (decision D194). */

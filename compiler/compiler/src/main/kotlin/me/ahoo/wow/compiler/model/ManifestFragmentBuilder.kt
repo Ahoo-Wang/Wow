@@ -62,6 +62,8 @@ import me.ahoo.wow.manifest.SubscriptionStart
  * - the source `@OnEvent(aggregates)` names, of this context or another (decision D138);
  * - a saga's `@OnRejected` handlers (decisions D136, D153) as subscriptions with `rejected`, and its `@OnCommitted`
  *   handlers (decision D192) as subscriptions with `committed`;
+ * - a saga's `calls` (decision D259): the classes `@OnEvent(calls)` declares, by the same references as `derives`;
+ *   a command of the module's context is derived, never called;
  * - a saga's `@OnSchedule` handlers (decision D198) as subscriptions of the context's job aggregate with their `job`.
  *
  * An aggregate's mounted commands (`@MountedCommand`, decision D182) are among its commands, marked `mounted`, with
@@ -124,7 +126,7 @@ internal object ManifestFragmentBuilder {
 
                         else -> null
                     }
-                } + undeclaredDerives(where, handler, commands)
+                } + undeclaredDerives(where, handler, commands) + ownCalls(where, handler, commands)
             }
         }
     }
@@ -137,6 +139,12 @@ internal object ManifestFragmentBuilder {
             "$where returns ${commands.nameOf(it) ?: it}, which its @OnEvent(derives) does not list"
         }
     }
+
+    /** A command of this context `@OnEvent(calls)` names: the saga derives it instead (decision D193). */
+    private fun ownCalls(where: String, handler: HandlerBinding, commands: CommandNames): List<String> =
+        handler.calls.mapNotNull { commands.nameOf(it) }.map {
+            "$where calls $it, a command of its own context: derive it (return it) instead of calling it"
+        }
 
     private fun aggregate(context: String, binding: AggregateBinding): AggregateManifest {
         val eventNames = binding.sourcing.associate { it.event to (it.eventName ?: simpleName(it.type)) }
@@ -224,6 +232,7 @@ internal object ManifestFragmentBuilder {
                 derives = derives.takeIf { kind == SubscriptionKind.SAGA },
                 start = SubscriptionStart.valueOf(handler.startIn(context, binding.kind)),
                 schedules = handler.schedules.distinct().sorted().ifEmpty { null },
+                calls = handler.calls.map(commands::referenceOf).distinct().sorted().ifEmpty { null },
                 retry = handler.retry?.manifest(),
                 job = handler.job?.manifest(),
             )

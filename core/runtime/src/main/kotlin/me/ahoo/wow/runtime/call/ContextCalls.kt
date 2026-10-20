@@ -46,6 +46,12 @@ data class OutgoingCall(val type: String, val command: Command<*>, val wait: Wai
  */
 fun interface CommandCaller {
     suspend fun call(call: OutgoingCall): CommandResult
+
+    /**
+     * Whether it knows where to call [context]'s gateway (decision D259): a node whose sagas call a context its caller
+     * does not reach is not built. True unless the caller says otherwise.
+     */
+    fun reaches(context: String): Boolean = true
 }
 
 /**
@@ -54,7 +60,9 @@ fun interface CommandCaller {
  * answered (committed or rejected), in order: the saga's hop reports them with the commands it derived, so a wait
  * goes on with them.
  *
- * A call to a context of the node is refused: the saga derives that command instead. Without [caller], a call fails
+ * A call to a context of the node is refused: the saga derives that command instead. So is a command of a class the
+ * handler does not [declare] in its `@OnEvent(calls)` (decision D259), which the Manifest would not list. Without
+ * [caller], a call fails
  * as [CommandCalls.NONE] does, naming the configuration it lacks. A command built without a causation is its own root,
  * as one a saga derives so ([me.ahoo.wow.runtime.binding.DerivedCommands]).
  */
@@ -63,6 +71,10 @@ internal class SagaCalls(
     private val contexts: Set<String>,
     private val commandTypes: CommandTypes,
     private val wait: WaitContext?,
+    /** The command classes the handler declares it calls (`@OnEvent(calls)`): the only ones it may call. */
+    private val declare: List<Class<*>> = emptyList(),
+    /** The handler's subscription, `processor.function`, as a refusal names it. */
+    private val subscription: String = "The saga",
 ) : CommandCalls {
     private val answered: MutableList<String> = Collections.synchronizedList(ArrayList())
 
@@ -73,6 +85,11 @@ internal class SagaCalls(
         val context = command.ref.type.context
         require(context !in contexts) {
             "A saga calls ${command.ref}, of its own node's context $context: derive the command instead (return it)."
+        }
+        val body = command.body.javaClass
+        require(body in declare) {
+            "$subscription calls ${body.name}, which its @OnEvent(calls) does not declare: add ${body.simpleName}::class " +
+                "to it, so the Manifest lists the call (decision D259)."
         }
         val client = caller ?: return CommandCalls.NONE.call(command)
         val type = requireNotNull(commandTypes.nameOf(command.ref.type, command.body.javaClass)) {

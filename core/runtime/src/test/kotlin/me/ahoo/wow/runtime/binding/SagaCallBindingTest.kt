@@ -98,6 +98,7 @@ class SagaCallBindingTest {
         "onOrderPlaced",
         OrderState::class.java,
         retry = HandlerRetry(maxAttempts = 2),
+        calls = listOf(Deliver::class.java),
     ) { event, context ->
         val owner = checkNotNull(event.scope.ownerId)
         event.events.filterIsInstance<Placed>().flatMap {
@@ -245,6 +246,8 @@ class SagaCallBindingTest {
             setOf(SHOP),
             names,
             null,
+            listOf(Deliver::class.java, String::class.java, RemoveItems::class.java),
+            "MailSaga.onOrderPlaced",
         )
         // A command of the node's own context is derived, not called.
         assertThrownBy<IllegalArgumentException> {
@@ -260,10 +263,24 @@ class SagaCallBindingTest {
         recorded.single().command.causation.assert().isEqualTo(Causation("c-1", "c-1"))
         calls.called.assert().isEmpty()
         // Without a client, a call fails.
-        val none = SagaCalls(null, setOf(SHOP), names, null)
+        val none = SagaCalls(null, setOf(SHOP), names, null, listOf(Deliver::class.java))
         assertThrownBy<CallFailedException> {
             runBlocking { none.call(Command("c", "r", BOX.ref(TENANT, "alice"), Deliver(emptyList()))) }
         }
+    }
+
+    @Test
+    fun `a call of a command class the handler does not declare should be refused`() {
+        val names = CommandTypes { target, command -> "$target.${command.simpleName}" }
+        val calls = SagaCalls({
+            resultOf(it, CommandResult.Status.SUCCEEDED)
+        }, setOf(SHOP), names, null, emptyList(), "MailSaga.onOrderPlaced")
+        assertThrownBy<IllegalArgumentException> {
+            runBlocking { calls.call(Command("c", "r", BOX.ref(TENANT, "alice"), Deliver(emptyList()))) }
+        }.hasMessageContaining(
+            "MailSaga.onOrderPlaced calls"
+        ).hasMessageContaining("its @OnEvent(calls) does not declare")
+        calls.called.assert().isEmpty()
     }
 
     @Test

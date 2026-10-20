@@ -35,7 +35,7 @@ object PeerContracts {
      * The contract of the contexts of [fragments], the completed Manifest fragments of a domain module: per context its
      * name, description, aggregates (state, snapshot, ownership, query models, the commands no edge mounts with their
      * names, aliases, schemas, creation and produced events, and the events), subscriptions (kind, source, function,
-     * and the commands they derive, handle the rejections of and the commits of: what a wait chain follows), published
+     * and the commands they derive, call, handle the rejections of and the commits of: what a wait chain follows), published
      * streams and errors; the framework's errors; and the `$defs` these refer to, transitively. Routes, schedules,
      * retries, jobs and the service are left out.
      *
@@ -102,6 +102,7 @@ object PeerContracts {
                 derives = it.derives,
                 rejected = it.rejected,
                 committed = it.committed,
+                calls = it.calls,
             )
         },
         published = context.published,
