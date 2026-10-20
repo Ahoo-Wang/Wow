@@ -95,7 +95,7 @@ test('every Kotlin @Deprecated must say it is scheduled for removal in 10.0.0', 
   assert.deepEqual(unscheduledKotlinDeprecations(text), [1, 7]);
 });
 
-test('Kotlin sources are the main source sets, outside build output and dot-directories', () => {
+test('Kotlin sources are the main source sets, outside build output, dot-directories and the H5 inputs', () => {
   const root = repository({
     'wow-a/src/main/kotlin/me/A.kt': 'class A\n',
     'test/wow-b/src/main/kotlin/me/B.kt': 'class B\n',
@@ -104,6 +104,8 @@ test('Kotlin sources are the main source sets, outside build output and dot-dire
     'wow-a/build/src/main/kotlin/me/Gen.kt': 'class Gen\n',
     '.claude/worktrees/x/wow-a/src/main/kotlin/me/A.kt': 'class A\n',
     'node_modules/pkg/src/main/kotlin/me/N.kt': 'class N\n',
+    'skills/wow-migrate/evals/h5-inputs/wow-c/src/main/kotlin/me/C.kt':
+      'class C\n',
   });
   assert.deepEqual(kotlinSourceFiles(root), [
     'test/wow-b/src/main/kotlin/me/B.kt',
