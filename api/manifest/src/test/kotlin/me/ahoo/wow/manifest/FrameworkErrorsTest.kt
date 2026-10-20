@@ -53,6 +53,7 @@ class FrameworkErrorsTest {
                 "wow.query.busy" to 429,
                 "wow.query.not-found" to 404,
                 "wow.query.dataset-not-found" to 404,
+                "wow.query.min-version-not-reached" to 409,
                 "wow.query.dataset-unavailable" to 409,
                 "wow.call.command-forbidden" to 403,
             ),

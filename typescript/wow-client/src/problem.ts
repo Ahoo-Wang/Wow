@@ -81,6 +81,12 @@ export const FrameworkErrorCodes = {
   QUERY_NOT_FOUND: 'wow.query.not-found',
   /** 404: no dataset of that name is served to the caller. */
   QUERY_DATASET_NOT_FOUND: 'wow.query.dataset-not-found',
+  /**
+   * 409, with `Retry-After`: a state read asked for a version (`minVersion`) the
+   * aggregate has not reached within the wait; the problem's `version` is its
+   * current one (review R4-Q, Q-13).
+   */
+  QUERY_MIN_VERSION_NOT_REACHED: 'wow.query.min-version-not-reached',
   /** 409: the dataset is served but cannot be queried now (it needs revision, decision D259). */
   QUERY_DATASET_UNAVAILABLE: 'wow.query.dataset-unavailable',
   /** 403: the calling service may not call this command (a synchronous call on the internal port, decision D226). */
@@ -164,7 +170,8 @@ export interface RetryHint {
  * The codes a retry may get past, each with whether to keep the request id:
  * the 503s (`wow.command.unknown`, `wow.node.closing`,
  * `wow.storage.unavailable`, `wow.schedule.not-due`),
- * the 429s `wow.command.busy` and `wow.query.busy`, the 409 `wow.command.contended` and the 504
+ * the 429s `wow.command.busy` and `wow.query.busy`, the 409s `wow.command.contended` and
+ * `wow.query.min-version-not-reached` (once the command commits), and the 504
  * `wow.wait.timeout`, whose command may have committed.
  */
 const RETRYABLE: ReadonlyMap<string, boolean> = new Map([
@@ -174,6 +181,7 @@ const RETRYABLE: ReadonlyMap<string, boolean> = new Map([
   [FrameworkErrorCodes.SCHEDULE_NOT_DUE, true],
   [FrameworkErrorCodes.COMMAND_BUSY, true],
   [FrameworkErrorCodes.QUERY_BUSY, false],
+  [FrameworkErrorCodes.QUERY_MIN_VERSION_NOT_REACHED, false],
   [FrameworkErrorCodes.COMMAND_CONTENDED, true],
   [FrameworkErrorCodes.WAIT_TIMEOUT, true],
 ]);

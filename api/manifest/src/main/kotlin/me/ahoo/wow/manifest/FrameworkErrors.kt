@@ -61,6 +61,7 @@ object FrameworkErrors {
     const val QUERY_FAILED: String = "wow.query.failed"
     const val QUERY_TIMEOUT: String = "wow.query.timeout"
     const val QUERY_BUSY: String = "wow.query.busy"
+    const val QUERY_MIN_VERSION_NOT_REACHED: String = "wow.query.min-version-not-reached"
     const val QUERY_DATASET_UNAVAILABLE: String = "wow.query.dataset-unavailable"
     const val QUERY_NOT_FOUND: String = "wow.query.not-found"
     const val QUERY_DATASET_NOT_FOUND: String = "wow.query.dataset-not-found"
@@ -154,6 +155,12 @@ object FrameworkErrors {
             QUERY_TIMEOUT,
             504,
             "The query ran longer than its budget allows; narrow it rather than run it again (decision D254 ③).",
+        ),
+        ErrorManifest(
+            QUERY_MIN_VERSION_NOT_REACHED,
+            409,
+            "The state read asked for a version the aggregate has not reached within the wait; the problem carries " +
+                "its current version: retry later.",
         ),
         ErrorManifest(
             QUERY_BUSY,

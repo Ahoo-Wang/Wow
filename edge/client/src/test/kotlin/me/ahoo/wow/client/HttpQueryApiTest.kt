@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.read.MinVersionNotReachedException
 import me.ahoo.wow.api.read.dynamic
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
@@ -123,6 +124,28 @@ class HttpQueryApiTest {
         caught<WowProblemException> { runBlocking { boxes.stream(ListQuery(MatchAllFilter)).toList() } }
         caught<WowProblemException> { runBlocking { boxes.single(SingleQuery(MatchAllFilter)) } }
         caught<WowProblemException> { runBlocking { boxes.state("b-1") } }
+    }
+
+    @Test
+    fun `a state read of a minimum version should ask for it, and a 409 should be the version not reached`() {
+        runBlocking {
+            val notReached = mapOf("code" to "wow.query.min-version-not-reached", "version" to 2)
+            peer.reply(Reply.problem(409, notReached, retryAfter = "1"))
+            val behind = caught<MinVersionNotReachedException> { runBlocking { boxes.state("b-1", 3) } }
+            behind.version.assert().isEqualTo(2)
+            behind.minVersion.assert().isEqualTo(3)
+            behind.ref.assert().isEqualTo(BOX.ref("t1", "b-1"))
+            peer.taken.single().path.assert().endsWith("/b-1/state?minVersion=3")
+            peer.reply(Reply.problem(404, mapOf("code" to "wow.aggregate.not-found")))
+            boxes.state(BOX.ref("t1", "b-2"), 1).assert().isNull()
+            // Another 409 is the problem it is.
+            peer.reply(Reply.problem(409, mapOf("code" to "wow.aggregate.exists")))
+            caught<WowProblemException> { runBlocking { boxes.state("b-3", 1) } }
+            caught<IllegalArgumentException> { runBlocking { boxes.state("b-1", 0) } }
+            val other = AggregateType("mail", "other").ref("t1", "x")
+            caught<IllegalArgumentException> { runBlocking { boxes.state(other, 1) } }
+            Problems.hintOf("wow.query.min-version-not-reached", 409, null).retryable.assert().isTrue()
+        }
     }
 
     @Test

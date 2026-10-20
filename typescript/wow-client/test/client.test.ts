@@ -741,16 +741,18 @@ describe('StateClient', () => {
     state: { name: 'n' },
   };
 
-  it('reads the latest state, at a version or a time', async () => {
+  it('reads the latest state, at a version or a time, or of a minimum version', async () => {
     const { requests } = stubFetch(() => jsonResponse(view));
     const states = new StateClient<{ name: string }>(PRODUCT, client());
     expect((await states.get('p1')).state.name).toBe('n');
     await states.get('p1', { version: 2 });
     await states.get('p1', { at: new Date(Date.UTC(2026, 0, 1)) });
+    await states.get('p1', { minVersion: 3 });
     expect(requests.map(r => r.url)).toEqual([
       `${BASE_URL}/eshop-catalog/product/p1/state`,
       `${BASE_URL}/eshop-catalog/product/p1/state?version=2`,
       `${BASE_URL}/eshop-catalog/product/p1/state?at=2026-01-01T00%3A00%3A00.000Z`,
+      `${BASE_URL}/eshop-catalog/product/p1/state?minVersion=3`,
     ]);
   });
 

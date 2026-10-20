@@ -26,6 +26,8 @@ import me.ahoo.wow.manifest.FrameworkErrors
  * - [TIMEOUT] (504, no `Retry-After`, decision D254 ③): the query ran out of its execution time; running it again would run as long;
  * - [STORAGE_UNAVAILABLE] (503): the storage could not be reached or did not answer in time; the same query may pass
  *   later.
+ * - [MIN_VERSION_NOT_REACHED] (409, with `Retry-After`): a state read asked for a version the aggregate has not reached
+ *   within its wait ([me.ahoo.wow.api.read.MinVersionNotReachedException]);
  * - [BUSY] (429, with `Retry-After`): the query's store already runs as many queries as its bulkhead allows
  *   ([QueryBulkhead], review R3.4-2); the query was not run, and the same query may pass later.
  * - [DATASET_UNAVAILABLE] (409): the dataset is served but cannot be queried now, such as one whose definition needs
@@ -48,6 +50,9 @@ object QueryErrors {
 
     /** A dataset that is not served, or not to the caller (review R4-Q, Q-4). */
     const val DATASET_NOT_FOUND: String = FrameworkErrors.QUERY_DATASET_NOT_FOUND
+
+    /** A state read of a minimum version the aggregate has not reached (review R4-Q, Q-13). */
+    const val MIN_VERSION_NOT_REACHED: String = FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED
     const val DATASET_UNAVAILABLE: String = FrameworkErrors.QUERY_DATASET_UNAVAILABLE
 
     /** The caller may not run this query. */

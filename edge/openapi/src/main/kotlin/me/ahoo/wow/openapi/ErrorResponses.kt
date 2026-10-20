@@ -135,11 +135,19 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
         )
 
         /**
-         * The codes a query answers: the query codes (decisions D130, D150), `wow.query.not-found` a `single` one
-         * that matches nothing among them (review R4-Q, Q-4).
+         * The codes a state read answers: a [STATE] code, or a minimum version not reached within its wait (review
+         * R4-Q, Q-13).
+         */
+        val STATE_READ: List<String> = STATE + FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED
+
+        /**
+         * The codes a query answers: the query codes (decisions D130, D150) but a dataset's and a state read's,
+         * `wow.query.not-found` a `single` one that matches nothing among them (review R4-Q, Q-4).
          */
         val QUERY: List<String> = listOf(FrameworkErrors.AUTH_UNAUTHENTICATED, FrameworkErrors.AUTH_FORBIDDEN) +
-            FrameworkErrors.ALL.map { it.code }.filter { it.startsWith(QUERY_PREFIX) && it !in DATASET_ONLY } +
+            FrameworkErrors.ALL.map { it.code }.filter {
+                it.startsWith(QUERY_PREFIX) && it !in DATASET_ONLY && it != FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED
+            } +
             FrameworkErrors.STORAGE_UNAVAILABLE
 
         /**

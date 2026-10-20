@@ -334,6 +334,10 @@
     "status" : 504,
     "description" : "The query ran longer than its budget allows; narrow it rather than run it again (decision D254 ③)."
   }, {
+    "code" : "wow.query.min-version-not-reached",
+    "status" : 409,
+    "description" : "The state read asked for a version the aggregate has not reached within the wait; the problem carries its current version: retry later."
+  }, {
     "code" : "wow.query.busy",
     "status" : 429,
     "description" : "The query was not run: its store has as many queries running as it allows; retry later."

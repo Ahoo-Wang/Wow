@@ -1304,7 +1304,7 @@
       "get" : {
         "tags" : [ "eshop-basket.basket" ],
         "summary" : "The aggregate's state",
-        "description" : "The latest state, the state at `version`, or the state as of `at`.",
+        "description" : "The latest state, the state at `version`, the state as of `at`, or the latest state at `minVersion` or later (409 `wow.query.min-version-not-reached` with the current `version` when it is not committed within the wait).",
         "operationId" : "eshop-basket.basket.state",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -1312,6 +1312,8 @@
           "$ref" : "#/components/parameters/version"
         }, {
           "$ref" : "#/components/parameters/at"
+        }, {
+          "$ref" : "#/components/parameters/minVersion"
         }, {
           "$ref" : "#/components/parameters/Wow-Scope"
         }, {
@@ -1355,6 +1357,9 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.state.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.state.409"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.state.429"
@@ -3408,6 +3413,17 @@
           }
         }
       },
+      "wow.state.409" : {
+        "description" : "`wow.query.min-version-not-reached`: The state read asked for a version the aggregate has not reached within the wait; the problem carries its current version: retry later.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.min-version-not-reached" ]
+      },
       "wow.state.429" : {
         "description" : "`wow.query.busy`: The query was not run: its store has as many queries running as it allows; retry later.",
         "content" : {
@@ -3729,6 +3745,15 @@
         "schema" : {
           "type" : "string",
           "format" : "date-time"
+        }
+      },
+      "minVersion" : {
+        "name" : "minVersion",
+        "in" : "query",
+        "description" : "Reads the latest state at this version or later, a command result's version (read your writes, review R4-Q, Q-13); not with version or at.",
+        "schema" : {
+          "type" : "integer",
+          "minimum" : 1
         }
       },
       "from" : {
