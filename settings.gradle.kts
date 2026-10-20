@@ -87,6 +87,9 @@ include(":openapi")
 project(":openapi").projectDir = file("edge/openapi")
 include(":http")
 project(":http").projectDir = file("edge/http")
+// The typed command and query clients over HTTP (decisions D257, D259): JDK HttpClient only, no Spring.
+include(":client")
+project(":client").projectDir = file("edge/client")
 include(":cosec")
 project(":cosec").projectDir = file("edge/cosec")
 // Tracing and metrics on the core's observation seams (decision D174); artifact wow-opentelemetry.

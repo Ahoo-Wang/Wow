@@ -21,12 +21,12 @@ import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
+import me.ahoo.wow.client.wire.WaitHeader
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.command.Negotiation
-import me.ahoo.wow.http.command.WaitHeader
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException

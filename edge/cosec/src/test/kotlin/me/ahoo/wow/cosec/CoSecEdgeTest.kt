@@ -16,7 +16,7 @@ package me.ahoo.wow.cosec
 import me.ahoo.cosec.api.context.request.AppIdCapable
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.RequestFacts
-import me.ahoo.wow.http.WowHeaders
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.runtime.FrameworkCodes

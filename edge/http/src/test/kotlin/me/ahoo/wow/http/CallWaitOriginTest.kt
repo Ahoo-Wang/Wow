@@ -22,8 +22,9 @@ import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitSignal
+import me.ahoo.wow.client.wire.CallHeader
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.caller.ServiceTokens
-import me.ahoo.wow.http.command.CallHeader
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.Executor
