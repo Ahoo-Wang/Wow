@@ -96,6 +96,12 @@ internal object WowPaths {
     /** The query parameter of a state read at a version. */
     const val VERSION: String = "version"
 
+    /**
+     * The query parameter of a state read of at least a version (review R4-Q, Q-13: read your writes), the version a
+     * command's result names.
+     */
+    const val MIN_VERSION: String = "minVersion"
+
     /** The query parameter of a state read as of a time, an ISO-8601 instant (decision D40). */
     const val AT: String = "at"
 

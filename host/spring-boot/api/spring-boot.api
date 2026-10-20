@@ -333,11 +333,13 @@ public final class me/ahoo/wow/spring/boot/QueryProperties$CountCache {
 	public final fun getEnabled ()Z
 	public final fun getEventsEnabled ()Z
 	public final fun getMaxEntries ()I
+	public final fun getPagedTotals ()Z
 	public final fun getTtl ()Ljava/time/Duration;
 	public final fun options ()Lme/ahoo/wow/query/QueryCountCacheOptions;
 	public final fun setEnabled (Z)V
 	public final fun setEventsEnabled (Z)V
 	public final fun setMaxEntries (I)V
+	public final fun setPagedTotals (Z)V
 	public final fun setTtl (Ljava/time/Duration;)V
 }
 
@@ -385,7 +387,9 @@ public final class me/ahoo/wow/spring/boot/QueryProperties$Sensitivity {
 public final class me/ahoo/wow/spring/boot/QueryProperties$State {
 	public fun <init> ()V
 	public final fun getMaxReplay ()I
+	public final fun getMinVersionWait ()Ljava/time/Duration;
 	public final fun setMaxReplay (I)V
+	public final fun setMinVersionWait (Ljava/time/Duration;)V
 }
 
 public final class me/ahoo/wow/spring/boot/QueryProperties$Stream {

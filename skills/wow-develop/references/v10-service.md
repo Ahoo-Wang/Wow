@@ -79,6 +79,7 @@ Java domains (decision D229 G-8): a module of Java sources applies `kotlin("jvm"
   - lifecycle: `DeleteAggregate` at the `DELETE` of `/<ctx>/<agg>/{id}`, the others at `POST /<ctx>/<agg>/{id}/wow.lifecycle.<kebab>`;
   - state: `GET /<ctx>/<agg>/{id}/state`;
   - state history: `GET /<ctx>/<agg>/{id}/state?version=` or `?at=`, and `GET …/{id}/state/trace`;
+  - read your writes: `GET /<ctx>/<agg>/{id}/state?minVersion=<the command result's version>` (or `QueryApi` `state(id, minVersion)`): 409 `wow.query.min-version-not-reached` with the current `version` when it is not committed within the wait; paged totals are counted with their page (`wow.query.count-cache.paged-totals=false`), so they agree with the rows;
   - queries: `POST` and `GET` (the descriptor) of `/<ctx>/<agg>/{model}/query`, the model `snapshot` or `events` (one record per committed event stream, decision D235); the body's `kind` is `single`, `list`, `paged`, `cursor`, `count` or `aggregate`;
   - snapshot rebuild: `POST /<ctx>/snapshot/<agg>/wow.snapshot.rebuild` (decision D172);
   - datasets under `/wow/dataset`, the parked entries under `/wow/ops/parked` (`wow.ops.enabled`), the Manifest at `GET /wow/manifest`, the OpenAPI document at `GET /wow/openapi`.

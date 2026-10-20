@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.read.QueryApi
@@ -33,6 +34,7 @@ import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.DatasetVisibility
 import me.ahoo.wow.query.dataset.QueryDatasets
+import me.ahoo.wow.query.engine.CommittedStates
 import me.ahoo.wow.query.engine.ManifestTypes
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.events.UnpinnedEvents
@@ -47,6 +49,7 @@ import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.state.ReplayGate
+import me.ahoo.wow.runtime.state.StateReadView
 import me.ahoo.wow.runtime.state.StateReads
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
@@ -410,10 +413,14 @@ class QueryAutoConfiguration {
                         ReadModels.Model(model.type, model.stateType) { name -> model.findEventType(name)?.type }
                     },
                 ),
-                latest = { ref ->
-                    reads.ifAvailable?.latest(ref)?.let {
-                        CommittedState(it.ref, it.version, it.scope, it.deleted, it.tags, it.state)
-                    }
+                latest = object : CommittedStates {
+                    override suspend fun committed(ref: AggregateRef): CommittedState? =
+                        reads.ifAvailable?.latest(ref)?.committed()
+
+                    override suspend fun committed(ref: AggregateRef, minVersion: Int): CommittedState? =
+                        (reads.ifAvailable ?: StateReads.NONE).latest(ref, minVersion)?.committed()
+
+                    private fun StateReadView.committed() = CommittedState(ref, version, scope, deleted, tags, state)
                 },
                 defaultListSize = properties.inProcess.defaultListSize,
                 chunkSize = properties.stream.chunkSize,

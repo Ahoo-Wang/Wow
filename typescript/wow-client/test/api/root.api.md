@@ -1026,6 +1026,7 @@ export const FrameworkErrorCodes: {
     readonly QUERY_FAILED: "wow.query.failed";
     readonly QUERY_TIMEOUT: "wow.query.timeout";
     readonly QUERY_BUSY: "wow.query.busy";
+    readonly QUERY_MIN_VERSION_NOT_REACHED: "wow.query.min-version-not-reached";
     readonly QUERY_DATASET_UNAVAILABLE: "wow.query.dataset-unavailable";
     readonly CALL_COMMAND_FORBIDDEN: "wow.call.command-forbidden";
 };
@@ -1652,6 +1653,7 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
 export interface StateReadOptions extends RequestOptions {
     readonly at?: string | Date;
     readonly ifNoneMatch?: string;
+    readonly minVersion?: number;
     readonly version?: number;
 }
 

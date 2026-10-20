@@ -833,6 +833,18 @@ public final class me/ahoo/wow/api/read/EventStream$Companion {
 	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;IJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/caller/Operator;Ljava/util/List;)Lme/ahoo/wow/api/read/EventStream;
 }
 
+public final class me/ahoo/wow/api/read/MinVersionNotReachedException : java/lang/RuntimeException {
+	public static final field CODE Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/api/read/MinVersionNotReachedException$Companion;
+	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateRef;II)V
+	public final fun getMinVersion ()I
+	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getVersion ()I
+}
+
+public final class me/ahoo/wow/api/read/MinVersionNotReachedException$Companion {
+}
+
 public abstract interface class me/ahoo/wow/api/read/ModelQueries : me/ahoo/wow/api/read/RowQueries {
 	public abstract fun dynamic (Ljava/lang/Class;)Lme/ahoo/wow/api/read/RowQueries;
 	public abstract fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
@@ -897,7 +909,9 @@ public final class me/ahoo/wow/api/read/Snapshot$Companion {
 }
 
 public abstract interface class me/ahoo/wow/api/read/SnapshotQueries : me/ahoo/wow/api/read/ModelQueries {
+	public abstract fun state (Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun state (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun state (Lme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun state (Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
