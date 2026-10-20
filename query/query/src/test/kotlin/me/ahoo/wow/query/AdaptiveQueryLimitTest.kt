@@ -213,6 +213,20 @@ class AdaptiveQueryLimitTest {
     }
 
     @Test
+    fun `a caller reading in chunks should take its permit again under a lowered limit`(): Unit = runBlocking {
+        val bulkhead = QueryBulkhead("main", 2, maxWait = Duration.ZERO)
+        bulkhead.acquire()
+        bulkhead.acquire()
+        bulkhead.limit(1)
+        bulkhead.release()
+        bulkhead.release()
+        bulkhead.acquire()
+        runCatching { bulkhead.acquire() }.exceptionOrNull().assert().isInstanceOf(QueryBusyException::class.java)
+        bulkhead.release()
+        bulkhead.running.assert().isZero()
+    }
+
+    @Test
     fun `a limit outside one to the ceiling, or a ceiling below the start, should be refused`() {
         val bulkhead = QueryBulkhead("main", 2, ceiling = 4)
         assertThrows<IllegalArgumentException> { bulkhead.limit(0) }

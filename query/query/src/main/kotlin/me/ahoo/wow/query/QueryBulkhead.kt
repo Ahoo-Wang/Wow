@@ -138,10 +138,12 @@ class QueryBulkhead(
     }
 
     /**
-     * Takes a permit: at once when one is free, else after waiting in the queue at most [maxWait]. The semaphore hands
-     * a released permit to the longest waiter (FIFO) and gives it back when that waiter was cancelled meanwhile.
+     * Takes a permit: at once when one is free, else after waiting in the queue at most [maxWait], or fails with
+     * [QueryBusyException]. The semaphore hands a released permit to the longest waiter (FIFO) and gives it back when
+     * that waiter was cancelled meanwhile. Each permit taken is given back with one [release]: a caller that reads in
+     * chunks may give it back between two and take it again, so a lowered [limit] applies to it from its next chunk.
      */
-    private suspend fun acquire() {
+    suspend fun acquire() {
         if (permits.tryAcquire()) return
         contended.incrementAndGet()
         if (maxWait == Duration.ZERO || !enqueue()) throw busy()
@@ -152,8 +154,8 @@ class QueryBulkhead(
         }
     }
 
-    /** Gives a permit back, or keeps it back when the [limit] was lowered below the running queries. */
-    private fun release() {
+    /** Gives a permit [acquire] took back, or keeps it back when the [limit] was lowered below the running queries. */
+    fun release() {
         synchronized(lock) {
             if (owed > 0) {
                 owed--
