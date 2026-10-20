@@ -39,11 +39,15 @@ import me.ahoo.wow.runtime.binding.TENANT
 import me.ahoo.wow.runtime.binding.orderModel
 import me.ahoo.wow.runtime.subscription.EntryDecoder
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
+import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TestTimeSource
 
 /**
  * Decision D133: the state after a committed entry, read by one state consumer through the shared views, else from
@@ -53,13 +57,31 @@ class StateViewReaderTest {
     private class CountingLog(private val delegate: EventLog = InMemoryEventLog()) : EventLog by delegate {
         var streamsRead = 0
 
+        /** Runs as each stream commits, before the append returns: where the log hands a commit over (D249). */
+        var onCommitted: suspend (EventStreamRecord) -> Unit = {}
+
         override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
             delegate.read(ref, fromVersion, toVersion).onEach { streamsRead++ }
+
+        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+            delegate.append(stream, transport).also {
+                if (it is AppendOutcome.Committed) {
+                    onCommitted(stream)
+                }
+            }
+    }
+
+    /** A snapshot store counting its loads. */
+    private class CountingSnapshots(private val delegate: SnapshotStore = InMemorySnapshotStore()) :
+        SnapshotStore by delegate {
+        var loads = 0
+
+        override suspend fun load(ref: AggregateRef): SnapshotRecord? = delegate.load(ref).also { loads++ }
     }
 
     private val codec = EventCodec()
     private val log = CountingLog()
-    private val snapshots = InMemorySnapshotStore()
+    private val snapshots = CountingSnapshots()
     private val kernel = Kernel(log, codec = codec, snapshots = snapshots)
     private val cart = listCartModel()
     private val models = listOf(orderModel(), cart)
@@ -112,6 +134,67 @@ class StateViewReaderTest {
     }
 
     @Test
+    fun `a reader handed the node's own commit before its view is recorded should read no store`(): Unit =
+        runBlocking {
+            // The reader runs where the log hands each commit over: inside the append, before the executor records.
+            val read = mutableListOf<SerializedState>()
+            log.onCommitted = { stream ->
+                views.get(ref, stream.version).assert().isNull()
+                val streams = log.streamsRead
+                val loads = snapshots.loads
+                read += reader().read(stream)
+                (log.streamsRead - streams).assert().isEqualTo(0)
+                (snapshots.loads - loads).assert().isEqualTo(0)
+            }
+            val committed = listOf(add("apple"), add("pear"), add("plum"))
+            read.map { it.version }.assert().containsExactly(1, 2, 3)
+            read.last().items().assert().containsExactly("apple", "pear", "plum")
+            committed.zip(read).forEach { (commit, view) ->
+                view.state.assert().isEqualTo(codec.stateText(commit.state))
+                view.scope.assert().isEqualTo(commit.stream.scope)
+            }
+            // The executor's record afterwards keeps the reader's view: one view a version, read by the other reader.
+            reader(SNAPSHOT).read(stream(3)).assert().isSameAs(read.last())
+        }
+
+    @Test
+    fun `a view recorded before the reader is handed the commit should be read as it is`(): Unit = runBlocking {
+        add("apple")
+        add("pear")
+        val entries = listOf(stream(1), stream(2))
+        val loads = snapshots.loads
+        log.streamsRead = 0
+        reader().read(entries[0]).assert().isSameAs(views.get(ref, 1))
+        reader().read(entries[1]).assert().isSameAs(views.get(ref, 2))
+        log.streamsRead.assert().isEqualTo(0)
+        snapshots.loads.assert().isEqualTo(loads)
+    }
+
+    @Test
+    fun `a view evicted between two commits should cost the store reads again, and only once`(): Unit = runBlocking {
+        val time = TestTimeSource()
+        val aging = StateViews(codec, mapOf(PROJECTION to setOf(CART)), StateViewOptions(maxAge = 1.seconds), time)
+        val elsewhere = Executor(kernel)
+        add("apple", executor = elsewhere)
+        add("pear", executor = elsewhere)
+        add("plum", executor = elsewhere)
+        val entries = (1..3).map { stream(it) }
+        val loads = snapshots.loads
+        reader(views = aging).read(entries[0])
+        // The view the reader kept for version 1 ages out before version 2 is handed over.
+        time += 2.seconds
+        aging.size.assert().isEqualTo(1)
+        log.streamsRead = 0
+        reader(views = aging).read(entries[1]).items().assert().containsExactly("apple", "pear")
+        snapshots.loads.assert().isEqualTo(loads + 1)
+        log.streamsRead.assert().isEqualTo(2)
+        log.streamsRead = 0
+        reader(views = aging).read(entries[2]).items().assert().containsExactly("apple", "pear", "plum")
+        snapshots.loads.assert().isEqualTo(loads + 1)
+        log.streamsRead.assert().isEqualTo(0)
+    }
+
+    @Test
     fun `without a view the state should be the snapshot evolved with the log's tail`(): Unit = runBlocking {
         val elsewhere = Executor(kernel)
         add("apple", executor = elsewhere)
@@ -135,15 +218,16 @@ class StateViewReaderTest {
         snapshots.save(codec.snapshotOf(cart, ref, ListCart(), 5, Scope.NONE, 0, 0))
         val entries = (1..5).map { stream(it) }
         log.streamsRead = 0
+        // The first stream evolves the initial state: nothing read.
         reader().read(entries[0]).items().assert().containsExactly("item-0")
-        log.streamsRead.assert().isEqualTo(1)
-        log.streamsRead = 0
+        log.streamsRead.assert().isEqualTo(0)
         reader().read(entries[2]).items().assert().containsExactly("item-0", "item-1", "item-2")
         // From the view it rebuilt at version 1: versions 2 and 3 only, not the log from version 1.
         log.streamsRead.assert().isEqualTo(2)
         log.streamsRead = 0
+        // The view of the version right before the entry evolves with the entry in hand.
         reader().read(entries[3]).items().assert().hasSize(4)
-        log.streamsRead.assert().isEqualTo(1)
+        log.streamsRead.assert().isEqualTo(0)
     }
 
     @Test

@@ -580,6 +580,23 @@ class Kernel(
     }
 
     /**
+     * The committed state after [stream], evolved from [base], the state of its aggregate at the version right before
+     * it (a copy the caller hands over, which may be mutated; version 0 for the initial state), without reading the
+     * log: the caller already holds [stream] as the log holds it, such as a subscription's entry (decision D261,
+     * B.G-5). The state cache is not touched.
+     *
+     * @return the state after [stream] with the metadata the kernel keeps beside it; null when [stream] is not the
+     *   version right after [base]'s.
+     */
+    fun <S : Any> evolved(model: AggregateModel<S>, base: CachedState, stream: EventStreamRecord): CachedState? {
+        require(stream.ref.type == model.type) { "${stream.ref} is not a ${model.type}." }
+        if (stream.version != base.version + 1) {
+            return null
+        }
+        return evolve(model, base, stream)
+    }
+
+    /**
      * The committed state of [ref] at [version], evolved from [base], its state at an earlier version that the caller
      * hands over to be evolved (it may be mutated: a copy, never a live instance), with the log's streams after it up
      * to [version] (design 04 §1: a subscription behind the snapshot evolves the state it read for the previous
