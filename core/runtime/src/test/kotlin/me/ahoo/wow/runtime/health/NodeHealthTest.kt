@@ -284,9 +284,12 @@ class NodeHealthTest {
             coroutineScope {
                 val stuck = async { node.gateway.execute(deposit("a-1")) }
                 eventually { node.context(BANK).executor.commandsInFlight == 1 }
+                // Down once a probe timed out (after a second at least): a probe still under way is no failure.
                 eventually { health.readiness().status == HealthStatus.DOWN }
-                health.readiness().component(NodeHealth.STORES)!!.components.single().details.keys.assert()
-                    .contains("probingMillis")
+                eventually {
+                    health.readiness().component(NodeHealth.STORES)!!.components.single()
+                        .details["lastError"] == "TimeoutException"
+                }
                 delay(200)
                 // In flight with no progress, but the store does not answer: the kernel waits for it.
                 health.liveness().status.assert().isEqualTo(HealthStatus.UP)
