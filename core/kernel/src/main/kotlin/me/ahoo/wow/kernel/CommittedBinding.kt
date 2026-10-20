@@ -106,6 +106,7 @@ fun committedContextOf(
     committed: CommandCommitted<*>,
     ids: Ids,
     commandTypes: CommandTypes,
+    queries: ContextQueries = ContextQueries.NONE,
 ): SagaContext = ReceiptSagaContext(
     ExecutionId(handler.name, committed.executionId.ref, committed.executionId.version),
     committed.commandId,
@@ -115,4 +116,5 @@ fun committedContextOf(
     ids,
     committed.headers,
     commandTypes,
+    queries,
 )

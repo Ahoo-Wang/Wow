@@ -16,14 +16,13 @@ package me.ahoo.wow.example.eshop.catalog.server
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.dsl.listQuery
-import me.ahoo.wow.example.eshop.catalog.api.CatalogContext
+import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
+import me.ahoo.wow.example.eshop.catalog.domain.product.ProductState
 import me.ahoo.wow.example.eshop.catalog.domain.product.ProductStateProperties
-import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.query.QueryCaller
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -216,9 +215,11 @@ abstract class CatalogQueryContract {
             }
             sort { ProductStateProperties.STATE__PRICE.asc() }
         }
-        val gateway = checkNotNull(catalog.context.getBean(HttpQueries::class.java).snapshots(PRODUCT))
-        val rows = runBlocking { gateway.list(query, QueryCaller.IN_PROCESS).toList() }
-        rows.map { it["aggregateId"].asString() }.assert().containsExactly(five, seven)
+        // In process, typed: the node's QueryApi, as trusted code (decision D259).
+        val products = catalog.context.getBean(QueryApi::class.java).trusted().snapshots<ProductState>()
+        val rows = runBlocking { products.list(query).toList() }
+        rows.map { it.ref.id }.assert().containsExactly(five, seven)
+        rows.map { it.state.price }.assert().containsExactly(BigDecimal("5.00"), BigDecimal("7.00"))
     }
 
     @Test
@@ -315,7 +316,6 @@ abstract class CatalogQueryContract {
         const val PRODUCTS = "/eshop-catalog/product/snapshot/query"
         const val PRODUCT_EVENTS = "/eshop-catalog/product/events/query"
         private const val EMPLOYEE_ID = "erin"
-        private val PRODUCT = AggregateType(CatalogContext.NAME, CatalogContext.PRODUCT)
         const val BY_PRICE = """{"field":"state.price","direction":"ASC"}"""
         const val BAD_REQUEST = 400
         const val FORBIDDEN = 403

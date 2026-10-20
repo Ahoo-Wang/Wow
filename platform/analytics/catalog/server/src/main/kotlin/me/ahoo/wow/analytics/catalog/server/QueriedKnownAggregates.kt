@@ -19,17 +19,22 @@ import me.ahoo.wow.analytics.catalog.api.source.SourceKind
 import me.ahoo.wow.analytics.catalog.domain.warehouse.KnownAggregates
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.dsl.singleQuery
-import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.query.QueryCaller
+import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.query.read.trees
 
 /**
- * The aggregates the catalog knows, from the sources' snapshots: an aggregate some Wow source of the catalog is of.
- * A node whose backend serves no snapshot query knows of none, and says so in its log.
+ * The aggregates the catalog knows, from the sources' snapshots: an aggregate some Wow source of the catalog is of,
+ * read as trusted code, the catalog's own, in the catalog's tenant. A node whose backend serves no snapshot query knows
+ * of none, and says so in its log.
  */
-class QueriedKnownAggregates(private val queries: () -> HttpQueries) : KnownAggregates {
+class QueriedKnownAggregates(private val queries: () -> QueryApi) : KnownAggregates {
     override suspend fun knows(context: String, aggregate: String): Boolean {
-        val gateway = queries().snapshots(SOURCE) ?: return none()
-        val found = gateway.single(
+        val sources = try {
+            queries().trusted().snapshots(SOURCE).trees()
+        } catch (_: IllegalArgumentException) {
+            return none()
+        }
+        val found = sources.single(
             singleQuery {
                 filter {
                     tenantId(AnalyticsCatalogContext.TENANT_ID)
@@ -39,7 +44,6 @@ class QueriedKnownAggregates(private val queries: () -> HttpQueries) : KnownAggr
                 }
                 projection { include("aggregateId") }
             },
-            QueryCaller.IN_PROCESS,
         )
         return found != null
     }

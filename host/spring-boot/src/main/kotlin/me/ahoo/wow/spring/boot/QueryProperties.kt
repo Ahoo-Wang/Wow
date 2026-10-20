@@ -42,7 +42,11 @@ import kotlin.time.toKotlinDuration
  *   `allow-expensive-operators` (true), `max-residual-groups` (10000), `count-limit` (10000; the bound of a count and
  *   of a paged total, D150), `allow-exact-count` (false), `timeout` (30s), `unindexed-sort-expensive` (false); and
  *   `default-list-size` (100), the limit of a list that names none. A limit of `0` is off.
- * - `wow.query.in-process-timeout` (30s): the timeout of an in-process query, which has no budget.
+ * - `wow.query.in-process.*` (review R4-Q, Q-3): the budget of in-process queries, the typed
+ *   [me.ahoo.wow.api.read.QueryApi]'s, of trusted code too: the same keys and defaults as `wow.query.http.*`, its
+ *   `default-list-size` the limit of an in-process list that names none.
+ * - `wow.query.in-process-timeout` (30s): the timeout of an in-process query that has no budget, trusted code's that
+ *   dropped it (`QueryApi.trusted().unbounded()`).
  * - `wow.query.require-explicit-entry`, `wow.query.require-authenticated-scope` (both false): the entry gates.
  * - `wow.query.abac.*` (D129): `enabled` (false), `require-principal-tags` (false), `match-missing-tag-key` (true),
  *   `attribute-prefix` (`abac.`): the caller's `abac.<key>` attributes matched against the snapshots' `tags`.
@@ -95,6 +99,7 @@ import kotlin.time.toKotlinDuration
 class QueryProperties {
     var enabled: Boolean = true
     var http: Http = Http()
+    var inProcess: InProcess = InProcess()
     var inProcessTimeout: Duration = QueryBudget.DEFAULT_TIMEOUT.toJavaDuration()
     var requireExplicitEntry: Boolean = false
     var requireAuthenticatedScope: Boolean = false
@@ -117,10 +122,12 @@ class QueryProperties {
         requireExplicitEntry = requireExplicitEntry,
         requireAuthenticatedScope = requireAuthenticatedScope,
         http = http.budget(),
+        inProcess = inProcess.budget(),
         inProcessTimeout = inProcessTimeout.takeUnless { it.isZero }?.toKotlinDuration(),
     )
 
-    class Http {
+    /** A query entry's budget ([QueryBudget]) and the limit of a list that names none, under [label]. */
+    open class Budget internal constructor(private val label: String) {
         var maxListSize: Int = DEFAULT.maxListSize
         var maxPageSize: Int = DEFAULT.maxPageSize
         var maxPageWindow: Long = DEFAULT.maxPageWindow
@@ -135,7 +142,7 @@ class QueryProperties {
         var defaultListSize: Int = HttpQueries.DEFAULT_LIST_SIZE
 
         fun budget(): QueryBudget = QueryBudget(
-            label = QueryBudget.HTTP_LABEL,
+            label = label,
             maxListSize = maxListSize,
             maxPageSize = maxPageSize,
             maxPageWindow = maxPageWindow,
@@ -153,6 +160,12 @@ class QueryProperties {
             val DEFAULT = QueryBudget.HTTP_DEFAULT
         }
     }
+
+    /** The budget of the query routes, `wow.query.http.*`. */
+    class Http : Budget(QueryBudget.HTTP_LABEL)
+
+    /** The budget of the in-process [me.ahoo.wow.api.read.QueryApi], `wow.query.in-process.*`: the HTTP defaults. */
+    class InProcess : Budget(QueryBudget.IN_PROCESS_LABEL)
 
     class Abac {
         var enabled: Boolean = AbacQueryOptions.DEFAULT.enabled

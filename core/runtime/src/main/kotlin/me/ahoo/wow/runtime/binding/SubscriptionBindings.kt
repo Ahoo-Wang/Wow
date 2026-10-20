@@ -25,6 +25,7 @@ import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.BlockingDispatcher
+import me.ahoo.wow.kernel.CommandCalls
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.ProcessorBinding
@@ -154,7 +155,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 ) { entry ->
                     if (!onlyRetired(entry)) {
                         val event = stateEventOf(entry, context)
-                        call(handler, event, contextOf(handler.kind, name, event, context.ids, context.commandTypes))
+                        call(handler, event, executionOf(handler, name, event, context))
                     }
                 }
             }
@@ -202,7 +203,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     retry = handler.retry,
                 ) { entry ->
                     val event = publishedStateEventOf(entry, handler, context)
-                    call(handler, event, contextOf(handler.kind, name, event, context.ids, context.commandTypes))
+                    call(handler, event, executionOf(handler, name, event, context))
                 }
             }
             SourcedSubscription(subscription, types)
@@ -228,6 +229,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         context.context,
         context.coordinator::signal,
         commandTypes = context.commandTypes,
+        queries = context.queries,
     )
 
     /**
@@ -272,6 +274,19 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         )
 
         /**
+         * The context of [handler]'s execution of [event] in [context] (design 01 §1): its ids, command types and
+         * queries (decision D259) the context's, its synchronous calls through [calls].
+         */
+        private fun executionOf(
+            handler: ProcessorBinding<*>,
+            name: String,
+            event: StateEvent<*>,
+            context: ContextNode,
+            calls: CommandCalls = CommandCalls.NONE,
+        ): SubscriptionContext =
+            contextOf(handler.kind, name, event, context.ids, context.commandTypes, calls, context.queries)
+
+        /**
          * Hands [event], of [entry], to the saga [handler] of [context] and executes what it derives through [derived]
          * (design 04 §6.1). The wait the entry carries on past the saga's hop ([DerivedCommands.waitOf]) goes with its
          * derived commands and with its synchronous calls (decision D193), whose ids the saga's hop reports first, in
@@ -289,7 +304,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             val name = handler.name
             val wait = DerivedCommands.waitOf(entry.transport?.wait, context.context, name)
             val calls = SagaCalls(context.caller, context.served, context.commandTypes, wait)
-            val execution = contextOf(handler.kind, name, event, context.ids, context.commandTypes, calls)
+            val execution = executionOf(handler, name, event, context, calls)
             val commands = try {
                 call(handler, event, execution)
             } catch (rejected: CallRejectedException) {
