@@ -51,9 +51,9 @@ HTTP 命令 → 聚合决策 → 领域事件 → 溯源状态 → 投影 / Saga
 
 1. 从 [Wow 项目模板](https://github.com/Ahoo-Wang/wow-project-template)创建或克隆仓库。
 2. 运行 `./gradlew :domain:check`，再以文档中的内存配置启动 `./gradlew :server:run`。
-3. 按[快速上手](documentation/docs/zh/guide/getting-started.md)发送真实 `CreateDemo` 命令，等待 `SNAPSHOT`，并读取聚合版本 `1` 的状态。
+3. 按[快速开始](documentation/docs/zh/guide/v10/quickstart.md)发送真实 `CreateDemo` 命令，等待 `SNAPSHOT`，并读取聚合版本 `1` 的状态。
 
-这条路径会同时证明领域测试、生成路由、命令管道、事件溯源、快照等待和版本化状态读取。30 分钟是目标时长：功能链路已经过演练，但尚未测量新开发者首次完成的墙钟时间。若要在已有服务中接入，请改走[接入现有项目](documentation/docs/zh/guide/existing-project.md)。
+这条路径会同时证明领域测试、生成路由、命令管道、事件溯源、快照等待和版本化状态读取。30 分钟是目标时长：功能链路已经过演练，但尚未测量新开发者首次完成的墙钟时间。若要在已有服务中接入，请改走[编写服务](documentation/docs/zh/guide/v10/index.md)。
 
 ## 仓库内的能力证据
 
@@ -64,7 +64,7 @@ HTTP 命令 → 聚合决策 → 领域事件 → 溯源状态 → 投影 / Saga
 | Given → When → Expect 验证 | [wow-test](test/wow-test/src/main/kotlin/me/ahoo/wow/test) |
 | 生成的 HTTP 命令与状态路由 | [wow-webflux](wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route) |
 | 可选存储、消息、安全与可观测集成 | [wow-spring-boot-starter Feature Capabilities](wow-spring-boot-starter/build.gradle.kts) |
-| 补偿与恢复操作 | [补偿领域](compensation)与[补偿控制面](documentation/docs/zh/reference/example/compensation.md#补偿控制面) |
+| 补偿与恢复操作 | [ops 服务与控制台](platform/ops) |
 | TypeScript 客户端、React 绑定、代码生成器与视图引擎（npm `@ahoo-wang/wow-*`） | [typescript](typescript)与 [TypeScript 指南](documentation/docs/zh/guide/typescript/index.md) |
 
 ## 特性
@@ -93,9 +93,9 @@ HTTP 命令 → 聚合决策 → 领域事件 → 溯源状态 → 投影 / Saga
 
 ## 继续阅读
 
-- 从[简介](documentation/docs/zh/guide/introduction.md)、[核心概念](documentation/docs/zh/guide/core-concepts.md)和[文档导览](documentation/docs/zh/guide/index.md)开始。
+- 从[编写服务](documentation/docs/zh/guide/v10/index.md)与[编程模型](documentation/docs/zh/guide/v10/programming-model.md)开始。
 - 阅读 Kotlin [订单服务](example)或 Java [银行转账](example/transfer)示例。
-- 在[命令完成语义](documentation/docs/zh/guide/command/completion.md)中理解处理阶段，在[投影](documentation/docs/zh/guide/projection.md)建立读模型，在[事件补偿](documentation/docs/zh/guide/event/compensation.md)了解恢复边界。
+- 在 [`Wow-Wait`](documentation/docs/zh/guide/v10/http-api.md#wow-wait) 中理解处理阶段，在[投影](documentation/docs/zh/guide/v10/programming-model.md#投影)建立读模型，在[失败](documentation/docs/zh/guide/v10/programming-model.md#失败)了解恢复边界。
 - 查看[贡献指南](CONTRIBUTING.md)、[行为准则](CODE_OF_CONDUCT.md)和[安全策略](SECURITY.md)。
 - Wow 荣获 [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html)；官方结果给出的证据包括模块化设计、代码评审、测试、静态分析、双语文档和 Maven Central 发布历史。
 

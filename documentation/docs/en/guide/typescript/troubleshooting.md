@@ -5,7 +5,7 @@ description: Find the cause of common wow-client, wow-generator and wow-react fa
 
 # Troubleshooting the TypeScript Client
 
-This page answers: **what does this error from the Wow TypeScript packages mean, and how do I fix it?** Search the page for the message you see. Failures on the server side — command timeouts, version conflicts, projections — are in the server's [Troubleshooting](../troubleshooting.md).
+This page answers: **what does this error from the Wow TypeScript packages mean, and how do I fix it?** Search the page for the message you see. Failures on the server side — command timeouts, version conflicts, projections — are explained by the server's [error codes](../v10/http-api.md#error-codes).
 
 Most request failures reach your code as the fetcher's `ExchangeError`; its `message` and its `cause` name what went wrong, and `await toWowError(error)` reads Wow's error code when the server answered. See Error Handling.
 

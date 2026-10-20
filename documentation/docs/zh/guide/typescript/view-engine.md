@@ -26,7 +26,7 @@ description: wow-view-engine 包做什么、它的设计立足于哪些事实，
 | 记录上的命令：可用规则、放在哪、确认与表单、多选、结局 | [声明式操作](./view-engine-actions.md) |
 | 在严格的内容安全策略下运行 | [视图引擎的内容安全策略](./view-engine-csp.md) |
 | 选一个 store：内存、浏览器里的快照、Wow 服务端，或自己实现 `ViewStore` 并跑一致性测试 | [视图存在哪里](./view-engine-storage.md) |
-| 在 Kotlin 服务里嵌入视图存储，或运行独立服务端：配置、存储、系统视图、网关规则 | [视图存储](../extensions/view-store.md) |
+| 在 Kotlin 服务里嵌入视图存储，或运行独立服务端：配置、存储、系统视图、网关规则 | [视图存储](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md) |
 | 不用工作台，用 `/react` 的无头 Hook（`useOpenView`、`useViewRuntime`、`useFilterEditor`、`useRecordTable`）画自己的界面 | [React Hooks](../../reference/typescript/wow-view-engine/react.md) |
 | 查一个公开名字的签名 | [wow-view-engine 参考](../../reference/typescript/wow-view-engine/)的专题：[引擎与资源](../../reference/typescript/wow-view-engine/engine.md)、[定义与字段类型](../../reference/typescript/wow-view-engine/definitions.md)、[宿主接线](../../reference/typescript/wow-view-engine/host.md)、[工作台与嵌入](../../reference/typescript/wow-view-engine/components.md)、[持久化端口](../../reference/typescript/wow-view-engine/store.md)、[测试工具](../../reference/typescript/wow-view-engine/testing.md)、[Issue code](../../reference/typescript/wow-view-engine/issues.md) |
 | 在浏览器里用 `WowViewStore` 连上 Wow 服务端的视图存储 | [wow-view-store 参考](../../reference/typescript/wow-view-store/) |
@@ -102,7 +102,7 @@ Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--doc
 - [声明式操作](./view-engine-actions.md)：记录上的命令怎样声明，引擎怎样放置、确认、批量执行并报告结局。
 - [视图引擎的内容安全策略](./view-engine-csp.md)：严格策略下要放行的三件事，以及守着它的测试。
 - [视图存在哪里](./view-engine-storage.md)：按「谁要看到保存的视图」选一个 store，接上 `WowViewStore`，或自己写一个并跑一致性测试。
-- [视图存储](../extensions/view-store.md)：Kotlin 服务端——嵌入 starter 还是独立服务端、Docker 镜像、配置项、系统视图，以及它需要的 [CoSec 网关规则](../extensions/view-store.md#安全模型)。
+- [视图存储](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md)：Kotlin 服务端——嵌入 starter 还是独立服务端、Docker 镜像、配置项、系统视图，以及它需要的 [CoSec 网关规则](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md)。
 - [wow-view-engine 参考](../../reference/typescript/wow-view-engine/)：入口、概念、持久化端口与扩展点；[专题](../../reference/typescript/wow-view-engine/#topics)逐个给出宿主用到的签名，[Issue code](../../reference/typescript/wow-view-engine/issues.md) 列出引擎能报的每个 code。
 - [wow-view-store 参考](../../reference/typescript/wow-view-store/)：`WowViewStore`、Wow 服务端上的保存视图。
 - [使用工作台](../../workbench/)：写给应用的使用者——记录视图、分析视图、仪表盘与保存的视图，不涉及代码；可以从应用的帮助入口链接过去。
