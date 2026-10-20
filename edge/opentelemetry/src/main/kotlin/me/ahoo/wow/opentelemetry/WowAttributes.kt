@@ -67,6 +67,25 @@ object WowMetrics {
     const val PAUSED_NOTICES: String = "wow.subscription.paused.notices"
 
     /**
+     * Gauge: whether a subscription throttles a partition on backpressure (decision D263), 1 while it runs fewer
+     * handlings at once than its in-flight bound, 0 for a partition of the log it runs at full speed; tags group,
+     * subscription, partition.
+     */
+    const val THROTTLED: String = "wow.subscription.throttled"
+
+    /**
+     * Counter: the partitions a subscription started throttling on backpressure (kind `throttled`) and stopped
+     * (kind `unthrottled`), decision D263; tags group, subscription, partition, kind.
+     */
+    const val THROTTLED_NOTICES: String = "wow.subscription.throttled.notices"
+
+    /**
+     * Counter: the attempts of a subscription whose downstream pushed back (decision D263), each retried with backoff;
+     * tags group, subscription, code (`wow.command.busy`, `wow.wait.timeout`, `wow.query.busy`, or the failure's class).
+     */
+    const val BACKPRESSURE: String = "wow.subscription.backpressure"
+
+    /**
      * Counter: the messages of a topic this version cannot decode (review A3-14); tags topic, and outcome `parked`
      * (its key names an aggregate, parked there) or `skipped` (passed over).
      */
@@ -147,4 +166,6 @@ object WowMetrics {
     const val SKIPPED_OUTCOME: String = "skipped"
     const val PAUSED_KIND: String = "paused"
     const val RESUMED_KIND: String = "resumed"
+    const val THROTTLED_KIND: String = "throttled"
+    const val UNTHROTTLED_KIND: String = "unthrottled"
 }

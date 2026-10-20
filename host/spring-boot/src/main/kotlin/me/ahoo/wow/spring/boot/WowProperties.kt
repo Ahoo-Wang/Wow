@@ -37,6 +37,7 @@ import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
 import me.ahoo.wow.runtime.store.AggregatePlacement
 import me.ahoo.wow.runtime.store.StorePlacements
+import me.ahoo.wow.runtime.subscription.BackpressureOptions
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
@@ -117,6 +118,10 @@ import kotlin.time.toKotlinDuration
  *   different aggregates failed within the window, and probes it at that backoff until a handling succeeds, see
  *   [Systemic]. A handler's failures are classified by its `@Retry(recoverable, unrecoverable)`, then the
  *   `FailureClassifier` beans, the backends' and the runtime's own (decision D229 G-6).
+ * - `wow.subscription.backpressure.max-attempts` (20), `initial-backoff` (100ms), `max-backoff` (10s), `jitter` (0.5),
+ *   `min-concurrency` (1): a handler whose downstream pushes back (`wow.command.busy`, `wow.wait.timeout`,
+ *   `wow.query.busy`, a 429 with `Retry-After`) is retried with that backoff and jitter while its partition is
+ *   throttled, then parks; it never pauses the partition (decision D263), see [Backpressure].
  * - `wow.ops.enabled` (false): the operator's routes under `/wow/ops/parked`; `wow.ops.webhook.url`, `format`
  *   (`generic` or `wecom`), `events` (`parked`, `exhausted`), `timeout` (5s), `headers`: the webhook told when an
  *   entry parks or spends its retries, see [Ops] and [Webhook]; `wow.ops.publish.enabled` (false), `context` (`ops`),
@@ -627,6 +632,9 @@ class WowProperties {
         /** When a partition pauses on a systemic failure (decision D243). */
         var systemic: Systemic = Systemic()
 
+        /** How a handler whose downstream pushes back is retried, and its partition throttled (decision D263). */
+        var backpressure: Backpressure = Backpressure()
+
         /** These options, with the starts, the parked retry specs and the retry budgets [subscriptions] configure. */
         fun options(subscriptions: Map<String, SubscriptionSettings> = emptyMap()): SubscriptionOptions {
             val spec = parked.spec()
@@ -653,6 +661,7 @@ class WowProperties {
                     settings.retry.handlerRetry()?.let { name to it }
                 }.toMap(),
                 systemic = systemic.options(),
+                backpressure = backpressure.options(),
             )
         }
     }
@@ -663,6 +672,28 @@ class WowProperties {
      * since (0 turns that off). While paused, one attempt at a time probes, the first [initialBackoff] after the pause,
      * doubling to at most [maxBackoff].
      */
+    /**
+     * How a subscription answers backpressure (decision D263): the entry is retried at most [maxAttempts] times, then
+     * its aggregate parks; each wait starts at [initialBackoff], doubles to at most [maxBackoff], is shortened by up to
+     * [jitter] (a share, 0 to 1) at random, and is at least the downstream's `Retry-After`. Meanwhile each backpressure
+     * halves the handlings the partition runs at once, down to [minConcurrency], and each success raises them again.
+     */
+    class Backpressure {
+        var maxAttempts: Int = DEFAULT_BACKPRESSURE.maxAttempts
+        var initialBackoff: Duration = DEFAULT_BACKPRESSURE.initialBackoff.toJavaDuration()
+        var maxBackoff: Duration = DEFAULT_BACKPRESSURE.maxBackoff.toJavaDuration()
+        var jitter: Double = DEFAULT_BACKPRESSURE.jitter
+        var minConcurrency: Int = DEFAULT_BACKPRESSURE.minConcurrency
+
+        fun options(): BackpressureOptions = BackpressureOptions(
+            maxAttempts = maxAttempts,
+            initialBackoff = initialBackoff.toKotlinDuration(),
+            maxBackoff = maxBackoff.toKotlinDuration(),
+            jitter = jitter,
+            minConcurrency = minConcurrency,
+        )
+    }
+
     class Systemic {
         var failingAggregates: Int = DEFAULT_SYSTEMIC.failingAggregates
         var window: Duration = DEFAULT_SYSTEMIC.window.toJavaDuration()
@@ -1163,6 +1194,7 @@ class WowProperties {
         private val DEFAULT_PARKED = ParkedRetryOptions()
         private val DEFAULT_HEALTH = HealthOptions()
         private val DEFAULT_SYSTEMIC = SystemicFailureOptions()
+        private val DEFAULT_BACKPRESSURE = BackpressureOptions()
         private val DEFAULT_HANDOFF = HandoffOptions()
     }
 }
