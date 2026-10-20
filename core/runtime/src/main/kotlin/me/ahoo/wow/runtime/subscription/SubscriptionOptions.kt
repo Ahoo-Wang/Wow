@@ -96,6 +96,8 @@ data class RetryPolicy(
  *   [Subscription.retry]), each one not given is the handler's, else [retry]'s.
  * - [systemic]: when a subscription takes its failures for systemic and pauses its partition instead of charging and
  *   parking the aggregates (decision D243).
+ * - [backpressure]: how a subscription retries an entry whose downstream asked it to come back later, and throttles
+ *   its partition meanwhile (decision D263).
  *
  * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -114,6 +116,7 @@ class SubscriptionOptions @InternalWowApi constructor(
     val parked: ParkedRetryOptions = ParkedRetryOptions(),
     val retries: Map<String, HandlerRetry> = emptyMap(),
     val systemic: SystemicFailureOptions = SystemicFailureOptions(),
+    val backpressure: BackpressureOptions = BackpressureOptions(),
 ) {
     init {
         require(maxInFlight >= 1) { "A subscription holds at least one entry in flight." }
@@ -151,6 +154,7 @@ class SubscriptionOptions @InternalWowApi constructor(
         parked: ParkedRetryOptions = this.parked,
         retries: Map<String, HandlerRetry> = this.retries,
         systemic: SystemicFailureOptions = this.systemic,
+        backpressure: BackpressureOptions = this.backpressure,
     ): SubscriptionOptions = SubscriptionOptions(
         maxInFlight,
         retry,
@@ -161,6 +165,7 @@ class SubscriptionOptions @InternalWowApi constructor(
         parked,
         retries,
         systemic,
+        backpressure,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -171,7 +176,7 @@ class SubscriptionOptions @InternalWowApi constructor(
     override fun toString(): String =
         "SubscriptionOptions(maxInFlight=$maxInFlight, retry=$retry, checkpointInterval=$checkpointInterval, " +
             "stopTimeout=$stopTimeout, readRetry=$readRetry, starts=$starts, parked=$parked, retries=$retries, " +
-            "systemic=$systemic)"
+            "systemic=$systemic, backpressure=$backpressure)"
 
     private fun valueFields(): List<Any?> = listOf(
         maxInFlight,
@@ -183,7 +188,59 @@ class SubscriptionOptions @InternalWowApi constructor(
         parked,
         retries,
         systemic,
+        backpressure,
     )
+}
+
+/**
+ * How a subscription answers backpressure (decision D263): a failure classified
+ * [me.ahoo.wow.spi.subscription.FailureClass.BACKPRESSURE], a downstream that is up but asked to be called later. The
+ * entry is retried at most [maxAttempts] times, then its aggregate parks as after any spent budget; it never pauses the
+ * partition. The wait before the next attempt starts at [initialBackoff], doubles to at most [maxBackoff], is shortened
+ * by up to [jitter] (a share, 0 to 1) at random so the lanes do not retry in step, and is at least the downstream's
+ * `Retry-After`. Meanwhile the partition is throttled: each backpressure halves the handlings it runs at once, down to
+ * [minConcurrency], and each success raises it by half again, back to the in-flight bound.
+ *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
+ */
+class BackpressureOptions @InternalWowApi constructor(
+    val maxAttempts: Int = 20,
+    val initialBackoff: Duration = 100.milliseconds,
+    val maxBackoff: Duration = 10.seconds,
+    val jitter: Double = 0.5,
+    val minConcurrency: Int = 1,
+) {
+    init {
+        require(maxAttempts >= 1) { "A backpressured entry is attempted at least once." }
+        require(initialBackoff.isPositive() && initialBackoff <= maxBackoff) {
+            "The backpressure backoff is positive and at most the maximum backoff."
+        }
+        require(jitter in 0.0..1.0) { "The jitter is a share of the backoff, from 0 to 1." }
+        require(minConcurrency >= 1) { "A throttled partition still runs at least one handling at once." }
+    }
+
+    private val retries = RetryPolicy(initialBackoff = initialBackoff, maxBackoff = maxBackoff)
+
+    /**
+     * The wait after the [failures]th backpressure in a row (1 for the first): the backoff, shortened by [jitter] times
+     * [random] (from 0 to 1), and at least [retryAfter].
+     */
+    internal fun backoff(failures: Int, retryAfter: Duration?, random: Double): Duration {
+        val backoff = retries.backoff(failures)
+        return (backoff * (1 - jitter * random)).coerceAtLeast(retryAfter ?: Duration.ZERO)
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is BackpressureOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "BackpressureOptions(maxAttempts=$maxAttempts, initialBackoff=$initialBackoff, maxBackoff=$maxBackoff, " +
+            "jitter=$jitter, minConcurrency=$minConcurrency)"
+
+    private fun valueFields(): List<Any?> = listOf(maxAttempts, initialBackoff, maxBackoff, jitter, minConcurrency)
 }
 
 /**

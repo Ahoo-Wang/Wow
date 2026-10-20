@@ -25,6 +25,7 @@ import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.runtime.client.InProcessCommandClient
 import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.runtime.command.CommandSender
@@ -142,14 +143,15 @@ internal class DerivedCommands(
         if (!settlement.failed) {
             return null
         }
-        // A busy node is backpressure: the subscription retries without spending its budget (review R2.1-1).
+        // A busy node is backpressure, which the subscription retries and throttles (R2.1-1, decision D263).
         settlement.busyOf(command)?.let { return it }
         val error = settlement.committed.error
-        val failure = settlement.failure
-        return IllegalStateException(
+        // With its code, so the subscription tells backpressure (`wow.wait.timeout`) from an outage or a defect.
+        return InProcessCommandClient.problemOf(
+            settlement.committed,
             "The derived command ${command.id} on ${command.ref} failed: ${error?.code} ${error?.message}" +
                 settlement.cause?.let { " ($it)" }.orEmpty(),
-            failure,
+            settlement.failure,
         )
     }
 
