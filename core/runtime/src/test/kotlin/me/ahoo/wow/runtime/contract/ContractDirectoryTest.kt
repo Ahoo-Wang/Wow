@@ -271,6 +271,22 @@ class ContractDirectoryTest {
     }
 
     @Test
+    fun `events by type the peer's contract does not declare should fail`() {
+        // DX-1c: a handler of each Paid reads the payment's stream; the api on its class path knows a Refunded too.
+        val typed = SubscriptionSource("payment", listOf("payment"), events = listOf("Paid", "Refunded"))
+        problems(shop(subscriptions = listOf(subscription("Ledger.onPaid", source = typed)))).assert().containsExactly(
+            "subscription shop.Ledger.onPaid reads the event Refunded, which the contract of payment does not " +
+                "declare for payment: depend on the api module its service publishes",
+        )
+        val known = SubscriptionSource("payment", listOf("payment"), events = listOf("Paid"))
+        ContractDirectory(
+            shop(subscriptions = listOf(subscription("Ledger.onPaid", source = known))),
+            ContractFixtures.peers
+        )
+            .contextOf("payment").assert().isNotNull()
+    }
+
+    @Test
     fun `a source of an unknown context or aggregate, or of an unpublished one, should fail`() {
         problems(
             shop(

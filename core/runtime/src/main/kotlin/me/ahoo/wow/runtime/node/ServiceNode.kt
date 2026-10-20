@@ -66,6 +66,7 @@ import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.command.MessageEntries
 import me.ahoo.wow.runtime.command.Receipts
 import me.ahoo.wow.runtime.contract.ContractDirectory
+import me.ahoo.wow.runtime.contract.PeerEvents
 import me.ahoo.wow.runtime.health.NodeStores
 import me.ahoo.wow.runtime.health.StoreWritePressure
 import me.ahoo.wow.runtime.health.WritePressures
@@ -179,6 +180,8 @@ class ContextNode internal constructor(
     val served: Set<String> = setOf(context),
     /** The queries the context's handlers read with, by the commit's tenant (decision D259); none by default. */
     val queries: ContextQueries = ContextQueries.NONE,
+    /** The events of other contexts' published streams, decoded into their api classes (DX-1c); none by default. */
+    val peerEvents: PeerEvents = PeerEvents.NONE,
 ) {
     /**
      * The ids of the context's creation commands that name no aggregate (decision D191): a saga's derived command, one
@@ -420,6 +423,9 @@ class ServiceNode @InternalWowApi constructor(
     fun writePressure(store: String): StoreWritePressure? = pressures.find(store)
 
     private val nodeSnapshots = NodeSnapshots(manifest)
+
+    /** The other contexts' published events, decoded into their api classes by the [contracts] (DX-1c). */
+    private val peerEvents = PeerEvents.of(contracts)
 
     /** The commands in flight in the executors of every context (decision D228 ②): one bound for the node. */
     internal val inFlight = InFlightLimit(options.maxInFlight)
@@ -1264,6 +1270,7 @@ class ServiceNode @InternalWowApi constructor(
                 caller,
                 registry.contexts,
                 queries,
+                peerEvents,
             )
         }
     }

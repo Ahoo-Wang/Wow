@@ -13,7 +13,13 @@
 
 package me.ahoo.wow.compiler.model
 
+import com.google.devtools.ksp.KspExperimental
+import com.google.devtools.ksp.getAnnotationsByType
+import com.google.devtools.ksp.symbol.ClassKind
+import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.Modifier
+import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 
 /** An event class of an aggregate of the module (decision D264): its [type], its [binary] name and its [state]. */
@@ -22,9 +28,19 @@ internal data class ModuleEvent(val type: KSType, val binary: String, val state:
 /**
  * The event a handler of each event of a type takes (decision D264): `StateTypedEvent<S, E>` ([TYPED]) or `E` itself
  * ([BARE]), [source] being `E`'s qualified name, [state] the state of the aggregate whose events it takes, declared or
- * inferred from `E`, and [events] the binary names of the module's events that are an `E`.
+ * inferred from `E` (null for another context's stream whose `S` it leaves out), and [events] the binary names of the
+ * module's events that are an `E`; for the events of the aggregate `@OnEvent(aggregates)` names, another context's
+ * (DX-1c), [names] are the events' names instead, as their api classes give them.
  */
-internal data class EventParameter(val form: String, val source: String, val state: String, val events: List<String>) {
+internal data class EventParameter(
+    val form: String,
+    val source: String,
+    val state: String?,
+    val events: List<String> = emptyList(),
+    val names: List<String> = emptyList(),
+    /** Whether the handler takes a null state: another context's stream published without it (decision D140). */
+    val nullableState: Boolean = false,
+) {
     companion object {
         const val TYPED = "TYPED"
         const val BARE = "BARE"
@@ -55,19 +71,32 @@ internal object TypedEventResolver {
             problems += "$where takes a StateTypedEvent of no event type: name the event, StateTypedEvent<S, E>"
             return null
         }
-        if (aggregates.isNotEmpty()) {
-            problems += "$where takes each $eventName and reads @OnEvent(aggregates): a handler of each event of a " +
-                "type reads its own context's aggregate of that event; another context's events by type wait for " +
-                "its api's event classes (DX-1c)"
-            return null
-        }
         val state = declaredState?.declaration?.qualifiedName?.asString()
+        if (aggregates.isNotEmpty()) {
+            val nullable = declaredState == null || declaredState.isMarkedNullable
+            return named(where, typed, event, eventName, state, problems)?.copy(nullableState = nullable)
+        }
+        return local(where, typed, event, eventName, state, events, problems)
+    }
+
+    /** The event parameter of a handler of the module's own events that are an `E` (decision D264). */
+    @Suppress("LongParameterList")
+    private fun local(
+        where: String,
+        typed: Boolean,
+        event: KSType,
+        eventName: String,
+        state: String?,
+        events: List<ModuleEvent>,
+        problems: MutableList<String>,
+    ): EventParameter? {
         val matches = events.filter { event.isAssignableFrom(it.type) && (state == null || it.state == state) }
         val states = matches.map { it.state }.distinct()
         return when {
             matches.isEmpty() -> {
                 problems += "$where takes $eventName, which is no event of an aggregate of this module" +
-                    (state?.let { " whose state is $it" } ?: "")
+                    (state?.let { " whose state is $it" } ?: "") + ": for another context's event, name its " +
+                    "aggregate with @OnEvent(aggregates = [\"context.aggregate\"])"
                 null
             }
 
@@ -85,4 +114,46 @@ internal object TypedEventResolver {
             )
         }
     }
+
+    /**
+     * The event parameter of a handler of the aggregate `@OnEvent(aggregates)` names, another context's (DX-1c): `E` is
+     * a class of that context's api, or a sealed type of them, and the events' names are their `@Name`s or simple
+     * names, as the contract names them.
+     */
+    private fun named(
+        where: String,
+        typed: Boolean,
+        event: KSType,
+        eventName: String,
+        state: String?,
+        problems: MutableList<String>,
+    ): EventParameter? {
+        val classes = (event.declaration as? KSClassDeclaration)?.let(::concreteClasses).orEmpty()
+        if (classes.isEmpty()) {
+            problems += "$where takes $eventName of the aggregate @OnEvent(aggregates) names: name an event class " +
+                "of its context's api, or a sealed type of them"
+            return null
+        }
+        return EventParameter(
+            form = if (typed) EventParameter.TYPED else EventParameter.BARE,
+            source = eventName,
+            state = state,
+            names = classes.map(::nameOf).distinct().sorted(),
+        )
+    }
+
+    /** [declaration] when concrete, the concrete classes among its sealed subclasses when sealed, else none. */
+    private fun concreteClasses(declaration: KSClassDeclaration): List<KSClassDeclaration> = when {
+        Modifier.SEALED in declaration.modifiers ->
+            declaration.getSealedSubclasses().flatMap { concreteClasses(it) }.distinct().toList()
+
+        declaration.classKind == ClassKind.OBJECT -> listOf(declaration)
+        declaration.classKind == ClassKind.CLASS && Modifier.ABSTRACT !in declaration.modifiers -> listOf(declaration)
+        else -> emptyList()
+    }
+
+    /** The name the model gives the event [declaration]: its `@Name`, else its simple name. */
+    @OptIn(KspExperimental::class)
+    private fun nameOf(declaration: KSClassDeclaration): String =
+        declaration.getAnnotationsByType(Name::class).firstOrNull()?.value ?: declaration.simpleName.asString()
 }

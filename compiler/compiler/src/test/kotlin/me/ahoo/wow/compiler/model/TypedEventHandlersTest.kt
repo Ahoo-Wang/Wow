@@ -235,9 +235,6 @@ class TypedEventHandlersTest {
 
                 @OnEvent
                 fun noType(event: StateTypedEvent<Order, *>) = Unit
-
-                @OnEvent(aggregates = ["billing.account"])
-                fun peer(event: OrderPlaced) = Unit
             }
             """.trimIndent(),
         )
@@ -250,6 +247,93 @@ class TypedEventHandlersTest {
                 "handler Broken.wrongState takes sample.OrderPlaced, which is no event of an aggregate of this module whose state is sample.Cart"
             )
             .contains("handler Broken.noType takes a StateTypedEvent of no event type")
-            .contains("handler Broken.peer takes each sample.OrderPlaced and reads @OnEvent(aggregates)")
+    }
+
+    @Suppress("LongMethod") // The peer api, the processors and the fragment, whole.
+    @Test
+    fun `a handler of another context's events should take them by its api's classes`() {
+        val billingApi = compileLibrary(
+            SourceFile.kotlin(
+                "BillingEvents.kt",
+                """
+                package billing
+
+                import me.ahoo.wow.api.annotation.Name
+
+                sealed interface PaymentEvent
+
+                @Name("Settled")
+                data class Paid(val amount: Int) : PaymentEvent
+                data class Declined(val reason: String) : PaymentEvent
+
+                interface Loose
+                """.trimIndent(),
+            ),
+        )
+        val peers = SourceFile.kotlin(
+            "Peers.kt",
+            """
+            package sample
+
+            import billing.Declined
+            import billing.Loose
+            import billing.Paid
+            import billing.PaymentEvent
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Projection
+            import me.ahoo.wow.api.subscribe.StateTypedEvent
+
+            data class PaymentView(val amount: Int)
+
+            @Projection
+            class Ledger {
+                @OnEvent(aggregates = ["billing.payment"])
+                fun onPaid(event: StateTypedEvent<PaymentView, Paid>) = Unit
+
+                @OnEvent(aggregates = ["billing.payment"])
+                fun onAny(event: PaymentEvent) = Unit
+
+                @OnEvent(aggregates = ["billing.payment"])
+                fun onDeclined(event: StateTypedEvent<PaymentView?, Declined>) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compileModelAgainst("generate", options, listOf(billingApi), model, peers)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        val fragment = compilation.workingDir.walkTopDown().first { it.isFile && it.name == "shop-domain.json" }
+        val sources = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+            .contexts.single().subscriptions.associate { it.name to it.source }
+        sources.getValue("Ledger.onPaid").events.assert().containsExactly("Settled")
+        sources.getValue("Ledger.onPaid").context.assert().isEqualTo("billing")
+        sources.getValue("Ledger.onPaid").nullableState.assert().isFalse()
+        sources.getValue("Ledger.onAny").events.assert().containsExactly("Declined", "Settled")
+        sources.getValue("Ledger.onAny").nullableState.assert().isTrue()
+        sources.getValue("Ledger.onDeclined").nullableState.assert().isTrue()
+        compilation.workingDir.walkTopDown().first { it.isFile && it.name == "LedgerSubscriptions.kt" }.readText()
+            .assert().contains("eventType = billing.Paid::class.java")
+            .contains("aggregates = listOf(\"billing.payment\")")
+
+        val loose = SourceFile.kotlin(
+            "Loose.kt",
+            """
+            package sample
+
+            import billing.Loose
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Projection
+
+            @Projection
+            class Broken {
+                @OnEvent(aggregates = ["billing.payment"])
+                fun onLoose(event: Loose) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (_, broken) = compileModelAgainst("generate", options, listOf(billingApi), model, loose)
+        broken.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        broken.messages.assert().contains(
+            "handler Broken.onLoose takes billing.Loose of the aggregate @OnEvent(aggregates) names: name an event " +
+                "class of its context's api, or a sealed type of them",
+        )
     }
 }
