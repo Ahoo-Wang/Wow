@@ -139,6 +139,7 @@ wow:
 | `wow.query.in-process-timeout` | `30s` | 没有预算的进程内查询的超时 |
 | `wow.query.require-explicit-entry` | `false` | 查询是否必须说明自己是 HTTP 还是进程内；未说明时视为进程内 |
 | `wow.query.require-authenticated-scope` | `false` | HTTP 查询是否需要能固定模型所需作用域的认证作用域；关闭时信任声明的作用域 |
+| `wow.query.cross-tenant.enabled` | `false` | 带 `crossScope` 的调用方能否用 `Wow-Scope: tenant=*` 或租户列表跨租户查询；每次这类查询都以 INFO 级别审计 |
 | `wow.query.abac.enabled` | `false` | 是否用调用方的 `abac.<key>` 属性匹配快照的 `tags` 与每个事件流记录的 `tags` |
 | `wow.query.abac.require-principal-tags` | `false` | 调用方没有 ABAC 标签的 HTTP 查询是否被拒绝，而不是匹配所有资源 |
 | `wow.query.abac.match-missing-tag-key` | `true` | 缺少调用方某个标签键的资源是否作为公共资源匹配 |

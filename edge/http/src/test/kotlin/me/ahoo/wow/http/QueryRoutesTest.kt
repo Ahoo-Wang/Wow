@@ -26,9 +26,11 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.QueryErrorCodes
+import me.ahoo.wow.client.wire.ScopeHeader
 import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.query.CrossTenant
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
@@ -109,6 +111,44 @@ class QueryRoutesTest {
             """{"kind":"list","filter":{"op":"MATCH_ALL"}}""",
             headers = mapOf(WowHeaders.SCOPE to "tenant=\"acme\"", "X-Admin" to "yes"),
         ).assertQueryProblem(400, FrameworkErrors.QUERY_MALFORMED)
+    }
+
+    @Test
+    fun `a cross-tenant query is off by default and only for a caller who may act across scopes`() {
+        val list = """{"kind":"list","filter":{"op":"MATCH_ALL"},"sort":[{"field":"aggregateId","direction":"ASC"}]}"""
+        node.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=*", "X-Admin" to "yes"))
+            .assertQueryProblem(403, FrameworkCodes.AUTH_FORBIDDEN)
+        val across = QueryNode(crossTenant = true)
+        across.save("c-1")
+        across.save("c-2", tenant = "t2")
+        across.save("c-3", tenant = "t3", owner = "bob")
+        across.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=*"))
+            .assertQueryProblem(403, FrameworkCodes.AUTH_FORBIDDEN)
+        ids(across.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=*", "X-Admin" to "yes")))
+            .assert().containsExactly("c-1", "c-2", "c-3")
+        ids(across.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=(t2 t3)", "X-Admin" to "yes")))
+            .assert().containsExactly("c-2", "c-3")
+        ids(across.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=*, owner=bob", "X-Admin" to "yes")))
+            .assert().containsExactly("c-3")
+        across.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=()", "X-Admin" to "yes"))
+            .assertQueryProblem(400, FrameworkErrors.QUERY_MALFORMED)
+    }
+
+    @Test
+    fun `a fixed-tenant type never leaks another tenant to a cross-tenant query`() {
+        val fixed = QueryNode(tenants = TenantPolicy.fixed(mapOf(cartType to "platform")), crossTenant = true)
+        fixed.save("c-1", tenant = "platform")
+        fixed.save("c-2")
+        fixed.save("c-3", tenant = "t2")
+        val admin = "X-Admin" to "yes"
+        val list = """{"kind":"list","filter":{"op":"MATCH_ALL"}}"""
+        ids(fixed.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=*", admin))).assert().containsExactly("c-1")
+        ids(fixed.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=(t2 platform)", admin)))
+            .assert().containsExactly("c-1")
+        fixed.query("""{"kind":"count","filter":{"op":"MATCH_ALL"}}""", headers = mapOf(WowHeaders.SCOPE to "tenant=*", admin))
+            .body!!["count"].asLong().assert().isEqualTo(1L)
+        fixed.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=(t2 acme)", admin))
+            .assertQueryProblem(400, FrameworkErrors.QUERY_MALFORMED)
     }
 
     @Test
@@ -345,7 +385,10 @@ class QueryRoutesTest {
         mapped.principal.assert().isEqualTo(caller.scope)
         mapped.subject.assert().isEqualTo("alice")
         mapped.attributes.assert().isEqualTo(caller.attributes)
-        val named = me.ahoo.wow.runtime.admission.TargetScope("other", me.ahoo.wow.api.aggregate.Scope("bob"))
+        val named = ScopeHeader.QueryTarget(
+            me.ahoo.wow.runtime.admission.TargetScope("other", me.ahoo.wow.api.aggregate.Scope("bob")),
+            null,
+        )
         val across = me.ahoo.wow.http.query.QueryHandler.queryCaller(cartType, caller, named, TenantPolicy.CALLERS)!!
         across.tenantId.assert().isEqualTo("other")
         across.principal.ownerId.assert().isEqualTo("bob")
@@ -355,6 +398,18 @@ class QueryRoutesTest {
             named,
             TenantPolicy.fixed(mapOf(cartType to "platform")),
         ).assert().isNull()
+        val all = ScopeHeader.QueryTarget(me.ahoo.wow.runtime.admission.TargetScope(), CrossTenant.ALL)
+        me.ahoo.wow.http.query.QueryHandler.queryCaller(cartType, caller, all, TenantPolicy.CALLERS)!!.run {
+            crossTenant.assert().isEqualTo(CrossTenant.ALL)
+            tenantId.assert().isNull()
+            principal.assert().isEqualTo(me.ahoo.wow.api.aggregate.Scope.NONE)
+        }
+        me.ahoo.wow.http.query.QueryHandler.queryCaller(
+            cartType,
+            caller,
+            all,
+            TenantPolicy.fixed(mapOf(cartType to "platform")),
+        )!!.crossTenant.assert().isEqualTo(CrossTenant(setOf("platform")))
     }
 }
 

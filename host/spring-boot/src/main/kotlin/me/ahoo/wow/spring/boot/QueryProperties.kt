@@ -48,6 +48,10 @@ import kotlin.time.toKotlinDuration
  * - `wow.query.in-process-timeout` (30s): the timeout of an in-process query that has no budget, trusted code's that
  *   dropped it (`QueryApi.trusted().unbounded()`).
  * - `wow.query.require-explicit-entry`, `wow.query.require-authenticated-scope` (both false): the entry gates.
+ * - `wow.query.cross-tenant.enabled` (false; decision D254 ⑦): whether a caller that may act across scopes may query
+ *   across tenants on the query routes, `Wow-Scope: tenant=*` or `tenant=("t1" "t2")`; 403 `wow.auth.forbidden` while
+ *   off. A type whose tenant is fixed is still read in that tenant alone, and every such query's audit is logged at
+ *   INFO (`me.ahoo.wow.query.CrossTenantAudit`). The commands and the state reads never cross tenants.
  * - `wow.query.abac.*` (D129): `enabled` (false), `require-principal-tags` (false), `match-missing-tag-key` (true),
  *   `attribute-prefix` (`abac.`): the caller's `abac.<key>` attributes matched against the snapshots' `tags`.
  * - `wow.query.sensitivity.display-comparable` (true): whether filters and sorts may compare a `DISPLAY` value.
@@ -111,6 +115,7 @@ class QueryProperties {
     var inProcessTimeout: Duration = QueryBudget.DEFAULT_TIMEOUT.toJavaDuration()
     var requireExplicitEntry: Boolean = false
     var requireAuthenticatedScope: Boolean = false
+    var crossTenant: CrossTenant = CrossTenant()
     var abac: Abac = Abac()
     var sensitivity: Sensitivity = Sensitivity()
     var index: Index = Index()
@@ -174,6 +179,10 @@ class QueryProperties {
 
     /** The budget of the in-process [me.ahoo.wow.api.read.QueryApi], `wow.query.in-process.*`: the HTTP defaults. */
     class InProcess : Budget(QueryBudget.IN_PROCESS_LABEL)
+
+    class CrossTenant {
+        var enabled: Boolean = false
+    }
 
     class Abac {
         var enabled: Boolean = AbacQueryOptions.DEFAULT.enabled

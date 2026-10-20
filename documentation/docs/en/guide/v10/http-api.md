@@ -81,7 +81,7 @@ Only the lifecycle commands the aggregate lists (`@AggregateRoot(lifecycle)`) ge
 | `Wow-Request-Id` | The caller's id of the request: a retry with the same id is answered as already done (`duplicate`), not decided again. The same id with another command is `wow.command.request-id-reused` |
 | `If-Match: "n"` | The version the aggregate must be at; `wow.aggregate.version-mismatch` (412) otherwise |
 | `Accept: text/event-stream` | One server-sent event per hop reached, until the wait ends |
-| `Wow-Scope` | For a caller with `crossScope`: the tenant, owner and space to act in, an RFC 8941 dictionary: `tenant="t1", owner="u1", space="s1"` |
+| `Wow-Scope` | For a caller with `crossScope`: the tenant, owner and space to act in, an RFC 8941 dictionary: `tenant="t1", owner="u1", space="s1"`. On a query route, `tenant=*` or `tenant=("t1" "t2")` reads across tenants when `wow.query.cross-tenant.enabled` is on |
 | `Wow-Space` | The space, among the caller's own, to act in; 403 `wow.auth.forbidden` when the resolver does not grant it |
 
 The request headers that `wow.http.request-facts` names are copied into the command's `headers`, which are written into the event stream: list only request facts there (the calling application, say), never personal data or secrets.

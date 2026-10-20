@@ -74,9 +74,9 @@ class QueryCountCacheOptions @InternalWowApi constructor(
  *
  * - **Key**: the aggregate type, the admitted filter (the query as admission rewrote it, with every value and the
  *   scope, tenant and ABAC conditions the policies appended: the full query fingerprint, not its value-free shape)
- *   and the bound (`null` for an exact count), with the caller's tenant, owner, space and stated scope besides. A
- *   count is never served to another scope or tenant, and a count and a paged total of one filter and bound share an
- *   entry.
+ *   and the bound (`null` for an exact count), with the caller's tenant (or cross-tenant reach), owner, space and
+ *   stated scope besides. A count is never served to another scope or tenant, and a count and a paged total of one
+ *   filter and bound share an entry.
  * - **Validity**: the [checkpoint] of the type, read before counting: an entry is served while the checkpoint still
  *   reads the value it was counted at, and for at most [QueryCountCacheOptions.ttl]. A write that lands while the
  *   count runs moves the checkpoint past the value the entry carries, so the next query counts again.
@@ -112,7 +112,7 @@ class QueryCountCache(
         count: suspend () -> CountResult,
     ): CountResult {
         val validator = validator(type) ?: return count()
-        val key = Key(type, filter, bound, caller.tenantId, caller.principal, caller.scope)
+        val key = Key(type, filter, bound, caller.tenantId, caller.crossTenant, caller.principal, caller.scope)
         val now = ticker()
         val entry = synchronized(entries) { entries[key] }
         if (entry != null && entry.validator == validator && now - entry.countedAt < ttlNanos) {
@@ -142,6 +142,7 @@ class QueryCountCache(
         val filter: FilterExpression,
         val bound: Int?,
         val tenantId: String?,
+        val crossTenant: CrossTenant?,
         val principal: Scope,
         val scope: QueryScope,
     )

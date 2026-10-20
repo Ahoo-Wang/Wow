@@ -173,6 +173,13 @@ class QueryCountCacheTest {
             gateway.count(query, t1.withScope(QueryScope(declared = TenantIdFilter("t1")))).count.assert()
                 .isEqualTo(2)
             counted.assert().hasSize(4)
+
+            // A cross-tenant count of the same caller is its own, and never served to the caller's tenant.
+            val across = t1.copy(crossTenant = CrossTenant.ALL)
+            gateway.count(query, across).count.assert().isEqualTo(3)
+            gateway.count(query, t1).count.assert().isEqualTo(2)
+            gateway.count(query, across).count.assert().isEqualTo(3)
+            counted.assert().hasSize(5)
         }
     }
 

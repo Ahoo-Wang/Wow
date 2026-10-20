@@ -34,6 +34,7 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.AbacQueryOptions
 import me.ahoo.wow.query.AbacQueryPolicy
 import me.ahoo.wow.query.QueryBackendStorages
+import me.ahoo.wow.query.CrossTenant
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.ScopeQueryPolicy
@@ -341,6 +342,16 @@ class DatasetRoutesTest {
             QueryCaller(Caller(tenantId = TENANT), entry = QueryEntry.HTTP)
         ).assert().isFalse()
         DatasetVisibility.of(AbacQueryOptions(enabled = true)).assert().isSameAs(DatasetVisibility.DEFAULT)
+        // A cross-tenant caller sees the platform-level dataset when it reads the platform tenant (decision D254 ⑦).
+        val operator = Caller(tenantId = TENANT, crossScope = true)
+        DatasetVisibility.DEFAULT.visible(
+            regionsDataset(),
+            QueryCaller(operator, QueryEntry.HTTP, crossTenant = CrossTenant.ALL),
+        ).assert().isTrue()
+        DatasetVisibility.DEFAULT.visible(
+            regionsDataset(),
+            QueryCaller(operator, QueryEntry.HTTP, crossTenant = CrossTenant(setOf(TENANT))),
+        ).assert().isFalse()
     }
 
     @Test

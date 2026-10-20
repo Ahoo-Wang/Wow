@@ -242,6 +242,18 @@ class CommandRoutesTest {
     }
 
     @Test
+    fun `a command never crosses tenants`() {
+        listOf("tenant=*", "tenant=(other acme)").forEach { scope ->
+            node.post(
+                "/shop/cart/c-1/add-item",
+                """{"sku":"apple"}""",
+                user = "admin",
+                headers = mapOf("X-Admin" to "true", WowHeaders.SCOPE to scope),
+            ).assertProblem(400, FrameworkCodes.MALFORMED, withResult = false)
+        }
+    }
+
+    @Test
     fun `Wow-Space selects one of the caller's spaces`() {
         node.post(
             "/shop/cart/c-1/add-item",

@@ -86,12 +86,15 @@ enum class QueryEntry {
  *   budgeted as scope nor reported among the audit's scope fields.
  * - [scope]: the caller's scope as filters (tenant, owner, space) a trusted component stated, which admission step 2
  *   appends to the query with what the policies add.
+ * - [crossTenant]: the tenants a cross-tenant query reads in place of the caller's own (decision D254 ⑦); see
+ *   [CrossTenant].
  */
 data class QueryCaller(
     val caller: Caller? = null,
     val entry: QueryEntry = QueryEntry.UNSPECIFIED,
     val selection: FilterExpression = MatchAllFilter,
     val scope: QueryScope = QueryScope.NONE,
+    val crossTenant: CrossTenant? = null,
 ) {
     /** The [caller]'s subject, for policies and audit; null for an anonymous or in-process caller. */
     val subject: String? get() = caller?.subject
@@ -99,8 +102,11 @@ data class QueryCaller(
     /** The [caller]'s attributes, such as the `abac.` attributes [AbacQueryPolicy] matches; none in process. */
     val attributes: Map<String, List<String>> get() = caller?.attributes ?: emptyMap()
 
-    /** The tenant the [caller] acts in; null for a query bound to no tenant, such as trusted in-process code. */
-    val tenantId: String? get() = caller?.tenantId
+    /**
+     * The tenant the [caller] acts in; null for a query bound to no tenant, such as trusted in-process code, and for a
+     * [crossTenant] query, which [ScopeQueryPolicy] restricts to its tenants instead.
+     */
+    val tenantId: String? get() = if (crossTenant != null) null else caller?.tenantId
 
     /** The owner and space the [caller] acts in: [ScopeQueryPolicy] restricts its queries to each part present. */
     val principal: Scope get() = caller?.scope ?: Scope.NONE
@@ -114,8 +120,8 @@ data class QueryCaller(
 
     /**
      * The caller of a query issued from inside a query extension, a policy or a cache loader: trusted in-process code,
-     * [IN_PROCESS]. The caller, scope, route selection and entry are all dropped, so an HTTP caller's budgets, tenant,
-     * scope and tags do not leak into a nested lookup.
+     * [IN_PROCESS]. The caller, scope, route selection, cross-tenant reach and entry are all dropped, so an HTTP
+     * caller's budgets, tenant, scope and tags do not leak into a nested lookup.
      */
     fun inProcess(): QueryCaller = IN_PROCESS
 
@@ -127,5 +133,28 @@ data class QueryCaller(
         /** A query that states nothing: in-process unless the entry policy requires explicit entries. */
         @JvmField
         val UNSPECIFIED: QueryCaller = QueryCaller()
+    }
+}
+
+/**
+ * The tenants a cross-tenant query reads (decision D254 ⑦): every tenant when [tenantIds] is null ([ALL]), else those.
+ * Only the HTTP edge states one, for a caller that may act across scopes and names `Wow-Scope: tenant=*` or
+ * `tenant=("t1" "t2")` while `wow.query.cross-tenant.enabled` is on; trusted in-process code that must read every
+ * tenant uses `QueryApi.trusted()`. A type whose tenant is fixed is still read in that tenant alone, and every
+ * cross-tenant query is audited, whether or not a [QueryObserver] audits.
+ */
+data class CrossTenant(val tenantIds: Set<String>? = null) {
+    init {
+        require(tenantIds == null || tenantIds.isNotEmpty()) { "A cross-tenant query names its tenants, or every one." }
+        require(tenantIds.orEmpty().none { it.isBlank() }) { "A cross-tenant query names no blank tenant." }
+    }
+
+    /** Whether the query reads [tenantId]. */
+    fun covers(tenantId: String): Boolean = tenantIds?.contains(tenantId) ?: true
+
+    companion object {
+        /** Every tenant: `tenant=*`. */
+        @JvmField
+        val ALL: CrossTenant = CrossTenant()
     }
 }

@@ -204,6 +204,9 @@ class StatePointReadRoutesTest {
             .assertInvalid(QueryErrorCodes.INVALID_VALUE, "limit")
         node.get("/shop/cart/c-1/state", headers = mapOf(WowHeaders.SCOPE to "owner=\"alice"))
             .assertCode(400, FrameworkErrors.QUERY_MALFORMED)
+        // A state read never crosses tenants (decision D254 ⑦).
+        node.get("/shop/cart/c-1/state", headers = mapOf(WowHeaders.SCOPE to "tenant=*", "X-Admin" to "true"))
+            .assertCode(400, FrameworkErrors.QUERY_MALFORMED)
     }
 
     @Test

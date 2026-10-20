@@ -391,12 +391,21 @@ class QueryAutoConfiguration {
             properties.countCache.options(),
         )
 
-        /** The query models the public routes serve: the engine's, `wow.query.http.default-list-size`. */
+        /**
+         * The query models the public routes serve: the engine's, `wow.query.http.default-list-size`,
+         * `wow.query.cross-tenant.enabled`.
+         */
         @Bean
         @ConditionalOnMissingBean
         @InternalWowApi
         fun wowHttpQueries(engine: QueryEngine, node: ServiceNode, properties: QueryProperties): HttpQueries =
-            HttpQueries.of(engine, properties.http.defaultListSize, node.snapshotStatus, properties.stream.streams())
+            HttpQueries.of(
+                engine,
+                properties.http.defaultListSize,
+                node.snapshotStatus,
+                properties.stream.streams(),
+                properties.crossTenant.enabled,
+            )
 
         /**
          * The node's typed [QueryApi] (decisions D254 ②, D259): the [engine]'s gateways and read facade, each aggregate

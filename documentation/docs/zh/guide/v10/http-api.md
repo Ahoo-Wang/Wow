@@ -81,7 +81,7 @@ fun callerResolver(): CallerResolver = CallerResolver { request ->
 | `Wow-Request-Id` | 调用方给请求的 ID：带同一 ID 的重试被回答为已完成（`duplicate`），不会再次决定。同一 ID 配另一条命令是 `wow.command.request-id-reused` |
 | `If-Match: "n"` | 聚合必须处于的版本；否则 `wow.aggregate.version-mismatch`（412） |
 | `Accept: text/event-stream` | 每到达一跳发一个服务器发送事件，直到等待结束 |
-| `Wow-Scope` | 供带 `crossScope` 的调用方使用：要操作的租户、所有者与空间，RFC 8941 字典：`tenant="t1", owner="u1", space="s1"` |
+| `Wow-Scope` | 供带 `crossScope` 的调用方使用：要操作的租户、所有者与空间，RFC 8941 字典：`tenant="t1", owner="u1", space="s1"`。在查询路由上，`wow.query.cross-tenant.enabled` 打开时 `tenant=*` 或 `tenant=("t1" "t2")` 可跨租户读取 |
 | `Wow-Space` | 在调用方自己的空间中选择要操作的空间；解析器不授予时为 403 `wow.auth.forbidden` |
 
 `wow.http.request-facts` 列出的请求头会复制到命令的 `headers` 中，并写入事件流：只在这里列请求事实（例如调用方应用），绝不要列个人信息或密钥。

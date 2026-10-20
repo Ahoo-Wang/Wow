@@ -3620,7 +3620,7 @@
       "Wow-Scope" : {
         "name" : "Wow-Scope",
         "in" : "header",
-        "description" : "The scope to act in, for a caller allowed to act across scopes: an RFC 8941 dictionary (decision D95).",
+        "description" : "The scope to act in, for a caller allowed to act across scopes: an RFC 8941 dictionary (decision D95). On a query route, `tenant=*` or an inner list of tenants reads across tenants when `wow.query.cross-tenant.enabled` is on (decision D254).",
         "schema" : {
           "type" : "string"
         }
