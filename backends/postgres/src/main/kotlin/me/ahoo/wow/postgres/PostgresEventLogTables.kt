@@ -138,6 +138,13 @@ internal class PostgresEventLogTables(val context: String) {
      *
      * A concurrent append that took a version a fitting stream needed, or a request key a stream repeats, makes the
      * insert hit a unique key, which rolls the whole statement back, the bump included: no sequence is ever skipped.
+     * **Lock order.** Groups of different partitions do not share a counter row, but may insert one request key
+     * (`(tenant_id, request_id)` is unique per table, not per partition): the second waits for the first to end. Taken
+     * in two orders, two groups would wait for each other (a deadlock). So every group takes them in one order: its
+     * tables in the order of [tables], which the log sorts by name, and each table's rows by tenant and request id
+     * (their sequences stay in the group's order). The other keys cannot be shared: a version key belongs to one
+     * aggregate, so to one partition, whose appends queue on its counter row, and the position key holds the partition.
+     *
      * Parameters per stream: [AggregateLogTable.STREAM_PARAMETERS] of it. Returns per stream, in the group's order:
      * `ord`, the aggregate's current `version`, and the `sequence` it was committed at, null when it did not fit.
      */
@@ -155,7 +162,7 @@ internal class PostgresEventLogTables(val context: String) {
             ", appended_$branch AS (INSERT INTO ${table.log} (partition, sequence, ${AggregateLogTable.COLUMNS}) " +
                 "SELECT $partition, bump.sequence - fits.total + fits.rank, " +
                 AggregateLogTable.COLUMNS.split(", ").joinToString(", ") { "fits.$it" } +
-                " FROM fits, bump WHERE fits.branch = $branch RETURNING sequence)"
+                " FROM fits, bump WHERE fits.branch = $branch ORDER BY fits.tenant_id, fits.request_id RETURNING sequence)"
         }
         return """
             WITH input (ord, branch, ${AggregateLogTable.COLUMNS}) AS (VALUES $values),
@@ -182,6 +189,9 @@ internal class PostgresEventLogTables(val context: String) {
         const val REGISTRY = "wow_log_aggregate"
 
         const val PREFIX = "wow_log"
+
+        /** The columns [partitionAdditions] adds. */
+        val PARTITION_ADDED = listOf("parent", "epoch")
         const val PARTITION = "partition"
     }
 }
@@ -276,6 +286,9 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
     val byRequest = "SELECT $FACTS FROM $log WHERE tenant_id = ? AND request_id = ?"
 
     companion object {
+        /** The columns [additions] adds. */
+        val ADDED = listOf("operator_id", "operator_tenant_id", "operator_cross_scope")
+
         /** The columns a stream is written to besides its position, in the order of its parameters. */
         const val COLUMNS = "tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, " +
             "events, owner_id, space_id, correlation_id, causation_id, headers, transport, operator_id, " +
