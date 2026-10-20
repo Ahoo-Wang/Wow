@@ -186,7 +186,7 @@ val productModel = aggregate<ProductState>("catalog", "product") {
 
 A processor is a class annotated with exactly one of `@Saga`, `@Projection` or `@Reactor`. Each of its handlers, annotated `@OnEvent` or named `onEvent`, is a subscription of its own, named `<processor>.<function>`. The processor's dependencies are its constructor's parameters, taken from the application's beans like a command function's services.
 
-A handler takes a `StateEvent<S>`: one committed event stream of an aggregate with its state after the commit.
+A handler takes a `StateEvent<S>`: one committed event stream of an aggregate with its state after the commit. A handler that cares about one kind of event takes a `StateTypedEvent<S, E>` instead, or the event `E` itself, and is called once for each `E` of the stream, in order (decision D264): `event` is that event, `eventIndex` its place in `events`, and `state` is still the state after the whole commit.
 
 | Property | Holds |
 | --- | --- |
@@ -197,9 +197,9 @@ A handler takes a `StateEvent<S>`: one committed event stream of an aggregate wi
 | `scope` | The aggregate's owner and space after the commit, not the caller's |
 | `causation`, `headers` | The chain the command belongs to, and the request facts it carried; `correlationId` is the root command's id |
 
-`S` selects the aggregates: a handler reads the aggregates of the module's context whose state type is `S`, unless `@OnEvent(aggregates = ["<context>.<aggregate>"])` names them. A handler filters the events it cares about itself (`event.events.filterIsInstance<OrderCreated>()`).
+`S` selects the aggregates: a handler reads the aggregates of the module's context whose state type is `S`, unless `@OnEvent(aggregates = ["<context>.<aggregate>"])` names them. A handler of each `E` needs neither: `E` names the aggregate, and the compiler writes its events into the subscription's source, so the node passes over a stream without one, its state not even decoded. Several `E` of one stream share its checkpoint: a failure retries the stream, calling the handler for each again. The `E` of another context's events waits for the peer api's event classes; such a handler takes the `StateEvent` for now.
 
-The handler's context gives it an `executionId`, `subscription:ref@version`: the same every time the same commit is handled by the same subscription, so it is the idempotency key for an outside call.
+The handler's context gives it an `executionId`, `subscription:ref@version`, the same every time the same commit is handled by the same subscription, and an `invocationKey`, the idempotency key for an outside call: the `executionId` for a handler of the stream, `executionId:eventIndex` for a handler of each `E`.
 
 ### Projections
 
@@ -220,16 +220,14 @@ The snapshot is already a read model: every aggregate keeps one, queried at `/{c
 
 ### Reactors
 
-A reactor acts on committed events (it sends a notification, calls another system) and returns nothing. Use `context.executionId.toString()` as the idempotency key of the outside call:
+A reactor acts on committed events (it sends a notification, calls another system) and returns nothing. Use `context.invocationKey` as the idempotency key of the outside call:
 
 ```kotlin
 @Reactor
 class OrderNotifier(private val mail: Mail) {
     @OnEvent
-    suspend fun onEvent(event: StateEvent<OrderState>, context: ReactContext) {
-        if (event.events.any { it is OrderShipped }) {
-            mail.send(event.state.customer, "Order shipped", key = context.executionId.toString())
-        }
+    suspend fun onShipped(event: StateTypedEvent<OrderState, OrderShipped>, context: ReactContext) {
+        mail.send(event.state.customer, "Order shipped", key = context.invocationKey)
     }
 }
 ```
@@ -244,8 +242,8 @@ A saga derives commands from committed events. Its handler returns one `Command`
 @Saga
 class CartSaga {
     @OnEvent
-    fun onOrderCreated(event: StateEvent<OrderState>, context: SagaContext): Command<RemoveCartItem>? {
-        val created = event.events.filterIsInstance<OrderCreated>().firstOrNull() ?: return null
+    fun onOrderCreated(event: StateTypedEvent<OrderState, OrderCreated>, context: SagaContext): Command<RemoveCartItem>? {
+        val created = event.event
         val owner = event.scope.ownerId ?: return null
         return context.command(
             AggregateType("example", "cart").ref(event.ref.tenantId, owner),
@@ -298,7 +296,7 @@ A subscription can have a budget of its own, for a handler that calls a slow ext
 class ShippingNotifier(private val carrier: CarrierClient) {
     @OnEvent
     @Retry(initialBackoff = "1s")
-    suspend fun onShipped(event: StateEvent<OrderState>) = carrier.notify(event.state.id)
+    suspend fun onShipped(event: StateTypedEvent<OrderState, OrderShipped>) = carrier.notify(event.state.id)
 }
 ```
 
@@ -411,8 +409,8 @@ When the saga needs the answer now, because the target being online is a precond
 
 ```kotlin
 @OnEvent(calls = [SubmitOrder::class])
-suspend fun onBasketCheckedOut(event: StateEvent<BasketState>, context: SagaContext) {
-    val checkedOut = event.events.filterIsInstance<BasketCheckedOut>().firstOrNull() ?: return
+suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketCheckedOut>, context: SagaContext) {
+    val checkedOut = event.event
     context.call(context.command(EshopOrderingContract.Order.ref(event.ref.tenantId, checkedOut.orderId), SubmitOrder(items)))
 }
 ```
