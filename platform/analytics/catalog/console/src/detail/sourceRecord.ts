@@ -59,6 +59,8 @@ export interface SensitivityRow {
   field: FieldSensitivity;
   /** The column's type, for an analyst's table. */
   type?: string;
+  /** Whether a review has decided it: an analyst's column is not until one does. */
+  reviewed: boolean;
 }
 
 /**
@@ -70,11 +72,12 @@ export function sensitivityRows(state: SourceState): SensitivityRow[] {
     (state.sensitivity ?? []).map((field) => [keyOf(field), field]),
   );
   if (state.kind === "WOW")
-    return [...given].map(([key, field]) => ({ key, field }));
+    return [...given].map(([key, field]) => ({ key, field, reviewed: true }));
   return (state.columns ?? []).map((column) => ({
     key: column.name,
     type: column.type,
     field: given.get(column.name) ?? { path: column.name, level: null },
+    reviewed: given.has(column.name),
   }));
 }
 
@@ -86,12 +89,19 @@ function sameProtection(a: FieldSensitivity, b: FieldSensitivity): boolean {
   );
 }
 
-/** The values whose protection `edited` changes: what a review sends. */
+/**
+ * What a review sends: the values whose protection `edited` changes, and
+ * every column no review has decided yet, which the catalog takes before the
+ * source is marked reviewed (none is a protection too).
+ */
 export function changedSensitivity(
   rows: readonly SensitivityRow[],
   edited: Readonly<Record<string, FieldSensitivity>>,
 ): FieldSensitivity[] {
   return rows
     .map((row) => edited[row.key] ?? row.field)
-    .filter((field, index) => !sameProtection(field, rows[index].field));
+    .filter(
+      (field, index) =>
+        !rows[index].reviewed || !sameProtection(field, rows[index].field),
+    );
 }

@@ -16,14 +16,15 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-/** The ops server the dev server forwards the API to. */
-const server = process.env.OPS_SERVER ?? "http://localhost:8088";
+/** The analytics catalog server the dev server forwards the API to. */
+const server = process.env.CATALOG_SERVER ?? "http://localhost:8087";
 
 /**
- * The console is served by the ops server from its distribution's `ui/`
- * folder (`spring.web.resources.static-locations`), so every API path is
- * same-origin; in development Vite forwards them: the ops context's routes
- * (`/ops`) and the framework's (`/wow`).
+ * The console is served by the analytics catalog server from its
+ * distribution's `ui/` folder (`spring.web.resources.static-locations`), so
+ * every API path is same-origin; in development Vite forwards them: the
+ * catalog's routes and its relay (`/analytics-catalog`) and the framework's,
+ * the datasets served among them (`/wow`).
  */
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -34,7 +35,7 @@ export default defineConfig({
   },
   server: {
     proxy: Object.fromEntries(
-      ["/ops", "/wow"].map((path) => [
+      ["/analytics-catalog", "/wow"].map((path) => [
         path,
         { target: server, changeOrigin: true },
       ]),

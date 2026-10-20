@@ -12,25 +12,25 @@
  */
 
 /*
- * The real ops server (`platform/ops/ops-server`) the end-to-end suite runs
- * against, in a JVM of its own, serving this console's build (`dist/`) as
- * the distribution serves its `ui/` folder: Playwright's `webServer` starts
- * it and stops it when the run ends. It runs on the memory backend, every
- * topic in memory, with:
+ * The real analytics catalog server (`platform/analytics/catalog/server`) the
+ * end-to-end suite runs against, in a JVM of its own, serving this console's
+ * build (`dist/`) as the distribution serves its `ui/` folder: Playwright's
+ * `webServer` starts it and stops it when the run ends. It runs on the memory
+ * backend with:
  *
  * - `wow.query.memory.enabled` (D209): the in-memory reference query
  *   backend serves the snapshot queries on the memory backend;
- * - from the server's test classes, `InMemoryOpsTopics`: the command transport in place of Kafka;
- * - and `LedgerSimulatorRoutes`: `POST /testing/ledger/{parked,resolved}`, the
- *   owning services' ledgers, which the suite publishes its entries through.
+ * - from the server's test classes, `WarehouseSimulatorRoutes`: the warehouse
+ *   in memory in place of ClickHouse, and `POST /testing/warehouse/tables`,
+ *   which the suite puts the tables it drafts sources of through.
  *
- * With `OPS_E2E_COSEC_SECRET` it runs in its `cosec` profile instead, as a
+ * With `CATALOG_E2E_COSEC_SECRET` it runs in its `cosec` profile instead, as a
  * deployment does (roadmap P.15): it verifies each request's CoSec token,
  * signed with that secret, and trusts no identity header.
  *
  * Build them first, from the repository root, with JDK 21:
  *
- *   ./gradlew :ops-server:installDist :ops-server:testClasses
+ *   ./gradlew :analytics-catalog-server:installDist :analytics-catalog-server:testClasses
  */
 
 import { spawn } from "node:child_process";
@@ -39,32 +39,32 @@ import { existsSync } from "node:fs";
 import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
+const ROOT = fileURLToPath(new URL("../../../../../", import.meta.url));
 const CONSOLE = fileURLToPath(new URL("../dist/", import.meta.url));
-const SERVER = join(ROOT, "platform/ops/ops-server/build");
-const MAIN = "me.ahoo.wow.ops.server.OpsServerKt";
+const SERVER = join(ROOT, "platform/analytics/catalog/server/build");
+const MAIN = "me.ahoo.wow.analytics.catalog.server.AnalyticsCatalogServerKt";
 const SOURCES = [
-  "me.ahoo.wow.ops.testing.InMemoryOpsTopics",
-  "me.ahoo.wow.ops.testing.LedgerSimulatorRoutes",
+  "me.ahoo.wow.analytics.catalog.testing.WarehouseSimulatorRoutes",
 ];
-const BUILD = "./gradlew :ops-server:installDist :ops-server:testClasses";
+const BUILD =
+  "./gradlew :analytics-catalog-server:installDist :analytics-catalog-server:testClasses";
 
-const port = process.env.OPS_E2E_PORT ?? "18188";
-const cosecSecret = process.env.OPS_E2E_COSEC_SECRET;
+const port = process.env.CATALOG_E2E_PORT ?? "18187";
+const cosecSecret = process.env.CATALOG_E2E_COSEC_SECRET;
 
 function classPath() {
-  const lib = join(SERVER, "install/ops-server/lib");
+  const lib = join(SERVER, "install/analytics-catalog-server/lib");
   const testClasses = join(SERVER, "classes/kotlin/test");
   if (!existsSync(lib) || !existsSync(testClasses))
     throw new Error(
-      `The ops server is not built. From the repository root, with JDK 21: ${BUILD}`,
+      `The analytics catalog server is not built. From the repository root, with JDK 21: ${BUILD}`,
     );
   return [join(lib, "*"), testClasses].join(delimiter);
 }
 
 if (!existsSync(join(CONSOLE, "index.html")))
   throw new Error(
-    "The console is not built: pnpm build, in platform/ops/console.",
+    "The console is not built: pnpm build, in platform/analytics/catalog/console.",
   );
 
 const java = process.env.JAVA_HOME
@@ -85,6 +85,8 @@ const server = spawn(
     `--wow.internal.token=${randomBytes(32).toString("base64url")}`,
     "--wow.log.partitions=2",
     "--wow.subscription.checkpoint-interval=100ms",
+    "--wow.analytics.catalog.refresh-interval=500ms",
+    "--wow.analytics.catalog.datasets.refresh-interval=200ms",
     "--wow.query.memory.enabled=true",
     ...(cosecSecret
       ? // A deployment's callers: CoSec's tokens, verified with the secret they are signed with.

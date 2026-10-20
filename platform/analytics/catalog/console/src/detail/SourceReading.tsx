@@ -158,7 +158,10 @@ function SensitivityForm({
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (changed.length === 0) return;
-    saving.save(() => commands.reviewSensitivity(id, changed));
+    // Once saved, the record read again holds what was edited.
+    saving.save(() =>
+      commands.reviewSensitivity(id, changed).then(() => setEdited({})),
+    );
   };
 
   return (
@@ -185,6 +188,11 @@ function SensitivityForm({
                         {row.type}
                       </span>
                     ) : null}
+                    {row.reviewed ? null : (
+                      <Badge variant="outline" className="ml-2">
+                        {t("notReviewed")}
+                      </Badge>
+                    )}
                   </td>
                   <td className="pr-2">
                     <select
@@ -291,7 +299,7 @@ export function SourceReading({
       )}
       {complete ? (
         <SensitivityForm
-          key={`sensitivity-${id}-${JSON.stringify(state.sensitivity ?? [])}`}
+          key={`sensitivity-${id}`}
           id={id}
           rows={sensitivityRows(state)}
           refresh={refresh}

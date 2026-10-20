@@ -82,13 +82,12 @@ describe("a source's detail", () => {
     );
   });
 
-  it("reviews the columns' protection, sending only what changed", async () => {
+  it("reviews the columns' protection: what changed, and every column not reviewed yet", async () => {
     const { commands } = renderConsole(EDITOR, {
       path: open("sources", SOURCE_ROWS[0].aggregateId),
     });
     const form = await screen.findByRole("form", { name: "Sensitivity" });
-    const save = within(form).getByRole("button", { name: "Save" });
-    expect(save).toBeDisabled();
+    expect(within(form).getAllByText("Not reviewed")).toHaveLength(3);
     expect(
       within(form).getByRole("spinbutton", { name: "Keep first id" }),
     ).toBeDisabled();
@@ -96,25 +95,24 @@ describe("a source's detail", () => {
       within(form).getByRole("combobox", { name: "Level id" }),
       "CONFIDENTIAL",
     );
-    await userEvent.selectOptions(
-      within(form).getByRole("combobox", { name: "Level buyer" }),
-      "DISPLAY",
-    );
     const suffix = within(form).getByRole("spinbutton", {
       name: "Keep last buyer",
     });
     await userEvent.clear(suffix);
     await userEvent.type(suffix, "4");
-    await userEvent.click(save);
+    await userEvent.click(within(form).getByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(commands.reviewSensitivity).toHaveBeenCalledWith(
         SOURCE_ROWS[0].aggregateId,
         [
           { path: "id", level: "CONFIDENTIAL" },
+          { path: "tenant_id", level: null },
           { path: "buyer", level: "DISPLAY", keepPrefix: 1, keepSuffix: 4 },
+          { path: "customer_id", level: null },
         ],
       ),
     );
+    expect(await within(form).findByRole("status")).toHaveTextContent("Saved.");
   });
 
   it("says the catalog's refusal of an edit", async () => {

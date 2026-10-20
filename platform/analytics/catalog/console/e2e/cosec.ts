@@ -15,8 +15,8 @@ import { createHmac } from "node:crypto";
 
 /** The secret the `cosec` server verifies tokens with, and the suite signs them with. */
 export const COSEC_SECRET =
-  process.env.OPS_E2E_COSEC_SECRET ??
-  "the-ops-console-e2e-secret-of-32-characters";
+  process.env.CATALOG_E2E_COSEC_SECRET ??
+  "the-catalog-console-e2e-secret-of-32-chars";
 
 function part(value: object): string {
   return Buffer.from(JSON.stringify(value)).toString("base64url");

@@ -186,7 +186,7 @@ export function DatasetReading({
       ) : null}
       {complete ? (
         <DefinitionForm
-          key={`definition-${id}-${JSON.stringify(state.requested ?? state.definition)}`}
+          key={`definition-${id}`}
           id={id}
           state={state}
           refresh={refresh}

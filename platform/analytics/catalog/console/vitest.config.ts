@@ -18,11 +18,14 @@ export default mergeConfig(
   viteConfig,
   defineConfig({
     test: {
-      // The end-to-end suite is Playwright's, against the real ops server.
+      // The end-to-end suite is Playwright's, against the real catalog server.
       exclude: [...configDefaults.exclude, "e2e/**"],
       environment: "jsdom",
       globals: true,
       setupFiles: ["./src/setupTests.ts"],
+      // The workbench's component tests and the generator's run each take
+      // seconds on a busy runner: more than the default 5 s allows.
+      testTimeout: 15_000,
       coverage: {
         provider: "v8",
         include: ["src/**"],
@@ -31,14 +34,14 @@ export default mergeConfig(
           "src/generated/**",
           "src/components/ui/**",
         ],
-        // A point under what the suite reaches (2026-10-14, 7.1c: 91.8 /
-        // 86.4 / 90.1 / 92.4), so coverage only moves up; raise them as it
+        // A point under what the suite reaches (2026-10-20, 7.2c: 91.9 /
+        // 87.3 / 90.9 / 93.5), so coverage only moves up; raise them as it
         // does.
         thresholds: {
           statements: 90,
-          branches: 85,
+          branches: 86,
           functions: 89,
-          lines: 91,
+          lines: 92,
         },
       },
     },

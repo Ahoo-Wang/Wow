@@ -69,7 +69,7 @@ describe("a source's record", () => {
     expect(sensitivityRows({} as SourceState)).toEqual([]);
   });
 
-  it("sends only the protection a review changes", () => {
+  it("sends the protection a review changes, and every column not reviewed yet", () => {
     const rows = sensitivityRows({
       kind: "ANALYST",
       columns: [
@@ -78,7 +78,8 @@ describe("a source's record", () => {
       ],
       sensitivity: [{ path: "buyer", level: "DISPLAY", keepPrefix: 1 }],
     } as SourceState);
-    expect(changedSensitivity(rows, {})).toEqual([]);
+    expect(rows.map((row) => row.reviewed)).toEqual([false, true]);
+    expect(changedSensitivity(rows, {})).toEqual([{ path: "id", level: null }]);
     expect(
       changedSensitivity(rows, {
         buyer: {
@@ -88,7 +89,7 @@ describe("a source's record", () => {
           keepSuffix: 0,
         },
       }),
-    ).toEqual([]);
+    ).toEqual([{ path: "id", level: null }]);
     expect(
       changedSensitivity(rows, {
         id: { path: "id", level: "CONFIDENTIAL" },
@@ -98,6 +99,12 @@ describe("a source's record", () => {
       { path: "id", level: "CONFIDENTIAL" },
       { path: "buyer", level: "DISPLAY", keepPrefix: 2 },
     ]);
+    const reviewed = sensitivityRows({
+      kind: "ANALYST",
+      columns: [{ name: "buyer", type: "String" }],
+      sensitivity: [{ path: "buyer", level: "DISPLAY", keepPrefix: 1 }],
+    } as SourceState);
+    expect(changedSensitivity(reviewed, {})).toEqual([]);
   });
 
   it("is the record's state, or an empty one", () => {
