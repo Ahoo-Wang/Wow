@@ -415,7 +415,7 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 }
 ```
 
-调用不需要命令主题：节点通过 `wow.calls.contexts.<context>.url` 找到目标，Saga 调用的命令若没有任何已知 Manifest 决定，节点不会启动。Saga 自己上下文的命令只派生、不调用。
+调用不需要命令主题：节点通过 `wow.calls.contexts.<context>.url`（或 `wow.clients.contexts.<context>.internal-url`）找到目标；Saga 调用的上下文没有这个地址，或调用的命令没有任何已知 Manifest 决定，节点都不会启动。Saga 自己上下文的命令只派生、不调用。
 
 ### 对端
 

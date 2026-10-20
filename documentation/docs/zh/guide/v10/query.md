@@ -51,7 +51,7 @@ V10 服务在 `POST /<context>/<aggregate>/<model>/query` 上回答其读模型�
 
 模型不认识的路径返回 400 `wow.query.invalid`，`UNKNOWN_FIELD`。集合元素的字段只能在该集合的 `ELEMENT_MATCH` 内、相对元素命名（否则为 `ELEMENT_SCOPE_REQUIRED`）。[能力描述](#能力描述)列出每条路径及其可用的操作符、排序与聚合。
 
-`events` 模型读取一个聚合的事件流：筛选条件是以下各项的 `AND`：该聚合（`aggregateId` 的 `EQ`，或 `ID` / `AGGREGATE_ID`），可选的 `version` 与 `commitTime` 范围（`EQ`、`GT`、`GTE`、`LT`、`LTE`、`BETWEEN`；时间为 epoch 毫秒或 ISO-8601 时刻），此外不能有别的。它只按 `version` 升序排序，不接受投影，也没有 `aggregate`。每条记录是一个事件流：`aggregateId`、`tenantId`、`version`、`commitTime`、`commandId`、`requestId`、`commandType`，有值时的 `ownerId` 与 `spaceId`，已知时的 `operator`，以及 `events`，每个为 `{name, revision, body}`。
+`events` 模型读取一个聚合的事件流：筛选条件是以下各项的 `AND`：该聚合（`aggregateId` 的 `EQ`，或 `ID` / `AGGREGATE_ID`），可选的 `version` 与 `commitTime` 范围（`EQ`、`GT`、`GTE`、`LT`、`LTE`、`BETWEEN`；时间为 epoch 毫秒或 ISO-8601 时刻），此外不能有别的。它只按 `version` 升序排序，不接受投影，也没有 `aggregate`。每条记录是一个事件流：`aggregateId`、`tenantId`、`version`、`commitTime`、`commandId`、`requestId`、`commandType`，有值时的 `ownerId` 与 `spaceId`，已知时的 `operator`，`tags`（该次提交后聚合的标签，日志记录标签之前追加的流为 `null`），以及 `events`，每个为 `{name, revision, body}`。启用 ABAC 时每个事件流按自己的 `tags` 过滤，时间线按提交时聚合的标签显示该流。
 
 ## 筛选条件
 

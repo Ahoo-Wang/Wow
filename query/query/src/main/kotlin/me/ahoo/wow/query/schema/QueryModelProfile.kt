@@ -205,21 +205,7 @@ internal data object SnapshotQueryModelProfile : BuiltInQueryModelProfile(QueryM
                 SnapshotFields.OWNER_ID.stringField(nullable = true),
                 SnapshotFields.SPACE_ID.stringField(nullable = true),
                 SnapshotFields.DELETED.booleanField(),
-                SnapshotFields.TAGS.objectField(dynamic = true).let { (field, declaration) ->
-                    field to declaration.copy(
-                        additionalProperties = DeclarationValue.Set(
-                            QueryFieldDeclaration(
-                                nullable = DeclarationValue.Set(false),
-                                items = DeclarationValue.Set(
-                                    QueryFieldDeclaration(
-                                        valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
-                                        nullable = DeclarationValue.Set(false),
-                                    )
-                                ),
-                            )
-                        )
-                    )
-                },
+                SnapshotFields.TAGS.tagsField(),
                 SnapshotFields.FIRST_EVENT_TIME.epochField(),
                 SnapshotFields.LAST_EVENT_TIME.epochField(),
                 // The operators of the last and the first stream; null when that caller was anonymous (D163).
@@ -287,11 +273,26 @@ internal fun String.integerField() = field(QueryValueType.INTEGER)
 
 private fun String.booleanField() = field(QueryValueType.BOOLEAN)
 
-private fun String.objectField(dynamic: Boolean = false) = field(
-    QueryValueType.OBJECT
+/**
+ * A tags system field (decision D220): an object of each tag's values by its key, each an array of strings; [nullable]
+ * when a record may not have recorded them (an event stream appended before its log learned them, decision D259).
+ */
+internal fun String.tagsField(nullable: Boolean = false) = field(
+    QueryValueType.OBJECT,
+    nullable = nullable,
 ).let { (field, declaration) ->
     field to declaration.copy(
-        additionalProperties = if (dynamic) DeclarationValue.Set(QueryFieldDeclaration()) else DeclarationValue.Unset
+        additionalProperties = DeclarationValue.Set(
+            QueryFieldDeclaration(
+                nullable = DeclarationValue.Set(false),
+                items = DeclarationValue.Set(
+                    QueryFieldDeclaration(
+                        valueTypes = DeclarationValue.Set(setOf(QueryValueType.STRING)),
+                        nullable = DeclarationValue.Set(false),
+                    )
+                ),
+            )
+        ),
     )
 }
 

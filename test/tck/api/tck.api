@@ -80,13 +80,14 @@ public abstract class me/ahoo/wow/tck/log/EventLogSpec {
 	public final fun readTail gives the tail from a version and the latest earlier request keys, newest first ()V
 	protected fun refused (Lme/ahoo/wow/spi/log/EventStreamRecord;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public final fun scope, causation, headers and operator read back as appended, absent ones too ()V
-	protected final fun stream (Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/spi/log/EventStreamRecord;
-	public static synthetic fun stream$default (Lme/ahoo/wow/tck/log/EventLogSpec;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/caller/Operator;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/EventStreamRecord;
+	protected final fun stream (Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;)Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public static synthetic fun stream$default (Lme/ahoo/wow/tck/log/EventLogSpec;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public final fun tail never skips a committed entry, however appends interleave ()V
 	public final fun tail resumes after a position with the same entries ()V
 	public final fun the entry an append's outcome names is what tail reads back ()V
 	public final fun the lookup by aggregate type returns facts only, as appended ()V
 	public final fun the schedule system events read back as appended, alone or with the events ()V
+	public final fun the tags read back as appended, none and not recorded told apart (D259) ()V
 	public final fun transport is given back by tail and readEntries only ()V
 	public final fun two tenants may use the same aggregate id ()V
 }

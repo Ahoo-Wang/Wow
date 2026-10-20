@@ -8,20 +8,18 @@ outline: deep
 
 `wow-compiler` is a KSP processor. In `generate` mode (the Gradle plugin sets it) it reads a domain module's annotated classes and writes Kotlin sources and resources into `build/generated/ksp/main/`. Nothing is found by scanning or reflection at run time: the host loads what the compiler wrote. A model the compiler cannot bind fails the compilation with a message naming the function and the rule.
 
-For the shop's `shop-domain` module, the compiler writes:
+For the eShop's [`eshop-ordering-domain`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/eshop/ordering/ordering-domain) module, the compiler writes:
 
 ```text
 build/generated/ksp/main/
-├── kotlin/me/ahoo/wow/example/shop/domain/
-│   ├── ShopDomainModelProvider.kt          the binding index
-│   ├── cart/CartModel.kt                    fun cartModel(context, configure)
-│   ├── cart/CartSagaSubscriptions.kt        fun cartSagaHandlers(dependencies)
-│   ├── cart/CartStateProperties.kt          the state's query fields (with wow-query-api)
-│   ├── order/OrderModel.kt                  fun orderModel(context, pricingService, configure)
-│   └── order/OrderSagaSubscriptions.kt      fun orderSagaHandlers(dependencies)
+├── kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/
+│   ├── EshopOrderingDomainModelProvider.kt   the binding index
+│   ├── OrderModel.kt                         fun orderModel(context, paymentPolicy, configure)
+│   ├── OrderProcessSagaSubscriptions.kt      fun orderProcessSagaHandlers(dependencies)
+│   └── OrderStateProperties.kt               the state's query fields (with wow-query-api)
 └── resources/META-INF/
     ├── services/me.ahoo.wow.kernel.ModelProvider
-    └── wow/manifest/shop-domain.json        the Manifest fragment
+    └── wow/manifest/eshop-ordering-domain.json   the Manifest fragment
 ```
 
 ## Model factories
@@ -31,12 +29,12 @@ Each aggregate root gets a top-level factory function in the root's package, nam
 ```kotlin
 public fun orderModel(
     context: String,
-    pricingService: PricingService,
+    paymentPolicy: PaymentPolicy,
     configure: AggregateModelBuilder<OrderState>.() -> Unit = {},
 ): AggregateModel<OrderState>
 ```
 
-- **`context`** comes first, even when the module declares one `@BoundedContext`: the binding index passes the context it was compiled for. A test passes it itself: `orderModel("example", pricing)`.
+- **`context`** comes first, even when the module declares one `@BoundedContext`: the binding index passes the context it was compiled for. A test passes it itself: `orderModel("eshop-ordering", paymentPolicy)`.
 - **The services** follow, one parameter per service a command function or after hook takes. The host binds them once, when it builds the model.
 - **`configure`** runs on the model builder after the generated bindings: a general extension point, rarely needed.
 
@@ -44,7 +42,7 @@ The factory builds the model through the kernel's DSL (`aggregate<S>(context, na
 
 ## Processor bindings
 
-Each `@Saga`, `@Projection` or `@Reactor` class gets `<processor>Handlers(dependencies)` in its package (`OrderSaga` gives `orderSagaHandlers`), in a file named `<Processor>Subscriptions.kt`. It builds the processor once, its constructor's parameters taken from `dependencies` by type (and qualifier), and returns one kernel `ProcessorBinding` per handler, named `<processor>.<function>`, with the saga's `@OnRejected` handlers bound to it. The generated code builds on `wow-kernel` only: the runtime turns the bindings into subscriptions.
+Each `@Saga`, `@Projection` or `@Reactor` class gets `<processor>Handlers(dependencies)` in its package (`OrderProcessSaga` gives `orderProcessSagaHandlers`), in a file named `<Processor>Subscriptions.kt`. It builds the processor once, its constructor's parameters taken from `dependencies` by type (and qualifier), and returns one kernel `ProcessorBinding` per handler, named `<processor>.<function>`, with the saga's `@OnRejected` handlers bound to it. The generated code builds on `wow-kernel` only: the runtime turns the bindings into subscriptions.
 
 ## Query fields: `<State>Properties`
 
@@ -55,21 +53,20 @@ When the module has `wow-query-api` on its class path, each aggregate's state al
 Each module gets one class implementing `me.ahoo.wow.kernel.ModelProvider`, registered in `META-INF/services/me.ahoo.wow.kernel.ModelProvider` for `ServiceLoader`:
 
 ```kotlin
-public class ShopDomainModelProvider : me.ahoo.wow.kernel.ModelProvider {
-    override val context: String = "example"
-    override val fragment: String = "META-INF/wow/manifest/shop-domain.json"
+public class EshopOrderingDomainModelProvider : me.ahoo.wow.kernel.ModelProvider {
+    override val context: String = "eshop-ordering"
+    override val fragment: String = "META-INF/wow/manifest/eshop-ordering-domain.json"
 
     override fun models(dependencies: Dependencies): List<AggregateModel<*>> = listOf(
-        cartModel(context),
-        orderModel(context, dependencies.get(PricingService::class.javaObjectType)),
+        orderModel(context, dependencies.get(PaymentPolicy::class.javaObjectType)),
     )
 
     override fun processors(dependencies: Dependencies): List<ProcessorBinding<*>> =
-        listOf(cartSagaHandlers(dependencies), orderSagaHandlers(dependencies)).flatten()
+        listOf(orderProcessSagaHandlers(dependencies)).flatten()
 }
 ```
 
-- **Its name** comes from the module (the KSP option `wow.manifest.module`, the Gradle project's name under the plugin): `shop-domain` gives `ShopDomainModelProvider`, `eshop-catalog-domain` gives `EshopCatalogDomainModelProvider`. A name that does not start with a letter gets the prefix `Module`.
+- **Its name** comes from the module (the KSP option `wow.manifest.module`, the Gradle project's name under the plugin): `eshop-ordering-domain` gives `EshopOrderingDomainModelProvider`. A name that does not start with a letter gets the prefix `Module`.
 - **Its package** is the deepest package all of the module's models and processors share.
 - **Its dependencies** are looked up by type, and by qualifier for a parameter with `@Name`. On the host, `Dependencies` is the application's bean factory: a qualified dependency is the bean of that name; an unqualified one is the only bean of its type, or the primary one among several. A missing bean fails the start, naming the type (`MissingDependencyException`).
 

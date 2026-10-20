@@ -49,7 +49,10 @@ class EshopSharedJvmTest {
     @Test
     fun `two services on one class path should each serve the context they include`() {
         start(CatalogServer::class.java, "catalog").use { catalog ->
-            start(BasketServer::class.java, "basket", InMemoryTopicsBeans::class.java).use { basket ->
+            // The checkout saga calls the ordering (decision D259): the node checks it has its address, which no
+            // checkout here uses.
+            val ordering = "--wow.calls.contexts.eshop-ordering.url=http://127.0.0.1:$UNUSED_PORT"
+            start(BasketServer::class.java, "basket", InMemoryTopicsBeans::class.java, arguments = listOf(ordering)).use { basket ->
                 catalog.contexts().assert().containsExactly("eshop-catalog")
                 basket.contexts().assert().containsExactly("eshop-basket")
 
@@ -164,6 +167,8 @@ class EshopSharedJvmTest {
     }
 
     private companion object {
+        /** A port no ordering listens on: the basket's checkout call has an address, which no test here calls. */
+        const val UNUSED_PORT = 9
         const val OK = 200
         const val NOT_FOUND = 404
         val TIMEOUT: Duration = Duration.ofSeconds(30)

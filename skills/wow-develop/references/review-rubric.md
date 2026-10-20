@@ -17,7 +17,7 @@ Pin the downstream version and target source before applying query rules. `query
 
 Check each against `query-read-model.md`; these are the review-specific traps:
 
-- Mandatory tenant/owner/lifecycle/business constraints live in `QueryPolicy`, AND-composed after every replaceable `QueryFilter.prepare`; captured identity/scope is retained per subscription; an empty or error policy stops later policies and the Backend. ABAC reads tags only for Snapshot.
+- Mandatory tenant/owner/lifecycle/business constraints live in `QueryPolicy`, AND-composed after every replaceable `QueryFilter.prepare`; captured identity/scope is retained per subscription; an empty or error policy stops later policies and the Backend. ABAC reads the snapshot tags (on V10 also each event stream's tags as committed, and the tag columns a dataset binds).
 - Schema stays immutable fact data; it neither admits requests nor selects policies. Preserve declaration merge and per-instance revalidation. OpenAPI `x-wow-query-fields` is not backend capability proof, and revalidating one instance updates no other replica, mapping, or stored data.
 - Cursor sorts need `CURSOR_SORT` capability, single-valued ordered data and a stable unique tie-breaker (`SORT` alone is insufficient), and reject Mask and protected aliases. Apply historical EXACT/mode status checks only when the inspected target exposes them. Application code never decodes, logs, rewrites, or carries a token across Backends; every page goes through the managed Gateway, and tokens carry no authorization.
 - Empty-string filters distinguish `""`, whitespace, null, missing fields, and collections; in-process capability does not imply the HTTP expensive-operator guard.

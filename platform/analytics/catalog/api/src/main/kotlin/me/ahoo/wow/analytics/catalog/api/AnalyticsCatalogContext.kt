@@ -18,15 +18,20 @@ package me.ahoo.wow.analytics.catalog.api
  * sources and, built on them, the wide tables a dataset serves. Its `source` aggregate is one physical table or view of
  * the warehouse, identified by (connection, database, table) ([sourceIdOf]): a table the Wow ClickHouse Sink keeps,
  * described by its trusted `wow_catalog` row, or a table an analyst provides, drafted from `system.columns` and
- * reviewed.
+ * reviewed. Its `dataset` aggregate is a wide table over the sources (decision D259 7.2b-2), identified by the name
+ * queries read it by ([datasetIdOf]).
  */
 object AnalyticsCatalogContext {
     const val NAME: String = "analytics-catalog"
     const val SOURCE: String = "source"
+    const val DATASET: String = "dataset"
 
     /** The one tenant every source is in: the platform's (the aggregate type's fixed tenant, decision D116). */
     const val TENANT_ID: String = "(platform)"
 
     /** The id of the source of [database]'s [table] on the warehouse [connection]: `<connection>:<database>:<table>`. */
     fun sourceIdOf(connection: String, database: String, table: String): String = "$connection:$database:$table"
+
+    /** The id of the dataset [name] of [context]: `<context>.<name>`, the name its queries read it by. */
+    fun datasetIdOf(context: String, name: String): String = "$context.$name"
 }

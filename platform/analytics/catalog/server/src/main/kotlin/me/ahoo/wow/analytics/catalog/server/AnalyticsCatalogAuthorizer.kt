@@ -14,6 +14,8 @@
 package me.ahoo.wow.analytics.catalog.server
 
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
+import me.ahoo.wow.analytics.catalog.api.dataset.DraftDataset
+import me.ahoo.wow.analytics.catalog.api.dataset.ReviseDataset
 import me.ahoo.wow.analytics.catalog.api.source.ApproveSensitivityChange
 import me.ahoo.wow.analytics.catalog.api.source.DraftSource
 import me.ahoo.wow.analytics.catalog.api.source.MarkSourceReviewed
@@ -28,8 +30,8 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
  * Who sends what to the analytics catalog: every command changes what the platform's datasets are built on, so only
  * the catalog's roles send them ([AnalyticsCatalogCallers]):
  *
- * - an analyst's work, `DraftSource`, `ReviseSource` and `ReviewSourceSensitivity`, an
- *   [AnalyticsCatalogCallers.EDITOR] or an [AnalyticsCatalogCallers.ADMIN] (decision D251 ②);
+ * - an analyst's work, `DraftSource`, `ReviseSource`, `ReviewSourceSensitivity`, `DraftDataset` and
+ *   `ReviseDataset`, an [AnalyticsCatalogCallers.EDITOR] or an [AnalyticsCatalogCallers.ADMIN] (decision D251 ②);
  * - `MarkSourceReviewed`, an [AnalyticsCatalogCallers.APPROVER] or an [AnalyticsCatalogCallers.ADMIN];
  * - `ApproveSensitivityChange`, the privileged review of a lower protection (decision D241 ③), only an
  *   [AnalyticsCatalogCallers.APPROVER];
@@ -57,15 +59,18 @@ class AnalyticsCatalogAuthorizer(private val policies: CommandAuthorizer? = null
         /** The roles that may send each command of the catalog, by its type's name (decision D55); admin else. */
         @JvmField
         val ROLES: Map<String, Set<String>> = mapOf(
-            nameOf(DraftSource::class.java) to EDITORS,
-            nameOf(ReviseSource::class.java) to EDITORS,
-            nameOf(ReviewSourceSensitivity::class.java) to EDITORS,
-            nameOf(MarkSourceReviewed::class.java) to
+            nameOf(AnalyticsCatalogContext.SOURCE, DraftSource::class.java) to EDITORS,
+            nameOf(AnalyticsCatalogContext.SOURCE, ReviseSource::class.java) to EDITORS,
+            nameOf(AnalyticsCatalogContext.SOURCE, ReviewSourceSensitivity::class.java) to EDITORS,
+            nameOf(AnalyticsCatalogContext.SOURCE, MarkSourceReviewed::class.java) to
                 setOf(AnalyticsCatalogCallers.APPROVER, AnalyticsCatalogCallers.ADMIN),
-            nameOf(ApproveSensitivityChange::class.java) to setOf(AnalyticsCatalogCallers.APPROVER),
+            nameOf(AnalyticsCatalogContext.SOURCE, ApproveSensitivityChange::class.java) to
+                setOf(AnalyticsCatalogCallers.APPROVER),
+            nameOf(AnalyticsCatalogContext.DATASET, DraftDataset::class.java) to EDITORS,
+            nameOf(AnalyticsCatalogContext.DATASET, ReviseDataset::class.java) to EDITORS,
         )
 
-        private fun nameOf(type: Class<*>): String =
-            "${AnalyticsCatalogContext.NAME}.${AnalyticsCatalogContext.SOURCE}.${type.simpleName}"
+        private fun nameOf(aggregate: String, type: Class<*>): String =
+            "${AnalyticsCatalogContext.NAME}.$aggregate.${type.simpleName}"
     }
 }

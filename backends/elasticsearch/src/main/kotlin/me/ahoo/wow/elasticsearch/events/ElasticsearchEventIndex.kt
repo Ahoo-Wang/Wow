@@ -24,6 +24,11 @@ import java.io.StringReader
  * - The stream's system fields are mapped explicitly under the `events` model's names: the ids, tenant, command type,
  *   owner and space as `keyword`, the version as `integer`, the commit time as `long`, the operator as an object of
  *   `keyword` and `boolean`.
+ * - `tags`, the aggregate's tags after the commit (decision D259), is `flattened`: each tag key's values are keywords,
+ *   none dropped as over-long (no `ignore_above`), so a tag's presence is exact.
+ *   Elasticsearch indexes nothing for an empty object, so [TAGS_RECORDED], a `boolean` the Sink writes `true` on every
+ *   stream it writes now, tells a stream without tags from one indexed before the index learned them: the `events`
+ *   model's presence of `tags` reads it. Both are fields added within format 1 ([ADDED], [ADDITIONS]).
  * - `events` is `nested`, each event `{name: keyword, revision: integer, body}`, so a predicate matches one event and
  *   an aggregation expands them (`expand("events")`).
  * - The bodies are **not** mapped dynamically (`dynamic: false`): a body field is indexed only once the index maps it,
@@ -38,6 +43,22 @@ internal object ElasticsearchEventIndex {
     /** The kind and the version of this layout (decision D59), recorded in the mapping's `_meta`. */
     const val KIND = "events"
     const val FORMAT = 1
+
+    /** Whether a stream document records its tags (decision D259); see the class. */
+    const val TAGS_RECORDED = "tagsRecorded"
+
+    /** The fields added within format 1, which an index created before them gets from [ADDITIONS]. */
+    val ADDED: List<String> = listOf("tags", TAGS_RECORDED)
+
+    /** The mapping of [ADDED], put on an index created before them. */
+    val ADDITIONS: String = """
+        {
+          "properties": {
+            "tags": { "type": "flattened" },
+            "$TAGS_RECORDED": { "type": "boolean" }
+          }
+        }
+    """.trimIndent()
 
     /** The mappings of the index (without its settings): what a missing index's queries are admitted against. */
     val MAPPINGS: String = """
@@ -63,6 +84,8 @@ internal object ElasticsearchEventIndex {
                   "crossScope": { "type": "boolean" }
                 }
               },
+              "tags": { "type": "flattened" },
+              "$TAGS_RECORDED": { "type": "boolean" },
               "events": {
                 "type": "nested",
                 "properties": {
