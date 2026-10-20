@@ -105,6 +105,34 @@ internal object PostgresFormat {
         block()
     }
 
+    /**
+     * Runs [alter], which adds [columns] to [table], only when the table lacks one of them, as one autocommitted
+     * statement of its own on [connection] (which must be in autocommit mode).
+     *
+     * `ALTER TABLE … ADD COLUMN IF NOT EXISTS` takes the table's `ACCESS EXCLUSIVE` lock even when every column exists.
+     * Run in a transaction that holds another table's lock, it deadlocks with the statements that lock the two the
+     * other way round: a node starting up altered the log's counter table, then each aggregate table, while other
+     * nodes' appends (an aggregate table, then the counter) and tails (the counter, then the aggregate tables) ran. So
+     * a table that has its columns is not altered at all, which is every start but the first after an upgrade, and an
+     * alteration holds no other lock while it waits for its own.
+     */
+    fun addColumns(connection: Connection, table: String, columns: List<String>, alter: String) {
+        val present = connection.prepareStatement(
+            "SELECT count(*) FROM pg_attribute WHERE attrelid = to_regclass(?) AND attname = ANY (?) " +
+                "AND attnum > 0 AND NOT attisdropped",
+        ).use { query ->
+            query.setString(1, "\"$table\"")
+            query.setArray(2, connection.createArrayOf("text", columns.toTypedArray()))
+            query.executeQuery().use { rows ->
+                rows.next()
+                rows.getInt(1)
+            }
+        }
+        if (present < columns.size) {
+            connection.createStatement().use { it.execute(alter) }
+        }
+    }
+
     /** The key of the advisory lock [creating] takes. */
     private const val CREATION_LOCK = 0x776f775f666d74L
 
