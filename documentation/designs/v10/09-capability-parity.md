@@ -218,7 +218,7 @@
 |---|---|---|---|
 | `wow-models` | 模块 | A | `extensions/models`（D187，P.8） |
 | `wow-cocache` | 模块 | C | D187 |
-| `wow-apiclient` | 模块 | C | D187（注：D187 写的替代「5a.3 生成的客户端」只有 TypeScript；Kotlin 非 Saga 调用方须手写 WebClient，Saga 用 `SagaContext.call`） |
+| `wow-apiclient` | 模块 | C | D187、D257（D187 的「生成的客户端」只有 TypeScript；D257 补上位置透明的类型化 JVM 命令与查询客户端，随 R4-Q3、DX-1 交付） |
 | CosId | `wow-core` `id` | A | `extensions/cosid` |
 | Spring 集成与 starter 变体 | `wow-spring`、starter features | B | `host/spring-boot` + 每技术一个模块（D44）；Skill 覆盖 |
 
