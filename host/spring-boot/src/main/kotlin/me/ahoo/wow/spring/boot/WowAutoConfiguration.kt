@@ -503,8 +503,9 @@ class WowAutoConfiguration {
                 node.waits,
                 tokens = clusterTokens(properties, environment, identity.bindHost),
                 services = services,
-            ).and(callRoutes(manifest, node.gateway, services, options, permits))
-                // The services' peer reads (decision D259), beside their calls.
+            )
+                // The services' peer reads (decision D259), before the call routes: their catch-all routes of an
+                // unknown command would take a query's POST.
                 .and(
                     peerReadRoutes(
                         manifest,
@@ -516,7 +517,8 @@ class WowAutoConfiguration {
                         permits,
                         masks,
                     ),
-                ),
+                )
+                .and(callRoutes(manifest, node.gateway, services, options, permits)),
             InternalHttp.messageLimit(publicCodecLimit(environment)),
         )
     }

@@ -44,6 +44,7 @@ import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.state.StateReads
+import org.springframework.http.HttpStatus
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -54,7 +55,8 @@ import org.springframework.web.reactive.function.server.coRouter
  * routes ([callRoutes]): the same paths and answers as the public port's query routes, state reads and dataset routes,
  * for the services that read this one through `wow-client`'s service mode, without the end user's credential.
  *
- * - `POST` and `GET /{context}/{aggregate}/{model}/query` of each model [queries] serves;
+ * - `POST` and `GET /{context}/{aggregate}/{model}/query` of each query model of the Manifest, 404 for one [queries]
+ *   does not serve (never the call routes' unknown command);
  * - `GET /{context}/{aggregate}/{id}/state` (`?version=`, `?at=`) of each aggregate, over [reads];
  * - `POST` and `GET /wow/dataset/{context}/{dataset}/query` of the datasets [queries] has.
  *
@@ -97,16 +99,22 @@ fun peerReadRoutes(
                 GET("/${context.name}/${aggregate.name}/${CommandRoutes.ID}/${WowPaths.STATE}") { request ->
                     roots.reading(request, "$type.${WowPaths.STATE}") { states.handle(request, type) }
                 }
-                aggregate.queries.filter { queries.gateway(type, it.model) != null }.forEach { query ->
+                // Every query model of the Manifest: one this node does not serve is a 404, never a command route's.
+                aggregate.queries.forEach { query ->
                     val target = QueryTarget(type, query.model)
                     val model = "$type.${query.model}"
+                    val served = queries.gateway(type, query.model) != null
                     query.routes.forEach { route ->
                         when (route.method) {
                             QueryRoutes.GET -> GET(route.path) { request ->
-                                roots.reading(request, model) { queryHandler.describe(request, target) }
+                                roots.reading(request, model) {
+                                    if (served) queryHandler.describe(request, target) else notServed(model)
+                                }
                             }
                             else -> POST(route.path) { request ->
-                                roots.reading(request, model) { queryHandler.query(request, target) }
+                                roots.reading(request, model) {
+                                    if (served) queryHandler.query(request, target) else notServed(model)
+                                }
                             }
                         }
                     }
@@ -132,6 +140,9 @@ private const val DATASET_NAME = "dataset"
 
 /** The request attribute that holds the root context's caller a peer read runs as. */
 private const val ROOT_CALLER = "me.ahoo.wow.http.peerReadCaller"
+
+private suspend fun notServed(model: String): ServerResponse =
+    Problem.ofStatus(HttpStatus.NOT_FOUND, "No query of $model is served on this node.").respond()
 
 private fun datasetName(request: ServerRequest): AggregateType =
     AggregateType(request.pathVariable(DATASET_CONTEXT), request.pathVariable(DATASET_NAME))
