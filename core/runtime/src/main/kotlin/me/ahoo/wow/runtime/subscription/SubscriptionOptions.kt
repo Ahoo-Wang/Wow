@@ -199,7 +199,8 @@ class SubscriptionOptions @InternalWowApi constructor(
  * partition. The wait before the next attempt starts at [initialBackoff], doubles to at most [maxBackoff], is shortened
  * by up to [jitter] (a share, 0 to 1) at random so the lanes do not retry in step, and is at least the downstream's
  * `Retry-After`. Meanwhile the partition is throttled: each backpressure halves the handlings it runs at once, down to
- * [minConcurrency], and each success raises it by half again, back to the in-flight bound.
+ * [minConcurrency], and each success raises it by half again, back to the in-flight bound (at once when no handling
+ * waits under the limit).
  *
  * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.

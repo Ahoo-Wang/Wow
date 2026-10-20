@@ -15,6 +15,8 @@ package me.ahoo.wow.runtime.binding
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
@@ -105,6 +107,9 @@ class DerivedCommandsTest {
                 "is unknown; retrying it with the same request id is safe.",
         )
         unknown.cause!!.message.assert().isEqualTo("The log is gone.")
+        // With its code, so the subscription tells backpressure from a failure (decision D263).
+        (unknown as WowProblemException).code.assert().isEqualTo(FrameworkErrors.COMMAND_UNKNOWN)
+        unknown.retryHint.retryable.assert().isTrue()
         answer = AppendOutcome.Conflict(5)
         runCatching { derived.execute(listOf(command("c-3", AddItems(listOf("pear")))), null) }.exceptionOrNull()!!
             .message.assert().isEqualTo(

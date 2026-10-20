@@ -27,7 +27,8 @@ import java.time.Clock
  *
  * It starts at [max], the in-flight bound, where it holds nothing back. Each backpressure ([backpressure]) halves it,
  * down to [BackpressureOptions.minConcurrency], and each attempt that succeeds ([succeeded]) raises it by half again
- * (at least one), back to [max]. An attempt over the limit waits, first come first served, until one in flight ends.
+ * (at least one), back to [max], or at once to [max] when no attempt waits under it. An attempt over the limit waits,
+ * first come first served, until one in flight ends.
  * Entering and leaving the throttle are logged once each and told to [observer]; [state] is what the metrics read.
  */
 internal class PartitionThrottle(
@@ -107,7 +108,8 @@ internal class PartitionThrottle(
             if (limit >= max) {
                 return
             }
-            limit = (limit + (limit / 2).coerceAtLeast(1)).coerceAtMost(max)
+            // Nothing held back: the backlog the limit protected the downstream from is gone.
+            limit = if (waiting.isEmpty()) max else (limit + (limit / 2).coerceAtLeast(1)).coerceAtMost(max)
             grant()
             if (limit >= max) {
                 since.also { since = null }

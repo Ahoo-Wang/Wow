@@ -503,12 +503,15 @@ internal class SubscriptionWorker(
         throttle.succeeded()
     }
 
-    /** The code a backpressure [failure] names: the downstream's error code, else its class. */
-    private fun codeOf(failure: Throwable): String = when (failure) {
-        is CommandBusyException -> ResultCodes.BUSY
-        is WowProblemException -> failure.code
-        else -> failure.javaClass.simpleName
-    }
+    /** The code a backpressure [failure] names: the downstream's error code, its own or a cause's, else its class. */
+    private fun codeOf(failure: Throwable): String =
+        generateSequence(failure) { it.cause.takeIf { cause -> cause !== it } }.take(MAX_CAUSES).firstNotNullOfOrNull {
+            when (it) {
+                is CommandBusyException -> ResultCodes.BUSY
+                is WowProblemException -> it.code
+                else -> null
+            }
+        } ?: failure.javaClass.simpleName
 
     /** One attempt of the handler, within the budget's timeout when it has one. */
     private suspend fun attempt(sourced: SourcedEntry): HandledEntry {
@@ -804,3 +807,6 @@ private val logger = KotlinLogging.logger {}
 /** How many aggregates a worker of a source that repeats remembers the last version handled of. */
 private const val REMEMBERED = 4_096
 private const val LOAD_FACTOR = 0.75f
+
+/** The causes [SubscriptionWorker.codeOf] looks through at most. */
+private const val MAX_CAUSES = 16
