@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.state
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.EventCodec
@@ -99,9 +100,51 @@ class KernelStateReadsTest {
     }
 
     @Test
-    fun `the committed state is the snapshot, else the log before the first snapshot`(): Unit = runBlocking {
+    fun `the latest state is the snapshot, else the log before the first snapshot (D246)`(): Unit = runBlocking {
+        reads.latest(cart).assert().isNull()
         reads.committed(cart).assert().isNull()
-        (1..2).forEach { version ->
+        addItems(2)
+        // No snapshot yet: the latest state, and the committed one, are the log replayed.
+        listOf(reads.latest(cart)!!, reads.committed(cart)!!).forEach { read ->
+            read.version.assert().isEqualTo(2)
+            read.scope.assert().isEqualTo(Scope("alice", null))
+            read.state["items"].asInt().assert().isEqualTo(3)
+        }
+        // Once a snapshot is written, it is the state read, even behind the log's head (D69).
+        snapshots.save(EventCodec().snapshotOf(cartModel, cart, Cart().apply { items = 1 }, 1, Scope.NONE, 1L, 1L))
+        listOf(reads.latest(cart)!!, reads.committed(cart)!!).forEach { read ->
+            read.version.assert().isEqualTo(1)
+            read.state["items"].asInt().assert().isEqualTo(1)
+        }
+    }
+
+    @Test
+    fun `only the latest state's replay runs under the gate`(): Unit = runBlocking {
+        val gated = mutableListOf<AggregateRef>()
+        val refusing = KernelStateReads(
+            registry,
+            mapOf(CONTEXT to KernelStateReads.ContextReads(Kernel(log), snapshots)),
+            object : ReplayGate {
+                override suspend fun <T> replay(ref: AggregateRef, read: suspend () -> T): T {
+                    gated += ref
+                    throw IllegalStateException("busy")
+                }
+            },
+        )
+        addItems(1)
+        runCatching { refusing.latest(cart) }.exceptionOrNull()!!.message.assert().isEqualTo("busy")
+        gated.assert().containsExactly(cart)
+        // The events model's committed state is read outside the gate.
+        refusing.committed(cart)!!.version.assert().isEqualTo(1)
+        // A snapshot is read without a replay.
+        snapshots.save(EventCodec().snapshotOf(cartModel, cart, Cart().apply { items = 1 }, 1, Scope.NONE, 1L, 1L))
+        refusing.latest(cart)!!.version.assert().isEqualTo(1)
+        gated.assert().hasSize(1)
+        ReplayGate.OPEN.toString().assert().isEqualTo("ReplayGate.OPEN")
+    }
+
+    private suspend fun addItems(count: Int) {
+        (1..count).forEach { version ->
             log.append(
                 EventStreamRecord(
                     ref = cart,
@@ -115,17 +158,6 @@ class KernelStateReadsTest {
                 ),
             )
         }
-        // No snapshot yet: the latest state is not found, the committed one is the log replayed.
-        reads.latest(cart).assert().isNull()
-        reads.committed(cart)!!.let { committed ->
-            committed.version.assert().isEqualTo(2)
-            committed.scope.assert().isEqualTo(Scope("alice", null))
-            committed.state["items"].asInt().assert().isEqualTo(3)
-        }
-        // Once a snapshot is written, it is the committed state.
-        snapshots.save(EventCodec().snapshotOf(cartModel, cart, Cart().apply { items = 1 }, 1, Scope.NONE, 1L, 1L))
-        reads.committed(cart)!!.version.assert().isEqualTo(1)
-        reads.committed(cart)!!.state["items"].asInt().assert().isEqualTo(1)
     }
 
     private companion object {

@@ -40,6 +40,7 @@ import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.state.StateReads
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
@@ -282,6 +283,16 @@ class QueryAutoConfiguration {
                 HostQueryBulkheads.unpinned(type, events.storeOf(type), properties.events.unpinned, settings)
             }
         }
+
+        /**
+         * How the state reads replay the log of an aggregate without a snapshot (decision D246 ⑥): under the query
+         * bulkhead of its log store, as that store's queries run (review R3.4-2).
+         */
+        @Bean
+        @ConditionalOnMissingBean
+        @InternalWowApi
+        fun wowReplayGate(stores: QueryStores, backends: HostBackends): ReplayGate =
+            HostQueryBulkheads.replays(stores.bulkheads) { type -> backends.layout?.logStoreOf(type) }
 
         /** The application's beans the engine is built of, which it may give or not. */
         @Bean

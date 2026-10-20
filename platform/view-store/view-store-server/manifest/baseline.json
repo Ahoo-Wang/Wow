@@ -417,6 +417,10 @@
     "code" : "wow.query.busy",
     "status" : 429,
     "description" : "The query was not run: its store has as many queries running as it allows; retry later."
+  }, {
+    "code" : "wow.call.command-forbidden",
+    "status" : 403,
+    "description" : "The calling service may not call this command: its wow.http.services.<service>.commands do not list it."
   } ],
   "$defs" : {
     "java.util.Map(java.lang.String,java.lang.Object)" : {

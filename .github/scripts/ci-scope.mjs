@@ -51,10 +51,12 @@ const MIXED_VERSION = 'mixedVersion';
 // smoke test and the quickstart, with the quickstart pages its test keeps in
 // step), the end-to-end
 // benchmark against 9.x (wow-benchmarks/e2e, D224), the platform
-// they import, and the root build and Gradle configuration every module reads.
+// they import, the coverage report v10.yml uploads (test/code-coverage-report:
+// v10CoverageReport), and the root build and Gradle configuration every module
+// reads.
 const V10 = 'v10';
 const V10_PATH =
-  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|kernel-benchmarks|routing-spike|lease-spike|test-dsl|tck|tck-containers)|example\/(?:eshop|quickstart|java-smoke)|wow-benchmarks\/e2e|wow-dependencies|gradle|build-logic|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|documentation\/docs\/(?:en|zh)\/guide\/v10\/quickstart\.md$|\.github\/workflows\/v10\.yml$)/;
+  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|kernel-benchmarks|routing-spike|lease-spike|test-dsl|tck|tck-containers)|example\/(?:eshop|quickstart|java-smoke)|wow-benchmarks\/e2e|wow-dependencies|gradle|build-logic|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|documentation\/docs\/(?:en|zh)\/guide\/v10\/quickstart\.md$|\.github\/workflows\/v10\.yml$)/;
 // typescript-contract.yml (v10 branch): `test:v10` of integration-test, the
 // V10 store (`@ahoo-wang/wow-view-store/v10`) and the view engine on it
 // against the V10 view store service (platform/view-store) built from this
@@ -167,6 +169,10 @@ const RULES = [
   // them (test/fixtures/serverContract.ts) for its endpoint paths and header
   // names; they change with the routes the same-source contract serves.
   [/^wow-openapi\/src\/test\/resources\/openapi\//, [SDK, CONTRACT]],
+  // The V10 framework error table's snapshot (api/manifest, review R2.5-4):
+  // wow-client's tests check FrameworkErrorCodes against it
+  // (test/v10/frameworkErrors.test.ts), so a change to the table reruns them.
+  [/^api\/manifest\/src\/test\/resources\/framework-errors\.json$/, [SDK]],
   // The modules whose bytes cross between versions (messages, buses, stores,
   // the wait endpoint and the REST headers), the example cluster the
   // mixed-version test starts, and the dependency versions (a Jackson bump can
@@ -288,6 +294,10 @@ const UNIT_RULES = [
   [/^typescript\/wow-client\//, () => UNIT_PACKAGES],
   [/^typescript\/(wow-(?:react|generator|view-store))\//, match => [match[1]]],
   [/^wow-openapi\/src\/test\/resources\/openapi\//, () => ['wow-client']],
+  [
+    /^api\/manifest\/src\/test\/resources\/framework-errors\.json$/,
+    () => ['wow-client'],
+  ],
 ];
 
 export function unitPackages(paths) {

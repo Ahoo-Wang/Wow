@@ -85,7 +85,8 @@ import kotlin.time.Duration
  *      is a [service][me.ahoo.wow.api.caller.Caller.service] identity, and [FrameworkCodes.MALFORMED] beside a target;
  *      from a service, the command's id, tenant, scope, operator, causation and propagating request facts
  *      ([CallContext.facts], decision D236) are the call's: a derived command (decision D199), executed with the
- *      call's wait context as one from another context's command topic, and answered at COMMITTED;
+ *      call's wait context as one from another context's command topic, and answered at COMMITTED, apart from
+ *      the caller and within the default wait timeout ([WaitCoordinator.call], review R2.5-2);
  *    - a request header in the framework's namespace (`Wow-…`, `wow.…`) is refused: identity, ids and the wait have
  *      fields of their own.
  * 3. Authorize the action with [authorizer], before the body is decoded.
@@ -200,8 +201,9 @@ class CommandGateway @InternalWowApi constructor(
                 val from = admission.transformedFrom
                 val call = admission.call
                 if (call != null) {
-                    val settled = traced(trace) { coordinator.forward(admission.model, admission.command, call.wait) }
-                    emit(if (from == null) settled.committed else settled.committed.copyWith(transformedFrom = from))
+                    // Apart from the caller and bounded by its plan's timeout (review R2.5-2).
+                    val settled = traced(trace) { coordinator.call(admission.model, admission.command, call.wait) }
+                    emit(if (from == null) settled else settled.copyWith(transformedFrom = from))
                 } else if (accepted != null) {
                     emit(if (from == null) accepted else accepted.copyWith(transformedFrom = from))
                 } else if (streaming) {

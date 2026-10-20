@@ -24,50 +24,54 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.spi.log.EventStreamRecord
 
-/** The error codes the runtime answers with (design 08 §7), beside the kernel's rejection codes. */
+/**
+ * The error codes the runtime answers with (design 08 §7), beside the kernel's rejection codes: constants of the
+ * framework's table ([FrameworkErrors], review R2.5-4).
+ */
 @InternalWowApi
 object ResultCodes {
     /** Concurrent writers kept winning the version slot; retrying with the same request id is safe. */
-    const val CONTENDED = "wow.command.contended"
+    const val CONTENDED = FrameworkErrors.COMMAND_CONTENDED
 
     /** Whether the command committed is unknown; retrying with the same request id is safe (D46). */
-    const val UNKNOWN = "wow.command.unknown"
+    const val UNKNOWN = FrameworkErrors.COMMAND_UNKNOWN
 
     /**
      * The command's handling threw an unexpected error (a bug in a decide function or an after hook, a missing
      * dependency): it committed nothing, and a retry fails the same way until the service is fixed (review A3-6).
      */
-    const val FAILED = "wow.command.failed"
+    const val FAILED = FrameworkErrors.COMMAND_FAILED
 
     /** The wait ran out of time. It says only that the wait gave up, not that the command failed (D64). */
-    const val WAIT_TIMEOUT = "wow.wait.timeout"
+    const val WAIT_TIMEOUT = FrameworkErrors.WAIT_TIMEOUT
 
     /** The wait plan is not a chain the runtime can follow, so the command was not executed (D62). */
-    const val WAIT_INVALID = "wow.wait.invalid"
+    const val WAIT_INVALID = FrameworkErrors.WAIT_INVALID
 
     /** A subscription on the chain parked the aggregate: the hop will not be reached until it is resumed. */
-    const val SUBSCRIPTION_PARKED = "wow.subscription.parked"
+    const val SUBSCRIPTION_PARKED = FrameworkErrors.SUBSCRIPTION_PARKED
 
     /** The aggregate's lane on the executor is full, so the command was not taken; it may be retried (D115). */
-    const val BUSY = "wow.command.busy"
+    const val BUSY = FrameworkErrors.COMMAND_BUSY
 
     /** The node is shutting down, so the command was not taken; another node may take it (D115). */
-    const val NODE_CLOSING = "wow.node.closing"
+    const val NODE_CLOSING = FrameworkErrors.NODE_CLOSING
 
     /**
      * A store the command needed could not be reached or did not answer in time
      * ([me.ahoo.wow.spi.StorageUnavailableException]); retrying with the same request id is safe.
      */
-    const val STORAGE_UNAVAILABLE = "wow.storage.unavailable"
+    const val STORAGE_UNAVAILABLE = FrameworkErrors.STORAGE_UNAVAILABLE
 
     /**
      * A command a schedule sent arrived longer before its due time, on the target node's clock, than the node waits
      * for one (`wow.timers.max-early-wait`, decision D198): the firing node's clock is ahead. It was not decided;
      * sending it again later with the same request id is safe.
      */
-    const val SCHEDULE_NOT_DUE = "wow.schedule.not-due"
+    const val SCHEDULE_NOT_DUE = FrameworkErrors.SCHEDULE_NOT_DUE
 }
 
 /** The function of [command]'s decide function on [model]: the aggregate and the command's model name. */
