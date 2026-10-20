@@ -169,6 +169,16 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Blocks M7**: no.
 - **Resolved**: by #4380. After a command that changed nothing, `expectState` checks the state the aggregate is in.
 
+### G13. Tenants across services match only by convention
+
+- **Work package**: 6.3e
+- **Area**: host, docs
+- **What happened**: The shop's saga addresses the inventory's stock as `stock.ref(order's tenant, productId)`. It works because both services serve anonymous callers in the default tenant `(0)`. Nothing documents that a cross-context reference carries the sender's tenant into the target, or what happens when the target has a fixed tenant policy for the aggregate.
+- **Where they looked**: the host's `wow.aggregates.*.tenant` keys; decision D116.
+- **Workaround**: Both services run with the default tenant.
+- **Proposed fix**: Document how a tenant crosses contexts. Have the target's admission check a cross-context command's tenant against its tenant policy, with a clear rejection.
+- **Blocks M7**: no, but it needs settling before multi-tenant users go cross-context.
+
 ### G14. The in-memory query backend on the test class path does not serve the snapshot queries (resolved)
 
 - **Work package**: E.1
@@ -217,6 +227,16 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Proposed fix**: Add a "Query model" section to the programming model page: the query annotations with an example on a state, the `wow-query-api` dependency, what the backends build, and how the index names map.
 - **Blocks M7**: no.
 - **Resolved**: by #4393 (work package P.2). The "Query annotations" section of `guide/v10/query` describes each annotation of `me.ahoo.wow.api.query.annotation` and its attributes, the `@field:` target, the `wow-query-api` dependency, what PostgreSQL and MongoDB build for `@QueryIndex`, and how a Manifest index name maps to PostgreSQL's `<table>_<name>`, limited to 63 characters with a hash. With `wow-query-api`, the compiler also generates each state's `<State>Properties`.
+
+### G17. The guide sends container tests to an `integrationTest` source set it does not show how to declare
+
+- **Work package**: E.1
+- **Area**: build, testing, docs
+- **What happened**: `guide/v10/testing` says that tests against PostgreSQL "run in containers (Testcontainers), in the module's `integrationTest` source set". Neither the quick start's build scripts nor the Testing page declares that source set. Inside the repository it comes from the root build's `integrationTestProjects` list, which a context's own build script cannot join. `catalog-server` has no `integrationTest`, so its query contract cannot run there on PostgreSQL.
+- **Where they looked**: `guide/v10/index` (Set up Gradle); `guide/v10/testing`; the shop server's build script.
+- **Workaround**: The contract runs on the memory backend in `catalog-server`'s `test` (G14). The PostgreSQL case is `CatalogPostgresTest` in `:eshop-e2e`, whose `integrationTest` exists.
+- **Proposed fix**: Show an `integrationTest` suite in the guide, with Gradle's JVM Test Suite plugin and the Testcontainers dependency. Inside the repository, register the eShop servers in `integrationTestProjects`, so E.2 to E.5 can test their own servers on PostgreSQL.
+- **Blocks M7**: no.
 
 ### G18. `expectEventTypes` takes Java classes (resolved)
 
