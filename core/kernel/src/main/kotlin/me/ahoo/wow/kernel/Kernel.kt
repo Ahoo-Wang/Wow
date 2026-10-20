@@ -20,6 +20,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
@@ -40,6 +41,7 @@ import me.ahoo.wow.api.schedule.ScheduleCancelled
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.spi.id.IdGenerators
+import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -67,7 +69,11 @@ import kotlin.time.Duration.Companion.seconds
  * 1. **Deduplicate before deciding** (D46): a request id already committed in the tenant is never decided again; a
  *    command of another type reusing it is rejected. Commands are told apart by their model name only, not by a hash
  *    of their body (D55): a same-type command reusing a request id is taken for a retry, by the caller's contract.
- *    A duplicate is answered only within the scope that sent it (see [duplicate]).
+ *    A duplicate is answered only within the scope that sent it (see [duplicate]). Each loaded aggregate carries the
+ *    [recentRequests] it committed last, derived from the log (decision D261): a request they hold is answered from
+ *    its stream, and on a miss most commands skip looking the request id up; see [RequestCheck] for when they still
+ *    do. The append's request key stays the backstop of "committed at most once". [recentRequests] 0 looks every
+ *    request id up before deciding, as D46 did.
  * 2. **Load** the committed state, **decide** (the command's function, then its after hooks, D39), **evolve** a
  *    fresh state with the events, **append** once.
  * 3. A version conflict decides again on the newer state, up to [maxAttempts]; an unknown append outcome is settled
@@ -158,9 +164,11 @@ class Kernel(
     private val maxEarlyWait: Duration = DEFAULT_MAX_EARLY_WAIT,
     private val observer: Observer = Observer.NONE,
     private val blocking: CoroutineContext = BlockingDispatcher.dispatcher,
+    private val recentRequests: Int = DEFAULT_RECENT_REQUESTS,
 ) {
     init {
         require(maxAttempts >= 1) { "At least one attempt." }
+        require(recentRequests >= 0) { "The recent requests kept per aggregate are never negative." }
         require(!maxEarlyWait.isNegative()) { "The maximum early wait is never negative." }
     }
 
@@ -209,16 +217,22 @@ class Kernel(
         val decider = model.decider(command.body.javaClass)
             ?: return rejected(KernelRejections.UNHANDLED, "${model.type} does not handle ${command.body.javaClass.name}.")
         val commandType = model.commandType(command.body.javaClass)
-        // The request key is unique within an aggregate type (decision D162): one lookup in this type's storage.
-        log.findByRequestId(model.type, command.ref.tenantId, command.requestId)
-            ?.let { return duplicate(it, command, commandType) }
+        val requests = RequestCheck(model, decider, command, commandType, currentCoroutineContext()[ExecutionLease])
+        // A scheduled command is looked up before it waits for its slot, as a duplicate is answered without waiting.
+        if (recentRequests == 0 || command.schedule != null) {
+            requests.lookUp()?.let { return it }
+        }
         awaitDue(command)
         val waitBeyondCommitted = wait?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
         val encode = { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
         var attempts = 0
         while (attempts < maxAttempts) {
-            val (loaded, cached) = load(model, command)
-            admissible(decider, command, loaded)?.let { return standing(command.ref, loaded, cached, it) ?: continue }
+            val (loaded, cached) = load(model, command, requests.caching)
+            // Checked after every load (C5): a reload may hold the request another node committed meanwhile.
+            requests.beforeDeciding(loaded)?.let { return it }
+            admissible(decider, command, loaded)?.let { refusal ->
+                return requests.refused(loaded) ?: standing(command.ref, loaded, cached, refusal, requests) ?: continue
+            }
             val attempt = AttemptScope(command, ids, loaded, reservations, reservationTtl, waitBeyondCommitted, encode)
             val prepared = try {
                 prepare(model, decider, attempt, loaded, command, commandType.name)
@@ -232,16 +246,89 @@ class Kernel(
             val (stream, evolved) = when (prepared) {
                 is Prepared.Done -> {
                     attempt.compensate()
-                    return standing(command.ref, loaded, cached, prepared.outcome) ?: continue
+                    return requests.refused(loaded)
+                        ?: standing(command.ref, loaded, cached, prepared.outcome, requests)
+                        ?: continue
                 }
 
                 is Prepared.Append -> prepared.stream to prepared.evolved
             }
             val appended = withContext(NonCancellable) { appendObserved(stream, attempt) }
-            settleAppend(appended, stream, evolved, attempt, commandType)?.let { return it }
+            settleAppend(appended, stream, evolved, attempt, commandType, requests.caching)?.let { return it }
             attempts++
         }
         return CommandOutcome.Contended(maxAttempts)
+    }
+
+    /**
+     * How one execution makes sure its request is not committed already (decision D46, revised by D261): from the
+     * aggregate's recent requests where they answer, else by looking the request id up, at most once per execution.
+     *
+     * - A request the loaded state's recent requests hold is confirmed by reading its stream at the version they name
+     *   (a hash may collide) and answered as a duplicate.
+     * - On a miss, only a pure decide ([DecideFunction.Sync] with only [AfterFunction.Sync] after hooks) goes on
+     *   without a lookup (C2): deciding again costs nothing outside the log, and an append meets the request key, the
+     *   permanent backstop. A decide that does I/O goes on without one only when the recent requests hold the
+     *   aggregate's whole history and this node holds the partition's lease ([ExecutionLease.HELD]): the request is
+     *   then surely not the aggregate's (only a request id reused on another aggregate of the type, the caller's error
+     *   by D55, still reaches the backstop).
+     * - An outcome that appends nothing (an admission refusal, a rejection, an unchanged one) never meets the request
+     *   key, so the request id is looked up before it is answered (C1): a retry is answered as a duplicate, as before.
+     */
+    private inner class RequestCheck(
+        private val model: AggregateModel<*>,
+        decider: DecideFunction<*>,
+        private val command: Command<*>,
+        private val commandType: CommandType,
+        lease: ExecutionLease?,
+    ) {
+        private val pure = decider is DecideFunction.Sync &&
+            model.afterFunctions(command.body.javaClass).all { it is AfterFunction.Sync }
+        private val leaseHeld = lease?.held == true
+
+        /** Whether this execution's states are cached: not when it runs without the partition's lease (C4). */
+        val caching = lease?.held != false
+
+        /** Whether the request id was looked up in this execution and found nothing. */
+        private var lookedUp = false
+
+        /** The duplicate answer when the request id is committed; null when it is not, remembered. */
+        suspend fun lookUp(): CommandOutcome? {
+            val existing = log.findByRequestId(model.type, command.ref.tenantId, command.requestId)
+            lookedUp = existing == null
+            return existing?.let { duplicate(it, command, commandType) }
+        }
+
+        /**
+         * The duplicate answer when [loaded]'s recent requests hold the request, or a lookup finds it when it must;
+         * null to decide. [loaded] stays cached when the command is answered from it.
+         */
+        suspend fun beforeDeciding(loaded: CachedState): CommandOutcome? {
+            val recent = loaded.requests
+            val collided = recent?.versionOf(command.requestId)?.let { version ->
+                val existing = log.read(command.ref, version, version).firstOrNull()
+                if (existing?.requestId == command.requestId) {
+                    return answered(loaded, duplicate(existing, command, commandType))
+                }
+                true
+            } ?: false
+            if (lookedUp || pure || leaseHeld && recent?.complete == true && !collided) {
+                return null
+            }
+            return lookUp()?.let { answered(loaded, it) }
+        }
+
+        /** The duplicate answer to an outcome that appends nothing, decided on [loaded], when the request is committed. */
+        suspend fun refused(loaded: CachedState): CommandOutcome? =
+            if (lookedUp) null else lookUp()?.let { answered(loaded, it) }
+
+        /** [outcome], answered without deciding on [loaded], which stays as it was cached. */
+        private fun answered(loaded: CachedState, outcome: CommandOutcome): CommandOutcome {
+            if (caching) {
+                states.put(command.ref, loaded)
+            }
+            return outcome
+        }
     }
 
     /**
@@ -277,9 +364,13 @@ class Kernel(
         evolved: CachedState,
         attempt: AttemptScope,
         commandType: CommandType,
+        caching: Boolean,
     ): CommandOutcome? = when (appended) {
         is AppendOutcome.Committed -> {
-            states.put(stream.ref, evolved)
+            if (caching) {
+                evolved.requests?.add(stream.requestId, stream.version)
+                states.put(stream.ref, evolved)
+            }
             withContext(NonCancellable) { attempt.afterAppend() }
             CommandOutcome.Committed(
                 stream,
@@ -294,7 +385,9 @@ class Kernel(
 
         is AppendOutcome.AlreadyCommitted -> {
             attempt.compensate()
-            settled(appended.existing, commandType)
+            // Answered as the request-id lookup answers it: within the scope that sent it (D94). With the recent
+            // requests (decision D261), a request id reused on another aggregate of the type reaches only this key.
+            duplicate(appended.existing, attempt.command, commandType)
         }
 
         is AppendOutcome.Conflict -> {
@@ -485,12 +578,40 @@ class Kernel(
 
     /**
      * The aggregate's committed state, version and scope: cached, else from its snapshot and tail, else replayed; and
-     * whether it came from the cache.
+     * whether it came from the cache. A state loaded from the log carries the aggregate's recent requests (decision
+     * D261): the tail after a snapshot is read together with the request keys before it, up to one more than are kept
+     * so that a full window tells a truncated history; a replay reads them all. A command that runs without the
+     * partition's lease ([caching] false, C4) drops a cached state and loads afresh.
      */
-    private suspend fun <S : Any> load(model: AggregateModel<S>, command: Command<*>): Pair<CachedState, Boolean> {
-        states.take(command.ref)?.let { return it to true }
-        loadSnapshot(command.ref)?.let { snapshot -> fromSnapshot(model, snapshot)?.let { return it to false } }
-        return replay(model, CachedState(model.initialState(command.ref), 0), log.read(command.ref).toList()) to false
+    private suspend fun <S : Any> load(
+        model: AggregateModel<S>,
+        command: Command<*>,
+        caching: Boolean,
+    ): Pair<CachedState, Boolean> {
+        val ref = command.ref
+        states.take(ref)?.let { if (caching) return it to true }
+        loadSnapshot(ref)?.let { snapshot ->
+            fittingRevision(model, snapshot)?.let { state ->
+                val tail = if (recentRequests == 0) {
+                    AggregateTail.of(log.read(ref, snapshot.version).toList(), emptyList())
+                } else {
+                    log.readTail(ref, snapshot.version, recentRequests + 1)
+                }
+                fromSnapshot(model, snapshot, state, tail.streams.asFlow())?.let { loaded ->
+                    if (recentRequests > 0) {
+                        val reachedStart = tail.earlier.size <= recentRequests
+                        loaded.requests = RecentRequests.of(recentRequests, tail.earlier, tail.streams, reachedStart)
+                    }
+                    return loaded to false
+                }
+            }
+        }
+        val streams = log.read(ref).toList()
+        val replayed = replay(model, CachedState(model.initialState(ref), 0), streams)
+        if (recentRequests > 0) {
+            replayed.requests = RecentRequests.of(recentRequests, emptyList(), streams, reachedStart = true)
+        }
+        return replayed to false
     }
 
     /**
@@ -503,11 +624,14 @@ class Kernel(
         loaded: CachedState,
         cached: Boolean,
         outcome: CommandOutcome,
+        requests: RequestCheck,
     ): CommandOutcome? {
         if (cached && behindLog(ref, loaded.version)) {
             return null
         }
-        states.put(ref, loaded)
+        if (requests.caching) {
+            states.put(ref, loaded)
+        }
         return outcome
     }
 
@@ -718,6 +842,15 @@ class Kernel(
         committedBy: Long = Long.MAX_VALUE,
         maxReplay: Int = Int.MAX_VALUE,
     ): CachedState? {
+        val state = fittingRevision(model, snapshot) ?: return null
+        return fromSnapshot(model, snapshot, state, log.read(snapshot.ref, snapshot.version, until), committedBy, maxReplay)
+    }
+
+    /**
+     * The state [snapshot] holds, decoded, or null when it does not fit: written at another state revision (decision
+     * D172) or for another state schema, or not decodable.
+     */
+    private fun <S : Any> fittingRevision(model: AggregateModel<S>, snapshot: SnapshotRecord): S? {
         if (snapshot.stateRevision != model.stateRevision) {
             logger.debug { "The snapshot of ${snapshot.ref} is of state revision ${snapshot.stateRevision}; replaying its log." }
             return null
@@ -726,20 +859,36 @@ class Kernel(
             logger.debug { "The snapshot of ${snapshot.ref} has another state schema; replaying its log." }
             return null
         }
-        val state = try {
+        return try {
             codec.decodeState(model, snapshot.state)
         } catch (failure: JacksonException) {
             logger.warn(failure) { "The snapshot of ${snapshot.ref} does not decode; replaying its log." }
-            return null
+            null
         } catch (failure: IllegalArgumentException) {
             logger.warn(failure) { "The snapshot of ${snapshot.ref} does not decode whole; replaying its log." }
-            return null
+            null
         }
+    }
+
+    /**
+     * [state], decoded from [snapshot], evolved with [tail], the log's streams of its aggregate from the snapshot's
+     * own version on, or null when the tail does not start with the snapshot's own stream (see the other
+     * [fromSnapshot]).
+     */
+    @Suppress("LongParameterList")
+    private suspend fun <S : Any> fromSnapshot(
+        model: AggregateModel<S>,
+        snapshot: SnapshotRecord,
+        state: S,
+        tail: Flow<EventStreamRecord>,
+        committedBy: Long = Long.MAX_VALUE,
+        maxReplay: Int = Int.MAX_VALUE,
+    ): CachedState? {
         val restored =
             CachedState(state, snapshot.version, snapshot.scope, snapshot.deleted, snapshot.tags, snapshot.schedules)
         var current: CachedState? = null
         var replayed = 0
-        log.read(snapshot.ref, snapshot.version, until)
+        tail
             // The first stream must be the snapshot's own: else the snapshot is beyond the log, and nothing is folded.
             .takeWhile { it.commitTime <= committedBy && (current != null || it.version == snapshot.version) }
             .collect { stream ->
@@ -1139,6 +1288,9 @@ class Kernel(
         }
         val DEFAULT_RESERVATION_TTL = 30.seconds
         val DEFAULT_MAX_EARLY_WAIT = 5.seconds
+
+        /** The requests kept per cached aggregate by default (decision D261): about 3 KB each. */
+        const val DEFAULT_RECENT_REQUESTS = 256
         val logger = KotlinLogging.logger {}
     }
 }

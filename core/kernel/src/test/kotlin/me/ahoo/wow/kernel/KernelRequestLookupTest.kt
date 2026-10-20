@@ -25,7 +25,10 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
 
-/** The kernel's dedup pre-check looks the request id up in the command's aggregate type alone (decision D162). */
+/**
+ * The kernel's dedup pre-check looks the request id up in the command's aggregate type alone (decision D162). Without
+ * recent requests (decision D261, `recentRequests = 0`) it looks up every command's.
+ */
 class KernelRequestLookupTest {
     private val wishlist = AggregateType(cartModel.type.context, "wishlist")
     private val ref = cartModel.type.ref("tenant", "cart-1")
@@ -57,7 +60,7 @@ class KernelRequestLookupTest {
     @Test
     fun `each command looks its request id up once, in its own aggregate type`(): Unit = runTest {
         val log = CountingLog()
-        val kernel = Kernel(log)
+        val kernel = Kernel(log, recentRequests = 0)
         kernel.execute(
             cartModel,
             command(CreateCart("ahoo"))
@@ -73,7 +76,7 @@ class KernelRequestLookupTest {
     @Test
     fun `a retry is found by the lookup in its aggregate type`(): Unit = runTest {
         val log = CountingLog()
-        val kernel = Kernel(log)
+        val kernel = Kernel(log, recentRequests = 0)
         kernel.execute(cartModel, command(CreateCart("ahoo")))
         val first = kernel.execute(
             cartModel,

@@ -24,6 +24,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
+import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -41,6 +42,9 @@ class KernelSnapshotTest {
 
         override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
             delegate.read(ref, fromVersion, toVersion).onEach { streamsRead++ }
+
+        override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail =
+            delegate.readTail(ref, fromVersion, earlier).also { streamsRead += it.streams.size }
     }
 
     private val codec = EventCodec()

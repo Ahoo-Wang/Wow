@@ -27,7 +27,9 @@ import me.ahoo.wow.api.schedule.ScheduleRule
  * must never stay cached through an attempt that may have changed it and did not commit.
  *
  * Commands of one aggregate must not run concurrently on one cache (the executor serializes them); across nodes, a
- * stale state only costs a version conflict and a reload.
+ * stale state only costs a version conflict and a reload. A state carries the aggregate's recent requests (decision
+ * D261), which must never be behind the log while the node owns the partition: a node drops the states of a partition
+ * whenever it acquires or releases it ([invalidate]).
  */
 @InternalWowApi
 interface StateCache {
@@ -36,6 +38,14 @@ interface StateCache {
 
     /** Caches [state] of [ref]. */
     fun put(ref: AggregateRef, state: CachedState)
+
+    /**
+     * Drops the states of the aggregates in [partition] of [partitions] (decision D261, C4), as
+     * [me.ahoo.wow.spi.log.Partitioner.partitionOf] places them: the node acquired or released the partition, so
+     * another node may have committed to them. A state taken out meanwhile is not put back by a command that runs
+     * without the partition's lease ([ExecutionLease.NOT_HELD]). Drops nothing by default.
+     */
+    fun invalidate(partition: Int, partitions: Int) = Unit
 
     /** Caches nothing. */
     @InternalWowApi
@@ -64,6 +74,13 @@ class CachedState(
 ) {
     internal val metadata: KernelLifecycle.Metadata get() = KernelLifecycle.Metadata(scope, deleted, tags, schedules)
 
+    /**
+     * The requests the aggregate committed most recently (decision D261), derived from the log when the kernel loaded
+     * it and added to by each commit; null when it was not derived (a state handed to the kernel, say).
+     */
+    internal var requests: RecentRequests? = null
+
     internal fun with(state: Any, version: Int, metadata: KernelLifecycle.Metadata): CachedState =
         CachedState(state, version, metadata.scope, metadata.deleted, metadata.tags, metadata.schedules)
+            .also { it.requests = requests }
 }
