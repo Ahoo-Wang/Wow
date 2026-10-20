@@ -34,10 +34,10 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.result.Violation
+import me.ahoo.wow.client.wire.ScopeHeader
 import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowPaths
-import me.ahoo.wow.client.wire.ScopeHeader
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.command.Negotiation
 import me.ahoo.wow.http.command.RequestHeaders
@@ -49,9 +49,9 @@ import me.ahoo.wow.http.problem.tooLargeProblem
 import me.ahoo.wow.http.receiveFirst
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.QueryRoutes
+import me.ahoo.wow.query.CrossTenant
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryBusyException
-import me.ahoo.wow.query.CrossTenant
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryError

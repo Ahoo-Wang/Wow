@@ -243,7 +243,11 @@ class ScopeQueryPolicyTest {
             policy.evaluate(QueryCaller(caller, crossTenant = CrossTenant(setOf("t2", "t3"))), context()).assert()
                 .isEqualTo(
                     AndFilter(
-                        listOf(OrFilter(listOf(TenantIdFilter("t2"), TenantIdFilter("t3"))), OwnerIdFilter("o1"), active),
+                        listOf(
+                            OrFilter(listOf(TenantIdFilter("t2"), TenantIdFilter("t3"))),
+                            OwnerIdFilter("o1"),
+                            active
+                        ),
                     ),
                 )
             val fixed = QueryTenantPolicy { _, queryCaller -> "fixed".takeIf { queryCaller.tenantId == null } }
@@ -274,7 +278,11 @@ class ScopeQueryPolicyTest {
                 FixedQueryModelSchemaProvider(schema),
                 policies = listOf(ScopeQueryPolicy(tenants)),
             )
-            val sorted = ListQuery(MatchAllFilter, sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC)), limit = 100)
+            val sorted = ListQuery(
+                MatchAllFilter,
+                sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC)),
+                limit = 100
+            )
             val operator = Caller(tenantId = "t1", subject = "operator", crossScope = true)
             val all = QueryCaller(operator, QueryEntry.HTTP, crossTenant = CrossTenant.ALL)
             val logger = LoggerFactory.getLogger(QueryAudit.CROSS_TENANT_LOGGER) as Logger

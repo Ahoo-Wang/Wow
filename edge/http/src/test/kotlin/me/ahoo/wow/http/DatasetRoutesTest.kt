@@ -33,8 +33,8 @@ import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.AbacQueryOptions
 import me.ahoo.wow.query.AbacQueryPolicy
-import me.ahoo.wow.query.QueryBackendStorages
 import me.ahoo.wow.query.CrossTenant
+import me.ahoo.wow.query.QueryBackendStorages
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.ScopeQueryPolicy

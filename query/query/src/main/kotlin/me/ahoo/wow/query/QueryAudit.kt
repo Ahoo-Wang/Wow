@@ -51,8 +51,6 @@ import java.time.Duration
  * of its first binding error); for a state read answered as not found, `wow.aggregate.not-found:<reason>`
  * ([StateNotFoundException.Reason]).
  * @property caller who ran the query, for the principal and its attributes.
- * @property crossTenant the tenants a cross-tenant query read (decision D254 ⑦), the [caller]'s; null for any other.
- * Every such audit is logged at INFO ([CROSS_TENANT_LOGGER]).
  * @property elapsed the time from the start of the query to its end.
  */
 class QueryAudit internal constructor(
@@ -89,6 +87,10 @@ class QueryAudit internal constructor(
      */
     val fingerprint: String by lazy(fingerprinter)
 
+    /**
+     * The tenants a cross-tenant query read (decision D254 ⑦), the [caller]'s; null for any other. Every such audit is
+     * logged at INFO ([CROSS_TENANT_LOGGER]).
+     */
     val crossTenant: CrossTenant? get() = caller.crossTenant
 
     /** Leaves [caller] out: it holds scope values and principal attributes that must not reach a log line. */

@@ -145,7 +145,10 @@ class QueryRoutesTest {
         ids(fixed.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=*", admin))).assert().containsExactly("c-1")
         ids(fixed.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=(t2 platform)", admin)))
             .assert().containsExactly("c-1")
-        fixed.query("""{"kind":"count","filter":{"op":"MATCH_ALL"}}""", headers = mapOf(WowHeaders.SCOPE to "tenant=*", admin))
+        fixed.query(
+            """{"kind":"count","filter":{"op":"MATCH_ALL"}}""",
+            headers = mapOf(WowHeaders.SCOPE to "tenant=*", admin)
+        )
             .body!!["count"].asLong().assert().isEqualTo(1L)
         fixed.query(list, headers = mapOf(WowHeaders.SCOPE to "tenant=(t2 acme)", admin))
             .assertQueryProblem(400, FrameworkErrors.QUERY_MALFORMED)

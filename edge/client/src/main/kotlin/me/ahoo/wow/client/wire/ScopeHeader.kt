@@ -136,7 +136,9 @@ object ScopeHeader {
                     at++
                     break
                 }
-                require(values.isEmpty() || at > start) { "Wow-Scope list items are separated by spaces, at ${at + 1}." }
+                require(
+                    values.isEmpty() || at > start
+                ) { "Wow-Scope list items are separated by spaces, at ${at + 1}." }
                 values += bareItem()
                 require(peek() != ';') { "Wow-Scope list items take no parameters." }
             }
