@@ -499,8 +499,16 @@ public final class me/ahoo/wow/spring/boot/WowProperties$AggregateHistory {
 
 public final class me/ahoo/wow/spring/boot/WowProperties$AggregateQuery {
 	public fun <init> ()V
-	public final fun getEvents ()Lme/ahoo/wow/spring/boot/WowProperties$QueryEvents;
-	public final fun setEvents (Lme/ahoo/wow/spring/boot/WowProperties$QueryEvents;)V
+	public final fun getEvents ()Lme/ahoo/wow/spring/boot/WowProperties$AggregateQueryEvents;
+	public final fun setEvents (Lme/ahoo/wow/spring/boot/WowProperties$AggregateQueryEvents;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$AggregateQueryEvents {
+	public fun <init> ()V
+	public final fun getStore ()Ljava/lang/String;
+	public final fun getUnpinned ()Lme/ahoo/wow/query/events/UnpinnedEvents;
+	public final fun setStore (Ljava/lang/String;)V
+	public final fun setUnpinned (Lme/ahoo/wow/query/events/UnpinnedEvents;)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$AggregateRouting : java/lang/Enum {
