@@ -8,68 +8,61 @@ dependencies:
       - '^renovate/'
       - '^dependabot/'
 
-# One area per top-level module, so every change lands in at least one.
-'area: core':
-  - changed-files:
-      - any-glob-to-any-file:
-          - 'wow-core/**'
-          - 'wow-metadata/**'
-          - 'wow-compiler/**'
-          - 'wow-models/**'
-
+# One area per top-level directory of V10, so every change lands in at least
+# one. Only 'area: typescript' feeds the release notes (.github/release.yml).
 'area: api':
   - changed-files:
       - any-glob-to-any-file:
-          - 'wow-api/**'
-          - 'wow-openapi/**'
-          - 'wow-rest-contract/**'
-          - 'wow-schema/**'
-          - 'schema/**'
+          - 'api/**'
+
+'area: core':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'core/**'
+
+'area: compiler':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'compiler/**'
 
 'area: query':
   - changed-files:
       - any-glob-to-any-file:
-          - 'wow-query/**'
-          - 'dataset-registry/**'
+          - 'query/**'
+          - 'api/query-api/**'
+
+'area: backends':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'backends/**'
+
+'area: edge':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'edge/**'
+
+'area: host':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'host/**'
+
+'area: extensions':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'extensions/**'
+
+'area: migration':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'migration/**'
+
+# The platform services; the 9.x consoles (analytics/, compensation/) stay
+# here until they leave v10.
+'area: platform':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'platform/**'
           - 'analytics/**'
-
-'area: spring':
-  - changed-files:
-      - any-glob-to-any-file:
-          - 'wow-spring/**'
-          - 'wow-spring-boot-starter/**'
-          - 'wow-webflux/**'
-
-'area: infrastructure':
-  - changed-files:
-      - any-glob-to-any-file:
-          - 'wow-kafka/**'
-          - 'wow-mongo/**'
-          - 'wow-redis/**'
-          - 'wow-elasticsearch/**'
-          - 'wow-clickhouse/**'
-
-'area: integration':
-  - changed-files:
-      - any-glob-to-any-file:
-          - 'wow-cocache/**'
-          - 'wow-cosec/**'
-          - 'wow-opentelemetry/**'
-          - 'wow-apiclient/**'
-
-'area: bi':
-  - changed-files:
-      - any-glob-to-any-file:
-          - 'wow-bi/**'
-
-'area: view-store':
-  - changed-files:
-      - any-glob-to-any-file:
-          - 'view-store/**'
-
-'area: compensation':
-  - changed-files:
-      - any-glob-to-any-file:
           - 'compensation/**'
 
 'area: typescript':
@@ -88,6 +81,7 @@ dependencies:
       - any-glob-to-any-file:
           - 'example/**'
 
+# Build and CI.
 'area: build':
   - changed-files:
       - any-glob-to-any-file:
@@ -97,7 +91,7 @@ dependencies:
           - 'deploy/**'
           - 'patches/**'
           - 'gradle/**'
-          - 'wow-bom/**'
+          - 'bom/**'
           - 'wow-dependencies/**'
           - '*.gradle.kts'
           - 'gradle.properties'
