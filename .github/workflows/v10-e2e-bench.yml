@@ -24,7 +24,7 @@
 #
 # A run starts when a branch `v10-bench-run/**` is pushed (`git push origin v10:v10-bench-run/<name>`), with the
 # defaults (tier L2), over which `wow-benchmarks/e2e/bench-run.json` at the pushed commit may set `tier`, `suites`,
-# `dataset`, `aa`, `warm_up`, `measure`, `repeats`, `fraction`, `p99_limit_ms`, `base_ref` and `nine_x_ref`. Delete the branch afterwards. It can also be
+# `dataset`, `aa`, `profile`, `warm_up`, `measure`, `repeats`, `fraction`, `p99_limit_ms`, `base_ref` and `nine_x_ref`. Delete the branch afterwards. It can also be
 # dispatched by hand once the file is on the default branch (GitHub dispatches only workflows that are there). Never on
 # a pull request or a schedule, and no merge signal.
 name: V10 E2E Benchmark
@@ -40,9 +40,9 @@ on:
         type: string
         default: ''
       tier:
-        description: 'L2 (end-to-end points, the default), L3 (the grid) or L4 (sustainable rates, cliffs, cluster); see wow-benchmarks/e2e/README.md'
+        description: 'L1 (component counts), L2 (end-to-end points, the default), L3 (the grid) or L4 (sustainable rates, cliffs, cluster, cold); see wow-benchmarks/e2e/README.md'
         type: choice
-        options: [L2, L3, L4]
+        options: [L1, L2, L3, L4]
         default: L2
       suites:
         description: 'Suites or groups (all, ab, head, vs-9x) separated by commas, instead of the tier'
@@ -54,6 +54,10 @@ on:
         default: ''
       aa:
         description: 'A/A: measure the head against itself in the baseline suites, to set their noise thresholds'
+        type: boolean
+        default: false
+      profile:
+        description: 'Profile: one more run per arm of each paired suite with a flight recording, summarized by jfr view'
         type: boolean
         default: false
       warm_up:
@@ -112,6 +116,7 @@ jobs:
       p99-limit-ms: ${{ steps.settings.outputs.p99-limit-ms }}
       tier: ${{ steps.settings.outputs.tier }}
       aa: ${{ steps.settings.outputs.aa }}
+      profile: ${{ steps.settings.outputs.profile }}
       head-ref: ${{ steps.refs.outputs.head-ref }}
       head-sha: ${{ steps.refs.outputs.head-sha }}
       base-ref: ${{ steps.refs.outputs.base-ref }}
@@ -138,6 +143,7 @@ jobs:
           SUITES: ${{ inputs.suites }}
           DATASET: ${{ inputs.dataset }}
           AA: ${{ inputs.aa }}
+          PROFILE: ${{ inputs.profile }}
           WARM_UP: ${{ inputs.warm_up }}
           MEASURE: ${{ inputs.measure }}
           REPEATS: ${{ inputs.repeats }}
@@ -270,6 +276,7 @@ jobs:
       NINE_X_SHA: ${{ needs.plan.outputs.nine-x-sha }}
       TIER: ${{ needs.plan.outputs.tier }}
       AA: ${{ needs.plan.outputs.aa }}
+      PROFILE: ${{ needs.plan.outputs.profile }}
     steps:
       # The steps' script comes from the workflow's own commit; the harness from the measured head.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

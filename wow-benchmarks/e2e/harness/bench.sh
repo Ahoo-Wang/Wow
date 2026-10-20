@@ -19,6 +19,8 @@
 #   bench.sh build
 #   bench.sh run      --version=9x|v10 [--backend=mongo|postgres] [--nodes=1|3] --scenario=E1 --rate=50 [options]
 #   bench.sh saturate --version=9x|v10 [--backend=...] [--nodes=...] --scenario=E1 [--max-concurrency=256] [options]
+#   bench.sh component --backend=mongo|postgres --scenario=E1|E3|E1-large [--ops=20000] [--warm-up-ops=2000]
+#                      [--concurrency=64] [options]   (L1: the V10 domain on the kernel and one store, in one JVM)
 #   bench.sh down
 #
 # Options: --warm-up=30 --measure=60 --distribution=uniform|zipf|hot --accounts=1000 --label=run --out=<dir>
@@ -41,7 +43,7 @@ SERVER_PIDS=()
 TARGETS=()
 
 usage() {
-  sed -n '14,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,32p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -194,7 +196,9 @@ setup() {
   load seed --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" \
     --concurrency="$(opt seed-concurrency 32)" | tee "$OUT/seed.log" >&2
   log "checking every scenario once"
-  load check --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" | tee "$OUT/check.log" >&2
+  # Only the run's scenarios, so a baseline without a newer scenario (E1-large) still runs the ones it has.
+  load check --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --scenario="$(opt scenario "")" \
+    --mix="$(opt mix "")" | tee "$OUT/check.log" >&2
   PIDS=""
   for n in $(seq 1 "$NODES"); do PIDS="${PIDS}node-$n:${SERVER_PIDS[$((n - 1))]},"; done
   PIDS=${PIDS%,}
@@ -220,6 +224,42 @@ saturate() {
   log "results in $OUT"
 }
 
+# The L1 component run (D224's ladder): the V10 server's domain, kernel and one store in one JVM, no HTTP and no load
+# generator, on fresh containers; ComponentBench in the server's own jar writes component.json to --out. A build that
+# has no ComponentBench (one older than it) exits 3.
+component() {
+  parse "$@"
+  VERSION=v10
+  BACKEND=$(opt backend mongo)
+  local scenario; scenario=$(opt scenario E1)
+  OUT=$(opt out "$REPO/wow-benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-component-$BACKEND-$scenario")
+  mkdir -p "$OUT"
+  local install
+  install=$(opt install "$REPO/wow-benchmarks/e2e/bench-v10/build/install/e2e-bench-v10")
+  local jar
+  for jar in "$install"/lib/e2e-bench-v10*.jar; do
+    if "$JAVA_HOME/bin/jar" tf "$jar" | grep -q 'ComponentBenchKt.class'; then break; fi
+    jar=""
+  done
+  if [ -z "$jar" ]; then log "$install has no ComponentBench"; exit 3; fi
+  trap down EXIT
+  down
+  local store=postgres
+  if [ "$BACKEND" = mongo ]; then store=mongo; fi
+  log "starting kafka and $store"
+  compose up -d --wait kafka "$store" >/dev/null
+  if [ -n "$(opt server-cpus "")" ]; then
+    docker update --cpuset-cpus "$(opt server-cpus "")" wow-e2e-bench-kafka "wow-e2e-bench-$store" >/dev/null
+  fi
+  pin server-cpus
+  log "component $scenario on $BACKEND"
+  ${PREFIX[@]+"${PREFIX[@]}"} "$JAVA_HOME/bin/java" -Xms"$(opt heap 1g)" -Xmx"$(opt heap 1g)" -XX:+UseG1GC \
+    -cp "$install/lib/*" me.ahoo.wow.benchmark.transfer.ComponentBenchKt --backend="$BACKEND" --scenario="$scenario" \
+    --accounts="$(opt accounts 1000)" --ops="$(opt ops 20000)" --warm-up-ops="$(opt warm-up-ops 2000)" \
+    --concurrency="$(opt concurrency 64)" --out="$OUT" 2>&1 | tee "$OUT/component.log" >&2
+  log "results in $OUT"
+}
+
 command=${1:-}
 if [ -z "$command" ]; then usage; fi
 shift
@@ -227,6 +267,7 @@ case "$command" in
   build) build ;;
   run) run "$@" ;;
   saturate) saturate "$@" ;;
+  component) component "$@" ;;
   down) down ;;
   *) usage ;;
 esac

@@ -32,3 +32,6 @@ data class Confirmed(val amount: Long)
 data class AmountUnlocked(val amount: Long)
 
 data class AccountFrozen(val reason: String)
+
+/** One note of [Annotate]. */
+data class Annotated(val note: String)
