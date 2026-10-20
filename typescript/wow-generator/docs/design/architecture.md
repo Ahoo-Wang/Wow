@@ -182,7 +182,7 @@ golden：`expected/eshop-manifest/`、`expected/openai-spec/.wow-generator.json`
 
 ## 6. 从 Manifest 生成（roadmap 5a.3，2026-10-14）
 
-V10 的服务契约是 Manifest（D17、D73～D76），不是 OpenAPI。生成器在 9.x 的 OpenAPI 路径之外加一条 Manifest 路径，产物建在 `@ahoo-wang/wow-client/v10` 上。
+V10 的服务契约是 Manifest（D17、D73～D76），不是 OpenAPI。生成器在 9.x 的 OpenAPI 路径之外加一条 Manifest 路径，产物建在 `@ahoo-wang/wow-client` 上。
 
 - **输入不加选项。** `input/` 只加载与解析（`loadDocument`），流水线按形状分辨：有数字 `format`、`contexts` 数组且没有 `openapi`、`swagger` 的是 Manifest，其余照旧按 OpenAPI 校验。CLI、`GeneratorOptions` 与公开面都不变；配置文件里 API 客户端的设置只对 OpenAPI 有意义，Manifest 路径不读。格式不是 1 是 `input`（2），缺名字、缺状态 schema、`$defs` 不是对象等是 `specification`（4），一次列出全部问题。
 - **流水线。** 配置 → 文档 → `analyzeManifest`（纯数据的 `ManifestModel` 与警告）→ `emitManifestGeneration`（每个文件一次写入）→ index 文件 → 收尾 → 落盘；后三段与 OpenAPI 路径共用，所以清单、陈旧文件、确定性与编译校验的保证都不变。

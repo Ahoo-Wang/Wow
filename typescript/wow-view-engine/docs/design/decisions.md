@@ -871,7 +871,7 @@
 - **来由**：第二轮审查 R2-50。`GET …/snapshot/schema`、`GET …/event/schema` 在 9.2 返回能力描述（`QueryModelDescriptor`），8.13～9.1.5 返回的是旧的 schema 元数据；`POST …/snapshot/schema/refresh`、`POST …/event/schema/refresh` 在 9.2 删掉了，重新校验改由 actuator 端点 `wowQuerySchema` 负责（并按 `wow.query.schema.revalidate-interval` 定期执行）。v9 的兼容边界冻结既有聚合的 REST 行为、存储与线格式，这两项没有书面签字。
 - **裁定**（用户 2026-09-30，选项 A）：
   - **schema 路由的响应体改形记为批准的 v9 例外**：它们是查询元数据路由，不是聚合的命令、状态或查询结果路由。发布说明的 Breaking 一节列出，并写明混跑：9.1 与 9.2 节点并存时，同一路由按节点返回两种形状；9.2 的引擎向 9.1 节点 describe 失败时，退回宿主声明的定义（引擎对 describe 失败本来就这样处理）。
-  - **两条 refresh 路由恢复为弃用别名**：同样的方法与路径、同样的路由 id（`….snapshot_schema.refresh`、`….event_schema.refresh`），先让目录（`QuerySchemaCatalog.revalidate(aggregate, model)`）只重新加载该路由对应的模型（9.1 也只刷新一个模型；同一模型的并发请求共用同一次进行中的加载），再按 `GET …/schema` 作答（响应体是新的能力描述，属于上一条的例外）。运维脚本因此不再 404。10.0.0 删除，见 `docs/compat-debt.md`。
+  - **两条 refresh 路由恢复为弃用别名**：同样的方法与路径、同样的路由 id（`….snapshot_schema.refresh`、`….event_schema.refresh`），先让目录（`QuerySchemaCatalog.revalidate(aggregate, model)`）只重新加载该路由对应的模型（9.1 也只刷新一个模型；同一模型的并发请求共用同一次进行中的加载），再按 `GET …/schema` 作答（响应体是新的能力描述，属于上一条的例外）。运维脚本因此不再 404。10.0.0 删除。
 - **没选**：旧路径保留旧响应体、新描述走新路径或按 `Accept` 协商（选项 B，多一套要维护到 v10 的旧形状）；只记例外、不恢复 refresh（选项 C，旧脚本 404）。
 - **落点**：`wow-openapi` 的 `SnapshotRouteContributor`、`EventRouteContributor`、`BuiltInHttpRouteHandlerKeys`；`wow-webflux` 的 `QuerySchemaRefreshHandlerFunctionFactory`；`wow-spring-boot-starter` 的 `QueryRouteModule`。
 
