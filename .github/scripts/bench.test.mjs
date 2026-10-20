@@ -20,6 +20,7 @@ import {
   confidence,
   halves,
   noiseFile,
+  propertiesOf,
   verdict,
   metrics,
   pairs,
@@ -686,6 +687,21 @@ test('runSettings: dispatch inputs, or the defaults with the run file over them 
     () => runSettings({ event: 'push', config: { head_ref: 'x' } }),
     /Unknown key/,
   );
+  // An object (the server properties) passes as JSON, and resolveInputs reads it back.
+  const withProperties = runSettings({
+    event: 'push',
+    config: { properties: { 'wow.state-cache.capacity': 131072 } },
+  });
+  assert.equal(
+    withProperties.properties,
+    '{"wow.state-cache.capacity":131072}',
+  );
+  assert.deepEqual(propertiesOf(withProperties.properties), {
+    'wow.state-cache.capacity': 131072,
+  });
+  assert.equal(propertiesOf(''), undefined);
+  assert.throws(() => propertiesOf('[1]'), /JSON object/);
+  assert.throws(() => propertiesOf('{x'), /JSON object/);
 });
 
 test('lastSignals reads the last signals line', () => {
@@ -792,6 +808,25 @@ test('A/A runs give the noise thresholds; bootstrap intervals decide what clears
   const report = renderReport([suite], { noise: {} });
   assert.match(report, /## A\/A noise/);
   assert.match(report, /e1-mongo-uniform@1k \(A\/A: head against head\)/);
+
+  // With properties the A/A's second arm runs changed: a paired probe, not noise.
+  const probe = runSuite('e1-mongo-uniform', {
+    benchPath,
+    out: join(dir, 'probe'),
+    warmUp: 1,
+    measure: 5,
+    repeats: 1,
+    fraction: 0.5,
+    aa: true,
+    dataset: '1k',
+    properties: { 'wow.state-cache.capacity': 131072 },
+  });
+  assert.deepEqual(
+    probe.arms.map(arm => arm.props),
+    [undefined, { 'wow.state-cache.capacity': 131072 }],
+  );
+  assert.deepEqual(probe.properties, { 'wow.state-cache.capacity': 131072 });
+  assert.deepEqual(Object.keys(noiseFile([probe])), []);
 
   // Bootstrap: identical samples give a ratio of 1 with a tight interval; a 20% shift clears a 5% threshold.
   const a = Array.from({ length: 40 }, (_, i) => 100 + (i % 5));

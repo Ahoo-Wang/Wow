@@ -738,6 +738,9 @@ export const DEFAULTS = {
   p99_limit_ms: '200',
   base_ref: '',
   nine_x_ref: 'v10-9x-baseline',
+  // Server properties (a JSON object) for the last arm of every paired suite: the head, or in an A/A run its
+  // second arm, so `"aa": true` with properties puts the head's defaults against the changed head, paired.
+  properties: '',
 };
 
 /** The settings of a run: the dispatch inputs, or for a push the defaults with the run file's keys over them. */
@@ -756,7 +759,11 @@ export function runSettings({ event, inputs = {}, config }) {
   }
   const settings = { ...DEFAULTS };
   for (const [key, value] of Object.entries(config ?? {})) {
-    settings[key] = Array.isArray(value) ? value.join(',') : String(value);
+    settings[key] = Array.isArray(value)
+      ? value.join(',')
+      : value !== null && typeof value === 'object'
+        ? JSON.stringify(value)
+        : String(value);
   }
   return settings;
 }
@@ -776,6 +783,7 @@ export function resolveInputs({
   repeats,
   fraction,
   p99LimitMs = DEFAULTS.p99_limit_ms,
+  properties,
 }) {
   const groups = {
     all: ['ab', 'head', 'component'],
@@ -823,7 +831,25 @@ export function resolveInputs({
     datasets: datasetsOf(dataset, suites?.trim() ? undefined : tier),
     aa: String(aa) === 'true',
     profile: String(profile) === 'true',
+    ...(propertiesOf(properties)
+      ? { properties: propertiesOf(properties) }
+      : {}),
   };
+}
+
+/** The `properties` setting: a JSON object of server properties, or none. */
+export function propertiesOf(text) {
+  if (!String(text ?? '').trim()) return undefined;
+  let value;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    throw new Error(`properties must be a JSON object: ${text}`);
+  }
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`properties must be a JSON object: ${text}`);
+  }
+  return Object.keys(value).length > 0 ? value : undefined;
 }
 
 /** The data sets: `dataset` (names separated by commas or spaces), else the tier's, else 100k. */
@@ -1655,6 +1681,7 @@ export function runSuite(name, options) {
     aa = false,
     cpus = {},
     profile = false,
+    properties,
   } = options;
   // A suite with a data set of its own (the cold suites) runs at it whatever the job's.
   const dataset = definition.dataset ?? options.dataset ?? '100k';
@@ -1666,14 +1693,23 @@ export function runSuite(name, options) {
   const aaRun = aa && definition.group === 'ab';
   const rounds = aaRun ? Math.max(repeats, AA_ROUNDS) : repeats;
   const primed = data.accounts >= PRIME_FROM && !definition.cold;
+  const pairedArms = aaRun
+    ? [
+        { ...definition.arms[1], id: 'a' },
+        { ...definition.arms[1], id: 'b' },
+      ]
+    : definition.arms;
   const arms =
     definition.kind === 'paired'
-      ? aaRun
+      ? properties
         ? [
-            { ...definition.arms[1], id: 'a' },
-            { ...definition.arms[1], id: 'b' },
+            pairedArms[0],
+            {
+              ...pairedArms[1],
+              props: { ...pairedArms[1].props, ...properties },
+            },
           ]
-        : definition.arms
+        : pairedArms
       : definition.kind === 'component'
         ? installs.base && !aa
           ? [definition.baseArm, definition.arm]
@@ -1701,6 +1737,7 @@ export function runSuite(name, options) {
     primed,
     cold: definition.cold === true,
     aa: aaRun,
+    ...(properties && definition.kind === 'paired' ? { properties } : {}),
     arms,
     refs,
     runner: runnerInfo(),
@@ -2107,7 +2144,8 @@ export function queueVerdict(suite) {
 /** The noise thresholds of a run's A/A suites, keyed by `suite@dataset`, merged over `previous`. */
 export function noiseFile(suites, previous = {}) {
   const next = { ...previous };
-  for (const suite of suites.filter(s => s.aa))
+  // An A/A run whose second arm ran with changed properties measured the change, not the noise.
+  for (const suite of suites.filter(s => s.aa && !s.properties))
     next[labelOf(suite)] = noiseOf(suite);
   return next;
 }
@@ -2414,6 +2452,7 @@ if (
         p99_limit_ms: env.P99_LIMIT_MS,
         base_ref: env.BASE_REF,
         nine_x_ref: env.NINE_X_REF,
+        properties: env.PROPERTIES,
       },
     });
   };
@@ -2432,6 +2471,7 @@ if (
         repeats: settings.repeats,
         fraction: settings.fraction,
         p99LimitMs: settings.p99_limit_ms,
+        properties: settings.properties,
       });
       const groups = new Set(inputs.suites.map(name => SUITES[name].group));
       output({
@@ -2445,6 +2485,7 @@ if (
         datasets: JSON.stringify(inputs.datasets),
         aa: inputs.aa,
         profile: inputs.profile,
+        properties: inputs.properties ? JSON.stringify(inputs.properties) : '',
         'base-ref': settings.base_ref,
         // The component suites take a baseline when there is one, and run the head alone otherwise.
         'needs-base':
@@ -2481,6 +2522,7 @@ if (
         repeats: env.REPEATS,
         fraction: env.FRACTION,
         p99LimitMs: env.P99_LIMIT_MS,
+        properties: env.PROPERTIES,
       });
       const suite = runSuite(inputs.suites[0], {
         benchPath: env.BENCH,

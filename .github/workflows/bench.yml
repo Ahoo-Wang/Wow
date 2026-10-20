@@ -24,7 +24,7 @@
 #
 # A run starts when a branch `bench-run/**` is pushed (`git push origin v10:bench-run/<name>`), with the
 # defaults (tier L2), over which `test/benchmarks/bench-run.json` at the pushed commit may set `tier`, `suites`,
-# `dataset`, `aa`, `profile`, `warm_up`, `measure`, `repeats`, `fraction`, `p99_limit_ms`, `base_ref` and `nine_x_ref`. Delete the branch afterwards. It can also be
+# `dataset`, `aa`, `profile`, `warm_up`, `measure`, `repeats`, `fraction`, `p99_limit_ms`, `properties`, `base_ref` and `nine_x_ref`. Delete the branch afterwards. It can also be
 # dispatched by hand once the file is on the default branch (GitHub dispatches only workflows that are there). Never on
 # a pull request or a schedule, and no merge signal.
 name: Bench
@@ -76,6 +76,10 @@ on:
         description: "Open-loop rate as a share of each arm's saturation throughput, before calibration"
         type: string
         default: '0.8'
+      properties:
+        description: 'Server properties (a JSON object) for the head arm of every paired suite; with aa, default against changed'
+        type: string
+        default: ''
       p99_limit_ms:
         description: 'p99 limit of the sustainable-rate suites, in milliseconds'
         type: string
@@ -117,6 +121,7 @@ jobs:
       tier: ${{ steps.settings.outputs.tier }}
       aa: ${{ steps.settings.outputs.aa }}
       profile: ${{ steps.settings.outputs.profile }}
+      properties: ${{ steps.settings.outputs.properties }}
       head-ref: ${{ steps.refs.outputs.head-ref }}
       head-sha: ${{ steps.refs.outputs.head-sha }}
       base-ref: ${{ steps.refs.outputs.base-ref }}
@@ -149,6 +154,7 @@ jobs:
           REPEATS: ${{ inputs.repeats }}
           FRACTION: ${{ inputs.fraction }}
           P99_LIMIT_MS: ${{ inputs.p99_limit_ms }}
+          PROPERTIES: ${{ inputs.properties }}
           BASE_REF: ${{ inputs.base_ref }}
           NINE_X_REF: ${{ inputs.nine_x_ref }}
         run: node .github/scripts/bench.mjs plan
@@ -353,6 +359,7 @@ jobs:
           REPEATS: ${{ needs.plan.outputs.repeats }}
           FRACTION: ${{ needs.plan.outputs.fraction }}
           P99_LIMIT_MS: ${{ needs.plan.outputs.p99-limit-ms }}
+          PROPERTIES: ${{ needs.plan.outputs.properties }}
         run: |
           export BENCH="$GITHUB_WORKSPACE/repo/test/benchmarks/harness/bench.sh"
           export OUT="$RUNNER_TEMP/results/$JOB"
