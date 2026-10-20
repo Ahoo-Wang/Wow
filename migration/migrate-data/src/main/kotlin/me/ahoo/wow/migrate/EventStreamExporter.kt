@@ -24,6 +24,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.LogEntry
+import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
@@ -47,7 +48,8 @@ data class ExportOptions(
 /**
  * What the scan of a V10 [context]'s log found, up to the [heads] of its partitions when it started: the [streams]
  * of each mapped aggregate type, how many of them 9.x does not hold yet ([missing]), and why some of those cannot go
- * back ([problems], each with the number of streams it stops; [conflicts], streams 9.x holds otherwise).
+ * back ([problems], each with the number of streams it stops, and the earliest commit time among them in
+ * [firstRefused]; [conflicts], streams 9.x holds otherwise).
  */
 data class ExportScan(
     val context: String,
@@ -56,16 +58,39 @@ data class ExportScan(
     val missing: Long,
     val problems: Map<String, Long>,
     val conflicts: List<String>,
+    val firstRefused: Map<String, Long> = emptyMap(),
 ) {
     /** Whether every stream 9.x lacks can go back. */
     val passed: Boolean
         get() = problems.isEmpty() && conflicts.isEmpty()
 
+    /**
+     * When the rollback by export stopped being possible: the commit time of the first stream V10 wrote that 9.x
+     * cannot read; null while every such stream can go back.
+     */
+    val closedAt: Long?
+        get() = firstRefused.values.minOrNull()
+
+    /** The rollback the scan allows, for the operator (decision D32). */
+    val verdict: String
+        get() = when {
+            closedAt != null ->
+                "VERDICT $context: no rollback by export: the window closed at " +
+                    "${Instant.ofEpochMilli(checkNotNull(closedAt))}, when V10 first committed a type 9.x cannot read"
+            conflicts.isNotEmpty() -> "VERDICT $context: no rollback by export: 9.x was written after the cut-over"
+            missing == 0L -> "VERDICT $context: roll back by switching back: 9.x holds every stream V10 holds"
+            else -> "VERDICT $context: roll back by export: $missing streams go back to 9.x"
+        }
+
     fun render(): String = buildString {
         append("$context: ${streams.values.sum()} streams up to the heads, $missing not in 9.x")
         streams.forEach { (type, count) -> append("\n  $type: $count streams") }
-        problems.forEach { (problem, count) -> append("\n  REFUSED $problem ($count streams)") }
+        problems.forEach { (problem, count) ->
+            val first = firstRefused[problem]?.let { ", the first committed at ${Instant.ofEpochMilli(it)}" }.orEmpty()
+            append("\n  REFUSED $problem ($count streams$first)")
+        }
         conflicts.forEach { append("\n  CONFLICT $it") }
+        append("\n").append(verdict)
     }
 }
 
@@ -135,6 +160,7 @@ class EventStreamExporter(
         val streams = ConcurrentHashMap<AggregateType, AtomicLong>()
         val missing = AtomicLong()
         val problems = ConcurrentHashMap<String, AtomicLong>()
+        val firstRefused = ConcurrentHashMap<String, Long>()
         val conflicts = ConcurrentHashMap.newKeySet<String>()
         forEachPartition(heads) { partition, head ->
             walk(log, partition, null, head) { page ->
@@ -142,9 +168,10 @@ class EventStreamExporter(
                 page.forEach { streams.computeIfAbsent(it.stream.ref.type) { AtomicLong() }.incrementAndGet() }
                 missingOf.forEach { entry ->
                     missing.incrementAndGet()
-                    reverter.problemsOf(
-                        entry.stream
-                    ).forEach { problems.computeIfAbsent(it) { AtomicLong() }.incrementAndGet() }
+                    reverter.problemsOf(entry.stream).forEach { problem ->
+                        problems.computeIfAbsent(problem) { AtomicLong() }.incrementAndGet()
+                        firstRefused.merge(problem, entry.stream.commitTime, ::minOf)
+                    }
                 }
             }
         }
@@ -155,6 +182,7 @@ class EventStreamExporter(
             missing = missing.get(),
             problems = problems.mapValues { it.value.get() }.toSortedMap(),
             conflicts = conflicts.sorted(),
+            firstRefused = firstRefused.toSortedMap(),
         )
     }
 
