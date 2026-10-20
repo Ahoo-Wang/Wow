@@ -95,3 +95,30 @@
 | R3.5-3 | P1 | `:spring-boot`、`:runtime`、`deploy/v10` | 没有健康模型：无 `HealthIndicator`，`isReady` 只看 RUNNING，K8s 用 TCP 探针 | R3-H | 待修 |
 | R3.6-1 | P2 | `:postgres`、`:mongo`、`:kafka`、`:migrate-data` | 分区数 P 固定，没有重分区路径 | D240（槽位间接层 PS-1；在线分裂 10.x） | 待修 |
 | R3.7-1 | P2 | `:compiler`、`:gradle-plugin` | 只能用 Gradle 构建（KSP、Manifest 补全在 Gradle Worker），9.x 的 Maven 用户无法迁移；09 漏列 | D239 ②（只支持 Gradle） | 已定 |
+
+## 5. 查询 API 综合审查 R4-Q（2026-10-20，基线 `754a7f9832`，只读，第一性原理与用户场景）
+
+**推导出的要求**：R1 读能反映调用者已确认的写，否则说明陈旧程度；R2 读不伤害写，代价在开始工作前就有上限；R3 每个答案限于调用者的范围，「看不到」与「不存在」表现一致，读可审计；R4 结果确定，续读用不透明的服务端令牌；R5 一套协议服务三种存储，后端差异只经声明的能力体现；R6 Manifest 是契约，只做增量演进；R7 常见用法简单且默认安全；R8 数字与时间在线路上精确。**审查认为设计优于要求之处**：写后读在命令端一次付清（默认 `SNAPSHOT` 等待），但基于快照的缓存须遵守同一规则（Q-12）；后端差异是声明而非隐藏，但每条限制须进描述符（Q-2）；快照没有位置，按排序值加唯一键分页并逐页重新准入是对的，事件日志有真实位置，跨聚合事件搜索应按位置分页。协调者已对照代码核实 Q-1、Q-5。
+
+| 编号 | 级别 | 范围 | 发现（违反的要求） | 归属 | 状态 |
+| --- | --- | --- | --- | --- | --- |
+| Q-1 | P1 | `:runtime` `StateReads`、`:http` `StateHandler` | 历史点读（`?version=`、`?at=`、`/state/trace`）重放日志不经 `ReplayGate`、无长度上限，且 trace 在范围与策略检查之前就读（`StateReads.kt` `at`/`trace`，`Kernel.kt:542/622/654`，`StateHandler.kt:113`）：对 50 万事件的聚合循环请求即把整段日志装入堆，被拒的调用者也一样（R2、R3） | 点读加固 | 待修 |
+| Q-2 | P1 | `:query` events 可见性 | 任一 ABAC 标志或 `QueryPolicy` 让 events 查询只能钉住至多 100 个聚合加租户，否则 400 `STORAGE_UNSUPPORTED`（`EventVisibilityPolicy.kt:63-72`）；钉住时逐个点读、无舱壁；描述符不列此约束——启用策略的用户失去 D235 的跨聚合时间线（R3、R5、R7） | events 可见性下推（待定） | 待议 |
+| Q-3 | P1 | `:query`、`:http` | 没有受支持的类型安全进程内查询 API：网关取自 `:http` 的 `HttpQueries`，行是 `ObjectNode`，默认 `QueryCaller` 受信任且无租户、进程内预算为空（列表无界、计数精确），Java 只有 suspend/Flow（R3、R7） | 类型化读 API（待定） | 待议 |
+| Q-4 | P2 | 错误模型 | 状态读参数错误答 `wow.command.malformed`；`single` 未命中对 events 与数据集也答 `wow.aggregate.not-found`；未知数据集 404 无错误码；`wow.query.timeout` 带 `Retry-After: 1` 且 TS 视为可重试，诱导立即重跑已耗尽预算的查询（R5、R2） | 小修（超时状态待定） | 待议 |
+| Q-5 | P2 | `:http` `StateHandler` | 所有者或空间不符答 403 `wow.aggregate.forbidden`（ABAC 与查询则为 404 或过滤）：可探测聚合 ID 是否存在（R3） | 点读加固（待定） | 待议 |
+| Q-6 | P2 | `:http` `StateHandler` | 状态 ETag 只是版本号：D172 修订号重建、新掩码、升级器变化后 304 仍返回旧的或未掩码的体（R6） | 点读加固 | 待修 |
+| Q-7 | P2 | `:query` `ReadFacade` | `/state`、`?at=`、trace 不经 `QueryObserver`，不可观测、不审计（R3） | 点读加固 | 待修 |
+| Q-8 | P2 | `:openapi` | 查询的 OpenAPI 描述太弱：`QueryRequest` 是只要求 `kind` 的扁平对象、`filter` 只有 `{op}`、响应是 6 种形状的 `anyOf`、`QueryDescriptor` 不透明（R6） | 契约与客户端保真 | 待修 |
+| Q-9 | P2 | TS `wow-client` | `response.json()` 静默丢失 decimal 与 int64 精度（R8） | 契约与客户端保真（待定） | 待议 |
+| Q-10 | P2 | `:query` | 相对时间默认用 JVM 时区（`FilterNormalizer.kt:63、226`），TS DSL 不发时区（R8） | 契约与客户端保真 | 待修 |
+| Q-11 | P2 | `:clickhouse` 数据集 | 列表与偏移分页排序无唯一键兜底（`ClickHouseDatasetQueryBackend.kt:192-195`），并列时翻页不稳定；TCK 缺并列偏移分页用例（R4） | 小修 | 待修 |
+| Q-12 | P2 | `:query` 计数缓存 | 计数缓存默认开启、按节点的快照检查点校验：跨节点时总数落后至多 30 秒而行是新的；events 模型复用快照检查点而日志在其前面（R1；场景 S1、S4） | 派生读的一致性 | 待修 |
+| Q-13 | P2 | 一致性 | `ACCEPTED`/`COMMITTED` 等待之后没有最小版本或一致性令牌，唯一的办法 `?version=N` 要重放（R1） | 派生读的一致性（待定） | 待议 |
+| Q-14 | P2 | TS | 结果类型不随投影变化；事件体与聚合行无类型；9.x 的 `*State` 变体没有了（R7） | 契约与客户端保真 | 待修 |
+| Q-15 | P2 | 批量读 | 列表与 SSE 上限 1000 行、游标每页 100 行（`QueryBudget.kt:71-72、118`），HTTP 导出 100 万行需上万次往返（R7；场景 S2） | 并入 R3-B4（D253） | 待修 |
+| Q-16 | P2 | 服务间读 | `SubscriptionContext` 没有状态读，对端契约不含查询（`PeerContracts.kt:39`），没有 JVM 查询客户端：Saga 与对端服务手写无类型的读（R7；场景 S3） | 类型化读 API | 待修 |
+| Q-17 | P2 | 可见性 | 租户总被钉住，跨范围操作员无法跨租户查询，只能借道受信任的进程内代码（R3，要求本身受质疑；场景 S5） | 小修（待定） | 待议 |
+| Q-18 | P2 | 演进 | `@QueryAlias` 只覆盖请求路径，响应只带新字段名，老客户端读到 `undefined`（门禁会报出，但没有增量的改名路径）（R6；场景 S9） | 契约与客户端保真 | 待修 |
+
+另：R3.3-2 在 `v10` 上已部分完成（`QueryBackend` 已是 `@WowSpi`，规范在独立的 `query/query-tck`）。数据集查询的舱壁随 7.2c（D247）。
