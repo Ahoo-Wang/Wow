@@ -817,6 +817,7 @@ public abstract class me/ahoo/wow/spi/store/Store {
 	public final fun snapshots (Ljava/lang/String;)Lme/ahoo/wow/spi/snapshot/SnapshotStore;
 	public final fun timers (Ljava/lang/String;)Lme/ahoo/wow/spi/timer/TimerStore;
 	public fun toString ()Ljava/lang/String;
+	public fun waitingForConnection ()Ljava/lang/Integer;
 }
 
 public final class me/ahoo/wow/spi/store/StoreConfig {

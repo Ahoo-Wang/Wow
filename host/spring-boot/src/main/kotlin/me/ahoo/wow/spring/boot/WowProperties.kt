@@ -351,7 +351,8 @@ class WowProperties {
      * [maxQueued], how long and how many queries beyond it wait for a permit (decision D247), over `wow.query.max-wait`
      * and `wow.query.max-queued`; [readPreference],
      * the MongoDB read preference of its snapshot and `events` queries (`secondaryPreferred`, say), over
-     * `wow.query.events.mongo-read-preference` for the events; [events], its `events` queries.
+     * `wow.query.events.mongo-read-preference` for the events; [events], its `events` queries; [adaptive], how its bound
+     * adapts to its write pressure (decision D252), over `wow.query.adaptive.*`.
      */
     class StoreQuery {
         var maxConcurrent: Int? = null
@@ -359,6 +360,17 @@ class WowProperties {
         var maxQueued: Int? = null
         var readPreference: String? = null
         var events: QueryEvents = QueryEvents()
+        var adaptive: StoreAdaptive = StoreAdaptive()
+    }
+
+    /**
+     * How one store's query bound adapts to its write pressure (`wow.stores.<name>.query.adaptive.*`, decision D252):
+     * [enabled], [floor] and [ceiling] over `wow.query.adaptive.*`.
+     */
+    class StoreAdaptive {
+        var enabled: Boolean? = null
+        var floor: Int? = null
+        var ceiling: Int? = null
     }
 
     /**

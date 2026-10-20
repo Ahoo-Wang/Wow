@@ -70,6 +70,13 @@ abstract class Store(val config: StoreConfig) {
      */
     open val queuesAppends: Boolean? get() = null
 
+    /**
+     * How many callers wait now for a connection of the pool the store's appends draw from (decision D252: the fast
+     * half of its write pressure), as the pool says it (HikariCP's threads awaiting a connection, the MongoDB driver's
+     * pending check-outs); null when the store's pool does not say. Called about once a second; it does no I/O.
+     */
+    open fun waitingForConnection(): Int? = null
+
     val checkpoints: CheckpointStore by lazy { openCheckpoints() }
     val leases: LeaseStore by lazy { openLeases() }
     val ledger: FailureLedger by lazy { openLedger() }

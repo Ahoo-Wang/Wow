@@ -30,6 +30,27 @@ class SizedDataSource(private val size: Int) : DataSource by mockk() {
     fun getMaximumPoolSize(): Int = size
 }
 
+/** What HikariCP's pool says of its waiting threads. */
+interface AwaitingPool {
+    fun getThreadsAwaitingConnection(): Int
+}
+
+/** A pool that says how many threads await a connection, as HikariCP's does, through a pool class that is not public. */
+class AwaitingDataSource(private val awaiting: Int?) : DataSource by mockk() {
+    private class Pool(private val awaiting: Int) : AwaitingPool {
+        override fun getThreadsAwaitingConnection(): Int = awaiting
+    }
+
+    @Suppress("unused") // Read by reflection, as HikariCP's getter.
+    fun getHikariPoolMXBean(): Any? = awaiting?.let(::Pool)
+}
+
+/** A pool whose pool bean says nothing of its waiting threads. */
+class SilentDataSource : DataSource by mockk() {
+    @Suppress("unused") // Read by reflection, as HikariCP's getter.
+    fun getHikariPoolMXBean(): Any = Any()
+}
+
 /**
  * The PostgreSQL store's queries apart from its appends (review R3.4-2): the query `DataSource` its
  * `query-data-source` names, and the bound of its concurrent queries from the pool they draw from.
@@ -61,6 +82,22 @@ class PostgresQueryProviderTest {
         plain.maximumPoolSize().assert().isNull()
         SizedDataSource(0).maximumPoolSize().assert().isNull()
         provider.maxConcurrent(store(plain)).assert().isEqualTo(StoreQueryProvider.DEFAULT_MAX_CONCURRENT)
+    }
+
+    @Test
+    fun `the adaptive ceiling should be half of a shared pool, all of a pool of the queries' own (D252)`() {
+        provider.maxConcurrentCeiling(store(SizedDataSource(10))).assert().isEqualTo(5)
+        provider.maxConcurrentCeiling(store(SizedDataSource(4))).assert().isEqualTo(2)
+        provider.maxConcurrentCeiling(store(SizedDataSource(10), SizedDataSource(6))).assert().isEqualTo(6)
+        provider.maxConcurrentCeiling(store(mockk())).assert().isEqualTo(StoreQueryProvider.DEFAULT_MAX_CONCURRENT)
+    }
+
+    @Test
+    fun `the store should say how many threads await a connection of the appends' pool, when the pool does (D252)`() {
+        store(AwaitingDataSource(3)).waitingForConnection().assert().isEqualTo(3)
+        store(AwaitingDataSource(null)).waitingForConnection().assert().isNull()
+        store(SilentDataSource()).waitingForConnection().assert().isNull()
+        store(mockk()).waitingForConnection().assert().isNull()
     }
 
     @Test

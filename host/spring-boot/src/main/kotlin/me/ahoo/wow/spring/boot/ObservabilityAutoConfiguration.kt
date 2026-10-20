@@ -22,6 +22,7 @@ import me.ahoo.wow.opentelemetry.NodeMetrics
 import me.ahoo.wow.opentelemetry.OtelObserver
 import me.ahoo.wow.opentelemetry.OtelQueryObserver
 import me.ahoo.wow.opentelemetry.ParkedMetrics
+import me.ahoo.wow.opentelemetry.QueryLimitMetrics
 import me.ahoo.wow.opentelemetry.TracingTopicProducer
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -31,6 +32,7 @@ import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicAdmin
 import me.ahoo.wow.spi.transport.TopicProducer
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.SmartInitializingSingleton
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
@@ -53,7 +55,8 @@ import kotlin.time.toKotlinDuration
  *   executions, decisions, appends, subscription handlings (consumptions of a topic among them) and timer firings
  *   are spans, in the trace each request, entry or message carries, with the commit latency, subscription lag and
  *   timer delay as timers.
- * - **Queries**: an [OtelQueryObserver] among the [QueryObserver]s the query plane takes: a span and a timer each.
+ * - **Queries**: an [OtelQueryObserver] among the [QueryObserver]s the query plane takes: a span and a timer each;
+ *   and the stores' query bulkheads ([QueryLimitMetrics], decision D252): their limits, write pressure and decreases.
  * - **Kafka produce**: every [TopicProducer] bean (Kafka's) is wrapped in a [TracingTopicProducer]: a span per send.
  * - **Parked entries**: a [ParkedMetrics] among the [ParkedNotifier]s the node takes; and [NodeMetrics], which samples
  *   every `wow.opentelemetry.sample-interval` how many entries each subscription has parked and where each
@@ -87,6 +90,19 @@ class ObservabilityAutoConfiguration {
         meters: ObjectProvider<MeterRegistry>,
         properties: ObservabilityProperties,
     ): NodeMetrics = NodeMetrics(node, meters.orGlobal(), properties.sampleInterval.toKotlinDuration())
+
+    /**
+     * The meters of the stores' query bulkheads (decision D252): each one's limit and, of those that adapt, the write
+     * pressure and the limit's decreases, registered once every bean exists, when the node queries its stores.
+     */
+    @Bean
+    @InternalWowApi
+    fun wowQueryLimitMetrics(
+        stores: ObjectProvider<QueryStores>,
+        meters: ObjectProvider<MeterRegistry>,
+    ): SmartInitializingSingleton = SmartInitializingSingleton {
+        stores.ifAvailable?.let { QueryLimitMetrics.register(it.bulkheads.values, it.limits, meters.orGlobal()) }
+    }
 
     companion object {
         /**

@@ -65,6 +65,8 @@ import me.ahoo.wow.runtime.command.MessageEntries
 import me.ahoo.wow.runtime.command.Receipts
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.health.NodeStores
+import me.ahoo.wow.runtime.health.StoreWritePressure
+import me.ahoo.wow.runtime.health.WritePressures
 import me.ahoo.wow.runtime.ledger.LedgerCommands
 import me.ahoo.wow.runtime.ledger.LedgerPublisher
 import me.ahoo.wow.runtime.log.LogGroupRouter
@@ -388,9 +390,22 @@ class ServiceNode @InternalWowApi constructor(
         options.schedules,
     )
 
-    /** The backends of each context the [models] are of, opened once, each call recorded (review R3.5-3). */
-    private val opened: Map<String, ContextBackends> =
-        models.mapTo(LinkedHashSet()) { it.type.context }.associateWith { NodeStores.track(it, backends.backends(it)) }
+    /** The append latency of each store the node's logs are on (decision D252). */
+    private val pressures = WritePressures()
+
+    /**
+     * The backends of each context the [models] are of, opened once, each call recorded (review R3.5-3) and each
+     * append's latency measured (decision D252).
+     */
+    private val opened: Map<String, ContextBackends> = models.mapTo(LinkedHashSet()) { it.type.context }
+        .associateWith { NodeStores.track(it, backends.backends(it), pressures) }
+
+    /**
+     * The append latency of the store [store] (`wow.stores.<name>`, decision D252), as this node's logs on it measure
+     * it; null when none of them is on it.
+     */
+    @InternalWowApi
+    fun writePressure(store: String): StoreWritePressure? = pressures.find(store)
 
     private val nodeSnapshots = NodeSnapshots(manifest)
 
