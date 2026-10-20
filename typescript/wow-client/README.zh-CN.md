@@ -127,7 +127,6 @@ if (
 ## 文档
 
 - [TypeScript 指南](https://wow.ahoo.me/zh/guide/typescript/)
-- [wow-client 参考](https://wow.ahoo.me/zh/reference/typescript/wow-client/)
 - [交互式查询示例](https://wow.ahoo.me/storybook/)
 
 [English](./README.md) · [License](https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE)

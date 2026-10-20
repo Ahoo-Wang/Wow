@@ -36,7 +36,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe('V10 client edges', () => {
+describe('client edges', () => {
   it('goes through the default fetcher and passes the signal', async () => {
     const { requests } = stubFetch(() => jsonResponse({}));
     const controller = new AbortController();
@@ -83,6 +83,9 @@ describe('V10 client edges', () => {
     expect(
       await new SnapshotQueryClient(PRODUCT, client()).describe('v9'),
     ).toEqual({ notModified: true, version: 'v9' });
+    expect(await new SnapshotQueryClient(PRODUCT, client()).describe()).toEqual(
+      { notModified: true, version: '' },
+    );
     expect(
       await new StateClient(PRODUCT, client()).read('p1', {
         ifNoneMatch: '4-0123456789abcdef',

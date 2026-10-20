@@ -94,8 +94,8 @@ export const orders: ViewDefinition = {
 
 <!-- typecheck-context
 import { orders } from './orders';
-import type { QueryApi } from '@ahoo-wang/wow-client';
-declare const queryClients: Record<string, Pick<QueryApi<any>, 'paged' | 'cursor' | 'aggregate'>>;
+import type { ViewSource } from '@ahoo-wang/wow-view-engine';
+declare const sources: Record<string, ViewSource>;
 -->
 
 ```ts
@@ -103,8 +103,8 @@ import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
 
 const engine = new ViewEngine({
   store: new MemoryViewStore(),
-  // 来自 @ahoo-wang/wow-client 的 Pick<QueryApi, 'paged' | 'cursor' | 'aggregate'>
-  resources: [{ definition: orders, source: queryClients.orders }],
+  // 一个 ViewSource；@ahoo-wang/wow-view-store 的 viewSourceOf 把 Wow 的查询路由接到这里
+  resources: [{ definition: orders, source: sources.orders }],
 });
 ```
 
@@ -133,7 +133,6 @@ export function OrdersPage() {
 | 想做的事                                           | 读                                                                                                                                    |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | 判断引擎是否合适，以及它的模型                     | [概览](https://wow.ahoo.me/zh/guide/typescript/view-engine)、[核心概念](https://wow.ahoo.me/zh/guide/typescript/view-engine-concepts) |
-| 把一个业务对象从头接到尾                           | [入门](https://wow.ahoo.me/zh/guide/typescript/view-engine-getting-started)                                                           |
 | 写定义：手写，或从查询描述生成                     | [写好一份定义](https://wow.ahoo.me/zh/guide/typescript/view-engine-definitions)                                                       |
 | 把引擎放进宿主：`ViewHost`、路由、嵌入、措辞、测试 | [宿主](https://wow.ahoo.me/zh/guide/typescript/view-engine-host)                                                                      |
 | 在记录上提供命令                                   | [声明式操作](https://wow.ahoo.me/zh/guide/typescript/view-engine-actions)                                                             |

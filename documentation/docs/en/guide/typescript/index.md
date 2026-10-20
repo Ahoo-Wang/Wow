@@ -21,7 +21,7 @@ The Wow repository ships the TypeScript side of the Wow HTTP contract. The packa
 
 Wow 9.2.0 (2026-10-03) is the first release of these packages on npm, published with provenance; `pnpm add` installs them from the `latest` dist-tag. See [Compatibility and Versions](./compatibility.md) for the release status, the supported servers and runtimes, and what CI verifies.
 
-The first three came from the Fetcher repository, where they were `@ahoo-wang/fetcher-wow`, `@ahoo-wang/fetcher-generator`, and the Wow hooks of `@ahoo-wang/fetcher-react`. If a project still uses those names, start with the [migration guide](./migration.md).
+The first three came from the Fetcher repository, where they were `@ahoo-wang/fetcher-wow`, `@ahoo-wang/fetcher-generator`, and the Wow hooks of `@ahoo-wang/fetcher-react`.
 
 ## Dependencies
 
@@ -80,17 +80,11 @@ For the React hooks, add `react`, `react-dom`, and `@ahoo-wang/wow-react`. `wow-
 | Task | Read first | Then read |
 |---|---|---|
 | Call a Wow service from TypeScript for the first time | [Quick Start](./quick-start.md) | [wow-generator reference](../../reference/typescript/wow-generator/) and [Wow discovery](../../reference/typescript/wow-generator/wow-discovery.md) |
-| Sign requests with the user's token, fill tenant and owner | [Authentication and Interceptors](./authentication.md) | [Identity and attribution](../../reference/typescript/wow-client/identity-and-attribution.md) |
-| Handle failed commands, queries and streams | [Error Handling](./error-handling.md) | [Errors reference](../../reference/typescript/wow-client/errors-and-utilities.md) |
-| Send a command and read state without generated code | [Commands and Queries](./commands-and-queries.md) | [wow-client reference](../../reference/typescript/wow-client/) |
+| Sign requests with the user's token, fill tenant and owner | [Authentication and Interceptors](./authentication.md) | — |
 | Generate a client from an OpenAPI document that is not from Wow | [Generate a Client from Any OpenAPI Document](./generated-client.md) | [Generated output](../../reference/typescript/wow-generator/generated-output.md) |
 | Keep generated code in step with the service | [Regenerate in CI](./regenerate-in-ci.md) | [Generator CLI](../../reference/typescript/wow-generator/cli.md) |
-| Run on a server, in Node.js or with Next.js | [SSR and Node.js](./ssr-and-node.md) | [Compatibility and Versions](./compatibility.md) |
-| Show query results in React | [wow-react query hooks](../../reference/typescript/wow-react/) | [Snapshot queries](../../reference/typescript/wow-client/snapshot-queries.md) |
 | Evaluate saved data views | [View Engine](./view-engine.md) | [wow-view-engine reference](../../reference/typescript/wow-view-engine/) |
-| Wire a business object into the view engine | [Getting Started with the View Engine](./view-engine-getting-started.md) | [Integration walk-through (Storybook)](/storybook/?path=/docs/view-engine-接入导览--docs) |
-| Move off the Fetcher package names | [Migration from Fetcher packages](./migration.md) | The reference page of each package |
-| Find why something fails | [Troubleshooting](./troubleshooting.md) | [Error Handling](./error-handling.md) |
+| Find why something fails | [Troubleshooting](./troubleshooting.md) | — |
 
 The server side of these contracts is described in [Commands](../command/), [Query](../query.md), and [Open API](../open-api.md). The generic Fetcher topics, including interceptor internals, cancellation, and server-sent events, stay at [fetcher.ahoo.me](https://fetcher.ahoo.me/).
 

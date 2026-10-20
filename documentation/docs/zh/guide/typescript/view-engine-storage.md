@@ -156,7 +156,7 @@ function permissions(): ViewPermissions {
 export const store = new WowViewStore({ fetcher, permissions });
 ```
 
-然后把 `store` 交给 `new ViewEngine({ store, resources })`，和[入门](./view-engine-getting-started.md#_6-引擎与资源)里的 `MemoryViewStore` 换个位置而已。
+然后把 `store` 交给 `new ViewEngine({ store, resources })`，和入门里的 `MemoryViewStore` 换个位置而已。
 
 ### 路径就是受众
 

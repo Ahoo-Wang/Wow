@@ -9,7 +9,7 @@ A customer-service team works through paid orders and asks which channels sell. 
 <!-- typecheck: skip — the JSON is the committed snapshot beside the module -->
 
 ```ts
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import snapshot from './order.descriptor.json'; // version sha256:…
 
 export const orderDescriptor = snapshot as unknown as QueryModelDescriptor;
@@ -17,12 +17,12 @@ export const orderDescriptor = snapshot as unknown as QueryModelDescriptor;
 
 <!-- typecheck: file=orders.ts -->
 <!-- typecheck-context
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 declare const orderDescriptor: QueryModelDescriptor;
 -->
 
 ```ts
-import { AggregationDateUnit } from '@ahoo-wang/wow-client';
+import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
 import { defineView, text } from '@ahoo-wang/wow-view-engine';
 
 export const ORDERS = 'orders';
@@ -259,7 +259,7 @@ A metric's display name says what it measures for the business (「实付」「�
 An event-stream record is one command's appended events: root fields such as `aggregateId`, `id`, `version`, `createTime`, `commandId`, and `body`, the array of events. The descriptor's `variants` (`element: 'body'`, `discriminator: 'bodyType'`) lists each event type's payload fields relative to the event.
 
 <!-- typecheck-context
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 declare const orderEventDescriptor: QueryModelDescriptor;
 -->
 

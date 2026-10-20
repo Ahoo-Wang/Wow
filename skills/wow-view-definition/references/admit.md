@@ -7,7 +7,7 @@
 One test admits everything the host registers, in every language it serves. It takes definitions or the host's resources as they are; pass the same list the engine gets. **Given a full resource list** (at least one resource carries its `source`), it also reports a data resource whose `source` key no resource registers (`definition.source.unregistered`), as the engine does at start (9.2.2); a list of bare definitions or `{ definition }` alone is not checked for sources.
 
 <!-- typecheck-context
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import type { DashboardDefinition, DataViewDefinition } from '@ahoo-wang/wow-view-engine';
 declare const orders: DataViewDefinition;
 declare const overview: DashboardDefinition;
@@ -55,7 +55,7 @@ Read every finding. Fix it at the choice it names; do not silence it by widening
 
 <!-- typecheck-context
 import { admit } from '@ahoo-wang/wow-view-engine/testing';
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import type { DataViewDefinition } from '@ahoo-wang/wow-view-engine';
 declare const failures: DataViewDefinition;
 declare const descriptors: Record<string, QueryModelDescriptor>;

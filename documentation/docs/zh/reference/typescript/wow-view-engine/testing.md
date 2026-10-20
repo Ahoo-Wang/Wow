@@ -11,7 +11,7 @@ description: '/testing 入口：memorySource、matches、admit、resolveNavigati
 
 <!-- typecheck-context
 declare const ordersDefinition: import('@ahoo-wang/wow-view-engine').DataViewDefinition
-declare const ordersDescriptor: import('@ahoo-wang/wow-client').QueryModelDescriptor
+declare const ordersDescriptor: import('@ahoo-wang/wow-client/dsl').QueryModelDescriptor
 declare const ORDERS_WORDS: Readonly<Record<string, string>>
 declare const orderActions: import('@ahoo-wang/wow-view-engine').RecordActions
 declare const orders: import('@ahoo-wang/wow-view-engine').RecordData[]

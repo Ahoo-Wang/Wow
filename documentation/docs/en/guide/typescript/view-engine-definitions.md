@@ -7,7 +7,7 @@ description: Write a view definition from the query descriptor — the facts it 
 
 This page answers: **with the service's query descriptor in hand, how do you write a definition that serves the right readers and that the engine admits cleanly?**
 
-The definition in [Getting Started](./view-engine-getting-started.md) lists five fields and two system views, enough to get the list running. This page carries on with the same sales order (the aggregate `sales-order`) and lays every choice out: which fields to list, what to call them, what to narrow, which views and boards ship with the definition, and how a test proves it holds. Where a definition sits in the model: [Core Concepts](./view-engine-concepts.md#definitions).
+The definition in Getting Started lists five fields and two system views, enough to get the list running. This page carries on with the same sales order (the aggregate `sales-order`) and lays every choice out: which fields to list, what to call them, what to narrow, which views and boards ship with the definition, and how a test proves it holds. Where a definition sits in the model: [Core Concepts](./view-engine-concepts.md#definitions).
 
 ## 1. Start from the descriptor, and commit it
 
@@ -17,7 +17,7 @@ A definition's facts come from the service's query descriptor: `GET /{aggregate}
 
 ```ts
 // src/views/salesOrderDescriptor.ts
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 // GET /sales-order/snapshot/schema, version sha256:a30adffc…
 import snapshot from './salesOrderDescriptor.json';
 
@@ -50,13 +50,13 @@ The scenario: a warehouse team and a customer-service team work through sales or
 
 <!-- typecheck: file=salesOrders.ts -->
 <!-- typecheck-context
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 declare const salesOrderDescriptor: QueryModelDescriptor;
 -->
 
 ```ts
 // src/views/salesOrders.ts
-import { AggregationDateUnit } from '@ahoo-wang/wow-client';
+import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
 import { defineView, text } from '@ahoo-wang/wow-view-engine';
 import { SALES_ORDER_VIEWS } from './salesOrderViews';
 
@@ -578,7 +578,7 @@ A definition has no compile-time check of its paths: a path is a string, and onl
 One test admits everything the host registers, in every language the host serves:
 
 <!-- typecheck-context
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 declare const salesOrderDescriptor: QueryModelDescriptor;
 declare const describe: (name: string, body: () => void) => void;
 declare const it: { each<T>(cases: readonly T[]): (name: string, body: (value: T) => void) => void };
@@ -642,5 +642,5 @@ What `admit` cannot judge is the readers: whether each listed field is one they 
 | Next | Read |
 |---|---|
 | Where definitions, views, boards and the store sit in the model | [Core Concepts](./view-engine-concepts.md) |
-| Wire the definition into an engine, `ViewHost` and one action | [Getting Started with the View Engine](./view-engine-getting-started.md) |
+| Wire the definition into an engine, `ViewHost` and one action | Getting Started with the View Engine |
 | Another look, or the host's own theme | [View Engine Theming](./view-engine-theming.md) |

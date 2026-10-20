@@ -194,17 +194,17 @@ carts holding book-1: 1
 - `waitStrategy({ stage: CommandStage.SNAPSHOT })` 让服务端在快照写入后才应答，所以随后的查询能看到它。不指定等待阶段时，命令处理完成即返回。见[完成语义](../command/completion.md)。
 - 请求 ID 让重试变得安全：请求结果不确定时用同一个 `requestId` 再发一次，服务端会拒绝重复请求，而不是执行两次。
 - `getStateById` 返回聚合的状态；`pagedState` 返回状态的 `{ total, list }`，`pagedQuery` 总会带上每页条数。列表查询不同：`listQuery()` 只在给出 `limit` 时才发送它。此时 Wow 9.1.5 及以后使用默认列表大小，Wow 8.11～9.1.3 则以 HTTP 400（`IllegalArgument`）拒绝，对这些服务端请显式传 `limit`。过滤字段指向存储的快照，所以写作 `state.items`；数组元素里的字段用 `filter.elementMatch` 匹配。字段名的类型来自生成的 `CartAggregatedFields`，拼错的字段无法通过编译。
-- 服务端拒绝的命令——校验失败、命令处理函数失败、版本冲突——以 fetcher 的错误拒绝，`toWowError` 从中读出 Wow 的 `errorCode`、`errorMsg` 和 `bindingErrors`。发送 `{ productId: '', quantity: 0 }` 会输出 `CommandValidation: …`。各种情况见[错误处理](./error-handling.md)。
+- 服务端拒绝的命令——校验失败、命令处理函数失败、版本冲突——以 fetcher 的错误拒绝，`toWowError` 从中读出 Wow 的 `errorCode`、`errorMsg` 和 `bindingErrors`。发送 `{ productId: '', quantity: 0 }` 会输出 `CommandValidation: …`。各种情况见错误处理。
 
 ## 下一步
 
 | 接下来 | 阅读 |
 |---|---|
 | 给请求签名，从用户填入租户与所有者 | [认证与拦截器](./authentication.md) |
-| 处理客户端可能遇到的每种失败 | [错误处理](./error-handling.md) |
-| 在 React 中展示查询 | [wow-react 查询 Hook](../../reference/typescript/wow-react/) |
+| 处理客户端可能遇到的每种失败 | 错误处理 |
+| 在 React 中展示查询 | wow-react 查询 Hook |
 | 让生成代码与服务保持一致 | [在 CI 中重新生成](./regenerate-in-ci.md) |
-| 在服务端或 Next.js 中运行 | [SSR 与 Node.js](./ssr-and-node.md) |
+| 在服务端或 Next.js 中运行 | SSR 与 Node.js |
 | 哪里不对 | [排障](./troubleshooting.md) |
 
 生成的代码及其选项见 [wow-generator 参考](../../reference/typescript/wow-generator/)和 [Wow 聚合识别](../../reference/typescript/wow-generator/wow-discovery.md)。要为不来自 Wow 的 OpenAPI 文档生成客户端，见[从任意 OpenAPI 文档生成客户端](./generated-client.md)。

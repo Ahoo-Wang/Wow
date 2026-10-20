@@ -5,7 +5,7 @@ description: Definitions, record and analysis views, dashboards, system, shared 
 
 # View Engine Core Concepts
 
-This page answers: **what are the few things the view engine is made of, where does each live, and who may change it?** Read it before the code in [Writing a Definition](./view-engine-definitions.md) and [Getting Started](./view-engine-getting-started.md), and every line there has a place in the model.
+This page answers: **what are the few things the view engine is made of, where does each live, and who may change it?** Read it before the code in [Writing a Definition](./view-engine-definitions.md) and Getting Started, and every line there has a place in the model.
 
 The engine rests on three facts: **definitions are code, configs are data, runtime state is transient** ([View Engine](./view-engine.md#three-facts)). Each concept below sits in one of those three.
 
@@ -223,5 +223,5 @@ Preferences carry a `revision` too. When a preference write conflicts, the engin
 | Next | Read |
 |---|---|
 | Write a definition from the descriptor: words, narrowing, system views, boards, a self-check | [Writing a Definition](./view-engine-definitions.md) |
-| Wire one business object from zero | [Getting Started with the View Engine](./view-engine-getting-started.md) |
+| Wire one business object from zero | Getting Started with the View Engine |
 | Entries, the persistence port and the extension points | [wow-view-engine reference](../../reference/typescript/wow-view-engine/) |

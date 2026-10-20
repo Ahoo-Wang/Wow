@@ -97,10 +97,8 @@ whose state lives under `state`, so a state field is `state.status`, not
 `status`. `requestOptions` adds the scope, the space or more headers to every
 run.
 
-Aggregations have no hook yet. Call `client.aggregate` in an effect and abort
-it on cleanup, as the
-[reference page](https://wow.ahoo.me/reference/typescript/wow-react/#aggregations)
-shows.
+Aggregations have no hook yet. Call `client.aggregate(query, { signal })` in
+an effect with an `AbortController` and abort it on cleanup.
 
 Cursor queries have no hook yet either. Run one through `useSingleQuery`, with
 the page as the result: pass `CursorPage<R>` and `CursorQuery<Fields>` as the
@@ -262,7 +260,6 @@ follows Wow.
 ## Documentation
 
 - [TypeScript guide](https://wow.ahoo.me/guide/typescript/)
-- [wow-react reference](https://wow.ahoo.me/reference/typescript/wow-react/)
 - [Interactive query hook stories](https://wow.ahoo.me/storybook/?path=/docs/react-hooks-wow-queries--docs)
 
 [中文](./README.zh-CN.md) · [License](https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE)

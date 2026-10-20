@@ -35,7 +35,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 | Wow 9.1.x | [从 9.1 升级到 9.2.0](#从-9-1-升级到-9-2-0) | 在不变的网关与 REST 合同之下重建查询引擎：自定义查询后端与网关、改名的 Bean、9.1 声明文件需要修改；四项经批准的服务端行为例外需要在升级之前处理 |
 | Wow 9.0.x | [从 9.0 升级到 9.1.0](#从-9-0-升级到-9-1-0) | 新增聚合能力：重新编译调用聚合构造函数的代码 |
 | Wow v8.16.x | [从 8.16 升级到 9.0.0](#从-8-16-升级到-9-0-0)，再依次完成各个 9.x 章节 | 完整的 V8 → V9 路径：查询迁到 `QueryGateway` 与 `QueryBackend`（[V9 查询迁移](./query/v9-query-migration.md)），并删除 v8 的存储别名 |
-| TypeScript 客户端使用 `fetcher-wow`、`fetcher-generator` 或 `fetcher-react` 的 Wow Hook | [从 Fetcher 包迁移](./typescript/migration.md) | 换用 `wow-client`、`wow-generator` 和 `wow-react`，并重新生成客户端代码 |
+| TypeScript 客户端使用 `fetcher-wow`、`fetcher-generator` 或 `fetcher-react` 的 Wow Hook | 从 Fetcher 包迁移 | 换用 `wow-client`、`wow-generator` 和 `wow-react`，并重新生成客户端代码 |
 
 不要把首次采用 Wow 与 v6→v8 升级混成一次无法区分的发布。每个变更窗口都应选择一个 bounded context
 及精确 source/target version。
@@ -415,7 +415,7 @@ Kafka 接收的消息现在是只读的，与 Redis 和内存总线一致。Redi
 
 ## 从 9.1 升级到 9.2.0
 
-9.2.0 在不变的 `QueryGateway` 与 REST 合同之下重建了查询引擎，新增查询能力描述，并让 TypeScript 包随 Wow 一起发布。现有聚合的 REST、存储与线上格式不变，只有[服务端行为](#server-behaviour-9-2)下列出的四项经批准的例外，所以滚动升级期间 9.1.x 与 9.2.x 节点可以共处一个集群，差异见各项说明；请尽量缩短这段混部时间。TypeScript 应用按[从 Fetcher 包迁移](./typescript/migration.md)切换。
+9.2.0 在不变的 `QueryGateway` 与 REST 合同之下重建了查询引擎，新增查询能力描述，并让 TypeScript 包随 Wow 一起发布。现有聚合的 REST、存储与线上格式不变，只有[服务端行为](#server-behaviour-9-2)下列出的四项经批准的例外，所以滚动升级期间 9.1.x 与 9.2.x 节点可以共处一个集群，差异见各项说明；请尽量缩短这段混部时间。TypeScript 应用按从 Fetcher 包迁移切换。
 
 ### 升级之前 {#before-9-2}
 
@@ -573,7 +573,7 @@ Kafka 接收的消息现在是只读的，与 Redis 和内存总线一致。Redi
 | [Wow v6 迁移到 v8](./migration/v6-to-v8.md) | v6 → v8 指南的保存位置（v8.16.3 标签） |
 | [运行时编排迁移](./migration/runtime-orchestration.md) | 统一生命周期源码迁移 |
 | [V9 查询迁移](./query/v9-query-migration.md) | V8.16.x 到 V9 的查询与 SnapshotStore 源码迁移 |
-| [从 Fetcher 包迁移](./typescript/migration.md) | TypeScript 包改名与重新生成客户端 |
+| 从 Fetcher 包迁移 | TypeScript 包改名与重新生成客户端 |
 | [运行时生命周期](./advanced/runtime-lifecycle.md) | 迁移后的稳定运行模型 |
 | [故障排查](./troubleshooting.md) | 门禁失败时的证据化诊断 |
 

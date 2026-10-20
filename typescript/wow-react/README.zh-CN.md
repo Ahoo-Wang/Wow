@@ -87,8 +87,8 @@ export function PaidOrders({
 快照查询过滤的是快照记录，聚合状态在它的 `state` 字段下，所以状态字段写作
 `state.status`，而不是 `status`。`requestOptions` 为每次运行加上作用域、空间或更多请求头。
 
-聚合查询暂时没有 Hook。在 effect 里调用 `client.aggregate`，并在清理函数里中止它，写法见
-[参考页](https://wow.ahoo.me/zh/reference/typescript/wow-react/#聚合查询)。
+聚合查询暂时没有 Hook。在 effect 里用 `AbortController` 调用
+`client.aggregate(query, { signal })`，并在清理函数里中止它。
 
 游标查询也还没有 Hook。用 `useSingleQuery` 运行它，把一页当作结果：类型参数传
 `CursorPage<R>` 与 `CursorQuery<Fields>`，`execute` 传 `client.cursor`；`nextCursor`
@@ -233,7 +233,6 @@ if (
 ## 文档
 
 - [TypeScript 指南](https://wow.ahoo.me/zh/guide/typescript/)
-- [wow-react 参考](https://wow.ahoo.me/zh/reference/typescript/wow-react/)
 - [交互式查询 hook Story](https://wow.ahoo.me/storybook/?path=/docs/react-hooks-wow-queries--docs)
 
 [English](./README.md) · [许可证](https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE)

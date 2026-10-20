@@ -17,7 +17,7 @@ description: Wow TypeScript 包支持哪些 Wow 服务端、Node.js、React、Ty
 | `@ahoo-wang/wow-view-engine` | Wow **9.2.0**（2026-10-03）起在 npm 上 |
 | `@ahoo-wang/wow-view-store` | Wow **9.2.0**（2026-10-03）起在 npm 上 |
 
-每个版本都由 CI 带 [npm provenance](https://docs.npmjs.com/generating-provenance-statements) 发布。`latest` 指向最新的稳定版；有候选版本时，它发在 dist-tag `next` 上（`pnpm add @ahoo-wang/wow-client@next`）。还在用 5.x 的 `@ahoo-wang/fetcher-wow` 和 `@ahoo-wang/fetcher-generator` 的应用，按[迁移指南](./migration.md)切换。
+每个版本都由 CI 带 [npm provenance](https://docs.npmjs.com/generating-provenance-statements) 发布。`latest` 指向最新的稳定版；有候选版本时，它发在 dist-tag `next` 上（`pnpm add @ahoo-wang/wow-client@next`）。还在用 5.x 的 `@ahoo-wang/fetcher-wow` 和 `@ahoo-wang/fetcher-generator` 的应用，按迁移指南切换。
 
 ## 版本
 
@@ -71,7 +71,7 @@ TypeScript 的 npm 包与 Wow 的其余部分采用同一个支持策略，写�
 
 各行在实践中的含义：
 
-- **8.10。** 用 `@ahoo-wang/wow-client/legacy` 构建查询；查询客户端两种模型都接受。`getById` 和 `getStateById` 发送的是 `FilterExpression`，所以对 8.10 要用 `aggregateId(id)` 构建 `/legacy` 查询，再调用 `single` 或 `singleState`。生成器从 8.10 的文档生成代码时，会自动从 `/legacy` 导入 `Condition` 类型。这一行只有类型检查覆盖：请用自己的 8.10 服务端测试应用实际用到的查询。见 [Wow 8.10 服务端](./migration.md#wow-8-10-服务端)。
+- **8.10。** 用 `@ahoo-wang/wow-client/legacy` 构建查询；查询客户端两种模型都接受。`getById` 和 `getStateById` 发送的是 `FilterExpression`，所以对 8.10 要用 `aggregateId(id)` 构建 `/legacy` 查询，再调用 `single` 或 `singleState`。生成器从 8.10 的文档生成代码时，会自动从 `/legacy` 导入 `Condition` 类型。这一行只有类型检查覆盖：请用自己的 8.10 服务端测试应用实际用到的查询。见 Wow 8.10 服务端。
 - **`raw()`**，即把原始查询直接交给存储的 `Condition` 操作符，只存在于 `/legacy`，8.11.0 起的服务端对它应答 400。它没有 `FilterExpression` 的替代品。
 - **8.11.1 之前**，OpenAPI 文档不发布 `x-wow-query-fields`；生成器改从 `Condition` schema 读取聚合的查询字段。
 - **客户端较新、服务端较旧。** 服务端还没有其端点的客户端方法——例如 `EventStreamQueryClient.load` 或 `WowMetadataClient`——在那里会失败，通常是 404。服务端已有的一切照常可用。
@@ -103,7 +103,7 @@ CI 任务在 [`typescript-contract.yml`](https://github.com/Ahoo-Wang/Wow/blob/m
 | `@ahoo-wang/fetcher`、`fetcher-decorator`、`fetcher-eventstream` | `^5.1.5 \|\| ^6.0.0` | peer 依赖：由应用安装。下限是 5.1.5：5.1.4 起类型声明在 `require`（Node16、NodeNext）下能正确解析，5.1.5 起同一次编译里同时有 ESM 与 CJS 消费者也能通过类型检查。Fetcher 6 于 2026-10-04 发布，Wow 9.2.1 起接受（9.2.0 只接受 `^5.1.5`）。CI 在最新的 6.x 上构建和测试；另有一个下限任务在 5.1.5 上重跑 client、React、生成器与视图存储的测试，并以使用方身份检查打包后的包 |
 | `@ahoo-wang/wow-client`（其他 Wow 包依赖它） | `~x.y.z` | 同一个次版本 |
 
-pnpm 8 及以后、npm 7 及以后会自动安装缺失的 peer；Yarn 不会，Yarn 项目需要逐个显式添加。每个[参考页](../../reference/typescript/wow-client/)的安装命令都列出了它们。
+pnpm 8 及以后、npm 7 及以后会自动安装缺失的 peer；Yarn 不会，Yarn 项目需要逐个显式添加。每个参考页的安装命令都列出了它们。
 
 ## v10 移除什么
 

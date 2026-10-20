@@ -97,8 +97,8 @@ export const orders: ViewDefinition = {
 
 <!-- typecheck-context
 import { orders } from './orders';
-import type { QueryApi } from '@ahoo-wang/wow-client';
-declare const queryClients: Record<string, Pick<QueryApi<any>, 'paged' | 'cursor' | 'aggregate'>>;
+import type { ViewSource } from '@ahoo-wang/wow-view-engine';
+declare const sources: Record<string, ViewSource>;
 -->
 
 ```ts
@@ -106,8 +106,8 @@ import { MemoryViewStore, ViewEngine } from '@ahoo-wang/wow-view-engine';
 
 const engine = new ViewEngine({
   store: new MemoryViewStore(),
-  // Pick<QueryApi, 'paged' | 'cursor' | 'aggregate'> from @ahoo-wang/wow-client
-  resources: [{ definition: orders, source: queryClients.orders }],
+  // A ViewSource; viewSourceOf of @ahoo-wang/wow-view-store puts a Wow query route here
+  resources: [{ definition: orders, source: sources.orders }],
 });
 ```
 
@@ -136,7 +136,6 @@ Around the pages of a real application goes one `ViewHost`, which bridges the en
 | To                                                                      | Read                                                                                                                                |
 | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | Decide whether the engine fits, and its model                           | [Overview](https://wow.ahoo.me/guide/typescript/view-engine), [concepts](https://wow.ahoo.me/guide/typescript/view-engine-concepts) |
-| Wire one business object end to end                                     | [Getting started](https://wow.ahoo.me/guide/typescript/view-engine-getting-started)                                                 |
 | Write definitions, from code or from the query descriptor               | [Definitions](https://wow.ahoo.me/guide/typescript/view-engine-definitions)                                                         |
 | Fit the engine into a host: `ViewHost`, routes, embeds, messages, tests | [Host](https://wow.ahoo.me/guide/typescript/view-engine-host)                                                                       |
 | Offer commands on records                                               | [Actions](https://wow.ahoo.me/guide/typescript/view-engine-actions)                                                                 |

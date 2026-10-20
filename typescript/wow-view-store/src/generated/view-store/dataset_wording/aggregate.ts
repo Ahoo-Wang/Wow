@@ -16,18 +16,7 @@ export const DatasetWordingAggregate = {
 } as const;
 
 /** The `state.*` paths of `dataset_wording`'s snapshots a query filters, sorts and projects on. */
-export type DatasetWordingStateField =
-  | 'state.appId'
-  | 'state.dataset'
-  | 'state.fields'
-  | 'state.recordNoun'
-  | 'state.title';
+export type DatasetWordingStateField = 'state.appId' | 'state.dataset' | 'state.fields' | 'state.recordNoun' | 'state.title';
 
 /** The events of `dataset_wording`, named as the server sends them, `view-store.dataset_wording.<Event>` at its current revision (the `events` query upgrades older records), and the system events every aggregate has. */
-export type DatasetWordingEvent =
-  | EventView<
-      'view-store.dataset_wording.DatasetWordingCleared',
-      DatasetWordingCleared
-    >
-  | EventView<'view-store.dataset_wording.DatasetWordingSet', DatasetWordingSet>
-  | SystemEvent;
+export type DatasetWordingEvent = EventView<'view-store.dataset_wording.DatasetWordingCleared', DatasetWordingCleared> | EventView<'view-store.dataset_wording.DatasetWordingSet', DatasetWordingSet> | SystemEvent;

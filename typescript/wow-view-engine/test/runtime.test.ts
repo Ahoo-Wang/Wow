@@ -23,7 +23,6 @@ import {
   type DataViewDefinition,
   type FilterTree,
   type ProjectedRecord,
-  type RecordData,
   type RuntimeLimits,
   type ViewInstance,
   type ViewSource,
