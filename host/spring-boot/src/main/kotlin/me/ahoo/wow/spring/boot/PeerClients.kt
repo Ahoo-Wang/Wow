@@ -31,6 +31,7 @@ import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.client.ForwardedHeaders
+import me.ahoo.wow.client.NamedCommand
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import org.springframework.web.server.CoWebFilter
@@ -40,7 +41,8 @@ import org.springframework.web.server.ServerWebExchange
 /**
  * The peer contexts the service reaches over HTTP (decisions D257, D259): each context of [modes] by the client of its
  * mode, [service] or [user]. Every context of [modes] must be a peer the contracts on the class path declare
- * ([contracts], decision D234), not one of the service's own.
+ * ([contracts], decision D234), not one of the service's own, unless it is one of [described], the peers described by
+ * their Manifest alone (`contract: manifest`), which no contract on the class path may declare.
  */
 @InternalWowApi
 class PeerClients(
@@ -50,13 +52,22 @@ class PeerClients(
     private val user: Lazy<WowClient>,
     /** The mode of [client], the one the application uses directly. */
     private val defaultMode: WowProperties.Clients.Mode,
+    /** The contexts of [modes] described by their Manifest alone. */
+    val described: Set<String> = emptySet(),
 ) {
     init {
-        val unknown = modes.keys.filterNot { contracts.hasContext(it) && !contracts.isLocal(it) }
+        val unknown = modes.keys.filterNot { it in described || contracts.hasContext(it) && !contracts.isLocal(it) }
         require(unknown.isEmpty()) {
             "wow.clients.contexts lists $unknown, which no peer contract on the class path declares: depend on each " +
-                "one's api module, whose jar carries its contract (decision D234); a context of this service is " +
-                "never called over HTTP."
+                "one's api module, whose jar carries its contract (decision D234), or say contract: manifest to call " +
+                "it by its Manifest alone (decision D257); a context of this service is never called over HTTP."
+        }
+        val stray = described - modes.keys
+        require(stray.isEmpty()) { "The peers described by their Manifest, $stray, are not in wow.clients.contexts." }
+        val declared = described.filter { contracts.hasContext(it) }
+        require(declared.isEmpty()) {
+            "wow.clients.contexts says contract: manifest of $declared, whose contract is on the class path (or which " +
+                "this service serves): call it by its command objects, without contract: manifest (decision D257)."
         }
     }
 
@@ -90,16 +101,20 @@ internal class RoutedCommandClient(
     override fun of(caller: Caller): CommandClient = RoutedCommandClient(local, peers, caller)
 
     override suspend fun send(command: Any, ref: AggregateRef, options: SendOptions): CommandResult =
-        clientOf(ref).send(command, ref, options)
+        clientOf(command, ref).send(command, ref, options)
 
     override suspend fun wait(command: Any, ref: AggregateRef, options: SendOptions): CommandResult =
-        clientOf(ref).wait(command, ref, options)
+        clientOf(command, ref).wait(command, ref, options)
 
     override fun stream(command: Any, ref: AggregateRef, options: SendOptions): Flow<CommandResult> =
-        clientOf(ref).stream(command, ref, options)
+        clientOf(command, ref).stream(command, ref, options)
 
-    private fun clientOf(ref: AggregateRef): CommandClient {
+    private fun clientOf(command: Any, ref: AggregateRef): CommandClient {
         val context = ref.type.context
+        require(command !is NamedCommand || context in peers.described) {
+            "$context is not described by its Manifest: a named command goes only to a context of wow.clients.contexts " +
+                "with contract: manifest (decision D257)."
+        }
         return (if (peers.reaches(context)) peers.clientOf(context).commands else local).of(caller)
     }
 }
