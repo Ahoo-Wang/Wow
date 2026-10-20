@@ -39,6 +39,7 @@ import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import org.junit.jupiter.api.Test
+import org.springframework.http.HttpHeaders
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
 import kotlin.time.toKotlinDuration
@@ -277,9 +278,11 @@ class QueryRoutesTest {
                 http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = Duration.ofMillis(50).toKotlinDuration())
             ),
         )
-        slow.query(
+        val timedOut = slow.query(
             """{"kind":"count","filter":{"op":"MATCH_ALL"}}"""
-        ).assertQueryProblem(503, FrameworkErrors.QUERY_TIMEOUT)
+        ).assertQueryProblem(504, FrameworkErrors.QUERY_TIMEOUT)
+        // Not worth running again as it is (decision D254 ③): no Retry-After.
+        timedOut.headers.getFirst(HttpHeaders.RETRY_AFTER).assert().isNull()
     }
 
     @Test

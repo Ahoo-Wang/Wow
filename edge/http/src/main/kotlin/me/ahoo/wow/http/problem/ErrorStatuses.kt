@@ -30,7 +30,7 @@ import org.springframework.http.HttpStatus
  *
  * `wow.aggregate.version-mismatch` is 412 instead of its table status when the request carried `If-Match`, and a
  * problem a retry may get past, every framework code the table answers with 503 or 429 (`wow.storage.unavailable`,
- * `wow.command.unknown`, `wow.node.closing`, `wow.schedule.not-due`, `wow.query.timeout`, `wow.command.busy`,
+ * `wow.command.unknown`, `wow.node.closing`, `wow.schedule.not-due`, `wow.command.busy`,
  * `wow.query.busy`), carries `Retry-After` ([retryAfter]).
  */
 internal class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> = emptyMap()) {

@@ -23,7 +23,7 @@ import me.ahoo.wow.manifest.FrameworkErrors
  * - [INVALID] (400): the query breaks a rule; each violation carries its stable code, such as `UNKNOWN_FIELD`
  *   (`me.ahoo.wow.api.query.QueryErrorCodes`);
  * - [FAILED] (500): a query the caller got right that the server failed to run;
- * - [TIMEOUT] (503): the query ran out of its execution time;
+ * - [TIMEOUT] (504, no `Retry-After`, decision D254 ③): the query ran out of its execution time; running it again would run as long;
  * - [STORAGE_UNAVAILABLE] (503): the storage could not be reached or did not answer in time; the same query may pass
  *   later.
  * - [BUSY] (429, with `Retry-After`): the query's store already runs as many queries as its bulkhead allows

@@ -144,8 +144,8 @@ object FrameworkErrors {
         ErrorManifest(QUERY_FAILED, 500, "The query backend failed to run the query."),
         ErrorManifest(
             QUERY_TIMEOUT,
-            503,
-            "The query ran longer than its budget allows; narrow it, or retry later.",
+            504,
+            "The query ran longer than its budget allows; narrow it rather than run it again (decision D254 ③).",
         ),
         ErrorManifest(
             QUERY_BUSY,

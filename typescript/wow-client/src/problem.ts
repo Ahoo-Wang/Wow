@@ -70,7 +70,7 @@ export const FrameworkErrorCodes = {
   QUERY_INVALID: 'wow.query.invalid',
   /** 500: the query backend failed to run the query. */
   QUERY_FAILED: 'wow.query.failed',
-  /** 503: the query ran longer than its budget allows. */
+  /** 504: the query ran longer than its budget allows; not retried (decision D254 ③). */
   QUERY_TIMEOUT: 'wow.query.timeout',
   /** 429, with `Retry-After`: the query's store runs as many queries as it allows; retry later. */
   QUERY_BUSY: 'wow.query.busy',
@@ -156,7 +156,7 @@ export interface RetryHint {
 /**
  * The codes a retry may get past, each with whether to keep the request id:
  * the 503s (`wow.command.unknown`, `wow.node.closing`,
- * `wow.storage.unavailable`, `wow.schedule.not-due`, `wow.query.timeout`),
+ * `wow.storage.unavailable`, `wow.schedule.not-due`),
  * the 429s `wow.command.busy` and `wow.query.busy`, the 409 `wow.command.contended` and the 504
  * `wow.wait.timeout`, whose command may have committed.
  */
@@ -165,7 +165,6 @@ const RETRYABLE: ReadonlyMap<string, boolean> = new Map([
   [FrameworkErrorCodes.NODE_CLOSING, true],
   [FrameworkErrorCodes.STORAGE_UNAVAILABLE, true],
   [FrameworkErrorCodes.SCHEDULE_NOT_DUE, true],
-  [FrameworkErrorCodes.QUERY_TIMEOUT, false],
   [FrameworkErrorCodes.COMMAND_BUSY, true],
   [FrameworkErrorCodes.QUERY_BUSY, false],
   [FrameworkErrorCodes.COMMAND_CONTENDED, true],

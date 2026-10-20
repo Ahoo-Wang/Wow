@@ -24,7 +24,7 @@
   { "code": "wow.query.malformed", "status": 400 },
   { "code": "wow.query.invalid", "status": 400 },
   { "code": "wow.query.failed", "status": 500 },
-  { "code": "wow.query.timeout", "status": 503 },
+  { "code": "wow.query.timeout", "status": 504 },
   { "code": "wow.query.busy", "status": 429 },
   { "code": "wow.query.dataset-unavailable", "status": 409 },
   { "code": "wow.call.command-forbidden", "status": 403 }

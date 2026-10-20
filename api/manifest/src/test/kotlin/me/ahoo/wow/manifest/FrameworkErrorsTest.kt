@@ -49,7 +49,7 @@ class FrameworkErrorsTest {
                 "wow.query.malformed" to 400,
                 "wow.query.invalid" to 400,
                 "wow.query.failed" to 500,
-                "wow.query.timeout" to 503,
+                "wow.query.timeout" to 504,
                 "wow.query.busy" to 429,
                 "wow.query.dataset-unavailable" to 409,
                 "wow.call.command-forbidden" to 403,

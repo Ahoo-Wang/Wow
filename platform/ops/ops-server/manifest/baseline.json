@@ -311,8 +311,8 @@
     "description" : "The query backend failed to run the query."
   }, {
     "code" : "wow.query.timeout",
-    "status" : 503,
-    "description" : "The query ran longer than its budget allows; narrow it, or retry later."
+    "status" : 504,
+    "description" : "The query ran longer than its budget allows; narrow it rather than run it again (decision D254 ③)."
   }, {
     "code" : "wow.query.busy",
     "status" : 429,
