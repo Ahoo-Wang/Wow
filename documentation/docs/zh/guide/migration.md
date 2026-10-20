@@ -127,7 +127,7 @@ description: 选择 Wow 迁移路径，并严格区分源码、运行时、存�
 
 ## 从 9.5 升级到 9.6.0
 
-`wow-openapi` 在 9.6.0 中把路由合同改为纯数据（设计：`documentation/designs/2026-10-09-wow-openapi-refactor-design.md`）。路由、route id 与生成的 OpenAPI 文档不变；REST、OpenAPI 与线格式不变，9.5.x 与 9.6.0 节点可以共处一个集群。针对 9.5 编译的代码需要重新编译；实现 `RouteContributor` 或构造路由合同的代码需要按下表修改源码。
+`wow-openapi` 在 9.6.0 中把路由合同改为纯数据（设计：`documentation/designs/2026-10-09-wow-openapi-refactor-design.md`（在 `main` 分支））。路由、route id 与生成的 OpenAPI 文档不变；REST、OpenAPI 与线格式不变，9.5.x 与 9.6.0 节点可以共处一个集群。针对 9.5 编译的代码需要重新编译；实现 `RouteContributor` 或构造路由合同的代码需要按下表修改源码。
 
 | 变化 | 影响谁 | 怎么做 |
 |---|---|---|
@@ -166,7 +166,7 @@ REST 线格式词汇从 `wow-openapi` 移到新模块 `wow-rest-contract`（包 
 
 ## 从 9.4 升级到 9.5.0
 
-对 `wow-schema` 与 `wow-openapi` 而言，9.5.0 是一次内部重构（设计见 `documentation/designs/2026-10-09-wow-schema-refactor-design.md`）。生成的 JSON Schema、OpenAPI 文档和查询模型与 9.4.0 逐字节相同，REST、存储与线上格式不变，9.4.x 与 9.5.0 节点可以共用一个集群。基于 9.4 编译的代码需要重新编译；直接使用 Schema builder 的代码可能需要按下表修改源码：为了保持模块整洁，这部分没有保留源码兼容。9.5.0 发布说明（[Releases 页面](https://github.com/Ahoo-Wang/Wow/releases)）逐条列出每项变化及其 PR。
+对 `wow-schema` 与 `wow-openapi` 而言，9.5.0 是一次内部重构（设计见 `documentation/designs/2026-10-09-wow-schema-refactor-design.md`（在 `main` 分支））。生成的 JSON Schema、OpenAPI 文档和查询模型与 9.4.0 逐字节相同，REST、存储与线上格式不变，9.4.x 与 9.5.0 节点可以共用一个集群。基于 9.4 编译的代码需要重新编译；直接使用 Schema builder 的代码可能需要按下表修改源码：为了保持模块整洁，这部分没有保留源码兼容。9.5.0 发布说明（[Releases 页面](https://github.com/Ahoo-Wang/Wow/releases)）逐条列出每项变化及其 PR。
 
 | 变化 | 影响谁 | 怎么做 |
 |---|---|---|

@@ -212,7 +212,7 @@ export const store = new WowViewStore({
 - Storybook 的[记录工作台](/storybook/?path=/docs/view-engine-组件状态-记录工作台--docs)：系统视图、另存、改名、视图管理器都能上手；[保存冲突](/storybook/?path=/story/view-engine-组件状态-记录工作台--save-conflicted)摆着一次真实的冲突与三个出口。
 - 存着的系统视图：[管理员编辑一个存着的系统视图](/storybook/?path=/story/view-engine-组件状态-记录工作台-回归--edit-stored-system-view)、[发布为系统视图](/storybook/?path=/story/view-engine-组件状态-记录工作台-回归--publish-as-system-view)、[别的用户只读](/storybook/?path=/story/view-engine-组件状态-记录工作台-回归--system-views-read-only-for-others)。
 - [仪表盘](/storybook/?path=/docs/view-engine-组件状态-仪表盘--docs)：面板、筛选、标签页与搭建。
-- 源码：端口 [`ViewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/store/ViewStore.ts)、许可的唯一判定 [`permissions.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/runtime/permissions.ts)、视图存储服务端的[系统视图](https://github.com/Ahoo-Wang/Wow/blob/main/view-store/README.md)。
+- 源码：端口 [`ViewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/store/ViewStore.ts)、许可的唯一判定 [`permissions.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/runtime/permissions.ts)、视图存储服务端的[系统视图](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/view-store/README.md)。
 - 设计文档：[核心模型](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/model.md)、[图表、条件树与实例](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/model-shapes.md)、[视图管理与持久化](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/management.md)。
 
 ## 下一步
