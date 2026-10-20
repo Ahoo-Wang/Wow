@@ -24,9 +24,6 @@ const PACKAGE_DOCS = 'packageDocs';
 const VIEW_ENGINE_DOCS = 'viewEngineDocs';
 // typescript-storybook.yml: the stories, their static build and interactions.
 const STORYBOOK = 'storybook';
-// typescript-contract.yml: the client, generator and integration tests
-// against an example server built from this repository.
-const CONTRACT = 'contract';
 // typescript-contract.yml: generated code against the published 8.x servers.
 const LEGACY_CONTRACT = 'legacyContract';
 // typescript.yml: actionlint over every workflow, the release workflow included.
@@ -41,22 +38,17 @@ const COMPAT_DEBT = 'compatDebt';
 // matrix: a change to what a tarball holds is checked before the release
 // preflight finds it.
 const PACKAGE = 'package';
-// mixed-version.yml: the released example server and the example server built
-// from this commit on one Kafka and MongoDB, each processing what the other
-// sends (test/wow-it MixedVersionClusterTest). Not a TypeScript scope.
-const MIXED_VERSION = 'mixedVersion';
-// v10.yml (v10 branch): `-Pwow.scope=v10 v10Check` and the V10 integration
+// v10.yml (v10 branch): `v10Check` and the V10 integration
 // tests. Not a TypeScript scope. Decided apart from RULES, by V10_PATH: the
 // V10 modules, their tests and spikes, the V10 examples (the eShop, the Java
 // smoke test and the quickstart, with the quickstart pages its test keeps in
-// step), the end-to-end
-// benchmark against 9.x (wow-benchmarks/e2e, D224), the platform
+// step), the end-to-end benchmark (wow-benchmarks/e2e, D224), the platform
 // they import, the coverage report v10.yml uploads (test/code-coverage-report:
 // v10CoverageReport), and the root build and Gradle configuration every module
 // reads.
 const V10 = 'v10';
 const V10_PATH =
-  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|kernel-benchmarks|routing-spike|lease-spike|test-dsl|tck|tck-containers)|example\/(?:eshop|quickstart|java-smoke)|wow-benchmarks\/e2e|wow-dependencies|gradle|build-logic|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|documentation\/docs\/(?:en|zh)\/guide\/v10\/quickstart\.md$|\.github\/workflows\/v10\.yml$)/;
+  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|tck|tck-containers)|example\/(?:eshop|quickstart|java-smoke)|wow-benchmarks\/e2e|wow-dependencies|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|documentation\/docs\/(?:en|zh)\/guide\/v10\/quickstart\.md$|\.github\/workflows\/v10\.yml$)/;
 // typescript-contract.yml (v10 branch): `test:v10` of integration-test, the
 // V10 store (`@ahoo-wang/wow-view-store/v10`) and the view engine on it
 // against the V10 view store service (platform/view-store) built from this
@@ -67,7 +59,7 @@ const V10_PATH =
 // Markdown is left out: nothing the suites run reads it.
 const V10_CONTRACT = 'v10Contract';
 const V10_CONTRACT_PATH =
-  /^(?:typescript\/(?:wow-(?:client|view-store)\/(?!(?:test|expected|scripts)\/)|wow-view-engine\/(?!test\/(?!conformance\/))|integration-test\/)|(?:api|compiler|core|query|backends|edge|host|platform\/view-store|test\/(?:tck|test-dsl)|wow-dependencies|gradle|build-logic)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/typescript-contract\.yml$)/;
+  /^(?:typescript\/(?:wow-(?:client|view-store)\/(?!(?:test|expected|scripts)\/)|wow-view-engine\/(?!test\/(?!conformance\/))|integration-test\/)|(?:api|compiler|core|query|backends|edge|host|platform\/view-store|test\/(?:tck|test-dsl)|wow-dependencies|gradle)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/typescript-contract\.yml$)/;
 // ops-console-test.yml (v10 branch): the ops console's lint, types, tests and
 // build, and its end-to-end suite against the ops server it is served by. Not a
 // TypeScript scope of typescript.yml. Decided apart from RULES, by
@@ -109,50 +101,33 @@ const RULES = [
     /^typescript\/wow-(?:client|react|generator|view-store)\/(?:test|expected|scripts)\//,
     [TYPESCRIPT, SDK],
   ],
-  // The port's conformance suite runs over WowViewStore in the same-source
-  // contract (integration-test/test/view-store/) too.
-  [
-    /^typescript\/wow-view-engine\/test\/conformance\//,
-    [TYPESCRIPT, VIEW_ENGINE, CONTRACT],
-  ],
   [/^typescript\/wow-view-engine\/test\//, [TYPESCRIPT, VIEW_ENGINE]],
   // View-engine and the stories build on the client and the React hooks; the
   // site compiles its samples against the client and the generator.
   [
     /^typescript\/wow-client\//,
-    [TYPESCRIPT, SDK, DOCS, VIEW_ENGINE, STORYBOOK, CONTRACT, LEGACY_CONTRACT],
+    [TYPESCRIPT, SDK, DOCS, VIEW_ENGINE, STORYBOOK, LEGACY_CONTRACT],
   ],
-  [
-    /^typescript\/wow-generator\//,
-    [TYPESCRIPT, SDK, DOCS, CONTRACT, LEGACY_CONTRACT],
-  ],
+  [/^typescript\/wow-generator\//, [TYPESCRIPT, SDK, DOCS, LEGACY_CONTRACT]],
   // The site's samples compile against the committed generated clients.
   [
     /^typescript\/integration-test\/src\/generated\//,
-    [TYPESCRIPT, DOCS, CONTRACT, LEGACY_CONTRACT],
+    [TYPESCRIPT, DOCS, LEGACY_CONTRACT],
   ],
-  // The contracts run the integration tests; the unit job leaves them out.
-  [/^typescript\/integration-test\//, [TYPESCRIPT, CONTRACT, LEGACY_CONTRACT]],
-  // The documentation site embeds the Storybook these render, and the
-  // same-source contract runs the hooks against the example server.
+  // The contract runs the integration tests; the unit job leaves them out.
+  [/^typescript\/integration-test\//, [TYPESCRIPT, LEGACY_CONTRACT]],
+  // The documentation site embeds the Storybook these render.
   [
     // view-engine doesn't depend on wow-react; the stories and the site do.
     /^typescript\/wow-react\//,
-    [TYPESCRIPT, SDK, STORYBOOK, DOCS, CONTRACT],
+    [TYPESCRIPT, SDK, STORYBOOK, DOCS],
   ],
-  // The same-source contract runs view-engine's runtime against the server
-  // (integration-test/test/view-engine/); its own tests and prose do not.
   [
     /^typescript\/wow-view-engine\//,
-    [TYPESCRIPT, VIEW_ENGINE, STORYBOOK, DOCS, CONTRACT],
+    [TYPESCRIPT, VIEW_ENGINE, STORYBOOK, DOCS],
   ],
-  // The same-source contract runs WowViewStore against the view store server
-  // (integration-test/test/view-store/); the site lists the package, and the
-  // stories render it.
-  [
-    /^typescript\/wow-view-store\//,
-    [TYPESCRIPT, SDK, DOCS, STORYBOOK, CONTRACT],
-  ],
+  // The site lists the package, and the stories render it.
+  [/^typescript\/wow-view-store\//, [TYPESCRIPT, SDK, DOCS, STORYBOOK]],
   // The static checks lint the stories and check their formatting.
   [/^typescript\/storybook\//, [TYPESCRIPT, STORYBOOK, DOCS]],
   [/^typescript\//, [TYPESCRIPT, SDK]],
@@ -165,44 +140,14 @@ const RULES = [
     [DOCS, VIEW_ENGINE_DOCS],
   ],
   [/^documentation\//, [DOCS]],
-  // The committed contract snapshots of wow-openapi: wow-client's tests read
-  // them (test/fixtures/serverContract.ts) for its endpoint paths and header
-  // names; they change with the routes the same-source contract serves.
-  [/^wow-openapi\/src\/test\/resources\/openapi\//, [SDK, CONTRACT]],
   // The V10 framework error table's snapshot (api/manifest, review R2.5-4):
   // wow-client's tests check FrameworkErrorCodes against it
   // (test/v10/frameworkErrors.test.ts), so a change to the table reruns them.
   [/^api\/manifest\/src\/test\/resources\/framework-errors\.json$/, [SDK]],
-  // The modules whose bytes cross between versions (messages, buses, stores,
-  // the wait endpoint and the REST headers), the example cluster the
-  // mixed-version test starts, and the dependency versions (a Jackson bump can
-  // change the JSON): the same-source contract and the mixed-version test.
-  [
-    /^(?:wow-(?:api|core|metadata|rest-contract|kafka|redis|mongo|webflux|spring|spring-boot-starter)|example\/example-(?:api|domain|server)|gradle)\//,
-    [CONTRACT, MIXED_VERSION],
-  ],
-  // The mixed-version harness and the container images it shares with the
-  // integration tests.
-  [
-    /^test\/(?:wow-it\/|wow-tck\/src\/main\/kotlin\/me\/ahoo\/wow\/tck\/container\/)/,
-    [MIXED_VERSION],
-  ],
-  // The V10 examples, the eShop and its end-to-end tests, the quickstart and
-  // the Java smoke test (v10 branch): the 9.x example server the same-source
-  // contract runs does not build on them.
-  [/^example\/(?:eshop|quickstart|java-smoke)\//, []],
-  // Sources and build of the example server the same-source contract runs:
-  // every project on its runtime classpath, plus the Gradle build.
-  [
-    /^(?:wow-[^/]+|schema|example|build-logic|gradle|test\/wow-mock|compensation\/wow-compensation-(?:api|core))\//,
-    [CONTRACT],
-  ],
-  // The view store server the same-source contract starts beside the example
-  // server, for WowViewStore.
-  [/^view-store\//, [CONTRACT]],
   // The single version source: quality checks every package.json against it.
-  [/^gradle\.properties$/, [TYPESCRIPT, CONTRACT]],
-  [/^(?:build\.gradle\.kts|settings\.gradle\.kts|gradlew)$/, [CONTRACT]],
+  [/^gradle\.properties$/, [TYPESCRIPT]],
+  // The Gradle build: v10.yml (V10_PATH).
+  [/^(?:build\.gradle\.kts|settings\.gradle\.kts|gradlew)$/, []],
   // The compat-debt ledger: quality checks it against the markers.
   [/^docs\/compat-debt\.md$/, [TYPESCRIPT]],
   // Lint and format rules only the static checks read.
@@ -226,7 +171,7 @@ const RULES = [
   // Prettier checks the workflow file, so the static checks run too.
   [
     /^\.github\/workflows\/typescript-contract\.yml$/,
-    [TYPESCRIPT, CONTRACT, LEGACY_CONTRACT, WORKFLOWS],
+    [TYPESCRIPT, LEGACY_CONTRACT, WORKFLOWS],
   ],
   [
     /^\.github\/workflows\/typescript-storybook\.yml$/,
@@ -238,7 +183,6 @@ const RULES = [
     /^\.github\/workflows\/typescript-storybook-browsers\.yml$/,
     [TYPESCRIPT, WORKFLOWS],
   ],
-  [/^\.github\/workflows\/mixed-version\.yml$/, [MIXED_VERSION, WORKFLOWS]],
   // Every other workflow, the release and deploy workflows included: lint it.
   [/^\.github\/workflows\/[^/]+\.ya?ml$/, [WORKFLOWS]],
   // The TypeScript Skills: the site's tests compile the view engine Skills'
@@ -254,16 +198,17 @@ const RULES = [
   // serves it (V10_PATH).
   [/^platform\/ops\/console\//, []],
   // The V10 modules (documentation/designs/v10/06-modules.md §4; their tests
-  // live under test/, below): no example server, client or site builds on
-  // them yet.
+  // live under test/, below), the BOM, the dependency versions, the examples
+  // and the end-to-end benchmark: v10.yml (V10_PATH); no client or site builds
+  // on them yet.
   [
-    /^(?:api|compiler|core|query|backends|edge|host|extensions|migration|platform)\//,
+    /^(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|wow-dependencies|wow-benchmarks|example|gradle)\//,
     [],
   ],
-  // Other Gradle modules, the dashboard (dashboard-test.yml), the analytics
-  // service and its console (analytics-console-test.yml) and prose.
+  // Other Gradle modules, the 9.x compensation dashboard (dashboard-test.yml)
+  // and analytics console (analytics-console-test.yml), and prose.
   [
-    /^(?:test|config|deploy|document|docs|skills|scripts|compensation|dataset-registry|analytics|\.claude\/skills)\//,
+    /^(?:test|config|deploy|docs|skills|scripts|compensation|analytics|\.claude\/skills)\//,
     [],
   ],
   [/^\.github\/(?!scripts\/[^/]+\.mjs$|workflows\/typescript[^/]*\.yml$)/, []],
@@ -293,7 +238,6 @@ const UNIT_RULES = [
   ],
   [/^typescript\/wow-client\//, () => UNIT_PACKAGES],
   [/^typescript\/(wow-(?:react|generator|view-store))\//, match => [match[1]]],
-  [/^wow-openapi\/src\/test\/resources\/openapi\//, () => ['wow-client']],
   [
     /^api\/manifest\/src\/test\/resources\/framework-errors\.json$/,
     () => ['wow-client'],
@@ -320,12 +264,10 @@ export function scopes(paths) {
     PACKAGE_DOCS,
     VIEW_ENGINE_DOCS,
     STORYBOOK,
-    CONTRACT,
     LEGACY_CONTRACT,
     WORKFLOWS,
     COMPAT_DEBT,
     PACKAGE,
-    MIXED_VERSION,
     V10,
     V10_CONTRACT,
     OPS_CONSOLE,

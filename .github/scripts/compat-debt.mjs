@@ -23,6 +23,9 @@ const KOTLIN_MAIN = /(?:^|\/)src\/main\/kotlin\/.+\.kt$/;
 // Directories the Kotlin walk never enters: build output, dependencies, and
 // dot-directories (.git, .gradle, and the worktrees under .claude).
 const SKIPPED = new Set(['node_modules', 'build', 'dist', 'out']);
+// The fixed 9.x sources the wow-migrate Skill's H5 evaluation migrates (decision
+// D262): inputs copied byte for byte, not code of this repository.
+const SKIPPED_PATHS = new Set(['skills/wow-migrate/evals/h5-inputs']);
 
 /** True when the text holds a compatibility marker of any kind. */
 export function hasMarker(text) {
@@ -102,7 +105,12 @@ export function kotlinSourceFiles(root = ROOT) {
     for (const entry of readdirSync(join(root, dir), { withFileTypes: true })) {
       const path = dir ? `${dir}/${entry.name}` : entry.name;
       if (entry.isDirectory()) {
-        if (!entry.name.startsWith('.') && !SKIPPED.has(entry.name)) walk(path);
+        if (
+          !entry.name.startsWith('.') &&
+          !SKIPPED.has(entry.name) &&
+          !SKIPPED_PATHS.has(path)
+        )
+          walk(path);
       } else if (KOTLIN_MAIN.test(path)) files.push(path);
     }
   };

@@ -37,9 +37,9 @@ Commit `285da855678f1bbca710da66a536cedd5ddecfb8` (branch `claude/v10-eshop-e2e`
 From the repository root, with JDK 21 and Docker:
 
 ```bash
-./gradlew -Pwow.scope=v10 :eshop-e2e:eshopLoad -Peshop.load.concurrency=1 -Peshop.load.checkouts=100
-./gradlew -Pwow.scope=v10 :eshop-e2e:eshopLoad                                                       # 8 buyers, 200 checkouts
-./gradlew -Pwow.scope=v10 :eshop-e2e:eshopLoad -Peshop.load.concurrency=32 -Peshop.load.checkouts=400
+./gradlew :eshop-e2e:eshopLoad -Peshop.load.concurrency=1 -Peshop.load.checkouts=100
+./gradlew :eshop-e2e:eshopLoad                                                       # 8 buyers, 200 checkouts
+./gradlew :eshop-e2e:eshopLoad -Peshop.load.concurrency=32 -Peshop.load.checkouts=400
 ```
 
 `-Peshop.load.warm-up` sets the warm-up (40). The script prints one line per run, `[eshop-load] measured: …`, and fails when a checkout does not end with the paid order. It is not part of any check or CI workflow.

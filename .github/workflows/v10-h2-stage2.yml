@@ -85,7 +85,7 @@ jobs:
           else
             settings=(-Pwow.h2.stage2.duration="$DURATION" -Pwow.h2.stage2.rate="$RATE")
           fi
-          ./gradlew -Pwow.scope=v10 :routing-spike:h2Stage2 "${settings[@]}" --stacktrace
+          ./gradlew :routing-spike:h2Stage2 "${settings[@]}" --stacktrace
       - name: Summarize the report
         if: always()
         run: |

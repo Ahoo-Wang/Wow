@@ -16,6 +16,8 @@ package me.ahoo.wow.mongo.log
 import com.mongodb.ConnectionString
 import com.mongodb.MongoClientSettings
 import com.mongodb.MongoException
+import com.mongodb.ServerAddress
+import com.mongodb.MongoSocketReadTimeoutException
 import com.mongodb.client.ClientSession
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
@@ -55,9 +57,11 @@ import me.ahoo.wow.tck.containers.WowContainers
 import me.ahoo.wow.tck.log.EventLogSpec
 import org.bson.BsonDocument
 import org.junit.jupiter.api.Test
+import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class MongoEventLogTest : EventLogSpec() {
     override fun createLog(context: String, partitions: Int): EventLog = MongoLogFixture.log(partitions, context)
@@ -91,6 +95,26 @@ class MongoEventLogTest : EventLogSpec() {
             MongoLogFixture.log(2, context).lineage(1).assert().isEqualTo(PartitionLineage.ROOT)
             counters.deleteOne(Filters.eq("_id", 1))
             runCatching { log.lineage(1) }.exceptionOrNull().assert().isInstanceOf(IllegalStateException::class.java)
+        }
+
+    @Test
+    fun `contended appends keep retrying write conflicts past the transaction timeout, which bounds each attempt`(): Unit =
+        runBlocking {
+            // Regression (B.G-4): the timeout bounded the driver's whole retry loop, so on a slow machine an append that
+            // kept losing write conflicts on the partition's counter ended unknown (the lease spike's direct run, 255 of
+            // 256). With a 600 ms timeout the old loop lost dozens here; each attempt is bounded now, the retries not.
+            val context = MongoLogFixture.newContext("contended")
+            val client = MongoLogFixture.client
+            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1, transactionTimeout = 500.milliseconds)
+            log.createSchema()
+            val type = AggregateType(context, "account")
+            val outcomes = (0 until CONTENDERS).map { index ->
+                async(Dispatchers.Default) {
+                    (1..CONTENDED_VERSIONS).map { version -> log.append(stream("a-$index", version, aggregate = type)) }
+                }
+            }.awaitAll().flatten()
+            outcomes.filterNot { it is AppendOutcome.Committed }.assert().isEmpty()
+            outcomes.size.assert().isEqualTo(CONTENDERS * CONTENDED_VERSIONS)
         }
 
     @Test
@@ -202,13 +226,12 @@ class MongoEventLogTest : EventLogSpec() {
     }
 
     /** A client whose transactions run [transaction], given the commit they would make. */
-    private fun clientWith(transaction: (() -> Any?) -> Any?): MongoClient {
+    /** The fixture's client, each transaction's commit run through [commit], which calls the real one or throws. */
+    private fun clientWith(commit: (() -> Unit) -> Unit): MongoClient {
         val real = MongoLogFixture.client
         return object : MongoClient by real {
             override fun startSession(): ClientSession = spyk(real.startSession()).also { session ->
-                every { session.withTransaction(any<TransactionBody<Any>>(), any()) } answers {
-                    transaction { callOriginal() }!!
-                }
+                every { session.commitTransaction() } answers { commit { callOriginal() } }
             }
         }
     }
@@ -228,9 +251,9 @@ class MongoEventLogTest : EventLogSpec() {
         val context = MongoLogFixture.newContext()
         val committing = clientWith { commit ->
             commit()
-            throw MongoException("commit result unknown").apply {
-                addLabel(MongoException.UNKNOWN_TRANSACTION_COMMIT_RESULT_LABEL)
-            }
+            // The commit's reply lost: the driver gives up on an unknown commit result.
+            throw MongoSocketReadTimeoutException("commit result unknown", ServerAddress(), IOException("timed out"))
+                .apply { addLabel(MongoException.UNKNOWN_TRANSACTION_COMMIT_RESULT_LABEL) }
         }
         val log = MongoEventLog(committing, MongoLogFixture.DATABASE, context, 4).also { it.createSchema() }
         val streams = twoInPartitionZero(context)
@@ -239,6 +262,75 @@ class MongoEventLogTest : EventLogSpec() {
         committed.head(0).assert().isEqualTo(2L)
         streams.forEach { committed.read(it.ref).toList().single().version.assert().isEqualTo(1) }
     }
+
+    @Test
+    fun `an unknown commit result from a server that answered is retried, and the append committed once`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            var unknown = true
+            val committing = clientWith { commit ->
+                commit()
+                if (unknown) {
+                    unknown = false
+                    throw MongoException("commit result unknown").apply {
+                        addLabel(MongoException.UNKNOWN_TRANSACTION_COMMIT_RESULT_LABEL)
+                    }
+                }
+            }
+            val log = MongoEventLog(committing, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+            val appended = stream("a", 1, aggregate = AggregateType(context, "order"))
+            log.append(appended).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            MongoLogFixture.log(1, context).read(appended.ref).toList().size.assert().isEqualTo(1)
+        }
+
+    @Test
+    fun `a commit aborted after it applied is tried again, and its retry finds the request committed`(): Unit =
+        runBlocking {
+            // A transient error after the commit applied: the transaction is no longer open, nothing to abort.
+            val context = MongoLogFixture.newContext()
+            var transient = true
+            val committing = clientWith { commit ->
+                commit()
+                if (transient) {
+                    transient = false
+                    throw MongoException("aborted").apply { addLabel(MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL) }
+                }
+            }
+            val log = MongoEventLog(committing, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+            val appended = stream("a", 1, aggregate = AggregateType(context, "order"))
+            log.append(appended).assert().isInstanceOf(AppendOutcome.AlreadyCommitted::class.java)
+            MongoLogFixture.log(1, context).read(appended.ref).toList().size.assert().isEqualTo(1)
+        }
+
+    @Test
+    fun `an abort that fails joins the failure that caused it, and the transaction is tried again`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            val real = MongoLogFixture.client
+            var aborted = false
+            val client = object : MongoClient by real {
+                override fun startSession(): ClientSession = spyk(real.startSession()).also { session ->
+                    every { session.commitTransaction() } answers {
+                        if (aborted) {
+                            callOriginal()
+                        } else {
+                            throw MongoException("aborted").apply {
+                                addLabel(MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL)
+                            }
+                        }
+                    }
+                    every { session.abortTransaction() } answers {
+                        aborted = true
+                        callOriginal()
+                        throw MongoException("abort failed")
+                    }
+                }
+            }
+            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+            log.append(stream("a", 1, aggregate = AggregateType(context, "order")))
+                .assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            aborted.assert().isTrue()
+        }
 
     @Test
     fun `a group aborted for sure falls back to one append per stream`(): Unit = runBlocking {
@@ -402,6 +494,8 @@ class MongoEventLogTest : EventLogSpec() {
     }
 
     private companion object {
+        const val CONTENDERS = 32
+        const val CONTENDED_VERSIONS = 8
         const val TAIL_STALL_MS = 500L
         const val RACES = 5
         const val IDLE_POLLS = 13
