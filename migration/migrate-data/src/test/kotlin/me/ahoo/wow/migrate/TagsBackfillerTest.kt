@@ -27,6 +27,7 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.TagsBackfill
+import me.ahoo.wow.spi.state.StateEventRecord
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -101,10 +102,69 @@ class TagsBackfillerTest {
         log.gap = true
         assertThrows<MigrationException> { backfiller().backfill(type) }.message!!.assert().contains("skips a version")
         backfiller().untagged(type).assert().isTrue()
-        val plain = TagsBackfiller(MigrationModels(listOf(model)), { InMemoryEventLog(2) }, checkpoints)
+        val untaggable = object : EventLog by InMemoryEventLog(2) {}
+        val plain = TagsBackfiller(MigrationModels(listOf(model)), { untaggable }, checkpoints)
         assertThrows<MigrationException> { plain.backfill(type) }.message!!.assert().contains("records no tags")
         plain.untagged(type).assert().isFalse()
     }
+
+    /** Documents in memory, each listed while it records no tags; the overwritten ones recorded. */
+    private class Documents(streams: List<IndexedStream>) : UntaggedDocuments {
+        val untagged = streams.sortedWith(compareBy({ it.ref.id }, { it.ref.tenantId }, { it.version })).toMutableList()
+        val overwritten = mutableListOf<StateEventRecord>()
+        var pages = 0
+
+        override suspend fun untagged(after: IndexedStream?, limit: Int): List<IndexedStream> {
+            pages++
+            val start = after?.let { untagged.indexOfFirst { stream -> stream == it } + 1 } ?: 0
+            return untagged.drop(start).take(limit)
+        }
+
+        override suspend fun overwrite(records: List<StateEventRecord>) {
+            overwritten += records
+            records.forEach { record -> untagged.removeIf { it.ref == record.ref && it.version == record.version } }
+        }
+    }
+
+    private fun indexed(id: String, version: Int) = IndexedStream(type.ref("tenant", id), version)
+
+    @Test
+    fun `the re-sink overwrites the untagged documents from the backfilled log, page by page, then nothing`() =
+        runTest {
+            listOf(stream("p-1", 1, "east"), stream("p-1", 2, "west"), stream("p-2", 1, "north")).forEach {
+                log.append(it)
+            }
+            val documents = Documents(listOf(indexed("p-1", 1), indexed("p-1", 2), indexed("p-2", 1)))
+            assertThrows<MigrationException> { backfiller().resink(type, documents) }.message!!.assert()
+                .contains("backfill it first", "--force")
+            documents.overwritten.assert().isEmpty()
+            backfiller().backfill(type)
+            backfiller(ImportOptions(pageSize = 2)).resink(type, documents).assert().isEqualTo(3)
+            documents.overwritten.map { it.ref.id to it.version }.assert()
+                .containsExactly("p-1" to 1, "p-1" to 2, "p-2" to 1)
+            documents.overwritten.map { it.tags }.assert().containsExactly(
+                mapOf("region" to listOf("east")),
+                mapOf("region" to listOf("west")),
+                mapOf("region" to listOf("north")),
+            )
+            documents.overwritten.first().events.single().name.assert().isEqualTo("shipping.parcel.Moved")
+            documents.untagged.assert().isEmpty()
+            backfiller().resink(type, documents).assert().isEqualTo(0)
+        }
+
+    @Test
+    fun `forced, the re-sink leaves the documents of streams still without tags, and one missing from the log fails`() =
+        runTest {
+            log.append(stream("p-1", 1, "east"))
+            backfiller().backfill(type)
+            log.append(stream("p-2", 1, "west"))
+            val documents = Documents(listOf(indexed("p-1", 1), indexed("p-2", 1)))
+            backfiller().resink(type, documents, force = true).assert().isEqualTo(1)
+            documents.untagged.map { it.ref.id }.assert().containsExactly("p-2")
+            val ghost = Documents(listOf(indexed("p-9", 1)))
+            assertThrows<MigrationException> { backfiller().resink(type, ghost, force = true) }.message!!.assert()
+                .contains("is indexed but not in the V10 log")
+        }
 
     /** A log in memory that backfills tags, in its key order; [gap] hides every first stream. */
     class BackfilledLog(private val log: InMemoryEventLog) :

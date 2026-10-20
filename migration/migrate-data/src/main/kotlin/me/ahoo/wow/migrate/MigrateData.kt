@@ -316,10 +316,14 @@ class MigrateData(
         val sinks = connections.eventSinks
         if (sinks == null) {
             out.println("Tags backfilled. No Elasticsearch cluster is configured: nothing to re-sink.")
-            return OK
+            return if (left.isEmpty()) OK else FAILED
         }
         types.forEach { type ->
-            val overwritten = backfiller.resink(type, sinks.sinkOf(type.context, type.name), force)
+            val overwritten = backfiller.resink(
+                type,
+                UntaggedDocuments.of(sinks.sinkOf(type.context, type.name)),
+                force
+            )
             out.println("$type events index: $overwritten documents re-sunk with their tags")
         }
         out.println("Tags backfilled and re-sunk.")

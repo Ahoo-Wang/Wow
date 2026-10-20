@@ -65,6 +65,7 @@ class TagsResinkTest {
     private val restClient: Rest5Client =
         Rest5Client.builder(HttpHost.create("http://" + WowContainers.elasticsearch.httpHostAddress)).build()
     private val sink = ElasticsearchEventSinks.of(restClient).sinkOf(context, type.name)
+    private val documents = UntaggedDocuments.of(sink)
     private val checkpoints = InMemoryCheckpointRepository()
     private val backfiller = TagsBackfiller(MigrationModels(listOf(model)), { log }, checkpoints, ImportOptions(pageSize = 2))
 
@@ -134,14 +135,14 @@ class TagsResinkTest {
             sink.untagged(null, 10).size.assert().isEqualTo(3)
             visible("east").assert().isEmpty()
             // The log first: refused while it still holds streams without tags.
-            assertThrows<MigrationException> { backfiller.resink(type, sink) }.message!!.assert().contains("backfill it first")
+            assertThrows<MigrationException> { backfiller.resink(type, documents) }.message!!.assert().contains("backfill it first")
             backfiller.backfill(type).checkpoint.streams.assert().isEqualTo(3)
-            backfiller.resink(type, sink).assert().isEqualTo(3)
+            backfiller.resink(type, documents).assert().isEqualTo(3)
             sink.untagged(null, 10).assert().isEmpty()
             visible("east").assert().containsExactly("p-1@1", "p-2@1")
             visible("west").assert().containsExactly("p-1@2")
             val versions = documentVersions()
-            backfiller.resink(type, sink).assert().isEqualTo(0)
+            backfiller.resink(type, documents).assert().isEqualTo(0)
             documentVersions().assert().isEqualTo(versions)
         }
 
@@ -152,9 +153,16 @@ class TagsResinkTest {
         backfiller.backfill(type)
         log.append(streams[1])
         indexedBefore(streams)
-        backfiller.resink(type, sink, force = true).assert().isEqualTo(1)
+        backfiller.resink(type, documents, force = true).assert().isEqualTo(1)
         sink.untagged(null, 10).map { it.ref.id }.assert().containsExactly("p-2")
         visible("east").assert().containsExactly("p-1@1")
+    }
+
+    @Test
+    fun `an events index not written yet holds no document to re-sink`(): Unit = runBlocking {
+        val missing = ElasticsearchEventSinks.of(restClient).sinkOf("missing_$context", type.name)
+        UntaggedDocuments.of(missing).untagged(null, 10).assert().isEmpty()
+        UntaggedDocuments.of(missing).toString().assert().contains("missing_$context")
     }
 
     private companion object {

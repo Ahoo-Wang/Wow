@@ -52,6 +52,34 @@ data class TagsCheckpoint(
     fun after(type: AggregateType): AggregateRef? = afterId?.let { type.ref(checkNotNull(afterTenantId), it) }
 }
 
+/**
+ * The documents of an aggregate type's events index the re-sink reads and overwrites ([TagsBackfiller.resink]): an
+ * [ElasticsearchEventSink] ([of]), or a test's.
+ */
+interface UntaggedDocuments {
+    /** The streams whose documents record no tags, in `(aggregateId, tenantId, version)` order after [after]. */
+    suspend fun untagged(after: IndexedStream?, limit: Int): List<IndexedStream>
+
+    /** Writes [records] over the documents of their streams. */
+    suspend fun overwrite(records: List<StateEventRecord>)
+
+    companion object {
+        /** The documents [sink] writes. */
+        fun of(sink: ElasticsearchEventSink): UntaggedDocuments = object : UntaggedDocuments {
+            override suspend fun untagged(after: IndexedStream?, limit: Int): List<IndexedStream> =
+                sink.untagged(after?.let { ElasticsearchEventSink.StreamKey(it.ref, it.version) }, limit)
+                    .map { IndexedStream(it.ref, it.version) }
+
+            override suspend fun overwrite(records: List<StateEventRecord>) = sink.overwrite(records)
+
+            override fun toString(): String = sink.toString()
+        }
+    }
+}
+
+/** One indexed stream: its aggregate and version. */
+data class IndexedStream(val ref: AggregateRef, val version: Int)
+
 /** The tags backfill of one V10 aggregate type since it started; see [TagsCheckpoint]. */
 data class TagsProgress(val type: AggregateType, val checkpoint: TagsCheckpoint) {
     fun render(): String {
@@ -122,29 +150,29 @@ class TagsBackfiller(
     /**
      * Re-sinks the documents of [type]'s events index that were indexed before the index learned the tags (decision
      * D259): each such stream read from the log, its tags now recorded there, and written over its document
-     * ([ElasticsearchEventSink.overwrite]), the only documents this writes. Run after [backfill]: while the log still
+     * ([UntaggedDocuments.overwrite]), the only documents this writes. Run after [backfill]: while the log still
      * holds a stream without tags it refuses, unless [force], which leaves the documents of those streams as they are.
      * An overwritten document is no longer listed, so a run again, or after a stop, goes on where it was and
      * overwrites nothing twice. Returns how many it overwrote.
      */
-    suspend fun resink(type: AggregateType, sink: ElasticsearchEventSink, force: Boolean = false): Long {
+    suspend fun resink(type: AggregateType, documents: UntaggedDocuments, force: Boolean = false): Long {
         if (!force && untagged(type)) {
             throw MigrationException(
                 "The V10 log of $type still holds streams without tags: backfill it first, or re-sink with --force.",
             )
         }
         val log = logOf(type.context)
-        var after: ElasticsearchEventSink.StreamKey? = null
+        var after: IndexedStream? = null
         var overwritten = 0L
         while (true) {
-            val page = sink.untagged(after, options.pageSize)
+            val page = documents.untagged(after, options.pageSize)
             if (page.isEmpty()) break
             val records = page.mapNotNull { key ->
                 val stream = log.read(key.ref, key.version, key.version).toList().singleOrNull()
                     ?: throw MigrationException("${key.ref} v${key.version} is indexed but not in the V10 log.")
                 stream.takeIf { it.tags != null }?.let(::recordOf)
             }
-            sink.overwrite(records)
+            documents.overwrite(records)
             overwritten += records.size
             after = page.last()
         }
