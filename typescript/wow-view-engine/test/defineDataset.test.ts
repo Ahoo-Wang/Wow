@@ -18,7 +18,7 @@ import {
   SensitivityLevel,
   TimeUnit,
   type QueryModelDescriptor,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import { builtinFieldKinds, defineDataset } from '../src/index.js';
 import { narrowDefinition } from '../src/capabilities/index.js';

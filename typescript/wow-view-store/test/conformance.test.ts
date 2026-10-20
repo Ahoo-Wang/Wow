@@ -20,8 +20,8 @@
  */
 
 import { beforeEach } from 'vitest';
-import { WowViewStore } from '../../src/v10/index.js';
-import { describeViewStoreConformance } from '../../../wow-view-engine/test/conformance/viewStoreConformance.js';
+import { WowViewStore } from '../src/index.js';
+import { describeViewStoreConformance } from '../../wow-view-engine/test/conformance/viewStoreConformance.js';
 import { actingAs, installFake, WRITER_ROLES } from './support.js';
 
 const SYSTEM_DEFINITION = 'conformance-system';

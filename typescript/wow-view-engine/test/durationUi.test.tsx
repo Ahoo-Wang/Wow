@@ -17,10 +17,7 @@
  * unit and summary, and 「按这个时长分区间」 turning it into a dimension.
  */
 
-import {
-  AggregationDateUnit,
-  AggregationGroupType,
-} from '@ahoo-wang/wow-client';
+import { AggregationDateUnit, AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
   fireEvent,

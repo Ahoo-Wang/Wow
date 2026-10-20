@@ -4,32 +4,49 @@
 
 ```ts
 
+import { DatasetCatalog } from '@ahoo-wang/wow-view-engine';
+import { DatasetClient } from '@ahoo-wang/wow-client/v10';
 import { DatasetOverrides } from '@ahoo-wang/wow-view-engine';
 import { DatasetWordingStore } from '@ahoo-wang/wow-view-engine';
 import { Fetcher } from '@ahoo-wang/fetcher';
+import { QueryModelClient } from '@ahoo-wang/wow-client/v10';
 import { StoredDatasetWording } from '@ahoo-wang/wow-view-engine';
+import { TargetScope } from '@ahoo-wang/wow-client/v10';
 import { ViewAudience } from '@ahoo-wang/wow-view-engine';
 import { ViewConfig } from '@ahoo-wang/wow-view-engine';
 import { ViewInstance } from '@ahoo-wang/wow-view-engine';
 import { ViewInstanceSummary } from '@ahoo-wang/wow-view-engine';
 import { ViewPermissions } from '@ahoo-wang/wow-view-engine';
 import { ViewPreferences } from '@ahoo-wang/wow-view-engine';
+import { ViewSource } from '@ahoo-wang/wow-view-engine';
 import { ViewStore } from '@ahoo-wang/wow-view-engine';
 import { WriteContext } from '@ahoo-wang/wow-view-engine';
+
+// @public
+export function datasetCatalogOf(client: DatasetClient): Pick<DatasetCatalog, 'list' | 'source'>;
 
 // @public
 export const SHARED_OWNER_ID = "(shared)";
 
 // @public
+export const SHARED_SCOPE: TargetScope;
+
+// @public
 export const SYSTEM_OWNER_ID = "(system)";
+
+// @public
+export const SYSTEM_SCOPE: TargetScope;
 
 // @public
 export const SYSTEM_TENANT_ID = "(platform)";
 
 // @public
+export function viewSourceOf<F extends string>(client: QueryModelClient<object, F>): ViewSource;
+
+// @public
 export class WowDatasetWordings implements DatasetWordingStore {
     constructor(options: WowDatasetWordingsOptions);
-    clear(dataset: string, revision: string, context: WriteContext): Promise<void>;
+    clear(dataset: string, revision: string, context: WriteContext): Promise<string>;
     list(signal?: AbortSignal): Promise<ReadonlyMap<string, StoredDatasetWording>>;
     set(dataset: string, wording: DatasetOverrides, revision: string, context: WriteContext): Promise<string>;
 }
@@ -56,13 +73,14 @@ export class WowViewStore implements ViewStore {
 }
 
 // @public
-export const WowViewStoreErrorCodes: Readonly<{
-    readonly VIEW_INVALID: "ViewInvalid";
-    readonly VIEW_APP_REQUIRED: "ViewAppRequired";
-    readonly SYSTEM_VIEW_READ_ONLY: "SystemViewReadOnly";
-    readonly VIEW_SCOPE_REQUIRED: "ViewScopeRequired";
-    readonly VIEW_EVENT_STREAM_CLOSED: "ViewEventStreamClosed";
-}>;
+export const WowViewStoreErrorCodes: {
+    readonly APP_REQUIRED: "view-store.app-required";
+    readonly INVALID: "view-store.invalid";
+    readonly NOT_FOUND: "view-store.not-found";
+    readonly OWNER_REQUIRED: "view-store.owner-required";
+    readonly REFERENCED_BY_SHARED_DASHBOARD: "view-store.referenced-by-shared-dashboard";
+    readonly SYSTEM_VIEW_READ_ONLY: "view-store.system-view-read-only";
+};
 
 // @public
 export interface WowViewStoreOptions {

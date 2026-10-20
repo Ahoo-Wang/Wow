@@ -11,124 +11,97 @@
  * limitations under the License.
  */
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import {
-  ViewStoreError,
-  type DatasetWordingStore,
-} from '@ahoo-wang/wow-view-engine';
+import { describe, expect, it, vi } from 'vitest';
 import { WowDatasetWordings } from '../src/index.js';
-import { at, fakeServer, json, wowError } from './support/fakeServer.js';
+import { actingAs, installFake, WRITER_ROLES, type Caller } from './support.js';
 
-const SHARED = '/view-store/tenant/t1/owner/(shared)';
-const WORDING = `${SHARED}/datasets/analytics.orders/wording`;
-const LIST = `${SHARED}/dataset_wording/snapshot/list`;
+const WRITER: Caller = {
+  user: 'admin',
+  tenant: 't1',
+  roles: WRITER_ROLES,
+  app: 'console',
+};
+const READER: Caller = { user: 'reader', tenant: 't1', app: 'console' };
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-});
+function write() {
+  return { requestId: `w-${crypto.randomUUID()}` };
+}
 
-const stored = [
-  {
-    version: 3,
-    state: {
-      dataset: 'analytics.orders',
-      title: '订单',
-      recordNoun: null,
-      fields: { buyer: '买家', discount: false },
-    },
-  },
-  {
-    version: 1,
-    state: { dataset: 'analytics.refunds', title: null, fields: null },
-  },
-];
+describe('the V10 WowDatasetWordings', () => {
+  it('sets, lists and clears a dataset’s wording, by revision', async () => {
+    const fake = installFake();
+    const writer = new WowDatasetWordings({ fetcher: actingAs(WRITER) });
+    const reader = new WowDatasetWordings({ fetcher: actingAs(READER) });
 
-describe('WowDatasetWordings', () => {
-  it("lists the tenant's wording under (shared), by dataset, what is stored and nothing more", async () => {
-    const server = fakeServer(at('POST', LIST, () => json(stored)));
-    const wordings = new WowDatasetWordings({ fetcher: server.fetcher });
-
-    const listed = await wordings.list();
-
-    expect([...listed]).toEqual([
-      [
-        'analytics.orders',
-        {
-          wording: {
-            title: '订单',
-            fields: { buyer: '买家', discount: false },
-          },
-          revision: '3',
-        },
-      ],
-      ['analytics.refunds', { wording: {}, revision: '1' }],
-    ]);
-    expect(server.requests[0]!.body).toMatchObject({ limit: 1000 });
-  });
-
-  it("is a store of wording the engine's DatasetResources reads", async () => {
-    const server = fakeServer(at('POST', LIST, () => json(stored)));
-    const store: DatasetWordingStore = new WowDatasetWordings({
-      fetcher: server.fetcher,
+    expect(await reader.list()).toEqual(new Map());
+    const set = await writer.set(
+      'sales.orders',
+      { title: 'Orders', recordNoun: 'order', fields: { a: { label: 'A' } } },
+      '0',
+      write(),
+    );
+    expect(set).toBe('1');
+    const again = await writer.set('sales.orders', {}, set, write());
+    expect(again).toBe('2');
+    expect((await reader.list()).get('sales.orders')).toEqual({
+      wording: {},
+      revision: '2',
     });
-    expect((await store.list()).get('analytics.orders')?.revision).toBe('3');
+    expect(
+      await writer.set('sales.orders', { title: 'Orders' }, again, write()),
+    ).toBe('3');
+    expect(await writer.clear('sales.orders', '3', write())).toBe('4');
+    expect((await reader.list()).get('sales.orders')).toEqual({
+      wording: {},
+      revision: '4',
+    });
+
+    const clear = fake.requests.find(request =>
+      request.path.endsWith('clear-dataset-wording'),
+    )!;
+    expect(clear.path).toBe(
+      '/view-store/dataset_wording/clear-dataset-wording',
+    );
+    expect(clear.body).toEqual({ dataset: 'sales.orders' });
+    expect(clear.headers.get('If-Match')).toBe('"3"');
   });
 
-  it('rejects a list it cannot read as a ViewStoreError', async () => {
-    const server = fakeServer(
-      at('POST', LIST, () => wowError('ServiceUnavailable', 'down', 503)),
-    );
-    const wordings = new WowDatasetWordings({ fetcher: server.fetcher });
-    await expect(wordings.list()).rejects.toBeInstanceOf(ViewStoreError);
-  });
-
-  it('writes the wording whole at the expected revision, and answers the new one', async () => {
-    const server = fakeServer(
-      at('PUT', WORDING, () =>
-        json({ errorCode: 'Ok', aggregateId: 'w', aggregateVersion: 4 }),
-      ),
-    );
-    const wordings = new WowDatasetWordings({ fetcher: server.fetcher });
-
-    const revision = await wordings.set(
-      'analytics.orders',
-      { title: '订单', fields: { buyer: '买家' } },
-      '3',
-      { requestId: 'r1' },
-    );
-
-    expect(revision).toBe('4');
-    const [put] = server.requests;
-    expect(put!.body).toEqual({ title: '订单', fields: { buyer: '买家' } });
-    expect(put!.headers.get('Command-Aggregate-Version')).toBe('3');
-    expect(put!.headers.get('Command-Request-Id')).toBe('r1');
-  });
-
-  it('clears a wording at the expected revision', async () => {
-    const server = fakeServer(
-      at('DELETE', WORDING, () =>
-        json({ errorCode: 'Ok', aggregateId: 'w', aggregateVersion: 5 }),
-      ),
-    );
-    const wordings = new WowDatasetWordings({ fetcher: server.fetcher });
-
-    await wordings.clear('analytics.orders', '4', { requestId: 'r2' });
-
-    expect(server.requests[0]!.headers.get('Command-Aggregate-Version')).toBe(
-      '4',
-    );
-  });
-
-  it('reads a stale revision as the port reads it', async () => {
-    const server = fakeServer(
-      at('PUT', WORDING, () =>
-        wowError('CommandExpectVersionConflict', 'stale', 409),
-      ),
-    );
-    const wordings = new WowDatasetWordings({ fetcher: server.fetcher });
-
+  it('refuses a reader without the role, and a stale revision', async () => {
+    installFake();
+    const writer = new WowDatasetWordings({ fetcher: actingAs(WRITER) });
+    await writer.set('sales.orders', { title: 'Orders' }, '0', write());
     await expect(
-      wordings.set('analytics.orders', {}, '1', { requestId: 'r3' }),
+      new WowDatasetWordings({ fetcher: actingAs(READER) }).set(
+        'sales.orders',
+        { title: 'Mine' },
+        '1',
+        write(),
+      ),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(
+      writer.set('sales.orders', { title: 'Stale' }, '0', write()),
     ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('answers the revision after the expected one when the result names none', async () => {
+    const fake = installFake();
+    const real = fake.fetch;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        await real(input, init);
+        return new Response('{}', {
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }),
+    );
+    expect(
+      await new WowDatasetWordings({ fetcher: actingAs(WRITER) }).set(
+        'sales.orders',
+        { title: 'Orders' },
+        '0',
+        write(),
+      ),
+    ).toBe('1');
   });
 });

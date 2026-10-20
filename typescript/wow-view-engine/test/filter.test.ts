@@ -19,7 +19,7 @@
  * editing in `filterTree.test.ts`.
  */
 
-import { FilterOperator, StringComparison } from '@ahoo-wang/wow-client';
+import { FilterOperator, StringComparison } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   METADATA_FIELD_KIND_IDS,

@@ -20,7 +20,7 @@
  */
 
 import { act, renderHook } from '@testing-library/react';
-import { FilterOperator } from '@ahoo-wang/wow-client';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,

@@ -21,13 +21,8 @@ import {
   usePagedQuery,
   useSingleQuery,
 } from '@ahoo-wang/wow-react';
-import {
-  filter,
-  listQuery,
-  pagedQuery,
-  singleQuery,
-  SnapshotQueryClient,
-} from '@ahoo-wang/wow-client';
+import { SnapshotQueryClient } from '@ahoo-wang/wow-client';
+import { filter, listQuery, pagedQuery, singleQuery } from '@ahoo-wang/wow-client/dsl';
 import { useMemo } from 'react';
 import { installFetchFixture } from '../fixtures/http';
 import type { FixtureUser } from '../fixtures/users';

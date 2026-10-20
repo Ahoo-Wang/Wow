@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { QueryErrorCodes } from '@ahoo-wang/wow-client';
+import { QueryErrorCodes } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * The rejections that say the descriptor may be behind (capabilities.md 7):

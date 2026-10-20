@@ -19,7 +19,7 @@ import {
   type AggregationQuery,
   type FieldSort,
   type FilterExpression,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import type { RecordData } from '../model/record.js';
 import type { ViewSource } from '../runtime/source.js';
 import { summarise } from './aggregate.js';

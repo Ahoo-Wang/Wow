@@ -13,8 +13,8 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { DatasetClient, EventQueryClient } from '@ahoo-wang/wow-client';
-import { datasetCatalogOf, viewSourceOf } from '../../src/v10/index.js';
-import type { FakeDataset } from '../support/fakeV10ViewStore.js';
+import { datasetCatalogOf, viewSourceOf } from '../src/index.js';
+import type { FakeDataset } from './support/fakeViewStore.js';
 import { actingAs, installFake } from './support.js';
 
 const ROWS = [

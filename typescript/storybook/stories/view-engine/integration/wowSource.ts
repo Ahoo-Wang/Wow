@@ -12,10 +12,7 @@
  */
 
 import type { Fetcher } from '@ahoo-wang/fetcher';
-import {
-  QueryClientFactory,
-  ResourceAttributionPathSpec,
-} from '@ahoo-wang/wow-client';
+import { QueryClientFactory, ResourceAttributionPathSpec } from '@ahoo-wang/wow-client';
 import type { ViewSource } from '@ahoo-wang/wow-view-engine';
 
 // Step 2a: where the rows come from — a Wow service's query routes, through

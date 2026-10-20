@@ -17,11 +17,31 @@ import type {
   CursorQuery,
   FilterPagedQuery,
   PagedList,
-  QueryDescriptorResult,
-} from '@ahoo-wang/wow-client';
+  QueryModelDescriptor,
+} from '@ahoo-wang/wow-client/dsl';
 import type { FieldOption, Issue, RecordData } from '../model/index.js';
 import type { AnalysisProjection } from '../analysis/index.js';
 import type { RecordProjection, SummaryRow } from '../record/index.js';
+
+/**
+ * What a source's `describe` answers: the descriptor read in full, with its
+ * version to send next time, or word that the version sent is still current.
+ * Branch on `notModified`.
+ */
+export type QueryDescriptorResult =
+  | {
+      /** `false`: `descriptor` holds the descriptor. */
+      notModified: false;
+      descriptor: QueryModelDescriptor;
+      /** Its version, the same as `descriptor.version`; send it next time. */
+      version: string;
+    }
+  | {
+      /** `true`: keep the descriptor already held. */
+      notModified: true;
+      /** The version sent. */
+      version: string;
+    };
 
 /**
  * Where a definition's data comes from. Three of `QueryApi`'s methods, so a
@@ -77,8 +97,8 @@ export interface ViewSource {
   /**
    * The source's capability descriptor (capabilities.md 3): given the
    * version already held, an unchanged one answers `notModified`.
-   * wow-client's `describeSnapshot` or `describeEventStream` fits it as it
-   * is. The engine reads it once per source before the first view over it
+   * wow-view-store's `viewSourceOf` adapts wow-client's
+   * `QueryModelClient.describe` to it. The engine reads it once per source before the first view over it
    * runs, narrows each definition to what it admits and takes its limits,
    * and checks it again on its own schedule. Left out, a view runs on the
    * definition and the default limits alone, as it did before descriptors.

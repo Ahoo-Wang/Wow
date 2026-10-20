@@ -18,10 +18,7 @@
  * day as before. Refreshed after midnight, 「昨日」 is read again.
  */
 
-import {
-  AggregationDateUnit,
-  AggregationGroupType,
-} from '@ahoo-wang/wow-client';
+import { AggregationDateUnit, AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,

@@ -26,11 +26,7 @@
  * 计），按查询的排序排好、按 `limit` 截断，别的一律拒绝。
  * ------------------------------------------------------------------------ */
 
-import {
-  AggregationFunction,
-  AggregationGroupType,
-  SortDirection,
-} from '@ahoo-wang/wow-client';
+import { AggregationFunction, AggregationGroupType, SortDirection } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   type AnalysisViewConfig,

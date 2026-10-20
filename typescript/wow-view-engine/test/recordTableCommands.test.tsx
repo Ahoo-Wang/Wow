@@ -19,7 +19,7 @@
  * applied is a change nobody can see.
  */
 
-import { MAX_CURSOR_SORT_FIELDS } from '@ahoo-wang/wow-client';
+import { MAX_CURSOR_SORT_FIELDS } from '@ahoo-wang/wow-client/dsl';
 import {
   act,
   cleanup,

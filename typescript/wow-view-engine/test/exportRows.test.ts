@@ -12,11 +12,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import {
-  FilterOperator,
-  type CursorQuery,
-  type FilterPagedQuery,
-} from '@ahoo-wang/wow-client';
+import { FilterOperator, type CursorQuery, type FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
 import {
   builtinFieldKinds,
   isRecordRuntime,

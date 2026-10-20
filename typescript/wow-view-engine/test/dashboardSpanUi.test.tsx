@@ -20,10 +20,7 @@
  * the table layout with Shift; the drag is the browser story's.
  */
 
-import {
-  AggregationDateUnit,
-  AggregationGroupType,
-} from '@ahoo-wang/wow-client';
+import { AggregationDateUnit, AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
   render,

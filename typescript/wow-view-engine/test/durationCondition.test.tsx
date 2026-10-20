@@ -25,7 +25,7 @@ import {
   filter as wow,
   FilterOperator,
   type QueryModelDescriptor,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
   fireEvent,

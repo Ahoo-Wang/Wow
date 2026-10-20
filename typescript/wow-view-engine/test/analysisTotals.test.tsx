@@ -22,7 +22,7 @@
  * no totals row repeats it and the footer counts no 「1 组」.
  */
 
-import { AggregationFunction } from '@ahoo-wang/wow-client';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {

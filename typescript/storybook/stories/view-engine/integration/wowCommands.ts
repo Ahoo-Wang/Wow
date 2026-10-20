@@ -12,11 +12,7 @@
  */
 
 import type { Fetcher } from '@ahoo-wang/fetcher';
-import {
-  CommandClient,
-  CommandStage,
-  waitStrategy,
-} from '@ahoo-wang/wow-client';
+import { CommandClient, CommandStage, waitStrategy } from '@ahoo-wang/wow-client';
 import type { OrderCommands } from './orderActions.js';
 
 // Step 4b: the commands, sent to the Wow service. A command client

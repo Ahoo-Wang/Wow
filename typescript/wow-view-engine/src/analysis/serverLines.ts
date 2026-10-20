@@ -21,7 +21,7 @@ import {
   type DerivedExpression,
   type DerivedExpressionDsl,
   type FieldSort,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import type {
   AnalysisViewConfig,
   DerivedSeries,

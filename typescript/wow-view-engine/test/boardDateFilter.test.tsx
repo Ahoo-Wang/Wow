@@ -19,10 +19,7 @@
  * an optional date holding nothing says each panel reads its own dates.
  */
 
-import {
-  AggregationDateUnit,
-  AggregationGroupType,
-} from '@ahoo-wang/wow-client';
+import { AggregationDateUnit, AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
   render,

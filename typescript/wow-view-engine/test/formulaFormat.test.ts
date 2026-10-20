@@ -19,10 +19,7 @@
  * put around it.
  */
 
-import {
-  AggregationFunction,
-  AggregationGroupType,
-} from '@ahoo-wang/wow-client';
+import { AggregationFunction, AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   formulaFormat,

@@ -11,11 +11,7 @@
  * limitations under the License.
  */
 
-import {
-  formatHop,
-  type CommandResult,
-  type Hop,
-} from "@ahoo-wang/wow-client";
+import { formatHop, type CommandResult, type Hop } from "@ahoo-wang/wow-client";
 import { eshopBasketWait } from "@/generated/basket/eshop-basket";
 import { eshopInventoryWait } from "@/generated/inventory/eshop-inventory";
 import { eshopOrderingWait } from "@/generated/ordering/eshop-ordering";

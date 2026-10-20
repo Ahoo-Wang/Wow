@@ -12,17 +12,12 @@
  */
 
 import { Fetcher, HttpMethod } from '@ahoo-wang/fetcher';
-import type { RecoverableType } from '@ahoo-wang/wow-client';
+import { type RecoverableType, CommandClient, CommandHeaders, CommandStage, ErrorCodes, SnapshotQueryClient } from '@ahoo-wang/wow-client';
 import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
-  CommandClient,
-  CommandHeaders,
-  CommandStage,
-  ErrorCodes,
-  SnapshotQueryClient,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,

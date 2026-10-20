@@ -15,7 +15,7 @@ import {
   AggregationGroupType,
   type FieldAggregateDescriptor,
   type QueryModelDescriptor,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   dateDiffUnitsOf,
   datePartsOf,

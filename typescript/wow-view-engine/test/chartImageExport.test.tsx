@@ -27,10 +27,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import {
-  AggregationFunction,
-  AggregationGroupType,
-} from '@ahoo-wang/wow-client';
+import { AggregationFunction, AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {

@@ -22,10 +22,7 @@
  * 演示「不在这张地图上」。
  * ------------------------------------------------------------------------ */
 
-import {
-  AggregationFunction,
-  AggregationGroupType,
-} from '@ahoo-wang/wow-client';
+import { AggregationFunction, AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import type {
   AnalysisViewConfig,
   DataViewDefinition,

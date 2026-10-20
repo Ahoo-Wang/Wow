@@ -11,20 +11,11 @@
  * limitations under the License.
  */
 
-import type {
-  AggregationQuery,
-  CursorQuery,
-  DatasetDirectoryEntry,
-  FilterPagedQuery,
-} from '@ahoo-wang/wow-client';
-import type {
-  DatasetClient,
-  PagedQuery,
-  QueryModelClient,
-  RequestOptions,
-} from '@ahoo-wang/wow-client';
+import type { DatasetClient, PagedQuery, QueryModelClient, RequestOptions } from '@ahoo-wang/wow-client';
+import type { AggregationQuery, CursorQuery, FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
 import type {
   DatasetCatalog,
+  DatasetDirectoryEntry,
   RecordData,
   ViewSource,
 } from '@ahoo-wang/wow-view-engine';
@@ -32,11 +23,10 @@ import type {
 /**
  * The view engine's `ViewSource` over one query route of a Wow **V10**
  * service: a generated `…SnapshotQueryClient`, a `QueryModelClient`, or a
- * dataset's (`DatasetClient.dataset(…)`). The engine's port was cut after
- * the 9.x `QueryApi`, which a V10 client is not: its operations take
- * request options rather than an `AbortController`, its page carries
- * whether the total is exact, and its descriptor read answers the version
- * apart. This is the whole adapter.
+ * dataset's (`DatasetClient.dataset(…)`). The engine's port takes an
+ * `AbortController` rather than request options, reads the total as a plain
+ * count, and wants the descriptor's version with every read. This is the
+ * whole adapter.
  *
  * A page counts its total as the service does by default, `BOUNDED`
  * (D150): exact up to the budget's limit, and the limit itself past it. A

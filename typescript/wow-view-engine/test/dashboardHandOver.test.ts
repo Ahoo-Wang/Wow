@@ -18,7 +18,7 @@
  * reader set, with the way back beside them.
  */
 
-import type { FilterPagedQuery } from '@ahoo-wang/wow-client';
+import type { FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,

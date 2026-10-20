@@ -17,7 +17,7 @@ import type {
   AggregationFunction,
   AggregationGroupType,
   WindowFunction,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import type { AnalysisDateDiffUnit, AnalysisMetric } from './analysis.js';
 import type { FieldDefinition } from './field.js';
 import type { Issue } from './issue.js';

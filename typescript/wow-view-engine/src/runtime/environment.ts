@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { QueryViolation } from '@ahoo-wang/wow-client';
+import type { QueryViolation } from '@ahoo-wang/wow-client/dsl';
 import type { RecordKey } from '../model/index.js';
 
 /**
@@ -84,9 +84,9 @@ export interface ViewErrorContext {
    */
   violation?: QueryViolation;
   /**
-   * For `query`: the `errorCode` the service answered with, as it gave it —
-   * `IllegalAccessQueryScope`, `QuerySchemaValidation`, an application's own
-   * — when it gave one.
+   * For `query`: the Wow `code` of the problem the service answered with,
+   * as it gave it — `wow.query.invalid`, `wow.aggregate.forbidden`, an
+   * application's own — when it gave one.
    */
   errorCode?: string;
 }

@@ -2,20 +2,20 @@
   "version": 1,
   "files": {
     "index.ts": "c8cc2cfaa3a5b13ebc9eb794e2899b8269b66c8a4ca2a3170797a63f34b8be3f",
-    "view-store/boundedContext.ts": "9e92e95c8fae56224dcc4cb61932c4d91d70408136794821db4f4a94d5faa5f0",
-    "view-store/dataset_wording/aggregate.ts": "dad3638d2e8aa55d8390dcb6dae34a3e7f3e134d4a02e965ccfcbe4e6a5768c3",
-    "view-store/dataset_wording/commandClient.ts": "35d28cbc9f9f75946634d77733346780e30e4dc5927c7ccd389e4aeddca845c1",
+    "view-store/boundedContext.ts": "a34ddfe531c281d4a790c6d3f69b6872e8300395c7c97bffbef0dc5790faaecd",
+    "view-store/dataset_wording/aggregate.ts": "1f11ec73924d52f4c5d955a2f047d209e3e308392df85c65ebba59269b9788f9",
+    "view-store/dataset_wording/commandClient.ts": "33021644542b8b151348f39a2fe68d3bce2b3c0b16ae4f46c687120366e0ad8f",
     "view-store/dataset_wording/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
-    "view-store/dataset_wording/queryClient.ts": "75775491e24c02e916a8cadae0e3da2a2e98e9f1601a165e246b8fa9b161c4f7",
+    "view-store/dataset_wording/queryClient.ts": "7888c41208072c99a727c93afcd959ae4b192b83a3c1380768f5eae689edc350",
     "view-store/index.ts": "52de570d94e95e46cdaa1128eb7911400d6ea83f955c1cf6ac123c03fb1a942f",
     "view-store/types.ts": "2a06ae9f23b63a3696d5874a89bb9daf143ef754f421157dc9ce3dc30d83766f",
-    "view-store/view/aggregate.ts": "1ffd53da1d97b05a9b68c3e256272f6a8786846e2752ede5ec94616a0c547c9c",
-    "view-store/view/commandClient.ts": "55995f83a14133d4ad8756dc242a12338ba1eced2398a8caad08225c3331f01e",
+    "view-store/view/aggregate.ts": "442ff50a52f03282c2212ae0c72c5afdc35b86fa2b693d91be20828344a909b3",
+    "view-store/view/commandClient.ts": "407db9f47c9668bba3cd4c4440a8e5d641779ea9a93003518c5e8d973db5916c",
     "view-store/view/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
-    "view-store/view/queryClient.ts": "0be9b2e2a82a24cc8240a594358acf9a80ca81a2d33d19e0970503e9dad0b133",
-    "view-store/view_preferences/aggregate.ts": "7386d452ac610a5c2e734b46cd6100f558b54acfc9f1adc217f5b6ad35d5fd20",
-    "view-store/view_preferences/commandClient.ts": "192a3740f993a0a8454e8c02b6cbb9120ba3346d1f3b8c828a25478ef03cdfe6",
+    "view-store/view/queryClient.ts": "e179fe28d79a1be432f1cde177e5f31a9b0945fe791690393bff524381525dda",
+    "view-store/view_preferences/aggregate.ts": "7908141b177b2a724b1ed5ba6c0a8031851fea051f5d63e7df2c521c131a5aa4",
+    "view-store/view_preferences/commandClient.ts": "f91451bdd4fe179383cf08aec4bb1ee7947592f74d26395810506e6fa3f12d97",
     "view-store/view_preferences/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
-    "view-store/view_preferences/queryClient.ts": "9ebd6bddd2fd20774863a29a0f3fc11b1ed6d0069e74562079f00256126005c0"
+    "view-store/view_preferences/queryClient.ts": "ddc7f6f97bfe573f2adfc42996dead023306bc08e44695766f99c1426ab2a9bf"
   }
 }

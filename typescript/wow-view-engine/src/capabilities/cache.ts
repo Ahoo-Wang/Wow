@@ -11,10 +11,8 @@
  * limitations under the License.
  */
 
-import type {
-  QueryDescriptorResult,
-  QueryModelDescriptor,
-} from '@ahoo-wang/wow-client';
+import type { QueryDescriptorResult } from '../runtime/source.js';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * Reads one source's descriptor, sending the version already held so an

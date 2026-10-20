@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { filter, TimeUnit, type FilterExpression } from '@ahoo-wang/wow-client';
+import { filter, TimeUnit, type FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import dayjs from 'dayjs';
 import {
   temporalOf,

@@ -24,8 +24,8 @@ import type {
 } from '../manifest/analyze';
 import { camelCase, quoteStringLiteral } from '../naming/naming';
 
-/** The entry of the V10 client every generated module imports from. */
-export const V10_CLIENT = '@ahoo-wang/wow-client';
+/** The entry of the client every generated module imports from. */
+export const WOW_CLIENT = '@ahoo-wang/wow-client';
 
 /** A doc comment of the lines given, those without text left out. */
 function doc(lines: readonly (string | undefined)[], indent = ''): string {
@@ -133,7 +133,7 @@ function emitType(
 function emitBoundedContext(context: ContextModel, modules: ModuleSet): void {
   const module = modules.module(`${context.directory}/boundedContext.ts`);
   const constant = `${context.constantName}_BOUNDED_CONTEXT`;
-  module.imports.add(V10_CLIENT, ['Hop', 'wait']);
+  module.imports.add(WOW_CLIENT, ['Hop', 'wait']);
   addStatement(
     module,
     `${doc([`The bounded context \`${context.name}\`.`, context.description])}export const ${constant} = ${quoteStringLiteral(context.name)};`,
@@ -201,7 +201,7 @@ function emitAggregate(
     event => `EventView<${quoteStringLiteral(event.wireName)}, ${event.type}>`,
   );
   module.imports.add(
-    V10_CLIENT,
+    WOW_CLIENT,
     events.length > 0 ? ['EventView', 'SystemEvent'] : ['SystemEvent'],
   );
   addStatement(
@@ -300,22 +300,22 @@ function emitCommandClient(
     commandMethods(command, paths, false),
     commandMethods(command, paths, true),
   ]);
-  const v10 = ['CommandGateway', 'CommandResult', 'WowClientOptions'];
-  if (commands.length > 0) v10.push('CommandResultStream');
+  const client = ['CommandGateway', 'CommandResult', 'WowClientOptions'];
+  if (commands.length > 0) client.push('CommandResultStream');
   if (commands.some(command => command.byIdPath && command.unaddressedPath)) {
-    v10.push('CreateCommandOptions');
+    client.push('CreateCommandOptions');
   }
   if (
     commands.some(command => !(command.byIdPath && command.unaddressedPath)) ||
     aggregate.lifecycle.length > 0
   ) {
-    v10.push('CommandOptions');
+    client.push('CommandOptions');
   }
   const lifecycleTypes: string[] = [];
   for (const lifecycle of aggregate.lifecycle) {
-    v10.push('LifecycleCommands');
+    client.push('LifecycleCommands');
     if (lifecycle.bodyType) {
-      (lifecycle.bodyGenerated ? lifecycleTypes : v10).push(lifecycle.bodyType);
+      (lifecycle.bodyGenerated ? lifecycleTypes : client).push(lifecycle.bodyType);
     }
     const params = lifecycle.bodyType
       ? `id: string, body: ${lifecycle.bodyType}, options?: CommandOptions`
@@ -327,7 +327,7 @@ function emitCommandClient(
   if (aggregate.lifecycle.length > 0) {
     module.imports.add('./aggregate.js', [`${name}Aggregate`]);
   }
-  module.imports.add(V10_CLIENT, [...new Set(v10)].sort());
+  module.imports.add(WOW_CLIENT, [...new Set(client)].sort());
   importTypes(module, outputDir, files, [
     ...commands.map(command => command.bodyType),
     ...lifecycleTypes,
@@ -349,11 +349,11 @@ function emitQueryClient(
   const module = modules.module(`${aggregate.directory}/queryClient.ts`);
   const name = aggregate.typeName;
   const state = aggregate.stateType;
-  const v10 = ['StateClient', 'WowClientOptions'];
+  const client = ['StateClient', 'WowClientOptions'];
   const aggregateNames = [`${name}Aggregate`, `${name}Event`];
   const constructor = `  /** @param options - How the service is reached */\n  constructor(options?: WowClientOptions) {\n    super(${name}Aggregate, options);\n  }`;
   if (aggregate.queryModels.includes('snapshot')) {
-    v10.push('SnapshotQueryClient');
+    client.push('SnapshotQueryClient');
     aggregateNames.push(`${name}StateField`);
     addStatement(
       module,
@@ -361,7 +361,7 @@ function emitQueryClient(
     );
   }
   if (aggregate.queryModels.includes('events')) {
-    v10.push('EventQueryClient');
+    client.push('EventQueryClient');
     addStatement(
       module,
       `${doc([`Queries the event streams of \`${aggregate.context}.${aggregate.name}\`, one record per commit: \`POST /${aggregate.context}/${aggregate.name}/events/query\`.`])}export class ${name}EventQueryClient extends EventQueryClient<${name}Event> {\n${constructor}\n}`,
@@ -371,7 +371,7 @@ function emitQueryClient(
     module,
     `${doc([`Reads the states of \`${aggregate.context}.${aggregate.name}\`, at a version or a time, and their traces: \`GET /${aggregate.context}/${aggregate.name}/{id}/state\`.`])}export class ${name}StateClient extends StateClient<${state}, ${name}Event> {\n${constructor}\n}`,
   );
-  module.imports.add(V10_CLIENT, v10.sort());
+  module.imports.add(WOW_CLIENT, client.sort());
   module.imports.add('./aggregate.js', aggregateNames);
   importTypes(module, outputDir, files, [state]);
 }

@@ -15,8 +15,8 @@
 //
 // Holds the built package to the public surface its source promises:
 //
-// 1. Every file `exports` names exists and is not empty, and each entry (the
-//    root and `/v10`) resolves under `import` to the file it declares.
+// 1. Every file `exports` names exists and is not empty, and the entry
+//    resolves under `import` to the file it declares.
 // 2. Each entry exports at run time exactly the values its list under
 //    `test/surface/` names. The lists are written from the source by
 //    `test/publicSurface.test.ts`; this holds the bundle to them.
@@ -43,7 +43,6 @@ const name = manifest.name;
 /** Each code entry: its `exports` key, and the surface list it is held to. */
 const ENTRIES = {
   '.': 'test/surface/root.txt',
-  './v10': 'test/surface/v10.txt',
 };
 
 const measured = {};

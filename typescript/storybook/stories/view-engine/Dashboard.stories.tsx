@@ -19,10 +19,7 @@ import {
   HeadingPanel,
   ViewSurface,
 } from '@ahoo-wang/wow-view-engine/ui';
-import {
-  AggregationDateUnit,
-  AggregationGroupType,
-} from '@ahoo-wang/wow-client';
+import { AggregationDateUnit, AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import type {
   DashboardFilters,
   ViewNavigation,

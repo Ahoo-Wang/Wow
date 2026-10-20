@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { CursorPage, PagedList } from '@ahoo-wang/wow-client';
+import type { CursorPage, PagedList } from '@ahoo-wang/wow-client/dsl';
 import { readPath } from './path.js';
 import {
   columnHidden,

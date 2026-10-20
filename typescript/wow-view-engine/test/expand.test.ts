@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { AggregationGroupType } from '@ahoo-wang/wow-client';
+import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   withoutLevelsFrom,

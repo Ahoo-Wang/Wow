@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { FilterOperator, type QueryApi } from '@ahoo-wang/wow-client';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import type { DataViewRuntime } from '../src/runtime/viewRuntime.js';
 import type { RecordDataViewRuntime } from '../src/runtime/recordRuntime.js';
@@ -342,8 +342,8 @@ describe('DataViewRuntime execution', () => {
           response: { status: 400 },
           extractResult: () =>
             Promise.resolve({
-              errorCode: 'IllegalArgument',
-              errorMsg: 'HTTP page window[12000] must not exceed 10000.',
+              errorCode: 'wow.query.malformed',
+              detail: 'HTTP page window[12000] must not exceed 10000.',
             }),
         },
       },
@@ -1340,17 +1340,6 @@ describe('RequestRunner', () => {
     await expect(runner.run('b', () => Promise.resolve('ok'))).resolves.toBe(
       'ok',
     );
-  });
-});
-
-describe('ViewSource', () => {
-  it('is satisfied by a Wow query client as it is', () => {
-    // The assignment is the assertion: three of `QueryApi`'s methods, with the
-    // query types the kernels compile to.
-    const api = {} as QueryApi<RecordData>;
-    const source: ViewSource = api;
-
-    expect(source).toBe(api);
   });
 });
 

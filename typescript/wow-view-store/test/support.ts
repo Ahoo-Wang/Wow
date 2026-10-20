@@ -18,10 +18,10 @@ import {
   type RequestInterceptor,
 } from '@ahoo-wang/fetcher';
 import {
-  fakeV10ViewStore,
-  type FakeV10ViewStore,
-  type FakeV10ViewStoreOptions,
-} from '../support/fakeV10ViewStore.js';
+  fakeViewStore,
+  type FakeViewStore,
+  type FakeViewStoreOptions,
+} from './support/fakeViewStore.js';
 
 export const BASE_URL = 'http://view-store.test/';
 
@@ -40,7 +40,7 @@ export const WRITER_ROLES = [
 ] as const;
 
 class CallerHeaders implements RequestInterceptor {
-  readonly name = 'FakeV10Caller';
+  readonly name = 'FakeCaller';
   readonly order = 0;
   constructor(private readonly caller: Caller) {}
   intercept(exchange: FetchExchange): void {
@@ -62,9 +62,9 @@ export function actingAs(caller: Caller): Fetcher {
 
 /** Installs the fake service as the global `fetch`, for this test. */
 export function installFake(
-  options?: FakeV10ViewStoreOptions,
-): FakeV10ViewStore {
-  const fake = fakeV10ViewStore(options);
+  options?: FakeViewStoreOptions,
+): FakeViewStore {
+  const fake = fakeViewStore(options);
   vi.stubGlobal('fetch', vi.fn(fake.fetch));
   return fake;
 }

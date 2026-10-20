@@ -11,11 +11,7 @@
  * limitations under the License.
  */
 
-import {
-  QueryValueKind,
-  SensitivityLevel,
-  type QueryModelDescriptor,
-} from '@ahoo-wang/wow-client';
+import { QueryValueKind, SensitivityLevel, type QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   bindPanel,

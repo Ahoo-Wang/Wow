@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { QueryErrorCodes } from '@ahoo-wang/wow-client';
+import { QueryErrorCodes } from '@ahoo-wang/wow-client/dsl';
 import {
   MemoryViewStore,
   ViewEngine,
@@ -38,13 +38,13 @@ import {
 } from './fixtures/descriptor.js';
 
 /** A Wow rejection as fetcher's `ExchangeError` carries it. */
-function rejected(errorMsg: string, code?: string, name = 'status') {
+function rejected(detail: string, code?: string, name = 'status') {
   const body = {
-    errorCode: 'QuerySchemaValidation',
+    errorCode: 'wow.query.invalid',
     errorMsg,
     ...(code === undefined
       ? {}
-      : { bindingErrors: [{ name, msg: errorMsg, code }] }),
+      : { violations: [{ name, message: errorMsg, code }] }),
   };
   return Object.assign(new Error('Request failed with status code 400'), {
     exchange: {

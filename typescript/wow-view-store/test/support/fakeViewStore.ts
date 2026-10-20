@@ -66,7 +66,7 @@ export interface FakeDataset {
   };
 }
 
-export interface FakeV10ViewStoreOptions {
+export interface FakeViewStoreOptions {
   systemViews?: readonly ConfiguredSystemView[];
   datasets?: readonly FakeDataset[];
   /** The service's clock, for `firstEventTime`; `Date.now` by default. */
@@ -82,7 +82,7 @@ export interface SeenRequest {
   body: unknown;
 }
 
-export interface FakeV10ViewStore {
+export interface FakeViewStore {
   /** A `fetch` that answers as the service. */
   fetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
   /** Every request received, in order. */
@@ -233,9 +233,9 @@ function hash(text: string): string {
   return [h1, h2].map(h => (h >>> 0).toString(16).padStart(8, '0')).join('');
 }
 
-export function fakeV10ViewStore(
-  options: FakeV10ViewStoreOptions = {},
-): FakeV10ViewStore {
+export function fakeViewStore(
+  options: FakeViewStoreOptions = {},
+): FakeViewStore {
   const now = options.now ?? Date.now;
   const aggregates = new Map<string, Aggregate>();
   const answered = new Map<string, Record<string, unknown>>();

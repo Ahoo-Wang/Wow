@@ -11,10 +11,7 @@
  * limitations under the License.
  */
 
-import {
-  AggregationGroupType,
-  type AggregationQuery,
-} from '@ahoo-wang/wow-client';
+import { AggregationGroupType, type AggregationQuery } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,

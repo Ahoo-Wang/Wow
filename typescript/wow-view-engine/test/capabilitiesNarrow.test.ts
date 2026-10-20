@@ -22,7 +22,7 @@ import {
   QueryValueKind,
   SearchMode,
   type QueryModelDescriptor,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   builtinFieldKinds,
   searchFieldOf,

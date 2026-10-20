@@ -33,11 +33,6 @@
       "import": "./dist/index.es.js",
       "default": "./dist/index.es.js"
     },
-    "./v10": {
-      "types": "./dist/v10/index.d.ts",
-      "import": "./dist/v10.es.js",
-      "default": "./dist/v10.es.js"
-    },
     "./package.json": "./package.json"
   },
   "files": [

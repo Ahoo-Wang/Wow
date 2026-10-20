@@ -11,13 +11,23 @@
  * limitations under the License.
  */
 
-import type { DatasetDirectoryEntry } from '@ahoo-wang/wow-client';
 import {
   defineDataset,
   type DefineDatasetSpec,
 } from './define/defineDataset.js';
 import type { WriteContext } from '../store/ViewStore.js';
 import type { ViewSource } from './source.js';
+
+/**
+ * One dataset of a service's directory: where it lives, how it is titled,
+ * and the version it was published at (`null` while it is not servable).
+ */
+export interface DatasetDirectoryEntry {
+  contextName: string;
+  name: string;
+  title: string | null;
+  version: string | null;
+}
 
 /** What `DatasetResources` reads: the dataset directory, and each dataset's source. */
 export interface DatasetCatalog {

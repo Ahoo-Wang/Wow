@@ -12,12 +12,12 @@
  */
 
 import type { Fetcher } from '@ahoo-wang/fetcher';
+import { EventStreamQueryClient } from '@ahoo-wang/wow-client';
 import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
-  EventStreamQueryClient,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,

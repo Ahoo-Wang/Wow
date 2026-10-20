@@ -11,11 +11,7 @@
  * limitations under the License.
  */
 
-import type {
-  AggregationQuery,
-  CursorQuery,
-  FilterPagedQuery,
-} from '@ahoo-wang/wow-client';
+import type { AggregationQuery, CursorQuery, FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
 import type { RecordData } from '@ahoo-wang/wow-view-engine';
 import { rowSource } from './rowSource.js';
 

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { FilterOperator } from '@ahoo-wang/wow-client';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import { drillConditions } from '../src/analysis/index.js';
 import { builtinFieldKinds, compileFilter } from '../src/filter/index.js';

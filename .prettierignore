@@ -26,8 +26,8 @@ coverage/
 # the e2e test; reformatting them would fail every regeneration.
 typescript/wow-generator/expected/
 # Generated from the V10 view store's Manifest baseline, held byte for byte by
-# typescript/wow-view-store/test/v10/generated.test.ts.
-typescript/wow-view-store/src/v10/generated/
+# typescript/wow-view-store/test/generated.test.ts.
+typescript/wow-view-store/src/generated/
 test-output/
 # Baselines tests write and compare byte for byte: API Extractor's reports and
 # the golden files wow-client's tests write with -u.

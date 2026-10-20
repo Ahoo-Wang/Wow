@@ -16,7 +16,7 @@ import {
   SortDirection,
   type AggregationMetric,
   type HavingExpression,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import type { AnalysisTop, AnalysisViewConfig } from '../model/index.js';
 
 /*

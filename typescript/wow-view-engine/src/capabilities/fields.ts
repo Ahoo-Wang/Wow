@@ -11,10 +11,7 @@
  * limitations under the License.
  */
 
-import type {
-  QueryModelDescriptor,
-  QuerySemanticType,
-} from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor, QuerySemanticType } from '@ahoo-wang/wow-client/dsl';
 import {
   CURRENCY_CODE_PATTERN,
   DEFAULT_SEARCH_MODE,

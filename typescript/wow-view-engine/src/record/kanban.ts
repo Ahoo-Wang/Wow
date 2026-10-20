@@ -17,7 +17,7 @@ import {
   type AggregationQuery,
   type CursorPage,
   type PagedList,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MAX_KANBAN_LANES,

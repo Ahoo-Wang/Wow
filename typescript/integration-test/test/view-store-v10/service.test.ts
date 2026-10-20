@@ -20,7 +20,7 @@
  */
 
 import { Fetcher } from '@ahoo-wang/fetcher';
-import { asc, desc, filter } from '@ahoo-wang/wow-client';
+import { asc, desc, filter } from '@ahoo-wang/wow-client/dsl';
 import { SnapshotQueryClient } from '@ahoo-wang/wow-client';
 import type { ViewConfig, ViewInstance } from '@ahoo-wang/wow-view-engine';
 import {

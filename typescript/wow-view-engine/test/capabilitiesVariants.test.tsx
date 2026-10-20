@@ -14,10 +14,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
-import type {
-  FieldDescriptor,
-  QueryModelDescriptor,
-} from '@ahoo-wang/wow-client';
+import type { FieldDescriptor, QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import {
   builtinFieldKinds,
   compileFilter,

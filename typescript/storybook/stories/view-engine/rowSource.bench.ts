@@ -35,7 +35,7 @@ import {
   type AggregationMetric,
   type AggregationQuery,
   type FilterExpression,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import type { RecordData } from '@ahoo-wang/wow-view-engine';
 import { generateRetail, shanghai } from './retail/generate.js';
 import { rowSource } from './rowSource.js';

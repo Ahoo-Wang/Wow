@@ -103,7 +103,7 @@ export const viewMessages = {
   'runtime.query.unreachable':
     'Could not load the data: the server could not be reached.',
   // The source refused the reader rather than the query (HTTP 403, Wow's
-  // IllegalAccess* codes): a permission, which asking again does not change,
+  // `…forbidden` codes): a permission, which asking again does not change,
   // so it is said as one and offers no retry.
   // Who grants it is the host's to say (override this key); the engine
   // can at least say that someone does (Storybook review P2).

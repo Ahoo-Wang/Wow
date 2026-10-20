@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { filter, type AggregationQuery } from '@ahoo-wang/wow-client';
+import { filter, type AggregationQuery } from '@ahoo-wang/wow-client/dsl';
 import {
   builtinFieldKinds,
   DEFAULT_RUNTIME_LIMITS,

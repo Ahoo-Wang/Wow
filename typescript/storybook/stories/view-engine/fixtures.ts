@@ -36,7 +36,7 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import { zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import { rowSource } from './rowSource.js';
 

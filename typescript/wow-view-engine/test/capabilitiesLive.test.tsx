@@ -22,7 +22,7 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import {
   MemoryViewStore,
   ViewEngine,
@@ -548,7 +548,7 @@ describe('an entry that needs a condition (Q3)', () => {
 
 /** A Wow rejection of a cursor it cannot read, as fetcher's `ExchangeError` carries it. */
 function invalidCursor() {
-  const body = { errorCode: 'IllegalArgument', errorMsg: 'Invalid cursor.' };
+  const body = { errorCode: 'wow.query.malformed', detail: 'Invalid cursor.' };
   return Object.assign(new Error('Request failed with status code 400'), {
     exchange: {
       response: { status: 400 },
@@ -560,9 +560,9 @@ function invalidCursor() {
 /** The same refusal from Wow 9.2, which names it `INVALID_CURSOR`. */
 function codedInvalidCursor(errorMsg = 'Invalid cursor.') {
   const body = {
-    errorCode: 'IllegalArgument',
+    errorCode: 'wow.query.malformed',
     errorMsg,
-    bindingErrors: [{ name: 'cursor', msg: errorMsg, code: 'INVALID_CURSOR' }],
+    violations: [{ path: 'cursor', message: errorMsg, code: 'INVALID_CURSOR' }],
   };
   return Object.assign(new Error('Request failed with status code 400'), {
     exchange: {
@@ -573,8 +573,8 @@ function codedInvalidCursor(errorMsg = 'Invalid cursor.') {
 }
 
 /** A failure of the service itself, which Wow 9.2 answers with 500. */
-function serverFault(errorMsg: string) {
-  const body = { errorCode: 'InternalServerError', errorMsg };
+function serverFault(detail: string) {
+  const body = { errorCode: 'wow.query.failed', errorMsg };
   return Object.assign(new Error('Request failed with status code 500'), {
     exchange: {
       response: { status: 500 },

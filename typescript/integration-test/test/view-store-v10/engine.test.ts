@@ -27,10 +27,7 @@
  */
 
 import type { FetchExchange, ResponseInterceptor } from '@ahoo-wang/fetcher';
-import {
-  AggregationFunction,
-  AggregationGroupType,
-} from '@ahoo-wang/wow-client';
+import { AggregationFunction, AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import { SnapshotQueryClient } from '@ahoo-wang/wow-client';
 import {
   DEFAULT_RUNTIME_LIMITS,

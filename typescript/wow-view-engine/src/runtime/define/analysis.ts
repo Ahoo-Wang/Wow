@@ -20,7 +20,7 @@
  * snapshot grants is a warning, not an error: another store may grant it.
  */
 
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import type {
   AnalysisCapability,
   AnalysisSpec,

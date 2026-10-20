@@ -18,10 +18,7 @@
  * relative to the scope it sends it in — which is how Wow reads it.
  */
 
-import {
-  AggregationFunction,
-  AggregationGroupType,
-} from '@ahoo-wang/wow-client';
+import { AggregationFunction, AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   analysisScope,

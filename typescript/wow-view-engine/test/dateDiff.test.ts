@@ -23,7 +23,7 @@ import {
   AggregationGroupType,
   DateDiffUnit,
   type QueryModelDescriptor,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,

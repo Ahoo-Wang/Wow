@@ -37,7 +37,6 @@ const update = process.argv.includes('-u');
 /** Entry declaration file (from `package.json` exports) → report name. */
 const ENTRIES = {
   'dist/index.d.ts': 'root',
-  'dist/v10/index.d.ts': 'v10',
 };
 
 /**

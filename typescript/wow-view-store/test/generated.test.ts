@@ -12,7 +12,7 @@
  */
 
 /**
- * `src/v10/generated/` is wow-generator's output for the V10 view store
+ * `src/generated/` is wow-generator's output for the V10 view store
  * service's Manifest, byte for byte. The Manifest is the service's baseline
  * (`platform/view-store/view-store-server/manifest/baseline.json`), which
  * the service's own `check` holds to what it serves; so a change of a route
@@ -21,7 +21,7 @@
  *
  *   node typescript/wow-generator/dist/cli.js generate \
  *     -i platform/view-store/view-store-server/manifest/baseline.json \
- *     -o typescript/wow-view-store/src/v10/generated --strict
+ *     -o typescript/wow-view-store/src/generated --strict
  */
 
 import { execFileSync } from 'node:child_process';
@@ -35,7 +35,7 @@ const BASELINE = join(
   ROOT,
   'platform/view-store/view-store-server/manifest/baseline.json',
 );
-const COMMITTED = join(import.meta.dirname, '../../src/v10/generated');
+const COMMITTED = join(import.meta.dirname, '../src/generated');
 const CLI = join(ROOT, 'typescript/wow-generator/dist/cli.js');
 
 /** Every file under `directory`, by its path relative to it. */

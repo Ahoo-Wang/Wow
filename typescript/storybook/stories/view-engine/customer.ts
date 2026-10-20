@@ -12,12 +12,12 @@
  */
 
 import { Fetcher } from '@ahoo-wang/fetcher';
+import { SnapshotQueryClient } from '@ahoo-wang/wow-client';
 import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
-  SnapshotQueryClient,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,

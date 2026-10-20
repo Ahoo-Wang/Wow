@@ -13,7 +13,7 @@
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { QueryErrorCodes } from '@ahoo-wang/wow-client';
+import { QueryErrorCodes } from '@ahoo-wang/wow-client/dsl';
 import { VIEW_STORE_ERROR_CODES } from '../../src/index.js';
 import { INSTANCE_ACTIONS } from '../../src/runtime/permissions.js';
 import { en } from '../../src/ui/messages/en.js';

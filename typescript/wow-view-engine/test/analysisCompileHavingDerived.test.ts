@@ -18,11 +18,7 @@
  * would refuse is refused at compile time with Wow's message.
  */
 
-import {
-  aggregation,
-  type AggregationQuery,
-  type HavingExpression,
-} from '@ahoo-wang/wow-client';
+import { aggregation, type AggregationQuery, type HavingExpression } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,

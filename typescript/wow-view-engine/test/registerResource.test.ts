@@ -11,11 +11,8 @@
  * limitations under the License.
  */
 
-import {
-  QueryModels,
-  type QueryDescriptorResult,
-  type QueryModelDescriptor,
-} from '@ahoo-wang/wow-client';
+import type { QueryDescriptorResult } from '../src/index.js';
+import { QueryModels, type QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
   DatasetResources,
