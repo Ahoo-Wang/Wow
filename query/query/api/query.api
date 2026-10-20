@@ -373,9 +373,10 @@ public final class me/ahoo/wow/query/QueryCountCache$Companion {
 public final class me/ahoo/wow/query/QueryCountCacheOptions {
 	public static final field Companion Lme/ahoo/wow/query/QueryCountCacheOptions$Companion;
 	public static final field DEFAULT_MAX_ENTRIES I
-	public synthetic fun <init> (IJILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (IJZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getMaxEntries ()I
+	public final fun getPagedTotals ()Z
 	public final fun getTtl-UwyO8pc ()J
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;

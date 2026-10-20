@@ -54,7 +54,9 @@ import kotlin.time.toKotlinDuration
  * - `wow.query.index.ddl` (`auto`, `validate` or `none`; D151): how the snapshot backend manages the indexes of
  *   each aggregate's `x-wow-index` at startup.
  * - `wow.query.count-cache.*` (D152): `enabled` (true), `max-entries` (10000), `ttl` (30s): the cache of the snapshot
- *   counts and paged totals, valid while the type's snapshot write checkpoint holds and for at most `ttl`;
+ *   counts, valid while the type's snapshot write checkpoint holds and for at most `ttl` (another node's write can make a
+ *   cached count lag the rows by up to `ttl`); `paged-totals` (false; review R4-Q, Q-12) serves the totals of paged
+ *   queries from it too, which by default are counted with their page so that a total agrees with its rows;
  *   `events-enabled` (false; D259) caches the events' counts the same way, though the log runs ahead of that
  *   checkpoint, so a cached events count may lag the streams for up to `ttl`.
  * - `wow.query.dataset.config-directory` (`config`; D75, D145): the working directory whose `wow/dataset/` holds
@@ -96,6 +98,9 @@ import kotlin.time.toKotlinDuration
  * - `wow.query.state.max-replay` (10000; review R4-Q, Q-1): the most commits a state point read replays from the
  *   aggregate's snapshot, or from version 1 (`GET …/state?version=` or `?at=`, `…/state/trace`, the latest state
  *   before the first snapshot); a state further away is 400 `wow.query.invalid` (`REPLAY_TOO_LONG`).
+ *   `min-version-wait` (2s; review R4-Q, Q-13): how long a read of `?minVersion=` (or `QueryApi` state of a minimum
+ *   version) waits for the aggregate to reach it, its snapshot caught up with its log meanwhile; past it the read is
+ *   409 `wow.query.min-version-not-reached` with the current `version`.
  * - `wow.query.stream.*` (decision D253, [Stream]): a `list` streamed as server-sent events reads keyset chunks of
  *   `chunk-size` (500) records, a query permit per chunk, each record's `id` its position; after `max-hold` (30s; `0`
  *   for no bound) it ends with `end` `{"reason":"hold-expired","resumable":true}` and the client resumes it with
@@ -198,10 +203,11 @@ class QueryProperties {
     class CountCache {
         var enabled: Boolean = true
         var eventsEnabled: Boolean = false
+        var pagedTotals: Boolean = false
         var maxEntries: Int = QueryCountCacheOptions.DEFAULT_MAX_ENTRIES
         var ttl: Duration = QueryCountCacheOptions.DEFAULT_TTL.toJavaDuration()
 
-        fun options(): QueryCountCacheOptions = QueryCountCacheOptions(maxEntries, ttl.toKotlinDuration())
+        fun options(): QueryCountCacheOptions = QueryCountCacheOptions(maxEntries, ttl.toKotlinDuration(), pagedTotals)
     }
 
     /**
@@ -254,6 +260,7 @@ class QueryProperties {
 
     class State {
         var maxReplay: Int = KernelStateReads.DEFAULT_MAX_REPLAY
+        var minVersionWait: Duration = KernelStateReads.DEFAULT_MIN_VERSION_WAIT.toJavaDuration()
     }
 
     class Dataset {
