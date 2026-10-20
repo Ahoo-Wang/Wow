@@ -172,15 +172,31 @@ class ResumableStreamRoutesTest {
     }
 
     @Test
-    fun `a list that cannot be resumed streams without ids or end, and refuses a Last-Event-ID`() {
+    fun `a list that cannot be resumed streams without ids, ends unresumable, and refuses a Last-Event-ID`() {
         val node = QueryNode(snapshots = { delegate -> Unresumable(delegate) }, defaultListSize = 2)
         node.saveFive()
         val streamed = node.stream(byItems)
-        streamed.events.map { it.event }.assert().containsExactly("row", "row")
+        streamed.events.map { it.event }.assert().containsExactly("row", "row", "end")
         streamed.events.map { it.id }.assert().containsOnlyNulls()
+        streamed.end!!["reason"].asString().assert().isEqualTo(QueryStreams.COMPLETE)
+        streamed.end!!["resumable"].asBoolean().assert().isFalse()
         val refused = node.stream(byItems, lastEventId = "anything")
         refused.status.assert().isEqualTo(400)
         QueryJson.mapper.readTree(refused.body)["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+    }
+
+    @Test
+    fun `a list that cannot be resumed ends its hold unresumable`() {
+        val node = QueryNode(
+            snapshots = { delegate -> Unresumable(Slowed(delegate), slowList = true) },
+            streams = QueryStreams(maxHold = 60.milliseconds),
+        )
+        node.saveFive()
+        val streamed = node.stream(byItems)
+        streamed.rows.size.assert().isLessThan(5)
+        streamed.rows.map { it.id }.assert().containsOnlyNulls()
+        streamed.end!!["reason"].asString().assert().isEqualTo(QueryStreams.HOLD_EXPIRED)
+        streamed.end!!["resumable"].asBoolean().assert().isFalse()
     }
 
     /** Each record of a stream 50ms after the one before. */
@@ -209,7 +225,13 @@ class ResumableStreamRoutesTest {
             }
     }
 
-    private class Unresumable(delegate: QueryGateway) : QueryGateway by delegate {
+    /** A gateway that does not resume; with [slowList], each listed record 50ms after the one before. */
+    private class Unresumable(private val delegate: QueryGateway, private val slowList: Boolean = false) :
+        QueryGateway by delegate {
         override suspend fun resumes(query: IListQuery): Boolean = false
+
+        override fun list(query: IListQuery, caller: QueryCaller) = delegate.list(query, caller).onEach {
+            if (slowList) delay(50.milliseconds)
+        }
     }
 }

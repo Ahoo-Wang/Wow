@@ -87,7 +87,9 @@ import kotlin.time.toKotlinDuration
  * - `wow.query.stream.*` (decision D253, [Stream]): a `list` streamed as server-sent events reads keyset chunks of
  *   `chunk-size` (500) records, a query permit per chunk, each record's `id` its position; after `max-hold` (30s; `0`
  *   for no bound) it ends with `end` `{"reason":"hold-expired","resumable":true}` and the client resumes it with
- *   `Last-Event-ID`. Neither `http.max-list-size` nor `http.default-list-size` bounds such a stream.
+ *   `Last-Event-ID`. Neither `http.max-list-size` nor `http.default-list-size` bounds such a stream. A list whose
+ *   sort cannot order a cursor streams without positions, under those bounds, and every `end` it sends (the hold
+ *   time's included) says `"resumable":false`.
  */
 @ConfigurationProperties(prefix = QueryProperties.PREFIX)
 class QueryProperties {

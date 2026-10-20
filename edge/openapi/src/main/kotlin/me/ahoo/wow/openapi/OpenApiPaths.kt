@@ -393,7 +393,8 @@ internal class OpenApiPaths(
                 "`{\"reason\", \"resumable\"}` (`complete`, or the resumable `hold-expired`, `permit-reclaimed` " +
                 "and `node-stopping`); the same request with `Last-Event-ID` continues strictly after that position. " +
                 "Chunks are not one snapshot: a record written meanwhile is read when it sorts after the position. A " +
-                "list whose sort cannot order a cursor streams without `id`s or `end`, and cannot be resumed.",
+                "list whose sort cannot order a cursor (or a model whose descriptor says `record.stream.resumable: " +
+                "false`) streams without `id`s, and every `end` it sends says `\"resumable\": false`.",
             "operationId" to operationId,
             "parameters" to (pathParameters + Http.SCOPE_HEADER + Http.LAST_EVENT_ID_HEADER).map(OpenApiParameters::ref),
             "requestBody" to obj("required" to true, "content" to json(schemaRef(WowSchemas.QUERY_REQUEST))),

@@ -77,7 +77,7 @@ fun QueryBackend.chunks(query: AdmittedQuery<ICursorQuery>, limit: Int = 0): Flo
  * with the model's unique key appended orders a cursor (every field cursor-sortable, none twice, at most
  * [Sort.MAX_FIELDS]). A field the schema does not know counts as cursor-sortable, so admission rejects it as it
  * rejects it in a list. A sort that cannot order a cursor (a protected, nested or array-valued field, whose position
- * a token would expose or cannot hold) streams as before, without positions.
+ * a token would expose or cannot hold) streams without positions, and its `end` events are not resumable.
  */
 internal fun QueryModelSchema.streamsByKeyset(sort: List<Sort>): Boolean {
     if (storage.paging.keyset == SupportMode.NONE) return false

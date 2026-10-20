@@ -41,6 +41,7 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.StorageSupport
 import me.ahoo.wow.query.schema.SupportMode
+import me.ahoo.wow.query.schema.describe
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
@@ -226,6 +227,9 @@ class QueryStreamsTest {
             storage = StorageSupport(paging = PagingSupport(keyset = SupportMode.NONE)),
         )
         gateway(schema = noKeyset).resumes(ListQuery(MatchAllFilter)).assert().isFalse()
+        // The descriptor says so (decision D253).
+        noKeyset.describe(null, null).record.stream.resumable.assert().isFalse()
+        schema.describe(null, null).record.stream.resumable.assert().isTrue()
         // A gateway that does not stream says so.
         val plain = object : QueryGateway by gateway {
             override suspend fun resumes(query: IListQuery): Boolean =
