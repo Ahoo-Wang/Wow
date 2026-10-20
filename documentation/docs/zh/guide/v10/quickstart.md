@@ -88,7 +88,7 @@ tasks.test {
 
 上下文用 `@BoundedContext` 命名一次。命令与事件是普通的类；命令不带聚合 ID，ID 来自路由。
 
-<!-- sample: src/main/kotlin/me/ahoo/wow/example/quickstart/Bank.kt -->
+<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Bank.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -124,7 +124,7 @@ data class Withdrawn(val amount: Long)
 
 状态在 `onSourcing` 函数里应用事件。聚合在 `onCommand` 函数里对每条命令做决定：返回事件，或者返回一个 `Decision`，它可以用错误码拒绝命令。被拒绝的命令什么也不写。
 
-<!-- sample: src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt -->
+<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -193,7 +193,7 @@ class Account(private val state: AccountState) {
 
 编译器在 `Account` 旁边生成了 `accountModel`。`aggregateSpec` 用内存日志在真实的内核上运行它：
 
-<!-- sample: src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt -->
+<!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -244,7 +244,7 @@ class AccountSpec {
 
 服务端是一个 Spring Boot 应用。主机在类路径上找到生成的模型并提供服务：
 
-<!-- sample: src/main/kotlin/me/ahoo/wow/example/quickstart/BankServer.kt -->
+<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/BankServer.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -262,7 +262,7 @@ fun main(args: Array<String>) {
 
 `src/main/resources/application.yaml` 运行一个节点，数据放在内存里，快照查询也由内存提供（`wow.query.memory.enabled`）：
 
-<!-- sample: src/main/resources/application.yaml -->
+<!-- sample: example/quickstart/src/main/resources/application.yaml -->
 
 ```yaml
 spring:
@@ -319,7 +319,7 @@ curl -X POST localhost:8080/bank/account/snapshot/query \
 
 应用代码通过节点的 `CommandGateway`（主机提供的 Bean）发送命令，它经过与 HTTP 路由相同的准入：
 
-<!-- sample: src/main/kotlin/me/ahoo/wow/example/quickstart/Teller.kt -->
+<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Teller.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart

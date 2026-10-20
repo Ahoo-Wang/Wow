@@ -88,7 +88,7 @@ The plugin is published to Maven Central with its marker, so `pluginManagement` 
 
 A context is named once, with `@BoundedContext`. Commands and events are plain classes; a command carries no aggregate id, which comes from the route.
 
-<!-- sample: src/main/kotlin/me/ahoo/wow/example/quickstart/Bank.kt -->
+<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Bank.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -124,7 +124,7 @@ data class Withdrawn(val amount: Long)
 
 The state applies events in its `onSourcing` functions. The aggregate decides each command in an `onCommand` function: it returns the events, or a `Decision` that may reject the command with an error code. A rejection writes nothing.
 
-<!-- sample: src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt -->
+<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -193,7 +193,7 @@ class Account(private val state: AccountState) {
 
 The compiler generated `accountModel` beside `Account`. `aggregateSpec` runs it on the real kernel with an in-memory log:
 
-<!-- sample: src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt -->
+<!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -244,7 +244,7 @@ class AccountSpec {
 
 The server is a Spring Boot application. The host finds the generated models on the class path and serves them:
 
-<!-- sample: src/main/kotlin/me/ahoo/wow/example/quickstart/BankServer.kt -->
+<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/BankServer.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -262,7 +262,7 @@ fun main(args: Array<String>) {
 
 `src/main/resources/application.yaml` runs one node with its data in memory, and serves the snapshot queries from memory too (`wow.query.memory.enabled`):
 
-<!-- sample: src/main/resources/application.yaml -->
+<!-- sample: example/quickstart/src/main/resources/application.yaml -->
 
 ```yaml
 spring:
@@ -319,7 +319,7 @@ The first answers the version and the state, `{"balance":100,"owner":"Alice"}`; 
 
 Application code sends commands through the node's `CommandGateway`, a bean of the host. It runs the same admission as the HTTP routes:
 
-<!-- sample: src/main/kotlin/me/ahoo/wow/example/quickstart/Teller.kt -->
+<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Teller.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart

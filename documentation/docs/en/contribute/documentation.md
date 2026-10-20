@@ -126,6 +126,8 @@ A cleanup follows the same procedure, one reviewable pull request per batch:
 - PlantUML is added outside `documentation/diagrams/`;
 - an SVG sits beside a `.mmd` or PlantUML source of the same name.
 
+`.github/scripts/docs-samples.mjs` (`pnpm check:docs-samples`) runs in the same job. A fenced block after `<!-- sample: <path>[#<region>] -->` must equal that file of the repository, without its license header, or that `// region` of it; the module that owns the file compiles and tests it. A Kotlin or Java block with a `package` or `import` line must be such a sample, or say `<!-- sample: fragment -->`. It reads the site's pages, the root READMEs and the Skills.
+
 The Documentation job of the same workflow builds the VitePress site with the locked dependency graph whenever the site or its samples change. The check is structural: whether a document is current, has one owner, or is working material in disguise remains a review question.
 
 ## Review Checklist
