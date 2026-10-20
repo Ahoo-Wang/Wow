@@ -661,12 +661,22 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Clients {
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Clients$ClientTarget {
 	public fun <init> ()V
+	public final fun getContract ()Lme/ahoo/wow/spring/boot/WowProperties$Clients$Contract;
 	public final fun getInternalUrl ()Ljava/net/URI;
 	public final fun getMode ()Lme/ahoo/wow/spring/boot/WowProperties$Clients$Mode;
 	public final fun getUrl ()Ljava/net/URI;
+	public final fun setContract (Lme/ahoo/wow/spring/boot/WowProperties$Clients$Contract;)V
 	public final fun setInternalUrl (Ljava/net/URI;)V
 	public final fun setMode (Lme/ahoo/wow/spring/boot/WowProperties$Clients$Mode;)V
 	public final fun setUrl (Ljava/net/URI;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Clients$Contract : java/lang/Enum {
+	public static final field JAR Lme/ahoo/wow/spring/boot/WowProperties$Clients$Contract;
+	public static final field MANIFEST Lme/ahoo/wow/spring/boot/WowProperties$Clients$Contract;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spring/boot/WowProperties$Clients$Contract;
+	public static fun values ()[Lme/ahoo/wow/spring/boot/WowProperties$Clients$Contract;
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Clients$Mode : java/lang/Enum {
