@@ -38,6 +38,16 @@ export const navbarZh: DefaultTheme.NavItem[] = [
         ],
     },
     {
+        text: '运维',
+        activeMatch: '/zh/operate/',
+        items: [
+            {text: '部署模型', link: '/zh/operate/topology'},
+            {text: '保护部署', link: '/zh/operate/security'},
+            {text: 'Kafka', link: '/zh/operate/kafka'},
+            {text: 'ops 服务与控制台', link: '/zh/operate/ops-console'},
+        ],
+    },
+    {
         text: '参考',
         items: [
             {text: '配置项', link: '/zh/guide/v10/configuration'},

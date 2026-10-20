@@ -157,6 +157,18 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             ],
         },
     ],
+    '/zh/operate/': [
+        {
+            base: '/zh/operate/',
+            text: '运维',
+            items: [
+                {text: '部署模型', link: 'topology'},
+                {text: '保护部署', link: 'security'},
+                {text: 'Kafka', link: 'kafka'},
+                {text: 'ops 服务与控制台', link: 'ops-console'},
+            ],
+        },
+    ],
     '/zh/contribute/': [
         {
             base: '/zh/contribute/',
