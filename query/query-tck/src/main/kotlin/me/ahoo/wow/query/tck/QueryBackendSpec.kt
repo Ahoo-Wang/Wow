@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.query.tck
 
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -77,6 +79,7 @@ import me.ahoo.wow.query.QueryErrors
 import me.ahoo.wow.query.QueryRequestException
 import me.ahoo.wow.query.QueryTimeoutException
 import me.ahoo.wow.query.aggregate
+import me.ahoo.wow.query.chunks
 import me.ahoo.wow.query.countBounded
 import me.ahoo.wow.query.cursor
 import me.ahoo.wow.query.list
@@ -666,6 +669,62 @@ abstract class QueryBackendSpec {
         val error = runCatching { fixture.backend.cursor(QueryAdmission.Trusted.cursor(byName, fixture.schema)) }
             .exceptionOrNull()
         (error as QueryRequestException).violation.assert().isEqualTo(QueryViolation.InvalidCursor)
+        Unit
+    }
+
+    // Streams (decision D253)
+
+    @Test
+    fun `a stream reads keyset chunks, each record with its position, and resumes strictly after one`() = blocking {
+        val fixture = given(orders())
+        Assumptions.assumeTrue(fixture.schema.storage.paging.keyset != SupportMode.NONE)
+        val sort = listOf(Sort(QueryField("state.status"), Sort.Direction.DESC))
+        fun chunks(size: Int, after: String? = null, limit: Int = 0) = fixture.backend.chunks(
+            QueryAdmission.Trusted.cursor(
+                CursorQuery(MatchAllFilter, sort = sort, size = size, cursor = after),
+                fixture.schema
+            ),
+            limit,
+        )
+        val all = chunks(2).toList()
+        all.map { it.record.id() }.assert().containsExactly("o1", "o2", "o3", "o4", "o5")
+        all.map { it.position }.assert().doesNotHaveDuplicates()
+        // A position is the cursor's own token: a cursor page ends on it.
+        fixture.backend.cursor(
+            QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, sort = sort, size = 2), fixture.schema),
+        ).nextCursor.assert().isEqualTo(all[1].position)
+        // Resumed after any record, across a chunk boundary or within one.
+        all.indices.forEach { index ->
+            chunks(2, all[index].position).toList().map { it.record.id() }.assert()
+                .isEqualTo(all.drop(index + 1).map { it.record.id() })
+        }
+        chunks(2, limit = 3).toList().map { it.record.id() }.assert().containsExactly("o1", "o2", "o3")
+        chunks(5).toList().assert().hasSize(5)
+        Unit
+    }
+
+    @Test
+    fun `a stream sees a record written after its position, between two chunks`() = blocking {
+        val fixture = given(orders())
+        Assumptions.assumeTrue(fixture.schema.storage.paging.keyset != SupportMode.NONE)
+        val sort = listOf(Sort(AMOUNT, Sort.Direction.ASC))
+        val read = fixture.backend.chunks(
+            QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, sort = sort, size = 2), fixture.schema),
+        ).map { it.record.id() }.onEach { id ->
+            if (id == "o2") {
+                store(
+                    listOf(
+                        snapshot(
+                            "early",
+                            """{"name":"Early","status":"NEW","amount":1,"quantity":1,"createdAt":$T0}"""
+                        ),
+                        snapshot("late", """{"name":"Late","status":"NEW","amount":45,"quantity":1,"createdAt":$T0}"""),
+                    ),
+                )
+            }
+        }.toList()
+        // No snapshot isolation: the later record is read, the one before the position is not; none twice.
+        read.assert().containsExactly("o1", "o2", "o3", "o4", "late", "o5")
         Unit
     }
 
