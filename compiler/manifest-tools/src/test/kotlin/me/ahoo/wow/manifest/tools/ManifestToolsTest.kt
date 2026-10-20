@@ -14,14 +14,21 @@
 package me.ahoo.wow.manifest.tools
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.FunctionKind
+import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.Manifest.Companion.schemaRef
 import me.ahoo.wow.manifest.ManifestConflictException
+import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SubscriptionKind
+import me.ahoo.wow.manifest.SubscriptionManifest
+import me.ahoo.wow.manifest.SubscriptionSource
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
@@ -164,6 +171,82 @@ class ManifestToolsTest {
         val other = File(directory, "other/contract.json")
         ManifestTools.assembleContract(listOf(contractFile), emptyList(), ":other-api", other).assert().isFalse()
         other.exists().assert().isFalse()
+    }
+
+    /** [fragment] of [context] with a saga `CartSaga.onEvent` that derives [derives]. */
+    private fun deriving(context: String, vararg derives: String): Manifest {
+        val shop =
+            fragment(context, CartState::class.java, mapOf(CartState::class.java.name to mapOf("type" to "object")))
+        val saga = SubscriptionManifest(
+            name = "CartSaga.onEvent",
+            kind = SubscriptionKind.SAGA,
+            source = SubscriptionSource(),
+            function = FunctionManifest(FunctionKind.SAGA, context, "CartSaga", "onEvent"),
+            derives = derives.toList(),
+        )
+        val defs = derives.filter { it.startsWith("#") }
+            .associate { Manifest.schemaKey(it) to mapOf("type" to "object") }
+        return Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    name = context,
+                    aggregates = shop.contexts.single().aggregates,
+                    subscriptions = listOf(saga)
+                ),
+            ),
+            defs = shop.defs + defs,
+        )
+    }
+
+    /** A jar holding [contract] as its peer contract. */
+    private fun contractJar(name: String, contract: Manifest): File {
+        val file = File(directory, "$name-contract.json").also { ManifestJson.write(contract, it) }
+        return File(directory, "$name.jar").also { jar ->
+            ZipOutputStream(jar.outputStream()).use { zip ->
+                zip.putNextEntry(ZipEntry(PeerContracts.RESOURCE))
+                zip.write(file.readBytes())
+                zip.closeEntry()
+            }
+        }
+    }
+
+    @Test
+    fun `merging should refuse a derived command no context or peer contract decides`() {
+        val reserve = schemaRef(CreateCart::class.java.name)
+        val shop = deriving("shop", reserve, schemaRef(TransferOwner::class.java.name), "shop.aggregate.Local")
+        val classpath = listOf(classesDirectory("classes", "shop" to shop))
+        assertThrows<IllegalStateException> {
+            ManifestTools.merge(classpath, "store", null, File(directory, "manifest.json"))
+        }.message.assert()
+            .contains("- shop/CartSaga.onEvent derives ${CreateCart::class.java.name}")
+            // A lifecycle command is no context's, and a full type name is the service's own.
+            .doesNotContain(TransferOwner::class.java.name)
+            .doesNotContain("Local")
+
+        val inventory = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    name = "inventory",
+                    aggregates = listOf(
+                        AggregateManifest(
+                            name = "stock",
+                            state = StateManifest(schemaRef(AccountState::class.java.name)),
+                            commands = listOf(CommandManifest("Reserve", schema = reserve)),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val peers = classpath + listOf(contractJar("inventory-api", inventory), File(directory, "inventory-classes"))
+        ManifestTools.merge(peers, "store", null, File(directory, "manifest.json")).assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a classes directory should carry its peer contract`() {
+        val classes = File(directory, "api-classes")
+        ManifestJson.contract(classes).assert().isNull()
+        ManifestJson.write(fragment("shop", CartState::class.java), File(classes, PeerContracts.RESOURCE))
+        ManifestJson.contract(classes)!!.manifest.contexts.single().name.assert().isEqualTo("shop")
     }
 
     class CreateCart(val id: String)

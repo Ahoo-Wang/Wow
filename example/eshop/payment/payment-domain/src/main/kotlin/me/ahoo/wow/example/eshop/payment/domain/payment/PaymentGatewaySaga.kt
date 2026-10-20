@@ -33,17 +33,12 @@ import me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested
  */
 @Saga
 class PaymentGatewaySaga(private val gateway: PaymentGateway) {
-    @OnEvent(derives = [CONFIRM_PAYMENT, FAIL_PAYMENT])
+    @OnEvent(derives = [ConfirmPayment::class, FailPayment::class])
     suspend fun onPaymentRequested(event: StateEvent<PaymentState>, context: SagaContext): Command<*>? {
         val requested = event.events.filterIsInstance<PaymentRequested>().firstOrNull() ?: return null
         return when (val outcome = gateway.charge(event.ref.id, requested.amount, context.executionId.toString())) {
             is GatewayOutcome.Approved -> context.command(event.ref, ConfirmPayment(outcome.transactionId))
             is GatewayOutcome.Declined -> context.command(event.ref, FailPayment(outcome.reason))
         }
-    }
-
-    private companion object {
-        const val CONFIRM_PAYMENT = "eshop-payment.payment.ConfirmPayment"
-        const val FAIL_PAYMENT = "eshop-payment.payment.FailPayment"
     }
 }

@@ -47,11 +47,15 @@ import me.ahoo.wow.api.subscribe.StateEvent
  * - a handler takes a `StateEvent` and, optionally, the context of its kind (`ProjectContext`, `ReactContext`,
  *   `SagaContext`), nothing else: the processor's dependencies are its constructor's;
  * - a projection's or a reactor's handler returns nothing; a saga's returns the commands it derives (a `Command`,
- *   or a list of them); any of them may instead return a Reactor publisher;
+ *   or a list of them), or nothing (`Unit`, decision D259: it derives none); any of them may instead return a Reactor
+ *   publisher;
  * - `@OnEvent(aggregates)` names aggregates as `context.aggregate`, all of one context, and only a saga's handler
- *   declares `@OnEvent(derives)`, each a full command type name `context.aggregate.Command` (decision D138);
+ *   declares `@OnEvent(derives)` (decisions D138, D259), each a command class or a sealed type, which stands for its
+ *   concrete subclasses; a handler that returns `Unit` declares none. A returned `Command<S>` of a sealed `S` derives
+ *   the concrete subclasses of `S`;
  * - an `@OnRejected` handler (decisions D136, D153) is a saga's, takes a `CommandRejected` and, optionally, the
- *   `SagaContext`, returns what a saga's handler returns, and is not an `@OnEvent` handler too; no two of a saga take
+ *   `SagaContext`, returns what a saga's handler returns (`Unit` to accept the rejection, decision D259), and is not
+ *   an `@OnEvent` handler too; no two of a saga take
  *   the rejections of the same command class, or both of every command (`CommandRejected<*>`);
  * - an `@OnCommitted` handler (decision D192) likewise, taking a `CommandCommitted` instead: no handler is both, nor
  *   two of a saga the receipts of the same command class;
@@ -330,10 +334,11 @@ internal object SubscriptionResolver {
         }
         val onEvent = function.annotationIn(ON_EVENT)
         val aggregates = onEvent.strings(AGGREGATES)
-        val derives = onEvent.strings(DERIVES)
+        val declared = onEvent.classes(DERIVES)
+        val derives = commandClasses(where, "derives", declared, problems)
         val schedules = onEvent.strings(SCHEDULES)
         problems += sourceProblems(where, aggregates)
-        problems += derivesProblems(where, derives, kind)
+        problems += derivesProblems(where, declared.isNotEmpty(), kind, returned)
         problems += schedulesProblems(where, schedules, kind)
         val retry = RetryResolver.read(function.annotatedIn(RETRY) ?: function, where, problems)
         if (problems.size > count) {
@@ -377,14 +382,48 @@ internal object SubscriptionResolver {
         }
     }
 
-    /** `@OnEvent(derives)`: a saga's, each `context.aggregate.Command` (decision D138). */
-    private fun derivesProblems(where: String, derives: List<String>, kind: Kind?): List<String> = buildList {
-        if (derives.isNotEmpty() && kind != null && kind != Kind.SAGA) {
-            add("$where declares @OnEvent(derives), but a ${kind.label} handler derives no commands")
+    /** `@OnEvent(derives)`: a saga's (decision D138), whose handler does not return `Unit` (decision D259). */
+    private fun derivesProblems(where: String, declared: Boolean, kind: Kind?, returned: KSType?): List<String> =
+        buildList {
+            if (declared && kind != null && kind != Kind.SAGA) {
+                add("$where declares @OnEvent(derives), but a ${kind.label} handler derives no commands")
+            }
+            if (declared && returned?.qualifiedName() == UNIT) {
+                add("$where returns Unit, so it derives no commands, but declares @OnEvent(derives)")
+            }
         }
-        derives.filterNot { COMMAND_NAME.matches(it) }.forEach {
-            add("$where derives \"$it\": @OnEvent(derives) names each command as context.aggregate.Command")
+
+    /**
+     * The binary names of the command classes [types] name, as `@OnEvent(member)` declares them (decision D259): a
+     * class names itself, a sealed type its concrete subclasses, transitively. `Any`, and an interface or an abstract
+     * class that is not sealed, name no command class: a problem.
+     */
+    private fun commandClasses(
+        where: String,
+        member: String,
+        types: List<KSType>,
+        problems: MutableList<String>,
+    ): List<String> = types.flatMap { type ->
+        val declaration = type.declaration as? KSClassDeclaration
+        val classes = declaration?.takeUnless { it.qualifiedName?.asString() == ANY }?.let(::concreteClasses).orEmpty()
+        if (classes.isEmpty()) {
+            problems += "$where $member ${type.declaration.qualifiedName?.asString()}, which is no command class: " +
+                "@OnEvent($member) names command classes, or a sealed type whose subclasses they are"
         }
+        classes.map { it.binaryName() }
+    }.distinct()
+
+    /**
+     * [declaration] when it is a concrete class or an object, the concrete classes among its sealed subclasses
+     * (`getSealedSubclasses`, which reads a library's classes too) when it is sealed, and none otherwise.
+     */
+    private fun concreteClasses(declaration: KSClassDeclaration): List<KSClassDeclaration> = when {
+        Modifier.SEALED in declaration.modifiers ->
+            declaration.getSealedSubclasses().flatMap { concreteClasses(it) }.distinct().toList()
+
+        declaration.classKind == ClassKind.OBJECT -> listOf(declaration)
+        declaration.classKind == ClassKind.CLASS && Modifier.ABSTRACT !in declaration.modifiers -> listOf(declaration)
+        else -> emptyList()
     }
 
     /** `@OnEvent(schedules)`: a saga's, each `context.aggregate.Command` (decision D166). */
@@ -399,15 +438,22 @@ internal object SubscriptionResolver {
 
     /**
      * The binary names of the command classes a saga's handler returns ([returned], or what the Reactor publisher it
-     * returns emits): `X` of a `Command<X>` or of a list of them; null when the type does not name the class
-     * (`Command<*>`, `Command<Any>`).
+     * returns emits): `X` of a `Command<X>` or of a list of them, the concrete subclasses of `X` when it is sealed
+     * (decision D259); none for `Unit`; null when the type does not name the class (`Command<*>`, `Command<Any>`).
      */
     private fun derivedClasses(returned: KSType, reactor: Boolean): List<String>? {
+        if (!reactor && returned.qualifiedName() == UNIT) {
+            return emptyList()
+        }
         val emitted = if (reactor) returned.arguments.firstOrNull()?.type?.resolve() ?: return null else returned
         val command = if (emitted.qualifiedName() == COMMAND) {
             emitted
         } else {
             emitted.arguments.firstOrNull()?.type?.resolve()?.takeIf { it.qualifiedName() == COMMAND } ?: return null
+        }
+        val declaration = command.arguments.firstOrNull()?.type?.resolve()?.declaration as? KSClassDeclaration
+        if (declaration != null && Modifier.SEALED in declaration.modifiers) {
+            return concreteClasses(declaration).map { it.binaryName() }.ifEmpty { null }
         }
         return commandClass(command)?.let(::listOf)
     }
@@ -474,6 +520,11 @@ internal object SubscriptionResolver {
         )
     }
 
+    /** The class array argument [name] of this annotation, empty without the annotation or the argument. */
+    private fun KSAnnotation?.classes(name: String): List<KSType> =
+        (this?.arguments?.firstOrNull { it.name?.asString() == name }?.value as? List<*>).orEmpty()
+            .filterIsInstance<KSType>()
+
     /** The string array argument [name] of this annotation, empty without the annotation or the argument. */
     private fun KSAnnotation?.strings(name: String): List<String> =
         (this?.arguments?.firstOrNull { it.name?.asString() == name }?.value as? List<*>).orEmpty()
@@ -518,8 +569,13 @@ internal object SubscriptionResolver {
         val name = returned.qualifiedName()
         return if (kind == Kind.SAGA) {
             val element = returned.arguments.firstOrNull()?.type?.resolve()?.qualifiedName()
-            val commands = name == COMMAND || (name in COMMAND_COLLECTIONS && element == COMMAND)
-            if (commands) null else "returns $name: a @Saga handler returns the commands it derives, a $COMMAND or a list of them"
+            val commands = name == UNIT || name == COMMAND || (name in COMMAND_COLLECTIONS && element == COMMAND)
+            if (commands) {
+                null
+            } else {
+                "returns $name: a @Saga handler returns the commands it derives, a $COMMAND or a list of them, or " +
+                    "Unit for none"
+            }
         } else {
             if (name == UNIT) null else "returns $name: a ${kind.label} handler returns nothing"
         }

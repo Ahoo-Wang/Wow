@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.manifest.tools
 
+import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.ManifestMerger
 import me.ahoo.wow.manifest.PeerContracts
@@ -37,8 +39,10 @@ object ManifestTools {
     }
 
     /**
-     * Merges the fragments found in the [classpath] entries into [output] ([ManifestMerger]); fails on a conflict or
-     * on a schema reference no fragment resolves. Returns the number of fragments merged.
+     * Merges the fragments found in the [classpath] entries into [output] ([ManifestMerger]); fails on a conflict, on
+     * a schema reference no fragment resolves, or on a command a saga derives by its class that neither a context of
+     * the service nor a peer contract on the [classpath] decides ([undecidedCommands]). Returns the number of
+     * fragments merged.
      */
     @JvmStatic
     fun merge(classpath: List<File>, serviceName: String, serviceVersion: String?, output: File): Int {
@@ -49,9 +53,35 @@ object ManifestTools {
             "The Manifest refers to schemas no fragment holds: $unresolved. Apply the me.ahoo.wow plugin to the " +
                 "modules that declare them, so their fragments are completed."
         }
+        val undecided = undecidedCommands(manifest, classpath.mapNotNull(ManifestJson::contract).map { it.manifest })
+        check(undecided.isEmpty()) {
+            "The Manifest's sagas derive commands no context decides (decision D259):\n" +
+                undecided.joinToString("\n") { "- $it" } + "\nDepend on the api module of the context that decides " +
+                "each command (its jar carries the context's contract), or name a command of the service."
+        }
         ManifestJson.write(manifest, output)
         return fragments.size
     }
+
+    /**
+     * What a subscription of [manifest] derives by its class's schema reference (`#/$defs/<binary name>`, a command
+     * no module of its context decides) that no context of [manifest] or of the peer [contracts] decides, a lifecycle
+     * command left out: one line per subscription and command.
+     */
+    internal fun undecidedCommands(manifest: Manifest, contracts: List<Manifest>): List<String> {
+        val decided = (listOf(manifest) + contracts).flatMap { it.contexts }.flatMap { it.aggregates }
+            .flatMap { aggregate -> aggregate.commands.filterNot { it.mounted }.map { it.schema } }.toSet() +
+            Lifecycle.COMMANDS.values.map { Manifest.schemaRef(it.name) }
+        return manifest.contexts.flatMap { context ->
+            context.subscriptions.flatMap { subscription ->
+                subscription.derives.orEmpty().filter { it.startsWith(DEFS_PREFIX) && it !in decided }.map {
+                    "${context.name}/${subscription.name} derives ${Manifest.schemaKey(it)}"
+                }
+            }
+        }
+    }
+
+    private const val DEFS_PREFIX = "#/\$defs/"
 
     /**
      * The Manifest compatibility gate (decision D76): compares the service's [current] Manifest with its [baseline],

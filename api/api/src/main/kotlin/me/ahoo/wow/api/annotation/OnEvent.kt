@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.annotation
 
 import java.lang.annotation.Inherited
+import kotlin.reflect.KClass
 
 /**
  * An event handler of a [Projection], [Reactor] or [Saga] (V10, decision D67): it takes a
@@ -24,10 +25,13 @@ import java.lang.annotation.Inherited
  *   Empty, the default, reads the aggregates of the module's context whose state is the handler's state type. An
  *   aggregate of another context is read from the state events that context publishes (design 04 §5), and the
  *   handler's state type is then the subscriber's view of that state.
- * @param derives the commands a [Saga]'s handler may derive, each by its full type name `context.aggregate.Command`
- *   (decision D138). A wait chain may then follow the saga's hop only into the contexts of these commands. Empty, the
- *   default, leaves it to the handler's return type (`Command<X>`, a list of them), when that names the commands; a
- *   projection or a reactor derives none.
+ * @param derives the commands a [Saga]'s handler may derive, by their classes (decisions D138, D259): a command class of
+ *   this context or of another (from that context's api), or a sealed type, which stands for its concrete subclasses.
+ *   A wait chain may then follow the saga's hop only into the contexts of these commands, and the service's build
+ *   fails on a class that neither this context nor a peer contract on its class path decides. Empty, the default,
+ *   leaves it to the handler's return type (`Command<X>`, a list of them, the subclasses of a sealed `X`), when that
+ *   names the commands; a handler that returns `Unit` derives none and declares none. A projection or a reactor derives
+ *   none.
  * @param schedules the commands a [Saga]'s handler may schedule with `SagaContext.schedule` (decision D166), each by
  *   its full type name `context.aggregate.Command`, which the Manifest lists as the subscription's `schedules`. Empty,
  *   the default, declares none; a projection or a reactor schedules none.
@@ -43,7 +47,7 @@ import java.lang.annotation.Inherited
 @MustBeDocumented
 annotation class OnEvent(
     val aggregates: Array<String> = [],
-    val derives: Array<String> = [],
+    val derives: Array<KClass<*>> = [],
     val schedules: Array<String> = [],
     val start: Start = Start.DEFAULT,
 ) {
