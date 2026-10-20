@@ -41,6 +41,11 @@ plugins {
 // The projects of the lists below; the 9.x ones left `v10` with the 9.x code (decisions D244, D262).
 fun includedProjects(vararg paths: String): Set<Project> = paths.map { project(it) }.toSet()
 
+// The repository's test logging, relative to the test JVM's working directory (the project's): a JVM argument is an
+// input of the test task, so it is the same in every checkout and the build cache hits across them.
+fun Project.testLogbackConfiguration(): String =
+    "-Dlogback.configurationFile=${projectDir.toPath().relativize(rootProject.file("config/logback.xml").toPath())}"
+
 val dependenciesProject = project(":wow-dependencies")
 // The V10 BOM (`:bom` in bom/bom, artifact wow-bom per D87).
 val v10BomProject = project(":bom")
@@ -159,11 +164,22 @@ val v10IntegrationTestProjects = includedProjects(
     ":migrate-data",
 )
 val integrationTestProjects = v10IntegrationTestProjects
+// v10.yml runs the integration tests in shards (its `integration` matrix): `-Pwow.integration.projects=":mongo :postgres"`
+// narrows `v10IntegrationTest`, and the test data `v10IntegrationCoverageReport` reads, to those projects. The report
+// still covers the classes of every project above, so a shard's tests count on the modules of the other shards too.
+val v10IntegrationShardProjects = providers.gradleProperty("wow.integration.projects").orNull?.let { paths ->
+    paths.split(' ', ',').filter(String::isNotBlank).map { path ->
+        project(path).also {
+            require(it in v10IntegrationTestProjects) { "$path is not a V10 integration test project" }
+        }
+    }.toSet()
+} ?: v10IntegrationTestProjects
 
 ext.set("localTestProjects", localTestProjects)
 ext.set("integrationTestProjects", integrationTestProjects)
 ext.set("v10Projects", v10Projects)
 ext.set("v10IntegrationTestProjects", v10IntegrationTestProjects)
+ext.set("v10IntegrationShardProjects", v10IntegrationShardProjects)
 
 fun Project.registerJvmTestLayer(
     layer: WowTestLayer,
@@ -198,7 +214,7 @@ fun Project.registerJvmTestLayer(
         testLogging {
             exceptionFormat = TestExceptionFormat.FULL
         }
-        jvmArgs = listOf("-Dlogback.configurationFile=${rootProject.rootDir}/config/logback.xml")
+        jvmArgs = listOf(testLogbackConfiguration())
         retry {
             if (isInCI) {
                 maxRetries = 2
@@ -308,7 +324,7 @@ configure(libraryProjects) {
             systemProperty("wow.snapshot.update", it)
         }
         // fix logging missing code for JacocoPlugin
-        jvmArgs = listOf("-Dlogback.configurationFile=${rootProject.rootDir}/config/logback.xml")
+        jvmArgs = listOf(testLogbackConfiguration())
         retry {
             if (isInCI) {
                 maxRetries = 2
@@ -365,7 +381,7 @@ tasks.register("v10Check") {
 tasks.register("v10IntegrationTest") {
     description = "Runs the container-backed integration tests of the V10 modules."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    dependsOn(v10IntegrationTestProjects.map { it.tasks.named(WowTestLayer.INTEGRATION.taskName) })
+    dependsOn(v10IntegrationShardProjects.map { it.tasks.named(WowTestLayer.INTEGRATION.taskName) })
 }
 
 // Signatures: a release signs in CI with the key in SIGNING_*; elsewhere the signing.* properties of
