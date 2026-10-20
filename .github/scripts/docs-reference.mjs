@@ -412,6 +412,31 @@ export function referencePages(root = ROOT) {
   return pages;
 }
 
+/** The sources each generated page is read from, by its file name. */
+export const SOURCES = {
+  'configuration.md': [METADATA],
+  'error-codes.md': [
+    FRAMEWORK_ERRORS,
+    FRAMEWORK_ERRORS_SNAPSHOT,
+    QUERY_ERROR_CODES,
+  ],
+  'annotations.md': [`${ANNOTATIONS}/`],
+};
+
+/** What a check that found `stale` pages says: the pages, their sources, and the one step that fixes them. */
+export function staleMessage(stale) {
+  const sources = [
+    ...new Set(stale.flatMap(path => SOURCES[path.split('/').at(-1)] ?? [])),
+  ];
+  return [
+    'The generated reference pages are not what their sources give:',
+    ...stale.map(path => `  ${path}`),
+    `They are generated from: ${sources.join(', ')}.`,
+    'Fix: run `pnpm docs:reference` (or `node .github/scripts/docs-reference.mjs --write`) and commit those pages',
+    'with the change to their sources.',
+  ].join('\n');
+}
+
 if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(process.argv[1]).href
@@ -427,15 +452,22 @@ if (
       current = undefined;
     }
     if (current === text) continue;
+    stale.push(path);
     if (write) writeFileSync(join(ROOT, path), text);
-    else stale.push(path);
   }
-  for (const path of stale)
-    console.error(
-      `${path}: not what its sources give; run \`pnpm docs:reference\``,
+  if (write) {
+    for (const path of stale) console.log(`Wrote ${path}`);
+    console.log(
+      stale.length
+        ? `Commit ${stale.length === 1 ? 'the page' : `the ${stale.length} pages`} above.`
+        : 'The generated reference pages were up to date.',
     );
-  if (stale.length > 0) process.exit(1);
-  console.log(
-    `The generated reference pages are up to date (${Object.keys(pages).length} pages)`,
-  );
+  } else if (stale.length > 0) {
+    console.error(staleMessage(stale));
+    process.exit(1);
+  } else {
+    console.log(
+      `The generated reference pages are up to date (${Object.keys(pages).length} pages)`,
+    );
+  }
 }

@@ -14,6 +14,7 @@ import {
   plain,
   queryErrorCodes,
   referencePages,
+  staleMessage,
 } from './docs-reference.mjs';
 
 test('prose loses the design records’ references, and a KDoc link reads as code outside code spans', () => {
@@ -154,4 +155,21 @@ test('the committed reference pages are what their sources give', () => {
       `${path}: run pnpm docs:reference`,
     );
   }
+});
+
+test('a failed check names the pages, their sources and the command that fixes them', () => {
+  assert.equal(
+    staleMessage([
+      'documentation/docs/en/reference/error-codes.md',
+      'documentation/docs/zh/reference/error-codes.md',
+    ]),
+    [
+      'The generated reference pages are not what their sources give:',
+      '  documentation/docs/en/reference/error-codes.md',
+      '  documentation/docs/zh/reference/error-codes.md',
+      'They are generated from: api/manifest/src/main/kotlin/me/ahoo/wow/manifest/FrameworkErrors.kt, api/manifest/src/test/resources/framework-errors.json, api/query-api/src/main/kotlin/me/ahoo/wow/api/query/QueryErrorCodes.kt.',
+      'Fix: run `pnpm docs:reference` (or `node .github/scripts/docs-reference.mjs --write`) and commit those pages',
+      'with the change to their sources.',
+    ].join('\n'),
+  );
 });
