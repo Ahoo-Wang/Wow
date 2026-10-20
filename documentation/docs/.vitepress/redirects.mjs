@@ -62,6 +62,7 @@ export const REDIRECTS = {
     '/reference/config/core': '/guide/v10/configuration',
     '/reference/config/infrastructure': '/guide/v10/configuration',
     '/reference/config/observability': '/guide/v10/configuration',
+    '/guide/migration': '/migrate/',
     '/onboarding/': '/',
 }
 

@@ -156,6 +156,27 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             ],
         },
     ],
+    '/migrate/': [
+        {
+            base: '/migrate/',
+            text: 'Migrate from 9.x',
+            items: [
+                {text: 'Migrating from 9.x', link: 'index.html'},
+                {text: '9.x Capabilities in V10', link: 'capabilities'},
+                {text: 'Migrate the Data', link: 'data'},
+                {text: 'migrate-data CLI', base: '/reference/', link: 'migrate-data'},
+            ],
+        },
+    ],
+    '/reference/': [
+        {
+            base: '/reference/',
+            text: 'Reference',
+            items: [
+                {text: 'migrate-data CLI', link: 'migrate-data'},
+            ],
+        },
+    ],
     '/contribute/': [
         {
             base: '/contribute/',

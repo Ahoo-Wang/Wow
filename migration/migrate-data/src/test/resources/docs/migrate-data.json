@@ -1,0 +1,22 @@
+{
+  "map": "migration-map.json",
+  "manifests": ["../order-service/build/wow/manifest.json"],
+  "checkpoint": "migrate-data.checkpoint.json",
+  "source": {
+    "uri": "mongodb://mongo-9x:27017",
+    "database": "order_db"
+  },
+  "target": {
+    "type": "postgres",
+    "jdbcUrl": "jdbc:postgresql://postgres:5432/wow",
+    "username": "wow",
+    "password": "env:WOW_PG_PASSWORD",
+    "poolSize": 16
+  },
+  "partitions": { "example": 64 },
+  "classpath": ["../order-service/build/install/order-service/lib"],
+  "compensation": {
+    "database": "compensation_db",
+    "service": "order-service"
+  }
+}
