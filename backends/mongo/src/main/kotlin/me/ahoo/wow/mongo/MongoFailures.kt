@@ -53,6 +53,18 @@ internal object MongoFailures {
             TRANSIENT_LABELS.any(failure::hasErrorLabel)
 
     /**
+     * Whether [failure] says the server could not be reached or did not answer: a socket that failed or timed out, a
+     * timeout (server selection, or an operation past its time limit), a pool cleared after a failure, or a node that
+     * is no longer primary. Retrying it within a transaction only holds the command past its wait.
+     */
+    fun isUnreachable(failure: MongoException): Boolean =
+        failure is MongoSocketException ||
+            failure is MongoTimeoutException ||
+            failure is MongoConnectionPoolClearedException ||
+            failure is MongoNotPrimaryException ||
+            failure is MongoNodeIsRecoveringException
+
+    /**
      * Whether a transaction that failed with [failure] may have committed all the same: the driver gave up on a commit
      * whose result is unknown (`UnknownTransactionCommitResult`), or a timeout or a failed socket left it open. Any
      * other failure aborted it for sure.

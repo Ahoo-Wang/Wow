@@ -310,6 +310,12 @@ class WowSkillsValidatorTest(unittest.TestCase):
             results.mkdir(parents=True)
             (results / "aggregate-result.json").write_text("{}", encoding="utf-8")
             self.assertEqual([], validate_repository(self.root))
+        with self.subTest(boundary="h5-inputs-are-ignored"):
+            inputs = evals / "h5-inputs" / "example" / "example-domain"
+            inputs.mkdir(parents=True)
+            (inputs / "build.gradle.kts").write_text("plugins {}\n", encoding="utf-8")
+            self.assertEqual([], validate_repository(self.root))
+            shutil.rmtree(evals / "h5-inputs")
         with self.subTest(boundary="not-kebab-case"):
             (evals / "a09-debug-projection").rename(evals / "A09_debug")
             self.assert_error("case directory is not kebab-case")

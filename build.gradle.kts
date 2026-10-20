@@ -38,21 +38,14 @@ plugins {
     jacoco
 }
 
-// settings.gradle.kts includes the 9.x projects and :kernel-benchmarks only in the full build (`wow.scope` is `all`,
-// the default); `-Pwow.scope=v10` leaves them out. Every list below names its projects through `includedProjects`,
-// which skips the ones the scope left out, so the same lists serve both scopes.
-fun includedProjects(vararg paths: String): Set<Project> = paths.mapNotNull { findProject(it) }.toSet()
+// The projects of the lists below; the 9.x ones left `v10` with the 9.x code (decisions D244, D262).
+fun includedProjects(vararg paths: String): Set<Project> = paths.map { project(it) }.toSet()
 
 val dependenciesProject = project(":wow-dependencies")
-// The V10 BOM (`:bom` in bom/bom, artifact wow-bom per D87) replaces 9.x's `:wow-bom` on this line; v10 publishes only
-// the V10 one (D90), so the two never go out under the same version.
+// The V10 BOM (`:bom` in bom/bom, artifact wow-bom per D87).
 val v10BomProject = project(":bom")
-val bomProjects = includedProjects(":wow-bom") + dependenciesProject + v10BomProject
+val bomProjects = setOf(dependenciesProject, v10BomProject)
 
-val exampleLibraries =
-    includedProjects(":example-api", ":example-domain", ":example-transfer-api", ":example-transfer-domain")
-val viewStoreServerProject = includedProjects(":wow-view-store-server")
-val analyticsServerProject = findProject(":wow-analytics-server")
 // The V10 example, the eShop (D158, D159, D204): built and checked with the V10 modules, never published, and named
 // like the 9.x examples, without the `wow-` prefix of a V10 artifact. It is five contexts of an API, a domain and a
 // server each, and its end-to-end tests, :eshop-e2e.
@@ -64,21 +57,17 @@ val eshopProjects = listOf("catalog", "basket", "ordering", "inventory", "paymen
 // written in Java, built by the compiler and tested with the test DSL, never published.
 val v10ExampleNames = eshopProjects + "quickstart" + "java-smoke"
 val v10ExampleProjects = includedProjects(*v10ExampleNames.map { ":$it" }.toTypedArray())
-val exampleProjects =
-    exampleLibraries + includedProjects(":example-server", ":example-transfer-server", ":wow-compensation-server") +
-        viewStoreServerProject + listOfNotNull(analyticsServerProject) + v10ExampleProjects
+val exampleProjects = v10ExampleProjects
 
 val codeCoverageReportProject = project(":code-coverage-report")
-val benchmarksProject = includedProjects(":wow-benchmarks")
-// The end-to-end architecture benchmark (decision D224, roadmap M7.5 B.0) under wow-benchmarks/e2e/: the twin benchmark
-// domain and server of each version and the load generator. Applications, like the examples: never published, without
-// an ABI dump, and left out of the coverage reports (code-coverage-report reads `e2eBenchmarkProjects`). The V10 one
-// builds and checks with the V10 modules (`v10Check`) as a user of them; the 9.x one only in the full build.
-val e2eBenchmarkProjects = includedProjects(":e2e-bench-9x", ":e2e-bench-v10", ":e2e-bench-load")
+// The end-to-end architecture benchmark (decision D224, roadmap M7.5 B.0) under wow-benchmarks/e2e/: the V10 benchmark
+// domain and server and the load generator (the 9.x twin runs from v10-9x-baseline, D262). Applications, like the
+// examples: never published, without an ABI dump, and left out of the coverage reports (code-coverage-report reads
+// `e2eBenchmarkProjects`). The V10 one builds and checks with the V10 modules (`v10Check`) as a user of them.
+val e2eBenchmarkProjects = includedProjects(":e2e-bench-v10", ":e2e-bench-load")
 // The V10 modules (documentation/designs/v10/06-modules.md). Every module builds on JDK 21 (decision D29); these stay
-// incubating until their API settles; :architecture (V10's dependency rules), :kernel-benchmarks (spike H3),
-// :routing-spike (spike H2), :lease-spike (spike H6) and the examples (:eshop-*, :quickstart, :java-smoke) are
-// never published.
+// incubating until their API settles; :architecture (V10's dependency rules), :routing-spike (spike H2), :lease-spike
+// (spike H6) and the examples (:eshop-*, :quickstart, :java-smoke) are never published.
 val v10Projects = listOf(
     "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query", "query-tck",
     "postgres", "mongo", "kafka", "clickhouse", "elasticsearch", "openapi", "http", "cosec", "opentelemetry",
@@ -87,7 +76,7 @@ val v10Projects = listOf(
     "test-dsl", "tck", "tck-containers", "ops-api", "ops-domain", "ops-server",
     "view-store-api", "view-store-domain", "view-store-server",
     "analytics-catalog-api", "analytics-catalog-domain", "analytics-catalog-server",
-    "kernel-benchmarks", "compiler", "gradle-plugin", "manifest-tools",
+    "compiler", "gradle-plugin", "manifest-tools",
     "routing-spike", "lease-spike", "e2e-bench-v10",
 ).plus(v10ExampleNames).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
 
@@ -128,39 +117,16 @@ fun Project.artifactName(): String =
     } else {
         name
     }
-// Libraries that build and test like the others but are not published yet. The dataset registry (dataset platform
-// design R1b) left with the analytics service (R5d). On v10: the V10 modules a release does not publish (the platform's
-// domains and servers, :architecture, the spikes and the eShop).
+// Libraries that build and test like the others but are not published yet: the V10 modules a release does not publish
+// (the platform's domains and servers, :architecture, the spikes and the eShop).
 val incubatingProjects = v10Projects - v10PublishedLibraries
-val publishProjects = subprojects - exampleProjects - codeCoverageReportProject - benchmarksProject -
-    e2eBenchmarkProjects - incubatingProjects
-val libraryProjects =
-    publishProjects - bomProjects + exampleLibraries + benchmarksProject + incubatingProjects + e2eBenchmarkProjects
-// What 9.x's wow-bom constrains: the published 9.x libraries only, never an example, the benchmarks, an incubating
-// module, whose coordinates are not on Maven Central, or a V10 module (the V10 BOM constrains those).
-val bomConstrainedProjects = publishProjects - bomProjects - v10PublishedLibraries
+val publishProjects = subprojects - exampleProjects - codeCoverageReportProject - e2eBenchmarkProjects - incubatingProjects
+val libraryProjects = publishProjects - bomProjects + incubatingProjects + e2eBenchmarkProjects
 // What the V10 BOM constrains: exactly the V10 libraries a 10.x release publishes.
 val v10BomConstrainedProjects = v10PublishedLibraries
-// Modules whose main code implements or wires a `@WowSpi` (the query backend SPI and its registration, the transport SPI
-// and its Kafka and Redis implementations, the command aggregate SPI in wow-core and the aggregate test DSL that drives
-// it). Every other module's main code opts in where
-// it uses one (`@OptIn(WowSpi::class)`) and otherwise gets the compiler's warning, as an application would.
-val wowSpiProjects = includedProjects(
-    ":wow-core",
-    ":wow-test",
-    ":wow-query",
-    ":wow-clickhouse",
-    ":wow-mongo",
-    ":wow-elasticsearch",
-    ":wow-kafka",
-    ":wow-redis",
-    ":wow-tck",
-    ":wow-spring-boot-starter",
-)
 val isInCI = !System.getenv("CI").isNullOrEmpty()
 ext.set("libraryProjects", libraryProjects)
 ext.set("e2eBenchmarkProjects", e2eBenchmarkProjects)
-ext.set("bomConstrainedProjects", bomConstrainedProjects)
 ext.set("v10BomConstrainedProjects", v10BomConstrainedProjects)
 
 enum class WowTestLayer(
@@ -168,11 +134,6 @@ enum class WowTestLayer(
     val taskName: String,
     val description: String,
 ) {
-    CONTRACT(
-        sourceSetName = "contractTest",
-        taskName = "contractTest",
-        description = "Runs local-safe TCK contract tests.",
-    ),
     INTEGRATION(
         sourceSetName = "integrationTest",
         taskName = "integrationTest",
@@ -180,15 +141,7 @@ enum class WowTestLayer(
     ),
 }
 
-val localTestProjects = libraryProjects - benchmarksProject
-val localTestTaskProjects =
-    localTestProjects + includedProjects(":wow-compensation-server") + viewStoreServerProject +
-        listOfNotNull(analyticsServerProject)
-val localContractTestProjects = includedProjects(
-    ":wow-core",
-    ":wow-opentelemetry",
-    ":wow-mock",
-)
+val localTestProjects = libraryProjects
 val v10IntegrationTestProjects = includedProjects(
     ":postgres",
     ":mongo",
@@ -205,20 +158,9 @@ val v10IntegrationTestProjects = includedProjects(
     ":analytics-catalog-server",
     ":migrate-data",
 )
-val integrationTestProjects = includedProjects(
-    ":wow-bi",
-    ":wow-clickhouse",
-    ":wow-mongo",
-    ":wow-redis",
-    ":wow-kafka",
-    ":wow-elasticsearch",
-    ":wow-it",
-    ":wow-view-store-starter",
-    ":wow-dataset-registry-starter",
-) + v10IntegrationTestProjects
+val integrationTestProjects = v10IntegrationTestProjects
 
 ext.set("localTestProjects", localTestProjects)
-ext.set("localContractTestProjects", localContractTestProjects)
 ext.set("integrationTestProjects", integrationTestProjects)
 ext.set("v10Projects", v10Projects)
 ext.set("v10IntegrationTestProjects", v10IntegrationTestProjects)
@@ -330,8 +272,8 @@ configure(libraryProjects) {
         compilerOptions {
             freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
             // Wow's own modules share internal declarations and build on its experimental ones; a user module
-            // (`v10UserProjects`, the 9.x example libraries, the end-to-end benchmark) does not (D216).
-            if (project !in v10UserProjects && project !in exampleLibraries && project !in e2eBenchmarkProjects) {
+            // (`v10UserProjects`, the end-to-end benchmark) does not (D216).
+            if (project !in v10UserProjects && project !in e2eBenchmarkProjects) {
                 optIn.addAll(
                     "me.ahoo.wow.api.annotation.InternalWowApi",
                     "me.ahoo.wow.api.annotation.ExperimentalWowApi",
@@ -340,15 +282,14 @@ configure(libraryProjects) {
             // Test, contract and benchmark code exercises the SPI directly; main code opts in per module. Wow's own V10
             // modules implement or wire the `:spi` ports (D216), so they opt in whole; a user module does not.
             val wowV10Module = project in v10Projects && project !in v10UserProjects
-            if (project in wowSpiProjects || wowV10Module || name != "compileKotlin") {
+            if (wowV10Module || name != "compileKotlin") {
                 optIn.add("me.ahoo.wow.api.annotation.WowSpi")
             }
             javaParameters = true
         }
     }
     // V10 interfaces compile to plain JVM default methods, without the `DefaultImpls` classes (`-jvm-default=
-    // no-compatibility`, D216): free before the API freeze, a binary break after it. The 9.x modules keep the default,
-    // `enable`, so their ABI does not change.
+    // no-compatibility`, D216): free before the API freeze, a binary break after it.
     if (project in v10Projects) {
         tasks.withType<KotlinCompile> {
             compilerOptions.jvmDefault.set(JvmDefaultMode.NO_COMPATIBILITY)
@@ -393,10 +334,6 @@ configure(libraryProjects) {
     }
 }
 
-configure(localContractTestProjects) {
-    registerJvmTestLayer(WowTestLayer.CONTRACT, includeInCheck = true)
-}
-
 configure(integrationTestProjects) {
     registerJvmTestLayer(WowTestLayer.INTEGRATION, includeInCheck = false)
 }
@@ -404,41 +341,24 @@ configure(integrationTestProjects) {
 tasks.register("allLocalTest") {
     description = "Runs all local-safe tests."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    dependsOn(localTestTaskProjects.map { it.tasks.named("test") })
-}
-
-tasks.register("allContractTest") {
-    description = "Runs all local-safe contract tests."
-    group = LifecycleBasePlugin.VERIFICATION_GROUP
-    dependsOn(localContractTestProjects.map { it.tasks.named(WowTestLayer.CONTRACT.taskName) })
+    dependsOn(localTestProjects.map { it.tasks.named("test") })
 }
 
 tasks.register("allIntegrationTest") {
     description = "Runs all container-backed integration tests."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     dependsOn(integrationTestProjects.map { it.tasks.named(WowTestLayer.INTEGRATION.taskName) })
-    // The analytics server registers its own layer (an application's Java plugin comes from its own build script).
-    analyticsServerProject?.let { dependsOn("${it.path}:${WowTestLayer.INTEGRATION.taskName}") }
 }
 
-tasks.register("benchmarkSmoke") {
-    description = "Runs the PR-safe JMH smoke benchmark set."
-    group = LifecycleBasePlugin.VERIFICATION_GROUP
-    dependsOn(benchmarksProject.map { it.tasks.named("benchmarkSmoke") })
-}
-
-// The V10 checks (v10.yml), in either build scope; `-Pwow.scope=v10` configures no 9.x module. `check` of every V10
-// module compiles it and runs its unit tests (`:architecture:test` holds the V10 dependency rules); detekt covers
-// the same modules. The ABI of the published V10 modules is checked from the API freeze at the M7 exit (D88, D147,
-// D216): `checkKotlinAbi` of `v10AbiProjects` against their `api/<module>.api`. The full build also compiles the JMH
-// sources of :kernel-benchmarks, which the v10 scope leaves out.
+// The V10 checks (v10.yml). `check` of every V10 module compiles it and runs its unit tests (`:architecture:test` holds
+// the V10 dependency rules); detekt covers the same modules. The ABI of the published V10 modules is checked from the
+// API freeze at the M7 exit (D88, D147, D216): `checkKotlinAbi` of `v10AbiProjects` against their `api/<module>.api`.
 tasks.register("v10Check") {
     description = "Compiles, unit-tests and runs detekt over the V10 modules."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     dependsOn(v10Projects.map { it.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) })
     dependsOn(v10Projects.map { it.tasks.named("detekt") })
     dependsOn(v10AbiProjects.map { it.tasks.named("checkKotlinAbi") })
-    findProject(":kernel-benchmarks")?.let { dependsOn(it.tasks.named("compileJmhKotlin")) }
 }
 
 // Container-backed (Docker/Testcontainers). The spikes' suites skip themselves unless their flags are set.

@@ -23,11 +23,15 @@ import {
   WowError,
 } from '../../src';
 
-/** The string `const val`s of the Kotlin QueryErrorCodes, in source order. */
+/**
+ * The string `const val`s of the Kotlin 9.x QueryErrorCodes, in source order:
+ * a fixed copy under `test/fixtures/nine-x/`, since 9.x left the v10 branch
+ * (decision D262); TS-9x deletes it with this test.
+ */
 function kotlinQueryErrorCodes(): Record<string, string> {
   const source = readFileSync(
     new URL(
-      '../../../../wow-api/src/main/kotlin/me/ahoo/wow/api/query/QueryErrorCodes.kt',
+      '../fixtures/nine-x/wow-api/src/main/kotlin/me/ahoo/wow/api/query/QueryErrorCodes.kt',
       import.meta.url,
     ),
     'utf8',

@@ -156,7 +156,7 @@ The storefront reads the product snapshots through the HTTP query routes: `POST 
 The memory backend serves no snapshot queries, so run the catalog on PostgreSQL to query it. For example, the published products of a category, cheapest first, two per page:
 
 ```bash
-./gradlew -Pwow.scope=v10 :eshop-catalog-server:run --args='--spring.profiles.active=postgres'   # a database eshop_catalog on localhost:5432
+./gradlew :eshop-catalog-server:run --args='--spring.profiles.active=postgres'   # a database eshop_catalog on localhost:5432
 curl -s -X POST localhost:8081/eshop-catalog/product/snapshot/query -H 'Content-Type: application/json' -d '{
   "kind": "paged",
   "filter": {"op": "AND", "operands": [
@@ -174,13 +174,11 @@ Use JDK 21. Start a service from the repository root. Each one runs on the memor
 
 | Service | Command | Public port | Internal port |
 | --- | --- | --- | --- |
-| catalog | `./gradlew -Pwow.scope=v10 :eshop-catalog-server:run` | 8081 | 9091 |
-| basket | `./gradlew -Pwow.scope=v10 :eshop-basket-server:run` | 8082 | 9092 |
-| ordering | `./gradlew -Pwow.scope=v10 :eshop-ordering-server:run` | 8083 | 9093 |
-| inventory | `./gradlew -Pwow.scope=v10 :eshop-inventory-server:run` | 8084 | 9094 |
-| payment | `./gradlew -Pwow.scope=v10 :eshop-payment-server:run` | 8085 | 9095 |
-
-`-Pwow.scope=v10` leaves the 9.x modules out of the build. Without it, the build is slower but the result is the same.
+| catalog | `./gradlew :eshop-catalog-server:run` | 8081 | 9091 |
+| basket | `./gradlew :eshop-basket-server:run` | 8082 | 9092 |
+| ordering | `./gradlew :eshop-ordering-server:run` | 8083 | 9093 |
+| inventory | `./gradlew :eshop-inventory-server:run` | 8084 | 9094 |
+| payment | `./gradlew :eshop-payment-server:run` | 8085 | 9095 |
 
 The basket, ordering, inventory and payment services talk over Kafka. The basket, ordering and payment services do not start without it, because their sagas send other contexts' commands. Each of the four has two profiles:
 
@@ -192,10 +190,10 @@ The ordering has a third profile, **`clickhouse`**: the Sink writes its order st
 With the `kafka` profile, each service creates the topics it owns when they are missing (decision D168): its command topic with exactly as many partitions as its log (`wow.log.partitions`, 64 by default), its receipts topic and its state topics. A service that reads another's topic waits until that service has created it. In production, leave `wow.kafka.topics.ddl` at its default, `validate`, and create the topics beforehand ([Deployment](https://wow.ahoo.me/guide/v10/deployment#kafka)):
 
 ```bash
-./gradlew -Pwow.scope=v10 :eshop-inventory-server:run --args='--spring.profiles.active=kafka'
-./gradlew -Pwow.scope=v10 :eshop-ordering-server:run --args='--spring.profiles.active=kafka'
-./gradlew -Pwow.scope=v10 :eshop-basket-server:run --args='--spring.profiles.active=kafka'
-./gradlew -Pwow.scope=v10 :eshop-payment-server:run --args='--spring.profiles.active=kafka'
+./gradlew :eshop-inventory-server:run --args='--spring.profiles.active=kafka'
+./gradlew :eshop-ordering-server:run --args='--spring.profiles.active=kafka'
+./gradlew :eshop-basket-server:run --args='--spring.profiles.active=kafka'
+./gradlew :eshop-payment-server:run --args='--spring.profiles.active=kafka'
 ```
 
 The catalog, basket and ordering servers read the caller from the `X-User` and `X-Role` headers (`CatalogCallers`, `BasketCallers`, `OrderingCallers`). A request without them is the anonymous caller, and the inventory and payment servers serve every request so. For example:
@@ -235,12 +233,12 @@ Work package E.7: `example/eshop/web`, a React app (Vite, shadcn) on the clients
 The dev server forwards each context's routes (`/eshop-<context>/`) to its service on the ports of [Running](#running) (`ESHOP_<CONTEXT>_URL` overrides one). Without Kafka, run the whole shop in one JVM, in memory: `EshopLocal` shares one set of in-memory topics among the five services ([G27](DX-GAPS.md)).
 
 ```bash
-./gradlew -Pwow.scope=v10 :eshop-e2e:eshopLocal          # the five services, ports 8081 to 8085
+./gradlew :eshop-e2e:eshopLocal          # the five services, ports 8081 to 8085
 pnpm --filter wow-eshop-web... build                     # once: the workspace packages it uses
 pnpm --filter wow-eshop-web dev                          # http://localhost:5173
 ```
 
-`pnpm test` runs the component tests. `pnpm test:e2e` is the end-to-end test: it starts `EshopLocal` on ports bound to 0, the dev server against them, and drives the UI in Chromium from the catalog to a shipped order, with a short stock and a declined payment. Build its class path first with `./gradlew -Pwow.scope=v10 :eshop-e2e:eshopLocalClasspath` (JDK 21). Set `ESHOP_WEB_BROWSER_CHANNEL=chrome` to run it in an installed Chrome.
+`pnpm test` runs the component tests. `pnpm test:e2e` is the end-to-end test: it starts `EshopLocal` on ports bound to 0, the dev server against them, and drives the UI in Chromium from the catalog to a shipped order, with a short stock and a declined payment. Build its class path first with `./gradlew :eshop-e2e:eshopLocalClasspath` (JDK 21). Set `ESHOP_WEB_BROWSER_CHANNEL=chrome` to run it in an installed Chrome.
 
 ## Tests
 
@@ -275,11 +273,11 @@ The basket, ordering and inventory tests:
 - **Load.** `EshopLoad`, in the same source set, starts `EshopStack` and drives checkouts through the full chain, each with the 15-hop wait, and reports their throughput and latency. It is not part of any check; [e2e/README.md](e2e/README.md) has the baseline and how to run it.
 
 ```bash
-./gradlew -Pwow.scope=v10 :eshop-catalog-domain:check :eshop-catalog-server:check   # one context
-./gradlew -Pwow.scope=v10 :eshop-e2e:integrationTest                                # the services together
-./gradlew -Pwow.scope=v10 :eshop-e2e:integrationTest --tests '*EshopFullChainTest'  # all five services
-./gradlew -Pwow.scope=v10 :eshop-e2e:eshopLoad                                      # the load script
-./gradlew -Pwow.scope=v10 v10Check v10IntegrationTest                               # everything V10, the eShop included
+./gradlew :eshop-catalog-domain:check :eshop-catalog-server:check   # one context
+./gradlew :eshop-e2e:integrationTest                                # the services together
+./gradlew :eshop-e2e:integrationTest --tests '*EshopFullChainTest'  # all five services
+./gradlew :eshop-e2e:eshopLoad                                      # the load script
+./gradlew v10Check v10IntegrationTest                               # everything V10, the eShop included
 ```
 
 Each service's output of a run of `:eshop-e2e` is kept in `example/eshop/e2e/build/eshop-logs/`.
