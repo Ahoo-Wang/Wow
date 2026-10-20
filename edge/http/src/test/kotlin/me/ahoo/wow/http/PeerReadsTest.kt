@@ -235,6 +235,23 @@ class PeerReadsTest {
             it.set(WowHeaders.CALL, root)
         }
             .answer().status.assert().isEqualTo(200)
+        // A model this node does not serve is its 404, as on the public port.
+        val unserved = QueryNode(snapshots = { null })
+        val unservedRoutes = org.springframework.test.web.reactive.server.WebTestClient.bindToRouterFunction(
+            peerReadRoutes(manifest, unserved.http.gateway, tokens.resolver(headerCallers), unserved.http.httpQueries),
+        ).build()
+        unservedRoutes.post().uri("/shop/cart/snapshot/query")
+            .headers {
+                it.set("Authorization", "Bearer $TOKEN")
+                it.set(WowHeaders.CALL, root)
+            }
+            .header("Content-Type", "application/json").bodyValue(body).answer().status.assert().isEqualTo(404)
+        unservedRoutes.get().uri("/shop/cart/snapshot/query")
+            .headers {
+                it.set("Authorization", "Bearer $TOKEN")
+                it.set(WowHeaders.CALL, root)
+            }
+            .answer().status.assert().isEqualTo(404)
         routes.get().uri("/shop/cart/c-1/state").headers {
             it.set("Authorization", "Bearer $TOKEN")
             it.set(WowHeaders.CALL, root)
