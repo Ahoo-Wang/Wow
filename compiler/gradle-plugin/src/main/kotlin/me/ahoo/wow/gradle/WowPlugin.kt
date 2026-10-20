@@ -75,7 +75,10 @@ import java.util.Properties
  *   module declares in `api(...)` is its api module, whose jar carries that contract at `META-INF/wow/contract.json`:
  *   the plugin gives it the configuration [CONTRACT_CONFIGURATION] and the task [ASSEMBLE_CONTRACT_TASK]
  *   ([AssembleContract]), which fails when a context's command and event classes are not all in the api module.
- *   A service then knows a peer context by depending on its api module alone.
+ *   A service then knows a peer context by depending on its api module alone. An api module with the Kotlin JVM
+ *   plugin also compiles `<package>.<Context>Contract` per context from its contract ([GenerateContractSources],
+ *   source set [CONTRACT_SOURCE_SET], decision D259) into its classes and jar; its paired domain modules compile
+ *   against a core view of it without that code (attribute [API_VIEW]), every other consumer against all of it.
  *
  * The pairing configures the api project from the domain module's, which Gradle's isolated projects forbid; the
  * plugin is not compatible with them (decision D234: a settings plugin pairing `x-api` with `x-domain` by name takes
@@ -242,8 +245,9 @@ class WowPlugin : Plugin<Project> {
      * The code generated from [api]'s contract (decisions D256 ①, D259): [GENERATE_CONTRACT_SOURCES_TASK]
      * ([GenerateContractSources]) writes it from what [assemble] keeps, and the source set [CONTRACT_SOURCE_SET]
      * compiles it against [main]'s classes and dependencies. Its classes join the api's classes variants and jar, so
-     * every consumer sees them; the domain modules, whose contract they come from, read their core views
-     * variants ([coreView]), which hold [main]'s classes alone, so the build has no cycle.
+     * every consumer sees them. The domain modules, whose contracts they come from, compile, are processed and complete
+     * their fragments against their core views of the api ([coreView]), which hold [main]'s classes alone, so the
+     * build has no cycle: api main → domain compile and KSP → fragment → contract → generated code → api classes and jar.
      */
     private fun contractSources(api: Project, main: SourceSet, assemble: TaskProvider<AssembleContract>) {
         val sourceSets = api.extensions.getByType(SourceSetContainer::class.java)
@@ -318,8 +322,9 @@ class WowPlugin : Plugin<Project> {
     }
 
     /**
-     * Makes [configuration] of a domain module request its core view of its api modules ([coreView]): they carry the code
-     * generated from the domain's contract, which compiling and processing the domain cannot wait for.
+     * Makes [configuration] of a domain module request its core view of its api modules ([coreView]): they carry the
+     * code generated from the domain's contract, which compiling and processing the domain cannot wait for. KSP reads
+     * the compile class path too.
      */
     private fun coreRequest(project: Project, configuration: Configuration) {
         project.dependencies.attributesSchema.attribute(API_VIEW)
