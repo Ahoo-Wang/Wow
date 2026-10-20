@@ -6,6 +6,8 @@
 ./gradlew <module>:check
 ./gradlew <module>:test
 ./gradlew <module>:clean <module>:check --stacktrace
+./gradlew v10Check
+./gradlew v10IntegrationTest
 ./gradlew detekt
 ./gradlew detekt --auto-correct
 ./gradlew build
@@ -13,25 +15,7 @@
 ./gradlew updateKotlinAbi
 ```
 
-Use Gradle module paths from `settings.gradle.kts`, for example `:wow-api`, `:wow-core`, `:wow-spring-boot-starter`, `:wow-compensation-domain`, `:example-domain`, and `:wow-test`.
-
-Before running a sample, prepare its module directory from the repository root. Set `service_dir` to `example/example-server`, `example/transfer/example-transfer-server`, or `compensation/wow-compensation-server`:
-
-```bash
-service_dir=example/example-server
-mkdir -p "$service_dir/logs" "$service_dir/data" "$service_dir/config"
-test -e "$service_dir/config/application.yaml" || cp "$service_dir/src/dist/config/application.yaml" "$service_dir/config/application.yaml"
-```
-
-The `run` task resolves `logs/`, `data/`, and `config/` relative to that module directory. Review the copied configuration and start any backends it enables. The example and transfer distribution configs use in-memory Wow stores and buses; the compensation config needs MongoDB, Redis/CosId, and Kafka connection settings appropriate to your environment. Keep local configuration, logs, and heap dumps out of commits.
-
-Choose the matching service command:
-
-```bash
-./gradlew :example-server:run
-./gradlew :example-transfer-server:run
-./gradlew :wow-compensation-server:run
-```
+Use Gradle module paths from `settings.gradle.kts`, for example `:api`, `:kernel`, `:runtime`, `:spring-boot`, `:test-dsl` and `:eshop-catalog-domain`. The `v10` branch holds V10 only: the 9.x code (the `wow-*` modules, `test/wow-*`, the compensation, view-store, dataset-registry and analytics services, the 9.x examples and JMH benchmarks) left it early (decisions D244, D262) and lives on `main` and on the side branch `v10-9x-baseline`, its last commit on `v10`; 9.x benchmark baselines and 9.x reference reads come from there. The eShop's services run as its README describes (`./gradlew :eshop-catalog-server:run`, ...).
 
 JavaScript projects share one pnpm workspace rooted at the repository root (`package.json`, `pnpm-workspace.yaml`, one `pnpm-lock.yaml`). Install once from the root; TypeScript packages under `typescript/` follow [typescript/AGENTS.md](typescript/AGENTS.md).
 
@@ -39,7 +23,7 @@ JavaScript projects share one pnpm workspace rooted at the repository root (`pac
 pnpm install
 ```
 
-Compensation dashboard:
+Compensation dashboard (9.x; its server is on `main`):
 
 The dashboard uses the workspace packages `@ahoo-wang/wow-client`, `@ahoo-wang/wow-react`, `@ahoo-wang/wow-view-engine` and `@ahoo-wang/wow-view-store` through their `dist`, so build them before running it and again after changing them:
 
@@ -53,7 +37,7 @@ pnpm build
 pnpm coverage
 ```
 
-Analytics console (`analytics/console`, served by `wow-analytics-server` from its `ui/`):
+Analytics console (`analytics/console`, 9.x, served by `wow-analytics-server` on `main` from its `ui/`):
 
 ```bash
 pnpm --filter wow-analytics-console... build
@@ -89,91 +73,36 @@ Choose the test layer that covers the affected behavior:
 
 | Source set | Module task | Repository task | Runtime requirements |
 | --- | --- | --- | --- |
-| `src/test` | `<module>:test` | `allLocalTest` | No containers |
-| `src/contractTest` | `<module>:contractTest` | `allContractTest` | No containers; shared TCK contracts |
-| `src/integrationTest` | `<module>:integrationTest` | `allIntegrationTest` | Docker/Testcontainers |
+| `src/test` | `<module>:test` | `allLocalTest`, `v10Check` | No containers |
+| `src/integrationTest` | `<module>:integrationTest` | `allIntegrationTest`, `v10IntegrationTest` | Docker/Testcontainers |
 
-`check` includes `test` and registered `contractTest` tasks, but does not run `integrationTest`. For storage or broker changes, run the affected module's integration tests explicitly. Use only layers registered for that module in `build.gradle.kts`; see [test runtime guidance](documentation/docs/zh/guide/test-runtime.md) for module coverage and setup.
+`check` includes `test`, but does not run `integrationTest`. For storage or broker changes, run the affected module's integration tests explicitly. Use only layers registered for that module in `build.gradle.kts`; see [test runtime guidance](documentation/docs/zh/guide/test-runtime.md) for module coverage and setup.
 
 ```bash
-./gradlew :wow-core:test
-./gradlew :wow-core:test --tests "me.ahoo.wow.command.DefaultCommandGatewayTest"
-./gradlew :wow-core:contractTest
-./gradlew :example-domain:test --tests "me.ahoo.wow.example.domain.order.OrderSpec"
-./gradlew :wow-compensation-domain:check
-./gradlew :wow-mongo:integrationTest --stacktrace
-./gradlew :wow-it:integrationTest --stacktrace
+./gradlew :kernel:test
+./gradlew :eshop-catalog-domain:check
+./gradlew :mongo:integrationTest --stacktrace
+./gradlew :eshop-e2e:integrationTest --stacktrace
 ```
 
-Domain tests usually use the Wow test DSL:
-
-```kotlin
-class CartSpec : AggregateSpec<Cart, CartState>({
-    on {
-        whenCommand(AddCartItem(productId = "productId", quantity = 1)) {
-            expectNoError()
-            expectEventType(CartItemAdded::class)
-            expectState {
-                items.assert().hasSize(1)
-            }
-        }
-    }
-})
-```
+Domain tests use the V10 test DSL (`:test-dsl`, artifact `wow-test`); the eShop's domain modules show it.
 
 CI sets `CI=GITHUB_ACTIONS`; Gradle test retry is enabled only in CI with up to 2 retries and 20 max failures. Domain modules enforce Jacoco coverage, commonly 80% minimum.
 
 ## Project Structure
 
 ```text
-wow-api/                    Pure API contracts: commands, events, naming, queries, modeling
-wow-metadata/               wow-metadata.json model and naming strategies, shared by wow-core and wow-compiler
-wow-core/                   Core CQRS, event sourcing, messaging, projection, saga runtime
-wow-compiler/               KSP processors for metadata and query helper code
-wow-spring/                 Spring integration primitives
-wow-spring-boot-starter/    Auto-configuration plus optional feature capabilities
-wow-query/                  Query model support
-wow-kafka/                  Kafka command/event bus integration
-wow-mongo/                  MongoDB event store and snapshot store
-wow-redis/                  Redis event store and snapshot store
-wow-elasticsearch/          Elasticsearch projection support
-wow-webflux/                Spring WebFlux command endpoint integration
-wow-opentelemetry/          Tracing and metrics integration
-wow-cosec/                  CoSec authorization integration
-wow-cocache/                CoCache projection caching
-wow-apiclient/              REST API client using CoApi
-wow-rest-contract/          REST wire vocabulary: header names, route paths, BatchResult, BI script DTOs
-wow-openapi/                Route contracts and runtime OpenAPI generation
-wow-schema/                 JSON Schema generation
-wow-bi/                     BI sync script generation
-wow-clickhouse/             ClickHouse query backend of declared datasets
-wow-models/                 Shared model helpers
-wow-bom/, wow-dependencies/ BOM and centralized dependency versions
-test/                       wow-test DSL, TCK, mocks, integration tests, coverage report
-compensation/               Compensation domain, API, core, server, and React dashboard
-view-store/                 View engine storage backend: API, domain, Spring Boot starter, standalone server
-dataset-registry/           Dataset registry: API, domain, Spring Boot starter
-analytics/                  Analytics service: view store, dataset registry and ClickHouse datasets behind CoSec
+wow-dependencies/           Centralized dependency versions, which every V10 POM imports
+compensation/dashboard/     The 9.x compensation dashboard (React; its server is on main)
+analytics/console/          The 9.x analytics console (React; its server is on main)
 typescript/                 TypeScript client packages moving in from fetcher; see typescript/AGENTS.md
-example/                    Kotlin order/cart sample and Java transfer sample
-wow-benchmarks/             JMH benchmarks and reproducible performance reports
+wow-benchmarks/             The end-to-end benchmark (e2e/) and reproducible performance reports (results/)
 documentation/              VitePress documentation site (docs/) and design records (designs/)
-docs/                       Ledgers: compat-debt.md (compatibility kept until v10), todo.md (JVM)
+docs/                       Ledgers: compat-debt.md (TypeScript compatibility kept until v10), todo.md (JVM)
 skills/                     Project-local Codex skills and agent definitions
 ```
 
-Core dependency flow:
-
-```text
-wow-api -> wow-metadata -> wow-core -> wow-spring -> wow-spring-boot-starter
-                                    -> infrastructure modules: kafka, mongo, redis, elasticsearch
-                                    -> integration modules: webflux, opentelemetry, cosec, cocache, apiclient
-                        -> wow-compiler (KSP; no wow-core dependency)
-```
-
-`wow-spring-boot-starter` declares Gradle feature variants for `mongo-support`, `redis-support`, `mock-support`, `kafka-support`, `webflux-support`, `elasticsearch-support`, `opentelemetry-support`, `openapi-support`, `cosec-support`, `bi-support` (`wow-bi`; the BI script route exists only when `wow-bi` is on the classpath), and `clickhouse-support` (`wow-clickhouse`; datasets are served from ClickHouse when `wow.query.clickhouse.enabled=true`).
-
-V10 modules (`v10` branch only; [modules design](documentation/designs/v10/06-modules.md) §4), incubating beside the 9.x ones:
+V10 modules ([modules design](documentation/designs/v10/06-modules.md) §4):
 
 ```text
 api/api/                    :api            V10 programming model: annotations, Decision, DecideScope, StateEvent, Scope
@@ -193,16 +122,16 @@ edge/cosec/                 :cosec          CoSec: the caller from CoSec's secur
 host/spring-boot/           :spring-boot    Spring Boot auto-configuration; wiring only
 migration/migrate-data/     :migrate-data   Imports 9.x event streams into the V10 log
 test/architecture/          :architecture   V10 module graph and dependency rules
-test/kernel-benchmarks/     :kernel-benchmarks, test/routing-spike/ :routing-spike, test/lease-spike/ :lease-spike: spikes H3, H2, H6
+test/routing-spike/         :routing-spike, test/lease-spike/ :lease-spike: spikes H2, H6
 example/eshop/<context>/    :eshop-<context>-{api,domain,server}: the V10 example, the eShop's five contexts (D159, D204); never published
 example/eshop/e2e/          :eshop-e2e: the eShop's services end to end on PostgreSQL, Kafka and ClickHouse
 ```
 
-- V10 Gradle project names and directories carry no `wow-` prefix (`:kernel` in `core/kernel`); the root build sets their jar name and Maven artifactId to `wow-<name>` (D87). A V10 module that replaces a 9.x one (`:api`, `:compiler`, `:mongo`) lives in its own directory; the 9.x module keeps its name and directory, and no module may depend on both (D85; `:kernel-benchmarks` is exempt, D90).
-- A 10.x pre-release publishes the V10 modules (R.1; see Releasing a V10 pre-release): `v10PublishedProjects` plus `:migrate-data` and `:manifest-tools`, the V10 BOM `:bom` (`bom/bom`, artifact `wow-bom`, constraining exactly those) and `:wow-dependencies`, which every V10 POM imports; the platform services, `:architecture`, the spikes and the eShop stay unpublished (`incubatingProjects`). Their ABI is frozen at the M7 exit (D88, D147, D216): `v10PublishedProjects` in `build.gradle.kts` (every published V10 module except `:migrate-data` and `:manifest-tools`) joins the `abiValidation` block (`v10AbiProjects`), keeps its dump in `<module>/api/<module>.api` (recorded by D216 F.5), and `v10Check` and `check` run its `checkKotlinAbi`; `./gradlew -Pwow.scope=v10 updateKotlinAbi` rewrites the V10 dumps. Between the M7 exit and 10.0.0 GA a V10 dump is a review tool, see Binary Compatibility. On `v10` the 9.x modules (9.x's `:wow-bom` included) keep `checkKotlinAbi`, but their publish tasks are disabled: main publishes them (D90).
-- V10 API levels (D216): a declaration only its own module uses is `internal`; one Wow's modules share but promise nothing about is `@InternalWowApi` (an `ERROR`-level opt-in, left out of the dumps; mark a constructor to hide only how a public class is built); a surface 10.x may still change (dataset queries, the HTTP ops routes and webhooks, ABAC query policies) is `@ExperimentalWowApi` (a `WARNING`-level opt-in, kept in the dumps). Only Wow's own modules opt in to both; the eShop, the platform services' domains and servers, `:architecture` and the 9.x examples (`v10UserProjects`, `exampleLibraries`) do not, so they compile against the public API as a user does: opt in with `@OptIn(ExperimentalWowApi::class)` where they use an experimental surface, and never opt in to `InternalWowApi`. V10 modules compile with `-jvm-default=no-compatibility` (no `DefaultImpls` classes); the 9.x modules keep the default.
+- V10 Gradle project names and directories carry no `wow-` prefix (`:kernel` in `core/kernel`); the root build sets their jar name and Maven artifactId to `wow-<name>` (D87). `:architecture` forbids including or depending on a deleted 9.x project (`DELETED_9X`).
+- A 10.x pre-release publishes the V10 modules (R.1; see Releasing a V10 pre-release): `v10PublishedProjects` plus `:migrate-data` and `:manifest-tools`, the V10 BOM `:bom` (`bom/bom`, artifact `wow-bom`, constraining exactly those) and `:wow-dependencies`, which every V10 POM imports; the platform services, `:architecture`, the spikes and the eShop stay unpublished (`incubatingProjects`). Their ABI is frozen at the M7 exit (D88, D147, D216): `v10PublishedProjects` in `build.gradle.kts` (every published V10 module except `:migrate-data` and `:manifest-tools`) joins the `abiValidation` block (`v10AbiProjects`), keeps its dump in `<module>/api/<module>.api` (recorded by D216 F.5), and `v10Check` and `check` run its `checkKotlinAbi`; `./gradlew updateKotlinAbi` rewrites the V10 dumps. Between the M7 exit and 10.0.0 GA a V10 dump is a review tool, see Binary Compatibility.
+- V10 API levels (D216): a declaration only its own module uses is `internal`; one Wow's modules share but promise nothing about is `@InternalWowApi` (an `ERROR`-level opt-in, left out of the dumps; mark a constructor to hide only how a public class is built); a surface 10.x may still change (dataset queries, the HTTP ops routes and webhooks, ABAC query policies) is `@ExperimentalWowApi` (a `WARNING`-level opt-in, kept in the dumps). Only Wow's own modules opt in to both; the eShop, the platform services' domains and servers and `:architecture` (`v10UserProjects`) do not, so they compile against the public API as a user does: opt in with `@OptIn(ExperimentalWowApi::class)` where they use an experimental surface, and never opt in to `InternalWowApi`. V10 modules compile with `-jvm-default=no-compatibility` (no `DefaultImpls` classes).
 - Building them requires JDK 21 (D29).
-- `-Pwow.scope=v10` (`settings.gradle.kts`) loads only the V10 projects, the `:wow-dependencies` platform and `:code-coverage-report`; the default scope, `all`, loads everything. `:kernel-benchmarks` builds only in the full scope (it runs the 9.x kernel too). In either scope, `./gradlew -Pwow.scope=v10 v10Check` compiles the V10 modules, runs their unit tests (`:architecture:test` included) and detekt, and `./gradlew -Pwow.scope=v10 v10IntegrationTest` runs their container-backed tests; `:code-coverage-report:v10CoverageReport` and `v10IntegrationCoverageReport` are their coverage.
+- `./gradlew v10Check` compiles the V10 modules, runs their unit tests (`:architecture:test` included), detekt and the ABI checks, and `./gradlew v10IntegrationTest` runs their container-backed tests; `:code-coverage-report:v10CoverageReport` and `v10IntegrationCoverageReport` are their coverage. The build scope `-Pwow.scope` is gone with the 9.x projects; a `-Pwow.scope=v10` a release workflow still passes changes nothing.
 
 
 ## Code Style
@@ -212,7 +141,7 @@ example/eshop/e2e/          :eshop-e2e: the eShop's services end to end on Postg
 - All JVM packages live under `me.ahoo.wow`; examples use `me.ahoo.wow.example`.
 - Source files use the Apache 2.0 copyright header already present in the repository.
 - Keep command/event paths reactive with Reactor `Mono`/`Flux`; do not introduce blocking calls into core dispatch, event store, projection, saga, or transport flows.
-- Prefer focused interfaces and module boundaries: API contracts in `wow-api`, runtime behavior in `wow-core`, Spring wiring in `wow-spring*`, and storage or transport concerns in their dedicated modules.
+- Prefer focused interfaces and module boundaries (06-modules.md §3, held by `:architecture`): the programming model in `:api`, the decide/evolve/append loop in `:kernel`, the node in `:runtime`, Spring wiring in `:spring-boot` only, and storage or transport concerns in their backends.
 - Serialization uses Jackson; framework code uses the existing Jackson stack and Spring compatibility modules where already present.
 - ID generation uses CosId and existing Wow ID helpers.
 - Logging uses kotlin-logging, SLF4J, and Logback.
@@ -245,7 +174,7 @@ Breaking changes, Kotlin or TypeScript, ship only in an `x.Y.0` release. A chang
 
 ### Binary Compatibility
 
-Every published Maven module except the BOMs (`publishProjects` minus `bomProjects` in `build.gradle.kts`) keeps its public JVM ABI in `<module>/api/<module>.api`: classes, constructors, methods and fields with their JVM signatures, including synthetic overloads such as a `DeprecationLevel.HIDDEN` constructor kept for old callers. Declarations marked `@InternalWowApi` are left out; `@WowSpi` declarations (the query backend and command aggregate SPI, an opt-in with a compiler warning) stay in the dump. An interface member marked `@InternalWowApi` also drops out of the dumps of the classes in other modules that implement the interface. The dumps come from Kotlin's built-in ABI validation (`abiValidation` in the Kotlin Gradle plugin); `check` depends on `checkKotlinAbi`, and the `local-test.yml` workflow runs `./gradlew checkKotlinAbi` before the tests, so a pull request that changes a public signature without its dump fails.
+Every published Maven module except the BOMs (`publishProjects` minus `bomProjects` in `build.gradle.kts`) keeps its public JVM ABI in `<module>/api/<module>.api`: classes, constructors, methods and fields with their JVM signatures, including synthetic overloads such as a `DeprecationLevel.HIDDEN` constructor kept for old callers. Declarations marked `@InternalWowApi` are left out; `@WowSpi` declarations (the query backend and command aggregate SPI, an opt-in with a compiler warning) stay in the dump. An interface member marked `@InternalWowApi` also drops out of the dumps of the classes in other modules that implement the interface. The dumps come from Kotlin's built-in ABI validation (`abiValidation` in the Kotlin Gradle plugin); `check` and `v10Check` (v10.yml) depend on `checkKotlinAbi`, so a pull request that changes a public signature without its dump fails.
 
 When the check fails, run `./gradlew updateKotlinAbi` (or `./gradlew :<module>:updateKotlinAbi`) and commit the rewritten dumps with the change. Read the dump diff before committing it:
 
@@ -262,17 +191,12 @@ The V10 dumps (on `v10`, D216) follow these rules only from 10.0.0 GA. Between t
 
 GitHub Actions run module-level checks from `.github/workflows/`:
 
-- `local-test.yml` checks every published module's Kotlin ABI against its `api/*.api` dump (`checkKotlinAbi`, see Binary Compatibility), then runs `allLocalTest` and local coverage.
-- `contract-test.yml` runs `allContractTest` and contract coverage.
-- `integration-test.yml` runs `allIntegrationTest` and integration coverage.
-- `v10.yml` (`v10` branch) runs on every pull request to and push to `v10`; its scope job (`v10` in `.github/scripts/ci-scope.mjs`: the V10 directories, `wow-dependencies/`, the root build and Gradle configuration) decides whether `v10Check`, `v10IntegrationTest` (both `-Pwow.scope=v10`, coverage under the `v10` flag) and the `:kernel-benchmarks` compile run, and `v10-gate` is the merge signal. The 9.x Gradle workflows leave the V10 directories out of their paths; `v10-nightly.yml`, which takes effect on main (a schedule runs from the default branch), dispatches them on `v10` every night that `v10` moved.
-- `mixed-version.yml` runs `MixedVersionClusterTest` (`:wow-it`): the released example server image (`PREVIOUS_IMAGE`) and the example server built from the pull request share Kafka and MongoDB and must process each other's commands, events and wait signals. Its scope (`mixedVersion` in `.github/scripts/ci-scope.mjs`) covers the wire modules, the example server, `gradle/` and the harness; `mixed-version-gate` is its merge signal. Move `PREVIOUS_IMAGE` to the newest release once its image is published.
-- `compensation-test.yml` checks compensation core and domain modules.
-- `example-java-test.yml` builds the Java transfer example modules.
-- `codecov.yml` publishes coverage. Codecov (`codecov.yml` at the root) reports pull requests from the `local`, `contract` and `integration` flags: changed main code needs 90% patch coverage, and each published Kotlin module (and TypeScript package, from its own flag; each V10 module, as `v10-<name>`, from the `v10` flag) is a component whose coverage must not drop by more than 1%; a module's coverage counts every layer, so storage adapters' I/O is covered by their container tests.
+- `v10.yml` runs on every pull request to and push to `v10`; its scope job (`v10` in `.github/scripts/ci-scope.mjs`: the V10 directories, `wow-dependencies/`, the root build and Gradle configuration) decides whether `v10Check` and `v10IntegrationTest` (coverage under the `v10` flag) run, and `v10-gate` is the merge signal. `v10-nightly.yml`, which takes effect on main (a schedule runs from the default branch), dispatches the eShop's soak (`v10-soak.yml`) on `v10` every night that `v10` moved. The 9.x Gradle workflows (local, contract and integration tests, mixed version, compensation, Java example, static analysis, JMH benchmarks) left `v10` with the 9.x code (D262) and run on main.
+- Codecov (`codecov.yml` at the root) reports pull requests from the `v10` flag (v10.yml) and the TypeScript packages' flags: changed main code needs 90% patch coverage, and each V10 module (as `v10-<name>`) and TypeScript package is a component whose coverage must not drop by more than 1%; a module's coverage counts its unit and container tests, so storage adapters' I/O is covered by their container tests.
 - `documentation-deploy.yml`, `example-deploy.yml`, `compensation-deploy.yml`, `view-store-deploy.yml`, and `analytics-deploy.yml` deploy the docs and push the Docker images of the example, compensation, standalone view store and analytics servers (DockerHub `ahoowang/`, GHCR `ghcr.io/ahoo-wang/`, Aliyun `registry.cn-shanghai.aliyuncs.com/ahoo/`). Each image workflow runs daily, on a push to `main` or a `v*.*.*` tag that touches its `paths` (the sources its server is built from), and on `workflow_dispatch`; keep those `paths` in step with the server's project dependencies. A release tag moves `latest` only when it is the highest stable `v*` tag (`.github/scripts/docker-latest.mjs`, the rule npm's dist-tag follows), so a patch to an older line keeps `latest` where it is.
+- The workflows of `v10`'s required checks (`v10.yml`, `typescript.yml`, `typescript-contract.yml`, `typescript-storybook.yml`, and `pr-safety.yml`'s PR Safety) also run on `merge_group`, so `v10` can use a merge queue: their scope jobs compare the group's commit with the branch's tip (`changeRange` in `ci-scope.mjs`, from the event payload), the gate jobs report on it, PR Safety reruns its limits on the group's diff with git, and no job uploads coverage there (the push run of the same commit does).
 - `typescript.yml` runs on every pull request; its scope job decides which TypeScript jobs run, its `docs-layout` job checks the documentation layout on every pull request, and `typescript-gate` is the merge signal for JavaScript changes. `dashboard-test.yml` checks the compensation dashboard.
-- `typescript-contract.yml` runs the TypeScript client, generator and integration tests against an example server built from the same commit (the view engine and view store suites a second time with its events and snapshots on Elasticsearch, `contract-elasticsearch`), and type-checks code generated from the 8.10.8 and 8.11.5 server images; the shared scope script decides which part runs, and `typescript-contract-gate` is its merge signal.
+- `typescript-contract.yml` type-checks code generated from the 8.10.8 and 8.11.5 server images and runs the client's smoke test against them (`legacy-contract`), and runs the V10 view store suites against the V10 view store service built from the commit (`v10-contract`); the shared scope script decides which part runs, and `typescript-contract-gate` is its merge signal. Its same-source contract against the 9.x example server left `v10` with the 9.x example (D262).
 - `typescript-storybook.yml` runs when the stories, view-engine, wow-client or wow-react change: it type-checks, lints and builds `typescript/storybook` (verifying its index), then runs the story interactions in Chromium in four shards balanced by measured file durations (`typescript/storybook/test-durations.json`); `typescript-storybook-gate` is its merge signal.
 - `pr-labeler.yml` labels pull requests by branch and changed paths (`.github/labeler.yml`), and adds `breaking-change` to a title of the form `type(scope)!: …` or a description with a `BREAKING CHANGE:` line, the template's **Breaking** box ticked, or a `## Breaking` / `## Breaking changes` section that is not "None.", and to a diff that removes or changes a line of an ABI dump, API report or surface list (see Binary Compatibility; `.github/scripts/breaking-label.mjs`); `.github/release.yml` lists breaking changes first in generated release notes.
 - `typescript-storybook-browsers.yml` runs the same story interactions in Firefox (two shards) and WebKit (four shards, on macOS), nightly and on `workflow_dispatch`. It never runs on a pull request, is not a merge signal, and release admission does not read it.

@@ -12,18 +12,19 @@
 #
 
 # The V10 modules (documentation/designs/v10/06-modules.md §4) on the v10
-# branch, in the V10 build scope (`-Pwow.scope=v10`, settings.gradle.kts), so
-# no 9.x module is built. Every pull request to v10 triggers this workflow; the
-# scope job (.github/scripts/ci-scope.mjs, `v10`) decides whether the jobs run,
-# and `v10-gate` is the merge signal: it passes when they pass or when the
-# scope skipped them. The 9.x workflows leave the V10 directories out of their
-# paths; v10-nightly.yml (on main) runs them on v10 every night.
+# branch. Every pull request to v10 triggers this workflow; the scope job
+# (.github/scripts/ci-scope.mjs, `v10`) decides whether the jobs run, and
+# `v10-gate` is the merge signal: it passes when they pass or when the scope
+# skipped them.
 name: V10
 on:
   pull_request:
     branches: [v10]
   push:
     branches: [v10]
+  # A merge queue's group (its commit is what lands on the branch); the scope
+  # job compares it with the branch's tip, and the gate job reports on it.
+  merge_group:
   workflow_dispatch:
 
 permissions:
@@ -48,6 +49,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - name: Check every V10 integration test project is in exactly one shard
+        run: node .github/scripts/v10-integration-shards.mjs
       - id: scope
         env:
           BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
@@ -74,16 +77,23 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          # setup-gradle writes its cache (Gradle's build cache among it) only from the default branch, main, by
+          # default; v10's pushes write it here, and pull requests to v10 read it.
+          cache-read-only: ${{ github.ref != 'refs/heads/v10' }}
       - name: Check the V10 modules with coverage
-        run: ./gradlew -Pwow.scope=v10 v10Check :code-coverage-report:v10CoverageReport --stacktrace
+        run: ./gradlew v10Check :code-coverage-report:v10CoverageReport --stacktrace
       # The release rehearsal of the Maven publications (R.1), signed with a
       # throwaway key the check generates (gpg): every V10 release module has
       # its jar, sources, javadoc, POM and metadata, signed, the BOM constrains
       # exactly them, no 9.x module is published, and the deploy jobs'
       # prebuilt publish uploads all of it with its signatures.
       - name: Check the V10 publications
-        run: ./gradlew -Pwow.scope=v10 v10PublicationCheck --stacktrace
+        run: ./gradlew v10PublicationCheck --stacktrace
       - name: Upload V10 coverage
+        # A merge group's commit is what lands on the branch, whose push run
+        # uploads the same coverage for it; an upload here would double it.
+        if: github.event_name != 'merge_group'
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true
@@ -94,10 +104,13 @@ jobs:
           disable_search: true
           files: ./test/code-coverage-report/build/reports/jacoco/v10CoverageReport/v10CoverageReport.xml
 
-  # The container-backed tests of the V10 backends; the H2 and H6 spikes'
-  # suites skip themselves unless their flags are set.
+  # The container-backed tests of the V10 modules, in shards that run in parallel, each on a runner and a Docker of
+  # its own; the H2 and H6 spikes' suites skip themselves unless their flags are set. Each project of
+  # `v10IntegrationTestProjects` (build.gradle.kts) is in exactly one shard's `projects`: the scope job checks it
+  # (.github/scripts/v10-integration-shards.mjs). The shards are balanced by the tests' measured durations (eShop end
+  # to end about 3 minutes, the host's about 1¾, Elasticsearch's 1¼, MongoDB's ¾, the rest under ½ each).
   integration:
-    name: V10 Integration Test
+    name: V10 Integration Test (${{ matrix.shard }})
     needs: scope
     if: needs.scope.outputs.v10 == 'true'
     timeout-minutes: 40
@@ -105,6 +118,18 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: eshop
+            projects: :eshop-e2e :eshop-ordering-server
+          - shard: host-platform
+            projects: :spring-boot :ops-server :view-store-server :analytics-catalog-server
+          - shard: kafka-elasticsearch-clickhouse
+            projects: :kafka :elasticsearch :clickhouse :routing-spike
+          - shard: mongo-postgres
+            projects: :mongo :postgres :migrate-data :lease-spike
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -114,14 +139,23 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/v10' }}
       - name: Run the V10 integration tests with coverage
-        run: ./gradlew -Pwow.scope=v10 v10IntegrationTest :code-coverage-report:v10IntegrationCoverageReport --stacktrace
+        env:
+          PROJECTS: ${{ matrix.projects }}
+        run: >-
+          ./gradlew v10IntegrationTest :code-coverage-report:v10IntegrationCoverageReport
+          "-Pwow.integration.projects=$PROJECTS" --stacktrace
       - name: Upload V10 integration coverage
+        # A merge group's commit is what lands on the branch, whose push run
+        # uploads the same coverage for it; an upload here would double it.
+        if: github.event_name != 'merge_group'
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true
           flags: v10
-          name: v10-integration
+          name: v10-integration-${{ matrix.shard }}
           fail_ci_if_error: true
           verbose: true
           disable_search: true
