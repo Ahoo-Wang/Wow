@@ -67,8 +67,8 @@ import kotlin.time.Duration.Companion.seconds
  * locks the row until the statement commits, and inserts the stream into its aggregate's table at that sequence only
  * if the aggregate is exactly one version behind. Because the lock is held until commit, the sequence order is the
  * order commits become visible, whichever table they land in; a failed append rolls its sequence back too, so a
- * partition's sequences have no gaps. The transport is stored in its own column and read back only by [tail] and
- * [readEntries].
+ * partition's sequences have no gaps. A group commit ([appendAll]) is the same statement for many streams: one
+ * round trip per group. The transport is stored in its own column and read back only by [tail] and [readEntries].
  *
  * **Aggregate tables.** As the snapshot tables ([me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore]), an aggregate
  * type's table is created the first time this log touches the type, or up front by [createTable]; a new aggregate
@@ -239,24 +239,7 @@ class PostgresEventLog(
                 append.setInt(3, partition)
                 append.setInt(4, stream.version - 1)
                 append.setInt(5, partition)
-                append.setString(6, stream.ref.tenantId)
-                append.setString(7, stream.ref.id)
-                append.setInt(8, stream.version)
-                append.setString(9, stream.commandId)
-                append.setString(10, stream.requestId)
-                append.setString(11, stream.commandType)
-                append.setLong(12, stream.commitTime)
-                append.setString(13, encodeEvents(stream.events))
-                append.setNullableString(14, stream.scope.ownerId)
-                append.setNullableString(15, stream.scope.spaceId)
-                append.setNullableString(16, stream.causation?.correlationId)
-                append.setNullableString(17, stream.causation?.causationId)
-                append.setString(18, json.writeValueAsString(stream.headers))
-                append.setNullableString(19, transport?.let { encodeTransport(it) })
-                val operator = stream.operator
-                append.setNullableString(20, operator?.id)
-                append.setNullableString(21, operator?.tenantId)
-                if (operator == null) append.setNull(22, Types.BOOLEAN) else append.setBoolean(22, operator.crossScope)
+                bindStream(append, 6, stream, transport)
                 append.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else null }
             }
             return if (sequence == null) {
@@ -272,6 +255,126 @@ class PostgresEventLog(
                     ?: AppendOutcome.Unknown(failure)
 
                 else -> outcomeOf(failure)
+            }
+        }
+    }
+
+    /** Binds [stream] and [transport] to [statement] from parameter [first] on: one per [AggregateLogTable.COLUMNS]. */
+    private fun bindStream(statement: PreparedStatement, first: Int, stream: EventStreamRecord, transport: Transport?) {
+        var index = first
+        statement.setString(index++, stream.ref.tenantId)
+        statement.setString(index++, stream.ref.id)
+        statement.setInt(index++, stream.version)
+        statement.setString(index++, stream.commandId)
+        statement.setString(index++, stream.requestId)
+        statement.setString(index++, stream.commandType)
+        statement.setLong(index++, stream.commitTime)
+        statement.setString(index++, encodeEvents(stream.events))
+        statement.setNullableString(index++, stream.scope.ownerId)
+        statement.setNullableString(index++, stream.scope.spaceId)
+        statement.setNullableString(index++, stream.causation?.correlationId)
+        statement.setNullableString(index++, stream.causation?.causationId)
+        statement.setString(index++, json.writeValueAsString(stream.headers))
+        statement.setNullableString(index++, transport?.let { encodeTransport(it) })
+        val operator = stream.operator
+        statement.setNullableString(index++, operator?.id)
+        statement.setNullableString(index++, operator?.tenantId)
+        if (operator == null) {
+            statement.setNull(index, Types.BOOLEAN)
+        } else {
+            statement.setBoolean(index, operator.crossScope)
+        }
+    }
+
+    /**
+     * Group commit (decision D248 ①): the streams of one partition in one autocommitted statement
+     * ([PostgresEventLogTables.appendGroup]), so a group costs one round trip, as one [append] does.
+     *
+     * **Version checks.** Each stream keeps its own check: the statement reads every aggregate's version and takes a
+     * sequence only for the streams exactly one version ahead of theirs (decision D249 ④), bumping the partition's
+     * counter once by their count `k` and writing them at the `k` sequences after it, in the group's order. A stream
+     * that does not fit gets its conflict, or its duplicate when its request is committed (finding A2-1), as [append]
+     * answers it; the others commit.
+     *
+     * **No gaps** (decisions D10, D250). The bump and the inserts are one statement: they commit together or not at
+     * all, and the counter row stays locked until then, so the order in which commits become visible is the sequence
+     * order, whichever node appends to the partition. Another node may append to the partition at once (Local mode
+     * during a handover, decision D71): its statement queues on the counter row. When it commits a version a stream of
+     * the group needs after this statement read the versions, the group's insert hits the unique version key; a stream
+     * repeating a committed request hits the request key; a value PostgreSQL refuses fails the statement too. Each
+     * rolls the whole statement back, the bump included, and is a definite abort: the streams are then appended one by
+     * one, each getting the outcome [append] gives it, and the rest commit (as MongoDB's group commit does).
+     *
+     * **Unknown.** Any other failure, a connection lost while the statement runs included, leaves the group's commit
+     * unknown: every stream of it is [AppendOutcome.Unknown], never appended again one by one (finding A2-6).
+     *
+     * A group of more than [MAX_GROUP] streams is committed [MAX_GROUP] at a time, keeping a statement's parameters
+     * within the protocol's limit.
+     */
+    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+        if (streams.size <= 1) {
+            return streams.map { (stream, transport) -> append(stream, transport) }
+        }
+        val partition = Partitioner.partitionOf(streams.first().first.ref, partitions)
+        require(
+            streams.all { (stream) ->
+                stream.ref.type.context == context && Partitioner.partitionOf(stream.ref, partitions) == partition
+            },
+        ) {
+            "A group commit appends streams of one partition of $context."
+        }
+        require(streams.map { it.first.ref }.toSet().size == streams.size) {
+            "A group commit appends distinct aggregates."
+        }
+        return dispatcher.jdbc {
+            streams.chunked(MAX_GROUP).flatMap { group ->
+                try {
+                    dataSource.autoCommitted { connection -> appendGroupIn(connection, partition, group) }
+                } catch (failure: SQLException) {
+                    group.map { outcomeOf(failure) }
+                }
+            }
+        }.also { outcomes ->
+            if (outcomes.any { it is AppendOutcome.Committed }) pacer.committed(partition)
+        }
+    }
+
+    private fun appendGroupIn(
+        connection: Connection,
+        partition: Int,
+        group: List<Pair<EventStreamRecord, Transport?>>,
+    ): List<AppendOutcome> {
+        val tablesOf = group.map { (stream) -> tableOf(connection, stream.ref.type) }
+        val tables = tablesOf.distinctBy { it.base }
+        val sql = this.tables.appendGroup(partition, tables, tablesOf.map { table -> tables.indexOf(table) })
+        val rows = try {
+            connection.prepareStatement(sql).use { statement ->
+                group.forEachIndexed { index, (stream, transport) ->
+                    bindStream(statement, index * AggregateLogTable.STREAM_PARAMETERS + 1, stream, transport)
+                }
+                statement.executeQuery().use { rows ->
+                    rows.map { it.getInt("version") to it.getLong("sequence").takeUnless { _ -> it.wasNull() } }
+                }
+            }
+        } catch (failure: PSQLException) {
+            val constraint = failure.serverErrorMessage?.constraint
+            val definite = PostgresFailures.isRefused(failure) ||
+                tables.any { constraint == it.versionKey || constraint == it.requestKey }
+            if (!definite) throw failure
+            return group.mapIndexed { index, (stream, transport) ->
+                try {
+                    appendIn(connection, tablesOf[index], partition, stream, transport)
+                } catch (alone: SQLException) {
+                    outcomeOf(alone)
+                }
+            }
+        }
+        return group.mapIndexed { index, (stream) ->
+            val (version, sequence) = rows[index]
+            if (sequence == null) {
+                duplicateOr(connection, tablesOf[index], stream) { AppendOutcome.Conflict(version) }
+            } else {
+                AppendOutcome.Committed(LogPosition(partition, sequence))
             }
         }
     }
@@ -479,9 +582,18 @@ class PostgresEventLog(
      * first), else the conflict, with the aggregate's current version.
      */
     private fun conflictOf(connection: Connection, table: AggregateLogTable, stream: EventStreamRecord): AppendOutcome =
+        duplicateOr(connection, table, stream) { AppendOutcome.Conflict(currentVersion(connection, table, stream.ref)) }
+
+    /** [AppendOutcome.AlreadyCommitted] when [stream]'s request is committed, else [conflict]. */
+    private inline fun duplicateOr(
+        connection: Connection,
+        table: AggregateLogTable,
+        stream: EventStreamRecord,
+        conflict: () -> AppendOutcome.Conflict,
+    ): AppendOutcome =
         findByRequestIdIn(connection, table, stream.ref.tenantId, stream.requestId)
             ?.let { AppendOutcome.AlreadyCommitted(it) }
-            ?: AppendOutcome.Conflict(currentVersion(connection, table, stream.ref))
+            ?: conflict()
 
     private fun currentVersion(connection: Connection, table: AggregateLogTable, ref: AggregateRef): Int =
         connection.prepareStatement(table.currentVersion).use { query ->
@@ -531,6 +643,9 @@ class PostgresEventLog(
         val DEFAULT_POLL_INTERVAL = 50.milliseconds
         val DEFAULT_MAX_POLL_INTERVAL = 1.seconds
         const val DEFAULT_TAIL_BATCH = 500
+
+        /** The most streams one group commit statement takes: 17 parameters each, well within the protocol's 65535. */
+        const val MAX_GROUP = 1000
 
         /** The lineage columns of a partition's counter row (decision D240). */
         const val PARENT = "parent"
