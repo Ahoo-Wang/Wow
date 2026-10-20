@@ -157,6 +157,15 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             ],
         },
     ],
+    '/zh/reference/': [
+        {
+            base: '/zh/reference/',
+            text: '参考',
+            items: [
+                {text: '线上协议', link: 'protocols'},
+            ],
+        },
+    ],
     '/zh/contribute/': [
         {
             base: '/zh/contribute/',
