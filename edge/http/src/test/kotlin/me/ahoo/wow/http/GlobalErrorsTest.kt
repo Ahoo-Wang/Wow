@@ -26,7 +26,9 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.http.problem.GlobalErrors
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.junit.jupiter.api.Test
+import org.springframework.core.io.buffer.DataBufferLimitException
 import org.springframework.http.HttpStatus
+import org.springframework.http.HttpStatusCode
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.test.web.reactive.server.HttpHandlerConnector
@@ -67,6 +69,10 @@ class GlobalErrorsTest {
                 result("wow.command.failed", CommandResult.Status.FAILED),
             )
         }
+        GET("/app/plain") { throw WowProblemException("wow.node.closing", 503, RetryHint.NONE, "Closing.") }
+        GET("/app/unavailable") { throw ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "secret upstream") }
+        GET("/app/unknown") { throw ResponseStatusException(HttpStatusCode.valueOf(599), "odd") }
+        GET("/app/large") { throw DataBufferLimitException("Exceeded limit on max bytes to buffer") }
         GET("/app/down") { throw StorageUnavailableException("The log is down.") }
         GET("/app/forbidden") { throw ResponseStatusException(HttpStatus.FORBIDDEN, "Not yours.") }
         GET("/app/broken") { throw IllegalStateException("secret jdbc:postgresql://db-internal:5432") }
@@ -121,6 +127,21 @@ class GlobalErrorsTest {
         val broken = get("/app/broken")
         broken.status.assert().isEqualTo(500)
         broken.body.toString().assert().doesNotContain("jdbc")
+    }
+
+    @Test
+    fun `a problem without a result or Retry-After, a 5xx status, an unknown one and a large body should map too`() {
+        val plain = get("/app/plain")
+        plain.status.assert().isEqualTo(503)
+        plain.body!!["code"].asString().assert().isEqualTo("wow.node.closing")
+        plain.headers.getFirst("Retry-After").assert().isNull()
+        val unavailable = get("/app/unavailable")
+        unavailable.status.assert().isEqualTo(503)
+        unavailable.body!!.has("detail").assert().isFalse()
+        get("/app/unknown").status.assert().isEqualTo(500)
+        val large = get("/app/large")
+        large.status.assert().isEqualTo(413)
+        large.contentType.assert().isEqualTo("application/problem+json")
     }
 
     @Test
