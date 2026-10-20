@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import java.time.Duration
 
@@ -77,4 +78,17 @@ class QueryBusyException(
 ) {
     override val errorCode: String
         get() = QueryErrors.BUSY
+}
+
+/**
+ * A query of a dataset that is served but cannot be queried now ([me.ahoo.wow.query.dataset.QueryDataset.unavailable],
+ * decision D259 7.2b-2): [QueryErrors.DATASET_UNAVAILABLE] (HTTP 409). The message names the dataset and the
+ * [reason], fixed words such as `needs revision`; what made it so stays with whoever marked it.
+ */
+class QueryDatasetUnavailableException(
+    val dataset: AggregateType,
+    val reason: String,
+) : QueryExecutionException("Dataset [$dataset] cannot be queried now: $reason.") {
+    override val errorCode: String
+        get() = QueryErrors.DATASET_UNAVAILABLE
 }

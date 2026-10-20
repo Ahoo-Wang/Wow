@@ -39,8 +39,10 @@ import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.NorFilter
 import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.OrFilter
+import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
+import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.query.AbacQueryOptions
 import me.ahoo.wow.query.AbacQueryPolicy
@@ -53,8 +55,10 @@ import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryBackendStorages
 import me.ahoo.wow.query.QueryCaller
+import me.ahoo.wow.query.QueryDatasetUnavailableException
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryEntryPolicy
+import me.ahoo.wow.query.QueryErrors
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.QueryScopeRequiredException
@@ -345,6 +349,40 @@ class DatasetQueryGatewayTest {
         DatasetQueryGateways.of(QueryDatasets.NONE) { gateway(dataset = it) }.all.assert().isEmpty()
         DatasetQueryGateways.NONE.all.assert().isEmpty()
         assertThrows<IllegalArgumentException> { DatasetQueryGateways(listOf(gateway(), gateway())) }
+    }
+
+    @Test
+    fun `an unavailable dataset is served with its reason, and every query of it answered so`() = runTest {
+        val datasets = QueryDatasets(listOf(orders.copy(unavailable = "needs revision")))
+        val gateways = DatasetQueryGateways.of(datasets) { gateway(dataset = it) }
+        val gateway = gateways[orders.name]!!
+        gateway.dataset.unavailable.assert().isEqualTo("needs revision")
+        gateway.aggregateType.assert().isEqualTo(orders.name)
+        gateway.entryPolicy.assert().isEqualTo(QueryEntryPolicy.DEFAULT)
+        val caller = QueryCaller(Caller(tenantId = "t1"), entry = QueryEntry.HTTP)
+        val failures = listOf<suspend () -> Any?>(
+            { gateway.single(SingleQuery(MatchAllFilter), caller) },
+            { gateway.list(ListQuery(MatchAllFilter), caller).toList() },
+            { gateway.stream(ListQuery(MatchAllFilter), caller).toList() },
+            { gateway.paged(PagedQuery(MatchAllFilter), caller) },
+            { gateway.cursor(CursorQuery(MatchAllFilter), caller) },
+            { gateway.count(CountQuery(MatchAllFilter), caller) },
+            { gateway.aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("n"))), caller).toList() },
+            { gateway.describe(QueryEntry.HTTP) },
+        )
+        failures.forEach { query ->
+            val failure = assertThrows<QueryDatasetUnavailableException> { query() }
+            failure.errorCode.assert().isEqualTo(QueryErrors.DATASET_UNAVAILABLE)
+            failure.errorMsg.assert().isEqualTo("Dataset [${orders.name}] cannot be queried now: needs revision.")
+            failure.reason.assert().isEqualTo("needs revision")
+            failure.dataset.assert().isEqualTo(orders.name)
+        }
+        // Available again: an ordinary gateway.
+        datasets.put(orders)
+        gateways[orders.name].assert().isNotInstanceOf(UnavailableDatasetQueryGateway::class.java)
+        datasets.put(orders.copy(unavailable = "needs revision"))
+        gateways[orders.name].assert().isInstanceOf(UnavailableDatasetQueryGateway::class.java)
+        assertThrows<IllegalArgumentException> { orders.copy(unavailable = " ") }
     }
 
     @Test
