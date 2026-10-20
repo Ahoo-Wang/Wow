@@ -1,0 +1,153 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.analytics.catalog.domain.dataset
+
+import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.analytics.catalog.api.dataset.DatasetColumn
+import me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition
+import me.ahoo.wow.analytics.catalog.api.dataset.DatasetField
+import me.ahoo.wow.analytics.catalog.api.dataset.DatasetScope
+import me.ahoo.wow.analytics.catalog.api.dataset.DatasetSensitivity
+import me.ahoo.wow.analytics.catalog.api.dataset.DatasetSource
+import me.ahoo.wow.analytics.catalog.api.source.SourceColumn
+import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures
+import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.DEFINITION
+import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.MEMBERS_ID
+import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.ORDERS_ID
+import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.REGIONS_ID
+import me.ahoo.wow.analytics.catalog.domain.DatasetFixtures.SOURCES
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import org.junit.jupiter.api.Test
+
+/**
+ * The compiler's SQL, compared with the golden files of `src/test/resources/dataset/`: a change of the SQL a
+ * definition compiles to shows in the diff of its golden file.
+ */
+class DatasetCompilerTest {
+    private fun bound(
+        definition: DatasetDefinition,
+        sources: Map<String, me.ahoo.wow.analytics.catalog.domain.source.SourceState> = SOURCES
+    ) =
+        (DatasetBinder.bind(definition, sources) as DatasetBinder.Result.Bound).dataset
+
+    private fun golden(name: String): String =
+        checkNotNull(javaClass.getResource("/dataset/$name.sql")) { "No golden file $name.sql." }.readText().trimEnd()
+
+    @Test
+    fun `a wide table should compile to one view of its version, reading merged sources through FINAL`() {
+        val artifact = DatasetCompiler.compile(bound(DEFINITION), "shop", "orders", 3, title = "Orders")
+        artifact.ddl.assert().isEqualTo(golden("orders"))
+        artifact.view.assert().isEqualTo("ds_shop_orders_v3")
+        artifact.database.assert().isEqualTo(DatasetCompiler.DEFAULT_DATABASE)
+        artifact.version.assert().isEqualTo(3)
+        artifact.title.assert().isEqualTo("Orders")
+        artifact.scope.assert().isEqualTo(DatasetScope(tenant = "tenant_id", owner = "owner_id"))
+        artifact.sources.assert().containsExactly(ORDERS_ID, MEMBERS_ID, REGIONS_ID)
+        artifact.identity.assert().isEqualTo("order_id")
+        artifact.eventTime.assert().isEqualTo("month")
+        artifact.approvals.assert().isEmpty()
+        artifact.fields.first { it.name == "member_phone" }.assert().isEqualTo(
+            DatasetField(
+                name = "member_phone",
+                sensitivity = DatasetSensitivity(SensitivityLevel.DISPLAY, keepPrefix = 3, keepSuffix = 4),
+                inputs = listOf("$MEMBERS_ID/state.customer.phone"),
+            ),
+        )
+        artifact.fields.first { it.name == "month" }.assert()
+            .isEqualTo(DatasetField("month", inputs = listOf("$ORDERS_ID/placed_at"), computed = true))
+    }
+
+    @Test
+    fun `expressions should compile with every name quoted and every text escaped`() {
+        val definition = DEFINITION.copy(
+            sources = DEFINITION.sources.take(1),
+            joins = emptyList(),
+            columns = listOf(
+                DatasetColumn("label", expression = "concat(o.region, ' \\ it''s `x`', toString(-o.amount % 3))"),
+                DatasetColumn("big", expression = "if(o.amount >= 100 and not o.phone is null, true, false)"),
+                DatasetColumn(
+                    "kind",
+                    expression = "multiIf(o.region in ('n', 's'), 1, o.region not in ('e'), 2.5, null)"
+                ),
+                DatasetColumn("`odd`", from = "o.member_id"),
+            ),
+            filters = listOf("o.region is not null or o.amount / 2 < 10", "o.phone != ''"),
+            identity = null,
+            eventTime = null,
+        )
+        val problems = DatasetBinder.bind(definition, SOURCES) as DatasetBinder.Result.Invalid
+        problems.problems.single().assert().contains("`odd` is not a name")
+        val artifact = DatasetCompiler.compile(
+            bound(definition.copy(columns = definition.columns.dropLast(1))),
+            "shop",
+            "labels",
+            1
+        )
+        artifact.ddl.assert().isEqualTo(golden("labels"))
+        artifact.approvals.assert().containsExactly("The column big computes from the sensitive values [o.phone].")
+    }
+
+    @Test
+    fun `a platform dimension should compile to a view without a tenant column`() {
+        val definition = DatasetDefinition(
+            sources = listOf(DatasetSource("r", REGIONS_ID)),
+            subject = "r",
+            columns = listOf(DatasetColumn("code", from = "r.code"), DatasetColumn("name", from = "r.name")),
+        )
+        val artifact = DatasetCompiler.compile(bound(definition), "ops", "regions", 1, database = "bi")
+        artifact.ddl.assert().isEqualTo(golden("regions"))
+        artifact.scope.assert().isEqualTo(DatasetScope(platform = true))
+    }
+
+    @Test
+    fun `a value inside a JSON column should read its subcolumn`() {
+        val members = DatasetFixtures.analyst(
+            "events",
+            listOf(SourceColumn("tenant", "String"), SourceColumn("doc", "JSON")),
+            tenant = "tenant",
+        )
+        val definition = DatasetDefinition(
+            sources = listOf(DatasetSource("e", "events")),
+            subject = "e",
+            columns = listOf(DatasetColumn("city", from = "e.doc.address.city")),
+        )
+        DatasetCompiler.compile(bound(definition, mapOf("events" to members)), "shop", "events", 1).ddl.assert()
+            .contains("`e`.`doc`.`address`.`city` AS `city`")
+    }
+
+    @Test
+    fun `a definition should compile from the catalog's sources, or say why it does not`() {
+        (DatasetCompiler.compile(DEFINITION, SOURCES, "shop", "orders", 3) as DatasetCompilation.Compiled)
+            .artifact.ddl.assert().isEqualTo(golden("orders"))
+        (
+            DatasetCompiler.compile(
+                DEFINITION.copy(subject = "x"),
+                SOURCES,
+                "shop",
+                "orders",
+                3
+            ) as DatasetCompilation.Invalid
+            )
+            .problems.assert().containsExactly("The subject x is not an alias of the sources.")
+    }
+
+    @Test
+    fun `a view's name should be safe and its version positive`() {
+        DatasetCompiler.viewOf("shop-ops", "Orders", 12).assert().isEqualTo("ds_shop_ops_orders_v12")
+        assertThrownBy<IllegalArgumentException> { DatasetCompiler.compile(bound(DEFINITION), "shop", "orders", 0) }
+        DatasetCompiler.quote("a`b\\c").assert().isEqualTo("`a\\`b\\\\c`")
+        DatasetCompiler.literal("it's \\").assert().isEqualTo("'it\\'s \\\\'")
+    }
+}
