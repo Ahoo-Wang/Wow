@@ -385,7 +385,37 @@ export const JFR_VIEWS = [
   'hot-methods',
   'allocation-by-class',
   'contention-by-site',
+  'gc-pauses',
+  'safepoints',
+  'latencies-by-type',
+  'socket-reads-by-host',
 ];
+
+// The recording's settings: the JDK's `profile`, plus the safepoint events (off there) and socket reads, writes and
+// thread parks from 1 ms, so a tail can be told apart as GC pauses, safepoints, store latency or lock and pool waits.
+const JFR_SETTINGS = [
+  '+jdk.SafepointBegin#enabled=true',
+  '+jdk.SafepointEnd#enabled=true',
+  '+jdk.SocketRead#threshold=1 ms',
+  '+jdk.SocketWrite#threshold=1 ms',
+  '+jdk.ThreadPark#threshold=1 ms',
+];
+
+/** Writes the profile's .jfc into `dir` with the JDK's `jfr configure`; its path, or undefined when that fails. */
+export function jfrSettings(dir) {
+  const file = join(dir, 'profile.jfc');
+  const jfr = process.env.JAVA_HOME
+    ? join(process.env.JAVA_HOME, 'bin', 'jfr')
+    : 'jfr';
+  const result = spawnSync(
+    jfr,
+    ['configure', '--input', 'profile', ...JFR_SETTINGS, '--output', file],
+    {
+      encoding: 'utf8',
+    },
+  );
+  return result.status === 0 && existsSync(file) ? file : undefined;
+}
 const JFR_LINES = 16;
 
 /** The JDK's `jfr view` of each JFR_VIEWS over node-1.jfr in `dir`, its first lines each; empty without a recording. */
@@ -395,7 +425,7 @@ export function jfrViews(dir) {
   const jfr = process.env.JAVA_HOME
     ? join(process.env.JAVA_HOME, 'bin', 'jfr')
     : 'jfr';
-  return Object.fromEntries(
+  const views = Object.fromEntries(
     JFR_VIEWS.map(view => {
       const result = spawnSync(
         jfr,
@@ -417,6 +447,15 @@ export function jfrViews(dir) {
       ];
     }),
   );
+  // A PostgreSQL run's store side, when bench.sh dumped it (top statements, checkpoints, waits).
+  const postgres = join(dir, 'postgres-stats.txt');
+  if (existsSync(postgres)) {
+    views['postgres-stats'] = readFileSync(postgres, 'utf8')
+      .split('\n')
+      .slice(0, 40)
+      .join('\n');
+  }
+  return views;
 }
 
 // kind `capacity`: per scenario, the closed-loop saturation bounds a bisection over the open-loop rate; a probe holds
@@ -479,9 +518,9 @@ export function mergeSignals(all) {
 export const ANOMALY = {
   errorPercent: 1,
   tailToMedian: 10,
-  // The halves of the measured phase differ by more than this in throughput, or by more than this factor in p99.
-  unstableThroughput: 0.05,
-  unstableP99: 1.5,
+  // Unstable: the halves of the measured phase differ by more than the suite's A/A noise (noise.json) in throughput,
+  // p50 or, with enough tail samples, p99; these defaults stand in for a suite without a threshold.
+  stability: { throughput: 0.05, p50: 0.25, p99: 0.5 },
   // The load generator used this share of the CPUs it had: the run measured the generator, not the servers.
   generatorBusy: 0.9,
   // A component count of the head above the baseline's by more than this.
@@ -490,8 +529,8 @@ export const ANOMALY = {
   minTailMs: 50,
 };
 
-/** The anomalies of one run: `{ kind, detail }` each. */
-export function anomaliesOf(run, { overload = false } = {}) {
+/** The anomalies of one run: `{ kind, detail }` each; `noise` is its suite's A/A thresholds, when there are any. */
+export function anomaliesOf(run, { overload = false, noise } = {}) {
   const found = [];
   const s = run.signals ?? {};
   const sum = counts => Object.values(counts ?? {}).reduce((a, b) => a + b, 0);
@@ -528,18 +567,27 @@ export function anomaliesOf(run, { overload = false } = {}) {
     });
   }
   const st = m.stability;
-  if (
-    st &&
-    ((Number.isFinite(st.throughputChange) &&
-      Math.abs(st.throughputChange) > ANOMALY.unstableThroughput) ||
-      (Number.isFinite(st.p99Ratio) &&
-        (st.p99Ratio > ANOMALY.unstableP99 ||
-          st.p99Ratio < 1 / ANOMALY.unstableP99)))
-  ) {
-    found.push({
-      kind: 'unstable',
-      detail: `second half against first: throughput ${num((st.throughputChange ?? 0) * 100)}%, p99 ×${num(st.p99Ratio, 2)}`,
-    });
+  if (st) {
+    const limit = metric => noise?.[metric] ?? ANOMALY.stability[metric];
+    const drifted = [
+      ['throughput', st.throughputChange],
+      ['p50', Number.isFinite(st.p50Ratio) ? st.p50Ratio - 1 : undefined],
+      ['p99', Number.isFinite(st.p99Ratio) ? st.p99Ratio - 1 : undefined],
+    ].filter(
+      ([metric, change]) =>
+        Number.isFinite(change) && Math.abs(change) > limit(metric),
+    );
+    if (drifted.length > 0) {
+      found.push({
+        kind: 'unstable',
+        detail: `second half against first, beyond ${noise ? 'the A/A noise' : 'the default limits'}: ${drifted
+          .map(
+            ([metric, change]) =>
+              `${metric} ${change >= 0 ? '+' : ''}${num(change * 100)}% (±${num(limit(metric) * 100)}%)`,
+          )
+          .join(', ')}`,
+      });
+    }
   }
   const total = m.ok + m.failed;
   if (total > 0 && (m.failed * 100) / total > ANOMALY.errorPercent) {
@@ -567,8 +615,9 @@ export function anomaliesOf(run, { overload = false } = {}) {
   return found;
 }
 
-/** The anomalies of a suite: every run's and probe's, with where they were found. */
-export function anomalies(suite) {
+/** The anomalies of a suite: every run's and probe's, with where they were found; `noise` from noise.json. */
+export function anomalies(suite, noise = {}) {
+  const thresholds = noise[labelOf(suite)];
   const rows = [];
   if (suite.kind === 'component') {
     // More store round trips or allocations per operation than the baseline: a regression of the core path's cost.
@@ -607,7 +656,7 @@ export function anomalies(suite) {
       : run.handover
         ? 'hand-over'
         : 'steady';
-    for (const found of anomaliesOf(run, { overload })) {
+    for (const found of anomaliesOf(run, { overload, noise: thresholds })) {
       rows.push({ suite: labelOf(suite), run: run.name, context, ...found });
     }
   }
@@ -881,7 +930,11 @@ export function metrics(result) {
     okSeries: seconds,
     p50Series: perSecond.map(second => second.p50Ms),
     p99Series: p99s,
-    stability: halves(seconds, p99s),
+    stability: halves(
+      seconds,
+      p99s,
+      perSecond.map(second => second.p50Ms),
+    ),
     loadGeneratorCores: loadGenerator?.averageCores,
     loadGeneratorCpus: loadGenerator?.availableProcessors,
     bottleneck: bottleneck
@@ -927,22 +980,34 @@ export function metrics(result) {
 }
 
 /**
- * The measured phase's first half against its second: the change in mean throughput and the ratio of the halves'
- * median per-second p99. A run whose halves differ was still warming up or degrading.
+ * The measured phase's first half against its second: the change in mean throughput, and the ratios of the halves'
+ * median per-second p50 and p99. p99 is compared only when each half has at least P99_TAIL samples beyond it (a
+ * hundred thousand operations a half): with fewer, half a run's tail is noise, and a stable system would trip it.
  */
-export function halves(okSeries, p99Series) {
+export function halves(okSeries, p99Series, p50Series = []) {
   const half = Math.floor(okSeries.length / 2);
   if (half < 2) return undefined;
-  const mean = values => values.reduce((a, b) => a + b, 0) / values.length;
-  const first = mean(okSeries.slice(0, half));
-  const second = mean(okSeries.slice(half));
-  const p99First = median(p99Series.slice(0, half));
-  const p99Second = median(p99Series.slice(half));
+  const sum = values => values.reduce((a, b) => a + b, 0);
+  const first = sum(okSeries.slice(0, half)) / half;
+  const second = sum(okSeries.slice(half)) / (okSeries.length - half);
+  const ratioOf = series => {
+    const a = median(series.slice(0, half));
+    const b = median(series.slice(half));
+    return a > 0 ? b / a : undefined;
+  };
+  const tailed =
+    Math.min(sum(okSeries.slice(0, half)), sum(okSeries.slice(half))) * 0.01 >=
+    P99_TAIL;
   return {
     throughputChange: first > 0 ? second / first - 1 : undefined,
-    p99Ratio: p99First > 0 ? p99Second / p99First : undefined,
+    p50Ratio:
+      p50Series.length === okSeries.length ? ratioOf(p50Series) : undefined,
+    p99Ratio: tailed ? ratioOf(p99Series) : undefined,
   };
 }
+
+/** The tail samples a p99 comparison of two halves needs: a thousand beyond it in each. */
+export const P99_TAIL = 1000;
 
 /** The tail samples p99.9 needs to be reported: a thousand beyond it, so a run of a million operations. */
 export const P999_TAIL = 1000;
@@ -1800,13 +1865,22 @@ export function runSuite(name, options) {
     // latencies compare at, summarized with the JDK's `jfr view`.
     if (profile) {
       suite.profiles = [];
+      const settings = jfrSettings(out);
       for (const arm of runnable) {
         const run = measureRun(
           `profile-${arm.id}`,
           arm,
           suite.equalRate ?? suite.rates[arm.id],
           0,
-          { warmUp, measure, into: suite.profiles, extra: ['--jfr'] },
+          {
+            warmUp,
+            measure,
+            into: suite.profiles,
+            extra: [
+              '--jfr',
+              ...(settings ? [`--jfr-settings=${settings}`] : []),
+            ],
+          },
         );
         run.profile = jfrViews(join(out, run.dir));
         save();
@@ -2024,7 +2098,7 @@ export function renderReport(suites, meta = {}) {
     lines.push('No suite left results; see the jobs.', '');
     return `${lines.join('\n')}\n`;
   }
-  const found = suites.flatMap(anomalies);
+  const found = suites.flatMap(suite => anomalies(suite, meta.noise ?? {}));
   lines.push('## Anomalies', '');
   if (found.length === 0) {
     lines.push(

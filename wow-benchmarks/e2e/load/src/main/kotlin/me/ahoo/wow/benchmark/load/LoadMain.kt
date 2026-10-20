@@ -78,7 +78,7 @@ private fun usage(): Nothing {
         """
         usage: e2e-bench-load <seed|check|run|saturate> --version=9x|v10 --targets=http://host:port[,…] [options]
           seed:     --accounts=1000 --concurrency=32 --balance=1000000000000
-          prime:    --accounts=1000 --concurrency=256 [--scenario=… | --mix=…] --out=<dir>
+          prime:    --accounts=1000 --concurrency=256 --out=<dir>
           check:    --accounts=1000 [--scenario=… | --mix=…: only those]
           run:      --scenario=E1|E1-large|E2|E3|E4-state|E4-list (or --mix=E1:50,E4-state:40,E4-list:10) --rate=<ops/s>
                     --warm-up=30 --measure=60
@@ -126,19 +126,15 @@ private fun seed(client: Client, targets: List<URI>, options: Options): Int {
 
 /**
  * The priming pass (D224 note ⑤): every seeded account once, `concurrency` at a time, closed loop and untimed. Each
- * account takes a deposit answered once stored, which brings its aggregate into the node's state cache and its pages
- * into the store's; when the run reads (E2, E4), a state read of it too. A data set above the state cache's capacity
+ * account takes a deposit answered once stored, which brings its aggregate into the node's state cache and its log
+ * and snapshot pages into the store's (the snapshot a read hits is written by that deposit). A data set above the
+ * state cache's capacity
  * ends full, with evictions, which is the steady state such a run measures. Writes `prime.json` (the accounts, the
  * seconds, the failures) to `--out`.
  */
 private fun prime(client: Client, targets: List<URI>, options: Options): Int {
     val accounts = options.int("accounts", DEFAULT_ACCOUNTS)
     val permits = Semaphore(options.int("concurrency", PRIME_CONCURRENCY))
-    val scenarios = options.optional("mix")?.let(Mix::parse)?.parts?.map { it.first }
-        ?: options.optional("scenario")?.let { label -> Scenario.entries.firstOrNull { it.label.equals(label, true) } }
-            ?.let(::listOf)
-        ?: listOf(Scenario.E1)
-    val reads = scenarios.any { it == Scenario.E2 || it == Scenario.E4_STATE || it == Scenario.E4_LIST }
     val failures = AtomicInteger()
     val started = System.nanoTime()
     val futures = (0 until accounts).map { index ->
@@ -146,13 +142,6 @@ private fun prime(client: Client, targets: List<URI>, options: Options): Int {
         val target = targets[index % targets.size]
         val id = accountId(index)
         client.command(client.adapter.deposit(target, id, 1, Wait.STORED))
-            .thenCompose { error ->
-                if (reads && error == null) {
-                    client.read(client.adapter.state(target, id))
-                } else {
-                    CompletableFuture.completedFuture(error)
-                }
-            }
             .handle { error, failure ->
                 if (error != null || failure != null) failures.incrementAndGet()
                 permits.release()
@@ -160,14 +149,11 @@ private fun prime(client: Client, targets: List<URI>, options: Options): Int {
     }
     CompletableFuture.allOf(*futures.toTypedArray()).join()
     val seconds = (System.nanoTime() - started) / OpenLoop.NANOS_PER_SECOND.toDouble()
-    val withReads = if (reads) " (with reads)" else ""
-    println(
-        "[prime] ${client.adapter.name}: $accounts accounts in ${"%.1f".format(seconds)}s$withReads, " +
-            "${failures.get()} failed",
-    )
+    val took = "%.1f".format(seconds)
+    println("[prime] ${client.adapter.name}: $accounts accounts in ${took}s, ${failures.get()} failed")
     options.optional("out")?.let {
         File(it).apply { mkdirs() }.resolve("prime.json").writeText(
-            Json.write(mapOf("accounts" to accounts, "seconds" to seconds, "reads" to reads, "failed" to failures.get())) + "\n",
+            Json.write(mapOf("accounts" to accounts, "seconds" to seconds, "failed" to failures.get())) + "\n",
         )
     }
     return 0

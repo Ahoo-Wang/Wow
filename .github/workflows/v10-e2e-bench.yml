@@ -262,7 +262,8 @@ jobs:
     name: Measure ${{ matrix.job }}
     needs: [plan, build]
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    # Priming a large data set before every run takes 100 s or more; a paired suite runs about fifteen.
+    timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:

@@ -766,14 +766,24 @@ test('A/A runs give the noise thresholds; bootstrap intervals decide what clears
 });
 
 test('stability compares the halves; a busy load generator and an unstable run are flagged', () => {
-  assert.deepEqual(halves([100, 100, 100, 100], [10, 10, 10, 10]), {
-    throughputChange: 0,
-    p99Ratio: 1,
-  });
-  assert.deepEqual(halves([100, 100, 80, 80], [10, 10, 20, 20]), {
+  // p99 is compared only with a thousand tail samples a half (a hundred thousand operations): not here.
+  assert.deepEqual(
+    halves([100, 100, 100, 100], [10, 10, 10, 10], [2, 2, 2, 2]),
+    {
+      throughputChange: 0,
+      p50Ratio: 1,
+      p99Ratio: undefined,
+    },
+  );
+  assert.deepEqual(halves([100, 100, 80, 80], [10, 10, 20, 20], [2, 2, 3, 3]), {
     throughputChange: -0.19999999999999996,
-    p99Ratio: 2,
+    p50Ratio: 1.5,
+    p99Ratio: undefined,
   });
+  assert.deepEqual(
+    halves([60000, 60000, 60000, 60000], [10, 10, 20, 20]).p99Ratio,
+    2,
+  );
   assert.equal(halves([1, 2], [1, 2]), undefined);
   const run = m => ({
     name: 'r',
@@ -797,6 +807,14 @@ test('stability compares the halves; a busy load generator and an unstable run a
   assert.deepEqual(
     anomaliesOf(run({ stability: { throughputChange: 0.01, p99Ratio: 1.2 } })),
     [],
+  );
+  // The suite's A/A noise replaces the defaults: a 20% p50 drift is within ±25%, beyond an A/A ±10%.
+  const drift = run({ stability: { throughputChange: 0, p50Ratio: 1.2 } });
+  assert.deepEqual(anomaliesOf(drift), []);
+  assert.match(
+    anomaliesOf(drift, { noise: { throughput: 0.02, p50: 0.1, p99: 0.5 } })[0]
+      .detail,
+    /beyond the A\/A noise: p50 \+20\.0% \(±10\.0%\)/,
   );
   assert.deepEqual(
     anomaliesOf(run({ loadGeneratorCores: 0.95, loadGeneratorCpus: 1 })).map(
