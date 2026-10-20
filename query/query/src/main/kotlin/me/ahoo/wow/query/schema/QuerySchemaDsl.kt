@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.jsonValue
 import tools.jackson.databind.JsonNode
@@ -23,6 +24,7 @@ import java.util.concurrent.TimeUnit
  * Declares a model's fields in code, in the vocabulary of the capability descriptor: the programmatic source of
  * declarations ([BeanQuerySchemaSource]) beside the Manifest's ([ManifestQuerySchemaSource]), and how tests describe a model.
  */
+@InternalWowApi
 class QuerySchemaDeclarationBuilder {
     private val fields = linkedMapOf<QueryField, QueryFieldDeclaration>()
 
@@ -182,6 +184,7 @@ class QueryFieldDeclarationBuilder {
 }
 
 /** The declaration [block] builds. */
+@InternalWowApi
 fun querySchema(block: QuerySchemaDeclarationBuilder.() -> Unit): QuerySchemaDeclaration =
     QuerySchemaDeclarationBuilder().apply(block).build()
 

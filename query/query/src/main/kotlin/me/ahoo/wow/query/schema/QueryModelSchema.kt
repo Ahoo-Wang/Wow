@@ -25,6 +25,7 @@ private val EMPTY_VALUE_BINDINGS = QueryValueBindings()
 private val QUERY_STORAGE_TYPE_PATTERN = Regex("[A-Za-z_][A-Za-z0-9_-]*")
 
 /** A storage's own name for a native type, such as a PostgreSQL `jsonb` cast or a MongoDB BSON type. */
+@InternalWowApi
 data class QueryStorageType(val value: String) {
     init {
         require(QUERY_STORAGE_TYPE_PATTERN.matches(value)) { "Query storage type is invalid: [$value]." }
@@ -41,6 +42,7 @@ data class QueryStorageType(val value: String) {
  * It never gates a capability: a storage grants what it can run correctly, indexed or not. The descriptor publishes
  * it, and a budget may treat an unindexed sort as expensive ([me.ahoo.wow.query.QueryBudget.unindexedSortExpensive]).
  */
+@InternalWowApi
 class QueryFieldBinding(
     val physicalField: QueryField,
     storageTypes: Set<QueryStorageType>?,
@@ -66,6 +68,7 @@ class QueryFieldBinding(
  * The logical definition of a model (design §5.2): the merged value tree of every source, shared unchanged with every
  * native binding snapshot, with the [sensitivity] policy its masked values are protected under.
  */
+@InternalWowApi
 class LogicalQuerySchema(
     val root: QueryValueSchema,
     val sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
@@ -155,6 +158,7 @@ class LogicalQuerySchema(
 }
 
 /** Published facts only: model values and operation-specific native locations. */
+@InternalWowApi
 class QueryModelSchema(
     val model: QueryModel,
     capabilities: Set<QueryCapability>,

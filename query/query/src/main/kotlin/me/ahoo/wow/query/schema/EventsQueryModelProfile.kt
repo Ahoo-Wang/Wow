@@ -24,6 +24,7 @@ import java.util.Collections
  * null for an anonymous caller (decision D163); [TAGS] the tags after the commit, or null when not recorded (decision
  * D259); [EVENTS] holds each event as `{name, revision, body}` ([EventFields]).
  */
+@InternalWowApi
 object EventStreamFields {
     const val AGGREGATE_ID: String = "aggregateId"
     const val TENANT_ID: String = "tenantId"
@@ -45,6 +46,7 @@ object EventStreamFields {
 }
 
 /** The properties of one event of [EventStreamFields.EVENTS]. */
+@InternalWowApi
 object EventFields {
     /** The event's name, `<context>.<aggregate>.<Name>` (decision D55), or a system event's (`wow.ScheduleSet`). */
     const val NAME: String = "name"

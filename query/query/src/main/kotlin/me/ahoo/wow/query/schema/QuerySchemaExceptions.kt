@@ -13,11 +13,13 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.QueryBindingError
 import me.ahoo.wow.query.QueryError
 import me.ahoo.wow.query.QueryErrors
 
 /** A failure of a query schema: of a query against it, or of the schema itself. */
+@InternalWowApi
 sealed class QuerySchemaException(
     message: String,
     cause: Throwable? = null,
@@ -30,6 +32,7 @@ sealed class QuerySchemaException(
  * A query that does not fit its model or the model's storage: [QueryErrors.INVALID] with the [violation] it breaks.
  * Without a violation it is a schema that does not validate, a server fault ([QueryErrors.FAILED]).
  */
+@InternalWowApi
 class QuerySchemaValidationException(
     message: String,
     cause: Throwable? = null,
@@ -56,6 +59,7 @@ internal class QuerySchemaConflictException(
 }
 
 /** A model whose schema cannot be loaded, such as one without a query backend: [QueryErrors.FAILED]. */
+@InternalWowApi
 class QuerySchemaUnavailableException(
     message: String,
     cause: Throwable? = null,

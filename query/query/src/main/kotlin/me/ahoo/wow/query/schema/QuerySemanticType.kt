@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
@@ -175,4 +176,5 @@ internal data class Reference(
  * A field kept only for existing callers: it can still be queried, but new queries and view definitions should avoid
  * it. [message] says why, or what to use instead; omitted when the declaration gave none.
  */
+@InternalWowApi
 data class QueryDeprecation(val message: String? = null)

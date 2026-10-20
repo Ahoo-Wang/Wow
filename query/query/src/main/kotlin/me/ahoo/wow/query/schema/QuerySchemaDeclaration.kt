@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import tools.jackson.databind.JsonNode
 
@@ -25,12 +26,14 @@ sealed interface DeclarationValue<out T> {
 }
 
 /** The read model of one aggregate type a schema is compiled for. */
+@InternalWowApi
 data class QuerySchemaContext(
     val aggregateType: AggregateType,
     val model: QueryModel,
 )
 
 /** A [declaration] of [context]'s model, as [querySchemaRegistration] builds it. */
+@InternalWowApi
 data class QuerySchemaRegistration(
     val context: QuerySchemaContext,
     val declaration: QuerySchemaDeclaration,
@@ -79,6 +82,7 @@ data class QueryFieldDeclaration(
  * [ManifestQuerySchemaSource]), declarations registered in code ([BeanQuerySchemaSource]), or any other source a host adds. The
  * Catalog merges the declarations of every source by [priority], a higher one stating a fact over a lower one.
  */
+@InternalWowApi
 interface QuerySchemaSource {
     val priority: Int
 

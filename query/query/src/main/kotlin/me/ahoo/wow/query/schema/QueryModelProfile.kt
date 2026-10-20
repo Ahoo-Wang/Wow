@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit
  * profile instead of branching on [QueryModel] themselves. A schema carries its profile ([QueryModelSchema.profile]);
  * other custom models have none, and operations that need one of these facts reject them.
  */
+@InternalWowApi
 abstract class QueryModelProfile internal constructor(val model: QueryModel) {
     /**
      * Unique record identity: the target of id filters and the tie-breaker of every cursor; `null` when the model
@@ -133,6 +134,7 @@ abstract class QueryModelProfile internal constructor(val model: QueryModel) {
  * The profile of an aggregate's read model: every record carries an identity, a payload and an event time: the
  * snapshots ([SnapshotQueryModelProfile]) and the event streams ([EventsQueryModelProfile], decision D235).
  */
+@InternalWowApi
 sealed class BuiltInQueryModelProfile(model: QueryModel) : QueryModelProfile(model) {
     abstract override val identityField: QueryField
     abstract override val payloadField: QueryField
@@ -156,6 +158,7 @@ sealed class BuiltInQueryModelProfile(model: QueryModel) : QueryModelProfile(mod
  * 9.x's names (decision D163) but are objects, `{id, tenantId, crossScope}` ([OperatorFields]), or null for an
  * anonymous caller: filter on `operator.id`.
  */
+@InternalWowApi
 object SnapshotFields {
     const val TENANT_ID: String = "tenantId"
     const val AGGREGATE_ID: String = "aggregateId"
