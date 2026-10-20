@@ -73,14 +73,23 @@ internal object WowLifecycles {
 
 /**
  * Waits, between the public server's graceful shutdown and its stop, for the thread of that shutdown to end, at most
- * [timeout] (review X-4).
+ * [timeout] (review X-4): a workaround of a race in Spring Boot 4.1.1 (`spring-boot-reactor-netty`, and 3.5.x before
+ * it), to remove once the host builds on a Spring Boot that fixes it (below).
  *
- * Spring Boot's Reactor Netty `GracefulShutdown` reports its end to the lifecycle from its `netty-shutdown` thread,
- * and only then clears its state. The server's stop, the next phase, calls its `abort()`, which waits, polling,
- * until a thread it saw is shutting down; one that clears its state in between is never seen shutting down again,
- * and the context's close hangs there (seen as `PaymentServerTest.close` stuck in `GracefulShutdown.abort`, with no
- * Wow frame on the stack). Once that thread has ended, `abort()` finds none and returns at once; when the graceful
- * shutdown outlasted its phase, the thread is still shutting down after [timeout], and `abort()` interrupts it.
+ * The race, in `org.springframework.boot.reactor.netty.GracefulShutdown`
+ * (https://github.com/spring-projects/spring-boot/blob/v4.1.1/module/spring-boot-reactor-netty/src/main/java/org/springframework/boot/reactor/netty/GracefulShutdown.java):
+ * `doShutdown`, on the `netty-shutdown` thread, calls `callback.shutdownComplete(...)` and only then, in `finally`,
+ * sets `shutdownThread = null` and `shuttingDown = false`. The callback lets the lifecycle go on to the server's stop
+ * (`WebServerStartStopLifecycle`, the next phase), which calls `abort()`: it reads `shutdownThread`, then polls
+ * `while (!shuttingDown) sleep(50)`. When the `finally` runs between the two, `abort()` polls forever, and the
+ * context's close hangs there with no Wow frame on its stack (seen as `PaymentServerTest.close` stuck in
+ * `GracefulShutdown.abort`). Fixed upstream in Spring Boot 4.1.2
+ * (https://github.com/spring-projects/spring-boot/issues/52196; 4.0.9 for the 4.0 line,
+ * https://github.com/spring-projects/spring-boot/issues/52119): remove this lifecycle and its bean once the host
+ * builds on 4.1.2 or later.
+ *
+ * Once that thread has ended, `abort()` finds none and returns at once. When the graceful shutdown outlasted its
+ * phase, the thread is still shutting down after [timeout], which is logged as a warning, and `abort()` interrupts it.
  */
 @InternalWowApi
 class GracefulShutdownSettled @JvmOverloads constructor(
@@ -100,6 +109,12 @@ class GracefulShutdownSettled @JvmOverloads constructor(
         threads().filter { it.name == SHUTDOWN_THREAD && it.isAlive }.forEach { shutdown ->
             val left = (deadline - System.nanoTime()) / NANOS_PER_MILLI
             if (left > 0) shutdown.join(left)
+            if (shutdown.isAlive) {
+                logger.warn {
+                    "The public server's graceful shutdown is still running after $timeout: the server stops it now " +
+                        "(review X-4)."
+                }
+            }
         }
     }
 
@@ -116,6 +131,7 @@ class GracefulShutdownSettled @JvmOverloads constructor(
         val DEFAULT_TIMEOUT: Duration = 5.seconds
 
         private const val NANOS_PER_MILLI = 1_000_000L
+        private val logger = KotlinLogging.logger {}
     }
 }
 
