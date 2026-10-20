@@ -49,4 +49,11 @@ dependencies {
 // SharedCasesTest checks that the table of cases is the 9.x module's (at v10-9x-baseline, D262), byte for byte.
 tasks.test {
     systemProperty("wow.benchmark.v10-cases", file("src/test/kotlin/me/ahoo/wow/benchmark/transfer/TransferCases.kt").absolutePath)
+    // BenchSignalsCopyTest checks that the eShop soak's copy of BenchSignals is the same class.
+    val soakSignals = rootProject.file(
+        "example/eshop/e2e/src/soakTest/kotlin/me/ahoo/wow/example/eshop/e2e/soak/SoakSignals.kt",
+    )
+    inputs.file(soakSignals).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("soakSignals")
+    systemProperty("wow.benchmark.soak-signals", soakSignals.absolutePath)
+    systemProperty("wow.benchmark.bench-signals", file("src/main/kotlin/me/ahoo/wow/benchmark/transfer/BenchSignals.kt").absolutePath)
 }
