@@ -1,0 +1,292 @@
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# The timed end-to-end benchmark of decision D224 (wow-benchmarks/e2e/README.md) on GitHub's runners, V10 against
+# 9.x. The 9.x server is built from `baseline_ref` (v10-9x-baseline, the last commit of v10 that has the 9.x code,
+# D262), the V10 server from `head_ref`; the harness and the load generator come from `head_ref` while it still has
+# them and its load generator still drives 9.x, else from `baseline_ref`. Each suite runs in a job of its own, where
+# the arms (9.x and V10, or two V10 configurations) are measured alternately on the same runner, so the ratios survive
+# the variance between runners; steps: .github/scripts/v10-e2e-bench.mjs. The report job combines the suites into
+# report.md and the run summary. Dispatched by hand only: never on a pull request, a push or a schedule, and no merge
+# signal.
+name: V10 E2E Benchmark
+on:
+  workflow_dispatch:
+    inputs:
+      baseline_ref:
+        description: 'Ref the 9.x server is built from (it must still have :e2e-bench-9x)'
+        type: string
+        default: 'v10-9x-baseline'
+      head_ref:
+        description: 'Ref the V10 server is built from'
+        type: string
+        default: 'v10'
+      suites:
+        description: '`all`, or suites separated by commas: e1-mongo-uniform, e1-mongo-zipf, e1-pg-uniform, e2-mongo, e3-mongo, e3-pg, e3-mongo-diag, pg-append-queue'
+        type: string
+        default: 'all'
+      warm_up:
+        description: 'Warm-up seconds of each open-loop run'
+        type: string
+        default: '20'
+      measure:
+        description: 'Measured seconds of each open-loop run'
+        type: string
+        default: '40'
+      repeats:
+        description: 'Rounds per paired suite (one run per arm each); one more when two runs of an arm differ by more than 5%'
+        type: string
+        default: '2'
+      fraction:
+        description: "Open-loop rate as a share of each arm's saturation throughput"
+        type: string
+        default: '0.8'
+
+permissions:
+  contents: read
+
+# One benchmark at a time: a second dispatch waits for the first rather than cancelling it.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+env:
+  CI: GITHUB_ACTIONS
+
+jobs:
+  plan:
+    name: Plan
+    if: github.repository == 'Ahoo-Wang/Wow'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      suites: ${{ steps.inputs.outputs.suites }}
+      warm-up: ${{ steps.inputs.outputs.warm-up }}
+      measure: ${{ steps.inputs.outputs.measure }}
+      repeats: ${{ steps.inputs.outputs.repeats }}
+      fraction: ${{ steps.inputs.outputs.fraction }}
+      baseline-sha: ${{ steps.refs.outputs.baseline-sha }}
+      head-sha: ${{ steps.refs.outputs.head-sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.21.0
+      - name: Check the inputs
+        id: inputs
+        env:
+          SUITES: ${{ inputs.suites }}
+          WARM_UP: ${{ inputs.warm_up }}
+          MEASURE: ${{ inputs.measure }}
+          REPEATS: ${{ inputs.repeats }}
+          FRACTION: ${{ inputs.fraction }}
+        run: node .github/scripts/v10-e2e-bench.mjs plan
+      # Both refs are pinned to their commits here, so every job builds and measures the same code.
+      - name: Resolve the refs
+        id: refs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASELINE_REF: ${{ inputs.baseline_ref }}
+          HEAD_REF: ${{ inputs.head_ref }}
+        run: |
+          sha() {
+            gh api "repos/$GITHUB_REPOSITORY/commits/$(jq -rn --arg ref "$1" '$ref | @uri')" --jq .sha
+          }
+          {
+            echo "baseline-sha=$(sha "$BASELINE_REF")"
+            echo "head-sha=$(sha "$HEAD_REF")"
+          } | tee -a "$GITHUB_OUTPUT"
+
+  # The servers' and the load generator's distributions (installDist), one job per side, packed as tarballs so the
+  # launchers keep their mode.
+  build:
+    name: Build ${{ matrix.side }}
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      matrix:
+        include:
+          - side: 9x
+            sha: ${{ needs.plan.outputs.baseline-sha }}
+            scope: all
+          - side: v10
+            sha: ${{ needs.plan.outputs.head-sha }}
+            scope: v10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ matrix.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      # The refs are inputs, so the Gradle cache is only read here, never written (as benchmark-ab.yml does).
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: true
+      - name: Build
+        env:
+          SIDE: ${{ matrix.side }}
+          SCOPE: ${{ matrix.scope }}
+        run: |
+          if [ ! -d "wow-benchmarks/e2e/bench-$SIDE" ]; then
+            echo "::error::$(git rev-parse HEAD) has no wow-benchmarks/e2e/bench-$SIDE; pick a ref that has :e2e-bench-$SIDE."
+            exit 1
+          fi
+          tasks=(":e2e-bench-$SIDE:installDist")
+          if [ -d wow-benchmarks/e2e/load ]; then tasks+=(:e2e-bench-load:installDist); fi
+          ./gradlew -Pwow.scope="$SCOPE" "${tasks[@]}" --stacktrace
+          mkdir -p "$RUNNER_TEMP/dist"
+          tar -czf "$RUNNER_TEMP/dist/server.tgz" "wow-benchmarks/e2e/bench-$SIDE/build/install"
+          if [ -d wow-benchmarks/e2e/load/build/install ]; then
+            tar -czf "$RUNNER_TEMP/dist/load.tgz" wow-benchmarks/e2e/load/build/install
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-bench-dist-${{ matrix.side }}
+          path: ${{ runner.temp }}/dist
+          retention-days: 3
+          compression-level: 0
+          if-no-files-found: error
+
+  measure:
+    name: Measure ${{ matrix.suite }}
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ${{ fromJSON(needs.plan.outputs.suites) }}
+    env:
+      BASELINE_REF: ${{ inputs.baseline_ref }}
+      HEAD_REF: ${{ inputs.head_ref }}
+      BASELINE_SHA: ${{ needs.plan.outputs.baseline-sha }}
+      HEAD_SHA: ${{ needs.plan.outputs.head-sha }}
+    steps:
+      # The steps' script comes from the workflow's own commit; the harness from the measured refs.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+          path: steps
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.head-sha }}
+          persist-credentials: false
+          sparse-checkout: wow-benchmarks/e2e
+          path: repo
+      - name: Choose the harness
+        id: harness
+        run: |
+          adapter=repo/wow-benchmarks/e2e/load/src/main/kotlin/me/ahoo/wow/benchmark/load/VersionAdapter.kt
+          if [ -x repo/wow-benchmarks/e2e/harness/bench.sh ] && [ -f "$adapter" ] && grep -q '"9x"' "$adapter"; then
+            echo "harness=head" | tee -a "$GITHUB_OUTPUT"
+          else
+            echo "::notice::$HEAD_REF's harness cannot drive 9.x; using $BASELINE_REF's."
+            echo "harness=baseline" | tee -a "$GITHUB_OUTPUT"
+          fi
+      - if: steps.harness.outputs.harness == 'baseline'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.baseline-sha }}
+          persist-credentials: false
+          sparse-checkout: wow-benchmarks/e2e
+          path: repo
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: e2e-bench-dist-*
+          path: ${{ runner.temp }}/dist
+      - name: Unpack the servers and the load generator
+        env:
+          HARNESS: ${{ steps.harness.outputs.harness }}
+        run: |
+          side=v10
+          if [ "$HARNESS" = baseline ]; then side=9x; fi
+          tar -xzf "$RUNNER_TEMP/dist/e2e-bench-dist-9x/server.tgz" -C repo
+          tar -xzf "$RUNNER_TEMP/dist/e2e-bench-dist-v10/server.tgz" -C repo
+          tar -xzf "$RUNNER_TEMP/dist/e2e-bench-dist-$side/load.tgz" -C repo
+          ls repo/wow-benchmarks/e2e/*/build/install/*/bin
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.21.0
+      - name: Pull the images
+        run: docker compose -f repo/wow-benchmarks/e2e/harness/compose.yml pull --quiet
+      - name: Measure
+        env:
+          HARNESS: ${{ steps.harness.outputs.harness }}
+          SUITE: ${{ matrix.suite }}
+          WARM_UP: ${{ needs.plan.outputs.warm-up }}
+          MEASURE: ${{ needs.plan.outputs.measure }}
+          REPEATS: ${{ needs.plan.outputs.repeats }}
+          FRACTION: ${{ needs.plan.outputs.fraction }}
+        run: |
+          export BENCH="$GITHUB_WORKSPACE/repo/wow-benchmarks/e2e/harness/bench.sh"
+          export OUT="$RUNNER_TEMP/results/$SUITE"
+          node steps/.github/scripts/v10-e2e-bench.mjs suite "$SUITE"
+      - name: Summarize
+        if: always()
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: |
+          summary="$RUNNER_TEMP/results/$SUITE/summary.md"
+          if [ -f "$summary" ]; then
+            cat "$summary" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No summary was written for $SUITE; see the Measure step's log." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: e2e-bench-result-${{ matrix.suite }}
+          path: ${{ runner.temp }}/results
+          if-no-files-found: warn
+          retention-days: 30
+
+  report:
+    name: Report
+    needs: [plan, measure]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.21.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: e2e-bench-result-*
+          path: ${{ runner.temp }}/results
+      - name: Combine the suites
+        run: |
+          mkdir -p "$RUNNER_TEMP/report"
+          node .github/scripts/v10-e2e-bench.mjs report "$RUNNER_TEMP/results" "$RUNNER_TEMP/report/report.md"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-bench-report
+          path: ${{ runner.temp }}/report
+          if-no-files-found: error
+          retention-days: 30
