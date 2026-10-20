@@ -39,6 +39,9 @@ object V10Rules {
     val ELASTICSEARCH = V10Module("elasticsearch", "backends/elasticsearch")
     val OPENAPI = V10Module("openapi", "edge/openapi")
     val HTTP = V10Module("http", "edge/http")
+
+    /** The typed command and query clients over HTTP (decisions D257, D259), on the JDK's HttpClient alone. */
+    val CLIENT = V10Module("client", "edge/client")
     val COSEC = V10Module("cosec", "edge/cosec")
     val OPENTELEMETRY = V10Module("opentelemetry", "edge/opentelemetry")
     val SPRING_BOOT = V10Module("spring-boot", "host/spring-boot")
@@ -110,7 +113,7 @@ object V10Rules {
 
     val MODULES = listOf(
         API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, ELASTICSEARCH,
-        OPENAPI, HTTP, COSEC, OPENTELEMETRY, SPRING_BOOT, COSID, MODELS, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
+        OPENAPI, HTTP, CLIENT, COSEC, OPENTELEMETRY, SPRING_BOOT, COSID, MODELS, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
     ) + TEST_MODULES + PLATFORM_MODULES
 
     /** The eShop's five contexts (decision D158), each an `-api`, a `-domain` and a `-server` project. */
@@ -138,12 +141,12 @@ object V10Rules {
 
     /**
      * The V10 projects that are neither modules, platform services nor examples (review R2.5-7): the V10 BOM, these
-     * rules, the spikes H3, H2 and H6 (decision D90) and the V10 side of the end-to-end benchmark (decision D224).
+     * rules, the spikes H2 and H6 and the V10 side of the end-to-end benchmark (decision D224). Spike H3,
+     * `:kernel-benchmarks`, ran the 9.x kernel beside the V10 one and left with the 9.x code (decision D262).
      */
     val TOOLS = listOf(
         V10Module("bom", "bom/bom"),
         V10Module("architecture", "test/architecture"),
-        V10Module("kernel-benchmarks", "test/kernel-benchmarks"),
         V10Module("routing-spike", "test/routing-spike"),
         V10Module("lease-spike", "test/lease-spike"),
         V10Module("e2e-bench-v10", "wow-benchmarks/e2e/bench-v10"),
@@ -203,8 +206,11 @@ object V10Rules {
         ELASTICSEARCH to setOf("spi", "query"),
         // The Manifest only (roadmap 5a.2); the eShop's domains only for the snapshot tests, which document its services.
         OPENAPI to setOf("manifest") + ESHOP_CONTEXTS.map { "eshop-$it-domain" },
-        // query for the query routes (06 §3, decisions D118, D127); openapi for GET /wow/openapi.
-        HTTP to setOf("runtime", "query", "openapi"),
+        // query for the query routes (06 §3, decisions D118, D127); openapi for GET /wow/openapi; client for the wire
+        // grammar both ends share (the Wow headers, `Wow-Call`) and the service credential (decisions D193, D257).
+        HTTP to setOf("runtime", "query", "openapi", "client"),
+        // The runtime for the calls' root context and the contracts (decision D234), query for the rows' records.
+        CLIENT to setOf("runtime", "query"),
         COSEC to setOf("http"),
         // The core's observation seams (decision D174) and the query engine's observer; http for the tests only, which
         // follow a trace from an HTTP request.
@@ -215,6 +221,7 @@ object V10Rules {
         SPRING_BOOT to setOf(
             "runtime",
             "http",
+            "client",
             "openapi",
             "postgres",
             "mongo",
@@ -329,6 +336,16 @@ object V10Rules {
     val CORE_IS_FRAMEWORK_FREE = DependencyRule(
         name = "contract and core modules import no Spring, Reactor, HTTP or driver types",
         modules = listOf(MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, QUERY, OPENAPI).map { it.dir },
+        forbidden = SPRING + REACTOR_TYPES + HTTP_TYPES + DRIVERS,
+    )
+
+    /**
+     * wow-client is usable without Spring (decisions D257, D259): it speaks HTTP through the JDK's HttpClient, with no
+     * Spring, Reactor, servlet or driver type.
+     */
+    val CLIENT_IS_FRAMEWORK_FREE = DependencyRule(
+        name = "wow-client imports no Spring, Reactor, HTTP framework or driver types",
+        modules = listOf(CLIENT.dir),
         forbidden = SPRING + REACTOR_TYPES + HTTP_TYPES + DRIVERS,
     )
 
@@ -460,6 +477,7 @@ object V10Rules {
 
     val DEPENDENCY_RULES = listOf(
         CORE_IS_FRAMEWORK_FREE,
+        CLIENT_IS_FRAMEWORK_FREE,
         TEST_MODULES_ARE_FRAMEWORK_FREE,
         KERNEL_IGNORES_RUNTIME,
         HTTP_READS_ADAPT_ONLY,
@@ -505,29 +523,23 @@ object V10Rules {
             .toSet()
 
     /**
-     * The V10 modules that replace a 9.x module of the same artifact (decision D85): the V10 project and the 9.x one
-     * it replaces. Both define the same packages, so no project may reach both.
+     * The 9.x projects deleted from `v10` (decisions D244, D262; they live on at `v10-9x-baseline` and on main): the
+     * `wow-*` modules, the 9.x test modules, platforms, examples and benchmarks, and spike H3, which ran the 9.x
+     * kernel. No project of these names comes back, and no build script depends on one ([deletedNineXViolations]).
      */
-    val REPLACED_9X: Map<String, String> = mapOf(
-        "api" to "wow-api",
-        "query-api" to "wow-api",
-        "query" to "wow-query",
-        "kafka" to "wow-kafka",
-        "clickhouse" to "wow-clickhouse",
-        "elasticsearch" to "wow-elasticsearch",
-        "compiler" to "wow-compiler",
-        "mongo" to "wow-mongo",
-        "cosec" to "wow-cosec",
-        "openapi" to "wow-openapi",
-        "opentelemetry" to "wow-opentelemetry",
-        "models" to "wow-models",
+    val DELETED_9X: Set<String> = setOf(
+        "wow-bom", "wow-api", "wow-metadata", "wow-rest-contract", "wow-core", "wow-openapi", "wow-cocache",
+        "wow-apiclient", "wow-compiler", "wow-kafka", "wow-mongo", "wow-redis", "wow-elasticsearch", "wow-spring",
+        "wow-webflux", "wow-spring-boot-starter", "wow-opentelemetry", "wow-bi", "wow-clickhouse", "wow-query",
+        "wow-models", "wow-schema", "wow-cosec", "wow-benchmarks",
+        "wow-test", "wow-tck", "wow-mock", "wow-it",
+        "wow-compensation-api", "wow-compensation-core", "wow-compensation-domain", "wow-compensation-server",
+        "example-api", "example-domain", "example-server",
+        "example-transfer-api", "example-transfer-domain", "example-transfer-server",
+        "wow-view-store-api", "wow-view-store-domain", "wow-view-store-starter", "wow-view-store-server",
+        "wow-dataset-registry-api", "wow-dataset-registry-domain", "wow-dataset-registry-starter",
+        "wow-analytics-server", "e2e-bench-9x", "kernel-benchmarks",
     )
-
-    /**
-     * Projects allowed to reach both sides of [REPLACED_9X] (decision D90): spike H3 measures the V10 kernel against
-     * the 9.x one on the same JVM.
-     */
-    val BOTH_SIDES_EXEMPT: Set<String> = setOf("kernel-benchmarks")
 
     private val SETTINGS_INCLUDE = Regex("""include\(\s*"(:?)([\w-]+)"\s*\)""")
     private val SETTINGS_PROJECT_DIR = Regex("""project\(":([\w-]+)"\)\.projectDir\s*=\s*file\("([^"]+)"\)""")
@@ -563,30 +575,32 @@ object V10Rules {
     }
 
     /**
-     * No project reaches both a V10 module and the 9.x module it replaces (decisions D85, D90), directly or
-     * transitively: their classes share names, so one would shadow the other. Only [BOTH_SIDES_EXEMPT] may.
+     * The settings include no deleted 9.x project ([DELETED_9X]) and no build script depends on one; each violation
+     * reads `settings.gradle.kts: :<project>` or `<build script>: :<project>`.
      */
-    fun bothSidesViolations(repositoryRoot: File): List<String> {
-        val graph = projectGraph(repositoryRoot)
-        return graph.keys.sorted()
-            .filterNot { it in BOTH_SIDES_EXEMPT }
-            .flatMap { project ->
-                val reached = reachable(graph, project)
-                REPLACED_9X.filter { (v10, nineX) -> v10 in reached && nineX in reached }
-                    .map { (v10, nineX) -> "$project reaches both :$v10 and :$nineX" }
+    fun deletedNineXViolations(repositoryRoot: File): List<String> {
+        val included = settingsProjects(repositoryRoot)
+        val includes = included.keys.filter { it in DELETED_9X }.sorted().map { "settings.gradle.kts: :$it" }
+        val dependencies = included.toSortedMap().flatMap { (_, dir) ->
+            val buildScript = File(repositoryRoot, "$dir/build.gradle.kts")
+            if (buildScript.isFile) {
+                PROJECT_DEPENDENCY.findAll(buildScript.readText()).map { it.groupValues[1] }
+                    .filter { it in DELETED_9X }.distinct().sorted().map { "$dir/build.gradle.kts: :$it" }.toList()
+            } else {
+                emptyList()
             }
+        }
+        return includes + dependencies
     }
 
     /**
-     * No V10 project reaches a 9.x project (decision D85; review R2.5-7), directly or transitively, but the shared
-     * dependency versions ([SHARED_9X]): V10 replaces 9.x instead of building on it, and 9.x changes or goes (M9)
-     * without touching V10. Only [BOTH_SIDES_EXEMPT] may, spike H3 measuring both kernels.
+     * No V10 project reaches a project outside the settings' `//region v10` (decision D85; review R2.5-7), directly or
+     * transitively, but the shared dependency versions ([SHARED_9X]).
      */
     fun nineXReachViolations(repositoryRoot: File): List<String> {
         val graph = projectGraph(repositoryRoot)
         val v10 = v10SettingsProjects(repositoryRoot)
         return v10.sorted()
-            .filterNot { it in BOTH_SIDES_EXEMPT }
             .flatMap { project ->
                 reachable(graph, project).filterNot { it in v10 || it in SHARED_9X }.sorted()
                     .map { "$project reaches :$it" }
@@ -635,20 +649,6 @@ object V10Rules {
         val settings = File(repositoryRoot, "settings.gradle.kts").readText()
         val region = requireNotNull(V10_REGION.find(settings)) { "settings.gradle.kts has no //region v10." }
         return SETTINGS_INCLUDE.findAll(region.groupValues[1]).map { it.groupValues[2] }.toSet()
-    }
-
-    /**
-     * No 9.x project depends on a V10 project (decision D85), directly or transitively: 9.x builds, tests and
-     * publishes as it does on main, and V10 can change without touching it.
-     */
-    fun nineXOnV10Violations(repositoryRoot: File): List<String> {
-        val graph = projectGraph(repositoryRoot)
-        val v10 = v10SettingsProjects(repositoryRoot)
-        return graph.keys.sorted()
-            .filterNot { it in v10 }
-            .flatMap { project ->
-                reachable(graph, project).filter { it in v10 }.sorted().map { "$project reaches :$it" }
-            }
     }
 
     /**

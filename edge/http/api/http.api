@@ -1,16 +1,3 @@
-public final class me/ahoo/wow/http/WowHeaders {
-	public static final field CALL Ljava/lang/String;
-	public static final field ETAG Ljava/lang/String;
-	public static final field IF_MATCH Ljava/lang/String;
-	public static final field INSTANCE Lme/ahoo/wow/http/WowHeaders;
-	public static final field REBUILDING Ljava/lang/String;
-	public static final field REQUEST_ID Ljava/lang/String;
-	public static final field SCOPE Ljava/lang/String;
-	public static final field SPACE Ljava/lang/String;
-	public static final field WAIT Ljava/lang/String;
-	public static final field WAIT_TIMEOUT Ljava/lang/String;
-}
-
 public final class me/ahoo/wow/http/WowHttpOptions {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getErrorStatuses ()Ljava/util/Map;
@@ -37,21 +24,6 @@ public final class me/ahoo/wow/http/caller/CallerResolver$Companion {
 
 public abstract interface class me/ahoo/wow/http/caller/InternalCallerResolver {
 	public abstract fun resolve (Lorg/springframework/web/reactive/function/server/ServerRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-}
-
-public final class me/ahoo/wow/http/command/CallHeader {
-	public static final field INSTANCE Lme/ahoo/wow/http/command/CallHeader;
-	public final fun format (Lme/ahoo/wow/runtime/admission/CallContext;)Ljava/lang/String;
-	public final fun parse (Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/CallContext;
-}
-
-public final class me/ahoo/wow/http/command/ScopeHeader {
-	public static final field INSTANCE Lme/ahoo/wow/http/command/ScopeHeader;
-	public static final field OWNER Ljava/lang/String;
-	public static final field SPACE Ljava/lang/String;
-	public static final field TENANT Ljava/lang/String;
-	public final fun format (Lme/ahoo/wow/runtime/admission/TargetScope;)Ljava/lang/String;
-	public final fun parse (Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/TargetScope;
 }
 
 public final class me/ahoo/wow/http/ops/OpsPaths {

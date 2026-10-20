@@ -18,10 +18,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Causation
-import me.ahoo.wow.http.WowHeaders
+import me.ahoo.wow.client.wire.CallHeader
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.http.command.CallHeader
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CommandAuthorizer

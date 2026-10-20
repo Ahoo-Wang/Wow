@@ -24,6 +24,7 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.KSTypeAlias
 import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.Name
@@ -423,14 +424,21 @@ internal object SubscriptionResolver {
         types: List<KSType>,
         problems: MutableList<String>,
     ): List<KSClassDeclaration> = types.flatMap { type ->
-        val declaration = type.declaration as? KSClassDeclaration
+        val declaration = type.declaration.classOf()
         val classes = declaration?.takeUnless { it.qualifiedName?.asString() == ANY }?.let(::concreteClasses).orEmpty()
         if (classes.isEmpty()) {
-            problems += "$where $member ${type.declaration.qualifiedName?.asString()}, which is no command class: " +
+            problems += "$where $member ${type.render()}, which is no command class: " +
                 "@OnEvent($member) names command classes, or a sealed type whose subclasses they are"
         }
         classes
     }.distinctBy { it.binaryName() }
+
+    /** This declaration's class, a type alias read through to the class it names; null for anything else. */
+    private fun KSDeclaration.classOf(): KSClassDeclaration? = when (this) {
+        is KSClassDeclaration -> this
+        is KSTypeAlias -> type.resolve().declaration.classOf()
+        else -> null
+    }
 
     /**
      * [declaration] when it is a concrete class or an object, the concrete classes among its sealed subclasses
@@ -470,7 +478,7 @@ internal object SubscriptionResolver {
         } else {
             emitted.arguments.firstOrNull()?.type?.resolve()?.takeIf { it.qualifiedName() == COMMAND } ?: return null
         }
-        val declaration = command.arguments.firstOrNull()?.type?.resolve()?.declaration as? KSClassDeclaration
+        val declaration = command.arguments.firstOrNull()?.type?.resolve()?.declaration?.classOf()
         if (declaration != null && Modifier.SEALED in declaration.modifiers) {
             return concreteClasses(declaration).map { it.binaryName() }.ifEmpty { null }
         }

@@ -23,8 +23,8 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.example.eshop.basket.api.basket.EshopBasketContract
 import me.ahoo.wow.example.eshop.basket.server.BasketServer
 import me.ahoo.wow.example.eshop.ordering.server.OrderingServer
-import me.ahoo.wow.http.WowHeaders
-import me.ahoo.wow.http.command.CallHeader
+import me.ahoo.wow.client.wire.WowHeaders
+import me.ahoo.wow.client.wire.CallHeader
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CommandAuthorizer

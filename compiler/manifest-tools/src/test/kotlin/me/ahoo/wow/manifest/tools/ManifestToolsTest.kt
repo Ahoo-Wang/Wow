@@ -247,6 +247,33 @@ class ManifestToolsTest {
         ManifestJson.contract(classes).assert().isNull()
         ManifestJson.write(fragment("shop", CartState::class.java), File(classes, PeerContracts.RESOURCE))
         ManifestJson.contract(classes)!!.manifest.contexts.single().name.assert().isEqualTo("shop")
+        // A jar without one, or what is neither a directory nor a jar, carries none.
+        ManifestJson.contract(jar("billing", fragment("billing", AccountState::class.java))).assert().isNull()
+        ManifestJson.contract(File(directory, "notes.txt").apply { writeText("") }).assert().isNull()
+        ManifestJson.contract(contractJar("shop-api", fragment("shop", CartState::class.java)))!!
+            .manifest.contexts.single().name.assert().isEqualTo("shop")
+    }
+
+    @Test
+    fun `a subscription that derives nothing it names by schema should pass the check`() {
+        val shop = deriving("shop", "shop.aggregate.Local")
+        val silent = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    name = "billing",
+                    subscriptions = listOf(
+                        SubscriptionManifest(
+                            name = "BillingSaga.onEvent",
+                            kind = SubscriptionKind.SAGA,
+                            source = SubscriptionSource(),
+                            function = FunctionManifest(FunctionKind.SAGA, "billing", "BillingSaga", "onEvent"),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        ManifestTools.undecidedCommands(shop, emptyList()).assert().isEmpty()
+        ManifestTools.undecidedCommands(silent, emptyList()).assert().isEmpty()
     }
 
     class CreateCart(val id: String)

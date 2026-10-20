@@ -568,7 +568,7 @@ for pkg in $PACKAGES; do npm dist-tag ls "$pkg"; done                           
   done
   ```
 
-  坏版本是老版本线的补丁时，它没有移动 `latest`（`.github/scripts/docker-latest.mjs` 只让最高的稳定版本打 `latest`，和 npm 的 dist-tag 同一条规则）：只把 `X.Y` 指回这条线上一个补丁，命令里去掉 `-t "$registry/$image:latest"`。没有上一个版本的镜像（首发 9.2.0 的 view store 服务端），不回退，尽快发补丁。
+  坏版本是老版本线的补丁时，它没有移动 `latest`（9.x 的镜像工作流只让最高的稳定版本打 `latest`，和 npm 的 dist-tag 同一条规则；这些工作流与 `docker-latest.mjs` 只在 main 上，`v10` 上已删除，D262）：只把 `X.Y` 指回这条线上一个补丁，命令里去掉 `-t "$registry/$image:latest"`。没有上一个版本的镜像（首发 9.2.0 的 view store 服务端），不回退，尽快发补丁。
 
 - **`release-x.y`**（老版本线的补丁，不会动 `latest`）：`TAG=release-x.y`，`PREV` 是这条线上一个补丁。坏版本是这条线第一个打了 `release-x.y` 的补丁时，没有可以指回的版本：对每个发布包执行 `npm dist-tag rm "$pkg" "release-x.y"` 并 deprecate，修好后的补丁会重新建这个 tag。无论哪种情况都不要碰 `latest`。
 

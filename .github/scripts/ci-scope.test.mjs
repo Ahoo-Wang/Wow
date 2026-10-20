@@ -15,16 +15,15 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { scopes, unitPackages } from './ci-scope.mjs';
+import { changeRange, scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
 // The TypeScript workflow scopes; `compatDebt` and `package` are derived from
-// them, `mixedVersion` and `v10` gate Kotlin workflows, and `v10Contract` and
+// them, `v10` gates a Kotlin workflow, and `v10Contract` and
 // `opsConsole` are decided apart from the rules; each has its own tests.
 const KOTLIN_GATES = new Set([
   'compatDebt',
   'package',
-  'mixedVersion',
   'v10',
   'v10Contract',
   'opsConsole',
@@ -74,7 +73,6 @@ test('each TypeScript workflow file runs the jobs it defines and the static chec
   ]);
   assert.deepEqual(on(['.github/workflows/typescript-contract.yml']), [
     'typescript',
-    'contract',
     'legacyContract',
     'workflows',
   ]);
@@ -89,37 +87,27 @@ test('any other workflow, the release workflow included, runs only the workflow 
   for (const path of [
     '.github/workflows/package-deploy.yml',
     '.github/workflows/documentation-deploy.yml',
-    '.github/workflows/view-store-deploy.yml',
-    '.github/workflows/local-test.yml',
+    '.github/workflows/v10-image-deploy.yml',
+    '.github/workflows/v10-nightly.yml',
     '.github/workflows/gitee-sync.yml',
   ])
     assert.deepEqual(on([path]), ['workflows'], path);
 });
 
-test('example server sources and the Gradle build run only the same-source contract', () => {
+test('the Gradle build, the dependency versions and the examples skip the TypeScript workflow jobs', () => {
   for (const path of [
-    'wow-core/src/main/kotlin/me/ahoo/wow/Wow.kt',
-    'wow-openapi/src/main/kotlin/Router.kt',
-    'wow-benchmarks/build.gradle.kts',
-    'example/example-server/build.gradle.kts',
-    'example/example-server/src/dist/config/application.yaml',
-    'schema/wow-schema.json',
-    'test/wow-mock/src/main/kotlin/Mock.kt',
-    'compensation/wow-compensation-api/src/main/kotlin/Api.kt',
-    'compensation/wow-compensation-core/build.gradle.kts',
-    'build-logic/build.gradle.kts',
     'build.gradle.kts',
     'settings.gradle.kts',
     'gradle/libs.versions.toml',
     'gradlew',
-    // The view store server the contract starts for WowViewStore.
-    'view-store/wow-view-store-api/build.gradle.kts',
-    'view-store/wow-view-store-starter/src/main/kotlin/ViewStoreRoutes.kt',
+    'wow-dependencies/build.gradle.kts',
+    'wow-benchmarks/README.md',
+    'example/README.md',
   ])
-    assert.deepEqual(on([path]), ['contract'], path);
+    assert.ok(none([path]), path);
 });
 
-test('the view store client runs its unit tests, the site, the stories and the contract', () => {
+test('the view store client runs its unit tests, the site and the stories', () => {
   for (const path of [
     'typescript/wow-view-store/src/wowViewStore.ts',
     'typescript/wow-view-store/src/v10/wowViewStore.ts',
@@ -127,7 +115,7 @@ test('the view store client runs its unit tests, the site, the stories and the c
   ])
     assert.deepEqual(
       on([path]),
-      ['typescript', 'sdk', 'docs', 'storybook', 'contract'],
+      ['typescript', 'sdk', 'docs', 'storybook'],
       path,
     );
   assert.deepEqual(on(['typescript/wow-view-store/test/errors.test.ts']), [
@@ -138,51 +126,46 @@ test('the view store client runs its unit tests, the site, the stories and the c
     'docs',
     'packageDocs',
   ]);
-  // The engine's port conformance suite runs over WowViewStore in the contract.
   assert.deepEqual(
     on(['typescript/wow-view-engine/test/conformance/viewStoreConformance.ts']),
-    ['typescript', 'viewEngine', 'contract'],
+    ['typescript', 'viewEngine'],
   );
 });
 
 test('the version source and the compat-debt ledger run the static checks', () => {
-  assert.deepEqual(on(['gradle.properties']), ['typescript', 'contract']);
+  assert.deepEqual(on(['gradle.properties']), ['typescript']);
   assert.deepEqual(on(['docs/compat-debt.md']), ['typescript']);
 });
 
-test('the client, generator, integration tests and contract workflow run both contracts', () => {
+test('the client, generator and generated clients run the released-server contract', () => {
   assert.deepEqual(on(['typescript/wow-client/src/index.ts']), [
     'typescript',
     'sdk',
     'docs',
     'viewEngine',
     'storybook',
-    'contract',
     'legacyContract',
   ]);
   assert.deepEqual(on(['typescript/wow-generator/src/cli.ts']), [
     'typescript',
     'sdk',
     'docs',
-    'contract',
     'legacyContract',
   ]);
   assert.deepEqual(on(['typescript/integration-test/src/generated/index.ts']), [
     'typescript',
     'docs',
-    'contract',
     'legacyContract',
   ]);
 });
 
-test('view-engine and what it builds on run its suite, the stories, the site and the contract', () => {
+test('view-engine and what it builds on run its suite, the stories and the site', () => {
   // view-engine doesn't depend on wow-react, so a wow-react change skips its suite.
   assert.deepEqual(on(['typescript/wow-react/src/index.ts']), [
     'typescript',
     'sdk',
     'docs',
     'storybook',
-    'contract',
   ]);
   for (const path of [
     'typescript/wow-view-engine/src/index.ts',
@@ -191,11 +174,9 @@ test('view-engine and what it builds on run its suite, the stories, the site and
   ])
     assert.deepEqual(
       on([path]),
-      ['typescript', 'docs', 'viewEngine', 'storybook', 'contract'],
+      ['typescript', 'docs', 'viewEngine', 'storybook'],
       path,
     );
-  // Its own tests stay out of the contract: they run no server.
-  assert.ok(!scopes(['typescript/wow-view-engine/test/setup.ts']).contract);
 });
 
 test('the other packages unit-test only when a package outside view-engine changes', () => {
@@ -337,7 +318,6 @@ test('Markdown next to code keeps everything the code runs', () => {
     'docs',
     'viewEngine',
     'storybook',
-    'contract',
   ]);
   assert.deepEqual(on([docs, 'typescript/wow-client/src/index.ts']), [
     'typescript',
@@ -345,7 +325,6 @@ test('Markdown next to code keeps everything the code runs', () => {
     'docs',
     'viewEngine',
     'storybook',
-    'contract',
     'legacyContract',
   ]);
   // Code that leaves the view-engine suite off keeps the light docs tests.
@@ -354,7 +333,6 @@ test('Markdown next to code keeps everything the code runs', () => {
     'sdk',
     'docs',
     'viewEngineDocs',
-    'contract',
     'legacyContract',
   ]);
   assert.deepEqual(on([docs, 'documentation/docs/index.md']), [
@@ -364,7 +342,6 @@ test('Markdown next to code keeps everything the code runs', () => {
   ]);
   assert.deepEqual(on(['typescript/MIGRATION.md', 'gradle.properties']), [
     'typescript',
-    'contract',
   ]);
   // The order of paths does not matter.
   assert.deepEqual(
@@ -390,11 +367,10 @@ test('Storybook and the packages the site renders or compiles samples against bu
 
 test('Kotlin, Gradle, dashboard and prose changes skip the TypeScript workflow jobs', () => {
   for (const path of [
-    'test/wow-tck/src/main/kotlin/Spec.kt',
-    'test/wow-it/build.gradle.kts',
-    'compensation/wow-compensation-domain/build.gradle.kts',
-    'compensation/wow-compensation-server/build.gradle.kts',
+    'test/tck/src/main/kotlin/Spec.kt',
     'compensation/dashboard/src/App.tsx',
+    'analytics/console/src/App.tsx',
+    'deploy/v10/ops/deployment.yaml',
     'platform/ops/console/src/main.tsx',
     'platform/ops/console/package.json',
     'config/detekt/detekt.yml',
@@ -409,7 +385,7 @@ test('Kotlin, Gradle, dashboard and prose changes skip the TypeScript workflow j
     assert.ok(none([path]), path);
 });
 
-test('V10 modules skip the TypeScript workflow jobs and the mixed-version test', () => {
+test('V10 modules skip the TypeScript workflow jobs', () => {
   for (const path of [
     'api/api/src/main/kotlin/me/ahoo/wow/api/decide/Command.kt',
     'api/manifest/build.gradle.kts',
@@ -434,56 +410,8 @@ test('V10 modules skip the TypeScript workflow jobs and the mixed-version test',
     'example/eshop/README.md',
     'example/quickstart/src/main/kotlin/A.kt',
     'example/java-smoke/src/main/java/A.java',
-  ]) {
+  ])
     assert.ok(none([path]), path);
-    assert.ok(!scopes([path]).mixedVersion, path);
-  }
-});
-
-test('wire modules, the example cluster, dependency versions and the harness run the mixed-version test', () => {
-  for (const path of [
-    'wow-api/src/main/kotlin/me/ahoo/wow/api/command/CommandMessage.kt',
-    'wow-core/src/main/kotlin/me/ahoo/wow/command/wait/WaitHeader.kt',
-    'wow-kafka/src/main/kotlin/me/ahoo/wow/kafka/AbstractKafkaBus.kt',
-    'wow-redis/src/main/kotlin/me/ahoo/wow/redis/bus/AbstractRedisMessageBus.kt',
-    'wow-mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoEventStore.kt',
-    'wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/wait/CommandWaitHandlerFunction.kt',
-    // The command headers and the wait endpoint path.
-    'wow-rest-contract/src/main/kotlin/me/ahoo/wow/rest/CommandHeaders.kt',
-    'wow-spring/src/main/kotlin/A.kt',
-    'wow-spring-boot-starter/src/main/kotlin/A.kt',
-    // Aggregate naming and the wow-metadata.json model live here.
-    'wow-metadata/src/main/kotlin/me/ahoo/wow/naming/NamingStrategy.kt',
-    'example/example-api/src/main/kotlin/A.kt',
-    'example/example-domain/src/main/kotlin/A.kt',
-    'example/example-server/src/dist/config/application.yaml',
-    'gradle/libs.versions.toml',
-    'test/wow-it/src/integrationTest/kotlin/me/ahoo/wow/it/mixed/MixedVersionClusterTest.kt',
-    'test/wow-tck/src/main/kotlin/me/ahoo/wow/tck/container/ContainerImages.kt',
-    // An unknown path runs everything.
-    'new-directory/index.ts',
-  ])
-    assert.ok(scopes([path]).mixedVersion, path);
-  for (const path of [
-    'wow-openapi/src/main/kotlin/Router.kt',
-    'wow-elasticsearch/src/main/kotlin/A.kt',
-    'wow-springdoc/src/main/kotlin/A.kt',
-    'example/README.md',
-    'test/wow-tck/src/main/kotlin/Spec.kt',
-    'typescript/wow-client/src/index.ts',
-    'documentation/docs/en/guide/test-runtime.md',
-    'compensation/wow-compensation-api/src/main/kotlin/Api.kt',
-    '.github/workflows/integration-test.yml',
-  ])
-    assert.ok(!scopes([path]).mixedVersion, path);
-  assert.deepEqual(
-    Object.entries(scopes(['.github/workflows/mixed-version.yml']))
-      .filter(([, value]) => value)
-      .map(([key]) => key),
-    ['workflows', 'mixedVersion'],
-  );
-  // Still only the same-source contract among the TypeScript scopes.
-  assert.deepEqual(on(['wow-kafka/src/main/kotlin/A.kt']), ['contract']);
 });
 
 test('V10 modules, their tests, the platform and the root build run v10.yml', () => {
@@ -499,7 +427,6 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'platform/ops/console/src/main.tsx',
     'platform/view-store/view-store-server/manifest/baseline.json',
     'test/architecture/src/test/kotlin/A.kt',
-    'test/kernel-benchmarks/build.gradle.kts',
     'test/routing-spike/src/integrationTest/kotlin/A.kt',
     'test/lease-spike/src/integrationTest/kotlin/A.kt',
     'test/test-dsl/src/main/kotlin/A.kt',
@@ -525,7 +452,6 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'bom/bom/build.gradle.kts',
     'wow-dependencies/build.gradle.kts',
     'gradle/libs.versions.toml',
-    'build-logic/build.gradle.kts',
     'config/detekt/detekt.yml',
     'build.gradle.kts',
     'settings.gradle.kts',
@@ -538,24 +464,19 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
   ])
     assert.ok(scopes([path]).v10, path);
   for (const path of [
-    'wow-core/src/main/kotlin/A.kt',
-    'wow-api/src/main/kotlin/A.kt',
-    'test/wow-it/src/integrationTest/kotlin/A.kt',
-    'test/wow-tck/src/main/kotlin/Spec.kt',
-    'test/wow-test/src/main/kotlin/A.kt',
-    'example/example-domain/src/main/kotlin/A.kt',
+    'compensation/dashboard/src/App.tsx',
+    'analytics/console/src/App.tsx',
     'typescript/wow-client/src/index.ts',
     'documentation/designs/v10/roadmap.md',
     'documentation/docs/en/guide/v10/index.md',
     'README.md',
     'codecov.yml',
-    '.github/workflows/local-test.yml',
+    '.github/workflows/typescript.yml',
     '.github/workflows/v10-nightly.yml',
   ])
     assert.ok(!scopes([path]).v10, path);
   // A V10 path keeps the scopes its rule gives it.
-  assert.deepEqual(on(['gradle/libs.versions.toml']), ['contract']);
-  assert.ok(scopes(['gradle/libs.versions.toml']).mixedVersion);
+  assert.deepEqual(on(['gradle.properties']), ['typescript']);
   assert.ok(scopes(['.github/workflows/v10.yml']).workflows);
 });
 
@@ -580,10 +501,8 @@ test('the V10 store, what its suites import, the service and its modules run the
     'host/spring-boot/src/main/kotlin/A.kt',
     'test/tck/src/main/kotlin/A.kt',
     'test/test-dsl/src/main/kotlin/A.kt',
-    'bom/bom/build.gradle.kts',
     'wow-dependencies/build.gradle.kts',
     'gradle/libs.versions.toml',
-    'build-logic/build.gradle.kts',
     'build.gradle.kts',
     'settings.gradle.kts',
     'gradle.properties',
@@ -610,8 +529,7 @@ test('the V10 store, what its suites import, the service and its modules run the
     'extensions/cosid/src/main/kotlin/A.kt',
     'test/architecture/src/test/kotlin/A.kt',
     'example/eshop/e2e/build.gradle.kts',
-    'view-store/wow-view-store-server/build.gradle.kts',
-    'wow-core/src/main/kotlin/A.kt',
+    'compensation/dashboard/src/App.tsx',
     'documentation/designs/v10/roadmap.md',
     '.github/workflows/v10.yml',
     '.github/workflows/typescript-storybook.yml',
@@ -668,19 +586,59 @@ test('the ops console, the ops service and what the console builds with run ops-
 test('isolated changes retain their relevant validation', () => {
   assert.deepEqual(on(['documentation/docs/index.md']), ['docs']);
   assert.deepEqual(
-    on(['wow-core/src/main/kotlin/A.kt', 'documentation/package.json']),
-    ['docs', 'contract'],
+    on(['core/kernel/src/main/kotlin/A.kt', 'documentation/package.json']),
+    ['docs'],
   );
   assert.deepEqual(
     on(['typescript/wow-react/src/index.ts', 'example/README.md']),
-    ['typescript', 'sdk', 'docs', 'storybook', 'contract'],
+    ['typescript', 'sdk', 'docs', 'storybook'],
   );
   assert.deepEqual(
     on(['typescript/wow-generator/src/cli.ts', 'typescript/storybook/a.ts']),
-    ['typescript', 'sdk', 'docs', 'storybook', 'contract', 'legacyContract'],
+    ['typescript', 'sdk', 'docs', 'storybook', 'legacyContract'],
   );
   assert.ok(all(['README.md', 'pnpm-lock.yaml']));
-  assert.ok(all(['wow-core/src/main/kotlin/A.kt', 'new-directory/index.ts']));
+  assert.ok(
+    all(['core/kernel/src/main/kotlin/A.kt', 'new-directory/index.ts']),
+  );
+});
+
+test('a run compares the commits of its event', () => {
+  const base = 'a'.repeat(40);
+  const head = 'b'.repeat(40);
+  // A pull request's base and head, a push's before and after.
+  assert.deepEqual(
+    changeRange({ eventName: 'pull_request', baseSha: base, headSha: head }),
+    { base, head },
+  );
+  assert.deepEqual(
+    changeRange({ eventName: 'push', baseSha: base, headSha: head }),
+    { base, head },
+  );
+  // A merge group's, from its payload, whatever BASE_SHA and HEAD_SHA say.
+  assert.deepEqual(
+    changeRange({
+      eventName: 'merge_group',
+      event: { merge_group: { base_sha: base, head_sha: head } },
+      baseSha: '',
+      headSha: 'c'.repeat(40),
+    }),
+    { base, head },
+  );
+  // No base checks everything: manual dispatch, a new branch's first push, a
+  // merge group without its payload.
+  assert.equal(
+    changeRange({ eventName: 'workflow_dispatch', headSha: head }),
+    undefined,
+  );
+  assert.equal(
+    changeRange({ eventName: 'push', baseSha: '0'.repeat(40), headSha: head }),
+    undefined,
+  );
+  assert.equal(
+    changeRange({ eventName: 'merge_group', baseSha: base, headSha: head }),
+    undefined,
+  );
 });
 
 test('the command reads the diff and runs everything without a base', () => {
@@ -691,7 +649,16 @@ test('the command reads the diff and runs everything without a base', () => {
     const output = join(directory, `output-${Math.random()}`);
     execFileSync(process.execPath, [script], {
       cwd: directory,
-      env: { ...process.env, ...env, GITHUB_OUTPUT: output },
+      // A run of these tests in CI has an event of its own; never read it.
+      env: {
+        ...process.env,
+        GITHUB_EVENT_NAME: '',
+        GITHUB_EVENT_PATH: '',
+        BASE_SHA: '',
+        HEAD_SHA: '',
+        ...env,
+        GITHUB_OUTPUT: output,
+      },
       stdio: 'pipe',
     });
     return readFileSync(output, 'utf8');
@@ -717,7 +684,6 @@ test('the command reads the diff and runs everything without a base', () => {
         'packageDocs',
         'viewEngineDocs',
         'storybook',
-        'contract',
         'legacyContract',
         'workflows',
       ]
@@ -726,7 +692,6 @@ test('the command reads the diff and runs everything without a base', () => {
       // Everything runs quality, which checks the ledger itself.
       'compatDebt=false\n' +
       `package=${value}\n` +
-      `mixedVersion=${value}\n` +
       `v10=${value}\n` +
       `v10Contract=${value}\n` +
       `opsConsole=${value}\n` +
@@ -738,6 +703,29 @@ test('the command reads the diff and runs everything without a base', () => {
     );
     assert.equal(run({}), output(true));
     assert.throws(() => run({ BASE_SHA: 'missing-revision', HEAD_SHA: head }));
+    // A merge queue's run reads its commits from the event payload; the
+    // workflow's BASE_SHA (`github.event.before`) is empty there.
+    const event = join(directory, 'merge-group-event.json');
+    writeFileSync(
+      event,
+      JSON.stringify({
+        action: 'checks_requested',
+        merge_group: {
+          base_sha: base,
+          head_sha: head,
+          base_ref: 'refs/heads/v10',
+          head_ref: 'refs/heads/gh-readonly-queue/v10/pr-1-' + base,
+        },
+      }),
+    );
+    assert.equal(
+      run({
+        GITHUB_EVENT_NAME: 'merge_group',
+        GITHUB_EVENT_PATH: event,
+        HEAD_SHA: head,
+      }),
+      output(false),
+    );
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -759,7 +747,7 @@ test("a library's own tests, goldens and scripts rerun only that package", () =>
   ]);
   // Source still reaches everything built on it.
   assert.ok(scopes(['typescript/wow-client/src/index.ts']).viewEngine);
-  assert.ok(scopes(['typescript/wow-generator/src/cli.ts']).contract);
+  assert.ok(scopes(['typescript/wow-generator/src/cli.ts']).legacyContract);
 });
 
 test('the unit matrix reruns a package and the packages built on it', () => {
@@ -790,21 +778,8 @@ test('the unit matrix reruns a package and the packages built on it', () => {
     ]),
     ['wow-react', 'wow-generator'],
   );
-  // The Kotlin contract snapshots wow-client's tests read rerun wow-client.
-  assert.deepEqual(
-    unitPackages([
-      'wow-openapi/src/test/resources/openapi/example-domain-contract.snapshot.json',
-    ]),
-    ['wow-client'],
-  );
-  assert.deepEqual(
-    on([
-      'wow-openapi/src/test/resources/openapi/example-domain-openapi.snapshot.json',
-    ]),
-    ['sdk', 'contract'],
-  );
-  // So does the V10 framework error table's snapshot (review R2.5-4), which
-  // also runs v10.yml.
+  // The V10 framework error table's snapshot (review R2.5-4), which
+  // wow-client's tests read, reruns wow-client and runs v10.yml.
   const errorTable = 'api/manifest/src/test/resources/framework-errors.json';
   assert.deepEqual(unitPackages([errorTable]), ['wow-client']);
   assert.deepEqual(on([errorTable]), ['sdk']);
@@ -823,7 +798,7 @@ test('the unit matrix reruns a package and the packages built on it', () => {
     'typescript/wow-view-engine/src/index.ts',
     'typescript/wow-react/README.md',
     'typescript/storybook/stories/view-engine/Home.stories.tsx',
-    'wow-core/src/main/kotlin/A.kt',
+    'core/kernel/src/main/kotlin/A.kt',
   ])
     assert.deepEqual(unitPackages([path]), [], path);
   for (const paths of [
@@ -834,7 +809,7 @@ test('the unit matrix reruns a package and the packages built on it', () => {
 });
 
 test('a Kotlin main source runs the compat-debt ledger unless quality does', () => {
-  const kotlin = 'wow-api/src/main/kotlin/me/ahoo/wow/api/query/Condition.kt';
+  const kotlin = 'core/kernel/src/main/kotlin/me/ahoo/wow/kernel/Kernel.kt';
   assert.ok(scopes([kotlin]).compatDebt);
   assert.ok(!scopes([kotlin]).typescript);
   // Quality checks the ledger already when TypeScript changed too.
@@ -843,7 +818,7 @@ test('a Kotlin main source runs the compat-debt ledger unless quality does', () 
   assert.ok(!scopes(['new-directory/index.ts']).compatDebt);
   // Kotlin tests hold no removal marker the ledger pairs.
   assert.ok(
-    !scopes(['wow-api/src/test/kotlin/me/ahoo/wow/api/query/ConditionTest.kt'])
+    !scopes(['core/kernel/src/test/kotlin/me/ahoo/wow/kernel/KernelTest.kt'])
       .compatDebt,
   );
 });
@@ -871,7 +846,7 @@ test('a path inside a published package runs the Package job without the unit ma
     'typescript/storybook/stories/view-engine/Home.stories.tsx',
     'typescript/integration-test/test/view-store/wowViewStore.test.ts',
     'typescript/AGENTS.md',
-    'wow-core/src/main/kotlin/A.kt',
+    'core/kernel/src/main/kotlin/A.kt',
     'documentation/docs/en/index.md',
   ])
     assert.ok(!scopes([path]).package, path);

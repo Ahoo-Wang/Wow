@@ -14,6 +14,7 @@
 package me.ahoo.wow.http
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import org.junit.jupiter.api.Test
 
 /** The options are a plain class (decision D216) that keeps a data class's equality, hash and string. */
@@ -22,6 +23,17 @@ class WowHttpOptionsTest {
     fun `an option equals another with the same fields, and prints them`() {
         valueSemantics(WowHttpOptions(), WowHttpOptions(), WowHttpOptions(manifestEndpoint = false))
         WowHttpOptions().copyWith(openApiEndpoint = false).assert().isEqualTo(WowHttpOptions(openApiEndpoint = false))
+    }
+
+    @Test
+    fun `request facts cannot take a reserved name`() {
+        assertThrownBy<IllegalArgumentException> { WowHttpOptions(requestFacts = setOf("Wow-Tenant")) }
+        assertThrownBy<IllegalArgumentException> { WowHttpOptions(requestFacts = setOf("wow.tenant")) }
+        assertThrownBy<IllegalArgumentException> { WowHttpOptions(requestFacts = setOf(" ")) }
+        assertThrownBy<IllegalArgumentException> { WowHttpOptions(errorStatuses = mapOf("x" to 200)) }
+        assertThrownBy<IllegalArgumentException> { WowHttpOptions(errorStatuses = mapOf("x" to 600)) }
+        WowHttpOptions(requestFacts = setOf("X-App-Id"), errorStatuses = mapOf("x" to 400, "y" to 599))
+            .requestFacts.assert().containsExactly("X-App-Id")
     }
 
     private fun valueSemantics(value: Any, same: Any, other: Any) {

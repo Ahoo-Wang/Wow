@@ -17,7 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.result.WaitSignal
-import me.ahoo.wow.http.call.ServiceCredential
+import me.ahoo.wow.client.ServiceCredential
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.caller.ServiceTokens
 import me.ahoo.wow.runtime.cluster.ClusterChannelException

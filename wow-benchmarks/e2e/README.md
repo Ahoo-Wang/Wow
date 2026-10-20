@@ -6,16 +6,18 @@ The benchmark of decision D224 (roadmap M7.5, B.0 to B.R): conclusions come only
 
 | Path | Project | What it is |
 | --- | --- | --- |
-| `bench-9x/` | `:e2e-bench-9x` | The account and transfer saga domain, its specs and its Spring Boot server, on 9.x modules only (full build scope) |
+| `bench-9x/` | `:e2e-bench-9x` | The account and transfer saga domain, its specs and its Spring Boot server, on 9.x modules only; on the side branch `v10-9x-baseline` only (decision D262) |
 | `bench-v10/` | `:e2e-bench-v10` | The same on V10 modules only (in the V10 region of the settings, checked by `v10Check`) |
 | `load/` | `:e2e-bench-load` | The load generator: a JVM of its own on the JDK alone, no Wow module and no library |
 | `harness/` | none | `compose.yml` (MongoDB, PostgreSQL, Kafka) and `bench.sh` (start, seed, check, run, collect, clean up) |
 
 None of them is published; the root build keeps them out of the ABI checks and the coverage reports (`e2eBenchmarkProjects`). No project depends on both versions (D85).
 
+The 9.x code, `bench-9x/` with it, left this branch early (decision D262). The 9.x side runs from a worktree of the side branch `v10-9x-baseline`, the last commit that had it, as its own processes and containers like before: `git worktree add ../wow-9x origin/v10-9x-baseline`, then `WOW_BENCH_9X_REPO=../wow-9x bench.sh build` builds both servers and `--version=9x` runs the 9.x one from there.
+
 ## The twin domain
 
-Each module has the same files with the same names and the same package, `me.ahoo.wow.benchmark.transfer`, so `diff -r bench-9x/src bench-v10/src` shows only what the frameworks make different:
+Each module has the same files with the same names and the same package, `me.ahoo.wow.benchmark.transfer`, so `diff -r "$WOW_BENCH_9X_REPO/wow-benchmarks/e2e/bench-9x/src" bench-v10/src` shows only what the frameworks make different:
 
 | File | Concept |
 | --- | --- |
@@ -30,7 +32,7 @@ Each module has the same files with the same names and the same package, `me.aho
 
 The semantics are those of the 9.x Java example `example/transfer`, ported to Kotlin, with `Deposit` and `Withdraw` added. The framework differences that remain: 9.x rejects by throwing, V10 by returning a `Decision`; 9.x's state takes its id in its constructor; 9.x's account is in the default tenant through `@StaticTenantId`, which V10's is when the caller names no tenant; 9.x's saga addresses a derived command with a command builder, V10's with the aggregate's reference; V10 requires a sourcing function for every event, so both states declare the no-op ones of `Prepared` and `EntryFailed`.
 
-`src/test/.../TransferCases.kt` is one table of cases, byte for byte the same in both modules (`SharedCasesTest` in `:e2e-bench-v10` checks it). Each version's `AccountSpec` and `TransferSagaSpec` run every case through its own test DSL.
+`src/test/.../TransferCases.kt` is one table of cases, byte for byte the same in both modules (`SharedCasesTest` in `:e2e-bench-v10` checks it against the SHA-256 of the 9.x file at `v10-9x-baseline`). Each version's `AccountSpec` and `TransferSagaSpec` run every case through its own test DSL.
 
 ## Topologies
 
@@ -94,6 +96,69 @@ wow-benchmarks/e2e/harness/bench.sh run --version=v10 --nodes=3 --scenario=E1 --
 wow-benchmarks/e2e/harness/bench.sh saturate --version=9x --scenario=E1 --max-concurrency=256
 ```
 
+`--install=<dir>` runs another build of the same version, for instance a baseline's `installDist` output (`<dir>` is the distribution's root, the one holding `bin/`); by default the harness runs the build in this tree.
+
 A run writes `result.json` (load, results, histogram, resources, machine, commit, JVM and configuration) and `summary.md` beside the servers' logs to `wow-benchmarks/results/e2e/<time>-<label>-<version>-<backend>-n<nodes>-<scenario>/`, which git ignores; a report copies the results it cites into `results/reports/`. Ports: public 18080 to 18082, V10 internal 19090 to 19092, MongoDB 27017, PostgreSQL 5432, Kafka 9092.
 
 On one machine every service, store and the load generator share the CPU: results are directional, and the report says so (D224).
+
+## Running it on GitHub Actions
+
+The timed measurements need a machine to themselves for hours, so `.github/workflows/v10-e2e-bench.yml` runs them on GitHub's runners. The benchmark serves four purposes: it guards V10 against regressions (the head against a V10 baseline), gives capacity guidance (the sustainable rate of each scenario), tests behaviour under overload and through a hand-over, and finds defects, because every run is checked for anomalies.
+
+A run starts when a branch under `v10-bench-run/` is pushed. The head is the pushed commit:
+
+```bash
+git push origin v10:v10-bench-run/20261020
+```
+
+Runs follow D224's tiers: run the smallest one that answers the question. L0, the JMH microbenchmarks, is outside this workflow (its 9.x-era `benchmark-ab.yml` left with 9.x, D262). The others are:
+
+- **L2** (the default): end-to-end points, head against baseline. They are `e1-mongo-uniform`, `e1-pg-uniform`, `e3-mongo` and `e3-pg`.
+- **L3**: the end-to-end grid, every `ab` suite, run before an rc or after a major merge.
+- **L4**: the special runs, the sustainable rates, cliffs and the cluster.
+
+Named `suites` replace the tier's list. The other defaults are 20 s warm-up, 40 s measured, 2 rounds, 80% of saturation before calibration, and a p99 limit of 200 ms for the sustainable rates. The baseline is the newest `v10.*` release tag that has `bench-v10/`; without one, and without `base_ref`, the baseline suites are skipped and the report says so. To change any of this, commit `wow-benchmarks/e2e/bench-run.json` on the run branch:
+
+```json
+{ "tier": "L4", "base_ref": "v10.0.0-beta.1", "p99_limit_ms": 500 }
+```
+
+The keys are `tier`, `suites`, `warm_up`, `measure`, `repeats`, `fraction`, `p99_limit_ms`, `base_ref` and `nine_x_ref`. `suites` takes suite names and the group names below (`all` is every group but `vs-9x`). When the run has finished, delete the branch; its results stay with the run:
+
+```bash
+git push origin --delete v10-bench-run/20261020
+```
+
+The workflow can also be dispatched by hand, with the same settings as inputs plus `head_ref`, once a copy of the file is on the default branch: GitHub only dispatches workflows that are there. Two runs of one ref queue; runs of different refs run side by side.
+
+| Group | Suite | What it answers |
+| --- | --- | --- |
+| `ab` | `e1-mongo-uniform`, `e1-mongo-zipf`, `e1-pg-uniform`, `e2-mongo`, `e3-mongo`, `e3-pg` | Head against baseline, paired on one runner: throughput and CPU per operation at each arm's calibrated rate, latency at one rate for both |
+| `head` | `sustainable-mongo` (E1, E2, E3), `sustainable-pg` (E1, E3) | The sustainable rate of each scenario: the highest open-loop rate with at most 1% errors, at least 97% completed and p99 within the limit, found by bisection below the closed-loop saturation |
+| `head` | `e5-mongo`, `e5-pg` | Three nodes, requests round-robin, E1 at 150/s and E3 at 50/s for 90 s, once steady and once with node 2 stopped 25 s into the measured phase (SIGTERM, so its partitions hand over) and restarted 20 s later with its own command line |
+| `head` | `cliff-e3-pg`, `cliff-e3-mongo` | E3 in open loop at 50, 100, 200, 300, 400 and 500/s, a minute each on fresh containers, until two steps in a row fail to keep up |
+| `head` | `e3-mongo-diag`, `pg-append-queue` | The E3 latency rate sweep and toggles on MongoDB; PostgreSQL's append queue off against on (D248) |
+| `vs-9x` | `vs-9x-e1`, `vs-9x-e3`, `vs-9x-cliff-e3` | The head against 9.x, built from `nine_x_ref` (`v10-9x-baseline`, the last commit of `v10` with the 9.x code, D262). Opt-in, and removed at GA |
+
+Each suite runs in a job of its own; `.github/scripts/v10-e2e-bench.mjs` drives `bench.sh`, and the baseline's server is passed as `--install`.
+
+A paired suite first finds each arm's saturation in closed loop: 3 s warm-up, 8 s steps, concurrency doubling up to 4096. A saturation found at the cap is a lower bound, marked `≥`.
+
+The closed loop reaches its best throughput only with deep queues, so before measuring, each arm's rate is checked in open loop. A probe runs at `fraction` of the saturation (10 s warm-up, 20 s measured) and steps down by a quarter, at most 4 probes, while more than 1% fails or less than 97% of the rate completes.
+
+The arms then run alternately at their calibrated rates, plus one more round when two runs of an arm differ by more than 5% in throughput or p99. These calibrated rounds give throughput and CPU per operation; their latencies are at unequal loads. The same number of equal-rate rounds follows, with both arms at the lower calibrated rate, and the latency ratios come from those.
+
+Every comparison is a pair measured on the same runner, so the ratios hold across runners; the absolute numbers belong to that runner. A run's server properties reach the servers as `SPRING_APPLICATION_JSON`, which they inherit from `bench.sh`'s environment.
+
+Every V10 run sets `bench.signals.enabled=true`. With it, the benchmark server's `BenchSignals` observer (`bench-v10/.../BenchSignals.kt`, the one file without a 9.x twin) logs the node's cumulative overload and fallback counts once a second, as `bench-signals {json}` in the node log. It counts the tails' store reads by reason, refused commands by code, timed-out waits by stage, dropped signals, failed forwards, and paused and resumed partitions.
+
+The report reads every node's last such line and flags these anomalies:
+
+- a partition paused (D243);
+- a tail read the store after a gap or an overflow (D249);
+- more than 1% errors;
+- a measured second below half the rate;
+- p99 above 10× p50, when p99 is at least 50 ms.
+
+Where a run went past what the node keeps up with by design (probes, cliff steps that did not keep up), only the signals are flagged. Each job uploads its results, server logs and summary, and the report job combines them into `report.md`, anomalies first.
