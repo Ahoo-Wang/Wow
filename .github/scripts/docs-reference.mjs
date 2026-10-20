@@ -36,6 +36,8 @@ const FRAMEWORK_ERRORS_SNAPSHOT =
 const QUERY_ERROR_CODES =
   'api/query-api/src/main/kotlin/me/ahoo/wow/api/query/QueryErrorCodes.kt';
 const ANNOTATIONS = 'api/api/src/main/kotlin/me/ahoo/wow/api/annotation';
+const MANIFEST_TREE =
+  'api/manifest/src/main/kotlin/me/ahoo/wow/manifest/ManifestTree.kt';
 const BUILD = 'build.gradle.kts';
 const SETTINGS = 'settings.gradle.kts';
 const GROUP = 'me.ahoo.wow';
@@ -102,6 +104,17 @@ const WORDS = {
       spi: 'SPI declarations',
       head: '| Declaration | Kind | Module |',
     },
+    manifest: {
+      title: 'Manifest Format',
+      description:
+        "The JSON a service's Manifest is written as: every object and its keys.",
+      intro: `A service's Manifest is one JSON document (\`format\` 1): its bounded contexts, their aggregates with the commands and events they speak, their subscriptions, the framework's error codes, and the JSON Schema 2020-12 of every payload under \`$defs\`. A module's fragment (\`META-INF/wow/manifest/<module>.json\`) has the same shape without \`service\`. This outline of every object and its keys is generated from the code that writes it, [\`ManifestTree\`](${SOURCE}${MANIFEST_TREE}).`,
+      omitted: 'What the writer leaves out:',
+      array: 'array of',
+      arrayObjects: 'array of objects',
+      object: 'object',
+      optional: 'left out when absent or at its default',
+    },
   },
   zh: {
     generated: sources =>
@@ -156,6 +169,16 @@ const WORDS = {
       experimental: '实验性声明',
       spi: 'SPI 声明',
       head: '| 声明 | 种类 | 模块 |',
+    },
+    manifest: {
+      title: 'Manifest 格式',
+      description: '服务的 Manifest 写成的 JSON：每个对象及其键。',
+      intro: `服务的 Manifest 是一份 JSON 文档（\`format\` 1）：它的限界上下文、上下文中的聚合及其命令与事件、订阅、框架的错误码，以及 \`$defs\` 之下每个载荷的 JSON Schema 2020-12。模块的片段（\`META-INF/wow/manifest/<module>.json\`）形状相同，只是没有 \`service\`。下面每个对象及其键的提纲，由写出它的代码 [\`ManifestTree\`](${SOURCE}${MANIFEST_TREE}) 生成；说明取自源码，为英文。`,
+      omitted: '写出时省略的内容：',
+      array: '数组，元素为',
+      arrayObjects: '对象数组',
+      object: '对象',
+      optional: '缺省或取默认值时省略',
     },
   },
 };
@@ -614,6 +637,138 @@ const marked = (root, read, modules, marker) =>
     ),
   );
 
+// Manifest
+
+/** The objects `ManifestTree.write` writes: `[{ name, entries }]`, an entry `{ key, kind, ref, optional, entries }`. */
+export function manifestObjects(source) {
+  const start = source.indexOf('fun write(');
+  const end = source.indexOf('/** A JSON object of the non-null');
+  if (start < 0 || end < 0)
+    throw new Error(`${MANIFEST_TREE}: no write functions`);
+  const text = source.slice(source.lastIndexOf('\n', start), end);
+  const functions = [...text.matchAll(/\n {4}(?:private )?fun (write\w*)\(/g)];
+  return functions.map((match, i) => {
+    const body = text.slice(
+      match.index,
+      functions[i + 1]?.index ?? text.length,
+    );
+    const name =
+      match[1] === 'write' ? 'Manifest' : match[1].slice('write'.length);
+    return {
+      name,
+      entries: objectEntries(body.slice(body.indexOf('obj(') + 'obj('.length)),
+    };
+  });
+}
+
+/** The entries of an `obj(` whose arguments start `text`, up to its closing parenthesis. */
+function objectEntries(text) {
+  const entries = [];
+  let depth = 0;
+  let i = 0;
+  let entry;
+  const key = /^(?:"([\w$]+)"|(DEFS)) to /;
+  while (i < text.length) {
+    const rest = text.slice(i);
+    if (depth === 0) {
+      const found = key.exec(rest);
+      if (found) {
+        entry = { key: found[1] ?? '$defs', kind: 'value', value: '' };
+        entries.push(entry);
+        i += found[0].length;
+        continue;
+      }
+    }
+    if (rest.startsWith('obj(') && entry && entry.kind === 'value') {
+      // A nested object: its entries, then on past its closing parenthesis.
+      entry.kind = /\.map\s*\{/.test(entry.value) ? 'objects' : 'object';
+      entry.entries = objectEntries(rest.slice('obj('.length));
+      i += 'obj('.length + objectLength(rest.slice('obj('.length));
+      continue;
+    }
+    const char = text[i];
+    if (char === '"') {
+      const close = text.indexOf('"', i + 1);
+      if (entry) entry.value += text.slice(i, close + 1);
+      i = close + 1;
+      continue;
+    }
+    if ('({['.includes(char)) depth++;
+    if (')}]'.includes(char)) {
+      if (depth === 0) break;
+      depth--;
+    }
+    if (entry) entry.value += char;
+    i++;
+  }
+  for (const each of entries) {
+    const ref = /\.map\(::write(\w+)\)/.exec(each.value)?.[1];
+    if (ref) Object.assign(each, { kind: 'array', ref });
+    each.optional = /takeIf|\?\.|ifEmpty|\?\.let/.test(each.value);
+    delete each.value;
+  }
+  return entries;
+}
+
+/** The length of an `obj(` argument list up to and with its closing parenthesis. */
+function objectLength(text) {
+  let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === '"') i = text.indexOf('"', i + 1);
+    else if ('({['.includes(char)) depth++;
+    else if (')}]'.includes(char)) {
+      if (depth === 0) return i + 1;
+      depth--;
+    }
+  }
+  return text.length;
+}
+
+export function manifestPage(locale, objects, omissions) {
+  const words = WORDS[locale].manifest;
+  const describe = entry => {
+    const parts = [];
+    if (entry.kind === 'array')
+      parts.push(
+        `${words.array} [\`${entry.ref}\`](#${entry.ref.toLowerCase()})`,
+      );
+    if (entry.kind === 'objects') parts.push(words.arrayObjects);
+    if (entry.kind === 'object') parts.push(words.object);
+    if (entry.optional) parts.push(words.optional);
+    return parts.length ? `: ${parts.join('; ')}` : '';
+  };
+  const list = (entries, indent = '') =>
+    entries.flatMap(entry => [
+      `${indent}- \`${entry.key}\`${describe(entry)}`,
+      ...(entry.entries ? list(entry.entries, `${indent}  `) : []),
+    ]);
+  const body = [
+    words.intro,
+    '',
+    words.omitted,
+    '',
+    literal(plain(omissions)),
+    '',
+  ];
+  for (const object of objects)
+    body.push(`## \`${object.name}\``, '', ...list(object.entries), '');
+  return page(locale, words.title, words.description, MANIFEST_TREE, body);
+}
+
+/** The writer's KDoc paragraph on what it leaves out. */
+const omissionsOf = source => {
+  const kdoc =
+    /\/\*\*([\s\S]*?)\*\/\s*object ManifestTree/.exec(source)?.[1] ?? '';
+  const paragraphs = kdoc
+    .split('\n')
+    .map(line => line.replace(/^\s*\* ?/, ''))
+    .join('\n')
+    .split(/\n\s*\n/)
+    .map(paragraph => paragraph.replace(/\s+/g, ' ').trim());
+  return paragraphs.find(paragraph => /left out/.test(paragraph)) ?? '';
+};
+
 /** Every generated page: `{ path: text }`, read from `root`. */
 export function referencePages(root = ROOT) {
   const read = path => readFileSync(join(root, path), 'utf8');
@@ -647,6 +802,8 @@ export function referencePages(root = ROOT) {
   const modules = publishedModules(read);
   const experimental = marked(root, read, modules, 'ExperimentalWowApi');
   const spi = marked(root, read, modules, 'WowSpi');
+  const tree = read(MANIFEST_TREE);
+  const manifest = manifestObjects(tree);
   const pages = {};
   for (const locale of Object.keys(WORDS)) {
     const dir = `documentation/docs/${locale}/reference`;
@@ -655,6 +812,11 @@ export function referencePages(root = ROOT) {
     pages[`${dir}/annotations.md`] = annotationsPage(locale, annotations);
     pages[`${dir}/modules.md`] = modulesPage(locale, modules);
     pages[`${dir}/api-levels.md`] = levelsPage(locale, experimental, spi);
+    pages[`${dir}/manifest.md`] = manifestPage(
+      locale,
+      manifest,
+      omissionsOf(tree),
+    );
   }
   return pages;
 }
@@ -668,6 +830,7 @@ export const SOURCES = {
     QUERY_ERROR_CODES,
   ],
   'annotations.md': [`${ANNOTATIONS}/`],
+  'manifest.md': [MANIFEST_TREE],
   'modules.md': [BUILD, SETTINGS, "each published module's build.gradle.kts"],
   'api-levels.md': [
     "the @ExperimentalWowApi and @WowSpi declarations of the published modules' src/main/kotlin",

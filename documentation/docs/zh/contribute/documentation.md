@@ -130,7 +130,7 @@ Wow 按读者决定每类文档的位置，每类只放一处。本页给出原�
 
 `.github/scripts/docs-consistency.mjs`（`pnpm check:docs-consistency`）也在这个作业里运行。每个英文页面都有对应的中文页面，反之亦然；生成的页面可以只有英文。两者的标题层级序列与代码块的语言序列必须一致。YAML 或 properties 代码块里设置的每个 `wow.*` 键，都必须是 Spring Boot 配置元数据里的键，按 Spring 的宽松绑定规则比较。
 
-配置项、错误码、注解、已发布模块与 API 级别的参考页（`reference/{configuration,error-codes,annotations,modules,api-levels}.md`）由 `.github/scripts/docs-reference.mjs` 从源码生成；提交的页面与源码给出的不一致时，同一个作业失败。改动源码时，在同一个改动里用 `pnpm docs:reference` 重新生成。
+配置项、错误码、注解、Manifest 格式、已发布模块与 API 级别的参考页（`reference/{configuration,error-codes,annotations,manifest,modules,api-levels}.md`）由 `.github/scripts/docs-reference.mjs` 从源码生成；提交的页面与源码给出的不一致时，同一个作业失败。改动源码时，在同一个改动里用 `pnpm docs:reference` 重新生成。
 
 同一工作流的 Documentation 作业在文档站或其示例变化时，用锁定的依赖构建 VitePress 站点。该检查只看结构：文档是否仍然有效、是否只有一个归属、是否是改头换面的工作材料，仍由 review 判断。
 

@@ -15,6 +15,7 @@ import {
   queryErrorCodes,
   referencePages,
   staleMessage,
+  manifestObjects,
   markedDeclarations,
   publishedModules,
 } from './docs-reference.mjs';
@@ -266,5 +267,65 @@ class Plain {
     { name: 'me.ahoo.wow.q.Listener', kind: 'interface' },
     { name: 'me.ahoo.wow.q.rows', kind: 'fun' },
     { name: 'me.ahoo.wow.q.Plain.size', kind: 'val' },
+  ]);
+});
+
+test('the Manifest outline follows the writer: nested objects, arrays of written types, optional keys', () => {
+  const source = `object ManifestTree {
+    private const val DEFS = "\\$defs"
+
+    fun write(manifest: Manifest): Map<String, Any?> = obj(
+        "format" to manifest.format,
+        "service" to manifest.service?.let { obj("name" to it.name, "version" to it.version) },
+        "contexts" to manifest.contexts.map(::writeContext),
+        DEFS to manifest.defs,
+    )
+
+    private fun writeContext(context: ContextManifest): Map<String, Any?> = obj(
+        "name" to context.name,
+        "published" to context.published.map {
+            obj("aggregate" to it.aggregate, "includeState" to it.includeState)
+        },
+        // Written only when raised ("quoted" in a comment).
+        "revision" to context.revision.takeIf { it != 1 },
+    )
+
+    /** A JSON object of the non-null [entries], in their order. */
+    private fun obj(vararg entries: Pair<String, Any?>): Map<String, Any?> = TODO()
+}`;
+  assert.deepEqual(manifestObjects(source), [
+    {
+      name: 'Manifest',
+      entries: [
+        { key: 'format', kind: 'value', optional: false },
+        {
+          key: 'service',
+          kind: 'object',
+          optional: true,
+          entries: [
+            { key: 'name', kind: 'value', optional: false },
+            { key: 'version', kind: 'value', optional: false },
+          ],
+        },
+        { key: 'contexts', kind: 'array', ref: 'Context', optional: false },
+        { key: '$defs', kind: 'value', optional: false },
+      ],
+    },
+    {
+      name: 'Context',
+      entries: [
+        { key: 'name', kind: 'value', optional: false },
+        {
+          key: 'published',
+          kind: 'objects',
+          optional: false,
+          entries: [
+            { key: 'aggregate', kind: 'value', optional: false },
+            { key: 'includeState', kind: 'value', optional: false },
+          ],
+        },
+        { key: 'revision', kind: 'value', optional: true },
+      ],
+    },
   ]);
 });
