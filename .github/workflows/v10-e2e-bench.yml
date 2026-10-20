@@ -332,6 +332,8 @@ jobs:
           P99_LIMIT_MS: ${{ needs.plan.outputs.p99-limit-ms }}
         run: |
           export BENCH="$GITHUB_WORKSPACE/repo/wow-benchmarks/e2e/harness/bench.sh"
+          # bench.sh runs 9.x from a tree of v10-9x-baseline (D262): the 9.x server is unpacked into this one.
+          export WOW_BENCH_9X_REPO="$GITHUB_WORKSPACE/repo"
           export OUT="$RUNNER_TEMP/results/$SUITE"
           node steps/.github/scripts/v10-e2e-bench.mjs suite "$SUITE"
       - name: Summarize
