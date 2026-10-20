@@ -15,7 +15,7 @@ package me.ahoo.wow.viewstore.server
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.viewstore.api.ViewStoreContext
@@ -46,7 +46,7 @@ class ViewStoreServerTest {
                 Who.user("a")
             )
                 .status.assert().isEqualTo(NOT_FOUND)
-            val references = QueriedBoardReferences { store.context.getBean(HttpQueries::class.java) }
+            val references = QueriedBoardReferences { store.context.getBean(QueryApi::class.java) }
             runBlocking { references.referencingBoards("(0)", "app", "view-1") }.assert().isEmpty()
             // Without snapshot queries, the configured system views alone.
             store.get("/view-store/system-views", Who.user("a")).assertOk().json.values().map { it["id"].asString() }

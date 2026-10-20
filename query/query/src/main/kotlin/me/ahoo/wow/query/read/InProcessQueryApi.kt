@@ -47,14 +47,15 @@ import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.QueryOwnership
-import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.engine.CommittedStates
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.engine.ReadFacade
 import me.ahoo.wow.query.schema.QueryViolation
+import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.StateNotFoundException
+import me.ahoo.wow.query.state.StateNotFoundException.Reason
 import me.ahoo.wow.query.state.StateRead
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
 /**
@@ -63,7 +64,7 @@ import tools.jackson.databind.node.ObjectNode
  * port is; only the rows differ, decoded as the [models]' classes rather than written as JSON.
  *
  * - [of] a caller queries as that caller on [QueryEntry.IN_PROCESS]: the scope policy restricts it to the tenant
- *   [tenants] gives it (a type's fixed tenant, else the caller's) and to its owner and space, ABAC and the application's
+ *   the engine's [QueryEngine.tenants] gives it (a type's fixed tenant, else the caller's) and to its owner and space, ABAC and the application's
  *   policies see its attributes; the in-process budget (the engine's [me.ahoo.wow.query.QueryEntryPolicy.inProcess])
  *   bounds it.
  * - [trusted] code queries with no caller on the same entry and budget, [TrustedQueries.unbounded] on
@@ -71,15 +72,13 @@ import tools.jackson.databind.node.ObjectNode
  * - A `list` that names no limit runs with the budget's list default ([defaultListSize], at most its list size), as over
  *   HTTP; a `stream` reads keyset chunks of [chunkSize] (decision D253).
  * - A state read ([SnapshotQueries.state]) reads [latest] through the engine's [ReadFacade]: the caller's scope is
- *   checked against the state's (its owner only for an aggregate [ownerships] says belongs to its owner), then the
+ *   checked against the state's (its owner only for an aggregate [QueryEngine.ownerships] says belongs to its owner), then the
  *   snapshot policies of its type, and it is masked and observed as the public port's state read is.
  */
 class InProcessQueryApi @InternalWowApi constructor(
     private val engine: QueryEngine,
     private val models: ReadModels,
     private val latest: CommittedStates = CommittedStates.NONE,
-    private val tenants: QueryTenantPolicy = QueryTenantPolicy.CALLERS,
-    private val ownerships: QueryOwnership = QueryOwnership.OWNERS,
     private val defaultListSize: Int = DEFAULT_LIST_SIZE,
     private val chunkSize: Int = QueryGateway.DEFAULT_STREAM_CHUNK_SIZE,
 ) : QueryApi {
@@ -186,7 +185,7 @@ class InProcessQueryApi @InternalWowApi constructor(
         override fun <T : Any> dynamic(rowType: Class<T>): RowQueries<T> = Rows(gateway, caller) { decode(it, rowType) }
 
         override suspend fun state(id: String): AggregateState<S>? {
-            val tenant = checkNotNull(tenants.tenantOf(type, caller)) {
+            val tenant = checkNotNull(engine.tenants.tenantOf(type, caller)) {
                 "Trusted queries name no tenant: read the state of $type by its ref."
             }
             return state(type.ref(tenant, id))
@@ -199,10 +198,10 @@ class InProcessQueryApi @InternalWowApi constructor(
                 reads.observed(type, StateRead.LATEST, caller) {
                     when (val read = reads.read(caller, { latest.committed(ref) }, { it }) { checkScope(ref, it) }) {
                         is ReadFacade.Read.Visible -> read.view.let {
-                            AggregateState.of(it.ref, it.version, it.scope, it.deleted, it.tags, decode(read.state, stateType))
+                            AggregateState.of(it.ref, it.version, it.scope, it.deleted, it.tags, stateOf(read.state))
                         }
-                        ReadFacade.Read.Missing -> throw StateNotFoundException(ref, StateNotFoundException.Reason.MISSING)
-                        ReadFacade.Read.Hidden -> throw StateNotFoundException(ref, StateNotFoundException.Reason.HIDDEN)
+                        ReadFacade.Read.Missing -> throw StateNotFoundException(ref, Reason.MISSING)
+                        ReadFacade.Read.Hidden -> throw StateNotFoundException(ref, Reason.HIDDEN)
                     }
                 }
             } catch (_: StateNotFoundException) {
@@ -210,12 +209,14 @@ class InProcessQueryApi @InternalWowApi constructor(
             }
         }
 
+        private fun stateOf(state: JsonNode): S = decode(state, stateType)
+
         /** The read of [ref] as the public port's: in the caller's tenant, owner and space, else not found. */
-        private fun checkScope(ref: AggregateRef, state: me.ahoo.wow.query.state.CommittedState) {
-            val tenant = tenants.tenantOf(type, caller)
-            val scope = caller.caller?.let { ownerships.ownershipOf(type).scopeOf(it.scope) } ?: Scope.NONE
+        private fun checkScope(ref: AggregateRef, state: CommittedState) {
+            val tenant = engine.tenants.tenantOf(type, caller)
+            val scope = caller.caller?.let { engine.ownerships.ownershipOf(type).scopeOf(it.scope) } ?: Scope.NONE
             if (tenant != null && tenant != ref.tenantId || !scope.covers(state.scope)) {
-                throw StateNotFoundException(ref, StateNotFoundException.Reason.OUT_OF_SCOPE)
+                throw StateNotFoundException(ref, Reason.OUT_OF_SCOPE)
             }
         }
     }

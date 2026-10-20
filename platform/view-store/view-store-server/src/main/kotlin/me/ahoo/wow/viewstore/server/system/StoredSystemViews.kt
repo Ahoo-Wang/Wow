@@ -17,8 +17,9 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.toList
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.dsl.listQuery
-import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.query.QueryCaller
+import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.RowQueries
+import me.ahoo.wow.query.read.trees
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.viewstore.api.SystemView
 import me.ahoo.wow.viewstore.api.SystemViewSource
@@ -28,12 +29,12 @@ import tools.jackson.databind.node.ObjectNode
 /**
  * The system views a request reads: the configured ones of its tenant and application and the stored ones of its
  * application (views of the tenant `(platform)` under the owner `(system)`), which every tenant reads. A stored view
- * wins over a configured one with the same id. A node whose backend serves no snapshot query serves the configured
- * ones alone.
+ * wins over a configured one with the same id. The stored ones are read as trusted code, the view store's own, from
+ * the tenant `(platform)`. A node whose backend serves no snapshot query serves the configured ones alone.
  */
 class StoredSystemViews(
     private val configured: ConfiguredSystemViews,
-    private val queries: () -> HttpQueries,
+    private val queries: () -> QueryApi?,
 ) {
     /** Every system view of [tenantId] and [appId], of [definitionId] when it is given: the configured first. */
     suspend fun systemViews(tenantId: String, appId: String, definitionId: String? = null): List<SystemView> {
@@ -49,7 +50,7 @@ class StoredSystemViews(
         stored(appId, null, id).firstOrNull() ?: configured.systemViews(tenantId, appId).firstOrNull { it.id == id }
 
     private suspend fun stored(appId: String, definitionId: String?, id: String?): List<SystemView> {
-        val gateway = queries().snapshots(VIEW) ?: return emptyList()
+        val views = views() ?: return emptyList()
         val query = listQuery {
             filter {
                 tenantId(ViewStoreContext.SYSTEM_TENANT_ID)
@@ -64,7 +65,7 @@ class StoredSystemViews(
             }
             limit(MAX_STORED)
         }
-        return gateway.list(query, QueryCaller.IN_PROCESS).toList().mapNotNull { node ->
+        return views.list(query).toList().mapNotNull { node ->
             // One stored view that no longer passes the checks is left out, not every tenant's list (review R2.3-7).
             runCatching { node.toSystemView() }.onFailure { failure ->
                 logger.warn(failure) {
@@ -73,6 +74,13 @@ class StoredSystemViews(
                 }
             }.getOrNull()
         }
+    }
+
+    /** The views' snapshots as stored, or null when there are no queries or no backend serves them. */
+    private fun views(): RowQueries<ObjectNode>? = try {
+        queries()?.trusted()?.snapshots(VIEW)?.trees()
+    } catch (_: IllegalArgumentException) {
+        null
     }
 
     @Suppress("UNCHECKED_CAST")

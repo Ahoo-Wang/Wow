@@ -47,7 +47,6 @@ import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryError
-import me.ahoo.wow.query.QueryOwnership
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
@@ -105,7 +104,10 @@ class InProcessQueryApiTest {
             requestId = "req-1",
             commandType = "shop.cart.add",
             commitTime = 30,
-            events = listOf(EventRecord("item_added", 1, """{"sku":"s-1"}"""), EventRecord("retired", 1, """{"a":1}""")),
+            events = listOf(
+                EventRecord("item_added", 1, """{"sku":"s-1"}"""),
+                EventRecord("retired", 1, """{"a":1}""")
+            ),
             scope = Scope("alice"),
             operator = operator,
         ),
@@ -124,9 +126,10 @@ class InProcessQueryApiTest {
             .build()
         return InProcessQueryApi(
             engine,
-            ReadModels(listOf(ReadModels.Model(cart, CartState::class.java, mapOf("item_added" to ItemAdded::class.java)::get))),
+            ReadModels(
+                listOf(ReadModels.Model(cart, CartState::class.java, mapOf("item_added" to ItemAdded::class.java)::get))
+            ),
             latest = { latest(it) },
-            ownerships = QueryOwnership.of(manifest),
             defaultListSize = defaultListSize,
         )
     }
@@ -189,7 +192,11 @@ class InProcessQueryApiTest {
         carts.list(ListQuery(MatchAllFilter)).toList().assert().hasSize(2)
         carts.list(ListQuery(MatchAllFilter, limit = 3)).toList().assert().hasSize(3)
         // No default: a list naming no limit asks for every match, which the budget refuses, as over HTTP.
-        val refused = runCatching { api(defaultListSize = 0).of(alice).snapshots<CartState>().list(ListQuery(MatchAllFilter)).toList() }
+        val refused = runCatching {
+            api(
+                defaultListSize = 0
+            ).of(alice).snapshots<CartState>().list(ListQuery(MatchAllFilter)).toList()
+        }
         (refused.exceptionOrNull() as QueryError).errorCode.assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
         api(defaultListSize = 2).trusted().unbounded().snapshots<CartState>().list(ListQuery(MatchAllFilter))
             .toList().assert().hasSize(3)
@@ -212,7 +219,10 @@ class InProcessQueryApiTest {
     fun `a typed query should refuse a projection, which dynamic rows take`(): Unit = runBlocking {
         save("acme", "c-1", "alice", items = 4)
         val carts = api().of(alice).snapshots<CartState>()
-        val projected = SingleQuery(AggregateIdFilter("c-1"), projection = Projection(include = listOf(QueryField("aggregateId"))))
+        val projected = SingleQuery(
+            AggregateIdFilter("c-1"),
+            projection = Projection(include = listOf(QueryField("aggregateId")))
+        )
         assertThrows<IllegalArgumentException> { carts.single(projected) }
         val tree = carts.trees().single(projected)!!
         tree["aggregateId"].asString().assert().isEqualTo("c-1")
@@ -233,7 +243,9 @@ class InProcessQueryApiTest {
 
     @Test
     fun `a state read should answer what the caller may see, and null for the rest alike`(): Unit = runBlocking {
-        val api = api(latest = { ref -> if (ref.id == "missing") null else committed(ref, if (ref.id == "b") "bob" else "alice") })
+        val api = api(
+            latest = { ref -> if (ref.id == "missing") null else committed(ref, if (ref.id == "b") "bob" else "alice") }
+        )
         val carts = api.of(alice).snapshots<CartState>()
         val state = carts.state("a")!!
         state.ref.assert().isEqualTo(cart.ref("acme", "a"))
@@ -291,9 +303,23 @@ class InProcessQueryApiTest {
         models.eventTypeOf(order, "x").assert().isNull()
         ReadModels.NONE.stateTypeOf(cart).assert().isNull()
         assertThrows<IllegalArgumentException> {
-            ReadModels(listOf(ReadModels.Model(cart, CartState::class.java), ReadModels.Model(cart, ItemAdded::class.java)))
+            ReadModels(
+                listOf(ReadModels.Model(cart, CartState::class.java), ReadModels.Model(cart, ItemAdded::class.java))
+            )
         }
-        assertThrows<IllegalArgumentException> { InProcessQueryApi(QueryEngine.Builder(manifest).build(), models, defaultListSize = -1) }
-        assertThrows<IllegalArgumentException> { InProcessQueryApi(QueryEngine.Builder(manifest).build(), models, chunkSize = 0) }
+        assertThrows<IllegalArgumentException> {
+            InProcessQueryApi(
+                QueryEngine.Builder(manifest).build(),
+                models,
+                defaultListSize = -1
+            )
+        }
+        assertThrows<IllegalArgumentException> {
+            InProcessQueryApi(
+                QueryEngine.Builder(manifest).build(),
+                models,
+                chunkSize = 0
+            )
+        }
     }
 }

@@ -13,26 +13,16 @@
 
 package me.ahoo.wow.viewstore.server
 
-import kotlinx.coroutines.flow.Flow
+import io.mockk.coEvery
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorPage
-import me.ahoo.wow.api.query.ICountQuery
 import me.ahoo.wow.api.query.ICursorQuery
-import me.ahoo.wow.api.query.IListQuery
-import me.ahoo.wow.api.query.IPagedQuery
-import me.ahoo.wow.api.query.ISingleQuery
-import me.ahoo.wow.api.query.PagedList
-import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.QueryEntry
-import me.ahoo.wow.query.QueryEntryPolicy
-import me.ahoo.wow.query.QueryGateway
-import me.ahoo.wow.query.descriptor.QueryModelDescriptor
+import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import org.junit.jupiter.api.Test
@@ -42,30 +32,24 @@ import tools.jackson.databind.node.ObjectNode
  * The shared-dashboard check of a claim reads every dashboard, a keyset page at a time, and only their panels
  * (review A3-18): a reference on the last page of many is found.
  */
-@OptIn(InternalWowApi::class)
 class QueriedBoardReferencesTest {
     private val asked = mutableListOf<ICursorQuery>()
 
+    private val view = AggregateType(ViewStoreContext.NAME, ViewStoreContext.VIEW)
+
     /** [total] dashboards, the last one referencing `v-1`, served [QueriedBoardReferences.PAGE] at a time. */
-    private fun dashboards(total: Int) = object : QueryGateway {
-        override val aggregateType = AggregateType(ViewStoreContext.NAME, ViewStoreContext.VIEW)
-        override val entryPolicy = QueryEntryPolicy.DEFAULT
-
-        override suspend fun cursor(query: ICursorQuery, caller: QueryCaller): CursorPage<ObjectNode> {
-            asked += query
-            val from = query.cursor?.toInt() ?: 0
-            val until = minOf(total, from + query.size)
-            val list = (from until until).map { board(it, referencing = if (it == total - 1) "v-1" else "v-other") }
-            return CursorPage(list, until.takeIf { it < total }?.toString())
+    private fun dashboards(total: Int): QueryApi {
+        val rows = mockk<RowQueries<ObjectNode>> {
+            coEvery { cursor(any()) } answers {
+                val query = firstArg<ICursorQuery>()
+                asked += query
+                val from = query.cursor?.toInt() ?: 0
+                val until = minOf(total, from + query.size)
+                val list = (from until until).map { board(it, referencing = if (it == total - 1) "v-1" else "v-other") }
+                CursorPage(list, until.takeIf { it < total }?.toString())
+            }
         }
-
-        override suspend fun single(query: ISingleQuery, caller: QueryCaller): ObjectNode? = error("not read")
-        override fun list(query: IListQuery, caller: QueryCaller): Flow<ObjectNode> = error("not read")
-        override suspend fun paged(query: IPagedQuery, caller: QueryCaller): PagedList<ObjectNode> = error("not read")
-        override suspend fun count(query: ICountQuery, caller: QueryCaller): CountResult = error("not read")
-        override fun aggregate(query: AggregationQuery, caller: QueryCaller): Flow<ObjectNode> = error("not read")
-        override suspend fun describe(entry: QueryEntry, defaultListSize: Int?): QueryModelDescriptor =
-            error("not read")
+        return mockk { every { trusted().snapshots(view).dynamic(ObjectNode::class.java) } returns rows }
     }
 
     private fun board(index: Int, referencing: String): ObjectNode {
@@ -79,7 +63,8 @@ class QueriedBoardReferencesTest {
     fun `a reference past the first page should be found, every page read for its panels alone`(): Unit =
         runBlocking {
             val total = QueriedBoardReferences.PAGE * 2 + 5
-            val references = QueriedBoardReferences { HttpQueries(listOf(dashboards(total))) }
+            val api = dashboards(total)
+            val references = QueriedBoardReferences { api }
             val found = references.referencingBoards("t", "app", "v-1")
             found.map { it.id }.assert().containsExactly("b-${total - 1}")
             found.single().title.assert().isEqualTo("Board ${total - 1}")
@@ -92,6 +77,7 @@ class QueriedBoardReferencesTest {
 
     @Test
     fun `a node without snapshot queries should know of no reference`(): Unit = runBlocking {
-        QueriedBoardReferences { HttpQueries.NONE }.referencingBoards("t", "app", "v-1").assert().isEmpty()
+        val unserved = mockk<QueryApi> { every { trusted().snapshots(view) } throws IllegalArgumentException("none") }
+        QueriedBoardReferences { unserved }.referencingBoards("t", "app", "v-1").assert().isEmpty()
     }
 }

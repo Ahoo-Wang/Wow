@@ -27,11 +27,10 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.viewstore.api.ViewStoreContext
@@ -91,7 +90,7 @@ class SystemViewsTest {
 
     @Test
     fun `a request without accepted credentials should be answered 401`() {
-        val views = StoredSystemViews(ConfiguredSystemViews(emptyList())) { HttpQueries.NONE }
+        val views = StoredSystemViews(ConfiguredSystemViews(emptyList())) { null }
         val routes = SystemViewRoutes(views, CallerResolver { null }).routes()
         WebTestClient.bindToRouterFunction(routes).build().get().uri(SystemViewRoutes.SYSTEM_VIEWS)
             .header(ViewStoreContext.APP_ID_HEADER, "app")
@@ -111,22 +110,22 @@ class SystemViewsTest {
         }
     }
 
-    @OptIn(InternalWowApi::class)
     private fun storedViews(records: () -> Flow<ObjectNode>): StoredSystemViews {
-        val gateway = mockk<QueryGateway> {
-            every { aggregateType } returns AggregateType(ViewStoreContext.NAME, ViewStoreContext.VIEW)
-            every { list(any(), any()) } answers { records() }
+        val rows = mockk<RowQueries<ObjectNode>> { every { list(any()) } answers { records() } }
+        val api = mockk<QueryApi> {
+            every {
+                trusted().snapshots(AggregateType(ViewStoreContext.NAME, ViewStoreContext.VIEW)).dynamic(ObjectNode::class.java)
+            } returns rows
         }
-        return StoredSystemViews(ConfiguredSystemViews(emptyList())) { HttpQueries(listOf(gateway)) }
+        return StoredSystemViews(ConfiguredSystemViews(emptyList())) { api }
     }
 
-    @OptIn(InternalWowApi::class)
     private fun views(records: () -> Flow<ObjectNode>): WebTestClient {
         val views = storedViews(records)
         // The application the resolver authenticated, from the header as the view store's own resolver takes it.
         val callers = CallerResolver { request ->
             val app = request.headers().firstHeader(ViewStoreContext.APP_ID_HEADER)
-            Caller(tenantId = "t1", attributes = app?.let { mapOf(Caller.APP to listOf(it)) }.orEmpty())
+            Caller.of(tenantId = "t1", attributes = app?.let { mapOf(Caller.APP to listOf(it)) }.orEmpty())
         }
         return WebTestClient.bindToRouterFunction(SystemViewRoutes(views, callers).routes()).build()
     }

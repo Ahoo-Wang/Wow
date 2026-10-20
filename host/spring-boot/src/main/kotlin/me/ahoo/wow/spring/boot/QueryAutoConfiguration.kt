@@ -26,7 +26,6 @@ import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.QueryCountCache
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryObserver
-import me.ahoo.wow.query.QueryOwnership
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
@@ -396,10 +395,8 @@ class QueryAutoConfiguration {
         @ConditionalOnMissingBean
         fun wowQueryApi(
             engine: QueryEngine,
-            manifest: Manifest,
             node: ServiceNode,
             properties: QueryProperties,
-            tenants: QueryTenantPolicy,
             reads: ObjectProvider<StateReads>,
         ): QueryApi = InProcessQueryApi(
             engine,
@@ -413,8 +410,6 @@ class QueryAutoConfiguration {
                     CommittedState(it.ref, it.version, it.scope, it.deleted, it.tags, it.state)
                 }
             },
-            tenants = tenants,
-            ownerships = QueryOwnership.of(manifest),
             defaultListSize = properties.inProcess.defaultListSize,
             chunkSize = properties.stream.chunkSize,
         )
