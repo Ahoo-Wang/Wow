@@ -58,6 +58,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.wait.Origin
@@ -129,10 +130,11 @@ class SnapshotSubscriptionTest {
         }
     }
 
-    /** Records each save asked of it; while [gate] is set, a save waits for it first. */
+    /** Records each save asked of it, and the size of each batch; while [gate] is set, a save waits for it first. */
     private class RecordingStore(private val delegate: SnapshotStore = InMemorySnapshotStore()) :
         SnapshotStore by delegate {
         val saves = CopyOnWriteArrayList<Int>()
+        val batches = CopyOnWriteArrayList<Int>()
         val loads = AtomicInteger()
 
         @Volatile
@@ -142,6 +144,13 @@ class SnapshotSubscriptionTest {
             saves += snapshot.version
             gate?.await()
             return delegate.save(snapshot)
+        }
+
+        override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> {
+            batches += snapshots.size
+            saves += snapshots.map { it.version }
+            gate?.await()
+            return delegate.saveAll(snapshots)
         }
 
         override suspend fun load(ref: AggregateRef): SnapshotRecord? {
@@ -282,6 +291,30 @@ class SnapshotSubscriptionTest {
         store.saves.assert().containsExactly(1, 5)
         store.load(ref("a"))!!.state.assert().isEqualTo("""{"total":5}""")
     }
+
+    @Test
+    fun `the snapshots of a partition's aggregates built while a write runs are written together`(): Unit =
+        runBlocking {
+            runtime.start(setOf(0))
+            val gate = CompletableDeferred<Unit>().also { store.gate = it }
+            val first = async { coordinator.execute(counter, add("a")) }
+            eventually { store.batches.size == 1 }
+            // Eight other aggregates commit while a's write is held: their snapshots wait for the next write.
+            val ids = (1..8).map { "b$it" }
+            val others = ids.map { async { coordinator.execute(counter, add(it)) } }
+            eventually { ids.all { id -> probed.contains(id to 1) } }
+            delay(50)
+            // No wait is answered before the write that covers it.
+            (listOf(first) + others).forEach { it.isCompleted.assert().isFalse() }
+            store.gate = null
+            gate.complete(Unit)
+            (listOf(first) + others).map { it.await() }.forEach {
+                it.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+                it.hop.assert().isEqualTo(Hop.snapshot("shop"))
+            }
+            store.batches.assert().containsExactly(1, ids.size)
+            ids.forEach { store.load(ref(it))!!.version.assert().isEqualTo(1) }
+        }
 
     @Test
     fun `a replay never moves a snapshot back, nor rebuilds what the store holds`(): Unit = runBlocking {

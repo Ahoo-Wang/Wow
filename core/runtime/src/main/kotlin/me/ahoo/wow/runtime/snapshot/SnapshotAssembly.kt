@@ -42,8 +42,8 @@ internal class SnapshotAssembly(
     val readers: Map<String, Set<AggregateType>> =
         stores.entries.associate { (store, types) -> targets!!.subscriptionOf(store) to types }
 
-    /** The subscription of each target store, reading [views]. */
-    fun subscriptions(views: StateViews): List<SnapshotSubscription> =
+    /** The subscription of each target store, reading [views], writing at most [writeBatch] snapshots at a time. */
+    fun subscriptions(views: StateViews, writeBatch: Int = SnapshotOptions.DEFAULT_WRITE_BATCH): List<SnapshotSubscription> =
         stores.map { (store, types) ->
             SnapshotSubscription(
                 context,
@@ -55,6 +55,7 @@ internal class SnapshotAssembly(
                 views,
                 name = targets.subscriptionOf(store),
                 answers = { type -> targets.placementOf(type).primary == store },
+                writeBatch = writeBatch,
             )
         }
 
