@@ -15,6 +15,7 @@ package me.ahoo.wow.migrate
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import me.ahoo.wow.api.aggregate.AggregateType
 import java.io.PrintStream
 import java.nio.file.Files
 import java.nio.file.Path
@@ -31,6 +32,7 @@ import kotlin.system.exitProcess
  * migrate-data tail     --config <file> [--once]
  * migrate-data compare  --config <file> [--sample <percent>] [--restart]
  * migrate-data snapshot --config <file> [--restart]
+ * migrate-data backfill-tags --config <file> [--restart]
  * ```
  *
  * - `check` scans the 9.x store and checks `migration-map.json` against it and the V10 Manifest.
@@ -57,7 +59,12 @@ import kotlin.system.exitProcess
  * - `snapshot` writes the V10 snapshot of every imported instance at its last version ([SnapshotWriter]), resuming
  *   from its checkpoint; `--restart` walks every instance again (the snapshots already written are skipped).
  *
- * `compare` and `snapshot` rebuild states with the services' V10 models, found on the configuration's `classpath`
+ * - `backfill-tags` records the tags of every stream the V10 log appended before format 1 learned them (decision
+ *   D259), each aggregate of the configured contexts' Manifests replayed with its V10 model ([TagsBackfiller]),
+ *   resuming from its checkpoint; `--restart` walks every aggregate again. It prints the order to follow: the logs
+ *   first, then an Elasticsearch events index re-sunk from them, never the other way round.
+ *
+ * `compare`, `snapshot` and `backfill-tags` rebuild states with the services' V10 models, found on the configuration's `classpath`
  * ([MigrationModels]).
  *
  * From the repository: `./gradlew :migrate-data:run --args="check --config /path/to/migrate-data.json"`.
@@ -100,6 +107,7 @@ class MigrateData(
                         IMPORT -> import(plan, config, connections, options)
                         TAIL -> tail(plan, config, connections, ONCE in options)
                         COMPARE -> compare(plan, config, connections, sample ?: CompareOptions.ALL, RESTART in options)
+                        BACKFILL_TAGS -> backfillTags(plan, config, connections, RESTART in options)
                         else -> snapshot(plan, config, connections, RESTART in options)
                     }
                 }
@@ -279,6 +287,33 @@ class MigrateData(
         return OK
     }
 
+    /** Backfills the tags of every aggregate of the plan's contexts in their Manifests, then prints what comes next. */
+    private suspend fun backfillTags(
+        plan: MigrationPlan,
+        config: MigrationConfig,
+        connections: MigrationConnections,
+        restart: Boolean,
+    ): Int {
+        val backfiller = TagsBackfiller(
+            models = models(config),
+            logOf = connections::logOf,
+            checkpoints = FileCheckpointRepository(Path.of(config.checkpoint)),
+            options = config.options(restart = restart),
+            progress = { out.println(it.render()) },
+        )
+        val types = plan.manifest.contexts.filter { it.name in plan.contexts }
+            .flatMap { context -> context.aggregates.map { AggregateType(context.name, it.name) } }
+        out.println(TAGS_ORDER)
+        types.forEach { backfiller.backfill(it) }
+        val left = types.filter { backfiller.untagged(it) }
+        if (left.isNotEmpty()) {
+            out.println("Streams without tags remain in $left (appended meanwhile by an old node?): run it again.")
+            return FAILED
+        }
+        out.println("Tags backfilled. Now re-sink each Elasticsearch events index from the log, if any.")
+        return OK
+    }
+
     private suspend fun tail(plan: MigrationPlan, config: MigrationConfig, connections: MigrationConnections, once: Boolean): Int {
         val source = connections.source
         if (source is CommitTimeIndexed) {
@@ -344,6 +379,7 @@ class MigrateData(
         private const val TAIL = "tail"
         private const val COMPARE = "compare"
         private const val SNAPSHOT = "snapshot"
+        private const val BACKFILL_TAGS = "backfill-tags"
         private const val CONFIG = "--config"
         private const val DRY_RUN = "--dry-run"
         private const val RESTART = "--restart"
@@ -351,15 +387,20 @@ class MigrateData(
         private const val ONCE = "--once"
         private const val SAMPLE = "--sample"
 
+        /** The order of a tags backfill (decision D259), printed before it starts. */
+        const val TAGS_ORDER = "Tags backfill, in this order: 1. backfill the tags of every V10 log (this command, " +
+            "until it reports none left); 2. only then re-sink each Elasticsearch events index from the log."
+
         /** The suffix of the file of the keys the import confirmed, after the checkpoint file's name. */
         const val IMPORTED_KEYS = ".reservations.jsonl"
-        private val COMMANDS = setOf(CHECK, IMPORT, TAIL, COMPARE, SNAPSHOT)
+        private val COMMANDS = setOf(CHECK, IMPORT, TAIL, COMPARE, SNAPSHOT, BACKFILL_TAGS)
         private val KNOWN_OPTIONS = mapOf(
             CHECK to setOf(CONFIG),
             IMPORT to setOf(CONFIG, DRY_RUN, RESTART, SNAPSHOTS),
             TAIL to setOf(CONFIG, ONCE),
             COMPARE to setOf(CONFIG, SAMPLE, RESTART),
             SNAPSHOT to setOf(CONFIG, RESTART),
+            BACKFILL_TAGS to setOf(CONFIG, RESTART),
         )
         private val USAGE = """
             Usage: migrate-data <command> --config <file>
@@ -370,6 +411,7 @@ class MigrateData(
               compare   [--sample <percent>] [--restart]  compares each 9.x snapshot with the V10 state rebuilt
                         from the log at its version; exits with 3 when one differs
               snapshot  [--restart]  writes the V10 snapshot of every imported instance
+              backfill-tags  [--restart]  records the tags of the V10 streams appended without them
             Exit codes: 0 done, 1 failed, 2 usage error, 3 the comparison found differences.
         """.trimIndent()
     }

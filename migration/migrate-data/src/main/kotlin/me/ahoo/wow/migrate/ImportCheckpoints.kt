@@ -14,6 +14,7 @@
 package me.ahoo.wow.migrate
 
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.api.aggregate.AggregateType
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
@@ -104,8 +105,9 @@ data class CompensationCheckpoint(
 /**
  * The checkpoints of a migration, by 9.x aggregate (`contextName.aggregateName`), in format [format]: the import's
  * ([aggregates]), the state comparison's ([compared]) and the snapshot writing's ([snapshots]); and the reservation
- * import's by 9.x `PrepareKey` name ([reservations]); and the compensation import's ([compensation]). The last four
- * joined format 1 as optional properties (roadmap 8b.2, 8b.4, finding A4-8): a file without them reads as before.
+ * import's by 9.x `PrepareKey` name ([reservations]); and the compensation import's ([compensation]); and the tags
+ * backfill's by V10 aggregate type ([tags], decision D259). The last five joined format 1 as optional properties
+ * (roadmap 8b.2, 8b.4, finding A4-8, R4-Q2c): a file without them reads as before.
  */
 data class ImportCheckpoints(
     val format: Int = FORMAT,
@@ -114,6 +116,7 @@ data class ImportCheckpoints(
     val snapshots: Map<String, SnapshotCheckpoint> = emptyMap(),
     val reservations: Map<String, ReservationCheckpoint> = emptyMap(),
     val compensation: CompensationCheckpoint? = null,
+    val tags: Map<String, TagsCheckpoint> = emptyMap(),
 ) {
     init {
         require(format == FORMAT) { "Checkpoint format $format is not supported; this tool reads format $FORMAT." }
@@ -140,6 +143,11 @@ data class ImportCheckpoints(
         copy(reservations = reservations + (name to checkpoint))
 
     fun with(checkpoint: CompensationCheckpoint): ImportCheckpoints = copy(compensation = checkpoint)
+
+    fun tagsOf(type: AggregateType): TagsCheckpoint? = tags[type.toString()]
+
+    fun with(type: AggregateType, checkpoint: TagsCheckpoint): ImportCheckpoints =
+        copy(tags = tags + (type.toString() to checkpoint))
 
     companion object {
         const val FORMAT: Int = 1
