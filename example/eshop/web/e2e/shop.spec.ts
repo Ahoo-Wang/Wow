@@ -134,8 +134,9 @@ test("the shop end to end: catalog, basket, checkout to payment, orders, shippin
     await expect(page.getByTestId("order")).toHaveCount(2);
     await actAs(page, "bob");
     await expect(page.getByText("No orders")).toBeVisible();
+    // Another buyer's order is not found for it, as one that does not exist (decision D254 ④).
     await page.goto(web("/orders/alice-1"));
-    await expect(page.getByTestId("problem-code")).toHaveText("wow.aggregate.forbidden");
+    await expect(page.getByTestId("problem-code")).toHaveText("wow.aggregate.not-found");
   });
 
   await test.step("a declined payment ends the chain short of the paid order, and cancels it", async () => {

@@ -115,7 +115,10 @@ class EshopOrderFlowTest {
         // The order belongs to its buyer (decision D189): the checkout saga's call carried the basket's scope.
         val view = json.readTree(ordering.get("/eshop-ordering/order/alice-1/state", buyer("alice")).body)
         view["scope"]["ownerId"].asString().assert().isEqualTo("alice")
-        ordering.get("/eshop-ordering/order/alice-1/state", buyer("bob")).status.assert().isEqualTo(FORBIDDEN)
+        // Another buyer does not see it: not found, as an order that does not exist (decision D254 ④).
+        val hidden = ordering.get("/eshop-ordering/order/alice-1/state", buyer("bob"))
+        hidden.status.assert().isEqualTo(NOT_FOUND)
+        json.readTree(hidden.body)["code"].asString().assert().isEqualTo("wow.aggregate.not-found")
         stock("mug")["reservations"]["alice-1"].asInt().assert().isEqualTo(2)
         stock("cap")["reservations"]["alice-1"].asInt().assert().isEqualTo(1)
 
@@ -228,7 +231,6 @@ class EshopOrderFlowTest {
         const val OK = 200
         const val NOT_FOUND = 404
         const val CONFLICT = 409
-        const val FORBIDDEN = 403
         const val USER = "X-User"
         const val TAIL = 4_000
         const val WAIT = "Wow-Wait"
