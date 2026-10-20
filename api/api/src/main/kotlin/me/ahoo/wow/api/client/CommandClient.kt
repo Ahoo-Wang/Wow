@@ -34,6 +34,8 @@ import kotlin.time.Duration
  * the server (decision D191).
  *
  * A client sends as one caller ([of]); the host's client sends as an anonymous one until [of] gives it another.
+ * Commands have no trusted mode by design: a write always carries an accountable caller and goes through the
+ * authorizer, so a system or service sender passes its own service caller.
  *
  * - [send] answers once the command is accepted: durable for a peer's command, whose topic acknowledged it.
  * - [wait] answers with the result the command's wait plan ([SendOptions.wait]) ends with, the server's default plan
