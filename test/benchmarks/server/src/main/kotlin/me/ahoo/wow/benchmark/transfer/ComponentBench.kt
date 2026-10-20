@@ -31,7 +31,6 @@ import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.WebApplicationType
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
 import java.io.File
 import java.lang.management.ManagementFactory
 import java.lang.reflect.InvocationHandler
@@ -239,8 +238,9 @@ class StoreCounter {
 /**
  * The component run's counters: a MongoDB [CommandListener] the `mongo` profile's client takes (MongoBackend), and a
  * wrapper of the `postgres` profile's DataSource that counts every statement executed and every commit and rollback.
+ * ComponentBench passes it as a source of its own; it is no `@Configuration`, so the end-to-end server's component scan
+ * of this package leaves it out and its store calls go unwrapped (B.O-1).
  */
-@Configuration(proxyBeanMethods = false)
 class ComponentCounters {
     @Bean
     fun storeCounter(): StoreCounter = StoreCounter()
