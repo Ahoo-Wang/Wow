@@ -254,6 +254,24 @@ class ContractDirectory(
         }
     }.toMap()
 
+    /**
+     * The subscriptions of the peers (`context/processor.function`) that derive or call commands of [types], each
+     * with those types (DX gap G13): such a command carries its sender's tenant into the target.
+     */
+    fun peerSendersTo(types: Set<AggregateType>): Map<String, Set<AggregateType>> = peers.flatMap { peer ->
+        peer.manifest.contexts.flatMap { context ->
+            context.subscriptions.mapNotNull { subscription ->
+                val references = subscription.derives.orEmpty() + subscription.calls.orEmpty()
+                val targets = references.mapNotNullTo(LinkedHashSet()) { reference ->
+                    val type = commandTypeOf(reference) ?: return@mapNotNullTo null
+                    AggregateType(type.substringBefore('.'), type.substringAfter('.').substringBefore('.'))
+                        .takeIf { it in types }
+                }
+                targets.takeIf { it.isNotEmpty() }?.let { "${context.name}/${subscription.name}" to it }
+            }
+        }
+    }.toMap()
+
     /** A Manifest says nothing of a subscription's progress (decision D63: a hop of another context is not checked). */
     override suspend fun hasHandled(subscription: String, stream: EventStreamRecord): Boolean = false
 
