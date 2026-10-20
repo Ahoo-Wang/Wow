@@ -127,6 +127,8 @@ Layer reports are written under the matching `localCoverageReport`, `contractCov
 
 ## Benchmarks Have Three Uses
 
+The JMH suites below are 9.x's: the `:wow-benchmarks` module and its workflows are on `main` (and `v10-9x-baseline`). The V10 line has no JMH level; its end-to-end benchmark is described in [`test/benchmarks/README.md`](https://github.com/Ahoo-Wang/Wow/blob/v10/test/benchmarks/README.md).
+
 | Use | Entry point | Supported conclusion |
 | --- | --- | --- |
 | Smoke | `benchmarkSmoke` | Selected JMH jar and paths compile, start, and finish |
@@ -225,7 +227,7 @@ The report in the run summary lists base and head score ± error (pooled over ev
 
 ## Read Historical Reports Correctly
 
-Reports under `wow-benchmarks/results/reports/` are bound to the source, run specification, machine, JVM, and service configuration that produced them. They are qualified historical evidence or investigation starting points, not universal promises across versions, machines, or stores.
+Reports under `wow-benchmarks/results/reports/` (on the V10 line, `test/benchmarks/results/reports/`) are bound to the source, run specification, machine, JVM, and service configuration that produced them. They are qualified historical evidence or investigation starting points, not universal promises across versions, machines, or stores.
 
 Follow three rules:
 

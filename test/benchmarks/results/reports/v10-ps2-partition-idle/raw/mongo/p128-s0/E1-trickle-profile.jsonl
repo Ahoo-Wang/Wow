@@ -1,0 +1,16 @@
+{"db":"transfer_v10","ns":"transfer_v10.wow_log__transfer__partition","op":"command","name":"aggregate","txn":false,"shape":"_id","count":4822}
+{"db":"transfer_v10","ns":"transfer_v10.wow_checkpoint","op":"update","name":"update","txn":false,"shape":"$and","count":2312}
+{"db":"transfer_v10","ns":"transfer_v10.wow_lease","op":"command","name":"findAndModify","txn":true,"shape":"$and","count":1536}
+{"db":"transfer_v10","ns":"transfer_v10.wow_log__transfer__account","op":"query","name":"query","txn":true,"shape":"$and","count":300}
+{"db":"transfer_v10","ns":"transfer_v10.wow_snapshot__transfer__account","op":"command","name":"findAndModify","txn":true,"shape":"$and","count":300}
+{"db":"transfer_v10","ns":"transfer_v10.wow_log__transfer__account","op":"insert","name":"insert","txn":true,"shape":"","count":300}
+{"db":"transfer_v10","ns":"transfer_v10.wow_log__transfer__account","op":"query","name":"query","txn":false,"shape":"$and","count":300}
+{"db":"transfer_v10","ns":"transfer_v10.wow_log__transfer__partition","op":"command","name":"findAndModify","txn":true,"shape":"_id","count":300}
+{"db":"transfer_v10","ns":"transfer_v10.wow_lease_member","op":"query","name":"query","txn":false,"shape":"$and","count":73}
+{"db":"transfer_v10","ns":"transfer_v10.wow_lease","op":"getmore","name":"getmore","txn":false,"shape":"","count":37}
+{"db":"transfer_v10","ns":"transfer_v10.wow_timer__transfer","op":"query","name":"query","txn":false,"shape":"$and","count":37}
+{"db":"transfer_v10","ns":"transfer_v10.wow_lease","op":"query","name":"query","txn":false,"shape":"$and","count":37}
+{"db":"transfer_v10","ns":"transfer_v10.wow_failure_ledger","op":"query","name":"query","txn":false,"shape":"$and","count":32}
+{"db":"transfer_v10","ns":"transfer_v10.wow_lease_member","op":"update","name":"update","txn":false,"shape":"$and","count":20}
+{"db":"transfer_v10","ns":"transfer_v10.wow_snapshot_table","op":"query","name":"query","txn":false,"shape":"_id","count":7}
+true

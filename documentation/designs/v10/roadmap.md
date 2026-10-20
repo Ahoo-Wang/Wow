@@ -70,15 +70,15 @@ flowchart LR
 
 ### M1 Spike
 
-每个 spike 在 `v10` 上独立分支完成，产出结论与原始数据（`wow-benchmarks/results/`），代码不合入。
+每个 spike 在 `v10` 上独立分支完成，产出结论与原始数据（`test/benchmarks/results/`），代码不合入。
 
 | WP | 假设 | 出口 |
 |---|---|---|
-| 1.1 | H1 分区序号分配的吞吐（PostgreSQL 两种方式；MongoDB 事务与分组提交） | 单分区与 64 分区的吞吐、p99、尾随延迟；不跳过的故障注入结果；PostgreSQL 完成：单语句分配，64 分区约 3 万次/秒（Ahoo-Wang/Wow#4216）；MongoDB 完成：属主分组提交约 4.4～5.6 千次/秒，无属主时塌缩，见 `wow-benchmarks/results/reports/v10-h1-mongo-partition-sequence.md` |
-| 1.2 | H2 亲和路由的收益：阶段 1 进程内 3 节点 + 真实 PostgreSQL（Local、Partitioned、入口哈希三组）；阶段 2 在 4.2 之后用 3 个 JVM 复测并测属主故障（设计见决策台账 H2） | 阶段 1 的报告与 D6 拍板；阶段 2 的确认报告；阶段 1 完成：D6 定为 Partitioned（2026-10-12，[报告](../../../wow-benchmarks/results/reports/v10-h2-routing.md)，Ahoo-Wang/Wow#4255） |
-| 1.3 | H3 协程内核的性能 | 与 9.3 Reactor 内核同一 JMH 基准的吞吐与分配率；同步与 `suspend` 处理函数分别测，验证快速路径无续体分配；完成：V10 快约 7.7 倍、分配减半，见 `wow-benchmarks/results/reports/v10-h3-kernel-comparison.md` |
-| 1.4 | H4 KSP 的覆盖 | example、compensation、view-store 与 transfer（Java 源码）的注解模型由 KSP 生成，与 9.x 运行时解析结果比对；完成：38 个命令处理函数中 27 个直接绑定，11 个经 Skill 改写签名（D49），见 `wow-benchmarks/results/reports/v10-h4-ksp-coverage.md` |
-| 1.5 | H6 存储租约：成员、属主收敛与再平衡（PostgreSQL、MongoDB） | 收敛时间、迁移分区数、交接期间的重复处理比例；完成（[报告](../../../wow-benchmarks/results/reports/v10-h6-leases.md)，Ahoo-Wang/Wow#4278） |
+| 1.1 | H1 分区序号分配的吞吐（PostgreSQL 两种方式；MongoDB 事务与分组提交） | 单分区与 64 分区的吞吐、p99、尾随延迟；不跳过的故障注入结果；PostgreSQL 完成：单语句分配，64 分区约 3 万次/秒（Ahoo-Wang/Wow#4216）；MongoDB 完成：属主分组提交约 4.4～5.6 千次/秒，无属主时塌缩，见 `test/benchmarks/results/reports/v10-h1-mongo-partition-sequence.md` |
+| 1.2 | H2 亲和路由的收益：阶段 1 进程内 3 节点 + 真实 PostgreSQL（Local、Partitioned、入口哈希三组）；阶段 2 在 4.2 之后用 3 个 JVM 复测并测属主故障（设计见决策台账 H2） | 阶段 1 的报告与 D6 拍板；阶段 2 的确认报告；阶段 1 完成：D6 定为 Partitioned（2026-10-12，[报告](../../../test/benchmarks/results/reports/v10-h2-routing.md)，Ahoo-Wang/Wow#4255） |
+| 1.3 | H3 协程内核的性能 | 与 9.3 Reactor 内核同一 JMH 基准的吞吐与分配率；同步与 `suspend` 处理函数分别测，验证快速路径无续体分配；完成：V10 快约 7.7 倍、分配减半，见 `test/benchmarks/results/reports/v10-h3-kernel-comparison.md` |
+| 1.4 | H4 KSP 的覆盖 | example、compensation、view-store 与 transfer（Java 源码）的注解模型由 KSP 生成，与 9.x 运行时解析结果比对；完成：38 个命令处理函数中 27 个直接绑定，11 个经 Skill 改写签名（D49），见 `test/benchmarks/results/reports/v10-h4-ksp-coverage.md` |
+| 1.5 | H6 存储租约：成员、属主收敛与再平衡（PostgreSQL、MongoDB） | 收敛时间、迁移分区数、交接期间的重复处理比例；完成（[报告](../../../test/benchmarks/results/reports/v10-h6-leases.md)，Ahoo-Wang/Wow#4278） |
 
 H5（Skill 迁移）依赖 V10 API，放在 M8a。
 
@@ -308,7 +308,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | B.3 | E4 读：按 ID 读状态、列表查询 | 同上 |
 | B.4 | E5 集群：1 节点对 3 节点跑 E1 与 E3，负载分布为均匀、Zipf（s = 1.1）、热点 | 同上 |
 | B.D | 诊断（不作结论）：端到端出现差距时，用同构对照（去掉总线、同一存储）与 JMH 内核微基准（H3 复测）定位差距来自哪一层 | 报告中的归因 |
-| B.R | 报告：`wow-benchmarks/results/reports/v10-vs-9x.md` 与原始数据（JSON、直方图）入库；方法、环境、可复现命令；结论只来自端到端，V10 不占优的项如实写明并分析原因；本机同机测得的结果标明为方向性 | 报告入库 |
+| B.R | 报告：`test/benchmarks/results/reports/v10-vs-9x.md` 与原始数据（JSON、直方图）入库；方法、环境、可复现命令；结论只来自端到端，V10 不占优的项如实写明并分析原因；本机同机测得的结果标明为方向性 | 报告入库 |
 
 ### M8 迁移层
 
