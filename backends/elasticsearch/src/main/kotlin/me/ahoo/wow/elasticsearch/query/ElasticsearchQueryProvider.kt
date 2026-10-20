@@ -31,6 +31,7 @@ import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.SnapshotFields
+import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
@@ -42,7 +43,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The queries of an Elasticsearch store (work package 6.7): its snapshot indices (decision D131), each aggregate
- * type's state fields mapped from its state schema ([ElasticsearchStateMappings]) as `wow.query.index.ddl` says.
+ * type's state fields mapped from its state schema ([ElasticsearchStateMappings]) as `wow.query.index.ddl` says, and
+ * its events indices (decision D235, [ElasticsearchEventQueries]).
  * Found by `ServiceLoader`.
  */
 internal class ElasticsearchQueryProvider : StoreQueryProvider {
@@ -51,6 +53,16 @@ internal class ElasticsearchQueryProvider : StoreQueryProvider {
     override fun snapshots(store: Store, options: StoreQueryOptions): SnapshotQueries {
         val elasticsearch = store as ElasticsearchStore
         return ElasticsearchSnapshotQueries(elasticsearch.queryClient, elasticsearch.names, options.indexDdl)
+    }
+
+    /**
+     * The `events` queries of [store] (decision D235): over the events indices its event search Sink writes, for the
+     * aggregate types whose `events` queries the host routes to it (`wow.aggregates.[<context>.<aggregate>].query
+     * .events.store`); its logs are elsewhere (decision D13).
+     */
+    override fun events(store: Store, options: StoreQueryOptions): EventQueries {
+        val elasticsearch = store as ElasticsearchStore
+        return ElasticsearchEventQueries(elasticsearch.queryClient, elasticsearch.names, options.indexDdl)
     }
 
     /**
@@ -91,7 +103,7 @@ internal class ElasticsearchSnapshotQueries(
     private val indexDdl: QueryIndexDdl = QueryIndexDdl.AUTO,
 ) : SnapshotQueries {
     private val mappingResolver = ElasticsearchIndexMappingResolver(client) { ElasticsearchSnapshotIndex.typeMapping() }
-    private val stateMappings = ElasticsearchStateMappings(client, mappingResolver, SnapshotFields.STATE)
+    private val stateMappings = ElasticsearchStateMappings(client, mappingResolver, ElasticsearchPayload.Root(SnapshotFields.STATE))
     private val bindings = ConcurrentHashMap<AggregateType, QueryBackendBinding<QueryBackend>>()
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = bindings.computeIfAbsent(type) {

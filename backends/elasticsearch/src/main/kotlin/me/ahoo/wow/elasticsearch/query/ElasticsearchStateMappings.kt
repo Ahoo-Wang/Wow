@@ -19,7 +19,11 @@ import co.elastic.clients.elasticsearch._types.mapping.Property
 import co.elastic.clients.elasticsearch.indices.PutMappingRequest
 import me.ahoo.wow.elasticsearch.awaitElasticsearch
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotIndex
+import me.ahoo.wow.query.schema.EventFields
+import me.ahoo.wow.query.schema.EventStreamFields
 import me.ahoo.wow.query.schema.LogicalQuerySchema
+import me.ahoo.wow.query.schema.QueryPathSegment
+import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.QueryValueType
@@ -52,8 +56,8 @@ import java.util.concurrent.ConcurrentHashMap
 internal class ElasticsearchStateMappings(
     private val client: ElasticsearchAsyncClient,
     private val mappingResolver: ElasticsearchIndexMappingResolver,
-    /** The payload's field, at the root of each document. */
-    private val payload: String,
+    /** Where the payload lies in each document. */
+    private val payload: ElasticsearchPayload,
 ) {
     /** The logical schemas each index was found to map already, so a load maps nothing twice. */
     private val managed = ConcurrentHashMap<String, LogicalQuerySchema>()
@@ -64,18 +68,16 @@ internal class ElasticsearchStateMappings(
      */
     suspend fun manage(index: String, schema: LogicalQuerySchema, create: Boolean = true): QueryIndexReport {
         if (managed[index] === schema) return QueryIndexReport.NONE
-        val payloadValue = schema.root.properties[payload] ?: return QueryIndexReport.NONE
+        val payloadValue = payload.value(schema) ?: return QueryIndexReport.NONE
         val existing = mappingResolver.refresh(index)
         if (existing.provisional) return QueryIndexReport.NONE
-        val plan = Plan(existing)
-        val properties = plan.properties(payload, payloadValue)
+        val plan = Plan(existing, payload.mergesVariants)
+        val properties = plan.properties(payload.path, payloadValue)
         if (plan.created.isEmpty() || !create) {
             if (plan.invalid.isEmpty() && plan.created.isEmpty()) managed[index] = schema
             return QueryIndexReport(missing = plan.created, invalid = plan.invalid)
         }
-        val mapping = nodes.objectNode().also { root ->
-            root.putObject("properties").set(payload, properties)
-        }
+        val mapping = payload.mapping(properties)
         client.indices().putMapping(
             PutMappingRequest.of { it.index(index).withJson(StringReader(WowJson.mapper.writeValueAsString(mapping))) },
         ).awaitElasticsearch()
@@ -91,7 +93,7 @@ internal class ElasticsearchStateMappings(
     }
 
     /** One walk of a payload's schema against an index's existing mapping. */
-    private class Plan(private val existing: ElasticsearchIndexMapping) {
+    private class Plan(private val existing: ElasticsearchIndexMapping, private val mergesVariants: Boolean) {
         val created = mutableListOf<String>()
         val invalid = mutableListOf<String>()
 
@@ -106,7 +108,7 @@ internal class ElasticsearchStateMappings(
 
         /** The mapping of the field [path] of [value], or null when the index has it all or it maps nothing. */
         private fun field(path: String, value: QueryValueSchema): ObjectNode? {
-            val single = value.single() ?: return null
+            val single = value.mappable(mergesVariants) ?: return null
             return when {
                 single.kind == QueryValueKind.OBJECT && single.additionalProperties != null -> leaf(
                     path,
@@ -115,7 +117,7 @@ internal class ElasticsearchStateMappings(
                 )
                 single.kind == QueryValueKind.OBJECT -> container(path, Property.Kind.Object, single)
                 single.kind == QueryValueKind.ARRAY -> {
-                    val items = checkNotNull(single.items).single() ?: return null
+                    val items = checkNotNull(single.items).mappable(mergesVariants) ?: return null
                     if (items.kind == QueryValueKind.OBJECT && items.additionalProperties == null) {
                         container(path, Property.Kind.Nested, items)
                     } else {
@@ -174,7 +176,7 @@ internal class ElasticsearchStateMappings(
         }
 
         private fun objectProperties(value: QueryValueSchema): Map<String, QueryValueSchema>? =
-            value.single()?.takeIf { it.kind == QueryValueKind.OBJECT }?.properties
+            value.mappable(mergesVariants)?.takeIf { it.kind == QueryValueKind.OBJECT }?.properties
     }
 
     private companion object {
@@ -182,9 +184,37 @@ internal class ElasticsearchStateMappings(
         val NUMBERS = setOf(QueryValueType.INTEGER, QueryValueType.DECIMAL)
         val FLATTENED: Property.Kind = Property.Kind.Flattened
 
-        /** The one non-null alternative of this value, or null when it has several or none. */
-        fun QueryValueSchema.single(): QueryValueSchema? =
-            alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }.singleOrNull()
+        /**
+         * The value one field maps: the one non-null alternative of this value; with [merge], the alternatives of
+         * the variants of a union taken together when they map alike (objects as one object of all their properties,
+         * scalars of one type as that scalar, arrays as an array of their items); null when they do not, or there is
+         * none.
+         */
+        fun QueryValueSchema.mappable(merge: Boolean): QueryValueSchema? {
+            val branches = alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }
+            branches.singleOrNull()?.let { return it }
+            if (!merge || branches.isEmpty()) return null
+            val first = branches.first()
+            return when {
+                branches.all { it.kind == QueryValueKind.OBJECT && it.additionalProperties == null } ->
+                    QueryValueSchema(
+                        QueryValueKind.OBJECT,
+                        properties = branches.flatMap { it.properties.keys }.distinct().associateWith { name ->
+                            union(branches.mapNotNull { it.properties[name] })
+                        },
+                    )
+                branches.all {
+                    it.kind == QueryValueKind.SCALAR && it.valueTypes == first.valueTypes &&
+                        it.semanticType == first.semanticType
+                } -> first
+                branches.all { it.kind == QueryValueKind.ARRAY } ->
+                    QueryValueSchema(QueryValueKind.ARRAY, items = union(branches.map { checkNotNull(it.items) }))
+                else -> null
+            }
+        }
+
+        private fun union(values: List<QueryValueSchema>): QueryValueSchema =
+            values.distinct().singleOrNull() ?: QueryValueSchema(QueryValueKind.UNION, alternatives = values.distinct())
 
         fun typed(type: String): ObjectNode = nodes.objectNode().put("type", type)
 
@@ -197,5 +227,58 @@ internal class ElasticsearchStateMappings(
         fun date(): ObjectNode = typed("date").put("format", "strict_date_optional_time||epoch_millis")
 
         fun flattened(): ObjectNode = typed("flattened").put("ignore_above", ElasticsearchSnapshotIndex.KEYWORD_LIMIT)
+    }
+}
+
+/**
+ * Where the payload whose fields [ElasticsearchStateMappings] maps lies in a document: its dotted [path], its logical
+ * [value] in a model's schema, and the mapping request that adds [properties][mapping] to it.
+ */
+internal interface ElasticsearchPayload {
+    val path: String
+
+    /** Whether the variants of a union payload (the events' bodies) map together, each field once. */
+    val mergesVariants: Boolean
+
+    fun value(schema: LogicalQuerySchema): QueryValueSchema?
+
+    fun mapping(properties: ObjectNode): ObjectNode
+
+    /** A payload at the root of each document: a snapshot's `state`. */
+    class Root(override val path: String) : ElasticsearchPayload {
+        override val mergesVariants: Boolean get() = false
+
+        override fun value(schema: LogicalQuerySchema): QueryValueSchema? = schema.root.properties[path]
+
+        override fun mapping(properties: ObjectNode): ObjectNode = JsonNodeFactory.instance.objectNode().also { root ->
+            root.putObject("properties").set(path, properties)
+        }
+    }
+
+    /**
+     * The bodies of a stream's events, `body` in each element of the nested `events`: one union of every event's body
+     * (decision D235), each field mapped once for all the events that declare it alike; a field two events declare
+     * with different types is not mapped.
+     */
+    object EventBodies : ElasticsearchPayload {
+        private val TEMPLATE = QueryPathTemplate(
+            listOf(
+                QueryPathSegment.Property(EventStreamFields.EVENTS),
+                QueryPathSegment.Item,
+                QueryPathSegment.Property(EventFields.BODY),
+            ),
+        )
+
+        override val path: String = "${EventStreamFields.EVENTS}.${EventFields.BODY}"
+
+        override val mergesVariants: Boolean get() = true
+
+        override fun value(schema: LogicalQuerySchema): QueryValueSchema? = schema.values[TEMPLATE]
+
+        override fun mapping(properties: ObjectNode): ObjectNode = JsonNodeFactory.instance.objectNode().also { root ->
+            root.putObject("properties").putObject(EventStreamFields.EVENTS)
+                .put("type", "nested")
+                .putObject("properties").set(EventFields.BODY, properties)
+        }
     }
 }
