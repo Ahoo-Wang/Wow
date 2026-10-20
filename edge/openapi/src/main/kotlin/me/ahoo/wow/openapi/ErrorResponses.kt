@@ -130,14 +130,16 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
 
         /** The codes a query answers: the query codes (decisions D130, D150), and not-found for a `single` one. */
         val QUERY: List<String> = listOf(FrameworkErrors.AUTH_UNAUTHENTICATED, FrameworkErrors.AUTH_FORBIDDEN) +
-            FrameworkErrors.ALL.map { it.code }.filter { it.startsWith(QUERY_PREFIX) } +
+            FrameworkErrors.ALL.map { it.code }
+                .filter { it.startsWith(QUERY_PREFIX) && it != FrameworkErrors.QUERY_DATASET_UNAVAILABLE } +
             listOf(FrameworkErrors.AGGREGATE_NOT_FOUND, FrameworkErrors.STORAGE_UNAVAILABLE)
 
         /**
          * The codes a dataset query answers: a query's, but `wow.query.busy`, which only the stores' query bulkheads
-         * answer (review R3.4-2), and a dataset backend has none.
+         * answer (review R3.4-2), and a dataset backend has none; and `wow.query.dataset-unavailable`, a dataset served
+         * but not queryable now (decision D259 7.2b-2).
          */
-        val DATASET_QUERY: List<String> = QUERY - FrameworkErrors.QUERY_BUSY
+        val DATASET_QUERY: List<String> = QUERY - FrameworkErrors.QUERY_BUSY + FrameworkErrors.QUERY_DATASET_UNAVAILABLE
 
         /** The codes a query model's capability descriptor answers. */
         val DESCRIPTOR: List<String> = listOf(

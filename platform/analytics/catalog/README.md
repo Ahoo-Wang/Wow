@@ -17,7 +17,12 @@ JSON text through `JSONExtractString`, every name quoted and every text escaped)
 in `wow_datasets` (the only DDL the catalog runs); every node serving queries reads the publications from the datasets'
 snapshots (`DatasetPublicationWatcher`: what changed every 5 seconds, everything every 5 minutes) and serves the current
 version under `/wow/dataset/<context>/<name>/query`, each value masked as its sources say. A retired dataset's views are
-dropped 7 days later.
+dropped 7 days later. A change of a source recompiles the datasets that read it (`DatasetRecompilation`): what compiles
+with the same columns (names and types) is published as the next version (stricter masking, another rendering); anything
+else (no longer compiling, columns that would change, a new approval) marks the dataset `NEEDS_REVISION`. Its published
+version goes on serving while its view still gives the columns it was published with; once it does not, queries are
+answered 409 `wow.query.dataset-unavailable` ("needs revision"; the problems are in the dataset's state and the log)
+until a revision is published or its sources come back.
 
 | Module | Contents |
 | --- | --- |
@@ -40,6 +45,9 @@ dropped 7 days later.
 | `PublishDataset` | editor, admin | Compiles the definition as the next version and creates its view; queries then read it |
 | `RollbackDataset` | editor, admin | Switches queries back to an earlier version, its view created again if gone |
 | `RetireDataset` | editor, admin | Stops the queries; the views are dropped after the retention (`DropDatasetViews`, scheduled) |
+| `ApproveDatasetPublication`, `RefuseDatasetPublication` | approver | Decides a publication that takes an approver: every one with `approval.publications`, and any computing from sensitive values or lowering a protection |
+| `ApproveSource` | approver | With `approval.sources`, lets the datasets read a reviewed or adopted source |
+| `RecompileDataset` | the catalog, admin | Compiles a published dataset again after a source changed |
 
 Roles (D251 ②): `analytics.catalog.admin` (connections, trusted writers), `analytics.catalog.approver` (reviews and
 sensitivity changes), `analytics.catalog.editor` (an analyst's own sources), `analytics.catalog.viewer` (reads).
@@ -53,6 +61,7 @@ sensitivity changes), `analytics.catalog.editor` (an analyst's own sources), `an
 `wow.analytics.catalog.*`: `connection` (`default`), `engine` (`clickhouse`), `databases` (`wow.clickhouse.database` when empty),
 `trusted-writers.<account>` (the contexts it is trusted for), `refresh-interval` (30s), `watch` (on).
 `wow.analytics.catalog.datasets.*`: `database` (`wow_datasets`; the account needs `CREATE DATABASE`, `CREATE VIEW` and
-`DROP VIEW` there), `retention` (7d), `serve` (on), `refresh-interval` (5s), `reconcile-interval` (5m). A node that serves
+`DROP VIEW` there), `retention` (7d), `serve` (on), `refresh-interval` (5s), `reconcile-interval` (5m). The approval switches,
+`approval.sources` and `approval.publications`, are off by default. A node that serves
 the datasets is ready (`/actuator/health/readiness`) once it read the publications; its metrics are
 `wow.analytics.catalog.datasets.sync.age` and `wow.analytics.catalog.datasets.publication.lag`.

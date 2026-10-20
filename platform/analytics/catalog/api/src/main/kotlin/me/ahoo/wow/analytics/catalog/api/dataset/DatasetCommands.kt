@@ -58,3 +58,20 @@ data object RetireDataset
 /** Drops the views of a dataset retired for the retention; the catalog schedules it when it retires one. */
 @Summary("Drop a retired dataset's views")
 data object DropDatasetViews
+
+/**
+ * Compiles the dataset's published definition again against the catalog as it is now, because a source it reads
+ * changed (decision D259 7.2b-2): what compiles the same changes nothing; what compiles otherwise (a source's values
+ * now more protected, say) is published as the next version; what no longer compiles marks the dataset
+ * `NEEDS_REVISION`. The catalog sends it when a source changes.
+ */
+@Summary("Compile a published dataset again after a source changed")
+data object RecompileDataset
+
+/** Approves, as an approver, the publication of the dataset's definition that was requested: it is published. */
+@Summary("Approve the requested publication of a dataset")
+data object ApproveDatasetPublication
+
+/** Refuses the requested publication of a dataset, for [reason]. */
+@Summary("Refuse the requested publication of a dataset")
+data class RefuseDatasetPublication(val reason: String)

@@ -123,6 +123,13 @@ class ClickHouseCatalogIntegrationTest {
         catalog.catalogRows("default", STATE).assert().isEmpty()
         catalog.catalogChanges("default").assert().isEmpty()
         catalog.toString().assert().contains("warehouse")
+        // An ALTER in the same second as a look shows in the columns' fingerprint, if not in the metadata time.
+        execute("CREATE TABLE $DATABASE.altered (id String) ENGINE = MergeTree ORDER BY id")
+        val before = catalog.tables(DATABASE).single { it.name == "altered" }
+        execute("ALTER TABLE $DATABASE.altered ADD COLUMN note String")
+        val after = catalog.tables(DATABASE).single { it.name == "altered" }
+        after.columns.assert().isNotEqualTo(before.columns).isNotEmpty()
+        execute("DROP TABLE $DATABASE.altered")
     }
 
     @Test

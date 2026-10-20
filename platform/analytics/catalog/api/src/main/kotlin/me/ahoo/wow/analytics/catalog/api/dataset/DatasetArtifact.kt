@@ -21,7 +21,8 @@ import me.ahoo.wow.analytics.catalog.api.source.SourceColumn
  * without asking the catalog: its [scope], its [fields] with their protection and lineage, its [identity] and
  * [eventTime] columns. [sources] are the catalog's sources it reads; [approvals] say why publishing it takes an
  * approver, empty when it does not. [columns] are the view's columns as the warehouse created them, their warehouse
- * types: what a query node declares each field as; empty until the publication creates the view.
+ * types: what a query node declares each field as; empty until the publication creates the view. [select] is the
+ * query the view is, which the catalog asks the warehouse to describe before it publishes a recompilation.
  */
 data class DatasetArtifact(
     val context: String,
@@ -38,6 +39,7 @@ data class DatasetArtifact(
     val eventTime: String? = null,
     val approvals: List<String> = emptyList(),
     val columns: List<SourceColumn> = emptyList(),
+    val select: String = "",
 )
 
 /**

@@ -86,7 +86,7 @@ internal object DatasetBinder {
 
     /** [definition] over [sources], each source it names by id as the catalog has it now, or null when it has none. */
     @Suppress("CyclomaticComplexMethod", "LongMethod") // One check after another, each adding its problem.
-    fun bind(definition: DatasetDefinition, sources: Map<String, SourceState?>): Result {
+    fun bind(definition: DatasetDefinition, sources: Map<String, SourceState?>, approvedOnly: Boolean = false): Result {
         val problems = mutableListOf<String>()
         val aliases = linkedMapOf<String, BoundSource>()
         definition.sources.forEach { source ->
@@ -96,7 +96,7 @@ internal object DatasetBinder {
                 problems += "The alias ${source.alias} names one source only."
             } else {
                 val state = sources[source.sourceId]
-                val unusable = unusable(source.sourceId, state)
+                val unusable = unusable(source.sourceId, state, approvedOnly)
                 if (unusable != null) problems += unusable else aliases[source.alias] = BoundSource(source.alias, source.sourceId, state!!)
             }
         }
@@ -253,11 +253,15 @@ internal object DatasetBinder {
         )
     }
 
-    /** Why the catalog's source [id] ([state]) is not one a dataset reads, or null when it is. */
-    private fun unusable(id: String, state: SourceState?): String? = when {
+    /**
+     * Why the catalog's source [id] ([state]) is not one a dataset reads, or null when it is; with [approvedOnly], one
+     * an approver has not approved is not either.
+     */
+    private fun unusable(id: String, state: SourceState?, approvedOnly: Boolean): String? = when {
         state == null || !state.exists -> "The catalog has no source $id."
         state.missing -> "The source $id's table is gone."
         state.status == SourceStatus.DRAFT -> "The source $id is a draft: it is reviewed first."
+        approvedOnly && !state.approved -> "The source $id awaits an approver's approval."
         else -> null
     }
 

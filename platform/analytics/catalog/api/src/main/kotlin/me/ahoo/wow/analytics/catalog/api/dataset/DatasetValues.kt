@@ -96,6 +96,12 @@ enum class DatasetStatus {
 
     /** Retired: queries stop; its views stay for the retention. */
     RETIRED,
+
+    /**
+     * Its published version no longer compiles against the catalog, since a source changed: queries are answered
+     * `wow.query.dataset-unavailable` until a revision is published or the sources come back (decision D259 7.2b-2).
+     */
+    NEEDS_REVISION,
 }
 
 /** A published version of a dataset: its compiled [artifact] and the [definition] it was compiled from. */

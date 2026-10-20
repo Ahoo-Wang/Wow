@@ -45,7 +45,8 @@ class MemoryWarehouse(override val connection: String = "warehouse") : Warehouse
     override suspend fun tables(database: String): List<WarehouseTableInfo> = tables.values
         .also { listings.incrementAndGet() }
         .filter { it.database == database }
-        .map { WarehouseTableInfo(it.name, it.uuid, it.tableEngine, it.columns.size.toString()) }
+        // A metadata time that never changes: the watcher tells a change by the columns' fingerprint.
+        .map { WarehouseTableInfo(it.name, it.uuid, it.tableEngine, "0", it.columns.hashCode().toString()) }
 
     override suspend fun table(database: String, table: String): WarehouseTable? = tables["$database.$table"]
 
@@ -67,8 +68,21 @@ class MemoryDatasetWarehouse : DatasetWarehouse {
 
     override suspend fun create(artifact: DatasetArtifact): List<SourceColumn> {
         created["${artifact.database}.${artifact.view}"] = artifact
+        return columnsOf(artifact)
+    }
+
+    private fun columnsOf(artifact: DatasetArtifact): List<SourceColumn> {
         val scope = listOfNotNull(artifact.scope.tenant, artifact.scope.owner, artifact.scope.space)
         return (scope + artifact.fields.map { it.name }).map { SourceColumn(it, "String") }
+    }
+
+    /** The columns of a view created, or that the published artifact's select gives: text, by the artifact's names. */
+    override suspend fun describe(select: String): List<SourceColumn>? {
+        val artifact = created.values.firstOrNull {
+            select == it.select || select.replace("`", "") == "SELECT * FROM ${it.database}.${it.view}"
+        }
+            ?: created.values.firstOrNull { it.select == select }
+        return artifact?.let { columnsOf(it) }
     }
 
     override suspend fun drop(database: String, views: List<String>) {
