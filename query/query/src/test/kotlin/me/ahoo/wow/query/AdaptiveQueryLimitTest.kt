@@ -127,6 +127,22 @@ class AdaptiveQueryLimitTest {
     }
 
     @Test
+    fun `one period should raise the limit by one however many queries it held back`(): Unit = runBlocking {
+        val bulkhead = QueryBulkhead("main", 1, maxWait = Duration.ZERO, ceiling = 8)
+        val limit = AdaptiveQueryLimit(bulkhead, Pressure())
+        val gate = CompletableDeferred<Unit>()
+        val held = hold(bulkhead, gate)
+        repeat(10) { contend(bulkhead) }
+        limit.evaluate()
+        bulkhead.limit.assert().isEqualTo(2)
+        // Its contention was taken with it: the next period holds nobody back, and the limit stays.
+        limit.evaluate()
+        bulkhead.limit.assert().isEqualTo(2)
+        gate.complete(Unit)
+        held.await()
+    }
+
+    @Test
     fun `a pressing period should not raise the limit however many queries wait`(): Unit = runBlocking {
         val pressure = Pressure()
         val bulkhead = QueryBulkhead("main", 1, maxWait = Duration.ZERO, ceiling = 4)

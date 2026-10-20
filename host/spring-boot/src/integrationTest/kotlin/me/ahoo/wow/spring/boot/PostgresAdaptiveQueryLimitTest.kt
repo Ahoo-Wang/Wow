@@ -13,10 +13,12 @@
 
 package me.ahoo.wow.spring.boot
 
+import com.zaxxer.hikari.HikariPoolMXBean
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.AdaptiveQueryLimit
+import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -48,9 +50,11 @@ class LargerGatedDataSource {
  * appends share: the bound starts at two (a quarter of the pool), climbs to four (half of it) while the writes are calm
  * and queries are held back, halves down to one while appends wait for a connection, cancelling none of the running
  * queries, keeps a command fast once the held queries are replaced by fewer, and climbs again once the writes are calm.
- * The bound is evaluated every 100ms here, so the test runs in seconds; it measures nothing.
  * The pressure is HikariCP's threads awaiting a connection: the test takes the connections the queries leave and
  * waits for one more, as a burst of appends would.
+ *
+ * The test ends each period itself ([AdaptiveQueryLimit.evaluate]), the node's own evaluation an hour away, so the
+ * bound moves only where the test says, however slow the runner; it measures nothing.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PostgresAdaptiveQueryLimitTest {
@@ -70,7 +74,8 @@ class PostgresAdaptiveQueryLimitTest {
             "test.postgres.url" to postgres.jdbcUrl,
             "test.postgres.username" to postgres.username,
             "test.postgres.password" to postgres.password,
-            "wow.query.adaptive.interval" to "100ms",
+            // The node's own evaluation an hour away: the test ends every period itself.
+            "wow.query.adaptive.interval" to "1h",
             sources = listOf(HostTestApp::class.java, LargerGatedDataSource::class.java),
         ).use { host ->
             val pool = host.context.getBean(GatedDataSource::class.java)
@@ -85,17 +90,20 @@ class PostgresAdaptiveQueryLimitTest {
             val queries = ArrayList<Future<Answer>>()
             try {
                 // Calm writes, queries held back: the bound climbs to the ceiling, one more query running each time.
-                climb(host, limit, queries, to = bulkhead.ceiling)
-                eventually {
-                    queries += clients.submit<Answer> { host.list() }
-                    pool.held.get() == bulkhead.ceiling
-                }
+                climb(host, pool, limit, queries, to = bulkhead.ceiling)
+                pool.held.get().assert().isEqualTo(bulkhead.ceiling)
 
                 // Appends wait for a connection: the bound halves, down to the floor; the held queries run on.
                 pressing(pool, free = LargerGatedDataSource.POOL_SIZE - bulkhead.ceiling) {
-                    eventually { bulkhead.limit == 1 }
+                    // Each period ends while a thread awaits a connection: two in a row halve the bound, 4, 2, 1.
+                    eventually {
+                        eventually { pool.awaiting() >= 1 }
+                        limit.evaluate()
+                        bulkhead.limit == 1
+                    }
                 }
-                limit.decreases.assert().isGreaterThanOrEqualTo(2)
+                // Nothing raised it meanwhile: no query was held back in a calm period.
+                limit.decreases.assert().isEqualTo(2)
                 pool.held.get().assert().isEqualTo(bulkhead.ceiling)
                 bulkhead.running.assert().isEqualTo(bulkhead.ceiling)
             } finally {
@@ -110,9 +118,9 @@ class PostgresAdaptiveQueryLimitTest {
             pool.gate.set(gate)
             val again = (1..CLIENTS).map { clients.submit<Answer> { host.list() } }
             try {
-                // The refusals may raise the bound by one meanwhile: at most two run, against four before.
-                eventually { pool.held.get() + again.count { it.isDone } == CLIENTS }
-                pool.held.get().assert().isBetween(1, 2)
+                // No period ends meanwhile: one runs, against four before, and the rest are refused.
+                eventually { pool.held.get() == 1 && again.count { it.isDone } == CLIENTS - 1 }
+                bulkhead.limit.assert().isEqualTo(1)
                 again.filter { it.isDone }.forEach {
                     it.get().body!!["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_BUSY)
                 }
@@ -120,7 +128,7 @@ class PostgresAdaptiveQueryLimitTest {
                 host.post("/bank/account/$id/deposit", """{"amount":1}""", COMMITTED).status.assert().isEqualTo(200)
                 TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started).assert().isLessThan(COMMAND_BOUND_MS)
                 // Calm again, queries held back: the bound climbs back.
-                climb(host, limit, ArrayList(), to = 3)
+                climb(host, pool, limit, ArrayList(), to = 3)
             } finally {
                 pool.gate.set(null)
                 gate.countDown()
@@ -129,13 +137,43 @@ class PostgresAdaptiveQueryLimitTest {
         }
     }
 
-    /** Sends list queries until [limit]'s bound reaches [to]: each refused one holds the bound back in its period. */
-    private fun climb(host: Host, limit: AdaptiveQueryLimit, sent: MutableList<Future<Answer>>, to: Int) {
-        eventually {
-            sent += clients.submit<Answer> { host.list() }
-            limit.bulkhead.limit >= to
+    /**
+     * Raises [limit]'s bound to [to], one period at a time: while every permit is held, a query sent is refused,
+     * which holds the bound back in the period the test then ends, so the bound rises by one; a query sent once it
+     * rose holds the new permit at [pool]'s gate. Each step ends with as many queries held as the bound allows.
+     */
+    private fun climb(
+        host: Host,
+        pool: GatedDataSource,
+        limit: AdaptiveQueryLimit,
+        sent: MutableList<Future<Answer>>,
+        to: Int,
+    ) {
+        val bulkhead = limit.bulkhead
+        eventually { pool.held.get() == bulkhead.running }
+        while (bulkhead.limit < to) {
+            fill(host, pool, bulkhead, sent)
+            val refused = clients.submit<Answer> { host.list() }.also { sent += it }
+            refused.get(ANSWER_SECONDS, TimeUnit.SECONDS).status.assert().isEqualTo(429)
+            val before = bulkhead.limit
+            limit.evaluate()
+            bulkhead.limit.assert().isEqualTo(before + 1)
+        }
+        fill(host, pool, bulkhead, sent)
+    }
+
+    /** Sends queries, one at a time, until as many wait at [pool]'s gate as [bulkhead]'s bound allows. */
+    private fun fill(host: Host, pool: GatedDataSource, bulkhead: QueryBulkhead, sent: MutableList<Future<Answer>>) {
+        while (bulkhead.running < bulkhead.limit) {
+            val running = bulkhead.running
+            val query = clients.submit<Answer> { host.list() }.also { sent += it }
+            eventually { bulkhead.running > running || query.isDone }
+            eventually { pool.held.get() == bulkhead.running }
         }
     }
+
+    /** The threads awaiting a connection of this pool now, as HikariCP says. */
+    private fun GatedDataSource.awaiting(): Int = (getHikariPoolMXBean() as HikariPoolMXBean).threadsAwaitingConnection
 
     /**
      * Runs [block] while the test holds [free] connections of [pool], those the queries leave, and a thread waits
