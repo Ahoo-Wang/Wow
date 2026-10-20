@@ -85,5 +85,4 @@ describe('models', () => {
       'Schemas generate the same model: Foo-Bar, FooBar → /FooBar; a.Item, a.item → /a/Item. Rename all but one of them in the document.',
     );
   });
-
 });

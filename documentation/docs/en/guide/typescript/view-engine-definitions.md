@@ -633,7 +633,7 @@ What `admit` cannot judge is the readers: whether each listed field is one they 
 
 - Storybook's [integration walk-through](/storybook/?path=/docs/view-engine-接入导览--docs): one order definition from declaration to page; [narrowing by deployment](/storybook/?path=/docs/view-engine-能力-随部署收窄--docs) pairs one definition with two stores' descriptors to show the capabilities following them.
 - Its source: [`ordersDefinition.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/ordersDefinition.ts), [`ordersDescriptor.json`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/ordersDescriptor.json), and [`integration.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/integration.test.ts), which checks them with `admit`.
-- A real host: the compensation console's [`src/views/`](https://github.com/Ahoo-Wang/Wow/tree/main/compensation/dashboard/src/views), with its definitions, the words per language and the admission test.
+- A real host: the compensation console's [`src/views/`](https://github.com/Ahoo-Wang/Wow/tree/v10-9x-baseline/compensation/dashboard/src/views), with its definitions, the words per language and the admission test.
 - Design documents (in Chinese): [how `defineView` merges](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/host-integration.md), [adopting the service's capability descriptor](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/capabilities.md).
 - For an agent writing definitions this way: the [`wow-view-definition`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-view-definition/SKILL.md) Skill.
 

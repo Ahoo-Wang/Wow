@@ -127,7 +127,9 @@ export function createDecoratorClass(
  *
  * @param classDeclaration - The class declaration to modify
  */
-export function addApiMetadataCtor(classDeclaration: ClassDeclarationStructure) {
+export function addApiMetadataCtor(
+  classDeclaration: ClassDeclarationStructure,
+) {
   classDeclaration.implements = [
     ...[classDeclaration.implements ?? []].flat(),
     'ApiMetadataCapable',

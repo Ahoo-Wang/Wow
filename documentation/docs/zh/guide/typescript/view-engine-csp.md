@@ -32,7 +32,7 @@ nonce 每次响应都要新生成，由服务端（或渲染 HTML 的那一层�
 有两处测试正是按这条策略跑的，出现一次违规就失败：
 
 - Storybook 里的 [`StrictCsp.test.stories.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/StrictCsp.test.stories.tsx) 走过记录工作台（拖一列、从下拉选一个汇总、拉宽一列、打开一条记录的详情）、每种图型连同它的提示框、SVG／PNG／CSV 三种导出，以及一块仪表盘的读、从图上筛选、搭（移动与缩放面板、拖动标签页、加一个分析）与保存；它和其他故事一起在 CI 里跑。策略由 [`strictCsp.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/strictCsp.ts) 在每个故事开头装到页上。
-- 补偿控制台按同一条策略跑端到端（[`e2e/csp.spec.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/e2e/csp.spec.ts)）。
+- 补偿控制台按同一条策略跑端到端（[`e2e/csp.spec.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/compensation/dashboard/e2e/csp.spec.ts)）。
 
 ## 下一步
 

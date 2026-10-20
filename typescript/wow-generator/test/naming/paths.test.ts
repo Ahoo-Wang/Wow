@@ -13,10 +13,7 @@
 
 import { combineURLs } from '@ahoo-wang/fetcher';
 import { describe, expect, it } from 'vitest';
-import {
-  combinePaths,
-  modelFilePath,
-} from '../../src/naming/paths';
+import { combinePaths, modelFilePath } from '../../src/naming/paths';
 
 describe('combinePaths', () => {
   // It replaced fetcher's combineURLs (refactor batch B6), so the generator

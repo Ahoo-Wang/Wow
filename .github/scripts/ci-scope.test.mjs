@@ -20,12 +20,7 @@ import { scopes, unitPackages } from './ci-scope.mjs';
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
 // The TypeScript workflow scopes; `package` is derived from them, `v10` gates a Kotlin workflow, and `v10Contract` and
 // `opsConsole` are decided apart from the rules; each has its own tests.
-const KOTLIN_GATES = new Set([
-  'package',
-  'v10',
-  'v10Contract',
-  'opsConsole',
-]);
+const KOTLIN_GATES = new Set(['package', 'v10', 'v10Contract', 'opsConsole']);
 const gates = paths =>
   Object.entries(scopes(paths)).filter(([key]) => !KOTLIN_GATES.has(key));
 const all = paths => gates(paths).every(([, value]) => value);
@@ -146,10 +141,9 @@ test('the client, the generator and the generated clients the site compiles agai
     'sdk',
     'docs',
   ]);
-  assert.deepEqual(
-    on(['example/eshop/web/src/generated/basket/index.ts']),
-    ['docs'],
-  );
+  assert.deepEqual(on(['example/eshop/web/src/generated/basket/index.ts']), [
+    'docs',
+  ]);
   assert.deepEqual(on(['typescript/integration-test/test/a.test.ts']), [
     'typescript',
   ]);

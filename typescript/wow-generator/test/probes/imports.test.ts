@@ -26,7 +26,11 @@ import { document, getOperation } from '../support/specs';
 /** An API client answering a model of another package. */
 const spec = () =>
   document(
-    { '/items': getOperation('items', { $ref: '#/components/schemas/shop.Item' }) },
+    {
+      '/items': getOperation('items', {
+        $ref: '#/components/schemas/shop.Item',
+      }),
+    },
     {
       'shop.Item': {
         type: 'object',

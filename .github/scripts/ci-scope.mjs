@@ -155,10 +155,7 @@ const RULES = [
     ],
   ],
   // Prettier checks the workflow file, so the static checks run too.
-  [
-    /^\.github\/workflows\/typescript-contract\.yml$/,
-    [TYPESCRIPT, WORKFLOWS],
-  ],
+  [/^\.github\/workflows\/typescript-contract\.yml$/, [TYPESCRIPT, WORKFLOWS]],
   [
     /^\.github\/workflows\/typescript-storybook\.yml$/,
     [TYPESCRIPT, STORYBOOK, WORKFLOWS],

@@ -8,15 +8,15 @@ The packages that move here from [fetcher](https://github.com/Ahoo-Wang/fetcher)
 
 ## Packages
 
-| Directory           | Package                                                                               | Published       | Moved from fetcher                                                       |
-| ------------------- | ------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------ |
-| `wow-client/`       | `@ahoo-wang/wow-client`                                                               | yes             | `@ahoo-wang/fetcher-wow`                                                 |
-| `wow-react/`        | `@ahoo-wang/wow-react`                                                                | yes             | Wow hooks of `@ahoo-wang/fetcher-react`                                  |
-| `wow-generator/`    | `@ahoo-wang/wow-generator` (CLI `wow-generator`)                                      | yes             | `@ahoo-wang/fetcher-generator`                                           |
-| `wow-view-engine/`  | `@ahoo-wang/wow-view-engine`                                                          | yes, from 9.2.0 | `@ahoo-wang/fetcher-view-engine`                                         |
-| `wow-view-store/`   | `@ahoo-wang/wow-view-store`                                                           | yes, from 9.2.0 | — (new: the view engine's `ViewStore` on the `view-store/` server)       |
-| `storybook/`        | `wow-storybook`                                                                       | never           | fetcher's `.storybook` and the view-engine, shared and Wow query stories |
-| `integration-test/` | `wow-integration-test` (the V10 view store contract)                                  | never           | wow cases of fetcher's `integration-test`                                |
+| Directory           | Package                                              | Published       | Moved from fetcher                                                       |
+| ------------------- | ---------------------------------------------------- | --------------- | ------------------------------------------------------------------------ |
+| `wow-client/`       | `@ahoo-wang/wow-client`                              | yes             | `@ahoo-wang/fetcher-wow`                                                 |
+| `wow-react/`        | `@ahoo-wang/wow-react`                               | yes             | Wow hooks of `@ahoo-wang/fetcher-react`                                  |
+| `wow-generator/`    | `@ahoo-wang/wow-generator` (CLI `wow-generator`)     | yes             | `@ahoo-wang/fetcher-generator`                                           |
+| `wow-view-engine/`  | `@ahoo-wang/wow-view-engine`                         | yes, from 9.2.0 | `@ahoo-wang/fetcher-view-engine`                                         |
+| `wow-view-store/`   | `@ahoo-wang/wow-view-store`                          | yes, from 9.2.0 | — (new: the view engine's `ViewStore` on the `view-store/` server)       |
+| `storybook/`        | `wow-storybook`                                      | never           | fetcher's `.storybook` and the view-engine, shared and Wow query stories |
+| `integration-test/` | `wow-integration-test` (the V10 view store contract) | never           | wow cases of fetcher's `integration-test`                                |
 
 Each package keeps its own `AGENTS.md` with package-specific rules. Generated code imports `@ahoo-wang/wow-client`.
 
@@ -24,13 +24,13 @@ Each package keeps its own `AGENTS.md` with package-specific rules. Generated co
 
 The pnpm workspace root is the repository root:
 
-| File                                                 | Role                                                                                           |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `package.json`                                       | Private root; scripts and shared dev tooling only                                              |
-| `pnpm-workspace.yaml`                                | Members (`typescript/*`, the V10 apps, `documentation`) and the dependency catalog            |
-| `pnpm-lock.yaml`                                     | The only JavaScript lockfile in the repository                                                 |
-| `tsconfig.base.json`                                 | Compiler options that package `tsconfig.json` files extend                                     |
-| `eslint.config.js`, `.prettierrc`, `.prettierignore` | Lint and format rules for this toolchain                                                       |
+| File                                                 | Role                                                                               |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `package.json`                                       | Private root; scripts and shared dev tooling only                                  |
+| `pnpm-workspace.yaml`                                | Members (`typescript/*`, the V10 apps, `documentation`) and the dependency catalog |
+| `pnpm-lock.yaml`                                     | The only JavaScript lockfile in the repository                                     |
+| `tsconfig.base.json`                                 | Compiler options that package `tsconfig.json` files extend                         |
+| `eslint.config.js`, `.prettierrc`, `.prettierignore` | Lint and format rules for this toolchain                                           |
 
 ```bash
 pnpm install

@@ -8,7 +8,7 @@ description: '生成产物与重新生成 — @ahoo-wang/wow-generator'
 生成的是 TypeScript 源码，不是独立 HTTP 实现。装饰器类需启用 `experimentalDecorators: true` 编译；安装实际输出 import 的包。
 
 
-<!-- typecheck-generated: typescript/integration-test/src/generated -->
+<!-- typecheck-generated: example/eshop/web/src/generated/basket -->
 ## 产物类型
 
 | 产物                      | 生成规则                                                                                               |
@@ -97,6 +97,7 @@ pnpm exec tsc --noEmit -p ./tsconfig.json
 
 命令客户端，以及文档带 `x-wow-context-alias` 时的 API 客户端，会把构造器收到的 `apiMetadata` 合并到默认值之上，所以 `new CartCommandClient({ fetcher })` 保留限界上下文的基础路径，请求发往 `/example/...`。流式命令客户端继承同一个构造器，并使用 wow-client 的 `COMMAND_STREAM_ENDPOINT`（`@api('', COMMAND_STREAM_ENDPOINT)`）：请求 `text/event-stream`，服务端发来错误事件时，流以 `WowError` 报错，和 `CommandClient.sendAndWaitStream` 一致。不经按上下文别名路由的网关、直接访问服务时，传 `basePath: ''`；查询客户端工厂对应传 `contextAlias: ''`：
 
+<!-- typecheck: skip — V10 已删除的 OpenAPI 路径所生成的 9.x 客户端（D266）；本页的 V10 重写改用 Manifest 客户端 -->
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
 import { CartCommandClient, cartQueryClientFactory } from './generated/index.js';
@@ -125,7 +126,7 @@ const snapshots = cartQueryClientFactory.createSnapshotQueryClient({
 
 [typescript/wow-generator/src/emitters/apiClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/emitters/apiClients.ts)
 
-[typescript/wow-generator/src/emitters/queryClients.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/emitters/queryClients.ts)
+[typescript/wow-generator/src/emitters/queryClients.ts](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/typescript/wow-generator/src/emitters/queryClients.ts)
 
 [typescript/wow-generator/src/analysis/models.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/analysis/models.ts)
 

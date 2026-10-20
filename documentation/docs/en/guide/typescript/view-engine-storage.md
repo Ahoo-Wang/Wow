@@ -227,7 +227,7 @@ export class ViewStoreDefaults implements RequestInterceptor {
 }
 ```
 
-The compensation console is such a host: its views live in the view store the compensation service embeds, under the tenant `(0)` and the owner `(shared)` ([`viewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/views/viewStore.ts)). Its gateway admits it by network or by a service token, as it admits the rest of that console.
+The compensation console is such a host: its views live in the view store the compensation service embeds, under the tenant `(0)` and the owner `(shared)` ([`viewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/compensation/dashboard/src/views/viewStore.ts)). Its gateway admits it by network or by a service token, as it admits the rest of that console.
 
 ### Writes, retries and creates
 
@@ -329,14 +329,14 @@ describeViewStoreConformance({
 });
 ```
 
-How the repository runs the same cases over `WowViewStore` is [`wowViewStore.conformance.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/integration-test/test/view-store/wowViewStore.conformance.test.ts); over `MemoryViewStore` and `localStorageSnapshot`, [`viewStoreConformance.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/viewStoreConformance.test.ts).
+How the repository runs the same cases over `WowViewStore` is [`wowViewStore.conformance.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/typescript/integration-test/test/view-store/wowViewStore.conformance.test.ts); over `MemoryViewStore` and `localStorageSnapshot`, [`viewStoreConformance.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/viewStoreConformance.test.ts).
 
 ## The full working version
 
 - In Storybook, an administrator [edits](/storybook/?path=/story/view-engine-组件状态-记录工作台-回归--edit-stored-system-view) and [publishes](/storybook/?path=/story/view-engine-组件状态-记录工作台-回归--publish-as-system-view) a stored system view, which is [read-only for everyone else](/storybook/?path=/story/view-engine-组件状态-记录工作台-回归--system-views-read-only-for-others); in [managing views](/storybook/?path=/story/view-engine-组件状态-记录工作台--manage-views) every button shows only where the store permits it. They all run on `MemoryViewStore`.
 - Their store: `systemViewsStore` in [`fixtures.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/fixtures.ts).
 - The implementations: [`MemoryViewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/src/store/MemoryViewStore.ts), [`wowViewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/src/wowViewStore.ts).
-- A real host: the compensation console's [`viewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/views/viewStore.ts).
+- A real host: the compensation console's [`viewStore.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/compensation/dashboard/src/views/viewStore.ts).
 
 ## Next steps
 

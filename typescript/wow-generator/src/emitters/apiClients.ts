@@ -23,10 +23,7 @@ import type {
   BodyModel,
   ReturnModel,
 } from '../analysis/model';
-import {
-  addImport,
-  modelModuleSpecifier,
-} from '../emit/imports';
+import { addImport, modelModuleSpecifier } from '../emit/imports';
 import { addJSDoc } from '../emit/jsdoc';
 import type { ModuleBuilder } from '../emit/moduleBuilder';
 import { quoteStringLiteral } from '../naming/naming';

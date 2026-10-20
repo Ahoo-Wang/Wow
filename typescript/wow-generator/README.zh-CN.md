@@ -29,6 +29,7 @@ pnpm exec wow-generator generate \
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
+import { filter } from '@ahoo-wang/wow-client/dsl';
 import {
   BasketCommandClient,
   BasketSnapshotQueryClient,
@@ -42,7 +43,7 @@ await basket.addBasketItem(
   { productId: 'p-1', quantity: 2, unitPrice: 10 },
   { id: 'buyer-1' },
 );
-const page = await baskets.paged({});
+const page = await baskets.paged({ filter: filter.matchAll() });
 console.log(page.total);
 ```
 
