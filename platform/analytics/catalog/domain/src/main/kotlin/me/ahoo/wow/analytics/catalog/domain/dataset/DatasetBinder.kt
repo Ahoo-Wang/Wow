@@ -15,8 +15,10 @@ package me.ahoo.wow.analytics.catalog.domain.dataset
 
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetJoinKind
+import me.ahoo.wow.analytics.catalog.api.dataset.DatasetReference
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetSensitivity
 import me.ahoo.wow.analytics.catalog.api.source.FieldSensitivity
+import me.ahoo.wow.analytics.catalog.api.source.SourceKind
 import me.ahoo.wow.analytics.catalog.api.source.SourceStatus
 import me.ahoo.wow.analytics.catalog.domain.source.SourceSensitivity
 import me.ahoo.wow.analytics.catalog.domain.source.SourceState
@@ -32,8 +34,9 @@ internal data class BoundJoin(
 )
 
 /**
- * A column of a definition: the [expression] it shows (a [DatasetExpression.Ref] unless [computed]), and the
- * [sensitivity] its lineage, or the definition, gives it (null when it is not sensitive).
+ * A column of a definition: the [expression] it shows (a [DatasetExpression.Ref] unless [computed]), the
+ * [sensitivity] its lineage, or the definition, gives it (null when it is not sensitive), and the aggregate its value
+ * is the id of ([reference]).
  */
 internal data class BoundColumn(
     val name: String,
@@ -41,6 +44,7 @@ internal data class BoundColumn(
     val computed: Boolean,
     val title: String?,
     val sensitivity: DatasetSensitivity?,
+    val reference: DatasetReference? = null,
 )
 
 /**
@@ -228,6 +232,9 @@ internal object DatasetBinder {
                 computed = computed,
                 title = column.title,
                 sensitivity = given?.takeUnless { it.level == null } ?: lineage.takeIf { given == null },
+                reference = (expression as? DatasetExpression.Ref)?.let {
+                    DatasetLineage.referenceOf(aliases.getValue(it.alias).state, it)
+                },
             )
         }
         listOfNotNull(definition.identity, definition.eventTime).filter { it !in names }.forEach {
@@ -294,6 +301,20 @@ internal object DatasetBinder {
 
 /** The protection a dataset's value inherits from the sources it reads (decision D241). */
 internal object DatasetLineage {
+    /** The column of a Wow table that holds its aggregate's id (the Sink's `aggregate_id`). */
+    const val AGGREGATE_ID: String = "aggregate_id"
+
+    /**
+     * The aggregate the value [ref] reads is the id of, or null when it is no id: a value the [source] declares a
+     * reference to a known aggregate, or a Wow table's `aggregate_id`, the id of the aggregate the table is of.
+     */
+    fun referenceOf(source: SourceState, ref: DatasetExpression.Ref): DatasetReference? {
+        val path = (listOf(ref.column) + ref.path).joinToString(".")
+        source.references.firstOrNull { it.path == path }?.let { return DatasetReference(it.context, it.aggregate) }
+        val enrichment = source.enrichment.takeIf { source.kind == SourceKind.WOW } ?: return null
+        return DatasetReference(enrichment.context, enrichment.aggregate).takeIf { path == AGGREGATE_ID }
+    }
+
     /** The types a value with a path inside is read from: JSON text, or a `JSON` column. */
     private val JSON = Regex("(Nullable\\()?(LowCardinality\\()?(Nullable\\()?(String|JSON.*|Object\\(.*)\\)*")
 

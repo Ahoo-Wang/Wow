@@ -428,6 +428,7 @@ public final class me/ahoo/wow/runtime/contract/ContractDirectory : me/ahoo/wow/
 	public final fun contextsCalled ()Ljava/util/Map;
 	public fun covers (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateType;)Z
 	public fun derivedContextsOf (Ljava/lang/String;Ljava/lang/String;)Ljava/util/Set;
+	public final fun getAllContexts ()Ljava/util/List;
 	public final fun getLocal ()Lme/ahoo/wow/manifest/Manifest;
 	public final fun getNullableStates ()Ljava/util/Set;
 	public final fun getPeers ()Ljava/util/List;
@@ -436,6 +437,7 @@ public final class me/ahoo/wow/runtime/contract/ContractDirectory : me/ahoo/wow/
 	public final fun isLocal (Ljava/lang/String;)Z
 	public fun kindOf (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/result/FunctionKind;
 	public final fun over (Lme/ahoo/wow/runtime/wait/SubscriptionDirectory;Ljava/lang/String;)Lme/ahoo/wow/runtime/wait/SubscriptionDirectory;
+	public final fun peerSendersTo (Ljava/util/Set;)Ljava/util/Map;
 	public final fun publishedOf (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/manifest/PublishedManifest;
 	public final fun schemaOf (Ljava/lang/String;)Ljava/lang/String;
 	public final fun subscriptionOf (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/SubscriptionManifest;
@@ -444,6 +446,11 @@ public final class me/ahoo/wow/runtime/contract/ContractDirectory : me/ahoo/wow/
 public final class me/ahoo/wow/runtime/contract/ContractDirectory$Companion {
 	public final fun load (Lme/ahoo/wow/manifest/Manifest;Ljava/lang/ClassLoader;Ltools/jackson/databind/json/JsonMapper;Ljava/util/Set;)Lme/ahoo/wow/runtime/contract/ContractDirectory;
 	public static synthetic fun load$default (Lme/ahoo/wow/runtime/contract/ContractDirectory$Companion;Lme/ahoo/wow/manifest/Manifest;Ljava/lang/ClassLoader;Ltools/jackson/databind/json/JsonMapper;Ljava/util/Set;ILjava/lang/Object;)Lme/ahoo/wow/runtime/contract/ContractDirectory;
+}
+
+public final class me/ahoo/wow/runtime/contract/PeerEvents$Companion {
+	public final fun of (Lme/ahoo/wow/runtime/contract/ContractDirectory;Ljava/lang/ClassLoader;)Lme/ahoo/wow/runtime/contract/PeerEvents;
+	public static synthetic fun of$default (Lme/ahoo/wow/runtime/contract/PeerEvents$Companion;Lme/ahoo/wow/runtime/contract/ContractDirectory;Ljava/lang/ClassLoader;ILjava/lang/Object;)Lme/ahoo/wow/runtime/contract/PeerEvents;
 }
 
 public final class me/ahoo/wow/runtime/ledger/LedgerPublisher {

@@ -279,6 +279,7 @@ internal object ManifestFragmentBuilder {
             return SubscriptionSource(
                 handler.sourceContext,
                 handler.aggregates.map { it.substringAfter('.') },
+                events = handler.event?.names.orEmpty(),
                 nullableState = nullable,
             )
         }

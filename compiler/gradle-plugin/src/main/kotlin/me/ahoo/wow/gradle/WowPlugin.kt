@@ -35,6 +35,7 @@ import org.gradle.api.file.FileTree
 import org.gradle.api.file.SourceDirectorySet
 import org.gradle.api.plugins.JavaLibraryPlugin
 import org.gradle.api.plugins.JavaPlugin
+import org.gradle.api.plugins.jvm.JvmTestSuite
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
@@ -45,6 +46,7 @@ import org.gradle.api.tasks.bundling.Jar
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.process.CommandLineArgumentProvider
+import org.gradle.testing.base.TestingExtension
 import java.util.Properties
 
 /**
@@ -58,6 +60,8 @@ import java.util.Properties
  *   in `generate` mode, so the module's aggregates compile into models and its Manifest fragment
  *   (`META-INF/wow/manifest/<project name>.json`, decision D74); only the V10 model processor runs, the 9.x ones
  *   (`wow-metadata.json`, query helpers) are excluded;
+ * - registers the test suite [INTEGRATION_TEST] (DX gap G17) unless the build has one: JUnit Jupiter, with the
+ *   module's classes and `testImplementation`'s dependencies, outside `check`, for the tests that run on containers;
  * - registers [GENERATE_FRAGMENT_TASK] ([GenerateManifestFragment]), which completes the fragment with the
  *   schemas Jackson introspection gives (decision D73); the completed fragment is part of the module's resources in
  *   place of the compiler's;
@@ -120,6 +124,7 @@ class WowPlugin : Plugin<Project> {
 
     private fun configure(project: Project, extension: WowExtension) {
         configureKsp(project, extension)
+        configureIntegrationTest(project)
 
         val tools = toolsConfiguration(project)
         val sourceSets = project.extensions.getByType(SourceSetContainer::class.java)
@@ -350,6 +355,34 @@ class WowPlugin : Plugin<Project> {
     }
 
     /** Applies KSP with the model processor alone, and adds `wow-compiler` unless turned off. */
+    /**
+     * The test suite [INTEGRATION_TEST] (DX gap G17, decision D256), unless the build declares one: JUnit Jupiter,
+     * against the module's classes and everything `testImplementation` gives (the test DSL, Testcontainers), for the
+     * tests that run on containers. It is not part of `check`: `./gradlew integrationTest` runs it.
+     */
+    private fun configureIntegrationTest(project: Project) {
+        val suites = project.extensions.getByType(TestingExtension::class.java).suites
+        if (suites.findByName(INTEGRATION_TEST) != null) {
+            return
+        }
+        suites.register(INTEGRATION_TEST, JvmTestSuite::class.java) { suite ->
+            suite.useJUnitJupiter()
+            suite.dependencies { dependencies -> dependencies.implementation.add(dependencies.project()) }
+            suite.targets.configureEach { target ->
+                target.testTask.configure { task ->
+                    task.description = "Runs the container-backed integration tests."
+                    task.shouldRunAfter(project.tasks.named(JavaPlugin.TEST_TASK_NAME))
+                }
+            }
+        }
+        project.configurations.named("${INTEGRATION_TEST}Implementation") {
+            it.extendsFrom(project.configurations.getByName(JavaPlugin.TEST_IMPLEMENTATION_CONFIGURATION_NAME))
+        }
+        project.configurations.named("${INTEGRATION_TEST}RuntimeOnly") {
+            it.extendsFrom(project.configurations.getByName(JavaPlugin.TEST_RUNTIME_ONLY_CONFIGURATION_NAME))
+        }
+    }
+
     private fun configureKsp(project: Project, extension: WowExtension) {
         project.pluginManager.apply(KSP)
         project.extensions.configure(KspExtension::class.java) { ksp ->
@@ -476,6 +509,9 @@ class WowPlugin : Plugin<Project> {
     }
 
     companion object {
+        /** The test suite of the container-backed tests the plugin registers (DX gap G17). */
+        const val INTEGRATION_TEST: String = "integrationTest"
+
         const val EXTENSION = "wow"
         const val GENERATE_FRAGMENT_TASK = "generateWowManifestFragment"
         const val MERGE_TASK = "mergeWowManifest"

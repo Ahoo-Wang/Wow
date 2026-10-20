@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.source
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.subscribe.PublishedEvent
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.ProcessorBinding
@@ -53,7 +54,6 @@ import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.eventually
-import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.transport.PartitionedSource
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -162,7 +162,8 @@ class SourcedNodeTest {
             stateless.state.assert().isNull()
             stateless.ref.assert().isEqualTo(order("o-1"))
             stateless.commandType.assert().isEqualTo("sales.order.Place")
-            (stateless.events.single() as StateEventPayload).name.assert().isEqualTo("sales.order.Placed")
+            // DX-1c: no class of the sales api is on this class path, so the event is a PublishedEvent.
+            (stateless.events.single() as PublishedEvent).name.assert().isEqualTo("sales.order.Placed")
             stateful.state.assert().isEqualTo(OrderTotal(2))
             stateful.version.assert().isEqualTo(2)
             // The saga derives a command of the node's own context for each record, once.

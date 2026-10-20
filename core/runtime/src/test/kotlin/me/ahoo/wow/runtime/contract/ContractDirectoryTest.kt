@@ -247,6 +247,29 @@ class ContractDirectoryTest {
     }
 
     @Test
+    fun `the peers' sagas that send commands to given types should be found`() {
+        // DX gap G13: a billing saga derives the shop's AddItem, carrying its own tenant into the shop.
+        val billing = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    "billing",
+                    subscriptions = listOf(
+                        subscription(
+                            "Refunds.onRefund",
+                            derives = listOf("shop.cart.AddItem", "inventory.stock.ReserveStock")
+                        ),
+                        subscription("Audit.onEvent", kind = SubscriptionKind.PROJECTION),
+                    ),
+                ),
+            ),
+        )
+        val directory = ContractDirectory(shop(), ContractFixtures.peers + ManifestFragment("billing", billing))
+        directory.peerSendersTo(setOf(AggregateType("shop", "cart"))).assert()
+            .isEqualTo(mapOf("billing/Refunds.onRefund" to setOf(AggregateType("shop", "cart"))))
+        directory.peerSendersTo(emptySet()).assert().isEmpty()
+    }
+
+    @Test
     fun `a directory without peers should know the service's own contexts only`() {
         val alone = ContractDirectory(shop(subscriptions = listOf(subscription("CartProjector.onCart"))))
         alone.peers.assert().isEmpty()
@@ -268,6 +291,22 @@ class ContractDirectoryTest {
         directory.derivedContextsOf("shop", "OrderSaga.onReserved").assert().containsExactly("shop")
         directory.commandsOutside(setOf("shop"))
             .assert().isEqualTo(mapOf("shop/OrderSaga.onReserved" to sortedSetOf("inventory")))
+    }
+
+    @Test
+    fun `events by type the peer's contract does not declare should fail`() {
+        // DX-1c: a handler of each Paid reads the payment's stream; the api on its class path knows a Refunded too.
+        val typed = SubscriptionSource("payment", listOf("payment"), events = listOf("Paid", "Refunded"))
+        problems(shop(subscriptions = listOf(subscription("Ledger.onPaid", source = typed)))).assert().containsExactly(
+            "subscription shop.Ledger.onPaid reads the event Refunded, which the contract of payment does not " +
+                "declare for payment: depend on the api module its service publishes",
+        )
+        val known = SubscriptionSource("payment", listOf("payment"), events = listOf("Paid"))
+        ContractDirectory(
+            shop(subscriptions = listOf(subscription("Ledger.onPaid", source = known))),
+            ContractFixtures.peers
+        )
+            .contextOf("payment").assert().isNotNull()
     }
 
     @Test

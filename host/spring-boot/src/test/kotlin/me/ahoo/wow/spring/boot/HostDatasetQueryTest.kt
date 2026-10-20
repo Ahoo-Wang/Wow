@@ -13,10 +13,12 @@
 
 package me.ahoo.wow.spring.boot
 
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.dataset.AbstractDatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryBackend
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
@@ -35,6 +37,7 @@ import org.springframework.context.annotation.Configuration
 import java.net.URLClassLoader
 import java.nio.file.Files
 import java.nio.file.Path
+import kotlin.time.Duration.Companion.seconds
 
 private val LEDGER = AggregateType(BANK, "ledger")
 
@@ -110,6 +113,55 @@ class HostDatasetQueryTest {
             host.context.getBean(QueryDatasets::class.java).remove(LEDGER).assert().isTrue()
             host.post("/wow/dataset/bank/ledger/query", """{"kind":"count","filter":{"op":"MATCH_ALL"}}""")
                 .status.assert().isEqualTo(404)
+        }
+    }
+
+    @Test
+    fun `the dataset queries should run under their own bulkhead, eight at once by default`(@TempDir config: Path) {
+        writeDataset(config.resolve("wow/dataset"), "bank.ledger", ledgerFile())
+        startHost(
+            "wow.query.dataset.config-directory" to config.toString(),
+            sources = listOf(HostTestApp::class.java, MemoryDatasets::class.java),
+        ).use { host ->
+            val bulkhead = checkNotNull(host.context.getBean(QueryStores::class.java).datasets)
+            bulkhead.store.assert().isEqualTo(QueryStores.DATASETS)
+            bulkhead.maxConcurrent.assert().isEqualTo(QueryProperties.DEFAULT_DATASET_MAX_CONCURRENT)
+            bulkhead.maxQueued.assert().isEqualTo(
+                QueryProperties.DEFAULT_DATASET_MAX_CONCURRENT * QueryBulkhead.DEFAULT_QUEUE_FACTOR
+            )
+            host.context.getBean(QueryStores::class.java).all.assert().contains(bulkhead)
+        }
+        startHost(
+            "wow.query.dataset.config-directory" to config.toString(),
+            "wow.query.dataset.max-concurrent" to 1,
+            "wow.query.dataset.max-wait" to "0ms",
+            "wow.query.dataset.max-queued" to 0,
+            sources = listOf(HostTestApp::class.java, MemoryDatasets::class.java),
+        ).use { host ->
+            val bulkhead = checkNotNull(host.context.getBean(QueryStores::class.java).datasets)
+            val count = """{"kind":"count","filter":{"op":"MATCH_ALL"}}"""
+            host.post("/wow/dataset/bank/ledger/query", count).status.assert().isEqualTo(200)
+            // Its one permit taken: the next dataset query is refused at once.
+            runBlocking { bulkhead.acquire() }
+            try {
+                val busy = host.post("/wow/dataset/bank/ledger/query", count)
+                busy.status.assert().isEqualTo(429)
+                busy.body!!["code"].asString().assert().isEqualTo("wow.query.busy")
+            } finally {
+                bulkhead.release()
+            }
+        }
+        startHost(
+            "wow.query.dataset.max-concurrent" to 0,
+            "wow.query.max-wait" to "1s",
+            "wow.query.max-queued" to 3,
+        ).use { host ->
+            host.context.getBean(QueryStores::class.java).datasets.assert().isNull()
+        }
+        startHost("wow.query.max-wait" to "1s", "wow.query.max-queued" to 3).use { host ->
+            val bulkhead = checkNotNull(host.context.getBean(QueryStores::class.java).datasets)
+            bulkhead.maxWait.assert().isEqualTo(1.seconds)
+            bulkhead.maxQueued.assert().isEqualTo(3)
         }
     }
 

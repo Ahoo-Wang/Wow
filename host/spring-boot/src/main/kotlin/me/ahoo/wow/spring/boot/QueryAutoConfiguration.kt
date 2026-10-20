@@ -243,10 +243,11 @@ class QueryAutoConfiguration {
             .entryPolicy(entryPolicy)
             .bulkheads { type, model ->
                 when (model) {
-                    QueryModel.SNAPSHOT -> backend.storeOf(type)
-                    QueryModel.EVENTS -> events.storeOf(type)
+                    QueryModel.SNAPSHOT -> backend.storeOf(type)?.let(stores.bulkheads::get)
+                    QueryModel.EVENTS -> events.storeOf(type)?.let(stores.bulkheads::get)
+                    QueryModel.DATASET -> stores.datasets
                     else -> null
-                }?.let(stores.bulkheads::get)
+                }
             }
             .unpinnedEvents(stores::unpinned)
             .counts(
@@ -306,7 +307,16 @@ class QueryAutoConfiguration {
             if (built.limits.isNotEmpty()) {
                 logger.info { "The query bounds of ${built.limits.map { it.bulkhead.store }} adapt to their writes." }
             }
-            return QueryStores(built.bulkheads, built.limits) { type ->
+            val datasets = properties.dataset.takeIf { it.maxConcurrent > 0 }?.let { dataset ->
+                QueryBulkhead(
+                    store = QueryStores.DATASETS,
+                    maxConcurrent = dataset.maxConcurrent,
+                    maxWait = (dataset.maxWait ?: properties.maxWait).toKotlinDuration(),
+                    maxQueued = dataset.maxQueued ?: properties.maxQueued
+                        ?: (dataset.maxConcurrent * QueryBulkhead.DEFAULT_QUEUE_FACTOR),
+                )
+            }
+            return QueryStores(built.bulkheads, built.limits, datasets) { type ->
                 HostQueryBulkheads.unpinned(type, events.storeOf(type), properties.events.unpinned, settings)
             }
         }
@@ -478,7 +488,7 @@ class QueryAutoConfiguration {
 
 /**
  * How the queries of the node's stores run (review R3.4-2): the [bulkheads] of the stores, by name, their adaptive
- * [limits] (decision D252), and whether each
+ * [limits] (decision D252), the bulkhead every dataset query runs under ([datasets], decision D247), and whether each
  * aggregate type's events queries that name no aggregate run ([unpinned]).
  */
 @InternalWowApi
@@ -486,10 +496,23 @@ class QueryStores internal constructor(
     val bulkheads: Map<String, QueryBulkhead>,
     /** The bounds of [bulkheads] that adapt to their store's write pressure (decision D252). */
     val limits: List<AdaptiveQueryLimit>,
+    /**
+     * The bulkhead of the dataset queries (`wow.query.dataset.max-concurrent`), or null when they run unbounded. Its
+     * limit is fixed: the warehouse's writes (the ClickHouse Sink's) give the node no write pressure to adapt to.
+     */
+    val datasets: QueryBulkhead?,
     private val unpinned: (AggregateType) -> UnpinnedEvents,
 ) {
+    /** Every bulkhead: the stores' and the datasets'. */
+    val all: List<QueryBulkhead> get() = bulkheads.values + listOfNotNull(datasets)
+
     /** Whether [type]'s events queries that name no aggregate run. */
     fun unpinned(type: AggregateType): UnpinnedEvents = unpinned.invoke(type)
+
+    companion object {
+        /** The name the dataset queries' bulkhead goes by, in the health details and the meters' `store` tag. */
+        const val DATASETS: String = "datasets"
+    }
 }
 
 /** The application's beans a [QueryEngine] is built of: each it may give, or not. */

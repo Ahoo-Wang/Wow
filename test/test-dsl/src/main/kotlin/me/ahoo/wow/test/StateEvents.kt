@@ -17,14 +17,14 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.subscribe.PublishedEvent
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.spi.json.WowJson
-import me.ahoo.wow.spi.state.StateEventPayload
 
 /**
  * The commit of [events] at [version] of [ref], leaving it in [state], as a processor's handler receives it: the
- * events of its own context as their classes, those of a stream it reads from another context as
- * [publishedEvent]s. The command's ids default to `command-<version>` and `request-<version>`, and the commit time
+ * events of its own context as their classes, those of a stream it reads from another context as the classes of
+ * that context's api, or [publishedEvent]s for those it has no class of at their revision (DX-1c). The command's ids default to `command-<version>` and `request-<version>`, and the commit time
  * to [DEFAULT_START].
  */
 @Suppress("LongParameterList")
@@ -57,8 +57,9 @@ fun <S> stateEvent(
 )
 
 /**
- * An event of a stream another context publishes, as a handler that reads it receives it: its full [name]
- * (`<context>.<aggregate>.<event>`), [revision] and [body] as JSON, an empty object by default.
+ * An event of a stream another context publishes that the handler has no api class of at its revision, as it receives
+ * it (DX-1c): its full [name] (`<context>.<aggregate>.<event>`), [revision] and [body] as JSON text, an empty object
+ * by default.
  */
-fun publishedEvent(name: String, body: Any = emptyMap<String, Any>(), revision: Int = 1): StateEventPayload =
-    StateEventPayload(name, revision, WowJson.mapper.valueToTree(body))
+fun publishedEvent(name: String, body: Any = emptyMap<String, Any>(), revision: Int = 1): PublishedEvent =
+    PublishedEvent.of(name, revision, WowJson.mapper.writeValueAsString(body))

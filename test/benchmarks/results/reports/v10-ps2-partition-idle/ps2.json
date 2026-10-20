@@ -1,0 +1,1996 @@
+{
+ "mongo": [
+  {
+   "backend": "mongo",
+   "extraSubscriptions": 0,
+   "idle": {
+    "allocatedMiBPerSecond": 4.57,
+    "operationsPerSecond": {
+     "lease": 24.8,
+     "other periodic": 2.0,
+     "tail": 62.89
+    },
+    "roundTripsPerSecond": {
+     "lease": 24.8,
+     "other periodic": 2.0,
+     "tail": 62.89
+    },
+    "roundTripsPerSecondPerPartition": 1.401,
+    "roundTripsPerSecondTotal": 89.68,
+    "seconds": 60.044
+   },
+   "partitions": 64,
+   "subscriptions": null,
+   "trickle": {
+    "checkpointWritesPerSecond": 61.4,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 61.4,
+     "lease": 26.19,
+     "log append": 32.68,
+     "other periodic": 2.07,
+     "request-id check": 8.17,
+     "snapshot": 8.17,
+     "tail": 67.23
+    },
+    "perCommand": {
+     "allocatedKiB": 393.3,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 7.517,
+      "lease": 0.171,
+      "log append": 4.0,
+      "other periodic": 0.009,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.532
+     },
+     "operationsTotal": 14.23,
+     "roundTrips": {
+      "checkpoint": 0.1,
+      "lease": 0.171,
+      "log append": 4.0,
+      "other periodic": 0.009,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.532
+     },
+     "roundTripsTotal": 6.81
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 0.82,
+     "lease": 26.19,
+     "log append": 32.68,
+     "other periodic": 2.07,
+     "request-id check": 8.17,
+     "snapshot": 8.17,
+     "tail": 67.23
+    },
+    "seconds": 36.725
+   }
+  },
+  {
+   "backend": "mongo",
+   "extraSubscriptions": 1,
+   "idle": {
+    "allocatedMiBPerSecond": 4.53,
+    "operationsPerSecond": {
+     "checkpoint": 0.05,
+     "lease": 24.8,
+     "other periodic": 2.1,
+     "tail": 63.68
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 0.7,
+     "lease": 24.8,
+     "other periodic": 2.1,
+     "tail": 63.68
+    },
+    "roundTripsPerSecondPerPartition": 1.426,
+    "roundTripsPerSecondTotal": 91.28,
+    "seconds": 60.049
+   },
+   "partitions": 64,
+   "subscriptions": null,
+   "trickle": {
+    "checkpointWritesPerSecond": 68.12,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 68.12,
+     "lease": 26.19,
+     "log append": 32.78,
+     "other periodic": 2.16,
+     "request-id check": 8.19,
+     "snapshot": 8.19,
+     "tail": 67.38
+    },
+    "perCommand": {
+     "allocatedKiB": 378.5,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 8.307,
+      "lease": 0.17,
+      "log append": 4.0,
+      "other periodic": 0.007,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.451
+     },
+     "operationsTotal": 14.94,
+     "roundTrips": {
+      "checkpoint": 0.018,
+      "lease": 0.17,
+      "log append": 4.0,
+      "other periodic": 0.007,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.451
+     },
+     "roundTripsTotal": 6.65
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 0.85,
+     "lease": 26.19,
+     "log append": 32.78,
+     "other periodic": 2.16,
+     "request-id check": 8.19,
+     "snapshot": 8.19,
+     "tail": 67.38
+    },
+    "seconds": 36.613
+   }
+  },
+  {
+   "backend": "mongo",
+   "extraSubscriptions": 5,
+   "idle": {
+    "allocatedMiBPerSecond": 4.57,
+    "operationsPerSecond": {
+     "lease": 24.8,
+     "other periodic": 2.5,
+     "tail": 62.91
+    },
+    "roundTripsPerSecond": {
+     "lease": 24.8,
+     "other periodic": 2.5,
+     "tail": 62.91
+    },
+    "roundTripsPerSecondPerPartition": 1.41,
+    "roundTripsPerSecondTotal": 90.21,
+    "seconds": 60.05
+   },
+   "partitions": 64,
+   "subscriptions": null,
+   "trickle": {
+    "checkpointWritesPerSecond": 99.75,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 99.75,
+     "lease": 26.18,
+     "log append": 32.65,
+     "other periodic": 2.58,
+     "request-id check": 8.16,
+     "snapshot": 8.16,
+     "tail": 67.21
+    },
+    "perCommand": {
+     "allocatedKiB": 424.0,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 12.22,
+      "lease": 0.169,
+      "log append": 4.0,
+      "other periodic": 0.011,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.526
+     },
+     "operationsTotal": 18.93,
+     "roundTrips": {
+      "checkpoint": 0.1,
+      "lease": 0.169,
+      "log append": 4.0,
+      "other periodic": 0.011,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.526
+     },
+     "roundTripsTotal": 6.81
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 0.82,
+     "lease": 26.18,
+     "log append": 32.65,
+     "other periodic": 2.58,
+     "request-id check": 8.16,
+     "snapshot": 8.16,
+     "tail": 67.21
+    },
+    "seconds": 36.751
+   }
+  },
+  {
+   "backend": "mongo",
+   "extraSubscriptions": 10,
+   "idle": {
+    "allocatedMiBPerSecond": 4.78,
+    "operationsPerSecond": {
+     "lease": 24.85,
+     "other periodic": 3.0,
+     "tail": 63.69
+    },
+    "roundTripsPerSecond": {
+     "lease": 24.85,
+     "other periodic": 3.0,
+     "tail": 63.69
+    },
+    "roundTripsPerSecondPerPartition": 1.43,
+    "roundTripsPerSecondTotal": 91.53,
+    "seconds": 60.043
+   },
+   "partitions": 64,
+   "subscriptions": null,
+   "trickle": {
+    "checkpointWritesPerSecond": 138.93,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 138.93,
+     "lease": 24.52,
+     "log append": 32.73,
+     "other periodic": 3.19,
+     "request-id check": 8.18,
+     "snapshot": 8.18,
+     "tail": 67.09
+    },
+    "perCommand": {
+     "allocatedKiB": 461.5,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 16.98,
+      "lease": -0.04,
+      "log append": 4.0,
+      "other periodic": 0.024,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.416
+     },
+     "operationsTotal": 23.38,
+     "roundTrips": {
+      "checkpoint": 0.1,
+      "lease": -0.04,
+      "log append": 4.0,
+      "other periodic": 0.024,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.416
+     },
+     "roundTripsTotal": 6.5
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 0.82,
+     "lease": 24.52,
+     "log append": 32.73,
+     "other periodic": 3.19,
+     "request-id check": 8.18,
+     "snapshot": 8.18,
+     "tail": 67.09
+    },
+    "seconds": 36.667
+   }
+  },
+  {
+   "backend": "mongo",
+   "extraSubscriptions": 0,
+   "idle": {
+    "allocatedMiBPerSecond": 8.55,
+    "operationsPerSecond": {
+     "lease": 47.06,
+     "other periodic": 1.99,
+     "tail": 127.36
+    },
+    "roundTripsPerSecond": {
+     "lease": 47.06,
+     "other periodic": 1.99,
+     "tail": 127.36
+    },
+    "roundTripsPerSecondPerPartition": 1.378,
+    "roundTripsPerSecondTotal": 176.42,
+    "seconds": 60.176
+   },
+   "partitions": 128,
+   "subscriptions": null,
+   "trickle": {
+    "checkpointWritesPerSecond": 62.57,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 62.57,
+     "lease": 46.09,
+     "log append": 32.47,
+     "other periodic": 2.06,
+     "request-id check": 8.12,
+     "snapshot": 8.12,
+     "tail": 130.49
+    },
+    "perCommand": {
+     "allocatedKiB": 422.6,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 7.707,
+      "lease": -0.12,
+      "log append": 4.0,
+      "other periodic": 0.008,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.386
+     },
+     "operationsTotal": 13.98,
+     "roundTrips": {
+      "checkpoint": 0.1,
+      "lease": -0.12,
+      "log append": 4.0,
+      "other periodic": 0.008,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.386
+     },
+     "roundTripsTotal": 6.37
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 0.81,
+     "lease": 46.09,
+     "log append": 32.47,
+     "other periodic": 2.06,
+     "request-id check": 8.12,
+     "snapshot": 8.12,
+     "tail": 130.49
+    },
+    "seconds": 36.953
+   }
+  },
+  {
+   "backend": "mongo",
+   "extraSubscriptions": 1,
+   "idle": {
+    "allocatedMiBPerSecond": 8.81,
+    "operationsPerSecond": {
+     "lease": 47.12,
+     "other periodic": 2.1,
+     "tail": 125.83
+    },
+    "roundTripsPerSecond": {
+     "lease": 47.12,
+     "other periodic": 2.1,
+     "tail": 125.83
+    },
+    "roundTripsPerSecondPerPartition": 1.368,
+    "roundTripsPerSecondTotal": 175.05,
+    "seconds": 60.034
+   },
+   "partitions": 128,
+   "subscriptions": null,
+   "trickle": {
+    "checkpointWritesPerSecond": 71.01,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 71.01,
+     "lease": 46.27,
+     "log append": 32.66,
+     "other periodic": 2.15,
+     "request-id check": 8.16,
+     "snapshot": 8.16,
+     "tail": 130.99
+    },
+    "perCommand": {
+     "allocatedKiB": 397.7,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 8.697,
+      "lease": -0.105,
+      "log append": 4.0,
+      "other periodic": 0.006,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.632
+     },
+     "operationsTotal": 15.23,
+     "roundTrips": {
+      "checkpoint": 0.1,
+      "lease": -0.105,
+      "log append": 4.0,
+      "other periodic": 0.006,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.632
+     },
+     "roundTripsTotal": 6.63
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 0.82,
+     "lease": 46.27,
+     "log append": 32.66,
+     "other periodic": 2.15,
+     "request-id check": 8.16,
+     "snapshot": 8.16,
+     "tail": 130.99
+    },
+    "seconds": 36.743
+   }
+  },
+  {
+   "backend": "mongo",
+   "extraSubscriptions": 5,
+   "idle": {
+    "allocatedMiBPerSecond": 8.78,
+    "operationsPerSecond": {
+     "lease": 47.17,
+     "other periodic": 2.5,
+     "tail": 125.84
+    },
+    "roundTripsPerSecond": {
+     "lease": 47.17,
+     "other periodic": 2.5,
+     "tail": 125.84
+    },
+    "roundTripsPerSecondPerPartition": 1.371,
+    "roundTripsPerSecondTotal": 175.51,
+    "seconds": 60.035
+   },
+   "partitions": 128,
+   "subscriptions": null,
+   "trickle": {
+    "checkpointWritesPerSecond": 102.23,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 102.23,
+     "lease": 46.52,
+     "log append": 32.76,
+     "other periodic": 2.65,
+     "request-id check": 8.3,
+     "snapshot": 8.19,
+     "state read": 0.14,
+     "tail": 129.69
+    },
+    "perCommand": {
+     "allocatedKiB": 426.2,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 12.483,
+      "lease": -0.08,
+      "log append": 4.0,
+      "other periodic": 0.018,
+      "request-id check": 1.013,
+      "snapshot": 1.0,
+      "state read": 0.017,
+      "tail": 0.47
+     },
+     "operationsTotal": 18.92,
+     "roundTrips": {
+      "checkpoint": 0.103,
+      "lease": -0.08,
+      "log append": 4.0,
+      "other periodic": 0.018,
+      "request-id check": 1.013,
+      "snapshot": 1.0,
+      "state read": 0.017,
+      "tail": 0.47
+     },
+     "roundTripsTotal": 6.54
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 0.85,
+     "lease": 46.52,
+     "log append": 32.76,
+     "other periodic": 2.65,
+     "request-id check": 8.3,
+     "snapshot": 8.19,
+     "state read": 0.14,
+     "tail": 129.69
+    },
+    "seconds": 36.633
+   }
+  },
+  {
+   "backend": "mongo",
+   "extraSubscriptions": 10,
+   "idle": {
+    "allocatedMiBPerSecond": 8.78,
+    "operationsPerSecond": {
+     "lease": 47.1,
+     "other periodic": 2.98,
+     "tail": 125.81
+    },
+    "roundTripsPerSecond": {
+     "lease": 47.1,
+     "other periodic": 2.98,
+     "tail": 125.81
+    },
+    "roundTripsPerSecondPerPartition": 1.374,
+    "roundTripsPerSecondTotal": 175.89,
+    "seconds": 60.042
+   },
+   "partitions": 128,
+   "subscriptions": null,
+   "trickle": {
+    "checkpointWritesPerSecond": 141.71,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 141.71,
+     "lease": 46.44,
+     "log append": 32.8,
+     "other periodic": 3.14,
+     "request-id check": 8.2,
+     "snapshot": 8.2,
+     "tail": 130.28
+    },
+    "perCommand": {
+     "allocatedKiB": 469.7,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 17.28,
+      "lease": -0.08,
+      "log append": 4.0,
+      "other periodic": 0.02,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.545
+     },
+     "operationsTotal": 23.77,
+     "roundTrips": {
+      "checkpoint": 0.103,
+      "lease": -0.08,
+      "log append": 4.0,
+      "other periodic": 0.02,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.545
+     },
+     "roundTripsTotal": 6.59
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 0.85,
+     "lease": 46.44,
+     "log append": 32.8,
+     "other periodic": 3.14,
+     "request-id check": 8.2,
+     "snapshot": 8.2,
+     "tail": 130.28
+    },
+    "seconds": 36.582
+   }
+  },
+  {
+   "backend": "mongo",
+   "extraSubscriptions": 0,
+   "idle": {
+    "allocatedMiBPerSecond": 16.94,
+    "operationsPerSecond": {
+     "lease": 89.8,
+     "other periodic": 2.0,
+     "tail": 251.67
+    },
+    "roundTripsPerSecond": {
+     "lease": 89.8,
+     "other periodic": 2.0,
+     "tail": 251.67
+    },
+    "roundTripsPerSecondPerPartition": 1.342,
+    "roundTripsPerSecondTotal": 343.46,
+    "seconds": 60.047
+   },
+   "partitions": 256,
+   "subscriptions": null,
+   "trickle": {
+    "checkpointWritesPerSecond": 64.28,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 64.28,
+     "lease": 88.44,
+     "log append": 32.8,
+     "other periodic": 2.08,
+     "request-id check": 8.2,
+     "snapshot": 8.2,
+     "tail": 258.1
+    },
+    "perCommand": {
+     "allocatedKiB": 418.3,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 7.84,
+      "lease": -0.165,
+      "log append": 4.0,
+      "other periodic": 0.01,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.785
+     },
+     "operationsTotal": 14.47,
+     "roundTrips": {
+      "checkpoint": 0.103,
+      "lease": -0.165,
+      "log append": 4.0,
+      "other periodic": 0.01,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.785
+     },
+     "roundTripsTotal": 6.73
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 0.85,
+     "lease": 88.44,
+     "log append": 32.8,
+     "other periodic": 2.08,
+     "request-id check": 8.2,
+     "snapshot": 8.2,
+     "tail": 258.1
+    },
+    "seconds": 36.59
+   }
+  },
+  {
+   "backend": "mongo",
+   "extraSubscriptions": 1,
+   "idle": {
+    "allocatedMiBPerSecond": 17.09,
+    "operationsPerSecond": {
+     "lease": 89.75,
+     "other periodic": 2.1,
+     "tail": 252.07
+    },
+    "roundTripsPerSecond": {
+     "lease": 89.75,
+     "other periodic": 2.1,
+     "tail": 252.07
+    },
+    "roundTripsPerSecondPerPartition": 1.343,
+    "roundTripsPerSecondTotal": 343.92,
+    "seconds": 60.032
+   },
+   "partitions": 256,
+   "subscriptions": null,
+   "trickle": {
+    "checkpointWritesPerSecond": 72.24,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 72.24,
+     "lease": 95.33,
+     "log append": 32.76,
+     "other periodic": 2.18,
+     "request-id check": 8.3,
+     "snapshot": 8.19,
+     "state read": 0.14,
+     "tail": 258.83
+    },
+    "perCommand": {
+     "allocatedKiB": 429.6,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 8.82,
+      "lease": 0.681,
+      "log append": 4.0,
+      "other periodic": 0.01,
+      "request-id check": 1.013,
+      "snapshot": 1.0,
+      "state read": 0.017,
+      "tail": 0.826
+     },
+     "operationsTotal": 16.37,
+     "roundTrips": {
+      "checkpoint": 0.1,
+      "lease": 0.681,
+      "log append": 4.0,
+      "other periodic": 0.01,
+      "request-id check": 1.013,
+      "snapshot": 1.0,
+      "state read": 0.017,
+      "tail": 0.826
+     },
+     "roundTripsTotal": 7.65
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 0.82,
+     "lease": 95.33,
+     "log append": 32.76,
+     "other periodic": 2.18,
+     "request-id check": 8.3,
+     "snapshot": 8.19,
+     "state read": 0.14,
+     "tail": 258.83
+    },
+    "seconds": 36.63
+   }
+  },
+  {
+   "backend": "mongo",
+   "extraSubscriptions": 5,
+   "idle": {
+    "allocatedMiBPerSecond": 16.94,
+    "operationsPerSecond": {
+     "lease": 89.71,
+     "other periodic": 2.5,
+     "tail": 251.63
+    },
+    "roundTripsPerSecond": {
+     "lease": 89.71,
+     "other periodic": 2.5,
+     "tail": 251.63
+    },
+    "roundTripsPerSecondPerPartition": 1.343,
+    "roundTripsPerSecondTotal": 343.84,
+    "seconds": 60.06
+   },
+   "partitions": 256,
+   "subscriptions": null,
+   "trickle": {
+    "checkpointWritesPerSecond": 104.62,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 104.62,
+     "lease": 88.28,
+     "log append": 32.74,
+     "other periodic": 2.26,
+     "request-id check": 8.18,
+     "snapshot": 8.18,
+     "tail": 258.62
+    },
+    "perCommand": {
+     "allocatedKiB": 443.2,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 12.783,
+      "lease": -0.175,
+      "log append": 4.0,
+      "other periodic": -0.028,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.854
+     },
+     "operationsTotal": 19.43,
+     "roundTrips": {
+      "checkpoint": 0.1,
+      "lease": -0.175,
+      "log append": 4.0,
+      "other periodic": -0.028,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.854
+     },
+     "roundTripsTotal": 6.75
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 0.82,
+     "lease": 88.28,
+     "log append": 32.74,
+     "other periodic": 2.26,
+     "request-id check": 8.18,
+     "snapshot": 8.18,
+     "tail": 258.62
+    },
+    "seconds": 36.656
+   }
+  },
+  {
+   "backend": "mongo",
+   "extraSubscriptions": 10,
+   "idle": {
+    "allocatedMiBPerSecond": 16.93,
+    "operationsPerSecond": {
+     "lease": 89.72,
+     "other periodic": 3.0,
+     "tail": 251.87
+    },
+    "roundTripsPerSecond": {
+     "lease": 89.72,
+     "other periodic": 3.0,
+     "tail": 251.87
+    },
+    "roundTripsPerSecondPerPartition": 1.346,
+    "roundTripsPerSecondTotal": 344.58,
+    "seconds": 60.055
+   },
+   "partitions": 256,
+   "subscriptions": null,
+   "trickle": {
+    "checkpointWritesPerSecond": 144.95,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 144.95,
+     "lease": 88.31,
+     "log append": 32.76,
+     "other periodic": 3.14,
+     "request-id check": 8.19,
+     "snapshot": 8.19,
+     "tail": 258.31
+    },
+    "perCommand": {
+     "allocatedKiB": 486.1,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 17.7,
+      "lease": -0.172,
+      "log append": 4.0,
+      "other periodic": 0.017,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.787
+     },
+     "operationsTotal": 24.33,
+     "roundTrips": {
+      "checkpoint": 0.103,
+      "lease": -0.172,
+      "log append": 4.0,
+      "other periodic": 0.017,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.787
+     },
+     "roundTripsTotal": 6.74
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 0.85,
+     "lease": 88.31,
+     "log append": 32.76,
+     "other periodic": 3.14,
+     "request-id check": 8.19,
+     "snapshot": 8.19,
+     "tail": 258.31
+    },
+    "seconds": 36.634
+   }
+  }
+ ],
+ "postgres": [
+  {
+   "backend": "postgres",
+   "extraSubscriptions": 0,
+   "idle": {
+    "allocatedMiBPerSecond": 0.88,
+    "operationsPerSecond": {
+     "lease": 24.84,
+     "other periodic": 2.0,
+     "tail": 63.85
+    },
+    "roundTripsPerSecond": {
+     "lease": 24.84,
+     "other periodic": 2.0,
+     "tail": 63.85
+    },
+    "roundTripsPerSecondPerPartition": 1.417,
+    "roundTripsPerSecondTotal": 90.69,
+    "seconds": 60.06
+   },
+   "partitions": 64,
+   "subscriptions": [
+    "TransferSaga.onAmountEntered",
+    "TransferSaga.onEntryFailed",
+    "TransferSaga.onPrepared",
+    "kafka-sink.account",
+    "reservation",
+    "snapshot",
+    "timers",
+    "wow.snapshot.rebuild"
+   ],
+   "trickle": {
+    "checkpointWritesPerSecond": 60.37,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 60.37,
+     "lease": 24.56,
+     "log append": 8.19,
+     "other periodic": 2.08,
+     "request-id check": 8.19,
+     "snapshot": 8.19,
+     "tail": 67.99
+    },
+    "perCommand": {
+     "allocatedKiB": 129.0,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 7.367,
+      "lease": -0.035,
+      "log append": 1.0,
+      "other periodic": 0.01,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.504
+     },
+     "operationsTotal": 10.85,
+     "roundTrips": {
+      "checkpoint": 0.123,
+      "lease": -0.035,
+      "log append": 1.0,
+      "other periodic": 0.01,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.504
+     },
+     "roundTripsTotal": 3.6
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 1.01,
+     "lease": 24.56,
+     "log append": 8.19,
+     "other periodic": 2.08,
+     "request-id check": 8.19,
+     "snapshot": 8.19,
+     "tail": 67.99
+    },
+    "seconds": 36.61
+   }
+  },
+  {
+   "backend": "postgres",
+   "extraSubscriptions": 1,
+   "idle": {
+    "allocatedMiBPerSecond": 0.89,
+    "operationsPerSecond": {
+     "lease": 24.85,
+     "other periodic": 2.08,
+     "tail": 63.95
+    },
+    "roundTripsPerSecond": {
+     "lease": 24.85,
+     "other periodic": 2.08,
+     "tail": 63.95
+    },
+    "roundTripsPerSecondPerPartition": 1.42,
+    "roundTripsPerSecondTotal": 90.88,
+    "seconds": 60.047
+   },
+   "partitions": 64,
+   "subscriptions": [
+    "BenchIdle.p1",
+    "TransferSaga.onAmountEntered",
+    "TransferSaga.onEntryFailed",
+    "TransferSaga.onPrepared",
+    "kafka-sink.account",
+    "reservation",
+    "snapshot",
+    "timers",
+    "wow.snapshot.rebuild"
+   ],
+   "trickle": {
+    "checkpointWritesPerSecond": 68.48,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 68.48,
+     "lease": 24.52,
+     "log append": 8.18,
+     "other periodic": 2.18,
+     "request-id check": 8.18,
+     "snapshot": 8.18,
+     "tail": 67.36
+    },
+    "perCommand": {
+     "allocatedKiB": 120.0,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 8.37,
+      "lease": -0.04,
+      "log append": 1.0,
+      "other periodic": 0.012,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.417
+     },
+     "operationsTotal": 11.76,
+     "roundTrips": {
+      "checkpoint": 0.123,
+      "lease": -0.04,
+      "log append": 1.0,
+      "other periodic": 0.012,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.417
+     },
+     "roundTripsTotal": 3.51
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 1.01,
+     "lease": 24.52,
+     "log append": 8.18,
+     "other periodic": 2.18,
+     "request-id check": 8.18,
+     "snapshot": 8.18,
+     "tail": 67.36
+    },
+    "seconds": 36.666
+   }
+  },
+  {
+   "backend": "postgres",
+   "extraSubscriptions": 5,
+   "idle": {
+    "allocatedMiBPerSecond": 0.89,
+    "operationsPerSecond": {
+     "lease": 24.84,
+     "other periodic": 2.48,
+     "tail": 63.93
+    },
+    "roundTripsPerSecond": {
+     "lease": 24.84,
+     "other periodic": 2.48,
+     "tail": 63.93
+    },
+    "roundTripsPerSecondPerPartition": 1.426,
+    "roundTripsPerSecondTotal": 91.25,
+    "seconds": 60.066
+   },
+   "partitions": 64,
+   "subscriptions": [
+    "BenchIdle.p1",
+    "BenchIdle.p2",
+    "BenchIdle.p3",
+    "BenchIdle.p4",
+    "BenchIdle.p5",
+    "TransferSaga.onAmountEntered",
+    "TransferSaga.onEntryFailed",
+    "TransferSaga.onPrepared",
+    "kafka-sink.account",
+    "reservation",
+    "snapshot",
+    "timers",
+    "wow.snapshot.rebuild"
+   ],
+   "trickle": {
+    "checkpointWritesPerSecond": 99.48,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 99.48,
+     "lease": 24.44,
+     "log append": 8.17,
+     "other periodic": 2.64,
+     "request-id check": 8.17,
+     "snapshot": 8.17,
+     "tail": 67.6
+    },
+    "perCommand": {
+     "allocatedKiB": 132.1,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 12.17,
+      "lease": -0.049,
+      "log append": 1.0,
+      "other periodic": 0.02,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.449
+     },
+     "operationsTotal": 15.59,
+     "roundTrips": {
+      "checkpoint": 0.123,
+      "lease": -0.049,
+      "log append": 1.0,
+      "other periodic": 0.02,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.449
+     },
+     "roundTripsTotal": 3.54
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 1.01,
+     "lease": 24.44,
+     "log append": 8.17,
+     "other periodic": 2.64,
+     "request-id check": 8.17,
+     "snapshot": 8.17,
+     "tail": 67.6
+    },
+    "seconds": 36.702
+   }
+  },
+  {
+   "backend": "postgres",
+   "extraSubscriptions": 10,
+   "idle": {
+    "allocatedMiBPerSecond": 0.98,
+    "operationsPerSecond": {
+     "lease": 24.79,
+     "other periodic": 3.0,
+     "tail": 62.97
+    },
+    "roundTripsPerSecond": {
+     "lease": 24.79,
+     "other periodic": 3.0,
+     "tail": 62.97
+    },
+    "roundTripsPerSecondPerPartition": 1.418,
+    "roundTripsPerSecondTotal": 90.76,
+    "seconds": 60.06
+   },
+   "partitions": 64,
+   "subscriptions": [
+    "BenchIdle.p1",
+    "BenchIdle.p10",
+    "BenchIdle.p2",
+    "BenchIdle.p3",
+    "BenchIdle.p4",
+    "BenchIdle.p5",
+    "BenchIdle.p6",
+    "BenchIdle.p7",
+    "BenchIdle.p8",
+    "BenchIdle.p9",
+    "TransferSaga.onAmountEntered",
+    "TransferSaga.onEntryFailed",
+    "TransferSaga.onPrepared",
+    "kafka-sink.account",
+    "reservation",
+    "snapshot",
+    "timers",
+    "wow.snapshot.rebuild"
+   ],
+   "trickle": {
+    "checkpointWritesPerSecond": 137.54,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 137.54,
+     "lease": 24.48,
+     "log append": 8.19,
+     "other periodic": 3.17,
+     "request-id check": 8.19,
+     "snapshot": 8.19,
+     "tail": 67.2
+    },
+    "perCommand": {
+     "allocatedKiB": 123.9,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 16.797,
+      "lease": -0.038,
+      "log append": 1.0,
+      "other periodic": 0.021,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.517
+     },
+     "operationsTotal": 20.3,
+     "roundTrips": {
+      "checkpoint": 0.123,
+      "lease": -0.038,
+      "log append": 1.0,
+      "other periodic": 0.021,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.517
+     },
+     "roundTripsTotal": 3.62
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 1.01,
+     "lease": 24.48,
+     "log append": 8.19,
+     "other periodic": 3.17,
+     "request-id check": 8.19,
+     "snapshot": 8.19,
+     "tail": 67.2
+    },
+    "seconds": 36.637
+   }
+  },
+  {
+   "backend": "postgres",
+   "extraSubscriptions": 0,
+   "idle": {
+    "allocatedMiBPerSecond": 1.67,
+    "operationsPerSecond": {
+     "lease": 46.16,
+     "other periodic": 1.98,
+     "tail": 127.86
+    },
+    "roundTripsPerSecond": {
+     "lease": 46.16,
+     "other periodic": 1.98,
+     "tail": 127.86
+    },
+    "roundTripsPerSecondPerPartition": 1.375,
+    "roundTripsPerSecondTotal": 176.0,
+    "seconds": 60.058
+   },
+   "partitions": 128,
+   "subscriptions": [
+    "TransferSaga.onAmountEntered",
+    "TransferSaga.onEntryFailed",
+    "TransferSaga.onPrepared",
+    "kafka-sink.account",
+    "reservation",
+    "snapshot",
+    "timers",
+    "wow.snapshot.rebuild"
+   ],
+   "trickle": {
+    "checkpointWritesPerSecond": 62.47,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 62.47,
+     "lease": 45.39,
+     "log append": 8.16,
+     "other periodic": 2.07,
+     "request-id check": 8.16,
+     "snapshot": 8.16,
+     "tail": 131.67
+    },
+    "perCommand": {
+     "allocatedKiB": 135.0,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 7.653,
+      "lease": -0.094,
+      "log append": 1.0,
+      "other periodic": 0.011,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.467
+     },
+     "operationsTotal": 11.04,
+     "roundTrips": {
+      "checkpoint": 0.123,
+      "lease": -0.094,
+      "log append": 1.0,
+      "other periodic": 0.011,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.467
+     },
+     "roundTripsTotal": 3.51
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 1.01,
+     "lease": 45.39,
+     "log append": 8.16,
+     "other periodic": 2.07,
+     "request-id check": 8.16,
+     "snapshot": 8.16,
+     "tail": 131.67
+    },
+    "seconds": 36.751
+   }
+  },
+  {
+   "backend": "postgres",
+   "extraSubscriptions": 1,
+   "idle": {
+    "allocatedMiBPerSecond": 1.63,
+    "operationsPerSecond": {
+     "lease": 46.11,
+     "other periodic": 2.08,
+     "tail": 127.88
+    },
+    "roundTripsPerSecond": {
+     "lease": 46.11,
+     "other periodic": 2.08,
+     "tail": 127.88
+    },
+    "roundTripsPerSecondPerPartition": 1.376,
+    "roundTripsPerSecondTotal": 176.07,
+    "seconds": 60.055
+   },
+   "partitions": 128,
+   "subscriptions": [
+    "BenchIdle.p1",
+    "TransferSaga.onAmountEntered",
+    "TransferSaga.onEntryFailed",
+    "TransferSaga.onPrepared",
+    "kafka-sink.account",
+    "reservation",
+    "snapshot",
+    "timers",
+    "wow.snapshot.rebuild"
+   ],
+   "trickle": {
+    "checkpointWritesPerSecond": 70.13,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 70.13,
+     "lease": 45.44,
+     "log append": 8.17,
+     "other periodic": 2.21,
+     "request-id check": 8.17,
+     "snapshot": 8.17,
+     "tail": 131.13
+    },
+    "perCommand": {
+     "allocatedKiB": 147.2,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 8.58,
+      "lease": -0.081,
+      "log append": 1.0,
+      "other periodic": 0.015,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.397
+     },
+     "operationsTotal": 11.91,
+     "roundTrips": {
+      "checkpoint": 0.123,
+      "lease": -0.081,
+      "log append": 1.0,
+      "other periodic": 0.015,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.397
+     },
+     "roundTripsTotal": 3.45
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 1.01,
+     "lease": 45.44,
+     "log append": 8.17,
+     "other periodic": 2.21,
+     "request-id check": 8.17,
+     "snapshot": 8.17,
+     "tail": 131.13
+    },
+    "seconds": 36.704
+   }
+  },
+  {
+   "backend": "postgres",
+   "extraSubscriptions": 5,
+   "idle": {
+    "allocatedMiBPerSecond": 1.65,
+    "operationsPerSecond": {
+     "lease": 46.12,
+     "other periodic": 2.48,
+     "tail": 127.92
+    },
+    "roundTripsPerSecond": {
+     "lease": 46.12,
+     "other periodic": 2.48,
+     "tail": 127.92
+    },
+    "roundTripsPerSecondPerPartition": 1.379,
+    "roundTripsPerSecondTotal": 176.53,
+    "seconds": 60.036
+   },
+   "partitions": 128,
+   "subscriptions": [
+    "BenchIdle.p1",
+    "BenchIdle.p2",
+    "BenchIdle.p3",
+    "BenchIdle.p4",
+    "BenchIdle.p5",
+    "TransferSaga.onAmountEntered",
+    "TransferSaga.onEntryFailed",
+    "TransferSaga.onPrepared",
+    "kafka-sink.account",
+    "reservation",
+    "snapshot",
+    "timers",
+    "wow.snapshot.rebuild"
+   ],
+   "trickle": {
+    "checkpointWritesPerSecond": 103.23,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 103.23,
+     "lease": 45.46,
+     "log append": 8.19,
+     "other periodic": 2.62,
+     "request-id check": 8.19,
+     "snapshot": 8.19,
+     "tail": 131.26
+    },
+    "perCommand": {
+     "allocatedKiB": 146.8,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 12.61,
+      "lease": -0.081,
+      "log append": 1.0,
+      "other periodic": 0.017,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.408
+     },
+     "operationsTotal": 15.95,
+     "roundTrips": {
+      "checkpoint": 0.123,
+      "lease": -0.081,
+      "log append": 1.0,
+      "other periodic": 0.017,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.408
+     },
+     "roundTripsTotal": 3.47
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 1.01,
+     "lease": 45.46,
+     "log append": 8.19,
+     "other periodic": 2.62,
+     "request-id check": 8.19,
+     "snapshot": 8.19,
+     "tail": 131.26
+    },
+    "seconds": 36.645
+   }
+  },
+  {
+   "backend": "postgres",
+   "extraSubscriptions": 10,
+   "idle": {
+    "allocatedMiBPerSecond": 1.56,
+    "operationsPerSecond": {
+     "lease": 46.18,
+     "other periodic": 2.98,
+     "tail": 126.91
+    },
+    "roundTripsPerSecond": {
+     "lease": 46.18,
+     "other periodic": 2.98,
+     "tail": 126.91
+    },
+    "roundTripsPerSecondPerPartition": 1.376,
+    "roundTripsPerSecondTotal": 176.08,
+    "seconds": 60.042
+   },
+   "partitions": 128,
+   "subscriptions": [
+    "BenchIdle.p1",
+    "BenchIdle.p10",
+    "BenchIdle.p2",
+    "BenchIdle.p3",
+    "BenchIdle.p4",
+    "BenchIdle.p5",
+    "BenchIdle.p6",
+    "BenchIdle.p7",
+    "BenchIdle.p8",
+    "BenchIdle.p9",
+    "TransferSaga.onAmountEntered",
+    "TransferSaga.onEntryFailed",
+    "TransferSaga.onPrepared",
+    "kafka-sink.account",
+    "reservation",
+    "snapshot",
+    "timers",
+    "wow.snapshot.rebuild"
+   ],
+   "trickle": {
+    "checkpointWritesPerSecond": 141.94,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 141.94,
+     "lease": 45.62,
+     "log append": 8.21,
+     "other periodic": 3.15,
+     "request-id check": 8.21,
+     "snapshot": 8.21,
+     "tail": 131.21
+    },
+    "perCommand": {
+     "allocatedKiB": 157.6,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 17.28,
+      "lease": -0.069,
+      "log append": 1.0,
+      "other periodic": 0.02,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.523
+     },
+     "operationsTotal": 20.75,
+     "roundTrips": {
+      "checkpoint": 0.123,
+      "lease": -0.069,
+      "log append": 1.0,
+      "other periodic": 0.02,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.523
+     },
+     "roundTripsTotal": 3.6
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 1.01,
+     "lease": 45.62,
+     "log append": 8.21,
+     "other periodic": 3.15,
+     "request-id check": 8.21,
+     "snapshot": 8.21,
+     "tail": 131.21
+    },
+    "seconds": 36.522
+   }
+  },
+  {
+   "backend": "postgres",
+   "extraSubscriptions": 0,
+   "idle": {
+    "allocatedMiBPerSecond": 3.2,
+    "operationsPerSecond": {
+     "lease": 88.81,
+     "other periodic": 1.98,
+     "tail": 255.73
+    },
+    "roundTripsPerSecond": {
+     "lease": 88.81,
+     "other periodic": 1.98,
+     "tail": 255.73
+    },
+    "roundTripsPerSecondPerPartition": 1.354,
+    "roundTripsPerSecondTotal": 346.51,
+    "seconds": 60.041
+   },
+   "partitions": 256,
+   "subscriptions": [
+    "TransferSaga.onAmountEntered",
+    "TransferSaga.onEntryFailed",
+    "TransferSaga.onPrepared",
+    "kafka-sink.account",
+    "reservation",
+    "snapshot",
+    "timers",
+    "wow.snapshot.rebuild"
+   ],
+   "trickle": {
+    "checkpointWritesPerSecond": 63.76,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 63.76,
+     "lease": 87.15,
+     "log append": 8.16,
+     "other periodic": 2.07,
+     "request-id check": 8.16,
+     "snapshot": 8.16,
+     "tail": 260.25
+    },
+    "perCommand": {
+     "allocatedKiB": 160.7,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 7.813,
+      "lease": -0.203,
+      "log append": 1.0,
+      "other periodic": 0.01,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.555
+     },
+     "operationsTotal": 11.17,
+     "roundTrips": {
+      "checkpoint": 0.123,
+      "lease": -0.203,
+      "log append": 1.0,
+      "other periodic": 0.01,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.555
+     },
+     "roundTripsTotal": 3.48
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 1.01,
+     "lease": 87.15,
+     "log append": 8.16,
+     "other periodic": 2.07,
+     "request-id check": 8.16,
+     "snapshot": 8.16,
+     "tail": 260.25
+    },
+    "seconds": 36.764
+   }
+  },
+  {
+   "backend": "postgres",
+   "extraSubscriptions": 1,
+   "idle": {
+    "allocatedMiBPerSecond": 3.25,
+    "operationsPerSecond": {
+     "lease": 88.78,
+     "other periodic": 2.1,
+     "tail": 255.74
+    },
+    "roundTripsPerSecond": {
+     "lease": 88.78,
+     "other periodic": 2.1,
+     "tail": 255.74
+    },
+    "roundTripsPerSecondPerPartition": 1.354,
+    "roundTripsPerSecondTotal": 346.63,
+    "seconds": 60.056
+   },
+   "partitions": 256,
+   "subscriptions": [
+    "BenchIdle.p1",
+    "TransferSaga.onAmountEntered",
+    "TransferSaga.onEntryFailed",
+    "TransferSaga.onPrepared",
+    "kafka-sink.account",
+    "reservation",
+    "snapshot",
+    "timers",
+    "wow.snapshot.rebuild"
+   ],
+   "trickle": {
+    "checkpointWritesPerSecond": 72.31,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 72.31,
+     "lease": 87.18,
+     "log append": 8.17,
+     "other periodic": 2.21,
+     "request-id check": 8.17,
+     "snapshot": 8.17,
+     "tail": 260.76
+    },
+    "perCommand": {
+     "allocatedKiB": 155.9,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 8.85,
+      "lease": -0.197,
+      "log append": 1.0,
+      "other periodic": 0.013,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.614
+     },
+     "operationsTotal": 12.28,
+     "roundTrips": {
+      "checkpoint": 0.123,
+      "lease": -0.197,
+      "log append": 1.0,
+      "other periodic": 0.013,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.614
+     },
+     "roundTripsTotal": 3.55
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 1.01,
+     "lease": 87.18,
+     "log append": 8.17,
+     "other periodic": 2.21,
+     "request-id check": 8.17,
+     "snapshot": 8.17,
+     "tail": 260.76
+    },
+    "seconds": 36.719
+   }
+  },
+  {
+   "backend": "postgres",
+   "extraSubscriptions": 5,
+   "idle": {
+    "allocatedMiBPerSecond": 3.15,
+    "operationsPerSecond": {
+     "lease": 88.8,
+     "other periodic": 2.5,
+     "tail": 254.24
+    },
+    "roundTripsPerSecond": {
+     "lease": 88.8,
+     "other periodic": 2.5,
+     "tail": 254.24
+    },
+    "roundTripsPerSecondPerPartition": 1.35,
+    "roundTripsPerSecondTotal": 345.54,
+    "seconds": 60.046
+   },
+   "partitions": 256,
+   "subscriptions": [
+    "BenchIdle.p1",
+    "BenchIdle.p2",
+    "BenchIdle.p3",
+    "BenchIdle.p4",
+    "BenchIdle.p5",
+    "TransferSaga.onAmountEntered",
+    "TransferSaga.onEntryFailed",
+    "TransferSaga.onPrepared",
+    "kafka-sink.account",
+    "reservation",
+    "snapshot",
+    "timers",
+    "wow.snapshot.rebuild"
+   ],
+   "trickle": {
+    "checkpointWritesPerSecond": 104.75,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 104.75,
+     "lease": 87.19,
+     "log append": 8.17,
+     "other periodic": 2.64,
+     "request-id check": 8.17,
+     "snapshot": 8.17,
+     "tail": 258.49
+    },
+    "perCommand": {
+     "allocatedKiB": 172.7,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 12.827,
+      "lease": -0.197,
+      "log append": 1.0,
+      "other periodic": 0.017,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.521
+     },
+     "operationsTotal": 16.17,
+     "roundTrips": {
+      "checkpoint": 0.123,
+      "lease": -0.197,
+      "log append": 1.0,
+      "other periodic": 0.017,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.521
+     },
+     "roundTripsTotal": 3.46
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 1.01,
+     "lease": 87.19,
+     "log append": 8.17,
+     "other periodic": 2.64,
+     "request-id check": 8.17,
+     "snapshot": 8.17,
+     "tail": 258.49
+    },
+    "seconds": 36.736
+   }
+  },
+  {
+   "backend": "postgres",
+   "extraSubscriptions": 10,
+   "idle": {
+    "allocatedMiBPerSecond": 3.17,
+    "operationsPerSecond": {
+     "lease": 88.77,
+     "other periodic": 2.98,
+     "tail": 255.86
+    },
+    "roundTripsPerSecond": {
+     "lease": 88.77,
+     "other periodic": 2.98,
+     "tail": 255.86
+    },
+    "roundTripsPerSecondPerPartition": 1.358,
+    "roundTripsPerSecondTotal": 347.61,
+    "seconds": 60.032
+   },
+   "partitions": 256,
+   "subscriptions": [
+    "BenchIdle.p1",
+    "BenchIdle.p10",
+    "BenchIdle.p2",
+    "BenchIdle.p3",
+    "BenchIdle.p4",
+    "BenchIdle.p5",
+    "BenchIdle.p6",
+    "BenchIdle.p7",
+    "BenchIdle.p8",
+    "BenchIdle.p9",
+    "TransferSaga.onAmountEntered",
+    "TransferSaga.onEntryFailed",
+    "TransferSaga.onPrepared",
+    "kafka-sink.account",
+    "reservation",
+    "snapshot",
+    "timers",
+    "wow.snapshot.rebuild"
+   ],
+   "trickle": {
+    "checkpointWritesPerSecond": 142.63,
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 300
+    },
+    "operationsPerSecond": {
+     "checkpoint": 142.63,
+     "lease": 93.25,
+     "log append": 8.09,
+     "other periodic": 3.15,
+     "request-id check": 8.09,
+     "snapshot": 8.09,
+     "tail": 259.49
+    },
+    "perCommand": {
+     "allocatedKiB": 174.7,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 17.64,
+      "lease": 0.554,
+      "log append": 1.0,
+      "other periodic": 0.021,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.448
+     },
+     "operationsTotal": 21.66,
+     "roundTrips": {
+      "checkpoint": 0.123,
+      "lease": 0.554,
+      "log append": 1.0,
+      "other periodic": 0.021,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.448
+     },
+     "roundTripsTotal": 4.15
+    },
+    "roundTripsPerSecond": {
+     "checkpoint": 1.0,
+     "lease": 93.25,
+     "log append": 8.09,
+     "other periodic": 3.15,
+     "request-id check": 8.09,
+     "snapshot": 8.09,
+     "tail": 259.49
+    },
+    "seconds": 37.104
+   }
+  }
+ ]
+}

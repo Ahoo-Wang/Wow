@@ -117,5 +117,9 @@ class SemanticTypeSchemaTest {
                 }
             }
         }
+        querySchema { field("memberId") { reference("crm", "member") } }.fields.getValue(QueryField("memberId"))
+            .semanticType.assert().isEqualTo(
+                DeclarationValue.Set(Reference(contextName = "crm", aggregateName = "member"))
+            )
     }
 }

@@ -161,7 +161,8 @@ class DatasetPublicationIntegrationTest {
                 .assert().containsExactly("ds_shop_order_customers_v1")
 
             val query = """{"kind":"list","filter":{"op":"MATCH_ALL"},"sort":[{"field":"order_id","direction":"ASC"}]}"""
-            val t1 = Who(Who.VIEWER.headers + (AnalyticsCatalogCallers.TENANT to "t1"))
+            // A reader of tenant t1 with no role of the catalog: the datasets are the data plane's.
+            val t1 = Who(mapOf(AnalyticsCatalogCallers.USER to "reader", AnalyticsCatalogCallers.TENANT to "t1"))
             eventually("the dataset served") { node.post(QUERY, query, t1).status == OK }
             val rows = node.post(QUERY, query, t1).assertOk().json.values().toList()
             rows.map { it["order_id"].asString() }.assert().containsExactly("o1")
@@ -170,7 +171,9 @@ class DatasetPublicationIntegrationTest {
             // Masked as their sources say: the Wow value by its path's mask, the analyst's by its column's.
             row["order_phone"].asString().assert().startsWith("139").endsWith("5678").isNotEqualTo("13912345678")
             row["customer_phone"].asString().assert().startsWith("150").isNotEqualTo("15011112222")
-            val t2 = Who(Who.VIEWER.headers + (AnalyticsCatalogCallers.TENANT to "t2"))
+            val t2 = Who(mapOf(AnalyticsCatalogCallers.USER to "reader", AnalyticsCatalogCallers.TENANT to "t2"))
+            // The catalog itself stays the catalog's roles'.
+            node.sources(t1).status.assert().isEqualTo(BAD_REQUEST)
             node.post(QUERY, query, t2).assertOk().json.values().map { it["order_id"].asString() }.toList()
                 .assert().containsExactly("o2")
 

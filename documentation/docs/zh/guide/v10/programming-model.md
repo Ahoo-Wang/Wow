@@ -197,7 +197,7 @@ val productModel = aggregate<ProductState>("catalog", "product") {
 | `scope` | 提交后聚合的所有者与空间，不是调用方的 |
 | `causation`、`headers` | 命令所属的链路，以及它携带的请求事实；`correlationId` 是根命令的 ID |
 
-`S` 决定读哪些聚合：处理函数读取本模块上下文中状态类型为 `S` 的聚合，除非 `@OnEvent(aggregates = ["<context>.<aggregate>"])` 指定了它们。按 `E` 处理的函数两者都不需要：`E` 决定聚合，编译器把这些事件写进订阅的来源，节点遇到不含 `E` 的流直接跳过，连状态都不解码。同一流里的多个 `E` 共用该流的检查点：失败时整条流重试，每个 `E` 都会再调用一次。他上下文事件的 `E` 要等对端 api 的事件类；这类处理函数暂时仍接收 `StateEvent`。
+`S` 决定读哪些聚合：处理函数读取本模块上下文中状态类型为 `S` 的聚合，除非 `@OnEvent(aggregates = ["<context>.<aggregate>"])` 指定了它们。按 `E` 处理的函数两者都不需要：`E` 决定聚合，编译器把这些事件写进订阅的来源，节点遇到不含 `E` 的流直接跳过，连状态都不解码。同一流里的多个 `E` 共用该流的检查点：失败时整条流重试，每个 `E` 都会再调用一次。他上下文的事件，`E` 是对端 api 的类，并用 `@OnEvent(aggregates)` 指定它的聚合（见下文“读取另一个上下文的流”）。
 
 处理函数的上下文提供 `executionId`，即 `subscription:ref@version`，同一订阅每次处理同一次提交都相同；还提供 `invocationKey`，作为外部调用的幂等键：按流处理时就是 `executionId`，按每个 `E` 处理时是 `executionId:eventIndex`。
 
@@ -354,12 +354,11 @@ fun onCommand(command: PayOrder, scope: DecideScope): Decision {
 @Saga
 class OrderStockSaga {
     @OnEvent(aggregates = ["example.order"])
-    fun onOrderShipped(event: StateEvent<OrderView>, context: SagaContext): List<Command<CommitReservation>> =
-        if (event.events.any { it is StateEventPayload && it.name == "example.order.OrderShipped" }) {
-            event.state.items.map { context.command(STOCK.ref(event.ref.tenantId, it.productId), CommitReservation(event.ref.id)) }
-        } else {
-            emptyList()
-        }
+    fun onOrderShipped(
+        event: StateTypedEvent<OrderView, OrderShipped>, // OrderShipped：订单上下文 api 的类
+        context: SagaContext,
+    ): List<Command<CommitReservation>> =
+        event.state.items.map { context.command(STOCK.ref(event.ref.tenantId, it.productId), CommitReservation(event.ref.id)) }
 }
 
 data class OrderView(val items: List<Item> = emptyList()) {
@@ -368,7 +367,7 @@ data class OrderView(val items: List<Item> = emptyList()) {
 ```
 
 - 处理函数读取上游发布的主题 `wow.<context>.<aggregate>.state`，偏移量记在本服务的检查点里。节点需要 `wow-kafka` 与 `wow.kafka.bootstrap-servers`。
-- 它的 `events` 是 `StateEventPayload`（`me.ahoo.wow.spi.state`）：每个带 `name`（`example.order.OrderShipped`）、`revision` 与 JSON 载荷。按名字匹配。
+- 它的 `events` 是上游 api 模块的类（DX-1c）：事件的修订号与该 api 契约声明的一致时解码；其他事件是 `PublishedEvent`（`me.ahoo.wow.api.subscribe`），带 `name`（`example.order.OrderShipped`）、`revision` 与 JSON `payload`。按 `E` 处理的函数（见上文）接收 api 的类，用 `@OnEvent(aggregates)` 指定聚合，遇到 `PublishedEvent` 不调用；类路径上的契约没有声明这个事件时，节点不会启动。
 - 它的 `state` 从发布的状态解码成处理函数自己的类型。上游发布事件但不带状态（`publishState = false`）时，把它声明为可空（`StateEvent<OrderView?>`）：对不带状态的流声明不可空的视图会在启动时失败。
 - 读取其他上下文流的 Saga 或反应器默认从末尾开始。不能漏掉自己首次启动之前已发布内容的服务，要为该处理函数设置 `start: beginning`（见[订阅从哪里开始](#订阅从哪里开始)）。
 - 服务把上游的 Manifest 作为对端（见下文）。
@@ -385,7 +384,7 @@ context.command(AggregateType("inventory", "stock").ref(event.ref.tenantId, prod
 - 目标服务设置 `wow.kafka.command-intake: true` 后执行它的命令主题。主题必须已存在，且分区数恰好等于目标的日志分区数（`wow.log.partitions`，默认 64），否则那个节点无法启动。
 - 拒绝以回执的形式写回发送方的 `wow.<sender>.receipts`，交给 Saga 的 `@OnRejected` 处理函数。
 - 发送方从目标的 Manifest 中找到命令的类型名，该 Manifest 是发送服务的对端。
-- `ref` 的租户原样传递：一个系统中的所有上下文共用一个租户空间（见[部署](./deployment.md#一个租户空间)）。
+- `ref` 的租户原样传递：一个系统中的所有上下文共用一个租户空间（见[部署](./deployment.md#一个租户空间)）。目标聚合类型固定了租户时，会拒绝其他租户的命令。
 
 节点的某个 Saga 派生、定时或处理其他上下文命令的拒绝时，没有命令传输的节点无法启动。错误信息指出每个 Saga 与上下文：
 

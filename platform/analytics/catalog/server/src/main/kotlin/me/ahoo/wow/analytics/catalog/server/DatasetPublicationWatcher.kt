@@ -214,6 +214,7 @@ class DatasetPublicationWatcher(
                     field(name) {
                         types[name]?.let { ClickHouseDatasetColumns.declare(this, it) }
                         column?.title?.let { title(it) }
+                        column?.reference?.let { reference(it.context, it.aggregate) }
                     }
                     val sensitivity = column?.sensitivity ?: return@forEach
                     val level = sensitivity.level ?: return@forEach

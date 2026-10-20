@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.query.DefaultQueryGateway
 import me.ahoo.wow.query.PositionedRecord
+import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryDatasetUnavailableException
 import me.ahoo.wow.query.QueryEntry
@@ -40,6 +41,7 @@ import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
+import me.ahoo.wow.query.under
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentHashMap
 
@@ -144,7 +146,8 @@ class DatasetQueryGateways(gateways: Collection<DatasetQueryGateway>) {
         /**
          * The gateways of [datasets], each over the backend [factory] binds and the schema [catalog] compiles for it
          * (a Catalog built over the same [datasets] and [factory], see `QueryBackendStorages`); a dataset [factory]
-         * cannot bind is refused before it joins.
+         * cannot bind is refused before it joins. Each dataset's queries run under the [bulkhead] it gives (decision
+         * D247), none by default.
          */
         @JvmStatic
         @JvmOverloads
@@ -157,10 +160,11 @@ class DatasetQueryGateways(gateways: Collection<DatasetQueryGateway>) {
             policies: List<QueryPolicy> = emptyList(),
             observer: QueryObserver = QueryObserver.NONE,
             entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
+            bulkhead: (AggregateType) -> QueryBulkhead? = { null },
         ): DatasetQueryGateways = of(datasets, requireServable = { factory.create(it) }) { dataset ->
             DefaultDatasetQueryGateway(
                 dataset = dataset,
-                backend = factory.create(dataset).backend,
+                backend = factory.create(dataset).backend.under(bulkhead(dataset.name)),
                 schemaProvider = catalog.provider(dataset.name, QueryModel.DATASET),
                 filters = filters,
                 policies = policies,

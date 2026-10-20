@@ -69,6 +69,31 @@ class WowPluginTest {
     private fun ExternalModuleDependency.coordinates(): String = "$group:$name:$version"
 
     @Test
+    fun `it should register an integrationTest suite outside check, unless the build declares one`() {
+        val project = project()
+        (project as ProjectInternal).evaluate()
+        val task = project.tasks.getByName(WowPlugin.INTEGRATION_TEST)
+        task.description.assert().isEqualTo("Runs the container-backed integration tests.")
+        project.tasks.getByName("check").taskDependencies.getDependencies(null).map { it.name }.assert()
+            .doesNotContain(WowPlugin.INTEGRATION_TEST)
+        project.configurations.getByName("integrationTestImplementation").extendsFrom.map { it.name }.assert()
+            .contains("testImplementation")
+        project.configurations.getByName("integrationTestRuntimeOnly").extendsFrom.map { it.name }.assert()
+            .contains("testRuntimeOnly")
+
+        val own = ProjectBuilder.builder().withProjectDir(File(directory, "own").apply { mkdirs() }).build()
+        own.pluginManager.apply("java")
+        own.extensions.getByType(org.gradle.testing.base.TestingExtension::class.java).suites
+            .register(WowPlugin.INTEGRATION_TEST, org.gradle.api.plugins.jvm.JvmTestSuite::class.java) {
+                it.targets.configureEach { target -> target.testTask.configure { t -> t.description = "own" } }
+            }
+        own.pluginManager.apply("me.ahoo.wow")
+        own.pluginManager.apply("org.jetbrains.kotlin.jvm")
+        (own as ProjectInternal).evaluate()
+        own.tasks.getByName(WowPlugin.INTEGRATION_TEST).description.assert().isEqualTo("own")
+    }
+
+    @Test
     fun `without the Kotlin plugin it should fail once the project is evaluated, naming the fix`() {
         val project = project(kotlin = false)
         project.pluginManager.apply("java")

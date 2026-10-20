@@ -210,7 +210,8 @@ class QueryEngine private constructor(
 
         /**
          * The bulkhead of the store each aggregate type's [model] (snapshots or events) is queried on (review R3.4-2),
-         * one instance per store, null for none: the queries of every model on one store share it.
+         * one instance per store, null for none: the queries of every model on one store share it; for
+         * [QueryModel.DATASET], the one the queries of the dataset of that name run under (decision D247).
          */
         fun bulkheads(bulkheads: (type: AggregateType, model: QueryModel) -> QueryBulkhead?) = apply {
             this.bulkheads = bulkheads
@@ -304,6 +305,7 @@ class QueryEngine private constructor(
                 policies = gatewayPolicies,
                 observer = observer,
                 entryPolicy = entryPolicy,
+                bulkhead = { name -> bulkheads(name, QueryModel.DATASET) },
             )
         }
 

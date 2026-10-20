@@ -147,4 +147,4 @@ kafka-topics --bootstrap-server localhost:9092 --create --topic wow.inventory.st
 
 ## 一个租户空间
 
-一个系统中的所有上下文共用一个租户空间（D180）。租户 ID 原样跨服务传递：在 Saga 的命令里（`AggregateType(...).ref(event.ref.tenantId, id)`）、在发布的流里、在回执与定时器里。上下文之间没有租户映射，所以每个服务要对同一个客户使用相同的租户 ID，并在每个服务的 `CallerResolver` 中以相同的方式解析调用方的租户。为某个聚合类型固定租户（`wow.aggregates.[<context>.<aggregate>].tenant`）会让它的命令与状态读取都落在该租户，与调用方无关。
+一个系统中的所有上下文共用一个租户空间（D180）。租户 ID 原样跨服务传递：在 Saga 的命令里（`AggregateType(...).ref(event.ref.tenantId, id)`）、在发布的流里、在回执与定时器里。上下文之间没有租户映射，所以每个服务要对同一个客户使用相同的租户 ID，并在每个服务的 `CallerResolver` 中以相同的方式解析调用方的租户。为某个聚合类型固定租户（`wow.aggregates.[<context>.<aggregate>].tenant`）会让它的命令与状态读取都落在该租户，与调用方无关。另一个上下文发来的命令带着发送方的租户，所以目标方会拒绝租户与固定租户不同的命令（`wow.command.malformed`，回到发送方的 `@OnRejected` 处理函数），并在启动时告警，列出契约显示会向这类聚合类型发命令的每个对端 Saga（DX 缺口 G13）：让发送方用固定租户来寻址，`TYPE.ref("<固定租户>", id)`。

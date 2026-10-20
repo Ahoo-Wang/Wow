@@ -190,11 +190,11 @@ include(":java-smoke")
 project(":java-smoke").projectDir = file("example/java-smoke")
 // The V10 side of the end-to-end architecture benchmark (decision D224, roadmap M7.5 B.0): the twin benchmark domain
 // and its server on V10 modules only. Never published.
-include(":e2e-bench-v10")
-project(":e2e-bench-v10").projectDir = file("wow-benchmarks/e2e/bench-v10")
+include(":benchmark-server")
+project(":benchmark-server").projectDir = file("test/benchmarks/server")
 //endregion
 
 // The load generator of the end-to-end architecture benchmark (decision D224): a JVM of its own that depends on no Wow
 // module, so it drives the 9.x (built from `v10-9x-baseline`, D262) and the V10 servers alike over HTTP.
-include(":e2e-bench-load")
-project(":e2e-bench-load").projectDir = file("wow-benchmarks/e2e/load")
+include(":benchmark-load")
+project(":benchmark-load").projectDir = file("test/benchmarks/load")

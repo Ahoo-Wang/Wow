@@ -173,8 +173,8 @@ public final class me/ahoo/wow/test/SequentialIds$Companion {
 }
 
 public final class me/ahoo/wow/test/StateEventsKt {
-	public static final fun publishedEvent (Ljava/lang/String;Ljava/lang/Object;I)Lme/ahoo/wow/spi/state/StateEventPayload;
-	public static synthetic fun publishedEvent$default (Ljava/lang/String;Ljava/lang/Object;IILjava/lang/Object;)Lme/ahoo/wow/spi/state/StateEventPayload;
+	public static final fun publishedEvent (Ljava/lang/String;Ljava/lang/Object;I)Lme/ahoo/wow/api/subscribe/PublishedEvent;
+	public static synthetic fun publishedEvent$default (Ljava/lang/String;Ljava/lang/Object;IILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/PublishedEvent;
 	public static final fun stateEvent (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;[Ljava/lang/Object;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/api/subscribe/StateEvent;
 	public static synthetic fun stateEvent$default (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;[Ljava/lang/Object;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/StateEvent;
 }
