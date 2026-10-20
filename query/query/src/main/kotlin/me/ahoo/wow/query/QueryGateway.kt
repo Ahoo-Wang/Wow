@@ -243,7 +243,11 @@ class DefaultQueryGateway(
         val entry = entryPolicy.admit(caller.entry)
         val admitted = QueryAdmission.Trusted.list(query, schema, entry)
             .withTimeout(entryPolicy.timeout(entry)?.toJavaDuration())
-        val admits = admission.recordFilter(AndFilter(listOf(selected, DeletionFilter(DeletionState.ALL))), schema, caller)
+        val admits = admission.recordFilter(
+            AndFilter(listOf(selected, DeletionFilter(DeletionState.ALL))),
+            schema,
+            caller
+        )
         val stored = mutableSetOf<String>()
         val visible = mutableSetOf<String>()
         backend.list(admitted).collect { record ->

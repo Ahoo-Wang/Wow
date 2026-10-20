@@ -50,11 +50,9 @@ fun interface EventVisibility {
     @InternalWowApi
     companion object {
         /** The most aggregates one events query has read one by one: of a type whose snapshots are not queried. */
-        @JvmField
-        val POINT_READS: Int = 100
+        const val POINT_READS: Int = 100
 
         /** Every aggregate is visible. */
-        @JvmField
         val ALL: EventVisibility = object : EventVisibility {
             override suspend fun visible(
                 type: AggregateType,

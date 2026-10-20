@@ -247,7 +247,9 @@ class QueryEngineTest {
                 .exceptionOrNull() as QueryError
             refused.bindingErrors.single().code.assert().isEqualTo(QueryErrorCodes.STORAGE_UNSUPPORTED)
             pinnedOrders.describe(QueryEntry.HTTP).constraints
-                .single { it.type == UnpinnedEventsPolicy.AGGREGATE_REQUIRED }.fields.assert().containsExactly("aggregateId")
+                .single { it.type == UnpinnedEventsPolicy.AGGREGATE_REQUIRED }.fields.assert().containsExactly(
+                    "aggregateId"
+                )
             // No snapshot is stored yet: each named order is read on its own, the missing one showing nothing.
             val named = ListQuery(AggregateIdsFilter(listOf("o-1", "o-2")), limit = 10)
             pinnedOrders.list(named, admin).toList().assert().isEmpty()

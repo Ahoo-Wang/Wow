@@ -19,8 +19,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.AbacQueryOptions
 import me.ahoo.wow.query.AbacQueryPolicy
-import me.ahoo.wow.query.EventsMode
 import me.ahoo.wow.query.DefaultQueryGateway
+import me.ahoo.wow.query.EventsMode
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryBackendFactory
@@ -240,7 +240,13 @@ class QueryEngine private constructor(
                 emptyList()
             }
             val byType = (snapshots + policyGateways).associateBy { it.aggregateType }
-            val eventVisibility = EventVisibility.of(byType::get, hides, queried::contains, observer, committed::committed)
+            val eventVisibility = EventVisibility.of(
+                byType::get,
+                hides,
+                queried::contains,
+                observer,
+                committed::committed
+            )
             val events = ManifestTypes.events(manifest, contexts).mapNotNull { type ->
                 val binding = eventBackend(type) ?: return@mapNotNull null
                 EventQueryGateways.create(

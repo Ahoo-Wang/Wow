@@ -299,7 +299,10 @@ class EventQueryGatewaysTest {
         // More than the budget's values is refused by the budget itself, before any policy runs.
         versions(AggregateIdsFilter(listOf("c-1", "c-2", "c-3")), bounded).assert().containsExactly(1, 2, 3)
         val unbounded = gateway(
-            entryPolicy = QueryEntryPolicy(inProcess = QueryBudget(QueryBudget.IN_PROCESS_LABEL, maxFilterValues = 0), inProcessTimeout = null),
+            entryPolicy = QueryEntryPolicy(
+                inProcess = QueryBudget(QueryBudget.IN_PROCESS_LABEL, maxFilterValues = 0),
+                inProcessTimeout = null
+            ),
             visibility = hidingC2,
         )
         val many = (1..QueryBudget.DEFAULT_MAX_FILTER_VALUES).map { "c-$it" }
