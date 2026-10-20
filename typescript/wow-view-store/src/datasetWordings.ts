@@ -11,25 +11,28 @@
  * limitations under the License.
  */
 
-import { ResultExtractors, type Fetcher } from '@ahoo-wang/fetcher';
-import { listQuery, filter } from '@ahoo-wang/wow-client';
+import type { Fetcher } from '@ahoo-wang/fetcher';
+import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
+import type { CommandOptions, CommandResult } from '@ahoo-wang/wow-client';
 import type {
   DatasetOverrides,
   DatasetWordingStore,
   StoredDatasetWording,
   WriteContext,
 } from '@ahoo-wang/wow-view-engine';
-import { failureOf } from './errors.js';
-import { pathAt, SCOPE } from './paths.js';
-import { revisionOf, type CommandResultBody } from './wire.js';
-import { guard, writeHeaders } from './wowViewStore.js';
+import { revisionOf } from './views.js';
+import { DatasetWordingCommandClient } from './generated/view-store/dataset_wording/commandClient.js';
+import { DatasetWordingSnapshotQueryClient } from './generated/view-store/dataset_wording/queryClient.js';
+import { guard, request } from './errors.js';
+import { wordingOf } from './wire.js';
 
-/** How a {@link WowDatasetWordings} reaches the view store: as a `WowViewStore` does. */
+/** How a V10 {@link WowDatasetWordings} reaches the view store service: as a V10 `WowViewStore` does. */
 export interface WowDatasetWordingsOptions {
   /**
-   * The fetcher every request goes through, as {@link WowViewStoreOptions.fetcher}:
-   * its interceptors fill `{tenantId}` and send `CoSec-App-Id`. The
-   * wording is the tenant's, so the store always names the owner `(shared)`.
+   * The fetcher every request goes through, as the V10
+   * `WowViewStoreOptions.fetcher`: its interceptors carry the caller and
+   * `CoSec-App-Id`. The wording is the tenant's (an aggregate of the tenant,
+   * not of an owner), so no request names a scope.
    */
   fetcher: Fetcher;
 }
@@ -37,61 +40,43 @@ export interface WowDatasetWordingsOptions {
 /** The most datasets one application's wording is read for at once. */
 const LIST_LIMIT = 1000;
 
-const ROUTES = {
-  /** `PUT` sets, `DELETE` clears; under `(shared)` only. */
-  wording: `${SCOPE}/datasets/{dataset}/wording`,
-  list: `${SCOPE}/dataset_wording/snapshot/list`,
-} as const;
-
-/** A wording's snapshot as the list answers it. */
-interface WordingSnapshotBody {
-  version: number;
-  state: {
-    dataset: string;
-    title?: string | null;
-    recordNoun?: string | null;
-    fields?: DatasetOverrides['fields'] | null;
-  };
-}
-
 /**
- * The wording a tenant's administrators keep over its datasets in the Wow
+ * The wording a tenant's administrators keep over its datasets in the V10
  * view store (view engine D86): one per dataset of the caller's tenant and
- * application, under `owner/(shared)`. The gateway decides who may write it.
+ * application, the id derived by the service from the two. Every reader of
+ * the tenant reads it; the service decides who writes it (the role that
+ * writes the owner `(shared)`, `view-store.shared-writer` as shipped).
  *
  * A host hands it to the datasets it registers as their store of wording
- * (`DatasetCatalog.wordings`, D91): `DatasetResources` reads it before each
- * refresh, registers each dataset in its stored words, and gives the view
- * manager an editor of them. The key is the dataset's definition id,
- * `{context}.{dataset}`.
- *
- * ```ts
- * const resources = new DatasetResources(engine, {
- *   list: () => directory.list(),
- *   source: entry => directory.source(entry),
- *   wordings: new WowDatasetWordings({ fetcher }),
- * });
- * ```
- *
- * Every rejection is a `ViewStoreError`, read as a `WowViewStore`'s are.
+ * (`DatasetCatalog.wordings`, D91). The key is the dataset's definition id,
+ * `{context}.{dataset}`. Every rejection is a `ViewStoreError`, read as a
+ * V10 `WowViewStore`'s are.
  */
 export class WowDatasetWordings implements DatasetWordingStore {
-  private readonly fetcher: Fetcher;
+  private readonly commands: DatasetWordingCommandClient;
+  private readonly snapshots: DatasetWordingSnapshotQueryClient;
 
   constructor(options: WowDatasetWordingsOptions) {
-    this.fetcher = options.fetcher;
+    const client = { fetcher: options.fetcher };
+    this.commands = new DatasetWordingCommandClient(client);
+    this.snapshots = new DatasetWordingSnapshotQueryClient(client);
   }
 
-  /** Every dataset's wording of the caller's tenant and application, by dataset. */
+  /**
+   * Every dataset's wording of the caller's tenant and application, by
+   * dataset. A cleared one is listed too, saying nothing: its revision is
+   * what the next write expects.
+   */
   list(
     signal?: AbortSignal,
   ): Promise<ReadonlyMap<string, StoredDatasetWording>> {
     return guard(async () => {
-      const response = await this.send('POST', ROUTES.list, {
-        body: listQuery({ filter: filter.matchAll(), limit: LIST_LIMIT }),
-        signal,
-      });
-      const snapshots = (await response.json()) as WordingSnapshotBody[];
+      const snapshots = await request(() =>
+        this.snapshots.list(
+          listQuery({ filter: filter.matchAll(), limit: LIST_LIMIT }),
+          signal === undefined ? {} : { signal },
+        ),
+      );
       return new Map(
         snapshots.map(({ version, state }) => [
           state.dataset,
@@ -113,79 +98,60 @@ export class WowDatasetWordings implements DatasetWordingStore {
     context: WriteContext,
   ): Promise<string> {
     return guard(async () => {
-      const response = await this.send('PUT', ROUTES.wording, {
-        dataset,
-        body: {
-          ...(wording.title === undefined ? {} : { title: wording.title }),
-          ...(wording.recordNoun === undefined
-            ? {}
-            : { recordNoun: wording.recordNoun }),
-          ...(wording.fields === undefined ? {} : { fields: wording.fields }),
-        },
-        headers: writeHeaders(context, revision),
-        signal: context.signal,
-      });
-      const result = (await response.json()) as CommandResultBody;
-      return revisionOf(result.aggregateVersion ?? Number(revision) + 1);
+      const result = await request(() =>
+        this.commands.setDatasetWording(
+          {
+            dataset,
+            ...(wording.title === undefined ? {} : { title: wording.title }),
+            ...(wording.recordNoun === undefined
+              ? {}
+              : { recordNoun: wording.recordNoun }),
+            ...(wording.fields === undefined
+              ? {}
+              : {
+                  fields: wording.fields as unknown as Record<string, unknown>,
+                }),
+          },
+          optionsOf(revision, context),
+        ),
+      );
+      return versionAfter(result, revision);
     });
   }
 
-  /** Clears a dataset's wording at the expected `revision`: its derived words stand again. */
+  /**
+   * Clears a dataset's wording at the expected `revision`: its derived words
+   * stand again. Answers the new revision.
+   */
   clear(
     dataset: string,
     revision: string,
     context: WriteContext,
-  ): Promise<void> {
+  ): Promise<string> {
     return guard(async () => {
-      await this.send('DELETE', ROUTES.wording, {
-        dataset,
-        body: {},
-        headers: writeHeaders(context, revision),
-        signal: context.signal,
-      });
-    });
-  }
-
-  private async send(
-    method: string,
-    url: string,
-    {
-      dataset,
-      body,
-      headers,
-      signal,
-    }: {
-      dataset?: string;
-      body?: unknown;
-      headers?: Record<string, string>;
-      signal?: AbortSignal;
-    },
-  ): Promise<Response> {
-    try {
-      return await this.fetcher.request<Response>(
-        {
-          url,
-          method,
-          urlParams: {
-            path: pathAt('shared', dataset === undefined ? {} : { dataset }),
-          },
-          body: body as Record<string, unknown> | undefined,
-          headers,
-          signal,
-        },
-        { resultExtractor: ResultExtractors.Response },
+      const result = await request(() =>
+        this.commands.clearDatasetWording(
+          { dataset },
+          optionsOf(revision, context),
+        ),
       );
-    } catch (error) {
-      throw await failureOf(error);
-    }
+      return versionAfter(result, revision);
+    });
   }
 }
 
-/** The engine's overrides from a stored wording: what is stored, nothing more. */
-function wordingOf(state: WordingSnapshotBody['state']): DatasetOverrides {
+function optionsOf(
+  revision: string,
+  { requestId, signal }: WriteContext,
+): CommandOptions {
   return {
-    ...(state.title == null ? {} : { title: state.title }),
-    ...(state.recordNoun == null ? {} : { recordNoun: state.recordNoun }),
-    ...(state.fields == null ? {} : { fields: state.fields }),
+    requestId,
+    expectedVersion: Number(revision),
+    ...(signal === undefined ? {} : { signal }),
   };
+}
+
+/** The revision a write left: its version, or the one it expected moved on. */
+function versionAfter(result: CommandResult, revision: string): string {
+  return revisionOf(result.version ?? Number(revision) + 1);
 }

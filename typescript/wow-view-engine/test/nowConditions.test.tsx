@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { filter as wow } from '@ahoo-wang/wow-client';
+import { filter as wow } from '@ahoo-wang/wow-client/dsl';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {

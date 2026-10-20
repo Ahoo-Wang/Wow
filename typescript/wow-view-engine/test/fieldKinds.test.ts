@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { filter as wow, FilterOperator } from '@ahoo-wang/wow-client';
+import { filter as wow, FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   FIELDLESS_FIELD_KIND_IDS,

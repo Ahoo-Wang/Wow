@@ -12,11 +12,11 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
 import {
+  type QueryModelDescriptor,
   AggregationFunction,
   AggregationGroupType,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   builtinFieldKinds,
   defaultRecordConfig,

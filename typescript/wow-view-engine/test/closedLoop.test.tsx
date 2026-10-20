@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { FilterPagedQuery } from '@ahoo-wang/wow-client';
+import type { FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
   fireEvent,

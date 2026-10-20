@@ -10,7 +10,7 @@
 | 用户                         | 怎么用                                                                                        | 他们需要什么成立                                                                        |
 | ---------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | Wow 服务的前端开发者         | CLI：`wow-generator generate -i http://…/v3/api-docs -o src/generated`，产物提交库            | 产物能编译（strict、`NodeNext`、`bundler`）；重新生成只在文档变了的地方变；大文档也要快 |
-| Wow V10 服务的前端开发者     | 同上，输入换成服务的 Manifest（`-i http://…/wow/manifest` 或构建出的 `manifest.json`），见 §6 | 同上；产物只依赖 `@ahoo-wang/wow-client/v10`                                            |
+| Wow V10 服务的前端开发者     | 同上，输入换成服务的 Manifest（`-i http://…/wow/manifest` 或构建出的 `manifest.json`），见 §6 | 同上；产物只依赖 `@ahoo-wang/wow-client`                                                |
 | 调用任意 OpenAPI 3 服务的人  | 同上，文档不是 Wow 的                                                                         | 通用的模型和 API 客户端；Wow 的约定不能误伤非 Wow 文档                                  |
 | 构建脚本、模板项目（程序化） | `new CodeGenerator(options).generate()`                                                       | 一个小而稳的 API：选项、结果、日志器、错误类别；不泄漏 ts-morph、不泄漏内部模型         |
 
@@ -141,7 +141,7 @@ sequenceDiagram
 
 - **版本号表示「读者能不能照字面理解」**。任何让版本 1 的读者误读的改动都必须升版本：改 `files` 的键或值的含义（路径基准、哈希算法、换行处理）、删字段或改名、加一个读者必须理解才能安全删除文件的字段。只有读者可以忽略、忽略后不会误删或漏记所有权的新字段才可以留在版本 1；读者今天就忽略未知字段。
 - **读者遇到比自己新的版本就停**：以 `output`（5）失败，说「由更新的 wow-generator 写出（清单版本 N），请升级 wow-generator」，不猜、不覆盖。覆盖会丢掉新版本记下的所有权，旧生成器也无从判断哪些文件可删。
-- **读者读得懂所有旧版本**：新版本的生成器继续读版本 1（和 `.fetcher-generator.json`，到 v10 为止），写回时写自己的版本；降级只能靠从版本库恢复旧清单。
+- **读者读得懂所有旧版本**：新版本的生成器继续读版本 1，写回时写自己的版本；降级只能靠从版本库恢复旧清单。
 - **读不懂的清单说清怎么办**：不是 JSON（多半是合并冲突）时说「解决冲突，或删掉它；删掉后本次运行无法清理上一次的陈旧文件」；形状不对（没有版本、版本不是比当前新的整数、`files` 不是对象）时说「从版本库恢复，或删掉它」。三种都在写入任何文件之前失败。
 
 ### 生成代码的名字（2026-09-25 定）
@@ -167,7 +167,7 @@ sequenceDiagram
 | `test/cli/`、`test/pipeline/` | CLI（选项、退出码、Ctrl-C）与 `CodeGenerator` 端到端                                        |
 | 其余目录                      | 同名的叶子模块（`openapi/`、`naming/`、`input/`、`types/`、`wow/`、`emit/`……）              |
 
-golden：`expected/demo-spec/`、`expected/compensation-spec/`、`expected/openai-spec/.wow-generator.json`、`expected/warnings/`、`expected/type-resolver.json`、`expected/wow-model/`（含 `schemaDocs: 'full'` 的逐文件哈希），接受有意改动的命令见 `AGENTS.md`。仓库里另有两份逐字节产物：`typescript/integration-test/src/generated` 与 `compensation/dashboard/src/generated`，由 `typescript-contract.yml` 对同源服务端重新生成比对。
+golden：`expected/eshop-manifest/`、`expected/openai-spec/.wow-generator.json`、`expected/warnings/`、`expected/type-resolver.json`，接受有意改动的命令见 `AGENTS.md`。仓库里另有逐字节产物：`example/eshop/web`、`platform/ops/console` 与 `typescript/wow-view-store` 的 `src/generated`，由各自的生成命令从服务的 Manifest 重新生成。
 
 **速度**：覆盖率插桩连 TypeScript 编译器本身也插了，大约慢五倍。新建一个 ts-morph 项目或 `ts.createProgram`，都要先解析 `lib.dom.d.ts` 与 `node_modules` 里的声明，所以每次检查新建一个程序的测试几乎全部时间都花在解析上。`test/support/models.ts` 让一个测试文件的模型共用一个内存项目，探针经 `runGenerate` 的 seams 在同一个项目里生成，`typeCheck` 缓存库声明；新测试沿用这些辅助函数，并把一个文件控制在几秒，好让文件分散到各个 worker（附录 §7 的 B7 记录）。
 
@@ -182,14 +182,14 @@ golden：`expected/demo-spec/`、`expected/compensation-spec/`、`expected/opena
 
 ## 6. 从 Manifest 生成（roadmap 5a.3，2026-10-14）
 
-V10 的服务契约是 Manifest（D17、D73～D76），不是 OpenAPI。生成器在 9.x 的 OpenAPI 路径之外加一条 Manifest 路径，产物建在 `@ahoo-wang/wow-client/v10` 上。
+V10 的服务契约是 Manifest（D17、D73～D76），不是 OpenAPI。生成器在 9.x 的 OpenAPI 路径之外加一条 Manifest 路径，产物建在 `@ahoo-wang/wow-client` 上。
 
 - **输入不加选项。** `input/` 只加载与解析（`loadDocument`），流水线按形状分辨：有数字 `format`、`contexts` 数组且没有 `openapi`、`swagger` 的是 Manifest，其余照旧按 OpenAPI 校验。CLI、`GeneratorOptions` 与公开面都不变；配置文件里 API 客户端的设置只对 OpenAPI 有意义，Manifest 路径不读。格式不是 1 是 `input`（2），缺名字、缺状态 schema、`$defs` 不是对象等是 `specification`（4），一次列出全部问题。
 - **流水线。** 配置 → 文档 → `analyzeManifest`（纯数据的 `ManifestModel` 与警告）→ `emitManifestGeneration`（每个文件一次写入）→ index 文件 → 收尾 → 落盘；后三段与 OpenAPI 路径共用，所以清单、陈旧文件、确定性与编译校验的保证都不变。
 - **布局。** 每个上下文一个目录：`types.ts`（它的聚合能达到的 `$defs`；两个上下文都达到的 schema 声明在第一个，另一个导入）、`boundedContext.ts`（上下文常量、领域错误码与状态、订阅名、`<ctx>Wait` 跳构建器）；每个聚合一个子目录：`aggregate.ts`（聚合常量、`state.*` 字段路径、事件联合）、`commandClient.ts`（路由常量、每个命令一个方法与它的 `…Stream`、聚合列出的生命周期命令）、`queryClient.ts`（列出快照模型时的快照查询客户端、事件查询客户端、状态客户端）。
 - **类型。** `$defs` 的键是类的二进制名，类型名取简单类名（`Outer$Inner` → `OuterInner`），冲突时逐级加包名限定（`one.Item`、`two.Item` → `OneItem`、`TwoItem`），包名用尽仍冲突才加序号。带类型参数的键（Kotlin 的 `Map<String, Any?>` 写成 `java.util.Map(java.lang.String,java.lang.Object)`，`List<Item>` 同理，可带 `-nullable`）不声明类型，在引用处原地写出（`Record<string, unknown>`、`Item[]`、`null | Record<string, unknown>`）：按最后一个类型参数取名会得到 `Object`、`String`，在 `types.ts` 里遮住同名的全局；它引用的类型照常导入（7.3a 后续，2026-10-14）。schema 到类型：`$ref`、`const`、`enum`、`oneOf`/`anyOf`（联合）、`allOf`（交叉）、`type` 数组（可空）、`items`、`properties`（不在 `required` 里的可选）、`additionalProperties`（只有它时是 `Record`；与属性并存时索引签名是 `unknown`，类型化的索引签名必须容下每个属性的类型）。`$defs` 里找不到的引用是 `unknown` 并给一条警告。
 - **命令方法的形状。** 只有带 `{id}` 路由的命令收 `id` 作第一个参数；两条路由都有的（创建、挂载命令）把 `id` 放进可选的选项，给了走带 `{id}` 的路由；只有不带 `{id}` 路由的不收 `id`。命令 schema 不要求任何属性时正文可省（`= {}`）。与生命周期方法同名的领域命令加 `Command` 后缀。
-- **描述与生命周期正文（roadmap 5a.1c）。** Manifest 的 schema 带 `required`（Kotlin 非空且无默认值的属性，以及类体里非空的状态属性），所以生成的状态属性按实际可空性生成。命令的 `description` 写在方法 JSDoc 的第一行，schema 的 `description` 写在类型注释里。生命周期命令的正文在 `$defs` 里以命令全名为键（`wow.lifecycle.TransferOwner`）：有正文的生命周期命令（`TransferOwner`、`TransferSpace`、`ApplyTags`）在 `$defs` 有该键时从它生成类型、声明在 `types.ts`，没有时仍用 `wow-client/v10` 手写的类型；任何生命周期命令的 schema 有 `description` 时写在它方法的注释里。
+- **描述与生命周期正文（roadmap 5a.1c）。** Manifest 的 schema 带 `required`（Kotlin 非空且无默认值的属性，以及类体里非空的状态属性），所以生成的状态属性按实际可空性生成。命令的 `description` 写在方法 JSDoc 的第一行，schema 的 `description` 写在类型注释里。生命周期命令的正文在 `$defs` 里以命令全名为键（`wow.lifecycle.TransferOwner`）：有正文的生命周期命令（`TransferOwner`、`TransferSpace`、`ApplyTags`）在 `$defs` 有该键时从它生成类型、声明在 `types.ts`，没有时仍用 `wow-client` 手写的类型；任何生命周期命令的 schema 有 `description` 时写在它方法的注释里。
 - **把关。** `test/manifests/` 提交了 eShop 五个服务 `GET /wow/manifest` 的应答；`test/goldens/manifestDocuments.test.ts` 把它们生成到 `expected/eshop-manifest/` 逐字节比对、在 `bundler` 与 `NodeNext` 下类型检查，并对桩 `fetch` 运行产物核对线协议；`test/probes/manifestClients.test.ts` 覆盖 eShop 没有的形状（各种 schema、名字冲突、跨上下文共用、缺失引用、拒绝的输入）。
 
 ---
@@ -276,14 +276,14 @@ flowchart TD
 
 #### 1.4 测试现状
 
-| 层                         | 在哪                                                                                | 守住什么                                                                                                                            |
-| -------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| 单元测试                   | `test/utils/*`、`test/model/*`、`test/client/*`、`test/aggregate/*`                 | 贴着内部函数和类写（直接驱动 `CommandClientGenerator`、调私有的 `resolveType`），重构一动就要跟着改                                 |
-| 类型约束测试               | `schemaConstraints`（1,264 行）、`compositionConstraints`、`enumConstConstraints`   | 用 `TypeGenerator` 的构造函数把 schema 写进内存项目，再看诊断；守的是类型语义，但绑在 `TypeGenerator` 的签名上                      |
-| 行为探针                   | `test/probes.test.ts`（830 行）、`regeneration`、`cli`、`index`                     | 从 CLI 生成到冷目录，再 `tsc --strict`（`NodeNext`、`bundler`）或实际运行；和实现无关，是重构最可靠的网                             |
-| 逐字节 golden              | `expected/demo-spec`、`expected/compensation-spec`（`test/e2e.test.ts:196`）        | 两份都是 Wow 文档（93、120 个 schema），没有非 Wow 的大文档                                                                         |
-| 仓库里的另外两份逐字节产物 | `typescript/integration-test/src/generated`、`compensation/dashboard/src/generated` | `typescript-contract.yml` 对同源 example-server 重新生成并比对（`:128-139`）；8.10.8、8.11.5 两个镜像的产物做类型检查（`:204-218`） |
-| 公开面                     | `test/packageEntries.test.ts` 只断言几个名字能加载                                  | **没有逐名清单**。view-engine 已按 D29 做了（`wow-view-engine/test/publicSurface.test.ts`），生成器还没有                           |
+| 层                         | 在哪                                                                              | 守住什么                                                                                                                            |
+| -------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 单元测试                   | `test/utils/*`、`test/model/*`、`test/client/*`、`test/aggregate/*`               | 贴着内部函数和类写（直接驱动 `CommandClientGenerator`、调私有的 `resolveType`），重构一动就要跟着改                                 |
+| 类型约束测试               | `schemaConstraints`（1,264 行）、`compositionConstraints`、`enumConstConstraints` | 用 `TypeGenerator` 的构造函数把 schema 写进内存项目，再看诊断；守的是类型语义，但绑在 `TypeGenerator` 的签名上                      |
+| 行为探针                   | `test/probes.test.ts`（830 行）、`regeneration`、`cli`、`index`                   | 从 CLI 生成到冷目录，再 `tsc --strict`（`NodeNext`、`bundler`）或实际运行；和实现无关，是重构最可靠的网                             |
+| 逐字节 golden              | `expected/demo-spec`、`expected/compensation-spec`（`test/e2e.test.ts:196`）      | 两份都是 Wow 文档（93、120 个 schema），没有非 Wow 的大文档                                                                         |
+| 仓库里的另外两份逐字节产物 | `typescript/integration-test/src/generated`、9.x 补偿控制台的 `src/generated`     | `typescript-contract.yml` 对同源 example-server 重新生成并比对（`:128-139`）；8.10.8、8.11.5 两个镜像的产物做类型检查（`:204-218`） |
+| 公开面                     | `test/packageEntries.test.ts` 只断言几个名字能加载                                | **没有逐名清单**。view-engine 已按 D29 做了（`wow-view-engine/test/publicSurface.test.ts`），生成器还没有                           |
 
 `test/openai.spec.yml`（69,574 行，873 个 schema）**没有任何测试引用**，正好拿来当大文档 golden 和性能基准。
 
@@ -340,7 +340,7 @@ flowchart TD
 - 证据：
   - `CodeGenerator` 的构造函数带一个 `/** @internal */ project?: Project`（`src/index.ts:99-103`），但构建没开 `stripInternal`，于是 `dist/index.d.ts` 第 1 行就是 `import { Project } from 'ts-morph'`。
   - 公开类型和内部类型都放在 `types.ts`：`GenerateContextInit` 在 `:107-125`，它引用 `Project` 和 `BoundedContextAggregates`。结果 `dist/types.d.ts` 把 ts-morph、`@ahoo-wang/fetcher-openapi` 和整套聚合内部类型都带进了公开声明。
-  - `Logger` 有 6 个方法：`progress`、`progressWithCount` 带缩进层级参数，`warn` 却是可选的，靠 `warn()` 辅助函数回退到 `info`（`src/types.ts:70-102`、`src/utils/logger.ts:146-156`）。参数是 `any[]`。这层兼容是给 fetcher-generator 时代的日志器留的，而 `@ahoo-wang/wow-generator` 在 npm 上还是新包。
+  - `Logger` 有 6 个方法：`progress`、`progressWithCount` 带缩进层级参数，`warn` 却是可选的，靠 `warn()` 辅助函数回退到 `info`（`src/types.ts:70-102`、`src/utils/logger.ts:146-156`）。参数是 `any[]`。这层兼容是给 fetcher 时代的生成器的日志器留的，而 `@ahoo-wang/wow-generator` 在 npm 上还是新包。
   - 没有逐名的公开面清单（D29 那样的）。`packageEntries.test.ts` 只检查几个名字能加载。
 - 为什么要紧：9.2.0 是这个包名的第一次发布，现在收窄不算破坏。发布以后，每个多出来的名字和每个参数都是兼容负担。见 §4、Q2、Q3。
 
@@ -620,7 +620,7 @@ sequenceDiagram
 - 证明它：①生成器探针（`test/probes.test.ts`「streaming command clients」）把生成的 `OrderStreamCommandClient` 转译后真跑，用桩 `fetch` 回一条 `SENT` 事件加一条 `CommandValidation` 错误事件，断言流交出 `SENT` 后以 `WowError`（`errorCode`、`errorMsg` 取自 `ErrorInfo`）报错；把生成器临时改回 `JsonEventStreamResultExtractor` 时它失败（错误事件被当成第二条数据，`stage` 为空），证明守得住。②integration-test 对同源 example-server 用生成的 `CartStreamCommandClient` 发一个校验失败的 `addCartItem`，断言没有数据行、流以 `CommandValidation` 的 `WowError` 结束并带 `bindingErrors`。它沿用 `wowErrors.test.ts` 的 `expectStreamFailure`：CI 的同源服务端在错误事件刷出前就断开响应时，流以无数据、无错误结束，也算通过；所以确定性的证明在①，②证明真实服务端上错误事件不会被当成数据。
 - 类型名保留缩写（F3，Q1）：规则落在 `naming.ts` 的 `toTypeIdentifier`，按段判断：以大写字母开头、只含字母数字和 `$`（不含任何分隔符）、且是合法标识符的段原样保留，其余段照旧 `pascalCase`。`resolveModelInfo` 和 `resolveClassName`（聚合类名）都经过它；`pascalCase`、`camelCase`、`upperSnakeCase` 本身不变，所以方法名、枚举成员、端点常量、限界上下文常量不变。
 - 实测改名：OpenAI 文档 873 个 schema 里 **49** 个改名（计划里的 52 是估算），全部是缩写：含 `MCP` 的 41 个（如 `McplistTools` → `MCPListTools`、`RealtimeMcphttperror` → `RealtimeMCPHTTPError`、`ToolChoiceMcp` → `ToolChoiceMCP`）、以 `GA` 结尾的 4 个（`RealtimeSessionCreateRequestGa` → `RealtimeSessionCreateRequestGA` 等）、`FineTuneDPO*` 2 个、`OpenAIFile`、`ModerationImageURLInput`。demo、compensation 两份 Wow 文档 0 个；example-server、wow-api、compensation-api 的类名里没有连续大写，integration-test 与 dashboard 的类型也不变。
-- 产物差异（逐文件）：`expected/demo-spec/example/{cart,order}/commandClient.ts`、`expected/compensation-spec/compensation/execution_failed/commandClient.ts`（导入与 `@api` 两处），同样三份提交在 `typescript/integration-test/src/generated/`、`compensation/dashboard/src/generated/` 里，连同各自清单的哈希；OpenAI golden 的 `types.ts`、`FilesApiClient.ts`（`OpenAIFile`）、`RealtimeApiClient.ts`（`RealtimeSessionCreateRequestGA`）。其余文件逐字节不变，警告 golden 不变。
+- 产物差异（逐文件）：`expected/demo-spec/example/{cart,order}/commandClient.ts`、`expected/compensation-spec/compensation/execution_failed/commandClient.ts`（导入与 `@api` 两处），同样三份提交在 `typescript/integration-test/src/generated/`、9.x 补偿控制台的 `src/generated/` 里，连同各自清单的哈希；OpenAI golden 的 `types.ts`、`FilesApiClient.ts`（`OpenAIFile`）、`RealtimeApiClient.ts`（`RealtimeSessionCreateRequestGA`）。其余文件逐字节不变，警告 golden 不变。
 - 迁移说明：TS 迁移指南（中英）第 4 步加三条：流式命令客户端的 `WowError`、类型名缩写、B4 带来的「tsconfig `include` 覆盖输出目录时，输出目录里手写的 `.ts` 不再被生成的 index 再导出」。生成物参考页同步改了 `index.ts` 的说明、命名规则和流式客户端；错误处理指南里「生成的流式客户端不报错」那段改为现在的行为。
 
 **B2**（公开面冻结，#3360）实施时定下的细节：
@@ -681,7 +681,7 @@ sequenceDiagram
 - 诊断改为返回值的第一步：解析器不再拿 `Logger`，警告放进 `WowModel.warnings`，流水线紧接着依次 `logger.warn`。原来命令的警告在构造函数里打、聚合的警告在 `resolve()` 里打，两者之间没有别的日志，所以顺序和文案都不变（警告 golden 不变）。
 - F18：生成器进程不再在运行时加载任何 `@ahoo-wang/*` 包。`combineURLs` 换成 `naming/paths.ts` 的 `combinePaths`（逐字移植；`test/naming/paths.test.ts` 用同一张表同时断言两者结果相同，fetcher 只作为开发依赖在测试里加载）；`output/` 因此允许导入 `naming/`。`ContentTypeValues` 换成 `openapi/responses.ts` 的 `APPLICATION_JSON`、`TEXT_EVENT_STREAM`。`ResourceAttributionPathSpec` 换成 `wow/conventions.ts` 的 `TENANT_PATH_PREFIX`、`OWNER_PATH_PREFIX`，测试断言它们等于 wow-client 枚举的值。`scripts/verify-package.mjs` 加第 6 条：`dist` 里每个 `.js`/`.cjs` 都不许 `import`/`require` `@ahoo-wang/*`，构建时就拦住回退。peer 依赖不变（生成的代码需要它们），类型导入照旧（编译后消失）。
 - 测试：`test/aggregate/` 并入 `test/wow/`。原 `aggregateResolver.test.ts`（29 个用例，mock 掉 `openapi/*` 后直接调私有方法）和 `aggregateResolver.integration.test.ts` 删除，由 `resolveWowModel.test.ts`（30 个用例，每个都是一份真实的小 Wow 文档改一处）取代；`aggregate/utils.test.ts`、`model/wowTypeMapping.test.ts` 和 `client/utils.test.ts` 里的 `inferPathSpecType` 合并成 `wow/conventions.test.ts`，并补了 `isWowSchema` 的表；`modelGenerator.test.ts` 里调私有 `isWowSchema` 的用例改调约定模块。新增 `openapi/document.test.ts`。覆盖率 98.03 / 94.64 / 99.57 / 98.95（门槛 97 / 92.5 / 98.5 / 98）。
-- 文档：compat-debt 的两个标记路径、文档站 `wow-discovery`、`programmatic-api`（中英）里的源码链接和 `AggregateResolver` 字样、`MIGRATION.md` 的一处行号引用，随文件搬移更新。
+- 文档：9.x 兼容清单的两个标记路径、文档站 `wow-discovery`、`programmatic-api`（中英）里的源码链接和 `AggregateResolver` 字样、`MIGRATION.md` 的一处行号引用，随文件搬移更新。
 - 产物：`expected/`、OpenAI golden、警告 golden、`type-resolver.json` 逐字节不变；integration-test、dashboard 的生成物由契约 CI 同源重新生成比对。
 
 **B7**（分析模型与流水线，#3403）实施时定下的细节：
@@ -707,7 +707,7 @@ sequenceDiagram
 推荐：**改**。规则是：名字段本身已是合法标识符、且以大写开头的，原样保留（`MCPListTools` 保持不变）；只有含分隔符或非法字符的段，才切词后转成 PascalCase。只动类型名，方法名、枚举成员、端点常量的规则不变。Wow 文档零变化（demo、compensation 两份都是 0 个），非 Wow 文档会有改名（OpenAI 52/873）。首发前改零成本，发布后只能等 10.0。
 
 **Q2　`Logger` 在 9.2.0 瘦成 `debug`/`info`/`warn`/`error` 四个必需方法？**
-推荐：**瘦**。`progress`、`progressWithCount` 的缩进层级和可选的 `warn`，都是为 fetcher-generator 时代留的兼容，新包名没有要兼容的用户。现在的 `info` 调用改为 `debug`，`success` 改为 `info`，CLI 输出不变。
+推荐：**瘦**。`progress`、`progressWithCount` 的缩进层级和可选的 `warn`，都是为 fetcher 时代的生成器留的兼容，新包名没有要兼容的用户。现在的 `info` 调用改为 `debug`，`success` 改为 `info`，CLI 输出不变。
 
 **Q3　新增错误类别 `output`（退出码 5）？**
 推荐：**加**。清单损坏、路径越界、写入失败是用户能处理的环境问题，现在报成退出码 1 加「请提 issue」。文档里的循环引用、外部引用归入 `specification`（4）。

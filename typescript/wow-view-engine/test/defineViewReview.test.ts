@@ -17,7 +17,7 @@ import {
   QueryValueKind,
   SearchMode,
   SensitivityLevel,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,

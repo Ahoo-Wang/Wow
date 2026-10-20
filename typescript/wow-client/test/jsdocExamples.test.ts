@@ -16,8 +16,8 @@
  *
  * An example is the first thing a reader copies, and one that stopped
  * compiling when a signature changed teaches the wrong call. Each block below
- * is compiled as a module of its own, with every export of the root entry in
- * scope and a few declared clients for the examples that send.
+ * is compiled as a module of its own, with every export of the root and DSL
+ * entries in scope and a few declared clients for the examples that send.
  */
 
 import { readdirSync, readFileSync } from 'node:fs';
@@ -31,42 +31,36 @@ const readSource = (file: string) => readFileSync(new URL(file, root), 'utf8');
 
 /**
  * The files whose every example must compile: each source file with a
- * `typescript` block in a doc comment, except the deprecated /legacy entry,
- * whose examples import from it rather than from the root entry.
+ * `typescript` block in a doc comment.
  */
 const FILES = readdirSync(new URL('src/', root), { recursive: true })
   .map(path => `src/${String(path).split(sep).join('/')}`)
-  // The /v10 entry's examples name its own exports, not the root's; its
-  // tests (test/v10) run them.
-  .filter(
-    file =>
-      file.endsWith('.ts') &&
-      !file.startsWith('src/legacy/') &&
-      !file.startsWith('src/v10/'),
-  )
+  .filter(file => file.endsWith('.ts'))
   .filter(file =>
     /\/\*\*(?:(?!\*\/)[\s\S])*```typescript/.test(readSource(file)),
   )
   .sort();
 
-const entry = fileURLToPath(new URL('src/index.ts', root));
+/** An entry's source, as a module specifier, and every name its surface list holds. */
+function entryOf(source: string, list: string) {
+  return {
+    specifier: JSON.stringify(
+      fileURLToPath(new URL(source, root)).replace(/\.ts$/, '.js'),
+    ),
+    names: readFileSync(new URL(list, root), 'utf8')
+      .split('\n')
+      .filter(line => /^(type|value) /.test(line))
+      .map(line => line.slice(6).trim()),
+  };
+}
 
-/** Every name the root entry exports, from its surface list. */
-const names = readFileSync(new URL('test/surface/root.txt', root), 'utf8')
-  .split('\n')
-  .filter(line => /^(type|value) /.test(line))
-  .map(line => line.slice(6).trim());
-
-const ENTRY = JSON.stringify(entry.replace(/\.ts$/, '.js'));
+const ROOT = entryOf('src/index.ts', 'test/surface/root.txt');
+const DSL = entryOf('src/dsl.ts', 'test/surface/dsl.txt');
 
 /** The names an example may use without declaring them, with their types. */
 const CONTEXT: Record<string, string> = {
   fetcher: 'Fetcher',
-  commandClient: 'CommandClient',
-  snapshotClient: 'SnapshotQueryClient<{ status: string }>',
-  snapshotQueryClient: 'SnapshotQueryClient<{ status: string }>',
-  eventStreamQueryClient: 'EventStreamQueryClient',
-  factory: 'QueryClientFactory<{ status: string }>',
+  snapshots: 'SnapshotQueryClient<{ status: string }>',
   requestId: 'string',
   id: 'string',
   cartId: 'string',
@@ -92,13 +86,18 @@ function ownNames(code: string): Set<string> {
 }
 
 /**
- * An example is compiled as a module with every root export and the
+ * An example is compiled as a module with every root and DSL export and the
  * {@link CONTEXT} names in scope, except those it imports or declares
  * itself; an import of the package resolves to the source entry.
  */
 function module(code: string): string {
   const own = ownNames(code);
-  const imported = names.filter(name => !own.has(name));
+  const scope = (entry: typeof ROOT) => {
+    const names = entry.names.filter(name => !own.has(name));
+    return names.length
+      ? `import { ${names.join(', ')} } from ${entry.specifier};\n`
+      : '';
+  };
   const fetcher = own.has('Fetcher')
     ? ''
     : `import { Fetcher } from '@ahoo-wang/fetcher';\n`;
@@ -106,7 +105,12 @@ function module(code: string): string {
     .filter(([name]) => !own.has(name))
     .map(([name, type]) => `declare const ${name}: ${type};\n`)
     .join('');
-  return `import { ${imported.join(', ')} } from ${ENTRY};\n${fetcher}${context}export {};\n${code.split(`'@ahoo-wang/wow-client'`).join(ENTRY)}`;
+  const body = code
+    .split(`'@ahoo-wang/wow-client/dsl'`)
+    .join(DSL.specifier)
+    .split(`'@ahoo-wang/wow-client'`)
+    .join(ROOT.specifier);
+  return `${scope(ROOT)}${scope(DSL)}${fetcher}${context}export {};\n${body}`;
 }
 
 function examples(file: string): { name: string; code: string }[] {

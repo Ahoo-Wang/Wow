@@ -66,14 +66,22 @@ export default defineConfig({
       {
         extends: true,
         resolve: {
-          // Exact names: the unit tests import the root entries only, and
-          // a prefix match would send `…/ui` under `index.ts`.
+          // Exact names: the unit tests import the root entries and the
+          // client's DSL only, and a prefix match would send `…/ui` under
+          // `index.ts`.
           alias: [
             {
               find: /^@ahoo-wang\/wow-client$/,
               replacement: path.join(
                 currentDirectory,
                 '../wow-client/src/index.ts',
+              ),
+            },
+            {
+              find: /^@ahoo-wang\/wow-client\/dsl$/,
+              replacement: path.join(
+                currentDirectory,
+                '../wow-client/src/dsl.ts',
               ),
             },
             // The retail views are opened by a headless engine

@@ -38,125 +38,49 @@ export default tseslint.config(
 );
 
 /**
- * The dependency directions of docs/design/architecture.md §2.2, one
- * block per layer of src/. An edge the section does not draw is an error.
- * The entries (src/index.ts, src/dsl.ts, src/legacy/index.ts) only re-export
- * and may reach every layer. verify-package.mjs still checks the built /dsl
- * entry as a second line.
+ * The dependency directions of src/, one block per layer. An edge not drawn
+ * here is an error. The client modules at the top of src/ (commands, http,
+ * queries, streams, …) build on the DSL's types only, and the DSL loads no
+ * HTTP code and nothing of the client. The entries (src/index.ts, src/dsl.ts)
+ * only re-export. verify-package.mjs still checks the built /dsl entry as a
+ * second line.
  */
 function layerBoundaries() {
-  // A folder, its index without the slash (`../transport`), or a file of the
-  // same name (`../dsl.js`, the /dsl entry).
-  const dir = name => `(^|/)${name}(/|\\.js$|$)`;
   const layer = {
-    client: dir('client'),
-    transport: dir('transport'),
-    dsl: dir('dsl'),
-    model: dir('model'),
-    error: dir('error'),
-    legacy: dir('legacy'),
-    v10: dir('v10'),
+    dsl: '(^|/)dsl(/|\\.js$|$)',
+    // A module of the client, from inside the DSL: `../http.js`, `../../index.js`.
+    client:
+      '^(\\.\\./)+(commands|dsl|http|index|manifest|problem|queries|state|streams|wait|wire)\\.js$',
   };
   const packages = {
     fetcher: '^@ahoo-wang/fetcher',
     decorator: '^@ahoo-wang/fetcher-decorator',
-    eventstream: '^@ahoo-wang/fetcher-eventstream',
     reflect: '^reflect-metadata',
   };
   const deny = (from, target, extra = {}) => ({
     regex: target,
-    message: `${from}/ must not import this (see docs/design/architecture.md §2.2).`,
+    message: `${from} must not import this (see eslint.config.js, layerBoundaries).`,
     ...extra,
   });
   const rule = patterns => ({
     '@typescript-eslint/no-restricted-imports': ['error', { patterns }],
   });
-  /** No HTTP code: no client, no transport, no fetcher package. */
-  const pure = from => [
-    deny(from, layer.client),
-    deny(from, layer.transport),
-    deny(from, layer.legacy),
-    deny(from, packages.fetcher),
-    deny(from, packages.reflect),
-  ];
   return [
     {
       files: ['src/dsl/**/*.ts'],
-      rules: rule([...pure('dsl'), deny('dsl', layer.error)]),
-    },
-    {
-      // A command result carries an ErrorInfo: model/ may name error/'s
-      // types, never its runtime.
-      files: ['src/model/**/*.ts'],
       rules: rule([
-        ...pure('model'),
-        deny('model', layer.dsl),
-        deny('model', layer.error, { allowTypeImports: true }),
+        deny('dsl/', layer.client),
+        deny('dsl/', packages.fetcher),
+        deny('dsl/', packages.reflect),
       ]),
     },
     {
-      files: ['src/error/**/*.ts'],
+      files: ['src/*.ts'],
+      ignores: ['src/index.ts', 'src/dsl.ts'],
       rules: rule([
-        ...pure('error'),
-        deny('error', layer.dsl),
-        deny('error', layer.model),
-      ]),
-    },
-    {
-      files: ['src/transport/**/*.ts'],
-      rules: rule([
-        deny('transport', layer.client),
-        deny('transport', layer.dsl),
-        deny('transport', layer.legacy),
-        deny('transport', packages.decorator),
-        deny('transport', packages.reflect),
-      ]),
-    },
-    {
-      // Only transport/ imports fetcher-eventstream: the clients answer
-      // rows, so they name no server-sent event type (A3). Only
-      // client/query/requests.ts reaches into the deprecated /legacy.
-      files: ['src/client/**/*.ts'],
-      ignores: ['src/client/query/requests.ts'],
-      rules: rule([
-        deny('client', layer.legacy),
-        deny('client', packages.eventstream),
-      ]),
-    },
-    {
-      files: ['src/client/query/requests.ts'],
-      rules: rule([
-        deny('client', layer.legacy, { allowTypeImports: true }),
-        deny('client', packages.eventstream),
-      ]),
-    },
-    {
-      // The V10 client stands on its own: its wire model, problems and
-      // streams are V10's, so it reaches the 9.x clients, transport, model
-      // and errors not at all, and the DSL only for the query types.
-      files: ['src/v10/**/*.ts'],
-      ignores: ['src/v10/index.ts'],
-      rules: rule([
-        deny('v10', layer.client),
-        deny('v10', layer.transport),
-        deny('v10', layer.legacy),
-        deny('v10', layer.model),
-        deny('v10', layer.error),
-        deny('v10', layer.dsl, { allowTypeImports: true }),
-        deny('v10', packages.decorator),
-        deny('v10', packages.reflect),
-      ]),
-    },
-    {
-      files: ['src/legacy/**/*.ts'],
-      ignores: ['src/legacy/index.ts'],
-      rules: rule([
-        deny('legacy', layer.client),
-        deny('legacy', layer.transport),
-        deny('legacy', layer.model),
-        deny('legacy', layer.error),
-        deny('legacy', packages.fetcher),
-        deny('legacy', packages.reflect),
+        deny('The client', layer.dsl, { allowTypeImports: true }),
+        deny('The client', packages.decorator),
+        deny('The client', packages.reflect),
       ]),
     },
   ];

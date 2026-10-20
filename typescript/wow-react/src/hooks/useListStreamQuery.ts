@@ -11,9 +11,7 @@
  * limitations under the License.
  */
 
-import type { FilterListQuery } from '@ahoo-wang/wow-client';
-// compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
-import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
+import type { FilterListQuery } from '@ahoo-wang/wow-client/dsl';
 import { useListStream } from '../internal/useListStream.js';
 import type {
   ListStreamExecutor,
@@ -30,15 +28,15 @@ import type {
  * @template R - One row of the stream: the `data` of each event
  * @template FIELDS - The field names the query may use
  * @template E - The error type, `Error` by default: a failed request
- *   rejects with a `FetcherError`, an error event in the stream with a
- *   `WowError`
+ *   rejects with a `WowProblemError`, and so does an error event in the
+ *   stream
  * @template Q - The query type: `FilterListQuery` by default
  */
 export interface UseListStreamQueryOptions<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
+  Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
 > extends Omit<QueryHookOptions<Q, R[], E>, 'execute'> {
   /** Opens the stream for a query. */
   execute: ListStreamExecutor<R, Q>;
@@ -54,8 +52,8 @@ export interface UseListStreamQueryOptions<
  *   error keep the rows received before them.
  * - `done` — the stream ended normally and `items` holds every row.
  * - `loading` — from the request until the stream ends, fails or is aborted.
- * - `error` — the request failed (`FetcherError`), or the server sent an error
- *   event in the stream (`WowError`, with its `errorCode`).
+ * - `error` — the request failed, or the server sent an error event in the
+ *   stream: a `WowProblemError`, with the problem's `code`.
  * - `status` — `idle`, `loading`, `success` (the same as `done`) or `error`.
  * - `execute()` runs the current query again and aborts the stream in flight;
  *   `abort()` stops the stream; `reset()` stops it and empties `items`.
@@ -64,7 +62,7 @@ export interface UseListStreamQueryReturn<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
+  Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
 > extends Omit<QueryHookReturn<Q, R[], E>, 'result'> {
   /**
    * The rows of the current query received so far, a new array at every
@@ -84,8 +82,9 @@ export interface UseListStreamQueryReturn<
  * unmount. Components render `items` and never hold a reader, so the hook is
  * safe under StrictMode. `autoExecute` defaults to `true`.
  *
- * Pass a query client method as `execute` — it sends
- * `Accept: text/event-stream` and turns error events into a `WowError` — or
+ * Pass a query client's `listStream` as `execute` — it sends
+ * `Accept: text/event-stream` and turns error events into a
+ * `WowProblemError` — or
  * use `useFetcherListStreamQuery` with a URL.
  *
  * @template R - One row of the stream: the `data` of each event
@@ -96,19 +95,20 @@ export interface UseListStreamQueryReturn<
  *
  * @example
  * ```tsx
- * import { filter, listQuery, type SnapshotQueryClient } from '@ahoo-wang/wow-client';
+ * import type { SnapshotQueryClient, SnapshotRecord } from '@ahoo-wang/wow-client';
+ * import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
  * import { useListStreamQuery } from '@ahoo-wang/wow-react';
  *
  * function PaidOrders({ client }: { client: SnapshotQueryClient<OrderState, OrderFields> }) {
- *   const { items, done, loading, error, abort } = useListStreamQuery<OrderState, OrderFields>({
+ *   const { items, done, loading, error, abort } = useListStreamQuery<SnapshotRecord<OrderState>, OrderFields>({
  *     initialQuery: listQuery({ filter: filter.eq('state.status', 'PAID') }),
- *     execute: (query, attributes, abortController) =>
- *       client.listStateStream(query, attributes, abortController),
+ *     execute: (query, options) =>
+ *       client.listStream(query, options),
  *   });
  *   if (error) return <p role="alert">{error.message}</p>;
  *   return (
  *     <>
- *       <ul>{items.map(order => <li key={order.id}>{order.id}</li>)}</ul>
+ *       <ul>{items.map(order => <li key={order.aggregateId}>{order.state.status}</li>)}</ul>
  *       {loading && <button onClick={abort}>Stop</button>}
  *       {done && <p>{items.length} orders</p>}
  *     </>
@@ -127,14 +127,7 @@ export function useListStreamQuery<
   R,
   FIELDS extends string = string,
   E = Error,
->(
-  options: UseListStreamQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
-): UseListStreamQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
-export function useListStreamQuery<
-  R,
-  FIELDS extends string = string,
-  E = Error,
-  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
+  Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, Q>,
 ): UseListStreamQueryReturn<R, FIELDS, E, Q>;
@@ -142,7 +135,7 @@ export function useListStreamQuery<
   R,
   FIELDS extends string,
   E,
-  Q extends ListQueryRequest<FIELDS>,
+  Q extends FilterListQuery<FIELDS>,
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, Q>,
 ): UseListStreamQueryReturn<R, FIELDS, E, Q> {

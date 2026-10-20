@@ -7,7 +7,7 @@ description: 按报错信息找出 wow-client、wow-generator 与 wow-react 常�
 
 本页回答：**Wow TypeScript 包报的这个错是什么意思，怎样修？** 在本页搜索你看到的报错。服务端的故障——命令超时、版本冲突、投影——见服务端的[故障排查](../troubleshooting.md)。
 
-大多数请求失败以 fetcher 的 `ExchangeError` 到达代码；它的 `message` 和 `cause` 说明了出了什么错，服务端有应答时 `await toWowError(error)` 能读出 Wow 的错误码。见[错误处理](./error-handling.md)。
+大多数请求失败以 fetcher 的 `ExchangeError` 到达代码；它的 `message` 和 `cause` 说明了出了什么错，服务端有应答时 `await toWowError(error)` 能读出 Wow 的错误码。见错误处理。
 
 ## 安装
 
@@ -46,7 +46,7 @@ description: 按报错信息找出 wow-client、wow-generator 与 wow-react 常�
 
 | `errorCode` | 状态 | 原因 | 修复 |
 |---|---|---|---|
-| `CommandValidation` | 400 | 命令体不满足校验规则 | 把 `bindingErrors` 显示在对应字段旁；见[错误处理](./error-handling.md#在表单上展示校验错误) |
+| `CommandValidation` | 400 | 命令体不满足校验规则 | 把 `bindingErrors` 显示在对应字段旁；见错误处理 |
 | `IllegalArgument`、`IllegalState` | 400 | 命令处理函数拒绝了命令 | 显示 `errorMsg`；需要改的是请求本身 |
 | `NotFound` | 404 | 没有该 id 的聚合或快照 | 处理不存在的情况；命令之后先等待 `CommandStage.SNAPSHOT` 再读取 |
 | `RequestTimeout` | 408 | 等待的阶段没在 `timeoutMs` 内到达 | 服务端已收到命令，它仍可能完成；读取状态，不要重发 |
@@ -61,8 +61,8 @@ description: 按报错信息找出 wow-client、wow-generator 与 wow-react 常�
 
 | 现象 | 原因 | 修复 |
 |---|---|---|
-| 对查询流的 `for await` 抛出 `WowError` | 服务端中途失败，以错误事件结束了流 | 像处理失败请求一样处理；见[错误处理](./error-handling.md#流) |
-| 对生成的 `…StreamCommandClient` 做 `for await` 时抛出 `WowError`（例如 `RequestTimeout`） | 生成的流客户端使用 `COMMAND_STREAM_ENDPOINT`：服务端出错时以 `WowError` 结束流，与 `CommandClient.sendAndWaitStream` 相同 | 按失败的请求处理，见[错误处理](./error-handling.md#流) |
+| 对查询流的 `for await` 抛出 `WowError` | 服务端中途失败，以错误事件结束了流 | 像处理失败请求一样处理；见错误处理 |
+| 对生成的 `…StreamCommandClient` 做 `for await` 时抛出 `WowError`（例如 `RequestTimeout`） | 生成的流客户端使用 `COMMAND_STREAM_ENDPOINT`：服务端出错时以 `WowError` 结束流，与 `CommandClient.sendAndWaitStream` 相同 | 按失败的请求处理，见错误处理 |
 | 流式命令在 `PROCESSED` 结束，`errorCode` 不是 `Ok` | 命令处理函数失败 | 逐个检查结果的 `errorCode` |
 | 组件已经卸载，连接仍然开着 | 流既没读完也没被中止 | 传入 `AbortSignal` 并在清理时中止，或 `break` 出循环 |
 

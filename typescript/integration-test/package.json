@@ -2,7 +2,7 @@
   "name": "wow-integration-test",
   "version": "10.0.0-alpha.3",
   "private": true,
-  "description": "Contract tests of the V10 view store client and the view engine against the V10 view store service",
+  "description": "Contract tests of the view store client and the view engine against the view store service",
   "keywords": [
     "wow",
     "integration-test"
@@ -20,7 +20,7 @@
   },
   "type": "module",
   "scripts": {
-    "test:v10": "vitest run --config vitest.v10.config.ts",
+    "test": "vitest run",
     "lint": "eslint . --fix",
     "typecheck": "tsc -p tsconfig.json"
   },

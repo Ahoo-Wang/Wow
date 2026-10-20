@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 880 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 882 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -153,6 +153,7 @@ type  DataViewConfig
 type  DataViewConfigBase
 type  DataViewDefinition
 type  DatasetCatalog
+type  DatasetDirectoryEntry
 type  DatasetOverrides
 type  DatasetRegistrar
 type  DatasetResource
@@ -361,6 +362,7 @@ type  ProjectedAnalysis
 type  ProjectedBase
 type  ProjectedRecord
 type  ProjectedView
+type  QueryDescriptorResult
 type  QueryStatus
 value RECORD_PRESENTATION_MEMBERS
 value REFERENCE_STATISTICS

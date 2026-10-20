@@ -2,18 +2,18 @@
 
 [简体中文](./README.zh-CN.md)
 
-The view engine's `ViewStore` on a Wow server: the saved views and preferences
-of [`@ahoo-wang/wow-view-engine`](../wow-view-engine/README.md), kept by the
-[view store](../../view-store/README.md) — two Wow aggregates, served by the
-standalone `wow-view-store-server` or by any Wow service that embeds
-`wow-view-store-starter`.
+The view engine's `ViewStore` on the Wow view store service: the saved views
+and preferences of [`@ahoo-wang/wow-view-engine`](../wow-view-engine/README.md),
+kept by the view store service (`platform/view-store` in the Wow repository) —
+two Wow aggregates, reached through the clients generated from the service's
+Manifest — and the view engine's sources over a Wow service's query routes.
 
 Released with Wow, from the same tag and with the same version, together
-with the view engine and the view store's server modules.
+with the view engine.
 
-> **Compatibility.** From 9.2.0 on, a patch release never breaks the public
-> surface (the exports of the entry and the error codes); a minor release may,
-> and its release notes list every break with the steps to follow. Keep the Wow
+> **Compatibility.** A patch release never breaks the public surface (the
+> exports of the entry and the error codes); a minor release may, and its
+> release notes list every break with the steps to follow. Keep the Wow
 > packages on one minor, as [version ranges](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges)
 > explains.
 
@@ -21,103 +21,17 @@ with the view engine and the view store's server modules.
 
 Peer dependencies: `@ahoo-wang/fetcher`, `@ahoo-wang/wow-client` and
 `@ahoo-wang/wow-view-engine`, and the peers those declare, which a host installs
-with them: `@ahoo-wang/fetcher-decorator` and `@ahoo-wang/fetcher-eventstream`
-(wow-client's), and the view engine's optional `react`, `react-dom`,
-`react-router` and `mingo` where its own entries need them. Node `>=22.12.0` or
-a current browser; TypeScript 6 or later.
+with them: `@ahoo-wang/fetcher-eventstream` (wow-client's), and the view
+engine's optional `react`, `react-dom`, `react-router` and `mingo` where its
+own entries need them. Node `>=22.12.0` or a current browser; TypeScript 6 or
+later.
 
 `WowViewStore` takes a fetcher and, optionally, the permissions that drive the
-buttons. It takes no tenant, user or application: the fetcher's interceptors
-carry who is asking, as they do for every other Wow request of the host.
-
-<!-- typecheck-context
-import type { QueryApi } from '@ahoo-wang/wow-client';
-import type { ViewDefinition, ViewPermissions } from '@ahoo-wang/wow-view-engine';
-declare const orders: ViewDefinition;
-declare const ordersSource: Pick<QueryApi<any>, 'paged' | 'cursor' | 'aggregate'>;
-declare const tokenStorage: TokenStorage;
-declare const permissionsFromRoles: (definitionId: string) => ViewPermissions;
--->
-
-```ts
-import { Fetcher } from '@ahoo-wang/fetcher';
-import {
-  ResourceAttributionRequestInterceptor,
-  type TokenStorage,
-} from '@ahoo-wang/fetcher-cosec';
-import { ViewEngine } from '@ahoo-wang/wow-view-engine';
-import { WowViewStore } from '@ahoo-wang/wow-view-store';
-
-// The gateway in front of the view store. In a host, the fetcher already
-// carries CoSec's interceptors: the authorization, `CoSec-App-Id`
-// (CoSecRequestInterceptor) and the path's {tenantId} and {ownerId}
-// (ResourceAttributionRequestInterceptor, from the token).
-const fetcher = new Fetcher({ baseURL: 'https://api.example.com' });
-fetcher.interceptors.request.use(
-  new ResourceAttributionRequestInterceptor({ tokenStorage }),
-);
-
-const engine = new ViewEngine({
-  store: new WowViewStore({ fetcher, permissions: permissionsFromRoles }),
-  resources: [{ definition: orders, source: ordersSource }],
-});
-```
-
-`permissions` decides which buttons are enabled, never what a write may do: the
-server trusts its paths, and the CoSec gateway decides who may use which. Give
-`createShared` and `changeAudience` by the role that may write
-`owner/(shared)` — creating a shared view, claiming one and sharing a personal
-one all need it. Left out, everything is allowed — but the engine's
-`editSystem` (publishing, editing and unpublishing stored system views) is
-off unless the host's answer says `true`: give it by the role the gateway
-admits to `tenant/(platform)/owner/(system)` (`view-store/README.md`, 「System views」).
-
-### Dataset wording
-
-`WowDatasetWordings` keeps a tenant's wording over its datasets (the view
-engine's dataset overrides: title, record noun, field labels, order and
-narrowing) under `owner/(shared)`, one per dataset and application, keyed by
-the dataset's definition id. Hand it to the datasets as their store of
-wording: `DatasetResources` reads it before each refresh, registers each
-dataset in its stored words, and gives the view manager its wording tab
-where the host grants `editDatasetWording`:
-
-```ts
-import type { Fetcher } from '@ahoo-wang/fetcher';
-import {
-  DatasetDirectoryClient,
-  DatasetQueryClient,
-} from '@ahoo-wang/wow-client';
-import { DatasetResources, type ViewEngine } from '@ahoo-wang/wow-view-engine';
-import { WowDatasetWordings } from '@ahoo-wang/wow-view-store';
-
-declare const engine: ViewEngine;
-declare const fetcher: Fetcher;
-
-const directory = new DatasetDirectoryClient();
-const datasets = new DatasetResources(engine, {
-  list: () => directory.list(),
-  source: entry =>
-    new DatasetQueryClient({ context: entry.contextName, dataset: entry.name }),
-  wordings: new WowDatasetWordings({ fetcher }),
-});
-await datasets.refresh();
-```
-
-`set(dataset, wording, revision, { requestId })` writes one whole at the
-expected revision (`'0'` for one never written) and `clear` removes it; the
-gateway decides who may, by the role it admits to
-`…/owner/(shared)/datasets/{dataset}/wording`.
-
-### On a Wow V10 service
-
-`@ahoo-wang/wow-view-store/v10` is the same port on the **V10** view store
-service (`platform/view-store` in the Wow repository): `WowViewStore` and
-`WowDatasetWordings` of the same names and options, built on the clients
-generated from the service's Manifest (`@ahoo-wang/wow-client/v10`), and
-`viewSourceOf` / `datasetCatalogOf`, which put the engine's queries on V10
-query routes. The root entry stays the 9.x store; a host picks one by the
-entry it imports.
+buttons. It takes no tenant, user or application: the service takes them from
+the principal, which the fetcher's interceptors carry as they do for every
+other Wow request of the host. `viewSourceOf` puts a definition on a query
+route, `datasetCatalogOf` the service's datasets, and `WowDatasetWordings`
+keeps the tenant's wording over them.
 
 <!-- typecheck-context
 import type { ViewDefinition, ViewPermissions } from '@ahoo-wang/wow-view-engine';
@@ -127,18 +41,17 @@ declare const permissionsFromRoles: (definitionId: string) => ViewPermissions;
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
-import { DatasetClient, SnapshotQueryClient } from '@ahoo-wang/wow-client/v10';
+import { DatasetClient, SnapshotQueryClient } from '@ahoo-wang/wow-client';
 import { DatasetResources, ViewEngine } from '@ahoo-wang/wow-view-engine';
 import {
   WowDatasetWordings,
   WowViewStore,
   datasetCatalogOf,
   viewSourceOf,
-} from '@ahoo-wang/wow-view-store/v10';
+} from '@ahoo-wang/wow-view-store';
 
-// The V10 service takes the tenant and the owner from the principal: the
-// fetcher's interceptors send the authorization and `CoSec-App-Id`, and no
-// path names either.
+// The fetcher's interceptors send the authorization and `CoSec-App-Id`; no
+// path names the tenant or the owner.
 const fetcher = new Fetcher({ baseURL: 'https://api.example.com' });
 
 const engine = new ViewEngine({
@@ -146,7 +59,7 @@ const engine = new ViewEngine({
   resources: [
     {
       definition: orders,
-      // Any V10 query route: a generated `…SnapshotQueryClient` fits too.
+      // Any query route: a generated `…SnapshotQueryClient` fits too.
       source: viewSourceOf(
         new SnapshotQueryClient(
           { context: 'sales', name: 'order' },
@@ -165,14 +78,28 @@ const datasets = new DatasetResources(engine, {
 await datasets.refresh();
 ```
 
-What differs from the 9.x store is the service's, not the port's:
+`permissions` decides which buttons are enabled, never what a write may do:
+the service authorizes each write. Give `createShared` and `changeAudience` by
+the role that writes the reserved owner `(shared)` (`view-store.shared-writer`
+as shipped) — creating a shared view, claiming one and sharing a personal one
+all need it. Left out, everything is allowed — but the engine's `editSystem`
+(publishing, editing and unpublishing stored system views) is off unless the
+host's answer says `true`: give it by the role that writes `(system)` of
+`(platform)`.
+
+`WowDatasetWordings` keeps a tenant's wording over its datasets (the view
+engine's dataset overrides: title, record noun, field labels, order and
+narrowing), one per dataset and application. `DatasetResources` reads it
+before each refresh, registers each dataset in its stored words, and gives the
+view manager its wording tab where the host grants `editDatasetWording`.
+`set(dataset, wording, revision, { requestId })` writes one whole at the
+expected revision (`'0'` for one never written) and `clear` removes it.
+
+### How the store talks to the service
 
 - **Who is asking** comes from the principal; a shared view is written as
   the reserved owner `(shared)` and a stored system view as `(system)` of
-  `(platform)`, which the store says itself with `Wow-Scope`. The service
-  authorizes each write: give `createShared` and `changeAudience` by the role
-  that writes `(shared)` (`view-store.shared-writer` as shipped), and
-  `editSystem` by the one that writes `(system)`.
+  `(platform)`, which the store says itself with `Wow-Scope`.
 - **Writes** carry the port's request id as `Wow-Request-Id` and its revision
   as `If-Match`; the service deduplicates every write by its request id,
   creates included, so a retry from any tab is answered with the first
@@ -181,7 +108,7 @@ What differs from the 9.x store is the service's, not the port's:
 - **Errors** are read by the problem's `code`: a `ViewStoreError` carries it
   as `detail.code` (`WowViewStoreErrorCodes` lists the view store's own), and
   a route the service does not serve (`404` without a code) is `UNSUPPORTED`.
-- **A page's total** is the service's default `BOUNDED` count: a V10 service
+- **A page's total** is the service's default `BOUNDED` count: the service
   refuses an exact total over HTTP.
 
 ## Documentation
@@ -190,16 +117,14 @@ What differs from the 9.x store is the service's, not the port's:
 | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Choose where views live, wire `WowViewStore`, give permissions, serve a host nobody signs in to | [Where views live](https://wow.ahoo.me/guide/typescript/view-engine-storage#wowviewstore-views-on-a-wow-service) |
 | The exports, the contract, every request the port sends and how server errors map to the port   | [wow-view-store reference](https://wow.ahoo.me/reference/typescript/wow-view-store/)                             |
-| Run the view store server, its configuration and the gateway rules                              | [View store](https://wow.ahoo.me/guide/extensions/view-store)                                                    |
 
 ## Testing
 
-- `pnpm --filter @ahoo-wang/wow-view-store test` — unit tests against a fake
-  server, the public surface and the API report.
-- The port's conformance suite runs over `WowViewStore` against a view store
-  server in `typescript/integration-test` (`test/view-store/`), with the tenant
-  and application isolation; over the V10 `WowViewStore` against the V10 view
-  store service, which `pnpm --dir typescript/integration-test test:v10`
-  starts on ports bound to 0 (`test/view-store-v10/`).
+- `pnpm --filter @ahoo-wang/wow-view-store test` — unit tests against the
+  service in memory, the public surface and the API report.
+- The port's conformance suite runs over `WowViewStore` against the view store
+  service, which `pnpm --dir typescript/integration-test test` starts on
+  ports bound to 0 (`test/view-store/`), with the tenant and application
+  isolation.
 
 Licensed under the Apache License, Version 2.0.

@@ -11,12 +11,7 @@
  * limitations under the License.
  */
 
-import type { FilterSingleQuery } from '@ahoo-wang/wow-client';
-// compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
-import type {
-  SingleQuery,
-  SingleQueryRequest,
-} from '@ahoo-wang/wow-client/legacy';
+import type { FilterSingleQuery } from '@ahoo-wang/wow-client/dsl';
 import type { Endpoint } from '../internal/endpoint.js';
 import { useEndpointRunner } from '../internal/useEndpointRunner.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
@@ -34,7 +29,7 @@ export interface UseFetcherSingleQueryOptions<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
+  Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>,
 >
   extends Omit<QueryHookOptions<Q, R, E>, 'execute'>, Endpoint {}
 
@@ -50,11 +45,11 @@ export interface UseFetcherSingleQueryReturn<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
+  Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>,
 > extends QueryHookReturn<Q, R, E> {}
 
 /**
- * POSTs a single query to a Wow endpoint through a Fetcher and keeps the
+ * POSTs a single query to a Wow query route through a Fetcher and keeps the
  * result as state.
  *
  * `url` is resolved against the Fetcher's `baseURL`; `fetcher` is a Fetcher
@@ -70,9 +65,8 @@ export interface UseFetcherSingleQueryReturn<
  *
  * Returns `result` (the item, or `undefined` before the first success),
  * `loading`, `error`, `status`, `execute`, `abort`, `reset`, `getQuery` and
- * `setQuery`. A failed request sets `error` to a `FetcherError`;
- * `toWowError(error)` from `@ahoo-wang/wow-client` reads the server's
- * `errorCode` from it.
+ * `setQuery`. A failed request sets `error` to the
+ * `WowProblemError` the route answered with.
  *
  * @template R - The item the query returns
  * @template FIELDS - The field names the query may use
@@ -80,17 +74,18 @@ export interface UseFetcherSingleQueryReturn<
  *
  * @example
  * ```tsx
- * import { filter, singleQuery } from '@ahoo-wang/wow-client';
+ * import { filter, singleQuery } from '@ahoo-wang/wow-client/dsl';
+ * import type { SnapshotRecord } from '@ahoo-wang/wow-client';
  * import { useFetcherSingleQuery } from '@ahoo-wang/wow-react';
  *
  * function OrderStatus({ id }: { id: string }) {
- *   const { result, loading, error } = useFetcherSingleQuery<OrderState>({
- *     url: 'order/snapshot/single/state',
+ *   const { result, loading, error } = useFetcherSingleQuery<SnapshotRecord<OrderState>>({
+ *     url: '/shop/order/snapshot/query',
  *     query: singleQuery({ filter: filter.id(id) }),
  *   });
  *   if (error) return <p role="alert">{error.message}</p>;
  *   if (loading || !result) return <p>Loading…</p>;
- *   return <p>{result.status}</p>;
+ *   return <p>{result.state.status}</p>;
  * }
  * ```
  */
@@ -110,14 +105,7 @@ export function useFetcherSingleQuery<
   R,
   FIELDS extends string = string,
   E = Error,
->(
-  options: UseFetcherSingleQueryOptions<R, FIELDS, E, SingleQuery<FIELDS>>,
-): UseFetcherSingleQueryReturn<R, FIELDS, E, SingleQuery<FIELDS>>;
-export function useFetcherSingleQuery<
-  R,
-  FIELDS extends string = string,
-  E = Error,
-  Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
+  Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>,
 >(
   options: UseFetcherSingleQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherSingleQueryReturn<R, FIELDS, E, Q>;
@@ -125,9 +113,9 @@ export function useFetcherSingleQuery<
   R,
   FIELDS extends string,
   E,
-  Q extends SingleQueryRequest<FIELDS>,
+  Q extends FilterSingleQuery<FIELDS>,
 >(
   options: UseFetcherSingleQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherSingleQueryReturn<R, FIELDS, E, Q> {
-  return useEndpointRunner<Q, R, E>(options);
+  return useEndpointRunner<Q, R, E>(options, 'single');
 }

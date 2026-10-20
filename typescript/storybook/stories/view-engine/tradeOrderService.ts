@@ -256,7 +256,7 @@ function stream(
 export function installRecordedTradeOrderService(): () => void {
   return installRecordedWowService({
     host: RECORDED_TRADING_HOST,
-    resource: 'trade_order/snapshot',
+    route: '/trading/trade_order/snapshot/query',
     documents: RECORDED_TRADE_ORDERS,
   });
 }
@@ -270,7 +270,7 @@ export function installRecordedTradeOrderService(): () => void {
 export function installRecordedTradeOrderEventService(): () => void {
   return installRecordedWowService({
     host: RECORDED_TRADING_HOST,
-    resource: 'trade_order/event',
+    route: '/trading/trade_order/events/query',
     documents: RECORDED_TRADE_ORDER_STREAMS,
   });
 }

@@ -11,9 +11,7 @@
  * limitations under the License.
  */
 
-import type { FilterExpression } from '@ahoo-wang/wow-client';
-// compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
-import type { Condition } from '@ahoo-wang/wow-client/legacy';
+import type { CountQuery, CountResult } from '@ahoo-wang/wow-client';
 import { useQueryRunner } from '../internal/useQueryRunner.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 
@@ -28,9 +26,8 @@ import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 export interface UseCountQueryOptions<
   FIELDS extends string = string,
   E = Error,
-  Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
-    FilterExpression<FIELDS>,
-> extends QueryHookOptions<Q, number, E> {}
+  Q extends CountQuery<FIELDS> = CountQuery<FIELDS>,
+> extends QueryHookOptions<Q, CountResult, E> {}
 
 /**
  * What {@link useCountQuery} returns: the count as `result`.
@@ -42,16 +39,15 @@ export interface UseCountQueryOptions<
 export interface UseCountQueryReturn<
   FIELDS extends string = string,
   E = Error,
-  Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
-    FilterExpression<FIELDS>,
-> extends QueryHookReturn<Q, number, E> {}
+  Q extends CountQuery<FIELDS> = CountQuery<FIELDS>,
+> extends QueryHookReturn<Q, CountResult, E> {}
 
 /**
  * Counts what a filter matches through your own `execute` function and keeps
  * the count as state: typically a query client's `count`.
  *
- * `execute` receives the filter, the `attributes` option and an
- * `AbortController`; hand the controller on so that a newer query, `abort()`
+ * `execute` receives the filter and the request options of the run, its
+ * `signal` included; hand them on so that a newer query, `abort()`
  * or an unmount cancels the request. The count runs on mount and whenever
  * `query` or `setQuery()` changes the filter; set `autoExecute: false` to run
  * it only through `execute()`.
@@ -68,40 +64,37 @@ export interface UseCountQueryReturn<
  *
  * @example
  * ```tsx
- * import { filter, type SnapshotQueryClient } from '@ahoo-wang/wow-client';
+ * import type { SnapshotQueryClient } from '@ahoo-wang/wow-client';
+ * import { filter } from '@ahoo-wang/wow-client/dsl';
  * import { useCountQuery } from '@ahoo-wang/wow-react';
  *
  * function PaidCount({ client }: { client: SnapshotQueryClient<OrderState, OrderFields> }) {
  *   const { result, error } = useCountQuery<OrderFields>({
- *     initialQuery: filter.eq('state.status', 'PAID'),
- *     execute: (query, attributes, abortController) =>
- *       client.count(query, attributes, abortController),
+ *     initialQuery: { filter: filter.eq('state.status', 'PAID') },
+ *     execute: (query, options) =>
+ *       client.count(query, options),
  *   });
  *   if (error) return <p role="alert">{error.message}</p>;
- *   return <p>{result ?? '…'} paid orders</p>;
+ *   return <p>{result?.count ?? '…'} paid orders</p>;
  * }
  * ```
  */
 export function useCountQuery<FIELDS extends string = string, E = Error>(
-  options: UseCountQueryOptions<FIELDS, E, FilterExpression<FIELDS>>,
-): UseCountQueryReturn<FIELDS, E, FilterExpression<FIELDS>>;
-export function useCountQuery<FIELDS extends string = string, E = Error>(
-  options: UseCountQueryOptions<FIELDS, E, Condition<FIELDS>>,
-): UseCountQueryReturn<FIELDS, E, Condition<FIELDS>>;
+  options: UseCountQueryOptions<FIELDS, E, CountQuery<FIELDS>>,
+): UseCountQueryReturn<FIELDS, E, CountQuery<FIELDS>>;
 export function useCountQuery<
   FIELDS extends string = string,
   E = Error,
-  Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
-    FilterExpression<FIELDS>,
+  Q extends CountQuery<FIELDS> = CountQuery<FIELDS>,
 >(
   options: UseCountQueryOptions<FIELDS, E, Q>,
 ): UseCountQueryReturn<FIELDS, E, Q>;
 export function useCountQuery<
   FIELDS extends string,
   E,
-  Q extends Condition<FIELDS> | FilterExpression<FIELDS>,
+  Q extends CountQuery<FIELDS>,
 >(
   options: UseCountQueryOptions<FIELDS, E, Q>,
 ): UseCountQueryReturn<FIELDS, E, Q> {
-  return useQueryRunner<Q, number, E>(options);
+  return useQueryRunner<Q, CountResult, E>(options);
 }

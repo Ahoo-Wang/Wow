@@ -43,8 +43,8 @@ const PACKAGE = 'package';
 const V10 = 'v10';
 const V10_PATH =
   /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|tck|tck-containers)|example\/(?:eshop|quickstart|java-smoke)|wow-benchmarks\/e2e|wow-dependencies|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|documentation\/docs\/(?:en|zh)\/guide\/v10\/quickstart\.md$|\.github\/workflows\/v10\.yml$)/;
-// typescript-contract.yml (v10 branch): `test:v10` of integration-test, the
-// V10 store (`@ahoo-wang/wow-view-store/v10`) and the view engine on it
+// typescript-contract.yml (v10 branch): `test` of integration-test, the
+// V10 store (`@ahoo-wang/wow-view-store`) and the view engine on it
 // against the V10 view store service (platform/view-store) built from this
 // commit. Decided apart from RULES, by V10_CONTRACT_PATH: the packages the
 // suites import (the libraries' own tests and the engine's apart from its
@@ -130,7 +130,7 @@ const RULES = [
   [/^documentation\//, [DOCS]],
   // The V10 framework error table's snapshot (api/manifest, review R2.5-4):
   // wow-client's tests check FrameworkErrorCodes against it
-  // (test/v10/frameworkErrors.test.ts), so a change to the table reruns them.
+  // (test/frameworkErrors.test.ts), so a change to the table reruns them.
   [/^api\/manifest\/src\/test\/resources\/framework-errors\.json$/, [SDK]],
   // The single version source: quality checks every package.json against it.
   [/^gradle\.properties$/, [TYPESCRIPT]],

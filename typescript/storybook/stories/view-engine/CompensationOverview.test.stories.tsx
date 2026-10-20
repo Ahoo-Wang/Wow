@@ -39,12 +39,9 @@ import '@ahoo-wang/wow-view-engine/styles.css';
  * the page to fit its area sideways, and the embed to be a report read and
  * never built (D36).
  *
- * It is not the product. The compensation console's own board lives in
- * `compensation/dashboard/src/views/overview.ts`, and its e2e
- * (`compensation/dashboard/e2e/overview.spec.ts`, the live service in
- * `e2e/real-server/`) covers it; this board drifts from that one on purpose.
- * It used to be 「真实后端/补偿控制台/运营概览」, with a variant against a
- * live service that the console's own board now is.
+ * It is not a product: this board is the engine's fixture, cut to what these
+ * stories assert. It used to be 「真实后端/补偿控制台/运营概览」 of the 9.x
+ * compensation console, which V10 removed.
  *
  * The dashboard is `EmbeddedDashboard` in the interactive tier: no title
  * bar, no view list, and nothing on it builds or saves — whose reader may

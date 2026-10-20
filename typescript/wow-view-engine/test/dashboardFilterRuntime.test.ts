@@ -25,7 +25,7 @@
 import {
   AggregationDateUnit,
   AggregationGroupType,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import {

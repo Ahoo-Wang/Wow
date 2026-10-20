@@ -20,7 +20,7 @@ import {
   type FieldSort,
   type FilterPagedQuery,
   type Projection,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import { summaryAlias } from './summaryAlias.js';
 import { summaryCurrency } from './summaryCurrency.js';
 import {

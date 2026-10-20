@@ -17,7 +17,7 @@
  * and when to check it again.
  */
 
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import type {
   DataViewDefinition,
   Issue,

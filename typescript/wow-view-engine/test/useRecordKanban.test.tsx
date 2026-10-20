@@ -22,7 +22,7 @@ import {
   type ViewInstance,
   type ViewSource,
 } from '../src/index.js';
-import type { CursorPage } from '@ahoo-wang/wow-client';
+import type { CursorPage } from '@ahoo-wang/wow-client/dsl';
 import {
   useOpenView,
   useRecordKanban,

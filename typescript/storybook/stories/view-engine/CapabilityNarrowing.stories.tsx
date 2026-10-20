@@ -24,7 +24,7 @@ import {
   SearchMode,
   type FieldDescriptor,
   type QueryModelDescriptor,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
 import type {
   DataViewDefinition,

@@ -11,34 +11,39 @@
  * limitations under the License.
  */
 
+import type { Fetcher } from '@ahoo-wang/fetcher';
+import { QueryModelClient } from '@ahoo-wang/wow-client';
 import type {
   AggregationQuery,
   CursorQuery,
   FilterPagedQuery,
-} from '@ahoo-wang/wow-client';
-import type { RecordData } from '@ahoo-wang/wow-view-engine';
+} from '@ahoo-wang/wow-client/dsl';
+import type { RecordData, ViewSource } from '@ahoo-wang/wow-view-engine';
+import { viewSourceOf } from '@ahoo-wang/wow-view-store';
 import { rowSource } from './rowSource.js';
 
 /**
  * A Wow service as the real-backend scenes' regression twins see it: some
- * recorded documents behind one query resource, answered the way the service
+ * recorded documents behind one query route, answered the way the service
  * answers them.
  */
 export interface RecordedWowService {
   /** The origin the scene's fetcher points at; nothing on the network answers it. */
   host: string;
   /**
-   * The query resource the documents are, as its path starts — a snapshot
-   * resource (`execution_failed/snapshot`) or an event stream
-   * (`execution_failed/event`).
+   * The query route the documents are, `/{context}/{aggregate}/{model}/query`:
+   * a snapshot route (`/compensation/execution_failed/snapshot/query`) or an
+   * event route (`/compensation/execution_failed/events/query`).
    */
-  resource: string;
+  route: string;
   /** The recorded documents; each install starts from a fresh copy. */
   documents: readonly RecordData[];
   /**
-   * Answers a command — a `PUT` — against the documents, changing them the
-   * way the service would; `undefined` for a command it does not know.
-   * Without it the service takes no commands.
+   * Answers a command — a `POST` to a route other than the query route —
+   * against the documents, changing them the way the service would: its
+   * result, a problem (with its `status`) that refuses it, or `undefined`
+   * for a command it does not know. Without it the service takes no
+   * commands.
    */
   command?(
     documents: RecordData[],
@@ -47,9 +52,35 @@ export interface RecordedWowService {
   ): object | undefined;
 }
 
+/** The query route of a model of an aggregate, as wow-client's `queryPath` writes it. */
+export function queryRoute(
+  context: string,
+  aggregate: string,
+  model: 'snapshot' | 'events',
+): string {
+  return `/${context}/${aggregate}/${model}/query`;
+}
+
+/** A problem as a Wow service answers it. */
+export function problem(code: string, detail: string, status: number) {
+  return { type: `urn:wow:error:${code}`, title: detail, status, code, detail };
+}
+
 /**
- * Answers what a scene sends to a recorded host — the resource's `paged`,
- * `cursor` and `aggregation` queries, with `rowSource` standing in for the
+ * The view source of a query route: its paged, cursor and aggregation
+ * queries. A recorded service answers no capability descriptor, so the
+ * source does not ask for one.
+ */
+export function routeSource(fetcher: Fetcher, route: string): ViewSource {
+  const { paged, cursor, aggregate } = viewSourceOf(
+    new QueryModelClient<object>(route, { fetcher }),
+  );
+  return { paged, cursor, aggregate };
+}
+
+/**
+ * Answers what a scene sends to a recorded host — the route's `paged`,
+ * `cursor` and `aggregate` queries, with `rowSource` standing in for the
  * service's store, and its commands if it takes any — and lets every other
  * request go where it went before. The scene's own fetcher, clients and
  * engine run unchanged, so what this checks is the scene, not a copy of it.
@@ -62,33 +93,40 @@ export function installRecordedWowService(
   const original = globalThis.fetch;
   const documents = structuredClone([...service.documents]);
   const source = rowSource(documents);
-  const query = `/${service.resource}/`;
   globalThis.fetch = async (input, init) => {
     const request = new Request(input, init);
     const url = new URL(request.url);
     if (url.origin !== service.host) return original(input, init);
     const body = await request.json();
     let answer: unknown;
-    if (request.method === 'PUT')
-      answer = service.command?.(documents, url.pathname, body);
-    else if (url.pathname.startsWith(query))
-      switch (url.pathname.slice(query.length)) {
+    if (url.pathname === service.route)
+      switch (body.kind) {
         case 'paged':
           answer = await source.paged(body as FilterPagedQuery);
           break;
         case 'cursor':
           answer = await source.cursor(body as CursorQuery);
           break;
-        case 'aggregation':
+        case 'aggregate':
           answer = await source.aggregate(body as AggregationQuery);
           break;
       }
-    return answer === undefined
-      ? Response.json(
-          { errorCode: 'NotFound', errorMsg: `Not recorded: ${url.pathname}` },
-          { status: 404 },
-        )
-      : Response.json(answer);
+    else if (request.method === 'POST')
+      answer = service.command?.(documents, url.pathname, body);
+    if (answer === undefined)
+      answer = problem(
+        'wow.route.not-found',
+        `Not recorded: ${url.pathname}`,
+        404,
+      );
+    const status = (answer as { type?: unknown; status?: unknown }).type
+      ? Number((answer as { status: number }).status)
+      : 200;
+    return Response.json(answer, {
+      status,
+      headers:
+        status === 200 ? {} : { 'Content-Type': 'application/problem+json' },
+    });
   };
   return () => {
     globalThis.fetch = original;

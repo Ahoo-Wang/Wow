@@ -14,7 +14,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { MinusIcon, PlusIcon, Trash2Icon } from "lucide-react";
-import { WowProblemError } from "@ahoo-wang/wow-client/v10";
+import { WowProblemError } from "@ahoo-wang/wow-client";
 import type { BasketItem } from "@/generated/basket/eshop-basket";
 import { Button } from "@/components/ui/button";
 import {

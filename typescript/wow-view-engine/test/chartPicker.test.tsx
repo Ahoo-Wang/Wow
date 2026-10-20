@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { AggregationFunction } from '@ahoo-wang/wow-client';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
   fireEvent,

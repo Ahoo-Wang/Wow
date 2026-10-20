@@ -160,7 +160,7 @@ describe('the README only names symbols that exist', () => {
     const directory = index.slice(0, index.lastIndexOf('/'));
     const nested = [
       ...body.matchAll(/^export \* from '\.\/(.+)\.js';$/gm),
-      ...body.matchAll(/^export \{[^}]*\} from '\.\/(.+)\.js';$/gm),
+      ...body.matchAll(/^export (?:type )?\{[^}]*\} from '\.\/(.+)\.js';$/gm),
     ]
       .flatMap(([, name]) =>
         ['.ts', '.tsx'].map(extension => `${directory}/${name}${extension}`),

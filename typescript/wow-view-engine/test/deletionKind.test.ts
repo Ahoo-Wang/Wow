@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { DeletionState, FilterOperator } from '@ahoo-wang/wow-client';
+import { DeletionState, FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,

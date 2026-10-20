@@ -11,9 +11,7 @@
  * limitations under the License.
  */
 
-import type { FilterListQuery } from '@ahoo-wang/wow-client';
-// compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
-import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
+import type { FilterListQuery } from '@ahoo-wang/wow-client/dsl';
 import type { Endpoint } from '../internal/endpoint.js';
 import { useEndpointRunner } from '../internal/useEndpointRunner.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
@@ -31,7 +29,7 @@ export interface UseFetcherListQueryOptions<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
+  Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
 >
   extends Omit<QueryHookOptions<Q, R[], E>, 'execute'>, Endpoint {}
 
@@ -47,11 +45,11 @@ export interface UseFetcherListQueryReturn<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
+  Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
 > extends QueryHookReturn<Q, R[], E> {}
 
 /**
- * POSTs a list query to a Wow endpoint through a Fetcher and keeps the rows
+ * POSTs a list query to a Wow query route through a Fetcher and keeps the rows
  * as state.
  *
  * `url` is resolved against the Fetcher's `baseURL`; `fetcher` is a Fetcher
@@ -67,9 +65,8 @@ export interface UseFetcherListQueryReturn<
  *
  * Returns `result` (the rows, or `undefined` before the first success),
  * `loading`, `error`, `status`, `execute`, `abort`, `reset`, `getQuery` and
- * `setQuery`. A failed request sets `error` to a `FetcherError`;
- * `toWowError(error)` from `@ahoo-wang/wow-client` reads the server's
- * `errorCode` from it.
+ * `setQuery`. A failed request sets `error` to the
+ * `WowProblemError` the route answered with.
  *
  * @template R - One row of the list
  * @template FIELDS - The field names the query may use
@@ -77,12 +74,13 @@ export interface UseFetcherListQueryReturn<
  *
  * @example
  * ```tsx
- * import { desc, filter, listQuery } from '@ahoo-wang/wow-client';
+ * import { desc, filter, listQuery } from '@ahoo-wang/wow-client/dsl';
+ * import type { SnapshotRecord } from '@ahoo-wang/wow-client';
  * import { useFetcherListQuery } from '@ahoo-wang/wow-react';
  *
  * function LatestOrders() {
- *   const { result, loading, error, execute } = useFetcherListQuery<OrderState>({
- *     url: 'order/snapshot/list/state',
+ *   const { result, loading, error, execute } = useFetcherListQuery<SnapshotRecord<OrderState>>({
+ *     url: '/shop/order/snapshot/query',
  *     initialQuery: listQuery({
  *       filter: filter.eq('state.status', 'PAID'),
  *       sort: [desc('createTime')],
@@ -93,7 +91,7 @@ export interface UseFetcherListQueryReturn<
  *   if (loading || !result) return <p>Loading…</p>;
  *   return (
  *     <>
- *       <ul>{result.map(order => <li key={order.id}>{order.id}</li>)}</ul>
+ *       <ul>{result.map(order => <li key={order.aggregateId}>{order.state.status}</li>)}</ul>
  *       <button onClick={execute}>Refresh</button>
  *     </>
  *   );
@@ -111,14 +109,7 @@ export function useFetcherListQuery<
   R,
   FIELDS extends string = string,
   E = Error,
->(
-  options: UseFetcherListQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
-): UseFetcherListQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
-export function useFetcherListQuery<
-  R,
-  FIELDS extends string = string,
-  E = Error,
-  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
+  Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseFetcherListQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherListQueryReturn<R, FIELDS, E, Q>;
@@ -126,9 +117,9 @@ export function useFetcherListQuery<
   R,
   FIELDS extends string,
   E,
-  Q extends ListQueryRequest<FIELDS>,
+  Q extends FilterListQuery<FIELDS>,
 >(
   options: UseFetcherListQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherListQueryReturn<R, FIELDS, E, Q> {
-  return useEndpointRunner<Q, R[], E>(options);
+  return useEndpointRunner<Q, R[], E>(options, 'list');
 }

@@ -18,18 +18,16 @@ import {
   QueryFieldRoles,
   TimeUnit,
   type QuerySemanticType,
-} from '../../src';
+} from '../../src/dsl.js';
 
 /**
- * A source file of the Kotlin 9.x wow-api, by its path under
- * `me/ahoo/wow/api/`. 9.x left the v10 branch (decision D262), so the files are
- * fixed copies under `test/fixtures/nine-x/`, which TS-9x deletes with this
- * test.
+ * A source file of the Kotlin query model, by its path under
+ * `query/query/src/main/kotlin/me/ahoo/wow/query/`.
  */
 function kotlinSource(path: string): string {
   return readFileSync(
     new URL(
-      `../fixtures/nine-x/wow-api/src/main/kotlin/me/ahoo/wow/api/${path}`,
+      `../../../../query/query/src/main/kotlin/me/ahoo/wow/query/${path}`,
       import.meta.url,
     ),
     'utf8',
@@ -38,7 +36,7 @@ function kotlinSource(path: string): string {
 
 /** The constraint types the Kotlin ConstraintDescriptor names, in source order. */
 function kotlinConstraintTypes(): Record<string, string> {
-  const source = kotlinSource('query/descriptor/QueryModelDescriptor.kt');
+  const source = kotlinSource('descriptor/QueryModelDescriptor.kt');
   const companion = source.slice(
     source.indexOf('data class ConstraintDescriptor'),
   );
@@ -63,12 +61,12 @@ describe('QueryConstraintTypes', () => {
  * FieldDescriptor companion names, in source order.
  */
 function kotlinFieldRoles(): Record<string, string> {
-  const spec = kotlinSource('query/spec/FilterOperatorSpec.kt');
+  const spec = kotlinSource('spec/FilterOperatorSpec.kt');
   const start = spec.indexOf('{', spec.indexOf('enum class SystemField'));
   const systemFields = spec
     .slice(start + 1, spec.indexOf('}', start))
     .match(/[A-Z][A-Z_]*/g)!;
-  const descriptor = kotlinSource('query/descriptor/QueryModelDescriptor.kt');
+  const descriptor = kotlinSource('descriptor/QueryModelDescriptor.kt');
   const field = descriptor.slice(
     descriptor.indexOf('data class FieldDescriptor'),
     descriptor.indexOf('data class EnumValueDescriptor'),

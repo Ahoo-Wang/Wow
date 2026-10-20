@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { QueryDescriptorResult } from '../../src/index.js';
 import {
   AggregationDatePart,
   DateDiffUnit,
@@ -22,9 +23,8 @@ import {
   PagingMode,
   QueryValueKind,
   type FieldDescriptor,
-  type QueryDescriptorResult,
   type QueryModelDescriptor,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 
 /** Every operator Wow has: a field listing these admits whatever a kind offers. */
 export const ALL_OPERATORS = Object.values(FilterOperator);

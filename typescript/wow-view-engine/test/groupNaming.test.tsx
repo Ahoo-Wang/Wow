@@ -23,7 +23,7 @@
  *   「新客：是」, not a legend of 「是」「否」 that says nothing of what.
  */
 
-import { AggregationGroupType } from '@ahoo-wang/wow-client';
+import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import { cleanup, render } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {

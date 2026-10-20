@@ -17,7 +17,7 @@
  * no clock — the descriptors are the snapshots the host commits.
  */
 
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   type Issue,

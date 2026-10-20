@@ -35,7 +35,7 @@ A green local build can close the source gate. It does not close the other four.
 | Wow 9.1.x | [Upgrading from 9.1 to 9.2.0](#upgrading-from-9-1-to-9-2-0) | The query engine is rebuilt behind the same gateway and REST contracts: custom query backends and gateways, renamed beans and 9.1 declaration files change; four approved server-behaviour exceptions need steps before the upgrade |
 | Wow 9.0.x | [Upgrading from 9.0 to 9.1.0](#upgrading-from-9-0-to-9-1-0) | Additive aggregation features: recompile callers of the aggregation constructors |
 | Wow v8.16.x | [Upgrading from 8.16 to 9.0.0](#upgrading-from-8-16-to-9-0-0), then each 9.x section in order | The complete V8 → V9 path: queries move to `QueryGateway` and `QueryBackend` ([V9 Query Migration](./query/v9-query-migration.md)) and the v8 storage aliases are removed |
-| TypeScript client on `fetcher-wow`, `fetcher-generator`, or the Wow hooks of `fetcher-react` | [Migrate from Fetcher Packages](./typescript/migration.md) | Switch to `wow-client`, `wow-generator`, and `wow-react`, then regenerate generated clients |
+| TypeScript client on `fetcher-wow`, `fetcher-generator`, or the Wow hooks of `fetcher-react` | Migrate from Fetcher Packages | Switch to `wow-client`, `wow-generator`, and `wow-react`, then regenerate generated clients |
 
 Do not combine first adoption and a v6→v8 upgrade into one undifferentiated release. Select a bounded context and an
 exact source/target version for each change window.
@@ -417,7 +417,7 @@ Kafka-received messages are now read-only, as Redis and in-memory ones already w
 
 ## Upgrading from 9.1 to 9.2.0
 
-9.2.0 rebuilds the query engine behind the same `QueryGateway` and REST contracts, adds the query capability descriptor, and ships the TypeScript packages with Wow. REST, storage and wire formats of existing aggregates are unchanged except for the four approved exceptions under [Server Behaviour](#server-behaviour-9-2), so 9.1.x and 9.2.x nodes can share a cluster during a rolling upgrade, with the differences each exception lists; keep that window short. TypeScript applications move from the fetcher packages through [Migrate from Fetcher Packages](./typescript/migration.md).
+9.2.0 rebuilds the query engine behind the same `QueryGateway` and REST contracts, adds the query capability descriptor, and ships the TypeScript packages with Wow. REST, storage and wire formats of existing aggregates are unchanged except for the four approved exceptions under [Server Behaviour](#server-behaviour-9-2), so 9.1.x and 9.2.x nodes can share a cluster during a rolling upgrade, with the differences each exception lists; keep that window short. TypeScript applications move from the fetcher packages through Migrate from Fetcher Packages.
 
 ### Before You Upgrade {#before-9-2}
 
@@ -580,7 +580,7 @@ See [v6 → v8: Mongo Ownership Guard](https://github.com/Ahoo-Wang/Wow/blob/v8.
 | [Migrate Wow v6 to v8](./migration/v6-to-v8.md) | Where the v6 → v8 guide is kept (the v8.16.3 tag) |
 | [Runtime Orchestration Migration](./migration/runtime-orchestration.md) | Unified lifecycle source migration |
 | [V9 Query Migration](./query/v9-query-migration.md) | V8.16.x to V9 query and SnapshotStore source migration |
-| [Migrate from Fetcher Packages](./typescript/migration.md) | TypeScript package renames and client regeneration |
+| Migrate from Fetcher Packages | TypeScript package renames and client regeneration |
 | [Runtime Lifecycle](./advanced/runtime-lifecycle.md) | Stable runtime model after migration |
 | [Troubleshooting](./troubleshooting.md) | Evidence-first diagnosis when a gate fails |
 

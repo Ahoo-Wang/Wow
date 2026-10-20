@@ -7,7 +7,7 @@ description: 从查询描述写视图定义：描述给的事实、措辞的键�
 
 本页回答：**手里有一份服务端的查询描述，怎样写出一份给对的人看、准入干净的定义？**
 
-[入门](./view-engine-getting-started.md)里的定义只列了五个字段、两个系统视图，够把列表跑起来。本页接着写同一个销售订单（聚合 `sales-order`），把每一项选择摊开：列哪些字段、叫什么、收窄什么、随定义发布哪些视图和看板，以及怎样在测试里证明它站得住。定义在模型里的位置见[核心概念](./view-engine-concepts.md#定义)。
+入门里的定义只列了五个字段、两个系统视图，够把列表跑起来。本页接着写同一个销售订单（聚合 `sales-order`），把每一项选择摊开：列哪些字段、叫什么、收窄什么、随定义发布哪些视图和看板，以及怎样在测试里证明它站得住。定义在模型里的位置见[核心概念](./view-engine-concepts.md#定义)。
 
 ## 1. 先有描述符，并把它提交
 
@@ -17,7 +17,7 @@ description: 从查询描述写视图定义：描述给的事实、措辞的键�
 
 ```ts
 // src/views/salesOrderDescriptor.ts
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 // GET /sales-order/snapshot/schema，version sha256:a30adffc…
 import snapshot from './salesOrderDescriptor.json';
 
@@ -50,13 +50,13 @@ export const salesOrderDescriptor = snapshot as unknown as QueryModelDescriptor;
 
 <!-- typecheck: file=salesOrders.ts -->
 <!-- typecheck-context
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 declare const salesOrderDescriptor: QueryModelDescriptor;
 -->
 
 ```ts
 // src/views/salesOrders.ts
-import { AggregationDateUnit } from '@ahoo-wang/wow-client';
+import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
 import { defineView, text } from '@ahoo-wang/wow-view-engine';
 import { SALES_ORDER_VIEWS } from './salesOrderViews';
 
@@ -573,7 +573,7 @@ export const overview: DashboardDefinition = {
 一个测试准入宿主注册的全部定义，覆盖宿主服务的每种语言：
 
 <!-- typecheck-context
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 declare const salesOrderDescriptor: QueryModelDescriptor;
 declare const describe: (name: string, body: () => void) => void;
 declare const it: { each<T>(cases: readonly T[]): (name: string, body: (value: T) => void) => void };
@@ -636,5 +636,5 @@ describe('the order views', () => {
 | 接下来 | 阅读 |
 |---|---|
 | 定义、视图、看板与存储在模型里的位置 | [核心概念](./view-engine-concepts.md) |
-| 把定义接进引擎、`ViewHost` 与一个操作 | [视图引擎入门](./view-engine-getting-started.md) |
+| 把定义接进引擎、`ViewHost` 与一个操作 | 视图引擎入门 |
 | 换一套外观、接上宿主的主题 | [视图引擎的主题](./view-engine-theming.md) |

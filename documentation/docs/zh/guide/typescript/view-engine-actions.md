@@ -20,19 +20,14 @@ description: 记录上的命令怎样声明：可用规则与理由、放在哪�
 
 ## 声明一个操作 {#declare}
 
-下面假设一个订单聚合接受三条命令：`ship_order`（只有已付款的能发）、`cancel_order`（发货前才能取消，要写原因）与 `change_warehouse`。先把命令写成一个客户端，按聚合 id 发送：
+下面假设一个订单聚合接受三条命令：`ship-order`（只有已付款的能发）、`cancel-order`（发货前才能取消，要写原因）与 `change-warehouse`。先把命令写成一个客户端，按聚合 id 发送：
 
 <!-- typecheck: file=orderCommands.ts -->
 
 ```ts
 // src/views/orderCommands.ts
 import type { Fetcher } from '@ahoo-wang/fetcher';
-import {
-  CommandClient,
-  CommandStage,
-  commandHeaders,
-  waitStrategy,
-} from '@ahoo-wang/wow-client';
+import { CommandGateway, wait } from '@ahoo-wang/wow-client';
 
 /** 一个人在一张订单上发的命令。每条都在快照反映了它之后才 resolve。 */
 export interface OrderCommands {
@@ -43,9 +38,9 @@ export interface OrderCommands {
 
 export function orderCommands(fetcher: Fetcher): OrderCommands {
   // 用 wow-generator 生成的命令客户端时，路由与请求体都有类型；这里按路径发。
-  const client = new CommandClient({ fetcher, basePath: 'example/order' });
-  // `Command-Wait-Stage: SNAPSHOT`：快照写好才答，因为 `run` 一 resolve 引擎就重读视图。
-  const wait = waitStrategy({ stage: CommandStage.SNAPSHOT });
+  const commands = new CommandGateway({ fetcher });
+  // `Wow-Wait: snapshot`：快照收下这次提交才答，因为 `run` 一 resolve 引擎就重读视图。
+  const plan = [wait.snapshot()];
   const send = async (
     command: string,
     id: string,
@@ -53,24 +48,19 @@ export function orderCommands(fetcher: Fetcher): OrderCommands {
     version?: number,
   ) => {
     // 被服务端拒绝时 reject：引擎把服务端的原因报在那张订单上。
-    await client.send({
-      path: `{id}/${command}`,
-      method: 'POST',
-      // id 是路径变量，由 fetcher 编码，不拼进路径。
-      urlParams: { path: { id } },
+    await commands.send(`/example/order/{id}/${command}`, body, {
+      // id 填进 `{id}`，由网关编码，不拼进路径。
+      id,
       // 带上这一行显示时的版本：已经生效过的命令再发一次，按版本冲突被拒，不会做两遍。
-      headers:
-        version === undefined
-          ? wait
-          : { ...wait, ...commandHeaders({ aggregateVersion: version }) },
-      body,
+      expectedVersion: version,
+      wait: { plan },
     });
   };
   return {
-    ship: (id, version) => send('ship_order', id, {}, version),
+    ship: (id, version) => send('ship-order', id, {}, version),
     cancel: (id, version, reason) =>
-      send('cancel_order', id, { reason }, version),
-    moveTo: (id, warehouse) => send('change_warehouse', id, { warehouse }),
+      send('cancel-order', id, { reason }, version),
+    moveTo: (id, warehouse) => send('change-warehouse', id, { warehouse }),
   };
 }
 ```
@@ -215,7 +205,7 @@ export const holdActions = actions([
 规则要读的字段，在定义里写进 [`record.rowFields`](../../reference/typescript/wow-view-engine/definitions.md#api-RecordCapability)，不管视图显示不显示，每一行都带着它们：
 
 <!-- typecheck-context
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 declare const descriptor: QueryModelDescriptor;
 -->
 
@@ -418,4 +408,4 @@ expect(commands.cancel).toHaveBeenCalledWith('O-1', 3, '买家要求');
 |---|---|
 | [`ViewHost`](../../reference/typescript/wow-view-engine/host.md#api-ViewHost)、`bind`、路由与嵌入 | [把引擎接进宿主](./view-engine-host.md) |
 | 键盘与读屏怎样走一遍声明式操作 | [视图引擎的可访问性](./view-engine-accessibility.md) |
-| 从零接一个业务对象，带一个操作 | [视图引擎入门](./view-engine-getting-started.md) |
+| 从零接一个业务对象，带一个操作 | 视图引擎入门 |

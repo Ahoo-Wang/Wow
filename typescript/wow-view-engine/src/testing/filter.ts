@@ -23,7 +23,7 @@ import {
   type ElementFilterExpression,
   type FilterExpression,
   type NowFilter,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import type { RecordData } from '../model/record.js';
 import { evaluated } from './expression.js';
 

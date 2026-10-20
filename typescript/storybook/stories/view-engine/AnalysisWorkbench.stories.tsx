@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { AggregationGroupType, SortDirection } from '@ahoo-wang/wow-client';
+import { AggregationGroupType, SortDirection } from '@ahoo-wang/wow-client/dsl';
 import {
   fitChartSlots,
   type AnalysisViewConfig,

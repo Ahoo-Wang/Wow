@@ -141,7 +141,7 @@ export function trace(fetcher: Fetcher, traceparent: () => string | undefined) {
 }
 ```
 
-响应拦截器和错误拦截器的用法相同，见 [Fetcher 拦截器](https://fetcher.ahoo.me/reference/fetcher/interceptors)。错误拦截器无法把失败的调用变成 `WowError`——请像[错误处理](./error-handling.md)那样用 `toWowError` 读取失败。
+响应拦截器和错误拦截器的用法相同，见 [Fetcher 拦截器](https://fetcher.ahoo.me/reference/fetcher/interceptors)。错误拦截器无法把失败的调用变成 `WowError`——请像错误处理那样用 `toWowError` 读取失败。
 
 ## 多个 Wow 服务
 
@@ -167,5 +167,5 @@ export function registerServices(cosec: CoSecConfigurer) {
 ## 延伸阅读
 
 - [在 Fetcher 中使用 CoSec](https://fetcher.ahoo.me/guides/integrations/cosec) 与 [fetcher-cosec 参考](https://fetcher.ahoo.me/reference/cosec)：令牌存储、刷新以及各个拦截器。
-- [身份与资源归属](../../reference/typescript/wow-client/identity-and-attribution.md)：租户、所有者与空间在 Wow 一侧的含义。
-- [SSR 与 Node.js](./ssr-and-node.md)：一个 Fetcher 服务多个用户的服务端怎样处理凭据。
+- 身份与资源归属：租户、所有者与空间在 Wow 一侧的含义。
+- SSR 与 Node.js：一个 Fetcher 服务多个用户的服务端怎样处理凭据。

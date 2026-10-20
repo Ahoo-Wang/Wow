@@ -40,8 +40,6 @@ import {
 const LISTS: Record<Entry, string> = {
   '@ahoo-wang/wow-client': 'surface/root.txt',
   '@ahoo-wang/wow-client/dsl': 'surface/dsl.txt',
-  '@ahoo-wang/wow-client/legacy': 'surface/legacy.txt',
-  '@ahoo-wang/wow-client/v10': 'surface/v10.txt',
 };
 
 /** One entry's list as the file holds it: a heading, then `kind name`. */
@@ -66,22 +64,11 @@ describe('the public surface of each entry', () => {
       );
     });
 
-  it('keeps the Condition API off the root entry', () => {
-    const root = entryExports('@ahoo-wang/wow-client');
-    const legacy = entryExports('@ahoo-wang/wow-client/legacy');
-    expect([...legacy.keys()].filter(name => root.has(name)).sort()).toEqual([
-      // The legacy factories build Condition queries under the root names.
-      'listQuery',
-      'pagedQuery',
-      'singleQuery',
-    ]);
-  });
-
-  it('keeps the DSL entry a part of the root entry', () => {
+  it('keeps the DSL and the client apart', () => {
     const root = entryExports('@ahoo-wang/wow-client');
     const dsl = entryExports('@ahoo-wang/wow-client/dsl');
-    expect([...dsl.keys()].filter(name => !root.has(name))).toEqual([]);
-    for (const client of ['SnapshotQueryClient', 'CommandClient', 'WowError'])
+    expect([...dsl.keys()].filter(name => root.has(name))).toEqual([]);
+    for (const client of ['SnapshotQueryClient', 'CommandGateway'])
       expect(dsl.has(client)).toBe(false);
   });
 });

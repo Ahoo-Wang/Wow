@@ -11,19 +11,17 @@
  * limitations under the License.
  */
 
-import { ResultExtractors, type Fetcher } from '@ahoo-wang/fetcher';
+import type { Fetcher } from '@ahoo-wang/fetcher';
+import { asc, filter, listQuery, singleQuery } from '@ahoo-wang/wow-client/dsl';
 import {
-  asc,
-  CommandHeaders,
-  CommandStage,
-  filter,
-  listQuery,
-  singleQuery,
-  type BindingError,
+  FrameworkErrorCodes,
+  type CommandOptions,
+  type CommandResult,
+  type WowClientOptions,
 } from '@ahoo-wang/wow-client';
 import {
+  emptyPreferences,
   isSystemInstanceId,
-  isViewStoreError,
   ViewStoreError,
   type ViewAudience,
   type ViewConfig,
@@ -34,55 +32,63 @@ import {
   type ViewStore,
   type WriteContext,
 } from '@ahoo-wang/wow-view-engine';
-import {
-  failureOf,
-  Failure,
-  isDuplicateRequest,
-  REFERENCED_BY_SHARED_DASHBOARD,
-} from './errors.js';
-import { PATHS, pathAt, type Place } from './paths.js';
+import { SHARED_OWNER_ID, SYSTEM_OWNER_ID, type Place } from './paths.js';
+import { Remembered } from './remembered.js';
 import {
   isStored,
   preferencesAt,
   preferencesInput,
-  revisionOf,
-  samePreferences,
-  SUMMARY_FIELDS,
   systemInstance,
   systemSummary,
-  toInstance,
   toPreferences,
-  toSummary,
-  type CommandResultBody,
-  type PreferencesBody,
   type SystemViewBody,
-  type ViewSnapshotBody,
+} from './views.js';
+import {
+  ViewStoreErrorCodes,
+  viewStoreWait,
+} from './generated/view-store/boundedContext.js';
+import { ViewCommandClient } from './generated/view-store/view/commandClient.js';
+import {
+  ViewSnapshotQueryClient,
+  ViewStateClient,
+} from './generated/view-store/view/queryClient.js';
+import { ViewPreferencesCommandClient } from './generated/view-store/view_preferences/commandClient.js';
+import { ViewPreferencesSnapshotQueryClient } from './generated/view-store/view_preferences/queryClient.js';
+import type { ViewState } from './generated/view-store/types.js';
+import { boardTitles, Failure, guard, request } from './errors.js';
+import { SystemViewsClient } from './systemViews.js';
+import {
+  scopeAt,
+  SUMMARY_FIELDS,
+  toInstance,
+  toSummary,
+  type ViewRecord,
 } from './wire.js';
-import { Remembered } from './remembered.js';
 
-/** How a {@link WowViewStore} reaches the view store. */
+/** How a V10 {@link WowViewStore} reaches the view store service. */
 export interface WowViewStoreOptions {
   /**
    * The fetcher every request goes through, on the base URL that serves
-   * `/view-store/…` (the CoSec gateway in front of the view store server, or
-   * the service that embeds the starter).
+   * `/view-store/…` (the V10 view store service, or a gateway in front of
+   * it).
    *
-   * Its interceptors carry who is asking; the store never does. They must
-   * fill the path variables `{tenantId}` and, on a personal path,
-   * `{ownerId}` where the store leaves them out — fetcher-cosec's
-   * `ResourceAttributionRequestInterceptor` fills them from the token's
-   * `tenantId` and `sub` — and send `CoSec-App-Id` (fetcher-cosec's
-   * `CoSecRequestInterceptor`), and the space and the authorization with it.
-   * A host nobody signs in to adds an interceptor of its own that fills the
-   * same defaults (the owner `(shared)`, {@link SHARED_OWNER_ID}).
+   * Its interceptors carry who is asking; the store never does. The V10
+   * service takes the tenant and the owner from the principal, so no path
+   * names them: the interceptors send the authorization (CoSec's token, or
+   * the headers the service's own caller resolver reads) and `CoSec-App-Id`,
+   * the application every view, preference and wording is kept in. The
+   * store adds `Wow-Scope` itself where it acts as a reserved owner: the
+   * shared views' `(shared)`, and `(system)` of `(platform)` for stored
+   * system views.
    */
   fetcher: Fetcher;
   /**
-   * Which buttons are enabled for one definition's views. The server does
-   * not authorize, the CoSec gateway does; a host answers this by the roles
-   * it holds there — `changeAudience` by the role that may write
-   * `owner/(shared)`, which claiming a view needs. Left out, everything is
-   * allowed, as the port reads a store without `permissions`.
+   * Which buttons are enabled for one definition's views. The service
+   * authorizes each write; a host answers this by the roles it holds there —
+   * `changeAudience` and the shared views' writes by the role that writes
+   * the owner `(shared)` (`view-store.shared-writer` on the service as
+   * shipped), `editSystem` by the one that writes `(system)`. Left out,
+   * everything is allowed, as the port reads a store without `permissions`.
    */
   permissions?: (definitionId: string) => ViewPermissions;
 }
@@ -93,58 +99,59 @@ export interface WowViewStoreOptions {
  */
 const LIST_LIMIT = 1000;
 
-/** What a stored system view's writes expect: its version at a revision. */
-interface StoredAt {
-  /** The content hash the engine holds as the view's revision. */
-  revision: string;
-  version: number;
-}
+/** How many system views' revisions the store remembers the version of. */
+const REMEMBERED_SYSTEM_REVISIONS = 1024;
+
+/**
+ * What a share or a claim waits for: the saga that moves the view to its
+ * new owner, then that move's snapshot. The view's own commit changes its
+ * audience; the owner, which reads and writes go by, changes one version
+ * later (`ViewAudienceSaga`).
+ */
+const AUDIENCE_WAIT = [
+  viewStoreWait.handled('ViewAudienceSaga.onAudienceChanged'),
+  viewStoreWait.snapshot(),
+];
 
 /** One instance write, as sent from the place the view is at. */
 interface InstanceWrite {
-  method: 'POST' | 'PUT' | 'DELETE';
-  url: string;
-  /** The path it is sent to, and so replayed on. */
-  sentTo: Place;
-  body?: unknown;
+  /** Sends it with the options the store fills. */
+  send(options: CommandOptions): Promise<CommandResult>;
+  /** The place whose `Wow-Scope` it is sent with. */
+  sentFrom: Place;
   /** Where the view is once it lands; `null` for a delete. */
   landsAt: Place | null;
+  /** A share or a claim: it moves the view, waiting for the move. */
+  moves?: boolean;
 }
 
-/** The replay route found nothing this write can be answered with. */
-const NOT_REPLAYED = Symbol('not replayed');
-
 /**
- * The view engine's `ViewStore` over the Wow view store (`view-store/` in the
- * Wow repository): saved views and preferences as two Wow aggregates, served
- * under `/view-store/tenant/{tenantId}/owner/{ownerId}/…`.
+ * The view engine's `ViewStore` over the **V10** view store service
+ * (`platform/view-store` in the Wow repository): saved views and preferences
+ * as two Wow V10 aggregates, reached through the clients generated from the
+ * service's Manifest (`@ahoo-wang/wow-client`), and the system views
+ * through the service's own route.
  *
- * **The owner segment is the audience.** A personal view lives on the
- * caller's own path (`{ownerId}` filled by the fetcher's interceptors), a
- * shared one on `owner/(shared)`; the CoSec gateway decides who may use
- * which. The port names a view by id alone, so the store remembers where it
- * last saw each one (a list, a read, a write) and looks an unknown id up on
- * the personal path, the shared path and the server's system views, in that
- * order. Setting a view shared or personal moves it between the two paths,
- * id kept.
+ * **The owner is the audience.** A personal view is the caller's own; a
+ * shared one belongs to the reserved owner `(shared)`, which the store acts
+ * as with `Wow-Scope: owner="(shared)"`; a stored system view to `(system)`
+ * of the tenant `(platform)`. The port names a view by id alone, so the
+ * store remembers where it last saw each one and looks an unknown id up as
+ * the caller, as `(shared)` and among the system views, in that order.
+ * Sharing and claiming move a view to the other owner in place, id kept:
+ * the store waits for the service's `ViewAudienceSaga` to move it.
  *
- * **Writes** carry the port's `requestId` as `Command-Request-Id`, its
- * `revision` as `Command-Aggregate-Version`, and wait for the snapshot; the
- * answer is the view read back at the version the write left. A write the
- * server refuses as a stale version or a repeated request id is first looked
- * up by its request id (the replay route): a retry answers what the first
- * attempt wrote. Otherwise a stale version is `CONFLICT` carrying the view as
- * it is now, and a view that turns out to be gone is `NOT_FOUND`.
+ * **Writes** carry the port's `requestId` as `Wow-Request-Id` and its
+ * `revision` as `If-Match`, and wait for the snapshot. The service
+ * deduplicates a request id, creates included, so a retry is answered with
+ * the first attempt's outcome; the store answers the view read back at the
+ * version that write left (`GET …/{id}/state?version=`). A stale revision
+ * is `CONFLICT` carrying the view as it is now.
  *
- * **Errors** are read by Wow's error code onto the port's five codes, by the
- * HTTP status only for an answer without a code the store knows; a request
- * that got no answer is `UNAVAILABLE`, and a retry under the same
- * `requestId` is safe.
- *
- * **Creating is not idempotent on the server**, which generates the id. A
- * store remembers the request ids of its own creates (bounded), and a retry
- * of one first asks the replay route whether it landed; a retry sent by
- * another store — another tab, a reload — makes a second view.
+ * **Errors** are read by the problem's code onto the port's codes, by the
+ * HTTP status only for an answer without a code the store knows; a `404`
+ * without a code is a route the service does not serve (`UNSUPPORTED`), and
+ * a request that got no answer is `UNAVAILABLE`.
  */
 export class WowViewStore implements ViewStore {
   /**
@@ -152,49 +159,45 @@ export class WowViewStore implements ViewStore {
    * listed this full was cut there, which the workbench then says (R2-26).
    */
   readonly listLimit = LIST_LIMIT;
-  private readonly fetcher: Fetcher;
-  /**
-   * Where each view was last seen, by id. Kept after a delete, for its retry.
-   * A `system` view is read through the server's system views (configured
-   * and stored) and written, when stored, on the system path.
-   */
-  private readonly places = new Map<string, Place>();
-  /**
-   * The preferences have no replay route, so the store keeps what each of
-   * its own writes answered, and which ones it sent: a retry answers the
-   * first outcome, and a retry whose first answer was lost is recognised.
-   */
-  private readonly preferenceOutcomes = new Remembered<ViewPreferences>();
-  private readonly preferenceAttempts = new Remembered<true>();
-  /** The request ids of the creates this store sent, for their retries. */
-  private readonly createAttempts = new Remembered<true>();
-  /**
-   * The system views as last read, by id: a stored one's version at its
-   * revision (a hash of its content, while a write expects the version), or
-   * `null` for a configured one, which is read-only.
-   */
-  private readonly storedVersions = new Remembered<StoredAt | null>(
-    REMEMBERED_SYSTEM_VIEWS,
-  );
   /** The host's {@link WowViewStoreOptions.permissions}, when it gave any. */
   readonly permissions?: (definitionId: string) => ViewPermissions;
+  private readonly commands: ViewCommandClient;
+  private readonly snapshots: ViewSnapshotQueryClient;
+  private readonly states: ViewStateClient;
+  private readonly preferenceCommands: ViewPreferencesCommandClient;
+  private readonly preferenceSnapshots: ViewPreferencesSnapshotQueryClient;
+  private readonly systemViews: SystemViewsClient;
+  /** Where each view was last seen, by id. */
+  private readonly places = new Map<string, Place>();
+  /**
+   * The version of each stored system view at each revision the store has
+   * seen it at (a hash of its content, while a write expects the version),
+   * by `id` and revision; `null` for a configured one, which is read-only.
+   * Keeping the old revisions too lets a retry send the version its first
+   * attempt expected, which the service then answers as a duplicate.
+   */
+  private readonly systemVersions = new Remembered<number | null>(
+    REMEMBERED_SYSTEM_REVISIONS,
+  );
 
   constructor(options: WowViewStoreOptions) {
-    this.fetcher = options.fetcher;
+    const client: WowClientOptions = { fetcher: options.fetcher };
+    this.commands = new ViewCommandClient(client);
+    this.snapshots = new ViewSnapshotQueryClient(client);
+    this.states = new ViewStateClient(client);
+    this.preferenceCommands = new ViewPreferencesCommandClient(client);
+    this.preferenceSnapshots = new ViewPreferencesSnapshotQueryClient(client);
+    this.systemViews = new SystemViewsClient(options.fetcher);
     // Left undefined when the host declared none, which the port reads as
     // "everything is allowed".
     if (options.permissions) this.permissions = options.permissions;
   }
 
   /**
-   * The caller's personal views, the shared views and the server's system
+   * The caller's personal views, the shared views and the service's system
    * views of the definition: three requests, sent together, answered in the
-   * port's order — system, shared, personal, each oldest first (the server
+   * port's order — system, shared, personal, each oldest first (the service
    * sorts each audience by the time its first event was written).
-   *
-   * A server with no view store at all (one released before it) answers
-   * every route `404`, where a list on one that has it never does: that is
-   * `UNSUPPORTED`, not a missing view.
    */
   list(
     definitionId: string,
@@ -203,110 +206,65 @@ export class WowViewStore implements ViewStore {
     return guard(async () => {
       const query = listQuery({
         filter: filter.eq('state.definitionId', definitionId),
-        projection: { include: SUMMARY_FIELDS },
-        sort: LIST_ORDER,
+        projection: { include: [...SUMMARY_FIELDS] },
+        sort: [asc('firstEventTime'), asc('aggregateId')],
         limit: LIST_LIMIT,
       });
       const [personal, shared, system] = await Promise.all([
-        this.json<ViewSnapshotBody[]>('POST', PATHS.list, 'personal', {
-          body: query,
-          signal,
-        }),
-        this.json<ViewSnapshotBody[]>('POST', PATHS.list, 'shared', {
-          body: query,
-          signal,
-        }),
-        this.json<SystemViewBody[]>('GET', PATHS.systemViews, 'shared', {
-          query: { definitionId },
-          signal,
-        }),
-      ]).catch((thrown: unknown) => {
-        throw thrown instanceof Failure && thrown.code === 'NOT_FOUND'
-          ? unsupported(thrown)
-          : thrown;
-      });
+        request(() => this.snapshots.list(query, { signal })),
+        request(() =>
+          this.snapshots.list(query, { scope: scopeAt('shared'), signal }),
+        ),
+        this.systemViews.list(definitionId, signal),
+      ]);
       for (const view of system) this.rememberSystem(view);
       const seen = new Map<string, ViewInstanceSummary>();
       for (const summary of [
-        ...personal.map(toSummary),
-        ...shared.map(toSummary),
+        ...personal.map(record => toSummary(recordOf(record))),
+        ...shared.map(record => toSummary(recordOf(record))),
         ...system.map(systemSummary),
       ]) {
         if (seen.has(summary.id)) continue;
         seen.set(summary.id, summary);
         this.places.set(summary.id, summary.scope);
       }
-      // Sorted stably: within an audience, the server's order stands.
+      // Sorted stably: within an audience, the service's order stands.
       return [...seen.values()].sort(
         (a, b) => AUDIENCE_RANK[a.scope] - AUDIENCE_RANK[b.scope],
       );
     });
   }
 
-  /** View `id` wherever it is: the caller's, shared, or the server's system view. */
+  /** View `id` wherever it is: the caller's, shared, or a system view. */
   get(id: string, signal?: AbortSignal): Promise<ViewInstance> {
     return guard(async () => (await this.find(id, signal)).instance);
   }
 
   /**
-   * Posts the view to the path of its `scope`; the server generates the id.
-   * A retry of a create this store sent asks the replay route on that path
-   * first, and answers the view the first attempt made when it landed; the
-   * server itself does not deduplicate, so a retry from another store makes
-   * a second view.
+   * Creates the view as the owner of its `scope`; the service generates the
+   * id. A retry under the same request id is answered with the first
+   * attempt's view, whichever store sends it: the service deduplicates it.
    */
   create(
     input: Omit<ViewInstance, 'id' | 'revision'>,
     context: WriteContext,
   ): Promise<ViewInstance> {
     return guard(async () => {
-      // A system view is created on the system path, global (the gateway
-      // decides who may); configured and code system views stay read-only.
       const place: Place = input.scope;
-      const { requestId } = context;
-      if (this.createAttempts.has(requestId)) {
-        const made = await this.probe(place, context, true);
-        const snapshot =
-          made?.status === 200
-            ? ((await made.json()) as ViewSnapshotBody | null)
-            : null;
-        if (snapshot?.aggregateId) {
-          this.places.set(snapshot.aggregateId, place);
-          // A system view's revision is its content hash, which the
-          // snapshot does not carry: it is read from the system views.
-          return place === 'system'
-            ? this.readAt('system', snapshot.aggregateId, context.signal)
-            : toInstance(snapshot);
-        }
-      }
-      this.createAttempts.set(requestId, true);
       const { definitionId, title, config } = input;
       const write: InstanceWrite = {
-        method: 'POST',
-        url: PATHS.views,
-        sentTo: place,
-        body: { definitionId, title, config },
+        send: options =>
+          this.commands.createView(
+            { definitionId, title, config: bodyOf(config) },
+            options,
+          ),
+        sentFrom: place,
         landsAt: place,
       };
-      const result = await this.json<CommandResultBody>(
-        write.method,
-        write.url,
-        place,
-        {
-          body: write.body,
-          headers: writeHeaders(context),
-          signal: context.signal,
-        },
-      ).catch(async (thrown: unknown) => {
-        throw await this.unsupportedOr(thrown, context.signal);
-      });
-      const landed = await this.landed(
-        result.aggregateId,
-        write,
-        result,
-        context,
+      const result = await request(() =>
+        write.send(this.commandOptions(place, context)),
       );
-      return landed!;
+      return (await this.landed(result.ref.id, write, result, context))!;
     });
   }
 
@@ -318,15 +276,14 @@ export class WowViewStore implements ViewStore {
     context: WriteContext,
   ): Promise<ViewInstance> {
     return this.write(id, revision, context, place => ({
-      method: 'PUT',
-      url: PATHS.save,
-      sentTo: place,
-      body: { config },
+      send: options =>
+        this.commands.saveView(id, { config: bodyOf(config) }, options),
+      sentFrom: place,
       landsAt: place,
     })) as Promise<ViewInstance>;
   }
 
-  /** Renames the view (the server trims the title), at the expected `revision`. */
+  /** Renames the view (the service trims the title), at the expected `revision`. */
   rename(
     id: string,
     title: string,
@@ -334,24 +291,27 @@ export class WowViewStore implements ViewStore {
     context: WriteContext,
   ): Promise<ViewInstance> {
     return this.write(id, revision, context, place => ({
-      method: 'PUT',
-      url: PATHS.rename,
-      sentTo: place,
-      body: { title },
+      send: options => this.commands.renameView(id, { title }, options),
+      sentFrom: place,
       landsAt: place,
     })) as Promise<ViewInstance>;
   }
 
   /**
-   * 设为共享 sends `share` to the path the view is at; 设为个人 sends `claim`
-   * to the caller's own path, which the gateway admits only with the role
-   * that may write `owner/(shared)`. Either answers a view that already has
-   * the audience as it is, revision unmoved.
+   * 设为共享 sends `share-view` as the caller, the view's owner; 设为个人
+   * sends `claim-view` as `(shared)`, which the service admits only with
+   * the role that writes the owner `(shared)`, and which makes the caller
+   * the owner. Either waits for the move (`ViewAudienceSaga`). Each is sent
+   * from the same owner whether or not the view has moved, so a retry is
+   * answered as its first attempt's duplicate even after the move.
    *
-   * A shared view a shared dashboard shows stays shared: the server refuses
-   * the claim and names the boards, and the refusal carries them by
-   * **title** in `boards`, as they are stored — a title written as a key
-   * stays one, and is said where the engine shows the refusal.
+   * Asked for the audience the view already has, the service refuses the
+   * command as outside that owner's scope; the store then answers the view
+   * as it is, revision unmoved, once the revision matches.
+   *
+   * A shared view a shared dashboard shows stays shared: the service
+   * refuses the claim and names the boards, and the refusal carries them by
+   * **title** in `boards`, as they are stored.
    */
   changeAudience(
     id: string,
@@ -359,24 +319,22 @@ export class WowViewStore implements ViewStore {
     revision: string,
     context: WriteContext,
   ): Promise<ViewInstance> {
-    return this.write(id, revision, context, place =>
-      place === 'system'
-        ? readOnly('A system view never moves audience')
-        : audience === 'shared'
-          ? {
-              method: 'PUT',
-              url: PATHS.share,
-              sentTo: place,
-              body: {},
-              landsAt: 'shared',
-            }
-          : {
-              method: 'PUT',
-              url: PATHS.claim,
-              sentTo: 'personal',
-              landsAt: 'personal',
-            },
-    ) as Promise<ViewInstance>;
+    return this.write(id, revision, context, place => {
+      if (place === 'system') readOnly('A system view never moves audience');
+      return audience === 'shared'
+        ? {
+            send: options => this.commands.shareView(id, {}, options),
+            sentFrom: 'personal',
+            landsAt: 'shared',
+            moves: true,
+          }
+        : {
+            send: options => this.commands.claimView(id, {}, options),
+            sentFrom: 'shared',
+            landsAt: 'personal',
+            moves: true,
+          };
+    }) as Promise<ViewInstance>;
   }
 
   /** Deletes the view, at the expected `revision`; a board showing it keeps a broken panel. */
@@ -386,36 +344,48 @@ export class WowViewStore implements ViewStore {
     context: WriteContext,
   ): Promise<void> {
     await this.write(id, revision, context, place => ({
-      method: 'DELETE',
-      url: PATHS.view,
-      sentTo: place,
-      body: {},
+      send: options => this.commands.deleteAggregate(id, options),
+      sentFrom: place,
       landsAt: null,
     }));
   }
 
-  /** The caller's own, or `(shared)`'s where the host fills that owner. */
+  /**
+   * The caller's preferences of the definition, in the request's
+   * application: the service derives their id from the owner, the
+   * application and the definition. None written yet reads as the port's
+   * empty preferences, at revision `'0'`.
+   */
   getPreferences(
     definitionId: string,
     signal?: AbortSignal,
   ): Promise<ViewPreferences> {
-    return guard(async () =>
-      toPreferences(
-        await this.json<PreferencesBody>('GET', PATHS.preferences, 'personal', {
-          path: { definitionId },
-          signal,
-        }).catch(async (thrown: unknown) => {
-          throw await this.unsupportedOr(thrown, signal);
-        }),
-      ),
-    );
+    return guard(async () => {
+      try {
+        const record = await request(() =>
+          this.preferenceSnapshots.single(
+            singleQuery({
+              filter: filter.eq('state.definitionId', definitionId),
+            }),
+            { signal },
+          ),
+        );
+        return toPreferences({ ...record.state, version: record.version });
+      } catch (thrown) {
+        if (
+          thrown instanceof Failure &&
+          thrown.problemCode === FrameworkErrorCodes.AGGREGATE_NOT_FOUND
+        )
+          return emptyPreferences();
+        throw thrown;
+      }
+    });
   }
 
   /**
    * Writes the preferences at the expected `revision` (`'0'` for ones never
-   * written). The server has no replay route for them, so a retry answers
-   * what this store's first attempt answered, or — its answer lost — what is
-   * stored when that is what it wrote.
+   * written, which `If-Match: "0"` says). A retry under the same request id
+   * is answered as the first attempt's duplicate, at its version.
    */
   setPreferences(
     definitionId: string,
@@ -424,56 +394,38 @@ export class WowViewStore implements ViewStore {
   ): Promise<ViewPreferences> {
     return guard(async () => {
       const { requestId, signal } = context;
-      const answered = this.preferenceOutcomes.get(requestId);
-      if (answered) return structuredClone(answered);
-      const retry = this.preferenceAttempts.has(requestId);
-      this.preferenceAttempts.set(requestId, true);
-      let answer: ViewPreferences;
       try {
-        const result = await this.json<CommandResultBody>(
-          'PUT',
-          PATHS.preferences,
-          'personal',
-          {
-            path: { definitionId },
-            body: preferencesInput(preferences),
-            headers: writeHeaders(context, preferences.revision),
-            signal,
-          },
+        const result = await request(() =>
+          this.preferenceCommands.setViewPreferences(
+            { definitionId, ...preferencesInput(preferences) },
+            {
+              requestId,
+              expectedVersion: versionOf(preferences.revision),
+              ...(signal === undefined ? {} : { signal }),
+            },
+          ),
         );
-        answer =
-          typeof result.aggregateVersion === 'number'
-            ? preferencesAt(preferences, result.aggregateVersion)
-            : await this.getPreferences(definitionId, signal);
+        return typeof result.version === 'number'
+          ? preferencesAt(preferences, result.version)
+          : await this.getPreferences(definitionId, signal);
       } catch (thrown) {
-        if (
-          !(thrown instanceof Failure) ||
-          (thrown.code !== 'CONFLICT' && !isDuplicateRequest(thrown))
-        )
-          throw await this.unsupportedOr(thrown, signal);
-        const current = await this.getPreferences(definitionId, signal);
-        // A retry the server refuses because its first attempt landed: what
-        // is stored says what it wrote, unless another writer moved it on.
-        if (
-          (retry || isDuplicateRequest(thrown)) &&
-          samePreferences(current, preferences)
-        )
-          answer = current;
-        else
-          throw new ViewStoreError('CONFLICT', thrown.message, {
-            ...thrown.held(),
-            preferences: current,
-          });
+        if (!(thrown instanceof Failure) || thrown.code !== 'CONFLICT')
+          throw thrown;
+        throw new ViewStoreError('CONFLICT', thrown.message, {
+          ...thrown.held(),
+          preferences: await this.getPreferences(definitionId, signal),
+        });
       }
-      this.preferenceOutcomes.set(requestId, answer);
-      return structuredClone(answer);
     });
   }
 
   /**
    * One instance write: to the place the view is at, then the answer read
    * back. A view remembered at a place it has since left (another tab shared
-   * it) is looked up again and the write sent once more to where it is.
+   * it) is looked up again and the write sent once more from where it is.
+   * A move refused because the view already has the audience it asks for
+   * changes nothing: the view is answered as it is, once its revision
+   * matches.
    */
   private write(
     id: string,
@@ -488,45 +440,38 @@ export class WowViewStore implements ViewStore {
       let relocated = remembered === undefined;
       for (;;) {
         const write = plan(place);
-        let expected = revision;
-        if (place === 'system') {
-          const stored = await this.storedVersion(id, revision, write, context);
-          if ('answer' in stored) return stored.answer;
-          expected = stored.version;
-        }
-        let result: CommandResultBody;
+        const options = this.commandOptions(write.sentFrom, context, {
+          expectedVersion:
+            place === 'system'
+              ? await this.systemVersion(id, revision, signal)
+              : versionOf(revision),
+          ...(write.moves ? { wait: { plan: AUDIENCE_WAIT } } : {}),
+        });
+        let result: CommandResult;
         try {
-          result = await this.json<CommandResultBody>(
-            write.method,
-            write.url,
-            write.sentTo,
-            {
-              path: { id },
-              body: write.body,
-              headers: writeHeaders(context, expected),
-              signal,
-            },
-          );
+          result = await request(() => write.send(options));
         } catch (thrown) {
           if (!(thrown instanceof Failure)) throw thrown;
-          const replayed = await this.replayed(id, write, context, thrown);
-          if (replayed !== NOT_REPLAYED) return replayed;
+          if (
+            write.moves &&
+            place === write.landsAt &&
+            thrown.code === 'FORBIDDEN'
+          )
+            return this.unchanged(id, revision, place, signal);
           if (
             !relocated &&
             (thrown.code === 'NOT_FOUND' || thrown.code === 'FORBIDDEN')
           ) {
             relocated = true;
             const found = (await this.find(id, signal, null)).place;
-            // Only where the write would go elsewhere: a claim goes to the
-            // caller's own path wherever the view is.
-            if (found !== place && plan(found).sentTo !== write.sentTo) {
+            if (found !== place) {
               place = found;
               continue;
             }
           }
-          if (thrown.code === 'CONFLICT' || isDuplicateRequest(thrown))
+          if (thrown.code === 'CONFLICT')
             throw await this.conflict(id, thrown, signal);
-          throw await this.refusal(thrown, signal);
+          throw refusal(thrown);
         }
         // Landed: what goes wrong reading it back is never a reason to send
         // it again.
@@ -535,123 +480,61 @@ export class WowViewStore implements ViewStore {
     });
   }
 
-  /** A landed write's answer: the view read back at the version it left. */
+  /**
+   * A landed write's answer: the view read back at the version it left
+   * (`GET …/{id}/state?version=`). A system view's revision is its content
+   * hash, so it is read from its route as it is now.
+   *
+   * A move is two commits: the view's own (its audience), then the saga's
+   * (its owner). Waited for, the result's version is the second; a
+   * duplicate answers the first, so the move is read one version later,
+   * where the owner it names must be the one it moved to. Anything else
+   * (another writer between the two) answers the view as it is now.
+   */
   private async landed(
     id: string,
     write: InstanceWrite,
-    result: CommandResultBody,
+    result: CommandResult,
     context: WriteContext,
   ): Promise<ViewInstance | undefined> {
-    if (write.landsAt === null) return undefined;
-    this.places.set(id, write.landsAt);
-    const version = result.aggregateVersion;
-    let read: ViewInstance | undefined;
-    let failure: unknown;
-    try {
-      read = await this.readAt(write.landsAt, id, context.signal);
-      if (typeof version !== 'number' || read.revision === revisionOf(version))
-        return read;
-      // A system view's revision is its content hash: the version it was
-      // read at says whether it is this write's.
-      if (write.landsAt === 'system') {
-        if (this.storedVersions.get(id)?.version === version) return read;
+    const { landsAt } = write;
+    if (landsAt === null) return undefined;
+    this.places.set(id, landsAt);
+    const { signal } = context;
+    const read = typeof result.version === 'number' ? result.version : null;
+    if (landsAt !== 'system' && read !== null)
+      try {
+        const version = write.moves && result.duplicate ? read + 1 : read;
+        const view = await request(() =>
+          this.states.get(id, {
+            version,
+            ...optionsAt(landsAt),
+            ...(signal === undefined ? {} : { signal }),
+          }),
+        );
+        if (!write.moves || ownedAt(view.scope.ownerId) === landsAt)
+          return toInstance({ id, version: view.version, state: view.state });
+      } catch {
+        // Moved on since (another tab moved it): answered as it is.
       }
-    } catch (thrown) {
-      failure = thrown;
-    }
-    // Another writer moved it on between the write and the read: the replay
-    // route answers it as this write left it. The write landed, so a probe
-    // that fails is no reason to report it otherwise: what was read stands.
-    const replayed = await this.replay(id, write, context, false);
-    if (replayed !== NOT_REPLAYED && replayed !== undefined) return replayed;
-    if (read) return read;
-    throw failure;
+    return (await this.find(id, signal, landsAt)).instance;
   }
 
-  /**
-   * The answer of a write the server refused as a stale version, a repeated
-   * request id or a missing view, when the refusal is that of a retry: the
-   * replay route finds the first attempt by its request id.
-   */
-  private async replayed(
+  /** A move to where the view already is: the view as it is, at `revision`. */
+  private async unchanged(
     id: string,
-    write: InstanceWrite,
-    context: WriteContext,
-    failure: Failure,
-  ): Promise<ViewInstance | undefined | typeof NOT_REPLAYED> {
-    const retryable =
-      failure.code === 'CONFLICT' ||
-      failure.code === 'NOT_FOUND' ||
-      isDuplicateRequest(failure);
-    return retryable ? this.replay(id, write, context, true) : NOT_REPLAYED;
-  }
-
-  /**
-   * What the write with the context's request id left of view `id`, from the
-   * replay route: the view at that version, or `undefined` for a delete.
-   *
-   * The route finds a write only on the path of the owner who wrote it, and
-   * a retry may be sent elsewhere than its first attempt — a share goes to
-   * the personal path the view has left by the time it is retried — so the
-   * path this attempt went to is asked first and the other one next.
-   *
-   * A probe that fails other than as "not found" is no answer on its path.
-   * With `strict` — a refused write, whose own path is asked first — that
-   * path's failure is passed on: whether the first attempt landed is
-   * unknown, and a retry under the same request id is safe. The other path
-   * (a caller without the shared role is refused there), and every probe of
-   * a write that landed, count it as not replayed, and the caller keeps what
-   * it knows: the refusal, or the view it read back.
-   */
-  private async replay(
-    id: string,
-    write: InstanceWrite,
-    context: WriteContext,
-    strict: boolean,
-  ): Promise<ViewInstance | undefined | typeof NOT_REPLAYED> {
-    const places: Place[] =
-      write.sentTo === 'system'
-        ? ['system']
-        : write.sentTo === 'personal'
-          ? ['personal', 'shared']
-          : ['shared', 'personal'];
-    for (const [index, place] of places.entries()) {
-      const response = await this.probe(place, context, strict && index === 0);
-      if (!response) continue;
-      if (response.status === 204)
-        return write.landsAt === null ? undefined : NOT_REPLAYED;
-      const snapshot = (await response.json()) as ViewSnapshotBody;
-      if (write.landsAt === null || snapshot?.aggregateId !== id)
-        return NOT_REPLAYED;
-      // The replay route answers a snapshot, whose revision would be its
-      // version; a system view's is its content hash, which only the server
-      // computes: the view is answered as it is now.
-      if (write.landsAt === 'system')
-        return this.readAt('system', id, context.signal);
-      return toInstance(snapshot);
-    }
-    return NOT_REPLAYED;
-  }
-
-  /**
-   * The replay route at `place` for the context's request id; `undefined`
-   * when it knows none, or — not `strict` — when it could not be asked.
-   */
-  private async probe(
+    revision: string,
     place: Place,
-    context: WriteContext,
-    strict: boolean,
-  ): Promise<Response | undefined> {
-    try {
-      return await this.send('GET', PATHS.replay, place, {
-        path: { requestId: context.requestId },
-        signal: context.signal,
-      });
-    } catch (thrown) {
-      if (thrown instanceof Failure && (thrown.code === 'NOT_FOUND' || !strict))
-        return undefined;
-      throw thrown;
-    }
+    signal: AbortSignal | undefined,
+  ): Promise<ViewInstance> {
+    const { instance } = await this.find(id, signal, place);
+    if (instance.revision !== revision)
+      throw new ViewStoreError(
+        'CONFLICT',
+        `View ${id} has moved on from revision ${revision}`,
+        { instance },
+      );
+    return instance;
   }
 
   /** A stale write's refusal, carrying the view as it is now. */
@@ -668,53 +551,16 @@ export class WowViewStore implements ViewStore {
   }
 
   /**
-   * The port's refusal of a write. A claim the server refuses because shared
-   * dashboards show the view carries those boards' titles (`boards`), which
-   * the server gives beside each board's id (a board it gives no title for
-   * is read for one); the engine says the refusal around them.
-   */
-  private async refusal(
-    failure: Failure,
-    signal: AbortSignal | undefined,
-  ): Promise<ViewStoreError> {
-    const boards = failure.bindingErrors.filter(
-      error => error.code === REFERENCED_BY_SHARED_DASHBOARD,
-    );
-    if (failure.code !== 'INVALID' || boards.length === 0)
-      return failure.toStoreError();
-    const titles = await Promise.all(
-      boards.map(board => this.boardTitle(board, signal)),
-    );
-    return new ViewStoreError('INVALID', failure.message, {
-      ...failure.held(),
-      boards: titles,
-    });
-  }
-
-  private async boardTitle(
-    board: BindingError,
-    signal: AbortSignal | undefined,
-  ): Promise<string> {
-    if (typeof board.msg === 'string' && board.msg.trim() !== '')
-      return board.msg;
-    try {
-      return (await this.readAt('shared', board.name, signal)).title;
-    } catch {
-      return board.name;
-    }
-  }
-
-  /**
    * View `id` and where it is: first where it was last seen (`first`, `null`
-   * to ignore that), then the personal path, the shared path and the
-   * server's system views.
+   * to ignore that), then as the caller, as `(shared)` and among the system
+   * views.
    */
   private async find(
     id: string,
     signal: AbortSignal | undefined,
     first: Place | null | undefined = this.places.get(id),
   ): Promise<{ place: Place; instance: ViewInstance }> {
-    // Ids in `system:` are the views a host declares in code; the server
+    // Ids in `system:` are the views a host declares in code; the service
     // never issues or serves one.
     if (!isSystemInstanceId(id)) {
       const order: Place[] = ['personal', 'shared', 'system'];
@@ -731,85 +577,11 @@ export class WowViewStore implements ViewStore {
           throw thrown;
         }
       }
-      // Every place answered `404`: a view that is not there, or no view
-      // store there at all (a server released before it) — the one
-      // question the server's system views tell apart.
-      if (!(await this.served(signal)))
-        throw new ViewStoreError('UNSUPPORTED', NO_VIEW_STORE);
     }
     throw new ViewStoreError('NOT_FOUND', `No such view: ${id}`);
   }
 
-  /**
-   * Whether the server has a view store at all: its system views answer
-   * on one that has (an empty list included), and `404` on one released
-   * before it. Any other failure is no answer to that, and reads as served.
-   */
-  private async served(signal: AbortSignal | undefined): Promise<boolean> {
-    try {
-      await this.send('GET', PATHS.systemViews, 'shared', { signal });
-      return true;
-    } catch (thrown) {
-      return !(thrown instanceof Failure && thrown.code === 'NOT_FOUND');
-    }
-  }
-
-  /** A `404` from a server with no view store is `UNSUPPORTED`; else as it was. */
-  private async unsupportedOr(
-    thrown: unknown,
-    signal: AbortSignal | undefined,
-  ): Promise<unknown> {
-    return thrown instanceof Failure &&
-      thrown.code === 'NOT_FOUND' &&
-      !(await this.served(signal))
-      ? unsupported(thrown)
-      : thrown;
-  }
-
-  /** Keeps what a stored system view's writes expect; forgets a configured one. */
-  private rememberSystem(view: SystemViewBody): SystemViewBody {
-    this.storedVersions.set(
-      view.id,
-      isStored(view)
-        ? { revision: view.revision, version: view.version! }
-        : null,
-    );
-    return view;
-  }
-
-  /**
-   * The version a write of stored system view `id` at `revision` (its
-   * content hash) expects: as last read, else read now. A configured system
-   * view is read-only (`FORBIDDEN`; a code one is never found here). A
-   * revision other than the view's is stale — unless this write is a retry
-   * whose first attempt moved it on, which the replay route answers — and is
-   * then `CONFLICT`, carrying the view as it is.
-   */
-  private async storedVersion(
-    id: string,
-    revision: string,
-    write: InstanceWrite,
-    context: WriteContext,
-  ): Promise<{ version: string } | { answer: ViewInstance | undefined }> {
-    let known = this.storedVersions.get(id);
-    if (known === null) readOnly('Configured system views are read-only');
-    if (known?.revision !== revision) {
-      const instance = await this.readAt('system', id, context.signal);
-      known = this.storedVersions.get(id);
-      if (known && known.revision !== revision) {
-        const replayed = await this.replay(id, write, context, false);
-        if (replayed !== NOT_REPLAYED) return { answer: replayed };
-        throw new ViewStoreError(
-          'CONFLICT',
-          `System view ${id} has moved on from revision ${revision}`,
-          { instance },
-        );
-      }
-    }
-    if (!known) readOnly('Configured system views are read-only');
-    return { version: String(known.version) };
-  }
-
+  /** The view as it is now at `place`; a `NOT_FOUND` failure when it is not there. */
   private async readAt(
     place: Place,
     id: string,
@@ -817,101 +589,123 @@ export class WowViewStore implements ViewStore {
   ): Promise<ViewInstance> {
     if (place === 'system')
       return systemInstance(
-        this.rememberSystem(
-          await this.json<SystemViewBody>('GET', PATHS.systemView, 'shared', {
-            path: { id },
-            signal,
-          }),
-        ),
+        this.rememberSystem(await this.systemViews.one(id, signal)),
       );
-    return toInstance(
-      await this.json<ViewSnapshotBody>('POST', PATHS.single, place, {
-        body: singleQuery({ filter: filter.id(id) }),
-        signal,
+    const record = await request(() =>
+      this.snapshots.single(singleQuery({ filter: filter.id(id) }), {
+        ...optionsAt(place),
+        ...(signal === undefined ? {} : { signal }),
       }),
     );
+    return toInstance(recordOf(record));
   }
 
-  private async json<R>(
-    method: string,
-    url: string,
-    place: Place,
-    request: Request,
-  ): Promise<R> {
-    const response = await this.send(method, url, place, request);
-    return (await response.json()) as R;
+  /** Keeps the version of a stored system view at its revision; a configured one as read-only. */
+  private rememberSystem(view: SystemViewBody): SystemViewBody {
+    this.systemVersions.set(
+      revisionKey(view.id, view.revision),
+      isStored(view) ? view.version! : null,
+    );
+    return view;
   }
 
   /**
-   * The one place a request leaves the store, and so the one place what it
-   * threw becomes a {@link Failure}.
+   * The version a write of stored system view `id` at `revision` (its
+   * content hash) expects: as seen at that revision, else as read now. A
+   * configured system view is read-only (`FORBIDDEN`; a code one is never
+   * found here); a revision other than the view's is `CONFLICT`, carrying
+   * the view as it is.
    */
-  private async send(
-    method: string,
-    url: string,
-    place: Place,
-    { path, query, body, headers, signal }: Request,
-  ): Promise<Response> {
-    try {
-      return await this.fetcher.request<Response>(
-        {
-          url,
-          method,
-          urlParams: { path: pathAt(place, path), query },
-          body: body as Record<string, unknown> | undefined,
-          headers,
-          signal,
-        },
-        { resultExtractor: ResultExtractors.Response },
-      );
-    } catch (error) {
-      throw await failureOf(error);
+  private async systemVersion(
+    id: string,
+    revision: string,
+    signal: AbortSignal | undefined,
+  ): Promise<number> {
+    const key = revisionKey(id, revision);
+    if (!this.systemVersions.has(key)) {
+      const instance = await this.readAt('system', id, signal);
+      if (instance.revision !== revision && instance.stored)
+        throw new ViewStoreError(
+          'CONFLICT',
+          `System view ${id} has moved on from revision ${revision}`,
+          { instance },
+        );
     }
+    const version = this.systemVersions.get(key);
+    if (typeof version !== 'number')
+      readOnly('Configured system views are read-only');
+    return version;
+  }
+
+  /** The options of a command sent from `place`: its scope, request id and signal. */
+  private commandOptions(
+    place: Place,
+    { requestId, signal }: WriteContext,
+    more: Partial<CommandOptions> = {},
+  ): CommandOptions {
+    return {
+      ...optionsAt(place),
+      requestId,
+      ...(signal === undefined ? {} : { signal }),
+      ...more,
+    };
   }
 }
 
-/** One request's parts beside its method, route and place. */
-interface Request {
-  path?: Record<string, string>;
-  query?: Record<string, string>;
-  body?: unknown;
-  headers?: Record<string, string>;
-  signal?: AbortSignal;
-}
-
-/** The headers of a write: its request id, its expected version, the wait. */
-export function writeHeaders(
-  context: WriteContext,
-  revision?: string,
-): Record<string, string> {
-  return {
-    [CommandHeaders.REQUEST_ID]: context.requestId,
-    [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT,
-    ...(revision === undefined
-      ? {}
-      : { [CommandHeaders.AGGREGATE_VERSION]: revision }),
-  };
-}
-
-/** What a server without a view store is told as. */
-const NO_VIEW_STORE = 'This server has no view store';
-
-function unsupported(failure: Failure): ViewStoreError {
-  return new ViewStoreError('UNSUPPORTED', NO_VIEW_STORE, failure.held());
-}
-
-/**
- * The port's list order, asked of the server per audience: oldest first, by
- * the time a view's first event was written, its id breaking a tie.
- */
-const LIST_ORDER = [asc('firstEventTime'), asc('aggregateId')];
-
-/** System views first, then shared, then personal: the port's list order. */
+/** The port's list order: system views first, then shared, then personal. */
 const AUDIENCE_RANK: Readonly<Record<ViewInstanceSummary['scope'], number>> = {
   system: 0,
   shared: 1,
   personal: 2,
 };
+
+/** The request options of `place`: its `Wow-Scope`, when it has one. */
+function optionsAt(place: Place): { scope?: ReturnType<typeof scopeAt> } {
+  const scope = scopeAt(place);
+  return scope === undefined ? {} : { scope };
+}
+
+/** The place of a view its owner says: a reserved owner, or a user's own. */
+function ownedAt(ownerId: string | null | undefined): Place {
+  return ownerId === SHARED_OWNER_ID
+    ? 'shared'
+    : ownerId === SYSTEM_OWNER_ID
+      ? 'system'
+      : 'personal';
+}
+
+/** A snapshot record as the store reads it. */
+function recordOf(record: {
+  aggregateId: string;
+  version: number;
+  state: unknown;
+}): ViewRecord {
+  return {
+    id: record.aggregateId,
+    version: record.version,
+    state: record.state as ViewState,
+  };
+}
+
+/** A config as a command body holds it: free-form, the service stores it whole. */
+function bodyOf(config: ViewConfig): Record<string, unknown> {
+  return config as unknown as Record<string, unknown>;
+}
+
+/** The aggregate version a revision of this store names. */
+function versionOf(revision: string): number {
+  const version = Number(revision);
+  if (!Number.isInteger(version) || version < 0)
+    throw new ViewStoreError(
+      'CONFLICT',
+      `Not a revision of this store: ${revision}`,
+    );
+  return version;
+}
+
+function revisionKey(id: string, revision: string): string {
+  return `${id}\u0000${revision}`;
+}
 
 /** Refuses a write to a system view the server or the code declares. */
 function readOnly(message: string): never {
@@ -919,31 +713,18 @@ function readOnly(message: string): never {
 }
 
 /**
- * Runs one of the port's methods, so that everything it rejects with is a
- * `ViewStoreError`: a failed request as its code says, anything else — a
- * body that did not parse — as `UNAVAILABLE`, the outcome unknown.
+ * The port's refusal of a write. A claim the service refuses because shared
+ * dashboards show the view carries those boards' titles (`boards`), read
+ * from the problem's `boards` extension member; the engine says the refusal
+ * around them.
  */
-export async function guard<T>(run: () => Promise<T>): Promise<T> {
-  try {
-    return await run();
-  } catch (thrown) {
-    if (thrown instanceof Failure) throw thrown.toStoreError();
-    if (isViewStoreError(thrown)) throw thrown;
-    // A body that did not parse came back from something — a login wall's
-    // page, a proxy's: answered, so not "could not be reached".
-    throw new ViewStoreError(
-      'UNAVAILABLE',
-      thrown instanceof Error ? thrown.message : String(thrown),
-      {
-        cause: thrown,
-        ...(thrown instanceof SyntaxError ? { reachable: true as const } : {}),
-      },
-    );
-  }
+function refusal(failure: Failure): ViewStoreError {
+  if (
+    failure.problemCode !== ViewStoreErrorCodes.REFERENCED_BY_SHARED_DASHBOARD
+  )
+    return failure.toStoreError();
+  return new ViewStoreError('INVALID', failure.message, {
+    ...failure.held(),
+    boards: boardTitles(failure.problem?.problem.extensions),
+  });
 }
-
-/**
- * How many system views the store remembers the version of; one it forgot
- * is read again before its write.
- */
-const REMEMBERED_SYSTEM_VIEWS = 1024;

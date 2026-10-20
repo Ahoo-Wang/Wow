@@ -718,7 +718,7 @@
   - **无头**：不依赖 React、DOM 与样式表（`tsconfig.headless.json` 与 `test/architecture.test.ts` 的 `testing` 层：只能以纯类型引用 `runtime/source`，可用 `model`）。筛选交给 `mingo`（MongoDB 查询语言的 JavaScript 实现），构建时外置，只有 `/testing` 导入它。
   - **`mingo` 是可选的对等依赖**（评审 #3725）：`peerDependencies` 取 `catalog:peers` 的范围，`peerDependenciesMeta` 标 `optional`，本包自己的测试与构建经 `devDependencies` 拿到它。列成普通依赖会让每个宿主都装上它，而只有用 `/testing` 的宿主需要；用的宿主自己装（`pnpm add -D mingo`，README「Testing a host」写明）。仓内导入 `/testing` 的 Storybook 与补偿控制台都在开发依赖里声明它。
 - **没选**：私有工作区包（宿主拿不到，控制台之外的宿主还得再写一份）；放进根入口（生产代码从不需要它，还会把 `mingo` 带进每个宿主的包）。
-- **落点**：`src/testing/`；`test/surface/testing.txt`；`scripts/size-budget.json` 的 `./testing`；[宿主接入指南「用 /testing 测宿主」](https://wow.ahoo.me/zh/guide/typescript/view-engine-host#testing)；`typescript/storybook/stories/view-engine/rowSource.ts`；`compensation/dashboard/e2e/support/executionFailedService.ts`。
+- **落点**：`src/testing/`；`test/surface/testing.txt`；`scripts/size-budget.json` 的 `./testing`；[宿主接入指南「用 /testing 测宿主」](https://wow.ahoo.me/zh/guide/typescript/view-engine-host#testing)；`typescript/storybook/stories/view-engine/rowSource.ts`；9.x 补偿控制台 e2e 的执行替身（V10 已删除）。
 
 ## D66 引擎的工具类带前缀 `fve:`，与宿主不再同名（2026-09-28）
 
@@ -871,7 +871,7 @@
 - **来由**：第二轮审查 R2-50。`GET …/snapshot/schema`、`GET …/event/schema` 在 9.2 返回能力描述（`QueryModelDescriptor`），8.13～9.1.5 返回的是旧的 schema 元数据；`POST …/snapshot/schema/refresh`、`POST …/event/schema/refresh` 在 9.2 删掉了，重新校验改由 actuator 端点 `wowQuerySchema` 负责（并按 `wow.query.schema.revalidate-interval` 定期执行）。v9 的兼容边界冻结既有聚合的 REST 行为、存储与线格式，这两项没有书面签字。
 - **裁定**（用户 2026-09-30，选项 A）：
   - **schema 路由的响应体改形记为批准的 v9 例外**：它们是查询元数据路由，不是聚合的命令、状态或查询结果路由。发布说明的 Breaking 一节列出，并写明混跑：9.1 与 9.2 节点并存时，同一路由按节点返回两种形状；9.2 的引擎向 9.1 节点 describe 失败时，退回宿主声明的定义（引擎对 describe 失败本来就这样处理）。
-  - **两条 refresh 路由恢复为弃用别名**：同样的方法与路径、同样的路由 id（`….snapshot_schema.refresh`、`….event_schema.refresh`），先让目录（`QuerySchemaCatalog.revalidate(aggregate, model)`）只重新加载该路由对应的模型（9.1 也只刷新一个模型；同一模型的并发请求共用同一次进行中的加载），再按 `GET …/schema` 作答（响应体是新的能力描述，属于上一条的例外）。运维脚本因此不再 404。10.0.0 删除，见 `docs/compat-debt.md`。
+  - **两条 refresh 路由恢复为弃用别名**：同样的方法与路径、同样的路由 id（`….snapshot_schema.refresh`、`….event_schema.refresh`），先让目录（`QuerySchemaCatalog.revalidate(aggregate, model)`）只重新加载该路由对应的模型（9.1 也只刷新一个模型；同一模型的并发请求共用同一次进行中的加载），再按 `GET …/schema` 作答（响应体是新的能力描述，属于上一条的例外）。运维脚本因此不再 404。10.0.0 删除。
 - **没选**：旧路径保留旧响应体、新描述走新路径或按 `Accept` 协商（选项 B，多一套要维护到 v10 的旧形状）；只记例外、不恢复 refresh（选项 C，旧脚本 404）。
 - **落点**：`wow-openapi` 的 `SnapshotRouteContributor`、`EventRouteContributor`、`BuiltInHttpRouteHandlerKeys`；`wow-webflux` 的 `QuerySchemaRefreshHandlerFunctionFactory`；`wow-spring-boot-starter` 的 `QueryRouteModule`。
 

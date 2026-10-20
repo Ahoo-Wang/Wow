@@ -18,11 +18,11 @@
  * moves one, and saves; the dataset registers again in the new words.
  */
 
+import type { QueryDescriptorResult } from '../src/index.js';
 import {
   QueryModels,
-  type QueryDescriptorResult,
   type QueryModelDescriptor,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
   fireEvent,

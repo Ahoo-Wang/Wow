@@ -24,7 +24,7 @@ import {
   AggregationGroupType,
   DerivedExpressionType,
   type DerivedAggregationMetric,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   act,
   cleanup,

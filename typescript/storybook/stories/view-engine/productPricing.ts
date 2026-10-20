@@ -12,12 +12,12 @@
  */
 
 import { Fetcher } from '@ahoo-wang/fetcher';
+import { queryRoute, routeSource } from './recordedWowService.js';
 import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
-  SnapshotQueryClient,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
@@ -45,6 +45,8 @@ export const DEFAULT_PRICING_HOST: string =
 export const PRODUCT_PRICING = 'product-pricing';
 
 /** The pricing service's `ProductPricing` aggregate. */
+/** The context and the query routes of the aggregate's snapshots and events. */
+export const PRODUCT_PRICING_CONTEXT = 'pricing';
 export const PRODUCT_PRICING_AGGREGATE = 'product_pricing';
 
 // Wow's names for what the analysis side may group and compute by.
@@ -582,10 +584,10 @@ export function pricingFetcher(host: string): Fetcher {
  * of its methods.
  */
 export function productPricingSource(fetcher: Fetcher): ViewSource {
-  return new SnapshotQueryClient({
-    basePath: PRODUCT_PRICING_AGGREGATE,
+  return routeSource(
     fetcher,
-  });
+    queryRoute(PRODUCT_PRICING_CONTEXT, PRODUCT_PRICING_AGGREGATE, 'snapshot'),
+  );
 }
 
 /**

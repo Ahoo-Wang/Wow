@@ -40,7 +40,7 @@ import { PROJECT_SEAM, SIGNAL_SEAM } from './seams';
 /**
  * Main code generator class that orchestrates the generation of TypeScript code
  * from a Wow Manifest or an OpenAPI document. A Manifest generates the typed
- * clients of a Wow service on `@ahoo-wang/wow-client/v10`; an OpenAPI
+ * clients of a Wow service on `@ahoo-wang/wow-client`; an OpenAPI
  * document generates its models and Fetcher decorator API clients.
  *
  * @example
@@ -219,7 +219,7 @@ export class CodeGenerator {
   /**
    * Generates the clients of a Wow V10 service from its Manifest (decision
    * D74, roadmap 5a.3): the types of its schemas, and for each aggregate its
-   * command, query and state clients on `@ahoo-wang/wow-client/v10`. The
+   * command, query and state clients on `@ahoo-wang/wow-client`. The
    * configuration's API clients are an OpenAPI document's and do not apply.
    */
   private async generateFromManifest(

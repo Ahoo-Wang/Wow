@@ -12,34 +12,16 @@
  */
 
 import type { Fetcher } from '@ahoo-wang/fetcher';
-import {
-  QueryClientFactory,
-  ResourceAttributionPathSpec,
-} from '@ahoo-wang/wow-client';
+import { SnapshotQueryClient } from '@ahoo-wang/wow-client';
 import type { ViewSource } from '@ahoo-wang/wow-view-engine';
+import { viewSourceOf } from '@ahoo-wang/wow-view-store';
 
-// Step 2a: where the rows come from — a Wow service's query routes, through
-// wow-client. The engine sends Wow queries (paged, cursor, aggregation) and
-// never anything else, so the snapshot query client is the source as it is.
+// Step 2a: where the rows come from — a Wow service's query route, through
+// wow-client. The engine sends queries (paged, cursor, aggregation) and asks
+// what the route admits on the store it runs on, so it offers only what the
+// service will answer; `viewSourceOf` hands it the snapshot query client.
 export function wowOrderSource(fetcher: Fetcher): ViewSource {
-  const factory = new QueryClientFactory({
-    contextAlias: 'example',
-    aggregateName: 'order',
-    resourceAttribution: ResourceAttributionPathSpec.NONE,
-    fetcher,
-  });
-  const snapshots = factory.createSnapshotQueryClient();
-  // What the service admits on the store it runs on: the engine reads it
-  // before the first query and offers only what the server will answer.
-  const descriptors = factory.createQueryDescriptorClient();
-  return {
-    paged: (query, attributes, abort) =>
-      snapshots.paged(query, attributes, abort),
-    cursor: (query, attributes, abort) =>
-      snapshots.cursor(query, attributes, abort),
-    aggregate: (query, attributes, abort) =>
-      snapshots.aggregate(query, attributes, abort),
-    describe: (previous, attributes, abort) =>
-      descriptors.describeSnapshot(previous, attributes, abort),
-  };
+  return viewSourceOf(
+    new SnapshotQueryClient({ context: 'example', name: 'order' }, { fetcher }),
+  );
 }

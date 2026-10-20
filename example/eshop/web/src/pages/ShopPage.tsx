@@ -20,7 +20,7 @@ import {
   StringComparison,
   type FilterExpression,
 } from "@ahoo-wang/wow-client/dsl";
-import type { SnapshotRecord } from "@ahoo-wang/wow-client/v10";
+import type { SnapshotRecord } from "@ahoo-wang/wow-client";
 import type {
   CategoryState,
   ProductState,

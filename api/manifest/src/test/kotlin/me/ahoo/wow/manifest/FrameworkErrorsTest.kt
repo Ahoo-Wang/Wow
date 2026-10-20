@@ -84,7 +84,7 @@ class FrameworkErrorsTest {
     }
 
     private companion object {
-        /** Read by typescript/wow-client/test/v10/frameworkErrors.test.ts. */
+        /** Read by typescript/wow-client/test/frameworkErrors.test.ts. */
         const val SNAPSHOT = "src/test/resources/framework-errors.json"
         const val UPDATE = "WOW_UPDATE_SNAPSHOTS"
     }

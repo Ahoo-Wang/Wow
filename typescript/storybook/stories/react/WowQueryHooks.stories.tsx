@@ -21,15 +21,15 @@ import {
   usePagedQuery,
   useSingleQuery,
 } from '@ahoo-wang/wow-react';
+import { QueryModelClient } from '@ahoo-wang/wow-client';
 import {
   filter,
   listQuery,
   pagedQuery,
   singleQuery,
-  SnapshotQueryClient,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import { useMemo } from 'react';
-import { installFetchFixture } from '../fixtures/http';
+import { installFetchFixture, USERS_ROUTE } from '../fixtures/http';
 import type { FixtureUser } from '../fixtures/users';
 
 type Scenario = 'single' | 'list' | 'paged' | 'count' | 'stream';
@@ -41,26 +41,20 @@ function WowQueryDemo({ scenario }: { scenario: Scenario }) {
     [],
   );
   const client = useMemo(
-    () =>
-      new SnapshotQueryClient<FixtureUser>({
-        fetcher,
-        basePath: '/users',
-      }),
+    () => new QueryModelClient<FixtureUser>(USERS_ROUTE, { fetcher }),
     [fetcher],
   );
-  // Each hook takes the client method as `execute` and hands the abort
-  // controller on, so a newer query or an unmount cancels the request.
+  // Each hook takes the client method as `execute` and hands the request
+  // options on, so a newer query or an unmount cancels the request.
   const single = useSingleQuery<FixtureUser>({
     initialQuery: singleQuery({ filter: activeFilter }),
     autoExecute: false,
-    execute: (query, attributes, abortController) =>
-      client.singleState(query, attributes, abortController),
+    execute: (query, options) => client.single(query, options),
   });
   const list = useListQuery<FixtureUser>({
     initialQuery: listQuery({ filter: activeFilter, limit: 20 }),
     autoExecute: false,
-    execute: (query, attributes, abortController) =>
-      client.listState(query, attributes, abortController),
+    execute: (query, options) => client.list(query, options),
   });
   const paged = usePagedQuery<FixtureUser>({
     initialQuery: pagedQuery({
@@ -68,21 +62,18 @@ function WowQueryDemo({ scenario }: { scenario: Scenario }) {
       pagination: { index: 1, size: 10 },
     }),
     autoExecute: false,
-    execute: (query, attributes, abortController) =>
-      client.pagedState(query, attributes, abortController),
+    execute: (query, options) => client.paged(query, options),
   });
   const count = useCountQuery({
-    initialQuery: activeFilter,
+    initialQuery: { filter: activeFilter },
     autoExecute: false,
-    execute: (query, attributes, abortController) =>
-      client.count(query, attributes, abortController),
+    execute: (query, options) => client.count(query, options),
   });
   // The hook reads the stream itself and keeps the rows as `items`.
   const stream = useListStreamQuery<FixtureUser>({
     initialQuery: listQuery({ filter: activeFilter, limit: 20 }),
     autoExecute: false,
-    execute: (query, attributes, abortController) =>
-      client.listStateStream(query, attributes, abortController),
+    execute: (query, options) => client.listStream(query, options),
   });
 
   const run = () => {
@@ -104,7 +95,7 @@ function WowQueryDemo({ scenario }: { scenario: Scenario }) {
     output = `Paged · ${paged.result.list.length} of ${paged.result.total}`;
   }
   if (scenario === 'count' && count.result !== undefined) {
-    output = `Count · ${count.result}`;
+    output = `Count · ${count.result.count}`;
   }
   if (scenario === 'stream' && stream.loading) {
     output = `Streaming · ${stream.items.length} received`;

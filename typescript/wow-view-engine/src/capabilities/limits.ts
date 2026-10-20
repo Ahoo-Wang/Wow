@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import { DEFAULT_RUNTIME_LIMITS, type RuntimeLimits } from '../model/index.js';
 
 /**

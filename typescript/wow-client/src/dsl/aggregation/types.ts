@@ -662,7 +662,7 @@ export type AggregationMetric<FIELDS extends string = string> =
 
 /**
  * An aggregation request: which documents, grouped how, computing which
- * metrics. `QueryApi.aggregate` and `aggregateStream` send it, and each
+ * metrics. `QueryModelClient.aggregate` sends it, and each
  * result row holds the groups' and metrics' columns by alias. Assemble it
  * with {@link aggregation.query}, which checks the rules Wow enforces across
  * its parts before anything is sent.

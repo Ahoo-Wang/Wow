@@ -17,7 +17,7 @@ This page answers: **which versions of the Wow TypeScript packages work with whi
 | `@ahoo-wang/wow-view-engine` | On npm since Wow **9.2.0** (2026-10-03) |
 | `@ahoo-wang/wow-view-store` | On npm since Wow **9.2.0** (2026-10-03) |
 
-Every version is published from CI with [npm provenance](https://docs.npmjs.com/generating-provenance-statements). `latest` points to the newest stable release; a release candidate, when there is one, goes to the `next` dist-tag (`pnpm add @ahoo-wang/wow-client@next`). Applications still on `@ahoo-wang/fetcher-wow` and `@ahoo-wang/fetcher-generator` 5.x move with the [migration guide](./migration.md).
+Every version is published from CI with [npm provenance](https://docs.npmjs.com/generating-provenance-statements). `latest` points to the newest stable release; a release candidate, when there is one, goes to the `next` dist-tag (`pnpm add @ahoo-wang/wow-client@next`). Applications still on `@ahoo-wang/fetcher-wow` and `@ahoo-wang/fetcher-generator` 5.x move with the migration guide.
 
 ## Versions
 
@@ -71,7 +71,7 @@ The root entry of `@ahoo-wang/wow-client` and every default speak the `FilterExp
 
 What the rows mean in practice:
 
-- **8.10.** Build queries with `@ahoo-wang/wow-client/legacy`; the query clients accept both models. `getById` and `getStateById` send a `FilterExpression`, so against 8.10 call `single` or `singleState` with a `/legacy` query built from `aggregateId(id)`. Code the generator produces from an 8.10 document imports its `Condition` types from `/legacy` by itself. Only type checking covers this row: test the queries your application uses against your own 8.10 server. See [Wow 8.10 servers](./migration.md#wow-8-10-servers).
+- **8.10.** Build queries with `@ahoo-wang/wow-client/legacy`; the query clients accept both models. `getById` and `getStateById` send a `FilterExpression`, so against 8.10 call `single` or `singleState` with a `/legacy` query built from `aggregateId(id)`. Code the generator produces from an 8.10 document imports its `Condition` types from `/legacy` by itself. Only type checking covers this row: test the queries your application uses against your own 8.10 server. See Wow 8.10 servers.
 - **`raw()`**, the `Condition` operator that passes a raw query to the store, exists only on `/legacy`, and servers from 8.11.0 on answer it with 400. It has no `FilterExpression` replacement.
 - **Before 8.11.1**, the OpenAPI document does not publish `x-wow-query-fields`; the generator then reads an aggregate's query fields from the `Condition` schema instead.
 - **Newer client, older server.** A client method whose endpoint the server does not have yet — for example `EventStreamQueryClient.load` or `WowMetadataClient` — fails there, typically with 404. Everything the server has works.
@@ -103,7 +103,7 @@ The CI jobs are in [`typescript-contract.yml`](https://github.com/Ahoo-Wang/Wow/
 | `@ahoo-wang/fetcher`, `fetcher-decorator`, `fetcher-eventstream` | `^5.1.5 \|\| ^6.0.0` | Peers: the application installs them. 5.1.5 is the floor: 5.1.4 is the first version whose declarations resolve under `require` (Node16, NodeNext), and 5.1.5 also type-checks when one program holds both ESM and CJS consumers. Fetcher 6, released on 2026-10-04, is accepted from Wow 9.2.1 (9.2.0 accepts `^5.1.5` only). CI builds and tests on the latest 6.x; a floor job reruns the client, React, generator and view store tests on 5.1.5 and checks the packed packages as a consumer on it |
 | `@ahoo-wang/wow-client` (for the other Wow packages) | `~x.y.z` | Same minor version |
 
-pnpm 8 and later and npm 7 and later install missing peers by themselves; Yarn does not, so a Yarn project adds each peer explicitly. The install command of each [reference page](../../reference/typescript/wow-client/) lists them.
+pnpm 8 and later and npm 7 and later install missing peers by themselves; Yarn does not, so a Yarn project adds each peer explicitly. The install command of each reference page lists them.
 
 ## What v10 removes
 

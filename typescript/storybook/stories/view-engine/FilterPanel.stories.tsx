@@ -231,17 +231,20 @@ const rejectedView: ViewInstance = {
 };
 
 /**
- * 一台 Wow 服务端对这条查询的回答：「仓库」不支持这种比较（Wow 9.2 起，拒绝
- * 带一个稳定的 `code` 和逻辑字段路径）。形状照 fetcher 的 `ExchangeError`——
- * 引擎按形状读它，读出响应体里的 `bindingErrors`。
+ * 一台 Wow 服务对这条查询的回答：「仓库」不支持这种比较（problem
+ * `wow.query.invalid`，违规带一个稳定的 `code` 和逻辑字段路径）。形状照
+ * fetcher 的 `ExchangeError`——引擎按形状读它，读出 problem 里的 `violations`。
  */
 function rejectingSource() {
-  const errorMsg = 'Field [warehouse] does not support [EXACT_MATCH].';
+  const detail = 'Field [warehouse] does not support [EXACT_MATCH].';
   const body = {
-    errorCode: 'QuerySchemaValidation',
-    errorMsg,
-    bindingErrors: [
-      { name: 'warehouse', msg: errorMsg, code: 'UNSUPPORTED_CAPABILITY' },
+    type: 'urn:wow:error:wow.query.invalid',
+    title: 'Invalid query',
+    status: 400,
+    code: 'wow.query.invalid',
+    detail,
+    violations: [
+      { path: 'warehouse', message: detail, code: 'UNSUPPORTED_CAPABILITY' },
     ],
   };
   const rejection = () =>

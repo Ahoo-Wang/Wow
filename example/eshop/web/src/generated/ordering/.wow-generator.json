@@ -1,12 +1,12 @@
 {
   "version": 1,
   "files": {
-    "eshop-ordering/boundedContext.ts": "4ebe0763c8e1dbc958364b7e45bbc9ff75c112f73e0f21e9627fa9248f480997",
+    "eshop-ordering/boundedContext.ts": "21347d2722c95b3794feee4469c9c199bb98fe9ed88de380b798e7d47474ce58",
     "eshop-ordering/index.ts": "f7fad565224a5b8f77faf6ba88b5af3bfb1c2c92f59d88382690bdb9a501c139",
-    "eshop-ordering/order/aggregate.ts": "3e5a1ceb27cc75bce1488e4274af016190e47accb92bc253902ca332e4161b65",
-    "eshop-ordering/order/commandClient.ts": "00f5e773ba17ebf79eacc3410b47dc8a13cece03a74e392ba1a1aa7958ddf276",
+    "eshop-ordering/order/aggregate.ts": "0b18510ba3e79c3314debe608a1160bab41fc8d652c3c11ddc02f8de05175aa4",
+    "eshop-ordering/order/commandClient.ts": "de98374c5a19deb6f01f57dcbedbef310218a3876d5e22dc5133ce672dd01b98",
     "eshop-ordering/order/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
-    "eshop-ordering/order/queryClient.ts": "15b6ddb5e798c3b00ed9e4c513e4a1f660a07cf5a0cbe03b0df745f533127b53",
+    "eshop-ordering/order/queryClient.ts": "e33940a2962f3f14cc459eb67300abd56eb3fd967544e7eef8f2f4cc2ecfdd11",
     "eshop-ordering/types.ts": "adbbdd74c2182b801d80e813d87e92744117e3efc3569d5adefd218bc1ae6390",
     "index.ts": "502f8adf40ef0a48b03fa0dfdf1aff2e47d030196e214b0911ac087c74273a4a"
   }

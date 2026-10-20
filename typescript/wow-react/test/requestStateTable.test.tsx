@@ -26,19 +26,23 @@
 
 import { describe, expect, it } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { ExchangeError } from '@ahoo-wang/fetcher';
-import { filter, SnapshotQueryClient } from '@ahoo-wang/wow-client';
+import {
+  type CountResult,
+  QueryModelClient,
+  WowProblemError,
+} from '@ahoo-wang/wow-client';
+import { filter } from '@ahoo-wang/wow-client/dsl';
 import { useCountQuery, useFetcherCountQuery } from '../src';
 import {
   deferred,
   fakeServer,
   json,
-  wowError,
+  problem,
   type FakeServer,
 } from './support/fakeServer';
 
-const paidFilter = filter.eq('state.status', 'PAID');
-const shippedFilter = filter.eq('state.status', 'SHIPPED');
+const paidFilter = { filter: filter.eq('state.status', 'PAID') };
+const shippedFilter = { filter: filter.eq('state.status', 'SHIPPED') };
 
 /** What a request hook shows at one moment. */
 interface Shown {
@@ -48,7 +52,8 @@ interface Shown {
   error: unknown;
 }
 
-interface Hook extends Shown {
+interface Hook extends Omit<Shown, 'result'> {
+  result: CountResult | undefined;
   execute(): Promise<void>;
   abort(): void;
   reset(): void;
@@ -82,15 +87,14 @@ const families: {
   {
     name: 'useCountQuery (query client as execute)',
     render(server) {
-      const client = new SnapshotQueryClient<unknown>({
-        fetcher: server.fetcher,
-        basePath: 'order',
-      });
+      const client = new QueryModelClient<unknown>(
+        '/shop/order/snapshot/query',
+        { fetcher: server.fetcher },
+      );
       return renderHook(() =>
         useCountQuery({
           initialQuery: paidFilter,
-          execute: (query, attributes, abortController) =>
-            client.count(query, attributes, abortController),
+          execute: (query, options) => client.count(query, options),
         }),
       );
     },
@@ -101,7 +105,7 @@ const families: {
       return renderHook(() =>
         useFetcherCountQuery({
           fetcher: server.fetcher,
-          url: 'order/snapshot/count',
+          url: '/shop/order/snapshot/query',
           initialQuery: paidFilter,
         }),
       );
@@ -109,9 +113,15 @@ const families: {
   },
 ];
 
+/** What a hook shows, its count read as a number. */
 function shown(hook: Hook): Shown {
   const { status, loading, result, error } = hook;
-  return { status, loading, result, error };
+  return { status, loading, result: result?.count, error };
+}
+
+/** The answer of a count of `count` matches. */
+function counted(count: number): Response {
+  return json({ count, exact: true });
 }
 
 /** Lets late responses, extractors and batched updates run. */
@@ -141,7 +151,7 @@ const failed = (result: number | undefined): Shown => ({
   status: 'error',
   loading: false,
   result,
-  error: expect.any(ExchangeError),
+  error: expect.any(WowProblemError),
 });
 
 describe.each(families)('request hook state table: $name', family => {
@@ -150,7 +160,7 @@ describe.each(families)('request hook state table: $name', family => {
     const held = heldServer();
     const hook = family.render(held.server);
     await waitFor(() => expect(held.server.requests).toHaveLength(1));
-    held.answer(0, json(first));
+    held.answer(0, counted(first));
     await waitFor(() => expect(hook.result.current.status).toBe('success'));
     return { ...held, ...hook };
   }
@@ -185,7 +195,7 @@ describe.each(families)('request hook state table: $name', family => {
 
   it('start after an error: loading, the error cleared, the last result kept', async () => {
     const { result, server, answer } = await inFlightAfter(1);
-    answer(1, wowError('IllegalArgument', 'bad'));
+    answer(1, problem('wow.query.invalid', 'bad'));
     await waitFor(() => expect(result.current.status).toBe('error'));
     act(() => void result.current.execute());
     await waitFor(() => expect(server.requests).toHaveLength(3));
@@ -195,14 +205,14 @@ describe.each(families)('request hook state table: $name', family => {
 
   it('succeed: success with the new result', async () => {
     const { result, answer } = await inFlightAfter(1);
-    answer(1, json(2));
+    answer(1, counted(2));
     await waitFor(() => expect(result.current.status).toBe('success'));
     expect(shown(result.current)).toEqual(success(2));
   });
 
   it('fail: error, and the last result is kept', async () => {
     const { result, answer } = await inFlightAfter(1);
-    answer(1, wowError('IllegalArgument', 'bad'));
+    answer(1, problem('wow.query.invalid', 'bad'));
     await waitFor(() => expect(result.current.status).toBe('error'));
     // B3 changed this (Q2): was failed(undefined).
     expect(shown(result.current)).toEqual(failed(1));
@@ -225,7 +235,7 @@ describe.each(families)('request hook state table: $name', family => {
 
   it('abort() after an error: idle, the error cleared, the last result kept', async () => {
     const { result, answer } = await inFlightAfter(1);
-    answer(1, wowError('IllegalArgument', 'bad'));
+    answer(1, problem('wow.query.invalid', 'bad'));
     await waitFor(() => expect(result.current.status).toBe('error'));
     await act(async () => result.current.abort());
     // B3 changed this (Q2), unmarked in B0: was idle with no result. The error
@@ -236,7 +246,7 @@ describe.each(families)('request hook state table: $name', family => {
   it('a late response after abort() is dropped', async () => {
     const { result, answer } = await inFlightAfter(1);
     await act(async () => result.current.abort());
-    answer(1, json(2));
+    answer(1, counted(2));
     await settle();
     // B3 changed this (Q2): was idle with no result; the late 2 is dropped.
     expect(shown(result.current)).toEqual({ ...idle, result: 1 });
@@ -250,7 +260,7 @@ describe.each(families)('request hook state table: $name', family => {
 
   it('reset() after an error: idle, result and error cleared', async () => {
     const { result, answer } = await inFlightAfter(1);
-    answer(1, wowError('IllegalArgument', 'bad'));
+    answer(1, problem('wow.query.invalid', 'bad'));
     await waitFor(() => expect(result.current.status).toBe('error'));
     act(() => result.current.reset());
     expect(shown(result.current)).toEqual(idle);
@@ -267,7 +277,7 @@ describe.each(families)('request hook state table: $name', family => {
   it('a late response after reset() is dropped', async () => {
     const { result, answer } = await inFlightAfter(1);
     act(() => result.current.reset());
-    answer(1, json(2));
+    answer(1, counted(2));
     await settle();
     // B3 changed this: was success(2); the request came back to life.
     expect(shown(result.current)).toEqual(idle);
@@ -276,7 +286,7 @@ describe.each(families)('request hook state table: $name', family => {
   it('a late failure after reset() is dropped', async () => {
     const { result, answer } = await inFlightAfter(1);
     act(() => result.current.reset());
-    answer(1, wowError('IllegalArgument', 'bad'));
+    answer(1, problem('wow.query.invalid', 'bad'));
     await settle();
     // B3 changed this: was failed(undefined).
     expect(shown(result.current)).toEqual(idle);
@@ -293,9 +303,8 @@ describe('request hook state table: execute that ignores the abort signal', () =
   /** A request the hook cannot cancel: `execute` drops the controller. */
   async function uncancellable() {
     const held = heldServer();
-    const client = new SnapshotQueryClient<unknown>({
+    const client = new QueryModelClient<unknown>('/shop/order/snapshot/query', {
       fetcher: held.server.fetcher,
-      basePath: 'order',
     });
     const hook = renderHook(() =>
       useCountQuery({
@@ -310,7 +319,7 @@ describe('request hook state table: execute that ignores the abort signal', () =
   it('a late response after abort() is dropped', async () => {
     const { result, answer } = await uncancellable();
     await act(async () => result.current.abort());
-    answer(0, json(2));
+    answer(0, counted(2));
     await settle();
     expect(shown(result.current)).toEqual(idle);
   });
@@ -318,7 +327,7 @@ describe('request hook state table: execute that ignores the abort signal', () =
   it('a late response after reset() is dropped', async () => {
     const { result, answer } = await uncancellable();
     act(() => result.current.reset());
-    answer(0, json(2));
+    answer(0, counted(2));
     await settle();
     // B3 changed this: was success(2).
     expect(shown(result.current)).toEqual(idle);

@@ -13,20 +13,16 @@
 
 import { expectTypeOf, it } from 'vitest';
 import type {
-  CursorPage,
-  CursorQuery,
-  FilterExpression,
-  FilterListQuery,
-  FilterPagedQuery,
-  FilterSingleQuery,
-  SnapshotQueryClient,
+  CountQuery,
+  PagedQuery,
+  QueryModelClient,
 } from '@ahoo-wang/wow-client';
 import type {
-  Condition,
-  ListQuery,
-  PagedQuery,
-  SingleQuery,
-} from '@ahoo-wang/wow-client/legacy';
+  CursorPage,
+  CursorQuery,
+  FilterListQuery,
+  FilterSingleQuery,
+} from '@ahoo-wang/wow-client/dsl';
 import {
   useCountQuery,
   useFetcherCountQuery,
@@ -90,9 +86,9 @@ it('defaults custom-executor hooks to filter request subtypes', () => {
   >().toEqualTypeOf<FilterListQuery<Fields>>();
   expectTypeOf<
     InitialQuery<UsePagedQueryOptions<Item, Fields>>
-  >().toEqualTypeOf<FilterPagedQuery<Fields>>();
+  >().toEqualTypeOf<PagedQuery<Fields>>();
   expectTypeOf<SetQuery<UsePagedQueryReturn<Item, Fields>>>().toEqualTypeOf<
-    FilterPagedQuery<Fields>
+    PagedQuery<Fields>
   >();
   expectTypeOf<
     InitialQuery<UseSingleQueryOptions<Item, Fields>>
@@ -101,10 +97,10 @@ it('defaults custom-executor hooks to filter request subtypes', () => {
     FilterSingleQuery<Fields>
   >();
   expectTypeOf<InitialQuery<UseCountQueryOptions<Fields>>>().toEqualTypeOf<
-    FilterExpression<Fields>
+    CountQuery<Fields>
   >();
   expectTypeOf<SetQuery<UseCountQueryReturn<Fields>>>().toEqualTypeOf<
-    FilterExpression<Fields>
+    CountQuery<Fields>
   >();
 });
 
@@ -114,7 +110,7 @@ it('defaults Fetcher hooks to filter request subtypes', () => {
   ) => useFetcherPagedQuery<Item, Fields>(options).getQuery();
 
   expectTypeOf(useGetPagedQuery).returns.toEqualTypeOf<
-    FilterPagedQuery<Fields> | undefined
+    PagedQuery<Fields> | undefined
   >();
   expectTypeOf<
     InitialQuery<UseFetcherListQueryOptions<Item, Fields>>
@@ -130,10 +126,10 @@ it('defaults Fetcher hooks to filter request subtypes', () => {
   >().toEqualTypeOf<FilterListQuery<Fields>>();
   expectTypeOf<
     InitialQuery<UseFetcherPagedQueryOptions<Item, Fields>>
-  >().toEqualTypeOf<FilterPagedQuery<Fields>>();
+  >().toEqualTypeOf<PagedQuery<Fields>>();
   expectTypeOf<
     SetQuery<UseFetcherPagedQueryReturn<Item, Fields>>
-  >().toEqualTypeOf<FilterPagedQuery<Fields>>();
+  >().toEqualTypeOf<PagedQuery<Fields>>();
   expectTypeOf<
     InitialQuery<UseFetcherSingleQueryOptions<Item, Fields>>
   >().toEqualTypeOf<FilterSingleQuery<Fields>>();
@@ -142,9 +138,9 @@ it('defaults Fetcher hooks to filter request subtypes', () => {
   >().toEqualTypeOf<FilterSingleQuery<Fields>>();
   expectTypeOf<
     InitialQuery<UseFetcherCountQueryOptions<Fields>>
-  >().toEqualTypeOf<FilterExpression<Fields>>();
+  >().toEqualTypeOf<CountQuery<Fields>>();
   expectTypeOf<SetQuery<UseFetcherCountQueryReturn<Fields>>>().toEqualTypeOf<
-    FilterExpression<Fields>
+    CountQuery<Fields>
   >();
 });
 
@@ -165,7 +161,7 @@ it('accepts filter request subtypes in custom-executor hooks', () => {
     Item,
     Fields,
     Error,
-    FilterPagedQuery<Fields>
+    PagedQuery<Fields>
   >;
   type SingleOptions = UseSingleQueryOptions<
     Item,
@@ -173,11 +169,7 @@ it('accepts filter request subtypes in custom-executor hooks', () => {
     Error,
     FilterSingleQuery<Fields>
   >;
-  type CountOptions = UseCountQueryOptions<
-    Fields,
-    Error,
-    FilterExpression<Fields>
-  >;
+  type CountOptions = UseCountQueryOptions<Fields, Error, CountQuery<Fields>>;
 
   expectTypeOf((options: ListOptions) =>
     useListQuery<Item, Fields, Error>(options),
@@ -213,7 +205,7 @@ it('accepts filter request subtypes in Fetcher hooks', () => {
     Item,
     Fields,
     Error,
-    FilterPagedQuery<Fields>
+    PagedQuery<Fields>
   >;
   type SingleOptions = UseFetcherSingleQueryOptions<
     Item,
@@ -224,99 +216,7 @@ it('accepts filter request subtypes in Fetcher hooks', () => {
   type CountOptions = UseFetcherCountQueryOptions<
     Fields,
     Error,
-    FilterExpression<Fields>
-  >;
-
-  expectTypeOf((options: ListOptions) =>
-    useFetcherListQuery<Item, Fields, Error>(options),
-  ).toBeFunction();
-  expectTypeOf((options: StreamOptions) =>
-    useFetcherListStreamQuery<Item, Fields, Error>(options),
-  ).toBeFunction();
-  expectTypeOf((options: PagedOptions) =>
-    useFetcherPagedQuery<Item, Fields, Error>(options),
-  ).toBeFunction();
-  expectTypeOf((options: SingleOptions) =>
-    useFetcherSingleQuery<Item, Fields, Error>(options),
-  ).toBeFunction();
-  expectTypeOf((options: CountOptions) =>
-    useFetcherCountQuery<Fields, Error>(options),
-  ).toBeFunction();
-});
-
-it('still accepts the legacy request subtypes in custom-executor hooks', () => {
-  type ListOptions = UseListQueryOptions<
-    Item,
-    Fields,
-    Error,
-    ListQuery<Fields>
-  >;
-  type StreamOptions = UseListStreamQueryOptions<
-    Item,
-    Fields,
-    Error,
-    ListQuery<Fields>
-  >;
-  type PagedOptions = UsePagedQueryOptions<
-    Item,
-    Fields,
-    Error,
-    PagedQuery<Fields>
-  >;
-  type SingleOptions = UseSingleQueryOptions<
-    Item,
-    Fields,
-    Error,
-    SingleQuery<Fields>
-  >;
-  type CountOptions = UseCountQueryOptions<Fields, Error, Condition<Fields>>;
-
-  expectTypeOf((options: ListOptions) =>
-    useListQuery<Item, Fields, Error>(options),
-  ).toBeFunction();
-  expectTypeOf((options: StreamOptions) =>
-    useListStreamQuery<Item, Fields, Error>(options),
-  ).toBeFunction();
-  expectTypeOf((options: PagedOptions) =>
-    usePagedQuery<Item, Fields, Error>(options),
-  ).toBeFunction();
-  expectTypeOf((options: SingleOptions) =>
-    useSingleQuery<Item, Fields, Error>(options),
-  ).toBeFunction();
-  expectTypeOf((options: CountOptions) =>
-    useCountQuery<Fields, Error>(options),
-  ).toBeFunction();
-});
-
-it('still accepts the legacy request subtypes in Fetcher hooks', () => {
-  type ListOptions = UseFetcherListQueryOptions<
-    Item,
-    Fields,
-    Error,
-    ListQuery<Fields>
-  >;
-  type StreamOptions = UseFetcherListStreamQueryOptions<
-    Item,
-    Fields,
-    Error,
-    ListQuery<Fields>
-  >;
-  type PagedOptions = UseFetcherPagedQueryOptions<
-    Item,
-    Fields,
-    Error,
-    PagedQuery<Fields>
-  >;
-  type SingleOptions = UseFetcherSingleQueryOptions<
-    Item,
-    Fields,
-    Error,
-    SingleQuery<Fields>
-  >;
-  type CountOptions = UseFetcherCountQueryOptions<
-    Fields,
-    Error,
-    Condition<Fields>
+    CountQuery<Fields>
   >;
 
   expectTypeOf((options: ListOptions) =>
@@ -339,12 +239,12 @@ it('still accepts the legacy request subtypes in Fetcher hooks', () => {
 it('runs a cursor query through useSingleQuery until a cursor hook exists', () => {
   // The README's pattern: the page is the result, setQuery moves to the next.
   const usePage = (
-    client: SnapshotQueryClient<Item, Fields>,
+    client: QueryModelClient<Item, Fields>,
     first: CursorQuery<Fields>,
   ) =>
     useSingleQuery<CursorPage<Item>, Fields, Error, CursorQuery<Fields>>({
       initialQuery: first,
-      execute: client.cursorState,
+      execute: (query, options) => client.cursor(query, options),
     });
   expectTypeOf(usePage)
     .returns.toHaveProperty('result')

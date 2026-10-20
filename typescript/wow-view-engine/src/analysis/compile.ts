@@ -33,7 +33,7 @@ import {
   type FieldSort,
   type FilterExpression,
   type HavingExpression,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import type {
   AnalysisDerivedExpression,
   AnalysisHavingExpression,

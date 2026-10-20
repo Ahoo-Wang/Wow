@@ -20,7 +20,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import type { FilterPagedQuery } from '@ahoo-wang/wow-client';
+import type { FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {

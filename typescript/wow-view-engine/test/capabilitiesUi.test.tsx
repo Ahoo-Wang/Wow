@@ -13,7 +13,10 @@
 
 import { cleanup, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { SearchMode, type QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import {
+  SearchMode,
+  type QueryModelDescriptor,
+} from '@ahoo-wang/wow-client/dsl';
 import {
   builtinFieldKinds,
   elementFields,

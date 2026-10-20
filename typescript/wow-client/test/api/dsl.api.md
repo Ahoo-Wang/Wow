@@ -505,26 +505,6 @@ export interface DistinctCountAggregationMetric<FIELDS extends string = string> 
 }
 
 // @public
-export const DomainEventStreamMetadataFields: Readonly<{
-    readonly HEADER: "header";
-    readonly COMMAND_OPERATOR: "header.command_operator";
-    readonly AGGREGATE_ID: "aggregateId";
-    readonly TENANT_ID: "tenantId";
-    readonly OWNER_ID: "ownerId";
-    readonly SPACE_ID: "spaceId";
-    readonly COMMAND_ID: "commandId";
-    readonly REQUEST_ID: "requestId";
-    readonly VERSION: "version";
-    readonly BODY: "body";
-    readonly BODY_ID: "body.id";
-    readonly BODY_NAME: "body.name";
-    readonly BODY_TYPE: "body.bodyType";
-    readonly BODY_REVISION: "body.revision";
-    readonly BODY_BODY: "body.body";
-    readonly CREATE_TIME: "createTime";
-}>;
-
-// @public
 export interface DurationSemantic {
     timeUnit: TimeUnit;
     type: 'DURATION';
@@ -942,6 +922,9 @@ export interface HistogramAggregationOptions extends AggregationGroupScopeOption
 }
 
 // @public
+export type KnownQueryErrorCode = (typeof QueryErrorCodes)[keyof typeof QueryErrorCodes];
+
+// @public
 export interface LimitsDescriptor {
     aggregation: AggregationLimitsDescriptor;
     defaultListSize: number | null;
@@ -1122,6 +1105,61 @@ export interface QueryDeprecation {
 }
 
 // @public
+export type QueryErrorCode = KnownQueryErrorCode | (string & {});
+
+// @public
+export const QueryErrorCodes: Readonly<{
+    readonly INVALID_JSON: "INVALID_JSON";
+    readonly BODY_NOT_OBJECT: "BODY_NOT_OBJECT";
+    readonly EMPTY_BODY: "EMPTY_BODY";
+    readonly UNKNOWN_PROPERTY: "UNKNOWN_PROPERTY";
+    readonly UNKNOWN_TYPE: "UNKNOWN_TYPE";
+    readonly UNKNOWN_VALUE: "UNKNOWN_VALUE";
+    readonly INVALID_VALUE: "INVALID_VALUE";
+    readonly INVALID_REQUEST: "INVALID_REQUEST";
+    readonly CURSOR_SORT_DUPLICATE: "CURSOR_SORT_DUPLICATE";
+    readonly CURSOR_SORT_TOO_MANY: "CURSOR_SORT_TOO_MANY";
+    readonly INVALID_CURSOR: "INVALID_CURSOR";
+    readonly SIZE_OUT_OF_RANGE: "SIZE_OUT_OF_RANGE";
+    readonly FILTER_TOO_LARGE: "FILTER_TOO_LARGE";
+    readonly EXPENSIVE_OPERATOR_DISABLED: "EXPENSIVE_OPERATOR_DISABLED";
+    readonly COUNT_REQUIRES_FILTER: "COUNT_REQUIRES_FILTER";
+    readonly RESIDUAL_GROUPS_EXCEEDED: "RESIDUAL_GROUPS_EXCEEDED";
+    readonly EXPLICIT_ENTRY_REQUIRED: "EXPLICIT_ENTRY_REQUIRED";
+    readonly REPLAY_TOO_LONG: "REPLAY_TOO_LONG";
+    readonly UNKNOWN_FIELD: "UNKNOWN_FIELD";
+    readonly UNSUPPORTED_CAPABILITY: "UNSUPPORTED_CAPABILITY";
+    readonly ELEMENT_SCOPE_REQUIRED: "ELEMENT_SCOPE_REQUIRED";
+    readonly VALUE_MISMATCH: "VALUE_MISMATCH";
+    readonly NOT_COLLECTION: "NOT_COLLECTION";
+    readonly NOT_SINGLE_STRING: "NOT_SINGLE_STRING";
+    readonly MODEL_SEARCH_UNSUPPORTED: "MODEL_SEARCH_UNSUPPORTED";
+    readonly CURSOR_NOT_ALLOWED: "CURSOR_NOT_ALLOWED";
+    readonly PROTECTED_AGGREGATION: "PROTECTED_AGGREGATION";
+    readonly PROTECTED_COMPARISON: "PROTECTED_COMPARISON";
+    readonly MISSING_KEY_REQUIRES_STRING: "MISSING_KEY_REQUIRES_STRING";
+    readonly ANY_REQUIRES_SINGLE_VALUE: "ANY_REQUIRES_SINGLE_VALUE";
+    readonly INCOMPLETE_PROJECTION: "INCOMPLETE_PROJECTION";
+    readonly METRIC_FILTER_SEARCH: "METRIC_FILTER_SEARCH";
+    readonly METRIC_FILTER_ELEMENT_MATCH: "METRIC_FILTER_ELEMENT_MATCH";
+    readonly METRIC_FILTER_ARRAY_FIELD: "METRIC_FILTER_ARRAY_FIELD";
+    readonly NOT_PROJECTABLE: "NOT_PROJECTABLE";
+    readonly EVENT_PROJECTION_TYPE_REQUIRED: "EVENT_PROJECTION_TYPE_REQUIRED";
+    readonly TEMPORAL_REPRESENTATION_REQUIRED: "TEMPORAL_REPRESENTATION_REQUIRED";
+    readonly TEMPORAL_CONFIGURATION_CONFLICT: "TEMPORAL_CONFIGURATION_CONFLICT";
+    readonly PARALLEL_ARRAY_SORT: "PARALLEL_ARRAY_SORT";
+    readonly ARRAY_EQUALITY: "ARRAY_EQUALITY";
+    readonly FIRST_LAST_REQUIRES_SINGLE_VALUE: "FIRST_LAST_REQUIRES_SINGLE_VALUE";
+    readonly FIRST_LAST_REQUIRES_ORDER_BY: "FIRST_LAST_REQUIRES_ORDER_BY";
+    readonly TEMPORAL_AGGREGATION_UNSUPPORTED: "TEMPORAL_AGGREGATION_UNSUPPORTED";
+    readonly SORT_TOO_MANY: "SORT_TOO_MANY";
+    readonly SORT_FIELD_DUPLICATE: "SORT_FIELD_DUPLICATE";
+    readonly IDENTITY_UNDEFINED: "IDENTITY_UNDEFINED";
+    readonly STORAGE_UNSUPPORTED: "STORAGE_UNSUPPORTED";
+    readonly PREVIOUS_UNSHIFTABLE: "PREVIOUS_UNSHIFTABLE";
+}>;
+
+// @public
 export type QueryField<FIELDS extends string = string> = FIELDS;
 
 // @public
@@ -1191,6 +1229,13 @@ export const QueryValueTypes: Readonly<{
     readonly BOOLEAN: "BOOLEAN";
     readonly OBJECT: "OBJECT";
 }>;
+
+// @public
+export interface QueryViolation {
+    code: QueryErrorCode;
+    message: string;
+    path: string;
+}
 
 // @public
 export interface RecordDescriptor {
@@ -1281,23 +1326,6 @@ export enum SensitivityLevel {
 
 // @public
 export function singleQuery<FIELDS extends string = string>(input?: QueryOptions<FIELDS>): FilterSingleQuery<FIELDS>;
-
-// @public
-export const SnapshotMetadataFields: Readonly<{
-    readonly VERSION: "version";
-    readonly TENANT_ID: "tenantId";
-    readonly OWNER_ID: "ownerId";
-    readonly SPACE_ID: "spaceId";
-    readonly EVENT_ID: "eventId";
-    readonly FIRST_EVENT_TIME: "firstEventTime";
-    readonly EVENT_TIME: "eventTime";
-    readonly FIRST_OPERATOR: "firstOperator";
-    readonly OPERATOR: "operator";
-    readonly SNAPSHOT_TIME: "snapshotTime";
-    readonly TAGS: "tags";
-    readonly DELETED: "deleted";
-    readonly STATE: "state";
-}>;
 
 // @public
 export interface SortCapable<FIELDS extends string = string> {

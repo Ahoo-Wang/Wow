@@ -13,7 +13,8 @@
 
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { QueryErrorCodes, WowError } from '@ahoo-wang/wow-client';
+import { WowProblemError } from '@ahoo-wang/wow-client';
+import { QueryErrorCodes } from '@ahoo-wang/wow-client/dsl';
 import {
   MemoryViewStore,
   ViewEngine,
@@ -47,15 +48,18 @@ afterEach(cleanup);
 function rejected(
   code: string | undefined,
   name: string,
-  errorMsg: string,
-  errorCode = 'QuerySchemaValidation',
+  detail: string,
+  errorCode = 'wow.query.invalid',
 ) {
   const body = {
-    errorCode,
-    errorMsg,
+    type: `urn:wow:error:${errorCode}`,
+    title: 'Invalid query',
+    status: 400,
+    code: errorCode,
+    detail,
     ...(code === undefined
       ? {}
-      : { bindingErrors: [{ name, msg: errorMsg, code }] }),
+      : { violations: [{ path: name, message: detail, code }] }),
   };
   const extractResult = vi.fn(() => Promise.resolve(body));
   return Object.assign(new Error('Request failed with status code 400'), {
@@ -123,21 +127,24 @@ describe('sourceFailure', () => {
         path: 'state.missing',
         message: 'Unknown.',
       },
-      errorCode: 'QuerySchemaValidation',
+      errorCode: 'wow.query.invalid',
       status: 400,
     });
     expect(second).toBe(first);
     expect(error.exchange.extractResult).toHaveBeenCalledOnce();
   });
 
-  it('reads a WowError a stream ended with the same way', async () => {
-    const error = new WowError({
-      errorCode: 'IllegalArgument',
-      errorMsg: 'Unknown type [NOPE] at [filter].',
-      bindingErrors: [
+  it('reads a WowProblemError a stream ended with the same way', async () => {
+    const error = new WowProblemError({
+      type: 'urn:wow:error:wow.query.malformed',
+      title: 'Malformed query',
+      status: 400,
+      code: 'wow.query.malformed',
+      detail: 'Unknown type [NOPE] at [filter].',
+      violations: [
         {
-          name: 'filter',
-          msg: 'Unknown type [NOPE] at [filter].',
+          path: 'filter',
+          message: 'Unknown type [NOPE] at [filter].',
           code: 'UNKNOWN_TYPE',
         },
       ],
@@ -150,7 +157,8 @@ describe('sourceFailure', () => {
         path: 'filter',
         message: 'Unknown type [NOPE] at [filter].',
       },
-      errorCode: 'IllegalArgument',
+      errorCode: 'wow.query.malformed',
+      status: 400,
     });
   });
 
@@ -160,25 +168,25 @@ describe('sourceFailure', () => {
       undefined,
       '',
       'HTTP list query limit[1001] must be between 1 and 1000.',
-      'IllegalArgument',
+      'wow.query.malformed',
     );
     await expect(sourceFailure(budget)).resolves.toEqual({
       reason: 'HTTP list query limit[1001] must be between 1 and 1000.',
-      errorCode: 'IllegalArgument',
+      errorCode: 'wow.query.malformed',
       status: 400,
     });
     const uncoded = rejected(undefined, '', 'x');
     Object.assign(uncoded.exchange, {
       extractResult: () =>
         Promise.resolve({
-          errorCode: 'CommandValidation',
-          errorMsg: 'x',
-          bindingErrors: [{ name: 'a', msg: 'b' }, 'junk', null],
+          code: 'wow.command.invalid',
+          detail: 'x',
+          violations: [{ path: 'a', message: 'b' }, 'junk', null],
         }),
     });
     await expect(sourceFailure(uncoded)).resolves.toEqual({
       reason: 'x',
-      errorCode: 'CommandValidation',
+      errorCode: 'wow.command.invalid',
       status: 400,
     });
     await expect(sourceFailure('down')).resolves.toEqual({ reason: 'down' });
@@ -189,9 +197,9 @@ describe('sourceFailure', () => {
     Object.assign(error.exchange, {
       extractResult: () =>
         Promise.resolve({
-          errorCode: 'QuerySchemaValidation',
-          errorMsg: 'Model search is unsupported.',
-          bindingErrors: [{ code: 'MODEL_SEARCH_UNSUPPORTED', msg: ' ' }],
+          code: 'wow.query.invalid',
+          detail: 'Model search is unsupported.',
+          violations: [{ code: 'MODEL_SEARCH_UNSUPPORTED', message: ' ' }],
         }),
     });
 
@@ -319,7 +327,7 @@ describe('queryFailureIssue', () => {
     );
   });
 
-  it('words the budget and gate codes of Wow 9.2 with the service’s words', async () => {
+  it('words the budget and gate codes with the service’s words', async () => {
     const found = await issueFor(
       'SIZE_OUT_OF_RANGE',
       'limit',
@@ -354,8 +362,8 @@ describe('queryFailureIssue', () => {
 
   it('reads a server fault (HTTP 500) as a plain failure to retry', async () => {
     const body = {
-      errorCode: 'InternalServerError',
-      errorMsg: 'Elasticsearch search timed out.',
+      code: 'wow.query.failed',
+      detail: 'Elasticsearch search timed out.',
     };
     const failure = await sourceFailure(
       Object.assign(new Error('Request failed with status code 500'), {
@@ -367,7 +375,7 @@ describe('queryFailureIssue', () => {
     );
     expect(failure).toEqual({
       reason: 'Elasticsearch search timed out.',
-      errorCode: 'InternalServerError',
+      errorCode: 'wow.query.failed',
       status: 500,
     });
     const found = queryFailureIssue(failure, withItems(), FILTER);
@@ -512,7 +520,7 @@ describe('a rejected query in the view', () => {
           definitionId: 'orders',
           instanceId: 'orders-1',
           runtimeId: runtime.id,
-          errorCode: 'QuerySchemaValidation',
+          errorCode: 'wow.query.invalid',
           violation: {
             code: 'VALUE_MISMATCH',
             path: 'status',

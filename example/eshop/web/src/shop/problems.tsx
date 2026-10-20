@@ -12,11 +12,7 @@
  */
 
 import { CircleAlertIcon } from "lucide-react";
-import {
-  WowProblemError,
-  type CommandResult,
-  type Violation,
-} from "@ahoo-wang/wow-client/v10";
+import { WowProblemError, type CommandResult, type Violation } from "@ahoo-wang/wow-client";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 /** What went wrong, as the UI shows it. */

@@ -83,18 +83,18 @@ const config: StorybookConfig = {
             packagesRoot,
             'wow-view-engine/src/testing/index.ts',
           ),
-          // The V10 entries, which the V10 view store's stories reach.
+          // The client's entries, which the view store's stories reach.
           '@ahoo-wang/wow-client/dsl': join(
             packagesRoot,
             'wow-client/src/dsl.ts',
           ),
-          '@ahoo-wang/wow-client/v10': join(
+          '@ahoo-wang/wow-client': join(
             packagesRoot,
-            'wow-client/src/v10/index.ts',
+            'wow-client/src/index.ts',
           ),
-          '@ahoo-wang/wow-view-store/v10': join(
+          '@ahoo-wang/wow-view-store': join(
             packagesRoot,
-            'wow-view-store/src/v10/index.ts',
+            'wow-view-store/src/index.ts',
           ),
           ...workspaceAliases,
         },

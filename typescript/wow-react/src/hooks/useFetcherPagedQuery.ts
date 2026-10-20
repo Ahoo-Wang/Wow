@@ -11,12 +11,7 @@
  * limitations under the License.
  */
 
-import type { FilterPagedQuery, PagedList } from '@ahoo-wang/wow-client';
-// compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
-import type {
-  PagedQuery,
-  PagedQueryRequest,
-} from '@ahoo-wang/wow-client/legacy';
+import type { PagedQuery, PagedResult } from '@ahoo-wang/wow-client';
 import type { Endpoint } from '../internal/endpoint.js';
 import { useEndpointRunner } from '../internal/useEndpointRunner.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
@@ -34,9 +29,9 @@ export interface UseFetcherPagedQueryOptions<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
+  Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>,
 >
-  extends Omit<QueryHookOptions<Q, PagedList<R>, E>, 'execute'>, Endpoint {}
+  extends Omit<QueryHookOptions<Q, PagedResult<R>, E>, 'execute'>, Endpoint {}
 
 /**
  * What {@link useFetcherPagedQuery} returns: the page (`total` and `list`)
@@ -51,11 +46,11 @@ export interface UseFetcherPagedQueryReturn<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
-> extends QueryHookReturn<Q, PagedList<R>, E> {}
+  Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>,
+> extends QueryHookReturn<Q, PagedResult<R>, E> {}
 
 /**
- * POSTs a paged query to a Wow endpoint through a Fetcher and keeps the page
+ * POSTs a paged query to a Wow query route through a Fetcher and keeps the page
  * as state.
  *
  * `url` is resolved against the Fetcher's `baseURL`; `fetcher` is a Fetcher
@@ -71,9 +66,8 @@ export interface UseFetcherPagedQueryReturn<
  *
  * Returns `result` (`{ total, list }`, or `undefined` before the first
  * success), `loading`, `error`, `status`, `execute`, `abort`, `reset`,
- * `getQuery` and `setQuery`. A failed request sets `error` to a
- * `FetcherError`; `toWowError(error)` from `@ahoo-wang/wow-client` reads the
- * server's `errorCode` from it.
+ * `getQuery` and `setQuery`. A failed request sets `error` to the
+ * `WowProblemError` the route answered with.
  *
  * @template R - One row of the page
  * @template FIELDS - The field names the query may use
@@ -81,12 +75,13 @@ export interface UseFetcherPagedQueryReturn<
  *
  * @example
  * ```tsx
- * import { filter, pagedQuery } from '@ahoo-wang/wow-client';
+ * import { filter, pagedQuery } from '@ahoo-wang/wow-client/dsl';
+ * import type { SnapshotRecord } from '@ahoo-wang/wow-client';
  * import { useFetcherPagedQuery } from '@ahoo-wang/wow-react';
  *
  * function PaidOrders({ page }: { page: number }) {
- *   const { result, loading, error } = useFetcherPagedQuery<OrderState>({
- *     url: 'order/snapshot/paged/state',
+ *   const { result, loading, error } = useFetcherPagedQuery<SnapshotRecord<OrderState>>({
+ *     url: '/shop/order/snapshot/query',
  *     query: pagedQuery({
  *       filter: filter.eq('state.status', 'PAID'),
  *       pagination: { index: page, size: 20 },
@@ -103,20 +98,13 @@ export function useFetcherPagedQuery<
   FIELDS extends string = string,
   E = Error,
 >(
-  options: UseFetcherPagedQueryOptions<R, FIELDS, E, FilterPagedQuery<FIELDS>>,
-): UseFetcherPagedQueryReturn<R, FIELDS, E, FilterPagedQuery<FIELDS>>;
-export function useFetcherPagedQuery<
-  R,
-  FIELDS extends string = string,
-  E = Error,
->(
   options: UseFetcherPagedQueryOptions<R, FIELDS, E, PagedQuery<FIELDS>>,
 ): UseFetcherPagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
 export function useFetcherPagedQuery<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
+  Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>,
 >(
   options: UseFetcherPagedQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherPagedQueryReturn<R, FIELDS, E, Q>;
@@ -124,9 +112,9 @@ export function useFetcherPagedQuery<
   R,
   FIELDS extends string,
   E,
-  Q extends PagedQueryRequest<FIELDS>,
+  Q extends PagedQuery<FIELDS>,
 >(
   options: UseFetcherPagedQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherPagedQueryReturn<R, FIELDS, E, Q> {
-  return useEndpointRunner<Q, PagedList<R>, E>(options);
+  return useEndpointRunner<Q, PagedResult<R>, E>(options, 'paged');
 }

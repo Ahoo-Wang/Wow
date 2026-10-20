@@ -2,20 +2,12 @@
   "$comment": "Regression ceilings in gzipped bytes, checked by scripts/verify-package.mjs through .github/scripts/size-budget.mjs. Size is not a target: each ceiling sits about 15-20% above what was measured when it was set, to catch an accidental blow-up. Raise one on purpose, in the pull request that needs it, and update its reason.",
   "ceilings": {
     ".": {
-      "gzip": 19050,
-      "reason": "Raised 2026-09-25, about 18% over the 16,144 B measured then: N1/N2/N4 contract builders, intended growth."
+      "gzip": 7400,
+      "reason": "Moved 2026-10-20 from ./v10 when the V10 client became the root (TS-9x, D239): raised 2026-10-19, about 15% over the 6,445 B measured then (5,590 B before): resumable query streams (D253, R3-B4) add about 850 B, the resume loop with its backoff, Retry-After and abort handling, intended growth."
     },
     "./dsl": {
       "gzip": 11888,
       "reason": "Raised 2026-09-25, about 18% over the 10,075 B measured then: N3 expression builders, intended growth."
-    },
-    "./legacy": {
-      "gzip": 4200,
-      "reason": "Set 2026-09-25, about 18% over the 3,549 B measured then."
-    },
-    "./v10": {
-      "gzip": 7400,
-      "reason": "Raised 2026-10-19, about 15% over the 6,445 B measured then (5,590 B before): resumable query streams (D253, R3-B4) add about 850 B, the resume loop with its backoff, Retry-After and abort handling, intended growth."
     }
   }
 }

@@ -18,7 +18,7 @@ import type {
   FilterPagedQuery,
   FilterSingleQuery,
   Projection,
-} from '../../src';
+} from '../../src/dsl.js';
 import {
   asc,
   DEFAULT_PAGINATION,
@@ -27,7 +27,7 @@ import {
   pagedList,
   pagedQuery,
   singleQuery,
-} from '../../src';
+} from '../../src/dsl.js';
 
 describe('queryable', () => {
   it('builds FilterExpression queries, with or without arguments', () => {

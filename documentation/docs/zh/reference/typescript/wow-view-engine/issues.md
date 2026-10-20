@@ -535,6 +535,7 @@ export type IssuePath = (string | number)[];
 | `runtime.query.failed.previous_unshiftable` | 与上一期对比要把「{field}」的时间范围前移，但筛选里对它的条件没法前移；把它的条件放在最外层的「且」里。 |
 | `runtime.query.failed.protected_aggregation` | 「{field}」受保护，不能用来汇总。 |
 | `runtime.query.failed.protected_comparison` | 「{field}」受保护，不能用来筛选、排序或搜索。 |
+| `runtime.query.failed.replay_too_long` | 要看的状态离现在的变更太多，无法重建：{reason} |
 | `runtime.query.failed.residual_groups_exceeded` | 这份汇总的分组太多，服务端没法按指标筛选或排序；先缩小数据范围。 |
 | `runtime.query.failed.size_out_of_range` | 服务端限制了一次能读多少行：{reason} |
 | `runtime.query.failed.sort_field_duplicate` | 「{field}」排了两次，保留一次即可。 |

@@ -12,12 +12,12 @@
  */
 
 import { Fetcher } from '@ahoo-wang/fetcher';
+import { queryRoute, routeSource } from './recordedWowService.js';
 import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
-  SnapshotQueryClient,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
@@ -44,6 +44,8 @@ export const DEFAULT_CRM_HOST: string =
 export const CUSTOMER = 'customer';
 
 /** The CRM service's `Customer` aggregate, as its query resources name it. */
+/** The context and the query routes of the aggregate's snapshots and events. */
+export const CUSTOMER_CONTEXT = 'crm';
 export const CUSTOMER_AGGREGATE = 'customer';
 
 // Wow's names for what the analysis side may group and compute by.
@@ -738,10 +740,10 @@ export function crmFetcher(host: string): Fetcher {
  * scene is read-only: it sends the service queries and nothing else.
  */
 export function createCustomerEngine(fetcher: Fetcher): ViewEngine {
-  const source = new SnapshotQueryClient({
-    basePath: CUSTOMER_AGGREGATE,
+  const source = routeSource(
     fetcher,
-  });
+    queryRoute(CUSTOMER_CONTEXT, CUSTOMER_AGGREGATE, 'snapshot'),
+  );
   return new ViewEngine({
     resources: [{ definition: customerDefinition, source }],
     // The service pages at most 100 rows at a time.

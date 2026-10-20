@@ -489,7 +489,7 @@ function stream(
 export function installRecordedPricingService(): () => void {
   return installRecordedWowService({
     host: RECORDED_PRICING_HOST,
-    resource: 'product_pricing/snapshot',
+    route: '/pricing/product_pricing/snapshot/query',
     documents: RECORDED_PRICINGS,
   });
 }
@@ -503,7 +503,7 @@ export function installRecordedPricingService(): () => void {
 export function installRecordedPricingEventService(): () => void {
   return installRecordedWowService({
     host: RECORDED_PRICING_EVENTS_HOST,
-    resource: 'product_pricing/event',
+    route: '/pricing/product_pricing/events/query',
     documents: RECORDED_PRICING_EVENTS,
   });
 }

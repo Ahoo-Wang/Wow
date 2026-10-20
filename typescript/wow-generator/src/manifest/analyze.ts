@@ -82,10 +82,10 @@ export interface LifecycleModel {
   /**
    * The body's type, or undefined for a command without one: the type
    * generated from the Manifest's `$defs` entry of the command's name when it
-   * holds one (`bodyGenerated`), else `@ahoo-wang/wow-client/v10`'s.
+   * holds one (`bodyGenerated`), else `@ahoo-wang/wow-client`'s.
    */
   readonly bodyType?: string;
-  /** The body's type is generated from the Manifest, not `@ahoo-wang/wow-client/v10`'s. */
+  /** The body's type is generated from the Manifest, not `@ahoo-wang/wow-client`'s. */
   readonly bodyGenerated?: boolean;
   /** What the Manifest's schema of the body says the command does. */
   readonly description?: string;
@@ -153,7 +153,7 @@ const LIFECYCLE_BODIES: Readonly<Record<string, string>> = {
   'wow.lifecycle.ApplyTags': 'ApplyTags',
 };
 
-/** The lifecycle commands `@ahoo-wang/wow-client/v10` sends (decision D113). */
+/** The lifecycle commands `@ahoo-wang/wow-client` sends (decision D113). */
 const LIFECYCLE_COMMANDS: ReadonlySet<string> = new Set([
   'wow.lifecycle.DeleteAggregate',
   'wow.lifecycle.RestoreAggregate',

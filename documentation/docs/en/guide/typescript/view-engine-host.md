@@ -7,7 +7,7 @@ description: One engine, the ports of ViewHost, bind, the router port and naviga
 
 This page answers: **once the definitions are written, what does the host application write around them so the engine does the right thing on every page?**
 
-The [getting started](./view-engine-getting-started.md) wired one business object in from zero. This page takes the wiring behind those steps one piece at a time: why the data is registered on the engine and the behaviour in React, what of the host's each port of [`ViewHost`](../../reference/typescript/wow-view-engine/host.md#api-ViewHost) bridges to, which parts of the address the engine keeps for the host, how far an embed goes, and how to test the wiring without a browser.
+The getting started wired one business object in from zero. This page takes the wiring behind those steps one piece at a time: why the data is registered on the engine and the behaviour in React, what of the host's each port of [`ViewHost`](../../reference/typescript/wow-view-engine/host.md#api-ViewHost) bridges to, which parts of the address the engine keeps for the host, how far an embed goes, and how to test the wiring without a browser.
 
 ```mermaid
 flowchart LR
@@ -68,7 +68,7 @@ export const engine = new ViewEngine({
 - Give the source's `Fetcher` a timeout (`new Fetcher({ timeout })`). `@ahoo-wang/fetcher` has none by default and the engine times no query, so a server that takes the connection and never answers leaves a view opening for ever and holds the engine's query slots, starving a board's other panels.
 - In a development build without `onIssue`, the engine prints admission findings per resource, each with how to fix it. They belong in the definition's [`admit`](../../reference/typescript/wow-view-engine/testing.md#api-admit) test ([below](#testing)), not in a handler that swallows them.
 
-How to choose the source and the store: [step 6 of the getting started](./view-engine-getting-started.md) and [Where Views Live](./view-engine-storage.md).
+How to choose the source and the store: step 6 of the getting started and [Where Views Live](./view-engine-storage.md).
 
 ## `ViewHost`: the one layer around the pages
 

@@ -18,7 +18,7 @@
  * was written in, and a calendar day standing for the whole day.
  */
 
-import { FilterOperator } from '@ahoo-wang/wow-client';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import type { FilterOperatorName } from '../src/model/index.js';
 import {

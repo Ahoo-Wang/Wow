@@ -23,7 +23,7 @@ import {
 import { renderHook } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { FilterOperator } from '@ahoo-wang/wow-client';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import {
   builtinFieldKinds,
   MemoryViewStore,

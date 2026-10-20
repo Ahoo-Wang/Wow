@@ -12,20 +12,16 @@
  */
 
 /*
- * The Wow query endpoint protocol, in one place: a query is POSTed as the
- * JSON body to its endpoint; the answer is JSON, or, for a list stream, an
- * event stream the server sends only when asked with
- * `Accept: text/event-stream`. The `useFetcher…` hooks are the matching
- * `use…Query` hook with one of these executors as `execute`.
+ * The Wow query route protocol, in one place: a query is POSTed to the
+ * model's query route (`/{context}/{aggregate}/{model}/query`) with a `kind`
+ * naming the operation; wow-client's `QueryModelClient` speaks it. The
+ * `useFetcher…` hooks are the matching `use…Query` hook with one of these
+ * executors as `execute`.
  */
 
 import type { Fetcher } from '@ahoo-wang/fetcher';
-import {
-  DEFAULT_FETCHER_NAME,
-  getFetcher,
-  JsonResultExtractor,
-} from '@ahoo-wang/fetcher';
-import { QUERY_STREAM_ENDPOINT } from '@ahoo-wang/wow-client';
+import { DEFAULT_FETCHER_NAME, getFetcher } from '@ahoo-wang/fetcher';
+import { QueryModelClient } from '@ahoo-wang/wow-client';
 import type { ListStreamExecutor, QueryExecutor } from '../types.js';
 
 /**
@@ -34,9 +30,9 @@ import type { ListStreamExecutor, QueryExecutor } from '../types.js';
  */
 export interface Endpoint {
   /**
-   * The query endpoint, resolved against the Fetcher's `baseURL`: for example
-   * `order/snapshot/list/state` for the states of an `order` aggregate, or
-   * `order/snapshot/count` for the count of its snapshots.
+   * The query route, resolved against the Fetcher's `baseURL`: for example
+   * `/shop/order/snapshot/query` for the snapshots of the `order` aggregate
+   * of the `shop` context.
    */
   url: string;
   /**
@@ -46,43 +42,42 @@ export interface Endpoint {
   fetcher?: string | Fetcher;
 }
 
+/** The operations of a query route that answer JSON. */
+export type QueryKind = 'single' | 'list' | 'paged' | 'count';
+
 /**
- * Runs a query by POSTing it to the endpoint and reading the JSON answer.
- * The Fetcher is resolved when the request is sent, so a name that is not
- * registered fails that request, and the hook reports it as its `error`.
+ * The query route's client. The Fetcher is resolved when the request is
+ * sent, so a name that is not registered fails that request, and the hook
+ * reports it as its `error`.
  */
-export function postQuery<Q extends object, R>({
-  url,
-  fetcher,
-}: Endpoint): QueryExecutor<Q, R> {
-  return (query, attributes, abortController) =>
-    getFetcher(fetcher).post<R>(
-      url,
-      { body: query, abortController },
-      { attributes, resultExtractor: JsonResultExtractor },
-    );
+function clientOf({ url, fetcher }: Endpoint): QueryModelClient<unknown> {
+  return new QueryModelClient(url, { fetcher: getFetcher(fetcher) });
+}
+
+/** Runs a query of `kind` on the route and reads the JSON answer. */
+export function postQuery<Q extends object, R>(
+  endpoint: Endpoint,
+  kind: QueryKind,
+): QueryExecutor<Q, R> {
+  return (query, options) => {
+    const client = clientOf(endpoint);
+    const run = client[kind] as (query: Q, options: object) => Promise<R>;
+    return run.call(client, query, options);
+  };
 }
 
 /**
- * Opens the stream of a list query by POSTing it to the endpoint with
- * wow-client's `QUERY_STREAM_ENDPOINT`: `Accept: text/event-stream`, and an
- * extractor that answers the rows and ends the stream with a `WowError` at
- * the server's error event.
+ * Opens the stream of a list query on the route: server-sent events, read
+ * one record at a time; the stream errors with the problem the server sends
+ * midway.
  */
-export function postQueryStream<R, Q extends object>({
-  url,
-  fetcher,
-}: Endpoint): ListStreamExecutor<R, Q> {
-  return (query, attributes, abortController) =>
-    getFetcher(fetcher).post<ReadableStream<R>>(
-      url,
-      {
-        body: query,
-        // A copy: the Fetcher may add headers to the request it sends.
-        headers: { ...QUERY_STREAM_ENDPOINT.headers },
-        abortController,
-      },
-      { attributes, resultExtractor: QUERY_STREAM_ENDPOINT.resultExtractor },
+export function postQueryStream<R, Q extends object>(
+  endpoint: Endpoint,
+): ListStreamExecutor<R, Q> {
+  return (query, options) =>
+    (clientOf(endpoint) as QueryModelClient<R>).listStream(
+      query as never,
+      options,
     );
 }
 

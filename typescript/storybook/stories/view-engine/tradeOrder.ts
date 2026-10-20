@@ -12,12 +12,12 @@
  */
 
 import { Fetcher } from '@ahoo-wang/fetcher';
+import { queryRoute, routeSource } from './recordedWowService.js';
 import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
-  SnapshotQueryClient,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
@@ -44,6 +44,8 @@ export const DEFAULT_TRADING_HOST: string =
 export const TRADE_ORDER = 'trade-order';
 
 /** The trading service's `TradeOrder` aggregate. */
+/** The context and the query routes of the aggregate's snapshots and events. */
+export const TRADE_ORDER_CONTEXT = 'trading';
 export const TRADE_ORDER_AGGREGATE = 'trade_order';
 
 /** The statuses of an order waiting on an operator: a review or a revision. */
@@ -178,7 +180,7 @@ function progress(
 
 /**
  * Trade orders, written by hand from the service's own schema
- * (`GET /trade_order/snapshot/schema`): every field here is one the schema
+ * (`GET /trading/trade_order/snapshot/query`): every field here is one the schema
  * lists, with the operators, sorting and aggregation its capabilities admit,
  * and no more. The labels follow the schema's titles where it has them; the
  * grouping and the choice of what an order operator needs are this
@@ -686,10 +688,10 @@ export const tradeOrderDefinition: DataViewDefinition = {
  * views live in memory, so they last as long as the story does.
  */
 export function createTradeOrderEngine(fetcher: Fetcher): ViewEngine {
-  const source = new SnapshotQueryClient({
-    basePath: TRADE_ORDER_AGGREGATE,
+  const source = routeSource(
     fetcher,
-  });
+    queryRoute(TRADE_ORDER_CONTEXT, TRADE_ORDER_AGGREGATE, 'snapshot'),
+  );
   return new ViewEngine({
     resources: [{ definition: tradeOrderDefinition, source }],
     // The service pages at most 100 rows at a time; an export pages at the

@@ -24,7 +24,7 @@ import {
   FilterOperator,
   type AggregationQuery,
   type FilterExpression,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import type { RecordData } from '@ahoo-wang/wow-view-engine';
 import { rowSource } from './rowSource.js';
 

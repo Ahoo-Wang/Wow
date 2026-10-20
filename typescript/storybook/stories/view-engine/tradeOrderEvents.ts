@@ -12,12 +12,12 @@
  */
 
 import type { Fetcher } from '@ahoo-wang/fetcher';
+import { queryRoute, routeSource } from './recordedWowService.js';
 import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
-  EventStreamQueryClient,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
@@ -28,7 +28,7 @@ import {
   type FilterNode,
   type RecordViewConfig,
 } from '@ahoo-wang/wow-view-engine';
-import { TRADE_ORDER_AGGREGATE } from './tradeOrder.js';
+import { TRADE_ORDER_CONTEXT, TRADE_ORDER_AGGREGATE } from './tradeOrder.js';
 
 export const TRADE_ORDER_EVENTS = 'trade-order-events';
 
@@ -466,10 +466,10 @@ export const tradeOrderEventsDefinition: DataViewDefinition = {
  * an event carries its payload, and an order's creation carries the order.
  */
 export function createTradeOrderEventsEngine(fetcher: Fetcher): ViewEngine {
-  const source = new EventStreamQueryClient({
-    basePath: TRADE_ORDER_AGGREGATE,
+  const source = routeSource(
     fetcher,
-  });
+    queryRoute(TRADE_ORDER_CONTEXT, TRADE_ORDER_AGGREGATE, 'events'),
+  );
   return new ViewEngine({
     resources: [{ definition: tradeOrderEventsDefinition, source }],
     store: new MemoryViewStore({ instances: [] }),

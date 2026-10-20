@@ -72,7 +72,7 @@ Gradle 流水线不在准入里：preflight 自己在这个提交上跑 `./gradl
      process.exitCode = hits.length ? 1 : 0;'
    ```
 
-   第一条查整个工作区的运行时依赖；第二条把每条发现归到发布包（`PUBLISHED`）上，只看它们装进用户项目的依赖（`dependencies` 及其传递依赖；视图引擎的 echarts、Base UI、dnd-kit 等也在内）。`pnpm audit --json` 每条发现只给一条示例路径，按路径前缀过滤会漏（9.2.0 之前的写法就漏了 wow-generator 的一条），所以按包名与版本问 `pnpm why`。peer（fetcher、React 等）由用户自己安装、版本由用户锁定，不在这里查。有发现就先在发版 PR 里写明影响与处置（升级、说明走不到、或者接受），评估之前不要直接升级。2026-09-24（9.2.0 首发前）：`pnpm audit --prod` 为 0（219 个运行时依赖）；全量审计的 14 条（6 high、8 moderate）都在开发依赖上——`documentation` 经 vitepress 的 vite／esbuild，`compensation/dashboard` 经 shadcn CLI 的 hono、qs、fast-uri、js-yaml——三个发布包的路径上没有。2026-10-01（五个发布包）：`pnpm audit --prod` 有 3 条，都是 `brace-expansion` 5.0.9（GHSA-qhr7-859c-m2p7、GHSA-6j4f-fj2g-mc7p 两条 high，GHSA-q2hr-2g5m-vwhr 一条 moderate，修复于 5.0.12），路径 wow-generator → ts-morph → @ts-morph/common → minimatch → brace-expansion；其余四个发布包没有。处置（用户批准）：`pnpm update -r brace-expansion` 把锁文件里的 brace-expansion 更新到 5.0.12——minimatch 10.2.6 依赖 `^5.0.8`，不用 override，也不动 ts-morph；之后 `pnpm install --frozen-lockfile` 通过，`pnpm audit --prod` 为 0。用户装 wow-generator 时按同一个范围解析，新装就拿到 5.0.12。2026-10-03（9.2.0 发版 PR）：`pnpm audit --prod` 为 0；全量审计 32 条（10 high、19 moderate、3 low）都在开发依赖上，五个发布包上没有（上面第二条命令输出 `published packages: no advisories`）。
+   第一条查整个工作区的运行时依赖；第二条把每条发现归到发布包（`PUBLISHED`）上，只看它们装进用户项目的依赖（`dependencies` 及其传递依赖；视图引擎的 echarts、Base UI、dnd-kit 等也在内）。`pnpm audit --json` 每条发现只给一条示例路径，按路径前缀过滤会漏（9.2.0 之前的写法就漏了 wow-generator 的一条），所以按包名与版本问 `pnpm why`。peer（fetcher、React 等）由用户自己安装、版本由用户锁定，不在这里查。有发现就先在发版 PR 里写明影响与处置（升级、说明走不到、或者接受），评估之前不要直接升级。2026-09-24（9.2.0 首发前）：`pnpm audit --prod` 为 0（219 个运行时依赖）；全量审计的 14 条（6 high、8 moderate）都在开发依赖上——`documentation` 经 vitepress 的 vite／esbuild，9.x 补偿控制台经 shadcn CLI 的 hono、qs、fast-uri、js-yaml——三个发布包的路径上没有。2026-10-01（五个发布包）：`pnpm audit --prod` 有 3 条，都是 `brace-expansion` 5.0.9（GHSA-qhr7-859c-m2p7、GHSA-6j4f-fj2g-mc7p 两条 high，GHSA-q2hr-2g5m-vwhr 一条 moderate，修复于 5.0.12），路径 wow-generator → ts-morph → @ts-morph/common → minimatch → brace-expansion；其余四个发布包没有。处置（用户批准）：`pnpm update -r brace-expansion` 把锁文件里的 brace-expansion 更新到 5.0.12——minimatch 10.2.6 依赖 `^5.0.8`，不用 override，也不动 ts-morph；之后 `pnpm install --frozen-lockfile` 通过，`pnpm audit --prod` 为 0。用户装 wow-generator 时按同一个范围解析，新装就拿到 5.0.12。2026-10-03（9.2.0 发版 PR）：`pnpm audit --prod` 为 0；全量审计 32 条（10 high、19 moderate、3 low）都在开发依赖上，五个发布包上没有（上面第二条命令输出 `published packages: no advisories`）。
 
 2. 发版 PR：`pnpm set-version <version>`，更新版本表、文档和快照，合并。预发布版（`-rc.n`）只更新快照，版本表与文档留在上一个正式版。
 3. 创建 GitHub release（tag `v<version>`，指向 main 或 `release-x.y` 上的提交），release notes 按[「发布说明」](#发布说明)用模板写。
@@ -126,7 +126,7 @@ GitHub release 的正文就是变更记录，不另外维护 `CHANGELOG.md`。�
   - 「the registry does not serve …」：npm 在 5 分钟里还没给出新版本，多半是 registry 延迟。本机 `npm view <包>@<版本> version` 能查到以后，只重跑 `npm-smoke`（Re-run failed jobs）。查不到就回到 `npm-deploy` 的日志看是哪个包没发出去。
   - 「dist-tag … is …, not …」：包已经上去，但默认安装拿不到它，或者拿到的是别的版本。用 `npm dist-tag ls <包>` 核对，把 dist-tag 改对（命令同下面的回退），再重跑 `npm-smoke`。
   - 安装、import、require、样式表解析、bin（`--version`、`theme-check --help`）或类型检查失败：发布已经上线而且是坏的，按下一条处理。
-- **镜像先于准入发出**：三个镜像工作流在 tag 创建时就推 `X.Y.Z`、`X.Y`（是最高的稳定版本时还有 `latest`），不等 `admission`、`preflight`。准入或 preflight 失败、这次发布作废时，镜像已经在三个仓库里：按下面「回退步骤」里的镜像一段把 `X.Y`、`latest` 指回上一个版本。
+- **镜像先于准入发出**：`v10-image-deploy.yml` 在 `package-deploy.yml` 的发布里推 V10 服务端镜像（`wow-ops-server`、`wow-view-store-server`），只打确切的版本号 `X.Y.Z`，不打 `X.Y` 与 `latest`（它们留在 9.x 线上，到 10.0.0 GA 为止）。准入或 preflight 失败、这次发布作废时，镜像已经在三个仓库里，但没有浮动 tag 指向它，不用回退。
 - **npm 发布以后发现问题**：发出去的版本不能覆盖；unpublish 只在 72 小时内、没人依赖时可行，而且这个版本号永远不能再用，还会让已有的锁文件装不上。所以**不 unpublish**，只有泄露了密钥或者发出了恶意内容才考虑，同时联系 npm 支持并发安全公告。能用的手段是移动 dist-tag、`npm deprecate`、发补丁。
 
 ### 发补丁还是回退
@@ -134,7 +134,7 @@ GitHub release 的正文就是变更记录，不另外维护 `CHANGELOG.md`。�
 - **发补丁（默认）**：问题只影响部分用法或者有绕过办法，或者修复能在几个小时内合并并通过准入。按「日常发版」发 `x.y.(z+1)`，它会自动拿到原来的 dist-tag（`latest` 或 `release-x.y`），同时对坏版本执行下面的 `npm deprecate`。补丁里不能带破坏性改动（准入拒绝），修复本身需要破坏性改动时，先回退，再在下一个 `x.Y.0` 里修。
 - **先回退、再发补丁**：`npm-smoke` 失败（装不上、导入不了、bin 不能运行），或者问题影响所有用户、会写坏数据、是安全问题，而修复不能很快发出。回退只改变**以后**的默认安装；锁文件里已经是坏版本的用户不受影响，`npm deprecate` 的警告是提醒他们的办法，所以两步都要做。
 - Maven 这一路不能撤回，也不随 npm 回退。问题在服务端 Kotlin 代码时，按 Maven 的方式发补丁，npm 包是否跟着 deprecate 看它是否受影响。
-- Docker 镜像（example、compensation、view store 服务端）的 `X.Y.Z` 不删、不覆盖；回退移动的是 `X.Y` 与 `latest`（见回退步骤最后一段）。
+- Docker 镜像的 `X.Y.Z` 不删、不覆盖；10.x 的镜像没有浮动 tag，回退不动镜像。
 
 ### 回退步骤
 
@@ -167,18 +167,7 @@ for pkg in $PACKAGES; do npm dist-tag ls "$pkg"; done                           
 
 - **`latest`**：如上。**首发 9.2.0 没有上一个稳定版**：npm 不允许删除 `latest`，也不要把 `latest` 指向 rc，只能 deprecate 9.2.0 并尽快发 9.2.1。
 - **`next`**（预发布版本，例如坏的 `9.2.0-rc.1`）：优先发下一个 rc（`rc.2`），对坏 rc 执行 `npm deprecate`；要立刻挡住，就 `TAG=next PREV=9.2.0-rc.0` 走上面的步骤。稳定版发布以后 `next` 停在最后一个 rc 上，不用管它。
-- **Docker 镜像**：在本机（已登录 Docker Hub、GHCR、阿里云三个仓库）把坏版本移动过的浮动 tag 指回 `$PREV` 的同一份 manifest，不重新构建：
-
-  ```bash
-  MINOR=${BAD%.*}             # 9.2；坏版本是这条线第一个版本时没有可指回的 X.Y，只改 latest
-  for registry in ahoowang ghcr.io/ahoo-wang registry.cn-shanghai.aliyuncs.com/ahoo; do
-    for image in wow-example-server wow-compensation-server wow-view-store-server; do
-      docker buildx imagetools create -t "$registry/$image:latest" -t "$registry/$image:$MINOR" "$registry/$image:$PREV"
-    done
-  done
-  ```
-
-  坏版本是老版本线的补丁时，它没有移动 `latest`（9.x 的镜像工作流只让最高的稳定版本打 `latest`，和 npm 的 dist-tag 同一条规则；这些工作流与 `docker-latest.mjs` 只在 main 上，`v10` 上已删除，D262）：只把 `X.Y` 指回这条线上一个补丁，命令里去掉 `-t "$registry/$image:latest"`。没有上一个版本的镜像（首发 9.2.0 的 view store 服务端），不回退，尽快发补丁。
+- **Docker 镜像**：10.x 的镜像只有确切的版本号，没有要指回的浮动 tag；9.x 镜像的 `X.Y` 与 `latest` 由 `main` 上的镜像工作流打，回退也按 `main` 的 `typescript/RELEASING.md` 做。
 
 - **`release-x.y`**（老版本线的补丁，不会动 `latest`）：`TAG=release-x.y`，`PREV` 是这条线上一个补丁。坏版本是这条线第一个打了 `release-x.y` 的补丁时，没有可以指回的版本：对每个发布包执行 `npm dist-tag rm "$pkg" "release-x.y"` 并 deprecate，修好后的补丁会重新建这个 tag。无论哪种情况都不要碰 `latest`。
 

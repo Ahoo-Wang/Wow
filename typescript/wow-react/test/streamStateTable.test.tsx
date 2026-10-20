@@ -24,19 +24,15 @@
 
 import { describe, expect, it } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { ExchangeError } from '@ahoo-wang/fetcher';
-import {
-  filter,
-  listQuery,
-  SnapshotQueryClient,
-  WowError,
-} from '@ahoo-wang/wow-client';
+import { QueryModelClient, WowProblemError } from '@ahoo-wang/wow-client';
+import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
 import { useFetcherListStreamQuery, useListStreamQuery } from '../src';
 import {
   deferred,
+  errorEvent,
   fakeServer,
   liveStream,
-  wowError,
+  problem,
   type FakeServer,
   type LiveStream,
 } from './support/fakeServer';
@@ -99,15 +95,13 @@ const families: {
   {
     name: 'useListStreamQuery (query client as execute)',
     render(server) {
-      const client = new SnapshotQueryClient<Row>({
+      const client = new QueryModelClient<Row>('/shop/order/snapshot/query', {
         fetcher: server.fetcher,
-        basePath: 'order',
       });
       return renderHook(() =>
         useListStreamQuery<Row>({
           initialQuery: paidQuery,
-          execute: (query, attributes, abortController) =>
-            client.listStateStream(query, attributes, abortController),
+          execute: (query, options) => client.listStream(query, options),
         }),
       );
     },
@@ -118,7 +112,7 @@ const families: {
       return renderHook(() =>
         useFetcherListStreamQuery<Row>({
           fetcher: server.fetcher,
-          url: 'order/snapshot/list/state',
+          url: '/shop/order/snapshot/query',
           initialQuery: paidQuery,
         }),
       );
@@ -165,10 +159,7 @@ const failed = (items: Row[], error: unknown): Shown => ({
   error,
 });
 
-const errorEvent = {
-  event: 'IllegalArgument',
-  data: { errorCode: 'IllegalArgument', errorMsg: 'bad' },
-};
+const failure = errorEvent('wow.query.invalid', 'bad');
 
 describe.each(families)('stream hook state table: $name', family => {
   /** Mounts the hook with its first stream open and `rows` received. */
@@ -221,7 +212,7 @@ describe.each(families)('stream hook state table: $name', family => {
 
   it('start after an error: loading, the error cleared, the rows emptied', async () => {
     const { result, streams } = await streaming(o1);
-    streams[0].send(errorEvent);
+    streams[0].send(failure);
     streams[0].close();
     await waitFor(() => expect(result.current.status).toBe('error'));
     act(() => void result.current.execute());
@@ -237,28 +228,32 @@ describe.each(families)('stream hook state table: $name', family => {
 
   it('fail midway (error event): error, keeping the rows received', async () => {
     const { result, streams } = await streaming(o1);
-    streams[0].send(errorEvent);
+    streams[0].send(failure);
     streams[0].close();
     await waitFor(() => expect(result.current.status).toBe('error'));
-    expect(shown(result.current)).toEqual(failed([o1], expect.any(WowError)));
+    expect(shown(result.current)).toEqual(
+      failed([o1], expect.any(WowProblemError)),
+    );
   });
 
   it('fail on request: error, no rows', async () => {
     const held = streamingServer();
-    held.refuseWith(() => wowError('Unauthorized', 'No token.', 401));
+    held.refuseWith(() =>
+      problem('wow.auth.unauthenticated', 'No token.', 401),
+    );
     const { result } = family.render(held.server);
     await waitFor(() => expect(result.current.status).toBe('error'));
     expect(shown(result.current)).toEqual(
-      failed([], expect.any(ExchangeError)),
+      failed([], expect.any(WowProblemError)),
     );
   });
 
   it('fail on request after a success: error, the rows emptied', async () => {
     const { result, refuseWith } = await ended(o1);
-    refuseWith(() => wowError('Unauthorized', 'No token.', 401));
+    refuseWith(() => problem('wow.auth.unauthenticated', 'No token.', 401));
     await act(() => result.current.execute());
     expect(shown(result.current)).toEqual(
-      failed([], expect.any(ExchangeError)),
+      failed([], expect.any(WowProblemError)),
     );
   });
 
@@ -278,7 +273,7 @@ describe.each(families)('stream hook state table: $name', family => {
 
   it('abort() after an error: idle, the error cleared, keeping the rows', async () => {
     const { result, streams } = await streaming(o1);
-    streams[0].send(errorEvent);
+    streams[0].send(failure);
     streams[0].close();
     await waitFor(() => expect(result.current.status).toBe('error'));
     await act(async () => result.current.abort());
@@ -301,7 +296,7 @@ describe.each(families)('stream hook state table: $name', family => {
 
   it('reset() after an error: idle, the error cleared, the rows emptied', async () => {
     const { result, streams } = await streaming(o1);
-    streams[0].send(errorEvent);
+    streams[0].send(failure);
     streams[0].close();
     await waitFor(() => expect(result.current.status).toBe('error'));
     act(() => result.current.reset());
@@ -321,14 +316,13 @@ describe('stream hook state table: execute that ignores the abort signal', () =>
   async function uncancellable() {
     const opened = deferred<Response>();
     const server = fakeServer(() => opened.promise);
-    const client = new SnapshotQueryClient<Row>({
+    const client = new QueryModelClient<Row>('/shop/order/snapshot/query', {
       fetcher: server.fetcher,
-      basePath: 'order',
     });
     const hook = renderHook(() =>
       useListStreamQuery<Row>({
         initialQuery: paidQuery,
-        execute: query => client.listStateStream(query),
+        execute: query => client.listStream(query),
       }),
     );
     await waitFor(() => expect(server.requests).toHaveLength(1));

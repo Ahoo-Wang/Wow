@@ -17,7 +17,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type {
   FieldDescriptor,
   QueryModelDescriptor,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   builtinFieldKinds,
   compileFilter,

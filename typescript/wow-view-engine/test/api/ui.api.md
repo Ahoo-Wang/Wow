@@ -4,41 +4,41 @@
 
 ```ts
 
-import { AggregationDatePart } from '@ahoo-wang/wow-client';
-import { AggregationDateUnit } from '@ahoo-wang/wow-client';
-import { AggregationExpressionOperator } from '@ahoo-wang/wow-client';
-import { AggregationFunction } from '@ahoo-wang/wow-client';
-import { AggregationGroupType } from '@ahoo-wang/wow-client';
-import { AggregationQuery } from '@ahoo-wang/wow-client';
+import { AggregationDatePart } from '@ahoo-wang/wow-client/dsl';
+import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
+import { AggregationExpressionOperator } from '@ahoo-wang/wow-client/dsl';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
+import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
+import { AggregationQuery } from '@ahoo-wang/wow-client/dsl';
 import { Context } from 'react';
-import { CursorPage } from '@ahoo-wang/wow-client';
-import { CursorQuery } from '@ahoo-wang/wow-client';
-import { DateDiffUnit } from '@ahoo-wang/wow-client';
+import { CursorPage } from '@ahoo-wang/wow-client/dsl';
+import { CursorQuery } from '@ahoo-wang/wow-client/dsl';
+import { DateDiffUnit } from '@ahoo-wang/wow-client/dsl';
 import { Dialog } from '@base-ui/react/dialog';
 import { EChartsCoreOption } from 'echarts/core';
-import { FilterExpression } from '@ahoo-wang/wow-client';
-import { FilterOperator } from '@ahoo-wang/wow-client';
-import { FilterPagedQuery } from '@ahoo-wang/wow-client';
-import { HavingExpression } from '@ahoo-wang/wow-client';
+import { FilterExpression } from '@ahoo-wang/wow-client/dsl';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import { FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
+import { HavingExpression } from '@ahoo-wang/wow-client/dsl';
 import { InboxIcon } from 'lucide-react';
 import { InfoIcon } from 'lucide-react';
 import { init as init_2 } from 'echarts/core';
 import { JSX } from 'react';
 import { LucideIcon } from 'lucide-react';
 import { MouseEventHandler } from 'react';
-import { PagedList } from '@ahoo-wang/wow-client';
+import { PagedList } from '@ahoo-wang/wow-client/dsl';
 import { Popover } from '@base-ui/react/popover';
-import { QueryDescriptorResult } from '@ahoo-wang/wow-client';
-import { QueryViolation } from '@ahoo-wang/wow-client';
+import { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
+import { QueryViolation } from '@ahoo-wang/wow-client/dsl';
 import * as React_2 from 'react';
 import { ReactElement } from 'react';
 import { ReactNode } from 'react';
 import { Ref } from 'react';
 import { RefObject } from 'react';
-import { SearchMode } from '@ahoo-wang/wow-client';
-import { StringComparison } from '@ahoo-wang/wow-client';
+import { SearchMode } from '@ahoo-wang/wow-client/dsl';
+import { StringComparison } from '@ahoo-wang/wow-client/dsl';
 import { UserIcon } from 'lucide-react';
-import { WindowFunction } from '@ahoo-wang/wow-client';
+import { WindowFunction } from '@ahoo-wang/wow-client/dsl';
 
 // @public
 interface ActionConfirm {
@@ -3424,6 +3424,7 @@ export const en: {
     readonly 'runtime.query.failed.count_requires_filter': "Add a condition first: the service will not count every record.";
     readonly 'runtime.query.failed.residual_groups_exceeded': "This summary has too many groups for the service to filter or sort by a metric; narrow the data first.";
     readonly 'runtime.query.failed.explicit_entry_required': "The query named no entry to run against: {reason}";
+    readonly 'runtime.query.failed.replay_too_long': "That state is too many changes away to rebuild: {reason}";
     readonly 'runtime.query.failed.temporal_aggregation_unsupported': "{field} does not store its time as a date or a timestamp, so it cannot be grouped or measured by time.";
     readonly 'runtime.query.failed.sort_too_many': "The sort has too many fields; remove some.";
     readonly 'runtime.query.failed.sort_field_duplicate': "{field} is sorted by twice; keep it once.";
@@ -5677,6 +5678,16 @@ interface ProjectedRecord extends ProjectedBase {
 
 // @public
 type ProjectedView = ProjectedRecord | ProjectedAnalysis;
+
+// @public
+type QueryDescriptorResult = {
+    notModified: false;
+    descriptor: QueryModelDescriptor;
+    version: string;
+} | {
+    notModified: true;
+    version: string;
+};
 
 // @public (undocumented)
 type QueryStatus = 'idle' | 'loading' | 'success' | 'error';

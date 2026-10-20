@@ -12,7 +12,7 @@
  */
 
 import type { RecordData } from '@ahoo-wang/wow-view-engine';
-import { installRecordedWowService } from './recordedWowService.js';
+import { installRecordedWowService, problem } from './recordedWowService.js';
 
 /**
  * The recorded compensation service the `CompensationWorkbench` regression
@@ -102,7 +102,7 @@ function execution(
 export function installRecordedCompensationService(): () => void {
   return installRecordedWowService({
     host: RECORDED_COMPENSATION_HOST,
-    resource: 'execution_failed/snapshot',
+    route: '/compensation/execution_failed/snapshot/query',
     documents: RECORDED_EXECUTIONS,
     command: answerCommand,
   });
@@ -112,27 +112,33 @@ export function installRecordedCompensationService(): () => void {
  * The compensation commands on one recorded execution, with the service's
  * rules: a retry within the spec needs a retryable execution below its
  * limit, a forced one only a retryable execution; either prepares it. A
- * refusal is a command result that says why, as the service answers.
+ * refusal is a problem that says why, as the service answers.
  */
 function answerCommand(
   rows: RecordData[],
   path: string,
   body: { recoverable?: unknown },
 ): object | undefined {
-  const [, aggregate, id, command] = path.split('/');
-  if (aggregate !== 'execution_failed') return undefined;
+  const [, context, aggregate, id, command] = path.split('/');
+  if (context !== 'compensation' || aggregate !== 'execution_failed')
+    return undefined;
   const state = rows.find(row => row.aggregateId === id)?.state as
     Record<string, unknown> | undefined;
-  if (!state) return refused('NotFound', `No execution ${id}.`);
+  if (!state)
+    return problem('wow.aggregate.not-found', `No execution ${id}.`, 404);
   switch (command) {
     case 'prepare_compensation':
       if (state.isRetryable !== true || state.isBelowRetryThreshold !== true)
-        return refused('IllegalState', 'Retry threshold reached.');
+        return problem(
+          'compensation.retry-threshold-reached',
+          'Retry threshold reached.',
+          409,
+        );
       state.status = 'PREPARED';
       return SUCCEEDED;
     case 'force_prepare_compensation':
       if (state.isRetryable !== true)
-        return refused('IllegalState', 'Not retryable.');
+        return problem('compensation.not-retryable', 'Not retryable.', 409);
       state.status = 'PREPARED';
       return SUCCEEDED;
     case 'mark_recoverable':
@@ -142,8 +148,5 @@ function answerCommand(
   return undefined;
 }
 
-const SUCCEEDED = { errorCode: 'Ok', errorMsg: '' };
-
-function refused(errorCode: string, errorMsg: string) {
-  return { errorCode, errorMsg };
-}
+/** The part of a command result the scene reads: it succeeded. */
+const SUCCEEDED = { status: 'SUCCEEDED', duplicate: false };

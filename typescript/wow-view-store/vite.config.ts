@@ -18,8 +18,7 @@ export default defineConfig({
   build: {
     sourcemap: true,
     lib: {
-      // The 9.x store at the root, the V10 one at `/v10`.
-      entry: { index: 'src/index.ts', v10: 'src/v10/index.ts' },
+      entry: { index: 'src/index.ts' },
       formats: ['es'],
       fileName: (_format, name) => `${name}.es.js`,
     },

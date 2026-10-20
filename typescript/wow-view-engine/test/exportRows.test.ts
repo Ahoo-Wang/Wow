@@ -16,7 +16,7 @@ import {
   FilterOperator,
   type CursorQuery,
   type FilterPagedQuery,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   builtinFieldKinds,
   isRecordRuntime,

@@ -30,7 +30,7 @@ import {
   type DerivedExpression,
   type FieldSort,
   type HavingExpression,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   PART_DOMAINS,
   bucketerOf,

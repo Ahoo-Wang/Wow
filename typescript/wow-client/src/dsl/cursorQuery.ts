@@ -27,10 +27,9 @@ export const MAX_CURSOR_SIZE = 2_147_483_646;
 export const MAX_CURSOR_SORT_FIELDS = 32;
 
 /**
- * The body of a forward-only cursor query, which `QueryApi.cursor` and
- * `SnapshotQueryApi.cursorState` send; build it with {@link cursorQuery}.
- * Unlike a paged query it returns no total, and each page starts where the
- * one before ended. Wow 9.0 and later; Wow 8.11 has no cursor endpoints.
+ * The body of a forward-only cursor query, which `QueryModelClient.cursor`
+ * sends; build it with {@link cursorQuery}. Unlike a paged query it returns
+ * no total, and each page starts where the one before ended.
  */
 export interface CursorQuery<FIELDS extends string = string> {
   /** What to match. */
@@ -69,13 +68,13 @@ export interface CursorPage<T> {
  *
  * @example
  * ```typescript
- * const first = await snapshotClient.cursorState(
- *   cursorQuery({ filter: filter.eq('status', 'ACTIVE'), size: 50 }),
+ * const first = await snapshots.cursor(
+ *   cursorQuery({ filter: filter.eq('state.status', 'ACTIVE'), size: 50 }),
  * );
  * if (first.nextCursor !== null) {
- *   await snapshotClient.cursorState(
+ *   await snapshots.cursor(
  *     cursorQuery({
- *       filter: filter.eq('status', 'ACTIVE'),
+ *       filter: filter.eq('state.status', 'ACTIVE'),
  *       size: 50,
  *       cursor: first.nextCursor,
  *     }),

@@ -12,7 +12,7 @@
  */
 
 import { Fetcher } from "@ahoo-wang/fetcher";
-import type { EventStreamRecord } from "@ahoo-wang/wow-client/v10";
+import type { EventStreamRecord } from "@ahoo-wang/wow-client";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { I18nProvider, type Locale } from "@/i18n.tsx";

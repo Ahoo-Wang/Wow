@@ -275,9 +275,9 @@ V0～V3 都已完成。
 - **一致性测试套件**放在 `wow-view-engine` 的测试目录里，由 `integration-test` 按工作区路径引用；不放进公开的 `/testing` 入口（会把测试框架带进发布的入口）。落点是 `test/conformance/viewStoreConformance.ts` 的 `describeViewStoreConformance`，接口见 [management.md](management.md)「持久化端口与一致性」；V3 从 `typescript/integration-test/test/` 以 `../../wow-view-engine/test/conformance/viewStoreConformance.js` 引入，传 **WowViewStore** 的工厂与能力声明（`integration-test` 的 `tsconfig.test.json` 要把 `rootDir` 放宽到 `..`，否则 TS6059）；拒绝改成个人时 `INVALID` 的 `ViewStoreError.boards` 是那些看板的**标题**：服务端在每个绑定错误里给看板的 id（`name`）与标题（`msg`），客户端取标题，没给标题的按 id 读一次看板；标题原样放进 `boards`，以键写的标题仍是键，句子由引擎用自己的目录说（`view.changeAudience.invalid.shared-boards`），标题在显示处说成话（D2）。**`create` 的重放**由能力 `idempotentCreate` 决定考不考：Wow 服务端不对 `create` 去重（全局 `requestId` 索引无法只作用于视图聚合，用户 2026-09-29 接受），**WowViewStore** 在同一个实例里先问重放路由再重发（第 6 节「创建的重放」），一致性用例用的正是同一个实例，于是声明 `true`；其余写入（保存、改名、删除、改受众、偏好）的重放照考。
 - **删除一个被共享看板引用的视图**保持允许，与今天的引擎一致（那块面板按 A 只坏自己）；只拒绝「改成个人」。
 
-## 10. V10：`@ahoo-wang/wow-view-store/v10`（路线图 7.3a）
+## 10. V10：`@ahoo-wang/wow-view-store`（路线图 7.3a）
 
-V10 的视图存储服务在 `platform/view-store`（7.2a，#4474；配置的系统视图，#4477）。它的 REST 契约与 9.x 不同（见 #4474 的对照表），端口不变：引擎照旧只认 `ViewStore`。客户端以**新入口**接上，不动根入口——9.x 的补偿控制台与分析控制台在 M9 之前仍用根入口，`main` 仍发布 9.x。
+V10 的视图存储服务在 `platform/view-store`（7.2a，#4474；配置的系统视图，#4477）。它的 REST 契约与 9.x 不同（见 #4474 的对照表），端口不变：引擎照旧只认 `ViewStore`。客户端起初以新入口 `/v10` 接上；TS-9x（D266）删除 9.x 的 store 之后，它就是包的根入口，9.x 的 store 留在 `main`。
 
 ### 10.1 入口与形状
 
@@ -288,13 +288,13 @@ V10 的视图存储服务在 `platform/view-store`（7.2a，#4474；配置的系
 | `WowViewStoreErrorCodes`                                 | 视图存储自己的 problem 码（`view-store.*`），从 Manifest 生成                                                                                                            |
 | `SHARED_SCOPE`、`SYSTEM_SCOPE`                           | 两个保留所有者的 `Wow-Scope`                                                                                                                                             |
 | `viewSourceOf`、`datasetCatalogOf`                       | 引擎的数据经 V10 查询路由：任意 `QueryModelClient`（生成的 `…SnapshotQueryClient`、数据集的）作 `ViewSource`；`GET /wow/dataset` 作 `DatasetCatalog` 的 `list`／`source` |
-| `SHARED_OWNER_ID`、`SYSTEM_OWNER_ID`、`SYSTEM_TENANT_ID` | 与根入口同值                                                                                                                                                             |
+| `SHARED_OWNER_ID`、`SYSTEM_OWNER_ID`、`SYSTEM_TENANT_ID` | 保留的 id                                                                                                                                                                |
 
-宿主选 V10 只是换导入：`new WowViewStore({ fetcher })` 从 `@ahoo-wang/wow-view-store/v10` 来，数据源用 `viewSourceOf(...)`。引擎本身不改：`ViewSource` 按 9.x 的 `QueryApi` 剪裁，V10 的客户端不是它（取消用请求选项而不是 `AbortController`，分页带 `exact`，描述的版本单独给），差别全在 `viewSourceOf` 这一层适配里；引擎的架构规则（只从 wow-client 根入口按名导入）也因此不必为 `/v10` 开口子。
+宿主用 `new WowViewStore({ fetcher })`，数据源用 `viewSourceOf(...)`。引擎本身不改：`ViewSource` 按 9.x 的 `QueryApi` 剪裁，V10 的客户端不是它（取消用请求选项而不是 `AbortController`，分页带 `exact`，描述的版本单独给），差别全在 `viewSourceOf` 这一层适配里；引擎的架构规则（只从 wow-client 的 DSL 入口按名导入）也因此不必为客户端开口子。
 
 ### 10.2 生成的客户端
 
-请求经由 wow-generator 从服务的 Manifest 基线（`platform/view-store/view-store-server/manifest/baseline.json`，服务自己的 `check` 守着它等于所服务的）生成的客户端发出，提交在 `src/v10/generated/`，包里的 `generated.test.ts` 逐字节核对；不导出，只供手写的 store 用。Manifest 之外的两处手写：
+请求经由 wow-generator 从服务的 Manifest 基线（`platform/view-store/view-store-server/manifest/baseline.json`，服务自己的 `check` 守着它等于所服务的）生成的客户端发出，提交在 `src/generated/`，包里的 `generated.test.ts` 逐字节核对；不导出，只供手写的 store 用。Manifest 之外的两处手写：
 
 - 系统视图路由 `GET /view-store/system-views[/{id}]`：服务自己的 RouterFunction，不在 Manifest 里（#4477）。
 - `POST /view-store/dataset_wording/clear-dataset-wording`（不带 id）：服务按数据集推导 id；命令标了 `@Unaddressed`（D210），Manifest 两条路由都列，生成的 `clearDatasetWording` 不带 `id` 时走这条。
@@ -307,14 +307,14 @@ V10 的视图存储服务在 `platform/view-store`（7.2a，#4474；配置的系
 - **改受众**：`share-view` 总以所有者身份（不带 `Wow-Scope`）发，`claim-view` 总以 `(shared)` 发，视图是否已经挪过都一样——所以重试在挪动之后仍被认作重复。两者都等 `Wow-Wait: handled(view-store/ViewAudienceSaga.onAudienceChanged) > snapshot(view-store)`：受众是视图自己的一次提交，所有者由 saga 的 `TransferOwner` 晚一个版本改。重复答的是第一次提交的版本，挪动在下一版，store 读那一版并核对它的所有者；中间插进别的写入时以现状作答。已在目标受众的视图被服务端以「不在该所有者的范围」拒绝，store 读现状，revision 对得上就原样作答（端口的「没有变化就不写」），对不上是 `CONFLICT`。
 - **存储的系统视图**的 revision 是内容哈希，写入要的是版本：store 记着见过的每个（id, revision）→ 版本，重试仍能带第一次期望的版本、被认作重复；没见过的 revision 先读一次，不是现在的就是 `CONFLICT`。
 - **错误**按 problem 的 `code` 映射：`wow.aggregate.version-mismatch`、`wow.command.request-id-reused` → `CONFLICT`；`wow.aggregate.not-found`、`wow.aggregate.deleted`、`view-store.not-found` → `NOT_FOUND`；`wow.auth.*`、`wow.aggregate.forbidden`、`view-store.system-view-read-only` → `FORBIDDEN`；`view-store.invalid`、`app-required`、`owner-required`、`wow.command.*`／`wow.query.*` 的格式与校验码 → `INVALID`；服务端说可以重试的（`retry.retryable`：busy、contended、unknown、wait 超时……）→ `UNAVAILABLE`。不认识的码按状态；**不带码的 `404`** 是服务端不提供的路由（没有视图存储，或内存后端没有快照查询）→ `UNSUPPORTED`。
-- **拒绝改成个人**时 problem 带扩展成员 `boards: [{ id, title }]`（D211，`@ahoo-wang/wow-client/v10` 的 `Problem.extensions`）；store 把标题放进 `boards`，没有标题的按 id。`detail` 只是给人读的文字，不再解析。
+- **拒绝改成个人**时 problem 带扩展成员 `boards: [{ id, title }]`（D211，`@ahoo-wang/wow-client` 的 `Problem.extensions`）；store 把标题放进 `boards`，没有标题的按 id。`detail` 只是给人读的文字，不再解析。
 - **一页的总数**：V10 服务经 HTTP 拒绝 `EXACT` 总数，`viewSourceOf` 用服务端缺省的 `BOUNDED`，超过预算时引擎拿到的是上限而不是确数（见 `todo.md`）。
 
 ### 10.4 验证
 
-- `wow-view-store` 的 `test/v10/`：端口一致性套件跑在内存替身（`test/support/fakeV10ViewStore.ts`）上，另有 store 的边界、错误映射、数据源、措辞，以及生成代码对 Manifest 的逐字节核对。
-- `typescript/integration-test` 的 `pnpm test:v10`（`test/view-store-v10/`）：全局 setup 在本进程起 V10 服务（内存后端，端口都绑 0，服务自己的配置 `wow.query.memory.enabled` 从内存提供快照查询，见 10.5），对它跑一致性套件、隔离、两种系统视图、服务端的角色、措辞、错误，以及**引擎端到端**——保存、另存为、冲突后重载／覆盖、结局未知后重试、设为共享再由同事认领、偏好，以及记录视图与分析经 V10 查询路由取数。设了 `WOW_V10_VIEW_STORE_URL` 时改连现成的服务。
-- Storybook 的 `View Engine/回归夹具/V10 视图存储`：记录工作台跑在 V10 store 与 V10 数据集路由上（同一个内存替身装成页面的 `fetch`）。
+- `wow-view-store` 的 `test/`：端口一致性套件跑在内存替身（`test/support/fakeViewStore.ts`）上，另有 store 的边界、错误映射、数据源、措辞，以及生成代码对 Manifest 的逐字节核对。
+- `typescript/integration-test` 的 `pnpm test`（`test/view-store/`）：全局 setup 在本进程起 V10 服务（内存后端，端口都绑 0，服务自己的配置 `wow.query.memory.enabled` 从内存提供快照查询，见 10.5），对它跑一致性套件、隔离、两种系统视图、服务端的角色、措辞、错误，以及**引擎端到端**——保存、另存为、冲突后重载／覆盖、结局未知后重试、设为共享再由同事认领、偏好，以及记录视图与分析经 V10 查询路由取数。设了 `WOW_VIEW_STORE_URL` 时改连现成的服务。
+- Storybook 的 `View Engine/回归夹具/视图存储服务`：记录工作台跑在 V10 store 与 V10 数据集路由上（同一个内存替身装成页面的 `fetch`）。
 
 ### 10.5 服务端缺口（JVM 的后续，7.3a 不改 JVM）
 

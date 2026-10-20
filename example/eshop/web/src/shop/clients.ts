@@ -16,7 +16,7 @@ import {
   type FetchExchange,
   type RequestInterceptor,
 } from "@ahoo-wang/fetcher";
-import type { WowClientOptions } from "@ahoo-wang/wow-client/v10";
+import type { WowClientOptions } from "@ahoo-wang/wow-client";
 import {
   BasketCommandClient,
   BasketStateClient,

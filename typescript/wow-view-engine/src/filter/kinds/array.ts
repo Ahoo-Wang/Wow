@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { filter, type FilterExpression } from '@ahoo-wang/wow-client';
+import { filter, type FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import type { FilterOperatorName } from '../../model/index.js';
 import type { FilterSummaryRelation } from '../describe.js';
 import { readValue, type FieldKind } from '../fieldKind.js';
