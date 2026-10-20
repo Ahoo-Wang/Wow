@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import { AggregationFunction, AggregationGroupType, FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationFunction,
+  AggregationGroupType,
+  FilterOperator,
+} from '@ahoo-wang/wow-client/dsl';
 import {
   cleanup,
   fireEvent,

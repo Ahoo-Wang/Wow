@@ -12,11 +12,11 @@
  */
 
 /**
- * What the V10 service holds the store to beyond the port's conformance:
+ * What the service holds the store to beyond the port's conformance:
  * tenants and applications kept apart, the stored and configured system
  * views, who writes what (the service's roles), the tenant's dataset
  * wording, the store's errors as the service words them, and the engine's
- * `ViewSource` over a V10 query route.
+ * `ViewSource` over a query route.
  */
 
 import { Fetcher } from '@ahoo-wang/fetcher';
@@ -37,7 +37,7 @@ import {
   SHARED_WRITER,
   SYSTEM_VIEW_DEFINITION,
   SYSTEM_WRITER,
-} from './v10ViewStoreServer';
+} from './viewStoreServer';
 
 const run = Date.now();
 const ALICE: Caller = {
@@ -333,7 +333,7 @@ describe('errors', () => {
   });
 });
 
-describe('viewSourceOf over a V10 query route', () => {
+describe('viewSourceOf over a query route', () => {
   it('pages, walks a cursor, aggregates and describes the view snapshots', async () => {
     const definitionId = fresh();
     const store = storeOf(ALICE);

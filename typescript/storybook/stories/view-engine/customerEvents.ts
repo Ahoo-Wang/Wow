@@ -12,7 +12,7 @@
  */
 
 import type { Fetcher } from '@ahoo-wang/fetcher';
-import { EventStreamQueryClient } from '@ahoo-wang/wow-client';
+import { queryRoute, routeSource } from './recordedWowService.js';
 import {
   AggregationDateUnit,
   AggregationFunction,
@@ -28,7 +28,7 @@ import {
   type FilterNode,
   type RecordViewConfig,
 } from '@ahoo-wang/wow-view-engine';
-import { CUSTOMER_AGGREGATE } from './customer.js';
+import { CUSTOMER_CONTEXT, CUSTOMER_AGGREGATE } from './customer.js';
 
 export const CUSTOMER_EVENTS = 'customer-events';
 
@@ -540,10 +540,10 @@ export const customerEventsDefinition: DataViewDefinition = {
  * holds at most a hundred streams, as the service allows.
  */
 export function createCustomerEventsEngine(fetcher: Fetcher): ViewEngine {
-  const source = new EventStreamQueryClient({
-    basePath: CUSTOMER_AGGREGATE,
+  const source = routeSource(
     fetcher,
-  });
+    queryRoute(CUSTOMER_CONTEXT, CUSTOMER_AGGREGATE, 'events'),
+  );
   return new ViewEngine({
     resources: [{ definition: customerEventsDefinition, source }],
     store: new MemoryViewStore({ instances: [] }),

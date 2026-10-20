@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-import { AggregationFunction, AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationFunction,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client/dsl';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { withoutDangling } from '../src/analysis/dangling.js';

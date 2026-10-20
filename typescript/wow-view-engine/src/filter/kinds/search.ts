@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import { filter, type FilterExpression, type SearchMode } from '@ahoo-wang/wow-client/dsl';
+import {
+  filter,
+  type FilterExpression,
+  type SearchMode,
+} from '@ahoo-wang/wow-client/dsl';
 import { DEFAULT_SEARCH_MODE } from '../../model/index.js';
 import { issue, readValue, type FieldKind } from '../fieldKind.js';
 

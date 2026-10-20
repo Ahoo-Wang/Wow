@@ -12,22 +12,25 @@
  */
 
 /**
- * The view engine on the V10 store, end to end (view-store-backend.md 7
+ * The view engine on the store, end to end (view-store-backend.md 7
  * 「引擎端到端」, 10): the engine's own commands — save, save as, a
  * conflict reloaded or overwritten, an unknown outcome retried, setting a
- * view shared and taking it back, preferences — against the real V10 view
- * store service, and the engine's queries through the V10 query routes
+ * view shared and taking it back, preferences — against the real view
+ * store service, and the engine's queries through the query routes
  * (`viewSourceOf`).
  *
  * The data is the service's own: a definition over the `view` aggregate's
  * snapshots, which a user reads as their own saved views. So what a record
  * view and an analysis answer is added up from the views the test saved,
- * read through `POST /view-store/view/snapshot/query` as any V10 snapshot
+ * read through `POST /view-store/view/snapshot/query` as any snapshot
  * model is.
  */
 
 import type { FetchExchange, ResponseInterceptor } from '@ahoo-wang/fetcher';
-import { AggregationFunction, AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationFunction,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client/dsl';
 import { SnapshotQueryClient } from '@ahoo-wang/wow-client';
 import {
   DEFAULT_RUNTIME_LIMITS,
@@ -44,7 +47,7 @@ import {
 import { viewSourceOf, WowViewStore } from '@ahoo-wang/wow-view-store';
 import { describe, expect, it } from 'vitest';
 import { nextResult } from './nextResult';
-import { actingAs, SHARED_WRITER } from './v10ViewStoreServer';
+import { actingAs, SHARED_WRITER } from './viewStoreServer';
 
 const { TERMS } = AggregationGroupType;
 const { SUM, MAX } = AggregationFunction;
@@ -166,7 +169,7 @@ function pageSizeOf(runtime: ViewRuntime): number {
   return (runtime.getSnapshot().draft as RecordViewConfig).pageSize;
 }
 
-describe('the view engine on the V10 store', () => {
+describe('the view engine on the store', () => {
   it('saves, saves again and saves as, each at the revision the service keeps', async () => {
     const { engine } = tabOf('alice', [SHARED_WRITER]);
     const runtime = engine.create(VIEWS, {
@@ -317,7 +320,7 @@ describe('the view engine on the V10 store', () => {
     expect(reader.resolveDefault(items, preferences)).toBe(two.id);
   });
 
-  it('runs a record view and an analysis through the V10 query routes', async () => {
+  it('runs a record view and an analysis through the query routes', async () => {
     const { engine } = tabOf('grace');
     for (const title of ['Alpha', 'Beta', 'Gamma'])
       await engine.save(

@@ -30,10 +30,7 @@ export default defineConfig({
       },
     },
     rollupOptions: {
-      external: [
-        '@ahoo-wang/fetcher',
-        '@ahoo-wang/fetcher-eventstream',
-      ],
+      external: ['@ahoo-wang/fetcher', '@ahoo-wang/fetcher-eventstream'],
       output: {
         // One output module per source file, so `sideEffects: false` lets an
         // application's bundler drop what it does not import.

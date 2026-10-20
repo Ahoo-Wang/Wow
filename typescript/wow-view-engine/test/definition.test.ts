@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-import { AGGREGATION_LIMITS, AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
+import {
+  AGGREGATION_LIMITS,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,

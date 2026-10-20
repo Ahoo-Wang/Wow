@@ -2,309 +2,127 @@
 
 <!-- This file provides coding agents with context about this package. -->
 
+The client of a Wow service's routes and the query DSL. Workspace rules live
+in `typescript/AGENTS.md`; the design is
+`documentation/designs/v10/` (the routes in `05-read-and-contract.md` and
+`08-data-protocols.md`, the decisions in `decisions.md`), which the doc
+comments cite by decision number.
+
 ## Build & Run Commands
 
 ```bash
-# Build this package
-pnpm --filter @ahoo-wang/wow-client build
-
-# Run tests
-pnpm --filter @ahoo-wang/wow-client test
-
-# Run a single test file
-pnpm --filter @ahoo-wang/wow-client exec vitest run test/client/command/commandHttpHeaders.test.ts
-
-# Lint
+pnpm --filter @ahoo-wang/wow-client build      # vite build, then scripts/verify-package.mjs
+pnpm --filter @ahoo-wang/wow-client test       # vitest with coverage, test:type, then test:api (needs a build)
+pnpm --filter @ahoo-wang/wow-client exec vitest run test/client.test.ts
+pnpm --filter @ahoo-wang/wow-client exec vitest run test/publicSurface.test.ts -u   # accept a surface change
+pnpm --filter @ahoo-wang/wow-client test:api -u   # accept a change to the API reports (after a build)
 pnpm --filter @ahoo-wang/wow-client lint
-
-# Clean
-pnpm --filter @ahoo-wang/wow-client clean
 ```
 
 ## Wow conformance
 
-This package mirrors Wow's query protocol, and three things hold it there.
-
-**Rules.** Every rule Wow enforces by throwing is accounted for in
-`test/query/wowConformance.test.ts`. Each entry names the rule verbatim, cites
+**Rules.** Every rule Wow enforces on a query by throwing is accounted for in
+`test/dsl/wowConformance.test.ts`. Each entry names the rule verbatim, cites
 its Kotlin source, and says which of three things this package does with it:
 mirrors it (with an input that breaks it), satisfies it by the shape of the
 builders, or leaves it to the server (with the reason). Add an entry in the
-same change as any new rule. The server enforces every rule regardless; the
-register is what makes this package's answer to each one explicit and tested.
+same change as any new rule.
 
-**Wire values.** `typescript/integration-test/test/wow/wowOpenApi.test.ts` holds every
-enum this package sends — filter operators, aggregation and expression types,
-sort directions — to the OpenAPI document of the Wow example server CI runs.
-The server writes that document from its own types, so it states exactly
-what Wow accepts. Renovate bumps the server's version, so a Wow release that
-changes the protocol fails that pull request rather than someone's
-application. A new enum belongs in the test's list. The same test holds
-`QueryErrorCodes`, which the server sends back, to the `BindingError.code`
-enum; `test/error/queryErrorCodes.test.ts` also holds it to the Kotlin
-`QueryErrorCodes` name by name. The capability descriptor's types
-(`dsl/descriptor.ts`) are held there too: each type's properties, which
-sets are closed enums and which are open strings, and which properties
-are nullable. `Operator`, the
-deprecated Condition API's, is left out: the document describes only
-`FilterExpression`.
+**Codes and descriptor.** `test/dsl/queryErrorCodes.test.ts` holds
+`QueryErrorCodes` to the Kotlin `QueryErrorCodes` of `api/query-api` name by
+name; `test/dsl/descriptor.test.ts` holds the capability descriptor's types
+to `QueryModelDescriptor.kt` and `FilterOperatorSpec.kt` of `query/query`;
+`test/frameworkErrors.test.ts` holds `FrameworkErrorCodes` to the server's.
 
 **Date patterns.** `datePattern` is checked against `java.time`'s pattern
 grammar before it is sent. `DatePatternCorpusTest` in wow-api hands about
-3,700 patterns to the server's entry (`TodayFilter(datePattern = …)`) and
-writes which the JVM accepts to `test/fixtures/java-date-patterns.json`; it
-fails when that file no longer matches the JVM.
-`test/dsl/datePattern.test.ts` holds this package to the file entry by entry.
-To change the corpus, edit the Kotlin test and regenerate from the repository
-root with
+3,700 patterns to the server's entry and writes which the JVM accepts to
+`test/fixtures/java-date-patterns.json`; `test/dsl/datePattern.test.ts` holds
+this package to the file entry by entry. To change the corpus, edit the
+Kotlin test and regenerate from the repository root with
 `./gradlew :wow-api:test --tests "*DatePatternCorpusTest" -Dwow.snapshot.update=true`.
-
-## Testing
-
-- Vitest with `globals: true` and `@vitest/coverage-v8`
-- Test files: `*.test.ts` in a `test/` directory at the package root (mirroring `src/`)
-- Run with `--coverage` flag by default
 
 ## Project Structure
 
-The design, `docs/design/architecture.md`, explains the layers, the error and
-stream model, and the baselines, and keeps the 2026-09 refactor plan with
-each batch's decisions as its appendix; this is the layout.
-
-Files a folder's `index.ts` does not re-export are internal; they are marked
-"(internal)" below.
-
 ```
 src/
-  index.ts                    — Root entry `@ahoo-wang/wow-client`
-  dsl.ts                      — `/dsl` entry: the query DSL without HTTP code
-  dsl/                        — The query DSL; imports no HTTP code
-    field.ts                  — (internal) QueryField path check for filter, sort and projection
-    deletionState.ts          — DeletionState, which filter.deletion() takes
-    sort.ts                   — Sort specifications
-    projection.ts             — Field projection
-    pagination.ts             — Pagination support
-    cursorQuery.ts            — Forward-only cursor query and CursorPage
-    queryable.ts              — Query request shapes (Filter*Query, PagedList) and their factories
-    documents.ts              — DynamicDocument type aliases
-    descriptor.ts             — QueryModelDescriptor: the capability descriptor GET …/schema answers with, and its open value sets
-    filter/
-      operator.ts             — FilterOperator, StringComparison, SearchMode, TimeUnit
-      types.ts                — The filter shapes, FilterExpression, ElementFilterExpression
-      builders.ts             — `filter.*`: one builder per shape keyed by operator, one delegating method (with its JSDoc) per operator
-      validate.ts             — (internal) literal, non-empty, zone, days and local-time checks
-      datePattern.ts          — (internal) java.time pattern syntax, held to test/fixtures/java-date-patterns.json
-      scope.ts                — (internal) the root-filter check element predicates share
-      index.ts
-    aggregation/
-      types.ts                — Groups, metrics, expressions, the derived and having shapes, the option types, AGGREGATION_LIMITS
-      admit.ts                — (internal) the cross-part rules aggregation.query() enforces
-      sort.ts                 — (internal) effectiveSort: the order Wow applies to grouped rows
-      builders.ts             — `aggregation.*`
-      having.ts               — HavingDsl: `aggregation.having.*`
-      derived.ts              — DerivedExpressionDsl: what `aggregation.derived(d => …)` hands its callback
-      index.ts
-  transport/                  — What the clients share on the wire; the only importer of @ahoo-wang/fetcher-eventstream
-    eventStreams.ts           — (internal) Stream result extractors that end a stream with a WowError at a server error event; reached only through endpoints.ts
-    endpoints.ts              — The endpoint presets COMMAND_STREAM_ENDPOINT / QUERY_STREAM_ENDPOINT (Accept header + extractor)
-    index.ts
-  client/
-    routing.ts                — ResourceAttributionPathSpec, UrlPathParams
-    bindMethods.ts            — (internal) each client binds its methods in its constructor, so `execute: client.listState` works
-    command/
-      commandClient.ts        — Command client for sending CQRS commands
-      commandHeaders.ts       — CommandHeaders: the command header names, as literal types
-      commandRequest.ts       — CommandRequest, typed CommandRequestHeaders, commandHeaders() and waitStrategy()
-      commandResult.ts        — CommandResultEventStream (the result and wait signal types are in model/)
-      types.ts                — Command bodies (CommandBody, DeleteAggregate, …), CompensationTarget, BatchResult
-      index.ts
-    metadata/
-      wowMetadata.ts          — Wow metadata types (WowMetadata, BoundedContext, Aggregate)
-      wowMetadataClient.ts    — WowMetadataClient: GET /wow/metadata
-      index.ts
-    query/
-      queryApi.ts             — Generic QueryApi (list, paged, cursor, aggregate, count)
-      requests.ts             — (internal) The *QueryRequest unions the query clients take; the only file outside legacy/ that imports from it
-      factory.ts              — QueryClientFactory; hands each client only ApiMetadata keys
-      index.ts
-      event/
-        eventStreamQueryApi.ts        — Event stream query API (no single; + load, loadStream)
-        eventStreamQueryClient.ts     — Event stream query client, plus load(id, head, tail)
-        endpointPaths.ts              — (internal) its endpoint paths
-        index.ts
-      snapshot/
-            snapshotQueryApi.ts           — Snapshot query API (+ *State variants, getById/getByIds and their *State)
-        snapshotQueryClient.ts        — Snapshot query client
-        endpointPaths.ts              — (internal) its endpoint paths
-        index.ts
-      descriptor/
-        queryDescriptorApi.ts               — QueryDescriptorApi and QueryDescriptorResult
-        queryDescriptorClient.ts            — QueryDescriptorClient: GET …/snapshot/schema and …/event/schema, conditional on a version held
-        descriptorEndpoints.ts              — (internal) the decorated requests, the version-to-ETag rule and the 304 reading
-        endpointPaths.ts                    — (internal) its endpoint paths
-        index.ts
-      state/
-        loadStateAggregateApi.ts            — LoadStateAggregateApi, the interface of the client below
-        loadStateAggregateClient.ts         — Load state aggregate client
-        loadOwnerStateAggregateApi.ts       — LoadOwnerStateAggregateApi, the interface of the client below
-        loadOwnerStateAggregateClient.ts    — Load by owner state client
-        endpointPaths.ts                    — (internal) their endpoint paths
-        index.ts
-  model/                      — The wire model: wow-api's mixins and the command results; types and wire enums only
-    command.ts                — CommandStage, CommandResult, WaitSignal and their mixins (CommandId, RequestId, …)
-    snapshot.ts               — MaterializedSnapshot and its smaller shapes, SnapshotMetadataFields
-    domainEventStream.ts      — DomainEventStream, DomainEvent, StateEvent, DomainEventStreamMetadataFields
-    abac.ts, bi.ts, common.ts, function.ts,
-    messaging.ts, modeling.ts, naming.ts, index.ts
-  error/                      — The one error shape; imports no fetcher package
-    errorInfo.ts              — ErrorInfo, ErrorCodes, ErrorCode, RecoverableType
-    queryErrorCodes.ts        — QueryErrorCodes (a rejected query's BindingError.code), QueryErrorCode, QueryViolation
-    wowError.ts               — WowError, isErrorInfo(), toWowError()
-    headers.ts                — WowHeaders: Wow-Space-Id, Wow-Error-Code
-    index.ts
-  legacy/                     — DEPRECATED `@ahoo-wang/wow-client/legacy` entry, removed in v10
-    index.ts                  — The entry
-    condition.ts              — Condition model and builders
-    operator.ts               — Operator enum — use FilterOperator
-    queryable.ts              — Condition queries and their factories
-    locale/                   — i18n for the Operator enum (en_US, zh_CN)
-  v10/                        — `@ahoo-wang/wow-client`: the client of a Wow V10 service's routes (design §8)
-    index.ts                  — The entry
-    wire.ts                   — The V10 wire model: CommandResult, Hop, StateView, SnapshotRecord, EventStreamRecord, …
-    problem.ts                — Problem, FrameworkErrorCodes, WowProblemError and its retry hint, toWowProblemError
-    wait.ts                   — wait.* hops, formatWaitPlan, formatWaitTimeout (the Wow-Wait grammar)
-    http.ts                   — WowV10Headers, WowClientOptions, formatScope; (internal) send, path expansion
-    streams.ts                — CommandResultStream; (internal) the SSE readers of command results and query rows
-    commands.ts               — CommandGateway (commands, their streams, lifecycle routes), CommandOptions
-    queries.ts                — QueryModelClient, SnapshotQueryClient, EventQueryClient, DatasetClient
-    state.ts                  — StateClient: state reads at a version or a time, and traces
-    manifest.ts               — The Manifest's types and fetchManifest (GET /wow/manifest)
+  index.ts        — Root entry `@ahoo-wang/wow-client`: the clients, problems, wire types
+  dsl.ts          — `/dsl` entry: the query DSL without HTTP code
+  wire.ts         — The wire model: CommandResult, Hop, StateView, SnapshotRecord, EventStreamRecord, …
+  problem.ts      — Problem, FrameworkErrorCodes, WowProblemError and its retry hint, toWowProblemError, requestIdOf
+  wait.ts         — wait.* hops, formatWaitPlan, formatWaitTimeout (the Wow-Wait grammar)
+  http.ts         — WowHeaders, WowClientOptions, RequestOptions, formatScope; (internal) send, path expansion
+  streams.ts      — CommandResultStream; (internal) the SSE readers of command results and query rows, and their resumption
+  commands.ts     — CommandGateway (commands, their streams, lifecycle routes), CommandOptions
+  queries.ts      — QueryModelClient, SnapshotQueryClient, EventQueryClient, DatasetClient
+  state.ts        — StateClient: state reads at a version or a time, and traces
+  manifest.ts     — The Manifest's types and fetchManifest (GET /wow/manifest)
+  dsl/            — The query DSL; imports no client module and no fetcher package
+    field.ts, deletionState.ts, sort.ts, projection.ts, pagination.ts, cursorQuery.ts,
+    queryable.ts, documents.ts, descriptor.ts, queryErrorCodes.ts
+    filter/       — `filter.*`, FilterExpression and its operators; (internal) validate.ts, datePattern.ts, scope.ts
+    aggregation/  — `aggregation.*`, `aggregation.having.*`, `aggregation.derived(…)`; (internal) admit.ts, sort.ts
 scripts/
-  verify-package.mjs          — Run by the build: entries resolve, export what test/surface/ lists, /dsl loads no HTTP code, the root entry tree-shakes, no declaration maps, each ES entry under its gzip ceiling
-  size-budget.json            — The gzip regression ceilings of the root entry, /dsl, /legacy and /v10 (typescript/AGENTS.md「Size ceilings」)
-  api-report.mjs              — `pnpm test:api`: holds the built declarations to test/api/ (-u to accept a change) and fails on a top-level declaration without a doc comment
+  verify-package.mjs — Run by the build: entries resolve and export what test/surface/ lists, /dsl loads no fetcher package, the root entry tree-shakes, each entry under its gzip ceiling
+  size-budget.json   — The gzip regression ceilings of the root entry and /dsl (typescript/AGENTS.md「Size ceilings」)
+  api-report.mjs     — `pnpm test:api`: holds the built declarations to test/api/ (-u to accept a change) and fails on a top-level declaration without a doc comment
 test/
-  surface/                    — The public surface of each entry, one name a line
-  publicSurface.test.ts       — Holds the source entries to those lists (-u to accept a change)
-  layerBoundaries.test.ts     — Each layer rule of eslint.config.js fires on a violation, and src/ has none
-  api/                        — API Extractor reports: the signatures of each entry
-  golden/                     — Wire baselines: dsl-wire.json, client-endpoints.json
-  fixtures/java-date-patterns.json — What DateTimeFormatter.ofPattern accepts, written by wow-api's DatePatternCorpusTest
-  dsl/datePattern.test.ts     — datePattern against that corpus, entry by entry
-  dslWire.test.ts             — Every DSL builder's JSON against golden/dsl-wire.json
-  client/                     — The clients: every method against a stubbed fetch (fetchStub.ts), and their types
-    endpointTable.test.ts     — Every client method's requests against golden/client-endpoints.json
+  surface/, publicSurface.test.ts — The public surface of each entry, one name a line
+  api/                — API Extractor reports: the signatures of each entry
+  layerBoundaries.test.ts — Each layer rule of eslint.config.js fires on a violation, and src/ has none
+  golden/dsl-wire.json, dslWire.test.ts — Every DSL builder's JSON
+  client.test.ts, edges.test.ts, resumableStreams.test.ts — The clients against a stubbed fetch (fixtures/fetchStub.ts)
+  dsl/                — The DSL, its conformance register and its codes
 ```
 
 ## Layers
 
-`eslint.config.js` enforces which folder of `src/` may import which
-(`@typescript-eslint/no-restricted-imports`, one block per layer;
-`docs/design/architecture.md` §2.2 draws the graph):
+`eslint.config.js` enforces the directions (`layerBoundaries`):
 
-- `dsl/`, `model/` and `error/` import no `client/`, `transport/`, `legacy/`
-  or `@ahoo-wang/fetcher*`. `dsl/` may import `model/`; `model/` may import
-  `error/`'s types only (a command result is an `ErrorInfo`); `error/` imports
-  nothing outside itself.
-- `transport/` imports `error/`, `model/`, fetcher and fetcher-eventstream,
-  never `client/`, `dsl/` or fetcher-decorator.
-- `client/` imports everything below it except fetcher-eventstream (its
-  streams answer rows, so it names no event type), and `legacy/` only from
-  `client/query/requests.ts`, as types.
-- `legacy/` imports only `dsl/`. The entries (`index.ts`, `dsl.ts`,
-  `legacy/index.ts`, `v10/index.ts`) only re-export and are not restricted.
-- `v10/` imports `dsl/` as types only, fetcher and fetcher-eventstream; never
-  `client/`, `transport/`, `model/`, `error/`, `legacy/` or fetcher-decorator.
-  Its wire model, problems and streams are V10's own.
+- `dsl/` imports no client module (`../http.js`, `../queries.js`, …), no
+  `@ahoo-wang/fetcher*` and no `reflect-metadata`.
+- The client modules at the top of `src/` import `dsl/` as types only.
+- The entries (`index.ts`, `dsl.ts`) only re-export.
 
-A new edge is a design change: change §2.2 of the design page and the rule together, and add the
-edge to `test/layerBoundaries.test.ts`.
+A new edge is a design change: change the rule and
+`test/layerBoundaries.test.ts` together.
 
 ## Errors
 
-A server error reaches an application as a `WowError` (`errorCode`,
-`errorMsg`, `bindingErrors`, `status`, and for a rejected query `violation`:
-the `code`, `path` and `message` of its first coded binding error):
-
-- A non-2xx response rejects with the fetcher's `ExchangeError`; the
-  application calls `toWowError(error)`, which reads the `ErrorInfo` body (or
-  the `Wow-Error-Code` header) from a clone of the response. It returns
-  `undefined` for failures the Wow server did not answer. There is no
-  interceptor that rewrites the fetcher's error: the clients share the
-  application's Fetcher, and the fetcher wraps whatever an error interceptor
-  leaves in an `ExchangeError` anyway.
-- A server-sent event stream answers HTTP 200 and, on failure, sends one last
-  event named by the error code. The stream extractors in
-  `src/transport/eventStreams.ts` unwrap each event to its data, so a stream
-  yields the rows (or command results) themselves, and error the stream with a
-  `WowError` at the error event, so a `for await` throws instead of reading the
-  `ErrorInfo` as a row. Every
-  built-in stream method takes them through the endpoint presets in
-  `src/transport/endpoints.ts`, `COMMAND_STREAM_ENDPOINT` and
-  `QUERY_STREAM_ENDPOINT` (the `Accept` header and the extractor together);
-  a new stream method, and generated code, uses a preset rather than spelling
-  the two out.
+The service answers a refusal with an RFC 9457 problem
+(`application/problem+json`); every call rejects with a `WowProblemError`
+carrying the problem, its status, its Wow code, its violations and, for a
+command, its `CommandResult`. A stream that fails after its first event
+errors with the same error at the error event, so a `for await` throws
+instead of reading the problem as a row. Every command carries a request id,
+and whatever it rejects with carries that id (`requestIdOf`).
 
 ## Public surface
 
-The root entry (`src/index.ts`), `/dsl` (`src/dsl.ts`), `/legacy`
-(`src/legacy/index.ts`) and `/v10` (`src/v10/index.ts`) are the only entries. Their exports are listed name by name under `test/surface/`; a
-new export, or a removed one, changes a list, and the change is made on
-purpose with `pnpm exec vitest run test/publicSurface.test.ts -u`. The build
-runs `scripts/verify-package.mjs`, which holds the built ES module and
-CommonJS entries to the same lists. Nothing Condition-based is exported from
-the root entry, and `/dsl` must import nothing that reaches a fetcher package or
-`reflect-metadata` (the build checks this). An internal helper goes in a file
-its folder's `index.ts` does not list.
+The root entry (`src/index.ts`) and `/dsl` (`src/dsl.ts`) are the only
+entries. Their exports are listed name by name under `test/surface/`; a new
+export, or a removed one, changes a list, and the change is made on purpose
+with `pnpm exec vitest run test/publicSurface.test.ts -u`. The build runs
+`scripts/verify-package.mjs`, which holds the built entries to the same
+lists, checks that `/dsl` loads no fetcher package, and bundles a probe that
+imports only `readProblem` and `wait` from the root entry and fails if it
+still loads `@ahoo-wang/fetcher` (a control probe importing `CommandGateway`
+must load it, so the check cannot pass vacuously). The build keeps one output
+module per source file (`preserveModules`), so with `sideEffects: false` an
+application's bundler drops what it does not import.
 
-The build keeps one output module per source file (`preserveModules` in
-`vite.config.ts`), so with `sideEffects: false` an application's bundler drops
-what it does not import. `verify-package.mjs` bundles a probe that imports only
-`toWowError`, `waitStrategy` and `WowHeaders` from the built root entry and
-fails if it still loads a fetcher package; a second probe importing
-`CommandClient` must load fetcher-decorator, so the check cannot pass vacuously.
-A module with a top-level side effect that a client does not need breaks this.
-
-The names are not the whole contract; three baselines hold the rest, and a
-refactor must leave all three unchanged:
-
-- **Signatures.** `test/api/{root,dsl,legacy,v10}.api.md` are API Extractor
-  reports of the built declarations: every export with its parameter and
-  return types, generic defaults, optional markers and enum values, plus the
-  shapes of the unexported types a signature names. `pnpm test:api` (the last
-  step of `pnpm test`, after a build) fails when the build differs and writes
-  the new report to a temporary folder; `pnpm test:api -u` accepts a change.
-  It also fails, with or without `-u`, when a top-level declaration of an
-  entry (an export, or an unexported type a signature names) has no doc
-  comment, and names it: give it at least a one-line summary of what it is
-  and when to use it.
-- **DSL wire protocol.** `test/dslWire.test.ts` runs every builder `/dsl`
-  exports on fixed input and compares the JSON with
-  `test/golden/dsl-wire.json`. A builder without a case fails the test.
-- **Client endpoints.** `test/client/endpointTable.test.ts` calls every
-  public method of every client (found by reflection on its prototype) and
-  compares the requests (method, URL, all headers, body), the result, and
-  where each stream stops at an error event with
-  `test/golden/client-endpoints.json`.
-
-The golden files sort object keys, so only a change on the wire fails them;
-accept one with `pnpm exec vitest run <test> -u`. Prettier leaves
+`test/api/{root,dsl}.api.md` are API Extractor reports of the built
+declarations. `pnpm test:api` (the last step of `pnpm test`, after a build)
+fails when the build differs; `pnpm test:api -u` accepts a change. It also
+fails when a top-level declaration of an entry has no doc comment.
+`test/golden/dsl-wire.json` holds every DSL builder's JSON; accept a change on
+the wire with `pnpm exec vitest run test/dslWire.test.ts -u`. Prettier leaves
 `test/api/` and `test/golden/` alone.
-
-### Key Concepts
-
-- **Command Client**: Sends CQRS commands with wait strategies (sent, processed, snapshot)
-- **Query Clients**: Type-safe query builders for snapshots, event streams, and state aggregates
-- **Filter Expressions**: `filter.*` builders produce the `FilterExpression` tree the filterable `QueryApi` operations take — the current API. It is optional on `AggregationQuery`, and the load-state clients accept no filter at all
-- **Aggregation**: `aggregation.*` builds groups, metrics and arithmetic expressions, and `aggregation.query()` admits the assembled query against the rules Wow enforces in its constructor. `aggregation.having.*` (`HavingDsl`, after Kotlin's `HavingDsl`) builds the `having`, and `aggregation.derived(d => …, alias)` builds a derived metric's arithmetic with the `DerivedExpressionDsl` it hands the callback (after Kotlin's `DerivedExpressionDsl`); `derived()` also still takes a built tree. Each builder refuses its own numbers with Wow's message; references, grouping and depth are `aggregation.query()`'s
-- **Legacy Condition API**: `src/legacy/` is the `@ahoo-wang/wow-client/legacy` entry, for Wow servers before 8.11 — superseded by `dsl/filter/`. The root entry never exports it; the query clients accept its request shapes through the `*QueryRequest` unions; removed when the V10 client becomes the root (D239)
-- **Wow Metadata**: `WowMetadata` types describing bounded contexts and aggregates (types only, no decorator)
 
 ## Dependencies
 
-- `@ahoo-wang/fetcher` — core HTTP client
-- `@ahoo-wang/fetcher-eventstream` — SSE streaming for event streams
-- `@ahoo-wang/fetcher-decorator` — decorator-based API definitions
+- `@ahoo-wang/fetcher` — the HTTP client every request goes through
+- `@ahoo-wang/fetcher-eventstream` — the server-sent event streams
 
 ## Code Style
 
@@ -312,20 +130,12 @@ accept one with `pnpm exec vitest run <test> -u`. Prettier leaves
 - Apache 2.0 license headers
 - Prettier: single quotes, trailing commas, semicolons, 80 char width
 
-## Git Workflow
-
-- Conventional commits: `feat(wow):`, `fix(wow):`, `test(wow):`
-- Version follows `version` in the repository root `gradle.properties`
-
 ## Boundaries
 
 - ✅ Adding filter operators or expression types in `dsl/filter/` (enum member, type-union member, one delegating method on `filter`)
-- ✅ Adding aggregation groups or metrics in `dsl/aggregation/` (enum member and type in `types.ts`, builder in `builders.ts`, a cross-part rule in `admit.ts`)
+- ✅ Adding aggregation groups or metrics in `dsl/aggregation/`
 - ✅ Writing new tests
-- ⚠️ Changing command client API — affects `wow-react` hooks and `wow-generator` output
+- ⚠️ Changing a client's signature — wow-react, wow-view-engine, wow-view-store and wow-generator's output build on it
 - ⚠️ Changing the `FilterExpression` API — view-engine and react build on it
-- ⚠️ Touching the legacy condition API — deprecated, kept on `/legacy` until v10 (generated code for 8.10 servers imports `Condition` from there)
-- 🚫 Exporting anything Condition-based from the root entry
-- 🚫 Breaking command result/wait strategy contract
-- 🚫 Changing the `WowMetadata` shape — generator reads it
-- 🚫 Removing event stream query support
+- 🚫 Changing what goes on the wire without the server's route changing with it
+- 🚫 Changing the Manifest's types without wow-generator, which reads them

@@ -19,7 +19,27 @@
  * lines' times are epoch milliseconds here, where MongoDB stores dates.
  */
 import { expect } from 'vitest';
-import { type AggregationDatePart, type AggregationDateUnit, type ComparisonOperator, AggregationExpressionOperator, AggregationExpressionType, AggregationFunction, AggregationGroupType, AggregationMetricType, DerivedExpressionType, FilterOperator, HavingExpressionType, type AggregationElement, type AggregationExpression, type AggregationGroup, type AggregationMetric, type AggregationQuery, type DerivedExpression, type FilterExpression, type HavingExpression } from '@ahoo-wang/wow-client/dsl';
+import {
+  type AggregationDatePart,
+  type AggregationDateUnit,
+  type ComparisonOperator,
+  AggregationExpressionOperator,
+  AggregationExpressionType,
+  AggregationFunction,
+  AggregationGroupType,
+  AggregationMetricType,
+  DerivedExpressionType,
+  FilterOperator,
+  HavingExpressionType,
+  type AggregationElement,
+  type AggregationExpression,
+  type AggregationGroup,
+  type AggregationMetric,
+  type AggregationQuery,
+  type DerivedExpression,
+  type FilterExpression,
+  type HavingExpression,
+} from '@ahoo-wang/wow-client/dsl';
 import type { RecordData } from '../../src/index.js';
 import { memorySource } from '../../src/testing/index.js';
 

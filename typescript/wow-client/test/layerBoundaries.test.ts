@@ -45,10 +45,7 @@ const FORBIDDEN: [from: string, source: string][] = [
 
 const ALLOWED: [from: string, code: string][] = [
   ['src/dsl/probe.ts', "import { DeletionState } from './deletionState.js';"],
-  [
-    'src/dsl/filter/probe.ts',
-    "import type { FieldSort } from '../sort.js';",
-  ],
+  ['src/dsl/filter/probe.ts', "import type { FieldSort } from '../sort.js';"],
   [
     'src/probe.ts',
     "import type { FilterExpression } from './dsl/filter/index.js';",

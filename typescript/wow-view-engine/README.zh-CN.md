@@ -11,7 +11,7 @@
 ## 安装
 
 ```bash
-pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
+pnpm add @ahoo-wang/fetcher \
   @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client @ahoo-wang/wow-view-engine
 # /react 与 /ui 入口
 pnpm add react react-dom

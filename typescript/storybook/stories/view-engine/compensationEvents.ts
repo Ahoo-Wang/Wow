@@ -12,7 +12,7 @@
  */
 
 import type { Fetcher } from '@ahoo-wang/fetcher';
-import { EventStreamQueryClient } from '@ahoo-wang/wow-client';
+import { queryRoute, routeSource } from './recordedWowService.js';
 import {
   AggregationDateUnit,
   AggregationFunction,
@@ -32,18 +32,16 @@ import {
  * The compensation service's event streams as View Engine's regression
  * fixtures read them.
  *
- * The product reads an execution's history through its own definition
- * (`compensation/dashboard/src/views/executionHistory.ts`), which ships with
- * the console; this one is not a copy of it and is not kept in step. It is
- * the engine's fixture for a stream whose events sit in an array — an
+ * It is the engine's fixture for a stream whose events sit in an array — an
  * element match, an expansion that counts events rather than streams, a
- * column that reads the array by its elements' types — on real shapes. The
- * two drift on purpose: the product's views must not move an engine
- * regression.
+ * column that reads the array by its elements' types — on real shapes. It
+ * was never a copy of the 9.x compensation console's execution history,
+ * which V10 removed.
  */
 export const EXECUTION_FAILED_EVENTS = 'execution-failed-events';
 
 /** Wow's `ExecutionFailed` aggregate, whose event stream this reads. */
+const CONTEXT = 'compensation';
 const AGGREGATE = 'execution_failed';
 
 // Wow's names for what the analysis side may group and compute by.
@@ -462,7 +460,7 @@ export const executionFailedEventsDefinition: DataViewDefinition = {
  * failures carry whole stack traces.
  */
 export function createCompensationEventsEngine(fetcher: Fetcher): ViewEngine {
-  const source = new EventStreamQueryClient({ basePath: AGGREGATE, fetcher });
+  const source = routeSource(fetcher, queryRoute(CONTEXT, AGGREGATE, 'events'));
   return new ViewEngine({
     resources: [{ definition: executionFailedEventsDefinition, source }],
     store: new MemoryViewStore({ instances: [] }),

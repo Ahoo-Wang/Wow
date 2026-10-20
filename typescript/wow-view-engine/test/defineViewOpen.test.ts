@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import { AggregationGroupType, SearchMode, type QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationGroupType,
+  SearchMode,
+  type QueryModelDescriptor,
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   builtinFieldKinds,

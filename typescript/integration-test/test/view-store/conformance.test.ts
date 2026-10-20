@@ -13,12 +13,12 @@
 
 /**
  * The `ViewStore` port's conformance suite (view-store-backend.md 7, 9) over
- * the V10 `WowViewStore` and the real V10 view store service: every case
+ * the `WowViewStore` and the real view store service: every case
  * `MemoryViewStore` and the 9.x store pass. Each case works in a definition
  * of its own and each run is a tenant of its own, so one service serves the
  * whole run.
  *
- * The V10 service deduplicates every write by its request id, creates
+ * The service deduplicates every write by its request id, creates
  * included (D191), so a retry from any store answers the first view:
  * `idempotentCreate` is `true` without the store remembering anything.
  * Both owners hold both writer roles: the cases write shared and stored
@@ -32,12 +32,12 @@ import {
   SHARED_WRITER,
   SYSTEM_VIEW_DEFINITION,
   SYSTEM_WRITER,
-} from './v10ViewStoreServer';
+} from './viewStoreServer';
 
 const tenantId = `conformance-${Date.now()}`;
 
 describeViewStoreConformance({
-  name: 'V10 WowViewStore on the V10 view store service',
+  name: 'WowViewStore on the view store service',
   capabilities: {
     owners: true,
     personalViews: true,

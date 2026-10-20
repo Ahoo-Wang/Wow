@@ -16,7 +16,11 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { cleanup, render, renderHook, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { AggregationFunction, AggregationGroupType, FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationFunction,
+  AggregationGroupType,
+  FilterOperator,
+} from '@ahoo-wang/wow-client/dsl';
 import {
   CHART_TYPES,
   DATE_TIME_PRESETS,

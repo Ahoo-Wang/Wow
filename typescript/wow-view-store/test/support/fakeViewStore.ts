@@ -29,7 +29,7 @@
  * saga one version later, the shared-dashboard refusal said in the
  * problem's detail, problem+json with the service's codes, and a 404
  * without a code for a route it does not serve. The real service is held to
- * the same behaviour by `typescript/integration-test/test/view-store-v10/`.
+ * the same behaviour by `typescript/integration-test/test/view-store/`.
  */
 
 /** A configured system view (`wow.view-store.system-views[n]`). */

@@ -43,11 +43,10 @@ import '@ahoo-wang/wow-view-engine/styles.css';
  * streams, and the detail lays out element by element — payload no field
  * declares included — plus dates read back from an aggregation as dates.
  *
- * It is not the product. The compensation console reads an execution's
- * history through its own definition (`compensation/dashboard/src/views/`)
- * and has no event-stream analysis page; the definition here
- * (`compensationEvents.ts`) drifts from the product's on purpose. It used to
- * be the 「真实后端/补偿控制台/事件流分析台」 scene against a live service.
+ * It is not a product: the definition here (`compensationEvents.ts`) is the
+ * engine's fixture on real shapes, cut to what these stories assert. It used
+ * to be the 「真实后端/补偿控制台/事件流分析台」 scene of the 9.x compensation
+ * console, which V10 removed.
  */
 
 /** The workbench over the recorded event streams. */

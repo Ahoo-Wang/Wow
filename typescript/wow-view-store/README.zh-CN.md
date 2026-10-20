@@ -96,6 +96,6 @@ await datasets.refresh();
 
 - `pnpm --filter @ahoo-wang/wow-view-store test`——对着内存中的服务的单元测试、公开面与 API 报告。
 - 端口的一致性测试套件对着视图存储服务跑 `WowViewStore`，另有租户与应用的隔离测试；
-  `pnpm --dir typescript/integration-test test:v10` 把服务起在绑定 0 的端口上（`test/view-store-v10/`）。
+  `pnpm --dir typescript/integration-test test` 把服务起在绑定 0 的端口上（`test/view-store/`）。
 
 以 Apache License 2.0 许可。

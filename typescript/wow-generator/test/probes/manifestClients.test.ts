@@ -279,10 +279,10 @@ describe('Manifest clients', () => {
       "import type { ApplyTags, Rename } from '../types.js';",
     );
     expect(client).toMatch(
-      /import \{[^}]*type TransferSpace[^}]*\} from '@ahoo-wang\/wow-client\/v10'/,
+      /import \{[^}]*type TransferSpace[^}]*\} from '@ahoo-wang\/wow-client'/,
     );
     expect(client).not.toMatch(
-      /type ApplyTags[^}]*\} from '@ahoo-wang\/wow-client\/v10'/,
+      /type ApplyTags[^}]*\} from '@ahoo-wang\/wow-client'/,
     );
     expect(client).toContain('   * Renames the thing\n   * `Rename`:');
     expect(client).toContain(

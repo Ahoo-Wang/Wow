@@ -19,7 +19,10 @@
  * inside the stretch (D23 Q18).
  */
 
-import { AggregationDateUnit, AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationDateUnit,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,

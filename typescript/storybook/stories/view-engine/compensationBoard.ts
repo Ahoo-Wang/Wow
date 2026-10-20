@@ -41,12 +41,10 @@ import { rowSource } from './rowSource.js';
  * one of them that definition's own system view — and the dashboard only
  * places them.
  *
- * The product's board is the compensation console's own
- * (`compensation/dashboard/src/views/overview.ts`); this one is not a copy
- * of it and is not kept in step. It stays because what it exercises is the
- * engine's — a dashboard's references across definitions resolved, relative
- * dates counted on a pinned clock, the interactive embed read and never
- * built — and it drifts from the product's on purpose.
+ * It was never a copy of the 9.x compensation console's own board, which V10
+ * removed. It stays because what it exercises is the engine's — a
+ * dashboard's references across definitions resolved, relative dates counted
+ * on a pinned clock, the interactive embed read and never built.
  */
 
 /** The dashboard's definition: dashboards own no data, only a catalogue entry. */

@@ -94,7 +94,9 @@ function module(code: string): string {
   const own = ownNames(code);
   const scope = (entry: typeof ROOT) => {
     const names = entry.names.filter(name => !own.has(name));
-    return names.length ? `import { ${names.join(', ')} } from ${entry.specifier};\n` : '';
+    return names.length
+      ? `import { ${names.join(', ')} } from ${entry.specifier};\n`
+      : '';
   };
   const fetcher = own.has('Fetcher')
     ? ''

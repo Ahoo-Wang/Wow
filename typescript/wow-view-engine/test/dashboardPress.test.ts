@@ -19,7 +19,10 @@
  * destination works out where it goes, carrying the group.
  */
 
-import { AggregationDateUnit, AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationDateUnit,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
   MemoryViewStore,

@@ -18,7 +18,7 @@ pnpm --filter @ahoo-wang/wow-view-store test:api -u  # accept a change to the AP
 node typescript/wow-generator/dist/cli.js generate -i platform/view-store/view-store-server/manifest/baseline.json -o typescript/wow-view-store/src/generated --strict
 ```
 
-The port's conformance suite runs over this package against the service in `typescript/integration-test/test/view-store-v10/` (`pnpm --dir typescript/integration-test test:v10`, which starts the service itself on ports bound to 0).
+The port's conformance suite runs over this package against the service in `typescript/integration-test/test/view-store/` (`pnpm --dir typescript/integration-test test`, which starts the service itself on ports bound to 0).
 
 ## Structure
 

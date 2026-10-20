@@ -39,9 +39,13 @@ function toRequest(input: RequestInfo | URL, init?: RequestInit): Request {
   return new Request(url, init);
 }
 
+/** The query route of the `user` aggregate's snapshots. */
+export const USERS_ROUTE = '/directory/user/snapshot/query';
+
 /**
- * Serves the snapshot query endpoints of a `users` aggregate at
- * `https://api.example.test`; other origins go to the real fetch.
+ * Serves the snapshot query route of a `user` aggregate at
+ * `https://api.example.test`, by the `kind` each query names; other origins go
+ * to the real fetch.
  */
 export function installFetchFixture(): () => void {
   const originalFetch = globalThis.fetch;
@@ -52,27 +56,28 @@ export function installFetchFixture(): () => void {
     if (url.origin !== 'https://api.example.test')
       return originalFetch(input, init);
     request.signal.throwIfAborted();
-    const { pathname } = url;
-
-    if (pathname === '/users/snapshot/single/state') {
-      return jsonResponse(fixturePagedUsers.list[0]);
-    }
-    if (pathname === '/users/snapshot/list/state') {
-      if (request.headers.get('Accept')?.includes('text/event-stream')) {
-        // One row per event, as Wow streams a list.
-        return eventStreamResponse(
-          fixturePagedUsers.list.map(
-            user => `data: ${JSON.stringify(user)}\n\n`,
-          ),
-        );
+    if (url.pathname === USERS_ROUTE) {
+      const { kind } = (await request.json()) as { kind?: string };
+      switch (kind) {
+        case 'single':
+          return jsonResponse(fixturePagedUsers.list[0]);
+        case 'list':
+          if (request.headers.get('Accept')?.includes('text/event-stream')) {
+            // One row per event, then the end, as a Wow service streams a list.
+            return eventStreamResponse([
+              ...fixturePagedUsers.list.map(
+                (user, id) =>
+                  `id:${id}\nevent:row\ndata:${JSON.stringify(user)}\n\n`,
+              ),
+              `event:end\ndata:${JSON.stringify({ reason: 'complete' })}\n\n`,
+            ]);
+          }
+          return jsonResponse(fixturePagedUsers.list);
+        case 'paged':
+          return jsonResponse({ ...fixturePagedUsers, exact: true });
+        case 'count':
+          return jsonResponse({ count: fixturePagedUsers.total, exact: true });
       }
-      return jsonResponse(fixturePagedUsers.list);
-    }
-    if (pathname === '/users/snapshot/paged/state') {
-      return jsonResponse(fixturePagedUsers);
-    }
-    if (pathname === '/users/snapshot/count') {
-      return jsonResponse(fixturePagedUsers.total);
     }
 
     throw new Error(

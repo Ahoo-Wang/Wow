@@ -14,7 +14,7 @@
 /**
  * The `ViewStore` port's conformance suite over the V10 `WowViewStore` and
  * the in-memory stand-in for the V10 service: the cases the real service
- * passes in `typescript/integration-test/test/view-store-v10/`, here without
+ * passes in `typescript/integration-test/test/view-store/`, here without
  * a JVM. The service deduplicates every write by its request id, creates
  * included, so `idempotentCreate` holds whichever store retries.
  */

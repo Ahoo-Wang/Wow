@@ -11,7 +11,7 @@ It is the presentation layer on top of `@ahoo-wang/wow-client` and the successor
 ## Install
 
 ```bash
-pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
+pnpm add @ahoo-wang/fetcher \
   @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client @ahoo-wang/wow-view-engine
 # the /react and /ui entries
 pnpm add react react-dom

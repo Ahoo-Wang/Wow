@@ -20,7 +20,10 @@ import {
   within,
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AggregationDateUnit, AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationDateUnit,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client/dsl';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { defaultPanelSize } from '../src/dashboard/index.js';

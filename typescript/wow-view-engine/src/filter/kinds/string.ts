@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import { filter, type FilterExpression, type StringComparison } from '@ahoo-wang/wow-client/dsl';
+import {
+  filter,
+  type FilterExpression,
+  type StringComparison,
+} from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_STRING_COMPARISON,
   type FilterOperatorName,

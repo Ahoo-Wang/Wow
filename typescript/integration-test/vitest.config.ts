@@ -14,13 +14,13 @@
 import { defineConfig } from 'vitest/config';
 
 // The contract of `@ahoo-wang/wow-view-store` and the view engine on it
-// against the V10 view store service (`pnpm test:v10`): only
-// test/view-store-v10/, whose global setup starts the service in a JVM on
-// ports bound to 0 (or takes WOW_V10_VIEW_STORE_URL).
+// against the view store service (`pnpm test`): only
+// test/view-store/, whose global setup starts the service in a JVM on
+// ports bound to 0 (or takes WOW_VIEW_STORE_URL).
 export default defineConfig({
   test: {
-    include: ['test/view-store-v10/**/*.test.ts'],
-    globalSetup: ['test/view-store-v10/globalSetup.ts'],
+    include: ['test/view-store/**/*.test.ts'],
+    globalSetup: ['test/view-store/globalSetup.ts'],
     // Each request is a JVM round trip; a case writes a few dozen.
     testTimeout: 30_000,
   },

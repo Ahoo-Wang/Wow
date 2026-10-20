@@ -11,7 +11,10 @@
  * limitations under the License.
  */
 
-import { AggregationFunction, AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
+import {
+  AggregationFunction,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   analysisScope,

@@ -102,4 +102,3 @@ export async function readAll<T>(stream: ReadableStream<T>): Promise<T[]> {
   for await (const item of stream) items.push(item);
   return items;
 }
-

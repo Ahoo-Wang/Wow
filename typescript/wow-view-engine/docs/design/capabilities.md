@@ -5,8 +5,7 @@
 
 - 查询模块的目标架构 `documentation/designs/2026-09-24-query-target-architecture-design.md`（在 `main` 分支） §7（能力描述）与 §8.2（定义的构成与校验）；
 - 服务端 #3467（`GET …/schema` 答能力描述）、#3473（schema 定期重新校验，refresh 路由移除）、#3477（`dynamic[].excludedKeys`）；
-- wow-client 的 `QueryDescriptorClient`（#3482）；
-- 补偿控制台重构方案 `compensation/dashboard/docs/design/view-engine-rebuild.md` §3 的 G15。
+- wow-client 的 `QueryDescriptorClient`（#3482）。
 
 ## 1. 问题
 

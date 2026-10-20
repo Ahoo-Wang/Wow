@@ -11,7 +11,11 @@
  * limitations under the License.
  */
 
-import { filter, type ElementFilterExpression, type FilterExpression } from '@ahoo-wang/wow-client/dsl';
+import {
+  filter,
+  type ElementFilterExpression,
+  type FilterExpression,
+} from '@ahoo-wang/wow-client/dsl';
 import {
   isFieldlessKind,
   type FieldDefinition,

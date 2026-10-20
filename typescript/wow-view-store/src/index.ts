@@ -12,7 +12,7 @@
  */
 
 // `@ahoo-wang/wow-view-store`: the view engine on a Wow V10 service.
-// The public surface, name by name (test/surface/v10.txt).
+// The public surface, name by name (test/surface/root.txt).
 export { WowViewStore, type WowViewStoreOptions } from './wowViewStore.js';
 export {
   WowDatasetWordings,

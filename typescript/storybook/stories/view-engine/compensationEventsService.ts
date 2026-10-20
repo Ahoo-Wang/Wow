@@ -102,7 +102,7 @@ function stream(
 export function installRecordedCompensationEvents(): () => void {
   return installRecordedWowService({
     host: RECORDED_COMPENSATION_EVENTS_HOST,
-    resource: 'execution_failed/event',
+    route: '/compensation/execution_failed/events/query',
     documents: RECORDED_EVENT_STREAMS,
   });
 }

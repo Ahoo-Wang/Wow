@@ -16,7 +16,7 @@
  * the requests it sends and the edges the conformance suite does not reach
  * — a view another tab moved, a write whose read back fails, a service that
  * answers nothing, or nothing it knows. The real service holds the same
- * behaviour in `typescript/integration-test/test/view-store-v10/`.
+ * behaviour in `typescript/integration-test/test/view-store/`.
  */
 
 import { describe, expect, it, vi } from 'vitest';

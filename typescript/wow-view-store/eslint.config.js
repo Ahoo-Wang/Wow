@@ -18,8 +18,8 @@ import tseslint from 'typescript-eslint';
 export default tseslint.config(
   {
     // Generated from the V10 service's Manifest by wow-generator, byte for
-    // byte (test/v10/generated.test.ts).
-    ignores: ['dist', 'coverage', 'node_modules', 'src/v10/generated'],
+    // byte (test/generated.test.ts).
+    ignores: ['dist', 'coverage', 'node_modules', 'src/generated'],
   },
   {
     files: ['**/*.{ts,tsx}'],

@@ -20,7 +20,11 @@
  * would only go stale.
  */
 
-import { TimeUnit, type FieldDescriptor, type QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
+import {
+  TimeUnit,
+  type FieldDescriptor,
+  type QueryModelDescriptor,
+} from '@ahoo-wang/wow-client/dsl';
 import {
   TEMPORAL_FIELD_KIND_IDS,
   type FieldDefinition,

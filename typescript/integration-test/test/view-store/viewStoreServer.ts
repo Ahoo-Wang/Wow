@@ -12,7 +12,7 @@
  */
 
 /*
- * The callers the V10 suites act as. The V10 view store service takes the
+ * The callers the suites act as. The view store service takes the
  * caller from the request through its `CallerResolver`; the one it ships,
  * `ViewStoreCallers`, stands in for CoSec and reads headers — `X-User`,
  * `X-Tenant`, `X-Role` — beside `CoSec-App-Id`, the application. A caller is
@@ -46,7 +46,7 @@ export interface Caller {
 }
 
 class CallerHeaders implements RequestInterceptor {
-  readonly name = 'V10Caller';
+  readonly name = 'ServiceCaller';
   readonly order = 0;
   constructor(private readonly caller: Caller) {}
   intercept(exchange: FetchExchange): void {
@@ -61,7 +61,7 @@ class CallerHeaders implements RequestInterceptor {
 
 /** The service's base URL, as the global setup provides it. */
 export function serviceURL(): string {
-  return inject('v10ViewStoreURL');
+  return inject('viewStoreURL');
 }
 
 /** A fetcher on the service that asks as `caller`. */

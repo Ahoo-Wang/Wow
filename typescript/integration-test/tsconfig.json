@@ -9,5 +9,5 @@
     // (../wow-view-engine/test/conformance/), which is never published.
     "rootDir": ".."
   },
-  "include": ["test", "vitest.v10.config.ts"]
+  "include": ["test", "vitest.config.ts"]
 }

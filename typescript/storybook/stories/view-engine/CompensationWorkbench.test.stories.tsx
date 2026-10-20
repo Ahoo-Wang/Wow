@@ -13,7 +13,6 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState } from 'react';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { RecoverableType } from '@ahoo-wang/wow-client';
 import {
   actions,
   type RecordActions,
@@ -32,6 +31,7 @@ import {
   compensationFetcher,
   createCompensationEngine,
   executionFailedDefinition,
+  RecoverableType,
   type CompensationCommands,
 } from './compensation.js';
 import {
@@ -56,13 +56,9 @@ import '@ahoo-wang/wow-view-engine/styles.css';
  * from the data (a `TERMS` aggregation), the title bar's phrase search, and
  * the analysis views listed with the record views.
  *
- * It is not the product. The compensation console's definitions and
- * commands live in `compensation/dashboard/src/views/` and its own e2e
- * (`compensation/dashboard/e2e/`, the live service in `e2e/real-server/`)
- * covers the product against a real service. The definition here
- * (`compensation.ts`) is cut to what these stories assert and drifts from the
- * product's on purpose. It used to be the 「真实后端/补偿控制台/快照控制台」
- * scene against a live service; that scene now is the console itself.
+ * It is not a product: the definition here (`compensation.ts`) is cut to
+ * what these stories assert. It used to be the 「真实后端/补偿控制台/快照控制台」
+ * scene of the 9.x compensation console, which V10 removed.
  */
 
 const RECOVERABILITY = [

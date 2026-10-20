@@ -123,8 +123,8 @@ expected revision (`'0'` for one never written) and `clear` removes it.
 - `pnpm --filter @ahoo-wang/wow-view-store test` — unit tests against the
   service in memory, the public surface and the API report.
 - The port's conformance suite runs over `WowViewStore` against the view store
-  service, which `pnpm --dir typescript/integration-test test:v10` starts on
-  ports bound to 0 (`test/view-store-v10/`), with the tenant and application
+  service, which `pnpm --dir typescript/integration-test test` starts on
+  ports bound to 0 (`test/view-store/`), with the tenant and application
   isolation.
 
 Licensed under the Apache License, Version 2.0.

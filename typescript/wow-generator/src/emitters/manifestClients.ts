@@ -315,7 +315,9 @@ function emitCommandClient(
   for (const lifecycle of aggregate.lifecycle) {
     client.push('LifecycleCommands');
     if (lifecycle.bodyType) {
-      (lifecycle.bodyGenerated ? lifecycleTypes : client).push(lifecycle.bodyType);
+      (lifecycle.bodyGenerated ? lifecycleTypes : client).push(
+        lifecycle.bodyType,
+      );
     }
     const params = lifecycle.bodyType
       ? `id: string, body: ${lifecycle.bodyType}, options?: CommandOptions`

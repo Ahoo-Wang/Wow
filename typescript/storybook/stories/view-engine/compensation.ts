@@ -11,8 +11,9 @@
  * limitations under the License.
  */
 
-import { Fetcher, HttpMethod } from '@ahoo-wang/fetcher';
-import { type RecoverableType, CommandClient, CommandHeaders, CommandStage, ErrorCodes, SnapshotQueryClient } from '@ahoo-wang/wow-client';
+import { Fetcher } from '@ahoo-wang/fetcher';
+import { CommandGateway, wait } from '@ahoo-wang/wow-client';
+import { queryRoute, routeSource } from './recordedWowService.js';
 import {
   AggregationDateUnit,
   AggregationFunction,
@@ -32,20 +33,17 @@ import {
 /**
  * The compensation domain as View Engine's regression fixtures read it.
  *
- * The product definitions live in the compensation console
- * (`compensation/dashboard/src/views/`) and ship with it; this is not a copy
- * of them and is not kept in step. It is the engine's fixture on a domain
- * whose shapes are real — nested snapshot paths, row commands that read
- * fields no column shows, a phrase search over error text — cut down to what
- * the regression stories over it assert (`CompensationWorkbench`,
- * `CompensationOverview`). The two drift on purpose: a change to the
- * product's views must not move an engine regression, and an engine
- * regression must not wait on the product.
+ * It is the engine's fixture on a domain whose shapes are real — nested
+ * snapshot paths, row commands that read fields no column shows, a phrase
+ * search over error text — cut down to what the regression stories over it
+ * assert (`CompensationWorkbench`, `CompensationOverview`). It was never a
+ * copy of the 9.x compensation console's definitions, which V10 removed.
  */
 
 export const EXECUTION_FAILED = 'execution-failed';
 
 /** Wow's `ExecutionFailed` aggregate, as the compensation service exposes it. */
+const CONTEXT = 'compensation';
 const AGGREGATE = 'execution_failed';
 
 /** The statuses of an execution still waiting on someone. */
@@ -421,37 +419,41 @@ export function createCompensationEngine(fetcher: Fetcher): ViewEngine {
  * methods. Every scene over this service reads through it.
  */
 export function compensationSource(fetcher: Fetcher): ViewSource {
-  return new SnapshotQueryClient({ basePath: AGGREGATE, fetcher });
+  return routeSource(fetcher, queryRoute(CONTEXT, AGGREGATE, 'snapshot'));
 }
 
 export function compensationFetcher(host: string): Fetcher {
   return new Fetcher({ baseURL: host });
 }
 
+/** Whether a failed execution can be recovered, as the compensation service marks it. */
+export const RecoverableType = {
+  RECOVERABLE: 'RECOVERABLE',
+  UNRECOVERABLE: 'UNRECOVERABLE',
+  UNKNOWN: 'UNKNOWN',
+} as const;
+
+/** A {@link RecoverableType} value. */
+export type RecoverableType =
+  (typeof RecoverableType)[keyof typeof RecoverableType];
+
 /**
  * The compensation commands a failed execution takes. Each waits until the
  * snapshot reflects it, so a refresh right after shows the new state, and
- * each throws when Wow refused it: a refusal is a 400 whose body is the
- * command result, which the engine reads for Wow's own words
- * (`sourceReason`); a result that came back refused without one is thrown
- * in its own words.
+ * each rejects when the service refused it: a refusal is a problem, which the
+ * engine reads for the service's own words (`sourceReason`).
  */
 export function compensationCommands(fetcher: Fetcher) {
-  const client = new CommandClient({ basePath: AGGREGATE, fetcher });
+  const gateway = new CommandGateway({ fetcher });
   const send = async (
     id: string,
     command: string,
     body: object = {},
   ): Promise<void> => {
-    const result = await client.send({
-      path: `{id}/${command}`,
-      method: HttpMethod.PUT,
-      urlParams: { path: { id } },
-      headers: { [CommandHeaders.WAIT_STAGE]: CommandStage.SNAPSHOT },
-      body,
+    await gateway.send(`/${CONTEXT}/${AGGREGATE}/{id}/${command}`, body, {
+      id,
+      wait: { plan: [wait.snapshot(CONTEXT)] },
     });
-    if (result.errorCode !== ErrorCodes.SUCCEEDED)
-      throw new Error(result.errorMsg || result.errorCode);
   };
   return {
     /** Wow's `prepare_compensation`: retry now, within the retry spec. */

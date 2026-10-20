@@ -22,9 +22,9 @@ import { ViewEngine } from '@ahoo-wang/wow-view-engine';
 import { DataWorkbench, zhCN } from '@ahoo-wang/wow-view-engine/ui';
 import { viewSourceOf, WowViewStore } from '@ahoo-wang/wow-view-store';
 import {
-  fakeV10ViewStore,
-  type FakeV10ViewStore,
-} from '../../../wow-view-store/test/support/fakeV10ViewStore.js';
+  fakeViewStore,
+  type FakeViewStore,
+} from '../../../wow-view-store/test/support/fakeViewStore.js';
 import { AppShell } from '../shared/AppShell.js';
 import {
   HOST_LANGUAGE,
@@ -48,25 +48,25 @@ import {
 import '@ahoo-wang/wow-view-engine/styles.css';
 
 /**
- * The record workbench on a Wow **V10** service, through
+ * The record workbench on a Wow service, through
  * `@ahoo-wang/wow-view-store` (roadmap 7.3a): the views, the
- * preferences and the system views in the V10 view store, the rows through
- * a V10 dataset query route (`viewSourceOf`). The service is the in-memory
+ * preferences and the system views in the view store service, the rows through
+ * a dataset query route (`viewSourceOf`). The service is the in-memory
  * stand-in `wow-view-store`'s own suites run on, installed as the page's
  * `fetch` — the routes, scopes, request ids, `If-Match` and problems of the
- * real one, which `typescript/integration-test/test/view-store-v10/` holds
+ * real one, which `typescript/integration-test/test/view-store/` holds
  * against the service itself. Every gesture below therefore crosses the
- * same requests a host on V10 sends, and each play reads them back.
+ * same requests a host sends, and each play reads them back.
  *
  * Regression only: no catalogue entry, no navigation.
  */
 const meta = {
-  title: 'View Engine/回归夹具/V10 视图存储',
-  component: V10Workbench,
+  title: 'View Engine/回归夹具/视图存储服务',
+  component: StoreWorkbench,
   tags: ['!dev', '!autodocs', 'test'],
   parameters: { layout: 'fullscreen' },
   beforeEach: installService,
-} satisfies Meta<typeof V10Workbench>;
+} satisfies Meta<typeof StoreWorkbench>;
 
 export default meta;
 
@@ -76,14 +76,14 @@ const BASE_URL = 'http://view-store.test/';
 
 /** The service of the story on screen, and the ids it seeded. */
 const service: {
-  current?: FakeV10ViewStore;
+  current?: FakeViewStore;
   shared?: string;
   personal?: string;
 } = {};
 
 /** The headers the service's caller resolver reads: a user with the shared role. */
 class Caller implements RequestInterceptor {
-  readonly name = 'V10StoryCaller';
+  readonly name = 'StoryCaller';
   readonly order = 0;
   intercept(exchange: FetchExchange): void {
     Object.assign(exchange.ensureRequestHeaders(), {
@@ -104,11 +104,11 @@ function caller(): Fetcher {
 /**
  * Installs a fresh service as the page's `fetch`, with the orders as a
  * dataset and one configured system view, and seeds a shared and a
- * personal view through the V10 store itself. The page's own `fetch` comes
+ * personal view through the store itself. The page's own `fetch` comes
  * back when the story ends.
  */
 async function installService(): Promise<() => void> {
-  const fake = fakeV10ViewStore({
+  const fake = fakeViewStore({
     datasets: [
       { context: 'sales', dataset: 'orders', source: rowSource(ORDERS) },
     ],
@@ -144,7 +144,7 @@ async function installService(): Promise<() => void> {
   };
 }
 
-function engineOnV10(): ViewEngine {
+function engineOnTheStore(): ViewEngine {
   const fetcher = caller();
   return new ViewEngine({
     resources: [
@@ -159,10 +159,10 @@ function engineOnV10(): ViewEngine {
   });
 }
 
-function V10Workbench() {
+function StoreWorkbench() {
   return (
-    <AppShell service={{ fixture: 'V10 视图存储（内存）· 六条订单' }}>
-      <StoryEngine create={engineOnV10}>
+    <AppShell service={{ fixture: '视图存储服务（内存）· 六条订单' }}>
+      <StoryEngine create={engineOnTheStore}>
         {engine => (
           <DataWorkbench
             engine={engine}
@@ -185,12 +185,12 @@ function sent(method: string, path: RegExp) {
 }
 
 /**
- * The sidebar lists what the V10 service keeps — the configured system view
+ * The sidebar lists what the service keeps — the configured system view
  * from its own route, the shared view read as `(shared)`, the caller's own —
- * and the table shows the rows the V10 dataset route answered for the
+ * and the table shows the rows the dataset route answered for the
  * shared view's condition.
  */
-export const ListsAndQueriesOnV10: Story = {
+export const ListsAndQueries: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const table = await canvas.findByRole('table');
@@ -208,7 +208,7 @@ export const ListsAndQueriesOnV10: Story = {
       zhCN['label.scope.group.personal'],
     );
 
-    // The routes a V10 host reaches: the system views route, the snapshot
+    // The routes a host reaches: the system views route, the snapshot
     // query as the caller and as `(shared)`, the dataset's query route.
     await expect(
       sent('GET', /^\/view-store\/system-views$/).map(request =>
@@ -229,12 +229,12 @@ export const ListsAndQueriesOnV10: Story = {
 };
 
 /**
- * Saving the shared view over the V10 store: one `save-view` as `(shared)`,
+ * Saving the shared view over the store: one `save-view` as `(shared)`,
  * carrying the revision it was read at as `If-Match` and the engine's
  * request id; the revision the service answers is the one the next save
  * expects.
  */
-export const SavesASharedViewOnV10: Story = {
+export const SavesASharedView: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const table = await canvas.findByRole('table');
@@ -260,12 +260,12 @@ export const SavesASharedViewOnV10: Story = {
 };
 
 /**
- * 设为共享 and 设为个人 on the V10 store: the share is sent as the view's
+ * 设为共享 and 设为个人 on the store: the share is sent as the view's
  * owner and waits for the saga that moves it to `(shared)`; the claim is
  * sent as `(shared)` and makes the caller the owner again. The id stays
  * through both, and the manager moves the row each time.
  */
-export const SharesAndClaimsOnV10: Story = {
+export const SharesAndClaims: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole('table');

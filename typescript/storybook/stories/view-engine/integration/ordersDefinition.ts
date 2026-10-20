@@ -13,7 +13,7 @@
 
 import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import { defineView, text } from '@ahoo-wang/wow-view-engine';
-// The service's query descriptor (`GET /order/snapshot/schema`), committed
+// The service's query descriptor (`GET /example/order/snapshot/query`), committed
 // beside the definition: the model's facts — paths, kinds, values — are
 // read from it when this module loads.
 import snapshot from './ordersDescriptor.json';

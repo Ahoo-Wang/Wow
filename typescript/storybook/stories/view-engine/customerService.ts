@@ -308,7 +308,7 @@ export const RECORDED_CUSTOMER_EVENTS: RecordData[] = [
 export function installRecordedCustomerService(): () => void {
   return installRecordedWowService({
     host: RECORDED_CRM_HOST,
-    resource: 'customer/snapshot',
+    route: '/crm/customer/snapshot/query',
     documents: RECORDED_CUSTOMERS,
   });
 }
@@ -322,7 +322,7 @@ export function installRecordedCustomerService(): () => void {
 export function installRecordedCustomerEventService(): () => void {
   return installRecordedWowService({
     host: RECORDED_CRM_HOST,
-    resource: 'customer/event',
+    route: '/crm/customer/events/query',
     documents: RECORDED_CUSTOMER_EVENTS,
   });
 }

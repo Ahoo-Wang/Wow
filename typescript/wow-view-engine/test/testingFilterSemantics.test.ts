@@ -12,7 +12,11 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { FilterOperator, StringComparison, type FilterExpression } from '@ahoo-wang/wow-client/dsl';
+import {
+  FilterOperator,
+  StringComparison,
+  type FilterExpression,
+} from '@ahoo-wang/wow-client/dsl';
 import type { RecordData } from '../src/index.js';
 import { matches, memorySource } from '../src/testing/index.js';
 

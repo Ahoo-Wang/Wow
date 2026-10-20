@@ -12,8 +12,8 @@
  */
 
 /*
- * The V10 view store service (`platform/view-store/view-store-server`) the
- * suites of test/view-store-v10/ run against: `WOW_V10_VIEW_STORE_URL` when
+ * The view store service (`platform/view-store/view-store-server`) the
+ * suites of test/view-store/ run against: `WOW_VIEW_STORE_URL` when
  * one is already running, else started here, in this run's own JVM, on the
  * memory backend, every port bound to 0, and stopped when the run ends.
  *
@@ -25,7 +25,7 @@
  *   ./gradlew :view-store-server:installDist
  *
  * It is started with one configured system view, of `SYSTEM_VIEW_DEFINITION`
- * (`v10ViewStoreServer.ts`), as the 9.x servers are in CI.
+ * (`viewStoreServer.ts`), as the 9.x servers are in CI.
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -34,12 +34,12 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { TestProject } from 'vitest/node';
-import { SYSTEM_VIEW_DEFINITION } from './v10ViewStoreServer';
+import { SYSTEM_VIEW_DEFINITION } from './viewStoreServer';
 
 declare module 'vitest' {
   export interface ProvidedContext {
-    /** The V10 view store service's base URL, ending in `/`. */
-    v10ViewStoreURL: string;
+    /** The view store service's base URL, ending in `/`. */
+    viewStoreURL: string;
   }
 }
 
@@ -56,8 +56,8 @@ function classPath(): string {
   const lib = join(SERVER, 'install/view-store-server/lib');
   if (!existsSync(lib))
     throw new Error(
-      `The V10 view store service is not built. From the repository root, with JDK 21: ${BUILD}` +
-        ' — or set WOW_V10_VIEW_STORE_URL to a running one.',
+      `The view store service is not built. From the repository root, with JDK 21: ${BUILD}` +
+        ' — or set WOW_VIEW_STORE_URL to a running one.',
     );
   return join(lib, '*');
 }
@@ -95,7 +95,7 @@ function start(): Promise<{ url: string; child: ChildProcess }> {
       child.kill();
       reject(
         new Error(
-          `The V10 view store service did not listen within ${START_DEADLINE_MS / 1000} s:\n${log.slice(-4000)}`,
+          `The view store service did not listen within ${START_DEADLINE_MS / 1000} s:\n${log.slice(-4000)}`,
         ),
       );
     }, START_DEADLINE_MS);
@@ -117,7 +117,7 @@ function start(): Promise<{ url: string; child: ChildProcess }> {
       clearTimeout(timer);
       reject(
         new Error(
-          `The V10 view store service exited with ${code}:\n${log.slice(-4000)}`,
+          `The view store service exited with ${code}:\n${log.slice(-4000)}`,
         ),
       );
     });
@@ -125,16 +125,13 @@ function start(): Promise<{ url: string; child: ChildProcess }> {
 }
 
 export default async function setup(project: TestProject): Promise<() => void> {
-  const given = process.env.WOW_V10_VIEW_STORE_URL;
+  const given = process.env.WOW_VIEW_STORE_URL;
   if (given) {
-    project.provide(
-      'v10ViewStoreURL',
-      given.endsWith('/') ? given : `${given}/`,
-    );
+    project.provide('viewStoreURL', given.endsWith('/') ? given : `${given}/`);
     return () => {};
   }
   const { url, child } = await start();
-  project.provide('v10ViewStoreURL', url);
+  project.provide('viewStoreURL', url);
   return () => {
     child.removeAllListeners('exit');
     child.kill();

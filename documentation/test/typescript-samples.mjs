@@ -75,7 +75,7 @@ export const SOURCES = [
 
 /** Entry points a signature may take names from, by package. */
 const ENTRIES = {
-    'wow-client': ['@ahoo-wang/wow-client', '@ahoo-wang/wow-client/legacy', '@ahoo-wang/wow-client/dsl'],
+    'wow-client': ['@ahoo-wang/wow-client', '@ahoo-wang/wow-client/dsl'],
     'wow-react': ['@ahoo-wang/wow-react'],
     'wow-generator': ['@ahoo-wang/wow-generator'],
     'wow-view-engine': [
