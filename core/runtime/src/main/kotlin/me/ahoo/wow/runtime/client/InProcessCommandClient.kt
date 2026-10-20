@@ -14,7 +14,6 @@
 package me.ahoo.wow.runtime.client
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.channelFlow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -55,14 +54,8 @@ class InProcessCommandClient @InternalWowApi constructor(
     override suspend fun wait(command: Any, ref: AggregateRef, options: SendOptions): CommandResult =
         settled(gateway.execute(request(command, ref, options, options.plan)))
 
-    override suspend fun stream(
-        command: Any,
-        ref: AggregateRef,
-        options: SendOptions,
-        onResult: suspend (CommandResult) -> Unit,
-    ) {
-        gateway.send(request(command, ref, options, options.plan)).collect { onResult(it) }
-    }
+    override fun stream(command: Any, ref: AggregateRef, options: SendOptions): Flow<CommandResult> =
+        gateway.send(request(command, ref, options, options.plan))
 
     /** The request of [command] to [ref], as [caller], with [options]' facts and [plan]. */
     private fun request(command: Any, ref: AggregateRef, options: SendOptions, plan: WaitPlan?): CommandRequest =
@@ -128,10 +121,3 @@ class InProcessCommandClient @InternalWowApi constructor(
         private const val TOO_MANY_REQUESTS = 429
     }
 }
-
-/** The results [CommandClient.stream] hands over, as a flow: collecting it sends the command. */
-fun CommandClient.results(
-    command: Any,
-    ref: AggregateRef,
-    options: SendOptions = SendOptions.DEFAULT,
-): Flow<CommandResult> = channelFlow { stream(command, ref, options) { send(it) } }

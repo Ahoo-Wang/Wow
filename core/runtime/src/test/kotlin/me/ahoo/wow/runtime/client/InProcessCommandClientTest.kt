@@ -158,18 +158,15 @@ class InProcessCommandClientTest {
         }
 
     @Test
-    fun `send answers at ACCEPTED, and stream hands over each result`(): Unit = runBlocking {
+    fun `send answers at ACCEPTED, and stream emits each result once collected`(): Unit = runBlocking {
         val accepted = client.send(AddItem("apple"), cart.ref(TENANT, "c-3"), SendOptions.of(wait = WaitPlan.COMMITTED))
         accepted.hop.stage.assert().isEqualTo(Stage.ACCEPTED)
-        val streamed = CopyOnWriteArrayList<CommandResult>()
-        client.stream(
-            AddItem("pear"),
-            cart.ref(TENANT, "c-3"),
-            SendOptions.of(wait = WaitPlan.COMMITTED)
-        ) { streamed += it }
-        streamed.single().hop.assert().isEqualTo(Hop.committed(CONTEXT))
+        val stream = client.stream(AddItem("pear"), cart.ref(TENANT, "c-5"), SendOptions.of(wait = WaitPlan.COMMITTED))
+        // Nothing is sent before the flow is collected.
+        commands.none { it.ref.id == "c-5" }.assert().isTrue()
+        stream.toList().single().hop.assert().isEqualTo(Hop.committed(CONTEXT))
         // A rejection is a result like any other in a stream.
-        val rejected = client.results(
+        val rejected = client.stream(
             AddItem("many", 11),
             cart.ref(TENANT, "c-3"),
             SendOptions.of(wait = WaitPlan.COMMITTED)

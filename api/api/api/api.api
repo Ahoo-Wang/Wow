@@ -265,8 +265,8 @@ public abstract interface class me/ahoo/wow/api/client/CommandClient {
 	public abstract fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/client/CommandClient;
 	public abstract fun send (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun send$default (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public abstract fun stream (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun stream$default (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public abstract fun stream (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun stream$default (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
 	public abstract fun wait (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun wait$default (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 }

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.api.client
 
+import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -37,13 +38,13 @@ import kotlin.time.Duration
  * - [send] answers once the command is accepted: durable for a peer's command, whose topic acknowledged it.
  * - [wait] answers with the result the command's wait plan ([SendOptions.wait]) ends with, the server's default plan
  *   when it names none.
- * - [stream] hands each result of that plan's hops to its callback as each is reached, the last one the result [wait]
- *   would answer with.
+ * - [stream] emits each result of that plan's hops as each is reached, the last one the result [wait] would answer
+ *   with; collecting the flow sends the command.
  *
  * [send] and [wait] answer only a result that succeeded: a rejection, by the aggregate or at admission (an unknown
  * command, a malformed or invalid one, a forbidden caller), throws a [CommandRejectedException]; a technical failure
  * (a busy or closing node, a store or a broker that is down, a wait that timed out) throws a [WowProblemException]
- * that says whether to retry ([RetryHint]). [stream] hands every result over, whatever its status.
+ * that says whether to retry ([RetryHint]). [stream] emits every result, whatever its status.
  */
 interface CommandClient {
     /** This client sending as [caller]. */
@@ -55,13 +56,8 @@ interface CommandClient {
     /** Sends [command] to the aggregate [ref] names, and answers with the result its wait plan ends with. */
     suspend fun wait(command: Any, ref: AggregateRef, options: SendOptions = SendOptions.DEFAULT): CommandResult
 
-    /** Sends [command] to the aggregate [ref] names, and hands [onResult] each result of its wait, in order. */
-    suspend fun stream(
-        command: Any,
-        ref: AggregateRef,
-        options: SendOptions = SendOptions.DEFAULT,
-        onResult: suspend (CommandResult) -> Unit,
-    )
+    /** The results of [command]'s wait, sent to the aggregate [ref] names when the flow is collected, in order. */
+    fun stream(command: Any, ref: AggregateRef, options: SendOptions = SendOptions.DEFAULT): Flow<CommandResult>
 }
 
 /**
