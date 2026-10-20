@@ -23,7 +23,9 @@ import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.CommittedRequest
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
@@ -77,6 +79,15 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) : Even
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = flow {
         val snapshot = lock.withLock { streams[ref]?.toList().orEmpty() }
         snapshot.filter { it.version in fromVersion..toVersion }.forEach { emit(it) }
+    }
+
+    /** One read under the lock: the tail and the earlier request keys of the same moment (decision D261). */
+    override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail {
+        require(fromVersion >= 1) { "A stream has a version from 1." }
+        require(earlier >= 0) { "At most a non-negative number of earlier requests." }
+        val snapshot = lock.withLock { streams[ref]?.toList().orEmpty() }
+        val (tail, before) = snapshot.partition { it.version >= fromVersion }
+        return AggregateTail(tail, before.asReversed().take(earlier).map(CommittedRequest::of))
     }
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {

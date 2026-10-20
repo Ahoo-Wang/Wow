@@ -246,6 +246,20 @@ public final class me/ahoo/wow/spi/ledger/Recoverable : java/lang/Enum {
 	public static fun values ()[Lme/ahoo/wow/spi/ledger/Recoverable;
 }
 
+public final class me/ahoo/wow/spi/log/AggregateTail {
+	public static final field Companion Lme/ahoo/wow/spi/log/AggregateTail$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEarlier ()Ljava/util/List;
+	public final fun getStreams ()Ljava/util/List;
+	public fun hashCode ()I
+	public static final fun of (Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/spi/log/AggregateTail;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/log/AggregateTail$Companion {
+	public final fun of (Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/spi/log/AggregateTail;
+}
+
 public abstract interface class me/ahoo/wow/spi/log/AppendOutcome {
 }
 
@@ -314,6 +328,23 @@ public final class me/ahoo/wow/spi/log/AppendOutcome$Unknown$Companion {
 	public final fun of (Ljava/lang/Throwable;)Lme/ahoo/wow/spi/log/AppendOutcome$Unknown;
 }
 
+public final class me/ahoo/wow/spi/log/CommittedRequest {
+	public static final field Companion Lme/ahoo/wow/spi/log/CommittedRequest$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCommandType ()Ljava/lang/String;
+	public final fun getRequestId ()Ljava/lang/String;
+	public final fun getVersion ()I
+	public fun hashCode ()I
+	public static final fun of (ILjava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/log/CommittedRequest;
+	public static final fun of (Lme/ahoo/wow/spi/log/EventStreamRecord;)Lme/ahoo/wow/spi/log/CommittedRequest;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/log/CommittedRequest$Companion {
+	public final fun of (ILjava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/log/CommittedRequest;
+	public final fun of (Lme/ahoo/wow/spi/log/EventStreamRecord;)Lme/ahoo/wow/spi/log/CommittedRequest;
+}
+
 public abstract interface class me/ahoo/wow/spi/log/EventLog {
 	public abstract fun append (Lme/ahoo/wow/spi/log/EventStreamRecord;Lme/ahoo/wow/spi/log/Transport;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun append$default (Lme/ahoo/wow/spi/log/EventLog;Lme/ahoo/wow/spi/log/EventStreamRecord;Lme/ahoo/wow/spi/log/Transport;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
@@ -328,6 +359,7 @@ public abstract interface class me/ahoo/wow/spi/log/EventLog {
 	public static synthetic fun read$default (Lme/ahoo/wow/spi/log/EventLog;Lme/ahoo/wow/api/aggregate/AggregateRef;IIILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
 	public abstract fun readEntries (Lme/ahoo/wow/api/aggregate/AggregateRef;II)Lkotlinx/coroutines/flow/Flow;
 	public static synthetic fun readEntries$default (Lme/ahoo/wow/spi/log/EventLog;Lme/ahoo/wow/api/aggregate/AggregateRef;IIILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+	public fun readTail (Lme/ahoo/wow/api/aggregate/AggregateRef;IILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun tail (ILjava/lang/Long;)Lkotlinx/coroutines/flow/Flow;
 	public static synthetic fun tail$default (Lme/ahoo/wow/spi/log/EventLog;ILjava/lang/Long;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
 }

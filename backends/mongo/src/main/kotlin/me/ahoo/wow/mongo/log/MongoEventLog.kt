@@ -52,7 +52,9 @@ import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.CommittedRequest
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -488,6 +490,48 @@ class MongoEventLog(
         streams.forEach { emit(it) }
     }
 
+    /**
+     * One aggregation (decision D261): the tail by the version key, then, through `$unionWith` on the same
+     * collection, the request keys of the latest streams before it, newest first. The first batch holds them all
+     * ([READ_TAIL_BATCH] streams of tail beyond them), so a typical read is one command.
+     */
+    override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail {
+        require(fromVersion >= 1) { "A stream has a version from 1." }
+        require(earlier >= 0) { "At most a non-negative number of earlier requests." }
+        return dispatcher.mongo {
+            val collection = collectionOf(ref.type)
+            val tail = listOf(
+                Aggregates.match(Filters.and(refFilter(ref), Filters.gte(VERSION, fromVersion))),
+                Aggregates.project(FACTS),
+                Aggregates.addFields(Field(BRANCH, 0)),
+            )
+            val keys = listOf(
+                Aggregates.match(Filters.and(refFilter(ref), Filters.lt(VERSION, fromVersion))),
+                Aggregates.sort(Sorts.descending(VERSION)),
+                Aggregates.limit(earlier.coerceAtLeast(1)),
+                Aggregates.project(Projections.fields(Projections.include(VERSION, REQUEST_ID, COMMAND_TYPE))),
+                Aggregates.addFields(Field(BRANCH, 1)),
+            )
+            val pipeline = if (earlier == 0) tail else tail + Aggregates.unionWith(collection.name, keys)
+            val streams = ArrayList<EventStreamRecord>()
+            val requests = ArrayList<CommittedRequest>()
+            collection.committed.aggregate(pipeline).batchSize(earlier + READ_TAIL_BATCH).forEach { document ->
+                if (document.getInteger(BRANCH) == 0) {
+                    streams += streamOf(collection.aggregate, document)
+                } else {
+                    requests += CommittedRequest(
+                        document.getInteger(VERSION),
+                        document.getString(REQUEST_ID),
+                        document.getString(COMMAND_TYPE),
+                    )
+                }
+            }
+            streams.sortBy { it.version }
+            requests.sortByDescending { it.version }
+            AggregateTail(streams, requests)
+        }
+    }
+
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {
         val entries = dispatcher.mongo {
             val collection = collectionOf(ref.type)
@@ -770,6 +814,9 @@ class MongoEventLog(
         const val AGGREGATE = "aggregate"
         const val BRANCH = "branch"
         const val HEAD = "head"
+
+        /** The streams of tail [readTail]'s first batch holds beyond the earlier request keys. */
+        const val READ_TAIL_BATCH = 1000
 
         /** The entries of [entries], in sequence order, that continue `last` without a gap. */
         fun contiguousRun(entries: List<LogEntry>, last: Long): List<LogEntry> {

@@ -27,7 +27,9 @@ import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.CommittedRequest
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -415,6 +417,42 @@ class PostgresEventLog(
             }
         }
         streams.forEach { emit(it) }
+    }
+
+    /** One statement: the tail and the earlier request keys, both by the version key (decision D261). */
+    override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail {
+        require(fromVersion >= 1) { "A stream has a version from 1." }
+        require(earlier >= 0) { "At most a non-negative number of earlier requests." }
+        return dispatcher.jdbc {
+            dataSource.autoCommitted { connection ->
+                val table = tableOf(connection, ref.type)
+                connection.prepareStatement(table.tail).use { query ->
+                    query.setString(1, ref.id)
+                    query.setString(2, ref.tenantId)
+                    query.setInt(3, fromVersion)
+                    query.setString(4, ref.id)
+                    query.setString(5, ref.tenantId)
+                    query.setInt(6, fromVersion)
+                    query.setInt(7, earlier)
+                    query.executeQuery().use { rows ->
+                        val streams = ArrayList<EventStreamRecord>()
+                        val keys = ArrayList<CommittedRequest>()
+                        while (rows.next()) {
+                            if (rows.getInt("part") == 0) {
+                                streams += streamOf(table.aggregate, rows)
+                            } else {
+                                keys += CommittedRequest(
+                                    rows.getInt("version"),
+                                    rows.getString("request_id"),
+                                    rows.getString("command_type"),
+                                )
+                            }
+                        }
+                        AggregateTail(streams, keys.asReversed())
+                    }
+                }
+            }
+        }
     }
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {
