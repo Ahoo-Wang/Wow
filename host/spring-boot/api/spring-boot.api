@@ -240,6 +240,7 @@ public final class me/ahoo/wow/spring/boot/QueryProperties {
 	public final fun getRequireExplicitEntry ()Z
 	public final fun getSensitivity ()Lme/ahoo/wow/spring/boot/QueryProperties$Sensitivity;
 	public final fun getState ()Lme/ahoo/wow/spring/boot/QueryProperties$State;
+	public final fun getStream ()Lme/ahoo/wow/spring/boot/QueryProperties$Stream;
 	public final fun setAbac (Lme/ahoo/wow/spring/boot/QueryProperties$Abac;)V
 	public final fun setAdaptive (Lme/ahoo/wow/spring/boot/QueryProperties$Adaptive;)V
 	public final fun setCountCache (Lme/ahoo/wow/spring/boot/QueryProperties$CountCache;)V
@@ -257,6 +258,7 @@ public final class me/ahoo/wow/spring/boot/QueryProperties {
 	public final fun setRequireExplicitEntry (Z)V
 	public final fun setSensitivity (Lme/ahoo/wow/spring/boot/QueryProperties$Sensitivity;)V
 	public final fun setState (Lme/ahoo/wow/spring/boot/QueryProperties$State;)V
+	public final fun setStream (Lme/ahoo/wow/spring/boot/QueryProperties$Stream;)V
 }
 
 public final class me/ahoo/wow/spring/boot/QueryProperties$Abac {
@@ -372,6 +374,14 @@ public final class me/ahoo/wow/spring/boot/QueryProperties$State {
 	public fun <init> ()V
 	public final fun getMaxReplay ()I
 	public final fun setMaxReplay (I)V
+}
+
+public final class me/ahoo/wow/spring/boot/QueryProperties$Stream {
+	public fun <init> ()V
+	public final fun getChunkSize ()I
+	public final fun getMaxHold ()Ljava/time/Duration;
+	public final fun setChunkSize (I)V
+	public final fun setMaxHold (Ljava/time/Duration;)V
 }
 
 public abstract interface class me/ahoo/wow/spring/boot/ServiceNodeListener {

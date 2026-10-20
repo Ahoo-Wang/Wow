@@ -186,13 +186,16 @@ class QueryRoutesTest {
         )
         streamed.status.assert().isEqualTo(200)
         streamed.contentType.assert().startsWith("text/event-stream")
-        streamed.events.map { it.event }.assert().containsOnly("row")
-        streamed.events.map { it.id }.assert().containsExactly("0", "1", "2")
-        streamed.events.map { it.data["aggregateId"].asString() }.assert().containsExactly("c-1", "c-2", "c-3")
-        // No match: an empty stream.
+        streamed.events.map { it.event }.assert().containsExactly("row", "row", "row", "end")
+        // Each record's id is the cursor token of its position (decision D253), and the stream says it is complete.
+        streamed.rows.map { it.id }.assert().doesNotContainNull().doesNotHaveDuplicates()
+        streamed.rows.map { it.data["aggregateId"].asString() }.assert().containsExactly("c-1", "c-2", "c-3")
+        streamed.end!!["reason"].asString().assert().isEqualTo("complete")
+        streamed.end!!["resumable"].asBoolean().assert().isFalse()
+        // No match: an empty stream, complete at once.
         node.stream(
             """{"kind":"list","filter":{"op":"EQ","field":"state.items","value":9}}"""
-        ).events.assert().isEmpty()
+        ).events.map { it.event }.assert().containsExactly("end")
         // Admission fails before the stream starts: a problem.
         node.stream("""{"kind":"list","filter":{"op":"EQ","field":"state.unknown","value":9}}""").let {
             it.status.assert().isEqualTo(400)
@@ -207,6 +210,8 @@ class QueryRoutesTest {
         val streamed = failing.stream("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""")
         streamed.status.assert().isEqualTo(200)
         streamed.events.map { it.event }.assert().containsExactly("row", "error")
+        // A stream that cannot be resumed carries no positions.
+        streamed.events.first().id.assert().isNull()
         streamed.events.last().data["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_FAILED)
         // Not streamed, the same failure is a problem.
         failing.query(
@@ -366,6 +371,8 @@ fun Answer.assertQueryProblem(status: Int, code: String): Answer {
 
 /** A gateway whose list fails after its first record, whose page fails as the backend, and whose count crashes. */
 private class FailingList(private val delegate: QueryGateway) : QueryGateway by delegate {
+    override suspend fun resumes(query: IListQuery): Boolean = false
+
     override fun list(query: IListQuery, caller: QueryCaller): Flow<ObjectNode> = flow {
         emit(json.createObjectNode().put("aggregateId", "c-1"))
         throw QueryExecutionException("The backend is down.")

@@ -27,6 +27,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
@@ -40,6 +41,7 @@ import me.ahoo.wow.http.command.CommandHandler
 import me.ahoo.wow.http.command.CommandTarget
 import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
+import me.ahoo.wow.query.PositionedRecord
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.json.QueryJson
@@ -208,8 +210,13 @@ class StreamHandoverTest {
         val node = QueryNode(
             snapshots = { delegate ->
                 object : QueryGateway by delegate {
-                    override fun list(query: IListQuery, caller: QueryCaller): Flow<ObjectNode> =
-                        rows.onCompletion { listEnded.complete(it) }
+                    override fun stream(
+                        query: IListQuery,
+                        caller: QueryCaller,
+                        after: String?,
+                        chunkSize: Int,
+                    ): Flow<PositionedRecord> = rows.map { PositionedRecord(it, "p") }
+                        .onCompletion { listEnded.complete(it) }
                 }
             },
         )

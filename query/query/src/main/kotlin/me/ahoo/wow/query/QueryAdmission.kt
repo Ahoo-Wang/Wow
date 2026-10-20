@@ -384,6 +384,16 @@ internal class QueryOperation<Q : RewritableFilter<Q>> private constructor(
                 QueryAdmission.Trusted.cursor(query, schema, entry, trusted)
             }
 
+        /**
+         * A list streamed as keyset chunks (decision D253): a cursor query of the chunk size, admitted as a cursor (its
+         * unique tie-breaker appended) under the stream's budget, and observed as a list.
+         */
+        @JvmField
+        val STREAM = QueryOperation<ICursorQuery>(QueryType.LIST, QueryBudget::checkStream) {
+                query, schema, entry, trusted, _ ->
+            QueryAdmission.Trusted.cursor(query, schema, entry, trusted)
+        }
+
         /** An unbudgeted entry counts as the query asks, exactly without a limit; a budgeted one at most its limit. */
         @JvmField
         val COUNT =

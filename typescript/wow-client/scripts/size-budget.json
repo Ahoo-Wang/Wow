@@ -14,8 +14,8 @@
       "reason": "Set 2026-09-25, about 18% over the 3,549 B measured then."
     },
     "./v10": {
-      "gzip": 5850,
-      "reason": "Set 2026-10-14, about 18% over the 4,952 B measured then: the V10 client layer (5a.3)."
+      "gzip": 7400,
+      "reason": "Raised 2026-10-19, about 15% over the 6,445 B measured then (5,590 B before): resumable query streams (D253, R3-B4) add about 850 B, the resume loop with its backoff, Retry-After and abort handling, intended growth."
     }
   }
 }

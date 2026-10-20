@@ -92,7 +92,10 @@ describe('V10 client edges', () => {
 
   it('reads unnamed events as rows and skips others', async () => {
     stubFetch(() =>
-      sseResponse('data:{"a":1}\n\nevent:other\ndata:{"b":2}\n\n'),
+      sseResponse(
+        'data:{"a":1}\n\nevent:other\ndata:{"b":2}\n\n' +
+          'event:end\ndata:{"reason":"complete","resumable":false}\n\n',
+      ),
     );
     const stream = await new EventQueryClient(PRODUCT, client()).listStream({
       filter: filter.eq('aggregateId', 'p1'),

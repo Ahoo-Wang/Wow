@@ -55,6 +55,7 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.ScopeQueryPolicy
 import me.ahoo.wow.query.aggregate
+import me.ahoo.wow.query.chunks
 import me.ahoo.wow.query.countBounded
 import me.ahoo.wow.query.cursor
 import me.ahoo.wow.query.dataset.DatasetQueryBackend
@@ -250,6 +251,26 @@ abstract class DatasetQueryBackendSpec {
         walk(Sort(AMOUNT, Sort.Direction.DESC)).assert().containsExactly("o6", "o3", "o2", "o1", "o5", "o4")
         walk(Sort(CREATED_AT, Sort.Direction.ASC)).assert().containsExactly("o1", "o6", "o2", "o3", "o4", "o5")
         walk(Sort(CITY, Sort.Direction.ASC)).assert().containsExactly("o3", "o4", "o1", "o2", "o6", "o5")
+        Unit
+    }
+
+    @Test
+    fun `a stream reads keyset chunks with positions and resumes strictly after one (decision D253)`() = blocking {
+        Assumptions.assumeTrue(orders.schema.storage.paging.keyset != me.ahoo.wow.query.schema.SupportMode.NONE)
+        val sort = listOf(Sort(AMOUNT, Sort.Direction.DESC))
+        fun chunks(after: String? = null) = orders.backend.chunks(
+            QueryAdmission.Trusted.cursor(
+                CursorQuery(MatchAllFilter, sort = sort, size = 2, cursor = after),
+                orders.schema
+            ),
+        )
+        val all = chunks().toList()
+        all.map { it.record.path(ID).stringValue() }.assert().isEqualTo(walk(sort.single()))
+        all.indices.forEach { index ->
+            chunks(
+                all[index].position
+            ).toList().map { it.position }.assert().isEqualTo(all.drop(index + 1).map { it.position })
+        }
         Unit
     }
 

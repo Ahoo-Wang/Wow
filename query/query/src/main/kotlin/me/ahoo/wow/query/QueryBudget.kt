@@ -122,6 +122,15 @@ class QueryBudget(
         checkFilter(query.filter, scope, counting = false)
     }
 
+    /**
+     * A resumable stream of a list (decision D253), run as keyset chunks of the server's size: bounded by time and
+     * bulkhead permits, not by rows (decision D254, Q-15), so neither its limit nor its chunk size is checked, only
+     * its filter.
+     */
+    fun checkStream(query: ICursorQuery, scope: FilterExpression = MatchAllFilter) {
+        checkFilter(query.filter, scope, counting = false)
+    }
+
     fun check(query: AggregationQuery, scope: FilterExpression = MatchAllFilter) {
         checkResultSize(query.limit, "aggregation")
         val filterNodes = checkFilters(
