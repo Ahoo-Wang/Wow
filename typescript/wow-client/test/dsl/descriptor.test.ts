@@ -20,11 +20,16 @@ import {
   type QuerySemanticType,
 } from '../../src';
 
-/** A source file of the Kotlin wow-api, by its path under `me/ahoo/wow/api/`. */
+/**
+ * A source file of the Kotlin 9.x wow-api, by its path under
+ * `me/ahoo/wow/api/`. 9.x left the v10 branch (decision D262), so the files are
+ * fixed copies under `test/fixtures/nine-x/`, which TS-9x deletes with this
+ * test.
+ */
 function kotlinSource(path: string): string {
   return readFileSync(
     new URL(
-      `../../../../wow-api/src/main/kotlin/me/ahoo/wow/api/${path}`,
+      `../fixtures/nine-x/wow-api/src/main/kotlin/me/ahoo/wow/api/${path}`,
       import.meta.url,
     ),
     'utf8',

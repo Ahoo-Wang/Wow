@@ -82,14 +82,12 @@ class V10ArchitectureTest {
                 "wow-dependencies" to "wow-dependencies",
                 "spi" to "core/spi",
                 "routing-spike" to "test/routing-spike",
-                "kernel-benchmarks" to "test/kernel-benchmarks",
             ),
             mapOf(
                 "spi" to listOf("wow-dependencies"),
                 "routing-spike" to listOf("spi", "wow-core"),
-                "kernel-benchmarks" to listOf("spi", "wow-core"),
             ),
-            v10 = setOf("spi", "routing-spike", "kernel-benchmarks"),
+            v10 = setOf("spi", "routing-spike"),
         )
         V10Rules.nineXReachViolations(root).assert().containsExactly("routing-spike reaches :wow-core")
     }
@@ -161,13 +159,8 @@ class V10ArchitectureTest {
         }
 
     @Test
-    fun `no project should reach both a V10 module and the 9x module it replaces`() {
-        V10Rules.bothSidesViolations(repositoryRoot).assert().isEmpty()
-    }
-
-    @Test
-    fun `no 9x project should depend on a V10 project`() {
-        V10Rules.nineXOnV10Violations(repositoryRoot).assert().isEmpty()
+    fun `no deleted 9x project should come back or be depended on`() {
+        V10Rules.deletedNineXViolations(repositoryRoot).assert().isEmpty()
     }
 
     @Test
@@ -461,42 +454,25 @@ class V10ArchitectureTest {
     }
 
     @Test
-    fun `both sides rule should catch a project reaching both sides transitively, but the exempt one`(
-        @TempDir root: File
-    ) {
+    fun `deleted 9x rule should catch an include of or a dependency on a deleted 9x project`(@TempDir root: File) {
         root.writeBuild(
             mapOf(
-                "compiler" to "compiler/compiler",
-                "wow-compiler" to "wow-compiler",
-                "nine-x" to "nine-x",
-                "app" to "app",
-                "v10-only" to "v10-only",
-                "kernel-benchmarks" to "test/kernel-benchmarks",
-            ),
-            mapOf(
-                "nine-x" to listOf("wow-compiler"),
-                "app" to listOf("compiler", "nine-x"),
-                "v10-only" to listOf("compiler"),
-                "kernel-benchmarks" to listOf("compiler", "wow-compiler"),
-            ),
-        )
-        V10Rules.bothSidesViolations(root).assert().containsExactly("app reaches both :compiler and :wow-compiler")
-    }
-
-    @Test
-    fun `9x rule should catch a 9x project reaching a V10 project transitively`(@TempDir root: File) {
-        root.writeBuild(
-            mapOf(
-                "wow-mongo" to "wow-mongo",
-                "wow-it" to "test/wow-it",
+                "wow-core" to "wow-core",
+                "wow-dependencies" to "wow-dependencies",
                 "spi" to "core/spi",
-                "mongo" to "backends/mongo",
+                "app" to "app",
             ),
-            mapOf("wow-it" to listOf("wow-mongo"), "wow-mongo" to listOf("spi"), "mongo" to listOf("spi")),
-            v10 = setOf("spi", "mongo"),
+            mapOf(
+                "spi" to listOf("wow-dependencies"),
+                "app" to listOf("spi", "example-domain", "wow-core"),
+            ),
+            v10 = setOf("spi"),
         )
-        V10Rules.v10SettingsProjects(root).assert().containsExactlyInAnyOrder("spi", "mongo")
-        V10Rules.nineXOnV10Violations(root).assert().containsExactly("wow-it reaches :spi", "wow-mongo reaches :spi")
+        V10Rules.deletedNineXViolations(root).assert().containsExactly(
+            "settings.gradle.kts: :wow-core",
+            "app/build.gradle.kts: :example-domain",
+            "app/build.gradle.kts: :wow-core",
+        )
     }
 
     @Test

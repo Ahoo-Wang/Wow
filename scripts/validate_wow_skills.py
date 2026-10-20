@@ -58,7 +58,8 @@ FILESYSTEM_SUFFIXES = {
 DESCRIPTION_MAX_WORDS = 60
 # `claude plugin eval` suites: evals/<case>/prompt.md + graders/*.md.
 MIN_EVAL_CASES = 3
-IGNORED_EVAL_ENTRIES = {"results"}
+# `results/`: run reports (git-ignored); `h5-inputs/`: wow-migrate's fixed 9.x sources for H5 (decision D262).
+IGNORED_EVAL_ENTRIES = {"results", "h5-inputs"}
 SUITE_TAGS = {"activation", "behavior"}
 PROMPT_KEYS = {
     "schema_version", "name", "description", "tags", "plugins", "runs", "expected_outcome",

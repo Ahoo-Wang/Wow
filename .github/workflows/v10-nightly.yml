@@ -11,13 +11,11 @@
 # limitations under the License.
 #
 
-# The 9.x suites on the v10 branch, every night. On v10 their paths leave out
-# the V10 directories (v10.yml checks those), so a V10-only change runs none of
-# them; this run catches what such a change could still break in 9.x. GitHub
-# runs a schedule from the default branch only, so this file takes effect on
-# main: it dispatches each workflow on v10, which runs v10's copy of it there.
-# It skips a night on which v10 did not move. On the same nights it dispatches
-# v10-soak.yml, the eShop's fault-injection soak (C.1), on v10.
+# The eShop's fault-injection soak (C.1), v10-soak.yml, on the v10 branch every
+# night that v10 moved. GitHub runs a schedule from the default branch only, so
+# this file takes effect on main: it dispatches the workflow on v10, which runs
+# v10's copy of it there. The 9.x suites it dispatched until 9.3c left v10 with
+# the 9.x code (decision D262).
 name: V10 Nightly
 on:
   schedule:
@@ -29,7 +27,7 @@ permissions:
 
 jobs:
   dispatch:
-    name: Dispatch the 9.x suites and the soak on v10
+    name: Dispatch the soak on v10
     if: github.repository == 'Ahoo-Wang/Wow'
     timeout-minutes: 5
     runs-on: ubuntu-latest
@@ -48,7 +46,4 @@ jobs:
             echo "v10 has not moved since $committed"
             exit 0
           fi
-          for workflow in local-test.yml integration-test.yml contract-test.yml static-analysis.yml \
-            compensation-test.yml example-java-test.yml benchmark-smoke.yml v10-soak.yml; do
-            gh workflow run "$workflow" --ref v10
-          done
+          gh workflow run v10-soak.yml --ref v10
