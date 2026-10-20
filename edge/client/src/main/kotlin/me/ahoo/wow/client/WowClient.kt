@@ -15,6 +15,7 @@ package me.ahoo.wow.client
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.kernel.CommandTypes
@@ -43,11 +44,21 @@ import kotlin.time.Duration.Companion.seconds
  * ```
  */
 class WowClient private constructor(
-    /** The command client, sending as an anonymous caller until [CommandClient.of] gives it another. */
-    val commands: CommandClient,
+    private val http: HttpCommandClient,
     /** The query client of the peers' read routes, for a caller ([QueryApi.of]); see [HttpQueryApi]. */
     val queries: QueryApi,
 ) {
+    /** The command client, sending as an anonymous caller until [CommandClient.of] gives it another. */
+    val commands: CommandClient get() = http
+
+    /**
+     * The Manifest of [context], a peer described by its Manifest alone ([Builder.manifestPeers]), read from its
+     * `GET /wow/manifest` as [caller] and kept a minute, as the [NamedCommand]s to it are checked against: what a
+     * console or a gateway offers of its commands (decision D257).
+     */
+    suspend fun manifestOf(context: String, caller: Caller): Manifest =
+        (http.of(caller) as HttpCommandClient).manifestOf(context)
+
     /** How a [WowClient] is built; every setting has a default. */
     class Builder internal constructor() {
         private var endpoints: EndpointResolver = EndpointResolver.NONE

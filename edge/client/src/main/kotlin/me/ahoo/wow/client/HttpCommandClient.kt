@@ -16,6 +16,7 @@ package me.ahoo.wow.client
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
@@ -29,6 +30,7 @@ import me.ahoo.wow.client.wire.WaitHeader
 import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.manifest.CommandRoutes
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.TargetScope
 import me.ahoo.wow.spi.id.GlobalIdGenerator
@@ -145,6 +147,16 @@ class HttpCommandClient internal constructor(
         )
     }
 
+    /** The Manifest of [context], a peer described by its Manifest alone, read as this client's caller. */
+    internal suspend fun manifestOf(context: String): Manifest {
+        val peers = requireNotNull(described) {
+            "$context is not described by its Manifest: list it in wow.clients.contexts with contract: manifest " +
+                "(decision D257)."
+        }
+        val call = if (transport.mode is ClientMode.Service) rootOf(caller.tenantId, caller.scope, false) else null
+        return peers.manifestOf(context, caller, call)
+    }
+
     /**
      * The full type name of [command] to [ref]: a [NamedCommand]'s, once the Manifest of its peer declares it; a
      * command object's, as its contract names it. A peer described by its Manifest takes named commands alone, and a
@@ -176,14 +188,17 @@ class HttpCommandClient internal constructor(
      * tenant (or the target's) and the caller's scope (or the target's), sent by the caller's operator from its
      * application.
      */
-    private fun rootOf(ref: AggregateRef, options: SendOptions): CallContext {
+    private fun rootOf(ref: AggregateRef, options: SendOptions): CallContext =
+        rootOf(options.targetTenant ?: ref.tenantId, options.targetScope ?: caller.scope, options.targeted)
+
+    private fun rootOf(tenantId: String, scope: Scope, actingElsewhere: Boolean): CallContext {
         val commandId = ids.next()
         return CallContext.of(
             commandId = commandId,
-            tenantId = options.targetTenant ?: ref.tenantId,
-            scope = options.targetScope ?: caller.scope,
+            tenantId = tenantId,
+            scope = scope,
             causation = Causation(commandId, commandId),
-            operator = caller.toOperator(actingElsewhere = options.targeted),
+            operator = caller.toOperator(actingElsewhere = actingElsewhere),
             facts = caller.app?.let { mapOf(RequestFacts.APP_ID to it) }.orEmpty(),
         )
     }

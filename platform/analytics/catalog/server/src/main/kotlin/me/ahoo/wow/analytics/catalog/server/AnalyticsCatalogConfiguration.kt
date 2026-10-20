@@ -23,6 +23,7 @@ import me.ahoo.cosec.context.SecurityContextParser
 import me.ahoo.cosec.token.TokenVerifier
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetPolicy
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetSources
+import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetWarehouse
 import me.ahoo.wow.analytics.catalog.domain.warehouse.KnownAggregates
 import me.ahoo.wow.analytics.catalog.domain.warehouse.TrustedWriters
@@ -31,11 +32,14 @@ import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.snapshots
+import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
+import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -45,6 +49,8 @@ import org.springframework.boot.health.contributor.HealthIndicator
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
+import org.springframework.web.reactive.function.server.RouterFunction
+import org.springframework.web.reactive.function.server.ServerResponse
 import java.time.Instant
 import kotlin.time.toKotlinDuration
 
@@ -130,6 +136,29 @@ class AnalyticsCatalogConfiguration {
     @Bean
     fun datasetSources(queries: ObjectProvider<QueryApi>): DatasetSources =
         QueriedDatasetSources { queries.getObject() }
+
+    /**
+     * The reference actions of the datasets' rows (decisions D238 ⑤, D257): the commands of the peers
+     * `wow.clients.contexts` describes by their Manifest (`contract: manifest`), read with the service's [WowClient]
+     * in `wow.clients.mode` and sent with its [CommandClient], each context in its own mode.
+     */
+    @Bean
+    fun datasetReferenceActions(
+        queries: ObjectProvider<QueryApi>,
+        client: ObjectProvider<WowClient>,
+        commands: CommandClient,
+        wow: WowProperties,
+    ): DatasetReferenceActions = DatasetReferenceActions(
+        datasets = { id -> queries.getObject().trusted().snapshots<DatasetState>().state(id)?.state },
+        manifests = { context, caller -> client.getObject().manifestOf(context, caller) },
+        described = wow.clients.contexts.filterValues { it.contract == WowProperties.Clients.Contract.MANIFEST }.keys,
+        commands = commands,
+    )
+
+    /** The routes of the reference actions, on the public port as the callers [callers] resolves. */
+    @Bean
+    fun referenceActionRouter(actions: DatasetReferenceActions, callers: CallerResolver): RouterFunction<ServerResponse> =
+        referenceActionRoutes(actions, callers)
 
     @Bean
     fun datasetWarehouse(client: ObjectProvider<Client>): DatasetWarehouse =
