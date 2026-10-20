@@ -25,6 +25,7 @@ import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.spi.observation.trace
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.net.ConnectException
 import java.net.URI
 import java.net.URLEncoder
@@ -118,13 +119,10 @@ internal class HttpTransport(
         while (true) {
             val answer = try {
                 attempt()
-            } catch (refused: ConnectException) {
+            } catch (failure: IOException) {
                 // A connection that was not made sent nothing: refused, or not answered in time.
-                delay(retry.delayBefore(attempts, null) ?: throw refused)
-                attempts++
-                continue
-            } catch (late: HttpConnectTimeoutException) {
-                delay(retry.delayBefore(attempts, null) ?: throw late)
+                if (!failure.unsent()) throw failure
+                delay(retry.delayBefore(attempts, null) ?: throw failure)
                 attempts++
                 continue
             }
@@ -176,6 +174,12 @@ internal class HttpTransport(
         const val ACCEPT: String = "Accept"
         const val AUTHORIZATION: String = "Authorization"
         private val SUCCESS = 200..299
+
+        /** Whether this failure is of a connection that was never made, so the request was not sent. */
+        internal fun IOException.unsent(): Boolean = when (this) {
+            is ConnectException, is HttpConnectTimeoutException -> true
+            else -> false
+        }
 
         /** A path segment, percent-encoded. */
         fun encode(segment: String): String = URLEncoder.encode(segment, Charsets.UTF_8).replace("+", "%20")
