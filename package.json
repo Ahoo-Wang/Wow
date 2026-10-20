@@ -19,7 +19,8 @@
     "set-version": "node .github/scripts/project-version.mjs set",
     "check:versions": "node .github/scripts/project-version.mjs check",
     "check:compat-debt": "node .github/scripts/compat-debt.mjs",
-    "check:docs-layout": "node .github/scripts/docs-layout.mjs"
+    "check:docs-layout": "node .github/scripts/docs-layout.mjs",
+    "check:hygiene": "node .github/scripts/repo-hygiene.mjs"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",

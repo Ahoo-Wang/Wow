@@ -86,7 +86,6 @@ dependencies:
   - changed-files:
       - any-glob-to-any-file:
           - '.github/**'
-          - 'build-logic/**'
           - 'config/**'
           - 'deploy/**'
           - 'patches/**'
