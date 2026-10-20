@@ -3,7 +3,7 @@
 **状态**：Q1～Q3 已定（第 9 节，2026-09-25 按推荐）；C1～C6 已落地（C6：补偿控制台 #3541），裁定写进 [D47](decisions.md#d47-采用服务端的能力描述n5修订-d422026-09-25)，修订 [D42](decisions.md#d42-引擎的缺省预算不超过缺省配置的-wow-服务端2026-09-25)。C1 已合并（#3482）；C2 的两部分都已落地（第 12 节，余项 2026-09-25 第二次合并）。批次见第 10 节；首发之后的 C7 见第 10 节表末。
 **依据**：
 
-- 查询模块的目标架构 `documentation/designs/2026-09-24-query-target-architecture-design.md` §7（能力描述）与 §8.2（定义的构成与校验）；
+- 查询模块的目标架构 `documentation/designs/2026-09-24-query-target-architecture-design.md`（在 `main` 分支） §7（能力描述）与 §8.2（定义的构成与校验）；
 - 服务端 #3467（`GET …/schema` 答能力描述）、#3473（schema 定期重新校验，refresh 路由移除）、#3477（`dynamic[].excludedKeys`）；
 - wow-client 的 `QueryDescriptorClient`（#3482）；
 - 补偿控制台重构方案 `compensation/dashboard/docs/design/view-engine-rebuild.md` §3 的 G15。
