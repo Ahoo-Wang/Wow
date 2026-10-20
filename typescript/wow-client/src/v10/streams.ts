@@ -177,7 +177,6 @@ export function resumableQueryRows<T>(
       const wait =
         delayMs ?? Math.min(maxDelayMs, initialDelayMs * 2 ** (failures - 1));
       if (wait > 0) await sleep(wait, signal);
-      delayMs = undefined;
       try {
         const next = await reopen(lastEventId, received);
         if (next) reader = events(next);
