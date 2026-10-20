@@ -1,0 +1,351 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+@file:Suppress("NoWildcardImports", "WildcardImport")
+
+package me.ahoo.wow.elasticsearch.query
+
+import co.elastic.clients.elasticsearch._types.FieldValue
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.bool
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.exists
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.ids
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.multiMatch
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.nested
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.prefix
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.range
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.term
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.terms
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.termsSet
+import co.elastic.clients.elasticsearch._types.query_dsl.QueryBuilders.wildcard
+import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType
+import co.elastic.clients.json.JsonData
+import co.elastic.clients.json.jackson.Jackson3JsonpMapper
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.*
+import me.ahoo.wow.api.query.dsl.filter
+import me.ahoo.wow.query.schema.QueryCapability
+import me.ahoo.wow.query.schema.QueryValueKind
+import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.QueryValueType
+import me.ahoo.wow.query.schema.SnapshotFields
+import me.ahoo.wow.query.schema.Temporal
+import me.ahoo.wow.spi.json.WowJson
+import org.junit.jupiter.api.Test
+import tools.jackson.databind.JsonNode
+
+class ElasticsearchFilterCompilerTest {
+    @Test
+    fun `raw snapshot compiler must not inject a deletion predicate`() {
+        ElasticsearchFilterCompiler.compileAdmitted(MatchAllFilter)._kind().assert().isEqualTo(Query.Kind.MatchAll)
+    }
+
+    @Test
+    fun `model level search should be lenient while explicit fields keep strict parsing`() {
+        ElasticsearchFilterCompiler.compileAdmitted(SearchFilter("value")).multiMatch().lenient().assert().isTrue()
+        ElasticsearchFilterCompiler.compileAdmitted(
+            SearchFilter("value", setOf(QueryField("state.value"))),
+        ).multiMatch().lenient().assert().isNull()
+    }
+
+    private fun assertQuery(actual: Query, expected: Query) {
+        val actualGen = MAPPER.createBufferingGenerator()
+        actual.serialize(actualGen, MAPPER)
+        val expectedGen = MAPPER.createBufferingGenerator()
+        expected.serialize(expectedGen, MAPPER)
+        actualGen.jsonData.toJson().toString().assert().isEqualTo(expectedGen.jsonData.toJson().toString())
+    }
+
+    @Test
+    fun `identity filters compile at the physical field their admission resolved`() {
+        // SCHEMA binds the identity to its `aggregateId` keyword; the Elasticsearch adapter binds it to `_id`.
+        val aggregateId = SnapshotFields.AGGREGATE_ID
+        assertQuery(
+            ElasticsearchFilterCompiler.compileAdmitted(IdFilter("id-1")),
+            term { it.field(aggregateId).value("id-1") }
+        )
+        assertQuery(
+            ElasticsearchFilterCompiler.compileAdmitted(AggregateIdFilter("aggregate-1")),
+            term { it.field(aggregateId).value("aggregate-1") },
+        )
+        assertQuery(
+            ElasticsearchFilterCompiler.compileAdmitted(IdsFilter(listOf("id-1", "id-2"))),
+            terms {
+                it.field(
+                    aggregateId
+                ).terms { t -> t.value(listOf(FieldValue.of("id-1"), FieldValue.of("id-2"))) }
+            },
+        )
+        assertQuery(
+            ElasticsearchFilterCompiler.compileAdmitted(AggregateIdsFilter(listOf("aggregate-1", "aggregate-2"))),
+            terms {
+                it.field(
+                    aggregateId
+                ).terms { t -> t.value(listOf(FieldValue.of("aggregate-1"), FieldValue.of("aggregate-2"))) }
+            },
+        )
+    }
+
+    @Test
+    fun `metadata scope filters should use source metadata fields`() {
+        assertQuery(
+            ElasticsearchFilterCompiler.compileAdmitted(TenantIdFilter("tenant-1")),
+            term { it.field(SnapshotFields.TENANT_ID).value("tenant-1") },
+        )
+        assertQuery(
+            ElasticsearchFilterCompiler.compileAdmitted(OwnerIdFilter("owner-1")),
+            term { it.field(SnapshotFields.OWNER_ID).value("owner-1") },
+        )
+        assertQuery(
+            ElasticsearchFilterCompiler.compileAdmitted(SpaceIdFilter("space-1")),
+            term { it.field(SnapshotFields.SPACE_ID).value("space-1") },
+        )
+    }
+
+    @Test
+    fun `generic document id predicates should preserve exact id queries`() {
+        assertQuery(
+            ElasticsearchFilterCompiler.compileAdmitted(EqualFilter(QueryField("_id"), json("id-1"))),
+            ids { it.values("id-1") },
+        )
+        assertQuery(
+            ElasticsearchFilterCompiler.compileAdmitted(
+                InFilter(QueryField("_id"), listOf(json("id-1"), json("id-2")))
+            ),
+            ids { it.values("id-1", "id-2") },
+        )
+    }
+
+    @Test
+    @Suppress("LongMethod")
+    fun `should compile typed filter operators`() {
+        val field = QueryField("state.value")
+        val textField = QueryField("state.text")
+        val tagsField = QueryField("state.tags")
+        val one = json(1)
+        val two = json(2)
+        val text = json("value")
+        val cases = listOf(
+            AndFilter(listOf(EqualFilter(field, one), EqualFilter(field, two))) to
+                bool {
+                    it.filter(term { term -> term.field("state.value").value(1) })
+                        .filter(term { term -> term.field("state.value").value(2) })
+                },
+            OrFilter(listOf(EqualFilter(field, one), EqualFilter(field, two))) to
+                bool {
+                    it.should(term { term -> term.field("state.value").value(1) })
+                        .should(term { term -> term.field("state.value").value(2) }).minimumShouldMatch("1")
+                },
+            NorFilter(listOf(EqualFilter(field, one))) to
+                bool { it.mustNot(term { term -> term.field("state.value").value(1) }) },
+            NotEqualFilter(field, one) to
+                bool { it.mustNot(term { term -> term.field("state.value").value(1) }) },
+            GreaterThanFilter(field, one) to
+                range { it.untyped { range -> range.field("state.value").gt(JsonData.of(1)) } },
+            GreaterThanOrEqualFilter(field, one) to
+                range { it.untyped { range -> range.field("state.value").gte(JsonData.of(1)) } },
+            LessThanFilter(field, one) to
+                range { it.untyped { range -> range.field("state.value").lt(JsonData.of(1)) } },
+            LessThanOrEqualFilter(field, one) to
+                range { it.untyped { range -> range.field("state.value").lte(JsonData.of(1)) } },
+            ContainsFilter(textField, "value*?\\tail", StringComparison.CASE_INSENSITIVE) to
+                wildcard { it.field("state.text").value("*value\\*\\?\\\\tail*").caseInsensitive(true) },
+            StartsWithFilter(textField, "value", StringComparison.CASE_INSENSITIVE) to
+                prefix { it.field("state.text").value("value").caseInsensitive(true) },
+            EndsWithFilter(textField, "value*?\\tail", StringComparison.CASE_INSENSITIVE) to
+                wildcard { it.field("state.text").value("*value\\*\\?\\\\tail").caseInsensitive(true) },
+            InFilter(field, listOf(one, two)) to
+                terms {
+                    it.field("state.value").terms { values ->
+                        values.value(listOf(FieldValue.of(1), FieldValue.of(2)))
+                    }
+                },
+            NotInFilter(field, listOf(one, two)) to
+                bool {
+                    it.mustNot(
+                        terms { terms ->
+                            terms.field("state.value")
+                                .terms { values -> values.value(listOf(FieldValue.of(1), FieldValue.of(2))) }
+                        }
+                    )
+                },
+            BetweenFilter(field, one, two) to
+                range {
+                    it.untyped { range ->
+                        range.field("state.value")
+                            .gte(JsonData.of(1)).lte(JsonData.of(2))
+                    }
+                },
+            ContainsAllFilter(tagsField, listOf(one, two)) to
+                termsSet {
+                    it.field("state.tags").terms(FieldValue.of(1), FieldValue.of(2))
+                        .minimumShouldMatch("2")
+                },
+            IsEmptyFilter(tagsField) to bool { it.mustNot(present("state.tags")) },
+            IsNullFilter(field) to bool { it.mustNot(present("state.value")) },
+            IsNotNullFilter(field) to present("state.value"),
+            ExistsFilter(field) to present("state.value"),
+            NotExistsFilter(field) to bool { it.mustNot(present("state.value")) },
+            ElementMatchFilter(QueryField("state.items"), ExistsFilter(QueryField("name"))) to
+                nested { it.path("storage.items").query(exists { exists -> exists.field("storage.items.name") }) },
+            ElementMatchFilter(QueryField("state.items"), EqualFilter(QueryField("name"), text)) to
+                nested {
+                    it.path("storage.items").query(term { term -> term.field("storage.items.name").value("value") })
+                },
+            SearchFilter("value", linkedSetOf(field)) to
+                multiMatch { it.query("value").fields("state.value") },
+            SearchFilter("event sourcing", linkedSetOf(field), SearchMode.PHRASE) to
+                multiMatch { it.query("event sourcing").fields("state.value").type(TextQueryType.Phrase) },
+        )
+
+        cases.forEach { (filter, expected) ->
+            assertQuery(
+                ElasticsearchFilterCompiler.compileAdmitted(filter),
+                expected
+            )
+        }
+    }
+
+    @Test
+    fun `deletion compilation should preserve explicitly requested scopes`() {
+        assertQuery(
+            ElasticsearchFilterCompiler.compileAdmitted(DeletionFilter(DeletionState.ACTIVE)),
+            term { it.field(SnapshotFields.DELETED).value(false) },
+        )
+        ElasticsearchFilterCompiler.compileAdmitted(MatchNoneFilter)._kind().assert().isEqualTo(Query.Kind.MatchNone)
+        ElasticsearchFilterCompiler.compileAdmitted(DeletionFilter(DeletionState.ALL))._kind().assert().isEqualTo(
+            Query.Kind.MatchAll,
+        )
+        assertQuery(
+            ElasticsearchFilterCompiler.compileAdmitted(
+                AndFilter(
+                    listOf(
+                        DeletionFilter(DeletionState.DELETED),
+                        EqualFilter(QueryField("state.name"), json("Wow")),
+                    ),
+                ),
+            ),
+            bool {
+                it.filter(term { term -> term.field(SnapshotFields.DELETED).value(true) })
+                    .filter(term { term -> term.field("state.name").value("Wow") })
+            },
+        )
+    }
+
+    @Test
+    fun `relative time filter should normalize before compilation`() {
+        ElasticsearchFilterCompiler.compileAdmitted(TodayFilter(QueryField("state.time")))._kind().assert()
+            .isEqualTo(Query.Kind.Bool)
+    }
+
+    @Test
+    fun `element predicates compile the physical paths admission resolved`() {
+        val query = ElasticsearchFilterCompiler.compileAdmitted(
+            filter { "state.items".elementMatch { "name" eq "value" } },
+        )
+
+        query.nested().path().assert().isEqualTo("storage.items")
+        query.nested().query().term().field().assert().isEqualTo("storage.items.name")
+    }
+
+    @Test
+    fun `document id shortcut stays outside nested queries`() {
+        val query = ElasticsearchFilterCompiler.compileAdmitted(
+            ElementMatchFilter(QueryField("state.items"), EqualFilter(QueryField("_id"), json("line-1"))),
+        )
+
+        query.nested().query().term().field().assert().isEqualTo("storage.items._id")
+    }
+
+    companion object {
+        private val ANY = QueryValueType("ANY")
+
+        /** An admissible schema: `state.items` binds to another physical path to show compilers use resolutions. */
+        private val SCHEMA = nativeSchema(
+            capabilities = setOf(QueryCapability.FULL_TEXT_TERMS),
+            fields = buildMap {
+                listOf(
+                    SnapshotFields.AGGREGATE_ID,
+                    SnapshotFields.TENANT_ID,
+                    SnapshotFields.OWNER_ID,
+                    SnapshotFields.SPACE_ID,
+                    SnapshotFields.DELETED,
+                    "_id",
+                    "state.name",
+                    "state.number",
+                    "state.native",
+                ).forEach { put(QueryField(it), nativeBindings(QueryField(it), QueryCapability.EXACT_MATCH)) }
+                put(
+                    QueryField("state.value"),
+                    nativeBindings(
+                        QueryField("state.value"),
+                        QueryCapability.EXACT_MATCH,
+                        QueryCapability.RANGE,
+                        QueryCapability.PRESENCE,
+                        QueryCapability.FULL_TEXT_TERMS,
+                        QueryCapability.FULL_TEXT_PHRASE,
+                    ),
+                )
+                put(QueryField("state.text"), nativeBindings(QueryField("state.text"), QueryCapability.LITERAL_MATCH))
+                put(
+                    QueryField("state.tags"),
+                    nativeBindings(QueryField("state.tags"), QueryCapability.EXACT_MATCH, QueryCapability.PRESENCE),
+                )
+                put(QueryField("state.time"), nativeBindings(QueryField("state.time"), QueryCapability.RANGE))
+                put(
+                    QueryField("state.items"),
+                    nativeBindings(QueryField("storage.items"), QueryCapability.ELEMENT_SCOPE),
+                )
+                put(
+                    QueryField("state.items.name"),
+                    nativeBindings(
+                        QueryField("storage.items.name"),
+                        QueryCapability.EXACT_MATCH,
+                        QueryCapability.PRESENCE,
+                    ),
+                )
+                put(
+                    QueryField("state.items._id"),
+                    nativeBindings(QueryField("storage.items._id"), QueryCapability.EXACT_MATCH),
+                )
+            },
+            semanticTypes = mapOf(QueryField("state.time") to Temporal.Date),
+            values = buildMap {
+                listOf("state.value", "state.number", "state.native").forEach {
+                    put(QueryField(it), QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(ANY)))
+                }
+                put(
+                    QueryField("state.tags"),
+                    QueryValueSchema(
+                        QueryValueKind.ARRAY,
+                        items = QueryValueSchema(QueryValueKind.SCALAR, valueTypes = setOf(ANY)),
+                    ),
+                )
+            },
+        )
+
+        private fun json(value: Any?): JsonNode = WowJson.mapper.valueToTree(value)
+
+        /** A value at [path]: indexed, or named in `_ignored` when `ignore_above` kept it out of the index. */
+        private fun present(path: String): Query = bool {
+            it.should(exists { exists -> exists.field(path) }, term { term -> term.field("_ignored").value(path) })
+                .minimumShouldMatch("1")
+        }
+
+        /** Admits [filter] against [SCHEMA] and compiles it, exactly as a backend does. */
+        private fun ElasticsearchFilterCompiler.compileAdmitted(filter: FilterExpression): Query =
+            compile(filter, SCHEMA)
+    }
+}
+
+private val MAPPER = Jackson3JsonpMapper(WowJson.mapper)

@@ -34,6 +34,9 @@ object V10Rules {
     val MONGO = V10Module("mongo", "backends/mongo")
     val KAFKA = V10Module("kafka", "backends/kafka")
     val CLICKHOUSE = V10Module("clickhouse", "backends/clickhouse")
+
+    /** Snapshots, their queries and event search on Elasticsearch, never a log (decisions D13, D167). */
+    val ELASTICSEARCH = V10Module("elasticsearch", "backends/elasticsearch")
     val OPENAPI = V10Module("openapi", "edge/openapi")
     val HTTP = V10Module("http", "edge/http")
     val COSEC = V10Module("cosec", "edge/cosec")
@@ -94,8 +97,8 @@ object V10Rules {
     val PLATFORM_SERVERS = listOf(VIEW_STORE_SERVER, OPS_SERVER)
 
     val MODULES = listOf(
-        API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, OPENAPI, HTTP,
-        COSEC, OPENTELEMETRY, SPRING_BOOT, COSID, MODELS, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
+        API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, ELASTICSEARCH,
+        OPENAPI, HTTP, COSEC, OPENTELEMETRY, SPRING_BOOT, COSID, MODELS, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
     ) + TEST_MODULES + PLATFORM_MODULES
 
     /** The eShop's five contexts (decision D158), each an `-api`, a `-domain` and a `-server` project. */
@@ -183,6 +186,8 @@ object V10Rules {
         KAFKA to setOf("spi"),
         // query for the dataset backend (decision D142).
         CLICKHOUSE to setOf("spi", "query"),
+        // query for the snapshot and events query backends (decisions D131, D235).
+        ELASTICSEARCH to setOf("spi", "query"),
         // The Manifest only (roadmap 5a.2); the eShop's domains only for the snapshot tests, which document its services.
         OPENAPI to setOf("manifest") + ESHOP_CONTEXTS.map { "eshop-$it-domain" },
         // query for the query routes (06 §3, decisions D118, D127); openapi for GET /wow/openapi.
@@ -480,6 +485,7 @@ object V10Rules {
         "query" to "wow-query",
         "kafka" to "wow-kafka",
         "clickhouse" to "wow-clickhouse",
+        "elasticsearch" to "wow-elasticsearch",
         "compiler" to "wow-compiler",
         "mongo" to "wow-mongo",
         "cosec" to "wow-cosec",

@@ -181,6 +181,9 @@ include(":kafka")
 project(":kafka").projectDir = file("backends/kafka")
 include(":clickhouse")
 project(":clickhouse").projectDir = file("backends/clickhouse")
+// Snapshots, their queries and event search on Elasticsearch, no log (decisions D13, D167; work package 6.7).
+include(":elasticsearch")
+project(":elasticsearch").projectDir = file("backends/elasticsearch")
 include(":query")
 project(":query").projectDir = file("query/query")
 // The query backend contract specs (review R3.3-2), published so that a backend outside Wow runs them.

@@ -5,6 +5,7 @@ description = "Wow V10 architecture rules: module graph, forbidden dependencies 
 val v10ModuleDirs = listOf(
     "api/api", "api/manifest", "api/query-api", "core/spi", "core/kernel", "core/runtime",
     "core/reactor", "query/query", "backends/postgres", "backends/mongo", "backends/kafka", "backends/clickhouse",
+    "backends/elasticsearch",
     "edge/openapi", "edge/http", "edge/cosec", "edge/opentelemetry", "host/spring-boot", "extensions/cosid", "extensions/models", "migration/migrate-data", "compiler/compiler",
     "compiler/gradle-plugin", "compiler/manifest-tools", "test/test-dsl", "test/tck", "query/query-tck", "test/tck-containers",
 ) + listOf("catalog", "basket", "ordering", "inventory", "payment").flatMap { context ->
