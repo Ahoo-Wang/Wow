@@ -15,6 +15,7 @@ package me.ahoo.wow.analytics.catalog.server
 
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.query.EventsMode
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryRequestException
@@ -23,9 +24,13 @@ import me.ahoo.wow.query.filter.QueryContext
 /**
  * Keeps the catalog to the catalog's roles: a query of the sources (their columns, sensitivity and lineage) by a
  * caller with none of [AnalyticsCatalogCallers.READERS] is refused ([READER_REQUIRED]); trusted in-process code, which
- * has no caller, is not restricted.
+ * has no caller, is not restricted. It hides no row, so its events queries need not name their aggregates
+ * ([EventsMode.NONE]).
  */
 class AnalyticsCatalogQueryPolicy : QueryPolicy {
+    override val events: EventsMode
+        get() = EventsMode.NONE
+
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
         val who = caller.caller ?: return MatchAllFilter
         if (AnalyticsCatalogCallers.rolesOf(who).none { it in AnalyticsCatalogCallers.READERS }) {

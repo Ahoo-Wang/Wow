@@ -154,6 +154,66 @@ export const SUITES = {
     arms: [BASE_PG, HEAD_PG],
     answers: 'Reads and writes together on PostgreSQL, as mixed-mongo.',
   },
+  'large-mongo': {
+    group: 'ab',
+    kind: 'paired',
+    scenario: 'E1-large',
+    distribution: 'uniform',
+    arms: [BASE_MONGO, HEAD_MONGO],
+    answers:
+      'E1 with a large payload on MongoDB (D224 note ⑥): five events of about 2 KB per command. Head against baseline.',
+  },
+  'large-pg': {
+    group: 'ab',
+    kind: 'paired',
+    scenario: 'E1-large',
+    distribution: 'uniform',
+    arms: [BASE_PG, HEAD_PG],
+    answers: 'E1 with a large payload on PostgreSQL, as large-mongo.',
+  },
+  'component-mongo': {
+    group: 'component',
+    kind: 'component',
+    arm: HEAD_MONGO,
+    baseArm: BASE_MONGO,
+    scenarios: ['E1', 'E3', 'E1-large'],
+    answers:
+      "L1 on MongoDB: the domain on the kernel and the store in one JVM, no HTTP; each operation's store round trips by command and bytes allocated, head against baseline when there is one.",
+  },
+  'component-pg': {
+    group: 'component',
+    kind: 'component',
+    arm: HEAD_PG,
+    baseArm: BASE_PG,
+    scenarios: ['E1', 'E3', 'E1-large'],
+    answers:
+      'L1 on PostgreSQL, as component-mongo (statements, commits and rollbacks).',
+  },
+  'cold-mongo': {
+    group: 'head',
+    kind: 'fixed',
+    dataset: '1M',
+    cold: true,
+    distribution: 'uniform',
+    runs: [
+      { arm: HEAD_MONGO, rate: 200, scenario: 'E1' },
+      { arm: HEAD_MONGO, rate: 500, scenario: 'E4-state' },
+    ],
+    answers:
+      'A million accounts on MongoDB, uniform keys, so the caches miss (cold): E1 writes and E4 point reads at fixed rates.',
+  },
+  'cold-pg': {
+    group: 'head',
+    kind: 'fixed',
+    dataset: '1M',
+    cold: true,
+    distribution: 'uniform',
+    runs: [
+      { arm: HEAD_PG, rate: 200, scenario: 'E1' },
+      { arm: HEAD_PG, rate: 500, scenario: 'E4-state' },
+    ],
+    answers: 'A million accounts on PostgreSQL, as cold-mongo.',
+  },
   'sustainable-mongo': {
     group: 'head',
     kind: 'capacity',
@@ -275,9 +335,15 @@ export const suitesOf = group =>
 // L3 is the end-to-end grid (before an rc or after a major merge); L4 the special runs: sustainable rates, overload
 // cliffs and the three-node cluster. L0 (JMH) is outside this workflow. `suites` given by name replaces the tier's list.
 // The data sets each tier runs its suites at (the `dataset` setting replaces them).
-export const TIER_DATASETS = { L2: ['100k'], L3: ['1k', '100k'], L4: ['100k'] };
+export const TIER_DATASETS = {
+  L1: ['1k'],
+  L2: ['100k'],
+  L3: ['1k', '100k'],
+  L4: ['100k'],
+};
 
 export const TIERS = {
+  L1: ['component-mongo', 'component-pg'],
   L2: ['e1-mongo-uniform', 'e1-pg-uniform', 'e3-mongo', 'e3-pg'],
   L3: suitesOf('ab'),
   L4: [
@@ -287,6 +353,8 @@ export const TIERS = {
     'cliff-e3-pg',
     'e5-mongo',
     'e5-pg',
+    'cold-mongo',
+    'cold-pg',
   ],
 };
 
@@ -307,6 +375,87 @@ function cliff(arm, answers) {
     arm,
     answers,
   };
+}
+
+// kind `component` (L1): per scenario, one run of each arm through bench.sh's `component` command.
+export const COMPONENT = { ops: 20000, warmUpOps: 2000, concurrency: 64 };
+
+// The views of a flight recording the profile summarizes, and how many of each view's lines it keeps.
+export const JFR_VIEWS = [
+  'hot-methods',
+  'allocation-by-class',
+  'contention-by-site',
+  'gc-pauses',
+  'safepoints',
+  'latencies-by-type',
+  'socket-reads-by-host',
+];
+
+// The recording's settings: the JDK's `profile`, plus the safepoint events (off there) and socket reads, writes and
+// thread parks from 1 ms, so a tail can be told apart as GC pauses, safepoints, store latency or lock and pool waits.
+const JFR_SETTINGS = [
+  '+jdk.SafepointBegin#enabled=true',
+  '+jdk.SafepointEnd#enabled=true',
+  '+jdk.SocketRead#threshold=1 ms',
+  '+jdk.SocketWrite#threshold=1 ms',
+  '+jdk.ThreadPark#threshold=1 ms',
+];
+
+/** Writes the profile's .jfc into `dir` with the JDK's `jfr configure`; its path, or undefined when that fails. */
+export function jfrSettings(dir) {
+  const file = join(dir, 'profile.jfc');
+  const jfr = process.env.JAVA_HOME
+    ? join(process.env.JAVA_HOME, 'bin', 'jfr')
+    : 'jfr';
+  const result = spawnSync(
+    jfr,
+    ['configure', '--input', 'profile', ...JFR_SETTINGS, '--output', file],
+    {
+      encoding: 'utf8',
+    },
+  );
+  return result.status === 0 && existsSync(file) ? file : undefined;
+}
+const JFR_LINES = 16;
+
+/** The JDK's `jfr view` of each JFR_VIEWS over node-1.jfr in `dir`, its first lines each; empty without a recording. */
+export function jfrViews(dir) {
+  const recording = join(dir, 'node-1.jfr');
+  if (!existsSync(recording)) return {};
+  const jfr = process.env.JAVA_HOME
+    ? join(process.env.JAVA_HOME, 'bin', 'jfr')
+    : 'jfr';
+  const views = Object.fromEntries(
+    JFR_VIEWS.map(view => {
+      const result = spawnSync(
+        jfr,
+        ['view', '--width', '160', view, recording],
+        { encoding: 'utf8' },
+      );
+      const text =
+        result.status === 0
+          ? result.stdout
+          : `jfr view ${view} failed: ${result.stderr}`;
+      writeFileSync(join(dir, `jfr-${view}.txt`), text);
+      return [
+        view,
+        text
+          .split('\n')
+          .filter(line => line.trim())
+          .slice(0, JFR_LINES)
+          .join('\n'),
+      ];
+    }),
+  );
+  // A PostgreSQL run's store side, when bench.sh dumped it (top statements, checkpoints, waits).
+  const postgres = join(dir, 'postgres-stats.txt');
+  if (existsSync(postgres)) {
+    views['postgres-stats'] = readFileSync(postgres, 'utf8')
+      .split('\n')
+      .slice(0, 40)
+      .join('\n');
+  }
+  return views;
 }
 
 // kind `capacity`: per scenario, the closed-loop saturation bounds a bisection over the open-loop rate; a probe holds
@@ -374,6 +523,8 @@ export const ANOMALY = {
   stability: { throughput: 0.05, p50: 0.25, p99: 0.5 },
   // The load generator used this share of the CPUs it had: the run measured the generator, not the servers.
   generatorBusy: 0.9,
+  // A component count of the head above the baseline's by more than this.
+  componentGrowth: 0.05,
   // p99 > 10× p50 is flagged only above this p99, so a 2 ms median with a 30 ms p99 does not count.
   minTailMs: 50,
 };
@@ -468,6 +619,36 @@ export function anomaliesOf(run, { overload = false, noise } = {}) {
 export function anomalies(suite, noise = {}) {
   const thresholds = noise[labelOf(suite)];
   const rows = [];
+  if (suite.kind === 'component') {
+    // More store round trips or allocations per operation than the baseline: a regression of the core path's cost.
+    for (const head of suite.runs.filter(
+      run => run.arm === 'head' && run.status === 'ok',
+    )) {
+      const base = suite.runs.find(
+        run =>
+          run.arm === 'base' &&
+          run.scenario === head.scenario &&
+          run.status === 'ok',
+      );
+      if (!base) continue;
+      for (const [key, label] of [
+        ['storeRoundTripsPerOp', 'more store round trips'],
+        ['allocatedBytesPerOp', 'more allocation'],
+      ]) {
+        const ratioValue = head.component[key] / base.component[key];
+        if (ratioValue > 1 + ANOMALY.componentGrowth) {
+          rows.push({
+            suite: labelOf(suite),
+            run: head.name,
+            context: 'counts',
+            kind: label,
+            detail: `${num(head.component[key], 2)} against ${num(base.component[key], 2)} per operation (×${num(ratioValue, 2)})`,
+          });
+        }
+      }
+    }
+    return rows;
+  }
   for (const run of suite.runs ?? []) {
     const overload = suite.kind === 'steps' && run.sustained === false;
     const context = overload
@@ -533,6 +714,7 @@ export const DEFAULTS = {
   suites: '',
   dataset: '',
   aa: 'false',
+  profile: 'false',
   warm_up: '30',
   measure: '40',
   repeats: '2',
@@ -572,6 +754,7 @@ export function resolveInputs({
   suites,
   dataset,
   aa = DEFAULTS.aa,
+  profile = DEFAULTS.profile,
   warmUp,
   measure,
   repeats,
@@ -579,9 +762,10 @@ export function resolveInputs({
   p99LimitMs = DEFAULTS.p99_limit_ms,
 }) {
   const groups = {
-    all: ['ab', 'head'],
+    all: ['ab', 'head', 'component'],
     ab: ['ab'],
     head: ['head'],
+    component: ['component'],
     'vs-9x': ['9x'],
   };
   if (!suites?.trim() && !TIERS[tier]) {
@@ -622,6 +806,7 @@ export function resolveInputs({
     tier: suites?.trim() ? 'custom' : tier,
     datasets: datasetsOf(dataset, suites?.trim() ? undefined : tier),
     aa: String(aa) === 'true',
+    profile: String(profile) === 'true',
   };
 }
 
@@ -682,7 +867,8 @@ export function planMatrix({
   const groups = new Set(runnable.map(name => SUITES[name].group));
   const builds = [
     { side: 'head', sha: headSha, scope: 'v10', dir: 'bench-v10' },
-    ...(groups.has('ab') && !aa
+    // The baseline build serves the baseline suites, and the component suites when a baseline is given.
+    ...((groups.has('ab') && !aa) || (groups.has('component') && baseSha && !aa)
       ? [{ side: 'base', sha: baseSha, scope: 'v10', dir: 'bench-v10' }]
       : []),
     ...(groups.has('9x')
@@ -1089,6 +1275,29 @@ function anomalyTable(rows) {
   ];
 }
 
+/** A component suite's counts per scenario and arm, and the head's against the baseline's. */
+function componentTable(suite) {
+  const lines = [
+    '| Suite | Scenario | Arm | Store round trips/op | By command | Allocated/op | Throughput (indicative) | p50 | p99 |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+  ];
+  for (const run of suite.runs) {
+    const c = run.component;
+    lines.push(
+      run.status === 'ok'
+        ? `| ${labelOf(suite)} | ${run.scenario} | ${run.arm} | ${num(c.storeRoundTripsPerOp, 2)} | ${Object.entries(
+            c.storeRoundTripsByCommand ?? {},
+          )
+            .map(([command, count]) => `${command} ${num(count, 2)}`)
+            .join(
+              ' · ',
+            )} | ${num((c.allocatedBytesPerOp ?? 0) / 1024, 0)} KiB | ${num(c.throughput, 0)}/s | ${ms(c.latencyMs?.p50)} | ${ms(c.latencyMs?.p99)} |`
+        : `| ${labelOf(suite)} | ${run.scenario} | ${run.arm} | **${run.status}** | | | | | |`,
+    );
+  }
+  return lines;
+}
+
 /** The sustainable rate of each scenario of a capacity suite. */
 function capacityTable(suite) {
   const lines = [
@@ -1240,6 +1449,13 @@ export function renderSuite(suite) {
   }
   if (suite.kind === 'steps') lines.push(...cliffTable(suite), '');
   if (suite.kind === 'capacity') lines.push(...capacityTable(suite), '');
+  if (suite.kind === 'component') lines.push(...componentTable(suite), '');
+  for (const run of suite.profiles ?? []) {
+    lines.push(`Profile of ${run.arm} (${run.name}, not a timed round):`, '');
+    for (const [view, text] of Object.entries(run.profile ?? {})) {
+      lines.push(`\`${view}\`:`, '', '```', text, '```', '');
+    }
+  }
   if (suite.kind === 'cluster') {
     lines.push(
       `Three nodes, requests round-robin, ${CLUSTER.measure} s measured; in the hand-over runs node 2 is stopped ${CLUSTER.stopAfter} s into the measured phase and restarted ${CLUSTER.down} s later.`,
@@ -1248,7 +1464,7 @@ export function renderSuite(suite) {
       '',
     );
   }
-  lines.push(...runTable(suite.runs), '');
+  if (suite.kind !== 'component') lines.push(...runTable(suite.runs), '');
   const mixed = suite.runs.filter(run => run.metrics?.byScenario);
   if (mixed.length > 0) {
     const labels = Object.keys(mixed[0].metrics.byScenario);
@@ -1382,7 +1598,7 @@ function bench(benchPath, args, props, handover) {
       `::warning::bench.sh ${args[0]} failed (${result.status ?? result.signal}): ${args.join(' ')}`,
     );
   }
-  return result.status === 0;
+  return result.status ?? -1;
 }
 
 const readJson = path => JSON.parse(readFileSync(path, 'utf8'));
@@ -1402,10 +1618,12 @@ export function runSuite(name, options) {
     installs = {},
     refs = {},
     cluster = CLUSTER,
-    dataset = '100k',
     aa = false,
     cpus = {},
+    profile = false,
   } = options;
+  // A suite with a data set of its own (the cold suites) runs at it whatever the job's.
+  const dataset = definition.dataset ?? options.dataset ?? '100k';
   mkdirSync(out, { recursive: true });
   const data = DATASETS[dataset];
   if (!data) throw new Error(`Unknown data set: ${dataset}`);
@@ -1422,13 +1640,17 @@ export function runSuite(name, options) {
             { ...definition.arms[1], id: 'b' },
           ]
         : definition.arms
-      : ['steps', 'capacity', 'cluster'].includes(definition.kind)
-        ? [definition.arm]
-        : [
-            ...new Map(
-              definition.runs.map(run => [run.arm.id, run.arm]),
-            ).values(),
-          ];
+      : definition.kind === 'component'
+        ? installs.base && !aa
+          ? [definition.baseArm, definition.arm]
+          : [definition.arm]
+        : ['steps', 'capacity', 'cluster'].includes(definition.kind)
+          ? [definition.arm]
+          : [
+              ...new Map(
+                definition.runs.map(run => [run.arm.id, run.arm]),
+              ).values(),
+            ];
   const suite = {
     schema: 'wow-e2e-bench/suite/1',
     name,
@@ -1489,21 +1711,22 @@ export function runSuite(name, options) {
     phase = { warmUp, measure, into: suite.runs, mode: CALIBRATED },
   ) => {
     const dir = join(out, runName);
-    const ok = bench(
-      benchPath,
-      [
-        'run',
-        ...common(arm, phase.scenario),
-        ...(phase.extra ?? []),
-        `--rate=${rate.toFixed(1)}`,
-        `--warm-up=${phase.warmUp}`,
-        `--measure=${phase.measure}`,
-        `--label=${name}-${runName}`,
-        `--out=${dir}`,
-      ],
-      propsOf(arm),
-      phase.handover && { ...phase.handover, dir },
-    );
+    const ok =
+      bench(
+        benchPath,
+        [
+          'run',
+          ...common(arm, phase.scenario),
+          ...(phase.extra ?? []),
+          `--rate=${rate.toFixed(1)}`,
+          `--warm-up=${phase.warmUp}`,
+          `--measure=${phase.measure}`,
+          `--label=${name}-${runName}`,
+          `--out=${dir}`,
+        ],
+        propsOf(arm),
+        phase.handover && { ...phase.handover, dir },
+      ) === 0;
     const file = join(dir, 'result.json');
     const run = {
       name: runName,
@@ -1539,19 +1762,20 @@ export function runSuite(name, options) {
   // The closed-loop saturation of an arm in a scenario, recorded under `key`.
   const saturate = (arm, key, scenario) => {
     const dir = join(out, `saturation-${key}`);
-    const ok = bench(
-      benchPath,
-      [
-        'saturate',
-        ...common(arm, scenario),
-        `--warm-up=${SATURATION.warmUp}`,
-        `--step=${SATURATION.step}`,
-        `--max-concurrency=${SATURATION.maxConcurrency}`,
-        `--label=${name}-saturation-${key}`,
-        `--out=${dir}`,
-      ],
-      propsOf(arm),
-    );
+    const ok =
+      bench(
+        benchPath,
+        [
+          'saturate',
+          ...common(arm, scenario),
+          `--warm-up=${SATURATION.warmUp}`,
+          `--step=${SATURATION.step}`,
+          `--max-concurrency=${SATURATION.maxConcurrency}`,
+          `--label=${name}-saturation-${key}`,
+          `--out=${dir}`,
+        ],
+        propsOf(arm),
+      ) === 0;
     const file = join(dir, 'saturation.json');
     const saturation = ok && existsSync(file) ? readJson(file) : undefined;
     if (saturation?.saturationThroughput > 0) {
@@ -1636,6 +1860,69 @@ export function runSuite(name, options) {
         round(index, EQUAL, () => equal, 'e');
     } else if (definition.sharedRate && suite.rates[arms[0].id]) {
       suite.equalRate = suite.rates[arms[0].id];
+    }
+    // Profiling (D224 note ⑧: never in a timed round): one more run per arm with a flight recording, at the rate the
+    // latencies compare at, summarized with the JDK's `jfr view`.
+    if (profile) {
+      suite.profiles = [];
+      const settings = jfrSettings(out);
+      for (const arm of runnable) {
+        const run = measureRun(
+          `profile-${arm.id}`,
+          arm,
+          suite.equalRate ?? suite.rates[arm.id],
+          0,
+          {
+            warmUp,
+            measure,
+            into: suite.profiles,
+            extra: [
+              '--jfr',
+              ...(settings ? [`--jfr-settings=${settings}`] : []),
+            ],
+          },
+        );
+        run.profile = jfrViews(join(out, run.dir));
+        save();
+      }
+    }
+  } else if (definition.kind === 'component') {
+    for (const [index, scenario] of definition.scenarios.entries()) {
+      for (const arm of roundOrder(arms, index)) {
+        const runName = `${scenario.toLowerCase()}-${arm.id}`;
+        const dir = join(out, runName);
+        const status = bench(
+          benchPath,
+          [
+            'component',
+            `--backend=${arm.backend}`,
+            ...(installs[arm.install]
+              ? [`--install=${installs[arm.install]}`]
+              : []),
+            `--scenario=${scenario}`,
+            `--accounts=${data.accounts}`,
+            `--ops=${COMPONENT.ops}`,
+            `--warm-up-ops=${COMPONENT.warmUpOps}`,
+            `--concurrency=${COMPONENT.concurrency}`,
+            ...(cpus.server ? [`--server-cpus=${cpus.server}`] : []),
+            `--out=${dir}`,
+          ],
+          arm.props,
+        );
+        const file = join(dir, 'component.json');
+        const run = { name: runName, arm: arm.id, scenario, status: 'failed' };
+        if (status === 0 && existsSync(file)) {
+          run.status = 'ok';
+          run.component = readJson(file);
+        } else if (status === 3) {
+          // A build older than ComponentBench: nothing to compare, not a failure.
+          run.status = 'unavailable';
+        } else {
+          suite.failures++;
+        }
+        suite.runs.push(run);
+        save();
+      }
     }
   } else if (definition.kind === 'capacity') {
     suite.probes = [];
@@ -1730,10 +2017,11 @@ export function runSuite(name, options) {
     definition.runs.forEach((run, index) => {
       suite.rates[`${run.arm.id}@${run.rate}`] = run.rate;
       measureRun(
-        `d${index + 1}-${run.arm.id}-${run.rate}`,
+        `d${index + 1}-${run.arm.id}-${run.scenario ? `${run.scenario.toLowerCase()}-` : ''}${run.rate}`,
         run.arm,
         run.rate,
         index,
+        { warmUp, measure, into: suite.runs, scenario: run.scenario },
       );
     });
   }
@@ -1876,6 +2164,23 @@ export function renderReport(suites, meta = {}) {
         const n = noiseOf(suite);
         return `| ${labelOf(suite)} | ${SIGNIFICANCE_METRICS.map(([metric]) => `±${num(n[metric] * 100)}%`).join(' | ')} |`;
       }),
+      '',
+    );
+  }
+  const components = suites.filter(s => s.kind === 'component');
+  if (components.length > 0) {
+    lines.push(
+      '## L1 component counts',
+      '',
+      "The domain on the kernel and one store in one JVM, no HTTP: each operation's store round trips (the node's background work over the measured phase included) and bytes allocated. Counts compare anywhere; the timings only indicate.",
+      '',
+      ...components
+        .flatMap(componentTable)
+        .filter(
+          (line, index) =>
+            index < 2 ||
+            (!line.startsWith('| Suite') && !line.startsWith('| ---')),
+        ),
       '',
     );
   }
@@ -2067,6 +2372,7 @@ if (
         suites: env.SUITES,
         dataset: env.DATASET,
         aa: env.AA,
+        profile: env.PROFILE,
         warm_up: env.WARM_UP,
         measure: env.MEASURE,
         repeats: env.REPEATS,
@@ -2086,6 +2392,7 @@ if (
         suites: settings.suites,
         dataset: settings.dataset,
         aa: settings.aa,
+        profile: settings.profile,
         warmUp: settings.warm_up,
         measure: settings.measure,
         repeats: settings.repeats,
@@ -2103,8 +2410,11 @@ if (
         tier: inputs.tier,
         datasets: JSON.stringify(inputs.datasets),
         aa: inputs.aa,
+        profile: inputs.profile,
         'base-ref': settings.base_ref,
-        'needs-base': groups.has('ab') && !inputs.aa,
+        // The component suites take a baseline when there is one, and run the head alone otherwise.
+        'needs-base':
+          (groups.has('ab') || groups.has('component')) && !inputs.aa,
         'nine-x-ref': groups.has('9x') ? settings.nine_x_ref : '',
       });
     } else if (command === 'matrix') {
@@ -2131,6 +2441,7 @@ if (
         suites: job.suite,
         dataset: job.dataset,
         aa: env.AA,
+        profile: env.PROFILE,
         warmUp: env.WARM_UP,
         measure: env.MEASURE,
         repeats: env.REPEATS,

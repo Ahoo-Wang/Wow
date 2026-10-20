@@ -54,7 +54,9 @@ import kotlin.time.toKotlinDuration
  * - `wow.query.index.ddl` (`auto`, `validate` or `none`; D151): how the snapshot backend manages the indexes of
  *   each aggregate's `x-wow-index` at startup.
  * - `wow.query.count-cache.*` (D152): `enabled` (true), `max-entries` (10000), `ttl` (30s): the cache of the snapshot
- *   counts and paged totals, valid while the type's snapshot write checkpoint holds and for at most `ttl`.
+ *   counts and paged totals, valid while the type's snapshot write checkpoint holds and for at most `ttl`;
+ *   `events-enabled` (false; D259) caches the events' counts the same way, though the log runs ahead of that
+ *   checkpoint, so a cached events count may lag the streams for up to `ttl`.
  * - `wow.query.dataset.config-directory` (`config`; D75, D145): the working directory whose `wow/dataset/` holds
  *   dataset files, `{context}.{dataset}.json`; each takes precedence over the classpath's `META-INF/wow/dataset/` file
  *   of the same dataset. The datasets of both are served when a dataset backend is wired (ClickHouse's, say).
@@ -189,6 +191,7 @@ class QueryProperties {
 
     class CountCache {
         var enabled: Boolean = true
+        var eventsEnabled: Boolean = false
         var maxEntries: Int = QueryCountCacheOptions.DEFAULT_MAX_ENTRIES
         var ttl: Duration = QueryCountCacheOptions.DEFAULT_TTL.toJavaDuration()
 

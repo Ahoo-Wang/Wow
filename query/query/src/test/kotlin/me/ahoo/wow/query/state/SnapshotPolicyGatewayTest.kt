@@ -89,11 +89,14 @@ class SnapshotPolicyGatewayTest {
     @Test
     fun `the events of an aggregate are hidden under it, and an aggregate with no state shows nothing`(): Unit =
         runBlocking {
+            val ref = state.ref
+            val ids = listOf(ref.id)
+            // The policy gateway queries no snapshots: each aggregate is read on its own.
             val visible = EventVisibility.of({ gateway }) { state }
-            visible.visible(state.ref, tagged("east")).assert().isTrue()
-            visible.visible(state.ref, tagged("west")).assert().isFalse()
-            visible.seesAll(type, tagged("east")).assert().isFalse()
-            EventVisibility.of({ gateway }) { null }.visible(state.ref, tagged("east")).assert().isFalse()
+            visible.visible(type, ref.tenantId, ids, tagged("east")).assert().isEqualTo(ids)
+            visible.visible(type, ref.tenantId, ids, tagged("west")).assert().isEmpty()
+            visible.pins(type).assert().isTrue()
+            EventVisibility.of({ gateway }) { null }.visible(type, ref.tenantId, ids, tagged("east")).assert().isEmpty()
         }
 
     @Test

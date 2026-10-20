@@ -67,4 +67,8 @@ class AccountState {
     fun onSourcing(event: AccountFrozen) {
         frozen = true
     }
+
+    /** A note changes nothing the account decides on. */
+    @Suppress("UnusedParameter")
+    fun onSourcing(event: Annotated) = Unit
 }

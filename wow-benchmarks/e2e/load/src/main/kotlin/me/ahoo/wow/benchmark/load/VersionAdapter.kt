@@ -50,6 +50,16 @@ sealed class VersionAdapter(val name: String) {
     /** The request that transfers [amount] from account [id] to [to], answered once the target entered it. */
     abstract fun prepare(base: URI, id: String, to: String, amount: Long): HttpRequest
 
+    /**
+     * The request that attaches [notes] to account [id], one event each, answered once stored: the large-payload
+     * variant (D224 note ⑥). V10 only; 9.x's domain has no such command.
+     */
+    open fun annotate(base: URI, id: String, notes: String): HttpRequest =
+        throw UnsupportedOperationException("$name has no large-payload command.")
+
+    /** Whether this version's domain has what [scenario] sends. */
+    open fun supports(scenario: Scenario): Boolean = scenario != Scenario.E1_LARGE
+
     /** The request that reads account [id]'s state from the snapshots. */
     abstract fun state(base: URI, id: String): HttpRequest
 
@@ -143,6 +153,11 @@ sealed class VersionAdapter(val name: String) {
 
         override fun prepare(base: URI, id: String, to: String, amount: Long): HttpRequest =
             post(command(base, id, "prepare"), """{"to":"$to","amount":$amount}""", *wait(Wait.TRANSFER_ENTERED))
+
+        override fun annotate(base: URI, id: String, notes: String): HttpRequest =
+            post(command(base, id, "annotate"), """{"notes":$notes}""", *wait(Wait.STORED))
+
+        override fun supports(scenario: Scenario): Boolean = true
 
         override fun state(base: URI, id: String): HttpRequest = get(base.resolve("/$CONTEXT/account/$id/state"))
 

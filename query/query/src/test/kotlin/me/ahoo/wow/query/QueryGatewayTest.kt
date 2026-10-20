@@ -32,6 +32,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregateIdFilter
+import me.ahoo.wow.api.query.AggregateIdsFilter
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.AndFilter
@@ -83,6 +84,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
 import kotlin.time.toKotlinDuration
 
@@ -1015,6 +1017,35 @@ class QueryGatewayTest {
             "b COUNT end",
         )
         QueryObserver.NONE.start(AGGREGATE, QueryType.LIST).assert().isSameAs(Observation.NONE)
+    }
+
+    @Test
+    fun `the pinned check reads the aggregates by one trusted query and admits each in memory (D259)`() {
+        runTest {
+            fun row(id: String, owner: String) = snapshotNode().put("aggregateId", id).put("ownerId", owner)
+            val backend = GatewayBackend(rows = { flowOf(row("a-1", "alice"), row("a-2", "bob"), row("a-3", "alice")) })
+            val owners = QueryPolicy { caller, _ -> OwnerIdFilter(checkNotNull(caller.subject)) }
+            val entryPolicy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = 7.seconds))
+            val gateway = gateway(backend, policies = listOf(owners), entryPolicy = entryPolicy)
+            val caller = QueryCaller(Caller(subject = "alice"), entry = QueryEntry.HTTP)
+            val admitted = gateway.admitAggregates("tenant", listOf("a-1", "a-2", "a-3", "a-4", "a-1"), caller)
+            admitted.stored.assert().containsExactlyInAnyOrder("a-1", "a-2", "a-3")
+            admitted.visible.assert().containsExactlyInAnyOrder("a-1", "a-3")
+            // One query, of the tenant and the ids, of every deletion state, under the caller's timeout: no policy.
+            val query = backend.admitted.single()
+            backend.filters.single().assert().isEqualTo(
+                AndFilter(
+                    listOf(
+                        TenantIdFilter("tenant"),
+                        AggregateIdsFilter(listOf("a-1", "a-2", "a-3", "a-4")),
+                        DeletionFilter(DeletionState.ALL),
+                    ),
+                ),
+            )
+            query.timeout.assert().isEqualTo(7.seconds.toJavaDuration())
+            gateway.admitAggregates("tenant", emptyList(), caller).assert().isSameAs(AdmittedAggregates.NONE)
+            backend.admitted.assert().hasSize(1)
+        }
     }
 
     private fun gateway(

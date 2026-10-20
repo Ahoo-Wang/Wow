@@ -93,6 +93,22 @@ class QueryObserversTest {
     }
 
     @Test
+    fun `every delegate hears the pinned events checks, one failing not stopping the others`() {
+        val heard = mutableListOf<Triple<AggregateType, Int, Int>>()
+        val broken = object : QueryObserver {
+            override fun onEventsPinned(aggregateType: AggregateType, batched: Int, pointReads: Int) = TODO()
+        }
+        val recording = object : QueryObserver {
+            override fun onEventsPinned(aggregateType: AggregateType, batched: Int, pointReads: Int) {
+                heard += Triple(aggregateType, batched, pointReads)
+            }
+        }
+        QueryObserver.of(listOf(broken, recording)).onEventsPinned(aggregate, 3, 1)
+        QueryObserver.NONE.onEventsPinned(aggregate, 3, 1)
+        heard.assert().containsExactly(Triple(aggregate, 3, 1))
+    }
+
+    @Test
     fun `none and a single observer need no composite`() {
         QueryObserver.of(emptyList()).assert().isSameAs(QueryObserver.NONE)
         val single = QueryLogObserver()
