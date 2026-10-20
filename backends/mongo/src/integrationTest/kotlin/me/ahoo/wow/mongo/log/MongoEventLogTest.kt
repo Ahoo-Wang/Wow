@@ -264,6 +264,75 @@ class MongoEventLogTest : EventLogSpec() {
     }
 
     @Test
+    fun `an unknown commit result from a server that answered is retried, and the append committed once`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            var unknown = true
+            val committing = clientWith { commit ->
+                commit()
+                if (unknown) {
+                    unknown = false
+                    throw MongoException("commit result unknown").apply {
+                        addLabel(MongoException.UNKNOWN_TRANSACTION_COMMIT_RESULT_LABEL)
+                    }
+                }
+            }
+            val log = MongoEventLog(committing, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+            val appended = stream("a", 1, aggregate = AggregateType(context, "order"))
+            log.append(appended).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            MongoLogFixture.log(1, context).read(appended.ref).toList().size.assert().isEqualTo(1)
+        }
+
+    @Test
+    fun `a commit aborted after it applied is tried again, and its retry finds the request committed`(): Unit =
+        runBlocking {
+            // A transient error after the commit applied: the transaction is no longer open, nothing to abort.
+            val context = MongoLogFixture.newContext()
+            var transient = true
+            val committing = clientWith { commit ->
+                commit()
+                if (transient) {
+                    transient = false
+                    throw MongoException("aborted").apply { addLabel(MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL) }
+                }
+            }
+            val log = MongoEventLog(committing, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+            val appended = stream("a", 1, aggregate = AggregateType(context, "order"))
+            log.append(appended).assert().isInstanceOf(AppendOutcome.AlreadyCommitted::class.java)
+            MongoLogFixture.log(1, context).read(appended.ref).toList().size.assert().isEqualTo(1)
+        }
+
+    @Test
+    fun `an abort that fails joins the failure that caused it, and the transaction is tried again`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            val real = MongoLogFixture.client
+            var aborted = false
+            val client = object : MongoClient by real {
+                override fun startSession(): ClientSession = spyk(real.startSession()).also { session ->
+                    every { session.commitTransaction() } answers {
+                        if (aborted) {
+                            callOriginal()
+                        } else {
+                            throw MongoException("aborted").apply {
+                                addLabel(MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL)
+                            }
+                        }
+                    }
+                    every { session.abortTransaction() } answers {
+                        aborted = true
+                        callOriginal()
+                        throw MongoException("abort failed")
+                    }
+                }
+            }
+            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+            log.append(stream("a", 1, aggregate = AggregateType(context, "order")))
+                .assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            aborted.assert().isTrue()
+        }
+
+    @Test
     fun `a group aborted for sure falls back to one append per stream`(): Unit = runBlocking {
         val context = MongoLogFixture.newContext()
         var aborted = false
