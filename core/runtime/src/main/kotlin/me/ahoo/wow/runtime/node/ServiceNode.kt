@@ -937,7 +937,7 @@ class ServiceNode @InternalWowApi constructor(
     ): Parts {
         // Each group's own commits reach its tails in memory (decision D249); its sequences are its own.
         val groups = logGroupsOf(context, models, backends).map { it.withLog(handoffOf(context, it.log)) }
-        val routed = routedLog(backends, groups)
+        val routed = routedLog(groups)
         val log = PartitionAppendQueue(routed, options.appendQueue, capacity = options.maxInFlight)
         val names = ContextCommandTypes(models, contracts)
         val kernel = kernelOf(log, backends, codec, names)
@@ -1050,8 +1050,8 @@ class ServiceNode @InternalWowApi constructor(
     }
 
     /** The context's log, each aggregate type's streams read from its log group's (decision D177). */
-    private fun routedLog(backends: ContextBackends, groups: List<GroupParts>): EventLog = LogGroupRouter.of(
-        backends.log,
+    private fun routedLog(groups: List<GroupParts>): EventLog = LogGroupRouter.of(
+        groups.first().log,
         groups.drop(1).flatMap { group -> group.types.map { it to group.log } }.toMap(),
     )
 

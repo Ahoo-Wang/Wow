@@ -635,6 +635,14 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Executor {
 	public final fun setMaxInFlight (I)V
 }
 
+public final class me/ahoo/wow/spring/boot/WowProperties$Handoff {
+	public fun <init> ()V
+	public final fun getCapacity ()I
+	public final fun getEnabled ()Z
+	public final fun setCapacity (I)V
+	public final fun setEnabled (Z)V
+}
+
 public final class me/ahoo/wow/spring/boot/WowProperties$Health {
 	public fun <init> ()V
 	public final fun getEnabled ()Z
@@ -764,11 +772,13 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Internal {
 public final class me/ahoo/wow/spring/boot/WowProperties$Log {
 	public fun <init> ()V
 	public final fun getAppendQueue ()Lme/ahoo/wow/spring/boot/WowProperties$AppendQueue;
+	public final fun getHandoff ()Lme/ahoo/wow/spring/boot/WowProperties$Handoff;
 	public final fun getMaxPollInterval ()Ljava/time/Duration;
 	public final fun getPartitions ()I
 	public final fun getPollInterval ()Ljava/time/Duration;
 	public final fun getStore ()Ljava/lang/String;
 	public final fun setAppendQueue (Lme/ahoo/wow/spring/boot/WowProperties$AppendQueue;)V
+	public final fun setHandoff (Lme/ahoo/wow/spring/boot/WowProperties$Handoff;)V
 	public final fun setMaxPollInterval (Ljava/time/Duration;)V
 	public final fun setPartitions (I)V
 	public final fun setPollInterval (Ljava/time/Duration;)V
