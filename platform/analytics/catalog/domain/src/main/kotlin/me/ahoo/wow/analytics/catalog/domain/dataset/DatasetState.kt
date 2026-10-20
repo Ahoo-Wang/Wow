@@ -16,9 +16,13 @@ package me.ahoo.wow.analytics.catalog.domain.dataset
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetArtifact
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetDrafted
+import me.ahoo.wow.analytics.catalog.api.dataset.DatasetNeedsRevision
+import me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublicationRefused
+import me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublicationRequested
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublished
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetRetired
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetRevised
+import me.ahoo.wow.analytics.catalog.api.dataset.DatasetRevisionCleared
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetRolledBack
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetStatus
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetVersion
@@ -52,6 +56,16 @@ class DatasetState {
     var current: Int = 0
         private set
 
+    /** The definition whose publication awaits an approver, and why it does; null when none does. */
+    var requested: DatasetDefinition? = null
+        private set
+    var requestReasons: List<String> = emptyList()
+        private set
+
+    /** Why the published definition no longer compiles, while the dataset [DatasetStatus.NEEDS_REVISION]. */
+    var problems: List<String> = emptyList()
+        private set
+
     /** Whether a retired dataset's views were dropped. */
     var dropped: Boolean = false
         private set
@@ -81,6 +95,8 @@ class DatasetState {
         title = event.title
         definition = event.definition
         sources = event.sources
+        requested = null
+        requestReasons = emptyList()
     }
 
     fun onSourcing(event: DatasetPublished) {
@@ -88,12 +104,36 @@ class DatasetState {
         current = event.artifact.version
         status = DatasetStatus.PUBLISHED
         dropped = false
+        requested = null
+        requestReasons = emptyList()
+        problems = emptyList()
     }
 
     fun onSourcing(event: DatasetRolledBack) {
         current = event.version
         status = DatasetStatus.PUBLISHED
         dropped = false
+        problems = emptyList()
+    }
+
+    fun onSourcing(event: DatasetNeedsRevision) {
+        status = DatasetStatus.NEEDS_REVISION
+        problems = event.problems
+    }
+
+    fun onSourcing(@Suppress("UNUSED_PARAMETER") event: DatasetRevisionCleared) {
+        status = DatasetStatus.PUBLISHED
+        problems = emptyList()
+    }
+
+    fun onSourcing(event: DatasetPublicationRequested) {
+        requested = event.definition
+        requestReasons = event.reasons
+    }
+
+    fun onSourcing(@Suppress("UNUSED_PARAMETER") event: DatasetPublicationRefused) {
+        requested = null
+        requestReasons = emptyList()
     }
 
     fun onSourcing(@Suppress("UNUSED_PARAMETER") event: DatasetRetired) {

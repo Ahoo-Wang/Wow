@@ -51,7 +51,7 @@ object DatasetCompiler {
 
     /**
      * [version] of the dataset [name] of [context] from [definition], checked against the catalog's [sources] as they
-     * are now ([DatasetBinder]), its view in [database].
+     * are now ([DatasetBinder]), its view in [database]; with [approvedOnly], only of sources an approver approved.
      */
     @Suppress("LongParameterList") // The definition, what it reads, and where its view goes.
     fun compile(
@@ -62,7 +62,8 @@ object DatasetCompiler {
         version: Int,
         database: String = DEFAULT_DATABASE,
         title: String? = null,
-    ): DatasetCompilation = when (val bound = DatasetBinder.bind(definition, sources)) {
+        approvedOnly: Boolean = false,
+    ): DatasetCompilation = when (val bound = DatasetBinder.bind(definition, sources, approvedOnly)) {
         is DatasetBinder.Result.Invalid -> DatasetCompilation.Invalid(bound.problems)
         is DatasetBinder.Result.Bound ->
             DatasetCompilation.Compiled(compile(bound.dataset, context, name, version, database, title))

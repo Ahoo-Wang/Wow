@@ -395,4 +395,28 @@ class SourceSpec {
             expectState { platform.assert().isFalse() }
         }
     }
+
+    @Test
+    fun `an approver should approve a reviewed or adopted source for the datasets, a draft not yet`() = spec(
+        ORDERS_ID
+    ) {
+        drafted()
+        whenCommand(
+            me.ahoo.wow.analytics.catalog.api.source.ApproveSource
+        ) { expectRejected(SourceRejections.INCOMPLETE) }
+        whenCommand(ReviseSource("tenant")) { expectEventTypes(SourceRevised::class) }
+        val reviewed = listOf("tenant", "owner", "phone", "member_id").map { FieldSensitivity(it) }
+        whenCommand(ReviewSourceSensitivity(reviewed)) { expectEventTypes(SourceSensitivityReviewed::class) }
+        whenCommand(MarkSourceReviewed) { expectEvents(SourceReviewed) }
+        whenCommand(me.ahoo.wow.analytics.catalog.api.source.ApproveSource) {
+            expectEvents(me.ahoo.wow.analytics.catalog.api.source.SourceApproved)
+            expectState { approved.assert().isTrue() }
+        }
+        whenCommand(me.ahoo.wow.analytics.catalog.api.source.ApproveSource) { expectUnchanged() }
+        // Back to its draft: approved again once reviewed.
+        whenCommand(ReviewSourceSensitivity(listOf(FieldSensitivity("phone", SensitivityLevel.DISPLAY)))) {
+            expectState { approved.assert().isFalse() }
+        }
+        whenCommand(ReviseSource("owner")) { expectState { approved.assert().isFalse() } }
+    }
 }

@@ -74,7 +74,12 @@ class AnalyticsCatalogConfigurationTest {
         val properties = AnalyticsCatalogProperties()
         properties.datasets.database = "bi"
         properties.datasets.retention = Duration.ofDays(1)
-        configuration.datasetPolicy(properties).database.assert().isEqualTo("bi")
+        properties.approval.publications = true
+        properties.approval.sources = true
+        val policy = configuration.datasetPolicy(properties)
+        policy.database.assert().isEqualTo("bi")
+        policy.approvePublications.assert().isTrue()
+        policy.approveSources.assert().isTrue()
         val registry = SimpleMeterRegistry()
         val watcher = configuration.datasetPublicationWatcher(
             provider(mockk<QueryApi>()),

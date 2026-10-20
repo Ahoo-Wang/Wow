@@ -72,3 +72,10 @@ data class SyncSource(val database: String, val table: String)
  */
 @Summary("Approve a lower sensitivity of a Wow source")
 data class ApproveSensitivityChange(val keys: List<String> = emptyList())
+
+/**
+ * Approves, as an approver, a reviewed or adopted source for the datasets, when the catalog's switch says a new source
+ * takes an approver (`wow.analytics.catalog.approval.sources`, decision D238 ③b): until then no dataset reads it.
+ */
+@Summary("Approve a source for the datasets")
+data object ApproveSource

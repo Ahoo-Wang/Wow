@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetArtifact
+import me.ahoo.wow.analytics.catalog.api.dataset.DatasetStatus
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
@@ -49,7 +50,8 @@ import java.time.Duration
  *   the clocks of the nodes that commit them), and every [reconcileInterval] all of them, which also catches a
  *   dataset that is gone. A version published is queryable on every node within [interval] and one read.
  * - A dataset that serves a version is put under its name, its version's view as its table; one retired is
- *   removed. A dataset of the same name from a dataset file (decision D75) takes precedence: it is left in place.
+ *   removed; one that needs revision is put [unavailable][QueryDataset.unavailable], its queries answered
+ *   `wow.query.dataset-unavailable`, and why is logged. A dataset of the same name from a dataset file (decision D75) takes precedence: it is left in place.
  * - A failed read is logged and tried again at the next one; the datasets keep the versions they have, so queries
  *   go on while the catalog's store is down. [synced] says whether one read ever succeeded (the node's readiness),
  *   [lastSuccess] when the last one did, [lag] how long the newest applied publication took to be applied.
@@ -123,7 +125,10 @@ class DatasetPublicationWatcher(
             logger.warn { "$name comes from a dataset file, which takes precedence over its publication." }
             return false
         }
-        val serving = state.serving()
+        val revision = state.status == DatasetStatus.NEEDS_REVISION
+        val serving = state.serving() ?: state.published()?.artifact?.takeIf { revision }
+        // A dataset that needs revision is served unavailable: a version of its own, never one a publication has.
+        val version = serving?.version?.let { if (revision) -it else it }
         return when {
             serving == null && name in applied -> {
                 applied.remove(name)
@@ -131,7 +136,14 @@ class DatasetPublicationWatcher(
                 true
             }
 
-            serving == null || applied[name] == serving.version -> false
+            serving == null || applied[name] == version -> false
+            revision -> {
+                datasets.put(datasetOf(serving).copy(unavailable = NEEDS_REVISION))
+                applied[name] = checkNotNull(version)
+                logger.warn { "$name needs revision, its queries refused: ${state.problems}" }
+                true
+            }
+
             else -> {
                 datasets.put(datasetOf(serving))
                 applied[name] = serving.version
@@ -171,6 +183,9 @@ class DatasetPublicationWatcher(
     override fun isRunning(): Boolean = job?.isActive == true
 
     companion object {
+        /** Why a dataset that needs revision is unavailable, as its queries are answered: fixed words. */
+        const val NEEDS_REVISION: String = "needs revision"
+
         /** How far before the newest change seen a read starts: the clocks of the committing nodes may differ. */
         @JvmField
         val CLOCK_MARGIN: Duration = Duration.ofSeconds(30)

@@ -193,6 +193,14 @@ class AnalyticsCatalogServerTest {
         val phone = served.declaration.fields.getValue(QueryField("phone"))
         phone.maskRule.toString().assert().contains("DISPLAY").contains("prefix=3")
 
+        // The phone column gone from its source: the dataset needs revision, served unavailable; back, served again.
+        warehouse.put(INVOICES.copy(columns = INVOICES.columns.filter { it.name != "phone" }))
+        eventually("the dataset needing revision") { datasets[name]?.unavailable == "needs revision" }
+        node.dataset(id)["state"]["status"].asString().assert().isEqualTo("NEEDS_REVISION")
+        node.dataset(id)["state"]["problems"].values().single().asString().assert().contains("phone is not a column")
+        warehouse.put(INVOICES)
+        eventually("the dataset served again") { datasets[name]?.let { it.unavailable == null } == true }
+
         // Retired: no longer served, its views dropped once the retention ends.
         node.datasetCommand(id, "retire-dataset", "{}", Who.EDITOR).assertOk()
         eventually("the dataset no longer served") { datasets[name] == null }

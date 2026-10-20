@@ -48,12 +48,17 @@ interface DatasetWarehouse {
 class DatasetWarehouseException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
 
 /**
- * How the catalog publishes datasets: the warehouse [database] their views are created in (`wow_datasets`) and how
- * long a retired dataset's views are kept ([retention], 7 days, decision D259 7.2b-2).
+ * How the catalog publishes datasets: the warehouse [database] their views are created in (`wow_datasets`), how
+ * long a retired dataset's views are kept ([retention], 7 days, decision D259 7.2b-2), and the approval switches
+ * (D238 ③b, D259; off by default): whether every publication takes an approver ([approvePublications]; one that
+ * computes from sensitive values or lowers a protection always does) and whether a dataset reads only the sources an
+ * approver approved ([approveSources]).
  */
 data class DatasetPolicy(
     val database: String = DatasetCompiler.DEFAULT_DATABASE,
     val retention: Duration = 7.days,
+    val approvePublications: Boolean = false,
+    val approveSources: Boolean = false,
 ) {
     init {
         require(database.isNotBlank()) { "The datasets' database is named." }

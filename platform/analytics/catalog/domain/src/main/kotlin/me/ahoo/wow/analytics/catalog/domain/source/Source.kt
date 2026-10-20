@@ -15,11 +15,13 @@ package me.ahoo.wow.analytics.catalog.domain.source
 
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
 import me.ahoo.wow.analytics.catalog.api.source.ApproveSensitivityChange
+import me.ahoo.wow.analytics.catalog.api.source.ApproveSource
 import me.ahoo.wow.analytics.catalog.api.source.DraftSource
 import me.ahoo.wow.analytics.catalog.api.source.MarkSourceReviewed
 import me.ahoo.wow.analytics.catalog.api.source.ReviewSourceSensitivity
 import me.ahoo.wow.analytics.catalog.api.source.ReviseSource
 import me.ahoo.wow.analytics.catalog.api.source.SensitivityChangeApproved
+import me.ahoo.wow.analytics.catalog.api.source.SourceApproved
 import me.ahoo.wow.analytics.catalog.api.source.SourceColumn
 import me.ahoo.wow.analytics.catalog.api.source.SourceDrafted
 import me.ahoo.wow.analytics.catalog.api.source.SourceKind
@@ -233,6 +235,18 @@ class Source(private val state: SourceState) {
         return Decision.events(
             SensitivityChangeApproved(keys.toList(), SourceSensitivity.approve(state.sensitivity, state.claimed, keys)),
         )
+    }
+
+    @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
+    @OnCommand(produces = [SourceApproved::class])
+    fun onApproveSource(command: ApproveSource): Decision = when {
+        state.status == SourceStatus.DRAFT -> Decision.reject(
+            SourceRejections.INCOMPLETE,
+            "${state.database}.${state.table} is a draft: it is reviewed before it is approved.",
+        )
+
+        state.approved -> Decision.NoOp
+        else -> Decision.events(SourceApproved)
     }
 
     /** What a known source records of its [table] that no trusted row describes, as the rules gave [verdict]. */
