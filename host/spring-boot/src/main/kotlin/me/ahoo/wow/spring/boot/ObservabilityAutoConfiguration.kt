@@ -101,7 +101,7 @@ class ObservabilityAutoConfiguration {
         stores: ObjectProvider<QueryStores>,
         meters: ObjectProvider<MeterRegistry>,
     ): SmartInitializingSingleton = SmartInitializingSingleton {
-        stores.ifAvailable?.let { QueryLimitMetrics.register(it.bulkheads.values, it.limits, meters.orGlobal()) }
+        stores.ifAvailable?.let { QueryLimitMetrics.register(it.all, it.limits, meters.orGlobal()) }
     }
 
     companion object {

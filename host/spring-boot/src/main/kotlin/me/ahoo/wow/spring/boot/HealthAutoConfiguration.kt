@@ -74,7 +74,7 @@ class HealthAutoConfiguration {
         val components: MutableMap<String, HealthContributor> = COMPONENTS.associateWithTo(LinkedHashMap()) { name ->
             HealthIndicator { toHealth(health.health().components.first { it.name == name }) }
         }
-        queries.ifAvailable?.takeIf { it.bulkheads.isNotEmpty() }?.let { stores ->
+        queries.ifAvailable?.takeIf { it.all.isNotEmpty() }?.let { stores ->
             components[QUERIES] = HealthIndicator { queriesHealth(stores) }
         }
         return CompositeHealthContributor.fromMap(components)
@@ -117,7 +117,7 @@ class HealthAutoConfiguration {
         /** Each store's query bulkhead: its limit, what runs and waits, and, when it adapts, its write pressure. */
         fun queriesHealth(stores: QueryStores): Health {
             val limits = stores.limits.associateBy { it.bulkhead.store }
-            val details = stores.bulkheads.toSortedMap().mapValues { (name, bulkhead) ->
+            val details = stores.all.associateBy { it.store }.toSortedMap().mapValues { (name, bulkhead) ->
                 val details = linkedMapOf<String, Any>(
                     "limit" to bulkhead.limit,
                     "ceiling" to bulkhead.ceiling,
