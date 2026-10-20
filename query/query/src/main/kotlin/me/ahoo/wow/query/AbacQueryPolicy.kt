@@ -111,6 +111,10 @@ class AbacQueryPolicy(
     val options: AbacQueryOptions = AbacQueryOptions.DEFAULT,
     override val order: Int = 0,
 ) : QueryPolicy {
+    /** Off, it hides nothing; on, an aggregate's streams follow whether its snapshot's tags admit the caller. */
+    override val events: EventsMode
+        get() = if (options.enabled) EventsMode.PINNED else EventsMode.NONE
+
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
         if (!options.enabled) return MatchAllFilter
         val profile = context.schema.profile
