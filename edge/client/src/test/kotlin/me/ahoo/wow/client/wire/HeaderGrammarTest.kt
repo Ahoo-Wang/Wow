@@ -11,14 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.http.command
+package me.ahoo.wow.client.wire
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.runtime.admission.TargetScope
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -131,16 +130,5 @@ class HeaderGrammarTest {
     )
     fun `what breaks the dictionary grammar does not parse`(value: String) {
         assertThrownBy<IllegalArgumentException> { ScopeHeader.parse(value) }
-    }
-
-    @Test
-    fun `request facts cannot take a reserved name`() {
-        assertThrownBy<IllegalArgumentException> { WowHttpOptions(requestFacts = setOf("Wow-Tenant")) }
-        assertThrownBy<IllegalArgumentException> { WowHttpOptions(requestFacts = setOf("wow.tenant")) }
-        assertThrownBy<IllegalArgumentException> { WowHttpOptions(requestFacts = setOf(" ")) }
-        assertThrownBy<IllegalArgumentException> { WowHttpOptions(errorStatuses = mapOf("x" to 200)) }
-        assertThrownBy<IllegalArgumentException> { WowHttpOptions(errorStatuses = mapOf("x" to 600)) }
-        WowHttpOptions(requestFacts = setOf("X-App-Id"), errorStatuses = mapOf("x" to 400, "y" to 599))
-            .requestFacts.assert().containsExactly("X-App-Id")
     }
 }

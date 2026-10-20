@@ -11,12 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.http.command
+package me.ahoo.wow.client.wire
 
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
-import me.ahoo.wow.http.HttpJson
+import me.ahoo.wow.client.ClientJson
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.cluster.WaitWire
 import tools.jackson.core.JacksonException
@@ -35,7 +35,7 @@ import java.util.Base64
  */
 object CallHeader {
     /** [call] as the header's value. */
-    fun format(call: CallContext): String = ENCODER.encodeToString(HttpJson.write(CallWire.of(call)))
+    fun format(call: CallContext): String = ENCODER.encodeToString(ClientJson.write(CallWire.of(call)))
 
     /** The call [value] spells; an [IllegalArgumentException] when it does not parse. */
     fun parse(value: String): CallContext {
@@ -45,7 +45,7 @@ object CallHeader {
             throw IllegalArgumentException("Wow-Call is not base64url: ${invalid.message}", invalid)
         }
         val wire = try {
-            HttpJson.mapper.readValue(bytes, CallWire::class.java)
+            ClientJson.mapper.readValue(bytes, CallWire::class.java)
         } catch (invalid: JacksonException) {
             throw IllegalArgumentException("Wow-Call is not a call: ${invalid.originalMessage}", invalid)
         }

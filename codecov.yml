@@ -359,6 +359,12 @@ component_management:
         - edge/http/src/main/**
       flag_regexes:
         - "^v10$"
+    - component_id: v10-client
+      name: v10-client
+      paths:
+        - edge/client/src/main/**
+      flag_regexes:
+        - "^v10$"
     - component_id: v10-cosec
       name: v10-cosec
       paths:

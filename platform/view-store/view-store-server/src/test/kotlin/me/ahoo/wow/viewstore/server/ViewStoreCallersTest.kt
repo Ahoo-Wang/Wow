@@ -17,7 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.http.WowHeaders
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import org.junit.jupiter.api.Test
 import org.springframework.mock.web.reactive.function.server.MockServerRequest

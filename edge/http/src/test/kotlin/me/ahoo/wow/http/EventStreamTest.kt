@@ -14,6 +14,7 @@
 package me.ahoo.wow.http
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.runtime.FrameworkCodes
 import org.junit.jupiter.api.Test
 import org.springframework.core.ParameterizedTypeReference

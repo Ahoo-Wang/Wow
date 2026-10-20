@@ -39,6 +39,9 @@ object V10Rules {
     val ELASTICSEARCH = V10Module("elasticsearch", "backends/elasticsearch")
     val OPENAPI = V10Module("openapi", "edge/openapi")
     val HTTP = V10Module("http", "edge/http")
+
+    /** The typed command and query clients over HTTP (decisions D257, D259), on the JDK's HttpClient alone. */
+    val CLIENT = V10Module("client", "edge/client")
     val COSEC = V10Module("cosec", "edge/cosec")
     val OPENTELEMETRY = V10Module("opentelemetry", "edge/opentelemetry")
     val SPRING_BOOT = V10Module("spring-boot", "host/spring-boot")
@@ -110,7 +113,7 @@ object V10Rules {
 
     val MODULES = listOf(
         API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, ELASTICSEARCH,
-        OPENAPI, HTTP, COSEC, OPENTELEMETRY, SPRING_BOOT, COSID, MODELS, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
+        OPENAPI, HTTP, CLIENT, COSEC, OPENTELEMETRY, SPRING_BOOT, COSID, MODELS, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
     ) + TEST_MODULES + PLATFORM_MODULES
 
     /** The eShop's five contexts (decision D158), each an `-api`, a `-domain` and a `-server` project. */
@@ -203,8 +206,11 @@ object V10Rules {
         ELASTICSEARCH to setOf("spi", "query"),
         // The Manifest only (roadmap 5a.2); the eShop's domains only for the snapshot tests, which document its services.
         OPENAPI to setOf("manifest") + ESHOP_CONTEXTS.map { "eshop-$it-domain" },
-        // query for the query routes (06 §3, decisions D118, D127); openapi for GET /wow/openapi.
-        HTTP to setOf("runtime", "query", "openapi"),
+        // query for the query routes (06 §3, decisions D118, D127); openapi for GET /wow/openapi; client for the wire
+        // grammar both ends share (the Wow headers, `Wow-Call`) and the service credential (decisions D193, D257).
+        HTTP to setOf("runtime", "query", "openapi", "client"),
+        // The runtime for the calls' root context and the contracts (decision D234), query for the rows' records.
+        CLIENT to setOf("runtime", "query"),
         COSEC to setOf("http"),
         // The core's observation seams (decision D174) and the query engine's observer; http for the tests only, which
         // follow a trace from an HTTP request.
@@ -215,6 +221,7 @@ object V10Rules {
         SPRING_BOOT to setOf(
             "runtime",
             "http",
+            "client",
             "openapi",
             "postgres",
             "mongo",
@@ -329,6 +336,16 @@ object V10Rules {
     val CORE_IS_FRAMEWORK_FREE = DependencyRule(
         name = "contract and core modules import no Spring, Reactor, HTTP or driver types",
         modules = listOf(MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, QUERY, OPENAPI).map { it.dir },
+        forbidden = SPRING + REACTOR_TYPES + HTTP_TYPES + DRIVERS,
+    )
+
+    /**
+     * wow-client is usable without Spring (decisions D257, D259): it speaks HTTP through the JDK's HttpClient, with no
+     * Spring, Reactor, servlet or driver type.
+     */
+    val CLIENT_IS_FRAMEWORK_FREE = DependencyRule(
+        name = "wow-client imports no Spring, Reactor, HTTP framework or driver types",
+        modules = listOf(CLIENT.dir),
         forbidden = SPRING + REACTOR_TYPES + HTTP_TYPES + DRIVERS,
     )
 
@@ -460,6 +477,7 @@ object V10Rules {
 
     val DEPENDENCY_RULES = listOf(
         CORE_IS_FRAMEWORK_FREE,
+        CLIENT_IS_FRAMEWORK_FREE,
         TEST_MODULES_ARE_FRAMEWORK_FREE,
         KERNEL_IGNORES_RUNTIME,
         HTTP_READS_ADAPT_ONLY,

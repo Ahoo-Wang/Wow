@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.http.call
+package me.ahoo.wow.client
 
 import com.sun.net.httpserver.HttpServer
 import kotlinx.coroutines.runBlocking
@@ -28,9 +28,8 @@ import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.subscribe.CallFailedException
-import me.ahoo.wow.http.WowHeaders
-import me.ahoo.wow.http.command.CallHeader
-import me.ahoo.wow.http.internal.withRefusingPort
+import me.ahoo.wow.client.wire.CallHeader
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.runtime.call.OutgoingCall
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.observation.TraceContext

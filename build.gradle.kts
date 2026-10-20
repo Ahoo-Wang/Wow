@@ -81,8 +81,8 @@ val e2eBenchmarkProjects = includedProjects(":e2e-bench-9x", ":e2e-bench-v10", "
 // never published.
 val v10Projects = listOf(
     "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query", "query-tck",
-    "postgres", "mongo", "kafka", "clickhouse", "elasticsearch", "openapi", "http", "cosec", "opentelemetry",
-    "spring-boot", "cosid",
+    "postgres", "mongo", "kafka", "clickhouse", "elasticsearch", "openapi", "http", "client", "cosec",
+    "opentelemetry", "spring-boot", "cosid",
     "models", "migrate-data", "architecture",
     "test-dsl", "tck", "tck-containers", "ops-api", "ops-domain", "ops-server",
     "view-store-api", "view-store-domain", "view-store-server",
@@ -97,8 +97,8 @@ val v10Projects = listOf(
 // their contract is not a JVM signature.
 val v10PublishedProjects = includedProjects(
     ":api", ":manifest", ":query-api", ":spi", ":kernel", ":runtime", ":reactor", ":query",
-    ":postgres", ":mongo", ":kafka", ":clickhouse", ":elasticsearch", ":openapi", ":http", ":cosec", ":opentelemetry",
-    ":spring-boot",
+    ":postgres", ":mongo", ":kafka", ":clickhouse", ":elasticsearch", ":openapi", ":http", ":client", ":cosec",
+    ":opentelemetry", ":spring-boot",
     ":cosid", ":models", ":test-dsl", ":tck", ":query-tck", ":tck-containers", ":ops-api", ":view-store-api",
     ":compiler", ":gradle-plugin",
 )

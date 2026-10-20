@@ -17,9 +17,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.snapshot.SnapshotRebuilds
+import me.ahoo.wow.client.wire.CallHeader
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.ServiceTokens
-import me.ahoo.wow.http.command.CallHeader
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.SnapshotManifest
 import me.ahoo.wow.manifest.copyWith
