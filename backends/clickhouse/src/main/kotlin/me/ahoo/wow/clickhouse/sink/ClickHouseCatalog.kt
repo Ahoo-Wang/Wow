@@ -81,16 +81,16 @@ data class CatalogEntry(
 /**
  * The `wow_catalog` table of a database (design 08 §8, decision D241 ②): the Sink appends one row per table it keeps
  * once it created or validated them, the warehouse's metadata (`system.tables`, `system.columns`) staying the base of
- * the dataset registry's catalog. A `ReplacingMergeTree(written_at)` ordered by `(database, table, fingerprint)`: a row
+ * the analytics catalog (decision D251). A `ReplacingMergeTree(written_at)` ordered by `(database, table, fingerprint)`: a row
  * of the same content replaces the one before it, a changed one is appended beside it, so several rows of one table
- * stand side by side during a rolling upgrade, and the registry takes the one that matches the table's columns.
+ * stand side by side during a rolling upgrade, and the catalog takes the one that matches the table's columns.
  *
  * `writer` is `MATERIALIZED currentUser()`: the account that inserted the row, which no insert can set, and which the
- * registry trusts or not (`wow.dataset-registry.trusted-writers`). `table_uuid` is the table's `system.tables.uuid`
+ * catalog trusts or not (`wow.analytics.catalog.trusted-writers`). `table_uuid` is the table's `system.tables.uuid`
  * when the row was written, so a table dropped and created again is not described by its predecessor's row.
  *
  * With `ddl=none` the Sink needs only the INSERT privilege on this table; a failed write is logged and never fails the
- * Sink's writes.
+ * Sink's writes. The Sink, part of the data plane, only appends here: it never calls the catalog (D251 ④).
  */
 @InternalWowApi
 object ClickHouseCatalog {
@@ -133,7 +133,7 @@ object ClickHouseCatalog {
             "\n)\nENGINE = ReplacingMergeTree(written_at)\nORDER BY (`database`, `table`, fingerprint)"
 
     /**
-     * The digest of [columns] the registry compares with the table's own (decision D241 ③): SHA-256, in lower-case
+     * The digest of [columns] the catalog compares with the table's own (decision D241 ③): SHA-256, in lower-case
      * hex, of each column's `<name> <type>`, as `system.columns` reads them, in order, one per line.
      */
     fun columnsHash(columns: List<ClickHouseColumn>): String = sha256(
