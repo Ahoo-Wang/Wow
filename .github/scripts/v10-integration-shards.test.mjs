@@ -42,7 +42,7 @@ test('the shards are read from the integration job of the workflow', () => {
 
 test('the projects are read from build.gradle.kts', () => {
   assert.deepEqual(
-    gradleProjects(`val v10IntegrationTestProjects = includedProjects(
+    gradleProjects(`val integrationTestProjects = includedProjects(
     ":postgres",
     ":mongo",
 )`),
@@ -50,7 +50,7 @@ test('the projects are read from build.gradle.kts', () => {
   );
   assert.throws(
     () => gradleProjects('val x = 1'),
-    /no v10IntegrationTestProjects/,
+    /no integrationTestProjects/,
   );
 });
 
@@ -75,7 +75,7 @@ test('a project in no shard, in two, or unknown is a problem', () => {
       { shard: 'b', projects: [':mongo'] },
     ]),
     [
-      ':kafka (shard a) is not in v10IntegrationTestProjects',
+      ':kafka (shard a) is not in integrationTestProjects',
       ':mongo is in 2 shards: a, b',
       ':postgres is in no shard',
       ':eshop-e2e is in no shard',

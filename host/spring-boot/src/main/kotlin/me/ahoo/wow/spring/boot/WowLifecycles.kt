@@ -24,6 +24,8 @@ import org.springframework.boot.availability.ReadinessState
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.SmartLifecycle
 import kotlin.concurrent.thread
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The phases of the host's lifecycles (decisions D71, D108; plan P17). Spring starts the phases in ascending order
@@ -61,6 +63,76 @@ internal object WowLifecycles {
      * waits for the open requests, so a query stream ends at once rather than at its hold time.
      */
     const val QUERY_STREAMS_PHASE: Int = SmartLifecycle.DEFAULT_PHASE - 512
+
+    /**
+     * [GracefulShutdownSettled]: stops after the public server's graceful shutdown (`DEFAULT_PHASE - 1024`) and before
+     * its stop ([PUBLIC_SERVER_PHASE]).
+     */
+    const val GRACEFUL_SHUTDOWN_SETTLED_PHASE: Int = SmartLifecycle.DEFAULT_PHASE - 1536
+}
+
+/**
+ * Waits, between the public server's graceful shutdown and its stop, for the thread of that shutdown to end, at most
+ * [timeout] (review X-4): a workaround of a race in Spring Boot 4.1.1 (`spring-boot-reactor-netty`, and 3.5.x before
+ * it), to remove once the host builds on a Spring Boot that fixes it (below).
+ *
+ * The race, in `org.springframework.boot.reactor.netty.GracefulShutdown`
+ * (https://github.com/spring-projects/spring-boot/blob/v4.1.1/module/spring-boot-reactor-netty/src/main/java/org/springframework/boot/reactor/netty/GracefulShutdown.java):
+ * `doShutdown`, on the `netty-shutdown` thread, calls `callback.shutdownComplete(...)` and only then, in `finally`,
+ * sets `shutdownThread = null` and `shuttingDown = false`. The callback lets the lifecycle go on to the server's stop
+ * (`WebServerStartStopLifecycle`, the next phase), which calls `abort()`: it reads `shutdownThread`, then polls
+ * `while (!shuttingDown) sleep(50)`. When the `finally` runs between the two, `abort()` polls forever, and the
+ * context's close hangs there with no Wow frame on its stack (seen as `PaymentServerTest.close` stuck in
+ * `GracefulShutdown.abort`). Fixed upstream in Spring Boot 4.1.2
+ * (https://github.com/spring-projects/spring-boot/issues/52196; 4.0.9 for the 4.0 line,
+ * https://github.com/spring-projects/spring-boot/issues/52119): remove this lifecycle and its bean once the host
+ * builds on 4.1.2 or later.
+ *
+ * Once that thread has ended, `abort()` finds none and returns at once. When the graceful shutdown outlasted its
+ * phase, the thread is still shutting down after [timeout], which is logged as a warning, and `abort()` interrupts it.
+ */
+@InternalWowApi
+class GracefulShutdownSettled @JvmOverloads constructor(
+    private val timeout: Duration = DEFAULT_TIMEOUT,
+    private val threads: () -> Collection<Thread> = { Thread.getAllStackTraces().keys },
+) : SmartLifecycle {
+    @Volatile
+    private var running = false
+
+    override fun start() {
+        running = true
+    }
+
+    override fun stop() {
+        running = false
+        val deadline = System.nanoTime() + timeout.inWholeNanoseconds
+        threads().filter { it.name == SHUTDOWN_THREAD && it.isAlive }.forEach { shutdown ->
+            val left = (deadline - System.nanoTime()) / NANOS_PER_MILLI
+            if (left > 0) shutdown.join(left)
+            if (shutdown.isAlive) {
+                logger.warn {
+                    "The public server's graceful shutdown is still running after $timeout: the server stops it now " +
+                        "(review X-4)."
+                }
+            }
+        }
+    }
+
+    override fun isRunning(): Boolean = running
+
+    override fun getPhase(): Int = WowLifecycles.GRACEFUL_SHUTDOWN_SETTLED_PHASE
+
+    @InternalWowApi
+    companion object {
+        /** The name of the thread Spring Boot's Reactor Netty graceful shutdown runs on. */
+        const val SHUTDOWN_THREAD: String = "netty-shutdown"
+
+        /** How long the server's stop waits for that thread at most. */
+        val DEFAULT_TIMEOUT: Duration = 5.seconds
+
+        private const val NANOS_PER_MILLI = 1_000_000L
+        private val logger = KotlinLogging.logger {}
+    }
 }
 
 /**

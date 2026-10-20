@@ -20,9 +20,6 @@ on:
     branches: [main, v10]
   push:
     branches: [main, v10]
-  # A merge queue's group (its commit is what lands on the branch); the scope
-  # job compares it with the branch's tip, and the gate job reports on it.
-  merge_group:
   workflow_dispatch:
     inputs:
       update-screenshots:

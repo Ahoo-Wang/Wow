@@ -19,9 +19,6 @@ on:
     branches: [main, v10]
   push:
     branches: [main, v10]
-  # A merge queue's group (its commit is what lands on the branch); the scope
-  # job compares it with the branch's tip, and the gate job reports on it.
-  merge_group:
   workflow_dispatch:
 
 permissions:
@@ -166,9 +163,7 @@ jobs:
       # A flag per package, so Codecov carries forward the coverage of the
       # packages a scoped run left out.
       - name: Upload coverage
-        # A merge group's commit is what lands on the branch, whose push run
-        # uploads the same coverage for it; an upload here would double it.
-        if: matrix.node-version == 24 && github.event_name != 'merge_group'
+        if: matrix.node-version == 24
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true
@@ -331,9 +326,6 @@ jobs:
         working-directory: typescript/wow-view-engine
         run: pnpm test:type
       - name: Upload view-engine coverage
-        # A merge group's commit is what lands on the branch, whose push run
-        # uploads the same coverage for it; an upload here would double it.
-        if: github.event_name != 'merge_group'
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true

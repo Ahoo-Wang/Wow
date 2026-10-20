@@ -15,7 +15,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { changeRange, scopes, unitPackages } from './ci-scope.mjs';
+import { scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
 // The TypeScript workflow scopes; `package` is derived from them, `v10` gates a Kotlin workflow, and `v10Contract` and
@@ -420,7 +420,7 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'test/test-dsl/src/main/kotlin/A.kt',
     'test/tck/src/main/kotlin/A.kt',
     'test/tck-containers/build.gradle.kts',
-    // The coverage report v10.yml uploads (v10CoverageReport).
+    // The coverage report v10.yml uploads (coverageReport).
     'test/code-coverage-report/build.gradle.kts',
     'edge/cosec/src/main/kotlin/A.kt',
     'extensions/cosid/src/main/kotlin/A.kt',
@@ -432,7 +432,7 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'example/eshop/DX-GAPS.md',
     'example/quickstart/build.gradle.kts',
     'example/java-smoke/build.gradle.kts',
-    // The V10-against-9.x end-to-end benchmark (D224): its V10 side is in v10Check.
+    // The V10-against-9.x end-to-end benchmark (D224): its V10 side is in :check.
     'test/benchmarks/server/build.gradle.kts',
     'test/benchmarks/load/src/main/kotlin/A.kt',
     'test/benchmarks/harness/bench.sh',
@@ -587,44 +587,6 @@ test('isolated changes retain their relevant validation', () => {
   );
 });
 
-test('a run compares the commits of its event', () => {
-  const base = 'a'.repeat(40);
-  const head = 'b'.repeat(40);
-  // A pull request's base and head, a push's before and after.
-  assert.deepEqual(
-    changeRange({ eventName: 'pull_request', baseSha: base, headSha: head }),
-    { base, head },
-  );
-  assert.deepEqual(
-    changeRange({ eventName: 'push', baseSha: base, headSha: head }),
-    { base, head },
-  );
-  // A merge group's, from its payload, whatever BASE_SHA and HEAD_SHA say.
-  assert.deepEqual(
-    changeRange({
-      eventName: 'merge_group',
-      event: { merge_group: { base_sha: base, head_sha: head } },
-      baseSha: '',
-      headSha: 'c'.repeat(40),
-    }),
-    { base, head },
-  );
-  // No base checks everything: manual dispatch, a new branch's first push, a
-  // merge group without its payload.
-  assert.equal(
-    changeRange({ eventName: 'workflow_dispatch', headSha: head }),
-    undefined,
-  );
-  assert.equal(
-    changeRange({ eventName: 'push', baseSha: '0'.repeat(40), headSha: head }),
-    undefined,
-  );
-  assert.equal(
-    changeRange({ eventName: 'merge_group', baseSha: base, headSha: head }),
-    undefined,
-  );
-});
-
 test('the command reads the diff and runs everything without a base', () => {
   const directory = mkdtempSync(join(tmpdir(), 'ci-scope-'));
   const git = (...args) =>
@@ -633,16 +595,7 @@ test('the command reads the diff and runs everything without a base', () => {
     const output = join(directory, `output-${Math.random()}`);
     execFileSync(process.execPath, [script], {
       cwd: directory,
-      // A run of these tests in CI has an event of its own; never read it.
-      env: {
-        ...process.env,
-        GITHUB_EVENT_NAME: '',
-        GITHUB_EVENT_PATH: '',
-        BASE_SHA: '',
-        HEAD_SHA: '',
-        ...env,
-        GITHUB_OUTPUT: output,
-      },
+      env: { ...process.env, ...env, GITHUB_OUTPUT: output },
       stdio: 'pipe',
     });
     return readFileSync(output, 'utf8');
@@ -684,29 +637,6 @@ test('the command reads the diff and runs everything without a base', () => {
     );
     assert.equal(run({}), output(true));
     assert.throws(() => run({ BASE_SHA: 'missing-revision', HEAD_SHA: head }));
-    // A merge queue's run reads its commits from the event payload; the
-    // workflow's BASE_SHA (`github.event.before`) is empty there.
-    const event = join(directory, 'merge-group-event.json');
-    writeFileSync(
-      event,
-      JSON.stringify({
-        action: 'checks_requested',
-        merge_group: {
-          base_sha: base,
-          head_sha: head,
-          base_ref: 'refs/heads/v10',
-          head_ref: 'refs/heads/gh-readonly-queue/v10/pr-1-' + base,
-        },
-      }),
-    );
-    assert.equal(
-      run({
-        GITHUB_EVENT_NAME: 'merge_group',
-        GITHUB_EVENT_PATH: event,
-        HEAD_SHA: head,
-      }),
-      output(false),
-    );
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
