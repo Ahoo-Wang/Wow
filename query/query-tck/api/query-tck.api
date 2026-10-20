@@ -31,6 +31,7 @@ public abstract class me/ahoo/wow/query/tck/DatasetQueryBackendSpec {
 	public static final field ID Ljava/lang/String;
 	public fun <init> ()V
 	public final fun a single record is the first in sort order, or none ()V
+	public final fun a stream reads keyset chunks with positions and resumes strictly after one (decision D253) ()V
 	public final fun counts are bounded by their limit ()V
 	protected abstract fun createDatasetQueryBackendFactory ()Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;
 	protected abstract fun createTable (Lme/ahoo/wow/query/tck/DatasetTable;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
