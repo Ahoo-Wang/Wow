@@ -11,21 +11,20 @@ import { pathToFileURL } from 'node:url';
 //
 //   node .github/scripts/v10-integration-shards.mjs
 //
-// Every project of `v10IntegrationTestProjects` (build.gradle.kts) must be in
+// Every project of `integrationTestProjects` (build.gradle.kts) must be in
 // the `projects` of exactly one shard of the `integration` job's matrix, and a
 // shard may name no other project. A project in no shard would never run on a
 // pull request; one in two would run twice. The `v10` flag's after_n_builds
 // (codecov.yml) must be the uploads of a full run: the check's and one per
 // shard, or Codecov would judge its statuses early or never.
 
-/** The Gradle paths of `v10IntegrationTestProjects = includedProjects(...)`. */
+/** The Gradle paths of `integrationTestProjects = includedProjects(...)`. */
 export function gradleProjects(buildScript) {
-  const list =
-    /val v10IntegrationTestProjects = includedProjects\(([^)]*)\)/.exec(
-      buildScript,
-    );
+  const list = /val integrationTestProjects = includedProjects\(([^)]*)\)/.exec(
+    buildScript,
+  );
   if (!list) {
-    throw new Error('build.gradle.kts declares no v10IntegrationTestProjects');
+    throw new Error('build.gradle.kts declares no integrationTestProjects');
   }
   return [...list[1].matchAll(/"(:[^"]+)"/g)].map(match => match[1]);
 }
@@ -61,7 +60,7 @@ export function shardProblems(projects, shards) {
     for (const project of shardProjects) {
       if (!shardsOf.has(project)) {
         problems.push(
-          `${project} (shard ${shard}) is not in v10IntegrationTestProjects`,
+          `${project} (shard ${shard}) is not in integrationTestProjects`,
         );
       } else {
         shardsOf.get(project).push(shard);

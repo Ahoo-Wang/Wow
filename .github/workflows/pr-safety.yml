@@ -15,13 +15,9 @@ name: PR Safety
 on:
   pull_request_target:
     types: [opened, edited, reopened, synchronize, ready_for_review, labeled, unlabeled]
-  # A merge queue's group reruns the limits on the group's own diff (its commit
-  # against the branch's tip), with the base's script and git alone.
-  merge_group:
 
 concurrency:
-  # A merge group's ref (gh-readonly-queue/<branch>/pr-<n>-<sha>) is its own.
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 permissions:
@@ -36,7 +32,7 @@ jobs:
       - name: Checkout trusted base
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
 
       - name: Reject destructive pull requests
@@ -44,8 +40,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          MERGE_GROUP_BASE_SHA: ${{ github.event.merge_group.base_sha }}
-          MERGE_GROUP_HEAD_SHA: ${{ github.event.merge_group.head_sha }}
         run: |
           bash .github/scripts/pr-safety.sh --self-test
           bash .github/scripts/pr-safety.sh

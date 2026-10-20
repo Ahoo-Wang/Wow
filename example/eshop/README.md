@@ -277,7 +277,7 @@ The basket, ordering and inventory tests:
 ./gradlew :eshop-e2e:integrationTest                                # the services together
 ./gradlew :eshop-e2e:integrationTest --tests '*EshopFullChainTest'  # all five services
 ./gradlew :eshop-e2e:eshopLoad                                      # the load script
-./gradlew v10Check v10IntegrationTest                               # everything V10, the eShop included
+./gradlew :check :integrationTest                               # everything V10, the eShop included
 ```
 
 Each service's output of a run of `:eshop-e2e` is kept in `example/eshop/e2e/build/eshop-logs/`.
