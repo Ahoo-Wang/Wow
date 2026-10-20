@@ -80,7 +80,8 @@ internal object ContractSources {
             |        @JvmStatic
             |        fun ref(tenantId: String, id: String): AggregateRef = TYPE.ref(tenantId, id)
             |    }
-            |""".trimMargin()
+            |
+            """.trimMargin()
         }
         val header = if (pkg.isEmpty()) "" else "package $pkg\n\n"
         val text = header +
@@ -91,7 +92,8 @@ internal object ContractSources {
             |/** The context `${context.name}`, generated from its peer contract. Do not edit. */
             |object $name {
             |    const val NAME: String = "${context.name}"
-            |""".trimMargin() + aggregates + "}\n"
+            |
+            """.trimMargin() + aggregates + "}\n"
         val directory = if (pkg.isEmpty()) "" else pkg.replace('.', '/') + "/"
         return Source("$directory$name.kt", text)
     }
@@ -99,7 +101,11 @@ internal object ContractSources {
     /** The package the binary names [classes] share: the longest common one, empty when they share none. */
     fun packageOf(classes: List<String>): String {
         val packages = classes.map { it.substringBeforeLast('.', "").split('.').filter(String::isNotEmpty) }
-        val common = packages.reduceOrNull { shared, next -> shared.zip(next).takeWhile { it.first == it.second }.map { it.first } }
+        val common = packages.reduceOrNull { shared, next ->
+            shared.zip(
+                next
+            ).takeWhile { it.first == it.second }.map { it.first }
+        }
         return common.orEmpty().joinToString(".")
     }
 

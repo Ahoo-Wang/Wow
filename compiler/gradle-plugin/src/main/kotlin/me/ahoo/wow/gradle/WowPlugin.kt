@@ -212,7 +212,7 @@ class WowPlugin : Plugin<Project> {
             api.pluginManager.apply(JavaLibraryPlugin::class.java)
             val contracts = api.configurations.findByName(CONTRACT_CONFIGURATION) ?: assembly(api)
             api.dependencies.add(contracts.name, api.project(domain))
-            api.pluginManager.withPlugin(KOTLIN_JVM) { coreView(api, domain) }
+            api.pluginManager.withPlugin(KOTLIN_JVM) { evaluated(api) { coreView(api, domain) } }
         }
     }
 
@@ -234,7 +234,7 @@ class WowPlugin : Plugin<Project> {
             task.outputDirectory.set(api.layout.buildDirectory.dir("wow/contract"))
         }
         api.tasks.named(JavaPlugin.JAR_TASK_NAME, Jar::class.java) { it.from(assemble) }
-        api.pluginManager.withPlugin(KOTLIN_JVM) { contractSources(api, main, assemble) }
+        api.pluginManager.withPlugin(KOTLIN_JVM) { evaluated(api) { contractSources(api, main, assemble) } }
         return contracts
     }
 
@@ -293,6 +293,18 @@ class WowPlugin : Plugin<Project> {
                     classesArtifacts(core, main.output.classesDirs)
                 }
             }
+        }
+    }
+
+    /**
+     * Runs [action] once [project] is evaluated: the Kotlin plugin is applied by then, its source set extensions and
+     * class directories in place, which they are not yet while it applies the `java` plugin.
+     */
+    private fun evaluated(project: Project, action: () -> Unit) {
+        if (project.state.executed) {
+            action()
+        } else {
+            project.afterEvaluate { action() }
         }
     }
 

@@ -15,12 +15,12 @@ package me.ahoo.wow.gradle
 
 import me.ahoo.test.asserts.assert
 import org.gradle.testkit.runner.BuildResult
+import org.gradle.testkit.runner.GradleRunner
+import org.gradle.testkit.runner.TaskOutcome
 import org.gradle.tooling.GradleConnector
 import org.gradle.tooling.model.idea.IdeaModuleDependency
 import org.gradle.tooling.model.idea.IdeaProject
 import org.gradle.util.GradleVersion
-import org.gradle.testkit.runner.GradleRunner
-import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
@@ -131,7 +131,11 @@ class WowContractSourcesFunctionalTest {
     }
 
     /** Code of [module] in source set [sourceSet] that uses the generated `ShopContract`. */
-    private fun usage(module: String, sourceSet: String = "main", body: String = "ShopContract.Cart.ref(\"t\", \"1\")") =
+    private fun usage(
+        module: String,
+        sourceSet: String = "main",
+        body: String = "ShopContract.Cart.ref(\"t\", \"1\")"
+    ) =
         write(
             "$module/src/$sourceSet/kotlin/${module.replace('-', '_')}/Usage.kt",
             """
@@ -152,51 +156,8 @@ class WowContractSourcesFunctionalTest {
         .withArguments(*arguments, "--configuration-cache", "--stacktrace")
         .forwardOutput()
 
-    @BeforeAll
-    fun build(@TempDir directory: File) {
-        projectDir = directory
-        write(
-            "settings.gradle.kts",
-            """
-            rootProject.name = "services"
-            include("shop-api", "shop-domain", "shop-server", "orders", "client")
-            """,
-        )
-        write(
-            "gradle.properties",
-            """
-            kotlin.compiler.execution.strategy=in-process
-            org.gradle.jvmargs=-Xmx1g
-            """,
-        )
-        module(
-            "shop-api",
-            plugins = "`maven-publish`",
-            dependencies = "",
-            extra = """
-                publishing {
-                    publications { create<MavenPublication>("api") { from(components["java"]) } }
-                    repositories { maven { url = uri(rootDir.resolve("repo")) } }
-                }
-            """,
-        )
-        module("shop-domain", plugins = """id("me.ahoo.wow")""", dependencies = """api(project(":shop-api"))""")
-        write(
-            "shop-domain/src/main/kotlin/shopdomain/ShopContext.kt",
-            """
-            package shopdomain
-
-            import me.ahoo.wow.api.annotation.BoundedContext
-
-            @BoundedContext(name = "shop")
-            object ShopContext
-            """,
-        )
-        aggregate("Cart")
-        usage("shop-domain", sourceSet = "test")
-        module("shop-server", plugins = """id("me.ahoo.wow")""", dependencies = """implementation(project(":shop-domain"))""")
-        usage("shop-server")
-        module("orders", plugins = """id("me.ahoo.wow")""", dependencies = """implementation(project(":shop-api"))""")
+    /** `orders`, a Wow domain module of the context `orders`. */
+    private fun orders() {
         write(
             "orders/src/main/kotlin/orders/Order.kt",
             """
@@ -226,6 +187,52 @@ class WowContractSourcesFunctionalTest {
             }
             """,
         )
+    }
+
+    @BeforeAll
+    fun build(@TempDir directory: File) {
+        projectDir = directory
+        write(
+            "settings.gradle.kts",
+            """
+            rootProject.name = "services"
+            include("shop-api", "shop-domain", "shop-server", "orders", "client")
+            """,
+        )
+        write("gradle.properties", "kotlin.compiler.execution.strategy=in-process\norg.gradle.jvmargs=-Xmx1g")
+        module(
+            "shop-api",
+            plugins = "`maven-publish`",
+            dependencies = "",
+            extra = """
+                publishing {
+                    publications { create<MavenPublication>("api") { from(components["java"]) } }
+                    repositories { maven { url = uri(rootDir.resolve("repo")) } }
+                }
+            """,
+        )
+        module("shop-domain", plugins = """id("me.ahoo.wow")""", dependencies = """api(project(":shop-api"))""")
+        write(
+            "shop-domain/src/main/kotlin/shopdomain/ShopContext.kt",
+            """
+            package shopdomain
+
+            import me.ahoo.wow.api.annotation.BoundedContext
+
+            @BoundedContext(name = "shop")
+            object ShopContext
+            """,
+        )
+        aggregate("Cart")
+        usage("shop-domain", sourceSet = "test")
+        module(
+            "shop-server",
+            plugins = """id("me.ahoo.wow")""",
+            dependencies = """implementation(project(":shop-domain"))"""
+        )
+        usage("shop-server")
+        module("orders", plugins = """id("me.ahoo.wow")""", dependencies = """implementation(project(":shop-api"))""")
+        orders()
         usage("orders")
         module("client", plugins = "", dependencies = """implementation(project(":shop-api"))""")
         usage("client")
@@ -241,7 +248,9 @@ class WowContractSourcesFunctionalTest {
     @Test
     @Order(1)
     fun `the api jar should carry the generated contract code`() {
-        result.task(":shop-api:${WowPlugin.GENERATE_CONTRACT_SOURCES_TASK}")?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
+        result.task(
+            ":shop-api:${WowPlugin.GENERATE_CONTRACT_SOURCES_TASK}"
+        )?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
         File(projectDir, "shop-api/build/generated/wow/contract/kotlin/shopapi/ShopContract.kt").readText()
             .assert().contains("object ShopContract", "const val NAME: String = \"shop\"", "object Cart")
         ZipFile(File(projectDir, "repo/sample/shop-api/1.0.0/shop-api-1.0.0.jar")).use { jar ->
@@ -260,7 +269,12 @@ class WowContractSourcesFunctionalTest {
             .isLessThan(order.indexOf(":shop-api:compileWowContractKotlin"))
         // Every consumer but the domain compiles against the generated code: the domain's tests, the server, the
         // in-build peers with and without the Wow plugin.
-        listOf(":shop-domain:compileTestKotlin", ":shop-server:compileKotlin", ":orders:compileKotlin", ":client:compileKotlin")
+        listOf(
+            ":shop-domain:compileTestKotlin",
+            ":shop-server:compileKotlin",
+            ":orders:compileKotlin",
+            ":client:compileKotlin"
+        )
             .forEach { result.task(it)?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS) }
     }
 
@@ -306,7 +320,9 @@ class WowContractSourcesFunctionalTest {
         // What an IDE sync asks for (Gradle's Tooling API), with the plugin under test on the root build script's
         // class path: the paired domain module still depends on its api module.
         val metadata = Properties().apply {
-            WowContractSourcesFunctionalTest::class.java.getResourceAsStream("/plugin-under-test-metadata.properties")!!.use(::load)
+            WowContractSourcesFunctionalTest::class.java.getResourceAsStream(
+                "/plugin-under-test-metadata.properties"
+            )!!.use(::load)
         }
         val classpath = metadata.getProperty("implementation-classpath").split(File.pathSeparator)
             .joinToString(", ") { "\"${it.replace("\\", "/")}\"" }
