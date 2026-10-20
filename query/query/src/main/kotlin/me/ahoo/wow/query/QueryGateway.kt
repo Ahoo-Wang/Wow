@@ -279,7 +279,7 @@ class DefaultQueryGateway(
     ): PagedList<ObjectNode> {
         val totalLimit = totalLimit(admitted.entry)
         val mode = admitted.query.total
-        if (counts == null || mode == TotalMode.NONE) {
+        if (counts == null || !counts.options.pagedTotals || mode == TotalMode.NONE) {
             return backend.paged(admitted, totalLimit)
         }
         var counted: PagedList<ObjectNode>? = null

@@ -51,9 +51,9 @@ This is most useful when business rules, state history, multiple read models, or
 
 1. Create or clone the [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template).
 2. Run `./gradlew :domain:check`, then start `./gradlew :server:run` with the documented in-memory configuration.
-3. Follow [Getting Started](documentation/docs/en/guide/getting-started.md) to send a real `CreateDemo` command, wait for `SNAPSHOT`, and read state at aggregate version `1`.
+3. Follow the [Quick Start](documentation/docs/en/guide/v10/quickstart.md) to send a real `CreateDemo` command, wait for `SNAPSHOT`, and read state at aggregate version `1`.
 
-That path proves the domain test, generated route, command pipeline, event sourcing, snapshot wait, and versioned state read. The 30-minute duration is a target: the functional path has been exercised, but a first-time developer's wall-clock completion has not been measured. If you are adding Wow to an existing service, use [Add Wow to an Existing Project](documentation/docs/en/guide/existing-project.md).
+That path proves the domain test, generated route, command pipeline, event sourcing, snapshot wait, and versioned state read. The 30-minute duration is a target: the functional path has been exercised, but a first-time developer's wall-clock completion has not been measured. If you are adding Wow to an existing service, use [Write a Service](documentation/docs/en/guide/v10/index.md).
 
 ## Evidence in This Repository
 
@@ -64,7 +64,7 @@ That path proves the domain test, generated route, command pipeline, event sourc
 | Given → When → Expect verification | [wow-test](test/wow-test/src/main/kotlin/me/ahoo/wow/test) |
 | Generated HTTP command and state routes | [wow-webflux](wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route) |
 | Optional storage, messaging, security, and telemetry integrations | [wow-spring-boot-starter feature capabilities](wow-spring-boot-starter/build.gradle.kts) |
-| Compensation and recovery operations | [Compensation domain](compensation) and [control plane](documentation/docs/en/reference/example/compensation.md#compensation-control-plane) |
+| Compensation and recovery operations | [The ops service and console](platform/ops) |
 | TypeScript client, React bindings, code generator, and view engine (npm `@ahoo-wang/wow-*`) | [typescript](typescript) and the [TypeScript guide](documentation/docs/en/guide/typescript/index.md) |
 
 ## Features
@@ -93,9 +93,9 @@ Source, binary, and wire compatibility are separate concerns. Validate the one y
 
 ## Continue
 
-- Start with the [Introduction](documentation/docs/en/guide/introduction.md), [Core Concepts](documentation/docs/en/guide/core-concepts.md), and [documentation map](documentation/docs/en/guide/index.md).
+- Start with [Write a Service](documentation/docs/en/guide/v10/index.md) and the [Programming Model](documentation/docs/en/guide/v10/programming-model.md).
 - Read the Kotlin [Order Service](example) or Java [Bank Transfer](example/transfer) example.
-- Explore processing stages in [Command Completion](documentation/docs/en/guide/command/completion.md), read models in [Projection](documentation/docs/en/guide/projection.md), and recovery in [Event Compensation](documentation/docs/en/guide/event/compensation.md).
+- Explore waiting for processing stages in [`Wow-Wait`](documentation/docs/en/guide/v10/http-api.md#wow-wait), read models in [Projections](documentation/docs/en/guide/v10/programming-model.md#projections), and recovery in [Failures](documentation/docs/en/guide/v10/programming-model.md#failures).
 - Review [Contributing](CONTRIBUTING.md), the [Code of Conduct](CODE_OF_CONDUCT.md), and the [Security Policy](SECURITY.md).
 - Wow received the [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html) for evidence including its modular design, review discipline, testing, static analysis, bilingual documentation, and Maven Central release history.
 

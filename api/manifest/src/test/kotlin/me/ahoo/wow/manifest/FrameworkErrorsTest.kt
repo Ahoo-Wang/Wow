@@ -51,6 +51,7 @@ class FrameworkErrorsTest {
                 "wow.query.failed" to 500,
                 "wow.query.timeout" to 503,
                 "wow.query.busy" to 429,
+                "wow.query.min-version-not-reached" to 409,
                 "wow.query.dataset-unavailable" to 409,
                 "wow.call.command-forbidden" to 403,
             ),

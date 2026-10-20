@@ -405,6 +405,8 @@ class WowAutoConfiguration {
         globalIds: GlobalIdGenerator,
     ): PeerClients {
         val clients = properties.clients
+        val described = clients.contexts
+            .filterValues { it.contract == WowProperties.Clients.Contract.MANIFEST }.keys
         fun client(mode: ClientMode) = lazy {
             val builder = WowClient.builder()
                 .endpoints(endpoints)
@@ -419,6 +421,7 @@ class WowAutoConfiguration {
                 )
                 .contracts(contracts)
                 .ids(globalIds)
+                .manifestPeers(described)
             when (mode) {
                 is ClientMode.Service -> builder.service(mode.credential)
                 is ClientMode.User -> builder.user(mode.credential)
@@ -431,6 +434,7 @@ class WowAutoConfiguration {
             client(ClientMode.Service(credential)),
             client(ClientMode.User(UserCredential.FORWARDED)),
             clients.mode,
+            described,
         )
     }
 
@@ -670,7 +674,16 @@ class WowAutoConfiguration {
         // The query plane's gate runs a state read's replay under its log store's bulkhead (decision D246 ⑥, review
         // R4-Q Q-1), and `wow.query.state.max-replay` bounds it.
         val maxReplay = queries.ifAvailable?.state?.maxReplay ?: KernelStateReads.DEFAULT_MAX_REPLAY
-        return KernelStateReads(node.registry, contexts, gate.getIfAvailable { ReplayGate.OPEN }, maxReplay)
+        // How long a read of a minimum version waits for it (review R4-Q, Q-13): `wow.query.state.min-version-wait`.
+        val minVersionWait = queries.ifAvailable?.state?.minVersionWait?.toKotlinDuration()
+            ?: KernelStateReads.DEFAULT_MIN_VERSION_WAIT
+        return KernelStateReads(
+            node.registry,
+            contexts,
+            gate.getIfAvailable { ReplayGate.OPEN },
+            maxReplay,
+            minVersionWait,
+        )
     }
 
     @Bean
