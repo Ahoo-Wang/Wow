@@ -1,0 +1,420 @@
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# The timed end-to-end benchmark of V10 (decision D224; test/benchmarks/README.md) on GitHub's runners: a
+# regression guard (the head against a V10 baseline, paired on one runner), capacity guidance (the sustainable rate of
+# each scenario), overload behaviour (the cliff steps), a three-node cluster with a hand-over, and an anomaly check of
+# every run (partition pauses, store fallbacks of the tails, error spikes, dips, long tails) so a run surfaces defects.
+# The head is the pushed or dispatched ref; the baseline is `base_ref`, else the newest v10.* release tag that has the
+# benchmark (without either, the baseline suites are skipped); the optional `vs-9x` suites build 9.x from
+# `nine_x_ref` (v10-9x-baseline, the last commit of v10 with the 9.x code, D262; removed at GA). The harness and the
+# load generator come from the head (from the 9.x ref only when a vs-9x suite needs them and the head's cannot drive
+# 9.x). Each suite runs in a job of its own; steps: .github/scripts/bench.mjs. The report job combines them
+# into report.md and the run summary.
+#
+# A run starts when a branch `bench-run/**` is pushed (`git push origin v10:bench-run/<name>`), with the
+# defaults (tier L2), over which `test/benchmarks/bench-run.json` at the pushed commit may set `tier`, `suites`,
+# `dataset`, `aa`, `profile`, `warm_up`, `measure`, `repeats`, `fraction`, `p99_limit_ms`, `properties`, `base_ref` and `nine_x_ref`. Delete the branch afterwards. It can also be
+# dispatched by hand once the file is on the default branch (GitHub dispatches only workflows that are there). Never on
+# a pull request or a schedule, and no merge signal.
+name: Bench
+on:
+  workflow_dispatch:
+    inputs:
+      head_ref:
+        description: 'V10 ref to measure (the head)'
+        type: string
+        default: 'v10'
+      base_ref:
+        description: 'V10 baseline ref (empty: the newest v10.* release tag that has the benchmark server)'
+        type: string
+        default: ''
+      tier:
+        description: 'L1 (component counts), L2 (end-to-end points, the default), L3 (the grid) or L4 (sustainable rates, cliffs, cluster, cold); see test/benchmarks/README.md'
+        type: choice
+        options: [L1, L2, L3, L4]
+        default: L2
+      suites:
+        description: 'Suites or groups (all, ab, head, vs-9x) separated by commas, instead of the tier'
+        type: string
+        default: ''
+      dataset:
+        description: 'Data sets (1k, 100k, 1M) separated by commas, instead of the tier''s (L2 and L4: 100k; L3: 1k and 100k)'
+        type: string
+        default: ''
+      aa:
+        description: 'A/A: measure the head against itself in the baseline suites, to set their noise thresholds'
+        type: boolean
+        default: false
+      profile:
+        description: 'Profile: one more run per arm of each paired suite with a flight recording, summarized by jfr view'
+        type: boolean
+        default: false
+      warm_up:
+        description: 'Warm-up seconds of each open-loop run'
+        type: string
+        default: '30'
+      measure:
+        description: 'Measured seconds of each open-loop run'
+        type: string
+        default: '40'
+      repeats:
+        description: 'Rounds per paired suite (one run per arm each); one more when two runs of an arm differ by more than 5%'
+        type: string
+        default: '2'
+      fraction:
+        description: "Open-loop rate as a share of each arm's saturation throughput, before calibration"
+        type: string
+        default: '0.8'
+      properties:
+        description: 'Server properties (a JSON object) for the head arm of every paired suite; with aa, default against changed'
+        type: string
+        default: ''
+      p99_limit_ms:
+        description: 'p99 limit of the sustainable-rate suites, in milliseconds'
+        type: string
+        default: '200'
+      nine_x_ref:
+        description: 'Ref the 9.x server of the vs-9x suites is built from'
+        type: string
+        default: 'v10-9x-baseline'
+  push:
+    branches: ['bench-run/**']
+
+permissions:
+  contents: read
+
+# One run per ref at a time: a second push of the same run branch waits for the first rather than cancelling it.
+# Runs of different refs go on runners of their own and do not share anything, so they may run side by side.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CI: GITHUB_ACTIONS
+
+jobs:
+  plan:
+    name: Plan
+    if: github.repository == 'Ahoo-Wang/Wow'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      jobs: ${{ steps.matrix.outputs.jobs }}
+      builds: ${{ steps.matrix.outputs.builds }}
+      skipped: ${{ steps.matrix.outputs.skipped }}
+      warm-up: ${{ steps.settings.outputs.warm-up }}
+      measure: ${{ steps.settings.outputs.measure }}
+      repeats: ${{ steps.settings.outputs.repeats }}
+      fraction: ${{ steps.settings.outputs.fraction }}
+      p99-limit-ms: ${{ steps.settings.outputs.p99-limit-ms }}
+      tier: ${{ steps.settings.outputs.tier }}
+      aa: ${{ steps.settings.outputs.aa }}
+      profile: ${{ steps.settings.outputs.profile }}
+      properties: ${{ steps.settings.outputs.properties }}
+      head-ref: ${{ steps.refs.outputs.head-ref }}
+      head-sha: ${{ steps.refs.outputs.head-sha }}
+      base-ref: ${{ steps.refs.outputs.base-ref }}
+      base-sha: ${{ steps.refs.outputs.base-sha }}
+      nine-x-ref: ${{ steps.settings.outputs.nine-x-ref }}
+      nine-x-sha: ${{ steps.refs.outputs.nine-x-sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /.github/scripts/
+            /test/benchmarks/bench-run.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.21.0
+      - name: Check the settings
+        id: settings
+        env:
+          EVENT: ${{ github.event_name }}
+          CONFIG: test/benchmarks/bench-run.json
+          TIER: ${{ inputs.tier }}
+          SUITES: ${{ inputs.suites }}
+          DATASET: ${{ inputs.dataset }}
+          AA: ${{ inputs.aa }}
+          PROFILE: ${{ inputs.profile }}
+          WARM_UP: ${{ inputs.warm_up }}
+          MEASURE: ${{ inputs.measure }}
+          REPEATS: ${{ inputs.repeats }}
+          FRACTION: ${{ inputs.fraction }}
+          P99_LIMIT_MS: ${{ inputs.p99_limit_ms }}
+          PROPERTIES: ${{ inputs.properties }}
+          BASE_REF: ${{ inputs.base_ref }}
+          NINE_X_REF: ${{ inputs.nine_x_ref }}
+        run: node .github/scripts/bench.mjs plan
+      # Every ref is pinned to its commit here, so every job builds and measures the same code. Without `base_ref`,
+      # the baseline is the newest v10.* release tag that has the benchmark's V10 server.
+      - name: Resolve the refs
+        id: refs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          HEAD_REF: ${{ inputs.head_ref || 'v10' }}
+          BASE_REF: ${{ steps.settings.outputs.base-ref }}
+          NEEDS_BASE: ${{ steps.settings.outputs.needs-base }}
+          NINE_X_REF: ${{ steps.settings.outputs.nine-x-ref }}
+        run: |
+          sha() {
+            gh api "repos/$GITHUB_REPOSITORY/commits/$(jq -rn --arg ref "$1" '$ref | @uri')" --jq .sha
+          }
+          if [ "$EVENT" = push ]; then
+            head_ref=$GITHUB_REF_NAME
+            head_sha=$GITHUB_SHA
+          else
+            head_ref=$HEAD_REF
+            head_sha=$(sha "$HEAD_REF")
+          fi
+          base_ref=$BASE_REF
+          if [ -z "$base_ref" ] && [ "$NEEDS_BASE" = true ]; then
+            for tag in $(gh api --paginate "repos/$GITHUB_REPOSITORY/tags" --jq '.[].name' | grep '^v10\.' | sort -rV); do
+              if gh api "repos/$GITHUB_REPOSITORY/contents/test/benchmarks/server?ref=$tag" --silent 2>/dev/null ||
+                gh api "repos/$GITHUB_REPOSITORY/contents/wow-benchmarks/e2e/bench-v10?ref=$tag" --silent 2>/dev/null; then
+                base_ref=$tag
+                break
+              fi
+            done
+            if [ -z "$base_ref" ]; then
+              echo "::warning::No base_ref and no v10.* release tag has the benchmark server; the baseline suites are skipped."
+            fi
+          fi
+          base_sha=""
+          if [ -n "$base_ref" ] && [ "$NEEDS_BASE" = true ]; then base_sha=$(sha "$base_ref"); fi
+          nine_x_sha=""
+          if [ -n "$NINE_X_REF" ]; then nine_x_sha=$(sha "$NINE_X_REF"); fi
+          {
+            echo "head-ref=$head_ref"
+            echo "head-sha=$head_sha"
+            echo "base-ref=$base_ref"
+            echo "base-sha=$base_sha"
+            echo "nine-x-sha=$nine_x_sha"
+          } | tee -a "$GITHUB_OUTPUT"
+      - name: Plan the jobs
+        id: matrix
+        env:
+          SUITES_JSON: ${{ steps.settings.outputs.suites }}
+          DATASETS_JSON: ${{ steps.settings.outputs.datasets }}
+          AA: ${{ steps.settings.outputs.aa }}
+          HEAD_SHA: ${{ steps.refs.outputs.head-sha }}
+          BASE_SHA: ${{ steps.refs.outputs.base-sha }}
+          NINE_X_SHA: ${{ steps.refs.outputs.nine-x-sha }}
+        run: node .github/scripts/bench.mjs matrix
+
+  # The servers' and the load generator's distributions (installDist), one job per build the suites need (head, base,
+  # 9x), packed as tarballs so the launchers keep their mode.
+  build:
+    name: Build ${{ matrix.side }}
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.builds) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ matrix.sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      # The refs are inputs, so the Gradle cache is only read here, never written.
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: true
+      - name: Build
+        env:
+          SIDE: ${{ matrix.side }}
+          SCOPE: ${{ matrix.scope }}
+          KIND: ${{ matrix.kind }}
+        run: |
+          # The layout of the commit: test/benchmarks/ (:benchmark-server, :benchmark-load), or a baseline from before the
+          # move, or the 9.x tree (wow-benchmarks/e2e/, :e2e-bench-*).
+          if [ "$KIND" = 9x ]; then
+            server=wow-benchmarks/e2e/bench-9x; project=:e2e-bench-9x; load=wow-benchmarks/e2e/load; loader=:e2e-bench-load
+          elif [ -d test/benchmarks/server ]; then
+            server=test/benchmarks/server; project=:benchmark-server; load=test/benchmarks/load; loader=:benchmark-load
+          else
+            server=wow-benchmarks/e2e/bench-v10; project=:e2e-bench-v10; load=wow-benchmarks/e2e/load; loader=:e2e-bench-load
+          fi
+          if [ ! -d "$server" ]; then
+            echo "::error::The $SIDE commit $(git rev-parse HEAD) has no $server; pick a ref that has the benchmark."
+            exit 1
+          fi
+          tasks=("$project:installDist")
+          if [ -d "$load" ]; then tasks+=("$loader:installDist"); fi
+          ./gradlew -Pwow.scope="$SCOPE" "${tasks[@]}" --stacktrace
+          # Each tarball holds the installed distribution's directory alone, whatever the layout.
+          mkdir -p "$RUNNER_TEMP/dist"
+          tar -C "$server/build/install" -czf "$RUNNER_TEMP/dist/server.tgz" .
+          if [ -d "$load/build/install" ]; then tar -C "$load/build/install" -czf "$RUNNER_TEMP/dist/load.tgz" .; fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: bench-dist-${{ matrix.side }}
+          path: ${{ runner.temp }}/dist
+          retention-days: 3
+          compression-level: 0
+          if-no-files-found: error
+
+  measure:
+    name: Measure ${{ matrix.job }}
+    needs: [plan, build]
+    runs-on: ubuntu-latest
+    # Priming a large data set before every run takes 100 s or more; a paired suite runs about fifteen.
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        job: ${{ fromJSON(needs.plan.outputs.jobs) }}
+    env:
+      HEAD_REF: ${{ needs.plan.outputs.head-ref }}
+      HEAD_SHA: ${{ needs.plan.outputs.head-sha }}
+      BASE_REF: ${{ needs.plan.outputs.base-ref }}
+      BASE_SHA: ${{ needs.plan.outputs.base-sha }}
+      NINE_X_REF: ${{ needs.plan.outputs.nine-x-ref }}
+      NINE_X_SHA: ${{ needs.plan.outputs.nine-x-sha }}
+      TIER: ${{ needs.plan.outputs.tier }}
+      AA: ${{ needs.plan.outputs.aa }}
+      PROFILE: ${{ needs.plan.outputs.profile }}
+    steps:
+      # The steps' script comes from the workflow's own commit; the harness from the measured head.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+          path: steps
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.plan.outputs.head-sha }}
+          persist-credentials: false
+          sparse-checkout: test/benchmarks
+          path: repo
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: bench-dist-*
+          path: ${{ runner.temp }}/dist
+      # The head's server and load generator go where the harness looks for them; the baseline's and the 9.x server
+      # beside, each named to bench.sh by --install (INSTALL_BASE, INSTALL_9X).
+      - name: Unpack the servers and the load generator
+        run: |
+          dist=$RUNNER_TEMP/dist
+          # One artifact alone (the head's, when no other build runs) downloads without a directory of its own.
+          if [ -f "$dist/server.tgz" ]; then
+            mkdir -p "$dist/bench-dist-head"
+            mv "$dist"/*.tgz "$dist/bench-dist-head/"
+          fi
+          mkdir -p repo/test/benchmarks/server/build/install repo/test/benchmarks/load/build/install
+          tar -xzf "$dist/bench-dist-head/server.tgz" -C repo/test/benchmarks/server/build/install
+          tar -xzf "$dist/bench-dist-head/load.tgz" -C repo/test/benchmarks/load/build/install
+          for side in base 9x; do
+            if [ -f "$dist/bench-dist-$side/server.tgz" ]; then
+              mkdir -p "$RUNNER_TEMP/install-$side"
+              tar -xzf "$dist/bench-dist-$side/server.tgz" -C "$RUNNER_TEMP/install-$side"
+              name=INSTALL_BASE
+              if [ "$side" = 9x ]; then name=INSTALL_9X; fi
+              echo "$name=$(ls -d "$RUNNER_TEMP/install-$side"/*/)" >> "$GITHUB_ENV"
+            fi
+          done
+          ls repo/test/benchmarks/*/build/install/*/bin "$RUNNER_TEMP"/install-*/*/bin 2>/dev/null || true
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.21.0
+      - name: Pull the images
+        run: docker compose -f repo/test/benchmarks/harness/compose.yml pull --quiet
+      # The load generator gets the last CPU to itself, the servers and the containers the others (D224 note ③), so
+      # one cannot take the other's CPU and the report can say which side was the bottleneck.
+      - name: Split the CPUs
+        run: |
+          cpus=$(nproc)
+          if [ "$cpus" -ge 4 ]; then
+            echo "LOAD_CPUS=$((cpus - 1))" >> "$GITHUB_ENV"
+            echo "SERVER_CPUS=0-$((cpus - 2))" >> "$GITHUB_ENV"
+          fi
+      - name: Measure
+        env:
+          HARNESS: head
+          JOB: ${{ matrix.job }}
+          WARM_UP: ${{ needs.plan.outputs.warm-up }}
+          MEASURE: ${{ needs.plan.outputs.measure }}
+          REPEATS: ${{ needs.plan.outputs.repeats }}
+          FRACTION: ${{ needs.plan.outputs.fraction }}
+          P99_LIMIT_MS: ${{ needs.plan.outputs.p99-limit-ms }}
+          PROPERTIES: ${{ needs.plan.outputs.properties }}
+        run: |
+          export BENCH="$GITHUB_WORKSPACE/repo/test/benchmarks/harness/bench.sh"
+          export OUT="$RUNNER_TEMP/results/$JOB"
+          node steps/.github/scripts/bench.mjs suite "$JOB"
+      - name: Summarize
+        if: always()
+        env:
+          JOB: ${{ matrix.job }}
+        run: |
+          summary="$RUNNER_TEMP/results/$JOB/summary.md"
+          if [ -f "$summary" ]; then
+            cat "$summary" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No summary was written for $JOB; see the Measure step's log." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: bench-result-${{ matrix.job }}
+          path: ${{ runner.temp }}/results
+          if-no-files-found: warn
+          retention-days: 30
+
+  report:
+    name: Report
+    needs: [plan, measure]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # The noise thresholds of earlier A/A runs (test/benchmarks/noise.json), when the commit has them.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /.github/scripts/
+            /test/benchmarks/noise.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.21.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: bench-result-*
+          path: ${{ runner.temp }}/results
+      - name: Combine the suites
+        env:
+          SKIPPED: ${{ needs.plan.outputs.skipped }}
+          NOISE: test/benchmarks/noise.json
+        run: |
+          mkdir -p "$RUNNER_TEMP/report"
+          node .github/scripts/bench.mjs report "$RUNNER_TEMP/results" "$RUNNER_TEMP/report/report.md"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-bench-report
+          path: ${{ runner.temp }}/report
+          if-no-files-found: error
+          retention-days: 30

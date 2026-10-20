@@ -71,7 +71,6 @@ CI sets `CI=GITHUB_ACTIONS`; Gradle test retry is enabled only in CI with up to 
 ```text
 wow-dependencies/           Centralized dependency versions, which every V10 POM imports
 typescript/                 TypeScript client packages moving in from fetcher; see typescript/AGENTS.md
-wow-benchmarks/             The end-to-end benchmark (e2e/) and reproducible performance reports (results/)
 documentation/              VitePress documentation site (docs/) and design records (designs/)
 docs/                       Ledgers: todo.md (JVM)
 skills/                     Project-local Codex skills and agent definitions
@@ -98,6 +97,7 @@ host/spring-boot/           :spring-boot    Spring Boot auto-configuration; wiri
 migration/migrate-data/     :migrate-data   Imports 9.x event streams into the V10 log
 test/architecture/          :architecture   V10 module graph and dependency rules
 test/routing-spike/         :routing-spike, test/lease-spike/ :lease-spike: spikes H2, H6
+test/benchmarks/            :benchmark-server, :benchmark-load: the end-to-end benchmark (D224; harness/, bench.yml) and the performance reports (results/)
 example/eshop/<context>/    :eshop-<context>-{api,domain,server}: the V10 example, the eShop's five contexts (D159, D204); never published
 example/eshop/e2e/          :eshop-e2e: the eShop's services end to end on PostgreSQL, Kafka and ClickHouse
 ```
@@ -214,7 +214,7 @@ Each kind of document has one home, chosen by its reader; [Documentation Governa
 - Entry and module usage: `README.md` and `README.zh-CN.md`, at the root and beside each published module or package. They link to the site instead of copying it.
 - Design records: `documentation/designs/YYYY-MM-DD-<topic>-design.md` for decisions spanning JVM modules; `<package>/docs/design/` for one TypeScript package or application. State the date, source baseline and status, and update the status when the work lands.
 - Ledgers of decided work: `docs/todo.md`, `typescript/TODO.md`, `typescript/wow-view-engine/docs/design/todo.md`, `example/eshop/DX-GAPS.md`. Delete an entry when it is done; open review findings go here, not into a committed review.
-- Performance evidence: `wow-benchmarks/results/`, only with the commit, command, environment and raw results that reproduce it.
+- Performance evidence: `test/benchmarks/results/`, only with the commit, command, environment and raw results that reproduce it.
 - Static assets: `documentation/docs/public/`. Diagram sources Mermaid cannot express: `documentation/diagrams/`.
 - Prefer Mermaid source (`.mmd` or fenced `mermaid`) for every diagram Mermaid supports; do not commit a generated SVG beside it. Use PlantUML only for unsupported diagram kinds such as use case diagrams.
 - Do not commit implementation plans, review notes, QA comparisons or scratch evidence; keep them in the pull request or an ignored workspace. Do not add files under `document/` or `docs/superpowers/`.

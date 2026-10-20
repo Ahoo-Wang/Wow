@@ -35,6 +35,7 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.admission.CreationIds
+import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.ledger.LedgerCommands
@@ -113,6 +114,11 @@ class CommandIntake internal constructor(
     /** The longest the intake waits for a scheduled command's due time before it runs it (review R2.5-1). */
     private val maxScheduleWait: Duration = DEFAULT_MAX_SCHEDULE_WAIT,
     private val clock: () -> Long = System::currentTimeMillis,
+    /**
+     * The node's tenant policy (decision D116): a command of a type whose tenant is fixed, sent from another context
+     * in another tenant, is refused (DX gap G13), as admission refuses a request that names another tenant.
+     */
+    private val tenants: TenantPolicy = TenantPolicy.CALLERS,
 ) {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val producer: TopicProducer = requireNotNull(topics.producer) { "An intake sends receipts." }
@@ -130,6 +136,15 @@ class CommandIntake internal constructor(
         }
         val model = models[wire.ref.type]
             ?: return unhandled(wire, wait, "Context $context has no aggregate ${wire.ref.type}.")
+        tenants.fixedTenant(wire.ref.type)?.takeIf { it != wire.ref.tenantId }?.let { fixed ->
+            return refuse(
+                wire,
+                wait,
+                FrameworkCodes.MALFORMED,
+                "The tenant of ${wire.ref.type} is fixed to $fixed; the command from another context names " +
+                    "${wire.ref.tenantId} (decision D116, DX gap G13).",
+            )
+        }
         val received = ClusterCodec.command(model, wire)
             ?: return unhandled(wire, wait, "${wire.ref.type} has no command type ${wire.type}.")
         // A creation that names no aggregate takes the id its request created, or a new one (decision D191).
@@ -164,9 +179,13 @@ class CommandIntake internal constructor(
      * COMMITTED hop, and the receipt goes where [wire] says, as for a decide function's rejection; the sender's saga
      * takes it in its `@OnRejected` handler, or parks there without one.
      */
-    private suspend fun unhandled(wire: CommandWire, wait: WaitContext?, message: String) {
+    private suspend fun unhandled(wire: CommandWire, wait: WaitContext?, message: String) =
+        refuse(wire, wait, FrameworkCodes.UNHANDLED, message)
+
+    /** Refuses [wire] with [code] and [message] before any decide function, as [unhandled] describes. */
+    private suspend fun refuse(wire: CommandWire, wait: WaitContext?, code: String, message: String) {
         logger.warn { "Command ${wire.id} (${wire.type}) on ${wire.ref} is refused: $message" }
-        val error = ErrorInfo(FrameworkCodes.UNHANDLED, message)
+        val error = ErrorInfo(code, message)
         wait?.takeUnless { it.expiredAt(clock()) }?.let { coordinator.signal(it, unhandledResult(wire, it, error)) }
         reply(wire, error, null)
     }

@@ -247,6 +247,29 @@ class ContractDirectoryTest {
     }
 
     @Test
+    fun `the peers' sagas that send commands to given types should be found`() {
+        // DX gap G13: a billing saga derives the shop's AddItem, carrying its own tenant into the shop.
+        val billing = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    "billing",
+                    subscriptions = listOf(
+                        subscription(
+                            "Refunds.onRefund",
+                            derives = listOf("shop.cart.AddItem", "inventory.stock.ReserveStock")
+                        ),
+                        subscription("Audit.onEvent", kind = SubscriptionKind.PROJECTION),
+                    ),
+                ),
+            ),
+        )
+        val directory = ContractDirectory(shop(), ContractFixtures.peers + ManifestFragment("billing", billing))
+        directory.peerSendersTo(setOf(AggregateType("shop", "cart"))).assert()
+            .isEqualTo(mapOf("billing/Refunds.onRefund" to setOf(AggregateType("shop", "cart"))))
+        directory.peerSendersTo(emptySet()).assert().isEmpty()
+    }
+
+    @Test
     fun `a directory without peers should know the service's own contexts only`() {
         val alone = ContractDirectory(shop(subscriptions = listOf(subscription("CartProjector.onCart"))))
         alone.peers.assert().isEmpty()

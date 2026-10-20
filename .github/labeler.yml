@@ -70,7 +70,6 @@ dependencies:
   - changed-files:
       - any-glob-to-any-file:
           - 'test/**'
-          - 'wow-benchmarks/**'
 
 'area: example':
   - changed-files:

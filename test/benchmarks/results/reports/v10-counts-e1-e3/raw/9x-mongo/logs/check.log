@@ -1,0 +1,5 @@
+[check] 9x E1: ok (50.6 ms)
+[check] 9x E2: ok (75.2 ms)
+[check] 9x E3: ok (74.1 ms)
+[check] 9x E4-state: ok (3.0 ms)
+[check] 9x E4-list: ok (24.4 ms)

@@ -30,7 +30,7 @@ Wow 按读者决定每类文档的位置，每类只放一处。本页给出原�
 | 单个 TypeScript 包或应用的设计 | 该包的维护者 | `<package>/docs/design/` |
 | 已决定待完成事项的台账 | 维护者 | `docs/todo.md`（JVM）、`typescript/TODO.md`（wow-client、wow-react、wow-generator）、`typescript/wow-view-engine/docs/design/todo.md`（视图引擎与视图存储）、`typescript/MIGRATION.md`（从 fetcher 迁入的包）、`example/eshop/DX-GAPS.md`（eShop 发现的 V10 开发体验缺口，M7 前补齐） |
 | 发布手册 | 发布维护者 | `AGENTS.md`（版本、兼容性、CI）、`typescript/RELEASING.md`、`typescript/RELEASE_NOTES_TEMPLATE.md`；次版本的发布说明草稿放在 `typescript/release-notes/v<版本>.md`，发布后删除 |
-| 可复现性能证据 | 维护者 | `wow-benchmarks/results/` |
+| 可复现性能证据 | 维护者 | `test/benchmarks/results/` |
 | Agent 能力 | 编码 Agent | `skills/`；第三方 Skill 副本放在 `.claude/skills/` |
 | 已发布模块用法 | 模块使用者 | `<module>/README.md` 与 `README.zh-CN.md` |
 | Storybook 的场景目录 | Storybook 维护者 | `typescript/storybook/docs/scenarios.md` |
@@ -73,7 +73,7 @@ Wow 按读者决定每类文档的位置，每类只放一处。本页给出原�
 4. 足以校验结论的原始或派生结果；
 5. 打包资产的校验和或其他完整性机制。
 
-保留的性能证据放在 `wow-benchmarks/results/`，与能重跑它的基准放在一起。重复资产、不可验证实验，以及当前文档或 Benchmark 报告已不再使用的证据直接删除。
+保留的性能证据放在 `test/benchmarks/results/`，与能重跑它的基准放在一起。重复资产、不可验证实验，以及当前文档或 Benchmark 报告已不再使用的证据直接删除。
 
 ### 临时工作材料
 
@@ -107,7 +107,7 @@ Wow 按读者决定每类文档的位置，每类只放一处。本页给出原�
 
 ## 清理进度
 
-旧的 `document/` 目录、受跟踪的 `docs/superpowers/` 文件、已实施的查询分步计划和受跟踪的评审记录都已删除。其中唯一且有效的知识此前已迁到文档站页面、设计记录或 `wow-benchmarks/results/`，或者现在记在台账里：评审中未处理的发现已在 `main` 上逐条复核，移入 `typescript/TODO.md`、`docs/todo.md` 与视图引擎的 TODO。
+旧的 `document/` 目录、受跟踪的 `docs/superpowers/` 文件、已实施的查询分步计划和受跟踪的评审记录都已删除。其中唯一且有效的知识此前已迁到文档站页面、设计记录或 `test/benchmarks/results/`，或者现在记在台账里：评审中未处理的发现已在 `main` 上逐条复核，移入 `typescript/TODO.md`、`docs/todo.md` 与视图引擎的 TODO。
 
 以后的清理沿用同一流程，每批一个可独立评审的 Pull Request：
 
@@ -136,7 +136,7 @@ Wow 按读者决定每类文档的位置，每类只放一处。本页给出原�
 - 中英文公开页面是否结构对齐？
 - 模块 README、包内设计与 Skill 是否通过链接复用，而不是复制广泛指南？
 - 新增或修改的设计记录是否写明状态，用户可见的合同是否都已进入文档站？
-- 每个保留实验是否可复现并归属 `wow-benchmarks`？
+- 每个保留实验是否可复现并归属 `test/benchmarks`？
 - 被删除路径是否已无入站链接？
 - Pull Request 是否避免提交 Plan、评审记录、生成构建输出和本地 Agent 状态？
 - 文档布局检查、VitePress 构建和 `git diff --check` 是否通过？
