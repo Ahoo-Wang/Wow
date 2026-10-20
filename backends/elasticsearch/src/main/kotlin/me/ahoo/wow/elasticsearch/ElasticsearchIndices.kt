@@ -16,12 +16,18 @@ package me.ahoo.wow.elasticsearch
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient
 import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch._types.HealthStatus
+import co.elastic.clients.elasticsearch._types.Level
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch.indices.CreateIndexRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
+import kotlinx.coroutines.delay
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.StoreDdl
 import java.io.StringReader
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 /**
  * The indices Wow keeps on Elasticsearch, each created with its definition (settings and mappings, a JSON document)
@@ -51,17 +57,40 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
     }
 
     /**
-     * Waits until [index]'s primary shard is active (`_cluster/health/<index>?wait_for_status=yellow`), at most
-     * [ACTIVE_TIMEOUT]; a cluster that does not get there in time is unavailable for now.
+     * Waits until every primary shard of [index] is active, at most [ACTIVE_TIMEOUT]; a cluster that does not get
+     * there in time is unavailable for now.
+     *
+     * `wait_for_status=yellow` alone is not enough: Elasticsearch reports the primary of a new index, unassigned or
+     * initializing from an empty store, as yellow rather than red (`ClusterShardHealth.getInactivePrimaryHealth`), so
+     * the health answers before the primary serves a request (a real-time `GET` then fails with
+     * `illegal_index_shard_state_exception`, `RECOVERING`). Each round waits server-side for no initializing shard,
+     * then the index's active primaries are compared with its shards, until they are all active.
      */
     suspend fun awaitActive(index: String) {
-        val health = client.cluster().health {
-            it.index(index).waitForStatus(HealthStatus.Yellow).timeout { time -> time.time(ACTIVE_TIMEOUT) }
-        }.awaitElasticsearch()
-        if (health.timedOut()) {
-            throw StorageUnavailableException(
-                "The Elasticsearch index [$index] has no active primary shard yet; retry later."
-            )
+        val start = TimeSource.Monotonic.markNow()
+        var pause = ACTIVE_FIRST_PAUSE
+        while (true) {
+            val remaining = ACTIVE_TIMEOUT - start.elapsedNow()
+            val health = if (remaining.isPositive()) {
+                client.cluster().health {
+                    it.index(index).level(Level.Indices).waitForStatus(HealthStatus.Yellow)
+                        .waitForNoInitializingShards(true)
+                        .timeout { time -> time.time("${remaining.inWholeMilliseconds.coerceAtLeast(1)}ms") }
+                }.awaitElasticsearch()
+            } else {
+                null
+            }
+            val stats = health?.indices()?.get(index)
+            if (stats != null && stats.numberOfShards() > 0 && stats.activePrimaryShards() == stats.numberOfShards()) {
+                return
+            }
+            if (health == null || start.elapsedNow() + pause > ACTIVE_TIMEOUT) {
+                throw StorageUnavailableException(
+                    "The Elasticsearch index [$index] has no active primary shard yet; retry later."
+                )
+            }
+            delay(pause)
+            pause = minOf(pause * 2, ACTIVE_MAX_PAUSE)
         }
     }
 
@@ -91,8 +120,10 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
         const val META_FORMAT = "wow_format"
         private const val RESOURCE_ALREADY_EXISTS = "resource_already_exists_exception"
 
-        /** How long [awaitActive] waits for a primary shard. */
-        const val ACTIVE_TIMEOUT = "30s"
+        /** How long [awaitActive] waits for the primary shards. */
+        val ACTIVE_TIMEOUT: Duration = 30.seconds
+        private val ACTIVE_FIRST_PAUSE: Duration = 50.milliseconds
+        private val ACTIVE_MAX_PAUSE: Duration = 1.seconds
 
         /** Refuses [mapping] of [index] unless it records the layout of [kind] in [format]. */
         fun checkLayout(index: String, mapping: TypeMapping, kind: String, format: Int) {

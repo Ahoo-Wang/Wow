@@ -54,7 +54,8 @@ import kotlin.time.toKotlinDuration
  * - `wow.query.memory.enabled` (false; D209): whether the snapshots on a store in memory are queried, from the
  *   in-memory reference query backend, and the events of a log in memory, scanned in memory (review R3.4-1): for
  *   local runs, demos and tests, not for production.
- * - `wow.query.events.*` (D235): the `events` model, served from each aggregate's log store:
+ * - `wow.query.events.*` (D235): the `events` model, served from each aggregate's log store, or the store its
+ *   `wow.aggregates.[<context>.<aggregate>].query.events.store` names:
  *   `mongo-read-preference` (none, the primary), the MongoDB read preference of its queries (`secondaryPreferred`,
  *   say), so a free filter scans a secondary rather than the primary the log appends to;
  *   `wow.stores.<name>.query.read-preference` takes its place for one store, and sets that of its snapshot queries
