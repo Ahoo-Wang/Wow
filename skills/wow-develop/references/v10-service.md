@@ -48,7 +48,7 @@ Java domains (decision D229 G-8): a module of Java sources applies `kotlin("jvm"
 - `@AfterCommand(include, exclude)` or `afterCommand`: returns extra events in the same stream; cannot reject.
 - Sourcing: on the state, `@OnSourcing` or `onSourcing`, one per produced event (even a no-op); mutable in place by default, returning the state type for immutable. No services, no I/O. Every property initialized: the state is serialized as is.
 - Decide must never mutate state; the test DSL fails a spec that does.
-- Rejection codes: `@ErrorCode(description, status = 422)` on a `const val String` (Java: a `static final String` field) in the domain module; never the `wow.` prefix; each once per module. Kernel codes: `KernelRejections`.
+- Rejection codes: `@ErrorCode(description, status = 422)` on a `const val String` (Java: a `static final String` field) in the domain module; never the `wow.` prefix; each once per module. Write local names in an `object` nested in the `@AggregateRoot` class (`const val EMPTY = "empty"`, decision D259): the compiler and the kernel name them `context.aggregate.empty`, `expectRejected` takes either form, and peers compare with the api's generated `<Context>Contract.<Aggregate>.Errors.EMPTY`; a code with a dot is full (`context.code` for a context-wide one). Kernel codes: `KernelRejections`.
 - Evolution: `@Revision(n)`, `@Upgrade(event = X::class, from = n)` on a top-level or `object` function taking and returning `JsonNode`/`ObjectNode`, a complete chain 1..n-1; `@Alias`.
 
 ## Processors

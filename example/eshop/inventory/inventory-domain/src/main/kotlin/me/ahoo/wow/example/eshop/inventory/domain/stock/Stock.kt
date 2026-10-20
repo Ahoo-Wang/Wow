@@ -16,6 +16,7 @@ package me.ahoo.wow.example.eshop.inventory.domain.stock
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
@@ -33,7 +34,7 @@ import me.ahoo.wow.example.eshop.inventory.api.stock.StockReserved
  * validation, commits the reservation once the order is shipped and releases it once the order is cancelled. Those
  * commands come from another context, through this context's command topic.
  *
- * A short stock is a rejection ([StockRejections.INSUFFICIENT]): nothing is written, and the rejection goes back to
+ * A short stock is a rejection ([Rejections.INSUFFICIENT]): nothing is written, and the rejection goes back to
  * the ordering saga that sent the reservation, as a receipt. Every command for one order is idempotent by the order's
  * id, besides the kernel's de-duplication by request id: reserving again for an order already reserved, and releasing
  * a reservation that is not there, change nothing.
@@ -54,7 +55,7 @@ class Stock(private val state: StockState) {
         when {
             command.orderId in state.reservations -> Decision.NoOp
             command.quantity > state.available -> Decision.reject(
-                StockRejections.INSUFFICIENT,
+                Rejections.INSUFFICIENT,
                 "Only ${state.available} of ${scope.command.ref.id} are available, not ${command.quantity}.",
             )
 
@@ -66,7 +67,7 @@ class Stock(private val state: StockState) {
     @OnCommand(produces = [ReservationCommitted::class])
     fun onCommand(command: CommitReservation, scope: DecideScope): Decision {
         val quantity = state.reservations[command.orderId] ?: return Decision.reject(
-            StockRejections.NO_RESERVATION,
+            Rejections.NO_RESERVATION,
             "Nothing of ${scope.command.ref.id} is reserved for the order ${command.orderId}.",
         )
         return Decision.events(ReservationCommitted(command.orderId, quantity))
@@ -83,6 +84,21 @@ class Stock(private val state: StockState) {
         if (quantity > 0) {
             decide()
         } else {
-            Decision.reject(StockRejections.INVALID_QUANTITY, "$quantity is not a positive quantity.")
+            Decision.reject(Rejections.INVALID_QUANTITY, "$quantity is not a positive quantity.")
         }
+
+    /**
+     * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them
+     * `<context>.stock.<code>` (decision D259), as its peers read them from the api's generated contract.
+     */
+    object Rejections {
+        @ErrorCode(description = "A quantity of stock is positive.")
+        const val INVALID_QUANTITY = "invalid-quantity"
+
+        @ErrorCode(description = "Fewer units are available than the order asks for.", status = 409)
+        const val INSUFFICIENT = "insufficient"
+
+        @ErrorCode(description = "Nothing is reserved for the order.", status = 409)
+        const val NO_RESERVATION = "no-reservation"
+    }
 }

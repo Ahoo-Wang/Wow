@@ -40,6 +40,8 @@ class Reply(
     val headers: Map<String, String> = emptyMap(),
     val body: ByteArray = ByteArray(0),
     val chunks: List<String>? = null,
+    /** Whether the connection is cut after the chunks, without ending the response. */
+    val abort: Boolean = false,
 ) {
     companion object {
         fun json(value: Any, status: Int = 200): Reply =
@@ -56,6 +58,9 @@ class Reply(
 
         fun events(vararg chunks: String): Reply =
             Reply(200, mapOf("Content-Type" to "text/event-stream"), chunks = chunks.toList())
+
+        fun cut(vararg chunks: String): Reply =
+            Reply(200, mapOf("Content-Type" to "text/event-stream"), chunks = chunks.toList(), abort = true)
     }
 }
 
@@ -85,7 +90,9 @@ class FakePeer : AutoCloseable {
                 reply.headers.forEach { (name, value) -> exchange.responseHeaders.add(name, value) }
                 val chunks = reply.chunks
                 if (chunks != null) {
-                    exchange.sendResponseHeaders(reply.status, 0)
+                    // A cut response promises more than it writes: the server closes the connection short of it.
+                    val length = if (reply.abort) chunks.sumOf { it.toByteArray().size } + 1024L else 0L
+                    exchange.sendResponseHeaders(reply.status, length)
                     chunks.forEach { chunk ->
                         exchange.responseBody.write(chunk.toByteArray())
                         exchange.responseBody.flush()

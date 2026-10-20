@@ -37,7 +37,7 @@ class CategorySpec {
 
     @Test
     fun `a category should need a name`() = aggregateSpec(model, id = "mugs") {
-        whenCommand(CreateCategory("")) { expectRejected(CategoryRejections.BLANK_NAME) }
+        whenCommand(CreateCategory("")) { expectRejected(Category.Rejections.BLANK_NAME) }
     }
 
     @Test
@@ -53,6 +53,6 @@ class CategorySpec {
             whenCommand(RenameCategory("Plates")) { expectEvents(CategoryRenamed("Plates")) }
             holds(CatalogNames.CATEGORY_NAMES, "plates").assert().isTrue()
             holds(CatalogNames.CATEGORY_NAMES, "cups").assert().isFalse()
-            whenCommand(RenameCategory(" ")) { expectRejected(CategoryRejections.BLANK_NAME) }
+            whenCommand(RenameCategory(" ")) { expectRejected(Category.Rejections.BLANK_NAME) }
         }
 }

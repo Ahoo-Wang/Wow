@@ -900,10 +900,14 @@ class WowProperties {
          * without them, the domain commands alone; a system command (`wow.*`: the lifecycle, the snapshot rebuild, the
          * schedules) only when an entry naming `wow.` lists it; an entry naming a domain command narrows the domain
          * commands to those listed. A CoSec service principal is configured here by its id, with [commands] alone.
+         * The [reads] narrow the models it may read on the internal port's read routes (decision D259), by
+         * `context.aggregate.model` (`ordering.order.snapshot`, `.events`, `.state`) or a dataset's `context.dataset`,
+         * patterns with `*`: without them, every model the node serves.
          */
         class Service {
             var tokens: MutableList<String> = ArrayList()
             var commands: MutableList<String> = ArrayList()
+            var reads: MutableList<String> = ArrayList()
         }
 
         class Error {

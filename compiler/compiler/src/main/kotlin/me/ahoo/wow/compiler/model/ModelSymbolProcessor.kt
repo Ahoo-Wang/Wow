@@ -53,6 +53,7 @@ import me.ahoo.wow.compiler.model.ModelNames.ON_SOURCING_ANNOTATION
 import me.ahoo.wow.compiler.model.ModelNames.REACTOR_TYPES
 import me.ahoo.wow.compiler.model.ModelNames.STRING
 import me.ahoo.wow.manifest.ContextName
+import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import tools.jackson.databind.json.JsonMapper
@@ -149,7 +150,7 @@ internal class ModelSymbolProcessor(
     private val claimedMounted = mutableSetOf<String>()
     private val reportedMounted = mutableSetOf<String>()
 
-    /** The module's `@ErrorCode` codes without problems, by code (decision D121). */
+    /** The module's `@ErrorCode` codes without problems, by property (decision D121). */
     private val errorCodes = sortedMapOf<String, ErrorCodeBinding>()
     private val sources = mutableSetOf<KSFile>()
 
@@ -256,8 +257,8 @@ internal class ModelSymbolProcessor(
     }
 
     /**
-     * Collects the module's `@ErrorCode` constants (decision D121); in generate mode, their problems and a code two
-     * of them hold fail the compilation.
+     * Collects the module's `@ErrorCode` constants (decision D121); in generate mode, their problems fail the
+     * compilation. A code two of them hold, once qualified ([errors]), fails it too.
      */
     private fun processErrorCodes(resolver: Resolver): List<KSAnnotated> {
         val properties = resolver.getSymbolsWithAnnotation(ErrorCodeResolver.ERROR_CODE)
@@ -266,18 +267,32 @@ internal class ModelSymbolProcessor(
         properties.filter { it.validate() }.forEach { property ->
             sources += listOfNotNull(property.containingFile)
             val binding = ErrorCodeResolver.resolve(property, stringType)
-            val code = binding.error?.code
-            val previous = code?.let { errorCodes[it] }
+            // A full code is known now; a local one once its aggregate is ([errors]).
+            val code = binding.error?.code?.takeIf(ErrorCodeResolver::isFull)
+            val previous = code?.let { full -> errorCodes.values.firstOrNull { it.error?.code == full } }
             val problems = binding.problems + listOfNotNull(
                 previous?.let { "error code $code is declared by ${it.property} and ${binding.property}" },
             )
-            if (problems.isEmpty() && code != null) {
-                errorCodes[code] = binding
+            if (problems.isEmpty() && binding.error != null) {
+                errorCodes[binding.property] = binding
             } else if (mode == Mode.GENERATE) {
                 problems.forEach { logger.error(it, property) }
             }
         }
         return properties.filterNot { it.validate() }
+    }
+
+    /**
+     * The module's error codes as the Manifest names them (decision D259), each with its property: a local name
+     * qualified with its aggregate in [context].
+     */
+    private fun errors(context: String): List<Pair<String, ErrorManifest>> {
+        val aggregates = bindings.associate { it.root to it.aggregateName }
+        return errorCodes.values.mapNotNull { binding ->
+            binding.qualified(context, aggregates)?.let {
+                binding.property to it
+            }
+        }
     }
 
     /** The bounded context of the module's types, when an option or a single `@BoundedContext` names it. */
@@ -392,15 +407,23 @@ internal class ModelSymbolProcessor(
             )
             return
         }
-        val problems = ManifestFragmentBuilder.problems(context, bindings, subscriptions)
+        val errors = errors(context)
+        val problems = ManifestFragmentBuilder.problems(context, bindings, subscriptions) +
+            errors.groupBy({ it.second.code }, { it.first }).filterValues { it.size > 1 }
+                .map { (code, properties) -> "error code $code is declared by ${properties.joinToString(" and ")}" }
         if (problems.isNotEmpty()) {
             problems.forEach { logger.error(it) }
             return
         }
         val module = manifest.module ?: context
         val description = boundedContexts[context]?.ifBlank { null }
-        val errors = errorCodes.values.mapNotNull(ErrorCodeBinding::error)
-        val fragment = ManifestFragmentBuilder.build(context, description, bindings, subscriptions, errors)
+        val fragment = ManifestFragmentBuilder.build(
+            context,
+            description,
+            bindings,
+            subscriptions,
+            errors.map { it.second }
+        )
         codeGenerator.createNewFileByPath(
             Dependencies(aggregating = true, sources = sources.toTypedArray()),
             "${Manifest.FRAGMENT_DIRECTORY}/$module",

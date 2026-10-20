@@ -15,6 +15,7 @@ package me.ahoo.wow.example.eshop.payment.domain.payment
 
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment
@@ -52,7 +53,7 @@ class Payment(private val state: PaymentState) {
             Decision.events(PaymentRequested(command.orderId, command.amount))
         } else {
             Decision.reject(
-                PaymentRejections.INVALID_AMOUNT,
+                Rejections.INVALID_AMOUNT,
                 "A payment is of a positive amount, not ${command.amount}."
             )
         }
@@ -79,7 +80,19 @@ class Payment(private val state: PaymentState) {
     }
 
     private fun wrongStatus(action: String): Decision = Decision.reject(
-        PaymentRejections.WRONG_STATUS,
+        Rejections.WRONG_STATUS,
         "The payment is ${state.status}: it cannot $action.",
     )
+
+    /**
+     * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them
+     * `<context>.payment.<code>` (decision D259), as its peers read them from the api's generated contract.
+     */
+    object Rejections {
+        @ErrorCode(description = "A payment is of a positive amount.")
+        const val INVALID_AMOUNT = "invalid-amount"
+
+        @ErrorCode(description = "The payment's status does not allow the command.", status = 409)
+        const val WRONG_STATUS = "wrong-status"
+    }
 }
