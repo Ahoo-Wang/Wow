@@ -257,23 +257,27 @@ public final class me/ahoo/wow/kernel/EventType {
 }
 
 public final class me/ahoo/wow/kernel/ExecutionProjectContext : me/ahoo/wow/api/subscribe/ProjectContext {
-	public fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;)V
+	public fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/kernel/ContextQueries;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/kernel/ContextQueries;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lme/ahoo/wow/api/subscribe/ExecutionId;
-	public final fun copy (Lme/ahoo/wow/api/subscribe/ExecutionId;)Lme/ahoo/wow/kernel/ExecutionProjectContext;
-	public static synthetic fun copy$default (Lme/ahoo/wow/kernel/ExecutionProjectContext;Lme/ahoo/wow/api/subscribe/ExecutionId;ILjava/lang/Object;)Lme/ahoo/wow/kernel/ExecutionProjectContext;
+	public final fun copy (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/kernel/ContextQueries;)Lme/ahoo/wow/kernel/ExecutionProjectContext;
+	public static synthetic fun copy$default (Lme/ahoo/wow/kernel/ExecutionProjectContext;Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/kernel/ContextQueries;ILjava/lang/Object;)Lme/ahoo/wow/kernel/ExecutionProjectContext;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
+	public fun getQueries ()Lme/ahoo/wow/api/read/SubscriptionQueries;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/kernel/ExecutionReactContext : me/ahoo/wow/api/subscribe/ReactContext {
-	public fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;)V
+	public fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/kernel/ContextQueries;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/kernel/ContextQueries;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lme/ahoo/wow/api/subscribe/ExecutionId;
-	public final fun copy (Lme/ahoo/wow/api/subscribe/ExecutionId;)Lme/ahoo/wow/kernel/ExecutionReactContext;
-	public static synthetic fun copy$default (Lme/ahoo/wow/kernel/ExecutionReactContext;Lme/ahoo/wow/api/subscribe/ExecutionId;ILjava/lang/Object;)Lme/ahoo/wow/kernel/ExecutionReactContext;
+	public final fun copy (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/kernel/ContextQueries;)Lme/ahoo/wow/kernel/ExecutionReactContext;
+	public static synthetic fun copy$default (Lme/ahoo/wow/kernel/ExecutionReactContext;Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/kernel/ContextQueries;ILjava/lang/Object;)Lme/ahoo/wow/kernel/ExecutionReactContext;
 	public fun equals (Ljava/lang/Object;)Z
 	public fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
+	public fun getQueries ()Lme/ahoo/wow/api/read/SubscriptionQueries;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
@@ -290,6 +294,7 @@ public final class me/ahoo/wow/kernel/ExecutionSagaContext : me/ahoo/wow/api/sub
 	public static final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;I)Ljava/lang/String;
 	public fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
 	public fun getIds ()Lme/ahoo/wow/api/id/Ids;
+	public fun getQueries ()Lme/ahoo/wow/api/read/SubscriptionQueries;
 	public fun schedule (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
 }
 

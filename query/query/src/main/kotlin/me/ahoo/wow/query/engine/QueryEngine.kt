@@ -81,6 +81,10 @@ class QueryEngine private constructor(
     val datasetVisibility: DatasetVisibility,
     masks: PayloadMasks,
     observer: QueryObserver,
+    /** The tenant a caller's queries of each aggregate type are restricted to (decision D116). */
+    val tenants: QueryTenantPolicy,
+    /** Who each aggregate type belongs to besides its tenant (decision D189), as the Manifest says. */
+    val ownerships: QueryOwnership,
 ) {
     private val snapshotGateways = snapshots.associateBy { it.aggregateType }
     private val eventGateways = events.associateBy { it.aggregateType }
@@ -94,6 +98,12 @@ class QueryEngine private constructor(
 
     /** The policy gateways of the types whose snapshots are not queried while policies may hide one (R3.3-3). */
     val policies: Collection<QueryGateway> get() = policyGateways.values
+
+    /** The snapshot query gateway of [type], or null when no backend serves its snapshots. */
+    fun snapshots(type: AggregateType): QueryGateway? = snapshotGateways[type]
+
+    /** The events query gateway of [type], or null when no backend serves its events. */
+    fun events(type: AggregateType): QueryGateway? = eventGateways[type]
 
     /** The gateway whose policies decide which of [type]'s states a caller sees, or null when none applies. */
     fun visibility(type: AggregateType): QueryGateway? = snapshotGateways[type] ?: policyGateways[type]
@@ -212,7 +222,8 @@ class QueryEngine private constructor(
             val masks = masks ?: PayloadMasks(manifest, strategies)
             val catalog = catalog()
             val observer = QueryObserver.of(listOf(QueryLogObserver()) + observers)
-            val gatewayPolicies = scopePolicies() + policies
+            val ownerships = QueryOwnership.of(manifest)
+            val gatewayPolicies = scopePolicies(ownerships) + policies
             val snapshots = snapshotGateways(catalog, gatewayPolicies, observer)
             // Only ABAC and the application's policies hide an aggregate from a caller of its scope.
             val hides = abac.enabled || policies.isNotEmpty()
@@ -254,6 +265,8 @@ class QueryEngine private constructor(
                 datasetVisibility ?: DatasetVisibility.of(abac),
                 masks,
                 observer,
+                tenants,
+                ownerships,
             )
         }
 
@@ -328,8 +341,8 @@ class QueryEngine private constructor(
          * The scope and ABAC policies every gateway runs first (decision D129), the owner applying to the aggregates
          * the Manifest says belong to their owners (decision D189).
          */
-        private fun scopePolicies(): List<QueryPolicy> = listOf(
-            ScopeQueryPolicy(tenants, ownerships = QueryOwnership.of(manifest)),
+        private fun scopePolicies(ownerships: QueryOwnership): List<QueryPolicy> = listOf(
+            ScopeQueryPolicy(tenants, ownerships = ownerships),
             AbacQueryPolicy(abac),
         )
     }

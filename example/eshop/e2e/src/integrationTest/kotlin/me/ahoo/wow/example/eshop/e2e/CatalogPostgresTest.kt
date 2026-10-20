@@ -18,13 +18,14 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.dsl.countQuery
 import me.ahoo.wow.api.query.dsl.listQuery
+import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.example.eshop.catalog.api.EshopCatalogContract
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
+import me.ahoo.wow.example.eshop.catalog.domain.product.ProductState
 import me.ahoo.wow.example.eshop.catalog.server.CatalogCallers
 import me.ahoo.wow.example.eshop.catalog.server.CatalogServer
 import me.ahoo.wow.example.eshop.catalog.server.PostgresDataSource
-import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.query.QueryCaller
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -111,7 +112,8 @@ class CatalogPostgresTest {
 
     /**
      * The storefront's query as a service's own code writes it: the query DSL with the compiler's
-     * the catalog api's `EshopCatalogContract.Product`, run in process on the node's snapshot query gateway, here the PostgreSQL backend.
+     * the catalog api's `EshopCatalogContract.Product`, run in process on the node's snapshot query gateway, here the
+     * PostgreSQL backend.
      */
     @Test
     fun `the storefront's query written with the DSL and the generated properties should run on PostgreSQL`() {
@@ -131,11 +133,11 @@ class CatalogPostgresTest {
             }
             sort { EshopCatalogContract.Product.STATE__PRICE.desc() }
         }
-        val gateway = checkNotNull(context.getBean(HttpQueries::class.java).snapshots(PRODUCT))
-        runBlocking { gateway.list(query, QueryCaller.IN_PROCESS).toList() }.map { it["aggregateId"].asString() }
+        val products = context.getBean(QueryApi::class.java).trusted().snapshots<ProductState>()
+        runBlocking { products.list(query).toList() }.map { it.ref.id }
             .assert().containsExactly(byPrice.getValue("6.00"), byPrice.getValue("4.00"))
         val inCategory = countQuery { filter { EshopCatalogContract.Product.STATE__CATEGORY_ID eq category } }
-        runBlocking { gateway.count(inCategory, QueryCaller.IN_PROCESS) }.count.assert().isEqualTo(3L)
+        runBlocking { products.count(inCategory) }.count.assert().isEqualTo(3L)
     }
 
     @Test
@@ -181,7 +183,6 @@ class CatalogPostgresTest {
         const val PRODUCTS = "/eshop-catalog/product/snapshot/query"
         val EMPLOYEE = mapOf(CatalogCallers.USER to "erin", CatalogCallers.ROLE to CatalogCallers.EMPLOYEE)
         val BUYER = mapOf(CatalogCallers.USER to "alice")
-        val PRODUCT = EshopCatalogContract.Product.TYPE
         val KEYS = listOf("categoryId", "brandId", "status", "price")
         val TIMEOUT: Duration = Duration.ofSeconds(30)
     }

@@ -298,8 +298,12 @@ class QueryBudget(
         /** The default [timeout] (decision D150). */
         val DEFAULT_TIMEOUT: Duration = 30.seconds
         const val HTTP_LABEL: String = "HTTP"
+        const val IN_PROCESS_LABEL: String = "In-process"
 
         /** The HTTP budget with the default limits. */
         val HTTP_DEFAULT: QueryBudget = QueryBudget(HTTP_LABEL)
+
+        /** The in-process budget with the default limits, the HTTP ones (review R4-Q, Q-3). */
+        val IN_PROCESS_DEFAULT: QueryBudget = QueryBudget(IN_PROCESS_LABEL)
     }
 }

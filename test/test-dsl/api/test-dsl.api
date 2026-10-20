@@ -113,6 +113,7 @@ public final class me/ahoo/wow/test/ProcessorSpec {
 	public static synthetic fun fork$default (Lme/ahoo/wow/test/ProcessorSpec;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun getHandlers ()Ljava/util/List;
 	public final fun getProcessor ()Ljava/lang/String;
+	public final fun givenQueries (Lme/ahoo/wow/api/read/QueryApi;)V
 	public final fun whenCommitted (Lme/ahoo/wow/api/decide/Command;ILjava/lang/String;ZLjava/lang/String;Lkotlin/jvm/functions/Function1;)V
 	public final fun whenCommitted (Lme/ahoo/wow/api/subscribe/CommandCommitted;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)V
 	public static synthetic fun whenCommitted$default (Lme/ahoo/wow/test/ProcessorSpec;Lme/ahoo/wow/api/decide/Command;ILjava/lang/String;ZLjava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V

@@ -23,9 +23,9 @@ import me.ahoo.wow.analytics.catalog.domain.warehouse.KnownAggregates
 import me.ahoo.wow.analytics.catalog.domain.warehouse.TrustedWriters
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandGateway
@@ -107,7 +107,7 @@ class AnalyticsCatalogConfiguration {
         TrustedWriters.of(properties.trustedWriters)
 
     @Bean
-    fun knownAggregates(queries: ObjectProvider<HttpQueries>): KnownAggregates =
+    fun knownAggregates(queries: ObjectProvider<QueryApi>): KnownAggregates =
         QueriedKnownAggregates { queries.getObject() }
 
     @Bean

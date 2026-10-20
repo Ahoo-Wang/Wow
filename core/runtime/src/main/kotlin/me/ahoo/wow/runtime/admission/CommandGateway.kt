@@ -34,6 +34,7 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.TransformedFrom
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.result.WaitPlan
@@ -44,6 +45,7 @@ import me.ahoo.wow.kernel.DecideFunction
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.ZeroAwaitingCounter
 import me.ahoo.wow.runtime.cluster.ClusterCodec
+import me.ahoo.wow.runtime.wait.CommandRelay
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.admissionRejected
 import me.ahoo.wow.runtime.wait.isAcceptedOnly
@@ -64,8 +66,11 @@ import kotlin.time.Duration
  * Admission runs in this order, and the first step that refuses answers the request:
  *
  * 1. Resolve the command type from [registry], by its model name or the part of it after the aggregate type
- *    (`AddItem` for `shop.cart.AddItem`), among the commands the aggregate decides and those mounted under it: an
- *    aggregate or a command this node does not serve is [FrameworkCodes.UNHANDLED].
+ *    (`AddItem` for `shop.cart.AddItem`), or by the class of a command object ([CommandBody.Value], decision D258),
+ *    among the commands the aggregate decides and those mounted under it: a command this node does not serve is
+ *    [FrameworkCodes.UNHANDLED]. An aggregate it does not serve is a peer context's when [peers] knows its contract
+ *    (decision D259, review M-1): admitted as [admitPeer] says and sent to that context's command topic; any other is
+ *    [FrameworkCodes.UNHANDLED].
  * 2. Decide the identity, each fact by one rule (decisions D95–D97); a fact given twice, or missing, is
  *    [FrameworkCodes.MALFORMED]:
  *    - the tenant and the scope are the caller's; a [CommandRequest.target] replaces them only for a caller with
@@ -93,7 +98,9 @@ import kotlin.time.Duration
  *    An id longer than 256 characters (a request, aggregate, tenant or space id) is [FrameworkCodes.MALFORMED]
  *    ([AdmissionLimits]).
  * 4. Decode the body as the command type with [mapper]; one that does not decode, or that writes `\u0000` in a string
- *    or a key, which not every store keeps ([AdmissionLimits]), is [FrameworkCodes.MALFORMED].
+ *    or a key, which not every store keeps ([AdmissionLimits]), is [FrameworkCodes.MALFORMED]. A command object is
+ *    not decoded: it must be of the command type, and is checked as the JSON [mapper] writes it as. A request whose
+ *    ref names another tenant than the one decided ([CommandRequest.tenantId]) is [FrameworkCodes.MALFORMED] too.
  * 5. Transform the command with the one of [transformers] that takes its type, if any ([CommandTransformer]). The
  *    command it becomes must be decided by an aggregate this node serves ([FrameworkCodes.UNHANDLED] otherwise); its
  *    tenant is decided again for that aggregate type, and its scope, request id, expected version and wait plan are
@@ -138,6 +145,11 @@ class CommandGateway @InternalWowApi constructor(
     committed: CommittedRequests = CommittedRequests.NONE,
     /** Sees each admission (decision D174); the admitted command executes in the admission's trace. */
     private val observer: Observer = Observer.NONE,
+    /**
+     * The commands of peer contexts this gateway sends to their command topics (decision D259, review M-1); none by
+     * default, and an aggregate this node does not serve is then [FrameworkCodes.UNHANDLED].
+     */
+    private val peers: PeerCommands? = null,
 ) {
     private val creations = CreationIds(ids, committed)
 
@@ -177,10 +189,11 @@ class CommandGateway @InternalWowApi constructor(
      * without the flow of every hop (review A5-5).
      */
     private suspend fun dispatch(
-        request: CommandRequest,
+        received: CommandRequest,
         streaming: Boolean,
         emit: suspend (CommandResult) -> Unit,
     ) {
+        val request = named(received)
         val observed = observer.admitting(request.context, request.aggregate, request.command, request.trace)
         // The command executes in the admission's trace (decision D174).
         val trace = observed.context
@@ -196,25 +209,68 @@ class CommandGateway @InternalWowApi constructor(
         }
         when (admission) {
             is Admission.Refused -> emit(observedRefusal(admission.result))
+            is Admission.Relayed -> relay(admission, streaming, trace, emit)
             is Admission.Admitted -> {
                 val coordinator = coordinators.getValue(admission.command.ref.type.context)
                 val from = admission.transformedFrom
+                val tagged: suspend (CommandResult) -> Unit = {
+                    emit(if (from == null) it else it.copyWith(transformedFrom = from))
+                }
                 val call = admission.call
                 if (call != null) {
                     // Apart from the caller and bounded by its plan's timeout (review R2.5-2).
-                    val settled = traced(trace) { coordinator.call(admission.model, admission.command, call.wait) }
-                    emit(if (from == null) settled else settled.copyWith(transformedFrom = from))
+                    tagged(traced(trace) { coordinator.call(admission.model, admission.command, call.wait) })
                 } else if (accepted != null) {
-                    emit(if (from == null) accepted else accepted.copyWith(transformedFrom = from))
+                    tagged(accepted)
                 } else if (streaming) {
                     val streamed = coordinator.stream(admission.model, admission.command)
                     val results = if (trace === EmptyCoroutineContext) streamed else streamed.flowOn(trace)
-                    results.collect { emit(if (from == null) it else it.copyWith(transformedFrom = from)) }
+                    results.collect { tagged(it) }
                 } else {
-                    val result = traced(trace) { coordinator.execute(admission.model, admission.command) }
-                    emit(if (from == null) result else result.copyWith(transformedFrom = from))
+                    tagged(traced(trace) { coordinator.execute(admission.model, admission.command) })
                 }
             }
+        }
+    }
+
+    /**
+     * [request] naming its command type, when it was built from a command object that names it by its class
+     * ([CommandRequest.of], decision D258): the type of that class the aggregate decides or mounts, on this node, or
+     * the one its peer context's contract lists. A class neither has is left as it is, and admission refuses it.
+     */
+    private fun named(request: CommandRequest): CommandRequest {
+        val value = (request.body as? CommandBody.Value)?.command ?: return request
+        val type = value.javaClass
+        if (request.command != type.name) {
+            return request
+        }
+        val aggregate = AggregateType(request.context, request.aggregate)
+        val name = registry.find(aggregate)?.let { model ->
+            (model.findCommandType(type) ?: model.mountedCommandTypes.firstOrNull { it.type == type })?.name
+        } ?: peers?.let { peers -> peers.aggregateOf(aggregate)?.let { peers.resolve(aggregate, it, type.name)?.name } }
+        return if (name == null) request else request.copyWith(command = name)
+    }
+
+    /**
+     * Sends [admission], a peer's command (decision D259, review M-1), through its command topic and hands [emit] its
+     * results as [dispatch] does; any coordinator follows its wait, which no execution here is part of.
+     */
+    private suspend fun relay(
+        admission: Admission.Relayed,
+        streaming: Boolean,
+        trace: CoroutineContext,
+        emit: suspend (CommandResult) -> Unit,
+    ) {
+        val coordinator = coordinators.values.first()
+        val (command, function, relay) = admission
+        when {
+            command.wait.isAcceptedOnly -> emit(traced(trace) { coordinator.acceptRelayed(command, function, relay) })
+            streaming -> {
+                val relayed = coordinator.relay(command, function, relay)
+                (if (trace === EmptyCoroutineContext) relayed else relayed.flowOn(trace)).collect { emit(it) }
+            }
+
+            else -> emit(traced(trace) { coordinator.executeRelayed(command, function, relay) })
         }
     }
 
@@ -303,8 +359,7 @@ class CommandGateway @InternalWowApi constructor(
             return facts.refuse(FrameworkCodes.NODE_CLOSING, "The node is closing.", CommandResult.Status.FAILED)
         }
         // 1. The command type.
-        val model = registry.find(facts.type)
-            ?: return facts.refuse(FrameworkCodes.UNHANDLED, "No aggregate ${facts.type} is served here.")
+        val model = registry.find(facts.type) ?: return admitPeer(request, facts)
         val unhandled = "${facts.type} has no command ${request.command}."
         val commandType = model.resolve(facts.type, request.command)
             ?: return facts.refuse(FrameworkCodes.UNHANDLED, unhandled)
@@ -330,6 +385,7 @@ class CommandGateway @InternalWowApi constructor(
         } catch (conflict: TenantConflictException) {
             return facts.refuse(FrameworkCodes.MALFORMED, conflict.message!!)
         }
+        tenantConflict(request, tenantId)?.let { return facts.refuse(FrameworkCodes.MALFORMED, it) }
         val scope = target?.scope ?: request.caller.scope
         val inputId = request.aggregateId ?: if (transformer == null) {
             creations.idOf(facts.type, tenantId, facts.requestId, scope, model.ownership)
@@ -342,10 +398,8 @@ class CommandGateway @InternalWowApi constructor(
         // 3. Action-level authorization.
         authorize(request, CommandAction(commandType, facts.ref, scope, creation))?.let { return facts.refuse(it) }
         // 4. The body.
-        if (writesNul(request.body)) {
-            return facts.refuse(FrameworkCodes.MALFORMED, "The body writes \\u0000 in a string, which no store keeps.")
-        }
-        val decoded = decode(request.body, commandType)
+        bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.MALFORMED, it) }
+        val decoded = decode(request.body, commandType.type)
             ?: return facts.refuse(FrameworkCodes.MALFORMED, "The body is not a ${commandType.name}.")
         // 5. The transformation.
         val headers = headersOf(request)
@@ -432,6 +486,117 @@ class CommandGateway @InternalWowApi constructor(
     }
 
     /**
+     * Admits [request] for an aggregate this node does not serve (decision D259, review M-1): one of a peer context
+     * whose contract the class path carries ([peers]) is checked as a command of this node is, up to its wait plan, and
+     * sent to that context's command topic; any other is [FrameworkCodes.UNHANDLED]. Its command type is resolved
+     * from the contract; its identity is decided as for this node's own aggregates, an aggregate id left out only for
+     * a command that creates its aggregate, which the peer's intake then gives one (decision D191); the caller is
+     * authorized and the body decoded and validated here. The peer runs no transformer of this node, and a synchronous
+     * call (decision D193) goes to the context that serves the aggregate, not through here. Its plan
+     * ([peerPlanProblem]) waits for ACCEPTED, or for the peer's COMMITTED, the default.
+     */
+    @Suppress("ReturnCount", "CyclomaticComplexMethod", "LongMethod") // One early return per refusing step.
+    private suspend fun admitPeer(request: CommandRequest, facts: Facts): Admission {
+        val type = facts.type
+        val aggregate = peers?.aggregateOf(type)
+            ?: return facts.refuse(FrameworkCodes.UNHANDLED, "No aggregate $type is served here.")
+        val peer = peers.resolve(type, aggregate, request.command)
+            ?: return facts.refuse(FrameworkCodes.UNHANDLED, "$type has no command ${request.command}.")
+        facts.function = FunctionInfo(FunctionKind.COMMAND, type.context, type.name, peer.name.substringAfterLast('.'))
+        val commandType = peer.commandType ?: return facts.refuse(
+            FrameworkCodes.UNHANDLED,
+            "The class of ${peer.name} is not on the class path: depend on the api module of ${type.context}, whose " +
+                "jar carries its contract and its commands (decision D234).",
+        )
+        val relay = peers.relayOf(peer.name) ?: return facts.refuse(
+            FrameworkCodes.UNHANDLED,
+            "$type is of context ${type.context}, which another service serves: its commands go through its command " +
+                "topic (decision D33), and this node has no command transport (with Spring Boot, set " +
+                "wow.kafka.bootstrap-servers).",
+        )
+        // 2. The identity.
+        identityConflict(request, peer.creation, transformed = false)?.let {
+            return facts.refuse(FrameworkCodes.MALFORMED, it)
+        }
+        if (request.call != null) {
+            return facts.refuse(
+                FrameworkCodes.MALFORMED,
+                "A synchronous call (decision D193) goes to the service of ${type.context}, which serves $type.",
+            )
+        }
+        val target = request.target
+        if (target != null && !request.caller.crossScope) {
+            return facts.refuse(FrameworkCodes.AUTH_FORBIDDEN, "The caller may not act in another scope.")
+        }
+        val tenantId = try {
+            tenants.tenantOf(type, request.caller, target)
+        } catch (conflict: TenantConflictException) {
+            return facts.refuse(FrameworkCodes.MALFORMED, conflict.message!!)
+        }
+        tenantConflict(request, tenantId)?.let { return facts.refuse(FrameworkCodes.MALFORMED, it) }
+        val scope = target?.scope ?: request.caller.scope
+        facts.ref = type.ref(tenantId, request.aggregateId ?: UNADDRESSED)
+        AdmissionLimits.oversized(facts.requestId, facts.ref.id, tenantId, scope)
+            ?.let { return facts.refuse(FrameworkCodes.MALFORMED, it) }
+        // 3. Action-level authorization.
+        authorize(request, CommandAction(commandType, facts.ref, scope, peer.creation))?.let { return facts.refuse(it) }
+        // 4. The body.
+        bodyProblem(request.body)?.let { return facts.refuse(FrameworkCodes.MALFORMED, it) }
+        val decoded = decode(request.body, commandType.type)
+            ?: return facts.refuse(FrameworkCodes.MALFORMED, "The body is not a ${peer.name}.")
+        // 6. Validation.
+        val violations = validators.flatMap { it.validate(commandType, decoded.value) }
+        if (violations.isNotEmpty()) {
+            return facts.refuse(FrameworkCodes.INVALID, "${peer.name} is invalid.", violations = violations)
+        }
+        // 7. The command.
+        val options = coordinators.values.first().options
+        val wait = request.wait
+        peerPlanProblem(type, wait)?.let { return facts.refuse(FrameworkCodes.WAIT_INVALID, it) }
+        val plan = if (wait == null || wait.isDefault) {
+            WaitPlan.COMMITTED.within(wait?.timeout ?: options.defaultTimeout)
+        } else {
+            wait
+        }
+        val admitted = Command(
+            id = facts.commandId,
+            requestId = facts.requestId,
+            ref = facts.ref,
+            body = decoded.value,
+            expectedVersion = request.expectedVersion,
+            scope = scope,
+            headers = request.headers,
+            operator = request.caller.toOperator(actingElsewhere = target != null),
+            wait = plan.within(minOf(plan.timeout, options.maxTimeout)),
+        )
+        return Admission.Relayed(admitted, facts.function, relay)
+    }
+
+    /**
+     * Why [wait] is not a plan a command of the peer aggregate [type] may have, or null when it is one: the command
+     * topic's path delivers ACCEPTED, once the broker acknowledged the command, and the peer's COMMITTED, which its
+     * intake signals back (decision D259); a later hop is not followed across services.
+     */
+    private fun peerPlanProblem(type: AggregateType, wait: WaitPlan?): String? {
+        if (wait == null || wait.isDefault) {
+            return null
+        }
+        val hop = wait.hops.firstOrNull { hop ->
+            hop.stage == Stage.HANDLED || hop.context != null && hop.context != type.context
+        } ?: return null
+        return "A command of $type, a context another service serves, goes through its command topic, which answers " +
+            "at ACCEPTED or at its COMMITTED (decision D259); hop $hop is not followed. Wait for COMMITTED, or read " +
+            "the peer's state afterwards."
+    }
+
+    /** Why the tenant [request]'s ref names is not [tenantId], the one admission decided; null when it is, or none. */
+    private fun tenantConflict(request: CommandRequest, tenantId: String): String? =
+        request.tenantId?.takeIf { it != tenantId }?.let {
+            "The command's ref names tenant $it, but it is sent in tenant $tenantId: a ref's tenant is the caller's, " +
+                "a cross-scope target's or the one fixed for its type."
+        }
+
+    /**
      * The request facts of [request]'s command: a service's synchronous call carries those of its root request that
      * propagate ([CallContext.facts], decision D236 ③) in place of the ones the edge recorded for the calling service.
      */
@@ -481,17 +646,32 @@ class CommandGateway @InternalWowApi constructor(
         }
     }
 
-    /** Whether [body] writes `\u0000` in a string or a key ([AdmissionLimits]). */
-    private fun writesNul(body: CommandBody): Boolean = when (body) {
-        is CommandBody.Bytes -> AdmissionLimits.writesNul(body.bytes)
-        is CommandBody.Tree -> AdmissionLimits.holdsNul(body.node)
+    /**
+     * Why [body] cannot be taken, or null when it can: it writes `\u0000` in a string or a key ([AdmissionLimits]); a
+     * command object ([CommandBody.Value], decision D258) is checked as the JSON it is written as, which it must be.
+     */
+    private fun bodyProblem(body: CommandBody): String? {
+        val nul = when (body) {
+            is CommandBody.Bytes -> AdmissionLimits.writesNul(body.bytes)
+            is CommandBody.Tree -> AdmissionLimits.holdsNul(body.node)
+            is CommandBody.Value -> try {
+                AdmissionLimits.holdsNul(mapper.valueToTree(body.command))
+            } catch (failure: JacksonException) {
+                return "The command ${body.command.javaClass.name} is not written as JSON: ${failure.originalMessage}"
+            }
+        }
+        return if (nul) "The body writes \\u0000 in a string, which no store keeps." else null
     }
 
-    /** [body] read as [type], or null when it does not decode to one. */
-    private fun decode(body: CommandBody, type: CommandType): Decoded? = try {
+    /**
+     * [body] read as [type], or null when it does not decode to one; a command object ([CommandBody.Value]) is taken as
+     * it is when it is one.
+     */
+    private fun decode(body: CommandBody, type: Class<*>): Decoded? = try {
         when (body) {
-            is CommandBody.Bytes -> mapper.readValue(body.bytes, type.type)
-            is CommandBody.Tree -> mapper.treeToValue(body.node, type.type)
+            is CommandBody.Bytes -> mapper.readValue(body.bytes, type)
+            is CommandBody.Tree -> mapper.treeToValue(body.node, type)
+            is CommandBody.Value -> body.command.takeIf { type.isInstance(it) }
         }?.let(::Decoded)
     } catch (_: JacksonException) {
         null
@@ -561,6 +741,13 @@ class CommandGateway @InternalWowApi constructor(
         ) : Admission
 
         class Refused(val result: CommandResult) : Admission
+
+        /** A peer context's command, sent to its command topic through [relay] (decision D259, review M-1). */
+        data class Relayed(
+            val command: Command<*>,
+            val function: FunctionInfo,
+            val relay: CommandRelay,
+        ) : Admission
 
         /** How the admission ended, as its observation names it (decision D174). */
         val observedName: String get() = if (this is Refused) "refused" else "admitted"

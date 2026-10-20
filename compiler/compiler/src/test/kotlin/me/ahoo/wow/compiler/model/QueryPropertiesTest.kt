@@ -20,24 +20,11 @@ import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 
 /**
- * The compiler generates `<State>Properties` for each aggregate's state when the module has `wow-query-api`. The
- * compiler does not depend on it, so these tests compile against stubs of its two types, as the real ones are.
+ * The compiler generates `<State>Properties` for each aggregate's state when the module has `wow-query-api`, which
+ * every module has through `wow-api` (decision D260): these tests compile against the real `SnapshotProperties`.
  */
 @OptIn(ExperimentalCompilerApi::class)
 class QueryPropertiesTest {
-    private val queryApi = SourceFile.kotlin(
-        "QueryApi.kt",
-        """
-        package me.ahoo.wow.api.query
-
-        data class QueryField(val path: String)
-
-        open class SnapshotProperties protected constructor() {
-            val TENANT_ID: QueryField = QueryField("tenantId")
-        }
-        """.trimIndent(),
-    )
-
     private val order = SourceFile.kotlin(
         "Order.kt",
         """
@@ -95,7 +82,7 @@ class QueryPropertiesTest {
 
     @Test
     fun `a state's properties are its serialized paths under state`() {
-        val (_, result) = compileModel("generate", queryApi, order)
+        val (_, result) = compileModel("generate", order)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         result.properties("sample.OrderStateProperties").assert().isEqualTo(
             linkedMapOf(
@@ -112,16 +99,15 @@ class QueryPropertiesTest {
                 "STATE__ATTRIBUTES" to "state.attributes",
                 "STATE__TAGS" to "state.tags",
                 "STATE__TOTAL_URL_COUNT" to "state.totalURLCount",
-                "TENANT_ID" to "tenantId",
             ),
         )
     }
 
     @Test
     fun `a root that is its own state gets them too`() {
-        val (_, result) = compileModel("generate", queryApi, order)
+        val (_, result) = compileModel("generate", order)
         result.properties("sample.LedgerProperties").assert().isEqualTo(
-            linkedMapOf("STATE__ID" to "state.id", "STATE__BALANCE" to "state.balance", "TENANT_ID" to "tenantId"),
+            linkedMapOf("STATE__ID" to "state.id", "STATE__BALANCE" to "state.balance"),
         )
     }
 
@@ -148,29 +134,26 @@ class QueryPropertiesTest {
             }
             """.trimIndent(),
         )
-        val (_, result) = compileModel("generate", queryApi, tally)
+        val (_, result) = compileModel("generate", tally)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         // The aggregate's id is a system field of the snapshot record, not of the state.
         result.properties("sample.TallyStateProperties").assert().isEqualTo(
-            linkedMapOf("STATE__COUNT" to "state.count", "TENANT_ID" to "tenantId"),
+            linkedMapOf("STATE__COUNT" to "state.count"),
         )
     }
 
     @Test
-    fun `without wow-query-api nothing is generated`() {
-        val (compilation, result) = compileModel("generate", order)
-        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
-        compilation.workingDir.walkTopDown().any { it.name.endsWith("Properties.kt") }.assert().isFalse()
-    }
-
-    /** The generated object's constants, in declaration order (the inherited ones last), as name to path. */
+    /**
+     * The generated object's own constants, in declaration order, as name to path; the snapshot's system fields are
+     * those of the `SnapshotProperties` it extends.
+     */
     private fun com.tschuchort.compiletesting.JvmCompilationResult.properties(name: String): Map<String, String> {
         val type = classLoader.loadClass(name)
+        type.superclass.name.assert().isEqualTo(QueryPropertiesSource.SNAPSHOT_PROPERTIES)
         val instance = type.getField("INSTANCE").get(null)
         val queryField = classLoader.loadClass("me.ahoo.wow.api.query.QueryField")
         val path = queryField.getMethod("getPath")
-        return (type.declaredFields.toList() + type.superclass.declaredFields)
-            .filter { it.type == queryField }
+        return type.declaredFields.filter { it.type == queryField }
             .associateTo(linkedMapOf()) { field ->
                 field.isAccessible = true
                 field.name to path.invoke(field.get(instance)) as String

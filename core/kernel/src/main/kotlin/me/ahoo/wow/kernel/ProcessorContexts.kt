@@ -19,6 +19,7 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.id.Ids
+import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.schedule.CancelSchedule
@@ -36,11 +37,27 @@ import me.ahoo.wow.spi.id.IdGenerators
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
-/** The context of a projection's handler for one execution (design 01 §1). */
-data class ExecutionProjectContext(override val executionId: ExecutionId) : ProjectContext
+/**
+ * The context of a projection's handler for one execution (design 01 §1); its [queries] are [contextQueries]' of the
+ * commit's tenant (decision D259).
+ */
+data class ExecutionProjectContext(
+    override val executionId: ExecutionId,
+    private val contextQueries: ContextQueries = ContextQueries.NONE,
+) : ProjectContext {
+    override val queries: SubscriptionQueries get() = contextQueries.of(executionId.ref.tenantId)
+}
 
-/** The context of a reactor's handler for one execution (design 01 §1). */
-data class ExecutionReactContext(override val executionId: ExecutionId) : ReactContext
+/**
+ * The context of a reactor's handler for one execution (design 01 §1); its [queries] are [contextQueries]' of the
+ * commit's tenant (decision D259).
+ */
+data class ExecutionReactContext(
+    override val executionId: ExecutionId,
+    private val contextQueries: ContextQueries = ContextQueries.NONE,
+) : ReactContext {
+    override val queries: SubscriptionQueries get() = contextQueries.of(executionId.ref.tenantId)
+}
 
 /**
  * The context of a saga's handler for one execution of the commit [event] (design 01 §1, design 04 §1). Each
@@ -55,7 +72,8 @@ data class ExecutionReactContext(override val executionId: ExecutionId) : ReactC
  * Its [ids] are the node's generators (decision D171); a domain module's test gives fixed ones.
  *
  * Its synchronous [call]s (decision D193) go through [calls]: the node's client of the other contexts' command
- * gateways, an answer in a domain module's test.
+ * gateways, an answer in a domain module's test. Its [queries] are [contextQueries]' of the commit's tenant (decision
+ * D259).
  */
 class ExecutionSagaContext @InternalWowApi constructor(
     override val executionId: ExecutionId,
@@ -64,12 +82,15 @@ class ExecutionSagaContext @InternalWowApi constructor(
     private val commandTypes: CommandTypes,
     private val codec: EventCodec = EventCodec(),
     private val calls: CommandCalls = CommandCalls.NONE,
+    private val contextQueries: ContextQueries = ContextQueries.NONE,
 ) : SagaContext {
     /** The context of the execution [executionId] of the commit [event], deriving its ids from [ids]. */
     constructor(executionId: ExecutionId, event: StateEvent<*>, ids: Ids = IdGenerators.DEFAULT) :
         this(executionId, event, ids, CommandTypes.SIMPLE_NAMES)
 
     private val derived = AtomicInteger()
+
+    override val queries: SubscriptionQueries get() = contextQueries.of(executionId.ref.tenantId)
 
     init {
         require(event.ref == executionId.ref && event.version == executionId.version) {
@@ -155,7 +176,8 @@ class ExecutionSagaContext @InternalWowApi constructor(
 /**
  * The context a handler of [kind] gets for the execution of [event] by the subscription [subscription]: its
  * [ExecutionId] is (subscription, aggregate, version); a saga's takes its ids from [ids], names the commands it
- * schedules by [commandTypes] and makes its synchronous calls through [calls] (decision D193).
+ * schedules by [commandTypes] and makes its synchronous calls through [calls] (decision D193); every handler reads
+ * through [queries] (decision D259).
  */
 @InternalWowApi
 fun contextOf(
@@ -165,12 +187,13 @@ fun contextOf(
     ids: Ids = IdGenerators.DEFAULT,
     commandTypes: CommandTypes = CommandTypes.SIMPLE_NAMES,
     calls: CommandCalls = CommandCalls.NONE,
+    queries: ContextQueries = ContextQueries.NONE,
 ): SubscriptionContext {
     val execution = ExecutionId(subscription, event.ref, event.version)
     return when (kind) {
-        FunctionKind.PROJECT -> ExecutionProjectContext(execution)
-        FunctionKind.REACT -> ExecutionReactContext(execution)
-        FunctionKind.SAGA -> ExecutionSagaContext(execution, event, ids, commandTypes, calls = calls)
+        FunctionKind.PROJECT -> ExecutionProjectContext(execution, queries)
+        FunctionKind.REACT -> ExecutionReactContext(execution, queries)
+        FunctionKind.SAGA -> ExecutionSagaContext(execution, event, ids, commandTypes, EventCodec(), calls, queries)
         else -> throw IllegalArgumentException("A $kind handler is not a processor's.")
     }
 }
