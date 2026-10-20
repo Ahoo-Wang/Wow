@@ -111,7 +111,11 @@ internal object SubscriptionResolver {
     private val CONTEXTS = Kind.entries.map { it.context }.toSet()
 
     @OptIn(KspExperimental::class)
-    fun resolve(processor: KSClassDeclaration, reactorTypes: Set<String>): SubscriptionBinding {
+    fun resolve(
+        processor: KSClassDeclaration,
+        reactorTypes: Set<String>,
+        events: List<ModuleEvent> = emptyList(),
+    ): SubscriptionBinding {
         val className = processor.simpleName.asString()
         val name = processor.getAnnotationsByType(Name::class).firstOrNull()?.value ?: className
         val problems = V10Annotations.problems(processor, "processor $className", processor = true).toMutableList()
@@ -142,7 +146,7 @@ internal object SubscriptionResolver {
         val jobs = ScheduleJobResolver.handlers(jobFunctions, className, name, kind?.name, reactorTypes, problems) {
             returnProblem(Kind.SAGA, it)
         }
-        val handlers = (functions.mapNotNull { handler(it, name, kind, reactorTypes, problems) } + jobs)
+        val handlers = (functions.mapNotNull { handler(it, name, kind, reactorTypes, events, problems) } + jobs)
             .map { it.copy(retry = it.retry?.over(processorRetry) ?: processorRetry) }
         val (rejections, commits) = Receipt.entries.map { receipt ->
             receiptHandlers(className, name, receipt, receiptFunctions.getValue(receipt), reactorTypes, problems)
@@ -313,11 +317,13 @@ internal object SubscriptionResolver {
         Dependency("dependency$index", type.render(), type.declaration.qualifiedName!!.asString(), qualifier)
     }
 
+    @Suppress("LongParameterList")
     private fun handler(
         function: KSFunctionDeclaration,
         processor: String,
         kind: Kind?,
         reactorTypes: Set<String>,
+        events: List<ModuleEvent>,
         problems: MutableList<String>,
     ): HandlerBinding? {
         val name = function.simpleName.asString()
@@ -348,7 +354,17 @@ internal object SubscriptionResolver {
         if (problems.size > count) {
             return null
         }
-        val stateType = first!!.arguments.firstOrNull()?.type?.resolve()
+        if (first!!.qualifiedName() != STATE_EVENT) {
+            val parameter = TypedEventResolver.resolve(where, first, aggregates, events, problems) ?: return null
+            return eventHandler(function, processor, context != null, reactor, parameter).copy(
+                derives = derives,
+                calls = calls.map { it.binaryName() },
+                callSources = calls.map { it.qualifiedName!!.asString() },
+                derived = if (kind == Kind.SAGA) returned?.let { derivedClasses(it, reactor) } else null,
+                retry = retry,
+            )
+        }
+        val stateType = first.arguments.firstOrNull()?.type?.resolve()
         if (stateType != null && stateType.arguments.isNotEmpty()) {
             problems += "$where takes a StateEvent of ${stateType.render()}: an aggregate's state takes no type " +
                 "arguments"
@@ -371,6 +387,29 @@ internal object SubscriptionResolver {
             start = startOf(function),
             derived = if (kind == Kind.SAGA) returned?.let { derivedClasses(it, reactor) } else null,
             retry = retry,
+        )
+    }
+
+    /** A handler of each event of a type (decision D264), of the aggregate whose state [parameter] names. */
+    private fun eventHandler(
+        function: KSFunctionDeclaration,
+        processor: String,
+        context: Boolean,
+        reactor: Boolean,
+        parameter: EventParameter,
+    ): HandlerBinding {
+        val name = function.simpleName.asString()
+        return HandlerBinding(
+            function = name,
+            subscription = "$processor.$name",
+            state = parameter.state,
+            nullableState = false,
+            context = context,
+            suspending = Modifier.SUSPEND in function.modifiers,
+            reactor = reactor,
+            blocking = function.isHandler(BLOCKING),
+            start = startOf(function),
+            event = parameter,
         )
     }
 
@@ -568,10 +607,11 @@ internal object SubscriptionResolver {
 
     private fun parameterProblems(where: String, parameters: List<KSType>, kind: Kind?): List<String> = buildList {
         val first = parameters.firstOrNull()
-        if (first == null || first.qualifiedName() != STATE_EVENT) {
+        if (first == null || first.qualifiedName() in CONTEXTS) {
             add(
-                "$where must take a $STATE_EVENT first, not ${first?.qualifiedName() ?: "nothing"}: a handler " +
-                    "receives the committed stream with the state after it",
+                "$where must take a $STATE_EVENT, a StateTypedEvent or an event first, not " +
+                    "${first?.qualifiedName() ?: "nothing"}: a handler receives the committed stream, or each of its " +
+                    "events of a type, with the state after it (decision D264)",
             )
         }
         val context = parameters.getOrNull(1)?.qualifiedName()
@@ -586,7 +626,7 @@ internal object SubscriptionResolver {
         }
         if (parameters.size > 2) {
             add(
-                "$where takes ${parameters.size} parameters: a handler takes (StateEvent[, context]); the " +
+                "$where takes ${parameters.size} parameters: a handler takes (StateEvent[, context]), or a StateTypedEvent or an event instead of the StateEvent; the " +
                     "processor's dependencies are its constructor's",
             )
         }
