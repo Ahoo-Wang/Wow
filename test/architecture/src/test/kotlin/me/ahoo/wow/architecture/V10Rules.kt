@@ -141,7 +141,8 @@ object V10Rules {
 
     /**
      * The V10 projects that are neither modules, platform services nor examples (review R2.5-7): the V10 BOM, these
-     * rules, the spikes H2 and H6 and the V10 side of the end-to-end benchmark (decision D224). Spike H3,
+     * rules, the spikes H2 and H6, the V10 side of the end-to-end benchmark (decision D224) and the V10 host of the
+     * blue-green migration rehearsal (roadmap 8c.1). Spike H3,
      * `:kernel-benchmarks`, ran the 9.x kernel beside the V10 one and left with the 9.x code (decision D262).
      */
     val TOOLS = listOf(
@@ -150,6 +151,7 @@ object V10Rules {
         V10Module("routing-spike", "test/routing-spike"),
         V10Module("lease-spike", "test/lease-spike"),
         V10Module("benchmark-server", "test/benchmarks/server"),
+        V10Module("migration-rehearsal", "test/migration-rehearsal"),
     )
 
     /**
@@ -610,11 +612,14 @@ object V10Rules {
 
     /**
      * The projects that use Wow as an application does (decision D216; `v10UserProjects` of the root build): the
-     * examples, the platform's domains and services and the end-to-end benchmark. They compile against the public API
+     * examples, the platform's domains and services, the end-to-end benchmark and the migration rehearsal's host. They compile against the public API
      * as a user does, so they never opt in to `InternalWowApi` (an `ERROR`-level opt-in).
      */
     val USER_PROJECTS: List<V10Module> =
-        EXAMPLES + listOf(OPS_DOMAIN, VIEW_STORE_DOMAIN) + PLATFORM_SERVERS + TOOLS.filter { it.name == "benchmark-server" }
+        EXAMPLES + listOf(OPS_DOMAIN, VIEW_STORE_DOMAIN) + PLATFORM_SERVERS + TOOLS.filter { it.name in APPLICATION_TOOLS }
+
+    /** The [TOOLS] that are applications: they use Wow as a user does. */
+    private val APPLICATION_TOOLS = setOf("benchmark-server", "migration-rehearsal")
 
     private val INTERNAL_OPT_IN = Regex("""\bInternalWowApi\b""")
 

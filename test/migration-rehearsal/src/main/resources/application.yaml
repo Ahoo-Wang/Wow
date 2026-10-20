@@ -1,0 +1,24 @@
+# The V10 side of the blue-green rehearsal (roadmap 8c.1): one node on PostgreSQL, whose log migrate-data imported the
+# 9.x example into. rehearse.sh overrides the addresses and the ports on the command line.
+spring:
+  application:
+    name: example-service
+  main:
+    banner-mode: off
+  datasource:
+    url: jdbc:postgresql://localhost:5432/example
+    username: postgres
+    password: postgres
+server:
+  port: 8080
+logging:
+  level:
+    root: warn
+    me.ahoo.wow: info
+wow:
+  service: example-service
+  backend: postgres
+  internal:
+    port: 9090
+    # One node on the rehearsal's machine: its internal port on the loopback interface alone.
+    host: 127.0.0.1

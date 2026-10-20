@@ -67,8 +67,10 @@ val codeCoverageReportProject = project(":code-coverage-report")
 // The end-to-end architecture benchmark (decision D224, roadmap M7.5 B.0) under test/benchmarks/: the V10 benchmark
 // domain and server and the load generator (the 9.x twin runs from v10-9x-baseline, D262). Applications, like the
 // examples: never published, without an ABI dump, and left out of the coverage reports (code-coverage-report reads
-// `e2eBenchmarkProjects`). The V10 one builds and checks with the V10 modules (`:check`) as a user of them.
-val e2eBenchmarkProjects = includedProjects(":benchmark-server", ":benchmark-load")
+// `e2eBenchmarkProjects`). The V10 one builds and checks with the V10 modules (`:check`) as a user of them. The V10
+// host of the blue-green migration rehearsal (roadmap 8c.1, test/migration-rehearsal/) is such an application too: the
+// 9.x example ported, which its workflow drives against the 9.x one (v10-migration-rehearsal.yml).
+val e2eBenchmarkProjects = includedProjects(":benchmark-server", ":benchmark-load", ":migration-rehearsal")
 // The V10 modules (documentation/designs/v10/06-modules.md). Every module builds on JDK 21 (decision D29); these stay
 // incubating until their API settles; :architecture (V10's dependency rules), :routing-spike (spike H2), :lease-spike
 // (spike H6) and the examples (:eshop-*, :quickstart, :java-smoke) are never published.
@@ -81,7 +83,7 @@ val moduleProjects = listOf(
     "view-store-api", "view-store-domain", "view-store-server",
     "analytics-catalog-api", "analytics-catalog-domain", "analytics-catalog-server",
     "compiler", "gradle-plugin", "manifest-tools",
-    "routing-spike", "lease-spike", "benchmark-server",
+    "routing-spike", "lease-spike", "benchmark-server", "migration-rehearsal",
 ).plus(exampleNames).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
 
 // The V10 modules a 10.x release publishes (06-modules.md §6; R.1 turns their publication on). Their ABI is kept in
@@ -105,7 +107,7 @@ val releaseProjects = publishedLibraries + bomProject
 // they reach past the public API.
 val userProjects = exampleProjects + includedProjects(
     ":ops-domain", ":ops-server", ":view-store-domain", ":view-store-server", ":analytics-catalog-domain",
-    ":analytics-catalog-server", ":architecture", ":benchmark-server",
+    ":analytics-catalog-server", ":architecture", ":benchmark-server", ":migration-rehearsal",
 )
 
 // D87: a V10 project's name and directory carry no `wow-` prefix (`:kernel` in core/kernel); its jar, Kotlin module and
