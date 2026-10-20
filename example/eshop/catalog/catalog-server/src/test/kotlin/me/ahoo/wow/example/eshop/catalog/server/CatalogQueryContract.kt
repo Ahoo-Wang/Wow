@@ -227,8 +227,10 @@ abstract class CatalogQueryContract {
         val brand = storefront.brand()
         val filed = (1..3).map { storefront.product(category, brand, "$it.00") }
         val events = catalog.stream(PRODUCTS, """{"kind":"list","filter":${published(category)}}""", BUYER)
-        events.map { it.first }.assert().containsOnly("row")
-        val streamed = events.map { (_, data) -> json.readTree(data)["aggregateId"].asString() }
+        // One row per record, then the end of a resumable stream (decision D253).
+        events.map { it.first }.assert().containsExactly("row", "row", "row", "end")
+        json.readTree(events.last().second)["reason"].asString().assert().isEqualTo("complete")
+        val streamed = events.dropLast(1).map { (_, data) -> json.readTree(data)["aggregateId"].asString() }
         streamed.assert().containsExactlyInAnyOrderElementsOf(filed)
     }
 
