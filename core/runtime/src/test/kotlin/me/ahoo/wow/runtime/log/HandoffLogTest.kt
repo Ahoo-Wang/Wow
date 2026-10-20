@@ -57,8 +57,9 @@ class HandoffLogTest {
 
     private fun handoff(
         capacity: Int = 1_024,
-        gapWait: Duration = 20.milliseconds,
-        probeInterval: Duration = 5.seconds,
+        // Long enough that only a real gap or an idle partition reads the store, however loaded the machine is.
+        gapWait: Duration = 10.seconds,
+        probeInterval: Duration = 10.seconds,
         log: EventLog = store,
     ) = HandoffLog(log, "bank", HandoffOptions(true, capacity, gapWait, probeInterval), reads)
 
@@ -154,7 +155,7 @@ class HandoffLogTest {
 
     @Test
     fun `another node's append leaves a gap that is read from the store, in sequence order`(): Unit = runBlocking {
-        val log = handoff()
+        val log = handoff(gapWait = 20.milliseconds)
         val (seen, job) = collect(log)
         awaitOpen(log)
         log.append(next(refs[0]))
@@ -174,7 +175,7 @@ class HandoffLogTest {
     fun `a commit whose outcome was unknown is read from the store when the next commit leaves a gap`(): Unit =
         runBlocking {
             val unknown = UnknownOnce(store)
-            val log = handoff(log = unknown)
+            val log = handoff(gapWait = 20.milliseconds, log = unknown)
             val (seen, job) = collect(log)
             awaitOpen(log)
             unknown.next = true
@@ -359,10 +360,8 @@ private class RecordingLog(private val delegate: EventLog) : EventLog by delegat
         return delegate.tail(partition, after)
     }
 
-    override suspend fun head(partition: Int): Long? {
-        heads.incrementAndGet()
-        return delegate.head(partition)
-    }
+    /** Counted once the read returned: a commit after it is handed to the tail that read it. */
+    override suspend fun head(partition: Int): Long? = delegate.head(partition).also { heads.incrementAndGet() }
 }
 
 /** A log whose append commits and answers [AppendOutcome.Unknown] when [next] is set, as after a timeout. */

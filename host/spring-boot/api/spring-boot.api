@@ -639,8 +639,10 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Handoff {
 	public fun <init> ()V
 	public final fun getCapacity ()I
 	public final fun getEnabled ()Z
+	public final fun getGapWait ()Ljava/time/Duration;
 	public final fun setCapacity (I)V
 	public final fun setEnabled (Z)V
+	public final fun setGapWait (Ljava/time/Duration;)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Health {

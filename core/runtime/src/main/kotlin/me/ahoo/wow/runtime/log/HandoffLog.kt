@@ -39,8 +39,12 @@ import kotlin.time.Duration.Companion.seconds
  *
  * - [capacity]: the most entries one tail holds that it has not taken yet; a tail that falls further behind drops what
  *   comes next and reads the store instead, so the append path never waits for it;
- * - [gapWait]: how long a tail waits for a missing sequence (a commit of this node whose outcome is not handed over
- *   yet) before it reads the store from its position: the log's poll interval (`wow.log.poll-interval`);
+ * - [gapWait]: how long a tail waits for a missing sequence before it reads the store from its position
+ *   (`wow.log.handoff.gap-wait`). Appends without a queue (PostgreSQL's preset) hand their commits over in the order
+ *   their callers return, so a sequence is often missing for a moment; a pause of the process (a GC, a starved CPU)
+ *   stretches that moment. A real gap (another node's append during a hand-off, an unknown outcome) is rare, and the
+ *   wait only delays what follows it, so it is long enough to ride out a pause: 200 ms, below the longest poll
+ *   interval that bounds how late another node's entries are read anyway;
  * - [probeInterval]: how long a tail waits without a commit of this node before it checks the partition's head for
  *   entries other nodes appended: the log's longest poll interval (`wow.log.max-poll-interval`).
  *
@@ -50,7 +54,7 @@ import kotlin.time.Duration.Companion.seconds
 class HandoffOptions @InternalWowApi constructor(
     val enabled: Boolean = true,
     val capacity: Int = DEFAULT_CAPACITY,
-    val gapWait: Duration = 50.milliseconds,
+    val gapWait: Duration = 200.milliseconds,
     val probeInterval: Duration = 1.seconds,
 ) {
     init {

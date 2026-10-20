@@ -28,7 +28,7 @@ class HostHandoffTest {
     fun `the hand-over should follow its properties, and be turned off by them`() {
         startHost(
             "wow.log.handoff.capacity" to 16,
-            "wow.log.poll-interval" to "20ms",
+            "wow.log.handoff.gap-wait" to "20ms",
             "wow.log.max-poll-interval" to "200ms",
         ).use { host ->
             host.node.options.handoff.let {
