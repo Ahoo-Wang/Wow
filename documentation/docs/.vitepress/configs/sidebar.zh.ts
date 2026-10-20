@@ -157,6 +157,27 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             ],
         },
     ],
+    '/zh/migrate/': [
+        {
+            base: '/zh/migrate/',
+            text: '从 9.x 迁移',
+            items: [
+                {text: '从 9.x 迁移', link: 'index.html'},
+                {text: 'V10 中的 9.x 能力', link: 'capabilities'},
+                {text: '迁移数据', link: 'data'},
+                {text: 'migrate-data 命令行', base: '/zh/reference/', link: 'migrate-data'},
+            ],
+        },
+    ],
+    '/zh/reference/': [
+        {
+            base: '/zh/reference/',
+            text: '参考',
+            items: [
+                {text: 'migrate-data 命令行', link: 'migrate-data'},
+            ],
+        },
+    ],
     '/zh/contribute/': [
         {
             base: '/zh/contribute/',
