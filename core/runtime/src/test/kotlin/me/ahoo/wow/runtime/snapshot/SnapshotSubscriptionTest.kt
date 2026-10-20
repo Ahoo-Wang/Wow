@@ -317,6 +317,15 @@ class SnapshotSubscriptionTest {
         }
 
     @Test
+    fun `an entry made by hand, without a position, is written with partition 0's snapshots`(): Unit = runBlocking {
+        executor.execute(counter, command("h", Add())) as CommandOutcome.Committed
+        val stream = log.read(ref("h")).toList().single()
+        val entry = snapshots.subscription.decoder.decode(stream, null, null)
+        snapshots.subscription.handle(entry)
+        store.load(ref("h"))!!.version.assert().isEqualTo(1)
+    }
+
+    @Test
     fun `a replay never moves a snapshot back, nor rebuilds what the store holds`(): Unit = runBlocking {
         runtime.start(setOf(0))
         repeat(3) { coordinator.execute(counter, add("a")) }

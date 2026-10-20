@@ -173,9 +173,8 @@ class PostgresSnapshotStore(
                 }
             }
         } catch (failure: SQLException) {
-            if (!PostgresFailures.isRefused(failure)) {
-                throw failure
-            }
+            // Refused for a value, the statement wrote nothing; any other failure is thrown.
+            PostgresFailures.refusedOrThrow(failure)
             return snapshots.map { savedAlone(connection, tables, it) }
         }
         val refused = snapshots.filter { (it.ref.tenantId to it.ref.id) !in written }
@@ -202,10 +201,7 @@ class PostgresSnapshotStore(
     ): SnapshotSaveOutcome = try {
         SnapshotSaveOutcome.of(saveIn(connection, tables, snapshot))
     } catch (failure: SQLException) {
-        if (!PostgresFailures.isRefused(failure)) {
-            throw failure
-        }
-        SnapshotSaveOutcome.Failed(PostgresFailures.refusal(failure))
+        SnapshotSaveOutcome.Failed(PostgresFailures.refusedOrThrow(failure))
     }
 
     /** Runs the upsert [statement] of [snapshot]; whether it wrote the row. */

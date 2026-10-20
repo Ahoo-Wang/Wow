@@ -99,9 +99,8 @@ internal class SnapshotWrites(private val store: SnapshotStore, private val maxB
                 write(taken)
             }
         } catch (cancelled: CancellationException) {
-            synchronized(this) {
-                taken.filter { it !== own && !it.result.isCompleted }.asReversed().forEach(queue::addFirst)
-            }
+            // Cancelled in a write, before it ended any save of its batch.
+            synchronized(this) { taken.filter { it !== own }.asReversed().forEach(queue::addFirst) }
             throw cancelled
         } finally {
             synchronized(this) { handOver() }

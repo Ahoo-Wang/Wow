@@ -169,6 +169,35 @@ class SnapshotWritesTest {
     }
 
     @Test
+    fun `an error the store throws fails every save of the batch`(): Unit = runBlocking {
+        val writes = SnapshotWrites(store, 8)
+        store.failAll = null
+        val failing = object : SnapshotStore by store {
+            override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> =
+                throw NotImplementedError("Not yet.")
+        }
+        val erring = SnapshotWrites(failing, 8)
+        listOf(snapshot("a"), snapshot("b")).map { async { runCatching { erring.save(it) } } }.awaitAll().forEach {
+            it.exceptionOrNull().assert().isInstanceOf(NotImplementedError::class.java)
+        }
+        writes.save(snapshot("c")).assert().isTrue()
+    }
+
+    @Test
+    fun `a save cancelled once a batch took it is still written`(): Unit = runBlocking {
+        val writes = SnapshotWrites(store, 8)
+        val gate = CompletableDeferred<Unit>().also { store.gate = it }
+        val leader = async { writes.save(snapshot("a")) }
+        val taken = async { writes.save(snapshot("b")) }
+        eventually { store.batches.size == 1 }
+        taken.cancel()
+        gate.complete(Unit)
+        leader.await().assert().isTrue()
+        store.load(type.ref("t", "b"))?.version.assert().isEqualTo(1)
+        writes.waiting.assert().isEqualTo(0)
+    }
+
+    @Test
     fun `a leader cancelled puts the saves it took back, and the next one writes them`(): Unit = runBlocking {
         val writes = SnapshotWrites(store, 8)
         val gate = CompletableDeferred<Unit>().also { store.gate = it }

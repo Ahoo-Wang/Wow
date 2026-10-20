@@ -148,6 +148,15 @@ class PostgresFailuresTest {
         PostgresFailures.isRefused(SQLException("no state")).assert().isFalse()
     }
 
+    @Test
+    fun `a refusal is given back, any other failure thrown`() {
+        val refused = SQLException("unsupported Unicode escape sequence", "22P05")
+        PostgresFailures.refusedOrThrow(refused).cause.assert().isSameAs(refused)
+        val defect = SQLException("syntax error", "42601")
+        val thrown: Throwable = assertThrows<SQLException> { PostgresFailures.refusedOrThrow(defect) }
+        thrown.assert().isSameAs(defect)
+    }
+
     private fun failing(failure: SQLException): DataSource = mockk {
         every { connection } throws failure
     }
