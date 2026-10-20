@@ -14,11 +14,11 @@
 package me.ahoo.wow.example.eshop.basket.server
 
 import com.sun.net.httpserver.HttpServer
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.command.CallHeader
 import me.ahoo.wow.runtime.admission.CallContext
@@ -89,6 +89,6 @@ class FakeOrdering : AutoCloseable {
     private companion object {
         const val OK = 200
         const val ID_SEGMENT = 3
-        val ORDER = AggregateType("eshop-ordering", "order")
+        val ORDER = EshopOrderingContract.Order.TYPE
     }
 }

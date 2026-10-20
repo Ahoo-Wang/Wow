@@ -26,4 +26,6 @@ dependencies {
     // The `postgres` profile: the host runs on PostgreSQL when the application gives it a DataSource.
     implementation(project(":postgres"))
     implementation("com.zaxxer:HikariCP")
+    // Tests refer to the ordering's orders by its generated contract.
+    testImplementation(project(":eshop-ordering-api"))
 }

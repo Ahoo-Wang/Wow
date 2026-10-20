@@ -23,9 +23,11 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.runtime.state.StateViews
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.wait.WaitContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -51,7 +53,9 @@ import kotlin.time.Duration.Companion.milliseconds
  *
  * When [views] are given, each commit's state view is recorded in them before the lane moves on to the aggregate's
  * next command, while nothing can change the state (design 01 §2): the context's state consumers (the snapshot
- * subscription, the subscriptions of annotated processors) read it (decision D133). A view is only an optimisation,
+ * subscription, the subscriptions of annotated processors) read it (decision D133). It is taken just before the append
+ * ([StateViews.expect]), since the log may hand the commit to this node's subscriptions before the kernel returns
+ * (decisions D249, D261), and recorded once the append committed. A view is only an optimisation,
  * so failing to take one never fails the committed command: the failure is logged, and the consumers rebuild the
  * state instead.
  */
@@ -87,12 +91,15 @@ class Executor(
         try {
             lock(lane, command, wait)
             try {
-                return kernel.execute(model, command, wait).also { outcome ->
+                val appending = views?.let { expecting(it, model) }
+                return kernel.execute(model, command, wait, appending).also { outcome ->
                     if (outcome is CommandOutcome.Committed && views != null) {
                         recordView(views, model, outcome)
                     }
                 }
             } finally {
+                // Before the lane moves on: the aggregate's next command expects its own.
+                views?.forget(command.ref)
                 lane.lock.unlock()
             }
         } finally {
@@ -121,6 +128,19 @@ class Executor(
         }
         if (!locked) {
             throw CommandWithdrawnException(command.ref, command.id)
+        }
+    }
+
+    /** What the kernel calls before each append of [model]'s aggregate: [StateViews.expect] of its state. */
+    private fun expecting(views: StateViews, model: AggregateModel<*>): (EventStreamRecord, CachedState) -> Unit =
+        { stream, state -> expectView(views, model, stream, state) }
+
+    @Suppress("TooGenericExceptionCaught") // Whatever fails, the append goes on; the consumers rebuild the state.
+    private fun expectView(views: StateViews, model: AggregateModel<*>, stream: EventStreamRecord, state: CachedState) {
+        try {
+            views.expect(model, stream, state)
+        } catch (failure: Exception) {
+            logger.warn(failure) { "Failed to take the state view of ${stream.ref}@${stream.version}; skipping it." }
         }
     }
 

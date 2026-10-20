@@ -200,6 +200,15 @@ class WowPluginTest {
                 override fun getParameters() = parameters
             }.execute()
         }
+        every { queue.submit(ManifestToolsWork.GenerateContractSources::class.java, any()) } answers {
+            val parameters = project.objects.newInstance(
+                ManifestToolsWork.GenerateContractSources.Parameters::class.java,
+            )
+            secondArg<Action<ManifestToolsWork.GenerateContractSources.Parameters>>().execute(parameters)
+            object : ManifestToolsWork.GenerateContractSources() {
+                override fun getParameters() = parameters
+            }.execute()
+        }
         every { queue.submit(ManifestToolsWork.Merge::class.java, any()) } answers {
             val parameters = project.objects.newInstance(ManifestToolsWork.Merge.Parameters::class.java)
             secondArg<Action<ManifestToolsWork.Merge.Parameters>>().execute(parameters)
@@ -392,8 +401,13 @@ class WowPluginTest {
         val output = task.outputDirectory.get().asFile
         File(output, "stale.kt").apply { parentFile.mkdirs() }.writeText("stale")
         task.contract.setFrom(contractFile("shop-cart", "sample.AddItem"), File(directory, "missing.json"))
+        // The generator of the api's own tools, which compiles against the api's main classes and dependencies.
+        task.tools.from.assert().contains(api.configurations.getByName(WowPlugin.TOOLS_CONFIGURATION))
+        task.classpath.buildDependencies.getDependencies(null).map { it.name }.assert().contains("compileKotlin")
+        // Without wow-query-api on it (the builder resolves no repository): no query fields.
+        task.classpath.setFrom()
 
-        task.generate()
+        task.submit(inProcessQueue(api))
 
         File(output, "stale.kt").exists().assert().isFalse()
         File(output, "sample/ShopCartContract.kt").readText().assert().contains(
@@ -401,7 +415,8 @@ class WowPluginTest {
             "object ShopCartContract",
             "const val NAME: String = \"shop-cart\"",
             "object Cart",
-            "AggregateType(NAME, \"cart\")",
+            "public const val NAME: String = \"cart\"",
+            "AggregateType(CONTEXT, NAME)",
             "fun ref(tenantId: String, id: String): AggregateRef = TYPE.ref(tenantId, id)",
         )
     }

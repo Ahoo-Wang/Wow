@@ -14,7 +14,7 @@
 package me.ahoo.wow.example.eshop.catalog.domain.product
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.example.eshop.catalog.api.CatalogContext
+import me.ahoo.wow.example.eshop.catalog.api.EshopCatalogContract
 import me.ahoo.wow.example.eshop.catalog.api.product.ChangeProductPrice
 import me.ahoo.wow.example.eshop.catalog.api.product.CreateProduct
 import me.ahoo.wow.example.eshop.catalog.api.product.DelistProduct
@@ -32,7 +32,7 @@ import java.math.BigDecimal
 
 /** The product on the kernel, through the model the compiler generated. */
 class ProductSpec {
-    private val model = productModel(CatalogContext.NAME)
+    private val model = productModel(EshopCatalogContract.NAME)
     private val mug = ProductCreated("Wow mug", BigDecimal("8.50"), "A mug", brandId = "wow", categoryId = "mugs")
     private val draft = ProductCreated("Wow mug", BigDecimal("8.50"))
 

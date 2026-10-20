@@ -14,6 +14,7 @@
 package me.ahoo.wow.example.eshop.catalog.domain
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
@@ -22,6 +23,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SnapshotProperties
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.dsl.listQuery
+import me.ahoo.wow.example.eshop.catalog.api.EshopCatalogContract
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
 import me.ahoo.wow.example.eshop.catalog.domain.brand.BrandStateProperties
 import me.ahoo.wow.example.eshop.catalog.domain.category.CategoryStateProperties
@@ -53,6 +55,24 @@ class StatePropertiesTest {
                 .containsExactlyInAnyOrderElementsOf(schemaPaths(definition(state), "state"))
         }
     }
+
+    @Test
+    fun `the api's generated contract should name the same fields alike (D259)`() {
+        listOf(
+            ProductStateProperties to EshopCatalogContract.Product,
+            BrandStateProperties to EshopCatalogContract.Brand,
+            CategoryStateProperties to EshopCatalogContract.Category,
+        ).forEach { (properties, contract) ->
+            constants(contract).assert().describedAs(contract.javaClass.name).isEqualTo(constants(properties))
+        }
+        EshopCatalogContract.Product.TYPE.assert().isEqualTo(AggregateType("eshop-catalog", "product"))
+    }
+
+    /** The query field constants a generated object declares itself, name to path. */
+    private fun constants(properties: SnapshotProperties): Map<String, String> =
+        properties.javaClass.declaredFields
+            .filter { it.type == QueryField::class.java }
+            .associate { it.name to (it.apply { isAccessible = true }.get(properties) as QueryField).path }
 
     @Test
     fun `the query DSL should take them`() {

@@ -16,10 +16,9 @@ package me.ahoo.wow.example.eshop.payment.server
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.example.eshop.payment.api.PaymentContext
+import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
@@ -93,7 +92,7 @@ class PaymentNode(
 
     /** The event streams of the payment [id] in the log. */
     fun streams(id: String): List<EventStreamRecord> = runBlocking {
-        val log = context.getBean(HostBackends::class.java).contexts.getValue(PaymentContext.NAME).log
+        val log = context.getBean(HostBackends::class.java).contexts.getValue(EshopPaymentContract.NAME).log
         log.read(PAYMENT.ref(Caller.DEFAULT_TENANT, id)).toList()
     }
 
@@ -110,7 +109,7 @@ class PaymentNode(
     companion object {
         const val USER = "X-User"
         const val OK = 200
-        val PAYMENT = AggregateType(PaymentContext.NAME, PaymentContext.PAYMENT)
+        val PAYMENT = EshopPaymentContract.Payment.TYPE
         private val json: JsonMapper = JsonMapper.builder().build()
         private val TIMEOUT: Duration = Duration.ofSeconds(30)
         private val DEADLINE: Duration = Duration.ofSeconds(20)

@@ -58,7 +58,6 @@ class WowContractFunctionalTest {
         val tools = if (wow) {
             """
             ksp(files(${classpath("wow.fixture.processorClasspath")}))
-            wowManifestTools(files(${classpath("wow.fixture.toolsClasspath")}))
             """
         } else {
             ""
@@ -82,6 +81,10 @@ class WowContractFunctionalTest {
                 $dependencies
             }
             ${if (wow) "wow { addCompilerDependency = false }" else ""}
+            // An api module paired with a domain module runs the contract code generator of the tools too.
+            configurations.matching { it.name == "wowManifestTools" }.configureEach {
+                project.dependencies.add(name, files(${classpath("wow.fixture.toolsClasspath")}))
+            }
             $extra
             """,
         )

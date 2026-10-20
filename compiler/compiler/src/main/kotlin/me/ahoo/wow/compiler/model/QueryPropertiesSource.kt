@@ -24,6 +24,7 @@ import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSTypeAlias
 import com.google.devtools.ksp.symbol.Modifier
+import me.ahoo.wow.manifest.QueryFieldNames
 
 /**
  * The query fields of an aggregate's state (work package P.2): `<State>Properties`, an object extending
@@ -35,17 +36,18 @@ import com.google.devtools.ksp.symbol.Modifier
  * `@JsonIgnoreProperties` names. It descends into a property of an application class, and into the element class of
  * a collection or an array (an element's fields are named inside its `ELEMENT_MATCH`, which the DSL reads relative to
  * the element); a map, an enum, an interface, an abstract or sealed class, a value class and the `kotlin.` and
- * `java.` types are leaves, and so is a class already on the path. Each constant is named after the Kotlin
- * properties of its path, in upper snake case, a nested one after `__`: `STATE__ITEMS__PRODUCT_ID`.
+ * `java.` types are leaves, and so is a class already on the path. Each constant is named after its path, as
+ * `wow-manifest`'s [QueryFieldNames] names it, the same function the api module's generated `<Context>Contract` names
+ * the state schema's paths with (decision D259): the JSON property names in upper snake case, a nested one after
+ * `__`: `STATE__ITEMS__PRODUCT_ID`.
  */
 internal object QueryPropertiesSource {
     const val SNAPSHOT_PROPERTIES = "me.ahoo.wow.api.query.SnapshotProperties"
     private const val QUERY_FIELD = "me.ahoo.wow.api.query.QueryField"
-    private const val STATE = "state"
+    private const val STATE = QueryFieldNames.STATE
     private const val JSON_PROPERTY = "com.fasterxml.jackson.annotation.JsonProperty"
     private const val JSON_IGNORE = "com.fasterxml.jackson.annotation.JsonIgnore"
     private const val JSON_IGNORE_PROPERTIES = "com.fasterxml.jackson.annotation.JsonIgnoreProperties"
-    private val SEGMENT = Regex("^[A-Za-z_][A-Za-z0-9_-]*$")
     private val COLLECTIONS = setOf(
         "kotlin.collections.Iterable",
         "kotlin.collections.Collection",
@@ -88,7 +90,7 @@ internal object QueryPropertiesSource {
     /** The paths of [state] a query names, in declaration order, each once. */
     fun properties(state: KSClassDeclaration): List<Property> {
         val properties = linkedMapOf<String, Property>()
-        collect(state, STATE.uppercase(), STATE, listOf(state.qualifiedName!!.asString()), properties)
+        collect(state, STATE, listOf(state.qualifiedName!!.asString()), properties)
         return properties.values.toList()
     }
 
@@ -112,7 +114,6 @@ internal object QueryPropertiesSource {
 
     private fun collect(
         owner: KSClassDeclaration,
-        name: String,
         path: String,
         visited: List<String>,
         properties: MutableMap<String, Property>,
@@ -120,14 +121,14 @@ internal object QueryPropertiesSource {
         val ignored = owner.ignoredProperties()
         owner.getAllProperties().filter { it.isQueryable(ignored) }.forEach { property ->
             val wireName = property.wireName()
-            if (!SEGMENT.matches(wireName)) return@forEach
-            val childName = "${name}__${property.simpleName.asString().toUpperSnake()}"
+            if (!QueryFieldNames.isSegment(wireName)) return@forEach
             val childPath = "$path.$wireName"
+            val childName = QueryFieldNames.constantOf(childPath)
             if (properties.putIfAbsent(childName, Property(childName, childPath)) != null) return@forEach
             val nested = property.type.resolve().nestedClass() ?: return@forEach
             val qualified = nested.qualifiedName!!.asString()
             if (qualified !in visited) {
-                collect(nested, childName, childPath, visited + qualified, properties)
+                collect(nested, childPath, visited + qualified, properties)
             }
         }
     }
@@ -180,11 +181,4 @@ internal object QueryPropertiesSource {
         annotationType.resolve().declaration.qualifiedName?.asString()
 
     private fun KSAnnotation.argument(name: String): Any? = arguments.firstOrNull { it.name?.asString() == name }?.value
-
-    /** `productId` as `PRODUCT_ID`, `URLValue` as `URL_VALUE`; a character no identifier takes becomes `_`. */
-    internal fun String.toUpperSnake(): String =
-        replace(Regex("([a-z0-9])([A-Z])"), "$1_$2")
-            .replace(Regex("([A-Z]+)([A-Z][a-z])"), "$1_$2")
-            .replace(Regex("[^A-Za-z0-9_]"), "_")
-            .uppercase()
 }

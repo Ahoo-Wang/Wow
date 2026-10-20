@@ -14,8 +14,10 @@
 package me.ahoo.wow.example.eshop.catalog.domain
 
 import me.ahoo.wow.api.annotation.BoundedContext
-import me.ahoo.wow.example.eshop.catalog.api.CatalogContext
 
-/** Names the bounded context of this module's aggregates for the compiler. */
-@BoundedContext(name = CatalogContext.NAME, description = "The eShop catalog: products, their brands and types")
+/**
+ * Names the bounded context of this module's aggregates for the compiler. The name is declared here, once: the api
+ * module's generated `EshopCatalogContract.NAME` comes from it (decision D259).
+ */
+@BoundedContext(name = "eshop-catalog", description = "The eShop catalog: products, their brands and types")
 object CatalogBoundedContext

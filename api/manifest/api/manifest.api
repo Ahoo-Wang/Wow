@@ -266,6 +266,14 @@ public final class me/ahoo/wow/manifest/PublishedManifest$Companion {
 	public final fun defaultTopic (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/manifest/QueryFieldNames {
+	public static final field INSTANCE Lme/ahoo/wow/manifest/QueryFieldNames;
+	public static final field STATE Ljava/lang/String;
+	public final fun constantOf (Ljava/lang/String;)Ljava/lang/String;
+	public final fun isSegment (Ljava/lang/String;)Z
+	public final fun upperSnake (Ljava/lang/String;)Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/manifest/QueryManifest {
 	public fun <init> (Ljava/lang/String;Ljava/util/List;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V

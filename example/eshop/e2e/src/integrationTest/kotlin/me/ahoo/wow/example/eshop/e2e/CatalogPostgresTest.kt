@@ -20,9 +20,9 @@ import me.ahoo.wow.api.query.dsl.countQuery
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.snapshots
+import me.ahoo.wow.example.eshop.catalog.api.EshopCatalogContract
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
 import me.ahoo.wow.example.eshop.catalog.domain.product.ProductState
-import me.ahoo.wow.example.eshop.catalog.domain.product.ProductStateProperties
 import me.ahoo.wow.example.eshop.catalog.server.CatalogCallers
 import me.ahoo.wow.example.eshop.catalog.server.CatalogServer
 import me.ahoo.wow.example.eshop.catalog.server.PostgresDataSource
@@ -112,7 +112,8 @@ class CatalogPostgresTest {
 
     /**
      * The storefront's query as a service's own code writes it: the query DSL with the compiler's
-     * `ProductStateProperties`, run in process on the node's snapshot query gateway, here the PostgreSQL backend.
+     * the catalog api's `EshopCatalogContract.Product`, run in process on the node's snapshot query gateway, here the
+     * PostgreSQL backend.
      */
     @Test
     fun `the storefront's query written with the DSL and the generated properties should run on PostgreSQL`() {
@@ -126,16 +127,16 @@ class CatalogPostgresTest {
         }
         val query = listQuery {
             filter {
-                ProductStateProperties.STATE__CATEGORY_ID eq category
-                ProductStateProperties.STATE__STATUS eq ProductStatus.PUBLISHED
-                ProductStateProperties.STATE__PRICE gte BigDecimal("3.00")
+                EshopCatalogContract.Product.STATE__CATEGORY_ID eq category
+                EshopCatalogContract.Product.STATE__STATUS eq ProductStatus.PUBLISHED
+                EshopCatalogContract.Product.STATE__PRICE gte BigDecimal("3.00")
             }
-            sort { ProductStateProperties.STATE__PRICE.desc() }
+            sort { EshopCatalogContract.Product.STATE__PRICE.desc() }
         }
         val products = context.getBean(QueryApi::class.java).trusted().snapshots<ProductState>()
         runBlocking { products.list(query).toList() }.map { it.ref.id }
             .assert().containsExactly(byPrice.getValue("6.00"), byPrice.getValue("4.00"))
-        val inCategory = countQuery { filter { ProductStateProperties.STATE__CATEGORY_ID eq category } }
+        val inCategory = countQuery { filter { EshopCatalogContract.Product.STATE__CATEGORY_ID eq category } }
         runBlocking { products.count(inCategory) }.count.assert().isEqualTo(3L)
     }
 

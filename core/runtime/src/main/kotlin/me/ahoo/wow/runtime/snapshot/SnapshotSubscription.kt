@@ -139,7 +139,7 @@ class SnapshotSubscription(
             reader.pass(ref, held.version)
             return
         }
-        val view = views.get(ref, version)
+        val view = views.get(stream)
         val known = if (version == 1) First(stream.commitTime, stream.operator) else held?.first
         if (view != null && known != null) {
             save(entry, snapshotOf(model, stream, view.state, known, view.deleted, view.tags, view.schedules))
