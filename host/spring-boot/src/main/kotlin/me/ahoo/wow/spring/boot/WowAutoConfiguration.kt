@@ -405,6 +405,8 @@ class WowAutoConfiguration {
         globalIds: GlobalIdGenerator,
     ): PeerClients {
         val clients = properties.clients
+        val described = clients.contexts
+            .filterValues { it.contract == WowProperties.Clients.Contract.MANIFEST }.keys
         fun client(mode: ClientMode) = lazy {
             val builder = WowClient.builder()
                 .endpoints(endpoints)
@@ -419,6 +421,7 @@ class WowAutoConfiguration {
                 )
                 .contracts(contracts)
                 .ids(globalIds)
+                .manifestPeers(described)
             when (mode) {
                 is ClientMode.Service -> builder.service(mode.credential)
                 is ClientMode.User -> builder.user(mode.credential)
@@ -431,6 +434,7 @@ class WowAutoConfiguration {
             client(ClientMode.Service(credential)),
             client(ClientMode.User(UserCredential.FORWARDED)),
             clients.mode,
+            described,
         )
     }
 
