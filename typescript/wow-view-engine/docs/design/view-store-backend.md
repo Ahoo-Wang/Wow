@@ -157,7 +157,7 @@ data class ViewPreferencesState(
 
 ### 5.4 数据集措辞（**DatasetWording**）
 
-一个租户在一个应用里给一个数据集写的措辞（view-engine [D86](decisions.md)：标题、名词与字段的口径、次序与收窄），存法与设计见 Wow 仓 `documentation/designs/2026-10-11-dataset-wording-storage-design.md`。
+一个租户在一个应用里给一个数据集写的措辞（view-engine [D86](decisions.md)：标题、名词与字段的口径、次序与收窄），存法与设计见 Wow 仓 `documentation/designs/2026-10-11-dataset-wording-storage-design.md`（在 `main` 分支）。
 
 ```kotlin
 data class DatasetWordingState(

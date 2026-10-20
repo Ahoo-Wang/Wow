@@ -7,7 +7,7 @@ description: Query declared datasets such as ClickHouse wide tables through Wow 
 
 An aggregate's Snapshot and EventStream answer questions about one aggregate. Questions across aggregates (orders × customers × products) are answered by **wide tables** that analysts build in ClickHouse; Wow declares a wide table as a **dataset** and serves it through the same admission, capability descriptor, scope, policies and masking. View Engine's Record, Analysis and Dashboard can then observe data across aggregates directly.
 
-The join happens in the wide table, not in the query protocol: a query always targets one dataset, and the query language is the same AST as [Filter Expression](./filter-expression.md), [Data Query](./data-query.md) and [Aggregation Query](./aggregation-query.md). The design is `documentation/designs/2026-10-10-clickhouse-dataset-query-design.md`.
+The join happens in the wide table, not in the query protocol: a query always targets one dataset, and the query language is the same AST as [Filter Expression](./filter-expression.md), [Data Query](./data-query.md) and [Aggregation Query](./aggregation-query.md). The design is `documentation/designs/2026-10-10-clickhouse-dataset-query-design.md` (on the `main` branch).
 
 ## Declaring a Dataset
 

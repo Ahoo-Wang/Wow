@@ -165,7 +165,7 @@ jobs:
       # classes and the query backend specs, :query-tck, once :query's test
       # fixtures), as the global setup (test/view-store-v10/globalSetup.ts) loads it.
       - name: Build the V10 view store service
-        run: ./gradlew -Pwow.scope=v10 :view-store-server:installDist :view-store-server:testClasses :query-tck:jar --stacktrace
+        run: ./gradlew :view-store-server:installDist :view-store-server:testClasses :query-tck:jar --stacktrace
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
