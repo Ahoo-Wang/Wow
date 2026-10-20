@@ -251,16 +251,122 @@ class HandoffLogTest {
 
     @Test
     fun `a pending run longer than the capacity overflows to the store`(): Unit = runBlocking {
-        val log = handoff(capacity = 2, gapWait = 5.seconds)
+        val gated = GateFirst(store)
+        val log = handoff(capacity = 2, log = gated)
         val (seen, job) = collect(log)
         awaitOpen(log)
-        store.append(next(refs[0]))
+        // An append of this node in flight, not committed yet: the tail waits for it while the gap lasts.
+        val held = async(Dispatchers.Default) { log.append(next(refs[0])) }
+        gated.entered.await()
+        store.append(next(refs[1]))
         // Three entries past the missing one: more than the tail holds while it waits for the gap to fill.
-        repeat(3) { log.append(next(refs[it + 1])) }
+        repeat(3) { log.append(next(refs[it + 2])) }
         seen.take(4).map { it.position.sequence }.assert().isEqualTo(listOf(1L, 2L, 3L, 4L))
+        gated.release.complete(Unit)
+        held.await()
+        seen.take(1).single().position.sequence.assert().isEqualTo(5L)
         job.cancelAndJoin()
 
         reads.reasons.assert().containsExactly(HandoffLog.OVERFLOW)
+    }
+
+    @Test
+    fun `a commit whose append returns long after the next ones is still delivered from memory`(): Unit =
+        runBlocking {
+            // A pause of the process (a GC, a starved CPU) holds an append's return past any short timer (OV-2):
+            // the tail waits for the append itself, not the clock.
+            val held = HoldFirst(store)
+            val log = handoff(gapWait = 1.seconds, log = held)
+            val (seen, job) = collect(log)
+            awaitOpen(log)
+            val first = async(Dispatchers.Default) { log.append(next(refs[0])) }
+            held.committed.await()
+            repeat(20) { log.append(next(refs[it % (refs.size - 1) + 1])) }
+            delay(400)
+            held.release.complete(Unit)
+            first.await()
+            seen.take(21).map { it.position.sequence }.assert().isEqualTo((1L..21L).toList())
+            job.cancelAndJoin()
+
+            reads.reasons.assert().isEmpty()
+            store.tails.get().assert().isEqualTo(0)
+        }
+
+    @Test
+    fun `a gap no append of this node can fill is read from the store at once, without the gap wait`(): Unit =
+        runBlocking {
+            val log = handoff(gapWait = 30.seconds)
+            val (seen, job) = collect(log)
+            awaitOpen(log)
+            store.append(next(refs[0]))
+            log.append(next(refs[1]))
+            withTimeout(5.seconds) { seen.take(2) }.map { it.position.sequence }.assert().isEqualTo(listOf(1L, 2L))
+            job.cancelAndJoin()
+
+            reads.reasons.assert().containsExactly(HandoffLog.GAP)
+        }
+
+    @Test
+    fun `a gap waits for an append of this node in flight, and is read once it returns without it`(): Unit =
+        runBlocking {
+            val gated = GateFirst(store)
+            val log = handoff(gapWait = 30.seconds, log = gated)
+            val (seen, job) = collect(log)
+            awaitOpen(log)
+            val held = async(Dispatchers.Default) { log.append(next(refs[0])) }
+            gated.entered.await()
+            store.append(next(refs[1]))
+            log.append(next(refs[2]))
+            delay(200)
+            // The append in flight may still hand the missing sequence over: nothing read yet.
+            reads.reasons.assert().isEmpty()
+            gated.release.complete(Unit)
+            held.await()
+            withTimeout(5.seconds) { seen.take(3) }.map { it.position.sequence }.assert().isEqualTo(listOf(1L, 2L, 3L))
+            job.cancelAndJoin()
+
+            reads.reasons.assert().containsExactly(HandoffLog.GAP)
+        }
+
+    @Test
+    fun `a gap is capped by the gap wait while an append of this node does not return`(): Unit = runBlocking {
+        val gated = GateFirst(store)
+        val log = handoff(gapWait = 50.milliseconds, log = gated)
+        val (seen, job) = collect(log)
+        awaitOpen(log)
+        val held = async(Dispatchers.Default) { log.append(next(refs[0])) }
+        gated.entered.await()
+        store.append(next(refs[1]))
+        log.append(next(refs[2]))
+        withTimeout(5.seconds) { seen.take(2) }.map { it.position.sequence }.assert().isEqualTo(listOf(1L, 2L))
+        reads.reasons.assert().containsExactly(HandoffLog.GAP)
+        gated.release.complete(Unit)
+        held.await()
+        job.cancelAndJoin()
+    }
+
+    @Test
+    fun `a group whose outcomes are not all commits wakes a tail waiting on a gap`(): Unit = runBlocking {
+        val gated = GateFirst(store, armed = false)
+        val log = handoff(gapWait = 30.seconds, log = gated)
+        val (seen, job) = collect(log)
+        awaitOpen(log)
+        val stream = next(refs[0])
+        log.append(stream)
+        seen.take(1)
+        gated.arm()
+        // A group held in flight, then answered with a duplicate and a commit, while another node leaves a gap.
+        val group = async(Dispatchers.Default) { log.appendAll(listOf(stream to null, next(refs[1]) to null)) }
+        gated.entered.await()
+        store.append(next(refs[2]))
+        log.append(next(refs[3]))
+        gated.release.complete(Unit)
+        group.await().map { it::class }.assert()
+            .containsExactly(AppendOutcome.AlreadyCommitted::class, AppendOutcome.Committed::class)
+        withTimeout(5.seconds) { seen.take(3) }.map { it.position.sequence }.assert().isEqualTo(listOf(2L, 3L, 4L))
+        job.cancelAndJoin()
+
+        reads.reasons.assert().containsExactly(HandoffLog.GAP)
     }
 
     @Test
@@ -401,5 +507,34 @@ private class ReadsObserver : Observer {
 
     override fun tailRead(context: String, partition: Int, reason: String) {
         reasons += reason
+    }
+}
+
+/**
+ * A log whose first append (or group) once [armed] waits for [release] before it reaches the store: in flight, not
+ * committed.
+ */
+private class GateFirst(private val delegate: EventLog, armed: Boolean = true) : EventLog by delegate {
+    val entered = CompletableDeferred<Unit>()
+    val release = CompletableDeferred<Unit>()
+    private val calls = AtomicInteger(if (armed) 0 else Int.MIN_VALUE)
+
+    fun arm() = calls.set(0)
+
+    private suspend fun gate() {
+        if (calls.incrementAndGet() == 1) {
+            entered.complete(Unit)
+            release.await()
+        }
+    }
+
+    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+        gate()
+        return delegate.append(stream, transport)
+    }
+
+    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+        gate()
+        return delegate.appendAll(streams)
     }
 }
