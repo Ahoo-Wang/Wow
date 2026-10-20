@@ -436,8 +436,6 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'test/benchmarks/server/build.gradle.kts',
     'test/benchmarks/load/src/main/kotlin/A.kt',
     'test/benchmarks/harness/bench.sh',
-    'documentation/docs/en/guide/v10/quickstart.md',
-    'documentation/docs/zh/guide/v10/quickstart.md',
     'bom/bom/build.gradle.kts',
     'wow-dependencies/build.gradle.kts',
     'gradle/libs.versions.toml',
@@ -456,6 +454,8 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'typescript/wow-client/src/index.ts',
     'documentation/designs/v10/roadmap.md',
     'documentation/docs/en/guide/v10/index.md',
+    // Its samples are held by docs-samples.mjs, in the docs-layout job of every pull request.
+    'documentation/docs/en/guide/v10/quickstart.md',
     'README.md',
     'codecov.yml',
     '.github/workflows/typescript.yml',
