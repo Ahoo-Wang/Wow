@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.AdaptiveQueryLimit
@@ -25,6 +26,7 @@ import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.QueryCountCache
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryObserver
+import me.ahoo.wow.query.QueryOwnership
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
@@ -36,6 +38,8 @@ import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.mask.PayloadMasks
+import me.ahoo.wow.query.read.InProcessQueryApi
+import me.ahoo.wow.query.read.ReadModels
 import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
@@ -74,6 +78,7 @@ import kotlin.time.toKotlinDuration
  *   every rule of the read side: the Catalog, the gateways of the three models and their policies, the policy gateways
  *   of the types whose snapshots are not queried (review R3.3-3), the events' visibility and the state reads'
  *   [me.ahoo.wow.query.engine.ReadFacade]. The host decides no query policy itself (an architecture rule holds it);
+ * - the node's typed [QueryApi] (decision D259), in process over the same engine, under `wow.query.in-process.*`;
  * - [HttpQueries], which the public routes serve (the datasets under `/wow/dataset`, seen as [DatasetVisibility]
  *   says: the application's bean, else by scope and `wow.query.abac`), and [QueryIndexesLifecycle], which manages
  *   the `x-wow-index` indexes at startup as `wow.query.index.ddl` says.
@@ -381,6 +386,38 @@ class QueryAutoConfiguration {
         @InternalWowApi
         fun wowHttpQueries(engine: QueryEngine, node: ServiceNode, properties: QueryProperties): HttpQueries =
             HttpQueries.of(engine, properties.http.defaultListSize, node.snapshotStatus, properties.stream.streams())
+
+        /**
+         * The node's typed [QueryApi] (decisions D254 ②, D259): the [engine]'s gateways and read facade, each aggregate
+         * type found by its model's state class, its states read as the public port's state reads, its lists defaulted
+         * by `wow.query.in-process.default-list-size` and its streams read in `wow.query.stream.chunk-size` chunks.
+         */
+        @Bean
+        @ConditionalOnMissingBean
+        fun wowQueryApi(
+            engine: QueryEngine,
+            manifest: Manifest,
+            node: ServiceNode,
+            properties: QueryProperties,
+            tenants: QueryTenantPolicy,
+            reads: ObjectProvider<StateReads>,
+        ): QueryApi = InProcessQueryApi(
+            engine,
+            ReadModels(
+                node.contexts.values.flatMap { it.models }.map { model ->
+                    ReadModels.Model(model.type, model.stateType) { name -> model.findEventType(name)?.type }
+                },
+            ),
+            latest = { ref ->
+                reads.ifAvailable?.latest(ref)?.let {
+                    CommittedState(it.ref, it.version, it.scope, it.deleted, it.tags, it.state)
+                }
+            },
+            tenants = tenants,
+            ownerships = QueryOwnership.of(manifest),
+            defaultListSize = properties.inProcess.defaultListSize,
+            chunkSize = properties.stream.chunkSize,
+        )
 
         /** Ends the open query streams before the public server's graceful shutdown waits for them (decision D253). */
         @Bean

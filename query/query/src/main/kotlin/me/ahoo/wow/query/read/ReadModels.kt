@@ -23,9 +23,9 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  */
 @InternalWowApi
 class ReadModels(models: Collection<Model>) {
-    /** One aggregate [type]'s [stateType] and the classes of its [events], by their current names. */
+    /** One aggregate [type]'s [stateType] and the class of each of its [events] by its current name, null for none. */
     @InternalWowApi
-    class Model(val type: AggregateType, val stateType: Class<*>, val events: Map<String, Class<*>> = emptyMap())
+    class Model(val type: AggregateType, val stateType: Class<*>, val events: (String) -> Class<*>? = { null })
 
     private val byType: Map<AggregateType, Model> = models.associateBy { it.type }
     private val byState: Map<Class<*>, List<Model>> = models.groupBy { it.stateType }
@@ -52,7 +52,7 @@ class ReadModels(models: Collection<Model>) {
     fun stateTypeOf(type: AggregateType): Class<*>? = byType[type]?.stateType
 
     /** The class of [type]'s event [name], or null when its model has none of that name. */
-    fun eventTypeOf(type: AggregateType, name: String): Class<*>? = byType[type]?.events?.get(name)
+    fun eventTypeOf(type: AggregateType, name: String): Class<*>? = byType[type]?.events?.invoke(name)
 
     @InternalWowApi
     companion object {

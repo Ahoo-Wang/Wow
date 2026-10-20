@@ -124,7 +124,7 @@ class InProcessQueryApiTest {
             .build()
         return InProcessQueryApi(
             engine,
-            ReadModels(listOf(ReadModels.Model(cart, CartState::class.java, mapOf("item_added" to ItemAdded::class.java)))),
+            ReadModels(listOf(ReadModels.Model(cart, CartState::class.java, mapOf("item_added" to ItemAdded::class.java)::get))),
             latest = { latest(it) },
             ownerships = QueryOwnership.of(manifest),
             defaultListSize = defaultListSize,
