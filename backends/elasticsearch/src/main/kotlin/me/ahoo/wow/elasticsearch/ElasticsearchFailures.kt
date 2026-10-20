@@ -15,6 +15,7 @@ package me.ahoo.wow.elasticsearch
 
 import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.transport.TransportException
+import co.elastic.clients.transport.rest5_client.low_level.ResponseException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
 import me.ahoo.wow.spi.StorageUnavailableException
@@ -22,6 +23,10 @@ import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.FailureClassifier
 import java.io.IOException
 import java.util.concurrent.CompletableFuture
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 /**
  * Tells a transient failure of Elasticsearch from a defect: the first is a [StorageUnavailableException], so the
@@ -75,16 +80,24 @@ internal object ElasticsearchFailures {
     /**
      * Whether [failure] says the index's shard cannot serve the request yet (a primary still recovering or not
      * assigned): Elasticsearch answers `503` with one of [SHARD_NOT_READY] while a new index starts. Unwraps the
-     * [StorageUnavailableException] [translate] made of it.
+     * [StorageUnavailableException] [translate] made of it. The answer reaches the client in either of two forms: an
+     * [ElasticsearchException] whose error the client parsed, or, for a request whose endpoint takes no error body
+     * (a real-time `GET` of a document, say), the low-level client's [ResponseException], whose message carries the
+     * body as it came.
      */
     fun isShardNotReady(failure: Throwable): Boolean =
         generateSequence(failure) { it.cause.takeIf { cause -> cause !== it } }.take(MAX_CAUSE_DEPTH)
-            .filterIsInstance<ElasticsearchException>()
-            .any { exception ->
-                exception.status() == UNAVAILABLE && (
-                    exception.error().type() in SHARD_NOT_READY ||
-                        exception.error().rootCause().any { it.type() in SHARD_NOT_READY }
-                    )
+            .any { cause ->
+                when (cause) {
+                    is ElasticsearchException -> cause.status() == UNAVAILABLE && (
+                        cause.error().type() in SHARD_NOT_READY ||
+                            cause.error().rootCause().any { it.type() in SHARD_NOT_READY }
+                        )
+                    is ResponseException ->
+                        cause.response.statusCode == UNAVAILABLE &&
+                            SHARD_NOT_READY.any { type -> cause.message.orEmpty().contains("\"$type\"") }
+                    else -> false
+                }
             }
 
     private const val UNAVAILABLE = 503
@@ -100,26 +113,29 @@ internal object ElasticsearchFailures {
 }
 
 /**
- * Runs [block], again after a short pause while it fails because the index's shard is not ready yet
- * ([ElasticsearchFailures.isShardNotReady]), at most [attempts] times: the window right after an index is created or
- * fails over. Any other failure, or the last one, is thrown.
+ * Runs [block], again after a pause while it fails because the index's shard is not ready yet
+ * ([ElasticsearchFailures.isShardNotReady]), for at most [timeout]: the window right after an index is created or
+ * fails over, which a loaded cluster may take seconds to close. The pauses start at [SHARD_READY_FIRST_PAUSE] and
+ * double up to [SHARD_READY_MAX_PAUSE]. Any other failure, or the last one, is thrown.
  */
-internal suspend fun <T> whenShardReady(attempts: Int = SHARD_READY_ATTEMPTS, block: suspend () -> T): T {
-    var attempt = 1
+internal suspend fun <T> whenShardReady(timeout: Duration = SHARD_READY_TIMEOUT, block: suspend () -> T): T {
+    val start = TimeSource.Monotonic.markNow()
+    var pause = SHARD_READY_FIRST_PAUSE
     while (true) {
         try {
             return block()
         } catch (failure: StorageUnavailableException) {
-            if (attempt >= attempts || !ElasticsearchFailures.isShardNotReady(failure)) throw failure
+            if (start.elapsedNow() + pause > timeout || !ElasticsearchFailures.isShardNotReady(failure)) throw failure
         }
-        delay(SHARD_READY_PAUSE_MILLIS * attempt)
-        attempt++
+        delay(pause)
+        pause = minOf(pause * 2, SHARD_READY_MAX_PAUSE)
     }
 }
 
-/** How many times [whenShardReady] runs a call, and its first pause; the pauses grow linearly (about 5.5 s in all). */
-internal const val SHARD_READY_ATTEMPTS = 10
-internal const val SHARD_READY_PAUSE_MILLIS = 100L
+/** How long [whenShardReady] retries a call, as long as [ElasticsearchIndices.awaitActive] waits for a primary. */
+internal val SHARD_READY_TIMEOUT: Duration = 30.seconds
+internal val SHARD_READY_FIRST_PAUSE: Duration = 100.milliseconds
+internal val SHARD_READY_MAX_PAUSE: Duration = 1.seconds
 
 /** Awaits this request: a transient failure thrown as a [StorageUnavailableException] ([ElasticsearchFailures]). */
 internal suspend fun <T> CompletableFuture<T>.awaitElasticsearch(): T = try {

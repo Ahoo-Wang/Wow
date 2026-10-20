@@ -18,7 +18,10 @@ import co.elastic.clients.elasticsearch._types.ErrorCause
 import co.elastic.clients.elasticsearch._types.ErrorResponse
 import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.transport.TransportException
+import co.elastic.clients.transport.rest5_client.low_level.Response
+import co.elastic.clients.transport.rest5_client.low_level.ResponseException
 import co.elastic.clients.transport.rest5_client.low_level.Rest5Client
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -38,6 +41,8 @@ import org.junit.jupiter.api.Test
 import java.io.IOException
 import java.util.ServiceLoader
 import java.util.concurrent.CompletableFuture
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class ElasticsearchStoreProviderTest {
     private val restClient: Rest5Client = Rest5Client.builder(HttpHost.create("http://localhost:1")).build()
@@ -148,8 +153,16 @@ class ElasticsearchStoreProviderTest {
         ElasticsearchFailures.isShardNotReady(
             elasticsearchException(400, "no_shard_available_action_exception")
         ).assert().isFalse()
+        // A real-time GET's answer reaches the client as the low-level ResponseException, its body in the message.
+        ElasticsearchFailures.isShardNotReady(
+            StorageUnavailableException("recovering", responseException(503, "no_shard_available_action_exception")),
+        ).assert().isTrue()
+        ElasticsearchFailures.isShardNotReady(responseException(503, "search_phase_execution_exception")).assert()
+            .isFalse()
+        ElasticsearchFailures.isShardNotReady(responseException(500, "illegal_index_shard_state_exception")).assert()
+            .isFalse()
         var calls = 0
-        whenShardReady(attempts = 3) {
+        whenShardReady(timeout = 10.seconds) {
             calls++
             if (calls < 3) throw recovering
             "ready"
@@ -158,24 +171,34 @@ class ElasticsearchStoreProviderTest {
         calls = 0
         assertThrownBy<StorageUnavailableException> {
             runBlocking {
-                whenShardReady(attempts = 2) {
+                // Pauses of 100 ms then 200 ms: the second would end past the budget.
+                whenShardReady(timeout = 250.milliseconds) {
                     calls++
                     throw recovering
                 }
             }
         }
-        calls.assert().isEqualTo(2)
+        calls.assert().isIn(1, 2)
         calls = 0
         val other = StorageUnavailableException("down", elasticsearchException(503))
         assertThrownBy<StorageUnavailableException> {
             runBlocking {
-                whenShardReady(attempts = 5) {
+                whenShardReady(timeout = 10.seconds) {
                     calls++
                     throw other
                 }
             }
         }
         calls.assert().isEqualTo(1)
+    }
+
+    private fun responseException(status: Int, type: String): ResponseException {
+        val response = mockk<Response> { every { statusCode } returns status }
+        return mockk<ResponseException> {
+            every { this@mockk.response } returns response
+            every { message } returns """status line [$status] {"error":{"root_cause":[{"type":"$type"}]},"status":$status}"""
+            every { cause } returns null
+        }
     }
 
     private fun elasticsearchException(status: Int, type: String = "test_exception", rootType: String? = null) =
