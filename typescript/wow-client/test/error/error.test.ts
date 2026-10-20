@@ -23,7 +23,9 @@ import {
   WowHeaders,
 } from '../../src';
 
-const KOTLIN = '../../../../';
+// The 9.x Kotlin sources, fixed copies at their repository paths: 9.x left the
+// v10 branch (decision D262); TS-9x deletes them with this test.
+const KOTLIN = '../fixtures/nine-x/';
 
 /** The string `const val`s of a Kotlin file, `${NAME}` references resolved. */
 function kotlinConstants(relativePath: string): Record<string, string> {
