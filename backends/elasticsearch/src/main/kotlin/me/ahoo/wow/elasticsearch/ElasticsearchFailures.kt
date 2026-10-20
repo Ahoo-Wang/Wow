@@ -66,6 +66,21 @@ internal object ElasticsearchFailures {
             failure
         }
 
+    /**
+     * The failure of one item of a `_bulk` request, [what] it wrote, answered [status] with [reason]: a
+     * [StorageUnavailableException] when the cluster cannot take it now ([isTransient]), an
+     * [IllegalArgumentException] when Elasticsearch refused the document ([BAD_REQUEST]), else an
+     * [IllegalStateException].
+     */
+    fun itemFailure(status: Int, what: String, reason: String?): RuntimeException {
+        val message = "Elasticsearch answered $status for $what: $reason"
+        return when {
+            isTransient(status) -> StorageUnavailableException(message)
+            status == BAD_REQUEST -> IllegalArgumentException(message)
+            else -> IllegalStateException(message)
+        }
+    }
+
     /** Whether [failure] is Elasticsearch's answer of [status]. */
     fun hasStatus(
         failure: Throwable,

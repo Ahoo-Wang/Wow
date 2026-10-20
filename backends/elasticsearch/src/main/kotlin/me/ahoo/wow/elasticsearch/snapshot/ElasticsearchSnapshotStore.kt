@@ -21,9 +21,12 @@ import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch._types.SortOptions
 import co.elastic.clients.elasticsearch._types.SortOrder
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import co.elastic.clients.elasticsearch.core.BulkRequest
 import co.elastic.clients.elasticsearch.core.GetRequest
 import co.elastic.clients.elasticsearch.core.IndexRequest
+import co.elastic.clients.elasticsearch.core.MgetRequest
 import co.elastic.clients.elasticsearch.core.SearchRequest
+import co.elastic.clients.elasticsearch.core.bulk.BulkOperation
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -38,6 +41,7 @@ import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments.TENANT_
 import me.ahoo.wow.elasticsearch.whenShardReady
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
 import tools.jackson.databind.node.JsonNodeFactory
@@ -117,26 +121,130 @@ class ElasticsearchSnapshotStore internal constructor(
         checkContext(snapshot.ref)
         val index = indexOf(snapshot.ref.type.name)
         val id = ElasticsearchNames.documentId(snapshot.ref)
-        return decide(index, id) { stored ->
-            when {
-                stored == null -> Decision.Write(ElasticsearchSnapshotDocuments.document(snapshot), true)
-                ElasticsearchSnapshotDocuments.versionOf(stored.source) >= snapshot.version -> Decision.Keep(false)
-                ElasticsearchSnapshotDocuments.stateRevisionOf(stored.source) > snapshot.stateRevision -> {
-                    // Refused: the stored snapshot is of a higher state revision, so the log has moved past it (D172).
-                    val stale = ElasticsearchSnapshotDocuments.staleVersionOf(stored.source)
-                    if (stale != null && stale >= snapshot.version) {
-                        Decision.Keep(false)
-                    } else {
-                        Decision.Write(
-                            stored.source.deepCopy().put(
-                                ElasticsearchSnapshotDocuments.STALE_VERSION,
-                                snapshot.version
-                            ),
-                            false
-                        )
-                    }
+        return decide(index, id) { stored -> saveOver(snapshot, stored) }
+    }
+
+    /** What a save of [snapshot] decides over [stored]: the version guard, a stale mark for a higher state revision. */
+    private fun saveOver(snapshot: SnapshotRecord, stored: Stored?): Decision = when {
+        stored == null -> Decision.Write(ElasticsearchSnapshotDocuments.document(snapshot), true)
+        ElasticsearchSnapshotDocuments.versionOf(stored.source) >= snapshot.version -> Decision.Keep(false)
+        ElasticsearchSnapshotDocuments.stateRevisionOf(stored.source) > snapshot.stateRevision -> {
+            // Refused: the stored snapshot is of a higher state revision, so the log has moved past it (D172).
+            val stale = ElasticsearchSnapshotDocuments.staleVersionOf(stored.source)
+            if (stale != null && stale >= snapshot.version) {
+                Decision.Keep(false)
+            } else {
+                Decision.Write(stored.source.deepCopy().put(ElasticsearchSnapshotDocuments.STALE_VERSION, snapshot.version), false)
+            }
+        }
+        else -> Decision.Write(replacement(snapshot, stored.source), true)
+    }
+
+    /**
+     * Saves [snapshots] (decision D248 ②): in the rounds [SnapshotSaveOutcome.rounds] gives, each round's snapshots of
+     * one aggregate type are read with one real-time `_mget`, decided each as [save] decides, and written with one
+     * `_bulk` request, each write guarded as [save] guards one (`if_seq_no`, `if_primary_term`, or `create`): two
+     * round trips a batch instead of two a snapshot. The writes another one beat (`409`) are read, decided and written
+     * again together. A write Elasticsearch refuses alone is [SnapshotSaveOutcome.Failed]: refused as a value (`400`)
+     * with an [IllegalArgumentException], as a save would throw, and one the cluster cannot take now (`429`, `503`)
+     * with a [me.ahoo.wow.spi.StorageUnavailableException].
+     */
+    override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> {
+        snapshots.forEach { checkContext(it.ref) }
+        val outcomes = arrayOfNulls<SnapshotSaveOutcome>(snapshots.size)
+        SnapshotSaveOutcome.rounds(snapshots).forEach { round ->
+            round.groupBy { snapshots[it].ref.type.name }.forEach { (aggregate, indexes) ->
+                saveRound(indexOf(aggregate), indexes, snapshots, outcomes)
+            }
+        }
+        return outcomes.map { checkNotNull(it) }
+    }
+
+    /** Saves the [indexes] of [batch], of distinct refs of [index], into [outcomes]. */
+    private suspend fun saveRound(
+        index: String,
+        indexes: List<Int>,
+        batch: List<SnapshotRecord>,
+        outcomes: Array<SnapshotSaveOutcome?>,
+    ) {
+        var pending = indexes
+        repeat(MAX_ATTEMPTS) {
+            val ids = pending.map { ElasticsearchNames.documentId(batch[it].ref) }
+            val stored = readAll(index, ids)
+            val writes = ArrayList<BulkWrite>(pending.size)
+            pending.forEachIndexed { at, position ->
+                when (val decision = saveOver(batch[position], stored[at])) {
+                    is Decision.Keep -> outcomes[position] = SnapshotSaveOutcome.of(decision.result)
+                    is Decision.Write -> writes += BulkWrite(position, ids[at], decision, stored[at])
                 }
-                else -> Decision.Write(replacement(snapshot, stored.source), true)
+            }
+            if (writes.isEmpty()) {
+                return
+            }
+            val beaten = writeAll(index, writes, outcomes)
+            if (beaten.isEmpty()) {
+                return
+            }
+            pending = beaten
+        }
+        throw IllegalStateException("The documents of [$index] kept changing over $MAX_ATTEMPTS attempts to write them.")
+    }
+
+    /** One write of a batch: the snapshot's [position] in it, its document [id], what was decided over [stored]. */
+    private class BulkWrite(val position: Int, val id: String, val decision: Decision.Write, val stored: Stored?)
+
+    /**
+     * Reads the documents [ids] of [index] in real time with one request, each as [read] does; a document the request
+     * could not read is read alone.
+     */
+    private suspend fun readAll(index: String, ids: List<String>): List<Stored?> {
+        val request = MgetRequest.of { it.index(index).ids(ids).realtime(true) }
+        val docs = whenShardReady { client.mget(request, ObjectNode::class.java).awaitElasticsearch() }.docs()
+        return docs.mapIndexed { at, item ->
+            if (item.isResult) {
+                val result = item.result()
+                if (result.found()) {
+                    Stored(checkNotNull(result.source()), checkNotNull(result.seqNo()), checkNotNull(result.primaryTerm()))
+                } else {
+                    null
+                }
+            } else {
+                read(index, ids[at])
+            }
+        }
+    }
+
+    /**
+     * Writes [writes] with one `_bulk` request, their outcomes into [outcomes]; returns the positions of those another
+     * write beat.
+     */
+    private suspend fun writeAll(index: String, writes: List<BulkWrite>, outcomes: Array<SnapshotSaveOutcome?>): List<Int> {
+        val request = BulkRequest.of { bulk ->
+            bulk.index(index).refresh(refresh).operations(writes.map(::operationOf))
+        }
+        val items = whenShardReady { client.bulk(request).awaitElasticsearch() }.items()
+        val beaten = ArrayList<Int>()
+        items.forEachIndexed { at, item ->
+            val write = writes[at]
+            val error = item.error()
+            when {
+                error == null -> outcomes[write.position] = SnapshotSaveOutcome.of(write.decision.result)
+                item.status() == ElasticsearchFailures.CONFLICT -> beaten += write.position
+                else -> outcomes[write.position] = SnapshotSaveOutcome.Failed(
+                    ElasticsearchFailures.itemFailure(item.status(), "the document [${write.id}] of [$index]", error.reason()),
+                )
+            }
+        }
+        return beaten
+    }
+
+    private fun operationOf(write: BulkWrite): BulkOperation = BulkOperation.of { operation ->
+        val stored = write.stored
+        if (stored == null) {
+            operation.create<ObjectNode> { it.id(write.id).document(write.decision.document) }
+        } else {
+            operation.index<ObjectNode> {
+                it.id(write.id).document(write.decision.document).ifSeqNo(stored.seqNo).ifPrimaryTerm(stored.primaryTerm)
             }
         }
     }
