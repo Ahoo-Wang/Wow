@@ -169,16 +169,6 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Blocks M7**: no.
 - **Resolved**: by #4380. After a command that changed nothing, `expectState` checks the state the aggregate is in.
 
-### G13. Tenants across services match only by convention
-
-- **Work package**: 6.3e
-- **Area**: host, docs
-- **What happened**: The shop's saga addresses the inventory's stock as `stock.ref(order's tenant, productId)`. It works because both services serve anonymous callers in the default tenant `(0)`. Nothing documents that a cross-context reference carries the sender's tenant into the target, or what happens when the target has a fixed tenant policy for the aggregate.
-- **Where they looked**: the host's `wow.aggregates.*.tenant` keys; decision D116.
-- **Workaround**: Both services run with the default tenant.
-- **Proposed fix**: Document how a tenant crosses contexts. Have the target's admission check a cross-context command's tenant against its tenant policy, with a clear rejection.
-- **Blocks M7**: no, but it needs settling before multi-tenant users go cross-context.
-
 ### G14. The in-memory query backend on the test class path does not serve the snapshot queries (resolved)
 
 - **Work package**: E.1
