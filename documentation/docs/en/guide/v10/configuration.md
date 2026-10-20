@@ -139,7 +139,7 @@ With `wow-cosec` on the class path, `CoSecCallerResolver` resolves the callers (
 | `wow.query.in-process-timeout` | `30s` | The timeout of an in-process query, which has no budget |
 | `wow.query.require-explicit-entry` | `false` | Whether a query must say whether it is HTTP or in-process; unspecified, it is taken as in-process |
 | `wow.query.require-authenticated-scope` | `false` | Whether an HTTP query needs an authenticated scope that pins the model's required scope; off, a declared scope is trusted |
-| `wow.query.abac.enabled` | `false` | Whether the caller's `abac.<key>` attributes are matched against the snapshots' `tags` |
+| `wow.query.abac.enabled` | `false` | Whether the caller's `abac.<key>` attributes are matched against the snapshots' `tags` and the `tags` each event stream recorded |
 | `wow.query.abac.require-principal-tags` | `false` | Whether an HTTP query whose caller has no ABAC tags is rejected, instead of matching every resource |
 | `wow.query.abac.match-missing-tag-key` | `true` | Whether a resource that lacks one of the caller's tag keys matches, as a public resource |
 | `wow.query.abac.attribute-prefix` | `abac.` | The prefix of the caller's attributes ABAC reads |

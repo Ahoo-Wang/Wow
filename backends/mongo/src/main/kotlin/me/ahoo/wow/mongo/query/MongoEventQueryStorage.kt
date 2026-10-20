@@ -76,7 +76,8 @@ class MongoEventQueryStorage @JvmOverloads constructor(
 /**
  * A stream document `MongoEventLog` writes, as the `events` model reads it (decisions D162, D235): each system field
  * of a stream a top-level field under its stored name ([PHYSICAL]), the operator the document `{id, tenantId,
- * crossScope}` or absent (decision D163), and the events the array `events`, each `{name, revision, payload}`, whose
+ * crossScope}` or absent (decision D163), the tags the document `tags` of string arrays or absent when not recorded
+ * (decision D259), and the events the array `events`, each `{name, revision, payload}`, whose
  * `payload` a record names `body`. The position, causation, headers and transport are never part of a record.
  */
 internal object MongoEventDocuments : MongoQueryDocuments {
@@ -92,10 +93,12 @@ internal object MongoEventDocuments : MongoQueryDocuments {
         EventStreamFields.OWNER_ID to "owner_id",
         EventStreamFields.SPACE_ID to "space_id",
         EventStreamFields.OPERATOR to "operator",
+        EventStreamFields.TAGS to "tags",
         EventStreamFields.EVENTS to "events",
     )
     private val LOGICAL: Map<String, String> = PHYSICAL.entries.associate { (logical, physical) -> physical to logical }
 
+    private val ABSENT_AS_NULL = setOf(EventStreamFields.OPERATOR, EventStreamFields.TAGS)
     private const val PAYLOAD = "payload"
     private val EVENTS = QueryPathSegment.Property(EventStreamFields.EVENTS)
     private val BODY = listOf(EVENTS, QueryPathSegment.Item, QueryPathSegment.Property(EventFields.BODY))
@@ -113,6 +116,7 @@ internal object MongoEventDocuments : MongoQueryDocuments {
         "owner_id" to STRING_TYPES,
         "space_id" to STRING_TYPES,
         "operator" to OBJECT_TYPES,
+        "tags" to OBJECT_TYPES,
         "events" to ARRAY_TYPES,
     )
 
@@ -142,8 +146,9 @@ internal object MongoEventDocuments : MongoQueryDocuments {
     override fun record(document: Document): ObjectNode = nodes.objectNode().apply {
         PHYSICAL.forEach { (logical, physical) ->
             if (!document.containsKey(physical)) {
-                // A stream of an anonymous caller stores no operator; one without a scope stores null.
-                if (logical == EventStreamFields.OPERATOR && document.containsKey("tenant_id")) putNull(logical)
+                // A stream of an anonymous caller stores no operator, one appended before the log learned them no
+                // tags (decision D259); one without a scope stores null.
+                if (logical in ABSENT_AS_NULL && document.containsKey("tenant_id")) putNull(logical)
                 return@forEach
             }
             when (logical) {

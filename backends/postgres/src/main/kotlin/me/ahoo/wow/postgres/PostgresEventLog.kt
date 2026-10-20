@@ -24,6 +24,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
+import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.json.WowJson
@@ -292,10 +293,11 @@ class PostgresEventLog(
         statement.setNullableString(index++, operator?.id)
         statement.setNullableString(index++, operator?.tenantId)
         if (operator == null) {
-            statement.setNull(index, Types.BOOLEAN)
+            statement.setNull(index++, Types.BOOLEAN)
         } else {
-            statement.setBoolean(index, operator.crossScope)
+            statement.setBoolean(index++, operator.crossScope)
         }
+        statement.setNullableString(index, stream.tags?.let(json::writeValueAsString))
     }
 
     /**
@@ -691,6 +693,7 @@ class PostgresEventLog(
         operator = row.getString("operator_id")?.let {
             Operator(it, row.getString("operator_tenant_id"), row.getBoolean("operator_cross_scope"))
         },
+        tags = row.getString("tags")?.let(PostgresSnapshotStore::decodeTags),
     )
 
     private fun PreparedStatement.setNullableString(index: Int, value: String?) {

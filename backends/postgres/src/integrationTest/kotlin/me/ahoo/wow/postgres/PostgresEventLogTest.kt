@@ -82,6 +82,24 @@ class PostgresEventLogTest : EventLogSpec() {
             runCatching { log.lineage(1) }.exceptionOrNull().assert().isInstanceOf(IllegalStateException::class.java)
         }
 
+    @Test
+    fun `a log table created before the tags gets them, its streams reading as not recorded (D259)`(): Unit =
+        runBlocking {
+            val context = PostgresFixture.newContext()
+            val order = AggregateType(context, "order")
+            val log = PostgresFixture.log(1, context, listOf(order.name))
+            val legacy = stream("o-1", 1, aggregate = order, tags = mapOf("region" to listOf("east")))
+            (log.append(legacy) is AppendOutcome.Committed).assert().isTrue()
+            // A table of format 1 created before the tags: its rows have none.
+            execute("ALTER TABLE \"${table(context, order.name)}\" DROP COLUMN tags")
+            // The next node to start adds the column.
+            val upgraded = PostgresFixture.log(1, context, listOf(order.name))
+            upgraded.read(legacy.ref).toList().single().tags.assert().isNull()
+            val none = stream("o-1", 2, aggregate = order, tags = emptyMap())
+            (upgraded.append(none) is AppendOutcome.Committed).assert().isTrue()
+            upgraded.read(legacy.ref, 2).toList().single().tags.assert().isEqualTo(emptyMap<String, List<String>>())
+        }
+
     private fun execute(sql: String) {
         PostgresFixture.dataSource.connection.use { connection -> connection.createStatement().use { it.execute(sql) } }
     }

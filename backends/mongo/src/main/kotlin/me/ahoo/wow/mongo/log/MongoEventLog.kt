@@ -803,6 +803,8 @@ class MongoEventLog(
         )
         .append(HEADERS, Document(stream.headers))
         .apply { MongoOperators.document(stream.operator)?.let { append(OPERATOR, it) } }
+        // The tags after the commit (decision D259): absent when not recorded, an empty document for none.
+        .apply { stream.tags?.let { append(TAGS, Document(it)) } }
         .apply { transport?.let { append(TRANSPORT, transportDocument(it)) } }
 
     private fun transportDocument(transport: Transport) = Document()
@@ -887,6 +889,9 @@ class MongoEventLog(
         },
         headers = strings(document.get(HEADERS, Document::class.java)),
         operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
+        tags = document.get(TAGS, Document::class.java)?.let { tags ->
+            tags.keys.associateWith { tags.getList(it, String::class.java).toList() }
+        },
     )
 
     internal companion object {
@@ -942,6 +947,7 @@ class MongoEventLog(
         const val CAUSATION_ID = "causation_id"
         const val HEADERS = "headers"
         const val OPERATOR = "operator"
+        const val TAGS = "tags"
         const val TRANSPORT = "transport"
         const val WAIT = "wait"
         const val WAIT_ID = "wait_id"

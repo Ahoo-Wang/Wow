@@ -26,6 +26,7 @@ import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.IsEmptyFilter
+import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
@@ -54,7 +55,7 @@ class AbacQueryPolicyTest {
 
     @Test
     fun `each policy declares how it restricts the events, pinned unless it says otherwise (D254, D259)`() {
-        enabled.events.assert().isEqualTo(EventsMode.PINNED)
+        enabled.events.assert().isEqualTo(EventsMode.PUSHDOWN)
         AbacQueryPolicy().events.assert().isEqualTo(EventsMode.NONE)
         ScopeQueryPolicy().events.assert().isEqualTo(EventsMode.PUSHDOWN)
         QueryPolicy { _, _ -> MatchAllFilter }.events.assert().isEqualTo(EventsMode.PINNED)
@@ -176,7 +177,27 @@ class AbacQueryPolicyTest {
     }
 
     @Test
-    fun `only snapshot queries are restricted`() = runTest {
+    fun `an events query is restricted by the tags each stream recorded, a stream without any matching nothing`() =
+        runTest {
+            val events = QueryContext<FilterExpression>(
+                MatchAllFilter,
+                TYPE,
+                gatewaySchema(QueryModel.EVENTS),
+                QueryType.LIST,
+                QueryEntry.HTTP,
+            )
+            val recorded = IsNotNullFilter(QueryField("tags"))
+            enabled.evaluate(caller(QueryEntry.HTTP, "abac.dept" to listOf("eng")), events).assert()
+                .isEqualTo(AndFilter(listOf(recorded, publicOr("dept", "eng"))))
+            val two = caller(QueryEntry.HTTP, "abac.dept" to listOf("eng"), "abac.role" to listOf("admin"))
+            enabled.evaluate(two, events).assert()
+                .isEqualTo(AndFilter(listOf(recorded, publicOr("dept", "eng"), publicOr("role", "admin"))))
+            // A caller without tags is not restricted, as on the snapshots.
+            enabled.evaluate(caller(QueryEntry.HTTP), events).assert().isSameAs(MatchAllFilter)
+        }
+
+    @Test
+    fun `only snapshot, event and tag-binding dataset queries are restricted`() = runTest {
         val dataset = QueryContext<FilterExpression>(
             MatchAllFilter,
             TYPE,
