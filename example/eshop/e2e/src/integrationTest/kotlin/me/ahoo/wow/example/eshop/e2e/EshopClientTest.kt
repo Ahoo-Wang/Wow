@@ -98,6 +98,8 @@ class EshopClientTest {
                     BasketServer::class.java,
                     "basket",
                     "--wow.clients.contexts.eshop-ordering.url=http://127.0.0.1:${ordering.port}",
+                    // The checkout saga's synchronous call, which the node checks it reaches (decision D259).
+                    "--wow.clients.contexts.eshop-ordering.internal-url=http://127.0.0.1:${ordering.internalPort}",
                     "--wow.clients.contexts.eshop-ordering.mode=user",
                     "--wow.clients.forwarded-headers=X-User",
                 )
