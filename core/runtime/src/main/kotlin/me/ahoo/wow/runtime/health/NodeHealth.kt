@@ -227,7 +227,9 @@ class NodeHealth(
         val failures = activity.failuresWithin(options.storeWindow)
         val down = options.storeDownAfter
         val status = when {
-            probingFor != null && probingFor >= down -> HealthStatus.DOWN
+            // A probe under way has not failed: it counts only once it outlives its own timeout (a call that ignores
+            // the timeout's cancellation); one that times out has failed, from then on.
+            probingFor != null && probingFor >= probeTimeout -> HealthStatus.DOWN
             failingFor != null && failingFor >= down -> HealthStatus.DOWN
             failingFor != null || probingFor != null && probingFor >= options.sampleInterval -> HealthStatus.DEGRADED
             failures > 0 -> HealthStatus.DEGRADED
