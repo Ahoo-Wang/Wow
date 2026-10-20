@@ -623,6 +623,7 @@ public final class me/ahoo/wow/query/dataset/DatasetQueryGateways {
 	public static final fun of (Lme/ahoo/wow/query/dataset/QueryDatasets;Lme/ahoo/wow/query/schema/QuerySchemaCatalog;Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
 	public static final fun of (Lme/ahoo/wow/query/dataset/QueryDatasets;Lme/ahoo/wow/query/schema/QuerySchemaCatalog;Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/QueryObserver;)Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
 	public static final fun of (Lme/ahoo/wow/query/dataset/QueryDatasets;Lme/ahoo/wow/query/schema/QuerySchemaCatalog;Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/QueryObserver;Lme/ahoo/wow/query/QueryEntryPolicy;)Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
+	public static final fun of (Lme/ahoo/wow/query/dataset/QueryDatasets;Lme/ahoo/wow/query/schema/QuerySchemaCatalog;Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/QueryObserver;Lme/ahoo/wow/query/QueryEntryPolicy;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
 }
 
 public final class me/ahoo/wow/query/dataset/DatasetQueryGateways$Companion {
@@ -633,8 +634,9 @@ public final class me/ahoo/wow/query/dataset/DatasetQueryGateways$Companion {
 	public final fun of (Lme/ahoo/wow/query/dataset/QueryDatasets;Lme/ahoo/wow/query/schema/QuerySchemaCatalog;Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
 	public final fun of (Lme/ahoo/wow/query/dataset/QueryDatasets;Lme/ahoo/wow/query/schema/QuerySchemaCatalog;Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/QueryObserver;)Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
 	public final fun of (Lme/ahoo/wow/query/dataset/QueryDatasets;Lme/ahoo/wow/query/schema/QuerySchemaCatalog;Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/QueryObserver;Lme/ahoo/wow/query/QueryEntryPolicy;)Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
+	public final fun of (Lme/ahoo/wow/query/dataset/QueryDatasets;Lme/ahoo/wow/query/schema/QuerySchemaCatalog;Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/QueryObserver;Lme/ahoo/wow/query/QueryEntryPolicy;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
 	public static synthetic fun of$default (Lme/ahoo/wow/query/dataset/DatasetQueryGateways$Companion;Lme/ahoo/wow/query/dataset/QueryDatasets;Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
-	public static synthetic fun of$default (Lme/ahoo/wow/query/dataset/DatasetQueryGateways$Companion;Lme/ahoo/wow/query/dataset/QueryDatasets;Lme/ahoo/wow/query/schema/QuerySchemaCatalog;Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/QueryObserver;Lme/ahoo/wow/query/QueryEntryPolicy;ILjava/lang/Object;)Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
+	public static synthetic fun of$default (Lme/ahoo/wow/query/dataset/DatasetQueryGateways$Companion;Lme/ahoo/wow/query/dataset/QueryDatasets;Lme/ahoo/wow/query/schema/QuerySchemaCatalog;Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/QueryObserver;Lme/ahoo/wow/query/QueryEntryPolicy;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
 }
 
 public final class me/ahoo/wow/query/dataset/DatasetQueryModelProfile : me/ahoo/wow/query/schema/QueryModelProfile {
@@ -1251,6 +1253,7 @@ public final class me/ahoo/wow/query/schema/QueryFieldDeclarationBuilder {
 	public final fun kind (Lme/ahoo/wow/query/schema/QueryValueKind;)V
 	public final fun nullable (Z)V
 	public final fun property (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public final fun reference (Ljava/lang/String;Ljava/lang/String;)V
 	public final fun required (Z)V
 	public final fun semantic (Lme/ahoo/wow/query/schema/QuerySemanticType;)V
 	public final fun temporalEpoch (Ljava/util/concurrent/TimeUnit;)V

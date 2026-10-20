@@ -51,6 +51,7 @@ import tools.jackson.databind.json.JsonMapper
  * - the peer contracts conflict ([PeerContracts.conflicts]): two of them declare one context;
  * - a subscription of [local] reads another context (`@OnEvent(aggregates = ["ctx.agg"])`, decision D138) that no
  *   Manifest declares, an aggregate the context does not have, or one it does not publish;
+ * - such a subscription reads events by type (decision D264) that the contract of that aggregate does not declare (DX-1c);
  * - such a subscription reads a stream published without the state (`includeState = false`) but its handler takes a
  *   state that is not nullable (decision D140): its Manifest source does not say `nullableState`, which the compiler
  *   records for `StateEvent<S?>` and `StateEvent<*>`, and it is not among the [nullableStates] given.
@@ -77,6 +78,9 @@ class ContractDirectory(
     val peers: List<ManifestFragment> = PeerContracts.outside(local.contexts.map { it.name }, peers)
 
     private val manifests: List<Manifest> = listOf(local) + this.peers.map { it.manifest }
+
+    /** Every context of [local] and of the [peers], in that order. */
+    val allContexts: List<ContextManifest> get() = manifests.flatMap { it.contexts }
 
     /** Every context by its name; on a conflict, which fails the startup, the service's own or the first peer's. */
     private val contexts: Map<String, Owned> = HashMap<String, Owned>().also { contexts ->
@@ -250,6 +254,24 @@ class ContractDirectory(
         }
     }.toMap()
 
+    /**
+     * The subscriptions of the peers (`context/processor.function`) that derive or call commands of [types], each
+     * with those types (DX gap G13): such a command carries its sender's tenant into the target.
+     */
+    fun peerSendersTo(types: Set<AggregateType>): Map<String, Set<AggregateType>> = peers.flatMap { peer ->
+        peer.manifest.contexts.flatMap { context ->
+            context.subscriptions.mapNotNull { subscription ->
+                val references = subscription.derives.orEmpty() + subscription.calls.orEmpty()
+                val targets = references.mapNotNullTo(LinkedHashSet()) { reference ->
+                    val type = commandTypeOf(reference) ?: return@mapNotNullTo null
+                    AggregateType(type.substringBefore('.'), type.substringAfter('.').substringBefore('.'))
+                        .takeIf { it in types }
+                }
+                targets.takeIf { it.isNotEmpty() }?.let { "${context.name}/${subscription.name}" to it }
+            }
+        }
+    }.toMap()
+
     /** A Manifest says nothing of a subscription's progress (decision D63: a hop of another context is not checked). */
     override suspend fun hasHandled(subscription: String, stream: EventStreamRecord): Boolean = false
 
@@ -309,6 +331,23 @@ class ContractDirectory(
 
                 else -> null
             }
+        } + eventProblems(where, other, aggregates, subscription.source.events)
+    }
+
+    /**
+     * The [events] a handler of each event of a type (decision D264) reads from another context's [aggregates] that
+     * [other]'s contract does not declare (DX-1c): its api on the class path is of another version than the contract.
+     */
+    private fun eventProblems(
+        where: String,
+        other: ContextManifest,
+        aggregates: List<String>,
+        events: List<String>,
+    ): List<String> {
+        val declared = other.aggregates.filter { it.name in aggregates }.flatMap { it.events }.map { it.name }.toSet()
+        return events.filterNot { it in declared }.map {
+            "$where reads the event $it, which the contract of ${other.name} does not declare for " +
+                "${aggregates.joinToString()}: depend on the api module its service publishes"
         }
     }
 

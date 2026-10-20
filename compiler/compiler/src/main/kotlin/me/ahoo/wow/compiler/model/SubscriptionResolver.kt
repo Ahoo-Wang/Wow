@@ -374,7 +374,7 @@ internal object SubscriptionResolver {
         if (first!!.qualifiedName() != STATE_EVENT) {
             // Decision D264: a handler of each event of a type, of the aggregate whose events they are.
             val parameter = TypedEventResolver.resolve(where, first, aggregates, events, problems) ?: return null
-            return handler.copy(state = parameter.state, nullableState = false, event = parameter)
+            return handler.copy(state = parameter.state, nullableState = parameter.nullableState, event = parameter)
         }
         return streamHandler(handler, where, first, problems)
     }

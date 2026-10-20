@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.analytics.catalog.server
 
+import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.query.EventsMode
@@ -20,12 +21,17 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryRequestException
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.schema.QueryModel
 
 /**
- * Keeps the catalog to the catalog's roles: a query of the sources (their columns, sensitivity and lineage) by a
- * caller with none of [AnalyticsCatalogCallers.READERS] is refused ([READER_REQUIRED]); trusted in-process code, which
- * has no caller, is not restricted. It hides no row, so its events queries need not name their aggregates
- * ([EventsMode.NONE]).
+ * Keeps the catalog to the catalog's roles: a query of the catalog's own aggregates (its sources and datasets, their
+ * columns, sensitivity and lineage, the control plane) by a caller with none of [AnalyticsCatalogCallers.READERS] is
+ * refused ([READER_REQUIRED]); trusted in-process code, which has no caller, is not restricted.
+ *
+ * The published datasets themselves (the `DATASET` model, the data plane, decision D251) are not the catalog's to
+ * guard: their queries go through the node's other policies as any dataset's do, each caller reading the rows of its
+ * own scope (tenant, owner, space, ABAC tags) with each value masked as its lineage says. It hides no row, so its
+ * events queries need not name their aggregates ([EventsMode.NONE]).
  */
 class AnalyticsCatalogQueryPolicy : QueryPolicy {
     override val events: EventsMode
@@ -33,7 +39,9 @@ class AnalyticsCatalogQueryPolicy : QueryPolicy {
 
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
         val who = caller.caller ?: return MatchAllFilter
-        if (AnalyticsCatalogCallers.rolesOf(who).none { it in AnalyticsCatalogCallers.READERS }) {
+        val catalog = context.aggregateType.context == AnalyticsCatalogContext.NAME &&
+            context.schema.model != QueryModel.DATASET
+        if (catalog && AnalyticsCatalogCallers.rolesOf(who).none { it in AnalyticsCatalogCallers.READERS }) {
             throw QueryRequestException(
                 "${who.subject} reads no source: it needs one of ${AnalyticsCatalogCallers.READERS}.",
                 READER_REQUIRED,

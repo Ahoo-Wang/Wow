@@ -197,7 +197,7 @@ A handler takes a `StateEvent<S>`: one committed event stream of an aggregate wi
 | `scope` | The aggregate's owner and space after the commit, not the caller's |
 | `causation`, `headers` | The chain the command belongs to, and the request facts it carried; `correlationId` is the root command's id |
 
-`S` selects the aggregates: a handler reads the aggregates of the module's context whose state type is `S`, unless `@OnEvent(aggregates = ["<context>.<aggregate>"])` names them. A handler of each `E` needs neither: `E` names the aggregate, and the compiler writes its events into the subscription's source, so the node passes over a stream without one, its state not even decoded. Several `E` of one stream share its checkpoint: a failure retries the stream, calling the handler for each again. The `E` of another context's events waits for the peer api's event classes; such a handler takes the `StateEvent` for now.
+`S` selects the aggregates: a handler reads the aggregates of the module's context whose state type is `S`, unless `@OnEvent(aggregates = ["<context>.<aggregate>"])` names them. A handler of each `E` needs neither: `E` names the aggregate, and the compiler writes its events into the subscription's source, so the node passes over a stream without one, its state not even decoded. Several `E` of one stream share its checkpoint: a failure retries the stream, calling the handler for each again. For another context's events, `E` is that context's api class, and `@OnEvent(aggregates)` names its aggregate (see [Reading another context's stream](#reading-another-context-s-stream)).
 
 The handler's context gives it an `executionId`, `subscription:ref@version`, the same every time the same commit is handled by the same subscription, and an `invocationKey`, the idempotency key for an outside call: the `executionId` for a handler of the stream, `executionId:eventIndex` for a handler of each `E`.
 
@@ -354,12 +354,11 @@ A handler names the other context's aggregate in `@OnEvent(aggregates = [...])` 
 @Saga
 class OrderStockSaga {
     @OnEvent(aggregates = ["example.order"])
-    fun onOrderShipped(event: StateEvent<OrderView>, context: SagaContext): List<Command<CommitReservation>> =
-        if (event.events.any { it is StateEventPayload && it.name == "example.order.OrderShipped" }) {
-            event.state.items.map { context.command(STOCK.ref(event.ref.tenantId, it.productId), CommitReservation(event.ref.id)) }
-        } else {
-            emptyList()
-        }
+    fun onOrderShipped(
+        event: StateTypedEvent<OrderView, OrderShipped>, // OrderShipped: the order context's api class
+        context: SagaContext,
+    ): List<Command<CommitReservation>> =
+        event.state.items.map { context.command(STOCK.ref(event.ref.tenantId, it.productId), CommitReservation(event.ref.id)) }
 }
 
 data class OrderView(val items: List<Item> = emptyList()) {
@@ -368,7 +367,7 @@ data class OrderView(val items: List<Item> = emptyList()) {
 ```
 
 - The handler reads the topic the upstream publishes, `wow.<context>.<aggregate>.state`, with its offsets in this service's checkpoints. The node needs `wow-kafka` and `wow.kafka.bootstrap-servers`.
-- Its `events` are `StateEventPayload`s (`me.ahoo.wow.spi.state`): each a `name` (`example.order.OrderShipped`), a `revision` and the JSON payload. Match them by name.
+- Its `events` are the classes of the upstream's api module (DX-1c), decoded when the event's revision is the one the api's contract declares; any other event is a `PublishedEvent` (`me.ahoo.wow.api.subscribe`): its `name` (`example.order.OrderShipped`), `revision` and JSON `payload`. A handler of each `E` (above) takes the api's class, names the aggregate in `@OnEvent(aggregates)`, and is not called for a `PublishedEvent`; the node does not start when the contract on its class path declares no such event.
 - Its `state` is decoded from the published state into the handler's own type. When the upstream publishes its events without the state (`publishState = false`), declare it nullable (`StateEvent<OrderView?>`): a non-nullable view of a stream without state fails at startup.
 - A saga or reactor on another context's stream starts at the end by default. A service that must not miss what was published before it first started sets `start: beginning` for the handler (see [Where a subscription starts](#where-a-subscription-starts)).
 - The service takes the upstream's Manifest as a peer (below).
@@ -385,7 +384,7 @@ context.command(AggregateType("inventory", "stock").ref(event.ref.tenantId, prod
 - The target's service executes its command topic when it sets `wow.kafka.command-intake: true`. The topic must exist with exactly as many partitions as the target's log (`wow.log.partitions`, 64 by default), or that node does not start.
 - A rejection comes back as a receipt on the sender's `wow.<sender>.receipts` and goes to the saga's `@OnRejected` handler.
 - The sender finds the command's type name in the target's Manifest, a peer of the sending service.
-- The tenant of the `ref` crosses as it is: every context of a system shares one tenant space (see [Deployment](./deployment.md#one-tenant-space)).
+- The tenant of the `ref` crosses as it is: every context of a system shares one tenant space (see [Deployment](./deployment.md#one-tenant-space)). A target type with a fixed tenant refuses a command of another tenant.
 
 A node without a command transport does not start when one of its sagas derives, schedules or handles the rejections of another context's commands. The message names each saga and context:
 
@@ -393,7 +392,7 @@ A node without a command transport does not start when one of its sagas derives,
 Node <node> has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers), but example/OrderSaga.onOrderCreated sends commands to inventory: a command across contexts goes through its context's command topic (decision D33).
 ```
 
-In production the transport is Kafka (`wow.kafka.bootstrap-servers`). A test without Kafka gives the node in-memory topics: an `InMemoryTopics` bean (`me.ahoo.wow.kernel.memory`) and a `SourceTopics` bean over it (`me.ahoo.wow.runtime.node`), as the shop's tests do:
+In production the transport is Kafka (`wow.kafka.bootstrap-servers`). To try a service out on one machine without Kafka, set `wow.topics.in-memory: true`: the node keeps its command topics and published streams in its JVM, executes its own command topic, and warns at startup; nothing reaches another JVM or survives a restart (DX gap G27). A test without Kafka can give the node in-memory topics itself: an `InMemoryTopics` bean (`me.ahoo.wow.kernel.memory`) and a `SourceTopics` bean over it (`me.ahoo.wow.runtime.node`), as the shop's tests do:
 
 ```kotlin
 class InMemoryShopTopics {

@@ -116,6 +116,7 @@ object DatasetCompiler {
                     sensitivity = column.sensitivity,
                     inputs = column.expression.refs().map { inputOf(it, dataset) }.distinct(),
                     computed = column.computed,
+                    reference = column.reference,
                 )
             },
             identity = dataset.identity,

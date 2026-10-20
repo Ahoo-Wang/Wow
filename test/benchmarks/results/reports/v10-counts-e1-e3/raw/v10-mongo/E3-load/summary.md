@@ -1,0 +1,9 @@
+# counts-E3: v10 E3
+
+transfer, answered once the saga's entry is stored on the target; backend mongo, nodes 1, heap 1g, gc G1, serverJvm openjdk version "21.0.12.1" 2026-08-18 LTS OpenJDK Runtime Environment Corretto-21.0.12.9.1 (build 21.0.12.1+9-LTS) OpenJDK 64-Bit Server VM Corretto-21.0.12.9.1 (build 21.0.12.1+9-LTS, mixed mode, sharing), stores kafka mongo, serverArgs .
+
+Open loop at 20.0/s, uniform over 1000 accounts, 0 s warm-up, 60 s measured.
+
+| Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 20.0/s | 1200 | 0 | 15.9 ms | 47.4 ms | 127.5 ms | 202.8 ms | 218.4 ms | 218.4 ms |

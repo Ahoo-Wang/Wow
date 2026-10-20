@@ -16,7 +16,11 @@ pure function: a source whose engine merges rows read through `FINAL`, a left jo
 JSON text through `JSONExtractString`, every name quoted and every text escaped). Publishing creates the version's view
 in `wow_datasets` (the only DDL the catalog runs); every node serving queries reads the publications from the datasets'
 snapshots (`DatasetPublicationWatcher`: what changed every 5 seconds, everything every 5 minutes) and serves the current
-version under `/wow/dataset/<context>/<name>/query`, each value masked as its sources say. A retired dataset's views are
+version under `/wow/dataset/<context>/<name>/query`, each value masked as its sources say. Those queries are the data
+plane's: they need no catalog role, only the node's query policies (each caller reads its own tenant's, owner's and
+space's rows; ABAC), and run under the dataset bulkhead (`wow.query.dataset.max-concurrent`, 8). A column whose source
+declares it a reference (or a Wow table's `aggregate_id`) is declared `REFERENCE` to that aggregate, so a row's action
+goes to the service that owns it. A retired dataset's views are
 dropped 7 days later. A change of a source recompiles the datasets that read it (`DatasetRecompilation`): what compiles
 with the same columns (names and types) is published as the next version (stricter masking, another rendering); anything
 else (no longer compiling, columns that would change, a new approval) marks the dataset `NEEDS_REVISION`. Its published

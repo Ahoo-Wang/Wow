@@ -66,6 +66,7 @@ import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.command.MessageEntries
 import me.ahoo.wow.runtime.command.Receipts
 import me.ahoo.wow.runtime.contract.ContractDirectory
+import me.ahoo.wow.runtime.contract.PeerEvents
 import me.ahoo.wow.runtime.health.NodeStores
 import me.ahoo.wow.runtime.health.StoreWritePressure
 import me.ahoo.wow.runtime.health.WritePressures
@@ -179,6 +180,8 @@ class ContextNode internal constructor(
     val served: Set<String> = setOf(context),
     /** The queries the context's handlers read with, by the commit's tenant (decision D259); none by default. */
     val queries: ContextQueries = ContextQueries.NONE,
+    /** The events of other contexts' published streams, decoded into their api classes (DX-1c); none by default. */
+    val peerEvents: PeerEvents = PeerEvents.NONE,
 ) {
     /**
      * The ids of the context's creation commands that name no aggregate (decision D191): a saga's derived command, one
@@ -421,6 +424,9 @@ class ServiceNode @InternalWowApi constructor(
 
     private val nodeSnapshots = NodeSnapshots(manifest)
 
+    /** The other contexts' published events, decoded into their api classes by the [contracts] (DX-1c). */
+    private val peerEvents = PeerEvents.of(contracts)
+
     /** The commands in flight in the executors of every context (decision D228 ②): one bound for the node. */
     internal val inFlight = InFlightLimit(options.maxInFlight)
 
@@ -618,7 +624,33 @@ class ServiceNode @InternalWowApi constructor(
      */
     private val intakes: Map<ContextNode, CommandIntake> = contexts.values.filter { it.intake != null }.associateWith {
         val ledger = LedgerCommands(parked, options.ledger?.context ?: Ledger.OPS_CONTEXT) { ledgerPublisher }
-        CommandIntake(it.context, it.models, it.coordinator, topics!!, it.creations, ledger, inFlight)
+        CommandIntake(
+            it.context,
+            it.models,
+            it.coordinator,
+            topics!!,
+            it.creations,
+            ledger,
+            inFlight,
+            tenants = admission.tenants,
+        )
+    }
+
+    init {
+        // DX gap G13: a command another context sends carries its sender's tenant; a type whose tenant is fixed
+        // refuses one of another tenant, which a peer's saga may well send.
+        val fixed = models.mapNotNullTo(LinkedHashSet()) { model ->
+            model.type.takeIf { admission.tenants.fixedTenant(it) != null }
+        }
+        if (fixed.isNotEmpty()) {
+            contracts.peerSendersTo(fixed).forEach { (subscription, types) ->
+                logger.warn {
+                    "$subscription sends commands to ${types.joinToString()}, whose tenant is fixed on node $node " +
+                        "(${types.joinToString { "$it: ${admission.tenants.fixedTenant(it)}" }}): a command it " +
+                        "sends in another tenant is refused (decision D116, DX gap G13)."
+                }
+            }
+        }
     }
 
     init {
@@ -1264,6 +1296,7 @@ class ServiceNode @InternalWowApi constructor(
                 caller,
                 registry.contexts,
                 queries,
+                peerEvents,
             )
         }
     }

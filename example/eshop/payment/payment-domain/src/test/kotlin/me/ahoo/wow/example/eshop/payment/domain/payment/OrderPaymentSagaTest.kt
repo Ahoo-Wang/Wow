@@ -15,6 +15,7 @@ package me.ahoo.wow.example.eshop.payment.domain.payment
 
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderStockConfirmed
 import me.ahoo.wow.example.eshop.ordering.api.order.PayOrder
 import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed
@@ -41,9 +42,9 @@ class OrderPaymentSagaTest {
      */
     private val handlers = orderPaymentSagaHandlers(Dependencies.NONE)
 
-    /** A commit of the order stream the ordering context publishes: its events come by name. */
-    private fun orderEvent(name: String) =
-        stateEvent(order, OrderView(TOTAL), publishedEvent(name), version = 4, commandType = CONFIRM_ORDER_STOCK)
+    /** A commit of the order stream the ordering context publishes: its events as the ordering api's classes. */
+    private fun orderEvent(event: Any) =
+        stateEvent(order, OrderView(TOTAL), event, version = 4, commandType = CONFIRM_ORDER_STOCK)
 
     private fun paymentEvent(vararg events: Any) = stateEvent(
         payment,
@@ -54,12 +55,15 @@ class OrderPaymentSagaTest {
 
     @Test
     fun `an order whose stock is confirmed should request its payment`() = sagaSpec(handlers) {
-        whenEvent(orderEvent(OrderPaymentSaga.ORDER_STOCK_CONFIRMED)) {
+        whenEvent(orderEvent(OrderStockConfirmed)) {
             expectHandledBy("onOrderStockConfirmed")
             expectCommand(RequestPayment(ORDER, TOTAL), to = payment)
             expectDeterministic()
         }
-        whenEvent(orderEvent("eshop-ordering.order.OrderStockItemConfirmed")) { expectNoCommand() }
+        // An event the payment has no class of at its revision is a PublishedEvent: no OrderStockConfirmed.
+        whenEvent(orderEvent(publishedEvent("eshop-ordering.order.OrderStockConfirmed", revision = 2))) {
+            expectNoCommand()
+        }
     }
 
     @Test

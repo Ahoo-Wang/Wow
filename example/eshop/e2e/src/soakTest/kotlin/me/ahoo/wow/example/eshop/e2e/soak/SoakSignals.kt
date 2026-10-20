@@ -27,9 +27,9 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.LongAdder
 
 /**
- * A copy of the benchmark's BenchSignals (`wow-benchmarks/e2e/bench-v10/src/main/kotlin/me/ahoo/wow/benchmark/transfer/
+ * A copy of the benchmark's BenchSignals (`test/benchmarks/server/src/main/kotlin/me/ahoo/wow/benchmark/transfer/
  * BenchSignals.kt`) for the soak's nodes: keep in sync; fold into a shared module in 10.x. BenchSignalsCopyTest in
- * `:e2e-bench-v10` checks that both count the same signals and log the same `bench-signals {json}` line.
+ * `:benchmark-server` checks that both count the same signals and log the same `bench-signals {json}` line.
  *
  * The node's overload and fallback signals, counted and logged once a second at WARN: the tails' store reads by reason
  * (D249), the refused commands by code, the timed-out waits by stage, the dropped wait signals, the failed forwards

@@ -30,7 +30,7 @@ Wow keeps each kind of documentation in one place, chosen by who reads it. This 
 | Design of one TypeScript package or application | Maintainers of that package | `<package>/docs/design/` |
 | Ledgers of decided work | Maintainers | `docs/todo.md` (JVM), `typescript/TODO.md` (wow-client, wow-react, wow-generator), `typescript/wow-view-engine/docs/design/todo.md` (view engine and view store), `typescript/MIGRATION.md` (packages moved from fetcher), `example/eshop/DX-GAPS.md` (V10 developer-experience gaps the eShop found, to close before M7) |
 | Release runbooks | Release maintainers | `AGENTS.md` (versioning, compatibility, CI), `typescript/RELEASING.md`, `typescript/RELEASE_NOTES_TEMPLATE.md`; a minor release's notes draft in `typescript/release-notes/v<version>.md`, deleted once the release is published |
-| Reproducible performance evidence | Maintainers | `wow-benchmarks/results/` |
+| Reproducible performance evidence | Maintainers | `test/benchmarks/results/` |
 | Agent capabilities | Coding agents | `skills/`; vendored third-party skills in `.claude/skills/` |
 | Published module usage | Module users | `<module>/README.md` and `README.zh-CN.md` |
 | Storybook's scenario catalog | Storybook maintainers | `typescript/storybook/docs/scenarios.md` |
@@ -73,7 +73,7 @@ Keep experimental evidence only when it records all of the following:
 4. raw or derived results sufficient to verify the stated conclusion;
 5. checksums or another integrity mechanism when artifacts are bundled.
 
-Retained performance evidence lives in `wow-benchmarks/results/`, next to the benchmarks that can rerun it. Remove duplicated artifacts, unverifiable experiments, and evidence for conclusions no current document or benchmark report uses.
+Retained performance evidence lives in `test/benchmarks/results/`, next to the benchmarks that can rerun it. Remove duplicated artifacts, unverifiable experiments, and evidence for conclusions no current document or benchmark report uses.
 
 ### Ephemeral work
 
@@ -107,7 +107,7 @@ The complete V8-to-V9 path is published: the Migration Guide leads from 8.16 thr
 
 ## Cleanup Status
 
-The legacy `document/` tree, the tracked `docs/superpowers/` files, the implemented query step plans and the tracked review notes have been removed. Their unique knowledge had already moved to site pages, design records or `wow-benchmarks/results/`, or now lives in a ledger: open review findings were rechecked against `main` and moved to `typescript/TODO.md`, `docs/todo.md` and the view-engine TODO.
+The legacy `document/` tree, the tracked `docs/superpowers/` files, the implemented query step plans and the tracked review notes have been removed. Their unique knowledge had already moved to site pages, design records or `test/benchmarks/results/`, or now lives in a ledger: open review findings were rechecked against `main` and moved to `typescript/TODO.md`, `docs/todo.md` and the view-engine TODO.
 
 Future cleanup follows the same procedure, one reviewable pull request per batch:
 
@@ -136,7 +136,7 @@ The Documentation job of the same workflow builds the VitePress site with the lo
 - Are English and Chinese public pages structurally aligned?
 - Do local READMEs, package designs and Skills link instead of copying broad guidance?
 - Does a new or changed design record state its status, and has every user-visible contract reached the site?
-- Is every retained experiment reproducible and owned by `wow-benchmarks`?
+- Is every retained experiment reproducible and owned by `test/benchmarks`?
 - Are deleted paths free of inbound links?
 - Does the pull request avoid tracked plans, review notes, generated build output, and local agent state?
 - Do the documentation layout check, the VitePress build and `git diff --check` pass?

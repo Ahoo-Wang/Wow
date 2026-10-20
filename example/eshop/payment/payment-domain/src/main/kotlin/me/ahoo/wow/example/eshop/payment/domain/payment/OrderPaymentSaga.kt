@@ -19,15 +19,14 @@ import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.SagaContext
-import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
+import me.ahoo.wow.example.eshop.ordering.api.order.OrderStockConfirmed
 import me.ahoo.wow.example.eshop.ordering.api.order.PayOrder
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded
 import me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment
-import me.ahoo.wow.spi.state.StateEventPayload
 import java.math.BigDecimal
 
 /**
@@ -35,7 +34,8 @@ import java.math.BigDecimal
  * events (`OrderStatusChangedToStockConfirmed`, `OrderPaymentSucceeded`, `OrderPaymentFailed`):
  *
  * - [onOrderStockConfirmed]: an order whose stock the ordering context confirmed requests its payment. The saga reads
- *   the order stream the ordering context publishes, `wow.eshop-ordering.order.state`, and matches the event by name.
+ *   the order stream the ordering context publishes, `wow.eshop-ordering.order.state`, and takes each
+ *   `OrderStockConfirmed` of it, as the ordering api's class (DX-1c, decision D264).
  * - [onPaymentSucceeded]: a payment the gateway approved pays its order: `PayOrder` goes to the ordering context's
  *   command topic, `wow.eshop-ordering.commands`.
  * - [onPaymentFailed]: a payment the gateway declined cancels its order; the cancelled order releases its stock, as
@@ -53,12 +53,10 @@ import java.math.BigDecimal
 @Saga
 class OrderPaymentSaga {
     @OnEvent(aggregates = [ORDER])
-    fun onOrderStockConfirmed(event: StateEvent<OrderView>, context: SagaContext): Command<RequestPayment>? =
-        if (event.events.any { it is StateEventPayload && it.name == ORDER_STOCK_CONFIRMED }) {
-            context.command(event.ref.id, RequestPayment(event.ref.id, event.state.totalAmount))
-        } else {
-            null
-        }
+    fun onOrderStockConfirmed(
+        event: StateTypedEvent<OrderView, OrderStockConfirmed>,
+        context: SagaContext,
+    ): Command<RequestPayment> = context.command(event.ref.id, RequestPayment(event.ref.id, event.state.totalAmount))
 
     @OnEvent
     fun onPaymentSucceeded(
@@ -84,7 +82,6 @@ class OrderPaymentSaga {
     companion object {
         /** The ordering context's order, which publishes its stream. */
         const val ORDER = "eshop-ordering.order"
-        const val ORDER_STOCK_CONFIRMED = "eshop-ordering.order.OrderStockConfirmed"
     }
 }
 
