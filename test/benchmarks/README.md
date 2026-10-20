@@ -6,7 +6,7 @@ The end-to-end architecture benchmark of decision D224 (roadmap M7.5, B.0 to B.R
 
 | Path | Project | What it is |
 | --- | --- | --- |
-| `server/` | `:benchmark-server` | The account and transfer saga domain, its specs and its Spring Boot server, on V10 modules only (in the V10 region of the settings, checked by `v10Check`) |
+| `server/` | `:benchmark-server` | The account and transfer saga domain, its specs and its Spring Boot server, on V10 modules only (in the V10 region of the settings, checked by `:check`) |
 | `load/` | `:benchmark-load` | The load generator: a JVM of its own on the JDK alone, no Wow module and no library |
 | `harness/` | none | `compose.yml` (MongoDB, PostgreSQL, Kafka) and `bench.sh` (start, seed, check, run, collect, clean up) |
 | `results/` | none | The committed performance evidence: every report with the commit, command, environment and raw results that reproduce it |

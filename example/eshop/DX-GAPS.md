@@ -232,10 +232,10 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 
 - **Work package**: E.1
 - **Area**: build, testing, docs
-- **What happened**: `guide/v10/testing` says that tests against PostgreSQL "run in containers (Testcontainers), in the module's `integrationTest` source set". Neither the quick start's build scripts nor the Testing page declares that source set. Inside the repository it comes from the root build's `v10IntegrationTestProjects` list, which a context's own build script cannot join. `catalog-server` has no `integrationTest`, so its query contract cannot run there on PostgreSQL.
+- **What happened**: `guide/v10/testing` says that tests against PostgreSQL "run in containers (Testcontainers), in the module's `integrationTest` source set". Neither the quick start's build scripts nor the Testing page declares that source set. Inside the repository it comes from the root build's `integrationTestProjects` list, which a context's own build script cannot join. `catalog-server` has no `integrationTest`, so its query contract cannot run there on PostgreSQL.
 - **Where they looked**: `guide/v10/index` (Set up Gradle); `guide/v10/testing`; the shop server's build script.
 - **Workaround**: The contract runs on the memory backend in `catalog-server`'s `test` (G14). The PostgreSQL case is `CatalogPostgresTest` in `:eshop-e2e`, whose `integrationTest` exists.
-- **Proposed fix**: Show an `integrationTest` suite in the guide, with Gradle's JVM Test Suite plugin and the Testcontainers dependency. Inside the repository, register the eShop servers in `v10IntegrationTestProjects`, so E.2 to E.5 can test their own servers on PostgreSQL.
+- **Proposed fix**: Show an `integrationTest` suite in the guide, with Gradle's JVM Test Suite plugin and the Testcontainers dependency. Inside the repository, register the eShop servers in `integrationTestProjects`, so E.2 to E.5 can test their own servers on PostgreSQL.
 - **Blocks M7**: no.
 
 ### G18. `expectEventTypes` takes Java classes (resolved)
@@ -342,17 +342,6 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Blocks M7**: no.
 - **Resolved**: by #4636 (decision D259). A saga's `@OnEvent`, `@OnRejected` and `@OnCommitted` handler may return `Unit`, which derives nothing (Manifest `derives: []`); `onReleaseRejected` returns `Unit`.
 
-### G27. A service whose saga sends to another context cannot run locally without Kafka
-
-- **Work package**: E.2, E.3, E.5, E.7
-- **Area**: host, docs
-- **What happened**: The quick start runs a new service on the memory backend with `./gradlew :<svc>-server:run`. Since G9's check, the ordering and payment services refuse to start that way: their sagas send other contexts' commands (the basket's did too, until its checkout became a synchronous call, G35). The guide gives an in-memory transport only for tests (`InMemoryTopics` and `SourceTopics` beans), not a switch for trying a service out.
-  - **The web UI (E.7).** A UI developer wants the whole shop on one machine, without Docker, and its end-to-end test wants it in CI without containers. Separate JVMs on the memory backend cannot reach each other's topics.
-- **Where they looked**: `guide/v10/index` (Run it and send a command); `guide/v10/programming-model` (Sending a command to another context).
-- **Workaround**: The servers keep Kafka in a `kafka` profile, like the shop; the README says to start Kafka and create the topics first. For the UI, `EshopLocal` (`:eshop-e2e`, task `eshopLocal`) starts the five services in one JVM on one shared `InMemoryTopics`. Each service gets the beans wow-kafka would give it on Kafka, written by hand: a `SourceTopics` with the intake and `TopicDdl.AUTO`, and `PublishedSinks.topics(manifest, topics)` for its published streams. The guide names neither type. An in-memory topic that is read or written before its owner creates it gets `InMemoryTopics`' default partitions, so the owner's command-topic check would fail unless they equal `wow.log.partitions`. `EshopLocal` sets both to 4 and starts each topic's owner first. With that, the checkout's 15-hop wait reaches the payment in memory.
-- **Proposed fix**: A host property for in-memory topics on the memory backend (`wow.kafka.in-memory`, say), or a note in the quick start.
-- **Blocks M7**: no.
-
 ### G28. Testing an `@OnRejected` handler needs the services of every processor of the module (resolved)
 
 - **Work package**: E.5
@@ -385,16 +374,6 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Proposed fix**: Say in the guide that a chain may name only contexts whose Manifests the origin node has, and that peers are the way to add them; or let the origin accept a hop of a context it does not know and leave the check to the node that reaches it. Say how many hops a saga adds, and whether 4 is meant as the practical limit.
 - **Blocks M7**: no.
 - **Resolved**: by work package P.10 (decision D190). The node a wait starts on checks only the contexts it knows; a hop of another context with a legal name is let through and checked where the chain arrives, and a wrong one times out at the last hop reached (`wow.wait.unknown-contexts: allow | reject`, `allow` by default). `wow.wait.max-hops` defaults to 16, at most 32, and the guide says that each saga adds two hops. The basket server takes only the ordering's Manifest as a peer, and the full chain's 15 hops run with the defaults.
-
-### G31. A dataset query warns that the Manifest has no state schema of the dataset
-
-- **Work package**: E.6
-- **Area**: host
-- **What happened**: The first query of the sales dataset logs "The Manifest carries no state schema of eshop-ordering.sales: only its system fields are queried. Build its module with the Wow Gradle plugin, which writes the schemas." The dataset is not an aggregate and has no state schema; its fields come from its dataset file, and the query of `status` and `totalAmount` works.
-- **Where they looked**: `guide/v10/http-api` (Datasets).
-- **Workaround**: None; the warning is ignored.
-- **Proposed fix**: Do not ask the Manifest's state schemas about a dataset's name, or leave the warning out for one.
-- **Blocks M7**: no.
 
 ### G32. With two nodes, a saga's command on another node can leave the owner deciding on a stale state (resolved)
 

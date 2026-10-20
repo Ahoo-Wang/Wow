@@ -52,7 +52,7 @@ interface IPagedQuery : Queryable<IPagedQuery> {
  * )
  * ```
  */
-data class PagedQuery(
+data class PagedQuery @JvmOverloads constructor(
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),

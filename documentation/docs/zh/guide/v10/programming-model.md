@@ -392,7 +392,7 @@ context.command(AggregateType("inventory", "stock").ref(event.ref.tenantId, prod
 Node <node> has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers), but example/OrderSaga.onOrderCreated sends commands to inventory: a command across contexts goes through its context's command topic (decision D33).
 ```
 
-生产环境的传输是 Kafka（`wow.kafka.bootstrap-servers`）。没有 Kafka 的测试给节点提供内存主题：一个 `InMemoryTopics` Bean（`me.ahoo.wow.kernel.memory`）和基于它的 `SourceTopics` Bean（`me.ahoo.wow.runtime.node`），示例的测试就是这样做的：
+生产环境的传输是 Kafka（`wow.kafka.bootstrap-servers`）。要在一台机器上不带 Kafka 试用服务，设置 `wow.topics.in-memory: true`：节点把命令主题和发布的流放在自己的 JVM 里，执行自己的命令主题，并在启动时告警；这些主题不会到达其他 JVM，重启后也不保留（DX 缺口 G27）。没有 Kafka 的测试也可以自己给节点提供内存主题：一个 `InMemoryTopics` Bean（`me.ahoo.wow.kernel.memory`）和基于它的 `SourceTopics` Bean（`me.ahoo.wow.runtime.node`），示例的测试就是这样做的：
 
 ```kotlin
 class InMemoryShopTopics {
@@ -415,6 +415,21 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 ```
 
 调用不需要命令主题：节点通过 `wow.calls.contexts.<context>.url`（或 `wow.clients.contexts.<context>.internal-url`）找到目标；Saga 调用的上下文没有这个地址，或调用的命令没有任何已知 Manifest 决定，节点都不会启动。Saga 自己上下文的命令只派生、不调用。
+
+### 从 Java 调用
+
+命令与查询客户端（`CommandClient`、`QueryApi`）是 Kotlin 的 `suspend` 函数与 flow。Java 代码通过 `wow-client` 的门面调用它们：每个调用都有阻塞形式，以及返回 `CompletableFuture` 的 `…Async` 形式；列表返回 `List`，流返回 `java.util.stream.Stream`，超时用 `java.time.Duration`：
+
+```java
+JavaCommandClient commands = JavaCommandClient.of(commandClient).of(caller);
+CommandResult submitted = commands.sendAndWait(new SubmitOrder(items), EshopOrderingContract.Order.ref(tenant, id),
+    JavaCommandClient.options().timeout(Duration.ofSeconds(5)).build());
+
+JavaSnapshotQueries<OrderState> orders = JavaQueryApi.of(queryApi).of(caller).snapshots(OrderState.class);
+CompletableFuture<Integer> open = orders.listAsync(new ListQuery(MatchAllFilter.INSTANCE)).thenApply(List::size);
+```
+
+被拒绝时抛出 `CommandRejectedException`（带 `code`），技术性失败抛出 `WowProblemException`，两者都是非受检异常；异步调用的 future 以它们完成。阻塞形式只在你自己的线程上调用，不要在 Netty 或 WebFlux 的事件循环线程上调用。
 
 ### 对端
 

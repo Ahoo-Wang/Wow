@@ -392,7 +392,7 @@ A node without a command transport does not start when one of its sagas derives,
 Node <node> has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers), but example/OrderSaga.onOrderCreated sends commands to inventory: a command across contexts goes through its context's command topic (decision D33).
 ```
 
-In production the transport is Kafka (`wow.kafka.bootstrap-servers`). A test without Kafka gives the node in-memory topics: an `InMemoryTopics` bean (`me.ahoo.wow.kernel.memory`) and a `SourceTopics` bean over it (`me.ahoo.wow.runtime.node`), as the shop's tests do:
+In production the transport is Kafka (`wow.kafka.bootstrap-servers`). To try a service out on one machine without Kafka, set `wow.topics.in-memory: true`: the node keeps its command topics and published streams in its JVM, executes its own command topic, and warns at startup; nothing reaches another JVM or survives a restart (DX gap G27). A test without Kafka can give the node in-memory topics itself: an `InMemoryTopics` bean (`me.ahoo.wow.kernel.memory`) and a `SourceTopics` bean over it (`me.ahoo.wow.runtime.node`), as the shop's tests do:
 
 ```kotlin
 class InMemoryShopTopics {
@@ -415,6 +415,21 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 ```
 
 A call needs no command topic: the node reaches the target at `wow.calls.contexts.<context>.url` (or `wow.clients.contexts.<context>.internal-url`), and does not start when a saga calls a context without that URL, or a command no Manifest it knows decides. A command of the saga's own context is derived, never called.
+
+### Calling from Java
+
+The command and query clients (`CommandClient`, `QueryApi`) are Kotlin, with `suspend` functions and flows. Java code calls them through the facade of `wow-client`: each call is blocking, or `…Async` with a `CompletableFuture`; lists come back as `List`, streams as `java.util.stream.Stream`, and timeouts are `java.time.Duration`:
+
+```java
+JavaCommandClient commands = JavaCommandClient.of(commandClient).of(caller);
+CommandResult submitted = commands.sendAndWait(new SubmitOrder(items), EshopOrderingContract.Order.ref(tenant, id),
+    JavaCommandClient.options().timeout(Duration.ofSeconds(5)).build());
+
+JavaSnapshotQueries<OrderState> orders = JavaQueryApi.of(queryApi).of(caller).snapshots(OrderState.class);
+CompletableFuture<Integer> open = orders.listAsync(new ListQuery(MatchAllFilter.INSTANCE)).thenApply(List::size);
+```
+
+A rejection is a `CommandRejectedException` (with its `code`), a technical failure a `WowProblemException`, both unchecked; an asynchronous call's future completes with them. Call the blocking forms from your own threads, never from a Netty or WebFlux event loop.
 
 ### Peers
 
