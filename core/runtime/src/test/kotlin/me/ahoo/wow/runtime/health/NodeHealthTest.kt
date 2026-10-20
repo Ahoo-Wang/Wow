@@ -18,6 +18,7 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -283,9 +284,12 @@ class NodeHealthTest {
             coroutineScope {
                 val stuck = async { node.gateway.execute(deposit("a-1")) }
                 eventually { node.context(BANK).executor.commandsInFlight == 1 }
+                // Down once a probe timed out (after a second at least): a probe still under way is no failure.
                 eventually { health.readiness().status == HealthStatus.DOWN }
-                health.readiness().component(NodeHealth.STORES)!!.components.single().details.keys.assert()
-                    .contains("probingMillis")
+                eventually {
+                    health.readiness().component(NodeHealth.STORES)!!.components.single()
+                        .details["lastError"] == "TimeoutException"
+                }
                 delay(200)
                 // In flight with no progress, but the store does not answer: the kernel waits for it.
                 health.liveness().status.assert().isEqualTo(HealthStatus.UP)
@@ -294,6 +298,49 @@ class NodeHealthTest {
             }
             log.hang = null
             eventually { health.readiness().status == HealthStatus.UP }
+        }
+
+    @Test
+    fun `with down-after zero a store should be down at its first failure, never while a probe is under way`(): Unit =
+        runBlocking {
+            val node = node()
+            val health = health(node, HealthOptions(storeDownAfter = Duration.ZERO))
+            node.start()
+            eventually { health.readiness().status == HealthStatus.UP }
+
+            // In flight: a probe that has not answered yet has not failed.
+            log.hang = CompletableDeferred()
+            coroutineScope {
+                val probe = launch { health.sample() }
+                eventually {
+                    health.readiness().component(
+                        NodeHealth.STORES
+                    )!!.components.single().details.containsKey("probingMillis")
+                }
+                health.readiness().status.assert().isEqualTo(HealthStatus.UP)
+                health.readiness().status(NodeHealth.STORES).assert().isNotEqualTo(HealthStatus.DOWN)
+
+                // Timed out (after its timeout, a second at least): a failure, so down at once.
+                probe.join()
+                val timedOut = health.readiness()
+                timedOut.status.assert().isEqualTo(HealthStatus.DOWN)
+                timedOut.component(NodeHealth.STORES)!!.components.single().details["lastError"]
+                    .assert().isEqualTo("TimeoutException")
+            }
+            log.hang!!.complete(Unit)
+            log.hang = null
+
+            // Recovers at its next success.
+            health.sample()
+            health.readiness().status.assert().isEqualTo(HealthStatus.UP)
+
+            // Failed: down at the first failure.
+            log.down = true
+            health.sample()
+            health.readiness().status(NodeHealth.STORES).assert().isEqualTo(HealthStatus.DOWN)
+            log.down = false
+            health.sample()
+            health.readiness().status.assert().isEqualTo(HealthStatus.UP)
         }
 
     @Test

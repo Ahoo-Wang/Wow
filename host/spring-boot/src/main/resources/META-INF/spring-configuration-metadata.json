@@ -573,7 +573,7 @@
   }, {
     "name" : "wow.health.stores.down-after",
     "type" : "java.time.Duration",
-    "description" : "A log whose calls have failed for this long, with no success since, is down: the node is not ready.",
+    "description" : "How long a log must keep failing, with no success since, before it is down and the node not ready: a failed call or probe, or a probe that timed out (after this long, at least a second); a probe still under way is no failure. `0s` is down at the first failure.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$HealthStores",
     "defaultValue" : "PT15S"
   }, {

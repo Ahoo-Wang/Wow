@@ -98,7 +98,7 @@ class KafkaSourcedSubscriptionTest {
 
     private fun newTopic(partitions: Int): String {
         val topic = "wow.it.order.${topics.incrementAndGet()}.state"
-        admin.createTopics(listOf(NewTopic(topic, partitions, 1.toShort()))).all().get()
+        admin.createVisible(options, NewTopic(topic, partitions, 1.toShort()))
         return topic
     }
 
