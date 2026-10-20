@@ -199,7 +199,7 @@ class MongoSagaStateHostTest {
         handoffs.assert().isNotEmpty()
         val storeReads = handoffs.sumOf { it.storeReads }
         // Every view of the accounts ages out, as between two transfers of the benchmark.
-        Thread.sleep(MAX_AGE_MILLIS * 3)
+        Thread.sleep(MAX_AGE_MILLIS * 2)
         reads.reset()
 
         pairs.forEach { (target, source) -> transfer(source, target) }
@@ -220,7 +220,7 @@ class MongoSagaStateHostTest {
 
     private companion object {
         const val PAIRS = 4
-        const val MAX_AGE_MILLIS = 300L
+        const val MAX_AGE_MILLIS = 2_000L
         const val SETTLE_TIMEOUT_NANOS = 20_000_000_000L
         const val POLL_MILLIS = 20L
         val CHAIN: WaitPlan =
