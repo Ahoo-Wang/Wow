@@ -293,7 +293,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | R4-Q5 | 契约与客户端保真（D254 ⑤）：OpenAPI 查询描述、TS 精度、时区、投影类型、改名的增量路径 | 生成器得到精确的查询类型；TS 不丢精度 |
 | R4-Q7 | 小修（D254 ③⑦）：超时 504、错误码统一、ClickHouse 并列分页唯一键与 TCK 用例、跨租户范围 | — |
 | DX-1 | **已完成**（2026-10-20：DX-1b #4636、#4639、#4642；DX-1c #4674；DX-1d #4667）。 契约推导的名字与类型（D256）：api 的 jar 带上生成的上下文常量、`ref`、查询字段常量；错误码本地名加前缀推导；`derives` 收类或推导；对端事件类型化解码；`call` 进 Manifest；`@OnRejected` 可返回 `Unit`；与 R4-Q3 一起设计 | eShop 里不再手写上下文常量、`AggregateType("…")`、全名错误码、字符串 `derives` 与事件名匹配 |
-| DX-2 | DX 小修（D256）：本地开发的内存传输开关（G27）、数据集 schema 进 Manifest（G31）、约定的 `integrationTest` 源集（G17）、跨上下文租户的文档与启动校验（G13） | eShop 的这四条 DX 缺口关闭 |
+| DX-2 | DX 小修（D256）：本地开发的内存传输开关（G27）、数据集 schema 由目录服务提供、不进 Manifest（G31，D267 ⑦）、约定的 `integrationTest` 源集（G17）、跨上下文租户的文档与启动校验（G13） | eShop 的这四条 DX 缺口关闭 |
 | B.G | 写存储批处理（D248）：**B.G-1** PostgreSQL 原生 `appendAll`（一次分配 N 个序号、多行 `INSERT`、单条冲突单独失败、序号无空洞）；**B.G-2** 快照批量写与合并（`SnapshotStore.saveAll`，PostgreSQL、MongoDB、Elasticsearch 实现，快照订阅按批合并）；**B.G-3** 本节点的提交在内存里交给本地订阅（D249）；各一个 PR，计时测量之前完成 | `EventLogSpec` 与 `SnapshotStoreSpec` 的批量用例全过；计数测量中每条命令的往返次数与写放大下降 |
 | B.G-4 · B.G-5 | **已完成**（2026-10-20：#4628、#4627）。 B.G-4 按聚合从日志推导的精确去重集合（D261，条件 C1～C6）；B.G-5 先记录状态视图再交给本地订阅（D261）；计时测量之前完成 | 热聚合上每条会追加的命令少 1 次往返；E3 的 Saga 不再因状态视图未命中多读存储 |
 | R3-H | 健康模型（R3.5-3）：Actuator 的 `wow` 健康组（ownership、subscriptions、stores、topics、ledger），区分 readiness 与 liveness；K8s 清单改用 `/actuator/health/*` | 存储宕机或分区为 0 时就绪探针失败 |
