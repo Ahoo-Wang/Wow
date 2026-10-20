@@ -52,7 +52,9 @@ import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.CommittedRequest
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -69,6 +71,7 @@ import org.bson.BsonMaximumSizeExceededException
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -138,6 +141,12 @@ class MongoEventLog(
     maxPollInterval: Duration = DEFAULT_MAX_POLL_INTERVAL,
     /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
     private val ddl: StoreDdl = StoreDdl.AUTO,
+    /**
+     * How long an append's transaction, its retries included, may take (decision D261): the driver retries a transient
+     * failure for up to two minutes otherwise, past any command's wait. Below the default wait timeout, so a command
+     * appending during an outage is answered: the retryable storage error when no commit was sent, else unknown.
+     */
+    transactionTimeout: Duration = DEFAULT_TRANSACTION_TIMEOUT,
 ) : EventLog {
     /** Validates the partition count first (decision D240): a log of another count is refused when it is built. */
     private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
@@ -152,6 +161,7 @@ class MongoEventLog(
     private val transaction = TransactionOptions.builder()
         .readConcern(ReadConcern.SNAPSHOT)
         .writeConcern(WriteConcern.MAJORITY)
+        .timeout(transactionTimeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
         .build()
 
     /** The aggregate collections whose creation and registration this log has made sure of. */
@@ -278,6 +288,8 @@ class MongoEventLog(
         val collection = collectionOf(stream.ref.type)
         val partition = Partitioner.partitionOf(stream.ref, partitions)
         val document = encode(partition, stream, transport).getOrElse { return AppendOutcome.Rejected(it) }
+        // Whether a transaction's commit may have been sent: before it, any failure aborted the transaction for sure.
+        var committing = false
         val outcome = try {
             client.startSession().use { session ->
                 session.withTransaction({
@@ -297,25 +309,38 @@ class MongoEventLog(
                         )!!.getLong(SEQUENCE)
                         collection.log.insertOne(session, document.append(SEQUENCE, sequence))
                         AppendOutcome.Committed(LogPosition(partition, sequence))
-                    }
+                    }.also { committing = true }
                 }, transaction)
             }
         } catch (tooLarge: BsonMaximumSizeExceededException) {
             // The driver refused the document before sending it, so the transaction wrote nothing (finding R2.2-2).
             AppendOutcome.Rejected(tooLarge)
         } catch (failure: MongoException) {
-            // Inside a transaction a duplicate key may surface as a write or a command error: go by its code.
-            when {
-                MongoFailures.isTooLarge(failure) -> AppendOutcome.Rejected(failure)
-                !failure.isDuplicateKey() -> AppendOutcome.Unknown(failure)
-                failure.message.orEmpty().contains(REQUEST_KEY) ->
-                    findByRequestIdIn(collection, stream.ref.tenantId, stream.requestId)
-                        ?.let { AppendOutcome.AlreadyCommitted(it) } ?: AppendOutcome.Unknown(failure)
-
-                else -> AppendOutcome.Conflict(currentVersion(collection, stream.ref))
-            }
+            outcomeOf(failure, committing, collection, stream)
         }
         return if (outcome is AppendOutcome.Conflict) duplicateOr(collection, stream, outcome) else outcome
+    }
+
+    /**
+     * The outcome of [stream]'s transaction that failed with [failure]; [committing] says whether its commit may have
+     * been sent. Inside a transaction a duplicate key may surface as a write or a command error: go by its code. A
+     * transient failure before the commit aborted the transaction for sure: it is thrown, so the command is answered
+     * with the retryable storage error rather than an unknown outcome (finding A2-6 keeps unknown for a commit).
+     */
+    private fun outcomeOf(
+        failure: MongoException,
+        committing: Boolean,
+        collection: AggregateCollection,
+        stream: EventStreamRecord,
+    ): AppendOutcome = when {
+        MongoFailures.isTooLarge(failure) -> AppendOutcome.Rejected(failure)
+        !committing && MongoFailures.isTransient(failure) -> throw failure
+        !failure.isDuplicateKey() -> AppendOutcome.Unknown(failure)
+        failure.message.orEmpty().contains(REQUEST_KEY) ->
+            findByRequestIdIn(collection, stream.ref.tenantId, stream.requestId)
+                ?.let { AppendOutcome.AlreadyCommitted(it) } ?: AppendOutcome.Unknown(failure)
+
+        else -> AppendOutcome.Conflict(currentVersion(collection, stream.ref))
     }
 
     /**
@@ -486,6 +511,48 @@ class MongoEventLog(
                 .toList()
         }
         streams.forEach { emit(it) }
+    }
+
+    /**
+     * One aggregation (decision D261): the tail by the version key, then, through `$unionWith` on the same
+     * collection, the request keys of the latest streams before it, newest first. The first batch holds them all
+     * ([READ_TAIL_BATCH] streams of tail beyond them), so a typical read is one command.
+     */
+    override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail {
+        require(fromVersion >= 1) { "A stream has a version from 1." }
+        require(earlier >= 0) { "At most a non-negative number of earlier requests." }
+        return dispatcher.mongo {
+            val collection = collectionOf(ref.type)
+            val tail = listOf(
+                Aggregates.match(Filters.and(refFilter(ref), Filters.gte(VERSION, fromVersion))),
+                Aggregates.project(FACTS),
+                Aggregates.addFields(Field(BRANCH, 0)),
+            )
+            val keys = listOf(
+                Aggregates.match(Filters.and(refFilter(ref), Filters.lt(VERSION, fromVersion))),
+                Aggregates.sort(Sorts.descending(VERSION)),
+                Aggregates.limit(earlier.coerceAtLeast(1)),
+                Aggregates.project(Projections.fields(Projections.include(VERSION, REQUEST_ID, COMMAND_TYPE))),
+                Aggregates.addFields(Field(BRANCH, 1)),
+            )
+            val pipeline = if (earlier == 0) tail else tail + Aggregates.unionWith(collection.name, keys)
+            val streams = ArrayList<EventStreamRecord>()
+            val requests = ArrayList<CommittedRequest>()
+            collection.committed.aggregate(pipeline).batchSize(earlier + READ_TAIL_BATCH).forEach { document ->
+                if (document.getInteger(BRANCH) == 0) {
+                    streams += streamOf(collection.aggregate, document)
+                } else {
+                    requests += CommittedRequest(
+                        document.getInteger(VERSION),
+                        document.getString(REQUEST_ID),
+                        document.getString(COMMAND_TYPE),
+                    )
+                }
+            }
+            streams.sortBy { it.version }
+            requests.sortByDescending { it.version }
+            AggregateTail(streams, requests)
+        }
     }
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {
@@ -770,6 +837,12 @@ class MongoEventLog(
         const val AGGREGATE = "aggregate"
         const val BRANCH = "branch"
         const val HEAD = "head"
+
+        /** How long an append's transaction may take by default: below the default wait timeout of 10 seconds. */
+        val DEFAULT_TRANSACTION_TIMEOUT: Duration = 5.seconds
+
+        /** The streams of tail [readTail]'s first batch holds beyond the earlier request keys. */
+        const val READ_TAIL_BATCH = 1000
 
         /** The entries of [entries], in sequence order, that continue `last` without a gap. */
         fun contiguousRun(entries: List<LogEntry>, last: Long): List<LogEntry> {

@@ -29,15 +29,19 @@ import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.FrameworkCodes
+import me.ahoo.wow.runtime.LruStateCache
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -210,6 +214,46 @@ class CommandValueAdmissionTest {
         gateway(transformers = listOf(doubled)).execute(request(AddItem("apple")))
             .status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         (bodies.single() as AddItem).quantity.assert().isEqualTo(4)
+    }
+
+    @Test
+    fun `a command object retried with its request id is answered from the recent requests, not decided again`(): Unit =
+        runBlocking {
+            // Decision D261: a command object takes the kernel's dedupe path as a JSON body does.
+            val log = LookupCountingLog()
+            val warm = WaitCoordinator(
+                Executor(Kernel(log, states = LruStateCache(16))),
+                registry,
+                SubscriptionDirectory.NONE,
+                LocalSignalSender(origin.node, registry),
+                WaitOptions(origin, maxTimeout = 30.seconds),
+            )
+            val gateway = CommandGateway(ModelRegistry(listOf(model)), mapOf(CONTEXT to warm))
+            fun retried(body: Any, requestId: String) =
+                CommandRequest.builder(body, cart.ref(TENANT, "cart-9")).caller(alice).requestId(requestId)
+                    .wait(WaitPlan.COMMITTED).build()
+            gateway.execute(retried(OpenCart("hi"), "open")).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            val added = gateway.execute(retried(AddItem("apple"), "add"))
+            added.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            bodies.size.assert().isEqualTo(2)
+            val retry = gateway.execute(retried(AddItem("apple"), "add"))
+            retry.duplicate.assert().isTrue()
+            retry.version.assert().isEqualTo(added.version)
+            // Retried on a warm aggregate, a creation is a duplicate too, not an "exists" rejection.
+            gateway.execute(retried(OpenCart("hi"), "open")).duplicate.assert().isTrue()
+            bodies.size.assert().isEqualTo(2)
+            log.lookups.get().assert().isZero()
+        }
+
+    /** Counts the request-id lookups the kernel asks of the log. */
+    private class LookupCountingLog(private val delegate: EventLog = InMemoryEventLog(partitions = 2)) :
+        EventLog by delegate {
+        val lookups = AtomicInteger()
+
+        override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? {
+            lookups.incrementAndGet()
+            return delegate.findByRequestId(type, tenantId, requestId)
+        }
     }
 
     @Test

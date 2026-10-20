@@ -79,6 +79,9 @@ class RuntimeValuesTest {
         TimerOptions().copyWith(batch = 1).assert().isEqualTo(TimerOptions(batch = 1))
         SubscriptionOptions().copyWith(maxInFlight = 1).assert().isEqualTo(SubscriptionOptions(maxInFlight = 1))
         ServiceNodeOptions().copyWith(laneCapacity = 1).assert().isEqualTo(ServiceNodeOptions(laneCapacity = 1))
+        ServiceNodeOptions().copyWith(recentRequests = 0).assert().isEqualTo(ServiceNodeOptions(recentRequests = 0))
+        ServiceNodeOptions().recentRequests.assert().isEqualTo(ServiceNodeOptions.DEFAULT_RECENT_REQUESTS)
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> { ServiceNodeOptions(recentRequests = -1) }
     }
 
     @Test

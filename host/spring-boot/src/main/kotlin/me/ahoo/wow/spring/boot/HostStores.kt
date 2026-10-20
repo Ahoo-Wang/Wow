@@ -38,6 +38,7 @@ import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
 import org.springframework.beans.factory.ListableBeanFactory
+import kotlin.time.toKotlinDuration
 
 /**
  * A store in memory (`memory`): for one node, whose data does not outlive it. Each context's snapshots come from
@@ -126,9 +127,10 @@ internal object StoreInstances {
             name = name,
             type = type,
             ddl = store?.ddl ?: properties.ddl,
-            options = store?.options().orEmpty() + mapOf(DATABASE to properties.mongo.database).filterKeys {
-                store?.database.isNullOrBlank()
-            },
+            options = mapOf(TRANSACTION_TIMEOUT to properties.mongo.transactionTimeout.toKotlinDuration().toString()) +
+                store?.options().orEmpty() + mapOf(DATABASE to properties.mongo.database).filterKeys {
+                    store?.database.isNullOrBlank()
+                },
             polling = polling,
             service = service,
             resources = resources,
@@ -155,6 +157,9 @@ internal object StoreInstances {
 
     /** The option of the MongoDB database, which `wow.mongo.database` gives a store that names none. */
     private const val DATABASE = "database"
+
+    /** The option bounding a MongoDB append's transaction, which `wow.mongo.transaction-timeout` gives by default. */
+    private const val TRANSACTION_TIMEOUT = "transaction-timeout"
 }
 
 /** The application's beans as the resources its stores are opened over (a `DataSource`, a `MongoClient`). */

@@ -27,7 +27,9 @@ import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.CommittedRequest
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -223,12 +225,15 @@ class PostgresEventLog(
         dispatcher.jdbc {
             require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
             val partition = Partitioner.partitionOf(stream.ref, partitions)
+            var sent = false
             try {
                 dataSource.autoCommitted { connection ->
-                    appendIn(connection, tableOf(connection, stream.ref.type), partition, stream, transport)
+                    val table = tableOf(connection, stream.ref.type)
+                    sent = true
+                    appendIn(connection, table, partition, stream, transport)
                 }
             } catch (failure: SQLException) {
-                outcomeOf(failure)
+                unsentOrOutcome(failure, sent)
             }.also { if (it is AppendOutcome.Committed) pacer.committed(partition) }
         }
 
@@ -336,10 +341,16 @@ class PostgresEventLog(
         }
         return dispatcher.jdbc {
             streams.chunked(MAX_GROUP).flatMap { group ->
+                var sent = false
                 try {
-                    dataSource.autoCommitted { connection -> appendGroupIn(connection, partition, group) }
+                    dataSource.autoCommitted { connection ->
+                        group.forEach { (stream) -> tableOf(connection, stream.ref.type) }
+                        sent = true
+                        appendGroupIn(connection, partition, group)
+                    }
                 } catch (failure: SQLException) {
-                    group.map { outcomeOf(failure) }
+                    val outcome = unsentOrOutcome(failure, sent)
+                    group.map { outcome }
                 }
             }
         }.also { outcomes ->
@@ -394,6 +405,15 @@ class PostgresEventLog(
      * the stream, for good and committing nothing (findings A2-7, A3-10: a `\u0000`, a key too long for its index);
      * otherwise whether it committed is unknown.
      */
+    /**
+     * The outcome of an append that failed with [failure]; [sent] says whether its statement may have reached the
+     * server. One that surely did not, failing to get a connection or the table, wrote nothing: a transient failure is
+     * thrown, so the command is answered with the retryable storage error rather than an unknown outcome (finding
+     * A2-6 keeps unknown for what may have reached the store).
+     */
+    private fun unsentOrOutcome(failure: SQLException, sent: Boolean): AppendOutcome =
+        if (!sent && PostgresFailures.isTransient(failure)) throw failure else outcomeOf(failure)
+
     private fun outcomeOf(failure: SQLException): AppendOutcome =
         if (PostgresFailures.isRefused(failure)) {
             AppendOutcome.Rejected(PostgresFailures.refusal(failure))
@@ -415,6 +435,42 @@ class PostgresEventLog(
             }
         }
         streams.forEach { emit(it) }
+    }
+
+    /** One statement: the tail and the earlier request keys, both by the version key (decision D261). */
+    override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail {
+        require(fromVersion >= 1) { "A stream has a version from 1." }
+        require(earlier >= 0) { "At most a non-negative number of earlier requests." }
+        return dispatcher.jdbc {
+            dataSource.autoCommitted { connection ->
+                val table = tableOf(connection, ref.type)
+                connection.prepareStatement(table.tail).use { query ->
+                    query.setString(1, ref.id)
+                    query.setString(2, ref.tenantId)
+                    query.setInt(3, fromVersion)
+                    query.setString(4, ref.id)
+                    query.setString(5, ref.tenantId)
+                    query.setInt(6, fromVersion)
+                    query.setInt(7, earlier)
+                    query.executeQuery().use { rows ->
+                        val streams = ArrayList<EventStreamRecord>()
+                        val keys = ArrayList<CommittedRequest>()
+                        while (rows.next()) {
+                            if (rows.getInt("part") == 0) {
+                                streams += streamOf(table.aggregate, rows)
+                            } else {
+                                keys += CommittedRequest(
+                                    rows.getInt("version"),
+                                    rows.getString("request_id"),
+                                    rows.getString("command_type"),
+                                )
+                            }
+                        }
+                        AggregateTail(streams, keys.asReversed())
+                    }
+                }
+            }
+        }
     }
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {

@@ -27,6 +27,7 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.Creation
+import me.ahoo.wow.kernel.ExecutionLease
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
@@ -249,6 +250,9 @@ class TestNode(val name: String, private val cluster: TestCluster) {
     /** The commands this node's decide function ran, by command id. */
     val decided = CopyOnWriteArrayList<String>()
 
+    /** Whether each command this node's decide function ran held its partition's lease (decision D261), by id. */
+    val leaseHeld = ConcurrentHashMap<String, String>()
+
     /** While not null, this node's decide function waits for it. */
     @Volatile
     var hold: CompletableDeferred<Unit>? = null
@@ -257,6 +261,7 @@ class TestNode(val name: String, private val cluster: TestCluster) {
         initial { Account() }
         decideSuspending<Deposit>(Creation.ALLOWED) { _, body ->
             decided += command.id
+            leaseHeld[command.id] = kotlin.coroutines.coroutineContext[ExecutionLease]?.held?.toString() ?: "unknown"
             hold?.await()
             putResult(DECIDED_BY, name)
             Decision.events(Deposited(body.amount))

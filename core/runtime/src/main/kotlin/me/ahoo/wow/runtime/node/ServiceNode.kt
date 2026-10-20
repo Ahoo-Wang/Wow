@@ -979,7 +979,8 @@ class ServiceNode @InternalWowApi constructor(
         val routed = routedLog(groups)
         val log = PartitionAppendQueue(routed, options.appendQueue, capacity = options.maxInFlight)
         val names = ContextCommandTypes(models, contracts)
-        val kernel = kernelOf(log, backends, codec, names)
+        val states = if (options.stateCacheCapacity > 0) LruStateCache(options.stateCacheCapacity) else StateCache.None
+        val kernel = kernelOf(log, backends, codec, names, states)
         val snaps = nodeSnapshots.assembly(context, models, backends, kernel, routed, codec)
         val views = StateViews(codec, stateReaders(context, models, snaps.readers, application), options.stateViews)
         val snapshots = snaps.subscriptions(views, options.snapshots.writeBatch)
@@ -1008,6 +1009,7 @@ class ServiceNode @InternalWowApi constructor(
             intake = intake,
             timers = logGroups.mapNotNull { it.timers?.runner },
             groups = logGroups.drop(1).map { it.subscriptions },
+            partitionChanged = { partition -> states.invalidate(partition, backends.log.partitions) },
         )
         val executor = Executor(kernel, options.laneCapacity, views.takeIf { it.types.isNotEmpty() }, inFlight)
         return Parts(
@@ -1104,12 +1106,19 @@ class ServiceNode @InternalWowApi constructor(
         }
 
     /** The kernel of a context over its [log], with its state cache, snapshot and reservation stores. */
-    private fun kernelOf(log: PartitionAppendQueue, backends: ContextBackends, codec: EventCodec, names: CommandTypes) =
+    private fun kernelOf(
+        log: PartitionAppendQueue,
+        backends: ContextBackends,
+        codec: EventCodec,
+        names: CommandTypes,
+        states: StateCache,
+    ) =
         Kernel(
             log,
             codec = codec,
             reservations = backends.reservations,
-            states = if (options.stateCacheCapacity > 0) LruStateCache(options.stateCacheCapacity) else StateCache.None,
+            states = states,
+            recentRequests = options.recentRequests,
             snapshots = backends.primarySnapshots,
             commandTypes = names,
             ids = admission.ids,

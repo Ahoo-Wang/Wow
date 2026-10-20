@@ -417,6 +417,7 @@ class WowAutoConfiguration {
                 laneCapacity = properties.executor.laneCapacity,
                 maxInFlight = properties.executor.maxInFlight,
                 stateCacheCapacity = properties.stateCache.capacity,
+                recentRequests = properties.stateCache.recentRequests,
                 stateViews = properties.stateViews.options(),
                 defaultWaitTimeout = properties.wait.defaultTimeout.toKotlinDuration(),
                 timers = properties.timers.options(),

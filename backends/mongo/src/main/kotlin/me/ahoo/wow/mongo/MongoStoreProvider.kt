@@ -32,10 +32,13 @@ import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
+import kotlin.time.Duration
 
 /**
  * The MongoDB stores (`wow.stores.<name>.type: mongo`, review R3.3-1), each over the application's `MongoClient` that
- * its `client` option names (else the only one), in the database its `database` option names (`wow` when not set).
+ * its `client` option names (else the only one), in the database its `database` option names (`wow` when not set);
+ * its `transaction-timeout` option bounds an append's transaction ([MongoEventLog.DEFAULT_TRANSACTION_TIMEOUT] when
+ * not set).
  * Found by `ServiceLoader`.
  */
 internal class MongoStoreProvider : StoreProvider {
@@ -49,6 +52,7 @@ internal class MongoStoreProvider : StoreProvider {
         config,
         config.resources.resource(MongoClient::class.java, config.option(CLIENT), "${config.key}.$CLIENT"),
         config.option(DATABASE) ?: DEFAULT_DATABASE,
+        config.option(TRANSACTION_TIMEOUT)?.let(Duration::parse) ?: MongoEventLog.DEFAULT_TRANSACTION_TIMEOUT,
     )
 
     companion object {
@@ -60,6 +64,9 @@ internal class MongoStoreProvider : StoreProvider {
         /** The option naming the store's database. */
         const val DATABASE = "database"
         const val DEFAULT_DATABASE = "wow"
+
+        /** The option bounding an append's transaction with its retries (decision D261), such as `5s`. */
+        const val TRANSACTION_TIMEOUT = "transaction-timeout"
     }
 }
 
@@ -68,7 +75,12 @@ internal class MongoStoreProvider : StoreProvider {
  * checkpoints, leases, failure ledger and reservations shared. A log on it is appended through the partition append
  * queue by default (decision D52): its transactions abort each other on one partition's counter.
  */
-internal class MongoStore(config: StoreConfig, val client: MongoClient, val database: String) : Store(config) {
+internal class MongoStore(
+    config: StoreConfig,
+    val client: MongoClient,
+    val database: String,
+    private val transactionTimeout: Duration = MongoEventLog.DEFAULT_TRANSACTION_TIMEOUT,
+) : Store(config) {
     private val ddl = config.ddl
 
     override val location: Any get() = client to database
@@ -96,6 +108,7 @@ internal class MongoStore(config: StoreConfig, val client: MongoClient, val data
             pollInterval = config.polling.interval,
             maxPollInterval = config.polling.maxInterval,
             ddl = ddl,
+            transactionTimeout = transactionTimeout,
         ).also { schema(it::createSchema) }
 
     override fun openSnapshots(context: String): SnapshotStore =

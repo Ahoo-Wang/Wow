@@ -17,12 +17,14 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.StateCache
+import me.ahoo.wow.spi.log.Partitioner
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
  * A [StateCache] of at most [capacity] aggregates, evicting the least recently used. Taking a state out (for a
- * command) frees its slot until the command puts it back.
+ * command) frees its slot until the command puts it back. [invalidate] drops a partition's states when the node
+ * acquires or releases it (decision D261), scanning every stripe.
  *
  * A large cache is striped by aggregate (review A5-3): each of up to [Stripes.MAX] stripes is an LRU of its share of
  * the capacity under its own lock, so the commands of different aggregates rarely take the same lock. Eviction is
@@ -46,6 +48,10 @@ class LruStateCache(private val capacity: Int) : StateCache {
         Stripes.pick(stripes, ref).put(ref, state)
     }
 
+    override fun invalidate(partition: Int, partitions: Int) {
+        stripes.forEach { stripe -> stripe.removeIf { Partitioner.partitionOf(it, partitions) == partition } }
+    }
+
     private class Stripe(private val capacity: Int) {
         private val lock = ReentrantLock()
         private val states = object : LinkedHashMap<AggregateRef, CachedState>(INITIAL, LOAD_FACTOR, true) {
@@ -59,6 +65,10 @@ class LruStateCache(private val capacity: Int) : StateCache {
 
         fun put(ref: AggregateRef, state: CachedState) {
             lock.withLock { states[ref] = state }
+        }
+
+        fun removeIf(matches: (AggregateRef) -> Boolean) {
+            lock.withLock { states.keys.removeIf(matches) }
         }
     }
 

@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.log
 import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -67,6 +68,9 @@ internal class LogGroupRouter(
 
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
         logOf(ref.type).read(ref, fromVersion, toVersion)
+
+    override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail =
+        logOf(ref.type).readTail(ref, fromVersion, earlier)
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
         logOf(ref.type).readEntries(ref, fromVersion, toVersion)

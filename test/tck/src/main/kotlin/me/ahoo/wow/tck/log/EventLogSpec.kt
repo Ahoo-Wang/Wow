@@ -27,7 +27,9 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.CommittedRequest
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -348,6 +350,42 @@ abstract class EventLogSpec {
         (1..5).forEach { log.append(stream("a", it)) }
         log.read(type.ref("tenant", "a"), 2, 4).toList().map { it.version }.assert().containsExactly(2, 3, 4)
         log.read(type.ref("tenant", "missing")).toList().assert().isEmpty()
+    }
+
+    @Test
+    fun `readTail gives the tail from a version and the latest earlier request keys, newest first`(): Unit =
+        runBlocking {
+            val log = createLog()
+            val appended = (1..6).map { stream("a", it, commandType = "$context.aggregate.Act$it") }
+            appended.forEach { log.append(it) }
+            log.append(stream("a", 1, tenant = "other"))
+            log.append(stream("b", 1))
+            val tail = log.readTail(type.ref("tenant", "a"), 4, 2)
+            tail.streams.map { it.version }.assert().containsExactly(4, 5, 6)
+            tail.streams.first().assertSameAs(appended[3])
+            tail.earlier.assert().containsExactly(
+                CommittedRequest.of(appended[2]),
+                CommittedRequest.of(appended[1]),
+            )
+        }
+
+    @Test
+    fun `readTail gives fewer earlier request keys only when none is left before them`(): Unit = runBlocking {
+        val log = createLog()
+        val appended = (1..3).map { stream("a", it) }
+        appended.forEach { log.append(it) }
+        val ref = type.ref("tenant", "a")
+        val whole = log.readTail(ref, 3, 10)
+        whole.streams.map { it.version }.assert().containsExactly(3)
+        whole.earlier.map { it.version }.assert().containsExactly(2, 1)
+        whole.earlier.map { it.requestId }.assert().containsExactly(appended[1].requestId, appended[0].requestId)
+        log.readTail(ref, 3, 0).earlier.assert().isEmpty()
+        log.readTail(ref, 1, 5).earlier.assert().isEmpty()
+        log.readTail(ref, 4, 2).let {
+            it.streams.assert().isEmpty()
+            it.earlier.map { key -> key.version }.assert().containsExactly(3, 2)
+        }
+        log.readTail(type.ref("tenant", "missing"), 1, 5).assert().isEqualTo(AggregateTail.of(emptyList(), emptyList()))
     }
 
     @Test

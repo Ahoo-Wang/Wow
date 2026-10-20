@@ -23,6 +23,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.ExecutionLease
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.Settlement
 import me.ahoo.wow.runtime.wait.WaitCoordinator
@@ -86,6 +87,10 @@ fun interface CommandRouter {
  *
  * A failed forward also refreshes the routes. Degrading is safe without fencing: the kernel deduplicates by request
  * id, and version-unique keys turn concurrent writers into conflicts that are decided again (D45).
+ *
+ * A command runs under [ExecutionLease.HELD] when this node holds its partition, else under [ExecutionLease.NOT_HELD]
+ * (decision D261): only the owner's kernel caches the states it loads and lets a decide that does I/O skip the
+ * request-id lookup.
  */
 @InternalWowApi
 class PartitionedRouter(
@@ -111,9 +116,11 @@ class PartitionedRouter(
     ): Settlement {
         val ownership = groups[command.ref.type.context] ?: return local()
         val partition = Partitioner.partitionOf(command.ref, ownership.partitions)
-        ownership.runIfAccepting(partition, local)?.let { return it }
-        val peer = ownership.forwardTarget(partition) ?: return local()
-        return forward(ownership, peer, model, command, wait) ?: local()
+        ownership.runIfAccepting(partition) { withContext(ExecutionLease.HELD) { local() } }?.let { return it }
+        // Run here without the lease (D71): the kernel neither caches its states nor trusts them (decision D261).
+        val degraded: suspend () -> Settlement = { withContext(ExecutionLease.NOT_HELD) { local() } }
+        val peer = ownership.forwardTarget(partition) ?: return degraded()
+        return forward(ownership, peer, model, command, wait) ?: degraded()
     }
 
     /**
@@ -328,8 +335,8 @@ class ForwardEndpoint(
             execute()
         } else {
             val partition = Partitioner.partitionOf(command.ref, ownership.partitions)
-            ownership.runIfAccepting(partition, execute)
-                ?: if (ownership.pending(partition)) execute() else null
+            ownership.runIfAccepting(partition) { withContext(ExecutionLease.HELD) { execute() } }
+                ?: if (ownership.pending(partition)) withContext(ExecutionLease.NOT_HELD) { execute() } else null
         }
         return settlement?.let { ForwardReply(result = it.committed, reached = it.reached) }
             ?: ForwardReply.refused(Refusal.NOT_OWNER)

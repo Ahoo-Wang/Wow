@@ -98,7 +98,8 @@ data class RenewalRound(
  *   (decision D137), which settles the commands it took and saves its checkpoint, wait for its other commands in
  *   flight for at most [ClusterOptions.drainTimeout], stop its subscriptions, which saves their checkpoints
  *   ([SubscriptionRuntime.stopPartition]), and release the lease, so the new owner acquires it on its next round.
- *   State caches are not handed over: the new owner loads from the snapshot and the log's tail.
+ *   State caches are not handed over: the new owner loads from the snapshot and the log's tail, and each node drops
+ *   the partition's cached states whenever it acquires, hands off or loses it ([partitionChanged], decision D261).
  * - **Routes**: every [ClusterOptions.routeRefreshInterval], and at once on [refreshSoon], the node reads the owners
  *   and members into its [routes]. Each other member they show at an address not seen before is handed to [peers],
  *   apart from the refresh: the node connects to it there ([ClusterChannel.connect]) before forwarding to it.
@@ -144,6 +145,11 @@ class PartitionOwnership internal constructor(
      * node holds in its group's log, started and stopped with [subscriptions].
      */
     groups: List<SubscriptionRuntime> = emptyList(),
+    /**
+     * Called with each partition this node acquires, before it starts it, and with each it hands off or loses, once
+     * stopped: the context's state cache drops the partition's states (decision D261, C4).
+     */
+    private val partitionChanged: (Int) -> Unit = {},
 ) {
     @Suppress("LongParameterList") // The parts of an ownership, as the primary constructor takes them.
     constructor(
@@ -469,6 +475,8 @@ class PartitionOwnership internal constructor(
     private suspend fun acquire(partition: Int) = withContext(NonCancellable) {
         val asked = timeSource.markNow()
         leases.acquire(group.name, partition, node, options.leaseTtl) ?: return@withContext
+        // Another node may have committed to the partition's aggregates since this one last cached them.
+        partitionChanged(partition)
         val gate = Gate(asked)
         try {
             runtimes.forEach { it.startPartition(partition) }
@@ -500,6 +508,7 @@ class PartitionOwnership internal constructor(
                 }
                 stopSubscriptions(partition)
                 quietly("release partition $partition") { leases.release(group.name, partition, node) }
+                partitionChanged(partition)
                 gates.remove(partition, gate)
                 logger.info { "$node handed off partition $partition of $group." }
             }
@@ -609,6 +618,7 @@ class PartitionOwnership internal constructor(
             stopTimers(partition)
             quietly("stop the command intake of partition $partition") { intake?.stopPartition(partition) }
             stopSubscriptions(partition)
+            partitionChanged(partition)
             gates.remove(partition, gate)
         }
     }

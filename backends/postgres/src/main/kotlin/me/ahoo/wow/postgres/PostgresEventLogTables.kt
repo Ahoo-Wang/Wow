@@ -278,6 +278,16 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
     val read = "SELECT $FACTS FROM $log WHERE aggregate_id = ? AND tenant_id = ? AND version BETWEEN ? AND ? " +
         "ORDER BY version"
 
+    /**
+     * The tail of an aggregate from a version and the request keys of its latest streams before it, one statement
+     * (decision D261): both branches scan the version key backwards from the aggregate's latest version; the second
+     * leaves the stream's other facts out (`part` 1, NULL in their columns).
+     */
+    val tail = "SELECT 0 AS part, $FACTS FROM $log WHERE aggregate_id = ? AND tenant_id = ? AND version >= ? " +
+        "UNION ALL (SELECT 1 AS part, tenant_id, aggregate_id, version, NULL, request_id, command_type, NULL, " +
+        "NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL FROM $log WHERE aggregate_id = ? AND tenant_id = ? " +
+        "AND version < ? ORDER BY version DESC LIMIT ?) ORDER BY part, version"
+
     val entries = "SELECT partition, sequence, $FACTS, transport FROM $log WHERE aggregate_id = ? AND tenant_id = ? " +
         "AND version BETWEEN ? AND ? ORDER BY version"
 

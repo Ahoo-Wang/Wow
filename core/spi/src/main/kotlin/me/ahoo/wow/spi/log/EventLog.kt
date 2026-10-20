@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.log
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.toList
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.WowSpi
@@ -61,6 +62,26 @@ interface EventLog {
 
     /** The streams of [ref] with versions in [fromVersion]..[toVersion], in version order: facts only. */
     fun read(ref: AggregateRef, fromVersion: Int = 1, toVersion: Int = Int.MAX_VALUE): Flow<EventStreamRecord>
+
+    /**
+     * The streams of [ref] from [fromVersion] on, in version order (facts only, as [read] gives them), and the request
+     * keys of its latest streams before [fromVersion], at most [earlier] of them, the latest first, read in one round
+     * trip where the backend can (decision D261): a kernel loading an aggregate from its snapshot reads the tail after
+     * it together with the requests it most recently committed, so the next command need not look its request id up.
+     * The keys are taken by version alone, whenever they committed; fewer than [earlier] means none is left before
+     * them. By default, two [read]s.
+     */
+    suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail {
+        require(fromVersion >= 1) { "A stream has a version from 1." }
+        require(earlier >= 0) { "At most a non-negative number of earlier requests." }
+        val streams = read(ref, fromVersion).toList()
+        val keys = if (earlier == 0 || fromVersion == 1) {
+            emptyList()
+        } else {
+            read(ref, maxOf(1, fromVersion - earlier), fromVersion - 1).toList().asReversed().map(CommittedRequest::of)
+        }
+        return AggregateTail(streams, keys)
+    }
 
     /**
      * The entries of [ref] with versions in [fromVersion]..[toVersion], in version order, each with its position and

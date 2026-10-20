@@ -611,8 +611,9 @@ public final class me/ahoo/wow/runtime/node/ServiceNode$Step : java/lang/Enum {
 public final class me/ahoo/wow/runtime/node/ServiceNodeOptions {
 	public static final field Companion Lme/ahoo/wow/runtime/node/ServiceNodeOptions$Companion;
 	public static final field DEFAULT_LANE_CAPACITY I
+	public static final field DEFAULT_RECENT_REQUESTS I
 	public static final field DEFAULT_STATE_CACHE_CAPACITY I
-	public synthetic fun <init> (Lme/ahoo/wow/runtime/cluster/ClusterOptions;Lme/ahoo/wow/runtime/node/Routing;JILme/ahoo/wow/runtime/subscription/SubscriptionOptions;Lme/ahoo/wow/runtime/log/AppendQueueOptions;IIJLme/ahoo/wow/runtime/state/StateViewOptions;Lme/ahoo/wow/runtime/timer/TimerOptions;Ljava/util/Map;Ljava/util/Set;Lme/ahoo/wow/runtime/wait/UnknownContexts;Lme/ahoo/wow/runtime/ledger/LedgerPublishing;Lme/ahoo/wow/runtime/snapshot/SnapshotOptions;IILme/ahoo/wow/runtime/log/HandoffOptions;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lme/ahoo/wow/runtime/cluster/ClusterOptions;Lme/ahoo/wow/runtime/node/Routing;JILme/ahoo/wow/runtime/subscription/SubscriptionOptions;Lme/ahoo/wow/runtime/log/AppendQueueOptions;IIJLme/ahoo/wow/runtime/state/StateViewOptions;Lme/ahoo/wow/runtime/timer/TimerOptions;Ljava/util/Map;Ljava/util/Set;Lme/ahoo/wow/runtime/wait/UnknownContexts;Lme/ahoo/wow/runtime/ledger/LedgerPublishing;Lme/ahoo/wow/runtime/snapshot/SnapshotOptions;IILme/ahoo/wow/runtime/log/HandoffOptions;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAppendQueue ()Lme/ahoo/wow/runtime/log/AppendQueueOptions;
 	public final fun getCluster ()Lme/ahoo/wow/runtime/cluster/ClusterOptions;
@@ -625,6 +626,7 @@ public final class me/ahoo/wow/runtime/node/ServiceNodeOptions {
 	public final fun getMaxRegisteredWaits ()I
 	public final fun getMaxWaitHops ()I
 	public final fun getMaxWaitTimeout-UwyO8pc ()J
+	public final fun getRecentRequests ()I
 	public final fun getRouting ()Lme/ahoo/wow/runtime/node/Routing;
 	public final fun getSchedules ()Ljava/util/Map;
 	public final fun getSnapshots ()Lme/ahoo/wow/runtime/snapshot/SnapshotOptions;

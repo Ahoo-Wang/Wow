@@ -28,6 +28,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -43,6 +44,7 @@ import java.lang.reflect.Proxy
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.SQLException
+import java.sql.SQLTransientConnectionException
 import java.util.UUID
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
@@ -422,6 +424,32 @@ class PostgresEventLogTest : EventLogSpec() {
             }
             outcomes.filter { it is AppendOutcome.Unknown || it is AppendOutcome.Rejected }.assert().isEmpty()
             outcomes.count { it is AppendOutcome.Committed }.assert().isEqualTo(ROUNDS * REQUESTS * types.size)
+        }
+
+    @Test
+    fun `an append that cannot get a connection is the retryable storage error, not an unknown outcome`(): Unit =
+        runBlocking {
+            // Decision D261: nothing reached the store, so the command is answered as unavailable (finding A2-6).
+            val context = PostgresFixture.newContext()
+            val healthy = PostgresEventLog(PostgresFixture.dataSource, context, PARTITIONS).also { it.createSchema() }
+            val type = AggregateType(context, "order")
+            healthy.append(stream("a", 1, aggregate = type))
+            val loader = DataSource::class.java.classLoader
+            val unreachable = Proxy.newProxyInstance(loader, arrayOf(DataSource::class.java)) { _, method, args ->
+                if (method.name == "getConnection") throw SQLTransientConnectionException("The pool timed out.")
+                try {
+                    method.invoke(PostgresFixture.dataSource, *(args ?: emptyArray()))
+                } catch (thrown: InvocationTargetException) {
+                    throw thrown.targetException
+                }
+            } as DataSource
+            val log = PostgresEventLog(unreachable, context, PARTITIONS)
+            runCatching { log.append(stream("a", 2, aggregate = type)) }.exceptionOrNull()
+                .assert().isInstanceOf(StorageUnavailableException::class.java)
+            val group = listOf(stream("b", 1, aggregate = type) to null, stream("c", 1, aggregate = type) to null)
+            runCatching { log.appendAll(group) }.exceptionOrNull()
+                .assert().isInstanceOf(StorageUnavailableException::class.java)
+            healthy.read(type.ref("tenant", "a")).toList().size.assert().isEqualTo(1)
         }
 
     private fun groupWaitsOnLock(): Boolean = PostgresFixture.dataSource.connection.use { connection ->
