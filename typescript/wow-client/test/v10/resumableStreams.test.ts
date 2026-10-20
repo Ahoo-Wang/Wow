@@ -19,6 +19,7 @@ import {
   WowProblemError,
 } from '../../src/v10';
 import {
+  hangUntilAborted,
   jsonResponse,
   readAll,
   type SentRequest,
@@ -77,7 +78,9 @@ function busy(retryAfter = '2'): Response {
 }
 
 /** Answers the requests in turn. */
-function answers(...responses: Array<(request: SentRequest) => Response>) {
+function answers(
+  ...responses: Array<(request: SentRequest) => Response | Promise<Response>>
+) {
   let index = 0;
   return stubFetch(request => {
     const next = responses[index++];
@@ -355,6 +358,24 @@ describe('resumable query streams (decision D253)', () => {
     );
     expect(ids(rows)).toEqual(['p1']);
     expect(limited.requests.length).toBeLessThanOrEqual(2);
+  });
+
+  it('stops resuming once aborted while asking again', async () => {
+    const controller = new AbortController();
+    const { requests } = answers(
+      () => sseResponse(row('p1') + end('hold-expired')),
+      hangUntilAborted,
+    );
+    const reader = (
+      await new SnapshotQueryClient(PRODUCT, client()).listStream(query, {
+        signal: controller.signal,
+      })
+    ).getReader();
+    await reader.read();
+    const next = reader.read();
+    await vi.waitFor(() => expect(requests).toHaveLength(2));
+    controller.abort(new Error('left while asking'));
+    await expect(next).rejects.toThrow();
   });
 
   it('stops resuming once aborted, and cancels the current read', async () => {
