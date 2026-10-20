@@ -60,15 +60,21 @@ class StateViewReaderTest {
         /** Runs as each stream commits, before the append returns: where the log hands a commit over (D249). */
         var onCommitted: suspend (EventStreamRecord) -> Unit = {}
 
+        /** The outcome of the next appends instead of appending, when given. */
+        var refuse: AppendOutcome? = null
+        var appended: EventStreamRecord? = null
+
         override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
             delegate.read(ref, fromVersion, toVersion).onEach { streamsRead++ }
 
-        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
-            delegate.append(stream, transport).also {
+        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+            appended = stream
+            return refuse ?: delegate.append(stream, transport).also {
                 if (it is AppendOutcome.Committed) {
                     onCommitted(stream)
                 }
             }
+        }
     }
 
     /** A snapshot store counting its loads. */
@@ -156,6 +162,37 @@ class StateViewReaderTest {
             // The executor's record afterwards keeps the reader's view: one view a version, read by the other reader.
             reader(SNAPSHOT).read(stream(3)).assert().isSameAs(read.last())
         }
+
+    @Test
+    fun `without a pending view, a reader of the node's own commits should evolve the view it read last`(): Unit =
+        runBlocking {
+            // An executor that records no views: the reader keeps what it read, and evolves it with the next commit.
+            val elsewhere = Executor(kernel)
+            log.onCommitted = { stream ->
+                val streams = log.streamsRead
+                val loads = snapshots.loads
+                reader().read(stream)
+                (log.streamsRead - streams).assert().isEqualTo(0)
+                (snapshots.loads - loads).assert().isEqualTo(0)
+            }
+            add("apple", executor = elsewhere)
+            add("pear", executor = elsewhere)
+            log.onCommitted = {}
+            views.get(ref, 2)!!.items().assert().containsExactly("apple", "pear")
+        }
+
+    @Test
+    fun `an append that did not commit should leave no pending view`(): Unit = runBlocking {
+        add("apple")
+        log.refuse = AppendOutcome.Unknown(IllegalStateException("The store timed out."))
+        val command = Command("c-pear", "r-pear", ref, AddItems(listOf("pear")), scope = Scope(ownerId = "alice"))
+        executor.execute(cart, command).assert().isInstanceOf(CommandOutcome.Unknown::class.java)
+        views.get(log.appended!!).assert().isNull()
+        log.refuse = AppendOutcome.Rejected(IllegalStateException("The store refuses it."))
+        runCatching { executor.execute(cart, command) }.exceptionOrNull()!!.message.assert().contains("refuses")
+        views.get(log.appended!!).assert().isNull()
+        views.get(ref, 2).assert().isNull()
+    }
 
     @Test
     fun `a view recorded before the reader is handed the commit should be read as it is`(): Unit = runBlocking {

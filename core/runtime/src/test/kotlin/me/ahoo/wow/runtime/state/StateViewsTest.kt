@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
@@ -60,6 +61,60 @@ class StateViewsTest {
         val order = kernel.execute(orderModel(), Command("c-2", "r-2", ORDER.ref(TENANT, "o-1"), Place(listOf("a"))))
         readers.record(orderModel(), order as CommandOutcome.Committed)
         readers.size.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a pending view should be read only for its very append, then be a view every reader gets`(): Unit =
+        runBlocking {
+            val kernel = Kernel(InMemoryEventLog(), codec = codec)
+            val views = views()
+            val committed = kernel.execute(cartModel(), Command("c-1", "r-1", alice, AddItems(listOf("apple")))) {
+                    stream, state ->
+                views.expect(cartModel(), stream, state)
+            } as CommandOutcome.Committed
+            val stream = committed.stream
+            views.get(alice, 1).assert().isNull()
+            // Another append at the version, or this one at another, is not this very append.
+            listOf(
+                stream.copyWith(commitTime = stream.commitTime + 1),
+                stream.copyWith(commandId = "c-2"),
+                stream.copyWith(requestId = "r-2"),
+                stream.copyWith(version = 2),
+            ).forEach { views.get(it).assert().isNull() }
+            val pending = views.get(stream)!!
+            pending.state.assert().contains("apple")
+            views.get(alice, 1).assert().isSameAs(pending)
+            // Recorded once the append committed: the view stays as the reader got it.
+            views.record(cartModel(), committed)
+            views.get(alice, 1).assert().isSameAs(pending)
+            views.get(stream).assert().isSameAs(pending)
+        }
+
+    @Test
+    fun `a pending view of another append should not be recorded, and forget should drop it`(): Unit = runBlocking {
+        val kernel = Kernel(InMemoryEventLog(), codec = codec)
+        val views = views()
+        val pear = kernel.execute(cartModel(), Command("c-0", "r-0", bob, AddItems(listOf("pear"))))
+            as CommandOutcome.Committed
+        val apple = kernel.execute(cartModel(), Command("c-1", "r-1", alice, AddItems(listOf("apple"))))
+            as CommandOutcome.Committed
+        val state = CachedState(pear.state, 1)
+        // The pending view of an attempt that did not commit: the commit is recorded from its own state.
+        val other = apple.stream.copyWith(commitTime = apple.stream.commitTime - 1)
+        views.expect(cartModel(), other, state)
+        views.record(cartModel(), apple)
+        views.get(alice, 1)!!.state.assert().contains("apple")
+        views.get(other)!!.state.assert().contains("apple")
+        // Forgotten, a pending view is gone.
+        views.expect(cartModel(), pear.stream, state)
+        views.forget(bob)
+        views.get(pear.stream).assert().isNull()
+        // Nothing is held for a type no reader reads.
+        val unread = StateViews(codec, mapOf(PROJECTION to setOf(ORDER)))
+        unread.expect(cartModel(), pear.stream, state)
+        unread.get(pear.stream).assert().isNull()
+        unread.forget(bob)
+        unread.size.assert().isEqualTo(0)
     }
 
     @Test

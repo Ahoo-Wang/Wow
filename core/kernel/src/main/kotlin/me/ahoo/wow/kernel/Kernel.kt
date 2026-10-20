@@ -172,11 +172,17 @@ class Kernel(
      * reach after COMMITTED, it is appended with the stream as transport (decision D25), so the subscription its next
      * hop names signals the waiting node. The kernel only carries it; registering the wait and the signals are the
      * runtime's.
+     *
+     * [appending], when given, is called with each stream the kernel is about to append and the state after it, before
+     * the append starts (decision D261, B.G-5): the runtime keeps that state as the view a local subscription reads if
+     * the log hands it the commit before [execute] returns (decision D249). It is called once per attempt, so a stream
+     * it was given may never commit; it must not throw.
      */
     suspend fun <S : Any> execute(
         model: AggregateModel<S>,
         admitted: Command<*>,
         wait: WaitContext? = null,
+        appending: ((EventStreamRecord, CachedState) -> Unit)? = null,
     ): CommandOutcome {
         require(admitted.ref.type == model.type) { "${admitted.ref} is not a ${model.type}." }
         require(admitted.ref.isAssigned) { "${admitted.ref} names no aggregate: admission assigns its id (D191)." }
@@ -186,7 +192,7 @@ class Kernel(
         var committed: CommandOutcome.Committed? = null
         return try {
             executing.observe {
-                executeAdmitted(model, admitted, wait).also {
+                executeAdmitted(model, admitted, wait, appending).also {
                     committed = it as? CommandOutcome.Committed
                     executing.outcome(it.observedName)
                 }
@@ -202,6 +208,7 @@ class Kernel(
         model: AggregateModel<S>,
         admitted: Command<*>,
         wait: WaitContext?,
+        appending: ((EventStreamRecord, CachedState) -> Unit)?,
     ): CommandOutcome {
         // A tenant's aggregate (decision D189) neither records nor checks an owner: only that part of the scope counts.
         val scope = model.ownership.scopeOf(admitted.scope)
@@ -237,6 +244,7 @@ class Kernel(
 
                 is Prepared.Append -> prepared.stream to prepared.evolved
             }
+            appending?.invoke(stream, evolved)
             val appended = withContext(NonCancellable) { appendObserved(stream, attempt) }
             settleAppend(appended, stream, evolved, attempt, commandType)?.let { return it }
             attempts++

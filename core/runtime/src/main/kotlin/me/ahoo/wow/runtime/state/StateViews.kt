@@ -19,9 +19,11 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.runtime.Stripes
+import me.ahoo.wow.spi.log.EventStreamRecord
 import java.util.TreeMap
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -100,6 +102,13 @@ class StateViewOptions @InternalWowApi constructor(
  * - **Recording**: the executor [record]s the state after each commit of an aggregate type some reader reads, while
  *   the aggregate's lane still holds it; a reader that had to rebuild a state ([StateViewReader]) [put]s it here too,
  *   so the other readers, and its own next entry of the aggregate, start from it.
+ * - **Expecting** (decision D261, B.G-5): the log hands a commit to this node's subscriptions as it commits (decision
+ *   D249), before the executor can record it. So the executor first [expect]s the state of the stream it is about to
+ *   append, a pending view of the aggregate, and [record] then makes it a view; a reader handed the commit meanwhile
+ *   gets the pending view ([get] by stream) only for that very append, the same command, request and commit time at
+ *   the same version: the entry it holds proves that append committed. The lane [forget]s it whatever the outcome, so
+ *   an append that did not commit (or whose outcome is unknown) leaves nothing behind. An aggregate has at most one
+ *   pending view, while its lane runs a command.
  * - **Reading**: a view is used only for the exact version it was taken at ([get]), never taken away: every reader
  *   gets it. [floor] gives the latest one before a version, which a reader behind it evolves with the log's tail.
  * - **Eviction**: a reader [pass]es an aggregate's version once it is done with it. A view is evicted once every
@@ -142,23 +151,53 @@ class StateViews(
     /** The bytes of the states held, two a character. */
     val bytes: Long get() = stripes.sumOf { it.held }
 
-    /** Records the state of [committed], when some reader reads [model]'s aggregate type. */
+    /**
+     * Holds the state after [stream], which the executor is about to append, as the pending view of its aggregate,
+     * when some reader reads [model]'s aggregate type: replaced by the aggregate's next one, made a view by [record],
+     * dropped by [forget].
+     */
+    fun expect(model: AggregateModel<*>, stream: EventStreamRecord, state: CachedState) {
+        if (model.type !in readersOf) {
+            return
+        }
+        val view = SerializedState(
+            stream.version,
+            codec.stateText(state.state),
+            stream.scope,
+            state.deleted,
+            state.tags,
+            state.schedules,
+        )
+        Stripes.pick(stripes, stream.ref).expect(stream.ref, Pending(stream, view))
+    }
+
+    /**
+     * Records the state of [committed], when some reader reads [model]'s aggregate type: the pending view of its
+     * stream, when one was [expect]ed, else the state serialized now.
+     */
     fun record(model: AggregateModel<*>, committed: CommandOutcome.Committed) {
         if (model.type !in readersOf) {
             return
         }
         val stream = committed.stream
-        put(
-            stream.ref,
-            SerializedState(
+        val view = Stripes.pick(stripes, stream.ref).forget(stream.ref)?.takeIf { it.isOf(stream) }?.view
+            ?: SerializedState(
                 stream.version,
                 codec.stateText(committed.state),
                 stream.scope,
                 committed.deleted,
                 committed.tags,
                 committed.schedules,
-            ),
-        )
+            )
+        put(stream.ref, view)
+    }
+
+    /** Drops the pending view of [ref], if any: its lane is done with the command that [expect]ed it. */
+    fun forget(ref: AggregateRef) {
+        if (ref.type !in readersOf) {
+            return
+        }
+        Stripes.pick(stripes, ref).forget(ref)
     }
 
     /**
@@ -172,6 +211,18 @@ class StateViews(
 
     /** The view of [ref] taken at [version], or null when there is none at that version. */
     fun get(ref: AggregateRef, version: Int): SerializedState? = Stripes.pick(stripes, ref).get(ref, version)
+
+    /**
+     * The view after [stream], a committed stream a reader holds: the one taken at its version, else the pending
+     * view [expect]ed for that very append, which then becomes a view the other readers get too; null without either.
+     */
+    fun get(stream: EventStreamRecord): SerializedState? {
+        val ref = stream.ref
+        val stripe = Stripes.pick(stripes, ref)
+        return stripe.get(ref, stream.version) ?: stripe.pending(ref, stream)?.also { view ->
+            readersOf[ref.type]?.let { stripe.put(ref, view, it) }
+        }
+    }
 
     /** The latest view of [ref] before [version], or null when there is none. */
     fun floor(ref: AggregateRef, version: Int): SerializedState? = Stripes.pick(stripes, ref).floor(ref, version)
@@ -192,6 +243,9 @@ class StateViews(
     private inner class Stripe(private val capacity: Int, private val maxBytes: Long) {
         private val lock = ReentrantLock()
         private val slots = HashMap<AggregateRef, Slot>()
+
+        /** The pending view of each aggregate whose lane is appending ([expect]): not counted against the bounds. */
+        private val expected = HashMap<AggregateRef, Pending>()
 
         /** Every view held, in the order it was put: the oldest first. */
         private val order = LinkedHashMap<Key, Entry>()
@@ -225,6 +279,16 @@ class StateViews(
         fun get(ref: AggregateRef, version: Int): SerializedState? = lock.withLock {
             expire()
             slots[ref]?.views?.get(version)?.view
+        }
+
+        fun expect(ref: AggregateRef, pending: Pending) = lock.withLock {
+            expected[ref] = pending
+        }
+
+        fun forget(ref: AggregateRef): Pending? = lock.withLock { expected.remove(ref) }
+
+        fun pending(ref: AggregateRef, stream: EventStreamRecord): SerializedState? = lock.withLock {
+            expected[ref]?.takeIf { it.isOf(stream) }?.view
         }
 
         fun floor(ref: AggregateRef, version: Int): SerializedState? = lock.withLock {
@@ -265,6 +329,16 @@ class StateViews(
     }
 
     private data class Key(val ref: AggregateRef, val version: Int)
+
+    /** The [view] after [stream], expected before [stream] is appended. */
+    private class Pending(private val stream: EventStreamRecord, val view: SerializedState) {
+        /** Whether [committed] is this very append: the same command, request and commit time at the same version. */
+        fun isOf(committed: EventStreamRecord): Boolean =
+            committed.version == stream.version &&
+                committed.commandId == stream.commandId &&
+                committed.requestId == stream.requestId &&
+                committed.commitTime == stream.commitTime
+    }
 
     private class Entry(val view: SerializedState, val recorded: TimeMark) {
         /** What the view's state takes in memory: two bytes a character. */

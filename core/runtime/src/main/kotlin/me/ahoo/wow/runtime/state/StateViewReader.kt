@@ -31,12 +31,11 @@ import tools.jackson.core.JacksonException
  * Reads the state after a committed stream for one state consumer, the [reader] of the context's [views] (design 04
  * §1, decision D133), in this order:
  *
- * 1. the view taken at the stream's version ([StateViews.get]): what the executor recorded as it committed, or what
- *    another reader rebuilt;
+ * 1. the view taken at the stream's version ([StateViews.get]): what the executor recorded as it committed (or
+ *    expected just before, when the log hands this node's commit over first), or what another reader rebuilt;
  * 2. otherwise the stream in hand evolved from the state right before it, reading no store (decision D261, B.G-5):
- *    the view at the previous version, or the initial state for the aggregate's first stream. The log hands this
- *    node's commits to its subscriptions before the executor records their views (decision D249), so a reader of
- *    them often finds only the view of the aggregate's previous commit, the one it handled last;
+ *    the view at the previous version, such as the one this reader handled last, or the initial state for the
+ *    aggregate's first stream;
  * 3. otherwise the state rebuilt from the nearest base before the version: the latest view before it
  *    ([StateViews.floor], such as the one this reader rebuilt for the aggregate's previous commit) or the aggregate's
  *    snapshot in [snapshots], whichever is later, evolved with the log's tail up to the version ([Kernel.stateAt]);
@@ -67,13 +66,13 @@ class StateViewReader(
 
     /** The state after [stream]. */
     suspend fun read(stream: EventStreamRecord): SerializedState =
-        views.get(stream.ref, stream.version)?.also { pass(stream.ref, stream.version) }
+        views.get(stream)?.also { pass(stream.ref, stream.version) }
             ?: inHand(stream)
             ?: rebuild(stream, loadSnapshot(stream.ref))
 
     /** The state after [stream], with [snapshot], the aggregate's snapshot the caller already loaded, if any. */
     suspend fun read(stream: EventStreamRecord, snapshot: SnapshotRecord?): SerializedState =
-        views.get(stream.ref, stream.version)?.also { pass(stream.ref, stream.version) }
+        views.get(stream)?.also { pass(stream.ref, stream.version) }
             ?: inHand(stream)
             ?: rebuild(stream, snapshot)
 
