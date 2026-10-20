@@ -3,13 +3,9 @@
 spring-boot = "4.1.1"
 cosid = "3.2.1"
 cosec = "6.0.0"
-simba = "3.3.0"
-coapi = "2.3.0"
-cocache = "4.3.0"
 testcontainers = "2.0.5"
 opentelemetry = "1.66.0"
 opentelemetry-instrumentation = "2.32.0"
-opentelemetry-semconv = "1.30.1-alpha"
 guava = "33.7.2-jre"
 kotlin-logging = "8.0.4"
 swagger = "2.2.55"
@@ -35,9 +31,6 @@ publish-plugin = "2.0.0"
 [libraries]
 spring-boot-dependencies = { module = "org.springframework.boot:spring-boot-dependencies", version.ref = "spring-boot" }
 cosid-bom = { module = "me.ahoo.cosid:cosid-bom", version.ref = "cosid" }
-simba-bom = { module = "me.ahoo.simba:simba-bom", version.ref = "simba" }
-coapi-bom = { module = "me.ahoo.coapi:coapi-bom", version.ref = "coapi" }
-cocache-bom = { module = "me.ahoo.cocache:cocache-bom", version.ref = "cocache" }
 cosec-webflux = { module = "me.ahoo.cosec:cosec-webflux", version.ref = "cosec" }
 cosec-jwt = { module = "me.ahoo.cosec:cosec-jwt", version.ref = "cosec" }
 cosec-spring-boot-starter = { module = "me.ahoo.cosec:cosec-spring-boot-starter", version.ref = "cosec" }
@@ -46,7 +39,6 @@ json-schema-validator = { module = "com.networknt:json-schema-validator", versio
 kotlinx-coroutines-bom = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-bom", version.ref = "kotlinx-coroutines" }
 opentelemetry-bom = { module = "io.opentelemetry:opentelemetry-bom", version.ref = "opentelemetry" }
 opentelemetry-instrumentation-bom = { module = "io.opentelemetry.instrumentation:opentelemetry-instrumentation-bom", version.ref = "opentelemetry-instrumentation" }
-opentelemetry-semconv = { module = "io.opentelemetry:opentelemetry-semconv", version.ref = "opentelemetry-semconv" }
 testcontainers-bom = { module = "org.testcontainers:testcontainers-bom", version.ref = "testcontainers" }
 ksp-symbol-processing-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
 ksp-symbol-processing = { module = "com.google.devtools.ksp:symbol-processing", version.ref = "ksp" }
