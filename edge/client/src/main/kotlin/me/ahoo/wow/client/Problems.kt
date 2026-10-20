@@ -119,6 +119,19 @@ internal object Problems {
         )
     }
 
+    /** The problem the `error` event of a streamed list holds: its members, the status among them. */
+    fun ofMembers(data: String): PeerProblem {
+        val status = try {
+            ClientJson.mapper.readTree(data)?.get("status")?.takeIf { it.isNumber }?.asInt()
+        } catch (_: JacksonException) {
+            null
+        }
+        return read(status ?: INTERNAL_ERROR, EMPTY_HEADERS, data.toByteArray())
+    }
+
+    private const val INTERNAL_ERROR = 500
+    private val EMPTY_HEADERS: HttpHeaders = HttpHeaders.of(emptyMap()) { _, _ -> true }
+
     private fun resultOf(node: JsonNode): CommandResult? = try {
         ClientJson.mapper.treeToValue(node, CommandResult::class.java)
     } catch (_: JacksonException) {
