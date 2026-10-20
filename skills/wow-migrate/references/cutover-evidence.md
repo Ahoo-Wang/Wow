@@ -33,7 +33,7 @@ Rolling back after V10 has written needs every stream V10 wrote to have a 9.x fo
 - **An event whose V10 revision moved past the map's `toRevision`**: the V10 class was upgraded (`@Upgrade`) beyond the shape 9.x stored, often at the migration itself (a 9.x `OrderCreated` imported as revision 1 that V10 writes as revision 2). Every stream V10 appends with the new revision has no way back to 9.x: a new order created in V10 blocks the rollback.
 - **An event or aggregate V10 added** that no 9.x name maps to.
 
-Each such type, once V10 writes it in production, makes the export refuse. Either accept that the cut-over is one-way from the first such write, or keep those shapes and types out of the first V10 release until the rollback window closes. It is the user's decision; record it.
+Each such type, once V10 writes it in production, makes the export refuse (decision D267 ⑪): the first such write is **the end of the rollback window**, and the cut-over plan names it as such. Either accept that the cut-over is one-way from that write, or keep those shapes and types out of the first V10 release until the window has closed. It is the user's decision; record it.
 
 ## The switch
 
