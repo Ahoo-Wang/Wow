@@ -14,10 +14,13 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import tools.jackson.databind.JsonNode
 
 /** A fact a declaration states, or leaves to a source of lower priority. */
+@ExperimentalWowApi
 sealed interface DeclarationValue<out T> {
     data object Unset : DeclarationValue<Nothing>
 
@@ -25,18 +28,21 @@ sealed interface DeclarationValue<out T> {
 }
 
 /** The read model of one aggregate type a schema is compiled for. */
+@InternalWowApi
 data class QuerySchemaContext(
     val aggregateType: AggregateType,
     val model: QueryModel,
 )
 
 /** A [declaration] of [context]'s model, as [querySchemaRegistration] builds it. */
+@InternalWowApi
 data class QuerySchemaRegistration(
     val context: QuerySchemaContext,
     val declaration: QuerySchemaDeclaration,
 )
 
 /** What one source declares about a model's fields, by logical field. */
+@ExperimentalWowApi
 data class QuerySchemaDeclaration(
     val fields: Map<QueryField, QueryFieldDeclaration>,
 )
@@ -46,6 +52,7 @@ data class QuerySchemaDeclaration(
  * [Unset][DeclarationValue.Unset] for a source of lower priority to state. A source of higher priority cannot drop
  * a sensitivity a lower one declares: replacing a protected structure keeps its masks, or fails.
  */
+@ExperimentalWowApi
 data class QueryFieldDeclaration(
     val title: DeclarationValue<String?> = DeclarationValue.Unset,
     val description: DeclarationValue<String?> = DeclarationValue.Unset,
@@ -79,6 +86,7 @@ data class QueryFieldDeclaration(
  * [ManifestQuerySchemaSource]), declarations registered in code ([BeanQuerySchemaSource]), or any other source a host adds. The
  * Catalog merges the declarations of every source by [priority], a higher one stating a fact over a lower one.
  */
+@InternalWowApi
 interface QuerySchemaSource {
     val priority: Int
 

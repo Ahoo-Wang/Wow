@@ -156,6 +156,7 @@ class AnalyticsCatalogServerTest {
     }
 
     @Test
+    @OptIn(ExperimentalWowApi::class)
     fun `an editor should draft a dataset over a reviewed source, its definition checked against the catalog`() {
         warehouse.put(INVOICES)
         val source = AnalyticsCatalogContext.sourceIdOf("warehouse", MemoryWarehouse.DATABASE, INVOICES.name)

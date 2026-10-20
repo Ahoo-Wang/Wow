@@ -247,11 +247,4 @@ val context = SpringApplicationBuilder(CatalogServer::class.java, TestCallers::c
 - On the memory backend no query backend serves the snapshots unless `wow.query.memory.enabled` is `true`; without it their query routes answer 404.
 - A service whose sagas send commands to another context does not start without a command transport: give the test Kafka in a container, or in-memory topics (see [Sending a command to another context](./programming-model.md#sending-a-command-to-another-context)).
 - Lower `wow.cluster.drain-timeout`, `wow.subscription.stop-timeout` and `wow.wait.max-timeout` to make the context close quickly.
-- Tests against PostgreSQL, MongoDB, Kafka or ClickHouse run in containers (Testcontainers), in the module's `integrationTest` test suite. The `me.ahoo.wow` plugin registers it (DX gap G17): JUnit Jupiter, the module's classes and everything `testImplementation` gives, outside `check`. Put the sources under `src/integrationTest/kotlin`, add Testcontainers, and run `./gradlew integrationTest`:
-
-```kotlin
-dependencies {
-    testImplementation(platform("org.testcontainers:testcontainers-bom:2.0.5"))
-    testImplementation("org.testcontainers:testcontainers-postgresql")
-}
-```
+- Tests against PostgreSQL, MongoDB, Kafka or ClickHouse run in containers (Testcontainers), in the module's `integrationTest` source set.
