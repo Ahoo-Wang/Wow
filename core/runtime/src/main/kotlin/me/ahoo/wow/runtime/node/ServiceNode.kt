@@ -45,6 +45,7 @@ import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.LruStateCache
 import me.ahoo.wow.runtime.admission.CommandGateway
+import me.ahoo.wow.runtime.admission.PeerCommands
 import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.admission.ModelRegistry
@@ -535,6 +536,7 @@ class ServiceNode @InternalWowApi constructor(
             contexts[type.context]?.log?.findByRequestId(type, tenantId, requestId)
         },
         observer = observer,
+        peers = PeerCommands(contracts, sender),
     )
 
     /**

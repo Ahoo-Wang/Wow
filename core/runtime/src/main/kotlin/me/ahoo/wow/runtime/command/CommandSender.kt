@@ -51,6 +51,9 @@ class CommandSender(private val contracts: ContractDirectory, private val topics
     private val producer: TopicProducer = requireNotNull(topics.producer) { "Commands are sent through a producer." }
     private val partitions = ConcurrentHashMap<String, Int>()
 
+    /** The command topic of [context], where its commands are sent (decision D135). */
+    fun topicOf(context: String): String = topics.commandsOf(context)
+
     /** Sends [command] to its context's command topic, with [wait] and the [replyTo] of a rejection. */
     suspend fun send(command: Command<*>, wait: WaitContext? = null, replyTo: ReplyTo? = null) =
         send(ClusterCodec.wire(typeOf(command), command, replyTo), wait)

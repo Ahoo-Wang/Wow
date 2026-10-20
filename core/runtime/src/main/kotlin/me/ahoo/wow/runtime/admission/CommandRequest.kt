@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.admission
 
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
@@ -31,8 +32,13 @@ import tools.jackson.databind.JsonNode
  * when absent).
  *
  * [command] is the command type's model name (or a former name, `@Alias`), or the part of it after the aggregate type
- * (`AddItem` for `shop.cart.AddItem`). Identity is not taken from anywhere else:
- * not from [headers] (a header named `Wow-…` or `wow.…` is reserved and refused) and never from the body (D68).
+ * (`AddItem` for `shop.cart.AddItem`). A request built from a command object ([of] with a [CommandBody.Value] and an
+ * [AggregateRef], decision D258) names its command by the object's class name, and admission derives the command type
+ * from the class: from the models of the node for a context it serves, from the contract of a peer context (decision
+ * D234). Identity is not taken from anywhere else: not from [headers] (a header named `Wow-…` or `wow.…` is reserved and
+ * refused) and never from the body (D68). [tenantId] is the tenant the request's ref names: admission decides the
+ * tenant as always (the caller's, a cross-scope target's or the one fixed for the type) and refuses a request whose
+ * ref names another.
  *
  * [trace] holds the trace context the request arrived with (decision D174), such as the W3C `traceparent` and
  * `tracestate` headers: delivery metadata, never a fact, which only an observer reads.
@@ -56,6 +62,7 @@ class CommandRequest @InternalWowApi constructor(
     val wait: WaitPlan? = null,
     val trace: Map<String, String> = emptyMap(),
     val call: CallContext? = null,
+    val tenantId: String? = null,
 ) {
     init {
         require(context.isNotBlank()) { "A command request names its context." }
@@ -79,6 +86,7 @@ class CommandRequest @InternalWowApi constructor(
         wait: WaitPlan? = this.wait,
         trace: Map<String, String> = this.trace,
         call: CallContext? = this.call,
+        tenantId: String? = this.tenantId,
     ): CommandRequest = CommandRequest(
         context,
         aggregate,
@@ -93,6 +101,7 @@ class CommandRequest @InternalWowApi constructor(
         wait,
         trace,
         call,
+        tenantId,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -103,11 +112,12 @@ class CommandRequest @InternalWowApi constructor(
     override fun toString(): String =
         "CommandRequest(context=$context, aggregate=$aggregate, command=$command, body=$body, " +
             "caller=$caller, aggregateId=$aggregateId, target=$target, requestId=$requestId, " +
-            "expectedVersion=$expectedVersion, headers=$headers, wait=$wait, trace=$trace, call=$call)"
+            "expectedVersion=$expectedVersion, headers=$headers, wait=$wait, trace=$trace, call=$call, " +
+            "tenantId=$tenantId)"
 
     private fun valueFields(): List<Any?> = listOf(
         context, aggregate, command, body, caller, aggregateId, target, requestId, expectedVersion, headers, wait,
-        trace, call
+        trace, call, tenantId
     )
 
     /**
@@ -128,12 +138,16 @@ class CommandRequest @InternalWowApi constructor(
         private var headers: Map<String, String> = emptyMap()
         private var wait: WaitPlan? = null
         private var trace: Map<String, String> = emptyMap()
+        private var tenantId: String? = null
 
         /** Who sends the command; anonymous by default. */
         fun caller(caller: Caller): Builder = apply { this.caller = caller }
 
         /** The aggregate the command targets; none for a command that creates one with an id it is given. */
         fun aggregateId(aggregateId: String?): Builder = apply { this.aggregateId = aggregateId }
+
+        /** The tenant the request's ref names, which must be the one admission decides; none to take that one. */
+        fun tenantId(tenantId: String?): Builder = apply { this.tenantId = tenantId }
 
         /** The scope a cross-scope caller acts in (`Wow-Scope`). */
         fun target(target: TargetScope?): Builder = apply { this.target = target }
@@ -156,7 +170,7 @@ class CommandRequest @InternalWowApi constructor(
         /** The request. */
         fun build(): CommandRequest = CommandRequest(
             context, aggregate, command, body, caller, aggregateId, target, requestId, expectedVersion, headers, wait,
-            trace,
+            trace, tenantId = tenantId,
         )
     }
 
@@ -170,10 +184,31 @@ class CommandRequest @InternalWowApi constructor(
         @JvmStatic
         fun builder(context: String, aggregate: String, command: String, body: CommandBody): Builder =
             Builder(context, aggregate, command, body)
+
+        /**
+         * A request for the command object [command] to the aggregate [ref] names (decision D258), from an anonymous
+         * caller, with no other fact: its context and aggregate are [ref]'s type, its command type the one admission
+         * derives from [command]'s class, its tenant [ref]'s and its aggregate id [ref]'s, none for an
+         * [unassigned][AggregateRef.isAssigned] ref (a creation that leaves its id to admission, decision D191).
+         * The object is not encoded: admission checks it as it is, and the command carries it, so it is not changed
+         * once sent.
+         */
+        @JvmStatic
+        fun of(command: Any, ref: AggregateRef): CommandRequest = builder(command, ref).build()
+
+        /** A [Builder] of a request for the command object [command] to the aggregate [ref] names, as [of] builds. */
+        @JvmStatic
+        fun builder(command: Any, ref: AggregateRef): Builder =
+            Builder(ref.type.context, ref.type.name, command.javaClass.name, CommandBody.Value(command))
+                .aggregateId(ref.id.takeIf { ref.isAssigned })
+                .tenantId(ref.tenantId)
     }
 }
 
-/** The undecoded body of a [CommandRequest]: JSON [Bytes] as received, or a JSON [Tree] already parsed. */
+/**
+ * The body of a [CommandRequest]: JSON [Bytes] as received, a JSON [Tree] already parsed, or the command object itself
+ * ([Value], decision D258).
+ */
 sealed interface CommandBody {
     /** A JSON document as received; decoding it is admission's job, so a malformed one is answered as such. */
     class Bytes(val bytes: ByteArray) : CommandBody {
@@ -182,6 +217,12 @@ sealed interface CommandBody {
 
     /** A parsed JSON document. */
     data class Tree(val node: JsonNode) : CommandBody
+
+    /**
+     * The command object itself (decision D258): admission takes it as it is, without decoding it, and checks it as it
+     * checks a decoded body; it must be of the command type the request names.
+     */
+    data class Value(val command: Any) : CommandBody
 
     companion object {
         /** [json] as a body. */
