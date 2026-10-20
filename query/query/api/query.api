@@ -21,6 +21,7 @@ public final class me/ahoo/wow/query/AbacQueryPolicy : me/ahoo/wow/query/QueryPo
 	public fun <init> (Lme/ahoo/wow/query/AbacQueryOptions;I)V
 	public synthetic fun <init> (Lme/ahoo/wow/query/AbacQueryOptions;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun evaluate (Lme/ahoo/wow/query/QueryCaller;Lme/ahoo/wow/query/filter/QueryContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun getEvents ()Lme/ahoo/wow/query/EventsMode;
 	public final fun getOptions ()Lme/ahoo/wow/query/AbacQueryOptions;
 	public fun getOrder ()I
 	public final fun tagsOf (Ljava/util/Map;)Ljava/util/Map;
@@ -90,6 +91,15 @@ public abstract interface class me/ahoo/wow/query/CursorPositionCodec {
 }
 
 public final class me/ahoo/wow/query/CursorPositionCodec$Companion {
+}
+
+public final class me/ahoo/wow/query/EventsMode : java/lang/Enum {
+	public static final field NONE Lme/ahoo/wow/query/EventsMode;
+	public static final field PINNED Lme/ahoo/wow/query/EventsMode;
+	public static final field PUSHDOWN Lme/ahoo/wow/query/EventsMode;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/query/EventsMode;
+	public static fun values ()[Lme/ahoo/wow/query/EventsMode;
 }
 
 public abstract interface class me/ahoo/wow/query/GroupWindow {
@@ -265,6 +275,7 @@ public final class me/ahoo/wow/query/QueryBudget {
 	public static final field Companion Lme/ahoo/wow/query/QueryBudget$Companion;
 	public static final field DEFAULT_COUNT_LIMIT I
 	public static final field DEFAULT_MAX_FILTER_NODES I
+	public static final field DEFAULT_MAX_FILTER_VALUES I
 	public static final field DEFAULT_MAX_RESIDUAL_GROUPS I
 	public static final field HTTP_LABEL Ljava/lang/String;
 	public static final field IN_PROCESS_LABEL Ljava/lang/String;
@@ -458,6 +469,7 @@ public abstract interface class me/ahoo/wow/query/QueryObserver {
 	public fun onCancel (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/filter/QueryType;)V
 	public fun onComplete (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/filter/QueryType;)V
 	public fun onError (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/filter/QueryType;Ljava/lang/Throwable;)V
+	public fun onEventsPinned (Lme/ahoo/wow/api/aggregate/AggregateType;II)V
 	public fun start (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/filter/QueryType;)Lme/ahoo/wow/spi/observation/Observation;
 }
 
@@ -475,6 +487,7 @@ public final class me/ahoo/wow/query/QueryOperandsKt {
 
 public abstract interface class me/ahoo/wow/query/QueryPolicy {
 	public abstract fun evaluate (Lme/ahoo/wow/query/QueryCaller;Lme/ahoo/wow/query/filter/QueryContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun getEvents ()Lme/ahoo/wow/query/EventsMode;
 	public fun getOrder ()I
 }
 

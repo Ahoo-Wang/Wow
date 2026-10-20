@@ -85,7 +85,10 @@ class UnpinnedEventsPolicy : QueryPolicy {
          */
         const val AGGREGATE_REQUIRED: String = "AGGREGATE_REQUIRED"
 
-        /** The constraint the descriptor of an events model under [UnpinnedEvents.REFUSE] lists. */
+        /**
+         * The constraint the descriptor of an events model lists under [UnpinnedEvents.REFUSE], or while a pinned
+         * policy applies ([EventVisibilityPolicy]).
+         */
         @JvmField
         val CONSTRAINT: ConstraintDescriptor =
             ConstraintDescriptor(AGGREGATE_REQUIRED, fields = listOf(EventStreamFields.AGGREGATE_ID))

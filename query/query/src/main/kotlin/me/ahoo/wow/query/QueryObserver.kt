@@ -42,6 +42,14 @@ interface QueryObserver {
     /** One [QueryAudit] per query, when it ends. */
     fun onAudit(audit: QueryAudit) = Unit
 
+    /**
+     * The aggregates one events query of [aggregateType] named and a [pinned][EventsMode.PINNED] policy had checked
+     * (decisions D254, D259): [batched] of them by the one query of the type's snapshots, [pointReads] one by one (a
+     * type whose snapshots are not queried, or an aggregate whose first snapshot lags). A high share of point reads
+     * means slow events queries.
+     */
+    fun onEventsPinned(aggregateType: AggregateType, batched: Int, pointReads: Int) = Unit
+
     companion object {
         /** Sees nothing. */
         @JvmField
@@ -80,6 +88,9 @@ private class CompositeQueryObserver(private val observers: List<QueryObserver>)
 
     override fun onAudit(audit: QueryAudit) =
         observers.filter { it.audits }.forEach { it.isolated { onAudit(audit) } }
+
+    override fun onEventsPinned(aggregateType: AggregateType, batched: Int, pointReads: Int) =
+        observers.forEach { it.isolated { onEventsPinned(aggregateType, batched, pointReads) } }
 }
 
 /** Every observation of [observations]: the first one's context and trace, each one told the outcome and the end. */

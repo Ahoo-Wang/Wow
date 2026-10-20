@@ -30,6 +30,9 @@ import me.ahoo.wow.runtime.binding.TENANT
 import me.ahoo.wow.runtime.binding.cartModel
 import me.ahoo.wow.runtime.binding.orderModel
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CyclicBarrier
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TestTimeSource
 
@@ -88,6 +91,46 @@ class StateViewsTest {
             views.record(cartModel(), committed)
             views.get(alice, 1).assert().isSameAs(pending)
             views.get(stream).assert().isSameAs(pending)
+        }
+
+    @Test
+    fun `a reader racing the executor's record should always find the view, pending or recorded`(): Unit =
+        runBlocking {
+            // Finding F-1: the record dropped the pending view and put the view under two holds of the lock, and a
+            // reader looked the two up the same way; one in between found neither and read the store.
+            val kernel = Kernel(InMemoryEventLog(), codec = codec)
+            val committed = kernel.execute(cartModel(), Command("c-1", "r-1", alice, AddItems(listOf("apple"))))
+                as CommandOutcome.Committed
+            val state = CachedState(committed.state, 1)
+            val views = StateViews(codec, mapOf(SNAPSHOT to setOf(CART), PROJECTION to setOf(CART)))
+            val missed = AtomicInteger()
+            val pool = Executors.newFixedThreadPool(2)
+            try {
+                repeat(RACES) { race ->
+                    val ref = CART.ref(TENANT, "race-$race")
+                    val outcome = committed.copy(stream = committed.stream.copyWith(ref = ref))
+                    views.expect(cartModel(), outcome.stream, state)
+                    val start = CyclicBarrier(2)
+                    val reader = pool.submit {
+                        start.await()
+                        if (views.get(outcome.stream) == null) {
+                            missed.incrementAndGet()
+                        }
+                    }
+                    val recorder = pool.submit {
+                        start.await()
+                        views.record(cartModel(), outcome)
+                        views.forget(ref)
+                    }
+                    reader.get()
+                    recorder.get()
+                    views.pass(SNAPSHOT, ref, 2)
+                    views.pass(PROJECTION, ref, 2)
+                }
+            } finally {
+                pool.shutdownNow()
+            }
+            missed.get().assert().isEqualTo(0)
         }
 
     @Test
@@ -226,5 +269,6 @@ class StateViewsTest {
     private companion object {
         const val SNAPSHOT = "snapshot"
         const val PROJECTION = "View.onEvent"
+        const val RACES = 20_000
     }
 }
