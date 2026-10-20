@@ -1064,6 +1064,7 @@ public final class me/ahoo/wow/query/schema/EventStreamFields {
 	public static final field OWNER_ID Ljava/lang/String;
 	public static final field REQUEST_ID Ljava/lang/String;
 	public static final field SPACE_ID Ljava/lang/String;
+	public static final field TAGS Ljava/lang/String;
 	public static final field TENANT_ID Ljava/lang/String;
 	public static final field VERSION Ljava/lang/String;
 }

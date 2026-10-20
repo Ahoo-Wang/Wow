@@ -168,7 +168,11 @@ internal object PostgresEventQueryLayout {
                 .put("crossScope", row.getBoolean("operator_cross_scope"))
         }
         val tags = row.getString("tags")
-        if (tags == null) putNull(EventStreamFields.TAGS) else set(EventStreamFields.TAGS, WowJson.mapper.readTree(tags))
+        if (tags == null) {
+            putNull(EventStreamFields.TAGS)
+        } else {
+            set(EventStreamFields.TAGS, WowJson.mapper.readTree(tags))
+        }
         if (projection.keepsEvents()) {
             val events = putArray(EventStreamFields.EVENTS)
             WowJson.mapper.readTree(row.getString("events")).forEach { event ->

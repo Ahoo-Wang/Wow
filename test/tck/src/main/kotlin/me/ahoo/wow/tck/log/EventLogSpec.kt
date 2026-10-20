@@ -49,6 +49,7 @@ import java.util.UUID
  * The [EventLog] contract (documentation/designs/v10/03-log-and-snapshot.md §1) every backend passes. A backend's
  * test extends it and supplies a fresh, empty log from [createLog].
  */
+@Suppress("LargeClass") // One contract, one test per rule.
 abstract class EventLogSpec {
     /** A new, empty log of bounded context [context] with [partitions] partitions. */
     protected abstract fun createLog(context: String, partitions: Int): EventLog

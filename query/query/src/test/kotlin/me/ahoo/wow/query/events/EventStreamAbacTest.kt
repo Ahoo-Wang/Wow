@@ -80,7 +80,8 @@ class EventStreamAbacTest {
             Caller(tenantId = TENANT, attributes = tags.associate { (key, values) -> "abac.$key" to values }),
             entry = QueryEntry.HTTP,
         )
-        val sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC), Sort(QueryField("version"), Sort.Direction.ASC))
+        val sort =
+            listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC), Sort(QueryField("version"), Sort.Direction.ASC))
         return gateway.list(ListQuery(MatchAllFilter, sort = sort, limit = 100), caller).toList()
             .map { "${it["aggregateId"].asString()}@${it["version"].asInt()}" }
     }

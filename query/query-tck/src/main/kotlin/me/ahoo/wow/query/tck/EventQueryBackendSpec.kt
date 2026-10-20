@@ -319,9 +319,9 @@ abstract class EventQueryBackendSpec {
     @Test
     fun `a record shows the tags its stream recorded, null when it recorded none`() = blocking {
         val records = given(taggedStreams()).list(ListQuery(MatchAllFilter, limit = MAX_LIST)).associateBy { it.key() }
-        records.getValue("o1@1").path("tags").path("region").toList().map { it.stringValue() }.assert().containsExactly("east")
-        records.getValue("o1@2").path("tags").path("region").toList().map { it.stringValue() }.assert()
-            .containsExactly("west", "north")
+        fun regions(key: String) = records.getValue(key).path("tags").path("region").toList().map { it.stringValue() }
+        regions("o1@1").assert().containsExactly("east")
+        regions("o1@2").assert().containsExactly("west", "north")
         records.getValue("o1@3").path("tags").let { (it.isObject && it.isEmpty).assert().describedAs("$it").isTrue() }
         records.getValue("o2@1").path("tags").isNull.assert().isTrue()
         Unit
