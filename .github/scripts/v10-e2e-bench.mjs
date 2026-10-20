@@ -63,6 +63,14 @@ export const DATASETS = {
   '1M': { accounts: 1000000, seedConcurrency: 512 },
 };
 
+// Priming (D224 note ⑤): from PRIME_FROM accounts up, every run touches each seeded account once before its warm-up
+// (bench.sh --prime), untimed, so the measured window is not still filling the caches; at uniform keys and a few
+// hundred operations a second, a warm-up alone touches only a small share of 100k aggregates. A suite marked `cold`
+// is never primed. The node keeps STATE_CACHE aggregates per context (V10's default `wow.state-cache.capacity`):
+// above that, the steady state a run reaches, primed or not, is a full cache with evictions, which the report says.
+export const PRIME_FROM = 100000;
+export const STATE_CACHE = 4096;
+
 // The E3 latency suspects on MongoDB (H1 to H5 of the E3 analysis): a rate
 // sweep, then one key toggled at a time at the middle rate.
 const DIAG_RATE = 20;
@@ -185,6 +193,7 @@ export const SUITES = {
     group: 'head',
     kind: 'fixed',
     dataset: '1M',
+    cold: true,
     distribution: 'uniform',
     runs: [
       { arm: HEAD_MONGO, rate: 200, scenario: 'E1' },
@@ -197,6 +206,7 @@ export const SUITES = {
     group: 'head',
     kind: 'fixed',
     dataset: '1M',
+    cold: true,
     distribution: 'uniform',
     runs: [
       { arm: HEAD_PG, rate: 200, scenario: 'E1' },
@@ -901,7 +911,10 @@ export function metrics(result) {
     p50: latency.p50,
     p95: latency.p95,
     p99: latency.p99,
-    p999: latency.p999,
+    // p99.9 only with at least P999_TAIL samples beyond it, else undefined (shown n/a).
+    p999: (results.ok ?? 0) * 0.001 >= P999_TAIL ? latency.p999 : undefined,
+    primed: result?.meta?.primed === 'true',
+    primeSeconds: Number(result?.meta?.primeSeconds) || undefined,
     worstSecondP99: results.worstSecondP99Ms,
     serverCores,
     containers,
@@ -930,6 +943,9 @@ export function halves(okSeries, p99Series) {
     p99Ratio: p99First > 0 ? p99Second / p99First : undefined,
   };
 }
+
+/** The tail samples p99.9 needs to be reported: a thousand beyond it, so a run of a million operations. */
+export const P999_TAIL = 1000;
 
 /** The metrics compared between the two arms of a pair, and whether higher is better. */
 export const RATIO_METRICS = [
@@ -1015,6 +1031,7 @@ const median = values => {
 // confidence interval of a ratio comes from a bootstrap over the measured seconds of both arms' runs in that mode:
 // the mean per-second throughput, the median per-second p50 and p99.
 export const NOISE_FLOOR = 0.02;
+export const AA_ROUNDS = 4;
 export const BOOTSTRAP = { resamples: 1000, seed: 20261020 };
 export const SIGNIFICANCE_METRICS = [
   ['throughput', 'okSeries', 'mean'],
@@ -1070,23 +1087,35 @@ export function confidence(suite, mode) {
   );
   const pool = (id, key) =>
     runs.filter(run => run.arm === id).flatMap(run => run.metrics[key] ?? []);
+  // A latency's point estimate is the median of the rounds' own percentiles (each from the run's whole histogram);
+  // its interval comes from the bootstrap over the measured seconds.
+  const perRound = (id, metric) =>
+    median(runs.filter(run => run.arm === id).map(run => run.metrics[metric]));
   return Object.fromEntries(
-    SIGNIFICANCE_METRICS.map(([metric, key, statistic]) => [
-      metric,
-      bootstrapRatio(pool(a, key), pool(b, key), statistic),
-    ]),
+    SIGNIFICANCE_METRICS.map(([metric, key, statistic]) => {
+      const interval = bootstrapRatio(pool(a, key), pool(b, key), statistic);
+      if (!interval || metric === 'throughput') return [metric, interval];
+      const pa = perRound(a, metric);
+      const pb = perRound(b, metric);
+      return [
+        metric,
+        { ...interval, point: pa > 0 ? pb / pa : interval.point },
+      ];
+    }),
   );
 }
 
-/** An A/A suite's noise per metric: the largest |ratio - 1| of its pairs in either mode, at least NOISE_FLOOR. */
+/**
+ * An A/A suite's noise per significance metric: the half-width of the 95% bootstrap interval of its equal-rate
+ * ratio (the head against itself at one rate, AA_ROUNDS rounds), at least NOISE_FLOOR.
+ */
 export function noiseOf(suite) {
-  const all = [...pairs(suite, CALIBRATED), ...pairs(suite, EQUAL)];
+  const intervals = confidence(suite, EQUAL);
   return Object.fromEntries(
-    RATIO_METRICS.map(([key]) => {
-      const deviations = all
-        .map(pair => Math.abs((pair.ratios[key] ?? NaN) - 1))
-        .filter(Number.isFinite);
-      return [key, Math.max(NOISE_FLOOR, ...deviations)];
+    SIGNIFICANCE_METRICS.map(([metric]) => {
+      const interval = intervals[metric];
+      const half = interval ? (interval.hi - interval.lo) / 2 : NaN;
+      return [metric, Math.max(NOISE_FLOOR, Number.isFinite(half) ? half : 0)];
     }),
   );
 }
@@ -1253,7 +1282,7 @@ function runTable(runs) {
       .join(' · ');
     lines.push(
       `| ${run.name} | ${run.arm} | ${num(run.rate)}/s | ${num(m.throughput)}/s | ${m.ok} | ${m.failed} | ` +
-        `${ms(m.p50)} | ${ms(m.p95)} | ${ms(m.p99)} | ${ms(m.p999)} | ${ms(m.worstSecondP99)} | ` +
+        `${ms(m.p50)} | ${ms(m.p95)} | ${ms(m.p99)} | ${Number.isFinite(m.p999) ? ms(m.p999) : 'n/a'} | ${ms(m.worstSecondP99)} | ` +
         // A hand-over run's server CPU is not measured: the sampler's ps fails once the stopped node is gone.
         `${run.handover ? '-' : `${num(m.serverCores, 2)} cores`} | ${containers || '-'} | ` +
         `${Number.isFinite(m.loadGeneratorCores) ? `${num(m.loadGeneratorCores, 2)} of ${m.loadGeneratorCpus}` : '-'} | ` +
@@ -1294,6 +1323,29 @@ function pairTable(suite, mode) {
   ];
 }
 
+/** What a suite's runs started from: primed or not, and whether its accounts fit the node's state cache. */
+function primingLines(suite) {
+  if (!suite.accounts || suite.kind === 'component') return [];
+  const seconds = range(
+    [...(suite.runs ?? []), ...(suite.probes ?? [])].map(
+      run => run.metrics?.primeSeconds,
+    ),
+  );
+  const lines = [
+    suite.primed
+      ? `Primed: every run touched each of the ${suite.accounts} accounts once before its warm-up, untimed${seconds ? ` (${num(seconds.min, 0)}–${num(seconds.max, 0)} s)` : ''}.`
+      : suite.cold
+        ? `Cold: not primed on purpose; the caches start empty and the keys are uniform over ${suite.accounts} accounts.`
+        : `Not primed: ${suite.accounts} accounts, below ${PRIME_FROM}.`,
+  ];
+  if (suite.accounts > STATE_CACHE) {
+    lines.push(
+      `The accounts exceed the node's state cache (${STATE_CACHE} per context, \`wow.state-cache.capacity\`): the steady state is a full cache with evictions.`,
+    );
+  }
+  return [...lines, ''];
+}
+
 /** The Markdown summary of one suite. */
 export function renderSuite(suite) {
   const definition = SUITES[suite.name];
@@ -1311,6 +1363,7 @@ export function renderSuite(suite) {
         : '') +
       `. Runner: ${suite.runner?.cpu ?? '?'}, ${suite.runner?.cores ?? '?'} cores.`,
     '',
+    ...primingLines(suite),
   ];
   const arms = suite.arms.filter(arm => arm.props);
   if (arms.length > 0) {
@@ -1509,8 +1562,11 @@ export function runSuite(name, options) {
   mkdirSync(out, { recursive: true });
   const data = DATASETS[dataset];
   if (!data) throw new Error(`Unknown data set: ${dataset}`);
-  // An A/A run puts the head against itself in a baseline suite: the spread of its ratios is the suite's noise.
+  // An A/A run puts the head against itself in a baseline suite, at least AA_ROUNDS rounds: the width of its
+  // equal-rate ratios' intervals is the suite's noise.
   const aaRun = aa && definition.group === 'ab';
+  const rounds = aaRun ? Math.max(repeats, AA_ROUNDS) : repeats;
+  const primed = data.accounts >= PRIME_FROM && !definition.cold;
   const arms =
     definition.kind === 'paired'
       ? aaRun
@@ -1543,6 +1599,8 @@ export function runSuite(name, options) {
     p99LimitMs,
     dataset,
     accounts: data.accounts,
+    primed,
+    cold: definition.cold === true,
     aa: aaRun,
     arms,
     refs,
@@ -1574,6 +1632,7 @@ export function runSuite(name, options) {
     `--distribution=${definition.distribution}`,
     `--accounts=${data.accounts}`,
     `--seed-concurrency=${data.seedConcurrency}`,
+    ...(primed ? ['--prime'] : []),
     ...(cpus.load ? [`--load-cpus=${cpus.load}`] : []),
     ...(cpus.server ? [`--server-cpus=${cpus.server}`] : []),
   ];
@@ -1719,6 +1778,7 @@ export function runSuite(name, options) {
         round(index, firstMode, own, 'r');
       if (
         repeats >= 2 &&
+        !aaRun &&
         firstMode === CALIBRATED &&
         drifted(suite.runs, runnable)
       ) {
@@ -1731,7 +1791,7 @@ export function runSuite(name, options) {
     if (!definition.sharedRate && arms.length === 2 && equal) {
       suite.equalRate = equal;
       save();
-      for (let index = 0; index < repeats; index++)
+      for (let index = 0; index < rounds; index++)
         round(index, EQUAL, () => equal, 'e');
     } else if (definition.sharedRate && suite.rates[arms[0].id]) {
       suite.equalRate = suite.rates[arms[0].id];
@@ -2022,13 +2082,13 @@ export function renderReport(suites, meta = {}) {
     lines.push(
       '## A/A noise',
       '',
-      'The head against itself: the largest deviation from 1 of each metric over the pairs, at least 2%. The report writes these as noise.json; commit it as wow-benchmarks/e2e/noise.json to make them the thresholds of later runs.',
+      `The head against itself at one rate, ${AA_ROUNDS} rounds or more: each metric's threshold is the half-width of the 95% bootstrap interval of its ratio, at least 2%. The report writes these as noise.json; commit it as wow-benchmarks/e2e/noise.json to make them the thresholds of later runs.`,
       '',
-      `| Suite | ${RATIO_METRICS.map(([, label]) => label).join(' | ')} |`,
-      `| --- | ${RATIO_METRICS.map(() => '---').join(' | ')} |`,
+      `| Suite | ${SIGNIFICANCE_METRICS.map(([metric]) => metric).join(' | ')} |`,
+      `| --- | ${SIGNIFICANCE_METRICS.map(() => '---').join(' | ')} |`,
       ...aaSuites.map(suite => {
         const n = noiseOf(suite);
-        return `| ${labelOf(suite)} | ${RATIO_METRICS.map(([key]) => `±${num(n[key] * 100)}%`).join(' | ')} |`;
+        return `| ${labelOf(suite)} | ${SIGNIFICANCE_METRICS.map(([metric]) => `±${num(n[metric] * 100)}%`).join(' | ')} |`;
       }),
       '',
     );

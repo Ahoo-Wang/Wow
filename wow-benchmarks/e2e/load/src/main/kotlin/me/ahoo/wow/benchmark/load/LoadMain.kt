@@ -31,6 +31,8 @@ import kotlin.system.exitProcess
  *
  * - `seed`: opens the accounts, each answered once its snapshot holds it;
  * - `check`: one operation of every scenario, each checked as a run checks it;
+ * - `prime`: an untimed pass that touches every seeded account once, so a run on a large data set measures warm
+ *   caches rather than filling them;
  * - `run`: one open-loop run of a scenario at a fixed rate, its results and resources written as JSON and Markdown;
  * - `saturate`: the closed-loop saturation finder.
  *
@@ -53,6 +55,7 @@ fun main(args: Array<String>) {
     val status = when (command) {
         "seed" -> seed(client, targets, options)
         "check" -> check(client, targets, options)
+        "prime" -> prime(client, targets, options)
         "run" -> run(client, targets, options)
         "saturate" -> saturate(client, targets, options)
         else -> usage()
@@ -65,6 +68,7 @@ private const val CONNECT_TIMEOUT_SECONDS = 5L
 private const val DEFAULT_ACCOUNTS = 1_000
 private const val DEFAULT_BALANCE = 1_000_000_000_000L
 private const val DEFAULT_SEED_CONCURRENCY = 32
+private const val PRIME_CONCURRENCY = 256
 private const val DEFAULT_SEED = 20_261_015L
 private const val PERCENT = 100.0
 private const val MICROS_PER_MILLI = 1_000.0
@@ -74,6 +78,7 @@ private fun usage(): Nothing {
         """
         usage: e2e-bench-load <seed|check|run|saturate> --version=9x|v10 --targets=http://host:port[,…] [options]
           seed:     --accounts=1000 --concurrency=32 --balance=1000000000000
+          prime:    --accounts=1000 --concurrency=256 [--scenario=… | --mix=…] --out=<dir>
           check:    --accounts=1000 [--scenario=… | --mix=…: only those]
           run:      --scenario=E1|E1-large|E2|E3|E4-state|E4-list (or --mix=E1:50,E4-state:40,E4-list:10) --rate=<ops/s>
                     --warm-up=30 --measure=60
@@ -117,6 +122,55 @@ private fun seed(client: Client, targets: List<URI>, options: Options): Int {
     println("[seed] ${client.adapter.name}: $accounts accounts in ${"%.1f".format(seconds)}s, ${failures.get()} failed")
     firstFailure.get()?.let { println("[seed] first failure: $it") }
     return if (failures.get() == 0) 0 else 1
+}
+
+/**
+ * The priming pass (D224 note ⑤): every seeded account once, `concurrency` at a time, closed loop and untimed. Each
+ * account takes a deposit answered once stored, which brings its aggregate into the node's state cache and its pages
+ * into the store's; when the run reads (E2, E4), a state read of it too. A data set above the state cache's capacity
+ * ends full, with evictions, which is the steady state such a run measures. Writes `prime.json` (the accounts, the
+ * seconds, the failures) to `--out`.
+ */
+private fun prime(client: Client, targets: List<URI>, options: Options): Int {
+    val accounts = options.int("accounts", DEFAULT_ACCOUNTS)
+    val permits = Semaphore(options.int("concurrency", PRIME_CONCURRENCY))
+    val scenarios = options.optional("mix")?.let(Mix::parse)?.parts?.map { it.first }
+        ?: options.optional("scenario")?.let { label -> Scenario.entries.firstOrNull { it.label.equals(label, true) } }
+            ?.let(::listOf)
+        ?: listOf(Scenario.E1)
+    val reads = scenarios.any { it == Scenario.E2 || it == Scenario.E4_STATE || it == Scenario.E4_LIST }
+    val failures = AtomicInteger()
+    val started = System.nanoTime()
+    val futures = (0 until accounts).map { index ->
+        permits.acquire()
+        val target = targets[index % targets.size]
+        val id = accountId(index)
+        client.command(client.adapter.deposit(target, id, 1, Wait.STORED))
+            .thenCompose { error ->
+                if (reads && error == null) {
+                    client.read(client.adapter.state(target, id))
+                } else {
+                    CompletableFuture.completedFuture(error)
+                }
+            }
+            .handle { error, failure ->
+                if (error != null || failure != null) failures.incrementAndGet()
+                permits.release()
+            }
+    }
+    CompletableFuture.allOf(*futures.toTypedArray()).join()
+    val seconds = (System.nanoTime() - started) / OpenLoop.NANOS_PER_SECOND.toDouble()
+    val withReads = if (reads) " (with reads)" else ""
+    println(
+        "[prime] ${client.adapter.name}: $accounts accounts in ${"%.1f".format(seconds)}s$withReads, " +
+            "${failures.get()} failed",
+    )
+    options.optional("out")?.let {
+        File(it).apply { mkdirs() }.resolve("prime.json").writeText(
+            Json.write(mapOf("accounts" to accounts, "seconds" to seconds, "reads" to reads, "failed" to failures.get())) + "\n",
+        )
+    }
+    return 0
 }
 
 /** Sends one operation of each scenario, as a run would, and says whether each reached its completion point. */

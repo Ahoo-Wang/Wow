@@ -373,7 +373,7 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
   );
   assert.match(
     calls,
-    /saturate --version=v10 --backend=mongo --install=\/builds\/base\/e2e-bench-v10 --scenario=E1 --distribution=uniform --accounts=100000 --seed-concurrency=256 --warm-up=3 --step=8/,
+    /saturate --version=v10 --backend=mongo --install=\/builds\/base\/e2e-bench-v10 --scenario=E1 --distribution=uniform --accounts=100000 --seed-concurrency=256 --prime --warm-up=3 --step=8/,
   );
   assert.match(
     calls,
@@ -513,7 +513,7 @@ test('a cluster suite runs three nodes steady and with a hand-over', () => {
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
   assert.match(
     calls,
-    /run --version=v10 --backend=postgres --scenario=E1 --distribution=uniform --accounts=100000 --seed-concurrency=256 --nodes=3 --rate=150\.0 --warm-up=15 --measure=90/,
+    /run --version=v10 --backend=postgres --scenario=E1 --distribution=uniform --accounts=100000 --seed-concurrency=256 --prime --nodes=3 --rate=150\.0 --warm-up=15 --measure=90/,
   );
   // The hand-over helper ran beside bench.sh and logged what it did (here it finds no node to stop).
   assert.match(
@@ -728,11 +728,19 @@ test('A/A runs give the noise thresholds; bootstrap intervals decide what clears
     calls,
     /--accounts=1000 --seed-concurrency=32 --load-cpus=3 --server-cpus=0-2/,
   );
+  // At 1k the runs are not primed; an A/A run takes at least 4 equal-rate rounds and no drift round.
+  assert.equal(suite.primed, false);
+  assert.doesNotMatch(calls, /--prime/);
+  assert.equal(suite.runs.filter(run => run.mode === 'equal').length, 8);
+  assert.equal(suite.extraRound, undefined);
   const noise = noiseFile([suite], { 'e3-pg@100k': { p99: 0.1 } });
   assert.deepEqual(Object.keys(noise), ['e3-pg@100k', 'e1-mongo-uniform@1k']);
-  // The fake's first round is 10% slower in p99 on the head: the p99 noise is that 10%.
-  assert.ok(Math.abs(noise['e1-mongo-uniform@1k'].p99 - 0.1) < 1e-9);
-  assert.equal(noise['e1-mongo-uniform@1k'].throughput, 0.02);
+  // The thresholds are the equal-rate intervals' half-widths, at least 2%: identical arms there give the floor.
+  assert.deepEqual(noise['e1-mongo-uniform@1k'], {
+    throughput: 0.02,
+    p50: 0.02,
+    p99: 0.02,
+  });
   const report = renderReport([suite], { noise: {} });
   assert.match(report, /## A\/A noise/);
   assert.match(report, /e1-mongo-uniform@1k \(A\/A: head against head\)/);
@@ -890,6 +898,9 @@ test('a cold suite runs at a million accounts whatever the job says', () => {
     dataset: '100k',
   });
   assert.equal(suite.dataset, '1M');
+  // Cold on purpose: a million accounts, never primed.
+  assert.equal(suite.primed, false);
+  assert.doesNotMatch(readFileSync(join(dir, 'calls.log'), 'utf8'), /--prime/);
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
   assert.match(
     calls,
@@ -933,4 +944,61 @@ test('profile adds one recorded run per arm after the timed rounds', () => {
     suite.runs.filter(run => run.name.startsWith('profile')),
     [],
   );
+});
+
+test('large data sets are primed before every run; small ones are not; the report says what each started from', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'v10-e2e-bench-'));
+  const benchPath = fakeBench(dir);
+  const options = {
+    benchPath,
+    warmUp: 1,
+    measure: 5,
+    repeats: 1,
+    fraction: 0.8,
+    installs: { base: '/b' },
+  };
+  const big = runSuite('e1-pg-uniform', {
+    ...options,
+    dataset: '100k',
+    out: join(dir, 'big'),
+  });
+  assert.equal(big.primed, true);
+  const small = runSuite('e1-pg-uniform', {
+    ...options,
+    dataset: '1k',
+    out: join(dir, 'small'),
+  });
+  assert.equal(small.primed, false);
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8')
+    .split('\n')
+    .filter(Boolean);
+  assert.ok(
+    calls
+      .filter(line => line.includes('/big/'))
+      .every(line => line.includes('--prime')),
+  );
+  assert.ok(
+    calls
+      .filter(line => line.includes('/small/'))
+      .every(line => !line.includes('--prime')),
+  );
+  const report = renderReport([big, small]);
+  assert.match(
+    report,
+    /Primed: every run touched each of the 100000 accounts once before its warm-up/,
+  );
+  assert.match(report, /exceed the node's state cache \(4096 per context/);
+  assert.match(report, /Not primed: 1000 accounts, below 100000\./);
+});
+
+test('p99.9 is reported only with a thousand tail samples', () => {
+  const few = metrics({ results: { ok: 40000, latencyMs: { p999: 50 } } });
+  assert.equal(few.p999, undefined);
+  const many = metrics({ results: { ok: 1000000, latencyMs: { p999: 50 } } });
+  assert.equal(many.p999, 50);
+  const primed = metrics({
+    results: {},
+    meta: { primed: 'true', primeSeconds: '35' },
+  });
+  assert.deepEqual([primed.primed, primed.primeSeconds], [true, 35]);
 });

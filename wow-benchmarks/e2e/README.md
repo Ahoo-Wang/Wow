@@ -125,7 +125,9 @@ Named `suites` replace the tier's list. Each suite runs at the tier's data sets:
 - `100k`, the default from L2 up;
 - `1M`, cold.
 
-L3 runs its grid at 1k and 100k; `dataset` replaces the tier's sets. The other defaults are 30 s warm-up (at least 30 s from L2 up, D224 note ⑤), 40 s measured, 2 rounds, 80% of saturation before calibration, and a p99 limit of 200 ms for the sustainable rates. The baseline is the newest `v10.*` release tag that has `bench-v10/`; without one, and without `base_ref`, the baseline suites are skipped and the report says so. To change any of this, commit `wow-benchmarks/e2e/bench-run.json` on the run branch:
+L3 runs its grid at 1k and 100k; `dataset` replaces the tier's sets.
+
+From 100k accounts up, every run is **primed** (`bench.sh --prime`, D224 note ⑤): before its warm-up, an untimed closed-loop pass touches each seeded account once, a deposit and, when the run reads, a state read. Otherwise the measured window would still be filling the caches, because at uniform keys and a few hundred operations a second a warm-up touches only a small share of the aggregates. The report records whether each suite was primed and how long priming took. The cold suites are never primed, and the report labels them cold. Above the node's state cache (V10's default `wow.state-cache.capacity`, 4096 aggregates per context), the steady state is a full cache with evictions, which priming reaches too; the report says so. If a primed run still trips the stability check, that is a finding. The other defaults are 30 s warm-up (at least 30 s from L2 up, D224 note ⑤), 40 s measured, 2 rounds, 80% of saturation before calibration, and a p99 limit of 200 ms for the sustainable rates. The baseline is the newest `v10.*` release tag that has `bench-v10/`; without one, and without `base_ref`, the baseline suites are skipped and the report says so. To change any of this, commit `wow-benchmarks/e2e/bench-run.json` on the run branch:
 
 ```json
 { "tier": "L4", "base_ref": "v10.0.0-beta.1", "p99_limit_ms": 500 }
@@ -164,6 +166,8 @@ Every comparison is a pair measured on the same runner, so the ratios hold acros
 
 Every V10 run sets `bench.signals.enabled=true`. With it, the benchmark server's `BenchSignals` observer (`bench-v10/.../BenchSignals.kt`, the one file without a 9.x twin) logs the node's cumulative overload and fallback counts once a second, as `bench-signals {json}` in the node log. It counts the tails' store reads by reason, refused commands by code, timed-out waits by stage, dropped signals, failed forwards, and paused and resumed partitions.
 
+p99.9 is reported only when a run has at least 1000 samples beyond it (a million operations); otherwise it shows `n/a`.
+
 The report reads every node's last such line and flags these anomalies:
 
 - a partition paused (D243);
@@ -185,5 +189,5 @@ With `"profile": true`, every paired suite adds one more run per arm after its t
 
 Significance (D224 note ②) works in two steps:
 
-1. An A/A run (`"aa": true`) measures the head against itself in the baseline suites. The largest deviation from 1 of each metric over its pairs, at least 2%, becomes the suite's noise threshold. The report writes these thresholds as `noise.json`; committed as `wow-benchmarks/e2e/noise.json`, they apply to later runs.
-2. The report's Significance table gives each ratio a 95% bootstrap interval over the measured seconds: throughput at the calibrated rates, p50 and p99 at the equal rate. A ratio counts as higher or lower only when its interval clears the threshold; without a threshold it is marked `uncalibrated`. Each job uploads its results, server logs and summary, and the report job combines them into `report.md`, anomalies first.
+1. An A/A run (`"aa": true`) measures the head against itself in the baseline suites, with at least 4 equal-rate rounds. For each metric (throughput, p50, p99), the half-width of the 95% bootstrap interval of its A/A ratio, at least 2%, becomes the suite's noise threshold. The report writes these thresholds as `noise.json`; committed as `wow-benchmarks/e2e/noise.json`, they apply to later runs.
+2. The report's Significance table gives each ratio a 95% bootstrap interval over the measured seconds: throughput at the calibrated rates, p50 and p99 at the equal rate. A latency's point estimate is the median of the rounds' own percentiles, each from the run's whole histogram. A ratio counts as higher or lower only when its interval clears the threshold; without a threshold it is marked `uncalibrated`. Each job uploads its results, server logs and summary, and the report job combines them into `report.md`, anomalies first.
