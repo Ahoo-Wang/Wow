@@ -155,6 +155,38 @@ const integer = (name, value, min, max) => {
   return number;
 };
 
+// The run's settings when a push to `v10-bench-run/**` starts it: the defaults, over which
+// wow-benchmarks/e2e/bench-run.json at the pushed commit may set any of these keys.
+export const DEFAULTS = {
+  suites: 'all',
+  warm_up: '20',
+  measure: '40',
+  repeats: '2',
+  fraction: '0.8',
+  baseline_ref: 'v10-9x-baseline',
+};
+
+/** The settings of a run: the dispatch inputs, or for a push the defaults with the run file's keys over them. */
+export function runSettings({ event, inputs = {}, config }) {
+  if (event !== 'push') {
+    const given = Object.entries(inputs).filter(
+      ([, value]) => value !== undefined && value !== '',
+    );
+    return { ...DEFAULTS, ...Object.fromEntries(given) };
+  }
+  const unknown = Object.keys(config ?? {}).filter(key => !(key in DEFAULTS));
+  if (unknown.length > 0) {
+    throw new Error(
+      `Unknown key(s) in bench-run.json: ${unknown.join(', ')}; known: ${Object.keys(DEFAULTS).join(', ')}`,
+    );
+  }
+  const settings = { ...DEFAULTS };
+  for (const [key, value] of Object.entries(config ?? {})) {
+    settings[key] = Array.isArray(value) ? value.join(',') : String(value);
+  }
+  return settings;
+}
+
 /** The dispatch inputs, checked; `suites` is `all` or names separated by commas or spaces. */
 export function resolveInputs({ suites, warmUp, measure, repeats, fraction }) {
   const names =
@@ -783,14 +815,31 @@ if (
   };
   try {
     if (command === 'plan') {
+      const config =
+        env.CONFIG && existsSync(env.CONFIG) ? readJson(env.CONFIG) : undefined;
+      const settings = runSettings({
+        event: env.EVENT,
+        config,
+        inputs: {
+          suites: env.SUITES,
+          warm_up: env.WARM_UP,
+          measure: env.MEASURE,
+          repeats: env.REPEATS,
+          fraction: env.FRACTION,
+          baseline_ref: env.BASELINE_REF,
+        },
+      });
+      if (config && env.EVENT === 'push')
+        console.log(`bench-run.json: ${JSON.stringify(config)}`);
       const inputs = resolveInputs({
-        suites: env.SUITES,
-        warmUp: env.WARM_UP,
-        measure: env.MEASURE,
-        repeats: env.REPEATS,
-        fraction: env.FRACTION,
+        suites: settings.suites,
+        warmUp: settings.warm_up,
+        measure: settings.measure,
+        repeats: settings.repeats,
+        fraction: settings.fraction,
       });
       output({
+        'baseline-ref': settings.baseline_ref,
         suites: JSON.stringify(inputs.suites),
         'warm-up': inputs.warmUp,
         measure: inputs.measure,

@@ -100,4 +100,24 @@ On one machine every service, store and the load generator share the CPU: result
 
 ## Running it on GitHub Actions
 
-The timed measurements need a machine to themselves for hours, so `.github/workflows/v10-e2e-bench.yml` runs them on GitHub's runners, dispatched by hand ("Run workflow", or `gh workflow run v10-e2e-bench.yml --ref v10`). It builds the 9.x server from `baseline_ref` (by default `v10-9x-baseline`, the last commit of `v10` with the 9.x code, D262) and the V10 server from `head_ref`, then runs each suite in a job of its own (`.github/scripts/v10-e2e-bench.mjs` drives `bench.sh`): it finds each arm's saturation (closed loop, 3 s warm-up and 8 s steps), then runs the arms alternately at `fraction` of their saturation for `repeats` rounds, one more when two runs of an arm differ by more than 5% in throughput or p99. Comparisons are pairs measured on the same runner, so the ratios hold across runners while the absolute numbers are the runner's. A run's server properties reach the servers as `SPRING_APPLICATION_JSON`, which they inherit from `bench.sh`'s environment. Each job uploads its results and summary; the report job combines them into `report.md`.
+The timed measurements need a machine to themselves for hours, so `.github/workflows/v10-e2e-bench.yml` runs them on GitHub's runners. A run starts when a branch under `v10-bench-run/` is pushed, and the V10 server is built from the pushed commit:
+
+```bash
+git push origin v10:v10-bench-run/20261020
+```
+
+The defaults are every suite, 20 s warm-up, 40 s measured, 2 rounds, 80% of saturation, and the 9.x server built from `v10-9x-baseline` (the last commit of `v10` with the 9.x code, D262). To change them, commit `wow-benchmarks/e2e/bench-run.json` on the run branch with any of these keys:
+
+```json
+{ "suites": ["e1-mongo-uniform", "e1-mongo-zipf"], "warm_up": 20, "measure": 40, "repeats": 3, "fraction": 0.8, "baseline_ref": "v10-9x-baseline" }
+```
+
+The suites are `e1-mongo-uniform`, `e1-mongo-zipf`, `e1-pg-uniform`, `e2-mongo`, `e3-mongo`, `e3-pg`, `e3-mongo-diag` and `pg-append-queue`. When the run has finished, delete the branch (its results stay with the run):
+
+```bash
+git push origin --delete v10-bench-run/20261020
+```
+
+The workflow can also be dispatched by hand, with the same settings as inputs, once a copy of the file is on the default branch: GitHub only dispatches workflows that are there. Runs queue one behind another.
+
+Each suite runs in a job of its own (`.github/scripts/v10-e2e-bench.mjs` drives `bench.sh`). First it finds each arm's saturation: closed loop, 3 s warm-up, 8 s steps. Then it runs the arms alternately at `fraction` of their saturation for the set number of rounds, and adds one more round when two runs of an arm differ by more than 5% in throughput or p99. Every comparison is a pair measured on the same runner, so the ratios hold across runners; the absolute numbers belong to that runner. Server properties for a run reach the servers as `SPRING_APPLICATION_JSON`, which they inherit from `bench.sh`'s environment. Each job uploads its results and its summary, and the report job combines them into `report.md`.

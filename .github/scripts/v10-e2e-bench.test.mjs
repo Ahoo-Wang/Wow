@@ -18,6 +18,7 @@ import {
   renderReport,
   resolveInputs,
   roundOrder,
+  runSettings,
   runSuite,
   spread,
   SUITES,
@@ -267,4 +268,25 @@ test('a failed bench.sh step is recorded and counted', () => {
   assert.equal(suite.saturation['v10-pg'].status, 'failed');
   assert.equal(suite.runs.length, 0);
   assert.match(renderReport([suite]), /Failed steps:\*\* e3-pg \(1\)/);
+});
+
+test('runSettings: dispatch inputs, or the defaults with the run file over them on a push', () => {
+  assert.equal(
+    runSettings({ event: 'workflow_dispatch', inputs: { repeats: '3' } })
+      .repeats,
+    '3',
+  );
+  assert.equal(runSettings({ event: 'push' }).baseline_ref, 'v10-9x-baseline');
+  const pushed = runSettings({
+    event: 'push',
+    inputs: { repeats: '' },
+    config: { suites: ['e3-pg', 'e1-mongo-zipf'], repeats: 3 },
+  });
+  assert.equal(pushed.suites, 'e3-pg,e1-mongo-zipf');
+  assert.equal(pushed.repeats, '3');
+  assert.equal(pushed.measure, '40');
+  assert.throws(
+    () => runSettings({ event: 'push', config: { head_ref: 'x' } }),
+    /Unknown key/,
+  );
 });

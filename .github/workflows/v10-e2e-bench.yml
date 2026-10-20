@@ -17,8 +17,13 @@
 # them and its load generator still drives 9.x, else from `baseline_ref`. Each suite runs in a job of its own, where
 # the arms (9.x and V10, or two V10 configurations) are measured alternately on the same runner, so the ratios survive
 # the variance between runners; steps: .github/scripts/v10-e2e-bench.mjs. The report job combines the suites into
-# report.md and the run summary. Dispatched by hand only: never on a pull request, a push or a schedule, and no merge
-# signal.
+# report.md and the run summary.
+#
+# A run starts when a branch `v10-bench-run/**` is pushed (`git push origin v10:v10-bench-run/<name>`): the V10 server
+# is built from the pushed commit, with the defaults, over which `wow-benchmarks/e2e/bench-run.json` at that commit
+# may set `suites`, `warm_up`, `measure`, `repeats`, `fraction` and `baseline_ref`. Delete the branch afterwards. It can
+# also be dispatched by hand once the file is on the default branch (GitHub dispatches only workflows that are there).
+# Never on a pull request or a schedule, and no merge signal.
 name: V10 E2E Benchmark
 on:
   workflow_dispatch:
@@ -51,16 +56,13 @@ on:
         description: "Open-loop rate as a share of each arm's saturation throughput"
         type: string
         default: '0.8'
-  # TEMPORARY, for the pull request's test run only (a dispatchable workflow must exist on the default branch first);
-  # removed before the pull request leaves draft.
   push:
-    branches: [v10-e2e-bench-workflow]
-    paths: [.github/workflows/v10-e2e-bench.yml]
+    branches: ['v10-bench-run/**']
 
 permissions:
   contents: read
 
-# One benchmark at a time: a second dispatch waits for the first rather than cancelling it.
+# One benchmark at a time: a second run waits for the first rather than cancelling it.
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
@@ -80,39 +82,56 @@ jobs:
       measure: ${{ steps.inputs.outputs.measure }}
       repeats: ${{ steps.inputs.outputs.repeats }}
       fraction: ${{ steps.inputs.outputs.fraction }}
+      baseline-ref: ${{ steps.inputs.outputs.baseline-ref }}
+      head-ref: ${{ steps.refs.outputs.head-ref }}
       baseline-sha: ${{ steps.refs.outputs.baseline-sha }}
       head-sha: ${{ steps.refs.outputs.head-sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          sparse-checkout: .github/scripts
+          sparse-checkout: |
+            /.github/scripts/
+            /wow-benchmarks/e2e/bench-run.json
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 24.21.0
-      - name: Check the inputs
+      - name: Check the settings
         id: inputs
         env:
-          SUITES: ${{ inputs.suites || 'all' }}
-          WARM_UP: ${{ inputs.warm_up || '20' }}
-          MEASURE: ${{ inputs.measure || '40' }}
-          REPEATS: ${{ inputs.repeats || '2' }}
-          FRACTION: ${{ inputs.fraction || '0.8' }}
+          EVENT: ${{ github.event_name }}
+          CONFIG: wow-benchmarks/e2e/bench-run.json
+          SUITES: ${{ inputs.suites }}
+          WARM_UP: ${{ inputs.warm_up }}
+          MEASURE: ${{ inputs.measure }}
+          REPEATS: ${{ inputs.repeats }}
+          FRACTION: ${{ inputs.fraction }}
+          BASELINE_REF: ${{ inputs.baseline_ref }}
         run: node .github/scripts/v10-e2e-bench.mjs plan
       # Both refs are pinned to their commits here, so every job builds and measures the same code.
       - name: Resolve the refs
         id: refs
         env:
           GH_TOKEN: ${{ github.token }}
-          BASELINE_REF: ${{ inputs.baseline_ref || 'v10-9x-baseline' }}
+          EVENT: ${{ github.event_name }}
+          BASELINE_REF: ${{ steps.inputs.outputs.baseline-ref }}
           HEAD_REF: ${{ inputs.head_ref || 'v10' }}
         run: |
           sha() {
             gh api "repos/$GITHUB_REPOSITORY/commits/$(jq -rn --arg ref "$1" '$ref | @uri')" --jq .sha
           }
+          if [ "$EVENT" = push ]; then
+            head_ref=$GITHUB_REF_NAME
+            head_sha=$GITHUB_SHA
+          else
+            head_ref=$HEAD_REF
+            head_sha=$(sha "$HEAD_REF")
+          fi
           {
             echo "baseline-sha=$(sha "$BASELINE_REF")"
-            echo "head-sha=$(sha "$HEAD_REF")"
+            echo "head-ref=$head_ref"
+            echo "head-sha=$head_sha"
           } | tee -a "$GITHUB_OUTPUT"
 
   # The servers' and the load generator's distributions (installDist), one job per side, packed as tarballs so the
@@ -179,8 +198,8 @@ jobs:
       matrix:
         suite: ${{ fromJSON(needs.plan.outputs.suites) }}
     env:
-      BASELINE_REF: ${{ inputs.baseline_ref || 'v10-9x-baseline' }}
-      HEAD_REF: ${{ inputs.head_ref || 'v10' }}
+      BASELINE_REF: ${{ needs.plan.outputs.baseline-ref }}
+      HEAD_REF: ${{ needs.plan.outputs.head-ref }}
       BASELINE_SHA: ${{ needs.plan.outputs.baseline-sha }}
       HEAD_SHA: ${{ needs.plan.outputs.head-sha }}
     steps:
