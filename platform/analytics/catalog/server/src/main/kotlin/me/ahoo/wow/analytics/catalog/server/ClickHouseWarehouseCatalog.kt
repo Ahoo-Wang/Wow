@@ -49,10 +49,16 @@ class ClickHouseWarehouseCatalog(
     override val engine: String = ENGINE
 
     override suspend fun tables(database: String): List<WarehouseTableInfo> = rows(
-        "SELECT name, toString(uuid) AS uuid, engine, toString(metadata_modification_time) AS modified " +
-            "FROM system.tables WHERE database = {database:String} AND $SOURCE_TABLES ORDER BY name",
+        "SELECT name, toString(uuid) AS uuid, engine, toString(metadata_modification_time) AS modified, " +
+            "toString(fingerprint) AS columns FROM system.tables " +
+            "LEFT JOIN (SELECT table, cityHash64(arraySort(groupArray((position, name, type)))) AS fingerprint " +
+            "FROM system.columns WHERE database = {database:String} GROUP BY table) AS columns " +
+            "ON columns.table = system.tables.name " +
+            "WHERE database = {database:String} AND $SOURCE_TABLES ORDER BY name",
         mapOf("database" to database),
-    ).map { WarehouseTableInfo(it.text("name"), it.text("uuid"), it.text("engine"), it.text("modified")) }
+    ).map {
+        WarehouseTableInfo(it.text("name"), it.text("uuid"), it.text("engine"), it.text("modified"), it.text("columns"))
+    }
 
     override suspend fun table(database: String, table: String): WarehouseTable? {
         val parameters = mapOf("database" to database, "table" to table)

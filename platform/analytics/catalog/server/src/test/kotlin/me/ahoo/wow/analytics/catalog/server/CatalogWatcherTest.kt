@@ -100,4 +100,23 @@ class CatalogWatcherTest {
         watcher.look().assert().isEqualTo(1)
         sent.map { it.second.table }.assert().containsExactly("bad", "down")
     }
+
+    @Test
+    fun `a table whose columns change in the same second as the last look is synced again`(): Unit = runBlocking {
+        val commands = Commands().apply { down = false }
+        var fingerprint = "f-1"
+        val altered = object : WarehouseCatalog by WarehouseCatalog.NONE {
+            override val connection: String = "ch"
+            override val databases: List<String> = listOf("db")
+
+            // The metadata time stays the same second: only the columns' fingerprint tells the ALTER.
+            override suspend fun tables(database: String): List<WarehouseTableInfo> =
+                listOf(WarehouseTableInfo("ok", "u-ok", "MergeTree", "2026-10-20 10:00:00", fingerprint))
+        }
+        val watcher = CatalogWatcher(altered, { commands }, Duration.ofSeconds(1))
+        watcher.look().assert().isEqualTo(1)
+        watcher.look().assert().isEqualTo(0)
+        fingerprint = "f-2"
+        watcher.look().assert().isEqualTo(1)
+    }
 }

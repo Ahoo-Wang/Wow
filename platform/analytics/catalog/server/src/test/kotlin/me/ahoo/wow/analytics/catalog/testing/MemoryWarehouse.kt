@@ -45,7 +45,8 @@ class MemoryWarehouse(override val connection: String = "warehouse") : Warehouse
     override suspend fun tables(database: String): List<WarehouseTableInfo> = tables.values
         .also { listings.incrementAndGet() }
         .filter { it.database == database }
-        .map { WarehouseTableInfo(it.name, it.uuid, it.tableEngine, it.columns.size.toString()) }
+        // A metadata time that never changes: the watcher tells a change by the columns' fingerprint.
+        .map { WarehouseTableInfo(it.name, it.uuid, it.tableEngine, "0", it.columns.hashCode().toString()) }
 
     override suspend fun table(database: String, table: String): WarehouseTable? = tables["$database.$table"]
 

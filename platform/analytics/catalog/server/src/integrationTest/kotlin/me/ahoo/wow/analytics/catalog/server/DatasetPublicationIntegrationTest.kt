@@ -175,9 +175,6 @@ class DatasetPublicationIntegrationTest {
                 .assert().containsExactly("o2")
 
             // A source's schema changes under the published view: its queries are refused, plainly, not failed.
-            // The catalog sees a table change by its metadata time, in seconds: change it in a later second than its
-            // creation.
-            Thread.sleep(SECOND)
             execute("ALTER TABLE $DATABASE.customers DROP COLUMN phone")
             eventually("the dataset needing revision") { node.post(QUERY, query, t1).status == CONFLICT }
             node.post(QUERY, query, t1).assertProblem(CONFLICT, "wow.query.dataset-unavailable").json["detail"]
@@ -237,6 +234,5 @@ class DatasetPublicationIntegrationTest {
         const val BAD_REQUEST = 400
         const val NOT_FOUND = 404
         const val CONFLICT = 409
-        const val SECOND = 1100L
     }
 }
