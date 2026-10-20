@@ -81,8 +81,16 @@ object V10Rules {
     /** The view store's domain: the view, view preferences and dataset wording aggregates (roadmap 7.2a). */
     val VIEW_STORE_DOMAIN = V10Module("view-store-domain", "platform/view-store/view-store-domain")
 
+    /** The analytics catalog's API: the commands, events and value types of its data sources (roadmap 9.3b). */
+    val ANALYTICS_CATALOG_API = V10Module("analytics-catalog-api", "platform/analytics/catalog/api")
+
+    /** The analytics catalog's domain: the source aggregate and its warehouse catalog port (decisions D238, D241). */
+    val ANALYTICS_CATALOG_DOMAIN =
+        V10Module("analytics-catalog-domain", "platform/analytics/catalog/domain")
+
     /** The platform modules (roadmap M7): domains of their own, built on the kernel as an application's domain is. */
-    val PLATFORM_MODULES = listOf(OPS_API, OPS_DOMAIN, VIEW_STORE_API, VIEW_STORE_DOMAIN)
+    val PLATFORM_MODULES =
+        listOf(OPS_API, OPS_DOMAIN, VIEW_STORE_API, VIEW_STORE_DOMAIN, ANALYTICS_CATALOG_API, ANALYTICS_CATALOG_DOMAIN)
 
     /** The ops service (roadmap 7.1a): an application of the V10 modules, on the Spring Boot host. */
     val OPS_SERVER = V10Module("ops-server", "platform/ops/ops-server")
@@ -90,11 +98,15 @@ object V10Rules {
     /** The view store service (roadmap 7.2a): an application of the V10 modules, on the Spring Boot host. */
     val VIEW_STORE_SERVER = V10Module("view-store-server", "platform/view-store/view-store-server")
 
+    /** The analytics catalog service (roadmap 9.3b): an application of the V10 modules, on the Spring Boot host. */
+    val ANALYTICS_CATALOG_SERVER =
+        V10Module("analytics-catalog-server", "platform/analytics/catalog/server")
+
     /**
      * The platform's services (roadmap M7): applications of the V10 modules, as the eShop's servers are, not modules
      * of the framework, so the rules of [MODULES] (Spring Boot only in the host, say) do not apply to them.
      */
-    val PLATFORM_SERVERS = listOf(VIEW_STORE_SERVER, OPS_SERVER)
+    val PLATFORM_SERVERS = listOf(VIEW_STORE_SERVER, OPS_SERVER, ANALYTICS_CATALOG_SERVER)
 
     val MODULES = listOf(
         API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, ELASTICSEARCH,
@@ -238,6 +250,9 @@ object V10Rules {
         OPS_DOMAIN to setOf("ops-api", "kernel", "compiler", "query-api"),
         VIEW_STORE_API to setOf("api"),
         VIEW_STORE_DOMAIN to setOf("view-store-api", "kernel", "compiler"),
+        // The sources' sensitivity is the query engine's `SensitivityLevel`, which a dataset's masks are compiled from.
+        ANALYTICS_CATALOG_API to setOf("api", "query-api"),
+        ANALYTICS_CATALOG_DOMAIN to setOf("analytics-catalog-api", "kernel", "compiler", "query-api"),
     )
 
     /**
@@ -248,6 +263,16 @@ object V10Rules {
     val ALLOWED_SERVER_DEPENDENCIES: Map<V10Module, Set<String>> = mapOf(
         OPS_SERVER to setOf("ops-domain", "spring-boot", "kafka", "postgres", "query", "cosec", "opentelemetry"),
         VIEW_STORE_SERVER to setOf("view-store-domain", "spring-boot", "postgres", "query", "cosec", "opentelemetry"),
+        // ClickHouse: the warehouse its catalog reads (decision D241), whose client the host builds.
+        ANALYTICS_CATALOG_SERVER to setOf(
+            "analytics-catalog-domain",
+            "spring-boot",
+            "postgres",
+            "clickhouse",
+            "query",
+            "cosec",
+            "opentelemetry",
+        ),
     )
 
     /**

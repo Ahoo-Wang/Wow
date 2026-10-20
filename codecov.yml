@@ -431,6 +431,24 @@ component_management:
         - platform/view-store/view-store-server/src/main/**
       flag_regexes:
         - "^v10$"
+    - component_id: v10-analytics-catalog-api
+      name: v10-analytics-catalog-api
+      paths:
+        - platform/analytics/catalog/api/src/main/**
+      flag_regexes:
+        - "^v10$"
+    - component_id: v10-analytics-catalog-domain
+      name: v10-analytics-catalog-domain
+      paths:
+        - platform/analytics/catalog/domain/src/main/**
+      flag_regexes:
+        - "^v10$"
+    - component_id: v10-analytics-catalog-server
+      name: v10-analytics-catalog-server
+      paths:
+        - platform/analytics/catalog/server/src/main/**
+      flag_regexes:
+        - "^v10$"
     - component_id: wow-client
       name: wow-client
       paths:

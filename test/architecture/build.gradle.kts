@@ -12,7 +12,8 @@ val v10ModuleDirs = listOf(
     listOf("api", "domain", "server").map { "example/eshop/$context/$context-$it" }
 } + listOf("example/eshop/e2e", "example/quickstart", "example/java-smoke", "wow-benchmarks/e2e/bench-v10") +
     listOf("ops-api", "ops-domain", "ops-server").map { "platform/ops/$it" } +
-    listOf("api", "domain", "server").map { "platform/view-store/view-store-$it" }
+    listOf("api", "domain", "server").map { "platform/view-store/view-store-$it" } +
+    listOf("api", "domain", "server").map { "platform/analytics/catalog/$it" }
 tasks.named<Test>("test") {
     systemProperty("wow.repository.root", projectDir.toPath().relativize(rootDir.toPath()).toString())
     inputs.files(

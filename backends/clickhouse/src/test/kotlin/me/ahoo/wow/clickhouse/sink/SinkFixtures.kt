@@ -100,8 +100,12 @@ object SinkFixtures {
 internal class RecordingStatements : ClickHouseStatements {
     val executed = mutableListOf<String>()
     val inserts = mutableListOf<Triple<String, String, String>>()
+
+    /** The inserts into `wow_catalog`, apart from the records' ([inserts]). */
+    val catalog = mutableListOf<Triple<String, String, String>>()
     val tables = mutableMapOf<String, List<ClickHouseColumn>>()
     var failInsert: Throwable? = null
+    var failCatalog: Throwable? = null
 
     /** Awaited by each insert before it is recorded, when set: holds the inserts while writes queue. */
     var gate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
@@ -122,14 +126,28 @@ internal class RecordingStatements : ClickHouseStatements {
             waiting.complete(Unit)
             it.await()
         }
+        if (table.endsWith("`${ClickHouseCatalog.TABLE}`")) {
+            failCatalog?.let { throw it }
+            catalog += Triple(table, body.toString(Charsets.UTF_8), token)
+            return
+        }
         failInsert?.let { throw it }
         inserts += Triple(table, body.toString(Charsets.UTF_8), token)
     }
+
+    /** The uuids [uuid] answers instead of [uuidOf]'s, by `<database>.<name>`. */
+    val uuids = mutableMapOf<String, String>()
+
+    override suspend fun uuid(database: String, name: String): String? =
+        if ("$database.$name" in tables) uuids["$database.$name"] ?: uuidOf(name) else null
 
     override suspend fun exists(database: String, name: String): Boolean = "$database.$name" in tables
 
     override suspend fun columns(database: String, name: String): List<ClickHouseColumn> =
         tables["$database.$name"].orEmpty()
+
+    /** The uuid [uuid] answers for the table [name]. */
+    fun uuidOf(name: String): String = java.util.UUID.nameUUIDFromBytes(name.toByteArray()).toString()
 
     override suspend fun comment(database: String, name: String): String? =
         comments["$database.$name"] ?: "".takeIf { "$database.$name" in tables }
