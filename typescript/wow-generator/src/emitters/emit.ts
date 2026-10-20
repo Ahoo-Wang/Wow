@@ -11,18 +11,14 @@
  * limitations under the License.
  */
 
-import type { BoundedContextModel, GenerationModel } from '../analysis/model';
-import { quoteStringLiteral } from '../naming/naming';
+import type { GenerationModel } from '../analysis/model';
 import { emitApiClient } from './apiClients';
-import { emitCommandClient } from './commandClients';
 import { emitModel } from './models';
-import { emitQueryClient } from './queryClients';
 import type { EmitTarget } from './target';
 
 /**
- * Describes every file of a generation to its module: the bounded contexts,
- * the models, the query and command clients of each aggregate, then the API
- * clients. Nothing reaches a source file until the modules are built.
+ * Describes every file of a generation to its module: the models, then the
+ * API clients. Nothing reaches a source file until the modules are built.
  *
  * The order is the one the files have always been written in, so the
  * imports of a module, and the aliases a name clash gives them, come out
@@ -35,21 +31,6 @@ export function emitGeneration(
   model: GenerationModel,
   target: EmitTarget,
 ): void {
-  model.contexts.forEach(context => emitBoundedContext(context, target));
   model.models.forEach(declaration => emitModel(declaration, target));
-  model.aggregates.forEach(aggregate => emitQueryClient(aggregate, target));
-  model.aggregates.forEach(aggregate => emitCommandClient(aggregate, target));
   model.apiClients.forEach(client => emitApiClient(client, target));
-}
-
-/** Writes a bounded context's alias constant into its own file. */
-function emitBoundedContext(
-  context: BoundedContextModel,
-  target: EmitTarget,
-): void {
-  target.modules
-    .module(context.file)
-    .add(
-      `export const ${context.constantName} = ${quoteStringLiteral(context.alias)};`,
-    );
 }

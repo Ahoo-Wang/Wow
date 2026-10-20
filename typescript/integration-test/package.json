@@ -2,14 +2,14 @@
   "name": "wow-integration-test",
   "version": "10.0.0-alpha.3",
   "private": true,
-  "description": "Integration tests of the Wow TypeScript client and generated code against a Wow example server",
+  "description": "Contract tests of the V10 view store client and the view engine against the V10 view store service",
   "keywords": [
     "wow",
     "integration-test"
   ],
   "author": "Ahoo-Wang",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/Ahoo-Wang/Wow/tree/main/typescript/integration-test",
+  "homepage": "https://github.com/Ahoo-Wang/Wow/tree/v10/typescript/integration-test",
   "repository": {
     "type": "git",
     "url": "https://github.com/Ahoo-Wang/Wow.git",
@@ -19,58 +19,25 @@
     "url": "https://github.com/Ahoo-Wang/Wow/issues"
   },
   "type": "module",
-  "main": "./dist/index.umd.js",
-  "module": "./dist/index.es.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.es.js",
-      "require": "./dist/index.umd.js"
-    }
-  },
-  "files": [
-    "dist"
-  ],
   "scripts": {
-    "build": "vite build",
-    "test": "vitest run --coverage",
     "test:v10": "vitest run --config vitest.v10.config.ts",
     "lint": "eslint . --fix",
-    "typecheck": "tsc -p tsconfig.test.json",
-    "clean": "rm -rf dist",
-    "generate": "node ../wow-generator/dist/cli.js generate -i http://localhost:8080/v3/api-docs"
+    "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "@ahoo-wang/fetcher": "catalog:",
-    "@ahoo-wang/fetcher-cosec": "catalog:",
-    "@ahoo-wang/fetcher-decorator": "catalog:",
-    "@ahoo-wang/fetcher-eventstream": "catalog:",
     "@ahoo-wang/wow-client": "workspace:*"
   },
   "devDependencies": {
-    "@ahoo-wang/wow-generator": "workspace:*",
-    "@ahoo-wang/wow-react": "workspace:*",
     "@ahoo-wang/wow-view-engine": "workspace:*",
     "@ahoo-wang/wow-view-store": "workspace:*",
     "@eslint/js": "catalog:",
-    "@testing-library/react": "catalog:",
     "@types/node": "catalog:",
-    "@types/react": "catalog:",
-    "@types/react-dom": "catalog:",
-    "@vitest/coverage-v8": "catalog:",
-    "@vitest/ui": "catalog:",
     "eslint": "catalog:",
     "globals": "catalog:",
-    "jsdom": "catalog:",
     "prettier": "catalog:",
-    "react": "catalog:",
-    "react-dom": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
-    "unplugin-dts": "catalog:",
-    "vite": "catalog:",
-    "vite-bundle-analyzer": "catalog:",
     "vitest": "catalog:"
   }
 }

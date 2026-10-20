@@ -306,14 +306,20 @@ class HttpNode(
         maxReplay,
     )
 
+    /** The query models of the node's routes. */
+    val httpQueries: HttpQueries = queries(store)
+
+    /** The node's Manifest. */
+    val manifest: Manifest = (manifest ?: cartManifest(mounted = mounted)).withJobs(jobs)
+
     /** The node's public routes, which [client] calls and a test may serve on a real server. */
     val routes: RouterFunction<ServerResponse> = wowRoutes(
-        (manifest ?: cartManifest(mounted = mounted)).withJobs(jobs),
+        this.manifest,
         gateway,
         reads,
         callers,
         options,
-        queries(store),
+        httpQueries,
     )
     val client: WebTestClient = WebTestClient
         .bindToRouterFunction(routes)

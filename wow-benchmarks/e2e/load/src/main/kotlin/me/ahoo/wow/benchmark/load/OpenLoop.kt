@@ -32,10 +32,11 @@ import java.util.concurrent.locks.LockSupport
  * The first [warmUpSeconds] are not recorded; the next [measureSeconds] are, into [Measured]. An operation belongs to
  * the phase and the second its scheduled time falls in. At most [maxInFlight] operations are outstanding: one
  * scheduled beyond that is not sent and is counted as `generator-overload`, which marks the run as not keeping up.
+ * Operation `i` runs the scenario [mix] picks for it; a mix also records each scenario's latencies and errors apart.
  */
 class OpenLoop(
     private val client: Client,
-    private val scenario: Scenario,
+    private val mix: Mix,
     private val keys: KeyChooser,
     private val targets: List<URI>,
     private val rate: Double,
@@ -58,6 +59,10 @@ class OpenLoop(
         val scheduled = AtomicLong()
         val maxSendLagNanos = AtomicLong()
 
+        /** Each scenario's latencies and failures, apart (a mix's). */
+        val byScenario = ConcurrentHashMap<Scenario, Histogram>()
+        val failedByScenario = ConcurrentHashMap<Scenario, LongAdder>()
+
         fun second(index: Int): Histogram {
             perSecond.get(index)?.let { return it }
             perSecond.compareAndSet(index, null, Histogram())
@@ -70,15 +75,18 @@ class OpenLoop(
          * Records the operation scheduled at [scheduled] in [second] of the measured phase, which completed with
          * [error] (null when it reached its completion point) or failed with [failure].
          */
-        fun complete(second: Int, scheduled: Long, error: String?, failure: Throwable?) {
+        fun complete(second: Int, scheduled: Long, error: String?, failure: Throwable?, scenario: Scenario? = null) {
             val latencyMicros = (System.nanoTime() - scheduled) / NANOS_PER_MICRO
             val kind = error ?: failure?.let { "exception-${rootCause(it).javaClass.simpleName}" }
             if (kind == null) {
                 latency.record(latencyMicros)
                 second(second).record(latencyMicros)
+                scenario?.let { byScenario.computeIfAbsent(it) { Histogram() }.record(latencyMicros) }
             } else {
                 errorLatency.record(latencyMicros)
-                error(kind)
+                // A mix's error kinds say which scenario failed: `E4-list:read-http-503`.
+                error(scenario?.let { "${it.label}:$kind" } ?: kind)
+                scenario?.let { failedByScenario.computeIfAbsent(it) { LongAdder() }.increment() }
             }
         }
     }
@@ -108,6 +116,7 @@ class OpenLoop(
                 measured.scheduled.incrementAndGet()
                 measured.maxSendLagNanos.accumulateAndGet(System.nanoTime() - scheduled, ::maxOf)
             }
+            val scenario = mix.pick(i)
             val account = keys.next()
             val target = Target(
                 targets[(i % targets.size).toInt()],
@@ -122,7 +131,7 @@ class OpenLoop(
             outstanding.incrementAndGet()
             val second = ((offset - warmUpEnd) / NANOS_PER_SECOND).toInt()
             scenario.run(client, target).handle { error, failure ->
-                if (inMeasure) measured.complete(second, scheduled, error, failure)
+                if (inMeasure) measured.complete(second, scheduled, error, failure, scenario.takeIf { mix.mixed })
                 inFlight.decrementAndGet()
                 if (outstanding.decrementAndGet() == 0L) done.countDown()
             }

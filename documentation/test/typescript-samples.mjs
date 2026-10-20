@@ -41,7 +41,7 @@ import ts from 'typescript'
 //
 // Anywhere in a page:
 //
-//   <!-- typecheck-generated: typescript/integration-test/src/generated -->
+//   <!-- typecheck-generated: example/eshop/web/src/generated/basket -->
 //       copy committed generator output into the page's directory as ./generated
 //   <!-- typecheck-generate: openapi.json -->
 //       run wow-generator on the page's block named openapi.json into ./generated

@@ -9,7 +9,7 @@ description: 从运行中的 Wow 服务的 OpenAPI 文档生成类型化的命�
 
 路径总是同一条：服务发布自己的 OpenAPI 文档，`wow-generator` 把它变成每个聚合的类型化客户端，应用通过一个只配置一次的 [Fetcher](https://fetcher.ahoo.me/) 调用这些客户端。下面的步骤使用仓库里的示例服务（限界上下文 `example`，聚合 `cart`）；换成你自己服务的地址和聚合名即可。
 
-<!-- typecheck-generated: typescript/integration-test/src/generated -->
+<!-- typecheck-generated: example/eshop/web/src/generated/basket -->
 
 ```mermaid
 flowchart LR
@@ -87,6 +87,7 @@ pnpm exec wow-generator generate -i http://localhost:8080/v3/api-docs \
 
 <!-- typecheck: file=cart.ts -->
 
+<!-- typecheck: skip — V10 已删除的 OpenAPI 路径所生成的 9.x 客户端（D266）；本页的 V10 重写改用 Manifest 客户端 -->
 ```ts
 // src/cart.ts
 import { Fetcher } from '@ahoo-wang/fetcher';
@@ -127,6 +128,7 @@ export function cartClients(ownerId: string) {
 
 ## 5. 发送命令并读取状态
 
+<!-- typecheck: skip — V10 已删除的 OpenAPI 路径所生成的 9.x 客户端（D266）；本页的 V10 重写改用 Manifest 客户端 -->
 ```ts
 // src/main.ts
 import {

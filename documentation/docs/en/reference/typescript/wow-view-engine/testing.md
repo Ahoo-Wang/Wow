@@ -196,5 +196,5 @@ describeViewStoreConformance({
 ## The full working version
 
 - Storybook's integration walk-through's [`integration.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/integration.test.ts) holds the walk-through's declarations to `admit` and `actionHarness`.
-- The conformance suite: [`test/conformance/viewStoreConformance.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/conformance/viewStoreConformance.ts), and `WowViewStore`'s [`wowViewStore.conformance.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/integration-test/test/view-store/wowViewStore.conformance.test.ts).
+- The conformance suite: [`test/conformance/viewStoreConformance.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/conformance/viewStoreConformance.ts), and `WowViewStore`'s [`wowViewStore.conformance.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/typescript/integration-test/test/view-store/wowViewStore.conformance.test.ts).
 - Source files: [`src/testing/`](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/src/testing).

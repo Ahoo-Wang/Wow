@@ -85,7 +85,7 @@ V10 annotations keep the package `me.ahoo.wow.api.annotation`, so kept names nee
 | `@Event(revision = "0.0.1")` | `@Revision(n)` | Integer revision; a migrated 9.x shape is revision 1. |
 | `EventUpgrader` (SPI class) | `@Upgrade(event = X::class, from = n)` on a function | See [Events](#events). |
 | none | `@Alias("OldName")` | Former names of a command or event, for later renames. |
-| none | `@ErrorCode(description, status = 422)` | On a `const val` rejection code (in Java, a `static final String` field). |
+| none | `@ErrorCode(description, status = 422)` | On a `const val` rejection code (in Java, a `static final String` field). A code without a dot is a local name (decision D259): declare it in an `object` nested in the `@AggregateRoot` class (`object Rejections { const val WRONG_STATUS = "wrong-status" }`); the compiler, the kernel and the Manifest name it `context.aggregate.wrong-status`, and peers read it from the api's generated `<Context>Contract.<Aggregate>.Errors`. A code with a dot is full (`context.code` for one the context shares). |
 | `@StatelessSaga` | `@Saga` | See [Sagas, projections, reactors](#sagas-projections-reactors). |
 | `@ProjectionProcessor` | `@Projection` | Same. |
 | `@EventProcessor` | `@Reactor` | Same. |
@@ -234,7 +234,7 @@ The 9.x `CreateOrderSpec` indirection existed to inject one qualified bean; the 
 
 This is the one-to-one port. The eShop keeps the stock out of the order: the ordering's `OrderProcessSaga` reserves each product in the `eshop-inventory` context, another service, with a cross-context command; a reservation the inventory rejects comes back to the saga's `@OnRejected` handler, which cancels the order (`example/eshop/README.md`). Make that move only when the stock belongs to another context; a 9.x service call inside decide stays a service parameter otherwise.
 
-Rejections are values with stable codes. Declare them beside the aggregate so the compiler lists them in the context's Manifest `errors`; codes must not start with `wow.` and must be unique in the module. The HTTP status defaults to 422.
+Rejections are values with stable codes. Declare them beside the aggregate so the compiler lists them in the context's Manifest `errors`; codes must not start with `wow.` and must be unique in the module. The HTTP status defaults to 422. Prefer local names (decision D259): in an `object` nested in the aggregate root, `const val WRONG_STATUS = "wrong-status"` is `example.order.wrong-status` everywhere outside the decide function (results, receipts, HTTP, the Manifest, the generated `ExampleContract.Order.Errors.WRONG_STATUS` peers compare with), and a test's `expectRejected` takes either form. Full codes, as below, stay valid; a 9.x code whose text clients match keeps its exact text either way.
 
 A 9.x domain exception with its own error code (a `WowException` subclass, an error-code object) becomes one `@ErrorCode` per code, its 9.x HTTP status kept with `status` so clients that map statuses keep working; a `NotFoundResourceException` the domain threw (an aggregate of another application read as none, say) is a domain code with `status = 404`, not `wow.aggregate.not-found`. A rejection carries a code and a message only: 9.x `bindingErrors` (a list of the ids that blocked the command) have no place in it, so say them in the message and report the change to the clients that read them.
 

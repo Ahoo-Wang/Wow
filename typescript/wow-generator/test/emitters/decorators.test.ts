@@ -159,40 +159,6 @@ describe('decorators', () => {
         },
       ]);
     });
-
-    it('merges apiMetadata over defaults, so a partial one keeps them', () => {
-      const declaration: ClassDeclarationStructure = {
-        kind: StructureKind.Class,
-        name: 'Client',
-        implements: ['Other'],
-      };
-
-      addApiMetadataCtor(declaration, '...DEFAULTS');
-
-      expect(declaration.implements).toEqual(['Other', 'ApiMetadataCapable']);
-      expect(declaration.properties).toEqual([
-        {
-          name: 'apiMetadata',
-          type: 'ApiMetadata',
-          isReadonly: true,
-        },
-      ]);
-      expect(declaration.ctors).toEqual([
-        {
-          parameters: [
-            {
-              name: 'apiMetadata',
-              type: 'ApiMetadata',
-              hasQuestionToken: true,
-            },
-          ],
-          statements: 'this.apiMetadata = { ...DEFAULTS, ...apiMetadata };',
-          docs: [
-            '@param apiMetadata - Merged over the defaults, so passing only a `fetcher` keeps the base path.',
-          ],
-        },
-      ]);
-    });
   });
 
   describe('methodToDecorator', () => {

@@ -24,6 +24,7 @@ import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
+import me.ahoo.wow.kernel.RejectionCodes
 import me.ahoo.wow.spi.json.WowJson
 import kotlin.reflect.KClass
 
@@ -131,13 +132,18 @@ class Expectations<S : Any> @InternalWowApi constructor(
         if (outcome is CommandOutcome.Rejected) throw AssertionError("Expected no error but got $outcome.")
     }
 
-    /** The command was rejected with [code]; [check] checks the rejection, its message say. */
+    /**
+     * The command was rejected with [code]: a full code, or the local name of a code of the aggregate, as its decide
+     * function writes it (decision D259), which the kernel qualifies with the aggregate's type; [check] checks the
+     * rejection, its message say.
+     */
     fun expectRejected(code: String, check: Rejection.() -> Unit = {}) {
         val outcome = decidedOutcome
         outcomeChecked = true
         val rejected = outcome as? CommandOutcome.Rejected ?: throw AssertionError("Expected a rejection but got $outcome.")
-        if (rejected.rejection.code != code) {
-            throw AssertionError("Expected rejection $code but got ${rejected.rejection}.")
+        val expected = RejectionCodes.qualify(code, model.type)
+        if (rejected.rejection.code != expected) {
+            throw AssertionError("Expected rejection $expected but got ${rejected.rejection}.")
         }
         rejected.rejection.check()
     }

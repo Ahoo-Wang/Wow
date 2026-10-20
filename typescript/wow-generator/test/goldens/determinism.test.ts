@@ -155,15 +155,14 @@ describe('generated output does not depend on where the generator runs', () => {
     expect(generate(TURKISH, spec, true)).toEqual(english);
   }, 60000);
 
-  it('writes expected/demo-spec byte for byte under the Turkish locale, from another directory', () => {
+  it('writes expected/eshop-manifest/ordering byte for byte under the Turkish locale, from another directory', () => {
     const generated = generate(
       TURKISH,
-      join(PACKAGE_ROOT, 'test', 'demo.spec.json'),
+      join(PACKAGE_ROOT, 'test', 'manifests', 'eshop-ordering.json'),
       true,
-      join(PACKAGE_ROOT, 'test', 'wow-generator.config.json'),
     );
     expect(generated).toEqual(
-      readTree(join(PACKAGE_ROOT, 'expected', 'demo-spec')),
+      readTree(join(PACKAGE_ROOT, 'expected', 'eshop-manifest', 'ordering')),
     );
   }, 60000);
 });

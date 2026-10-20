@@ -13,35 +13,27 @@
 
 import type { GeneratorConfiguration } from '../api/configuration';
 import type { OpenApiDocument } from '../openapi/document';
-import type { WowModel } from '../wow/model';
-import { analyzeAggregates, assertCommandTypeNamesFree } from './aggregates';
 import { analyzeApiClients } from './apiClients';
 import type { Analysis } from './model';
-import { analyzeContexts, analyzeModels } from './models';
+import { analyzeModels } from './models';
 
 /**
- * Decides what a document generates: its bounded contexts, models, command
- * and query clients and API clients. A pure function of the document, its
- * Wow model and the configuration; nothing is written and nothing logged.
+ * Decides what an OpenAPI document generates: its models and API clients. A
+ * pure function of the document and the configuration; nothing is written
+ * and nothing logged.
  *
  * @param document - The document, left unchanged
- * @param wow - Its Wow model
  * @param config - The generator configuration
  * @returns The generation model, and the warnings for what it leaves out
  * @throws GeneratorError when the document asks for code that cannot
- * compile: two schemas of one model, a command type named like a model,
- * two operations of one method
+ * compile: two schemas of one model, two operations of one method
  */
 export function analyze(
   document: OpenApiDocument,
-  wow: WowModel,
   config: GeneratorConfiguration,
 ): Analysis {
   const warnings: string[] = [];
-  const contexts = analyzeContexts(wow);
-  const models = analyzeModels(document, wow);
-  const aggregates = analyzeAggregates(document, wow);
-  assertCommandTypeNamesFree(aggregates, models);
-  const apiClients = analyzeApiClients(document, wow, config, warnings);
-  return { model: { contexts, models, aggregates, apiClients }, warnings };
+  const models = analyzeModels(document);
+  const apiClients = analyzeApiClients(document, config, warnings);
+  return { model: { models, apiClients }, warnings };
 }

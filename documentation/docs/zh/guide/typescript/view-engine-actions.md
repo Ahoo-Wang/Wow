@@ -410,7 +410,7 @@ expect(commands.cancel).toHaveBeenCalledWith('O-1', 3, '买家要求');
 
 - Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--docs)第 4 步：订单上的「发货」与「取消订单」，页面下方可以按。源文件：[`orderActions.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/orderActions.ts)、[`wowCommands.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/wowCommands.ts)、[`ordersDefinition.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/ordersDefinition.ts)，以及用 `actionHarness` 核对它们的 [`integration.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/integration.test.ts)。
 - 每种放法与流程一个交互测试——行的主操作与溢出菜单、部分可用的多选、表单、危险确认、到点翻转：[`DeclaredActions.test.stories.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/DeclaredActions.test.stories.tsx)。
-- 一个真实的宿主：补偿控制台的 [`executionActions.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/views/executionActions.ts)（带 `changesAt`、输入的函数作 `confirm` 与一个选择）与它的 [`executionActions.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/views/executionActions.test.ts)。
+- 一个真实的宿主：补偿控制台的 [`executionActions.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/compensation/dashboard/src/views/executionActions.ts)（带 `changesAt`、输入的函数作 `confirm` 与一个选择）与它的 [`executionActions.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/compensation/dashboard/src/views/executionActions.test.ts)。
 
 ## 下一步
 

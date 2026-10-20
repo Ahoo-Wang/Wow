@@ -25,7 +25,6 @@ export default defineConfig({
       entry: {
         index: resolve(__dirname, 'src/index.ts'),
         cli: resolve(__dirname, 'src/cli.ts'),
-        fetcherGeneratorCli: resolve(__dirname, 'src/fetcherGeneratorCli.ts'),
       },
       formats: ['es', 'cjs'],
       name: 'WowGenerator',
