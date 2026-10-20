@@ -51,6 +51,11 @@ on:
         description: "Open-loop rate as a share of each arm's saturation throughput"
         type: string
         default: '0.8'
+  # TEMPORARY, for the pull request's test run only (a dispatchable workflow must exist on the default branch first);
+  # removed before the pull request leaves draft.
+  push:
+    branches: [v10-e2e-bench-workflow]
+    paths: [.github/workflows/v10-e2e-bench.yml]
 
 permissions:
   contents: read
@@ -88,19 +93,19 @@ jobs:
       - name: Check the inputs
         id: inputs
         env:
-          SUITES: ${{ inputs.suites }}
-          WARM_UP: ${{ inputs.warm_up }}
-          MEASURE: ${{ inputs.measure }}
-          REPEATS: ${{ inputs.repeats }}
-          FRACTION: ${{ inputs.fraction }}
+          SUITES: ${{ inputs.suites || 'all' }}
+          WARM_UP: ${{ inputs.warm_up || '20' }}
+          MEASURE: ${{ inputs.measure || '40' }}
+          REPEATS: ${{ inputs.repeats || '2' }}
+          FRACTION: ${{ inputs.fraction || '0.8' }}
         run: node .github/scripts/v10-e2e-bench.mjs plan
       # Both refs are pinned to their commits here, so every job builds and measures the same code.
       - name: Resolve the refs
         id: refs
         env:
           GH_TOKEN: ${{ github.token }}
-          BASELINE_REF: ${{ inputs.baseline_ref }}
-          HEAD_REF: ${{ inputs.head_ref }}
+          BASELINE_REF: ${{ inputs.baseline_ref || 'v10-9x-baseline' }}
+          HEAD_REF: ${{ inputs.head_ref || 'v10' }}
         run: |
           sha() {
             gh api "repos/$GITHUB_REPOSITORY/commits/$(jq -rn --arg ref "$1" '$ref | @uri')" --jq .sha
@@ -174,8 +179,8 @@ jobs:
       matrix:
         suite: ${{ fromJSON(needs.plan.outputs.suites) }}
     env:
-      BASELINE_REF: ${{ inputs.baseline_ref }}
-      HEAD_REF: ${{ inputs.head_ref }}
+      BASELINE_REF: ${{ inputs.baseline_ref || 'v10-9x-baseline' }}
+      HEAD_REF: ${{ inputs.head_ref || 'v10' }}
       BASELINE_SHA: ${{ needs.plan.outputs.baseline-sha }}
       HEAD_SHA: ${{ needs.plan.outputs.head-sha }}
     steps:
