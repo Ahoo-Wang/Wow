@@ -1,0 +1,99 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.analytics.catalog.server
+
+import com.clickhouse.client.api.Client
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
+import me.ahoo.cosec.api.authorization.Authorization
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
+import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseTableInfo
+import me.ahoo.wow.runtime.admission.CommandGateway
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.springframework.beans.factory.ObjectProvider
+import org.springframework.mock.env.MockEnvironment
+import java.time.Duration
+
+class AnalyticsCatalogConfigurationTest {
+    private val configuration = AnalyticsCatalogConfiguration()
+
+    @Suppress("UNCHECKED_CAST")
+    private fun <T : Any> provider(value: T?): ObjectProvider<T> = (mockk<ObjectProvider<T>>()).also {
+        every { it.ifAvailable } returns value
+        every { it.ifUnique } returns value
+        every { it.getObject() } answers { checkNotNull(value) }
+    }
+
+    @Test
+    fun `the catalog should be ClickHouse's over the configured databases, or none without a client`() {
+        val environment = MockEnvironment().withProperty(AnalyticsCatalogConfiguration.CLICKHOUSE_DATABASE, "wow")
+        configuration.warehouseCatalog(provider<Client>(null), AnalyticsCatalogProperties(), environment)
+            .assert().isSameAs(WarehouseCatalog.NONE)
+        val client = mockk<Client>()
+        val defaulted = configuration.warehouseCatalog(provider(client), AnalyticsCatalogProperties(), environment)
+        defaulted.databases.assert().containsExactly("wow")
+        defaulted.engine.assert().isEqualTo("clickhouse")
+        val listed = configuration.warehouseCatalog(
+            provider(client),
+            AnalyticsCatalogProperties(connection = "dw", databases = mutableListOf("a", " ", "b")),
+            environment,
+        )
+        listed.connection.assert().isEqualTo("dw")
+        listed.databases.assert().containsExactly("a", "b")
+        assertThrows<IllegalArgumentException> {
+            configuration.warehouseCatalog(provider(client), AnalyticsCatalogProperties(engine = "trino"), environment)
+        }.message.assert().contains("trino")
+    }
+
+    @Test
+    fun `CoSec's policies should decide only when the authorizer switch is on`(): Unit = runBlocking {
+        val policies = mockk<Authorization>()
+        val off = configuration.analyticsCatalogAuthorizer(provider(policies), MockEnvironment())
+        val on = configuration.analyticsCatalogAuthorizer(
+            provider(policies),
+            MockEnvironment().withProperty(AnalyticsCatalogConfiguration.COSEC_AUTHORIZER_ENABLED, "true"),
+        )
+        off.assert().isNotSameAs(on)
+        configuration.analyticsCatalogAuthorizer(provider<Authorization>(null), MockEnvironment())
+            .assert().isInstanceOf(AnalyticsCatalogAuthorizer::class.java)
+        configuration.trustedWriters(
+            AnalyticsCatalogProperties(trustedWriters = mutableMapOf("w" to mutableListOf("c")))
+        )
+            .trusts("w", "c").assert().isTrue()
+    }
+
+    @Test
+    fun `the watcher should go on after a failed look, and stop`() {
+        var looks = 0
+        val failing = object : WarehouseCatalog by WarehouseCatalog.NONE {
+            override val databases: List<String> = listOf("db")
+
+            override suspend fun tables(database: String): List<WarehouseTableInfo> {
+                looks++
+                error("the warehouse is down")
+            }
+        }
+        val watcher = CatalogWatcher(failing, { mockk<CommandGateway>() }, Duration.ofMillis(10))
+        watcher.phase.assert().isEqualTo(org.springframework.context.SmartLifecycle.DEFAULT_PHASE)
+        watcher.isRunning.assert().isFalse()
+        watcher.start()
+        eventually("two failed looks") { looks >= 2 }
+        watcher.isRunning.assert().isTrue()
+        watcher.stop()
+        watcher.isRunning.assert().isFalse()
+    }
+}
