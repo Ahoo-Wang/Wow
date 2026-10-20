@@ -139,12 +139,14 @@ test('queueVerdict reads saturation and same-load p99', () => {
       {
         round: 0,
         arm: 'queue-off',
+        mode: 'equal',
         status: 'ok',
         metrics: metrics(result(800, 10)),
       },
       {
         round: 0,
         arm: 'queue-on',
+        mode: 'equal',
         status: 'ok',
         metrics: metrics(result(800, p99On)),
       },
@@ -215,10 +217,29 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
   assert.equal(e1.extraRound, true);
   assert.deepEqual(
     e1.runs.map(run => run.name),
-    ['r1-9x', 'r1-v10', 'r2-v10', 'r2-9x', 'r3-9x', 'r3-v10'],
+    [
+      'r1-9x',
+      'r1-v10',
+      'r2-v10',
+      'r2-9x',
+      'r3-9x',
+      'r3-v10',
+      'e1-9x',
+      'e1-v10',
+      'e2-v10',
+      'e2-9x',
+    ],
   );
   assert.equal(pairs(e1).length, 3);
   assert.equal(pairs(e1)[0].ratios.throughput, 1.125);
+  // The equal-rate rounds: both arms at the lower calibrated rate, 80/s.
+  assert.equal(e1.equalRate, 80);
+  assert.deepEqual(
+    e1.runs.filter(run => run.mode === 'equal').map(run => run.rate),
+    [80, 80, 80, 80],
+  );
+  assert.equal(pairs(e1, 'equal').length, 2);
+  assert.equal(pairs(e1, 'equal')[0].ratios.throughput, 1);
 
   const queue = runSuite('pg-append-queue', {
     ...options,
@@ -253,7 +274,11 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
   const report = renderReport(suites, suites[0].refs);
   assert.match(
     report,
-    /\| e1-mongo-uniform \| v10\/9x \| 1\.500 \| 1\.125 \(1\.125–1\.125, n=3\)/,
+    /\| e1-mongo-uniform \| v10\/9x \| calibrated \(unequal load\) \| 1\.500 \| 1\.125 \(1\.125–1\.125, n=3\)/,
+  );
+  assert.match(
+    report,
+    /\| e1-mongo-uniform \| v10\/9x \| equal rate 80\.0\/s \| 1\.500 \| 1\.000 \(1\.000–1\.000, n=2\)/,
   );
   assert.match(report, /## E3 on MongoDB: diagnostics/);
   assert.match(report, /wow\.log\.max-poll-interval=5s/);
@@ -347,4 +372,21 @@ test('a cliff suite steps up until two steps in a row are not kept up', () => {
   assert.match(report, /## E3 cliff steps/);
   assert.match(report, /\| s3-200 \| 200\.0\/s \| 0\.0\/s \| \*\*no\*\* \|/);
   assert.match(report, /tailRead gap=3/);
+});
+
+test('a saturation found at the concurrency cap is marked as a lower bound', () => {
+  const suite = {
+    name: 'e3-mongo',
+    kind: 'paired',
+    arms: [{ id: '9x' }, { id: 'v10' }],
+    saturation: {
+      '9x': { status: 'ok', throughput: 200, concurrency: 128 },
+      v10: { status: 'ok', throughput: 500, concurrency: 4096, capped: true },
+    },
+    rates: {},
+    runs: [],
+    failures: 0,
+  };
+  const report = renderReport([suite]);
+  assert.match(report, /\| e3-mongo \| v10 \| ≥ 500\.0\/s \| 4096 \|/);
 });

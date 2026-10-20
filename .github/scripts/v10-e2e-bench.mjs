@@ -191,8 +191,6 @@ export function lastSignals(log) {
 }
 
 export const DRIFT = 0.05;
-// bench.sh's default cap of 256 workers can stop the closed loop before V10 flattens (a local smoke run did), so the
-// cap is higher here; the doubling still stops after two steps that gain less than 5%.
 // The closed loop reaches its best throughput only with deep queues, so `fraction` of it can be more than a minute
 // of open loop sustains (the first runs on GitHub's 4-vCPU runners collapsed into timeouts at 80%). Each arm's
 // rate is therefore calibrated in open loop first: a short probe at the rate, and while it is not sustainable
@@ -205,7 +203,15 @@ export function sustainable(m, rate) {
   return total > 0 && m.failed / total <= 0.01 && m.throughput >= 0.97 * rate;
 }
 
-const SATURATION = { warmUp: 3, step: 8, maxConcurrency: 1024 };
+// bench.sh's default cap of 256 workers stopped the closed loop before V10 flattened, and so did 1024 on GitHub's
+// runners (E1, E2 and E3), so the cap is 4096; the doubling stops on its own after two steps that gain less than 5%.
+// A saturation found at the cap is a lower bound, marked `≥` (`capped`).
+export const SATURATION = { warmUp: 3, step: 8, maxConcurrency: 4096 };
+
+const saturationText = s =>
+  s?.throughput
+    ? `${s.capped ? '≥ ' : ''}${num(s.throughput)}/s`
+    : `**${s?.status ?? 'missing'}**`;
 
 const integer = (name, value, min, max) => {
   const text = String(value ?? '').trim();
@@ -347,9 +353,25 @@ export function ratios(a, b) {
 }
 
 /** Whether another round is due: two runs of one arm differ by more than DRIFT in throughput or p99. */
+// The rounds of a paired suite: `calibrated`, each arm at its own calibrated rate (throughput and cost compare;
+// latencies are at unequal loads), then `equal`, both arms at the lower of the two calibrated rates (latencies
+// compare). A suite whose arms share one rate (`sharedRate`) has only equal rounds.
+export const CALIBRATED = 'calibrated';
+export const EQUAL = 'equal';
+const modeOf = run => run.mode ?? CALIBRATED;
+
+/** The lower of the arms' calibrated rates: the rate of the equal-rate rounds. */
+export function equalRate(rates, arms) {
+  const values = arms.map(arm => rates[arm.id]).filter(Number.isFinite);
+  return values.length === arms.length ? Math.min(...values) : undefined;
+}
+
 export function drifted(runs, arms) {
   return arms.some(arm => {
-    const own = runs.filter(run => run.arm === arm.id && run.status === 'ok');
+    const own = runs.filter(
+      run =>
+        run.arm === arm.id && run.status === 'ok' && modeOf(run) === CALIBRATED,
+    );
     return (
       spread(own.map(run => run.metrics.throughput)) > DRIFT ||
       spread(own.map(run => run.metrics.p99)) > DRIFT
@@ -363,15 +385,14 @@ export function roundOrder(arms, round) {
 }
 
 /** The pairs of a paired suite: per round, the two arms' runs and their ratios. */
-export function pairs(suite) {
+export function pairs(suite, mode = CALIBRATED) {
   if (suite.arms.length < 2) return [];
   const [a, b] = suite.arms.map(arm => arm.id);
-  const rounds = [...new Set(suite.runs.map(run => run.round))].sort(
-    (x, y) => x - y,
-  );
+  const runs = suite.runs.filter(run => modeOf(run) === mode);
+  const rounds = [...new Set(runs.map(run => run.round))].sort((x, y) => x - y);
   return rounds.flatMap(round => {
-    const first = suite.runs.find(run => run.round === round && run.arm === a);
-    const second = suite.runs.find(run => run.round === round && run.arm === b);
+    const first = runs.find(run => run.round === round && run.arm === a);
+    const second = runs.find(run => run.round === round && run.arm === b);
     if (first?.status !== 'ok' || second?.status !== 'ok') return [];
     return [{ round, ratios: ratios(first.metrics, second.metrics) }];
   });
@@ -489,14 +510,14 @@ function saturationTable(suite) {
   for (const arm of suite.arms) {
     const s = suite.saturation[arm.id] ?? {};
     lines.push(
-      `| ${arm.id} | ${s.throughput ? `${num(s.throughput)}/s` : `**${s.status ?? 'missing'}**`} | ${s.concurrency ?? '-'} | ${num(suite.rates?.[arm.id])}/s | ${shareText(suite, arm.id)} |`,
+      `| ${arm.id} | ${saturationText(s)} | ${s.concurrency ?? '-'} | ${num(suite.rates?.[arm.id])}/s | ${shareText(suite, arm.id)} |`,
     );
   }
   return lines;
 }
 
-function pairTable(suite) {
-  const rows = pairs(suite);
+function pairTable(suite, mode) {
+  const rows = pairs(suite, mode);
   if (rows.length === 0) return [];
   const [a, b] = suite.arms.map(arm => arm.id);
   return [
@@ -546,9 +567,24 @@ export function renderSuite(suite) {
   }
   if (suite.kind === 'steps') lines.push(...cliffTable(suite), '');
   lines.push(...runTable(suite.runs), '');
-  const pair = pairTable(suite);
-  if (pair.length > 0)
-    lines.push('Pairs (lower is better except throughput):', '', ...pair, '');
+  const calibratedPairs = pairTable(suite, CALIBRATED);
+  if (calibratedPairs.length > 0) {
+    lines.push(
+      'Pairs at the calibrated rates (throughput and CPU compare; the latencies are at unequal loads):',
+      '',
+      ...calibratedPairs,
+      '',
+    );
+  }
+  const equalPairs = pairTable(suite, EQUAL);
+  if (equalPairs.length > 0) {
+    lines.push(
+      `Pairs at one rate for both arms${suite.equalRate ? `, ${num(suite.equalRate)}/s` : ''} (latencies compare; lower is better):`,
+      '',
+      ...equalPairs,
+      '',
+    );
+  }
   if (suite.failures > 0)
     lines.push(`**${suite.failures} step(s) failed**; see the job log.`, '');
   return `${lines.join('\n')}\n`;
@@ -651,7 +687,7 @@ export function runSuite(name, options) {
     arm,
     rate,
     round,
-    phase = { warmUp, measure, into: suite.runs },
+    phase = { warmUp, measure, into: suite.runs, mode: CALIBRATED },
   ) => {
     const dir = join(out, runName);
     const ok = bench(
@@ -675,6 +711,7 @@ export function runSuite(name, options) {
       rate,
       dir: runName,
       status: 'failed',
+      ...(phase.mode === EQUAL ? { mode: EQUAL } : {}),
     };
     if (ok && existsSync(file)) {
       run.status = 'ok';
@@ -715,6 +752,7 @@ export function runSuite(name, options) {
           status: 'ok',
           throughput: saturation.saturationThroughput,
           concurrency: saturation.saturationConcurrency,
+          capped: saturation.saturationConcurrency >= SATURATION.maxConcurrency,
         };
       } else {
         suite.saturation[arm.id] = { status: 'failed' };
@@ -753,17 +791,39 @@ export function runSuite(name, options) {
       for (const arm of arms) suite.rates[arm.id] = suite.rates[arms[0].id];
     }
     const runnable = arms.filter(arm => suite.rates[arm.id]);
-    const round = index => {
+    const firstMode = definition.sharedRate ? EQUAL : CALIBRATED;
+    const round = (index, mode, rateOf, prefix) => {
       for (const arm of roundOrder(runnable, index)) {
-        measureRun(`r${index + 1}-${arm.id}`, arm, suite.rates[arm.id], index);
+        measureRun(`${prefix}${index + 1}-${arm.id}`, arm, rateOf(arm), index, {
+          warmUp,
+          measure,
+          into: suite.runs,
+          mode,
+        });
       }
     };
+    const own = arm => suite.rates[arm.id];
     if (runnable.length > 0) {
-      for (let index = 0; index < repeats; index++) round(index);
-      if (repeats >= 2 && drifted(suite.runs, runnable)) {
+      for (let index = 0; index < repeats; index++)
+        round(index, firstMode, own, 'r');
+      if (
+        repeats >= 2 &&
+        firstMode === CALIBRATED &&
+        drifted(suite.runs, runnable)
+      ) {
         suite.extraRound = true;
-        round(repeats);
+        round(repeats, firstMode, own, 'r');
       }
+    }
+    // The equal-rate rounds: both arms at the lower calibrated rate, so their latencies compare.
+    const equal = equalRate(suite.rates, arms);
+    if (!definition.sharedRate && arms.length === 2 && equal) {
+      suite.equalRate = equal;
+      save();
+      for (let index = 0; index < repeats; index++)
+        round(index, EQUAL, () => equal, 'e');
+    } else if (definition.sharedRate && suite.rates[arms[0].id]) {
+      suite.equalRate = suite.rates[arms[0].id];
     }
   } else if (definition.kind === 'steps') {
     let unsustained = 0;
@@ -821,7 +881,7 @@ export function queueVerdict(suite) {
   const off = suite.saturation?.['queue-off']?.throughput;
   const on = suite.saturation?.['queue-on']?.throughput;
   const saturationRatio = off && on ? on / off : undefined;
-  const p99 = range(pairs(suite).map(pair => pair.ratios.p99));
+  const p99 = range(pairs(suite, EQUAL).map(pair => pair.ratios.p99));
   let verdict = 'not decided: a step failed';
   if (Number.isFinite(saturationRatio) && p99) {
     if (saturationRatio <= 1 - DRIFT || p99.median >= 1 + 2 * DRIFT) {
@@ -877,7 +937,7 @@ export function renderReport(suites, meta = {}) {
     for (const arm of suite.arms) {
       const s = suite.saturation?.[arm.id] ?? {};
       lines.push(
-        `| ${suite.name} | ${arm.id} | ${s.throughput ? `${num(s.throughput)}/s` : `**${s.status ?? 'missing'}**`} | ${s.concurrency ?? '-'} | ${num(suite.rates?.[arm.id])}/s | ${shareText(suite, arm.id)} |`,
+        `| ${suite.name} | ${arm.id} | ${saturationText(s)} | ${s.concurrency ?? '-'} | ${num(suite.rates?.[arm.id])}/s | ${shareText(suite, arm.id)} |`,
       );
     }
   }
@@ -889,18 +949,33 @@ export function renderReport(suites, meta = {}) {
       '',
       '## Paired ratios',
       '',
-      `| Suite | b/a | Saturation | ${RATIO_METRICS.map(([, label]) => label).join(' | ')} |`,
-      `| --- | --- | --- | ${RATIO_METRICS.map(() => '---').join(' | ')} |`,
+      '`calibrated`: each arm at its own calibrated rate, so throughput and CPU per operation compare but the latencies are at **unequal loads**. `equal rate`: both arms at the lower of the two calibrated rates; read the latency ratios from these rows.',
+      '',
+      `| Suite | b/a | Rounds | Saturation | ${RATIO_METRICS.map(([, label]) => label).join(' | ')} |`,
+      `| --- | --- | --- | --- | ${RATIO_METRICS.map(() => '---').join(' | ')} |`,
     );
     for (const suite of compared) {
       const [a, b] = suite.arms.map(arm => arm.id);
-      const rows = pairs(suite);
-      const sa = suite.saturation?.[a]?.throughput;
-      const sb = suite.saturation?.[b]?.throughput;
-      lines.push(
-        `| ${suite.name} | ${b}/${a} | ${ratio(sa && sb ? sb / sa : undefined)} | ` +
-          `${RATIO_METRICS.map(([key]) => ratioRange(range(rows.map(row => row.ratios[key])))).join(' | ')} |`,
-      );
+      const sa = suite.saturation?.[a];
+      const sb = suite.saturation?.[b];
+      const saturation =
+        sa?.throughput && sb?.throughput
+          ? `${sb.capped || sa.capped ? '~' : ''}${ratio(sb.throughput / sa.throughput)}`
+          : '-';
+      for (const [mode, label] of [
+        [CALIBRATED, 'calibrated (unequal load)'],
+        [
+          EQUAL,
+          `equal rate${suite.equalRate ? ` ${num(suite.equalRate)}/s` : ''}`,
+        ],
+      ]) {
+        const rows = pairs(suite, mode);
+        if (rows.length === 0) continue;
+        lines.push(
+          `| ${suite.name} | ${b}/${a} | ${label} | ${saturation} | ` +
+            `${RATIO_METRICS.map(([key]) => ratioRange(range(rows.map(row => row.ratios[key])))).join(' | ')} |`,
+        );
+      }
     }
   }
   const solo = suites.filter(s => s.kind === 'paired' && s.arms.length === 1);
