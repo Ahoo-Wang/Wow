@@ -94,13 +94,6 @@ When you add compatibility code, add its marker and list the file under an entry
 - **Replacement**: `wow-generator.config.json` and `.wow-generator.json`.
 - **Removal in v10**: delete `LEGACY_CONFIG_PATH`, `LEGACY_GENERATION_MANIFEST` and the fallbacks that read them. A project that still has only `fetcher-generator.config.json` must rename it, and output last generated before 9.x must be regenerated once with 9.x or cleaned by hand; the migration guide says so.
 
-### Wow 9.2 Aggregate Policies On `@AggregateRoute`
-
-- **Kept compatible**: 9.2 declared whether an aggregate is spaced and its owner policy on its routing annotation, `@AggregateRoute(spaced = …, owner = AggregateRoute.Owner.…)`. 9.3 declares them on the aggregate with `@Spaced` and `@AggregateOwner(OwnerPolicy.…)`; the old attributes and the nested `AggregateRoute.Owner` enum are deprecated but still read, at runtime and by the KSP processor, whenever the new annotation is absent (an attribute counts as declared only when it is not its default, `spaced = true` or `owner != NEVER`). Declaring both with different values fails at startup and at compile time. Code that uses the old type keeps compiling: the `AggregateRouteMetadata` primary constructor and its `owner` property.
-- **Markers**: `wow-compiler/src/main/kotlin/me/ahoo/wow/compiler/metadata/AggregatePolicyResolver.kt`
-- **Replacement**: `@Spaced` and `@AggregateOwner(OwnerPolicy.…)` on the aggregate; `AggregateMetadata.spaced` and `AggregateMetadata.owner` for readers; the `OwnerPolicy` constructor and `ownerPolicy` of `AggregateRouteMetadata`.
-- **Removal in v10**: delete `spaced`, `owner` and `Owner` from `AggregateRoute` and the legacy branches of both `AggregatePolicyResolver`s (with their conflict checks, which only exist for the old attributes); `AggregateRouteMetadata`'s primary constructor takes `ownerPolicy: OwnerPolicy` in place of `owner`, and its secondary constructor and the `ownerPolicy` getter go. Code still writing the old attributes stops compiling; the migration guide maps `spaced = true` to `@Spaced` and `owner = Owner.X` to `@AggregateOwner(OwnerPolicy.X)`.
-
 ## Held Until v10
 
 Behaviour that is not compatibility code, so it carries no marker, but that 9.x keeps as it is because changing it changes a frozen REST or wire format. v10 changes each one; until then nothing here is touched, not even in an `x.Y.0` release.

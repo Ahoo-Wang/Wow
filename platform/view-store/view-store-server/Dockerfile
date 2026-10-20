@@ -1,4 +1,4 @@
-# The V10 view store service image (R.1): `./gradlew -Pwow.scope=v10 :view-store-server:installDist`.
+# The V10 view store service image (R.1): `./gradlew :view-store-server:installDist`.
 # v10-image-deploy.yml builds it and tags only the release version: a pre-release never moves `latest`, which stays
 # on the 9.x image of the same name (view-store-deploy.yml).
 # Callers: the image trusts no identity header, and runs CoSec only in its `cosec` profile
