@@ -110,6 +110,7 @@ object ManifestTree {
         "derives" to subscription.derives,
         "rejected" to subscription.rejected,
         "committed" to subscription.committed,
+        "calls" to subscription.calls,
         "start" to subscription.start?.name,
         "schedules" to subscription.schedules,
         "retry" to subscription.retry?.let {
@@ -217,7 +218,7 @@ object ManifestTree {
             queries = node.objects("queries").map {
                 QueryManifest(it.string("model"), it.objects("routes").map(::readRoute))
             },
-            schedules = if (node.has("schedules")) node.strings("schedules") else null,
+            schedules = node.stringsOrNull("schedules"),
             ownership = node.stringOrNull("ownership")?.let(Ownership::valueOf) ?: Ownership.OWNER,
             retired = if (node.has("retired")) node.strings("retired") else emptyList(),
         )
@@ -241,11 +242,12 @@ object ManifestTree {
                 processor = function.string("processor"),
                 name = function.string("name"),
             ),
-            derives = if (node.has("derives")) node.strings("derives") else null,
-            rejected = if (node.has("rejected")) node.strings("rejected") else null,
-            committed = if (node.has("committed")) node.strings("committed") else null,
+            derives = node.stringsOrNull("derives"),
+            rejected = node.stringsOrNull("rejected"),
+            committed = node.stringsOrNull("committed"),
+            calls = node.stringsOrNull("calls"),
             start = node.stringOrNull("start")?.let(SubscriptionStart::valueOf),
-            schedules = if (node.has("schedules")) node.strings("schedules") else null,
+            schedules = node.stringsOrNull("schedules"),
             retry = node.objOrNull("retry")?.let {
                 RetryManifest(
                     maxAttempts = it.intOrNull("maxAttempts"),
@@ -272,6 +274,9 @@ object ManifestTree {
     /** A JSON object at [path], read with messages that say where a field is missing or of the wrong type. */
     private class Node(val map: Map<*, *>, val path: String) {
         fun has(field: String): Boolean = map[field] != null
+
+        /** The string list [field], or null when it is absent. */
+        fun stringsOrNull(field: String): List<String>? = if (has(field)) strings(field) else null
 
         private inline fun <reified T> typed(field: String, type: String): T? {
             val value = map[field] ?: return null

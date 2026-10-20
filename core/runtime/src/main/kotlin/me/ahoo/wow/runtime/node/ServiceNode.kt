@@ -287,7 +287,9 @@ class LogGroupNode internal constructor(
  * **Startup checks**: the [manifest] (normally [me.ahoo.wow.runtime.manifest.ManifestLoader]'s) names this
  * [service], and it and the [models] agree ([ManifestCheck]); otherwise the node is not built. Nor is it built
  * without a producer in [topics] when a saga of the [manifest] derives, schedules or handles the rejections of
- * commands of a context the node does not serve ([ContractDirectory.commandsOutside]). The [contracts] are
+ * commands of a context the node does not serve ([ContractDirectory.commandsOutside]), nor when a saga calls a context
+ * the node serves, or one its [caller] does not reach ([ContractDirectory.contextsCalled], decision D259). The
+ * [contracts] are
  * those of this [manifest] and its peers (decisions D139, D234), checked when they were built; each context's waits name
  * subscriptions through them, so a chain may name one of another context.
  *
@@ -482,6 +484,31 @@ class ServiceNode @InternalWowApi constructor(
                         "$subscription sends commands to ${contexts.joinToString()}"
                     } + ": a command across contexts goes through its context's command topic (decision D33)."
             }
+        }
+    }
+
+    init {
+        // A saga's synchronous calls (decisions D193, D259): each to another context, which the node's caller reaches.
+        val served = models.mapTo(HashSet()) { it.type.context }
+        val problems = contracts.contextsCalled().flatMap { (subscription, contexts) ->
+            contexts.mapNotNull { context ->
+                when {
+                    context == ContractDirectory.UNKNOWN_CONTEXT ->
+                        "$subscription calls a command no Manifest of the service or its peers decides: depend on " +
+                            "the api module of its context, whose jar carries its contract"
+
+                    context in served -> "$subscription calls $context, a context of this node: derive the command"
+
+                    caller == null || !caller.reaches(context) ->
+                        "$subscription calls $context, which the node's caller does not reach (with Spring Boot, " +
+                            "set wow.calls.contexts.$context.url)"
+
+                    else -> null
+                }
+            }
+        }
+        require(problems.isEmpty()) {
+            "Node $node cannot make its sagas' calls (decision D259): ${problems.joinToString("; ")}."
         }
     }
 

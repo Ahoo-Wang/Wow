@@ -42,7 +42,12 @@ class SagaCallSpecTest {
 
     /** Submits the order synchronously, then confirms the order number the ordering gave it on the basket. */
     private val handlers = listOf(
-        ProcessorBinding.saga("CheckoutSaga", "onPlaced", Basket::class.java) { event, context ->
+        ProcessorBinding.saga(
+            "CheckoutSaga",
+            "onPlaced",
+            Basket::class.java,
+            calls = listOf(Submit::class.java),
+        ) { event, context ->
             val placed = event.events.filterIsInstance<Placed>().firstOrNull() ?: return@saga emptyList()
             val submitted = context.call(context.command(order.unassigned(event.ref.tenantId), Submit(placed.total)))
             listOf(context.command(event.ref, Confirm(submitted.ref.id)))
@@ -92,7 +97,12 @@ class SagaCallSpecTest {
     fun `a saga that calls differently when handled again should not be deterministic`() {
         val counter = AtomicInteger()
         val changing = listOf(
-            ProcessorBinding.saga("CheckoutSaga", "onPlaced", Basket::class.java) { event, context ->
+            ProcessorBinding.saga(
+            "CheckoutSaga",
+            "onPlaced",
+            Basket::class.java,
+            calls = listOf(Submit::class.java),
+        ) { event, context ->
                 context.call(
                     context.command(order.ref(event.ref.tenantId, "o-${counter.incrementAndGet()}"), Submit(1))
                 )

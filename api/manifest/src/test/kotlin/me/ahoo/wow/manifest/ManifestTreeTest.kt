@@ -328,6 +328,26 @@ class ManifestTreeTest {
     }
 
     @Test
+    fun `a saga's calls should come back, and count as schema references`() {
+        val calling = SubscriptionManifest(
+            "CheckoutSaga.onCheckedOut",
+            SubscriptionKind.SAGA,
+            SubscriptionSource("shop", listOf("cart")),
+            FunctionManifest(FunctionKind.SAGA, "shop", "CheckoutSaga", "onCheckedOut"),
+            derives = emptyList(),
+            calls = listOf(Manifest.schemaRef("ordering.SubmitOrder")),
+        )
+        val manifest = Manifest(contexts = listOf(ContextManifest("shop", subscriptions = listOf(calling))))
+        manifest.schemaRefs.assert().containsExactly("#/\$defs/ordering.SubmitOrder")
+        val json = mapper.writeValueAsString(ManifestTree.write(manifest))
+        ManifestTree.read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(manifest)
+        calling.toString().assert().contains("calls=[#/\$defs/ordering.SubmitOrder]")
+        calling.assert().isNotEqualTo(calling.copyWith(calls = null))
+        PeerContracts.contractOf(listOf(manifest)).contexts.single().subscriptions.single().calls.assert()
+            .isEqualTo(calling.calls)
+    }
+
+    @Test
     fun `an error without a description should leave it out`() {
         val tree = ManifestTree.write(Manifest(errors = listOf(ErrorManifest("wow.x", 400))))
         tree["errors"].assert().isEqualTo(listOf(mapOf("code" to "wow.x", "status" to 400)))
