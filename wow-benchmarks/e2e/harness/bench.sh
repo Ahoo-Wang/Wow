@@ -46,7 +46,7 @@ SERVER_PIDS=()
 TARGETS=()
 
 usage() {
-  sed -n '14,32p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,34p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
