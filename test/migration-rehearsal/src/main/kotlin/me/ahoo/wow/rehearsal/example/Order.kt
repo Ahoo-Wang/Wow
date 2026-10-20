@@ -16,6 +16,7 @@ package me.ahoo.wow.rehearsal.example
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.annotation.OnCommand
+import me.ahoo.wow.api.annotation.Tags
 import me.ahoo.wow.api.annotation.Upgrade
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
@@ -38,6 +39,13 @@ class OrderState {
     /** What remains to pay. */
     val payable: BigDecimal
         get() = totalAmount.minus(paidAmount)
+
+    /** The 9.x order's ABAC tags (its `StateAggregateTagsExtractor`): where it is shipped to. */
+    @Tags
+    fun tags(): Map<String, List<String>> = mapOf(
+        "address-country" to listOfNotNull(address?.country),
+        "address-province" to listOfNotNull(address?.province),
+    )
 
     fun onSourcing(event: OrderCreated) {
         items = event.items
@@ -69,10 +77,11 @@ class OrderState {
 }
 
 /**
- * The 9.x order's decisions. A payment beyond what remains, or of an order no longer created, is rejected: the 9.x
- * `OrderOverPaid` and `OrderPayDuplicated` events have no V10 counterpart in this port.
+ * The 9.x order's decisions. A payment beyond what remains, or of an order no longer created, is rejected, where 9.x
+ * recorded `OrderOverPaid` and `OrderPayDuplicated` for its payment service to refund: this port retires those two
+ * events (decision D219), so the 9.x history that holds them still loads.
  */
-@AggregateRoot
+@AggregateRoot(retiredEvents = ["OrderPayDuplicated", "OrderOverPaid"])
 class Order(private val state: OrderState) {
     @OnCommand(produces = [OrderCreated::class])
     fun onCommand(command: CreateOrder, scope: DecideScope): Decision {

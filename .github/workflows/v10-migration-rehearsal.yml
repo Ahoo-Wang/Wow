@@ -1,0 +1,155 @@
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# The blue-green rehearsal of roadmap 8c.1 (design 07 §3, decision D32) on a GitHub runner: the 9.x example-server
+# built from `nine_x_ref` (v10-9x-baseline, D262), seeded at a production-shaped size, migrated by migrate-data into
+# the rehearsal host's V10 log, cut over with a dual-run window, and rolled back before and after V10 writes
+# (test/migration-rehearsal/rehearsal/rehearse.sh). The report is the run's summary; the steps' logs are an artifact.
+#
+# A run starts when a branch `rehearsal-run/**` is pushed (`git push origin <ref>:rehearsal-run/<name>`), with the
+# defaults below, over which `test/migration-rehearsal/rehearsal/run.json` at the pushed commit may set `orders`,
+# `dual_run_seconds`, `v10_seconds`, `concurrency`, `sample`, `dual_run_host` and `nine_x_ref`. Delete the branch
+# afterwards. It can also be dispatched by hand once the file is on the default branch. Never on a pull request or a
+# schedule: the heavy run belongs here, not on a pull request's checks.
+name: Migration rehearsal
+on:
+  workflow_dispatch:
+    inputs:
+      orders:
+        description: 'Orders the 9.x example is seeded with'
+        type: string
+        default: '50000'
+      dual_run_seconds:
+        description: 'Seconds 9.x takes writes while the tail follows it'
+        type: string
+        default: '120'
+      v10_seconds:
+        description: 'Seconds V10 takes writes before the rollback'
+        type: string
+        default: '60'
+      concurrency:
+        description: 'Concurrent commands of the driver'
+        type: string
+        default: '64'
+      sample:
+        description: 'Every n-th order whose state is compared across the rollbacks'
+        type: string
+        default: '10'
+      dual_run_host:
+        description: 'Whether the V10 host runs through the dual-run window (on) or starts at the cut-over (off)'
+        type: choice
+        options: ['off', 'on']
+        default: 'off'
+      nine_x_ref:
+        description: 'Ref the 9.x example-server is built from'
+        type: string
+        default: 'v10-9x-baseline'
+  push:
+    branches: ['rehearsal-run/**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CI: GITHUB_ACTIONS
+
+jobs:
+  rehearse:
+    name: Rehearse
+    if: github.repository == 'Ahoo-Wang/Wow'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Settings
+        id: settings
+        env:
+          EVENT: ${{ github.event_name }}
+          ORDERS: ${{ inputs.orders }}
+          DUAL_RUN_SECONDS: ${{ inputs.dual_run_seconds }}
+          V10_SECONDS: ${{ inputs.v10_seconds }}
+          CONCURRENCY: ${{ inputs.concurrency }}
+          SAMPLE: ${{ inputs.sample }}
+          DUAL_RUN_HOST: ${{ inputs.dual_run_host }}
+          NINE_X_REF: ${{ inputs.nine_x_ref }}
+        run: |
+          python3 - <<'EOF' >>"$GITHUB_OUTPUT"
+          import json, os, re
+          defaults = {"orders": "50000", "dual_run_seconds": "120", "v10_seconds": "60", "concurrency": "64",
+                      "sample": "10", "dual_run_host": "off", "nine_x_ref": "v10-9x-baseline"}
+          settings = dict(defaults)
+          if os.environ["EVENT"] == "push":
+              path = "test/migration-rehearsal/rehearsal/run.json"
+              if os.path.exists(path):
+                  settings.update({key: str(value) for key, value in json.load(open(path)).items() if key in defaults})
+          else:
+              settings.update({key: os.environ[key.upper()] for key in defaults if os.environ.get(key.upper())})
+          for key, value in settings.items():
+              pattern = r"[A-Za-z0-9._/-]+" if key == "nine_x_ref" else r"[0-9]+|on|off"
+              if not re.fullmatch(pattern, value):
+                  raise SystemExit(f"{key}: {value!r} is not a valid setting")
+              print(f"{key}={value}")
+          EOF
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.settings.outputs.nine_x_ref }}
+          path: ninex
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      # The refs are inputs, so the Gradle cache is only read here, never written.
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-read-only: true
+      - name: Build
+        run: |
+          ./gradlew :migration-rehearsal:installDist :migrate-data:installDist --stacktrace
+          (cd ninex && ./gradlew :example-server:installDist -x test --stacktrace)
+      - name: Rehearse
+        env:
+          NINEX_HOME: ${{ github.workspace }}/ninex/example/example-server/build/install/example-server
+          V10_HOME: ${{ github.workspace }}/test/migration-rehearsal/build/install/migration-rehearsal
+          MIGRATE_HOME: ${{ github.workspace }}/migration/migrate-data/build/install/migrate-data
+          MANIFEST: ${{ github.workspace }}/test/migration-rehearsal/build/wow/manifest-fragment/META-INF/wow/manifest/migration-rehearsal.json
+          WORK: ${{ runner.temp }}/rehearsal
+          ORDERS: ${{ steps.settings.outputs.orders }}
+          DUAL_RUN_SECONDS: ${{ steps.settings.outputs.dual_run_seconds }}
+          V10_SECONDS: ${{ steps.settings.outputs.v10_seconds }}
+          CONCURRENCY: ${{ steps.settings.outputs.concurrency }}
+          SAMPLE: ${{ steps.settings.outputs.sample }}
+          DUAL_RUN_HOST: ${{ steps.settings.outputs.dual_run_host }}
+        run: test/migration-rehearsal/rehearsal/rehearse.sh
+      - name: Summary
+        if: always()
+        env:
+          WORK: ${{ runner.temp }}/rehearsal
+        run: |
+          if [ -f "$WORK/steps.jsonl" ]; then
+            python3 test/migration-rehearsal/rehearsal/report.py "$WORK" >"$WORK/report.md" || true
+            cat "$WORK/report.md" >>"$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: migration-rehearsal
+          path: ${{ runner.temp }}/rehearsal
+          retention-days: 14
+          if-no-files-found: warn

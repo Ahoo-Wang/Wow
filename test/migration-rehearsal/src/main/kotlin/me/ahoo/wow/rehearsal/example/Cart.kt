@@ -14,12 +14,15 @@
 package me.ahoo.wow.rehearsal.example
 
 import me.ahoo.wow.api.annotation.AggregateRoot
+import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Decision
 
 data class CartItem(val productId: String, val quantity: Int)
 
+/** Creates the customer's cart with its first product, as 9.x did, or adds to it. */
+@AllowCreate
 data class AddCartItem(val productId: String, val quantity: Int = 1)
 
 data class ChangeQuantity(val productId: String, val quantity: Int)

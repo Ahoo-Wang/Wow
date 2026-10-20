@@ -436,6 +436,9 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'test/benchmarks/server/build.gradle.kts',
     'test/benchmarks/load/src/main/kotlin/A.kt',
     'test/benchmarks/harness/bench.sh',
+    // The migration rehearsal's host (roadmap 8c.1) is in :check too.
+    'test/migration-rehearsal/build.gradle.kts',
+    'test/migration-rehearsal/rehearsal/rehearse.sh',
     'documentation/docs/en/guide/v10/quickstart.md',
     'documentation/docs/zh/guide/v10/quickstart.md',
     'bom/bom/build.gradle.kts',

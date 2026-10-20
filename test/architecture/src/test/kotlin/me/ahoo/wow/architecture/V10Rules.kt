@@ -145,6 +145,9 @@ object V10Rules {
      * blue-green migration rehearsal (roadmap 8c.1). Spike H3,
      * `:kernel-benchmarks`, ran the 9.x kernel beside the V10 one and left with the 9.x code (decision D262).
      */
+    /** The [TOOLS] that are applications: they use Wow as a user does. */
+    private val APPLICATION_TOOLS = setOf("benchmark-server", "migration-rehearsal")
+
     val TOOLS = listOf(
         V10Module("bom", "bom/bom"),
         V10Module("architecture", "test/architecture"),
@@ -617,9 +620,6 @@ object V10Rules {
      */
     val USER_PROJECTS: List<V10Module> =
         EXAMPLES + listOf(OPS_DOMAIN, VIEW_STORE_DOMAIN) + PLATFORM_SERVERS + TOOLS.filter { it.name in APPLICATION_TOOLS }
-
-    /** The [TOOLS] that are applications: they use Wow as a user does. */
-    private val APPLICATION_TOOLS = setOf("benchmark-server", "migration-rehearsal")
 
     private val INTERNAL_OPT_IN = Regex("""\bInternalWowApi\b""")
 

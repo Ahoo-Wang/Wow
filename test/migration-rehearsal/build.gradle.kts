@@ -39,6 +39,8 @@ apply(from = rootProject.file("example/wow-manifest-fragment.gradle.kts"))
 dependencies {
     implementation(project(":kernel"))
     implementation(project(":spring-boot"))
+    // The CallerResolver that names the driver's tenant and owner.
+    implementation(project(":http"))
     implementation(project(":postgres"))
     implementation("com.zaxxer:HikariCP")
     // Actuator's health endpoint, which rehearse.sh waits on.

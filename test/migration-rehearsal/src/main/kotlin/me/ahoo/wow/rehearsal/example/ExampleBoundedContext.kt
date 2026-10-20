@@ -19,5 +19,8 @@ import me.ahoo.wow.api.annotation.BoundedContext
  * The 9.x example (`example-service`, on the `v10-9x-baseline` branch) ported to V10 for the blue-green rehearsal of
  * roadmap 8c.1 only: its order and cart, their commands and events by the names `migration-map.json` gives them.
  */
-@BoundedContext(name = "example", description = "The 9.x example's orders and carts, ported for the migration rehearsal")
+@BoundedContext(
+    name = "example",
+    description = "The 9.x example's orders and carts, ported for the migration rehearsal"
+)
 object ExampleBoundedContext
