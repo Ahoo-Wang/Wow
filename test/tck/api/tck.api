@@ -76,6 +76,8 @@ public abstract class me/ahoo/wow/tck/log/EventLogSpec {
 	public final fun positionOf finds where a version of an aggregate was committed ()V
 	public final fun read returns a version range in version order ()V
 	public final fun readEntries returns a version range in version order, each entry with its position and transport ()V
+	public final fun readTail gives fewer earlier request keys only when none is left before them ()V
+	public final fun readTail gives the tail from a version and the latest earlier request keys, newest first ()V
 	protected fun refused (Lme/ahoo/wow/spi/log/EventStreamRecord;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public final fun scope, causation, headers and operator read back as appended, absent ones too ()V
 	protected final fun stream (Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/spi/log/EventStreamRecord;
