@@ -99,3 +99,27 @@ wow-benchmarks/e2e/harness/bench.sh saturate --version=9x --scenario=E1 --max-co
 A run writes `result.json` (load, results, histogram, resources, machine, commit, JVM and configuration) and `summary.md` beside the servers' logs to `wow-benchmarks/results/e2e/<time>-<label>-<version>-<backend>-n<nodes>-<scenario>/`, which git ignores; a report copies the results it cites into `results/reports/`. Ports: public 18080 to 18082, V10 internal 19090 to 19092, MongoDB 27017, PostgreSQL 5432, Kafka 9092.
 
 On one machine every service, store and the load generator share the CPU: results are directional, and the report says so (D224).
+
+## Running it on GitHub Actions
+
+The timed measurements need a machine to themselves for hours, so `.github/workflows/v10-e2e-bench.yml` runs them on GitHub's runners. A run starts when a branch under `v10-bench-run/` is pushed, and the V10 server is built from the pushed commit:
+
+```bash
+git push origin v10:v10-bench-run/20261020
+```
+
+The defaults are every suite, 20 s warm-up, 40 s measured, 2 rounds, 80% of saturation, and the 9.x server built from `v10-9x-baseline` (the last commit of `v10` with the 9.x code, D262). To change them, commit `wow-benchmarks/e2e/bench-run.json` on the run branch with any of these keys:
+
+```json
+{ "suites": ["e1-mongo-uniform", "e1-mongo-zipf"], "warm_up": 20, "measure": 40, "repeats": 3, "fraction": 0.8, "baseline_ref": "v10-9x-baseline" }
+```
+
+The suites are `e1-mongo-uniform`, `e1-mongo-zipf`, `e1-pg-uniform`, `e2-mongo`, `e3-mongo`, `e3-pg`, `e3-mongo-diag`, `pg-append-queue`, and the cliff suites `cliff-e3-pg`, `cliff-e3-mongo` and `cliff-e3-9x`. A cliff suite runs E3 in open loop at fixed rates (50, 100, 200, 300, 400 and 500/s, a minute each on fresh containers) until two steps in a row fail to keep up. For V10 it sets `bench.signals.enabled=true`: the benchmark server's `BenchSignals` observer (`bench-v10/.../BenchSignals.kt`, the one file without a 9.x twin, off in every other run) then logs the node's cumulative overload and fallback counts once a second, as `bench-signals {json}` in the node log. The counts cover the tails' store reads by reason, refused commands by code, timed-out waits by stage, dropped signals, failed forwards and paused partitions. The step reads the last such line, so a cliff can be told apart from plain overload. When the run has finished, delete the branch (its results stay with the run):
+
+```bash
+git push origin --delete v10-bench-run/20261020
+```
+
+The workflow can also be dispatched by hand, with the same settings as inputs, once a copy of the file is on the default branch: GitHub only dispatches workflows that are there. Runs queue one behind another.
+
+Each suite runs in a job of its own (`.github/scripts/v10-e2e-bench.mjs` drives `bench.sh`). First it finds each arm's saturation: closed loop, 3 s warm-up, 8 s steps, concurrency doubling up to 4096 (a saturation found at the cap is a lower bound, marked `≥`). The closed loop reaches its best throughput only with deep queues, so before measuring, each arm's rate is checked in open loop: a probe at `fraction` of the saturation (10 s warm-up, 20 s measured), stepping down by a quarter (at most 4 probes) while more than 1% fails or less than 97% of the rate completes. Then it runs the arms alternately at their calibrated rates for the set number of rounds, and adds one more round when two runs of an arm differ by more than 5% in throughput or p99. These calibrated rounds compare throughput and CPU per operation; their latencies are at unequal loads. The same number of equal-rate rounds follows, with both arms at the lower of the two calibrated rates, and the latency ratios come from those. Every comparison is a pair measured on the same runner, so the ratios hold across runners; the absolute numbers belong to that runner. Server properties for a run reach the servers as `SPRING_APPLICATION_JSON`, which they inherit from `bench.sh`'s environment. Each job uploads its results and its summary, and the report job combines them into `report.md`.
