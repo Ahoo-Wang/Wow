@@ -4,25 +4,24 @@
 
 ```ts
 
-import { AggregationDatePart } from '@ahoo-wang/wow-client';
-import { AggregationDateUnit } from '@ahoo-wang/wow-client';
-import { AggregationExpressionOperator } from '@ahoo-wang/wow-client';
-import { AggregationFunction } from '@ahoo-wang/wow-client';
-import { AggregationGroupType } from '@ahoo-wang/wow-client';
-import { AggregationQuery } from '@ahoo-wang/wow-client';
-import { CursorPage } from '@ahoo-wang/wow-client';
-import { CursorQuery } from '@ahoo-wang/wow-client';
-import { DateDiffUnit } from '@ahoo-wang/wow-client';
-import { FilterExpression } from '@ahoo-wang/wow-client';
-import { FilterOperator } from '@ahoo-wang/wow-client';
-import { FilterPagedQuery } from '@ahoo-wang/wow-client';
-import { HavingExpression } from '@ahoo-wang/wow-client';
-import { PagedList } from '@ahoo-wang/wow-client';
-import { QueryDescriptorResult } from '@ahoo-wang/wow-client';
-import { QueryModelDescriptor } from '@ahoo-wang/wow-client';
-import { SearchMode } from '@ahoo-wang/wow-client';
-import { StringComparison } from '@ahoo-wang/wow-client';
-import { WindowFunction } from '@ahoo-wang/wow-client';
+import { AggregationDatePart } from '@ahoo-wang/wow-client/dsl';
+import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
+import { AggregationExpressionOperator } from '@ahoo-wang/wow-client/dsl';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
+import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
+import { AggregationQuery } from '@ahoo-wang/wow-client/dsl';
+import { CursorPage } from '@ahoo-wang/wow-client/dsl';
+import { CursorQuery } from '@ahoo-wang/wow-client/dsl';
+import { DateDiffUnit } from '@ahoo-wang/wow-client/dsl';
+import { FilterExpression } from '@ahoo-wang/wow-client/dsl';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import { FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
+import { HavingExpression } from '@ahoo-wang/wow-client/dsl';
+import { PagedList } from '@ahoo-wang/wow-client/dsl';
+import { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
+import { SearchMode } from '@ahoo-wang/wow-client/dsl';
+import { StringComparison } from '@ahoo-wang/wow-client/dsl';
+import { WindowFunction } from '@ahoo-wang/wow-client/dsl';
 
 // @public
 interface ActionConfirm {
@@ -1505,6 +1504,16 @@ interface PieSpec {
     maxSlices?: number;
     value: string;
 }
+
+// @public
+type QueryDescriptorResult = {
+    notModified: false;
+    descriptor: QueryModelDescriptor;
+    version: string;
+} | {
+    notModified: true;
+    version: string;
+};
 
 // @public
 interface RadarSpec {

@@ -4,29 +4,27 @@
 
 ```ts
 
-import { AggregationDatePart } from '@ahoo-wang/wow-client';
-import { AggregationDateUnit } from '@ahoo-wang/wow-client';
-import { AggregationExpressionOperator } from '@ahoo-wang/wow-client';
-import { AggregationFunction } from '@ahoo-wang/wow-client';
-import { AggregationGroupType } from '@ahoo-wang/wow-client';
-import { AggregationQuery } from '@ahoo-wang/wow-client';
-import { CursorPage } from '@ahoo-wang/wow-client';
-import { CursorQuery } from '@ahoo-wang/wow-client';
-import { DatasetDirectoryEntry } from '@ahoo-wang/wow-client';
-import { DateDiffUnit } from '@ahoo-wang/wow-client';
-import { DeletionState } from '@ahoo-wang/wow-client';
-import { FilterExpression } from '@ahoo-wang/wow-client';
-import { FilterOperator } from '@ahoo-wang/wow-client';
-import { FilterPagedQuery } from '@ahoo-wang/wow-client';
-import { HavingExpression } from '@ahoo-wang/wow-client';
-import { PagedList } from '@ahoo-wang/wow-client';
-import { Projection } from '@ahoo-wang/wow-client';
-import { QueryDescriptorResult } from '@ahoo-wang/wow-client';
-import { QueryModelDescriptor } from '@ahoo-wang/wow-client';
-import { QueryViolation } from '@ahoo-wang/wow-client';
-import { SearchMode } from '@ahoo-wang/wow-client';
-import { StringComparison } from '@ahoo-wang/wow-client';
-import { WindowFunction } from '@ahoo-wang/wow-client';
+import { AggregationDatePart } from '@ahoo-wang/wow-client/dsl';
+import { AggregationDateUnit } from '@ahoo-wang/wow-client/dsl';
+import { AggregationExpressionOperator } from '@ahoo-wang/wow-client/dsl';
+import { AggregationFunction } from '@ahoo-wang/wow-client/dsl';
+import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
+import { AggregationQuery } from '@ahoo-wang/wow-client/dsl';
+import { CursorPage } from '@ahoo-wang/wow-client/dsl';
+import { CursorQuery } from '@ahoo-wang/wow-client/dsl';
+import { DateDiffUnit } from '@ahoo-wang/wow-client/dsl';
+import { DeletionState } from '@ahoo-wang/wow-client/dsl';
+import { FilterExpression } from '@ahoo-wang/wow-client/dsl';
+import { FilterOperator } from '@ahoo-wang/wow-client/dsl';
+import { FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
+import { HavingExpression } from '@ahoo-wang/wow-client/dsl';
+import { PagedList } from '@ahoo-wang/wow-client/dsl';
+import { Projection } from '@ahoo-wang/wow-client/dsl';
+import { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
+import { QueryViolation } from '@ahoo-wang/wow-client/dsl';
+import { SearchMode } from '@ahoo-wang/wow-client/dsl';
+import { StringComparison } from '@ahoo-wang/wow-client/dsl';
+import { WindowFunction } from '@ahoo-wang/wow-client/dsl';
 
 // @public
 export interface AbsoluteDateTimeValue {
@@ -1454,6 +1452,18 @@ export interface DatasetCatalog {
     overrides?(entry: DatasetDirectoryEntry): DatasetOverrides | undefined;
     source(entry: DatasetDirectoryEntry): ViewSource;
     wordings?: DatasetWordingStore;
+}
+
+// @public
+export interface DatasetDirectoryEntry {
+    // (undocumented)
+    contextName: string;
+    // (undocumented)
+    name: string;
+    // (undocumented)
+    title: string | null;
+    // (undocumented)
+    version: string | null;
 }
 
 // @public
@@ -3866,6 +3876,16 @@ export function projectSummaries(definition: DataViewDefinition, config: RecordV
 
 // @public
 export function qualify(path: string, field: string): string;
+
+// @public
+export type QueryDescriptorResult = {
+    notModified: false;
+    descriptor: QueryModelDescriptor;
+    version: string;
+} | {
+    notModified: true;
+    version: string;
+};
 
 // @public (undocumented)
 export type QueryStatus = 'idle' | 'loading' | 'success' | 'error';

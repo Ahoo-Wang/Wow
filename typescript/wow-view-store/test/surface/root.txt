@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-store/v10 — 12 names, from src/v10/index.ts.
+# @ahoo-wang/wow-view-store — 12 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value SHARED_OWNER_ID

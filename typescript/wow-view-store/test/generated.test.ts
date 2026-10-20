@@ -30,7 +30,7 @@ import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 
-const ROOT = join(import.meta.dirname, '../../../..');
+const ROOT = join(import.meta.dirname, '../../..');
 const BASELINE = join(
   ROOT,
   'platform/view-store/view-store-server/manifest/baseline.json',
@@ -50,7 +50,7 @@ function files(directory: string): Map<string, string> {
   );
 }
 
-describe('the generated V10 view store clients', () => {
+describe('the generated view store clients', () => {
   const output = mkdtempSync(join(tmpdir(), 'wow-view-store-generated-'));
   afterAll(() => rmSync(output, { recursive: true, force: true }));
 

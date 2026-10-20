@@ -16,7 +16,18 @@ export const ViewPreferencesAggregate = {
 } as const;
 
 /** The `state.*` paths of `view_preferences`'s snapshots a query filters, sorts and projects on. */
-export type ViewPreferencesStateField = 'state.appId' | 'state.autoRun' | 'state.defaultInstanceId' | 'state.definitionId' | 'state.lastTabs' | 'state.order';
+export type ViewPreferencesStateField =
+  | 'state.appId'
+  | 'state.autoRun'
+  | 'state.defaultInstanceId'
+  | 'state.definitionId'
+  | 'state.lastTabs'
+  | 'state.order';
 
 /** The events of `view_preferences`, named as the server sends them, `view-store.view_preferences.<Event>` at its current revision (the `events` query upgrades older records), and the system events every aggregate has. */
-export type ViewPreferencesEvent = EventView<'view-store.view_preferences.ViewPreferencesSet', ViewPreferencesSet> | SystemEvent;
+export type ViewPreferencesEvent =
+  | EventView<
+      'view-store.view_preferences.ViewPreferencesSet',
+      ViewPreferencesSet
+    >
+  | SystemEvent;

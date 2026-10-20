@@ -25,7 +25,8 @@ export const ViewStoreErrorCodes = {
 } as const;
 
 /** A {@link ViewStoreErrorCodes} value. */
-export type ViewStoreErrorCode = (typeof ViewStoreErrorCodes)[keyof typeof ViewStoreErrorCodes];
+export type ViewStoreErrorCode =
+  (typeof ViewStoreErrorCodes)[keyof typeof ViewStoreErrorCodes];
 
 /** The subscriptions of `view-store` a `handled` hop names. */
 export type ViewStoreSubscription = 'ViewAudienceSaga.onAudienceChanged';
@@ -39,5 +40,6 @@ export const viewStoreWait = {
   /** Until the snapshot of `view-store` holds the commit. */
   snapshot: (): Hop => wait.snapshot(VIEW_STORE_BOUNDED_CONTEXT),
   /** Until a subscription of `view-store` handled the commit. */
-  handled: (subscription: ViewStoreSubscription): Hop => wait.handled(subscription, VIEW_STORE_BOUNDED_CONTEXT),
+  handled: (subscription: ViewStoreSubscription): Hop =>
+    wait.handled(subscription, VIEW_STORE_BOUNDED_CONTEXT),
 } as const;

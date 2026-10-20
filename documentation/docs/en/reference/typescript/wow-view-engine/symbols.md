@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 880 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 882 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -167,6 +167,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 880 — with its kind and th
 | `DataViewConfigBase` | interface | What a view that asks one question of its own — a record view, an analysis — stores besides: its conditions, and the editor mode they are shown in. | — |
 | `DataViewDefinition` | interface | — | — |
 | `DatasetCatalog` | interface | What `DatasetResources` reads: the dataset directory, and each dataset's source. | — |
+| `DatasetDirectoryEntry` | interface | One dataset of a service's directory: where it lives, how it is titled, and the version it was published at (`null` while it is not servable). | — |
 | `DatasetOverrides` | type | What a host may say over a dataset's derived definition; see `DatasetCatalog.overrides`. | — |
 | `DatasetRegistrar` | interface | The part of an engine `DatasetResources` drives (`ViewEngine` is one). | — |
 | `DatasetResource` | interface | A dataset served, as registered: its directory entry and its definition id. | — |
@@ -375,6 +376,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 880 — with its kind and th
 | `ProjectedBase` | interface | What both kinds carry besides their view: what is wrong with *these numbers*, as opposed to what is wrong with the config. | — |
 | `ProjectedRecord` | interface | — | — |
 | `ProjectedView` | type | What one execution produced, already shaped by its kernel. | — |
+| `QueryDescriptorResult` | type | What a source's `describe` answers: the descriptor read in full, with its version to send next time, or word that the version sent is still current. | — |
 | `QueryStatus` | type | — | — |
 | `RECORD_PRESENTATION_MEMBERS` | const | The record members that only draw the result, on top of the base's (`PRESENTATION_MEMBERS` in `config.ts` joins the two). | — |
 | `REFERENCE_STATISTICS` | const | Where a statistic reference line stands: the mean, or the middle value. | — |

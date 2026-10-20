@@ -61,9 +61,7 @@ export function actingAs(caller: Caller): Fetcher {
 }
 
 /** Installs the fake service as the global `fetch`, for this test. */
-export function installFake(
-  options?: FakeViewStoreOptions,
-): FakeViewStore {
+export function installFake(options?: FakeViewStoreOptions): FakeViewStore {
   const fake = fakeViewStore(options);
   vi.stubGlobal('fetch', vi.fn(fake.fetch));
   return fake;

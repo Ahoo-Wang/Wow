@@ -20,9 +20,10 @@
 // 2. Each entry exports at run time exactly the values its list under
 //    `test/surface/` names. The lists are written from the source by
 //    `test/publicSurface.test.ts`; this holds the bundle to them.
-// 3. The bundle bundles none of its peers: the Fetcher, wow-client and the
-//    view engine are imported, so the `ViewStoreError` the store rejects with
-//    is the host's own engine's.
+// 3. The bundle bundles none of its peers: wow-client and the view engine
+//    are imported, so the `ViewStoreError` the store rejects with is the
+//    host's own engine's, and the Fetcher's type is referenced by the
+//    declarations.
 // 4. No declaration map ships: the package holds no `src`.
 // 5. Each entry's gzipped size stays under its regression ceiling.
 import assert from 'node:assert/strict';
@@ -86,16 +87,18 @@ for (const [key, list] of Object.entries(ENTRIES)) {
   measured[key] = gzippedSize(closure);
 }
 
-// Every peer is imported, by one entry or the other, never bundled.
-const bundles = readdirSync(new URL('dist/', packageRoot))
-  .filter(file => file.endsWith('.js'))
+// Every peer is imported by the code or referenced by the declarations,
+// never bundled.
+const shipped = readdirSync(new URL('dist/', packageRoot), { recursive: true })
+  .map(String)
+  .filter(file => file.endsWith('.js') || file.endsWith('.d.ts'))
   .map(file => readFileSync(new URL(`dist/${file}`, packageRoot), 'utf8'))
   .join('\n');
 for (const peer of Object.keys(manifest.peerDependencies))
   assert.match(
-    bundles,
+    shipped,
     new RegExp(`from\\s*["']${peer.replace('/', '\\/')}(?:/[\\w-]+)?["']`),
-    `the bundle does not import its peer ${peer}`,
+    `neither the bundle nor the declarations import its peer ${peer}`,
   );
 
 const declarationMaps = readdirSync(new URL('dist/', packageRoot), {

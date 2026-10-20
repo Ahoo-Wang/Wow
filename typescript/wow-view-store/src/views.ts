@@ -18,7 +18,6 @@
  */
 
 import type {
-  ViewAudience,
   ViewConfig,
   ViewInstance,
   ViewInstanceSummary,
