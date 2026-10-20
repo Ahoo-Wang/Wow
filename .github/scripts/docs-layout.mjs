@@ -8,14 +8,13 @@ import { basename, dirname, extname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 // Holds the tracked files to the canonical locations of the documentation
-// governance page (documentation/docs/en/guide/advanced/documentation-governance.md):
+// governance page (documentation/docs/en/contribute/documentation.md):
 // nothing under the retired document/ and docs/superpowers/ trees, Markdown
 // only where its reader looks for it, PlantUML only under documentation/diagrams/,
 // and no rendered SVG beside the diagram source it was generated from.
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
-const GOVERNANCE =
-  'documentation/docs/en/guide/advanced/documentation-governance.md';
+const GOVERNANCE = 'documentation/docs/en/contribute/documentation.md';
 
 /** Trees that must hold no tracked file at all. */
 export const RETIRED = ['document/', 'docs/superpowers/'];
