@@ -18,7 +18,6 @@ import me.ahoo.wow.analytics.catalog.api.dataset.DatasetJoinKind
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetSensitivity
 import me.ahoo.wow.analytics.catalog.api.source.FieldSensitivity
 import me.ahoo.wow.analytics.catalog.api.source.SourceStatus
-import me.ahoo.wow.analytics.catalog.domain.source.Source
 import me.ahoo.wow.analytics.catalog.domain.source.SourceSensitivity
 import me.ahoo.wow.analytics.catalog.domain.source.SourceState
 
@@ -107,6 +106,8 @@ internal object DatasetBinder {
         val subject = aliases[definition.subject]
         if (subject == null && definition.sources.none { it.alias == definition.subject }) {
             problems += "The subject ${definition.subject} is not an alias of the sources."
+            // Every join and reference is read from the subject on: without it, nothing else can be checked.
+            return Result.Invalid(problems)
         }
 
         fun parse(text: String, what: String): DatasetExpression? = try {
@@ -289,11 +290,14 @@ internal object DatasetBinder {
 
 /** The protection a dataset's value inherits from the sources it reads (decision D241). */
 internal object DatasetLineage {
+    /** The types a value with a path inside is read from: JSON text, or a `JSON` column. */
+    private val JSON = Regex("(Nullable\\()?(LowCardinality\\()?(Nullable\\()?(String|JSON.*|Object\\(.*)\\)*")
+
     /** Why [ref] names no value of [source], or null when it does. */
     fun problem(source: SourceState, ref: DatasetExpression.Ref): String? {
         val column = source.columns.firstOrNull { it.name == ref.column }
             ?: return "${ref.column} is not a column of ${source.database}.${source.table}."
-        if (ref.path.isNotEmpty() && !Source.isString(column.type)) {
+        if (ref.path.isNotEmpty() && !JSON.matches(column.type)) {
             return "${ref.column} is ${column.type}, not a JSON value with a path inside."
         }
         return null

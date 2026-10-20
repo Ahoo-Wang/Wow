@@ -29,6 +29,7 @@ import me.ahoo.wow.runtime.node.ParkedKey
 import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.pauses
+import me.ahoo.wow.runtime.node.throttled
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.CoroutineContext
@@ -47,6 +48,9 @@ import kotlin.time.Duration.Companion.seconds
  *   in each partition it runs on this node ([me.ahoo.wow.runtime.subscription.SubscriptionRuntime.positions]), its
  *   watermark, the entries of the log after it, and the watermark over the log's head: how far a rebuild (a
  *   subscription under a new name, from the beginning) has come.
+ * - [WowMetrics.PAUSED] and [WowMetrics.THROTTLED]: for the same, 1 while the subscription has paused the partition on
+ *   a systemic failure (decision D243), or throttles it on backpressure (decision D263), else 0; 1 too for each such
+ *   partition of an intake or another context's topic (`ServiceNode.pauses`, `ServiceNode.throttled`), removed once it runs again.
  *
  * - [WowMetrics.EXECUTOR_IN_FLIGHT], [WowMetrics.EXECUTOR_LANES] and [WowMetrics.APPEND_QUEUE_DEPTH], per context: the
  *   commands in its executor, the aggregates with commands in flight, and the appends queued on its partitions (review
@@ -111,16 +115,8 @@ class NodeMetrics(
             taken += gauge(WowMetrics.EXECUTOR_LANES, tags, context.executor.activeLanes.toDouble())
             taken += gauge(WowMetrics.APPEND_QUEUE_DEPTH, tags, context.log.queued.toDouble())
         }
-        val paused = node.pauses.paused().mapTo(HashSet()) {
-            Tags.of(
-                WowMetrics.GROUP,
-                it.group,
-                WowMetrics.SUBSCRIPTION,
-                it.subscription,
-                WowMetrics.PARTITION,
-                it.partition.toString(),
-            )
-        }
+        val paused = node.pauses.paused().mapTo(HashSet()) { partitionTags(it.group, it.subscription, it.partition) }
+        val throttled = node.throttled.mapTo(HashSet()) { partitionTags(it.group, it.subscription, it.partition) }
         node.contexts.values.flatMap { it.logGroups }.forEach { group ->
             val runtime = group.subscriptions
             val heads = HashMap<Int, Long>()
@@ -138,10 +134,12 @@ class NodeMetrics(
                 taken += gauge(WowMetrics.BACKLOG, tags, (head - position.watermark).coerceAtLeast(0).toDouble())
                 taken += gauge(WowMetrics.PROGRESS, tags, progress(position.watermark, head))
                 taken += gauge(WowMetrics.PAUSED, tags, if (tags in paused) 1.0 else 0.0)
+                taken += gauge(WowMetrics.THROTTLED, tags, if (tags in throttled) 1.0 else 0.0)
             }
         }
-        // The paused partitions of the intakes and of other contexts' topics, which have no position here.
+        // The paused and throttled partitions of the intakes and of other contexts' topics, which have no position here.
         paused.forEach { taken += gauge(WowMetrics.PAUSED, it, 1.0) }
+        throttled.forEach { taken += gauge(WowMetrics.THROTTLED, it, 1.0) }
         (gauges.keys - taken).forEach { key -> gauges.remove(key)?.let { (_, gauge) -> meters.remove(gauge) } }
     }
 
@@ -187,6 +185,16 @@ class NodeMetrics(
         }.first.set(value)
         return key
     }
+
+    private fun partitionTags(group: String, subscription: String, partition: Int): Tags =
+        Tags.of(
+            WowMetrics.GROUP,
+            group,
+            WowMetrics.SUBSCRIPTION,
+            subscription,
+            WowMetrics.PARTITION,
+            partition.toString()
+        )
 
     /** Stops sampling. */
     override fun close() {

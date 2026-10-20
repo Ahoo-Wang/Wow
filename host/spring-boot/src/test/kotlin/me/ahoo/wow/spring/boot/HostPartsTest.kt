@@ -28,6 +28,7 @@ import me.ahoo.wow.runtime.node.ContextNode
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.store.BackendSelection
+import me.ahoo.wow.runtime.subscription.BackpressureOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
@@ -295,6 +296,27 @@ class WowPropertiesTest {
         properties.http.errors.getValue("shop.cart.full").status.assert().isEqualTo(409)
         properties.http.requestFacts.assert().containsExactly("X-App")
         properties.aggregates.getValue("shop.cart").tenant.assert().isEqualTo("t0")
+    }
+
+    @Test
+    fun `the backpressure of the subscriptions should bind (D263)`() {
+        val properties = bind(
+            "wow.subscription.backpressure.max-attempts" to "5",
+            "wow.subscription.backpressure.initial-backoff" to "50ms",
+            "wow.subscription.backpressure.max-backoff" to "2s",
+            "wow.subscription.backpressure.jitter" to "0.2",
+            "wow.subscription.backpressure.min-concurrency" to "2",
+        )
+        properties.subscription.options().backpressure.assert().isEqualTo(
+            BackpressureOptions(
+                maxAttempts = 5,
+                initialBackoff = 50.milliseconds,
+                maxBackoff = 2.seconds,
+                jitter = 0.2,
+                minConcurrency = 2,
+            ),
+        )
+        bind().subscription.options().backpressure.assert().isEqualTo(BackpressureOptions())
     }
 
     @Test

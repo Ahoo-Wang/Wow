@@ -14,7 +14,11 @@
 package me.ahoo.wow.runtime.subscription
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.client.RetryHint
+import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.kernel.HandlerRetry
+import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.FailureClassifier
@@ -27,6 +31,7 @@ import java.net.http.HttpConnectTimeoutException
 import java.sql.SQLException
 import java.sql.SQLNonTransientConnectionException
 import java.sql.SQLTransientConnectionException
+import kotlin.time.Duration.Companion.seconds
 
 /** How a handler's failure is classified (decisions D229 G-6, D243): its `@Retry`, the classifiers, the default. */
 class FailureClassificationTest {
@@ -89,5 +94,28 @@ class FailureClassificationTest {
     @Test
     fun `the backends on the class path contribute no classifier to the runtime's own tests`() {
         FailureClassification.LOADED.assert().isEmpty()
+    }
+
+    @Test
+    fun `a downstream that pushes back is backpressure, one that is down systemic`() {
+        fun problem(code: String, status: Int, retryAfter: kotlin.time.Duration? = null) =
+            WowProblemException(code, status, RetryHint(true, true, retryAfter), "$code failed")
+        listOf(
+            CommandBusyException(cart("x"), "c-1", "busy"),
+            problem(FrameworkErrors.COMMAND_BUSY, 429, 1.seconds),
+            problem(FrameworkErrors.WAIT_TIMEOUT, 504),
+            problem(FrameworkErrors.QUERY_BUSY, 429),
+            problem("shop.quota.exceeded", 429, 2.seconds),
+            IllegalStateException("The saga failed.", problem(FrameworkErrors.WAIT_TIMEOUT, 504)),
+        ).forEach { classification.classify(it, null).assert().isEqualTo(FailureClass.BACKPRESSURE) }
+        classification.classify(problem(FrameworkErrors.STORAGE_UNAVAILABLE, 503, 1.seconds), null).assert()
+            .isEqualTo(FailureClass.SYSTEMIC)
+        // A 429 without a Retry-After, or another code, is the aggregate's own.
+        classification.classify(problem("shop.quota.exceeded", 429), null).assert().isEqualTo(FailureClass.RECOVERABLE)
+        classification.classify(problem(FrameworkErrors.COMMAND_CONTENDED, 409), null).assert()
+            .isEqualTo(FailureClass.RECOVERABLE)
+        FailureClassification.retryAfterOf(IllegalStateException("x", problem("shop.quota", 429, 2.seconds))).assert()
+            .isEqualTo(2.seconds)
+        FailureClassification.retryAfterOf(IllegalStateException("x")).assert().isNull()
     }
 }

@@ -16,6 +16,8 @@ package me.ahoo.wow.opentelemetry
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.client.RetryHint
+import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandRequest
@@ -24,6 +26,7 @@ import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.node.pauses
+import me.ahoo.wow.runtime.node.throttled
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.spi.StorageUnavailableException
@@ -65,12 +68,24 @@ class NodeMetricsTest {
     @Volatile
     private var down = false
 
+    /** While set, the board's downstream pushes back: the board throttles its partitions (decision D263). */
+    @Volatile
+    private var pushingBack = false
+
     /** A projection of the orders that fails on the orders whose id starts with `bad`, which it parks at once. */
     private val board = SubscriptionFactory {
         listOf(
             Subscription(BOARD, SubscriptionFilter(SALES)) { entry ->
                 if (down) {
                     throw StorageUnavailableException("The board's view store is unavailable; retry later.")
+                }
+                if (pushingBack) {
+                    throw WowProblemException(
+                        "wow.wait.timeout",
+                        504,
+                        RetryHint(retryable = true, sameRequestId = true),
+                        "The board's downstream timed out.",
+                    )
                 }
                 check(!entry.ref.id.startsWith("bad")) { "The board cannot show ${entry.ref}." }
             },
@@ -149,6 +164,27 @@ class NodeMetricsTest {
             eventually { node.pauses.paused().isEmpty() }
             metrics.sample()
             gauge(WowMetrics.PAUSED, *board).assert().containsOnly(0.0)
+            node.parked.list(BOARD).entries.assert().isEmpty()
+        }
+
+    @Test
+    fun `a sample should gauge the partitions throttled on backpressure, and none once they recover`(): Unit =
+        runBlocking {
+            node.start()
+            pushingBack = true
+            place("good-1")
+            eventually { node.throttled.isNotEmpty() }
+            val throttled = node.throttled.single()
+            val metrics = NodeMetrics(node, telemetry.meters)
+            metrics.sample()
+            val board = arrayOf(WowMetrics.GROUP, throttled.group, WowMetrics.SUBSCRIPTION, BOARD)
+            gauge(WowMetrics.THROTTLED, *board, WowMetrics.PARTITION, throttled.partition.toString()).assert()
+                .containsExactly(1.0)
+            gauge(WowMetrics.PAUSED, *board).assert().containsOnly(0.0)
+            pushingBack = false
+            eventually { node.throttled.isEmpty() }
+            metrics.sample()
+            gauge(WowMetrics.THROTTLED, *board).assert().containsOnly(0.0)
             node.parked.list(BOARD).entries.assert().isEmpty()
         }
 

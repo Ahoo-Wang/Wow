@@ -600,6 +600,21 @@ public final class me/ahoo/wow/spring/boot/WowProperties$AppendQueue {
 	public final fun setMaxBatch (Ljava/lang/Integer;)V
 }
 
+public final class me/ahoo/wow/spring/boot/WowProperties$Backpressure {
+	public fun <init> ()V
+	public final fun getInitialBackoff ()Ljava/time/Duration;
+	public final fun getJitter ()D
+	public final fun getMaxAttempts ()I
+	public final fun getMaxBackoff ()Ljava/time/Duration;
+	public final fun getMinConcurrency ()I
+	public final fun options ()Lme/ahoo/wow/runtime/subscription/BackpressureOptions;
+	public final fun setInitialBackoff (Ljava/time/Duration;)V
+	public final fun setJitter (D)V
+	public final fun setMaxAttempts (I)V
+	public final fun setMaxBackoff (Ljava/time/Duration;)V
+	public final fun setMinConcurrency (I)V
+}
+
 public final class me/ahoo/wow/spring/boot/WowProperties$Calls {
 	public fun <init> ()V
 	public final fun getConnectTimeout ()Ljava/time/Duration;
@@ -1100,6 +1115,7 @@ public final class me/ahoo/wow/spring/boot/WowProperties$StoreQuery {
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Subscription {
 	public fun <init> ()V
+	public final fun getBackpressure ()Lme/ahoo/wow/spring/boot/WowProperties$Backpressure;
 	public final fun getCheckpointInterval ()Ljava/time/Duration;
 	public final fun getMaxInFlight ()I
 	public final fun getParked ()Lme/ahoo/wow/spring/boot/WowProperties$Parked;
@@ -1109,6 +1125,7 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Subscription {
 	public final fun getSystemic ()Lme/ahoo/wow/spring/boot/WowProperties$Systemic;
 	public final fun options (Ljava/util/Map;)Lme/ahoo/wow/runtime/subscription/SubscriptionOptions;
 	public static synthetic fun options$default (Lme/ahoo/wow/spring/boot/WowProperties$Subscription;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/runtime/subscription/SubscriptionOptions;
+	public final fun setBackpressure (Lme/ahoo/wow/spring/boot/WowProperties$Backpressure;)V
 	public final fun setCheckpointInterval (Ljava/time/Duration;)V
 	public final fun setMaxInFlight (I)V
 	public final fun setParked (Lme/ahoo/wow/spring/boot/WowProperties$Parked;)V
