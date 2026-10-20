@@ -39,8 +39,8 @@ import javax.sql.DataSource
 
 /**
  * A HikariCP pool whose query statements wait at a [gate] while it is set, holding their connections as a slow query
- * does: a query transaction is the one that starts with `SET LOCAL statement_timeout`. It says its size as HikariCP
- * does, so the store derives its queries' bound from it.
+ * does: a query transaction is the one that starts with `SET LOCAL statement_timeout`. It says its size and the threads
+ * awaiting a connection as HikariCP does, so the store derives its queries' bound and its write pressure from it.
  */
 class GatedDataSource(private val pool: HikariDataSource) : DataSource by pool, AutoCloseable {
     /** While set, every query waits until it is counted down. */
@@ -53,6 +53,9 @@ class GatedDataSource(private val pool: HikariDataSource) : DataSource by pool, 
     val queries = AtomicInteger()
 
     fun getMaximumPoolSize(): Int = pool.maximumPoolSize
+
+    /** HikariCP's pool, which says how many threads await a connection (decision D252). */
+    fun getHikariPoolMXBean(): Any? = pool.hikariPoolMXBean
 
     override fun getConnection(): Connection = gated(pool.connection)
 
@@ -122,7 +125,7 @@ class SeparateGatedDataSources {
     }
 }
 
-private fun pool(environment: Environment, size: Int) = HikariDataSource(
+internal fun pool(environment: Environment, size: Int) = HikariDataSource(
     HikariConfig().apply {
         jdbcUrl = environment.getRequiredProperty("test.postgres.url")
         username = environment.getRequiredProperty("test.postgres.username")
