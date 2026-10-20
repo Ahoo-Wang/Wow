@@ -323,7 +323,7 @@ export const suitesOf = group =>
 // The tiers of D224's benchmark ladder that this workflow runs: run the smallest one that answers the question. L2, an
 // end-to-end point (one scenario on one backend, head against baseline), is the default and never the whole grid;
 // L3 is the end-to-end grid (before an rc or after a major merge); L4 the special runs: sustainable rates, overload
-// cliffs and the three-node cluster. L0 is benchmark-ab.yml (JMH). `suites` given by name replaces the tier's list.
+// cliffs and the three-node cluster. L0 (JMH) is outside this workflow. `suites` given by name replaces the tier's list.
 // The data sets each tier runs its suites at (the `dataset` setting replaces them).
 export const TIER_DATASETS = {
   L1: ['1k'],

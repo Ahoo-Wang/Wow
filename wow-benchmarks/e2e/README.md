@@ -6,16 +6,18 @@ The benchmark of decision D224 (roadmap M7.5, B.0 to B.R): conclusions come only
 
 | Path | Project | What it is |
 | --- | --- | --- |
-| `bench-9x/` | `:e2e-bench-9x` | The account and transfer saga domain, its specs and its Spring Boot server, on 9.x modules only (full build scope) |
+| `bench-9x/` | `:e2e-bench-9x` | The account and transfer saga domain, its specs and its Spring Boot server, on 9.x modules only; on the side branch `v10-9x-baseline` only (decision D262) |
 | `bench-v10/` | `:e2e-bench-v10` | The same on V10 modules only (in the V10 region of the settings, checked by `v10Check`) |
 | `load/` | `:e2e-bench-load` | The load generator: a JVM of its own on the JDK alone, no Wow module and no library |
 | `harness/` | none | `compose.yml` (MongoDB, PostgreSQL, Kafka) and `bench.sh` (start, seed, check, run, collect, clean up) |
 
 None of them is published; the root build keeps them out of the ABI checks and the coverage reports (`e2eBenchmarkProjects`). No project depends on both versions (D85).
 
+The 9.x code, `bench-9x/` with it, left this branch early (decision D262). The 9.x side runs from a worktree of the side branch `v10-9x-baseline`, the last commit that had it, as its own processes and containers like before: `git worktree add ../wow-9x origin/v10-9x-baseline`, then `WOW_BENCH_9X_REPO=../wow-9x bench.sh build` builds both servers and `--version=9x` runs the 9.x one from there.
+
 ## The twin domain
 
-Each module has the same files with the same names and the same package, `me.ahoo.wow.benchmark.transfer`, so `diff -r bench-9x/src bench-v10/src` shows only what the frameworks make different:
+Each module has the same files with the same names and the same package, `me.ahoo.wow.benchmark.transfer`, so `diff -r "$WOW_BENCH_9X_REPO/wow-benchmarks/e2e/bench-9x/src" bench-v10/src` shows only what the frameworks make different:
 
 | File | Concept |
 | --- | --- |
@@ -30,7 +32,7 @@ Each module has the same files with the same names and the same package, `me.aho
 
 The semantics are those of the 9.x Java example `example/transfer`, ported to Kotlin, with `Deposit` and `Withdraw` added. The framework differences that remain: 9.x rejects by throwing, V10 by returning a `Decision`; 9.x's state takes its id in its constructor; 9.x's account is in the default tenant through `@StaticTenantId`, which V10's is when the caller names no tenant; 9.x's saga addresses a derived command with a command builder, V10's with the aggregate's reference; V10 requires a sourcing function for every event, so both states declare the no-op ones of `Prepared` and `EntryFailed`.
 
-`src/test/.../TransferCases.kt` is one table of cases, byte for byte the same in both modules (`SharedCasesTest` in `:e2e-bench-v10` checks it). Each version's `AccountSpec` and `TransferSagaSpec` run every case through its own test DSL.
+`src/test/.../TransferCases.kt` is one table of cases, byte for byte the same in both modules (`SharedCasesTest` in `:e2e-bench-v10` checks it against the SHA-256 of the 9.x file at `v10-9x-baseline`). Each version's `AccountSpec` and `TransferSagaSpec` run every case through its own test DSL.
 
 ## Topologies
 
@@ -110,7 +112,7 @@ A run starts when a branch under `v10-bench-run/` is pushed. The head is the pus
 git push origin v10:v10-bench-run/20261020
 ```
 
-Runs follow D224's tiers: run the smallest one that answers the question. L0 is the JMH A/B (`benchmark-ab.yml`). The others are:
+Runs follow D224's tiers: run the smallest one that answers the question. L0, the JMH microbenchmarks, is outside this workflow (its 9.x-era `benchmark-ab.yml` left with 9.x, D262). The others are:
 
 - **L1**: component counts, `component-mongo` and `component-pg`, at 1k. They take the head against the baseline when there is one.
 - **L2** (the default): end-to-end points, head against baseline. They are `e1-mongo-uniform`, `e1-pg-uniform`, `e3-mongo` and `e3-pg`.
