@@ -68,6 +68,27 @@ class ClusterTest {
     }
 
     @Test
+    fun `only the owner of its partition runs a command under the partition's lease`(): Unit = runBlocking {
+        // Decision D261: the kernel trusts and caches the states of an execution that holds the lease, and no other.
+        val (one, two) = cluster.start("node-1", "node-2")
+        cluster.awaitStable()
+        val id = (0 until 64).map { "acc-$it" }.first { ownerOf(it) == "node-2" }
+        val here = two.deposit(id)
+        val forwarded = one.deposit(id)
+        two.leaseHeld[here.commandId].assert().isEqualTo("true")
+        two.leaseHeld[forwarded.commandId].assert().isEqualTo("true")
+        val refusing = PartitionedRouter(listOf(one.ownership), { _, _ -> ForwardReply.refused(Refusal.NOT_OWNER) })
+        val command = one.command(id)
+        refusing.route(one.model, command, null) { one.coordinator.executeHere(one.model, command, null) }
+        one.leaseHeld[command.id].assert().isEqualTo("false")
+        val unpartitioned = one.command(id)
+        PartitionedRouter(emptyList(), cluster.channel).route(one.model, unpartitioned, null) {
+            one.coordinator.executeHere(one.model, unpartitioned, null)
+        }
+        one.leaseHeld[unpartitioned.id].assert().isEqualTo("unknown")
+    }
+
+    @Test
     fun `a forwarded command's later hops are signalled to the node it arrived at`(): Unit = runBlocking {
         val (one) = cluster.start("node-1", "node-2", "node-3")
         cluster.awaitStable()

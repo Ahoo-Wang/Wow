@@ -111,7 +111,13 @@ class KernelRecentRequestsTest {
         }
 
         override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
-            if (loseNext) throw IOException("The slot cannot be read.") else delegate.readEntries(ref, fromVersion, toVersion)
+            if (loseNext) {
+                throw IOException(
+                    "The slot cannot be read."
+                )
+            } else {
+                delegate.readEntries(ref, fromVersion, toVersion)
+            }
 
         override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
             appends++
@@ -358,7 +364,10 @@ class KernelRecentRequestsTest {
         kernel.execute(cartModel, command(ClearCart("x"))).assert().isEqualTo(CommandOutcome.Unchanged(1))
         log.lookups.assert().isEqualTo(1)
         log.reads.assert().containsExactly(2..2)
-        kernel.execute(cartModel, command(CreateCart("ahoo"))).assert().isInstanceOf(CommandOutcome.Rejected::class.java)
+        kernel.execute(
+            cartModel,
+            command(CreateCart("ahoo"))
+        ).assert().isInstanceOf(CommandOutcome.Rejected::class.java)
         log.lookups.assert().isEqualTo(2)
     }
 
@@ -395,11 +404,13 @@ class KernelRecentRequestsTest {
         val snapshots = InMemorySnapshotStore()
         val kernel = kernel(recentRequests = 0, snapshots = snapshots)
         val created = kernel.execute(cartModel, command(CreateCart("ahoo"))) as CommandOutcome.Committed
-        snapshots.save(EventCodec().snapshotOf(cartModel, ref, created.state as CartState, 1, created.stream.scope, 0, 0))
+        snapshots.save(
+            EventCodec().snapshotOf(cartModel, ref, created.state as CartState, 1, created.stream.scope, 0, 0)
+        )
         states.states.clear()
         kernel.commit(command(AddItem("apple", 1)))
         log.lookups.assert().isEqualTo(2)
-        log.tails.assert().isEmpty()
+        log.tails.assert().containsExactly(1 to 0)
         states.states.getValue(ref).requests.assert().isNull()
     }
 }

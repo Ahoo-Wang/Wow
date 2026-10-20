@@ -27,15 +27,12 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
-import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.decide.ReservationTenancy
 import me.ahoo.wow.api.id.Ids
-import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.schedule.ScheduleCancelled
 import me.ahoo.wow.api.schedule.ScheduleRule
@@ -211,28 +208,22 @@ class Kernel(
         admitted: Command<*>,
         wait: WaitContext?,
     ): CommandOutcome {
-        // A tenant's aggregate (decision D189) neither records nor checks an owner: only that part of the scope counts.
-        val scope = model.ownership.scopeOf(admitted.scope)
-        val command = if (scope == admitted.scope) admitted else admitted.copyWith(scope = scope)
+        val command = admitted.narrowedTo(model)
         val decider = model.decider(command.body.javaClass)
             ?: return rejected(KernelRejections.UNHANDLED, "${model.type} does not handle ${command.body.javaClass.name}.")
         val commandType = model.commandType(command.body.javaClass)
-        val requests = RequestCheck(model, decider, command, commandType, currentCoroutineContext()[ExecutionLease])
-        // A scheduled command is looked up before it waits for its slot, as a duplicate is answered without waiting.
-        if (recentRequests == 0 || command.schedule != null) {
-            requests.lookUp()?.let { return it }
-        }
+        val lease = currentCoroutineContext()[ExecutionLease]
+        val requests = RequestCheck(log, states, model, decider, command, lease) { duplicate(it, command, commandType) }
+        requests.beforeWaiting(recentRequests)?.let { return it }
         awaitDue(command)
-        val waitBeyondCommitted = wait?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
+        val waitBeyondCommitted = wait.beyondCommitted()
         val encode = { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
         var attempts = 0
         while (attempts < maxAttempts) {
             val (loaded, cached) = load(model, command, requests.caching)
             // Checked after every load (C5): a reload may hold the request another node committed meanwhile.
             requests.beforeDeciding(loaded)?.let { return it }
-            admissible(decider, command, loaded)?.let { refusal ->
-                return requests.refused(loaded) ?: standing(command.ref, loaded, cached, refusal, requests) ?: continue
-            }
+            admissible(decider, command, loaded)?.let { return standing(loaded, cached, it, requests) ?: continue }
             val attempt = AttemptScope(command, ids, loaded, reservations, reservationTtl, waitBeyondCommitted, encode)
             val prepared = try {
                 prepare(model, decider, attempt, loaded, command, commandType.name)
@@ -246,9 +237,7 @@ class Kernel(
             val (stream, evolved) = when (prepared) {
                 is Prepared.Done -> {
                     attempt.compensate()
-                    return requests.refused(loaded)
-                        ?: standing(command.ref, loaded, cached, prepared.outcome, requests)
-                        ?: continue
+                    return standing(loaded, cached, prepared.outcome, requests) ?: continue
                 }
 
                 is Prepared.Append -> prepared.stream to prepared.evolved
@@ -258,77 +247,6 @@ class Kernel(
             attempts++
         }
         return CommandOutcome.Contended(maxAttempts)
-    }
-
-    /**
-     * How one execution makes sure its request is not committed already (decision D46, revised by D261): from the
-     * aggregate's recent requests where they answer, else by looking the request id up, at most once per execution.
-     *
-     * - A request the loaded state's recent requests hold is confirmed by reading its stream at the version they name
-     *   (a hash may collide) and answered as a duplicate.
-     * - On a miss, only a pure decide ([DecideFunction.Sync] with only [AfterFunction.Sync] after hooks) goes on
-     *   without a lookup (C2): deciding again costs nothing outside the log, and an append meets the request key, the
-     *   permanent backstop. A decide that does I/O goes on without one only when the recent requests hold the
-     *   aggregate's whole history and this node holds the partition's lease ([ExecutionLease.HELD]): the request is
-     *   then surely not the aggregate's (only a request id reused on another aggregate of the type, the caller's error
-     *   by D55, still reaches the backstop).
-     * - An outcome that appends nothing (an admission refusal, a rejection, an unchanged one) never meets the request
-     *   key, so the request id is looked up before it is answered (C1): a retry is answered as a duplicate, as before.
-     */
-    private inner class RequestCheck(
-        private val model: AggregateModel<*>,
-        decider: DecideFunction<*>,
-        private val command: Command<*>,
-        private val commandType: CommandType,
-        lease: ExecutionLease?,
-    ) {
-        private val pure = decider is DecideFunction.Sync &&
-            model.afterFunctions(command.body.javaClass).all { it is AfterFunction.Sync }
-        private val leaseHeld = lease?.held == true
-
-        /** Whether this execution's states are cached: not when it runs without the partition's lease (C4). */
-        val caching = lease?.held != false
-
-        /** Whether the request id was looked up in this execution and found nothing. */
-        private var lookedUp = false
-
-        /** The duplicate answer when the request id is committed; null when it is not, remembered. */
-        suspend fun lookUp(): CommandOutcome? {
-            val existing = log.findByRequestId(model.type, command.ref.tenantId, command.requestId)
-            lookedUp = existing == null
-            return existing?.let { duplicate(it, command, commandType) }
-        }
-
-        /**
-         * The duplicate answer when [loaded]'s recent requests hold the request, or a lookup finds it when it must;
-         * null to decide. [loaded] stays cached when the command is answered from it.
-         */
-        suspend fun beforeDeciding(loaded: CachedState): CommandOutcome? {
-            val recent = loaded.requests
-            val collided = recent?.versionOf(command.requestId)?.let { version ->
-                val existing = log.read(command.ref, version, version).firstOrNull()
-                if (existing?.requestId == command.requestId) {
-                    return answered(loaded, duplicate(existing, command, commandType))
-                }
-                true
-            } ?: false
-            if (lookedUp || pure || leaseHeld && recent?.complete == true && !collided) {
-                return null
-            }
-            return lookUp()?.let { answered(loaded, it) }
-        }
-
-        /** The duplicate answer to an outcome that appends nothing, decided on [loaded], when the request is committed. */
-        suspend fun refused(loaded: CachedState): CommandOutcome? =
-            if (lookedUp) null else lookUp()?.let { answered(loaded, it) }
-
-        /** [outcome], answered without deciding on [loaded], which stays as it was cached. */
-        private fun answered(loaded: CachedState, outcome: CommandOutcome): CommandOutcome {
-            if (caching) {
-                states.put(command.ref, loaded)
-            }
-            return outcome
-        }
     }
 
     /**
@@ -592,40 +510,34 @@ class Kernel(
         states.take(ref)?.let { if (caching) return it to true }
         loadSnapshot(ref)?.let { snapshot ->
             fittingRevision(model, snapshot)?.let { state ->
-                val tail = if (recentRequests == 0) {
-                    AggregateTail.of(log.read(ref, snapshot.version).toList(), emptyList())
-                } else {
-                    log.readTail(ref, snapshot.version, recentRequests + 1)
-                }
+                val earlier = if (recentRequests == 0) 0 else recentRequests + 1
+                val tail = log.readTail(ref, snapshot.version, earlier)
                 fromSnapshot(model, snapshot, state, tail.streams.asFlow())?.let { loaded ->
-                    if (recentRequests > 0) {
-                        val reachedStart = tail.earlier.size <= recentRequests
-                        loaded.requests = RecentRequests.of(recentRequests, tail.earlier, tail.streams, reachedStart)
-                    }
+                    loaded.requests = RecentRequests.of(recentRequests, tail)
                     return loaded to false
                 }
             }
         }
         val streams = log.read(ref).toList()
         val replayed = replay(model, CachedState(model.initialState(ref), 0), streams)
-        if (recentRequests > 0) {
-            replayed.requests = RecentRequests.of(recentRequests, emptyList(), streams, reachedStart = true)
-        }
+        replayed.requests = RecentRequests.of(recentRequests, AggregateTail.of(streams, emptyList()))
         return replayed to false
     }
 
     /**
      * [outcome], decided on [loaded] without appending, keeping [loaded] cached: decided without evolving, the state
-     * is as loaded (decide purity is the user's contract, F4). Null when [loaded] came from the cache ([cached]) and
-     * the log has moved past it ([behindLog]): the command is decided again on a reloaded state.
+     * is as loaded (decide purity is the user's contract, F4). A duplicate instead when [requests] finds the request
+     * committed (decision D261, C1): nothing appended, the request key never saw it. Null when [loaded] came from the
+     * cache ([cached]) and the log has moved past it ([behindLog]): the command is decided again on a reloaded state.
      */
     private suspend fun standing(
-        ref: AggregateRef,
         loaded: CachedState,
         cached: Boolean,
         outcome: CommandOutcome,
         requests: RequestCheck,
     ): CommandOutcome? {
+        requests.refused(loaded)?.let { return it }
+        val ref = requests.ref
         if (cached && behindLog(ref, loaded.version)) {
             return null
         }
@@ -843,7 +755,14 @@ class Kernel(
         maxReplay: Int = Int.MAX_VALUE,
     ): CachedState? {
         val state = fittingRevision(model, snapshot) ?: return null
-        return fromSnapshot(model, snapshot, state, log.read(snapshot.ref, snapshot.version, until), committedBy, maxReplay)
+        return fromSnapshot(
+            model,
+            snapshot,
+            state,
+            log.read(snapshot.ref, snapshot.version, until),
+            committedBy,
+            maxReplay
+        )
     }
 
     /**
@@ -987,39 +906,6 @@ class Kernel(
         }
     }
 
-    /**
-     * Refuses [command] before deciding when the aggregate as [loaded] cannot take it, checked in this order: it does
-     * not exist and the command does not create it; it exists in another scope than the command's (D94); it is
-     * deleted and the command does not restore it; it exists and the command must create it; it is not at the
-     * expected version.
-     *
-     * The scope comes right after existence, so a caller outside the aggregate's scope learns only that it exists,
-     * which a colliding creation would tell it anyway: not whether it is deleted, nor its version.
-     */
-    private fun admissible(decider: DecideFunction<*>, command: Command<*>, loaded: CachedState): CommandOutcome? {
-        val version = loaded.version
-        return when {
-            version == 0 && decider.creation == Creation.NONE ->
-                rejected(KernelRejections.NOT_FOUND, "${command.ref} does not exist.")
-
-            version > 0 && !command.isDerived && !admits(loaded.scope, command.scope) -> forbidden(command)
-
-            loaded.deleted && command.body != RestoreAggregate ->
-                rejected(KernelRejections.DELETED, "${command.ref} is deleted.")
-
-            version > 0 && decider.creation == Creation.REQUIRED ->
-                rejected(KernelRejections.EXISTS, "${command.ref} already exists.")
-
-            command.expectedVersion != null && command.expectedVersion != version ->
-                rejected(
-                    KernelRejections.VERSION_MISMATCH,
-                    "${command.ref} is at version $version, not ${command.expectedVersion}.",
-                )
-
-            else -> null
-        }
-    }
-
     /** The decision of [decider] on [state], its events followed by those of [model]'s after hooks (D39). */
     private suspend fun <S : Any> decideAll(
         model: AggregateModel<S>,
@@ -1069,52 +955,6 @@ class Kernel(
             after.after(scope, state, body)
         }
     }
-
-    /**
-     * Answers [command], whose request id [existing] already committed: a retry gets that stream back, before the
-     * aggregate is loaded and without deciding again (D46).
-     *
-     * A retry comes from the scope that sent the command, so the answer is given only within that scope (D94): a
-     * caller outside it, reusing or guessing another caller's request id, learns neither the stream nor which command
-     * committed it, so this check comes before the command types are compared. That scope is the aggregate's before
-     * the stream, but the stream records only its scope after; the two differ only in a part the stream's own events
-     * transferred, and that part is not checked: retrying a transfer is still answered though the caller no longer
-     * holds the aggregate. A derived command is answered whatever its scope (decision D199): its retry is the server
-     * handling the same commit again, not a caller.
-     */
-    private fun duplicate(existing: EventStreamRecord, command: Command<*>, commandType: CommandType): CommandOutcome {
-        val names = existing.events.mapTo(HashSet()) { it.name }
-        val before = Scope(
-            if (Lifecycle.OWNER_TRANSFERRED in names) command.scope.ownerId else existing.scope.ownerId,
-            if (Lifecycle.SPACE_TRANSFERRED in names) command.scope.spaceId else existing.scope.spaceId,
-        )
-        return if (command.isDerived || admits(before, command.scope)) {
-            settled(existing, commandType)
-        } else {
-            forbidden(command)
-        }
-    }
-
-    /** Whether an aggregate in scope [aggregate] takes a command in scope [caller]: each part the caller has matches. */
-    private fun admits(aggregate: Scope, caller: Scope): Boolean =
-        (caller.ownerId == null || caller.ownerId == aggregate.ownerId) &&
-            (caller.spaceId == null || caller.spaceId == aggregate.spaceId)
-
-    private fun forbidden(command: Command<*>) =
-        rejected(KernelRejections.FORBIDDEN, "${command.ref} is outside the command's scope.")
-
-    /** A stream recorded under the command's name, or a former one (`@Alias`), is the same command's (D55). */
-    private fun settled(existing: EventStreamRecord, commandType: CommandType): CommandOutcome =
-        if (commandType.isNamed(existing.commandType)) {
-            CommandOutcome.AlreadyCommitted(existing)
-        } else {
-            rejected(
-                KernelRejections.REQUEST_ID_REUSED,
-                "Request ${existing.requestId} was already used by another command.",
-            )
-        }
-
-    private fun rejected(code: String, message: String) = CommandOutcome.Rejected(Rejection(code, message))
 
     private sealed interface Prepared {
         class Done(val outcome: CommandOutcome) : Prepared
@@ -1294,6 +1134,18 @@ class Kernel(
         val logger = KotlinLogging.logger {}
     }
 }
+
+/**
+ * This command with its scope narrowed to what [model]'s ownership keeps: a tenant's aggregate (decision D189) neither
+ * records nor checks an owner, only that part of the scope counts.
+ */
+private fun Command<*>.narrowedTo(model: AggregateModel<*>): Command<*> {
+    val narrowed = model.ownership.scopeOf(scope)
+    return if (narrowed == scope) this else copyWith(scope = narrowed)
+}
+
+/** This wait context when its caller waits beyond COMMITTED: then it goes with the append (decision D25). */
+private fun WaitContext?.beyondCommitted(): WaitContext? = this?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
 
 /**
  * Names the commands a decide function schedules for an aggregate of another type than its own (decision D166): the

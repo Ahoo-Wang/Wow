@@ -98,7 +98,9 @@ import kotlin.time.toKotlinDuration
  * - `wow.state-views.capacity` (4096), `max-age` (1m), `max-bytes` (64 MiB): the bounds of each context's state views
  *   (decision D133), see [StateViews].
  * - `wow.executor.lane-capacity` (1024), `wow.executor.max-in-flight` (4096, the node's commands in flight, beyond
- *   which a command is `wow.command.busy`, decision D228 ②), `wow.state-cache.capacity`, `wow.subscription.*`.
+ *   which a command is `wow.command.busy`, decision D228 ②), `wow.state-cache.capacity`,
+ *   `wow.state-cache.recent-requests` (256, the requests each cached aggregate keeps of those it committed last,
+ *   decision D261), `wow.subscription.*`.
  * - `wow.subscriptions.[<subscription>].start`: `beginning`, `end` or an ISO-8601 instant, where the subscription
  *   (`processor.function`, bracketed for its dot) starts in a partition it has no checkpoint in yet, instead of its
  *   kind's default (decision D154), see [SubscriptionSettings].
@@ -587,6 +589,12 @@ class WowProperties {
     class StateCache {
         /** The aggregate states kept per context between commands; 0 keeps none. */
         var capacity: Int = ServiceNodeOptions.DEFAULT_STATE_CACHE_CAPACITY
+
+        /**
+         * The requests each cached aggregate keeps of those it committed last, derived from the log (decision D261), so
+         * that most commands skip looking their request id up; 0 looks every request id up.
+         */
+        var recentRequests: Int = ServiceNodeOptions.DEFAULT_RECENT_REQUESTS
     }
 
     class Subscription {

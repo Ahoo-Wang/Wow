@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.CommittedRequest
 import me.ahoo.wow.spi.log.EventStreamRecord
 
@@ -92,6 +93,14 @@ internal class RecentRequests private constructor(private val capacity: Int) {
             }
             return recent
         }
+
+        /**
+         * The recent requests of an aggregate the kernel loaded with [tail]: its streams from a version on and the
+         * request keys before them, one more than [capacity] asked for, so a full window tells a truncated history; a
+         * replay's tail holds every stream and no key. Null when [capacity] is 0: none are kept.
+         */
+        fun of(capacity: Int, tail: AggregateTail): RecentRequests? =
+            if (capacity == 0) null else of(capacity, tail.earlier, tail.streams, tail.earlier.size <= capacity)
 
         /**
          * The 64-bit FNV-1a hash of [requestId]'s characters, finalized with the murmur3 mixer: a collision only costs

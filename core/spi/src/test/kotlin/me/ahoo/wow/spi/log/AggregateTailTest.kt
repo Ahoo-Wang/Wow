@@ -28,7 +28,16 @@ class AggregateTailTest {
     private val ref = AggregateType("ctx", "agg").ref("tenant", "a")
     private val event = EventRecord.of("ctx.agg.Acted", 1, "{}")
     private val streams = (1..5).map { version ->
-        EventStreamRecord.of(ref, version, "command-$version", "request-$version", "ctx.agg.Act", 0L, listOf(event), Scope.NONE)
+        EventStreamRecord.of(
+            ref,
+            version,
+            "command-$version",
+            "request-$version",
+            "ctx.agg.Act",
+            0L,
+            listOf(event),
+            Scope.NONE
+        )
     }
 
     /** A log whose [EventLog.readTail] is the default, over [streams]. */

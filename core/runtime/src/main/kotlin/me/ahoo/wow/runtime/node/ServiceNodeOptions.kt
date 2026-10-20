@@ -251,6 +251,8 @@ enum class Routing {
  * - [maxRegisteredWaits]: the waits the node holds at once (review R3.4-3, [WaitOptions.maxRegistered]); beyond it a
  *   command that would register one is refused as busy, before it runs.
  * - [stateCacheCapacity]: the aggregate states kept per context between commands; 0 keeps none.
+ * - [recentRequests]: the requests each cached aggregate keeps of those it committed last (decision D261), derived
+ *   from the log, so that most commands skip looking their request id up; 0 looks every request id up (D46).
  * - [stateViews]: the bounds of each context's state views, shared by its state consumers (decision D133).
  * - [timers]: the timer runner of each context that has a timer store (decision D166).
  * - [schedules]: the host's override of each job's default rule, by job name (`wow.schedules.<job>.*`, decision D198);
@@ -292,12 +294,14 @@ class ServiceNodeOptions @InternalWowApi constructor(
     val maxInFlight: Int = InFlightLimit.DEFAULT_MAX,
     val maxRegisteredWaits: Int = WaitOptions.DEFAULT_MAX_REGISTERED,
     val handoff: HandoffOptions = HandoffOptions(),
+    val recentRequests: Int = DEFAULT_RECENT_REQUESTS,
 ) {
     init {
         require(maxInFlight >= 1) { "A node takes at least one command in flight." }
         require(defaultWaitTimeout.isPositive()) { "The default wait timeout is positive." }
         require(laneCapacity >= 1) { "A lane takes at least one command." }
         require(stateCacheCapacity >= 0) { "The state cache capacity is never negative." }
+        require(recentRequests >= 0) { "The recent requests kept per aggregate are never negative." }
     }
 
     /** This ServiceNodeOptions with the given fields replaced: Wow's own copy, left out of the ABI. */
@@ -322,6 +326,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         maxInFlight: Int = this.maxInFlight,
         maxRegisteredWaits: Int = this.maxRegisteredWaits,
         handoff: HandoffOptions = this.handoff,
+        recentRequests: Int = this.recentRequests,
     ): ServiceNodeOptions = ServiceNodeOptions(
         cluster,
         routing,
@@ -342,6 +347,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         maxInFlight,
         maxRegisteredWaits,
         handoff,
+        recentRequests,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -356,17 +362,20 @@ class ServiceNodeOptions @InternalWowApi constructor(
             "defaultWaitTimeout=$defaultWaitTimeout, stateViews=$stateViews, timers=$timers, " +
             "schedules=$schedules, kafkaRouted=$kafkaRouted, unknownWaitContexts=$unknownWaitContexts, " +
             "ledger=$ledger, snapshots=$snapshots, maxInFlight=$maxInFlight, maxRegisteredWaits=$maxRegisteredWaits, " +
-            "handoff=$handoff)"
+            "handoff=$handoff, recentRequests=$recentRequests)"
 
     private fun valueFields(): List<Any?> = listOf(
         cluster, routing, maxWaitTimeout, maxWaitHops, subscription, appendQueue, laneCapacity, stateCacheCapacity,
         defaultWaitTimeout, stateViews, timers, schedules, kafkaRouted, unknownWaitContexts, ledger, snapshots,
-        maxInFlight, maxRegisteredWaits, handoff,
+        maxInFlight, maxRegisteredWaits, handoff, recentRequests,
     )
 
     companion object {
         const val DEFAULT_LANE_CAPACITY: Int = 1_024
         const val DEFAULT_STATE_CACHE_CAPACITY: Int = 4_096
+
+        /** About 3 KB per cached aggregate, 12 MB for a full default state cache (decision D261). */
+        const val DEFAULT_RECENT_REQUESTS: Int = 256
     }
 }
 
