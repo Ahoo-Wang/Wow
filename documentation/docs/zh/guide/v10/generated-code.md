@@ -8,20 +8,18 @@ outline: deep
 
 `wow-compiler` 是一个 KSP 处理器。在 `generate` 模式下（Gradle 插件会设置它），它读取领域模块中带注解的类，把 Kotlin 源码与资源写到 `build/generated/ksp/main/`。运行时不靠扫描或反射发现任何东西：宿主加载编译器写出的内容。编译器无法绑定的模型会让编译失败，错误信息指出函数与违反的规则。
 
-对示例的 `shop-domain` 模块，编译器写出：
+对 eShop 的 [`eshop-ordering-domain`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/eshop/ordering/ordering-domain) 模块，编译器写出：
 
 ```text
 build/generated/ksp/main/
-├── kotlin/me/ahoo/wow/example/shop/domain/
-│   ├── ShopDomainModelProvider.kt          绑定索引
-│   ├── cart/CartModel.kt                    fun cartModel(context, configure)
-│   ├── cart/CartSagaSubscriptions.kt        fun cartSagaHandlers(dependencies)
-│   ├── cart/CartStateProperties.kt          状态的查询字段（有 wow-query-api 时）
-│   ├── order/OrderModel.kt                  fun orderModel(context, pricingService, configure)
-│   └── order/OrderSagaSubscriptions.kt      fun orderSagaHandlers(dependencies)
+├── kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/
+│   ├── EshopOrderingDomainModelProvider.kt   绑定索引
+│   ├── OrderModel.kt                         fun orderModel(context, paymentPolicy, configure)
+│   ├── OrderProcessSagaSubscriptions.kt      fun orderProcessSagaHandlers(dependencies)
+│   └── OrderStateProperties.kt               状态的查询字段（有 wow-query-api 时）
 └── resources/META-INF/
     ├── services/me.ahoo.wow.kernel.ModelProvider
-    └── wow/manifest/shop-domain.json        Manifest 片段
+    └── wow/manifest/eshop-ordering-domain.json   Manifest 片段
 ```
 
 ## 模型工厂
@@ -31,12 +29,12 @@ build/generated/ksp/main/
 ```kotlin
 public fun orderModel(
     context: String,
-    pricingService: PricingService,
+    paymentPolicy: PaymentPolicy,
     configure: AggregateModelBuilder<OrderState>.() -> Unit = {},
 ): AggregateModel<OrderState>
 ```
 
-- **`context`** 总是第一个参数，即使模块只声明了一个 `@BoundedContext`：绑定索引传入它编译时的上下文。测试自己传入：`orderModel("example", pricing)`。
+- **`context`** 总是第一个参数，即使模块只声明了一个 `@BoundedContext`：绑定索引传入它编译时的上下文。测试自己传入：`orderModel("eshop-ordering", paymentPolicy)`。
 - **服务**随后，命令函数或 after 钩子需要的每个服务一个参数。宿主在构建模型时绑定一次。
 - **`configure`** 在生成的绑定之后作用于模型构建器：通用扩展口，很少需要。
 
@@ -44,7 +42,7 @@ public fun orderModel(
 
 ## 处理器绑定
 
-每个 `@Saga`、`@Projection` 或 `@Reactor` 类在它的包里得到 `<processor>Handlers(dependencies)`（`OrderSaga` 得到 `orderSagaHandlers`），文件名为 `<Processor>Subscriptions.kt`。它构造处理器一次，构造函数的参数按类型（与限定符）从 `dependencies` 取得，并为每个处理函数返回一个内核 `ProcessorBinding`，名为 `<processor>.<function>`，Saga 的 `@OnRejected` 处理函数绑定在其上。生成的代码只依赖 `wow-kernel`：运行时把这些绑定变成订阅。
+每个 `@Saga`、`@Projection` 或 `@Reactor` 类在它的包里得到 `<processor>Handlers(dependencies)`（`OrderProcessSaga` 得到 `orderProcessSagaHandlers`），文件名为 `<Processor>Subscriptions.kt`。它构造处理器一次，构造函数的参数按类型（与限定符）从 `dependencies` 取得，并为每个处理函数返回一个内核 `ProcessorBinding`，名为 `<processor>.<function>`，Saga 的 `@OnRejected` 处理函数绑定在其上。生成的代码只依赖 `wow-kernel`：运行时把这些绑定变成订阅。
 
 ## 查询字段：`<State>Properties`
 
@@ -55,21 +53,20 @@ public fun orderModel(
 每个模块得到一个实现 `me.ahoo.wow.kernel.ModelProvider` 的类，登记在 `META-INF/services/me.ahoo.wow.kernel.ModelProvider` 中供 `ServiceLoader` 使用：
 
 ```kotlin
-public class ShopDomainModelProvider : me.ahoo.wow.kernel.ModelProvider {
-    override val context: String = "example"
-    override val fragment: String = "META-INF/wow/manifest/shop-domain.json"
+public class EshopOrderingDomainModelProvider : me.ahoo.wow.kernel.ModelProvider {
+    override val context: String = "eshop-ordering"
+    override val fragment: String = "META-INF/wow/manifest/eshop-ordering-domain.json"
 
     override fun models(dependencies: Dependencies): List<AggregateModel<*>> = listOf(
-        cartModel(context),
-        orderModel(context, dependencies.get(PricingService::class.javaObjectType)),
+        orderModel(context, dependencies.get(PaymentPolicy::class.javaObjectType)),
     )
 
     override fun processors(dependencies: Dependencies): List<ProcessorBinding<*>> =
-        listOf(cartSagaHandlers(dependencies), orderSagaHandlers(dependencies)).flatten()
+        listOf(orderProcessSagaHandlers(dependencies)).flatten()
 }
 ```
 
-- **类名**来自模块（KSP 选项 `wow.manifest.module`，使用插件时是 Gradle 项目名）：`shop-domain` 得到 `ShopDomainModelProvider`，`eshop-catalog-domain` 得到 `EshopCatalogDomainModelProvider`。不以字母开头的名字加前缀 `Module`。
+- **类名**来自模块（KSP 选项 `wow.manifest.module`，使用插件时是 Gradle 项目名）：`eshop-ordering-domain` 得到 `EshopOrderingDomainModelProvider`。不以字母开头的名字加前缀 `Module`。
 - **包**是模块所有模型与处理器共有的最深的包。
 - **依赖**按类型查找，带 `@Name` 的参数再按限定符查找。在宿主上，`Dependencies` 是应用的 Bean 工厂：带限定符的依赖是该名字的 Bean；不带的是该类型唯一的 Bean，或多个中的 primary Bean。缺少 Bean 时启动失败，并指出类型（`MissingDependencyException`）。
 
