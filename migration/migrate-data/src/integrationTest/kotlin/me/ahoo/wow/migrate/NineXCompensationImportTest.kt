@@ -109,14 +109,18 @@ class NineXCompensationImportTest {
             run("import", "--config", config(target, NineXExample.MAP_TEXT).toString()).assert()
                 .isEqualTo(MigrateData.FAILED)
             printed.assert()
-                .contains("  9.x compensation: 5 unresolved executions of 4 functions, 2 resolved (history, not imported)")
+                .contains(
+                    "  9.x compensation: 5 unresolved executions of 4 functions, 2 resolved (history, not imported)"
+                )
                 .contains(
                     "the 9.x processor function example-service.CartSaga.onOrderCreated (2 unresolved executions) " +
                         "has no subscription mapping: its failures would be lost",
                 )
                 .contains("the 9.x processor function example-service.OrderSaga.onEvent (1 unresolved executions)")
                 .contains("the 9.x processor function example-service.OrderSaga.onStateEvent (1 unresolved executions)")
-                .contains("the 9.x processor function example-service.OrderProjector.onOrderPaid (1 unresolved executions)")
+                .contains(
+                    "the 9.x processor function example-service.OrderProjector.onOrderPaid (1 unresolved executions)"
+                )
                 .doesNotContain("streams imported")
 
             val config = config(target)
@@ -159,7 +163,11 @@ class NineXCompensationImportTest {
             )
             ledger.parked(ORDER_STATE, ref)!!.recoverable.assert().isEqualTo(Recoverable.UNRECOVERABLE)
             // Only this service's ledger holds them.
-            MongoFailureLedger(NineXMongoStore.client, TARGET, service = "another-service").list(CART_SAGA).assert().isEmpty()
+            MongoFailureLedger(
+                NineXMongoStore.client,
+                TARGET,
+                service = "another-service"
+            ).list(CART_SAGA).assert().isEmpty()
 
             // A run again, from the first execution, finds every one parked and writes nothing.
             run("import", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
@@ -188,7 +196,11 @@ class NineXCompensationImportTest {
             val page = ops.list()
             page.entries.map { it.entry.subscription }.assert().containsExactly(CART_SAGA, ORDER_CREATED, ORDER_STATE)
             page.entries.map { it.status }.assert()
-                .containsExactly(ParkedView.Status.SCHEDULED, ParkedView.Status.SCHEDULED, ParkedView.Status.UNRECOVERABLE)
+                .containsExactly(
+                    ParkedView.Status.SCHEDULED,
+                    ParkedView.Status.SCHEDULED,
+                    ParkedView.Status.UNRECOVERABLE
+                )
             // 9.x's next retry for the first; the second's by its applied spec, after its retry started.
             page.entries.map { it.nextRetryAt }.assert()
                 .containsExactly(FAILED_AT + 180_000, FAILED_AT + 180_000 + 120_000, null)
@@ -243,7 +255,12 @@ class NineXCompensationImportTest {
             "DIFFERS V10 $ORDER_CREATED $ref parked from v1: the 9.x execution 0VYC0mp1nA0002 (example-service." +
                 "OrderSaga.onEvent on example-service.order/(0)/$ORDER_ID v1) it was imported for is succeeded in 9.x",
         )
-        run("import", "--config", config.toString(), "--restart").assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        run(
+            "import",
+            "--config",
+            config.toString(),
+            "--restart"
+        ).assert().describedAs(printed).isEqualTo(MigrateData.OK)
         printed.assert().contains("RESOLVED $ORDER_CREATED $ref from v1")
         ledger.parked(ORDER_CREATED, ref).assert().isNull()
         ledger.parked(CART_SAGA, ref).assert().isNotNull()

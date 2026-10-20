@@ -67,7 +67,12 @@ class TagsResinkTest {
     private val sink = ElasticsearchEventSinks.of(restClient).sinkOf(context, type.name)
     private val documents = UntaggedDocuments.of(sink)
     private val checkpoints = InMemoryCheckpointRepository()
-    private val backfiller = TagsBackfiller(MigrationModels(listOf(model)), { log }, checkpoints, ImportOptions(pageSize = 2))
+    private val backfiller = TagsBackfiller(
+        MigrationModels(listOf(model)),
+        { log },
+        checkpoints,
+        ImportOptions(pageSize = 2)
+    )
 
     private fun stream(id: String, version: Int, region: String) = EventStreamRecord(
         ref = type.ref("tenant", id),
@@ -108,7 +113,9 @@ class TagsResinkTest {
     }
 
     private fun request(method: String, path: String, body: String? = null): JsonNode {
-        val response = restClient.performRequest(Request(method, path).also { request -> body?.let(request::setJsonEntity) })
+        val response = restClient.performRequest(
+            Request(method, path).also { request -> body?.let(request::setJsonEntity) }
+        )
         return WowJson.mapper.readTree(EntityUtils.toString(response.entity))
     }
 
@@ -118,7 +125,15 @@ class TagsResinkTest {
         "/${sink.index}/_search?version=true",
         """{"size":100,"sort":[{"aggregateId":"asc"},{"version":"asc"}],"query":{"bool":{"filter":[""" +
             """{"exists":{"field":"tagsRecorded"}},{"term":{"tags.region":"$region"}}]}}}""",
-    ).path("hits").path("hits").toList().map { "${it.path("_source").path("aggregateId").asString()}@${it.path("_source").path("version").asInt()}" }
+    ).path(
+        "hits"
+    ).path(
+        "hits"
+    ).toList().map {
+        "${it.path(
+            "_source"
+        ).path("aggregateId").asString()}@${it.path("_source").path("version").asInt()}"
+    }
 
     private fun documentVersions(): List<Long> = request(
         "POST",
@@ -135,7 +150,12 @@ class TagsResinkTest {
             sink.untagged(null, 10).size.assert().isEqualTo(3)
             visible("east").assert().isEmpty()
             // The log first: refused while it still holds streams without tags.
-            assertThrows<MigrationException> { backfiller.resink(type, documents) }.message!!.assert().contains("backfill it first")
+            assertThrows<MigrationException> {
+                backfiller.resink(
+                    type,
+                    documents
+                )
+            }.message!!.assert().contains("backfill it first")
             backfiller.backfill(type).checkpoint.streams.assert().isEqualTo(3)
             backfiller.resink(type, documents).assert().isEqualTo(3)
             sink.untagged(null, 10).assert().isEmpty()

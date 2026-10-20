@@ -19,8 +19,8 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.migrate.example.NineXExample
-import me.ahoo.wow.migrate.example.OrderStatus
 import me.ahoo.wow.migrate.example.OrderState
+import me.ahoo.wow.migrate.example.OrderStatus
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.postgres.PostgresEventLog
@@ -110,12 +110,18 @@ class NineXExampleImportTest {
         run("compare", "--config", config.toString()).assert().describedAs(output.toString())
             .isEqualTo(MigrateData.OK)
         output.toString().assert()
-            .contains("example-service.order compared: 1 of 1 instances have a 9.x snapshot (100.0%), 1 compared, 0 differ")
-            .contains("example-service.cart compared: 1 of 1 instances have a 9.x snapshot (100.0%), 1 compared, 0 differ")
+            .contains(
+                "example-service.order compared: 1 of 1 instances have a 9.x snapshot (100.0%), 1 compared, 0 differ"
+            )
+            .contains(
+                "example-service.cart compared: 1 of 1 instances have a 9.x snapshot (100.0%), 1 compared, 0 differ"
+            )
             .doesNotContain("DIFFERS")
         run("snapshot", "--config", config.toString()).assert().describedAs(output.toString())
             .isEqualTo(MigrateData.OK)
-        output.toString().assert().contains("example-service.order snapshots done: 1 instances, 1 V10 snapshots written")
+        output.toString().assert().contains(
+            "example-service.order snapshots done: 1 instances, 1 V10 snapshots written"
+        )
         val snapshot = store.load(orderRef)!!
         snapshot.version.assert().isEqualTo(4)
         NineXExample.sameJson(
@@ -124,7 +130,9 @@ class NineXExampleImportTest {
         ).assert().isTrue()
         kernel.stateAt(NineXExample.orderModel, orderRef, 4, snapshot)!!.version.assert().isEqualTo(4)
         run("import", "--config", config.toString(), "--restart", "--snapshots").assert().isEqualTo(MigrateData.OK)
-        output.toString().assert().contains("example-service.order snapshots done: 1 instances, 0 V10 snapshots written, 1 already there")
+        output.toString().assert().contains(
+            "example-service.order snapshots done: 1 instances, 0 V10 snapshots written, 1 already there"
+        )
 
         // A deliberately broken state mapping is reported, with the instance, its version and the fields.
         val broken = NineXExample.MAP_TEXT.replace(
@@ -134,12 +142,17 @@ class NineXExampleImportTest {
         run("compare", "--config", config(target, map = broken).toString(), "--restart").assert()
             .isEqualTo(MigrateData.DIFFERS)
         output.toString().assert()
-            .contains("DIFFERS example-service.order (0)/0VY3GwaK4OmV00E v4: orderStatus: 9.x \"SHIPPED\", V10 (none); status: 9.x (none), V10 \"SHIPPED\"")
+            .contains(
+                "DIFFERS example-service.order (0)/0VY3GwaK4OmV00E v4: orderStatus: 9.x \"SHIPPED\", V10 (none); status: 9.x (none), V10 \"SHIPPED\""
+            )
             .contains("differing fields: orderStatus (1), status (1)")
         config(target)
 
         // The tail follows what 9.x commits after the import.
-        val received = NineXMongoStore.received(NineXExample.resource("order-stream-v4.json"), System.currentTimeMillis())
+        val received = NineXMongoStore.received(
+            NineXExample.resource("order-stream-v4.json"),
+            System.currentTimeMillis()
+        )
         NineXMongoStore.insert(nineX, received)
         // The tool does not write to the 9.x store unless told to: without the tail's index, the tail refuses.
         run("tail", "--config", config.toString(), "--once").assert().isEqualTo(MigrateData.FAILED)

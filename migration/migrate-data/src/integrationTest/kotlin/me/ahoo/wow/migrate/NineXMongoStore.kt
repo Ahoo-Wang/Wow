@@ -47,7 +47,10 @@ object NineXMongoStore {
      */
     fun compensation(): MongoDatabase =
         client.getDatabase("ninex_compensation_${databases.incrementAndGet()}").also { database ->
-            NineXCompensationExample.FIXTURES.indices.forEach { saveSnapshot(database, NineXCompensationExample.resource(it + 1)) }
+            NineXCompensationExample.FIXTURES.indices.forEach { saveSnapshot(
+                database,
+                NineXCompensationExample.resource(it + 1)
+            ) }
         }
 
     /**
