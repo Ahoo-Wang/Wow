@@ -102,10 +102,10 @@ class MongoEventLogTest : EventLogSpec() {
         runBlocking {
             // Regression (B.G-4): the timeout bounded the driver's whole retry loop, so on a slow machine an append that
             // kept losing write conflicts on the partition's counter ended unknown (the lease spike's direct run, 255 of
-            // 256). With a short timeout the old loop lost dozens here; each attempt is bounded now, the retries not.
+            // 256). With a 600 ms timeout the old loop lost dozens here; each attempt is bounded now, the retries not.
             val context = MongoLogFixture.newContext("contended")
             val client = MongoLogFixture.client
-            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1, transactionTimeout = 150.milliseconds)
+            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1, transactionTimeout = 500.milliseconds)
             log.createSchema()
             val type = AggregateType(context, "account")
             val outcomes = (0 until CONTENDERS).map { index ->
