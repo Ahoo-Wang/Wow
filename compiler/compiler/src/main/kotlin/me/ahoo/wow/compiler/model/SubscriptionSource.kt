@@ -118,7 +118,8 @@ internal object SubscriptionSource {
     /**
      * The arguments of [handler]'s binding that it gives only when it has them: the aggregates of its
      * `@OnEvent(aggregates)`, whether its state is [nullable], its `@Retry` budget, and the start its `@OnEvent(start)`
-     * declares (decision D194; the runtime gives one that declares none its kind's and source's).
+     * declares (decision D194; the runtime gives one that declares none its kind's and source's), and the classes of
+     * its `@OnEvent(calls)`, the only ones its `SagaContext.call` takes (decision D259).
      */
     private fun optionalArguments(handler: HandlerBinding, nullable: Boolean): String = buildString {
         if (handler.aggregates.isNotEmpty()) {
@@ -129,6 +130,9 @@ internal object SubscriptionSource {
         }
         handler.retry?.let { append(", retry = ${it.source()}") }
         handler.start?.let { append(", startFrom = $KERNEL.StartFrom.$it") }
+        if (handler.callSources.isNotEmpty()) {
+            append(", calls = listOf(${handler.callSources.joinToString(", ") { "$it::class.java" }})")
+        }
     }
 
     /**

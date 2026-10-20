@@ -49,8 +49,10 @@ import tools.jackson.databind.node.ObjectNode
  *   [EventStreamRecords.reader] says: every event as the aggregate's model reads it now ([reading], finding A4-16), an
  *   event the aggregate retired left out (decision D219), and each body masked by its event's schema ([masks], 09 §17
  *   G-2), for every caller alike.
- * - **Visibility.** An aggregate the snapshot queries of its type hide from the caller has no streams for it
- *   ([visibility], reviews A3-11, R2.3-6): [EventVisibilityPolicy] joins the policy step.
+ * - **Visibility.** Each policy declares how it restricts the streams ([QueryPolicy.events], decisions D254, D259).
+ *   While a pinned one applies, an aggregate the snapshot queries of its type hide from the caller has no streams for
+ *   it ([visibility], reviews A3-11, R2.3-6): [EventVisibilityPolicy] joins the policy step, and the descriptor lists
+ *   [AGGREGATE_REQUIRED][UnpinnedEventsPolicy.AGGREGATE_REQUIRED], as under [UnpinnedEvents.REFUSE].
  * - **Counts.** [counts] must be the events model's own cache: a cache is keyed by aggregate type, not by model.
  *
  * Free filtering reads the write store: the PostgreSQL and MongoDB logs index only `(aggregateId, tenantId, version)`,
@@ -83,6 +85,7 @@ object EventQueryGateways {
         unpinned: UnpinnedEvents = UnpinnedEvents.ALLOW,
     ): QueryGateway {
         val refuses = unpinned == UnpinnedEvents.REFUSE
+        val pinned = refuses || visibility.pins(aggregateType)
         return DefaultQueryGateway(
             aggregateType = aggregateType,
             backend = backend,
@@ -90,13 +93,13 @@ object EventQueryGateways {
             filters = filters,
             policies = policies + listOfNotNull(
                 UnpinnedEventsPolicy().takeIf { refuses },
-                EventVisibilityPolicy(visibility, tenants),
+                EventVisibilityPolicy(visibility, tenants, entryPolicy),
             ),
             observer = observer,
             entryPolicy = entryPolicy,
             counts = counts,
             records = EventStreamRecords.reader(aggregateType, masks, reading),
-            constraints = listOfNotNull(UnpinnedEventsPolicy.CONSTRAINT.takeIf { refuses }),
+            constraints = listOfNotNull(UnpinnedEventsPolicy.CONSTRAINT.takeIf { pinned }),
         )
     }
 }

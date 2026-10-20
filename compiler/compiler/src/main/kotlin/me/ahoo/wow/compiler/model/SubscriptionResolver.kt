@@ -53,7 +53,8 @@ import me.ahoo.wow.api.subscribe.StateEvent
  * - `@OnEvent(aggregates)` names aggregates as `context.aggregate`, all of one context, and only a saga's handler
  *   declares `@OnEvent(derives)` (decisions D138, D259), each a command class or a sealed type, which stands for its
  *   concrete subclasses; a handler that returns `Unit` declares none. A returned `Command<S>` of a sealed `S` derives
- *   the concrete subclasses of `S`;
+ *   the concrete subclasses of `S`. Only a saga's handler declares `@OnEvent(calls)`, the commands it sends with
+ *   `SagaContext.call` (decision D259), named as `derives` names them;
  * - an `@OnRejected` handler (decisions D136, D153) is a saga's, takes a `CommandRejected` and, optionally, the
  *   `SagaContext`, returns what a saga's handler returns (`Unit` to accept the rejection, decision D259), and is not
  *   an `@OnEvent` handler too; no two of a saga take
@@ -90,6 +91,7 @@ internal object SubscriptionResolver {
     private const val AGGREGATES = "aggregates"
     private const val DERIVES = "derives"
     private const val SCHEDULES = "schedules"
+    private const val CALLS = "calls"
     private val STATE_EVENT = StateEvent::class.java.name
     private const val ANY = "kotlin.Any"
     private val AGGREGATE_NAME = Regex("[^.\\s]+\\.[^.\\s]+")
@@ -336,8 +338,9 @@ internal object SubscriptionResolver {
         val onEvent = function.annotationIn(ON_EVENT)
         val aggregates = onEvent.strings(AGGREGATES)
         val declared = onEvent.classes(DERIVES)
-        val derives = commandClasses(where, "derives", declared, problems)
+        val derives = commandClasses(where, "derives", declared, problems).map { it.binaryName() }
         val schedules = onEvent.strings(SCHEDULES)
+        val calls = callsOf(where, onEvent, kind, problems)
         problems += sourceProblems(where, aggregates)
         problems += derivesProblems(where, declared.isNotEmpty(), kind, returned)
         problems += schedulesProblems(where, schedules, kind)
@@ -363,6 +366,8 @@ internal object SubscriptionResolver {
             aggregates = aggregates,
             derives = derives,
             schedules = schedules,
+            calls = calls.map { it.binaryName() },
+            callSources = calls.map { it.qualifiedName!!.asString() },
             start = startOf(function),
             derived = if (kind == Kind.SAGA) returned?.let { derivedClasses(it, reactor) } else null,
             retry = retry,
@@ -394,8 +399,22 @@ internal object SubscriptionResolver {
             }
         }
 
+    /** `@OnEvent(calls)` (decision D259): the command classes a saga's handler calls with `SagaContext.call`. */
+    private fun callsOf(
+        where: String,
+        onEvent: KSAnnotation?,
+        kind: Kind?,
+        problems: MutableList<String>,
+    ): List<KSClassDeclaration> {
+        val calling = onEvent.classes(CALLS)
+        if (calling.isNotEmpty() && kind != null && kind != Kind.SAGA) {
+            problems += "$where declares @OnEvent(calls), but a ${kind.label} handler calls no other context"
+        }
+        return commandClasses(where, CALLS, calling, problems)
+    }
+
     /**
-     * The binary names of the command classes [types] name, as `@OnEvent(member)` declares them (decision D259): a
+     * The command classes [types] name, as `@OnEvent(member)` declares them (decision D259): a
      * class names itself, a sealed type its concrete subclasses, transitively. `Any`, and an interface or an abstract
      * class that is not sealed, name no command class: a problem.
      */
@@ -404,15 +423,15 @@ internal object SubscriptionResolver {
         member: String,
         types: List<KSType>,
         problems: MutableList<String>,
-    ): List<String> = types.flatMap { type ->
+    ): List<KSClassDeclaration> = types.flatMap { type ->
         val declaration = type.declaration.classOf()
         val classes = declaration?.takeUnless { it.qualifiedName?.asString() == ANY }?.let(::concreteClasses).orEmpty()
         if (classes.isEmpty()) {
             problems += "$where $member ${type.render()}, which is no command class: " +
                 "@OnEvent($member) names command classes, or a sealed type whose subclasses they are"
         }
-        classes.map { it.binaryName() }
-    }.distinct()
+        classes
+    }.distinctBy { it.binaryName() }
 
     /** This declaration's class, a type alias read through to the class it names; null for anything else. */
     private fun KSDeclaration.classOf(): KSClassDeclaration? = when (this) {

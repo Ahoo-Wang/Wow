@@ -303,7 +303,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         ): HandledEntry {
             val name = handler.name
             val wait = DerivedCommands.waitOf(entry.transport?.wait, context.context, name)
-            val calls = SagaCalls(context.caller, context.served, context.commandTypes, wait)
+            val calls = SagaCalls(context.caller, context.served, context.commandTypes, wait, handler.calls, name)
             val execution = executionOf(handler, name, event, context, calls)
             val commands = try {
                 call(handler, event, execution)

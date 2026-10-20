@@ -29,7 +29,7 @@ package me.ahoo.wow.manifest
  * fragment leaves it empty and [ManifestMerger] writes the table.
  *
  * A command another part of the Manifest refers to ([SubscriptionManifest.derives], [SubscriptionManifest.rejected],
- * [SubscriptionManifest.committed]) is named by its full type name (`shop.cart.RemoveCartItem`) when the module that
+ * [SubscriptionManifest.committed], [SubscriptionManifest.calls]) is named by its full type name (`shop.cart.RemoveCartItem`) when the module that
  * wrote it decides the command; else
  * by the schema reference of its class (`#/$defs/<binary name>`, [schemaRef]): [defs] holds its schema like any other,
  * and the Manifest of the context that decides it (a peer Manifest, decision D139) names it by the same schema.
@@ -54,7 +54,7 @@ class Manifest(
                 listOf(aggregate.state.schema) + aggregate.commands.map { it.schema } + aggregate.events.map { it.schema }
             } + context.subscriptions.flatMap { subscription ->
                 val commands = subscription.derives.orEmpty() + subscription.rejected.orEmpty() +
-                    subscription.committed.orEmpty()
+                    subscription.committed.orEmpty() + subscription.calls.orEmpty()
                 commands.filter { it.startsWith(DEFS_PREFIX) }
             }
         }
@@ -475,6 +475,10 @@ class EventManifest(
  * - [job] is the job of a saga's `@OnSchedule` handler (decision D198): its subscription reads the context's built-in
  *   job aggregate `<context>.schedule` ([source]) and hands its job's ticks to the handler. Null for an `@OnEvent`
  *   handler.
+ * - [calls] names the commands a saga's `@OnEvent` handler sends to another context with `SagaContext.call` (decisions
+ *   D193, D259), as its `@OnEvent(calls)` declares, each referred to as [derives] refers to a command; null when it
+ *   declares none. A wait chain may follow the saga's hop into their contexts too, but they need no command topic:
+ *   the node calls their gateways, at the addresses its host configures.
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
@@ -490,6 +494,7 @@ class SubscriptionManifest(
     val retry: RetryManifest? = null,
     val committed: List<String>? = null,
     val job: JobManifest? = null,
+    val calls: List<String>? = null,
 ) {
     /** Whether it is a saga's `@OnRejected` or `@OnCommitted` handler: it reads receipts, not the log (D136, D192). */
     val isReceiptHandler: Boolean get() = rejected != null || committed != null
@@ -501,7 +506,7 @@ class SubscriptionManifest(
 
     override fun toString(): String =
         "SubscriptionManifest(name=$name, kind=$kind, source=$source, function=$function, derives=$derives, " +
-            "rejected=$rejected, start=$start, schedules=$schedules, retry=$retry, committed=$committed, job=$job)"
+            "rejected=$rejected, start=$start, schedules=$schedules, retry=$retry, committed=$committed, job=$job, calls=$calls)"
 
     private fun valueFields(): List<Any?> = listOf(
         name,
@@ -515,6 +520,7 @@ class SubscriptionManifest(
         retry,
         committed,
         job,
+        calls,
     )
 }
 

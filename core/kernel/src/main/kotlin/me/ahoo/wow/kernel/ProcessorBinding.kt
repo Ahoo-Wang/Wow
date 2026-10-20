@@ -77,6 +77,11 @@ class ProcessorBinding<S> private constructor(
     val commits: List<CommittedBinding<*>>,
     /** The job of an `@OnSchedule` handler ([schedule], decision D198); null for an `@OnEvent` one. */
     val job: ScheduleJob? = null,
+    /**
+     * The command classes a saga's handler declares it calls with `SagaContext.call` (`@OnEvent(calls)`, decision
+     * D259): the only ones its calls take. Empty for any other handler.
+     */
+    val calls: List<Class<*>> = emptyList(),
     private val call: suspend (StateEvent<S>, SubscriptionContext) -> List<Command<*>>,
 ) {
     init {
@@ -214,7 +219,8 @@ class ProcessorBinding<S> private constructor(
         /**
          * A `@Saga`'s handler [function] of [processor]: it returns the commands it derives ([derivedOf]); the saga's
          * `@OnRejected` handlers, the [rejections], take the rejections of those commands, and its `@OnCommitted`
-         * handlers, the [commits], their success receipts.
+         * handlers, the [commits], their success receipts. Its `SagaContext.call` takes only commands of the classes
+         * [calls] lists (`@OnEvent(calls)`, decision D259).
          */
         @JvmStatic
         @Suppress("LongParameterList")
@@ -229,6 +235,7 @@ class ProcessorBinding<S> private constructor(
             nullableState: Boolean = stateType == null,
             retry: HandlerRetry? = null,
             commits: List<CommittedBinding<*>> = emptyList(),
+            calls: List<Class<*>> = emptyList(),
             handle: suspend (StateEvent<S>, SagaContext) -> List<Command<*>>,
         ): ProcessorBinding<S> =
             ProcessorBinding(
@@ -243,6 +250,7 @@ class ProcessorBinding<S> private constructor(
                 nullableState,
                 retry,
                 commits,
+                calls = calls,
             ) { e, c ->
                 handle(e, c as SagaContext)
             }

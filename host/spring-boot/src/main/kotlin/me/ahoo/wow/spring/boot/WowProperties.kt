@@ -1142,7 +1142,11 @@ class WowProperties {
 
     /** The node's event logs, as its own calls and a probe of their heads see them. */
     class HealthStores {
-        /** A log whose calls have failed for this long, with no success since, is down: the node is not ready. */
+        /**
+         * How long a log must keep failing, with no success since, before it is down and the node not ready: a failed
+         * call or probe, or a probe that timed out (after this long, at least a second); a probe still under way is no
+         * failure. `0s` is down at the first failure.
+         */
         var downAfter: Duration = DEFAULT_HEALTH.storeDownAfter.toJavaDuration()
 
         /** A log with a failure this recent is degraded. */
