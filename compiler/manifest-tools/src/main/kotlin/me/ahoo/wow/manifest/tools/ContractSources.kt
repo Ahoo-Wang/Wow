@@ -15,6 +15,7 @@ package me.ahoo.wow.manifest.tools
 
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.QueryFieldNames
@@ -35,9 +36,16 @@ import me.ahoo.wow.manifest.QueryFieldNames
  *   of its state schema ([StateFields]), named by [QueryFieldNames] exactly as the compiler names the domain module's
  *   `<State>Properties`. A state the contract withholds (`publishState = false`, decision D156) has none.
  *
+ * - The context's rejection codes (decision D259) are `const val`s of an `Errors` object: those of an aggregate
+ *   (`context.aggregate.code`) in the aggregate's object, named after the local name ([errorName]: `invalid-item` is
+ *   `INVALID_ITEM`), the others (`context.code`, codes the context shares) in the context object's, named after what
+ *   follows the context. Each holds the full code: `EshopBasketContract.Basket.Errors.INVALID_ITEM` is
+ *   `"eshop-basket.basket.invalid-item"`, what a peer compares a rejection's code with. The TypeScript generator's
+ *   `<Context>ErrorCodes` carries the same codes.
+ *
  * Constants are `const val` or `@JvmField` and `ref` is `@JvmStatic`, so Java reads them as static members
- * (`EshopOrderingContract.Order.TYPE`). Typed views of the state, rejection codes (DX-1b) and the peer's events
- * (DX-1c) are not generated yet: each joins an aggregate object as another group of members ([aggregate]).
+ * (`EshopOrderingContract.Order.TYPE`). Typed views of the state and the peer's events (DX-1c) are not generated
+ * yet: each joins an aggregate object as another group of members ([aggregate]).
  */
 internal object ContractSources {
     /** One generated file: its [path] under the source root and its [text]. */
@@ -73,9 +81,23 @@ internal object ContractSources {
             appendLine("public object $name {")
             appendLine("    /** The context's name. */")
             appendLine("    public const val NAME: String = ${literal(context.name)}")
+            val byAggregate = context.aggregates.associateWith { aggregate ->
+                context.errors.filter { aggregateCodeOf(context.name, aggregate.name, it.code) != null }
+            }
+            val shared = context.errors - byAggregate.values.flatten().toSet()
+            if (shared.isNotEmpty()) {
+                appendLine()
+                append(
+                    errors(
+                        "    ",
+                        "The rejection codes the context shares.",
+                        shared
+                    ) { it.removePrefix("${context.name}.") }
+                )
+            }
             context.aggregates.forEach { aggregate ->
                 appendLine()
-                append(aggregate(name, aggregate, defs, queryFields))
+                append(aggregate(name, aggregate, defs, queryFields, context.name, byAggregate.getValue(aggregate)))
             }
             appendLine("}")
         }
@@ -89,6 +111,8 @@ internal object ContractSources {
         aggregate: AggregateManifest,
         defs: Map<String, Any?>,
         queryFields: Boolean,
+        context: String,
+        errors: List<ErrorManifest>,
     ): String = buildString {
         appendLine("    /**")
         appendLine("     * The aggregate `${comment(aggregate.name)}`.")
@@ -121,6 +145,14 @@ internal object ContractSources {
         appendLine("        /** Refers to the instance [id] of the aggregate under [tenantId]. */")
         appendLine("        @JvmStatic")
         appendLine("        public fun ref(tenantId: String, id: String): AggregateRef = TYPE.ref(tenantId, id)")
+        if (errors.isNotEmpty()) {
+            appendLine()
+            append(
+                errors("        ", "The aggregate's rejection codes, each the full code.", errors) {
+                    aggregateCodeOf(context, aggregate.name, it)!!
+                }
+            )
+        }
         if (queryFields) {
             StateFields.of(aggregate.state.schema, defs).forEach { path ->
                 appendLine()
@@ -133,6 +165,37 @@ internal object ContractSources {
         }
         appendLine("    }")
     }
+
+    /** The local name of [code] when it is a code of the aggregate [aggregate] of [context]; null otherwise. */
+    private fun aggregateCodeOf(context: String, aggregate: String, code: String): String? =
+        code.removePrefix("$context.$aggregate.").takeIf { it != code && '.' !in it }
+
+    /**
+     * The object `Errors` at [indent], documented by [doc], with a `const val` per code of [errors], named after
+     * [nameOf] its code ([errorName]).
+     */
+    private fun errors(indent: String, doc: String, errors: List<ErrorManifest>, nameOf: (String) -> String): String =
+        buildString {
+            appendLine("$indent/** $doc */")
+            appendLine("${indent}public object Errors {")
+            errors.distinctBy { errorName(nameOf(it.code)) }.forEachIndexed { index, error ->
+                if (index > 0) {
+                    appendLine()
+                }
+                appendLine("$indent    /** ${comment(error.description ?: error.code)} (HTTP ${error.status}) */")
+                appendLine(
+                    "$indent    public const val ${errorName(nameOf(error.code))}: String = ${literal(error.code)}"
+                )
+            }
+            appendLine("$indent}")
+        }
+
+    /**
+     * The constant name of the rejection code [name] (its local name, or what follows its context): its segments in
+     * upper snake case joined by `__`, as [QueryFieldNames.constantOf] names a path; `invalid-item` is `INVALID_ITEM`.
+     */
+    fun errorName(name: String): String =
+        QueryFieldNames.constantOf(name).let { if (it.first().isDigit()) "_$it" else it }
 
     /** The package the binary names [classes] share: the longest common one, empty when they share none. */
     fun packageOf(classes: List<String>): String {

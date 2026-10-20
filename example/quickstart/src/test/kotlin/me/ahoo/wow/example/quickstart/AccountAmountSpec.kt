@@ -23,12 +23,12 @@ class AccountAmountSpec {
     @Test
     fun `a deposit that is not positive is rejected`() = aggregateSpec(model, id = "alice") {
         given(AccountOpened("Alice"))
-        whenCommand(Deposit(0)) { expectRejected(AccountRejections.INVALID_AMOUNT) }
+        whenCommand(Deposit(0)) { expectRejected(Account.Rejections.INVALID_AMOUNT) }
     }
 
     @Test
     fun `a withdrawal that is not positive is rejected`() = aggregateSpec(model, id = "alice") {
         given(AccountOpened("Alice"), Deposited(100))
-        whenCommand(Withdraw(-5)) { expectRejected(AccountRejections.INVALID_AMOUNT) }
+        whenCommand(Withdraw(-5)) { expectRejected(Account.Rejections.INVALID_AMOUNT) }
     }
 }

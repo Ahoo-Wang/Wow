@@ -53,7 +53,7 @@ class PaymentSpec {
     @Test
     fun `a payment of nothing should be rejected`() {
         paymentSpec {
-            whenCommand(RequestPayment(ORDER, BigDecimal.ZERO)) { expectRejected(PaymentRejections.INVALID_AMOUNT) }
+            whenCommand(RequestPayment(ORDER, BigDecimal.ZERO)) { expectRejected(Payment.Rejections.INVALID_AMOUNT) }
         }
     }
 
@@ -69,7 +69,7 @@ class PaymentSpec {
                 }
             }
             whenCommand(ConfirmPayment(TRANSACTION)) { expectUnchanged() }
-            whenCommand(FailPayment("too late")) { expectRejected(PaymentRejections.WRONG_STATUS) }
+            whenCommand(FailPayment("too late")) { expectRejected(Payment.Rejections.WRONG_STATUS) }
         }
     }
 
@@ -85,8 +85,8 @@ class PaymentSpec {
                 }
             }
             whenCommand(FailPayment(DECLINED)) { expectUnchanged() }
-            whenCommand(ConfirmPayment(TRANSACTION)) { expectRejected(PaymentRejections.WRONG_STATUS) }
-            whenCommand(RefundPayment("no")) { expectRejected(PaymentRejections.WRONG_STATUS) }
+            whenCommand(ConfirmPayment(TRANSACTION)) { expectRejected(Payment.Rejections.WRONG_STATUS) }
+            whenCommand(RefundPayment("no")) { expectRejected(Payment.Rejections.WRONG_STATUS) }
         }
     }
 
@@ -103,7 +103,7 @@ class PaymentSpec {
                 }
             }
             whenCommand(RefundPayment(REFUSED)) { expectUnchanged() }
-            whenCommand(ConfirmPayment(TRANSACTION)) { expectRejected(PaymentRejections.WRONG_STATUS) }
+            whenCommand(ConfirmPayment(TRANSACTION)) { expectRejected(Payment.Rejections.WRONG_STATUS) }
         }
     }
 
@@ -111,7 +111,7 @@ class PaymentSpec {
     fun `a requested payment should not be refunded`() {
         paymentSpec {
             given(PaymentRequested(ORDER, AMOUNT))
-            whenCommand(RefundPayment(REFUSED)) { expectRejected(PaymentRejections.WRONG_STATUS) }
+            whenCommand(RefundPayment(REFUSED)) { expectRejected(Payment.Rejections.WRONG_STATUS) }
         }
     }
 
@@ -126,13 +126,13 @@ class PaymentSpec {
         fork("failed") {
             whenCommand(FailPayment(DECLINED)) { expectEventTypes(PaymentFailed::class) }
             whenCommand(ConfirmPayment(TRANSACTION)) {
-                expectRejected(PaymentRejections.WRONG_STATUS)
+                expectRejected(Payment.Rejections.WRONG_STATUS)
                 expectState { status.assert().isEqualTo(PaymentStatus.FAILED) }
             }
         }
         // The forks left the payment as requested.
         whenCommand(RefundPayment(REFUSED)) {
-            expectRejected(PaymentRejections.WRONG_STATUS)
+            expectRejected(Payment.Rejections.WRONG_STATUS)
             expectState { status.assert().isEqualTo(PaymentStatus.REQUESTED) }
         }
         fork(from = "requested") {
@@ -153,17 +153,17 @@ class PaymentSpec {
                     expectEventTypes(PaymentSucceeded::class)
                     fork("refunded") {
                         whenCommand(RefundPayment(REFUSED)) { expectEvents(PaymentRefunded(REFUSED)) }
-                        whenCommand(ConfirmPayment(TRANSACTION)) { expectRejected(PaymentRejections.WRONG_STATUS) }
+                        whenCommand(ConfirmPayment(TRANSACTION)) { expectRejected(Payment.Rejections.WRONG_STATUS) }
                     }
                 }
-                whenCommand(FailPayment("too late")) { expectRejected(PaymentRejections.WRONG_STATUS) }
+                whenCommand(FailPayment("too late")) { expectRejected(Payment.Rejections.WRONG_STATUS) }
             }
             fork("failed") {
                 whenCommand(FailPayment(DECLINED)) { expectEvents(PaymentFailed(DECLINED)) }
-                whenCommand(RefundPayment(REFUSED)) { expectRejected(PaymentRejections.WRONG_STATUS) }
+                whenCommand(RefundPayment(REFUSED)) { expectRejected(Payment.Rejections.WRONG_STATUS) }
             }
         }
-        whenCommand(RefundPayment(REFUSED)) { expectRejected(PaymentRejections.WRONG_STATUS) }
+        whenCommand(RefundPayment(REFUSED)) { expectRejected(Payment.Rejections.WRONG_STATUS) }
     }
 
     @Test
