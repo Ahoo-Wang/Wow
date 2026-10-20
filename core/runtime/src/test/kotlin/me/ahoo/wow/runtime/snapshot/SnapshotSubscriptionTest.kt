@@ -53,6 +53,7 @@ import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -127,6 +128,11 @@ class SnapshotSubscriptionTest {
         override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> {
             reads += fromVersion
             return delegate.read(ref, fromVersion, toVersion)
+        }
+
+        override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail {
+            reads += fromVersion
+            return delegate.readTail(ref, fromVersion, earlier)
         }
     }
 
