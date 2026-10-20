@@ -15,6 +15,7 @@ package me.ahoo.wow.example.eshop.ordering.domain.order
 
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
@@ -60,7 +61,7 @@ class Order(private val state: OrderState) {
     fun onCommand(command: SubmitOrder): Decision {
         val invalid = command.items.isEmpty() || command.items.any { it.quantity <= 0 || it.unitPrice.signum() < 0 }
         if (invalid) {
-            return Decision.reject(OrderRejections.INVALID_ITEMS, "The order's items are not valid: ${command.items}.")
+            return Decision.reject(Rejections.INVALID_ITEMS, "The order's items are not valid: ${command.items}.")
         }
         return Decision.events(OrderSubmitted(command.items))
     }
@@ -106,7 +107,7 @@ class Order(private val state: OrderState) {
     ) {
         if (command.amount.compareTo(state.totalAmount) != 0) {
             Decision.reject(
-                OrderRejections.WRONG_AMOUNT,
+                Rejections.WRONG_AMOUNT,
                 "The order costs ${state.totalAmount}, not ${command.amount}.",
             )
         } else {
@@ -126,7 +127,7 @@ class Order(private val state: OrderState) {
     fun onCommand(command: CancelOrder, scope: DecideScope): Decision = when (state.status) {
         OrderStatus.CANCELLED -> Decision.NoOp
         OrderStatus.PAID, OrderStatus.SHIPPED -> Decision.reject(
-            OrderRejections.WRONG_STATUS,
+            Rejections.WRONG_STATUS,
             "The order is ${state.status}: only an order not paid yet can be cancelled.",
         )
 
@@ -141,7 +142,7 @@ class Order(private val state: OrderState) {
             decide()
         } else {
             Decision.reject(
-                OrderRejections.WRONG_STATUS,
+                Rejections.WRONG_STATUS,
                 "The order is ${state.status}: only a $required order can $action.",
             )
         }
@@ -154,5 +155,22 @@ class Order(private val state: OrderState) {
         const val PAYMENT_TIMEOUT = "The order was not paid within its payment grace period."
 
         private const val CANCEL_ORDER = "eshop-ordering.order.CancelOrder"
+    }
+
+    /**
+     * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them
+     * `<context>.order.<code>` (decision D259), as its peers read them from the api's generated contract.
+     */
+    object Rejections {
+        @ErrorCode(
+            description = "An order has at least one item, each of a positive quantity and a price not negative."
+        )
+        const val INVALID_ITEMS = "invalid-items"
+
+        @ErrorCode(description = "The order's status does not allow the command.", status = 409)
+        const val WRONG_STATUS = "wrong-status"
+
+        @ErrorCode(description = "A payment pays the order's total amount.")
+        const val WRONG_AMOUNT = "wrong-amount"
     }
 }

@@ -37,6 +37,8 @@ import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
+import me.ahoo.wow.runtime.call.CommandCaller
+import me.ahoo.wow.runtime.call.OutgoingCall
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.InMemoryBackends
@@ -257,6 +259,48 @@ class CrossContextWaitTest {
         // Without the stock's Manifest, the saga's command is still another context's, one no Manifest declares.
         assertThrows<IllegalArgumentException> { salesNodeWithout(ContractDirectory(salesManifest)) }
             .message.assert().contains("$SALES/$SAGA sends commands to ${ContractDirectory.UNKNOWN_CONTEXT}")
+    }
+
+    @Test
+    fun `a node whose saga calls another context should be built only when its caller reaches it`() {
+        // Decision D259: the saga calls the stock's Reserve instead of deriving it; a call needs no command topic.
+        val calling = salesManifest.copyWith(
+            contexts = salesManifest.contexts.map { context ->
+                context.copyWith(
+                    subscriptions = context.subscriptions.map {
+                        it.copyWith(derives = emptyList(), calls = listOf(Manifest.schemaRef(Reserve::class.java.name)))
+                    },
+                )
+            },
+        )
+        fun salesNode(contracts: ContractDirectory, caller: CommandCaller?) = ServiceNode(
+            SALES_SERVICE,
+            "sales-1",
+            "sales-1.internal:9090",
+            listOf(orderModel(cancelled)),
+            calling,
+            InMemoryBackends(PARTITIONS),
+            channel,
+            options = fastNodeOptions(),
+            contracts = contracts,
+            caller = caller,
+        )
+        val contracts = ContractDirectory(calling, listOf(peer(stockManifest)))
+        assertThrows<IllegalArgumentException> { salesNode(contracts, null) }.message.assert()
+            .contains("Node sales-1 cannot make its sagas' calls")
+            .contains("$SALES/$SAGA calls $STOCK, which the node's caller does not reach")
+            .contains("wow.calls.contexts.$STOCK.url")
+        val elsewhere = object : CommandCaller {
+            override suspend fun call(call: OutgoingCall): CommandResult = error("not called")
+
+            override fun reaches(context: String): Boolean = context != STOCK
+        }
+        assertThrows<IllegalArgumentException> { salesNode(contracts, elsewhere) }.message.assert()
+            .contains("which the node's caller does not reach")
+        assertThrows<IllegalArgumentException> { salesNode(ContractDirectory(calling), elsewhere) }.message.assert()
+            .contains("$SALES/$SAGA calls a command no Manifest of the service or its peers decides")
+        // A caller that reaches the stock: the node is built, and needs no command transport for the call.
+        salesNode(contracts) { error("not called") }.service.assert().isEqualTo(SALES_SERVICE)
     }
 
     @Test

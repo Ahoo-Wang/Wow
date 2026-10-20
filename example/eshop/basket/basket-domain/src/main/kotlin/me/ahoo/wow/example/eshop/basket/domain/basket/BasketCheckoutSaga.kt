@@ -15,7 +15,6 @@ package me.ahoo.wow.example.eshop.basket.domain.basket
 
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
-import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut
@@ -35,19 +34,21 @@ import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
  * operator (decisions D163, D189), which the ordering service trusts because the basket service presents its service
  * credential. While the ordering service is down the call fails: the saga is retried within its subscription's budget,
  * then the basket parks until an operator resumes it.
+ *
+ * `@OnEvent(calls)` declares the call (decision D259): the Manifest lists it, so a wait chain may follow the saga into
+ * the ordering context, and the node does not start without the ordering's URL. The saga derives nothing (`Unit`).
  */
 @Saga
 class BasketCheckoutSaga {
-    @OnEvent
-    suspend fun onBasketCheckedOut(event: StateEvent<BasketState>, context: SagaContext): List<Command<*>> {
-        val checkedOut = event.events.filterIsInstance<BasketCheckedOut>().firstOrNull() ?: return emptyList()
+    @OnEvent(calls = [SubmitOrder::class])
+    suspend fun onBasketCheckedOut(event: StateEvent<BasketState>, context: SagaContext) {
+        val checkedOut = event.events.filterIsInstance<BasketCheckedOut>().firstOrNull() ?: return
         context.call(
             context.command(
                 ORDER.ref(event.ref.tenantId, checkedOut.orderId),
                 SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) }),
             ),
         )
-        return emptyList()
     }
 
     private companion object {

@@ -40,7 +40,7 @@ class AccountSpec {
     @Test
     fun `a withdrawal the balance does not cover is rejected`() = aggregateSpec(model, id = "alice") {
         given(AccountOpened("Alice"), Deposited(100))
-        whenCommand(Withdraw(150)) { expectRejected(AccountRejections.INSUFFICIENT_BALANCE) }
+        whenCommand(Withdraw(150)) { expectRejected(Account.Rejections.INSUFFICIENT_BALANCE) }
         whenCommand(Withdraw(30)) {
             expectEvents(Withdrawn(30))
             expectState { balance.assert().isEqualTo(70) }

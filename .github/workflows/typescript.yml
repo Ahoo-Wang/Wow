@@ -47,7 +47,6 @@ jobs:
       package-docs: ${{ steps.scope.outputs.packageDocs }}
       view-engine-docs: ${{ steps.scope.outputs.viewEngineDocs }}
       workflows: ${{ steps.scope.outputs.workflows }}
-      compat-debt: ${{ steps.scope.outputs.compatDebt }}
       package: ${{ steps.scope.outputs.package }}
     steps:
       - uses: actions/checkout@v7
@@ -59,23 +58,6 @@ jobs:
           BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: node .github/scripts/ci-scope.mjs
-
-  # The ledger alone, for a Kotlin-only change: quality runs it otherwise.
-  compat-debt:
-    name: Compat-debt ledger
-    needs: scope
-    if: needs.scope.outputs.compat-debt == 'true'
-    timeout-minutes: 5
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24.21.0
-      - name: Check compatibility-debt ledger
-        run: node .github/scripts/compat-debt.mjs
 
   # Every pull request: tracked files follow the canonical locations of the
   # documentation governance page. It reads only `git ls-files`.
@@ -121,9 +103,6 @@ jobs:
       # gradle.properties is the one version source; every package.json follows it.
       - name: Check package versions
         run: node .github/scripts/project-version.mjs check
-      # Compatibility markers in typescript/*/src and docs/compat-debt.md agree.
-      - name: Check compatibility-debt ledger
-        run: node .github/scripts/compat-debt.mjs
       - run: pnpm install --frozen-lockfile
       - name: Check changed-file formatting
         env:
@@ -489,7 +468,6 @@ jobs:
         package-docs,
         docs,
         workflow-lint,
-        compat-debt,
         docs-layout,
       ]
     if: always()

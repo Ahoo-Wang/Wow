@@ -8,15 +8,15 @@ The packages that move here from [fetcher](https://github.com/Ahoo-Wang/fetcher)
 
 ## Packages
 
-| Directory           | Package                                                                               | Published       | Moved from fetcher                                                       |
-| ------------------- | ------------------------------------------------------------------------------------- | --------------- | ------------------------------------------------------------------------ |
-| `wow-client/`       | `@ahoo-wang/wow-client`                                                               | yes             | `@ahoo-wang/fetcher-wow`                                                 |
-| `wow-react/`        | `@ahoo-wang/wow-react`                                                                | yes             | Wow hooks of `@ahoo-wang/fetcher-react`                                  |
-| `wow-generator/`    | `@ahoo-wang/wow-generator` (CLI `wow-generator`, alias `fetcher-generator` until v10) | yes             | `@ahoo-wang/fetcher-generator`                                           |
-| `wow-view-engine/`  | `@ahoo-wang/wow-view-engine`                                                          | yes, from 9.2.0 | `@ahoo-wang/fetcher-view-engine`                                         |
-| `wow-view-store/`   | `@ahoo-wang/wow-view-store`                                                           | yes, from 9.2.0 | — (new: the view engine's `ViewStore` on the `view-store/` server)       |
-| `storybook/`        | `wow-storybook`                                                                       | never           | fetcher's `.storybook` and the view-engine, shared and Wow query stories |
-| `integration-test/` | `wow-integration-test`                                                                | never           | wow cases of fetcher's `integration-test`                                |
+| Directory           | Package                                              | Published       | Moved from fetcher                                                       |
+| ------------------- | ---------------------------------------------------- | --------------- | ------------------------------------------------------------------------ |
+| `wow-client/`       | `@ahoo-wang/wow-client`                              | yes             | `@ahoo-wang/fetcher-wow`                                                 |
+| `wow-react/`        | `@ahoo-wang/wow-react`                               | yes             | Wow hooks of `@ahoo-wang/fetcher-react`                                  |
+| `wow-generator/`    | `@ahoo-wang/wow-generator` (CLI `wow-generator`)     | yes             | `@ahoo-wang/fetcher-generator`                                           |
+| `wow-view-engine/`  | `@ahoo-wang/wow-view-engine`                         | yes, from 9.2.0 | `@ahoo-wang/fetcher-view-engine`                                         |
+| `wow-view-store/`   | `@ahoo-wang/wow-view-store`                          | yes, from 9.2.0 | — (new: the view engine's `ViewStore` on the `view-store/` server)       |
+| `storybook/`        | `wow-storybook`                                      | never           | fetcher's `.storybook` and the view-engine, shared and Wow query stories |
+| `integration-test/` | `wow-integration-test` (the V10 view store contract) | never           | wow cases of fetcher's `integration-test`                                |
 
 Each package keeps its own `AGENTS.md` with package-specific rules. Generated code imports `@ahoo-wang/wow-client`.
 
@@ -24,13 +24,13 @@ Each package keeps its own `AGENTS.md` with package-specific rules. Generated co
 
 The pnpm workspace root is the repository root:
 
-| File                                                 | Role                                                                                           |
-| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `package.json`                                       | Private root; scripts and shared dev tooling only                                              |
-| `pnpm-workspace.yaml`                                | Members (`typescript/*`, `compensation/dashboard`, `documentation`) and the dependency catalog |
-| `pnpm-lock.yaml`                                     | The only JavaScript lockfile in the repository                                                 |
-| `tsconfig.base.json`                                 | Compiler options that package `tsconfig.json` files extend                                     |
-| `eslint.config.js`, `.prettierrc`, `.prettierignore` | Lint and format rules for this toolchain                                                       |
+| File                                                 | Role                                                                               |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `package.json`                                       | Private root; scripts and shared dev tooling only                                  |
+| `pnpm-workspace.yaml`                                | Members (`typescript/*`, the V10 apps, `documentation`) and the dependency catalog |
+| `pnpm-lock.yaml`                                     | The only JavaScript lockfile in the repository                                     |
+| `tsconfig.base.json`                                 | Compiler options that package `tsconfig.json` files extend                         |
+| `eslint.config.js`, `.prettierrc`, `.prettierignore` | Lint and format rules for this toolchain                                           |
 
 ```bash
 pnpm install
@@ -45,7 +45,7 @@ pnpm --filter <package> exec vitest run --maxWorkers=3 <file>
 
 - Add external dependencies to the `catalog` in `pnpm-workspace.yaml` and reference them with `catalog:`. Reference workspace packages with `workspace:`.
 - Never add another lockfile, a nested `pnpm-workspace.yaml`, or `shamefully-hoist`. A package that needs a dependency declares it.
-- Prettier covers only the paths `.prettierignore` re-includes. The dashboard and the documentation site keep their own styles.
+- Prettier covers only the paths `.prettierignore` re-includes. The V10 apps and the documentation site keep their own styles.
 
 ## Dependency Direction
 
@@ -57,9 +57,9 @@ pnpm --filter <package> exec vitest run --maxWorkers=3 <file>
 - The single version source is `version` in the root `gradle.properties`. Maven and npm release together under the same tag.
 - Breaking changes ship only in an `x.Y.0` release, for Kotlin and TypeScript alike. Mark them with `!` in the conventional commit. Release admission (`.github/scripts/release-admission.mjs`) enforces this.
 - `pnpm set-version <version>` rewrites `gradle.properties` and every workspace `package.json`; `pnpm check:versions` (run by `quality`) fails when they disagree.
-- Compatibility kept until v10 is listed in `docs/compat-debt.md`. Mark it with `@deprecated … Removed in v10.` or `// compat(wow<9): <reason>` / `// compat(fetcher): <reason>`; the ledger check in `quality` pairs markers with entries.
+- V10 keeps no compatibility code (decision D1): no `@deprecated` alias kept for old callers and no `// compat(...)` marker; `V10Rules` in `:architecture` checks the Kotlin sources for both.
 - A new public package must be added to `PUBLISHED` or `HELD_BACK` in `.github/scripts/publish-npm.mjs`. All five public packages are `PUBLISHED` from 9.2.0; every list of "the published packages" (package check, rollback, audit, Trusted Publisher) is that one.
-- A pull request that breaks a published package's surface, or REST, configuration, storage or wire behaviour, says so: a `!` title, or the PR template's **Breaking** box, which labels it `breaking-change`, plus a `## Breaking` section (for an approved v9 exception, also the step before upgrading and what a mixed 9.x cluster does). A `## Behaviour changes` section is for what is visible but not breaking and adds no label. Release admission reads the title and the label: it keeps the change out of a patch release and requires the x.Y.0 release notes to name it.
+- A pull request that breaks a published package's surface, or REST, configuration, storage or wire behaviour, says so: a `!` title, or the PR template's **Breaking** box, which labels it `breaking-change`, plus a `## Breaking` section. A `## Behaviour changes` section is for what is visible but not breaking and adds no label. Release admission reads the title and the label: it keeps the change out of a patch release and requires the x.Y.0 release notes to name it.
 - A peer is only a package the built code loads or the published declarations reference. A package used only for types that the build erases (wow-generator's `@ahoo-wang/fetcher-openapi`) is a devDependency, and a package declares no peer it never imports just because a package it uses needs it (wow-react does not declare wow-client's `@ahoo-wang/fetcher-eventstream`).
 - TypeScript 6 is the minimum, and CI tests 6.0 through the latest 7.x: `package-check.mjs` compiles the consumers of the packed packages under both (`TYPESCRIPT_VERSIONS`). No package declares a `typescript` peer; the range lives in the docs (compatibility page, READMEs).
 - Public packages declare `engines.node` equal to the root's (`>=22.12.0`) and take every external peer range from the named catalog `catalog:peers`, never the default catalog: peer ranges are a published contract that Renovate only widens. Raise a lower bound by hand, and only in an `x.Y.0` release.
@@ -89,4 +89,4 @@ A test that fails and then passes at the same commit is a defect, in the test or
 
 ## CI
 
-`.github/workflows/typescript.yml` runs on every pull request. Its `scope` job (`.github/scripts/ci-scope.mjs`) decides which jobs run: Kotlin, Gradle, dashboard and prose paths skip it, and unknown paths run everything. `typescript-gate` is the merge signal; it also covers `workflow-lint`, which runs actionlint whenever any workflow changes. When you add a directory, classify it in `ci-scope.mjs` and cover it in `ci-scope.test.mjs`. The compensation dashboard keeps its own `dashboard-test.yml`.
+`.github/workflows/typescript.yml` runs on every pull request. Its `scope` job (`.github/scripts/ci-scope.mjs`) decides which jobs run: Kotlin, Gradle, app and prose paths skip it, and unknown paths run everything. `typescript-gate` is the merge signal; it also covers `workflow-lint`, which runs actionlint whenever any workflow changes. When you add a directory, classify it in `ci-scope.mjs` and cover it in `ci-scope.test.mjs`. The ops console and the eShop web app keep their own `ops-console-test.yml` and `eshop-web-test.yml`.

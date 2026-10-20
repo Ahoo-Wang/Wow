@@ -32,6 +32,9 @@ import me.ahoo.wow.query.filter.QueryContext
  * Policies run one after another by [order], lowest first (9.x `@Order`; policies of one order keep their
  * registration order). Their filters are ANDed, so the order decides only which policy's error, and which audit
  * entry, comes first.
+ *
+ * Each policy declares how it restricts the `events` model ([events], decisions D254, D259): whether its filter on
+ * the event streams is the whole rule, or the streams of an aggregate follow whether the snapshot queries show it.
  */
 fun interface QueryPolicy {
     suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression
@@ -39,4 +42,34 @@ fun interface QueryPolicy {
     /** Where this policy runs among the others, lowest first. */
     val order: Int
         get() = 0
+
+    /**
+     * How this policy restricts the `events` model: [EventsMode.PINNED] by default, the rule that holds for any
+     * policy, since one that reads the state cannot be evaluated on the event streams.
+     */
+    val events: EventsMode
+        get() = EventsMode.PINNED
+}
+
+/**
+ * How a [QueryPolicy] restricts the event streams of the `events` model (decisions D254, D259). Every policy runs on
+ * every events query as on any other; the mode says whether its filter there is enough.
+ */
+enum class EventsMode {
+    /**
+     * Its filter on the events model is the whole rule: it reads only what each stream records at its commit (the
+     * tenant, the owner and space, the tags), so an events query need not name its aggregates. The caller scope is one.
+     */
+    PUSHDOWN,
+
+    /**
+     * The default: its rule reads the state, which the streams do not carry, so an aggregate's streams are shown only
+     * when the snapshot queries of its type show the aggregate. An events query must then name its aggregates (at most
+     * the entry budget's `maxFilterValues`), which one snapshot query checks, and the model's descriptor lists the
+     * constraint `AGGREGATE_REQUIRED`.
+     */
+    PINNED,
+
+    /** It hides no stream: an events query is restricted only by its filter, if any, and it may still refuse a caller. */
+    NONE,
 }

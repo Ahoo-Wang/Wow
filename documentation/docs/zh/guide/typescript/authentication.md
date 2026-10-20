@@ -9,7 +9,7 @@ description: 把 CoSec 认证、租户与所有者归属以及自定义请求头
 
 Wow 客户端自己不做认证。每个请求都经过一个 [Fetcher](https://fetcher.ahoo.me/)，请求在路径和请求体之外还需要的东西——令牌、归属请求头、令牌过期时的刷新——都由这个 Fetcher 的拦截器添加。每个服务配置一次，使用该 Fetcher 的所有客户端都会继承。
 
-<!-- typecheck-generated: typescript/integration-test/src/generated -->
+<!-- typecheck-generated: example/eshop/web/src/generated/basket -->
 
 ## 客户端使用哪个 Fetcher
 
@@ -87,6 +87,7 @@ export function onSignedIn(
 
 资源归属正是生成的客户端不把 `tenantId`、`ownerId` 放进方法参数的原因：对按租户或所有者划分的聚合（`/tenant/{tenantId}/…`、`/owner/{ownerId}/…`），由登录用户提供它们。不用 CoSec 时，就自己通过 `urlParams.path` 按客户端或按请求提供：
 
+<!-- typecheck: skip — V10 已删除的 OpenAPI 路径所生成的 9.x 客户端（D266）；本页的 V10 重写改用 Manifest 客户端 -->
 ```ts
 import { CartCommandClient } from './generated/index.js';
 
@@ -100,6 +101,7 @@ export const commandsFor = (ownerId: string) =>
 
 带空间的聚合（`@Spaced`）从 `Wow-Space-Id` 请求头读取空间，命令与查询都一样；其他聚合忽略该请求头。CoSec 自己的 `spaceIdProvider` 发送的是 `CoSec-Space-Id`，只有启用了 Wow CoSec 集成的服务端会把它作为回退读取，同样只对带空间的聚合生效。按命令用 `commandHeaders({ spaceId })` 发送 Wow 的请求头，或者通过客户端的 `headers` 让它的每个请求都带上：
 
+<!-- typecheck: skip — V10 已删除的 OpenAPI 路径所生成的 9.x 客户端（D266）；本页的 V10 重写改用 Manifest 客户端 -->
 ```ts
 import { WowHeaders } from '@ahoo-wang/wow-client';
 import { orderQueryClientFactory } from './generated/index.js';

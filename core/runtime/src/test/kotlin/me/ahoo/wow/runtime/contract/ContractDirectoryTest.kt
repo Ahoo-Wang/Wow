@@ -221,6 +221,32 @@ class ContractDirectoryTest {
     }
 
     @Test
+    fun `a saga's calls should be hops a chain may follow, needing no command topic`() {
+        val calling = subscription(
+            "CheckoutSaga.onCart",
+            derives = emptyList(),
+            calls = listOf(Manifest.schemaRef("sample.payment.Pay"), Manifest.schemaRef("sample.Lost")),
+        )
+        val declared = subscription(
+            "CheckoutSaga.onPaid",
+            derives = listOf("shop.cart.AddItem"),
+            calls = listOf("payment.payment.Pay")
+        )
+        val directory = ContractDirectory(shop(subscriptions = listOf(calling, declared)), ContractFixtures.peers)
+        // Decision D259: a wait chain follows derives and calls; a call no Manifest places leaves it unchecked.
+        directory.derivedContextsOf("shop", "CheckoutSaga.onPaid").assert().containsExactly("shop", "payment")
+        directory.derivedContextsOf("shop", "CheckoutSaga.onCart").assert().isNull()
+        // The G9 check of the command topics ignores calls.
+        directory.commandsOutside(setOf("shop")).assert().isEmpty()
+        directory.contextsCalled().assert().isEqualTo(
+            mapOf(
+                "shop/CheckoutSaga.onCart" to sortedSetOf(ContractDirectory.UNKNOWN_CONTEXT, "payment"),
+                "shop/CheckoutSaga.onPaid" to sortedSetOf("payment"),
+            ),
+        )
+    }
+
+    @Test
     fun `a directory without peers should know the service's own contexts only`() {
         val alone = ContractDirectory(shop(subscriptions = listOf(subscription("CartProjector.onCart"))))
         alone.peers.assert().isEmpty()

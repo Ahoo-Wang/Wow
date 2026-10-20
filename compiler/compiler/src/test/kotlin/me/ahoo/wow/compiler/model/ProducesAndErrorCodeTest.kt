@@ -181,6 +181,133 @@ class ProducesAndErrorCodeTest {
         )
     }
 
+    @Suppress("LongMethod") // The sources, whole.
+    @Test
+    fun `a local code within an aggregate root should be qualified with its context and aggregate`() {
+        val cart = SourceFile.kotlin(
+            "Cart.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+            import me.ahoo.wow.api.annotation.CreateAggregate
+            import me.ahoo.wow.api.annotation.ErrorCode
+            import me.ahoo.wow.api.annotation.Name
+            import me.ahoo.wow.api.decide.Decision
+
+            @CreateAggregate
+            data class OpenCart(val id: String)
+            data class CartOpened(val id: String)
+
+            @AggregateRoot
+            @Name("basket")
+            class Cart {
+                fun onCommand(command: OpenCart): Decision = Decision.reject(Errors.EMPTY, "empty")
+                fun onSourcing(event: CartOpened) = Unit
+
+                object Errors {
+                    @ErrorCode(description = "Nothing in it", status = 409)
+                    const val EMPTY = "empty"
+
+                    // A code with a dot is full, wherever it is declared.
+                    @ErrorCode
+                    const val SHARED = "orders.shared"
+                }
+
+                companion object {
+                    @ErrorCode
+                    const val CLOSED = "closed"
+                }
+            }
+            """.trimIndent(),
+        )
+        val javaCodes = SourceFile.java(
+            "Ledger.java",
+            """
+            package sample;
+
+            import me.ahoo.wow.api.annotation.AggregateRoot;
+            import me.ahoo.wow.api.annotation.ErrorCode;
+
+            @AggregateRoot
+            public class Ledger {
+                @ErrorCode
+                public static final String LOCKED = "locked";
+
+                public void onSourcing(CartOpened event) {
+                }
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compileModel("generate", context, cart, javaCodes)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        fragment(compilation).contexts.single().errors.assert().containsExactly(
+            ErrorManifest("orders.basket.closed", 422),
+            ErrorManifest("orders.basket.empty", 409, "Nothing in it"),
+            ErrorManifest("orders.ledger.locked", 422),
+            ErrorManifest("orders.shared", 422),
+        )
+    }
+
+    @Test
+    fun `a local code outside an aggregate root, or one its qualified name repeats, should fail`() {
+        val outside = SourceFile.kotlin(
+            "Outside.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.ErrorCode
+
+            object OutsideErrors {
+                @ErrorCode
+                const val LOCAL = "local"
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", context, outside)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains(
+            "error code local of sample.OutsideErrors.LOCAL is a local name, but sample.OutsideErrors.LOCAL is not " +
+                "declared within an @AggregateRoot class",
+        )
+
+        val repeated = SourceFile.kotlin(
+            "Repeated.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+            import me.ahoo.wow.api.annotation.CreateAggregate
+            import me.ahoo.wow.api.annotation.ErrorCode
+
+            @CreateAggregate
+            data class Open(val id: String)
+            data class Opened(val id: String)
+
+            @AggregateRoot
+            class Till {
+                fun onCommand(command: Open): Opened = Opened(command.id)
+                fun onSourcing(event: Opened) = Unit
+
+                object Errors {
+                    @ErrorCode
+                    const val CLOSED = "closed"
+                }
+            }
+
+            object FullErrors {
+                @ErrorCode
+                const val CLOSED = "orders.till.closed"
+            }
+            """.trimIndent(),
+        )
+        val (_, repeatedResult) = compileModel("generate", context, repeated)
+        repeatedResult.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        repeatedResult.messages.assert().contains(
+            "error code orders.till.closed is declared by sample.FullErrors.CLOSED and sample.Till.Errors.CLOSED",
+        )
+    }
+
     @Test
     fun `a module of error codes only should have a fragment of them`() {
         val (compilation, result) = compileModel("generate", context, errors)

@@ -139,7 +139,17 @@ class QueryAdmission(
         record: ObjectNode,
         schema: QueryModelSchema?,
         caller: QueryCaller,
-    ): ObjectNode? {
+    ): ObjectNode? = record.takeIf(recordFilter(selection, schema, caller))?.let { schema?.maskRecord(it) ?: it }
+
+    /**
+     * The in-memory condition [admitRecord] evaluates, built once for every record [selection] chooses: the batch of
+     * the events model's pinned check admits each record of its aggregates with it.
+     */
+    internal suspend fun recordFilter(
+        selection: FilterExpression,
+        schema: QueryModelSchema?,
+        caller: QueryCaller,
+    ): (ObjectNode) -> Boolean {
         val entry = entryPolicy.admit(caller.entry)
         val profile = schema?.profile ?: SnapshotQueryModelProfile
         entryPolicy.requireScope(entry, caller.scope.authenticated, profile)
@@ -153,8 +163,7 @@ class QueryAdmission(
         val restricted = restrict(SingleQuery(selection) as ISingleQuery, caller, ::context, null, appended)
         val filter = restricted.withDefaultScope(profile, appended).filter
         val canonical = if (schema == null) filter else filter.withCanonicalFields(schema)
-        return record.takeIf { RecordFilter(normalizer.normalize(canonical)).admits(it) }
-            ?.let { schema?.maskRecord(it) ?: it }
+        return RecordFilter(normalizer.normalize(canonical))::admits
     }
 
     /** Step 1: the [QueryFilter]s in order, each seeing the query the previous one produced. */
