@@ -96,7 +96,7 @@ wow-benchmarks/e2e/harness/bench.sh run --version=v10 --nodes=3 --scenario=E1 --
 wow-benchmarks/e2e/harness/bench.sh saturate --version=9x --scenario=E1 --max-concurrency=256
 ```
 
-`--install=<dir>` runs another build of the same version, for instance a baseline's `installDist` output (`<dir>` is the distribution's root, the one holding `bin/`); by default the harness runs the build in this tree.
+`--accounts=<n>` with `--seed-concurrency=<n>` sizes the data set; seeding opens the accounts over HTTP, about 3,000 a second at a concurrency of 128 on a laptop. `--mix=E1:50,E4-state:40` runs a weighted mix of scenarios instead of one. On Linux, `--load-cpus` and `--server-cpus` pin the load generator, and the servers with the containers, to separate CPUs. `--install=<dir>` runs another build of the same version, for instance a baseline's `installDist` output (`<dir>` is the distribution's root, the one holding `bin/`); by default the harness runs the build in this tree.
 
 A run writes `result.json` (load, results, histogram, resources, machine, commit, JVM and configuration) and `summary.md` beside the servers' logs to `wow-benchmarks/results/e2e/<time>-<label>-<version>-<backend>-n<nodes>-<scenario>/`, which git ignores; a report copies the results it cites into `results/reports/`. Ports: public 18080 to 18082, V10 internal 19090 to 19092, MongoDB 27017, PostgreSQL 5432, Kafka 9092.
 
@@ -118,13 +118,21 @@ Runs follow D224's tiers: run the smallest one that answers the question. L0, th
 - **L3**: the end-to-end grid, every `ab` suite, run before an rc or after a major merge.
 - **L4**: the special runs, the sustainable rates, cliffs and the cluster.
 
-Named `suites` replace the tier's list. The other defaults are 20 s warm-up, 40 s measured, 2 rounds, 80% of saturation before calibration, and a p99 limit of 200 ms for the sustainable rates. The baseline is the newest `v10.*` release tag that has `bench-v10/`; without one, and without `base_ref`, the baseline suites are skipped and the report says so. To change any of this, commit `wow-benchmarks/e2e/bench-run.json` on the run branch:
+Named `suites` replace the tier's list. Each suite runs at the tier's data sets:
+
+- `1k` accounts, which fit every cache (hot);
+- `100k`, the default from L2 up;
+- `1M`, cold.
+
+L3 runs its grid at 1k and 100k; `dataset` replaces the tier's sets.
+
+From 100k accounts up, every run is **primed** (`bench.sh --prime`, D224 note ⑤): before its warm-up, an untimed closed-loop pass touches each seeded account once with a deposit, whose snapshot write also warms the pages the reads hit. Otherwise the measured window would still be filling the caches, because at uniform keys and a few hundred operations a second a warm-up touches only a small share of the aggregates. The report records whether each suite was primed and how long priming took. The cold suites are never primed, and the report labels them cold. Above the node's state cache (V10's default `wow.state-cache.capacity`, 4096 aggregates per context), the steady state is a full cache with evictions, which priming reaches too; the report says so. If a primed run still trips the stability check, that is a finding. The other defaults are 30 s warm-up (at least 30 s from L2 up, D224 note ⑤), 40 s measured, 2 rounds, 80% of saturation before calibration, and a p99 limit of 200 ms for the sustainable rates. The baseline is the newest `v10.*` release tag that has `bench-v10/`; without one, and without `base_ref`, the baseline suites are skipped and the report says so. To change any of this, commit `wow-benchmarks/e2e/bench-run.json` on the run branch:
 
 ```json
 { "tier": "L4", "base_ref": "v10.0.0-beta.1", "p99_limit_ms": 500 }
 ```
 
-The keys are `tier`, `suites`, `warm_up`, `measure`, `repeats`, `fraction`, `p99_limit_ms`, `base_ref` and `nine_x_ref`. `suites` takes suite names and the group names below (`all` is every group but `vs-9x`). When the run has finished, delete the branch; its results stay with the run:
+The keys are `tier`, `suites`, `dataset`, `aa`, `warm_up`, `measure`, `repeats`, `fraction`, `p99_limit_ms`, `base_ref` and `nine_x_ref`. `suites` takes suite names and the group names below (`all` is every group but `vs-9x`). When the run has finished, delete the branch; its results stay with the run:
 
 ```bash
 git push origin --delete v10-bench-run/20261020
@@ -135,6 +143,7 @@ The workflow can also be dispatched by hand, with the same settings as inputs pl
 | Group | Suite | What it answers |
 | --- | --- | --- |
 | `ab` | `e1-mongo-uniform`, `e1-mongo-zipf`, `e1-pg-uniform`, `e2-mongo`, `e3-mongo`, `e3-pg` | Head against baseline, paired on one runner: throughput and CPU per operation at each arm's calibrated rate, latency at one rate for both |
+| `ab` | `mixed-mongo`, `mixed-pg` | Reads and writes together (`--mix=E1:50,E4-state:40,E4-list:10`): whether the query bulkheads keep the writes fast; each scenario's latency is reported apart |
 | `head` | `sustainable-mongo` (E1, E2, E3), `sustainable-pg` (E1, E3) | The sustainable rate of each scenario: the highest open-loop rate with at most 1% errors, at least 97% completed and p99 within the limit, found by bisection below the closed-loop saturation |
 | `head` | `e5-mongo`, `e5-pg` | Three nodes, requests round-robin, E1 at 150/s and E3 at 50/s for 90 s, once steady and once with node 2 stopped 25 s into the measured phase (SIGTERM, so its partitions hand over) and restarted 20 s later with its own command line |
 | `head` | `cliff-e3-pg`, `cliff-e3-mongo` | E3 in open loop at 50, 100, 200, 300, 400 and 500/s, a minute each on fresh containers, until two steps in a row fail to keep up |
@@ -153,6 +162,8 @@ Every comparison is a pair measured on the same runner, so the ratios hold acros
 
 Every V10 run sets `bench.signals.enabled=true`. With it, the benchmark server's `BenchSignals` observer (`bench-v10/.../BenchSignals.kt`, the one file without a 9.x twin) logs the node's cumulative overload and fallback counts once a second, as `bench-signals {json}` in the node log. It counts the tails' store reads by reason, refused commands by code, timed-out waits by stage, dropped signals, failed forwards, and paused and resumed partitions.
 
+p99.9 is reported only when a run has at least 1000 samples beyond it (a million operations); otherwise it shows `n/a`.
+
 The report reads every node's last such line and flags these anomalies:
 
 - a partition paused (D243);
@@ -161,4 +172,16 @@ The report reads every node's last such line and flags these anomalies:
 - a measured second below half the rate;
 - p99 above 10× p50, when p99 is at least 50 ms.
 
-Where a run went past what the node keeps up with by design (probes, cliff steps that did not keep up), only the signals are flagged. Each job uploads its results, server logs and summary, and the report job combines them into `report.md`, anomalies first.
+Two more anomalies are flagged:
+
+- **Unstable:** the measured phase's halves differ in mean throughput or in median per-second p50 by more than the suite's A/A noise (from `noise.json`; without it 5% and 25%). p99 is compared too, against its A/A noise (default 50%), but only when each half has at least 1000 samples beyond it; with fewer, half a run's tail is noise, and a stable system would trip the check.
+- **Load generator saturated:** the generator used 90% of its CPUs, so the run measured the generator rather than the servers.
+
+Where a run went past what the node keeps up with by design (probes, cliff steps that did not keep up), only the signals are flagged.
+
+On a runner of 4 or more CPUs, the load generator gets the last CPU to itself, and the servers and containers get the others (`bench.sh --load-cpus`, `--server-cpus`; D224 note ③). The run then records the load generator's own CPU and names the busiest consumer, the servers, a container or the generator, as the bottleneck.
+
+Significance (D224 note ②) works in two steps:
+
+1. An A/A run (`"aa": true`) measures the head against itself in the baseline suites, with at least 4 equal-rate rounds. For each metric (throughput, p50, p99), the half-width of the 95% bootstrap interval of its A/A ratio, at least 2%, becomes the suite's noise threshold. The report writes these thresholds as `noise.json`; committed as `wow-benchmarks/e2e/noise.json`, they apply to later runs.
+2. The report's Significance table gives each ratio a 95% bootstrap interval over the measured seconds: throughput at the calibrated rates, p50 and p99 at the equal rate. A latency's point estimate is the median of the rounds' own percentiles, each from the run's whole histogram. A ratio counts as higher or lower only when its interval clears the threshold; without a threshold it is marked `uncalibrated`. Each job uploads its results, server logs and summary, and the report job combines them into `report.md`, anomalies first.

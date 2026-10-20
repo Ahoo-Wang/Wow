@@ -15,6 +15,12 @@ import {
   drifted,
   mergeSignals,
   planMatrix,
+  parseJob,
+  bootstrapRatio,
+  confidence,
+  halves,
+  noiseFile,
+  verdict,
   metrics,
   pairs,
   queueVerdict,
@@ -76,6 +82,8 @@ test('resolveInputs checks the inputs and expands all', () => {
       fraction: 1,
       p99LimitMs: 500,
       tier: 'custom',
+      datasets: ['100k'],
+      aa: false,
     },
   );
   // No suites named: the tier's list, L2 by default.
@@ -93,6 +101,45 @@ test('resolveInputs checks the inputs and expands all', () => {
     'sustainable-pg',
   ]);
   assert.throws(() => byTier('L9'), /Unknown tier/);
+  // The data sets: L3 runs its grid at 1k and 100k; `dataset` replaces the tier's.
+  assert.deepEqual(byTier('L3').datasets, ['1k', '100k']);
+  assert.deepEqual(byTier('L2').datasets, ['100k']);
+  assert.deepEqual(
+    resolveInputs({
+      dataset: '1M, 1k',
+      aa: 'true',
+      warmUp: 30,
+      measure: 60,
+      repeats: 2,
+      fraction: 0.8,
+    }),
+    {
+      suites: ['e1-mongo-uniform', 'e1-pg-uniform', 'e3-mongo', 'e3-pg'],
+      warmUp: 30,
+      measure: 60,
+      repeats: 2,
+      fraction: 0.8,
+      p99LimitMs: 200,
+      tier: 'L2',
+      datasets: ['1M', '1k'],
+      aa: true,
+    },
+  );
+  assert.throws(
+    () =>
+      resolveInputs({
+        dataset: '10k',
+        warmUp: 30,
+        measure: 60,
+        repeats: 2,
+        fraction: 0.8,
+      }),
+    /Unknown data set/,
+  );
+  assert.deepEqual(parseJob('e1-mongo-uniform.100k'), {
+    suite: 'e1-mongo-uniform',
+    dataset: '100k',
+  });
   assert.deepEqual(
     resolveInputs({
       suites: 'e3-pg, e1-mongo-zipf e3-pg',
@@ -227,7 +274,7 @@ if (command === 'saturate') {
   // A cluster run lingers a moment, so the hand-over helper sees the measured phase start.
   if (opt('nodes')) require('node:child_process').execSync('sleep 2');
   const rate = Number(opt('rate'));
-  const slow = head && /r1-/.test(opt('label')) ? 1.1 : 1;
+  const slow = head && /r1-(head|b)$/.test(opt('label')) ? 1.1 : 1;
   // The head keeps up with at most 100/s in open loop, so its probe at 120/s fails and the next, at 90/s, holds.
   const failed = head && rate > 100 ? rate * 10 : 0;
   fs.writeFileSync(out + '/result.json', JSON.stringify({
@@ -322,7 +369,7 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
   );
   assert.match(
     calls,
-    /saturate --version=v10 --backend=mongo --install=\/builds\/base\/e2e-bench-v10 --scenario=E1 --distribution=uniform --warm-up=3 --step=8/,
+    /saturate --version=v10 --backend=mongo --install=\/builds\/base\/e2e-bench-v10 --scenario=E1 --distribution=uniform --accounts=100000 --seed-concurrency=256 --prime --warm-up=3 --step=8/,
   );
   assert.match(
     calls,
@@ -345,13 +392,13 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
   assert.match(report, /\*\*Skipped:\*\* e3-pg \(no V10 baseline\)/);
   assert.match(
     report,
-    /\| e1-mongo-uniform \| head\/base \| calibrated \(unequal load\) \| 1\.000 \| 0\.750 \(0\.750–0\.750, n=3\)/,
+    /\| e1-mongo-uniform@100k \| head\/base \| calibrated \(unequal load\) \| 1\.000 \| 0\.750 \(0\.750–0\.750, n=3\)/,
   );
   assert.match(
     report,
-    /\| e1-mongo-uniform \| head\/base \| equal rate 90\.0\/s \| 1\.000 \| 1\.000 \(1\.000–1\.000, n=2\)/,
+    /\| e1-mongo-uniform@100k \| head\/base \| equal rate 90\.0\/s \| 1\.000 \| 1\.000 \(1\.000–1\.000, n=2\)/,
   );
-  assert.match(report, /\| vs-9x-e1 \| head\/9x \| calibrated/);
+  assert.match(report, /\| vs-9x-e1@100k \| head\/9x \| calibrated/);
   assert.match(report, /## E3 on MongoDB: diagnostics/);
   assert.match(report, /wow\.log\.max-poll-interval=5s/);
   assert.match(report, /## PostgreSQL append queue/);
@@ -359,7 +406,7 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
   assert.match(report, /## Anomalies/);
   assert.match(
     report,
-    /\| e1-mongo-uniform \| r1-head \| steady \| \*\*tail read the store\*\* \| gap=3 \|/,
+    /\| e1-mongo-uniform@100k \| r1-head \| steady \| \*\*tail read the store\*\* \| gap=3 \|/,
   );
   assert.match(
     readFileSync(
@@ -376,6 +423,7 @@ test('planMatrix skips the suites whose commits are missing and lists the builds
     planMatrix({ suites, headSha: 'h', baseSha: '', nineXSha: 'n' }),
     {
       suites: ['cliff-e3-pg', 'vs-9x-e1'],
+      jobs: ['cliff-e3-pg.100k', 'vs-9x-e1.100k'],
       skipped: [
         'e1-mongo-uniform (no V10 baseline: set base_ref; no v10.* release tag has the benchmark yet)',
       ],
@@ -461,7 +509,7 @@ test('a cluster suite runs three nodes steady and with a hand-over', () => {
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
   assert.match(
     calls,
-    /run --version=v10 --backend=postgres --scenario=E1 --distribution=uniform --nodes=3 --rate=150\.0 --warm-up=15 --measure=90/,
+    /run --version=v10 --backend=postgres --scenario=E1 --distribution=uniform --accounts=100000 --seed-concurrency=256 --prime --nodes=3 --rate=150\.0 --warm-up=15 --measure=90/,
   );
   // The hand-over helper ran beside bench.sh and logged what it did (here it finds no node to stop).
   assert.match(
@@ -644,5 +692,223 @@ test('a saturation found at the concurrency cap is marked as a lower bound', () 
     failures: 0,
   };
   const report = renderReport([suite]);
-  assert.match(report, /\| e3-mongo \| head \| ≥ 500\.0\/s \| 4096 \|/);
+  assert.match(report, /\| e3-mongo@100k \| head \| ≥ 500\.0\/s \| 4096 \|/);
+});
+
+test('A/A runs give the noise thresholds; bootstrap intervals decide what clears them', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'v10-e2e-bench-'));
+  const benchPath = fakeBench(dir);
+  const suite = runSuite('e1-mongo-uniform', {
+    benchPath,
+    out: join(dir, 'aa'),
+    warmUp: 1,
+    measure: 5,
+    repeats: 2,
+    fraction: 0.8,
+    aa: true,
+    dataset: '1k',
+    cpus: { load: '3', server: '0-2' },
+  });
+  // The head against itself, no baseline build; pinned CPUs and the 1k data set on every call.
+  assert.equal(suite.aa, true);
+  assert.deepEqual(
+    suite.arms.map(arm => [arm.id, arm.install]),
+    [
+      ['a', 'head'],
+      ['b', 'head'],
+    ],
+  );
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
+  assert.doesNotMatch(calls, /--install=/);
+  assert.match(
+    calls,
+    /--accounts=1000 --seed-concurrency=32 --load-cpus=3 --server-cpus=0-2/,
+  );
+  // At 1k the runs are not primed; an A/A run takes at least 4 equal-rate rounds and no drift round.
+  assert.equal(suite.primed, false);
+  assert.doesNotMatch(calls, /--prime/);
+  assert.equal(suite.runs.filter(run => run.mode === 'equal').length, 8);
+  assert.equal(suite.extraRound, undefined);
+  const noise = noiseFile([suite], { 'e3-pg@100k': { p99: 0.1 } });
+  assert.deepEqual(Object.keys(noise), ['e3-pg@100k', 'e1-mongo-uniform@1k']);
+  // The thresholds are the equal-rate intervals' half-widths, at least 2%: identical arms there give the floor.
+  assert.deepEqual(noise['e1-mongo-uniform@1k'], {
+    throughput: 0.02,
+    p50: 0.02,
+    p99: 0.02,
+  });
+  const report = renderReport([suite], { noise: {} });
+  assert.match(report, /## A\/A noise/);
+  assert.match(report, /e1-mongo-uniform@1k \(A\/A: head against head\)/);
+
+  // Bootstrap: identical samples give a ratio of 1 with a tight interval; a 20% shift clears a 5% threshold.
+  const a = Array.from({ length: 40 }, (_, i) => 100 + (i % 5));
+  const same = bootstrapRatio(a, a, 'mean');
+  assert.ok(same.lo <= 1 && same.hi >= 1 && same.hi - same.lo < 0.03);
+  const faster = bootstrapRatio(
+    a,
+    a.map(v => v * 1.2),
+    'mean',
+  );
+  assert.ok(faster.lo > 1.15);
+  assert.equal(verdict(faster, 0.05), 'higher');
+  assert.equal(verdict(same, 0.05), 'within noise');
+  assert.equal(verdict(faster, undefined), 'uncalibrated');
+  assert.equal(verdict(undefined, 0.05), 'no data');
+  assert.equal(
+    confidence({ arms: [{ id: 'x' }], runs: [] }, 'equal').p99,
+    undefined,
+  );
+});
+
+test('stability compares the halves; a busy load generator and an unstable run are flagged', () => {
+  // p99 is compared only with a thousand tail samples a half (a hundred thousand operations): not here.
+  assert.deepEqual(
+    halves([100, 100, 100, 100], [10, 10, 10, 10], [2, 2, 2, 2]),
+    {
+      throughputChange: 0,
+      p50Ratio: 1,
+      p99Ratio: undefined,
+    },
+  );
+  assert.deepEqual(halves([100, 100, 80, 80], [10, 10, 20, 20], [2, 2, 3, 3]), {
+    throughputChange: -0.19999999999999996,
+    p50Ratio: 1.5,
+    p99Ratio: undefined,
+  });
+  assert.deepEqual(
+    halves([60000, 60000, 60000, 60000], [10, 10, 20, 20]).p99Ratio,
+    2,
+  );
+  assert.equal(halves([1, 2], [1, 2]), undefined);
+  const run = m => ({
+    name: 'r',
+    status: 'ok',
+    metrics: {
+      ok: 1000,
+      failed: 0,
+      weakSeconds: 0,
+      p50: 5,
+      p99: 20,
+      errors: {},
+      ...m,
+    },
+  });
+  assert.deepEqual(
+    anomaliesOf(
+      run({ stability: { throughputChange: -0.2, p99Ratio: 1 } }),
+    ).map(a => a.kind),
+    ['unstable'],
+  );
+  assert.deepEqual(
+    anomaliesOf(run({ stability: { throughputChange: 0.01, p99Ratio: 1.2 } })),
+    [],
+  );
+  // The suite's A/A noise replaces the defaults: a 20% p50 drift is within ±25%, beyond an A/A ±10%.
+  const drift = run({ stability: { throughputChange: 0, p50Ratio: 1.2 } });
+  assert.deepEqual(anomaliesOf(drift), []);
+  assert.match(
+    anomaliesOf(drift, { noise: { throughput: 0.02, p50: 0.1, p99: 0.5 } })[0]
+      .detail,
+    /beyond the A\/A noise: p50 \+20\.0% \(±10\.0%\)/,
+  );
+  assert.deepEqual(
+    anomaliesOf(run({ loadGeneratorCores: 0.95, loadGeneratorCpus: 1 })).map(
+      a => a.kind,
+    ),
+    ['load generator saturated'],
+  );
+  const m = metrics({
+    load: { rate: 100 },
+    results: {
+      throughput: 100,
+      perSecond: [
+        { ok: 100, p50Ms: 1, p99Ms: 5 },
+        { ok: 100, p50Ms: 1, p99Ms: 5 },
+      ],
+    },
+    resources: {
+      processes: { 'node-1': { averageCores: 0.5 } },
+      containers: { 'wow-e2e-bench-mongo': { cpuPercentAverage: 120 } },
+      loadGenerator: { averageCores: 0.3, availableProcessors: 1 },
+    },
+  });
+  assert.deepEqual(m.bottleneck, { side: 'mongo', cores: 1.2 });
+  assert.deepEqual(m.p99Series, [5, 5]);
+});
+
+test('a mixed suite sends its mix and shows each scenario', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'v10-e2e-bench-'));
+  const benchPath = fakeBench(dir);
+  runSuite('mixed-pg', {
+    benchPath,
+    out: join(dir, 'mixed'),
+    warmUp: 1,
+    measure: 5,
+    repeats: 1,
+    fraction: 0.8,
+    installs: { base: '/b' },
+  });
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
+  assert.match(
+    calls,
+    /--scenario=mixed --mix=E1:50,E4-state:40,E4-list:10 --distribution=uniform/,
+  );
+});
+
+test('large data sets are primed before every run; small ones are not; the report says what each started from', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'v10-e2e-bench-'));
+  const benchPath = fakeBench(dir);
+  const options = {
+    benchPath,
+    warmUp: 1,
+    measure: 5,
+    repeats: 1,
+    fraction: 0.8,
+    installs: { base: '/b' },
+  };
+  const big = runSuite('e1-pg-uniform', {
+    ...options,
+    dataset: '100k',
+    out: join(dir, 'big'),
+  });
+  assert.equal(big.primed, true);
+  const small = runSuite('e1-pg-uniform', {
+    ...options,
+    dataset: '1k',
+    out: join(dir, 'small'),
+  });
+  assert.equal(small.primed, false);
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8')
+    .split('\n')
+    .filter(Boolean);
+  assert.ok(
+    calls
+      .filter(line => line.includes('/big/'))
+      .every(line => line.includes('--prime')),
+  );
+  assert.ok(
+    calls
+      .filter(line => line.includes('/small/'))
+      .every(line => !line.includes('--prime')),
+  );
+  const report = renderReport([big, small]);
+  assert.match(
+    report,
+    /Primed: every run touched each of the 100000 accounts once before its warm-up/,
+  );
+  assert.match(report, /exceed the node's state cache \(4096 per context/);
+  assert.match(report, /Not primed: 1000 accounts, below 100000\./);
+});
+
+test('p99.9 is reported only with a thousand tail samples', () => {
+  const few = metrics({ results: { ok: 40000, latencyMs: { p999: 50 } } });
+  assert.equal(few.p999, undefined);
+  const many = metrics({ results: { ok: 1000000, latencyMs: { p999: 50 } } });
+  assert.equal(many.p999, 50);
+  const primed = metrics({
+    results: {},
+    meta: { primed: 'true', primeSeconds: '35' },
+  });
+  assert.deepEqual([primed.primed, primed.primeSeconds], [true, 35]);
 });

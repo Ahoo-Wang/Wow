@@ -26,8 +26,11 @@
 # Options: --warm-up=30 --measure=60 --distribution=uniform|zipf|hot --accounts=1000 --label=run --out=<dir>
 #          --heap=1g --jfr (a flight recording per server) --settle=<s> (after the nodes are up), --install=<dir> (the
 #          server's installed distribution, by default bench-<version>/build/install/e2e-bench-<version>: another
-#          build of the same version, such as a baseline's), and any other --name=value of the load generator's run or
-#          saturate, passed through.
+#          build of the same version, such as a baseline's), --seed-concurrency=32 (accounts opened at once),
+#          --load-cpus=<list> and --server-cpus=<list> (Linux, taskset lists: the load generator on its own CPUs, the
+#          servers and the containers on the others), --prime (an untimed pass over every account before the run),
+#          --jfr-settings=<.jfc> (with --jfr; on PostgreSQL --jfr also dumps pg_stat_statements and checkpoints),
+#          and any other --name=value of the load generator's run or saturate, passed through.
 set -euo pipefail
 
 HARNESS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -42,7 +45,7 @@ SERVER_PIDS=()
 TARGETS=()
 
 usage() {
-  sed -n '14,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,33p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -85,7 +88,7 @@ parse() {
     esac
     OPTIONS="$OPTIONS${argument#--}
 "
-    case " --version --backend --nodes --label --out --heap --jfr --settle --accounts --install " in
+    case " --version --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --seed-concurrency --load-cpus --server-cpus --prime " in
       *" $key "*) ;;
       *) PASS+=("$argument") ;;
     esac
@@ -103,6 +106,22 @@ EOF
   echo "$value"
 }
 
+# PREFIX: the words that run a command on the CPUs of option $1 (--load-cpus, --server-cpus), `taskset -c <list>`
+# when the option names some and taskset is there (Linux), else none. taskset execs the command, so a pid recorded for
+# a pinned server is still the server's.
+PREFIX=()
+pin() {
+  local cpus; cpus=$(opt "$1" "")
+  PREFIX=()
+  if [ -n "$cpus" ] && command -v taskset >/dev/null 2>&1; then PREFIX=(taskset -c "$cpus"); fi
+}
+
+# The load generator, on the --load-cpus.
+load() {
+  pin load-cpus
+  ${PREFIX[@]+"${PREFIX[@]}"} "$LOAD" "$@"
+}
+
 # Starts node $1 (1-based) of $VERSION; its output goes to $OUT/node-$1.log. The launcher execs java, so the pid it
 # records is the server JVM's.
 start_node() {
@@ -116,14 +135,15 @@ start_node() {
   fi
   local jvm="-Xms$HEAP -Xmx$HEAP -XX:+UseG1GC"
   if [ "$(opt jfr false)" = true ]; then
-    jvm="$jvm -XX:StartFlightRecording=filename=$OUT/node-$n.jfr,settings=profile"
+    jvm="$jvm -XX:StartFlightRecording=filename=$OUT/node-$n.jfr,settings=$(opt jfr-settings profile)"
   fi
   # --install names the build; else 9.x runs from its v10-9x-baseline tree (D262) and V10 from this one.
   local home=$REPO
   if [ "$VERSION" = 9x ]; then home=$NINE_X_REPO; fi
   local install
   install=$(opt install "$home/wow-benchmarks/e2e/bench-$VERSION/build/install/e2e-bench-$VERSION")
-  JAVA_OPTS="$jvm" "$install/bin/e2e-bench-$VERSION" \
+  pin server-cpus
+  JAVA_OPTS="$jvm" ${PREFIX[@]+"${PREFIX[@]}"} "$install/bin/e2e-bench-$VERSION" \
     "${args[@]}" >"$OUT/node-$n.log" 2>&1 &
   SERVER_PIDS+=($!)
   TARGETS+=("http://127.0.0.1:$port")
@@ -166,7 +186,12 @@ setup() {
   local store=postgres
   if [ "$BACKEND" = mongo ]; then store=mongo; fi
   log "starting kafka and $store"
+  # A profiled PostgreSQL run loads pg_stat_statements, for the statements behind the tails (postgres_stats).
+  if [ "$(opt jfr false)" = true ] && [ "$store" = postgres ]; then export WOW_BENCH_PG_PRELOAD=pg_stat_statements; fi
   compose up -d --wait kafka "$store" >/dev/null
+  if [ -n "$(opt server-cpus "")" ]; then
+    docker update --cpuset-cpus "$(opt server-cpus "")" wow-e2e-bench-kafka "wow-e2e-bench-$store" >/dev/null
+  fi
   CONTAINERS="wow-e2e-bench-kafka,wow-e2e-bench-$store"
   STORE_OPTION="--$store=wow-e2e-bench-$store"
   local n
@@ -182,30 +207,63 @@ setup() {
   sleep "$settle"
   TARGET_LIST=$(IFS=,; echo "${TARGETS[*]}")
   log "seeding $ACCOUNTS accounts"
-  "$LOAD" seed --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" | tee "$OUT/seed.log" >&2
+  load seed --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" \
+    --concurrency="$(opt seed-concurrency 32)" | tee "$OUT/seed.log" >&2
   log "checking every scenario once"
-  "$LOAD" check --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" | tee "$OUT/check.log" >&2
+  load check --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" | tee "$OUT/check.log" >&2
+  # --prime: an untimed pass over every seeded account (D224 note ⑤), so a large data set is measured warm.
+  local primed=false prime_seconds=0
+  if [ "$(opt prime false)" = true ]; then
+    log "priming $ACCOUNTS accounts"
+    local prime_started=$SECONDS
+    load prime --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" \
+      --concurrency="$(opt seed-concurrency 256)" --out="$OUT" | tee "$OUT/prime.log" >&2
+    primed=true
+    prime_seconds=$((SECONDS - prime_started))
+  fi
+  # The statements counted from here on are the run's (warm-up and measured phase), not the seeding's.
+  if [ -n "${WOW_BENCH_PG_PRELOAD:-}" ]; then postgres_sql "create extension if not exists pg_stat_statements; select pg_stat_statements_reset();" >/dev/null; fi
   PIDS=""
   for n in $(seq 1 "$NODES"); do PIDS="${PIDS}node-$n:${SERVER_PIDS[$((n - 1))]},"; done
   PIDS=${PIDS%,}
   local jvm; jvm=$("$JAVA_HOME/bin/java" -version 2>&1 | tr '\n' ' ' | sed 's/;/,/g')
-  META="backend=$BACKEND;nodes=$NODES;heap=$HEAP;gc=G1;serverJvm=$jvm;stores=kafka $store"
+  META="backend=$BACKEND;nodes=$NODES;heap=$HEAP;gc=G1;serverJvm=$jvm;stores=kafka $store;primed=$primed"
+  META="$META;primeSeconds=$prime_seconds;accounts=$ACCOUNTS"
+}
+
+# Runs SQL on the benchmark's PostgreSQL container.
+postgres_sql() { docker exec wow-e2e-bench-postgres psql -U postgres -d transfer_v10 -X -q -c "$1"; }
+
+# A profiled PostgreSQL run's store side (D224 profile): the top statements by total time and the checkpoints, into
+# $OUT/postgres-stats.txt.
+postgres_stats() {
+  {
+    echo "# Top statements by total execution time (pg_stat_statements, since the run's warm-up began)"
+    postgres_sql "select calls, round(total_exec_time::numeric, 1) as total_ms, round(mean_exec_time::numeric, 3) as mean_ms,
+      round(max_exec_time::numeric, 1) as max_ms, rows, left(regexp_replace(query, '\s+', ' ', 'g'), 140) as query
+      from pg_stat_statements order by total_exec_time desc limit 15"
+    echo "# Checkpoints (pg_stat_checkpointer)"
+    postgres_sql "select * from pg_stat_checkpointer"
+    echo "# Waits now (pg_stat_activity)"
+    postgres_sql "select wait_event_type, wait_event, count(*) from pg_stat_activity group by 1, 2 order by 3 desc"
+  } >"$OUT/postgres-stats.txt" 2>&1 || true
 }
 
 run() {
   parse "$@"
   setup
   log "running $(opt scenario ?) at $(opt rate ?)/s"
-  "$LOAD" run --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --label="$LABEL" --out="$OUT" \
+  load run --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --label="$LABEL" --out="$OUT" \
     --pids="$PIDS" --containers="$CONTAINERS" --kafka=wow-e2e-bench-kafka "$STORE_OPTION" --repository="$REPO" \
     --meta="$META" ${PASS[@]+"${PASS[@]}"}
+  if [ -n "${WOW_BENCH_PG_PRELOAD:-}" ]; then postgres_stats; fi
   log "results in $OUT"
 }
 
 saturate() {
   parse "$@"
   setup
-  "$LOAD" saturate --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --out="$OUT" \
+  load saturate --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --out="$OUT" \
     --meta="$META" ${PASS[@]+"${PASS[@]}"}
   log "results in $OUT"
 }
