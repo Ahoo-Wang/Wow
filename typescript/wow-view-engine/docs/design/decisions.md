@@ -964,12 +964,12 @@
   - **覆盖写在派生的输入上**：`DefineDatasetSpec.fields` 每项是口径（字符串）、**defineView** 的 `FieldSpec`（收窄）或 `false`（隐藏）；写到的字段按写的次序在前，其余按描述符的次序在后。不能增加描述符没有的字段或能力：没有的路径被忽略（不是错误，数据集删了列，覆盖不该让定义坏掉）。
   - **`DatasetCatalog.overrides(entry)`** 把标题、名词与字段覆盖交给 `DatasetResources`；覆盖变了（按 JSON 比较）即使版本没变也重新登记。
   - **存在哪里不在这一批**：宿主可以写在代码或配置里；存进视图存储、由管理员编辑，留在 todo。
-  - **存储（2026-10-11 用户确认）**：存在视图存储，按租户一份（`dataset_wording` 聚合，`owner/(shared)` 下，id 按「租户 × 应用 × 数据集」算出），`@ahoo-wang/wow-view-store` 的 `WowDatasetWordings` 读写，宿主把它交给 `DatasetCatalog.wordings`；编辑界面放进视图管理器（D91）。设计见 Wow 仓 `documentation/designs/2026-10-11-dataset-wording-storage-design.md`。
+  - **存储（2026-10-11 用户确认）**：存在视图存储，按租户一份（`dataset_wording` 聚合，`owner/(shared)` 下，id 按「租户 × 应用 × 数据集」算出），`@ahoo-wang/wow-view-store` 的 `WowDatasetWordings` 读写，宿主把它交给 `DatasetCatalog.wordings`；编辑界面放进视图管理器（D91）。设计见 Wow 仓 `documentation/designs/2026-10-11-dataset-wording-storage-design.md`（在 `main` 分支）。
 - **落点**：`src/runtime/define/defineDataset.ts`、`src/runtime/datasetResources.ts`；[host-integration.md 3.2](host-integration.md)。
 
 ## D87 数据源声明了窗口时，累计、累计占比与移动平均由 Wow 在全部分组上算（2026-10-11，修订 Q53）
 
-- **来由**：Q53 让算出的线在行不完整时置灰：Wow 没有窗口计算，内核只能对拿回来的行算，截断、「只保留」、时间轴上的洞都会悄悄算错。数据集平台的 R4（Wow 仓 `documentation/designs/2026-10-11-aggregation-window-design.md`）给 Wow 的派生指标加了 `TOTAL`、`RUNNING`、`PREVIOUS`、`RANK` 四种窗口节点，在 `having`、`sort`、`limit` 之前对 filter 选出的**全部分组**计算；能力描述的 `analysis.windows` 列出存储支持的函数（ClickHouse 原生，其余由查询服务算，结果一致）。
+- **来由**：Q53 让算出的线在行不完整时置灰：Wow 没有窗口计算，内核只能对拿回来的行算，截断、「只保留」、时间轴上的洞都会悄悄算错。数据集平台的 R4（Wow 仓 `documentation/designs/2026-10-11-aggregation-window-design.md`（在 `main` 分支））给 Wow 的派生指标加了 `TOTAL`、`RUNNING`、`PREVIOUS`、`RANK` 四种窗口节点，在 `having`、`sort`、`limit` 之前对 filter 选出的**全部分组**计算；能力描述的 `analysis.windows` 列出存储支持的函数（ClickHouse 原生，其余由查询服务算，结果一致）。
 - **裁定**（用户 2026-10-11 确认 R4 设计 §5「view-engine 的衔接」，授权按推荐推进）：
   - **能力**：分析能力多一项 `windows`，读自描述符的 `analysis.windows`；9.9 之前的服务端不发这一项，读作空表，行为与今天完全相同。
   - **查询**：图上要画 `cumulative`、`cumulative-share` 或 `moving-average`，而能力列出它要的函数（两种累计与移动平均要 `RUNNING`，累计占比还要 `TOTAL`）时，编译出的查询为每条线带一个**隐藏的派生指标**，别名与币种的伴随指标同一种写法——`<指标>__cumulative`、`<指标>__share`、`<指标>__moving<窗口>`：
@@ -1041,7 +1041,7 @@
 
 ## D92 展开元素时按根字段分组：描述符给出 `rootGroups` 才放开，根维度排在前（2026-10-11，落实 H）
 
-- **来由**：展开元素后，计数单位是最内层元素，维度只能用元素里的字段；补偿控制台「补偿活动」想看「每天各种结局」，天在事件流（根）上，事件名在元素里，只能拆成四张图。Wow 9.9 给聚合分组加了 `scope: ROOT`（设计 `documentation/designs/2026-10-11-element-root-groups-design.md`，#4207、#4213），描述符用 `analysis.rootGroups` 说明能不能用。
+- **来由**：展开元素后，计数单位是最内层元素，维度只能用元素里的字段；补偿控制台「补偿活动」想看「每天各种结局」，天在事件流（根）上，事件名在元素里，只能拆成四张图。Wow 9.9 给聚合分组加了 `scope: ROOT`（设计 `documentation/designs/2026-10-11-element-root-groups-design.md`（在 `main` 分支），#4207、#4213），描述符用 `analysis.rootGroups` 说明能不能用。
 - **裁定**：
   - **能力随描述符**：`AnalysisCapability.rootGroups?` 与 `AnalysisSpec.rootGroups?`，与 `windows` 同样由描述符给出；宿主写 `false` 可以关掉；9.9 之前的服务端不给，照旧报 `analysis.field.outside-scope`。
   - **只放开维度**：作用域多一份 `rootAggregations`（根字段的聚合能力，仅在展开元素且能力给出时非空）。维度名不在最内层元素里、却在它里面时，按根字段的能力校验，编译时带 `scope: 'ROOT'`，字段写绝对路径。指标、表达式、指标条件仍只读最内层元素：根上的值会随它的元素被数多次。

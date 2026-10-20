@@ -20,8 +20,8 @@ import java.io.File
  * reference any package in [forbidden], except the packages in [allowed] within them. [modules] are directories
  * relative to the repository root.
  *
- * Copied from wow-core's architecture tests (9.3.0, refactor design G3); it moves here for good when V10 removes
- * wow-core.
+ * Copied from 9.x wow-core's architecture tests (9.3.0, refactor design G3); it lives here since wow-core left `v10`
+ * (decision D262).
  *
  * The check scans source text, not bytecode: every `import` and every fully-qualified reference outside comments
  * counts, including class names in string literals (reflective lookups are dependencies too).

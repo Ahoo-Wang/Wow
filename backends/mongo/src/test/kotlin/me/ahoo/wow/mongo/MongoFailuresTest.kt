@@ -14,6 +14,7 @@
 package me.ahoo.wow.mongo
 
 import com.mongodb.MongoClientSettings
+import com.mongodb.MongoConnectionPoolClearedException
 import com.mongodb.MongoException
 import com.mongodb.MongoExecutionTimeoutException
 import com.mongodb.MongoNodeIsRecoveringException
@@ -24,10 +25,13 @@ import com.mongodb.MongoTimeoutException
 import com.mongodb.ServerAddress
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
+import com.mongodb.connection.ClusterId
+import com.mongodb.connection.ServerId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.mongo.ledger.MongoFailureLedger
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.query.MongoSnapshotQueryBackend
@@ -36,6 +40,8 @@ import me.ahoo.wow.mongo.subscription.MongoCheckpointStore
 import me.ahoo.wow.mongo.subscription.MongoLeaseStore
 import me.ahoo.wow.mongo.timer.MongoTimerStore
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.log.EventRecord
+import me.ahoo.wow.spi.log.EventStreamRecord
 import org.bson.BsonDocument
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -165,8 +171,46 @@ class MongoFailuresTest {
         ).forEach { MongoFailures.isCommitUnknown(it).assert().describedAs("$it").isFalse() }
     }
 
+    @Test
+    fun `a server that failed or did not answer is unreachable, one that answered with an error is not`() {
+        // Decision D261: an append's transaction does not retry an unreachable server, so its command is answered.
+        listOf(
+            MongoSocketOpenException("Exception opening socket", address, IOException("Connection refused")),
+            MongoSocketReadException("Prematurely reached end of stream", address),
+            MongoTimeoutException("Timed out while waiting for a server"),
+            MongoConnectionPoolClearedException(ServerId(ClusterId(), address), null),
+            MongoNotPrimaryException(BsonDocument(), address),
+            MongoNodeIsRecoveringException(BsonDocument(), address),
+        ).forEach { MongoFailures.isUnreachable(it).assert().describedAs("$it").isTrue() }
+        listOf(
+            MongoException(WRITE_CONFLICT, "WriteConflict").apply {
+                addLabel(MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL)
+            },
+            MongoException(DUPLICATE_KEY, "E11000 duplicate key error"),
+        ).forEach { MongoFailures.isUnreachable(it).assert().describedAs("$it").isFalse() }
+    }
+
+    @Test
+    fun `an append to an unreachable server should throw the retryable error, never append`() {
+        // Nothing reached the store: the command is answered as unavailable, not unknown (finding A2-6).
+        val log = MongoEventLog(unreachable, "wow", "shop", 1, Dispatchers.IO)
+        assertThrows<StorageUnavailableException> { runBlocking { log.append(stream()) } }
+    }
+
+    private fun stream() = EventStreamRecord.of(
+        cart.ref("t", "c-1"),
+        1,
+        "command-1",
+        "request-1",
+        "shop.cart.Add",
+        0L,
+        listOf(EventRecord.of("shop.cart.Added", 1, "{}")),
+        Scope.NONE,
+    )
+
     private companion object {
         const val MAX_TIME_EXPIRED = 50
+        const val WRITE_CONFLICT = 112
         const val SELECTION_TIMEOUT_MS = 200L
         const val SHUTDOWN_IN_PROGRESS = 91
         const val DUPLICATE_KEY = 11000

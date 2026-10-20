@@ -19,7 +19,7 @@ import java.util.concurrent.Executors
 import kotlin.math.ceil
 
 /**
- * The eShop's load script (work package E.6): `./gradlew -Pwow.scope=v10 :eshop-e2e:eshopLoad`. It starts
+ * The eShop's load script (work package E.6): `./gradlew :eshop-e2e:eshopLoad`. It starts
  * [EshopStack], then drives checkouts through the full chain from [concurrency] buyers at a time: each buyer adds a
  * product to the basket and checks it out with the `Wow-Wait` [EshopStack.CHECKOUT_TO_PAID], which answers once the
  * payment's `PayOrder` is committed. A checkout's latency is that request's, from the checkout to the paid order. It
