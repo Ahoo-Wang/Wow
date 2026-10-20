@@ -179,6 +179,10 @@ class OtelObserver(
             .increment()
     }
 
+    override fun tailRead(context: String, partition: Int, reason: String) {
+        cached.counter(WowMetrics.TAIL_READS, WowMetrics.CONTEXT, context, WowMetrics.REASON, reason).increment()
+    }
+
     override fun deciding(command: Command<*>): Observation =
         observation(Context.current(), commandSpan("decide", command))
 

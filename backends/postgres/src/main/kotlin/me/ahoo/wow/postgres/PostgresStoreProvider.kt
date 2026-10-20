@@ -14,6 +14,7 @@
 package me.ahoo.wow.postgres
 
 import me.ahoo.wow.postgres.ledger.PostgresFailureLedger
+import me.ahoo.wow.postgres.query.threadsAwaitingConnection
 import me.ahoo.wow.postgres.reservation.PostgresReservationStore
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.postgres.subscription.PostgresCheckpointStore
@@ -86,6 +87,9 @@ internal class PostgresStore(
     override val location: Any get() = dataSource
 
     override val queuesAppends: Boolean get() = false
+
+    /** HikariCP's threads awaiting a connection of the appends' pool (decision D252); null for another pool. */
+    override fun waitingForConnection(): Int? = dataSource.threadsAwaitingConnection()
 
     override fun openCheckpoints(): CheckpointStore =
         PostgresCheckpointStore(dataSource, ddl = ddl).also { schema(it::createSchema) }

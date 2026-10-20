@@ -61,6 +61,11 @@ class MongoHostTest {
     }
 
     @Test
+    fun `the node's own commits should reach its snapshot subscription in memory on MongoDB (decision D249)`() {
+        host.assertHandoff()
+    }
+
+    @Test
     fun `counts should be cached on MongoDB until a snapshot is written`() {
         host.assertCountCache()
     }

@@ -411,6 +411,7 @@ class WowAutoConfiguration {
                 maxRegisteredWaits = properties.wait.maxRegistered,
                 subscription = properties.subscription.options(properties.subscriptions),
                 appendQueue = properties.log.appendQueue.options(backends.appendQueue),
+                handoff = properties.log.handoffOptions(),
                 laneCapacity = properties.executor.laneCapacity,
                 maxInFlight = properties.executor.maxInFlight,
                 stateCacheCapacity = properties.stateCache.capacity,

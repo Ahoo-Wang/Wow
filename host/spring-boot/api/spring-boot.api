@@ -84,6 +84,7 @@ public final class me/ahoo/wow/spring/boot/ConfigurationKeys$Companion {
 
 public final class me/ahoo/wow/spring/boot/HealthAutoConfiguration {
 	public static final field LIVENESS_INDICATOR Ljava/lang/String;
+	public static final field QUERIES Ljava/lang/String;
 	public static final field READINESS_INDICATOR Ljava/lang/String;
 	public static final field WOW_CONTRIBUTOR Ljava/lang/String;
 	public fun <init> ()V
@@ -223,6 +224,7 @@ public final class me/ahoo/wow/spring/boot/QueryProperties {
 	public fun <init> ()V
 	public final fun entryPolicy ()Lme/ahoo/wow/query/QueryEntryPolicy;
 	public final fun getAbac ()Lme/ahoo/wow/spring/boot/QueryProperties$Abac;
+	public final fun getAdaptive ()Lme/ahoo/wow/spring/boot/QueryProperties$Adaptive;
 	public final fun getCountCache ()Lme/ahoo/wow/spring/boot/QueryProperties$CountCache;
 	public final fun getDataset ()Lme/ahoo/wow/spring/boot/QueryProperties$Dataset;
 	public final fun getEnabled ()Z
@@ -239,6 +241,7 @@ public final class me/ahoo/wow/spring/boot/QueryProperties {
 	public final fun getSensitivity ()Lme/ahoo/wow/spring/boot/QueryProperties$Sensitivity;
 	public final fun getState ()Lme/ahoo/wow/spring/boot/QueryProperties$State;
 	public final fun setAbac (Lme/ahoo/wow/spring/boot/QueryProperties$Abac;)V
+	public final fun setAdaptive (Lme/ahoo/wow/spring/boot/QueryProperties$Adaptive;)V
 	public final fun setCountCache (Lme/ahoo/wow/spring/boot/QueryProperties$CountCache;)V
 	public final fun setDataset (Lme/ahoo/wow/spring/boot/QueryProperties$Dataset;)V
 	public final fun setEnabled (Z)V
@@ -267,6 +270,26 @@ public final class me/ahoo/wow/spring/boot/QueryProperties$Abac {
 	public final fun setEnabled (Z)V
 	public final fun setMatchMissingTagKey (Z)V
 	public final fun setRequirePrincipalTags (Z)V
+}
+
+public final class me/ahoo/wow/spring/boot/QueryProperties$Adaptive {
+	public fun <init> ()V
+	public final fun getCeiling ()Ljava/lang/Integer;
+	public final fun getConnectionWaits ()I
+	public final fun getEnabled ()Z
+	public final fun getFloor ()I
+	public final fun getInterval ()Ljava/time/Duration;
+	public final fun getLatencyFactor ()D
+	public final fun getMinLatency ()Ljava/time/Duration;
+	public final fun getPeriods ()I
+	public final fun setCeiling (Ljava/lang/Integer;)V
+	public final fun setConnectionWaits (I)V
+	public final fun setEnabled (Z)V
+	public final fun setFloor (I)V
+	public final fun setInterval (Ljava/time/Duration;)V
+	public final fun setLatencyFactor (D)V
+	public final fun setMinLatency (Ljava/time/Duration;)V
+	public final fun setPeriods (I)V
 }
 
 public final class me/ahoo/wow/spring/boot/QueryProperties$Companion {
@@ -643,6 +666,16 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Executor {
 	public final fun setMaxInFlight (I)V
 }
 
+public final class me/ahoo/wow/spring/boot/WowProperties$Handoff {
+	public fun <init> ()V
+	public final fun getCapacity ()I
+	public final fun getEnabled ()Z
+	public final fun getGapWait ()Ljava/time/Duration;
+	public final fun setCapacity (I)V
+	public final fun setEnabled (Z)V
+	public final fun setGapWait (Ljava/time/Duration;)V
+}
+
 public final class me/ahoo/wow/spring/boot/WowProperties$Health {
 	public fun <init> ()V
 	public final fun getEnabled ()Z
@@ -772,11 +805,13 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Internal {
 public final class me/ahoo/wow/spring/boot/WowProperties$Log {
 	public fun <init> ()V
 	public final fun getAppendQueue ()Lme/ahoo/wow/spring/boot/WowProperties$AppendQueue;
+	public final fun getHandoff ()Lme/ahoo/wow/spring/boot/WowProperties$Handoff;
 	public final fun getMaxPollInterval ()Ljava/time/Duration;
 	public final fun getPartitions ()I
 	public final fun getPollInterval ()Ljava/time/Duration;
 	public final fun getStore ()Ljava/lang/String;
 	public final fun setAppendQueue (Lme/ahoo/wow/spring/boot/WowProperties$AppendQueue;)V
+	public final fun setHandoff (Lme/ahoo/wow/spring/boot/WowProperties$Handoff;)V
 	public final fun setMaxPollInterval (Ljava/time/Duration;)V
 	public final fun setPartitions (I)V
 	public final fun setPollInterval (Ljava/time/Duration;)V
@@ -950,13 +985,25 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Store {
 	public final fun setType (Ljava/lang/String;)V
 }
 
+public final class me/ahoo/wow/spring/boot/WowProperties$StoreAdaptive {
+	public fun <init> ()V
+	public final fun getCeiling ()Ljava/lang/Integer;
+	public final fun getEnabled ()Ljava/lang/Boolean;
+	public final fun getFloor ()Ljava/lang/Integer;
+	public final fun setCeiling (Ljava/lang/Integer;)V
+	public final fun setEnabled (Ljava/lang/Boolean;)V
+	public final fun setFloor (Ljava/lang/Integer;)V
+}
+
 public final class me/ahoo/wow/spring/boot/WowProperties$StoreQuery {
 	public fun <init> ()V
+	public final fun getAdaptive ()Lme/ahoo/wow/spring/boot/WowProperties$StoreAdaptive;
 	public final fun getEvents ()Lme/ahoo/wow/spring/boot/WowProperties$QueryEvents;
 	public final fun getMaxConcurrent ()Ljava/lang/Integer;
 	public final fun getMaxQueued ()Ljava/lang/Integer;
 	public final fun getMaxWait ()Ljava/time/Duration;
 	public final fun getReadPreference ()Ljava/lang/String;
+	public final fun setAdaptive (Lme/ahoo/wow/spring/boot/WowProperties$StoreAdaptive;)V
 	public final fun setEvents (Lme/ahoo/wow/spring/boot/WowProperties$QueryEvents;)V
 	public final fun setMaxConcurrent (Ljava/lang/Integer;)V
 	public final fun setMaxQueued (Ljava/lang/Integer;)V

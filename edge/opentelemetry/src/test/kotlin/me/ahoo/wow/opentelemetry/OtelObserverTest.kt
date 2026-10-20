@@ -126,13 +126,16 @@ class OtelObserverTest {
         }
 
     @Test
-    fun `refusals, wait timeouts, dropped signals and failed forwards should be counted`() {
+    fun `refusals, wait timeouts, dropped signals, failed forwards and tail reads should be counted`() {
         observer.refused(ORDER, "wow.command.busy")
         observer.refused(ORDER, "wow.command.busy")
         observer.waitTimedOut(ORDER, Stage.COMMITTED)
         observer.signalDropped("node-2", "queue-full")
         observer.forwardFailed(ORDER, "unknown")
+        observer.tailRead(SALES, 3, "gap")
         val meters = telemetry.meters
+        meters.get(WowMetrics.TAIL_READS).tags(WowMetrics.CONTEXT, SALES, WowMetrics.REASON, "gap").counter().count()
+            .assert().isEqualTo(1.0)
         meters.get(WowMetrics.REFUSED).tags(WowMetrics.CONTEXT, SALES, WowMetrics.CODE, "wow.command.busy")
             .counter().count().assert().isEqualTo(2.0)
         meters.get(WowMetrics.WAIT_TIMEOUT).tags(WowMetrics.AGGREGATE, "order", WowMetrics.STAGE, "committed")

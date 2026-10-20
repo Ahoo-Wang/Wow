@@ -2347,6 +2347,7 @@ public abstract interface class me/ahoo/wow/query/store/StoreQueryProvider {
 	public fun events (Lme/ahoo/wow/spi/store/Store;Lme/ahoo/wow/query/store/StoreQueryOptions;)Lme/ahoo/wow/query/store/EventQueries;
 	public abstract fun getType ()Ljava/lang/String;
 	public fun maxConcurrent (Lme/ahoo/wow/spi/store/Store;)I
+	public fun maxConcurrentCeiling (Lme/ahoo/wow/spi/store/Store;)I
 	public fun snapshots (Lme/ahoo/wow/spi/store/Store;Lme/ahoo/wow/query/store/StoreQueryOptions;)Lme/ahoo/wow/query/store/SnapshotQueries;
 }
 
