@@ -28,8 +28,8 @@
 #          server's installed distribution, by default bench-<version>/build/install/e2e-bench-<version>: another
 #          build of the same version, such as a baseline's), --seed-concurrency=32 (accounts opened at once),
 #          --load-cpus=<list> and --server-cpus=<list> (Linux, taskset lists: the load generator on its own CPUs, the
-#          servers and the containers on the others), and any other --name=value of the load generator's run or
-#          saturate, passed through.
+#          servers and the containers on the others), --prime (an untimed pass over every account before the run),
+#          and any other --name=value of the load generator's run or saturate, passed through.
 set -euo pipefail
 
 HARNESS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -87,7 +87,7 @@ parse() {
     esac
     OPTIONS="$OPTIONS${argument#--}
 "
-    case " --version --backend --nodes --label --out --heap --jfr --settle --accounts --install --seed-concurrency --load-cpus --server-cpus " in
+    case " --version --backend --nodes --label --out --heap --jfr --settle --accounts --install --seed-concurrency --load-cpus --server-cpus --prime " in
       *" $key "*) ;;
       *) PASS+=("$argument") ;;
     esac
@@ -208,11 +208,23 @@ setup() {
     --concurrency="$(opt seed-concurrency 32)" | tee "$OUT/seed.log" >&2
   log "checking every scenario once"
   load check --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" | tee "$OUT/check.log" >&2
+  # --prime: an untimed pass over every seeded account (D224 note ⑤), so a large data set is measured warm.
+  local primed=false prime_seconds=0
+  if [ "$(opt prime false)" = true ]; then
+    log "priming $ACCOUNTS accounts"
+    local prime_started=$SECONDS
+    load prime --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" \
+      --concurrency="$(opt seed-concurrency 256)" --scenario="$(opt scenario "")" --mix="$(opt mix "")" \
+      --out="$OUT" | tee "$OUT/prime.log" >&2
+    primed=true
+    prime_seconds=$((SECONDS - prime_started))
+  fi
   PIDS=""
   for n in $(seq 1 "$NODES"); do PIDS="${PIDS}node-$n:${SERVER_PIDS[$((n - 1))]},"; done
   PIDS=${PIDS%,}
   local jvm; jvm=$("$JAVA_HOME/bin/java" -version 2>&1 | tr '\n' ' ' | sed 's/;/,/g')
-  META="backend=$BACKEND;nodes=$NODES;heap=$HEAP;gc=G1;serverJvm=$jvm;stores=kafka $store"
+  META="backend=$BACKEND;nodes=$NODES;heap=$HEAP;gc=G1;serverJvm=$jvm;stores=kafka $store;primed=$primed"
+  META="$META;primeSeconds=$prime_seconds;accounts=$ACCOUNTS"
 }
 
 run() {
