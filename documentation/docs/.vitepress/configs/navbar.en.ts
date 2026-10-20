@@ -38,6 +38,16 @@ export const navbarEn: DefaultTheme.NavItem[] = [
         ],
     },
     {
+        text: 'Operate',
+        activeMatch: '/operate/',
+        items: [
+            {text: 'Deployment Model', link: '/operate/topology'},
+            {text: 'Secure a Deployment', link: '/operate/security'},
+            {text: 'Kafka', link: '/operate/kafka'},
+            {text: 'The Ops Service and Console', link: '/operate/ops-console'},
+        ],
+    },
+    {
         text: 'Reference',
         items: [
             {text: 'Configuration Keys', link: '/guide/v10/configuration'},

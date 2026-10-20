@@ -156,6 +156,18 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             ],
         },
     ],
+    '/operate/': [
+        {
+            base: '/operate/',
+            text: 'Operate',
+            items: [
+                {text: 'Deployment Model', link: 'topology'},
+                {text: 'Secure a Deployment', link: 'security'},
+                {text: 'Kafka', link: 'kafka'},
+                {text: 'The Ops Service and Console', link: 'ops-console'},
+            ],
+        },
+    ],
     '/contribute/': [
         {
             base: '/contribute/',
