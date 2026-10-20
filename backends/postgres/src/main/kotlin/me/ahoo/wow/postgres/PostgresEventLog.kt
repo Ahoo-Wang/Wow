@@ -131,16 +131,19 @@ class PostgresEventLog(
             val structures = listOf(tables.partitionsBase, PostgresEventLogTables.REGISTRY)
                 .map { it to PostgresEventLogTables.FORMAT }
             PostgresFormat.schema(connection, ddl, structures) {
-                connection.createStatement().use { statement ->
-                    tables.ddl().forEach { statement.execute(it) }
-                    // A counter table created before the lineage columns (D240) gets them before its counters are written.
-                    statement.execute(tables.partitionAdditions)
-                    statement.execute(tables.initializePartitions(partitions))
-                }
+                connection.createStatement().use { statement -> tables.ddl().forEach { statement.execute(it) } }
+            }
+            if (ddl == StoreDdl.AUTO) {
+                // A counter table created before the lineage columns (D240) gets them before its counters are written.
+                PostgresFormat.addColumns(
+                    connection,
+                    tables.partitionsBase,
+                    PostgresEventLogTables.PARTITION_ADDED,
+                    tables.partitionAdditions,
+                )
+                connection.createStatement().use { it.execute(tables.initializePartitions(partitions)) }
                 // A table created before format 1's added columns (D163, D166) gets them, so the tail reads every table.
-                register(connection).forEach { table ->
-                    connection.createStatement().use { it.execute(table.additions) }
-                }
+                register(connection).forEach { addColumns(connection, it) }
                 // Read again on first use, with the tables created from now on.
                 registered = null
             }
@@ -179,10 +182,7 @@ class PostgresEventLog(
      */
     private fun ensure(connection: Connection, table: AggregateLogTable): AggregateLogTable = table.also {
         PostgresFormat.schema(connection, ddl, listOf(table.base to PostgresEventLogTables.FORMAT)) {
-            connection.createStatement().use {
-                it.execute(table.ddl())
-                it.execute(table.additions)
-            }
+            connection.createStatement().use { it.execute(table.ddl()) }
             connection.prepareStatement(tables.register).use { register ->
                 register.setString(1, context)
                 register.setString(2, table.aggregate)
@@ -201,7 +201,14 @@ class PostgresEventLog(
                     "which the aggregate ${holder.second} of ${holder.first} has."
             }
         }
+        if (ddl == StoreDdl.AUTO) {
+            addColumns(connection, table)
+        }
     }
+
+    /** Adds format 1's added columns (D163) to [table] when it was created before them ([PostgresFormat.addColumns]). */
+    private fun addColumns(connection: Connection, table: AggregateLogTable) =
+        PostgresFormat.addColumns(connection, table.base, AggregateLogTable.ADDED, table.additions)
 
     /** Reads the registry again: the aggregate tables of the context, in registry order. */
     private fun register(connection: Connection): List<AggregateLogTable> {
@@ -301,8 +308,9 @@ class PostgresEventLog(
      * order, whichever node appends to the partition. Another node may append to the partition at once (Local mode
      * during a handover, decision D71): its statement queues on the counter row. When it commits a version a stream of
      * the group needs after this statement read the versions, the group's insert hits the unique version key; a stream
-     * repeating a committed request hits the request key; a value PostgreSQL refuses fails the statement too. Each
-     * rolls the whole statement back, the bump included, and is a definite abort: the streams are then appended one by
+     * repeating a committed request hits the request key; a value PostgreSQL refuses fails the statement too, and so
+     * does PostgreSQL ending a deadlock with it (`40P01`; the group takes its locks in one order, so none is expected).
+     * Each rolls the whole statement back, the bump included, and is a definite abort: the streams are then appended one by
      * one, each getting the outcome [append] gives it, and the rest commit (as MongoDB's group commit does).
      *
      * **Unknown.** Any other failure, a connection lost while the statement runs included, leaves the group's commit
@@ -345,7 +353,8 @@ class PostgresEventLog(
         group: List<Pair<EventStreamRecord, Transport?>>,
     ): List<AppendOutcome> {
         val tablesOf = group.map { (stream) -> tableOf(connection, stream.ref.type) }
-        val tables = tablesOf.distinctBy { it.base }
+        // Sorted: every group takes its tables' request keys in one order ([PostgresEventLogTables.appendGroup]).
+        val tables = tablesOf.distinctBy { it.base }.sortedBy { it.base }
         val sql = this.tables.appendGroup(partition, tables, tablesOf.map { table -> tables.indexOf(table) })
         val rows = try {
             connection.prepareStatement(sql).use { statement ->
@@ -358,7 +367,8 @@ class PostgresEventLog(
             }
         } catch (failure: PSQLException) {
             val constraint = failure.serverErrorMessage?.constraint
-            val definite = PostgresFailures.isRefused(failure) ||
+            // PostgreSQL rolls back the statement it picks to end a deadlock: that is a definite abort too.
+            val definite = PostgresFailures.isRefused(failure) || failure.sqlState == DEADLOCK_DETECTED ||
                 tables.any { constraint == it.versionKey || constraint == it.requestKey }
             if (!definite) throw failure
             return group.mapIndexed { index, (stream, transport) ->
@@ -646,6 +656,9 @@ class PostgresEventLog(
 
         /** The most streams one group commit statement takes: 17 parameters each, well within the protocol's 65535. */
         const val MAX_GROUP = 1000
+
+        /** SQLSTATE `40P01`: the statement was rolled back to end a deadlock. */
+        const val DEADLOCK_DETECTED = "40P01"
 
         /** The lineage columns of a partition's counter row (decision D240). */
         const val PARENT = "parent"

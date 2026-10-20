@@ -35,6 +35,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
+import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.tck.log.EventLogSpec
 import org.junit.jupiter.api.Test
 import java.lang.reflect.InvocationTargetException
@@ -44,6 +45,7 @@ import java.sql.PreparedStatement
 import java.sql.SQLException
 import java.util.UUID
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.sql.DataSource
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
@@ -352,6 +354,76 @@ class PostgresEventLogTest : EventLogSpec() {
         }
     }
 
+    @Test
+    fun `a node creating its schema while others append neither deadlocks them nor fails`(): Unit = runBlocking {
+        // A node starting up (createSchema) while others commit groups and single appends to the same tables.
+        val context = PostgresFixture.newContext()
+        val order = AggregateType(context, "order")
+        val cart = AggregateType(context, "cart")
+        PostgresFixture.log(PARTITIONS, context, listOf(order.name, cart.name))
+        val outcomes = ConcurrentLinkedQueue<AppendOutcome>()
+        val writing = AtomicBoolean(true)
+        coroutineScope {
+            (0 until WRITERS).forEach { writer ->
+                val log = PostgresFixture.log(PARTITIONS, context)
+                launch(Dispatchers.IO) {
+                    var version = 0
+                    while (writing.get()) {
+                        version++
+                        val refs = (1..GROUP).map { (if (it % 2 == writer % 2) order else cart).ref("tenant", "w$writer-$it") }
+                        refs.groupBy { Partitioner.partitionOf(it, PARTITIONS) }.values.forEach { inPartition ->
+                            val appends = inPartition.map { stream(it.id, version, aggregate = it.type) to null }
+                            outcomes += if (writer == 0) appends.map { (stream) -> log.append(stream) } else log.appendAll(appends)
+                        }
+                    }
+                }
+            }
+            launch(Dispatchers.IO) {
+                try {
+                    repeat(STARTS) { PostgresFixture.log(PARTITIONS, context) }
+                } finally {
+                    writing.set(false)
+                }
+            }
+        }
+        outcomes.filterNot { it is AppendOutcome.Committed }.assert().isEmpty()
+    }
+
+    @Test
+    fun `groups of two partitions repeating each other's request ids in opposite orders do not deadlock`(): Unit =
+        runBlocking {
+            // Two groups wait on each other's request keys unless both take them in one order.
+            val context = PostgresFixture.newContext()
+            val types = listOf(AggregateType(context, "order"), AggregateType(context, "cart"))
+            val log = PostgresFixture.log(2, context, types.map { it.name })
+            val ids = generateSequence(1) { it + 1 }.map { "r$it" }
+            val inPartition = (0..1).map { partition ->
+                types.associateWith { type ->
+                    ids.filter { Partitioner.partitionOf(type.ref("tenant", it), 2) == partition }
+                        .take(ROUNDS * REQUESTS).toList()
+                }
+            }
+            val outcomes = ConcurrentLinkedQueue<AppendOutcome>()
+            (0 until ROUNDS).forEach { round ->
+                // Both groups of a round start together.
+                coroutineScope {
+                    (0..1).forEach { partition ->
+                        val requests = (0 until REQUESTS).map { "round-$round-request-$it" }
+                        val ordered = if (partition == 0) requests else requests.reversed()
+                        val group = types.let { if (partition == 0) it else it.reversed() }.flatMap { type ->
+                            ordered.mapIndexed { index, request ->
+                                val id = inPartition[partition].getValue(type)[round * REQUESTS + index]
+                                stream(id, 1, requestId = request, aggregate = type) to null
+                            }
+                        }
+                        launch(Dispatchers.IO) { outcomes += log.appendAll(group) }
+                    }
+                }
+            }
+            outcomes.filter { it is AppendOutcome.Unknown || it is AppendOutcome.Rejected }.assert().isEmpty()
+            outcomes.count { it is AppendOutcome.Committed }.assert().isEqualTo(ROUNDS * REQUESTS * types.size)
+        }
+
     private fun groupWaitsOnLock(): Boolean = PostgresFixture.dataSource.connection.use { connection ->
         connection.createStatement().use { statement ->
             statement.executeQuery(
@@ -395,5 +467,10 @@ class PostgresEventLogTest : EventLogSpec() {
         const val POLL_MS = 10L
         const val AGGREGATES = 16
         const val VERSIONS = 10
+        const val PARTITIONS = 1
+        const val WRITERS = 4
+        const val STARTS = 200
+        const val ROUNDS = 100
+        const val REQUESTS = 32
     }
 }
