@@ -1596,28 +1596,39 @@ public abstract interface class me/ahoo/wow/api/subscribe/SagaContext : me/ahoo/
 	public abstract fun schedule (Ljava/lang/String;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
 }
 
-public final class me/ahoo/wow/api/subscribe/StateEvent {
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
-	public final fun getCommandId ()Ljava/lang/String;
-	public final fun getCommandType ()Ljava/lang/String;
-	public final fun getCommitTime ()J
-	public final fun getCorrelationId ()Ljava/lang/String;
-	public final fun getEvents ()Ljava/util/List;
-	public final fun getHeaders ()Ljava/util/Map;
-	public final fun getId ()Ljava/lang/String;
-	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
-	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
-	public final fun getRequestId ()Ljava/lang/String;
-	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
-	public final fun getState ()Ljava/lang/Object;
-	public final fun getVersion ()I
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
+public abstract interface class me/ahoo/wow/api/subscribe/StateEvent {
+	public static final field Companion Lme/ahoo/wow/api/subscribe/StateEvent$Companion;
+	public abstract fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
+	public abstract fun getCommandId ()Ljava/lang/String;
+	public abstract fun getCommandType ()Ljava/lang/String;
+	public abstract fun getCommitTime ()J
+	public fun getCorrelationId ()Ljava/lang/String;
+	public abstract fun getEvents ()Ljava/util/List;
+	public abstract fun getHeaders ()Ljava/util/Map;
+	public fun getId ()Ljava/lang/String;
+	public abstract fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
+	public abstract fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public abstract fun getRequestId ()Ljava/lang/String;
+	public abstract fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public abstract fun getState ()Ljava/lang/Object;
+	public abstract fun getVersion ()I
+}
+
+public final class me/ahoo/wow/api/subscribe/StateEvent$Companion {
+}
+
+public abstract interface class me/ahoo/wow/api/subscribe/StateTypedEvent : me/ahoo/wow/api/subscribe/StateEvent {
+	public static final field Companion Lme/ahoo/wow/api/subscribe/StateTypedEvent$Companion;
+	public abstract fun getEvent ()Ljava/lang/Object;
+	public abstract fun getEventIndex ()I
+}
+
+public final class me/ahoo/wow/api/subscribe/StateTypedEvent$Companion {
 }
 
 public abstract interface class me/ahoo/wow/api/subscribe/SubscriptionContext {
 	public abstract fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
+	public fun getInvocationKey ()Ljava/lang/String;
 	public fun getQueries ()Lme/ahoo/wow/api/read/SubscriptionQueries;
 }
 

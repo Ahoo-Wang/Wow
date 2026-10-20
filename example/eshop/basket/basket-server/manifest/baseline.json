@@ -134,7 +134,7 @@
       "source" : {
         "context" : "eshop-basket",
         "aggregates" : [ "basket" ],
-        "events" : [ ]
+        "events" : [ "BasketCheckedOut" ]
       },
       "function" : {
         "kind" : "SAGA",

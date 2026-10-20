@@ -44,7 +44,8 @@ class PaymentGatewaySagaTest {
     @Test
     fun `an amount within the limit should confirm the payment under the gateway's transaction`() = sagaSpec(handlers) {
         whenEvent(requested("100.00")) {
-            expectCommand(ConfirmPayment("simulated-${ExecutionId(HANDLER, payment, 1)}"), to = payment)
+            // The charge's key is the call's: the execution and the PaymentRequested's index (decision D264).
+            expectCommand(ConfirmPayment("simulated-${ExecutionId(HANDLER, payment, 1)}:0"), to = payment)
             // Handling the commit again charges with the same key, and derives the same request.
             expectDeterministic()
         }

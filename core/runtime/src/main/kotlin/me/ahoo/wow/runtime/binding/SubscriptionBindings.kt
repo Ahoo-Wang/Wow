@@ -137,7 +137,8 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     context.models,
                     retry = handler.retry
                 ) { entry ->
-                    if (onlyRetired(entry)) {
+                    // Decision D264: a handler of each event of a type skips a stream without one, its state undecoded.
+                    if (onlyRetired(entry) || handler.skips(entry.events)) {
                         HandledEntry.NOTHING
                     } else {
                         handleSaga(handler, stateEventOf(entry, context), entry, context, derived, receipts)
@@ -153,7 +154,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     handler.kind,
                     retry = handler.retry,
                 ) { entry ->
-                    if (!onlyRetired(entry)) {
+                    if (!onlyRetired(entry) && !handler.skips(entry.events)) {
                         val event = stateEventOf(entry, context)
                         call(handler, event, executionOf(handler, name, event, context))
                     }
