@@ -12,205 +12,110 @@
  */
 
 /*
- * The server's shapes, as far as the store reads them, and their reading as
- * the port's. The server stores the engine's `ViewConfig` whole and never
- * reads its meaning, so a config comes back exactly as it was saved.
+ * The V10 view store's shapes, as far as the store reads them, and their
+ * reading as the port's. The server stores the engine's `ViewConfig` whole
+ * and never reads its meaning; it keeps the config's `kind` beside it, as
+ * `state.kind`, which a list projects and filters on.
  */
 
+import type { TargetScope } from '@ahoo-wang/wow-client';
 import type {
-  ViewAudience,
+  DatasetOverrides,
   ViewConfig,
   ViewInstance,
   ViewInstanceSummary,
-  ViewKind,
-  ViewPreferences,
 } from '@ahoo-wang/wow-view-engine';
+import { revisionOf } from './views.js';
+import {
+  SHARED_OWNER_ID,
+  SYSTEM_OWNER_ID,
+  SYSTEM_TENANT_ID,
+  type Place,
+} from './paths.js';
+import type {
+  DatasetWordingState,
+  ViewState,
+} from './generated/view-store/types.js';
 
-/** The state of a `view` aggregate (`ViewState`); tenant and owner are Wow's. */
-export interface ViewStateBody {
-  definitionId: string;
-  title: string;
-  /** Follows the owner: `(shared)` is `shared`, any user is `personal`. */
-  audience: ViewAudience;
-  config: ViewConfig;
-}
+/** The `Wow-Scope` of the shared views: the reserved owner `(shared)`. */
+export const SHARED_SCOPE: TargetScope = Object.freeze({
+  ownerId: SHARED_OWNER_ID,
+});
+
+/** The `Wow-Scope` of the stored system views: `(system)` of `(platform)`. */
+export const SYSTEM_SCOPE: TargetScope = Object.freeze({
+  tenantId: SYSTEM_TENANT_ID,
+  ownerId: SYSTEM_OWNER_ID,
+});
 
 /**
- * A view's snapshot as a snapshot query or the replay route answers it. A
- * list projects it down to the summary's fields, `state.config.kind` among
- * them.
+ * The `Wow-Scope` a request at `place` carries: none for the caller's own
+ * views, whose owner the server takes from the principal.
  */
-export interface ViewSnapshotBody {
-  aggregateId: string;
-  version: number;
-  state: ViewStateBody;
+export function scopeAt(place: Place): TargetScope | undefined {
+  switch (place) {
+    case 'shared':
+      return SHARED_SCOPE;
+    case 'system':
+      return SYSTEM_SCOPE;
+    default:
+      return undefined;
+  }
 }
 
-/** A system view the server serves (`SystemView`); `scope` is always `system`. */
-export interface SystemViewBody {
+/** A view's snapshot or state as the store reads it: its id, version and state. */
+export interface ViewRecord {
   id: string;
-  definitionId: string;
-  title: string;
-  kind: ViewKind;
-  /** A hash of its content, whatever its source. */
-  revision: string;
-  config: ViewConfig;
-  /**
-   * `configured` (read-only) or `stored` (a view of `tenant/(platform)/owner/(system)`,
-   * written through the view routes); absent from a server before it,
-   * which served configured views only.
-   */
-  source?: 'configured' | 'stored';
-  /** A stored view's aggregate version, which its writes expect. */
-  version?: number | null;
-}
-
-/**
- * Whether the server stores `view` (else it configures it). A stored one
- * carries the port's `stored: true` (D81), the views an `editSystem`
- * permission may write; configured and code system views carry none.
- */
-export function isStored(view: SystemViewBody): boolean {
-  return view.source === 'stored' && typeof view.version === 'number';
-}
-
-/** One owner's preferences in one definition (`ViewPreferencesView`). */
-export interface PreferencesBody {
-  definitionId: string;
-  order?: string[] | null;
-  defaultInstanceId?: string | null;
-  autoRun?: boolean | null;
-  lastTabs?: Record<string, string> | null;
-  /** `0` for preferences never written. */
   version: number;
+  state: Pick<ViewState, 'definitionId' | 'title' | 'audience'> &
+    Partial<Pick<ViewState, 'kind' | 'config'>>;
 }
 
-/** The part of a command's answer (`CommandResult`) the store reads. */
-export interface CommandResultBody {
-  aggregateId: string;
-  aggregateVersion?: number | null;
-}
-
-/** The fields a list reads, and nothing of the config but its `kind`. */
+/** The fields a list reads, and of the config only its `kind`, kept apart. */
 export const SUMMARY_FIELDS = [
   'aggregateId',
   'version',
   'state.definitionId',
   'state.title',
   'state.audience',
-  'state.config.kind',
-];
+  'state.kind',
+] as const;
 
-/** A snapshot's revision: the aggregate's version, compared as a string. */
-export function revisionOf(version: number): string {
-  return String(version);
-}
-
-export function toInstance(snapshot: ViewSnapshotBody): ViewInstance {
-  const { aggregateId, version, state } = snapshot;
+export function toInstance({ id, version, state }: ViewRecord): ViewInstance {
   return {
-    id: aggregateId,
+    id,
     definitionId: state.definitionId,
     title: state.title,
     scope: state.audience,
     revision: revisionOf(version),
-    config: state.config,
+    config: state.config as unknown as ViewConfig,
   };
 }
 
-export function toSummary(snapshot: ViewSnapshotBody): ViewInstanceSummary {
-  const { aggregateId, version, state } = snapshot;
+export function toSummary({
+  id,
+  version,
+  state,
+}: ViewRecord): ViewInstanceSummary {
   return {
-    id: aggregateId,
+    id,
     definitionId: state.definitionId,
     title: state.title,
     scope: state.audience,
-    kind: state.config.kind,
+    kind: state.kind!,
     revision: revisionOf(version),
   };
 }
 
-export function systemInstance(view: SystemViewBody): ViewInstance {
+/** The engine's overrides from a stored wording: what is stored, nothing more. */
+export function wordingOf(
+  state: Pick<DatasetWordingState, 'title' | 'recordNoun' | 'fields'>,
+): DatasetOverrides {
   return {
-    id: view.id,
-    definitionId: view.definitionId,
-    title: view.title,
-    scope: 'system',
-    revision: view.revision,
-    config: view.config,
-    ...(isStored(view) ? { stored: true as const } : {}),
+    ...(state.title == null ? {} : { title: state.title }),
+    ...(state.recordNoun == null ? {} : { recordNoun: state.recordNoun }),
+    ...(state.fields == null
+      ? {}
+      : { fields: state.fields as DatasetOverrides['fields'] }),
   };
-}
-
-export function systemSummary(view: SystemViewBody): ViewInstanceSummary {
-  return {
-    id: view.id,
-    definitionId: view.definitionId,
-    title: view.title,
-    scope: 'system',
-    kind: view.kind,
-    revision: view.revision,
-    ...(isStored(view) ? { stored: true as const } : {}),
-  };
-}
-
-/**
- * The port's preferences. A member the server holds as `null` is one never
- * set: `defaultInstanceId` reads as `null`, and `autoRun` and `lastTabs` are
- * left out, as the port's own `emptyPreferences()` leaves them.
- */
-export function toPreferences(body: PreferencesBody): ViewPreferences {
-  return preferencesAt(
-    {
-      order: body.order ?? [],
-      defaultInstanceId: body.defaultInstanceId ?? null,
-      autoRun: body.autoRun ?? undefined,
-      lastTabs: body.lastTabs ?? undefined,
-    },
-    body.version,
-  );
-}
-
-/** What a preferences write sends: everything but the revision. */
-export function preferencesInput(
-  preferences: Omit<ViewPreferences, 'revision'>,
-): Omit<ViewPreferences, 'revision'> {
-  const { order, defaultInstanceId, autoRun, lastTabs } = preferences;
-  return {
-    order: [...order],
-    defaultInstanceId: defaultInstanceId ?? null,
-    ...(autoRun === undefined ? {} : { autoRun }),
-    ...(lastTabs === undefined ? {} : { lastTabs: { ...lastTabs } }),
-  };
-}
-
-/** `preferences` as written at `version`, in the port's shape. */
-export function preferencesAt(
-  preferences: Omit<ViewPreferences, 'revision'>,
-  version: number,
-): ViewPreferences {
-  return { ...preferencesInput(preferences), revision: revisionOf(version) };
-}
-
-/** Whether two preferences say the same, whatever their revisions. */
-export function samePreferences(
-  a: Omit<ViewPreferences, 'revision'>,
-  b: Omit<ViewPreferences, 'revision'>,
-): boolean {
-  return canonical(a) === canonical(b);
-}
-
-/** One spelling of what preferences say, the tabs in key order. */
-function canonical(preferences: Omit<ViewPreferences, 'revision'>): string {
-  const { order, defaultInstanceId, autoRun, lastTabs } =
-    preferencesInput(preferences);
-  const tabs =
-    lastTabs &&
-    Object.entries(lastTabs).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0));
-  return JSON.stringify([
-    order,
-    defaultInstanceId,
-    autoRun ?? null,
-    tabs ?? null,
-  ]);
 }

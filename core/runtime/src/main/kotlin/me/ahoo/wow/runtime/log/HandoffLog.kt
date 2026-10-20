@@ -18,20 +18,22 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.transformWhile
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
+import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.observation.Observer
 import java.util.TreeMap
+import java.util.concurrent.ConcurrentSkipListSet
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -39,12 +41,14 @@ import kotlin.time.Duration.Companion.seconds
  *
  * - [capacity]: the most entries one tail holds that it has not taken yet; a tail that falls further behind drops what
  *   comes next and reads the store instead, so the append path never waits for it;
- * - [gapWait]: how long a tail waits for a missing sequence before it reads the store from its position
- *   (`wow.log.handoff.gap-wait`). Appends without a queue (PostgreSQL's preset) hand their commits over in the order
- *   their callers return, so a sequence is often missing for a moment; a pause of the process (a GC, a starved CPU)
- *   stretches that moment. A real gap (another node's append during a hand-off, an unknown outcome) is rare, and the
- *   wait only delays what follows it, so it is long enough to ride out a pause: 200 ms, below the longest poll
- *   interval that bounds how late another node's entries are read anyway;
+ * - [gapWait]: the longest a tail waits for a missing sequence that an append of this node still in flight may
+ *   hold, before it reads the store from its position (`wow.log.handoff.gap-wait`). Appends without a queue
+ *   (PostgreSQL's preset) hand their commits over in the order their callers return, so a sequence is often missing
+ *   for a moment, and a pause of the process (a GC, a starved CPU) stretches that moment past any timer (work package
+ *   OV-2). So a tail does not wait on the clock: it waits for the appends that may hold the missing sequence, those
+ *   in flight when the gap appeared, and reads the store as soon as every one of them returned without it (another
+ *   node's append during a hand-off, decision D71; an unknown outcome). The wait only bounds an append that does not
+ *   return: 1 s, the longest poll interval, which bounds how late another node's entries are read anyway;
  * - [probeInterval]: how long a tail waits without a commit of this node before it checks the partition's head for
  *   entries other nodes appended: the log's longest poll interval (`wow.log.max-poll-interval`).
  *
@@ -54,7 +58,7 @@ import kotlin.time.Duration.Companion.seconds
 class HandoffOptions @InternalWowApi constructor(
     val enabled: Boolean = true,
     val capacity: Int = DEFAULT_CAPACITY,
-    val gapWait: Duration = 200.milliseconds,
+    val gapWait: Duration = 1.seconds,
     val probeInterval: Duration = 1.seconds,
 ) {
     init {
@@ -89,8 +93,9 @@ class HandoffOptions @InternalWowApi constructor(
  * delivered already, so losing a hand-over costs a read of the store and never an entry:
  *
  * - on opening (a start, a restart, a partition acquired): up to the partition's head;
- * - on a gap left for [HandoffOptions.gapWait] (another node's append during a hand-off, decision D71; a commit whose
- *   outcome was [AppendOutcome.Unknown]);
+ * - on a gap no append of this node can fill any more: every append in flight when the gap appeared returned, and
+ *   none handed the missing sequence over (another node's append during a hand-off, decision D71; a commit whose
+ *   outcome was [AppendOutcome.Unknown]), or [HandoffOptions.gapWait] passed while one of them is still in flight;
  * - on an overflow: a tail holding [HandoffOptions.capacity] entries it has not taken drops the next ones, so a slow
  *   subscription never holds up an append;
  * - after [HandoffOptions.probeInterval] without a hand-over, when the head is past its position: entries other nodes
@@ -107,6 +112,7 @@ class HandoffLog(
     private val observer: Observer = Observer.NONE,
 ) : EventLog by log {
     private val listeners = List(log.partitions) { CopyOnWriteArrayList<Listener>() }
+    private val inFlight = List(log.partitions) { InFlight() }
     private val reads = AtomicLong()
     private val handedOver = AtomicLong()
 
@@ -116,26 +122,56 @@ class HandoffLog(
     /** The entries the tails delivered from memory, not read from the store. */
     val delivered: Long get() = handedOver.get()
 
-    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
-        log.append(stream, transport).also { handOver(it, stream, transport) }
-
-    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> =
-        log.appendAll(streams).also { outcomes ->
-            outcomes.forEachIndexed { index, outcome ->
-                streams.getOrNull(index)?.let { (stream, transport) -> handOver(outcome, stream, transport) }
-            }
+    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+        val partition = Partitioner.partitionOf(stream.ref, log.partitions)
+        val ticket = inFlight[partition].open()
+        var handed = false
+        try {
+            return log.append(stream, transport).also { handed = handOver(it, stream, transport) }
+        } finally {
+            settle(partition, ticket, handed)
         }
+    }
 
-    private fun handOver(outcome: AppendOutcome, stream: EventStreamRecord, transport: Transport?) {
+    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+        val tickets = streams.map { (stream) -> Partitioner.partitionOf(stream.ref, log.partitions) }.distinct()
+            .map { it to inFlight[it].open() }
+        var handed = false
+        try {
+            return log.appendAll(streams).also { outcomes ->
+                handed = outcomes.size == streams.size
+                outcomes.forEachIndexed { index, outcome ->
+                    streams.getOrNull(index)?.let { (stream, transport) ->
+                        handed = handOver(outcome, stream, transport) && handed
+                    }
+                }
+            }
+        } finally {
+            tickets.forEach { (partition, ticket) -> settle(partition, ticket, handed) }
+        }
+    }
+
+    /**
+     * Closes [ticket], after its commits were handed over, and nudges the tails waiting on a gap: one may be waiting for
+     * this very append, which handed its entry over before it closed. One that handed nothing over (an outcome other
+     * than committed, a failure) nudges every tail of the partition.
+     */
+    private fun settle(partition: Int, ticket: Long, handed: Boolean) {
+        inFlight[partition].close(ticket)
+        listeners[partition].forEach { if (!handed || it.waiting) it.nudge() }
+    }
+
+    /** Hands [outcome] over when it is a commit; whether it was one. */
+    private fun handOver(outcome: AppendOutcome, stream: EventStreamRecord, transport: Transport?): Boolean {
         if (outcome !is AppendOutcome.Committed) {
-            return
+            return false
         }
         val tails = listeners[outcome.position.partition]
-        if (tails.isEmpty()) {
-            return
+        if (tails.isNotEmpty()) {
+            val entry = LogEntry(outcome.position, stream, transport)
+            tails.forEach { it.offer(entry) }
         }
-        val entry = LogEntry(outcome.position, stream, transport)
-        tails.forEach { it.offer(entry) }
+        return true
     }
 
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> {
@@ -154,15 +190,48 @@ class HandoffLog(
         }
     }
 
+    /**
+     * The appends of one partition in flight on this node, by ticket in the order they started. A sequence missing from
+     * a tail was committed before the entries after it, so only an append that started before the gap appeared can
+     * hold it: once every ticket issued before then is closed, no append of this node will hand it over.
+     */
+    private class InFlight {
+        private val issued = AtomicLong()
+        private val open = ConcurrentSkipListSet<Long>()
+
+        fun open(): Long = issued.getAndIncrement().also { open += it }
+
+        fun close(ticket: Long) {
+            open -= ticket
+        }
+
+        /** The tickets issued so far: those below it are the appends started until now. */
+        fun horizon(): Long = issued.get()
+
+        /** Whether every append started before [horizon] returned. */
+        fun returnedBefore(horizon: Long): Boolean = open.ceiling(0L)?.let { it >= horizon } ?: true
+    }
+
     /** One tail's hand-overs: whatever does not fit is dropped, and the tail told to read the store. */
     private class Listener(capacity: Int) {
         val entries = Channel<LogEntry>(capacity)
         val overflowed = AtomicBoolean()
 
+        /** An append returned: a tail waiting on a gap looks again. */
+        val nudges = Channel<Unit>(Channel.CONFLATED)
+
+        /** Whether the tail is waiting on a gap, so that every append that returns nudges it. */
+        @Volatile
+        var waiting = false
+
         fun offer(entry: LogEntry) {
             if (!entries.trySend(entry).isSuccess) {
                 overflowed.set(true)
             }
+        }
+
+        fun nudge() {
+            nudges.trySend(Unit)
         }
     }
 
@@ -211,13 +280,51 @@ class HandoffLog(
                 if (pending.isEmpty()) {
                     val entry = withTimeoutOrNull(options.probeInterval) { listener.entries.receive() } ?: return IDLE
                     hold(entry)
-                } else {
-                    withTimeoutOrNull(options.gapWait) {
-                        while (!pending.containsKey(cursor + 1) && !listener.overflowed.get()) {
-                            hold(listener.entries.receive())
-                        }
-                    } ?: return GAP
+                } else if (!awaitGap()) {
+                    return GAP
                 }
+            }
+        }
+
+        /**
+         * Waits until the sequence the run needs next is handed over, or the tail overflows: true. False when no
+         * append of this node can hand it over any more (every one in flight when the gap appeared returned without
+         * it), or [HandoffOptions.gapWait] passed first.
+         */
+        private suspend fun awaitGap(): Boolean {
+            val appends = inFlight[partition]
+            val horizon = appends.horizon()
+            // Set before the appends are looked at: one that closes after the look nudges this tail.
+            listener.waiting = true
+            return try {
+                gapWithin(appends, horizon)
+            } finally {
+                listener.waiting = false
+            }
+        }
+
+        private suspend fun gapWithin(appends: InFlight, horizon: Long): Boolean =
+            withTimeoutOrNull(options.gapWait) {
+                while (!pending.containsKey(cursor + 1) && !listener.overflowed.get()) {
+                    if (appends.returnedBefore(horizon)) {
+                        // Their commits were handed over before they returned: take what they handed, then look.
+                        drain()
+                        if (!pending.containsKey(cursor + 1)) {
+                            return@withTimeoutOrNull false
+                        }
+                    } else {
+                        select {
+                            listener.entries.onReceive { hold(it) }
+                            listener.nudges.onReceive {}
+                        }
+                    }
+                }
+                true
+            } ?: false
+
+        private fun drain() {
+            while (true) {
+                hold(listener.entries.tryReceive().getOrNull() ?: return)
             }
         }
 
@@ -245,7 +352,7 @@ class HandoffLog(
         /** A tail opened: it reads what is committed before it continues from memory. */
         const val START = "start"
 
-        /** A sequence missing from memory past the gap wait. */
+        /** A sequence missing from memory that no append of this node in flight can hand over any more. */
         const val GAP = "gap"
 
         /** More entries handed over than the tail holds. */

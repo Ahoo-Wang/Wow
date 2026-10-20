@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { FilterOperator } from '@ahoo-wang/wow-client';
+import type { FilterOperator } from '@ahoo-wang/wow-client/dsl';
 import type { JsonValue } from './json.js';
 
 /**

@@ -12,12 +12,12 @@
  */
 
 import type { Fetcher } from '@ahoo-wang/fetcher';
+import { queryRoute, routeSource } from './recordedWowService.js';
 import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
-  EventStreamQueryClient,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,
@@ -31,6 +31,7 @@ import {
   PRICE_FORMAT,
   PRICING_STATUSES,
   PRODUCT_PRICING_AGGREGATE,
+  PRODUCT_PRICING_CONTEXT,
 } from './productPricing.js';
 
 export const PRODUCT_PRICING_EVENTS = 'product-pricing-events';
@@ -420,10 +421,10 @@ export const productPricingEventsDefinition: DataViewDefinition = {
  * query client is the source as it is, as the snapshot client is.
  */
 export function createProductPricingEventsEngine(fetcher: Fetcher): ViewEngine {
-  const source = new EventStreamQueryClient({
-    basePath: PRODUCT_PRICING_AGGREGATE,
+  const source = routeSource(
     fetcher,
-  });
+    queryRoute(PRODUCT_PRICING_CONTEXT, PRODUCT_PRICING_AGGREGATE, 'events'),
+  );
   return new ViewEngine({
     resources: [{ definition: productPricingEventsDefinition, source }],
     store: new MemoryViewStore({ instances: [] }),

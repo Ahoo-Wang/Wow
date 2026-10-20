@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { asc, cursorQuery, filter, SortDirection } from '../../src';
+import { asc, cursorQuery, filter, SortDirection } from '../../src/dsl.js';
 
 describe('cursorQuery', () => {
   it('creates a Wow V9 cursor request with server defaults', () => {

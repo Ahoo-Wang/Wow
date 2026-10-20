@@ -27,7 +27,7 @@ import {
   aggregation,
   type AggregationMetric,
   type DerivedExpression,
-} from '../../src';
+} from '../../src/dsl.js';
 
 const groupBy = [
   aggregation.terms('province', 'province'),

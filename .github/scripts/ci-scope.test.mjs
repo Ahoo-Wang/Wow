@@ -103,7 +103,7 @@ test('the Gradle build, the dependency versions and the examples skip the TypeSc
 test('the view store client runs its unit tests, the site and the stories', () => {
   for (const path of [
     'typescript/wow-view-store/src/wowViewStore.ts',
-    'typescript/wow-view-store/src/v10/wowViewStore.ts',
+    'typescript/wow-view-store/src/wowViewStore.ts',
     'typescript/wow-view-store/package.json',
   ])
     assert.deepEqual(
@@ -350,7 +350,7 @@ test('Storybook and the packages the site renders or compiles samples against bu
   ])
     assert.ok(scopes([path]).docs, path);
   for (const path of [
-    'typescript/integration-test/test/view-store-v10/service.test.ts',
+    'typescript/integration-test/test/view-store/service.test.ts',
   ])
     assert.ok(!scopes([path]).docs, path);
 });
@@ -469,13 +469,13 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
 
 test('the V10 store, what its suites import, the service and its modules run the V10 contract', () => {
   for (const path of [
-    'typescript/wow-view-store/src/v10/wowViewStore.ts',
+    'typescript/wow-view-store/src/wowViewStore.ts',
     'typescript/wow-view-store/package.json',
-    'typescript/wow-client/src/v10/index.ts',
+    'typescript/wow-client/src/index.ts',
     'typescript/wow-view-engine/src/index.ts',
     'typescript/wow-view-engine/test/conformance/viewStoreConformance.ts',
-    'typescript/integration-test/test/view-store-v10/engine.test.ts',
-    'typescript/integration-test/vitest.v10.config.ts',
+    'typescript/integration-test/test/view-store/engine.test.ts',
+    'typescript/integration-test/vitest.config.ts',
     'typescript/integration-test/package.json',
     'platform/view-store/view-store-server/src/main/kotlin/A.kt',
     'platform/view-store/view-store-domain/build.gradle.kts',
@@ -502,13 +502,13 @@ test('the V10 store, what its suites import, the service and its modules run the
     assert.ok(scopes([path]).v10Contract, path);
   for (const path of [
     'typescript/wow-view-store/README.md',
-    'typescript/wow-view-store/test/v10/wowViewStore.test.ts',
+    'typescript/wow-view-store/test/wowViewStore.test.ts',
     'typescript/wow-client/test/index.test.ts',
     'typescript/wow-view-engine/test/setup.ts',
     'typescript/wow-view-engine/README.md',
     'typescript/wow-react/src/index.ts',
     'typescript/wow-generator/src/cli.ts',
-    'typescript/storybook/stories/view-engine/V10ViewStore.test.stories.tsx',
+    'typescript/storybook/stories/view-engine/WowViewStore.test.stories.tsx',
     'typescript/integration-test/README.md',
     'platform/ops/ops-domain/src/main/kotlin/A.kt',
     'platform/view-store/README.md',
@@ -538,10 +538,10 @@ test('the ops console, the ops service and what the console builds with run ops-
     'platform/ops/ops-server/src/main/resources/application.yaml',
     'platform/ops/ops-server/manifest/baseline.json',
     'platform/ops/ops-domain/src/main/kotlin/A.kt',
-    'typescript/wow-client/src/v10/index.ts',
+    'typescript/wow-client/src/index.ts',
     'typescript/wow-generator/src/cli.ts',
     'typescript/wow-view-engine/src/index.ts',
-    'typescript/wow-view-store/src/v10/source.ts',
+    'typescript/wow-view-store/src/source.ts',
     'package.json',
     'pnpm-lock.yaml',
     'pnpm-workspace.yaml',

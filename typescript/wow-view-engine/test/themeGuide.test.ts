@@ -64,11 +64,6 @@ const GUIDE = (language: string) =>
     REPOSITORY,
     `documentation/docs/${language}/guide/typescript/view-engine-theming.md`,
   );
-const QUICK_START = (language: string) =>
-  join(
-    REPOSITORY,
-    `documentation/docs/${language}/guide/typescript/view-engine-getting-started.md`,
-  );
 const LANDING = (language: string) =>
   join(
     REPOSITORY,
@@ -89,7 +84,6 @@ const GUIDES = ['en', 'zh'].map(GUIDE);
 
 const PAGES = [
   ...GUIDES,
-  ...['en', 'zh'].map(QUICK_START),
   ...['en', 'zh'].map(LANDING),
   ...HOST_GUIDES,
   join(ROOT, 'README.md'),

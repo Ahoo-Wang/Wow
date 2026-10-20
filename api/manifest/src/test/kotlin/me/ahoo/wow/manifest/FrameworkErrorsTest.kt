@@ -51,6 +51,7 @@ class FrameworkErrorsTest {
                 "wow.query.failed" to 500,
                 "wow.query.timeout" to 503,
                 "wow.query.busy" to 429,
+                "wow.query.dataset-unavailable" to 409,
                 "wow.call.command-forbidden" to 403,
             ),
         )
@@ -83,7 +84,7 @@ class FrameworkErrorsTest {
     }
 
     private companion object {
-        /** Read by typescript/wow-client/test/v10/frameworkErrors.test.ts. */
+        /** Read by typescript/wow-client/test/frameworkErrors.test.ts. */
         const val SNAPSHOT = "src/test/resources/framework-errors.json"
         const val UPDATE = "WOW_UPDATE_SNAPSHOTS"
     }

@@ -51,19 +51,15 @@ export const navbarZh: DefaultTheme.NavItem[] = [
                 text: '指南',
                 items: [
                     {text: '概览', link: '/zh/guide/typescript/'},
-                    {text: '命令与查询', link: '/zh/guide/typescript/commands-and-queries'},
                     {text: '生成客户端', link: '/zh/guide/typescript/generated-client'},
                     {text: '视图引擎', link: '/zh/guide/typescript/view-engine'},
                     {text: '使用工作台（面向使用者）', link: '/zh/workbench/'},
-                    {text: '从 Fetcher 包迁移', link: '/zh/guide/typescript/migration'},
                 ],
             },
             {
                 text: '参考',
                 items: [
-                    {text: 'wow-client', link: '/zh/reference/typescript/wow-client/'},
                     {text: 'wow-generator', link: '/zh/reference/typescript/wow-generator/'},
-                    {text: 'wow-react', link: '/zh/reference/typescript/wow-react/'},
                     {text: 'wow-view-engine', link: '/zh/reference/typescript/wow-view-engine/'},
                     {text: 'wow-view-store', link: '/zh/reference/typescript/wow-view-store/'},
                 ],

@@ -16,7 +16,7 @@ import {
   AggregationDateUnit,
   type DateHistogramAggregationGroup,
   type DatePartAggregationGroup,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import { mod } from './values.js';
 
 const HOUR_MS = 3_600_000;

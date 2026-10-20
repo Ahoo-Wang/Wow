@@ -58,7 +58,9 @@ import kotlin.coroutines.EmptyCoroutineContext
  * | timer firing | `fire <command type>` | INTERNAL | [WowMetrics.TIMER_DELAY] |
  *
  * A subscription's partition paused on a systemic failure, and resumed (decision D243), counts in
- * [WowMetrics.PAUSED_NOTICES]; [NodeMetrics] samples [WowMetrics.PAUSED].
+ * [WowMetrics.PAUSED_NOTICES]; [NodeMetrics] samples [WowMetrics.PAUSED]. One throttled on backpressure, and back at
+ * full speed, counts in [WowMetrics.THROTTLED_NOTICES], each backpressured attempt in [WowMetrics.BACKPRESSURE]
+ * (decision D263); [NodeMetrics] samples [WowMetrics.THROTTLED].
  *
  * A stage that starts from what arrived (a request's trace, an entry's or a message's [me.ahoo.wow.spi.log.Transport.trace])
  * is the child of the span those propagation fields name, as [openTelemetry]'s propagators extract them; any other is
@@ -130,6 +132,32 @@ class OtelObserver(
 
     override fun partitionResumed(group: String, subscription: String, partition: Int, pausedMillis: Long) {
         pausedNotice(group, subscription, partition, WowMetrics.RESUMED_KIND)
+    }
+
+    override fun partitionThrottled(group: String, subscription: String, partition: Int, throttled: Boolean) {
+        cached.counter(
+            WowMetrics.THROTTLED_NOTICES,
+            WowMetrics.GROUP,
+            group,
+            WowMetrics.SUBSCRIPTION,
+            subscription,
+            WowMetrics.PARTITION,
+            partition.toString(),
+            WowMetrics.KIND,
+            if (throttled) WowMetrics.THROTTLED_KIND else WowMetrics.UNTHROTTLED_KIND,
+        ).increment()
+    }
+
+    override fun backpressured(group: String, subscription: String, partition: Int, code: String) {
+        cached.counter(
+            WowMetrics.BACKPRESSURE,
+            WowMetrics.GROUP,
+            group,
+            WowMetrics.SUBSCRIPTION,
+            subscription,
+            WowMetrics.CODE,
+            code,
+        ).increment()
     }
 
     private fun pausedNotice(group: String, subscription: String, partition: Int, kind: String) {

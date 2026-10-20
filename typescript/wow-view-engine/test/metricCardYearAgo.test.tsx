@@ -19,7 +19,7 @@
  * the question again, since a chart edit alone never asks the source.
  */
 
-import { DerivedExpressionType } from '@ahoo-wang/wow-client';
+import { DerivedExpressionType } from '@ahoo-wang/wow-client/dsl';
 import {
   act,
   cleanup,

@@ -18,15 +18,14 @@
 import { StrictMode } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { fetcherRegistrar, ExchangeError } from '@ahoo-wang/fetcher';
+import { fetcherRegistrar } from '@ahoo-wang/fetcher';
+import { WowProblemError } from '@ahoo-wang/wow-client';
 import {
   filter,
   listQuery,
   pagedQuery,
   singleQuery,
-  toWowError,
-} from '@ahoo-wang/wow-client';
-import { eq, listQuery as legacyListQuery } from '@ahoo-wang/wow-client/legacy';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   useFetcherCountQuery,
   useFetcherListQuery,
@@ -39,7 +38,7 @@ import {
   deferred,
   fakeServer,
   json,
-  wowError,
+  problem,
 } from './support/fakeServer';
 
 interface OrderState {
@@ -50,14 +49,20 @@ interface OrderState {
 const paid: OrderState = { id: 'o1', status: 'PAID' };
 const shipped: OrderState = { id: 'o2', status: 'SHIPPED' };
 const paidFilter = filter.eq('state.status', 'PAID');
+const paidCount = { filter: paidFilter };
+
+/** The answer of a count of `count` matches. */
+function counted(count: number): Response {
+  return json({ count, exact: true });
+}
 
 describe('each fetcher query hook', () => {
-  it('useFetcherSingleQuery POSTs the query to the url and keeps the item', async () => {
+  it('useFetcherSingleQuery POSTs the query to the route and keeps the item', async () => {
     const server = fakeServer(() => json(paid));
     const { result } = renderHook(() =>
       useFetcherSingleQuery<OrderState>({
         fetcher: server.fetcher,
-        url: 'order/snapshot/single/state',
+        url: '/shop/order/snapshot/query',
         initialQuery: singleQuery({ filter: paidFilter }),
       }),
     );
@@ -66,9 +71,9 @@ describe('each fetcher query hook', () => {
     expect(server.requests).toHaveLength(1);
     const [request] = server.requests;
     expect(request.method).toBe('POST');
-    expect(request.url).toBe(`${BASE_URL}order/snapshot/single/state`);
+    expect(request.url).toBe(`${BASE_URL}shop/order/snapshot/query`);
     expect(request.headers.get('Content-Type')).toBe('application/json');
-    expect(request.body).toEqual({ filter: paidFilter });
+    expect(request.body).toEqual({ filter: paidFilter, kind: 'single' });
   });
 
   it('useFetcherListQuery keeps the rows', async () => {
@@ -76,12 +81,12 @@ describe('each fetcher query hook', () => {
     const { result } = renderHook(() =>
       useFetcherListQuery<OrderState>({
         fetcher: server.fetcher,
-        url: 'order/snapshot/list/state',
+        url: '/shop/order/snapshot/query',
         initialQuery: listQuery({ filter: filter.matchAll(), limit: 2 }),
       }),
     );
     await waitFor(() => expect(result.current.result).toEqual([paid, shipped]));
-    expect(server.requests[0].path).toBe('/order/snapshot/list/state');
+    expect(server.requests[0].path).toBe('/shop/order/snapshot/query');
   });
 
   it('useFetcherPagedQuery keeps the page', async () => {
@@ -90,7 +95,7 @@ describe('each fetcher query hook', () => {
     const { result } = renderHook(() =>
       useFetcherPagedQuery<OrderState>({
         fetcher: server.fetcher,
-        url: 'order/snapshot/paged/state',
+        url: '/shop/order/snapshot/query',
         initialQuery: pagedQuery({
           filter: paidFilter,
           pagination: { index: 1, size: 20 },
@@ -101,34 +106,21 @@ describe('each fetcher query hook', () => {
     expect(server.requests[0].body).toEqual({
       filter: paidFilter,
       pagination: { index: 1, size: 20 },
+      kind: 'paged',
     });
   });
 
   it('useFetcherCountQuery keeps the count', async () => {
-    const server = fakeServer(() => json(3));
+    const server = fakeServer(() => counted(3));
     const { result } = renderHook(() =>
       useFetcherCountQuery({
         fetcher: server.fetcher,
-        url: 'order/snapshot/count',
-        initialQuery: paidFilter,
+        url: '/shop/order/snapshot/query',
+        initialQuery: paidCount,
       }),
     );
-    await waitFor(() => expect(result.current.result).toBe(3));
-    expect(server.requests[0].body).toEqual(paidFilter);
-  });
-
-  it('still takes a Condition query (compat)', async () => {
-    const server = fakeServer(() => json([]));
-    const query = legacyListQuery({ condition: eq('state.status', 'PAID') });
-    const { result } = renderHook(() =>
-      useFetcherListQuery<OrderState>({
-        fetcher: server.fetcher,
-        url: 'order/snapshot/list/state',
-        initialQuery: query,
-      }),
-    );
-    await waitFor(() => expect(result.current.status).toBe('success'));
-    expect(server.requests[0].body).toEqual(JSON.parse(JSON.stringify(query)));
+    await waitFor(() => expect(result.current.result?.count).toBe(3));
+    expect(server.requests[0].body).toEqual({ ...paidCount, kind: 'count' });
   });
 });
 
@@ -139,28 +131,28 @@ describe('which Fetcher sends the request', () => {
   });
 
   it('takes the name of a registered Fetcher', async () => {
-    const server = fakeServer(() => json(5));
+    const server = fakeServer(() => counted(5));
     fetcherRegistrar.register(NAME, server.fetcher);
     const { result } = renderHook(() =>
       useFetcherCountQuery({
         fetcher: NAME,
-        url: 'order/snapshot/count',
-        initialQuery: paidFilter,
+        url: '/shop/order/snapshot/query',
+        initialQuery: paidCount,
       }),
     );
-    await waitFor(() => expect(result.current.result).toBe(5));
-    expect(server.requests[0].url).toBe(`${BASE_URL}order/snapshot/count`);
+    await waitFor(() => expect(result.current.result?.count).toBe(5));
+    expect(server.requests[0].url).toBe(`${BASE_URL}shop/order/snapshot/query`);
   });
 
   it('uses the default Fetcher when none is given', async () => {
-    const server = fakeServer(() => json(6));
+    const server = fakeServer(() => counted(6));
     const { result } = renderHook(() =>
       useFetcherCountQuery({
-        url: `${BASE_URL}order/snapshot/count`,
-        initialQuery: paidFilter,
+        url: `${BASE_URL}shop/order/snapshot/query`,
+        initialQuery: paidCount,
       }),
     );
-    await waitFor(() => expect(result.current.result).toBe(6));
+    await waitFor(() => expect(result.current.result?.count).toBe(6));
     expect(server.requests).toHaveLength(1);
   });
 
@@ -170,8 +162,8 @@ describe('which Fetcher sends the request', () => {
     const { result } = renderHook(() =>
       useFetcherCountQuery({
         fetcher: 'not-registered',
-        url: 'order/snapshot/count',
-        initialQuery: paidFilter,
+        url: '/shop/order/snapshot/query',
+        initialQuery: paidCount,
       }),
     );
     await waitFor(() => expect(result.current.status).toBe('error'));
@@ -185,7 +177,7 @@ describe('which Fetcher sends the request', () => {
     const { result } = renderHook(() =>
       useFetcherListStreamQuery<OrderState>({
         fetcher: 'not-registered',
-        url: 'order/snapshot/list/state',
+        url: '/shop/order/snapshot/query',
         initialQuery: listQuery({ filter: paidFilter }),
       }),
     );
@@ -198,41 +190,41 @@ describe('which Fetcher sends the request', () => {
 });
 
 describe('errors, races, aborts and StrictMode', () => {
-  it('sets a failed request as the error, from which toWowError reads the errorCode', async () => {
-    const server = fakeServer(() => wowError('NotFound', 'No order.', 404));
+  it('sets the problem of a failed request as the error', async () => {
+    const server = fakeServer(() =>
+      problem('wow.aggregate.not-found', 'No order.', 404),
+    );
     const { result } = renderHook(() =>
       useFetcherSingleQuery<OrderState>({
         fetcher: server.fetcher,
-        url: 'order/snapshot/single/state',
+        url: '/shop/order/snapshot/query',
         initialQuery: singleQuery({ filter: paidFilter }),
       }),
     );
     await waitFor(() => expect(result.current.status).toBe('error'));
-    expect(result.current.error).toBeInstanceOf(ExchangeError);
+    expect(result.current.error).toBeInstanceOf(WowProblemError);
     expect(result.current.result).toBeUndefined();
-    const error = await toWowError(result.current.error);
-    expect(error).toMatchObject({
-      errorCode: 'NotFound',
-      errorMsg: 'No order.',
+    expect(result.current.error).toMatchObject({
+      code: 'wow.aggregate.not-found',
       status: 404,
     });
   });
 
   it('recovers from an error on the next success', async () => {
-    const server = fakeServer(() => wowError('IllegalArgument', 'bad'));
+    const server = fakeServer(() => problem('wow.query.invalid', 'bad'));
     const { result } = renderHook(() =>
       useFetcherCountQuery({
         fetcher: server.fetcher,
-        url: 'order/snapshot/count',
-        initialQuery: paidFilter,
+        url: '/shop/order/snapshot/query',
+        initialQuery: paidCount,
       }),
     );
     await waitFor(() => expect(result.current.status).toBe('error'));
-    server.handle(() => json(2));
+    server.handle(() => counted(2));
     await act(() => result.current.execute());
     expect(result.current.status).toBe('success');
     expect(result.current.error).toBeUndefined();
-    expect(result.current.result).toBe(2);
+    expect(result.current.result?.count).toBe(2);
   });
 
   it('keeps the newer page when an older response arrives late', async () => {
@@ -241,7 +233,7 @@ describe('errors, races, aborts and StrictMode', () => {
     const { result } = renderHook(() =>
       useFetcherPagedQuery<OrderState>({
         fetcher: server.fetcher,
-        url: 'order/snapshot/paged/state',
+        url: '/shop/order/snapshot/query',
         initialQuery: pagedQuery({ pagination: { index: 1, size: 1 } }),
       }),
     );
@@ -266,7 +258,7 @@ describe('errors, races, aborts and StrictMode', () => {
     const { unmount } = renderHook(() =>
       useFetcherListQuery<OrderState>({
         fetcher: server.fetcher,
-        url: 'order/snapshot/list/state',
+        url: '/shop/order/snapshot/query',
         initialQuery: listQuery({ filter: paidFilter }),
       }),
     );
@@ -276,17 +268,17 @@ describe('errors, races, aborts and StrictMode', () => {
   });
 
   it('settles on one result under StrictMode', async () => {
-    const server = fakeServer(() => json(4));
+    const server = fakeServer(() => counted(4));
     const { result } = renderHook(
       () =>
         useFetcherCountQuery({
           fetcher: server.fetcher,
-          url: 'order/snapshot/count',
-          initialQuery: paidFilter,
+          url: '/shop/order/snapshot/query',
+          initialQuery: paidCount,
         }),
       { wrapper: StrictMode },
     );
-    await waitFor(() => expect(result.current.result).toBe(4));
+    await waitFor(() => expect(result.current.result?.count).toBe(4));
     const live = server.requests.filter(request => !request.signal?.aborted);
     expect(live).toHaveLength(1);
   });

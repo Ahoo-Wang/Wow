@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { filter, type FilterExpression } from '@ahoo-wang/wow-client';
+import { filter, type FilterExpression } from '@ahoo-wang/wow-client/dsl';
 import type {
   FieldDefinition,
   FilterLeaf,

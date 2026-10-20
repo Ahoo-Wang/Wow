@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { PagedList } from '@ahoo-wang/wow-client';
+import type { PagedList } from '@ahoo-wang/wow-client/dsl';
 
 export interface FixtureUser {
   id: string;

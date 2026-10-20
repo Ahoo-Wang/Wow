@@ -69,7 +69,7 @@ export function failedQuery(
  * The Issue a failed query shows, from what the source said.
  *
  * A source that refused the reader rather than the query — HTTP 403, or one
- * of Wow's `IllegalAccess*` codes (`isForbiddenFailure`) — is
+ * of Wow's `…forbidden` codes (`isForbiddenFailure`) — is
  * `runtime.query.forbidden`, with `reason` and the service's `errorCode`:
  * the permission state, which a retry does not change.
  *

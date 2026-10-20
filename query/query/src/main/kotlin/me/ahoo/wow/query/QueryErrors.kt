@@ -28,6 +28,8 @@ import me.ahoo.wow.manifest.FrameworkErrors
  *   later.
  * - [BUSY] (429, with `Retry-After`): the query's store already runs as many queries as its bulkhead allows
  *   ([QueryBulkhead], review R3.4-2); the query was not run, and the same query may pass later.
+ * - [DATASET_UNAVAILABLE] (409): the dataset is served but cannot be queried now, such as one whose definition needs
+ *   revision (decision D259 7.2b-2); the problem names the reason, in fixed words.
  *
  * They are the codes of [FrameworkErrors], whose table gives each its HTTP status; a caller the query scope does not
  * admit is answered with [FORBIDDEN].
@@ -40,6 +42,7 @@ object QueryErrors {
     const val TIMEOUT: String = FrameworkErrors.QUERY_TIMEOUT
     const val STORAGE_UNAVAILABLE: String = FrameworkErrors.STORAGE_UNAVAILABLE
     const val BUSY: String = FrameworkErrors.QUERY_BUSY
+    const val DATASET_UNAVAILABLE: String = FrameworkErrors.QUERY_DATASET_UNAVAILABLE
 
     /** The caller may not run this query. */
     const val FORBIDDEN: String = FrameworkErrors.AUTH_FORBIDDEN

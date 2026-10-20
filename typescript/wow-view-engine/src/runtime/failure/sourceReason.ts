@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { QueryViolation } from '@ahoo-wang/wow-client';
+import type { QueryViolation } from '@ahoo-wang/wow-client/dsl';
 
 /**
  * What a source said went wrong: its reason in words, and — when it is a
@@ -21,14 +21,14 @@ export interface SourceFailure {
   /** The reason, in the source's own words where it gave some. */
   reason: string;
   /**
-   * The first binding error of the body that carries a stable `code`: a
+   * The first violation of the problem that carries a stable `code`: a
    * query Wow rejected while decoding it (the JSON path) or admitting it
    * against its query model (the logical field path, `''` for the model).
-   * Absent otherwise — a budget rejection, a failure the service did not
-   * answer, a source that is not Wow.
+   * Absent otherwise — a failure the service did not answer, a source that
+   * is not Wow.
    */
   violation?: QueryViolation;
-  /** The service's `errorCode`, as it gave it, when it gave one. */
+  /** The problem's Wow `code`, as the service gave it, when it gave one. */
   errorCode?: string;
   /** The HTTP status the source answered with, when there was one. */
   status?: number;
@@ -55,20 +55,18 @@ const READ = new WeakMap<object, Promise<SourceFailure>>();
  * What a source said went wrong, in its own words where it gave some.
  *
  * A source is the host's, and the engine words whatever it rejects with. A
- * Wow service rejects a query it refuses with a 4xx whose body says why —
- * `{ errorCode: 'IllegalArgument', errorMsg: 'HTTP page window[12000] must
- * not exceed 10000.' }` — while the HTTP client's error only says that the
- * request failed, and names the URL it failed for: an operator shown that
- * learns nothing they can act on and something they should not see. So a
- * rejection that carries its exchange (fetcher's `ExchangeError`, read by
- * its shape rather than its class: the engine does not depend on the HTTP
- * client, only on what an exchange offers) is asked for its body, and the
- * service's message is the reason. A rejection that is itself such a body
- * (wow-client's `WowError`, which a stream errors with) is read the same way.
- * Without either, the status is all there is to say; anything else says what
- * its message says.
+ * Wow service rejects a query it refuses with an RFC 9457 problem whose
+ * `detail` says why — `{ code: 'wow.query.invalid', detail: 'The query
+ * failed admission.', violations: [...] }` — while the HTTP client's error
+ * only says that the request failed, and names the URL it failed for: an
+ * operator shown that learns nothing they can act on and something they
+ * should not see. So a rejection that carries its problem (wow-client's
+ * `WowProblemError`, read by its shape rather than its class) or its
+ * exchange (fetcher's `ExchangeError`, whose body is asked for) is read for
+ * the problem, and the service's words are the reason. Without either, the
+ * status is all there is to say; anything else says what its message says.
  *
- * The body's first binding error with a `code` is the violation. It never
+ * The problem's first violation with a `code` is the violation. It never
  * rejects, and it reads a failure once however often it is asked.
  */
 export function sourceFailure(error: unknown): Promise<SourceFailure> {
@@ -87,13 +85,11 @@ export async function sourceReason(error: unknown): Promise<string> {
 }
 
 async function readFailure(error: unknown): Promise<SourceFailure> {
-  // A rejection that is an error body itself (a `WowError`) names its code
-  // and carries its status; an exchange's body is the service's whether it
-  // names a code or not.
-  if (
-    typeof (error as { errorCode?: unknown } | null)?.errorCode === 'string'
-  ) {
-    const told = toldFailure(error, statusOf(error));
+  // A rejection that carries its problem (a `WowProblemError`) names its
+  // code and its status; an exchange's body is the service's problem.
+  const problem = (error as { problem?: unknown } | null)?.problem;
+  if (typeof problem === 'object' && problem !== null) {
+    const told = toldFailure(problem, statusOf(error) ?? statusOf(problem));
     if (told) return told;
   }
   const exchange = exchangeOf(error);
@@ -149,66 +145,54 @@ async function bodyOf(exchange: ExchangeLike): Promise<unknown> {
 }
 
 /**
- * The service's own message and violation from an error body, if it names
- * one: its `errorMsg`, else its `errorCode`.
+ * The service's own words and violation from a problem, if it gives some:
+ * its `detail`, else its `title`, else its `code`.
  */
 function toldFailure(
   body: unknown,
   status: number | undefined,
 ): SourceFailure | null {
   if (typeof body !== 'object' || body === null) return null;
-  const { errorMsg, errorCode, bindingErrors } = body as Record<
-    string,
-    unknown
-  >;
-  const reason =
-    typeof errorMsg === 'string' && errorMsg.trim()
-      ? errorMsg.trim()
-      : typeof errorCode === 'string'
-        ? errorCode.trim()
-        : '';
+  const { detail, title, code, violations } = body as Record<string, unknown>;
+  const reason = [detail, title, code]
+    .map(text => (typeof text === 'string' ? text.trim() : ''))
+    .find(Boolean);
   if (!reason) return null;
-  const violation = violationOf(bindingErrors, reason);
+  const violation = violationOf(violations, reason);
   return {
     reason,
     ...(violation ? { violation } : {}),
-    ...(typeof errorCode === 'string' && errorCode ? { errorCode } : {}),
+    ...(typeof code === 'string' && code ? { errorCode: code } : {}),
     ...(status !== undefined ? { status } : {}),
   };
 }
 
 /**
  * Whether the source refused the reader rather than the query: HTTP 403, or
- * one of Wow's `IllegalAccess*` codes — the owner's or the space's aggregate
- * (`IllegalAccessOwnerAggregate`, `IllegalAccessSpaceAggregate`), a query
- * the server requires a tenant scope for (`IllegalAccessQueryScope`), and
- * any it adds under that prefix. `IllegalAccessDeletedAggregate` is not one:
- * it is 410, the aggregate is gone, and asking again is no use for another
- * reason.
+ * a Wow code that names a refusal (`wow.auth.forbidden`,
+ * `wow.aggregate.forbidden`, `wow.call.command-forbidden`, and any it adds
+ * ending in `forbidden`). `wow.aggregate.deleted` is not one: it is 410, the
+ * aggregate is gone, and asking again is no use for another reason.
  */
 export function isForbiddenFailure(failure: SourceFailure): boolean {
   if (failure.status === 403) return true;
-  const code = failure.errorCode;
-  return (
-    code !== undefined &&
-    code.startsWith('IllegalAccess') &&
-    code !== 'IllegalAccessDeletedAggregate'
-  );
+  return /[.-]forbidden$/.test(failure.errorCode ?? '');
 }
 
 function violationOf(
-  bindingErrors: unknown,
+  violations: unknown,
   reason: string,
 ): QueryViolation | undefined {
-  if (!Array.isArray(bindingErrors)) return undefined;
-  for (const entry of bindingErrors as unknown[]) {
+  if (!Array.isArray(violations)) return undefined;
+  for (const entry of violations as unknown[]) {
     if (typeof entry !== 'object' || entry === null) continue;
-    const { code, name, msg } = entry as Record<string, unknown>;
+    const { code, path, message } = entry as Record<string, unknown>;
     if (typeof code !== 'string' || !code) continue;
     return {
       code,
-      path: typeof name === 'string' ? name : '',
-      message: typeof msg === 'string' && msg.trim() ? msg.trim() : reason,
+      path: typeof path === 'string' ? path : '',
+      message:
+        typeof message === 'string' && message.trim() ? message.trim() : reason,
     };
   }
   return undefined;

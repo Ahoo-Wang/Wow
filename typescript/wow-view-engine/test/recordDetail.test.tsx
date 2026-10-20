@@ -19,7 +19,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
-import type { FilterPagedQuery } from '@ahoo-wang/wow-client';
+import type { FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { detailSections } from '../src/record/index.js';
 import { DataWorkbench } from '../src/ui/index.js';
@@ -267,8 +267,8 @@ describe('a record read whole', () => {
             response: { status: 400 },
             extractResult: () =>
               Promise.resolve({
-                errorCode: 'Forbidden',
-                errorMsg: 'No access.',
+                code: 'Forbidden',
+                detail: 'No access.',
               }),
           },
         }),

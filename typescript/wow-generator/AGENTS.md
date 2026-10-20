@@ -117,7 +117,7 @@ src/
   types/
     typeResolver.ts           — Schema → type text and the imports it needs, as pure functions (no module writes)
   emit/                       — The writing kit: ModuleBuilder, ImportRegistry, import specifiers, JSDoc text
-  emitters/                   — GenerationModel → module statements: models, API clients, index files; manifestClients.ts writes a ManifestModel's clients on @ahoo-wang/wow-client/v10
+  emitters/                   — GenerationModel → module statements: models, API clients, index files; manifestClients.ts writes a ManifestModel's clients on @ahoo-wang/wow-client
   finalize/
     finalize.ts               — finalizeSourceFiles: format, organize and type imports, verify, add the header
     typeOnlyImports.ts        — Rewrites imports of types to `import type`
@@ -150,7 +150,7 @@ its statements one at a time.
 - **CodeGenerator**: Main class that orchestrates code generation from a Manifest or an OpenAPI document
 - **GenerationModel**: What an OpenAPI document generates, decided before anything is written (`analysis/model.ts`)
 - **OutputStore**: One run's output directory: manifest `.wow-generator.json`, owned files, stale files
-- **Wow Manifest**: An input with a numeric `format` and a `contexts` array (`GET /wow/manifest`, or the build's `manifest.json`) generates typed clients on `@ahoo-wang/wow-client/v10` (design §6)
+- **Wow Manifest**: An input with a numeric `format` and a `contexts` array (`GET /wow/manifest`, or the build's `manifest.json`) generates typed clients on `@ahoo-wang/wow-client` (design §6)
 - **OpenAPI 3.x**: Any other JSON/YAML/URL document generates its models and API clients, read as plain OpenAPI with no Wow conventions
 - **ts-morph**: Used for TypeScript AST manipulation and code generation
 - **commander**: CLI framework for the `wow-generator` command

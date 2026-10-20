@@ -7,7 +7,7 @@ description: 'defineView and its spec, text keys, FieldKind and the field kind r
 
 A definition is code: it ships with the application and says how one business object can be observed — which fields, of what kind, how they filter, sort and summarize, and the system views that ship with it. Every view a user saves is checked against it. `defineView` builds a data definition from its source's descriptor: the descriptor gives the facts, the spec picks, names and narrows within them.
 
-Guides: [Writing a Definition](../../../guide/typescript/view-engine-definitions.md) (choice by choice from the descriptor, the words, system views and boards); [View Engine Core Concepts](../../../guide/typescript/view-engine-concepts.md) (where a definition sits in the model); [Getting Started with the View Engine](../../../guide/typescript/view-engine-getting-started.md) (step 5's whole definition).
+Guides: [Writing a Definition](../../../guide/typescript/view-engine-definitions.md) (choice by choice from the descriptor, the words, system views and boards); [View Engine Core Concepts](../../../guide/typescript/view-engine-concepts.md) (where a definition sits in the model); Getting Started with the View Engine (step 5's whole definition).
 
 ## defineView {#api-defineView}
 
@@ -22,7 +22,7 @@ export declare function defineView(descriptor: QueryModelDescriptor, spec: Defin
 ```
 
 <!-- typecheck-context
-declare const ordersDescriptor: import('@ahoo-wang/wow-client').QueryModelDescriptor
+declare const ordersDescriptor: import('@ahoo-wang/wow-client/dsl').QueryModelDescriptor
 -->
 
 ```ts

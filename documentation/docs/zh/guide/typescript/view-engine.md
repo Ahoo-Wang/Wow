@@ -17,7 +17,7 @@ description: wow-view-engine 包做什么、它的设计立足于哪些事实，
 
 | 想做什么 | 阅读 |
 |---|---|
-| 从零接入一个业务对象：安装、查询描述、`defineView`、引擎、`ViewHost`、一个操作，对着示例服务端跑起来 | [视图引擎入门](./view-engine-getting-started.md) |
+| 从零接入一个业务对象：安装、查询描述、`defineView`、引擎、`ViewHost`、一个操作，对着示例服务端跑起来 | 视图引擎入门 |
 | 先弄清这些词：定义、记录与分析视图、看板、系统／共享／个人视图、revision 与存储，以及它们怎样相连 | [视图引擎的核心概念](./view-engine-concepts.md) |
 | 写一份定义：描述符里的事实、措辞的键、收窄、`rowFields`、系统视图与看板、用 `admit` 自检 | [写好一份定义](./view-engine-definitions.md) |
 | 换一套内置外观、用品牌色、接上宿主的 shadcn 主题 | [视图引擎的主题](./view-engine-theming.md) |
@@ -95,7 +95,7 @@ Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--doc
 
 ## 延伸阅读
 
-- [视图引擎入门](./view-engine-getting-started.md)：把示例服务端的销售订单从零接进来，一步一个文件。
+- 视图引擎入门：把示例服务端的销售订单从零接进来，一步一个文件。
 - [视图引擎的核心概念](./view-engine-concepts.md)：定义、视图、看板、系统／共享／个人视图、revision 与存储，各自是什么、为什么这样分。
 - [写好一份定义](./view-engine-definitions.md)：从描述符的事实出发，逐项做选择，写措辞与系统视图，用 `admit` 自检。
 - [把引擎接进宿主](./view-engine-host.md)：一个引擎、`ViewHost` 的端口、`bind`、路由、嵌入、措辞与语言，以及用 `/testing` 测接线。

@@ -21,7 +21,7 @@ import {
 import { SearchBox } from '../src/ui/workbench/SearchBox.js';
 import { MessagesProvider, zhCN } from '../src/ui/index.js';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import {
   builtinFieldKinds,
   defaultAnalysisConfig,

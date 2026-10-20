@@ -15,7 +15,7 @@ import { actions, text, type RecordRow } from '@ahoo-wang/wow-view-engine';
 
 /**
  * The order commands the page sends, one order at a time. Each resolves
- * once the order's snapshot shows it (`CommandStage.SNAPSHOT`), so the
+ * once the order's snapshot shows it (`wait.snapshot`), so the
  * refresh that follows reads the new state; each rejects when the service
  * refuses it. `wowOrderCommands` sends them to the service.
  */

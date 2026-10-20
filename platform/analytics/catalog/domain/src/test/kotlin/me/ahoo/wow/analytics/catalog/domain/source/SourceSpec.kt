@@ -349,15 +349,74 @@ class SourceSpec {
             drafted()
             val tight = FieldSensitivity("state", SensitivityLevel.CONFIDENTIAL)
             whenCommand(ReviewSourceSensitivity(listOf(tight))) { expectEventTypes(SourceSensitivityReviewed::class) }
+            whenCommand(ReviseSource(platform = true)) { expectState { platform.assert().isTrue() } }
             catalog.rows += stateRow(sensitive = listOf(PHONE), table = table)
             whenCommand(SyncSource(FakeCatalog.DATABASE, ORDERS)) {
                 expectEventTypes(WowEnrichmentAdopted::class)
                 expectState {
                     kind.assert().isEqualTo(SourceKind.WOW)
+                    platform.assert().isFalse()
                     sensitivityOf("state").assert().isEqualTo(tight)
                     pending.assert().isEmpty()
                 }
             }
         }
+    }
+
+    @Test
+    fun `a platform dimension should declare no scope column, and be reviewed without a tenant`() = spec(ORDERS_ID) {
+        drafted()
+        whenCommand(ReviseSource()) {
+            expectRejected(SourceRejections.INVALID) { message.assert().contains("platform dimension") }
+        }
+        whenCommand(ReviseSource("tenant", platform = true)) {
+            expectRejected(SourceRejections.INVALID) { message.assert().contains("no tenant, owner or space") }
+        }
+        whenCommand(ReviseSource(ownerColumn = "owner", platform = true)) { expectRejected(SourceRejections.INVALID) }
+        whenCommand(ReviseSource(platform = true)) {
+            expectEvents(SourceRevised(platform = true))
+            expectState {
+                platform.assert().isTrue()
+                tenantColumn.assert().isNull()
+            }
+        }
+        whenCommand(ReviseSource(platform = true)) { expectUnchanged() }
+        val reviewed = listOf("tenant", "owner", "phone", "member_id").map { FieldSensitivity(it) }
+        whenCommand(ReviewSourceSensitivity(reviewed)) { expectEventTypes(SourceSensitivityReviewed::class) }
+        whenCommand(MarkSourceReviewed) { expectEvents(SourceReviewed) }
+        // Its table changing keeps it reviewed: it has no tenant column to lose.
+        catalog.put(ORDERS_TABLE.copy(columns = ORDERS_TABLE.columns.filter { it.name != "tenant" }))
+        whenCommand(SyncSource(FakeCatalog.DATABASE, ORDERS)) {
+            expectEventTypes(SourceTableChanged::class)
+            expectState { status.assert().isEqualTo(SourceStatus.REVIEWED) }
+        }
+        whenCommand(ReviseSource("owner")) {
+            expectEvents(SourceRevised("owner", reopened = true))
+            expectState { platform.assert().isFalse() }
+        }
+    }
+
+    @Test
+    fun `an approver should approve a reviewed or adopted source for the datasets, a draft not yet`() = spec(
+        ORDERS_ID
+    ) {
+        drafted()
+        whenCommand(
+            me.ahoo.wow.analytics.catalog.api.source.ApproveSource
+        ) { expectRejected(SourceRejections.INCOMPLETE) }
+        whenCommand(ReviseSource("tenant")) { expectEventTypes(SourceRevised::class) }
+        val reviewed = listOf("tenant", "owner", "phone", "member_id").map { FieldSensitivity(it) }
+        whenCommand(ReviewSourceSensitivity(reviewed)) { expectEventTypes(SourceSensitivityReviewed::class) }
+        whenCommand(MarkSourceReviewed) { expectEvents(SourceReviewed) }
+        whenCommand(me.ahoo.wow.analytics.catalog.api.source.ApproveSource) {
+            expectEvents(me.ahoo.wow.analytics.catalog.api.source.SourceApproved)
+            expectState { approved.assert().isTrue() }
+        }
+        whenCommand(me.ahoo.wow.analytics.catalog.api.source.ApproveSource) { expectUnchanged() }
+        // Back to its draft: approved again once reviewed.
+        whenCommand(ReviewSourceSensitivity(listOf(FieldSensitivity("phone", SensitivityLevel.DISPLAY)))) {
+            expectState { approved.assert().isFalse() }
+        }
+        whenCommand(ReviseSource("owner")) { expectState { approved.assert().isFalse() } }
     }
 }

@@ -20,7 +20,7 @@ import {
   AggregationFunction,
   AggregationGroupType,
   FilterOperator,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   CHART_TYPES,
   DATE_TIME_PRESETS,

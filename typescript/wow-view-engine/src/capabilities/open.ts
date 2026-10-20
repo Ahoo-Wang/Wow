@@ -31,7 +31,7 @@ import {
   AggregationFunction,
   AggregationGroupType,
   type QueryModelDescriptor,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   TEMPORAL_FIELD_KIND_IDS,
   without,

@@ -31,6 +31,7 @@ import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.StartFrom
+import me.ahoo.wow.kernel.eachEvent
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
@@ -254,6 +255,47 @@ class SubscriptionBindingsTest {
         again.derived.assert().containsExactly(decided.single())
         // The kernel found the request committed: the cart did not decide it again.
         decided.assert().hasSize(1)
+    }
+
+    @Test
+    fun `a handler of each event of a type should skip streams without one and get each one`(): Unit = runBlocking {
+        val removed = CopyOnWriteArrayList<String>()
+        // Decision D264: called once per ItemsRemoved of a cart's stream, with that call's key.
+        val removals = ProcessorBinding.react(
+            "Removals",
+            "onRemoved",
+            CartState::class.java,
+            eventType = ItemsRemoved::class.java,
+        ) { event, context ->
+            eachEvent(event, ItemsRemoved::class.java, context) { typed, invocation ->
+                removed += "${typed.event.items}:${invocation.invocationKey}"
+            }
+        }
+        val typedNode = ServiceNode(
+            SHOP_SERVICE,
+            "node-2",
+            "node-2.internal:9090",
+            listOf(orderModel(), cartModel(decided)),
+            shopManifest(),
+            InMemoryBackends(partitions = 4),
+            LoopbackClusterChannel(),
+            options = fastNodeOptions(),
+            subscriptions = SubscriptionBindings(mapOf(SHOP to listOf(saga, removals))),
+        )
+        try {
+            typedNode.start()
+            typedNode.gateway.execute(
+                request("cart", "AddItems", """{"items":["apple","pear"]}""", "alice", "alice"),
+            ).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            typedNode.gateway.send(
+                request("order", "Place", """{"items":["apple"]}""", "o-9", "alice", sagaChain),
+            ).collect { }
+            eventually { removed.isNotEmpty() }
+            // The cart's first commit holds no ItemsRemoved: skipped. Its second holds one, at index 0.
+            removed.assert().containsExactly("[apple]:Removals.onRemoved:shop.cart/t/alice@2:0")
+        } finally {
+            typedNode.stop()
+        }
     }
 
     @Test

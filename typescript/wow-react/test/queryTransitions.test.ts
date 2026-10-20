@@ -91,7 +91,7 @@ describe.each(Object.entries(states))('from %s', (_, state) => {
 });
 
 describe('endpointIdentity', () => {
-  const url = 'order/snapshot/list/state';
+  const url = '/shop/order/snapshot/query';
 
   it('is the same for Fetchers with one baseURL, as inline code creates', () => {
     expect(

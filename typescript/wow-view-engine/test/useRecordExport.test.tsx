@@ -13,7 +13,7 @@
 
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { FilterPagedQuery, PagedList } from '@ahoo-wang/wow-client';
+import type { FilterPagedQuery, PagedList } from '@ahoo-wang/wow-client/dsl';
 import {
   DEFAULT_RUNTIME_LIMITS,
   MemoryViewStore,

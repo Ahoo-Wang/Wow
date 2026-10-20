@@ -90,7 +90,7 @@ class EnvelopeValuesTest {
             WaitSignal(waitId = "w-2", result = result())
         )
         valueSemantics(Rejection.of("a", "b"), Rejection.of("a", "b"), Rejection.of("a", "b", mapOf("x" to 1)))
-        valueSemantics(event(), event(), event(2))
+        valueSemantics(event(), event(), event(2), "StateEvent")
         valueSemantics(committed(), committed(), committed(2))
         valueSemantics(rejected(), rejected(), rejected("c-3"))
         valueSemantics(WaitPlan.of(Hop.committed()), WaitPlan.COMMITTED, WaitPlan.COMMITTED.within(3.seconds))
@@ -177,12 +177,12 @@ class EnvelopeValuesTest {
             )
     }
 
-    private fun valueSemantics(value: Any, same: Any, other: Any) {
+    private fun valueSemantics(value: Any, same: Any, other: Any, name: String = value.javaClass.simpleName) {
         (value == value).assert().isTrue()
         (value == same).assert().isTrue()
         value.hashCode().assert().isEqualTo(same.hashCode())
         (value == other).assert().isFalse()
-        (value == value.javaClass.simpleName).assert().isFalse()
-        value.toString().assert().startsWith("${value.javaClass.simpleName}(").isEqualTo(same.toString())
+        (value == name).assert().isFalse()
+        value.toString().assert().startsWith("$name(").isEqualTo(same.toString())
     }
 }

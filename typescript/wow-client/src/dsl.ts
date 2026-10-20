@@ -32,5 +32,4 @@ export * from './dsl/queryable.js';
 export * from './dsl/deletionState.js';
 export * from './dsl/documents.js';
 export * from './dsl/descriptor.js';
-export { SnapshotMetadataFields } from './model/snapshot.js';
-export { DomainEventStreamMetadataFields } from './model/domainEventStream.js';
+export * from './dsl/queryErrorCodes.js';

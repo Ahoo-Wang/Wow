@@ -15,7 +15,7 @@ import {
   DeletionState,
   filter,
   type FilterExpression,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import type { FieldDefinition, FilterTree } from '../../model/index.js';
 import type { FilterSummaryItem } from '../describe.js';
 import {

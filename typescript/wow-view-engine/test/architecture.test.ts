@@ -18,8 +18,6 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 // Type-only, so this suite still runs with nothing built — the whole point
 // of reading the Wow sources off disk below.
-import type { DatasetQueryApi, QueryApi } from '@ahoo-wang/wow-client';
-import type { RecordData, ViewSource } from '../src/index.js';
 
 /**
  * Dependency rules from docs/design/README.md, checked on the TypeScript AST so that
@@ -218,7 +216,6 @@ const UI_ROOT: readonly string[] = [
 
 const WOW = '@ahoo-wang/wow-client';
 const src = resolve(dirname(fileURLToPath(import.meta.url)), '../src');
-const wowSrc = resolve(src, '../../wow-client/src');
 
 /**
  * Dependencies that may be imported outside `ui`. Every other runtime or peer
@@ -459,40 +456,6 @@ function targetLocation(from: SourceFile, specifier: string): Location | null {
 function isPort(from: SourceFile, specifier: string, port: string): boolean {
   const target = targetOf(from, specifier);
   return target !== null && target.replace(/\.(ts|js)$/, '') === port;
-}
-
-/** Every export of the Wow workspace package whose JSDoc carries `@deprecated`. */
-function deprecatedWowExports(): Set<string> {
-  const names = new Set<string>();
-  for (const path of walk(wowSrc)) {
-    for (const statement of parse(path).statements) {
-      const exported = ts
-        .getModifiers(statement as ts.HasModifiers)
-        ?.some(modifier => modifier.kind === ts.SyntaxKind.ExportKeyword);
-      if (!exported) continue;
-      if (
-        !ts
-          .getJSDocTags(statement)
-          .some(tag => tag.tagName.text === 'deprecated')
-      )
-        continue;
-      if (ts.isVariableStatement(statement)) {
-        for (const declaration of statement.declarationList.declarations)
-          if (ts.isIdentifier(declaration.name))
-            names.add(declaration.name.text);
-      } else if (
-        (ts.isFunctionDeclaration(statement) ||
-          ts.isClassDeclaration(statement) ||
-          ts.isInterfaceDeclaration(statement) ||
-          ts.isTypeAliasDeclaration(statement) ||
-          ts.isEnumDeclaration(statement)) &&
-        statement.name
-      ) {
-        names.add(statement.name.text);
-      }
-    }
-  }
-  return names;
 }
 
 function containsJsx(node: ts.Node): boolean {
@@ -1004,20 +967,15 @@ describe('architecture', () => {
   );
 
   describe('Wow protocol', () => {
-    const deprecated = deprecatedWowExports();
-
-    it('derives the deprecated export set from the Wow sources', () => {
-      for (const name of ['Condition', 'PagedQuery', 'pagedQuery', 'Operator'])
-        expect(deprecated.has(name)).toBe(true);
-      expect(deprecated.has('FilterExpression')).toBe(false);
-    });
-
-    it('imports Wow only from its root entry', () => {
-      // The published subpaths (query locales) belong to the deprecated
-      // Condition API, and a subpath import would bypass the name check below.
+    it('imports Wow only from its DSL entry', () => {
+      // The engine speaks the query language alone; the clients of a Wow
+      // service reach it through wow-view-store's adapters.
       const violations = files.flatMap(file =>
         file.imports
-          .filter(({ specifier }) => specifier.startsWith(`${WOW}/`))
+          .filter(
+            ({ specifier }) =>
+              specifier.startsWith(WOW) && specifier !== `${WOW}/dsl`,
+          )
           .map(({ specifier }) => `${describePath(file)} -> ${specifier}`),
       );
       expect(violations).toEqual([]);
@@ -1027,41 +985,11 @@ describe('architecture', () => {
       const violations = files
         .filter(file =>
           file.imports.some(
-            ({ specifier, namespace }) => specifier === WOW && namespace,
+            ({ specifier, namespace }) =>
+              specifier.startsWith(WOW) && namespace,
           ),
         )
         .map(describePath);
-      expect(violations).toEqual([]);
-    });
-
-    /**
-     * `ViewSource` is written out by hand rather than picked off `QueryApi`
-     * (the reasons are in `src/runtime/source.ts`), and this is what keeps
-     * the two honest: the assignment below is the assertion, and
-     * `tsconfig.test.json` type-checks this file, so a Wow signature that
-     * drifts out from under the port fails here rather than at the host that
-     * tries to hand a query client over.
-     */
-    it('is a shape a Wow query client satisfies without an adapter', () => {
-      const client = {} as QueryApi<RecordData>;
-      const source: ViewSource = client;
-      expect(source).toBe(client);
-    });
-
-    /** A dataset client (a ClickHouse wide table, say) is a source too, describe included. */
-    it('is a shape a Wow dataset client satisfies without an adapter', () => {
-      const client = {} as DatasetQueryApi<RecordData>;
-      const source: Required<ViewSource> = client;
-      expect(source).toBe(client);
-    });
-
-    it('never imports deprecated Wow APIs', () => {
-      const violations = files.flatMap(file =>
-        file.imports
-          .filter(({ specifier }) => specifier === WOW)
-          .flatMap(({ names }) => names.filter(name => deprecated.has(name)))
-          .map(name => `${describePath(file)} imports ${name}`),
-      );
       expect(violations).toEqual([]);
     });
   });

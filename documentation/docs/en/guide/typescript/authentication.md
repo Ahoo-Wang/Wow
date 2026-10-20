@@ -141,7 +141,7 @@ export function trace(fetcher: Fetcher, traceparent: () => string | undefined) {
 }
 ```
 
-Response and error interceptors work the same way; see [Fetcher interceptors](https://fetcher.ahoo.me/reference/fetcher/interceptors). An error interceptor cannot turn a failed call into a `WowError` — read failures with `toWowError`, as in [Error Handling](./error-handling.md).
+Response and error interceptors work the same way; see [Fetcher interceptors](https://fetcher.ahoo.me/reference/fetcher/interceptors). An error interceptor cannot turn a failed call into a `WowError` — read failures with `toWowError`, as in Error Handling.
 
 ## Several Wow services
 
@@ -167,5 +167,5 @@ One `CoSecConfigurer` applied to several Fetchers shares one token store, so the
 ## Where to read more
 
 - [CoSec with Fetcher](https://fetcher.ahoo.me/guides/integrations/cosec) and the [fetcher-cosec reference](https://fetcher.ahoo.me/reference/cosec): token storage, refresh and the individual interceptors.
-- [Identity and resource attribution](../../reference/typescript/wow-client/identity-and-attribution.md): the Wow side of tenant, owner and space.
-- [SSR and Node.js](./ssr-and-node.md): credentials on a server, where one Fetcher serves many users.
+- Identity and resource attribution: the Wow side of tenant, owner and space.
+- SSR and Node.js: credentials on a server, where one Fetcher serves many users.

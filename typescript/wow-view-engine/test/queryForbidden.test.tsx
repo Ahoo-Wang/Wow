@@ -13,14 +13,14 @@
 
 /**
  * A source that refuses the reader rather than the query — HTTP 403, or one
- * of Wow's `IllegalAccess*` codes — is the permission state: 「无权限」, no
- * retry offered, no clock asking again, and the service's `errorCode` handed
- * to the host as it gave it.
+ * of Wow's `…forbidden` codes — is the permission state: 「无权限」, no
+ * retry offered, no clock asking again, and the problem's `code` handed to
+ * the host as the service gave it.
  */
 
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ErrorCodes, WowError } from '@ahoo-wang/wow-client';
+import { FrameworkErrorCodes, WowProblemError } from '@ahoo-wang/wow-client';
 import {
   MemoryViewStore,
   ViewEngine,
@@ -50,15 +50,26 @@ import {
 
 afterEach(cleanup);
 
-/** A query the server requires an authenticated tenant scope for (#3485). */
-const ILLEGAL_ACCESS_QUERY_SCOPE = ErrorCodes.ILLEGAL_ACCESS_QUERY_SCOPE;
+/** A caller the service refuses the query to. */
+const AUTH_FORBIDDEN = FrameworkErrorCodes.AUTH_FORBIDDEN;
+
+/** The problem a refusal answers with. */
+function problemOf(code: string, status: number, detail: string) {
+  return {
+    type: `urn:wow:error:${code}`,
+    title: 'Forbidden',
+    status,
+    code,
+    detail,
+  };
+}
 
 /** A refusal as fetcher's `ExchangeError` carries it. */
 function refused(errorCode: string | null, status = 403) {
   const body =
     errorCode === null
       ? null
-      : { errorCode, errorMsg: `${errorCode}: not for you.` };
+      : problemOf(errorCode, status, `${errorCode}: not for you.`);
   return Object.assign(new Error(`Request failed with status code ${status}`), {
     exchange: {
       response: { status },
@@ -77,9 +88,9 @@ async function issueOf(error: unknown): Promise<Issue> {
 
 describe('a refusal of the reader is the permission state', () => {
   it.each([
-    ErrorCodes.ILLEGAL_ACCESS_OWNER_AGGREGATE,
-    ErrorCodes.ILLEGAL_ACCESS_SPACE_AGGREGATE,
-    ILLEGAL_ACCESS_QUERY_SCOPE,
+    FrameworkErrorCodes.AGGREGATE_FORBIDDEN,
+    FrameworkErrorCodes.CALL_COMMAND_FORBIDDEN,
+    AUTH_FORBIDDEN,
   ])('says %s as 无权限, not as a failed query', async errorCode => {
     const found = await issueOf(refused(errorCode));
 
@@ -97,15 +108,14 @@ describe('a refusal of the reader is the permission state', () => {
     );
   });
 
-  it('reads an IllegalAccess* code whatever the status it came with', async () => {
-    // A stream's WowError, or a proxy that rewrote the status.
-    const error = new WowError(
-      { errorCode: ILLEGAL_ACCESS_QUERY_SCOPE, errorMsg: 'Tenant required.' },
-      { status: 400 },
+  it('reads a …forbidden code whatever the status it came with', async () => {
+    // A stream's WowProblemError, or a proxy that rewrote the status.
+    const error = new WowProblemError(
+      problemOf(AUTH_FORBIDDEN, 400, 'Tenant required.'),
     );
     await expect(issueOf(error)).resolves.toMatchObject({
       code: 'runtime.query.forbidden',
-      params: { errorCode: ILLEGAL_ACCESS_QUERY_SCOPE },
+      params: { errorCode: AUTH_FORBIDDEN },
     });
   });
 
@@ -123,7 +133,7 @@ describe('a refusal of the reader is the permission state', () => {
 
   it('leaves a deleted aggregate and other statuses to the plain failure', async () => {
     await expect(
-      issueOf(refused(ErrorCodes.ILLEGAL_ACCESS_DELETED_AGGREGATE, 410)),
+      issueOf(refused(FrameworkErrorCodes.AGGREGATE_DELETED, 410)),
     ).resolves.toMatchObject({ code: 'runtime.query.failed' });
     await expect(issueOf(refused(null, 401))).resolves.toMatchObject({
       code: 'runtime.query.failed',
@@ -164,7 +174,7 @@ describe('the permission state in a view', () => {
   }
 
   it('hands the host the error and its code as the service gave them', async () => {
-    const error = refused(ILLEGAL_ACCESS_QUERY_SCOPE);
+    const error = refused(AUTH_FORBIDDEN);
     const { engine, events } = engineOver(error);
 
     const runtime = await failed(engine);
@@ -178,7 +188,7 @@ describe('the permission state in a view', () => {
           definitionId: 'orders',
           instanceId: 'orders-1',
           runtimeId: runtime.id,
-          errorCode: ILLEGAL_ACCESS_QUERY_SCOPE,
+          errorCode: AUTH_FORBIDDEN,
         },
       },
     ]);
@@ -189,7 +199,7 @@ describe('the permission state in a view', () => {
 
   it('asks nothing again on the clock, while a press still asks', async () => {
     const { engine, events, paged, clock } = engineOver(
-      refused(ErrorCodes.ILLEGAL_ACCESS_OWNER_AGGREGATE),
+      refused(FrameworkErrorCodes.AGGREGATE_FORBIDDEN),
       testEnvironment(),
       60,
     );
@@ -268,7 +278,7 @@ describe('the permission state on a board', () => {
   it('leaves a refused panel off the board’s clock, and a press asks it', async () => {
     const clock = testEnvironment();
     const paged = vi.fn(() =>
-      Promise.reject(refused(ErrorCodes.ILLEGAL_ACCESS_SPACE_AGGREGATE)),
+      Promise.reject(refused(FrameworkErrorCodes.AGGREGATE_FORBIDDEN)),
     );
     const store = new MemoryViewStore({ instances: [pending] });
     const engine = new ViewEngine({

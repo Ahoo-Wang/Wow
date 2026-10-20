@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import type { DataViewDefinition } from '../../model/index.js';
 import { defineView, type DefineViewOptions } from './defineView.js';
 import type { FieldSpec } from './spec.js';

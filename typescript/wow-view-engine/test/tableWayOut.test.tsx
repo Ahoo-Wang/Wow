@@ -18,7 +18,7 @@
  * then shows the table and says why.
  */
 
-import { AggregationGroupType } from '@ahoo-wang/wow-client';
+import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import {

@@ -5,7 +5,7 @@ description: 定义、记录视图与分析视图、看板、系统／共享／�
 
 # 视图引擎的核心概念
 
-本页回答：**视图引擎里的几样东西各是什么、住在哪里、谁能改？** 读完它，再读[写好一份定义](./view-engine-definitions.md)与[入门](./view-engine-getting-started.md)里的代码，每一行在模型里的位置就清楚了。
+本页回答：**视图引擎里的几样东西各是什么、住在哪里、谁能改？** 读完它，再读[写好一份定义](./view-engine-definitions.md)与入门里的代码，每一行在模型里的位置就清楚了。
 
 引擎立足于三条事实：**定义是代码，配置是数据，运行时状态是临时的**（[视图引擎](./view-engine.md#三条事实)）。下面每个概念都落在其中一格里。
 
@@ -220,5 +220,5 @@ export const store = new WowViewStore({
 | 接下来 | 阅读 |
 |---|---|
 | 从描述符写一份定义：措辞、收窄、系统视图、看板、自检 | [写好一份定义](./view-engine-definitions.md) |
-| 从零接入一个业务对象 | [视图引擎入门](./view-engine-getting-started.md) |
+| 从零接入一个业务对象 | 视图引擎入门 |
 | 入口、持久化端口与扩展点 | [wow-view-engine 参考](../../reference/typescript/wow-view-engine/) |

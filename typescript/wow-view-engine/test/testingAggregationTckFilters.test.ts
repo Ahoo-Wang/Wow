@@ -30,7 +30,7 @@ import {
   type AggregationMetric,
   type AggregationQuery,
   type HavingExpression,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   ADD,
   DIVIDE,

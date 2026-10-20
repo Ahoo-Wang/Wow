@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { AggregationGroupType } from '@ahoo-wang/wow-client';
+import { AggregationGroupType } from '@ahoo-wang/wow-client/dsl';
 import {
   ANALYSIS_DATE_PARTS,
   datePartsOf,

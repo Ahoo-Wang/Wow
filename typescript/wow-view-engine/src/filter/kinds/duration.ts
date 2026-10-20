@@ -11,12 +11,13 @@
  * limitations under the License.
  */
 
-import type { ComparisonOperator, DateDiffUnit } from '@ahoo-wang/wow-client';
 import {
+  type ComparisonOperator,
+  type DateDiffUnit,
   aggregation,
   filter,
   type FilterExpression,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   TEMPORAL_FIELD_KIND_IDS,
   type FieldDefinition,

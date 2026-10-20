@@ -31,14 +31,18 @@ data class SourceDrafted(
     val columns: List<SourceColumn>,
 )
 
-/** The analyst's source's scope and references were declared; [reopened] when it was reviewed before. */
+/**
+ * The analyst's source's scope and references were declared, or that it is a [platform] dimension; [reopened] when it
+ * was reviewed before.
+ */
 @Summary("An analyst's source was revised")
 data class SourceRevised(
-    val tenantColumn: String,
+    val tenantColumn: String? = null,
     val ownerColumn: String? = null,
     val spaceColumn: String? = null,
     val references: List<SourceReference> = emptyList(),
     val reopened: Boolean = false,
+    val platform: Boolean = false,
 )
 
 /** A reviewer decided the protection of [fields]; [reopened] when an analyst's reviewed source went back to its draft. */
@@ -110,3 +114,7 @@ data class WowEnrichmentLost(val pending: List<String>)
 /** A privileged reviewer approved the lower protection of [keys]: the source's [sensitivity] is now as given. */
 @Summary("A lower sensitivity was approved")
 data class SensitivityChangeApproved(val keys: List<String>, val sensitivity: List<FieldSensitivity>)
+
+/** An approver approved the source for the datasets. */
+@Summary("A source was approved for the datasets")
+data object SourceApproved

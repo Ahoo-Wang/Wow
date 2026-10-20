@@ -12,7 +12,7 @@
  */
 
 import { render, screen } from "@testing-library/react";
-import { WowProblemError } from "@ahoo-wang/wow-client/v10";
+import { WowProblemError } from "@ahoo-wang/wow-client";
 import { describe, expect, it } from "vitest";
 import { result } from "@/test/fakeShop";
 import { ProblemAlert, problemOf } from "./problems";

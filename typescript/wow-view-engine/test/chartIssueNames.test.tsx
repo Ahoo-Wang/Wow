@@ -22,7 +22,7 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import { render, renderHook, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import {

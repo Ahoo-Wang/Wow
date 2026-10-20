@@ -157,7 +157,7 @@ function permissions(): ViewPermissions {
 export const store = new WowViewStore({ fetcher, permissions });
 ```
 
-Then hand `store` to `new ViewEngine({ store, resources })`, in the place of the `MemoryViewStore` in [Getting Started](./view-engine-getting-started.md#_6-the-engine-and-its-resources).
+Then hand `store` to `new ViewEngine({ store, resources })`, in the place of the `MemoryViewStore` in Getting Started.
 
 ### The path is the audience
 

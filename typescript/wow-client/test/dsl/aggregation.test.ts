@@ -36,7 +36,7 @@ import {
   type AggregationExpression,
   type AggregationQuery,
   type FilterExpression,
-} from '../../src';
+} from '../../src/dsl.js';
 
 type RootFields = 'state.status' | 'state.orders';
 type ItemFields =

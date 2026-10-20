@@ -15,11 +15,13 @@ package me.ahoo.wow.analytics.catalog.domain.source
 
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
 import me.ahoo.wow.analytics.catalog.api.source.ApproveSensitivityChange
+import me.ahoo.wow.analytics.catalog.api.source.ApproveSource
 import me.ahoo.wow.analytics.catalog.api.source.DraftSource
 import me.ahoo.wow.analytics.catalog.api.source.MarkSourceReviewed
 import me.ahoo.wow.analytics.catalog.api.source.ReviewSourceSensitivity
 import me.ahoo.wow.analytics.catalog.api.source.ReviseSource
 import me.ahoo.wow.analytics.catalog.api.source.SensitivityChangeApproved
+import me.ahoo.wow.analytics.catalog.api.source.SourceApproved
 import me.ahoo.wow.analytics.catalog.api.source.SourceColumn
 import me.ahoo.wow.analytics.catalog.api.source.SourceDrafted
 import me.ahoo.wow.analytics.catalog.api.source.SourceKind
@@ -102,9 +104,15 @@ class Source(private val state: SourceState) {
     @OnCommand(produces = [SourceRevised::class])
     suspend fun onRevise(command: ReviseSource, known: KnownAggregates): Decision {
         analystOnly()?.let { return it }
+        val scoped = listOfNotNull(command.tenantColumn, command.ownerColumn, command.spaceColumn)
+        if (command.platform && scoped.isNotEmpty()) {
+            return invalid("A platform dimension is every tenant's: it declares no tenant, owner or space column.")
+        }
+        if (!command.platform && command.tenantColumn == null) {
+            return invalid("A source declares its tenant column, or that it is a platform dimension.")
+        }
         val names = state.columns.mapTo(HashSet()) { it.name }
-        val declared = listOfNotNull(command.tenantColumn, command.ownerColumn, command.spaceColumn) +
-            command.references.map { it.path }
+        val declared = scoped + command.references.map { it.path }
         declared.firstOrNull { it !in names }?.let { return invalid("$it is not a column of ${state.table}.") }
         command.references.groupBy { it.path }.filterValues { it.size > 1 }.keys.firstOrNull()?.let {
             return invalid("$it refers to one aggregate at most.")
@@ -116,7 +124,8 @@ class Source(private val state: SourceState) {
             )
         }
         val unchanged = command.tenantColumn == state.tenantColumn && command.ownerColumn == state.ownerColumn &&
-            command.spaceColumn == state.spaceColumn && command.references == state.references
+            command.spaceColumn == state.spaceColumn && command.references == state.references &&
+            command.platform == state.platform
         if (unchanged) {
             return Decision.NoOp
         }
@@ -127,6 +136,7 @@ class Source(private val state: SourceState) {
                 command.spaceColumn,
                 command.references,
                 reopened = state.status == SourceStatus.REVIEWED,
+                platform = command.platform,
             ),
         )
     }
@@ -179,7 +189,7 @@ class Source(private val state: SourceState) {
         if (state.status == SourceStatus.REVIEWED) {
             return Decision.NoOp
         }
-        incomplete(state.columns, state.tenantColumn)?.let {
+        incomplete(state.columns, state.tenantColumn, platform = state.platform)?.let {
             return Decision.reject(SourceRejections.INCOMPLETE, it)
         }
         return Decision.events(SourceReviewed)
@@ -227,11 +237,29 @@ class Source(private val state: SourceState) {
         )
     }
 
+    @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
+    @OnCommand(produces = [SourceApproved::class])
+    fun onApproveSource(command: ApproveSource): Decision = when {
+        state.status == SourceStatus.DRAFT -> Decision.reject(
+            SourceRejections.INCOMPLETE,
+            "${state.database}.${state.table} is a draft: it is reviewed before it is approved.",
+        )
+
+        state.approved -> Decision.NoOp
+        else -> Decision.events(SourceApproved)
+    }
+
     /** What a known source records of its [table] that no trusted row describes, as the rules gave [verdict]. */
     private fun followed(table: WarehouseTable, verdict: CatalogTrust.Verdict): List<Any> = buildList {
         if (table.uuid != state.tableUuid || table.columns != state.columns || state.missing) {
             val reopened = state.status == SourceStatus.REVIEWED &&
-                incomplete(table.columns, state.tenantColumn, state.ownerColumn, state.spaceColumn) != null
+                incomplete(
+                    table.columns,
+                    state.tenantColumn,
+                    state.ownerColumn,
+                    state.spaceColumn,
+                    platform = state.platform,
+                ) != null
             add(SourceTableChanged(table.uuid, table.tableEngine, table.columns, reopened))
         }
         if (state.kind == SourceKind.WOW) {
@@ -287,10 +315,15 @@ class Source(private val state: SourceState) {
         )
     }
 
-    /** Why the analyst's source of [columns] is not complete, or null when it is. */
-    private fun incomplete(columns: List<SourceColumn>, tenantColumn: String?, vararg declared: String?): String? {
+    /** Why the analyst's source of [columns] is not complete, or null when it is; a [platform] one has no tenant. */
+    private fun incomplete(
+        columns: List<SourceColumn>,
+        tenantColumn: String?,
+        vararg declared: String?,
+        platform: Boolean,
+    ): String? {
         val names = columns.mapTo(HashSet()) { it.name }
-        if (tenantColumn == null || tenantColumn !in names) {
+        if (!platform && (tenantColumn == null || tenantColumn !in names)) {
             return "The source declares no tenant column of its table."
         }
         declared.filterNotNull().firstOrNull { it !in names }?.let { return "The declared column $it is gone." }

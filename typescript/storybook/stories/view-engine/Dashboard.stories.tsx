@@ -22,7 +22,7 @@ import {
 import {
   AggregationDateUnit,
   AggregationGroupType,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import type {
   DashboardFilters,
   ViewNavigation,

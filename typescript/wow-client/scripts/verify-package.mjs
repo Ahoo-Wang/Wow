@@ -54,8 +54,6 @@ const require = createRequire(new URL('package.json', packageRoot));
 const SURFACE_LISTS = {
   '.': 'test/surface/root.txt',
   './dsl': 'test/surface/dsl.txt',
-  './legacy': 'test/surface/legacy.txt',
-  './v10': 'test/surface/v10.txt',
 };
 
 /** The code entries: every `exports` key but `./package.json`. */
@@ -151,28 +149,27 @@ const declarationMaps = readdirSync(new URL('dist/', packageRoot), {
 }).filter(file => /\.d\.c?ts\.map$/.test(String(file)));
 assert.deepEqual(declarationMaps, [], 'dist holds declaration maps');
 
-// 6. The root entry tree-shakes: an application that imports only the error
-//    model and the command headers carries no client, no decorator and no
-//    fetcher package. The build keeps one module per source file
+// 6. The root entry tree-shakes: an application that imports only the
+//    problem model and the wait hops carries no client and no fetcher
+//    package. The build keeps one module per source file
 //    (`preserveModules`), and `sideEffects: false` lets a bundler drop every
-//    module the import does not reach — the decorated client classes with
-//    them. Vite's own bundler bundles each probe for real, the way an
-//    application's build would; the fetcher packages stay external, so a
-//    module that survived would show as an import of one.
-const shaken = await shake(['toWowError', 'waitStrategy', 'WowHeaders']);
+//    module the import does not reach. Vite's own bundler bundles each probe
+//    for real, the way an application's build would; the fetcher packages
+//    stay external, so a module that survived would show as an import of one.
+const shaken = await shake(['readProblem', 'wait']);
 assert.deepEqual(
   shaken.packages,
   [],
-  `importing toWowError, waitStrategy and WowHeaders still loads ${shaken.packages.join(', ')}`,
+  `importing readProblem and wait still loads ${shaken.packages.join(', ')}`,
 );
-for (const kept of ['toWowError', 'waitStrategy'])
+for (const kept of ['readProblem', 'wait'])
   assert.match(shaken.code, new RegExp(kept), `the probe lost ${kept}`);
-// The control: a probe that does use a client must keep fetcher-decorator,
-// or the assertion above would pass whatever the build did.
-const control = await shake(['CommandClient']);
+// The control: a probe that does use a client must keep the fetcher, or the
+// assertion above would pass whatever the build did.
+const control = await shake(['CommandGateway']);
 assert.ok(
-  control.packages.includes('@ahoo-wang/fetcher-decorator'),
-  'a probe importing CommandClient does not load fetcher-decorator; the tree-shaking check proves nothing',
+  control.packages.includes('@ahoo-wang/fetcher'),
+  'a probe importing CommandGateway does not load the fetcher; the tree-shaking check proves nothing',
 );
 
 // 7. No entry grows by accident: what importing each one loads — its module
@@ -183,7 +180,7 @@ const sizes = checkSizes({
   packageName: name,
   budgetFile: fileURLToPath(new URL('scripts/size-budget.json', packageRoot)),
   measured: Object.fromEntries(
-    ['.', './dsl', './legacy', './v10'].map(subpath => [
+    ['.', './dsl'].map(subpath => [
       subpath,
       gzippedSize(
         staticClosure(
@@ -197,7 +194,7 @@ const sizes = checkSizes({
 });
 
 console.log(
-  `${entries.length} entries resolve under import and require, and export at run time exactly the ${checked} values their surface lists name, the DSL entry loads no HTTP code, importing only toWowError, waitStrategy and WowHeaders loads no fetcher package, no declaration map ships, and the ES entries weigh, gzipped against their ceilings, ${sizes}.`,
+  `${entries.length} entries resolve under import and require, and export at run time exactly the ${checked} values their surface lists name, the DSL entry loads no HTTP code, importing only readProblem and wait loads no fetcher package, no declaration map ships, and the ES entries weigh, gzipped against their ceilings, ${sizes}.`,
 );
 
 /**

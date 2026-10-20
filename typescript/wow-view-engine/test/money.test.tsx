@@ -19,7 +19,7 @@ import {
   AggregationGroupType,
   type QueryModelDescriptor,
   type QuerySemanticType,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   MemoryViewStore,
   ViewEngine,

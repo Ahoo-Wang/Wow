@@ -11,12 +11,7 @@
  * limitations under the License.
  */
 
-import type { FilterSingleQuery } from '@ahoo-wang/wow-client';
-// compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
-import type {
-  SingleQuery,
-  SingleQueryRequest,
-} from '@ahoo-wang/wow-client/legacy';
+import type { FilterSingleQuery } from '@ahoo-wang/wow-client/dsl';
 import { useQueryRunner } from '../internal/useQueryRunner.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 
@@ -33,7 +28,7 @@ export interface UseSingleQueryOptions<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
+  Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>,
 > extends QueryHookOptions<Q, R, E> {}
 
 /**
@@ -48,15 +43,15 @@ export interface UseSingleQueryReturn<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
+  Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>,
 > extends QueryHookReturn<Q, R, E> {}
 
 /**
  * Runs a single query through your own `execute` function and keeps the
  * result as state: typically a query client's `single` or `singleState`.
  *
- * `execute` receives the query, the `attributes` option and an
- * `AbortController`; hand the controller on so that a newer query, `abort()`
+ * `execute` receives the query and the request options of the run, its
+ * `signal` included; hand them on so that a newer query, `abort()`
  * or an unmount cancels the request. The query runs on mount and whenever
  * `query` or `setQuery()` changes it; set `autoExecute: false` to run it only
  * through `execute()`.
@@ -73,32 +68,30 @@ export interface UseSingleQueryReturn<
  *
  * @example
  * ```tsx
- * import { filter, singleQuery, type SnapshotQueryClient } from '@ahoo-wang/wow-client';
+ * import type { SnapshotQueryClient, SnapshotRecord } from '@ahoo-wang/wow-client';
+ * import { filter, singleQuery } from '@ahoo-wang/wow-client/dsl';
  * import { useSingleQuery } from '@ahoo-wang/wow-react';
  *
  * function OrderStatus({ client, id }: { client: SnapshotQueryClient<OrderState, OrderFields>; id: string }) {
- *   const { result, loading, error } = useSingleQuery<OrderState, OrderFields>({
+ *   const { result, loading, error } = useSingleQuery<SnapshotRecord<OrderState>, OrderFields>({
  *     query: singleQuery({ filter: filter.id(id) }),
- *     execute: (query, attributes, abortController) =>
- *       client.singleState(query, attributes, abortController),
+ *     execute: (query, options) =>
+ *       client.single(query, options),
  *   });
  *   if (error) return <p role="alert">{error.message}</p>;
  *   if (loading || !result) return <p>Loading…</p>;
- *   return <p>{result.status}</p>;
+ *   return <p>{result.state.status}</p>;
  * }
  * ```
  */
 export function useSingleQuery<R, FIELDS extends string = string, E = Error>(
   options: UseSingleQueryOptions<R, FIELDS, E, FilterSingleQuery<FIELDS>>,
 ): UseSingleQueryReturn<R, FIELDS, E, FilterSingleQuery<FIELDS>>;
-export function useSingleQuery<R, FIELDS extends string = string, E = Error>(
-  options: UseSingleQueryOptions<R, FIELDS, E, SingleQuery<FIELDS>>,
-): UseSingleQueryReturn<R, FIELDS, E, SingleQuery<FIELDS>>;
 export function useSingleQuery<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends SingleQueryRequest<FIELDS> = FilterSingleQuery<FIELDS>,
+  Q extends FilterSingleQuery<FIELDS> = FilterSingleQuery<FIELDS>,
 >(
   options: UseSingleQueryOptions<R, FIELDS, E, Q>,
 ): UseSingleQueryReturn<R, FIELDS, E, Q>;
@@ -106,7 +99,7 @@ export function useSingleQuery<
   R,
   FIELDS extends string,
   E,
-  Q extends SingleQueryRequest<FIELDS>,
+  Q extends FilterSingleQuery<FIELDS>,
 >(
   options: UseSingleQueryOptions<R, FIELDS, E, Q>,
 ): UseSingleQueryReturn<R, FIELDS, E, Q> {

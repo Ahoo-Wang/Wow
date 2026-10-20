@@ -535,6 +535,7 @@ The list holds the codes `issue('…')` raises directly and those raised through
 | `runtime.query.failed.previous_unshiftable` | Comparing with the previous period shifts {field}'s time range back, but the filter conditions it in a way that cannot shift; keep its conditions in the outermost AND. |
 | `runtime.query.failed.protected_aggregation` | {field} is protected and cannot be summarised. |
 | `runtime.query.failed.protected_comparison` | {field} is protected and cannot be used to filter, sort or search. |
+| `runtime.query.failed.replay_too_long` | That state is too many changes away to rebuild: {reason} |
 | `runtime.query.failed.residual_groups_exceeded` | This summary has too many groups for the service to filter or sort by a metric; narrow the data first. |
 | `runtime.query.failed.size_out_of_range` | The service limits how many rows one request may read: {reason} |
 | `runtime.query.failed.sort_field_duplicate` | {field} is sorted by twice; keep it once. |

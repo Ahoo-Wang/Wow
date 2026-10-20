@@ -1,4 +1,4 @@
-# Issue codes — 521.
+# Issue codes — 522.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -437,6 +437,7 @@ runtime.query.failed.parallel_array_sort
 runtime.query.failed.previous_unshiftable
 runtime.query.failed.protected_aggregation
 runtime.query.failed.protected_comparison
+runtime.query.failed.replay_too_long
 runtime.query.failed.residual_groups_exceeded
 runtime.query.failed.size_out_of_range
 runtime.query.failed.sort_field_duplicate

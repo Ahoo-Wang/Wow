@@ -24,7 +24,7 @@ import {
   type FieldDescriptor,
   type QueryModelDescriptor,
   type QuerySemanticType,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import { DataWorkbench } from '@ahoo-wang/wow-view-engine/ui';
 import {
   DEFAULT_RUNTIME_LIMITS,

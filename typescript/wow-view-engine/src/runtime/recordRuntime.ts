@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { QueryErrorCodes } from '@ahoo-wang/wow-client';
+import { QueryErrorCodes } from '@ahoo-wang/wow-client/dsl';
 import { dequal } from 'dequal';
 import type {
   DataViewConfig,

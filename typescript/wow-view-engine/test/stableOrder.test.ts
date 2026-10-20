@@ -16,7 +16,7 @@ import {
   SortDirection,
   type FieldSort,
   type FilterPagedQuery,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
   builtinFieldKinds,

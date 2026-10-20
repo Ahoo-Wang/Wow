@@ -163,7 +163,7 @@
       "source" : {
         "context" : "eshop-payment",
         "aggregates" : [ "payment" ],
-        "events" : [ ]
+        "events" : [ "PaymentFailed" ]
       },
       "function" : {
         "kind" : "SAGA",
@@ -179,7 +179,7 @@
       "source" : {
         "context" : "eshop-payment",
         "aggregates" : [ "payment" ],
-        "events" : [ ]
+        "events" : [ "PaymentSucceeded" ]
       },
       "function" : {
         "kind" : "SAGA",
@@ -195,7 +195,7 @@
       "source" : {
         "context" : "eshop-payment",
         "aggregates" : [ "payment" ],
-        "events" : [ ]
+        "events" : [ "PaymentRequested" ]
       },
       "function" : {
         "kind" : "SAGA",
@@ -329,6 +329,10 @@
     "code" : "wow.query.busy",
     "status" : 429,
     "description" : "The query was not run: its store has as many queries running as it allows; retry later."
+  }, {
+    "code" : "wow.query.dataset-unavailable",
+    "status" : 409,
+    "description" : "The dataset is served but cannot be queried now, for the reason the problem names (it needs revision)."
   }, {
     "code" : "wow.call.command-forbidden",
     "status" : 403,

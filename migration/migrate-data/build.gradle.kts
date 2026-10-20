@@ -15,6 +15,11 @@ dependencies {
     // event store is read with the same sync driver :mongo builds on, by its storage format: no 9.x module (D85).
     implementation(project(":postgres"))
     implementation(project(":mongo"))
+    // The events index the tags backfill re-sinks (decision D259); no other Elasticsearch use.
+    implementation(project(":elasticsearch"))
+    // The PostgreSQL target's connection pool (version from the Spring Boot BOM): one connection per call would exhaust
+    // the client's ports on a large log (R4-Q2c).
+    implementation("com.zaxxer:HikariCP")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     testImplementation(testFixtures(project(":manifest")))
     integrationTestImplementation(project(":tck-containers"))
@@ -22,4 +27,9 @@ dependencies {
     integrationTestImplementation(project(":runtime"))
     // The 9.x example's fixtures and its V10 port, shared with the unit tests.
     integrationTestImplementation(sourceSets.test.get().output)
+}
+
+// The tags backfill's cost is measured only on demand: ./gradlew :migrate-data:integrationTest -Dwow.spike.tags=true
+tasks.named<Test>("integrationTest") {
+    systemProperty("wow.spike.tags", providers.systemProperty("wow.spike.tags").orElse("false").get())
 }

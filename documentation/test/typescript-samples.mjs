@@ -75,7 +75,7 @@ export const SOURCES = [
 
 /** Entry points a signature may take names from, by package. */
 const ENTRIES = {
-    'wow-client': ['@ahoo-wang/wow-client', '@ahoo-wang/wow-client/legacy', '@ahoo-wang/wow-client/dsl'],
+    'wow-client': ['@ahoo-wang/wow-client', '@ahoo-wang/wow-client/dsl'],
     'wow-react': ['@ahoo-wang/wow-react'],
     'wow-generator': ['@ahoo-wang/wow-generator'],
     'wow-view-engine': [
@@ -417,6 +417,16 @@ export async function check() {
  * entry must still be exported by it.
  */
 export const IMPORT_SOURCES = markdown(join(repository, 'skills', 'wow-client')).sort()
+
+/**
+ * Skills the import check holds to nothing yet, each with its owner. An entry
+ * is temporary: the test fails once its Skill imports only exported names, so
+ * the exception cannot outlive the work that removes it.
+ */
+export const IMPORT_EXCEPTIONS = [
+    // Still teaches the 9.x client, which TS-9x removed; SK-1 rewrites it for the V10 client.
+    {source: 'skills/wow-client', owner: 'SK-1'},
+]
 
 /** The `import { … } from '<entry>'` names of IMPORT_SOURCES that their entry does not export. */
 export function importProblems() {

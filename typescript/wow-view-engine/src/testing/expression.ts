@@ -16,7 +16,7 @@ import {
   AggregationExpressionType,
   DateDiffUnit,
   type AggregationExpression,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import { instantOf, numberOf, valueAt } from './values.js';
 
 /** The length of each unit a `DATE_DIFF` measures in; a day is 24 hours. */

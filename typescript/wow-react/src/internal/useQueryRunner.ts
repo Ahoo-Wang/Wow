@@ -74,7 +74,7 @@ function isAbortError(error: unknown): boolean {
  * `identity` is what else a run depends on besides the query: the endpoint
  * of a `useFetcher…` hook. With `retainResult` off the runner hands a run's
  * result to `onSuccess` but does not keep it as `result`: the list-stream
- * hooks keep their rows as `items` already. `execute`, `attributes` and the callbacks are read
+ * hooks keep their rows as `items` already. `execute`, `requestOptions` and the callbacks are read
  * when a run starts or settles, so a change to them never starts one.
  */
 export function useQueryRunner<Q, R, E>(
@@ -122,9 +122,12 @@ export function useQueryRunner<Q, R, E>(
     const id = request.current.id + 1;
     request.current = { id, controller };
     setState(state => queryTransition(state, { type: 'start' }));
-    const { execute, attributes } = latest.current;
+    const { execute, requestOptions } = latest.current;
     try {
-      const result = await execute(query, attributes, controller);
+      const result = await execute(query, {
+        ...requestOptions,
+        signal: controller.signal,
+      });
       if (controller.signal.aborted) {
         settle(id, { type: 'abort' });
       } else if (

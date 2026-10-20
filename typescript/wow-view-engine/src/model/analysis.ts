@@ -19,7 +19,7 @@ import type {
   AggregationFunction,
   AggregationGroupType,
   HavingExpression,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import type { DataViewConfigBase } from './config.js';
 import type { ChartSpec } from './chart.js';
 import type { FilterTree } from './filter.js';

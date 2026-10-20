@@ -237,6 +237,9 @@
           "406" : {
             "$ref" : "#/components/responses/wow.dataset-query.406"
           },
+          "409" : {
+            "$ref" : "#/components/responses/wow.dataset-query.409"
+          },
           "415" : {
             "$ref" : "#/components/responses/wow.dataset-query.415"
           },
@@ -2964,6 +2967,17 @@
             }
           }
         }
+      },
+      "wow.dataset-query.409" : {
+        "description" : "`wow.query.dataset-unavailable`: The dataset is served but cannot be queried now, for the reason the problem names (it needs revision).",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.dataset-unavailable" ]
       },
       "wow.dataset-query.415" : {
         "description" : "Unsupported Media Type: the body is sent as application/json.",

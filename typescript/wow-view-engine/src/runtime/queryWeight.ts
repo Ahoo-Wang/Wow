@@ -16,7 +16,7 @@ import {
   type AggregationQuery,
   type FilterExpression,
   type HavingExpression,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * What a query's conditions weigh as a Wow service's query guard weighs

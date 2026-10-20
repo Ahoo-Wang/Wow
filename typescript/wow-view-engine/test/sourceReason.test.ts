@@ -40,17 +40,56 @@ describe('sourceReason', () => {
     await expect(
       sourceReason(
         exchangeError({
-          errorCode: 'IllegalArgument',
-          errorMsg: 'HTTP page window[12000] must not exceed 10000.',
+          type: 'urn:wow:error:wow.query.invalid',
+          title: 'Invalid query',
+          status: 400,
+          code: 'wow.query.invalid',
+          detail: 'The page window 12000 exceeds 10000.',
         }),
       ),
-    ).resolves.toBe('HTTP page window[12000] must not exceed 10000.');
+    ).resolves.toBe('The page window 12000 exceeds 10000.');
   });
 
-  it('falls back to the service’s code when it gave no message', async () => {
+  it('falls back to the problem’s title, then its code', async () => {
     await expect(
-      sourceReason(exchangeError({ errorCode: 'NotFound', errorMsg: ' ' })),
-    ).resolves.toBe('NotFound');
+      sourceReason(
+        exchangeError({ type: 'about:blank', title: 'Not Found', status: 404 }),
+      ),
+    ).resolves.toBe('Not Found');
+    await expect(
+      sourceReason(exchangeError({ code: 'wow.query.failed', detail: ' ' })),
+    ).resolves.toBe('wow.query.failed');
+  });
+
+  it('reads the problem a WowProblemError carries, and its first coded violation', async () => {
+    const problem = {
+      type: 'urn:wow:error:wow.query.invalid',
+      title: 'Invalid query',
+      status: 400,
+      code: 'wow.query.invalid',
+      detail: 'The query failed admission.',
+      violations: [
+        { path: 'x', code: '', message: 'no code' },
+        { path: 'state.sku', code: 'UNKNOWN_FIELD', message: ' ' },
+      ],
+    };
+    await expect(
+      sourceFailure(
+        Object.assign(new Error('[wow.query.invalid] …'), {
+          problem,
+          status: 400,
+        }),
+      ),
+    ).resolves.toEqual({
+      reason: 'The query failed admission.',
+      violation: {
+        code: 'UNKNOWN_FIELD',
+        path: 'state.sku',
+        message: 'The query failed admission.',
+      },
+      errorCode: 'wow.query.invalid',
+      status: 400,
+    });
   });
 
   it('says only the status when the body names nothing — never the URL', async () => {

@@ -16,7 +16,7 @@ import {
   AggregationFunction,
   AggregationGroupType,
   AggregationMetricType,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import { vi } from 'vitest';
 import type {
   AnalysisViewConfig,

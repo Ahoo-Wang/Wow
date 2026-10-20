@@ -13,7 +13,7 @@
 
 import { useState, type FormEvent } from "react";
 import { asc, filter } from "@ahoo-wang/wow-client/dsl";
-import { WowProblemError, type SnapshotRecord } from "@ahoo-wang/wow-client/v10";
+import { WowProblemError, type SnapshotRecord } from "@ahoo-wang/wow-client";
 import type {
   BrandState,
   CategoryState,

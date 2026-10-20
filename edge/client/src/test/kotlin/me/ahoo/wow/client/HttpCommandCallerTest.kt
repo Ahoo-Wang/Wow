@@ -206,6 +206,28 @@ class HttpCommandCallerTest {
     }
 
     @Test
+    fun `a caller should reach only the contexts its endpoints give an internal URL`() {
+        val fixed = HttpCommandCaller(mapOf("mail" to base))
+        fixed.reaches("mail").assert().isTrue()
+        fixed.reaches("box").assert().isFalse()
+        val publicOnly = HttpCommandCaller(
+            EndpointResolver.of(mapOf("box" to base)),
+            ServiceCredential.NONE,
+            HttpCommandCaller.client(),
+            5.seconds,
+        )
+        publicOnly.reaches("box").assert().isFalse()
+        val discovered = HttpCommandCaller(
+            EndpointResolver { context, port -> base.takeIf { context == "mail" && port == Port.INTERNAL } },
+            ServiceCredential.NONE,
+            HttpCommandCaller.client(),
+            5.seconds,
+        )
+        discovered.reaches("mail").assert().isTrue()
+        discovered.reaches("box").assert().isFalse()
+    }
+
+    @Test
     fun `a caller should take http URLs and a positive timeout, and a credential a token`(): Unit = runBlocking {
         assertThrownBy<IllegalArgumentException> { HttpCommandCaller(mapOf("mail" to URI.create("ftp://host"))) }
         assertThrownBy<IllegalArgumentException> { HttpCommandCaller(mapOf("mail" to base), timeout = Duration.ZERO) }

@@ -330,10 +330,18 @@ internal class ModelSymbolProcessor(
                 .filterIsInstance<KSClassDeclaration>() + handlerClasses
             ).distinct().toList()
         val deferred = processors.filterNot { it.validate() }
+        // The events of the module's aggregates, which a handler of each event of a type takes (decision D264).
+        val events = bindings.flatMap { aggregate ->
+            aggregate.sourcing.mapNotNull { sourcing ->
+                resolver.getClassDeclarationByName(resolver.getKSNameFromString(sourcing.event))?.let {
+                    ModuleEvent(it.asStarProjectedType(), sourcing.type, aggregate.state)
+                }
+            }
+        }
         processors.filter { it.validate() }.forEach { processor ->
             processor.containingFile?.let { sources += it }
             packages += processor.packageName.asString()
-            val binding = SubscriptionResolver.resolve(processor, REACTOR_TYPES)
+            val binding = SubscriptionResolver.resolve(processor, REACTOR_TYPES, events)
             subscriptions += binding
             if (mode == Mode.GENERATE) {
                 if (binding.problems.isNotEmpty()) {

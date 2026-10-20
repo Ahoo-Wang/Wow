@@ -24,6 +24,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
+import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.json.WowJson
@@ -37,6 +38,7 @@ import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.log.TailPacer
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
@@ -110,7 +112,8 @@ class PostgresEventLog(
     maxPollInterval: Duration = DEFAULT_MAX_POLL_INTERVAL,
     /** How the log's tables are managed: created when missing by default (review A5-10). */
     private val ddl: StoreDdl = StoreDdl.AUTO,
-) : EventLog {
+) : EventLog,
+    TagsBackfill {
     private val tables = PostgresEventLogTables(context)
 
     /** Validates the partition count first (decision D240): a log of another count is refused when it is built. */
@@ -292,10 +295,11 @@ class PostgresEventLog(
         statement.setNullableString(index++, operator?.id)
         statement.setNullableString(index++, operator?.tenantId)
         if (operator == null) {
-            statement.setNull(index, Types.BOOLEAN)
+            statement.setNull(index++, Types.BOOLEAN)
         } else {
-            statement.setBoolean(index, operator.crossScope)
+            statement.setBoolean(index++, operator.crossScope)
         }
+        statement.setNullableString(index, stream.tags?.let(json::writeValueAsString))
     }
 
     /**
@@ -435,6 +439,45 @@ class PostgresEventLog(
             }
         }
         streams.forEach { emit(it) }
+    }
+
+    @InternalWowApi
+    override suspend fun untagged(type: AggregateType, after: AggregateRef?, limit: Int): List<AggregateRef> {
+        require(limit >= 1) { "A page holds at least one aggregate." }
+        return dispatcher.jdbc {
+            dataSource.autoCommitted { connection ->
+                val table = tableOf(connection, type)
+                connection.prepareStatement(table.untagged).use { query ->
+                    query.setString(1, after?.id.orEmpty())
+                    query.setString(2, after?.tenantId.orEmpty())
+                    query.setInt(3, limit)
+                    query.executeQuery().use { rows ->
+                        rows.map { type.ref(it.getString("tenant_id"), it.getString("aggregate_id")) }
+                    }
+                }
+            }
+        }
+    }
+
+    /** One batch of updates, each version's only where its stream records no tags. */
+    @InternalWowApi
+    override suspend fun recordTags(ref: AggregateRef, tagsByVersion: Map<Int, Map<String, List<String>>>): Int {
+        if (tagsByVersion.isEmpty()) return 0
+        return dispatcher.jdbc {
+            dataSource.autoCommitted { connection ->
+                val table = tableOf(connection, ref.type)
+                connection.prepareStatement(table.recordTags).use { update ->
+                    tagsByVersion.forEach { (version, tags) ->
+                        update.setString(1, json.writeValueAsString(tags))
+                        update.setString(2, ref.id)
+                        update.setString(3, ref.tenantId)
+                        update.setInt(4, version)
+                        update.addBatch()
+                    }
+                    update.executeBatch().sum()
+                }
+            }
+        }
     }
 
     /** One statement: the tail and the earlier request keys, both by the version key (decision D261). */
@@ -691,6 +734,7 @@ class PostgresEventLog(
         operator = row.getString("operator_id")?.let {
             Operator(it, row.getString("operator_tenant_id"), row.getBoolean("operator_cross_scope"))
         },
+        tags = row.getString("tags")?.let(PostgresSnapshotStore::decodeTags),
     )
 
     private fun PreparedStatement.setNullableString(index: Int, value: String?) {

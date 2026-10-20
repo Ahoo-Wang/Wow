@@ -392,12 +392,14 @@ public final class me/ahoo/wow/spi/log/EventStreamRecord {
 	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun getRequestId ()Ljava/lang/String;
 	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun getTags ()Ljava/util/Map;
 	public final fun getVersion ()I
 	public fun hashCode ()I
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -406,7 +408,8 @@ public final class me/ahoo/wow/spi/log/EventStreamRecord$Companion {
 	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/spi/log/EventStreamRecord;
-	public static synthetic fun of$default (Lme/ahoo/wow/spi/log/EventStreamRecord$Companion;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;)Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/log/EventStreamRecord$Companion;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 }
 
 public final class me/ahoo/wow/spi/log/LogEntry {
@@ -543,6 +546,7 @@ public abstract interface class me/ahoo/wow/spi/observation/Observer {
 	public static final field NONE Lme/ahoo/wow/spi/observation/Observer;
 	public fun admitting (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/spi/observation/Observation;
 	public fun appending (Lme/ahoo/wow/spi/log/EventStreamRecord;)Lme/ahoo/wow/spi/observation/Observation;
+	public fun backpressured (Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;)V
 	public fun deciding (Lme/ahoo/wow/api/decide/Command;)Lme/ahoo/wow/spi/observation/Observation;
 	public fun executing (Lme/ahoo/wow/api/decide/Command;)Lme/ahoo/wow/spi/observation/Observation;
 	public fun executing (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;)Lme/ahoo/wow/spi/observation/Observation;
@@ -551,6 +555,7 @@ public abstract interface class me/ahoo/wow/spi/observation/Observer {
 	public fun handling (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/log/EventStreamRecord;Ljava/util/Map;Ljava/lang/String;)Lme/ahoo/wow/spi/observation/Observation;
 	public fun partitionPaused (Ljava/lang/String;Ljava/lang/String;ILjava/lang/String;)V
 	public fun partitionResumed (Ljava/lang/String;Ljava/lang/String;IJ)V
+	public fun partitionThrottled (Ljava/lang/String;Ljava/lang/String;IZ)V
 	public fun refused (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;)V
 	public fun resuming (Ljava/util/Map;)Lkotlin/coroutines/CoroutineContext;
 	public fun signalDropped (Ljava/lang/String;Ljava/lang/String;)V
@@ -959,6 +964,7 @@ public abstract interface class me/ahoo/wow/spi/subscription/CheckpointStore {
 }
 
 public final class me/ahoo/wow/spi/subscription/FailureClass : java/lang/Enum {
+	public static final field BACKPRESSURE Lme/ahoo/wow/spi/subscription/FailureClass;
 	public static final field RECOVERABLE Lme/ahoo/wow/spi/subscription/FailureClass;
 	public static final field SYSTEMIC Lme/ahoo/wow/spi/subscription/FailureClass;
 	public static final field UNRECOVERABLE Lme/ahoo/wow/spi/subscription/FailureClass;

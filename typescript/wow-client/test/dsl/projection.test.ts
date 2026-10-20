@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { projection } from '../../src';
+import { projection } from '../../src/dsl.js';
 
 describe('projection', () => {
   it('should create projection object with no parameters', () => {

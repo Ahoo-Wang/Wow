@@ -194,17 +194,17 @@ What each step relies on:
 - `waitStrategy({ stage: CommandStage.SNAPSHOT })` makes the server answer once the snapshot is written, so the query that follows sees it. Without a wait stage the command resolves when it has been processed. See [completion semantics](../command/completion.md).
 - The request id makes a retry safe: send the same `requestId` again when the outcome of a request is unknown, and the server refuses the duplicate instead of applying it twice.
 - `getStateById` returns the aggregate's state; `pagedState` returns `{ total, list }` of states, and `pagedQuery` always sends a page size. A list query is different: `listQuery()` sends a `limit` only when you give one. Wow 9.1.5 and later then apply their default list size, while Wow 8.11 to 9.1.3 reject the query with HTTP 400 (`IllegalArgument`), so pass `limit` explicitly against those servers. Filter fields address the stored snapshot, hence `state.items`; a field inside an array is matched through `filter.elementMatch`. The field names are typed from the generated `CartAggregatedFields`, so a misspelt field does not compile.
-- A command the server refuses — validation, a failed command handler, a version conflict — rejects with the fetcher's error, and `toWowError` reads Wow's `errorCode`, `errorMsg` and `bindingErrors` from it. Sending `{ productId: '', quantity: 0 }` prints `CommandValidation: …`. [Error Handling](./error-handling.md) covers every case.
+- A command the server refuses — validation, a failed command handler, a version conflict — rejects with the fetcher's error, and `toWowError` reads Wow's `errorCode`, `errorMsg` and `bindingErrors` from it. Sending `{ productId: '', quantity: 0 }` prints `CommandValidation: …`. Error Handling covers every case.
 
 ## Next steps
 
 | Next | Read |
 |---|---|
 | Sign requests and fill tenant and owner from the user | [Authentication and Interceptors](./authentication.md) |
-| Handle every failure the client can see | [Error Handling](./error-handling.md) |
-| Show the query in React | [wow-react query hooks](../../reference/typescript/wow-react/) |
+| Handle every failure the client can see | Error Handling |
+| Show the query in React | wow-react query hooks |
 | Keep generated code in step with the service | [Regenerate in CI](./regenerate-in-ci.md) |
-| Run on a server or in Next.js | [SSR and Node.js](./ssr-and-node.md) |
+| Run on a server or in Next.js | SSR and Node.js |
 | Something does not work | [Troubleshooting](./troubleshooting.md) |
 
 The generated code and its options are described in the [wow-generator reference](../../reference/typescript/wow-generator/) and in [Wow aggregate discovery](../../reference/typescript/wow-generator/wow-discovery.md). To generate a client from an OpenAPI document that does not come from Wow, see [Generate a Client from Any OpenAPI Document](./generated-client.md).

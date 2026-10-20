@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { asc, desc, SortDirection } from '../../src';
+import { asc, desc, SortDirection } from '../../src/dsl.js';
 
 describe('sort', () => {
   it('should create a sort object with ascending direction', () => {

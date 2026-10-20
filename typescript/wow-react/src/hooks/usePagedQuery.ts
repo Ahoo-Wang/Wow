@@ -11,12 +11,7 @@
  * limitations under the License.
  */
 
-import type { FilterPagedQuery, PagedList } from '@ahoo-wang/wow-client';
-// compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
-import type {
-  PagedQuery,
-  PagedQueryRequest,
-} from '@ahoo-wang/wow-client/legacy';
+import type { PagedQuery, PagedResult } from '@ahoo-wang/wow-client';
 import { useQueryRunner } from '../internal/useQueryRunner.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 
@@ -33,8 +28,8 @@ export interface UsePagedQueryOptions<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
-> extends QueryHookOptions<Q, PagedList<R>, E> {}
+  Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>,
+> extends QueryHookOptions<Q, PagedResult<R>, E> {}
 
 /**
  * What {@link usePagedQuery} returns: the page (`total` and `list`) as
@@ -49,15 +44,15 @@ export interface UsePagedQueryReturn<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
-> extends QueryHookReturn<Q, PagedList<R>, E> {}
+  Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>,
+> extends QueryHookReturn<Q, PagedResult<R>, E> {}
 
 /**
  * Runs a paged query through your own `execute` function and keeps the page
  * as state: typically a query client's `paged` or `pagedState`.
  *
- * `execute` receives the query, the `attributes` option and an
- * `AbortController`; hand the controller on so that a newer query, `abort()`
+ * `execute` receives the query and the request options of the run, its
+ * `signal` included; hand them on so that a newer query, `abort()`
  * or an unmount cancels the request. The query runs on mount and whenever
  * `query` or `setQuery()` changes it — turn pages with `setQuery()`; set
  * `autoExecute: false` to run it only through `execute()`.
@@ -74,17 +69,18 @@ export interface UsePagedQueryReturn<
  *
  * @example
  * ```tsx
- * import { filter, pagedQuery, type SnapshotQueryClient } from '@ahoo-wang/wow-client';
+ * import type { SnapshotQueryClient, SnapshotRecord } from '@ahoo-wang/wow-client';
+ * import { filter, pagedQuery } from '@ahoo-wang/wow-client/dsl';
  * import { usePagedQuery } from '@ahoo-wang/wow-react';
  *
  * function PaidOrders({ client, page }: { client: SnapshotQueryClient<OrderState, OrderFields>; page: number }) {
- *   const { result, loading, error } = usePagedQuery<OrderState, OrderFields>({
+ *   const { result, loading, error } = usePagedQuery<SnapshotRecord<OrderState>, OrderFields>({
  *     query: pagedQuery({
  *       filter: filter.eq('state.status', 'PAID'),
  *       pagination: { index: page, size: 20 },
  *     }),
- *     execute: (query, attributes, abortController) =>
- *       client.pagedState(query, attributes, abortController),
+ *     execute: (query, options) =>
+ *       client.paged(query, options),
  *   });
  *   if (error) return <p role="alert">{error.message}</p>;
  *   if (loading || !result) return <p>Loading…</p>;
@@ -93,16 +89,13 @@ export interface UsePagedQueryReturn<
  * ```
  */
 export function usePagedQuery<R, FIELDS extends string = string, E = Error>(
-  options: UsePagedQueryOptions<R, FIELDS, E, FilterPagedQuery<FIELDS>>,
-): UsePagedQueryReturn<R, FIELDS, E, FilterPagedQuery<FIELDS>>;
-export function usePagedQuery<R, FIELDS extends string = string, E = Error>(
   options: UsePagedQueryOptions<R, FIELDS, E, PagedQuery<FIELDS>>,
 ): UsePagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
 export function usePagedQuery<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends PagedQueryRequest<FIELDS> = FilterPagedQuery<FIELDS>,
+  Q extends PagedQuery<FIELDS> = PagedQuery<FIELDS>,
 >(
   options: UsePagedQueryOptions<R, FIELDS, E, Q>,
 ): UsePagedQueryReturn<R, FIELDS, E, Q>;
@@ -110,9 +103,9 @@ export function usePagedQuery<
   R,
   FIELDS extends string,
   E,
-  Q extends PagedQueryRequest<FIELDS>,
+  Q extends PagedQuery<FIELDS>,
 >(
   options: UsePagedQueryOptions<R, FIELDS, E, Q>,
 ): UsePagedQueryReturn<R, FIELDS, E, Q> {
-  return useQueryRunner<Q, PagedList<R>, E>(options);
+  return useQueryRunner<Q, PagedResult<R>, E>(options);
 }

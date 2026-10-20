@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { CursorQuery, FilterPagedQuery } from '@ahoo-wang/wow-client';
+import type { CursorQuery, FilterPagedQuery } from '@ahoo-wang/wow-client/dsl';
 import {
   FIRST_PAGE,
   OTHER_LANE_ID,

@@ -99,24 +99,27 @@ export function json(value: unknown, status = 200): Response {
   });
 }
 
-/** The error body and header a Wow server answers a failed request with. */
-export function wowError(
-  errorCode: string,
-  errorMsg: string,
-  status = 400,
-): Response {
-  return new Response(JSON.stringify({ errorCode, errorMsg }), {
+/** The RFC 9457 problem a Wow service answers a failed request with. */
+export function problemBody(code: string, detail: string, status = 400) {
+  return { type: `urn:wow:error:${code}`, title: detail, status, code, detail };
+}
+
+/** A failed request's response: its problem, as `application/problem+json`. */
+export function problem(code: string, detail: string, status = 400): Response {
+  return new Response(JSON.stringify(problemBody(code, detail, status)), {
     status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Wow-Error-Code': errorCode,
-    },
+    headers: { 'Content-Type': 'application/problem+json' },
   });
 }
 
-/** One server-sent event as a Wow server writes it. */
+/** The event that ends a streamed query with its problem. */
+export function errorEvent(code: string, detail: string): SseEvent {
+  return { event: 'error', data: problemBody(code, detail) };
+}
+
+/** One server-sent event as a Wow service writes it. */
 export interface SseEvent {
-  /** The event name; Wow sends rows without one. */
+  /** The event name; rows are sent without one. */
   event?: string;
   data: unknown;
 }
@@ -133,7 +136,7 @@ export interface LiveStream {
   response: Response;
   /** Writes events as one network chunk. */
   send(...events: SseEvent[]): void;
-  /** Ends the stream. */
+  /** Ends the stream as a complete one: its `end` event, then the close. */
   close(): void;
   /** Whether the reader cancelled the stream. */
   readonly cancelled: boolean;
@@ -167,6 +170,10 @@ export function liveStream(): LiveStream {
       controller.enqueue(joined);
     },
     close() {
+      if (cancelled) return;
+      controller.enqueue(
+        encodeEvent({ event: 'end', data: { reason: 'complete' } }, id++),
+      );
       controller.close();
     },
     get cancelled() {

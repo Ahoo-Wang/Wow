@@ -21,14 +21,14 @@ import { readable } from './hostSource';
 ## 0. 安装
 
 ```bash
-pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator @ahoo-wang/fetcher-eventstream
+pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream
 ```
 
-`@ahoo-wang/wow-view-engine` 从 Wow 9.2.0 起在 npm 上，与 Wow 同一个版本号发布；Wow 的包都停在同一个次版本上（`~` 范围，见文档站的[兼容性与版本](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)）。从零接一个业务对象、对着示例服务端跑起来，见文档站的[视图引擎入门](https://wow.ahoo.me/zh/guide/typescript/view-engine-getting-started)。三个 `fetcher` 包是 wow-client 的对等依赖；`react`、`react-dom` 是 `/react` 与 `/ui` 入口的对等依赖，`react-router` 只有 `/react-router` 入口要（可选）。
+`@ahoo-wang/wow-view-engine` 从 Wow 9.2.0 起在 npm 上，与 Wow 同一个版本号发布；Wow 的包都停在同一个次版本上（`~` 范围，见文档站的[兼容性与版本](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)）。`@ahoo-wang/fetcher` 与 `@ahoo-wang/fetcher-eventstream` 是 wow-client 的对等依赖；`react`、`react-dom` 是 `/react` 与 `/ui` 入口的对等依赖，`react-router` 只有 `/react-router` 入口要（可选）。
 
 ## 1. 声明定义：`defineView` 与文字键
 
-服务的查询描述（`GET /order/snapshot/schema`）提交在定义旁边（`ordersDescriptor.json`）。字段是什么——路径、类型、枚举值——从它读；定义只写选择：列出哪些字段、按什么次序、叫什么、状态用什么语气、收窄什么，以及随定义发布的系统视图。没列出的字段不出现；列了描述里没有的路径或值，准入会指出来。
+服务的查询描述（`GET /example/order/snapshot/query`）提交在定义旁边（`ordersDescriptor.json`）。字段是什么——路径、类型、枚举值——从它读；定义只写选择：列出哪些字段、按什么次序、叫什么、状态用什么语气、收窄什么，以及随定义发布的系统视图。没列出的字段不出现；列了描述里没有的路径或值，准入会指出来。
 
 口径写 `text(key)`，不是某种语言的字符串：同一份定义服务每种语言，措辞表由第 3 步的 `ViewHost` 给，换语言只重画。
 
@@ -36,7 +36,7 @@ pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client @ahoo-wang/fetcher @ah
 
 ## 2. 注册资源，接上数据
 
-引擎只发 Wow 的查询（分页、游标、聚合），所以 wow-client 的快照查询客户端原样就是数据源；再给它一个 `describe`，引擎在第一次查询前读服务端当下的能力描述，只提供这个部署接得住的算子、排序、分组与指标——同一份定义部署到 MongoDB 与 Elasticsearch，各得各的能力。
+引擎只发 Wow 的查询（分页、游标、聚合），所以 wow-view-store 的 `viewSourceOf` 把 wow-client 的快照查询客户端交给它就是数据源；数据源还带着 `describe`，引擎在第一次查询前读服务端当下的能力描述，只提供这个部署接得住的算子、排序、分组与指标——同一份定义部署到 MongoDB 与 Elasticsearch，各得各的能力。
 
 <Source code={readable(wowSource)} language="ts" />
 
@@ -64,7 +64,7 @@ pnpm add @ahoo-wang/wow-view-engine @ahoo-wang/wow-client @ahoo-wang/fetcher @ah
 
 <Source code={readable(orderActions)} language="ts" />
 
-`run` 要等读模型反映了命令再 resolve：引擎紧接着重读视图，早了读到的还是旧状态。Wow 的命令用 `CommandStage.SNAPSHOT`：
+`run` 要等读模型反映了命令再 resolve：引擎紧接着重读视图，早了读到的还是旧状态。Wow 的命令等到快照（`wait.snapshot`）：
 
 <Source code={readable(wowCommands)} language="ts" />
 

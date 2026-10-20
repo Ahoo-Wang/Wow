@@ -441,7 +441,7 @@ class V10AnnotationSetTest {
             .contains("processor Both is @Projection and @Reactor: a processor is of exactly one kind")
             .contains("processor Kindless is none of @Projection, @Reactor, @Saga")
             .contains("processor Empty declares no @OnEvent function")
-            .contains("handler Shapes.first must take a me.ahoo.wow.api.subscribe.StateEvent first, not sample.S")
+            .contains("handler Shapes.first takes sample.S, which is no event of an aggregate of this module")
             .contains(
                 "handler Shapes.context takes me.ahoo.wow.api.subscribe.SagaContext: a @Reactor handler takes a " +
                     "me.ahoo.wow.api.subscribe.ReactContext"

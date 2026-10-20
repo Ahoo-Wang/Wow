@@ -7,7 +7,7 @@ description: Find the cause of common wow-client, wow-generator and wow-react fa
 
 This page answers: **what does this error from the Wow TypeScript packages mean, and how do I fix it?** Search the page for the message you see. Failures on the server side — command timeouts, version conflicts, projections — are in the server's [Troubleshooting](../troubleshooting.md).
 
-Most request failures reach your code as the fetcher's `ExchangeError`; its `message` and its `cause` name what went wrong, and `await toWowError(error)` reads Wow's error code when the server answered. See [Error Handling](./error-handling.md).
+Most request failures reach your code as the fetcher's `ExchangeError`; its `message` and its `cause` name what went wrong, and `await toWowError(error)` reads Wow's error code when the server answered. See Error Handling.
 
 ## Installing
 
@@ -46,7 +46,7 @@ Most request failures reach your code as the fetcher's `ExchangeError`; its `mes
 
 | `errorCode` | Status | Cause | Fix |
 |---|---|---|---|
-| `CommandValidation` | 400 | The command body breaks its validation rules | Show `bindingErrors` next to their fields; see [Error Handling](./error-handling.md#show-validation-errors-on-a-form) |
+| `CommandValidation` | 400 | The command body breaks its validation rules | Show `bindingErrors` next to their fields; see Error Handling |
 | `IllegalArgument`, `IllegalState` | 400 | The command handler refused the command | Show `errorMsg`; the request itself has to change |
 | `NotFound` | 404 | No aggregate or snapshot with that id | Handle the absence; after a command, wait for `CommandStage.SNAPSHOT` before reading |
 | `RequestTimeout` | 408 | The wait stage did not arrive within `timeoutMs` | The command was received and may still complete; read the state instead of resending |
@@ -61,8 +61,8 @@ Most request failures reach your code as the fetcher's `ExchangeError`; its `mes
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| A `for await` over a query stream throws `WowError` | The server failed midway and ended the stream with an error event | Handle it like a failed request; see [Error Handling](./error-handling.md#streams) |
-| A `for await` over a generated `…StreamCommandClient` throws `WowError` (for example `RequestTimeout`) | Generated stream clients take `COMMAND_STREAM_ENDPOINT`: a server error ends the stream with a `WowError`, as `CommandClient.sendAndWaitStream` does | Handle it like a failed request; see [Error Handling](./error-handling.md#streams) |
+| A `for await` over a query stream throws `WowError` | The server failed midway and ended the stream with an error event | Handle it like a failed request; see Error Handling |
+| A `for await` over a generated `…StreamCommandClient` throws `WowError` (for example `RequestTimeout`) | Generated stream clients take `COMMAND_STREAM_ENDPOINT`: a server error ends the stream with a `WowError`, as `CommandClient.sendAndWaitStream` does | Handle it like a failed request; see Error Handling |
 | A streamed command ends at `PROCESSED` with an `errorCode` other than `Ok` | The command handler failed | Check `errorCode` on every result |
 | The connection stays open after the component is gone | The stream was never read to its end or aborted | Pass an `AbortSignal` and abort it on cleanup, or `break` out of the loop |
 

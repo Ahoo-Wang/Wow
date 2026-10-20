@@ -33,7 +33,7 @@ import {
   SortDirection,
   type AggregationExpression,
   type AggregationGroup,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import type { RecordData } from '../src/index.js';
 import { memorySource } from '../src/testing/index.js';
 import {

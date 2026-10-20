@@ -70,9 +70,17 @@ interface WarehouseCatalog {
 
 /**
  * A table or view of the warehouse as its list says: its [name], [uuid], [tableEngine] (the kind of table, as the
- * warehouse names it), and when its metadata last changed ([modifiedAt], opaque text compared for change only).
+ * warehouse names it), when its metadata last changed ([modifiedAt]) and a fingerprint of its columns ([columns]: their
+ * positions, names and types), both opaque text compared for change only. The fingerprint tells a change the time
+ * cannot, such as an `ALTER` in the same second as the last look.
  */
-data class WarehouseTableInfo(val name: String, val uuid: String, val tableEngine: String, val modifiedAt: String)
+data class WarehouseTableInfo(
+    val name: String,
+    val uuid: String,
+    val tableEngine: String,
+    val modifiedAt: String,
+    val columns: String = "",
+)
 
 /** [database]'s table [name] as the warehouse has it now: its [uuid], its [tableEngine] and its [columns], in order. */
 data class WarehouseTable(

@@ -28,16 +28,19 @@ import me.ahoo.wow.api.annotation.Summary
 data class DraftSource(val database: String, val table: String)
 
 /**
- * Declares an analyst's source's scope and references: the [tenantColumn] every row's tenant is in (required), the
- * optional [ownerColumn] and [spaceColumn], and the columns that refer to an aggregate the catalog knows
- * ([references]). A reviewed source goes back to its draft.
+ * Declares an analyst's source's scope and references: the [tenantColumn] every row's tenant is in, the optional
+ * [ownerColumn] and [spaceColumn], and the columns that refer to an aggregate the catalog knows ([references]). A
+ * table every tenant shares, such as currencies or regions, is instead a [platform] dimension, without a tenant
+ * column (decision D259 7.2b-2): a dataset joins it without a tenant key once an approver marks it reviewed. A
+ * reviewed source goes back to its draft.
  */
 @Summary("Revise an analyst's source")
 data class ReviseSource(
-    val tenantColumn: String,
+    val tenantColumn: String? = null,
     val ownerColumn: String? = null,
     val spaceColumn: String? = null,
     val references: List<SourceReference> = emptyList(),
+    val platform: Boolean = false,
 )
 
 /**
@@ -69,3 +72,10 @@ data class SyncSource(val database: String, val table: String)
  */
 @Summary("Approve a lower sensitivity of a Wow source")
 data class ApproveSensitivityChange(val keys: List<String> = emptyList())
+
+/**
+ * Approves, as an approver, a reviewed or adopted source for the datasets, when the catalog's switch says a new source
+ * takes an approver (`wow.analytics.catalog.approval.sources`, decision D238 ③b): until then no dataset reads it.
+ */
+@Summary("Approve a source for the datasets")
+data object ApproveSource

@@ -1,7 +1,7 @@
 # 宿主接入：事实归机器，选择归宿主
 
 **状态**：方向与六条裁定已定（用户 2026-09-28，[D67](decisions.md#d67-宿主接入事实归机器选择归宿主2026-09-28)）；批次 H1～H3 见第 8 节，排在 A、C 之后、B（[D66](decisions.md#d66-引擎的工具类带前缀-fve与宿主不再同名2026-09-28)）之前，D 并入 H1。
-**依据**：补偿控制台是引擎的第一个真实宿主（`compensation/dashboard`，2026-09-27 的看板真实接入）；[capabilities.md](capabilities.md)（N5：定义只收窄）；Skill `wow-view-definition`。
+**依据**：补偿控制台是引擎的第一个真实宿主（9.x 的应用，2026-09-27 的看板真实接入；V10 已删除）；[capabilities.md](capabilities.md)（N5：定义只收窄）；Skill `wow-view-definition`。
 
 ## 1. 问题：宿主的行为是按「外壳」接的，它本来属于「资源」
 
@@ -104,7 +104,7 @@ export const executionFailed = defineView(executionFailedDescriptor, {
 - **不在打开路径上异步解析**：已存的视图引用一个宿主还没登记的数据集时，按「定义不在」报（`view.definition.not-found`），与拼错的 id 同一条路。打开路径因此保持同步，宿主决定什么时候读目录。
 - **`engine.unregister(id)`** 移除一份资源（[D85](decisions.md)）：已经打开的视图照常读完，再打开报「定义不在」。
 - **`DatasetResources`** 让引擎跟上服务端的目录（D85）：每次 `refresh` 登记新列出的、版本变了的再登记、没再列出或 schema 编译不了（`version` 为 `null`）的移除；定义 id 是数据集名，标题取目录的；宿主在代码里同 id 的定义优先。`refresh` 答出提供着的数据集，宿主据此为每个生成绑定（`bind(id, { route })`）：导航里因此出现它们，**打开一个就是选数据集、开始一个视图**——不另做选择器。
-- **Wow V10 上的宿主**（路线图 7.3a，[view-store-backend.md](view-store-backend.md) 第 10 节）：引擎与端口都不变，换的是实现——存储用 `@ahoo-wang/wow-view-store/v10` 的 `WowViewStore`（措辞用同一入口的 `WowDatasetWordings`），数据源用同一入口的 `viewSourceOf(client)` 把任意 V10 查询客户端（生成的 `…SnapshotQueryClient`、`DatasetClient.dataset(…)`）适配成 `ViewSource`，数据集目录用 `datasetCatalogOf(new DatasetClient(…))`。V10 的客户端不满足按 9.x `QueryApi` 剪裁的 `ViewSource`，适配只在这一处，引擎不为 `/v10` 开新的依赖。
+- **Wow V10 上的宿主**（路线图 7.3a，[view-store-backend.md](view-store-backend.md) 第 10 节）：引擎与端口都不变，换的是实现——存储用 `@ahoo-wang/wow-view-store` 的 `WowViewStore`（措辞用同一入口的 `WowDatasetWordings`），数据源用同一入口的 `viewSourceOf(client)` 把任意 V10 查询客户端（生成的 `…SnapshotQueryClient`、`DatasetClient.dataset(…)`）适配成 `ViewSource`，数据集目录用 `datasetCatalogOf(new DatasetClient(…))`。V10 的客户端不满足按 9.x `QueryApi` 剪裁的 `ViewSource`，适配只在这一处，引擎不为 `/v10` 开新的依赖。
 - **措辞覆盖**（[D86](decisions.md)）：`DefineDatasetSpec.fields` 与 `DatasetCatalog.overrides` 给派生的定义改口径、排序、收窄、隐藏字段，只能收窄与改词；描述符不再列出的路径被忽略，覆盖因此比数据集删掉的列活得久。措辞变了，`DatasetResources` 下次 `refresh` 就重新登记。覆盖可以写在宿主代码里，也可以由租户的管理员存进视图存储：`@ahoo-wang/wow-view-store` 的 `WowDatasetWordings` 读写它（view-store-backend.md 5.4），宿主把它交给 `DatasetCatalog.wordings`：`DatasetResources` 每次 `refresh` 前读一遍，存着的措辞整份取代 `overrides`，并给每个数据集带上措辞编辑器，宿主给了 `editDatasetWording` 时视图管理器多一个「措辞」页签（[D91](decisions.md)）。
 
 ## 4. 资源注册：数据在核心，行为在 React
@@ -213,7 +213,7 @@ H2a 的 Provider 解决了「按资源注册」，但宿主周围的胶水还在
 } /* 顶栏 flex: none；内容区 flex: 1; min-height: 0 */
 ```
 
-只写 `min-height: 100svh` 时内容区跟着内容长，工作台落到 36rem 的保底（`--fve-workbench-min-height`）或更高，文档会滚——控制台曾在 863px 高的视口下多滚 70px，分页在折线下面，读者要先滚页面、再滚表格。Storybook 的外壳（`.story-app`，`height: 100dvh`）与控制台（`App.tsx`，`h-svh`）是示范；`compensation/dashboard/e2e/layout.spec.ts` 量文档高等于视口、分页整个在屏幕内。
+只写 `min-height: 100svh` 时内容区跟着内容长，工作台落到 36rem 的保底（`--fve-workbench-min-height`）或更高，文档会滚——控制台曾在 863px 高的视口下多滚 70px，分页在折线下面，读者要先滚页面、再滚表格。Storybook 的外壳（`.story-app`，`height: 100dvh`）是示范；9.x 的控制台（`App.tsx`，`h-svh`）曾用 e2e 量文档高等于视口、分页整个在屏幕内。
 
 落地（H2b）：**useViewNavigation()** 返回每个绑了 `route` 的资源，按注册的次序：`{ id, kind, title, path, current, views }`，`path` 是 `route(null)`，`views` 是它的系统视图（看板定义的就是系统看板），各带 `{ id, title, path, current }`，`path` 是 `route(instanceId)`；标题经 **useSay** 说成最近一层的措辞，换语言即重画。`current` 读路由端口的地址：路径相同、且那条路径自己写的每个参数地址里都一样——所以按路径分页的宿主（控制台）与按查询参数分页的宿主（Storybook 的 `?path=`）都认得出；没有路由端口时都不是当前。没有 `route` 的资源不是一个去处，不出现。存储里的共享视图与看板不在其中（要异步读存储，交给宿主自己的视图列表）。宿主给地方起自己的名字（控制台的「事件流」「看板」），数据给去处与「在不在这里」：控制台顶栏的四处——概览是 `overview` 的系统板 `home`、看板是 `overview` 的页——与 Storybook 左栏「业务场景」里五个零售工作台都由它推出。
 

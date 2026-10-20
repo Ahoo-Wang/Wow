@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { WowProblemError } from "@ahoo-wang/wow-client/v10";
+import { WowProblemError } from "@ahoo-wang/wow-client";
 import { text, type RecordRow } from "@ahoo-wang/wow-view-engine";
 import { actionHarness } from "@ahoo-wang/wow-view-engine/testing";
 import { describe, expect, it, vi } from "vitest";

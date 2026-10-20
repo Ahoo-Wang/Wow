@@ -2,12 +2,12 @@
   "version": 1,
   "files": {
     "index.ts": "2c05d9d9d9b5b1c837df82b64fb5c87ee5695e2a6fbdd0aca4d4a67331653e06",
-    "ops/boundedContext.ts": "da970f378e3bc68471c7cee795d1c69f8814df6db8f4a3babd05174da9e1cac7",
+    "ops/boundedContext.ts": "393670b8874b057e771630a98e6e632794d433753a456ba6b8cfbd37c19b3229",
     "ops/index.ts": "d07a5b527b6b3f748e503bbe7eafc0d68d102ce3ac42822637a59f5f37820d2c",
-    "ops/parked/aggregate.ts": "437047966934a1668c33d275e813ffce9f0d74775a0f1eb35cc140249065b804",
-    "ops/parked/commandClient.ts": "423844e2e8ba568c70e294afc3b3855630713c365cfca6a83b29917ab6c7d507",
+    "ops/parked/aggregate.ts": "07ed4fb841011d25f4b697e0923084154c4e6b679086f5cfed475cabacb7fb47",
+    "ops/parked/commandClient.ts": "2cc8560afe6ac3c7b9344e6b0db25fd5e578e0dbfa44a9b6de883dfb2de9b0bf",
     "ops/parked/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
-    "ops/parked/queryClient.ts": "3a73635bbcf941fab68fd7012da1c9b184275c3ee3144bce291c40cf68945326",
+    "ops/parked/queryClient.ts": "dcaa07dccdb85a1379dcbe2f8a5b05cdfcc52b15e1b7dceaa70a24a7568f000e",
     "ops/types.ts": "3f995db8a7e6b1744cb2b8a640aad1ffa2de3ed1905a1833de4223a4fa2d23f4"
   }
 }

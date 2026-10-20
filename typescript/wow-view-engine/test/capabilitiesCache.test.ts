@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import type { QueryModelDescriptor } from '@ahoo-wang/wow-client';
+import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
 import { DEFAULT_RUNTIME_LIMITS } from '../src/index.js';
 import {
   DESCRIPTOR_MAX_AGE_MS,

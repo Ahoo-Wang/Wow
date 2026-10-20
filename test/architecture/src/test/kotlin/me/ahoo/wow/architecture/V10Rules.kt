@@ -236,7 +236,8 @@ object V10Rules {
         MODELS to setOf("api", "compiler"),
         // The V10 log on either first-class backend, which the import writes to (roadmap 8b.1); runtime only for the
         // tests, which list and resume the imported parked entries as the ops routes do (roadmap 8b.4).
-        MIGRATE_DATA to setOf("kernel", "postgres", "mongo", "runtime"),
+        // elasticsearch only for the tags backfill's re-sink of an events index (decision D259).
+        MIGRATE_DATA to setOf("kernel", "postgres", "mongo", "elasticsearch", "runtime"),
         // kernel and reactor only for the tests, which compile the generated models.
         COMPILER to setOf("api", "manifest", "kernel", "reactor"),
         // compiler, kernel, manifest-tools and wow-dependencies only for the TestKit fixture and tests; openapi for

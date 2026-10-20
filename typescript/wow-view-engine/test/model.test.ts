@@ -16,7 +16,7 @@ import {
   AggregationFunction,
   AggregationGroupType,
   FilterOperator,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it } from 'vitest';
 import {
   BUILTIN_FIELD_KIND_IDS,

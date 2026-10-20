@@ -26,8 +26,8 @@ import me.ahoo.wow.api.schedule.SetSchedule
 /**
  * One execution of a subscription's handler for one commit (design 01 §1): the [subscription] (`processor.function`,
  * design 04 §1), the aggregate [ref] and the committed [version]. It is deterministic: handling the same commit again,
- * after a retry, a replay or a lease handover, gives the same id, so its text is the idempotency key a handler gives
- * an outside call.
+ * after a retry, a replay or a lease handover, gives the same id. It is per stream: the idempotency key of an outside
+ * call is [SubscriptionContext.invocationKey], which tells apart the calls of a handler for each event (decision D264).
  */
 data class ExecutionId(val subscription: String, val ref: AggregateRef, val version: Int) {
     init {
@@ -41,8 +41,20 @@ data class ExecutionId(val subscription: String, val ref: AggregateRef, val vers
 
 /** What every subscription handler can ask of the runtime besides the [StateEvent] it handles. */
 interface SubscriptionContext {
-    /** This execution: stable across every time the same commit is handled by the same subscription. */
+    /**
+     * This execution: stable across every time the same commit is handled by the same subscription. It is per stream:
+     * a handler called once per event of a type (decision D264) gets the same one for each of the stream's events, so
+     * an outside call takes [invocationKey] as its idempotency key instead.
+     */
     val executionId: ExecutionId
+
+    /**
+     * The idempotency key of this call of the handler (decision D264): [executionId] for a handler of the whole stream,
+     * `executionId:eventIndex` for a handler of one event of the stream ([StateTypedEvent.eventIndex]). Stable across
+     * every time the same commit is handled again, so a payment gateway, say, takes the same call once.
+     */
+    val invocationKey: String
+        get() = executionId.toString()
 
     /**
      * The read side of the node (decision D259): the snapshots, events and datasets of the tenant of the commit this

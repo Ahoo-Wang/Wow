@@ -7,7 +7,7 @@ description: 一个引擎、ViewHost 的几个端口、bind、路由端口与导
 
 本页回答：**定义写好之后，宿主应用外面要写什么，引擎才在每个页面上做对的事？**
 
-[入门](./view-engine-getting-started.md)把一个业务对象从零接了进来。这里把那几步背后的接线逐个讲清楚：为什么数据注册在引擎上、行为注册在 React 里，[`ViewHost`](../../reference/typescript/wow-view-engine/host.md#api-ViewHost) 的每个端口桥接宿主的什么，引擎替宿主管了地址里的哪些东西，嵌入能做到哪一步，以及怎样不开浏览器就测这些接线。
+入门把一个业务对象从零接了进来。这里把那几步背后的接线逐个讲清楚：为什么数据注册在引擎上、行为注册在 React 里，[`ViewHost`](../../reference/typescript/wow-view-engine/host.md#api-ViewHost) 的每个端口桥接宿主的什么，引擎替宿主管了地址里的哪些东西，嵌入能做到哪一步，以及怎样不开浏览器就测这些接线。
 
 ```mermaid
 flowchart LR
@@ -68,7 +68,7 @@ export const engine = new ViewEngine({
 - 给数据源用的 `Fetcher` 设一个超时（`new Fetcher({ timeout })`）。`@ahoo-wang/fetcher` 缺省不超时，引擎也不给查询计时；一个接了连接却不答的服务端会让视图一直在打开中，还占着引擎的查询位，看板的其他面板跟着饿着。
 - 开发构建里没有接 `onIssue` 时，引擎按资源把准入发现打印出来，每条带改法。它们该进定义的 [`admit`](../../reference/typescript/wow-view-engine/testing.md#api-admit) 测试（[下文](#testing)），不该被一个处理函数吞掉。
 
-数据源与存储怎样选，见[入门的第 6 步](./view-engine-getting-started.md)与[视图存在哪里](./view-engine-storage.md)。
+数据源与存储怎样选，见入门的第 6 步与[视图存在哪里](./view-engine-storage.md)。
 
 ## `ViewHost`：页面外面唯一的一层
 

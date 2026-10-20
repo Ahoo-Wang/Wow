@@ -15,7 +15,7 @@ import {
   AggregationDateUnit,
   AggregationFunction,
   AggregationGroupType,
-} from "@ahoo-wang/wow-client";
+} from "@ahoo-wang/wow-client/dsl";
 import type {
   AnalysisMetric,
   AnalysisViewConfig,

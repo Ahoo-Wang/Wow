@@ -14,17 +14,23 @@
 package me.ahoo.wow.analytics.catalog.server
 
 import com.clickhouse.client.api.Client
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import me.ahoo.cosec.api.authorization.Authorization
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetWarehouse
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseTableInfo
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.query.dataset.QueryDatasets
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.boot.health.contributor.Status
 import org.springframework.mock.env.MockEnvironment
 import java.time.Duration
 
@@ -57,6 +63,40 @@ class AnalyticsCatalogConfigurationTest {
         assertThrows<IllegalArgumentException> {
             configuration.warehouseCatalog(provider(client), AnalyticsCatalogProperties(engine = "trino"), environment)
         }.message.assert().contains("trino")
+    }
+
+    @Test
+    @OptIn(ExperimentalWowApi::class)
+    fun `the datasets should be published into the configured database and served with their metrics`() {
+        configuration.datasetWarehouse(provider<Client>(null)).assert().isSameAs(DatasetWarehouse.NONE)
+        configuration.datasetWarehouse(provider(mockk<Client>())).assert()
+            .isInstanceOf(ClickHouseDatasetWarehouse::class.java)
+        val properties = AnalyticsCatalogProperties()
+        properties.datasets.database = "bi"
+        properties.datasets.retention = Duration.ofDays(1)
+        properties.approval.publications = true
+        properties.approval.sources = true
+        val policy = configuration.datasetPolicy(properties)
+        policy.database.assert().isEqualTo("bi")
+        policy.approvePublications.assert().isTrue()
+        policy.approveSources.assert().isTrue()
+        val registry = SimpleMeterRegistry()
+        val watcher = configuration.datasetPublicationWatcher(
+            provider(mockk<QueryApi>()),
+            QueryDatasets(),
+            properties,
+            provider(registry),
+        )
+        registry.get("wow.analytics.catalog.datasets.sync.age").gauge().value().isNaN().assert().isTrue()
+        registry.get("wow.analytics.catalog.datasets.publication.lag").gauge().value().assert().isEqualTo(0.0)
+        configuration.datasetPublicationsHealthIndicator(watcher).health(false)!!.status.assert()
+            .isEqualTo(Status.OUT_OF_SERVICE)
+        configuration.datasetPublicationWatcher(
+            provider(mockk<QueryApi>()),
+            QueryDatasets(),
+            properties,
+            provider<io.micrometer.core.instrument.MeterRegistry>(null),
+        ).synced.assert().isFalse()
     }
 
     @Test

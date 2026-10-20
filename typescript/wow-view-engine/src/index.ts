@@ -924,6 +924,7 @@ export {
 } from './runtime/define/defineDataset.js';
 export {
   type DatasetCatalog,
+  type DatasetDirectoryEntry,
   type DatasetOverrides,
   type DatasetRegistrar,
   type DatasetResource,
@@ -1037,6 +1038,7 @@ export type {
   ProjectedBase,
   ProjectedRecord,
   ProjectedView,
+  QueryDescriptorResult,
   ViewSource,
 } from './runtime/source.js';
 // store — the `ViewStore` port, the in-memory one and its local snapshot.

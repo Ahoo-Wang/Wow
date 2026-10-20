@@ -18,7 +18,7 @@ import type {
   FieldSortDescriptor,
   QueryModelDescriptor,
   QuerySemanticType,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 
 /**
  * What a descriptor says about one path a definition names, whether a field

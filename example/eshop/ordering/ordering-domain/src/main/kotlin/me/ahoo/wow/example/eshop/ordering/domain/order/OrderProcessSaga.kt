@@ -21,7 +21,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.SagaContext
-import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock
@@ -58,18 +58,18 @@ import me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted
 @Saga
 class OrderProcessSaga {
     @OnEvent
-    fun onOrderSubmitted(event: StateEvent<OrderState>, context: SagaContext): Command<AwaitStockValidation>? =
-        if (event.events.any { it is OrderSubmitted }) context.command(event.ref.id, AwaitStockValidation) else null
+    fun onOrderSubmitted(
+        event: StateTypedEvent<OrderState, OrderSubmitted>,
+        context: SagaContext,
+    ): Command<AwaitStockValidation> = context.command(event.ref.id, AwaitStockValidation)
 
     @OnEvent
-    fun onOrderAwaitingValidation(event: StateEvent<OrderState>, context: SagaContext): List<Command<ReserveStock>> =
-        if (event.events.any { it is OrderAwaitingValidation }) {
-            event.state.quantities().map { (productId, quantity) ->
-                context.command(productId, ReserveStock(event.ref.id, quantity))
-            }
-        } else {
-            emptyList()
-        }
+    fun onOrderAwaitingValidation(
+        event: StateTypedEvent<OrderState, OrderAwaitingValidation>,
+        context: SagaContext,
+    ): List<Command<ReserveStock>> = event.state.quantities().map { (productId, quantity) ->
+        context.command(productId, ReserveStock(event.ref.id, quantity))
+    }
 
     /** A product the inventory reserved confirms it on the order that asked for it. */
     @OnCommitted
@@ -88,14 +88,12 @@ class OrderProcessSaga {
         )
 
     @OnEvent
-    fun onOrderCancelled(event: StateEvent<OrderState>, context: SagaContext): List<Command<ReleaseReservation>> =
-        if (event.events.any { it is OrderCancelled }) {
-            event.state.products().map { productId ->
-                context.command(productId, ReleaseReservation(event.ref.id))
-            }
-        } else {
-            emptyList()
-        }
+    fun onOrderCancelled(
+        event: StateTypedEvent<OrderState, OrderCancelled>,
+        context: SagaContext,
+    ): List<Command<ReleaseReservation>> = event.state.products().map { productId ->
+        context.command(productId, ReleaseReservation(event.ref.id))
+    }
 
     /**
      * A release the inventory rejects needs no compensation: it rejects one only for a product it has no stock of,
@@ -107,12 +105,10 @@ class OrderProcessSaga {
     fun onReleaseRejected(rejected: CommandRejected<ReleaseReservation>) = Unit
 
     @OnEvent
-    fun onOrderShipped(event: StateEvent<OrderState>, context: SagaContext): List<Command<CommitReservation>> =
-        if (event.events.any { it is OrderShipped }) {
-            event.state.products().map { productId ->
-                context.command(productId, CommitReservation(event.ref.id))
-            }
-        } else {
-            emptyList()
-        }
+    fun onOrderShipped(
+        event: StateTypedEvent<OrderState, OrderShipped>,
+        context: SagaContext,
+    ): List<Command<CommitReservation>> = event.state.products().map { productId ->
+        context.command(productId, CommitReservation(event.ref.id))
+    }
 }

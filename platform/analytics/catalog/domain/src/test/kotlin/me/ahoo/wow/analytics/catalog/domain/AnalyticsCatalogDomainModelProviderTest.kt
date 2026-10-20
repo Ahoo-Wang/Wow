@@ -15,6 +15,10 @@ package me.ahoo.wow.analytics.catalog.domain
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
+import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetPolicy
+import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetRejections
+import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetSources
+import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetWarehouse
 import me.ahoo.wow.analytics.catalog.domain.source.SourceRejections
 import me.ahoo.wow.analytics.catalog.domain.warehouse.KnownAggregates
 import me.ahoo.wow.analytics.catalog.domain.warehouse.TrustedWriters
@@ -31,24 +35,30 @@ class AnalyticsCatalogDomainModelProviderTest {
     private val dependencies = Dependencies.of(
         WarehouseCatalog.NONE,
         TrustedWriters.NONE,
-        KnownAggregates { _, _ -> false }
+        KnownAggregates { _, _ -> false },
+        DatasetSources { null },
+        DatasetWarehouse.NONE,
+        DatasetPolicy(),
     )
 
     @Test
-    fun `the binding index should build the source model`() {
+    fun `the binding index should build the source and dataset models`() {
         provider.context.assert().isEqualTo(AnalyticsCatalogContext.NAME)
-        provider.models(dependencies).map { it.type.toString() }.assert().containsExactly("analytics-catalog.source")
+        provider.models(dependencies).map { it.type.toString() }.assert()
+            .containsExactlyInAnyOrder("analytics-catalog.source", "analytics-catalog.dataset")
     }
 
     @Test
-    fun `the fragment should declare a tenant's source without lifecycle, and the catalog's errors`() {
+    fun `the fragment should declare a tenant's source and dataset without lifecycle, and the catalog's errors`() {
         val tree = checkNotNull(javaClass.classLoader.getResourceAsStream(provider.fragment))
             .use { JsonMapper.builder().build().readValue(it, Map::class.java) }
         val context = ManifestTree.read(tree).contexts.single()
-        val source = context.aggregates.single()
-        source.name.assert().isEqualTo(AnalyticsCatalogContext.SOURCE)
-        source.ownership.name.assert().isEqualTo("TENANT")
-        source.lifecycle.assert().isEmpty()
+        context.aggregates.map { it.name }.assert()
+            .containsExactlyInAnyOrder(AnalyticsCatalogContext.SOURCE, AnalyticsCatalogContext.DATASET)
+        context.aggregates.forEach {
+            it.ownership.name.assert().isEqualTo("TENANT")
+            it.lifecycle.assert().isEmpty()
+        }
         context.errors.associate { it.code to it.status }.assert()
             .containsEntry(SourceRejections.INVALID, 400)
             .containsEntry(SourceRejections.TABLE_NOT_FOUND, 404)
@@ -57,5 +67,9 @@ class AnalyticsCatalogDomainModelProviderTest {
             .containsEntry(SourceRejections.LOOSENING, 409)
             .containsEntry(SourceRejections.UNKNOWN_AGGREGATE, 400)
             .containsEntry(SourceRejections.TABLE_MISSING, 409)
+            .containsEntry(DatasetRejections.DEFINITION_INVALID, 400)
+            .containsEntry(DatasetRejections.NAME_TAKEN, 409)
+            .containsEntry(DatasetRejections.NOT_PUBLISHED, 409)
+            .containsEntry(DatasetRejections.VIEW_FAILED, 503)
     }
 }

@@ -27,7 +27,7 @@ import {
   AggregationFunction,
   AggregationGroupType,
   SortDirection,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   fitChartSlots,
   type AnalysisViewConfig,

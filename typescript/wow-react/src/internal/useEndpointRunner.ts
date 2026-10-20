@@ -12,7 +12,12 @@
  */
 
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
-import { type Endpoint, endpointIdentity, postQuery } from './endpoint.js';
+import {
+  type Endpoint,
+  endpointIdentity,
+  postQuery,
+  type QueryKind,
+} from './endpoint.js';
 import { useQueryRunner } from './useQueryRunner.js';
 
 /**
@@ -22,10 +27,11 @@ import { useQueryRunner } from './useQueryRunner.js';
  */
 export function useEndpointRunner<Q extends object, R, E>(
   options: Omit<QueryHookOptions<Q, R, E>, 'execute'> & Endpoint,
+  kind: QueryKind,
 ): QueryHookReturn<Q, R, E> {
   const { url, fetcher, ...rest } = options;
   return useQueryRunner<Q, R, E>(
-    { ...rest, execute: postQuery<Q, R>({ url, fetcher }) },
+    { ...rest, execute: postQuery<Q, R>({ url, fetcher }, kind) },
     endpointIdentity({ url, fetcher }),
   );
 }

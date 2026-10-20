@@ -11,9 +11,7 @@
  * limitations under the License.
  */
 
-import type { FilterListQuery } from '@ahoo-wang/wow-client';
-// compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
-import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
+import type { FilterListQuery } from '@ahoo-wang/wow-client/dsl';
 import { useQueryRunner } from '../internal/useQueryRunner.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 
@@ -30,7 +28,7 @@ export interface UseListQueryOptions<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
+  Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
 > extends QueryHookOptions<Q, R[], E> {}
 
 /**
@@ -45,15 +43,15 @@ export interface UseListQueryReturn<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
+  Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
 > extends QueryHookReturn<Q, R[], E> {}
 
 /**
  * Runs a list query through your own `execute` function and keeps the rows
  * as state: typically a query client's `list` or `listState`.
  *
- * `execute` receives the query, the `attributes` option and an
- * `AbortController`; hand the controller on so that a newer query, `abort()`
+ * `execute` receives the query and the request options of the run, its
+ * `signal` included; hand them on so that a newer query, `abort()`
  * or an unmount cancels the request. The query runs on mount and whenever
  * `query` or `setQuery()` changes it; set `autoExecute: false` to run it only
  * through `execute()`.
@@ -70,36 +68,34 @@ export interface UseListQueryReturn<
  *
  * @example
  * ```tsx
- * import { desc, filter, listQuery, type SnapshotQueryClient } from '@ahoo-wang/wow-client';
+ * import type { SnapshotQueryClient, SnapshotRecord } from '@ahoo-wang/wow-client';
+ * import { desc, filter, listQuery } from '@ahoo-wang/wow-client/dsl';
  * import { useListQuery } from '@ahoo-wang/wow-react';
  *
  * function LatestOrders({ client }: { client: SnapshotQueryClient<OrderState, OrderFields> }) {
- *   const { result, loading, error } = useListQuery<OrderState, OrderFields>({
+ *   const { result, loading, error } = useListQuery<SnapshotRecord<OrderState>, OrderFields>({
  *     initialQuery: listQuery({
  *       filter: filter.eq('state.status', 'PAID'),
  *       sort: [desc('createTime')],
  *       limit: 20,
  *     }),
- *     execute: (query, attributes, abortController) =>
- *       client.listState(query, attributes, abortController),
+ *     execute: (query, options) =>
+ *       client.list(query, options),
  *   });
  *   if (error) return <p role="alert">{error.message}</p>;
  *   if (loading || !result) return <p>Loading…</p>;
- *   return <ul>{result.map(order => <li key={order.id}>{order.id}</li>)}</ul>;
+ *   return <ul>{result.map(order => <li key={order.aggregateId}>{order.state.status}</li>)}</ul>;
  * }
  * ```
  */
 export function useListQuery<R, FIELDS extends string = string, E = Error>(
   options: UseListQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
 ): UseListQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
-export function useListQuery<R, FIELDS extends string = string, E = Error>(
-  options: UseListQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
-): UseListQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
 export function useListQuery<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
+  Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseListQueryOptions<R, FIELDS, E, Q>,
 ): UseListQueryReturn<R, FIELDS, E, Q>;
@@ -107,7 +103,7 @@ export function useListQuery<
   R,
   FIELDS extends string,
   E,
-  Q extends ListQueryRequest<FIELDS>,
+  Q extends FilterListQuery<FIELDS>,
 >(
   options: UseListQueryOptions<R, FIELDS, E, Q>,
 ): UseListQueryReturn<R, FIELDS, E, Q> {

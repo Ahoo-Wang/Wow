@@ -11,24 +11,96 @@
  * limitations under the License.
  */
 
-// The query DSL: the modules `/dsl` exports.
-export * from './dsl/filter/index.js';
-export * from './dsl/aggregation/index.js';
-export * from './dsl/sort.js';
-export * from './dsl/projection.js';
-export * from './dsl/pagination.js';
-export * from './dsl/cursorQuery.js';
-export * from './dsl/queryable.js';
-export * from './dsl/deletionState.js';
-export * from './dsl/documents.js';
-export * from './dsl/descriptor.js';
-
-// The clients, and the transport they share.
-export * from './client/command/index.js';
-export * from './client/metadata/index.js';
-export * from './client/query/index.js';
-export * from './client/routing.js';
-export * from './transport/index.js';
-
-export * from './model/index.js';
-export * from './error/index.js';
+/**
+ * `@ahoo-wang/wow-client`: the client of a Wow service's public
+ * routes — commands with `Wow-Wait` and their event streams, state reads and
+ * traces, the snapshot, event and dataset query routes, the Manifest, and
+ * RFC 9457 problems as {@link WowProblemError}s with retry hints. Code
+ * `wow-generator` generates from a Manifest builds on it.
+ *
+ * Build queries with the DSL of `@ahoo-wang/wow-client/dsl`.
+ */
+export {
+  type ApplyTags,
+  CommandGateway,
+  type CommandOptions,
+  commandSegment,
+  type CreateCommandOptions,
+  type LifecycleCommand,
+  LifecycleCommands,
+  newRequestId,
+  type TransferOwner,
+  type TransferSpace,
+} from './commands.js';
+export {
+  formatScope,
+  type RequestOptions,
+  type TargetScope,
+  type WowClientOptions,
+  WowHeaders,
+} from './http.js';
+export {
+  type AggregateManifest,
+  type CommandManifest,
+  type ContextManifest,
+  type Creation,
+  type ErrorManifest,
+  type EventManifest,
+  fetchManifest,
+  type Manifest,
+  MANIFEST_FORMAT,
+  type QueryManifest,
+  type RouteManifest,
+  type SubscriptionManifest,
+} from './manifest.js';
+export * from './wire.js';
+export {
+  FRAMEWORK_ERROR_PREFIX,
+  type FrameworkErrorCode,
+  FrameworkErrorCodes,
+  isProblem,
+  parseRetryAfter,
+  type Problem,
+  PROBLEM_TYPE_PREFIX,
+  readProblem,
+  requestIdOf,
+  type RetryHint,
+  retryHintOf,
+  toWowProblemError,
+  WowProblemError,
+} from './problem.js';
+export {
+  type CountQuery,
+  type CountResult,
+  DatasetClient,
+  type DescriptorResult,
+  EventQueryClient,
+  type ListStreamOptions,
+  type PagedQuery,
+  type PagedResult,
+  QueryModelClient,
+  queryPath,
+  SnapshotQueryClient,
+  type TotalMode,
+} from './queries.js';
+export {
+  StateClient,
+  type StateReadOptions,
+  type StateReadResult,
+  type StateTraceOptions,
+} from './state.js';
+export {
+  type CommandResultStream,
+  type StreamedRow,
+  type StreamEnd,
+  type StreamEndReason,
+  type StreamResumeOptions,
+} from './streams.js';
+export {
+  formatHop,
+  formatWaitPlan,
+  formatWaitTimeout,
+  SNAPSHOT_SUBSCRIPTION,
+  wait,
+  type WaitOptions,
+} from './wait.js';

@@ -18,13 +18,13 @@
  */
 
 import type { Fetcher } from '@ahoo-wang/fetcher';
+import { QueryModelClient } from '@ahoo-wang/wow-client';
 import {
   filter,
   listQuery,
   pagedQuery,
   singleQuery,
-  SnapshotQueryClient,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   useCountQuery,
   useFetcherCountQuery,
@@ -74,59 +74,56 @@ export function SsrProbe({
   fetcher: Fetcher;
   autoExecute?: boolean;
 }) {
-  const client = new SnapshotQueryClient<unknown>({
-    fetcher,
-    basePath: 'order',
-  });
-  const url = (path: string) => ({ fetcher, url: `order/snapshot/${path}` });
+  const route = { fetcher, url: '/shop/order/snapshot/query' };
+  const client = new QueryModelClient<unknown>(route.url, { fetcher });
   const hooks: Shown[] = [
     useSingleQuery<unknown>({
       initialQuery: singleQuery({ filter: paid }),
       autoExecute,
-      execute: (q, a, c) => client.singleState(q, a, c),
+      execute: (q, o) => client.single(q, o),
     }),
     useListQuery<unknown>({
       initialQuery: listQuery({ filter: paid }),
       autoExecute,
-      execute: (q, a, c) => client.listState(q, a, c),
+      execute: (q, o) => client.list(q, o),
     }),
     usePagedQuery<unknown>({
       initialQuery: pagedQuery({ filter: paid }),
       autoExecute,
-      execute: (q, a, c) => client.pagedState(q, a, c),
+      execute: (q, o) => client.paged(q, o),
     }),
     useCountQuery({
-      initialQuery: paid,
+      initialQuery: { filter: paid },
       autoExecute,
-      execute: (q, a, c) => client.count(q, a, c),
+      execute: (q, o) => client.count(q, o),
     }),
     useListStreamQuery<unknown>({
       initialQuery: listQuery({ filter: paid }),
       autoExecute,
-      execute: (q, a, c) => client.listStateStream(q, a, c),
+      execute: (q, o) => client.listStream(q, o),
     }),
     useFetcherSingleQuery<unknown>({
-      ...url('single/state'),
+      ...route,
       initialQuery: singleQuery({ filter: paid }),
       autoExecute,
     }),
     useFetcherListQuery<unknown>({
-      ...url('list/state'),
+      ...route,
       initialQuery: listQuery({ filter: paid }),
       autoExecute,
     }),
     useFetcherPagedQuery<unknown>({
-      ...url('paged/state'),
+      ...route,
       initialQuery: pagedQuery({ filter: paid }),
       autoExecute,
     }),
     useFetcherCountQuery({
-      ...url('count'),
-      initialQuery: paid,
+      ...route,
+      initialQuery: { filter: paid },
       autoExecute,
     }),
     useFetcherListStreamQuery<unknown>({
-      ...url('list/state'),
+      ...route,
       initialQuery: listQuery({ filter: paid }),
       autoExecute,
     }),

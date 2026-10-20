@@ -13,17 +13,34 @@
 
 package me.ahoo.wow.query.dataset
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CountResult
+import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.ICountQuery
+import me.ahoo.wow.api.query.ICursorQuery
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.query.DefaultQueryGateway
+import me.ahoo.wow.query.PositionedRecord
+import me.ahoo.wow.query.QueryCaller
+import me.ahoo.wow.query.QueryDatasetUnavailableException
+import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.QueryPolicy
+import me.ahoo.wow.query.descriptor.QueryModelDescriptor
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
+import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -87,7 +104,8 @@ class DatasetQueryGateways(gateways: Collection<DatasetQueryGateway>) {
         val NONE: DatasetQueryGateways = DatasetQueryGateways(emptyList())
 
         /**
-         * The gateways of [datasets], each [create]d for its dataset, now and whenever one joins or changes.
+         * The gateways of [datasets], each [create]d for its dataset, now and whenever one joins or changes; a dataset
+         * that is [unavailable][QueryDataset.unavailable] gets one that answers every query with why.
          * [requireServable] refuses a dataset no gateway can be made for (no backend serves its binding, say) before
          * it joins. A gateway is created once the change is applied, so it reads the schema of the declaration it
          * serves: build this after the Catalog that follows the same [datasets].
@@ -99,8 +117,11 @@ class DatasetQueryGateways(gateways: Collection<DatasetQueryGateway>) {
             requireServable: (QueryDataset) -> Unit = {},
             create: (QueryDataset) -> DatasetQueryGateway,
         ): DatasetQueryGateways {
+            val served = { dataset: QueryDataset ->
+                if (dataset.unavailable == null) create(dataset) else UnavailableDatasetQueryGateway(dataset)
+            }
             datasets.all.forEach(requireServable)
-            val gateways = DatasetQueryGateways(datasets.all.map(create))
+            val gateways = DatasetQueryGateways(datasets.all.map(served))
             if (datasets === QueryDatasets.NONE) return gateways
             datasets.listen(
                 object : QueryDatasetListener {
@@ -112,7 +133,7 @@ class DatasetQueryGateways(gateways: Collection<DatasetQueryGateway>) {
                         val name = change.dataset.name
                         when (change) {
                             is QueryDatasetChange.Removed -> gateways.byName.remove(name)
-                            else -> gateways.byName[name] = create(change.dataset)
+                            else -> gateways.byName[name] = served(change.dataset)
                         }
                     }
                 },
@@ -148,4 +169,40 @@ class DatasetQueryGateways(gateways: Collection<DatasetQueryGateway>) {
             )
         }
     }
+}
+
+/**
+ * The gateway of a dataset that cannot be queried now ([QueryDataset.unavailable]): every query and the descriptor
+ * fail with a [QueryDatasetUnavailableException], before anything reads its table.
+ */
+@ExperimentalWowApi
+internal class UnavailableDatasetQueryGateway(override val dataset: QueryDataset) : DatasetQueryGateway {
+    override val aggregateType: AggregateType get() = dataset.name
+    override val entryPolicy: QueryEntryPolicy get() = QueryEntryPolicy.DEFAULT
+
+    private fun unavailable(): Nothing = throw QueryDatasetUnavailableException(
+        dataset.name,
+        checkNotNull(dataset.unavailable)
+    )
+
+    override suspend fun single(query: ISingleQuery, caller: QueryCaller): ObjectNode? = unavailable()
+
+    override fun list(query: IListQuery, caller: QueryCaller): Flow<ObjectNode> = flow { unavailable() }
+
+    override fun stream(
+        query: IListQuery,
+        caller: QueryCaller,
+        after: String?,
+        chunkSize: Int,
+    ): Flow<PositionedRecord> = flow { unavailable() }
+
+    override suspend fun paged(query: IPagedQuery, caller: QueryCaller): PagedList<ObjectNode> = unavailable()
+
+    override suspend fun cursor(query: ICursorQuery, caller: QueryCaller): CursorPage<ObjectNode> = unavailable()
+
+    override suspend fun count(query: ICountQuery, caller: QueryCaller): CountResult = unavailable()
+
+    override fun aggregate(query: AggregationQuery, caller: QueryCaller): Flow<ObjectNode> = flow { unavailable() }
+
+    override suspend fun describe(entry: QueryEntry, defaultListSize: Int?): QueryModelDescriptor = unavailable()
 }

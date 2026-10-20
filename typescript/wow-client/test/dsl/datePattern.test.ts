@@ -25,7 +25,7 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { filter } from '../../src';
+import { filter } from '../../src/dsl.js';
 
 interface DatePatternCorpus {
   source: string;

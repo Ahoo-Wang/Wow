@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_PAGINATION, pagination } from '../../src';
+import { DEFAULT_PAGINATION, pagination } from '../../src/dsl.js';
 
 describe('pagination', () => {
   it('should export DEFAULT_PAGINATION with correct values', () => {

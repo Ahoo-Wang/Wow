@@ -17,7 +17,7 @@ It succeeds `@ahoo-wang/fetcher-viewer`, which stays on Fetcher 5.x and is not d
 
 | To | Read |
 |---|---|
-| Wire one business object from zero: install, the query descriptor, `defineView`, the engine, `ViewHost`, one action, run against the example server | [Getting Started with the View Engine](./view-engine-getting-started.md) |
+| Wire one business object from zero: install, the query descriptor, `defineView`, the engine, `ViewHost`, one action, run against the example server | Getting Started with the View Engine |
 | Learn the words first: definition, record and analysis views, boards, system / shared / personal views, revision and the store, and how they connect | [View Engine Core Concepts](./view-engine-concepts.md) |
 | Write a definition: the descriptor's facts, text keys, narrowing, `rowFields`, system views and boards, checking it with `admit` | [Writing a Definition](./view-engine-definitions.md) |
 | Wear a built-in look, use a brand colour, or follow the host's shadcn theme | [Theming the View Engine](./view-engine-theming.md) |
@@ -95,7 +95,7 @@ To see what the engine draws first, open the [chart showcase board](/storybook/?
 
 ## Where to read more
 
-- [Getting Started with the View Engine](./view-engine-getting-started.md): the example server's sales orders wired in from zero, one file a step.
+- Getting Started with the View Engine: the example server's sales orders wired in from zero, one file a step.
 - [View Engine Core Concepts](./view-engine-concepts.md): definitions, views, boards, system / shared / personal views, revision and the store — what each is and why they are split this way.
 - [Writing a Definition](./view-engine-definitions.md): start from the descriptor's facts, make each choice, write the words and the system views, and check it with `admit`.
 - [Fitting the View Engine into a Host](./view-engine-host.md): one engine, the ports of `ViewHost`, `bind`, the router, embeds, messages and locale, and testing the wiring with `/testing`.
