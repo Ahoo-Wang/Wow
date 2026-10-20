@@ -13,14 +13,13 @@
 
 package me.ahoo.wow.example.eshop.basket.domain.basket
 
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut
-import me.ahoo.wow.example.eshop.ordering.api.OrderingContext
+import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 
@@ -52,6 +51,6 @@ class BasketCheckoutSaga {
     }
 
     private companion object {
-        val ORDER = AggregateType(OrderingContext.NAME, OrderingContext.ORDER)
+        val ORDER = EshopOrderingContract.Order.TYPE
     }
 }

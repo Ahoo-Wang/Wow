@@ -77,8 +77,11 @@ import java.util.Properties
  *   ([AssembleContract]), which fails when a context's command and event classes are not all in the api module.
  *   A service then knows a peer context by depending on its api module alone. An api module with the Kotlin JVM
  *   plugin also compiles `<package>.<Context>Contract` per context from its contract ([GenerateContractSources],
- *   source set [CONTRACT_SOURCE_SET], decision D259) into its classes and jar; its paired domain modules compile
- *   against a core view of it without that code (attribute [API_VIEW]), every other consumer against all of it.
+ *   source set [CONTRACT_SOURCE_SET], decision D259): the context's name and, per aggregate, its type, refs,
+ *   ownership, query models and, with `wow-query-api` on its class path, the query fields of its state, named as the
+ *   compiler names the domain module's `<State>Properties`. Its classes and jar carry that code; its paired domain
+ *   modules compile against a core view of it without that code (attribute [API_VIEW]), every other consumer against
+ *   all of it. The generator runs in a worker over the api module's own [TOOLS_CONFIGURATION].
  *
  * The pairing configures the api project from the domain module's, which Gradle's isolated projects forbid; the
  * plugin is not compatible with them (decision D234: a settings plugin pairing `x-api` with `x-domain` by name takes
@@ -252,10 +255,14 @@ class WowPlugin : Plugin<Project> {
     private fun contractSources(api: Project, main: SourceSet, assemble: TaskProvider<AssembleContract>) {
         val sourceSets = api.extensions.getByType(SourceSetContainer::class.java)
         val generated = sourceSets.create(CONTRACT_SOURCE_SET)
+        val tools = toolsConfiguration(api)
         val generate = api.tasks.register(GENERATE_CONTRACT_SOURCES_TASK, GenerateContractSources::class.java) { task ->
             task.group = GROUP_NAME
-            task.description = "Generates the constants and refs of this api module's contexts from its contract."
+            task.description = "Generates the constants, refs and query fields of this api module's contexts from " +
+                "its contract."
             task.contract.from(assemble.map { it.outputDirectory.file(PeerContracts.RESOURCE) })
+            task.classpath.from(api.provider { generated.compileClasspath })
+            task.tools.from(tools)
             task.outputDirectory.set(api.layout.buildDirectory.dir("generated/wow/contract/kotlin"))
         }
         (generated.extensions.getByName("kotlin") as SourceDirectorySet).srcDir(generate)
@@ -437,6 +444,7 @@ class WowPlugin : Plugin<Project> {
      * `me.ahoo.wow:wow-manifest-tools` of the plugin's version; declaring a dependency in it replaces that default.
      */
     private fun toolsConfiguration(project: Project): Configuration {
+        project.configurations.findByName(TOOLS_CONFIGURATION)?.let { return it }
         val objects = project.objects
         return project.configurations.create(TOOLS_CONFIGURATION) { configuration ->
             configuration.description = "The tools the Wow Manifest tasks run in their isolated workers."

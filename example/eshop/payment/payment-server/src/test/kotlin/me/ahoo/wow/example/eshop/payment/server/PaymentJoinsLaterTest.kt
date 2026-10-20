@@ -15,8 +15,8 @@ package me.ahoo.wow.example.eshop.payment.server
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.spi.state.StateEventPayload
@@ -103,7 +103,7 @@ class PaymentJoinsLaterTest {
         payment.streams(ORDER.id).any { stream -> stream.events.any { it.name.endsWith("PaymentSucceeded") } }
 
     companion object {
-        val ORDER = AggregateType("eshop-ordering", "order").ref(Caller.DEFAULT_TENANT, "order-early")
+        val ORDER = EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "order-early")
         private val DEADLINE: Duration = Duration.ofSeconds(30)
         private val POLL: Duration = Duration.ofMillis(100)
     }

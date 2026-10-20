@@ -59,7 +59,12 @@ dependencies {
     integrationTestImplementation("org.testcontainers:testcontainers-kafka")
     // CatalogPostgresTest: the catalog's storefront queries on PostgreSQL (work package E.1).
     integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
-    // ... and the storefront's query written with the query DSL and the catalog's generated ProductStateProperties (D204).
+    // ... and the storefront's query written with the query DSL and the catalog api's generated query fields (D204,
+    // D259). The tests name every context's aggregates by the contract code of its api (EshopOrderingContract, ...).
+    listOf("catalog", "basket", "ordering", "inventory", "payment").forEach {
+        integrationTestImplementation(project(":eshop-$it-api"))
+    }
+    // ... read as the catalog's ProductState through QueryApi (R4-Q3).
     integrationTestImplementation(project(":eshop-catalog-domain"))
     // EshopFullChainTest and EshopLoad: the ordering's order stream in ClickHouse, for the sales dataset (E.6).
     integrationTestImplementation("org.testcontainers:testcontainers-clickhouse")

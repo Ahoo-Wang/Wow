@@ -14,8 +14,10 @@
 package me.ahoo.wow.example.eshop.inventory.domain
 
 import me.ahoo.wow.api.annotation.BoundedContext
-import me.ahoo.wow.example.eshop.inventory.api.InventoryContext
 
-/** Names the bounded context of this module's aggregates for the compiler. */
-@BoundedContext(name = InventoryContext.NAME, description = "The eShop inventory: the stock of each product")
+/**
+ * Names the bounded context of this module's aggregates for the compiler. The name is declared here, once: the api
+ * module's generated `EshopInventoryContract.NAME` comes from it (decision D259).
+ */
+@BoundedContext(name = "eshop-inventory", description = "The eShop inventory: the stock of each product")
 object InventoryBoundedContext

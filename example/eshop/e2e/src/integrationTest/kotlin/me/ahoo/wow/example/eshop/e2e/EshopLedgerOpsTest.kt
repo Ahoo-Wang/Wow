@@ -14,9 +14,9 @@
 package me.ahoo.wow.example.eshop.e2e
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerResolution
+import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
 import me.ahoo.wow.ops.api.parked.ParkedStatus
 import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.clients.admin.AdminClientConfig
@@ -121,7 +121,7 @@ class EshopLedgerOpsTest {
         )
         submitted.status.assert().describedAs(submitted.body).isEqualTo(OK)
         val tenant = json.readTree(submitted.body)["ref"]["tenantId"].asString()
-        val parked = AggregateType("eshop-payment", "payment").ref(tenant, "carol-1")
+        val parked = EshopPaymentContract.Payment.ref(tenant, "carol-1")
         val id = Ledger.parkedId("eshop-payment-service", GATEWAY_SAGA, parked)
 
         // The ops service lists the entry the payment service parked and published, as an operator queries it.

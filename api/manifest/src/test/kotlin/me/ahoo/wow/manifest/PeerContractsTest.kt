@@ -73,7 +73,10 @@ class PeerContractsTest {
         cart.commands.first().produces.assert().containsExactly("CartCreated")
         cart.commands[1].aliases.assert().containsExactly("AddItem")
         cart.events.map { it.revision }.assert().containsExactly(1, 2)
-        cart.queries.assert().isEmpty()
+        // The query models a peer reads, without their routes; and who the aggregate belongs to.
+        cart.queries.map { it.model }.assert().containsExactly(QueryRoutes.SNAPSHOT, QueryRoutes.EVENTS)
+        cart.queries.flatMap { it.routes }.assert().isEmpty()
+        cart.ownership.assert().isEqualTo(Ownership.OWNER)
         cart.lifecycle.assert().isEmpty()
         cart.state.fingerprint.assert().isEqualTo("abc123")
         val saga = context.subscriptions.first { it.name == "CheckoutSaga.onRefundRejected" }
@@ -86,6 +89,42 @@ class PeerContractsTest {
         scheduled.start.assert().isNull()
         // The referenced schemas and those they refer to; neither the mounted command's nor an unreferenced one.
         contract.defs.keys.assert().containsExactly("sample.CartState", "sample.CreateCart", "sample.Item")
+    }
+
+    @Test
+    fun `the contract should withhold the state of an aggregate published without it`() {
+        val shop = fragment().contexts.single()
+        val cart = shop.aggregates.single().copyWith(ownership = Ownership.TENANT)
+        val stateless = fragment().withContexts(
+            listOf(
+                shop.copyWith(
+                    aggregates = listOf(cart),
+                    published = shop.published.map { it.copyWith(includeState = false) }
+                )
+            ),
+        )
+        val contract = PeerContracts.contractOf(listOf(stateless))
+        val aggregate = contract.contexts.single().aggregates.single()
+        aggregate.ownership.assert().isEqualTo(Ownership.TENANT)
+        aggregate.state.schema.assert().isEqualTo(Manifest.schemaRef("sample.CartState"))
+        // An object of undisclosed structure, and none of the definitions only the state refers to.
+        contract.defs["sample.CartState"].assert().isEqualTo(mapOf("type" to "object"))
+        contract.defs.keys.assert().containsExactly("sample.CartState", "sample.CreateCart")
+    }
+
+    @Test
+    fun `a withheld state that a command also refers to should keep its schema`() {
+        val shop = fragment().contexts.single()
+        val cart = shop.aggregates.single().let { it.withState(StateManifest(it.commands.first().schema)) }
+        val stateless = fragment().withContexts(
+            listOf(
+                shop.copyWith(
+                    aggregates = listOf(cart),
+                    published = shop.published.map { it.copyWith(includeState = false) }
+                )
+            ),
+        )
+        PeerContracts.contractOf(listOf(stateless)).defs.keys.assert().containsExactly("sample.CreateCart")
     }
 
     @Test

@@ -9,8 +9,9 @@
  * module's resources, so the Manifest a server merges from its runtime class path carries them.
  *
  * The completion reads the classes variants of the runtime class path (a project's classes directories, a module's
- * jar), never a project's jar: an api module's jar carries the contract of the domain modules that depend on it
- * (example/wow-contract.gradle.kts, applied last), so reading it would be a task cycle.
+ * jar), never a project's jar, and the module's core view of its api modules: an api module's jar and its generated
+ * code carry the contract of the domain modules that depend on it (example/wow-contract.gradle.kts, applied last), so
+ * reading them would be a task cycle.
  *
  * As the plugin's worker does, the tools run in a class loader of their own over the module's classes and runtime class
  * path first, then the tools' (victools, Jackson, the kernel), with the JDK's platform class loader as parent: none of
@@ -41,6 +42,7 @@ val compilerFragments = files(layout.buildDirectory.dir("generated/ksp/main/reso
     .asFileTree
     .matching { include("$fragmentDirectoryName/*.json") }
 val completedDirectory = layout.buildDirectory.dir("wow/manifest-fragment")
+val modulePath = path
 
 val generateWowManifestFragment = tasks.register("generateWowManifestFragment") {
     group = "wow"
@@ -49,6 +51,8 @@ val generateWowManifestFragment = tasks.register("generateWowManifestFragment") 
     val runtimeClasses = configurations.getByName(main.runtimeClasspathConfigurationName).incoming.artifactView {
         attributes {
             attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.CLASSES))
+            // The core view of the module's api modules, without the code generated from its contract.
+            attribute(Attribute.of("me.ahoo.wow.api-view", String::class.java), "core$modulePath")
         }
     }.files
     val classpath = files(main.output.classesDirs, runtimeClasses)

@@ -14,13 +14,14 @@
 package me.ahoo.wow.example.eshop.ordering.domain.order
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation
+import me.ahoo.wow.example.eshop.inventory.api.stock.EshopInventoryContract
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock
 import me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock
+import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderAwaitingValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderCancelled
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
@@ -37,8 +38,8 @@ import java.math.BigDecimal
  * handler of the saga reads the order, so each commit goes to all of them, as their subscriptions would hand it.
  */
 class OrderProcessSagaTest {
-    private val order = AggregateType("eshop-ordering", "order").ref(TENANT, ORDER)
-    private val stock = AggregateType("eshop-inventory", "stock")
+    private val order = EshopOrderingContract.Order.ref(TENANT, ORDER)
+    private val stock = EshopInventoryContract.Stock.TYPE
     private val handlers = orderProcessSagaHandlers(Dependencies.NONE)
 
     /** The order's state: two lines of the mug and one of the cap. */

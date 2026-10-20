@@ -38,9 +38,13 @@ import java.util.zip.ZipFile
  *
  * - `shop-domain` (context `shop`, aggregate `cart`) declares `api(project(":shop-api"))`: `shop-api` compiles
  *   `shopapi.ShopContract` from the contract it carries, and `shop-domain`'s tests use it;
- * - `shop-server` depends on `shop-domain`, `orders` (another Wow domain module, context `orders`) and `client` (no
- *   Wow plugin) on `shop-api`: each compiles against `ShopContract`;
+ * - `shop-server` (Kotlin and Java sources) depends on `shop-domain`, `orders` (another Wow domain module, context
+ *   `orders`), `client` (no Wow plugin) and `java-client` (Java only) on `shop-api`: each compiles against
+ *   `ShopContract`;
  * - `external`, a build of its own, compiles against the published `shop-api`.
+ *
+ * `wow-query-api` is on every class path, so the compiler writes `shopdomain.CartStateProperties` and the contract
+ * code holds the same query fields.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @TestMethodOrder(MethodOrderer.OrderAnnotation::class)
@@ -63,7 +67,6 @@ class WowContractSourcesFunctionalTest {
         val tools = if (wow) {
             """
             ksp(files(${classpath("wow.fixture.processorClasspath")}))
-            wowManifestTools(files(${classpath("wow.fixture.toolsClasspath")}))
             """
         } else {
             ""
@@ -87,13 +90,17 @@ class WowContractSourcesFunctionalTest {
                 $dependencies
             }
             ${if (wow) "wow { addCompilerDependency = false }" else ""}
+            // An api module paired with a domain module runs the contract code generator of the tools too.
+            configurations.matching { it.name == "wowManifestTools" }.configureEach {
+                project.dependencies.add(name, files(${classpath("wow.fixture.toolsClasspath")}))
+            }
             $extra
             """,
         )
     }
 
-    /** The aggregate [type] of `shop-domain`, whose messages are in `shop-api`. */
-    private fun aggregate(type: String) {
+    /** The aggregate [type] of `shop-domain`, whose messages are in `shop-api`; [state] adds to its state. */
+    private fun aggregate(type: String, state: String = "", types: String = "") {
         write(
             "shop-api/src/main/kotlin/shopapi/$type.kt",
             """
@@ -123,12 +130,39 @@ class WowContractSourcesFunctionalTest {
 
             class ${type}State(val id: String) {
                 var name: String? = null
+                $state
 
                 fun onSourcing(event: ${type}Created) { name = event.name }
             }
+            $types
             """,
         )
     }
+
+    /** The shapes of state a query field walk meets: nested, nullable, listed, renamed, ignored, mapped, recursive. */
+    private val cartState = """
+                var status: CartStatus = CartStatus.OPEN
+                var lines: List<CartLine> = emptyList()
+                var address: CartAddress? = null
+                var attributes: Map<String, String> = emptyMap()
+                var totalURLCount: Int = 0
+                @com.fasterxml.jackson.annotation.JsonIgnore
+                var secret: String = ""
+                val computed: Int get() = 1
+    """
+    private val cartTypes = """
+            enum class CartStatus { OPEN, CLOSED }
+
+            @JvmInline
+            value class Sku(val value: String)
+
+            data class CartLine(val sku: Sku, val productId: String, val quantity: Int, val parent: CartLine? = null)
+
+            data class CartAddress(
+                val city: String,
+                @com.fasterxml.jackson.annotation.JsonProperty("zip") val postalCode: String,
+            )
+    """
 
     /** Code of [module] in source set [sourceSet] that uses the generated `ShopContract`. */
     private fun usage(
@@ -149,6 +183,38 @@ class WowContractSourcesFunctionalTest {
             }
             """,
         )
+
+    /** Java code of [module] that reads the generated `ShopContract` as static members. */
+    private fun javaUsage(module: String) {
+        val pkg = module.replace('-', '_')
+        write(
+            "$module/src/main/java/$pkg/JavaUsage.java",
+            """
+            package $pkg;
+
+            import java.util.List;
+            import me.ahoo.wow.api.aggregate.AggregateRef;
+            import me.ahoo.wow.api.aggregate.AggregateType;
+            import me.ahoo.wow.api.aggregate.Ownership;
+            import me.ahoo.wow.api.query.QueryField;
+            import shopapi.ShopContract;
+
+            public final class JavaUsage {
+                public static final String CONTEXT = ShopContract.NAME;
+                public static final String AGGREGATE = ShopContract.Cart.NAME;
+                public static final AggregateType TYPE = ShopContract.Cart.TYPE;
+                public static final AggregateRef REF = ShopContract.Cart.ref("t", "1");
+                public static final Ownership OWNERSHIP = ShopContract.Cart.OWNERSHIP;
+                public static final List<String> MODELS = ShopContract.Cart.QUERY_MODELS;
+                public static final QueryField PRODUCT = ShopContract.Cart.STATE__LINES__PRODUCT_ID;
+                public static final QueryField VERSION = ShopContract.Cart.INSTANCE.VERSION;
+
+                private JavaUsage() {
+                }
+            }
+            """,
+        )
+    }
 
     private fun runner(vararg arguments: String, dir: File = projectDir): GradleRunner = GradleRunner.create()
         .withProjectDir(dir)
@@ -189,6 +255,25 @@ class WowContractSourcesFunctionalTest {
         )
     }
 
+    /** The Java consumers: Java sources in `shop-server`, and `java-client`, a Java library on `shop-api`. */
+    private fun javaClients() {
+        javaUsage("shop-server")
+        write(
+            "java-client/build.gradle.kts",
+            """
+            plugins { `java-library` }
+
+            repositories { mavenCentral() }
+
+            dependencies {
+                implementation(project(":shop-api"))
+                implementation(files(${classpath("wow.fixture.compileClasspath")}))
+            }
+            """,
+        )
+        javaUsage("java-client")
+    }
+
     @BeforeAll
     fun build(@TempDir directory: File) {
         projectDir = directory
@@ -196,7 +281,7 @@ class WowContractSourcesFunctionalTest {
             "settings.gradle.kts",
             """
             rootProject.name = "services"
-            include("shop-api", "shop-domain", "shop-server", "orders", "client")
+            include("shop-api", "shop-domain", "shop-server", "orders", "client", "java-client")
             """,
         )
         write("gradle.properties", "kotlin.compiler.execution.strategy=in-process\norg.gradle.jvmargs=-Xmx1g")
@@ -223,7 +308,7 @@ class WowContractSourcesFunctionalTest {
             object ShopContext
             """,
         )
-        aggregate("Cart")
+        aggregate("Cart", cartState, cartTypes)
         usage("shop-domain", sourceSet = "test")
         module(
             "shop-server",
@@ -236,12 +321,15 @@ class WowContractSourcesFunctionalTest {
         usage("orders")
         module("client", plugins = "", dependencies = """implementation(project(":shop-api"))""")
         usage("client")
+        javaClients()
         result = runner(
             ":shop-api:publish",
             ":shop-domain:compileTestKotlin",
             ":shop-server:compileKotlin",
             ":orders:${WowPlugin.MERGE_TASK}",
             ":client:compileKotlin",
+            ":shop-server:compileJava",
+            ":java-client:compileJava",
         ).build()
     }
 
@@ -252,12 +340,39 @@ class WowContractSourcesFunctionalTest {
             ":shop-api:${WowPlugin.GENERATE_CONTRACT_SOURCES_TASK}"
         )?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS)
         File(projectDir, "shop-api/build/generated/wow/contract/kotlin/shopapi/ShopContract.kt").readText()
-            .assert().contains("object ShopContract", "const val NAME: String = \"shop\"", "object Cart")
+            .assert().contains(
+                "object ShopContract",
+                "const val NAME: String = \"shop\"",
+                "object Cart : SnapshotProperties()",
+                "QUERY_MODELS: List<String> = listOf(\"snapshot\", \"events\")",
+            )
         ZipFile(File(projectDir, "repo/sample/shop-api/1.0.0/shop-api-1.0.0.jar")).use { jar ->
             listOf("shopapi/ShopContract.class", "shopapi/ShopContract\$Cart.class", "shopapi/CreateCart.class")
                 .forEach { jar.getEntry(it).assert().isNotNull() }
         }
     }
+
+    @Test
+    @Order(1)
+    fun `the contract's query fields should be named as the compiler names the state's`() {
+        val compiler = File(projectDir, "shop-domain/build/generated/ksp/main/kotlin/shopdomain/CartStateProperties.kt")
+        val contract = File(projectDir, "shop-api/build/generated/wow/contract/kotlin/shopapi/ShopContract.kt")
+        val generated = queryFields(contract.readText())
+        generated.assert().isEqualTo(queryFields(compiler.readText()))
+        generated.assert().containsEntry("STATE__LINES__PRODUCT_ID", "state.lines.productId")
+            .containsEntry("STATE__ADDRESS__ZIP", "state.address.zip")
+            .containsEntry("STATE__LINES__PARENT", "state.lines.parent")
+            .doesNotContainKey("STATE__SECRET")
+            .doesNotContainKey("STATE__ATTRIBUTES__KEY")
+            .doesNotContainKey("STATE__COMPUTED")
+    }
+
+    /** The `QueryField` constants of a generated source, name to path. */
+    private fun queryFields(source: String): Map<String, String> =
+        Regex(
+            """val (\w+): (?:me\.ahoo\.wow\.api\.query\.)?QueryField = (?:me\.ahoo\.wow\.api\.query\.)?QueryField\("([^"]+)"\)"""
+        )
+            .findAll(source).associate { it.groupValues[1] to it.groupValues[2] }
 
     @Test
     @Order(2)
@@ -273,7 +388,9 @@ class WowContractSourcesFunctionalTest {
             ":shop-domain:compileTestKotlin",
             ":shop-server:compileKotlin",
             ":orders:compileKotlin",
-            ":client:compileKotlin"
+            ":client:compileKotlin",
+            ":shop-server:compileJava",
+            ":java-client:compileJava",
         )
             .forEach { result.task(it)?.outcome.assert().isEqualTo(TaskOutcome.SUCCESS) }
     }

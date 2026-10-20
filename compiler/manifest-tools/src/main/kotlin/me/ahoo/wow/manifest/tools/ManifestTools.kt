@@ -107,5 +107,23 @@ object ManifestTools {
         return true
     }
 
+    /**
+     * Writes the Kotlin sources generated from the api module's [contracts] (none, or the one `assembleWowContract`
+     * wrote) under [output], which it clears first ([ContractSources], decision D259); with [queryFields], the query
+     * field constants of the states too. What the Gradle plugin's `generateWowContractSources` does. Returns the
+     * number of files written.
+     */
+    @JvmStatic
+    fun generateContractSources(contracts: List<File>, queryFields: Boolean, output: File): Int {
+        output.deleteRecursively()
+        val sources = contracts.filter { it.isFile }.map(ManifestJson::read).flatMap {
+            ContractSources.of(it, queryFields)
+        }
+        sources.forEach { source ->
+            File(output, source.path).apply { parentFile.mkdirs() }.writeText(source.text)
+        }
+        return sources.size
+    }
+
     private const val UPDATE_BASELINE_TASK = "updateManifestBaseline"
 }

@@ -14,8 +14,8 @@
 package me.ahoo.wow.example.eshop.payment.domain.payment
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.example.eshop.payment.api.PaymentContext
 import me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment
+import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
 import me.ahoo.wow.example.eshop.payment.api.payment.FailPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentRefunded
@@ -34,7 +34,7 @@ import java.math.BigDecimal
 /** The payment's state machine on the kernel, through the model the compiler generated. */
 class PaymentSpec {
     private fun paymentSpec(block: AggregateSpec<PaymentState>.() -> Unit) =
-        aggregateSpec(paymentModel(PaymentContext.NAME), id = ORDER, block = block)
+        aggregateSpec(paymentModel(EshopPaymentContract.NAME), id = ORDER, block = block)
 
     @Test
     fun `requesting a payment should create it`() {
@@ -145,7 +145,7 @@ class PaymentSpec {
      * of the request, so a failing branch is reported on its own and the others still run.
      */
     @TestFactory
-    fun `a payment's lifecycle`() = aggregateSpecTests(paymentModel(PaymentContext.NAME), id = ORDER) {
+    fun `a payment's lifecycle`() = aggregateSpecTests(paymentModel(EshopPaymentContract.NAME), id = ORDER) {
         whenCommand(RequestPayment(ORDER, AMOUNT)) {
             expectEventTypes(PaymentRequested::class)
             fork("confirmed") {

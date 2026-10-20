@@ -16,10 +16,10 @@ package me.ahoo.wow.example.eshop.ordering.domain.order
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.example.eshop.ordering.api.OrderingContext
 import me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock
+import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderAwaitingValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderCancelled
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
@@ -40,7 +40,7 @@ import kotlin.time.Duration.Companion.minutes
 
 /** The order's state machine on the kernel, through the model the compiler generated, with a 30-minute grace period. */
 class OrderSpec {
-    private val model = orderModel(OrderingContext.NAME, PaymentPolicy(GRACE))
+    private val model = orderModel(EshopOrderingContract.NAME, PaymentPolicy(GRACE))
 
     private fun orderSpec(block: AggregateSpec<OrderState>.() -> Unit) = aggregateSpec(model, id = ORDER, block = block)
 
