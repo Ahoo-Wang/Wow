@@ -130,6 +130,17 @@ public final class me/ahoo/wow/runtime/admission/CommandBody$Tree : me/ahoo/wow/
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/runtime/admission/CommandBody$Value : me/ahoo/wow/runtime/admission/CommandBody {
+	public fun <init> (Ljava/lang/Object;)V
+	public final fun component1 ()Ljava/lang/Object;
+	public final fun copy (Ljava/lang/Object;)Lme/ahoo/wow/runtime/admission/CommandBody$Value;
+	public static synthetic fun copy$default (Lme/ahoo/wow/runtime/admission/CommandBody$Value;Ljava/lang/Object;ILjava/lang/Object;)Lme/ahoo/wow/runtime/admission/CommandBody$Value;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCommand ()Ljava/lang/Object;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/runtime/admission/CommandGateway {
 	public final fun execute (Lme/ahoo/wow/runtime/admission/CommandRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun send (Lme/ahoo/wow/runtime/admission/CommandRequest;)Lkotlinx/coroutines/flow/Flow;
@@ -161,6 +172,7 @@ public final class me/ahoo/wow/runtime/admission/CommandInput {
 
 public final class me/ahoo/wow/runtime/admission/CommandRequest {
 	public static final field Companion Lme/ahoo/wow/runtime/admission/CommandRequest$Companion;
+	public static final fun builder (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/runtime/admission/CommandRequest$Builder;
 	public static final fun builder (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;)Lme/ahoo/wow/runtime/admission/CommandRequest$Builder;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAggregate ()Ljava/lang/String;
@@ -174,9 +186,11 @@ public final class me/ahoo/wow/runtime/admission/CommandRequest {
 	public final fun getHeaders ()Ljava/util/Map;
 	public final fun getRequestId ()Ljava/lang/String;
 	public final fun getTarget ()Lme/ahoo/wow/runtime/admission/TargetScope;
+	public final fun getTenantId ()Ljava/lang/String;
 	public final fun getTrace ()Ljava/util/Map;
 	public final fun getWait ()Lme/ahoo/wow/api/result/WaitPlan;
 	public fun hashCode ()I
+	public static final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/runtime/admission/CommandRequest;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;)Lme/ahoo/wow/runtime/admission/CommandRequest;
 	public fun toString ()Ljava/lang/String;
 }
@@ -189,12 +203,15 @@ public final class me/ahoo/wow/runtime/admission/CommandRequest$Builder {
 	public final fun headers (Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/CommandRequest$Builder;
 	public final fun requestId (Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/CommandRequest$Builder;
 	public final fun target (Lme/ahoo/wow/runtime/admission/TargetScope;)Lme/ahoo/wow/runtime/admission/CommandRequest$Builder;
+	public final fun tenantId (Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/CommandRequest$Builder;
 	public final fun trace (Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/CommandRequest$Builder;
 	public final fun wait (Lme/ahoo/wow/api/result/WaitPlan;)Lme/ahoo/wow/runtime/admission/CommandRequest$Builder;
 }
 
 public final class me/ahoo/wow/runtime/admission/CommandRequest$Companion {
+	public final fun builder (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/runtime/admission/CommandRequest$Builder;
 	public final fun builder (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;)Lme/ahoo/wow/runtime/admission/CommandRequest$Builder;
+	public final fun of (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/runtime/admission/CommandRequest;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/runtime/admission/CommandBody;)Lme/ahoo/wow/runtime/admission/CommandRequest;
 }
 
@@ -386,6 +403,7 @@ public final class me/ahoo/wow/runtime/command/CommandSender {
 	public final fun send (Lme/ahoo/wow/runtime/cluster/CommandWire;Lme/ahoo/wow/spi/wait/WaitContext;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun send$default (Lme/ahoo/wow/runtime/command/CommandSender;Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/spi/wait/WaitContext;Lme/ahoo/wow/runtime/cluster/ReplyTo;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public static synthetic fun send$default (Lme/ahoo/wow/runtime/command/CommandSender;Lme/ahoo/wow/runtime/cluster/CommandWire;Lme/ahoo/wow/spi/wait/WaitContext;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun topicOf (Ljava/lang/String;)Ljava/lang/String;
 	public final fun typeOf (Lme/ahoo/wow/api/decide/Command;)Ljava/lang/String;
 }
 
