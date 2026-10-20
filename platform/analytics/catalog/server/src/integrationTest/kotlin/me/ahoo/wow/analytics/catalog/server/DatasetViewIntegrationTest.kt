@@ -175,7 +175,11 @@ class DatasetViewIntegrationTest {
                 DatasetColumn("month", expression = "toStartOfMonth(o.placed_at)"),
                 DatasetColumn("big", expression = "o.amount >= 10 and o.region in ('n', 'e')"),
             ),
-            filters = listOf("o.amount > 0"),
+            filters = listOf(
+                "o.amount > 0",
+                "o.region != 'x' and containsIgnoreCase(r.name, 'O') and o.amount between 0.01 and 1000",
+                "startsWithIgnoreCase(o.id, 'O') and m.state.customer.name not in ('Old')",
+            ),
             identity = "order_id",
         )
 

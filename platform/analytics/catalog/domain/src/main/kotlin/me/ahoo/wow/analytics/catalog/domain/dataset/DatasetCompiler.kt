@@ -183,8 +183,7 @@ object DatasetCompiler {
             else -> expression.text
         }
 
-        is DatasetExpression.Call ->
-            "${expression.function}(${expression.arguments.joinToString(", ") { expression(it, dataset) }})"
+        is DatasetExpression.Call -> call(expression, dataset)
 
         is DatasetExpression.Unary -> if (expression.operator == "NOT") {
             "NOT (${expression(expression.operand, dataset)})"
@@ -192,17 +191,71 @@ object DatasetCompiler {
             "-(${expression(expression.operand, dataset)})"
         }
 
-        is DatasetExpression.Binary ->
-            "(${expression(expression.left, dataset)} ${expression.operator} ${expression(expression.right, dataset)})"
+        is DatasetExpression.Binary -> binary(expression, dataset)
 
-        is DatasetExpression.In -> "${expression(expression.operand, dataset)} ${if (expression.negated) "NOT IN" else "IN"} " +
-            "(${expression.values.joinToString(", ") { expression(it, dataset) }})"
+        is DatasetExpression.In -> {
+            val operand = expression(expression.operand, dataset)
+            val values = expression.values.joinToString(", ") { expression(it, dataset) }
+            if (expression.negated) {
+                keepingNull(expression.operand, "$operand NOT IN ($values)", dataset)
+            } else {
+                "$operand IN ($values)"
+            }
+        }
+
+        is DatasetExpression.Between -> "(${expression(expression.operand, dataset)} BETWEEN " +
+            "${expression(expression.lower, dataset)} AND ${expression(expression.upper, dataset)})"
 
         is DatasetExpression.IsNull ->
             "${expression(expression.operand, dataset)} ${if (expression.negated) "IS NOT NULL" else "IS NULL"}"
     }
 
     private val JSON_TYPE = Regex("^(Nullable\\()?(JSON|Object\\()")
+
+    /**
+     * A comparison as the query protocol means it (`FilterExpression`): `= null` is `IS NULL`, `!= null` is
+     * `IS NOT NULL`, and `!=` keeps the rows whose value is null.
+     */
+    private fun binary(expression: DatasetExpression.Binary, dataset: BoundDataset): String {
+        val operator = expression.operator
+        val nothing = (expression.right as? DatasetExpression.Literal)?.kind == DatasetExpression.Literal.Kind.NULL
+        if (nothing && operator == "=") return "${expression(expression.left, dataset)} IS NULL"
+        if (nothing && operator == "!=") return "${expression(expression.left, dataset)} IS NOT NULL"
+        val sql = "(${expression(expression.left, dataset)} $operator ${expression(expression.right, dataset)})"
+        return if (operator == "!=") keepingNull(expression.left, sql, dataset) else sql
+    }
+
+    /**
+     * [predicate] of [operand], also true where [operand] is null, as `NE` and `NOT_IN` are: a nullable column, a value
+     * inside a `JSON` column, or any value of a source a left join brings in (`join_use_nulls`).
+     */
+    private fun keepingNull(operand: DatasetExpression, predicate: String, dataset: BoundDataset): String {
+        val ref = operand as? DatasetExpression.Ref ?: return predicate
+        val type = dataset.sources.first { it.alias == ref.alias }.state.columns.first { it.name == ref.column }.type
+        val joinedLeft = dataset.joins.any { it.kind == DatasetJoinKind.LEFT && it.source.alias == ref.alias }
+        val nullable = joinedLeft || type.startsWith("Nullable(") || ref.path.isNotEmpty() && JSON_TYPE.containsMatchIn(type)
+        return if (nullable) "($predicate OR isNull(${expression(ref, dataset)}))" else predicate
+    }
+
+    /** A call; the query protocol's text tests as its ClickHouse compiler writes them. */
+    private fun call(call: DatasetExpression.Call, dataset: BoundDataset): String {
+        val arguments = call.arguments.map { expression(it, dataset) }
+        val ignoreCase = call.function.endsWith(IGNORE_CASE)
+        val folded = if (ignoreCase) arguments.map { "lowerUTF8($it)" } else arguments
+        return when (call.function.removeSuffix(IGNORE_CASE)) {
+            "contains" -> if (ignoreCase) {
+                "(positionCaseInsensitiveUTF8(${arguments.joinToString(", ")}) > 0)"
+            } else {
+                "(position(${arguments.joinToString(", ")}) > 0)"
+            }
+
+            "startsWith" -> "startsWith(${folded.joinToString(", ")})"
+            "endsWith" -> "endsWith(${folded.joinToString(", ")})"
+            else -> "${call.function}(${arguments.joinToString(", ")})"
+        }
+    }
+
+    private const val IGNORE_CASE = "IgnoreCase"
 
     /** [name] as a ClickHouse identifier, in backquotes. */
     internal fun quote(name: String): String = "`${name.replace("\\", "\\\\").replace("`", "\\`")}`"

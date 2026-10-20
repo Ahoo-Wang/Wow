@@ -143,6 +143,58 @@ class DatasetCompilerTest {
             .problems.assert().containsExactly("The subject x is not an alias of the sources.")
     }
 
+    /** Each filter operator of the query protocol, rendered with its semantics there (`ClickHouseFilterCompiler`). */
+    @Test
+    fun `filters should mean in the view what the query protocol's filters mean`() {
+        val notes = DatasetFixtures.analyst(
+            "notes",
+            listOf(
+                SourceColumn("tenant", "String"),
+                SourceColumn("a", "Int64"),
+                SourceColumn("note", "Nullable(String)")
+            ),
+            tenant = "tenant",
+        )
+        val table = listOf(
+            "n.a = 1" to "(`n`.`a` = 1)",
+            "n.note = null" to "`n`.`note` IS NULL",
+            "n.note != null" to "`n`.`note` IS NOT NULL",
+            "n.a != 1" to "(`n`.`a` != 1)",
+            "n.note != 'x'" to "((`n`.`note` != 'x') OR isNull(`n`.`note`))",
+            "n.note not in ('x')" to "(`n`.`note` NOT IN ('x') OR isNull(`n`.`note`))",
+            "n.a not in (1)" to "`n`.`a` NOT IN (1)",
+            "lower(n.note) not in ('x')" to "lower(`n`.`note`) NOT IN ('x')",
+            "n.a in (1, 2)" to "`n`.`a` IN (1, 2)",
+            "n.a between 1 and 2" to "(`n`.`a` BETWEEN 1 AND 2)",
+            "contains(n.note, 'x')" to "(position(`n`.`note`, 'x') > 0)",
+            "containsIgnoreCase(n.note, 'x')" to "(positionCaseInsensitiveUTF8(`n`.`note`, 'x') > 0)",
+            "startsWith(n.note, 'x')" to "startsWith(`n`.`note`, 'x')",
+            "startsWithIgnoreCase(n.note, 'x')" to "startsWith(lowerUTF8(`n`.`note`), lowerUTF8('x'))",
+            "endsWith(n.note, 'x')" to "endsWith(`n`.`note`, 'x')",
+            "endsWithIgnoreCase(n.note, 'x')" to "endsWith(lowerUTF8(`n`.`note`), lowerUTF8('x'))",
+        )
+        table.forEach { (filter, sql) ->
+            val definition = DatasetDefinition(
+                sources = listOf(DatasetSource("n", "notes")),
+                subject = "n",
+                columns = listOf(DatasetColumn("a", from = "n.a")),
+                filters = listOf(filter),
+            )
+            DatasetCompiler.compile(bound(definition, mapOf("notes" to notes)), "shop", "notes", 1).ddl.assert()
+                .describedAs(filter).endsWith("WHERE ($sql)")
+        }
+    }
+
+    @Test
+    fun `a left join's values should keep their nulls under != and not in`() {
+        val definition = DEFINITION.copy(filters = listOf("m.state.customer.name not in ('x')", "m.id != 'y'"))
+        DatasetCompiler.compile(bound(definition), "shop", "orders", 1).ddl.assert().contains(
+            "WHERE ((JSONExtractString(`m`.`state`, 'customer', 'name') NOT IN ('x') OR " +
+                "isNull(JSONExtractString(`m`.`state`, 'customer', 'name')))) AND " +
+                "(((`m`.`id` != 'y') OR isNull(`m`.`id`)))",
+        )
+    }
+
     @Test
     fun `a view's name should be safe and its version positive`() {
         DatasetCompiler.viewOf("shop-ops", "Orders", 12).assert().isEqualTo("ds_shop_ops_orders_v12")
