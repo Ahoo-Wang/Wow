@@ -97,7 +97,8 @@ class DatasetBinderTest {
         val tightened = bound(column("hidden_phone", from = "o.phone", sensitivity = tighter))
         tightened.columns.last().sensitivity.assert().isEqualTo(tighter)
         tightened.approvals.assert().isEmpty()
-        val confidential = bound(column("amount_level", from = "o.amount", sensitivity = DatasetSensitivity(SensitivityLevel.DISPLAY)))
+        val confidential =
+            bound(column("amount_level", from = "o.amount", sensitivity = DatasetSensitivity(SensitivityLevel.DISPLAY)))
         confidential.columns.last().sensitivity.assert().isEqualTo(DatasetSensitivity(SensitivityLevel.DISPLAY))
     }
 
@@ -139,9 +140,13 @@ class DatasetBinderTest {
             .containsExactly("The source r is never joined.", "The column region reads r.name before r is joined.")
         problems(DEFINITION.copy(joins = DEFINITION.joins + DEFINITION.joins[1])).assert()
             .containsExactly("The join of r: a source is joined once.")
-        problems(DEFINITION.copy(joins = DEFINITION.joins + DatasetJoin("o", listOf(DatasetJoinKey("o.tenant", "o.tenant")))))
+        problems(
+            DEFINITION.copy(joins = DEFINITION.joins + DatasetJoin("o", listOf(DatasetJoinKey("o.tenant", "o.tenant"))))
+        )
             .first().assert().isEqualTo("The join of o: the subject is not joined.")
-        problems(DEFINITION.copy(joins = DEFINITION.joins + DatasetJoin("x", listOf(DatasetJoinKey("o.tenant", "x.tenant")))))
+        problems(
+            DEFINITION.copy(joins = DEFINITION.joins + DatasetJoin("x", listOf(DatasetJoinKey("o.tenant", "x.tenant"))))
+        )
             .assert().contains("The join of x: x is not an alias of the sources.")
         problems(DEFINITION.copy(joins = listOf(DEFINITION.joins[0], DatasetJoin("r", emptyList()))))
             .assert().containsExactly("The join of r has no key.")
@@ -155,11 +160,16 @@ class DatasetBinderTest {
         problems(crossed).assert().contains("The join of r reads o.region before o is joined.")
         val path = DEFINITION.copy(
             joins = listOf(
-                DatasetJoin("m", listOf(DatasetJoinKey("o.tenant", "m.tenant_id"), DatasetJoinKey("o.member_id", "m.state.id"))),
+                DatasetJoin(
+                    "m",
+                    listOf(DatasetJoinKey("o.tenant", "m.tenant_id"), DatasetJoinKey("o.member_id", "m.state.id"))
+                ),
                 DEFINITION.joins[1],
             ),
         )
-        problems(path).assert().containsExactly("The join of m keys on o.member_id = m.state.id: a key is a whole column.")
+        problems(
+            path
+        ).assert().containsExactly("The join of m keys on o.member_id = m.state.id: a key is a whole column.")
         val expression = DEFINITION.copy(
             joins = listOf(DEFINITION.joins[0], DatasetJoin("r", listOf(DatasetJoinKey("lower(o.region)", "r.code")))),
         )
@@ -182,7 +192,10 @@ class DatasetBinderTest {
             .contains("The catalog has no source $MEMBERS_ID.")
         val missing = DatasetFixtures.analyst("regions", listOf(SourceColumn("code", "String")), platform = true)
             .apply { onSourcing(SourceTableMissing) }
-        problems(DEFINITION, SOURCES + (REGIONS_ID to missing)).assert().contains("The source $REGIONS_ID's table is gone.")
+        problems(
+            DEFINITION,
+            SOURCES + (REGIONS_ID to missing)
+        ).assert().contains("The source $REGIONS_ID's table is gone.")
         problems(DEFINITION.copy(sources = sources + DatasetSource("o", ORDERS_ID))).assert()
             .contains("The alias o names one source only.")
         problems(DEFINITION.copy(sources = sources + DatasetSource("not-a-name", ORDERS_ID))).assert()
@@ -201,22 +214,30 @@ class DatasetBinderTest {
 
     @Test
     fun `each column should be a named value of the sources, or an expression of them`() {
-        problems(column("1st", from = "o.amount")).assert().containsExactly("The column 1st is not a name: letters, digits and _.")
+        problems(
+            column("1st", from = "o.amount")
+        ).assert().containsExactly("The column 1st is not a name: letters, digits and _.")
         problems(column("tenant_id", from = "o.tenant")).single().assert().contains("the subject's scope column")
-        problems(column("amount", from = "o.amount")).assert().containsExactly("The column amount is declared once only.")
+        problems(
+            column("amount", from = "o.amount")
+        ).assert().containsExactly("The column amount is declared once only.")
         problems(column("both", from = "o.amount", expression = "o.amount")).single().assert()
             .contains("either from a source's value or an expression")
         problems(column("neither")).single().assert().contains("either from a source's value or an expression")
         problems(column("x", from = "o.nothing")).single().assert()
             .isEqualTo("The column x reads o.nothing: nothing is not a column of analytics.orders.")
-        problems(column("x", from = "o.amount.cents")).single().assert().contains("amount is Decimal(18, 2), not a JSON value")
+        problems(
+            column("x", from = "o.amount.cents")
+        ).single().assert().contains("amount is Decimal(18, 2), not a JSON value")
         problems(column("x", from = "y.amount")).single().assert().contains("y is not an alias of the sources")
         problems(column("x", expression = "sleep(3)")).single().assert().contains("calls sleep")
         problems(column("x", from = "o.amount", sensitivity = DatasetSensitivity(keepPrefix = -1))).single().assert()
             .contains("keeps no negative number")
         problems(DEFINITION.copy(columns = emptyList(), identity = null, eventTime = null)).assert()
             .containsExactly("A dataset shows one column at least.")
-        problems(DEFINITION.copy(identity = "nothing")).assert().containsExactly("nothing is not a column of the dataset.")
+        problems(
+            DEFINITION.copy(identity = "nothing")
+        ).assert().containsExactly("nothing is not a column of the dataset.")
         problems(DEFINITION.copy(filters = listOf("o.nothing = 1", "o.amount >"))).assert().containsExactly(
             "The filter 1 reads o.nothing: nothing is not a column of analytics.orders.",
             "The filter 2: The expression [o.amount >] ends too early.",
@@ -235,7 +256,9 @@ class DatasetBinderTest {
             "orders",
             DatasetFixtures.ORDERS.columns,
             tenant = "tenant",
-            sensitivity = listOf(FieldSensitivity("phone", SensitivityLevel.DISPLAY, keepPrefix = 3, strategy = "phone")),
+            sensitivity = listOf(
+                FieldSensitivity("phone", SensitivityLevel.DISPLAY, keepPrefix = 3, strategy = "phone")
+            ),
         )
         bound(DEFINITION, SOURCES + (ORDERS_ID to strategy)).columns.first { it.name == "phone" }.sensitivity.assert()
             .isEqualTo(DatasetSensitivity(SensitivityLevel.DISPLAY))

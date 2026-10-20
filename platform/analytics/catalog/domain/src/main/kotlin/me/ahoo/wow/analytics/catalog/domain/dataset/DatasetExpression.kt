@@ -97,6 +97,7 @@ internal sealed interface DatasetExpression {
 internal class DatasetExpressionException(message: String) : IllegalArgumentException(message)
 
 /** A recursive descent over [text]: `or` binds loosest, then `and`, `not`, comparisons, `+ -`, `* / %`, unary `-`. */
+@Suppress("ThrowsCount") // Each check throws the problem it found.
 private class DatasetExpressionParser(private val text: String) {
     private val tokens: List<Token> = tokenize()
     private var position = 0
@@ -182,7 +183,9 @@ private class DatasetExpressionParser(private val text: String) {
     /** A call, a reference or a keyword literal, from its first [token]. */
     private fun name(token: Token): DatasetExpression {
         if (token.kind == Kind.NAME && peek()?.kind == Kind.OPEN) {
-            if (token.text !in DatasetExpression.FUNCTIONS) throw problem("calls ${token.text}, which a dataset may not")
+            if (token.text !in DatasetExpression.FUNCTIONS) {
+                throw problem("calls ${token.text}, which a dataset may not")
+            }
             return DatasetExpression.Call(token.text, list(empty = true))
         }
         val parts = mutableListOf(token)
@@ -194,7 +197,10 @@ private class DatasetExpressionParser(private val text: String) {
         }
         if (parts.size == 1 && token.kind == Kind.NAME) {
             return when (token.text.lowercase()) {
-                "true", "false" -> DatasetExpression.Literal(DatasetExpression.Literal.Kind.BOOLEAN, token.text.lowercase())
+                "true", "false" -> DatasetExpression.Literal(
+                    DatasetExpression.Literal.Kind.BOOLEAN,
+                    token.text.lowercase()
+                )
                 "null" -> DatasetExpression.Literal(DatasetExpression.Literal.Kind.NULL, "null")
                 else -> throw problem("names ${token.text}: a value of a source is <alias>.<column>")
             }
@@ -214,7 +220,9 @@ private class DatasetExpressionParser(private val text: String) {
             do {
                 values += or()
                 val token = next() ?: throw problem("ends before )")
-                if (token.kind != Kind.COMMA && token.kind != Kind.CLOSE) throw problem("has ${token.text} where , or ) should be")
+                if (token.kind != Kind.COMMA && token.kind != Kind.CLOSE) {
+                    throw problem("has ${token.text} where , or ) should be")
+                }
             } while (token.kind == Kind.COMMA)
         }
         values
@@ -252,7 +260,9 @@ private class DatasetExpressionParser(private val text: String) {
 
     @Suppress("CyclomaticComplexMethod", "LongMethod") // One branch per kind of token.
     private fun tokenize(): List<Token> {
-        if (text.length > DatasetExpression.MAX_LENGTH) throw problem("is longer than ${DatasetExpression.MAX_LENGTH} characters")
+        if (text.length > DatasetExpression.MAX_LENGTH) {
+            throw problem("is longer than ${DatasetExpression.MAX_LENGTH} characters")
+        }
         val tokens = mutableListOf<Token>()
         var index = 0
         while (index < text.length) {

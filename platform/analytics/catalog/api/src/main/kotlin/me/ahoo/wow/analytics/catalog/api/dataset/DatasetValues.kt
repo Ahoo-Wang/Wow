@@ -53,7 +53,11 @@ enum class DatasetJoinKind {
  * Brings the source [alias] in, matched by [on]: each key pairs a column of the sources before it ([DatasetJoinKey.left])
  * with one of [alias] ([DatasetJoinKey.right]).
  */
-data class DatasetJoin(val alias: String, val on: List<DatasetJoinKey>, val kind: DatasetJoinKind = DatasetJoinKind.INNER)
+data class DatasetJoin(
+    val alias: String,
+    val on: List<DatasetJoinKey>,
+    val kind: DatasetJoinKind = DatasetJoinKind.INNER
+)
 
 /** One key of a join: the [left] column (`<alias>.<column>` of a source joined before) equals the [right] one. */
 data class DatasetJoinKey(val left: String, val right: String)

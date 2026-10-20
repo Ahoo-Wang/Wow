@@ -166,7 +166,8 @@ internal object DatasetBinder {
             val keys = join.on.mapNotNull { key ->
                 val left = ref(key.left, joined, "$what")
                 val right = ref(key.right, setOf(join.alias), "$what")
-                if (left != null && left.path.isNotEmpty() || right != null && right.path.isNotEmpty()) {
+                val path = listOfNotNull(left, right).any { it.path.isNotEmpty() }
+                if (path) {
                     problems += "$what keys on ${key.left} = ${key.right}: a key is a whole column."
                     null
                 } else if (left != null && right != null) {

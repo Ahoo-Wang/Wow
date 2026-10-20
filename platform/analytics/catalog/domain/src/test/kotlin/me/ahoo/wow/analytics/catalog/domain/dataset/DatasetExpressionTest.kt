@@ -22,9 +22,9 @@ import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetExpression.IsNull
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetExpression.Literal
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetExpression.Ref
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetExpression.Unary
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
-import org.junit.jupiter.api.Test
 
 class DatasetExpressionTest {
     private fun number(text: String) = Literal(Literal.Kind.NUMBER, text)
@@ -39,13 +39,21 @@ class DatasetExpressionTest {
                     Binary(">", Binary("+", Ref("o", "a"), Binary("*", Ref("o", "b"), number("2"))), number("10")),
                     Unary("NOT", IsNull(Ref("o", "c"), negated = false)),
                 ),
-                In(Ref("o", "d"), listOf(Literal(Literal.Kind.STRING, "x"), Literal(Literal.Kind.STRING, "it's")), false),
+                In(
+                    Ref("o", "d"),
+                    listOf(Literal(Literal.Kind.STRING, "x"), Literal(Literal.Kind.STRING, "it's")),
+                    false
+                ),
             ),
         )
         DatasetExpression.parse("-(o.a - 1.5e3) / o.b % 4 <> 0").assert().isEqualTo(
             Binary(
                 "!=",
-                Binary("%", Binary("/", Unary("-", Binary("-", Ref("o", "a"), number("1.5e3"))), Ref("o", "b")), number("4")),
+                Binary(
+                    "%",
+                    Binary("/", Unary("-", Binary("-", Ref("o", "a"), number("1.5e3"))), Ref("o", "b")),
+                    number("4")
+                ),
                 number("0"),
             ),
         )
@@ -56,7 +64,9 @@ class DatasetExpressionTest {
 
     @Test
     fun `references, calls and literals should be read as written`() {
-        val parsed = DatasetExpression.parse("if(o.`unit price` >= 1, m.state.customer.phone, null) = true OR today() = false")
+        val parsed = DatasetExpression.parse(
+            "if(o.`unit price` >= 1, m.state.customer.phone, null) = true OR today() = false"
+        )
         parsed.assert().isEqualTo(
             Binary(
                 "OR",

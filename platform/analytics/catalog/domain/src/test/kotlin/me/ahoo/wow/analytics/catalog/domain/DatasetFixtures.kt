@@ -59,7 +59,13 @@ object DatasetFixtures {
         ),
         tenant = "tenant",
         owner = "owner",
-        sensitivity = listOf(FieldSensitivity("tenant"), FieldSensitivity("owner"), ORDER_PHONE, FieldSensitivity("member_id"), FieldSensitivity("region")),
+        sensitivity = listOf(
+            FieldSensitivity("tenant"),
+            FieldSensitivity("owner"),
+            ORDER_PHONE,
+            FieldSensitivity("member_id"),
+            FieldSensitivity("region")
+        ),
     )
 
     /** The shop's members as the Sink keeps their state: the customer's phone and card inside `state`. */
@@ -100,7 +106,15 @@ object DatasetFixtures {
 
     val DRAFT: SourceState = SourceState().apply {
         onSourcing(
-            SourceDrafted(FakeCatalog.CONNECTION, "clickhouse", FakeCatalog.DATABASE, "draft", "u", "MergeTree", emptyList()),
+            SourceDrafted(
+                FakeCatalog.CONNECTION,
+                "clickhouse",
+                FakeCatalog.DATABASE,
+                "draft",
+                "u",
+                "MergeTree",
+                emptyList()
+            ),
         )
     }
 
@@ -136,7 +150,11 @@ object DatasetFixtures {
         eventTime = "month",
     )
 
-    fun id(table: String): String = AnalyticsCatalogContext.sourceIdOf(FakeCatalog.CONNECTION, FakeCatalog.DATABASE, table)
+    fun id(table: String): String = AnalyticsCatalogContext.sourceIdOf(
+        FakeCatalog.CONNECTION,
+        FakeCatalog.DATABASE,
+        table
+    )
 
     /** An analyst's source of [table], reviewed. */
     fun analyst(
@@ -148,7 +166,9 @@ object DatasetFixtures {
         platform: Boolean = false,
         connection: String = FakeCatalog.CONNECTION,
     ): SourceState = SourceState().apply {
-        onSourcing(SourceDrafted(connection, "clickhouse", FakeCatalog.DATABASE, table, "uuid-$table", "MergeTree", columns))
+        onSourcing(
+            SourceDrafted(connection, "clickhouse", FakeCatalog.DATABASE, table, "uuid-$table", "MergeTree", columns)
+        )
         onSourcing(SourceRevised(tenant, owner, platform = platform))
         if (sensitivity.isNotEmpty()) onSourcing(SourceSensitivityReviewed(sensitivity))
         onSourcing(SourceReviewed)

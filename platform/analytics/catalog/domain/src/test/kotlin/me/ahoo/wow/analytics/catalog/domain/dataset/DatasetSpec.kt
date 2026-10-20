@@ -46,7 +46,9 @@ class DatasetSpec {
     @Test
     fun `a dataset should be drafted and revised, its definition checked against the catalog each time`() = spec {
         whenCommand(DraftDataset("shop", "orders", DEFINITION, title = "Orders")) {
-            expectEvents(DatasetDrafted("shop", "orders", DEFINITION, listOf(ORDERS_ID, MEMBERS_ID, REGIONS_ID), "Orders"))
+            expectEvents(
+                DatasetDrafted("shop", "orders", DEFINITION, listOf(ORDERS_ID, MEMBERS_ID, REGIONS_ID), "Orders")
+            )
             expectState {
                 exists.assert().isTrue()
                 context.assert().isEqualTo("shop")
@@ -57,7 +59,13 @@ class DatasetSpec {
             }
         }
         whenCommand(ReviseDataset(DEFINITION, title = "Orders")) { expectUnchanged() }
-        val fewer = DEFINITION.copy(sources = DEFINITION.sources.take(1), joins = emptyList(), columns = DEFINITION.columns.take(2), identity = null, eventTime = null)
+        val fewer = DEFINITION.copy(
+            sources = DEFINITION.sources.take(1),
+            joins = emptyList(),
+            columns = DEFINITION.columns.take(2),
+            identity = null,
+            eventTime = null
+        )
         whenCommand(ReviseDataset(fewer)) {
             expectEvents(DatasetRevised(fewer, listOf(ORDERS_ID)))
             expectState {
@@ -67,7 +75,9 @@ class DatasetSpec {
         }
         whenCommand(ReviseDataset(fewer, title = "Orders")) { expectEventTypes(DatasetRevised::class) }
         whenCommand(ReviseDataset(fewer.copy(columns = listOf(DatasetColumn("x", from = "o.nothing"))))) {
-            expectRejected(DatasetRejections.DEFINITION_INVALID) { message.assert().contains("nothing is not a column") }
+            expectRejected(
+                DatasetRejections.DEFINITION_INVALID
+            ) { message.assert().contains("nothing is not a column") }
         }
     }
 
