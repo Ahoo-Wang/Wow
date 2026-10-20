@@ -131,7 +131,7 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/OnCommitte
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/OnEvent : java/lang/annotation/Annotation {
 	public abstract fun aggregates ()[Ljava/lang/String;
-	public abstract fun derives ()[Ljava/lang/String;
+	public abstract fun derives ()[Ljava/lang/Class;
 	public abstract fun schedules ()[Ljava/lang/String;
 	public abstract fun start ()Lme/ahoo/wow/api/annotation/OnEvent$Start;
 }
