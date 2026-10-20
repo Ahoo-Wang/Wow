@@ -790,6 +790,18 @@ public final class me/ahoo/wow/runtime/state/StateViewOptions$Companion {
 	public final fun getDEFAULT_MAX_AGE-UwyO8pc ()J
 }
 
+public final class me/ahoo/wow/runtime/subscription/BackpressureOptions {
+	public synthetic fun <init> (IJJDIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getInitialBackoff-UwyO8pc ()J
+	public final fun getJitter ()D
+	public final fun getMaxAttempts ()I
+	public final fun getMaxBackoff-UwyO8pc ()J
+	public final fun getMinConcurrency ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/runtime/subscription/ParkedNotice {
 	public fun <init> (Lme/ahoo/wow/runtime/subscription/ParkedNotice$Kind;Ljava/lang/String;Lme/ahoo/wow/spi/ledger/ParkedAggregate;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;J)V
 	public final fun component1 ()Lme/ahoo/wow/runtime/subscription/ParkedNotice$Kind;
@@ -865,8 +877,9 @@ public final class me/ahoo/wow/runtime/subscription/RetryPolicy {
 }
 
 public final class me/ahoo/wow/runtime/subscription/SubscriptionOptions {
-	public synthetic fun <init> (ILme/ahoo/wow/runtime/subscription/RetryPolicy;JJLme/ahoo/wow/runtime/subscription/RetryPolicy;Ljava/util/Map;Lme/ahoo/wow/runtime/subscription/ParkedRetryOptions;Ljava/util/Map;Lme/ahoo/wow/runtime/subscription/SystemicFailureOptions;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (ILme/ahoo/wow/runtime/subscription/RetryPolicy;JJLme/ahoo/wow/runtime/subscription/RetryPolicy;Ljava/util/Map;Lme/ahoo/wow/runtime/subscription/ParkedRetryOptions;Ljava/util/Map;Lme/ahoo/wow/runtime/subscription/SystemicFailureOptions;Lme/ahoo/wow/runtime/subscription/BackpressureOptions;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBackpressure ()Lme/ahoo/wow/runtime/subscription/BackpressureOptions;
 	public final fun getCheckpointInterval-UwyO8pc ()J
 	public final fun getMaxInFlight ()I
 	public final fun getParked ()Lme/ahoo/wow/runtime/subscription/ParkedRetryOptions;
