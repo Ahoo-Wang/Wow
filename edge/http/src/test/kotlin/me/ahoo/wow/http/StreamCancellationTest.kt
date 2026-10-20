@@ -19,6 +19,7 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -26,6 +27,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.kernel.CommandType
+import me.ahoo.wow.query.PositionedRecord
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.json.QueryJson
@@ -57,8 +59,13 @@ class StreamCancellationTest {
     private fun queryNode(rows: Flow<ObjectNode>): QueryNode = QueryNode(
         snapshots = { delegate ->
             object : QueryGateway by delegate {
-                override fun list(query: IListQuery, caller: QueryCaller): Flow<ObjectNode> =
-                    rows.onCompletion { listEnded.complete(it) }
+                override fun stream(
+                    query: IListQuery,
+                    caller: QueryCaller,
+                    after: String?,
+                    chunkSize: Int,
+                ): Flow<PositionedRecord> = rows.map { PositionedRecord(it, it["id"].asString()) }
+                    .onCompletion { listEnded.complete(it) }
             }
         },
     )

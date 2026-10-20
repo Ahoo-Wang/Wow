@@ -16,12 +16,15 @@ package me.ahoo.wow.http.query
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.selects.onTimeout
+import kotlinx.coroutines.selects.select
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregationQuery
@@ -45,7 +48,9 @@ import me.ahoo.wow.http.problem.tooLargeProblem
 import me.ahoo.wow.http.receiveFirst
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.QueryRoutes
+import me.ahoo.wow.query.PositionedRecord
 import me.ahoo.wow.query.QueryBudget
+import me.ahoo.wow.query.QueryBusyException
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryError
@@ -54,6 +59,7 @@ import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryStorageUnavailableException
 import me.ahoo.wow.query.dataset.DatasetQueryGateway
 import me.ahoo.wow.query.json.QueryJson
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.TargetScope
 import me.ahoo.wow.runtime.admission.TenantConflictException
@@ -71,6 +77,9 @@ import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.buildAndAwait
 import tools.jackson.databind.node.ObjectNode
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Duration
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 /** A query model of an aggregate type: the `{model}` of its route. */
 internal data class QueryTarget(val type: AggregateType, val model: String)
@@ -119,6 +128,7 @@ internal class QueryHandler(
                 body,
                 caller,
                 eventStream,
+                lastEventId(request),
                 target.rebuilding()
             )
         }
@@ -145,7 +155,8 @@ internal class QueryHandler(
             val caller = caller(request, name)
             val gateway = dataset(name, caller)
             val body = body(request)
-            run(gateway, body, caller, body.kind == QueryKind.LIST && Negotiation.wantsEventStream(request))
+            val eventStream = body.kind == QueryKind.LIST && Negotiation.wantsEventStream(request)
+            run(gateway, body, caller, eventStream, lastEventId(request))
         }
 
     /** `GET /wow/dataset/{context}/{dataset}/query`: the dataset's descriptor, with its version as the `ETag`. */
@@ -231,29 +242,35 @@ internal class QueryHandler(
             ?: throw problem(FrameworkErrors.QUERY_MALFORMED, "The tenant of $type is fixed.", type)
     }
 
-    /** [body]'s query on [gateway], the one path of every model: snapshots, events and datasets alike. */
+    /** The position a resumed stream continues after: the request's `Last-Event-ID` (decision D253). */
+    private fun lastEventId(request: ServerRequest): String? =
+        request.headers().firstHeader(LAST_EVENT_ID)?.trim()?.takeIf { it.isNotEmpty() }
+
+    /**
+     * [body]'s query on [gateway], the one path of every model: snapshots, events and datasets alike. A streamed list
+     * resumes after [after], the position its `Last-Event-ID` names.
+     */
+    @Suppress("LongParameterList")
     private suspend fun run(
         gateway: QueryGateway,
         body: QueryBody,
         caller: QueryCaller,
         eventStream: Boolean,
+        after: String?,
         rebuilding: Boolean = false,
     ): ServerResponse = when (body.kind) {
-        QueryKind.LIST -> {
+        QueryKind.LIST -> if (eventStream) {
+            stream(gateway, body.query as ListQuery, caller, after, rebuilding)
+        } else {
             val query = (body.query as ListQuery).withListDefault(gateway.entryPolicy.http)
-            rows(gateway.list(query, caller), eventStream, gateway.aggregateType.context, rebuilding)
+            json(gateway.list(query, caller).toList(), rebuilding)
         }
         QueryKind.PAGED -> json(gateway.paged(body.query as IPagedQuery, caller), rebuilding)
         QueryKind.CURSOR -> json(gateway.cursor(body.query as ICursorQuery, caller), rebuilding)
         QueryKind.SINGLE ->
             single(gateway.single(body.query as ISingleQuery, caller), gateway.aggregateType, rebuilding)
         QueryKind.COUNT -> json(gateway.count(body.query as ICountQuery, caller), rebuilding)
-        QueryKind.AGGREGATE -> rows(
-            gateway.aggregate(body.query as AggregationQuery, caller),
-            false,
-            gateway.aggregateType.context,
-            rebuilding,
-        )
+        QueryKind.AGGREGATE -> json(gateway.aggregate(body.query as AggregationQuery, caller).toList(), rebuilding)
     }
 
     /** The list default of [queries] under [budget]: what a list naming no limit runs with (0, every match). */
@@ -276,40 +293,128 @@ internal class QueryHandler(
         )
 
     /**
-     * [records] as one JSON array, read whole before the response starts so a failure is still a problem; or, for
-     * an [eventStream], as server-sent events, the first one read before the response starts.
+     * [query] on [gateway] as server-sent events (decision D253): a resumable stream when the gateway [resumes] it,
+     * from after [after]; else, as before, the records of a list under the HTTP list default, without positions, so
+     * none can be resumed ([after] is then `wow.query.invalid`). A node that is stopping refuses it.
+     */
+    private suspend fun stream(
+        gateway: QueryGateway,
+        query: ListQuery,
+        caller: QueryCaller,
+        after: String?,
+        rebuilding: Boolean,
+    ): ServerResponse {
+        val context = gateway.aggregateType.context
+        val streams = queries.streams
+        if (streams.closed) {
+            throw ProblemException(statuses.problemOf(FrameworkCodes.NODE_CLOSING, NODE_STOPPING, context))
+        }
+        if (gateway.resumes(query)) {
+            return positioned(gateway.stream(query, caller, after, streams.chunkSize), context, rebuilding)
+        }
+        if (after != null) throw QueryViolation.InvalidCursor.rejection()
+        return rows(gateway.list(query.withListDefault(gateway.entryPolicy.http), caller), context, rebuilding)
+    }
+
+    /**
+     * [records] as server-sent events, the first one read before the response starts (so a failure is still a
+     * problem), without positions: a stream that cannot be resumed ends with its last record.
      */
     @OptIn(ExperimentalCoroutinesApi::class) // produce: the records of one collection, handed to the response.
-    private suspend fun rows(
-        records: Flow<ObjectNode>,
-        eventStream: Boolean,
-        context: String,
-        rebuilding: Boolean = false,
-    ): ServerResponse {
-        if (!eventStream) return json(records.toList(), rebuilding)
+    private suspend fun rows(records: Flow<ObjectNode>, context: String, rebuilding: Boolean): ServerResponse {
         val rows = scope.produce { records.collect { send(it) } }
         val first = rows.receiveFirst()
         val events = flow {
             if (first == null) return@flow
-            var index = 0L
-            emit(row(first, index++))
+            emit(row(first, null))
             // A client that goes away cancels the producer too, so the backend's cursor is closed.
-            rows.consumeEach { emit(row(it, index++)) }
+            rows.consumeEach { emit(row(it, null)) }
         }.catch { failure ->
             if (failure is CancellationException) throw failure
-            emit(
-                ServerSentEvent.builder(
-                    HttpJson.writeString(problemOf(failure, context).members())
-                ).event(ERROR).build()
-            )
+            emit(error(failure, context))
         }
-        return rows.handingOver(events) {
-            ServerResponse.ok().rebuilding(rebuilding).contentType(MediaType.TEXT_EVENT_STREAM).bodyAndAwait(it)
+        return respond(rows, events, rebuilding)
+    }
+
+    /**
+     * A resumable stream (decision D253) as server-sent events: each record a `row` event whose `id` is its position,
+     * the first read before the response starts (so a failure is still a problem, a busy store a 429). It ends with an
+     * `end` event: `complete` once every record was sent; `hold-expired` once it ran for [QueryStreams.maxHold];
+     * `node-stopping` when [QueryStreams.close] is called; `permit-reclaimed` when its store had no permit for its next
+     * chunk in time. Every `end` but `complete` is resumable from the last `id`. Another failure ends it with an
+     * `error` event holding the problem.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class) // produce: the records of one collection, handed to the response.
+    private suspend fun positioned(
+        records: Flow<PositionedRecord>,
+        context: String,
+        rebuilding: Boolean,
+    ): ServerResponse {
+        val rows = scope.produce { records.collect { send(it) } }
+        val first = rows.receiveFirst()
+        val held = TimeSource.Monotonic.markNow()
+        val events = flow {
+            var record = first
+            while (record != null) {
+                emit(row(record.record, record.position))
+                record = when (val next = next(rows, held)) {
+                    is PositionedRecord -> next
+                    else -> {
+                        emit(end(next as String))
+                        null
+                    }
+                }
+            }
+            if (first == null) emit(end(QueryStreams.COMPLETE))
+        }.catch { failure ->
+            if (failure is CancellationException) throw failure
+            emit(if (failure is QueryBusyException) end(QueryStreams.PERMIT_RECLAIMED) else error(failure, context))
+        }
+        return respond(rows, events, rebuilding)
+    }
+
+    /**
+     * The next record of [rows], or the reason the stream ends before it: `complete` when [rows] has no more,
+     * `hold-expired` once [held] passed [QueryStreams.maxHold], `node-stopping` once the streams are closed. A failure
+     * of [rows] is thrown.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class) // onTimeout: the hold time left.
+    private suspend fun next(rows: ReceiveChannel<PositionedRecord>, held: TimeMark): Any {
+        val streams = queries.streams
+        val left = if (streams.maxHold == Duration.ZERO) Duration.INFINITE else streams.maxHold - held.elapsedNow()
+        return when {
+            left <= Duration.ZERO -> QueryStreams.HOLD_EXPIRED
+            streams.closed -> QueryStreams.NODE_STOPPING
+            else -> select<Any> {
+                rows.onReceiveCatching { result ->
+                    result.exceptionOrNull()?.let { throw it }
+                    result.getOrNull() ?: QueryStreams.COMPLETE
+                }
+                streams.stopping.onAwait { QueryStreams.NODE_STOPPING }
+                if (left.isFinite()) onTimeout(left) { QueryStreams.HOLD_EXPIRED }
+            }
         }
     }
 
-    private fun row(record: ObjectNode, index: Long): ServerSentEvent<String> =
-        ServerSentEvent.builder(QueryJson.mapper.writeValueAsString(record)).id(index.toString()).event(ROW).build()
+    private suspend fun respond(
+        rows: ReceiveChannel<*>,
+        events: Flow<ServerSentEvent<String>>,
+        rebuilding: Boolean,
+    ): ServerResponse = rows.handingOver(events) {
+        ServerResponse.ok().rebuilding(rebuilding).contentType(MediaType.TEXT_EVENT_STREAM).bodyAndAwait(it)
+    }
+
+    private fun row(record: ObjectNode, position: String?): ServerSentEvent<String> {
+        val event = ServerSentEvent.builder(QueryJson.mapper.writeValueAsString(record)).event(ROW)
+        return (if (position == null) event else event.id(position)).build()
+    }
+
+    private fun end(reason: String): ServerSentEvent<String> = ServerSentEvent.builder(
+        HttpJson.writeString(mapOf(REASON to reason, RESUMABLE to (reason != QueryStreams.COMPLETE)))
+    ).event(QueryStreams.END).build()
+
+    private fun error(failure: Throwable, context: String): ServerSentEvent<String> =
+        ServerSentEvent.builder(HttpJson.writeString(problemOf(failure, context).members())).event(ERROR).build()
 
     /** [block]'s response, or the problem of what it failed with. */
     @Suppress("TooGenericExceptionCaught") // Every failure of a query is answered as a problem.
@@ -354,8 +459,16 @@ internal class QueryHandler(
         /** The event that ends a streamed list that failed: the problem. */
         const val ERROR: String = "error"
 
+        /** The request header naming the position a stream resumes after (decision D253). */
+        const val LAST_EVENT_ID: String = "Last-Event-ID"
+
+        /** The members of an `end` event's data: why the stream ended, and whether it can be resumed. */
+        const val REASON: String = "reason"
+        const val RESUMABLE: String = "resumable"
+
         private const val NOT_MODIFIED = 304
         private const val QUERY_STORAGE_UNAVAILABLE = "Query storage is unavailable; retry later."
+        private const val NODE_STOPPING = "The node is stopping; stream from another node."
         private val logger = KotlinLogging.logger {}
 
         /** The path of the query route of the dataset [name]: `/wow/dataset/{context}/{dataset}/query`. */
