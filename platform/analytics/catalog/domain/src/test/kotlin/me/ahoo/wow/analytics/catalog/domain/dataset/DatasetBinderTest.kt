@@ -19,6 +19,7 @@ import me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetJoin
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetJoinKey
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetJoinKind
+import me.ahoo.wow.analytics.catalog.api.dataset.DatasetReference
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetSensitivity
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetSource
 import me.ahoo.wow.analytics.catalog.api.source.FieldSensitivity
@@ -262,5 +263,59 @@ class DatasetBinderTest {
         )
         bound(DEFINITION, SOURCES + (ORDERS_ID to strategy)).columns.first { it.name == "phone" }.sensitivity.assert()
             .isEqualTo(DatasetSensitivity(SensitivityLevel.DISPLAY))
+    }
+
+    @Test
+    fun `a value a source declares a reference, or a Wow table's aggregate id, should refer to its aggregate`() {
+        val orders = DatasetFixtures.analyst(
+            "orders",
+            DatasetFixtures.ORDERS.columns,
+            tenant = "tenant",
+            sensitivity = DatasetFixtures.ORDERS.sensitivity,
+            references = listOf(me.ahoo.wow.analytics.catalog.api.source.SourceReference("member_id", "crm", "member")),
+        )
+        val members = DatasetFixtures.MEMBERS.let { wow ->
+            SourceState().apply {
+                onSourcing(
+                    me.ahoo.wow.analytics.catalog.api.source.WowEnrichmentAdopted(
+                        connection = wow.connection,
+                        engine = wow.engine,
+                        database = wow.database,
+                        table = wow.table,
+                        tableUuid = wow.tableUuid,
+                        tableEngine = wow.tableEngine,
+                        columns = wow.columns + SourceColumn("aggregate_id", "String"),
+                        enrichment = wow.enrichment!!,
+                        tenantColumn = "tenant_id",
+                        references = listOf(
+                            me.ahoo.wow.analytics.catalog.api.source.SourceReference("state.cardId", "pay", "card"),
+                        ),
+                    ),
+                )
+            }
+        }
+        val columns = bound(
+            DEFINITION.copy(
+                columns = listOf(
+                    DatasetColumn("member", from = "o.member_id"),
+                    DatasetColumn("member_aggregate", from = "m.aggregate_id"),
+                    DatasetColumn("card", from = "m.state.cardId"),
+                    DatasetColumn("plain", from = "o.amount"),
+                    DatasetColumn("computed", expression = "lower(o.member_id)"),
+                ),
+                identity = null,
+                eventTime = null,
+            ),
+            SOURCES + (ORDERS_ID to orders) + (MEMBERS_ID to members),
+        ).columns.associate { it.name to it.reference }
+        columns.assert().isEqualTo(
+            mapOf(
+                "member" to DatasetReference("crm", "member"),
+                "member_aggregate" to DatasetReference("shop", "member"),
+                "card" to DatasetReference("pay", "card"),
+                "plain" to null,
+                "computed" to null,
+            ),
+        )
     }
 }

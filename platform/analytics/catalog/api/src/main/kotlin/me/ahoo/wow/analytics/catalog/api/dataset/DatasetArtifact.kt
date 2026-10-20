@@ -55,7 +55,9 @@ data class DatasetScope(
 
 /**
  * A column of a dataset's view: its [name] and [title], the [sensitivity] its lineage gives it (null when it is not
- * sensitive), the values it reads ([inputs], each `<source id>/<column>[.<path>]`) and whether it is [computed].
+ * sensitive), the values it reads ([inputs], each `<source id>/<column>[.<path>]`), whether it is [computed], and the
+ * aggregate its value is the id of ([reference], decision D238 ⑤), as the source it is read from says: a row's action
+ * on that aggregate goes to the service that owns it.
  */
 data class DatasetField(
     val name: String,
@@ -63,4 +65,8 @@ data class DatasetField(
     val sensitivity: DatasetSensitivity? = null,
     val inputs: List<String> = emptyList(),
     val computed: Boolean = false,
+    val reference: DatasetReference? = null,
 )
+
+/** The aggregate a dataset's value is the id of: [aggregate] of the bounded context [context]. */
+data class DatasetReference(val context: String, val aggregate: String)

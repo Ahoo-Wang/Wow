@@ -1253,6 +1253,7 @@ public final class me/ahoo/wow/query/schema/QueryFieldDeclarationBuilder {
 	public final fun kind (Lme/ahoo/wow/query/schema/QueryValueKind;)V
 	public final fun nullable (Z)V
 	public final fun property (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public final fun reference (Ljava/lang/String;Ljava/lang/String;)V
 	public final fun required (Z)V
 	public final fun semantic (Lme/ahoo/wow/query/schema/QuerySemanticType;)V
 	public final fun temporalEpoch (Ljava/util/concurrent/TimeUnit;)V

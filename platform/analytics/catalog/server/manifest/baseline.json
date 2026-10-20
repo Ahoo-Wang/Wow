@@ -12,7 +12,7 @@
       "description" : "A wide table over the catalog's sources: its definition, its versions and where each is published",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState",
-        "fingerprint" : "df39c48b3950bd9b9d89807f368ad52573e960fe2ac8c24fdb6e287e730cdee3"
+        "fingerprint" : "2df3de7c2a98136b9e574844130ed272b3b912e89d837842799932e978e40bc4"
       },
       "snapshot" : {
         "enabled" : true
@@ -627,6 +627,18 @@
               },
               "name" : {
                 "type" : "string"
+              },
+              "reference" : {
+                "type" : [ "object", "null" ],
+                "properties" : {
+                  "aggregate" : {
+                    "type" : "string"
+                  },
+                  "context" : {
+                    "type" : "string"
+                  }
+                },
+                "required" : [ "aggregate", "context" ]
               },
               "sensitivity" : {
                 "$ref" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DatasetSensitivity-nullable"
