@@ -195,10 +195,10 @@ abstract class EventLogSpec {
             val c = type.ref("tenant", "c")
             val otherC = type.ref("other", "c")
             // The log's key order: aggregate id, then tenant.
-            backfill.untagged(type, null, 10).assert().containsExactly(a, c, otherC)
+            backfill.untagged(type, null, 10).assert().containsExactly(a, otherC, c)
             backfill.untagged(type, null, 1).assert().containsExactly(a)
-            backfill.untagged(type, a, 10).assert().containsExactly(c, otherC)
-            backfill.untagged(type, c, 10).assert().containsExactly(otherC)
+            backfill.untagged(type, a, 10).assert().containsExactly(otherC, c)
+            backfill.untagged(type, otherC, 10).assert().containsExactly(c)
             backfill.recordTags(a, mapOf(1 to east, 2 to emptyMap(), 9 to east)).assert().isEqualTo(2)
             log.read(a).toList().map { it.tags }.assert().containsExactly(east, emptyMap())
             // Recorded tags are never changed.
@@ -206,7 +206,7 @@ abstract class EventLogSpec {
             backfill.recordTags(type.ref("tenant", "b"), mapOf(1 to emptyMap())).assert().isEqualTo(0)
             backfill.recordTags(c, emptyMap()).assert().isEqualTo(0)
             log.read(a).toList().first().tags.assert().isEqualTo(east)
-            backfill.untagged(type, null, 10).assert().containsExactly(c, otherC)
+            backfill.untagged(type, null, 10).assert().containsExactly(otherC, c)
         }
 
     @Test

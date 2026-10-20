@@ -21,12 +21,17 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.elasticsearch.events.ElasticsearchEventSink
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.TagsBackfill
+import me.ahoo.wow.spi.state.StateEventPayload
+import me.ahoo.wow.spi.state.StateEventRecord
 import kotlin.time.TimeSource
 
 /**
@@ -67,8 +72,8 @@ data class TagsProgress(val type: AggregateType, val checkpoint: TagsCheckpoint)
  * - **Resumable.** Aggregates are walked in the log's key order, a page of [ImportOptions.pageSize] at a time,
  *   [ImportOptions.concurrency] at a time, and the checkpoint ([TagsCheckpoint]) moves after each page;
  *   [ImportOptions.restart] walks from the first again.
- * - **Elasticsearch after.** An events index written before the tags holds documents without them: re-sink it only
- *   once every log is backfilled ([untagged] says none is left).
+ * - **Elasticsearch after.** An events index written before the tags holds documents without them: [resink]
+ *   overwrites them from the log once it is backfilled ([untagged] says none is left).
  */
 class TagsBackfiller(
     private val models: MigrationModels,
@@ -113,6 +118,52 @@ class TagsBackfiller(
         }
         return TagsProgress(type, checkpoint).also(progress)
     }
+
+    /**
+     * Re-sinks the documents of [type]'s events index that were indexed before the index learned the tags (decision
+     * D259): each such stream read from the log, its tags now recorded there, and written over its document
+     * ([ElasticsearchEventSink.overwrite]), the only documents this writes. Run after [backfill]: while the log still
+     * holds a stream without tags it refuses, unless [force], which leaves the documents of those streams as they are.
+     * An overwritten document is no longer listed, so a run again, or after a stop, goes on where it was and
+     * overwrites nothing twice. Returns how many it overwrote.
+     */
+    suspend fun resink(type: AggregateType, sink: ElasticsearchEventSink, force: Boolean = false): Long {
+        if (!force && untagged(type)) {
+            throw MigrationException(
+                "The V10 log of $type still holds streams without tags: backfill it first, or re-sink with --force.",
+            )
+        }
+        val log = logOf(type.context)
+        var after: ElasticsearchEventSink.StreamKey? = null
+        var overwritten = 0L
+        while (true) {
+            val page = sink.untagged(after, options.pageSize)
+            if (page.isEmpty()) break
+            val records = page.mapNotNull { key ->
+                val stream = log.read(key.ref, key.version, key.version).toList().singleOrNull()
+                    ?: throw MigrationException("${key.ref} v${key.version} is indexed but not in the V10 log.")
+                stream.takeIf { it.tags != null }?.let(::recordOf)
+            }
+            sink.overwrite(records)
+            overwritten += records.size
+            after = page.last()
+        }
+        return overwritten
+    }
+
+    /** [stream] as the sink subscription hands it to a Sink: its events as committed. */
+    private fun recordOf(stream: EventStreamRecord): StateEventRecord = StateEventRecord.of(
+        stream.ref,
+        stream.version,
+        commandId = stream.commandId,
+        requestId = stream.requestId,
+        commandType = stream.commandType,
+        commitTime = stream.commitTime,
+        events = stream.events.map { StateEventPayload.of(it.name, it.revision, WowJson.mapper.readTree(it.payload)) },
+        scope = stream.scope,
+        operator = stream.operator,
+        tags = checkNotNull(stream.tags),
+    )
 
     /** Whether [type]'s log still holds a stream that records no tags. */
     suspend fun untagged(type: AggregateType): Boolean =
