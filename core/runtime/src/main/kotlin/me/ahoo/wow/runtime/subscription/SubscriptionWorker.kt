@@ -28,6 +28,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.WaitSignal
@@ -45,6 +46,7 @@ import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.FailureClass
 import java.time.Clock
+import kotlin.random.Random
 
 /**
  * One subscription in one partition: takes the partition's entries in sequence order, runs them one at a time per
@@ -104,11 +106,27 @@ internal class SubscriptionWorker(
     private val observer: Observer = Observer.NONE,
     /** How the handler's failures are classified (decisions D229 G-6, D243). */
     private val classification: FailureClassification = FailureClassification.DEFAULT,
+    /** The jitter of the backpressure backoff (decision D263). */
+    private val random: Random = Random.Default,
 ) {
     private val permits = Semaphore(options.maxInFlight)
 
     /** Whether the partition is paused on a systemic failure (decision D243), and the gate of each attempt. */
     private val pause = PartitionPause(group, subscription.name, partition, options.systemic, clock, observer)
+
+    /** How many handlings run at once while the downstream pushes back (decision D263). */
+    private val throttle = PartitionThrottle(
+        group,
+        subscription.name,
+        partition,
+        options.maxInFlight,
+        options.backpressure,
+        clock,
+        observer,
+    )
+
+    /** The throttle of the partition now, null while it holds nothing back (decision D263). */
+    val throttled: ThrottledPartition? get() = throttle.state
 
     /** The pause of the partition now, null while it runs (decision D243). */
     val paused: PausedPartition? get() = pause.state
@@ -418,30 +436,29 @@ internal class SubscriptionWorker(
      * failure while the partition is paused, is the partition's ([pause]): the entry is tried again once the pause lets
      * it, spending no attempt.
      *
-     * A command the handler sent that the node refused as busy ([CommandBusyException], decision D228 ②) is
-     * backpressure, not a failure (review R2.1-1): the entry is tried again after the budget's backoff, as many times
-     * as it takes, without spending an attempt, so a burst holds the lane (and, with the in-flight bound, the
-     * partition's tail) instead of parking the aggregate.
+     * A downstream that pushed back ([FailureClass.BACKPRESSURE], decision D263: a command refused as busy, a wait
+     * that ran out, a busy query store, a 429 with `Retry-After`) is not a failure of the aggregate (review R2.1-1):
+     * the entry is tried again after the backpressure backoff with jitter, at least the `Retry-After`, without
+     * spending an attempt of the handler's budget, and the partition is throttled ([throttle]) until attempts succeed
+     * again; once [BackpressureOptions.maxAttempts] are spent, the aggregate parks as after any spent budget. It never
+     * pauses the partition, which would only slow the overloaded downstream's recovery further.
      */
-    @Suppress("TooGenericExceptionCaught", "CyclomaticComplexMethod")
+    @Suppress("TooGenericExceptionCaught", "CyclomaticComplexMethod", "LongMethod")
     private suspend fun retried(sourced: SourcedEntry): Result<HandledEntry> {
         val ref = sourced.stream.ref
         var failures = 0
-        var busy = 0
+        var pushedBack = 0
         while (true) {
             val probing = pause.admit()
+            throttle.acquire()
             val failure = try {
                 val handled = attempt(sourced)
-                pause.succeeded(ref)
+                succeeded(ref)
                 return Result.success(handled)
             } catch (rejected: HandlingRejectedException) {
                 // The handler reached a decision: what it depends on answers.
-                pause.succeeded(ref)
+                succeeded(ref)
                 return Result.failure(rejected)
-            } catch (refused: CommandBusyException) {
-                busy++
-                logger.debug { "Subscription ${subscription.name} met a busy node: ${refused.message}" }
-                null
             } catch (fatal: VirtualMachineError) {
                 logger.error(fatal) {
                     "Subscription ${subscription.name} met a fatal error handling $ref@" +
@@ -453,14 +470,24 @@ internal class SubscriptionWorker(
                 currentCoroutineContext().ensureActive()
                 failure
             } finally {
+                throttle.release()
                 pause.release(probing)
-            }
-            if (failure == null) {
-                delay(retry.backoff(busy))
-                continue
             }
             val kind = classification.classify(failure, subscription.retry)
             if (pause.failed(ref, kind, failure, probing)) {
+                continue
+            }
+            if (kind == FailureClass.BACKPRESSURE) {
+                // Never the partition's pause (decision D263): this entry backs off, the partition slows down.
+                pushedBack++
+                throttle.backpressure(ref)
+                observer.backpressured(group, subscription.name, partition, codeOf(failure))
+                if (pushedBack >= options.backpressure.maxAttempts) {
+                    return Result.failure(failure)
+                }
+                val retryAfter = FailureClassification.retryAfterOf(failure)
+                logger.debug { "Subscription ${subscription.name} met backpressure at $ref: ${failure.message}" }
+                delay(options.backpressure.backoff(pushedBack, retryAfter, random.nextDouble()))
                 continue
             }
             failures++
@@ -470,6 +497,21 @@ internal class SubscriptionWorker(
             delay(retry.backoff(failures))
         }
     }
+
+    private fun succeeded(ref: AggregateRef) {
+        pause.succeeded(ref)
+        throttle.succeeded()
+    }
+
+    /** The code a backpressure [failure] names: the downstream's error code, its own or a cause's, else its class. */
+    private fun codeOf(failure: Throwable): String =
+        generateSequence(failure) { it.cause.takeIf { cause -> cause !== it } }.take(MAX_CAUSES).firstNotNullOfOrNull {
+            when (it) {
+                is CommandBusyException -> ResultCodes.BUSY
+                is WowProblemException -> it.code
+                else -> null
+            }
+        } ?: failure.javaClass.simpleName
 
     /** One attempt of the handler, within the budget's timeout when it has one. */
     private suspend fun attempt(sourced: SourcedEntry): HandledEntry {
@@ -497,8 +539,15 @@ internal class SubscriptionWorker(
      */
     private suspend fun park(sourced: SourcedEntry, failure: Throwable) {
         val stream = sourced.stream
-        val unrecoverable = failure !is HandlingRejectedException &&
-            classification.classify(failure, subscription.retry) == FailureClass.UNRECOVERABLE
+        val kind = if (failure is HandlingRejectedException) {
+            null
+        } else {
+            classification.classify(
+                failure,
+                subscription.retry
+            )
+        }
+        val unrecoverable = kind == FailureClass.UNRECOVERABLE
         val entry = ParkedAggregate(
             subscription.name,
             stream.ref,
@@ -513,6 +562,8 @@ internal class SubscriptionWorker(
             val after = when {
                 failure is HandlingRejectedException -> "a rejection"
                 unrecoverable -> "an unrecoverable failure, which it does not retry automatically"
+                kind == FailureClass.BACKPRESSURE ->
+                    "${options.backpressure.maxAttempts} attempts its downstream pushed back (decision D263)"
                 else -> "${retry.maxAttempts} attempts"
             }
             "Subscription ${subscription.name} parks ${stream.ref} from version ${stream.version} after $after."
@@ -763,3 +814,6 @@ private val logger = KotlinLogging.logger {}
 /** How many aggregates a worker of a source that repeats remembers the last version handled of. */
 private const val REMEMBERED = 4_096
 private const val LOAD_FACTOR = 0.75f
+
+/** The causes [SubscriptionWorker.codeOf] looks through at most. */
+private const val MAX_CAUSES = 16

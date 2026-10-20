@@ -112,6 +112,18 @@ interface Observer {
      */
     fun tailRead(context: String, partition: Int, reason: String) = Unit
 
+    /**
+     * [subscription] of the subscription [group] started throttling [partition] on backpressure ([throttled] true),
+     * running fewer handlings at once, or stopped, back at its in-flight bound ([throttled] false); decision D263.
+     */
+    fun partitionThrottled(group: String, subscription: String, partition: Int, throttled: Boolean) = Unit
+
+    /**
+     * [subscription] of the subscription [group] retries an entry in [partition] whose downstream pushed back with
+     * [code] (`wow.command.busy`, `wow.wait.timeout`, `wow.query.busy`, or the failure's class), decision D263.
+     */
+    fun backpressured(group: String, subscription: String, partition: Int, code: String) = Unit
+
     /** The firing of [timer]: its command sent to its target. */
     fun firing(timer: Timer): Observation = Observation.NONE
 

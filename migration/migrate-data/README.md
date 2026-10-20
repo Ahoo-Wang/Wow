@@ -15,6 +15,7 @@ Moves a 9.x application's data into V10 (design [07 §3](../../documentation/des
 | `tail` | `--once` | Follows what 9.x commits after the import. It needs a `(createTime, _id)` index on each `<aggregate>_event_stream`; it prints the command, or creates it with `source.createCommitTimeIndex`. |
 | `compare` | `--sample <percent>`, `--restart` | Compares each 9.x snapshot with the V10 state rebuilt from the imported log at the snapshot's version, then the reservations and the parked entries. |
 | `snapshot` | `--restart` | Writes the V10 snapshot of every imported instance at its last version. |
+| `backfill-tags` | `--restart`, `--force` | Records the tags of every V10 stream appended without them, then re-sinks the Elasticsearch events documents indexed without them (see [Backfilling the tags](#backfilling-the-tags)). |
 
 Exit codes: `0` done, `1` failed (the check, or a step that stopped), `2` usage error, `3` `compare` found differences.
 
@@ -30,17 +31,21 @@ Exit codes: `0` done, `1` failed (the check, or a step that stopped), `2` usage 
     "type": "postgres",
     "jdbcUrl": "jdbc:postgresql://localhost:5432/wow",
     "username": "wow",
-    "password": "env:WOW_PG_PASSWORD"
+    "password": "env:WOW_PG_PASSWORD",
+    "poolSize": 16
   },
   "partitions": { "example": 16 },
   "classpath": ["../order-service/build/install/order-service/lib"],
-  "compensation": { "database": "compensation_db", "service": "order-service" }
+  "compensation": { "database": "compensation_db", "service": "order-service" },
+  "elasticsearch": { "uri": "http://localhost:9200", "indexPrefix": "" }
 }
 ```
 
 - Relative paths resolve against the configuration file; `env:NAME` reads an environment variable.
 - `classpath` lists the services' domain modules: jars, or directories of classes and jars. `compare` and `snapshot` rebuild states with the V10 models found there (the compiler's `ModelProvider`, decision D107), so the same evolve and upgrade functions the service runs. Dependencies the models take are stand-ins: the tool runs no decide function. Without `classpath`, the models are the ones on the tool's own class path.
 - `compensation` is optional: the 9.x compensation service's database (`database`, on the server of `uri`, the source's when left out) and the V10 service whose failure ledger receives its unresolved executions (`service`, the service's `wow.service` or `spring.application.name`). Without it, nothing of the compensation service is read.
+- A PostgreSQL target is reached through a HikariCP pool of at most `poolSize` connections (16 by default), closed when the command ends: one connection per call would run the client out of ports on a large log. HikariCP is a runtime dependency of the tool, its version the Spring Boot BOM's.
+- `elasticsearch` is optional: the cluster of the services' events indices (`uri`) and their `index-prefix` (`indexPrefix`), which only `backfill-tags` writes to.
 - `pageSize`, `streamBatch`, `concurrency`, `lookbackMillis` and `pollIntervalMillis` tune the passes.
 
 ## `migration-map.json`, format 1
@@ -163,9 +168,18 @@ The summary of each aggregate gives the share of instances that have a 9.x snaps
 
 `snapshot` (or `import --snapshots`) replays each imported instance's V10 log and saves its snapshot in the context's snapshot store, on the target backend. It is idempotent: a snapshot the store already holds at that version is skipped. The V10 host still claims and backfills its snapshot tables (decision D172); its snapshot subscription then finds these snapshots and passes over them.
 
+## Backfilling the tags
+
+`backfill-tags [--restart] [--force]` records the aggregate's tags on every V10 stream appended without them, the streams `import` writes among them (decision D259): until then ABAC on the `events` model matches none of those streams. It runs in this order, and prints it:
+
+1. Each aggregate of the configured contexts' Manifests is replayed with its V10 model, and each stream without tags gets the tags the aggregate had after it. Only missing tags are written, a page of aggregates at a time, resuming from the checkpoint; `--restart` walks from the first again.
+2. With `elasticsearch` configured, the events index documents indexed without tags are overwritten from the log, and nothing else. This is refused while a log still holds a stream without tags (an old node appended it meanwhile: run again), unless `--force`, which leaves those documents as they are. An overwritten document is no longer listed, so a run again overwrites nothing.
+
+On 100,000 aggregates of 2 streams each (page 500, concurrency 8, containers on a laptop) the backfill took 12.7 s on PostgreSQL (0.13 ms per aggregate) and 44.9 s on MongoDB (0.45 ms per aggregate): `TagsBackfillCostSpike`, run with `-Dwow.spike.tags=true`.
+
 ## Checkpoints
 
-The checkpoint file (format 1) keeps, per 9.x aggregate, where the import, the tail, the comparison and the snapshot writing stand; per `PrepareKey`, where its reservation import stands; and where the compensation import stands. The keys the reservation import reserved are kept beside it, in `<checkpoint>.reservations.jsonl`: keep the two together. Commands may run at once over the same checkpoint file, the tail beside `compare` or `snapshot`: each change of it holds a lock on `<checkpoint>.lock` (left in place, empty) and replaces the file atomically after forcing the new content to the disk, so none loses another's progress. A stopped run repeats at most one page. A resumed comparison keeps the counts of the earlier runs, so it still exits with `3` when they found differences. `--restart` starts a pass again from the first instance, and another `--sample` restarts the comparison.
+The checkpoint file (format 1) keeps, per 9.x aggregate, where the import, the tail, the comparison and the snapshot writing stand; per `PrepareKey`, where its reservation import stands; and where the compensation import stands; per V10 aggregate type, where the tags backfill stands. The keys the reservation import reserved are kept beside it, in `<checkpoint>.reservations.jsonl`: keep the two together. Commands may run at once over the same checkpoint file, the tail beside `compare` or `snapshot`: each change of it holds a lock on `<checkpoint>.lock` (left in place, empty) and replaces the file atomically after forcing the new content to the disk, so none loses another's progress. A stopped run repeats at most one page. A resumed comparison keeps the counts of the earlier runs, so it still exits with `3` when they found differences. `--restart` starts a pass again from the first instance, and another `--sample` restarts the comparison.
 
 ## Limits
 

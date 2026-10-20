@@ -147,6 +147,25 @@ class OtelObserverTest {
     }
 
     @Test
+    fun `the throttles of a partition and its backpressured attempts should be counted`() {
+        observer.partitionThrottled("sales", "Board.onEvent", 3, true)
+        observer.partitionThrottled("sales", "Board.onEvent", 3, false)
+        observer.backpressured("sales", "Board.onEvent", 3, "wow.wait.timeout")
+        observer.backpressured("sales", "Board.onEvent", 3, "wow.wait.timeout")
+        val board = arrayOf(WowMetrics.GROUP, "sales", WowMetrics.SUBSCRIPTION, "Board.onEvent")
+        listOf(WowMetrics.THROTTLED_KIND, WowMetrics.UNTHROTTLED_KIND).forEach {
+            telemetry.meters.get(
+                WowMetrics.THROTTLED_NOTICES
+            ).tags(*board, WowMetrics.PARTITION, "3", WowMetrics.KIND, it)
+                .counter().count().assert().isEqualTo(1.0)
+        }
+        telemetry.meters.get(
+            WowMetrics.BACKPRESSURE
+        ).tags(*board, WowMetrics.CODE, "wow.wait.timeout").counter().count()
+            .assert().isEqualTo(2.0)
+    }
+
+    @Test
     fun `the pauses of a partition and its resumes should be counted`() {
         observer.partitionPaused("sales", "Board.onEvent", 3, "a systemic failure")
         observer.partitionResumed("sales", "Board.onEvent", 3, 1_500)

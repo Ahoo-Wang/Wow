@@ -37,6 +37,15 @@ enum class FailureClass {
      * partition and retries until it is back, spending no aggregate's budget and parking none.
      */
     SYSTEMIC,
+
+    /**
+     * What the handler called is up but overloaded and asked it to come back later (decision D263): a node refusing a
+     * command as busy (`wow.command.busy`), a wait that ran out (`wow.wait.timeout`), a query store's bulkhead
+     * (`wow.query.busy`), any 429 with a `Retry-After`. Never systemic: the subscription retries the entry with
+     * backoff and jitter (the `Retry-After` at least), throttles the partition's concurrency until handlings succeed
+     * again, and parks the aggregate once the backpressure budget is spent; it never pauses the partition.
+     */
+    BACKPRESSURE,
 }
 
 /**

@@ -42,7 +42,8 @@ import tools.jackson.databind.node.ObjectNode
  *
  * - **Record.** One event stream, the commit of one command: `aggregateId`, `tenantId`, `version`, `commitTime`
  *   (epoch milliseconds), `commandId`, `requestId`, `commandType`, `ownerId` and `spaceId` (null when unset),
- *   `operator` (`{id, tenantId, crossScope}`, null for an anonymous caller, decision D163) and `events`, each
+ *   `operator` (`{id, tenantId, crossScope}`, null for an anonymous caller, decision D163), `tags` (after the commit,
+ *   null when the log did not record them, decision D259) and `events`, each
  *   `{name, revision, body}`. Its identity is `(aggregateId, version)`; `count` counts streams; an event condition is
  *   an `ELEMENT_MATCH` on `events`, and per-event analytics expand it (`AggregationQuery.elements`).
  * - **Reading.** The backend returns streams as stored ([EventStreamRecords.stored]); each record is read as
@@ -131,6 +132,13 @@ object EventStreamRecords {
                 .put("id", operator.id)
                 .put("tenantId", operator.tenantId)
                 .put("crossScope", operator.crossScope)
+        }
+        val tags = stream.tags
+        if (tags == null) {
+            record.putNull(EventStreamFields.TAGS)
+        } else {
+            val node = record.putObject(EventStreamFields.TAGS)
+            tags.forEach { (key, values) -> node.putArray(key).also { array -> values.forEach(array::add) } }
         }
         val events = record.putArray(EventStreamFields.EVENTS)
         stream.events.forEach { event ->

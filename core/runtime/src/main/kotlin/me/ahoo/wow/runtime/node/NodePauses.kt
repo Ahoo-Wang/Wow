@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.node
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.subscription.SubscriptionPauses
+import me.ahoo.wow.runtime.subscription.ThrottledPartition
 
 /**
  * The partitions the node's subscriptions have paused on a systemic failure (decision D243), the built-in ones, the
@@ -26,3 +27,13 @@ val ServiceNode.pauses: SubscriptionPauses
         contexts.values.flatMap { context -> context.logGroups.map { it.subscriptions } + listOfNotNull(context.intake) } +
             topicSubscriptions.values
     }
+
+/**
+ * The partitions the node's subscriptions throttle on backpressure now (decision D263), the built-in ones, the intakes'
+ * and those of other contexts' topics included.
+ */
+@InternalWowApi
+val ServiceNode.throttled: List<ThrottledPartition>
+    get() = contexts.values.flatMap { context ->
+        (context.logGroups.map { it.subscriptions } + listOfNotNull(context.intake)).flatMap { it.throttled() }
+    } + topicSubscriptions.values.flatMap { it.throttled() }

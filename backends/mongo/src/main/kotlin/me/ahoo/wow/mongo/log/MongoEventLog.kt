@@ -23,6 +23,7 @@ import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.model.Accumulators
 import com.mongodb.client.model.Aggregates
+import com.mongodb.client.model.BulkWriteOptions
 import com.mongodb.client.model.Field
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.FindOneAndUpdateOptions
@@ -31,6 +32,7 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Sorts
+import com.mongodb.client.model.UpdateOneModel
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
@@ -62,6 +64,7 @@ import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.log.TailPacer
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
@@ -131,6 +134,7 @@ import kotlin.time.Duration.Companion.seconds
  * Calls run on [dispatcher], virtual threads by default.
  */
 @InternalWowApi
+@Suppress("LargeClass") // The log's port and the tags backfill's (decision D259), on one collection layout.
 class MongoEventLog(
     private val client: MongoClient,
     databaseName: String,
@@ -149,7 +153,8 @@ class MongoEventLog(
      * on the partition's counter are retried, each attempt bounded anew ([transact]).
      */
     transactionTimeout: Duration = DEFAULT_TRANSACTION_TIMEOUT,
-) : EventLog {
+) : EventLog,
+    TagsBackfill {
     /** Validates the partition count first (decision D240): a log of another count is refused when it is built. */
     private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
 
@@ -586,6 +591,57 @@ class MongoEventLog(
     }
 
     /**
+     * The streams without tags after [after], read in the version key's order `(aggregate_id, tenant_id, version)`
+     * and folded into their aggregates until [limit] are found: the walk follows that index and stops there.
+     */
+    @InternalWowApi
+    override suspend fun untagged(type: AggregateType, after: AggregateRef?, limit: Int): List<AggregateRef> {
+        require(limit >= 1) { "A page holds at least one aggregate." }
+        return dispatcher.mongo {
+            val collection = collectionOf(type)
+            val untagged = Filters.exists(TAGS, false)
+            val filter = if (after == null) {
+                untagged
+            } else {
+                Filters.and(
+                    untagged,
+                    Filters.or(
+                        Filters.gt(AGGREGATE_ID, after.id),
+                        Filters.and(Filters.eq(AGGREGATE_ID, after.id), Filters.gt(TENANT_ID, after.tenantId)),
+                    ),
+                )
+            }
+            val found = LinkedHashSet<AggregateRef>()
+            collection.committed.find(filter)
+                .projection(Projections.include(AGGREGATE_ID, TENANT_ID))
+                .sort(Sorts.ascending(AGGREGATE_ID, TENANT_ID, VERSION))
+                .batchSize(limit)
+                .cursor().use { cursor ->
+                    while (found.size < limit && cursor.hasNext()) {
+                        val document = cursor.next()
+                        found += type.ref(document.getString(TENANT_ID), document.getString(AGGREGATE_ID))
+                    }
+                }
+            found.toList()
+        }
+    }
+
+    /** One unordered bulk write, each version's update only where its stream records no tags. */
+    @InternalWowApi
+    override suspend fun recordTags(ref: AggregateRef, tagsByVersion: Map<Int, Map<String, List<String>>>): Int {
+        if (tagsByVersion.isEmpty()) return 0
+        return dispatcher.mongo {
+            val updates = tagsByVersion.map { (version, tags) ->
+                UpdateOneModel<Document>(
+                    Filters.and(refFilter(ref), Filters.eq(VERSION, version), Filters.exists(TAGS, false)),
+                    Updates.set(TAGS, Document(tags)),
+                )
+            }
+            collectionOf(ref.type).log.bulkWrite(updates, BulkWriteOptions().ordered(false)).modifiedCount
+        }
+    }
+
+    /**
      * One aggregation (decision D261): the tail by the version key, then, through `$unionWith` on the same
      * collection, the request keys of the latest streams before it, newest first. The first batch holds them all
      * ([READ_TAIL_BATCH] streams of tail beyond them), so a typical read is one command.
@@ -803,6 +859,8 @@ class MongoEventLog(
         )
         .append(HEADERS, Document(stream.headers))
         .apply { MongoOperators.document(stream.operator)?.let { append(OPERATOR, it) } }
+        // The tags after the commit (decision D259): absent when not recorded, an empty document for none.
+        .apply { stream.tags?.let { append(TAGS, Document(it)) } }
         .apply { transport?.let { append(TRANSPORT, transportDocument(it)) } }
 
     private fun transportDocument(transport: Transport) = Document()
@@ -887,6 +945,9 @@ class MongoEventLog(
         },
         headers = strings(document.get(HEADERS, Document::class.java)),
         operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
+        tags = document.get(TAGS, Document::class.java)?.let { tags ->
+            tags.keys.associateWith { tags.getList(it, String::class.java).toList() }
+        },
     )
 
     internal companion object {
@@ -942,6 +1003,7 @@ class MongoEventLog(
         const val CAUSATION_ID = "causation_id"
         const val HEADERS = "headers"
         const val OPERATOR = "operator"
+        const val TAGS = "tags"
         const val TRANSPORT = "transport"
         const val WAIT = "wait"
         const val WAIT_ID = "wait_id"

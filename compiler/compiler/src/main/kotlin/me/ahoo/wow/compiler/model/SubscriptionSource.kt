@@ -99,10 +99,8 @@ internal object SubscriptionSource {
         val nullable = handler.state != null && handler.nullableState
         val state = handler.state?.let { if (nullable) "$it?" else it } ?: "Any"
         val stateType = handler.state?.let { "$it::class.java" } ?: "null"
-        val arguments = if (handler.context) "event, context" else "event"
-        val call = "processor.${handler.function}($arguments)"
-        val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
-        val body = if (kind == SAGA) "$KERNEL.derivedOf($awaited)" else awaited
+        val body = handler.event?.let { eventBody(handler, it, kind) } ?: streamBody(handler, kind)
+        val contextParameter = if (handler.context || handler.event != null) "context" else "_"
         val rejectionArgument = (if (rejections) ", rejections = rejections" else "") +
             if (commits) ", commits = commits" else ""
         val optionalArguments = optionalArguments(handler, nullable)
@@ -110,9 +108,33 @@ internal object SubscriptionSource {
             "        $PROCESSOR_BINDING.$kind<$state>(\"${escape(binding.name)}\", \"${handler.function}\", " +
                 "$stateType, ${handler.blocking}$rejectionArgument$optionalArguments) {",
         )
-        appendLine("                event: $STATE_EVENT<$state>, ${if (handler.context) "context" else "_"} ->")
+        appendLine("                event: $STATE_EVENT<$state>, $contextParameter ->")
         appendLine("            $body")
         appendLine("        },")
+    }
+
+    /** The body of a handler of the whole stream: its call, a saga's read as the commands it derives. */
+    private fun streamBody(handler: HandlerBinding, kind: String): String {
+        val arguments = if (handler.context) "event, context" else "event"
+        val call = "processor.${handler.function}($arguments)"
+        val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
+        return if (kind == SAGA) "$KERNEL.derivedOf($awaited)" else awaited
+    }
+
+    /**
+     * The body of a handler of each event of a type (decision D264): `eachEvent` calls the function once per such
+     * event of the stream, with its `StateTypedEvent` or the event itself, and the context of that call; a saga's
+     * calls' commands are the stream's, in order.
+     */
+    private fun eventBody(handler: HandlerBinding, event: EventParameter, kind: String): String {
+        val argument = if (event.form == EventParameter.TYPED) "typed" else "typed.event"
+        val arguments = if (handler.context) "$argument, invocation" else argument
+        val call = "processor.${handler.function}($arguments)"
+        val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
+        val result = if (kind == SAGA) "$KERNEL.derivedOf($awaited)" else awaited
+        val invocation = if (handler.context) "invocation" else "_"
+        val each = "$KERNEL.eachEvent(event, ${event.source}::class.java, context) { typed, $invocation -> $result }"
+        return if (kind == SAGA) "$each.flatten()" else each
     }
 
     /**
@@ -130,6 +152,7 @@ internal object SubscriptionSource {
         }
         handler.retry?.let { append(", retry = ${it.source()}") }
         handler.start?.let { append(", startFrom = $KERNEL.StartFrom.$it") }
+        handler.event?.let { append(", eventType = ${it.source}::class.java") }
         if (handler.callSources.isNotEmpty()) {
             append(", calls = listOf(${handler.callSources.joinToString(", ") { "$it::class.java" }})")
         }

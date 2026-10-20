@@ -86,8 +86,8 @@ class SubscriptionRetryTest {
         }
 
     @Test
-    fun `a busy node is backpressure, retried past the budget without parking`(): Unit = runBlocking {
-        // Review R2.1-1: a command the node refused as busy never parks the aggregate that sent it.
+    fun `a busy node is backpressure, retried past the handler's budget without parking`(): Unit = runBlocking {
+        // Review R2.1-1, decision D263: a busy node spends the backpressure budget, not the handler's.
         val attempts = AtomicInteger()
         val busy = Subscription("busy", SubscriptionFilter("shop")) { entry ->
             if (attempts.incrementAndGet() <= BUSY_ROUNDS) {

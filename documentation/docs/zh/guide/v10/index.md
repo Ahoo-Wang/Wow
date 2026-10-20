@@ -29,7 +29,7 @@ V10 在 [`v10` 分支](https://github.com/Ahoo-Wang/Wow/tree/v10) 上开发。�
 
 ## 划分模块
 
-一个服务由三个 Gradle 模块组成。下面以 `catalog` 上下文为例；仓库内的示例 [`example/shop`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/shop)、[`example/inventory`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/inventory) 与 [`example/eshop`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/eshop) 都是同样的结构。
+一个服务由三个 Gradle 模块组成。下面以 `catalog` 上下文为例；仓库内 eShop 示例 [`example/eshop`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/eshop) 的每个上下文（`catalog`、`basket`、`ordering`、`inventory`、`payment`）都是同样的结构。
 
 | 模块 | 内容 | 依赖 |
 | --- | --- | --- |
@@ -194,7 +194,7 @@ dependencies {
 }
 ```
 
-[`example/wow-manifest-fragment.gradle.kts`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/wow-manifest-fragment.gradle.kts) 执行的正是插件 `generateWowManifestFragment` 执行的内容。示例的服务端在设置 `extra["wowService"]` 之后应用 [`example/wow-peers.gradle.kts`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/wow-peers.gradle.kts)，代替 `mergeWowManifest` 与 `wowPeers`。KSP 选项如下：
+[`example/wow-manifest-fragment.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/v10/example/wow-manifest-fragment.gradle.kts) 执行的正是插件 `generateWowManifestFragment` 执行的内容，并应用 [`example/wow-contract.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/v10/example/wow-contract.gradle.kts)，像插件一样把领域的契约打包进它的 api 模块。eShop 的服务端在设置 `extra["wowService"]` 之后应用 [`example/eshop/wow-manifest-compatibility.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/v10/example/eshop/wow-manifest-compatibility.gradle.kts)，代替 `mergeWowManifest` 与 Manifest 兼容性检查。KSP 选项如下：
 
 | 选项 | 含义 |
 | --- | --- |

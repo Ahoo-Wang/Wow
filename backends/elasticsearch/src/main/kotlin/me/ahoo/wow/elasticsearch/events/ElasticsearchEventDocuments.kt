@@ -24,8 +24,10 @@ import tools.jackson.databind.node.ObjectNode
  * The stream document of the events index (decision D235): the record of the `events` model as it is
  * (`EventStreamRecords.stored`), each field under the model's name ([RECORD_FIELDS]), the operator `{id, tenantId,
  * crossScope}` or null (decision D163), each event `{name, revision, body}` as committed: its stored name and revision,
- * its body as Wow's JSON (decision D122), whose numbers Elasticsearch keeps exactly in `_source`. The position,
- * causation, headers, tags, state and transport of a commit are not part of it.
+ * its body as Wow's JSON (decision D122), whose numbers Elasticsearch keeps exactly in `_source`; the tags after the
+ * commit (decision D259) with [ElasticsearchEventIndex.TAGS_RECORDED] `true`. A document indexed before the index
+ * learned the tags has neither, and its record's `tags` is null. The position, causation, headers, state and transport
+ * of a commit are not part of it.
  */
 internal object ElasticsearchEventDocuments {
     /** The fields of a stream record, in the record's order. */
@@ -40,6 +42,7 @@ internal object ElasticsearchEventDocuments {
         EventStreamFields.OWNER_ID,
         EventStreamFields.SPACE_ID,
         EventStreamFields.OPERATOR,
+        EventStreamFields.TAGS,
         EventStreamFields.EVENTS,
     )
 
@@ -61,6 +64,9 @@ internal object ElasticsearchEventDocuments {
         put(EventStreamFields.OWNER_ID, record.scope.ownerId)
         put(EventStreamFields.SPACE_ID, record.scope.spaceId)
         set(EventStreamFields.OPERATOR, operator(record.operator))
+        val tags = putObject(EventStreamFields.TAGS)
+        record.tags.forEach { (key, values) -> tags.putArray(key).also { array -> values.forEach(array::add) } }
+        put(ElasticsearchEventIndex.TAGS_RECORDED, true)
         val events = putArray(EventStreamFields.EVENTS)
         record.events.forEach { event ->
             events.addObject()
@@ -72,7 +78,14 @@ internal object ElasticsearchEventDocuments {
 
     /** The stream record [source] holds: each record field it holds, in the record's order. */
     fun record(source: ObjectNode): ObjectNode = nodes.objectNode().apply {
-        RECORD_FIELDS.forEach { field -> source.get(field)?.let { set(field, it) } }
+        RECORD_FIELDS.forEach { field ->
+            val value = source.get(field)
+            when {
+                value != null -> set(field, value)
+                // Indexed before the index learned the tags (decision D259): not recorded.
+                field == EventStreamFields.TAGS -> putNull(field)
+            }
+        }
     }
 
     private fun operator(operator: Operator?) = if (operator == null) {

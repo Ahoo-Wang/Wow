@@ -128,7 +128,8 @@ internal class PartitionPause(
                 return true
             }
             when (kind) {
-                FailureClass.UNRECOVERABLE -> return false
+                // Backpressure is the downstream's load, never a reason to pause (decision D263).
+                FailureClass.UNRECOVERABLE, FailureClass.BACKPRESSURE -> return false
                 FailureClass.SYSTEMIC -> "a systemic failure: ${describe(failure)}"
                 FailureClass.RECOVERABLE -> {
                     if (!countFailing(ref)) {

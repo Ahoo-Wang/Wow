@@ -35,6 +35,7 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.wait.Origin
@@ -49,6 +50,7 @@ import java.util.UUID
  * The [EventLog] contract (documentation/designs/v10/03-log-and-snapshot.md §1) every backend passes. A backend's
  * test extends it and supplies a fresh, empty log from [createLog].
  */
+@Suppress("LargeClass") // One contract, one test per rule.
 abstract class EventLogSpec {
     /** A new, empty log of bounded context [context] with [partitions] partitions. */
     protected abstract fun createLog(context: String, partitions: Int): EventLog
@@ -77,6 +79,7 @@ abstract class EventLogSpec {
         headers: Map<String, String> = emptyMap(),
         aggregate: AggregateType = type,
         operator: Operator? = null,
+        tags: Map<String, List<String>>? = null,
     ) = EventStreamRecord(
         ref = aggregate.ref(tenant, id),
         version = version,
@@ -92,6 +95,7 @@ abstract class EventLogSpec {
         causation = causation,
         headers = headers,
         operator = operator,
+        tags = tags,
     )
 
     /** Asserts this is [expected], comparing payloads as JSON: a backend may store them as JSON and reformat them. */
@@ -155,6 +159,55 @@ abstract class EventLogSpec {
             checkNotNull(log.findByRequestId("tenant", appended.requestId)).assertSameAs(appended)
         }
     }
+
+    @Test
+    fun `the tags read back as appended, none and not recorded told apart (D259)`(): Unit = runBlocking {
+        val log = createLog()
+        val tagged = stream("a", 1, tags = mapOf("region" to listOf("east", "north ü"), "dept" to listOf("eng")))
+        val none = stream("b", 1, tags = emptyMap())
+        val unrecorded = stream("c", 1, tags = null)
+        val streams = listOf(tagged, none, unrecorded)
+        streams.forEach { log.append(it) }
+        streams.forEach { appended ->
+            log.read(appended.ref).toList().single().assertSameAs(appended)
+            checkNotNull(log.findByRequestId("tenant", appended.requestId)).assertSameAs(appended)
+        }
+        streams.forEach { appended ->
+            log.readEntries(appended.ref, 1, 1).toList().single().stream.tags.assert().isEqualTo(appended.tags)
+        }
+    }
+
+    @Test
+    fun `a log that backfills tags lists the untagged aggregates and records only the missing tags (D259)`(): Unit =
+        runBlocking {
+            val log = createLog()
+            Assumptions.assumeTrue(log is TagsBackfill, "This log records no tags to backfill.")
+            val backfill = log as TagsBackfill
+            val east = mapOf("region" to listOf("east"))
+            listOf(
+                stream("a", 1),
+                stream("a", 2),
+                stream("b", 1, tags = east),
+                stream("c", 1),
+                stream("c", 1, tenant = "other"),
+            ).forEach { (log.append(it) is AppendOutcome.Committed).assert().isTrue() }
+            val a = type.ref("tenant", "a")
+            val c = type.ref("tenant", "c")
+            val otherC = type.ref("other", "c")
+            // The log's key order: aggregate id, then tenant.
+            backfill.untagged(type, null, 10).assert().containsExactly(a, otherC, c)
+            backfill.untagged(type, limit = 1).assert().containsExactly(a)
+            backfill.untagged(type, a, 10).assert().containsExactly(otherC, c)
+            backfill.untagged(type, otherC, 10).assert().containsExactly(c)
+            backfill.recordTags(a, mapOf(1 to east, 2 to emptyMap(), 9 to east)).assert().isEqualTo(2)
+            log.read(a).toList().map { it.tags }.assert().containsExactly(east, emptyMap())
+            // Recorded tags are never changed.
+            backfill.recordTags(a, mapOf(1 to emptyMap())).assert().isEqualTo(0)
+            backfill.recordTags(type.ref("tenant", "b"), mapOf(1 to emptyMap())).assert().isEqualTo(0)
+            backfill.recordTags(c, emptyMap()).assert().isEqualTo(0)
+            log.read(a).toList().first().tags.assert().isEqualTo(east)
+            backfill.untagged(type, null, 10).assert().containsExactly(otherC, c)
+        }
 
     @Test
     fun `the schedule system events read back as appended, alone or with the events`(): Unit = runBlocking {

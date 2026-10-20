@@ -186,7 +186,7 @@ val productModel = aggregate<ProductState>("catalog", "product") {
 
 处理器是恰好标注了 `@Saga`、`@Projection` 或 `@Reactor` 之一的类。它的每个处理函数（标注 `@OnEvent` 或名为 `onEvent`）各自是一个订阅，名为 `<processor>.<function>`。处理器的依赖是它构造函数的参数，像命令函数的服务一样从应用的 Bean 中获取。
 
-处理函数接收 `StateEvent<S>`：一个聚合的一条已提交事件流，以及提交之后的状态。
+处理函数接收 `StateEvent<S>`：一个聚合的一条已提交事件流，以及提交之后的状态。只关心某类事件的处理函数改为接收 `StateTypedEvent<S, E>`，或者直接接收事件 `E`，流中每个 `E` 按顺序各调用一次（决策 D264）：`event` 是该事件，`eventIndex` 是它在 `events` 中的位置，`state` 仍是整次提交之后的状态。
 
 | 属性 | 内容 |
 | --- | --- |
@@ -197,9 +197,9 @@ val productModel = aggregate<ProductState>("catalog", "product") {
 | `scope` | 提交后聚合的所有者与空间，不是调用方的 |
 | `causation`、`headers` | 命令所属的链路，以及它携带的请求事实；`correlationId` 是根命令的 ID |
 
-`S` 决定读哪些聚合：处理函数读取本模块上下文中状态类型为 `S` 的聚合，除非 `@OnEvent(aggregates = ["<context>.<aggregate>"])` 指定了它们。处理函数自己筛选关心的事件（`event.events.filterIsInstance<OrderCreated>()`）。
+`S` 决定读哪些聚合：处理函数读取本模块上下文中状态类型为 `S` 的聚合，除非 `@OnEvent(aggregates = ["<context>.<aggregate>"])` 指定了它们。按 `E` 处理的函数两者都不需要：`E` 决定聚合，编译器把这些事件写进订阅的来源，节点遇到不含 `E` 的流直接跳过，连状态都不解码。同一流里的多个 `E` 共用该流的检查点：失败时整条流重试，每个 `E` 都会再调用一次。他上下文事件的 `E` 要等对端 api 的事件类；这类处理函数暂时仍接收 `StateEvent`。
 
-处理函数的上下文提供 `executionId`，即 `subscription:ref@version`：同一订阅每次处理同一次提交都相同，所以它就是外部调用的幂等键。
+处理函数的上下文提供 `executionId`，即 `subscription:ref@version`，同一订阅每次处理同一次提交都相同；还提供 `invocationKey`，作为外部调用的幂等键：按流处理时就是 `executionId`，按每个 `E` 处理时是 `executionId:eventIndex`。
 
 ### 投影
 
@@ -220,16 +220,14 @@ class ProductSummaryProjection(private val summaries: ProductSummaries) {
 
 ### 反应器
 
-反应器对已提交的事件做动作（发通知、调用其他系统），不返回值。用 `context.executionId.toString()` 作为外部调用的幂等键：
+反应器对已提交的事件做动作（发通知、调用其他系统），不返回值。用 `context.invocationKey` 作为外部调用的幂等键：
 
 ```kotlin
 @Reactor
 class OrderNotifier(private val mail: Mail) {
     @OnEvent
-    suspend fun onEvent(event: StateEvent<OrderState>, context: ReactContext) {
-        if (event.events.any { it is OrderShipped }) {
-            mail.send(event.state.customer, "Order shipped", key = context.executionId.toString())
-        }
+    suspend fun onShipped(event: StateTypedEvent<OrderState, OrderShipped>, context: ReactContext) {
+        mail.send(event.state.customer, "Order shipped", key = context.invocationKey)
     }
 }
 ```
@@ -244,8 +242,8 @@ Saga 从已提交的事件派生命令。它的处理函数返回一个 `Command
 @Saga
 class CartSaga {
     @OnEvent
-    fun onOrderCreated(event: StateEvent<OrderState>, context: SagaContext): Command<RemoveCartItem>? {
-        val created = event.events.filterIsInstance<OrderCreated>().firstOrNull() ?: return null
+    fun onOrderCreated(event: StateTypedEvent<OrderState, OrderCreated>, context: SagaContext): Command<RemoveCartItem>? {
+        val created = event.event
         val owner = event.scope.ownerId ?: return null
         return context.command(
             AggregateType("example", "cart").ref(event.ref.tenantId, owner),
@@ -298,7 +296,7 @@ wow:
 class ShippingNotifier(private val carrier: CarrierClient) {
     @OnEvent
     @Retry(initialBackoff = "1s")
-    suspend fun onShipped(event: StateEvent<OrderState>) = carrier.notify(event.state.id)
+    suspend fun onShipped(event: StateTypedEvent<OrderState, OrderShipped>) = carrier.notify(event.state.id)
 }
 ```
 
@@ -411,13 +409,13 @@ Saga 需要立即拿到结果、目标在线是前提时，改为调用目标的
 
 ```kotlin
 @OnEvent(calls = [SubmitOrder::class])
-suspend fun onBasketCheckedOut(event: StateEvent<BasketState>, context: SagaContext) {
-    val checkedOut = event.events.filterIsInstance<BasketCheckedOut>().firstOrNull() ?: return
+suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketCheckedOut>, context: SagaContext) {
+    val checkedOut = event.event
     context.call(context.command(EshopOrderingContract.Order.ref(event.ref.tenantId, checkedOut.orderId), SubmitOrder(items)))
 }
 ```
 
-调用不需要命令主题：节点通过 `wow.calls.contexts.<context>.url` 找到目标，Saga 调用的命令若没有任何已知 Manifest 决定，节点不会启动。Saga 自己上下文的命令只派生、不调用。
+调用不需要命令主题：节点通过 `wow.calls.contexts.<context>.url`（或 `wow.clients.contexts.<context>.internal-url`）找到目标；Saga 调用的上下文没有这个地址，或调用的命令没有任何已知 Manifest 决定，节点都不会启动。Saga 自己上下文的命令只派生、不调用。
 
 ### 对端
 

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.analytics.catalog.server
 
+import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetCompiler
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 
@@ -27,6 +28,11 @@ import java.time.Duration
  * - `refresh-interval`: how often the catalog compares `system.tables` and `wow_catalog` with what it saw last
  *   and brings each changed table's source up to date (D241 ④; 30 seconds).
  * - `watch`: whether it does at all (on by default).
+ * - `datasets.database`: the warehouse database the datasets' views are created in (`wow_datasets`, decision D259).
+ * - `datasets.retention`: how long a retired dataset's views are kept before they are dropped (7 days).
+ * - `datasets.serve`: whether this node serves the published datasets' queries (on: the catalog serves them by
+ *   default, decision D238 ⑦), `datasets.refresh-interval` how often it reads what changed (5 seconds), and
+ *   `datasets.reconcile-interval` how often it reads every dataset (5 minutes).
  */
 @ConfigurationProperties(prefix = AnalyticsCatalogProperties.PREFIX)
 class AnalyticsCatalogProperties(
@@ -36,7 +42,17 @@ class AnalyticsCatalogProperties(
     var trustedWriters: MutableMap<String, MutableList<String>> = linkedMapOf(),
     var refreshInterval: Duration = DEFAULT_REFRESH_INTERVAL,
     var watch: Boolean = true,
+    var datasets: Datasets = Datasets(),
 ) {
+    /** The datasets' settings, `wow.analytics.catalog.datasets.*`. */
+    class Datasets(
+        var database: String = DatasetCompiler.DEFAULT_DATABASE,
+        var retention: Duration = Duration.ofDays(DEFAULT_RETENTION_DAYS),
+        var serve: Boolean = true,
+        var refreshInterval: Duration = Duration.ofSeconds(DEFAULT_REFRESH_SECONDS),
+        var reconcileInterval: Duration = Duration.ofMinutes(DEFAULT_RECONCILE_MINUTES),
+    )
+
     companion object {
         const val PREFIX: String = "wow.analytics.catalog"
         const val DEFAULT_CONNECTION: String = "default"
@@ -44,5 +60,8 @@ class AnalyticsCatalogProperties(
 
         @JvmField
         val DEFAULT_REFRESH_INTERVAL: Duration = Duration.ofSeconds(30)
+        const val DEFAULT_RETENTION_DAYS: Long = 7
+        const val DEFAULT_REFRESH_SECONDS: Long = 5
+        const val DEFAULT_RECONCILE_MINUTES: Long = 5
     }
 }

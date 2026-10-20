@@ -22,9 +22,14 @@ import me.ahoo.wow.analytics.catalog.domain.warehouse.CatalogRow
 import me.ahoo.wow.analytics.catalog.domain.warehouse.CatalogTrust
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseTable
+import me.ahoo.wow.analytics.catalog.testing.MemoryDatasetWarehouse
 import me.ahoo.wow.analytics.catalog.testing.MemoryWarehouse
 import me.ahoo.wow.analytics.catalog.testing.MemoryWarehouseConfiguration
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.runtime.node.ServiceNode
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -39,9 +44,15 @@ class AnalyticsCatalogServerTest {
     private val node = startCatalog(
         "wow.analytics.catalog.trusted-writers.wow_sink" to "shop",
         "wow.analytics.catalog.refresh-interval" to "200ms",
+        "wow.analytics.catalog.datasets.refresh-interval" to "100ms",
+        "wow.analytics.catalog.datasets.retention" to "1s",
         sources = listOf(MemoryWarehouseConfiguration::class.java),
     )
     private val warehouse = node.context.getBean(MemoryWarehouse::class.java)
+    private val views = node.context.getBean(MemoryDatasetWarehouse::class.java)
+
+    @OptIn(ExperimentalWowApi::class)
+    private val datasets = node.context.getBean(QueryDatasets::class.java)
 
     @AfterAll
     fun close() {
@@ -82,6 +93,7 @@ class AnalyticsCatalogServerTest {
             """{"fields":[{"path":"tenant"},{"path":"phone","level":"DISPLAY","keepPrefix":3}]}""",
         ).assertOk()
         node.command(id, "mark-source-reviewed", "{}", Who.APPROVER).assertOk()
+        looked()
         val state = node.state(id)["state"]
         state["status"].asString().assert().isEqualTo("REVIEWED")
         state["kind"].asString().assert().isEqualTo("ANALYST")
@@ -143,6 +155,57 @@ class AnalyticsCatalogServerTest {
             .status.assert().isEqualTo(CONFLICT)
     }
 
+    @Test
+    fun `an editor should draft a dataset over a reviewed source, its definition checked against the catalog`() {
+        warehouse.put(INVOICES)
+        val source = AnalyticsCatalogContext.sourceIdOf("warehouse", MemoryWarehouse.DATABASE, INVOICES.name)
+        node.command(source, "draft-source", """{"database":"${MemoryWarehouse.DATABASE}","table":"invoices"}""")
+            .assertOk()
+        node.command(source, "revise-source", """{"tenantColumn":"tenant"}""").assertOk()
+        node.command(
+            source,
+            "review-source-sensitivity",
+            """{"fields":[{"path":"tenant"},{"path":"phone","level":"DISPLAY","keepPrefix":3}]}""",
+        ).assertOk()
+        node.command(source, "mark-source-reviewed", "{}", Who.APPROVER).assertOk()
+        val id = AnalyticsCatalogContext.datasetIdOf("shop", "invoices")
+        fun draft(column: String) = """{"context":"shop","name":"invoices","definition":{"sources":""" +
+            """[{"alias":"i","sourceId":"$source"}],"subject":"i","columns":[{"name":"phone","from":"$column"}]}}"""
+        node.datasetCommand(id, "draft-dataset", draft("i.phone"), Who.VIEWER)
+            .assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        node.datasetCommand(id, "draft-dataset", draft("i.nothing"), Who.EDITOR)
+            .assertProblem(BAD_REQUEST, "analytics.catalog.definition-invalid")
+        node.datasetCommand(id, "draft-dataset", draft("i.phone"), Who.EDITOR).assertOk()
+        val dataset = node.dataset(id)["state"]
+        dataset["status"].asString().assert().isEqualTo("DRAFT")
+        dataset["sources"].values().map { it.asString() }.assert().containsExactly(source)
+        node.get("/actuator/health/readiness", Who.VIEWER).assertOk()
+
+        // Published: its view created, the node serves it, masked as its lineage says.
+        node.datasetCommand(id, "publish-dataset", "{}", Who.VIEWER).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        node.datasetCommand(id, "publish-dataset", "{}", Who.EDITOR).assertOk()
+        views.created.keys.assert().containsExactly("wow_datasets.ds_shop_invoices_v1")
+        val name = AggregateType("shop", "invoices")
+        eventually("the dataset served") { datasets[name] != null }
+        val served = datasets[name]!!
+        served.storage["table"].asString().assert().isEqualTo("wow_datasets.ds_shop_invoices_v1")
+        served.scope.tenant.assert().isEqualTo(QueryField("tenant_id"))
+        val phone = served.declaration.fields.getValue(QueryField("phone"))
+        phone.maskRule.toString().assert().contains("DISPLAY").contains("prefix=3")
+
+        // Retired: no longer served, its views dropped once the retention ends.
+        node.datasetCommand(id, "retire-dataset", "{}", Who.EDITOR).assertOk()
+        eventually("the dataset no longer served") { datasets[name] == null }
+        eventually("the views dropped") { "wow_datasets.ds_shop_invoices_v1" in views.dropped }
+        eventually("the drop recorded") { node.dataset(id)["state"]["dropped"].asBoolean() }
+    }
+
+    /** Waits until the watcher has looked at the warehouse as it is now: a look begun since, and ended. */
+    private fun looked() {
+        val since = warehouse.listings.get()
+        eventually("the watcher looked") { warehouse.listings.get() >= since + 2 }
+    }
+
     private companion object {
         const val OK = 200
         const val BAD_REQUEST = 400
@@ -155,6 +218,13 @@ class AnalyticsCatalogServerTest {
             "uuid-orders",
             "MergeTree",
             listOf(SourceColumn("tenant", "String"), SourceColumn("phone", "String"), SourceColumn("total", "Int64")),
+        )
+        val INVOICES = WarehouseTable(
+            MemoryWarehouse.DATABASE,
+            "invoices",
+            "uuid-invoices",
+            "MergeTree",
+            listOf(SourceColumn("tenant", "String"), SourceColumn("phone", "String")),
         )
         val MEMBERS = WarehouseTable(
             MemoryWarehouse.DATABASE,

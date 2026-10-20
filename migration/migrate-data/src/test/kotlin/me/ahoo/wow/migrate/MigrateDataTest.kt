@@ -16,6 +16,7 @@ package me.ahoo.wow.migrate
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryReservationStore
@@ -25,6 +26,7 @@ import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -306,12 +308,54 @@ class MigrateDataTest {
     }
 
     @Test
+    fun `backfill-tags records the tags of the imported streams, in its printed order`(): Unit = runBlocking {
+        val config = config()
+        run("import", "--config", config.toString()).assert().isEqualTo(MigrateData.OK)
+        val order = NineXExample.orderModel.type
+        log.untagged(order, null, 1).assert().isNotEmpty()
+        run("backfill-tags", "--config", config.toString()).assert().isEqualTo(MigrateData.OK)
+        printed.assert().contains(MigrateData.TAGS_ORDER)
+            .contains("example.order tags done")
+            .contains("No Elasticsearch cluster is configured: nothing to re-sink.")
+        log.untagged(order, null, 1).assert().isEmpty()
+        FileCheckpointRepository(directory.resolve("migrate-data.checkpoint.json")).load().tagsOf(order)!!
+            .completed.assert().isTrue()
+        run("backfill-tags", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
+        run("backfill-tags", "--config", config.toString(), "--sample", "5").assert().isEqualTo(MigrateData.USAGE_ERROR)
+    }
+
+    @Test
+    fun `backfill-tags fails while streams without tags remain, forced or not`(): Unit = runBlocking {
+        val config = config()
+        run("import", "--config", config.toString()).assert().isEqualTo(MigrateData.OK)
+        // A log that records nothing: as if an old node appended each stream again meanwhile.
+        val stubborn = object : EventLog by log, TagsBackfill by log {
+            override suspend fun recordTags(ref: AggregateRef, tagsByVersion: Map<Int, Map<String, List<String>>>) = 0
+        }
+        val untagged = object : MigrationConnections by connections {
+            override fun logOf(context: String): EventLog = stubborn
+        }
+        fun backfill(vararg options: String) =
+            MigrateData(
+                PrintStream(output, true),
+                { untagged }
+            ).run(listOf("backfill-tags", "--config", "$config") + options)
+        backfill().assert().isEqualTo(MigrateData.FAILED)
+        printed.assert().contains("Streams without tags remain in [example.order")
+        backfill("--restart", "--force").assert().isEqualTo(MigrateData.FAILED)
+        printed.assert().contains("nothing to re-sink")
+    }
+
+    @Test
     fun `a target is PostgreSQL or MongoDB, with what it needs`() {
         TargetConfig("mongo", uri = "mongodb://localhost", database = "wow").type.assert().isEqualTo("mongo")
         assertThrows<IllegalArgumentException> { TargetConfig("redis") }
         assertThrows<IllegalArgumentException> { TargetConfig("postgres") }
         assertThrows<IllegalArgumentException> { TargetConfig("mongo", uri = "mongodb://localhost") }
         assertThrows<IllegalArgumentException> { TargetConfig("mongo", database = "wow") }
+        TargetConfig("postgres", jdbcUrl = "jdbc:postgresql://localhost/wow").poolSize.assert()
+            .isEqualTo(TargetConfig.DEFAULT_POOL_SIZE)
+        assertThrows<IllegalArgumentException> { TargetConfig("postgres", jdbcUrl = "jdbc:x", poolSize = 0) }
     }
 
     @Test

@@ -361,6 +361,12 @@ class SubscriptionRuntime internal constructor(
      */
     override fun paused(): List<PausedPartition> = running?.workers?.values?.mapNotNull { it.paused }.orEmpty()
 
+    /**
+     * The partitions this runtime's subscriptions throttle on backpressure (decision D263), each a subscription in a
+     * partition this node runs; empty while the runtime is stopped.
+     */
+    fun throttled(): List<ThrottledPartition> = running?.workers?.values?.mapNotNull { it.throttled }.orEmpty()
+
     private suspend fun workerOf(subscription: String, ref: AggregateRef): SubscriptionWorker? {
         val workers = running?.workers ?: return null
         return workers[subscription to source.partitionOf(ref)]

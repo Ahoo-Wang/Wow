@@ -232,7 +232,7 @@ fun `a placed order should show in the order list`() {
 
 ## Testing the binding index and the fragment
 
-A test of the domain module can load what the compiler generated: `ModelProvider.load()` finds the module's binding index, `provider.models(Dependencies.of(stubs…))` builds its models, and `provider.fragment` names the fragment resource to read and check (its routes, events, errors, subscriptions). `provider.processors(dependencies)` constructs every processor of the module, so it needs the services of all of them. The shop's [`ShopDomainModelProviderTest`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/shop/shop-domain/src/test/kotlin/me/ahoo/wow/example/shop/domain/ShopDomainModelProviderTest.kt) does this.
+A test of the domain module can load what the compiler generated: `ModelProvider.load()` finds the module's binding index, `provider.models(Dependencies.of(stubs…))` builds its models, and `provider.fragment` names the fragment resource to read and check (its routes, events, errors, subscriptions). `provider.processors(dependencies)` constructs every processor of the module, so it needs the services of all of them. The eShop ordering's [`OrderingDomainModelProviderTest`](https://github.com/Ahoo-Wang/Wow/blob/v10/example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/OrderingDomainModelProviderTest.kt) does this.
 
 ## Testing the server
 

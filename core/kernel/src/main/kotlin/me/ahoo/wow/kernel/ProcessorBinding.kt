@@ -78,6 +78,11 @@ class ProcessorBinding<S> private constructor(
     /** The job of an `@OnSchedule` handler ([schedule], decision D198); null for an `@OnEvent` one. */
     val job: ScheduleJob? = null,
     /**
+     * The event type a handler of each event of a type takes (decision D264): a stream without one is acknowledged
+     * without being handed over, nor its state decoded. Null for a handler of the whole stream.
+     */
+    val eventType: Class<*>? = null,
+    /**
      * The command classes a saga's handler declares it calls with `SagaContext.call` (`@OnEvent(calls)`, decision
      * D259): the only ones its calls take. Empty for any other handler.
      */
@@ -123,6 +128,12 @@ class ProcessorBinding<S> private constructor(
      */
     fun committedHandlerOf(command: Class<*>): CommittedBinding<*>? = CommittedBinding.handlerOf(commits, command)
 
+    /**
+     * Whether [events], a stream's decoded events, hold none this handler takes: a handler of each event of an
+     * [eventType] skips a stream without one (decision D264).
+     */
+    fun skips(events: List<Any>): Boolean = eventType != null && events.none { eventType.isInstance(it) }
+
     /** The subscription the handler is compiled into: `processor.function` (design 04 §1). */
     val name: String = "$processor.$function"
 
@@ -154,7 +165,10 @@ class ProcessorBinding<S> private constructor(
     companion object {
         private val AGGREGATE = Regex("[^.\\s]+\\.[^.\\s]+")
 
-        /** A `@Projection`'s handler [function] of [processor]. */
+        /**
+         * A `@Projection`'s handler [function] of [processor]; of each event of the [eventType] when it gives one
+         * (decision D264, [eachEvent] calls the function per event).
+         */
         @JvmStatic
         @Suppress("LongParameterList")
         fun <S> project(
@@ -166,6 +180,7 @@ class ProcessorBinding<S> private constructor(
             aggregates: List<String> = emptyList(),
             nullableState: Boolean = stateType == null,
             retry: HandlerRetry? = null,
+            eventType: Class<*>? = null,
             handle: suspend (StateEvent<S>, ProjectContext) -> Unit,
         ): ProcessorBinding<S> =
             ProcessorBinding(
@@ -180,12 +195,13 @@ class ProcessorBinding<S> private constructor(
                 nullableState,
                 retry,
                 emptyList(),
+                eventType = eventType,
             ) { e, c ->
                 handle(e, c as ProjectContext)
                 emptyList()
             }
 
-        /** A `@Reactor`'s handler [function] of [processor]. */
+        /** A `@Reactor`'s handler [function] of [processor]; of each event of the [eventType] when it gives one. */
         @JvmStatic
         @Suppress("LongParameterList")
         fun <S> react(
@@ -197,6 +213,7 @@ class ProcessorBinding<S> private constructor(
             aggregates: List<String> = emptyList(),
             nullableState: Boolean = stateType == null,
             retry: HandlerRetry? = null,
+            eventType: Class<*>? = null,
             handle: suspend (StateEvent<S>, ReactContext) -> Unit,
         ): ProcessorBinding<S> =
             ProcessorBinding(
@@ -211,6 +228,7 @@ class ProcessorBinding<S> private constructor(
                 nullableState,
                 retry,
                 emptyList(),
+                eventType = eventType,
             ) { e, c ->
                 handle(e, c as ReactContext)
                 emptyList()
@@ -236,6 +254,7 @@ class ProcessorBinding<S> private constructor(
             retry: HandlerRetry? = null,
             commits: List<CommittedBinding<*>> = emptyList(),
             calls: List<Class<*>> = emptyList(),
+            eventType: Class<*>? = null,
             handle: suspend (StateEvent<S>, SagaContext) -> List<Command<*>>,
         ): ProcessorBinding<S> =
             ProcessorBinding(
@@ -251,6 +270,7 @@ class ProcessorBinding<S> private constructor(
                 retry,
                 commits,
                 calls = calls,
+                eventType = eventType,
             ) { e, c ->
                 handle(e, c as SagaContext)
             }
