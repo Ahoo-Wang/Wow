@@ -20,6 +20,7 @@ import co.elastic.clients.elasticsearch._types.Level
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch.indices.CreateIndexRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
+import co.elastic.clients.elasticsearch.indices.PutMappingRequest
 import kotlinx.coroutines.delay
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.StoreDdl
@@ -38,13 +39,23 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
     /**
      * Makes sure of [index], of [kind] in [format], as [ddl] says: under `auto` creates it from [definition] when it is
      * missing, then (under `auto` and `validate`) checks the layout an existing one records; under `validate` a missing
-     * index refuses the store; under `none` nothing is checked.
+     * index refuses the store; under `none` nothing is checked. Under `auto` an existing index that lacks one of the
+     * fields its format [added] later gets them from [additions], a mapping of their properties (decision D59).
      *
      * Either way it returns once the index's primary shard serves requests ([awaitActive]): an index just created,
      * here or by another node a moment ago, recovers its primary before it takes a read or a write, and a first write
      * that races the recovery is answered `503`.
      */
-    suspend fun ensure(index: String, kind: String, format: Int, definition: String, ddl: StoreDdl) {
+    @Suppress("LongParameterList")
+    suspend fun ensure(
+        index: String,
+        kind: String,
+        format: Int,
+        definition: String,
+        ddl: StoreDdl,
+        added: List<String> = emptyList(),
+        additions: String? = null,
+    ) {
         if (ddl == StoreDdl.NONE) return
         val mapping = mapping(index)
         if (mapping == null) {
@@ -52,6 +63,11 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
             create(index, definition)
         } else {
             checkLayout(index, mapping, kind, format)
+            if (ddl == StoreDdl.AUTO && additions != null && !mapping.properties().keys.containsAll(added)) {
+                client.indices().putMapping(
+                    PutMappingRequest.of { it.index(index).withJson(StringReader(additions)) },
+                ).awaitElasticsearch()
+            }
         }
         awaitActive(index)
     }

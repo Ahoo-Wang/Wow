@@ -77,6 +77,7 @@ abstract class EventLogSpec {
         headers: Map<String, String> = emptyMap(),
         aggregate: AggregateType = type,
         operator: Operator? = null,
+        tags: Map<String, List<String>>? = null,
     ) = EventStreamRecord(
         ref = aggregate.ref(tenant, id),
         version = version,
@@ -92,6 +93,7 @@ abstract class EventLogSpec {
         causation = causation,
         headers = headers,
         operator = operator,
+        tags = tags,
     )
 
     /** Asserts this is [expected], comparing payloads as JSON: a backend may store them as JSON and reformat them. */
@@ -153,6 +155,23 @@ abstract class EventLogSpec {
         listOf(full, ownerOnly, spaceOnly, none).forEach { appended ->
             log.read(appended.ref).toList().single().assertSameAs(appended)
             checkNotNull(log.findByRequestId("tenant", appended.requestId)).assertSameAs(appended)
+        }
+    }
+
+    @Test
+    fun `the tags read back as appended, none and not recorded told apart (D259)`(): Unit = runBlocking {
+        val log = createLog()
+        val tagged = stream("a", 1, tags = mapOf("region" to listOf("east", "north ü"), "dept" to listOf("eng")))
+        val none = stream("b", 1, tags = emptyMap())
+        val unrecorded = stream("c", 1, tags = null)
+        val streams = listOf(tagged, none, unrecorded)
+        streams.forEach { log.append(it) }
+        streams.forEach { appended ->
+            log.read(appended.ref).toList().single().assertSameAs(appended)
+            checkNotNull(log.findByRequestId("tenant", appended.requestId)).assertSameAs(appended)
+        }
+        streams.forEach { appended ->
+            log.readEntries(appended.ref, 1, 1).toList().single().stream.tags.assert().isEqualTo(appended.tags)
         }
     }
 

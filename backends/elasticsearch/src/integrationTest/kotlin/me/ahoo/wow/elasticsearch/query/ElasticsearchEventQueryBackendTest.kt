@@ -13,11 +13,17 @@
 
 package me.ahoo.wow.elasticsearch.query
 
+import co.elastic.clients.elasticsearch._types.Refresh
+import kotlinx.coroutines.future.await
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.elasticsearch.ElasticsearchFixture
+import me.ahoo.wow.elasticsearch.ElasticsearchNames
+import me.ahoo.wow.elasticsearch.events.ElasticsearchEventDocuments
+import me.ahoo.wow.elasticsearch.events.ElasticsearchEventIndex
 import me.ahoo.wow.elasticsearch.events.ElasticsearchEventSinks
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
+import me.ahoo.wow.query.schema.EventStreamFields
 import me.ahoo.wow.query.schema.EventsQuerySchemas
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
@@ -27,6 +33,7 @@ import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
+import tools.jackson.databind.node.ObjectNode
 
 /**
  * The events backend contract against Elasticsearch (decision D235): each test's fresh context is a fresh events
@@ -42,7 +49,19 @@ class ElasticsearchEventQueryBackendTest : EventQueryBackendSpec() {
         QueryModelCompiler.of(events = EventsQuerySchemas(manifest))
             .compile(QuerySchemaContext(type, QueryModel.EVENTS), binding(type).storage)
             .schema()
-        sink.write(streams.map(::recordOf))
+        val (tagged, untagged) = streams.partition { it.tags != null }
+        sink.write(tagged.map(::recordOf))
+        // A stream without tags stands for a document indexed before the index learned them (decision D259).
+        val index = ElasticsearchFixture.names.events(type.context, type.name)
+        untagged.forEach { stream ->
+            val document = ElasticsearchEventDocuments.document(recordOf(stream))
+            document.remove(EventStreamFields.TAGS)
+            document.remove(ElasticsearchEventIndex.TAGS_RECORDED)
+            ElasticsearchFixture.client.index<ObjectNode> {
+                it.index(index).id(ElasticsearchNames.streamId(stream.ref, stream.version)).document(document)
+                    .refresh(Refresh.True)
+            }.await()
+        }
     }
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = queries.binding(type)
@@ -61,6 +80,7 @@ class ElasticsearchEventQueryBackendTest : EventQueryBackendSpec() {
             },
             scope = stream.scope,
             operator = stream.operator,
+            tags = stream.tags.orEmpty(),
         )
     }
 }

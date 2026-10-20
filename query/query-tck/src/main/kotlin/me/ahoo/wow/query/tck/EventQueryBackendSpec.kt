@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregationElement
@@ -51,16 +52,21 @@ import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.query.AbacQueryOptions
+import me.ahoo.wow.query.AbacQueryPolicy
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryCaller
+import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryErrors
 import me.ahoo.wow.query.QueryTimeoutException
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.countBounded
 import me.ahoo.wow.query.cursor
 import me.ahoo.wow.query.events.EventQueryGateways
+import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.list
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.paged
@@ -186,6 +192,7 @@ abstract class EventQueryBackendSpec {
         tenantId: String = TENANT,
         scope: Scope = Scope("owner-1"),
         operator: Operator? = null,
+        tags: Map<String, List<String>>? = null,
     ) = EventStreamRecord(
         ref = type.ref(tenantId, id),
         version = version,
@@ -196,6 +203,7 @@ abstract class EventQueryBackendSpec {
         events = events,
         scope = scope,
         operator = operator,
+        tags = tags,
     )
 
     /** An event of this test's [type] named [name] (prefixed as the log stores it). */
@@ -286,6 +294,59 @@ abstract class EventQueryBackendSpec {
         fixture.keys(EqualFilter(QueryField("requestId"), "o2-request-2")).assert().containsExactly("o2@2")
         Unit
     }
+
+    // Tags recorded with each stream (decision D259)
+
+    /**
+     * `o1` moved from `east` to `west`, then lost its tags; `o2` was appended before the log learned them; `o3` has
+     * another key only.
+     */
+    private fun taggedStreams() = listOf(
+        stream("o1", 1, T0, listOf(event("OrderCreated", "{}")), tags = mapOf("region" to listOf("east"))),
+        stream("o1", 2, T0 + 1, listOf(event("ItemAdded", "{}")), tags = mapOf("region" to listOf("west", "north"))),
+        stream("o1", 3, T0 + 2, listOf(event("ItemAdded", "{}")), tags = emptyMap()),
+        stream("o2", 1, T0, listOf(event("OrderCreated", "{}")), tags = null),
+        stream("o3", 1, T0, listOf(event("OrderCreated", "{}")), tags = mapOf("dept" to listOf("eng"))),
+    )
+
+    /** The condition ABAC appends to an events query of a caller of [tags]. */
+    private suspend fun Fixture.abac(options: AbacQueryOptions, vararg tags: Pair<String, List<String>>) =
+        AbacQueryPolicy(options).evaluate(
+            QueryCaller(Caller(attributes = tags.associate { (key, values) -> "abac.$key" to values })),
+            QueryContext(ListQuery(MatchAllFilter), type, schema, QueryType.LIST, QueryEntry.HTTP),
+        )
+
+    @Test
+    fun `a record shows the tags its stream recorded, null when it recorded none`() = blocking {
+        val records = given(taggedStreams()).list(ListQuery(MatchAllFilter, limit = MAX_LIST)).associateBy { it.key() }
+        records.getValue("o1@1").path("tags").path("region").toList().map { it.stringValue() }.assert().containsExactly("east")
+        records.getValue("o1@2").path("tags").path("region").toList().map { it.stringValue() }.assert()
+            .containsExactly("west", "north")
+        records.getValue("o1@3").path("tags").let { (it.isObject && it.isEmpty).assert().describedAs("$it").isTrue() }
+        records.getValue("o2@1").path("tags").isNull.assert().isTrue()
+        Unit
+    }
+
+    @Test
+    fun `ABAC restricts each stream by the tags of its commit, a stream without tags matching no restriction`() =
+        blocking {
+            val fixture = given(taggedStreams())
+            val on = AbacQueryOptions(enabled = true)
+            fixture.keys(fixture.abac(on, "region" to listOf("east"))).assert()
+                .containsExactly("o1@1", "o1@3", "o3@1")
+            fixture.keys(fixture.abac(on, "region" to listOf("north"))).assert()
+                .containsExactly("o1@2", "o1@3", "o3@1")
+            fixture.keys(fixture.abac(on.copyWith(matchMissingTagKey = false), "region" to listOf("east"))).assert()
+                .containsExactly("o1@1")
+            fixture.keys(fixture.abac(on, "region" to listOf(AbacQueryPolicy.WILDCARD))).assert()
+                .containsExactly("o1@1", "o1@2")
+            fixture.keys(fixture.abac(on, "region" to listOf("west"), "dept" to listOf("ops"))).assert()
+                .containsExactly("o1@2", "o1@3")
+            fixture.count(fixture.abac(on, "region" to listOf("east"))).assert().isEqualTo(3L)
+            // A caller without tags is not restricted: every stream, the untagged one too.
+            fixture.keys(fixture.abac(on)).assert().containsExactly("o1@1", "o1@2", "o1@3", "o2@1", "o3@1")
+            Unit
+        }
 
     // Event conditions are element predicates over the array
 
@@ -549,7 +610,7 @@ abstract class EventQueryBackendSpec {
             CountQuery(events(name("ItemAdded"))),
             QueryCaller.IN_PROCESS
         ).assert().isEqualTo(CountResult(2, true))
-        val descriptor = gateway.describe(me.ahoo.wow.query.QueryEntry.HTTP)
+        val descriptor = gateway.describe(QueryEntry.HTTP)
         descriptor.model.assert().isEqualTo(QueryModel.EVENTS)
         Unit
     }

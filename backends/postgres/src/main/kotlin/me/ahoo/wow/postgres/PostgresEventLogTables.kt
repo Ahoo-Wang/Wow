@@ -151,7 +151,7 @@ internal class PostgresEventLogTables(val context: String) {
     fun appendGroup(partition: Int, tables: List<AggregateLogTable>, branches: List<Int>): String {
         val values = branches.withIndex().joinToString(", ") { (ord, branch) ->
             "($ord, $branch, ?::text, ?::text, ?::integer, ?::text, ?::text, ?::text, ?::bigint, ?::jsonb, ?::text, " +
-                "?::text, ?::text, ?::text, ?::jsonb, ?::jsonb, ?::text, ?::text, ?::boolean)"
+                "?::text, ?::text, ?::text, ?::jsonb, ?::jsonb, ?::text, ?::text, ?::boolean, ?::jsonb)"
         }
         val current = tables.withIndex().joinToString(" UNION ALL ") { (branch, table) ->
             "SELECT input.ord, coalesce((SELECT max(log.version) FROM ${table.log} AS log " +
@@ -200,7 +200,9 @@ internal class PostgresEventLogTables(val context: String) {
  * The log table of one aggregate type. A stream's facts take one column each, so the log can be queried in place;
  * the scope is two nullable columns and the causation two more, both null or both set. The operator (decision D163)
  * is three nullable columns, `operator_id`, `operator_tenant_id` and `operator_cross_scope`, all null for an anonymous
- * caller. The schedules are among the events (decision D198). The operator is columns added within format 1, so a
+ * caller. The schedules are among the events (decision D198). The tags after the commit (decision D259) are a nullable
+ * `jsonb` column, `{key: [values]}`: null for a stream appended before format 1 learned them (until `migrate-data`
+ * backfills it), `{}` for an aggregate without tags. The operator and the tags are columns added within format 1, so a
  * table created before them gets them on its next ensure ([additions]). The transport is its own nullable `jsonb`
  * column (decision
  * D25): only the tail reads it. The table has no aggregate name column: the table is
@@ -233,16 +235,18 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
             operator_id text,
             operator_tenant_id text,
             operator_cross_scope boolean,
+            tags jsonb,
             PRIMARY KEY (partition, sequence),
             CONSTRAINT "$versionKey" UNIQUE (aggregate_id, tenant_id, version),
             CONSTRAINT "$requestKey" UNIQUE (tenant_id, request_id)
         )
     """.trimIndent()
 
-    /** Adds format 1's added columns (the operator, D163) to a table created before them. */
+    /** Adds format 1's added columns (the operator, D163; the tags, D259) to a table created before them. */
     val additions = "ALTER TABLE $log ADD COLUMN IF NOT EXISTS operator_id text, " +
         "ADD COLUMN IF NOT EXISTS operator_tenant_id text, " +
-        "ADD COLUMN IF NOT EXISTS operator_cross_scope boolean"
+        "ADD COLUMN IF NOT EXISTS operator_cross_scope boolean, " +
+        "ADD COLUMN IF NOT EXISTS tags jsonb"
 
     /**
      * The whole append as one autocommitted statement, so it costs one round trip and holds the partition row's lock
@@ -267,8 +271,8 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
         )
         INSERT INTO $log (partition, sequence, tenant_id, aggregate_id, version, command_id, request_id,
             command_type, commit_time, events, owner_id, space_id, correlation_id, causation_id, headers, transport,
-            operator_id, operator_tenant_id, operator_cross_scope)
-        SELECT ?, bump.sequence, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?
+            operator_id, operator_tenant_id, operator_cross_scope, tags)
+        SELECT ?, bump.sequence, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?, ?::jsonb
         FROM bump
         RETURNING sequence
     """.trimIndent()
@@ -285,7 +289,7 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
      */
     val tail = "SELECT 0 AS part, $FACTS FROM $log WHERE aggregate_id = ? AND tenant_id = ? AND version >= ? " +
         "UNION ALL (SELECT 1 AS part, tenant_id, aggregate_id, version, NULL, request_id, command_type, NULL, " +
-        "NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL FROM $log WHERE aggregate_id = ? AND tenant_id = ? " +
+        "NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL FROM $log WHERE aggregate_id = ? AND tenant_id = ? " +
         "AND version < ? ORDER BY version DESC LIMIT ?) ORDER BY part, version"
 
     val entries = "SELECT partition, sequence, $FACTS, transport FROM $log WHERE aggregate_id = ? AND tenant_id = ? " +
@@ -297,19 +301,19 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
 
     companion object {
         /** The columns [additions] adds. */
-        val ADDED = listOf("operator_id", "operator_tenant_id", "operator_cross_scope")
+        val ADDED = listOf("operator_id", "operator_tenant_id", "operator_cross_scope", "tags")
 
         /** The columns a stream is written to besides its position, in the order of its parameters. */
         const val COLUMNS = "tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, " +
             "events, owner_id, space_id, correlation_id, causation_id, headers, transport, operator_id, " +
-            "operator_tenant_id, operator_cross_scope"
+            "operator_tenant_id, operator_cross_scope, tags"
 
         /** The parameters of one stream in [PostgresEventLogTables.appendGroup]: one per column of [COLUMNS]. */
-        const val STREAM_PARAMETERS = 17
+        const val STREAM_PARAMETERS = 18
 
         /** The facts of a stream: every column but the position and the transport. */
         const val FACTS = "tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, " +
             "events, owner_id, space_id, correlation_id, causation_id, headers, operator_id, operator_tenant_id, " +
-            "operator_cross_scope"
+            "operator_cross_scope, tags"
     }
 }
