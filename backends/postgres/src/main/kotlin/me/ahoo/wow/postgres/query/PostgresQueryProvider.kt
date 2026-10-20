@@ -27,6 +27,7 @@ import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.spi.store.Store
+import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import java.util.concurrent.ConcurrentHashMap
 import javax.sql.DataSource
@@ -108,10 +109,10 @@ internal fun DataSource.threadsAwaitingConnection(): Int? = try {
 }
 
 /** [name] of [target], looked up on the public interface that declares it when its class is not public itself. */
-private fun publicMethod(target: Any, name: String) =
-    (listOf(target.javaClass) + target.javaClass.interfaces).firstNotNullOf { type ->
-        runCatching { type.getMethod(name) }.getOrNull()?.takeIf { Modifier.isPublic(type.modifiers) }
-    }
+private fun publicMethod(target: Any, name: String): Method =
+    (listOf(target.javaClass) + target.javaClass.interfaces).firstNotNullOfOrNull { type ->
+        type.methods.firstOrNull { it.name == name && it.parameterCount == 0 }?.takeIf { Modifier.isPublic(type.modifiers) }
+    } ?: throw NoSuchMethodException(name)
 
 private class PostgresSnapshotQueries(private val store: PostgresStore, options: StoreQueryOptions) : SnapshotQueries {
     private val queryOptions = PostgresQueryOptions(indexDdl = options.indexDdl)
