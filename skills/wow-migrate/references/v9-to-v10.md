@@ -665,7 +665,27 @@ A context that sends commands to, or reads the published streams of, another con
 
 ## Clients of other services
 
-`wow-apiclient` (CoApi interfaces of a service's routes) is dropped (decision D187). TypeScript clients are generated from the V10 Manifest (`wow-generator`, rewritten with the `wow-client` Skill). A Kotlin caller of another service's commands that only needs them accepted, or committed, uses the `CommandClient` over the peer's command topic (depend on its `*-api`). For a synchronous answer over HTTP there is no generated JVM client yet (planned, D257): write a `WebClient` (or any HTTP client) against the Manifest's routes, or generate one from the service's OpenAPI document (`GET /wow/openapi`, or the plugin's `generateWowOpenApi`); a saga uses `SagaContext.call` or derives the command. Report each 9.x `@CoApi` interface and what replaces it.
+`wow-apiclient` (CoApi interfaces of a service's routes) is replaced by `wow-client` (`me.ahoo.wow.client`, decisions D257, D259): the same `CommandClient` and `QueryApi` as in process, over HTTP to a peer, named from the contract its `*-api` jar carries (decision D234): depend on the peer's `*-api` and write no path. With the Spring Boot host, list the peer under `wow.clients.contexts` and the host's `CommandClient` and `QueryApi` beans reach it over HTTP; without it, build one with `WowClient.builder()`. TypeScript clients are generated from the V10 Manifest (`wow-generator`, rewritten with the `wow-client` Skill). Report each 9.x `@CoApi` interface and what replaces it.
+
+| 9.x `wow-apiclient` | V10 |
+|---|---|
+| `ReactiveRestCommandGateway`, `SyncRestCommandGateway` (`@CoApi @LoadBalanced`) | The host's `CommandClient` bean, the peer listed in `wow.clients.contexts.<context>`; Java: `JavaCommandClient.of(commandClient)` |
+| `RestCommandGateway.send(CommandRequest(body, …))` | `commandClient.of(caller).wait(command, PeerContract.Aggregate.ref(tenant, id))`; `send(…)` answers at ACCEPTED, `stream(…)` per hop |
+| `CommandRequest.waitStage` / `waitContext` / `waitProcessor` / `waitTimeout` | `SendOptions.of(wait = WaitPlan.…, timeout = …)` (`Wow-Wait`, `Wow-Wait-Timeout`); Java: `JavaCommandClient.options()` |
+| `CommandRequest.tenantId`, `ownerId`, `spaceId` | The caller (`of(caller)`): in service mode its tenant and scope are asserted as the root context (`Wow-Call`); in user mode the end user's forwarded credential decides them; `targetTenant`/`targetScope` for a cross-scope caller |
+| `CommandRequest.aggregateId`, `aggregateVersion` | The ref's id; `SendOptions.of(expectedVersion = …)` (`If-Match`) |
+| `CommandRequest.requestId` | `SendOptions.of(requestId = …)`; a new one otherwise, kept by every retry |
+| `CommandRequest.localFirst`, `context`, `aggregate`, `type` | Removed: the command's class and the ref's type name the route |
+| `CommandRequest.serviceUri`, `@LoadBalanced` | `wow.clients.contexts.<context>.url` (public routes, user mode) or `.internal-url` (internal port, service mode; `wow.calls.contexts.<context>.url` too), or an `EndpointResolver` bean that discovers the service |
+| `RestCommandGatewayException(errorCode, errorMsg, bindingErrors)` | `CommandRejectedException` (`code`, `result`) or `WowProblemException` (`code`, `status`, `retryHint`, `result`) from problem+json; 429 and codes that keep the request id are retried, never a 504 (`wow.clients.retry.*`) |
+| `ReactiveSnapshotQueryApi<S>` / `SyncSnapshotQueryApi<S>` per aggregate (`@CoApi(baseUrl) @HttpExchange("<agg>")`) | `queryApi.of(caller).snapshots(PeerContract.Aggregate.TYPE)`: rows of `ObjectNode`, read with the contract's field constants (decision D259), or `snapshots<StateClass>()` where the peer's api jar has the state class; Java: `JavaQueryApi.of(queryApi)` |
+| `single`, `list`, `paged`, `count`, `aggregate` returning `MaterializedSnapshot<S>` | The same queries returning `Snapshot<S>`; `cursor`, and `stream` that resumes on its own (`Last-Event-ID`, decision D253) |
+| `*State` methods returning `S` | `Snapshot<S>.state`; one aggregate's latest state: `state(id)` (null when missing or not visible) |
+| `dynamic*` methods returning `Map` | `dynamic<Map<String, Any?>>()` or `dynamic<ObjectNode>()` |
+| `IListQuery.queryState(api)` | `api.list(query).map { it.state }` |
+| `@EnableCoApi(clients = […])` | Nothing to declare: the host creates the clients; `wow.clients.mode` (`service`, default, or `user`) and `wow.clients.forwarded-headers` |
+
+Service mode, the default, calls the peer's internal port as this service (its `wow.calls.token`), asserting the caller; the peer must trust the service (`wow.http.services.<service>.tokens`) and may narrow what it reads (`.reads`). User mode calls the peer's public routes with the end user's credential (the request's `Authorization` by default). A saga's synchronous call is `SagaContext.call` over the same service mode.
 
 ## JSON
 
@@ -685,7 +705,7 @@ A 9.x `MessageFunction` written by hand or registered at runtime (a function reg
 
 ## Java domains
 
-A domain written in Java migrates like a Kotlin one, within these limits (decision D229 G-8; a Java facade and a blocking bridge are planned for 10.x):
+A domain written in Java migrates like a Kotlin one, within these limits (decision D229 G-8). Code outside the domain calls commands and queries from Java through the facade of `wow-client`: `JavaCommandClient.of(commandClient)` and `JavaQueryApi.of(queryApi)`, each call blocking or `…Async` with a `CompletableFuture`, lists as `List`, streams as `java.util.stream.Stream`, timeouts as `java.time.Duration` (decisions D257, D260; never call the blocking forms on a Netty or WebFlux thread).
 
 - The module applies `kotlin("jvm")` beside `id("me.ahoo.wow")`, even with Java sources only: KSP runs in the Kotlin compilation and the generated models are Kotlin. The plugin fails a module that applies it without the Kotlin JVM plugin.
 - Decide functions are plain Java methods returning an event or a `Decision` built with the statics `Decision.events(…)`, `Decision.reject(code, message)` and `Decision.NoOp.INSTANCE`; `@OnCommand(produces = …)` names the events of a `Decision`.

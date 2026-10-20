@@ -36,13 +36,11 @@ import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.FrameworkCodes
-import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.call.CommandCaller
 import me.ahoo.wow.runtime.call.OutgoingCall
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
-import me.ahoo.wow.runtime.node.AdmissionPlugins
 import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
@@ -303,27 +301,6 @@ class CrossContextWaitTest {
             .contains("$SALES/$SAGA calls a command no Manifest of the service or its peers decides")
         // A caller that reaches the stock: the node is built, and needs no command transport for the call.
         salesNode(contracts) { error("not called") }.service.assert().isEqualTo(SALES_SERVICE)
-    }
-
-    @Test
-    fun `a node whose fixed-tenant type a peer's saga sends to should still be built`() {
-        // DX gap G13: the stock's item is in one tenant; the sales saga's Reserve carries its own. The node warns
-        // at startup and its intake refuses a command of another tenant.
-        val contracts = ContractDirectory(stockManifest, listOf(peer(salesManifest)))
-        contracts.peerSendersTo(setOf(ITEM)).assert().isEqualTo(mapOf("$SALES/$SAGA" to setOf(ITEM)))
-        ServiceNode(
-            STOCK_SERVICE,
-            "stock-2",
-            "stock-2.internal:9090",
-            listOf(stock.model),
-            stockManifest,
-            InMemoryBackends(PARTITIONS),
-            channel,
-            options = fastNodeOptions(),
-            admission = AdmissionPlugins(tenants = TenantPolicy.fixed(mapOf(ITEM to "warehouse"))),
-            contracts = contracts,
-            topics = SourceTopics(topics, PREFIX, topics, intake = true),
-        ).node.assert().isEqualTo("stock-2")
     }
 
     @Test

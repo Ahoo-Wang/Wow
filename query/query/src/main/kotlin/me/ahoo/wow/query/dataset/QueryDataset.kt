@@ -90,6 +90,9 @@ data class QueryDataset(
     /** Why the dataset cannot be queried now, or `null` when it can. */
     val unavailable: String? = null,
 ) {
+    /** This dataset, [unavailable] for [reason] now, or available again with null (decision D259). */
+    fun withUnavailable(reason: String?): QueryDataset = copy(unavailable = reason)
+
     init {
         require(unavailable == null || unavailable.isNotBlank()) { "Dataset [$name] names why it is unavailable." }
         val declared = declaration.fields.keys

@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.api.query
 
-data class CursorQuery(
+data class CursorQuery @JvmOverloads constructor(
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
