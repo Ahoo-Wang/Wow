@@ -37,7 +37,8 @@ export default tseslint.config([
     },
   },
   {
-    files: ["src/**/*.test.{ts,tsx}"],
+    // The tests, and the fixtures they share (`testing.tsx`).
+    files: ["src/**/*.test.{ts,tsx}", "src/**/testing.{ts,tsx}"],
     rules: { "no-restricted-imports": ["error", engineEntries("|testing")] },
   },
   {

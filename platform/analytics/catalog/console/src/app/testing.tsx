@@ -28,6 +28,7 @@ import { CallerStore, type CatalogCaller } from "@/services/caller.ts";
 import type { CatalogServices } from "@/services/catalog.ts";
 import type { CatalogCommands } from "@/views/catalogCommands.ts";
 import { createCatalogEngine } from "@/views/engine.ts";
+import type { ReferenceActions } from "@/views/referenceActions.ts";
 import { ServicesProvider } from "./services.tsx";
 
 export const SOURCE_ROWS = [
@@ -174,6 +175,7 @@ export const ORDER_ROWS: DataViewDefinition = {
   fields: [
     { name: "id", label: "Order", kind: "string", sortable: true },
     { name: "city", label: "City", kind: "string", sortable: true },
+    { name: "customer", label: "Customer", kind: "string", sortable: true },
   ],
   record: { rowKey: "id", paging: "paged", layouts: ["table"] },
   views: [
@@ -189,9 +191,33 @@ export const ORDER_ROWS: DataViewDefinition = {
         pageSize: 20,
         layout: "table",
         summaries: [],
-        table: { columns: [{ field: "id" }, { field: "city" }] },
+        table: {
+          columns: [{ field: "id" }, { field: "city" }, { field: "customer" }],
+        },
         card: { title: "id", fields: ["city"] },
       },
+    },
+  ],
+};
+
+/** The row actions of the served orders: a customer the order refers to may be suspended. */
+export const ORDER_ACTIONS: ReferenceActions = {
+  dataset: "shop.order_wide",
+  fields: [
+    {
+      field: "customer",
+      context: "crm",
+      aggregate: "customer",
+      commands: [
+        {
+          name: "SuspendCustomer",
+          description: "Suspend the customer.",
+          inputs: [
+            { name: "reason", type: "string", required: true },
+            { name: "days", type: "integer", required: false },
+          ],
+        },
+      ],
     },
   ],
 };
@@ -245,17 +271,23 @@ export function renderConsole(
     engine.register({
       definition: ORDER_ROWS,
       source: memorySource([
-        { id: "o-1", city: "Hangzhou" },
-        { id: "o-2", city: "Shanghai" },
+        { id: "o-1", city: "Hangzhou", customer: "c-1" },
+        { id: "o-2", city: "Shanghai", customer: null },
       ]),
     });
   const refresh = vi.fn(async () => served);
+  const referenceActionsOf = vi.fn(async (dataset: string) => {
+    if (dataset !== ORDER_ACTIONS.dataset) throw new Error("No row actions.");
+    return ORDER_ACTIONS;
+  });
+  const send = vi.fn(async () => ({ status: "SUCCEEDED" }));
   const services: CatalogServices = {
     callers,
     fetcher: new Fetcher({ baseURL: "" }),
     commands,
     engine,
     datasets: { refresh },
+    references: { actions: referenceActionsOf, send },
   };
   const router = createMemoryRouter(ROUTES, { initialEntries: [path] });
   render(
@@ -265,5 +297,5 @@ export function renderConsole(
       </ServicesProvider>
     </I18nProvider>,
   );
-  return { callers, commands, router, refresh };
+  return { callers, commands, router, refresh, send };
 }

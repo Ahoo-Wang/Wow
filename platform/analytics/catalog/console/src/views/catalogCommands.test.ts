@@ -12,7 +12,7 @@
  */
 
 import { Fetcher } from "@ahoo-wang/fetcher";
-import { WowProblemError } from "@ahoo-wang/wow-client/v10";
+import { WowProblemError } from "@ahoo-wang/wow-client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { catalogCommands, problemText } from "./catalogCommands.ts";
 

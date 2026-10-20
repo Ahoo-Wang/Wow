@@ -12,6 +12,7 @@
  */
 
 import type { DatasetResource } from "@ahoo-wang/wow-view-engine";
+import type { RecordActions } from "@ahoo-wang/wow-view-engine";
 import { bind, type ViewBinding } from "@ahoo-wang/wow-view-engine/ui";
 import { datasetDetail } from "@/detail/datasetDetail.tsx";
 import { sourceDetail } from "@/detail/sourceDetail.tsx";
@@ -73,11 +74,13 @@ export function rowsPath(dataset: string, view: string | null): string {
  * The console's resources as it binds them (host-integration.md 4.2, 5):
  * the sources' and the datasets' pages, how one is read, and the data
  * owner's actions, which the engine places on every record view over them;
- * then each dataset served, read on the rows page.
+ * then each dataset served, read on the rows page, with the actions its rows
+ * offer on the aggregates they refer to (`rowActions`).
  */
 export function consoleBindings(
   commands: CatalogCommands,
   served: readonly DatasetResource[] = [],
+  rowActions: (id: string) => RecordActions | undefined = () => undefined,
 ): ViewBinding[] {
   return [
     bind(SOURCES, {
@@ -90,8 +93,12 @@ export function consoleBindings(
       reading: datasetDetail,
       actions: datasetActions(commands),
     }),
-    ...served.map(({ id }) =>
-      bind(id, { route: (view) => rowsPath(id, view) }),
-    ),
+    ...served.map(({ id }) => {
+      const actions = rowActions(id);
+      return bind(id, {
+        route: (view) => rowsPath(id, view),
+        ...(actions ? { actions } : {}),
+      });
+    }),
   ];
 }

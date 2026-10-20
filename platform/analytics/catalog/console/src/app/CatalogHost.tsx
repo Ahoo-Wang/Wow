@@ -17,64 +17,102 @@ import { useReactRouter } from "@ahoo-wang/wow-view-engine/react-router";
 import { ViewHost } from "@ahoo-wang/wow-view-engine/ui";
 import { useI18n } from "@/i18n.tsx";
 import { callerKey } from "@/services/caller.ts";
+import type { CatalogServices } from "@/services/catalog.ts";
 import { consoleBindings } from "@/views/bindings.ts";
 import { engineMessages } from "@/views/messages.ts";
+import {
+  REFERENCE_WORDS,
+  referenceActions,
+  type ReferenceActions,
+} from "@/views/referenceActions.ts";
 import { ServedProvider, type Served } from "./served.tsx";
 import { useCaller, useServices } from "./services.tsx";
 
 /** Wow's blue, the console's brand over the engine's porcelain preset. */
 const BRAND = "oklch(0.546 0.245 262.881)";
 
+/** The datasets served, each with the actions its rows offer; one whose cannot be read offers none. */
+async function readServed({
+  datasets,
+  references,
+}: CatalogServices): Promise<Pick<Served, "datasets" | "references">> {
+  const resources: readonly DatasetResource[] = await datasets.refresh();
+  const read = await Promise.all(
+    resources.map(({ id }) =>
+      references.actions(id).then(
+        (actions): [string, ReferenceActions] => [id, actions],
+        (error: unknown) => {
+          console.warn(`[datasets] ${id} offers no row actions`, error);
+          return null;
+        },
+      ),
+    ),
+  );
+  return {
+    datasets: resources,
+    references: Object.fromEntries(read.filter((entry) => entry !== null)),
+  };
+}
+
 /**
  * The datasets the node serves, read again for each caller (another one sees
- * other datasets) and on `refresh`.
+ * other datasets and may act on other rows) and on `refresh`.
  */
 function useServed(): Served {
-  const { datasets } = useServices();
+  const services = useServices();
   const caller = useCaller();
-  const key = caller ? callerKey(caller) : null;
   const [round, setRound] = useState(0);
-  const [served, setServed] = useState<Omit<Served, "refresh">>({
-    datasets: [],
-    error: null,
-    loading: false,
-  });
+  // What is asked for now: the caller's datasets, read again on each refresh.
+  const asked = caller ? `${callerKey(caller)}#${round}` : null;
+  const [served, setServed] = useState<
+    Omit<Served, "refresh" | "loading"> & { for: string | null }
+  >({ for: null, datasets: [], references: {}, error: null });
   useEffect(() => {
-    if (key === null) return;
+    if (asked === null) return;
     let live = true;
-    setServed((current) => ({ ...current, loading: true }));
-    datasets.refresh().then(
-      (resources: readonly DatasetResource[]) => {
-        if (live)
-          setServed({ datasets: resources, error: null, loading: false });
+    readServed(services).then(
+      (read) => {
+        if (live) setServed({ ...read, for: asked, error: null });
       },
       (error: unknown) => {
-        if (live)
-          setServed((current) => ({ ...current, error, loading: false }));
+        if (live) setServed((current) => ({ ...current, for: asked, error }));
       },
     );
     return () => {
       live = false;
     };
-  }, [datasets, key, round]);
+  }, [services, asked]);
   return useMemo(
-    () => ({ ...served, refresh: () => setRound((value) => value + 1) }),
-    [served],
+    () => ({
+      datasets: served.datasets,
+      references: served.references,
+      error: served.error,
+      loading: asked !== null && served.for !== asked,
+      refresh: () => setRound((value) => value + 1),
+    }),
+    [served, asked],
   );
 }
 
 /**
  * The console as the view engine's host (host-integration.md 4.2): its one
- * engine, its route table and the data owner's actions, the datasets served,
- * the router, the language in force, and the engine's theme.
+ * engine, its route table and the data owner's actions, the datasets served
+ * with their rows' actions, the router, the language in force, and the
+ * engine's theme.
  */
 export function CatalogHost({ children }: { children: ReactNode }) {
-  const { engine, commands } = useServices();
+  const { engine, commands, references } = useServices();
   const { locale } = useI18n();
   const served = useServed();
   const bindings = useMemo(
-    () => consoleBindings(commands, served.datasets),
-    [commands, served.datasets],
+    () =>
+      consoleBindings(commands, served.datasets, (id) => {
+        const actions = served.references[id];
+        return actions
+          ? referenceActions(actions, references.send, REFERENCE_WORDS[locale])
+          : undefined;
+      }),
+    [commands, served.datasets, served.references, references.send, locale],
   );
   return (
     <ServedProvider served={served}>

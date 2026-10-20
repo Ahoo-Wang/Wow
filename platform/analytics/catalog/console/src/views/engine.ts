@@ -21,7 +21,7 @@ import {
   type ViewStore,
 } from "@ahoo-wang/wow-view-engine";
 import { browserRuntimeEnvironment } from "@ahoo-wang/wow-view-engine/react";
-import { viewSourceOf } from "@ahoo-wang/wow-view-store/v10";
+import { viewSourceOf } from "@ahoo-wang/wow-view-store";
 import {
   DatasetSnapshotQueryClient,
   SourceSnapshotQueryClient,

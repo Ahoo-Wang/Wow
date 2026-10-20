@@ -111,6 +111,37 @@ describe("the rows page", () => {
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(2));
   });
 
+  it("acts on the aggregate a row refers to, through the catalog", async () => {
+    const { send } = renderConsole(EDITOR, {
+      path: "/rows?id=o-1",
+      served: SERVED,
+    });
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Actions for o-1" }),
+    );
+    await userEvent.click(
+      await screen.findByRole("menuitem", {
+        name: "SuspendCustomer · customer",
+      }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.type(within(dialog).getByLabelText(/reason/), "spam");
+    await userEvent.click(
+      within(dialog).getByRole("button", {
+        name: "SuspendCustomer · customer",
+      }),
+    );
+    await waitFor(() =>
+      expect(send).toHaveBeenCalledWith(
+        "shop.order_wide",
+        "customer",
+        "c-1",
+        "SuspendCustomer",
+        { reason: "spam" },
+      ),
+    );
+  });
+
   it("says when no dataset is served", async () => {
     renderConsole(EDITOR, { path: "/rows" });
     expect(await screen.findByText(/No dataset is served yet/)).toBeVisible();

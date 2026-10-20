@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { WowProblemError } from "@ahoo-wang/wow-client/v10";
+import { WowProblemError } from "@ahoo-wang/wow-client";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";

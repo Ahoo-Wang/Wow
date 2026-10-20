@@ -13,14 +13,20 @@
 
 import { Fetcher } from "@ahoo-wang/fetcher";
 import { TokenStorage } from "@ahoo-wang/fetcher-cosec";
-import { DatasetClient } from "@ahoo-wang/wow-client/v10";
+import { DatasetClient } from "@ahoo-wang/wow-client";
 import { DatasetResources, type ViewEngine } from "@ahoo-wang/wow-view-engine";
-import { datasetCatalogOf } from "@ahoo-wang/wow-view-store/v10";
+import { datasetCatalogOf } from "@ahoo-wang/wow-view-store";
 import {
   catalogCommands,
   type CatalogCommands,
 } from "@/views/catalogCommands.ts";
 import { catalogSources, createCatalogEngine } from "@/views/engine.ts";
+import {
+  fetchReferenceActions,
+  referenceSend,
+  type ReferenceActions,
+  type ReferenceSend,
+} from "@/views/referenceActions.ts";
 import { CallerHeaders, CallerStore } from "./caller.ts";
 import { withCoSec } from "./cosec.ts";
 
@@ -32,6 +38,11 @@ export interface CatalogServices {
   engine: ViewEngine;
   /** The datasets this node serves, registered in `engine` as the directory lists them. */
   datasets: Pick<DatasetResources, "refresh">;
+  /** The commands a served dataset's rows offer on the aggregates they refer to (D238 ⑤, D257). */
+  references: {
+    actions(dataset: string): Promise<ReferenceActions>;
+    send: ReferenceSend;
+  };
 }
 
 /**
@@ -65,5 +76,9 @@ export function createCatalogServices(
           error,
         ),
     ),
+    references: {
+      actions: (dataset) => fetchReferenceActions(fetcher, dataset),
+      send: referenceSend(fetcher),
+    },
   };
 }

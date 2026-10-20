@@ -1,16 +1,16 @@
 {
   "version": 1,
   "files": {
-    "analytics-catalog/boundedContext.ts": "b883476c430c195a259d787d785a4071a141747d414f904f51bc16aa7812f916",
-    "analytics-catalog/dataset/aggregate.ts": "917439b17eaaabcc14b4bd1e4cfdf4d368da0af8b67e7372850ccf8666591fb1",
-    "analytics-catalog/dataset/commandClient.ts": "37431053baaa082f3321a3eb2d92413f1c14ae99b2fd5c1e75ccbf6468c1cfd0",
+    "analytics-catalog/boundedContext.ts": "6622ebedbd38d2d58a04669b4333b2e47acf18725b9fa0b9a7598e824a1824cf",
+    "analytics-catalog/dataset/aggregate.ts": "b14df06edbe3673ceb9bd6e50dd0a37ebbbb6551482607e77cb9920039c37afa",
+    "analytics-catalog/dataset/commandClient.ts": "24eb3ffce3f58cc830e106fcf76f33eb511c4abafd81c58cff9cee8a2e9b732f",
     "analytics-catalog/dataset/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
-    "analytics-catalog/dataset/queryClient.ts": "3cd3e973429879b2efab6012add517767dff7b7fa4d093b398e91cea157a3c49",
+    "analytics-catalog/dataset/queryClient.ts": "ca02a929555e3d31afd42da7d1bf15317c0554ad9d62d8dc6c45e8f991724101",
     "analytics-catalog/index.ts": "fe7e78ae05647fa08459d04219cf8fdd01199bfd9d7b93c0b0a0ed9115c4dc6e",
-    "analytics-catalog/source/aggregate.ts": "00a1edc2af432238cd3d591f07c4f75023ad83a0838c3c4c5a0bc440d7c14762",
-    "analytics-catalog/source/commandClient.ts": "42b01f9441f7f71f0f7823e761597ac7224ebfe62d8b6a05635365e9af3584de",
+    "analytics-catalog/source/aggregate.ts": "df0366db8c2ee49f665fe25c1a455f188629ae455683729a211c401b1f082778",
+    "analytics-catalog/source/commandClient.ts": "d96ac31de34087fe95c3159a5b27622285b8f3a78e74c8e385f901cedd91b909",
     "analytics-catalog/source/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
-    "analytics-catalog/source/queryClient.ts": "136aaf17adecd8ab583255118a8c2b7a0f12dac938c47a7d97cb7eadbc741188",
+    "analytics-catalog/source/queryClient.ts": "88d8dc6c3762514204bf7e9004db0434ece5dd629b01fddff924c94749609fd4",
     "analytics-catalog/types.ts": "2da060add438a99b9c2fd2559ad8020409c52ab7229771f3c20c6047b3053ec2",
     "index.ts": "8967377c1d9185ff9a38139bfec65c29425ee5689daeeb06d46ab12bfbbce0f0"
   }

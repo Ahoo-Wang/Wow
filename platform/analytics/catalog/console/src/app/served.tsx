@@ -15,10 +15,13 @@
 
 import { createContext, useContext, type PropsWithChildren } from "react";
 import type { DatasetResource } from "@ahoo-wang/wow-view-engine";
+import type { ReferenceActions } from "@/views/referenceActions.ts";
 
 /** The datasets the node serves, as last read. */
 export interface Served {
   datasets: readonly DatasetResource[];
+  /** The commands each one's rows offer, by definition id; none for one whose could not be read. */
+  references: Readonly<Record<string, ReferenceActions>>;
   /** Why the directory could not be read last, if it could not. */
   error: unknown;
   loading: boolean;
@@ -28,6 +31,7 @@ export interface Served {
 
 const ServedContext = createContext<Served>({
   datasets: [],
+  references: {},
   error: null,
   loading: false,
   refresh: () => {},
