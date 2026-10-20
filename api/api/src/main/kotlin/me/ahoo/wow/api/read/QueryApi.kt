@@ -1,0 +1,168 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.api.read
+
+import kotlinx.coroutines.flow.Flow
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CountResult
+import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.ICountQuery
+import me.ahoo.wow.api.query.ICursorQuery
+import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.api.query.IPagedQuery
+import me.ahoo.wow.api.query.ISingleQuery
+import me.ahoo.wow.api.query.PagedList
+
+/**
+ * The typed read API (decisions D254 ②, D257, D259): the snapshots, the events and the datasets of the read side,
+ * queried as someone. There is no entry that names nobody: [of] a caller reads within that caller's scope, [trusted]
+ * code reads every tenant, and both run under the same admission, visibility, bulkhead and budget as the public port's
+ * queries. The node's implementation reads its own read side in process; a peer's reads another service's over HTTP,
+ * with the same calls.
+ *
+ * Every query takes the query protocol's types (`me.ahoo.wow.api.query`, built with its DSL) and fails with the query
+ * errors of the read side: a query the read side refuses is `wow.query.invalid`, one that runs out of time
+ * `wow.query.timeout`, one its store has no room for `wow.query.busy`.
+ */
+interface QueryApi {
+    /**
+     * The queries [caller] may run: restricted to its tenant (or the fixed tenant of an aggregate type that has one),
+     * its owner and space, and to the rows its attributes see (ABAC and the application's query policies), under the
+     * in-process budget (`wow.query.in-process.*`, the HTTP defaults).
+     */
+    fun of(caller: Caller): Queries
+
+    /**
+     * The queries of trusted code: no caller, so no tenant, owner or space restricts them, and no query policy that
+     * reads the caller hides a row. They keep the in-process budget unless [TrustedQueries.unbounded] drops it.
+     */
+    fun trusted(): TrustedQueries
+}
+
+/** The query models one caller ([QueryApi.of]) or trusted code ([QueryApi.trusted]) reads. */
+interface Queries {
+    /**
+     * The snapshots of the aggregate whose state is of [stateType] (its root's class when the root is its own state),
+     * their rows decoded as [Snapshot]s of it. The node finds the aggregate type from its models.
+     *
+     * @throws IllegalArgumentException when no aggregate of the node has a state of [stateType].
+     */
+    fun <S : Any> snapshots(stateType: Class<S>): SnapshotQueries<S>
+
+    /** The snapshots of [type], their states decoded as its model's state class. */
+    fun snapshots(type: AggregateType): SnapshotQueries<Any>
+
+    /**
+     * The event streams of [type] (decision D235): one row per commit, its events decoded as the model's event
+     * classes.
+     */
+    fun events(type: AggregateType): EventQueries
+
+    /**
+     * The rows of the dataset [name] (`context.dataset`, decision D145), decoded as [rowType]: a class of the dataset's
+     * columns, a `Map`, or a JSON object type of the implementation (`ObjectNode` in process).
+     */
+    fun <R : Any> datasets(name: AggregateType, rowType: Class<R>): RowQueries<R>
+}
+
+/** The queries of trusted code: [unbounded] lifts the in-process budget for a job that must read everything. */
+interface TrustedQueries : Queries {
+    /**
+     * These queries without a budget: no list, page or count bound, exact counts; only the in-process timeout
+     * (`wow.query.in-process-timeout`) applies. For jobs that read a whole model, not for anything a request drives.
+     */
+    fun unbounded(): Queries
+}
+
+/**
+ * The query operations of one model, each row decoded as [R]. A row a policy hides is never returned; a field the
+ * schema masks is masked as on the public port.
+ */
+interface RowQueries<R : Any> {
+    /** The first row [query] matches, or `null` when none does. */
+    suspend fun single(query: ISingleQuery): R?
+
+    /**
+     * The rows [query] matches, at most its limit, or the budget's default list size when it names none (`0`); read
+     * whole within the query's timeout. To read every row of a large result, [stream] it.
+     */
+    fun list(query: IListQuery): Flow<R>
+
+    /**
+     * The rows [query] matches as a resumable stream (decision D253): read in keyset chunks, each its own query under
+     * the store's bulkhead, so no permit is held while the collector works, and bounded by neither the list size nor
+     * the budget. Each row comes with its [position][Positioned.position]: the same query streamed again [after] it
+     * goes on strictly after that row, on this node or another. A query whose sort cannot order a cursor streams as
+     * [list] does, under its bounds, its rows without positions, and cannot be resumed ([after] is then
+     * `wow.query.invalid`).
+     */
+    fun stream(query: IListQuery, after: String? = null): Flow<Positioned<R>>
+
+    /** One page of the rows [query] matches, with its total as [IPagedQuery.total] asks (decision D150). */
+    suspend fun paged(query: IPagedQuery): PagedList<R>
+
+    /** One keyset page of the rows [query] matches, with the cursor of the next one. */
+    suspend fun cursor(query: ICursorQuery): CursorPage<R>
+
+    /** How many rows [query] matches, bounded by its limit or the budget's count limit (decision D150). */
+    suspend fun count(query: ICountQuery): CountResult
+
+    /** The groups of [query], each decoded as [groupType]: a class of its groups and metrics, or a `Map`. */
+    fun <G : Any> aggregate(query: AggregationQuery, groupType: Class<G>): Flow<G>
+}
+
+/** The queries of an aggregate's model, its rows typed, with the same queries returning the rows as stored. */
+interface ModelQueries<R : Any> : RowQueries<R> {
+    /** The aggregate type these queries read. */
+    val type: AggregateType
+
+    /**
+     * The same queries with each row decoded as [rowType] rather than typed: for a projection, which leaves out
+     * fields a typed row needs, or a reader that walks the record as stored (a `Map`, or `ObjectNode` in process).
+     */
+    fun <T : Any> dynamic(rowType: Class<T>): RowQueries<T>
+}
+
+/**
+ * The snapshot queries of an aggregate type (decision D126): one row per aggregate, a [Snapshot] of its state [S].
+ * A typed row reads the whole record: a query with a projection is refused, run it through [dynamic].
+ */
+interface SnapshotQueries<S : Any> : ModelQueries<Snapshot<S>> {
+    /**
+     * The latest committed state of the aggregate [id] in the caller's tenant (decision D246 ⑥: its snapshot, else
+     * its log before the first one), as the public port's state read reads it: `null` when there is none or the
+     * caller may not see it, alike.
+     *
+     * @throws IllegalStateException for trusted queries of a type without a fixed tenant: they name no tenant.
+     */
+    suspend fun state(id: String): AggregateState<S>?
+}
+
+/** The events queries of an aggregate type (decision D235): one row per commit, an [EventStream]. */
+interface EventQueries : ModelQueries<EventStream>
+
+/** The snapshots of the aggregate whose state is [S]; see [Queries.snapshots]. */
+inline fun <reified S : Any> Queries.snapshots(): SnapshotQueries<S> = snapshots(S::class.java)
+
+/** The rows of the dataset [name] decoded as [R]; see [Queries.datasets]. */
+inline fun <reified R : Any> Queries.datasets(name: AggregateType): RowQueries<R> = datasets(name, R::class.java)
+
+/** These queries with each row decoded as [T]; see [ModelQueries.dynamic]. */
+inline fun <reified T : Any> ModelQueries<*>.dynamic(): RowQueries<T> = dynamic(T::class.java)
+
+/** The groups of [query] decoded as [G]; see [RowQueries.aggregate]. */
+inline fun <reified G : Any> RowQueries<*>.aggregate(query: AggregationQuery): Flow<G> =
+    aggregate(query, G::class.java)
