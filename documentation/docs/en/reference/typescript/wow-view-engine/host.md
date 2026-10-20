@@ -248,4 +248,4 @@ export type MessageOverrides = Partial<Record<MessageKey, string>>;
 
 - Storybook's [integration walk-through](/storybook/?path=/docs/view-engine-接入导览--docs): the host, its bindings, two declared actions, words in two languages and an in-memory router.
 - Source files: [`OrdersHost.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/OrdersHost.tsx), [`orderActions.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/orderActions.ts), [`memoryRouter.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/memoryRouter.ts).
-- A real host: the compensation console's [`src/views/`](https://github.com/Ahoo-Wang/Wow/tree/main/compensation/dashboard/src/views).
+- A real host: the compensation console's [`src/views/`](https://github.com/Ahoo-Wang/Wow/tree/v10-9x-baseline/compensation/dashboard/src/views).

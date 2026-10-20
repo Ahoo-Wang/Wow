@@ -8,7 +8,7 @@ import { appendFileSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { PUBLISHED } from './publish-npm.mjs';
 
-// typescript.yml: the static checks (format, lint, types, versions, ledger).
+// typescript.yml: the static checks (format, lint, types, versions).
 const TYPESCRIPT = 'typescript';
 // typescript.yml: unit tests of every package but view-engine, whose suite
 // runs sharded on its own.
@@ -24,14 +24,8 @@ const PACKAGE_DOCS = 'packageDocs';
 const VIEW_ENGINE_DOCS = 'viewEngineDocs';
 // typescript-storybook.yml: the stories, their static build and interactions.
 const STORYBOOK = 'storybook';
-// typescript-contract.yml: generated code against the published 8.x servers.
-const LEGACY_CONTRACT = 'legacyContract';
 // typescript.yml: actionlint over every workflow, the release workflow included.
 const WORKFLOWS = 'workflows';
-// typescript.yml: the compat-debt ledger alone, for a change to Kotlin main
-// sources that turns on no TypeScript check: the ledger pairs their removal
-// markers too (#3755), and quality, which runs it otherwise, is off then.
-const COMPAT_DEBT = 'compatDebt';
 // typescript.yml: the Package job, which packs the PUBLISHED npm packages and
 // checks them as a consumer gets them. On with sdk, and for any path inside a
 // PUBLISHED package, view-engine's included, without rerunning the unit
@@ -69,8 +63,6 @@ const V10_CONTRACT_PATH =
 const OPS_CONSOLE = 'opsConsole';
 const OPS_CONSOLE_PATH =
   /^(?:platform\/ops\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|patches\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ops-console-test\.yml$)/;
-// A Kotlin source a removal marker may sit in.
-const KOTLIN_MAIN = /(?:^|\/)src\/main\/kotlin\/.+\.kt$/;
 
 // A light scope stands in for a full one when only Markdown changed, so it
 // turns off again once any path turns the full scope on.
@@ -106,16 +98,12 @@ const RULES = [
   // site compiles its samples against the client and the generator.
   [
     /^typescript\/wow-client\//,
-    [TYPESCRIPT, SDK, DOCS, VIEW_ENGINE, STORYBOOK, LEGACY_CONTRACT],
+    [TYPESCRIPT, SDK, DOCS, VIEW_ENGINE, STORYBOOK],
   ],
-  [/^typescript\/wow-generator\//, [TYPESCRIPT, SDK, DOCS, LEGACY_CONTRACT]],
-  // The site's samples compile against the committed generated clients.
-  [
-    /^typescript\/integration-test\/src\/generated\//,
-    [TYPESCRIPT, DOCS, LEGACY_CONTRACT],
-  ],
-  // The contract runs the integration tests; the unit job leaves them out.
-  [/^typescript\/integration-test\//, [TYPESCRIPT, LEGACY_CONTRACT]],
+  [/^typescript\/wow-generator\//, [TYPESCRIPT, SDK, DOCS]],
+  // The contract runs the integration tests (V10_CONTRACT_PATH); the unit job
+  // leaves them out.
+  [/^typescript\/integration-test\//, [TYPESCRIPT]],
   // The documentation site embeds the Storybook these render.
   [
     // view-engine doesn't depend on wow-react; the stories and the site do.
@@ -148,8 +136,6 @@ const RULES = [
   [/^gradle\.properties$/, [TYPESCRIPT]],
   // The Gradle build: v10.yml (V10_PATH).
   [/^(?:build\.gradle\.kts|settings\.gradle\.kts|gradlew)$/, []],
-  // The compat-debt ledger: quality checks it against the markers.
-  [/^docs\/compat-debt\.md$/, [TYPESCRIPT]],
   // Lint and format rules only the static checks read.
   [
     /^(?:eslint\.config\.js|\.prettierrc|\.prettierignore)$/,
@@ -169,10 +155,7 @@ const RULES = [
     ],
   ],
   // Prettier checks the workflow file, so the static checks run too.
-  [
-    /^\.github\/workflows\/typescript-contract\.yml$/,
-    [TYPESCRIPT, LEGACY_CONTRACT, WORKFLOWS],
-  ],
+  [/^\.github\/workflows\/typescript-contract\.yml$/, [TYPESCRIPT, WORKFLOWS]],
   [
     /^\.github\/workflows\/typescript-storybook\.yml$/,
     [TYPESCRIPT, STORYBOOK, WORKFLOWS],
@@ -197,6 +180,10 @@ const RULES = [
   // checks it (OPS_CONSOLE_PATH), and v10.yml runs with the ops server that
   // serves it (V10_PATH).
   [/^platform\/ops\/console\//, []],
+  // The site's samples compile against the eShop's committed generated
+  // clients (documentation/test/typescript-samples.mjs); eshop-web-test.yml
+  // checks the eShop web app itself.
+  [/^example\/eshop\/web\/src\/generated\//, [DOCS]],
   // The V10 modules (documentation/designs/v10/06-modules.md §4; their tests
   // live under test/, below), the BOM, the dependency versions, the examples
   // and the end-to-end benchmark: v10.yml (V10_PATH); no client or site builds
@@ -205,12 +192,8 @@ const RULES = [
     /^(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|wow-dependencies|wow-benchmarks|example|gradle)\//,
     [],
   ],
-  // Other Gradle modules, the 9.x compensation dashboard (dashboard-test.yml)
-  // and analytics console (analytics-console-test.yml), and prose.
-  [
-    /^(?:test|config|deploy|docs|skills|scripts|compensation|analytics|\.claude\/skills)\//,
-    [],
-  ],
+  // Other Gradle modules and prose.
+  [/^(?:test|config|deploy|docs|skills|scripts|\.claude\/skills)\//, []],
   [/^\.github\/(?!scripts\/[^/]+\.mjs$|workflows\/typescript[^/]*\.yml$)/, []],
   [/^[^/]+\.(?:kts|md|properties)$/, []],
   [
@@ -264,9 +247,7 @@ export function scopes(paths) {
     PACKAGE_DOCS,
     VIEW_ENGINE_DOCS,
     STORYBOOK,
-    LEGACY_CONTRACT,
     WORKFLOWS,
-    COMPAT_DEBT,
     PACKAGE,
     V10,
     V10_CONTRACT,
@@ -278,9 +259,7 @@ export function scopes(paths) {
   const kept = new Set();
   for (const path of paths) {
     const rule = RULES.find(([pattern]) => pattern.test(path));
-    // Every scope, quality among them, so the ledger alone would repeat it.
-    if (!rule)
-      return Object.fromEntries(keys.map(key => [key, key !== COMPAT_DEBT]));
+    if (!rule) return Object.fromEntries(keys.map(key => [key, true]));
     for (const key of rule[1]) {
       result[key] = true;
       if (key in FULL && rule[1].includes(FULL[key])) kept.add(key);
@@ -288,11 +267,8 @@ export function scopes(paths) {
   }
   for (const [light, full] of Object.entries(FULL))
     if (result[full] && !kept.has(light)) result[light] = false;
-  // Decided apart from RULES, whose first match wins: a Kotlin path keeps the
-  // scopes it has and adds this one, unless quality already checks the ledger.
-  result[COMPAT_DEBT] =
-    !result[TYPESCRIPT] && paths.some(path => KOTLIN_MAIN.test(path));
-  // Also apart from RULES: a published package's path keeps its scopes.
+  // Decided apart from RULES, whose first match wins: a published package's
+  // path keeps its scopes.
   result[PACKAGE] =
     result[SDK] ||
     paths.some(path => PUBLISHED.some(dir => path.startsWith(`${dir}/`)));

@@ -34,14 +34,14 @@ import { emitManifestGeneration } from '../emitters/manifestClients';
 import { openApiDocument } from '../openapi/document';
 import { findDanglingReferences } from '../openapi/references';
 import { OutputStore } from '../output/outputStore';
-import { resolveWowModel } from '../wow/resolveWowModel';
 import type { SeamOptions } from './seams';
 import { PROJECT_SEAM, SIGNAL_SEAM } from './seams';
 
 /**
- * Main code generator class that orchestrates the generation of TypeScript code from OpenAPI specifications.
- * This class handles the entire code generation process, including parsing OpenAPI specs,
- * resolving aggregates, generating models and clients, and formatting the output.
+ * Main code generator class that orchestrates the generation of TypeScript code
+ * from a Wow Manifest or an OpenAPI document. A Manifest generates the typed
+ * clients of a Wow service on `@ahoo-wang/wow-client/v10`; an OpenAPI
+ * document generates its models and Fetcher decorator API clients.
  *
  * @example
  * ```typescript
@@ -85,16 +85,16 @@ export class CodeGenerator {
   }
 
   /**
-   * Generates TypeScript code from the OpenAPI specification:
+   * Generates TypeScript code from the input document:
    *
-   * 1. reads the generator configuration, then the document, which it checks
-   *    for dangling references;
-   * 2. reads the document's Wow model: bounded contexts and aggregates;
-   * 3. decides what the document generates (`analysis/`);
-   * 4. writes every module once (`emitters/`), then the index files;
-   * 5. formats, organises and types the imports, and checks the output
+   * 1. reads the generator configuration, then the document; a Manifest goes
+   *    to `generateFromManifest`, an OpenAPI document is checked for
+   *    dangling references;
+   * 2. decides what the document generates (`analysis/`);
+   * 3. writes every module once (`emitters/`), then the index files;
+   * 4. formats, organises and types the imports, and checks the output
    *    compiles (`finalize/`);
-   * 6. writes the files, removes the stale ones of the last run and records
+   * 5. writes the files, removes the stale ones of the last run and records
    *    the manifest (`output/`).
    *
    * Every warning is logged as it arises, and counted.
@@ -120,7 +120,7 @@ export class CodeGenerator {
         logger.warn(line);
       }
     };
-    logger.debug('Starting code generation from OpenAPI specification');
+    logger.debug('Starting code generation');
     logger.debug(`Work directory: ${process.cwd()}`);
     logger.debug(`Input path: ${options.inputPath}`);
     logger.debug(`Output directory: ${options.outputDir}`);
@@ -165,10 +165,6 @@ export class CodeGenerator {
     }
 
     const document = openApiDocument(openAPI);
-    logger.debug('Resolving bounded context aggregates');
-    const wow = resolveWowModel(document);
-    warn(wow.warnings);
-    logger.debug(`Resolved ${wow.contexts.size} bounded context aggregates`);
 
     const output = OutputStore.open(
       this.project,
@@ -178,7 +174,7 @@ export class CodeGenerator {
     this.output = output;
 
     logger.debug('Analysing the document');
-    const analysis = analyze(document, wow, configuration.config);
+    const analysis = analyze(document, configuration.config);
     warn(analysis.warnings);
 
     logger.debug('Writing generated modules');

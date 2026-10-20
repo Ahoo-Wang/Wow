@@ -297,7 +297,7 @@ accept one with `pnpm exec vitest run <test> -u`. Prettier leaves
 - **Query Clients**: Type-safe query builders for snapshots, event streams, and state aggregates
 - **Filter Expressions**: `filter.*` builders produce the `FilterExpression` tree the filterable `QueryApi` operations take — the current API. It is optional on `AggregationQuery`, and the load-state clients accept no filter at all
 - **Aggregation**: `aggregation.*` builds groups, metrics and arithmetic expressions, and `aggregation.query()` admits the assembled query against the rules Wow enforces in its constructor. `aggregation.having.*` (`HavingDsl`, after Kotlin's `HavingDsl`) builds the `having`, and `aggregation.derived(d => …, alias)` builds a derived metric's arithmetic with the `DerivedExpressionDsl` it hands the callback (after Kotlin's `DerivedExpressionDsl`); `derived()` also still takes a built tree. Each builder refuses its own numbers with Wow's message; references, grouping and depth are `aggregation.query()`'s
-- **Legacy Condition API**: `src/legacy/` is the `@ahoo-wang/wow-client/legacy` entry, for Wow servers before 8.11 — superseded by `dsl/filter/`. The root entry never exports it; the query clients accept its request shapes through the `*QueryRequest` unions (see `docs/compat-debt.md`)
+- **Legacy Condition API**: `src/legacy/` is the `@ahoo-wang/wow-client/legacy` entry, for Wow servers before 8.11 — superseded by `dsl/filter/`. The root entry never exports it; the query clients accept its request shapes through the `*QueryRequest` unions; removed when the V10 client becomes the root (D239)
 - **Wow Metadata**: `WowMetadata` types describing bounded contexts and aggregates (types only, no decorator)
 
 ## Dependencies

@@ -412,11 +412,11 @@ export const testEngine = new ViewEngine({
 
 补偿控制台是视图引擎的参考宿主，上面每一节它都照做，接线一共三个文件：
 
-- [`ConsoleHost.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/features/App/ConsoleHost.tsx)：一个 `ViewHost`——引擎、React Router、跟着控制台的 i18n 换的语言、`porcelain` 预设加上 Wow 的蓝色作品牌色、记在本机的亮暗。
-- [`views/routes.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/views/routes.ts)：三个资源的 `bind`，每个一行路由；失败的执行还带着读法与声明的命令。测试传入自己的命令客户端。
-- [`views/engine.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/views/engine.ts)：资源与数据源。
+- [`ConsoleHost.tsx`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/compensation/dashboard/src/features/App/ConsoleHost.tsx)：一个 `ViewHost`——引擎、React Router、跟着控制台的 i18n 换的语言、`porcelain` 预设加上 Wow 的蓝色作品牌色、记在本机的亮暗。
+- [`views/routes.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/compensation/dashboard/src/views/routes.ts)：三个资源的 `bind`，每个一行路由；失败的执行还带着读法与声明的命令。测试传入自己的命令客户端。
+- [`views/engine.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/compensation/dashboard/src/views/engine.ts)：资源与数据源。
 
-旁边的 [`routes.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/views/routes.test.ts) 与 [`admit.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/compensation/dashboard/src/views/admit.test.ts) 是上一节两种测试的真实写法。
+旁边的 [`routes.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/compensation/dashboard/src/views/routes.test.ts) 与 [`admit.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/compensation/dashboard/src/views/admit.test.ts) 是上一节两种测试的真实写法。
 
 ## 完整的可运行版本
 

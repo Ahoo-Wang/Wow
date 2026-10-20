@@ -23,17 +23,10 @@ import { emitGeneration } from '../../src/emitters/emit';
 import { documentTypeContext } from '../../src/emitters/models';
 import { combinePaths } from '../../src/naming/paths';
 import { openApiDocument } from '../../src/openapi/document';
-import type { WowModel } from '../../src/wow/model';
-import { resolveWowModel } from '../../src/wow/resolveWowModel';
 
 /** How a test document is read. */
 export interface AnalysisOptions {
   readonly config?: GeneratorConfiguration;
-  /**
-   * Tags to treat as aggregate tags on top of the ones the document's Wow
-   * metadata names: their operations go to no API client.
-   */
-  readonly aggregateTags?: Iterable<string>;
 }
 
 /** A minimal OpenAPI 3 document with the given parts. */
@@ -53,16 +46,8 @@ export function openAPIDocument(parts: Partial<OpenAPI>): OpenAPI {
 export function analyzeDocument(
   openAPI: OpenAPI,
   options: AnalysisOptions = {},
-): Analysis & { readonly wow: WowModel } {
-  const document = openApiDocument(openAPI);
-  let wow = resolveWowModel(document);
-  if (options.aggregateTags) {
-    wow = {
-      ...wow,
-      aggregateTags: new Set([...wow.aggregateTags, ...options.aggregateTags]),
-    };
-  }
-  return { ...analyze(document, wow, options.config ?? {}), wow };
+): Analysis {
+  return analyze(openApiDocument(openAPI), options.config ?? {});
 }
 
 /** Where and how a test document is generated. */

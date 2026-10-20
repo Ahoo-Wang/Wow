@@ -196,5 +196,5 @@ describeViewStoreConformance({
 ## 完整可运行版本
 
 - Storybook 接入导览的 [`integration.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/integration.test.ts) 用 `admit` 和 `actionHarness` 钉住导览里的声明。
-- 一致性测试：[`test/conformance/viewStoreConformance.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/conformance/viewStoreConformance.ts)，以及 `WowViewStore` 的 [`wowViewStore.conformance.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/integration-test/test/view-store/wowViewStore.conformance.test.ts)。
+- 一致性测试：[`test/conformance/viewStoreConformance.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/conformance/viewStoreConformance.ts)，以及 `WowViewStore` 的 [`wowViewStore.conformance.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/typescript/integration-test/test/view-store/wowViewStore.conformance.test.ts)。
 - 源文件：[`src/testing/`](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/src/testing)。

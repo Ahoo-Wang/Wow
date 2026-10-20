@@ -9,7 +9,7 @@ This page answers: **can the Wow clients run on a server, and what changes when 
 
 `@ahoo-wang/wow-client` and generated clients run unchanged in Node.js: they use the platform's `fetch`, `ReadableStream` and `TextDecoderStream`, which Node has built in. What changes on a server is ownership. A browser tab belongs to one user, so a single configured Fetcher is safe there; a server process handles requests of many users at once, so anything that carries a user's identity must be created per request.
 
-<!-- typecheck-generated: typescript/integration-test/src/generated -->
+<!-- typecheck-generated: example/eshop/web/src/generated/basket -->
 
 ## Requirements
 
@@ -26,6 +26,7 @@ A script that runs the compiled output with Node needs `"type": "module"` for to
 
 Fetcher's `default` instance and any `NamedFetcher` are process-wide. On a server, never give them a user's token, and never apply a `CoSecConfigurer` to them: its token store would then serve every user of the process. Create a Fetcher for the request instead, pass it to the clients, and let it go with the request:
 
+<!-- typecheck: skip — the 9.x generated client of the OpenAPI path that V10 deleted (D266); the V10 rewrite of this page uses the Manifest clients -->
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
 import { cartQueryClientFactory } from './generated/index.js';

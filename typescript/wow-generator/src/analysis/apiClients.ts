@@ -36,33 +36,22 @@ import {
   isTextContentType,
 } from '../openapi/responses';
 import { isArray, resolveOptionalFields } from '../openapi/schemas';
-import {
-  IGNORED_API_CLIENT_TAGS,
-  RESOURCE_ATTRIBUTION_PATH_PARAMETERS,
-} from '../wow/conventions';
-import type { WowModel } from '../wow/model';
-import { isWowDocument } from '../wow/model';
 import { resolveMethodName, uniqueParameterName } from './clientNames';
 import type {
   ApiClientModel,
   ApiMethodModel,
   BodyModel,
-  ContextReference,
   ParameterModel,
   ReturnModel,
 } from './model';
-import {
-  resolveContextDeclarationName,
-  resolveModelInfo,
-  resolveReferenceModelInfo,
-} from './modelInfo';
+import { resolveModelInfo, resolveReferenceModelInfo } from './modelInfo';
 
 /** Parameter names every generated method uses itself. */
 const RESERVED_PARAMETER_NAMES = ['httpRequest', 'attributes'];
 
 /**
- * The API clients of a document: one per tag that is neither Wow's own, the
- * actuator's, nor an aggregate's, holding a method per operation.
+ * The API clients of a document: one per tag, holding a method per
+ * operation.
  *
  * @param warnings - Receives a line for every operation left out and every
  * client renamed
@@ -71,32 +60,19 @@ const RESERVED_PARAMETER_NAMES = ['httpRequest', 'attributes'];
  */
 export function analyzeApiClients(
   document: OpenApiDocument,
-  wow: WowModel,
   config: GeneratorConfiguration,
   warnings: string[],
 ): ApiClientModel[] {
-  const analysis = new ApiClientAnalysis(document, wow, config, warnings);
+  const analysis = new ApiClientAnalysis(document, config, warnings);
   return analysis.clients();
 }
 
 class ApiClientAnalysis {
-  private readonly basePath?: ContextReference;
-  private readonly wowDocument: boolean;
-
   constructor(
     private readonly document: OpenApiDocument,
-    private readonly wow: WowModel,
     private readonly config: GeneratorConfiguration,
     private readonly warnings: string[],
-  ) {
-    this.wowDocument = isWowDocument(wow);
-    if (wow.contextAlias) {
-      this.basePath = {
-        alias: wow.contextAlias,
-        constantName: resolveContextDeclarationName(wow.contextAlias),
-      };
-    }
-  }
+  ) {}
 
   /**
    * One client per tag, sorted by tag name.
@@ -107,7 +83,7 @@ class ApiClientAnalysis {
    */
   clients(): ApiClientModel[] {
     const tags = this.tags();
-    const operations = this.groupOperations(tags);
+    const operations = this.groupOperations();
     const claimed = new Map<string, string>();
     return [...operations.keys()].sort().map(tagName => {
       const modelInfo = resolveModelInfo(tagName);
@@ -134,18 +110,13 @@ class ApiClientAnalysis {
     operations: readonly OperationEndpoint[],
   ): ApiClientModel {
     const className = `${modelInfo.name}ApiClient`;
-    let file = modelInfo.path;
-    if (this.wow.contextAlias) {
-      file = combinePaths(this.wow.contextAlias, file);
-    }
-    file = combinePaths(file, apiClientFileName(className));
+    const file = combinePaths(modelInfo.path, apiClientFileName(className));
     const methods = new Map<string, string>();
     return {
       tagName: tag.name,
       className,
       file,
       description: tag.description,
-      basePath: this.basePath,
       methods: operations.map(operation =>
         this.method(tag, className, operation, methods),
       ),
@@ -220,8 +191,9 @@ class ApiClientAnalysis {
    * The path, query and header parameters of an operation, each named after
    * the document's name (`item-id` → `itemId`), in the order their types
    * resolve: the path parameters in the order the path holds them, then the
-   * query and header parameters in the document's order. Path parameters the bounded context's interceptor fills are
-   * left out (see {@link ignoresPathParameter}), and cookie parameters, which
+   * query and header parameters in the document's order. Path parameters the
+   * configuration names are left out (see {@link ignoresPathParameter}), and
+   * cookie parameters, which
    * the browser sends, are left out with a warning.
    */
   private parameters(
@@ -269,14 +241,11 @@ class ApiClientAnalysis {
 
   /**
    * Tells whether an API client leaves a path parameter out: the ones the
-   * configuration names for the tag, else in a Wow document the resource
-   * attribution parameters Wow's interceptor fills.
+   * configuration names for the tag, which an interceptor fills.
    */
   private ignoresPathParameter(tagName: string, parameterName: string) {
-    const ignored =
-      this.config.apiClients?.[tagName]?.ignorePathParameters ??
-      (this.wowDocument ? RESOURCE_ATTRIBUTION_PATH_PARAMETERS : []);
-    return ignored.includes(parameterName);
+    const ignored = this.config.apiClients?.[tagName]?.ignorePathParameters;
+    return ignored?.includes(parameterName) ?? false;
   }
 
   /**
@@ -378,9 +347,7 @@ class ApiClientAnalysis {
    * An operation needs an operationId, which names its method, and a tag,
    * which names its client; one without either is skipped with a warning.
    */
-  private groupOperations(
-    tags: Map<string, Tag>,
-  ): Map<string, Set<OperationEndpoint>> {
+  private groupOperations(): Map<string, Set<OperationEndpoint>> {
     const operations = new Map<string, Set<OperationEndpoint>>();
     for (const endpoint of this.document.endpoints) {
       const label = `${endpoint.method.toUpperCase()} ${endpoint.path}`;
@@ -391,17 +358,13 @@ class ApiClientAnalysis {
         );
         continue;
       }
-      const clientTags = operationTags.filter(tagName => tags.has(tagName));
-      // Wow tags an aggregate's routes with the aggregate and with its own
-      // tags; they belong to the command and query clients.
-      if (clientTags.length < operationTags.length) continue;
       if (!endpoint.operation.operationId) {
         this.warnings.push(
           `Skipping ${label}: it has no operationId, and the operationId names its method.`,
         );
         continue;
       }
-      for (const tagName of clientTags) {
+      for (const tagName of operationTags) {
         if (!operations.has(tagName)) {
           operations.set(tagName, new Set());
         }
@@ -413,28 +376,19 @@ class ApiClientAnalysis {
 
   /**
    * The tags that generate API clients: the ones the operations use or the
-   * document declares, but Wow's own, the actuator's and the aggregates'.
+   * document declares.
    */
   private tags(): Map<string, Tag> {
     const tags = new Map<string, Tag>();
     for (const { operation } of this.document.endpoints) {
       operation.tags?.forEach(tagName => {
-        if (!this.ignoresTag(tagName) && !tags.has(tagName)) {
+        if (!tags.has(tagName)) {
           tags.set(tagName, { name: tagName, description: '' });
         }
       });
     }
-    this.document.openAPI.tags?.forEach(tag => {
-      if (!this.ignoresTag(tag.name)) tags.set(tag.name, tag);
-    });
+    this.document.openAPI.tags?.forEach(tag => tags.set(tag.name, tag));
     return tags;
-  }
-
-  private ignoresTag(tagName: string): boolean {
-    return (
-      IGNORED_API_CLIENT_TAGS.has(tagName) ||
-      this.wow.aggregateTags.has(tagName)
-    );
   }
 }
 
