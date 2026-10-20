@@ -144,6 +144,7 @@ Wow-Wait: committed > handled(example/OrderSaga.onOrderCreated) > committed(inve
 | `GET /<context>/<aggregate>/{id}/state` | 最新状态，带 `ETag: "<version>"`；`If-None-Match` 匹配时 304 |
 | `GET …/state?version=n` | 版本 `n` 的状态 |
 | `GET …/state?at=<ISO-8601 时刻>` | 该时刻或之前最后一次提交之后的状态（`+` 写作 `%2B`） |
+| `GET …/state?minVersion=n` | 版本 `n` 或之后的最新状态：读到自己的写，`n` 取命令结果的 `version`。快照落后时用日志补齐；在 `wow.query.state.min-version-wait`（2s）内仍未提交到该版本时返回 409 `wow.query.min-version-not-reached`，其 `version` 为当前版本，并带 `Retry-After` |
 | `GET …/state/trace?from=&to=&limit=` | 从 `from`（1）到 `to`（最后一次）的提交，最多 `limit` 条，每条带事件及其后的状态 |
 
 调用方作用域之外的状态返回 403 `wow.aggregate.forbidden`；不存在的返回 404 `wow.aggregate.not-found`。属于租户的聚合（`Ownership.TENANT`）不检查调用方的所有者。已删除聚合的状态照常读取，`deleted` 为真。

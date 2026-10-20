@@ -31,7 +31,7 @@ import org.springframework.http.HttpStatus
  * `wow.aggregate.version-mismatch` is 412 instead of its table status when the request carried `If-Match`, and a
  * problem a retry may get past, every framework code the table answers with 503 or 429 (`wow.storage.unavailable`,
  * `wow.command.unknown`, `wow.node.closing`, `wow.schedule.not-due`, `wow.query.timeout`, `wow.command.busy`,
- * `wow.query.busy`), carries `Retry-After` ([retryAfter]).
+ * `wow.query.busy`), and `wow.query.min-version-not-reached`, carries `Retry-After` ([retryAfter]).
  */
 internal class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> = emptyMap()) {
     private val framework: Map<String, ErrorManifest> =
@@ -101,6 +101,8 @@ internal class ErrorStatuses(manifest: Manifest, private val overrides: Map<Stri
          */
         internal val RETRYABLE: Set<String> = FrameworkErrors.ALL
             .filter { it.status == HttpStatus.SERVICE_UNAVAILABLE.value() || it.status == HttpStatus.TOO_MANY_REQUESTS.value() }
-            .mapTo(LinkedHashSet()) { it.code }
+            .mapTo(LinkedHashSet()) { it.code } +
+            // A 409 a retry gets past once the command commits (review R4-Q, Q-13).
+            FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED
     }
 }

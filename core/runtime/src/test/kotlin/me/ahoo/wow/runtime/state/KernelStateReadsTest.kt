@@ -13,11 +13,15 @@
 
 package me.ahoo.wow.runtime.state
 
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.read.MinVersionNotReachedException
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.ReplayLimitExceededException
@@ -29,6 +33,9 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import java.time.Instant
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /** [KernelStateReads] and [StateReads.NONE] for what they do not serve. */
 class KernelStateReadsTest {
@@ -117,6 +124,65 @@ class KernelStateReadsTest {
             read.version.assert().isEqualTo(1)
             read.state["items"].asInt().assert().isEqualTo(1)
         }
+    }
+
+    private fun waiting(wait: Duration) = KernelStateReads(
+        registry,
+        mapOf(CONTEXT to KernelStateReads.ContextReads(Kernel(log), snapshots)),
+        minVersionWait = wait,
+    )
+
+    @Test
+    fun `a minimum version is read from the snapshot, else the snapshot caught up with the log (Q-13)`(): Unit =
+        runBlocking {
+            addItems(3)
+            snapshots.save(EventCodec().snapshotOf(cartModel, cart, Cart().apply { items = 3 }, 2, Scope.NONE, 1L, 2L))
+            reads.latest(cart)!!.version.assert().isEqualTo(2)
+            reads.latest(cart, 2)!!.version.assert().isEqualTo(2)
+            // The snapshot lags: the log's tail is replayed from it.
+            reads.latest(cart, 3).let { read ->
+                read!!.version.assert().isEqualTo(3)
+                read.state["items"].asInt().assert().isEqualTo(6)
+            }
+            runCatching { reads.latest(cart, 0) }.exceptionOrNull().assert()
+                .isInstanceOf(IllegalArgumentException::class.java)
+            reads.latest(AggregateType("billing", "cart").ref("t", "c-1"), 1).assert().isNull()
+        }
+
+    @Test
+    fun `a minimum version not committed yet is waited for, and past the wait it fails with the current version`():
+        Unit = runBlocking {
+        addItems(1)
+        val failure = runCatching { waiting(30.milliseconds).latest(cart, 2) }.exceptionOrNull()
+        (failure as MinVersionNotReachedException).version.assert().isEqualTo(1)
+        failure.minVersion.assert().isEqualTo(2)
+        failure.ref.assert().isEqualTo(cart)
+        (
+            runCatching { waiting(Duration.ZERO).latest(cart.type.ref("t", "none"), 1) }.exceptionOrNull()
+                as MinVersionNotReachedException
+            ).version.assert().isEqualTo(0)
+        // Committed while the read waits: it is read.
+        coroutineScope {
+            val read = async { waiting(5.seconds).latest(cart, 2) }
+            delay(100)
+            log.append(
+                EventStreamRecord(
+                    ref = cart,
+                    version = 2,
+                    commandId = "cmd-late",
+                    requestId = "req-late",
+                    commandType = "shop.cart.AddItem",
+                    commitTime = 2000L,
+                    events = listOf(EventCodec().encode(cartModel, ItemAdded(5))),
+                    scope = Scope("alice", null),
+                ),
+            )
+            read.await()!!.state["items"].asInt().assert().isEqualTo(6)
+        }
+        runCatching { KernelStateReads(registry, emptyMap(), minVersionWait = (-1).seconds) }.exceptionOrNull()
+            .assert().isInstanceOf(IllegalArgumentException::class.java)
+        (runCatching { StateReads.NONE.latest(cart, 1) }.exceptionOrNull() as MinVersionNotReachedException)
+            .version.assert().isEqualTo(0)
     }
 
     @Test

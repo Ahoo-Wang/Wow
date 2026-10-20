@@ -294,6 +294,7 @@ internal class OpenApiPaths(
             OpenApiParameters.ID,
             Http.VERSION_PARAMETER,
             Http.AT_PARAMETER,
+            Http.MIN_VERSION_PARAMETER,
             Http.SCOPE_HEADER,
             Http.IF_NONE_MATCH_HEADER,
         )
@@ -303,7 +304,9 @@ internal class OpenApiPaths(
             obj(
                 "tags" to listOf(tag),
                 "summary" to "The aggregate's state",
-                "description" to "The latest state, the state at `version`, or the state as of `at`.",
+                "description" to "The latest state, the state at `version`, the state as of `at`, or the latest " +
+                    "state at `minVersion` or later (409 `wow.query.min-version-not-reached` with the current " +
+                    "`version` when it is not committed within the wait).",
                 "operationId" to "$tag.state",
                 "parameters" to readParameters.map(OpenApiParameters::ref),
                 "responses" to obj(
@@ -313,7 +316,7 @@ internal class OpenApiPaths(
                         "content" to json(view),
                     ),
                     "304" to obj("description" to "Not Modified: the state is still the one If-None-Match names."),
-                ) + errors.of("state", ErrorResponses.STATE, http = mapOf(ErrorResponses.NOT_ACCEPTABLE)),
+                ) + errors.of("state", ErrorResponses.STATE_READ, http = mapOf(ErrorResponses.NOT_ACCEPTABLE)),
             ),
         )
         val traceParameters =
