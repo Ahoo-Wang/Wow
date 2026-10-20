@@ -624,33 +624,7 @@ class ServiceNode @InternalWowApi constructor(
      */
     private val intakes: Map<ContextNode, CommandIntake> = contexts.values.filter { it.intake != null }.associateWith {
         val ledger = LedgerCommands(parked, options.ledger?.context ?: Ledger.OPS_CONTEXT) { ledgerPublisher }
-        CommandIntake(
-            it.context,
-            it.models,
-            it.coordinator,
-            topics!!,
-            it.creations,
-            ledger,
-            inFlight,
-            tenants = admission.tenants,
-        )
-    }
-
-    init {
-        // DX gap G13: a command another context sends carries its sender's tenant; a type whose tenant is fixed
-        // refuses one of another tenant, which a peer's saga may well send.
-        val fixed = models.mapNotNullTo(LinkedHashSet()) { model ->
-            model.type.takeIf { admission.tenants.fixedTenant(it) != null }
-        }
-        if (fixed.isNotEmpty()) {
-            contracts.peerSendersTo(fixed).forEach { (subscription, types) ->
-                logger.warn {
-                    "$subscription sends commands to ${types.joinToString()}, whose tenant is fixed on node $node " +
-                        "(${types.joinToString { "$it: ${admission.tenants.fixedTenant(it)}" }}): a command it " +
-                        "sends in another tenant is refused (decision D116, DX gap G13)."
-                }
-            }
-        }
+        CommandIntake(it.context, it.models, it.coordinator, topics!!, it.creations, ledger, inFlight)
     }
 
     init {

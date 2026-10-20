@@ -151,7 +151,7 @@ wow:
 
 ## Kafka
 
-类路径上有 `wow-kafka` 时读取；设置 `wow.kafka.bootstrap-servers` 之前什么也不接入。
+类路径上有 `wow-kafka` 时读取；设置 `wow.kafka.bootstrap-servers` 之前什么也不接入。没有 Kafka 时，`wow.topics.in-memory: true`（默认 false）把节点的命令主题和发布的流放在它的 JVM 里，仅供本地开发；同时设置了 `wow.kafka.bootstrap-servers` 时节点拒绝启动。
 
 | 配置项 | 默认值 | 含义 |
 | --- | --- | --- |

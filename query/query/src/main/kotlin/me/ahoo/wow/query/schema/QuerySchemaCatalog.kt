@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Where the [QuerySchemaCatalog] finds the storage of an aggregate model: the [QueryStorageAdapter] of the query
  * backend that serves it, or `null` when no backend does. The Catalog needs a storage's facts only, never its backend.
  */
+@InternalWowApi
 fun interface QueryStorageLocator {
     fun storage(aggregateType: AggregateType, model: QueryModel): QueryStorageAdapter?
 
@@ -51,6 +52,7 @@ fun interface QueryStorageLocator {
  * [UnavailableQueryStorageAdapter], has nothing to load or revalidate: its provider fails every load and revalidation
  * skips it. Each dataset of [datasets] is compiled as its [QueryModel.DATASET] model, and revalidated with them.
  */
+@InternalWowApi
 class QuerySchemaCatalog(
     private val storages: QueryStorageLocator = QueryStorageLocator.NONE,
     private val compiler: QueryModelCompiler = QueryModelCompiler.of(),
@@ -219,6 +221,7 @@ class QuerySchemaCatalog(
 }
 
 /** Sees each revalidation of one schema ([QuerySchemaCatalog.revalidate]): where a host records its metrics. */
+@InternalWowApi
 fun interface QuerySchemaRefreshListener {
     /**
      * [status] is the outcome, a failure when it carries an error; [changed] says the published version moved;
@@ -233,6 +236,7 @@ fun interface QuerySchemaRefreshListener {
 }
 
 /** How the Catalog compiles one aggregate model: from its context and its storage's facts to a schema provider. */
+@InternalWowApi
 fun interface QueryModelCompiler {
     fun compile(context: QuerySchemaContext, storage: QueryStorageAdapter): QueryModelSchemaProvider
 

@@ -19,24 +19,18 @@ import me.ahoo.wow.example.eshop.inventory.server.InventoryServer
 import me.ahoo.wow.example.eshop.ordering.server.OrderingServer
 import me.ahoo.wow.example.eshop.payment.server.PaymentServer
 import me.ahoo.wow.kernel.memory.InMemoryTopics
-import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.runtime.node.SourceTopics
-import me.ahoo.wow.runtime.node.TopicDdl
-import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.spring.boot.InternalServer
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
 import kotlin.system.exitProcess
 
 /**
  * The whole eShop in this one JVM, on the memory backend and without Kafka, for the web UI (work package E.7) and for
  * trying the shop out: `./gradlew :eshop-e2e:eshopLocal`. The five services share one class path, each
  * serving its own context (`wow.contexts.include`, as [EshopSharedJvmTest] runs them), and one [InMemoryTopics] in
- * place of Kafka ([LocalTopicsBeans]): each one's sagas send other contexts' commands to it, its published streams are
- * written to it, and it executes the commands sent to its own command topic. So the checkout's whole chain runs, to
- * the payment, as it does on Kafka (DX gap G27).
+ * place of Kafka, which `wow.topics.in-memory` wires into each (DX gap G27): each one's sagas send other contexts'
+ * commands to it, its published streams are written to it, and it executes the commands sent to its own command
+ * topic. So the checkout's whole chain runs, to the payment, as it does on Kafka.
  *
  * The system property `eshop.local.ports` is `fixed` (the default: the README's ports, 8081 to 8085 public and 9091 to
  * 9095 internal) or `random` (every port bound to 0). Once every service listens, it prints one line,
@@ -95,7 +89,7 @@ class EshopLocal(private val randomPorts: Boolean) : AutoCloseable {
 
     private fun start(application: Class<*>, name: String, vararg arguments: String): ConfigurableApplicationContext {
         val offset = SERVICES.indexOf(name) + 1
-        val context = SpringApplicationBuilder(application, LocalTopicsBeans::class.java)
+        val context = SpringApplicationBuilder(application)
             .initializers({ it.beanFactory.registerSingleton(TOPICS_BEAN, topics) })
             .run(
                 *arguments,
@@ -107,6 +101,8 @@ class EshopLocal(private val randomPorts: Boolean) : AutoCloseable {
                 "--wow.service=eshop-$name-service",
                 "--wow.backend=memory",
                 "--wow.log.partitions=$PARTITIONS",
+                // The node's topics on the shared InMemoryTopics, which each service takes as its own (DX gap G27).
+                "--wow.topics.in-memory=true",
                 // The storefront's and the orders' snapshot queries, from memory (decision D209).
                 "--wow.query.memory.enabled=true",
                 "--wow.internal.host=127.0.0.1",
@@ -137,17 +133,3 @@ class EshopLocal(private val randomPorts: Boolean) : AutoCloseable {
     }
 }
 
-/**
- * The transport of one service on the shared [InMemoryTopics], as wow-kafka gives it on Kafka: the topics it reads and
- * sends to, with its command intake and the topics it owns created at its start, and the Sink of its published streams.
- */
-@Configuration(proxyBeanMethods = false)
-class LocalTopicsBeans {
-    @Bean
-    fun localSourceTopics(topics: InMemoryTopics): SourceTopics =
-        SourceTopics(topics, producer = topics, intake = true, admin = topics, ddl = TopicDdl.AUTO)
-
-    @Bean
-    fun localPublishedSinks(manifest: Manifest, topics: InMemoryTopics): PublishedSinks =
-        PublishedSinks.topics(manifest, topics)
-}

@@ -13,10 +13,12 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.WindowFunction
 import me.ahoo.wow.query.spec.MetricSpec
 
 /** How storage supports a query feature (design §5.5). */
+@InternalWowApi
 enum class SupportMode {
     /** The backend computes it natively. */
     NATIVE,
@@ -29,6 +31,7 @@ enum class SupportMode {
 }
 
 /** How a storage pages. Neither mode has a residual implementation, so each is NATIVE or NONE. */
+@InternalWowApi
 data class PagingSupport(
     /** Keyset pages ordered by the cursor sort (cursor queries). */
     val keyset: SupportMode = SupportMode.NATIVE,
@@ -52,6 +55,7 @@ data class PagingSupport(
  * How a storage aggregates. HAVING, top-N by a metric, dense date-histogram fill and the windows may be RESIDUAL;
  * percentiles and distinct counts need the records themselves, so they are NATIVE or NONE.
  */
+@InternalWowApi
 data class AggregationSupport(
     val having: SupportMode = SupportMode.NATIVE,
     /** Ordering groups by a metric before the limit. */
@@ -98,6 +102,7 @@ data class AggregationSupport(
 }
 
 /** How a storage's presence operators see a stored `null` and an empty array. */
+@InternalWowApi
 enum class AbsentValues {
     /** Distinct from a missing field: `EXISTS` matches them and `IS_EMPTY` matches only an empty array. */
     DISTINCT,
@@ -111,6 +116,7 @@ enum class AbsentValues {
 }
 
 /** What a storage declares beyond each field's native capabilities; bound into the schema by its adapter. */
+@InternalWowApi
 data class StorageSupport(
     val paging: PagingSupport = PagingSupport(),
     val aggregation: AggregationSupport = AggregationSupport(),

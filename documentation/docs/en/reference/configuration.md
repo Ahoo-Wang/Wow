@@ -7,7 +7,7 @@ description: "Every key of the host's wow.* configuration, its type, default and
 
 # Configuration Keys
 
-Every key of the `wow.*` configuration a Spring Boot host reads, 226 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/v10/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property names is reported when the node starts. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`.
+Every key of the `wow.*` configuration a Spring Boot host reads, 227 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/v10/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property names is reported when the node starts. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`.
 
 ## `wow`
 
@@ -622,6 +622,14 @@ The node's firing loop of the timers: how often it reads, with one query per tim
 | `wow.timers.max-fire-rate` | `Double` |  |  |
 | `wow.timers.parallelism` | `Integer` | `64` |  |
 | `wow.timers.poll-interval` | `Duration` | `PT1S` |  |
+
+## `wow.topics`
+
+The node's topics without Kafka (DX gap G27), see Topics.
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `wow.topics.in-memory` | `Boolean` | `false` | Whether the node's topics are in its JVM instead of Kafka. |
 
 ## `wow.wait`
 

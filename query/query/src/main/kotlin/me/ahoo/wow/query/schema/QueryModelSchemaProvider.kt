@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicReference
 import java.util.function.LongSupplier
 
 /** The current schema of one aggregate model, compiled once and recompiled on [refresh]. */
+@InternalWowApi
 interface QueryModelSchemaProvider {
     suspend fun schema(): QueryModelSchema
 

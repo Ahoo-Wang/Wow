@@ -27,7 +27,7 @@ rootProject.name = "Wow"
  * `build/publications`) and publish it with this property, which leaves every task that makes a published file out of
  * the task graph, as `-x` would. The Sign tasks are left out too: the deploy jobs have no key, and the publications
  * upload the preflight's signatures, which the V10 signing configuration then requires (build.gradle.kts).
- * `v10PublicationCheck` (build.gradle.kts) runs such a publish and checks that it runs nothing but the publish tasks
+ * `publicationCheck` (build.gradle.kts) runs such a publish and checks that it runs nothing but the publish tasks
  * and uploads every file, signed, so a published file no listed task makes, or a missing signature, fails a pull
  * request, not a release.
  */

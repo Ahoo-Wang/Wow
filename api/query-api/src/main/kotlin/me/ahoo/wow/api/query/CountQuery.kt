@@ -34,7 +34,7 @@ interface ICountQuery : FilterCapable<ICountQuery> {
  * val query = CountQuery(EqualFilter(QueryField("state.status"), value), limit = 1000)
  * ```
  */
-data class CountQuery(
+data class CountQuery @JvmOverloads constructor(
     override val filter: FilterExpression,
     override val limit: Int? = null,
 ) : ICountQuery {
