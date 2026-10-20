@@ -248,11 +248,17 @@ abstract class DatasetQueryBackendSpec {
                 pagination = Pagination(index, 2),
                 total = TotalMode.NONE,
             )
-            orders.backend.paged(QueryAdmission.Trusted.paged(query, orders.schema)).list.map { it.path(ID).stringValue() }
+            orders.backend.paged(
+                QueryAdmission.Trusted.paged(query, orders.schema)
+            ).list.map { it.path(ID).stringValue() }
         }
         paged.assert().isEqualTo(all)
         orders.list(
-            ListQuery(EqualFilter(TENANT_COLUMN, "t1"), sort = listOf(Sort(TENANT_COLUMN, Sort.Direction.ASC)), limit = 2),
+            ListQuery(
+                EqualFilter(TENANT_COLUMN, "t1"),
+                sort = listOf(Sort(TENANT_COLUMN, Sort.Direction.ASC)),
+                limit = 2
+            ),
         ).map { it.path(ID).stringValue() }.assert().isEqualTo(all.take(2))
         Unit
     }
