@@ -33,19 +33,41 @@ object PeerContracts {
 
     /**
      * The contract of the contexts of [fragments], the completed Manifest fragments of a domain module: per context its
-     * name, description, aggregates (state, snapshot, the commands no edge mounts with their names, aliases, schemas,
-     * creation and produced events, and the events), subscriptions (kind, source, function, and the commands they
-     * derive, handle the rejections of and the commits of: what a wait chain follows), published streams and errors;
-     * the framework's errors; and the `$defs` these refer to, transitively. Routes, queries, schedules, retries, jobs
-     * and the service are left out.
+     * name, description, aggregates (state, snapshot, ownership, query models, the commands no edge mounts with their
+     * names, aliases, schemas, creation and produced events, and the events), subscriptions (kind, source, function,
+     * and the commands they derive, handle the rejections of and the commits of: what a wait chain follows), published
+     * streams and errors; the framework's errors; and the `$defs` these refer to, transitively. Routes, schedules,
+     * retries, jobs and the service are left out.
+     *
+     * The state schema is a peer's compile-time API (decision D259: the api module's generated query fields come from
+     * it), except that of an aggregate whose stream is published without its state (`@AggregateRoot(publishState =
+     * false)`, decision D156): its state stays a reference whose definition is `{"type": "object"}`, an object of
+     * undisclosed structure, unless a command or an event of the contract refers to the same class.
      */
     fun contractOf(fragments: List<Manifest>): Manifest {
         val contexts = fragments.flatMap { it.contexts }.sortedBy { it.name }.map(::contractOf)
         val defs = fragments.fold(emptyMap<String, Any?>()) { all, fragment -> all + fragment.defs }
         val errors = fragments.flatMap { it.errors }.distinctBy { it.code }
         val contract = Manifest(contexts = contexts, errors = errors)
-        return contract.withDefs(referenced(contract.schemaRefs, defs))
+        val withheld = contexts.flatMap(::withheldStates)
+        // Each withheld state once: a command or an event may refer to the same class.
+        val refs = contract.schemaRefs.toMutableList().apply { withheld.forEach { remove(it) } }
+        val reached = referenced(refs, defs)
+        val opaque = withheld.map(Manifest::schemaKey).filterNot { it in reached }.associateWith { WITHHELD_STATE }
+        return contract.withDefs((reached + opaque).toSortedMap())
     }
+
+    /** The state references of [context]'s aggregates whose streams are published without their states. */
+    private fun withheldStates(context: ContextManifest): List<String> {
+        val stateless = context.published.filterNot { it.includeState }.map { it.aggregate }.toSet()
+        return context.aggregates.filter { it.name in stateless }.map { it.state.schema }
+    }
+
+    /**
+     * The definition a contract gives the state of an aggregate published without its state ([contractOf]): an object,
+     * with no structure a peer could compile against.
+     */
+    private val WITHHELD_STATE: Map<String, Any?> = mapOf("type" to "object")
 
     private fun contractOf(context: ContextManifest): ContextManifest = ContextManifest(
         name = context.name,
@@ -56,6 +78,8 @@ object PeerContracts {
                 description = aggregate.description,
                 state = aggregate.state,
                 snapshot = aggregate.snapshot,
+                ownership = aggregate.ownership,
+                queries = aggregate.queries.map { QueryManifest(model = it.model) },
                 commands = aggregate.commands.filterNot { it.mounted }.map {
                     CommandManifest(
                         name = it.name,
