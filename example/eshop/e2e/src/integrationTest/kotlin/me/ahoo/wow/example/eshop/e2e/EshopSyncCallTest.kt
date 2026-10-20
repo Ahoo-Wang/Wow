@@ -15,12 +15,12 @@ package me.ahoo.wow.example.eshop.e2e
 
 import com.sun.net.httpserver.HttpServer
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.subscribe.ExecutionId
+import me.ahoo.wow.example.eshop.basket.api.basket.EshopBasketContract
 import me.ahoo.wow.example.eshop.basket.server.BasketServer
 import me.ahoo.wow.example.eshop.ordering.server.OrderingServer
 import me.ahoo.wow.http.WowHeaders
@@ -309,7 +309,7 @@ class EshopSyncCallTest {
 
         /** The basket service's token, at least 32 characters, which the ordering trusts in this test. */
         val TOKEN: String = EshopTokens.service("basket")
-        val BASKET = AggregateType("eshop-basket", "basket")
+        val BASKET = EshopBasketContract.Basket.TYPE
         val TIMEOUT: Duration = Duration.ofSeconds(30)
         val DEADLINE: Duration = Duration.ofSeconds(30)
 

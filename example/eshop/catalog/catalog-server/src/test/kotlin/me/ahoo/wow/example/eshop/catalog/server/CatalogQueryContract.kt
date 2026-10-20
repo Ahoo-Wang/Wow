@@ -16,10 +16,9 @@ package me.ahoo.wow.example.eshop.catalog.server
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.dsl.listQuery
-import me.ahoo.wow.example.eshop.catalog.api.CatalogContext
+import me.ahoo.wow.example.eshop.catalog.api.EshopCatalogContract
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
 import me.ahoo.wow.example.eshop.catalog.domain.product.ProductStateProperties
 import me.ahoo.wow.http.query.HttpQueries
@@ -315,7 +314,7 @@ abstract class CatalogQueryContract {
         const val PRODUCTS = "/eshop-catalog/product/snapshot/query"
         const val PRODUCT_EVENTS = "/eshop-catalog/product/events/query"
         private const val EMPLOYEE_ID = "erin"
-        private val PRODUCT = AggregateType(CatalogContext.NAME, CatalogContext.PRODUCT)
+        private val PRODUCT = EshopCatalogContract.Product.TYPE
         const val BY_PRICE = """{"field":"state.price","direction":"ASC"}"""
         const val BAD_REQUEST = 400
         const val FORBIDDEN = 403

@@ -96,7 +96,12 @@ class PeerContractsTest {
         val shop = fragment().contexts.single()
         val cart = shop.aggregates.single().copyWith(ownership = Ownership.TENANT)
         val stateless = fragment().withContexts(
-            listOf(shop.copyWith(aggregates = listOf(cart), published = shop.published.map { it.copyWith(includeState = false) })),
+            listOf(
+                shop.copyWith(
+                    aggregates = listOf(cart),
+                    published = shop.published.map { it.copyWith(includeState = false) }
+                )
+            ),
         )
         val contract = PeerContracts.contractOf(listOf(stateless))
         val aggregate = contract.contexts.single().aggregates.single()
@@ -112,7 +117,12 @@ class PeerContractsTest {
         val shop = fragment().contexts.single()
         val cart = shop.aggregates.single().let { it.withState(StateManifest(it.commands.first().schema)) }
         val stateless = fragment().withContexts(
-            listOf(shop.copyWith(aggregates = listOf(cart), published = shop.published.map { it.copyWith(includeState = false) })),
+            listOf(
+                shop.copyWith(
+                    aggregates = listOf(cart),
+                    published = shop.published.map { it.copyWith(includeState = false) }
+                )
+            ),
         )
         PeerContracts.contractOf(listOf(stateless)).defs.keys.assert().containsExactly("sample.CreateCart")
     }

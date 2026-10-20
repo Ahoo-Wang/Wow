@@ -11,9 +11,16 @@
  *   on the domain's contract, and `assembleWowContract` (`ManifestTools.assembleContract`) keeps the contexts whose
  *   command and event classes are all its own, fails when a context has only some of them, and writes
  *   `META-INF/wow/contract.json`, which the api's jar includes. A service knows a peer context by depending on its api.
+ * - Generated code (decisions D256 ①, D259): `generateWowContractSources` writes `<api package>.<Context>Contract`
+ *   (`ManifestTools.generateContractSources`) from that contract, with the query fields of the states when
+ *   `:query-api` is on the api's class path, and the api's source set `wowContract` compiles it into the api's classes
+ *   variant and jar. The domain module compiles, runs KSP and completes its fragment against a core view of its api
+ *   modules without that code (the attribute `me.ahoo.wow.api-view` = `core<domain path>`, a secondary variant of the
+ *   api's `apiElements` and `runtimeElements`), so the build has no cycle; every other consumer sees the code.
  *
  * The tools run as in example/wow-manifest-fragment.gradle.kts: in a class loader of their own over `:manifest-tools`.
  */
+import org.gradle.api.artifacts.type.ArtifactTypeDefinition
 import java.lang.reflect.InvocationTargetException
 import java.net.URLClassLoader
 
@@ -33,6 +40,9 @@ object WowContractTools {
             }
         }
 }
+
+/** The view of an api module a domain module whose contract it carries compiles against: its classes alone. */
+val apiView: Attribute<String> = Attribute.of("me.ahoo.wow.api-view", String::class.java)
 
 fun AttributeContainer.wowContract(objects: ObjectFactory) {
     attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.DOCUMENTATION))
@@ -90,7 +100,92 @@ fun pairApi(api: Project, domain: String) {
         api.pluginManager.apply("java-library")
         val contracts = api.configurations.findByName("wowContract") ?: assembly(api)
         api.dependencies.add(contracts.name, api.project(domain))
+        api.pluginManager.withPlugin("org.jetbrains.kotlin.jvm") { evaluated(api) { coreView(api, domain) } }
     }
+}
+
+/** Runs [action] once [project] is evaluated, when its Kotlin source sets and class directories are in place. */
+fun evaluated(project: Project, action: () -> Unit) {
+    if (project.state.executed) action() else project.afterEvaluate { action() }
+}
+
+fun classesArtifacts(variant: ConfigurationVariant, classesDirs: FileCollection) {
+    classesDirs.files.forEach { directory ->
+        variant.artifact(directory) {
+            type = ArtifactTypeDefinition.JVM_CLASS_DIRECTORY
+            builtBy(classesDirs)
+        }
+    }
+}
+
+/** [api]'s core view for [domain]: a variant of its elements with its main classes, without the generated code. */
+fun coreView(api: Project, domain: String) {
+    api.dependencies.attributesSchema.attribute(apiView)
+    val main = api.extensions.getByType<SourceSetContainer>().named("main").get()
+    listOf("apiElements", "runtimeElements").forEach { name ->
+        api.configurations.named(name) {
+            val elements = this
+            elements.outgoing.variants.create("wowCore" + elements.outgoing.variants.size) {
+                attributes {
+                    attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, api.objects.named(LibraryElements.CLASSES))
+                    attribute(apiView, "core$domain")
+                }
+                classesArtifacts(this, main.output.classesDirs)
+            }
+        }
+    }
+}
+
+/** Whether [classpath] holds `:query-api`, whose `QueryField` the generated query fields are. */
+fun hasQueryApi(classpath: Iterable<File>): Boolean = classpath.any { entry ->
+    val queryField = "me/ahoo/wow/api/query/QueryField.class"
+    when {
+        entry.isDirectory -> File(entry, queryField).isFile
+        entry.isFile -> runCatching { java.util.zip.ZipFile(entry).use { it.getEntry(queryField) != null } }
+            .getOrDefault(false)
+        else -> false
+    }
+}
+
+/** The code generated from [api]'s contract, compiled by the source set `wowContract` into its classes and jar. */
+fun contractSources(api: Project, main: SourceSet, contract: FileCollection, apiTools: Configuration) {
+    val sourceSets = api.extensions.getByType<SourceSetContainer>()
+    val generated = sourceSets.create("wowContract")
+    val generate = api.tasks.register("generateWowContractSources") {
+        group = "wow"
+        description = "Generates the constants, refs and query fields of this api module's contexts from its contract."
+        val input: FileCollection = contract
+        val classpath: FileCollection = api.files(api.provider { generated.compileClasspath })
+        val tools: FileCollection = api.files(apiTools)
+        val output = api.layout.buildDirectory.dir("generated/wow/contract/kotlin")
+        inputs.files(input).withPathSensitivity(PathSensitivity.NAME_ONLY).withPropertyName("contract")
+        inputs.files(classpath).withNormalizer(CompileClasspathNormalizer::class.java).withPropertyName("classpath")
+        inputs.files(tools).withNormalizer(ClasspathNormalizer::class.java).withPropertyName("tools")
+        outputs.dir(output)
+        outputs.cacheIf { true }
+        doLast {
+            WowContractTools.call(
+                tools.files,
+                "generateContractSources",
+                input.files.toList(),
+                hasQueryApi(classpath.files),
+                output.get().asFile,
+            )
+        }
+    }
+    (generated.extensions.getByName("kotlin") as SourceDirectorySet).srcDir(generate)
+    listOf(
+        generated.implementationConfigurationName to main.implementationConfigurationName,
+        generated.compileOnlyConfigurationName to main.compileOnlyConfigurationName,
+    ).forEach { (to, from) -> api.configurations.named(to) { extendsFrom(api.configurations.getByName(from)) } }
+    generated.compileClasspath = api.files(main.output.classesDirs, generated.compileClasspath)
+    generated.runtimeClasspath = api.files(main.output, generated.output, generated.runtimeClasspath)
+    listOf("apiElements", "runtimeElements").forEach { name ->
+        api.configurations.named(name) {
+            outgoing.variants.named("classes") { classesArtifacts(this, generated.output.classesDirs) }
+        }
+    }
+    api.tasks.named<Jar>("jar") { from(generated.output) }
 }
 
 fun assembly(api: Project): Configuration {
@@ -130,10 +225,20 @@ fun assembly(api: Project): Configuration {
         }
     }
     api.tasks.named<Jar>("jar") { from(assemble) }
+    val contract = api.files(assemble).asFileTree.matching { include("META-INF/wow/contract.json") }
+    api.pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
+        evaluated(api) { contractSources(api, main, contract, apiTools) }
+    }
     return contracts
 }
 
 val domainPath = path
+// The domain module compiles and runs KSP against the core views of its api modules (the fragment's completion too,
+// example/wow-manifest-fragment.gradle.kts): their generated code comes from this module's contract.
+dependencies.attributesSchema.attribute(apiView)
+configurations.named(the<SourceSetContainer>().named("main").get().compileClasspathConfigurationName) {
+    attributes { attribute(apiView, "core$domainPath") }
+}
 configurations.named("api") {
     dependencies.withType<ProjectDependency>().configureEach {
         if (path !in frameworkProjects) {

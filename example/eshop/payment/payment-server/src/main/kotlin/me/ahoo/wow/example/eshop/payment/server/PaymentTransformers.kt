@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.example.eshop.payment.server
 
-import me.ahoo.wow.example.eshop.payment.api.PaymentContext
+import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
 import me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment
 import me.ahoo.wow.example.eshop.payment.domain.payment.ChargebackNotified
 import me.ahoo.wow.kernel.CommandType
@@ -55,4 +55,7 @@ class Chargebacks : CommandTransformer {
 
 /** The command type of [commandClass] of the payment, named after its class (decision D55). */
 private fun command(commandClass: Class<*>): CommandType =
-    CommandType("${PaymentContext.NAME}.${PaymentContext.PAYMENT}.${commandClass.simpleName}", commandClass)
+    CommandType(
+        "${EshopPaymentContract.Payment.CONTEXT}.${EshopPaymentContract.Payment.NAME}.${commandClass.simpleName}",
+        commandClass
+    )

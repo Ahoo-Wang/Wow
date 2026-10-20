@@ -255,6 +255,25 @@ class WowContractSourcesFunctionalTest {
         )
     }
 
+    /** The Java consumers: Java sources in `shop-server`, and `java-client`, a Java library on `shop-api`. */
+    private fun javaClients() {
+        javaUsage("shop-server")
+        write(
+            "java-client/build.gradle.kts",
+            """
+            plugins { `java-library` }
+
+            repositories { mavenCentral() }
+
+            dependencies {
+                implementation(project(":shop-api"))
+                implementation(files(${classpath("wow.fixture.compileClasspath")}))
+            }
+            """,
+        )
+        javaUsage("java-client")
+    }
+
     @BeforeAll
     fun build(@TempDir directory: File) {
         projectDir = directory
@@ -302,21 +321,7 @@ class WowContractSourcesFunctionalTest {
         usage("orders")
         module("client", plugins = "", dependencies = """implementation(project(":shop-api"))""")
         usage("client")
-        javaUsage("shop-server")
-        write(
-            "java-client/build.gradle.kts",
-            """
-            plugins { `java-library` }
-
-            repositories { mavenCentral() }
-
-            dependencies {
-                implementation(project(":shop-api"))
-                implementation(files(${classpath("wow.fixture.compileClasspath")}))
-            }
-            """,
-        )
-        javaUsage("java-client")
+        javaClients()
         result = runner(
             ":shop-api:publish",
             ":shop-domain:compileTestKotlin",
@@ -364,7 +369,9 @@ class WowContractSourcesFunctionalTest {
 
     /** The `QueryField` constants of a generated source, name to path. */
     private fun queryFields(source: String): Map<String, String> =
-        Regex("""val (\w+): (?:me\.ahoo\.wow\.api\.query\.)?QueryField = (?:me\.ahoo\.wow\.api\.query\.)?QueryField\("([^"]+)"\)""")
+        Regex(
+            """val (\w+): (?:me\.ahoo\.wow\.api\.query\.)?QueryField = (?:me\.ahoo\.wow\.api\.query\.)?QueryField\("([^"]+)"\)"""
+        )
             .findAll(source).associate { it.groupValues[1] to it.groupValues[2] }
 
     @Test

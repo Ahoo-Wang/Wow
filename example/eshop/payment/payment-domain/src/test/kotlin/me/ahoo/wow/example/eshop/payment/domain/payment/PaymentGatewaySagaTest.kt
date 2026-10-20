@@ -14,9 +14,9 @@
 package me.ahoo.wow.example.eshop.payment.domain.payment
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment
+import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
 import me.ahoo.wow.example.eshop.payment.api.payment.FailPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded
@@ -29,7 +29,7 @@ import java.math.BigDecimal
 
 /** The gateway saga over the simulated gateway, which approves up to its limit and declines above it. */
 class PaymentGatewaySagaTest {
-    private val payment = AggregateType("eshop-payment", "payment").ref(TENANT, ORDER)
+    private val payment = EshopPaymentContract.Payment.ref(TENANT, ORDER)
 
     /** The saga under test, with the one service it takes. */
     private val handlers = paymentGatewaySagaHandlers(Dependencies.of(SimulatedPaymentGateway(BigDecimal("100.00"))))

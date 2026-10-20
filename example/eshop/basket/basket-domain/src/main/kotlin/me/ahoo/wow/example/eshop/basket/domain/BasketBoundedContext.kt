@@ -14,8 +14,10 @@
 package me.ahoo.wow.example.eshop.basket.domain
 
 import me.ahoo.wow.api.annotation.BoundedContext
-import me.ahoo.wow.example.eshop.basket.api.BasketContext
 
-/** Names the bounded context of this module's aggregates for the compiler. */
-@BoundedContext(name = BasketContext.NAME, description = "The eShop basket: a buyer's basket before checkout")
+/**
+ * Names the bounded context of this module's aggregates for the compiler. The name is declared here, once: the api
+ * module's generated `EshopBasketContract.NAME` comes from it (decision D259).
+ */
+@BoundedContext(name = "eshop-basket", description = "The eShop basket: a buyer's basket before checkout")
 object BasketBoundedContext

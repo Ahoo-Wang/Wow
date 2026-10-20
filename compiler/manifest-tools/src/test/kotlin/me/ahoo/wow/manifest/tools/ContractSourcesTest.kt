@@ -85,7 +85,12 @@ class ContractSourcesTest {
         val states = aggregates.map { Manifest.schemaKey(it.state.schema) }
             .filter { runCatching { Class.forName(it) }.isSuccess }
         val fragment = Manifest(contexts = listOf(context))
-            .withDefs(mapOf("shop.api.order.PlaceOrder" to mapOf("type" to "object"), "shop.api.OrderPlaced" to mapOf("type" to "object")))
+            .withDefs(
+                mapOf(
+                    "shop.api.order.PlaceOrder" to mapOf("type" to "object"),
+                    "shop.api.OrderPlaced" to mapOf("type" to "object")
+                )
+            )
         val completed = SchemaIntrospector(javaClass.classLoader).complete(
             Manifest(contexts = listOf(ContextManifest("probe", aggregates = states.map { aggregate(state = it) })))
                 .withDefs(fragment.defs),
@@ -175,7 +180,9 @@ class ContractSourcesTest {
     fun `without wow-query-api, or with a withheld state, there should be no query fields`() {
         val plain = ContractSources.of(contract(aggregate()), queryFields = false).single().text
         plain.assert().contains("public object Order {").doesNotContain("QueryField", "SnapshotProperties")
-        val withheld = contract(aggregate()).let { it.withDefs(it.defs + (OrderState::class.java.name to mapOf("type" to "object"))) }
+        val withheld = contract(aggregate()).let {
+            it.withDefs(it.defs + (OrderState::class.java.name to mapOf("type" to "object")))
+        }
         ContractSources.of(withheld, queryFields = true).single().text.assert()
             .contains("public object Order : SnapshotProperties() {").doesNotContain("STATE__")
     }

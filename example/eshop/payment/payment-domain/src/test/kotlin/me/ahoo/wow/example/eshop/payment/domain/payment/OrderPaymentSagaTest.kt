@@ -13,9 +13,10 @@
 
 package me.ahoo.wow.example.eshop.payment.domain.payment
 
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
+import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.ordering.api.order.PayOrder
+import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded
@@ -31,8 +32,8 @@ import org.junit.jupiter.api.TestFactory
 import java.math.BigDecimal
 
 class OrderPaymentSagaTest {
-    private val order = AggregateType("eshop-ordering", "order").ref(TENANT, ORDER)
-    private val payment = AggregateType("eshop-payment", "payment").ref(TENANT, ORDER)
+    private val order = EshopOrderingContract.Order.ref(TENANT, ORDER)
+    private val payment = EshopPaymentContract.Payment.ref(TENANT, ORDER)
 
     /**
      * The saga under test, constructed alone: the module's other saga, `PaymentGatewaySaga`, takes the gateway, which
