@@ -48,6 +48,10 @@ import kotlin.time.Duration.Companion.minutes
  *   once. The view's comment keeps the fingerprints of the definitions it was created with ([FlatLineage]): a writer
  *   replaces it only when its own definition is newer than every one before it, so an older instance that restarts
  *   leaves a newer one's view as it is, and validates it by existence only.
+ * - **Catalog** (decision D241 ②): once its tables are created or validated (at once with `ddl=none`), the Sink
+ *   appends the [catalog] entries of its tables to the database's `wow_catalog` ([ClickHouseCatalog]), each with the
+ *   table's current uuid; `auto` creates `wow_catalog` when it is missing. A table whose uuid the account cannot read
+ *   gets no row, and a failed write is logged and never fails the Sink's write.
  */
 @InternalWowApi
 class ClickHouseSink internal constructor(
@@ -55,6 +59,7 @@ class ClickHouseSink internal constructor(
     private val statements: ClickHouseStatements,
     private val ddl: DdlMode = DdlMode.AUTO,
     private val batchSize: Int = ClickHouseSinkOptions.DEFAULT_BATCH_SIZE,
+    private val catalog: List<CatalogEntry> = emptyList(),
     private val recheckEvery: Duration = DEFAULT_RECHECK,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : Sink {
@@ -67,6 +72,14 @@ class ClickHouseSink internal constructor(
     /** Whether a newer writer's flat view was found at the last check: logged when it changes. */
     @Volatile
     private var superseded = false
+
+    /** The `wow_catalog` rows appended last; null before the first ([describe]). */
+    @Volatile
+    private var described: String? = null
+
+    /** With `ddl=none`, whether the one attempt to append the `wow_catalog` rows was made. */
+    @Volatile
+    private var catalogTried = false
 
     init {
         require(batchSize >= 1) { "A batch holds at least one record." }
@@ -137,6 +150,14 @@ class ClickHouseSink internal constructor(
      * since the last time (finding X-15).
      */
     suspend fun prepare() {
+        if (ddl == DdlMode.NONE && !catalogTried) {
+            preparation.withLock {
+                if (!catalogTried) {
+                    describe()
+                    catalogTried = true
+                }
+            }
+        }
         if (!due()) {
             return
         }
@@ -146,7 +167,41 @@ class ClickHouseSink internal constructor(
             }
             val lineage = if (ddl == DdlMode.AUTO) create() else lineage()
             validate(lineage)
+            describe()
             checkedAt = clock()
+        }
+    }
+
+    /**
+     * Appends the [catalog] entries of the tables, with their uuids, when they differ from the ones appended last (a
+     * view replaced has another uuid); a failure is only logged, and tried again at the next check (decision D241 ②).
+     */
+    private suspend fun describe() {
+        if (catalog.isEmpty()) {
+            return
+        }
+        try {
+            val rows = catalog.mapNotNull { entry ->
+                val uuid = statements.uuid(schema.database, entry.table)
+                if (uuid == null) {
+                    logger.warn { "No uuid of ${schema.database}.${entry.table} is readable: wow_catalog gets no row of it." }
+                }
+                uuid?.let { ClickHouseCatalog.rowOf(schema.database, entry, it) }
+            }
+            val text = rows.joinToString(separator = "\n", postfix = "\n")
+            if (rows.isNotEmpty() && text != described) {
+                statements.insert(
+                    schema.qualified(ClickHouseCatalog.TABLE),
+                    text.toByteArray(Charsets.UTF_8),
+                    "catalog:" + ClickHouseCatalog.sha256(text),
+                )
+                described = text
+            }
+        } catch (
+            @Suppress("TooGenericExceptionCaught") // The catalog never fails the Sink's writes (decision D241 ②).
+            failure: Exception,
+        ) {
+            logger.warn(failure) { "The wow_catalog rows of ${schema.type} in ${schema.database} were not written." }
         }
     }
 
@@ -166,6 +221,7 @@ class ClickHouseSink internal constructor(
      * one ([FlatLineage.supersedes]). Returns the flat view's lineage.
      */
     private suspend fun create(): FlatLineage {
+        statements.execute(ClickHouseCatalog.ddl(schema.database))
         schema.ddl.forEach { statements.execute(it) }
         val lineage = lineage()
         val fingerprint = schema.flatFingerprint

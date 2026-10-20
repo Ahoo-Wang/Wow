@@ -34,7 +34,7 @@ class FlatColumnsTest {
             FlatColumn("rate", "Float64", "JSONExtract(state, 'rate', 'Float64')"),
             FlatColumn("paid", "Bool", "JSONExtract(state, 'paid', 'Bool')"),
             // A property named as a system column is prefixed.
-            FlatColumn("state_version", "Int64", "JSONExtract(state, 'version', 'Int64')"),
+            FlatColumn("state_version", "Int64", "JSONExtract(state, 'version', 'Int64')", "version"),
         )
     }
 
