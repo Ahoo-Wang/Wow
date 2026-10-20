@@ -104,6 +104,14 @@ interface Observer {
     /** [subscription] of the subscription [group] resumed [partition], paused for [pausedMillis] ([partitionPaused]). */
     fun partitionResumed(group: String, subscription: String, partition: Int, pausedMillis: Long) = Unit
 
+    /**
+     * A tail of [partition] of [context]'s log read the store (decision D249): the node hands its own commits to its
+     * tails in memory, so a tail reads the store only when memory cannot continue it, for [reason]: `start` (a tail
+     * opened behind the head), `gap` (a sequence another node appended, or whose outcome was unknown), `overflow` (a
+     * tail too slow for its hand-overs), `idle` (entries other nodes appended, found by a probe of the head).
+     */
+    fun tailRead(context: String, partition: Int, reason: String) = Unit
+
     /** The firing of [timer]: its command sent to its target. */
     fun firing(timer: Timer): Observation = Observation.NONE
 

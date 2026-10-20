@@ -67,6 +67,7 @@ import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.health.NodeStores
 import me.ahoo.wow.runtime.ledger.LedgerCommands
 import me.ahoo.wow.runtime.ledger.LedgerPublisher
+import me.ahoo.wow.runtime.log.HandoffLog
 import me.ahoo.wow.runtime.log.LogGroupRouter
 import me.ahoo.wow.runtime.log.PartitionAppendQueue
 import me.ahoo.wow.runtime.manifest.ManifestCheck
@@ -934,7 +935,8 @@ class ServiceNode @InternalWowApi constructor(
         codec: EventCodec,
         application: SubscriptionFactory,
     ): Parts {
-        val groups = logGroupsOf(context, models, backends)
+        // Each group's own commits reach its tails in memory (decision D249); its sequences are its own.
+        val groups = logGroupsOf(context, models, backends).map { it.withLog(handoffOf(context, it.log)) }
         val routed = routedLog(backends, groups)
         val log = PartitionAppendQueue(routed, options.appendQueue, capacity = options.maxInFlight)
         val names = ContextCommandTypes(models, contracts)
@@ -1095,7 +1097,13 @@ class ServiceNode @InternalWowApi constructor(
         val checkpoints: CheckpointStore,
         val ledger: FailureLedger,
         val timers: TimerStore?,
-    )
+    ) {
+        fun withLog(log: EventLog) = GroupParts(store, types, log, checkpoints, ledger, timers)
+    }
+
+    /** [log] handing this node's commits to its tails in memory, unless [ServiceNodeOptions.handoff] turns it off. */
+    private fun handoffOf(context: String, log: EventLog): EventLog =
+        if (options.handoff.enabled) HandoffLog(log, context, options.handoff, observer) else log
 
     /**
      * The state consumers of [context] (decision D133): the subscription of each snapshot target, of the types it
