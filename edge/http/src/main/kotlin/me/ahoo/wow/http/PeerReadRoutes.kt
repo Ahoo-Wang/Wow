@@ -37,6 +37,7 @@ import me.ahoo.wow.http.query.QueryTarget
 import me.ahoo.wow.http.read.StateHandler
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryOwnership
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
@@ -45,9 +46,11 @@ import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.state.StateReads
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
+import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.coRouter
 
 /**
@@ -58,7 +61,9 @@ import org.springframework.web.reactive.function.server.coRouter
  * - `POST` and `GET /{context}/{aggregate}/{model}/query` of each query model of the Manifest, 404 for one [queries]
  *   does not serve (never the call routes' unknown command);
  * - `GET /{context}/{aggregate}/{id}/state` (`?version=`, `?at=`) of each aggregate, over [reads];
- * - `POST` and `GET /wow/dataset/{context}/{dataset}/query` of the datasets [queries] has.
+ * - `POST` and `GET /wow/dataset/{context}/{dataset}/query` of the datasets [queries] has;
+ * - `GET /wow/manifest`, the service's Manifest, for a service that calls it by its Manifest alone (decision D257,
+ *   `wow.clients.contexts.<context>.contract: manifest`): any service may read it, whatever models [permits] list.
  *
  * Each request must come from a [service][Caller.service] identity, which [callerResolver] resolves (a service token, or
  * a CoSec service principal), and carry `Wow-Call`, the root context it reads for; any other, one without credentials
@@ -92,7 +97,13 @@ fun peerReadRoutes(
     val ownerships = QueryOwnership.of(manifest)
     val states =
         StateHandler(reads, authenticator, headers, statuses, gateway.tenants, ownerships::ownershipOf, queries, masks)
+    val document = HttpJson.write(ManifestTree.write(withTransformedRoutes(manifest, gateway)))
     return coRouter {
+        GET(WowPaths.MANIFEST) { request ->
+            roots.reading(request, model = null) {
+                ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(document)
+            }
+        }
         manifest.contexts.forEach { context ->
             context.aggregates.forEach { aggregate ->
                 val type = AggregateType(context.name, aggregate.name)
@@ -153,9 +164,12 @@ internal class PeerRoots(
     private val permits: CallPermits,
     private val statuses: ErrorStatuses,
 ) {
-    /** [read]'s response once [request] is admitted to read [model], or the problem it is refused with. */
+    /**
+     * [read]'s response once [request] is admitted to read [model] (any service's read when null), or the problem it
+     * is refused with.
+     */
     @Suppress("TooGenericExceptionCaught") // Whatever fails admitting a read is answered as a problem.
-    suspend fun reading(request: ServerRequest, model: String, read: suspend () -> ServerResponse): ServerResponse =
+    suspend fun reading(request: ServerRequest, model: String?, read: suspend () -> ServerResponse): ServerResponse =
         try {
             request.attributes()[ROOT_CALLER] = rootOf(request, model)
             read()
@@ -168,9 +182,9 @@ internal class PeerRoots(
             Problem.ofFailure(failure).respond()
         }
 
-    /** The caller of the root context [request] reads for, once it may read [model]. */
+    /** The caller of the root context [request] reads for, once it may read [model] (any service when null). */
     @Suppress("ThrowsCount") // Each refusal of a read, answered with its own problem.
-    suspend fun rootOf(request: ServerRequest, model: String): Caller {
+    suspend fun rootOf(request: ServerRequest, model: String?): Caller {
         val service = services.resolve(request) ?: Caller.ANONYMOUS
         val value = request.headers().firstHeader(WowHeaders.CALL)
         if (!service.service || value == null) {
@@ -178,7 +192,7 @@ internal class PeerRoots(
                 "The internal port serves only a service identity's read with ${WowHeaders.CALL} (decision D259)."
             )
         }
-        permits.readRefusal(service, model)?.let { throw forbidden(it) }
+        model?.let { permits.readRefusal(service, it) }?.let { throw forbidden(it) }
         val call = try {
             CallHeader.parse(value)
         } catch (invalid: IllegalArgumentException) {

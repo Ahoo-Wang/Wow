@@ -260,6 +260,26 @@ class PeerReadsTest {
     }
 
     @Test
+    fun `the Manifest should be read by any service with Wow-Call, whatever models it may read`() {
+        val routes = org.springframework.test.web.reactive.server.WebTestClient
+            .bindToRouterFunction(
+                peerRoutes(CallPermits(emptyMap(), mapOf("basket-service" to listOf("shop.cart.events"))))
+            )
+            .build()
+        val root = CallHeader.format(
+            CallContext.of("c", TENANT, Scope("alice"), me.ahoo.wow.api.decide.Causation("c", "c")),
+        )
+        val answer = routes.get().uri("/wow/manifest").headers {
+            it.set("Authorization", "Bearer $TOKEN")
+            it.set(WowHeaders.CALL, root)
+        }.answer()
+        answer.status.assert().isEqualTo(200)
+        answer.body!!["contexts"][0]["name"].asString().assert().isEqualTo("shop")
+        routes.get().uri("/wow/manifest").header("X-User", "alice").header(WowHeaders.CALL, root).answer()
+            .problemCode().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
+    }
+
+    @Test
     fun `a peer read whose admission fails unexpectedly should be a 500 that says nothing of it`() {
         val failing = peerReadRoutes(
             manifest,

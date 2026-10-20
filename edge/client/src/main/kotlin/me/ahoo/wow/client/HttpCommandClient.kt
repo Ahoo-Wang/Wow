@@ -16,6 +16,7 @@ package me.ahoo.wow.client
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
@@ -29,6 +30,7 @@ import me.ahoo.wow.client.wire.WaitHeader
 import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.manifest.CommandRoutes
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.TargetScope
 import me.ahoo.wow.spi.id.GlobalIdGenerator
@@ -54,14 +56,19 @@ import kotlin.time.Duration.Companion.seconds
  * rejected, a [me.ahoo.wow.api.client.WowProblemException] otherwise, with the hint of its code; one a retry may get
  * past is retried first, as the transport's [RetryPolicy] says (never a 504). A connection that cannot be made is its
  * [java.io.IOException] once the retries are spent; a context the endpoints give no URL an [IllegalStateException].
+ *
+ * A peer described by its Manifest alone ([WowClient.Builder.manifestPeers]) takes [NamedCommand]s, named by their
+ * type and checked against its Manifest before any request; a command object to it is a configuration error.
  */
 class HttpCommandClient internal constructor(
     private val transport: HttpTransport,
     private val names: CommandTypes,
     private val ids: GlobalIdGenerator,
     private val caller: Caller = Caller.ANONYMOUS,
+    /** The peers described by their Manifest alone, which take [NamedCommand]s only. */
+    private val described: ManifestPeers? = null,
 ) : CommandClient {
-    override fun of(caller: Caller): CommandClient = HttpCommandClient(transport, names, ids, caller)
+    override fun of(caller: Caller): CommandClient = HttpCommandClient(transport, names, ids, caller, described)
 
     override suspend fun send(command: Any, ref: AggregateRef, options: SendOptions): CommandResult =
         settled(
@@ -104,12 +111,9 @@ class HttpCommandClient internal constructor(
         is Answer.Problem -> throw answer.problem.exception(what(command, ref))
     }
 
-    private fun request(command: Any, ref: AggregateRef, options: SendOptions, plan: WaitPlan?): PeerRequest {
+    private suspend fun request(command: Any, ref: AggregateRef, options: SendOptions, plan: WaitPlan?): PeerRequest {
         val type = ref.type
-        val name = requireNotNull(names.nameOf(type, command.javaClass)) {
-            "No contract names the command ${command.javaClass.name} of $type: depend on the api module of " +
-                "${type.context}, whose jar carries its contract (decision D234)."
-        }
+        val name = nameOf(command, ref, options)
         val segment = CommandRoutes.segment(name.removePrefix("$type."))
         val path = if (ref.isAssigned) {
             "/${type.context}/${type.name}/${HttpTransport.encode(ref.id)}/$segment"
@@ -138,9 +142,45 @@ class HttpCommandClient internal constructor(
             caller = caller,
             call = if (transport.mode is ClientMode.Service) rootOf(ref, options) else null,
             headers = headers,
-            body = ClientJson.write(command),
+            body = if (command is NamedCommand) ClientJson.write(command.body) else ClientJson.write(command),
             timeout = plan?.timeout?.let { it + RESPONSE_GRACE }?.takeIf { it > transport.timeout },
         )
+    }
+
+    /** The Manifest of [context], a peer described by its Manifest alone, read as this client's caller. */
+    internal suspend fun manifestOf(context: String): Manifest {
+        val peers = requireNotNull(described) {
+            "$context is not described by its Manifest: list it in wow.clients.contexts with contract: manifest " +
+                "(decision D257)."
+        }
+        val call = if (transport.mode is ClientMode.Service) rootOf(caller.tenantId, caller.scope, false) else null
+        return peers.manifestOf(context, caller, call)
+    }
+
+    /**
+     * The full type name of [command] to [ref]: a [NamedCommand]'s, once the Manifest of its peer declares it; a
+     * command object's, as its contract names it. A peer described by its Manifest takes named commands alone, and a
+     * named command goes only to such a peer.
+     */
+    private suspend fun nameOf(command: Any, ref: AggregateRef, options: SendOptions): String {
+        val type = ref.type
+        val manifestPeer = described?.describes(type.context) == true
+        if (command is NamedCommand) {
+            require(manifestPeer) {
+                "${type.context} is not described by its Manifest: a named command goes only to a context of " +
+                    "wow.clients.contexts with contract: manifest (decision D257)."
+            }
+            val call = if (transport.mode is ClientMode.Service) rootOf(ref, options) else null
+            return "$type.${described.commandOf(command, ref, caller, call).name}"
+        }
+        check(!manifestPeer) {
+            "${type.context} is described by its Manifest alone (contract: manifest): send it a NamedCommand, not " +
+                "the command object ${command.javaClass.name} (decision D257)."
+        }
+        return requireNotNull(names.nameOf(type, command.javaClass)) {
+            "No contract names the command ${command.javaClass.name} of $type: depend on the api module of " +
+                "${type.context}, whose jar carries its contract (decision D234)."
+        }
     }
 
     /**
@@ -148,19 +188,23 @@ class HttpCommandClient internal constructor(
      * tenant (or the target's) and the caller's scope (or the target's), sent by the caller's operator from its
      * application.
      */
-    private fun rootOf(ref: AggregateRef, options: SendOptions): CallContext {
+    private fun rootOf(ref: AggregateRef, options: SendOptions): CallContext =
+        rootOf(options.targetTenant ?: ref.tenantId, options.targetScope ?: caller.scope, options.targeted)
+
+    private fun rootOf(tenantId: String, scope: Scope, actingElsewhere: Boolean): CallContext {
         val commandId = ids.next()
         return CallContext.of(
             commandId = commandId,
-            tenantId = options.targetTenant ?: ref.tenantId,
-            scope = options.targetScope ?: caller.scope,
+            tenantId = tenantId,
+            scope = scope,
             causation = Causation(commandId, commandId),
-            operator = caller.toOperator(actingElsewhere = options.targeted),
+            operator = caller.toOperator(actingElsewhere = actingElsewhere),
             facts = caller.app?.let { mapOf(RequestFacts.APP_ID to it) }.orEmpty(),
         )
     }
 
-    private fun what(command: Any, ref: AggregateRef): String = "The command ${command.javaClass.simpleName} to $ref"
+    private fun what(command: Any, ref: AggregateRef): String =
+        "The command ${if (command is NamedCommand) command.name else command.javaClass.simpleName} to $ref"
 
     private companion object {
         /** How long [send] waits for the peer to accept a command whose options name no timeout. */
