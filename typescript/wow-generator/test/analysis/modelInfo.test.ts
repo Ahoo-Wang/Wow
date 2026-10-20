@@ -16,7 +16,6 @@ import {
   resolveModelInfo,
   resolveReferenceModelInfo,
 } from '../../src/analysis/modelInfo';
-import { WOW_TYPE_MAPPING } from '../../src/wow/conventions';
 
 describe('modelInfo', () => {
   describe('resolveModelInfo', () => {
@@ -25,24 +24,12 @@ describe('modelInfo', () => {
       expect(result).toEqual({ name: '', path: '/' });
     });
 
-    it('should return mapped type and WOW import path for known schema keys', () => {
-      const schemaKey = 'wow.api.BindingError';
-      const result = resolveModelInfo(schemaKey);
-      expect(result).toEqual({
-        name: WOW_TYPE_MAPPING[schemaKey as keyof typeof WOW_TYPE_MAPPING],
-        path: '@ahoo-wang/wow-client',
+    it('names a wow. schema like any other, as a model of its own', () => {
+      expect(resolveModelInfo('wow.api.BindingError')).toEqual({
+        name: 'BindingError',
+        path: '/wow/api',
       });
     });
-
-    it.each(['Condition', 'ConditionOptions', 'Operator'])(
-      'imports the Condition-only type %s from the legacy entry',
-      name => {
-        expect(resolveModelInfo(`wow.api.query.${name}`)).toEqual({
-          name,
-          path: '@ahoo-wang/wow-client/legacy',
-        });
-      },
-    );
 
     it('should correctly parse schema key with model name at the end', () => {
       const result = resolveModelInfo('compensation.ApiVersion');
@@ -112,37 +99,16 @@ describe('modelInfo', () => {
   });
 
   describe('resolveReferenceModelInfo', () => {
-    it.each([
-      ['ListQuery', 'ListQuery', 'FilterListQuery'],
-      ['PagedQuery', 'PagedQuery', 'FilterPagedQuery'],
-    ])(
-      'maps %s according to the source schema discriminator',
-      (schemaName, conditionType, filterType) => {
-        const schemaKey = `wow.api.query.${schemaName}`;
-        const reference = { $ref: `#/components/schemas/${schemaKey}` };
-        const components = (property: 'condition' | 'filter') => ({
-          schemas: {
-            [schemaKey]: {
-              type: 'object' as const,
-              properties: { [property]: { type: 'object' as const } },
-              required: [property],
-            },
-          },
-        });
+    it('names the model a component reference points at', () => {
+      expect(
+        resolveReferenceModelInfo({ $ref: '#/components/schemas/shop.Item' }),
+      ).toEqual({ name: 'Item', path: '/shop' });
+    });
 
-        expect(
-          resolveReferenceModelInfo(reference, components('condition')),
-        ).toEqual({
-          name: conditionType,
-          path: '@ahoo-wang/wow-client/legacy',
-        });
-        expect(
-          resolveReferenceModelInfo(reference, components('filter')),
-        ).toEqual({
-          name: filterType,
-          path: '@ahoo-wang/wow-client',
-        });
-      },
-    );
+    it('refuses a reference outside the component schemas', () => {
+      expect(() =>
+        resolveReferenceModelInfo({ $ref: 'other.json#/Item' }),
+      ).toThrow(/Unsupported schema reference: other.json#\/Item/);
+    });
   });
 });

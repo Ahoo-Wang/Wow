@@ -67,6 +67,12 @@ class Account(private val state: AccountState) {
 
     fun onCommand(command: UnlockAmount): AmountUnlocked = AmountUnlocked(command.amount)
 
+    @OnCommand(produces = [Annotated::class])
+    fun onCommand(command: Annotate): Decision {
+        if (command.notes.isEmpty()) return reject(INVALID_AMOUNT, "No notes.")
+        return Decision.events(*command.notes.map(::Annotated).toTypedArray())
+    }
+
     @OnCommand(produces = [AccountFrozen::class])
     fun onCommand(command: FreezeAccount): Decision {
         if (state.frozen) return reject(FROZEN, "The account is frozen.")

@@ -31,6 +31,8 @@ import kotlin.system.exitProcess
  *
  * - `seed`: opens the accounts, each answered once its snapshot holds it;
  * - `check`: one operation of every scenario, each checked as a run checks it;
+ * - `prime`: an untimed pass that touches every seeded account once, so a run on a large data set measures warm
+ *   caches rather than filling them;
  * - `run`: one open-loop run of a scenario at a fixed rate, its results and resources written as JSON and Markdown;
  * - `saturate`: the closed-loop saturation finder.
  *
@@ -53,6 +55,7 @@ fun main(args: Array<String>) {
     val status = when (command) {
         "seed" -> seed(client, targets, options)
         "check" -> check(client, targets, options)
+        "prime" -> prime(client, targets, options)
         "run" -> run(client, targets, options)
         "saturate" -> saturate(client, targets, options)
         else -> usage()
@@ -65,6 +68,7 @@ private const val CONNECT_TIMEOUT_SECONDS = 5L
 private const val DEFAULT_ACCOUNTS = 1_000
 private const val DEFAULT_BALANCE = 1_000_000_000_000L
 private const val DEFAULT_SEED_CONCURRENCY = 32
+private const val PRIME_CONCURRENCY = 256
 private const val DEFAULT_SEED = 20_261_015L
 private const val PERCENT = 100.0
 private const val MICROS_PER_MILLI = 1_000.0
@@ -74,13 +78,15 @@ private fun usage(): Nothing {
         """
         usage: e2e-bench-load <seed|check|run|saturate> --version=9x|v10 --targets=http://host:port[,…] [options]
           seed:     --accounts=1000 --concurrency=32 --balance=1000000000000
-          check:    --accounts=1000
-          run:      --scenario=E1|E2|E3|E4-state|E4-list --rate=<ops/s> --warm-up=30 --measure=60
+          prime:    --accounts=1000 --concurrency=256 --out=<dir>
+          check:    --accounts=1000 [--scenario=… | --mix=…: only those]
+          run:      --scenario=E1|E1-large|E2|E3|E4-state|E4-list (or --mix=E1:50,E4-state:40,E4-list:10) --rate=<ops/s>
+                    --warm-up=30 --measure=60
                     --distribution=uniform|zipf|hot --zipf-exponent=1.1 --hot-fraction=0.5 --hot-keys=1
                     --accounts=1000 --seed=20261015 --max-in-flight=20000 --out=<dir> --label=<text>
                     --pids=name:pid,… --containers=name,… --mongo=<container> --postgres=<container>
                     --postgres-database=transfer_v10 --kafka=<container> --repository=<dir> --meta=key=value;…
-          saturate: --scenario=… --start-concurrency=1 --max-concurrency=256 --warm-up=5 --step=10 --out=<dir>
+          saturate: --scenario=… (or --mix=…) --start-concurrency=1 --max-concurrency=256 --warm-up=5 --step=10 --out=<dir>
         """.trimIndent(),
     )
     exitProcess(2)
@@ -118,11 +124,51 @@ private fun seed(client: Client, targets: List<URI>, options: Options): Int {
     return if (failures.get() == 0) 0 else 1
 }
 
+/**
+ * The priming pass (D224 note ⑤): every seeded account once, `concurrency` at a time, closed loop and untimed. Each
+ * account takes a deposit answered once stored, which brings its aggregate into the node's state cache and its log
+ * and snapshot pages into the store's (the snapshot a read hits is written by that deposit). A data set above the
+ * state cache's capacity
+ * ends full, with evictions, which is the steady state such a run measures. Writes `prime.json` (the accounts, the
+ * seconds, the failures) to `--out`.
+ */
+private fun prime(client: Client, targets: List<URI>, options: Options): Int {
+    val accounts = options.int("accounts", DEFAULT_ACCOUNTS)
+    val permits = Semaphore(options.int("concurrency", PRIME_CONCURRENCY))
+    val failures = AtomicInteger()
+    val started = System.nanoTime()
+    val futures = (0 until accounts).map { index ->
+        permits.acquire()
+        val target = targets[index % targets.size]
+        val id = accountId(index)
+        client.command(client.adapter.deposit(target, id, 1, Wait.STORED))
+            .handle { error, failure ->
+                if (error != null || failure != null) failures.incrementAndGet()
+                permits.release()
+            }
+    }
+    CompletableFuture.allOf(*futures.toTypedArray()).join()
+    val seconds = (System.nanoTime() - started) / OpenLoop.NANOS_PER_SECOND.toDouble()
+    val took = "%.1f".format(seconds)
+    println("[prime] ${client.adapter.name}: $accounts accounts in ${took}s, ${failures.get()} failed")
+    options.optional("out")?.let {
+        File(it).apply { mkdirs() }.resolve("prime.json").writeText(
+            Json.write(mapOf("accounts" to accounts, "seconds" to seconds, "failed" to failures.get())) + "\n",
+        )
+    }
+    return 0
+}
+
 /** Sends one operation of each scenario, as a run would, and says whether each reached its completion point. */
 private fun check(client: Client, targets: List<URI>, options: Options): Int {
     val accounts = options.int("accounts", DEFAULT_ACCOUNTS)
     var failed = 0
-    Scenario.entries.forEach { scenario ->
+    // The run's own scenarios when it names them (--mix, or a --scenario the generator knows), else every one the
+    // version supports: a baseline older than a scenario still runs the others.
+    val named = options.optional("mix")?.let(Mix::parse)?.parts?.map { it.first }
+        ?: options.optional("scenario")?.let { label -> Scenario.entries.firstOrNull { it.label.equals(label, true) } }
+            ?.let(::listOf)
+    (named ?: Scenario.entries.filter(client.adapter::supports)).forEach { scenario ->
         val target = Target(targets.first(), 0, minOf(1, accounts - 1))
         val started = System.nanoTime()
         val error = try {
@@ -158,7 +204,7 @@ private fun resources(options: Options): Resources = Resources(
 
 /** One open-loop run; its results go to `--out` as `result.json` and `summary.md`. */
 private fun run(client: Client, targets: List<URI>, options: Options): Int {
-    val scenario = Scenario.of(options.required("scenario"))
+    val mix = mixOf(options)
     val rate = options.double("rate", null)
     val warmUp = options.int("warm-up", 30)
     val measure = options.int("measure", 60)
@@ -172,7 +218,7 @@ private fun run(client: Client, targets: List<URI>, options: Options): Int {
     var stopping: Thread? = null
     val measured = OpenLoop(
         client = client,
-        scenario = scenario,
+        mix = mix,
         keys = keys,
         targets = targets,
         rate = rate,
@@ -180,7 +226,7 @@ private fun run(client: Client, targets: List<URI>, options: Options): Int {
         measureSeconds = measure,
         maxInFlight = options.int("max-in-flight", OpenLoop.DEFAULT_MAX_IN_FLIGHT),
     ) { phase ->
-        println("[run] ${client.adapter.name} ${scenario.label} @ $rate/s: $phase")
+        println("[run] ${client.adapter.name} ${mix.label} @ $rate/s: $phase")
         when (phase) {
             "measure" -> starting = thread(name = "resources-start") { resources.start() }
             "drain" -> stopping = thread(name = "resources-stop") {
@@ -193,7 +239,7 @@ private fun run(client: Client, targets: List<URI>, options: Options): Int {
     val result = Report.result(
         label = options.string("label", "run"),
         adapter = client.adapter,
-        scenario = scenario,
+        mix = mix,
         rate = rate,
         warmUp = warmUp,
         measure = measure,
@@ -215,23 +261,23 @@ private fun run(client: Client, targets: List<URI>, options: Options): Int {
 
 /** The closed-loop saturation finder; its steps go to `--out` as `saturation.json`. */
 private fun saturate(client: Client, targets: List<URI>, options: Options): Int {
-    val scenario = Scenario.of(options.required("scenario"))
+    val mix = mixOf(options)
     val seed = options.long("seed", DEFAULT_SEED)
     val steps = ClosedLoop(
         client = client,
-        scenario = scenario,
+        mix = mix,
         keysOf = { worker -> keyChooser(options, seed + worker) },
         targets = targets,
         startConcurrency = options.int("start-concurrency", 1),
         maxConcurrency = options.int("max-concurrency", 256),
         warmUpSeconds = options.int("warm-up", 5),
         stepSeconds = options.int("step", 10),
-    ) { println("[saturate] ${client.adapter.name} ${scenario.label}: $it") }.run()
+    ) { println("[saturate] ${client.adapter.name} ${mix.label}: $it") }.run()
     val best = steps.maxByOrNull { it.throughput }
     val result = mapOf(
         "schema" to "wow-e2e-bench/saturation/1",
         "version" to client.adapter.name,
-        "scenario" to scenario.label,
+        "scenario" to mix.label,
         "keys" to keyChooser(options, seed).describe(),
         "targets" to targets.map { it.toString() },
         "saturationThroughput" to best?.throughput,
@@ -257,6 +303,10 @@ private fun saturate(client: Client, targets: List<URI>, options: Options): Int 
     )
     return 0
 }
+
+/** `--mix=E1:50,E4-state:40`, else the one `--scenario`. */
+private fun mixOf(options: Options): Mix =
+    options.optional("mix")?.let(Mix::parse) ?: Mix.of(Scenario.of(options.required("scenario")))
 
 /** The `--name=value` options. */
 class Options private constructor(private val values: Map<String, String>) {

@@ -19,6 +19,7 @@ import com.networknt.schema.SpecificationVersion
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.command.CommandHandler
 import me.ahoo.wow.http.query.QueryHandler
 import me.ahoo.wow.http.read.StateHandler

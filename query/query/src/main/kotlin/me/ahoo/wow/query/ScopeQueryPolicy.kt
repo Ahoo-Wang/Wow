@@ -98,6 +98,10 @@ class ScopeQueryPolicy(
     override val order: Int = ORDER,
     private val ownerships: QueryOwnership = QueryOwnership.OWNERS,
 ) : QueryPolicy {
+    /** The tenant, owner and space are recorded with each stream at its commit (decision D56). */
+    override val events: EventsMode
+        get() = EventsMode.PUSHDOWN
+
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
         val owned = ownerships.ownershipOf(context.aggregateType) == Ownership.OWNER
         val restrictions = listOfNotNull(

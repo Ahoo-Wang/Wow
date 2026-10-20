@@ -26,6 +26,7 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.ScheduleJobs
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.kernel.Creation
@@ -305,14 +306,20 @@ class HttpNode(
         maxReplay,
     )
 
+    /** The query models of the node's routes. */
+    val httpQueries: HttpQueries = queries(store)
+
+    /** The node's Manifest. */
+    val manifest: Manifest = (manifest ?: cartManifest(mounted = mounted)).withJobs(jobs)
+
     /** The node's public routes, which [client] calls and a test may serve on a real server. */
     val routes: RouterFunction<ServerResponse> = wowRoutes(
-        (manifest ?: cartManifest(mounted = mounted)).withJobs(jobs),
+        this.manifest,
         gateway,
         reads,
         callers,
         options,
-        queries(store),
+        httpQueries,
     )
     val client: WebTestClient = WebTestClient
         .bindToRouterFunction(routes)

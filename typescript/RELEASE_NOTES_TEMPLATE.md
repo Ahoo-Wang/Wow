@@ -145,7 +145,7 @@ together.
 
 ## JVM (Maven)
 
-<!-- Kotlin, Spring Boot starter, view store, compensation and the other Maven modules: new features, fixes, dependency upgrades a user must know about. Docker images (example, compensation, view store server) carry the same version. -->
+<!-- Kotlin, the Spring Boot host, the backends and the other Maven modules: new features, fixes, dependency upgrades a user must know about. The Docker images (the ops and view store services) carry the same version. -->
 
 - <change> (#<PR>)
 

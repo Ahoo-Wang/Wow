@@ -1,193 +1,40 @@
 # 集成测试
 
-这个私有包拿 Wow TypeScript 客户端和 `wow-generator` 生成的代码，对着运行中的 Wow
-示例服务端做检查。它与各个包确定性的单元测试分开。
+这个私有包把 `@ahoo-wang/wow-view-store/v10` 和建在它上面的视图引擎对着 V10
+视图存储服务（`platform/view-store`）跑。它与各包确定性的单元测试分开。
 
-## 测什么
+## 跑什么
 
-- 通过 `@ahoo-wang/wow-client` 发命令、查快照、加载状态、订阅事件流（`test/wow/cart/`）。
-- `src/generated/` 下的生成代码：用 `tsc` 检查，并由 `generatedCartCommandClient.test.ts` 调用。
-- `test/wow/wowOpenApi.test.ts`：`wow-client` 发给服务端的每个枚举值都要出现在服务端的
-  OpenAPI 文档里。
-- `@ahoo-wang/wow-react` 的 hook（`test/wow/react/`，在 jsdom 下运行）：按快照 URL
-  查询的 hook、列表流 hook 的事件流及其 `WowError`，以及把生成的查询客户端作为
-  `execute` 的 hook。
-- `@ahoo-wang/wow-view-engine` 的运行时（`test/view-engine/`）：数据源就是 Wow 的
-  `SnapshotQueryClient` 本身的 `ViewEngine`，查询套件用命令写入的销售订单。见
-  [视图引擎对真服务端](#视图引擎对真服务端)。
-- `@ahoo-wang/wow-view-store`（`test/view-store/`）：视图引擎端口的一致性测试套件跑在 `WowViewStore` 上，
-  另有租户与应用的隔离、视图引擎自己的写入端到端；独立的视图存储服务端与内嵌了视图存储的示例服务端各跑一遍。见
-  [WowViewStore 对视图存储服务端](#wowviewstore-对视图存储服务端)。
+`test/view-store-v10/` 拿服务检验存储：视图引擎的端口一致性套件
+（`../wow-view-engine/test/conformance/viewStoreConformance.ts`，按工作区路径导入，
+所以 `tsconfig.json` 把 `rootDir` 设为 `..`）、租户与应用隔离、存储的与配置的系统视图、
+服务的写入角色、租户的数据集措辞、错误、V10 查询路由上的 `viewSourceOf`，以及引擎端到端
+（保存、冲突、结果未知后的重试、共享与认领、偏好、经 V10 查询路由的记录视图和分析）。
 
-## 前置条件
+## 运行
 
-8080 端口上有一个连着 MongoDB 的 Wow 示例服务端。换地址时由 `WOW_EXAMPLE_SERVER_URL`
-指定（例如 `WOW_EXAMPLE_SERVER_URL=http://localhost:18080/`）。可以从本仓构建服务端：
+全局准备（`test/view-store-v10/globalSetup.ts`）在一个 JVM 里以内存后端启动服务，
+所有端口绑定到 0，结束时停掉。内存后端上，服务自己的配置从内存回答快照查询
+（`wow.query.memory.enabled`）。先用 JDK 21 构建：
 
 ```bash
-./gradlew :example-server:installDist
-```
-
-也可以运行已发布的镜像 `ghcr.io/ahoo-wang/wow-example-server:<version>`。用
-`SPRING_MONGODB_URI` 指向 MongoDB，用 `SERVER_PORT` 指定端口，并设置
-`WOW_EVENTSOURCING_STORE_STORAGE=mongo`、`WOW_EVENTSOURCING_SNAPSHOT_STORAGE=mongo`。
-安装包的配置排除了 MongoDB 的自动配置，所以还要像 CI 那样设置 `SPRING_AUTOCONFIGURE_EXCLUDE`，它会替换那份排除列表，只留下两个
-Elasticsearch 客户端自动配置：
-`org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration,org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration`。
-不设置的话，服务端会因缺少 `MongoClient` 而启动失败。
-
-示例服务端内嵌了视图存储（`wow-view-store-starter`），启动时带上 `test/view-store/` 读取的系统视图（下面那四个
-`--wow.view-store.system-views[0].…` 参数）。另有一个视图存储服务端，在 8090 端口、连同一个 MongoDB，也供
-`test/view-store/` 使用；换地址时由
-`WOW_VIEW_STORE_URL` 指定。见 [WowViewStore 对视图存储服务端](#wowviewstore-对视图存储服务端)。
-
-## 生成与测试
-
-在仓库根目录执行：
-
-```bash
-pnpm install --frozen-lockfile
-pnpm --filter wow-integration-test... build
-pnpm --filter wow-integration-test generate
-pnpm --filter wow-integration-test typecheck
-pnpm --filter wow-integration-test test
-```
-
-`generate` 读取 `http://localhost:8080/v3/api-docs` 并替换 `src/generated`。提交前先检查生成结果的改动。
-
-`test` 在第一个用例之前等服务端就绪（`test/globalSetup.ts`）：先等 `/actuator/health` 答 `UP`，最多五分钟；再给套件用到的每个聚合各发一条命令，等到快照写入。刚启动的服务端在这里付掉头几条命令的代价，所以没有哪个用例需要为冷启动放宽超时。
-
-`src/generated` 逐字节保存生成器的输出，连同它的清单 `.wow-generator.json`；ESLint 和
-Prettier 都跳过这个目录。不要手改，也不要重新格式化。
-
-## 视图引擎对真服务端
-
-`test/view-engine/` 通过引擎的公开运行时（`new ViewEngine`、`create`、`open`、`edit`、
-`apply`、`page`、`exportRows`，以及仪表盘的 `setFilterValue`、`setFilters`、`clearFilters`、
-`crossFilter`）查询示例服务端。每个文件在自己的租户里写入十三张销售订单（`salesOrders.ts`：
-下单，再全额或部分付款），从服务端读回它们的创建时间；每个断言都拿这些订单自己算出的数去比，
-不拿引擎自己的输出做快照。
-
-| 文件                 | 检查什么                                                                                                                                                                                                |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `recordView.test.ts` | 文本、枚举、数值区间、日期区间条件；两个字段的排序；三页；合计行；按五行一页分页的 CSV 导出；搜索——MongoDB 后端没有全文能力而拒绝，视图如实报出                                                         |
-| `analysis.test.ts`   | 按字段、按展开的数组、按日／周／月分组；`COUNT`、`SUM`、`AVG`、`DISTINCT_COUNT`、`PERCENTILE` 与派生指标；「只保留」；「前 N 组」与探针行；拆分并「其他」；饼图的「其他」；按秒补齐；本月至今对上月同期 |
-| `dashboard.test.ts`  | 仪表盘筛选接线到分析、指标卡和一个保存的记录视图；从一个面板交叉筛选；仪表盘的固定范围；走势卡锚定到板上日期筛选所选的那一天（D39），在它自己的七天上运行，所以「较前一日」与一个已知的零比较           |
-
-单独运行时，按[前置条件](#前置条件)启动服务端。8080 端口被占用时：
-
-```bash
-docker run -d --name wow-it-mongo -p 27117:27017 \
-  -e GLIBC_TUNABLES=glibc.pthread.rseq=1 \
-  -e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=root mongo:8.3.11
-./gradlew :example-server:installDist
-cd example/example-server/build/install/example-server
-mkdir -p logs data
-SERVER_PORT=18080 \
-SPRING_AUTOCONFIGURE_EXCLUDE=org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration,org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration \
-SPRING_MONGODB_URI='mongodb://root:root@localhost:27117/wow_example_db?authSource=admin' \
-WOW_EVENTSOURCING_STORE_STORAGE=mongo WOW_EVENTSOURCING_SNAPSHOT_STORAGE=mongo \
-bin/example-server
-```
-
-然后在仓库根目录：
-
-```bash
-pnpm --filter wow-integration-test... build
-cd typescript/integration-test
-WOW_EXAMPLE_SERVER_URL=http://localhost:18080/ pnpm exec vitest run --maxWorkers=2 test/view-engine
-```
-
-MongoDB 8.x 在 Linux 内核 6.19～7.0.13 上会退出（SERVER-121912），Docker Desktop 可能就是这样的内核：
-镜像设了 `GLIBC_TUNABLES=glibc.pthread.rseq=0`，让它的内存分配器用上出问题的内核特性。像上面和 CI 的服务
-那样改成 `glibc.pthread.rseq=1`，MongoDB 在任何内核上都能启动，镜像也与 CI 相同。热服务端上整套约五秒，
-其中两秒是让按秒补齐的订单相隔几秒的停顿。
-
-## WowViewStore 对视图存储服务端
-
-`test/view-store/` 在 `WowViewStore` 上跑视图引擎的 `ViewStore` 一致性测试套件
-（`../wow-view-engine/test/conformance/viewStoreConformance.ts`，按工作区路径引入，所以 `tsconfig.test.json`
-把 `rootDir` 设为 `..`）：两个用户、共享与个人视图、改受众、重放与系统视图；每个用例用自己的定义，每次运行用
-自己的租户。`isolation.test.ts` 守着：一个租户或一个应用的视图与偏好，另一个租户或应用的调用者看不到。
-`engine.test.ts` 让 `ViewEngine` 配 `WowViewStore` 走一遍：保存、另存、两个标签页的冲突后重载与覆盖、结局未知
-（服务端收下写入后丢掉回答）后按原请求 id 重试、把个人视图设为共享给同事打开。每套用例对每个服务端
-（`viewStoreServers`）各跑一遍：独立服务端与示例服务端。调用者是
-带 fetcher-cosec 的 `ResourceAttributionRequestInterceptor` 的 fetcher，令牌不签名（`viewStoreServer.ts`）：
-服务端前面没有谁校验它。
-
-构建并启动独立服务端：内存总线、固定的机器号代替它的 Kafka 与 Redis，连上面的 MongoDB，并提供套件读取的那一个
-系统视图：
-
-```bash
-./gradlew :wow-view-store-server:installDist
-cd view-store/wow-view-store-server/build/install/wow-view-store-server
-mkdir -p logs data
-SERVER_PORT=8090 \
-SPRING_MONGODB_URI='mongodb://root:root@localhost:27017/wow_view_store_db?authSource=admin' \
-WOW_KAFKA_ENABLED=false WOW_COMMAND_BUS_TYPE=in_memory WOW_EVENT_BUS_TYPE=in_memory \
-WOW_EVENTSOURCING_STATE_BUS_TYPE=in_memory \
-COSID_MACHINE_DISTRIBUTOR_TYPE=manual COSID_MACHINE_DISTRIBUTOR_MANUAL_MACHINE_ID=1 \
-MANAGEMENT_HEALTH_REDIS_ENABLED=false \
-bin/wow-view-store-server \
-  '--wow.view-store.system-views[0].definition-id=conformance-system' \
-  '--wow.view-store.system-views[0].id=conformance-open' \
-  '--wow.view-store.system-views[0].title=Open' \
-  '--wow.view-store.system-views[0].config={"kind":"record"}'
-```
-
-示例服务端同样带上这四个 `--wow.view-store.system-views[0].…` 参数启动。`test` 等两个服务端都就绪，并先在每个
-服务端上把视图存储的两个聚合各预热一次。
-
-## V10 store 对 V10 视图存储服务
-
-`test/view-store-v10/` 用 V10 视图存储服务（`platform/view-store`，路线图 7.3a）守着 `@ahoo-wang/wow-view-store/v10` 与跑在它上面的视图引擎：端口一致性套件、租户与应用的隔离、存储的与配置的系统视图、服务端的写入角色、租户的数据集措辞、错误、`viewSourceOf` 走 V10 查询路由，以及引擎端到端（保存、冲突、结局未知后重试、设为共享与认领、偏好、记录视图与分析经 V10 查询路由取数）。它与其余用例分开跑，有自己的 setup（`vitest.v10.config.ts`），不需要示例服务端，也不需要 MongoDB。
-
-setup 在一个 JVM 里起内存后端的服务，端口都绑 0，结束时停掉。在内存后端上，服务自己的配置（`wow.query.memory.enabled`）从内存提供快照查询。先用 JDK 21 构建：
-
-```bash
-./gradlew -Pwow.scope=v10 :view-store-server:installDist
+./gradlew :view-store-server:installDist :view-store-server:testClasses :query-tck:jar
 pnpm --filter @ahoo-wang/wow-view-store... build
 pnpm --dir typescript/integration-test test:v10
 ```
 
-`JAVA_HOME` 决定用哪个 JVM（没设时用路径上的 `java`）。设了 `WOW_V10_VIEW_STORE_URL` 时改连已经在跑的服务；它要提供快照查询，并配着 `test/view-store-v10/globalSetup.ts` 配置的那个 `conformance-system` 的系统视图。
-
-## 在 Elasticsearch 上
-
-`test/view-engine/` 与 `test/view-store/` 还会对一个事件与快照都存在 Elasticsearch 上的示例服务端再跑一遍：给测试设置 `WOW_EXAMPLE_STORAGE=elasticsearch`（默认是 `mongo`）。它选择随后端而不同的部分：`recordView.test.ts` 里的搜索会真正执行并核对返回的行，而不是断言被拒绝。`PERCENTILE(50)` 在两种后端上都只要求落在中间两个值之间（MongoDB 返回较小的那个，Elasticsearch 做插值）。启动不带安全设置的 Elasticsearch 9.2.6，以及带着 Wow 的模板和它自带索引定义（`wow.example.order.snapshot.json`、视图存储的定义）的示例服务端：
-
-```bash
-docker run -d --name wow-it-es -p 9200:9200 -e discovery.type=single-node \
-  -e xpack.security.enabled=false -e ES_JAVA_OPTS='-Xms1g -Xmx1g' \
-  docker.elastic.co/elasticsearch/elasticsearch:9.2.6
-cd example/example-server/build/install/example-server
-mkdir -p logs data
-SPRING_AUTOCONFIGURE_EXCLUDE=org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration \
-SPRING_ELASTICSEARCH_URIS=http://localhost:9200 \
-WOW_EVENTSOURCING_STORE_STORAGE=elasticsearch WOW_EVENTSOURCING_SNAPSHOT_STORAGE=elasticsearch \
-bin/example-server # 再加上四个 --wow.view-store.system-views[0].… 参数
-```
-
-`SPRING_AUTOCONFIGURE_EXCLUDE` 会替换安装包里的排除列表，这样 Elasticsearch 客户端才会被配置。视图存储服务端仍在 MongoDB 上：9.2.0 中它不支持 Elasticsearch。
+`JAVA_HOME` 选择 JVM（否则用路径上的 `java`）。设了 `WOW_V10_VIEW_STORE_URL` 时，
+套件改用一个已在运行的服务；它必须回答快照查询，并提供
+`test/view-store-v10/globalSetup.ts` 配置的 `conformance-system` 系统视图。
 
 ## CI
 
-`.github/workflows/typescript-contract.yml` 在 Kotlin 源码、示例、Gradle 构建、这几个包、`wow-view-engine` 的源码或
-其端口一致性套件、`wow-view-store` 或 `view-store/` 有改动时，对着同一提交构建出来的示例服务端，以及旁边的视图存储服务端
-（8090 端口、同一个 MongoDB）跑上面这些步骤，两者都提供 `WowViewStore` 套件读取的系统视图。它的 `contract-elasticsearch` 作业也计入合并信号，会把 `test/view-engine/` 与 `test/view-store/` [在 Elasticsearch 上](#在-elasticsearch-上)再跑一遍，视图存储服务端仍在 MongoDB 上。重新生成后 `src/generated` 有任何变化就失败，任一步失败都会上传服务端日志。改到 `wow-client`、`wow-generator` 或本包时，还会从
-`wow-example-server` 镜像 8.10.8、8.11.5、9.1.3 和 9.1.5 生成代码并做类型检查；除 8.10.8 外，还对每个镜像
-跑 `test/released/`（`vitest.released.config.ts`）：一条命令、快照读取，以及不带 `limit` 的列表和列表流，
-逐一对照兼容性页为该版本写明的结果（`WOW_SERVER_VERSION`）。同源作业也跑 `test/released/`，按当前版本对照。
+`.github/workflows/typescript-contract.yml` 的 `v10-contract` 作业对着同一提交构建的服务
+跑 `test:v10`。
 
-`typecheck` 用 `tsconfig.test.json` 把 `src` 和 `test` 一起做类型检查，不需要服务端。`typescript.yml` 的
-Quality 作业经由根目录的 `pnpm typecheck` 在每个改到 TypeScript 的拉取请求上运行它，所以
-`wow-client` 或 `wow-react` 的类型变化弄坏这里的用例时，不必等契约作业就能发现。
-
-## 排查失败
-
-1. 先构建；工作区导入解析不到，通常是包的产物过期或缺失。
-2. 生成或测试前先访问 `http://localhost:8080/actuator/health`（视图存储是
-   `http://localhost:8090/actuator/health`）。
-3. 服务端契约变了就重新生成。
+`typecheck` 检查 `test`，不需要服务。`typescript.yml` 的 Quality 作业通过根目录的
+`pnpm typecheck` 在每个涉及 TypeScript 的拉取请求上运行它，所以 `wow-client`、
+`wow-view-store` 或 `wow-view-engine` 的类型改动破坏这些测试时，在那里就失败，
+不必等契约作业。
 
 [English](./README.md)

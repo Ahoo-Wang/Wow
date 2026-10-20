@@ -249,8 +249,9 @@ class QueryAutoConfiguration {
             .counts(
                 counts.ifAvailable,
                 // The events' own cache (a cache is keyed by type, not by model), valid while the type's snapshot
-                // write checkpoint holds, which moves as the snapshots follow the log.
-                counts.ifAvailable?.let {
+                // write checkpoint holds, which moves as the snapshots follow the log: off unless asked (D259), as the
+                // log runs ahead of that checkpoint.
+                counts.ifAvailable?.takeIf { properties.countCache.eventsEnabled }?.let {
                     QueryCountCache(
                         node::snapshotCheckpointOf,
                         properties.countCache.options()
@@ -399,21 +400,31 @@ class QueryAutoConfiguration {
             node: ServiceNode,
             properties: QueryProperties,
             reads: ObjectProvider<StateReads>,
-        ): QueryApi = InProcessQueryApi(
-            engine,
-            ReadModels(
-                node.contexts.values.flatMap { it.models }.map { model ->
-                    ReadModels.Model(model.type, model.stateType) { name -> model.findEventType(name)?.type }
+            peers: PeerClients,
+        ): QueryApi {
+            val models = node.contexts.values.flatMap { it.models }
+            val local = InProcessQueryApi(
+                engine,
+                ReadModels(
+                    models.map { model ->
+                        ReadModels.Model(model.type, model.stateType) { name -> model.findEventType(name)?.type }
+                    },
+                ),
+                latest = { ref ->
+                    reads.ifAvailable?.latest(ref)?.let {
+                        CommittedState(it.ref, it.version, it.scope, it.deleted, it.tags, it.state)
+                    }
                 },
-            ),
-            latest = { ref ->
-                reads.ifAvailable?.latest(ref)?.let {
-                    CommittedState(it.ref, it.version, it.scope, it.deleted, it.tags, it.state)
-                }
-            },
-            defaultListSize = properties.inProcess.defaultListSize,
-            chunkSize = properties.stream.chunkSize,
-        )
+                defaultListSize = properties.inProcess.defaultListSize,
+                chunkSize = properties.stream.chunkSize,
+            )
+            // The peer contexts of wow.clients.contexts are read over HTTP (decision D259).
+            return if (peers.contexts.isEmpty()) {
+                local
+            } else {
+                RoutedQueryApi(local, peers, models.mapTo(HashSet()) { it.stateType }, local::tenant)
+            }
+        }
 
         /**
          * The queries of the subscription handlers (decision D259): the node's [QueryApi] pinned to the tenant of each
@@ -423,7 +434,11 @@ class QueryAutoConfiguration {
         @ConditionalOnMissingBean
         @InternalWowApi
         fun wowContextQueries(api: QueryApi): ContextQueries =
-            if (api is InProcessQueryApi) ContextQueries(api::tenant) else ContextQueries.of(api)
+            when (api) {
+                is InProcessQueryApi -> ContextQueries(api::tenant)
+                is RoutedQueryApi -> ContextQueries(api::tenant)
+                else -> ContextQueries.of(api)
+            }
 
         /** Ends the open query streams before the public server's graceful shutdown waits for them (decision D253). */
         @Bean

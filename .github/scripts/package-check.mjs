@@ -56,7 +56,7 @@ import {
 //      ESM only and are imported;
 //    - each of the view engine's style sheets resolves through its exports to
 //      a non-empty file, as a host's `@import` or bundler reaches it;
-//    - the `wow-generator` and `fetcher-generator` bins print the version, and
+//    - the `wow-generator` bin prints the version, and
 //      `wow-view-engine theme-check --help` prints its usage;
 //    - LICENSE and README.md are in every package;
 //    - each of TYPESCRIPT_VERSIONS, installed in the project, compiles
@@ -110,12 +110,6 @@ export const STYLESHEETS = [
 /** Each bin, the arguments it runs with, and what its output must start with. */
 export const bins = version => [
   { bin: 'wow-generator', args: ['--version'], output: version, exact: true },
-  {
-    bin: 'fetcher-generator',
-    args: ['--version'],
-    output: version,
-    exact: true,
-  },
   {
     bin: 'wow-view-engine',
     args: ['theme-check', '--help'],

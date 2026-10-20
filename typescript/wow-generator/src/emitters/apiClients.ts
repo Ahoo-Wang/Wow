@@ -23,11 +23,7 @@ import type {
   BodyModel,
   ReturnModel,
 } from '../analysis/model';
-import {
-  addImport,
-  addImportBoundedContext,
-  modelModuleSpecifier,
-} from '../emit/imports';
+import { addImport, modelModuleSpecifier } from '../emit/imports';
 import { addJSDoc } from '../emit/jsdoc';
 import type { ModuleBuilder } from '../emit/moduleBuilder';
 import { quoteStringLiteral } from '../naming/naming';
@@ -71,17 +67,7 @@ export function emitApiClient(
   addImportEventStream(module);
   const apiClientClass = createDecoratorClass(client.className, module);
   addJSDoc(apiClientClass, [client.description]);
-  let defaults: string | undefined;
-  if (client.basePath) {
-    addImportBoundedContext(
-      module,
-      target.outputDir,
-      client.basePath.alias,
-      client.basePath.constantName,
-    );
-    defaults = `basePath: ${client.basePath.constantName}`;
-  }
-  addApiMetadataCtor(apiClientClass, defaults);
+  addApiMetadataCtor(apiClientClass);
   const types = clientTypes(client.className, module, target);
   for (const method of client.methods) {
     (apiClientClass.methods ??= []).push(apiMethod(method, types));

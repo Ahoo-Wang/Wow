@@ -32,7 +32,7 @@ object Report {
     fun result(
         label: String,
         adapter: VersionAdapter,
-        scenario: Scenario,
+        mix: Mix,
         rate: Double,
         warmUp: Int,
         measure: Int,
@@ -64,8 +64,8 @@ object Report {
             "schema" to "wow-e2e-bench/run/1",
             "label" to label,
             "version" to adapter.name,
-            "scenario" to scenario.label,
-            "scenarioDescription" to scenario.description,
+            "scenario" to mix.label,
+            "scenarioDescription" to mix.description,
             "startedAt" to startedAt.toString(),
             "load" to mapOf(
                 "model" to "open loop, fixed arrival rate; latency from each operation's scheduled time",
@@ -88,6 +88,7 @@ object Report {
                 "worstSecond" to worstSecond?.get("second"),
                 "maxSendLagMs" to measured.maxSendLagNanos.get() / OpenLoop.NANOS_PER_MICRO / MICROS_PER_MILLI,
                 "failedLatencyMs" to latencies(measured.errorLatency),
+                "byScenario" to byScenario(measured, measure),
                 "perSecond" to seconds,
                 "histogram" to mapOf(
                     "unit" to "microseconds",
@@ -100,6 +101,20 @@ object Report {
             "meta" to meta,
         )
     }
+
+    /** A mix's scenarios, each apart: what completed, what failed, its latencies; null for one scenario. */
+    private fun byScenario(measured: OpenLoop.Measured, measure: Int): Map<String, Any?>? =
+        measured.byScenario.keys.plus(measured.failedByScenario.keys).toSet()
+            .associate { scenario ->
+                val histogram = measured.byScenario[scenario] ?: Histogram()
+                scenario.label to mapOf(
+                    "ok" to histogram.count,
+                    "failed" to (measured.failedByScenario[scenario]?.sum() ?: 0L),
+                    "throughput" to histogram.count.toDouble() / measure,
+                    "latencyMs" to latencies(histogram),
+                )
+            }
+            .takeIf { it.isNotEmpty() }
 
     /** A few lines for a person: what ran, how fast, how long it took, what it cost. */
     @Suppress("UNCHECKED_CAST")
@@ -130,12 +145,34 @@ object Report {
                     "${ms(latency["max"])} | ${ms(results["worstSecondP99Ms"] as Double?)} |",
             )
             (results["errors"] as Map<String, Long>).takeIf { it.isNotEmpty() }?.let { appendLine("\nErrors: $it") }
+            (results["byScenario"] as Map<String, Map<String, Any?>>?)?.let { appendScenarios(it) }
             resources?.let { appendResources(it) }
         }
     }
 
     @Suppress("UNCHECKED_CAST")
+    private fun StringBuilder.appendScenarios(byScenario: Map<String, Map<String, Any?>>) {
+        appendLine()
+        appendLine("| Scenario | Throughput | OK | Failed | p50 | p99 | p999 |")
+        appendLine("| --- | --- | --- | --- | --- | --- | --- |")
+        byScenario.forEach { (label, scenario) ->
+            val latency = scenario["latencyMs"] as Map<String, Double>
+            appendLine(
+                "| $label | ${"%.1f".format(scenario["throughput"] as Double)}/s | ${scenario["ok"]} | ${scenario["failed"]} | " +
+                    "${ms(latency["p50"])} | ${ms(latency["p99"])} | ${ms(latency["p999"])} |",
+            )
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
     private fun StringBuilder.appendResources(resources: Map<String, Any?>) {
+        (resources["loadGenerator"] as Map<String, Any?>?)?.let {
+            appendLine()
+            appendLine(
+                "Load generator: ${"%.2f".format(it["averageCores"] as Double)} cores of " +
+                    "${it["availableProcessors"]} available to it.",
+            )
+        }
         val processes = resources["processes"] as Map<String, Map<String, Any?>>?
         if (!processes.isNullOrEmpty()) {
             appendLine()

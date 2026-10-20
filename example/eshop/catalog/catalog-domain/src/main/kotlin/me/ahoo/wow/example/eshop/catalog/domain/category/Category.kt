@@ -26,15 +26,6 @@ import me.ahoo.wow.example.eshop.catalog.api.category.CreateCategory
 import me.ahoo.wow.example.eshop.catalog.api.category.RenameCategory
 import me.ahoo.wow.example.eshop.catalog.domain.CatalogNames
 
-/** The codes a category rejects a command with. */
-object CategoryRejections {
-    @ErrorCode(description = "A category's name is never blank.")
-    const val BLANK_NAME = "eshop-catalog.category.blank-name"
-
-    @ErrorCode(description = "Another category has this name.", status = 409)
-    const val NAME_TAKEN = "eshop-catalog.category.name-taken"
-}
-
 /** The state of a [Category]. */
 class CategoryState {
     var name: String = ""
@@ -76,10 +67,22 @@ class Category(private val state: CategoryState) {
 
     /** Rejects a blank name or one another category holds; null when this category may take [name]. */
     private suspend fun take(name: String, scope: DecideScope): Decision? = when {
-        name.isBlank() -> Decision.reject(CategoryRejections.BLANK_NAME, "A category needs a name.")
+        name.isBlank() -> Decision.reject(Rejections.BLANK_NAME, "A category needs a name.")
         !scope.reserve(CatalogNames.CATEGORY_NAMES, CatalogNames.key(name)) ->
-            Decision.reject(CategoryRejections.NAME_TAKEN, "Another category is named \"${name.trim()}\".")
+            Decision.reject(Rejections.NAME_TAKEN, "Another category is named \"${name.trim()}\".")
 
         else -> null
+    }
+
+    /**
+     * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them
+     * `<context>.category.<code>` (decision D259), as its peers read them from the api's generated contract.
+     */
+    object Rejections {
+        @ErrorCode(description = "A category's name is never blank.")
+        const val BLANK_NAME = "blank-name"
+
+        @ErrorCode(description = "Another category has this name.", status = 409)
+        const val NAME_TAKEN = "name-taken"
     }
 }

@@ -142,4 +142,27 @@ class HostCountCacheTest {
             host.context.getBean(OutcomeObserver::class.java).outcomes.assert().isEmpty()
         }
     }
+
+    @Test
+    fun `the events' counts should be cached only when asked, the log running ahead of the snapshots (D259)`() {
+        listOf(false, true).forEach { eventsEnabled ->
+            startHost(
+                "wow.query.count-cache.events-enabled" to eventsEnabled,
+                sources = listOf(
+                    HostTestApp::class.java,
+                    MemorySnapshotQueries::class.java,
+                    ScannedEvents::class.java,
+                    QueryOutcomes::class.java,
+                ),
+            ).use { host ->
+                repeat(2) {
+                    host.post("/bank/account/events/query", """{"kind":"count","filter":{"op":"MATCH_ALL"}}""")
+                        .status.assert().isEqualTo(200)
+                }
+                val cached = host.context.getBean(OutcomeObserver::class.java).outcomes
+                    .filter { it.endsWith(":${QueryCountCache.CACHED_OUTCOME}") }
+                cached.assert().hasSize(if (eventsEnabled) 1 else 0)
+            }
+        }
+    }
 }

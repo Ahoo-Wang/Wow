@@ -56,11 +56,14 @@ import me.ahoo.wow.manifest.SubscriptionStart
  *   on `wow.<context>.<aggregate>.state`;
  * - a subscription's `start` (decisions D154, D194): what `@OnEvent(start)` declares, else the beginning for a
  *   projection or a handler of another context's stream, the end for a reactor or a saga of its own context's log;
- * - a saga's `derives` (decision D138): what `@OnEvent(derives)` declares, else the commands its return type names, a
- *   command a module's aggregate decides by its full type name and any other by its class's schema reference;
+ * - a saga's `derives` (decisions D138, D259): the classes `@OnEvent(derives)` declares, else the commands its return
+ *   type names (the subclasses of a sealed one; none for `Unit`), a command a module's aggregate decides by its full
+ *   type name and any other by its class's schema reference;
  * - the source `@OnEvent(aggregates)` names, of this context or another (decision D138);
  * - a saga's `@OnRejected` handlers (decisions D136, D153) as subscriptions with `rejected`, and its `@OnCommitted`
  *   handlers (decision D192) as subscriptions with `committed`;
+ * - a saga's `calls` (decision D259): the classes `@OnEvent(calls)` declares, by the same references as `derives`;
+ *   a command of the module's context is derived, never called;
  * - a saga's `@OnSchedule` handlers (decision D198) as subscriptions of the context's job aggregate with their `job`.
  *
  * An aggregate's mounted commands (`@MountedCommand`, decision D182) are among its commands, marked `mounted`, with
@@ -99,8 +102,8 @@ internal object ManifestFragmentBuilder {
 
     /**
      * What the fragment of [context] cannot say of [subscriptions]: an `@OnEvent(aggregates)` of [context] that is not
-     * an aggregate of the module whose state the handler takes, and a command a saga's return type derives, which a
-     * module's aggregate decides, that its `@OnEvent(derives)` does not list.
+     * an aggregate of the module whose state the handler takes, and a command a saga's return type derives that its
+     * `@OnEvent(derives)` does not list.
      */
     fun problems(
         context: String,
@@ -123,7 +126,7 @@ internal object ManifestFragmentBuilder {
 
                         else -> null
                     }
-                } + undeclaredDerives(where, handler, commands)
+                } + undeclaredDerives(where, handler, commands) + ownCalls(where, handler, commands)
             }
         }
     }
@@ -132,10 +135,16 @@ internal object ManifestFragmentBuilder {
         if (handler.derives.isEmpty()) {
             return emptyList()
         }
-        return handler.derived.orEmpty().mapNotNull { commands.nameOf(it) }.filterNot { it in handler.derives }.map {
-            "$where returns $it, which its @OnEvent(derives) does not list"
+        return handler.derived.orEmpty().filterNot { it in handler.derives }.map {
+            "$where returns ${commands.nameOf(it) ?: it}, which its @OnEvent(derives) does not list"
         }
     }
+
+    /** A command of this context `@OnEvent(calls)` names: the saga derives it instead (decision D193). */
+    private fun ownCalls(where: String, handler: HandlerBinding, commands: CommandNames): List<String> =
+        handler.calls.mapNotNull { commands.nameOf(it) }.map {
+            "$where calls $it, a command of its own context: derive it (return it) instead of calling it"
+        }
 
     private fun aggregate(context: String, binding: AggregateBinding): AggregateManifest {
         val eventNames = binding.sourcing.associate { it.event to (it.eventName ?: simpleName(it.type)) }
@@ -223,6 +232,7 @@ internal object ManifestFragmentBuilder {
                 derives = derives.takeIf { kind == SubscriptionKind.SAGA },
                 start = SubscriptionStart.valueOf(handler.startIn(context, binding.kind)),
                 schedules = handler.schedules.distinct().sorted().ifEmpty { null },
+                calls = handler.calls.map(commands::referenceOf).distinct().sorted().ifEmpty { null },
                 retry = handler.retry?.manifest(),
                 job = handler.job?.manifest(),
             )
@@ -277,13 +287,11 @@ internal object ManifestFragmentBuilder {
         return SubscriptionSource(context, listOf(aggregate.aggregateName), nullableState = nullable)
     }
 
-    /** The declared [derives], else the [derived] classes by [commands]' references; null when neither says. */
+    /**
+     * The declared [derives] classes, else the [derived] ones, by [commands]' references; null when neither says.
+     */
     private fun derives(derives: List<String>, derived: List<String>?, commands: CommandNames): List<String>? =
-        if (derives.isNotEmpty()) {
-            derives.distinct().sorted()
-        } else {
-            derived?.map(commands::referenceOf)?.distinct()?.sorted()
-        }
+        derives.ifEmpty { derived }?.map(commands::referenceOf)?.distinct()?.sorted()
 
     /**
      * The full type names of the commands the module's aggregates decide, by their classes' binary names: a class two

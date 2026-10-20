@@ -18,8 +18,7 @@ rootProject.name = "Wow"
 
 /*
  * Only V10 projects remain: the 9.x code left `v10` early (decisions D244, D262; it lives on at the side branch
- * `v10-9x-baseline` and on main). The build scope `-Pwow.scope` that told the two apart is gone; a `-Pwow.scope=v10`
- * a caller still passes is an unused property and changes nothing.
+ * `v10-9x-baseline` and on main). The build scope `-Pwow.scope` that told the two apart is gone.
  */
 
 /*
@@ -87,6 +86,9 @@ include(":openapi")
 project(":openapi").projectDir = file("edge/openapi")
 include(":http")
 project(":http").projectDir = file("edge/http")
+// The typed command and query clients over HTTP (decisions D257, D259): JDK HttpClient only, no Spring.
+include(":client")
+project(":client").projectDir = file("edge/client")
 include(":cosec")
 project(":cosec").projectDir = file("edge/cosec")
 // Tracing and metrics on the core's observation seams (decision D174); artifact wow-opentelemetry.

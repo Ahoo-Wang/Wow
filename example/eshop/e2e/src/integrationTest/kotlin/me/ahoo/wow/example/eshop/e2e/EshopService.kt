@@ -70,6 +70,9 @@ class EshopService private constructor(
     /** The internal port, where the other services call it synchronously (decision D193). */
     val internalPort: Int,
 ) : AutoCloseable {
+    /** The service's process id, for its resource samples. */
+    val pid: Long get() = process.pid()
+
     private val http: HttpClient = HttpClient.newBuilder()
         .version(HttpClient.Version.HTTP_1_1)
         .connectTimeout(Duration.ofSeconds(5))
@@ -185,7 +188,9 @@ class EshopService private constructor(
             readyHeaders: Map<String, String>,
         ): EshopService {
             val property = "eshop.$context.classpath"
-            val classpath = requireNotNull(System.getProperty(property)) { "System property $property is not set." }
+            val server = requireNotNull(System.getProperty(property)) { "System property $property is not set." }
+            // The soak adds its own classes (SoakSignals, an auto-configuration) to every node's class path.
+            val classpath = System.getProperty("eshop.extra-classpath")?.let { server + File.pathSeparator + it } ?: server
             val java = ProcessHandle.current().info().command().orElseThrow()
             // Kept in `eshop.logs` (the build's `eshop-logs`) when the build names it, so a failed run can be read.
             val logs = System.getProperty("eshop.logs")?.let { File(it).apply { mkdirs() } }

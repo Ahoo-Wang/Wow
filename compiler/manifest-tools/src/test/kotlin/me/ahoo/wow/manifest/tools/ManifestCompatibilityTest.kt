@@ -464,6 +464,12 @@ class ManifestCompatibilityTest {
                 "ADDITIVE $CONTEXT.subscriptions[CartProjector.onItemAdded].committed: handles commits",
             ),
             row(
+                "call declared",
+                BASELINE.subscription { it.copyWith(calls = listOf("ordering.order.SubmitOrder")) },
+                "ADDITIVE $CONTEXT.subscriptions[CartProjector.onItemAdded].calls: called command " +
+                    "ordering.order.SubmitOrder added",
+            ),
+            row(
                 "rejections handled",
                 BASELINE.subscription { it.copyWith(rejected = emptyList()) },
                 "ADDITIVE $CONTEXT.subscriptions[CartProjector.onItemAdded].rejected: handles rejections",

@@ -248,4 +248,4 @@ export type MessageOverrides = Partial<Record<MessageKey, string>>;
 
 - Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--docs)：宿主、绑定、两个声明的操作、两种语言与一个内存路由器。
 - 源文件：[`OrdersHost.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/OrdersHost.tsx)、[`orderActions.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/orderActions.ts)、[`memoryRouter.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/memoryRouter.ts)。
-- 一个真实宿主：补偿控制台的 [`src/views/`](https://github.com/Ahoo-Wang/Wow/tree/main/compensation/dashboard/src/views)。
+- 一个真实宿主：补偿控制台的 [`src/views/`](https://github.com/Ahoo-Wang/Wow/tree/v10-9x-baseline/compensation/dashboard/src/views)。

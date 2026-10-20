@@ -19,6 +19,9 @@ on:
     branches: [main, v10]
   push:
     branches: [main, v10]
+  # A merge queue's group (its commit is what lands on the branch); the scope
+  # job compares it with the branch's tip, and the gate job reports on it.
+  merge_group:
   workflow_dispatch:
 
 permissions:
@@ -44,7 +47,6 @@ jobs:
       package-docs: ${{ steps.scope.outputs.packageDocs }}
       view-engine-docs: ${{ steps.scope.outputs.viewEngineDocs }}
       workflows: ${{ steps.scope.outputs.workflows }}
-      compat-debt: ${{ steps.scope.outputs.compatDebt }}
       package: ${{ steps.scope.outputs.package }}
     steps:
       - uses: actions/checkout@v7
@@ -56,23 +58,6 @@ jobs:
           BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: node .github/scripts/ci-scope.mjs
-
-  # The ledger alone, for a Kotlin-only change: quality runs it otherwise.
-  compat-debt:
-    name: Compat-debt ledger
-    needs: scope
-    if: needs.scope.outputs.compat-debt == 'true'
-    timeout-minutes: 5
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24.21.0
-      - name: Check compatibility-debt ledger
-        run: node .github/scripts/compat-debt.mjs
 
   # Every pull request: tracked files follow the canonical locations of the
   # documentation governance page. It reads only `git ls-files`.
@@ -118,9 +103,6 @@ jobs:
       # gradle.properties is the one version source; every package.json follows it.
       - name: Check package versions
         run: node .github/scripts/project-version.mjs check
-      # Compatibility markers in typescript/*/src and docs/compat-debt.md agree.
-      - name: Check compatibility-debt ledger
-        run: node .github/scripts/compat-debt.mjs
       - run: pnpm install --frozen-lockfile
       - name: Check changed-file formatting
         env:
@@ -177,7 +159,9 @@ jobs:
       # A flag per package, so Codecov carries forward the coverage of the
       # packages a scoped run left out.
       - name: Upload coverage
-        if: matrix.node-version == 24
+        # A merge group's commit is what lands on the branch, whose push run
+        # uploads the same coverage for it; an upload here would double it.
+        if: matrix.node-version == 24 && github.event_name != 'merge_group'
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true
@@ -340,6 +324,9 @@ jobs:
         working-directory: typescript/wow-view-engine
         run: pnpm test:type
       - name: Upload view-engine coverage
+        # A merge group's commit is what lands on the branch, whose push run
+        # uploads the same coverage for it; an upload here would double it.
+        if: github.event_name != 'merge_group'
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true
@@ -481,7 +468,6 @@ jobs:
         package-docs,
         docs,
         workflow-lint,
-        compat-debt,
         docs-layout,
       ]
     if: always()

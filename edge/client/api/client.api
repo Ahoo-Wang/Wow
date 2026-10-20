@@ -1,0 +1,164 @@
+public abstract interface class me/ahoo/wow/client/ClientMode {
+	public abstract fun getPort ()Lme/ahoo/wow/client/Port;
+}
+
+public final class me/ahoo/wow/client/ClientMode$Service : me/ahoo/wow/client/ClientMode {
+	public fun <init> (Lme/ahoo/wow/client/ServiceCredential;)V
+	public final fun getCredential ()Lme/ahoo/wow/client/ServiceCredential;
+	public fun getPort ()Lme/ahoo/wow/client/Port;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/client/ClientMode$User : me/ahoo/wow/client/ClientMode {
+	public fun <init> (Lme/ahoo/wow/client/UserCredential;)V
+	public final fun getCredential ()Lme/ahoo/wow/client/UserCredential;
+	public fun getPort ()Lme/ahoo/wow/client/Port;
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/client/EndpointResolver {
+	public static final field Companion Lme/ahoo/wow/client/EndpointResolver$Companion;
+	public static final field NONE Lme/ahoo/wow/client/EndpointResolver;
+	public static fun of (Ljava/util/Map;)Lme/ahoo/wow/client/EndpointResolver;
+	public static fun of (Ljava/util/Map;Ljava/util/Map;)Lme/ahoo/wow/client/EndpointResolver;
+	public abstract fun resolve (Ljava/lang/String;Lme/ahoo/wow/client/Port;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/client/EndpointResolver$Companion {
+	public final fun of (Ljava/util/Map;)Lme/ahoo/wow/client/EndpointResolver;
+	public final fun of (Ljava/util/Map;Ljava/util/Map;)Lme/ahoo/wow/client/EndpointResolver;
+	public static synthetic fun of$default (Lme/ahoo/wow/client/EndpointResolver$Companion;Ljava/util/Map;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/client/EndpointResolver;
+}
+
+public final class me/ahoo/wow/client/ForwardedHeaders : kotlin/coroutines/AbstractCoroutineContextElement {
+	public static final field Key Lme/ahoo/wow/client/ForwardedHeaders$Key;
+	public fun <init> (Ljava/util/Map;)V
+	public final fun getHeaders ()Ljava/util/Map;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/client/ForwardedHeaders$Key : kotlin/coroutines/CoroutineContext$Key {
+}
+
+public final class me/ahoo/wow/client/HttpCommandClient : me/ahoo/wow/api/client/CommandClient {
+	public fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/client/CommandClient;
+	public fun send (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun stream (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;)Lkotlinx/coroutines/flow/Flow;
+	public fun wait (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/client/HttpQueryApi : me/ahoo/wow/api/read/QueryApi {
+	public static final field Companion Lme/ahoo/wow/client/HttpQueryApi$Companion;
+	public static final field MAX_RESUMES_WITHOUT_ROWS I
+	public fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/read/Queries;
+	public fun trusted ()Lme/ahoo/wow/api/read/TrustedQueries;
+}
+
+public final class me/ahoo/wow/client/HttpQueryApi$Companion {
+}
+
+public final class me/ahoo/wow/client/Port : java/lang/Enum {
+	public static final field INTERNAL Lme/ahoo/wow/client/Port;
+	public static final field PUBLIC Lme/ahoo/wow/client/Port;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/client/Port;
+	public static fun values ()[Lme/ahoo/wow/client/Port;
+}
+
+public final class me/ahoo/wow/client/RetryPolicy {
+	public static final field Companion Lme/ahoo/wow/client/RetryPolicy$Companion;
+	public static final field DEFAULT Lme/ahoo/wow/client/RetryPolicy;
+	public static final field NONE Lme/ahoo/wow/client/RetryPolicy;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBackoff-UwyO8pc ()J
+	public final fun getMaxAttempts ()I
+	public final fun getMaxRetryAfter-UwyO8pc ()J
+	public fun hashCode ()I
+	public static final fun of ()Lme/ahoo/wow/client/RetryPolicy;
+	public static final fun of (I)Lme/ahoo/wow/client/RetryPolicy;
+	public static final fun of-5qebJ5I (IJJ)Lme/ahoo/wow/client/RetryPolicy;
+	public static final fun of-HG0u8IE (IJ)Lme/ahoo/wow/client/RetryPolicy;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/client/RetryPolicy$Companion {
+	public final fun of ()Lme/ahoo/wow/client/RetryPolicy;
+	public final fun of (I)Lme/ahoo/wow/client/RetryPolicy;
+	public final fun of-5qebJ5I (IJJ)Lme/ahoo/wow/client/RetryPolicy;
+	public static synthetic fun of-5qebJ5I$default (Lme/ahoo/wow/client/RetryPolicy$Companion;IJJILjava/lang/Object;)Lme/ahoo/wow/client/RetryPolicy;
+	public final fun of-HG0u8IE (IJ)Lme/ahoo/wow/client/RetryPolicy;
+}
+
+public abstract interface class me/ahoo/wow/client/ServiceCredential {
+	public static final field Companion Lme/ahoo/wow/client/ServiceCredential$Companion;
+	public static final field NONE Lme/ahoo/wow/client/ServiceCredential;
+	public abstract fun authorization (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static fun bearer (Ljava/lang/String;)Lme/ahoo/wow/client/ServiceCredential;
+}
+
+public final class me/ahoo/wow/client/ServiceCredential$Companion {
+	public final fun bearer (Ljava/lang/String;)Lme/ahoo/wow/client/ServiceCredential;
+}
+
+public abstract interface class me/ahoo/wow/client/UserCredential {
+	public static final field Companion Lme/ahoo/wow/client/UserCredential$Companion;
+	public static final field FORWARDED Lme/ahoo/wow/client/UserCredential;
+	public static final field NONE Lme/ahoo/wow/client/UserCredential;
+	public abstract fun headers (Lme/ahoo/wow/api/caller/Caller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/client/UserCredential$Companion {
+}
+
+public final class me/ahoo/wow/client/WowClient {
+	public static final field Companion Lme/ahoo/wow/client/WowClient$Companion;
+	public static final fun builder ()Lme/ahoo/wow/client/WowClient$Builder;
+	public final fun getCommands ()Lme/ahoo/wow/api/client/CommandClient;
+	public final fun getQueries ()Lme/ahoo/wow/api/read/QueryApi;
+}
+
+public final class me/ahoo/wow/client/WowClient$Builder {
+	public final fun build ()Lme/ahoo/wow/client/WowClient;
+	public final fun classLoader (Ljava/lang/ClassLoader;)Lme/ahoo/wow/client/WowClient$Builder;
+	public final fun connectTimeout-LRDsOJo (J)Lme/ahoo/wow/client/WowClient$Builder;
+	public final fun endpoints (Lme/ahoo/wow/client/EndpointResolver;)Lme/ahoo/wow/client/WowClient$Builder;
+	public final fun httpClient (Ljava/net/http/HttpClient;)Lme/ahoo/wow/client/WowClient$Builder;
+	public final fun retry (Lme/ahoo/wow/client/RetryPolicy;)Lme/ahoo/wow/client/WowClient$Builder;
+	public final fun service (Lme/ahoo/wow/client/ServiceCredential;)Lme/ahoo/wow/client/WowClient$Builder;
+	public final fun timeout-LRDsOJo (J)Lme/ahoo/wow/client/WowClient$Builder;
+	public final fun user (Lme/ahoo/wow/client/UserCredential;)Lme/ahoo/wow/client/WowClient$Builder;
+}
+
+public final class me/ahoo/wow/client/WowClient$Companion {
+	public final fun builder ()Lme/ahoo/wow/client/WowClient$Builder;
+	public final fun getDEFAULT_TIMEOUT-UwyO8pc ()J
+}
+
+public final class me/ahoo/wow/client/wire/CallHeader {
+	public static final field INSTANCE Lme/ahoo/wow/client/wire/CallHeader;
+	public final fun format (Lme/ahoo/wow/runtime/admission/CallContext;)Ljava/lang/String;
+	public final fun parse (Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/CallContext;
+}
+
+public final class me/ahoo/wow/client/wire/ScopeHeader {
+	public static final field INSTANCE Lme/ahoo/wow/client/wire/ScopeHeader;
+	public static final field OWNER Ljava/lang/String;
+	public static final field SPACE Ljava/lang/String;
+	public static final field TENANT Ljava/lang/String;
+	public final fun format (Lme/ahoo/wow/runtime/admission/TargetScope;)Ljava/lang/String;
+	public final fun parse (Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/TargetScope;
+}
+
+public final class me/ahoo/wow/client/wire/WowHeaders {
+	public static final field CALL Ljava/lang/String;
+	public static final field ETAG Ljava/lang/String;
+	public static final field IF_MATCH Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/client/wire/WowHeaders;
+	public static final field REBUILDING Ljava/lang/String;
+	public static final field REQUEST_ID Ljava/lang/String;
+	public static final field SCOPE Ljava/lang/String;
+	public static final field SPACE Ljava/lang/String;
+	public static final field WAIT Ljava/lang/String;
+	public static final field WAIT_TIMEOUT Ljava/lang/String;
+}
+
