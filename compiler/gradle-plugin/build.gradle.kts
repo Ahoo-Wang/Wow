@@ -54,8 +54,6 @@ dependencies {
     functionalPluginClasspath("org.jetbrains.kotlin:kotlin-gradle-plugin:${libs.versions.kotlin.asProvider().get()}")
     // The generated models build on the kernel, which brings wow-api.
     fixtureCompileClasspath(project(":kernel"))
-    // The query fields of the states: the compiler's <State>Properties and the api's generated <Context>Contract.
-    fixtureCompileClasspath(project(":query-api"))
     fixtureCompileClasspath("com.fasterxml.jackson.core:jackson-annotations")
     fixtureCompileClasspath(platform(project(":wow-dependencies")))
     fixtureProcessorClasspath(project(":compiler"))
@@ -76,11 +74,17 @@ tasks.processResources {
     }
 }
 
+// The fixture compiles against wow-query-api too, for the query fields of its states (the compiler's <State>Properties
+// and the api's generated <Context>Contract): the jar the tools bring, so the plugin declares no more projects.
+val fixtureQueryApi: FileCollection = fixtureToolsClasspath.incoming.artifactView {
+    componentFilter { it is ProjectComponentIdentifier && it.projectPath == ":query-api" }
+}.files
+
 tasks.test {
     inputs.files(fixtureCompileClasspath, fixtureProcessorClasspath, fixtureToolsClasspath)
         .withPropertyName("fixtureClasspath")
         .withNormalizer(ClasspathNormalizer::class.java)
-    val compileClasspath = fixtureCompileClasspath
+    val compileClasspath = fixtureCompileClasspath + fixtureQueryApi
     val processorClasspath = fixtureProcessorClasspath
     val toolsClasspath = fixtureToolsClasspath
     doFirst {
