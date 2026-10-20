@@ -20,8 +20,17 @@ package me.ahoo.wow.analytics.catalog.domain.dataset
  * - a reference `<alias>.<column>`, or `<alias>.<column>.<path>` for a value inside a JSON column; a name that is
  *   not a plain identifier is written in backquotes (`` o.`unit price` ``);
  * - literals: numbers, `'text'` (a quote doubled inside), `true`, `false`, `null`;
- * - `+ - * / %`, `= != <> < <= > >=`, `and`, `or`, `not`, `in (…)`, `not in (…)`, `is null`, `is not null`;
- * - calls of the functions of [FUNCTIONS] only, by their ClickHouse names.
+ * - `+ - * / %`, `= != <> < <= > >=`, `and`, `or`, `not`, `in (…)`, `not in (…)`, `between … and …`,
+ *   `is null`, `is not null`;
+ * - calls of the functions of [FUNCTIONS] only, by their ClickHouse names, and the text tests of the query protocol,
+ *   `contains`, `startsWith` and `endsWith`, each with an `…IgnoreCase` form.
+ *
+ * Where it says what a filter of the query protocol says (`FilterExpression`), it says it alike, so an analyst reads
+ * a definition as a query: `=` is `EQ` (`= null` is `IS_NULL`), `!=` is `NE` (`!= null` is `IS_NOT_NULL`), `> >= < <=`
+ * are `GT GTE LT LTE`, `in`/`not in` are `IN`/`NOT_IN`, `between` is `BETWEEN` (both bounds included), `is null`/
+ * `is not null` are `IS_NULL`/`IS_NOT_NULL`, `and`/`or` are `AND`/`OR`, `not` is a `NOR` of one, and `contains`,
+ * `startsWith`, `endsWith` are `CONTAINS`, `STARTS_WITH`, `ENDS_WITH` (case-insensitive in their `…IgnoreCase` form).
+ * As there, `!=` and `not in` keep the rows whose value is null.
  */
 internal sealed interface DatasetExpression {
     /** The value at [path] (empty for the whole column) of [alias]'s [column]. */
@@ -46,6 +55,10 @@ internal sealed interface DatasetExpression {
 
     data class IsNull(val operand: DatasetExpression, val negated: Boolean) : DatasetExpression
 
+    /** [operand] between [lower] and [upper], both included. */
+    data class Between(val operand: DatasetExpression, val lower: DatasetExpression, val upper: DatasetExpression) :
+        DatasetExpression
+
     /** Every reference of the expression, in the order it reads them. */
     fun refs(): List<Ref> = when (this) {
         is Ref -> listOf(this)
@@ -55,6 +68,7 @@ internal sealed interface DatasetExpression {
         is Binary -> left.refs() + right.refs()
         is In -> operand.refs() + values.flatMap { it.refs() }
         is IsNull -> operand.refs()
+        is Between -> operand.refs() + lower.refs() + upper.refs()
     }
 
     companion object {
@@ -63,6 +77,16 @@ internal sealed interface DatasetExpression {
 
         /** How deeply an expression may nest. */
         const val MAX_DEPTH: Int = 32
+
+        /** The query protocol's text tests (`CONTAINS`, `STARTS_WITH`, `ENDS_WITH`), with their case-insensitive forms. */
+        val TEXT_TESTS: Set<String> = setOf(
+            "contains",
+            "containsIgnoreCase",
+            "startsWith",
+            "startsWithIgnoreCase",
+            "endsWith",
+            "endsWithIgnoreCase",
+        )
 
         /**
          * The ClickHouse functions an expression may call: conversions, dates, text, conditions and arithmetic, each
@@ -77,13 +101,13 @@ internal sealed interface DatasetExpression {
             "toStartOfQuarter", "toStartOfMonth", "toStartOfWeek", "toStartOfDay", "toStartOfHour", "toYYYYMM",
             "toYYYYMMDD", "dateDiff", "addDays", "addMonths", "addHours", "formatDateTime", "today", "now",
             // Text.
-            "concat", "lower", "upper", "trim", "substring", "length", "replaceAll", "startsWith", "endsWith",
-            "position", "like", "notLike", "leftPad", "rightPad",
+            "concat", "lower", "upper", "trim", "substring", "length", "replaceAll", "position", "like",
+            "notLike", "leftPad", "rightPad",
             // Conditions and empty values.
             "if", "multiIf", "coalesce", "ifNull", "nullIf", "isNull", "isNotNull", "empty", "notEmpty",
             // Arithmetic.
             "abs", "round", "floor", "ceil", "greatest", "least", "intDiv",
-        )
+        ) + TEXT_TESTS
 
         /**
          * The expression [text] writes, or why it is none ([DatasetExpressionException]): a syntax error, a function
@@ -146,6 +170,12 @@ private class DatasetExpressionParser(private val text: String) {
             }
 
             keyword("in") -> DatasetExpression.In(left, list(), negated = false)
+            keyword("between") -> {
+                val lower = additive()
+                if (!keyword("and")) throw problem("has between without and")
+                DatasetExpression.Between(left, lower, additive())
+            }
+
             else -> left
         }
     }

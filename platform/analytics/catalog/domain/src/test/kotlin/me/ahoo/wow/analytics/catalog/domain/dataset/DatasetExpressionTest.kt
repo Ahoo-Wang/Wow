@@ -15,6 +15,7 @@ package me.ahoo.wow.analytics.catalog.domain.dataset
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetExpression.Between
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetExpression.Binary
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetExpression.Call
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetExpression.In
@@ -22,6 +23,7 @@ import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetExpression.IsNull
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetExpression.Literal
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetExpression.Ref
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetExpression.Unary
+import me.ahoo.wow.api.query.FilterOperator
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
@@ -91,6 +93,65 @@ class DatasetExpressionTest {
             .containsExactly("a", "b", "c")
     }
 
+    /**
+     * What a filter of the query protocol says, the definition says alike: each operator of [FilterOperator] a
+     * dataset's filter can say, as the grammar writes it.
+     */
+    @Test
+    fun `the grammar should say what the query protocol's filters say, by the same names`() {
+        val a = Ref("o", "a")
+        fun text(value: String) = Literal(Literal.Kind.STRING, value)
+        val table = listOf(
+            Triple(FilterOperator.EQ, "o.a = 1", Binary("=", a, number("1"))),
+            Triple(FilterOperator.NE, "o.a != 1", Binary("!=", a, number("1"))),
+            Triple(FilterOperator.NE, "o.a <> 1", Binary("!=", a, number("1"))),
+            Triple(FilterOperator.GT, "o.a > 1", Binary(">", a, number("1"))),
+            Triple(FilterOperator.GTE, "o.a >= 1", Binary(">=", a, number("1"))),
+            Triple(FilterOperator.LT, "o.a < 1", Binary("<", a, number("1"))),
+            Triple(FilterOperator.LTE, "o.a <= 1", Binary("<=", a, number("1"))),
+            Triple(FilterOperator.IN, "o.a in (1, 2)", In(a, listOf(number("1"), number("2")), negated = false)),
+            Triple(FilterOperator.NOT_IN, "o.a not in (1)", In(a, listOf(number("1")), negated = true)),
+            Triple(FilterOperator.BETWEEN, "o.a between 1 and 2", Between(a, number("1"), number("2"))),
+            Triple(FilterOperator.IS_NULL, "o.a is null", IsNull(a, negated = false)),
+            Triple(FilterOperator.IS_NULL, "o.a = null", Binary("=", a, Literal(Literal.Kind.NULL, "null"))),
+            Triple(FilterOperator.IS_NOT_NULL, "o.a is not null", IsNull(a, negated = true)),
+            Triple(
+                FilterOperator.AND,
+                "o.a = 1 and o.a = 2",
+                Binary("AND", Binary("=", a, number("1")), Binary("=", a, number("2")))
+            ),
+            Triple(
+                FilterOperator.OR,
+                "o.a = 1 or o.a = 2",
+                Binary("OR", Binary("=", a, number("1")), Binary("=", a, number("2")))
+            ),
+            Triple(FilterOperator.NOR, "not o.a = 1", Unary("NOT", Binary("=", a, number("1")))),
+            Triple(FilterOperator.CONTAINS, "contains(o.a, 'x')", Call("contains", listOf(a, text("x")))),
+            Triple(
+                FilterOperator.CONTAINS,
+                "containsIgnoreCase(o.a, 'x')",
+                Call("containsIgnoreCase", listOf(a, text("x")))
+            ),
+            Triple(FilterOperator.STARTS_WITH, "startsWith(o.a, 'x')", Call("startsWith", listOf(a, text("x")))),
+            Triple(
+                FilterOperator.STARTS_WITH,
+                "startsWithIgnoreCase(o.a, 'x')",
+                Call("startsWithIgnoreCase", listOf(a, text("x")))
+            ),
+            Triple(FilterOperator.ENDS_WITH, "endsWith(o.a, 'x')", Call("endsWith", listOf(a, text("x")))),
+            Triple(
+                FilterOperator.ENDS_WITH,
+                "endsWithIgnoreCase(o.a, 'x')",
+                Call("endsWithIgnoreCase", listOf(a, text("x")))
+            ),
+        )
+        table.forEach { (operator, written, expected) ->
+            DatasetExpression.parse(written).assert().describedAs("$operator as $written").isEqualTo(expected)
+        }
+        DatasetExpression.parse("o.a between o.b and o.c + 1").refs().map { it.column }.assert()
+            .containsExactly("a", "b", "c")
+    }
+
     @ParameterizedTest
     @CsvSource(
         delimiter = '|',
@@ -115,6 +176,7 @@ class DatasetExpressionTest {
             "o.a +|ends too early",
             "o.a = ,|has , where a value should be",
             "lower(o.a|ends before )",
+            "o.a between 1 or 2|between without and",
         ],
     )
     fun `a malformed expression should say what is wrong with it`(text: String?, problem: String) {
