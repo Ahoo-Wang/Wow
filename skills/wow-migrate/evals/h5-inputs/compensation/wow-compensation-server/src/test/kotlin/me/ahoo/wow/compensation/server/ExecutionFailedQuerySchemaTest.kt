@@ -1,0 +1,87 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.compensation.server
+
+import co.elastic.clients.elasticsearch.indices.CreateIndexRequest
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.Temporal
+import me.ahoo.wow.compensation.domain.ExecutionFailed
+import me.ahoo.wow.configuration.WowResourceLocator
+import me.ahoo.wow.elasticsearch.IndexNameConverter.toSnapshotIndexName
+import me.ahoo.wow.modeling.annotation.aggregateMetadata
+import me.ahoo.wow.query.schema.DeclarationValue
+import me.ahoo.wow.query.schema.InferredQuerySchemaSource
+import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.schema.query.JsonQueryModelSource
+import org.junit.jupiter.api.Test
+import java.util.concurrent.TimeUnit
+
+class ExecutionFailedQuerySchemaTest {
+    @Test
+    fun `should expose executeAt as epoch milliseconds to snapshot queries`() {
+        val context = QuerySchemaContext(
+            ExecutionFailed::class.java.aggregateMetadata<Any, Any>().namedAggregate,
+            QueryModel.SNAPSHOT,
+        )
+
+        val declaration = InferredQuerySchemaSource(JsonQueryModelSource()).load(context).single().block()!!
+
+        val state = declaration.fields.getValue(QueryField("state"))
+        val properties = (state.properties as DeclarationValue.Set).value
+        properties.getValue("executeAt").semanticType.assert()
+            .isEqualTo(DeclarationValue.Set(Temporal.Epoch(TimeUnit.MILLISECONDS)))
+    }
+
+    @Test
+    fun `should expose stored state fields once under their stored names`() {
+        val context = QuerySchemaContext(
+            ExecutionFailed::class.java.aggregateMetadata<Any, Any>().namedAggregate,
+            QueryModel.SNAPSHOT,
+        )
+
+        val declaration = InferredQuerySchemaSource(JsonQueryModelSource()).load(context).single().block()!!
+
+        val state = declaration.fields.getValue(QueryField("state"))
+        (state.properties as DeclarationValue.Set).value.keys.assert().containsExactlyInAnyOrder(
+            "id",
+            "error",
+            "eventId",
+            "executeAt",
+            "function",
+            "isBelowRetryThreshold",
+            "isRetryable",
+            "recoverable",
+            "retrySpec",
+            "retryState",
+            "status",
+        )
+    }
+
+    @Test
+    fun `should package Elasticsearch snapshot index config under its final index name`() {
+        val namedAggregate = ExecutionFailed::class.java.aggregateMetadata<Any, Any>().namedAggregate
+        val indexName = namedAggregate.toSnapshotIndexName()
+        val resources = WowResourceLocator().findClasspath("elasticsearch", indexName)
+
+        resources.assert().hasSize(1)
+        val request = resources.single().readText().byteInputStream().use { input ->
+            CreateIndexRequest.Builder().withJson(input).index(indexName).build()
+        }
+        request.index().assert().isEqualTo("wow.compensation.execution_failed.snapshot")
+        request.mappings()!!.properties()["state"]!!.`object`()
+            .properties()["status"]!!._kind().jsonValue().assert().isEqualTo("keyword")
+    }
+}

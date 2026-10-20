@@ -1,0 +1,78 @@
+{
+  "mappings": {
+    "properties": {
+      "aggregateId": {
+        "type": "keyword"
+      },
+      "aggregateName": {
+        "type": "keyword"
+      },
+      "body": {
+        "type": "nested",
+        "properties": {
+          "body": {
+            "type": "object",
+            "dynamic": false,
+            "properties": {
+              "audience": {
+                "type": "keyword"
+              },
+              "toOwnerId": {
+                "type": "keyword"
+              }
+            }
+          },
+          "bodyType": {
+            "type": "keyword"
+          },
+          "id": {
+            "type": "keyword"
+          },
+          "name": {
+            "type": "keyword"
+          },
+          "revision": {
+            "type": "keyword"
+          }
+        }
+      },
+      "commandId": {
+        "type": "keyword"
+      },
+      "contextName": {
+        "type": "keyword"
+      },
+      "createTime": {
+        "type": "long"
+      },
+      "header": {
+        "properties": {
+          "upstream_id": {
+            "type": "keyword"
+          },
+          "upstream_name": {
+            "type": "keyword"
+          }
+        }
+      },
+      "id": {
+        "type": "keyword"
+      },
+      "requestId": {
+        "type": "keyword"
+      },
+      "tenantId": {
+        "type": "keyword"
+      },
+      "ownerId": {
+        "type": "keyword"
+      },
+      "spaceId": {
+        "type": "keyword"
+      },
+      "version": {
+        "type": "integer"
+      }
+    }
+  }
+}

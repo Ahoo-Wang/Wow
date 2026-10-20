@@ -1,0 +1,60 @@
+server:
+  http2:
+    enabled: true
+  compression:
+    enabled: true
+
+management:
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include:
+          - health
+          - cosid
+          - cosidGenerator
+          - cosidStringGenerator
+springdoc:
+  show-actuator: true
+  api-docs:
+    version: openapi-3-1
+
+spring:
+  application:
+    # Not `view-store`: a host of another context serves the view store under `/view-store`, and so does this one.
+    name: view-store-server
+  jackson:
+    mapper:
+      accept-case-insensitive-enums: true
+  mongodb:
+    uri: mongodb://root:root@mongodb-dev-mongodb-sharded.dev.svc.cluster.local:27017/wow_view_store_db?authSource=admin&maxIdleTimeMS=60000
+  data:
+    redis:
+      url: redis://redis-dev-master.dev.svc.cluster.local:6379
+
+# Several instances share the machine ids through Redis, as the compensation service does.
+cosid:
+  machine:
+    enabled: true
+    distributor:
+      type: redis
+  generator:
+    enabled: true
+# MongoDB holds the event streams and the snapshots; Kafka carries the command, event and state-event buses
+# (both are Wow's defaults with wow-mongo and wow-kafka on the classpath).
+wow:
+  kafka:
+    bootstrap-servers: 'kafka-dev-0.kafka-dev-headless.dev.svc.cluster.local:9093'
+    # Its own topics: another deployment of the view store on the same Kafka must not share them.
+    topic-prefix: wow.view-store-server.
+#  view-store:
+#    system-views:
+#      - definition-id: orders
+#        id: orders-open
+#        title: Open orders
+#        config: |
+#          {"kind": "record", "columns": []}

@@ -1,0 +1,105 @@
+{
+  "mappings": {
+    "properties": {
+      "contextName": {
+        "type": "keyword"
+      },
+      "aggregateName": {
+        "type": "keyword"
+      },
+      "tenantId": {
+        "type": "keyword"
+      },
+      "aggregateId": {
+        "type": "keyword"
+      },
+      "version": {
+        "type": "integer"
+      },
+      "eventId": {
+        "type": "keyword"
+      },
+      "ownerId": {
+        "type": "keyword"
+      },
+      "spaceId": {
+        "type": "keyword"
+      },
+      "firstOperator": {
+        "type": "keyword"
+      },
+      "operator": {
+        "type": "keyword"
+      },
+      "firstEventTime": {
+        "type": "long"
+      },
+      "eventTime": {
+        "type": "long"
+      },
+      "snapshotTime": {
+        "type": "long"
+      },
+      "deleted": {
+        "type": "boolean"
+      },
+      "tags": {
+        "type": "object",
+        "dynamic": true
+      },
+      "state": {
+        "properties": {
+          "id": {
+            "type": "keyword"
+          },
+          "tenantId": {
+            "type": "keyword"
+          },
+          "definitionId": {
+            "type": "keyword"
+          },
+          "title": {
+            "type": "keyword",
+            "ignore_above": 8191
+          },
+          "audience": {
+            "type": "keyword"
+          },
+          "appId": {
+            "type": "keyword"
+          },
+          "config": {
+            "type": "object",
+            "dynamic": false,
+            "properties": {
+              "kind": {
+                "type": "keyword"
+              },
+              "panels": {
+                "type": "nested",
+                "dynamic": false,
+                "properties": {
+                  "instanceId": {
+                    "type": "keyword"
+                  },
+                  "opens": {
+                    "type": "keyword"
+                  },
+                  "click": {
+                    "type": "object",
+                    "dynamic": false,
+                    "properties": {
+                      "instanceId": {
+                        "type": "keyword"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
