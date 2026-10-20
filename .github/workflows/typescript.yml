@@ -70,7 +70,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.21.0
+          node-version: 24.22.0
       - name: Check compatibility-debt ledger
         run: node .github/scripts/compat-debt.mjs
 
@@ -86,7 +86,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.21.0
+          node-version: 24.22.0
       - name: Check documentation layout
         run: node .github/scripts/docs-layout.mjs
 
@@ -104,7 +104,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.21.0
+          node-version: 24.22.0
           cache: pnpm
       - name: Check CI scripts
         run: pnpm test:ci-scripts
@@ -244,7 +244,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.21.0
+          node-version: 24.22.0
           cache: pnpm
       - name: Pin fetcher to the floor of the peers range
         run: node .github/scripts/fetcher-floor.mjs pin
@@ -288,7 +288,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.21.0
+          node-version: 24.22.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Build dependencies
@@ -322,7 +322,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.21.0
+          node-version: 24.22.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # test:type checks the package against its built dependencies.
@@ -395,7 +395,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.21.0
+          node-version: 24.22.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Check changed-file formatting
@@ -424,7 +424,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.21.0
+          node-version: 24.22.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # The site's tests compile the TypeScript samples of its pages and the
