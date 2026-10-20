@@ -66,7 +66,11 @@ class BackendHelperGuardrailTest {
         /** The test runs in `query/query`. */
         val REPOSITORY: File = File("../..").canonicalFile
 
-        val SOURCE_ROOTS = listOf("backends/postgres/src/main/kotlin", "backends/mongo/src/main/kotlin")
+        val SOURCE_ROOTS = listOf(
+            "backends/postgres/src/main/kotlin",
+            "backends/mongo/src/main/kotlin",
+            "backends/elasticsearch/src/main/kotlin",
+        )
 
         const val NATIVE_VALUE = "fun JsonNode.nativeValue"
         const val ANY_NATIVE_VALUE = "fun Any?.nativeValue"

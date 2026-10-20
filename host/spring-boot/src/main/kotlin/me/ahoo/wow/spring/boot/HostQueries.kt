@@ -187,6 +187,30 @@ class EventQueryBackend(
 }
 
 /**
+ * The stores the `events` queries of the aggregate types run on (decision D235 ④: one events backend per aggregate
+ * type, chosen by configuration as its other stores are, D110, D177).
+ */
+internal object HostEventStores {
+    /**
+     * The aggregate types whose `wow.aggregates.[<context>.<aggregate>].query.events.store` names a store, each with
+     * that store, one of [stores]; any other type's events are queried on its log store.
+     */
+    fun configured(properties: WowProperties?, stores: Set<String>): Map<AggregateType, String> =
+        properties?.aggregates.orEmpty().mapNotNull { (key, aggregate) ->
+            val store = aggregate.query.events.store ?: return@mapNotNull null
+            val context = key.substringBefore('.', "")
+            val name = key.substringAfter('.', "")
+            require(context.isNotBlank() && name.isNotBlank()) {
+                "wow.aggregates.[$key] names no aggregate type: <context>.<aggregate>."
+            }
+            require(store in stores) {
+                "wow.aggregates.[$key].query.events.store is $store, which is none of the stores $stores (wow.stores)."
+            }
+            AggregateType(context, name) to store
+        }.toMap()
+}
+
+/**
  * The query bulkheads of the node's [stores] (review R3.4-2), by store name: each store's bound is
  * `wow.stores.<name>.query.max-concurrent` ([settings]), else `wow.query.max-concurrent` ([global]), else its query
  * provider's ([StoreQueryProvider.maxConcurrent], from its pool); `0` sets none. A store whose type has no query
@@ -283,7 +307,7 @@ internal object HostQueryBulkheads {
 
     /**
      * Whether [type]'s events queries that name no aggregate run (review R3.4-2): its
-     * `wow.aggregates.[<context>.<aggregate>].query.events.unpinned`, else that of its log [store], else [global].
+     * `wow.aggregates.[<context>.<aggregate>].query.events.unpinned`, else that of its events [store], else [global].
      */
     fun unpinned(
         type: AggregateType,
