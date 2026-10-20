@@ -299,7 +299,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | R3-H | 健康模型（R3.5-3）：Actuator 的 `wow` 健康组（ownership、subscriptions、stores、topics、ledger），区分 readiness 与 liveness；K8s 清单改用 `/actuator/health/*` | 存储宕机或分区为 0 时就绪探针失败 |
 | R3-A | 宿主瘦身与后端 SPI（D237、R3.1-1、R3.3-1、R3.2-1、R3.3-2）：`:query` 的 `ReadFacade` 与 `QueryEngine.Builder`，`:runtime` 的存储布局与后端选择，`HostStoreProvider` SPI（内置 PG、Mongo 也走它），共享工具下沉 `:spi`，查询与 Sink 合同进 `:tck`；拆 2～3 个 PR，在 ES 6.7 之前完成 | 非 Spring 宿主可用同一组合；社区后端只按 SPI 与 TCK 即可接入并保留按聚合放置 |
 | R3-F | 冻结前收窄（R3.2-3）：`:query` 的 schema 内部类型标 `@InternalWowApi` | `query.api` 只留策略、上下文与模型名 |
-| TS-9x | **并入 9.3c**（D246 ②）。npm 包清理 9.x（D239 ①）：`wow-client`、`wow-view-store`、`wow-view-engine` 等删除 9.x 客户端与协议代码，根入口为 V10，补齐 V10 子入口里只在根入口有的公共能力；分析与补偿控制台改用 V10 客户端或随 9.x 线保留 ；D265 ②：`/v10` 子路径提升为包根、不留别名，`src/v10`、API 报告、测试目录与 `WowV10Headers` 等随之改名；删除 9.x 查询 DSL 的 `schema/query/`；兼容性台账 `docs/compat-debt.md` 与其检查在 TS 条目清完后退役 | 根入口只有 V10，没有 `/v10` 子路径；包里没有 9.x 协议代码；GA 前完成 |
+| TS-9x | **并入 9.3c**（D246 ②）。npm 包清理 9.x（D239 ①）：`wow-client`、`wow-view-store`、`wow-view-engine` 等删除 9.x 客户端与协议代码，根入口为 V10，补齐 V10 子入口里只在根入口有的公共能力；分析与补偿控制台改用 V10 客户端或随 9.x 线保留 ；D265 ②：`/v10` 子路径提升为包根、不留别名，`src/v10`、API 报告、测试目录与 `WowV10Headers` 等随之改名；删除 9.x 查询 DSL 的 `schema/query/`；兼容性台账 `docs/compat-debt.md` 与其检查在 TS 条目清完后退役 ；D266：wow-react 移植到 V10 客户端（view-engine、storybook、integration-test 一并改到 V10 根入口）；wow-generator 删除读 Wow 扩展的 OpenAPI 路径，保留 Manifest 与通用 OpenAPI；`EXTRA_PACKAGES` 改为 ops 控制台；并入残留审查 R08～R20；分两个 PR：先删除，后提升根入口与移植 | 根入口只有 V10，没有 `/v10` 子路径；包里没有 9.x 协议代码；GA 前完成 |
 | PS-1 | 槽位间接层（D240 ①）：`Partitioner` 先算 4096 个槽位再取模 P，P 须为 2 的幂且整除 4096（启动校验）；分区元数据在格式 1 内预留父分区与纪元；TCK 证明现有分区结果不变 | 对现有日志、检查点、Kafka 分区零影响；非法 P 启动失败 |
 | PS-2 | **已完成**：每个分区空闲约 1.34～1.43 次往返/秒，默认 P 保持 64（D246 ①）。每个分区的空闲成本测量（D240 ②） | 测量报告入库与默认 P 的结论 |
 | B.0 | 基准领域与负载工具（D224）：两边各实现一份语义相同的「账户 + 转账 Saga」基准领域（9.x 与 V10 各一个基准专用模块，逐行对齐业务逻辑）；Kotlin 开环负载生成器（JDK HttpClient、自写的对数线性直方图，独立 JVM，不加新依赖）；环境编排与资源采集 | 两边的基准服务能起、负载工具能跑通 E1 |
@@ -337,6 +337,8 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | CI-2 | CI 重构二期与去特例（D265 ①②）：合并成 `ci.yml`，按影响范围执行，唯一必需检查 `ci-gate`，启用合并队列；构建任务、工作流、任务名、范围输出、Codecov flag 与组件去掉 `v10` 前缀，不留别名；排队 PR 合完后做，必需检查与合并队列由用户改设置 | 典型 PR 的 CI 墙钟 6～8 分钟；PR 不再手动合入最新 v10 再重跑；构建与 CI 里没有 `v10` 特例 |
 | N-1 | 代码与仓库去特例（D265 ②③）：代码注释与报错里的「V10」改为平常措辞（`migration/**` 除外）；`V10Rules`、`V10Annotations`、`deploy/v10/`、Skill 的 `v10-service` 等改名；`wow-dependencies/` 移到 `bom/dependencies/`（坐标不变）；CI-2 之后做 | 除 D265 ⑤ 的保留项外，仓库里没有 `v10` 特例 |
 | BM-1 | 基准测试迁到 `test/benchmarks/`（D265 ③，用户决定）：harness、`:benchmark-load`、`:benchmark-server`、results，工作流 `bench.yml`；作为基准工作流叠加 PR 的最后一个 | 根目录没有 `wow-benchmarks/` |
+| H-1 | 仓库卫生（D266，残留审查 R24、R05、R07、R27、R29）：V10 指南里指向已删除示例的链接改到 eShop，并给文档链接测试加上 `blob`/`tree` 目标存在性检查；删除构建脚本里已为空的 9.x 发布排除块；PR 标签规则改为 V10 目录；清理 todo 台账；删除 `schema/` | 文档站从 v10 部署时没有 404；V10 的 PR 有领域标签 |
+| SK-1 | Skill 改写为 V10（D266 ③）：wow-develop、wow-client、wow-view-*、wow-data-query 与 skills README；9.x 参考留在 main；DX-1d 之后，与 9.1 并行 | v10 上的 Skill 只教 V10 |
 | CI-3 | GA 切换（D265 ④，随 9.4）：分支改名与默认分支、工作流分支过滤、发布门禁放行正式版标签、npm `latest`、文档 `tree/v10/` 链接、`nightly.yml` 与 `release.yml` 整理 | 正式版标签能发布；定时任务在默认分支生效 |
 | 9.4 | rc（须用户确认，D202）；按 D265 ④ 切换：`main` 改名 `release-9.x`，`v10` 改名 `main` 并设为默认分支（不做合并）；发 `10.0.0`（打标签前问用户） | GA |
 
