@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.LongAdder
  */
 class ClosedLoop(
     private val client: Client,
-    private val scenario: Scenario,
+    private val mix: Mix,
     private val keysOf: (Int) -> KeyChooser,
     private val targets: List<URI>,
     private val startConcurrency: Int,
@@ -79,6 +79,7 @@ class ClosedLoop(
         val ok = AtomicLong()
         val measuring = AtomicBoolean(false)
         val running = AtomicBoolean(true)
+        val picks = AtomicLong()
         val workers = (0 until concurrency).map { worker ->
             val keys = keysOf(worker)
             val finished = CompletableFuture<Unit>()
@@ -87,6 +88,7 @@ class ClosedLoop(
                     finished.complete(Unit)
                     return
                 }
+                val scenario = mix.pick(picks.getAndIncrement())
                 val account = keys.next()
                 val other = if (scenario.transfers) keys.nextOtherThan(account) else account
                 val sent = System.nanoTime()

@@ -75,12 +75,13 @@ private fun usage(): Nothing {
         usage: e2e-bench-load <seed|check|run|saturate> --version=9x|v10 --targets=http://host:port[,…] [options]
           seed:     --accounts=1000 --concurrency=32 --balance=1000000000000
           check:    --accounts=1000
-          run:      --scenario=E1|E2|E3|E4-state|E4-list --rate=<ops/s> --warm-up=30 --measure=60
+          run:      --scenario=E1|E2|E3|E4-state|E4-list (or --mix=E1:50,E4-state:40,E4-list:10) --rate=<ops/s>
+                    --warm-up=30 --measure=60
                     --distribution=uniform|zipf|hot --zipf-exponent=1.1 --hot-fraction=0.5 --hot-keys=1
                     --accounts=1000 --seed=20261015 --max-in-flight=20000 --out=<dir> --label=<text>
                     --pids=name:pid,… --containers=name,… --mongo=<container> --postgres=<container>
                     --postgres-database=transfer_v10 --kafka=<container> --repository=<dir> --meta=key=value;…
-          saturate: --scenario=… --start-concurrency=1 --max-concurrency=256 --warm-up=5 --step=10 --out=<dir>
+          saturate: --scenario=… (or --mix=…) --start-concurrency=1 --max-concurrency=256 --warm-up=5 --step=10 --out=<dir>
         """.trimIndent(),
     )
     exitProcess(2)
@@ -158,7 +159,7 @@ private fun resources(options: Options): Resources = Resources(
 
 /** One open-loop run; its results go to `--out` as `result.json` and `summary.md`. */
 private fun run(client: Client, targets: List<URI>, options: Options): Int {
-    val scenario = Scenario.of(options.required("scenario"))
+    val mix = mixOf(options)
     val rate = options.double("rate", null)
     val warmUp = options.int("warm-up", 30)
     val measure = options.int("measure", 60)
@@ -172,7 +173,7 @@ private fun run(client: Client, targets: List<URI>, options: Options): Int {
     var stopping: Thread? = null
     val measured = OpenLoop(
         client = client,
-        scenario = scenario,
+        mix = mix,
         keys = keys,
         targets = targets,
         rate = rate,
@@ -180,7 +181,7 @@ private fun run(client: Client, targets: List<URI>, options: Options): Int {
         measureSeconds = measure,
         maxInFlight = options.int("max-in-flight", OpenLoop.DEFAULT_MAX_IN_FLIGHT),
     ) { phase ->
-        println("[run] ${client.adapter.name} ${scenario.label} @ $rate/s: $phase")
+        println("[run] ${client.adapter.name} ${mix.label} @ $rate/s: $phase")
         when (phase) {
             "measure" -> starting = thread(name = "resources-start") { resources.start() }
             "drain" -> stopping = thread(name = "resources-stop") {
@@ -193,7 +194,7 @@ private fun run(client: Client, targets: List<URI>, options: Options): Int {
     val result = Report.result(
         label = options.string("label", "run"),
         adapter = client.adapter,
-        scenario = scenario,
+        mix = mix,
         rate = rate,
         warmUp = warmUp,
         measure = measure,
@@ -215,23 +216,23 @@ private fun run(client: Client, targets: List<URI>, options: Options): Int {
 
 /** The closed-loop saturation finder; its steps go to `--out` as `saturation.json`. */
 private fun saturate(client: Client, targets: List<URI>, options: Options): Int {
-    val scenario = Scenario.of(options.required("scenario"))
+    val mix = mixOf(options)
     val seed = options.long("seed", DEFAULT_SEED)
     val steps = ClosedLoop(
         client = client,
-        scenario = scenario,
+        mix = mix,
         keysOf = { worker -> keyChooser(options, seed + worker) },
         targets = targets,
         startConcurrency = options.int("start-concurrency", 1),
         maxConcurrency = options.int("max-concurrency", 256),
         warmUpSeconds = options.int("warm-up", 5),
         stepSeconds = options.int("step", 10),
-    ) { println("[saturate] ${client.adapter.name} ${scenario.label}: $it") }.run()
+    ) { println("[saturate] ${client.adapter.name} ${mix.label}: $it") }.run()
     val best = steps.maxByOrNull { it.throughput }
     val result = mapOf(
         "schema" to "wow-e2e-bench/saturation/1",
         "version" to client.adapter.name,
-        "scenario" to scenario.label,
+        "scenario" to mix.label,
         "keys" to keyChooser(options, seed).describe(),
         "targets" to targets.map { it.toString() },
         "saturationThroughput" to best?.throughput,
@@ -257,6 +258,10 @@ private fun saturate(client: Client, targets: List<URI>, options: Options): Int 
     )
     return 0
 }
+
+/** `--mix=E1:50,E4-state:40`, else the one `--scenario`. */
+private fun mixOf(options: Options): Mix =
+    options.optional("mix")?.let(Mix::parse) ?: Mix.of(Scenario.of(options.required("scenario")))
 
 /** The `--name=value` options. */
 class Options private constructor(private val values: Map<String, String>) {

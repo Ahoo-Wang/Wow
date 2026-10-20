@@ -24,7 +24,9 @@
 # Options: --warm-up=30 --measure=60 --distribution=uniform|zipf|hot --accounts=1000 --label=run --out=<dir>
 #          --heap=1g --jfr (a flight recording per server) --settle=<s> (after the nodes are up), --install=<dir> (the
 #          server's installed distribution, by default bench-<version>/build/install/e2e-bench-<version>: another
-#          build of the same version, such as a baseline's), and any other --name=value of the load generator's run or
+#          build of the same version, such as a baseline's), --seed-concurrency=32 (accounts opened at once),
+#          --load-cpus=<list> and --server-cpus=<list> (Linux, taskset lists: the load generator on its own CPUs, the
+#          servers and the containers on the others), and any other --name=value of the load generator's run or
 #          saturate, passed through.
 set -euo pipefail
 
@@ -39,7 +41,7 @@ SERVER_PIDS=()
 TARGETS=()
 
 usage() {
-  sed -n '14,28p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -78,7 +80,7 @@ parse() {
     esac
     OPTIONS="$OPTIONS${argument#--}
 "
-    case " --version --backend --nodes --label --out --heap --jfr --settle --accounts --install " in
+    case " --version --backend --nodes --label --out --heap --jfr --settle --accounts --install --seed-concurrency --load-cpus --server-cpus " in
       *" $key "*) ;;
       *) PASS+=("$argument") ;;
     esac
@@ -94,6 +96,22 @@ opt() {
 $OPTIONS
 EOF
   echo "$value"
+}
+
+# PREFIX: the words that run a command on the CPUs of option $1 (--load-cpus, --server-cpus), `taskset -c <list>`
+# when the option names some and taskset is there (Linux), else none. taskset execs the command, so a pid recorded for
+# a pinned server is still the server's.
+PREFIX=()
+pin() {
+  local cpus; cpus=$(opt "$1" "")
+  PREFIX=()
+  if [ -n "$cpus" ] && command -v taskset >/dev/null 2>&1; then PREFIX=(taskset -c "$cpus"); fi
+}
+
+# The load generator, on the --load-cpus.
+load() {
+  pin load-cpus
+  ${PREFIX[@]+"${PREFIX[@]}"} "$LOAD" "$@"
 }
 
 # Starts node $1 (1-based) of $VERSION; its output goes to $OUT/node-$1.log. The launcher execs java, so the pid it
@@ -113,7 +131,8 @@ start_node() {
   fi
   local install
   install=$(opt install "$REPO/wow-benchmarks/e2e/bench-$VERSION/build/install/e2e-bench-$VERSION")
-  JAVA_OPTS="$jvm" "$install/bin/e2e-bench-$VERSION" \
+  pin server-cpus
+  JAVA_OPTS="$jvm" ${PREFIX[@]+"${PREFIX[@]}"} "$install/bin/e2e-bench-$VERSION" \
     "${args[@]}" >"$OUT/node-$n.log" 2>&1 &
   SERVER_PIDS+=($!)
   TARGETS+=("http://127.0.0.1:$port")
@@ -154,6 +173,9 @@ setup() {
   if [ "$BACKEND" = mongo ]; then store=mongo; fi
   log "starting kafka and $store"
   compose up -d --wait kafka "$store" >/dev/null
+  if [ -n "$(opt server-cpus "")" ]; then
+    docker update --cpuset-cpus "$(opt server-cpus "")" wow-e2e-bench-kafka "wow-e2e-bench-$store" >/dev/null
+  fi
   CONTAINERS="wow-e2e-bench-kafka,wow-e2e-bench-$store"
   STORE_OPTION="--$store=wow-e2e-bench-$store"
   local n
@@ -169,9 +191,10 @@ setup() {
   sleep "$settle"
   TARGET_LIST=$(IFS=,; echo "${TARGETS[*]}")
   log "seeding $ACCOUNTS accounts"
-  "$LOAD" seed --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" | tee "$OUT/seed.log" >&2
+  load seed --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" \
+    --concurrency="$(opt seed-concurrency 32)" | tee "$OUT/seed.log" >&2
   log "checking every scenario once"
-  "$LOAD" check --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" | tee "$OUT/check.log" >&2
+  load check --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" | tee "$OUT/check.log" >&2
   PIDS=""
   for n in $(seq 1 "$NODES"); do PIDS="${PIDS}node-$n:${SERVER_PIDS[$((n - 1))]},"; done
   PIDS=${PIDS%,}
@@ -183,7 +206,7 @@ run() {
   parse "$@"
   setup
   log "running $(opt scenario ?) at $(opt rate ?)/s"
-  "$LOAD" run --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --label="$LABEL" --out="$OUT" \
+  load run --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --label="$LABEL" --out="$OUT" \
     --pids="$PIDS" --containers="$CONTAINERS" --kafka=wow-e2e-bench-kafka "$STORE_OPTION" --repository="$REPO" \
     --meta="$META" ${PASS[@]+"${PASS[@]}"}
   log "results in $OUT"
@@ -192,7 +215,7 @@ run() {
 saturate() {
   parse "$@"
   setup
-  "$LOAD" saturate --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --out="$OUT" \
+  load saturate --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --out="$OUT" \
     --meta="$META" ${PASS[@]+"${PASS[@]}"}
   log "results in $OUT"
 }

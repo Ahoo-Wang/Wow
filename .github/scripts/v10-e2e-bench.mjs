@@ -12,7 +12,7 @@ import {
   readdirSync,
   writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 // The steps of v10-e2e-bench.yml, the timed end-to-end benchmark of decision
@@ -51,6 +51,17 @@ const HEAD_PG = v10('head', 'postgres');
 const BASE_PG = v10('base', 'postgres');
 const withProps = (arm, id, props) => ({ ...arm, id, props });
 export const SIGNALS = { 'bench.signals.enabled': true };
+
+// The mixed suites' operations: writes while point reads and lists run (the query bulkheads, the write priority).
+const MIX = 'E1:50,E4-state:40,E4-list:10';
+
+// The data set sizes: how many accounts a run seeds and draws its keys from. 1k fits every cache (hot); 100k, the
+// default from L2 up, does not; 1M is cold. Seeding opens the accounts over HTTP, more at once for the larger sets.
+export const DATASETS = {
+  '1k': { accounts: 1000, seedConcurrency: 32 },
+  '100k': { accounts: 100000, seedConcurrency: 256 },
+  '1M': { accounts: 1000000, seedConcurrency: 512 },
+};
 
 // The E3 latency suspects on MongoDB (H1 to H5 of the E3 analysis): a rate
 // sweep, then one key toggled at a time at the middle rate.
@@ -115,6 +126,25 @@ export const SUITES = {
     distribution: 'uniform',
     arms: [BASE_PG, HEAD_PG],
     answers: 'E3 saga chain on PostgreSQL: head against baseline.',
+  },
+  'mixed-mongo': {
+    group: 'ab',
+    kind: 'paired',
+    scenario: 'mixed',
+    mix: MIX,
+    distribution: 'uniform',
+    arms: [BASE_MONGO, HEAD_MONGO],
+    answers:
+      'Reads and writes together on MongoDB (E1 deposits 50%, E4 point reads 40%, E4 lists 10%): whether the query bulkheads keep the writes fast. Head against baseline.',
+  },
+  'mixed-pg': {
+    group: 'ab',
+    kind: 'paired',
+    scenario: 'mixed',
+    mix: MIX,
+    distribution: 'uniform',
+    arms: [BASE_PG, HEAD_PG],
+    answers: 'Reads and writes together on PostgreSQL, as mixed-mongo.',
   },
   'sustainable-mongo': {
     group: 'head',
@@ -236,6 +266,9 @@ export const suitesOf = group =>
 // end-to-end point (one scenario on one backend, head against baseline), is the default and never the whole grid;
 // L3 is the end-to-end grid (before an rc or after a major merge); L4 the special runs: sustainable rates, overload
 // cliffs and the three-node cluster. L0 is benchmark-ab.yml (JMH). `suites` given by name replaces the tier's list.
+// The data sets each tier runs its suites at (the `dataset` setting replaces them).
+export const TIER_DATASETS = { L2: ['100k'], L3: ['1k', '100k'], L4: ['100k'] };
+
 export const TIERS = {
   L2: ['e1-mongo-uniform', 'e1-pg-uniform', 'e3-mongo', 'e3-pg'],
   L3: suitesOf('ab'),
@@ -328,6 +361,11 @@ export function mergeSignals(all) {
 export const ANOMALY = {
   errorPercent: 1,
   tailToMedian: 10,
+  // The halves of the measured phase differ by more than this in throughput, or by more than this factor in p99.
+  unstableThroughput: 0.05,
+  unstableP99: 1.5,
+  // The load generator used this share of the CPUs it had: the run measured the generator, not the servers.
+  generatorBusy: 0.9,
   // p99 > 10× p50 is flagged only above this p99, so a 2 ms median with a 30 ms p99 does not count.
   minTailMs: 50,
 };
@@ -360,6 +398,29 @@ export function anomaliesOf(run, { overload = false } = {}) {
   }
   if (overload) return found;
   const m = run.metrics;
+  if (
+    m.loadGeneratorCpus > 0 &&
+    m.loadGeneratorCores >= ANOMALY.generatorBusy * m.loadGeneratorCpus
+  ) {
+    found.push({
+      kind: 'load generator saturated',
+      detail: `${num(m.loadGeneratorCores, 2)} of ${m.loadGeneratorCpus} cores: the run measured the generator`,
+    });
+  }
+  const st = m.stability;
+  if (
+    st &&
+    ((Number.isFinite(st.throughputChange) &&
+      Math.abs(st.throughputChange) > ANOMALY.unstableThroughput) ||
+      (Number.isFinite(st.p99Ratio) &&
+        (st.p99Ratio > ANOMALY.unstableP99 ||
+          st.p99Ratio < 1 / ANOMALY.unstableP99)))
+  ) {
+    found.push({
+      kind: 'unstable',
+      detail: `second half against first: throughput ${num((st.throughputChange ?? 0) * 100)}%, p99 ×${num(st.p99Ratio, 2)}`,
+    });
+  }
   const total = m.ok + m.failed;
   if (total > 0 && (m.failed * 100) / total > ANOMALY.errorPercent) {
     found.push({
@@ -397,13 +458,13 @@ export function anomalies(suite) {
         ? 'hand-over'
         : 'steady';
     for (const found of anomaliesOf(run, { overload })) {
-      rows.push({ suite: suite.name, run: run.name, context, ...found });
+      rows.push({ suite: labelOf(suite), run: run.name, context, ...found });
     }
   }
   for (const probe of suite.probes ?? []) {
     for (const found of anomaliesOf(probe, { overload: true })) {
       rows.push({
-        suite: suite.name,
+        suite: labelOf(suite),
         run: probe.name,
         context: 'overload (probe)',
         ...found,
@@ -452,7 +513,9 @@ const integer = (name, value, min, max) => {
 export const DEFAULTS = {
   tier: 'L2',
   suites: '',
-  warm_up: '20',
+  dataset: '',
+  aa: 'false',
+  warm_up: '30',
   measure: '40',
   repeats: '2',
   fraction: '0.8',
@@ -489,6 +552,8 @@ export function runSettings({ event, inputs = {}, config }) {
 export function resolveInputs({
   tier = DEFAULTS.tier,
   suites,
+  dataset,
+  aa = DEFAULTS.aa,
   warmUp,
   measure,
   repeats,
@@ -537,18 +602,54 @@ export function resolveInputs({
     fraction: share,
     p99LimitMs: integer('p99_limit_ms', p99LimitMs, 1, 60000),
     tier: suites?.trim() ? 'custom' : tier,
+    datasets: datasetsOf(dataset, suites?.trim() ? undefined : tier),
+    aa: String(aa) === 'true',
   };
+}
+
+/** The data sets: `dataset` (names separated by commas or spaces), else the tier's, else 100k. */
+function datasetsOf(dataset, tier) {
+  const names = dataset?.trim()
+    ? [...new Set(dataset.split(/[\s,]+/).filter(Boolean))]
+    : (TIER_DATASETS[tier] ?? ['100k']);
+  const unknown = names.filter(name => !(name in DATASETS));
+  if (unknown.length > 0) {
+    throw new Error(
+      `Unknown data set(s): ${unknown.join(', ')}; known: ${Object.keys(DATASETS).join(', ')}`,
+    );
+  }
+  return names;
+}
+
+/** A suite's name with its data set, as the report shows it: `e1-mongo-uniform@100k`. */
+export const labelOf = suite => `${suite.name}@${suite.dataset ?? '100k'}`;
+
+/** A job of the matrix: a suite at a data set, `e1-mongo-uniform.100k`. */
+export const jobId = (suite, dataset) => `${suite}.${dataset}`;
+export function parseJob(id) {
+  const dot = id.lastIndexOf('.');
+  return dot < 0
+    ? { suite: id, dataset: '100k' }
+    : { suite: id.slice(0, dot), dataset: id.slice(dot + 1) };
 }
 
 /**
  * The jobs of a run: the suites that can run (those of group `ab` need a baseline commit, the `9x` ones a 9.x
  * commit), the ones skipped and why, and the builds they need, one per side.
  */
-export function planMatrix({ suites, headSha, baseSha, nineXSha }) {
+export function planMatrix({
+  suites,
+  datasets = ['100k'],
+  aa = false,
+  headSha,
+  baseSha,
+  nineXSha,
+}) {
   const skipped = [];
   const runnable = suites.filter(name => {
     const group = SUITES[name].group;
-    if (group === 'ab' && !baseSha) {
+    // An A/A run measures the head against itself: it needs no baseline.
+    if (group === 'ab' && !baseSha && !aa) {
       skipped.push(
         `${name} (no V10 baseline: set base_ref; no v10.* release tag has the benchmark yet)`,
       );
@@ -563,14 +664,17 @@ export function planMatrix({ suites, headSha, baseSha, nineXSha }) {
   const groups = new Set(runnable.map(name => SUITES[name].group));
   const builds = [
     { side: 'head', sha: headSha, scope: 'v10', dir: 'bench-v10' },
-    ...(groups.has('ab')
+    ...(groups.has('ab') && !aa
       ? [{ side: 'base', sha: baseSha, scope: 'v10', dir: 'bench-v10' }]
       : []),
     ...(groups.has('9x')
       ? [{ side: '9x', sha: nineXSha, scope: 'all', dir: 'bench-9x' }]
       : []),
   ];
-  return { suites: runnable, skipped, builds };
+  const jobs = runnable.flatMap(name =>
+    datasets.map(dataset => jobId(name, dataset)),
+  );
+  return { suites: runnable, jobs, skipped, builds };
 }
 
 /** The spread of values: max / min - 1, 0 for fewer than two. */
@@ -599,10 +703,48 @@ export function metrics(result) {
     Object.values(containers).reduce((sum, percent) => sum + percent, 0) / 100;
   const throughput = results.throughput ?? 0;
   const rate = result?.load?.rate;
-  const seconds = (results.perSecond ?? []).map(second => second.ok ?? 0);
+  const perSecond = results.perSecond ?? [];
+  const seconds = perSecond.map(second => second.ok ?? 0);
+  const p99s = perSecond.map(second => second.p99Ms);
+  const loadGenerator = resources.loadGenerator;
+  // Who worked hardest: the servers, a container, or the load generator (in cores).
+  const consumers = {
+    server: serverCores,
+    ...Object.fromEntries(
+      Object.entries(resources.containers ?? {}).map(([name, container]) => [
+        name.replace(/^wow-e2e-bench-/, ''),
+        (container.cpuPercentAverage ?? 0) / 100,
+      ]),
+    ),
+    ...(loadGenerator ? { 'load generator': loadGenerator.averageCores } : {}),
+  };
+  const bottleneck = Object.entries(consumers).sort((a, b) => b[1] - a[1])[0];
   return {
     rate,
     throughput,
+    // The per-second series the bootstrap resamples, and the halves the stability check compares.
+    okSeries: seconds,
+    p50Series: perSecond.map(second => second.p50Ms),
+    p99Series: p99s,
+    stability: halves(seconds, p99s),
+    loadGeneratorCores: loadGenerator?.averageCores,
+    loadGeneratorCpus: loadGenerator?.availableProcessors,
+    bottleneck: bottleneck
+      ? { side: bottleneck[0], cores: bottleneck[1] }
+      : undefined,
+    byScenario: results.byScenario
+      ? Object.fromEntries(
+          Object.entries(results.byScenario).map(([label, scenario]) => [
+            label,
+            {
+              throughput: scenario.throughput,
+              failed: scenario.failed,
+              p50: scenario.latencyMs?.p50,
+              p99: scenario.latencyMs?.p99,
+            },
+          ]),
+        )
+      : undefined,
     // The measured seconds that completed less than half the rate: a dip (a stall, a hand-over).
     weakSeconds: Number.isFinite(rate)
       ? seconds.filter(ok => ok < rate / 2).length
@@ -623,6 +765,24 @@ export function metrics(result) {
       throughput > 0
         ? ((serverCores + containerCores) * 1000) / throughput
         : undefined,
+  };
+}
+
+/**
+ * The measured phase's first half against its second: the change in mean throughput and the ratio of the halves'
+ * median per-second p99. A run whose halves differ was still warming up or degrading.
+ */
+export function halves(okSeries, p99Series) {
+  const half = Math.floor(okSeries.length / 2);
+  if (half < 2) return undefined;
+  const mean = values => values.reduce((a, b) => a + b, 0) / values.length;
+  const first = mean(okSeries.slice(0, half));
+  const second = mean(okSeries.slice(half));
+  const p99First = median(p99Series.slice(0, half));
+  const p99Second = median(p99Series.slice(half));
+  return {
+    throughputChange: first > 0 ? second / first - 1 : undefined,
+    p99Ratio: p99First > 0 ? p99Second / p99First : undefined,
   };
 }
 
@@ -703,6 +863,97 @@ const median = values => {
     ? sorted[middle]
     : (sorted[middle - 1] + sorted[middle]) / 2;
 };
+
+// Significance (D224 note ②): a ratio counts only beyond the suite's noise. An A/A run (`aa`) puts the head against
+// itself; the largest deviation of its pair ratios from 1 is the suite's threshold per metric (at least NOISE_FLOOR),
+// which the report writes as noise.json, to commit as wow-benchmarks/e2e/noise.json for later runs to read. The
+// confidence interval of a ratio comes from a bootstrap over the measured seconds of both arms' runs in that mode:
+// the mean per-second throughput, the median per-second p50 and p99.
+export const NOISE_FLOOR = 0.02;
+export const BOOTSTRAP = { resamples: 1000, seed: 20261020 };
+export const SIGNIFICANCE_METRICS = [
+  ['throughput', 'okSeries', 'mean'],
+  ['p50', 'p50Series', 'median'],
+  ['p99', 'p99Series', 'median'],
+];
+
+/** A small seeded generator (mulberry32), so a report's intervals are the same every time it is rendered. */
+function random(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** The 95% bootstrap interval of statistic(b) / statistic(a) over the samples, with its point value. */
+export function bootstrapRatio(a, b, statistic) {
+  const xs = a.filter(Number.isFinite);
+  const ys = b.filter(Number.isFinite);
+  if (xs.length < 2 || ys.length < 2) return undefined;
+  const of = values =>
+    statistic === 'mean'
+      ? values.reduce((sum, v) => sum + v, 0) / values.length
+      : median(values);
+  const next = random(BOOTSTRAP.seed);
+  const draw = values =>
+    Array.from(
+      { length: values.length },
+      () => values[Math.floor(next() * values.length)],
+    );
+  const ratios = [];
+  for (let i = 0; i < BOOTSTRAP.resamples; i++) {
+    const x = of(draw(xs));
+    if (x > 0) ratios.push(of(draw(ys)) / x);
+  }
+  ratios.sort((p, q) => p - q);
+  const at = q =>
+    ratios[Math.min(ratios.length - 1, Math.floor(q * ratios.length))];
+  const point = of(xs) > 0 ? of(ys) / of(xs) : undefined;
+  return { point, lo: at(0.025), hi: at(0.975) };
+}
+
+/** The bootstrap intervals of a paired suite's ratios in one mode, per significance metric. */
+export function confidence(suite, mode) {
+  if (suite.arms?.length !== 2) return {};
+  const [a, b] = suite.arms.map(arm => arm.id);
+  const runs = suite.runs.filter(
+    run => modeOf(run) === mode && run.status === 'ok',
+  );
+  const pool = (id, key) =>
+    runs.filter(run => run.arm === id).flatMap(run => run.metrics[key] ?? []);
+  return Object.fromEntries(
+    SIGNIFICANCE_METRICS.map(([metric, key, statistic]) => [
+      metric,
+      bootstrapRatio(pool(a, key), pool(b, key), statistic),
+    ]),
+  );
+}
+
+/** An A/A suite's noise per metric: the largest |ratio - 1| of its pairs in either mode, at least NOISE_FLOOR. */
+export function noiseOf(suite) {
+  const all = [...pairs(suite, CALIBRATED), ...pairs(suite, EQUAL)];
+  return Object.fromEntries(
+    RATIO_METRICS.map(([key]) => {
+      const deviations = all
+        .map(pair => Math.abs((pair.ratios[key] ?? NaN) - 1))
+        .filter(Number.isFinite);
+      return [key, Math.max(NOISE_FLOOR, ...deviations)];
+    }),
+  );
+}
+
+/** Whether a ratio's interval clears the noise threshold: `higher`, `lower`, `within noise` or `uncalibrated`. */
+export function verdict(interval, threshold) {
+  if (!interval) return 'no data';
+  if (!Number.isFinite(threshold)) return 'uncalibrated';
+  if (interval.lo > 1 + threshold) return 'higher';
+  if (interval.hi < 1 - threshold) return 'lower';
+  return 'within noise';
+}
 
 /** min, median and max of finite values, or undefined. */
 export function range(values) {
@@ -818,13 +1069,13 @@ function clusterTable(suite) {
 
 function runTable(runs) {
   const lines = [
-    '| Run | Arm | Rate | Throughput | OK | Failed | p50 | p95 | p99 | p999 | Worst-second p99 | Server CPU | Container CPU | CPU ms/op | Errors |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    '| Run | Arm | Rate | Throughput | OK | Failed | p50 | p95 | p99 | p999 | Worst-second p99 | Server CPU | Container CPU | Load generator | Busiest | CPU ms/op | Errors |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
   ];
   for (const run of runs) {
     if (run.status !== 'ok') {
       lines.push(
-        `| ${run.name} | ${run.arm} | ${num(run.rate)}/s | **${run.status}** | | | | | | | | | | | |`,
+        `| ${run.name} | ${run.arm} | ${num(run.rate)}/s | **${run.status}** | | | | | | | | | | | | | |`,
       );
       continue;
     }
@@ -836,7 +1087,10 @@ function runTable(runs) {
       `| ${run.name} | ${run.arm} | ${num(run.rate)}/s | ${num(m.throughput)}/s | ${m.ok} | ${m.failed} | ` +
         `${ms(m.p50)} | ${ms(m.p95)} | ${ms(m.p99)} | ${ms(m.p999)} | ${ms(m.worstSecondP99)} | ` +
         // A hand-over run's server CPU is not measured: the sampler's ps fails once the stopped node is gone.
-        `${run.handover ? '-' : `${num(m.serverCores, 2)} cores`} | ${containers || '-'} | ${run.handover ? '-' : num(m.cpuMsPerOp, 2)} | ${errorsText(m.errors)} |`,
+        `${run.handover ? '-' : `${num(m.serverCores, 2)} cores`} | ${containers || '-'} | ` +
+        `${Number.isFinite(m.loadGeneratorCores) ? `${num(m.loadGeneratorCores, 2)} of ${m.loadGeneratorCpus}` : '-'} | ` +
+        `${m.bottleneck && !run.handover ? `${m.bottleneck.side} ${num(m.bottleneck.cores, 2)}` : '-'} | ` +
+        `${run.handover ? '-' : num(m.cpuMsPerOp, 2)} | ${errorsText(m.errors)} |`,
     );
   }
   return lines;
@@ -876,11 +1130,11 @@ function pairTable(suite, mode) {
 export function renderSuite(suite) {
   const definition = SUITES[suite.name];
   const lines = [
-    `## ${suite.name}`,
+    `## ${labelOf(suite)}${suite.aa ? ' (A/A: head against head)' : ''}`,
     '',
     definition?.answers ?? '',
     '',
-    `${suite.scenario}, ${suite.distribution} keys; warm-up ${suite.warmUp} s, measured ${suite.measure} s` +
+    `${suite.scenario ?? 'scenarios below'}${definition?.mix ? ` (${definition.mix})` : ''}, ${suite.distribution} keys over ${suite.accounts ?? '?'} accounts; warm-up ${suite.warmUp} s, measured ${suite.measure} s` +
       (suite.kind === 'paired'
         ? `, ${suite.fraction * 100}% of saturation, ${suite.repeats} round(s)`
         : '') +
@@ -918,6 +1172,26 @@ export function renderSuite(suite) {
     );
   }
   lines.push(...runTable(suite.runs), '');
+  const mixed = suite.runs.filter(run => run.metrics?.byScenario);
+  if (mixed.length > 0) {
+    const labels = Object.keys(mixed[0].metrics.byScenario);
+    lines.push(
+      'Each scenario of the mix (the writes under the reads):',
+      '',
+      `| Run | Arm | ${labels.map(label => `${label} p50 | ${label} p99 | ${label} failed`).join(' | ')} |`,
+      `| --- | --- | ${labels.map(() => '--- | --- | ---').join(' | ')} |`,
+      ...mixed.map(
+        run =>
+          `| ${run.name} | ${run.arm} | ${labels
+            .map(label => {
+              const x = run.metrics.byScenario[label] ?? {};
+              return `${ms(x.p50)} | ${ms(x.p99)} | ${x.failed ?? '-'}`;
+            })
+            .join(' | ')} |`,
+      ),
+      '',
+    );
+  }
   const calibratedPairs = pairTable(suite, CALIBRATED);
   if (calibratedPairs.length > 0) {
     lines.push(
@@ -1051,11 +1325,23 @@ export function runSuite(name, options) {
     installs = {},
     refs = {},
     cluster = CLUSTER,
+    dataset = '100k',
+    aa = false,
+    cpus = {},
   } = options;
   mkdirSync(out, { recursive: true });
+  const data = DATASETS[dataset];
+  if (!data) throw new Error(`Unknown data set: ${dataset}`);
+  // An A/A run puts the head against itself in a baseline suite: the spread of its ratios is the suite's noise.
+  const aaRun = aa && definition.group === 'ab';
   const arms =
     definition.kind === 'paired'
-      ? definition.arms
+      ? aaRun
+        ? [
+            { ...definition.arms[1], id: 'a' },
+            { ...definition.arms[1], id: 'b' },
+          ]
+        : definition.arms
       : ['steps', 'capacity', 'cluster'].includes(definition.kind)
         ? [definition.arm]
         : [
@@ -1074,6 +1360,9 @@ export function runSuite(name, options) {
     repeats,
     fraction,
     p99LimitMs,
+    dataset,
+    accounts: data.accounts,
+    aa: aaRun,
     arms,
     refs,
     runner: runnerInfo(),
@@ -1092,12 +1381,20 @@ export function runSuite(name, options) {
   };
   // The options every bench.sh call of an arm takes: its version, backend and build (`--install`, when the build is
   // not the one in the harness's own tree), the scenario and the keys.
+  // A mixed suite names its scenarios in --mix (the --scenario only labels the run's directory).
   const common = (arm, scenario = definition.scenario) => [
     `--version=${arm.version}`,
     `--backend=${arm.backend}`,
     ...(installs[arm.install] ? [`--install=${installs[arm.install]}`] : []),
     `--scenario=${scenario}`,
+    ...(definition.mix && scenario === definition.scenario
+      ? [`--mix=${definition.mix}`]
+      : []),
     `--distribution=${definition.distribution}`,
+    `--accounts=${data.accounts}`,
+    `--seed-concurrency=${data.seedConcurrency}`,
+    ...(cpus.load ? [`--load-cpus=${cpus.load}`] : []),
+    ...(cpus.server ? [`--server-cpus=${cpus.server}`] : []),
   ];
   const propsOf = arm =>
     arm.version === 'v10' ? { ...SIGNALS, ...arm.props } : arm.props;
@@ -1401,6 +1698,14 @@ export function queueVerdict(suite) {
   return { saturationRatio, p99, verdict };
 }
 
+/** The noise thresholds of a run's A/A suites, keyed by `suite@dataset`, merged over `previous`. */
+export function noiseFile(suites, previous = {}) {
+  const next = { ...previous };
+  for (const suite of suites.filter(s => s.aa))
+    next[labelOf(suite)] = noiseOf(suite);
+  return next;
+}
+
 /** The combined report of every suite. */
 export function renderReport(suites, meta = {}) {
   const lines = [
@@ -1409,7 +1714,7 @@ export function renderReport(suites, meta = {}) {
     `Head: \`${meta.headRef ?? '?'}\` ${meta.headSha ?? ''}; V10 baseline: ${meta.baseSha ? `\`${meta.baseRef}\` ${meta.baseSha}` : 'none'}; ` +
       `9.x: ${meta.nineXSha ? `\`${meta.nineXRef}\` ${meta.nineXSha}` : 'not run'}; harness and load generator from ${meta.harness ?? '?'}.`,
     '',
-    `Tier: ${meta.tier ?? '?'}; coverage: ${suites.map(suite => suite.name).join(', ') || 'none'}.`,
+    `Tier: ${meta.tier ?? '?'}; coverage: ${suites.map(labelOf).join(', ') || 'none'}.`,
     '',
     "Each suite ran on one runner of its own, so only its ratios compare across suites; absolute numbers are that runner's. Ratios are b/a per pair (head/base, head/9x): median (min–max, n pairs). Lower is better except throughput.",
     '',
@@ -1436,18 +1741,72 @@ export function renderReport(suites, meta = {}) {
       '',
     );
   }
+  const noise = meta.noise ?? {};
+  const significant = suites.filter(
+    s => s.kind === 'paired' && s.arms.length === 2 && !s.aa,
+  );
+  if (significant.length > 0) {
+    const rows = [];
+    let beyond = 0;
+    let calibrated = 0;
+    for (const suite of significant) {
+      const thresholds = noise[labelOf(suite)];
+      if (thresholds) calibrated++;
+      const [a, b] = suite.arms.map(arm => arm.id);
+      // Throughput and CPU compare at the calibrated rates, latencies at the equal rate.
+      for (const [metric, mode] of [
+        ['throughput', CALIBRATED],
+        ['p50', EQUAL],
+        ['p99', EQUAL],
+      ]) {
+        const interval = confidence(suite, mode)[metric];
+        const result = verdict(interval, thresholds?.[metric]);
+        if (result === 'higher' || result === 'lower') beyond++;
+        rows.push(
+          `| ${labelOf(suite)} | ${b}/${a} | ${metric} | ${mode} | ${interval ? `${ratio(interval.point)} [${ratio(interval.lo)}–${ratio(interval.hi)}]` : '-'} | ` +
+            `${thresholds?.[metric] ? `±${num(thresholds[metric] * 100)}%` : '-'} | ${result === 'higher' || result === 'lower' ? `**${result}**` : result} |`,
+        );
+      }
+    }
+    lines.push(
+      '## Significance',
+      '',
+      `Beyond noise: ${beyond} of ${rows.length} ratios; ${calibrated} of ${significant.length} suites have an A/A noise threshold (wow-benchmarks/e2e/noise.json). A ratio counts when its 95% bootstrap interval (over the measured seconds) clears the suite's threshold; without one it is \`uncalibrated\`.`,
+      '',
+      '| Suite | b/a | Metric | Rounds | Ratio [95% CI] | Noise | Verdict |',
+      '| --- | --- | --- | --- | --- | --- | --- |',
+      ...rows,
+      '',
+    );
+  }
+  const aaSuites = suites.filter(s => s.aa);
+  if (aaSuites.length > 0) {
+    lines.push(
+      '## A/A noise',
+      '',
+      'The head against itself: the largest deviation from 1 of each metric over the pairs, at least 2%. The report writes these as noise.json; commit it as wow-benchmarks/e2e/noise.json to make them the thresholds of later runs.',
+      '',
+      `| Suite | ${RATIO_METRICS.map(([, label]) => label).join(' | ')} |`,
+      `| --- | ${RATIO_METRICS.map(() => '---').join(' | ')} |`,
+      ...aaSuites.map(suite => {
+        const n = noiseOf(suite);
+        return `| ${labelOf(suite)} | ${RATIO_METRICS.map(([key]) => `±${num(n[key] * 100)}%`).join(' | ')} |`;
+      }),
+      '',
+    );
+  }
   const capacities = suites.filter(s => s.kind === 'capacity');
   if (capacities.length > 0) {
     lines.push('## Sustainable rates (capacity guidance)', '');
     for (const suite of capacities) {
-      lines.push(`### ${suite.name}`, '', ...capacityTable(suite), '');
+      lines.push(`### ${labelOf(suite)}`, '', ...capacityTable(suite), '');
     }
   }
   const clusters = suites.filter(s => s.kind === 'cluster');
   if (clusters.length > 0) {
     lines.push('## E5 cluster: steady and hand-over', '');
     for (const suite of clusters) {
-      lines.push(`### ${suite.name}`, '', ...clusterTable(suite), '');
+      lines.push(`### ${labelOf(suite)}`, '', ...clusterTable(suite), '');
     }
   }
   lines.push(
@@ -1458,7 +1817,7 @@ export function renderReport(suites, meta = {}) {
   );
   for (const suite of suites) {
     lines.push(
-      `| ${suite.name} | ${suite.runner?.cpu ?? '?'} | ${suite.runner?.cores ?? '?'} | ${suite.runner?.memoryGb ?? '?'} GB |`,
+      `| ${labelOf(suite)} | ${suite.runner?.cpu ?? '?'} | ${suite.runner?.cores ?? '?'} | ${suite.runner?.memoryGb ?? '?'} GB |`,
     );
   }
   lines.push(
@@ -1472,7 +1831,7 @@ export function renderReport(suites, meta = {}) {
     for (const arm of suite.arms) {
       const s = suite.saturation?.[arm.id] ?? {};
       lines.push(
-        `| ${suite.name} | ${arm.id} | ${saturationText(s)} | ${s.concurrency ?? '-'} | ${num(suite.rates?.[arm.id])}/s | ${shareText(suite, arm.id)} |`,
+        `| ${labelOf(suite)} | ${arm.id} | ${saturationText(s)} | ${s.concurrency ?? '-'} | ${num(suite.rates?.[arm.id])}/s | ${shareText(suite, arm.id)} |`,
       );
     }
   }
@@ -1507,7 +1866,7 @@ export function renderReport(suites, meta = {}) {
         const rows = pairs(suite, mode);
         if (rows.length === 0) continue;
         lines.push(
-          `| ${suite.name} | ${b}/${a} | ${label} | ${saturation} | ` +
+          `| ${labelOf(suite)} | ${b}/${a} | ${label} | ${saturation} | ` +
             `${RATIO_METRICS.map(([key]) => ratioRange(range(rows.map(row => row.ratios[key])))).join(' | ')} |`,
         );
       }
@@ -1533,7 +1892,7 @@ export function renderReport(suites, meta = {}) {
           : '-';
       };
       lines.push(
-        `| ${suite.name} | ${runs.length} | ${cell('throughput', v => `${num(v)}/s`)} | ${cell('p50', ms)} | ${cell('p99', ms)} | ` +
+        `| ${labelOf(suite)} | ${runs.length} | ${cell('throughput', v => `${num(v)}/s`)} | ${cell('p50', ms)} | ${cell('p99', ms)} | ` +
           `${cell('p999', ms)} | ${cell('worstSecondP99', ms)} | ${cell('cpuMsPerOp', v => num(v, 2))} |`,
       );
     }
@@ -1570,7 +1929,7 @@ export function renderReport(suites, meta = {}) {
       'Fixed open-loop steps, a minute each on fresh containers. "Kept up": at most 1% failed and at least 97% of the rate completed. V10 signals count from the server start (seeding included): `tailRead` reasons other than `start` mean the tails fell back to the store, `refused wow.command.busy` that the node shed load.',
     );
     for (const suite of cliffs)
-      lines.push('', `### ${suite.name}`, '', ...cliffTable(suite));
+      lines.push('', `### ${labelOf(suite)}`, '', ...cliffTable(suite));
   }
   const queue = suites.find(s => s.name === 'pg-append-queue');
   if (queue) {
@@ -1622,6 +1981,8 @@ if (
       inputs: {
         tier: env.TIER,
         suites: env.SUITES,
+        dataset: env.DATASET,
+        aa: env.AA,
         warm_up: env.WARM_UP,
         measure: env.MEASURE,
         repeats: env.REPEATS,
@@ -1639,6 +2000,8 @@ if (
       const inputs = resolveInputs({
         tier: settings.tier,
         suites: settings.suites,
+        dataset: settings.dataset,
+        aa: settings.aa,
         warmUp: settings.warm_up,
         measure: settings.measure,
         repeats: settings.repeats,
@@ -1654,13 +2017,17 @@ if (
         fraction: inputs.fraction,
         'p99-limit-ms': inputs.p99LimitMs,
         tier: inputs.tier,
+        datasets: JSON.stringify(inputs.datasets),
+        aa: inputs.aa,
         'base-ref': settings.base_ref,
-        'needs-base': groups.has('ab'),
+        'needs-base': groups.has('ab') && !inputs.aa,
         'nine-x-ref': groups.has('9x') ? settings.nine_x_ref : '',
       });
     } else if (command === 'matrix') {
       const plan = planMatrix({
         suites: JSON.parse(env.SUITES_JSON),
+        datasets: JSON.parse(env.DATASETS_JSON ?? '["100k"]'),
+        aa: env.AA === 'true',
         headSha: env.HEAD_SHA,
         baseSha: env.BASE_SHA,
         nineXSha: env.NINE_X_SHA,
@@ -1670,12 +2037,16 @@ if (
       if (plan.suites.length === 0) throw new Error('No suite can run.');
       output({
         suites: JSON.stringify(plan.suites),
+        jobs: JSON.stringify(plan.jobs),
         builds: JSON.stringify(plan.builds),
         skipped: JSON.stringify(plan.skipped),
       });
     } else if (command === 'suite') {
+      const job = parseJob(process.argv[3]);
       const inputs = resolveInputs({
-        suites: process.argv[3],
+        suites: job.suite,
+        dataset: job.dataset,
+        aa: env.AA,
         warmUp: env.WARM_UP,
         measure: env.MEASURE,
         repeats: env.REPEATS,
@@ -1686,6 +2057,8 @@ if (
         benchPath: env.BENCH,
         out: env.OUT,
         ...inputs,
+        dataset: job.dataset,
+        cpus: { load: env.LOAD_CPUS, server: env.SERVER_CPUS },
         installs: Object.fromEntries(
           [
             ['head', env.INSTALL_HEAD],
@@ -1707,12 +2080,22 @@ if (
       process.exitCode = suite.failures > 0 ? 1 : 0;
     } else if (command === 'report') {
       const suites = readSuites(process.argv[3]);
+      const previous =
+        env.NOISE && existsSync(env.NOISE) ? readJson(env.NOISE) : {};
       const meta = {
         ...(suites[0]?.refs ?? {}),
         skipped: env.SKIPPED ? JSON.parse(env.SKIPPED) : [],
+        noise: previous,
       };
       const report = renderReport(suites, meta);
-      writeFileSync(process.argv[4] ?? 'report.md', report);
+      const file = process.argv[4] ?? 'report.md';
+      writeFileSync(file, report);
+      if (suites.some(suite => suite.aa)) {
+        writeFileSync(
+          join(dirname(file), 'noise.json'),
+          `${JSON.stringify(noiseFile(suites, previous), null, 2)}\n`,
+        );
+      }
       if (env.GITHUB_STEP_SUMMARY)
         appendFileSync(env.GITHUB_STEP_SUMMARY, report);
     } else {
