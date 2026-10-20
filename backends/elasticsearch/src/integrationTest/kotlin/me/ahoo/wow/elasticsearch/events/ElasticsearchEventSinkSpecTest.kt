@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-
 package me.ahoo.wow.elasticsearch.events
 
 import co.elastic.clients.elasticsearch._types.SortOrder

@@ -103,7 +103,8 @@ internal class ElasticsearchSnapshotQueries(
     private val indexDdl: QueryIndexDdl = QueryIndexDdl.AUTO,
 ) : SnapshotQueries {
     private val mappingResolver = ElasticsearchIndexMappingResolver(client) { ElasticsearchSnapshotIndex.typeMapping() }
-    private val stateMappings = ElasticsearchStateMappings(client, mappingResolver, ElasticsearchPayload.Root(SnapshotFields.STATE))
+    private val stateMappings =
+        ElasticsearchStateMappings(client, mappingResolver, ElasticsearchPayload.Root(SnapshotFields.STATE))
     private val bindings = ConcurrentHashMap<AggregateType, QueryBackendBinding<QueryBackend>>()
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = bindings.computeIfAbsent(type) {

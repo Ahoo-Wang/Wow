@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
@@ -86,7 +85,10 @@ class HostEventStoresTest {
             bulkhead.toString().assert().contains("search")
             val id = host.post("/bank/account/open-account", """{"owner":"search"}""").body!!["ref"]["id"].asString()
             // The search index holds nothing the Sink did not write: the log's commit is not there.
-            val found = host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"ID","value":"$id"}}""")
+            val found = host.post(
+                "/bank/account/events/query",
+                """{"kind":"list","filter":{"op":"ID","value":"$id"}}"""
+            )
             found.status.assert().isEqualTo(200)
             found.body!!.size().assert().isZero()
         }

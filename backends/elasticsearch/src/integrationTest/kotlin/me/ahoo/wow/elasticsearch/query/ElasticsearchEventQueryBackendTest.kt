@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-
 package me.ahoo.wow.elasticsearch.query
 
 import me.ahoo.wow.api.aggregate.AggregateType

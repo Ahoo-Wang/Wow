@@ -11,7 +11,6 @@
  * limitations under the License.
  */
 
-
 package me.ahoo.wow.elasticsearch.events
 
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient
@@ -96,7 +95,13 @@ class ElasticsearchEventSink internal constructor(
     /** Makes sure of the events index, once, as the DDL mode says. */
     suspend fun prepare() {
         if (ensured) return
-        indices.ensure(index, ElasticsearchEventIndex.KIND, ElasticsearchEventIndex.FORMAT, ElasticsearchEventIndex.DEFINITION, ddl)
+        indices.ensure(
+            index,
+            ElasticsearchEventIndex.KIND,
+            ElasticsearchEventIndex.FORMAT,
+            ElasticsearchEventIndex.DEFINITION,
+            ddl
+        )
         ensured = true
     }
 
