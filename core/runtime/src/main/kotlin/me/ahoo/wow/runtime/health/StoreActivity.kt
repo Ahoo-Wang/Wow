@@ -151,8 +151,12 @@ private fun unavailable(failure: Throwable): Boolean = failure is StorageUnavail
 /** Any failure of a lease store's call: the ownership retries them all. */
 private fun anyFailure(failure: Throwable): Boolean = failure !is CancellationException
 
-/** [log], every call recorded in [activity]. */
-internal fun trackedLog(log: EventLog, activity: StoreActivity): EventLog = TrackedEventLog(log, activity)
+/** [log], every call recorded in [activity], and each append's latency in [pressure] when there is one. */
+internal fun trackedLog(
+    log: EventLog,
+    activity: StoreActivity,
+    pressure: StoreWritePressure? = null,
+): EventLog = TrackedEventLog(log, activity, pressure)
 
 /** [leases], every call recorded in [activity]. */
 internal fun trackedLeases(
@@ -166,14 +170,29 @@ internal fun activityOf(log: EventLog): StoreActivity? = (log as? TrackedEventLo
 /** The record of [leases]' calls, when it is tracked. */
 internal fun activityOf(leases: LeaseStore): StoreActivity? = (leases as? TrackedLeaseStore)?.activity
 
-private class TrackedEventLog(private val log: EventLog, val activity: StoreActivity) : EventLog {
+private class TrackedEventLog(
+    private val log: EventLog,
+    val activity: StoreActivity,
+    private val pressure: StoreWritePressure?,
+) : EventLog {
     override val partitions: Int get() = log.partitions
 
     override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
-        activity.call(::unavailable) { log.append(stream, transport) }.also(::record)
+        timed { activity.call(::unavailable) { log.append(stream, transport) } }.also(::record)
 
     override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> =
-        activity.call(::unavailable) { log.appendAll(streams) }.also { outcomes -> outcomes.forEach(::record) }
+        timed { activity.call(::unavailable) { log.appendAll(streams) } }.also { outcomes -> outcomes.forEach(::record) }
+
+    /** [block], its latency recorded in [pressure] whether it succeeds or fails (decision D252). */
+    private inline fun <T> timed(block: () -> T): T {
+        if (pressure == null) return block()
+        val start = System.nanoTime()
+        try {
+            return block()
+        } finally {
+            pressure.record(System.nanoTime() - start)
+        }
+    }
 
     /** An append whose outcome is unknown did not reach the store, or did not hear back from it. */
     private fun record(outcome: AppendOutcome) {

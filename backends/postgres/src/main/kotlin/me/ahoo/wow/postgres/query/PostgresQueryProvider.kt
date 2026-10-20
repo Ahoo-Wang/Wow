@@ -27,6 +27,7 @@ import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.spi.store.Store
+import java.lang.reflect.Modifier
 import java.util.concurrent.ConcurrentHashMap
 import javax.sql.DataSource
 
@@ -80,6 +81,24 @@ internal fun DataSource.maximumPoolSize(): Int? = try {
 } catch (ignored: ReflectiveOperationException) {
     null
 }
+
+/**
+ * How many threads wait now for a connection of this pool, when it says (HikariCP's
+ * `getHikariPoolMXBean().getThreadsAwaitingConnection()`, read without depending on HikariCP); null for a pool that
+ * does not, or one not started yet.
+ */
+internal fun DataSource.threadsAwaitingConnection(): Int? = try {
+    val pool = javaClass.getMethod("getHikariPoolMXBean").invoke(this)
+    pool?.let { publicMethod(it, "getThreadsAwaitingConnection").invoke(it) as? Int }
+} catch (ignored: ReflectiveOperationException) {
+    null
+}
+
+/** [name] of [target], looked up on the public interface that declares it when its class is not public itself. */
+private fun publicMethod(target: Any, name: String) =
+    (listOf(target.javaClass) + target.javaClass.interfaces).firstNotNullOf { type ->
+        runCatching { type.getMethod(name) }.getOrNull()?.takeIf { Modifier.isPublic(type.modifiers) }
+    }
 
 private class PostgresSnapshotQueries(private val store: PostgresStore, options: StoreQueryOptions) : SnapshotQueries {
     private val queryOptions = PostgresQueryOptions(indexDdl = options.indexDdl)
