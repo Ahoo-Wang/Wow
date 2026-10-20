@@ -1,6 +1,11 @@
 spring:
   application:
     name: analytics-catalog-service
+  web:
+    resources:
+      # The console (roadmap 7.2c, platform/analytics/catalog/console): the distribution's ui/ folder, or the console's
+      # own build when the server runs from its project directory (`./gradlew :analytics-catalog-server:run`).
+      static-locations: file:./ui/, file:../console/dist/
 server:
   port: 8087
 # No identity provider until the `cosec` profile: every request is answered 401, unless a local run takes its callers

@@ -5,11 +5,9 @@ import {test} from 'node:test'
 // `markdown` is where the "View as Markdown" button fetches from: the plugin's
 // client resolves the page URL without its trailing slash or `.html`, plus `.md`.
 const pages = [
-    {html: 'articles/command-success-is-not-complete.html', markdown: 'articles/command-success-is-not-complete.md'},
-    {html: 'zh/articles/command-success-is-not-complete.html', markdown: 'zh/articles/command-success-is-not-complete.md'},
-    {html: 'zh/guide/getting-started.html', markdown: 'zh/guide/getting-started.md'},
-    {html: 'zh/articles/index.html', markdown: 'zh/articles.md'},
-    {html: 'zh/guide/index.html', markdown: 'zh/guide.md'},
+    {html: 'guide/v10/quickstart.html', markdown: 'guide/v10/quickstart.md'},
+    {html: 'zh/guide/v10/quickstart.html', markdown: 'zh/guide/v10/quickstart.md'},
+    {html: 'zh/guide/v10/index.html', markdown: 'zh/guide/v10.md'},
     {html: 'zh/index.html', markdown: 'zh.md'},
 ]
 
