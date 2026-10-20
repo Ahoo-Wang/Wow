@@ -21,7 +21,8 @@ import java.util.Collections
 /**
  * The names of an event stream record's fields (decision D235): one record per stream, the commit of one command at
  * one version, as `me.ahoo.wow.spi.log.EventStreamRecord` holds it. [OPERATOR] is `{id, tenantId, crossScope}`, or
- * null for an anonymous caller (decision D163); [EVENTS] holds each event as `{name, revision, body}` ([EventFields]).
+ * null for an anonymous caller (decision D163); [TAGS] the tags after the commit, or null when not recorded (decision
+ * D259); [EVENTS] holds each event as `{name, revision, body}` ([EventFields]).
  */
 object EventStreamFields {
     const val AGGREGATE_ID: String = "aggregateId"
@@ -34,6 +35,12 @@ object EventStreamFields {
     const val OWNER_ID: String = "ownerId"
     const val SPACE_ID: String = "spaceId"
     const val OPERATOR: String = "operator"
+
+    /**
+     * The aggregate's tags after the stream's commit, `{key: [values]}` (decision D259): null when the log did not
+     * record them (a stream appended before format 1 learned them, until `migrate-data` backfills it).
+     */
+    const val TAGS: String = "tags"
     const val EVENTS: String = "events"
 }
 
@@ -139,6 +146,8 @@ class EventsQueryModelProfile internal constructor(
                     EventStreamFields.SPACE_ID.stringField(nullable = true),
                     // Whose name the commit is recorded in; null when that caller was anonymous (D163).
                     EventStreamFields.OPERATOR.operatorField(),
+                    // The tags after the commit; null when the log did not record them (D259).
+                    EventStreamFields.TAGS.tagsField(nullable = true),
                     EventStreamFields.EVENTS.payloadField(),
                 ),
             ),

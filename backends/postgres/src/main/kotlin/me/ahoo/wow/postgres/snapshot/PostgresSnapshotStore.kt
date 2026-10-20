@@ -358,7 +358,7 @@ class PostgresSnapshotStore(
         if (value == null) setNull(index, Types.BOOLEAN) else setBoolean(index, value)
     }
 
-    private companion object {
+    internal companion object {
         /** The parameters of one refused snapshot's row of [PostgresSnapshotTables.markRefusedRows]. */
         const val MARK_PARAMETERS = 4
 

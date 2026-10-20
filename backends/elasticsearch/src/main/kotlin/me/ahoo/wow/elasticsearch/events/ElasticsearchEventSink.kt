@@ -106,7 +106,9 @@ class ElasticsearchEventSink internal constructor(
             ElasticsearchEventIndex.KIND,
             ElasticsearchEventIndex.FORMAT,
             ElasticsearchEventIndex.DEFINITION,
-            ddl
+            ddl,
+            ElasticsearchEventIndex.ADDED,
+            ElasticsearchEventIndex.ADDITIONS,
         )
         ensured = true
     }

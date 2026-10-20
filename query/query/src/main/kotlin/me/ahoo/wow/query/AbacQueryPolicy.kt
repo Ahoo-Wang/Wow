@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.IsEmptyFilter
+import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.NorFilter
@@ -29,6 +30,7 @@ import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.dataset.DatasetQueryModelProfile
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.query.schema.EventStreamFields
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.SnapshotFields
@@ -38,8 +40,9 @@ import me.ahoo.wow.query.schema.SnapshotFields
  * defaults keep 9.x's permissive semantics.
  *
  * @property enabled turns the policy on (`wow.query.abac.enabled`, decision D129): off, it restricts nothing.
- * @property requirePrincipalTags rejects an HTTP query (of the snapshots, or of a dataset binding tag columns) whose
- * caller has no ABAC tags, instead of letting it match every resource. In-process queries are trusted and never rejected for this.
+ * @property requirePrincipalTags rejects an HTTP query (of the snapshots, the event streams, or of a dataset binding
+ * tag columns) whose caller has no ABAC tags, instead of letting it match every resource. In-process queries are
+ * trusted and never rejected for this.
  * @property matchMissingTagKey lets a resource that lacks one of the caller's tag keys (or has it empty) match, as a
  * public resource. Off, a resource matches only when it carries every non-wildcard key with a value the caller holds.
  * @property attributePrefix the prefix of the caller attributes ([QueryCaller.attributes]) that are ABAC tags: the
@@ -88,9 +91,11 @@ class AbacQueryOptions @InternalWowApi constructor(
 }
 
 /**
- * Attribute-based access control of snapshot and dataset queries (decision D129, 9.x `AbacQueryPolicy` semantics,
- * independent of CoSec): the caller's ABAC tags, its `abac.<key>` [attributes][QueryCaller.attributes], are matched
- * against the snapshot's `tags` system field, or against the tag columns a dataset binds
+ * Attribute-based access control of snapshot, event stream and dataset queries (decision D129, 9.x `AbacQueryPolicy`
+ * semantics, independent of CoSec): the caller's ABAC tags, its `abac.<key>` [attributes][QueryCaller.attributes], are
+ * matched against the snapshot's `tags` system field, the tags each event stream recorded at its commit (decision D259:
+ * a timeline is restricted as each stream stood, and a stream that recorded none, appended before its log learned
+ * them, matches no restriction), or against the tag columns a dataset binds
  * ([DatasetQueryModelProfile.tags]): a string column holds one tag value per record and a string-array column several,
  * and an empty string or array is a record without the tag. Other models, and datasets that bind no tag, are
  * unrestricted and do not read the caller's tags.
@@ -111,9 +116,9 @@ class AbacQueryPolicy(
     val options: AbacQueryOptions = AbacQueryOptions.DEFAULT,
     override val order: Int = 0,
 ) : QueryPolicy {
-    /** Off, it hides nothing; on, an aggregate's streams follow whether its snapshot's tags admit the caller. */
+    /** Off, it hides nothing; on, each stream's tags at its commit decide (decision D259). */
     override val events: EventsMode
-        get() = if (options.enabled) EventsMode.PINNED else EventsMode.NONE
+        get() = if (options.enabled) EventsMode.PUSHDOWN else EventsMode.NONE
 
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
         if (!options.enabled) return MatchAllFilter
@@ -121,6 +126,9 @@ class AbacQueryPolicy(
         val condition: (Map<String, List<String>>) -> FilterExpression = when {
             context.schema.model == QueryModel.SNAPSHOT -> { tags ->
                 tags.toFilterExpression(options.matchMissingTagKey)
+            }
+            context.schema.model == QueryModel.EVENTS -> { tags ->
+                tags.toFilterExpression(options.matchMissingTagKey).recorded()
             }
             profile is DatasetQueryModelProfile && profile.tags.isNotEmpty() -> { tags ->
                 tags.toFilterExpression(profile.tags, context.schema, options.matchMissingTagKey)
@@ -149,6 +157,18 @@ class AbacQueryPolicy(
     companion object {
         /** The value that matches any value of its key: the key only has to exist. */
         const val WILDCARD: String = "*"
+
+        private val STREAM_TAGS = QueryField(EventStreamFields.TAGS)
+
+        /**
+         * This condition on a stream's tags, of a stream that recorded them (decision D259): one appended before its log
+         * learned them matches no restriction until `migrate-data` backfills it.
+         */
+        private fun FilterExpression.recorded(): FilterExpression = when (this) {
+            MatchAllFilter -> MatchAllFilter
+            is AndFilter -> AndFilter(listOf(IsNotNullFilter(STREAM_TAGS)) + operands)
+            else -> AndFilter(listOf(IsNotNullFilter(STREAM_TAGS), this))
+        }
 
         /** Every tag of [this] as one condition on the snapshot `tags`, ANDed; match-all when there is none. */
         @JvmStatic

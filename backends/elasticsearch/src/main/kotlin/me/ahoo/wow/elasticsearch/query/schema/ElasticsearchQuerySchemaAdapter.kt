@@ -16,6 +16,7 @@ package me.ahoo.wow.elasticsearch.query.schema
 import co.elastic.clients.elasticsearch._types.mapping.Property
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.elasticsearch.events.ElasticsearchEventIndex
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.ElasticsearchMappedField
@@ -23,6 +24,7 @@ import me.ahoo.wow.elasticsearch.query.hasArrayBranch
 import me.ahoo.wow.elasticsearch.query.isElementScope
 import me.ahoo.wow.query.schema.AbsentValues
 import me.ahoo.wow.query.schema.AggregationSupport
+import me.ahoo.wow.query.schema.EventStreamFields
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.PagingSupport
 import me.ahoo.wow.query.schema.QueryCapability
@@ -194,10 +196,11 @@ internal class ElasticsearchQuerySchemaAdapter(
             arrayPaths: Set<String>,
         ): Map<QueryCapability, QueryFieldBindingTemplate> = when {
             provisional && unmapped(source) -> provisionalBindings(path, value)
-            source == null -> emptyMap()
+            source == null -> flattenedKeyBindings(path, value)
             else -> BUILT_IN_CAPABILITIES.mapNotNull { capability ->
                 (
                     documentIdBinding(model, source, capability)
+                        ?: presenceMarkerBinding(model, source, capability)
                         ?: binding(source, value, capability, invalidNested, nestedPaths, arrayPaths)
                     )?.let { capability to it }
             }.toMap()
@@ -264,6 +267,30 @@ internal class ElasticsearchQuerySchemaAdapter(
                 }
             }.associateWith { physical }
         }
+
+        /**
+         * A map key below a `flattened` field (an events index's `tags`, decision D259): the mapping never lists its
+         * keys, so the path is bound with its key, as the field indexes each key's values, for what a flattened key
+         * executes: presence and exact string matches.
+         */
+        private fun ElasticsearchIndexMapping.flattenedKeyBindings(
+            path: QueryPathTemplate,
+            value: QueryValueSchema,
+        ): Map<QueryCapability, QueryFieldBindingTemplate> {
+            val prefix = path.segments.takeWhile { it is QueryPathSegment.Property }
+                .joinToString(".") { (it as QueryPathSegment.Property).name }
+            val mapped = fields[prefix]?.takeIf { it.kind == Property.Kind.Flattened } ?: return emptyMap()
+            val physical = QueryFieldBindingTemplate(
+                QueryPathTemplate(path.segments.filter { it != QueryPathSegment.Item }),
+                setOf(QueryStorageType(mapped.kind.jsonValue())),
+            )
+            // A key of several values (a tag's) indexes each one as the key's value.
+            val element = value.items?.takeIf { value.kind == QueryValueKind.ARRAY } ?: value
+            return FLATTENED_KEY_CAPABILITIES.filter { mapped.supports(it, element, flattenedDescendant = true) }
+                .associateWith { physical }
+        }
+
+        private val FLATTENED_KEY_CAPABILITIES = listOf(QueryCapability.PRESENCE, QueryCapability.EXACT_MATCH)
 
         private fun ElasticsearchIndexMapping.sourceAvailable(path: QueryPathTemplate): Boolean =
             if (path.segments.any { it is QueryPathSegment.Key }) {
@@ -380,6 +407,25 @@ internal class ElasticsearchQuerySchemaAdapter(
         }
 
         private const val DOCUMENT_ID = "_id"
+
+        /**
+         * The presence of a field a built-in store marks with a field of its own: an events index cannot tell an empty
+         * `tags` object from a missing one, so whether a stream recorded its tags is its `tagsRecorded` (decision D259).
+         */
+        private fun ElasticsearchIndexMapping.presenceMarkerBinding(
+            model: QueryModel,
+            source: String,
+            capability: QueryCapability,
+        ): QueryFieldBindingTemplate? {
+            if (capability != QueryCapability.PRESENCE) return null
+            val marker = PRESENCE_MARKERS[model to source] ?: return null
+            val mapped = fields[marker] ?: return null
+            return QueryFieldBindingTemplate(marker.template(), setOf(QueryStorageType(mapped.kind.jsonValue())))
+        }
+
+        private val PRESENCE_MARKERS: Map<Pair<QueryModel, String>, String> = mapOf(
+            (QueryModel.EVENTS to EventStreamFields.TAGS) to ElasticsearchEventIndex.TAGS_RECORDED,
+        )
 
         /**
          * The field each built-in store writes as the document `_id`: none. A snapshot's `_id` is its tenant and

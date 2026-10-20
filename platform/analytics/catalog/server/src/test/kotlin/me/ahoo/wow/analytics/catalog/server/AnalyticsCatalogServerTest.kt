@@ -82,6 +82,7 @@ class AnalyticsCatalogServerTest {
             """{"fields":[{"path":"tenant"},{"path":"phone","level":"DISPLAY","keepPrefix":3}]}""",
         ).assertOk()
         node.command(id, "mark-source-reviewed", "{}", Who.APPROVER).assertOk()
+        looked()
         val state = node.state(id)["state"]
         state["status"].asString().assert().isEqualTo("REVIEWED")
         state["kind"].asString().assert().isEqualTo("ANALYST")
@@ -143,6 +144,38 @@ class AnalyticsCatalogServerTest {
             .status.assert().isEqualTo(CONFLICT)
     }
 
+    @Test
+    fun `an editor should draft a dataset over a reviewed source, its definition checked against the catalog`() {
+        warehouse.put(INVOICES)
+        val source = AnalyticsCatalogContext.sourceIdOf("warehouse", MemoryWarehouse.DATABASE, INVOICES.name)
+        node.command(source, "draft-source", """{"database":"${MemoryWarehouse.DATABASE}","table":"invoices"}""")
+            .assertOk()
+        node.command(source, "revise-source", """{"tenantColumn":"tenant"}""").assertOk()
+        node.command(
+            source,
+            "review-source-sensitivity",
+            """{"fields":[{"path":"tenant"},{"path":"phone","level":"DISPLAY","keepPrefix":3}]}""",
+        ).assertOk()
+        node.command(source, "mark-source-reviewed", "{}", Who.APPROVER).assertOk()
+        val id = AnalyticsCatalogContext.datasetIdOf("shop", "invoices")
+        fun draft(column: String) = """{"context":"shop","name":"invoices","definition":{"sources":""" +
+            """[{"alias":"i","sourceId":"$source"}],"subject":"i","columns":[{"name":"phone","from":"$column"}]}}"""
+        node.datasetCommand(id, "draft-dataset", draft("i.phone"), Who.VIEWER)
+            .assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        node.datasetCommand(id, "draft-dataset", draft("i.nothing"), Who.EDITOR)
+            .assertProblem(BAD_REQUEST, "analytics.catalog.definition-invalid")
+        node.datasetCommand(id, "draft-dataset", draft("i.phone"), Who.EDITOR).assertOk()
+        val dataset = node.dataset(id)["state"]
+        dataset["status"].asString().assert().isEqualTo("DRAFT")
+        dataset["sources"].values().map { it.asString() }.assert().containsExactly(source)
+    }
+
+    /** Waits until the watcher has looked at the warehouse as it is now: a look begun since, and ended. */
+    private fun looked() {
+        val since = warehouse.listings.get()
+        eventually("the watcher looked") { warehouse.listings.get() >= since + 2 }
+    }
+
     private companion object {
         const val OK = 200
         const val BAD_REQUEST = 400
@@ -155,6 +188,13 @@ class AnalyticsCatalogServerTest {
             "uuid-orders",
             "MergeTree",
             listOf(SourceColumn("tenant", "String"), SourceColumn("phone", "String"), SourceColumn("total", "Int64")),
+        )
+        val INVOICES = WarehouseTable(
+            MemoryWarehouse.DATABASE,
+            "invoices",
+            "uuid-invoices",
+            "MergeTree",
+            listOf(SourceColumn("tenant", "String"), SourceColumn("phone", "String")),
         )
         val MEMBERS = WarehouseTable(
             MemoryWarehouse.DATABASE,

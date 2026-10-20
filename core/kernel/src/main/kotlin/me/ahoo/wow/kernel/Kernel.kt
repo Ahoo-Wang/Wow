@@ -396,6 +396,8 @@ class Kernel(
             causation = command.causation,
             headers = command.headers,
             operator = command.operator,
+            // Recorded with each stream (decision D259): the events model filters by the tags after the commit.
+            tags = metadata.tags,
         )
         return Prepared.Append(stream, loaded.with(evolved, stream.version, metadata))
     }

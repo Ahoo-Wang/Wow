@@ -18,8 +18,10 @@ wow:
       # tests, never production.
       enabled: true
   aggregates:
-    # Every source is the platform's: one catalog for the whole warehouse (decisions D116, D238 ②).
+    # Every source and dataset is the platform's: one catalog for the whole warehouse (decisions D116, D238 ②).
     "[analytics-catalog.source]":
+      tenant: (platform)
+    "[analytics-catalog.dataset]":
       tenant: (platform)
   internal:
     port: 9097
