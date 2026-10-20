@@ -39,6 +39,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.stream.Stream;
 
@@ -97,6 +98,22 @@ class JavaClientSmokeTest {
     }
 
     @Test
+    void asynchronousCallsShouldCompose() {
+        String view = "{\"ref\":{\"type\":{\"context\":\"post\",\"name\":\"parcel\"},\"tenantId\":\"t1\",\"id\":\"p-1\"},"
+            + "\"version\":1,\"scope\":{},\"deleted\":false,\"tags\":{},\"state\":{\"to\":\"bob\"}}";
+        peer.reply(
+            Reply.Companion.json(result(CommandResult.Status.SUCCEEDED, null), 200),
+            new Reply(200, Map.of("Content-Type", "application/json"), view.getBytes(), null, false));
+        // Send, then read what it changed, then map it: one chain, no blocking until join().
+        CompletableFuture<String> recipient = commands.sendAndWaitAsync(new SendParcel("bob"), ref,
+                JavaCommandClient.options().timeout(Duration.ofMillis(1500)).build())
+            .thenCompose(sent -> parcels.stateAsync(sent.getRef()))
+            .thenApply(state -> state.getState().getTo());
+        assertEquals("bob", recipient.join());
+        assertEquals("1500ms", peer.getTaken().get(0).getHeaders().getOrDefault("Wow-Wait-Timeout", "1500ms"));
+    }
+
+    @Test
     void aRejectionShouldBeThrownOrCompleteTheFuture() {
         CommandResult rejected = result(CommandResult.Status.REJECTED, new ErrorInfo("post.full", "Full.", List.of(), Map.of()));
         peer.reply(Reply.Companion.problem(422, Map.of("code", "post.full", "result", rejected), null));
@@ -106,6 +123,12 @@ class JavaClientSmokeTest {
         CompletionException failed =
             assertThrows(CompletionException.class, () -> commands.sendAndWaitAsync(new SendParcel("bob"), ref).join());
         assertInstanceOf(CommandRejectedException.class, failed.getCause());
+        // Or handled in the chain, as a typed exception.
+        String handled = commands.sendAndWaitAsync(new SendParcel("bob"), ref)
+            .thenApply(sent -> "sent")
+            .exceptionally(error -> error.getCause() instanceof CommandRejectedException rejection ? rejection.getCode() : "?")
+            .join();
+        assertEquals("post.full", handled);
     }
 
     @Test
