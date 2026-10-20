@@ -181,7 +181,11 @@ private class TrackedEventLog(
         timed { activity.call(::unavailable) { log.append(stream, transport) } }.also(::record)
 
     override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> =
-        timed { activity.call(::unavailable) { log.appendAll(streams) } }.also { outcomes -> outcomes.forEach(::record) }
+        timed {
+            activity.call(
+                ::unavailable
+            ) { log.appendAll(streams) }
+        }.also { outcomes -> outcomes.forEach(::record) }
 
     /** [block], its latency recorded in [pressure] whether it succeeds or fails (decision D252). */
     private inline fun <T> timed(block: () -> T): T {

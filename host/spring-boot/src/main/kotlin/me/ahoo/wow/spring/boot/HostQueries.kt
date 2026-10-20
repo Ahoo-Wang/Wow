@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.query.AdaptiveLimitOptions
 import me.ahoo.wow.query.AdaptiveQueryLimit
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
@@ -209,32 +210,47 @@ internal object HostQueryBulkheads {
         val limits = ArrayList<AdaptiveQueryLimit>()
         val bulkheads = stores.mapNotNull { (name, store) ->
             val provider = providers.queriesOf(store.type) ?: return@mapNotNull null
-            val own = settings[name]?.query
-            val fixed = own?.maxConcurrent ?: global.maxConcurrent
-            val derived = fixed ?: provider.maxConcurrent(store)
-            check(derived >= 0) {
-                "wow.stores.$name.query.max-concurrent (or wow.query.max-concurrent) is $derived: 0 for no bound, or more."
-            }
-            if (derived == 0) return@mapNotNull null
-            val adaptive = fixed == null && (own?.adaptive?.enabled ?: global.adaptive.enabled)
-            val ceiling = if (adaptive) {
-                (own?.adaptive?.ceiling ?: global.adaptive.ceiling ?: provider.maxConcurrentCeiling(store)).also {
-                    check(it >= 1) { "wow.stores.$name.query.adaptive.ceiling (or wow.query.adaptive.ceiling) is $it." }
-                }
-            } else {
-                derived
-            }
-            val max = minOf(derived, ceiling)
-            val wait = own?.maxWait ?: global.maxWait
-            val queued = own?.maxQueued ?: global.maxQueued ?: (max * QueryBulkhead.DEFAULT_QUEUE_FACTOR)
-            val bulkhead = QueryBulkhead(name, max, wait.toKotlinDuration(), queued, maxOf(max, ceiling))
-            if (adaptive) {
-                val options = global.adaptive.options(own?.adaptive?.floor ?: global.adaptive.floor)
-                limits += AdaptiveQueryLimit(bulkhead, pressures(name), options)
-            }
+            val (bulkhead, adaptive) = bulkheadOf(name, store, provider, global, settings[name]?.query)
+                ?: return@mapNotNull null
+            adaptive?.let { limits += AdaptiveQueryLimit(bulkhead, pressures(name), it) }
             name to bulkhead
         }.toMap()
         return QueryStoreBulkheads(bulkheads, limits)
+    }
+
+    /** The bulkhead of the store [name], and its adaptive options when its bound adapts; null for no bound. */
+    private fun bulkheadOf(
+        name: String,
+        store: Store,
+        provider: StoreQueryProvider,
+        global: QueryProperties,
+        own: WowProperties.StoreQuery?,
+    ): Pair<QueryBulkhead, AdaptiveLimitOptions?>? {
+        val fixed = own?.maxConcurrent ?: global.maxConcurrent
+        val derived = fixed ?: provider.maxConcurrent(store)
+        check(derived >= 0) {
+            "wow.stores.$name.query.max-concurrent (or wow.query.max-concurrent) is $derived: 0 for no bound, or more."
+        }
+        if (derived == 0) return null
+        val adaptive = fixed == null && (own?.adaptive?.enabled ?: global.adaptive.enabled)
+        val ceiling = if (adaptive) ceilingOf(name, store, provider, global, own) else derived
+        val max = minOf(derived, ceiling)
+        val wait = own?.maxWait ?: global.maxWait
+        val queued = own?.maxQueued ?: global.maxQueued ?: (max * QueryBulkhead.DEFAULT_QUEUE_FACTOR)
+        val bulkhead = QueryBulkhead(name, max, wait.toKotlinDuration(), queued, maxOf(max, ceiling))
+        val options = if (adaptive) global.adaptive.options(own?.adaptive?.floor ?: global.adaptive.floor) else null
+        return bulkhead to options
+    }
+
+    /** The ceiling of the store [name]'s adaptive bound: its own, else the global one, else its provider's. */
+    private fun ceilingOf(
+        name: String,
+        store: Store,
+        provider: StoreQueryProvider,
+        global: QueryProperties,
+        own: WowProperties.StoreQuery?,
+    ): Int = (own?.adaptive?.ceiling ?: global.adaptive.ceiling ?: provider.maxConcurrentCeiling(store)).also {
+        check(it >= 1) { "wow.stores.$name.query.adaptive.ceiling (or wow.query.adaptive.ceiling) is $it." }
     }
 
     /**

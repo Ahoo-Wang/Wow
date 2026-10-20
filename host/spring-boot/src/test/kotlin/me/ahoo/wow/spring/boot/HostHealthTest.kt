@@ -23,6 +23,7 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
+import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.health.ComponentHealth
 import me.ahoo.wow.runtime.health.HealthStatus
 import me.ahoo.wow.runtime.health.NodeHealth
@@ -77,7 +78,15 @@ class HostHealthTest {
                 "subscriptions",
                 "executor",
                 "liveness",
+                "queries",
             )
+            val queries = wow.body["components"]["queries"]
+            queries["status"].asString().assert().isEqualTo("UP")
+            val store = queries["details"][ContextBackends.DEFAULT_STORE]
+            store["limit"].asInt().assert().isEqualTo(StoreQueryProvider.DEFAULT_MAX_CONCURRENT)
+            store["adaptive"].asBoolean().assert().isTrue()
+            store["pressure"].asBoolean().assert().isFalse()
+            store["decreases"].asLong().assert().isZero()
             host.context.getBean(NodeHealth::class.java).options.storeDownAfter.assert().isEqualTo(Duration.ZERO)
         }
     }

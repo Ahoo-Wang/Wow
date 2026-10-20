@@ -18,9 +18,9 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.AdaptiveQueryLimit
 import me.ahoo.wow.query.AdaptiveQueryLimits
+import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.QueryCountCache
 import me.ahoo.wow.query.QueryEntryPolicy
