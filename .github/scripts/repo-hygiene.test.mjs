@@ -93,7 +93,7 @@ test('wildcards and names matched at any depth are not concrete paths', () => {
 const FILES = [
   'typescript/wow-client/src/index.ts',
   'typescript/wow-client/test/api/root.api.md',
-  'wow-benchmarks/results/reports/e2e.md',
+  'test/benchmarks/results/reports/e2e.md',
   'api/api/build.gradle.kts',
 ];
 
@@ -114,7 +114,7 @@ test('a .prettierignore entry must match a tracked file', () => {
 test('a .gitignore entry must sit in a directory that holds a tracked file', () => {
   const text = [
     '/build/',
-    'wow-benchmarks/results/jmh/',
+    'test/benchmarks/results/e2e/',
     'typescript/*/dist/',
     'compensation/dashboard/dist/',
   ].join('\n');

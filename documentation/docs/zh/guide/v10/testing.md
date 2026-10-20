@@ -247,4 +247,11 @@ val context = SpringApplicationBuilder(CatalogServer::class.java, TestCallers::c
 - 内存后端上，除非 `wow.query.memory.enabled` 为 `true`，没有查询后端提供快照查询，它们的路由返回 404。
 - Saga 向其他上下文发送命令的服务，没有命令传输就无法启动：给测试提供容器中的 Kafka，或内存主题（见[向其他上下文发送命令](./programming-model.md#向其他上下文发送命令)）。
 - 调低 `wow.cluster.drain-timeout`、`wow.subscription.stop-timeout` 与 `wow.wait.max-timeout`，让上下文更快关闭。
-- 针对 PostgreSQL、MongoDB、Kafka 或 ClickHouse 的测试在容器中运行（Testcontainers），放在模块的 `integrationTest` 源集里。
+- 针对 PostgreSQL、MongoDB、Kafka 或 ClickHouse 的测试在容器中运行（Testcontainers），放在模块的 `integrationTest` 测试套件里。`me.ahoo.wow` 插件会注册它（DX 缺口 G17）：使用 JUnit Jupiter，带上模块的类和 `testImplementation` 的全部依赖，不属于 `check`。源码放在 `src/integrationTest/kotlin`，加上 Testcontainers，用 `./gradlew integrationTest` 运行：
+
+```kotlin
+dependencies {
+    testImplementation(platform("org.testcontainers:testcontainers-bom:2.0.5"))
+    testImplementation("org.testcontainers:testcontainers-postgresql")
+}
+```

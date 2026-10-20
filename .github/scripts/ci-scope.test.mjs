@@ -99,7 +99,8 @@ test('the Gradle build, the dependency versions and the examples skip the TypeSc
     'gradle/libs.versions.toml',
     'gradlew',
     'wow-dependencies/build.gradle.kts',
-    'wow-benchmarks/README.md',
+    'test/benchmarks/README.md',
+    'test/benchmarks/results/reports/v10-counts-e1-e3.md',
     'example/README.md',
   ])
     assert.ok(none([path]), path);
@@ -438,8 +439,9 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'example/quickstart/build.gradle.kts',
     'example/java-smoke/build.gradle.kts',
     // The V10-against-9.x end-to-end benchmark (D224): its V10 side is in v10Check.
-    'wow-benchmarks/e2e/bench-v10/build.gradle.kts',
-    'wow-benchmarks/e2e/load/src/main/kotlin/A.kt',
+    'test/benchmarks/server/build.gradle.kts',
+    'test/benchmarks/load/src/main/kotlin/A.kt',
+    'test/benchmarks/harness/bench.sh',
     'documentation/docs/en/guide/v10/quickstart.md',
     'documentation/docs/zh/guide/v10/quickstart.md',
     'bom/bom/build.gradle.kts',

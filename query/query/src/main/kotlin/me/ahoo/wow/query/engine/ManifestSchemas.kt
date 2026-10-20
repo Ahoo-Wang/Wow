@@ -29,7 +29,8 @@ import java.util.concurrent.ConcurrentHashMap
  * The Manifest's state schemas as the query schema source ([ManifestQuerySchemaSource], decision D37), for each
  * aggregate whose state schema the Manifest carries in `$defs`; the Gradle plugin's manifest-tools writes them
  * (decision D73). An aggregate without one, from a module built with the compiler alone, is queried by its system
- * fields only, and a warning says so once.
+ * fields only, and a warning says so once. A model that is no aggregate of the Manifest, such as a dataset whose fields
+ * its own definition gives, has none to ask for and is not warned about (DX gap G31).
  */
 @InternalWowApi
 class ManifestStateSchemas(
@@ -43,7 +44,7 @@ class ManifestStateSchemas(
 
     override suspend fun load(context: QuerySchemaContext): List<QuerySchemaDeclaration> {
         if (declares(context.aggregateType)) return source.load(context)
-        if (warned.add(context.aggregateType)) {
+        if (aggregateOf(context.aggregateType) != null && warned.add(context.aggregateType)) {
             logger.warn {
                 "The Manifest carries no state schema of ${context.aggregateType}: only its system fields are " +
                     "queried. Build its module with the Wow Gradle plugin, which writes the schemas."
@@ -54,10 +55,12 @@ class ManifestStateSchemas(
 
     /** Whether the Manifest carries the state schema of [type]. */
     fun declares(type: AggregateType): Boolean {
-        val aggregate = manifest.contexts.firstOrNull { it.name == type.context }
-            ?.aggregates?.firstOrNull { it.name == type.name } ?: return false
+        val aggregate = aggregateOf(type) ?: return false
         return Manifest.schemaKey(aggregate.state.schema) in manifest.defs
     }
+
+    private fun aggregateOf(type: AggregateType) =
+        manifest.contexts.firstOrNull { it.name == type.context }?.aggregates?.firstOrNull { it.name == type.name }
 
     private companion object {
         val logger = KotlinLogging.logger {}

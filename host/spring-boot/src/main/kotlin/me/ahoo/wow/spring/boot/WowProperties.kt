@@ -164,6 +164,9 @@ import me.ahoo.wow.client.RetryPolicy as ClientRetryPolicy
  *   `executor.saturation` (0.9), `subscriptions.lag-degraded-at` (10000), `subscriptions.parked-degraded-at` (100),
  *   `liveness.stall-timeout` (3m), see [Health].
  *
+ * - `wow.topics.in-memory` (false): the node's command topics and published streams in its JVM instead of Kafka, for
+ *   local development (DX gap G27), see [Topics].
+ *
  * Every key is in the host's configuration metadata (`META-INF/spring-configuration-metadata.json`, review A5-9), and
  * a `wow.*` key that no property of the host or of a module names is reported at startup ([ConfigurationKeys]).
  */
@@ -240,6 +243,22 @@ class WowProperties {
 
     /** The node's health and its probes (review R3.5-3): `wow.health.*`. */
     var health: Health = Health()
+
+    /** The node's topics without Kafka (DX gap G27), see [Topics]. */
+    var topics: Topics = Topics()
+
+    /**
+     * Topics for trying a service out without Kafka (DX gap G27). With `wow.topics.in-memory` (false), the node keeps
+     * the topics a Kafka cluster would hold in its JVM: the command topics of its contexts, which it executes, and
+     * their published streams, each with `wow.log.partitions` partitions. A saga's command to another context the
+     * node serves then needs no Kafka, and services in one JVM that share the same in-memory topics bean reach each
+     * other's topics; separate JVMs do not. Nothing survives a restart. The node warns at startup, and does not start
+     * with `wow.kafka.bootstrap-servers` too: for local development and tests only.
+     */
+    class Topics {
+        /** Whether the node's topics are in its JVM instead of Kafka. */
+        var inMemory: Boolean = false
+    }
 
     class Node {
         /** This node's id among the nodes of the service; a new one each start when not set. */

@@ -1,0 +1,9 @@
+# counts-E1-trickle: v10 E1
+
+deposit, answered once stored (9.x PROCESSED, V10 committed); backend mongo, nodes 1, heap 1g, gc G1, serverJvm openjdk version "21.0.12.1" 2026-08-18 LTS OpenJDK Runtime Environment Corretto-21.0.12.9.1 (build 21.0.12.1+9-LTS) OpenJDK 64-Bit Server VM Corretto-21.0.12.9.1 (build 21.0.12.1+9-LTS, mixed mode, sharing), stores kafka mongo, serverArgs --wow.log.partitions=64 --bench.extra-subscriptions=10.
+
+Open loop at 10.0/s, uniform over 1000 accounts, 0 s warm-up, 30 s measured.
+
+| Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 10.0/s | 300 | 0 | 17.2 ms | 26.6 ms | 29.8 ms | 50.8 ms | 50.8 ms | 50.8 ms |

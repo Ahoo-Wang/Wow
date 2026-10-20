@@ -1,0 +1,13 @@
+[run] 9x E2 @ 20.0/s: warm-up
+[run] 9x E2 @ 20.0/s: measure
+[run] 9x E2 @ 20.0/s: drain
+# counts-E2: 9x E2
+
+deposit answered at the snapshot, then a state read that shows it; backend mongo, nodes 1, heap 1g, gc G1, serverJvm openjdk version "21.0.12.1" 2026-08-18 LTS OpenJDK Runtime Environment Corretto-21.0.12.9.1 (build 21.0.12.1+9-LTS) OpenJDK 64-Bit Server VM Corretto-21.0.12.9.1 (build 21.0.12.1+9-LTS, mixed mode, sharing), stores kafka mongo, serverArgs .
+
+Open loop at 20.0/s, uniform over 1000 accounts, 0 s warm-up, 60 s measured.
+
+| Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 20.0/s | 1200 | 0 | 21.1 ms | 32.3 ms | 39.4 ms | 49.4 ms | 62.0 ms | 62.0 ms |
+

@@ -42,7 +42,7 @@ export const MARKDOWN_LOCATIONS = [
   // A minor release's notes draft, deleted once the release is published.
   /^typescript\/release-notes\/v[^/]+\.md$/,
   // Reproducible performance evidence.
-  /^wow-benchmarks\//,
+  /^test\/benchmarks\//,
   // Agent capabilities, the project's own and vendored ones.
   /^skills\//,
   /^\.claude\/skills\//,

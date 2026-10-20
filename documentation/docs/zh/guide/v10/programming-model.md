@@ -384,7 +384,7 @@ context.command(AggregateType("inventory", "stock").ref(event.ref.tenantId, prod
 - 目标服务设置 `wow.kafka.command-intake: true` 后执行它的命令主题。主题必须已存在，且分区数恰好等于目标的日志分区数（`wow.log.partitions`，默认 64），否则那个节点无法启动。
 - 拒绝以回执的形式写回发送方的 `wow.<sender>.receipts`，交给 Saga 的 `@OnRejected` 处理函数。
 - 发送方从目标的 Manifest 中找到命令的类型名，该 Manifest 是发送服务的对端。
-- `ref` 的租户原样传递：一个系统中的所有上下文共用一个租户空间（见[部署](./deployment.md#一个租户空间)）。
+- `ref` 的租户原样传递：一个系统中的所有上下文共用一个租户空间（见[部署](./deployment.md#一个租户空间)）。目标聚合类型固定了租户时，会拒绝其他租户的命令。
 
 节点的某个 Saga 派生、定时或处理其他上下文命令的拒绝时，没有命令传输的节点无法启动。错误信息指出每个 Saga 与上下文：
 
@@ -392,7 +392,7 @@ context.command(AggregateType("inventory", "stock").ref(event.ref.tenantId, prod
 Node <node> has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers), but example/OrderSaga.onOrderCreated sends commands to inventory: a command across contexts goes through its context's command topic (decision D33).
 ```
 
-生产环境的传输是 Kafka（`wow.kafka.bootstrap-servers`）。没有 Kafka 的测试给节点提供内存主题：一个 `InMemoryTopics` Bean（`me.ahoo.wow.kernel.memory`）和基于它的 `SourceTopics` Bean（`me.ahoo.wow.runtime.node`），示例的测试就是这样做的：
+生产环境的传输是 Kafka（`wow.kafka.bootstrap-servers`）。要在一台机器上不带 Kafka 试用服务，设置 `wow.topics.in-memory: true`：节点把命令主题和发布的流放在自己的 JVM 里，执行自己的命令主题，并在启动时告警；这些主题不会到达其他 JVM，重启后也不保留（DX 缺口 G27）。没有 Kafka 的测试也可以自己给节点提供内存主题：一个 `InMemoryTopics` Bean（`me.ahoo.wow.kernel.memory`）和基于它的 `SourceTopics` Bean（`me.ahoo.wow.runtime.node`），示例的测试就是这样做的：
 
 ```kotlin
 class InMemoryShopTopics {

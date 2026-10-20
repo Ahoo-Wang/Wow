@@ -44,9 +44,6 @@ docs/superpowers/
 # Mimosa security scan scratch
 .mimosa/
 
-# Benchmark generated outputs
-wow-benchmarks/results/jmh/
-
 # pnpm workspace
 node_modules/
 *.tsbuildinfo
@@ -60,5 +57,5 @@ typescript/*/.vitest-attachments/
 # Local skill eval reports (scripts/eval-skills.mjs)
 skills/*/evals/results/
 
-# End-to-end benchmark runs (wow-benchmarks/e2e/harness/bench.sh); reports copy what they cite into results/reports/
-wow-benchmarks/results/e2e/
+# Benchmark runs (test/benchmarks/harness/bench.sh); reports copy what they cite into results/reports/
+test/benchmarks/results/e2e/
