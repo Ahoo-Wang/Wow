@@ -489,7 +489,10 @@ class QueryStores internal constructor(
     val bulkheads: Map<String, QueryBulkhead>,
     /** The bounds of [bulkheads] that adapt to their store's write pressure (decision D252). */
     val limits: List<AdaptiveQueryLimit>,
-    /** The bulkhead of the dataset queries (`wow.query.dataset.max-concurrent`), or null when they run unbounded. */
+    /**
+     * The bulkhead of the dataset queries (`wow.query.dataset.max-concurrent`), or null when they run unbounded. Its
+     * limit is fixed: the warehouse's writes (the ClickHouse Sink's) give the node no write pressure to adapt to.
+     */
     val datasets: QueryBulkhead?,
     private val unpinned: (AggregateType) -> UnpinnedEvents,
 ) {

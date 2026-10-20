@@ -75,7 +75,9 @@ import kotlin.time.toKotlinDuration
  * - `wow.query.dataset.max-concurrent` (8; decision D247): how many dataset queries the node runs at once, under one
  *   bulkhead, `datasets`, which keeps the analytics queries from taking a warehouse the Sink writes to; `0` sets none.
  *   A query beyond it waits for `wow.query.dataset.max-wait` (`wow.query.max-wait` when unset) in a queue of
- *   `wow.query.dataset.max-queued` (`wow.query.max-queued`, else 4 per permit), then is `wow.query.busy`.
+ *   `wow.query.dataset.max-queued` (`wow.query.max-queued`, else 4 per permit), then is `wow.query.busy`. The bound
+ *   is fixed, not adaptive (decision D252): the warehouse's writes (the ClickHouse Sink's) give the node no write
+ *   pressure to adapt to.
  * - `wow.query.max-concurrent` (none: each store's provider derives one from its pool, PostgreSQL a quarter of a pool
  *   the appends share, at least 2, or all of a `query-data-source` of its own, 16 otherwise; review R3.4-2): how many
  *   snapshot and `events` queries each store runs at once, whichever entry asks, beyond which a query is
