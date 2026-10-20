@@ -22,10 +22,8 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.SendOptions
-import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.SubscriptionQueries
-import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.client.ClientMode
@@ -113,7 +111,7 @@ class HostClientsTest {
                 SendOptions.DEFAULT
             )
             opened.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-            val queries = RoutedQueryApi(NoQueries, peers(mode), emptySet()).of(dave)
+            val queries = RoutedQueryApi(mockk(relaxed = true), peers(mode), emptySet()).of(dave)
             queries.snapshots<Account>().state(opened.ref.id)!!.state.owner.assert().isEqualTo("dave")
             queries.snapshots(account).state(opened.ref.id).assert().isNotNull()
             commands.stream(Deposit(5), opened.ref, SendOptions.DEFAULT).toList().last().status.assert()
@@ -133,12 +131,41 @@ class HostClientsTest {
         routed.of(dave).send(OpenAccount("x"), AggregateType("ledger", "entry").unassigned("t"), SendOptions.DEFAULT)
         io.mockk.coVerify { local.of(dave) }
         peers().clientOf("ledger").assert().isNotNull()
-        val queries = RoutedQueryApi(NoQueries, peers(), setOf(Account::class.java), { NoQueries.Tenant(it) })
-        assertThrows<UnsupportedOperationException> { queries.of(dave).snapshots<Account>() }
-        assertThrows<UnsupportedOperationException> { queries.trusted() }
-        queries.tenant("t1").tenantId.assert().isEqualTo("t1")
-        assertThrows<UnsupportedOperationException> { queries.tenant("t1").trusted() }
-        assertThrows<UnsupportedOperationException> { queries.of(dave).events(AggregateType("ledger", "entry")) }
+        val localQueries = mockk<QueryApi>(relaxed = true)
+        val pinned = mockk<SubscriptionQueries>(relaxed = true)
+        val queries = RoutedQueryApi(localQueries, peers(), setOf(Account::class.java)) { pinned }
+        val ledger = AggregateType("ledger", "entry")
+        // The node's own state class, a context not listed and trusted queries stay in process.
+        queries.of(dave).snapshots<Account>().assert().isSameAs(localQueries.of(dave).snapshots(Account::class.java))
+        queries.of(dave).events(ledger).assert().isSameAs(localQueries.of(dave).events(ledger))
+        queries.of(dave).snapshots(ledger).assert().isSameAs(localQueries.of(dave).snapshots(ledger))
+        queries.of(
+            dave
+        ).datasets(ledger, Map::class.java).assert().isSameAs(localQueries.of(dave).datasets(ledger, Map::class.java))
+        queries.trusted().assert().isSameAs(localQueries.trusted())
+        // The listed peer's models go over HTTP, a subscription's as a caller of its commit's tenant.
+        queries.of(dave).events(account).javaClass.name.assert().contains("HttpQueryApi")
+        queries.of(
+            dave
+        ).datasets(AggregateType(BANK, "sales"), Map::class.java).javaClass.name.assert().contains("HttpQueryApi")
+        val tenant = queries.tenant("t1")
+        tenant.tenantId.assert().isEqualTo("t1")
+        tenant.trusted().assert().isSameAs(pinned.trusted())
+        tenant.snapshots(account).javaClass.name.assert().contains("HttpQueryApi")
+        // Without a peer listed, a state class is the node's.
+        RoutedQueryApi(
+            localQueries,
+            PeerClients(
+                emptyMap(),
+                contracts,
+                lazy { error("") },
+                lazy { error("") },
+                WowProperties.Clients.Mode.SERVICE
+            ),
+            emptySet()
+        )
+            .of(dave).snapshots<Account>().assert().isSameAs(localQueries.of(dave).snapshots(Account::class.java))
+        assertThrows<IllegalStateException> { RoutedQueryApi(localQueries, peers(), emptySet()).tenant("t1") }
         assertThrows<IllegalArgumentException> {
             PeerClients(
                 mapOf("ledger" to WowProperties.Clients.Mode.SERVICE),
@@ -197,31 +224,6 @@ class HostClientsTest {
         contextOf(MockServerHttpRequest.get("/").header("Authorization", "Bearer user").build())!![ForwardedHeaders]!!
             .headers.assert().isEqualTo(mapOf("Authorization" to "Bearer user"))
         contextOf(MockServerHttpRequest.get("/").build())?.get(ForwardedHeaders).assert().isNull()
-    }
-
-    /** A node without query models: every query is refused. */
-    private object NoQueries : QueryApi {
-        override fun of(caller: Caller): Queries = Refusing
-
-        override fun trusted(): TrustedQueries = throw UnsupportedOperationException()
-
-        class Tenant(override val tenantId: String) : SubscriptionQueries, Queries by Refusing {
-            override fun trusted(): TrustedQueries = throw UnsupportedOperationException()
-        }
-
-        private object Refusing : Queries {
-            override fun <S : Any> snapshots(stateType: Class<S>) = throw UnsupportedOperationException()
-
-            override fun snapshots(type: AggregateType) = throw UnsupportedOperationException()
-
-            override fun events(type: AggregateType) = throw UnsupportedOperationException()
-
-            @me.ahoo.wow.api.annotation.ExperimentalWowApi
-            override fun <R : Any> datasets(
-                name: AggregateType,
-                rowType: Class<R>
-            ) = throw UnsupportedOperationException()
-        }
     }
 
     private companion object {
