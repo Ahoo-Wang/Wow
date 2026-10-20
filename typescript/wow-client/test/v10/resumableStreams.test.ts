@@ -281,18 +281,38 @@ describe('resumable query streams (decision D253)', () => {
     expect(lastEventIds(requests)).toEqual(['p7']);
   });
 
-  it('never resumes when told not to, and ends a stream without positions at its end', async () => {
+  it('never resumes when told not to, and fails a stream without positions that did not complete', async () => {
     answers(() => sseResponse(row('p1') + end('hold-expired')));
     const once = await new SnapshotQueryClient(PRODUCT, client()).listStream(
       query,
       { resume: false },
     );
     await expect(readAll(once)).rejects.toThrow('hold-expired');
-    answers(() => sseResponse('event:row\ndata:{"id":"x"}\n\n'));
+    answers(() =>
+      sseResponse('event:row\ndata:{"id":"x"}\n\n' + end('complete')),
+    );
     const rows = await readAll(
       await new SnapshotQueryClient(PRODUCT, client()).listStreamRows(query),
     );
     expect(rows).toEqual([{ record: { id: 'x' } }]);
+    // A list whose sort cannot order a cursor ends its hold unresumable: the stream fails.
+    answers(() =>
+      sseResponse(
+        'event:row\ndata:{"id":"x"}\n\n' + end('hold-expired', false),
+      ),
+    );
+    await expect(
+      readAll(
+        await new SnapshotQueryClient(PRODUCT, client()).listStream(query),
+      ),
+    ).rejects.toThrow('hold-expired');
+    // So does one cut off after records without positions.
+    answers(() => sseResponse('event:row\ndata:{"id":"x"}\n\n'));
+    await expect(
+      readAll(
+        await new SnapshotQueryClient(PRODUCT, client()).listStream(query),
+      ),
+    ).rejects.toThrow('cut off');
     // A stream that drops after records without positions fails.
     answers(() => dropped('event:row\ndata:{"id":"x"}\n\n'));
     await expect(
