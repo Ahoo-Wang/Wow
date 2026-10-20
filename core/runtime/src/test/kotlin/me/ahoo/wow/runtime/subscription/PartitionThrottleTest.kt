@@ -108,7 +108,12 @@ class PartitionThrottleTest {
     fun `the options check their bounds, compare by value and jitter the backoff`() {
         assertThrows<IllegalArgumentException> { BackpressureOptions(maxAttempts = 0) }
         assertThrows<IllegalArgumentException> { BackpressureOptions(initialBackoff = Duration.ZERO) }
-        assertThrows<IllegalArgumentException> { BackpressureOptions(initialBackoff = 2.seconds, maxBackoff = 1.seconds) }
+        assertThrows<IllegalArgumentException> {
+            BackpressureOptions(
+                initialBackoff = 2.seconds,
+                maxBackoff = 1.seconds
+            )
+        }
         assertThrows<IllegalArgumentException> { BackpressureOptions(jitter = 1.5) }
         assertThrows<IllegalArgumentException> { BackpressureOptions(minConcurrency = 0) }
         val options = BackpressureOptions()

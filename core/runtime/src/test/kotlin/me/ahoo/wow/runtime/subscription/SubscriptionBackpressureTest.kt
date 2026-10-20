@@ -31,7 +31,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Backpressure (decision D263): a downstream that is up but overloaded is never taken for systemic. The entry is
@@ -77,7 +76,11 @@ class SubscriptionBackpressureTest {
             handled.record(entry)
         }
         val patient = options.copyWith(
-            backpressure = BackpressureOptions(maxAttempts = 1_000, initialBackoff = 1.milliseconds, maxBackoff = 5.milliseconds),
+            backpressure = BackpressureOptions(
+                maxAttempts = 1_000,
+                initialBackoff = 1.milliseconds,
+                maxBackoff = 5.milliseconds
+            ),
         )
         val runtime = runtime(saga, patient)
         AGGREGATES.forEach { appender.append(it) }

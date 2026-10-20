@@ -539,7 +539,14 @@ internal class SubscriptionWorker(
      */
     private suspend fun park(sourced: SourcedEntry, failure: Throwable) {
         val stream = sourced.stream
-        val kind = if (failure is HandlingRejectedException) null else classification.classify(failure, subscription.retry)
+        val kind = if (failure is HandlingRejectedException) {
+            null
+        } else {
+            classification.classify(
+                failure,
+                subscription.retry
+            )
+        }
         val unrecoverable = kind == FailureClass.UNRECOVERABLE
         val entry = ParkedAggregate(
             subscription.name,

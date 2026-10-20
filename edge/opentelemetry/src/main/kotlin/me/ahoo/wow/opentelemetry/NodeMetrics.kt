@@ -50,7 +50,7 @@ import kotlin.time.Duration.Companion.seconds
  *   subscription under a new name, from the beginning) has come.
  * - [WowMetrics.PAUSED] and [WowMetrics.THROTTLED]: for the same, 1 while the subscription has paused the partition on
  *   a systemic failure (decision D243), or throttles it on backpressure (decision D263), else 0; 1 too for each such
- *   partition of an intake or another context's topic ([pauses], [throttled]), removed once it runs again.
+ *   partition of an intake or another context's topic (`ServiceNode.pauses`, `ServiceNode.throttled`), removed once it runs again.
  *
  * - [WowMetrics.EXECUTOR_IN_FLIGHT], [WowMetrics.EXECUTOR_LANES] and [WowMetrics.APPEND_QUEUE_DEPTH], per context: the
  *   commands in its executor, the aggregates with commands in flight, and the appends queued on its partitions (review
@@ -187,7 +187,14 @@ class NodeMetrics(
     }
 
     private fun partitionTags(group: String, subscription: String, partition: Int): Tags =
-        Tags.of(WowMetrics.GROUP, group, WowMetrics.SUBSCRIPTION, subscription, WowMetrics.PARTITION, partition.toString())
+        Tags.of(
+            WowMetrics.GROUP,
+            group,
+            WowMetrics.SUBSCRIPTION,
+            subscription,
+            WowMetrics.PARTITION,
+            partition.toString()
+        )
 
     /** Stops sampling. */
     override fun close() {
