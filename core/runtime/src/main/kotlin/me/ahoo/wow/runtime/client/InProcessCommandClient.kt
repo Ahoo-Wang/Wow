@@ -104,17 +104,16 @@ class InProcessCommandClient @InternalWowApi constructor(
         @InternalWowApi
         fun problemOf(result: CommandResult): WowProblemException {
             val error = checkNotNull(result.error) { "A result that did not succeed has an error." }
-            val code = error.code
+            return problemOf(result, "${result.ref} did not take the command: ${error.code} ${error.message}")
+        }
+
+        /** The problem of [result], a command that failed, said as [message], from [cause] when it is known. */
+        internal fun problemOf(result: CommandResult, message: String, cause: Throwable? = null): WowProblemException {
+            val code = checkNotNull(result.error) { "A result that did not succeed has an error." }.code
             val status = FrameworkErrors.BY_CODE[code]?.status ?: INTERNAL_ERROR
             val retryAfter = RETRY_AFTER.takeIf { status == UNAVAILABLE || status == TOO_MANY_REQUESTS }
             val hint = if (code in RETRYABLE) RetryHint(true, true, retryAfter) else RetryHint.NONE
-            return WowProblemException(
-                code,
-                status,
-                hint,
-                "${result.ref} did not take the command: $code ${error.message}",
-                result,
-            )
+            return WowProblemException(code, status, hint, message, result, cause)
         }
 
         private const val INTERNAL_ERROR = 500

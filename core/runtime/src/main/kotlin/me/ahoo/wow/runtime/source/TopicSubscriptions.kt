@@ -40,6 +40,7 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionPauses
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
+import me.ahoo.wow.runtime.subscription.ThrottledPartition
 import me.ahoo.wow.runtime.subscription.retryForever
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.ledger.FailureLedger
@@ -198,6 +199,9 @@ class TopicSubscriptions internal constructor(
 
     /** The partitions of the topic its subscriptions have paused on a systemic failure here (decision D243). */
     override fun paused(): List<PausedPartition> = runtime?.paused().orEmpty()
+
+    /** The partitions of the topic its subscriptions throttle on backpressure here (decision D263). */
+    fun throttled(): List<ThrottledPartition> = runtime?.throttled().orEmpty()
 
     /** This node's ownership of the topic's partitions, once started. */
     val ownership: PartitionOwnership? get() = running?.ownership
