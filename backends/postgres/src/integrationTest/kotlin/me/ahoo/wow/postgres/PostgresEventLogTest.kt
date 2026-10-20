@@ -15,6 +15,7 @@ package me.ahoo.wow.postgres
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -208,6 +209,61 @@ class PostgresEventLogTest : EventLogSpec() {
         val read = withTimeoutOrNull(TAIL_STALL_MS) { log.tail(0).take(2).toList() }
         read.assert().isNull()
         withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).first() }.position.sequence.assert().isEqualTo(1L)
+    }
+
+    @Test
+    fun `a read is one statement, the first touch of a table aside`(): Unit = runBlocking {
+        // B.O-1: a read must not check the table's existence or format each time.
+        val counted = CountedDataSource(PostgresFixture.dataSource)
+        val context = PostgresFixture.newContext()
+        val type = AggregateType(context, "order")
+        PostgresFixture.log(1, context).append(stream("a", 1, aggregate = type))
+        val reader = PostgresEventLog(counted.dataSource, context, 1).also { it.createSchema() }
+        val ref = type.ref("tenant", "a")
+        reader.read(ref).toList()
+        repeat(READS) {
+            val mark = counted.begin()
+            reader.read(ref).toList().single().version.assert().isEqualTo(1)
+            reader.readEntries(ref).toList()
+            reader.readTail(ref, 1, 1)
+            reader.positionOf(ref, 1)
+            reader.findByRequestId(type, "tenant", "none")
+            counted.since(mark).size.assert().isEqualTo(READ_STATEMENTS)
+        }
+    }
+
+    @Test
+    fun `concurrent first reads of a table make sure of it once`(): Unit = runBlocking {
+        val counted = CountedDataSource(PostgresFixture.dataSource)
+        val context = PostgresFixture.newContext()
+        val type = AggregateType(context, "order")
+        PostgresFixture.log(1, context).append(stream("a", 1, aggregate = type))
+        val reader = PostgresEventLog(counted.dataSource, context, 1).also { it.createSchema() }
+        val mark = counted.begin()
+        coroutineScope {
+            (1..FIRST_READS).map { async(Dispatchers.IO) { reader.read(type.ref("tenant", "a")).toList() } }.awaitAll()
+        }
+        // One ensure (its registry record), then one read each.
+        val statements = counted.since(mark)
+        statements.count { it.startsWith("INSERT INTO ${PostgresEventLogTables.REGISTRY}") }.assert().isEqualTo(1)
+        statements.count { it.startsWith("SELECT ${AggregateLogTable.FACTS}") }.assert().isEqualTo(FIRST_READS)
+    }
+
+    @Test
+    fun `a table dropped since this log made sure of it is made sure of again on its next use`(): Unit = runBlocking {
+        val context = PostgresFixture.newContext()
+        val log = PostgresFixture.log(1, context)
+        val type = AggregateType(context, "order")
+        val drop = "DROP TABLE \"${table(context, "order")}\""
+        log.append(stream("a", 1, aggregate = type))
+        execute(drop)
+        log.read(type.ref("tenant", "a")).toList().assert().isEmpty()
+        execute(drop)
+        log.append(stream("a", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        execute(drop)
+        log.appendAll(listOf(stream("a", 1, aggregate = type) to null, stream("b", 1, aggregate = type) to null))
+            .forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
+        log.positionOf(type.ref("tenant", "b"), 1).assert().isNotNull()
     }
 
     @Test
@@ -509,6 +565,9 @@ class PostgresEventLogTest : EventLogSpec() {
         const val IDLE_POLLS = 13
         const val COMMITS = 5
         const val SETTLE_MS = 100L
+        const val READS = 3
+        const val READ_STATEMENTS = 5
+        const val FIRST_READS = 32
         const val GROUP = 10
         const val POLL_MS = 10L
         const val AGGREGATES = 16
