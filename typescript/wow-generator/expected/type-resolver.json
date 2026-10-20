@@ -145,28 +145,6 @@
       }
     ]
   },
-  "reference to a Wow type": {
-    "text": "FilterListQuery",
-    "imports": [
-      {
-        "moduleSpecifier": "@ahoo-wang/wow-client",
-        "namedImports": [
-          "FilterListQuery"
-        ]
-      }
-    ]
-  },
-  "reference to a Wow command type": {
-    "text": "CommandResult",
-    "imports": [
-      {
-        "moduleSpecifier": "./wow/api/command/types.js",
-        "namedImports": [
-          "CommandResult"
-        ]
-      }
-    ]
-  },
   "reference whose name another import took": {
     "text": "_Item",
     "imports": [

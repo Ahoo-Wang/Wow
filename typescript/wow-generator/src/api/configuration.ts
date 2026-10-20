@@ -30,11 +30,7 @@ export interface GeneratorConfiguration {
 export interface ApiClientConfiguration {
   /**
    * The path parameters the client leaves out, because an interceptor fills
-   * them.
-   *
-   * Default: `['tenantId', 'ownerId']` for a Wow document (one with
-   * `x-wow-context-alias` or aggregates), whose CoSec interceptor fills them;
-   * none for any other document.
+   * them. Default: none.
    */
   ignorePathParameters?: string[];
   /**

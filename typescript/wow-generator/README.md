@@ -1,13 +1,68 @@
 # `@ahoo-wang/wow-generator`
 
-Generate TypeScript models, Fetcher decorator clients, and Wow clients from a
-local or remote OpenAPI document.
+Generate the typed TypeScript clients of a Wow service from its Manifest, and
+TypeScript models and Fetcher decorator clients from any OpenAPI 3 document.
 
-## Install and run
+## From a Wow Manifest
+
+A Wow service describes its bounded context, aggregates, commands, events and
+state in its Manifest (`GET /wow/manifest`, or the `manifest/baseline.json` a
+service commits). The generator turns it into one client per aggregate on
+`@ahoo-wang/wow-client`:
+
+```bash
+pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
+pnpm add -D @ahoo-wang/wow-generator typescript
+curl -s http://localhost:8080/wow/manifest > manifest.json
+pnpm exec wow-generator generate \
+  --input ./manifest.json \
+  --output ./src/generated \
+  --ts-config-file-path ./tsconfig.json
+```
+
+For each bounded context it writes `types.ts` (the command, event and state
+types of the Manifest's schemas) and `boundedContext.ts` (its name, error codes
+and wait hops), and for each aggregate:
+
+- `aggregate.ts`: the aggregate's descriptor, its state fields and its event
+  union;
+- `commandClient.ts`: `<Aggregate>CommandClient`, a method per command and a
+  `…Stream` twin that answers one result per hop of the wait;
+- `queryClient.ts`: `<Aggregate>SnapshotQueryClient`,
+  `<Aggregate>EventQueryClient` and `<Aggregate>StateClient`.
+
+<!-- typecheck-generated: example/eshop/web/src/generated/basket -->
+
+```ts
+import { Fetcher } from '@ahoo-wang/fetcher';
+import {
+  BasketCommandClient,
+  BasketSnapshotQueryClient,
+} from './generated/index.js';
+
+const fetcher = new Fetcher({ baseURL: 'http://localhost:8080' });
+const basket = new BasketCommandClient({ fetcher });
+const baskets = new BasketSnapshotQueryClient({ fetcher });
+
+await basket.addBasketItem(
+  { productId: 'p-1', quantity: 2, unitPrice: 10 },
+  { id: 'buyer-1' },
+);
+const page = await baskets.paged({});
+console.log(page.total);
+```
+
+`--strict` fails a run that logged a warning, which a CI step that regenerates
+the clients from a service's committed Manifest wants.
+
+## From an OpenAPI document
+
+Any OpenAPI 3 document, a service's own routes or a third-party API, generates
+a model per component schema and a Fetcher decorator client per tag:
 
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
-  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
+  @ahoo-wang/fetcher-eventstream
 pnpm add -D @ahoo-wang/wow-generator typescript
 pnpm exec wow-generator generate \
   --input ./openapi.yaml \
@@ -15,20 +70,14 @@ pnpm exec wow-generator generate \
   --ts-config-file-path ./tsconfig.json
 ```
 
-The version follows Wow, so a minor release may contain breaking changes: keep the Wow packages on one minor with `save-prefix=~` or `--save-exact`, as [version ranges](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges) explains.
+Generated API clients are decorator classes, so the project that compiles them
+needs `"experimentalDecorators": true` in its `tsconfig.json`. The document is
+read as OpenAPI alone: schema keys, tags and path parameters mean what they say
+in it, with no Wow conventions on top.
 
-The first line installs what the generated code imports at run time, the
-second the generator and TypeScript. The generator's peers (`fetcher`,
-`fetcher-decorator`, `fetcher-eventstream`, `wow-client`) are the runtime
-packages of the first line; `wow-client` has to be on the generator's minor
-version. Node 22.12 or later is required, and TypeScript 6 or later: CI tests
-6.0 through the latest 7.x. The command
-used to be `fetcher-generator`; that name stays as an alias until v10 and
-prints a deprecation notice to stderr before it runs.
+## Versions
 
-Generated clients are decorator classes, so the project that compiles them
-needs `"experimentalDecorators": true` in its `tsconfig.json`. Released with
-Wow 9.2.0, from the same tag and with the same version.
+The version follows Wow, so a minor release may contain breaking changes: keep the Wow packages on one minor with `save-prefix=~` or `--save-exact`, as [version ranges](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges) explains. `wow-client` has to be on the generator's minor version. Node 22.12 or later is required, and TypeScript 6 or later: CI tests 6.0 through the latest 7.x.
 
 A successful run prints its warnings, if any, and one summary line:
 
@@ -38,18 +87,18 @@ Generated 12 files into src/generated with /work/app/wow-generator.config.json, 
 
 ## Options and exit codes
 
-| Option                             | Meaning                                                                   |
-| ---------------------------------- | ------------------------------------------------------------------------- |
-| `-i, --input <file>`               | OpenAPI 3.x document: a file path or an http(s) URL (required)            |
-| `-o, --output <path>`              | Output directory, `src/generated` by default                              |
-| `-c, --config <file>`              | Configuration file, `./wow-generator.config.json` by default              |
-| `-t, --ts-config-file-path <file>` | The project's `tsconfig.json`                                             |
-| `-H, --header <header>`            | `Name: value` header for an http(s) input or configuration; repeatable    |
-| `--timeout <ms>`                   | Abandon an http(s) fetch after this many milliseconds, 30000 by default   |
-| `--schema-docs <mode>`             | `summary` (default) or `full`, which also embeds each model's JSON schema |
-| `--strict`                         | Exit with code 4 when the run logged a warning                            |
-| `--verbose`                        | Log every step with timestamps, and the stack trace of a failure          |
-| `--quiet`                          | Log only warnings and errors                                              |
+| Option                             | Meaning                                                                     |
+| ---------------------------------- | --------------------------------------------------------------------------- |
+| `-i, --input <file>`               | Wow Manifest or OpenAPI 3.x document: a file path or http(s) URL (required) |
+| `-o, --output <path>`              | Output directory, `src/generated` by default                                |
+| `-c, --config <file>`              | Configuration file, `./wow-generator.config.json` by default                |
+| `-t, --ts-config-file-path <file>` | The project's `tsconfig.json`                                               |
+| `-H, --header <header>`            | `Name: value` header for an http(s) input or configuration; repeatable      |
+| `--timeout <ms>`                   | Abandon an http(s) fetch after this many milliseconds, 30000 by default     |
+| `--schema-docs <mode>`             | `summary` (default) or `full`, which also embeds each model's JSON schema   |
+| `--strict`                         | Exit with code 4 when the run logged a warning                              |
+| `--verbose`                        | Log every step with timestamps, and the stack trace of a failure            |
+| `--quiet`                          | Log only warnings and errors                                                |
 
 An http(s) input fails on a response outside 2xx or when the timeout expires.
 Swagger 2.0 documents are refused; convert them to OpenAPI 3 first.
@@ -68,6 +117,8 @@ A failure prints one line naming what failed; `--verbose` adds the cause.
 
 ## Configuration
 
+The configuration applies to the API clients of an OpenAPI document:
+
 ```json
 {
   "apiClients": {
@@ -81,10 +132,7 @@ A failure prints one line naming what failed; `--verbose` adds the cause.
 
 The default config path is `./wow-generator.config.json`, resolved against
 the working directory the CLI runs in. Only that default path is optional: when
-no file is there the CLI generates with defaults. A
-`./fetcher-generator.config.json`, the name the file had before, is still read
-when the new name is absent, with a deprecation warning; rename it, as v10 no
-longer reads it. A path passed to
+no file is there the CLI generates with defaults. A path passed to
 `--config` has to exist, and a configuration that cannot be read, cannot be
 parsed, or declares an option with the wrong shape fails the run rather than
 degrading to defaults. Options the generator does not read - a misspelled
@@ -103,35 +151,27 @@ check which directory the CLI ran in.
 
 The generator records the files it wrote in `.wow-generator.json` at the root
 of the output directory, so a later run removes the files it no longer
-generates. Commit it with the output. A `.fetcher-generator.json` left by an
-older version is read once and replaced.
+generates. Commit it with the output.
 
-`ignorePathParameters` defaults to `['tenantId', 'ownerId']` only in a Wow
-document (one with `x-wow-context-alias` or aggregate routes); other documents
-keep those path parameters. `methodNames` names the method of an operationId.
+`ignorePathParameters` names the path parameters a tag's client leaves out,
+because an interceptor fills them; none by default. `methodNames` names the
+method of an operationId.
 
 ## Generated code
 
 - Every file starts with `// Code generated by wow-generator. DO NOT EDIT.`.
   Relative imports end in `.js`, so the output compiles under `NodeNext` as
   well as `bundler`, and it is the same wherever it is written.
-- A method is named by `methodNames`, else `x-fetcher-method`, else the last
-  segment of the operationId camel-cased (`example.cart.add_cart_item` →
-  `addCartItem`). Adding an operation never renames a method; two operations
-  of one client with the same name fail with exit code 4.
-- Command clients, and API clients of a document with `x-wow-context-alias`,
-  merge the constructor's `apiMetadata` over their defaults:
-  `new CartCommandClient({ fetcher })` keeps the bounded-context base path.
-  Pass `basePath: ''` (query factories: `contextAlias: ''`) to reach a service
-  directly.
-- Query client factories type their fields as `` `${CartAggregatedFields}` ``;
-  annotate a query as ``ListQuery<`${CartAggregatedFields}`>``.
+- An API method is named by `methodNames`, else `x-fetcher-method`, else the
+  last segment of the operationId camel-cased (`catalog.get_item` →
+  `getItem`). Adding an operation never renames a method; two operations of
+  one client with the same name fail with exit code 4.
 - `--schema-docs full` embeds each model's JSON schema in its doc comment;
   the default is a summary.
 
 ## Property optionality
 
-Every property a schema declares is generated as required. A statically typed
+Every property an OpenAPI schema declares is generated as required. A statically typed
 service has no absent `int` or `boolean` to hand back, so a model full of `?`
 describes its exporter rather than its wire format - exporters routinely drop
 properties that carry a default value from `required`, and the resulting nulls
@@ -141,11 +181,6 @@ Optionality that the document genuinely means is carried where it belongs:
 
 - **Null** stays in the type. A nullable property generates `T | null`, so a
   value that may be absent is still impossible to forget.
-- **Commands** keep their declared optionality at the command type. A command
-  client wraps its body in `PartialBy<Command, 'field' | ...>` built from the
-  document's `required`, so a caller may still omit what the API says is
-  optional - `AddCartItemCommand = CommandBody<PartialBy<AddCartItem,
-'quantity'>>`. Requiring the model never narrows what a client may send.
 - **API client bodies** are wrapped the same way: a JSON request body is
   `PartialBy<Model, 'field' | ...>` for the properties its schema leaves out of
   `required`.
@@ -157,10 +192,11 @@ constructs fine.
 
 ## Core capabilities
 
-- Local JSON/YAML and HTTP(S) OpenAPI input.
-- TypeScript models and decorator API clients grouped by tag, with typed path,
-  query and header parameters and request bodies, required ones first.
-- Wow bounded-context, command, snapshot, event, and query discovery.
+- Wow Manifest input: the typed command, query and state clients of every
+  aggregate on `@ahoo-wang/wow-client`.
+- Local JSON/YAML and HTTP(S) OpenAPI input: TypeScript models and decorator
+  API clients grouped by tag, with typed path, query and header parameters and
+  request bodies, required ones first.
 - Recursive `index.ts` generation and ts-morph formatting.
 - Programmatic `CodeGenerator` API with injectable logging, returning the files
   written and the warning count.

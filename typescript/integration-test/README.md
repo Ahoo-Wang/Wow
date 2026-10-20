@@ -1,195 +1,30 @@
 # Integration tests
 
-This private package checks the Wow TypeScript client and the code
-`wow-generator` produces against a running Wow example server. It is kept apart
-from the deterministic unit tests of each package.
+This private package checks `@ahoo-wang/wow-view-store/v10` and the view engine
+on it against the V10 view store service (`platform/view-store`). It is kept
+apart from the deterministic unit tests of each package.
 
 ## What runs
 
-- Commands, snapshot queries, load-state queries and event streams through
-  `@ahoo-wang/wow-client` (`test/wow/cart/`).
-- The generated clients under `src/generated/`, checked with `tsc` and exercised
-  by `generatedCartCommandClient.test.ts`.
-- `test/wow/wowOpenApi.test.ts`, which holds every enum `wow-client` sends to the
-  server's OpenAPI document.
-- The `@ahoo-wang/wow-react` hooks (`test/wow/react/`, under jsdom): the
-  endpoint hooks with snapshot URLs, the list-stream hook's event stream and
-  its `WowError`, and the `execute` hooks with a generated query client.
-- The `@ahoo-wang/wow-view-engine` runtime (`test/view-engine/`): a
-  `ViewEngine` whose source is the Wow `SnapshotQueryClient` itself, over
-  sales orders the suite seeds through commands. See
-  [View engine against the server](#view-engine-against-the-server).
-- `@ahoo-wang/wow-view-store` (`test/view-store/`): the view engine's port
-  conformance suite over `WowViewStore`, tenant and application isolation, and
-  the view engine's own writes end to end, against the standalone view store
-  server and against the example server, which embeds the view store. See
-  [WowViewStore against the view store server](#wowviewstore-against-the-view-store-server).
-
-## Prerequisites
-
-A Wow example server on port 8080, backed by MongoDB. The tests read another
-address from `WOW_EXAMPLE_SERVER_URL` (for example
-`WOW_EXAMPLE_SERVER_URL=http://localhost:18080/`). Either build the server from
-this repository:
-
-```bash
-./gradlew :example-server:installDist
-```
-
-or run the published image `ghcr.io/ahoo-wang/wow-example-server:<version>`.
-Point it at MongoDB with `SPRING_MONGODB_URI`, choose its port with
-`SERVER_PORT`, and set
-`WOW_EVENTSOURCING_STORE_STORAGE=mongo` and `WOW_EVENTSOURCING_SNAPSHOT_STORAGE=mongo`.
-The install's configuration excludes the MongoDB auto-configuration, so also
-set `SPRING_AUTOCONFIGURE_EXCLUDE`, which replaces that list, to the two
-Elasticsearch client auto-configurations alone, as CI does:
-`org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration,org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration`.
-Without it the server fails to start, missing a `MongoClient`.
-
-The example server embeds the view store (`wow-view-store-starter`); start it
-with the system view `test/view-store/` reads (the four
-`--wow.view-store.system-views[0].…` arguments below). A view store server on
-port 8090, on the same MongoDB, for `test/view-store/` as well;
-`WOW_VIEW_STORE_URL` names another address. See
-[WowViewStore against the view store server](#wowviewstore-against-the-view-store-server).
-
-## Generate and test
-
-From the repository root:
-
-```bash
-pnpm install --frozen-lockfile
-pnpm --filter wow-integration-test... build
-pnpm --filter wow-integration-test generate
-pnpm --filter wow-integration-test typecheck
-pnpm --filter wow-integration-test test
-```
-
-`generate` reads `http://localhost:8080/v3/api-docs` and replaces
-`src/generated`. Inspect generated changes before committing them.
-
-`test` waits for the server before the first test (`test/globalSetup.ts`):
-until `/actuator/health` answers `UP`, for up to five minutes, then one
-command to each aggregate the suite drives, waited to its snapshot. A freshly
-started server pays for its first commands there, so no test needs a longer
-timeout for a cold server.
-
-`src/generated` holds the generator's output byte for byte, with its manifest
-`.wow-generator.json`. ESLint checks it like the rest of the package;
-Prettier skips it. Never edit or reformat it by hand.
-
-## View engine against the server
-
-`test/view-engine/` drives the engine's public runtime (`new ViewEngine`,
-`create`, `open`, `edit`, `apply`, `page`, `exportRows`, and a dashboard's
-`setFilterValue`, `setFilters`, `clearFilters` and `crossFilter`) against the
-example server. Each file writes thirteen sales orders into a tenant of its
-own (`salesOrders.ts`: create, then pay in full or in part), reads their
-creation times back off the server, and asserts every answer against numbers
-it adds up from those orders, never against a snapshot of the engine's own
-output.
-
-| File                 | What it checks                                                                                                                                                                                                                                                                                                     |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `recordView.test.ts` | Text, enum, number-range and date-range conditions; a sort over two fields; three pages; the totals row; the CSV export, paged at five rows; a search, which the MongoDB backend refuses (no full-text capability) and the view reports                                                                            |
-| `analysis.test.ts`   | Groups by a field, by an expanded array and by day, week and month; `COUNT`, `SUM`, `AVG`, `DISTINCT_COUNT`, `PERCENTILE` and a derived metric; the having; 「前 N 组」 and its probe row; a split folded into 「其他」; a pie's 「其他」; dense seconds; this month so far against the same stretch of last month |
-| `dashboard.test.ts`  | A board's filters wired into an analysis, a metric card and a saved record view; a cross-filter from one panel; the board's fixed scope; a trend card anchored to the day the board's date filter holds (D39), run over its own seven days so 「较前一日」 compares with a known zero                              |
-
-To run it alone, start a server as under [Prerequisites](#prerequisites). On
-a machine whose port 8080 is taken:
-
-```bash
-docker run -d --name wow-it-mongo -p 27117:27017 \
-  -e GLIBC_TUNABLES=glibc.pthread.rseq=1 \
-  -e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=root mongo:8.3.11
-./gradlew :example-server:installDist
-cd example/example-server/build/install/example-server
-mkdir -p logs data
-SERVER_PORT=18080 \
-SPRING_AUTOCONFIGURE_EXCLUDE=org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration,org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration \
-SPRING_MONGODB_URI='mongodb://root:root@localhost:27117/wow_example_db?authSource=admin' \
-WOW_EVENTSOURCING_STORE_STORAGE=mongo WOW_EVENTSOURCING_SNAPSHOT_STORAGE=mongo \
-bin/example-server
-```
-
-then, from the repository root:
-
-```bash
-pnpm --filter wow-integration-test... build
-cd typescript/integration-test
-WOW_EXAMPLE_SERVER_URL=http://localhost:18080/ pnpm exec vitest run --maxWorkers=2 test/view-engine
-```
-
-MongoDB 8.x exits on Linux kernels 6.19 to 7.0.13 (SERVER-121912), which
-Docker Desktop may run: the image sets `GLIBC_TUNABLES=glibc.pthread.rseq=0`,
-so its allocator takes the kernel feature the bug is in. Setting it to
-`glibc.pthread.rseq=1`, as above and as CI's services do, lets MongoDB start on
-any kernel; the image is the one CI runs. The suite takes about five
-seconds on a warm server, two of them a pause that puts the dense
-histogram's orders seconds apart.
-
-## WowViewStore against the view store server
-
-`test/view-store/` runs the view engine's `ViewStore` conformance suite
+`test/view-store-v10/` holds the store to the service: the view engine's port
+conformance suite
 (`../wow-view-engine/test/conformance/viewStoreConformance.ts`, imported by its
-workspace path, so `tsconfig.test.json` sets `rootDir` to `..`) over
-`WowViewStore`, with two users, shared and personal views, audience changes,
-replays and the system views; every case works in a definition of its own, and
-each run in a tenant of its own. `isolation.test.ts` holds that a view and
-preferences of one tenant or one application are not there for a caller of
-another. `engine.test.ts` drives a `ViewEngine` on `WowViewStore`: save, save
-as, a conflict between two tabs reloaded and overwritten, an unknown outcome
-(the answer dropped after the server took the write) retried under its request
-id, and a personal view set shared for a colleague. Each suite runs once per
-server (`viewStoreServers`): the standalone one and the example server. The
-callers are fetchers with fetcher-cosec's
-`ResourceAttributionRequestInterceptor` over an unsigned token
-(`viewStoreServer.ts`): nothing in front of the server checks it.
+workspace path, so `tsconfig.json` sets `rootDir` to `..`), tenant and
+application isolation, the stored and configured system views, the service's
+writer roles, the tenant's dataset wording, the errors, `viewSourceOf` over a
+V10 query route, and the engine end to end (saves, conflicts, an unknown
+outcome retried, share and claim, preferences, a record view and an analysis
+through the V10 query routes).
 
-Build and start the standalone server with in-memory buses and a fixed machine
-id instead of its Kafka and Redis, on the MongoDB above, serving the one system
-view the suite reads:
+## Run
+
+The global setup (`test/view-store-v10/globalSetup.ts`) starts the service in
+a JVM on the memory backend, every port bound to 0, and stops it at the end. On
+the memory backend the service's own configuration serves its snapshot queries
+from memory (`wow.query.memory.enabled`). Build it first, with JDK 21:
 
 ```bash
-./gradlew :wow-view-store-server:installDist
-cd view-store/wow-view-store-server/build/install/wow-view-store-server
-mkdir -p logs data
-SERVER_PORT=8090 \
-SPRING_MONGODB_URI='mongodb://root:root@localhost:27017/wow_view_store_db?authSource=admin' \
-WOW_KAFKA_ENABLED=false WOW_COMMAND_BUS_TYPE=in_memory WOW_EVENT_BUS_TYPE=in_memory \
-WOW_EVENTSOURCING_STATE_BUS_TYPE=in_memory \
-COSID_MACHINE_DISTRIBUTOR_TYPE=manual COSID_MACHINE_DISTRIBUTOR_MANUAL_MACHINE_ID=1 \
-MANAGEMENT_HEALTH_REDIS_ENABLED=false \
-bin/wow-view-store-server \
-  '--wow.view-store.system-views[0].definition-id=conformance-system' \
-  '--wow.view-store.system-views[0].id=conformance-open' \
-  '--wow.view-store.system-views[0].title=Open' \
-  '--wow.view-store.system-views[0].config={"kind":"record"}'
-```
-
-Start the example server with the same four `--wow.view-store.system-views[0].…`
-arguments. `test` waits for both servers, and warms the view store's two
-aggregates up on each first.
-
-## The V10 store against the V10 view store service
-
-`test/view-store-v10/` holds `@ahoo-wang/wow-view-store/v10` and the view
-engine on it to the V10 view store service (`platform/view-store`, roadmap
-7.3a): the port's conformance suite, tenant and application isolation, the
-stored and configured system views, the service's writer roles, the
-tenant's dataset wording, the errors, `viewSourceOf` over a V10 query route,
-and the engine end to end (saves, conflicts, an unknown outcome retried,
-share and claim, preferences, a record view and an analysis through the V10
-query routes). It runs apart from the rest, with a setup of its own
-(`vitest.v10.config.ts`), and needs neither the example server nor MongoDB.
-
-The setup starts the service in a JVM on the memory backend, every port
-bound to 0, and stops it at the end. On the memory backend the service's
-own configuration serves its snapshot queries from memory
-(`wow.query.memory.enabled`). Build it first, with JDK 21:
-
-```bash
-./gradlew -Pwow.scope=v10 :view-store-server:installDist
+./gradlew :view-store-server:installDist :view-store-server:testClasses :query-tck:jar
 pnpm --filter @ahoo-wang/wow-view-store... build
 pnpm --dir typescript/integration-test test:v10
 ```
@@ -199,65 +34,15 @@ pnpm --dir typescript/integration-test test:v10
 instead; it must serve snapshot queries and the configured system view of
 `conformance-system` that `test/view-store-v10/globalSetup.ts` configures.
 
-## On Elasticsearch
-
-`test/view-engine/` and `test/view-store/` also run against an example server
-whose events and snapshots are on Elasticsearch: set
-`WOW_EXAMPLE_STORAGE=elasticsearch` for the tests (the default is `mongo`). It
-selects what differs by backend: the search in `recordView.test.ts` runs and
-its rows are checked instead of the refusal. `PERCENTILE(50)` is held between
-the two middle values on either backend (MongoDB answers the lower one,
-Elasticsearch interpolates). Start Elasticsearch 9.2.6 without security, and the
-example server with Wow's templates and the index definitions it ships
-(`wow.example.order.snapshot.json`, the view store's):
-
-```bash
-docker run -d --name wow-it-es -p 9200:9200 -e discovery.type=single-node \
-  -e xpack.security.enabled=false -e ES_JAVA_OPTS='-Xms1g -Xmx1g' \
-  docker.elastic.co/elasticsearch/elasticsearch:9.2.6
-cd example/example-server/build/install/example-server
-mkdir -p logs data
-SPRING_AUTOCONFIGURE_EXCLUDE=org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration \
-SPRING_ELASTICSEARCH_URIS=http://localhost:9200 \
-WOW_EVENTSOURCING_STORE_STORAGE=elasticsearch WOW_EVENTSOURCING_SNAPSHOT_STORAGE=elasticsearch \
-bin/example-server # with the four --wow.view-store.system-views[0].… arguments
-```
-
-`SPRING_AUTOCONFIGURE_EXCLUDE` replaces the install's exclusion list, so the
-Elasticsearch client is configured. The view store server stays on MongoDB: it
-has no Elasticsearch support in 9.2.0.
-
 ## CI
 
-`.github/workflows/typescript-contract.yml` runs these steps against an example
-server built from the same commit, whenever the Kotlin sources, the example, the
-Gradle build, these packages, the sources of `wow-view-engine` or its port conformance suite, `wow-view-store` or
-`view-store/` change, and a view store server beside it (port 8090, same MongoDB); both serve the system view the
-`WowViewStore` suites read. Its `contract-elasticsearch` job, part of the gate,
-runs `test/view-engine/` and `test/view-store/` again
-[on Elasticsearch](#on-elasticsearch), with the view store server on MongoDB.
-It fails when regenerating changes
-`src/generated`, and uploads the servers' logs when a step fails. For changes to
-`wow-client`, `wow-generator` or this package it also generates code from the
-`wow-example-server` images 8.10.8, 8.11.5, 9.1.3 and 9.1.5 and type-checks it,
-and against every image but 8.10.8 runs `test/released/`
-(`vitest.released.config.ts`): a command, snapshot reads, and a list and list
-stream without a `limit`, each held to what the compatibility page documents
-for that version (`WOW_SERVER_VERSION`). The same-source run includes
-`test/released/` too, as the current version.
+The `v10-contract` job of `.github/workflows/typescript-contract.yml` runs
+`test:v10` against the service built from the same commit.
 
-`typecheck` checks `src` and `test` together through `tsconfig.test.json` and
-needs no server. The Quality job of `typescript.yml` runs it, through the root
-`pnpm typecheck`, on every pull request that touches TypeScript, so a type
-change in `wow-client` or `wow-react` that breaks these tests fails there
+`typecheck` checks `test` and needs no server. The Quality job of
+`typescript.yml` runs it, through the root `pnpm typecheck`, on every pull
+request that touches TypeScript, so a type change in `wow-client`,
+`wow-view-store` or `wow-view-engine` that breaks these tests fails there
 without waiting for the contract job.
-
-## Failure diagnosis
-
-1. Build first; unresolved workspace imports usually mean stale or missing
-   package output.
-2. Check `http://localhost:8080/actuator/health` (and `http://localhost:8090/actuator/health`
-   for the view store) before generating or testing.
-3. Regenerate after a server-contract change.
 
 [中文](./README.zh-CN.md)

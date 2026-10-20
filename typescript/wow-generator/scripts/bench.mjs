@@ -20,7 +20,7 @@
  *   pnpm --filter @ahoo-wang/wow-generator build
  *   pnpm --filter @ahoo-wang/wow-generator bench [spec ...] [--json]
  *
- * Without specs it times `test/demo.spec.json` and `test/openai.spec.yml`. Each
+ * Without specs it times `test/manifests/eshop-ordering.json` and `test/openai.spec.yml`. Each
  * spec runs in a process of its own, so its peak memory is its own, and
  * generates into a fresh temporary directory whose tsconfig includes only the
  * output. A phase starts at the log line that announces it, whichever method
@@ -46,7 +46,10 @@ import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
 
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const DEFAULT_SPECS = ['test/demo.spec.json', 'test/openai.spec.yml'];
+const DEFAULT_SPECS = [
+  'test/manifests/eshop-ordering.json',
+  'test/openai.spec.yml',
+];
 
 /** The log lines that open each phase, in the order the pipeline runs them. */
 const PHASES = [

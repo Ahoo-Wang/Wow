@@ -27,7 +27,7 @@ Use the narrowest module task that covers the change. For example:
 ./gradlew :example-domain:test --tests "me.ahoo.wow.example.domain.order.OrderSpec"
 ```
 
-JavaScript projects (the TypeScript packages under `typescript/`, the compensation dashboard and the documentation site) share one pnpm workspace rooted at the repository root. Use Node.js 22.12 or later and install once from the root:
+JavaScript projects (the TypeScript packages under `typescript/`, the V10 apps `platform/ops/console` and `example/eshop/web`, and the documentation site) share one pnpm workspace rooted at the repository root. Use Node.js 22.12 or later and install once from the root:
 
 ```bash
 pnpm install
@@ -42,11 +42,11 @@ pnpm lint
 pnpm typecheck
 ```
 
-The compensation dashboard consumes the workspace packages through their `dist`, so build them first and again after changing them:
+The apps consume the workspace packages through their `dist`, so build them first and again after changing them:
 
 ```bash
-pnpm --filter wow-compensation-dashboard^... build
-cd compensation/dashboard
+pnpm --filter wow-ops-console^... build
+cd platform/ops/console
 pnpm test
 pnpm lint
 pnpm build
@@ -69,7 +69,7 @@ For an end-to-end repository introduction, start with the [contributor onboardin
 - Add or update tests for behavior changes and defect fixes.
 - Put documentation where its readers look for it and update it in the same change: user-facing pages in `documentation/docs/{en,zh}/`, module usage in the module README, design records in `documentation/designs/`. Plans, review notes and scratch evidence stay out of the repository; see [Documentation Governance](https://wow.ahoo.me/guide/advanced/documentation-governance.html).
 - Prefer the existing Wow test DSL and FluentAssert conventions in Kotlin tests.
-- Do not edit generated dashboard clients under `compensation/dashboard/src/generated/` when the generator source can be fixed.
+- Do not edit generated clients under an app's `src/generated/` when the Manifest or the generator can be fixed.
 - Keep generated output, credentials, signing keys, tokens, IDE state, `.gradle/`, and `node_modules/` out of commits.
 - Follow the existing conventional commit style, for example `fix(core): handle empty event stream`.
 
@@ -85,9 +85,9 @@ Comments are part of the maintained code. Keep them concise, accurate, and focus
 - Use Markdown links such as `[CommandBus]` in KDoc. Keep `@param`, `@property`, `@return`, and `@throws` tags accurate and avoid redundant tags.
 - Do not commit inline task markers such as `TODO`, `FIXME`, `HACK`, or `STOPSHIP`. Track deferred work in the issue tracker and use `Issue #1234: explain the constraint.` only when the code needs that context.
 - Preserve the existing Apache 2.0 header in source files that already carry it. New hand-written source files should copy the header used by neighboring files.
-- Do not edit generated comments under paths such as `compensation/dashboard/src/generated/`; fix their schema or generator input instead.
+- Do not edit generated comments under paths such as `platform/ops/console/src/generated/`; fix their schema or generator input instead.
 
-Detekt checks Kotlin KDoc consistency and task markers. ESLint checks dashboard comment spacing and task markers. Comment language and semantic quality remain review requirements because automated natural-language classification is not reliable enough for enforcement.
+Detekt checks Kotlin KDoc consistency and task markers. Comment language and semantic quality remain review requirements because automated natural-language classification is not reliable enough for enforcement.
 
 These checks intentionally do not require comments on every declaration: unnecessary comments are noise, not documentation.
 

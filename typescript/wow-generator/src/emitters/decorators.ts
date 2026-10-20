@@ -69,14 +69,6 @@ export const STREAM_RESULT_EXTRACTOR_METADATA = `{
   resultExtractor: JsonEventStreamResultExtractor,
 }`;
 
-/**
- * The endpoint options of a streaming command client, imported from
- * `@ahoo-wang/wow-client`: `Accept: text/event-stream` and a result
- * extractor that errors the stream with a `WowError` when the server sends an
- * error event instead of passing the event on as a result.
- */
-export const COMMAND_STREAM_ENDPOINT_METADATA = 'COMMAND_STREAM_ENDPOINT';
-
 export function addImportFetcher(module: ModuleBuilder) {
   addImport(module, FETCHER_MODULE_SPECIFIER, FETCHER_NAMED_IMPORTS);
 }
@@ -127,64 +119,29 @@ export function createDecoratorClass(
 }
 
 /**
- * Adds the ApiMetadataCapable interface implementation and constructor to a class declaration.
- *
- * With defaults, the constructor merges what the caller passes over them, so
- * `new CartCommandClient({ fetcher })` keeps the bounded context's base path:
+ * Adds the ApiMetadataCapable interface implementation and constructor to a class declaration:
  *
  * ```typescript
- * readonly apiMetadata: ApiMetadata;
- * constructor(apiMetadata?: ApiMetadata) {
- *   this.apiMetadata = { ...DEFAULT_COMMAND_CLIENT_OPTIONS, ...apiMetadata };
- * }
+ * constructor(public readonly apiMetadata?: ApiMetadata) {}
  * ```
  *
  * @param classDeclaration - The class declaration to modify
- * @param defaults - Object literal entries the constructor starts from, such
- * as `...DEFAULT_COMMAND_CLIENT_OPTIONS` or `basePath: X`; none by default
  */
-export function addApiMetadataCtor(
-  classDeclaration: ClassDeclarationStructure,
-  defaults?: string,
-) {
+export function addApiMetadataCtor(classDeclaration: ClassDeclarationStructure) {
   classDeclaration.implements = [
     ...[classDeclaration.implements ?? []].flat(),
     'ApiMetadataCapable',
   ];
   classDeclaration.ctors ??= [];
-  if (defaults === undefined) {
-    classDeclaration.ctors.push({
-      parameters: [
-        {
-          name: 'apiMetadata',
-          type: 'ApiMetadata',
-          hasQuestionToken: true,
-          scope: Scope.Public,
-          isReadonly: true,
-        },
-      ],
-    });
-    return;
-  }
-  classDeclaration.properties = [
-    ...(classDeclaration.properties ?? []),
-    {
-      name: 'apiMetadata',
-      type: 'ApiMetadata',
-      isReadonly: true,
-    },
-  ];
   classDeclaration.ctors.push({
     parameters: [
       {
         name: 'apiMetadata',
         type: 'ApiMetadata',
         hasQuestionToken: true,
+        scope: Scope.Public,
+        isReadonly: true,
       },
-    ],
-    statements: `this.apiMetadata = { ${defaults}, ...apiMetadata };`,
-    docs: [
-      '@param apiMetadata - Merged over the defaults, so passing only a `fetcher` keeps the base path.',
     ],
   });
 }

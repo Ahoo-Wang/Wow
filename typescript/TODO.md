@@ -4,7 +4,7 @@
 
 - 只记**已经决定、但还没做**的事；每条写清 **为什么** / **做完的判据** / **落点**。
 - 做完就**删掉**这一条，不打勾、不留归档。历史在 git 里。
-- 视图引擎与视图存储的 TODO 在 [wow-view-engine/docs/design/todo.md](wow-view-engine/docs/design/todo.md)；服务端（Kotlin）的在 [docs/todo.md](../docs/todo.md)；保留到 v10 的兼容在 [docs/compat-debt.md](../docs/compat-debt.md)。
+- 视图引擎与视图存储的 TODO 在 [wow-view-engine/docs/design/todo.md](wow-view-engine/docs/design/todo.md)；服务端（Kotlin）的在 [docs/todo.md](../docs/todo.md)。
 
 以下各条来自 9.2.0 首发前的第二轮审查（2026-09-25，基于 `b17f36a3c`）定为「以后再做」的 P2，2026-10-10 在 `main` 上逐条复核仍然成立；括号里是原审查编号。
 

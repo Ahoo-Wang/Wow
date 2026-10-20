@@ -1,10 +1,11 @@
 {
   "name": "@ahoo-wang/wow-generator",
   "version": "10.0.0-alpha.3",
-  "description": "Generates TypeScript models, Fetcher decorator clients and Wow command and query clients from a local or remote OpenAPI 3 document. The Wow clients follow the CQRS model of the Wow DDD framework (https://github.com/Ahoo-Wang/Wow).",
+  "description": "Generates the typed TypeScript clients of a Wow service from its Manifest, and TypeScript models and Fetcher decorator clients from any OpenAPI 3 document (https://github.com/Ahoo-Wang/Wow).",
   "keywords": [
     "wow",
     "wow-generator",
+    "manifest",
     "cqrs",
     "ddd",
     "openapi",
@@ -38,8 +39,7 @@
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "wow-generator": "./dist/cli.js",
-    "fetcher-generator": "./dist/fetcherGeneratorCli.js"
+    "wow-generator": "./dist/cli.js"
   },
   "exports": {
     ".": {
@@ -69,7 +69,7 @@
     "lint": "eslint . --fix",
     "clean": "rm -rf dist",
     "analyze": "npx vite-bundle-analyzer -p auto",
-    "generate": "node dist/cli.js generate -i test/demo.spec.json -o test-output -t tsconfig.json",
+    "generate": "node dist/cli.js generate -i test/manifests/eshop-ordering.json -o test-output -t tsconfig.json",
     "test:no-coverage": "vitest run --coverage.enabled=false --testTimeout=15000 && pnpm test:type",
     "bench": "node scripts/bench.mjs"
   },
