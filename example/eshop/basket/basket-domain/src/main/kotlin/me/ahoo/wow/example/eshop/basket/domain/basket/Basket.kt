@@ -15,6 +15,7 @@ package me.ahoo.wow.example.eshop.basket.domain.basket
 
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
@@ -32,7 +33,7 @@ import me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem
 
 /**
  * A buyer's basket; its id is the buyer's user id, so each buyer has one. The first item creates it, and only its
- * buyer may: a caller with an owner other than the basket's id is rejected ([BasketRejections.NOT_OWNER]). After
+ * buyer may: a caller with an owner other than the basket's id is rejected ([Rejections.NOT_OWNER]). After
  * that the kernel keeps the basket to the owner that created it.
  *
  * [CheckoutBasket] empties the basket into an order: [BasketCheckoutSaga] submits it to the ordering context. The
@@ -46,11 +47,11 @@ class Basket(private val state: BasketState) {
     fun onCommand(command: Command<AddBasketItem>): Decision {
         val owner = command.scope.ownerId
         if (owner != null && owner != command.ref.id) {
-            return Decision.reject(BasketRejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
+            return Decision.reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
         }
         val adding = command.body
         if (adding.quantity <= 0 || adding.unitPrice.signum() < 0) {
-            return Decision.reject(BasketRejections.INVALID_ITEM, "$adding is not a valid item.")
+            return Decision.reject(Rejections.INVALID_ITEM, "$adding is not a valid item.")
         }
         return Decision.events(BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity))
     }
@@ -59,12 +60,12 @@ class Basket(private val state: BasketState) {
     @OnCommand(produces = [BasketItemQuantityChanged::class])
     fun onCommand(command: ChangeBasketItemQuantity): Decision {
         val item = state.item(command.productId) ?: return Decision.reject(
-            BasketRejections.ITEM_NOT_FOUND,
+            Rejections.ITEM_NOT_FOUND,
             "The basket holds no ${command.productId}.",
         )
         return when {
             command.quantity <= 0 -> Decision.reject(
-                BasketRejections.INVALID_ITEM,
+                Rejections.INVALID_ITEM,
                 "${command.quantity} is not a positive quantity.",
             )
 
@@ -91,7 +92,7 @@ class Basket(private val state: BasketState) {
     @OnCommand(produces = [BasketCheckedOut::class])
     fun onCommand(command: CheckoutBasket, scope: DecideScope): Decision {
         if (state.items.isEmpty()) {
-            return Decision.reject(BasketRejections.EMPTY, "The basket is empty.")
+            return Decision.reject(Rejections.EMPTY, "The basket is empty.")
         }
         val orderId = "${scope.command.ref.id}-${state.checkouts + 1}"
         scope.putResult(ORDER_ID_RESULT, orderId)
@@ -101,5 +102,23 @@ class Basket(private val state: BasketState) {
     companion object {
         /** The result [CheckoutBasket] answers the caller with: the id of the order it submits. */
         const val ORDER_ID_RESULT = "orderId"
+    }
+
+    /**
+     * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them
+     * `<context>.basket.<code>` (decision D259), as its peers read them from the api's generated contract.
+     */
+    object Rejections {
+        @ErrorCode(description = "A basket's quantity is positive, and its price not negative.")
+        const val INVALID_ITEM = "invalid-item"
+
+        @ErrorCode(description = "The basket does not hold the product.", status = 404)
+        const val ITEM_NOT_FOUND = "item-not-found"
+
+        @ErrorCode(description = "An empty basket cannot be checked out.")
+        const val EMPTY = "empty"
+
+        @ErrorCode(description = "A basket belongs to the buyer whose id it has.", status = 403)
+        const val NOT_OWNER = "not-owner"
     }
 }

@@ -26,15 +26,6 @@ import me.ahoo.wow.example.eshop.catalog.api.brand.CreateBrand
 import me.ahoo.wow.example.eshop.catalog.api.brand.RenameBrand
 import me.ahoo.wow.example.eshop.catalog.domain.CatalogNames
 
-/** The codes a brand rejects a command with. */
-object BrandRejections {
-    @ErrorCode(description = "A brand's name is never blank.")
-    const val BLANK_NAME = "eshop-catalog.brand.blank-name"
-
-    @ErrorCode(description = "Another brand has this name.", status = 409)
-    const val NAME_TAKEN = "eshop-catalog.brand.name-taken"
-}
-
 /** The state of a [Brand]. */
 class BrandState {
     var name: String = ""
@@ -76,10 +67,22 @@ class Brand(private val state: BrandState) {
 
     /** Rejects a blank name or one another brand holds; null when this brand may take [name]. */
     private suspend fun take(name: String, scope: DecideScope): Decision? = when {
-        name.isBlank() -> Decision.reject(BrandRejections.BLANK_NAME, "A brand needs a name.")
+        name.isBlank() -> Decision.reject(Rejections.BLANK_NAME, "A brand needs a name.")
         !scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name)) ->
-            Decision.reject(BrandRejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
+            Decision.reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
 
         else -> null
+    }
+
+    /**
+     * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them
+     * `<context>.brand.<code>` (decision D259), as its peers read them from the api's generated contract.
+     */
+    object Rejections {
+        @ErrorCode(description = "A brand's name is never blank.")
+        const val BLANK_NAME = "blank-name"
+
+        @ErrorCode(description = "Another brand has this name.", status = 409)
+        const val NAME_TAKEN = "name-taken"
     }
 }

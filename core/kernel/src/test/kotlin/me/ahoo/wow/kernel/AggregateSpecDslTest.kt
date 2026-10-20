@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.decide.ReservationTenancy
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.test.ForkAssertionError
@@ -52,7 +53,8 @@ class AggregateSpecDslTest {
         decide<Deposit> { state, body ->
             require(body.amount > 0) { "A deposit is positive, not ${body.amount}." }
             if (state.balance + body.amount > state.limit) {
-                Decision.reject("account.over-limit", "The limit is ${state.limit}.")
+                // Decision D259: a local code, which the kernel names bank.account.over-limit.
+                Decision.reject("over-limit", "The limit is ${state.limit}.")
             } else {
                 cancelSchedule("dormant")
                 Decision.events(Deposited(body.amount))
@@ -96,6 +98,19 @@ class AggregateSpecDslTest {
             expectRejected("account.insufficient") { message.assert().isEqualTo("Only 0.") }
             expectState { balance.assert().isZero() }
         }
+    }
+
+    @Test
+    fun `a local rejection code should be named by the aggregate's type`() = aggregateSpec(model) {
+        given(Opened(10))
+        whenCommand(Deposit(11)) {
+            (outcome as CommandOutcome.Rejected).rejection.code.assert().isEqualTo("bank.account.over-limit")
+            expectRejected("over-limit")
+            expectRejected("bank.account.over-limit") { message.assert().isEqualTo("The limit is 10.") }
+        }
+        RejectionCodes.qualify("account.insufficient", model.type).assert().isEqualTo("account.insufficient")
+        val full = Rejection.of("bank.x", "m")
+        RejectionCodes.qualified(full, model.type).assert().isSameAs(full)
     }
 
     @Test

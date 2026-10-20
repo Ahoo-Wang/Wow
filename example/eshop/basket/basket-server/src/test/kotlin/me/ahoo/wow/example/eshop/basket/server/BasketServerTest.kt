@@ -15,6 +15,7 @@ package me.ahoo.wow.example.eshop.basket.server
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.example.eshop.basket.api.basket.EshopBasketContract
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -122,7 +123,7 @@ class BasketServerTest {
 
         val empty = post("/eshop-basket/basket/alice/checkout-basket", "{}", "alice")
         empty.first.assert().isEqualTo(UNPROCESSABLE)
-        empty.second["code"].asString().assert().isEqualTo("eshop-basket.basket.empty")
+        empty.second["code"].asString().assert().isEqualTo(EshopBasketContract.Basket.Errors.EMPTY)
     }
 
     @Test
@@ -133,7 +134,7 @@ class BasketServerTest {
             "dave"
         )
         other.first.assert().isEqualTo(FORBIDDEN)
-        other.second["code"].asString().assert().isEqualTo("eshop-basket.basket.not-owner")
+        other.second["code"].asString().assert().isEqualTo(EshopBasketContract.Basket.Errors.NOT_OWNER)
     }
 
     @Test
