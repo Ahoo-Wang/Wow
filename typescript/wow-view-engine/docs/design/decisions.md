@@ -1051,3 +1051,15 @@
   - **内存源同样支持**：`@ahoo-wang/wow-view-engine/testing` 的 `memorySource` 展开时记住每个元素所属的根记录，`ROOT` 分组按根记录取键。
 - **控制台**：「补偿活动」板上方四张结局卡换成一张「每天的结局」折线图：展开 `body` 只留四种结局事件，按天（根上的 `createTime`）× 事件类型计数，按类型分线；`limit` 用分析的行数上限 1000，按天倒序，超出时丢的是最早的日子。描述符快照（`e2e/support/descriptors/`）按本地 9.9 服务端重新核对。
 - **落点**：`src/analysis/capability.ts`（`rootAggregations`、`isRootGroup`）、`validateGroups.ts`、`compile.ts`、`src/react/analysisFields.ts`、`src/analysis/drill.ts`、`src/capabilities/analysis.ts`、`open.ts`、`src/testing/aggregate.ts`；控制台 `src/views/activityAnalyses.ts`、`overview.ts`。
+
+## D93 独立的数据集视图：几个目录合在一个引擎里，宿主拿来就用（2026-10-20，落实 Wow D238 ⑨）
+
+- **来由**：Wow D238 ⑨（用户 2026-10-19）要视图引擎有**独立的数据集视图**——视图与看板直接绑定数据集（分析目录发布的宽表），不依赖某个服务的聚合模型，承载于任何接了视图引擎的应用，看板跨服务。D84、D85 已经让数据集能登记、能跟着目录走，但只读一个目录；每个宿主还要自己按调用者刷新、生成绑定、做选数据集的入口（分析目录控制台的 Rows 页就是这样手写的）。
+- **裁定**（Wow 协调者 2026-10-20 按推荐，7.2c-3）：
+  - **几个目录合一**：`DatasetResources(engine, catalogs, onError?, onWordingError?, options?)`，`catalogs` 是一个目录或一个数组（分析目录与自带数据集的服务各一个）。同一 id（`{context}.{dataset}`）两个目录都列出时**前一个的生效**，后一个不登记，记进 `duplicates` 并经 `options.onDuplicate` 说出——不悄悄丢。某个目录读不到时它原先提供的保持不变，经 `options.onCatalogError` 说出，刷新照常做完其余的；全都读不到才失败。`DatasetResource.catalog` 说出是哪个目录的；措辞按数据集所在目录的存储读写。
+  - **`useDatasets(resources, key)`**（`/react`）：`key` 变了（换了调用者）就重新 `refresh`，`null` 不读；答出提供着的数据集、被丢下的重复、`loading`、`error` 与 `refresh()`。
+  - **`datasetBindings(served, { route, actions? })`**（`/ui`）：为每个提供着的数据集生成 `bind(id, { route, actions })`，宿主把它并进自己的绑定。
+  - **`DatasetWorkbench`**（`/ui`）：选数据集的下拉加上它的 `DataWorkbench`。**修订 D85 的「不另做选择器」**：有导航的宿主照旧经绑定在导航里列出数据集；只有数据集、没有别的导航的应用（独立的数据集视图）需要这个下拉，它就是导航。数据集与视图都可由宿主的地址掌管（`datasetId`/`onDatasetChange`，`instanceId`/`onInstanceChange`）。
+  - **看板不加概念**：看板仍是一份 `DashboardDefinition` 下的视图，面板的 `OwnedView.definitionId` 指向哪个数据集都行，几个服务的数据集可以放在同一块板上；视图存储把 `definitionId` 当不透明的字符串，存储不改。
+  - **实验性**：这批新的公开 API 在 API 报告里标为 `@experimental`，GA 前可以再改。
+- **落点**：`src/runtime/datasetResources.ts`、`src/react/useDatasets.ts`、`src/ui/datasets/`；[host-integration.md 3.2](host-integration.md)；Wow 仓分析目录控制台的 Rows 页与 Boards 页。
