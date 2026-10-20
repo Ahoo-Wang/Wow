@@ -34,3 +34,27 @@ data class DraftDataset(
 /** Replaces the dataset's [definition] and [title], checked against the catalog as a draft's is. */
 @Summary("Revise a dataset's definition")
 data class ReviseDataset(val definition: DatasetDefinition, val title: String? = null)
+
+/**
+ * Publishes the dataset's definition as its next version (decision D259 7.2b-2): compiled against the catalog as it
+ * is now into the version's own view, `ds_<context>_<name>_v<N>`, which the publication creates in the warehouse (the
+ * only way the catalog changes the warehouse, audited by the event, decision D251 ④); queries then read that version.
+ * A definition that compiles to what is published already changes nothing.
+ */
+@Summary("Publish the dataset's definition as its next version")
+data object PublishDataset
+
+/** Switches the dataset's queries back to its published [version], whose view is created again if it is gone. */
+@Summary("Switch a dataset back to an earlier version")
+data class RollbackDataset(val version: Int)
+
+/**
+ * Retires the dataset: its queries stop; its views stay in the warehouse for the retention (7 days by default), then
+ * the catalog drops them. Publishing it again before then brings it back.
+ */
+@Summary("Retire a dataset")
+data object RetireDataset
+
+/** Drops the views of a dataset retired for the retention; the catalog schedules it when it retires one. */
+@Summary("Drop a retired dataset's views")
+data object DropDatasetViews

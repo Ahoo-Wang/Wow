@@ -90,4 +90,13 @@ data class DatasetSensitivity(
 enum class DatasetStatus {
     /** Drafted or revised, never published. */
     DRAFT,
+
+    /** A version is published: queries read it. */
+    PUBLISHED,
+
+    /** Retired: queries stop; its views stay for the retention. */
+    RETIRED,
 }
+
+/** A published version of a dataset: its compiled [artifact] and the [definition] it was compiled from. */
+data class DatasetVersion(val artifact: DatasetArtifact, val definition: DatasetDefinition)
