@@ -18,7 +18,8 @@ import { pathToFileURL } from 'node:url';
 // The steps of v10-e2e-bench.yml, the timed end-to-end benchmark of decision
 // D224 (wow-benchmarks/e2e/README.md) on GitHub's runners:
 //
-//   node .github/scripts/v10-e2e-bench.mjs plan            (plan job)
+//   node .github/scripts/v10-e2e-bench.mjs plan            (plan job: the settings)
+//   node .github/scripts/v10-e2e-bench.mjs matrix          (plan job: the suites and builds that can run)
 //   node .github/scripts/v10-e2e-bench.mjs suite <name>    (one matrix job per suite)
 //   node .github/scripts/v10-e2e-bench.mjs report <dir>    (report job)
 //
@@ -33,129 +34,206 @@ import { pathToFileURL } from 'node:url';
 // throughput or p99, one more round runs. bench.sh starts every run on fresh
 // containers and servers. `report` combines the suites' results.
 
-// The arms: a version on a backend, and the server properties it runs with
-// (handed to the servers as SPRING_APPLICATION_JSON, which bench.sh's servers
-// inherit).
-const NINE_X = { id: '9x', version: '9x', backend: 'mongo' };
-const V10_MONGO = { id: 'v10', version: 'v10', backend: 'mongo' };
-const V10_PG = { id: 'v10-pg', version: 'v10', backend: 'postgres' };
+// The arms: a build (`install`: `head`, the pushed or dispatched V10 ref; `base`, the V10 baseline ref; `9x`, the
+// 9.x server from `nine_x_ref`) on a backend, and the server properties it runs with (handed to the servers as
+// SPRING_APPLICATION_JSON, which bench.sh's servers inherit). Every V10 run also turns on the benchmark server's
+// BenchSignals (SIGNALS), which count the node's overload and fallback signals for the anomaly checks.
+const NINE_X = { id: '9x', version: '9x', backend: 'mongo', install: '9x' };
+const v10 = (install, backend) => ({
+  id: install,
+  version: 'v10',
+  backend,
+  install,
+});
+const HEAD_MONGO = v10('head', 'mongo');
+const BASE_MONGO = v10('base', 'mongo');
+const HEAD_PG = v10('head', 'postgres');
+const BASE_PG = v10('base', 'postgres');
 const withProps = (arm, id, props) => ({ ...arm, id, props });
+export const SIGNALS = { 'bench.signals.enabled': true };
 
 // The E3 latency suspects on MongoDB (H1 to H5 of the E3 analysis): a rate
 // sweep, then one key toggled at a time at the middle rate.
 const DIAG_RATE = 20;
 
-// kind `paired`: saturation of each arm, then rounds of one run per arm.
-// The ratio is arms[1] / arms[0]. `sharedRate`: both arms run at `fraction`
-// of the first arm's saturation (the same offered load), not each its own.
-// kind `fixed`: the listed runs once each, at fixed rates, no saturation.
+// Suite groups: `ab` compares the V10 baseline with the head (they need a baseline ref, and are skipped without one),
+// `head` measures the head alone, `9x` compares the head with 9.x (opt-in as `vs-9x`; removed at GA).
+//
+// kind `paired`: saturation of each arm, open-loop calibration, then rounds of one run per arm; the ratio is
+// arms[1] / arms[0] (head/base, head/9x). `sharedRate`: both arms run at the first arm's calibrated rate.
+// kind `fixed`: the listed runs once each, at fixed rates. kind `steps`: the cliff steps (CLIFF). kind `capacity`:
+// the sustainable rate of each scenario by bisection (CAPACITY). kind `cluster`: three nodes, steady and with a node
+// stopped and restarted mid-measurement (CLUSTER).
 export const SUITES = {
   'e1-mongo-uniform': {
+    group: 'ab',
     kind: 'paired',
     scenario: 'E1',
     distribution: 'uniform',
-    arms: [NINE_X, V10_MONGO],
+    arms: [BASE_MONGO, HEAD_MONGO],
     answers:
-      'E1 write, uniform keys: V10 on MongoDB against 9.x on MongoDB, throughput, latency and CPU at the same share of each saturation.',
+      'E1 write on MongoDB, uniform keys: the head against the V10 baseline (regression guard), throughput and CPU at each calibrated rate, latency at one rate.',
   },
   'e1-mongo-zipf': {
+    group: 'ab',
     kind: 'paired',
     scenario: 'E1',
     distribution: 'zipf',
-    arms: [NINE_X, V10_MONGO],
+    arms: [BASE_MONGO, HEAD_MONGO],
     answers:
-      'E1 write, Zipf keys (hot accounts, lane and cache contention): V10 on MongoDB against 9.x.',
+      'E1 write on MongoDB, Zipf keys (hot accounts, lane and cache contention): head against baseline.',
   },
   'e1-pg-uniform': {
+    group: 'ab',
     kind: 'paired',
     scenario: 'E1',
     distribution: 'uniform',
-    arms: [V10_PG],
-    answers:
-      'E1 write on V10 with PostgreSQL, reported on its own (D224: never compared with 9.x); run-to-run spread only.',
+    arms: [BASE_PG, HEAD_PG],
+    answers: 'E1 write on PostgreSQL: head against baseline.',
   },
   'e2-mongo': {
+    group: 'ab',
     kind: 'paired',
     scenario: 'E2',
     distribution: 'uniform',
-    arms: [NINE_X, V10_MONGO],
-    answers: 'E2 read-your-write: V10 on MongoDB against 9.x.',
+    arms: [BASE_MONGO, HEAD_MONGO],
+    answers: 'E2 read-your-write on MongoDB: head against baseline.',
   },
   'e3-mongo': {
+    group: 'ab',
     kind: 'paired',
     scenario: 'E3',
     distribution: 'uniform',
-    arms: [NINE_X, V10_MONGO],
+    arms: [BASE_MONGO, HEAD_MONGO],
     answers:
-      "E3 saga chain (completion: the target's Entry stored): V10 on MongoDB against 9.x.",
+      "E3 saga chain on MongoDB (completion: the target's Entry stored): head against baseline.",
   },
   'e3-pg': {
+    group: 'ab',
     kind: 'paired',
     scenario: 'E3',
     distribution: 'uniform',
-    arms: [V10_PG],
-    answers: 'E3 saga chain on V10 with PostgreSQL, reported on its own.',
+    arms: [BASE_PG, HEAD_PG],
+    answers: 'E3 saga chain on PostgreSQL: head against baseline.',
+  },
+  'sustainable-mongo': {
+    group: 'head',
+    kind: 'capacity',
+    distribution: 'uniform',
+    arm: HEAD_MONGO,
+    scenarios: ['E1', 'E2', 'E3'],
+    answers:
+      'Capacity guidance on MongoDB: per scenario, the highest open-loop rate with at most 1% errors and p99 within the limit, by bisection.',
+  },
+  'sustainable-pg': {
+    group: 'head',
+    kind: 'capacity',
+    distribution: 'uniform',
+    arm: HEAD_PG,
+    scenarios: ['E1', 'E3'],
+    answers:
+      'Capacity guidance on PostgreSQL: per scenario, the highest open-loop rate with at most 1% errors and p99 within the limit, by bisection.',
+  },
+  'e5-mongo': {
+    group: 'head',
+    kind: 'cluster',
+    distribution: 'uniform',
+    arm: HEAD_MONGO,
+    answers:
+      'E5 cluster of three nodes on MongoDB, requests round-robin: E1 and E3 steady, then with one node stopped and restarted mid-measurement (its partitions handed over and back).',
+  },
+  'e5-pg': {
+    group: 'head',
+    kind: 'cluster',
+    distribution: 'uniform',
+    arm: HEAD_PG,
+    answers: 'E5 cluster of three nodes on PostgreSQL, as e5-mongo.',
   },
   'e3-mongo-diag': {
+    group: 'head',
     kind: 'fixed',
     scenario: 'E3',
     distribution: 'uniform',
     runs: [
-      { arm: V10_MONGO, rate: 5 },
-      { arm: V10_MONGO, rate: DIAG_RATE },
-      { arm: V10_MONGO, rate: 40 },
+      { arm: HEAD_MONGO, rate: 5 },
+      { arm: HEAD_MONGO, rate: DIAG_RATE },
+      { arm: HEAD_MONGO, rate: 40 },
       {
-        arm: withProps(V10_MONGO, 'v10-queue-off', {
+        arm: withProps(HEAD_MONGO, 'head-queue-off', {
           'wow.log.append-queue.enabled': false,
         }),
         rate: DIAG_RATE,
       },
       {
-        arm: withProps(V10_MONGO, 'v10-gap-wait-20ms', {
+        arm: withProps(HEAD_MONGO, 'head-gap-wait-20ms', {
           'wow.log.handoff.gap-wait': '20ms',
         }),
         rate: DIAG_RATE,
       },
       {
-        arm: withProps(V10_MONGO, 'v10-max-poll-5s', {
+        arm: withProps(HEAD_MONGO, 'head-max-poll-5s', {
           'wow.log.max-poll-interval': '5s',
         }),
         rate: DIAG_RATE,
       },
-      { arm: NINE_X, rate: DIAG_RATE },
     ],
     answers:
-      'Why V10 E3 on MongoDB is slow: a rate sweep (a median falling at 5/s means load, a flat one a fixed delay), then the append queue off, a 20 ms handoff gap wait and a 5 s longest poll, one at a time at 20/s; 9.x at 20/s as the reference.',
+      'E3 latency on MongoDB: a rate sweep (a median falling at 5/s means load, a flat one a fixed delay), then the append queue off, a 20 ms handoff gap wait and a 5 s longest poll, one at a time at 20/s.',
   },
   'pg-append-queue': {
+    group: 'head',
     kind: 'paired',
     scenario: 'E1',
     distribution: 'uniform',
     sharedRate: true,
     arms: [
-      withProps(V10_PG, 'queue-off', { 'wow.log.append-queue.enabled': false }),
-      withProps(V10_PG, 'queue-on', { 'wow.log.append-queue.enabled': true }),
+      withProps(HEAD_PG, 'queue-off', {
+        'wow.log.append-queue.enabled': false,
+      }),
+      withProps(HEAD_PG, 'queue-on', { 'wow.log.append-queue.enabled': true }),
     ],
     answers:
       "Whether PostgreSQL's append queue should be on by default (D248): saturation with it off and on, then both at the same offered load.",
   },
   'cliff-e3-pg': cliff(
-    V10_PG,
-    'E3 on V10 with PostgreSQL in fixed open-loop steps: where completions stop following the rate, and whether the tails fell back to the store (a cliff) or the node refused work (overload).',
+    HEAD_PG,
+    'E3 on PostgreSQL in fixed open-loop steps: where completions stop following the rate, and whether the tails fell back to the store (a cliff) or the node refused work (overload).',
   ),
   'cliff-e3-mongo': cliff(
-    V10_MONGO,
-    'E3 on V10 with MongoDB in fixed open-loop steps, as cliff-e3-pg.',
+    HEAD_MONGO,
+    'E3 on MongoDB in fixed open-loop steps, as cliff-e3-pg.',
   ),
-  'cliff-e3-9x': cliff(
-    NINE_X,
-    'E3 on 9.x with MongoDB in the same steps, the reference (no signals: 9.x has no such observer).',
-  ),
+  'vs-9x-e1': {
+    group: '9x',
+    kind: 'paired',
+    scenario: 'E1',
+    distribution: 'uniform',
+    arms: [NINE_X, HEAD_MONGO],
+    answers: 'E1 write on MongoDB: the head against 9.x (D224; removed at GA).',
+  },
+  'vs-9x-e3': {
+    group: '9x',
+    kind: 'paired',
+    scenario: 'E3',
+    distribution: 'uniform',
+    arms: [NINE_X, HEAD_MONGO],
+    answers: 'E3 saga chain on MongoDB: the head against 9.x.',
+  },
+  'vs-9x-cliff-e3': {
+    ...cliff(
+      NINE_X,
+      'E3 on 9.x in the cliff steps, the reference for cliff-e3-mongo (9.x has no signals).',
+    ),
+    group: '9x',
+  },
 };
 
+/** The suites of a group. */
+export const suitesOf = group =>
+  Object.keys(SUITES).filter(name => SUITES[name].group === group);
+
 // kind `steps` (the cliff suites): one arm in open loop at rising fixed rates, each step on fresh containers, a
-// minute measured, until two steps in a row are not sustained. A V10 arm counts its overload and fallback signals
-// (BenchSignals in :e2e-bench-v10, `bench.signals.enabled`) and logs them, which the step reads from the server log.
+// minute measured, until two steps in a row are not sustained.
 export const CLIFF = {
   rates: [50, 100, 200, 300, 400, 500],
   warmUp: 10,
@@ -163,16 +241,36 @@ export const CLIFF = {
 };
 
 function cliff(arm, answers) {
-  const signals =
-    arm.version === 'v10' ? { 'bench.signals.enabled': true } : undefined;
   return {
+    group: 'head',
     kind: 'steps',
     scenario: 'E3',
     distribution: 'uniform',
-    arm: signals ? withProps(arm, arm.id, signals) : arm,
+    arm,
     answers,
   };
 }
+
+// kind `capacity`: per scenario, the closed-loop saturation bounds a bisection over the open-loop rate; a probe holds
+// when at most 1% fails, at least 97% of the rate completes and p99 is within `p99_limit_ms`. The bisection stops
+// when the bracket is within 5% of its top or after `probes` probes; the capacity is the highest rate that held.
+export const CAPACITY = { warmUp: 10, measure: 30, probes: 6, tolerance: 0.05 };
+
+// kind `cluster`: three nodes (bench.sh --nodes=3), requests round-robin, each scenario at a fixed rate a minute and
+// a half, once steady and once with node 2 stopped (SIGTERM, its partitions hand over) `stopAfter` seconds into the
+// measured phase and restarted `down` seconds later with its own command line.
+export const CLUSTER = {
+  nodes: 3,
+  warmUp: 15,
+  measure: 90,
+  stopAfter: 25,
+  down: 20,
+  nodePort: 18081,
+  scenarios: [
+    { scenario: 'E1', rate: 150 },
+    { scenario: 'E3', rate: 50 },
+  ],
+};
 
 /** The last `bench-signals {json}` line of a server log: the node's cumulative signal counts, or undefined. */
 export function lastSignals(log) {
@@ -188,6 +286,114 @@ export function lastSignals(log) {
   } catch {
     return undefined;
   }
+}
+
+/** The signals of several nodes' logs, summed per kind and key (a cluster's nodes, a restarted node's log). */
+export function mergeSignals(all) {
+  const present = all.filter(Boolean);
+  if (present.length === 0) return undefined;
+  const merged = { t: Math.max(...present.map(signals => signals.t ?? 0)) };
+  for (const signals of present) {
+    for (const [kind, counts] of Object.entries(signals)) {
+      if (kind === 't') continue;
+      merged[kind] ??= {};
+      for (const [key, count] of Object.entries(counts)) {
+        merged[kind][key] = (merged[kind][key] ?? 0) + count;
+      }
+    }
+  }
+  return merged;
+}
+
+// The anomaly checks of a run, so a run surfaces defects and not only numbers. `overload` marks a run that went past
+// what the node keeps up with by design (a calibration or capacity probe, a cliff step that did not keep up), where
+// errors are expected; signals are flagged there too, since a pause or a store fallback is worth a look either way.
+export const ANOMALY = {
+  errorPercent: 1,
+  tailToMedian: 10,
+  // p99 > 10× p50 is flagged only above this p99, so a 2 ms median with a 30 ms p99 does not count.
+  minTailMs: 50,
+};
+
+/** The anomalies of one run: `{ kind, detail }` each. */
+export function anomaliesOf(run, { overload = false } = {}) {
+  const found = [];
+  const s = run.signals ?? {};
+  const sum = counts => Object.values(counts ?? {}).reduce((a, b) => a + b, 0);
+  if (sum(s.partitionPaused) > 0) {
+    found.push({
+      kind: 'partition paused',
+      detail: Object.entries(s.partitionPaused)
+        .map(([key, count]) => `${key} ×${count}`)
+        .join(', '),
+    });
+  }
+  const fallback = ['gap', 'overflow']
+    .filter(reason => s.tailRead?.[reason] > 0)
+    .map(reason => `${reason}=${s.tailRead[reason]}`);
+  if (fallback.length > 0) {
+    found.push({ kind: 'tail read the store', detail: fallback.join(', ') });
+  }
+  if (run.status !== 'ok') {
+    found.push({
+      kind: 'run failed',
+      detail: 'bench.sh failed; see the job log',
+    });
+    return found;
+  }
+  if (overload) return found;
+  const m = run.metrics;
+  const total = m.ok + m.failed;
+  if (total > 0 && (m.failed * 100) / total > ANOMALY.errorPercent) {
+    found.push({
+      kind: 'error spike',
+      detail: `${m.failed} of ${total} failed: ${errorsText(m.errors)}`,
+    });
+  }
+  if (m.weakSeconds > 0) {
+    found.push({
+      kind: 'throughput dip',
+      detail: `${m.weakSeconds} s below half the rate (lowest ${m.minSecondOk}/s)`,
+    });
+  }
+  if (
+    m.p99 >= ANOMALY.minTailMs &&
+    m.p50 > 0 &&
+    m.p99 > ANOMALY.tailToMedian * m.p50
+  ) {
+    found.push({
+      kind: 'p99 > 10× p50',
+      detail: `p50 ${ms(m.p50)}, p99 ${ms(m.p99)}`,
+    });
+  }
+  return found;
+}
+
+/** The anomalies of a suite: every run's and probe's, with where they were found. */
+export function anomalies(suite) {
+  const rows = [];
+  for (const run of suite.runs ?? []) {
+    const overload = suite.kind === 'steps' && run.sustained === false;
+    const context = overload
+      ? 'overload (cliff step)'
+      : run.handover
+        ? 'hand-over'
+        : 'steady';
+    for (const found of anomaliesOf(run, { overload })) {
+      rows.push({ suite: suite.name, run: run.name, context, ...found });
+    }
+  }
+  for (const probe of suite.probes ?? []) {
+    for (const found of anomaliesOf(probe, { overload: true })) {
+      rows.push({
+        suite: suite.name,
+        run: probe.name,
+        context: 'overload (probe)',
+        ...found,
+      });
+    }
+  }
+  return rows;
 }
 
 export const DRIFT = 0.05;
@@ -232,7 +438,9 @@ export const DEFAULTS = {
   measure: '40',
   repeats: '2',
   fraction: '0.8',
-  baseline_ref: 'v10-9x-baseline',
+  p99_limit_ms: '200',
+  base_ref: '',
+  nine_x_ref: 'v10-9x-baseline',
 };
 
 /** The settings of a run: the dispatch inputs, or for a push the defaults with the run file's keys over them. */
@@ -256,12 +464,34 @@ export function runSettings({ event, inputs = {}, config }) {
   return settings;
 }
 
-/** The dispatch inputs, checked; `suites` is `all` or names separated by commas or spaces. */
-export function resolveInputs({ suites, warmUp, measure, repeats, fraction }) {
-  const names =
-    !suites || suites.trim() === 'all'
-      ? Object.keys(SUITES)
-      : [...new Set(suites.split(/[\s,]+/).filter(Boolean))];
+/**
+ * The settings, checked. `suites` is `all` (every suite but the 9.x ones), names separated by commas or spaces, or
+ * the group names `ab`, `head` and `vs-9x` among them.
+ */
+export function resolveInputs({
+  suites,
+  warmUp,
+  measure,
+  repeats,
+  fraction,
+  p99LimitMs = DEFAULTS.p99_limit_ms,
+}) {
+  const groups = {
+    all: ['ab', 'head'],
+    ab: ['ab'],
+    head: ['head'],
+    'vs-9x': ['9x'],
+  };
+  const names = [
+    ...new Set(
+      (suites?.trim() ? suites : 'all')
+        .split(/[\s,]+/)
+        .filter(Boolean)
+        .flatMap(name =>
+          groups[name] ? groups[name].flatMap(suitesOf) : [name],
+        ),
+    ),
+  ];
   const unknown = names.filter(name => !(name in SUITES));
   if (unknown.length > 0 || names.length === 0) {
     throw new Error(
@@ -281,7 +511,41 @@ export function resolveInputs({ suites, warmUp, measure, repeats, fraction }) {
     measure: integer('measure', measure, 5, 600),
     repeats: integer('repeats', repeats, 1, 5),
     fraction: share,
+    p99LimitMs: integer('p99_limit_ms', p99LimitMs, 1, 60000),
   };
+}
+
+/**
+ * The jobs of a run: the suites that can run (those of group `ab` need a baseline commit, the `9x` ones a 9.x
+ * commit), the ones skipped and why, and the builds they need, one per side.
+ */
+export function planMatrix({ suites, headSha, baseSha, nineXSha }) {
+  const skipped = [];
+  const runnable = suites.filter(name => {
+    const group = SUITES[name].group;
+    if (group === 'ab' && !baseSha) {
+      skipped.push(
+        `${name} (no V10 baseline: set base_ref; no v10.* release tag has the benchmark yet)`,
+      );
+      return false;
+    }
+    if (group === '9x' && !nineXSha) {
+      skipped.push(`${name} (no 9.x commit)`);
+      return false;
+    }
+    return true;
+  });
+  const groups = new Set(runnable.map(name => SUITES[name].group));
+  const builds = [
+    { side: 'head', sha: headSha, scope: 'v10', dir: 'bench-v10' },
+    ...(groups.has('ab')
+      ? [{ side: 'base', sha: baseSha, scope: 'v10', dir: 'bench-v10' }]
+      : []),
+    ...(groups.has('9x')
+      ? [{ side: '9x', sha: nineXSha, scope: 'all', dir: 'bench-9x' }]
+      : []),
+  ];
+  return { suites: runnable, skipped, builds };
 }
 
 /** The spread of values: max / min - 1, 0 for fewer than two. */
@@ -309,8 +573,16 @@ export function metrics(result) {
   const containerCores =
     Object.values(containers).reduce((sum, percent) => sum + percent, 0) / 100;
   const throughput = results.throughput ?? 0;
+  const rate = result?.load?.rate;
+  const seconds = (results.perSecond ?? []).map(second => second.ok ?? 0);
   return {
+    rate,
     throughput,
+    // The measured seconds that completed less than half the rate: a dip (a stall, a hand-over).
+    weakSeconds: Number.isFinite(rate)
+      ? seconds.filter(ok => ok < rate / 2).length
+      : 0,
+    minSecondOk: seconds.length > 0 ? Math.min(...seconds) : undefined,
     ok: results.ok ?? 0,
     failed: results.failed ?? 0,
     errors: results.errors ?? {},
@@ -475,6 +747,50 @@ function cliffTable(suite) {
   return lines;
 }
 
+/** The anomalies of suites as a table, or nothing. */
+function anomalyTable(rows) {
+  if (rows.length === 0) return [];
+  return [
+    '| Suite | Run | Context | Anomaly | Detail |',
+    '| --- | --- | --- | --- | --- |',
+    ...rows.map(
+      row =>
+        `| ${row.suite} | ${row.run} | ${row.context} | **${row.kind}** | ${row.detail} |`,
+    ),
+  ];
+}
+
+/** The sustainable rate of each scenario of a capacity suite. */
+function capacityTable(suite) {
+  const lines = [
+    `| Scenario | Sustainable rate (≤1% errors, p99 ≤ ${suite.p99LimitMs} ms) | p50 | p99 | CPU ms/op | Saturation (closed loop) | Bracket |`,
+    '| --- | --- | --- | --- | --- | --- | --- |',
+  ];
+  for (const [scenario, c] of Object.entries(suite.capacity ?? {})) {
+    lines.push(
+      `| ${scenario} | ${c.rate ? `**${num(c.rate)}/s**` : '**none held**'} | ${ms(c.p50)} | ${ms(c.p99)} | ${num(c.cpuMsPerOp, 2)} | ${saturationText(suite.saturation?.[scenario])} | ${num(c.rate ?? 0)}–${num(c.upper)}/s |`,
+    );
+  }
+  return lines;
+}
+
+/** The runs of a cluster suite: steady against hand-over. */
+function clusterTable(suite) {
+  const lines = [
+    '| Run | Rate | Throughput | Failed | p50 | p99 | Worst-second p99 | Seconds below half the rate | Lowest second | Errors | Node signals (all nodes) |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+  ];
+  for (const run of suite.runs) {
+    const m = run.metrics;
+    lines.push(
+      run.status === 'ok'
+        ? `| ${run.name} | ${num(run.rate)}/s | ${num(m.throughput)}/s | ${m.failed} | ${ms(m.p50)} | ${ms(m.p99)} | ${ms(m.worstSecondP99)} | ${m.weakSeconds} | ${m.minSecondOk ?? '-'}/s | ${errorsText(m.errors)} | ${signalsText(run.signals)} |`
+        : `| ${run.name} | ${num(run.rate)}/s | **${run.status}** | | | | | | | | ${signalsText(run.signals)} |`,
+    );
+  }
+  return lines;
+}
+
 function runTable(runs) {
   const lines = [
     '| Run | Arm | Rate | Throughput | OK | Failed | p50 | p95 | p99 | p999 | Worst-second p99 | Server CPU | Container CPU | CPU ms/op | Errors |',
@@ -494,7 +810,8 @@ function runTable(runs) {
     lines.push(
       `| ${run.name} | ${run.arm} | ${num(run.rate)}/s | ${num(m.throughput)}/s | ${m.ok} | ${m.failed} | ` +
         `${ms(m.p50)} | ${ms(m.p95)} | ${ms(m.p99)} | ${ms(m.p999)} | ${ms(m.worstSecondP99)} | ` +
-        `${num(m.serverCores, 2)} cores | ${containers || '-'} | ${num(m.cpuMsPerOp, 2)} | ${errorsText(m.errors)} |`,
+        // A hand-over run's server CPU is not measured: the sampler's ps fails once the stopped node is gone.
+        `${run.handover ? '-' : `${num(m.serverCores, 2)} cores`} | ${containers || '-'} | ${run.handover ? '-' : num(m.cpuMsPerOp, 2)} | ${errorsText(m.errors)} |`,
     );
   }
   return lines;
@@ -566,6 +883,15 @@ export function renderSuite(suite) {
     );
   }
   if (suite.kind === 'steps') lines.push(...cliffTable(suite), '');
+  if (suite.kind === 'capacity') lines.push(...capacityTable(suite), '');
+  if (suite.kind === 'cluster') {
+    lines.push(
+      `Three nodes, requests round-robin, ${CLUSTER.measure} s measured; in the hand-over runs node 2 is stopped ${CLUSTER.stopAfter} s into the measured phase and restarted ${CLUSTER.down} s later.`,
+      '',
+      ...clusterTable(suite),
+      '',
+    );
+  }
   lines.push(...runTable(suite.runs), '');
   const calibratedPairs = pairTable(suite, CALIBRATED);
   if (calibratedPairs.length > 0) {
@@ -585,6 +911,8 @@ export function renderSuite(suite) {
       '',
     );
   }
+  const found = anomalyTable(anomalies(suite));
+  if (found.length > 0) lines.push('Anomalies:', '', ...found, '');
   if (suite.failures > 0)
     lines.push(`**${suite.failures} step(s) failed**; see the job log.`, '');
   return `${lines.join('\n')}\n`;
@@ -605,16 +933,73 @@ function runnerInfo() {
   };
 }
 
-/** Runs bench.sh with `args`, the arm's properties in SPRING_APPLICATION_JSON; true when it succeeded. */
-function bench(benchPath, args, props) {
+// A cluster run with a hand-over: bench.sh runs with its output teed to a log, and a helper waits for the load
+// generator's measured phase, stops the node on NODE_PORT (SIGTERM: a graceful stop, its partitions hand over),
+// and after DOWN seconds starts it again with its own command line, working directory and environment. The
+// restarted node is stopped once bench.sh is done (bench.sh only knows the pids it started). Linux only (/proc).
+export const HANDOVER_SCRIPT = `
+set -uo pipefail
+bench=$1; shift
+mkdir -p "$RUN_DIR"
+log="$RUN_DIR/bench-output.log"; : > "$log"
+handover() {
+  for _ in $(seq 1 900); do grep -q ': measure$' "$log" && break; sleep 1; done
+  grep -q ': measure$' "$log" || return 0
+  sleep "$STOP_AFTER"
+  pid=$(pgrep -f -- "--server.port=$NODE_PORT" | head -1)
+  if [ -z "$pid" ]; then echo "[handover] no node on port $NODE_PORT"; return 0; fi
+  mapfile -d '' argv < "/proc/$pid/cmdline"
+  cwd=$(readlink "/proc/$pid/cwd")
+  echo "[handover] $(date +%s.%N) stopping the node on port $NODE_PORT (pid $pid)"
+  kill -TERM "$pid"
+  for _ in $(seq 1 300); do kill -0 "$pid" 2>/dev/null || break; sleep 0.1; done
+  echo "[handover] $(date +%s.%N) stopped; down for $DOWN s"
+  sleep "$DOWN"
+  (cd "$cwd" && exec "\${argv[@]}") >> "$RUN_DIR/node-restarted.log" 2>&1 &
+  echo $! > "$RUN_DIR/node-restarted.pid"
+  echo "[handover] $(date +%s.%N) restarted (pid $!)"
+}
+handover >> "$RUN_DIR/handover.log" 2>&1 &
+helper=$!
+"$bench" "$@" 2>&1 | tee -a "$log"
+status=\${PIPESTATUS[0]}
+kill "$helper" 2>/dev/null; wait "$helper" 2>/dev/null
+if [ -f "$RUN_DIR/node-restarted.pid" ]; then
+  restarted=$(cat "$RUN_DIR/node-restarted.pid")
+  kill "$restarted" 2>/dev/null
+  for _ in $(seq 1 150); do kill -0 "$restarted" 2>/dev/null || break; sleep 0.2; done
+fi
+exit "$status"
+`;
+
+/**
+ * Runs bench.sh with `args`, the arm's properties in SPRING_APPLICATION_JSON; true when it succeeded. With `handover`
+ * (`{ dir, stopAfter, down, nodePort }`) it runs through HANDOVER_SCRIPT.
+ */
+function bench(benchPath, args, props, handover) {
   const env = { ...process.env };
   delete env.SPRING_APPLICATION_JSON;
   if (props && Object.keys(props).length > 0)
     env.SPRING_APPLICATION_JSON = JSON.stringify(props);
   console.log(
-    `::group::bench.sh ${args.join(' ')}${props ? ` (${propsText(props)})` : ''}`,
+    `::group::bench.sh ${args.join(' ')}${props ? ` (${propsText(props)})` : ''}${handover ? ' (hand-over)' : ''}`,
   );
-  const result = spawnSync(benchPath, args, { stdio: 'inherit', env });
+  const result = handover
+    ? spawnSync(
+        'bash',
+        ['-c', HANDOVER_SCRIPT, 'handover', benchPath, ...args],
+        {
+          stdio: 'inherit',
+          env: {
+            ...env,
+            RUN_DIR: handover.dir,
+            STOP_AFTER: String(handover.stopAfter),
+            DOWN: String(handover.down),
+            NODE_PORT: String(handover.nodePort),
+          },
+        },
+      )
+    : spawnSync(benchPath, args, { stdio: 'inherit', env });
   console.log('::endgroup::');
   if (result.status !== 0) {
     console.log(
@@ -637,13 +1022,16 @@ export function runSuite(name, options) {
     measure,
     repeats,
     fraction,
+    p99LimitMs = Number(DEFAULTS.p99_limit_ms),
+    installs = {},
     refs = {},
+    cluster = CLUSTER,
   } = options;
   mkdirSync(out, { recursive: true });
   const arms =
     definition.kind === 'paired'
       ? definition.arms
-      : definition.kind === 'steps'
+      : ['steps', 'capacity', 'cluster'].includes(definition.kind)
         ? [definition.arm]
         : [
             ...new Map(
@@ -660,6 +1048,7 @@ export function runSuite(name, options) {
     measure,
     repeats,
     fraction,
+    p99LimitMs,
     arms,
     refs,
     runner: runnerInfo(),
@@ -676,12 +1065,17 @@ export function runSuite(name, options) {
     );
     writeFileSync(join(out, 'summary.md'), renderSuite(suite));
   };
-  const common = arm => [
+  // The options every bench.sh call of an arm takes: its version, backend and build (`--install`, when the build is
+  // not the one in the harness's own tree), the scenario and the keys.
+  const common = (arm, scenario = definition.scenario) => [
     `--version=${arm.version}`,
     `--backend=${arm.backend}`,
-    `--scenario=${definition.scenario}`,
+    ...(installs[arm.install] ? [`--install=${installs[arm.install]}`] : []),
+    `--scenario=${scenario}`,
     `--distribution=${definition.distribution}`,
   ];
+  const propsOf = arm =>
+    arm.version === 'v10' ? { ...SIGNALS, ...arm.props } : arm.props;
   const measureRun = (
     runName,
     arm,
@@ -694,14 +1088,16 @@ export function runSuite(name, options) {
       benchPath,
       [
         'run',
-        ...common(arm),
+        ...common(arm, phase.scenario),
+        ...(phase.extra ?? []),
         `--rate=${rate.toFixed(1)}`,
         `--warm-up=${phase.warmUp}`,
         `--measure=${phase.measure}`,
         `--label=${name}-${runName}`,
         `--out=${dir}`,
       ],
-      arm.props,
+      propsOf(arm),
+      phase.handover && { ...phase.handover, dir },
     );
     const file = join(dir, 'result.json');
     const run = {
@@ -712,54 +1108,64 @@ export function runSuite(name, options) {
       dir: runName,
       status: 'failed',
       ...(phase.mode === EQUAL ? { mode: EQUAL } : {}),
+      ...(phase.scenario ? { scenario: phase.scenario } : {}),
+      ...(phase.handover ? { handover: true } : {}),
     };
     if (ok && existsSync(file)) {
       run.status = 'ok';
       run.metrics = metrics(readJson(file));
-      const log = join(dir, 'node-1.log');
-      if (existsSync(log)) {
-        const signals = lastSignals(readFileSync(log, 'utf8'));
-        if (signals) run.signals = signals;
-      }
     } else {
       suite.failures++;
+    }
+    // Every node's last signals line, a restarted node's included, summed (also for a failed run: its logs stay).
+    if (existsSync(dir)) {
+      const signals = mergeSignals(
+        readdirSync(dir)
+          .filter(file => /^node-.*\.log$/.test(file))
+          .map(file => lastSignals(readFileSync(join(dir, file), 'utf8'))),
+      );
+      if (signals) run.signals = signals;
     }
     phase.into.push(run);
     save();
     return run;
   };
 
-  if (definition.kind === 'paired') {
-    for (const arm of arms) {
-      const dir = join(out, `saturation-${arm.id}`);
-      const ok = bench(
-        benchPath,
-        [
-          'saturate',
-          ...common(arm),
-          `--warm-up=${SATURATION.warmUp}`,
-          `--step=${SATURATION.step}`,
-          `--max-concurrency=${SATURATION.maxConcurrency}`,
-          `--label=${name}-saturation-${arm.id}`,
-          `--out=${dir}`,
-        ],
-        arm.props,
-      );
-      const file = join(dir, 'saturation.json');
-      const saturation = ok && existsSync(file) ? readJson(file) : undefined;
-      if (saturation?.saturationThroughput > 0) {
-        suite.saturation[arm.id] = {
-          status: 'ok',
-          throughput: saturation.saturationThroughput,
-          concurrency: saturation.saturationConcurrency,
-          capped: saturation.saturationConcurrency >= SATURATION.maxConcurrency,
-        };
-      } else {
-        suite.saturation[arm.id] = { status: 'failed' };
-        suite.failures++;
-      }
-      save();
+  // The closed-loop saturation of an arm in a scenario, recorded under `key`.
+  const saturate = (arm, key, scenario) => {
+    const dir = join(out, `saturation-${key}`);
+    const ok = bench(
+      benchPath,
+      [
+        'saturate',
+        ...common(arm, scenario),
+        `--warm-up=${SATURATION.warmUp}`,
+        `--step=${SATURATION.step}`,
+        `--max-concurrency=${SATURATION.maxConcurrency}`,
+        `--label=${name}-saturation-${key}`,
+        `--out=${dir}`,
+      ],
+      propsOf(arm),
+    );
+    const file = join(dir, 'saturation.json');
+    const saturation = ok && existsSync(file) ? readJson(file) : undefined;
+    if (saturation?.saturationThroughput > 0) {
+      suite.saturation[key] = {
+        status: 'ok',
+        throughput: saturation.saturationThroughput,
+        concurrency: saturation.saturationConcurrency,
+        capped: saturation.saturationConcurrency >= SATURATION.maxConcurrency,
+      };
+    } else {
+      suite.saturation[key] = { status: 'failed' };
+      suite.failures++;
     }
+    save();
+    return suite.saturation[key];
+  };
+
+  if (definition.kind === 'paired') {
+    for (const arm of arms) saturate(arm, arm.id);
     suite.probes = [];
     suite.calibration = {};
     const calibrated = definition.sharedRate ? arms.slice(0, 1) : arms;
@@ -824,6 +1230,76 @@ export function runSuite(name, options) {
         round(index, EQUAL, () => equal, 'e');
     } else if (definition.sharedRate && suite.rates[arms[0].id]) {
       suite.equalRate = suite.rates[arms[0].id];
+    }
+  } else if (definition.kind === 'capacity') {
+    suite.probes = [];
+    suite.capacity = {};
+    for (const scenario of definition.scenarios) {
+      const top = saturate(definition.arm, scenario, scenario)?.throughput;
+      if (!top) continue;
+      let lo = 0;
+      let hi = top;
+      let best;
+      for (let probe = 1; probe <= CAPACITY.probes; probe++) {
+        const rate = (lo + hi) / 2;
+        const run = measureRun(
+          `${scenario.toLowerCase()}-probe${probe}`,
+          definition.arm,
+          rate,
+          probe - 1,
+          {
+            warmUp: CAPACITY.warmUp,
+            measure: CAPACITY.measure,
+            into: suite.probes,
+            scenario,
+          },
+        );
+        run.held =
+          run.status === 'ok' &&
+          sustainable(run.metrics, rate) &&
+          run.metrics.p99 <= p99LimitMs;
+        if (run.held) {
+          lo = rate;
+          best = run;
+        } else {
+          hi = rate;
+        }
+        save();
+        if ((hi - lo) / top <= CAPACITY.tolerance) break;
+      }
+      suite.capacity[scenario] = {
+        saturation: top,
+        rate: best ? lo : undefined,
+        run: best?.name,
+        p50: best?.metrics.p50,
+        p99: best?.metrics.p99,
+        cpuMsPerOp: best?.metrics.cpuMsPerOp,
+        upper: hi,
+      };
+      save();
+    }
+  } else if (definition.kind === 'cluster') {
+    for (const { scenario, rate } of cluster.scenarios) {
+      for (const handover of [false, true]) {
+        measureRun(
+          `${scenario.toLowerCase()}-${handover ? 'handover' : 'steady'}`,
+          definition.arm,
+          rate,
+          0,
+          {
+            warmUp: cluster.warmUp,
+            measure: cluster.measure,
+            into: suite.runs,
+            scenario,
+            extra: [`--nodes=${cluster.nodes}`],
+            handover: handover && {
+              stopAfter: cluster.stopAfter,
+              down: cluster.down,
+              nodePort: cluster.nodePort,
+            },
+          },
+        );
+      }
     }
   } else if (definition.kind === 'steps') {
     let unsustained = 0;
@@ -905,15 +1381,47 @@ export function renderReport(suites, meta = {}) {
   const lines = [
     '# V10 end-to-end benchmark (D224) on GitHub Actions',
     '',
-    `Baseline (9.x): \`${meta.baselineRef ?? '?'}\` ${meta.baselineSha ?? ''}; head (V10): \`${meta.headRef ?? '?'}\` ${meta.headSha ?? ''}; ` +
-      `harness and load generator from ${meta.harness ?? '?'}.`,
+    `Head: \`${meta.headRef ?? '?'}\` ${meta.headSha ?? ''}; V10 baseline: ${meta.baseSha ? `\`${meta.baseRef}\` ${meta.baseSha}` : 'none'}; ` +
+      `9.x: ${meta.nineXSha ? `\`${meta.nineXRef}\` ${meta.nineXSha}` : 'not run'}; harness and load generator from ${meta.harness ?? '?'}.`,
     '',
-    "Each suite ran on one runner of its own, so only its ratios compare across suites; absolute numbers are that runner's. Ratios are b/a per pair: median (min–max, n pairs). Lower is better except throughput.",
+    "Each suite ran on one runner of its own, so only its ratios compare across suites; absolute numbers are that runner's. Ratios are b/a per pair (head/base, head/9x): median (min–max, n pairs). Lower is better except throughput.",
     '',
   ];
+  if (meta.skipped?.length > 0) {
+    lines.push(`**Skipped:** ${meta.skipped.join('; ')}.`, '');
+  }
   if (suites.length === 0) {
     lines.push('No suite left results; see the jobs.', '');
     return `${lines.join('\n')}\n`;
+  }
+  const found = suites.flatMap(anomalies);
+  lines.push('## Anomalies', '');
+  if (found.length === 0) {
+    lines.push(
+      'None: no partition paused, no tail read the store after a gap or an overflow, no error spike, dip or p99 above 10× p50.',
+      '',
+    );
+  } else {
+    lines.push(
+      `Checks: a partition paused (D243), a tail read the store after a gap or an overflow (D249), more than ${ANOMALY.errorPercent}% errors, a measured second below half the rate, p99 above ${ANOMALY.tailToMedian}× p50 (when p99 ≥ ${ANOMALY.minTailMs} ms). Errors, dips and tails are not checked where a run went past what the node keeps up with by design (probes, cliff steps that did not keep up).`,
+      '',
+      ...anomalyTable(found),
+      '',
+    );
+  }
+  const capacities = suites.filter(s => s.kind === 'capacity');
+  if (capacities.length > 0) {
+    lines.push('## Sustainable rates (capacity guidance)', '');
+    for (const suite of capacities) {
+      lines.push(`### ${suite.name}`, '', ...capacityTable(suite), '');
+    }
+  }
+  const clusters = suites.filter(s => s.kind === 'cluster');
+  if (clusters.length > 0) {
+    lines.push('## E5 cluster: steady and hand-over', '');
+    for (const suite of clusters) {
+      lines.push(`### ${suite.name}`, '', ...clusterTable(suite), '');
+    }
   }
   lines.push(
     '## Runners',
@@ -1076,38 +1584,64 @@ if (
     console.log(text);
     if (env.GITHUB_OUTPUT) appendFileSync(env.GITHUB_OUTPUT, `${text}\n`);
   };
+  const settingsOf = () => {
+    const config =
+      env.CONFIG && existsSync(env.CONFIG) ? readJson(env.CONFIG) : undefined;
+    if (config && env.EVENT === 'push')
+      console.log(`bench-run.json: ${JSON.stringify(config)}`);
+    return runSettings({
+      event: env.EVENT,
+      config,
+      inputs: {
+        suites: env.SUITES,
+        warm_up: env.WARM_UP,
+        measure: env.MEASURE,
+        repeats: env.REPEATS,
+        fraction: env.FRACTION,
+        p99_limit_ms: env.P99_LIMIT_MS,
+        base_ref: env.BASE_REF,
+        nine_x_ref: env.NINE_X_REF,
+      },
+    });
+  };
   try {
     if (command === 'plan') {
-      const config =
-        env.CONFIG && existsSync(env.CONFIG) ? readJson(env.CONFIG) : undefined;
-      const settings = runSettings({
-        event: env.EVENT,
-        config,
-        inputs: {
-          suites: env.SUITES,
-          warm_up: env.WARM_UP,
-          measure: env.MEASURE,
-          repeats: env.REPEATS,
-          fraction: env.FRACTION,
-          baseline_ref: env.BASELINE_REF,
-        },
-      });
-      if (config && env.EVENT === 'push')
-        console.log(`bench-run.json: ${JSON.stringify(config)}`);
+      // The settings, checked, and which commits the suites need resolved.
+      const settings = settingsOf();
       const inputs = resolveInputs({
         suites: settings.suites,
         warmUp: settings.warm_up,
         measure: settings.measure,
         repeats: settings.repeats,
         fraction: settings.fraction,
+        p99LimitMs: settings.p99_limit_ms,
       });
+      const groups = new Set(inputs.suites.map(name => SUITES[name].group));
       output({
-        'baseline-ref': settings.baseline_ref,
         suites: JSON.stringify(inputs.suites),
         'warm-up': inputs.warmUp,
         measure: inputs.measure,
         repeats: inputs.repeats,
         fraction: inputs.fraction,
+        'p99-limit-ms': inputs.p99LimitMs,
+        'base-ref': settings.base_ref,
+        'needs-base': groups.has('ab'),
+        'nine-x-ref': groups.has('9x') ? settings.nine_x_ref : '',
+      });
+    } else if (command === 'matrix') {
+      const plan = planMatrix({
+        suites: JSON.parse(env.SUITES_JSON),
+        headSha: env.HEAD_SHA,
+        baseSha: env.BASE_SHA,
+        nineXSha: env.NINE_X_SHA,
+      });
+      for (const skipped of plan.skipped)
+        console.log(`::warning::Skipped ${skipped}`);
+      if (plan.suites.length === 0) throw new Error('No suite can run.');
+      output({
+        suites: JSON.stringify(plan.suites),
+        builds: JSON.stringify(plan.builds),
+        skipped: JSON.stringify(plan.skipped),
       });
     } else if (command === 'suite') {
       const inputs = resolveInputs({
@@ -1116,30 +1650,43 @@ if (
         measure: env.MEASURE,
         repeats: env.REPEATS,
         fraction: env.FRACTION,
+        p99LimitMs: env.P99_LIMIT_MS,
       });
       const suite = runSuite(inputs.suites[0], {
         benchPath: env.BENCH,
         out: env.OUT,
         ...inputs,
+        installs: Object.fromEntries(
+          [
+            ['head', env.INSTALL_HEAD],
+            ['base', env.INSTALL_BASE],
+            ['9x', env.INSTALL_9X],
+          ].filter(([, dir]) => dir),
+        ),
         refs: {
-          baselineRef: env.BASELINE_REF,
-          baselineSha: env.BASELINE_SHA,
           headRef: env.HEAD_REF,
           headSha: env.HEAD_SHA,
+          baseRef: env.BASE_REF,
+          baseSha: env.BASE_SHA,
+          nineXRef: env.NINE_X_REF,
+          nineXSha: env.NINE_X_SHA,
           harness: env.HARNESS,
         },
       });
       process.exitCode = suite.failures > 0 ? 1 : 0;
     } else if (command === 'report') {
       const suites = readSuites(process.argv[3]);
-      const meta = suites[0]?.refs ?? {};
+      const meta = {
+        ...(suites[0]?.refs ?? {}),
+        skipped: env.SKIPPED ? JSON.parse(env.SKIPPED) : [],
+      };
       const report = renderReport(suites, meta);
       writeFileSync(process.argv[4] ?? 'report.md', report);
       if (env.GITHUB_STEP_SUMMARY)
         appendFileSync(env.GITHUB_STEP_SUMMARY, report);
     } else {
       throw new Error(
-        `usage: v10-e2e-bench.mjs plan | suite <name> | report <dir> [report.md]`,
+        `usage: v10-e2e-bench.mjs plan | matrix | suite <name> | report <dir> [report.md]`,
       );
     }
   } catch (error) {

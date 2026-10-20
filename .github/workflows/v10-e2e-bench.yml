@@ -11,33 +11,36 @@
 # limitations under the License.
 #
 
-# The timed end-to-end benchmark of decision D224 (wow-benchmarks/e2e/README.md) on GitHub's runners, V10 against
-# 9.x. The 9.x server is built from `baseline_ref` (v10-9x-baseline, the last commit of v10 that has the 9.x code,
-# D262), the V10 server from `head_ref`; the harness and the load generator come from `head_ref` while it still has
-# them and its load generator still drives 9.x, else from `baseline_ref`. Each suite runs in a job of its own, where
-# the arms (9.x and V10, or two V10 configurations) are measured alternately on the same runner, so the ratios survive
-# the variance between runners; steps: .github/scripts/v10-e2e-bench.mjs. The report job combines the suites into
-# report.md and the run summary.
+# The timed end-to-end benchmark of V10 (decision D224; wow-benchmarks/e2e/README.md) on GitHub's runners: a
+# regression guard (the head against a V10 baseline, paired on one runner), capacity guidance (the sustainable rate of
+# each scenario), overload behaviour (the cliff steps), a three-node cluster with a hand-over, and an anomaly check of
+# every run (partition pauses, store fallbacks of the tails, error spikes, dips, long tails) so a run surfaces defects.
+# The head is the pushed or dispatched ref; the baseline is `base_ref`, else the newest v10.* release tag that has the
+# benchmark (without either, the baseline suites are skipped); the optional `vs-9x` suites build 9.x from
+# `nine_x_ref` (v10-9x-baseline, the last commit of v10 with the 9.x code, D262; removed at GA). The harness and the
+# load generator come from the head (from the 9.x ref only when a vs-9x suite needs them and the head's cannot drive
+# 9.x). Each suite runs in a job of its own; steps: .github/scripts/v10-e2e-bench.mjs. The report job combines them
+# into report.md and the run summary.
 #
-# A run starts when a branch `v10-bench-run/**` is pushed (`git push origin v10:v10-bench-run/<name>`): the V10 server
-# is built from the pushed commit, with the defaults, over which `wow-benchmarks/e2e/bench-run.json` at that commit
-# may set `suites`, `warm_up`, `measure`, `repeats`, `fraction` and `baseline_ref`. Delete the branch afterwards. It can
-# also be dispatched by hand once the file is on the default branch (GitHub dispatches only workflows that are there).
-# Never on a pull request or a schedule, and no merge signal.
+# A run starts when a branch `v10-bench-run/**` is pushed (`git push origin v10:v10-bench-run/<name>`), with the
+# defaults, over which `wow-benchmarks/e2e/bench-run.json` at the pushed commit may set `suites`, `warm_up`, `measure`,
+# `repeats`, `fraction`, `p99_limit_ms`, `base_ref` and `nine_x_ref`. Delete the branch afterwards. It can also be
+# dispatched by hand once the file is on the default branch (GitHub dispatches only workflows that are there). Never on
+# a pull request or a schedule, and no merge signal.
 name: V10 E2E Benchmark
 on:
   workflow_dispatch:
     inputs:
-      baseline_ref:
-        description: 'Ref the 9.x server is built from (it must still have :e2e-bench-9x)'
-        type: string
-        default: 'v10-9x-baseline'
       head_ref:
-        description: 'Ref the V10 server is built from'
+        description: 'V10 ref to measure (the head)'
         type: string
         default: 'v10'
+      base_ref:
+        description: 'V10 baseline ref (empty: the newest v10.* release tag that has wow-benchmarks/e2e/bench-v10)'
+        type: string
+        default: ''
       suites:
-        description: '`all`, or suites separated by commas: e1-mongo-uniform, e1-mongo-zipf, e1-pg-uniform, e2-mongo, e3-mongo, e3-pg, e3-mongo-diag, pg-append-queue, cliff-e3-pg, cliff-e3-mongo, cliff-e3-9x'
+        description: '`all` (every suite but vs-9x), or suites or groups (ab, head, vs-9x) separated by commas; see wow-benchmarks/e2e/README.md'
         type: string
         default: 'all'
       warm_up:
@@ -53,9 +56,17 @@ on:
         type: string
         default: '2'
       fraction:
-        description: "Open-loop rate as a share of each arm's saturation throughput"
+        description: "Open-loop rate as a share of each arm's saturation throughput, before calibration"
         type: string
         default: '0.8'
+      p99_limit_ms:
+        description: 'p99 limit of the sustainable-rate suites, in milliseconds'
+        type: string
+        default: '200'
+      nine_x_ref:
+        description: 'Ref the 9.x server of the vs-9x suites is built from'
+        type: string
+        default: 'v10-9x-baseline'
   push:
     branches: ['v10-bench-run/**']
 
@@ -78,15 +89,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
-      suites: ${{ steps.inputs.outputs.suites }}
-      warm-up: ${{ steps.inputs.outputs.warm-up }}
-      measure: ${{ steps.inputs.outputs.measure }}
-      repeats: ${{ steps.inputs.outputs.repeats }}
-      fraction: ${{ steps.inputs.outputs.fraction }}
-      baseline-ref: ${{ steps.inputs.outputs.baseline-ref }}
+      suites: ${{ steps.matrix.outputs.suites }}
+      builds: ${{ steps.matrix.outputs.builds }}
+      skipped: ${{ steps.matrix.outputs.skipped }}
+      warm-up: ${{ steps.settings.outputs.warm-up }}
+      measure: ${{ steps.settings.outputs.measure }}
+      repeats: ${{ steps.settings.outputs.repeats }}
+      fraction: ${{ steps.settings.outputs.fraction }}
+      p99-limit-ms: ${{ steps.settings.outputs.p99-limit-ms }}
       head-ref: ${{ steps.refs.outputs.head-ref }}
-      baseline-sha: ${{ steps.refs.outputs.baseline-sha }}
       head-sha: ${{ steps.refs.outputs.head-sha }}
+      base-ref: ${{ steps.refs.outputs.base-ref }}
+      base-sha: ${{ steps.refs.outputs.base-sha }}
+      nine-x-ref: ${{ steps.settings.outputs.nine-x-ref }}
+      nine-x-sha: ${{ steps.refs.outputs.nine-x-sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -99,7 +115,7 @@ jobs:
         with:
           node-version: 24.21.0
       - name: Check the settings
-        id: inputs
+        id: settings
         env:
           EVENT: ${{ github.event_name }}
           CONFIG: wow-benchmarks/e2e/bench-run.json
@@ -108,16 +124,21 @@ jobs:
           MEASURE: ${{ inputs.measure }}
           REPEATS: ${{ inputs.repeats }}
           FRACTION: ${{ inputs.fraction }}
-          BASELINE_REF: ${{ inputs.baseline_ref }}
+          P99_LIMIT_MS: ${{ inputs.p99_limit_ms }}
+          BASE_REF: ${{ inputs.base_ref }}
+          NINE_X_REF: ${{ inputs.nine_x_ref }}
         run: node .github/scripts/v10-e2e-bench.mjs plan
-      # Both refs are pinned to their commits here, so every job builds and measures the same code.
+      # Every ref is pinned to its commit here, so every job builds and measures the same code. Without `base_ref`,
+      # the baseline is the newest v10.* release tag that has the benchmark's V10 server.
       - name: Resolve the refs
         id: refs
         env:
           GH_TOKEN: ${{ github.token }}
           EVENT: ${{ github.event_name }}
-          BASELINE_REF: ${{ steps.inputs.outputs.baseline-ref }}
           HEAD_REF: ${{ inputs.head_ref || 'v10' }}
+          BASE_REF: ${{ steps.settings.outputs.base-ref }}
+          NEEDS_BASE: ${{ steps.settings.outputs.needs-base }}
+          NINE_X_REF: ${{ steps.settings.outputs.nine-x-ref }}
         run: |
           sha() {
             gh api "repos/$GITHUB_REPOSITORY/commits/$(jq -rn --arg ref "$1" '$ref | @uri')" --jq .sha
@@ -129,14 +150,40 @@ jobs:
             head_ref=$HEAD_REF
             head_sha=$(sha "$HEAD_REF")
           fi
+          base_ref=$BASE_REF
+          if [ -z "$base_ref" ] && [ "$NEEDS_BASE" = true ]; then
+            for tag in $(gh api --paginate "repos/$GITHUB_REPOSITORY/tags" --jq '.[].name' | grep '^v10\.' | sort -rV); do
+              if gh api "repos/$GITHUB_REPOSITORY/contents/wow-benchmarks/e2e/bench-v10?ref=$tag" --silent 2>/dev/null; then
+                base_ref=$tag
+                break
+              fi
+            done
+            if [ -z "$base_ref" ]; then
+              echo "::warning::No base_ref and no v10.* release tag has wow-benchmarks/e2e/bench-v10; the baseline suites are skipped."
+            fi
+          fi
+          base_sha=""
+          if [ -n "$base_ref" ] && [ "$NEEDS_BASE" = true ]; then base_sha=$(sha "$base_ref"); fi
+          nine_x_sha=""
+          if [ -n "$NINE_X_REF" ]; then nine_x_sha=$(sha "$NINE_X_REF"); fi
           {
-            echo "baseline-sha=$(sha "$BASELINE_REF")"
             echo "head-ref=$head_ref"
             echo "head-sha=$head_sha"
+            echo "base-ref=$base_ref"
+            echo "base-sha=$base_sha"
+            echo "nine-x-sha=$nine_x_sha"
           } | tee -a "$GITHUB_OUTPUT"
+      - name: Plan the jobs
+        id: matrix
+        env:
+          SUITES_JSON: ${{ steps.settings.outputs.suites }}
+          HEAD_SHA: ${{ steps.refs.outputs.head-sha }}
+          BASE_SHA: ${{ steps.refs.outputs.base-sha }}
+          NINE_X_SHA: ${{ steps.refs.outputs.nine-x-sha }}
+        run: node .github/scripts/v10-e2e-bench.mjs matrix
 
-  # The servers' and the load generator's distributions (installDist), one job per side, packed as tarballs so the
-  # launchers keep their mode.
+  # The servers' and the load generator's distributions (installDist), one job per build the suites need (head, base,
+  # 9x), packed as tarballs so the launchers keep their mode.
   build:
     name: Build ${{ matrix.side }}
     needs: plan
@@ -144,13 +191,7 @@ jobs:
     timeout-minutes: 40
     strategy:
       matrix:
-        include:
-          - side: 9x
-            sha: ${{ needs.plan.outputs.baseline-sha }}
-            scope: all
-          - side: v10
-            sha: ${{ needs.plan.outputs.head-sha }}
-            scope: v10
+        include: ${{ fromJSON(needs.plan.outputs.builds) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -168,16 +209,18 @@ jobs:
         env:
           SIDE: ${{ matrix.side }}
           SCOPE: ${{ matrix.scope }}
+          DIR: ${{ matrix.dir }}
         run: |
-          if [ ! -d "wow-benchmarks/e2e/bench-$SIDE" ]; then
-            echo "::error::$(git rev-parse HEAD) has no wow-benchmarks/e2e/bench-$SIDE; pick a ref that has :e2e-bench-$SIDE."
+          if [ ! -d "wow-benchmarks/e2e/$DIR" ]; then
+            echo "::error::The $SIDE commit $(git rev-parse HEAD) has no wow-benchmarks/e2e/$DIR; pick a ref that has the benchmark."
             exit 1
           fi
-          tasks=(":e2e-bench-$SIDE:installDist")
+          project=":e2e-${DIR}"
+          tasks=("$project:installDist")
           if [ -d wow-benchmarks/e2e/load ]; then tasks+=(:e2e-bench-load:installDist); fi
           ./gradlew -Pwow.scope="$SCOPE" "${tasks[@]}" --stacktrace
           mkdir -p "$RUNNER_TEMP/dist"
-          tar -czf "$RUNNER_TEMP/dist/server.tgz" "wow-benchmarks/e2e/bench-$SIDE/build/install"
+          tar -czf "$RUNNER_TEMP/dist/server.tgz" "wow-benchmarks/e2e/$DIR/build/install"
           if [ -d wow-benchmarks/e2e/load/build/install ]; then
             tar -czf "$RUNNER_TEMP/dist/load.tgz" wow-benchmarks/e2e/load/build/install
           fi
@@ -199,12 +242,14 @@ jobs:
       matrix:
         suite: ${{ fromJSON(needs.plan.outputs.suites) }}
     env:
-      BASELINE_REF: ${{ needs.plan.outputs.baseline-ref }}
       HEAD_REF: ${{ needs.plan.outputs.head-ref }}
-      BASELINE_SHA: ${{ needs.plan.outputs.baseline-sha }}
       HEAD_SHA: ${{ needs.plan.outputs.head-sha }}
+      BASE_REF: ${{ needs.plan.outputs.base-ref }}
+      BASE_SHA: ${{ needs.plan.outputs.base-sha }}
+      NINE_X_REF: ${{ needs.plan.outputs.nine-x-ref }}
+      NINE_X_SHA: ${{ needs.plan.outputs.nine-x-sha }}
     steps:
-      # The steps' script comes from the workflow's own commit; the harness from the measured refs.
+      # The steps' script comes from the workflow's own commit; the harness from the measured head.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -218,18 +263,20 @@ jobs:
           path: repo
       - name: Choose the harness
         id: harness
+        env:
+          SUITE: ${{ matrix.suite }}
         run: |
           adapter=repo/wow-benchmarks/e2e/load/src/main/kotlin/me/ahoo/wow/benchmark/load/VersionAdapter.kt
-          if [ -x repo/wow-benchmarks/e2e/harness/bench.sh ] && [ -f "$adapter" ] && grep -q '"9x"' "$adapter"; then
-            echo "harness=head" | tee -a "$GITHUB_OUTPUT"
+          if [[ "$SUITE" == vs-9x-* ]] && ! grep -qs '"9x"' "$adapter"; then
+            echo "::notice::The head's load generator cannot drive 9.x; using the harness of $NINE_X_REF."
+            echo "harness=9x" | tee -a "$GITHUB_OUTPUT"
           else
-            echo "::notice::$HEAD_REF's harness cannot drive 9.x; using $BASELINE_REF's."
-            echo "harness=baseline" | tee -a "$GITHUB_OUTPUT"
+            echo "harness=head" | tee -a "$GITHUB_OUTPUT"
           fi
-      - if: steps.harness.outputs.harness == 'baseline'
+      - if: steps.harness.outputs.harness == '9x'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ needs.plan.outputs.baseline-sha }}
+          ref: ${{ needs.plan.outputs.nine-x-sha }}
           persist-credentials: false
           sparse-checkout: wow-benchmarks/e2e
           path: repo
@@ -237,15 +284,20 @@ jobs:
         with:
           pattern: e2e-bench-dist-*
           path: ${{ runner.temp }}/dist
+      # The head's and the 9.x server go where the harness looks for them; the baseline's beside, named by --install.
       - name: Unpack the servers and the load generator
         env:
           HARNESS: ${{ steps.harness.outputs.harness }}
         run: |
-          side=v10
-          if [ "$HARNESS" = baseline ]; then side=9x; fi
-          tar -xzf "$RUNNER_TEMP/dist/e2e-bench-dist-9x/server.tgz" -C repo
-          tar -xzf "$RUNNER_TEMP/dist/e2e-bench-dist-v10/server.tgz" -C repo
-          tar -xzf "$RUNNER_TEMP/dist/e2e-bench-dist-$side/load.tgz" -C repo
+          dist=$RUNNER_TEMP/dist
+          tar -xzf "$dist/e2e-bench-dist-head/server.tgz" -C repo
+          if [ -f "$dist/e2e-bench-dist-9x/server.tgz" ]; then tar -xzf "$dist/e2e-bench-dist-9x/server.tgz" -C repo; fi
+          if [ -f "$dist/e2e-bench-dist-base/server.tgz" ]; then
+            mkdir -p "$RUNNER_TEMP/base"
+            tar -xzf "$dist/e2e-bench-dist-base/server.tgz" -C "$RUNNER_TEMP/base"
+            echo "INSTALL_BASE=$RUNNER_TEMP/base/wow-benchmarks/e2e/bench-v10/build/install/e2e-bench-v10" >> "$GITHUB_ENV"
+          fi
+          tar -xzf "$dist/e2e-bench-dist-$HARNESS/load.tgz" -C repo
           ls repo/wow-benchmarks/e2e/*/build/install/*/bin
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
@@ -264,6 +316,7 @@ jobs:
           MEASURE: ${{ needs.plan.outputs.measure }}
           REPEATS: ${{ needs.plan.outputs.repeats }}
           FRACTION: ${{ needs.plan.outputs.fraction }}
+          P99_LIMIT_MS: ${{ needs.plan.outputs.p99-limit-ms }}
         run: |
           export BENCH="$GITHUB_WORKSPACE/repo/wow-benchmarks/e2e/harness/bench.sh"
           export OUT="$RUNNER_TEMP/results/$SUITE"
@@ -306,6 +359,8 @@ jobs:
           pattern: e2e-bench-result-*
           path: ${{ runner.temp }}/results
       - name: Combine the suites
+        env:
+          SKIPPED: ${{ needs.plan.outputs.skipped }}
         run: |
           mkdir -p "$RUNNER_TEMP/report"
           node .github/scripts/v10-e2e-bench.mjs report "$RUNNER_TEMP/results" "$RUNNER_TEMP/report/report.md"

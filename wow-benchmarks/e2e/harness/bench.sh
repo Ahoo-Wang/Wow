@@ -22,8 +22,10 @@
 #   bench.sh down
 #
 # Options: --warm-up=30 --measure=60 --distribution=uniform|zipf|hot --accounts=1000 --label=run --out=<dir>
-#          --heap=1g --jfr (a flight recording per server) --settle=<s> (after the nodes are up), and any other
-#          --name=value of the load generator's run or saturate, passed through.
+#          --heap=1g --jfr (a flight recording per server) --settle=<s> (after the nodes are up), --install=<dir> (the
+#          server's installed distribution, by default bench-<version>/build/install/e2e-bench-<version>: another
+#          build of the same version, such as a baseline's), and any other --name=value of the load generator's run or
+#          saturate, passed through.
 set -euo pipefail
 
 HARNESS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -37,7 +39,7 @@ SERVER_PIDS=()
 TARGETS=()
 
 usage() {
-  sed -n '14,26p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,28p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -76,7 +78,7 @@ parse() {
     esac
     OPTIONS="$OPTIONS${argument#--}
 "
-    case " --version --backend --nodes --label --out --heap --jfr --settle --accounts " in
+    case " --version --backend --nodes --label --out --heap --jfr --settle --accounts --install " in
       *" $key "*) ;;
       *) PASS+=("$argument") ;;
     esac
@@ -109,7 +111,9 @@ start_node() {
   if [ "$(opt jfr false)" = true ]; then
     jvm="$jvm -XX:StartFlightRecording=filename=$OUT/node-$n.jfr,settings=profile"
   fi
-  JAVA_OPTS="$jvm" "$REPO/wow-benchmarks/e2e/bench-$VERSION/build/install/e2e-bench-$VERSION/bin/e2e-bench-$VERSION" \
+  local install
+  install=$(opt install "$REPO/wow-benchmarks/e2e/bench-$VERSION/build/install/e2e-bench-$VERSION")
+  JAVA_OPTS="$jvm" "$install/bin/e2e-bench-$VERSION" \
     "${args[@]}" >"$OUT/node-$n.log" 2>&1 &
   SERVER_PIDS+=($!)
   TARGETS+=("http://127.0.0.1:$port")

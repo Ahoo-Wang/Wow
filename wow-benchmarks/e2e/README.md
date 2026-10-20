@@ -94,30 +94,63 @@ wow-benchmarks/e2e/harness/bench.sh run --version=v10 --nodes=3 --scenario=E1 --
 wow-benchmarks/e2e/harness/bench.sh saturate --version=9x --scenario=E1 --max-concurrency=256
 ```
 
+`--install=<dir>` runs another build of the same version, for instance a baseline's `installDist` output (`<dir>` is the distribution's root, the one holding `bin/`); by default the harness runs the build in this tree.
+
 A run writes `result.json` (load, results, histogram, resources, machine, commit, JVM and configuration) and `summary.md` beside the servers' logs to `wow-benchmarks/results/e2e/<time>-<label>-<version>-<backend>-n<nodes>-<scenario>/`, which git ignores; a report copies the results it cites into `results/reports/`. Ports: public 18080 to 18082, V10 internal 19090 to 19092, MongoDB 27017, PostgreSQL 5432, Kafka 9092.
 
 On one machine every service, store and the load generator share the CPU: results are directional, and the report says so (D224).
 
 ## Running it on GitHub Actions
 
-The timed measurements need a machine to themselves for hours, so `.github/workflows/v10-e2e-bench.yml` runs them on GitHub's runners. A run starts when a branch under `v10-bench-run/` is pushed, and the V10 server is built from the pushed commit:
+The timed measurements need a machine to themselves for hours, so `.github/workflows/v10-e2e-bench.yml` runs them on GitHub's runners. The benchmark serves four purposes: it guards V10 against regressions (the head against a V10 baseline), gives capacity guidance (the sustainable rate of each scenario), tests behaviour under overload and through a hand-over, and finds defects, because every run is checked for anomalies.
+
+A run starts when a branch under `v10-bench-run/` is pushed. The head is the pushed commit:
 
 ```bash
 git push origin v10:v10-bench-run/20261020
 ```
 
-The defaults are every suite, 20 s warm-up, 40 s measured, 2 rounds, 80% of saturation, and the 9.x server built from `v10-9x-baseline` (the last commit of `v10` with the 9.x code, D262). To change them, commit `wow-benchmarks/e2e/bench-run.json` on the run branch with any of these keys:
+The defaults are every suite except the vs-9x ones, 20 s warm-up, 40 s measured, 2 rounds, 80% of saturation before calibration, and a p99 limit of 200 ms for the sustainable rates. The baseline is the newest `v10.*` release tag that has `bench-v10/`; without one, and without `base_ref`, the baseline suites are skipped and the report says so. To change any of this, commit `wow-benchmarks/e2e/bench-run.json` on the run branch:
 
 ```json
-{ "suites": ["e1-mongo-uniform", "e1-mongo-zipf"], "warm_up": 20, "measure": 40, "repeats": 3, "fraction": 0.8, "baseline_ref": "v10-9x-baseline" }
+{ "suites": ["ab", "sustainable-mongo"], "base_ref": "v10.0.0-beta.1", "repeats": 3, "p99_limit_ms": 500 }
 ```
 
-The suites are `e1-mongo-uniform`, `e1-mongo-zipf`, `e1-pg-uniform`, `e2-mongo`, `e3-mongo`, `e3-pg`, `e3-mongo-diag`, `pg-append-queue`, and the cliff suites `cliff-e3-pg`, `cliff-e3-mongo` and `cliff-e3-9x`. A cliff suite runs E3 in open loop at fixed rates (50, 100, 200, 300, 400 and 500/s, a minute each on fresh containers) until two steps in a row fail to keep up. For V10 it sets `bench.signals.enabled=true`: the benchmark server's `BenchSignals` observer (`bench-v10/.../BenchSignals.kt`, the one file without a 9.x twin, off in every other run) then logs the node's cumulative overload and fallback counts once a second, as `bench-signals {json}` in the node log. The counts cover the tails' store reads by reason, refused commands by code, timed-out waits by stage, dropped signals, failed forwards and paused partitions. The step reads the last such line, so a cliff can be told apart from plain overload. When the run has finished, delete the branch (its results stay with the run):
+The keys are `suites`, `warm_up`, `measure`, `repeats`, `fraction`, `p99_limit_ms`, `base_ref` and `nine_x_ref`. `suites` takes suite names and the group names below. When the run has finished, delete the branch; its results stay with the run:
 
 ```bash
 git push origin --delete v10-bench-run/20261020
 ```
 
-The workflow can also be dispatched by hand, with the same settings as inputs, once a copy of the file is on the default branch: GitHub only dispatches workflows that are there. Runs queue one behind another.
+The workflow can also be dispatched by hand, with the same settings as inputs plus `head_ref`, once a copy of the file is on the default branch: GitHub only dispatches workflows that are there. Two runs of one ref queue; runs of different refs run side by side.
 
-Each suite runs in a job of its own (`.github/scripts/v10-e2e-bench.mjs` drives `bench.sh`). First it finds each arm's saturation: closed loop, 3 s warm-up, 8 s steps, concurrency doubling up to 4096 (a saturation found at the cap is a lower bound, marked `≥`). The closed loop reaches its best throughput only with deep queues, so before measuring, each arm's rate is checked in open loop: a probe at `fraction` of the saturation (10 s warm-up, 20 s measured), stepping down by a quarter (at most 4 probes) while more than 1% fails or less than 97% of the rate completes. Then it runs the arms alternately at their calibrated rates for the set number of rounds, and adds one more round when two runs of an arm differ by more than 5% in throughput or p99. These calibrated rounds compare throughput and CPU per operation; their latencies are at unequal loads. The same number of equal-rate rounds follows, with both arms at the lower of the two calibrated rates, and the latency ratios come from those. Every comparison is a pair measured on the same runner, so the ratios hold across runners; the absolute numbers belong to that runner. Server properties for a run reach the servers as `SPRING_APPLICATION_JSON`, which they inherit from `bench.sh`'s environment. Each job uploads its results and its summary, and the report job combines them into `report.md`.
+| Group | Suite | What it answers |
+| --- | --- | --- |
+| `ab` | `e1-mongo-uniform`, `e1-mongo-zipf`, `e1-pg-uniform`, `e2-mongo`, `e3-mongo`, `e3-pg` | Head against baseline, paired on one runner: throughput and CPU per operation at each arm's calibrated rate, latency at one rate for both |
+| `head` | `sustainable-mongo` (E1, E2, E3), `sustainable-pg` (E1, E3) | The sustainable rate of each scenario: the highest open-loop rate with at most 1% errors, at least 97% completed and p99 within the limit, found by bisection below the closed-loop saturation |
+| `head` | `e5-mongo`, `e5-pg` | Three nodes, requests round-robin, E1 at 150/s and E3 at 50/s for 90 s, once steady and once with node 2 stopped 25 s into the measured phase (SIGTERM, so its partitions hand over) and restarted 20 s later with its own command line |
+| `head` | `cliff-e3-pg`, `cliff-e3-mongo` | E3 in open loop at 50, 100, 200, 300, 400 and 500/s, a minute each on fresh containers, until two steps in a row fail to keep up |
+| `head` | `e3-mongo-diag`, `pg-append-queue` | The E3 latency rate sweep and toggles on MongoDB; PostgreSQL's append queue off against on (D248) |
+| `vs-9x` | `vs-9x-e1`, `vs-9x-e3`, `vs-9x-cliff-e3` | The head against 9.x, built from `nine_x_ref` (`v10-9x-baseline`, the last commit of `v10` with the 9.x code, D262). Opt-in, and removed at GA |
+
+Each suite runs in a job of its own; `.github/scripts/v10-e2e-bench.mjs` drives `bench.sh`, and the baseline's server is passed as `--install`.
+
+A paired suite first finds each arm's saturation in closed loop: 3 s warm-up, 8 s steps, concurrency doubling up to 4096. A saturation found at the cap is a lower bound, marked `≥`.
+
+The closed loop reaches its best throughput only with deep queues, so before measuring, each arm's rate is checked in open loop. A probe runs at `fraction` of the saturation (10 s warm-up, 20 s measured) and steps down by a quarter, at most 4 probes, while more than 1% fails or less than 97% of the rate completes.
+
+The arms then run alternately at their calibrated rates, plus one more round when two runs of an arm differ by more than 5% in throughput or p99. These calibrated rounds give throughput and CPU per operation; their latencies are at unequal loads. The same number of equal-rate rounds follows, with both arms at the lower calibrated rate, and the latency ratios come from those.
+
+Every comparison is a pair measured on the same runner, so the ratios hold across runners; the absolute numbers belong to that runner. A run's server properties reach the servers as `SPRING_APPLICATION_JSON`, which they inherit from `bench.sh`'s environment.
+
+Every V10 run sets `bench.signals.enabled=true`. With it, the benchmark server's `BenchSignals` observer (`bench-v10/.../BenchSignals.kt`, the one file without a 9.x twin) logs the node's cumulative overload and fallback counts once a second, as `bench-signals {json}` in the node log. It counts the tails' store reads by reason, refused commands by code, timed-out waits by stage, dropped signals, failed forwards, and paused and resumed partitions.
+
+The report reads every node's last such line and flags these anomalies:
+
+- a partition paused (D243);
+- a tail read the store after a gap or an overflow (D249);
+- more than 1% errors;
+- a measured second below half the rate;
+- p99 above 10× p50, when p99 is at least 50 ms.
+
+Where a run went past what the node keeps up with by design (probes, cliff steps that did not keep up), only the signals are flagged. Each job uploads its results, server logs and summary, and the report job combines them into `report.md`, anomalies first.
