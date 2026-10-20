@@ -37,7 +37,7 @@ class BrandSpec {
 
     @Test
     fun `a brand should need a name`() = aggregateSpec(model, id = "contoso") {
-        whenCommand(CreateBrand("  ")) { expectRejected(BrandRejections.BLANK_NAME) }
+        whenCommand(CreateBrand("  ")) { expectRejected(Brand.Rejections.BLANK_NAME) }
     }
 
     @Test
@@ -54,6 +54,6 @@ class BrandSpec {
             }
             holds(CatalogNames.BRAND_NAMES, "fabrikam").assert().isTrue()
             holds(CatalogNames.BRAND_NAMES, "contoso").assert().isFalse()
-            whenCommand(RenameBrand("")) { expectRejected(BrandRejections.BLANK_NAME) }
+            whenCommand(RenameBrand("")) { expectRejected(Brand.Rejections.BLANK_NAME) }
         }
 }

@@ -19,7 +19,7 @@
 import { describe, expect, it } from 'vitest';
 import { runGenerated } from '../support/generation';
 import { generateCompiling, generateFailing } from '../support/probes';
-import { document, getOperation, wowDocument } from '../support/specs';
+import { document, getOperation } from '../support/specs';
 
 describe('typed parameters and request bodies', () => {
   const tenantHeader = {
@@ -250,24 +250,6 @@ describe('what the generator leaves out', () => {
       'Skipping GET /a: it has no operationId, and the operationId names its method.',
       'Skipping GET /b: it has no tag, and the tag names its API client.',
     ]);
-  });
-
-  it('warns about an aggregate without state, and still compiles', async () => {
-    const { logger } = await generateCompiling(
-      wowDocument({ withoutState: true }),
-    );
-    expect(logger.warnings).toEqual([
-      'Skipping aggregate shop.order: the document has no shop.order.snapshot_state.single operation, so it generates neither command nor query clients for it.',
-    ]);
-  });
-
-  it('reads aggregates whose tags are not declared', async () => {
-    const { read } = await generateCompiling(
-      wowDocument({ declareTag: false }),
-    );
-    expect(read('shop/order/commandClient.ts')).toContain(
-      'export class OrderCommandClient',
-    );
   });
 
   it('fails on a dangling reference', async () => {

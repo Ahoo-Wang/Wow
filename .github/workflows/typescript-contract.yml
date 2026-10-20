@@ -11,10 +11,9 @@
 # limitations under the License.
 #
 
-# Contract tests of the Wow TypeScript client and generator against released
-# Wow example server images, and of the V10 store against the V10 view store
-# service. The same-source contract against an example server built from the
-# commit left with the 9.x example (decision D262).
+# Contract tests of the V10 store and the view engine on it against the V10
+# view store service. The contracts against 9.x example servers left with the
+# 9.x code (decision D262).
 # Every pull request triggers this workflow; the scope job decides which jobs
 # run, and `typescript-contract-gate` is the merge signal.
 name: TypeScript Contract
@@ -43,7 +42,6 @@ jobs:
     timeout-minutes: 5
     runs-on: ubuntu-latest
     outputs:
-      legacy-contract: ${{ steps.scope.outputs.legacyContract }}
       v10-contract: ${{ steps.scope.outputs.v10Contract }}
     steps:
       - uses: actions/checkout@v7
@@ -55,93 +53,6 @@ jobs:
           BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: node .github/scripts/ci-scope.mjs
-
-  # Released example server images: the code generated from each still
-  # type-checks against the current client, and (from 8.11 on) the client runs
-  # a smoke test against it, holding a list query without a limit to what the
-  # compatibility page documents for that version.
-  legacy-contract:
-    name: Released server contract / Wow ${{ matrix.wow-version }}
-    needs: scope
-    if: needs.scope.outputs.legacy-contract == 'true'
-    timeout-minutes: 20
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        # compat(wow<9): 8.x servers stay supported through Wow 9; see docs/compat-debt.md.
-        # 9.1.3 is the last release that refuses a list query without a limit
-        # (400); 9.1.5, the latest 9.1.x, applies its default list size.
-        wow-version: ['8.10.8', '8.11.5', '9.1.3', '9.1.5']
-    services:
-      mongo:
-        image: mongo:8.3.11
-        ports:
-          - 27017:27017
-        env:
-          MONGO_INITDB_ROOT_USERNAME: root
-          MONGO_INITDB_ROOT_PASSWORD: root
-          MONGO_INITDB_DATABASE: wow_example_db
-          # SERVER-121912: mongod 8.x exits on Linux 6.19 to 7.0.13 while its
-          # tcmalloc owns rseq, which the image's glibc.pthread.rseq=0 grants.
-          # Letting glibc keep rseq sidesteps the bug on every kernel.
-          GLIBC_TUNABLES: glibc.pthread.rseq=1
-        options: >-
-          --health-cmd="mongosh -u root -p root --authenticationDatabase admin --eval 'db.adminCommand(\"ping\")'"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-      wow:
-        image: ghcr.io/ahoo-wang/wow-example-server:${{ matrix.wow-version }}
-        ports:
-          - 8080:8080
-        env:
-          SPRING_AUTOCONFIGURE_EXCLUDE: org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchClientAutoConfiguration,org.springframework.boot.elasticsearch.autoconfigure.ElasticsearchRestClientAutoConfiguration
-          SPRING_MONGODB_URI: mongodb://root:root@mongo:27017/wow_example_db?authSource=admin&maxIdleTimeMS=60000
-          WOW_EVENTSOURCING_STORE_STORAGE: mongo
-          WOW_EVENTSOURCING_SNAPSHOT_STORAGE: mongo
-        options: >-
-          --health-cmd "curl -f http://localhost:8080/actuator/health"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24.21.0
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      # test/released/viewStore.test.ts runs WowViewStore and the engine
-      # against the released server: both are imported from their dist/.
-      - name: Build the client, the generator and the view store
-        run: pnpm --filter @ahoo-wang/wow-client... --filter @ahoo-wang/wow-generator... --filter @ahoo-wang/wow-view-store... build
-      # test-output/ is ignored scratch space inside integration-test, so the
-      # generated imports resolve from that package's node_modules.
-      - name: Generate clients from Wow ${{ matrix.wow-version }}
-        working-directory: typescript/integration-test
-        run: node ../wow-generator/dist/cli.js generate -i http://localhost:8080/v3/api-docs -o test-output/generated
-      - name: Check generated types
-        working-directory: typescript/integration-test
-        run: |
-          cat > test-output/tsconfig.json << 'EOF'
-          {
-            "extends": "../tsconfig.json",
-            "compilerOptions": { "noEmit": true, "rootDir": "." },
-            "include": ["generated/**/*.ts"]
-          }
-          EOF
-          pnpm exec tsc -p test-output/tsconfig.json
-      # 8.10 speaks only the Condition model the smoke test does not use.
-      - name: Smoke-test the client against Wow ${{ matrix.wow-version }}
-        if: matrix.wow-version != '8.10.8'
-        working-directory: typescript/integration-test
-        env:
-          WOW_SERVER_VERSION: ${{ matrix.wow-version }}
-        run: pnpm exec vitest run --config vitest.released.config.ts --maxWorkers=2
 
   # The V10 store (`@ahoo-wang/wow-view-store/v10`) and the view engine on it
   # against the V10 view store service (platform/view-store) built from this
@@ -182,7 +93,7 @@ jobs:
 
   typescript-contract-gate:
     name: typescript-contract-gate
-    needs: [scope, legacy-contract, v10-contract]
+    needs: [scope, v10-contract]
     if: always()
     timeout-minutes: 5
     runs-on: ubuntu-latest

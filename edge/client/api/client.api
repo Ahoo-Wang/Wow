@@ -47,6 +47,16 @@ public final class me/ahoo/wow/client/HttpCommandClient : me/ahoo/wow/api/client
 	public fun wait (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
+public final class me/ahoo/wow/client/HttpQueryApi : me/ahoo/wow/api/read/QueryApi {
+	public static final field Companion Lme/ahoo/wow/client/HttpQueryApi$Companion;
+	public static final field MAX_RESUMES_WITHOUT_ROWS I
+	public fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/read/Queries;
+	public fun trusted ()Lme/ahoo/wow/api/read/TrustedQueries;
+}
+
+public final class me/ahoo/wow/client/HttpQueryApi$Companion {
+}
+
 public final class me/ahoo/wow/client/Port : java/lang/Enum {
 	public static final field INTERNAL Lme/ahoo/wow/client/Port;
 	public static final field PUBLIC Lme/ahoo/wow/client/Port;
@@ -104,6 +114,7 @@ public final class me/ahoo/wow/client/WowClient {
 	public static final field Companion Lme/ahoo/wow/client/WowClient$Companion;
 	public static final fun builder ()Lme/ahoo/wow/client/WowClient$Builder;
 	public final fun getCommands ()Lme/ahoo/wow/api/client/CommandClient;
+	public final fun getQueries ()Lme/ahoo/wow/api/read/QueryApi;
 }
 
 public final class me/ahoo/wow/client/WowClient$Builder {

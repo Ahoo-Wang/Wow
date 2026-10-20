@@ -181,7 +181,7 @@ class HostCallsTest {
     fun `a context without a URL should be refused`() {
         val properties = WowProperties().apply { calls.contexts["mail"] = WowProperties.Calls.CallTarget() }
         assertThrows<IllegalStateException> {
-            WowAutoConfiguration().wowCommandCaller(properties, ServiceCredential.NONE)
+            WowAutoConfiguration().wowEndpointResolver(properties)
         }.message.assert().contains("wow.calls.contexts.mail.url")
     }
 

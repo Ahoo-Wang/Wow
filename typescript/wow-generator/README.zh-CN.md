@@ -1,13 +1,62 @@
 # `@ahoo-wang/wow-generator`
 
-从本地或远程 OpenAPI 文档生成 TypeScript 模型、Fetcher Decorator 客户端与 Wow
-客户端。
+从 Wow 服务的 Manifest 生成带类型的 TypeScript 客户端；也可从任意 OpenAPI 3 文档生成
+TypeScript 模型与 Fetcher Decorator 客户端。
 
-## 安装与运行
+## 从 Wow Manifest 生成
+
+Wow 服务在 Manifest（`GET /wow/manifest`，或服务提交的 `manifest/baseline.json`）里描述它的
+限界上下文、聚合、命令、事件与状态。生成器据此为每个聚合生成基于 `@ahoo-wang/wow-client` 的客户端：
+
+```bash
+pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
+pnpm add -D @ahoo-wang/wow-generator typescript
+curl -s http://localhost:8080/wow/manifest > manifest.json
+pnpm exec wow-generator generate \
+  --input ./manifest.json \
+  --output ./src/generated \
+  --ts-config-file-path ./tsconfig.json
+```
+
+每个限界上下文写出 `types.ts`（Manifest 中 schema 对应的命令、事件与状态类型）和
+`boundedContext.ts`（上下文名、错误码与等待节点）；每个聚合写出：
+
+- `aggregate.ts`：聚合的描述、状态字段与事件联合类型；
+- `commandClient.ts`：`<Aggregate>CommandClient`，每条命令一个方法，另有按等待的每个节点逐个返回结果的 `…Stream` 方法；
+- `queryClient.ts`：`<Aggregate>SnapshotQueryClient`、`<Aggregate>EventQueryClient` 与 `<Aggregate>StateClient`。
+
+<!-- typecheck-generated: example/eshop/web/src/generated/basket -->
+
+```ts
+import { Fetcher } from '@ahoo-wang/fetcher';
+import { filter } from '@ahoo-wang/wow-client/dsl';
+import {
+  BasketCommandClient,
+  BasketSnapshotQueryClient,
+} from './generated/index.js';
+
+const fetcher = new Fetcher({ baseURL: 'http://localhost:8080' });
+const basket = new BasketCommandClient({ fetcher });
+const baskets = new BasketSnapshotQueryClient({ fetcher });
+
+await basket.addBasketItem(
+  { productId: 'p-1', quantity: 2, unitPrice: 10 },
+  { id: 'buyer-1' },
+);
+const page = await baskets.paged({ filter: filter.matchAll() });
+console.log(page.total);
+```
+
+`--strict` 让有警告的运行失败；在 CI 里从服务提交的 Manifest 重新生成客户端时正需要它。
+
+## 从 OpenAPI 文档生成
+
+任意 OpenAPI 3 文档——服务自己的路由或第三方接口——为每个组件 schema 生成一个模型，为每个
+tag 生成一个 Fetcher Decorator 客户端：
 
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
-  @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
+  @ahoo-wang/fetcher-eventstream
 pnpm add -D @ahoo-wang/wow-generator typescript
 pnpm exec wow-generator generate \
   --input ./openapi.yaml \
@@ -15,16 +64,13 @@ pnpm exec wow-generator generate \
   --ts-config-file-path ./tsconfig.json
 ```
 
-版本号跟随 Wow，次版本可能带有破坏性改动：用 `save-prefix=~` 或 `--save-exact` 让 Wow 包停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。
+生成的 API 客户端是装饰器类，编译它们的项目需要在 `tsconfig.json` 中设置
+`"experimentalDecorators": true`。文档只按 OpenAPI 读取：schema 键、tag 与路径参数就是它们在文档里的
+含义，不叠加 Wow 的约定。
 
-第一行安装生成代码运行时导入的包，第二行安装生成器和 TypeScript。生成器的 peer（`fetcher`、
-`fetcher-decorator`、`fetcher-eventstream`、`wow-client`）就是第一行的运行时包；`wow-client`
-须与生成器的次版本一致。需要 Node 22.12 或更高版本，以及 TypeScript 6 或更高版本：CI 测试
-6.0 到最新的 7.x。命令原名
-`fetcher-generator`，这个名字作为别名保留到 v10，运行前会向 stderr 打印一行弃用提示。
+## 版本
 
-生成的客户端是装饰器类，编译它们的项目需要在 `tsconfig.json` 中设置
-`"experimentalDecorators": true`。随 Wow 9.2.0 发布，与 Wow 同一个 tag、同一个版本号。
+版本号跟随 Wow，次版本可能带有破坏性改动：用 `save-prefix=~` 或 `--save-exact` 让 Wow 包停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。`wow-client` 须与生成器的次版本一致。需要 Node 22.12 或更高版本，以及 TypeScript 6 或更高版本：CI 测试 6.0 到最新的 7.x。
 
 生成成功时先输出警告（如有），最后输出一行摘要：
 
@@ -34,18 +80,18 @@ Generated 12 files into src/generated with /work/app/wow-generator.config.json, 
 
 ## 选项与退出码
 
-| 选项                               | 含义                                                         |
-| ---------------------------------- | ------------------------------------------------------------ |
-| `-i, --input <file>`               | OpenAPI 3.x 文档：文件路径或 http(s) URL（必填）             |
-| `-o, --output <path>`              | 输出目录，默认 `src/generated`                               |
-| `-c, --config <file>`              | 配置文件，默认 `./wow-generator.config.json`                 |
-| `-t, --ts-config-file-path <file>` | 项目的 `tsconfig.json`                                       |
-| `-H, --header <header>`            | 读取 http(s) 输入或配置时发送的 `Name: value` 请求头，可重复 |
-| `--timeout <ms>`                   | http(s) 请求超过这个毫秒数即放弃，默认 30000                 |
-| `--schema-docs <mode>`             | `summary`（默认）或 `full`，后者还嵌入每个模型的 JSON schema |
-| `--strict`                         | 本次运行有警告时以退出码 4 结束                              |
-| `--verbose`                        | 输出每一步（带时间戳），失败时输出堆栈                       |
-| `--quiet`                          | 只输出警告和错误                                             |
+| 选项                               | 含义                                                             |
+| ---------------------------------- | ---------------------------------------------------------------- |
+| `-i, --input <file>`               | Wow Manifest 或 OpenAPI 3.x 文档：文件路径或 http(s) URL（必填） |
+| `-o, --output <path>`              | 输出目录，默认 `src/generated`                                   |
+| `-c, --config <file>`              | 配置文件，默认 `./wow-generator.config.json`                     |
+| `-t, --ts-config-file-path <file>` | 项目的 `tsconfig.json`                                           |
+| `-H, --header <header>`            | 读取 http(s) 输入或配置时发送的 `Name: value` 请求头，可重复     |
+| `--timeout <ms>`                   | http(s) 请求超过这个毫秒数即放弃，默认 30000                     |
+| `--schema-docs <mode>`             | `summary`（默认）或 `full`，后者还嵌入每个模型的 JSON schema     |
+| `--strict`                         | 本次运行有警告时以退出码 4 结束                                  |
+| `--verbose`                        | 输出每一步（带时间戳），失败时输出堆栈                           |
+| `--quiet`                          | 只输出警告和错误                                                 |
 
 http(s) 输入的响应不是 2xx 或超时都会失败。Swagger 2.0 文档会被拒绝，请先转换为 OpenAPI 3。
 
@@ -63,6 +109,8 @@ http(s) 输入的响应不是 2xx 或超时都会失败。Swagger 2.0 文档会�
 
 ## 配置
 
+配置作用于 OpenAPI 文档的 API 客户端：
+
 ```json
 {
   "apiClients": {
@@ -75,8 +123,7 @@ http(s) 输入的响应不是 2xx 或超时都会失败。Swagger 2.0 文档会�
 ```
 
 默认配置路径为 `./wow-generator.config.json`，相对 CLI 的运行目录解析。只有这个默认路径是
-可选的：该位置没有文件时，CLI 按默认值生成。新文件名不存在时，仍会读取旧名
-`./fetcher-generator.config.json` 并给出弃用警告；请改名，v10 起不再读取旧名。`--config` 指定的路径必须
+可选的：该位置没有文件时，CLI 按默认值生成。`--config` 指定的路径必须
 存在；配置读不到、解析不了，或某个选项的形态不对，都会让本次生成失败，而不是退回默认值。
 生成器不认识的选项——例如拼错的 `apiClient`——会被逐个点名警告并忽略。
 
@@ -90,38 +137,29 @@ http(s) 输入的响应不是 2xx 或超时都会失败。Swagger 2.0 文档会�
 如果摘要里没有配置路径，说明配置文件根本没送到生成器——请检查 CLI 的运行目录。
 
 生成器把写出的文件记录在输出目录根下的 `.wow-generator.json` 中，之后的运行据此删除不再生成的
-文件。请把它和输出一起提交。旧版本留下的 `.fetcher-generator.json` 会被读取一次并替换。
+文件。请把它和输出一起提交。
 
-`ignorePathParameters` 只在 Wow 文档（带 `x-wow-context-alias` 或聚合路由）中默认为
-`['tenantId', 'ownerId']`；其他文档保留这两个路径参数。`methodNames` 为 operationId 指定方法名。
+`ignorePathParameters` 指定某个 tag 的客户端省略的路径参数（由拦截器填充），默认不省略。
+`methodNames` 为 operationId 指定方法名。
 
 ## 生成的代码
 
 - 每个文件以 `// Code generated by wow-generator. DO NOT EDIT.` 开头。相对导入以 `.js` 结尾，
   所以输出在 `NodeNext` 和 `bundler` 下都能编译，且写到哪里都一样。
-- 方法名依次取 `methodNames`、`x-fetcher-method`，否则取 operationId 最后一段的 camelCase
-  （`example.cart.add_cart_item` → `addCartItem`）。新增操作不会让已有方法改名；同一客户端的两个
+- API 方法名依次取 `methodNames`、`x-fetcher-method`，否则取 operationId 最后一段的 camelCase
+  （`catalog.get_item` → `getItem`）。新增操作不会让已有方法改名；同一客户端的两个
   操作同名时以退出码 4 失败。
-- 命令客户端，以及文档带 `x-wow-context-alias` 时的 API 客户端，把构造器的 `apiMetadata` 合并到
-  默认值之上：`new CartCommandClient({ fetcher })` 保留限界上下文的基础路径。直接访问服务时传
-  `basePath: ''`（查询客户端工厂传 `contextAlias: ''`）。
-- 查询客户端工厂的字段类型为 `` `${CartAggregatedFields}` ``；标注查询时写
-  ``ListQuery<`${CartAggregatedFields}`>``。
 - `--schema-docs full` 会在每个模型的文档注释中嵌入其 JSON schema；默认只含摘要。
 
 ## 属性可选性
 
-schema 声明的每个属性都生成为必填。强类型后端根本没有"缺席的 `int`/`boolean`"可以返回，
+OpenAPI schema 声明的每个属性都生成为必填。强类型后端根本没有"缺席的 `int`/`boolean`"可以返回，
 满屏 `?` 的模型描述的是导出器而不是线上格式——导出器常把带默认值的属性排除在 `required`
 之外，由此产生的空值判断纯属噪音。
 
 文档真正想表达的可选性，则由各自合适的位置承载：
 
 - **可空**留在类型里。可空属性生成 `T | null`，可能缺席的值依然不可能被忘记。
-- **命令**在命令类型上保留声明的可选性。命令客户端会依据文档的 `required` 把请求体包成
-  `PartialBy<Command, 'field' | ...>`，调用方仍可省略 API 允许省略的字段——
-  `AddCartItemCommand = CommandBody<PartialBy<AddCartItem, 'quantity'>>`。把模型改成必填
-  绝不会收紧客户端能发的内容。
 - **API 客户端请求体**也同样处理：JSON 请求体生成为 `PartialBy<Model, 'field' | ...>`，覆盖 schema
   未列入 `required` 的属性。
 
@@ -130,9 +168,8 @@ schema 声明的每个属性都生成为必填。强类型后端根本没有"缺
 
 ## 核心能力
 
-- 本地 JSON/YAML 与 HTTP(S) OpenAPI 输入。
-- 按 tag 分组的 TypeScript 模型与 Decorator API 客户端，path、query、header 参数和请求体都带类型，必填的在前。
-- Wow bounded-context、命令、快照、事件与查询发现。
+- Wow Manifest 输入：每个聚合基于 `@ahoo-wang/wow-client` 的命令、查询与状态客户端。
+- 本地 JSON/YAML 与 HTTP(S) OpenAPI 输入：按 tag 分组的 TypeScript 模型与 Decorator API 客户端，path、query、header 参数和请求体都带类型，必填的在前。
 - 递归生成 `index.ts`，并通过 ts-morph 格式化。
 - 支持注入日志的编程式 `CodeGenerator` API，返回写出的文件与警告数。
 

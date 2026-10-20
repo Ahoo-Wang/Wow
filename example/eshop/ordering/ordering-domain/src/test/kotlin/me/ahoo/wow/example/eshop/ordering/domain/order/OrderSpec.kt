@@ -67,12 +67,12 @@ class OrderSpec {
 
     @Test
     fun `an order without items, or with an invalid one, should be rejected`() = orderSpec {
-        whenCommand(SubmitOrder(emptyList())) { expectRejected(OrderRejections.INVALID_ITEMS) }
+        whenCommand(SubmitOrder(emptyList())) { expectRejected(Order.Rejections.INVALID_ITEMS) }
         whenCommand(SubmitOrder(listOf(OrderItem(MUG, MUG_PRICE, 0)))) {
-            expectRejected(OrderRejections.INVALID_ITEMS)
+            expectRejected(Order.Rejections.INVALID_ITEMS)
         }
         whenCommand(SubmitOrder(listOf(OrderItem(MUG, BigDecimal("-1"), 1)))) {
-            expectRejected(OrderRejections.INVALID_ITEMS)
+            expectRejected(Order.Rejections.INVALID_ITEMS)
         }
     }
 
@@ -158,19 +158,19 @@ class OrderSpec {
         whenCommand(PayOrder(PAYMENT, TOTAL)) { expectScheduleCancelled(Order.PAYMENT_GRACE_PERIOD) }
         // The schedule is cancelled, so nothing is due once the period has passed; were it sent late anyway, the
         // order would reject it.
-        whenCommand(CancelOrder(Order.PAYMENT_TIMEOUT)) { expectRejected(OrderRejections.WRONG_STATUS) }
+        whenCommand(CancelOrder(Order.PAYMENT_TIMEOUT)) { expectRejected(Order.Rejections.WRONG_STATUS) }
     }
 
     @Test
     fun `a payment of another amount should be rejected`() = orderSpec {
         givenStockConfirmed()
-        whenCommand(PayOrder(PAYMENT, BigDecimal.ONE)) { expectRejected(OrderRejections.WRONG_AMOUNT) }
+        whenCommand(PayOrder(PAYMENT, BigDecimal.ONE)) { expectRejected(Order.Rejections.WRONG_AMOUNT) }
     }
 
     @Test
     fun `an order whose stock is not confirmed should not be paid`() = orderSpec {
         given(submitted, OrderAwaitingValidation)
-        whenCommand(PayOrder(PAYMENT, TOTAL)) { expectRejected(OrderRejections.WRONG_STATUS) }
+        whenCommand(PayOrder(PAYMENT, TOTAL)) { expectRejected(Order.Rejections.WRONG_STATUS) }
     }
 
     @Test
@@ -186,7 +186,7 @@ class OrderSpec {
     @Test
     fun `an order not paid should not be shipped`() = orderSpec {
         givenStockConfirmed()
-        whenCommand(ShipOrder) { expectRejected(OrderRejections.WRONG_STATUS) }
+        whenCommand(ShipOrder) { expectRejected(Order.Rejections.WRONG_STATUS) }
     }
 
     @Test
@@ -212,9 +212,9 @@ class OrderSpec {
     fun `a paid or shipped order should not be cancelled`() = orderSpec {
         givenStockConfirmed()
         given(OrderPaid(PAYMENT, TOTAL))
-        whenCommand(CancelOrder(Order.PAYMENT_TIMEOUT)) { expectRejected(OrderRejections.WRONG_STATUS) }
+        whenCommand(CancelOrder(Order.PAYMENT_TIMEOUT)) { expectRejected(Order.Rejections.WRONG_STATUS) }
         given(OrderShipped)
-        whenCommand(CancelOrder("too late")) { expectRejected(OrderRejections.WRONG_STATUS) }
+        whenCommand(CancelOrder("too late")) { expectRejected(Order.Rejections.WRONG_STATUS) }
     }
 
     private companion object {

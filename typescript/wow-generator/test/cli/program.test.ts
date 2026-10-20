@@ -57,14 +57,14 @@ describe('CLI setup', () => {
     expect(result.name).toHaveBeenCalledWith('wow-generator');
     expect(result.description).toHaveBeenNthCalledWith(
       1,
-      'OpenAPI Specification TypeScript code generator for Wow',
+      'TypeScript client generator for Wow: from a Wow Manifest or an OpenAPI 3 document',
     );
     expect(result.version).toHaveBeenCalledWith('2.1.2', '-v, --version');
 
     expect(result.command).toHaveBeenCalledWith('generate');
     expect(result.description).toHaveBeenNthCalledWith(
       2,
-      'Generate TypeScript code from an OpenAPI specification or a Wow V10 Manifest',
+      'Generate TypeScript code from a Wow Manifest or an OpenAPI 3 document',
     );
     expect(result.requiredOption).toHaveBeenCalledWith(
       '-i, --input <file>',

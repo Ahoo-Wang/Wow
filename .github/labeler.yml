@@ -56,14 +56,10 @@ dependencies:
       - any-glob-to-any-file:
           - 'migration/**'
 
-# The platform services; the 9.x consoles (analytics/, compensation/) stay
-# here until they leave v10.
 'area: platform':
   - changed-files:
       - any-glob-to-any-file:
           - 'platform/**'
-          - 'analytics/**'
-          - 'compensation/**'
 
 'area: typescript':
   - changed-files:

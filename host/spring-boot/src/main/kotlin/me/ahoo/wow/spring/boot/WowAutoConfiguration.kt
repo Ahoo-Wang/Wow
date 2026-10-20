@@ -18,8 +18,13 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.client.ClientMode
+import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.HttpCommandCaller
+import me.ahoo.wow.client.RetryPolicy
 import me.ahoo.wow.client.ServiceCredential
+import me.ahoo.wow.client.UserCredential
+import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.callRoutes
 import me.ahoo.wow.http.caller.CallAuthorizer
@@ -35,6 +40,7 @@ import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.internal.internalRoutes
 import me.ahoo.wow.http.ops.WebhookNotifier
 import me.ahoo.wow.http.ops.parkedRoutes
+import me.ahoo.wow.http.peerReadRoutes
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.wowRoutes
 import me.ahoo.wow.kernel.AggregateModel
@@ -103,6 +109,7 @@ import org.springframework.util.ClassUtils
 import org.springframework.util.unit.DataSize
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
+import org.springframework.web.server.WebFilter
 import tools.jackson.databind.json.JsonMapper
 import java.net.InetAddress
 import java.net.UnknownHostException
@@ -344,21 +351,105 @@ class WowAutoConfiguration {
     fun wowServiceCredential(properties: WowProperties): ServiceCredential =
         properties.calls.token?.takeIf { it.isNotBlank() }?.let(ServiceCredential::bearer) ?: ServiceCredential.NONE
 
-    /** The client of the other contexts' command gateways the sagas call (decision D193), at `wow.calls.contexts`. */
+    /**
+     * Where the peers' services are (decision D259): each context's public routes at `wow.clients.contexts.<context>.url`,
+     * its internal port at `wow.clients.contexts.<context>.internal-url`, else `wow.calls.contexts.<context>.url`. An
+     * application's own bean, a resolver that discovers them, replaces it for the sagas' calls and the clients alike.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    fun wowEndpointResolver(properties: WowProperties): EndpointResolver {
+        val calls = properties.calls.contexts.mapValues { (context, target) ->
+            checkNotNull(target.url) { "wow.calls.contexts.$context.url is not set." }
+        }
+        val clients = properties.clients.contexts
+        return EndpointResolver.of(
+            clients.mapNotNull { (context, target) -> target.url?.let { context to it } }.toMap(),
+            calls + clients.mapNotNull { (context, target) -> target.internalUrl?.let { context to it } }.toMap(),
+        )
+    }
+
+    /**
+     * The client of the other contexts' command gateways the sagas call (decision D193): the service mode of
+     * `wow-client` at the internal ports [endpoints] resolves, each call bounded by `wow.calls.timeout`.
+     */
     @Bean
     @ConditionalOnMissingBean
     @InternalWowApi
-    fun wowCommandCaller(properties: WowProperties, credential: ServiceCredential): CommandCaller {
+    fun wowCommandCaller(
+        properties: WowProperties,
+        credential: ServiceCredential,
+        endpoints: EndpointResolver,
+    ): CommandCaller {
         val calls = properties.calls
         return HttpCommandCaller(
-            endpoints = calls.contexts.mapValues { (context, target) ->
-                checkNotNull(target.url) { "wow.calls.contexts.$context.url is not set." }
-            },
-            credential = credential,
-            client = HttpCommandCaller.client(calls.connectTimeout.toKotlinDuration()),
-            timeout = calls.timeout.toKotlinDuration(),
+            endpoints,
+            credential,
+            HttpCommandCaller.client(calls.connectTimeout.toKotlinDuration()),
+            calls.timeout.toKotlinDuration(),
         )
     }
+
+    /**
+     * The peer contexts reached over HTTP, `wow.clients.contexts` (decisions D257, D259), and their clients in either
+     * mode, each built when first used: the service mode presenting the [ServiceCredential] bean, the user mode
+     * forwarding the request's `wow.clients.forwarded-headers`.
+     */
+    @Bean
+    @InternalWowApi
+    fun wowPeerClients(
+        properties: WowProperties,
+        endpoints: EndpointResolver,
+        credential: ServiceCredential,
+        contracts: ContractDirectory,
+        globalIds: GlobalIdGenerator,
+    ): PeerClients {
+        val clients = properties.clients
+        fun client(mode: ClientMode) = lazy {
+            val builder = WowClient.builder()
+                .endpoints(endpoints)
+                .connectTimeout(clients.connectTimeout.toKotlinDuration())
+                .timeout(clients.timeout.toKotlinDuration())
+                .retry(
+                    RetryPolicy.of(
+                        clients.retry.maxAttempts,
+                        clients.retry.maxRetryAfter.toKotlinDuration(),
+                        clients.retry.backoff.toKotlinDuration(),
+                    ),
+                )
+                .contracts(contracts)
+                .ids(globalIds)
+            when (mode) {
+                is ClientMode.Service -> builder.service(mode.credential)
+                is ClientMode.User -> builder.user(mode.credential)
+            }
+            builder.build()
+        }
+        return PeerClients(
+            clients.contexts.mapValues { (_, target) -> target.mode ?: clients.mode },
+            contracts,
+            client(ClientMode.Service(credential)),
+            client(ClientMode.User(UserCredential.FORWARDED)),
+            clients.mode,
+        )
+    }
+
+    /**
+     * The typed clients of the peers over HTTP in `wow.clients.mode` (decision D257), for the application that calls a
+     * peer explicitly; the [CommandClient] and [me.ahoo.wow.api.read.QueryApi] beans route to them on their own.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    fun wowClient(peers: PeerClients): WowClient = peers.client
+
+    /**
+     * Puts the `wow.clients.forwarded-headers` of each public request in its handling's coroutine context
+     * ([me.ahoo.wow.client.ForwardedHeaders]), which a user-mode client forwards to a peer (decision D259).
+     */
+    @Bean
+    @InternalWowApi
+    fun wowForwardedHeadersFilter(properties: WowProperties): WebFilter =
+        ForwardedHeadersFilter(properties.clients.forwardedHeaders.map(String::trim).filter(String::isNotEmpty))
 
     @Bean
     @ConditionalOnMissingBean
@@ -487,9 +578,13 @@ class WowAutoConfiguration {
         internalCallers: ObjectProvider<InternalCallerResolver>,
         options: WowHttpOptions,
         environment: Environment,
+        reads: StateReads,
+        queries: ObjectProvider<HttpQueries>,
+        masks: PayloadMasks,
     ): InternalServer {
         val internal = internalCallers.ifAvailable?.let { resolver -> CallerResolver { resolver.resolve(it) } }
         val services = serviceTokens(properties).resolver(internal ?: callers)
+        val permits = callPermits(properties)
         return InternalServer(
             properties.internal.port,
             identity.bindHost,
@@ -498,7 +593,22 @@ class WowAutoConfiguration {
                 node.waits,
                 tokens = clusterTokens(properties, environment, identity.bindHost),
                 services = services,
-            ).and(callRoutes(manifest, node.gateway, services, options, callPermits(properties))),
+            )
+                // The services' peer reads (decision D259), before the call routes: their catch-all routes of an
+                // unknown command would take a query's POST.
+                .and(
+                    peerReadRoutes(
+                        manifest,
+                        node.gateway,
+                        services,
+                        queries.getIfAvailable { HttpQueries.NONE },
+                        reads,
+                        options,
+                        permits,
+                        masks,
+                    ),
+                )
+                .and(callRoutes(manifest, node.gateway, services, options, permits)),
             InternalHttp.messageLimit(publicCodecLimit(environment)),
         )
     }
@@ -533,12 +643,16 @@ class WowAutoConfiguration {
 
     /**
      * The service's [CommandClient] (decisions D257, D258, D259): command objects sent through the node's gateway, in
-     * process to the aggregates it serves, to its peers' command topics for the contexts their api jars declare. It
-     * sends as an anonymous caller; [CommandClient.of] gives it another.
+     * process to the aggregates it serves, to its peers' command topics for the contexts their api jars declare, and
+     * over HTTP to the peer contexts `wow.clients.contexts` lists ([PeerClients]). It sends as an anonymous caller;
+     * [CommandClient.of] gives it another.
      */
     @Bean
     @ConditionalOnMissingBean
-    fun wowCommandClient(gateway: CommandGateway): CommandClient = InProcessCommandClient(gateway)
+    fun wowCommandClient(gateway: CommandGateway, peers: PeerClients): CommandClient {
+        val local = InProcessCommandClient(gateway)
+        return if (peers.contexts.isEmpty()) local else RoutedCommandClient(local, peers)
+    }
 
     @Bean
     @ConditionalOnMissingBean
@@ -705,7 +819,10 @@ class WowAutoConfiguration {
 
         /** The commands each service may call on the internal port (`wow.http.services.*.commands`, decision D226). */
         internal fun callPermits(properties: WowProperties): CallPermits =
-            CallPermits(properties.http.services.mapValues { it.value.commands.toList() })
+            CallPermits(
+                properties.http.services.mapValues { it.value.commands.toList() },
+                properties.http.services.mapValues { it.value.reads.toList() },
+            )
 
         /** The cluster token this node sends (`wow.internal.token`, the first), or null without one (decision D226). */
         internal fun clusterTokenOf(properties: WowProperties): String? = clusterTokenList(properties).firstOrNull()

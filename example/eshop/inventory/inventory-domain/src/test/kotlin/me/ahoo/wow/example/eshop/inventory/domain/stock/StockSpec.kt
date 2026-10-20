@@ -61,8 +61,8 @@ class StockSpec {
     @Test
     fun `a quantity that is not positive should be rejected`() = stockSpec {
         given(StockReceived(10))
-        whenCommand(ReceiveStock(0)) { expectRejected(StockRejections.INVALID_QUANTITY) }
-        whenCommand(ReserveStock(ORDER, -1)) { expectRejected(StockRejections.INVALID_QUANTITY) }
+        whenCommand(ReceiveStock(0)) { expectRejected(Stock.Rejections.INVALID_QUANTITY) }
+        whenCommand(ReserveStock(ORDER, -1)) { expectRejected(Stock.Rejections.INVALID_QUANTITY) }
     }
 
     @Test
@@ -90,7 +90,7 @@ class StockSpec {
     @Test
     fun `a short stock should reject the reservation`() = stockSpec {
         given(StockReceived(2))
-        whenCommand(ReserveStock(ORDER, 3)) { expectRejected(StockRejections.INSUFFICIENT) }
+        whenCommand(ReserveStock(ORDER, 3)) { expectRejected(Stock.Rejections.INSUFFICIENT) }
     }
 
     @Test
@@ -109,7 +109,7 @@ class StockSpec {
     @Test
     fun `committing without a reservation should be rejected`() = stockSpec {
         given(StockReceived(10))
-        whenCommand(CommitReservation(ORDER)) { expectRejected(StockRejections.NO_RESERVATION) }
+        whenCommand(CommitReservation(ORDER)) { expectRejected(Stock.Rejections.NO_RESERVATION) }
     }
 
     @Test

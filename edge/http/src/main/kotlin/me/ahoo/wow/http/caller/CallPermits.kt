@@ -32,12 +32,39 @@ import me.ahoo.wow.manifest.FrameworkErrors
  * its context and aggregate (`shop.cart.AddItem`); `*` stands for any characters. A service is named by its caller's
  * subject: `service:<name>` for a service token ([ServiceTokens]), the principal's id for a CoSec service principal. A
  * service without entries calls the domain commands alone.
+ *
+ * The models each service may read on the internal port's read routes ([reads], `wow.http.services.<service>.reads`,
+ * decision D259): by `context.aggregate.model` (`ordering.order.snapshot`, `ordering.order.events`, and
+ * `ordering.order.state` for the state reads) or a dataset's `context.dataset`, `*` standing for any characters. A
+ * service without entries reads every model the node serves; with entries, only those they match.
  */
 @InternalWowApi
-class CallPermits(services: Map<String, Collection<String>>) {
+class CallPermits @JvmOverloads constructor(
+    services: Map<String, Collection<String>>,
+    reads: Map<String, Collection<String>> = emptyMap(),
+) {
     private val entries: Map<String, Entries> = services.mapValues { (service, patterns) ->
         require(patterns.none { it.isBlank() }) { "A command of service $service (wow.http.services) is blank." }
         Entries(patterns.map(String::trim))
+    }
+
+    private val reads: Map<String, List<Regex>> = reads.mapValues { (service, patterns) ->
+        require(patterns.none { it.isBlank() }) { "A read of service $service (wow.http.services) is blank." }
+        patterns.map { regexOf(it.trim()) }
+    }
+
+    /**
+     * Why [caller], a service, may not read [model] (`context.aggregate.model` or a dataset's `context.dataset`), or
+     * null when it may.
+     */
+    fun readRefusal(caller: Caller, model: String): String? {
+        val service = serviceOf(caller)
+        val entries = service?.let { reads[it] }.orEmpty()
+        return if (entries.isEmpty() || entries.any { it.matches(model) }) {
+            null
+        } else {
+            "Service $service may not read $model: its wow.http.services.$service.reads do not list it."
+        }
     }
 
     /**

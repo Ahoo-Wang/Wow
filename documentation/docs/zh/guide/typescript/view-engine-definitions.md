@@ -627,7 +627,7 @@ describe('the order views', () => {
 
 - Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--docs)：一份订单定义从声明到页面；[随部署收窄](/storybook/?path=/docs/view-engine-能力-随部署收窄--docs)把同一份定义配上两种存储的描述，看能力怎样跟着变。
 - 它的源文件：[`ordersDefinition.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/ordersDefinition.ts)、[`ordersDescriptor.json`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/ordersDescriptor.json)，以及用 `admit` 核对它们的 [`integration.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/integration.test.ts)。
-- 一个真实的宿主：补偿控制台的 [`src/views/`](https://github.com/Ahoo-Wang/Wow/tree/main/compensation/dashboard/src/views)，定义、每种语言的措辞与准入测试都在这里。
+- 一个真实的宿主：补偿控制台的 [`src/views/`](https://github.com/Ahoo-Wang/Wow/tree/v10-9x-baseline/compensation/dashboard/src/views)，定义、每种语言的措辞与准入测试都在这里。
 - 设计文档：[`defineView` 的合并规则](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/host-integration.md)、[采用服务端的能力描述](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/capabilities.md)。
 - 让智能体照这套写定义：Skill [`wow-view-definition`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-view-definition/SKILL.md)。
 

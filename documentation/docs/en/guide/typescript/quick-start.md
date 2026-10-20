@@ -9,7 +9,7 @@ This page answers: **how does a TypeScript application call a Wow service, from 
 
 The path is always the same: the service publishes its OpenAPI document, `wow-generator` turns it into typed clients for each aggregate, and the application calls those clients through a [Fetcher](https://fetcher.ahoo.me/) that it configures once. The steps below use the repository's example service (bounded context `example`, aggregate `cart`); substitute your own service's URL and aggregate names.
 
-<!-- typecheck-generated: typescript/integration-test/src/generated -->
+<!-- typecheck-generated: example/eshop/web/src/generated/basket -->
 
 ```mermaid
 flowchart LR
@@ -87,6 +87,7 @@ For a build that does not depend on a running service, save the document once (`
 
 <!-- typecheck: file=cart.ts -->
 
+<!-- typecheck: skip — the 9.x generated client of the OpenAPI path that V10 deleted (D266); the V10 rewrite of this page uses the Manifest clients -->
 ```ts
 // src/cart.ts
 import { Fetcher } from '@ahoo-wang/fetcher';
@@ -127,6 +128,7 @@ Three settings decide where a request goes:
 
 ## 5. Send a command and read its state
 
+<!-- typecheck: skip — the 9.x generated client of the OpenAPI path that V10 deleted (D266); the V10 rewrite of this page uses the Manifest clients -->
 ```ts
 // src/main.ts
 import {

@@ -20,6 +20,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.Ownership
@@ -174,6 +175,31 @@ class ContractSourcesTest {
             "public fun ref(tenantId: String, id: String): AggregateRef = TYPE.ref(tenantId, id)",
             "public val STATE__ADDRESS__ZIP: QueryField = QueryField(\"state.address.zip\")",
         )
+    }
+
+    @Test
+    fun `rejection codes should be constants of the aggregates' and the context's Errors objects`() {
+        val errors = listOf(
+            ErrorManifest("shop-ordering.order.invalid-items", 422, "An order has items."),
+            ErrorManifest("shop-ordering.order.wrong-status", 409),
+            ErrorManifest("shop-ordering.closed", 503, "The shop is closed."),
+            ErrorManifest("shop-ordering.order.nested.code", 422),
+            ErrorManifest("shop-ordering.404", 404),
+        )
+        val context = ContextManifest("shop-ordering", aggregates = listOf(aggregate()), errors = errors)
+        val text = ContractSources.of(Manifest(contexts = listOf(context)), queryFields = false).single().text
+        text.assert().contains(
+            "    /** The rejection codes the context shares. */\n    public object Errors {",
+            "        /** The shop is closed. (HTTP 503) */\n        public const val CLOSED: String = \"shop-ordering.closed\"",
+            "public const val ORDER__NESTED__CODE: String = \"shop-ordering.order.nested.code\"",
+            "public const val _404: String = \"shop-ordering.404\"",
+            "        /** The aggregate's rejection codes, each the full code. */\n        public object Errors {",
+            "            /** An order has items. (HTTP 422) */\n" +
+                "            public const val INVALID_ITEMS: String = \"shop-ordering.order.invalid-items\"",
+            "public const val WRONG_STATUS: String = \"shop-ordering.order.wrong-status\"",
+        )
+        // A context without codes has no Errors object.
+        ContractSources.of(contract(aggregate()), queryFields = false).single().text.assert().doesNotContain("Errors")
     }
 
     @Test

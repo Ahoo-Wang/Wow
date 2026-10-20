@@ -23,29 +23,6 @@ JavaScript projects share one pnpm workspace rooted at the repository root (`pac
 pnpm install
 ```
 
-Compensation dashboard (9.x; its server is on `main`):
-
-The dashboard uses the workspace packages `@ahoo-wang/wow-client`, `@ahoo-wang/wow-react`, `@ahoo-wang/wow-view-engine` and `@ahoo-wang/wow-view-store` through their `dist`, so build them before running it and again after changing them:
-
-```bash
-pnpm --filter wow-compensation-dashboard^... build
-cd compensation/dashboard
-pnpm dev
-pnpm test
-pnpm lint
-pnpm build
-pnpm coverage
-```
-
-Analytics console (`analytics/console`, 9.x, served by `wow-analytics-server` on `main` from its `ui/`):
-
-```bash
-pnpm --filter wow-analytics-console... build
-cd analytics/console
-pnpm test
-pnpm lint
-```
-
 Ops console (`platform/ops/console`, V10, served by `:ops-server` from its `ui/`; see its README for the end-to-end suite):
 
 ```bash
@@ -93,12 +70,10 @@ CI sets `CI=GITHUB_ACTIONS`; Gradle test retry is enabled only in CI with up to 
 
 ```text
 wow-dependencies/           Centralized dependency versions, which every V10 POM imports
-compensation/dashboard/     The 9.x compensation dashboard (React; its server is on main)
-analytics/console/          The 9.x analytics console (React; its server is on main)
 typescript/                 TypeScript client packages moving in from fetcher; see typescript/AGENTS.md
 wow-benchmarks/             The end-to-end benchmark (e2e/) and reproducible performance reports (results/)
 documentation/              VitePress documentation site (docs/) and design records (designs/)
-docs/                       Ledgers: compat-debt.md (TypeScript compatibility kept until v10), todo.md (JVM)
+docs/                       Ledgers: todo.md (JVM)
 skills/                     Project-local Codex skills and agent definitions
 ```
 
@@ -158,7 +133,7 @@ interface CommandBus :
 }
 ```
 
-Dashboard code uses React, TypeScript, Vite, shadcn/Base UI, Tailwind CSS, React Router, Vitest, and ESLint. Reuse components under `compensation/dashboard/src/components/ui/`; dependency versions live in the `catalog` of the root `pnpm-workspace.yaml`; use `compensation/dashboard/package.json` for the dependency list and `compensation/dashboard/components.json` for shadcn configuration. Wow clients are generated under `compensation/dashboard/src/generated/` by `wow-generator` (`@ahoo-wang/wow-generator`) from the compensation server's `/v3/api-docs`; commit the generator output byte for byte, including `.wow-generator.json`. Do not hand-edit generated client files unless the generator input is unavailable and the user accepts that tradeoff.
+The V10 apps (`platform/ops/console`, `example/eshop/web`) use React, TypeScript, Vite, shadcn/Base UI, Tailwind CSS, React Router, Vitest, and ESLint; dependency versions live in the `catalog` of the root `pnpm-workspace.yaml`, and each app's `components.json` holds its shadcn configuration. Their Wow clients are generated under `src/generated/` by `wow-generator` (`@ahoo-wang/wow-generator`) from the services' Manifests (each app's `generate` script); commit the generator output byte for byte, including `.wow-generator.json`, and never hand-edit it.
 
 ## Version Management
 
@@ -166,11 +141,11 @@ The project version is the `version` property in `gradle.properties`. Maven and 
 
 A release is prepared in one pull request (`chore(release): prepare <version>`):
 
-1. `pnpm set-version <version>` writes `gradle.properties` and the version of every `typescript/*/package.json`, `compensation/dashboard/package.json`, `analytics/console/package.json` and `documentation/package.json`. It then lists the tracked files that still mention the old version.
+1. `pnpm set-version <version>` writes `gradle.properties` and the version of every `typescript/*/package.json`, `platform/ops/console/package.json` and `documentation/package.json`. It then lists the tracked files that still mention the old version.
 2. Update the ones that track the release by hand: the version tables in `README.md` and `README.zh-CN.md`, `documentation/docs/{en,zh}/guide/existing-project.md` and `getting-started.md`, and `wow-openapi/src/test/resources/openapi/example-domain-openapi.snapshot.json`. A pre-release (`x.y.z-rc.n`) is published to npm only, so its PR updates the snapshot but leaves the README tables and those pages on the last stable version; they move with the stable release.
 3. `pnpm check:versions` confirms every `package.json` matches; the `quality` job of `typescript.yml` runs the same check.
 
-Breaking changes, Kotlin or TypeScript, ship only in an `x.Y.0` release. A change breaks when it changes public API (Kotlin, or a published npm package), REST behaviour, configuration, storage or wire formats; mark it with `!` in the conventional commit, or tick the PR template's **Breaking** box (it labels the PR `breaking-change`), and give the description a `## Breaking` section saying who is affected and how to migrate (for an approved v9 exception, also the step before upgrading and what a mixed 9.x cluster does). A `## Behaviour changes` section is for user-visible changes that are not breaking; it adds no label. Release admission enforces this, and requires the x.Y.0 release notes to name each such PR. Only public entry APIs (the REST API, `CommandGateway` and the query gateways, the `wow-api` programming model and DSLs, configuration, storage and wire formats, the published npm packages; see the scope in `docs/compat-debt.md`) stay compatible until v10, deprecated where replaced and listed there; `pnpm check:compat-debt` checks its markers. Internal implementation, public JVM signature or not, changes in an `x.Y.0` without a deprecation cycle.
+Breaking changes, Kotlin or TypeScript, ship only in an `x.Y.0` release. A change breaks when it changes public API (Kotlin, or a published npm package), REST behaviour, configuration, storage or wire formats; mark it with `!` in the conventional commit, or tick the PR template's **Breaking** box (it labels the PR `breaking-change`), and give the description a `## Breaking` section saying who is affected and how to migrate. A `## Behaviour changes` section is for user-visible changes that are not breaking; it adds no label. Release admission enforces this, and requires the x.Y.0 release notes to name each such PR. V10 keeps no compatibility code (decision D1): a replaced API goes in the same release instead of being deprecated, and `:architecture` rejects `@Deprecated` declarations and `compat(...)` markers.
 
 ### Binary Compatibility
 
@@ -179,7 +154,7 @@ Every published Maven module except the BOMs (`publishProjects` minus `bomProjec
 When the check fails, run `./gradlew updateKotlinAbi` (or `./gradlew :<module>:updateKotlinAbi`) and commit the rewritten dumps with the change. Read the dump diff before committing it:
 
 - Only `+` lines (a new class, member or overload): additive, allowed in any 9.x release, patches included.
-- Any `-` line, or a changed one (a removed or renamed declaration, a parameter added to a constructor or function even with a default value, a changed return type): a binary break. In a patch, keep the old signature instead, for example a secondary constructor or overload marked `@Deprecated(…, level = DeprecationLevel.HIDDEN)` with a `compat(<scope>)` comment and an entry in `docs/compat-debt.md`, so the dump goes back to additive. A removal ships only in an `x.Y.0`, marked breaking as above, with a `## Breaking` section naming the removed signatures and what callers use instead. An `x.Y.0` keeps no binary-only shims: it changes signatures cleanly instead of adding hidden overloads or leftover non-bean copies, and drops the ones earlier patches added. A public entry API (see the scope in `docs/compat-debt.md`) still gets one `@Deprecated` cycle, listed there; internal implementation does not.
+- Any `-` line, or a changed one (a removed or renamed declaration, a parameter added to a constructor or function even with a default value, a changed return type): a binary break. In a patch, keep the old signature instead, for example a secondary constructor or overload marked `@Deprecated(…, level = DeprecationLevel.HIDDEN)` with a `compat(<scope>)` comment, so the dump goes back to additive. A removal ships only in an `x.Y.0`, marked breaking as above, with a `## Breaking` section naming the removed signatures and what callers use instead. An `x.Y.0` keeps no binary-only shims: it changes signatures cleanly instead of adding hidden overloads or leftover non-bean copies, and drops the ones earlier patches added.
 
 A module that starts publishing commits its first dump in the same pull request; the check fails while a published module has none.
 
@@ -195,8 +170,8 @@ GitHub Actions run module-level checks from `.github/workflows/`:
 - Codecov (`codecov.yml` at the root) reports pull requests from the `v10` flag (v10.yml) and the TypeScript packages' flags: changed main code needs 90% patch coverage, and each V10 module (as `v10-<name>`) and TypeScript package is a component whose coverage must not drop by more than 1%; a module's coverage counts its unit and container tests, so storage adapters' I/O is covered by their container tests.
 - `documentation-deploy.yml` deploys the docs. `v10-image-deploy.yml`, called by `package-deploy.yml`, pushes the V10 server images (DockerHub `ahoowang/`, GHCR `ghcr.io/ahoo-wang/`, Aliyun `registry.cn-shanghai.aliyuncs.com/ahoo/`). The 9.x image workflows (example, compensation, view store, analytics) left `v10` with the 9.x code (D262) and run on main.
 - The workflows of `v10`'s required checks (`v10.yml`, `typescript.yml`, `typescript-contract.yml`, `typescript-storybook.yml`, and `pr-safety.yml`'s PR Safety) also run on `merge_group`, so `v10` can use a merge queue: their scope jobs compare the group's commit with the branch's tip (`changeRange` in `ci-scope.mjs`, from the event payload), the gate jobs report on it, PR Safety reruns its limits on the group's diff with git, and no job uploads coverage there (the push run of the same commit does).
-- `typescript.yml` runs on every pull request; its scope job decides which TypeScript jobs run, its `docs-layout` job checks the documentation layout and the repository's hygiene (`pnpm check:hygiene`, `.github/scripts/repo-hygiene.mjs`: no version catalog entry that no build script uses, no `.gitignore`, `.prettierignore` or labeler path that matches nothing, no CI script that nothing runs; a known leftover goes in its `ALLOWED` with the change that removes it) on every pull request, and `typescript-gate` is the merge signal for JavaScript changes. `dashboard-test.yml` checks the compensation dashboard.
-- `typescript-contract.yml` type-checks code generated from the 8.10.8 and 8.11.5 server images and runs the client's smoke test against them (`legacy-contract`), and runs the V10 view store suites against the V10 view store service built from the commit (`v10-contract`); the shared scope script decides which part runs, and `typescript-contract-gate` is its merge signal. Its same-source contract against the 9.x example server left `v10` with the 9.x example (D262).
+- `typescript.yml` runs on every pull request; its scope job decides which TypeScript jobs run, its `docs-layout` job checks the documentation layout and the repository's hygiene (`pnpm check:hygiene`, `.github/scripts/repo-hygiene.mjs`: no version catalog entry that no build script uses, no `.gitignore`, `.prettierignore` or labeler path that matches nothing, no CI script that nothing runs; a known leftover goes in its `ALLOWED` with the change that removes it) on every pull request, and `typescript-gate` is the merge signal for JavaScript changes. `ops-console-test.yml` and `eshop-web-test.yml` check the ops console and the eShop web app.
+- `typescript-contract.yml` runs the V10 view store suites against the V10 view store service built from the commit (`v10-contract`); the shared scope script decides whether it runs, and `typescript-contract-gate` is its merge signal. Its contracts against 9.x example servers, same-source and released, left `v10` with the 9.x code (D262).
 - `typescript-storybook.yml` runs when the stories, view-engine, wow-client or wow-react change: it type-checks, lints and builds `typescript/storybook` (verifying its index), then runs the story interactions in Chromium in four shards balanced by measured file durations (`typescript/storybook/test-durations.json`); `typescript-storybook-gate` is its merge signal.
 - `pr-labeler.yml` labels pull requests by branch and changed paths (`.github/labeler.yml`), and adds `breaking-change` to a title of the form `type(scope)!: …` or a description with a `BREAKING CHANGE:` line, the template's **Breaking** box ticked, or a `## Breaking` / `## Breaking changes` section that is not "None.", and to a diff that removes or changes a line of an ABI dump, API report or surface list (see Binary Compatibility; `.github/scripts/breaking-label.mjs`); `.github/release.yml` lists breaking changes first in generated release notes.
 - `typescript-storybook-browsers.yml` runs the same story interactions in Firefox (two shards) and WebKit (four shards, on macOS), nightly and on `workflow_dispatch`. It never runs on a pull request, is not a merge signal, and release admission does not read it.
@@ -228,7 +203,7 @@ On `v10`, `package-deploy.yml` releases only 10.x pre-releases (`v10.x.y-alpha.n
 - Ask first before changing Gradle module structure, feature capabilities, generated OpenAPI/schema contracts, CI/CD workflows, publishing credentials, or release automation.
 - Ask first before adding dependencies or moving responsibilities across module boundaries.
 - Never commit secrets, signing keys, Maven credentials, GitHub tokens, generated build output, `node_modules/`, `.gradle/`, or IDE-local state.
-- Never edit generated dashboard clients in `compensation/dashboard/src/generated/` as the primary fix when the OpenAPI source or generator can be fixed instead.
+- Never edit generated clients in an app's `src/generated/` as the primary fix when the Manifest or the generator can be fixed instead.
 - Never bypass Reactor with blocking code in core runtime paths.
 
 ## Documentation
@@ -238,7 +213,7 @@ Each kind of document has one home, chosen by its reader; [Documentation Governa
 - User documentation: `documentation/docs/{en,zh}/` (VitePress). Update the owning page in the same change as the behavior, and keep the English and Chinese pages structurally aligned.
 - Entry and module usage: `README.md` and `README.zh-CN.md`, at the root and beside each published module or package. They link to the site instead of copying it.
 - Design records: `documentation/designs/YYYY-MM-DD-<topic>-design.md` for decisions spanning JVM modules; `<package>/docs/design/` for one TypeScript package or application. State the date, source baseline and status, and update the status when the work lands.
-- Ledgers of decided work: `docs/compat-debt.md`, `docs/todo.md`, `typescript/TODO.md`, `typescript/wow-view-engine/docs/design/todo.md`, `example/eshop/DX-GAPS.md`. Delete an entry when it is done; open review findings go here, not into a committed review.
+- Ledgers of decided work: `docs/todo.md`, `typescript/TODO.md`, `typescript/wow-view-engine/docs/design/todo.md`, `example/eshop/DX-GAPS.md`. Delete an entry when it is done; open review findings go here, not into a committed review.
 - Performance evidence: `wow-benchmarks/results/`, only with the commit, command, environment and raw results that reproduce it.
 - Static assets: `documentation/docs/public/`. Diagram sources Mermaid cannot express: `documentation/diagrams/`.
 - Prefer Mermaid source (`.mmd` or fenced `mermaid`) for every diagram Mermaid supports; do not commit a generated SVG beside it. Use PlantUML only for unsupported diagram kinds such as use case diagrams.

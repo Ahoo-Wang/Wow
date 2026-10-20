@@ -28,7 +28,8 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: transfer_v10
-    command: ["postgres", "-c", "max_connections=300", "-c", "shared_buffers=512MB"]
+    # bench.sh sets WOW_BENCH_PG_PRELOAD=pg_stat_statements for a profiled run only.
+    command: ["postgres", "-c", "max_connections=300", "-c", "shared_buffers=512MB", "-c", "shared_preload_libraries=${WOW_BENCH_PG_PRELOAD:-}"]
     ports:
       - "5432:5432"
     healthcheck:

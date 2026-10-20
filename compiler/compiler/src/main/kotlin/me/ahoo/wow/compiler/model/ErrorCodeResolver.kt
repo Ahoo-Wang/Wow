@@ -16,10 +16,13 @@ package me.ahoo.wow.compiler.model
 import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.symbol.FileLocation
+import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
 import com.google.devtools.ksp.symbol.Origin
+import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -29,17 +32,43 @@ import java.io.File
 internal data class ErrorCodeBinding(
     /** The property's qualified name. */
     val property: String,
+    /** The code as written: a local name without a dot (decision D259), or a full code. */
     val error: ErrorManifest?,
     val problems: List<String>,
-)
+    /** The qualified name of the `@AggregateRoot` class the property is declared in, if any. */
+    val aggregateRoot: String? = null,
+) {
+    /**
+     * The code as the Manifest names it: a local name qualified with its aggregate's context and name
+     * (`context.aggregate.code`, [aggregates] giving each `@AggregateRoot` class's name), a code with a dot as written;
+     * null when it has problems or its aggregate is unknown.
+     */
+    fun qualified(context: String, aggregates: Map<String, String>): ErrorManifest? {
+        val error = error ?: return null
+        if (ErrorCodeResolver.isFull(error.code)) {
+            return error
+        }
+        val aggregate = aggregates[aggregateRoot] ?: return null
+        return ErrorManifest("$context.$aggregate.${error.code}", error.status, error.description)
+    }
+}
 
 /**
  * Reads `@ErrorCode` properties (decision D121): a Kotlin `const val`, or a Java `static final String` field (decision
  * D229 G-8). KSP has no API for a property's value, so the code is read from the source: the initializer must be one
  * string literal, without templates.
+ *
+ * A code without a dot is a local name (decision D259): it is declared within its `@AggregateRoot` class (in a Kotlin
+ * `object` nested in it, its companion included, or as a Java field of it or of a class nested in it), and the
+ * Manifest names it `context.aggregate.code` ([ErrorCodeBinding.qualified]). A code with a dot is a full code, as
+ * written: one the context shares (`context.code`), or one declared outside an aggregate.
  */
 internal object ErrorCodeResolver {
     val ERROR_CODE: String = ErrorCode::class.java.name
+    private val AGGREGATE_ROOT: String = AggregateRoot::class.java.name
+
+    /** Whether [code] is a full code: it has a dot. Otherwise it is a local name within an aggregate. */
+    fun isFull(code: String): Boolean = '.' in code
 
     private val STATUSES = 400..599
 
@@ -64,9 +93,17 @@ internal object ErrorCodeResolver {
                         "compiler reads the code from the source",
                 ),
             )
+        val aggregateRoot = aggregateRootOf(property)
         val problems = buildList {
             if (code.isBlank()) {
                 add("@ErrorCode property $name holds a blank code")
+            } else if (!isFull(code) && aggregateRoot == null) {
+                add(
+                    "error code $code of $name is a local name, but $name is not declared within an @AggregateRoot " +
+                        "class: declare it in an object nested in its aggregate root, which names its context and " +
+                        "aggregate, or write the full code (context.aggregate.code, or context.code for one the " +
+                        "context shares)",
+                )
             }
             if (code.startsWith(FrameworkErrors.PREFIX)) {
                 add("error code $code of $name takes the framework's prefix ${FrameworkErrors.PREFIX}")
@@ -79,8 +116,19 @@ internal object ErrorCodeResolver {
             name,
             ErrorManifest(code, annotation.status, annotation.description.ifBlank { null }),
             problems,
+            aggregateRoot,
         )
     }
+
+    /** The qualified name of the nearest `@AggregateRoot` class [property] is declared in; null when none is. */
+    private fun aggregateRootOf(property: KSPropertyDeclaration): String? =
+        generateSequence<KSDeclaration>(property.parentDeclaration) { it.parentDeclaration }
+            .filterIsInstance<KSClassDeclaration>()
+            .firstOrNull { declaration ->
+                declaration.annotations.any {
+                    it.annotationType.resolve().declaration.qualifiedName?.asString() == AGGREGATE_ROOT
+                }
+            }?.qualifiedName?.asString()
 
     /** A Kotlin `const val`, or a Java field that is `static final`. */
     private fun isConstant(property: KSPropertyDeclaration, java: Boolean): Boolean =

@@ -19,11 +19,6 @@ import { combinePaths } from '../naming/paths';
 
 /** The manifest that records the files a generation wrote, and their hashes. */
 export const GENERATION_MANIFEST = '.wow-generator.json';
-// compat(fetcher): generations before the move to Wow recorded their files in
-// .fetcher-generator.json; read it when the new manifest is absent so a regeneration still
-// removes files an older run wrote, and delete it once the new manifest is written.
-// Removed in v10.
-export const LEGACY_GENERATION_MANIFEST = '.fetcher-generator.json';
 
 /**
  * The version of the manifest format this generator reads and writes. A
@@ -60,14 +55,11 @@ export class OutputStore {
     private readonly outputDir: string,
     /** The files of the last run, with the hash each was written with. */
     private readonly previous: ReadonlyMap<string, string>,
-    /** A pre-Wow manifest to delete once the new one is written. */
-    private readonly legacyManifest: string | undefined,
   ) {}
 
   /**
-   * Reads the manifest of an output directory, the pre-Wow one when the new
-   * one is absent, and takes the files it names out of the project: a run
-   * writes its files afresh.
+   * Reads the manifest of an output directory and takes the files it names
+   * out of the project: a run writes its files afresh.
    *
    * @param project - The project the run writes into
    * @param outputDir - The output directory, absolute or relative to the
@@ -86,14 +78,7 @@ export class OutputStore {
     const fs = project.getFileSystem();
     const outputPath = outputDir;
     outputDir = resolve(fs.getCurrentDirectory(), outputDir);
-    const legacyManifestPath = join(outputDir, LEGACY_GENERATION_MANIFEST);
-    const legacyManifest = fs.fileExistsSync(legacyManifestPath)
-      ? legacyManifestPath
-      : undefined;
-    let manifestPath = join(outputDir, GENERATION_MANIFEST);
-    if (!fs.fileExistsSync(manifestPath) && legacyManifest) {
-      manifestPath = legacyManifest;
-    }
+    const manifestPath = join(outputDir, GENERATION_MANIFEST);
     const previous = new Map<string, string>();
     if (fs.fileExistsSync(manifestPath)) {
       const manifest = readManifest(
@@ -125,13 +110,7 @@ export class OutputStore {
     for (const file of project.getSourceFiles()) {
       if (leaving.has(file.getFilePath())) file.forget();
     }
-    return new OutputStore(
-      project,
-      outputPath,
-      outputDir,
-      previous,
-      legacyManifest,
-    );
+    return new OutputStore(project, outputPath, outputDir, previous);
   }
 
   /** The files this run writes, by absolute path. */
@@ -247,10 +226,6 @@ export class OutputStore {
       fs.mkdirSync(this.outputDir);
       await fs.writeFile(manifestPath, manifest);
     });
-    const legacyManifest = this.legacyManifest;
-    if (legacyManifest && fs.fileExistsSync(legacyManifest)) {
-      await attempt('delete', legacyManifest, () => fs.delete(legacyManifest));
-    }
   }
 
   /**

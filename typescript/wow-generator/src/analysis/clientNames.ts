@@ -11,46 +11,9 @@
  * limitations under the License.
  */
 
-import type { TagAliasAggregate } from '../wow/model';
 import { GeneratorError } from '../api/errors';
-import {
-  camelCase,
-  isIdentifier,
-  toIdentifier,
-  toTypeIdentifier,
-} from '../naming/naming';
+import { camelCase, isIdentifier, toIdentifier } from '../naming/naming';
 import type { Operation } from '@ahoo-wang/fetcher-openapi';
-
-/**
- * The path of a client module of an aggregate, relative to the output
- * directory: `<contextAlias>/<aggregateName>/<fileName>.ts`.
- *
- * @param aggregate - The aggregate metadata containing context alias and aggregate name
- * @param fileName - The name of the file, without extension
- *
- * @example
- * ```typescript
- * clientModulePath({ contextAlias: 'user', aggregateName: 'profile' }, 'queryClient');
- * // 'user/profile/queryClient.ts'
- * ```
- */
-export function clientModulePath(
-  aggregate: Pick<TagAliasAggregate, 'contextAlias' | 'aggregateName'>,
-  fileName: string,
-): string {
-  return `${aggregate.contextAlias}/${aggregate.aggregateName}/${fileName}.ts`;
-}
-
-/**
- * The name of a class or type of an aggregate: its name as a type, then the
- * suffix (`order`, `CommandClient` → `OrderCommandClient`).
- */
-export function resolveClassName(
-  aggregate: Pick<TagAliasAggregate, 'aggregateName'>,
-  suffix: string,
-): string {
-  return `${toTypeIdentifier(aggregate.aggregateName)}${suffix}`;
-}
 
 /** Operation extension naming the method an operation generates. */
 export const OPERATION_METHOD_NAME_KEY = 'x-fetcher-method';

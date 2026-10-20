@@ -11,14 +11,12 @@
  * limitations under the License.
  */
 
-import type { Named } from '@ahoo-wang/wow-client';
-
 /**
  * Where a generated declaration lives: its name, and the directory under the
  * output directory whose `types.ts` declares it, or the package it is
  * imported from (a path starting with `@`).
  */
-export interface ModelInfo extends Named {
+export interface ModelInfo {
   name: string;
   path: string;
 }

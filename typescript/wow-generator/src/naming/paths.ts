@@ -40,11 +40,3 @@ export const MODEL_FILE_NAME = 'types.ts';
 export function modelFilePath(model: { readonly path: string }): string {
   return combinePaths(model.path, MODEL_FILE_NAME);
 }
-
-/**
- * The file that declares a bounded context's alias constant, relative to the
- * output directory.
- */
-export function boundedContextFilePath(contextAlias: string): string {
-  return `${contextAlias}/boundedContext.ts`;
-}

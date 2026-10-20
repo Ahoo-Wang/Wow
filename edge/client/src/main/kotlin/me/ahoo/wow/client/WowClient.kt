@@ -16,6 +16,7 @@ package me.ahoo.wow.client
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.contract.ContractDirectory
@@ -27,8 +28,9 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * The typed clients of the peers' HTTP routes (decisions D257, D259), all on one JDK [HttpClient] and one
  * [EndpointResolver], in one [ClientMode]: [commands] sends command objects as the location-transparent
- * [CommandClient] does in process. A peer's commands are named from the contract its api jar carries (decision D234),
- * read from the class path: a consumer depends on the peer's `*-api` and writes no path.
+ * [CommandClient] does in process, and [queries] reads their snapshots, events, datasets and states as the [QueryApi]
+ * does. A peer's commands and state classes are found in the contract its api jar carries (decision D234), read from
+ * the class path: a consumer depends on the peer's `*-api` and writes no path.
  *
  * Build it with [builder]:
  *
@@ -43,6 +45,8 @@ import kotlin.time.Duration.Companion.seconds
 class WowClient private constructor(
     /** The command client, sending as an anonymous caller until [CommandClient.of] gives it another. */
     val commands: CommandClient,
+    /** The query client of the peers' read routes, for a caller ([QueryApi.of]); see [HttpQueryApi]. */
+    val queries: QueryApi,
 ) {
     /** How a [WowClient] is built; every setting has a default. */
     class Builder internal constructor() {
@@ -54,6 +58,7 @@ class WowClient private constructor(
         private var retry: RetryPolicy = RetryPolicy.DEFAULT
         private var classLoader: ClassLoader? = null
         private var commandTypes: CommandTypes? = null
+        private var contracts: ContractDirectory? = null
         private var ids: GlobalIdGenerator = GlobalIdGenerator.UUID_V7
 
         /** Where each context's service is (none by default: every call fails until it is given). */
@@ -93,6 +98,10 @@ class WowClient private constructor(
         @InternalWowApi
         fun commandTypes(commandTypes: CommandTypes): Builder = apply { this.commandTypes = commandTypes }
 
+        /** The contracts the node knows, its peers' among them: Wow's host gives its own. */
+        @InternalWowApi
+        fun contracts(contracts: ContractDirectory): Builder = apply { this.contracts = contracts }
+
         /** The ids of new request ids and root commands: UUIDs of version 7 by default. */
         @InternalWowApi
         fun ids(ids: GlobalIdGenerator): Builder = apply { this.ids = ids }
@@ -105,10 +114,13 @@ class WowClient private constructor(
                 timeout,
                 retry,
             )
-            val names = commandTypes ?: ContractCommandTypes(
-                ContractDirectory.load(Manifest(), classLoader ?: Thread.currentThread().contextClassLoader),
+            val contracts = contracts
+                ?: ContractDirectory.load(Manifest(), classLoader ?: Thread.currentThread().contextClassLoader)
+            val names = commandTypes ?: ContractCommandTypes(contracts)
+            return WowClient(
+                HttpCommandClient(transport, names, ids),
+                HttpQueryApi(transport, PeerModels.of(contracts.peers.map { it.manifest }), ids),
             )
-            return WowClient(HttpCommandClient(transport, names, ids))
         }
     }
 

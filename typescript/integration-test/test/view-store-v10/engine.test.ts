@@ -46,7 +46,7 @@ import {
 } from '@ahoo-wang/wow-view-engine';
 import { viewSourceOf, WowViewStore } from '@ahoo-wang/wow-view-store/v10';
 import { describe, expect, it } from 'vitest';
-import { nextResult } from '../view-engine/salesOrders';
+import { nextResult } from './nextResult';
 import { actingAs, SHARED_WRITER } from './v10ViewStoreServer';
 
 const { TERMS } = AggregationGroupType;

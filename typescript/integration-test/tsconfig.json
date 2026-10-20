@@ -1,11 +1,13 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "sourceMap": true,
+    "noEmit": true,
     "noImplicitAny": false,
-    "types": ["node"]
+    "types": ["node"],
+    // `..`, not `.`: the WowViewStore suite imports the view engine's port
+    // conformance suite by its workspace path
+    // (../wow-view-engine/test/conformance/), which is never published.
+    "rootDir": ".."
   },
-  "include": ["src/**/*"]
+  "include": ["test", "vitest.v10.config.ts"]
 }

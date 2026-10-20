@@ -17,8 +17,8 @@
  *
  * The query clients of the root entry accept the request shapes built here, so
  * an application that talks to an 8.10 server imports its queries from this
- * entry and everything else from the root. The whole entry is removed in v10;
- * see docs/compat-debt.md.
+ * entry and everything else from the root. The whole entry is removed in v10
+ * (decision D239).
  */
 export * from './condition.js';
 export * from './operator.js';

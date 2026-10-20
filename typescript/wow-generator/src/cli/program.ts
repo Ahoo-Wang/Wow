@@ -30,13 +30,6 @@ Exit codes:
   ${EXIT_CODES.output}    output: the manifest, a path outside the output, or a failed write
   ${EXIT_CODES.interrupted}  interrupted (Ctrl-C)`;
 
-/**
- * What the `fetcher-generator` bin prints to stderr before it runs: the name
- * still works, and goes in v10.
- */
-export const DEPRECATED_BIN_NOTICE =
-  'fetcher-generator is deprecated and will be removed in v10; run wow-generator instead.';
-
 /** Collects the values of an option given more than once, such as `--header`. */
 export function collect(value: string, previous: string[] = []): string[] {
   return [...previous, value];
@@ -59,18 +52,17 @@ export function setupCLI(target: Command = program): Command {
   // Before `command()`: a subcommand copies the exit override when it is
   // created.
   target.exitOverride();
-  // compat(fetcher): package.json also installs this CLI as `fetcher-generator`
-  // (src/fetcherGeneratorCli.ts), the name existing scripts call; drop that
-  // bin alias in v10.
   target
     .name('wow-generator')
-    .description('OpenAPI Specification TypeScript code generator for Wow')
+    .description(
+      'TypeScript client generator for Wow: from a Wow Manifest or an OpenAPI 3 document',
+    )
     .version(VERSION, '-v, --version');
 
   target
     .command('generate')
     .description(
-      'Generate TypeScript code from an OpenAPI specification or a Wow V10 Manifest',
+      'Generate TypeScript code from a Wow Manifest or an OpenAPI 3 document',
     )
     .requiredOption(
       '-i, --input <file>',
