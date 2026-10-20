@@ -144,6 +144,18 @@ export const SUITES = {
 export const DRIFT = 0.05;
 // bench.sh's default cap of 256 workers can stop the closed loop before V10 flattens (a local smoke run did), so the
 // cap is higher here; the doubling still stops after two steps that gain less than 5%.
+// The closed loop reaches its best throughput only with deep queues, so `fraction` of it can be more than a minute
+// of open loop sustains (the first runs on GitHub's 4-vCPU runners collapsed into timeouts at 80%). Each arm's
+// rate is therefore calibrated in open loop first: a short probe at the rate, and while it is not sustainable
+// (more than 1% failed, or less than 97% of the rate completed) the rate steps down by a quarter, at most 4 probes.
+export const PROBE = { warmUp: 10, measure: 20, attempts: 4, step: 0.75 };
+
+/** Whether an open-loop run at `rate` kept up: at most 1% failed and at least 97% of the rate completed. */
+export function sustainable(m, rate) {
+  const total = (m?.ok ?? 0) + (m?.failed ?? 0);
+  return total > 0 && m.failed / total <= 0.01 && m.throughput >= 0.97 * rate;
+}
+
 const SATURATION = { warmUp: 3, step: 8, maxConcurrency: 1024 };
 
 const integer = (name, value, min, max) => {
@@ -246,6 +258,7 @@ export function metrics(result) {
     throughput,
     ok: results.ok ?? 0,
     failed: results.failed ?? 0,
+    errors: results.errors ?? {},
     p50: latency.p50,
     p95: latency.p95,
     p99: latency.p99,
@@ -349,15 +362,28 @@ const propsText = props =>
         .join(', ')
     : 'defaults';
 
+const errorsText = errors =>
+  Object.entries(errors ?? {})
+    .sort((a, b) => b[1] - a[1])
+    .map(([kind, count]) => `${kind} ${count}`)
+    .join(' · ') || '-';
+
+/** An arm's open-loop rate as a share of its saturation, flagged when no probe sustained it. */
+const shareText = (suite, id) => {
+  const c = suite.calibration?.[id];
+  if (!c) return '-';
+  return `${(c.share * 100).toFixed(0)}%${c.sustainable ? '' : ' (**not sustained**)'}`;
+};
+
 function runTable(runs) {
   const lines = [
-    '| Run | Arm | Rate | Throughput | OK | Failed | p50 | p95 | p99 | p999 | Worst-second p99 | Server CPU | Container CPU | CPU ms/op |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+    '| Run | Arm | Rate | Throughput | OK | Failed | p50 | p95 | p99 | p999 | Worst-second p99 | Server CPU | Container CPU | CPU ms/op | Errors |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
   ];
   for (const run of runs) {
     if (run.status !== 'ok') {
       lines.push(
-        `| ${run.name} | ${run.arm} | ${num(run.rate)}/s | **${run.status}** | | | | | | | | | | |`,
+        `| ${run.name} | ${run.arm} | ${num(run.rate)}/s | **${run.status}** | | | | | | | | | | | |`,
       );
       continue;
     }
@@ -368,7 +394,7 @@ function runTable(runs) {
     lines.push(
       `| ${run.name} | ${run.arm} | ${num(run.rate)}/s | ${num(m.throughput)}/s | ${m.ok} | ${m.failed} | ` +
         `${ms(m.p50)} | ${ms(m.p95)} | ${ms(m.p99)} | ${ms(m.p999)} | ${ms(m.worstSecondP99)} | ` +
-        `${num(m.serverCores, 2)} cores | ${containers || '-'} | ${num(m.cpuMsPerOp, 2)} |`,
+        `${num(m.serverCores, 2)} cores | ${containers || '-'} | ${num(m.cpuMsPerOp, 2)} | ${errorsText(m.errors)} |`,
     );
   }
   return lines;
@@ -378,13 +404,13 @@ function saturationTable(suite) {
   if (!suite.saturation || Object.keys(suite.saturation).length === 0)
     return [];
   const lines = [
-    '| Arm | Saturation (closed loop) | Concurrency | Open-loop rate |',
-    '| --- | --- | --- | --- |',
+    '| Arm | Saturation (closed loop) | Concurrency | Open-loop rate | Share of saturation |',
+    '| --- | --- | --- | --- | --- |',
   ];
   for (const arm of suite.arms) {
     const s = suite.saturation[arm.id] ?? {};
     lines.push(
-      `| ${arm.id} | ${s.throughput ? `${num(s.throughput)}/s` : `**${s.status ?? 'missing'}**`} | ${s.concurrency ?? '-'} | ${num(suite.rates?.[arm.id])}/s |`,
+      `| ${arm.id} | ${s.throughput ? `${num(s.throughput)}/s` : `**${s.status ?? 'missing'}**`} | ${s.concurrency ?? '-'} | ${num(suite.rates?.[arm.id])}/s | ${shareText(suite, arm.id)} |`,
     );
   }
   return lines;
@@ -431,6 +457,14 @@ export function renderSuite(suite) {
   }
   const saturation = saturationTable(suite);
   if (saturation.length > 0) lines.push(...saturation, '');
+  if (suite.probes?.length > 0) {
+    lines.push(
+      'Open-loop calibration probes (not part of the results):',
+      '',
+      ...runTable(suite.probes),
+      '',
+    );
+  }
   lines.push(...runTable(suite.runs), '');
   const pair = pairTable(suite);
   if (pair.length > 0)
@@ -530,7 +564,13 @@ export function runSuite(name, options) {
     `--scenario=${definition.scenario}`,
     `--distribution=${definition.distribution}`,
   ];
-  const measureRun = (runName, arm, rate, round) => {
+  const measureRun = (
+    runName,
+    arm,
+    rate,
+    round,
+    phase = { warmUp, measure, into: suite.runs },
+  ) => {
     const dir = join(out, runName);
     const ok = bench(
       benchPath,
@@ -538,8 +578,8 @@ export function runSuite(name, options) {
         'run',
         ...common(arm),
         `--rate=${rate.toFixed(1)}`,
-        `--warm-up=${warmUp}`,
-        `--measure=${measure}`,
+        `--warm-up=${phase.warmUp}`,
+        `--measure=${phase.measure}`,
         `--label=${name}-${runName}`,
         `--out=${dir}`,
       ],
@@ -560,8 +600,9 @@ export function runSuite(name, options) {
     } else {
       suite.failures++;
     }
-    suite.runs.push(run);
+    phase.into.push(run);
     save();
+    return run;
   };
 
   if (definition.kind === 'paired') {
@@ -594,10 +635,35 @@ export function runSuite(name, options) {
       }
       save();
     }
-    for (const arm of arms) {
-      const base =
-        suite.saturation[definition.sharedRate ? arms[0].id : arm.id];
-      if (base?.throughput) suite.rates[arm.id] = base.throughput * fraction;
+    suite.probes = [];
+    suite.calibration = {};
+    const calibrated = definition.sharedRate ? arms.slice(0, 1) : arms;
+    for (const arm of calibrated) {
+      const saturation = suite.saturation[arm.id]?.throughput;
+      if (!saturation) continue;
+      let rate = saturation * fraction;
+      let kept = false;
+      for (let attempt = 1; attempt <= PROBE.attempts; attempt++) {
+        const probe = measureRun(`probe${attempt}-${arm.id}`, arm, rate, 0, {
+          warmUp: PROBE.warmUp,
+          measure: PROBE.measure,
+          into: suite.probes,
+        });
+        if (probe.status === 'ok' && sustainable(probe.metrics, rate)) {
+          kept = true;
+          break;
+        }
+        if (attempt < PROBE.attempts) rate *= PROBE.step;
+      }
+      suite.rates[arm.id] = rate;
+      suite.calibration[arm.id] = {
+        sustainable: kept,
+        share: rate / saturation,
+      };
+      save();
+    }
+    if (definition.sharedRate && suite.rates[arms[0].id]) {
+      for (const arm of arms) suite.rates[arm.id] = suite.rates[arms[0].id];
     }
     const runnable = arms.filter(arm => suite.rates[arm.id]);
     const round = index => {
@@ -652,12 +718,15 @@ export function queueVerdict(suite) {
   const p99 = range(pairs(suite).map(pair => pair.ratios.p99));
   let verdict = 'not decided: a step failed';
   if (Number.isFinite(saturationRatio) && p99) {
-    if (saturationRatio >= 1 + DRIFT && p99.max <= 1 + DRIFT) {
-      verdict =
-        'suggests **on**: more throughput at saturation, p99 no worse at the same load';
-    } else if (saturationRatio <= 1 - DRIFT || p99.median >= 1 + 2 * DRIFT) {
+    if (saturationRatio <= 1 - DRIFT || p99.median >= 1 + 2 * DRIFT) {
       verdict =
         'suggests **off**: less throughput at saturation or a higher p99';
+    } else if (
+      (saturationRatio >= 1 + DRIFT && p99.max <= 1 + DRIFT) ||
+      p99.median <= 1 - 2 * DRIFT
+    ) {
+      verdict =
+        'suggests **on**: more throughput at saturation, or a p99 lower by 10% or more at the same load, and neither worse';
     } else {
       verdict = 'no clear difference within 5% (keep the current default, off)';
     }
@@ -695,14 +764,14 @@ export function renderReport(suites, meta = {}) {
     '',
     '## Saturation points (closed loop)',
     '',
-    '| Suite | Arm | Saturation | Concurrency | Open-loop rate |',
-    '| --- | --- | --- | --- | --- |',
+    '| Suite | Arm | Saturation | Concurrency | Open-loop rate | Share of saturation |',
+    '| --- | --- | --- | --- | --- | --- |',
   );
   for (const suite of suites.filter(s => s.kind === 'paired')) {
     for (const arm of suite.arms) {
       const s = suite.saturation?.[arm.id] ?? {};
       lines.push(
-        `| ${suite.name} | ${arm.id} | ${s.throughput ? `${num(s.throughput)}/s` : `**${s.status ?? 'missing'}**`} | ${s.concurrency ?? '-'} | ${num(suite.rates?.[arm.id])}/s |`,
+        `| ${suite.name} | ${arm.id} | ${s.throughput ? `${num(s.throughput)}/s` : `**${s.status ?? 'missing'}**`} | ${s.concurrency ?? '-'} | ${num(suite.rates?.[arm.id])}/s | ${shareText(suite, arm.id)} |`,
       );
     }
   }

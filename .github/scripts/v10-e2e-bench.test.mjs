@@ -152,6 +152,7 @@ test('queueVerdict reads saturation and same-load p99', () => {
   assert.match(queueVerdict(suite(1200, 10)).verdict, /on/);
   assert.match(queueVerdict(suite(900, 10)).verdict, /off/);
   assert.match(queueVerdict(suite(1020, 10.2)).verdict, /no clear difference/);
+  assert.match(queueVerdict(suite(970, 6.8)).verdict, /on/);
 });
 
 // A stand-in for bench.sh: writes what the real one writes, a saturation of 100/s for 9x and 150/s for v10, and
@@ -172,8 +173,10 @@ if (command === 'saturate') {
 } else {
   const rate = Number(opt('rate'));
   const slow = opt('version') === 'v10' && /r1-/.test(opt('label')) ? 1.1 : 1;
+  // V10 keeps up with at most 100/s in open loop, so its probe at 120/s fails and the next, at 90/s, holds.
+  const failed = opt('version') === 'v10' && rate > 100 ? rate * 10 : 0;
   fs.writeFileSync(out + '/result.json', JSON.stringify({
-    results: { throughput: rate, ok: rate * 10, failed: 0, latencyMs: { p50: 2, p95: 5, p99: 10 * slow, p999: 20 }, worstSecondP99Ms: 15 },
+    results: { throughput: failed ? 0 : rate, ok: failed ? 0 : rate * 10, failed, errors: failed ? { 'http-504-wow.wait.timeout': failed } : {}, latencyMs: { p50: 2, p95: 5, p99: 10 * slow, p999: 20 }, worstSecondP99Ms: 15 },
     resources: { processes: { 'node-1': { averageCores: 1 } }, containers: { 'wow-e2e-bench-mongo': { cpuPercentAverage: 40 }, 'wow-e2e-bench-kafka': { cpuPercentAverage: 20 } } },
   }));
 }
@@ -199,20 +202,29 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
     out: join(dir, 'results', 'e1-mongo-uniform'),
   });
   assert.equal(e1.failures, 0);
-  assert.deepEqual(e1.rates, { '9x': 80, v10: 120 });
+  assert.deepEqual(e1.rates, { '9x': 80, v10: 90 });
+  assert.deepEqual(
+    e1.probes.map(probe => probe.name),
+    ['probe1-9x', 'probe1-v10', 'probe2-v10'],
+  );
+  assert.deepEqual(e1.calibration.v10, { sustainable: true, share: 0.6 });
   assert.equal(e1.extraRound, true);
   assert.deepEqual(
     e1.runs.map(run => run.name),
     ['r1-9x', 'r1-v10', 'r2-v10', 'r2-9x', 'r3-9x', 'r3-v10'],
   );
   assert.equal(pairs(e1).length, 3);
-  assert.equal(pairs(e1)[0].ratios.throughput, 1.5);
+  assert.equal(pairs(e1)[0].ratios.throughput, 1.125);
 
   const queue = runSuite('pg-append-queue', {
     ...options,
     out: join(dir, 'results', 'pg-append-queue'),
   });
-  assert.deepEqual(queue.rates, { 'queue-off': 120, 'queue-on': 120 });
+  assert.deepEqual(queue.rates, { 'queue-off': 90, 'queue-on': 90 });
+  assert.deepEqual(
+    queue.probes.map(probe => probe.name),
+    ['probe1-queue-off', 'probe2-queue-off'],
+  );
   const diag = runSuite('e3-mongo-diag', {
     ...options,
     out: join(dir, 'results', 'e3-mongo-diag'),
@@ -237,7 +249,7 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
   const report = renderReport(suites, suites[0].refs);
   assert.match(
     report,
-    /\| e1-mongo-uniform \| v10\/9x \| 1\.500 \| 1\.500 \(1\.500–1\.500, n=3\)/,
+    /\| e1-mongo-uniform \| v10\/9x \| 1\.500 \| 1\.125 \(1\.125–1\.125, n=3\)/,
   );
   assert.match(report, /## E3 on MongoDB: diagnostics/);
   assert.match(report, /wow\.log\.max-poll-interval=5s/);
