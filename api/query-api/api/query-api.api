@@ -579,6 +579,7 @@ public final class me/ahoo/wow/api/query/ContainsFilter : me/ahoo/wow/api/query/
 }
 
 public final class me/ahoo/wow/api/query/CountQuery : me/ahoo/wow/api/query/ICountQuery {
+	public fun <init> (Lme/ahoo/wow/api/query/FilterExpression;)V
 	public fun <init> (Lme/ahoo/wow/api/query/FilterExpression;Ljava/lang/Integer;)V
 	public synthetic fun <init> (Lme/ahoo/wow/api/query/FilterExpression;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lme/ahoo/wow/api/query/FilterExpression;
@@ -623,6 +624,10 @@ public final class me/ahoo/wow/api/query/CursorPage {
 public final class me/ahoo/wow/api/query/CursorQuery : me/ahoo/wow/api/query/ICursorQuery {
 	public static final field Companion Lme/ahoo/wow/api/query/CursorQuery$Companion;
 	public static final field DEFAULT_SIZE I
+	public fun <init> (Lme/ahoo/wow/api/query/FilterExpression;)V
+	public fun <init> (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;)V
+	public fun <init> (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;)V
+	public fun <init> (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;I)V
 	public fun <init> (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;ILjava/lang/String;)V
 	public synthetic fun <init> (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;ILjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lme/ahoo/wow/api/query/FilterExpression;
@@ -1344,6 +1349,9 @@ public final class me/ahoo/wow/api/query/LessThanOrEqualFilter : me/ahoo/wow/api
 }
 
 public final class me/ahoo/wow/api/query/ListQuery : me/ahoo/wow/api/query/IListQuery {
+	public fun <init> (Lme/ahoo/wow/api/query/FilterExpression;)V
+	public fun <init> (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;)V
+	public fun <init> (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;)V
 	public fun <init> (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;I)V
 	public synthetic fun <init> (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lme/ahoo/wow/api/query/FilterExpression;
@@ -1554,6 +1562,10 @@ public final class me/ahoo/wow/api/query/PagedList$Companion {
 }
 
 public final class me/ahoo/wow/api/query/PagedQuery : me/ahoo/wow/api/query/IPagedQuery {
+	public fun <init> (Lme/ahoo/wow/api/query/FilterExpression;)V
+	public fun <init> (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;)V
+	public fun <init> (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;)V
+	public fun <init> (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;Lme/ahoo/wow/api/query/Pagination;)V
 	public fun <init> (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;Lme/ahoo/wow/api/query/Pagination;Lme/ahoo/wow/api/query/TotalMode;)V
 	public synthetic fun <init> (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;Lme/ahoo/wow/api/query/Pagination;Lme/ahoo/wow/api/query/TotalMode;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lme/ahoo/wow/api/query/FilterExpression;
@@ -1778,6 +1790,8 @@ public final class me/ahoo/wow/api/query/SearchMode : java/lang/Enum {
 }
 
 public final class me/ahoo/wow/api/query/SingleQuery : me/ahoo/wow/api/query/ISingleQuery {
+	public fun <init> (Lme/ahoo/wow/api/query/FilterExpression;)V
+	public fun <init> (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;)V
 	public fun <init> (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;)V
 	public synthetic fun <init> (Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/api/query/Projection;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lme/ahoo/wow/api/query/FilterExpression;
