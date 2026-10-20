@@ -407,6 +407,18 @@ class InMemoryShopTopics {
 }
 ```
 
+When the saga needs the answer now, because the target being online is a precondition, it calls the target's gateway instead (`SagaContext.call`, decision D193) and declares the command classes it calls, so the Manifest lists them, a wait can follow the call, and the call is refused for any other class (decision D259):
+
+```kotlin
+@OnEvent(calls = [SubmitOrder::class])
+suspend fun onBasketCheckedOut(event: StateEvent<BasketState>, context: SagaContext) {
+    val checkedOut = event.events.filterIsInstance<BasketCheckedOut>().firstOrNull() ?: return
+    context.call(context.command(EshopOrderingContract.Order.ref(event.ref.tenantId, checkedOut.orderId), SubmitOrder(items)))
+}
+```
+
+A call needs no command topic: the node reaches the target at `wow.calls.contexts.<context>.url`, and does not start when a saga calls a command no Manifest it knows decides. A command of the saga's own context is derived, never called.
+
 ### Peers
 
 A service that sends another context's commands, or reads its stream, takes that service's merged Manifest as a peer. With the plugin, in the server module:

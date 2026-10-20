@@ -31,6 +31,8 @@ import me.ahoo.wow.viewstore.api.ViewStoreContext
  * The host applies the same check to the reads by id (review A3-11): a state read (`/state`, `?version=`, the trace)
  * and an events query of an aggregate run it on the aggregate's state, so a request without an application is refused
  * there too, and an aggregate of another application is not found (no events), as a snapshot query would not show it.
+ * Its rule reads the state, so it stays [pinned][me.ahoo.wow.query.EventsMode.PINNED]: an events query names its
+ * aggregates.
  */
 class ViewStoreQueryPolicy : QueryPolicy {
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {

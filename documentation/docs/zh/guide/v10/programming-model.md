@@ -407,6 +407,18 @@ class InMemoryShopTopics {
 }
 ```
 
+Saga 需要立即拿到结果、目标在线是前提时，改为调用目标的命令网关（`SagaContext.call`，决策 D193），并声明它调用的命令类，这样 Manifest 会列出它们，等待链可以跟随这次调用，其他类的调用会被拒绝（决策 D259）：
+
+```kotlin
+@OnEvent(calls = [SubmitOrder::class])
+suspend fun onBasketCheckedOut(event: StateEvent<BasketState>, context: SagaContext) {
+    val checkedOut = event.events.filterIsInstance<BasketCheckedOut>().firstOrNull() ?: return
+    context.call(context.command(EshopOrderingContract.Order.ref(event.ref.tenantId, checkedOut.orderId), SubmitOrder(items)))
+}
+```
+
+调用不需要命令主题：节点通过 `wow.calls.contexts.<context>.url` 找到目标，Saga 调用的命令若没有任何已知 Manifest 决定，节点不会启动。Saga 自己上下文的命令只派生、不调用。
+
 ### 对端
 
 发送其他上下文命令或读取其流的服务，把那个服务合并后的 Manifest 作为对端。使用插件时，在服务端模块中：

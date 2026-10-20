@@ -129,7 +129,7 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
         val internalPort = freedInternalPorts[context]?.poll() ?: 0
         val calls = if (context == "basket") listOf(EshopStack.callOrdering(orderingPort)) else emptyList()
         val arguments = backendArguments(postgres, kafka, DATABASES.getValue(context), config.partitions) +
-            "--wow.node.id=$id" + calls
+            "--wow.node.id=$id" + "--bench.signals.enabled=true" + calls
         val service = EshopService.start(
             context,
             MAINS.getValue(context),

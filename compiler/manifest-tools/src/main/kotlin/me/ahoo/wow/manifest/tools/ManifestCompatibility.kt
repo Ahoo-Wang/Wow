@@ -442,6 +442,11 @@ private class Changes(val schemas: SchemaCompatibility) {
                 if (newDerives == null) "derived commands no longer declared" else "derived commands declared"
             )
         }
+        val oldCalls = baseline.calls.orEmpty()
+        val newCalls = current.calls.orEmpty()
+        if (oldCalls != newCalls) {
+            compareValues("$path.calls", oldCalls, newCalls, "called command")
+        }
         compareReceipts("$path.rejected", baseline.rejected, current.rejected, "rejections")
         compareReceipts("$path.committed", baseline.committed, current.committed, "commits")
     }

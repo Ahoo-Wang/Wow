@@ -73,6 +73,15 @@ enum class Scenario(val description: String, val transfers: Boolean = false) {
         }
     },
 
+    /**
+     * E1 with a large payload (D224 note ⑥): an annotation of five notes of about 2 KB, five events in one commit,
+     * answered once stored. V10 only.
+     */
+    E1_LARGE("annotation of five ~2 KB notes, five events, answered once stored") {
+        override fun run(client: Client, target: Target): CompletableFuture<String?> =
+            client.command(client.adapter.annotate(target.base, accountId(target.account), LARGE_NOTES))
+    },
+
     /** E4 read by id: the account's state from the snapshots. */
     E4_STATE("state read by id from the snapshots") {
         override fun run(client: Client, target: Target): CompletableFuture<String?> =
@@ -89,10 +98,19 @@ enum class Scenario(val description: String, val transfers: Boolean = false) {
     abstract fun run(client: Client, target: Target): CompletableFuture<String?>
 
     /** The scenario's name in the results and on the command line: `E1`, `E4-state`. */
-    val label: String get() = name.replace("_STATE", "-state").replace("_LIST", "-list")
+    val label: String get() = name.replace("_STATE", "-state").replace("_LIST", "-list").replace("_LARGE", "-large")
 
     companion object {
         const val LIST_LIMIT = 10
+        private const val NOTES = 5
+        private const val NOTE_BYTES = 2_048
+        private const val ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+        /** The large-payload notes as a JSON array: fixed pseudo-random text, so no store compresses it away. */
+        val LARGE_NOTES: String = List(NOTES) { index ->
+            val random = java.util.Random(index.toLong())
+            String(CharArray(NOTE_BYTES) { ALPHABET[random.nextInt(ALPHABET.length)] })
+        }.joinToString(",", "[", "]") { "\"$it\"" }
 
         fun of(label: String): Scenario = entries.firstOrNull { it.label.equals(label, ignoreCase = true) }
             ?: throw IllegalArgumentException("Unknown scenario '$label': one of ${entries.map { it.label }}.")

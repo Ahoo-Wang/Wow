@@ -41,6 +41,7 @@ import tools.jackson.databind.json.JsonMapper
  * - the stream a context publishes for an aggregate, with its topic and whether it carries the state ([publishedOf]);
  * - the full type name of a command a Manifest refers to by its schema, `#/$defs/<binary name>` (decision D157), and
  *   back ([commandTypeOf], [schemaOf]);
+ * - the contexts the service's sagas call synchronously ([contextsCalled], decision D259);
  * - the subscriptions of a context and their kinds ([subscriptionOf]); as a [SubscriptionDirectory], it lets a wait
  *   chain name a subscription of another context, and [over] puts it behind the subscription runtime of the node's
  *   own context, which knows its subscriptions' progress.
@@ -192,18 +193,40 @@ class ContractDirectory(
     override fun hasContext(context: String): Boolean = contextOf(context) != null
 
     /**
-     * The contexts of the commands the saga [subscription] of [context] derives, as its Manifest declares them
-     * ([SubscriptionManifest.derives], decision D138): each command's own context, a schema reference resolved
-     * through the Manifest of the context that decides it ([commandTypeOf]). Null when the subscription declares
-     * none, or when one of them cannot be resolved: a wait chain after its hop is then not checked.
+     * The contexts of the commands the saga [subscription] of [context] derives or calls, as its Manifest declares
+     * them ([SubscriptionManifest.derives] and [SubscriptionManifest.calls], decisions D138, D259): each command's
+     * own context, a schema reference resolved through the Manifest of the context that decides it ([commandTypeOf]).
+     * Null when the subscription declares no `derives`, or when one of them cannot be resolved: a wait chain after
+     * its hop is then not checked.
      */
     override fun derivedContextsOf(context: String, subscription: String): Set<String>? {
-        val derives = subscriptionOf(context, subscription)?.takeIf { it.rejected == null }?.derives ?: return null
-        return derives.mapTo(LinkedHashSet()) { reference ->
-            val type = commandTypeOf(reference) ?: reference.takeUnless { it.startsWith(DEFS_PREFIX) } ?: return null
-            type.substringBefore('.')
+        val declared = subscriptionOf(context, subscription)?.takeIf { it.rejected == null } ?: return null
+        val derives = declared.derives ?: return null
+        return (derives + declared.calls.orEmpty()).mapTo(LinkedHashSet()) { reference ->
+            commandContextOf(reference) ?: return null
         }
     }
+
+    /** The context of the command [reference] names, resolved as [commandTypeOf] does; null when it cannot be. */
+    private fun commandContextOf(reference: String): String? =
+        (commandTypeOf(reference) ?: reference.takeUnless { it.startsWith(DEFS_PREFIX) })?.substringBefore('.')
+
+    /**
+     * The contexts the saga subscriptions of [local] call synchronously ([SubscriptionManifest.calls], decision D259),
+     * by subscription (`context/processor.function`): each command's context, or [UNKNOWN_CONTEXT] for a command no
+     * Manifest of the service or its peers decides. Unlike [commandsOutside], a called command needs no command topic:
+     * the node calls its context's gateway.
+     */
+    fun contextsCalled(): Map<String, Set<String>> = local.contexts.flatMap { context ->
+        context.subscriptions.mapNotNull { subscription ->
+            val calls = subscription.calls.orEmpty()
+            calls.takeIf { it.isNotEmpty() }?.let {
+                "${context.name}/${subscription.name}" to it.mapTo(sortedSetOf()) { reference ->
+                    commandContextOf(reference) ?: UNKNOWN_CONTEXT
+                }
+            }
+        }
+    }.toMap()
 
     /**
      * The commands the subscriptions of [local] send outside [hosted], the contexts a node serves (DX gap G9): for

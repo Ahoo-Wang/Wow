@@ -428,7 +428,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Blocks M7**: no. The UI works around it, but every client that waits for a chain across sagas meets it.
 - **Resolved**: by #4487 (decision D212). When a hop sends nothing further while the plan still has hops, the wait ends there explicitly: the final result, answered at once or as the stream's last event, is that hop's own (still `SUCCEEDED` for the payment saga's `onPaymentSucceeded`), with `chainEnded: true` and the hops that will not come as `pending`. Both fields are optional in `CommandResult` (format 1) and in `@ahoo-wang/wow-client`'s type. The web UI reads them instead of counting hops, and `EshopFullChainTest` checks a declined payment both ways. Telling a handler that had no function for the event from one that ran stays as it is, the HTTP guide's paragraph waits for the V10 documentation, and a plan that names alternatives (`onPaymentSucceeded` or `onPaymentFailed`) is left to 10.x.
 
-### G35. A saga's synchronous call is not in the Manifest
+### G35. A saga's synchronous call is not in the Manifest (resolved)
 
 - **Work package**: E.2 (the checkout's synchronous call, P.12)
 - **Area**: compiler, runtime
@@ -442,3 +442,4 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
   - **B.** Keep `derives` for calls too, and let the G9 check leave out the contexts the node has a call URL for (internal: the host passes them to the node). No new API, but a saga that both calls a context and sends to its topic escapes the check.
   - **C.** Declare calls apart: `@OnEvent(calls = [...])` and a Manifest `calls` per subscription, which the wait check reads and the G9 check ignores, with a startup check that each called context has a URL. New public API.
 - **Blocks M7**: no. The checkout works and its wait reaches the payment; only the origin's check of that hop and the startup check are missing.
+- **Resolved**: by #4639 (decision D259, option C). `@OnEvent(calls = [...])` puts the called commands, with their schemas, into the subscription's `calls`, which peer contracts carry; a wait chain follows `derives` and `calls`, the G9 topic check ignores `calls`, `SagaContext.call` refuses an undeclared class, and the node is not built when its caller does not reach a called context. `BasketCheckoutSaga` declares `calls = [SubmitOrder::class]` and returns `Unit`.
