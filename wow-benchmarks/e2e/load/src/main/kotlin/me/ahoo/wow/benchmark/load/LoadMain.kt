@@ -79,8 +79,8 @@ private fun usage(): Nothing {
         usage: e2e-bench-load <seed|check|run|saturate> --version=9x|v10 --targets=http://host:port[,…] [options]
           seed:     --accounts=1000 --concurrency=32 --balance=1000000000000
           prime:    --accounts=1000 --concurrency=256 --out=<dir>
-          check:    --accounts=1000
-          run:      --scenario=E1|E2|E3|E4-state|E4-list (or --mix=E1:50,E4-state:40,E4-list:10) --rate=<ops/s>
+          check:    --accounts=1000 [--scenario=… | --mix=…: only those]
+          run:      --scenario=E1|E1-large|E2|E3|E4-state|E4-list (or --mix=E1:50,E4-state:40,E4-list:10) --rate=<ops/s>
                     --warm-up=30 --measure=60
                     --distribution=uniform|zipf|hot --zipf-exponent=1.1 --hot-fraction=0.5 --hot-keys=1
                     --accounts=1000 --seed=20261015 --max-in-flight=20000 --out=<dir> --label=<text>
@@ -163,7 +163,12 @@ private fun prime(client: Client, targets: List<URI>, options: Options): Int {
 private fun check(client: Client, targets: List<URI>, options: Options): Int {
     val accounts = options.int("accounts", DEFAULT_ACCOUNTS)
     var failed = 0
-    Scenario.entries.forEach { scenario ->
+    // The run's own scenarios when it names them (--mix, or a --scenario the generator knows), else every one the
+    // version supports: a baseline older than a scenario still runs the others.
+    val named = options.optional("mix")?.let(Mix::parse)?.parts?.map { it.first }
+        ?: options.optional("scenario")?.let { label -> Scenario.entries.firstOrNull { it.label.equals(label, true) } }
+            ?.let(::listOf)
+    (named ?: Scenario.entries.filter(client.adapter::supports)).forEach { scenario ->
         val target = Target(targets.first(), 0, minOf(1, accounts - 1))
         val started = System.nanoTime()
         val error = try {

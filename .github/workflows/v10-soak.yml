@@ -88,6 +88,21 @@ jobs:
             echo '| Invariant | OK | Checked | Violations |'
             echo '| --- | --- | --- | --- |'
             jq -r '.invariants[] | "| `\(.name)` | \(.ok) | \(.checked) | \(.violations) |"' "$report"
+            # Every node's overload and fallback signals (SoakSignals, D224 note ⑦), summed: a partition paused or
+            # a tail that read the store after a gap or an overflow is flagged.
+            echo
+            echo '#### Node signals (all nodes, cumulative)'
+            echo
+            jq -r '(.signals.total // {}) | to_entries[] | "- `\(.key)`: \(.value | to_entries | map("\(.key)=\(.value)") | join(", "))"' "$report"
+            jq -r '(.signals.total // {}) as $s
+              | (if (($s.partitionPaused // {}) | length) > 0 then "\n**Anomaly:** a partition paused (D243)." else empty end),
+                (if (($s.tailRead.gap // 0) + ($s.tailRead.overflow // 0)) > 0 then "\n**Anomaly:** tails read the store after a gap or an overflow (D249)." else empty end)' "$report"
+            echo
+            echo '#### Resources per node (every 10 s; curves in resources-*.jsonl)'
+            echo
+            echo '| Node | Service | Samples | RSS max | RSS last | Average cores |'
+            echo '| --- | --- | --- | --- | --- | --- |'
+            jq -r '(.resources // {}) | to_entries[] | "| \(.key) | \(.value.context) | \(.value.samples) | \(.value.rssMaxMb | floor) MB | \(.value.rssLastMb | floor) MB | \(.value.averageCores // 0 | . * 100 | floor / 100) |"' "$report"
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload the report, the logs and the thread dumps
         if: always()

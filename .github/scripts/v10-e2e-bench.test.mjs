@@ -60,8 +60,10 @@ test('resolveInputs checks the inputs and expands all', () => {
   });
   // `all` is every suite but the 9.x ones; `vs-9x` names those.
   assert.deepEqual(
-    all.suites,
-    Object.keys(SUITES).filter(name => SUITES[name].group !== '9x'),
+    [...all.suites].sort(),
+    Object.keys(SUITES)
+      .filter(name => SUITES[name].group !== '9x')
+      .sort(),
   );
   assert.equal(all.fraction, 0.8);
   assert.equal(all.p99LimitMs, 200);
@@ -84,6 +86,7 @@ test('resolveInputs checks the inputs and expands all', () => {
       tier: 'custom',
       datasets: ['100k'],
       aa: false,
+      profile: false,
     },
   );
   // No suites named: the tier's list, L2 by default.
@@ -123,6 +126,7 @@ test('resolveInputs checks the inputs and expands all', () => {
       tier: 'L2',
       datasets: ['1M', '1k'],
       aa: true,
+      profile: false,
     },
   );
   assert.throws(
@@ -853,6 +857,110 @@ test('a mixed suite sends its mix and shows each scenario', () => {
   assert.match(
     calls,
     /--scenario=mixed --mix=E1:50,E4-state:40,E4-list:10 --distribution=uniform/,
+  );
+});
+
+test('component suites run each scenario per arm and tolerate a baseline without ComponentBench', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'v10-e2e-bench-'));
+  const benchPath = join(dir, 'bench.sh');
+  // The baseline build (with --install) has no ComponentBench: exit 3; the head writes its counts.
+  writeFileSync(
+    benchPath,
+    `#!/usr/bin/env node
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+const opt = name => args.find(a => a.startsWith('--' + name + '='))?.split('=').slice(1).join('=');
+if (opt('install')) process.exit(3);
+fs.mkdirSync(opt('out'), { recursive: true });
+fs.writeFileSync(opt('out') + '/component.json', JSON.stringify({ scenario: opt('scenario'), throughput: 1000, storeRoundTripsPerOp: 4.5, storeRoundTripsByCommand: { insert: 1 }, allocatedBytesPerOp: 250000, latencyMs: { p50: 10, p99: 30 } }));
+`,
+  );
+  chmodSync(benchPath, 0o755);
+  const suite = runSuite('component-pg', {
+    benchPath,
+    out: join(dir, 'out'),
+    warmUp: 1,
+    measure: 5,
+    repeats: 1,
+    fraction: 0.8,
+    dataset: '1k',
+    installs: { base: '/b' },
+  });
+  assert.equal(suite.failures, 0);
+  assert.deepEqual(
+    suite.runs.map(run => [run.name, run.status]),
+    [
+      ['e1-base', 'unavailable'],
+      ['e1-head', 'ok'],
+      ['e3-head', 'ok'],
+      ['e3-base', 'unavailable'],
+      ['e1-large-base', 'unavailable'],
+      ['e1-large-head', 'ok'],
+    ],
+  );
+  const report = renderReport([suite]);
+  assert.match(report, /## L1 component counts/);
+  assert.match(report, /\| component-pg@1k \| E1 \| head \| 4\.50 \|/);
+});
+
+test('a cold suite runs at a million accounts whatever the job says', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'v10-e2e-bench-'));
+  const benchPath = fakeBench(dir);
+  const suite = runSuite('cold-pg', {
+    benchPath,
+    out: join(dir, 'out'),
+    warmUp: 1,
+    measure: 5,
+    repeats: 1,
+    fraction: 0.8,
+    dataset: '100k',
+  });
+  assert.equal(suite.dataset, '1M');
+  // Cold on purpose: a million accounts, never primed.
+  assert.equal(suite.primed, false);
+  assert.doesNotMatch(readFileSync(join(dir, 'calls.log'), 'utf8'), /--prime/);
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
+  assert.match(
+    calls,
+    /--scenario=E4-state .*--accounts=1000000 --seed-concurrency=512/,
+  );
+  assert.deepEqual(
+    suite.runs.map(run => run.name),
+    ['d1-head-e1-200', 'd2-head-e4-state-500'],
+  );
+});
+
+test('profile adds one recorded run per arm after the timed rounds', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'v10-e2e-bench-'));
+  const benchPath = fakeBench(dir);
+  const suite = runSuite('e3-pg', {
+    benchPath,
+    out: join(dir, 'out'),
+    warmUp: 1,
+    measure: 5,
+    repeats: 1,
+    fraction: 0.8,
+    profile: true,
+    installs: { base: '/b' },
+  });
+  assert.deepEqual(
+    suite.profiles.map(run => [run.name, run.rate]),
+    [
+      ['profile-base', 90],
+      ['profile-head', 90],
+    ],
+  );
+  // The timed rounds carry no recording; the profile runs do.
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8').split('\n');
+  assert.ok(
+    calls
+      .filter(line => line.includes('--jfr'))
+      .every(line => /profile-(base|head)/.test(line)),
+  );
+  assert.equal(calls.filter(line => line.includes('--jfr')).length, 2);
+  assert.deepEqual(
+    suite.runs.filter(run => run.name.startsWith('profile')),
+    [],
   );
 });
 

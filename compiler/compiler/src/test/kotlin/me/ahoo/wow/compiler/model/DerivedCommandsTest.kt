@@ -16,11 +16,14 @@ package me.ahoo.wow.compiler.model
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.kernel.Dependencies
+import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 import tools.jackson.module.kotlin.jacksonObjectMapper
+import java.net.URLClassLoader
 
 /**
  * Decision D259 (DX-1 ③ and ⑥, DX gaps G26 and G29): `@OnEvent(derives)` names command classes, a sealed type standing
@@ -298,6 +301,103 @@ class DerivedCommandsTest {
         result.messages.assert().contains(
             "handler Undeclared.onEvent of sample.Undeclared returns peer.FailPayment, which its @OnEvent(derives) " +
                 "does not list",
+        )
+    }
+
+    @Test
+    fun `calls should be listed in the fragment and bound as the only classes the handler may call`() {
+        val calling = SourceFile.kotlin(
+            "CheckoutSaga.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.subscribe.SagaContext
+            import me.ahoo.wow.api.subscribe.StateEvent
+            import peer.ConfirmPayment
+            import peer.StockCommand
+
+            @Saga
+            class CheckoutSaga {
+                @OnEvent(calls = [ConfirmPayment::class, StockCommand.Adjust::class])
+                suspend fun onPlaced(event: StateEvent<Order>, context: SagaContext) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compileModelAgainst("generate", options, listOf(peerApi), model, calling)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        val fragment = compilation.workingDir.walkTopDown().first { it.isFile && it.name == "shop-domain.json" }
+        val subscription = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+            .contexts.single().subscriptions.single()
+        subscription.calls.assert()
+            .isEqualTo(listOf(ref("peer.ConfirmPayment"), ref("peer.StockCommand\$Adjust\$Up")))
+        // A call is no derived command, and needs no topic.
+        subscription.derives.assert().isEqualTo(emptyList<String>())
+        val services = compilation.workingDir.walkTopDown().first { it.isFile && it.name == ModelProviderSource.MODEL_PROVIDER }
+        val loader = URLClassLoader(
+            arrayOf(services.parentFile.parentFile.parentFile.toURI().toURL()),
+            result.classLoader
+        )
+        val binding = ModelProvider.load(loader).single().processors(Dependencies.NONE).single()
+        binding.calls.map { it.name }.assert().containsExactly("peer.ConfirmPayment", "peer.StockCommand\$Adjust\$Up")
+    }
+
+    @Test
+    fun `calls of a non-saga handler or of the module's own commands should fail the compilation`() {
+        val broken = SourceFile.kotlin(
+            "Broken.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Reactor
+            import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.subscribe.StateEvent
+            import peer.ConfirmPayment
+
+            @Reactor
+            class Notifier {
+                @OnEvent(calls = [ConfirmPayment::class])
+                fun onEvent(event: StateEvent<Order>) = Unit
+            }
+
+            @Saga
+            class SelfCalling {
+                @OnEvent(calls = [Any::class])
+                fun onEvent(event: StateEvent<Order>) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModelAgainst("generate", options, listOf(peerApi), model, broken)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert()
+            .contains(
+                "handler Notifier.onEvent declares @OnEvent(calls), but a @Reactor handler calls no other context"
+            )
+            .contains("handler SelfCalling.onEvent calls kotlin.Any, which is no command class")
+
+        val own = SourceFile.kotlin(
+            "Own.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.subscribe.StateEvent
+
+            @Saga
+            class SelfCalling {
+                @OnEvent(calls = [CancelOrder::class])
+                fun onEvent(event: StateEvent<Order>) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (_, ownResult) = compileModelAgainst("generate", options, listOf(peerApi), model, own)
+        ownResult.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        ownResult.messages.assert().contains(
+            "handler SelfCalling.onEvent of sample.SelfCalling calls shop.order.CancelOrder, a command of its own " +
+                "context: derive it (return it) instead of calling it",
         )
     }
 }
