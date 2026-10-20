@@ -216,6 +216,27 @@ class InProcessQueryApiTest {
         }
 
     @Test
+    fun `a record should decode its absent operator and owner, and refuse a missing field`() {
+        save("acme", "c-1", "alice")
+        val record = storage.records(cart).single().deepCopy().apply {
+            putNull("operator")
+            putNull("ownerId")
+        }
+        val snapshot = record.toSnapshot(cart, CartState::class.java)
+        snapshot.operator.assert().isNull()
+        snapshot.scope.assert().isEqualTo(Scope.NONE)
+        record.remove("version")
+        assertThrows<IllegalStateException> { record.toSnapshot(cart, CartState::class.java) }
+            .message.assert().contains("version")
+        record.put("version", 1).putNull("state")
+        assertThrows<IllegalStateException> { record.toSnapshot(cart, CartState::class.java) }
+            .message.assert().contains("state")
+        record.set("state", storage.records(cart).single()["state"])
+        record.remove("tags")
+        record.toSnapshot(cart, CartState::class.java).tags.assert().isEmpty()
+    }
+
+    @Test
     fun `a typed query should refuse a projection, which dynamic rows take`(): Unit = runBlocking {
         save("acme", "c-1", "alice", items = 4)
         val carts = api().of(alice).snapshots<CartState>()

@@ -36,14 +36,14 @@ internal fun <T : Any> decode(node: JsonNode, type: Class<T>): T =
 /** This snapshot query record (decision D128, `SnapshotQueryRecords.kt`) of [type], its state decoded as [stateType]. */
 internal fun <S : Any> ObjectNode.toSnapshot(type: AggregateType, stateType: Class<S>): Snapshot<S> = Snapshot.of(
     ref = type.ref(text(SnapshotFields.TENANT_ID), text(SnapshotFields.AGGREGATE_ID)),
-    version = required(SnapshotFields.VERSION).asInt(),
+    version = present(SnapshotFields.VERSION).asInt(),
     scope = scope(SnapshotFields.OWNER_ID, SnapshotFields.SPACE_ID),
     tags = tags(),
-    deleted = required(SnapshotFields.DELETED).asBoolean(),
+    deleted = present(SnapshotFields.DELETED).asBoolean(),
     operator = operator(SnapshotFields.OPERATOR),
-    firstEventTime = required(SnapshotFields.FIRST_EVENT_TIME).asLong(),
-    lastEventTime = required(SnapshotFields.LAST_EVENT_TIME).asLong(),
-    state = decode(required(SnapshotFields.STATE), stateType),
+    firstEventTime = present(SnapshotFields.FIRST_EVENT_TIME).asLong(),
+    lastEventTime = present(SnapshotFields.LAST_EVENT_TIME).asLong(),
+    state = decode(present(SnapshotFields.STATE), stateType),
 )
 
 /**
@@ -53,19 +53,19 @@ internal fun <S : Any> ObjectNode.toSnapshot(type: AggregateType, stateType: Cla
 internal fun ObjectNode.toEventStream(type: AggregateType, eventType: (String) -> Class<*>?): EventStream =
     EventStream.of(
         ref = type.ref(text(EventStreamFields.TENANT_ID), text(EventStreamFields.AGGREGATE_ID)),
-        version = required(EventStreamFields.VERSION).asInt(),
-        commitTime = required(EventStreamFields.COMMIT_TIME).asLong(),
+        version = present(EventStreamFields.VERSION).asInt(),
+        commitTime = present(EventStreamFields.COMMIT_TIME).asLong(),
         commandId = text(EventStreamFields.COMMAND_ID),
         requestId = text(EventStreamFields.REQUEST_ID),
         commandType = text(EventStreamFields.COMMAND_TYPE),
         scope = scope(EventStreamFields.OWNER_ID, EventStreamFields.SPACE_ID),
         operator = operator(EventStreamFields.OPERATOR),
-        events = required(EventStreamFields.EVENTS).elements().map { event ->
-            val name = event.required(EventFields.NAME).asString()
+        events = present(EventStreamFields.EVENTS).elements().map { event ->
+            val name = event.present(EventFields.NAME).asString()
             CommittedEvent.of(
                 name = name,
-                revision = event.required(EventFields.REVISION).asInt(),
-                body = decode(event.required(EventFields.BODY), eventType(name) ?: Map::class.java),
+                revision = event.present(EventFields.REVISION).asInt(),
+                body = decode(event.present(EventFields.BODY), eventType(name) ?: Map::class.java),
             )
         },
     )
@@ -73,10 +73,10 @@ internal fun ObjectNode.toEventStream(type: AggregateType, eventType: (String) -
 /** The elements of this array node. */
 private fun JsonNode.elements(): List<JsonNode> = iterator().asSequence().toList()
 
-private fun JsonNode.required(field: String): JsonNode = get(field)?.takeUnless { it.isNull }
+private fun JsonNode.present(field: String): JsonNode = get(field)?.takeUnless { it.isNull }
     ?: throw IllegalStateException("A typed row needs the field $field: query it through dynamic().")
 
-private fun JsonNode.text(field: String): String = required(field).asString()
+private fun JsonNode.text(field: String): String = present(field).asString()
 
 private fun JsonNode.optionalText(field: String): String? = get(field)?.takeUnless { it.isNull }?.asString()
 
