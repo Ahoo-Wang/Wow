@@ -24,6 +24,8 @@ import org.springframework.boot.availability.ReadinessState
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.SmartLifecycle
 import kotlin.concurrent.thread
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The phases of the host's lifecycles (decisions D71, D108; plan P17). Spring starts the phases in ascending order
@@ -61,6 +63,60 @@ internal object WowLifecycles {
      * waits for the open requests, so a query stream ends at once rather than at its hold time.
      */
     const val QUERY_STREAMS_PHASE: Int = SmartLifecycle.DEFAULT_PHASE - 512
+
+    /**
+     * [GracefulShutdownSettled]: stops after the public server's graceful shutdown (`DEFAULT_PHASE - 1024`) and before
+     * its stop ([PUBLIC_SERVER_PHASE]).
+     */
+    const val GRACEFUL_SHUTDOWN_SETTLED_PHASE: Int = SmartLifecycle.DEFAULT_PHASE - 1536
+}
+
+/**
+ * Waits, between the public server's graceful shutdown and its stop, for the thread of that shutdown to end, at most
+ * [timeout] (review X-4).
+ *
+ * Spring Boot's Reactor Netty `GracefulShutdown` reports its end to the lifecycle from its `netty-shutdown` thread,
+ * and only then clears its state. The server's stop, the next phase, calls its `abort()`, which waits, polling,
+ * until a thread it saw is shutting down; one that clears its state in between is never seen shutting down again,
+ * and the context's close hangs there (seen as `PaymentServerTest.close` stuck in `GracefulShutdown.abort`, with no
+ * Wow frame on the stack). Once that thread has ended, `abort()` finds none and returns at once; when the graceful
+ * shutdown outlasted its phase, the thread is still shutting down after [timeout], and `abort()` interrupts it.
+ */
+@InternalWowApi
+class GracefulShutdownSettled @JvmOverloads constructor(
+    private val timeout: Duration = DEFAULT_TIMEOUT,
+    private val threads: () -> Collection<Thread> = { Thread.getAllStackTraces().keys },
+) : SmartLifecycle {
+    @Volatile
+    private var running = false
+
+    override fun start() {
+        running = true
+    }
+
+    override fun stop() {
+        running = false
+        val deadline = System.nanoTime() + timeout.inWholeNanoseconds
+        threads().filter { it.name == SHUTDOWN_THREAD && it.isAlive }.forEach { shutdown ->
+            val left = (deadline - System.nanoTime()) / NANOS_PER_MILLI
+            if (left > 0) shutdown.join(left)
+        }
+    }
+
+    override fun isRunning(): Boolean = running
+
+    override fun getPhase(): Int = WowLifecycles.GRACEFUL_SHUTDOWN_SETTLED_PHASE
+
+    @InternalWowApi
+    companion object {
+        /** The name of the thread Spring Boot's Reactor Netty graceful shutdown runs on. */
+        const val SHUTDOWN_THREAD: String = "netty-shutdown"
+
+        /** How long the server's stop waits for that thread at most. */
+        val DEFAULT_TIMEOUT: Duration = 5.seconds
+
+        private const val NANOS_PER_MILLI = 1_000_000L
+    }
 }
 
 /**
