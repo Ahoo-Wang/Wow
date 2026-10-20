@@ -153,6 +153,8 @@ public abstract class me/ahoo/wow/query/tck/QueryBackendSpec {
 	public fun <init> ()V
 	public final fun EXPRESSION filter compares the computed value and skips records without one ()V
 	public final fun a query within its timeout runs as without one ()V
+	public final fun a stream reads keyset chunks, each record with its position, and resumes strictly after one ()V
+	public final fun a stream sees a record written after its position, between two chunks ()V
 	public final fun aggregation HAVING keeps the matching groups ()V
 	public final fun aggregation HAVING that matches no group returns no row ()V
 	public final fun aggregation counts distinct values ()V
