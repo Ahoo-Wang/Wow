@@ -72,7 +72,7 @@ class QueryBudget(
     val maxPageSize: Int = 100,
     val maxPageWindow: Long = 10_000,
     val maxFilterNodes: Int = DEFAULT_MAX_FILTER_NODES,
-    val maxFilterValues: Int = 1000,
+    val maxFilterValues: Int = DEFAULT_MAX_FILTER_VALUES,
     val allowExpensiveOperators: Boolean = true,
     val maxResidualGroups: Int = DEFAULT_MAX_RESIDUAL_GROUPS,
     val countLimit: Int = DEFAULT_COUNT_LIMIT,
@@ -290,6 +290,9 @@ class QueryBudget(
         private const val PAGINATION_SIZE = "pagination.size"
         private const val HAVING = "having"
         const val DEFAULT_MAX_FILTER_NODES: Int = 128
+
+        /** The default [maxFilterValues]: also the most aggregates a pinned events query names (decision D259). */
+        const val DEFAULT_MAX_FILTER_VALUES: Int = 1000
         const val DEFAULT_MAX_RESIDUAL_GROUPS: Int = 10_000
 
         /** The default [countLimit] (decision D150). */

@@ -78,6 +78,12 @@ object WowMetrics {
     /** Timer: a query, from its admission to its end; tags context, aggregate, query.type, outcome. */
     const val QUERY: String = "wow.query"
 
+    /**
+     * Counter: the aggregates events queries named and a pinned query policy had checked (decisions D254, D259); tags
+     * context, aggregate, read (`batch`: by one snapshot query, `point`: one by one).
+     */
+    const val EVENTS_PINNED: String = "wow.query.events.pinned"
+
     /** Gauge: a subscription's watermark in a partition of the log; tags group, subscription, partition. */
     const val POSITION: String = "wow.subscription.position"
 
@@ -143,6 +149,9 @@ object WowMetrics {
     const val GROUP: String = "group"
     const val PARTITION: String = "partition"
     const val TOPIC: String = "topic"
+    const val READ: String = "read"
+    const val BATCH_READ: String = "batch"
+    const val POINT_READ: String = "point"
     const val PARKED_OUTCOME: String = "parked"
     const val SKIPPED_OUTCOME: String = "skipped"
     const val PAUSED_KIND: String = "paused"

@@ -23,7 +23,10 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.query.EventsMode
+import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryCaller
+import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.ScopeQueryPolicy
@@ -33,16 +36,20 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryViolation
 
 /**
- * The events model's visibility ([EventVisibility], reviews A3-11 and R2.3-6) as a step of the policy chain: an
- * aggregate the snapshot queries of its type hide from the caller has no streams for it, whichever entry asks.
+ * The events model's visibility ([EventVisibility], reviews A3-11 and R2.3-6, decisions D254, D259) as a step of the
+ * policy chain: while a [pinned][me.ahoo.wow.query.EventsMode.PINNED] policy applies, an aggregate the snapshot
+ * queries of its type hide from the caller has no streams for it, whichever entry asks.
  *
- * - A caller who [sees all][EventVisibility.seesAll] the type's aggregates (no snapshot gateway, no policy that could
- *   hide one) is not restricted.
- * - Otherwise the query must name its aggregates, at most [MAX_AGGREGATES] of them, by an equality or `IN` on
- *   `aggregateId` (or `ID`, `IDS`, `AGGREGATE_ID`, `AGGREGATE_IDS`) among the conjuncts of its filter, with a tenant
- *   ([tenants], else a `tenantId` equality of the filter): the restriction is the visible ones, or nothing when none
- *   is. A query that does not name them is rejected (`STORAGE_UNSUPPORTED`): its aggregates cannot be checked one by
- *   one, and the rows a snapshot policy hides have no condition on the event streams.
+ * - Events queries of a type no pinned policy applies to ([EventVisibility.pins]) are not restricted: the
+ *   [pushed-down][me.ahoo.wow.query.EventsMode.PUSHDOWN] policies' filters on the streams are the whole rule.
+ * - Otherwise the query must name its aggregates by an equality or `IN` on `aggregateId` (or `ID`, `IDS`,
+ *   `AGGREGATE_ID`, `AGGREGATE_IDS`) among the conjuncts of its filter, with a tenant ([tenants], else a `tenantId`
+ *   equality of the filter): at most the entry budget's `maxFilterValues` ([QueryBudget.DEFAULT_MAX_FILTER_VALUES]
+ *   without a limit) when [EventVisibility.batches] checks them with one snapshot query, else
+ *   [EventVisibility.POINT_READS]. The restriction is the visible ones, or nothing when none is. A query that does
+ *   not name them is rejected (`wow.query.invalid`, `STORAGE_UNSUPPORTED` on `aggregateId`): the rows a pinned policy
+ *   hides have no condition on the event streams. The model's descriptor lists the constraint
+ *   [AGGREGATE_REQUIRED][UnpinnedEventsPolicy.AGGREGATE_REQUIRED].
  *
  * Other models are not restricted. It runs right after the caller's scope ([ScopeQueryPolicy]).
  */
@@ -50,26 +57,36 @@ import me.ahoo.wow.query.schema.QueryViolation
 class EventVisibilityPolicy(
     private val visibility: EventVisibility,
     private val tenants: QueryTenantPolicy = QueryTenantPolicy.CALLERS,
+    private val entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
 ) : QueryPolicy {
     override val order: Int = ScopeQueryPolicy.ORDER + 1
+
+    /** It is the pinned policies' rule on the events model, never a condition of its own on the streams. */
+    override val events: EventsMode
+        get() = EventsMode.NONE
 
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
         if (context.schema.model != QueryModel.EVENTS) return MatchAllFilter
         val type = context.aggregateType
-        if (visibility.seesAll(type, caller)) return MatchAllFilter
+        if (!visibility.pins(type)) return MatchAllFilter
+        val limit = if (visibility.batches(type)) {
+            entryPolicy.budget(context.entry)?.maxFilterValues?.takeIf { it > 0 } ?: QueryBudget.DEFAULT_MAX_FILTER_VALUES
+        } else {
+            EventVisibility.POINT_READS
+        }
         val filter = (context.query as FilterCapable<*>).filter
         val conjuncts = EventFilters.conjuncts(filter)
         val named = EventFilters.aggregates(conjuncts)
-        val ids = named?.takeIf { it.size <= MAX_AGGREGATES } ?: throw QueryViolation.StorageUnsupported(
-            "an events query that names no aggregate (at most $MAX_AGGREGATES) while snapshot query policies may " +
-                "hide some: name its aggregateId",
+        val ids = named?.takeIf { it.size <= limit } ?: throw QueryViolation.StorageUnsupported(
+            "an events query that names no aggregate (at most $limit) while a pinned query policy applies: " +
+                "name its aggregateId",
             EventFilters.AGGREGATE_ID,
         ).rejection()
         val tenantId = tenants.tenantOf(type, caller) ?: tenant(conjuncts) ?: throw QueryViolation.StorageUnsupported(
             "an events query without a tenant: name its tenantId",
             TENANT_ID,
         ).rejection()
-        val visible = ids.filter { visibility.visible(type.ref(tenantId, it), caller) }
+        val visible = visibility.visible(type, tenantId, ids, caller)
         return when (visible.size) {
             0 -> MatchNoneFilter
             1 -> AggregateIdFilter(visible.single())
@@ -85,11 +102,7 @@ class EventVisibilityPolicy(
         }
     }
 
-    @InternalWowApi
-    companion object {
-        /** The most aggregates one events query may name while each must be checked. */
-        const val MAX_AGGREGATES: Int = 100
-
-        private val TENANT_ID = QueryField(EventStreamFields.TENANT_ID)
+    private companion object {
+        val TENANT_ID = QueryField(EventStreamFields.TENANT_ID)
     }
 }

@@ -331,10 +331,12 @@ public final class me/ahoo/wow/spring/boot/QueryProperties$Companion {
 public final class me/ahoo/wow/spring/boot/QueryProperties$CountCache {
 	public fun <init> ()V
 	public final fun getEnabled ()Z
+	public final fun getEventsEnabled ()Z
 	public final fun getMaxEntries ()I
 	public final fun getTtl ()Ljava/time/Duration;
 	public final fun options ()Lme/ahoo/wow/query/QueryCountCacheOptions;
 	public final fun setEnabled (Z)V
+	public final fun setEventsEnabled (Z)V
 	public final fun setMaxEntries (I)V
 	public final fun setTtl (Ljava/time/Duration;)V
 }

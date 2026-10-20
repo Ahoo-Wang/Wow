@@ -19,6 +19,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.AbacQueryOptions
 import me.ahoo.wow.query.AbacQueryPolicy
+import me.ahoo.wow.query.EventsMode
 import me.ahoo.wow.query.DefaultQueryGateway
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
@@ -225,10 +226,13 @@ class QueryEngine private constructor(
             val ownerships = QueryOwnership.of(manifest)
             val gatewayPolicies = scopePolicies(ownerships) + policies
             val snapshots = snapshotGateways(catalog, gatewayPolicies, observer)
-            // Only ABAC and the application's policies hide an aggregate from a caller of its scope.
-            val hides = abac.enabled || policies.isNotEmpty()
+            // Only ABAC and the application's policies hide an aggregate from a caller of its scope: a state read
+            // checks them through the policy gateway of a type whose snapshots are not queried.
+            val restricts = abac.enabled || policies.isNotEmpty()
+            // Only a pinned one hides an aggregate's streams beyond its filter on them (decisions D254, D259).
+            val hides = gatewayPolicies.any { it.events == EventsMode.PINNED }
             val queried = snapshots.map { it.aggregateType }.toSet()
-            val policyGateways = if (hides) {
+            val policyGateways = if (restricts) {
                 ManifestTypes.hosted(manifest, contexts).filterNot(queried::contains).map { type ->
                     SnapshotPolicyGateway(type, catalog.policyProvider(type), gatewayPolicies, entryPolicy)
                 }
@@ -236,7 +240,7 @@ class QueryEngine private constructor(
                 emptyList()
             }
             val byType = (snapshots + policyGateways).associateBy { it.aggregateType }
-            val eventVisibility = EventVisibility.of(byType::get, hides, committed::committed)
+            val eventVisibility = EventVisibility.of(byType::get, hides, queried::contains, observer, committed::committed)
             val events = ManifestTypes.events(manifest, contexts).mapNotNull { type ->
                 val binding = eventBackend(type) ?: return@mapNotNull null
                 EventQueryGateways.create(

@@ -249,8 +249,9 @@ class QueryAutoConfiguration {
             .counts(
                 counts.ifAvailable,
                 // The events' own cache (a cache is keyed by type, not by model), valid while the type's snapshot
-                // write checkpoint holds, which moves as the snapshots follow the log.
-                counts.ifAvailable?.let {
+                // write checkpoint holds, which moves as the snapshots follow the log: off unless asked (D259), as the
+                // log runs ahead of that checkpoint.
+                counts.ifAvailable?.takeIf { properties.countCache.eventsEnabled }?.let {
                     QueryCountCache(
                         node::snapshotCheckpointOf,
                         properties.countCache.options()

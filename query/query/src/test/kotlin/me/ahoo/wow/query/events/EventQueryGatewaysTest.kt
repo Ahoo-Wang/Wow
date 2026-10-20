@@ -41,6 +41,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
+import me.ahoo.wow.query.EventsMode
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
@@ -118,7 +119,7 @@ class EventQueryGatewaysTest {
         AndFilter(listOf(AggregateIdFilter("c-1")) + conditions)
 
     private fun versions(filter: FilterExpression, gateway: QueryGateway = untimed, caller: QueryCaller = inProcess) =
-        runBlocking { gateway.list(ListQuery(filter), caller).toList() }.map { it["version"].asInt() }
+        runBlocking { gateway.list(ListQuery(filter, limit = 10), caller).toList() }.map { it["version"].asInt() }
 
     private fun code(block: suspend () -> Unit): String =
         (runCatching { runBlocking { block() } }.exceptionOrNull() as QueryError).bindingErrors.single().code
@@ -243,15 +244,24 @@ class EventQueryGatewaysTest {
             .assert().containsExactly("shop.cart.ItemPut", "shop.cart.ItemGone", "shop.cart.ItemAdded")
     }
 
-    /** Hides `c-2` from everyone, as a snapshot query policy might; checks every aggregate one by one. */
-    private val hidingC2 = object : EventVisibility {
+    /** Hides `c-2` from everyone, as a snapshot query policy might; [batches] says how many a query may name. */
+    private class HidingC2(private val batches: Boolean = true) : EventVisibility {
         val checked = mutableListOf<AggregateRef>()
 
-        override suspend fun visible(ref: AggregateRef, caller: QueryCaller): Boolean {
-            checked += ref
-            return ref.id != "c-2"
+        override suspend fun visible(
+            type: AggregateType,
+            tenantId: String,
+            ids: List<String>,
+            caller: QueryCaller,
+        ): List<String> {
+            ids.forEach { checked += type.ref(tenantId, it) }
+            return ids.filter { it != "c-2" }
         }
+
+        override fun batches(type: AggregateType): Boolean = batches
     }
+
+    private val hidingC2 = HidingC2()
 
     @Test
     fun `visibility restricts the aggregates a query names to the visible ones`() {
@@ -276,6 +286,38 @@ class EventQueryGatewaysTest {
             .assert().hasSize(3)
         val fixed = EventVisibilityPolicy(hidingC2, QueryTenantPolicy { _, _ -> TENANT })
         fixed.order.assert().isEqualTo(ScopeQueryPolicy.ORDER + 1)
+        fixed.events.assert().isEqualTo(EventsMode.NONE)
+    }
+
+    @Test
+    fun `a pinned query names at most the budget's filter values, or the point-read limit one by one`() {
+        val budget = QueryBudget(QueryBudget.IN_PROCESS_LABEL, maxFilterValues = 3)
+        val bounded = gateway(
+            entryPolicy = QueryEntryPolicy(inProcess = budget, inProcessTimeout = null),
+            visibility = hidingC2,
+        )
+        // More than the budget's values is refused by the budget itself, before any policy runs.
+        versions(AggregateIdsFilter(listOf("c-1", "c-2", "c-3")), bounded).assert().containsExactly(1, 2, 3)
+        val unbounded = gateway(
+            entryPolicy = QueryEntryPolicy(inProcess = QueryBudget(QueryBudget.IN_PROCESS_LABEL, maxFilterValues = 0), inProcessTimeout = null),
+            visibility = hidingC2,
+        )
+        val many = (1..QueryBudget.DEFAULT_MAX_FILTER_VALUES).map { "c-$it" }
+        versions(AggregateIdsFilter(many), unbounded).assert().containsExactly(1, 2, 3)
+        code { unbounded.list(ListQuery(AggregateIdsFilter(many + "c-0"), limit = 10), inProcess).toList() }
+            .assert().isEqualTo(QueryErrorCodes.STORAGE_UNSUPPORTED)
+        val oneByOne = gateway(visibility = HidingC2(batches = false))
+        val pointReads = (1..EventVisibility.POINT_READS + 1).map { "c-$it" }
+        code { oneByOne.list(ListQuery(AggregateIdsFilter(pointReads), limit = 10), inProcess).toList() }
+            .assert().isEqualTo(QueryErrorCodes.STORAGE_UNSUPPORTED)
+    }
+
+    @Test
+    fun `the descriptor lists AGGREGATE_REQUIRED while a pinned policy applies`(): Unit = runBlocking {
+        gateway(visibility = hidingC2).describe(QueryEntry.HTTP).constraints.orEmpty().map { it.type }
+            .assert().contains(UnpinnedEventsPolicy.AGGREGATE_REQUIRED)
+        gateway().describe(QueryEntry.HTTP).constraints.orEmpty().map { it.type }
+            .assert().doesNotContain(UnpinnedEventsPolicy.AGGREGATE_REQUIRED)
     }
 
     private companion object {
