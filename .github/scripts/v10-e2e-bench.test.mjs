@@ -18,6 +18,7 @@ import {
   renderReport,
   resolveInputs,
   roundOrder,
+  lastSignals,
   runSettings,
   runSuite,
   spread,
@@ -168,6 +169,9 @@ const opt = (name) => args.find((a) => a.startsWith('--' + name + '='))?.split('
 const out = opt('out');
 fs.mkdirSync(out, { recursive: true });
 fs.appendFileSync(${JSON.stringify(join(dir, 'calls.log'))}, [command, ...args, 'props=' + (process.env.SPRING_APPLICATION_JSON ?? '')].join(' ') + '\\n');
+if (process.env.SPRING_APPLICATION_JSON?.includes('bench.signals.enabled')) {
+  fs.writeFileSync(out + '/node-1.log', 'x bench-signals {"t":1}\\nx WARN bench-signals {"t":2,"tailRead":{"gap":3}}\\n');
+}
 if (command === 'saturate') {
   fs.writeFileSync(out + '/saturation.json', JSON.stringify({ saturationThroughput: opt('version') === '9x' ? 100 : 150, saturationConcurrency: 16 }));
 } else {
@@ -301,4 +305,46 @@ test('runSettings: dispatch inputs, or the defaults with the run file over them 
     () => runSettings({ event: 'push', config: { head_ref: 'x' } }),
     /Unknown key/,
   );
+});
+
+test('lastSignals reads the last signals line', () => {
+  assert.deepEqual(
+    lastSignals(
+      'a\n2026 WARN BenchSignals bench-signals {"t":1}\nb bench-signals {"t":2,"refused":{"wow.command.busy":4}}\nc',
+    ),
+    { t: 2, refused: { 'wow.command.busy': 4 } },
+  );
+  assert.equal(lastSignals('nothing'), undefined);
+});
+
+test('a cliff suite steps up until two steps in a row are not kept up', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'v10-e2e-bench-'));
+  const benchPath = fakeBench(dir);
+  const suite = runSuite('cliff-e3-pg', {
+    benchPath,
+    out: join(dir, 'out'),
+    warmUp: 1,
+    measure: 5,
+    repeats: 2,
+    fraction: 0.8,
+  });
+  assert.deepEqual(
+    suite.runs.map(run => [run.name, run.sustained]),
+    [
+      ['s1-50', true],
+      ['s2-100', true],
+      ['s3-200', false],
+      ['s4-300', false],
+    ],
+  );
+  assert.deepEqual(suite.runs[0].signals, { t: 2, tailRead: { gap: 3 } });
+  const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
+  assert.match(
+    calls,
+    /--scenario=E3 .*--rate=50\.0 --warm-up=10 --measure=60 .*props=\{"bench\.signals\.enabled":true\}/,
+  );
+  const report = renderReport([suite]);
+  assert.match(report, /## E3 cliff steps/);
+  assert.match(report, /\| s3-200 \| 200\.0\/s \| 0\.0\/s \| \*\*no\*\* \|/);
+  assert.match(report, /tailRead gap=3/);
 });

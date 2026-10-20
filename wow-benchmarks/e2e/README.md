@@ -112,7 +112,7 @@ The defaults are every suite, 20 s warm-up, 40 s measured, 2 rounds, 80% of satu
 { "suites": ["e1-mongo-uniform", "e1-mongo-zipf"], "warm_up": 20, "measure": 40, "repeats": 3, "fraction": 0.8, "baseline_ref": "v10-9x-baseline" }
 ```
 
-The suites are `e1-mongo-uniform`, `e1-mongo-zipf`, `e1-pg-uniform`, `e2-mongo`, `e3-mongo`, `e3-pg`, `e3-mongo-diag` and `pg-append-queue`. When the run has finished, delete the branch (its results stay with the run):
+The suites are `e1-mongo-uniform`, `e1-mongo-zipf`, `e1-pg-uniform`, `e2-mongo`, `e3-mongo`, `e3-pg`, `e3-mongo-diag`, `pg-append-queue`, and the cliff suites `cliff-e3-pg`, `cliff-e3-mongo` and `cliff-e3-9x`. A cliff suite runs E3 in open loop at fixed rates (50, 100, 200, 300, 400 and 500/s, a minute each on fresh containers) until two steps in a row fail to keep up. For V10 it sets `bench.signals.enabled=true`: the benchmark server's `BenchSignals` observer (`bench-v10/.../BenchSignals.kt`, the one file without a 9.x twin, off in every other run) then logs the node's cumulative overload and fallback counts once a second, as `bench-signals {json}` in the node log. The counts cover the tails' store reads by reason, refused commands by code, timed-out waits by stage, dropped signals, failed forwards and paused partitions. The step reads the last such line, so a cliff can be told apart from plain overload. When the run has finished, delete the branch (its results stay with the run):
 
 ```bash
 git push origin --delete v10-bench-run/20261020

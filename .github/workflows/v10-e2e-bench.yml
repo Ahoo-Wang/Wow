@@ -37,7 +37,7 @@ on:
         type: string
         default: 'v10'
       suites:
-        description: '`all`, or suites separated by commas: e1-mongo-uniform, e1-mongo-zipf, e1-pg-uniform, e2-mongo, e3-mongo, e3-pg, e3-mongo-diag, pg-append-queue'
+        description: '`all`, or suites separated by commas: e1-mongo-uniform, e1-mongo-zipf, e1-pg-uniform, e2-mongo, e3-mongo, e3-pg, e3-mongo-diag, pg-append-queue, cliff-e3-pg, cliff-e3-mongo, cliff-e3-9x'
         type: string
         default: 'all'
       warm_up:
@@ -62,9 +62,10 @@ on:
 permissions:
   contents: read
 
-# One benchmark at a time: a second run waits for the first rather than cancelling it.
+# One run per ref at a time: a second push of the same run branch waits for the first rather than cancelling it.
+# Runs of different refs go on runners of their own and do not share anything, so they may run side by side.
 concurrency:
-  group: ${{ github.workflow }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 env:

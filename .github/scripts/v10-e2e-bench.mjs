@@ -139,7 +139,56 @@ export const SUITES = {
     answers:
       "Whether PostgreSQL's append queue should be on by default (D248): saturation with it off and on, then both at the same offered load.",
   },
+  'cliff-e3-pg': cliff(
+    V10_PG,
+    'E3 on V10 with PostgreSQL in fixed open-loop steps: where completions stop following the rate, and whether the tails fell back to the store (a cliff) or the node refused work (overload).',
+  ),
+  'cliff-e3-mongo': cliff(
+    V10_MONGO,
+    'E3 on V10 with MongoDB in fixed open-loop steps, as cliff-e3-pg.',
+  ),
+  'cliff-e3-9x': cliff(
+    NINE_X,
+    'E3 on 9.x with MongoDB in the same steps, the reference (no signals: 9.x has no such observer).',
+  ),
 };
+
+// kind `steps` (the cliff suites): one arm in open loop at rising fixed rates, each step on fresh containers, a
+// minute measured, until two steps in a row are not sustained. A V10 arm counts its overload and fallback signals
+// (BenchSignals in :e2e-bench-v10, `bench.signals.enabled`) and logs them, which the step reads from the server log.
+export const CLIFF = {
+  rates: [50, 100, 200, 300, 400, 500],
+  warmUp: 10,
+  measure: 60,
+};
+
+function cliff(arm, answers) {
+  const signals =
+    arm.version === 'v10' ? { 'bench.signals.enabled': true } : undefined;
+  return {
+    kind: 'steps',
+    scenario: 'E3',
+    distribution: 'uniform',
+    arm: signals ? withProps(arm, arm.id, signals) : arm,
+    answers,
+  };
+}
+
+/** The last `bench-signals {json}` line of a server log: the node's cumulative signal counts, or undefined. */
+export function lastSignals(log) {
+  const lines = log
+    .split('\n')
+    .filter(line => line.includes('bench-signals {'));
+  const last = lines.at(-1);
+  if (!last) return undefined;
+  try {
+    return JSON.parse(
+      last.slice(last.indexOf('bench-signals {') + 'bench-signals '.length),
+    );
+  } catch {
+    return undefined;
+  }
+}
 
 export const DRIFT = 0.05;
 // bench.sh's default cap of 256 workers can stop the closed loop before V10 flattens (a local smoke run did), so the
@@ -375,6 +424,36 @@ const shareText = (suite, id) => {
   return `${(c.share * 100).toFixed(0)}%${c.sustainable ? '' : ' (**not sustained**)'}`;
 };
 
+const signalsText = signals =>
+  signals
+    ? Object.entries(signals)
+        .filter(([kind]) => kind !== 't')
+        .map(
+          ([kind, counts]) =>
+            `${kind} ${Object.entries(counts)
+              .map(([key, count]) => `${key}=${count}`)
+              .join(',')}`,
+        )
+        .join(' · ') || 'none'
+    : '-';
+
+/** The steps of a cliff suite: completions against the rate, errors and the node's signals. */
+function cliffTable(suite) {
+  const lines = [
+    '| Step | Rate | Throughput | Kept up | Failed | p50 | p99 | Worst-second p99 | Errors | Node signals (cumulative) |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
+  ];
+  for (const run of suite.runs) {
+    const m = run.metrics;
+    lines.push(
+      run.status === 'ok'
+        ? `| ${run.name} | ${num(run.rate)}/s | ${num(m.throughput)}/s | ${run.sustained ? 'yes' : '**no**'} | ${m.failed} | ${ms(m.p50)} | ${ms(m.p99)} | ${ms(m.worstSecondP99)} | ${errorsText(m.errors)} | ${signalsText(run.signals)} |`
+        : `| ${run.name} | ${num(run.rate)}/s | **${run.status}** | | | | | | | |`,
+    );
+  }
+  return lines;
+}
+
 function runTable(runs) {
   const lines = [
     '| Run | Arm | Rate | Throughput | OK | Failed | p50 | p95 | p99 | p999 | Worst-second p99 | Server CPU | Container CPU | CPU ms/op | Errors |',
@@ -465,6 +544,7 @@ export function renderSuite(suite) {
       '',
     );
   }
+  if (suite.kind === 'steps') lines.push(...cliffTable(suite), '');
   lines.push(...runTable(suite.runs), '');
   const pair = pairTable(suite);
   if (pair.length > 0)
@@ -527,11 +607,13 @@ export function runSuite(name, options) {
   const arms =
     definition.kind === 'paired'
       ? definition.arms
-      : [
-          ...new Map(
-            definition.runs.map(run => [run.arm.id, run.arm]),
-          ).values(),
-        ];
+      : definition.kind === 'steps'
+        ? [definition.arm]
+        : [
+            ...new Map(
+              definition.runs.map(run => [run.arm.id, run.arm]),
+            ).values(),
+          ];
   const suite = {
     schema: 'wow-e2e-bench/suite/1',
     name,
@@ -597,6 +679,11 @@ export function runSuite(name, options) {
     if (ok && existsSync(file)) {
       run.status = 'ok';
       run.metrics = metrics(readJson(file));
+      const log = join(dir, 'node-1.log');
+      if (existsSync(log)) {
+        const signals = lastSignals(readFileSync(log, 'utf8'));
+        if (signals) run.signals = signals;
+      }
     } else {
       suite.failures++;
     }
@@ -677,6 +764,25 @@ export function runSuite(name, options) {
         suite.extraRound = true;
         round(repeats);
       }
+    }
+  } else if (definition.kind === 'steps') {
+    let unsustained = 0;
+    for (const [index, rate] of CLIFF.rates.entries()) {
+      const run = measureRun(
+        `s${index + 1}-${rate}`,
+        definition.arm,
+        rate,
+        index,
+        {
+          warmUp: CLIFF.warmUp,
+          measure: CLIFF.measure,
+          into: suite.runs,
+        },
+      );
+      run.sustained = run.status === 'ok' && sustainable(run.metrics, rate);
+      save();
+      unsustained = run.sustained ? 0 : unsustained + 1;
+      if (unsustained >= 2) break;
     }
   } else {
     definition.runs.forEach((run, index) => {
@@ -844,6 +950,17 @@ export function renderReport(suites, meta = {}) {
           : `| ${run.name} | ${arm.version} | ${propsText(arm.props)} | ${num(run.rate)}/s | **${run.status}** | | | | | | | | | |`,
       );
     }
+  }
+  const cliffs = suites.filter(s => s.kind === 'steps');
+  if (cliffs.length > 0) {
+    lines.push(
+      '',
+      '## E3 cliff steps',
+      '',
+      'Fixed open-loop steps, a minute each on fresh containers. "Kept up": at most 1% failed and at least 97% of the rate completed. V10 signals count from the server start (seeding included): `tailRead` reasons other than `start` mean the tails fell back to the store, `refused wow.command.busy` that the node shed load.',
+    );
+    for (const suite of cliffs)
+      lines.push('', `### ${suite.name}`, '', ...cliffTable(suite));
   }
   const queue = suites.find(s => s.name === 'pg-append-queue');
   if (queue) {
