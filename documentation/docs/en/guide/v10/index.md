@@ -29,7 +29,7 @@ V10 is developed on the [`v10` branch](https://github.com/Ahoo-Wang/Wow/tree/v10
 
 ## Lay out the service
 
-A service is three Gradle modules. The example below is a `catalog` context; the in-repo examples [`example/shop`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/shop), [`example/inventory`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/inventory) and [`example/eshop`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/eshop) have the same shape.
+A service is three Gradle modules. The example below is a `catalog` context; each context of the in-repo eShop, [`example/eshop`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/eshop) (`catalog`, `basket`, `ordering`, `inventory`, `payment`), has the same shape.
 
 | Module | Holds | Depends on |
 | --- | --- | --- |
@@ -194,7 +194,7 @@ dependencies {
 }
 ```
 
-[`example/wow-manifest-fragment.gradle.kts`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/wow-manifest-fragment.gradle.kts) runs what the plugin's `generateWowManifestFragment` runs. Its servers apply [`example/wow-peers.gradle.kts`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/wow-peers.gradle.kts) after setting `extra["wowService"]`, in place of `mergeWowManifest` and `wowPeers`. The KSP options are:
+[`example/wow-manifest-fragment.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/v10/example/wow-manifest-fragment.gradle.kts) runs what the plugin's `generateWowManifestFragment` runs, and applies [`example/wow-contract.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/v10/example/wow-contract.gradle.kts), which packages the domain's contract into its api modules as the plugin does. The eShop's servers apply [`example/eshop/wow-manifest-compatibility.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/v10/example/eshop/wow-manifest-compatibility.gradle.kts) after setting `extra["wowService"]`, in place of `mergeWowManifest` and the Manifest compatibility check. The KSP options are:
 
 | Option | Means |
 | --- | --- |
