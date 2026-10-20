@@ -260,6 +260,20 @@ class PeerReadsTest {
     }
 
     @Test
+    fun `a peer read whose admission fails unexpectedly should be a 500 that says nothing of it`() {
+        val failing = peerReadRoutes(
+            manifest,
+            node.http.gateway,
+            { error("secret jdbc:postgresql://db-internal:5432") },
+            node.http.httpQueries,
+        )
+        val answer = org.springframework.test.web.reactive.server.WebTestClient.bindToRouterFunction(failing).build()
+            .get().uri("/shop/cart/c-1/state").answer()
+        answer.status.assert().isEqualTo(500)
+        answer.body.toString().assert().doesNotContain("jdbc")
+    }
+
+    @Test
     fun `a refused service-mode read should be a problem, and trusted queries are not served`() {
         val client = WowClient.builder()
             .endpoints(EndpointResolver.of(emptyMap(), mapOf(CONTEXT to URI.create("http://${internal.address}"))))
