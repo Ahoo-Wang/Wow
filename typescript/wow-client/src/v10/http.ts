@@ -37,6 +37,8 @@ export const WowV10Headers = {
   ETAG: 'ETag',
   /** The seconds after which a failed request may be retried. */
   RETRY_AFTER: 'Retry-After',
+  /** The position a streamed list resumes after (decision D253). */
+  LAST_EVENT_ID: 'Last-Event-ID',
 } as const;
 
 /** How a V10 client reaches its service. */

@@ -37,7 +37,17 @@ import type {
   SnapshotRecord,
   SnapshotSystemField,
 } from './wire.js';
-import { queryRows } from './streams.js';
+import {
+  resumableQueryRows,
+  type StreamedRow,
+  type StreamResumeOptions,
+} from './streams.js';
+
+/** How a list is streamed: the request's options, and how it resumes. */
+export interface ListStreamOptions extends RequestOptions {
+  /** How the stream resumes (decision D253); `false` never resumes it. */
+  readonly resume?: StreamResumeOptions | false;
+}
 
 /** How a paged query counts its total (`TotalMode`, decision D150). */
 export type TotalMode = 'EXACT' | 'BOUNDED' | 'NONE';
@@ -114,14 +124,58 @@ export class QueryModelClient<R, FIELDS extends string = string> {
 
   /**
    * The records that match, as server-sent events read one at a time; a
-   * failure after the first record errors the stream with its problem.
+   * failure after the first record errors the stream with its problem. The
+   * stream resumes where it stopped (decision D253) when the server ends it
+   * to be resumed, when it is cut off and when it fails with a retryable
+   * problem: see {@link StreamResumeOptions}. A `limit` counts every record
+   * read, resumed or not.
    */
   async listStream(
     query: FilterListQuery<FIELDS>,
-    options?: RequestOptions,
+    options?: ListStreamOptions,
   ): Promise<ReadableStream<R>> {
-    return queryRows<R>(
-      await this.post('list', query, options, 'text/event-stream'),
+    return (await this.listStreamRows(query, options)).pipeThrough(
+      new TransformStream<StreamedRow<R>, R>({
+        transform(row, controller) {
+          controller.enqueue(row.record);
+        },
+      }),
+    );
+  }
+
+  /**
+   * The records that match as {@link listStream} reads them, each with its
+   * position: keep the last one read to resume the stream later
+   * ({@link StreamResumeOptions.lastEventId}), on another page or after a
+   * restart.
+   */
+  async listStreamRows(
+    query: FilterListQuery<FIELDS>,
+    options: ListStreamOptions = {},
+  ): Promise<ReadableStream<StreamedRow<R>>> {
+    const resume =
+      options.resume === false ? { maxRetries: 0 } : options.resume;
+    const open = (lastEventId: string | undefined, received: number) => {
+      const limit = query.limit ?? 0;
+      return this.post(
+        'list',
+        limit > 0 ? { ...query, limit: limit - received } : query,
+        options,
+        'text/event-stream',
+        lastEventId,
+      );
+    };
+    const first = await open(resume?.lastEventId, 0);
+    return resumableQueryRows<R>(
+      first,
+      (lastEventId, received) =>
+        (query.limit ?? 0) > 0 && received >= (query.limit ?? 0)
+          ? Promise.resolve(undefined)
+          : open(lastEventId, received),
+      {
+        ...resume,
+        ...(options.signal === undefined ? {} : { signal: options.signal }),
+      },
     );
   }
 
@@ -199,11 +253,12 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     query: object,
     options?: RequestOptions,
     accept?: string,
+    lastEventId?: string,
   ): Promise<Response> {
     return send(this.client, {
       method: 'POST',
       path: this.path,
-      headers: { Accept: accept },
+      headers: { Accept: accept, [WowV10Headers.LAST_EVENT_ID]: lastEventId },
       body: { ...query, kind },
       options,
     });

@@ -240,13 +240,18 @@ class QueryStreamsTest {
         }
         plain.resumes(ListQuery(MatchAllFilter)).assert().isFalse()
         val unsupported = runCatching { plain.stream(ListQuery(MatchAllFilter), caller).toList() }.exceptionOrNull()
-        (unsupported as QuerySchemaValidationException).violation!!.code.assert().isEqualTo(QueryErrorCodes.STORAGE_UNSUPPORTED)
+        (unsupported as QuerySchemaValidationException).violation!!.code.assert().isEqualTo(
+            QueryErrorCodes.STORAGE_UNSUPPORTED
+        )
     }
 
     @Test
     fun `chunks need a non-negative limit and each page's positions`(): Unit = runTest {
         save("o-1", 1)
-        val admitted = QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, size = 2), ManifestFixtures.orderSchema())
+        val admitted = QueryAdmission.Trusted.cursor(
+            CursorQuery(MatchAllFilter, size = 2),
+            ManifestFixtures.orderSchema()
+        )
         runCatching { backend.chunks(admitted, -1) }.exceptionOrNull().assert()
             .isInstanceOf(IllegalArgumentException::class.java)
         val positionless = object : QueryBackend by backend {

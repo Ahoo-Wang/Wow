@@ -14,12 +14,14 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.http.query.QueryStreams
 import me.ahoo.wow.query.AbacQueryOptions
 import me.ahoo.wow.query.AdaptiveLimitOptions
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.QueryCountCacheOptions
 import me.ahoo.wow.query.QueryEntryPolicy
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.schema.QuerySensitivityPolicy
@@ -78,6 +80,10 @@ import kotlin.time.toKotlinDuration
  *   was refused raises it by one up to `ceiling` (none: the provider's, PostgreSQL half a pool the appends share, all of
  *   a `query-data-source`'s). `enabled` (true) turns it off; `wow.stores.<name>.query.adaptive.enabled`, `.floor` and
  *   `.ceiling` take their place for one store.
+ * - `wow.query.stream.*` (decision D253, [Stream]): a `list` streamed as server-sent events reads keyset chunks of
+ *   `chunk-size` (500) records, a query permit per chunk, each record's `id` its position; after `max-hold` (30s; `0`
+ *   for no bound) it ends with `end` `{"reason":"hold-expired","resumable":true}` and the client resumes it with
+ *   `Last-Event-ID`. Neither `http.max-list-size` nor `http.default-list-size` bounds such a stream.
  */
 @ConfigurationProperties(prefix = QueryProperties.PREFIX)
 class QueryProperties {
@@ -97,6 +103,7 @@ class QueryProperties {
     var maxWait: Duration = QueryBulkhead.DEFAULT_MAX_WAIT.toJavaDuration()
     var maxQueued: Int? = null
     var adaptive: Adaptive = Adaptive()
+    var stream: Stream = Stream()
 
     /** The entry policy these settings give every gateway. */
     fun entryPolicy(): QueryEntryPolicy = QueryEntryPolicy(
@@ -201,6 +208,14 @@ class QueryProperties {
             connectionWaits = connectionWaits,
             periods = periods,
         )
+    }
+
+    /** `wow.query.stream.*` (decision D253): how a streamed `list` reads its chunks and how long it runs. */
+    class Stream {
+        var chunkSize: Int = QueryGateway.DEFAULT_STREAM_CHUNK_SIZE
+        var maxHold: Duration = QueryStreams.DEFAULT_MAX_HOLD.toJavaDuration()
+
+        internal fun streams(): QueryStreams = QueryStreams(chunkSize, maxHold.toKotlinDuration())
     }
 
     class Events {

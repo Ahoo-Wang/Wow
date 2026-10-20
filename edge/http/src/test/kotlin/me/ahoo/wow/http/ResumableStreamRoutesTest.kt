@@ -15,7 +15,6 @@ package me.ahoo.wow.http
 
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onEach
@@ -95,7 +94,9 @@ class ResumableStreamRoutesTest {
         node.http.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", "alice").status.assert().isEqualTo(200)
         fun invalid(streamed: Streamed) {
             streamed.status.assert().isEqualTo(400)
-            QueryJson.mapper.readTree(streamed.body)["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+            QueryJson.mapper.readTree(
+                streamed.body
+            )["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
         }
         invalid(node.stream(byItems, lastEventId = "not-a-token"))
         // A position of another sort, or of another model.
@@ -212,5 +213,3 @@ class ResumableStreamRoutesTest {
         override suspend fun resumes(query: IListQuery): Boolean = false
     }
 }
-
-

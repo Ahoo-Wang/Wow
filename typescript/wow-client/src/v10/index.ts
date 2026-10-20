@@ -76,6 +76,7 @@ export {
   DatasetClient,
   type DescriptorResult,
   EventQueryClient,
+  type ListStreamOptions,
   type PagedQuery,
   type PagedResult,
   QueryModelClient,
@@ -89,7 +90,13 @@ export {
   type StateReadResult,
   type StateTraceOptions,
 } from './state.js';
-export { type CommandResultStream } from './streams.js';
+export {
+  type CommandResultStream,
+  type StreamedRow,
+  type StreamEnd,
+  type StreamEndReason,
+  type StreamResumeOptions,
+} from './streams.js';
 export {
   formatHop,
   formatWaitPlan,
