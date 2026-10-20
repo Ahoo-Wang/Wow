@@ -1,0 +1,70 @@
+# The stores and the bus of the end-to-end benchmark (decision D224), each a process of its own: MongoDB (a one-node
+# replica set), PostgreSQL and Kafka (one KRaft broker). The images are the ones the repository's tests already use.
+# bench.sh starts the services a run needs and removes them, with their volumes, after it.
+name: wow-e2e-bench
+
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: wow-e2e-bench-mongo
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--wiredTigerCacheSizeGB", "1"]
+    ports:
+      - "27017:27017"
+    healthcheck:
+      # Initiates the replica set on its first run, with the member address the host's clients use.
+      test:
+        - CMD-SHELL
+        - >
+          mongosh --quiet --eval 'try { rs.status().ok } catch (e) { rs.initiate({_id: "rs0", members: [{_id: 0, host: "localhost:27017"}]}).ok }' | grep -q 1
+      interval: 2s
+      timeout: 10s
+      retries: 30
+      start_period: 5s
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: wow-e2e-bench-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: transfer
+    # bench.sh sets WOW_BENCH_PG_PRELOAD=pg_stat_statements for a profiled run only.
+    command: ["postgres", "-c", "max_connections=300", "-c", "shared_buffers=512MB", "-c", "shared_preload_libraries=${WOW_BENCH_PG_PRELOAD:-}"]
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d transfer"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: wow-e2e-bench-kafka
+    environment:
+      CLUSTER_ID: wow-e2e-bench-kafka-01
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:29093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://localhost:29093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      # The topics either version creates on demand get enough partitions for a cluster of three to share them.
+      KAFKA_NUM_PARTITIONS: 12
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 1
+      KAFKA_HEAP_OPTS: -Xms1g -Xmx1g
+    ports:
+      - "9092:9092"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 3s
+      timeout: 10s
+      retries: 40
+      start_period: 10s

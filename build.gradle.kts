@@ -65,11 +65,11 @@ val v10ExampleProjects = includedProjects(*v10ExampleNames.map { ":$it" }.toType
 val exampleProjects = v10ExampleProjects
 
 val codeCoverageReportProject = project(":code-coverage-report")
-// The end-to-end architecture benchmark (decision D224, roadmap M7.5 B.0) under wow-benchmarks/e2e/: the V10 benchmark
+// The end-to-end architecture benchmark (decision D224, roadmap M7.5 B.0) under test/benchmarks/: the V10 benchmark
 // domain and server and the load generator (the 9.x twin runs from v10-9x-baseline, D262). Applications, like the
 // examples: never published, without an ABI dump, and left out of the coverage reports (code-coverage-report reads
 // `e2eBenchmarkProjects`). The V10 one builds and checks with the V10 modules (`v10Check`) as a user of them.
-val e2eBenchmarkProjects = includedProjects(":e2e-bench-v10", ":e2e-bench-load")
+val e2eBenchmarkProjects = includedProjects(":benchmark-server", ":benchmark-load")
 // The V10 modules (documentation/designs/v10/06-modules.md). Every module builds on JDK 21 (decision D29); these stay
 // incubating until their API settles; :architecture (V10's dependency rules), :routing-spike (spike H2), :lease-spike
 // (spike H6) and the examples (:eshop-*, :quickstart, :java-smoke) are never published.
@@ -82,7 +82,7 @@ val v10Projects = listOf(
     "view-store-api", "view-store-domain", "view-store-server",
     "analytics-catalog-api", "analytics-catalog-domain", "analytics-catalog-server",
     "compiler", "gradle-plugin", "manifest-tools",
-    "routing-spike", "lease-spike", "e2e-bench-v10",
+    "routing-spike", "lease-spike", "benchmark-server",
 ).plus(v10ExampleNames).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
 
 // The V10 modules a 10.x release publishes (06-modules.md §6; R.1 turns their publication on). Their ABI is kept in
@@ -109,7 +109,7 @@ val v10AbiProjects = v10PublishedProjects
 // they reach past the public API.
 val v10UserProjects = v10ExampleProjects + includedProjects(
     ":ops-domain", ":ops-server", ":view-store-domain", ":view-store-server", ":analytics-catalog-domain",
-    ":analytics-catalog-server", ":architecture", ":e2e-bench-v10",
+    ":analytics-catalog-server", ":architecture", ":benchmark-server",
 )
 
 // D87: a V10 project's name and directory carry no `wow-` prefix (`:kernel` in core/kernel); its jar, Kotlin module and

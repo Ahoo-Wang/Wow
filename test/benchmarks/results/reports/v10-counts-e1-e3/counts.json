@@ -1,0 +1,629 @@
+{
+ "9x-mongo": {
+  "config": {
+   "accounts": "1000",
+   "backend": "mongo",
+   "commit": "e2e4ffe77f9d92315d5a40e0a06bae23e80b8fe6",
+   "dirty": "0",
+   "idle": "60",
+   "jvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS",
+   "machine": "Apple M4 Pro, 14 cores",
+   "rate": "20",
+   "seconds": "60",
+   "serverArgs": "",
+   "version": "9x"
+  },
+  "idlePerSecond": {
+   "allocatedBytes": 274781.8614797915,
+   "kafka": {},
+   "operations": {},
+   "roundTrips": {}
+  },
+  "scenarios": {
+   "E1": {
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 1200
+    },
+    "perOperation": {
+     "allocatedKiB": 391.6,
+     "kafka": {
+      "wow.transfer.account.command": 1.0,
+      "wow.transfer.account.event": 1.0,
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 3.0,
+     "operations": {
+      "aggregate load": 2.0,
+      "log append": 1.0,
+      "snapshot": 1.0
+     },
+     "operationsTotal": 4.0,
+     "roundTrips": {
+      "aggregate load": 2.0,
+      "log append": 1.0,
+      "snapshot": 1.0
+     },
+     "roundTripsTotal": 4.0
+    },
+    "window": {
+     "allocatedBytes": 499584312,
+     "commands": {
+      "aggregate": 32,
+      "find": 2400,
+      "insert": 1200,
+      "update": 1200
+     },
+     "kafka": {
+      "wow.transfer.account.command": 1200,
+      "wow.transfer.account.event": 1200,
+      "wow.transfer.account.state": 1200
+     },
+     "operations": {
+      "aggregate load": 2400,
+      "log append": 1200,
+      "snapshot": 1200
+     },
+     "roundTrips": {
+      "aggregate load": 2400,
+      "log append": 1200,
+      "snapshot": 1200
+     },
+     "seconds": 66.981
+    }
+   },
+   "E2": {
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 1200
+    },
+    "perOperation": {
+     "allocatedKiB": 461.9,
+     "kafka": {
+      "wow.transfer.account.command": 1.0,
+      "wow.transfer.account.event": 1.0,
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 3.0,
+     "operations": {
+      "aggregate load": 2.0,
+      "log append": 1.0,
+      "snapshot": 1.0,
+      "state read": 1.0
+     },
+     "operationsTotal": 5.0,
+     "roundTrips": {
+      "aggregate load": 2.0,
+      "log append": 1.0,
+      "snapshot": 1.0,
+      "state read": 1.0
+     },
+     "roundTripsTotal": 5.0
+    },
+    "window": {
+     "allocatedBytes": 585902408,
+     "commands": {
+      "aggregate": 31,
+      "find": 3600,
+      "insert": 1200,
+      "update": 1200
+     },
+     "kafka": {
+      "wow.transfer.account.command": 1200,
+      "wow.transfer.account.event": 1200,
+      "wow.transfer.account.state": 1200
+     },
+     "operations": {
+      "aggregate load": 2400,
+      "log append": 1200,
+      "snapshot": 1200,
+      "state read": 1200
+     },
+     "roundTrips": {
+      "aggregate load": 2400,
+      "log append": 1200,
+      "snapshot": 1200,
+      "state read": 1200
+     },
+     "seconds": 66.824
+    }
+   },
+   "E3": {
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 1200
+    },
+    "perOperation": {
+     "allocatedKiB": 1010.0,
+     "kafka": {
+      "wow.transfer.account.command": 3.0,
+      "wow.transfer.account.event": 3.0,
+      "wow.transfer.account.state": 3.0
+     },
+     "kafkaTotal": 9.0,
+     "operations": {
+      "aggregate load": 6.0,
+      "log append": 3.0,
+      "snapshot": 3.0
+     },
+     "operationsTotal": 12.0,
+     "roundTrips": {
+      "aggregate load": 6.0,
+      "log append": 3.0,
+      "snapshot": 3.0
+     },
+     "roundTripsTotal": 12.0
+    },
+    "window": {
+     "allocatedBytes": 1259511496,
+     "commands": {
+      "aggregate": 32,
+      "find": 7200,
+      "insert": 3600,
+      "update": 3600
+     },
+     "kafka": {
+      "wow.transfer.account.command": 3600,
+      "wow.transfer.account.event": 3600,
+      "wow.transfer.account.state": 3600
+     },
+     "operations": {
+      "aggregate load": 7200,
+      "log append": 3600,
+      "snapshot": 3600
+     },
+     "roundTrips": {
+      "aggregate load": 7200,
+      "log append": 3600,
+      "snapshot": 3600
+     },
+     "seconds": 66.846
+    }
+   }
+  }
+ },
+ "v10-mongo": {
+  "config": {
+   "accounts": "1000",
+   "backend": "mongo",
+   "commit": "19ffd37859ff963fbf05e6f1b0605bc2bdeabc62",
+   "dirty": "0",
+   "idle": "60",
+   "jvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS",
+   "machine": "Apple M4 Pro, 14 cores",
+   "rate": "20",
+   "seconds": "60",
+   "serverArgs": "",
+   "version": "v10"
+  },
+  "idlePerSecond": {
+   "allocatedBytes": 4974386.08649297,
+   "kafka": {},
+   "operations": {
+    "lease": 24.86,
+    "other periodic": 2.0,
+    "tail": 62.94
+   },
+   "roundTrips": {
+    "lease": 24.86,
+    "other periodic": 2.0,
+    "tail": 62.94
+   }
+  },
+  "scenarios": {
+   "E1": {
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 1200
+    },
+    "perOperation": {
+     "allocatedKiB": 386.5,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 6.894,
+      "lease": 0.025,
+      "log append": 4.0,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.567
+     },
+     "operationsTotal": 13.49,
+     "roundTrips": {
+      "checkpoint": 0.05,
+      "lease": 0.025,
+      "log append": 4.0,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.567
+     },
+     "roundTripsTotal": 6.64
+    },
+    "window": {
+     "allocatedBytes": 811410904,
+     "commands": {
+      "aggregate": 5028,
+      "commitTransaction": 1200,
+      "find": 2742,
+      "findAndModify": 3872,
+      "insert": 1200,
+      "update": 95
+     },
+     "kafka": {
+      "wow.transfer.account.state": 1200
+     },
+     "operations": {
+      "checkpoint": 8273,
+      "lease": 1711,
+      "log append": 4800,
+      "other periodic": 136,
+      "request-id check": 1200,
+      "snapshot": 1200,
+      "tail": 4938
+     },
+     "roundTrips": {
+      "checkpoint": 60,
+      "lease": 1711,
+      "log append": 4800,
+      "other periodic": 136,
+      "request-id check": 1200,
+      "snapshot": 1200,
+      "tail": 4938
+     },
+     "seconds": 67.651
+    }
+   },
+   "E2": {
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 1200
+    },
+    "perOperation": {
+     "allocatedKiB": 446.3,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 6.853,
+      "lease": -0.02,
+      "log append": 4.0,
+      "other periodic": -0.005,
+      "request-id check": 1.002,
+      "snapshot": 1.0,
+      "state read": 1.002,
+      "tail": 0.581
+     },
+     "operationsTotal": 14.41,
+     "roundTrips": {
+      "checkpoint": 0.049,
+      "lease": -0.02,
+      "log append": 4.0,
+      "other periodic": -0.005,
+      "request-id check": 1.002,
+      "snapshot": 1.0,
+      "state read": 1.002,
+      "tail": 0.581
+     },
+     "roundTripsTotal": 7.61
+    },
+    "window": {
+     "allocatedBytes": 882273752,
+     "commands": {
+      "aggregate": 4974,
+      "commitTransaction": 1200,
+      "find": 3934,
+      "findAndModify": 3842,
+      "insert": 1200,
+      "update": 94
+     },
+     "kafka": {
+      "wow.transfer.account.state": 1200
+     },
+     "operations": {
+      "checkpoint": 8224,
+      "lease": 1644,
+      "log append": 4800,
+      "other periodic": 128,
+      "request-id check": 1202,
+      "snapshot": 1200,
+      "state read": 1203,
+      "tail": 4921
+     },
+     "roundTrips": {
+      "checkpoint": 59,
+      "lease": 1644,
+      "log append": 4800,
+      "other periodic": 128,
+      "request-id check": 1202,
+      "snapshot": 1200,
+      "state read": 1203,
+      "tail": 4921
+     },
+     "seconds": 67.114
+    }
+   },
+   "E3": {
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 1200
+    },
+    "perOperation": {
+     "allocatedKiB": 1055.0,
+     "kafka": {
+      "wow.transfer.account.state": 3.0
+     },
+     "kafkaTotal": 3.0,
+     "operations": {
+      "checkpoint": 11.921,
+      "lease": -0.009,
+      "log append": 12.0,
+      "request-id check": 3.0,
+      "snapshot": 3.0,
+      "tail": 2.134
+     },
+     "operationsTotal": 32.05,
+     "roundTrips": {
+      "checkpoint": 0.05,
+      "lease": -0.009,
+      "log append": 12.0,
+      "request-id check": 3.0,
+      "snapshot": 3.0,
+      "tail": 2.134
+     },
+     "roundTripsTotal": 20.18
+    },
+    "window": {
+     "allocatedBytes": 1627481232,
+     "commands": {
+      "aggregate": 6795,
+      "commitTransaction": 3600,
+      "find": 7529,
+      "findAndModify": 8672,
+      "insert": 3600,
+      "update": 96
+     },
+     "kafka": {
+      "wow.transfer.account.state": 3600
+     },
+     "operations": {
+      "checkpoint": 14305,
+      "lease": 1644,
+      "log append": 14400,
+      "other periodic": 128,
+      "request-id check": 3600,
+      "snapshot": 3600,
+      "tail": 6750
+     },
+     "roundTrips": {
+      "checkpoint": 60,
+      "lease": 1644,
+      "log append": 14400,
+      "other periodic": 128,
+      "request-id check": 3600,
+      "snapshot": 3600,
+      "tail": 6750
+     },
+     "seconds": 66.562
+    }
+   }
+  }
+ },
+ "v10-postgres": {
+  "config": {
+   "accounts": "1000",
+   "backend": "postgres",
+   "commit": "e2e4ffe77f9d92315d5a40e0a06bae23e80b8fe6",
+   "dirty": "0",
+   "idle": "60",
+   "jvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS",
+   "machine": "Apple M4 Pro, 14 cores",
+   "rate": "20",
+   "seconds": "60",
+   "serverArgs": "",
+   "version": "v10"
+  },
+  "idlePerSecond": {
+   "allocatedBytes": 974186.9224236974,
+   "kafka": {},
+   "operations": {
+    "lease": 24.84,
+    "other periodic": 2.0,
+    "tail": 63.94
+   },
+   "roundTrips": {
+    "lease": 24.84,
+    "other periodic": 2.0,
+    "tail": 63.94
+   }
+  },
+  "scenarios": {
+   "E1": {
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 1200
+    },
+    "perOperation": {
+     "allocatedKiB": 126.4,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 6.868,
+      "lease": -0.015,
+      "log append": 1.0,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.514
+     },
+     "operationsTotal": 10.37,
+     "roundTrips": {
+      "checkpoint": 0.056,
+      "lease": -0.015,
+      "log append": 1.0,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "tail": 0.514
+     },
+     "roundTripsTotal": 3.56
+    },
+    "window": {
+     "allocatedBytes": 220429336,
+     "kafka": {
+      "wow.transfer.account.state": 1200
+     },
+     "operations": {
+      "checkpoint": 8242,
+      "lease": 1642,
+      "log append": 1200,
+      "other periodic": 137,
+      "request-id check": 1200,
+      "snapshot": 1200,
+      "tail": 4889
+     },
+     "roundTrips": {
+      "checkpoint": 67,
+      "lease": 1642,
+      "log append": 1200,
+      "other periodic": 137,
+      "request-id check": 1200,
+      "snapshot": 1200,
+      "tail": 4889
+     },
+     "seconds": 66.811,
+     "transactions": 10653
+    }
+   },
+   "E2": {
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 1200
+    },
+    "perOperation": {
+     "allocatedKiB": 159.8,
+     "kafka": {
+      "wow.transfer.account.state": 1.0
+     },
+     "kafkaTotal": 1.0,
+     "operations": {
+      "checkpoint": 6.908,
+      "lease": -0.006,
+      "log append": 1.0,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "state read": 1.0,
+      "tail": 0.516
+     },
+     "operationsTotal": 11.42,
+     "roundTrips": {
+      "checkpoint": 0.055,
+      "lease": -0.006,
+      "log append": 1.0,
+      "request-id check": 1.0,
+      "snapshot": 1.0,
+      "state read": 1.0,
+      "tail": 0.516
+     },
+     "roundTripsTotal": 4.57
+    },
+    "window": {
+     "allocatedBytes": 260955384,
+     "kafka": {
+      "wow.transfer.account.state": 1200
+     },
+     "operations": {
+      "checkpoint": 8290,
+      "lease": 1641,
+      "log append": 1200,
+      "other periodic": 127,
+      "request-id check": 1200,
+      "snapshot": 1200,
+      "state read": 1200,
+      "tail": 4860
+     },
+     "roundTrips": {
+      "checkpoint": 66,
+      "lease": 1641,
+      "log append": 1200,
+      "other periodic": 127,
+      "request-id check": 1200,
+      "snapshot": 1200,
+      "state read": 1200,
+      "tail": 4860
+     },
+     "seconds": 66.332,
+     "transactions": 11777
+    }
+   },
+   "E3": {
+    "completed": {
+     "errors": {},
+     "failed": 0,
+     "ok": 1200
+    },
+    "perOperation": {
+     "allocatedKiB": 319.7,
+     "kafka": {
+      "wow.transfer.account.state": 3.0
+     },
+     "kafkaTotal": 3.0,
+     "operations": {
+      "checkpoint": 11.87,
+      "lease": -0.005,
+      "log append": 3.0,
+      "request-id check": 3.0,
+      "snapshot": 3.0,
+      "tail": 2.09
+     },
+     "operationsTotal": 22.95,
+     "roundTrips": {
+      "checkpoint": 0.055,
+      "lease": -0.005,
+      "log append": 3.0,
+      "request-id check": 3.0,
+      "snapshot": 3.0,
+      "tail": 2.09
+     },
+     "roundTripsTotal": 11.14
+    },
+    "window": {
+     "allocatedBytes": 457404592,
+     "kafka": {
+      "wow.transfer.account.state": 3600
+     },
+     "operations": {
+      "checkpoint": 14244,
+      "lease": 1641,
+      "log append": 3600,
+      "other periodic": 127,
+      "request-id check": 3600,
+      "snapshot": 3600,
+      "tail": 6748
+     },
+     "roundTrips": {
+      "checkpoint": 66,
+      "lease": 1641,
+      "log append": 3600,
+      "other periodic": 127,
+      "request-id check": 3600,
+      "snapshot": 3600,
+      "tail": 6748
+     },
+     "seconds": 66.319,
+     "transactions": 19667
+    }
+   }
+  }
+ }
+}

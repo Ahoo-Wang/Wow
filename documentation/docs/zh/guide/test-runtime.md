@@ -127,6 +127,8 @@ test/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageRe
 
 ## 基准分三种用途
 
+下面的 JMH 基准属于 9.x：`:wow-benchmarks` 模块及其工作流在 `main`（以及 `v10-9x-baseline`）上。V10 线没有 JMH 这一层，它的端到端基准见 [`test/benchmarks/README.md`](https://github.com/Ahoo-Wang/Wow/blob/v10/test/benchmarks/README.md)。
+
 | 用途 | 入口 | 可以得出的结论 |
 | --- | --- | --- |
 | Smoke | `benchmarkSmoke` | 选定 JMH jar 与路径可以编译、启动并完成 |
@@ -225,7 +227,7 @@ job 在其测量的每一行都有结论后提前停止。从第 2 轮到倒数�
 
 ## 如何读取历史报告
 
-`wow-benchmarks/results/reports/` 中的报告绑定于生成它们的源码、运行规格、机器、JVM 和服务配置。它们可以作为限定条件下的历史证据或调查起点，但不是跨版本、跨机器、跨存储的普适承诺。
+`wow-benchmarks/results/reports/`（V10 线上为 `test/benchmarks/results/reports/`）中的报告绑定于生成它们的源码、运行规格、机器、JVM 和服务配置。它们可以作为限定条件下的历史证据或调查起点，但不是跨版本、跨机器、跨存储的普适承诺。
 
 遵守三条规则：
 

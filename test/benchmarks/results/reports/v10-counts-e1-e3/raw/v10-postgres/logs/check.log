@@ -1,0 +1,5 @@
+[check] v10 E1: ok (44.2 ms)
+[check] v10 E2: ok (23.4 ms)
+[check] v10 E3: ok (17.5 ms)
+[check] v10 E4-state: ok (5.0 ms)
+[check] v10 E4-list: ok (70.9 ms)

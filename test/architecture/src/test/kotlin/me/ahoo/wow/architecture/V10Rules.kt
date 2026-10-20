@@ -149,7 +149,7 @@ object V10Rules {
         V10Module("architecture", "test/architecture"),
         V10Module("routing-spike", "test/routing-spike"),
         V10Module("lease-spike", "test/lease-spike"),
-        V10Module("e2e-bench-v10", "wow-benchmarks/e2e/bench-v10"),
+        V10Module("benchmark-server", "test/benchmarks/server"),
     )
 
     /**
@@ -613,7 +613,7 @@ object V10Rules {
      * as a user does, so they never opt in to `InternalWowApi` (an `ERROR`-level opt-in).
      */
     val USER_PROJECTS: List<V10Module> =
-        EXAMPLES + listOf(OPS_DOMAIN, VIEW_STORE_DOMAIN) + PLATFORM_SERVERS + TOOLS.filter { it.name == "e2e-bench-v10" }
+        EXAMPLES + listOf(OPS_DOMAIN, VIEW_STORE_DOMAIN) + PLATFORM_SERVERS + TOOLS.filter { it.name == "benchmark-server" }
 
     private val INTERNAL_OPT_IN = Regex("""\bInternalWowApi\b""")
 
