@@ -46,6 +46,11 @@ class PostgresQueryHostTest {
     }
 
     @Test
+    fun `the node's own commits should reach its snapshot subscription in memory on PostgreSQL (decision D249)`() {
+        host.assertHandoff()
+    }
+
+    @Test
     fun `the declared index should be created at startup and kept by a validating start`() {
         val report = host.context.getBean(QueryIndexesLifecycle::class.java).reports.getValue(account)
         report.created.assert().containsExactly("wow_snapshot__bank__account_ix_account_owner")

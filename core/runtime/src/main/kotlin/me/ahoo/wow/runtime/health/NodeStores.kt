@@ -37,13 +37,28 @@ internal class NodeStores(
     class LeaseStoreOf(val context: String, val leases: LeaseStore, val activity: StoreActivity)
 
     companion object {
-        /** [backends] of [context], their logs and lease store called through records of their calls. */
-        fun track(context: String, backends: ContextBackends): ContextBackends = backends.copyWith(
-            log = trackedLog(backends.log, StoreActivity(StoreActivity.LOG, context)),
+        /**
+         * [backends] of [context], their logs and lease store called through records of their calls, each log's
+         * append latency in its store's [pressures] (decision D252).
+         */
+        fun track(
+            context: String,
+            backends: ContextBackends,
+            pressures: WritePressures = WritePressures(),
+        ): ContextBackends = backends.copyWith(
+            log = trackedLog(
+                backends.log,
+                StoreActivity(StoreActivity.LOG, context),
+                pressures.of(backends.store),
+            ),
             leases = trackedLeases(backends.leases, StoreActivity(StoreActivity.LEASES, context)),
             groups = backends.groups.map { group ->
                 group.copyWith(
-                    log = trackedLog(group.log, StoreActivity(StoreActivity.LOG, "$context#${group.store}")),
+                    log = trackedLog(
+                        group.log,
+                        StoreActivity(StoreActivity.LOG, "$context#${group.store}"),
+                        pressures.of(group.store),
+                    ),
                 )
             },
         )

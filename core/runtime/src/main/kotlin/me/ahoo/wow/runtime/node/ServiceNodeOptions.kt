@@ -29,6 +29,7 @@ import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.command.ReceiptHandler
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.log.AppendQueueOptions
+import me.ahoo.wow.runtime.log.HandoffOptions
 import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotTargets
@@ -261,6 +262,8 @@ enum class Routing {
  *   it, and executed by the owner of its log partition from there. Each must be a type the node serves, the node
  *   needs a producer ([SourceTopics.producer]), and each of their contexts takes the commands of its command topic
  *   whether or not [SourceTopics.intake] is set. None by default.
+ * - [handoff]: whether the node hands its own commits to its subscriptions' tails in memory (decision D249), and the
+ *   bounds of each tail's hand-overs ([HandoffOptions]); on by default.
  * - [ledger]: where the node publishes its failure ledger (decision D141): the ops context whose `parked` aggregate
  *   records each entry, through its command topic, which needs a producer ([SourceTopics.producer]). Not published by
  *   default.
@@ -288,6 +291,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
     val snapshots: SnapshotOptions = SnapshotOptions(),
     val maxInFlight: Int = InFlightLimit.DEFAULT_MAX,
     val maxRegisteredWaits: Int = WaitOptions.DEFAULT_MAX_REGISTERED,
+    val handoff: HandoffOptions = HandoffOptions(),
 ) {
     init {
         require(maxInFlight >= 1) { "A node takes at least one command in flight." }
@@ -317,6 +321,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         snapshots: SnapshotOptions = this.snapshots,
         maxInFlight: Int = this.maxInFlight,
         maxRegisteredWaits: Int = this.maxRegisteredWaits,
+        handoff: HandoffOptions = this.handoff,
     ): ServiceNodeOptions = ServiceNodeOptions(
         cluster,
         routing,
@@ -336,6 +341,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         snapshots,
         maxInFlight,
         maxRegisteredWaits,
+        handoff,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -349,12 +355,13 @@ class ServiceNodeOptions @InternalWowApi constructor(
             "laneCapacity=$laneCapacity, stateCacheCapacity=$stateCacheCapacity, " +
             "defaultWaitTimeout=$defaultWaitTimeout, stateViews=$stateViews, timers=$timers, " +
             "schedules=$schedules, kafkaRouted=$kafkaRouted, unknownWaitContexts=$unknownWaitContexts, " +
-            "ledger=$ledger, snapshots=$snapshots, maxInFlight=$maxInFlight, maxRegisteredWaits=$maxRegisteredWaits)"
+            "ledger=$ledger, snapshots=$snapshots, maxInFlight=$maxInFlight, maxRegisteredWaits=$maxRegisteredWaits, " +
+            "handoff=$handoff)"
 
     private fun valueFields(): List<Any?> = listOf(
         cluster, routing, maxWaitTimeout, maxWaitHops, subscription, appendQueue, laneCapacity, stateCacheCapacity,
         defaultWaitTimeout, stateViews, timers, schedules, kafkaRouted, unknownWaitContexts, ledger, snapshots,
-        maxInFlight, maxRegisteredWaits,
+        maxInFlight, maxRegisteredWaits, handoff,
     )
 
     companion object {

@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.query.AbacQueryOptions
+import me.ahoo.wow.query.AdaptiveLimitOptions
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.QueryCountCacheOptions
@@ -69,6 +70,14 @@ import kotlin.time.toKotlinDuration
  *   `0` for no bound. A query beyond the bound waits in a FIFO queue (decision D247) at most `wow.query.max-wait`
  *   (200ms) for a permit, and is refused when the wait runs out or when `wow.query.max-queued` (4 per permit) queries
  *   wait already; `wow.stores.<name>.query.max-wait` and `.max-queued` take their place for one store.
+ * - `wow.query.adaptive.*` (decision D252, [Adaptive]): the bound of a store whose `max-concurrent` neither
+ *   `wow.query.max-concurrent` nor `wow.stores.<name>.query.max-concurrent` fixes adapts to the store's write pressure,
+ *   evaluated every `interval` (1s): `periods` (2) periods in a row in which its appends' p90 latency is above
+ *   `latency-factor` (1.5) times its baseline and at least `min-latency` (5ms), or in which `connection-waits` (1)
+ *   callers wait for a connection of its pool, halve it down to `floor` (1); a calm period in which a query waited or
+ *   was refused raises it by one up to `ceiling` (none: the provider's, PostgreSQL half a pool the appends share, all of
+ *   a `query-data-source`'s). `enabled` (true) turns it off; `wow.stores.<name>.query.adaptive.enabled`, `.floor` and
+ *   `.ceiling` take their place for one store.
  */
 @ConfigurationProperties(prefix = QueryProperties.PREFIX)
 class QueryProperties {
@@ -87,6 +96,7 @@ class QueryProperties {
     var maxConcurrent: Int? = null
     var maxWait: Duration = QueryBulkhead.DEFAULT_MAX_WAIT.toJavaDuration()
     var maxQueued: Int? = null
+    var adaptive: Adaptive = Adaptive()
 
     /** The entry policy these settings give every gateway. */
     fun entryPolicy(): QueryEntryPolicy = QueryEntryPolicy(
@@ -169,6 +179,28 @@ class QueryProperties {
 
     class Memory {
         var enabled: Boolean = false
+    }
+
+    /** `wow.query.adaptive.*` (decision D252): how a store's query bound adapts to its write pressure. */
+    class Adaptive {
+        var enabled: Boolean = true
+        var floor: Int = AdaptiveLimitOptions.DEFAULT_FLOOR
+        var ceiling: Int? = null
+        var interval: Duration = AdaptiveLimitOptions.DEFAULT_INTERVAL.toJavaDuration()
+        var latencyFactor: Double = AdaptiveLimitOptions.DEFAULT_LATENCY_FACTOR
+        var minLatency: Duration = AdaptiveLimitOptions.DEFAULT_MIN_LATENCY.toJavaDuration()
+        var connectionWaits: Int = AdaptiveLimitOptions.DEFAULT_CONNECTION_WAITS
+        var periods: Int = AdaptiveLimitOptions.DEFAULT_PERIODS
+
+        /** The options of a store whose floor is [floor]. */
+        internal fun options(floor: Int = this.floor): AdaptiveLimitOptions = AdaptiveLimitOptions(
+            floor = floor,
+            interval = interval.toKotlinDuration(),
+            latencyFactor = latencyFactor,
+            minLatency = minLatency.toKotlinDuration(),
+            connectionWaits = connectionWaits,
+            periods = periods,
+        )
     }
 
     class Events {

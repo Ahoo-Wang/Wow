@@ -18,6 +18,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.query.AdaptiveQueryLimit
+import me.ahoo.wow.query.AdaptiveQueryLimits
 import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.QueryCountCache
@@ -53,6 +55,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.nio.file.Path
+import kotlin.time.toKotlinDuration
 
 /**
  * The query plane (decisions D126–D131, D150, D151), active when wow-query is on the classpath (wow-http brings it)
@@ -274,6 +277,7 @@ class QueryAutoConfiguration {
         @Bean
         @InternalWowApi
         fun wowQueryStores(
+            node: ServiceNode,
             properties: QueryProperties,
             backends: HostBackends,
             providers: StoreProviders,
@@ -281,19 +285,31 @@ class QueryAutoConfiguration {
             wow: ObjectProvider<WowProperties>,
         ): QueryStores {
             val settings = wow.ifAvailable
-            val bulkheads = HostQueryBulkheads.of(
+            val built = HostQueryBulkheads.of(
                 backends.stores,
                 providers,
                 properties,
                 settings?.stores.orEmpty(),
-            )
-            if (bulkheads.isNotEmpty()) {
-                logger.info { "The stores' queries run under ${bulkheads.values}." }
+            ) { name -> HostQueryBulkheads.pressureOf(node, name, backends.stores[name]) }
+            if (built.bulkheads.isNotEmpty()) {
+                logger.info { "The stores' queries run under ${built.bulkheads.values}." }
             }
-            return QueryStores(bulkheads) { type ->
+            if (built.limits.isNotEmpty()) {
+                logger.info { "The query bounds of ${built.limits.map { it.bulkhead.store }} adapt to their writes." }
+            }
+            return QueryStores(built.bulkheads, built.limits) { type ->
                 HostQueryBulkheads.unpinned(type, events.storeOf(type), properties.events.unpinned, settings)
             }
         }
+
+        /**
+         * Evaluates the adaptive query bounds of the stores (decision D252) every `wow.query.adaptive.interval`, from
+         * the bean's start to its end.
+         */
+        @Bean(initMethod = "start", destroyMethod = "close")
+        @InternalWowApi
+        fun wowAdaptiveQueryLimits(stores: QueryStores, properties: QueryProperties): AdaptiveQueryLimits =
+            AdaptiveQueryLimits(stores.limits, properties.adaptive.interval.toKotlinDuration())
 
         /**
          * How the state reads replay the log of an aggregate without a snapshot (decision D246 ⑥): under the query
@@ -389,12 +405,15 @@ class QueryAutoConfiguration {
 }
 
 /**
- * How the queries of the node's stores run (review R3.4-2): the [bulkheads] of the stores, by name, and whether each
+ * How the queries of the node's stores run (review R3.4-2): the [bulkheads] of the stores, by name, their adaptive
+ * [limits] (decision D252), and whether each
  * aggregate type's events queries that name no aggregate run ([unpinned]).
  */
 @InternalWowApi
 class QueryStores internal constructor(
     val bulkheads: Map<String, QueryBulkhead>,
+    /** The bounds of [bulkheads] that adapt to their store's write pressure (decision D252). */
+    val limits: List<AdaptiveQueryLimit>,
     private val unpinned: (AggregateType) -> UnpinnedEvents,
 ) {
     /** Whether [type]'s events queries that name no aggregate run. */
@@ -419,3 +438,6 @@ internal const val QUERY_MODULE = "me.ahoo.wow.query.QueryModule"
 /** The snapshot write checkpoint of [type] on this node, or null when its context is not hosted here. */
 private suspend fun ServiceNode.snapshotCheckpointOf(type: AggregateType): Long? =
     contexts[type.context]?.snapshotCheckpoint(type)
+
+/** The query bulkheads of a node's stores, by store name, and the [limits] of those that adapt (decision D252). */
+internal class QueryStoreBulkheads(val bulkheads: Map<String, QueryBulkhead>, val limits: List<AdaptiveQueryLimit>)

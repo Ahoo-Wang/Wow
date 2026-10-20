@@ -18,6 +18,7 @@ import me.ahoo.wow.runtime.health.ComponentHealth
 import me.ahoo.wow.runtime.health.HealthStatus
 import me.ahoo.wow.runtime.health.NodeHealth
 import me.ahoo.wow.runtime.node.ServiceNode
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.EnvironmentPostProcessor
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -42,7 +43,8 @@ import org.springframework.util.ClassUtils
  *   not run);
  * - the contributor `wow`: one indicator per component (`node`, `ownership`, `stores`, `topics`, `subscriptions`,
  *   `executor`, `liveness`), each `UP`, `DEGRADED` (Spring Boot's status aggregation leaves it out, so it does not
- *   change a group's status) or `DOWN`, the parts of each in its details;
+ *   change a group's status) or `DOWN`, the parts of each in its details; and `queries`, always `UP`, each store's
+ *   query bulkhead (its limit and write pressure, decision D252), which no probe group reads;
  * - `wowReadiness`, [NodeHealth.readiness], and `wowLiveness`, [NodeHealth.liveness], which
  *   [HealthGroupsEnvironmentPostProcessor] adds to Actuator's availability probe groups: `/actuator/health/readiness`
  *   is `readinessState` and `wowReadiness`, `/actuator/health/liveness` is `livenessState` and `wowLiveness`;
@@ -62,14 +64,21 @@ class HealthAutoConfiguration {
     fun wowNodeHealth(node: ServiceNode, properties: WowProperties): NodeHealth =
         NodeHealth(node, properties.health.options())
 
-    /** `wow`: every component of the node's health. */
+    /**
+     * `wow`: every component of the node's health, and `queries`, the stores' query bulkheads (decision D252), when
+     * the node queries its stores: always `UP`, its details each store's limit and write pressure.
+     */
     @Bean(WOW_CONTRIBUTOR)
     @InternalWowApi
-    fun wowHealthContributor(health: NodeHealth): HealthContributor = CompositeHealthContributor.fromMap(
-        COMPONENTS.associateWith { name ->
+    fun wowHealthContributor(health: NodeHealth, queries: ObjectProvider<QueryStores>): HealthContributor {
+        val components: MutableMap<String, HealthContributor> = COMPONENTS.associateWithTo(LinkedHashMap()) { name ->
             HealthIndicator { toHealth(health.health().components.first { it.name == name }) }
-        },
-    )
+        }
+        queries.ifAvailable?.takeIf { it.bulkheads.isNotEmpty() }?.let { stores ->
+            components[QUERIES] = HealthIndicator { queriesHealth(stores) }
+        }
+        return CompositeHealthContributor.fromMap(components)
+    }
 
     /** `wowReadiness`: whether the node can serve traffic. */
     @Bean(READINESS_INDICATOR)
@@ -101,6 +110,33 @@ class HealthAutoConfiguration {
             NodeHealth.EXECUTOR,
             NodeHealth.LIVENESS,
         )
+
+        /** The `queries` component of `wow` (decision D252); informative, so it never takes a group down. */
+        const val QUERIES: String = "queries"
+
+        /** Each store's query bulkhead: its limit, what runs and waits, and, when it adapts, its write pressure. */
+        fun queriesHealth(stores: QueryStores): Health {
+            val limits = stores.limits.associateBy { it.bulkhead.store }
+            val details = stores.bulkheads.toSortedMap().mapValues { (name, bulkhead) ->
+                val details = linkedMapOf<String, Any>(
+                    "limit" to bulkhead.limit,
+                    "ceiling" to bulkhead.ceiling,
+                    "running" to bulkhead.running,
+                    "queued" to bulkhead.queued,
+                    "adaptive" to (name in limits),
+                )
+                limits[name]?.let { limit ->
+                    details["floor"] = limit.floor
+                    details["pressure"] = limit.pressed
+                    details["decreases"] = limit.decreases
+                    limit.lastSample.appendP90?.let { details["appendP90Millis"] = it.inWholeMilliseconds }
+                    limit.lastSample.baseline?.let { details["appendBaselineMillis"] = it.inWholeMilliseconds }
+                    details["waitingForConnection"] = limit.lastSample.waitingForConnection
+                }
+                details
+            }
+            return Health.up().withDetails(details).build()
+        }
 
         /** [component] as Actuator's health: its status, its details, and each part's status and details under its name. */
         fun toHealth(component: ComponentHealth): Health {

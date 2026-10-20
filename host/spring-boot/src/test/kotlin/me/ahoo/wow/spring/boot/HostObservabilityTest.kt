@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Tags
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.api.trace.SpanKind
@@ -35,6 +36,8 @@ import me.ahoo.wow.opentelemetry.ParkedMetrics
 import me.ahoo.wow.opentelemetry.TracingTopicProducer
 import me.ahoo.wow.opentelemetry.WowMetrics
 import me.ahoo.wow.query.QueryObserver
+import me.ahoo.wow.query.store.StoreQueryProvider
+import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.transport.TopicMessage
@@ -92,6 +95,12 @@ class HostObservabilityTest {
         host.context.getBeansOfType(ParkedNotifier::class.java).values.filterIsInstance<ParkedMetrics>()
             .assert().hasSize(1)
         host.context.getBean(NodeMetrics::class.java).assert().isNotNull()
+        // The default store's query bulkhead (decision D252): its limit, write pressure and decreases.
+        val store = Tags.of(WowMetrics.STORE, ContextBackends.DEFAULT_STORE)
+        beans.meters.find(WowMetrics.QUERY_LIMIT).tags(store).gauge()!!.value()
+            .assert().isEqualTo(StoreQueryProvider.DEFAULT_MAX_CONCURRENT.toDouble())
+        beans.meters.find(WowMetrics.QUERY_PRESSURE).tags(store).gauge()!!.value().assert().isZero()
+        beans.meters.find(WowMetrics.QUERY_LIMIT_DECREASES).tags(store).functionCounter()!!.count().assert().isZero()
     }
 
     @Test

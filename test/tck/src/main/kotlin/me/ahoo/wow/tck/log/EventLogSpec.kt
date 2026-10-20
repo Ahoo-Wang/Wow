@@ -269,6 +269,46 @@ abstract class EventLogSpec {
             .assert().isEqualTo(mapOf(first to transport, second to null))
     }
 
+    /**
+     * What the runtime hands its tails in memory (decision D249) is the stream and transport as appended at the
+     * position the outcome names: a backend's tail must read back exactly that, the events' payloads as JSON.
+     */
+    @Test
+    fun `the entry an append's outcome names is what tail reads back`(): Unit = runBlocking {
+        val log = createLog(partitions = 4)
+        val (first, second, third) = idsInPartitionZero(3, 4)
+        val transport = Transport(
+            wait = WaitContext(
+                waitId = "w-1",
+                origin = Origin("node-1", "10.0.0.7:8081", "order-service"),
+                remaining = listOf(Hop.snapshot()),
+                deadline = 1_700_000_010_000L,
+            ),
+            reservations = listOf(ReservationKey("user-name", "ahoo ü")),
+            trace = mapOf("traceparent" to "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"),
+        )
+        val single = stream(
+            first,
+            1,
+            causation = Causation("cause-1", "corr-1"),
+            headers = mapOf("h" to "v"),
+            operator = Operator("user-1", "user"),
+        ).let {
+            it.copyWith(events = listOf(EventRecord("$context.aggregate.Priced", 1, ExactJson.NUMBERS)) + it.events)
+        }
+        val grouped = listOf(stream(second, 1) to null, stream(third, 1) to transport)
+        val handed = buildList {
+            add(single to transport to log.append(single, transport))
+            grouped.zip(log.appendAll(grouped)).forEach { (appended, outcome) -> add(appended to outcome) }
+        }.map { (appended, outcome) ->
+            Triple((outcome as AppendOutcome.Committed).position, appended.first, appended.second)
+        }
+        val read = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(3).toList() }
+        read.map { it.position }.assert().isEqualTo(handed.map { it.first })
+        read.map { it.transport }.assert().isEqualTo(handed.map { it.third })
+        read.zip(handed).forEach { (entry, expected) -> entry.stream.assertSameAs(expected.second) }
+    }
+
     @Test
     fun `head is the last committed sequence of a partition, null when it is empty`(): Unit = runBlocking {
         val log = createLog(partitions = 4)
