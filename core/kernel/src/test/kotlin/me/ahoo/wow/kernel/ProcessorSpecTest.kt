@@ -29,9 +29,9 @@ import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.ProjectContext
+import me.ahoo.wow.api.subscribe.PublishedEvent
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
-import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.test.commandCommitted
 import me.ahoo.wow.test.commandRejected
 import me.ahoo.wow.test.commandTypeOf
@@ -82,7 +82,7 @@ class ProcessorSpecTest {
         }
 
         fun onQuote(event: StateEvent<Quote>, context: SagaContext): Command<Cancel>? =
-            if (event.events.any { it is StateEventPayload && it.name == "pay.payment.Declined" }) {
+            if (event.events.any { it is PublishedEvent && it.name == "pay.payment.Declined" }) {
                 context.command(ORDER.ref(event.ref.tenantId, event.ref.id), Cancel("declined"))
             } else {
                 null
@@ -182,8 +182,7 @@ class ProcessorSpecTest {
             expectHandledBy("onQuote")
             expectCommand(Cancel("declined"), to = order)
         }
-        publishedEvent("pay.payment.Declined", mapOf("why" to "card")).payload["why"].asString()
-            .assert().isEqualTo("card")
+        publishedEvent("pay.payment.Declined", mapOf("why" to "card")).payload.assert().isEqualTo("""{"why":"card"}""")
     }
 
     @Test

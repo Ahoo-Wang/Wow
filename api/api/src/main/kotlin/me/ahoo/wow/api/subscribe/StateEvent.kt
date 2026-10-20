@@ -21,7 +21,9 @@ import me.ahoo.wow.api.decide.Causation
 
 /**
  * What a subscription handler receives (design 04 §1, design 08 §5): one committed event stream of an aggregate,
- * its [events] decoded (and upgraded to their current revision), with the aggregate's [state] after the commit.
+ * its [events] decoded (and upgraded to their current revision), with the aggregate's [state] after the commit. The
+ * events of another context's published stream are the classes of that context's api module, or a [PublishedEvent]
+ * for one the subscriber has no class of at its revision (DX-1c).
  *
  * - [ref] and [version] identify the commit: [version] is the aggregate's version after it. [id] (`ref@version`) is
  *   the causation id of the commands a saga derives from it.

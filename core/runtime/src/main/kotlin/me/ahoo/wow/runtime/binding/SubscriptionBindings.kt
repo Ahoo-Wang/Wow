@@ -185,14 +185,19 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     context = context.context,
                     retry = handler.retry
                 ) { entry ->
-                    handleSaga(
-                        handler,
-                        publishedStateEventOf(entry, handler, context),
-                        entry,
-                        context,
-                        derived,
-                        receipts
-                    )
+                    val events = publishedEventsOf(entry, context)
+                    if (handler.skips(events)) {
+                        HandledEntry.NOTHING
+                    } else {
+                        handleSaga(
+                            handler,
+                            publishedStateEventOf(entry, handler, context, events),
+                            entry,
+                            context,
+                            derived,
+                            receipts
+                        )
+                    }
                 }
             } else {
                 Subscription(
@@ -203,8 +208,11 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     context = context.context,
                     retry = handler.retry,
                 ) { entry ->
-                    val event = publishedStateEventOf(entry, handler, context)
-                    call(handler, event, executionOf(handler, name, event, context))
+                    val events = publishedEventsOf(entry, context)
+                    if (!handler.skips(events)) {
+                        val event = publishedStateEventOf(entry, handler, context, events)
+                        call(handler, event, executionOf(handler, name, event, context))
+                    }
                 }
             }
             SourcedSubscription(subscription, types)
@@ -390,6 +398,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             entry: SubscribedEntry,
             handler: ProcessorBinding<*>,
             context: ContextNode,
+            events: List<Any> = publishedEventsOf(entry, context),
         ): StateEvent<Any?> {
             val record = checkNotNull(entry.published) { "${entry.ref}@${entry.version} was not read from a topic." }
             val view = record.state
@@ -405,13 +414,23 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 requestId = record.requestId,
                 commandType = record.commandType,
                 commitTime = record.commitTime,
-                events = record.events,
+                events = events,
                 state = state,
                 scope = record.scope,
                 causation = record.causation,
                 headers = record.headers,
                 operator = record.operator,
             )
+        }
+
+        /**
+         * The events of [entry], a record of another context's topic, each the class of its context's api at the
+         * contract's revision, else a `PublishedEvent` (DX-1c): a handler of each event of a type skips a stream
+         * without one, before its state is decoded (decision D264).
+         */
+        private fun publishedEventsOf(entry: SubscribedEntry, context: ContextNode): List<Any> {
+            val record = checkNotNull(entry.published) { "${entry.ref}@${entry.version} was not read from a topic." }
+            return context.peerEvents.decode(record.events, context.codec)
         }
 
         private suspend fun stateEventOf(entry: SubscribedEntry, context: ContextNode): StateEvent<Any> {

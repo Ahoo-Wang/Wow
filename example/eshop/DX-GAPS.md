@@ -103,7 +103,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Proposed fix**: Share that script, or a `build-logic` convention, with the eShop. The eShop's ordering and inventory services hit the same wall. Alternatively, build the plugin as an included build so the repository's own examples can apply it.
 - **Blocks M7**: no. Users apply the published plugin. It blocks the eShop's cross-context work packages until a shared workaround exists.
 
-### G7. Events from another context's stream are untyped payloads
+### G7. Events from another context's stream are untyped payloads (resolved)
 
 - **Work package**: 6.3e
 - **Area**: kernel, docs
@@ -112,6 +112,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: Match by event name constants; read what the handler needs from the published state.
 - **Proposed fix**: Decode a published event into its class when the peer Manifest's schema reference resolves on the class path, or offer a typed helper (`event.payload<OrderShipped>()`). Document the shape in either case.
 - **Blocks M7**: no, but it should be settled before users write cross-context handlers.
+- **Resolved**: by #4674 (DX-1c, decisions D256, D259). A published event is decoded into its api class when the contract on the class path declares it at that revision, else delivered as a public `PublishedEvent`; a handler of each event (`StateTypedEvent<View, E>`, decision D264) takes the class and is skipped otherwise. `OrderPaymentSaga.onOrderStockConfirmed` takes `OrderStockConfirmed`.
 
 ### G8. D144 calls the inventory's handler a reactor, but only a saga can send a command
 

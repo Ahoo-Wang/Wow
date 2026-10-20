@@ -132,7 +132,7 @@
       "source" : {
         "context" : "eshop-ordering",
         "aggregates" : [ "order" ],
-        "events" : [ ]
+        "events" : [ "OrderStockConfirmed" ]
       },
       "function" : {
         "kind" : "SAGA",

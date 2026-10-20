@@ -1582,6 +1582,21 @@ public final class me/ahoo/wow/api/subscribe/ExecutionId {
 public abstract interface class me/ahoo/wow/api/subscribe/ProjectContext : me/ahoo/wow/api/subscribe/SubscriptionContext {
 }
 
+public final class me/ahoo/wow/api/subscribe/PublishedEvent {
+	public static final field Companion Lme/ahoo/wow/api/subscribe/PublishedEvent$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getName ()Ljava/lang/String;
+	public final fun getPayload ()Ljava/lang/String;
+	public final fun getRevision ()I
+	public fun hashCode ()I
+	public static final fun of (Ljava/lang/String;ILjava/lang/String;)Lme/ahoo/wow/api/subscribe/PublishedEvent;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/subscribe/PublishedEvent$Companion {
+	public final fun of (Ljava/lang/String;ILjava/lang/String;)Lme/ahoo/wow/api/subscribe/PublishedEvent;
+}
+
 public abstract interface class me/ahoo/wow/api/subscribe/ReactContext : me/ahoo/wow/api/subscribe/SubscriptionContext {
 }
 
