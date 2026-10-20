@@ -14,8 +14,8 @@
 package me.ahoo.wow.example.eshop.e2e
 
 import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.spi.log.Partitioner
 import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.clients.admin.AdminClientConfig
@@ -279,7 +279,7 @@ class EshopStack(
         const val OK = 200
         const val NOT_FOUND = 404
         const val TAIL = 4_000
-        val ORDER = AggregateType("eshop-ordering", "order")
+        val ORDER = EshopOrderingContract.Order.TYPE
 
         /** An employee: a tenant-level caller of the catalog, basket and ordering services (decision D189). */
         val EMPLOYEE: Map<String, String> = mapOf("X-User" to "erin", "X-Role" to "employee")

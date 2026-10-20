@@ -176,11 +176,17 @@ class Kernel(
      * reach after COMMITTED, it is appended with the stream as transport (decision D25), so the subscription its next
      * hop names signals the waiting node. The kernel only carries it; registering the wait and the signals are the
      * runtime's.
+     *
+     * [appending], when given, is called with each stream the kernel is about to append and the state after it, before
+     * the append starts (decision D261, B.G-5): the runtime keeps that state as the view a local subscription reads if
+     * the log hands it the commit before [execute] returns (decision D249). It is called once per attempt, so a stream
+     * it was given may never commit; it must not throw.
      */
     suspend fun <S : Any> execute(
         model: AggregateModel<S>,
         admitted: Command<*>,
         wait: WaitContext? = null,
+        appending: ((EventStreamRecord, CachedState) -> Unit)? = null,
     ): CommandOutcome {
         require(admitted.ref.type == model.type) { "${admitted.ref} is not a ${model.type}." }
         require(admitted.ref.isAssigned) { "${admitted.ref} names no aggregate: admission assigns its id (D191)." }
@@ -190,7 +196,7 @@ class Kernel(
         var committed: CommandOutcome.Committed? = null
         return try {
             executing.observe {
-                executeAdmitted(model, admitted, wait).also {
+                executeAdmitted(model, admitted, wait, appending).also {
                     committed = it as? CommandOutcome.Committed
                     executing.outcome(it.observedName)
                 }
@@ -206,6 +212,7 @@ class Kernel(
         model: AggregateModel<S>,
         admitted: Command<*>,
         wait: WaitContext?,
+        appending: ((EventStreamRecord, CachedState) -> Unit)?,
     ): CommandOutcome {
         val command = admitted.narrowedTo(model)
         val decider = model.decider(command.body.javaClass)
@@ -243,6 +250,7 @@ class Kernel(
 
                 is Prepared.Append -> prepared.stream to prepared.evolved
             }
+            appending?.invoke(stream, evolved)
             val appended = withContext(NonCancellable) { appendCompensating(stream, attempt) }
             settleAppend(appended, stream, evolved, attempt, commandType, requests)?.let { return it }
             attempts++
@@ -583,6 +591,23 @@ class Kernel(
             return null
         }
         return replay(model, CachedState(model.initialState(ref), 0), streams)
+    }
+
+    /**
+     * The committed state after [stream], evolved from [base], the state of its aggregate at the version right before
+     * it (a copy the caller hands over, which may be mutated; version 0 for the initial state), without reading the
+     * log: the caller already holds [stream] as the log holds it, such as a subscription's entry (decision D261,
+     * B.G-5). The state cache is not touched.
+     *
+     * @return the state after [stream] with the metadata the kernel keeps beside it; null when [stream] is not the
+     *   version right after [base]'s.
+     */
+    fun <S : Any> evolved(model: AggregateModel<S>, base: CachedState, stream: EventStreamRecord): CachedState? {
+        require(stream.ref.type == model.type) { "${stream.ref} is not a ${model.type}." }
+        if (stream.version != base.version + 1) {
+            return null
+        }
+        return evolve(model, base, stream)
     }
 
     /**

@@ -14,11 +14,13 @@
 package me.ahoo.wow.example.eshop.payment.domain
 
 import me.ahoo.wow.api.annotation.BoundedContext
-import me.ahoo.wow.example.eshop.payment.api.PaymentContext
 
-/** Names the bounded context of this module's aggregates for the compiler. */
+/**
+ * Names the bounded context of this module's aggregates for the compiler. The name is declared here, once: the api
+ * module's generated `EshopPaymentContract.NAME` comes from it (decision D259).
+ */
 @BoundedContext(
-    name = PaymentContext.NAME,
+    name = "eshop-payment",
     description = "The eShop payment: payments of orders through a simulated gateway"
 )
 object PaymentBoundedContext

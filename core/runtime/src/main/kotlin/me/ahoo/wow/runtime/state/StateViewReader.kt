@@ -31,12 +31,15 @@ import tools.jackson.core.JacksonException
  * Reads the state after a committed stream for one state consumer, the [reader] of the context's [views] (design 04
  * §1, decision D133), in this order:
  *
- * 1. the view taken at the stream's version ([StateViews.get]): what the executor recorded as it committed, or what
- *    another reader rebuilt;
- * 2. otherwise the state rebuilt from the nearest base before the version: the latest view before it
+ * 1. the view taken at the stream's version ([StateViews.get]): what the executor recorded as it committed (or
+ *    expected just before, when the log hands this node's commit over first), or what another reader rebuilt;
+ * 2. otherwise the stream in hand evolved from the state right before it, reading no store (decision D261, B.G-5):
+ *    the view at the previous version, such as the one this reader handled last, or the initial state for the
+ *    aggregate's first stream;
+ * 3. otherwise the state rebuilt from the nearest base before the version: the latest view before it
  *    ([StateViews.floor], such as the one this reader rebuilt for the aggregate's previous commit) or the aggregate's
  *    snapshot in [snapshots], whichever is later, evolved with the log's tail up to the version ([Kernel.stateAt]);
- * 3. without either (no view, and no snapshot or one already past the version), the log replayed up to the version.
+ * 4. without either (no view, and no snapshot or one already past the version), the log replayed up to the version.
  *
  * A rebuilt state is put back into the views, so the next commit of the aggregate, for this reader or another
  * behind it, evolves it with one stream rather than replaying the log again: a subscription behind the snapshot
@@ -63,12 +66,15 @@ class StateViewReader(
 
     /** The state after [stream]. */
     suspend fun read(stream: EventStreamRecord): SerializedState =
-        views.get(stream.ref, stream.version)?.also { pass(stream.ref, stream.version) }
+        views.get(stream)?.also { pass(stream.ref, stream.version) }
+            ?: inHand(stream)
             ?: rebuild(stream, loadSnapshot(stream.ref))
 
     /** The state after [stream], with [snapshot], the aggregate's snapshot the caller already loaded, if any. */
     suspend fun read(stream: EventStreamRecord, snapshot: SnapshotRecord?): SerializedState =
-        views.get(stream.ref, stream.version)?.also { pass(stream.ref, stream.version) } ?: rebuild(stream, snapshot)
+        views.get(stream)?.also { pass(stream.ref, stream.version) }
+            ?: inHand(stream)
+            ?: rebuild(stream, snapshot)
 
     /** This reader is done with [ref] up to [version] ([StateViews.pass]). */
     fun pass(ref: AggregateRef, version: Int) {
@@ -84,9 +90,29 @@ class StateViewReader(
         val state = base?.let { view -> baseOf(model, view)?.let { kernel.stateAt(model, ref, version, it) } }
             ?: kernel.stateAt(model, ref, version, usable)
         checkNotNull(state) { "The log does not hold $ref@$version." }
+        return keep(ref, state)
+    }
+
+    /**
+     * The state after [stream] evolved from the state right before it, without reading a store: the view at the
+     * previous version, or the initial state when [stream] is the aggregate's first; null without that base.
+     */
+    private fun inHand(stream: EventStreamRecord): SerializedState? {
+        val ref = stream.ref
+        val model = modelOf(ref.type)
+        val base = if (stream.version == 1) {
+            CachedState(model.initialState(ref), 0)
+        } else {
+            views.floor(ref, stream.version)?.takeIf { it.version == stream.version - 1 }?.let { baseOf(model, it) }
+        } ?: return null
+        return kernel.evolved(model, base, stream)?.let { keep(ref, it) }
+    }
+
+    /** [state], rebuilt by this reader, as a view shared with the other readers, and passed. */
+    private fun keep(ref: AggregateRef, state: CachedState): SerializedState {
         val view =
             SerializedState(
-                version,
+                state.version,
                 codec.stateText(state.state),
                 state.scope,
                 state.deleted,
@@ -94,7 +120,7 @@ class StateViewReader(
                 state.schedules
             )
         views.put(ref, view)
-        pass(ref, version)
+        pass(ref, view.version)
         return view
     }
 

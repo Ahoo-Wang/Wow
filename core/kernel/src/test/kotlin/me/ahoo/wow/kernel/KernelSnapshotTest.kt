@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
@@ -171,6 +172,27 @@ class KernelSnapshotTest {
         kernel.replayed(cartModel, ref, streams.drop(1)).assert().isNull()
         kernel.replayed(cartModel, ref, emptyList()).assert().isNull()
     }
+
+    @Test
+    fun `a state evolved with the stream in hand reads no log and needs the version right after its base`(): Unit =
+        runTest {
+            history()
+            val streams = log.read(ref).toList()
+            val base = checkNotNull(kernel.replayed(cartModel, ref, streams.dropLast(1)))
+            log.streamsRead = 0
+            val state = checkNotNull(kernel.evolved(cartModel, base, streams.last()))
+            log.streamsRead.assert().isEqualTo(0)
+            state.version.assert().isEqualTo(5)
+            (state.state as CartState).items.assert().isEqualTo(mapOf("apple" to 4, "pear" to 6))
+            kernel.evolved(cartModel, base, streams[2]).assert().isNull()
+            assertThrows<IllegalArgumentException> {
+                kernel.evolved(
+                    cartModel,
+                    base,
+                    streams.last().copyWith(ref = AggregateType("other", "cart").ref("t", "c"))
+                )
+            }
+        }
 
     @Test
     fun `a snapshot of another state schema is ignored`() = runTest {

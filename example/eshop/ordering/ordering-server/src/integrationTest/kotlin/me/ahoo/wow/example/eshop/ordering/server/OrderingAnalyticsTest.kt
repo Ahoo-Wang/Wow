@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.spring.boot.HostBackends
 import org.junit.jupiter.api.AfterAll
@@ -84,8 +85,8 @@ class OrderingAnalyticsTest {
     fun `the orders should be served from PostgreSQL, and the sales dataset from ClickHouse`() {
         context.getBean(HostBackends::class.java).type.assert().isEqualTo("postgres")
         val queries = context.getBean(HttpQueries::class.java)
-        queries.snapshots(AggregateType("eshop-ordering", "order")).assert().isNotNull()
-        queries.datasets[AggregateType("eshop-ordering", "sales")].assert().isNotNull()
+        queries.snapshots(EshopOrderingContract.Order.TYPE).assert().isNotNull()
+        queries.datasets[AggregateType(EshopOrderingContract.NAME, "sales")].assert().isNotNull()
     }
 
     @Test
