@@ -24,6 +24,7 @@ import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import org.junit.jupiter.api.Test
+import me.ahoo.wow.manifest.FrameworkErrors
 
 /** `GET …/{id}/state`, `?version=` (decision D112) and `GET /wow/manifest`. */
 class StateAndManifestRoutesTest {
@@ -43,11 +44,11 @@ class StateAndManifestRoutesTest {
     }
 
     @Test
-    fun `the latest state is the snapshot, with its version as ETag`() {
+    fun `the latest state is the snapshot, its ETag its version and a digest of its body`() {
         twoItems()
         val answer = node.get("/shop/cart/c-1/state")
         answer.status.assert().isEqualTo(200)
-        answer.headers.eTag.assert().isEqualTo("\"2\"")
+        answer.headers.eTag!!.matches(Regex("\"2-[0-9a-f]{16}\"")).assert().isTrue()
         val view = answer.body!!
         view["version"].asInt().assert().isEqualTo(2)
         view["state"]["items"].asInt().assert().isEqualTo(3)
@@ -59,7 +60,10 @@ class StateAndManifestRoutesTest {
     @Test
     fun `If-None-Match with the current tag is 304`() {
         twoItems()
-        node.get("/shop/cart/c-1/state", headers = mapOf("If-None-Match" to "\"2\"")).status.assert().isEqualTo(304)
+        val tag = node.get("/shop/cart/c-1/state").headers.eTag!!
+        node.get("/shop/cart/c-1/state", headers = mapOf("If-None-Match" to tag)).status.assert().isEqualTo(304)
+        // The version alone is not the tag (review R4-Q, Q-6).
+        node.get("/shop/cart/c-1/state", headers = mapOf("If-None-Match" to "\"2\"")).status.assert().isEqualTo(200)
         node.get("/shop/cart/c-1/state", headers = mapOf("If-None-Match" to "\"1\"")).status.assert().isEqualTo(200)
     }
 
@@ -68,7 +72,7 @@ class StateAndManifestRoutesTest {
         twoItems(snapshot = false)
         val answer = node.get("/shop/cart/c-1/state?version=1")
         answer.status.assert().isEqualTo(200)
-        answer.headers.eTag.assert().isEqualTo("\"1\"")
+        answer.headers.eTag!!.matches(Regex("\"1-[0-9a-f]{16}\"")).assert().isTrue()
         answer.body!!["state"]["items"].asInt().assert().isEqualTo(1)
         node.get("/shop/cart/c-1/state?version=2").body!!["state"]["items"].asInt().assert().isEqualTo(3)
     }
@@ -78,12 +82,13 @@ class StateAndManifestRoutesTest {
         twoItems(snapshot = false)
         val answer = node.get("/shop/cart/c-1/state")
         answer.status.assert().isEqualTo(200)
-        answer.headers.eTag.assert().isEqualTo("\"2\"")
+        answer.headers.eTag!!.matches(Regex("\"2-[0-9a-f]{16}\"")).assert().isTrue()
         answer.body!!["version"].asInt().assert().isEqualTo(2)
         answer.body!!["state"]["items"].asInt().assert().isEqualTo(3)
-        node.get("/shop/cart/c-1/state", headers = mapOf("If-None-Match" to "\"2\"")).status.assert().isEqualTo(304)
+        node.get("/shop/cart/c-1/state", headers = mapOf("If-None-Match" to answer.headers.eTag!!))
+            .status.assert().isEqualTo(304)
         // The caller's scope holds as for a snapshot.
-        node.get("/shop/cart/c-1/state", user = "bob").assertCode(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
+        node.get("/shop/cart/c-1/state", user = "bob").assertCode(404, FrameworkCodes.NOT_FOUND)
     }
 
     @Test
@@ -91,15 +96,15 @@ class StateAndManifestRoutesTest {
         twoItems(snapshot = false)
         node.get("/shop/cart/c-2/state").assertCode(404, FrameworkCodes.NOT_FOUND)
         node.get("/shop/cart/c-1/state?version=3").assertCode(404, FrameworkCodes.NOT_FOUND)
-        node.get("/shop/cart/c-1/state?version=0").assertCode(400, FrameworkCodes.MALFORMED)
-        node.get("/shop/cart/c-1/state?version=one").assertCode(400, FrameworkCodes.MALFORMED)
+        node.get("/shop/cart/c-1/state?version=0").assertCode(400, FrameworkErrors.QUERY_INVALID)
+        node.get("/shop/cart/c-1/state?version=one").assertCode(400, FrameworkErrors.QUERY_INVALID)
     }
 
     @Test
-    fun `a state outside the caller's scope is forbidden`() {
+    fun `a state outside the caller's scope is not found (Q-5)`() {
         twoItems()
-        node.get("/shop/cart/c-1/state", user = "bob").assertCode(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
-        node.get("/shop/cart/c-1/state?version=1", user = "bob").assertCode(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
+        node.get("/shop/cart/c-1/state", user = "bob").assertCode(404, FrameworkCodes.NOT_FOUND)
+        node.get("/shop/cart/c-1/state?version=1", user = "bob").assertCode(404, FrameworkCodes.NOT_FOUND)
     }
 
     @Test
@@ -112,7 +117,7 @@ class StateAndManifestRoutesTest {
         // The owner is still the cart's: the tenant-level caller did not take it over.
         node.get("/shop/cart/c-1/state?version=3", user = "alice").body!!["scope"]["ownerId"].asString()
             .assert().isEqualTo("alice")
-        node.get("/shop/cart/c-1/state", user = "bob").assertCode(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
+        node.get("/shop/cart/c-1/state", user = "bob").assertCode(404, FrameworkCodes.NOT_FOUND)
     }
 
     @Test
@@ -141,7 +146,7 @@ class StateAndManifestRoutesTest {
             .status.assert().isEqualTo(200)
         // Without it, the admin reads in its own scope.
         node.get("/shop/cart/c-1/state", user = "admin", headers = mapOf("X-Admin" to "true"))
-            .assertCode(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
+            .assertCode(404, FrameworkCodes.NOT_FOUND)
         // Another tenant holds no such cart.
         val otherTenant = mapOf("X-Admin" to "true", WowHeaders.SCOPE to "tenant=other")
         node.get(
@@ -181,7 +186,7 @@ class StateAndManifestRoutesTest {
             user = "admin",
             headers = admin + (WowHeaders.SCOPE to "tenant=other")
         )
-            .assertCode(400, FrameworkCodes.MALFORMED)
+            .assertCode(400, FrameworkErrors.QUERY_MALFORMED)
         fixed.get("/shop/cart/c-1/state?version=1", headers = mapOf(WowHeaders.SCOPE to "tenant=fixed"))
             .assertCode(403, FrameworkCodes.AUTH_FORBIDDEN)
         // Without the fixed tenant, the cart would be the caller's: that tenant holds none.

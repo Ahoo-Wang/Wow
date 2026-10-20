@@ -22,6 +22,7 @@ import me.ahoo.wow.http.read.StateHandler
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.runtime.FrameworkCodes
 import org.junit.jupiter.api.Test
+import me.ahoo.wow.manifest.FrameworkErrors
 
 /** `GET …/{id}/state?at=` and `GET …/{id}/state/trace` (decision D40). */
 class HistoryRoutesTest {
@@ -48,11 +49,11 @@ class HistoryRoutesTest {
         }.answer()
 
     @Test
-    fun `a state at a time is the one after the last commit by then, with its version as ETag`() {
+    fun `a state at a time is the one after the last commit by then, its version in its ETag`() {
         history()
         val answer = at("1970-01-01T00:00:02.999Z")
         answer.status.assert().isEqualTo(200)
-        answer.headers.eTag.assert().isEqualTo("\"2\"")
+        answer.headers.eTag!!.matches(Regex("\"2-[0-9a-f]{16}\"")).assert().isTrue()
         answer.body!!["version"].asInt().assert().isEqualTo(2)
         answer.body!!["state"]["items"].asInt().assert().isEqualTo(3)
         answer.body!!["scope"]["ownerId"].asString().assert().isEqualTo("alice")
@@ -61,7 +62,7 @@ class HistoryRoutesTest {
         at("1970-01-01T00:00:03Z").body!!["version"].asInt().assert().isEqualTo(3)
         // An offset names the same instant.
         at("1970-01-01T08:00:02+08:00").body!!["version"].asInt().assert().isEqualTo(2)
-        at("1970-01-01T00:00:02Z", headers = mapOf("If-None-Match" to "\"2\"")).status.assert().isEqualTo(304)
+        at("1970-01-01T00:00:02Z", headers = mapOf("If-None-Match" to answer.headers.eTag!!)).status.assert().isEqualTo(304)
     }
 
     @Test
@@ -80,15 +81,15 @@ class HistoryRoutesTest {
     fun `a time before the first commit is 404, one that is not an instant 400`() {
         history()
         at("1970-01-01T00:00:00.999Z").assertCode(404, FrameworkCodes.NOT_FOUND)
-        at("yesterday").assertCode(400, FrameworkCodes.MALFORMED)
-        at("1970-01-01T00:00:01").assertCode(400, FrameworkCodes.MALFORMED)
-        node.get("/shop/cart/c-1/state?version=1&at=1970-01-01T00:00:01Z").assertCode(400, FrameworkCodes.MALFORMED)
+        at("yesterday").assertCode(400, FrameworkErrors.QUERY_INVALID)
+        at("1970-01-01T00:00:01").assertCode(400, FrameworkErrors.QUERY_INVALID)
+        node.get("/shop/cart/c-1/state?version=1&at=1970-01-01T00:00:01Z").assertCode(400, FrameworkErrors.QUERY_INVALID)
     }
 
     @Test
-    fun `a state at a time outside the caller's scope is forbidden`() {
+    fun `a state at a time outside the caller's scope is not found (Q-5)`() {
         history()
-        at("1970-01-01T00:00:02Z", user = "bob").assertCode(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
+        at("1970-01-01T00:00:02Z", user = "bob").assertCode(404, FrameworkCodes.NOT_FOUND)
         at("1970-01-01T00:00:02Z", user = null).assertCode(401, FrameworkCodes.UNAUTHENTICATED)
     }
 
@@ -151,22 +152,24 @@ class HistoryRoutesTest {
             "limit=0",
             "limit=${StateHandler.MAX_TRACE_LIMIT + 1}",
         ).forEach { query ->
-            node.get("/shop/cart/c-1/state/trace?$query").assertCode(400, FrameworkCodes.MALFORMED)
+            node.get("/shop/cart/c-1/state/trace?$query").assertCode(400, FrameworkErrors.QUERY_INVALID)
         }
     }
 
     @Test
     fun `a trace is read in the caller's scope, every commit`() {
         history()
-        node.get("/shop/cart/c-1/state/trace", user = "bob").assertCode(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
+        node.get("/shop/cart/c-1/state/trace", user = "bob").assertCode(404, FrameworkCodes.NOT_FOUND)
         node.get("/shop/cart/c-1/state/trace", user = null).assertCode(401, FrameworkCodes.UNAUTHENTICATED)
         node.now = { 4000 }
         node.post("/shop/cart/c-1/wow.lifecycle.transfer-owner", """{"ownerId":"bob"}""").status.assert().isEqualTo(200)
         // Bob holds the cart from version 4 on: its earlier commits stay alice's.
         node.get("/shop/cart/c-1/state/trace?from=4", user = "bob").status.assert().isEqualTo(200)
-        node.get("/shop/cart/c-1/state/trace?from=3", user = "bob").assertCode(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
-        node.get("/shop/cart/c-1/state/trace?to=3").status.assert().isEqualTo(200)
-        node.get("/shop/cart/c-1/state/trace").assertCode(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
+        node.get("/shop/cart/c-1/state/trace?from=3", user = "bob").assertCode(404, FrameworkCodes.NOT_FOUND)
+        // Alice no longer sees the cart: she is checked on its latest state before its log is replayed (review R4-Q,
+        // Q-1), so even the commits she held are not found for her.
+        node.get("/shop/cart/c-1/state/trace?to=3").assertCode(404, FrameworkCodes.NOT_FOUND)
+        node.get("/shop/cart/c-1/state/trace").assertCode(404, FrameworkCodes.NOT_FOUND)
         val trace = node.get("/shop/cart/c-1/state/trace?from=4", user = "bob").body!!["commits"][0]
         trace["events"][0]["name"].asString().assert().isEqualTo(Lifecycle.OWNER_TRANSFERRED)
         trace["events"][0]["body"]["ownerId"].asString().assert().isEqualTo("bob")
