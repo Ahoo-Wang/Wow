@@ -17,11 +17,12 @@ dependencies {
     implementation(project(":mongo"))
     // The events index the tags backfill re-sinks (decision D259); no other Elasticsearch use.
     implementation(project(":elasticsearch"))
+    // The PostgreSQL target's connection pool (version from the Spring Boot BOM): one connection per call would exhaust
+    // the client's ports on a large log (R4-Q2c).
+    implementation("com.zaxxer:HikariCP")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     testImplementation(testFixtures(project(":manifest")))
     integrationTestImplementation(project(":tck-containers"))
-    // A pool for the tags backfill's cost spike: 100k aggregates would exhaust the ports one connection per call.
-    integrationTestImplementation("com.zaxxer:HikariCP")
     // The ops API's reading of the imported parked entries (roadmap 8b.4): ParkedOps over a subscription runtime.
     integrationTestImplementation(project(":runtime"))
     // The 9.x example's fixtures and its V10 port, shared with the unit tests.
