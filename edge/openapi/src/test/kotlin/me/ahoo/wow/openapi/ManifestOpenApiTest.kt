@@ -291,7 +291,7 @@ class ManifestOpenApiTest {
     fun `state reads and traces should carry the aggregate's state schema`() {
         val state = operation("get", "/shop/cart/{id}/state")
         state["operationId"].assert().isEqualTo("shop.cart.state")
-        parameters(state).assert().containsExactly("id", "version", "at", "Wow-Scope", "If-None-Match")
+        parameters(state).assert().containsExactly("id", "version", "at", "minVersion", "Wow-Scope", "If-None-Match")
         @Suppress("UNCHECKED_CAST")
         val ok = responses(state)["200"] as Map<String, Any?>
         schema(ok).assert().isEqualTo(
@@ -301,7 +301,9 @@ class ManifestOpenApiTest {
             ),
         )
         ok["headers"].assert().isEqualTo(mapOf("ETag" to ref("headers", "ETag")))
-        responses(state).keys.assert().containsExactly("200", "304", "400", "401", "403", "404", "406", "429", "503")
+        responses(
+            state
+        ).keys.assert().containsExactly("200", "304", "400", "401", "403", "404", "406", "409", "429", "503")
         val trace = operation("get", "/shop/cart/{id}/state/trace")
         parameters(trace).assert().containsExactly("id", "from", "to", "limit", "Wow-Scope")
     }

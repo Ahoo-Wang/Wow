@@ -26,7 +26,7 @@ flowchart LR
 |---|---|---|
 | [`MemoryViewStore`](../../reference/typescript/wow-view-engine/store.md#api-MemoryViewStore) | Tests, demos, a query-only page | Forgets on reload |
 | `new MemoryViewStore({ snapshot: localStorageSnapshot(key) })` | Development, a single-user tool | One browser's views; another tab's write is merged or a `CONFLICT` |
-| `WowViewStore` (`@ahoo-wang/wow-view-store`) | Everyone else: personal and shared views kept by a Wow service | The service embeds `wow-view-store-starter`, or the standalone `wow-view-store-server` runs behind the CoSec gateway ([View Store server](../extensions/view-store.md)) |
+| `WowViewStore` (`@ahoo-wang/wow-view-store`) | Everyone else: personal and shared views kept by a Wow service | The service embeds `wow-view-store-starter`, or the standalone `wow-view-store-server` runs behind the CoSec gateway ([View Store server](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md)) |
 | Your own `ViewStore` | Views that must live in another backend | Only when the backend is not Wow ([Write a ViewStore of your own](#write-a-viewstore-of-your-own)) |
 
 Whichever you choose, the port keeps two rules, and the engine's conflict handling and retries rest on them (the port's signature is in the [wow-view-engine reference](../../reference/typescript/wow-view-engine/#persistence)):
@@ -102,7 +102,7 @@ export const devStore = new MemoryViewStore({
 
 ## `WowViewStore`: views on a Wow service
 
-A Wow application keeps its views on Wow's view store: two Wow aggregates (the view and the view preferences), served by a Wow service that embeds `wow-view-store-starter`, or by the standalone `wow-view-store-server`. The front end reaches it with `WowViewStore` from `@ahoo-wang/wow-view-store`; there is no store to write for a Wow backend. How to deploy, configure and secure the server is in [View Store server](../extensions/view-store.md).
+A Wow application keeps its views on Wow's view store: two Wow aggregates (the view and the view preferences), served by a Wow service that embeds `wow-view-store-starter`, or by the standalone `wow-view-store-server`. The front end reaches it with `WowViewStore` from `@ahoo-wang/wow-view-store`; there is no store to write for a Wow backend. How to deploy, configure and secure the server is in [View Store server](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md).
 
 ### Wire it
 
@@ -173,7 +173,7 @@ Every route is under `/view-store/tenant/{tenantId}/owner/{ownerId}`, and **the 
 
 ### Permissions: buttons only, the gateway decides
 
-`permissions` decides which buttons are enabled, never whether a write succeeds: the server trusts its paths, and the CoSec gateway decides who may use which ([security model](../extensions/view-store.md#security-model)). So a host gives them by **the same role the gateway checks**; otherwise a button is enabled and its write is refused at the gateway, or the other way round.
+`permissions` decides which buttons are enabled, never whether a write succeeds: the server trusts its paths, and the CoSec gateway decides who may use which ([security model](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md)). So a host gives them by **the same role the gateway checks**; otherwise a button is enabled and its write is refused at the gateway, or the other way round.
 
 | Member | Buttons | When left out |
 |---|---|---|
@@ -342,6 +342,6 @@ How the repository runs the same cases over `WowViewStore` is [`wowViewStore.con
 
 | Next | Read |
 |---|---|
-| Deploy, configure and secure the view store server | [View Store server](../extensions/view-store.md) |
+| Deploy, configure and secure the view store server | [View Store server](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md) |
 | `WowViewStore`'s exports and contract | [wow-view-store reference](../../reference/typescript/wow-view-store/) |
 | The `ViewStore` port's signature | [wow-view-engine reference](../../reference/typescript/wow-view-engine/#persistence) |

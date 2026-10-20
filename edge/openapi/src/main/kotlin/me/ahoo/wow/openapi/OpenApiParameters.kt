@@ -40,6 +40,7 @@ internal object OpenApiParameters {
 
     fun ref(name: String): Map<String, Any?> = Json.ref(Json.PARAMETERS, name)
 
+    @Suppress("LongMethod") // One table of every parameter, one entry each.
     fun all(): Map<String, Any?> = linkedMapOf(
         ID to path(ID, "The aggregate's id."),
         DATASET_CONTEXT to path(DATASET_CONTEXT, "The context the dataset belongs to."),
@@ -88,6 +89,12 @@ internal object OpenApiParameters {
             Http.AT_PARAMETER,
             obj("type" to "string", "format" to "date-time"),
             "Reads the state after the last commit at or before this ISO-8601 instant (decision D40).",
+        ),
+        Http.MIN_VERSION_PARAMETER to query(
+            Http.MIN_VERSION_PARAMETER,
+            minimum(1),
+            "Reads the latest state at this version or later, a command result's version (read your writes, review " +
+                "R4-Q, Q-13); not with version or at.",
         ),
         Http.FROM_PARAMETER to query(Http.FROM_PARAMETER, minimum(1), "The first version of the trace; 1 by default."),
         Http.TO_PARAMETER to query(Http.TO_PARAMETER, minimum(1), "The last version of the trace; the last by default."),

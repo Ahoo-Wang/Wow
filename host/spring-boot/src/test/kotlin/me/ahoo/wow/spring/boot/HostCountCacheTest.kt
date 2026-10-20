@@ -54,8 +54,9 @@ class QueryOutcomes {
 }
 
 /**
- * The count cache over HTTP on a host (decision D152, work package 6.2d): a repeated count and a repeated paged total
- * are served from the cache, a command that writes a snapshot invalidates both, and each tenant counts its own. The
+ * The count cache over HTTP on a host (decision D152, work package 6.2d): a repeated count is served from the cache,
+ * a paged total is counted with its page (review R4-Q, Q-12), a command that writes a snapshot invalidates the count,
+ * and each tenant counts its own. The
  * same check runs on PostgreSQL and MongoDB in the integration tests.
  */
 fun Host.assertCountCache() {
@@ -90,15 +91,13 @@ fun Host.assertCountCache() {
     count().assert().isEqualTo(2)
     cached().assert().hasSize(2)
 
-    // A paged total bounded as the count is shares its entry.
+    // A paged total is counted with its page by default (review R4-Q, Q-12): it agrees with the rows.
     total().assert().isEqualTo(2)
     total().assert().isEqualTo(2)
-    cached().assert().containsExactly("COUNT:cached", "COUNT:cached", "PAGED:cached", "PAGED:cached")
+    cached().assert().containsExactly("COUNT:cached", "COUNT:cached")
     open()
     total().assert().isEqualTo(3)
-    cached().assert().hasSize(4)
-    total().assert().isEqualTo(3)
-    cached().assert().hasSize(5)
+    cached().assert().hasSize(2)
 
     // Another tenant's count is its own.
     count("globex").assert().isEqualTo(0)
@@ -117,6 +116,20 @@ class HostCountCacheTest {
         startHost(
             sources = listOf(HostTestApp::class.java, MemorySnapshotQueries::class.java, QueryOutcomes::class.java),
         ).use { it.assertCountCache() }
+    }
+
+    @Test
+    fun `paged totals should be cached only when asked, sharing the count's entry`() {
+        startHost(
+            "wow.query.count-cache.paged-totals" to true,
+            sources = listOf(HostTestApp::class.java, MemorySnapshotQueries::class.java, QueryOutcomes::class.java),
+        ).use { host ->
+            host.context.getBean(QueryCountCache::class.java).options.pagedTotals.assert().isTrue()
+            val paged = """{"kind":"paged","filter":{"op":"MATCH_ALL"},"pagination":{"index":1,"size":1}}"""
+            repeat(2) { host.post("/bank/account/snapshot/query", paged).status.assert().isEqualTo(200) }
+            host.context.getBean(OutcomeObserver::class.java).outcomes
+                .filter { it.endsWith(":${QueryCountCache.CACHED_OUTCOME}") }.assert().containsExactly("PAGED:cached")
+        }
     }
 
     @Test
