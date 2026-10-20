@@ -33,6 +33,14 @@ export interface StateReadOptions extends RequestOptions {
   /** The committed state as of this instant (ISO-8601, or a `Date`). */
   readonly at?: string | Date;
   /**
+   * The latest state at this version or later (review R4-Q, Q-13: read your
+   * writes), such as the `version` of a command's result: a lagging snapshot is
+   * caught up with the log. Not with `version` or `at`. One not reached within
+   * the server's wait rejects with 409 `wow.query.min-version-not-reached`,
+   * whose `version` is the current one.
+   */
+  readonly minVersion?: number;
+  /**
    * The entity tag of the state already held, as a read answered it
    * (`etag`): a 304 then answers `notModified`. The tag is the version and a
    * digest of the body (`3-<digest>`), so it changes whenever what is read
@@ -69,7 +77,7 @@ export interface StateTraceOptions extends RequestOptions {
 
 /**
  * Reads an aggregate type's states (decisions D40, D112):
- * `GET /{context}/{aggregate}/{id}/state` with `?version=` or `?at=`, and
+ * `GET /{context}/{aggregate}/{id}/state` with `?version=`, `?at=` or `?minVersion=`, and
  * its trace, `…/state/trace`. A state that does not exist rejects with 404
  * `wow.aggregate.not-found`.
  *
@@ -96,7 +104,7 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
     const response = await send(this.client, {
       method: 'GET',
       path: this.statePath(id),
-      query: { version: options.version, at },
+      query: { version: options.version, at, minVersion: options.minVersion },
       headers: {
         [WowHeaders.IF_NONE_MATCH]:
           options.ifNoneMatch === undefined
