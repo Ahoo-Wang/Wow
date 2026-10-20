@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.migrate
 
-import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.spi.json.WowJson
 import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel

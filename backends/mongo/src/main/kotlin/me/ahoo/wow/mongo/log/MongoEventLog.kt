@@ -134,6 +134,7 @@ import kotlin.time.Duration.Companion.seconds
  * Calls run on [dispatcher], virtual threads by default.
  */
 @InternalWowApi
+@Suppress("LargeClass") // The log's port and the tags backfill's (decision D259), on one collection layout.
 class MongoEventLog(
     private val client: MongoClient,
     databaseName: String,

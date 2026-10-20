@@ -101,7 +101,11 @@ class ElasticsearchEventSink internal constructor(
                     .sort { it.field { field -> field.field(EventStreamFields.VERSION).order(SortOrder.Asc) } }
                     .apply {
                         after?.let {
-                            searchAfter(FieldValue.of(it.ref.id), FieldValue.of(it.ref.tenantId), FieldValue.of(it.version.toLong()))
+                            searchAfter(
+                                FieldValue.of(it.ref.id),
+                                FieldValue.of(it.ref.tenantId),
+                                FieldValue.of(it.version.toLong())
+                            )
                         }
                     }
             }, ObjectNode::class.java).awaitElasticsearch()
@@ -111,7 +115,10 @@ class ElasticsearchEventSink internal constructor(
         }
         return response.hits().hits().mapNotNull { it.source() }.map { source ->
             StreamKey(
-                type.ref(source.path(EventStreamFields.TENANT_ID).asString(), source.path(EventStreamFields.AGGREGATE_ID).asString()),
+                type.ref(
+                    source.path(EventStreamFields.TENANT_ID).asString(),
+                    source.path(EventStreamFields.AGGREGATE_ID).asString()
+                ),
                 source.path(EventStreamFields.VERSION).asInt(),
             )
         }
@@ -226,7 +233,11 @@ class ElasticsearchEventSinks internal constructor(private val store: Elasticsea
          */
         @JvmStatic
         @JvmOverloads
-        fun of(restClient: Rest5Client, indexPrefix: String = "", ddl: StoreDdl = StoreDdl.AUTO): ElasticsearchEventSinks =
+        fun of(
+            restClient: Rest5Client,
+            indexPrefix: String = "",
+            ddl: StoreDdl = StoreDdl.AUTO
+        ): ElasticsearchEventSinks =
             ElasticsearchEventSinks(
                 ElasticsearchStore(
                     StoreConfig(TYPE, TYPE, ddl),
