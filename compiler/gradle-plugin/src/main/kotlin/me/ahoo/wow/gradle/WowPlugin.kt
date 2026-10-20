@@ -15,11 +15,15 @@ package me.ahoo.wow.gradle
 
 import com.google.devtools.ksp.gradle.KspExtension
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.PeerContracts
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.ConfigurationVariant
 import org.gradle.api.artifacts.ProjectDependency
+import org.gradle.api.artifacts.type.ArtifactTypeDefinition
+import org.gradle.api.attributes.Attribute
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.DocsType
@@ -28,6 +32,7 @@ import org.gradle.api.attributes.Usage
 import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.FileTree
+import org.gradle.api.file.SourceDirectorySet
 import org.gradle.api.plugins.JavaLibraryPlugin
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.provider.Provider
@@ -114,6 +119,7 @@ class WowPlugin : Plugin<Project> {
         val sourceSets = project.extensions.getByType(SourceSetContainer::class.java)
         val main = sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
         val runtimeClasspath = project.configurations.named(main.runtimeClasspathConfigurationName)
+        coreRequest(project, project.configurations.getByName(main.compileClasspathConfigurationName))
         val compilerFragments = project.files(project.layout.buildDirectory.dir(KSP_RESOURCES))
             .builtBy(KSP_TASK)
             .asFileTree
@@ -162,6 +168,7 @@ class WowPlugin : Plugin<Project> {
                     LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
                     project.objects.named(LibraryElements::class.java, LibraryElements.CLASSES),
                 )
+                it.attribute(API_VIEW, coreView(project.path))
             }
         }.files
 
@@ -205,6 +212,7 @@ class WowPlugin : Plugin<Project> {
             api.pluginManager.apply(JavaLibraryPlugin::class.java)
             val contracts = api.configurations.findByName(CONTRACT_CONFIGURATION) ?: assembly(api)
             api.dependencies.add(contracts.name, api.project(domain))
+            api.pluginManager.withPlugin(KOTLIN_JVM) { coreView(api, domain) }
         }
     }
 
@@ -226,7 +234,84 @@ class WowPlugin : Plugin<Project> {
             task.outputDirectory.set(api.layout.buildDirectory.dir("wow/contract"))
         }
         api.tasks.named(JavaPlugin.JAR_TASK_NAME, Jar::class.java) { it.from(assemble) }
+        api.pluginManager.withPlugin(KOTLIN_JVM) { contractSources(api, main, assemble) }
         return contracts
+    }
+
+    /**
+     * The code generated from [api]'s contract (decisions D256 ①, D259): [GENERATE_CONTRACT_SOURCES_TASK]
+     * ([GenerateContractSources]) writes it from what [assemble] keeps, and the source set [CONTRACT_SOURCE_SET]
+     * compiles it against [main]'s classes and dependencies. Its classes join the api's classes variants and jar, so
+     * every consumer sees them; the domain modules, whose contract they come from, read their core views
+     * variants ([coreView]), which hold [main]'s classes alone, so the build has no cycle.
+     */
+    private fun contractSources(api: Project, main: SourceSet, assemble: TaskProvider<AssembleContract>) {
+        val sourceSets = api.extensions.getByType(SourceSetContainer::class.java)
+        val generated = sourceSets.create(CONTRACT_SOURCE_SET)
+        val generate = api.tasks.register(GENERATE_CONTRACT_SOURCES_TASK, GenerateContractSources::class.java) { task ->
+            task.group = GROUP_NAME
+            task.description = "Generates the constants and refs of this api module's contexts from its contract."
+            task.contract.from(assemble.map { it.outputDirectory.file(PeerContracts.RESOURCE) })
+            task.outputDirectory.set(api.layout.buildDirectory.dir("generated/wow/contract/kotlin"))
+        }
+        (generated.extensions.getByName("kotlin") as SourceDirectorySet).srcDir(generate)
+        listOf(
+            generated.implementationConfigurationName to main.implementationConfigurationName,
+            generated.compileOnlyConfigurationName to main.compileOnlyConfigurationName,
+        ).forEach { (to, from) -> api.configurations.named(to) { it.extendsFrom(api.configurations.getByName(from)) } }
+        generated.compileClasspath = api.files(main.output.classesDirs, generated.compileClasspath)
+        generated.runtimeClasspath = api.files(main.output, generated.output, generated.runtimeClasspath)
+        listOf(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME).forEach {
+            api.configurations.named(it) { elements ->
+                elements.outgoing.variants.named(CLASSES_VARIANT) { classes ->
+                    classesArtifacts(classes, generated.output.classesDirs)
+                }
+            }
+        }
+        api.tasks.named(JavaPlugin.JAR_TASK_NAME, Jar::class.java) { it.from(generated.output) }
+    }
+
+    /**
+     * The core view of [api] for the domain module [domain]: a variant of its `apiElements` and of its
+     * `runtimeElements` holding its main classes without the generated contract code, whose [API_VIEW] is
+     * [coreView] of [domain]. Only [domain] requests it ([coreRequest]); every other consumer, an in-build peer
+     * included, lacks the attribute's request, so Gradle picks the `classes` variant, which has fewer attributes.
+     */
+    private fun coreView(api: Project, domain: String) {
+        api.dependencies.attributesSchema.attribute(API_VIEW)
+        val main = api.extensions.getByType(SourceSetContainer::class.java).getByName(SourceSet.MAIN_SOURCE_SET_NAME)
+        listOf(JavaPlugin.API_ELEMENTS_CONFIGURATION_NAME, JavaPlugin.RUNTIME_ELEMENTS_CONFIGURATION_NAME).forEach {
+            api.configurations.named(it) { elements ->
+                elements.outgoing.variants.create(CORE_VARIANT + elements.outgoing.variants.size) { core ->
+                    core.attributes { attributes ->
+                        attributes.attribute(
+                            LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
+                            api.objects.named(LibraryElements::class.java, LibraryElements.CLASSES),
+                        )
+                        attributes.attribute(API_VIEW, coreView(domain))
+                    }
+                    classesArtifacts(core, main.output.classesDirs)
+                }
+            }
+        }
+    }
+
+    private fun classesArtifacts(variant: ConfigurationVariant, classesDirs: FileCollection) {
+        classesDirs.files.forEach { directory ->
+            variant.artifact(directory) { artifact ->
+                artifact.type = ArtifactTypeDefinition.JVM_CLASS_DIRECTORY
+                artifact.builtBy(classesDirs)
+            }
+        }
+    }
+
+    /**
+     * Makes [configuration] of a domain module request its core view of its api modules ([coreView]): they carry the code
+     * generated from the domain's contract, which compiling and processing the domain cannot wait for.
+     */
+    private fun coreRequest(project: Project, configuration: Configuration) {
+        project.dependencies.attributesSchema.attribute(API_VIEW)
+        configuration.attributes { it.attribute(API_VIEW, coreView(project.path)) }
     }
 
     /** What the Manifest [merge] writes gives: the [MANIFEST_ELEMENTS] variant, and [OPENAPI_TASK]'s document. */
@@ -376,6 +461,17 @@ class WowPlugin : Plugin<Project> {
         const val ASSEMBLE_CONTRACT_TASK = "assembleWowContract"
         const val CONTRACT_CONFIGURATION = "wowContract"
         const val MANIFEST_ELEMENTS = "wowManifestElements"
+        const val GENERATE_CONTRACT_SOURCES_TASK = "generateWowContractSources"
+        const val CONTRACT_SOURCE_SET = "wowContract"
+
+        /**
+         * The attribute of an api module's core views: [coreView] of the domain module that requests it, whose
+         * contract the api's generated code comes from (decision D259).
+         */
+        val API_VIEW: Attribute<String> = Attribute.of("me.ahoo.wow.api-view", String::class.java)
+
+        /** The [API_VIEW] value of the core view of an api module for the domain module [domain] (its path). */
+        fun coreView(domain: String): String = "core$domain"
         const val CHECK_COMPATIBILITY_TASK = "checkManifestCompatibility"
         const val UPDATE_BASELINE_TASK = "updateManifestBaseline"
 
@@ -389,6 +485,8 @@ class WowPlugin : Plugin<Project> {
         /** The docs type of the peer contract's variant (decision D234). */
         const val CONTRACT_DOCS_TYPE = "wow-contract"
         private const val API_CONFIGURATION = "api"
+        private const val CLASSES_VARIANT = "classes"
+        private const val CORE_VARIANT = "wowCore"
         private const val MANIFEST_EXTENSION = "json"
         private const val GROUP_NAME = "wow"
         private const val GROUP = "me.ahoo.wow"
