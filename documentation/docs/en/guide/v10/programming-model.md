@@ -416,6 +416,21 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 
 A call needs no command topic: the node reaches the target at `wow.calls.contexts.<context>.url` (or `wow.clients.contexts.<context>.internal-url`), and does not start when a saga calls a context without that URL, or a command no Manifest it knows decides. A command of the saga's own context is derived, never called.
 
+### Calling from Java
+
+The command and query clients (`CommandClient`, `QueryApi`) are Kotlin, with `suspend` functions and flows. Java code calls them through the facade of `wow-client`: each call is blocking, or `…Async` with a `CompletableFuture`; lists come back as `List`, streams as `java.util.stream.Stream`, and timeouts are `java.time.Duration`:
+
+```java
+JavaCommandClient commands = JavaCommandClient.of(commandClient).of(caller);
+CommandResult submitted = commands.sendAndWait(new SubmitOrder(items), EshopOrderingContract.Order.ref(tenant, id),
+    JavaCommandClient.options().timeout(Duration.ofSeconds(5)).build());
+
+JavaSnapshotQueries<OrderState> orders = JavaQueryApi.of(queryApi).of(caller).snapshots(OrderState.class);
+CompletableFuture<Integer> open = orders.listAsync(new ListQuery(MatchAllFilter.INSTANCE)).thenApply(List::size);
+```
+
+A rejection is a `CommandRejectedException` (with its `code`), a technical failure a `WowProblemException`, both unchecked; an asynchronous call's future completes with them. Call the blocking forms from your own threads, never from a Netty or WebFlux event loop.
+
 ### Peers
 
 A service that sends another context's commands, or reads its stream, takes that service's merged Manifest as a peer. With the plugin, in the server module:

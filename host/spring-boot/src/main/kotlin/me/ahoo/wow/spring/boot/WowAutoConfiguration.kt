@@ -712,6 +712,11 @@ class WowAutoConfiguration {
     @InternalWowApi
     fun wowGlobalErrors(manifest: Manifest, options: WowHttpOptions): GlobalErrors = GlobalErrors(manifest, options)
 
+    /** Lets the public server's graceful shutdown end before the server stops (review X-4, [GracefulShutdownSettled]). */
+    @Bean
+    @InternalWowApi
+    fun wowGracefulShutdownSettled(): GracefulShutdownSettled = GracefulShutdownSettled()
+
     /** The public server keeps reading its HTTP/1.1 keep-alive connections ([KeepAliveReads]). */
     @Bean
     fun wowKeepAliveReads(): NettyServerCustomizer = NettyServerCustomizer { server ->
