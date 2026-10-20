@@ -5126,7 +5126,7 @@
         "x-wow-error-codes" : [ "wow.auth.forbidden" ]
       },
       "wow.dataset-query.404" : {
-        "description" : "`wow.aggregate.not-found`: The aggregate does not exist.\nNot Found: no such dataset is served, or the caller does not see it.",
+        "description" : "`wow.query.not-found`: A single query matched no record: a query result, not a statement that an aggregate does not exist.\n`wow.query.dataset-not-found`: No dataset of that name is served to the caller.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -5134,7 +5134,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.aggregate.not-found" ]
+        "x-wow-error-codes" : [ "wow.query.not-found", "wow.query.dataset-not-found" ]
       },
       "wow.dataset-query.406" : {
         "description" : "Not Acceptable: the route answers in none of the types Accept names.",
@@ -5217,14 +5217,15 @@
         "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
       },
       "wow.dataset-descriptor.404" : {
-        "description" : "Not Found: no such dataset is served, or the caller does not see it.",
+        "description" : "`wow.query.dataset-not-found`: No dataset of that name is served to the caller.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
               "$ref" : "#/components/schemas/wow.Problem"
             }
           }
-        }
+        },
+        "x-wow-error-codes" : [ "wow.query.dataset-not-found" ]
       },
       "wow.dataset-descriptor.406" : {
         "description" : "Not Acceptable: the route answers in none of the types Accept names.",
@@ -5713,7 +5714,7 @@
         "x-wow-error-codes" : [ "wow.auth.forbidden" ]
       },
       "wow.query.404" : {
-        "description" : "`wow.aggregate.not-found`: The aggregate does not exist.",
+        "description" : "`wow.query.not-found`: A single query matched no record: a query result, not a statement that an aggregate does not exist.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -5721,7 +5722,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.aggregate.not-found" ]
+        "x-wow-error-codes" : [ "wow.query.not-found" ]
       },
       "wow.query.406" : {
         "description" : "Not Acceptable: the route answers in none of the types Accept names.",

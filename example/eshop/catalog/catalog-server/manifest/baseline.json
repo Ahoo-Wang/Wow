@@ -418,6 +418,14 @@
     "status" : 500,
     "description" : "The query backend failed to run the query."
   }, {
+    "code" : "wow.query.not-found",
+    "status" : 404,
+    "description" : "A single query matched no record: a query result, not a statement that an aggregate does not exist."
+  }, {
+    "code" : "wow.query.dataset-not-found",
+    "status" : 404,
+    "description" : "No dataset of that name is served to the caller."
+  }, {
     "code" : "wow.query.timeout",
     "status" : 504,
     "description" : "The query ran longer than its budget allows; narrow it rather than run it again (decision D254 ③)."

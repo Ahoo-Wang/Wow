@@ -74,6 +74,13 @@ export const FrameworkErrorCodes = {
   QUERY_TIMEOUT: 'wow.query.timeout',
   /** 429, with `Retry-After`: the query's store runs as many queries as it allows; retry later. */
   QUERY_BUSY: 'wow.query.busy',
+  /**
+   * 404: a `single` query matched no record, whatever its model (review R4-Q,
+   * Q-4); a state read by id that finds none is `wow.aggregate.not-found`.
+   */
+  QUERY_NOT_FOUND: 'wow.query.not-found',
+  /** 404: no dataset of that name is served to the caller. */
+  QUERY_DATASET_NOT_FOUND: 'wow.query.dataset-not-found',
   /** 409: the dataset is served but cannot be queried now (it needs revision, decision D259). */
   QUERY_DATASET_UNAVAILABLE: 'wow.query.dataset-unavailable',
   /** 403: the calling service may not call this command (a synchronous call on the internal port, decision D226). */

@@ -42,6 +42,12 @@ object QueryErrors {
     const val TIMEOUT: String = FrameworkErrors.QUERY_TIMEOUT
     const val STORAGE_UNAVAILABLE: String = FrameworkErrors.STORAGE_UNAVAILABLE
     const val BUSY: String = FrameworkErrors.QUERY_BUSY
+
+    /** A `single` query that matched no record, whatever its model (review R4-Q, Q-4). */
+    const val NOT_FOUND: String = FrameworkErrors.QUERY_NOT_FOUND
+
+    /** A dataset that is not served, or not to the caller (review R4-Q, Q-4). */
+    const val DATASET_NOT_FOUND: String = FrameworkErrors.QUERY_DATASET_NOT_FOUND
     const val DATASET_UNAVAILABLE: String = FrameworkErrors.QUERY_DATASET_UNAVAILABLE
 
     /** The caller may not run this query. */

@@ -1026,6 +1026,8 @@ export const FrameworkErrorCodes: {
     readonly QUERY_FAILED: "wow.query.failed";
     readonly QUERY_TIMEOUT: "wow.query.timeout";
     readonly QUERY_BUSY: "wow.query.busy";
+    readonly QUERY_NOT_FOUND: "wow.query.not-found";
+    readonly QUERY_DATASET_NOT_FOUND: "wow.query.dataset-not-found";
     readonly QUERY_DATASET_UNAVAILABLE: "wow.query.dataset-unavailable";
     readonly CALL_COMMAND_FORBIDDEN: "wow.call.command-forbidden";
 };

@@ -210,7 +210,7 @@ A filter holds at most `wow.query.http.max-filter-nodes` nodes (128) and `max-fi
 
 | `kind` | Request properties | Response |
 | --- | --- | --- |
-| `single` | `filter`, `projection`, `sort` | The first record by `sort`; 404 `wow.aggregate.not-found` when none matches |
+| `single` | `filter`, `projection`, `sort` | The first record by `sort`; 404 `wow.query.not-found` when none matches |
 | `list` | `filter`, `projection`, `sort`, `limit` | A JSON array of records; with `Accept: text/event-stream`, server-sent events |
 | `paged` | `filter`, `projection`, `sort`, `pagination`, `total` | `{"total": …, "exact": …, "list": [records]}` |
 | `cursor` | `filter`, `projection`, `sort`, `size`, `cursor` | `{"list": [records], "nextCursor": …}` |
@@ -317,7 +317,7 @@ The descriptor's `analysis` says which of these the backend runs. The `events` m
 | `wow.query.malformed` | 400 | The body does not read as a query: `EMPTY_BODY`, `BODY_NOT_OBJECT`, `INVALID_JSON`, `UNKNOWN_PROPERTY`, `UNKNOWN_TYPE` (an unknown `op` or `type`), `UNKNOWN_VALUE`, `INVALID_VALUE`, `INVALID_REQUEST` (a rule of the query type, such as an empty `operands`) |
 | `wow.query.invalid` | 400 | The model refuses it; each violation names its rule, such as `UNKNOWN_FIELD`, `UNSUPPORTED_CAPABILITY`, `VALUE_MISMATCH`, `ELEMENT_SCOPE_REQUIRED`, `SIZE_OUT_OF_RANGE`, `FILTER_TOO_LARGE`, `EXPENSIVE_OPERATOR_DISABLED`, `INVALID_CURSOR`, `STORAGE_UNSUPPORTED` |
 | `wow.query.failed` | 500 | The backend failed |
-| `wow.query.timeout` | 503 | The query ran longer than `wow.query.http.timeout` |
+| `wow.query.timeout` | 504 | The query ran longer than `wow.query.http.timeout`; not retried |
 
 Each violation of the problem's `violations` has a `path` (the JSON path in the body, such as `filter.operands`), a `code` and a `message`.
 

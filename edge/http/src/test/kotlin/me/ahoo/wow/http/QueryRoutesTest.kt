@@ -126,8 +126,9 @@ class QueryRoutesTest {
         val single = node.query("""{"kind":"single","filter":{"op":"EQ","field":"state.items","value":4}}""")
         single.status.assert().isEqualTo(200)
         single.body!!["aggregateId"].asString().assert().isEqualTo("c-4")
+        // A query result, not a statement that an aggregate does not exist (review R4-Q, Q-4).
         node.query("""{"kind":"single","filter":{"op":"EQ","field":"state.items","value":40}}""")
-            .assertQueryProblem(404, FrameworkCodes.NOT_FOUND)
+            .assertQueryProblem(404, FrameworkErrors.QUERY_NOT_FOUND)
 
         val bounded = node.query("""{"kind":"count","filter":{"op":"MATCH_ALL"},"limit":3}""")
         bounded.status.assert().isEqualTo(200)
