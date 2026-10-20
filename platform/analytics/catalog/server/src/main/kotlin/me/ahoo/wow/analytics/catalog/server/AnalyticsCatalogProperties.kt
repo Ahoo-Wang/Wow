@@ -33,6 +33,10 @@ import java.time.Duration
  * - `datasets.serve`: whether this node serves the published datasets' queries (on: the catalog serves them by
  *   default, decision D238 ⑦), `datasets.refresh-interval` how often it reads what changed (5 seconds), and
  *   `datasets.reconcile-interval` how often it reads every dataset (5 minutes).
+ * - `approval.sources`: whether a dataset reads only the sources an approver approved (`ApproveSource`), and
+ *   `approval.publications` whether every publication takes an approver (`ApproveDatasetPublication`); both off by
+ *   default (decisions D238 ③b, D259). A publication that computes from sensitive values or lowers a protection takes
+ *   an approver either way.
  */
 @ConfigurationProperties(prefix = AnalyticsCatalogProperties.PREFIX)
 class AnalyticsCatalogProperties(
@@ -43,7 +47,11 @@ class AnalyticsCatalogProperties(
     var refreshInterval: Duration = DEFAULT_REFRESH_INTERVAL,
     var watch: Boolean = true,
     var datasets: Datasets = Datasets(),
+    var approval: Approval = Approval(),
 ) {
+    /** The approval switches, `wow.analytics.catalog.approval.*`. */
+    class Approval(var sources: Boolean = false, var publications: Boolean = false)
+
     /** The datasets' settings, `wow.analytics.catalog.datasets.*`. */
     class Datasets(
         var database: String = DatasetCompiler.DEFAULT_DATABASE,

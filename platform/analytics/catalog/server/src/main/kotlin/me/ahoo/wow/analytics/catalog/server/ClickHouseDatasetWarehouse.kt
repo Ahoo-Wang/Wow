@@ -47,19 +47,50 @@ class ClickHouseDatasetWarehouse(private val client: Client) : DatasetWarehouse 
         return columns
     }
 
+    /**
+     * Runs [select] for no row, so the server plans it against its tables as they are now (a `DESCRIBE` of a view may
+     * answer from the view's own metadata), and reads its columns' names and types from the result's header.
+     */
+    override suspend fun describe(select: String): List<SourceColumn>? = try {
+        val header = rows(
+            "SELECT * FROM ($select) LIMIT 0",
+            emptyMap(),
+            ClickHouseFormat.JSONCompactEachRowWithNamesAndTypes,
+        )
+        val names = header[0].values().map { it.asString() }
+        val types = header[1].values().map { it.asString() }
+        names.zip(types) { name, type -> SourceColumn(name, type) }
+    } catch (_: DatasetWarehouseException) {
+        null
+    }
+
     override suspend fun drop(database: String, views: List<String>) {
         views.forEach { execute("DROP VIEW IF EXISTS ${quote(database)}.${quote(it)}") }
     }
 
-    private suspend fun columns(database: String, view: String): List<SourceColumn> = withContext(Dispatchers.IO) {
-        val sql = "SELECT name, type FROM system.columns WHERE database = {database:String} AND table = {view:String} " +
-            "ORDER BY position"
-        val settings = QuerySettings().setFormat(ClickHouseFormat.JSONEachRow)
-        client.query(sql, mapOf("database" to database, "view" to view), settings).await().use { response ->
-            response.inputStream.bufferedReader().lineSequence().filter(String::isNotBlank)
-                .map { WowJson.mapper.readTree(it) }
-                .map { SourceColumn(it["name"].asString(), it["type"].asString()) }
-                .toList()
+    private suspend fun columns(database: String, view: String): List<SourceColumn> = rows(
+        "SELECT name, type FROM system.columns WHERE database = {database:String} AND table = {view:String} " +
+            "ORDER BY position",
+        mapOf("database" to database, "view" to view),
+    ).map { SourceColumn(it["name"].asString(), it["type"].asString()) }
+
+    private suspend fun rows(
+        sql: String,
+        parameters: Map<String, Any>,
+        format: ClickHouseFormat = ClickHouseFormat.JSONEachRow,
+    ) = withContext(Dispatchers.IO) {
+        try {
+            val settings = QuerySettings().setFormat(format)
+            client.query(sql, parameters, settings).await().use { response ->
+                response.inputStream.bufferedReader().lineSequence().filter(String::isNotBlank)
+                    .map { WowJson.mapper.readTree(it) }
+                    .toList()
+            }
+        } catch (
+            @Suppress("TooGenericExceptionCaught") // The client raises the server's refusal as any exception.
+            failed: Exception,
+        ) {
+            throw DatasetWarehouseException(failed.message ?: failed.javaClass.name, failed)
         }
     }
 

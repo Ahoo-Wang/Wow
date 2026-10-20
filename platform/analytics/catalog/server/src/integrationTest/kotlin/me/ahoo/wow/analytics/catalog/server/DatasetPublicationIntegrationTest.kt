@@ -174,10 +174,27 @@ class DatasetPublicationIntegrationTest {
             node.post(QUERY, query, t2).assertOk().json.values().map { it["order_id"].asString() }.toList()
                 .assert().containsExactly("o2")
 
+            // A source's schema changes under the published view: its queries are refused, plainly, not failed.
+            execute("ALTER TABLE $DATABASE.customers DROP COLUMN phone")
+            eventually("the dataset needing revision") { node.post(QUERY, query, t1).status == CONFLICT }
+            node.post(QUERY, query, t1).assertProblem(CONFLICT, "wow.query.dataset-unavailable").json["detail"]
+                .asString().assert().contains("needs revision").doesNotContain("phone")
+            node.dataset(id)["state"]["status"].asString().assert().isEqualTo("NEEDS_REVISION")
+            // Revised without the column and published: served again.
+            node.datasetCommand(
+                id,
+                "revise-dataset",
+                """{"definition":${keyed.replace(""",{"name":"customer_phone","from":"c.phone"}""", "")}}""",
+                Who.EDITOR,
+            ).assertOk()
+            node.datasetCommand(id, "publish-dataset", "{}", Who.EDITOR).assertOk()
+            eventually("the revision served") { node.post(QUERY, query, t1).status == OK }
+            node.post(QUERY, query, t1).assertOk().json.values().single().has("customer_phone").assert().isFalse()
+
             node.datasetCommand(id, "retire-dataset", "{}", Who.EDITOR).assertOk()
             eventually("the dataset no longer served") { node.post(QUERY, query, t1).status == NOT_FOUND }
-            // The view stays for the retention.
-            client.queryAll("SELECT name FROM system.tables WHERE database = '$VIEWS'").assert().hasSize(1)
+            // The views stay for the retention.
+            client.queryAll("SELECT name FROM system.tables WHERE database = '$VIEWS'").assert().hasSize(2)
         }
     }
 
@@ -203,6 +220,9 @@ class DatasetPublicationIntegrationTest {
             artifact.copy(ddl = "CREATE OR REPLACE VIEW `$VIEWS`.`ds_shop_maps_v1` AS SELECT 't' AS tenant_id, ['a'] AS m"),
         )
         created.map { it.type }.assert().containsExactly("String", "Array(String)")
+        warehouse.describe("SELECT * FROM `$VIEWS`.`ds_shop_maps_v1`")!!.map { it.name }.assert().containsExactly("tenant_id", "m")
+        warehouse.describe("SELECT 1 AS one, toString(now()) AS at")!!.map { it.type }.assert().containsExactly("UInt8", "String")
+        warehouse.describe("SELECT nothing FROM `$VIEWS`.`ds_shop_maps_v1`").assert().isNull()
         warehouse.drop(VIEWS, listOf("ds_shop_maps_v1", "ds_shop_none_v1"))
     }
 
@@ -213,5 +233,6 @@ class DatasetPublicationIntegrationTest {
         const val OK = 200
         const val BAD_REQUEST = 400
         const val NOT_FOUND = 404
+        const val CONFLICT = 409
     }
 }

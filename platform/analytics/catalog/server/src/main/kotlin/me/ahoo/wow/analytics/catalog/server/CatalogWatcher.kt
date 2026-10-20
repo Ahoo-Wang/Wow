@@ -37,7 +37,9 @@ import java.time.Duration
 
 /**
  * The change detection of the catalog (decision D241 ④): every [interval], it lists each database's tables and
- * views (their uuid and metadata modification time, `system.tables`) and when each last got a `wow_catalog` row, and
+ * views (their uuid, metadata modification time and a fingerprint of their columns, `system.tables` and
+ * `system.columns`: the time is in seconds, so an `ALTER` in the second of the last look shows only in the columns)
+ * and when each last got a `wow_catalog` row, and
  * sends `SyncSource` for each table whose listing changed since it last looked, or that is gone: the source's
  * aggregate reads the table again and applies the trust rules. Its first look, at startup, syncs every table, which
  * changes nothing where nothing changed.
@@ -60,7 +62,8 @@ class CatalogWatcher(
         catalog.databases.forEach { database ->
             val changes = catalog.catalogChanges(database)
             val now = catalog.tables(database).associate { table ->
-                "$database\u0000${table.name}" to "${table.uuid}|${table.modifiedAt}|${changes[table.name].orEmpty()}"
+                "$database\u0000${table.name}" to
+                    "${table.uuid}|${table.modifiedAt}|${table.columns}|${changes[table.name].orEmpty()}"
             }
             val gone = seen.keys.filter { it.startsWith("$database\u0000") && it !in now }
             val changed = now.filter { (key, listing) -> seen[key] != listing }.keys + gone

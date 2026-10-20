@@ -15,6 +15,7 @@ package me.ahoo.wow.analytics.catalog.domain.source
 
 import me.ahoo.wow.analytics.catalog.api.source.FieldSensitivity
 import me.ahoo.wow.analytics.catalog.api.source.SensitivityChangeApproved
+import me.ahoo.wow.analytics.catalog.api.source.SourceApproved
 import me.ahoo.wow.analytics.catalog.api.source.SourceColumn
 import me.ahoo.wow.analytics.catalog.api.source.SourceDrafted
 import me.ahoo.wow.analytics.catalog.api.source.SourceKind
@@ -74,6 +75,10 @@ class SourceState {
     var spaceColumn: String? = null
         private set
 
+    /** Whether an approver approved the source for the datasets; a source back to its draft is not. */
+    var approved: Boolean = false
+        private set
+
     /** Whether the source is a platform dimension: every tenant shares its rows, and it has no tenant column. */
     var platform: Boolean = false
         private set
@@ -117,6 +122,7 @@ class SourceState {
         references = event.references
         platform = event.platform
         status = SourceStatus.DRAFT
+        approved = false
     }
 
     fun onSourcing(event: SourceSensitivityReviewed) {
@@ -124,6 +130,7 @@ class SourceState {
         sensitivity = sensitivity.filter { it.keyOf() !in keys } + event.fields
         if (event.reopened) {
             status = SourceStatus.DRAFT
+            approved = false
         }
     }
 
@@ -138,6 +145,7 @@ class SourceState {
         missing = false
         if (event.reopened) {
             status = SourceStatus.DRAFT
+            approved = false
         }
     }
 
@@ -182,5 +190,9 @@ class SourceState {
     fun onSourcing(event: SensitivityChangeApproved) {
         sensitivity = event.sensitivity
         pending = pending - event.keys.toSet()
+    }
+
+    fun onSourcing(@Suppress("UNUSED_PARAMETER") event: SourceApproved) {
+        approved = true
     }
 }

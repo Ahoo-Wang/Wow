@@ -12,12 +12,23 @@
       "description" : "A wide table over the catalog's sources: its definition, its versions and where each is published",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState",
-        "fingerprint" : "6f05d6f88132f602046950b495e8ac0b4f0f62ec702cadcf5b6729fd027c3a1f"
+        "fingerprint" : "df39c48b3950bd9b9d89807f368ad52573e960fe2ac8c24fdb6e287e730cdee3"
       },
       "snapshot" : {
         "enabled" : true
       },
       "commands" : [ {
+        "name" : "ApproveDatasetPublication",
+        "aliases" : [ ],
+        "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.ApproveDatasetPublication",
+        "creation" : "NONE",
+        "produces" : [ "DatasetPublished" ],
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/analytics-catalog/dataset/{id}/approve-dataset-publication"
+        } ],
+        "description" : "Approve the requested publication of a dataset"
+      }, {
         "name" : "DraftDataset",
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DraftDataset",
@@ -47,12 +58,34 @@
         "aliases" : [ ],
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.PublishDataset",
         "creation" : "NONE",
-        "produces" : [ "DatasetPublished" ],
+        "produces" : [ "DatasetPublicationRequested", "DatasetPublished" ],
         "routes" : [ {
           "method" : "POST",
           "path" : "/analytics-catalog/dataset/{id}/publish-dataset"
         } ],
         "description" : "Publish the dataset's definition as its next version"
+      }, {
+        "name" : "RecompileDataset",
+        "aliases" : [ ],
+        "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.RecompileDataset",
+        "creation" : "NONE",
+        "produces" : [ "DatasetNeedsRevision", "DatasetPublished", "DatasetRevisionCleared" ],
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/analytics-catalog/dataset/{id}/recompile-dataset"
+        } ],
+        "description" : "Compile a published dataset again after a source changed"
+      }, {
+        "name" : "RefuseDatasetPublication",
+        "aliases" : [ ],
+        "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.RefuseDatasetPublication",
+        "creation" : "NONE",
+        "produces" : [ "DatasetPublicationRefused" ],
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/analytics-catalog/dataset/{id}/refuse-dataset-publication"
+        } ],
+        "description" : "Refuse the requested publication of a dataset"
       }, {
         "name" : "RetireDataset",
         "aliases" : [ ],
@@ -94,6 +127,24 @@
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DatasetDrafted",
         "description" : "A dataset was drafted"
       }, {
+        "name" : "DatasetNeedsRevision",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DatasetNeedsRevision",
+        "description" : "A dataset needs revision"
+      }, {
+        "name" : "DatasetPublicationRefused",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublicationRefused",
+        "description" : "A dataset's publication was refused"
+      }, {
+        "name" : "DatasetPublicationRequested",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublicationRequested",
+        "description" : "A dataset's publication was requested"
+      }, {
         "name" : "DatasetPublished",
         "aliases" : [ ],
         "revision" : 1,
@@ -111,6 +162,12 @@
         "revision" : 1,
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DatasetRevised",
         "description" : "A dataset was revised"
+      }, {
+        "name" : "DatasetRevisionCleared",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DatasetRevisionCleared",
+        "description" : "A dataset's version compiles again"
       }, {
         "name" : "DatasetRolledBack",
         "aliases" : [ ],
@@ -151,7 +208,7 @@
       "description" : "A data source of the warehouse: a Wow table or an analyst's table, its scope and its sensitivity",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.domain.source.SourceState",
-        "fingerprint" : "ee41bacf6c30de436c5956bc9fb1fab3e125022b886223870ce69598f52ac6de"
+        "fingerprint" : "c96e74dd91190b2c7b38c3d717c65f9aae6eebc2b21838635eeb6fddbfc02c99"
       },
       "snapshot" : {
         "enabled" : true
@@ -167,6 +224,17 @@
           "path" : "/analytics-catalog/source/{id}/approve-sensitivity-change"
         } ],
         "description" : "Approve a lower sensitivity of a Wow source"
+      }, {
+        "name" : "ApproveSource",
+        "aliases" : [ ],
+        "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.source.ApproveSource",
+        "creation" : "NONE",
+        "produces" : [ "SourceApproved" ],
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/analytics-catalog/source/{id}/approve-source"
+        } ],
+        "description" : "Approve a source for the datasets"
       }, {
         "name" : "DraftSource",
         "aliases" : [ ],
@@ -235,6 +303,12 @@
         "revision" : 1,
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.source.SensitivityChangeApproved",
         "description" : "A lower sensitivity was approved"
+      }, {
+        "name" : "SourceApproved",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.api.source.SourceApproved",
+        "description" : "A source was approved for the datasets"
       }, {
         "name" : "SourceDrafted",
         "aliases" : [ ],
@@ -312,7 +386,23 @@
       } ],
       "ownership" : "TENANT"
     } ],
-    "subscriptions" : [ ],
+    "subscriptions" : [ {
+      "name" : "DatasetRecompilation.onSourceChanged",
+      "kind" : "SAGA",
+      "source" : {
+        "context" : "analytics-catalog",
+        "aggregates" : [ "source" ],
+        "events" : [ ]
+      },
+      "function" : {
+        "kind" : "SAGA",
+        "context" : "analytics-catalog",
+        "processor" : "DatasetRecompilation",
+        "name" : "onSourceChanged"
+      },
+      "derives" : [ "analytics-catalog.dataset.RecompileDataset" ],
+      "start" : "END"
+    } ],
     "published" : [ {
       "aggregate" : "dataset",
       "topic" : "wow.analytics-catalog.dataset.state",
@@ -346,6 +436,10 @@
       "code" : "analytics.catalog.not-published",
       "status" : 409,
       "description" : "The dataset was never published."
+    }, {
+      "code" : "analytics.catalog.not-requested",
+      "status" : 409,
+      "description" : "No publication of the dataset awaits an approver."
     }, {
       "code" : "analytics.catalog.table-missing",
       "status" : 409,
@@ -477,11 +571,19 @@
     "status" : 429,
     "description" : "The query was not run: its store has as many queries running as it allows; retry later."
   }, {
+    "code" : "wow.query.dataset-unavailable",
+    "status" : 409,
+    "description" : "The dataset is served but cannot be queried now, for the reason the problem names (it needs revision)."
+  }, {
     "code" : "wow.call.command-forbidden",
     "status" : 403,
     "description" : "The calling service may not call this command: its wow.http.services.<service>.commands do not list it."
   } ],
   "$defs" : {
+    "me.ahoo.wow.analytics.catalog.api.dataset.ApproveDatasetPublication" : {
+      "type" : "object",
+      "description" : "Approve the requested publication of a dataset"
+    },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetArtifact" : {
       "type" : "object",
       "properties" : {
@@ -558,6 +660,9 @@
               "type" : [ "string", "null" ]
             }
           }
+        },
+        "select" : {
+          "type" : "string"
         },
         "sources" : {
           "type" : "array",
@@ -668,6 +773,13 @@
       },
       "required" : [ "columns", "sources", "subject" ]
     },
+    "me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition-nullable" : {
+      "anyOf" : [ {
+        "type" : "null"
+      }, {
+        "$ref" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition"
+      } ]
+    },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetDrafted" : {
       "type" : "object",
       "properties" : {
@@ -693,6 +805,48 @@
       "required" : [ "context", "definition", "name", "sources" ],
       "description" : "A dataset was drafted"
     },
+    "me.ahoo.wow.analytics.catalog.api.dataset.DatasetNeedsRevision" : {
+      "type" : "object",
+      "properties" : {
+        "problems" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "serving" : {
+          "type" : "boolean"
+        }
+      },
+      "required" : [ "problems" ],
+      "description" : "A dataset needs revision"
+    },
+    "me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublicationRefused" : {
+      "type" : "object",
+      "properties" : {
+        "reason" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "reason" ],
+      "description" : "A dataset's publication was refused"
+    },
+    "me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublicationRequested" : {
+      "type" : "object",
+      "properties" : {
+        "definition" : {
+          "$ref" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition"
+        },
+        "reasons" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        }
+      },
+      "required" : [ "definition", "reasons" ],
+      "description" : "A dataset's publication was requested"
+    },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublished" : {
       "type" : "object",
       "properties" : {
@@ -701,6 +855,9 @@
         },
         "definition" : {
           "$ref" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition"
+        },
+        "recompiled" : {
+          "type" : "boolean"
         }
       },
       "required" : [ "artifact", "definition" ],
@@ -734,6 +891,16 @@
       },
       "required" : [ "definition", "sources" ],
       "description" : "A dataset was revised"
+    },
+    "me.ahoo.wow.analytics.catalog.api.dataset.DatasetRevisionCleared" : {
+      "type" : "object",
+      "properties" : {
+        "version" : {
+          "type" : "integer"
+        }
+      },
+      "required" : [ "version" ],
+      "description" : "A dataset's version compiles again"
     },
     "me.ahoo.wow.analytics.catalog.api.dataset.DatasetRolledBack" : {
       "type" : "object",
@@ -802,6 +969,20 @@
       "type" : "object",
       "description" : "Publish the dataset's definition as its next version"
     },
+    "me.ahoo.wow.analytics.catalog.api.dataset.RecompileDataset" : {
+      "type" : "object",
+      "description" : "Compile a published dataset again after a source changed"
+    },
+    "me.ahoo.wow.analytics.catalog.api.dataset.RefuseDatasetPublication" : {
+      "type" : "object",
+      "properties" : {
+        "reason" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "reason" ],
+      "description" : "Refuse the requested publication of a dataset"
+    },
     "me.ahoo.wow.analytics.catalog.api.dataset.RetireDataset" : {
       "type" : "object",
       "description" : "Retire a dataset"
@@ -840,6 +1021,10 @@
         }
       },
       "description" : "Approve a lower sensitivity of a Wow source"
+    },
+    "me.ahoo.wow.analytics.catalog.api.source.ApproveSource" : {
+      "type" : "object",
+      "description" : "Approve a source for the datasets"
     },
     "me.ahoo.wow.analytics.catalog.api.source.DraftSource" : {
       "type" : "object",
@@ -940,6 +1125,10 @@
       },
       "required" : [ "keys", "sensitivity" ],
       "description" : "A lower sensitivity was approved"
+    },
+    "me.ahoo.wow.analytics.catalog.api.source.SourceApproved" : {
+      "type" : "object",
+      "description" : "A source was approved for the datasets"
     },
     "me.ahoo.wow.analytics.catalog.api.source.SourceColumn" : {
       "type" : "object",
@@ -1230,17 +1419,28 @@
           "type" : "integer"
         },
         "definition" : {
-          "anyOf" : [ {
-            "type" : "null"
-          }, {
-            "$ref" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition"
-          } ]
+          "$ref" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition-nullable"
         },
         "dropped" : {
           "type" : "boolean"
         },
         "name" : {
           "type" : "string"
+        },
+        "problems" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "requestReasons" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        },
+        "requested" : {
+          "$ref" : "#/$defs/me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition-nullable"
         },
         "sources" : {
           "type" : "array",
@@ -1250,7 +1450,10 @@
         },
         "status" : {
           "type" : "string",
-          "enum" : [ "DRAFT", "PUBLISHED", "RETIRED" ]
+          "enum" : [ "DRAFT", "PUBLISHED", "RETIRED", "NEEDS_REVISION" ]
+        },
+        "stillServing" : {
+          "type" : "boolean"
         },
         "title" : {
           "type" : [ "string", "null" ]
@@ -1271,11 +1474,14 @@
           }
         }
       },
-      "required" : [ "context", "current", "dropped", "name", "sources", "status", "versions" ]
+      "required" : [ "context", "current", "dropped", "name", "problems", "requestReasons", "sources", "status", "stillServing", "versions" ]
     },
     "me.ahoo.wow.analytics.catalog.domain.source.SourceState" : {
       "type" : "object",
       "properties" : {
+        "approved" : {
+          "type" : "boolean"
+        },
         "claimed" : {
           "type" : "array",
           "items" : {
@@ -1364,7 +1570,7 @@
           "type" : [ "string", "null" ]
         }
       },
-      "required" : [ "claimed", "columns", "connection", "database", "engine", "enrichmentLost", "kind", "missing", "pending", "platform", "references", "refusals", "sensitivity", "status", "table", "tableEngine", "tableUuid" ]
+      "required" : [ "approved", "claimed", "columns", "connection", "database", "engine", "enrichmentLost", "kind", "missing", "pending", "platform", "references", "refusals", "sensitivity", "status", "table", "tableEngine", "tableUuid" ]
     },
     "me.ahoo.wow.api.query.annotation.SensitivityLevel-nullable" : {
       "anyOf" : [ {

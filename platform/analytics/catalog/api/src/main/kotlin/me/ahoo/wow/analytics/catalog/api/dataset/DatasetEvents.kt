@@ -29,9 +29,16 @@ data class DatasetDrafted(
 @Summary("A dataset was revised")
 data class DatasetRevised(val definition: DatasetDefinition, val sources: List<String>, val title: String? = null)
 
-/** [definition] was published as the dataset's version [DatasetArtifact.version], its view created: [artifact]. */
+/**
+ * [definition] was published as the dataset's version [DatasetArtifact.version], its view created: [artifact];
+ * [recompiled] when the catalog published it after a source changed.
+ */
 @Summary("A dataset's version was published")
-data class DatasetPublished(val artifact: DatasetArtifact, val definition: DatasetDefinition)
+data class DatasetPublished(
+    val artifact: DatasetArtifact,
+    val definition: DatasetDefinition,
+    val recompiled: Boolean = false,
+)
 
 /** The dataset's queries read its version [version] again, in place of [from]. */
 @Summary("A dataset was switched back to an earlier version")
@@ -44,3 +51,24 @@ data class DatasetRetired(val version: Int)
 /** The retired dataset's [views] were dropped from the warehouse. */
 @Summary("A retired dataset's views were dropped")
 data class DatasetViewsDropped(val views: List<String>)
+
+/**
+ * The dataset's published definition needs revision, for [problems]: it no longer compiles against the catalog, or it
+ * compiles into other columns than its published version has, or it now takes an approver. While the published
+ * version's view still gives the columns it was published with, it goes on [serving]; otherwise its queries are
+ * answered `wow.query.dataset-unavailable` until a revision is published or its sources come back.
+ */
+@Summary("A dataset needs revision")
+data class DatasetNeedsRevision(val problems: List<String>, val serving: Boolean = false)
+
+/** The dataset's published version [version] compiles again: its queries read it again. */
+@Summary("A dataset's version compiles again")
+data class DatasetRevisionCleared(val version: Int)
+
+/** Publishing [definition] takes an approver, for [reasons]: it is published once one approves. */
+@Summary("A dataset's publication was requested")
+data class DatasetPublicationRequested(val definition: DatasetDefinition, val reasons: List<String>)
+
+/** The requested publication was refused, for [reason]. */
+@Summary("A dataset's publication was refused")
+data class DatasetPublicationRefused(val reason: String)

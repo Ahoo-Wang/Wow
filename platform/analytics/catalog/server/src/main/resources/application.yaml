@@ -62,6 +62,11 @@ wow:
         serve: true
         refresh-interval: 5s
         reconcile-interval: 5m
+      approval:
+        # Whether a dataset reads only the sources an approver approved, and whether every publication takes an
+        # approver (one computing from sensitive values or lowering a protection always does): both off by default.
+        sources: false
+        publications: false
 ---
 # CoSec (roadmap P.15): the service verifies each request's CoSec token (Authorization: Bearer, signed HMAC256 with
 # cosec.jwt.secret, COSEC_JWT_SECRET) and the edge reads the caller from it: its tenant, its id, its roles

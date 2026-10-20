@@ -137,7 +137,12 @@ class AnalyticsCatalogConfiguration {
 
     @Bean
     fun datasetPolicy(properties: AnalyticsCatalogProperties): DatasetPolicy =
-        DatasetPolicy(properties.datasets.database, properties.datasets.retention.toKotlinDuration())
+        DatasetPolicy(
+            database = properties.datasets.database,
+            retention = properties.datasets.retention.toKotlinDuration(),
+            approvePublications = properties.approval.publications,
+            approveSources = properties.approval.sources,
+        )
 
     @Bean
     @OptIn(ExperimentalWowApi::class)

@@ -24,6 +24,7 @@ import me.ahoo.wow.analytics.catalog.api.dataset.DatasetColumn
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetDefinition
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetDrafted
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetField
+import me.ahoo.wow.analytics.catalog.api.dataset.DatasetNeedsRevision
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetPublished
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetRetired
 import me.ahoo.wow.analytics.catalog.api.dataset.DatasetScope
@@ -129,6 +130,21 @@ class DatasetPublicationWatcherTest {
         }
 
     @Test
+    fun `a dataset needing revision should be served while its version holds, and unavailable once it does not`(): Unit =
+        runBlocking {
+            rows = listOf(row("orders", 1, at = now, revision = true))
+            watcher.sync().assert().isEqualTo(1)
+            datasets[AggregateType("shop", "orders")]!!.unavailable.assert().isNull()
+            rows = listOf(row("orders", 1, at = now, revision = false))
+            watcher.sync().assert().isEqualTo(1)
+            datasets[AggregateType("shop", "orders")]!!.unavailable.assert().isEqualTo("needs revision")
+            watcher.sync().assert().isEqualTo(0)
+            rows = listOf(row("orders", 1, at = now))
+            watcher.sync().assert().isEqualTo(1)
+            datasets[AggregateType("shop", "orders")]!!.unavailable.assert().isNull()
+        }
+
+    @Test
     fun `a platform dataset without identity should be served without a tenant`() {
         val artifact = artifact("regions", 1).copy(
             scope = DatasetScope(platform = true),
@@ -169,13 +185,20 @@ class DatasetPublicationWatcherTest {
         identity = "phone",
     )
 
-    private fun row(name: String, version: Int, at: Long, retired: Boolean = false): Snapshot<DatasetState> {
+    private fun row(
+        name: String,
+        version: Int,
+        at: Long,
+        retired: Boolean = false,
+        revision: Boolean? = null,
+    ): Snapshot<DatasetState> {
         val definition =
             DatasetDefinition(listOf(DatasetSource("o", "s")), "o", listOf(DatasetColumn("phone", from = "o.p")))
         val state = DatasetState().apply {
             onSourcing(DatasetDrafted("shop", name, definition, listOf("s")))
             (1..version).forEach { onSourcing(DatasetPublished(artifact(name, it), definition)) }
             if (retired) onSourcing(DatasetRetired(version))
+            revision?.let { onSourcing(DatasetNeedsRevision(listOf("a source changed"), serving = it)) }
         }
         val type = AggregateType(AnalyticsCatalogContext.NAME, AnalyticsCatalogContext.DATASET)
         return Snapshot.of(
