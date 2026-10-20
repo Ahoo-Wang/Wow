@@ -17,7 +17,8 @@ import java.io.File
 
 /**
  * A source dependency rule: production sources of [modules] (optionally narrowed by [appliesToPackage]) must not
- * reference any package in [forbidden]. [modules] are directories relative to the repository root.
+ * reference any package in [forbidden], except the packages in [allowed] within them. [modules] are directories
+ * relative to the repository root.
  *
  * Copied from wow-core's architecture tests (9.3.0, refactor design G3); it moves here for good when V10 removes
  * wow-core.
@@ -30,6 +31,7 @@ data class DependencyRule(
     val modules: List<String>,
     val forbidden: List<String>,
     val appliesToPackage: (String) -> Boolean = { true },
+    val allowed: List<String> = emptyList(),
 ) {
     fun violations(repositoryRoot: File): List<String> =
         modules.flatMap { module -> sourceFiles(File(repositoryRoot, module)) }
@@ -47,7 +49,7 @@ data class DependencyRule(
         return code.lines().flatMapIndexed { index, line ->
             QUALIFIED_NAME.findAll(line)
                 .map { it.value }
-                .filter { reference -> forbidden.any { reference == it || reference.startsWith("$it.") } }
+                .filter { reference -> forbidden.any { reference.within(it) } && allowed.none { reference.within(it) } }
                 .map { "${index + 1}: $it" }
                 .toList()
         }
@@ -65,6 +67,8 @@ data class DependencyRule(
                 .filter { it.isDirectory }
                 .flatMap { root -> root.walkTopDown().filter { it.isFile && (it.extension == "kt" || it.extension == "java") } }
                 .sortedBy { it.path }
+
+        private fun String.within(packageName: String): Boolean = this == packageName || startsWith("$packageName.")
 
         /** Removes comments but keeps line breaks so line numbers stay correct. */
         private fun stripComments(source: String): String =

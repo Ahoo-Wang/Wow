@@ -57,8 +57,14 @@ enum class QueryEntry {
     /** Stated by the HTTP edge for every query route; HTTP budgets and gates apply. */
     HTTP,
 
-    /** Trusted in-process code, including queries issued from inside query extensions. */
+    /** Trusted in-process code, including queries issued from inside query extensions; the in-process budget applies. */
     IN_PROCESS,
+
+    /**
+     * Trusted in-process code that dropped the in-process budget (`QueryApi.trusted().unbounded()`): only the
+     * in-process timeout applies.
+     */
+    UNBOUNDED,
 
     /** Nobody said. Treated as [IN_PROCESS] unless explicit entries are required. */
     UNSPECIFIED,

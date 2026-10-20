@@ -213,7 +213,7 @@ class QueryGatewayTest {
             QueryEntry.entries.filter { it != QueryEntry.UNSPECIFIED }.forEach { entry ->
                 gateway.single(SingleQuery(MatchAllFilter), QueryCaller(entry = entry)).assert().isNull()
             }
-            backend.filters.assert().hasSize(2)
+            backend.filters.assert().hasSize(QueryEntry.entries.size - 1)
         }
     }
 
@@ -262,7 +262,7 @@ class QueryGatewayTest {
                 )
                     .count.assert().isZero()
             }
-            received.assert().hasSize(5)
+            received.assert().hasSize(3 + QueryEntry.entries.size - 1)
         }
     }
 
