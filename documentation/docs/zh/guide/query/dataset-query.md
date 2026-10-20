@@ -7,7 +7,7 @@ description: 把 ClickHouse 宽表等声明式数据集接入 Wow 查询：声�
 
 聚合的 Snapshot 与 EventStream 只能回答“一个聚合”的问题。跨聚合的问题（订单 × 客户 × 商品）由分析师在 ClickHouse 中加工成**宽表**，Wow 把宽表声明为**数据集**（Dataset），经同一套准入、能力描述、范围、策略与脱敏提供查询。View Engine 的 Record、Analysis 与 Dashboard 因此可以直接观察跨聚合数据。
 
-关联发生在宽表里，不在查询协议里：一次查询始终针对一个数据集，查询语言就是[过滤条件](./filter-expression.md)、[数据查询](./data-query.md)与[聚合查询](./aggregation-query.md)的同一套 AST。设计依据见 `documentation/designs/2026-10-10-clickhouse-dataset-query-design.md`。
+关联发生在宽表里，不在查询协议里：一次查询始终针对一个数据集，查询语言就是[过滤条件](./filter-expression.md)、[数据查询](./data-query.md)与[聚合查询](./aggregation-query.md)的同一套 AST。设计依据见 `documentation/designs/2026-10-10-clickhouse-dataset-query-design.md`（在 `main` 分支）。
 
 ## 声明数据集
 
