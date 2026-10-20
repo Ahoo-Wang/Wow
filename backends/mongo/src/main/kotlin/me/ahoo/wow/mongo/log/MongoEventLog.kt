@@ -280,6 +280,8 @@ class MongoEventLog(
         val collection = collectionOf(stream.ref.type)
         val partition = Partitioner.partitionOf(stream.ref, partitions)
         val document = encode(partition, stream, transport).getOrElse { return AppendOutcome.Rejected(it) }
+        // Whether a transaction's commit may have been sent: before it, any failure aborted the transaction for sure.
+        var committing = false
         val outcome = try {
             client.startSession().use { session ->
                 session.withTransaction({
@@ -299,25 +301,38 @@ class MongoEventLog(
                         )!!.getLong(SEQUENCE)
                         collection.log.insertOne(session, document.append(SEQUENCE, sequence))
                         AppendOutcome.Committed(LogPosition(partition, sequence))
-                    }
+                    }.also { committing = true }
                 }, transaction)
             }
         } catch (tooLarge: BsonMaximumSizeExceededException) {
             // The driver refused the document before sending it, so the transaction wrote nothing (finding R2.2-2).
             AppendOutcome.Rejected(tooLarge)
         } catch (failure: MongoException) {
-            // Inside a transaction a duplicate key may surface as a write or a command error: go by its code.
-            when {
-                MongoFailures.isTooLarge(failure) -> AppendOutcome.Rejected(failure)
-                !failure.isDuplicateKey() -> AppendOutcome.Unknown(failure)
-                failure.message.orEmpty().contains(REQUEST_KEY) ->
-                    findByRequestIdIn(collection, stream.ref.tenantId, stream.requestId)
-                        ?.let { AppendOutcome.AlreadyCommitted(it) } ?: AppendOutcome.Unknown(failure)
-
-                else -> AppendOutcome.Conflict(currentVersion(collection, stream.ref))
-            }
+            outcomeOf(failure, committing, collection, stream)
         }
         return if (outcome is AppendOutcome.Conflict) duplicateOr(collection, stream, outcome) else outcome
+    }
+
+    /**
+     * The outcome of [stream]'s transaction that failed with [failure]; [committing] says whether its commit may have
+     * been sent. Inside a transaction a duplicate key may surface as a write or a command error: go by its code. A
+     * transient failure before the commit aborted the transaction for sure: it is thrown, so the command is answered
+     * with the retryable storage error rather than an unknown outcome (finding A2-6 keeps unknown for a commit).
+     */
+    private fun outcomeOf(
+        failure: MongoException,
+        committing: Boolean,
+        collection: AggregateCollection,
+        stream: EventStreamRecord,
+    ): AppendOutcome = when {
+        MongoFailures.isTooLarge(failure) -> AppendOutcome.Rejected(failure)
+        !committing && MongoFailures.isTransient(failure) -> throw failure
+        !failure.isDuplicateKey() -> AppendOutcome.Unknown(failure)
+        failure.message.orEmpty().contains(REQUEST_KEY) ->
+            findByRequestIdIn(collection, stream.ref.tenantId, stream.requestId)
+                ?.let { AppendOutcome.AlreadyCommitted(it) } ?: AppendOutcome.Unknown(failure)
+
+        else -> AppendOutcome.Conflict(currentVersion(collection, stream.ref))
     }
 
     /**

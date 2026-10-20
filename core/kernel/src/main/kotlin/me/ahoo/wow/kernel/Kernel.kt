@@ -52,7 +52,6 @@ import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.wait.WaitContext
-import tools.jackson.core.JacksonException
 import java.time.Instant
 import java.util.UUID
 import kotlin.coroutines.CoroutineContext
@@ -213,17 +212,19 @@ class Kernel(
             ?: return rejected(KernelRejections.UNHANDLED, "${model.type} does not handle ${command.body.javaClass.name}.")
         val commandType = model.commandType(command.body.javaClass)
         val lease = currentCoroutineContext()[ExecutionLease]
-        val requests = RequestCheck(log, states, model, decider, command, lease) { duplicate(it, command, commandType) }
-        requests.beforeWaiting(recentRequests)?.let { return it }
+        val requests = RequestCheck(log, states, recentRequests, model, decider, command, lease) {
+            duplicate(it, command, commandType)
+        }
+        requests.beforeWaiting()?.let { return it }
         awaitDue(command)
         val waitBeyondCommitted = wait.beyondCommitted()
         val encode = { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
         var attempts = 0
         while (attempts < maxAttempts) {
-            val (loaded, cached) = load(model, command, requests.caching)
+            val (loaded, cached) = load(model, requests)
             // Checked after every load (C5): a reload may hold the request another node committed meanwhile.
             requests.beforeDeciding(loaded)?.let { return it }
-            admissible(decider, command, loaded)?.let { return standing(loaded, cached, it, requests) ?: continue }
+            admissible(decider, command, loaded)?.let { return requests.standing(loaded, cached, it) ?: continue }
             val attempt = AttemptScope(command, ids, loaded, reservations, reservationTtl, waitBeyondCommitted, encode)
             val prepared = try {
                 prepare(model, decider, attempt, loaded, command, commandType.name)
@@ -237,13 +238,13 @@ class Kernel(
             val (stream, evolved) = when (prepared) {
                 is Prepared.Done -> {
                     attempt.compensate()
-                    return standing(loaded, cached, prepared.outcome, requests) ?: continue
+                    return requests.standing(loaded, cached, prepared.outcome) ?: continue
                 }
 
                 is Prepared.Append -> prepared.stream to prepared.evolved
             }
-            val appended = withContext(NonCancellable) { appendObserved(stream, attempt) }
-            settleAppend(appended, stream, evolved, attempt, commandType, requests.caching)?.let { return it }
+            val appended = withContext(NonCancellable) { appendCompensating(stream, attempt) }
+            settleAppend(appended, stream, evolved, attempt, commandType, requests)?.let { return it }
             attempts++
         }
         return CommandOutcome.Contended(maxAttempts)
@@ -267,6 +268,20 @@ class Kernel(
         }
     }
 
+    /**
+     * [appendObserved], compensating [attempt] when the append throws: a backend throws only what surely wrote
+     * nothing, such as a store it could not reach before sending the append (the retryable storage error).
+     */
+    private suspend fun appendCompensating(stream: EventStreamRecord, attempt: AttemptScope): AppendOutcome = try {
+        appendObserved(stream, attempt)
+    } catch (
+        @Suppress("TooGenericExceptionCaught") // Compensates whatever failed, then rethrows it unchanged.
+        failure: Throwable,
+    ) {
+        attempt.compensate(failure)
+        throw failure
+    }
+
     /** Appends [stream] of [attempt], observed: what it carries for delivery holds the append's trace (D174). */
     private suspend fun appendObserved(stream: EventStreamRecord, attempt: AttemptScope): AppendOutcome {
         val appending = observer.appending(stream)
@@ -282,13 +297,10 @@ class Kernel(
         evolved: CachedState,
         attempt: AttemptScope,
         commandType: CommandType,
-        caching: Boolean,
+        requests: RequestCheck,
     ): CommandOutcome? = when (appended) {
         is AppendOutcome.Committed -> {
-            if (caching) {
-                evolved.requests?.add(stream.requestId, stream.version)
-                states.put(stream.ref, evolved)
-            }
+            requests.committed(stream, evolved)
             withContext(NonCancellable) { attempt.afterAppend() }
             CommandOutcome.Committed(
                 stream,
@@ -497,64 +509,22 @@ class Kernel(
     /**
      * The aggregate's committed state, version and scope: cached, else from its snapshot and tail, else replayed; and
      * whether it came from the cache. A state loaded from the log carries the aggregate's recent requests (decision
-     * D261): the tail after a snapshot is read together with the request keys before it, up to one more than are kept
-     * so that a full window tells a truncated history; a replay reads them all. A command that runs without the
-     * partition's lease ([caching] false, C4) drops a cached state and loads afresh.
+     * D261), which [requests] derives from what was read; see [RequestCheck.cached] for when a cached state is used.
      */
-    private suspend fun <S : Any> load(
-        model: AggregateModel<S>,
-        command: Command<*>,
-        caching: Boolean,
-    ): Pair<CachedState, Boolean> {
-        val ref = command.ref
-        states.take(ref)?.let { if (caching) return it to true }
-        loadSnapshot(ref)?.let { snapshot ->
-            fittingRevision(model, snapshot)?.let { state ->
-                val earlier = if (recentRequests == 0) 0 else recentRequests + 1
-                val tail = log.readTail(ref, snapshot.version, earlier)
-                fromSnapshot(model, snapshot, state, tail.streams.asFlow())?.let { loaded ->
-                    loaded.requests = RecentRequests.of(recentRequests, tail)
-                    return loaded to false
-                }
+    private suspend fun <S : Any> load(model: AggregateModel<S>, requests: RequestCheck): Pair<CachedState, Boolean> {
+        val ref = requests.ref
+        requests.cached()?.let { return it to true }
+        snapshots.loadOrNull(ref)?.let { snapshot ->
+            codec.fitting(model, snapshot)?.let { state ->
+                val tail = requests.tail(snapshot.version)
+                fromSnapshot(model, snapshot, state, tail.streams.asFlow())
+                    ?.let { return requests.derived(it, tail) to false }
             }
         }
         val streams = log.read(ref).toList()
         val replayed = replay(model, CachedState(model.initialState(ref), 0), streams)
-        replayed.requests = RecentRequests.of(recentRequests, AggregateTail.of(streams, emptyList()))
-        return replayed to false
+        return requests.derived(replayed, AggregateTail.of(streams, emptyList())) to false
     }
-
-    /**
-     * [outcome], decided on [loaded] without appending, keeping [loaded] cached: decided without evolving, the state
-     * is as loaded (decide purity is the user's contract, F4). A duplicate instead when [requests] finds the request
-     * committed (decision D261, C1): nothing appended, the request key never saw it. Null when [loaded] came from the
-     * cache ([cached]) and the log has moved past it ([behindLog]): the command is decided again on a reloaded state.
-     */
-    private suspend fun standing(
-        loaded: CachedState,
-        cached: Boolean,
-        outcome: CommandOutcome,
-        requests: RequestCheck,
-    ): CommandOutcome? {
-        requests.refused(loaded)?.let { return it }
-        val ref = requests.ref
-        if (cached && behindLog(ref, loaded.version)) {
-            return null
-        }
-        if (requests.caching) {
-            states.put(ref, loaded)
-        }
-        return outcome
-    }
-
-    /**
-     * Whether the log holds a stream of [ref] after [version], the version of a cached state a command was rejected
-     * on or changed nothing on. Without fencing (decision D45), another node may have committed to the aggregate while
-     * its owner's cache held it: a command that appends meets that stream as a version conflict, but one that appends
-     * nothing must read the next version slot, or it answers from a state the log has moved past.
-     */
-    private suspend fun behindLog(ref: AggregateRef, version: Int): Boolean =
-        log.read(ref, version + 1, version + 1).firstOrNull() != null
 
     /**
      * The committed state of [ref] at [version], read-only (design 04 §1: the state a subscription hands over when
@@ -720,25 +690,6 @@ class Kernel(
     }
 
     /**
-     * The snapshot of [ref], or null when there is none or the store fails: a snapshot is only a cache, so a failing
-     * store costs a full replay, never the command. Cancellation still propagates.
-     */
-    private suspend fun loadSnapshot(ref: AggregateRef): SnapshotRecord? {
-        val store = snapshots ?: return null
-        return try {
-            store.load(ref)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (
-            @Suppress("TooGenericExceptionCaught") // Whatever the store throws, the log still holds the state.
-            failure: Exception,
-        ) {
-            logger.warn(failure) { "Loading the snapshot of $ref failed; replaying its log." }
-            null
-        }
-    }
-
-    /**
      * The state of [snapshot] evolved with the log's tail after it, or null when the snapshot does not fit: written
      * at another state revision (decision D172) or for another state schema, not decodable, or newer than the log.
      * The tail is read from the snapshot's own version, so the same read proves the log holds that version; that
@@ -754,7 +705,7 @@ class Kernel(
         committedBy: Long = Long.MAX_VALUE,
         maxReplay: Int = Int.MAX_VALUE,
     ): CachedState? {
-        val state = fittingRevision(model, snapshot) ?: return null
+        val state = codec.fitting(model, snapshot) ?: return null
         return fromSnapshot(
             model,
             snapshot,
@@ -763,30 +714,6 @@ class Kernel(
             committedBy,
             maxReplay
         )
-    }
-
-    /**
-     * The state [snapshot] holds, decoded, or null when it does not fit: written at another state revision (decision
-     * D172) or for another state schema, or not decodable.
-     */
-    private fun <S : Any> fittingRevision(model: AggregateModel<S>, snapshot: SnapshotRecord): S? {
-        if (snapshot.stateRevision != model.stateRevision) {
-            logger.debug { "The snapshot of ${snapshot.ref} is of state revision ${snapshot.stateRevision}; replaying its log." }
-            return null
-        }
-        if (snapshot.schemaFingerprint != codec.stateSchemaFingerprint(model)) {
-            logger.debug { "The snapshot of ${snapshot.ref} has another state schema; replaying its log." }
-            return null
-        }
-        return try {
-            codec.decodeState(model, snapshot.state)
-        } catch (failure: JacksonException) {
-            logger.warn(failure) { "The snapshot of ${snapshot.ref} does not decode; replaying its log." }
-            null
-        } catch (failure: IllegalArgumentException) {
-            logger.warn(failure) { "The snapshot of ${snapshot.ref} does not decode whole; replaying its log." }
-            null
-        }
     }
 
     /**

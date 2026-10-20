@@ -15,6 +15,7 @@ package me.ahoo.wow.kernel
 
 import kotlinx.coroutines.flow.firstOrNull
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 
@@ -36,6 +37,8 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 internal class RequestCheck(
     private val log: EventLog,
     private val states: StateCache,
+    /** The requests kept per cached aggregate; 0 keeps none, and every request id is looked up first (D46). */
+    private val recentRequests: Int,
     private val model: AggregateModel<*>,
     decider: DecideFunction<*>,
     private val command: Command<*>,
@@ -61,7 +64,7 @@ internal class RequestCheck(
      * looked up first: without recent requests ([recentRequests] 0, D46), and for a scheduled command, whose duplicate
      * is answered without waiting for the slot (D198).
      */
-    suspend fun beforeWaiting(recentRequests: Int): CommandOutcome? =
+    suspend fun beforeWaiting(): CommandOutcome? =
         if (recentRequests == 0 || command.schedule != null) lookUp() else null
 
     /** The duplicate answer when the request id is committed; null when it is not, remembered. */
@@ -91,8 +94,52 @@ internal class RequestCheck(
         return lookUp()?.let { answered(loaded, it) }
     }
 
+    /** The aggregate's cached state, taken out; none when this execution runs without the lease (C4), dropped. */
+    fun cached(): CachedState? = states.take(ref)?.takeIf { caching }
+
+    /**
+     * The aggregate's tail from [fromVersion], its snapshot's version, read with the request keys before it (C3): one
+     * more than are kept, so that a full window tells a truncated history.
+     */
+    suspend fun tail(fromVersion: Int): AggregateTail =
+        log.readTail(ref, fromVersion, if (recentRequests == 0) 0 else recentRequests + 1)
+
+    /** [loaded], read with [tail] (a replay's tail holds every stream), with the recent requests derived from it. */
+    fun derived(loaded: CachedState, tail: AggregateTail): CachedState =
+        loaded.also { it.requests = RecentRequests.of(recentRequests, tail) }
+
+    /** Caches [evolved], the state [stream] committed, its recent requests holding the request now. */
+    fun committed(stream: EventStreamRecord, evolved: CachedState) {
+        if (caching) {
+            evolved.requests?.add(stream.requestId, stream.version)
+            states.put(ref, evolved)
+        }
+    }
+
+    /**
+     * [outcome], decided on [loaded] without appending, keeping [loaded] cached: decided without evolving, the state
+     * is as loaded (decide purity is the user's contract, F4). A duplicate instead when the request is committed
+     * (C1): nothing appended, so the request key never saw it. Null when [loaded] came from the cache ([cached]) and
+     * the log has moved past it: the command is decided again on a reloaded state.
+     */
+    suspend fun standing(loaded: CachedState, cached: Boolean, outcome: CommandOutcome): CommandOutcome? {
+        refused(loaded)?.let { return it }
+        if (cached && behindLog(loaded.version)) {
+            return null
+        }
+        return answered(loaded, outcome)
+    }
+
+    /**
+     * Whether the log holds a stream of the aggregate after [version], the version of a cached state a command was
+     * rejected on or changed nothing on. Without fencing (decision D45), another node may have committed to the
+     * aggregate while its owner's cache held it: a command that appends meets that stream as a version conflict, but
+     * one that appends nothing must read the next version slot, or it answers from a state the log has moved past.
+     */
+    private suspend fun behindLog(version: Int): Boolean = log.read(ref, version + 1, version + 1).firstOrNull() != null
+
     /** The duplicate answer to an outcome that appends nothing, decided on [loaded], when the request is committed. */
-    suspend fun refused(loaded: CachedState): CommandOutcome? =
+    private suspend fun refused(loaded: CachedState): CommandOutcome? =
         if (lookedUp) null else lookUp()?.let { answered(loaded, it) }
 
     /** [outcome], answered without deciding on [loaded], which stays as it was cached. */
