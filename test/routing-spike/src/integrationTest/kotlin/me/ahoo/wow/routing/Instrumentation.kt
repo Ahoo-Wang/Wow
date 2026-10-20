@@ -26,6 +26,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.LongAdder
@@ -87,6 +88,11 @@ class CountingSnapshotStore(private val delegate: SnapshotStore, private val cou
     override suspend fun save(snapshot: SnapshotRecord): Boolean {
         counters.snapshotSaves.increment()
         return delegate.save(snapshot)
+    }
+
+    override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> {
+        counters.snapshotSaves.add(snapshots.size.toLong())
+        return delegate.saveAll(snapshots)
     }
 
     override suspend fun load(ref: AggregateRef): SnapshotRecord? {

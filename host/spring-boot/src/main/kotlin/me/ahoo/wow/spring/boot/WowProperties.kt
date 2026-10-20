@@ -82,7 +82,7 @@ import kotlin.time.toKotlinDuration
  *   form a log group, with its own partition sequences, checkpoints, parked entries and timers. Snapshots may have
  *   several targets (decision D172, [Snapshot]): `wow.snapshot.targets` and `wow.snapshot.primary`, per aggregate type
  *   `.snapshot.store` as a list and `.snapshot.primary`; `wow.snapshot.interval`, `batch` and `pages` tune the
- *   snapshot maintenance.
+ *   snapshot maintenance, `wow.snapshot.write-batch` how many snapshots of a partition one write holds at most.
  * - `wow.log.partitions` (64; a power of two that divides 4096, decision D240) and `wow.log.append-queue.*`, whose
  *   defaults are the backend's preset; `wow.log.poll-interval` (50ms) and `wow.log.max-poll-interval` (1s), how often
  *   the tails of a PostgreSQL or MongoDB log poll: at the first while they find entries, backing off to the second
@@ -423,7 +423,8 @@ class WowProperties {
      * targets is backfilled from the log; switch the primary to it once it caught up, then drop the old one.
      *
      * The snapshot maintenance (state revision claims, in-place rebuilds, backfill checks) runs every [interval]; a
-     * rebuild rewrites [batch] snapshots a page, at most [pages] pages a run.
+     * rebuild rewrites [batch] snapshots a page, at most [pages] pages a run. The snapshot subscriptions write at most
+     * [writeBatch] snapshots of a partition together.
      */
     class Snapshot {
         var store: String? = null
@@ -433,11 +434,14 @@ class WowProperties {
         var batch: Int = SnapshotOptions.DEFAULT_BATCH
         var pages: Int = SnapshotOptions.DEFAULT_PAGES
 
-        /** The node's snapshot maintenance options. */
+        /** How many snapshots of a partition the snapshot subscriptions write together at most (decision D248 ②). */
+        var writeBatch: Int = SnapshotOptions.DEFAULT_WRITE_BATCH
+
+        /** The node's snapshot maintenance and write options. */
         fun options(): SnapshotOptions {
             val every = interval.toKotlinDuration()
             val ttl = maxOf(SnapshotOptions.DEFAULT_TTL, every * TTL_INTERVALS)
-            return SnapshotOptions(every, batch, pages, ttl, ttl)
+            return SnapshotOptions(every, batch, pages, ttl, ttl, writeBatch)
         }
 
         private companion object {

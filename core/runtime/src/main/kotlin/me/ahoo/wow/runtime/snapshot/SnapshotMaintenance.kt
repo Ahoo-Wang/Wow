@@ -346,6 +346,7 @@ class SnapshotMaintenance(
         name = "${targets.subscriptionOf(store)}#${type.name}",
         answers = { false },
         active = { (store to it) !in caughtUp },
+        writeBatch = options.writeBatch,
     )
 
     /** The snapshot of [ref] rebuilt from its whole log, at [model]'s state revision; null when the log holds none. */

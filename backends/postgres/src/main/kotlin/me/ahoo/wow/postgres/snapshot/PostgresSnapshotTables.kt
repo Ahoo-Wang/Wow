@@ -92,11 +92,11 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
             "ADD COLUMN IF NOT EXISTS state_revision integer NOT NULL DEFAULT 1, " +
             "ADD COLUMN IF NOT EXISTS stale_version integer"
 
-    private fun upsert(guard: String) = """
+    private fun upsert(guard: String, rows: Int = 1, returning: String = "version") = """
         INSERT INTO $snapshot AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state,
             owner_id, space_id, deleted, first_event_time, last_event_time, tags, operator, first_operator, schedules,
             state_revision)
-        VALUES (?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?)
+        VALUES ${List(rows) { ROW }.joinToString(", ")}
         ON CONFLICT (tenant_id, aggregate_id) DO UPDATE SET
             version = excluded.version,
             schema_fingerprint = excluded.schema_fingerprint,
@@ -113,7 +113,7 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
             state_revision = excluded.state_revision,
             stale_version = CASE WHEN stored.stale_version > excluded.version THEN stored.stale_version END
         WHERE $guard
-        RETURNING version
+        RETURNING $returning
     """.trimIndent()
 
     /**
@@ -124,7 +124,31 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
      *
      * Returns the version when the row was inserted or replaced, no row when the guard refused it.
      */
-    val save = upsert("excluded.version > stored.version AND excluded.state_revision >= stored.state_revision")
+    val save = upsert(SAVE_GUARD)
+
+    /**
+     * [save] of [rows] snapshots of distinct refs as one autocommitted statement, each row guarded as [save] guards
+     * one (decision D248 ②); given in key order, the rows are locked in that order. Returns the key of each row inserted or replaced; a refused one returns none.
+     */
+    fun saveRows(rows: Int): String = upsert(SAVE_GUARD, rows, "tenant_id, aggregate_id")
+
+    /**
+     * [markRefused] of [rows] refused snapshots of distinct refs as one statement: the key, the refused version and
+     * its state revision of each. It locks the rows it marks in key order first, as [saveRows] does.
+     */
+    fun markRefusedRows(rows: Int): String = """
+        UPDATE $snapshot AS stored SET stale_version = GREATEST(COALESCE(stored.stale_version, 0), refused.version)
+        FROM (
+            SELECT locked.tenant_id, locked.aggregate_id, input.version FROM $snapshot AS locked
+            JOIN (VALUES ${List(rows) { "(?::text, ?::text, ?::integer, ?::integer)" }.joinToString(", ")})
+                AS input (tenant_id, aggregate_id, version, state_revision)
+            ON locked.tenant_id = input.tenant_id AND locked.aggregate_id = input.aggregate_id
+            WHERE locked.version < input.version AND locked.state_revision > input.state_revision
+            ORDER BY locked.tenant_id, locked.aggregate_id
+            FOR UPDATE OF locked
+        ) AS refused
+        WHERE stored.tenant_id = refused.tenant_id AND stored.aggregate_id = refused.aggregate_id
+    """.trimIndent()
 
     /**
      * After a refused save: marks the row stale up to the refused version when it is of a higher state revision and a
@@ -181,6 +205,18 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
         const val FORMAT = 1
 
         const val PREFIX = "wow_snapshot"
+
+        /** The parameters of one snapshot's row. */
+        const val ROW_PARAMETERS = 15
+
+        /** How many snapshots one statement saves at most: under the protocol's 65,535 parameters. */
+        const val MAX_ROWS = 1_000
+
+        private const val ROW = "(?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb, ?)"
+
+        /** A save's guard: a higher version, of the same or a higher state revision (decision D172). */
+        private const val SAVE_GUARD =
+            "excluded.version > stored.version AND excluded.state_revision >= stored.state_revision"
 
         /** The records of the snapshot tables' claimed state revisions (decision D172). */
         const val TABLES = "wow_snapshot_table"

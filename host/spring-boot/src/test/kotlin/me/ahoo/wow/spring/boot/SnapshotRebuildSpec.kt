@@ -51,6 +51,7 @@ import me.ahoo.wow.runtime.store.StoreLayout
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
 import me.ahoo.wow.spi.store.Store
@@ -426,6 +427,11 @@ class SlowStoreSnapshotRebuildTest : SnapshotRebuildSpec() {
         override suspend fun save(snapshot: SnapshotRecord): Boolean {
             delay(SLOW_WRITE)
             return delegate.save(snapshot)
+        }
+
+        override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> {
+            delay(SLOW_WRITE)
+            return delegate.saveAll(snapshots)
         }
     }
 

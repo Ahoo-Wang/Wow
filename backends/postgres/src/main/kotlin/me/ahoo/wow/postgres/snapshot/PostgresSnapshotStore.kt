@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
@@ -27,12 +28,14 @@ import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
 import tools.jackson.databind.json.JsonMapper
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
+import java.sql.SQLException
 import java.sql.Types
 import java.util.concurrent.ConcurrentHashMap
 import javax.sql.DataSource
@@ -93,47 +96,139 @@ class PostgresSnapshotStore(
     override suspend fun save(snapshot: SnapshotRecord): Boolean = dispatcher.jdbc {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }
         val tables = tables(snapshot.ref.type.name)
-        dataSource.autoCommitted { connection ->
-            upsert(connection, tables.save, snapshot).also { written ->
-                if (!written) {
-                    connection.prepareStatement(tables.markRefused).use { mark ->
-                        mark.setInt(1, snapshot.version)
-                        mark.setString(2, snapshot.ref.tenantId)
-                        mark.setString(3, snapshot.ref.id)
-                        mark.setInt(4, snapshot.version)
-                        mark.setInt(5, snapshot.stateRevision)
-                        mark.executeUpdate()
-                    }
+        dataSource.autoCommitted { connection -> saveIn(connection, tables, snapshot) }
+    }
+
+    /** The version-guarded save of [snapshot] on [connection]; a refused one marks a higher state revision stale. */
+    private fun saveIn(connection: Connection, tables: PostgresSnapshotTables, snapshot: SnapshotRecord): Boolean =
+        upsert(connection, tables.save, snapshot).also { written ->
+            if (!written) {
+                connection.prepareStatement(tables.markRefused).use { mark ->
+                    mark.setInt(1, snapshot.version)
+                    mark.setString(2, snapshot.ref.tenantId)
+                    mark.setString(3, snapshot.ref.id)
+                    mark.setInt(4, snapshot.version)
+                    mark.setInt(5, snapshot.stateRevision)
+                    mark.executeUpdate()
                 }
             }
         }
-    }
 
     override suspend fun rewrite(snapshot: SnapshotRecord): Boolean = dispatcher.jdbc {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }
         dataSource.autoCommitted { upsert(it, tables(snapshot.ref.type.name).rewrite, snapshot) }
     }
 
+    /**
+     * Saves [snapshots] (decision D248 ②): in the rounds [SnapshotSaveOutcome.rounds] gives, each round's snapshots of
+     * one aggregate type with one statement ([PostgresSnapshotTables.saveRows], at most
+     * [PostgresSnapshotTables.MAX_ROWS] a statement), then, only when some were refused, one statement marking those of
+     * a higher state revision stale. So a batch of one aggregate type that all lands is one round trip, as one save is.
+     *
+     * A statement PostgreSQL refuses for a value ([PostgresFailures.isRefused]) wrote nothing: its snapshots are saved
+     * one by one, so the one refused is [SnapshotSaveOutcome.Failed] alone. Any other failure is thrown.
+     */
+    override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> = dispatcher.jdbc {
+        snapshots.forEach { require(it.ref.type.context == context) { "${it.ref} is not in context $context." } }
+        val tablesOf = snapshots.map { it.ref.type.name }.distinct().associateWith(::tables)
+        val outcomes = arrayOfNulls<SnapshotSaveOutcome>(snapshots.size)
+        if (snapshots.isNotEmpty()) {
+            dataSource.autoCommitted { connection ->
+                SnapshotSaveOutcome.rounds(snapshots).forEach { round ->
+                    round.groupBy { snapshots[it].ref.type.name }.forEach { (aggregate, indexes) ->
+                        // In key order, so concurrent statements lock their common rows in the same order.
+                        val ordered = indexes.sortedWith(compareBy(KEY_ORDER) { snapshots[it] })
+                        ordered.chunked(PostgresSnapshotTables.MAX_ROWS).forEach { chunk ->
+                            val rows = chunk.map(snapshots::get)
+                            saveRows(connection, tablesOf.getValue(aggregate), rows).forEachIndexed { at, outcome ->
+                                outcomes[chunk[at]] = outcome
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        outcomes.map { checkNotNull(it) }
+    }
+
+    /**
+     * Saves [snapshots], of distinct refs of one aggregate type, in key order; their outcomes in order. Both
+     * statements lock their rows in key order, as every concurrent batch does, so batches never deadlock.
+     */
+    private fun saveRows(
+        connection: Connection,
+        tables: PostgresSnapshotTables,
+        snapshots: List<SnapshotRecord>,
+    ): List<SnapshotSaveOutcome> {
+        val written = try {
+            connection.prepareStatement(tables.saveRows(snapshots.size)).use { save ->
+                val width = PostgresSnapshotTables.ROW_PARAMETERS
+                snapshots.forEachIndexed { row, snapshot -> bind(save, row * width, snapshot) }
+                save.executeQuery().use { rows ->
+                    buildSet<Pair<String, String>> {
+                        while (rows.next()) {
+                            add(rows.getString(1) to rows.getString(2))
+                        }
+                    }
+                }
+            }
+        } catch (failure: SQLException) {
+            // Refused for a value, the statement wrote nothing; any other failure is thrown.
+            PostgresFailures.refusedOrThrow(failure)
+            return snapshots.map { savedAlone(connection, tables, it) }
+        }
+        val refused = snapshots.filter { (it.ref.tenantId to it.ref.id) !in written }
+        if (refused.isNotEmpty()) {
+            connection.prepareStatement(tables.markRefusedRows(refused.size)).use { mark ->
+                refused.forEachIndexed { row, snapshot ->
+                    val at = row * MARK_PARAMETERS
+                    mark.setString(at + 1, snapshot.ref.tenantId)
+                    mark.setString(at + 2, snapshot.ref.id)
+                    mark.setInt(at + 3, snapshot.version)
+                    mark.setInt(at + 4, snapshot.stateRevision)
+                }
+                mark.executeUpdate()
+            }
+        }
+        return snapshots.map { SnapshotSaveOutcome.of((it.ref.tenantId to it.ref.id) in written) }
+    }
+
+    /** [snapshot] saved alone, after a statement of several was refused for a value: refused alone, it failed. */
+    private fun savedAlone(
+        connection: Connection,
+        tables: PostgresSnapshotTables,
+        snapshot: SnapshotRecord,
+    ): SnapshotSaveOutcome = try {
+        SnapshotSaveOutcome.of(saveIn(connection, tables, snapshot))
+    } catch (failure: SQLException) {
+        SnapshotSaveOutcome.Failed(PostgresFailures.refusedOrThrow(failure))
+    }
+
     /** Runs the upsert [statement] of [snapshot]; whether it wrote the row. */
     private fun upsert(connection: Connection, statement: String, snapshot: SnapshotRecord): Boolean =
         connection.prepareStatement(statement).use { save ->
-            save.setString(1, snapshot.ref.tenantId)
-            save.setString(2, snapshot.ref.id)
-            save.setInt(3, snapshot.version)
-            save.setString(4, snapshot.schemaFingerprint)
-            save.setString(5, snapshot.state)
-            save.setNullableString(6, snapshot.scope.ownerId)
-            save.setNullableString(7, snapshot.scope.spaceId)
-            save.setBoolean(8, snapshot.deleted)
-            save.setLong(9, snapshot.firstEventTime)
-            save.setLong(10, snapshot.lastEventTime)
-            save.setString(11, json.writeValueAsString(snapshot.tags))
-            save.setNullableString(12, snapshot.operator?.let(json::writeValueAsString))
-            save.setNullableString(13, snapshot.firstOperator?.let(json::writeValueAsString))
-            save.setNullableString(14, snapshot.schedules.takeIf { it.isNotEmpty() }?.let(::encodeSchedules))
-            save.setInt(15, snapshot.stateRevision)
+            bind(save, 0, snapshot)
             save.executeQuery().use { rows -> rows.next() }
         }
+
+    /** Sets the parameters of [snapshot]'s row, the [PostgresSnapshotTables.ROW_PARAMETERS] after [offset]. */
+    private fun bind(save: PreparedStatement, offset: Int, snapshot: SnapshotRecord) {
+        save.setString(offset + 1, snapshot.ref.tenantId)
+        save.setString(offset + 2, snapshot.ref.id)
+        save.setInt(offset + 3, snapshot.version)
+        save.setString(offset + 4, snapshot.schemaFingerprint)
+        save.setString(offset + 5, snapshot.state)
+        save.setNullableString(offset + 6, snapshot.scope.ownerId)
+        save.setNullableString(offset + 7, snapshot.scope.spaceId)
+        save.setBoolean(offset + 8, snapshot.deleted)
+        save.setLong(offset + 9, snapshot.firstEventTime)
+        save.setLong(offset + 10, snapshot.lastEventTime)
+        save.setString(offset + 11, json.writeValueAsString(snapshot.tags))
+        save.setNullableString(offset + 12, snapshot.operator?.let(json::writeValueAsString))
+        save.setNullableString(offset + 13, snapshot.firstOperator?.let(json::writeValueAsString))
+        save.setNullableString(offset + 14, snapshot.schedules.takeIf { it.isNotEmpty() }?.let(::encodeSchedules))
+        save.setInt(offset + 15, snapshot.stateRevision)
+    }
 
     override suspend fun markStale(ref: AggregateRef): Boolean = dispatcher.jdbc {
         require(ref.type.context == context) { "$ref is not in context $context." }
@@ -264,6 +359,26 @@ class PostgresSnapshotStore(
     }
 
     private companion object {
+        /** The parameters of one refused snapshot's row of [PostgresSnapshotTables.markRefusedRows]. */
+        const val MARK_PARAMETERS = 4
+
+        /** The order of the snapshot tables' keys, the `C` collation's: tenant, then aggregate id, by code point. */
+        val KEY_ORDER: Comparator<SnapshotRecord> = Comparator { left, right ->
+            byCodePoint(left.ref.tenantId, right.ref.tenantId).takeIf { it != 0 } ?: byCodePoint(left.ref.id, right.ref.id)
+        }
+
+        private fun byCodePoint(left: String, right: String): Int {
+            val lefts = left.codePoints().iterator()
+            val rights = right.codePoints().iterator()
+            while (lefts.hasNext() && rights.hasNext()) {
+                val order = lefts.nextInt().compareTo(rights.nextInt())
+                if (order != 0) {
+                    return order
+                }
+            }
+            return lefts.hasNext().compareTo(rights.hasNext())
+        }
+
         val json: JsonMapper = WowJson.mapper
 
         fun decodeOperator(text: String): Operator = json.readValue(text, Operator::class.java)

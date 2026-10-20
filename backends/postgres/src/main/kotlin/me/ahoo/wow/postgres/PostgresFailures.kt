@@ -64,6 +64,10 @@ internal object PostgresFailures {
             failure
         )
 
+    /** [failure] as a refusal ([refusal]) when PostgreSQL refused a value ([isRefused]); else [failure] is thrown. */
+    fun refusedOrThrow(failure: SQLException): IllegalArgumentException =
+        if (isRefused(failure)) refusal(failure) else throw failure
+
     /**
      * [failure] as a [StorageUnavailableException] when it [isTransient], as an [IllegalArgumentException] when
      * PostgreSQL refused the value ([isRefused]), else as it is.
