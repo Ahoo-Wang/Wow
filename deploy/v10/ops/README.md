@@ -17,7 +17,7 @@ Plain manifests for the ops service (`platform/ops/ops-server`): every service's
 
    ```bash
    pnpm --filter wow-ops-console... build
-   ./gradlew -Pwow.scope=v10 :ops-server:installDist
+   ./gradlew :ops-server:installDist
    docker build -t wow-ops-server:local platform/ops/ops-server
    ```
 

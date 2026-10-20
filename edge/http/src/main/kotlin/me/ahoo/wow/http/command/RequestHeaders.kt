@@ -17,7 +17,10 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.http.WowHeaders
+import me.ahoo.wow.client.wire.CallHeader
+import me.ahoo.wow.client.wire.ScopeHeader
+import me.ahoo.wow.client.wire.WaitHeader
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem

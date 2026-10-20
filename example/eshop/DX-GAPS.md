@@ -330,7 +330,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Blocks M7**: no.
 - **Resolved**: by #4392. `expectState` reads the current state after a rejection, and after an exception `expectError<T>()` checks; `advanceTime` without a block never fails, its block still fails when nothing was due (documented), and `expectNothingDue(within)` shows that a cancelled schedule does not fire.
 
-### G26. An `@OnRejected` handler that only accepts a rejection must still name a command
+### G26. An `@OnRejected` handler that only accepts a rejection must still name a command (resolved)
 
 - **Work package**: E.3
 - **Area**: compiler, docs
@@ -339,6 +339,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: `OrderProcessSaga.onReleaseRejected` returns `Command<CancelOrder>?` and is always null, with the detekt rule suppressed.
 - **Proposed fix**: Allow `Unit` (or `Nothing?`) as the return type of an `@OnRejected` handler that never compensates, or a declarative way to accept the rejections of a command type (`@OnRejected(accept = [...])`).
 - **Blocks M7**: no.
+- **Resolved**: by #4636 (decision D259). A saga's `@OnEvent`, `@OnRejected` and `@OnCommitted` handler may return `Unit`, which derives nothing (Manifest `derives: []`); `onReleaseRejected` returns `Unit`.
 
 ### G27. A service whose saga sends to another context cannot run locally without Kafka
 
@@ -362,7 +363,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Blocks M7**: no.
 - **Resolved**: by #4392. A test takes one processor's handlers from its generated `<processor>Handlers(dependencies)` function, which constructs that processor only; `sagaSpec(...).whenRejected(command, code, message)` hands a rejection to its `@OnRejected` handler. The guide says that `ModelProvider.processors` needs the services of every processor. The `MissingDependencyException` message still speaks of aggregate models (it is the kernel's, shared with `models`).
 
-### G29. A saga that derives one of several commands names them as strings
+### G29. A saga that derives one of several commands names them as strings (resolved)
 
 - **Work package**: E.5
 - **Area**: compiler, docs
@@ -371,6 +372,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: The names as constants in the saga.
 - **Proposed fix**: Accept classes in `derives` (`derives = [ConfirmPayment::class]`), or infer the commands from a sealed type in `Command<…>`; document whether a name that decides no command fails the build.
 - **Blocks M7**: no.
+- **Resolved**: by #4636 (decision D259). `@OnEvent(derives)` takes command classes or sealed types; a returned `Command<S>` of a sealed `S` derives its subclasses; the service's Manifest merge fails on a class no context or peer contract decides. `PaymentGatewaySaga` declares `[ConfirmPayment::class, FailPayment::class]`.
 
 ### G30. A wait chain names only contexts the origin node has Manifests of, in 4 hops (resolved)
 

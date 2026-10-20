@@ -26,7 +26,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.WaitSignal
-import me.ahoo.wow.http.call.ServiceCredential
+import me.ahoo.wow.client.ServiceCredential
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.observation.Observer

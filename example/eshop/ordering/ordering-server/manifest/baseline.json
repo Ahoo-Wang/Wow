@@ -229,7 +229,7 @@
         "processor" : "OrderProcessSaga",
         "name" : "onReleaseRejected"
       },
-      "derives" : [ "eshop-ordering.order.CancelOrder" ],
+      "derives" : [ ],
       "rejected" : [ "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation" ]
     }, {
       "name" : "OrderProcessSaga.onReserveCommitted",

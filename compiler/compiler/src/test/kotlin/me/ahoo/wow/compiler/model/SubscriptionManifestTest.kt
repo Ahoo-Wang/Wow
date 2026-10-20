@@ -70,8 +70,9 @@ class SubscriptionManifestTest {
             fun onSourcing(event: OrderCancelled) = Unit
         }
 
-        /** A command of another context, which no aggregate of this module decides. */
+        /** Commands of another context, which no aggregate of this module decides. */
         data class ReserveStock(val quantity: Int)
+        data class ReleaseStock(val quantity: Int)
 
         /** The subscriber's view of another context's state. */
         data class StockView(val available: Int)
@@ -102,7 +103,7 @@ class SubscriptionManifestTest {
             fun onPlaced(event: StateEvent<Order>, context: SagaContext): List<Command<ReserveStock>> =
                 listOf(context.command(STOCK.ref(event.ref.tenantId, "s-1"), ReserveStock(1)))
 
-            @OnEvent(derives = ["inventory.stock.ReserveStock", "inventory.stock.ReleaseStock"])
+            @OnEvent(derives = [ReserveStock::class, ReleaseStock::class])
             fun declared(event: StateEvent<Order>, context: SagaContext): List<Command<*>> = emptyList()
 
             @OnEvent
@@ -171,7 +172,7 @@ class SubscriptionManifestTest {
                 kind = SubscriptionKind.SAGA,
                 source = order,
                 function = saga("declared"),
-                derives = listOf("inventory.stock.ReleaseStock", "inventory.stock.ReserveStock"),
+                derives = listOf(Manifest.schemaRef("sample.ReleaseStock"), Manifest.schemaRef("sample.ReserveStock")),
                 start = SubscriptionStart.END,
             ),
             SubscriptionManifest(
@@ -414,17 +415,19 @@ class SubscriptionManifestTest {
 
             @Reactor
             class Broken {
-                @OnEvent(aggregates = ["stock"], derives = ["inventory.stock.ReserveStock"])
+                @OnEvent(aggregates = ["stock"], derives = [ReserveStock::class])
                 fun onEvent(event: StateEvent<StockView>) = Unit
 
                 @OnEvent(aggregates = ["inventory.stock", "billing.account"])
                 fun twoContexts(event: StateEvent<StockView>) = Unit
             }
 
+            interface StockCommand
+
             @Saga
             class BadDerives {
-                @OnEvent(derives = ["ReserveStock"])
-                fun onEvent(event: StateEvent<Order>): Command<ReserveStock>? = null
+                @OnEvent(derives = [StockCommand::class, Any::class])
+                fun onEvent(event: StateEvent<Order>): Command<*>? = null
             }
             """.trimIndent(),
         )
@@ -436,7 +439,11 @@ class SubscriptionManifestTest {
             )
             .contains("handler Broken.onEvent declares @OnEvent(derives), but a @Reactor handler derives no commands")
             .contains("handler Broken.twoContexts reads aggregates of the contexts inventory and billing")
-            .contains("handler BadDerives.onEvent derives \"ReserveStock\": @OnEvent(derives) names each command")
+            .contains(
+                "handler BadDerives.onEvent derives sample.StockCommand, which is no command class: " +
+                    "@OnEvent(derives) names command classes, or a sealed type whose subclasses they are",
+            )
+            .contains("handler BadDerives.onEvent derives kotlin.Any, which is no command class")
     }
 
     @Test
@@ -463,8 +470,11 @@ class SubscriptionManifestTest {
 
             @Saga
             class Undeclared {
-                @OnEvent(derives = ["inventory.stock.ReserveStock"])
+                @OnEvent(derives = [ReserveStock::class])
                 fun onEvent(event: StateEvent<Order>): Command<CancelOrder>? = null
+
+                @OnEvent(derives = [ReserveStock::class])
+                fun peer(event: StateEvent<Order>): Command<ReleaseStock>? = null
             }
             """.trimIndent(),
         )
@@ -475,6 +485,10 @@ class SubscriptionManifestTest {
             .contains("handler Wrong.otherState of sample.Wrong reads shop.order, whose state is sample.Order")
             .contains(
                 "handler Undeclared.onEvent of sample.Undeclared returns shop.order.Cancel, which its " +
+                    "@OnEvent(derives) does not list"
+            )
+            .contains(
+                "handler Undeclared.peer of sample.Undeclared returns sample.ReleaseStock, which its " +
                     "@OnEvent(derives) does not list"
             )
         generated(compilation, "shop-domain.json").assert().isNull()

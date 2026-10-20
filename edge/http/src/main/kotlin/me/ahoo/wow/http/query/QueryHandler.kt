@@ -34,8 +34,8 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.result.Violation
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.HttpJson
-import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.WowPaths
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.command.Negotiation

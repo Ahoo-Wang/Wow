@@ -24,8 +24,10 @@
 #   bench.sh down
 #
 # Options: --warm-up=30 --measure=60 --distribution=uniform|zipf|hot --accounts=1000 --label=run --out=<dir>
-#          --heap=1g --jfr (a flight recording per server) --settle=<s> (after the nodes are up), and any other
-#          --name=value of the load generator's run or saturate, passed through.
+#          --heap=1g --jfr (a flight recording per server) --settle=<s> (after the nodes are up), --install=<dir> (the
+#          server's installed distribution, by default bench-<version>/build/install/e2e-bench-<version>: another
+#          build of the same version, such as a baseline's), and any other --name=value of the load generator's run or
+#          saturate, passed through.
 set -euo pipefail
 
 HARNESS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -40,7 +42,7 @@ SERVER_PIDS=()
 TARGETS=()
 
 usage() {
-  sed -n '14,28p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,30p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -83,7 +85,7 @@ parse() {
     esac
     OPTIONS="$OPTIONS${argument#--}
 "
-    case " --version --backend --nodes --label --out --heap --jfr --settle --accounts " in
+    case " --version --backend --nodes --label --out --heap --jfr --settle --accounts --install " in
       *" $key "*) ;;
       *) PASS+=("$argument") ;;
     esac
@@ -116,9 +118,12 @@ start_node() {
   if [ "$(opt jfr false)" = true ]; then
     jvm="$jvm -XX:StartFlightRecording=filename=$OUT/node-$n.jfr,settings=profile"
   fi
+  # --install names the build; else 9.x runs from its v10-9x-baseline tree (D262) and V10 from this one.
   local home=$REPO
   if [ "$VERSION" = 9x ]; then home=$NINE_X_REPO; fi
-  JAVA_OPTS="$jvm" "$home/wow-benchmarks/e2e/bench-$VERSION/build/install/e2e-bench-$VERSION/bin/e2e-bench-$VERSION" \
+  local install
+  install=$(opt install "$home/wow-benchmarks/e2e/bench-$VERSION/build/install/e2e-bench-$VERSION")
+  JAVA_OPTS="$jvm" "$install/bin/e2e-bench-$VERSION" \
     "${args[@]}" >"$OUT/node-$n.log" 2>&1 &
   SERVER_PIDS+=($!)
   TARGETS+=("http://127.0.0.1:$port")
@@ -145,8 +150,8 @@ setup() {
   if [ "$VERSION" != 9x ] && [ "$VERSION" != v10 ]; then log "--version=9x|v10"; usage; fi
   BACKEND=$(opt backend mongo)
   if [ "$VERSION" = 9x ] && [ "$BACKEND" != mongo ]; then log "9.x runs on MongoDB only (D224)"; exit 2; fi
-  if [ "$VERSION" = 9x ] && [ -z "$NINE_X_REPO" ]; then
-    log "--version=9x needs WOW_BENCH_9X_REPO, a worktree of v10-9x-baseline (D262)"; exit 2
+  if [ "$VERSION" = 9x ] && [ -z "$NINE_X_REPO" ] && [ -z "$(opt install "")" ]; then
+    log "--version=9x needs WOW_BENCH_9X_REPO, a worktree of v10-9x-baseline (D262), or --install"; exit 2
   fi
   NODES=$(opt nodes 1)
   HEAP=$(opt heap 1g)
