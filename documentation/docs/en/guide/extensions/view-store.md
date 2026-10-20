@@ -244,7 +244,7 @@ A dataset's title, record noun, and its fields' labels, order and narrowing (`de
 
 - Write: `PUT …/owner/(shared)/datasets/{dataset}/wording` with the body `{title?, recordNoun?, fields?}` and the expected version (`0` is never written); `DELETE` on the same path clears it. A title is 1 to 120 characters once trimmed, a noun 1 to 40, and `fields` an object of at most 64 KB that the server neither interprets nor checks against the dataset: a column the dataset dropped keeps its wording, and the engine passes over it.
 - Read: the snapshot queries of `dataset_wording` (`POST …/owner/(shared)/dataset_wording/snapshot/list`), kept in the request's application as every view store query is.
-- The design: `documentation/designs/2026-10-11-dataset-wording-storage-design.md` in the Wow repository.
+- The design: `documentation/designs/2026-10-11-dataset-wording-storage-design.md` (on the `main` branch) in the Wow repository.
 
 ## Security model
 
