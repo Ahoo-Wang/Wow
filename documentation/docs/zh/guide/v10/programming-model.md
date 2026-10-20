@@ -392,7 +392,7 @@ context.command(AggregateType("inventory", "stock").ref(event.ref.tenantId, prod
 Node <node> has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers), but example/OrderSaga.onOrderCreated sends commands to inventory: a command across contexts goes through its context's command topic (decision D33).
 ```
 
-生产环境的传输是 Kafka（`wow.kafka.bootstrap-servers`）。没有 Kafka 的测试给节点提供内存主题：一个 `InMemoryTopics` Bean（`me.ahoo.wow.kernel.memory`）和基于它的 `SourceTopics` Bean（`me.ahoo.wow.runtime.node`），示例的测试就是这样做的：
+生产环境的传输是 Kafka（`wow.kafka.bootstrap-servers`）。要在一台机器上不带 Kafka 试用服务，设置 `wow.topics.in-memory: true`：节点把命令主题和发布的流放在自己的 JVM 里，执行自己的命令主题，并在启动时告警；这些主题不会到达其他 JVM，重启后也不保留（DX 缺口 G27）。没有 Kafka 的测试也可以自己给节点提供内存主题：一个 `InMemoryTopics` Bean（`me.ahoo.wow.kernel.memory`）和基于它的 `SourceTopics` Bean（`me.ahoo.wow.runtime.node`），示例的测试就是这样做的：
 
 ```kotlin
 class InMemoryShopTopics {

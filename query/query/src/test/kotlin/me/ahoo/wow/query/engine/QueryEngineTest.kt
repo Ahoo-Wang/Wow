@@ -52,6 +52,7 @@ import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.schema.QueryModel
+import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.SnapshotPolicyGateway
 import me.ahoo.wow.spi.json.WowJson
@@ -266,5 +267,11 @@ class QueryEngineTest {
         ManifestTypes.hosted(manifest, emptySet()).assert().isEmpty()
         ManifestStateSchemas(manifest).declares(order).assert().isFalse()
         ManifestStateSchemas(manifest).declares(AggregateType("shop", "none")).assert().isFalse()
+        // An aggregate without its state schema, and a dataset (DX gap G31), declare nothing; only the first is warned.
+        val schemas = ManifestStateSchemas(manifest)
+        runBlocking { schemas.load(QuerySchemaContext(order, QueryModel.SNAPSHOT)) }.assert().isEmpty()
+        runBlocking { schemas.load(QuerySchemaContext(order, QueryModel.SNAPSHOT)) }.assert().isEmpty()
+        runBlocking { schemas.load(QuerySchemaContext(AggregateType("shop", "sales"), QueryModel.DATASET)) }.assert()
+            .isEmpty()
     }
 }

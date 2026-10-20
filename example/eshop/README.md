@@ -180,7 +180,7 @@ Use JDK 21. Start a service from the repository root. Each one runs on the memor
 | inventory | `./gradlew :eshop-inventory-server:run` | 8084 | 9094 |
 | payment | `./gradlew :eshop-payment-server:run` | 8085 | 9095 |
 
-The basket, ordering, inventory and payment services talk over Kafka. The basket, ordering and payment services do not start without it, because their sagas send other contexts' commands. Each of the four has two profiles:
+The basket, ordering, inventory and payment services talk over Kafka. The basket, ordering and payment services do not start without it, because their sagas send other contexts' commands, unless `--wow.topics.in-memory=true` keeps a service's topics in its own JVM to try it out (other services do not see them); `./gradlew :eshop-e2e:eshopLocal` runs all five in one JVM that way. Each of the four has two profiles:
 
 - **`kafka`** sets Kafka on `localhost:9092`, and `wow.kafka.topics.ddl: auto`: each service creates the topics it owns at startup. On ordering and inventory it also turns on the command intake. On payment it starts `OrderPaymentSaga.onOrderStockConfirmed` at the beginning of the order stream.
 - **`postgres`** puts the service on PostgreSQL. Its database is `eshop_basket`, `eshop_ordering`, `eshop_inventory` or `eshop_payment` on `localhost:5432`.
