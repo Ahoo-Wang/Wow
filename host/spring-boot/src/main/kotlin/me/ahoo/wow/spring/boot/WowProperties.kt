@@ -130,8 +130,10 @@ import kotlin.time.toKotlinDuration
  * - `wow.calls.contexts.<context>.url`, `wow.calls.token`, `wow.calls.timeout` (10s), `wow.calls.connect-timeout`
  *   (2s): the synchronous calls of the sagas to other contexts' command gateways (decision D193), see [Calls].
  * - `wow.aggregates.[<context>.<aggregate>].tenant`: a fixed tenant per aggregate type (decision D116);
- *   `wow.aggregates.[<context>.<aggregate>].query.events.unpinned` (`allow` or `refuse`, over its log store's and
+ *   `wow.aggregates.[<context>.<aggregate>].query.events.unpinned` (`allow` or `refuse`, over its events store's and
  *   `wow.query.events.unpinned`; review R3.4-2): whether its `events` queries that name no aggregate run;
+ *   `wow.aggregates.[<context>.<aggregate>].query.events.store`: the store its `events` queries read (decision D235),
+ *   its log store when not set, such as an Elasticsearch store whose event search Sink writes its streams;
  *   `wow.aggregates.[<context>.<aggregate>].id-generator`: the generator of its new ids (decision D171);
  *   `wow.aggregates.[<context>.<aggregate>].routing`: `cluster` (the default, the node's `wow.cluster.router`)
  *   or `kafka`, the `Kafka` router (decision D143), see [Aggregate].
@@ -371,7 +373,17 @@ class WowProperties {
 
     /** An aggregate type's queries (`wow.aggregates.[<context>.<aggregate>].query.*`). */
     class AggregateQuery {
-        var events: QueryEvents = QueryEvents()
+        var events: AggregateQueryEvents = AggregateQueryEvents()
+    }
+
+    /**
+     * An aggregate type's `events` queries (decision D235 ④): [unpinned], whether one that names no aggregate runs,
+     * over its events store's and `wow.query.events.unpinned`; [store], the store they read (one of `wow.stores`), its
+     * log store when not set: an Elasticsearch store whose event search Sink writes the type's streams, say.
+     */
+    class AggregateQueryEvents {
+        var unpinned: UnpinnedEvents? = null
+        var store: String? = null
     }
 
     /**

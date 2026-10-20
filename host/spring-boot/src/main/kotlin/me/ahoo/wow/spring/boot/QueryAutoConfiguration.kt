@@ -128,12 +128,15 @@ class QueryAutoConfiguration {
         }
 
         /**
-         * The `events` query backend of each aggregate type (decision D235), by the store its log is on (D177): the
-         * application's own [EventQueryBackend] bean when it has one, else the one of the query provider of the store's
-         * type (review R3.3-1): PostgreSQL's or MongoDB's over the log in place (`wow.query.events.mongo-read-preference`),
-         * and a log in memory scanned in memory when `wow.query.memory.enabled` is on, as its snapshots are queried then
+         * The `events` query backend of each aggregate type (decision D235), by its events store: the store
+         * `wow.aggregates.[<context>.<aggregate>].query.events.store` names (an Elasticsearch store its event search
+         * Sink writes, say), else the store its log is on (D177). The application's own [EventQueryBackend] bean when it
+         * has one, else the one of the query provider of the store's type (review R3.3-1): PostgreSQL's or MongoDB's over
+         * the log in place (`wow.query.events.mongo-read-preference`), Elasticsearch's over the Sink's events index, and a
+         * log in memory scanned in memory when `wow.query.memory.enabled` is on, as its snapshots are queried then
          * (review R3.4-1). Any other log, in memory without it, on a store whose type has no query provider, or the
-         * application's own, is not queried: its `events` model is not served, and an info log says so.
+         * application's own, is not queried: its `events` model is not served, and an info log says so. A store named
+         * for a type that cannot serve its `events` queries fails the start.
          */
         @Bean
         @ConditionalOnMissingBean
@@ -147,14 +150,22 @@ class QueryAutoConfiguration {
             wow: ObjectProvider<WowProperties>,
         ): EventQueryBackend {
             val layout = backends.layout
-            val byStore = layout?.logStores.orEmpty().associateWith { name ->
+            val configured = HostEventStores.configured(wow.ifAvailable, backends.stores.keys)
+            val byStore = (layout?.logStores.orEmpty() + configured.values).associateWith { name ->
                 val store = backends.stores.getValue(name)
                 val options = properties.storeQueryOptions(wow.ifAvailable?.stores?.get(name))
                 providers.queriesOf(store.type)?.events(store, options)
             }
+            configured.forEach { (type, name) ->
+                checkNotNull(byStore[name]) {
+                    "wow.aggregates.[${type.context}.${type.name}].query.events.store is $name, a store of type " +
+                        "${backends.stores.getValue(name).type} whose events are not queried."
+                }
+            }
+            val storeOf = { type: AggregateType -> configured[type] ?: layout?.logStoreOf(type) }
             val backend = EventQueryBackend(
-                store = { type -> layout?.logStoreOf(type)?.takeIf { byStore[it] != null } },
-            ) { type -> layout?.let { byStore[it.logStoreOf(type)] }?.binding(type) }
+                store = { type -> storeOf(type)?.takeIf { byStore[it] != null } },
+            ) { type -> storeOf(type)?.let(byStore::get)?.binding(type) }
             val unserved = ManifestTypes.events(manifest, node.contexts.keys)
                 .filter { backend.binding(it) == null }
             if (unserved.isNotEmpty()) {
