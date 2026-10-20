@@ -166,9 +166,10 @@ class KernelStateReadsTest {
             { bounded.at(cart, Instant.MAX) },
             { bounded.trace(cart, 4, 4, 1) },
         ).forEach { read ->
-            val refused = runCatching { read() }.exceptionOrNull() as ReplayLimitExceededException
+            val refused = runCatching { read() }.exceptionOrNull() as StateReplayLimitException
             refused.ref.assert().isEqualTo(cart)
             refused.limit.assert().isEqualTo(2)
+            refused.cause.assert().isInstanceOf(ReplayLimitExceededException::class.java)
         }
         bounded.committed(cart)!!.version.assert().isEqualTo(4)
         bounded.at(cart, 2)!!.version.assert().isEqualTo(2)

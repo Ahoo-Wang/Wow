@@ -53,7 +53,7 @@ interface StateReads {
     /**
      * The committed state of [ref] at [version], or null when the log does not hold that version. Its replay runs
      * under the node's [ReplayGate] and folds a bounded number of streams (review R4-Q, Q-1): past the bound, it
-     * throws [me.ahoo.wow.kernel.ReplayLimitExceededException].
+     * throws [StateReplayLimitException].
      */
     suspend fun at(ref: AggregateRef, version: Int): StateReadView?
 
@@ -112,6 +112,15 @@ interface ReplayGate {
     }
 }
 
+/**
+ * A state read of [ref] that would replay more than [limit] streams of its log (review R4-Q, Q-1): refused before the
+ * stream past [limit] is folded. The state exists; it is only too far from the snapshot, or from version 1, to be
+ * replayed for a point read, which an entry answers as the client's request asking too much.
+ */
+@InternalWowApi
+class StateReplayLimitException(val ref: AggregateRef, val limit: Int, cause: Throwable? = null) :
+    RuntimeException("Reading this state of $ref replays more than $limit commits of its log.", cause)
+
 /** An aggregate's state at [version] with what the kernel keeps beside it, as a state read answers it. */
 @InternalWowApi
 data class StateReadView(
@@ -154,7 +163,7 @@ data class EventView(val name: String, val revision: Int, val body: JsonNode)
  * version or a time, and a trace, are the log replayed ([Kernel.stateAt], [Kernel.trace]) from the snapshot when it
  * comes before what is asked, else from version 1, under [gate] too (review R4-Q, Q-1). Every replay but [committed]'s
  * folds the log as it reads it and at most [maxReplay] streams of it: a read that needs more is refused with
- * [ReplayLimitExceededException].
+ * [StateReplayLimitException].
  *
  * A snapshot behind the log's head is the latest state as it is: the snapshot is the read model, which the default
  * wait (`SNAPSHOT`, decision D69) has caught up before a command's answer. An aggregate whose model [registry] does
@@ -188,7 +197,7 @@ class KernelStateReads(
         val model = registry.find(ref.type)?.erased() ?: return null
         reads.snapshots.load(ref)?.let { return it.view() }
         return gate.replay(ref) {
-            reads.kernel.stateAt(model, ref, Instant.MAX, maxReplay = maxReplay)
+            bounded { reads.kernel.stateAt(model, ref, Instant.MAX, maxReplay = maxReplay) }
         }?.view(ref)
     }
 
@@ -205,7 +214,7 @@ class KernelStateReads(
         val model = registry.find(ref.type)?.erased() ?: return emptyList()
         val snapshot = reads.snapshots.load(ref)
         val commits = gate.replay(ref) {
-            reads.kernel.trace(model, ref, fromVersion, toVersion, limit, snapshot, maxReplay)
+            bounded { reads.kernel.trace(model, ref, fromVersion, toVersion, limit, snapshot, maxReplay) }
         }
         return commits.map { commit ->
             val stream = commit.stream
@@ -239,7 +248,14 @@ class KernelStateReads(
         val reads = contexts[ref.type.context] ?: return null
         val model = registry.find(ref.type)?.erased() ?: return null
         val snapshot = reads.snapshots.load(ref)
-        return gate.replay(ref) { read(reads.kernel, model, snapshot) }?.view(ref)
+        return gate.replay(ref) { bounded { read(reads.kernel, model, snapshot) } }?.view(ref)
+    }
+
+    /** [replay]'s result; a replay past the kernel's bound is this read's [StateReplayLimitException]. */
+    private inline fun <T> bounded(replay: () -> T): T = try {
+        replay()
+    } catch (tooLong: ReplayLimitExceededException) {
+        throw StateReplayLimitException(tooLong.ref, tooLong.limit, tooLong)
     }
 
     @InternalWowApi

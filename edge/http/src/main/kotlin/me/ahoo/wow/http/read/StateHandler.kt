@@ -29,7 +29,6 @@ import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.kernel.ReplayLimitExceededException
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
@@ -48,6 +47,7 @@ import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.state.CommitView
 import me.ahoo.wow.runtime.state.StateReadView
 import me.ahoo.wow.runtime.state.StateReads
+import me.ahoo.wow.runtime.state.StateReplayLimitException
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -239,7 +239,7 @@ internal class StateHandler(
      */
     private suspend inline fun <T> replaying(parameter: String, read: () -> T): T = try {
         read()
-    } catch (tooLong: ReplayLimitExceededException) {
+    } catch (tooLong: StateReplayLimitException) {
         throw InvalidStateReadException(
             "The state asked for is more than ${tooLong.limit} commits from the aggregate's snapshot, or from its " +
                 "first version: a state read replays at most ${tooLong.limit}.",

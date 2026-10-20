@@ -132,7 +132,8 @@ class OrderingServerTest {
             status.assert().isEqualTo(OK)
             view["scope"]["ownerId"].asString().assert().isEqualTo("alice")
         }
-        read("order-alice", mapOf(OrderingCallers.USER to "bob")).first.assert().isEqualTo(FORBIDDEN)
+        // Another buyer's order is not found for it (decision D254 ④).
+        read("order-alice", mapOf(OrderingCallers.USER to "bob")).first.assert().isEqualTo(NOT_FOUND)
         val employee = mapOf(OrderingCallers.USER to "erin", OrderingCallers.ROLE to OrderingCallers.EMPLOYEE)
         read("order-alice", employee).first.assert().isEqualTo(OK)
         // A blank user is no user: the anonymous caller, of the whole tenant.
@@ -187,7 +188,7 @@ class OrderingServerTest {
     private companion object {
         const val OK = 200
         const val CONFLICT = 409
-        const val FORBIDDEN = 403
+        const val NOT_FOUND = 404
         const val UNPROCESSABLE = 422
         val TIMEOUT: Duration = Duration.ofSeconds(30)
         val DEADLINE: Duration = Duration.ofSeconds(20)

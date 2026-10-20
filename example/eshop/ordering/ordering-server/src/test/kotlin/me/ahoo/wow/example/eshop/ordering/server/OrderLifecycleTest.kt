@@ -84,10 +84,11 @@ class OrderLifecycleTest {
             view["scope"]["ownerId"].asString().assert().isEqualTo(main["X-User"])
         }
 
-        // The former owner neither reads nor changes it: the kernel's scope guard (decision D94).
+        // The former owner neither reads nor changes it: its state is not found for it (decision D254 ④), and the
+        // kernel's scope guard refuses its commands (decision D94).
         read(id, second).let { (status, problem) ->
-            status.assert().isEqualTo(FORBIDDEN)
-            problem["code"].asString().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+            status.assert().isEqualTo(NOT_FOUND)
+            problem["code"].asString().assert().isEqualTo(FrameworkCodes.NOT_FOUND)
         }
         confirm(id, "mug", second).second["code"].asString().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
         confirm(id, "mug", main).first.assert().isEqualTo(OK)
@@ -153,7 +154,7 @@ class OrderLifecycleTest {
 
     private companion object {
         const val OK = 200
-        const val FORBIDDEN = 403
+        const val NOT_FOUND = 404
         const val GONE = 410
 
         /** The order's version once the order process had it await its validation: submitted, then awaiting. */
