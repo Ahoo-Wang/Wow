@@ -29,6 +29,7 @@ import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.health.HealthOptions
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.log.AppendQueueOptions
+import me.ahoo.wow.runtime.log.HandoffOptions
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.schedule.JobOptions
@@ -85,7 +86,9 @@ import kotlin.time.toKotlinDuration
  * - `wow.log.partitions` (64; a power of two that divides 4096, decision D240) and `wow.log.append-queue.*`, whose
  *   defaults are the backend's preset; `wow.log.poll-interval` (50ms) and `wow.log.max-poll-interval` (1s), how often
  *   the tails of a PostgreSQL or MongoDB log poll: at the first while they find entries, backing off to the second
- *   while they find none (finding A2-14).
+ *   while they find none (finding A2-14). `wow.log.handoff.enabled` (true), `capacity` (1024) and `gap-wait` (200ms):
+ *   the node hands its own commits to its subscriptions' tails in memory (decision D249), which read the store only
+ *   to catch up: after a missing sequence waits the gap wait, or no commit comes for the longest poll interval.
  * - `wow.cluster.*` ([ClusterOptions]) and `wow.cluster.router`: `partitioned`, or `local` (the default on the memory
  *   backend, which cannot route across nodes).
  * - `wow.wait.default-timeout` (10s), `max-timeout` (60s), `max-hops` (16, at most 32), `unknown-contexts` (`allow`
@@ -304,6 +307,20 @@ class WowProperties {
             TailPolling(pollInterval.toKotlinDuration(), maxPollInterval.toKotlinDuration())
 
         /**
+         * The hand-over of the node's own commits to its tails in memory (decision D249): a tail waits its gap wait
+         * for a missing sequence and [maxPollInterval] without a commit before it reads the store.
+         */
+        var handoff: Handoff = Handoff()
+
+        /** The hand-over these settings give. */
+        internal fun handoffOptions(): HandoffOptions = HandoffOptions(
+            enabled = handoff.enabled,
+            capacity = handoff.capacity,
+            gapWait = handoff.gapWait.toKotlinDuration(),
+            probeInterval = maxPollInterval.toKotlinDuration(),
+        )
+
+        /**
          * The store of every aggregate's log that `wow.aggregates.[<context>.<aggregate>].log.store` does not name
          * (decision D177): one of `wow.stores`, the only one when not set.
          */
@@ -430,6 +447,21 @@ class WowProperties {
     /** One aggregate type's store of its log or of its snapshots (decision D177): one of `wow.stores`. */
     class AggregateStore {
         var store: String? = null
+    }
+
+    /**
+     * The hand-over of the node's own commits to the tails of its subscriptions in memory (decision D249): whether it
+     * is on, and the most entries one tail holds that it has not taken; a tail further behind reads the store instead.
+     */
+    class Handoff {
+        var enabled: Boolean = true
+        var capacity: Int = DEFAULT_HANDOFF.capacity
+
+        /**
+         * How long a tail waits for a missing sequence before it reads the store: long enough to ride out a pause of
+         * the process, as appends without a queue hand their commits over out of order for a moment.
+         */
+        var gapWait: Duration = DEFAULT_HANDOFF.gapWait.toJavaDuration()
     }
 
     /** The partition append queue; each setting not given is the backend's preset ([AppendQueueOptions]). */
@@ -1098,5 +1130,6 @@ class WowProperties {
         private val DEFAULT_PARKED = ParkedRetryOptions()
         private val DEFAULT_HEALTH = HealthOptions()
         private val DEFAULT_SYSTEMIC = SystemicFailureOptions()
+        private val DEFAULT_HANDOFF = HandoffOptions()
     }
 }

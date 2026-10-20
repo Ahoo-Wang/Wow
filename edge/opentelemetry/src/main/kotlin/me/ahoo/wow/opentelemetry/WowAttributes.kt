@@ -106,6 +106,12 @@ object WowMetrics {
     /** Counter: the forwards that got no settlement from the owner; tags context, outcome (`local`, `busy`, `unknown`). */
     const val FORWARD_FAILED: String = "wow.command.forward.failed"
 
+    /**
+     * Counter: the reads of the store a tail of a context's log made because the node's own commits, handed over in
+     * memory, could not continue it (decision D249); tags context, reason (`start`, `gap`, `overflow`, `idle`).
+     */
+    const val TAIL_READS: String = "wow.log.tail.reads"
+
     /** Gauge: the commands in a context's executor, waiting in their lanes or in the kernel; tag context. */
     const val EXECUTOR_IN_FLIGHT: String = "wow.executor.in-flight"
 
