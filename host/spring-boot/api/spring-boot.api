@@ -237,6 +237,7 @@ public final class me/ahoo/wow/spring/boot/QueryProperties {
 	public final fun getRequireAuthenticatedScope ()Z
 	public final fun getRequireExplicitEntry ()Z
 	public final fun getSensitivity ()Lme/ahoo/wow/spring/boot/QueryProperties$Sensitivity;
+	public final fun getState ()Lme/ahoo/wow/spring/boot/QueryProperties$State;
 	public final fun setAbac (Lme/ahoo/wow/spring/boot/QueryProperties$Abac;)V
 	public final fun setCountCache (Lme/ahoo/wow/spring/boot/QueryProperties$CountCache;)V
 	public final fun setDataset (Lme/ahoo/wow/spring/boot/QueryProperties$Dataset;)V
@@ -252,6 +253,7 @@ public final class me/ahoo/wow/spring/boot/QueryProperties {
 	public final fun setRequireAuthenticatedScope (Z)V
 	public final fun setRequireExplicitEntry (Z)V
 	public final fun setSensitivity (Lme/ahoo/wow/spring/boot/QueryProperties$Sensitivity;)V
+	public final fun setState (Lme/ahoo/wow/spring/boot/QueryProperties$State;)V
 }
 
 public final class me/ahoo/wow/spring/boot/QueryProperties$Abac {
@@ -341,6 +343,12 @@ public final class me/ahoo/wow/spring/boot/QueryProperties$Sensitivity {
 	public final fun getDisplayComparable ()Z
 	public final fun policy ()Lme/ahoo/wow/query/schema/QuerySensitivityPolicy;
 	public final fun setDisplayComparable (Z)V
+}
+
+public final class me/ahoo/wow/spring/boot/QueryProperties$State {
+	public fun <init> ()V
+	public final fun getMaxReplay ()I
+	public final fun setMaxReplay (I)V
 }
 
 public abstract interface class me/ahoo/wow/spring/boot/ServiceNodeListener {
