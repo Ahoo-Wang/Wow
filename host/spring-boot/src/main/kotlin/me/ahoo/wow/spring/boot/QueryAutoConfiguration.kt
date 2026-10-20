@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.AdaptiveQueryLimit
 import me.ahoo.wow.query.AdaptiveQueryLimits
@@ -413,6 +414,16 @@ class QueryAutoConfiguration {
             defaultListSize = properties.inProcess.defaultListSize,
             chunkSize = properties.stream.chunkSize,
         )
+
+        /**
+         * The queries of the subscription handlers (decision D259): the node's [QueryApi] pinned to the tenant of each
+         * commit, as trusted code; an application's own [QueryApi] bean as a caller of that tenant.
+         */
+        @Bean
+        @ConditionalOnMissingBean
+        @InternalWowApi
+        fun wowContextQueries(api: QueryApi): ContextQueries =
+            if (api is InProcessQueryApi) ContextQueries(api::tenant) else ContextQueries.of(api)
 
         /** Ends the open query streams before the public server's graceful shutdown waits for them (decision D253). */
         @Bean

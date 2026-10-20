@@ -91,6 +91,20 @@ interface Queries {
     fun <R : Any> datasets(name: AggregateType, rowType: Class<R>): RowQueries<R>
 }
 
+/**
+ * The queries of a subscription handler ([me.ahoo.wow.api.subscribe.SubscriptionContext.queries], decision D259): the
+ * whole tenant of the commit it handles, as trusted code pinned to that tenant (no owner, space or caller attribute
+ * restricts them, and no policy that reads the caller hides a row), under the in-process budget. Another tenant's
+ * rows only through an explicit [trusted].
+ */
+interface SubscriptionQueries : Queries {
+    /** The tenant these queries read: the commit's. */
+    val tenantId: String
+
+    /** The queries of trusted code across every tenant; see [QueryApi.trusted]. */
+    fun trusted(): TrustedQueries
+}
+
 /** The queries of trusted code: [unbounded] lifts the in-process budget for a job that must read everything. */
 interface TrustedQueries : Queries {
     /**

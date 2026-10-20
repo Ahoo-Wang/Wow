@@ -33,6 +33,7 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandTypes
+import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
@@ -175,6 +176,8 @@ class ContextNode internal constructor(
     val caller: CommandCaller? = null,
     /** The contexts of the node: a saga derives the commands of these, and calls only the others (decision D193). */
     val served: Set<String> = setOf(context),
+    /** The queries the context's handlers read with, by the commit's tenant (decision D259); none by default. */
+    val queries: ContextQueries = ContextQueries.NONE,
 ) {
     /**
      * The ids of the context's creation commands that name no aggregate (decision D191): a saga's derived command, one
@@ -358,6 +361,11 @@ class ServiceNode @InternalWowApi constructor(
      * and the runtime's own ([FailureClassification.of]); none by default.
      */
     failureClassifiers: List<FailureClassifier> = emptyList(),
+    /**
+     * The queries the subscription handlers read with (decision D259), by the tenant of the commit they handle: the
+     * host's query API, resolved when a handler first reads; none by default, and a read then fails.
+     */
+    private val queries: ContextQueries = ContextQueries.NONE,
 ) {
     /** How every subscription of the node classifies its handler's failures. */
     private val classification = FailureClassification.of(failureClassifiers)
@@ -1203,6 +1211,7 @@ class ServiceNode @InternalWowApi constructor(
                 maintenance,
                 caller,
                 registry.contexts,
+                queries,
             )
         }
     }

@@ -821,6 +821,11 @@ public abstract interface class me/ahoo/wow/api/read/SnapshotQueries : me/ahoo/w
 	public abstract fun state (Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
+public abstract interface class me/ahoo/wow/api/read/SubscriptionQueries : me/ahoo/wow/api/read/Queries {
+	public abstract fun getTenantId ()Ljava/lang/String;
+	public abstract fun trusted ()Lme/ahoo/wow/api/read/TrustedQueries;
+}
+
 public abstract interface class me/ahoo/wow/api/read/TrustedQueries : me/ahoo/wow/api/read/Queries {
 	public abstract fun unbounded ()Lme/ahoo/wow/api/read/Queries;
 }
@@ -1533,5 +1538,6 @@ public final class me/ahoo/wow/api/subscribe/StateEvent {
 
 public abstract interface class me/ahoo/wow/api/subscribe/SubscriptionContext {
 	public abstract fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
+	public fun getQueries ()Lme/ahoo/wow/api/read/SubscriptionQueries;
 }
 

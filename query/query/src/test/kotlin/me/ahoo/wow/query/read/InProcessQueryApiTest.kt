@@ -263,6 +263,24 @@ class InProcessQueryApiTest {
     }
 
     @Test
+    fun `a handler's queries should read the whole tenant of its commit, and others only trusted`(): Unit =
+        runBlocking {
+            save("acme", "c-1", "alice")
+            save("acme", "c-2", "bob")
+            save("other", "c-3", "carol")
+            val api = api(latest = { ref -> committed(ref, "bob") })
+            val queries = api.tenant("acme")
+            queries.tenantId.assert().isEqualTo("acme")
+            queries.snapshots<CartState>().list(ListQuery(MatchAllFilter)).toList().map { it.ref.id }
+                .assert().containsExactlyInAnyOrder("c-1", "c-2")
+            queries.snapshots(cart).count(CountQuery(MatchAllFilter)).count.assert().isEqualTo(2)
+            queries.snapshots<CartState>().state("c-2")!!.ref.assert().isEqualTo(cart.ref("acme", "c-2"))
+            queries.snapshots<CartState>().state(cart.ref("other", "c-3")).assert().isNull()
+            queries.events(cart).list(ListQuery(AggregateIdFilter("c-1"))).toList().assert().hasSize(1)
+            queries.trusted().snapshots<CartState>().list(ListQuery(MatchAllFilter)).toList().assert().hasSize(3)
+        }
+
+    @Test
     fun `the events of a type should be typed by the model's event classes`(): Unit = runBlocking {
         val events = api().of(alice).events(cart)
         events.type.assert().isEqualTo(cart)

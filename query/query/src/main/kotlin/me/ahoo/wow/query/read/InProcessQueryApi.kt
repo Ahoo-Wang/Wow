@@ -34,6 +34,7 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.ProjectionCapable
+import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.read.AggregateState
 import me.ahoo.wow.api.read.EventQueries
 import me.ahoo.wow.api.read.EventStream
@@ -43,10 +44,12 @@ import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.SnapshotQueries
+import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.engine.CommittedStates
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.engine.ReadFacade
@@ -93,14 +96,23 @@ class InProcessQueryApi @InternalWowApi constructor(
 
     override fun trusted(): TrustedQueries = trusted
 
-    private open inner class Scoped(val caller: QueryCaller) : Queries {
+    /**
+     * The queries of a subscription handler of a commit of [tenantId] (decision D259): trusted code whose authenticated
+     * scope pins [tenantId], so it reads that whole tenant and no other, and [SubscriptionQueries.trusted] for the
+     * rest. A type whose tenant is fixed to another one shows such queries nothing.
+     */
+    @InternalWowApi
+    fun tenant(tenantId: String): SubscriptionQueries = TenantScoped(tenantId)
+
+    /** The queries of [caller]; a state read by id reads in the [pinned] tenant when given, else in the caller's. */
+    private open inner class Scoped(val caller: QueryCaller, val pinned: String? = null) : Queries {
         override fun <S : Any> snapshots(stateType: Class<S>): SnapshotQueries<S> =
-            Snapshots(models.typeOf(stateType), stateType, caller)
+            Snapshots(models.typeOf(stateType), stateType, caller, pinned)
 
         override fun snapshots(type: AggregateType): SnapshotQueries<Any> {
             @Suppress("UNCHECKED_CAST")
             val stateType = (models.stateTypeOf(type) ?: Map::class.java) as Class<Any>
-            return Snapshots(type, stateType, caller)
+            return Snapshots(type, stateType, caller, pinned)
         }
 
         override fun events(type: AggregateType): EventQueries = Events(type, caller)
@@ -117,6 +129,15 @@ class InProcessQueryApi @InternalWowApi constructor(
         private val unbounded = Scoped(QueryCaller(entry = QueryEntry.UNBOUNDED))
 
         override fun unbounded(): Queries = unbounded
+    }
+
+    private inner class TenantScoped(override val tenantId: String) :
+        Scoped(
+            QueryCaller(entry = QueryEntry.IN_PROCESS).withScope(QueryScope(authenticated = TenantIdFilter(tenantId))),
+            tenantId,
+        ),
+        SubscriptionQueries {
+        override fun trusted(): TrustedQueries = this@InProcessQueryApi.trusted
     }
 
     /** The queries of [gateway] for [caller], each record read by [row]; refused by [check] first when typed. */
@@ -180,12 +201,13 @@ class InProcessQueryApi @InternalWowApi constructor(
         override val type: AggregateType,
         private val stateType: Class<S>,
         caller: QueryCaller,
+        private val tenantId: String?,
     ) : Rows<Snapshot<S>>(snapshotGateway(type), caller, ::wholeRecords, { it.toSnapshot(type, stateType) }),
         SnapshotQueries<S> {
         override fun <T : Any> dynamic(rowType: Class<T>): RowQueries<T> = Rows(gateway, caller) { decode(it, rowType) }
 
         override suspend fun state(id: String): AggregateState<S>? {
-            val tenant = checkNotNull(engine.tenants.tenantOf(type, caller)) {
+            val tenant = checkNotNull(tenantOf()) {
                 "Trusted queries name no tenant: read the state of $type by its ref."
             }
             return state(type.ref(tenant, id))
@@ -211,9 +233,11 @@ class InProcessQueryApi @InternalWowApi constructor(
 
         private fun stateOf(state: JsonNode): S = decode(state, stateType)
 
+        private fun tenantOf(): String? = tenantId ?: engine.tenants.tenantOf(type, caller)
+
         /** The read of [ref] as the public port's: in the caller's tenant, owner and space, else not found. */
         private fun checkScope(ref: AggregateRef, state: CommittedState) {
-            val tenant = engine.tenants.tenantOf(type, caller)
+            val tenant = tenantOf()
             val scope = caller.caller?.let { engine.ownerships.ownershipOf(type).scopeOf(it.scope) } ?: Scope.NONE
             if (tenant != null && tenant != ref.tenantId || !scope.covers(state.scope)) {
                 throw StateNotFoundException(ref, Reason.OUT_OF_SCOPE)

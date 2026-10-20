@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spring.boot
 
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -20,11 +22,13 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregateIdFilter
+import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.TrustedQueries
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
@@ -398,6 +402,31 @@ class HostQueryTest {
                     .assert().hasSize(1)
             }
         }
+    }
+
+    @Test
+    fun `the handlers' queries should read the whole tenant of a commit through the node`() {
+        startHost("wow.query.memory.enabled" to true).use { host ->
+            val id = host.openAccount("mona")
+            val node = host.context.getBean(ServiceNode::class.java)
+            // The node resolves the query plane's ContextQueries when a handler first reads (decision D259).
+            val queries = node.contexts.getValue(BANK).queries.of(Caller.DEFAULT_TENANT)
+            queries.tenantId.assert().isEqualTo(Caller.DEFAULT_TENANT)
+            eventually { runBlocking { queries.snapshots<Account>().single(SingleQuery(AggregateIdFilter(id))) != null } }
+            runBlocking {
+                queries.snapshots<Account>().state(id)!!.state.owner.assert().isEqualTo("mona")
+                node.contexts.getValue(BANK).queries.of("other").snapshots<Account>()
+                    .single(SingleQuery(AggregateIdFilter(id))).assert().isNull()
+                queries.trusted().snapshots(ACCOUNT).count(CountQuery(MatchAllFilter)).count.assert().isEqualTo(1)
+            }
+        }
+    }
+
+    @Test
+    fun `an application's own QueryApi should serve the handlers as a caller of the commit's tenant`() {
+        val trusted = mockk<TrustedQueries>()
+        val api = mockk<QueryApi> { every { trusted() } returns trusted }
+        QueryAutoConfiguration.NodeQueries().wowContextQueries(api).of("acme").trusted().assert().isSameAs(trusted)
     }
 
     @Test
