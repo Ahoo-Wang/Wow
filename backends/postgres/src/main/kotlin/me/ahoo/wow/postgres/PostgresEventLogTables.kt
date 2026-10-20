@@ -299,6 +299,17 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
 
     val byRequest = "SELECT $FACTS FROM $log WHERE tenant_id = ? AND request_id = ?"
 
+    /**
+     * The aggregates with a stream that records no tags (decision D259), after an aggregate, in the version key's order
+     * `(aggregate_id, tenant_id)`: the scan walks that index from where the last page ended.
+     */
+    val untagged = "SELECT DISTINCT aggregate_id, tenant_id FROM $log WHERE tags IS NULL " +
+        "AND (aggregate_id, tenant_id) > (?, ?) ORDER BY aggregate_id, tenant_id LIMIT ?"
+
+    /** Records one version's tags, only where the stream records none. */
+    val recordTags = "UPDATE $log SET tags = ?::jsonb WHERE aggregate_id = ? AND tenant_id = ? AND version = ? " +
+        "AND tags IS NULL"
+
     companion object {
         /** The columns [additions] adds. */
         val ADDED = listOf("operator_id", "operator_tenant_id", "operator_cross_scope", "tags")

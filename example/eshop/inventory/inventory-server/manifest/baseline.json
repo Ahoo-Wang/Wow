@@ -241,6 +241,10 @@
     "status" : 429,
     "description" : "The query was not run: its store has as many queries running as it allows; retry later."
   }, {
+    "code" : "wow.query.dataset-unavailable",
+    "status" : 409,
+    "description" : "The dataset is served but cannot be queried now, for the reason the problem names (it needs revision)."
+  }, {
     "code" : "wow.call.command-forbidden",
     "status" : 403,
     "description" : "The calling service may not call this command: its wow.http.services.<service>.commands do not list it."

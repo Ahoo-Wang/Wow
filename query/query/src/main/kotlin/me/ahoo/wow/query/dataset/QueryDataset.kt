@@ -71,6 +71,10 @@ data class QueryDatasetScope(
  * [name] is `{context}.{dataset}`: a dataset takes a name slot of its context, beside that context's aggregates, and
  * the query engine keys it as it keys an aggregate type. [storage] is the backend's binding of the dataset (a
  * ClickHouse table, say), opaque to the core: a [DatasetQueryBackendFactory] reads it.
+ *
+ * A dataset whose [unavailable] names a reason is served but cannot be queried: each of its queries and its
+ * descriptor are answered `wow.query.dataset-unavailable` (HTTP 409) with that reason, fixed words such as
+ * `needs revision` (decision D259 7.2b-2), instead of reading a table that may no longer hold what it declares.
  */
 @ExperimentalWowApi
 data class QueryDataset(
@@ -83,8 +87,11 @@ data class QueryDataset(
     val eventTime: QueryField? = null,
     val title: String? = null,
     val storage: ObjectNode = WowJson.mapper.createObjectNode(),
+    /** Why the dataset cannot be queried now, or `null` when it can. */
+    val unavailable: String? = null,
 ) {
     init {
+        require(unavailable == null || unavailable.isNotBlank()) { "Dataset [$name] names why it is unavailable." }
         val declared = declaration.fields.keys
         require(declared.isNotEmpty()) { "Dataset [$name] declares no field." }
         (scope.fields + listOfNotNull(identity, eventTime)).forEach { field ->

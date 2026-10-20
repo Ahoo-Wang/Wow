@@ -385,6 +385,13 @@ public final class me/ahoo/wow/query/QueryCountCacheOptions$Companion {
 	public final fun getDEFAULT_TTL-UwyO8pc ()J
 }
 
+public final class me/ahoo/wow/query/QueryDatasetUnavailableException : me/ahoo/wow/query/QueryExecutionException {
+	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;)V
+	public final fun getDataset ()Lme/ahoo/wow/api/aggregate/AggregateType;
+	public fun getErrorCode ()Ljava/lang/String;
+	public final fun getReason ()Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/query/QueryEntry : java/lang/Enum {
 	public static final field HTTP Lme/ahoo/wow/query/QueryEntry;
 	public static final field IN_PROCESS Lme/ahoo/wow/query/QueryEntry;
@@ -679,8 +686,8 @@ public final class me/ahoo/wow/query/dataset/DefaultDatasetQueryGateway : me/aho
 
 public final class me/ahoo/wow/query/dataset/QueryDataset {
 	public static final field Companion Lme/ahoo/wow/query/dataset/QueryDataset$Companion;
-	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/dataset/QueryDatasetScope;Lme/ahoo/wow/query/schema/QuerySchemaDeclaration;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;)V
-	public synthetic fun <init> (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/dataset/QueryDatasetScope;Lme/ahoo/wow/query/schema/QuerySchemaDeclaration;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/dataset/QueryDatasetScope;Lme/ahoo/wow/query/schema/QuerySchemaDeclaration;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;Ljava/lang/String;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/dataset/QueryDatasetScope;Lme/ahoo/wow/query/schema/QuerySchemaDeclaration;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lme/ahoo/wow/api/aggregate/AggregateType;
 	public final fun component2 ()Lme/ahoo/wow/query/dataset/QueryDatasetScope;
 	public final fun component3 ()Lme/ahoo/wow/query/schema/QuerySchemaDeclaration;
@@ -688,8 +695,9 @@ public final class me/ahoo/wow/query/dataset/QueryDataset {
 	public final fun component5 ()Lme/ahoo/wow/api/query/QueryField;
 	public final fun component6 ()Ljava/lang/String;
 	public final fun component7 ()Ltools/jackson/databind/node/ObjectNode;
-	public final fun copy (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/dataset/QueryDatasetScope;Lme/ahoo/wow/query/schema/QuerySchemaDeclaration;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;)Lme/ahoo/wow/query/dataset/QueryDataset;
-	public static synthetic fun copy$default (Lme/ahoo/wow/query/dataset/QueryDataset;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/dataset/QueryDatasetScope;Lme/ahoo/wow/query/schema/QuerySchemaDeclaration;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;ILjava/lang/Object;)Lme/ahoo/wow/query/dataset/QueryDataset;
+	public final fun component8 ()Ljava/lang/String;
+	public final fun copy (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/dataset/QueryDatasetScope;Lme/ahoo/wow/query/schema/QuerySchemaDeclaration;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;Ljava/lang/String;)Lme/ahoo/wow/query/dataset/QueryDataset;
+	public static synthetic fun copy$default (Lme/ahoo/wow/query/dataset/QueryDataset;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/dataset/QueryDatasetScope;Lme/ahoo/wow/query/schema/QuerySchemaDeclaration;Lme/ahoo/wow/api/query/QueryField;Lme/ahoo/wow/api/query/QueryField;Ljava/lang/String;Ltools/jackson/databind/node/ObjectNode;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/query/dataset/QueryDataset;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getDeclaration ()Lme/ahoo/wow/query/schema/QuerySchemaDeclaration;
 	public final fun getEventTime ()Lme/ahoo/wow/api/query/QueryField;
@@ -699,6 +707,7 @@ public final class me/ahoo/wow/query/dataset/QueryDataset {
 	public final fun getScope ()Lme/ahoo/wow/query/dataset/QueryDatasetScope;
 	public final fun getStorage ()Ltools/jackson/databind/node/ObjectNode;
 	public final fun getTitle ()Ljava/lang/String;
+	public final fun getUnavailable ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun nameOf (Ljava/lang/String;)Lme/ahoo/wow/api/aggregate/AggregateType;
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateType;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/query/dataset/QueryDataset;

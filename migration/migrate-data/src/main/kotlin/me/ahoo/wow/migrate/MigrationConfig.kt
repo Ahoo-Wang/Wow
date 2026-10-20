@@ -13,8 +13,11 @@
 
 package me.ahoo.wow.migrate
 
+import co.elastic.clients.transport.rest5_client.low_level.Rest5Client
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
+import com.zaxxer.hikari.HikariDataSource
+import me.ahoo.wow.elasticsearch.events.ElasticsearchEventSinks
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
@@ -31,7 +34,7 @@ import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
-import org.postgresql.ds.PGSimpleDataSource
+import org.apache.hc.core5.http.HttpHost
 import tools.jackson.databind.DeserializationFeature
 import java.io.Closeable
 import java.nio.file.Files
@@ -49,10 +52,11 @@ import java.util.concurrent.ConcurrentHashMap
  *   "checkpoint": "migrate-data.checkpoint.json",
  *   "source": { "uri": "mongodb://localhost:27017", "database": "example_db" },
  *   "target": { "type": "postgres", "jdbcUrl": "jdbc:postgresql://localhost:5432/wow", "username": "wow",
- *               "password": "env:WOW_PG_PASSWORD" },
+ *               "password": "env:WOW_PG_PASSWORD", "poolSize": 16 },
  *   "partitions": { "example": 16 },
  *   "classpath": ["libs"],
- *   "compensation": { "database": "compensation_db", "service": "example-service" }
+ *   "compensation": { "database": "compensation_db", "service": "example-service" },
+ *   "elasticsearch": { "uri": "http://localhost:9200", "indexPrefix": "" }
  * }
  * ```
  *
@@ -63,6 +67,8 @@ import java.util.concurrent.ConcurrentHashMap
  * - [source] is the 9.x MongoDB event store ([SourceConfig]); [target] the V10 log ([TargetConfig]).
  * - [compensation], when given, is the 9.x compensation service's database, whose unresolved executions are imported
  *   into the V10 service's failure ledger ([CompensationConfig]).
+ * - [elasticsearch], when given, is the cluster of the services' events indices, which `backfill-tags` re-sinks
+ *   ([ElasticsearchConfig]).
  * - [partitions] gives each V10 context its partition count, which must be the services' own: a log refuses another.
  * - [pageSize], [streamBatch], [concurrency] and [lookbackMillis] are [ImportOptions]; [pollIntervalMillis] is the
  *   pause between two tail passes.
@@ -81,6 +87,7 @@ data class MigrationConfig(
     val pollIntervalMillis: Long = 1_000,
     val classpath: List<String> = emptyList(),
     val compensation: CompensationConfig? = null,
+    val elasticsearch: ElasticsearchConfig? = null,
 ) {
     /** The options of an import, a dry run when [dryRun], a final complete pass when [restart]. */
     fun options(dryRun: Boolean = false, restart: Boolean = false): ImportOptions = ImportOptions(
@@ -125,6 +132,13 @@ data class MigrationConfig(
 }
 
 /**
+ * The Elasticsearch cluster at [uri] whose events indices (decision D235) the services' event search Sinks write,
+ * their names prefixed with [indexPrefix] as the store's `index-prefix` prefixes them: `backfill-tags` overwrites the
+ * documents indexed there before the indices learned the tags (decision D259), and nothing else.
+ */
+data class ElasticsearchConfig(val uri: String, val indexPrefix: String = "")
+
+/**
  * The 9.x MongoDB event store: its connection [uri] and [database]. The tool does not write to it unless
  * [createCommitTimeIndex] is set: then the tail creates the `(createTime, _id)` index it reads by where it is missing;
  * otherwise the tail refuses to start without it, naming the collections and the command that creates it, so the
@@ -146,8 +160,8 @@ data class CompensationConfig(val database: String, val service: String, val uri
 }
 
 /**
- * The V10 log: [type] `postgres` (with [jdbcUrl], [username] and [password]) or `mongo` (with [uri] and [database],
- * a replica set). Per-aggregate log stores (decision D177) are migrated by one run per store, each with a map of the
+ * The V10 log: [type] `postgres` (with [jdbcUrl], [username] and [password], through a pool of at most [poolSize]
+ * connections) or `mongo` (with [uri] and [database], a replica set). Per-aggregate log stores (decision D177) are migrated by one run per store, each with a map of the
  * aggregates that store holds.
  */
 data class TargetConfig(
@@ -157,8 +171,10 @@ data class TargetConfig(
     val password: String? = null,
     val uri: String? = null,
     val database: String? = null,
+    val poolSize: Int = DEFAULT_POOL_SIZE,
 ) {
     init {
+        require(poolSize >= 1) { "A target's pool holds at least one connection." }
         require(type == POSTGRES || type == MONGO) { "A target is of type $POSTGRES or $MONGO, not $type." }
         require(type != POSTGRES || jdbcUrl != null) { "A $POSTGRES target needs a jdbcUrl." }
         require(type != MONGO || (uri != null && database != null)) { "A $MONGO target needs a uri and a database." }
@@ -167,6 +183,9 @@ data class TargetConfig(
     companion object {
         const val POSTGRES = "postgres"
         const val MONGO = "mongo"
+
+        /** The default [poolSize]: as many connections as the default import and backfill concurrency needs, twice. */
+        const val DEFAULT_POOL_SIZE = 16
     }
 }
 
@@ -200,6 +219,9 @@ interface MigrationConnections : Closeable {
 
     /** The V10 service's failure ledger on the target backend, its schema created; only with [compensation]. */
     fun failureLedger(): FailureLedger = throw MigrationException("The configuration names no 9.x compensation.")
+
+    /** The event search Sinks of the configured Elasticsearch cluster; null when the configuration names none. */
+    val eventSinks: ElasticsearchEventSinks? get() = null
 }
 
 /**
@@ -218,11 +240,13 @@ class ConfiguredConnections(private val config: MigrationConfig) : MigrationConn
         MongoNineXSnapshotSource(sourceClient.getDatabase(config.source.database))
     private val targetClient: MongoClient? = config.target.uri?.takeIf { config.target.type == TargetConfig.MONGO }
         ?.let { MongoClients.create(requireNotNull(MigrationConfig.resolve(it))) }
-    private val dataSource by lazy {
-        PGSimpleDataSource().apply {
-            setURL(config.target.jdbcUrl)
-            config.target.username?.let { user = it }
+    private val dataSource = lazy {
+        HikariDataSource().apply {
+            jdbcUrl = config.target.jdbcUrl
+            config.target.username?.let { username = it }
             MigrationConfig.resolve(config.target.password)?.let { password = it }
+            maximumPoolSize = config.target.poolSize
+            poolName = "wow-migrate-data"
         }
     }
     private val logs = ConcurrentHashMap<String, EventLog>()
@@ -233,7 +257,7 @@ class ConfiguredConnections(private val config: MigrationConfig) : MigrationConn
             MongoEventLog(targetClient, requireNotNull(config.target.database), context, partitions)
                 .also { it.createSchema() }
         } else {
-            PostgresEventLog(dataSource, context, partitions).also { it.createSchema() }
+            PostgresEventLog(dataSource.value, context, partitions).also { it.createSchema() }
         }
     }
 
@@ -243,7 +267,7 @@ class ConfiguredConnections(private val config: MigrationConfig) : MigrationConn
         if (targetClient != null) {
             MongoSnapshotStore(targetClient, requireNotNull(config.target.database), context)
         } else {
-            PostgresSnapshotStore(dataSource, context)
+            PostgresSnapshotStore(dataSource.value, context)
         }
     }
 
@@ -254,7 +278,7 @@ class ConfiguredConnections(private val config: MigrationConfig) : MigrationConn
         if (targetClient != null) {
             MongoReservationStore(targetClient, requireNotNull(config.target.database)).also { it.createSchema() }
         } else {
-            PostgresReservationStore(dataSource).also { it.createSchema() }
+            PostgresReservationStore(dataSource.value).also { it.createSchema() }
         }
     }
 
@@ -274,13 +298,23 @@ class ConfiguredConnections(private val config: MigrationConfig) : MigrationConn
             MongoFailureLedger(targetClient, requireNotNull(config.target.database), service = service)
                 .also { it.createSchema() }
         } else {
-            PostgresFailureLedger(dataSource, service = service).also { it.createSchema() }
+            PostgresFailureLedger(dataSource.value, service = service).also { it.createSchema() }
         }
     }
 
     override fun failureLedger(): FailureLedger = failureLedger
 
+    private val elasticsearch: Rest5Client? = config.elasticsearch?.let {
+        Rest5Client.builder(HttpHost.create(requireNotNull(MigrationConfig.resolve(it.uri)))).build()
+    }
+
+    override val eventSinks: ElasticsearchEventSinks? = elasticsearch?.let {
+        ElasticsearchEventSinks.of(it, requireNotNull(config.elasticsearch).indexPrefix)
+    }
+
     override fun close() {
+        if (dataSource.isInitialized()) dataSource.value.close()
+        elasticsearch?.close()
         sourceClient.close()
         compensationClient?.close()
         targetClient?.close()

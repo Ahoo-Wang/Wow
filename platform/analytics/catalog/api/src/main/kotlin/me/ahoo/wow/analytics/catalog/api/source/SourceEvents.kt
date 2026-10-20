@@ -114,3 +114,7 @@ data class WowEnrichmentLost(val pending: List<String>)
 /** A privileged reviewer approved the lower protection of [keys]: the source's [sensitivity] is now as given. */
 @Summary("A lower sensitivity was approved")
 data class SensitivityChangeApproved(val keys: List<String>, val sensitivity: List<FieldSensitivity>)
+
+/** An approver approved the source for the datasets. */
+@Summary("A source was approved for the datasets")
+data object SourceApproved

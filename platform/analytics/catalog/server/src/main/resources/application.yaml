@@ -7,6 +7,13 @@ server:
 # from headers (wow.platform.trust-identity-headers).
 cosec:
   enabled: false
+management:
+  endpoint:
+    health:
+      group:
+        # Ready once the node serves the published datasets too (wow.analytics.catalog.datasets.serve).
+        readiness:
+          include: readinessState,wowReadiness,datasetPublications
 wow:
   service: analytics-catalog-service
   # One node, its data in memory: the default, for trying the catalog out. The `postgres` profile below keeps the
@@ -45,6 +52,21 @@ wow:
       trusted-writers: {}
       # How often the catalog looks for changed tables and wow_catalog rows (decision D241 ④).
       refresh-interval: 30s
+      datasets:
+        # The warehouse database the datasets' views are created in (decision D259): the catalog's account needs
+        # CREATE DATABASE, CREATE VIEW and DROP VIEW there.
+        database: wow_datasets
+        # How long a retired dataset's views stay before they are dropped.
+        retention: 7d
+        # Whether this node serves the published datasets' queries, and how often it reads what changed.
+        serve: true
+        refresh-interval: 5s
+        reconcile-interval: 5m
+      approval:
+        # Whether a dataset reads only the sources an approver approved, and whether every publication takes an
+        # approver (one computing from sensitive values or lowering a protection always does): both off by default.
+        sources: false
+        publications: false
 ---
 # CoSec (roadmap P.15): the service verifies each request's CoSec token (Authorization: Bearer, signed HMAC256 with
 # cosec.jwt.secret, COSEC_JWT_SECRET) and the edge reads the caller from it: its tenant, its id, its roles

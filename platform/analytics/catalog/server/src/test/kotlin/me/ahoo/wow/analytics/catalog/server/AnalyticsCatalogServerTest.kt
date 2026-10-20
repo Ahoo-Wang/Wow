@@ -22,9 +22,14 @@ import me.ahoo.wow.analytics.catalog.domain.warehouse.CatalogRow
 import me.ahoo.wow.analytics.catalog.domain.warehouse.CatalogTrust
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseTable
+import me.ahoo.wow.analytics.catalog.testing.MemoryDatasetWarehouse
 import me.ahoo.wow.analytics.catalog.testing.MemoryWarehouse
 import me.ahoo.wow.analytics.catalog.testing.MemoryWarehouseConfiguration
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.runtime.node.ServiceNode
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -39,9 +44,15 @@ class AnalyticsCatalogServerTest {
     private val node = startCatalog(
         "wow.analytics.catalog.trusted-writers.wow_sink" to "shop",
         "wow.analytics.catalog.refresh-interval" to "200ms",
+        "wow.analytics.catalog.datasets.refresh-interval" to "100ms",
+        "wow.analytics.catalog.datasets.retention" to "1s",
         sources = listOf(MemoryWarehouseConfiguration::class.java),
     )
     private val warehouse = node.context.getBean(MemoryWarehouse::class.java)
+    private val views = node.context.getBean(MemoryDatasetWarehouse::class.java)
+
+    @OptIn(ExperimentalWowApi::class)
+    private val datasets = node.context.getBean(QueryDatasets::class.java)
 
     @AfterAll
     fun close() {
@@ -168,6 +179,42 @@ class AnalyticsCatalogServerTest {
         val dataset = node.dataset(id)["state"]
         dataset["status"].asString().assert().isEqualTo("DRAFT")
         dataset["sources"].values().map { it.asString() }.assert().containsExactly(source)
+        node.get("/actuator/health/readiness", Who.VIEWER).assertOk()
+
+        // Published: its view created, the node serves it, masked as its lineage says.
+        node.datasetCommand(id, "publish-dataset", "{}", Who.VIEWER).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        node.datasetCommand(id, "publish-dataset", "{}", Who.EDITOR).assertOk()
+        views.created.keys.assert().containsExactly("wow_datasets.ds_shop_invoices_v1")
+        val publishedArtifact = views.created["wow_datasets.ds_shop_invoices_v1"]
+        val name = AggregateType("shop", "invoices")
+        eventually("the dataset served") { datasets[name] != null }
+        val served = datasets[name]!!
+        served.storage["table"].asString().assert().isEqualTo("wow_datasets.ds_shop_invoices_v1")
+        served.scope.tenant.assert().isEqualTo(QueryField("tenant_id"))
+        val phone = served.declaration.fields.getValue(QueryField("phone"))
+        phone.maskRule.toString().assert().contains("DISPLAY").contains("prefix=3")
+
+        // The phone column gone from its source: the dataset needs revision; its view still holds here (the views
+        // are in memory), so it goes on serving. Once the view no longer holds, it is served unavailable.
+        warehouse.put(INVOICES.copy(columns = INVOICES.columns.filter { it.name != "phone" }))
+        eventually("the dataset needing revision") {
+            node.dataset(id)["state"]["status"].asString() == "NEEDS_REVISION"
+        }
+        node.dataset(id)["state"]["problems"].values().single().asString().assert().contains("phone is not a column")
+        node.dataset(id)["state"]["stillServing"].asBoolean().assert().isTrue()
+        datasets[name]!!.unavailable.assert().isNull()
+        views.created.remove("wow_datasets.ds_shop_invoices_v1")
+        warehouse.put(INVOICES.copy(uuid = "uuid-invoices-2", columns = INVOICES.columns.filter { it.name != "phone" }))
+        eventually("the dataset served unavailable") { datasets[name]?.unavailable == "needs revision" }
+        views.created["wow_datasets.ds_shop_invoices_v1"] = checkNotNull(publishedArtifact)
+        warehouse.put(INVOICES)
+        eventually("the dataset served again") { datasets[name]?.let { it.unavailable == null } == true }
+
+        // Retired: no longer served, its views dropped once the retention ends.
+        node.datasetCommand(id, "retire-dataset", "{}", Who.EDITOR).assertOk()
+        eventually("the dataset no longer served") { datasets[name] == null }
+        eventually("the views dropped") { "wow_datasets.ds_shop_invoices_v1" in views.dropped }
+        eventually("the drop recorded") { node.dataset(id)["state"]["dropped"].asBoolean() }
     }
 
     /** Waits until the watcher has looked at the warehouse as it is now: a look begun since, and ended. */

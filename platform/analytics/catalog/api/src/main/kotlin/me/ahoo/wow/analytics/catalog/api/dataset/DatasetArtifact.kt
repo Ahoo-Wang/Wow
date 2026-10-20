@@ -13,12 +13,16 @@
 
 package me.ahoo.wow.analytics.catalog.api.dataset
 
+import me.ahoo.wow.analytics.catalog.api.source.SourceColumn
+
 /**
  * One compiled version of a dataset (decision D259 7.2b-2): the ClickHouse [view] of [database] that serves it, the
  * [ddl] that creates it (audited with the publication, decision D251 ④), and what a query node needs to serve it
  * without asking the catalog: its [scope], its [fields] with their protection and lineage, its [identity] and
  * [eventTime] columns. [sources] are the catalog's sources it reads; [approvals] say why publishing it takes an
- * approver, empty when it does not.
+ * approver, empty when it does not. [columns] are the view's columns as the warehouse created them, their warehouse
+ * types: what a query node declares each field as; empty until the publication creates the view. [select] is the
+ * query the view is, which the catalog asks the warehouse to describe before it publishes a recompilation.
  */
 data class DatasetArtifact(
     val context: String,
@@ -34,6 +38,8 @@ data class DatasetArtifact(
     val identity: String? = null,
     val eventTime: String? = null,
     val approvals: List<String> = emptyList(),
+    val columns: List<SourceColumn> = emptyList(),
+    val select: String = "",
 )
 
 /**

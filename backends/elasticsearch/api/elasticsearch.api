@@ -1,0 +1,13 @@
+public final class me/ahoo/wow/elasticsearch/events/ElasticsearchEventSink$StreamKey {
+	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateRef;I)V
+	public final fun component1 ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun component2 ()I
+	public final fun copy (Lme/ahoo/wow/api/aggregate/AggregateRef;I)Lme/ahoo/wow/elasticsearch/events/ElasticsearchEventSink$StreamKey;
+	public static synthetic fun copy$default (Lme/ahoo/wow/elasticsearch/events/ElasticsearchEventSink$StreamKey;Lme/ahoo/wow/api/aggregate/AggregateRef;IILjava/lang/Object;)Lme/ahoo/wow/elasticsearch/events/ElasticsearchEventSink$StreamKey;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getVersion ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
