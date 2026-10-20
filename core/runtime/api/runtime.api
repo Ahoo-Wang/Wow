@@ -692,13 +692,15 @@ public final class me/ahoo/wow/runtime/snapshot/SnapshotOptions {
 	public static final field Companion Lme/ahoo/wow/runtime/snapshot/SnapshotOptions$Companion;
 	public static final field DEFAULT_BATCH I
 	public static final field DEFAULT_PAGES I
-	public synthetic fun <init> (JIIJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public static final field DEFAULT_WRITE_BATCH I
+	public synthetic fun <init> (JIIJJIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getBatch ()I
 	public final fun getInterval-UwyO8pc ()J
 	public final fun getLeaseTtl-UwyO8pc ()J
 	public final fun getMemberTtl-UwyO8pc ()J
 	public final fun getPages ()I
+	public final fun getWriteBatch ()I
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
