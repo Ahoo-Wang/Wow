@@ -89,6 +89,7 @@ export {
   type DashboardPanelView,
   useDashboard,
 } from './useDashboard.js';
+export { type DatasetsState, useDatasets } from './useDatasets.js';
 export {
   type FollowUpHost,
   ownedNavigation,

@@ -6,4 +6,4 @@ max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-In the Wow repository, add a declared 'apply retry spec' action to the compensation console's failed-execution bindings under compensation/dashboard/src/views, with its harness test.
+In the Wow repository, add a declared 'reschedule' action to the ops console's parked-entry bindings under platform/ops/console/src/views, with its harness test.

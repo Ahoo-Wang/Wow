@@ -1,10 +1,10 @@
 # Choices
 
-In depth: [Writing a Definition](https://wow.ahoo.me/guide/typescript/view-engine-definitions.html) (facts, capabilities and choices, words, narrowing, `rowFields`, system views, boards, `admit`) and the [definitions reference](https://wow.ahoo.me/reference/typescript/wow-view-engine/definitions.html). Confirm members against the installed typings (`DefineViewSpec`, `FieldSpec`): a patch release never breaks the public surface, a minor release may. This page is about deciding what to write.
+In depth: [Define views](https://wow.ahoo.me/typescript/view-engine/definitions) (facts, capabilities and choices, words, narrowing, `rowFields`, system views, boards, `admit`) and the [definitions reference](https://wow.ahoo.me/reference/typescript/wow-view-engine/definitions.html). Confirm members against the installed typings (`DefineViewSpec`, `FieldSpec`): a patch release never breaks the public surface, a minor release may. This page is about deciding what to write.
 
 ## A definition, choice by choice
 
-A customer-service team works through paid orders and asks which channels sell. The descriptor is the committed snapshot of `GET {base}/order/snapshot/schema`:
+A customer-service team works through paid orders and asks which channels sell. The descriptor is the committed snapshot of `GET {base}/sales/order/snapshot/query` (its `ETag` is the version):
 
 <!-- typecheck: skip — the JSON is the committed snapshot beside the module -->
 
@@ -256,7 +256,9 @@ A metric's display name says what it measures for the business (「实付」「�
 
 ## Event streams
 
-An event-stream record is one command's appended events: root fields such as `aggregateId`, `id`, `version`, `createTime`, `commandId`, and `body`, the array of events. The descriptor's `variants` (`element: 'body'`, `discriminator: 'bodyType'`) lists each event type's payload fields relative to the event.
+A record of the `events` model is one commit: the events one command appended to one aggregate, at one version. Its root fields are `aggregateId`, `tenantId`, `version`, `commitTime`, `commandId`, `requestId`, `commandType`, `ownerId`, `spaceId`, `operator` and `tags`, and `events`, the array of `{name, revision, body}`. Each event is named `<context>.<aggregate>.<Name>`; the descriptor lists `events` as an element and every event type's payload fields under `events.body.*` together, so which type carries a field is yours to know from the service's Manifest (or its generated client's event types). Events come back under their current names, their bodies upgraded to the current revision; a retired event type is never returned.
+
+What the store can do with a payload field is in the descriptor, and one rule decides it: a condition reads the body as it was stored, so only a body field of an event still at revision 1 can be filtered, sorted or grouped on; a field of an event upgraded past revision 1 keeps only `PRESENCE`. Word it for reading, and do not build a queue or a metric on it.
 
 <!-- typecheck-context
 import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
@@ -269,26 +271,30 @@ import { defineView, text } from '@ahoo-wang/wow-view-engine';
 // Every `orderEvents.*` key has words per language beside it, as `ORDER_WORDS` above.
 export const orderEvents = defineView(orderEventDescriptor, {
   id: 'order-events',
-  source: 'order/event',
+  // The key the host registers the order event streams under.
+  source: 'order/events',
   title: text('orderEvents.title'),
   recordNoun: text('orderEvents.noun'),
-  timeField: 'createTime',
+  timeField: 'commitTime',
+  // Every commit of one order shares its aggregate id, the model's identity:
+  // key the rows by the command that appended them, and page them (a cursor
+  // ends on the aggregate id, so admit refuses any other row key there).
+  record: { rowKey: 'commandId', paging: 'paged' },
   fields: {
-    // The row key: the identity the store appends to every sort.
-    id: { label: text('orderEvents.id'), cell: 'copyable', analysis: false },
+    commandId: { label: text('orderEvents.command'), cell: 'copyable', analysis: false },
     aggregateId: { label: text('orderEvents.order'), cell: 'copyable', analysis: { groups: [] } },
-    // Events land seconds apart: the table keeps the seconds.
-    createTime: { label: text('orderEvents.time'), timePrecision: 'second' },
-    body: {
+    // Commits land seconds apart: the table keeps the seconds.
+    commitTime: { label: text('orderEvents.time'), timePrecision: 'second' },
+    events: {
       label: text('orderEvents.events'),
-      elementTitle: 'bodyType',
+      elementTitle: 'name',
       elements: {
-        bodyType: {
+        name: {
           label: text('orderEvents.type'),
           options: {
-            'com.example.order.OrderCreated': text('orderEvents.created'),
-            'com.example.order.OrderPaid': text('orderEvents.paid'),
-            'com.example.order.OrderCancelled': text('orderEvents.cancelled'),
+            'sales.order.OrderCreated': text('orderEvents.created'),
+            'sales.order.OrderPaid': text('orderEvents.paid'),
+            'sales.order.OrderCancelled': text('orderEvents.cancelled'),
           },
         },
         // Only on OrderPaid, relative to the event.
@@ -299,19 +305,19 @@ export const orderEvents = defineView(orderEventDescriptor, {
 });
 ```
 
-In a config, element fields are full paths from the root (`body.bodyType`, `body.body.paidAmount`). A condition on a payload keeps the event type and the payload in one element predicate, so both hold for the same event; two root conditions would match a stream where one event is the type and another has the amount:
+In a config, element fields are full paths from the root (`events.name`, `events.body.paidAmount`). A condition on a payload keeps the event type and the payload in one element predicate, so both hold for the same event; two root conditions would match a commit where one event is the type and another has the amount:
 
 ```ts
 import type { FilterNode } from '@ahoo-wang/wow-view-engine';
 
 export const LARGE_PAYMENTS: FilterNode = {
-  field: 'body',
+  field: 'events',
   operator: 'ELEMENT_MATCH',
   value: {
     op: 'and',
     children: [
-      { field: 'body.bodyType', operator: 'IN', value: ['com.example.order.OrderPaid'] },
-      { field: 'body.body.paidAmount', operator: 'GT', value: 1000 },
+      { field: 'events.name', operator: 'IN', value: ['sales.order.OrderPaid'] },
+      { field: 'events.body.paidAmount', operator: 'GT', value: 1000 },
     ],
   },
 };

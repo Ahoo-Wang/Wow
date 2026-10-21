@@ -128,6 +128,9 @@ class ProblemTest {
             }
             statuses.problemOf(error.code, "Later.").retryAfter.assert().describedAs(error.code).isEqualTo(expected)
         }
-        ErrorStatuses.RETRYABLE.assert().contains(FrameworkErrors.QUERY_TIMEOUT, FrameworkErrors.SCHEDULE_NOT_DUE)
+        ErrorStatuses.RETRYABLE.assert().contains(FrameworkErrors.SCHEDULE_NOT_DUE)
+        // A query that ran out of time is 504 without Retry-After: the same query would run as long (D254 ③).
+        ErrorStatuses.RETRYABLE.assert().doesNotContain(FrameworkErrors.QUERY_TIMEOUT)
+        statuses.problemOf(FrameworkErrors.QUERY_TIMEOUT, "Too long.").status.assert().isEqualTo(504)
     }
 }

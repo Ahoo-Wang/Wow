@@ -26,6 +26,7 @@ import {
   DatasetSnapshotQueryClient,
   SourceSnapshotQueryClient,
 } from "@/generated/index.ts";
+import { boards } from "./boards.ts";
 import { datasets } from "./datasets.ts";
 import { sources } from "./sources.ts";
 
@@ -78,6 +79,7 @@ export function createCatalogEngine({
     resources: [
       { definition: sources, source: sourceSource },
       { definition: datasets, source: datasetSource },
+      { definition: boards },
     ],
     store,
     environment: browserRuntimeEnvironment({
