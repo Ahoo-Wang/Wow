@@ -13,8 +13,11 @@
 
 package me.ahoo.wow.postgres.subscription
 
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.postgres.CountedDataSource
 import me.ahoo.wow.postgres.PostgresFixture
+import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.tck.subscription.CheckpointStoreSpec
 import org.junit.jupiter.api.Test
@@ -43,6 +46,25 @@ class PostgresCheckpointStoreTest : CheckpointStoreSpec() {
                 }
             }
         }.assert().containsExactly("wow_checkpoint" to 1, "wow_lease" to 1, "wow_lease_member" to 1)
+    }
+
+    @Test
+    fun `a batch of checkpoints is one statement batch and one commit`(): Unit = runBlocking {
+        // B.O-5: in autocommit, each upsert of the JDBC batch was a transaction, and a WAL flush, of its own.
+        val counted = CountedDataSource(PostgresFixture.dataSource)
+        val batched = PostgresCheckpointStore(counted.dataSource)
+        val group = "batch-${System.nanoTime()}"
+        val mark = counted.begin()
+        val commits = counted.commits
+        batched.saveAll(group, (0 until 8).map { Checkpoint.of("snapshot", it, 10L + it) })
+        counted.since(mark).size.assert().isEqualTo(1)
+        (counted.commits - commits).assert().isEqualTo(1)
+        (0 until 8).map { batched.load(group, "snapshot", it) }.assert().isEqualTo((0 until 8).map { 10L + it })
+        // A batch moves positions forward only, in one commit again.
+        batched.saveAll(group, listOf(Checkpoint.of("snapshot", 0, 99), Checkpoint.of("snapshot", 1, 5)))
+        (counted.commits - commits).assert().isEqualTo(2)
+        batched.load(group, "snapshot", 0).assert().isEqualTo(99L)
+        batched.load(group, "snapshot", 1).assert().isEqualTo(11L)
     }
 
     private companion object {
