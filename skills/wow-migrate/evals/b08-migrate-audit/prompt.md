@@ -6,7 +6,7 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-只读审计这个 Wow v6.21.5 synthetic service 升级到固定 release v8.9.6 的风险。核对 Java 版本、现有 store/snapshot 配置与示例聚合源码；明确哪些配置无需重命名，以及该 fixture 不能证明什么。
+只读审计这个 Wow v6.21.5 synthetic service 升级到固定 release v8.9.6 的风险。核对 Java 版本、现有 store/snapshot 配置与示例聚合源码；明确哪些配置无需重命名，以及该 fixture 不能证明什么。在回答里给出代码和命令。
 
 Files from the user's project, shown inline:
 

@@ -119,7 +119,7 @@ import kotlin.time.toKotlinDuration
 import jakarta.validation.Validator as JakartaValidator
 
 /**
- * The Wow V10 host (roadmap 5b.3; decisions D30, D44, D89, D105–D110, D114): by what the classpath and the
+ * The Wow host (roadmap 5b.3; decisions D30, D44, D89, D105–D110, D114): by what the classpath and the
  * application's beans offer, it assembles one [ServiceNode] and serves it on two ports.
  *
  * - **Models and Manifest**: the binding index on the classpath ([ModelProvider.load]) of the contexts

@@ -16,7 +16,7 @@ package me.ahoo.wow.api.annotation
 import java.lang.annotation.Inherited
 
 /**
- * The bounded context a domain module belongs to (V10, design 01 §3). The runtime binds the context when it assembles
+ * The bounded context a domain module belongs to (design 01 §3). The runtime binds the context when it assembles
  * the Manifest fragments, so a module rarely carries it; when it does, its [name] and [description] go into the
  * Manifest.
  *

@@ -6,7 +6,7 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-Add an 'average annual income' metric to the orders analysis, split by member level.
+Add an 'average annual income' metric to the orders analysis, split by member level. Give the code and the commands in your answer.
 
 Files from the user's project, shown inline:
 

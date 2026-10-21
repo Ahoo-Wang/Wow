@@ -1,4 +1,4 @@
-description = "Wow V10 quickstart: the bank service of the quickstart page, its domain and its server in one module"
+description = "Wow quickstart: the bank service of the quickstart page, its domain and its server in one module"
 
 // The sample of documentation/docs/{en,zh}/guide/v10/quickstart.md (decision D217). `./gradlew :quickstart:run` starts
 // it on the memory backend. Never published. The page applies the Gradle plugin `me.ahoo.wow`; the plugin cannot be

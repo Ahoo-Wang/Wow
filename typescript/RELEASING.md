@@ -126,7 +126,7 @@ GitHub release 的正文就是变更记录，不另外维护 `CHANGELOG.md`。�
   - 「the registry does not serve …」：npm 在 5 分钟里还没给出新版本，多半是 registry 延迟。本机 `npm view <包>@<版本> version` 能查到以后，只重跑 `npm-smoke`（Re-run failed jobs）。查不到就回到 `npm-deploy` 的日志看是哪个包没发出去。
   - 「dist-tag … is …, not …」：包已经上去，但默认安装拿不到它，或者拿到的是别的版本。用 `npm dist-tag ls <包>` 核对，把 dist-tag 改对（命令同下面的回退），再重跑 `npm-smoke`。
   - 安装、import、require、样式表解析、bin（`--version`、`theme-check --help`）或类型检查失败：发布已经上线而且是坏的，按下一条处理。
-- **镜像先于准入发出**：`v10-image-deploy.yml` 在 `package-deploy.yml` 的发布里推 V10 服务端镜像（`wow-ops-server`、`wow-view-store-server`），只打确切的版本号 `X.Y.Z`，不打 `X.Y` 与 `latest`（它们留在 9.x 线上，到 10.0.0 GA 为止）。准入或 preflight 失败、这次发布作废时，镜像已经在三个仓库里，但没有浮动 tag 指向它，不用回退。
+- **镜像先于准入发出**：`image-deploy.yml` 在 `package-deploy.yml` 的发布里推 V10 服务端镜像（`wow-ops-server`、`wow-view-store-server`），只打确切的版本号 `X.Y.Z`，不打 `X.Y` 与 `latest`（它们留在 9.x 线上，到 10.0.0 GA 为止）。准入或 preflight 失败、这次发布作废时，镜像已经在三个仓库里，但没有浮动 tag 指向它，不用回退。
 - **npm 发布以后发现问题**：发出去的版本不能覆盖；unpublish 只在 72 小时内、没人依赖时可行，而且这个版本号永远不能再用，还会让已有的锁文件装不上。所以**不 unpublish**，只有泄露了密钥或者发出了恶意内容才考虑，同时联系 npm 支持并发安全公告。能用的手段是移动 dist-tag、`npm deprecate`、发补丁。
 
 ### 发补丁还是回退

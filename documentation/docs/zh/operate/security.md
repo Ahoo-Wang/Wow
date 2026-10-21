@@ -98,7 +98,7 @@ wow:
 
 它的 Kubernetes 网络策略让集群放进来的任何人都能访问 HTTP 端口，只让商店自己的 Pod 访问内部端口：
 
-<!-- sample: deploy/v10/eshop-ordering/networkpolicy.yaml -->
+<!-- sample: deploy/eshop-ordering/networkpolicy.yaml -->
 
 ```yaml
 # Decision D173: only the eShop's own pods reach the internal port (this service's nodes, and the services whose waits

@@ -6,7 +6,7 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-服务升级后订单快照的能力描述变成了这一版（旧版已作为 order-snapshot-descriptor.json 提交在定义旁边），请修订订单视图定义与系统视图。
+服务升级后订单快照的能力描述变成了这一版（旧版已作为 order-snapshot-descriptor.json 提交在定义旁边），请修订订单视图定义与系统视图。在回答里给出代码和命令。
 
 Files from the user's project, shown inline:
 

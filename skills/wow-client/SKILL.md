@@ -1,53 +1,49 @@
 ---
 name: "wow-client"
-description: "Write TypeScript code that calls Wow services: @ahoo-wang/wow-client commands and wait stages, snapshot/event queries, the filter and aggregation DSL, error handling, @ahoo-wang/wow-react query hooks, and typed clients generated from OpenAPI with the wow-generator CLI. Includes moving from @ahoo-wang/fetcher-wow or fetcher-generator. Exclude Kotlin/Java services, view-engine definitions and hosts, and developing these packages inside the Wow repository."
+description: "Write TypeScript code that calls Wow V10 services: clients generated from the service's Manifest with wow-generator, @ahoo-wang/wow-client commands with wait plans, state reads, snapshot/events/dataset queries and the filter and aggregation DSL, exact numbers, problem+json errors, CoSec, @ahoo-wang/wow-react hooks. Exclude Kotlin/Java services, view-engine definitions and hosts, 9.x client migration (wow-migrate), and developing these packages inside the Wow repository."
 ---
 
 # wow-client
 
-Calling a Wow service from TypeScript, with generated or hand-written clients. Full guides: https://wow.ahoo.me/guide/typescript/ ; API reference: https://wow.ahoo.me/reference/typescript/ .
+The job: an application written in TypeScript has to send a Wow V10 service commands and read its data, and the code has to keep working as the service's contract changes. The deliverable is application code on the clients `wow-generator` writes from the service's Manifest (or on `@ahoo-wang/wow-client` directly for a route no generated client covers), with the regeneration in CI, and its tests.
+
+## Scope
+
+- Downstream TypeScript code that imports `@ahoo-wang/wow-client`, `@ahoo-wang/wow-react` or `@ahoo-wang/wow-generator`, or is asked to call a Wow service.
+- Not: Kotlin or Java code (`wow-develop`); view definitions and hosts (`wow-view-definition`, `wow-view-host`); answering a data question (`wow-data-query`); an application still on `@ahoo-wang/fetcher-wow`, `@ahoo-wang/fetcher-generator` or the 9.x `@ahoo-wang/wow-client` (`wow-migrate`); the packages themselves inside the Wow repository.
 
 ## Workflow
 
-1. Start from aggregate metadata: service, bounded context, aggregate name, tenant, and owner attribution. When the service publishes OpenAPI (`/v3/api-docs`), generate the clients (`wow-generator generate`) and treat that document as the source of truth; load `references/generator.md`.
-2. Use `CommandClient` (or a generated `…CommandClient`) for writes and query clients for reads; keep the flows separate. Use `QueryClientFactory` when several query clients share metadata and attribution.
-3. Build queries with the `filter.*` and `aggregation.*` builders, not ad hoc JSON. Aggregation groups and metrics take `(target, alias, options?)`, e.g. `aggregation.count('paid', { filter })`.
-4. Build command headers with `commandHeaders({ … })` and `waitStrategy({ stage, timeoutMs?, tail? })`. `CommandClient` is not generic: pass the body type per call, `send<C>(request)`.
-5. Handle failures as exceptions (below). Pass cancellation as the last argument of query methods: `abort` takes an `AbortController` or `AbortSignal` (`AbortSignal.timeout(ms)`, a data library's `signal`).
-6. Load `references/api.md` for entry points, client methods, headers, errors, the DSL, key types and React hooks. Confirm exact signatures in the installed typings, or in `typescript/wow-client/src`, `typescript/wow-react/src` and `typescript/wow-generator/src` at the matching release, before relying on an overload, default or output shape.
+1. **Pin the versions.** The Wow packages release with Wow, from the same tag; keep them on one minor (`save-prefix=~` or exact). `wow-client` must be on the generator's minor. Node `>=22.12.0`, TypeScript 6 or later. Peers: `@ahoo-wang/fetcher` and `@ahoo-wang/fetcher-eventstream`.
+2. **Generate from the Manifest** (`references/generate.md`): `wow-generator generate --input <manifest.json or GET /wow/manifest> --output src/generated`; commit the output with its `.wow-generator.json`, never edit it, and regenerate in CI with `--strict`.
+3. **Commands** (`references/commands.md`): the generated `<Aggregate>CommandClient`, a wait plan for how far the call goes (`wait.snapshot()` to read your own write), the request id for a safe retry, and `WowProblemError` for every refusal.
+4. **Reads** (`references/queries.md`): `<Aggregate>StateClient` for one aggregate (`minVersion` after a command), `<Aggregate>SnapshotQueryClient` and `<Aggregate>EventQueryClient` with the DSL from `@ahoo-wang/wow-client/dsl`, `DatasetClient` for datasets; `describe()` for what the backend admits.
+5. **React** (`references/react.md`), **authentication** (`references/auth.md`) when the work needs them.
+6. **Verify**: the type check is the first test (the generated types carry the contract); then the application's tests against a stubbed `fetch` or a running service. Report each command with its result.
 
-## Packages
+## Rules that bite
 
-- `@ahoo-wang/wow-client` with peers `@ahoo-wang/fetcher`, `@ahoo-wang/fetcher-decorator` and `@ahoo-wang/fetcher-eventstream`; the fetcher packages keep their names. From Wow 9.2.1 the Wow packages accept them as `^5.1.5 || ^6.0.0`; 9.2.0 accepts `^5.1.5` only, so an application moving to fetcher 6 takes Wow 9.2.1 or later.
-- React: `@ahoo-wang/wow-react` (React 19.0 or later). It runs its own request state machine and does not need `@ahoo-wang/fetcher-react`.
-- Generation: `@ahoo-wang/wow-generator` and `typescript` as dev dependencies; generated code imports `@ahoo-wang/wow-client`, `@ahoo-wang/fetcher`, `@ahoo-wang/fetcher-decorator` and `@ahoo-wang/fetcher-eventstream` at run time, so the application depends on them directly.
-- Entries: `@ahoo-wang/wow-client` exports everything except the deprecated `Condition` API; `/dsl` exports only the query DSL with no HTTP code; `/legacy` exports the `Condition` API for Wow 8.10 servers until v10.
-- Supported servers: Wow 8.11 and later with `filter.*`; Wow 8.10 only through `/legacy`. Node `>=22.12.0`.
-
-## Moving from fetcher packages
-
-- `@ahoo-wang/fetcher-wow` → `@ahoo-wang/wow-client` in dependencies and imports; `Condition` builders from `@ahoo-wang/wow-client/legacy`; Wow query hooks from `@ahoo-wang/wow-react` instead of the `@ahoo-wang/fetcher-react` root. Then fix what the type check reports: `ErrorCodes.isSucceeded` removed, non-generic `CommandClient`, typed command headers, the `abort` parameter, aggregation builder arguments, `createLoadOwnerStateAggregateClient`.
-- `@ahoo-wang/fetcher-generator` → `@ahoo-wang/wow-generator`: rename the script command (`fetcher-generator` stays an alias until v10) and `fetcher-generator.config.json` → `wow-generator.config.json`, then regenerate so imports switch to `@ahoo-wang/wow-client`.
-- fetcher-wow and fetcher-generator are deprecated on npm. Guide: https://wow.ahoo.me/guide/typescript/migration.html.
-
-## Gotchas
-
-- Errors are exceptions: every refused request and every command whose processing failed rejects; it never resolves with a failure. Read it with `await toWowError(error)` (a `WowError` with `errorCode`, `errorMsg`, `bindingErrors`, `status`; `undefined` when Wow never answered) and switch on `ErrorCodes`. A stream that fails midway throws a `WowError` from `for await`; in `sendAndWaitStream` a failed stage arrives as a result whose `errorCode` is not `ErrorCodes.SUCCEEDED`. Resend a command only when Wow never answered (`undefined`), and with the same `requestId`; never after `RequestTimeout` (it may still complete) or `DuplicateRequestId`: read the state instead.
-- Generated clients merge constructor options over their defaults: `new CartCommandClient({ fetcher })` keeps the bounded-context prefix (`example/owner/...`), which a gateway routes by. Calling the service directly, pass `basePath: ''` to command clients and `contextAlias: ''` to query factories.
-- Authentication belongs to the Fetcher: register the service's Fetcher (for example `new NamedFetcher('default', { baseURL })`) and apply `@ahoo-wang/fetcher-cosec`'s `CoSecConfigurer`, which adds the Bearer token and fills `{tenantId}`/`{ownerId}`. Without CoSec, pass `urlParams: { path: { ownerId } }`. On a server, create a Fetcher per request that carries a user's credentials, never on the process-wide default (https://wow.ahoo.me/guide/typescript/ssr-and-node.html).
-- Treat generated code as an output boundary: change the OpenAPI document or `wow-generator.config.json` and regenerate, never hand-edit. Commit the output with its `.wow-generator.json` manifest; in CI run with `--strict` (https://wow.ahoo.me/guide/typescript/regenerate-in-ci.html).
-- An aggregate is generated only with a `{context}.{aggregate}` tag plus both `.snapshot_state.single` and `.snapshot.count` operations; otherwise it is skipped with a warning, not turned into a plain API client. Its clients land in `<output>/<contextAlias>/<aggregateName>/`: the output directory is never the context, so `-o src/generated/ecommerce` with tag `ecommerce.cart` writes `src/generated/ecommerce/ecommerce/cart/`. There `commandClient.ts` exports `CartCommandClient` (one method per command: `add_cart_item` → `addCartItem`), `CartStreamCommandClient` and `CartCommandEndpointPaths`, and `queryClient.ts` exports `cartQueryClientFactory` (a `QueryClientFactory` from `@ahoo-wang/wow-client`) and `CartDomainEventType` (from the `.event.list_query` operation).
-- Keep command requests explicit about aggregate identity and the expected command result.
-- Exact numbers: a Manifest field of a Kotlin `Long`, `BigInteger` or `BigDecimal` (schema `format` `int64`, `bigint`, `decimal`) is a `string` in the generated types, its digits exactly as the server wrote them; the wire keeps JSON numbers, and the generated clients read and write them through `<Aggregate>Aggregate.textNumbers`. Do arithmetic with a decimal library, not `Number(...)`, and pass such a command field as a string (`price: '19.90'`).
-- A query written with a literal `projection.include` answers records narrowed to those paths (`Projected`); one built with `listQuery`/`pagedQuery`, or with an exclusion alone, answers whole records. Relative-time filters without a `zoneId` read their days in UTC: pass `zoneId` for a local day.
+- **No checkout is no reason to stop.** When the project, the sources or a shell are not available (only a diff, a snippet or a description), still deliver: write the test, the fix or the code against what was shown, mark each name to confirm in the project, and give the commands to run and what they should show. Never answer with only a plan or a question.
+- **Exact numbers.** A Manifest field of a Kotlin `Long`, `BigInteger` or `BigDecimal` (format `int64`, `bigint`, `decimal`) is a `string` in the generated types, its digits as the server wrote them; the wire keeps JSON numbers. Generated clients read and write them exactly through `<Aggregate>Aggregate.textNumbers` (states, events, command bodies). Pass such a command field as a string (`unitPrice: '10.00'`) and compute with a decimal library, never `Number(...)`. A hand-written client passes `bodyNumbers` itself, or loses digits past 2^53.
+- **Time zones.** A relative-time filter (`today`, `recentDays`, `beforeToday`, …) without `zoneId` reads its calendar days in UTC on the server; pass `zoneId` (`'Asia/Shanghai'`) for a local day.
+- **Projected types.** A query written with a literal `projection: { include: [...] }` answers records narrowed to those paths; one built by a factory, or with an exclusion only, answers whole records.
+- **Errors reject.** Every refused request and every command that did not succeed rejects with `WowProblemError` (`code`, `status`, `violations`, `retry`); switch on `FrameworkErrorCodes` and the domain's codes in the generated `boundedContext.ts`. Retry only as `error.retry` says, with the same request id when it says so; a `wow.wait.timeout` may have committed.
+- **No identity in paths or bodies.** The service takes the tenant and owner from the caller; `RequestOptions.scope` (`Wow-Scope`) and `space` (`Wow-Space`) only for a caller allowed to act elsewhere.
+- **Snapshot fields are `state.<path>`** in filters and sorts; system fields (`aggregateId`, `version`, `tags`, …) are at the root.
 
 ## References
 
-- `references/api.md`: entry points, constructors, `CommandClient`, stages and headers, errors, query clients and loaders, `QueryClientFactory`, cursors, the filter and aggregation DSL, the legacy `Condition` API, key types, generated clients, React hooks, and a complete flow. Load it before writing client code.
-- `references/generator.md`: CLI flags and exit codes, `CodeGenerator`, configuration, output layout, aggregate discovery, generated command, query and API clients. Load it for generation, regeneration, or reading generated code.
+- `references/generate.md`: the generator from a Manifest, what each file holds, regeneration in CI, the OpenAPI path for non-Wow APIs.
+- `references/commands.md`: command clients, wait plans and streams, request ids and retries, lifecycle commands, errors.
+- `references/queries.md`: state reads, query clients, the DSL, streams and resumption, descriptors, exact numbers in reads, datasets.
+- `references/react.md`: the `@ahoo-wang/wow-react` hooks.
+- `references/auth.md`: CoSec and the Fetcher, scope and space, server-side rendering.
+
+Confirm every signature in the installed typings (`node_modules/@ahoo-wang/wow-client/dist/*.d.ts`) at the pinned version before relying on an overload or default. Guides: https://wow.ahoo.me/typescript/ ; reference: https://wow.ahoo.me/reference/typescript/ .
 
 ## Related Skills
 
 - $wow-develop: the Kotlin/Java service behind the client.
-- $wow-view-host: wiring the view engine and its declared actions; $wow-view-definition: what a view declares.
-- Fetcher core, decorator, event-stream, CoSec and generic React hooks are documented by the fetcher project skills.
+- $wow-view-host and $wow-view-definition: views over the same query routes.
+- $wow-data-query: answering a question from the data instead of writing code.
+- $wow-migrate: an application moving from 9.x clients.

@@ -1,13 +1,13 @@
 ---
 name: "wow-migrate"
-description: "Handle breaking Wow migrations in downstream services with a named Wow version, me.ahoo.wow imports or wow-* dependencies: pinned cross-major upgrades, Wow source/configuration/generated/runtime contract breaks, Wow-managed storage/data history conversion, reconciliation, cutover and incompatible-write rollback, plus reviews and failures of such migrations. Not the Wow framework repository beyond its platform ports, generic database migrations, first adoption without history, or routine same-major upgrades."
+description: "Handle breaking Wow migrations, chiefly 9.x to V10, in downstream services and their TypeScript callers: Kotlin source, configuration, generated contracts, HTTP routes, 9.x TypeScript clients, Wow event data import, reconciliation, cut-over and rollback, and reviews or failures of these. Not the Wow framework repository, an application's own database migrations (Flyway, Liquibase), or first adoption without history."
 ---
 
 # Migrate Wow Across Breaking Boundaries
 
 ## Scope gate
 
-Use only for a downstream application. The Wow framework repository and its modules never qualify, with one exception: porting a 9.x platform module of that repository (a view store, ops, dataset registry or analytics domain; its 9.x source is on `v9` or `v10-9x-baseline`, not on `main`) to a V10 project under `platform/`, which uses this Skill as a downstream port would. The framework itself, its releases and its other modules stay excluded. Require scoped source/target to use or introduce Wow plus a cross-major upgrade, known source/configuration/generated/runtime break, or Wow-managed storage/data change. Routine same-major non-breaking upgrades and first adoption stay with `wow-develop` unless adoption requires Wow-managed history/compatibility conversion, data reconciliation/cutover, or rollback after incompatible target writes. Checkout-wide markers and unrelated application contracts do not qualify. Otherwise state that this Skill does not apply and stop using it.
+Use only for a downstream application. The Wow framework repository and its modules never qualify, with one exception: porting a 9.x platform module of that repository (a view store, ops, dataset registry or analytics domain; its 9.x source is on `v9` or `v10-9x-baseline`, not on `main`) to a V10 project under `platform/`, which uses this Skill as a downstream port would. The framework itself, its releases and its other modules stay excluded. Require scoped source/target to use or introduce Wow plus a cross-major upgrade, known source/configuration/generated/runtime break, or Wow-managed storage/data change. Routine same-major non-breaking upgrades and first adoption stay with `wow-develop` unless adoption requires Wow-managed history/compatibility conversion, data reconciliation/cutover, or rollback after incompatible target writes. A migration of the application's own tables (Flyway, Liquibase) that leaves Wow's version, API, configuration, stores and runtime contracts unchanged does not qualify, nor do checkout-wide markers and unrelated application contracts. Otherwise state that this Skill does not apply and stop using it.
 
 Own the complete migration task. Treat breaking release upgrades—including cross-major and same-major source/config contract changes—and storage/data cutovers as platform, source, generated-contract, data, runtime, and release migrations rather than dependency bumps.
 
@@ -17,6 +17,7 @@ Own the complete migration task. Treat breaking release upgrades—including cro
 - Use the target tag's source, tests, BOM, release notes, and generated contracts as authority.
 - Distinguish audit, planning, code implementation, data rehearsal, production cutover, and review modes.
 - Treat code-write authorization, data-write authorization, and production-release authorization as separate scopes.
+- **No checkout is no reason to stop.** When the project, the sources or a shell are not available (only a diff, a snippet or a description), still deliver: write the test, the fix or the code against what was shown, mark each name to confirm in the project, and give the commands to run and what they should show. Never answer with only a plan or a question.
 - Mark missing production, data, or deployment evidence as `MISSING EVIDENCE`.
 - Never claim migration completion from dependency resolution, compilation, startup, or a smoke test alone.
 - Keep separate evidence gates for compile/test/build, resolved dependencies, `runtimeClasspath`, application startup, real HTTP requests, external integration/data validation, deployability, and production readiness. A passing gate never proves a later gate.
@@ -50,6 +51,7 @@ Execute only the stages required by the requested mode and explicitly authorized
 | Platform, source, generated metadata, runtime or custom store audit | `references/migration-risk-map.md` |
 | Spring Boot 3 to 4 platform, starter/capability, configuration or Jackson migration | `references/spring-boot-3-to-4.md` |
 | Wow 9.x to V10 domain source: Gradle build, modules, annotations, command identity, handlers, rejections, request facts, events, upgrades and retired events, state and tags, sagas, reserved keys, routes and queries, tenancy, compensation, peer contexts, JSON, Java domains, REST clients, tests, `migration-map.json` | `references/v9-to-v10.md` |
+| HTTP routes and headers, and the TypeScript clients that call the service: `@ahoo-wang/fetcher-wow`, `fetcher-generator`, the 9.x `wow-client`, `wow-generator` and `wow-react` to V10 | `references/http-and-clients.md` |
 | Runtime dependency, isolated startup, HTTP/REST or actual transport, and shutdown validation | `references/runtime-rest-validation.md` |
 | 9.x → V10 data with `wow-migrate-data`: the map check, import, tail, compare, snapshots, `backfill-tags`, reservations and parked executions | `references/data.md` |
 | Cut-over window, inventory, the types with no way back, rollback before and after V10 writes (`export`) | `references/cutover-evidence.md` |

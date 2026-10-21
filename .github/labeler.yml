@@ -8,7 +8,7 @@ dependencies:
       - '^renovate/'
       - '^dependabot/'
 
-# One area per top-level directory of V10, so every change lands in at least
+# One area per top-level directory, so every change lands in at least
 # one. Only 'area: typescript' feeds the release notes (.github/release.yml).
 'area: api':
   - changed-files:
@@ -83,10 +83,8 @@ dependencies:
           - '.github/**'
           - 'config/**'
           - 'deploy/**'
-          - 'patches/**'
           - 'gradle/**'
           - 'bom/**'
-          - 'wow-dependencies/**'
           - '*.gradle.kts'
           - 'gradle.properties'
           - 'package.json'
