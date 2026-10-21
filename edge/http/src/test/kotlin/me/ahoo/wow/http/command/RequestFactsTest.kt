@@ -75,6 +75,16 @@ class RequestFactsTest {
     }
 
     @Test
+    fun `without client facts the public port records neither the address nor the user agent (D267)`() {
+        val withoutClient = RequestHeaders(statuses, publicPort = true, clientFacts = false)
+        withoutClient.facts(
+            request("User-Agent" to "shop-app/1.0", "X-App-Id" to "app-1"),
+            setOf("X-App-Id"),
+            inApp,
+        ).assert().isEqualTo(mapOf("X-App-Id" to "app-1", "app_id" to "console"))
+    }
+
+    @Test
     fun `the internal port records no default fact`() {
         internalPort.facts(request("User-Agent" to "Java-http-client"), emptySet(), Caller.ANONYMOUS).assert().isEmpty()
     }
