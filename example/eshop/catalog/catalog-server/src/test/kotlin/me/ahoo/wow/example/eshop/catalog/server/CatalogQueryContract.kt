@@ -207,6 +207,7 @@ abstract class CatalogQueryContract {
         val five = storefront.product(category, brand, "5.00")
         val seven = storefront.product(category, brand, "7.00")
         storefront.product(category, brand, "6.00", publish = false)
+        // region dsl
         val query = listQuery {
             filter {
                 ProductStateProperties.STATE__CATEGORY_ID eq category
@@ -220,6 +221,7 @@ abstract class CatalogQueryContract {
         val rows = runBlocking { products.list(query).toList() }
         rows.map { it.ref.id }.assert().containsExactly(five, seven)
         rows.map { it.state.price }.assert().containsExactly(BigDecimal("5.00"), BigDecimal("7.00"))
+        // endregion
     }
 
     @Test
@@ -227,17 +229,20 @@ abstract class CatalogQueryContract {
         val category = storefront.category()
         val brand = storefront.brand()
         val filed = (1..3).map { storefront.product(category, brand, "$it.00") }
+        // region stream
         val events = catalog.stream(PRODUCTS, """{"kind":"list","filter":${published(category)}}""", BUYER)
         // One row per record, then the end of a resumable stream (decision D253).
         events.map { it.first }.assert().containsExactly("row", "row", "row", "end")
         json.readTree(events.last().second)["reason"].asString().assert().isEqualTo("complete")
         val streamed = events.dropLast(1).map { (_, data) -> json.readTree(data)["aggregateId"].asString() }
         streamed.assert().containsExactlyInAnyOrderElementsOf(filed)
+        // endregion
     }
 
     @Test
     fun `a product's events should be read by version and analyzed per event`() {
         val product = storefront.product(storefront.category(), storefront.brand(), "3.00")
+        // region events
         val events = catalog.post(PRODUCT_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$product"}}""", BUYER)
             .assertOk().json
         events.values().map { it["version"].asInt() }.assert().containsExactly(1, 2)
@@ -261,6 +266,8 @@ abstract class CatalogQueryContract {
             "eshop-catalog.product.ProductCreated" to 1L,
             "eshop-catalog.product.ProductPublished" to 1L,
         )
+        // endregion
+
         // A root metric over an event field must expand the events first (review X-8).
         catalog.post(
             PRODUCT_EVENTS,

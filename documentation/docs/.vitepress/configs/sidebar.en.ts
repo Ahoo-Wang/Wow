@@ -163,6 +163,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             base: '/guide/',
             text: 'Model',
             items: [
+                {text: 'Developer Guide', link: 'index.html'},
                 {text: 'Write an Aggregate', link: 'aggregates'},
                 {text: 'Rejections and Error Codes', link: 'rejections'},
                 {text: 'Evolve Events', link: 'event-evolution'},
@@ -182,10 +183,26 @@ export const sidebarEn: DefaultTheme.Sidebar = {
         },
         {
             base: '/guide/',
+            text: 'The Read Side',
+            items: [
+                {text: 'Read State', link: 'reading-state'},
+                {text: 'Query Snapshots', link: 'queries'},
+                {text: 'Query Event Streams', link: 'event-queries'},
+            ],
+        },
+        {
+            base: '/guide/',
             text: 'Across Contexts',
             items: [
                 {text: 'Publish and Consume Streams', link: 'published-streams'},
                 {text: 'Call Other Services', link: 'calling-services'},
+            ],
+        },
+        {
+            base: '/guide/',
+            text: 'The Contract',
+            items: [
+                {text: 'Serve and Call the HTTP API', link: 'http'},
             ],
         },
         {
@@ -229,6 +246,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             text: 'Reference',
             items: [
                 {text: 'Glossary', link: 'glossary'},
+                {text: 'HTTP API', link: 'http'},
                 {text: 'Wire Protocols', link: 'protocols'},
                 {text: 'migrate-data CLI', link: 'migrate-data'},
                 {text: 'Configuration Keys', link: 'configuration'},
