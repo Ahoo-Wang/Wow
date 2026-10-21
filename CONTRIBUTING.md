@@ -93,7 +93,7 @@ These checks intentionally do not require comments on every declaration: unneces
 
 ## Pull Requests
 
-1. Create a focused branch from `main`.
+1. Create a focused branch from `main` (V10), or from `v9` for a 9.x fix.
    Use a recognized prefix when practical: `fix/`, `bugfix/`, `feature/`, `feat/`, `perf/`, `breaking/`, `chore/`, `build/`, `ci/`, or `docs/`. Dependency automation uses `renovate/` and `dependabot/`.
 2. Keep the change small enough to review and avoid unrelated formatting or refactoring.
 3. Run the narrowest relevant tests, static analysis, build, or documentation checks.
