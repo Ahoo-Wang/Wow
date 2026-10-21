@@ -100,7 +100,8 @@ function overriding(
 ): CSSStyleDeclaration {
   return new Proxy(style, {
     get: (target, key) => {
-      if (Object.hasOwn(values, key)) return values[key as keyof typeof values];
+      if (Object.prototype.hasOwnProperty.call(values, key))
+        return values[key as keyof typeof values];
       const value: unknown = Reflect.get(target, key, target);
       return typeof value === 'function' ? value.bind(target) : value;
     },
