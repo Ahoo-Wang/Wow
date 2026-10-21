@@ -232,6 +232,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             items: [
                 {text: 'Glossary', link: 'glossary'},
                 {text: 'HTTP API', link: 'http'},
+                {text: 'Query Language', link: 'query-language'},
                 {text: 'Wire Protocols', link: 'protocols'},
                 {text: 'migrate-data CLI', link: 'migrate-data'},
                 {text: 'Configuration Keys', link: 'configuration'},

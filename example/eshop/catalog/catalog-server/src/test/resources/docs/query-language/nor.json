@@ -1,0 +1,4 @@
+{
+  "kind": "list",
+  "filter": { "op": "NOR", "operands": [{ "op": "EQ", "field": "state.status", "value": "DELISTED" }] }
+}

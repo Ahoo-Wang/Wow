@@ -1,0 +1,10 @@
+{
+  "kind": "aggregate",
+  "filter": { "op": "NE", "field": "state.status", "value": "DRAFT" },
+  "groupBy": [{ "type": "TERMS", "field": "state.status", "alias": "status" }],
+  "metrics": [
+    { "type": "COUNT", "alias": "count" },
+    { "type": "NUMERIC", "function": "AVG", "expression": { "type": "FIELD", "field": "state.price" }, "alias": "averagePrice" }
+  ],
+  "sort": [{ "field": "count", "direction": "DESC" }]
+}

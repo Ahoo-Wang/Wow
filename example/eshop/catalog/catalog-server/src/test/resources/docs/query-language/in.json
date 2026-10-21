@@ -1,0 +1,5 @@
+{
+  "kind": "list",
+  "filter": { "op": "IN", "field": "state.status", "values": ["PUBLISHED", "DELISTED"] },
+  "limit": 50
+}
