@@ -309,7 +309,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# write_config DB: migrate-data's configuration for the V10 log in database DB, with its own checkpoint.
+# write_config DB: migrate-data's configuration for the V10 log in database DB, with its own checkpoint. The tail's
+# look-back follows the final pass's sizing rule (twice the larger of the clock skew and the slowest 9.x commit
+# latency): at 5 s, a commit a loaded runner made visible later than that was never read by the tail (run 39577349352).
 write_config() {
   local db="$1"
   cp "$REHEARSAL/migration-map.json" "$WORK/migration-map.json"
@@ -330,7 +332,7 @@ write_config() {
   "partitions": { "example": 64, "view-store": 64 },
   "classpath": ["$V10_HOME/lib", "$VIEWS_HOME/lib"],
   "compensation": { "database": "compensation_db", "service": "example-service" },
-  "lookbackMillis": 5000,
+  "lookbackMillis": 20000,
   "pollIntervalMillis": 500,
   "final": { "lookbackMillis": 60000, "maxTailAgeMillis": 600000 }
 }
