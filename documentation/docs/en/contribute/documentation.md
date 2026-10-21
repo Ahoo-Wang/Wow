@@ -119,7 +119,7 @@ A cleanup follows the same procedure, one reviewable pull request per batch:
 
 ## Enforcement
 
-`.github/scripts/docs-layout.mjs` (`pnpm check:docs-layout`) runs on every pull request as the `docs-layout` job of `typescript.yml`, part of `typescript-gate`. It reads only the tracked files and fails when:
+`.github/scripts/docs-layout.mjs` (`pnpm check:docs-layout`) runs on every pull request as the `docs-layout` job of `ci.yml`, part of `ci-gate`. It reads only the tracked files and fails when:
 
 - a file is tracked under `document/` or `docs/superpowers/`;
 - Markdown is added outside the locations in [Canonical Locations](#canonical-locations);

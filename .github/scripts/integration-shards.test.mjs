@@ -7,11 +7,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import {
-  codecovV10Builds,
+  codecovBuilds,
   gradleProjects,
   shardProblems,
   workflowShards,
-} from './v10-integration-shards.mjs';
+} from './integration-shards.mjs';
 
 const workflow = `jobs:
   check:
@@ -25,7 +25,7 @@ const workflow = `jobs:
           - shard: apps
             projects: :eshop-e2e
     steps: []
-  v10-gate:
+  ci-gate:
     needs: [integration]
 `;
 
@@ -54,16 +54,16 @@ test('the projects are read from build.gradle.kts', () => {
   );
 });
 
-test("the v10 flag's after_n_builds is read from codecov.yml", () => {
-  assert.equal(
-    codecovV10Builds(`  individual_flags:
-    - name: v10
-      after_n_builds: 5
-      paths: []
-`),
-    5,
-  );
-  assert.equal(codecovV10Builds('flag_management: {}'), undefined);
+test("a flag's after_n_builds is read from codecov.yml", () => {
+  const codecov = `  individual_flags:
+    - name: unit
+      after_n_builds: 1
+    - name: integration
+      after_n_builds: 4
+`;
+  assert.equal(codecovBuilds(codecov, 'unit'), 1);
+  assert.equal(codecovBuilds(codecov, 'integration'), 4);
+  assert.equal(codecovBuilds('flag_management: {}', 'unit'), undefined);
 });
 
 test('a project in no shard, in two, or unknown is a problem', () => {
@@ -87,14 +87,13 @@ test('a project in no shard, in two, or unknown is a problem', () => {
   ]);
 });
 
-test('v10.yml runs every V10 integration test project exactly once', () => {
+test('ci.yml runs every integration test project exactly once', () => {
   const projects = gradleProjects(readFileSync('build.gradle.kts', 'utf8'));
   const shards = workflowShards(
-    readFileSync('.github/workflows/v10.yml', 'utf8'),
+    readFileSync('.github/workflows/ci.yml', 'utf8'),
   );
   assert.deepEqual(shardProblems(projects, shards), []);
-  assert.equal(
-    codecovV10Builds(readFileSync('codecov.yml', 'utf8')),
-    shards.length + 1,
-  );
+  const codecov = readFileSync('codecov.yml', 'utf8');
+  assert.equal(codecovBuilds(codecov, 'integration'), shards.length);
+  assert.equal(codecovBuilds(codecov, 'unit'), 1);
 });

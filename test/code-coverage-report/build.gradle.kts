@@ -195,12 +195,12 @@ tasks.named<JacocoReport>("codeCoverageReport") {
     useCoverageData(libraryProjects, coveredTestTasks)
 }
 
-// v10.yml uploads these under the `v10` Codecov flag: the unit tests of the V10 modules, and their container-backed
-// tests.
+// ci.yml uploads these under the `unit` and `integration` Codecov flags: the modules' unit tests, and their
+// container-backed tests.
 @Suppress("UNCHECKED_CAST")
 val moduleProjects = (rootProject.ext.get("moduleProjects") as Iterable<Project>) - e2eBenchmarkProjects
 registerLayerCoverageReport("coverageReport", moduleProjects, "test")
-// A shard of v10.yml's integration matrix (`-Pwow.integration.projects`) reports the test data of its own projects.
+// A shard of ci.yml's integration matrix (`-Pwow.integration.projects`) reports the test data of its own projects.
 @Suppress("UNCHECKED_CAST")
 val integrationShardProjects = rootProject.ext.get("integrationShardProjects") as Iterable<Project>
 registerLayerCoverageReport(
