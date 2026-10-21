@@ -66,6 +66,7 @@ class OrderProcessSagaTest {
         }
     }
 
+    // region saga
     @Test
     fun `an order awaiting validation should reserve each product's stock in the inventory`() = sagaSpec(handlers) {
         whenEvent(event(OrderAwaitingValidation)) {
@@ -78,6 +79,7 @@ class OrderProcessSagaTest {
             expectDeterministic()
         }
     }
+    // endregion
 
     @Test
     fun `a cancelled order should release its reservations`() = sagaSpec(handlers) {
@@ -112,6 +114,7 @@ class OrderProcessSagaTest {
         }
     }
 
+    // region rejected
     @Test
     fun `a reservation the inventory refused should cancel the order`() = sagaSpec(handlers) {
         whenEvent(event(OrderAwaitingValidation)) {
@@ -124,6 +127,7 @@ class OrderProcessSagaTest {
             }
         }
     }
+    // endregion
 
     @Test
     fun `a release the inventory refused should need no compensation`() = sagaSpec(handlers) {

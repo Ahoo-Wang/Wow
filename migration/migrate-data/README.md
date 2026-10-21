@@ -81,13 +81,13 @@ A 9.x event the V10 aggregate no longer has (the 9.x `DroppedEvent`) is mapped i
 Once 9.x has stopped writing, the final pass imports what it committed since the tail last read. `import --restart` walks every instance again, so it takes as long as the whole history: about 97 s for the roughly 296,000 streams of the 8c.1 rehearsal, half its write stop. When the tail followed 9.x until it stopped, `import --final` replaces it:
 
 1. It checks each mapped aggregate: its full import completed, and its tail's last pass ended at most `final.maxTailAgeMillis` ago (10 minutes by default). Otherwise it prints why and writes nothing; the final pass is then `import --restart`.
-2. It runs one tail pass from the tail's checkpoint, reading again `final.lookbackMillis` before it (5 minutes by default). The window covers the clocks of 9.x's nodes and the commits in flight when 9.x stopped, which may carry an earlier `createTime` than commits already read.
+2. It runs one tail pass from the tail's checkpoint, reading again `final.lookbackMillis` before it (60 s by default). The window covers the clocks of 9.x's nodes and the commits in flight when 9.x stopped, whose `createTime` is set before the write is visible. Size it as twice the larger of the measured clock skew and the slowest 9.x commit latency. A stream of the window the log already holds, the same command at the same version, is skipped with one read of the log, a page of instances at a time, so the pass costs what 9.x committed since the tail last read.
 3. It walks the reservations and the compensation executions again from the first, as `--restart` does, since the tail follows neither.
 
 `compare` stays the gate after the final pass, whichever ran. Keep `import --restart` for a migration whose tail did not run continuously.
 
 ```json
-"final": { "lookbackMillis": 300000, "maxTailAgeMillis": 600000 }
+"final": { "lookbackMillis": 60000, "maxTailAgeMillis": 600000 }
 ```
 
 ## Events that moved the owner

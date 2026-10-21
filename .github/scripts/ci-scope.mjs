@@ -140,6 +140,13 @@ const RULES = [
   // wow-client's tests check FrameworkErrorCodes against it
   // (test/frameworkErrors.test.ts), so a change to the table reruns them.
   [/^api\/manifest\/src\/test\/resources\/framework-errors\.json$/, [SDK]],
+  // The V10 view store service's Manifest baseline: wow-view-store's
+  // src/generated/ is wow-generator's output for it, byte for byte
+  // (test/generated.test.ts), so a change to it reruns wow-view-store.
+  [
+    /^platform\/view-store\/view-store-server\/manifest\/baseline\.json$/,
+    [SDK],
+  ],
   // The single version source: quality checks every package.json against it.
   [/^gradle\.properties$/, [TYPESCRIPT]],
   // The Gradle build: the JVM jobs (JVM_PATH).
@@ -234,6 +241,10 @@ const UNIT_RULES = [
   [
     /^api\/manifest\/src\/test\/resources\/framework-errors\.json$/,
     () => ['wow-client'],
+  ],
+  [
+    /^platform\/view-store\/view-store-server\/manifest\/baseline\.json$/,
+    () => ['wow-view-store'],
   ],
 ];
 

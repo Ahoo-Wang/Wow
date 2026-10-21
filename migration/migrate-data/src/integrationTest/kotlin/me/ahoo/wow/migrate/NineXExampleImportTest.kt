@@ -156,6 +156,15 @@ class NineXExampleImportTest {
         receivedState.status.assert().isEqualTo(OrderStatus.RECEIVED)
         // With the index in place, the tail runs without the flag.
         run("tail", "--config", config(target).toString(), "--once").assert().isEqualTo(MigrateData.OK)
+
+        // The final pass after 9.x stopped: the look-back window holds only the received stream, which the log
+        // already holds, so it is skipped with one log read; the instance's state stays as the tail left it.
+        run("import", "--config", config(target).toString(), "--final").assert().describedAs(output.toString())
+            .isEqualTo(MigrateData.OK)
+        output.toString().assert()
+            .contains("example-service.order done: 1 instances, 0 streams imported, 1 skipped")
+            .contains("Final pass done")
+        kernel.stateAt(NineXExample.orderModel, orderRef, 5)!!.version.assert().isEqualTo(5)
     }
 
     @Test
