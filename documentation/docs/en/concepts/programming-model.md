@@ -69,7 +69,7 @@ Both are safe because the kernel, not the state class, provides the guarantees i
 | No two commands change one state at once | Each aggregate has one lane: its commands run one at a time, in arrival order. |
 | Each version has a stable view | When a version commits, the kernel serializes the state once. Snapshots and subscriptions get that view, never the live instance. |
 
-The price of mutable state is that nothing stops decide from changing a field directly. Such a change does not go through an event, so the state in memory drifts away from the log until the next reload. Change state only in evolve.
+The price of mutable state is that nothing at run time stops decide from changing a field directly. Such a change does not go through an event, so the state in memory drifts away from the log until the next reload. Change state only in evolve; the test DSL fails a test whose command function or after hook changes the state.
 
 ## Two ways to write it
 
