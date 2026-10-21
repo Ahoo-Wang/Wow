@@ -13,6 +13,7 @@ The blue-green rehearsal of roadmap 8c.1 (design [07 §3](../../documentation/de
   - `await`: waits until this host holds what 9.x wrote;
   - `states`, `compare`: an order's state read on both sides, compared numbers by value.
 - **[`rehearsal/rehearse.sh`](rehearsal/rehearse.sh)** runs the steps with migrate-data and writes `steps.jsonl` and `report.md` (rendered by [`rehearsal/report.py`](rehearsal/report.py)). Its header lists the steps and the environment it reads.
+  - Through the dual-run window the V10 host runs on standby (`wow.standby`): it serves reads, is ready, and refuses commands with `wow.node.standby`. At the cut-over, after the final pass, the script resumes it on its internal port with the cluster token, as an operator would (deployment run book, "Standby for a migration's cut-over").
 - **[`rehearsal/seed-compensation.js`](rehearsal/seed-compensation.js)** writes the 9.x compensation service's unresolved executions, as that service keeps them.
 
 ## Running
