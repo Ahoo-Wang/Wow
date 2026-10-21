@@ -31,11 +31,14 @@ export const MAX_CURSOR_SORT_FIELDS = 32;
  * sends; build it with {@link cursorQuery}. Unlike a paged query it returns
  * no total, and each page starts where the one before ended.
  */
-export interface CursorQuery<FIELDS extends string = string> {
+export interface CursorQuery<
+  FIELDS extends string = string,
+  INCLUDE extends FIELDS = FIELDS,
+> {
   /** What to match. */
   filter: FilterExpression<FIELDS>;
   /** Which fields to return; all of them when absent. */
-  projection?: Projection<FIELDS>;
+  projection?: Projection<FIELDS, INCLUDE>;
   /**
    * The order of the rows. The server appends a unique field, so each field
    * may appear once.
@@ -82,13 +85,16 @@ export interface CursorPage<T> {
  * }
  * ```
  */
-export function cursorQuery<FIELDS extends string = string>({
+export function cursorQuery<
+  FIELDS extends string = string,
+  INCLUDE extends FIELDS = FIELDS,
+>({
   filter,
   projection = {},
   sort = [],
   size = DEFAULT_CURSOR_SIZE,
   cursor = null,
-}: CursorQuery<FIELDS>): CursorQuery<FIELDS> {
+}: CursorQuery<FIELDS, INCLUDE>): CursorQuery<FIELDS, INCLUDE> {
   if (!Number.isInteger(size) || size < 1 || size > MAX_CURSOR_SIZE) {
     throw new TypeError(`size must be between 1 and ${MAX_CURSOR_SIZE}.`);
   }

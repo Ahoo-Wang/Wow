@@ -13,6 +13,7 @@
 
 import type { AggregationQuery } from './dsl/aggregation/index.js';
 import type { CursorPage, CursorQuery } from './dsl/cursorQuery.js';
+import type { Projected } from './dsl/projection.js';
 import type { QueryModelDescriptor } from './dsl/descriptor.js';
 import type { FilterCapable } from './dsl/filter/index.js';
 import type {
@@ -55,7 +56,8 @@ export type TotalMode = 'EXACT' | 'BOUNDED' | 'NONE';
 /** A paged query of a query route: a page, and how its total is counted. */
 export interface PagedQuery<
   FIELDS extends string = string,
-> extends FilterPagedQuery<FIELDS> {
+  INCLUDE extends FIELDS = FIELDS,
+> extends FilterPagedQuery<FIELDS, INCLUDE> {
   /** `BOUNDED` (the server's default) counts up to the budget's limit. */
   total?: TotalMode;
 }
@@ -99,7 +101,9 @@ export type DescriptorResult =
 /**
  * Queries one query model of a Wow service: `POST {path}` with a body
  * whose `kind` names the operation, `GET {path}` for the capability
- * descriptor (decisions D127, D145).
+ * descriptor (decisions D127, D145). A query whose projection includes
+ * literal paths answers records narrowed to them ({@link Projected}, review
+ * R4-Q, Q-14).
  *
  * @typeParam R - The record's type.
  * @typeParam FIELDS - The field paths a filter, sort or projection takes.
@@ -115,11 +119,13 @@ export class QueryModelClient<R, FIELDS extends string = string> {
   ) {}
 
   /** The records that match, at most `limit` (the server's default when absent). */
-  async list(
-    query: FilterListQuery<FIELDS>,
+  async list<INCLUDE extends FIELDS = FIELDS>(
+    query: FilterListQuery<FIELDS, INCLUDE>,
     options?: RequestOptions,
-  ): Promise<R[]> {
-    return json<R[]>(await this.post('list', query, options));
+  ): Promise<Projected<R, INCLUDE, FIELDS>[]> {
+    return json<Projected<R, INCLUDE, FIELDS>[]>(
+      await this.post('list', query, options),
+    );
   }
 
   /**
@@ -130,12 +136,15 @@ export class QueryModelClient<R, FIELDS extends string = string> {
    * problem: see {@link StreamResumeOptions}. A `limit` counts every record
    * read, resumed or not.
    */
-  async listStream(
-    query: FilterListQuery<FIELDS>,
+  async listStream<INCLUDE extends FIELDS = FIELDS>(
+    query: FilterListQuery<FIELDS, INCLUDE>,
     options?: ListStreamOptions,
-  ): Promise<ReadableStream<R>> {
+  ): Promise<ReadableStream<Projected<R, INCLUDE, FIELDS>>> {
     return (await this.listStreamRows(query, options)).pipeThrough(
-      new TransformStream<StreamedRow<R>, R>({
+      new TransformStream<
+        StreamedRow<Projected<R, INCLUDE, FIELDS>>,
+        Projected<R, INCLUDE, FIELDS>
+      >({
         transform(row, controller) {
           controller.enqueue(row.record);
         },
@@ -149,10 +158,10 @@ export class QueryModelClient<R, FIELDS extends string = string> {
    * ({@link StreamResumeOptions.lastEventId}), on another page or after a
    * restart.
    */
-  async listStreamRows(
-    query: FilterListQuery<FIELDS>,
+  async listStreamRows<INCLUDE extends FIELDS = FIELDS>(
+    query: FilterListQuery<FIELDS, INCLUDE>,
     options: ListStreamOptions = {},
-  ): Promise<ReadableStream<StreamedRow<R>>> {
+  ): Promise<ReadableStream<StreamedRow<Projected<R, INCLUDE, FIELDS>>>> {
     const resume =
       options.resume === false ? { maxRetries: 0 } : options.resume;
     const limit = query.limit ?? 0;
@@ -166,7 +175,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
       );
     };
     const first = await open(resume?.lastEventId, 0);
-    return resumableQueryRows<R>(
+    return resumableQueryRows<Projected<R, INCLUDE, FIELDS>>(
       first,
       (lastEventId, received) =>
         limit > 0 && received >= limit
@@ -180,27 +189,33 @@ export class QueryModelClient<R, FIELDS extends string = string> {
   }
 
   /** One page of the records that match, and their total. */
-  async paged(
-    query: PagedQuery<FIELDS>,
+  async paged<INCLUDE extends FIELDS = FIELDS>(
+    query: PagedQuery<FIELDS, INCLUDE>,
     options?: RequestOptions,
-  ): Promise<PagedResult<R>> {
-    return json<PagedResult<R>>(await this.post('paged', query, options));
+  ): Promise<PagedResult<Projected<R, INCLUDE, FIELDS>>> {
+    return json<PagedResult<Projected<R, INCLUDE, FIELDS>>>(
+      await this.post('paged', query, options),
+    );
   }
 
   /** One page of a forward-only cursor over the records that match. */
-  async cursor(
-    query: CursorQuery<FIELDS>,
+  async cursor<INCLUDE extends FIELDS = FIELDS>(
+    query: CursorQuery<FIELDS, INCLUDE>,
     options?: RequestOptions,
-  ): Promise<CursorPage<R>> {
-    return json<CursorPage<R>>(await this.post('cursor', query, options));
+  ): Promise<CursorPage<Projected<R, INCLUDE, FIELDS>>> {
+    return json<CursorPage<Projected<R, INCLUDE, FIELDS>>>(
+      await this.post('cursor', query, options),
+    );
   }
 
   /** The first record that matches; rejects with 404 `wow.query.not-found` when none does. */
-  async single(
-    query: FilterSingleQuery<FIELDS>,
+  async single<INCLUDE extends FIELDS = FIELDS>(
+    query: FilterSingleQuery<FIELDS, INCLUDE>,
     options?: RequestOptions,
-  ): Promise<R> {
-    return json<R>(await this.post('single', query, options));
+  ): Promise<Projected<R, INCLUDE, FIELDS>> {
+    return json<Projected<R, INCLUDE, FIELDS>>(
+      await this.post('single', query, options),
+    );
   }
 
   /** How many records match, bounded by the count's limit. */

@@ -455,10 +455,10 @@ interface CursorPage<T> {
 }
 
 // @public
-interface CursorQuery<FIELDS extends string = string> {
+interface CursorQuery<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> {
     cursor?: string | null;
     filter: FilterExpression<FIELDS>;
-    projection?: Projection<FIELDS>;
+    projection?: Projection<FIELDS, INCLUDE>;
     size?: number;
     sort?: FieldSort<FIELDS>[];
 }
@@ -851,7 +851,7 @@ interface FilterCapable<FIELDS extends string = string> {
 type FilterExpression<FIELDS extends string = string> = MatchFilter | MetadataFilter | LogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | DeletionFilter | ElementMatchFilter<FIELDS> | SearchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS> | ExpressionFilter<FIELDS>;
 
 // @public
-interface FilterListQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
+interface FilterListQuery<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> extends FilterQueryable<FIELDS, INCLUDE> {
     limit?: number;
 }
 
@@ -966,17 +966,17 @@ enum FilterOperator {
 }
 
 // @public
-interface FilterPagedQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
+interface FilterPagedQuery<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> extends FilterQueryable<FIELDS, INCLUDE> {
     // (undocumented)
     pagination?: Pagination;
 }
 
 // @public
-interface FilterQueryable<FIELDS extends string = string> extends FilterCapable<FIELDS>, ProjectionCapable<FIELDS>, SortCapable<FIELDS> {
+interface FilterQueryable<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> extends FilterCapable<FIELDS>, ProjectionCapable<FIELDS, INCLUDE>, SortCapable<FIELDS> {
 }
 
 // @public
-interface FilterSingleQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
+interface FilterSingleQuery<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> extends FilterQueryable<FIELDS, INCLUDE> {
 }
 
 // @public
@@ -1087,6 +1087,9 @@ enum HavingExpressionType {
     IS_NULL = "IS_NULL",
     OR = "OR"
 }
+
+// @public
+type Head<P extends string> = P extends `${infer H}.${string}` ? H : P;
 
 // @public
 type HistogramAggregationGroup<FIELDS extends string = string> = {
@@ -1242,7 +1245,7 @@ export interface OwnerTransferred {
 }
 
 // @public
-export interface PagedQuery<FIELDS extends string = string> extends FilterPagedQuery<FIELDS> {
+export interface PagedQuery<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> extends FilterPagedQuery<FIELDS, INCLUDE> {
     total?: TotalMode;
 }
 
@@ -1285,6 +1288,11 @@ interface PercentileAggregationMetric<FIELDS extends string = string> {
 }
 
 // @public
+type PickPaths<T, P extends string> = T extends readonly (infer E)[] ? PickPaths<E, P>[] : T extends object ? {
+    [K in keyof T as K extends Head<P> ? K : never]: K extends P ? T[K] : PickPaths<T[K], Tail<P, K & string>>;
+} : T;
+
+// @public
 export interface Problem {
     readonly code?: string;
     // (undocumented)
@@ -1305,17 +1313,20 @@ export interface Problem {
 export const PROBLEM_TYPE_PREFIX = "urn:wow:error:";
 
 // @public
-interface Projection<FIELDS extends string = string> {
+type Projected<R, INCLUDE extends string, FIELDS extends string = string> = string extends INCLUDE ? R : [FIELDS] extends [INCLUDE] ? R : PickPaths<R, INCLUDE>;
+
+// @public
+interface Projection<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> {
     // (undocumented)
     exclude?: FIELDS[];
     // (undocumented)
-    include?: FIELDS[];
+    include?: INCLUDE[];
 }
 
 // @public
-interface ProjectionCapable<FIELDS extends string = string> {
+interface ProjectionCapable<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> {
     // (undocumented)
-    projection?: Projection<FIELDS>;
+    projection?: Projection<FIELDS, INCLUDE>;
 }
 
 // @public
@@ -1372,15 +1383,15 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     // (undocumented)
     readonly client: WowClientOptions;
     count(query: CountQuery<FIELDS>, options?: RequestOptions): Promise<CountResult>;
-    cursor(query: CursorQuery<FIELDS>, options?: RequestOptions): Promise<CursorPage<R>>;
+    cursor<INCLUDE extends FIELDS = FIELDS>(query: CursorQuery<FIELDS, INCLUDE>, options?: RequestOptions): Promise<CursorPage<Projected<R, INCLUDE, FIELDS>>>;
     describe(version?: string, options?: RequestOptions): Promise<DescriptorResult>;
-    list(query: FilterListQuery<FIELDS>, options?: RequestOptions): Promise<R[]>;
-    listStream(query: FilterListQuery<FIELDS>, options?: ListStreamOptions): Promise<ReadableStream<R>>;
-    listStreamRows(query: FilterListQuery<FIELDS>, options?: ListStreamOptions): Promise<ReadableStream<StreamedRow<R>>>;
-    paged(query: PagedQuery<FIELDS>, options?: RequestOptions): Promise<PagedResult<R>>;
+    list<INCLUDE extends FIELDS = FIELDS>(query: FilterListQuery<FIELDS, INCLUDE>, options?: RequestOptions): Promise<Projected<R, INCLUDE, FIELDS>[]>;
+    listStream<INCLUDE extends FIELDS = FIELDS>(query: FilterListQuery<FIELDS, INCLUDE>, options?: ListStreamOptions): Promise<ReadableStream<Projected<R, INCLUDE, FIELDS>>>;
+    listStreamRows<INCLUDE extends FIELDS = FIELDS>(query: FilterListQuery<FIELDS, INCLUDE>, options?: ListStreamOptions): Promise<ReadableStream<StreamedRow<Projected<R, INCLUDE, FIELDS>>>>;
+    paged<INCLUDE extends FIELDS = FIELDS>(query: PagedQuery<FIELDS, INCLUDE>, options?: RequestOptions): Promise<PagedResult<Projected<R, INCLUDE, FIELDS>>>;
     // (undocumented)
     readonly path: string;
-    single(query: FilterSingleQuery<FIELDS>, options?: RequestOptions): Promise<R>;
+    single<INCLUDE extends FIELDS = FIELDS>(query: FilterSingleQuery<FIELDS, INCLUDE>, options?: RequestOptions): Promise<Projected<R, INCLUDE, FIELDS>>;
 }
 
 // @public
@@ -1771,6 +1782,9 @@ export interface TagsApplied {
     // (undocumented)
     readonly tags: Tags;
 }
+
+// @public
+type Tail<P extends string, K extends string> = P extends `${K}.${infer R}` ? R : never;
 
 // @public
 export interface TargetScope {

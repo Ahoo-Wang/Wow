@@ -21,22 +21,27 @@ import { DEFAULT_PAGINATION, type Pagination } from './pagination.js';
 import { type ProjectionCapable } from './projection.js';
 
 /** A query that filters, projects and sorts with Wow's `FilterExpression`. */
-export interface FilterQueryable<FIELDS extends string = string>
+export interface FilterQueryable<
+  FIELDS extends string = string,
+  INCLUDE extends FIELDS = FIELDS,
+>
   extends
     FilterCapable<FIELDS>,
-    ProjectionCapable<FIELDS>,
+    ProjectionCapable<FIELDS, INCLUDE>,
     SortCapable<FIELDS> {}
 
 /** The body of a `single` query: the first match of the filter, or nothing. */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface FilterSingleQuery<
   FIELDS extends string = string,
-> extends FilterQueryable<FIELDS> {}
+  INCLUDE extends FIELDS = FIELDS,
+> extends FilterQueryable<FIELDS, INCLUDE> {}
 
 /** The body of a `list` or `listStream` query. */
 export interface FilterListQuery<
   FIELDS extends string = string,
-> extends FilterQueryable<FIELDS> {
+  INCLUDE extends FIELDS = FIELDS,
+> extends FilterQueryable<FIELDS, INCLUDE> {
   /**
    * The most rows to return. The client sends no default: absent (or 0)
    * leaves the choice to the server, and what the server does depends on its
@@ -58,14 +63,16 @@ export interface FilterListQuery<
 /** The body of a `paged` query. */
 export interface FilterPagedQuery<
   FIELDS extends string = string,
-> extends FilterQueryable<FIELDS> {
+  INCLUDE extends FIELDS = FIELDS,
+> extends FilterQueryable<FIELDS, INCLUDE> {
   pagination?: Pagination;
 }
 
 /** What `singleQuery`, `listQuery` and `pagedQuery` take in common. */
-type QueryOptions<FIELDS extends string = string> = Partial<
-  FilterQueryable<FIELDS>
->;
+type QueryOptions<
+  FIELDS extends string = string,
+  INCLUDE extends FIELDS = FIELDS,
+> = Partial<FilterQueryable<FIELDS, INCLUDE>>;
 
 function queryFilter<FIELDS extends string>(
   filter: FilterExpression<FIELDS> | undefined,
@@ -89,11 +96,14 @@ function queryFilter<FIELDS extends string>(
  * singleQuery({ filter: filter.eq('status', 'ACTIVE') });
  * ```
  */
-export function singleQuery<FIELDS extends string = string>({
+export function singleQuery<
+  FIELDS extends string = string,
+  INCLUDE extends FIELDS = FIELDS,
+>({
   filter,
   projection,
   sort,
-}: QueryOptions<FIELDS> = {}): FilterSingleQuery<FIELDS> {
+}: QueryOptions<FIELDS, INCLUDE> = {}): FilterSingleQuery<FIELDS, INCLUDE> {
   return { filter: queryFilter(filter), projection, sort };
 }
 
@@ -114,12 +124,18 @@ export function singleQuery<FIELDS extends string = string>({
  * listQuery({ filter: filter.eq('status', 'ACTIVE'), limit: 20 });
  * ```
  */
-export function listQuery<FIELDS extends string = string>({
+export function listQuery<
+  FIELDS extends string = string,
+  INCLUDE extends FIELDS = FIELDS,
+>({
   filter,
   projection,
   sort,
   limit,
-}: QueryOptions<FIELDS> & { limit?: number } = {}): FilterListQuery<FIELDS> {
+}: QueryOptions<FIELDS, INCLUDE> & { limit?: number } = {}): FilterListQuery<
+  FIELDS,
+  INCLUDE
+> {
   return { filter: queryFilter(filter), projection, sort, limit };
 }
 
@@ -138,14 +154,17 @@ export function listQuery<FIELDS extends string = string>({
  * pagedQuery({ filter: filter.matchAll(), pagination: { index: 2, size: 20 } });
  * ```
  */
-export function pagedQuery<FIELDS extends string = string>({
+export function pagedQuery<
+  FIELDS extends string = string,
+  INCLUDE extends FIELDS = FIELDS,
+>({
   filter,
   projection,
   sort,
   pagination = { ...DEFAULT_PAGINATION },
-}: QueryOptions<FIELDS> & {
+}: QueryOptions<FIELDS, INCLUDE> & {
   pagination?: Pagination;
-} = {}): FilterPagedQuery<FIELDS> {
+} = {}): FilterPagedQuery<FIELDS, INCLUDE> {
   return { filter: queryFilter(filter), projection, sort, pagination };
 }
 
