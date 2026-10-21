@@ -58,6 +58,7 @@ class ShipmentNotifierTest {
         sent.assert().isEmpty()
     }
 
+    // region test
     @Test
     fun `a failed notification should be asked for again with the same key`() = reactorSpec(handlers) {
         failures += IllegalStateException("The mail service is down.")
@@ -65,6 +66,7 @@ class ShipmentNotifierTest {
         whenEvent(shipped()) { expectNoError() }
         sent.single().third.assert().isEqualTo("ShipmentNotifier.onOrderShipped:$order@6:0")
     }
+    // endregion
 
     @Test
     fun `an unknown buyer should fail the handler`() = reactorSpec(handlers) {

@@ -59,10 +59,12 @@ class OrderSummaryProjectionTest {
         )
     }
 
+    // region test
     @Test
     fun `the same commit handled again should save the same summary`() = projectionSpec(handlers) {
         whenEvent(event) { expectNoError() }
         whenEvent(event) { expectNoError() }
         saved.distinct().size.assert().isEqualTo(1)
     }
+    // endregion
 }

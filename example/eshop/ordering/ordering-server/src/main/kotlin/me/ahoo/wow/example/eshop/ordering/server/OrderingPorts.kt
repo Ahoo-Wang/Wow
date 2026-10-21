@@ -27,11 +27,13 @@ import java.util.concurrent.ConcurrentHashMap
 class InMemoryOrderSummaries : OrderSummaries {
     private val summaries = ConcurrentHashMap<Pair<String, String>, Versioned>()
 
+    // region save
     override fun save(summary: OrderSummary, version: Int) {
         summaries.merge(summary.tenantId to summary.orderId, Versioned(version, summary)) { saved, newer ->
             if (newer.version > saved.version) newer else saved
         }
     }
+    // endregion
 
     /** The summary of the order [orderId] in [tenantId], or null when none was saved. */
     fun summaryOf(tenantId: String, orderId: String): OrderSummary? = summaries[tenantId to orderId]?.summary
