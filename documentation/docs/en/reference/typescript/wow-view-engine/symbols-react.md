@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine/react exports, generated fro
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine/react` exports — 120 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 19 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine/react` exports — 122 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 19 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/react.api.md). This index is English only.
 
 ::: v-pre
 
@@ -31,6 +31,7 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 120 — with its kind 
 | `DashboardController` | interface | — | — |
 | `DashboardOpening` | type | What a dashboard opens with, as a host's address has it: the tab on screen and what the filters hold (D22 E, F), and what an embedding page holds of them (`held`). | — |
 | `DashboardPanelView` | interface | One panel, ready to place: geometry, what runs inside, what is wrong. | — |
+| `DatasetsState` | interface | The datasets a `DatasetResources` serves, as `useDatasets` reads them. | — |
 | `DrillTarget` | interface | What a drill would open, as offered to a host that takes drilling over. | — |
 | `DropCause` | type | The edit a drop is said after: a step of the chain, or any other. | — |
 | `DropNotice` | interface | What the last edit took out of the question besides what it was asked to — the dimensions and metrics a step of the chain left behind, the derived metrics that read one removed — and the step it followed (D71). | — |
@@ -111,6 +112,7 @@ Every name `@ahoo-wang/wow-view-engine/react` exports — 120 — with its kind 
 | `useAnalysisResult` | function | The analysis result as a host draws it (phase-2 review, developer #9): which rows, which chart over them, what the picker offers, and what a press on one group can do next. | [React Hooks](./react#api-useRecordTable) |
 | `useAutoRefresh` | function | The auto-refresh of one open view, as a control can offer it. | — |
 | `useDashboard` | function | A dashboard as a grid of panels. | [React Hooks](./react#api-useRecordTable) |
+| `useDatasets` | function | Keeps a host in step with the datasets `resources` serves (D93): it reads them when it mounts and whenever `key` changes — the caller in force, say, since another caller sees other datasets — and on `refresh`; `null` reads nothing (no caller yet). | — |
 | `useFilterEditor` | function | Editing of the draft filter tree, addressed by path. | [React Hooks](./react#api-useRecordTable) |
 | `useHandOver` | function | Opens each new `handOver` once, through the leave guard (D22 H, D26 Q30): a view a dashboard or an embed sent through the host's route. | — |
 | `useHandedConditions` | function | A saved view handed over (`SavedViewTarget`), once it is open by its id: what the reader set on the board goes onto its own conditions and runs — so it opens 「已修改」, the conditions on 「正在显示」 each removable, and 「还原」 takes them back off. | — |

@@ -8,7 +8,7 @@ export const navbarEn: DefaultTheme.NavItem[] = [
         items: [
             {text: 'Write a Service', link: '/guide/v10/'},
             {text: 'Programming Model', link: '/guide/v10/programming-model'},
-            {text: 'Testing', link: '/guide/v10/testing'},
+            {text: 'Testing', link: '/guide/testing'},
             {text: 'HTTP API', link: '/guide/v10/http-api'},
             {text: 'Query Language', link: '/guide/v10/query'},
             {text: 'Deployment', link: '/guide/v10/deployment'},
@@ -37,10 +37,15 @@ export const navbarEn: DefaultTheme.NavItem[] = [
             },
         ],
     },
+    {text: 'Concepts', link: '/concepts/', activeMatch: '/concepts/'},
     {
         text: 'Reference',
         items: [
-            {text: 'Configuration Keys', link: '/guide/v10/configuration'},
+            {text: 'Glossary', link: '/reference/glossary'},
+            {text: 'Wire Protocols', link: '/reference/protocols'},
+            {text: 'Configuration Keys', link: '/reference/configuration'},
+            {text: 'Error Codes', link: '/reference/error-codes'},
+            {text: 'Annotations', link: '/reference/annotations'},
             {text: 'What the Compiler Generates', link: '/guide/v10/generated-code'},
             {text: 'Kotlin API', link: '/dokka/index.html', target: '_blank'},
             {text: 'Storybook', link: '/storybook/', target: '_blank'},

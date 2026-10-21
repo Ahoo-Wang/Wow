@@ -249,19 +249,8 @@ export const EDITOR: CatalogCaller = {
   roles: ["analytics.catalog.editor"],
 };
 
-/** The console over memory sources, as `caller`, on `path`. */
-export function renderConsole(
-  caller: CatalogCaller | null,
-  {
-    locale = "en" as Locale,
-    path = "/sources",
-    tokens = null as TokenStorage | null,
-    served = [] as DatasetResource[],
-  } = {},
-) {
-  const callers = new CallerStore(null, tokens);
-  if (caller) callers.set(caller);
-  const commands = commandsStub();
+/** The console's engine over memory sources, with the orders dataset when one is `served`. */
+export function catalogEngine(served: readonly DatasetResource[] = []) {
   const engine = createCatalogEngine({
     sources: memorySource(SOURCE_ROWS),
     datasets: memorySource(DATASET_ROWS),
@@ -275,6 +264,23 @@ export function renderConsole(
         { id: "o-2", city: "Shanghai", customer: null },
       ]),
     });
+  return engine;
+}
+
+/** The console over memory sources, as `caller`, on `path`. */
+export function renderConsole(
+  caller: CatalogCaller | null,
+  {
+    locale = "en" as Locale,
+    path = "/sources",
+    tokens = null as TokenStorage | null,
+    served = [] as DatasetResource[],
+    engine = catalogEngine(served),
+  } = {},
+) {
+  const callers = new CallerStore(null, tokens);
+  if (caller) callers.set(caller);
+  const commands = commandsStub();
   const refresh = vi.fn(async () => served);
   const referenceActionsOf = vi.fn(async (dataset: string) => {
     if (dataset !== ORDER_ACTIONS.dataset) throw new Error("No row actions.");
@@ -286,7 +292,7 @@ export function renderConsole(
     fetcher: new Fetcher({ baseURL: "" }),
     commands,
     engine,
-    datasets: { refresh },
+    datasets: { refresh, duplicates: [] },
     references: { actions: referenceActionsOf, send },
   };
   const router = createMemoryRouter(ROUTES, { initialEntries: [path] });
@@ -297,5 +303,5 @@ export function renderConsole(
       </ServicesProvider>
     </I18nProvider>,
   );
-  return { callers, commands, router, refresh, send };
+  return { callers, commands, router, refresh, send, engine };
 }

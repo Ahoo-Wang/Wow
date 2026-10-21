@@ -66,24 +66,20 @@ test('the release commit needs its own latest full (dispatch) run to succeed', (
       requireSuccessfulRun(
         { ...run, conclusion: 'failure', html_url: 'https://x/runs/1' },
         'target',
-        'typescript-contract.yml',
+        'ci.yml',
       ),
-    /typescript-contract.yml: .*run https:\/\/x\/runs\/1 is failure; re-run its failed jobs/,
+    /ci.yml: .*run https:\/\/x\/runs\/1 is failure; re-run its failed jobs/,
   );
 });
 
-test('TypeScript, contract and Storybook gates are all required', () => {
-  assert.deepEqual(REQUIRED, [
-    { workflow: 'typescript.yml', gate: 'typescript-gate' },
-    { workflow: 'typescript-contract.yml', gate: 'typescript-contract-gate' },
-    { workflow: 'typescript-storybook.yml', gate: 'typescript-storybook-gate' },
-  ]);
+test("ci.yml's gate is required", () => {
+  assert.deepEqual(REQUIRED, [{ workflow: 'ci.yml', gate: 'ci-gate' }]);
 });
 
 test('each gate must have passed in its run', () => {
   const gate = {
     id: 1,
-    name: 'typescript-gate',
+    name: 'ci-gate',
     status: 'completed',
     conclusion: 'success',
   };
@@ -91,10 +87,7 @@ test('each gate must have passed in its run', () => {
     requireSuccessfulJob([{ ...gate, id: 0, name: 'Quality' }, gate]),
   );
   assert.doesNotThrow(() =>
-    requireSuccessfulJob(
-      [{ ...gate, name: 'typescript-storybook-gate' }],
-      'typescript-storybook-gate',
-    ),
+    requireSuccessfulJob([{ ...gate, name: 'v10-gate' }], 'v10-gate'),
   );
   for (const jobs of [
     [],
@@ -104,7 +97,7 @@ test('each gate must have passed in its run', () => {
     [gate, { ...gate, id: 2, status: 'in_progress' }],
   ])
     assert.throws(() => requireSuccessfulJob(jobs));
-  assert.throws(() => requireSuccessfulJob([gate], 'typescript-contract-gate'));
+  assert.throws(() => requireSuccessfulJob([gate], 'typescript-gate'));
 });
 
 test('a release commit comes from main or a release-x.y branch', () => {

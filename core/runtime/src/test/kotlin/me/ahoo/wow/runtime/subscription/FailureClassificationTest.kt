@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.client.RetryHint
 import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.kernel.HandlerRetry
+import me.ahoo.wow.kernel.UnreadableEventException
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.spi.StorageUnavailableException
@@ -117,5 +118,24 @@ class FailureClassificationTest {
         FailureClassification.retryAfterOf(IllegalStateException("x", problem("shop.quota", 429, 2.seconds))).assert()
             .isEqualTo(2.seconds)
         FailureClassification.retryAfterOf(IllegalStateException("x")).assert().isNull()
+    }
+
+    @Test
+    fun `an event the kernel could not read classifies as what it could not read`() {
+        fun unreadable(cause: RuntimeException) =
+            UnreadableEventException(cart("c-1"), 3, "shop.cart.ItemsAdded", 1, cause)
+        val decoding = IllegalArgumentException("no kind")
+        val unrecoverable = HandlerRetry(unrecoverable = listOf(IllegalArgumentException::class.java))
+        // A handler's own lists see the cause, as they see the bare failure.
+        classification.classify(decoding, unrecoverable).assert().isEqualTo(FailureClass.UNRECOVERABLE)
+        classification.classify(unreadable(decoding), unrecoverable).assert().isEqualTo(FailureClass.UNRECOVERABLE)
+        // Without a list, the default: retried, then parked, as before.
+        classification.classify(decoding, null).assert().isEqualTo(FailureClass.RECOVERABLE)
+        classification.classify(unreadable(decoding), null).assert().isEqualTo(FailureClass.RECOVERABLE)
+        // A classifier matching the cause still matches.
+        val unavailable = StorageUnavailableException("The store is unavailable; retry later.")
+        classification.classify(unreadable(unavailable), null).assert().isEqualTo(FailureClass.SYSTEMIC)
+        unreadable(decoding).message.assert()
+            .isEqualTo("${cart("c-1")} v3: the event shop.cart.ItemsAdded@1 does not read: no kind")
     }
 }

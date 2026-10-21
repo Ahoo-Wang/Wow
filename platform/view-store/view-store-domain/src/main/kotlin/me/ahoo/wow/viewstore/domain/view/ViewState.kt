@@ -15,6 +15,7 @@ package me.ahoo.wow.viewstore.domain.view
 
 import me.ahoo.wow.viewstore.api.ViewAudience
 import me.ahoo.wow.viewstore.api.ViewKind
+import me.ahoo.wow.viewstore.api.view.ViewAudienceChanged
 import me.ahoo.wow.viewstore.api.view.ViewClaimed
 import me.ahoo.wow.viewstore.api.view.ViewCreated
 import me.ahoo.wow.viewstore.api.view.ViewRenamed
@@ -73,5 +74,10 @@ class ViewState {
     @Suppress("UnusedParameter")
     fun onSourcing(event: ViewClaimed) {
         audience = ViewAudience.PERSONAL
+    }
+
+    /** A 9.x view's move, history only: the audience it moved to, as [ViewShared] or [ViewClaimed] moves it. */
+    fun onSourcing(event: ViewAudienceChanged) {
+        audience = event.audience
     }
 }
