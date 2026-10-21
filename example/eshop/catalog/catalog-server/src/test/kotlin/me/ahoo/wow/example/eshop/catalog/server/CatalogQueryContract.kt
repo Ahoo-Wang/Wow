@@ -310,12 +310,12 @@ abstract class CatalogQueryContract {
     }
 
     /**
-     * The examples of the query language reference (`reference/query-language.md` of the site), each a file of
+     * The query examples of the site (`reference/query-language.md` and `data/querying.md`), each a file of
      * `docs/query-language/`, sent as they are to the products' snapshot query route: each is a query the model admits
-     * and runs, as the page says it does.
+     * and runs, as the pages say it does.
      */
     @Test
-    fun `the query language reference's examples should run on the products' snapshot model`() {
+    fun `the site's query examples should run on the products' snapshot model`() {
         storefront.product(storefront.category(), storefront.brand(), "9.00")
         QUERY_LANGUAGE_EXAMPLES.forEach { name ->
             val body = requireNotNull(javaClass.getResource("/docs/query-language/$name.json")) { "No example $name." }
@@ -343,10 +343,10 @@ abstract class CatalogQueryContract {
         const val FORBIDDEN = 403
         const val NOT_MODIFIED = 304
 
-        /** The example files of the query language reference, by name. */
+        /** The example files of the site's query pages, by name. */
         val QUERY_LANGUAGE_EXAMPLES = listOf(
             "request", "in", "strings", "presence", "relative-time", "system-fields", "nor", "projection", "cursor",
-            "count", "aggregate",
+            "count", "aggregate", "monthly", "price-bands", "having",
         )
     }
 }

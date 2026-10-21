@@ -1,0 +1,9 @@
+{
+  "kind": "aggregate",
+  "filter": { "op": "EQ", "field": "state.status", "value": "PUBLISHED" },
+  "groupBy": [{ "type": "TERMS", "field": "state.brandId", "missingKey": "none", "alias": "brand" }],
+  "metrics": [{ "type": "COUNT", "alias": "products" }],
+  "having": { "type": "CONDITION", "metric": "products", "operator": "GTE", "value": 2 },
+  "sort": [{ "field": "products", "direction": "DESC" }],
+  "limit": 10
+}
