@@ -241,7 +241,7 @@ pnpm --filter wow-storybook test:visual
 
 ## CI
 
-`.github/workflows/ci.yml` 的 Storybook 作业在改到故事、view-engine、wow-client 或 wow-react 时运行（范围由 `.github/scripts/ci-scope.mjs` 的 `storybook` 输出决定）：`build` 先构建这几个包，再跑上面第 2 步的 `typecheck`、`lint` 和第 4 步的 `build`；`interactions` 把 `test` 拆成四片在 Chromium 里并行（Playwright 浏览器按 `playwright` 的版本缓存）；`visual` 在 Linux 容器里比对截图基线（上一节）。`typescript-storybook-gate` 是合并信号，四者都要过。
+`.github/workflows/ci.yml` 的 Storybook 作业在改到故事、view-engine、wow-client 或 wow-react 时运行（范围由 `.github/scripts/ci-scope.mjs` 的 `storybook` 输出决定）：`build` 先构建这几个包，再跑上面第 2 步的 `typecheck`、`lint` 和第 4 步的 `build`；`interactions` 把 `test` 拆成四片在 Chromium 里并行（Playwright 浏览器按 `playwright` 的版本缓存）；`visual` 在 Linux 容器里比对截图基线（上一节）。`ci-gate` 是合并信号，四者都要过。
 
 浏览器工程一次只跑一个文件，一片的时长就是它那些文件时长之和。所以 `--shard` 不按路径哈希分，而由 `scripts/shard-sequencer.mjs` 按 `test-durations.json` 里测得的时长分成几片等长的（没测过的新文件按中位数算）。时长过时只会让几片不那么均匀，不会漏跑或重跑文件。某一片明显变长时，用 CI 的报告刷新：每片把 JSON 报告上传为 `storybook-durations-<n>`，
 

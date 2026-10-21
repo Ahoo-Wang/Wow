@@ -513,7 +513,7 @@
   - **截图的范围**：主题一览的每一块（48 张）加三块关键屏（首页日报、分析工作台、工作台里的日报），共 51 张；再加要有理由。
   - **强制颜色下焦点是 `CanvasText` 的轮廓，选中行是 `Highlight` 的内框**；**纸上是预设的亮色一半、没有阴影、图表开花纹、颜色照印**，图表在打印开始与结束时重读主题。
 - **代价**：本机跑截图要 Docker（51 张约 40 秒，容器限 2 个 CPU）；CI 多一个拉镜像的作业。
-- **落点**：`typescript/storybook/`（`scripts/linux-browser.mjs`、`scripts/visual.mjs`、`vitest.config.ts` 的 `visual` 工程、`baselines/`、README「截图基线」）、`.github/workflows/typescript-storybook.yml`（`visual` 作业）、`src/styles.css`（`@media print`、`@media (forced-colors: active)`、暗色包进 `@media not print`）、`src/ui/charts/print.ts`；[ui/theme.md#打印与强制颜色](ui/theme.md#打印与强制颜色)、[ui/theme.md#质量门](ui/theme.md#质量门)。（见 test/styleBoundary.test.tsx「prints in the light half: the dark tokens and utilities hold off paper only (T5)」「keeps focus and selection in forced colours, in system colours (T5)」、test/chartTheme.test.tsx「redraws for paper when printing starts, and back when it ends (T5)」、Storybook「强制颜色与打印/回归」）
+- **落点**：`typescript/storybook/`（`scripts/linux-browser.mjs`、`scripts/visual.mjs`、`vitest.config.ts` 的 `visual` 工程、`baselines/`、README「截图基线」）、`.github/workflows/ci.yml`（`storybook-visual` 作业）、`src/styles.css`（`@media print`、`@media (forced-colors: active)`、暗色包进 `@media not print`）、`src/ui/charts/print.ts`；[ui/theme.md#打印与强制颜色](ui/theme.md#打印与强制颜色)、[ui/theme.md#质量门](ui/theme.md#质量门)。（见 test/styleBoundary.test.tsx「prints in the light half: the dark tokens and utilities hold off paper only (T5)」「keeps focus and selection in forced colours, in system colours (T5)」、test/chartTheme.test.tsx「redraws for paper when printing starts, and back when it ends (T5)」、Storybook「强制颜色与打印/回归」）
 
 ## D46 主题架构重构：五条结构、一张登记表（2026-09-25）
 

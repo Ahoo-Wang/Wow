@@ -87,7 +87,7 @@ test('each gate must have passed in its run', () => {
     requireSuccessfulJob([{ ...gate, id: 0, name: 'Quality' }, gate]),
   );
   assert.doesNotThrow(() =>
-    requireSuccessfulJob([{ ...gate, name: 'v10-gate' }], 'v10-gate'),
+    requireSuccessfulJob([{ ...gate, name: 'Check' }], 'Check'),
   );
   for (const jobs of [
     [],
@@ -97,7 +97,7 @@ test('each gate must have passed in its run', () => {
     [gate, { ...gate, id: 2, status: 'in_progress' }],
   ])
     assert.throws(() => requireSuccessfulJob(jobs));
-  assert.throws(() => requireSuccessfulJob([gate], 'typescript-gate'));
+  assert.throws(() => requireSuccessfulJob([gate], 'Check'));
 });
 
 test('a release commit comes from main or a release-x.y branch', () => {
