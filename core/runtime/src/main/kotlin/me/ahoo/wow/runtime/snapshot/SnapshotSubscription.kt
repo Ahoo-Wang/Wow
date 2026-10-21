@@ -16,12 +16,12 @@ import kotlinx.coroutines.flow.firstOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
+import me.ahoo.wow.kernel.FirstCommit
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.runtime.state.StateViewOptions
 import me.ahoo.wow.runtime.state.StateViewReader
@@ -140,17 +140,18 @@ class SnapshotSubscription(
             return
         }
         val view = views.get(stream)
-        val known = if (version == 1) First(stream.commitTime, stream.operator) else held?.first
+        // The view knows the first stream when the kernel loaded the aggregate (work package B.O-4): no store read.
+        val known = if (version == 1) FirstCommit.of(stream) else held?.first ?: view?.first
         if (view != null && known != null) {
             save(entry, snapshotOf(model, stream, view.state, known, view.deleted, view.tags, view.schedules))
             return
         }
         val stored = store.load(ref)
         if (stored != null && stored.version >= version) {
-            remember(ref, First.of(stored), stored.version)
+            remember(ref, FirstCommit.of(stored), stored.version)
             return
         }
-        val first = known ?: stored?.let(First::of) ?: firstOf(ref)
+        val first = known ?: stored?.let(FirstCommit::of) ?: firstOf(ref)
         val state = entry.state(stored)
         save(entry, snapshotOf(model, stream, state.state, first, state.deleted, state.tags, state.schedules))
     }
@@ -164,7 +165,7 @@ class SnapshotSubscription(
         model: AggregateModel<*>,
         stream: EventStreamRecord,
         state: String,
-        first: First,
+        first: FirstCommit,
         deleted: Boolean,
         tags: Map<String, List<String>>,
         schedules: Map<String, ScheduleRule>,
@@ -190,28 +191,21 @@ class SnapshotSubscription(
     private suspend fun save(entry: SubscribedEntry, snapshot: SnapshotRecord) {
         val partition = entry.position?.partition ?: 0
         writes.computeIfAbsent(partition) { SnapshotWrites(store, writeBatch) }.save(snapshot)
-        remember(snapshot.ref, First.of(snapshot), snapshot.version)
+        remember(snapshot.ref, FirstCommit.of(snapshot), snapshot.version)
     }
 
     /** The store holds [ref] at [version] or later: this subscription is done with its views up to [version]. */
-    private fun remember(ref: AggregateRef, first: First, version: Int) {
+    private fun remember(ref: AggregateRef, first: FirstCommit, version: Int) {
         written[ref] = Written(first, version)
         reader.pass(ref, version)
     }
 
     /** What this subscription knows the store holds of an aggregate: a lower bound of the stored version. */
-    private class Written(val first: First, val version: Int)
-
-    /** What a snapshot keeps of an aggregate's first stream: its commit time and its operator, the creator. */
-    private data class First(val eventTime: Long, val operator: Operator?) {
-        companion object {
-            fun of(snapshot: SnapshotRecord): First = First(snapshot.firstEventTime, snapshot.firstOperator)
-        }
-    }
+    private class Written(val first: FirstCommit, val version: Int)
 
     /** What the snapshot keeps of [ref]'s first stream, read from the log. */
-    private suspend fun firstOf(ref: AggregateRef): First {
+    private suspend fun firstOf(ref: AggregateRef): FirstCommit {
         val stream = checkNotNull(log.read(ref, 1, 1).firstOrNull()) { "The log does not hold $ref@1." }
-        return First(stream.commitTime, stream.operator)
+        return FirstCommit.of(stream)
     }
 }

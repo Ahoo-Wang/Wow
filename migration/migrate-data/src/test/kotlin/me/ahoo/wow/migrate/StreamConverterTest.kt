@@ -124,6 +124,24 @@ class StreamConverterTest {
     }
 
     @Test
+    fun `a 9x event that transferred the owner moves the stream's owner by its mapping's owner field`() {
+        val map = NineXExample.map.order {
+            copy(events = events + EventMapping("order_handed_over", to = "OrderHandedOver", owner = "toOwnerId"))
+        }
+        val handed = created.copy(events = listOf(event("order_handed_over", """{"toOwnerId":"customer-9"}""")))
+        val record = converter(map).convert(handed)
+        record.scope.ownerId.assert().isEqualTo("customer-9")
+        record.events.single().payload.assert().isEqualTo("""{"toOwnerId":"customer-9"}""")
+        // A blank or missing owner leaves the stream's own.
+        converter(map).convert(handed.copy(events = listOf(event("order_handed_over", """{"toOwnerId":" "}"""))))
+            .scope.ownerId.assert().isEqualTo("customer-1")
+        converter(map).convert(handed.copy(events = listOf(event("order_handed_over", "{}"))))
+            .scope.ownerId.assert().isEqualTo("customer-1")
+        // A tenant-owned aggregate still records no owner.
+        converter(map, Ownership.TENANT).convert(handed).scope.ownerId.assert().isNull()
+    }
+
+    @Test
     fun `a dropped event is left out, and a stream of dropped events only is refused`() {
         val map = NineXExample.map.order { copy(events = events + EventMapping("order_archived", drop = true)) }
         val mixed = created.copy(events = created.events + event("order_archived", "{}"))

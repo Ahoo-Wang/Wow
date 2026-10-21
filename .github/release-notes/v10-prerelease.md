@@ -21,7 +21,8 @@ body when none exists, replacing VERSION; edit the "What is in it" section after
 - **npm**, under the `alpha` (or `beta`) dist-tag, never `latest`: `npm install @ahoo-wang/wow-client@VERSION`
   (`/v10` entry), `@ahoo-wang/wow-generator`, `@ahoo-wang/wow-view-engine`, `@ahoo-wang/wow-view-store` (`/v10`
   entry), `@ahoo-wang/wow-react`.
-- **Docker**, tag `VERSION` only, never `latest`: `ahoowang/wow-ops-server`, `ahoowang/wow-view-store-server` (also
+- **Docker**, tag `VERSION` only, never `latest`: `ahoowang/wow-ops-server`, `ahoowang/wow-view-store-server`,
+  `ahoowang/wow-analytics-catalog-server` (also
   on `ghcr.io/ahoo-wang/` and `registry.cn-shanghai.aliyuncs.com/ahoo/`).
 
 9.x stays the stable line: `latest` on npm and Docker, and the 9.x Maven modules, do not move.
