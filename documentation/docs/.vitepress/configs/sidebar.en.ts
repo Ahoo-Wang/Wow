@@ -79,6 +79,7 @@ const typescriptEn: DefaultTheme.SidebarItem[] = [
             {text: 'Generate a Client', link: 'generate'},
             {text: 'Send Commands', link: 'commands'},
             {text: 'Read and Query', link: 'queries'},
+            {text: 'React Hooks', link: 'react'},
             {text: 'Generate from Any OpenAPI Document', link: 'openapi-client'},
             {text: 'Authentication and Interceptors', base: '/guide/typescript/', link: 'authentication'},
             {text: 'Compatibility and Versions', base: '/guide/typescript/', link: 'compatibility'},
