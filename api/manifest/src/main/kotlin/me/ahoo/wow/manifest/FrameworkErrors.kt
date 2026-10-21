@@ -51,6 +51,7 @@ object FrameworkErrors {
     const val COMMAND_UNKNOWN: String = "wow.command.unknown"
     const val COMMAND_FAILED: String = "wow.command.failed"
     const val NODE_CLOSING: String = "wow.node.closing"
+    const val NODE_STANDBY: String = "wow.node.standby"
     const val STORAGE_UNAVAILABLE: String = "wow.storage.unavailable"
     const val SCHEDULE_NOT_DUE: String = "wow.schedule.not-due"
     const val SCHEDULE_JOB_INVALID: String = "wow.schedule.job-invalid"
@@ -113,6 +114,7 @@ object FrameworkErrors {
             "The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.",
         ),
         ErrorManifest(NODE_CLOSING, 503, "The node is shutting down; retry on another node."),
+        ErrorManifest(NODE_STANDBY, 503, "The node is on standby until the cut-over: it serves reads only."),
         ErrorManifest(
             STORAGE_UNAVAILABLE,
             503,

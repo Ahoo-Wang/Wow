@@ -58,6 +58,7 @@ object FrameworkCodes {
     const val FAILED = ResultCodes.FAILED
     const val BUSY = ResultCodes.BUSY
     const val NODE_CLOSING = ResultCodes.NODE_CLOSING
+    const val NODE_STANDBY = ResultCodes.NODE_STANDBY
     const val STORAGE_UNAVAILABLE = ResultCodes.STORAGE_UNAVAILABLE
     const val SCHEDULE_NOT_DUE = ResultCodes.SCHEDULE_NOT_DUE
     const val SCHEDULE_JOB_INVALID = ScheduleJobModel.JOB_INVALID
@@ -83,6 +84,7 @@ object FrameworkCodes {
         FAILED,
         BUSY,
         NODE_CLOSING,
+        NODE_STANDBY,
         STORAGE_UNAVAILABLE,
         SCHEDULE_NOT_DUE,
         SCHEDULE_JOB_INVALID,

@@ -3309,7 +3309,7 @@
         "x-wow-error-codes" : [ "wow.command.failed", "wow.subscription.parked" ]
       },
       "eshop-ordering.command.503" : {
-        "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
+        "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.node.standby`: The node is on standby until the cut-over: it serves reads only.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
         "headers" : {
           "Retry-After" : {
             "$ref" : "#/components/headers/Retry-After"
@@ -3322,7 +3322,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.command.unknown", "wow.node.closing", "wow.storage.unavailable", "wow.schedule.not-due" ]
+        "x-wow-error-codes" : [ "wow.command.unknown", "wow.node.closing", "wow.node.standby", "wow.storage.unavailable", "wow.schedule.not-due" ]
       },
       "eshop-ordering.command.504" : {
         "description" : "`wow.wait.timeout`: The wait ran out of time; the command may have committed. The problem carries the last stage reached.",
@@ -3455,7 +3455,7 @@
         "x-wow-error-codes" : [ "wow.command.failed", "wow.subscription.parked" ]
       },
       "wow.command.503" : {
-        "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
+        "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.node.standby`: The node is on standby until the cut-over: it serves reads only.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
         "headers" : {
           "Retry-After" : {
             "$ref" : "#/components/headers/Retry-After"
@@ -3468,7 +3468,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.command.unknown", "wow.node.closing", "wow.storage.unavailable", "wow.schedule.not-due" ]
+        "x-wow-error-codes" : [ "wow.command.unknown", "wow.node.closing", "wow.node.standby", "wow.storage.unavailable", "wow.schedule.not-due" ]
       },
       "wow.command.504" : {
         "description" : "`wow.wait.timeout`: The wait ran out of time; the command may have committed. The problem carries the last stage reached.",

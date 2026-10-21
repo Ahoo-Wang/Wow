@@ -85,6 +85,7 @@ class InProcessCommandClient @InternalWowApi constructor(
         private val RETRYABLE: Set<String> = setOf(
             ResultCodes.UNKNOWN,
             ResultCodes.NODE_CLOSING,
+            ResultCodes.NODE_STANDBY,
             ResultCodes.STORAGE_UNAVAILABLE,
             ResultCodes.SCHEDULE_NOT_DUE,
             ResultCodes.BUSY,

@@ -86,6 +86,7 @@ internal object Problems {
     private val RETRYABLE: Map<String, Boolean> = mapOf(
         FrameworkErrors.COMMAND_UNKNOWN to true,
         FrameworkErrors.NODE_CLOSING to true,
+        FrameworkErrors.NODE_STANDBY to true,
         FrameworkErrors.STORAGE_UNAVAILABLE to true,
         FrameworkErrors.SCHEDULE_NOT_DUE to true,
         FrameworkErrors.COMMAND_BUSY to true,

@@ -56,14 +56,14 @@ test('the projects are read from build.gradle.kts', () => {
 
 test("a flag's after_n_builds is read from codecov.yml", () => {
   const codecov = `  individual_flags:
-    - name: unit
+    - name: jvm-unit
       after_n_builds: 1
     - name: integration
       after_n_builds: 4
 `;
-  assert.equal(codecovBuilds(codecov, 'unit'), 1);
+  assert.equal(codecovBuilds(codecov, 'jvm-unit'), 1);
   assert.equal(codecovBuilds(codecov, 'integration'), 4);
-  assert.equal(codecovBuilds('flag_management: {}', 'unit'), undefined);
+  assert.equal(codecovBuilds('flag_management: {}', 'jvm-unit'), undefined);
 });
 
 test('a project in no shard, in two, or unknown is a problem', () => {
@@ -95,5 +95,5 @@ test('ci.yml runs every integration test project exactly once', () => {
   assert.deepEqual(shardProblems(projects, shards), []);
   const codecov = readFileSync('codecov.yml', 'utf8');
   assert.equal(codecovBuilds(codecov, 'integration'), shards.length);
-  assert.equal(codecovBuilds(codecov, 'unit'), 1);
+  assert.equal(codecovBuilds(codecov, 'jvm-unit'), 1);
 });

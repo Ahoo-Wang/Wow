@@ -20,7 +20,7 @@ coverage:
         target: 90%
         threshold: 1%
         flags:
-          - unit
+          - jvm-unit
           - integration
           - typescript
     project:
@@ -28,14 +28,14 @@ coverage:
         target: 80%
         threshold: 1%
         flags:
-          - unit
+          - jvm-unit
           - integration
           - typescript
-# The JVM coverage (ci.yml): the `unit` flag is the check job's report (every module's unit tests), the
+# The JVM coverage (ci.yml): the `jvm-unit` flag is the check job's report (every module's unit tests), the
 # `integration` flag the integration shards' (their container-backed tests). The reports name each source file by
 # its repository path (test/code-coverage-report).
 #
-# A full run uploads `unit` once and `integration` once per shard (4). Codecov judges a status that reads a flag
+# A full run uploads `jvm-unit` once and `integration` once per shard (4). Codecov judges a status that reads a flag
 # (the components', and patch and project above) only once the flag has `after_n_builds` uploads of this commit, so
 # a status is never judged on part of the run. A flag's real upload replaces its carried-forward ones, which
 # therefore count only until its first upload: a pull request that skips the JVM jobs carries its base's sessions
@@ -47,14 +47,28 @@ coverage:
 #
 # No flag has `paths`: a status filters the files by its own paths and its flags' together, so a flag's paths
 # would widen every component's to the whole flag (each component then reported the same number).
+#
+# The unit flag is `jvm-unit`, not `unit`: Codecov keeps a `unit` flag of this repository from 2021 that it no
+# longer counts among the repository's flags, so a component's `unit` regex matched nothing and every component
+# read the integration shards alone (`kernel`, with no container tests, had "no coverage on head"). The retired
+# flags (9.x's `local`, `contract`, `full`, and `v10`, which CI-2 split into these two) upload no more; they are not
+# carried forward, so their last sessions leave the reports instead of riding along on every commit.
 flag_management:
   default_rules:
     carryforward: true
   individual_flags:
-    - name: unit
+    - name: jvm-unit
       after_n_builds: 1
     - name: integration
       after_n_builds: 4
+    - name: v10
+      carryforward: false
+    - name: local
+      carryforward: false
+    - name: contract
+      carryforward: false
+    - name: full
+      carryforward: false
 # One Codecov component per module and per TypeScript package, so a drop in
 # one module or package isn't hidden by the others. Each component gets its own
 # project status against its own previous coverage. Each TypeScript package also
@@ -65,14 +79,14 @@ component_management:
   default_rules:
     # The JVM flags; TypeScript components set their own flags below.
     flag_regexes:
-      - "^(unit|integration)$"
+      - "^(jvm-unit|integration)$"
     statuses:
       - type: project
         target: auto
         threshold: 1%
   individual_components:
     # The modules (documentation/designs/v10/06-modules.md §4), named after their Gradle projects; none collides
-    # with a TypeScript package's (wow-*). They read the `unit` and `integration` flags, so a module's coverage
+    # with a TypeScript package's (wow-*). They read the `jvm-unit` and `integration` flags, so a module's coverage
     # counts its unit and container tests.
     - component_id: api
       name: api
