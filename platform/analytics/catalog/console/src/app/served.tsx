@@ -14,23 +14,18 @@
 /* eslint-disable react-refresh/only-export-components -- The provider and its hook live together. */
 
 import { createContext, useContext, type PropsWithChildren } from "react";
-import type { DatasetResource } from "@ahoo-wang/wow-view-engine";
+import type { DatasetsState } from "@ahoo-wang/wow-view-engine/react";
 import type { ReferenceActions } from "@/views/referenceActions.ts";
 
-/** The datasets the node serves, as last read. */
-export interface Served {
-  datasets: readonly DatasetResource[];
+/** The datasets the node serves, as `useDatasets` read them, with the actions their rows offer. */
+export interface Served extends DatasetsState {
   /** The commands each one's rows offer, by definition id; none for one whose could not be read. */
   references: Readonly<Record<string, ReferenceActions>>;
-  /** Why the directory could not be read last, if it could not. */
-  error: unknown;
-  loading: boolean;
-  /** Reads the directory again. */
-  refresh(): void;
 }
 
 const ServedContext = createContext<Served>({
   datasets: [],
+  duplicates: [],
   references: {},
   error: null,
   loading: false,

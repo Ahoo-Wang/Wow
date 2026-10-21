@@ -18,6 +18,7 @@ import {
 } from '@ahoo-wang/wow-client/dsl';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  type DatasetDuplicate,
   DatasetResources,
   type DatasetOverrides,
   type DatasetWordingStore,
@@ -230,6 +231,134 @@ describe('DatasetResources', () => {
     expect(errors).toHaveLength(1);
     expect(engine.definitions.get(ID)).toBe(definition);
     expect(engine.definitions.has('analytics.returns')).toBe(false);
+  });
+
+  describe('over several catalogs (D238 ⑨)', () => {
+    const at = (context: string, name: string, version = 'sha256:1') => ({
+      contextName: context,
+      name,
+      title: null,
+      version,
+    });
+    const catalog = (
+      listed: () => Promise<ReturnType<typeof at>[]>,
+      column = 'city',
+    ) => ({
+      list: listed,
+      source: (found: ReturnType<typeof at>) =>
+        sourceOf(descriptor(column, found.version ?? '')),
+    });
+
+    it('serves every catalog in one engine, the first winning an id two list, and reports the other', async () => {
+      const engine = engineOf();
+      const reported: DatasetDuplicate[] = [];
+      const datasets = new DatasetResources(
+        engine,
+        [
+          catalog(() =>
+            Promise.resolve([
+              at('analytics', 'order_wide'),
+              at('shop', 'carts'),
+            ]),
+          ),
+          catalog(
+            () =>
+              Promise.resolve([
+                at('analytics', 'order_wide', 'sha256:9'),
+                at('crm', 'members'),
+              ]),
+            'region',
+          ),
+        ],
+        undefined,
+        undefined,
+        { onDuplicate: found => reported.push(found) },
+      );
+      const served = await datasets.refresh();
+      expect(served.map(({ id, catalog: from }) => [id, from])).toEqual([
+        [ID, 0],
+        ['shop.carts', 0],
+        ['crm.members', 1],
+      ]);
+      expect(
+        names((engine.definitions.get(ID) as DataViewDefinition).fields),
+      ).toEqual(['order_id', 'city']);
+      const duplicate = {
+        id: ID,
+        entry: at('analytics', 'order_wide', 'sha256:9'),
+        dropped: 1,
+        kept: 0,
+      };
+      expect(reported).toEqual([duplicate]);
+      expect(datasets.duplicates).toEqual([duplicate]);
+    });
+
+    it('keeps what a catalog it cannot read served, says so, and fails only when none can be read', async () => {
+      const engine = engineOf();
+      const down = { current: false };
+      const errors: [number, unknown][] = [];
+      const datasets = new DatasetResources(
+        engine,
+        [
+          catalog(() => Promise.resolve([at('shop', 'carts')])),
+          catalog(() =>
+            down.current
+              ? Promise.reject(new Error('crm is down'))
+              : Promise.resolve([at('crm', 'members')]),
+          ),
+        ],
+        undefined,
+        undefined,
+        { onCatalogError: (index, error) => errors.push([index, error]) },
+      );
+      await datasets.refresh();
+      down.current = true;
+      const served = await datasets.refresh();
+      expect(served.map(found => found.id)).toEqual([
+        'shop.carts',
+        'crm.members',
+      ]);
+      expect(engine.definitions.has('crm.members')).toBe(true);
+      expect(errors).toEqual([[1, new Error('crm is down')]]);
+
+      const none = new DatasetResources(engine, [
+        catalog(() => Promise.reject(new Error('first'))),
+        catalog(() => Promise.reject(new Error('second'))),
+      ]);
+      await expect(none.refresh()).rejects.toThrow('first');
+      expect(() => new DatasetResources(engine, [])).toThrow(
+        'at least one catalog',
+      );
+    });
+
+    it("reads each dataset's wording from its own catalog's store", async () => {
+      const engine = engineOf();
+      const store = (title: string): DatasetWordingStore => ({
+        list: () =>
+          Promise.resolve(
+            new Map([
+              [ID, { wording: { title }, revision: '1' }],
+              ['crm.members', { wording: { title }, revision: '1' }],
+            ]),
+          ),
+        set: vi.fn(() => Promise.resolve('2')),
+      });
+      const datasets = new DatasetResources(engine, [
+        {
+          ...catalog(() => Promise.resolve([at('analytics', 'order_wide')])),
+          wordings: store('From the first'),
+        },
+        {
+          ...catalog(() => Promise.resolve([at('crm', 'members')])),
+          wordings: store('From the second'),
+        },
+      ]);
+      await datasets.refresh();
+      expect(engine.definitions.get(ID)?.title).toBe('From the first');
+      expect(engine.definitions.get('crm.members')?.title).toBe(
+        'From the second',
+      );
+    });
   });
 
   it("registers a dataset again when the host's words over it change", async () => {

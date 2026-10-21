@@ -30,6 +30,7 @@ import {
   isEditor,
 } from "@/services/caller.ts";
 import {
+  BOARDS_PATH,
   CALLER_PATH,
   DATASETS_PATH,
   DRAFT_PATH,
@@ -102,12 +103,14 @@ const PLACES = [
   [SOURCES_PATH, "openSources"],
   [DATASETS_PATH, "openDatasets"],
   [ROWS_PATH, "rows"],
+  [BOARDS_PATH, "boards"],
   [DRAFT_PATH, "draft"],
 ] as const;
 
 /**
  * The console's shell: one bar with the product, its places — the
- * sources, the datasets, a served dataset's rows and the drafts — then the
+ * sources, the datasets, a served dataset's rows, the boards over them and
+ * the drafts — then the
  * caller and the language; the
  * page below fills the rest of the window and scrolls inside itself.
  */

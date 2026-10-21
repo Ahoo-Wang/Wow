@@ -49,6 +49,7 @@ class Account(private val state: AccountState) {
             Decision.events(Deposited(command.amount))
         }
 
+    // region withdraw
     @OnCommand(produces = [Withdrawn::class])
     fun onCommand(command: Withdraw): Decision = when {
         command.amount <= 0 ->
@@ -59,6 +60,7 @@ class Account(private val state: AccountState) {
 
         else -> Decision.events(Withdrawn(command.amount))
     }
+    // endregion
 
     /** The codes it rejects with, by local name: the Manifest and its answers say `bank.account.invalid-amount`. */
     object Rejections {

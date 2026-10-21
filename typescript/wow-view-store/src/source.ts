@@ -106,7 +106,9 @@ export function viewSourceOf<F extends string>(
  * });
  * ```
  *
- * A V10 directory entry names no version: a dataset is told changed by its
+ * A V10 directory entry names no version, and lists only datasets it serves:
+ * each is given `LISTED`, so `DatasetResources` (which reads `null` as a
+ * dataset not servable) registers it, and a dataset is told changed by its
  * descriptor's version, which the engine checks on its own schedule.
  */
 export function datasetCatalogOf(
@@ -118,13 +120,16 @@ export function datasetCatalogOf(
         contextName: entry.context,
         name: entry.dataset,
         title: entry.title ?? null,
-        version: null,
+        version: LISTED,
       }));
     },
     source: entry =>
       viewSourceOf(client.dataset(entry.contextName, entry.name)),
   };
 }
+
+/** The version every dataset a V10 directory lists is given (`datasetCatalogOf`). */
+const LISTED = 'listed';
 
 /** A V10 request's options from the engine's controller. */
 function optionsOf(abort: AbortController | undefined): RequestOptions {
