@@ -37,9 +37,11 @@ export const navbarEn: DefaultTheme.NavItem[] = [
             },
         ],
     },
+    {text: 'Concepts', link: '/concepts/', activeMatch: '/concepts/'},
     {
         text: 'Reference',
         items: [
+            {text: 'Glossary', link: '/reference/glossary'},
             {text: 'Configuration Keys', link: '/reference/configuration'},
             {text: 'Error Codes', link: '/reference/error-codes'},
             {text: 'Annotations', link: '/reference/annotations'},

@@ -156,11 +156,30 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             ],
         },
     ],
+    '/concepts/': [
+        {
+            base: '/concepts/',
+            text: 'Concepts',
+            items: [
+                {text: 'Architecture Overview', link: 'index.html'},
+                {text: 'Deciding and Evolving', link: 'programming-model'},
+                {text: 'The Log Is the Bus', link: 'event-log'},
+                {text: 'Writing: Admission to Append', link: 'write-path'},
+                {text: 'Waiting for Outcomes', link: 'waits'},
+                {text: 'Subscriptions, Failures and Replay', link: 'subscriptions'},
+                {text: 'Read Models', link: 'read-models'},
+                {text: 'One Contract: the Manifest', link: 'contract'},
+                {text: 'Identity, Tenancy and Access', link: 'identity'},
+                {text: 'Between Contexts', link: 'cross-context'},
+            ],
+        },
+    ],
     '/reference/': [
         {
             base: '/reference/',
             text: 'Reference',
             items: [
+                {text: 'Glossary', link: 'glossary'},
                 {text: 'Configuration Keys', link: 'configuration'},
                 {text: 'Error Codes', link: 'error-codes'},
                 {text: 'Annotations', link: 'annotations'},
