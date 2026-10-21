@@ -149,7 +149,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '编写服务', link: 'index.html'},
                 {text: '编程模型', link: 'programming-model'},
                 {text: '编译器生成什么', link: 'generated-code'},
-                {text: '测试', link: 'testing'},
+                {text: '测试', base: '/zh/guide/', link: 'testing'},
                 {text: 'HTTP API', link: 'http-api'},
                 {text: '查询语言', link: 'query'},
                 {text: '配置项', link: 'configuration'},
@@ -166,6 +166,15 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: 'V10 中的 9.x 能力', link: 'capabilities'},
                 {text: '迁移数据', link: 'data'},
                 {text: 'migrate-data 命令行', base: '/zh/reference/', link: 'migrate-data'},
+            ],
+        },
+    ],
+    '/zh/guide/': [
+        {
+            base: '/zh/guide/',
+            text: '开发指南',
+            items: [
+                {text: '测试领域代码', link: 'testing'},
             ],
         },
     ],
@@ -193,6 +202,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             text: '参考',
             items: [
                 {text: '术语表', link: 'glossary'},
+                {text: '线上协议', link: 'protocols'},
                 {text: 'migrate-data 命令行', link: 'migrate-data'},
                 {text: '配置项', link: 'configuration'},
                 {text: '错误码', link: 'error-codes'},

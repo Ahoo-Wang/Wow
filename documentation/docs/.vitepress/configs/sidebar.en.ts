@@ -148,7 +148,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Write a Service', link: 'index.html'},
                 {text: 'Programming Model', link: 'programming-model'},
                 {text: 'What the Compiler Generates', link: 'generated-code'},
-                {text: 'Testing', link: 'testing'},
+                {text: 'Testing', base: '/guide/', link: 'testing'},
                 {text: 'HTTP API', link: 'http-api'},
                 {text: 'Query Language', link: 'query'},
                 {text: 'Configuration Keys', link: 'configuration'},
@@ -165,6 +165,15 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: '9.x Capabilities in V10', link: 'capabilities'},
                 {text: 'Migrate the Data', link: 'data'},
                 {text: 'migrate-data CLI', base: '/reference/', link: 'migrate-data'},
+            ],
+        },
+    ],
+    '/guide/': [
+        {
+            base: '/guide/',
+            text: 'Developer Guide',
+            items: [
+                {text: 'Test Domain Code', link: 'testing'},
             ],
         },
     ],
@@ -192,6 +201,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             text: 'Reference',
             items: [
                 {text: 'Glossary', link: 'glossary'},
+                {text: 'Wire Protocols', link: 'protocols'},
                 {text: 'migrate-data CLI', link: 'migrate-data'},
                 {text: 'Configuration Keys', link: 'configuration'},
                 {text: 'Error Codes', link: 'error-codes'},
