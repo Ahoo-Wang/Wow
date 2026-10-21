@@ -7,6 +7,7 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 
 PASS only if the answer does all of these:
 
-1. States that wow-client, wow-react and wow-generator 9.2.1 and later declare their fetcher peers as ^5.1.5 || ^6.0.0, so fetcher 6.0 is inside the peer range, while 9.2.0 declares ^5.1.5 only
-2. Advises taking Wow 9.2.1 or later together with fetcher 6, rather than 9.2.0 with a forced install
-3. Does not suggest overriding the peer range or pinning around it as a routine fix
+1. Uses the events model of the order aggregate (GET then POST /{context}/order/events/query), not the snapshot, with a filter naming the aggregate (AGGREGATE_ID o-1042), sorted by version ascending
+2. Treats each record as one commit (version, commitTime, commandType, its events by name) and lists the business changes with their times and time zone
+3. Notes that event names are the current ones and bodies upgraded to the current revision, and that retired events are not returned
+4. Mentions the state read GET /{context}/order/o-1042/state(/trace) as the way to see the state at a version, and sends no command
