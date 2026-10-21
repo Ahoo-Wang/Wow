@@ -261,6 +261,43 @@
       },
       "derives" : [ "eshop-ordering.order.CancelOrder" ],
       "rejected" : [ "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock" ]
+    }, {
+      "name" : "OrderSummaryProjection.onEvent",
+      "kind" : "PROJECTION",
+      "source" : {
+        "context" : "eshop-ordering",
+        "aggregates" : [ "order" ],
+        "events" : [ ]
+      },
+      "function" : {
+        "kind" : "PROJECT",
+        "context" : "eshop-ordering",
+        "processor" : "OrderSummaryProjection",
+        "name" : "onEvent"
+      },
+      "start" : "BEGINNING"
+    }, {
+      "name" : "ShipmentNotifier.onOrderShipped",
+      "kind" : "REACTOR",
+      "source" : {
+        "context" : "eshop-ordering",
+        "aggregates" : [ "order" ],
+        "events" : [ "OrderShipped" ]
+      },
+      "function" : {
+        "kind" : "REACT",
+        "context" : "eshop-ordering",
+        "processor" : "ShipmentNotifier",
+        "name" : "onOrderShipped"
+      },
+      "start" : "END",
+      "retry" : {
+        "maxAttempts" : 5,
+        "initialBackoff" : "PT1S",
+        "maxBackoff" : "PT30S",
+        "timeout" : "PT10S",
+        "unrecoverable" : [ "me.ahoo.wow.example.eshop.ordering.domain.order.UnknownBuyerException" ]
+      }
     } ],
     "published" : [ {
       "aggregate" : "order",

@@ -11,8 +11,10 @@
 # limitations under the License.
 #
 
-# The eShop's fault-injection soak (C.1), soak.yml, on main every night that
-# main moved. GitHub runs a schedule from the default branch only, which main is.
+# Every night that main moved: the eShop's fault-injection soak (C.1),
+# soak.yml, and a full ci.yml run on main, which also runs the Node 22 jobs
+# pull requests leave out. GitHub runs a schedule from the default branch only,
+# which main is.
 name: Nightly
 on:
   schedule:
@@ -24,7 +26,7 @@ permissions:
 
 jobs:
   dispatch:
-    name: Dispatch the soak on main
+    name: Dispatch the soak and a full CI run on main
     if: github.repository == 'Ahoo-Wang/Wow'
     timeout-minutes: 5
     runs-on: ubuntu-latest
@@ -44,3 +46,4 @@ jobs:
             exit 0
           fi
           gh workflow run soak.yml --ref main
+          gh workflow run ci.yml --ref main
