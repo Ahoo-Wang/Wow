@@ -65,6 +65,7 @@ class BasketCheckoutSagaTest {
         }
     }
 
+    // region calls
     @Test
     fun `an order the ordering context refuses should reach the saga as a rejection`() = sagaSpec(handlers) {
         answerCalls { rejectedResult(it, EshopOrderingContract.Order.Errors.WRONG_STATUS) }
@@ -76,6 +77,7 @@ class BasketCheckoutSagaTest {
             }
         }
     }
+    // endregion
 
     @Test
     fun `an ordering context that is down should fail the handling`() = sagaSpec(handlers) {

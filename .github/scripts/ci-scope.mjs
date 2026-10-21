@@ -8,70 +8,69 @@ import { appendFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { PUBLISHED } from './publish-npm.mjs';
 
-// typescript.yml: the static checks (format, lint, types, versions).
+// ci.yml: the static checks (format, lint, types, versions).
 const TYPESCRIPT = 'typescript';
-// typescript.yml: unit tests of every package but view-engine, whose suite
+// ci.yml: unit tests of every package but view-engine, whose suite
 // runs sharded on its own.
 const SDK = 'sdk';
-// typescript.yml: the VitePress documentation site.
+// ci.yml: the VitePress documentation site.
 const DOCS = 'docs';
-// typescript.yml: the view-engine suite, sharded apart from the other packages.
+// ci.yml: the view-engine suite, sharded apart from the other packages.
 const VIEW_ENGINE = 'viewEngine';
-// typescript.yml: Markdown inside typescript/ alone, formatting only.
+// ci.yml: Markdown inside typescript/ alone, formatting only.
 const PACKAGE_DOCS = 'packageDocs';
-// typescript.yml: view-engine's Markdown alone, and the tests that read it
+// ci.yml: view-engine's Markdown alone, and the tests that read it
 // (`test:docs`) instead of its whole suite.
 const VIEW_ENGINE_DOCS = 'viewEngineDocs';
-// typescript-storybook.yml: the stories, their static build and interactions.
+// ci.yml: the stories, their static build and interactions.
 const STORYBOOK = 'storybook';
-// typescript.yml: actionlint over every workflow, the release workflow included.
+// ci.yml: actionlint over every workflow, the release workflow included.
 const WORKFLOWS = 'workflows';
-// typescript.yml: the Package job, which packs the PUBLISHED npm packages and
+// ci.yml: the Package job, which packs the PUBLISHED npm packages and
 // checks them as a consumer gets them. On with sdk, and for any path inside a
 // PUBLISHED package, view-engine's included, without rerunning the unit
 // matrix: a change to what a tarball holds is checked before the release
 // preflight finds it.
 const PACKAGE = 'package';
-// v10.yml (v10 branch): `:check` and the V10 integration
-// tests. Not a TypeScript scope. Decided apart from RULES, by V10_PATH: the
+// ci.yml's JVM jobs: `:check` and the integration
+// tests. Not a TypeScript scope. Decided apart from RULES, by JVM_PATH: the
 // V10 modules, their tests and spikes, the V10 examples (the eShop, the Java
-// smoke test and the quickstart, with the quickstart pages its test keeps in
-// step), the end-to-end benchmark (test/benchmarks, D224; not its README or
+// smoke test and the quickstart), the end-to-end benchmark (test/benchmarks, D224; not its README or
 // reports), the platform
-// they import, the coverage report v10.yml uploads (test/code-coverage-report:
+// they import, the coverage reports ci.yml uploads (test/code-coverage-report:
 // coverageReport), and the root build and Gradle configuration every module
 // reads.
-const V10 = 'v10';
-const V10_PATH =
-  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|tck|tck-containers|benchmarks\/(?:server|load|harness))|example\/(?:eshop|quickstart|java-smoke)|wow-dependencies|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|documentation\/docs\/(?:en|zh)\/guide\/v10\/quickstart\.md$|\.github\/workflows\/v10\.yml$)/;
-// typescript-contract.yml (v10 branch): `test` of integration-test, the
+const JVM = 'jvm';
+const JVM_PATH =
+  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|tck|tck-containers|benchmarks\/(?:server|load|harness))|example\/(?:eshop|quickstart|java-smoke)|wow-dependencies|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
+// ci.yml's view-store-contract job: `test` of integration-test, the
 // V10 store (`@ahoo-wang/wow-view-store`) and the view engine on it
 // against the V10 view store service (platform/view-store) built from this
-// commit. Decided apart from RULES, by V10_CONTRACT_PATH: the packages the
+// commit. Decided apart from RULES, by VIEW_STORE_CONTRACT_PATH: the packages the
 // suites import (the libraries' own tests and the engine's apart from its
 // port conformance suite left out), integration-test, the service, the V10
 // modules on its runtime and test classpath, the root build and the workflow.
 // Markdown is left out: nothing the suites run reads it.
-const V10_CONTRACT = 'v10Contract';
-const V10_CONTRACT_PATH =
-  /^(?:typescript\/(?:wow-(?:client|view-store)\/(?!(?:test|expected|scripts)\/)|wow-view-engine\/(?!test\/(?!conformance\/))|integration-test\/)|(?:api|compiler|core|query|backends|edge|host|platform\/view-store|test\/(?:tck|test-dsl)|wow-dependencies|gradle)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/typescript-contract\.yml$)/;
-// ops-console-test.yml (v10 branch): the ops console's lint, types, tests and
+const VIEW_STORE_CONTRACT = 'viewStoreContract';
+const VIEW_STORE_CONTRACT_PATH =
+  /^(?:typescript\/(?:wow-(?:client|view-store)\/(?!(?:test|expected|scripts)\/)|wow-view-engine\/(?!test\/(?!conformance\/))|integration-test\/)|(?:api|compiler|core|query|backends|edge|host|platform\/view-store|test\/(?:tck|test-dsl)|wow-dependencies|gradle)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
+// ci.yml's ops-console jobs: the ops console's lint, types, tests and
 // build, and its end-to-end suite against the ops server it is served by. Not a
-// TypeScript scope of typescript.yml. Decided apart from RULES, by
+// TypeScript scope. Decided apart from RULES, by
 // OPS_CONSOLE_PATH: the console, the ops service (its Manifest the console's
 // client is generated from, its routes the suite runs against), the workspace
 // packages and files the console builds with, and the workflow itself.
 const OPS_CONSOLE = 'opsConsole';
 const OPS_CONSOLE_PATH =
-  /^(?:platform\/ops\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|patches\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ops-console-test\.yml$)/;
-// catalog-console-test.yml (v10 branch): the analytics catalog console's lint,
-// types, tests and build, and its end-to-end suite against the catalog server
-// it is served by, as ops-console-test.yml does the ops console's. Decided
+  /^(?:platform\/ops\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|patches\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ci\.yml$)/;
+// ci.yml's catalog-console jobs: the analytics catalog console's lint, types,
+// tests and build, and its end-to-end suite against the catalog server it is
+// served by, as the ops-console jobs do the ops console's. Decided
 // apart from RULES, by CATALOG_CONSOLE_PATH: the console, the catalog service,
 // the workspace packages and files the console builds with, and the workflow.
 const CATALOG_CONSOLE = 'catalogConsole';
 const CATALOG_CONSOLE_PATH =
-  /^(?:platform\/analytics\/catalog\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|patches\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/catalog-console-test\.yml$)/;
+  /^(?:platform\/analytics\/catalog\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|patches\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ci\.yml$)/;
 
 // A light scope stands in for a full one when only Markdown changed, so it
 // turns off again once any path turns the full scope on.
@@ -110,7 +109,7 @@ const RULES = [
     [TYPESCRIPT, SDK, DOCS, VIEW_ENGINE, STORYBOOK],
   ],
   [/^typescript\/wow-generator\//, [TYPESCRIPT, SDK, DOCS]],
-  // The contract runs the integration tests (V10_CONTRACT_PATH); the unit job
+  // The contract runs the integration tests (VIEW_STORE_CONTRACT_PATH); the unit job
   // leaves them out.
   [/^typescript\/integration-test\//, [TYPESCRIPT]],
   // The documentation site embeds the Storybook these render.
@@ -141,18 +140,38 @@ const RULES = [
   // wow-client's tests check FrameworkErrorCodes against it
   // (test/frameworkErrors.test.ts), so a change to the table reruns them.
   [/^api\/manifest\/src\/test\/resources\/framework-errors\.json$/, [SDK]],
+  // The V10 view store service's Manifest baseline: wow-view-store's
+  // src/generated/ is wow-generator's output for it, byte for byte
+  // (test/generated.test.ts), so a change to it reruns wow-view-store.
+  [
+    /^platform\/view-store\/view-store-server\/manifest\/baseline\.json$/,
+    [SDK],
+  ],
+  // Other sources a package's tests read outside typescript/ (the CI script
+  // test "every source a TypeScript test reads selects its job" finds them):
+  // wow-client's query error codes are held to :query-api's QueryErrorCodes.kt,
+  // and view-engine's store limits to the view store service's ViewConfigs.kt.
+  [
+    /^api\/query-api\/src\/main\/kotlin\/me\/ahoo\/wow\/api\/query\/QueryErrorCodes\.kt$/,
+    [SDK],
+  ],
+  [
+    /^platform\/view-store\/view-store-domain\/src\/main\/kotlin\/me\/ahoo\/wow\/viewstore\/domain\/view\/ViewConfigs\.kt$/,
+    [VIEW_ENGINE],
+  ],
   // The single version source: quality checks every package.json against it.
   [/^gradle\.properties$/, [TYPESCRIPT]],
-  // The Gradle build: v10.yml (V10_PATH).
+  // The Gradle build: the JVM jobs (JVM_PATH).
   [/^(?:build\.gradle\.kts|settings\.gradle\.kts|gradlew)$/, []],
   // Lint and format rules only the static checks read.
   [
     /^(?:eslint\.config\.js|\.prettierrc|\.prettierignore)$/,
     [TYPESCRIPT, DOCS],
   ],
-  // The workflow runs every job it defines, the light ones included.
+  // The workflow runs every job it defines, the light ones included (the JVM,
+  // contract and console jobs through their own paths above).
   [
-    /^\.github\/workflows\/typescript\.yml$/,
+    /^\.github\/workflows\/ci\.yml$/,
     [
       TYPESCRIPT,
       SDK,
@@ -160,14 +179,9 @@ const RULES = [
       VIEW_ENGINE,
       PACKAGE_DOCS,
       VIEW_ENGINE_DOCS,
+      STORYBOOK,
       WORKFLOWS,
     ],
-  ],
-  // Prettier checks the workflow file, so the static checks run too.
-  [/^\.github\/workflows\/typescript-contract\.yml$/, [TYPESCRIPT, WORKFLOWS]],
-  [
-    /^\.github\/workflows\/typescript-storybook\.yml$/,
-    [TYPESCRIPT, STORYBOOK, WORKFLOWS],
   ],
   // The nightly Firefox and WebKit run never runs on a pull request; Prettier
   // still checks the file.
@@ -185,20 +199,20 @@ const RULES = [
     [DOCS],
   ],
   // The ops console (roadmap 7.1b), a pnpm workspace member under the V10
-  // platform: no package, story or site builds on it; ops-console-test.yml
-  // checks it (OPS_CONSOLE_PATH), and v10.yml runs with the ops server that
-  // serves it (V10_PATH).
+  // platform: no package, story or site builds on it; the ops-console jobs
+  // check it (OPS_CONSOLE_PATH), and the JVM jobs run with the ops server that
+  // serves it (JVM_PATH).
   [/^platform\/ops\/console\//, []],
-  // The analytics catalog console (roadmap 7.2c), the same way:
-  // catalog-console-test.yml checks it (CATALOG_CONSOLE_PATH).
+  // The analytics catalog console (roadmap 7.2c), the same way: the
+  // catalog-console jobs check it (CATALOG_CONSOLE_PATH).
   [/^platform\/analytics\/catalog\/console\//, []],
   // The site's samples compile against the eShop's committed generated
-  // clients (documentation/test/typescript-samples.mjs); eshop-web-test.yml
+  // clients (documentation/test/typescript-samples.mjs); the eshop-web jobs
   // checks the eShop web app itself.
   [/^example\/eshop\/web\/src\/generated\//, [DOCS]],
   // The V10 modules (documentation/designs/v10/06-modules.md §4; their tests
   // live under test/, below), the BOM, the dependency versions, the examples
-  // and the end-to-end benchmark: v10.yml (V10_PATH); no client or site builds
+  // and the end-to-end benchmark: the JVM jobs (JVM_PATH); no client or site builds
   // on them yet.
   [
     /^(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|wow-dependencies|example|gradle)\//,
@@ -206,7 +220,10 @@ const RULES = [
   ],
   // Other Gradle modules and prose.
   [/^(?:test|config|deploy|docs|skills|scripts|\.claude\/skills)\//, []],
-  [/^\.github\/(?!scripts\/[^/]+\.mjs$|workflows\/typescript[^/]*\.yml$)/, []],
+  [
+    /^\.github\/(?!scripts\/[^/]+\.mjs$|workflows\/(?:ci|typescript[^/]*)\.yml$)/,
+    [],
+  ],
   [/^[^/]+\.(?:kts|md|properties)$/, []],
   [
     /^(?:gradlew\.bat|LICENSE|codecov\.yml|renovate\.json|\.editorconfig|\.gitattributes|\.gitignore)$/,
@@ -214,7 +231,7 @@ const RULES = [
   ],
 ];
 
-// typescript.yml's unit matrix, which the sdk scope turns on: the packages a
+// ci.yml's unit matrix, which the sdk scope turns on: the packages a
 // path reruns. A library's own tests, goldens and build scripts rerun that
 // library; the client's sources rerun it and the packages built on it;
 // react's, the generator's and the view store's rerun themselves. Any other
@@ -232,10 +249,19 @@ const UNIT_RULES = [
     match => [match[1]],
   ],
   [/^typescript\/wow-client\//, () => UNIT_PACKAGES],
+  // wow-view-store's generated client is held to what the generator writes.
+  [
+    /^typescript\/wow-generator\/(?!test\/|expected\/|scripts\/)/,
+    () => ['wow-generator', 'wow-view-store'],
+  ],
   [/^typescript\/(wow-(?:react|generator|view-store))\//, match => [match[1]]],
   [
-    /^api\/manifest\/src\/test\/resources\/framework-errors\.json$/,
+    /^(?:api\/manifest\/src\/test\/resources\/framework-errors\.json|api\/query-api\/src\/main\/kotlin\/me\/ahoo\/wow\/api\/query\/QueryErrorCodes\.kt)$/,
     () => ['wow-client'],
+  ],
+  [
+    /^platform\/view-store\/view-store-server\/manifest\/baseline\.json$/,
+    () => ['wow-view-store'],
   ],
 ];
 
@@ -261,8 +287,8 @@ export function scopes(paths) {
     STORYBOOK,
     WORKFLOWS,
     PACKAGE,
-    V10,
-    V10_CONTRACT,
+    JVM,
+    VIEW_STORE_CONTRACT,
     OPS_CONSOLE,
     CATALOG_CONSOLE,
   ];
@@ -285,12 +311,12 @@ export function scopes(paths) {
   result[PACKAGE] =
     result[SDK] ||
     paths.some(path => PUBLISHED.some(dir => path.startsWith(`${dir}/`)));
-  // Also apart from RULES: a V10 path keeps its scopes, and an unknown path
+  // Also apart from RULES: a JVM path keeps its scopes, and an unknown path
   // has already returned every scope above.
-  result[V10] = paths.some(path => V10_PATH.test(path));
+  result[JVM] = paths.some(path => JVM_PATH.test(path));
   // Also apart from RULES, the same way.
-  result[V10_CONTRACT] = paths.some(
-    path => V10_CONTRACT_PATH.test(path) && !path.endsWith('.md'),
+  result[VIEW_STORE_CONTRACT] = paths.some(
+    path => VIEW_STORE_CONTRACT_PATH.test(path) && !path.endsWith('.md'),
   );
   // And the ops console's, the same way.
   result[OPS_CONSOLE] = paths.some(path => OPS_CONSOLE_PATH.test(path));

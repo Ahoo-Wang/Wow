@@ -180,7 +180,7 @@ curl -X POST localhost:8080/example/order/events/query \
 - The caller sees only its own aggregates: its tenant, and its owner and space when it has them. A tenant-level caller, without an owner, sees every aggregate of its tenant. Query admission reads each aggregate's ownership from the Manifest: the caller's owner does not restrict the queries of an aggregate of its tenant (`Ownership.TENANT`). A query does not see deleted aggregates unless it names their deletion state.
 - A snapshot query filters and sorts the system fields (`tenantId`, `aggregateId`, `version`, `ownerId`, `spaceId`, `deleted`, `tags`, `firstEventTime`, `lastEventTime`, `operator`, `firstOperator`) and `state.*`, as the state schema in the completed fragment describes it. `@QueryIndex` (`me.ahoo.wow.api.query.annotation`, in `wow-query-api`) on a state field declares an index the backend creates (`wow.query.index.ddl`); see [Query annotations](./query.md#query-annotations).
 - The `events` model's filter names one aggregate's id and may bound `version` or `commitTime`, nothing else.
-- A query the model refuses is 400 `wow.query.invalid`, its violations naming each rule; one that does not read as a query is 400 `wow.query.malformed`; a timeout is `wow.query.timeout`.
+- A query the model refuses is 400 `wow.query.invalid`, its violations naming each rule; one that does not read as a query is 400 `wow.query.malformed`; a timeout is 504 `wow.query.timeout`, not worth running again as it is; a `single` query that matches nothing is 404 `wow.query.not-found`.
 - The snapshots are queried on PostgreSQL and MongoDB. On the memory backend no query backend serves them, and their routes answer 404.
 - Every HTTP query runs under the budget `wow.query.http.*` (see [Configuration Keys](./configuration.md#query)).
 
@@ -236,11 +236,16 @@ The framework's codes, as the Manifest lists them (`FrameworkErrors`):
 | `wow.command.busy` | 429 | The node has too many commands in flight |
 | `wow.command.unknown` | 503 | Whether the command committed is unknown; retrying with the same request id is safe |
 | `wow.node.closing` | 503 | The node is shutting down; retry on another node |
+| `wow.node.standby` | 503 | The node is on standby until a migration's cut-over: it serves reads only |
 | `wow.subscription.parked` | 500 | A subscription on the wait chain parked the aggregate |
 | `wow.wait.timeout` | 504 | The wait ran out of time; the command may have committed, and the problem carries the last stage reached |
 | `wow.query.malformed` | 400 | The query body cannot be read as a query |
 | `wow.query.invalid` | 400 | The query failed admission; the violations name each rule |
 | `wow.query.failed` | 500 | The query backend failed |
-| `wow.query.timeout` | 503 | The query ran longer than its budget allows |
+| `wow.query.not-found` | 404 | A `single` query matched no record |
+| `wow.query.dataset-not-found` | 404 | No dataset of that name is served to the caller |
+| `wow.query.timeout` | 504 | The query ran longer than its budget allows; narrow it rather than retry |
 
 `GET /wow/manifest` lists them under `errors`, and each context's own codes under the context.
+
+The application's own routes, served beside these, answer what fails on them the same way (`wow.http.global-errors`, on by default): a `CommandRejectedException` or `WowProblemException` from a `CommandClient` as its code, status and result; a store that is unavailable as `wow.storage.unavailable` with `Retry-After`; an HTTP status (no route, a method or media type not served) as a problem of that status alone (`about:blank`); anything else as a 500 that says nothing of its cause, which is logged. Turned off, those errors are Spring's.

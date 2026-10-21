@@ -1016,6 +1016,7 @@ export const FrameworkErrorCodes: {
     readonly COMMAND_UNKNOWN: "wow.command.unknown";
     readonly COMMAND_FAILED: "wow.command.failed";
     readonly NODE_CLOSING: "wow.node.closing";
+    readonly NODE_STANDBY: "wow.node.standby";
     readonly STORAGE_UNAVAILABLE: "wow.storage.unavailable";
     readonly SCHEDULE_NOT_DUE: "wow.schedule.not-due";
     readonly SCHEDULE_JOB_INVALID: "wow.schedule.job-invalid";
@@ -1026,6 +1027,8 @@ export const FrameworkErrorCodes: {
     readonly QUERY_FAILED: "wow.query.failed";
     readonly QUERY_TIMEOUT: "wow.query.timeout";
     readonly QUERY_BUSY: "wow.query.busy";
+    readonly QUERY_NOT_FOUND: "wow.query.not-found";
+    readonly QUERY_DATASET_NOT_FOUND: "wow.query.dataset-not-found";
     readonly QUERY_MIN_VERSION_NOT_REACHED: "wow.query.min-version-not-reached";
     readonly QUERY_DATASET_UNAVAILABLE: "wow.query.dataset-unavailable";
     readonly CALL_COMMAND_FORBIDDEN: "wow.call.command-forbidden";

@@ -10,6 +10,7 @@ public final class me/ahoo/wow/runtime/FrameworkCodes {
 	public static final field INVALID Ljava/lang/String;
 	public static final field MALFORMED Ljava/lang/String;
 	public static final field NODE_CLOSING Ljava/lang/String;
+	public static final field NODE_STANDBY Ljava/lang/String;
 	public static final field NOT_FOUND Ljava/lang/String;
 	public static final field REQUEST_ID_REUSED Ljava/lang/String;
 	public static final field SCHEDULE_JOB_INVALID Ljava/lang/String;
@@ -592,6 +593,7 @@ public final class me/ahoo/wow/runtime/node/ServiceNode {
 	public final fun getTopicSubscriptions ()Ljava/util/Map;
 	public final fun isReady ()Z
 	public final fun start (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun start (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun stop (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
@@ -627,8 +629,7 @@ public final class me/ahoo/wow/runtime/node/ServiceNodeOptions {
 	public static final field Companion Lme/ahoo/wow/runtime/node/ServiceNodeOptions$Companion;
 	public static final field DEFAULT_LANE_CAPACITY I
 	public static final field DEFAULT_RECENT_REQUESTS I
-	public static final field DEFAULT_STATE_CACHE_CAPACITY I
-	public synthetic fun <init> (Lme/ahoo/wow/runtime/cluster/ClusterOptions;Lme/ahoo/wow/runtime/node/Routing;JILme/ahoo/wow/runtime/subscription/SubscriptionOptions;Lme/ahoo/wow/runtime/log/AppendQueueOptions;IIJLme/ahoo/wow/runtime/state/StateViewOptions;Lme/ahoo/wow/runtime/timer/TimerOptions;Ljava/util/Map;Ljava/util/Set;Lme/ahoo/wow/runtime/wait/UnknownContexts;Lme/ahoo/wow/runtime/ledger/LedgerPublishing;Lme/ahoo/wow/runtime/snapshot/SnapshotOptions;IILme/ahoo/wow/runtime/log/HandoffOptions;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lme/ahoo/wow/runtime/cluster/ClusterOptions;Lme/ahoo/wow/runtime/node/Routing;JILme/ahoo/wow/runtime/subscription/SubscriptionOptions;Lme/ahoo/wow/runtime/log/AppendQueueOptions;ILjava/lang/Integer;JLme/ahoo/wow/runtime/state/StateViewOptions;Lme/ahoo/wow/runtime/timer/TimerOptions;Ljava/util/Map;Ljava/util/Set;Lme/ahoo/wow/runtime/wait/UnknownContexts;Lme/ahoo/wow/runtime/ledger/LedgerPublishing;Lme/ahoo/wow/runtime/snapshot/SnapshotOptions;IILme/ahoo/wow/runtime/log/HandoffOptions;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAppendQueue ()Lme/ahoo/wow/runtime/log/AppendQueueOptions;
 	public final fun getCluster ()Lme/ahoo/wow/runtime/cluster/ClusterOptions;
@@ -645,7 +646,7 @@ public final class me/ahoo/wow/runtime/node/ServiceNodeOptions {
 	public final fun getRouting ()Lme/ahoo/wow/runtime/node/Routing;
 	public final fun getSchedules ()Ljava/util/Map;
 	public final fun getSnapshots ()Lme/ahoo/wow/runtime/snapshot/SnapshotOptions;
-	public final fun getStateCacheCapacity ()I
+	public final fun getStateCacheCapacity ()Ljava/lang/Integer;
 	public final fun getStateViews ()Lme/ahoo/wow/runtime/state/StateViewOptions;
 	public final fun getSubscription ()Lme/ahoo/wow/runtime/subscription/SubscriptionOptions;
 	public final fun getTimers ()Lme/ahoo/wow/runtime/timer/TimerOptions;

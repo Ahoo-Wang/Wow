@@ -222,7 +222,7 @@ class DatasetRoutesTest {
             .assert().isEqualTo("west")
         // Another owner's record is not found.
         node.query("""{"kind":"single","filter":{"op":"ID","value":"s-3"}}""")
-            .assertQueryProblem(404, FrameworkCodes.NOT_FOUND)
+            .assertQueryProblem(404, FrameworkErrors.QUERY_NOT_FOUND)
     }
 
     @Test
@@ -266,11 +266,14 @@ class DatasetRoutesTest {
 
     @Test
     fun `a dataset the node does not serve, or the caller does not see, should be a 404`() {
+        val notFound = FrameworkErrors.QUERY_DATASET_NOT_FOUND
         node.query("""{"kind":"count","filter":{"op":"MATCH_ALL"}}""", path = "/wow/dataset/shop/none/query")
-            .status.assert().isEqualTo(404)
-        node.get("/wow/dataset/shop/none/query", "alice").status.assert().isEqualTo(404)
-        node.query("""{"kind":"count","filter":{"op":"MATCH_ALL"}}""", path = REGIONS).status.assert().isEqualTo(404)
-        node.get(REGIONS, "alice").status.assert().isEqualTo(404)
+            .assertQueryProblem(404, notFound)
+        node.get("/wow/dataset/shop/none/query", "alice").assertQueryProblem(404, notFound)
+        node.query("""{"kind":"count","filter":{"op":"MATCH_ALL"}}""", path = REGIONS).assertQueryProblem(404, notFound)
+        node.get(REGIONS, "alice").assertQueryProblem(404, notFound)
+        // A path whose context or name is no aggregate type's names no dataset either.
+        node.get("/wow/dataset/shop/-/query", "alice").assertQueryProblem(404, notFound)
         val platform = mapOf(WowHeaders.SCOPE to "tenant=\"(0)\"", "X-Admin" to "yes")
         node.query("""{"kind":"count","filter":{"op":"MATCH_ALL"}}""", path = REGIONS, headers = platform)
             .body!!["count"].asLong().assert().isEqualTo(1)

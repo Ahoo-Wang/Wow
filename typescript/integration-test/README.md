@@ -36,11 +36,11 @@ instead; it must serve snapshot queries and the configured system view of
 
 ## CI
 
-The `v10-contract` job of `.github/workflows/typescript-contract.yml` runs
+The `view-store-contract` job of `.github/workflows/ci.yml` runs
 `test` against the service built from the same commit.
 
 `typecheck` checks `test` and needs no server. The Quality job of
-`typescript.yml` runs it, through the root `pnpm typecheck`, on every pull
+`ci.yml` runs it, through the root `pnpm typecheck`, on every pull
 request that touches TypeScript, so a type change in `wow-client`,
 `wow-view-store` or `wow-view-engine` that breaks these tests fails there
 without waiting for the contract job.

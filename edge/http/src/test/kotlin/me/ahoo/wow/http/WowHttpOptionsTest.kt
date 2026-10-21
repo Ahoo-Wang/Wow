@@ -23,6 +23,8 @@ class WowHttpOptionsTest {
     fun `an option equals another with the same fields, and prints them`() {
         valueSemantics(WowHttpOptions(), WowHttpOptions(), WowHttpOptions(manifestEndpoint = false))
         WowHttpOptions().copyWith(openApiEndpoint = false).assert().isEqualTo(WowHttpOptions(openApiEndpoint = false))
+        WowHttpOptions().copyWith(clientFacts = false).clientFacts.assert().isFalse()
+        (WowHttpOptions() == WowHttpOptions(clientFacts = false)).assert().isFalse()
     }
 
     @Test

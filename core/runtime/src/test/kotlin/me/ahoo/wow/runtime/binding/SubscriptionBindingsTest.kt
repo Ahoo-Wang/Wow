@@ -54,8 +54,9 @@ import java.util.concurrent.CopyOnWriteArrayList
 class SubscriptionBindingsTest {
     private val backends = InMemoryBackends(partitions = 4)
     private val decided = CopyOnWriteArrayList<String>()
-    private val projected = CopyOnWriteArrayList<StateEvent<OrderState>>()
-    private val executions = CopyOnWriteArrayList<String>()
+
+    /** What the projection was handed, with the execution it ran as: one write, so a reader sees both or neither. */
+    private val projected = CopyOnWriteArrayList<Pair<StateEvent<OrderState>, String>>()
     private val everything = CopyOnWriteArrayList<String>()
     private val carts = CopyOnWriteArrayList<List<String>>()
 
@@ -66,8 +67,7 @@ class SubscriptionBindingsTest {
         OrderState::class.java
     ) { event, context ->
         check(event.ref.id != "boom") { "${event.ref} cannot be projected." }
-        projected += event
-        executions += context.executionId.toString()
+        projected += event to context.executionId.toString()
     }
 
     /** Every aggregate of the context, through `StateEvent<*>`. */
@@ -146,7 +146,7 @@ class SubscriptionBindingsTest {
         node.context(SHOP).views.assert().isNotNull()
         place("o-1", "alice", "apple", "pear").collect { }
         eventually { projected.isNotEmpty() }
-        val event = projected.single()
+        val (event, execution) = projected.single()
         event.ref.assert().isEqualTo(ORDER.ref(TENANT, "o-1"))
         event.version.assert().isEqualTo(1)
         event.commandType.assert().isEqualTo("shop.order.Place")
@@ -154,7 +154,7 @@ class SubscriptionBindingsTest {
         event.state.items.assert().containsExactly("apple", "pear")
         event.scope.assert().isEqualTo(Scope(ownerId = "alice"))
         event.causation.assert().isNull()
-        executions.assert().containsExactly("OrderView.onEvent:shop.order/t/o-1@1")
+        execution.assert().isEqualTo("OrderView.onEvent:shop.order/t/o-1@1")
         eventually { everything.contains("order@1:Audit.onEvent") }
     }
 

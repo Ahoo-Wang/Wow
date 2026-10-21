@@ -11,7 +11,7 @@ import { ROOT } from './project-version.mjs';
 
 // The workspace develops on the newest fetcher (the default catalog), while
 // the published packages accept every fetcher the `peers` catalog names. The
-// floor of that range is held by typescript.yml's `fetcher-floor` job:
+// floor of that range is held by ci.yml's `fetcher-floor` job:
 //
 //   node .github/scripts/fetcher-floor.mjs pin     # overrides every fetcher to the floor
 //   pnpm install --no-frozen-lockfile

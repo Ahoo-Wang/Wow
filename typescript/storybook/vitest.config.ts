@@ -42,7 +42,7 @@ const remoteBrowser = process.env.STORYBOOK_BROWSER_WS
   : undefined;
 
 // The per-test limit. Unset, Vitest's browser default (15s) holds: pull
-// requests (typescript-storybook.yml) and local runs keep it. Only the
+// requests (ci.yml) and local runs keep it. Only the
 // nightly Firefox and WebKit legs (typescript-storybook-browsers.yml) set
 // it longer, because their runners are slow — measured 3–15× slower than a
 // Mac on the same stories (2026-10-01: 1.2s locally, 19s there) — not to

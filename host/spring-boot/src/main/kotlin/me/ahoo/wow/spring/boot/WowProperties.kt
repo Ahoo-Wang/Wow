@@ -104,8 +104,8 @@ import me.ahoo.wow.client.RetryPolicy as ClientRetryPolicy
  * - `wow.state-views.capacity` (4096), `max-age` (1m), `max-bytes` (64 MiB): the bounds of each context's state views
  *   (decision D133), see [StateViews].
  * - `wow.executor.lane-capacity` (1024), `wow.executor.max-in-flight` (4096, the node's commands in flight, beyond
- *   which a command is `wow.command.busy`, decision D228 ②), `wow.state-cache.capacity`,
- *   `wow.state-cache.recent-requests` (256, the requests each cached aggregate keeps of those it committed last,
+ *   which a command is `wow.command.busy`, decision D228 ②), `wow.state-cache.capacity` (sized from the heap
+ *   unless set, B.O-4), `wow.state-cache.recent-requests` (256, the requests each cached aggregate keeps of those it committed last,
  *   decision D261), `wow.subscription.*`.
  * - `wow.subscriptions.[<subscription>].start`: `beginning`, `end` or an ISO-8601 instant, where the subscription
  *   (`processor.function`, bracketed for its dot) starts in a partition it has no checkpoint in yet, instead of its
@@ -136,7 +136,9 @@ import me.ahoo.wow.client.RetryPolicy as ClientRetryPolicy
  *   override of an `@OnSchedule` job's rule (decision D198), see [Schedule]; a job no handler of the node runs fails
  *   its start.
  * - `wow.tenant.default`: the tenant of a caller that has none (D97).
- * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.manifest.enabled`,
+ * - `wow.http.request-facts`, `wow.http.client-facts` (on: `remote_ip` and `user_agent`, personal data that cannot be
+ *   erased once written), `wow.http.errors.[<code>].status`, `wow.http.global-errors` (on: the application's own
+ *   routes answer problem+json, review M-3), `wow.http.manifest.enabled`,
  *   `wow.http.openapi.enabled` (`GET /wow/openapi`, the OpenAPI document of the routes),
  *   `wow.http.openapi.springdoc.enabled` and `group` (the springdoc bridge, decision D233);
  *   `wow.http.services.<service>.tokens`: the service identities the internal port trusts without CoSec (decision
@@ -166,6 +168,7 @@ import me.ahoo.wow.client.RetryPolicy as ClientRetryPolicy
  *
  * - `wow.topics.in-memory` (false): the node's command topics and published streams in its JVM instead of Kafka, for
  *   local development (DX gap G27), see [Topics].
+ * - `wow.standby` (false): the node starts on standby, for the dual-run window of a migration's cut-over, see [standby].
  *
  * Every key is in the host's configuration metadata (`META-INF/spring-configuration-metadata.json`, review A5-9), and
  * a `wow.*` key that no property of the host or of a module names is reported at startup ([ConfigurationKeys]).
@@ -246,6 +249,15 @@ class WowProperties {
 
     /** The node's topics without Kafka (DX gap G27), see [Topics]. */
     var topics: Topics = Topics()
+
+    /**
+     * Whether the node starts on standby (design 07 §3, decision D32): through the dual-run window of a migration's
+     * cut-over it serves reads of what `migrate-data` imports, refuses every command (`wow.node.standby`, 503), and
+     * handles no subscription, retries no parked entry and runs no job, until its operator resumes it on the internal
+     * port (`POST /wow/node/resume` with the cluster token, naming who resumes it). A subscription that starts at the
+     * end of its stream starts where the stream ends at the resume.
+     */
+    var standby: Boolean = false
 
     /**
      * Topics for trying a service out without Kafka (DX gap G27). With `wow.topics.in-memory` (false), the node keeps
@@ -629,8 +641,16 @@ class WowProperties {
     }
 
     class StateCache {
-        /** The aggregate states kept per context between commands; 0 keeps none. */
-        var capacity: Int = ServiceNodeOptions.DEFAULT_STATE_CACHE_CAPACITY
+        /**
+         * The aggregate states kept per context between commands; 0 keeps none. Not set (the default), each context's
+         * cache is sized from the heap (work package B.O-4): a tenth of the maximum heap (`-Xmx`), split between the
+         * node's contexts, over an estimated 1 KB per state plus 12 bytes per recent request (about 4 KB with the
+         * default 256), at least 4096 and at most 131072 states. A miss costs a snapshot and a tail read before the
+         * command is decided, so size it to the aggregates written often: set it when states are much larger than 1 KB
+         * (a capacity times the average state size should stay well within the heap), or when a context has more hot
+         * aggregates than the default holds. The `wow.state-cache` counter (`hit`, `miss`, `evicted`) shows the fit.
+         */
+        var capacity: Int? = null
 
         /**
          * The requests each cached aggregate keeps of those it committed last, derived from the log (decision D261), so
@@ -939,8 +959,22 @@ class WowProperties {
          */
         var requestFacts: MutableSet<String> = LinkedHashSet()
 
+        /**
+         * Whether the public port records each command's client address and `User-Agent` as the request facts
+         * `remote_ip` and `user_agent` (09 §17 G-10, as 9.x did), for audit. They are personal data, and written into
+         * the event stream, which is never deleted (decision D175): once recorded, they cannot be erased. On by
+         * default; off records neither (decision D267 ⑯).
+         */
+        var clientFacts: Boolean = true
+
         /** The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). */
         var errors: MutableMap<String, Error> = LinkedHashMap()
+
+        /**
+         * Answers what fails on the application's own routes as the framework routes' problem+json (review M-3,
+         * decision D259): on by default; off leaves those errors to Spring's error handling.
+         */
+        var globalErrors: Boolean = true
         var manifest: Manifest = Manifest()
         var openapi: OpenApi = OpenApi()
 

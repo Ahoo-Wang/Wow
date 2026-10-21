@@ -88,7 +88,7 @@ The plugin is published to Maven Central with its marker, so `pluginManagement` 
 
 A context is named once, with `@BoundedContext`. Commands and events are plain classes; a command carries no aggregate id, which comes from the route.
 
-<!-- sample: src/main/kotlin/me/ahoo/wow/example/quickstart/Bank.kt -->
+<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Bank.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -124,7 +124,7 @@ data class Withdrawn(val amount: Long)
 
 The state applies events in its `onSourcing` functions. The aggregate decides each command in an `onCommand` function: it returns the events, or a `Decision` that may reject the command with an error code. A rejection writes nothing.
 
-<!-- sample: src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt -->
+<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -193,7 +193,7 @@ class Account(private val state: AccountState) {
 
 The compiler generated `accountModel` beside `Account`. `aggregateSpec` runs it on the real kernel with an in-memory log:
 
-<!-- sample: src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt -->
+<!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -238,13 +238,13 @@ class AccountSpec {
 ./gradlew test
 ```
 
-[Testing](./testing.md) lists every expectation.
+[Testing](../testing.md) lists every expectation.
 
 ## Run the service
 
 The server is a Spring Boot application. The host finds the generated models on the class path and serves them:
 
-<!-- sample: src/main/kotlin/me/ahoo/wow/example/quickstart/BankServer.kt -->
+<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/BankServer.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -262,7 +262,7 @@ fun main(args: Array<String>) {
 
 `src/main/resources/application.yaml` runs one node with its data in memory, and serves the snapshot queries from memory too (`wow.query.memory.enabled`):
 
-<!-- sample: src/main/resources/application.yaml -->
+<!-- sample: example/quickstart/src/main/resources/application.yaml -->
 
 ```yaml
 spring:
@@ -319,7 +319,7 @@ The first answers the version and the state, `{"balance":100,"owner":"Alice"}`; 
 
 Application code sends commands through the node's `CommandGateway`, a bean of the host. It runs the same admission as the HTTP routes:
 
-<!-- sample: src/main/kotlin/me/ahoo/wow/example/quickstart/Teller.kt -->
+<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Teller.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
@@ -350,5 +350,5 @@ class Teller(private val commands: CommandGateway) {
 
 - **The full example.** The [eShop](https://github.com/Ahoo-Wang/Wow/tree/v10/example/eshop) is five services on PostgreSQL, Kafka and ClickHouse: sagas between contexts, scheduled commands, query indexes, datasets and a web UI.
 - **The TypeScript client.** `npm install @ahoo-wang/wow-client@alpha` installs the client of the same alpha; [wow-generator](https://github.com/Ahoo-Wang/Wow/tree/v10/typescript/wow-generator) generates typed command and query clients from a service's Manifest.
-- **The V10 guide.** [Write a V10 Service](./index.md) lays out a service in modules, then [Programming Model](./programming-model.md), [Testing](./testing.md), [HTTP API](./http-api.md), [Configuration Keys](./configuration.md) and [Deployment](./deployment.md).
+- **The V10 guide.** [Write a V10 Service](./index.md) lays out a service in modules, then [Programming Model](./programming-model.md), [Testing](../testing.md), [HTTP API](./http-api.md), [Configuration Keys](./configuration.md) and [Deployment](./deployment.md).
 - **This sample.** It is [`example/quickstart`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/quickstart) in the Wow repository, built and tested with every change.

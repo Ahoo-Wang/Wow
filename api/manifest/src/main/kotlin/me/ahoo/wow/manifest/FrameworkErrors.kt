@@ -51,6 +51,7 @@ object FrameworkErrors {
     const val COMMAND_UNKNOWN: String = "wow.command.unknown"
     const val COMMAND_FAILED: String = "wow.command.failed"
     const val NODE_CLOSING: String = "wow.node.closing"
+    const val NODE_STANDBY: String = "wow.node.standby"
     const val STORAGE_UNAVAILABLE: String = "wow.storage.unavailable"
     const val SCHEDULE_NOT_DUE: String = "wow.schedule.not-due"
     const val SCHEDULE_JOB_INVALID: String = "wow.schedule.job-invalid"
@@ -63,6 +64,8 @@ object FrameworkErrors {
     const val QUERY_BUSY: String = "wow.query.busy"
     const val QUERY_MIN_VERSION_NOT_REACHED: String = "wow.query.min-version-not-reached"
     const val QUERY_DATASET_UNAVAILABLE: String = "wow.query.dataset-unavailable"
+    const val QUERY_NOT_FOUND: String = "wow.query.not-found"
+    const val QUERY_DATASET_NOT_FOUND: String = "wow.query.dataset-not-found"
     const val CALL_COMMAND_FORBIDDEN: String = "wow.call.command-forbidden"
 
     /** The status of a domain rejection, a code the domain chose, unless the host configures another for the code. */
@@ -111,6 +114,7 @@ object FrameworkErrors {
             "The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.",
         ),
         ErrorManifest(NODE_CLOSING, 503, "The node is shutting down; retry on another node."),
+        ErrorManifest(NODE_STANDBY, 503, "The node is on standby until the cut-over: it serves reads only."),
         ErrorManifest(
             STORAGE_UNAVAILABLE,
             503,
@@ -144,9 +148,15 @@ object FrameworkErrors {
         ),
         ErrorManifest(QUERY_FAILED, 500, "The query backend failed to run the query."),
         ErrorManifest(
+            QUERY_NOT_FOUND,
+            404,
+            "A single query matched no record: a query result, not a statement that an aggregate does not exist.",
+        ),
+        ErrorManifest(QUERY_DATASET_NOT_FOUND, 404, "No dataset of that name is served to the caller."),
+        ErrorManifest(
             QUERY_TIMEOUT,
-            503,
-            "The query ran longer than its budget allows; narrow it, or retry later.",
+            504,
+            "The query ran longer than its budget allows; narrow it rather than run it again (decision D254 ③).",
         ),
         ErrorManifest(
             QUERY_MIN_VERSION_NOT_REACHED,

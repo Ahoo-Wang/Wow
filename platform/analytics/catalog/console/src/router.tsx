@@ -13,12 +13,14 @@
 
 import { Navigate, type RouteObject } from "react-router";
 import App from "@/app/App.tsx";
+import BoardsPage from "@/pages/BoardsPage.tsx";
 import CallerPage from "@/pages/CallerPage.tsx";
 import DatasetsPage from "@/pages/DatasetsPage.tsx";
 import DraftPage from "@/pages/DraftPage.tsx";
 import RowsPage from "@/pages/RowsPage.tsx";
 import SourcesPage from "@/pages/SourcesPage.tsx";
 import {
+  BOARDS_PATH,
   CALLER_PATH,
   DATASETS_PATH,
   DRAFT_PATH,
@@ -41,6 +43,7 @@ export const ROUTES: RouteObject[] = [
       { path: SOURCES_PATH.slice(1), element: <SourcesPage /> },
       { path: DATASETS_PATH.slice(1), element: <DatasetsPage /> },
       { path: ROWS_PATH.slice(1), element: <RowsPage /> },
+      { path: BOARDS_PATH.slice(1), element: <BoardsPage /> },
       { path: DRAFT_PATH.slice(1), element: <DraftPage /> },
       { path: CALLER_PATH.slice(1), element: <CallerPage /> },
       { path: "*", element: <Navigate to={SOURCES_PATH} replace /> },

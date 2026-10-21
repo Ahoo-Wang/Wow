@@ -510,6 +510,7 @@ public final class me/ahoo/wow/spring/boot/WowProperties {
 	public final fun getSchedules ()Ljava/util/Map;
 	public final fun getService ()Ljava/lang/String;
 	public final fun getSnapshot ()Lme/ahoo/wow/spring/boot/WowProperties$Snapshot;
+	public final fun getStandby ()Z
 	public final fun getStateCache ()Lme/ahoo/wow/spring/boot/WowProperties$StateCache;
 	public final fun getStateViews ()Lme/ahoo/wow/spring/boot/WowProperties$StateViews;
 	public final fun getStores ()Ljava/util/Map;
@@ -539,6 +540,7 @@ public final class me/ahoo/wow/spring/boot/WowProperties {
 	public final fun setSchedules (Ljava/util/Map;)V
 	public final fun setService (Ljava/lang/String;)V
 	public final fun setSnapshot (Lme/ahoo/wow/spring/boot/WowProperties$Snapshot;)V
+	public final fun setStandby (Z)V
 	public final fun setStateCache (Lme/ahoo/wow/spring/boot/WowProperties$StateCache;)V
 	public final fun setStateViews (Lme/ahoo/wow/spring/boot/WowProperties$StateViews;)V
 	public final fun setStores (Ljava/util/Map;)V
@@ -869,12 +871,16 @@ public final class me/ahoo/wow/spring/boot/WowProperties$HealthTopics {
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Http {
 	public fun <init> ()V
+	public final fun getClientFacts ()Z
 	public final fun getErrors ()Ljava/util/Map;
+	public final fun getGlobalErrors ()Z
 	public final fun getManifest ()Lme/ahoo/wow/spring/boot/WowProperties$Http$Manifest;
 	public final fun getOpenapi ()Lme/ahoo/wow/spring/boot/WowProperties$Http$OpenApi;
 	public final fun getRequestFacts ()Ljava/util/Set;
 	public final fun getServices ()Ljava/util/Map;
+	public final fun setClientFacts (Z)V
 	public final fun setErrors (Ljava/util/Map;)V
+	public final fun setGlobalErrors (Z)V
 	public final fun setManifest (Lme/ahoo/wow/spring/boot/WowProperties$Http$Manifest;)V
 	public final fun setOpenapi (Lme/ahoo/wow/spring/boot/WowProperties$Http$OpenApi;)V
 	public final fun setRequestFacts (Ljava/util/Set;)V
@@ -1087,9 +1093,9 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Snapshot {
 
 public final class me/ahoo/wow/spring/boot/WowProperties$StateCache {
 	public fun <init> ()V
-	public final fun getCapacity ()I
+	public final fun getCapacity ()Ljava/lang/Integer;
 	public final fun getRecentRequests ()I
-	public final fun setCapacity (I)V
+	public final fun setCapacity (Ljava/lang/Integer;)V
 	public final fun setRecentRequests (I)V
 }
 

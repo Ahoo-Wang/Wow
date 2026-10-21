@@ -40,9 +40,14 @@ import kotlin.time.Duration
  * before the command has a ref: `wow.wait.invalid` for the wait, `wow.command.malformed` for the others.
  *
  * [publicPort] is whether the requests come to the public port, the one port whose commands carry the client's address
- * and `User-Agent` ([facts]): on the internal port the peer is a service of the cluster, not the client.
+ * and `User-Agent` ([facts]), unless [clientFacts] is off (decision D267 ⑯): on the internal port the peer is a service
+ * of the cluster, not the client.
  */
-internal class RequestHeaders(private val statuses: ErrorStatuses, private val publicPort: Boolean = false) {
+internal class RequestHeaders(
+    private val statuses: ErrorStatuses,
+    private val publicPort: Boolean = false,
+    private val clientFacts: Boolean = true,
+) {
     /**
      * The wait plan of `Wow-Wait` and `Wow-Wait-Timeout`; null when neither is given (the default plan, D69, within the
      * node's default timeout). A plan given without a timeout waits [defaultTimeout], the node's.
@@ -181,7 +186,7 @@ internal class RequestHeaders(private val statuses: ErrorStatuses, private val p
             .toMap()
         val standard = buildMap {
             caller.app?.let { put(RequestFacts.APP_ID, it.trim()) }
-            if (publicPort) {
+            if (publicPort && clientFacts) {
                 request.header(HttpHeaders.USER_AGENT)?.takeIf { it.isNotEmpty() }
                     ?.let { put(RequestFacts.USER_AGENT, it) }
                 request.remoteAddress().ifPresent { remote ->
