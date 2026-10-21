@@ -162,6 +162,9 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             items: [
                 {text: 'Write an Aggregate', link: 'aggregates'},
                 {text: 'Rejections and Error Codes', link: 'rejections'},
+                {text: 'Evolve Events', link: 'event-evolution'},
+                {text: 'Owners, Spaces and Tags', link: 'ownership'},
+                {text: 'Unique Keys', link: 'unique-keys'},
             ],
         },
         {
