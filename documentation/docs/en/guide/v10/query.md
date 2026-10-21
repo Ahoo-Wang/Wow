@@ -325,6 +325,8 @@ Each violation of the problem's `violations` has a `path` (the JSON path in the 
 
 `wow-query-api` holds a Kotlin DSL (`me.ahoo.wow.api.query.dsl`) that builds the same query objects as the JSON: a query built with it is the query its JSON reads as, so in-process callers (`QueryGateway`) and HTTP clients send one language.
 
+<!-- sample: fragment -->
+
 ```kotlin
 import me.ahoo.wow.api.query.dsl.pagedQuery
 
