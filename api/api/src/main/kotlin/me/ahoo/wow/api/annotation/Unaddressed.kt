@@ -16,7 +16,7 @@ package me.ahoo.wow.api.annotation
 import java.lang.annotation.Inherited
 
 /**
- * A command whose request may name no aggregate (V10, decision D182): a `CommandTransformer` of the service finds the
+ * A command whose request may name no aggregate (decision D182): a `CommandTransformer` of the service finds the
  * aggregate it acts on, such as one whose id the server derives from the caller and the body. The Manifest lists its
  * route without an aggregate id (`POST /{context}/{aggregate}/{command}`) beside the one with, as it does for a command
  * that creates its aggregate, so the clients generated from it have both. Without a transformer that finds an

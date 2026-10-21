@@ -106,7 +106,7 @@ dependencies {
 | `CommandAuthorizer` | 决定调用方能否向某个聚合发送命令 |
 | `CommandTransformer`、`CommandValidator` | 在命令被决定之前改写或检查它 |
 | `GlobalIdGenerator`、`AggregateIdGenerator` | 生成请求 ID 和聚合 ID；按类型由 `wow.aggregates.[<context>.<aggregate>].id-generator` 指定 |
-| `FailureClassifier` | 为订阅处理函数的失败分类（[订阅、失败与重放](../concepts/subscriptions#failures-park-one-aggregate)） |
+| `FailureClassifier` | 为订阅处理函数的失败分类（[失败与重试](./failures)） |
 | `ServiceCredential` | 同步调用或类型化客户端向另一个服务出示的凭据 |
 | Bean Validation 实现 | 检查命令体的约束（[拒绝与错误码](./rejections#codes-the-framework-rejects-with)） |
 

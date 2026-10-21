@@ -32,7 +32,7 @@ import tools.jackson.databind.node.ObjectNode
  * application, a keyset page of [PAGE] at a time, each read only for its id, its title and its config (the schema
  * projects nothing deeper in it), whose panels' references are then matched here (review A3-18: no dashboard past a
  * bound is missed, and a claim holds one page of configs in memory, never every dashboard's). 9.x matched the panels
- * in the query; the V10 query protocol has no element match into a free-form config, so the panels are read instead.
+ * in the query; the query protocol has no element match into a free-form config, so the panels are read instead.
  *
  * The dashboards are read as trusted code, the view store's own: a claim checks every shared dashboard of the tenant,
  * whoever claims. A node whose backend serves no snapshot query (the memory backend, by default) knows of no

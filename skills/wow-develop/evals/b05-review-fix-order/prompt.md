@@ -6,7 +6,7 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-审查并修复下游应用 diff 中的合并阻塞问题；先完成 findings，再补回归测试、修复并复审新 diff。
+审查并修复下游应用 diff 中的合并阻塞问题；先完成 findings，再补回归测试、修复并复审新 diff。在回答里给出代码和命令。
 
 Files from the user's project, shown inline:
 

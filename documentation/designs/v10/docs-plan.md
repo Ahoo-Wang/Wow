@@ -137,18 +137,18 @@
 | 页 | 标题 | 范围 | 来源 | 代码 | 大小 | 时机 | 优先级 |
 |---|---|---|---|---|---|---|---|
 | operate/index | Running Wow | 地图，一页上线检查清单 | — | — | S | F | P0 |
-| operate/topology | Deployment model | 同一集群、节点、内部端口、Kafka 用在哪里、一个服务需要哪些组件 | 00 §1；D35、D226、D89 | `deploy/v10` | M | S | P0 |
+| operate/topology | Deployment model | 同一集群、节点、内部端口、Kafka 用在哪里、一个服务需要哪些组件 | 00 §1；D35、D226、D89 | `deploy` | M | S | P0 |
 | operate/postgresql | PostgreSQL | 表与布局、按聚合配置存储、只读 DataSource、连接池 | 03 §2；D10、D27；R3-B | `backends/postgres` | M | L（R3-A） | P0 |
 | operate/mongodb | MongoDB | 同上 | D11 | `backends/mongo` | M | L（R3-A） | P0 |
 | operate/kafka | Kafka | Kafka Router、主题管理、跨上下文传输、信封 | D31、D33、D132；6.3g、6.5 | `backends/kafka` | M | S | P0 |
 | operate/clickhouse | ClickHouse | 数仓 Sink、`wow_catalog`、数据集的数据面 | D18、D142、D241 | `backends/clickhouse` | M | L（7.2b） | P1 |
 | operate/elasticsearch | Elasticsearch | 快照、查询、事件检索 Sink | D13、D131；6.7 | `backends/elasticsearch` | M | L（6.7） | P1 |
-| operate/kubernetes | Kubernetes | 清单、探针、优雅关闭、伸缩 | guide/v10/deployment；R3-H | `deploy/v10/*` | M | L（R3-H） | P0 |
+| operate/kubernetes | Kubernetes | 清单、探针、优雅关闭、伸缩 | guide/v10/deployment；R3-H | `deploy/*` | M | L（R3-H） | P0 |
 | operate/configuration | Configure a service | 配置怎么生效、严格前缀与未知键、profile；所有键见参考 | `ConfigurationKeys` | `host/spring-boot` | S | F | P0 |
 | operate/observability | Health, metrics and tracing | Actuator 的 `wow` 健康组、readiness 与 liveness、OpenTelemetry 指标与 span、要报警的指标 | 6.9；D174；R3-H | `edge/opentelemetry` | M | L（R3-H） | P0 |
 | operate/scaling | Scaling and capacity | 节点数、分区数 P 与槽位、亲和路由、查询舱壁与动态上限、背压 | D240、D246、D247、D252、D263；PS-1 | — | M | L（R3-B3） | P1 |
 | operate/security | Secure a deployment | 内部端口认证、集群令牌、CoSec 策略、事件里的个人数据、单一租户空间 | D226、D232；guide/v10/deployment | `edge/cosec` | M | S | P0 |
-| operate/ops-console | The ops service and console | 部署 ops 服务与控制台、停放条目的队列、恢复与跳过、webhook、角色 | 7.1a～c | `platform/ops`、`deploy/v10/ops` | M | S | P0 |
+| operate/ops-console | The ops service and console | 部署 ops 服务与控制台、停放条目的队列、恢复与跳过、webhook、角色 | 7.1a～c | `platform/ops`、`deploy/ops` | M | S | P0 |
 | operate/replay | Rebuild and replay | 重置检查点、重建读模型与快照（D172）、回填、backfill-tags | 04 §3；D54、D172 | `migration/migrate-data`（backfill） | M | F | P1 |
 | operate/upgrades | Upgrade a deployment | 同一主版本内滚动升级（D48）、格式版本（D59）、状态 schema 变化后的重建、Manifest 基线 | D48、D59、D172 | — | M | F | P1 |
 | operate/backup | Backup and recovery | 日志是唯一事实、其余都能重建；备份什么、怎么恢复 | 00 §8 | — | S | F | P2 |
@@ -521,7 +521,7 @@ AGENTS.md 里所有指向旧文档页的链接，由 DI-1 一并改掉。
 - `documentation/test/{markdown-pages,typescript-samples,storybook-links}.test.mjs`、`docs/.vitepress/storybook-links.mjs`。
 - `typescript/wow-view-engine/test/referenceDocs.test.ts`、`themeGuide.test.ts`、`fixtures/themeDocs.ts`、`scripts/symbol-index.mjs`（引用文档路径）。
 - 各包 README（wow-client、wow-react、wow-view-store、wow-view-engine、wow-generator，中英文）、`typescript/storybook/README.md`、`typescript/RELEASE_NOTES_TEMPLATE.md`。
-- `example/eshop/README.md`、`DX-GAPS.md`、`deploy/v10/eshop-ordering/README.md`、`skills/wow-view-host/references/wiring.md`、`build.gradle.kts`（含站点 URL 的那一处）。
+- `example/eshop/README.md`、`DX-GAPS.md`、`deploy/eshop-ordering/README.md`、`skills/wow-view-host/references/wiring.md`、`build.gradle.kts`（含站点 URL 的那一处）。
 - `documentation/designs/v10/{README,progress}.md` 里提到 `guide/v10` 的地方改成新路径。
 
 ---

@@ -1,6 +1,6 @@
 description = "Wow models: shared capability interfaces, EnumText and the reusable Tree aggregate (decision D187)"
 
-// The V10 port of 9.x wow-models (work package P.8): the same packages, on the V10 wow-api only. The Tree aggregate's
+// The port of 9.x wow-models (work package P.8): the same packages, on the 10.x wow-api only. The Tree aggregate's
 // handlers live in its superclasses; a domain's subclass binds them when the compiler processes the domain. The tests
 // do that with a sample tree: KSP with :compiler compiles it as the Gradle plugin `me.ahoo.wow` would.
 plugins {

@@ -28,8 +28,8 @@ test('prose loses the design records’ references, and a KDoc link reads as cod
     'The backend: `auto` takes `AggregateRoot` or `wow.x.[a.b]`.',
   );
   assert.equal(
-    plain('An event handler (V10, decision D67): it takes one.'),
-    'An event handler: it takes one.',
+    plain('An event log (axiom A1): it takes one.'),
+    'An event log: it takes one.',
   );
   assert.equal(
     plain('Keep (the default) as it is.'),

@@ -15,7 +15,7 @@ package me.ahoo.wow.api.annotation
 
 import java.lang.annotation.Inherited
 
-/** A command that creates its aggregate (V10): it is accepted only while the aggregate does not exist yet. */
+/** A command that creates its aggregate: it is accepted only while the aggregate does not exist yet. */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @MustBeDocumented

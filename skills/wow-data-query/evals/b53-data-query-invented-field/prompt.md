@@ -6,7 +6,7 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-查一下 dev 环境里购物车服务中 customerLevel 为 VIP 的购物车有多少个。
+查一下 dev 环境里购物车服务中 customerLevel 为 VIP 的购物车有多少个。在回答里给出代码和命令。
 
 Files from the user's project, shown inline:
 

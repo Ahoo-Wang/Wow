@@ -41,7 +41,7 @@ import tools.jackson.databind.node.ObjectNode
 
 /**
  * The gateway answers the records a backend returns as JSON trees, unchanged: 9.x materialized typed snapshots and
- * event streams here; V10 returns [ObjectNode] rows only, and has no event stream model yet.
+ * event streams here; 10.x returns [ObjectNode] rows only, and has no event stream model yet.
  */
 class QueryGatewayContractTest {
     private val gateway = DefaultQueryGateway(

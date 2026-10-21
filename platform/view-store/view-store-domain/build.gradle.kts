@@ -1,4 +1,4 @@
-description = "Wow V10 view store: the view, view preferences and dataset wording aggregates (roadmap 7.2a)"
+description = "Wow view store: the view, view preferences and dataset wording aggregates (roadmap 7.2a)"
 
 // The 9.x view store's domain (view-store/wow-view-store-domain), ported with the migration Skill (roadmap M7, H5).
 // KSP with :compiler compiles the aggregates and the saga into kernel models, their binding index and the module's

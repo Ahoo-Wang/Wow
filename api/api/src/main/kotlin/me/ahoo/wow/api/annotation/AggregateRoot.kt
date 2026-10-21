@@ -23,7 +23,7 @@ import java.lang.annotation.Inherited
 import kotlin.reflect.KClass
 
 /**
- * An aggregate root (V10, design 01 §3): the compiler turns it into an aggregate model, with its command functions
+ * An aggregate root (design 01 §3): the compiler turns it into an aggregate model, with its command functions
  * ([OnCommand] or named `onCommand`), its state's sourcing functions ([OnSourcing] or named `onSourcing`) and its
  * [AfterCommand] hooks. The aggregate is named by its [Name], or by its simple name in `snake_case`.
  *

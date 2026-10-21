@@ -104,7 +104,7 @@ fun JacocoReport.useCoverageData(
 /**
  * Names every source file of the JaCoCo report [xml] by its path in the repository, so Codecov maps each to the one
  * file it is. JaCoCo names a source file by its package, `<package>/<file>`, and Codecov resolves that path against
- * the repository's files; the V10 modules keep the packages and file names of 9.x ones (`me.ahoo.wow.api.query`,
+ * the repository's files; the modules keep the packages and file names of 9.x ones (`me.ahoo.wow.api.query`,
  * `me.ahoo.wow.query`, `me.ahoo.wow.clickhouse.query`, ...), so such a path names a file of each, and Codecov counted
  * the lines of one on the other. Here each source file moves, with its classes, into a package named after the source
  * root of the module whose class files hold its classes (`query/query/src/main/kotlin/me/ahoo/wow/query`); a class is

@@ -23,7 +23,7 @@ import org.springframework.boot.runApplication
  *
  * - each service publishes its ledger (`wow.ops.publish.enabled`) to `wow.ops.commands`, which the node's command
  *   intake records on the entry's `parked` aggregate (the `kafka` profile);
- * - an operator reads the entries through the V10 query routes, their snapshots being the read model
+ * - an operator reads the entries through the query routes, their snapshots being the read model
  *   (`POST /ops/parked/snapshot/query`, `GET /ops/parked/{id}/state`), on a backend that serves snapshot queries
  *   (the `postgres` profile, [PostgresDataSource]);
  * - an operator's Resume, Skip, MarkRecoverable and ApplyRetrySpec (`POST /ops/parked/{id}/resume`, ...) are
