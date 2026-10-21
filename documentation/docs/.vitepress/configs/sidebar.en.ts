@@ -168,6 +168,18 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             ],
         },
     ],
+    '/migrate/': [
+        {
+            base: '/migrate/',
+            text: 'Migrate from 9.x',
+            items: [
+                {text: 'Migrating from 9.x', link: 'index.html'},
+                {text: '9.x Capabilities in V10', link: 'capabilities'},
+                {text: 'Migrate the Data', link: 'data'},
+                {text: 'migrate-data CLI', base: '/reference/', link: 'migrate-data'},
+            ],
+        },
+    ],
     '/guide/': [
         {
             base: '/guide/',
@@ -202,6 +214,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             items: [
                 {text: 'Glossary', link: 'glossary'},
                 {text: 'Wire Protocols', link: 'protocols'},
+                {text: 'migrate-data CLI', link: 'migrate-data'},
                 {text: 'Configuration Keys', link: 'configuration'},
                 {text: 'Error Codes', link: 'error-codes'},
                 {text: 'Annotations', link: 'annotations'},

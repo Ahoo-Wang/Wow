@@ -67,6 +67,7 @@ export const REDIRECTS = {
     '/guide/domain/snapshot': '/concepts/read-models',
     '/guide/extensions/cosec': '/concepts/identity',
     '/guide/event/compensation': '/operate/ops-console',
+    '/guide/migration': '/migrate/',
     '/onboarding/': '/',
 }
 

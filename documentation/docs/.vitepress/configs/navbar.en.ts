@@ -37,6 +37,7 @@ export const navbarEn: DefaultTheme.NavItem[] = [
             },
         ],
     },
+    {text: 'Migrate', link: '/migrate/', activeMatch: '/migrate/'},
     {text: 'Concepts', link: '/concepts/', activeMatch: '/concepts/'},
     {
         text: 'Operate',
@@ -53,6 +54,7 @@ export const navbarEn: DefaultTheme.NavItem[] = [
         items: [
             {text: 'Glossary', link: '/reference/glossary'},
             {text: 'Wire Protocols', link: '/reference/protocols'},
+            {text: 'migrate-data CLI', link: '/reference/migrate-data'},
             {text: 'Configuration Keys', link: '/reference/configuration'},
             {text: 'Error Codes', link: '/reference/error-codes'},
             {text: 'Annotations', link: '/reference/annotations'},
