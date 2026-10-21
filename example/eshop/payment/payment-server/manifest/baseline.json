@@ -290,6 +290,10 @@
     "status" : 503,
     "description" : "The node is shutting down; retry on another node."
   }, {
+    "code" : "wow.node.standby",
+    "status" : 503,
+    "description" : "The node is on standby until the cut-over: it serves reads only."
+  }, {
     "code" : "wow.storage.unavailable",
     "status" : 503,
     "description" : "A store could not be reached or did not answer in time; retry later, a command with the same request id."

@@ -22,6 +22,7 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
+import me.ahoo.wow.kernel.FirstCommit
 import me.ahoo.wow.runtime.Stripes
 import me.ahoo.wow.spi.log.EventStreamRecord
 import java.util.TreeMap
@@ -49,6 +50,8 @@ class SerializedState(
     val deleted: Boolean = false,
     val tags: Map<String, List<String>> = emptyMap(),
     val schedules: Map<String, ScheduleRule> = emptyMap(),
+    /** What the aggregate's first stream recorded, when the kernel knew it (work package B.O-4). */
+    val first: FirstCommit? = null,
 ) {
     init {
         require(version >= 1) { "A committed state has a version from 1." }
@@ -167,6 +170,7 @@ class StateViews(
             state.deleted,
             state.tags,
             state.schedules,
+            state.first,
         )
         Stripes.pick(stripes, stream.ref).expect(stream.ref, Pending(stream, view))
     }
@@ -189,6 +193,7 @@ class StateViews(
                 committed.deleted,
                 committed.tags,
                 committed.schedules,
+                committed.first,
             )
         stripe.commit(stream.ref, view, readersOf.getValue(model.type))
     }

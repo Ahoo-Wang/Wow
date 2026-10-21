@@ -31,13 +31,17 @@ import kotlin.concurrent.withLock
  * then least recently used within a stripe; a cache smaller than two stripes' minimum is one exact LRU.
  */
 @InternalWowApi
-class LruStateCache(private val capacity: Int) : StateCache {
+class LruStateCache(
+    private val capacity: Int,
+    /** Called for each state evicted to make room, from the putting thread: a metric hook (work package B.O-4). */
+    private val evicted: () -> Unit = {},
+) : StateCache {
     init {
         require(capacity >= 1) { "A state cache holds at least one state." }
     }
 
     private val stripes: Array<Stripe> = Stripes.of(capacity).let { count ->
-        Array(count) { index -> Stripe(Stripes.share(capacity, count, index)) }
+        Array(count) { index -> Stripe(Stripes.share(capacity, count, index), evicted) }
     }
 
     val size: Int get() = stripes.sumOf { it.size }
@@ -52,11 +56,11 @@ class LruStateCache(private val capacity: Int) : StateCache {
         stripes.forEach { stripe -> stripe.removeIf { Partitioner.partitionOf(it, partitions) == partition } }
     }
 
-    private class Stripe(private val capacity: Int) {
+    private class Stripe(private val capacity: Int, private val evicted: () -> Unit) {
         private val lock = ReentrantLock()
         private val states = object : LinkedHashMap<AggregateRef, CachedState>(INITIAL, LOAD_FACTOR, true) {
             override fun removeEldestEntry(eldest: MutableMap.MutableEntry<AggregateRef, CachedState>): Boolean =
-                size > capacity
+                (size > capacity).also { if (it) evicted() }
         }
 
         val size: Int get() = lock.withLock { states.size }

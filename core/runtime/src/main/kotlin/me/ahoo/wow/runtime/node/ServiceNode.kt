@@ -39,12 +39,14 @@ import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.StateCache
+import me.ahoo.wow.kernel.StateCacheOutcome
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.kernel.schedule.ScheduleJobModel
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.LruStateCache
+import me.ahoo.wow.runtime.StateCacheSizing
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.CreationIds
@@ -536,6 +538,14 @@ class ServiceNode @InternalWowApi constructor(
     /** The node's one firing loop of every context's timers (decision D198). */
     @InternalWowApi
     val timerLoop: TimerLoop = TimerLoop(options.timers, clock)
+
+    /**
+     * The aggregate states each context's cache keeps (work package B.O-4): the configured capacity, else sized from
+     * the heap over the contexts the node serves ([StateCacheSizing]).
+     */
+    @InternalWowApi
+    val stateCacheCapacity: Int = options.stateCacheCapacity
+        ?: StateCacheSizing.capacity(served.map { it.type.context }.distinct().size.coerceAtLeast(1), options.recentRequests)
 
     private val parts: List<Parts> = served.groupBy { it.type.context }.map { (context, contextModels) ->
         assemble(context, contextModels, opened.getValue(context), codec, subscriptions)
@@ -1077,6 +1087,13 @@ class ServiceNode @InternalWowApi constructor(
             )
         }
 
+    /** The state cache of [context]'s kernel, of [stateCacheCapacity] states, each eviction observed. */
+    private fun stateCacheOf(context: String): StateCache = if (stateCacheCapacity > 0) {
+        LruStateCache(stateCacheCapacity) { observer.stateCache(context, StateCacheOutcome.EVICTED) }
+    } else {
+        StateCache.None
+    }
+
     private fun assemble(
         context: String,
         models: List<AggregateModel<*>>,
@@ -1089,7 +1106,7 @@ class ServiceNode @InternalWowApi constructor(
         val routed = routedLog(groups)
         val log = PartitionAppendQueue(routed, options.appendQueue, capacity = options.maxInFlight)
         val names = ContextCommandTypes(models, contracts)
-        val states = if (options.stateCacheCapacity > 0) LruStateCache(options.stateCacheCapacity) else StateCache.None
+        val states = stateCacheOf(context)
         val kernel = kernelOf(log, backends, codec, names, states)
         val snaps = nodeSnapshots.assembly(context, models, backends, kernel, routed, codec)
         val views = StateViews(codec, stateReaders(context, models, snaps.readers, application), options.stateViews)
