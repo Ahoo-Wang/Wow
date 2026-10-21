@@ -136,9 +136,12 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             base: '/operate/',
             text: 'Operate',
             items: [
+                {text: 'Running Wow', link: 'index.html'},
                 {text: 'Deployment Model', link: 'topology'},
-                {text: 'Secure a Deployment', link: 'security'},
+                {text: 'Configure a Service', link: 'configuration'},
+                {text: 'PostgreSQL', link: 'postgresql'},
                 {text: 'Kafka', link: 'kafka'},
+                {text: 'Secure a Deployment', link: 'security'},
                 {text: 'The Ops Service and Console', link: 'ops-console'},
             ],
         },
@@ -162,6 +165,9 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             items: [
                 {text: 'Write an Aggregate', link: 'aggregates'},
                 {text: 'Rejections and Error Codes', link: 'rejections'},
+                {text: 'Evolve Events', link: 'event-evolution'},
+                {text: 'Owners, Spaces and Tags', link: 'ownership'},
+                {text: 'Unique Keys', link: 'unique-keys'},
             ],
         },
         {
@@ -169,6 +175,9 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             text: 'Processes',
             items: [
                 {text: 'Write a Saga', link: 'sagas'},
+                {text: 'Projections and Reactors', link: 'projections'},
+                {text: 'Scheduled Commands', link: 'scheduling'},
+                {text: 'Failures and Retries', link: 'failures'},
             ],
         },
         {
@@ -184,6 +193,15 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             text: 'Test',
             items: [
                 {text: 'Test Domain Code', link: 'testing'},
+                {text: 'Test a Service', link: 'testing-services'},
+            ],
+        },
+        {
+            base: '/guide/',
+            text: 'Host',
+            items: [
+                {text: 'Host on Spring Boot', link: 'spring-boot'},
+                {text: 'Write the Domain in Java', link: 'java'},
             ],
         },
     ],

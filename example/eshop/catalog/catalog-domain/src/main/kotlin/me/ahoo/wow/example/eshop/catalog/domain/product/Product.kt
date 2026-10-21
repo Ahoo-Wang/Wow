@@ -32,6 +32,7 @@ import me.ahoo.wow.example.eshop.catalog.api.product.PublishProduct
 import me.ahoo.wow.example.eshop.catalog.api.product.UpdateProduct
 import java.math.BigDecimal
 
+// region root
 /**
  * A product of the catalog: a draft until it is published on the storefront, which takes a brand and a category; it
  * can be delisted and published again. Its name, description, brand, category and price change at any time.
@@ -43,6 +44,7 @@ import java.math.BigDecimal
 @AggregateRoot(ownership = Ownership.TENANT)
 @Description("A product of the catalog")
 class Product(private val state: ProductState) {
+// endregion
     @OnCommand(produces = [ProductCreated::class])
     fun onCommand(command: CreateProduct): Decision =
         invalid(command.name) ?: invalid(command.price) ?: Decision.events(

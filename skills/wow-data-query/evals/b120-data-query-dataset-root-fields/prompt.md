@@ -10,7 +10,7 @@ dev 环境的 Wow 服务有一个数据集 analytics.order_wide（订单 × 客�
 
 Files from the user's project, shown inline:
 
-`order-wide-descriptor.json` (from `GET /dataset/analytics/order_wide/schema`):
+`order-wide-descriptor.json` (from `GET /wow/dataset/analytics/order_wide/query`):
 
 ```json
 {

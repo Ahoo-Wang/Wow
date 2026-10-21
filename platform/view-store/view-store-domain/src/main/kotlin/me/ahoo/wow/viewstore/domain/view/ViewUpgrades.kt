@@ -19,6 +19,7 @@ import me.ahoo.wow.viewstore.api.view.ViewCreated
 import me.ahoo.wow.viewstore.api.view.ViewSaved
 import tools.jackson.databind.node.ObjectNode
 
+// region upgrades
 /**
  * The 9.x records of a view, read as revision 2 (decision D267): 9.x recorded no `kind`, which it defined as the
  * config's own `kind` (its `ViewKind`), so the upgrade takes it from there. A 9.x config without a kind, or with one
@@ -46,3 +47,4 @@ object ViewUpgrades {
     private const val CONFIG = "config"
     private const val KIND = "kind"
 }
+// endregion
