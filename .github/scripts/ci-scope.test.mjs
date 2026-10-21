@@ -697,7 +697,9 @@ test("a library's own tests, goldens and scripts rerun only that package", () =>
 test('the unit matrix reruns a package and the packages built on it', () => {
   const every = ['wow-client', 'wow-react', 'wow-generator', 'wow-view-store'];
   // The client's sources reach the hooks, the generator and the view store,
-  // which import its dist; theirs reach only themselves.
+  // which import its dist; the generator's reach the view store too, whose
+  // generated client is held to what it writes; the others' reach only
+  // themselves.
   assert.deepEqual(unitPackages(['typescript/wow-client/src/index.ts']), every);
   assert.deepEqual(unitPackages(['typescript/wow-client/package.json']), every);
   assert.deepEqual(unitPackages(['typescript/wow-react/src/index.ts']), [
@@ -705,6 +707,7 @@ test('the unit matrix reruns a package and the packages built on it', () => {
   ]);
   assert.deepEqual(unitPackages(['typescript/wow-generator/src/cli.ts']), [
     'wow-generator',
+    'wow-view-store',
   ]);
   assert.deepEqual(
     unitPackages(['typescript/wow-view-store/src/wowViewStore.ts']),
@@ -779,4 +782,71 @@ test('a path inside a published package runs the Package job without the unit ma
     'documentation/docs/en/index.md',
   ])
     assert.ok(!scopes([path]).package, path);
+});
+
+// A test that reads a file outside its package (a service's Manifest baseline,
+// a Kotlin source it is held to, another package's build) must run when that
+// file changes: #4715 changed the view store's baseline, and wow-view-store's
+// generated-client test, which the change never ran, broke on v10. Each
+// consumer's test files are scanned for the repository paths they name.
+test('every source a TypeScript test reads selects its job', () => {
+  const root = new URL('../../', import.meta.url).pathname;
+  const tracked = new Set(
+    execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' })
+      .split('\n')
+      .filter(Boolean),
+  );
+  const unit = name => path => unitPackages([path]).includes(name);
+  const consumers = [
+    ['typescript/wow-client', unit('wow-client')],
+    ['typescript/wow-react', unit('wow-react')],
+    ['typescript/wow-generator', unit('wow-generator')],
+    ['typescript/wow-view-store', unit('wow-view-store')],
+    ['typescript/wow-view-engine', path => scopes([path]).viewEngine],
+    ['platform/ops/console', path => scopes([path]).opsConsole],
+    [
+      'platform/analytics/catalog/console',
+      path => scopes([path]).catalogConsole,
+    ],
+    ['example/eshop/web', path => scopes([path]).jvm || scopes([path]).sdk],
+  ];
+  const TOP =
+    /^(?:api|core|query|backends|edge|host|extensions|migration|platform|example|typescript|test|documentation)\//;
+  const LITERAL = /['"`]([^'"`\n$]+\.[a-z]{2,5})['"`]/g;
+  const TEST = /(?:^|\/)(?:test|e2e)\/|\.test\.[cm]?[jt]sx?$/;
+  const problems = [];
+  let reads = 0;
+  for (const [dir, runs] of consumers) {
+    const files = [...tracked].filter(
+      file =>
+        file.startsWith(`${dir}/`) &&
+        TEST.test(file) &&
+        /\.[cm]?[jt]sx?$/.test(file) &&
+        !file.includes('/src/generated/'),
+    );
+    for (const file of files) {
+      // Code only: a comment naming a path reads nothing.
+      const source = readFileSync(join(root, file), 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/(^|[^:])\/\/.*$/gm, '$1');
+      for (const [, literal] of source.matchAll(LITERAL)) {
+        let path = literal.startsWith('.')
+          ? join(file, '..', literal)
+          : TOP.test(literal)
+            ? literal
+            : undefined;
+        if (!path) continue;
+        // Another package's build: its sources.
+        path = path.replace(
+          /^(typescript\/[^/]+)\/dist\/.*/,
+          '$1/src/index.ts',
+        );
+        if (path.startsWith(`${dir}/`) || !tracked.has(path)) continue;
+        reads++;
+        if (!runs(path)) problems.push(`${file} reads ${path}`);
+      }
+    }
+  }
+  assert.ok(reads >= 5, `only ${reads} reads found; the scan broke`);
+  assert.deepEqual(problems, []);
 });
