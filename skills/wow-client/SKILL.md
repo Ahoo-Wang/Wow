@@ -23,6 +23,7 @@ The job: an application written in TypeScript has to send a Wow V10 service comm
 
 ## Rules that bite
 
+- **No checkout is no reason to stop.** When the project, the sources or a shell are not available (only a diff, a snippet or a description), still deliver: write the test, the fix or the code against what was shown, mark each name to confirm in the project, and give the commands to run and what they should show. Never answer with only a plan or a question.
 - **Exact numbers.** A Manifest field of a Kotlin `Long`, `BigInteger` or `BigDecimal` (format `int64`, `bigint`, `decimal`) is a `string` in the generated types, its digits as the server wrote them; the wire keeps JSON numbers. Generated clients read and write them exactly through `<Aggregate>Aggregate.textNumbers` (states, events, command bodies). Pass such a command field as a string (`unitPrice: '10.00'`) and compute with a decimal library, never `Number(...)`. A hand-written client passes `bodyNumbers` itself, or loses digits past 2^53.
 - **Time zones.** A relative-time filter (`today`, `recentDays`, `beforeToday`, …) without `zoneId` reads its calendar days in UTC on the server; pass `zoneId` (`'Asia/Shanghai'`) for a local day.
 - **Projected types.** A query written with a literal `projection: { include: [...] }` answers records narrowed to those paths; one built by a factory, or with an exclusion only, answers whole records.

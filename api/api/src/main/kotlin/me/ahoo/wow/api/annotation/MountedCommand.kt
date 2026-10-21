@@ -16,7 +16,7 @@ package me.ahoo.wow.api.annotation
 import java.lang.annotation.Inherited
 
 /**
- * A command mounted under an aggregate's routes that no aggregate decides (V10, decision D182): it has no `@OnCommand`,
+ * A command mounted under an aggregate's routes that no aggregate decides (decision D182): it has no `@OnCommand`,
  * and exactly one `CommandTransformer` of the service claims it, turning it into a command an aggregate decides, such
  * as an import that becomes the aggregate's creation command or an external callback in a provider's shape. The
  * Manifest lists it under [aggregate] as a mounted command, with its routes (with and without an aggregate id), and

@@ -25,7 +25,6 @@ export const LIMIT = 50
 
 /** Old path → path of its successor; both without `.html`, a trailing `/` for a directory's index. */
 export const REDIRECTS = {
-    '/guide/': '/start/quickstart',
     '/guide/introduction': '/',
     '/guide/getting-started': '/start/quickstart',
     '/guide/existing-project': '/start/existing-project',

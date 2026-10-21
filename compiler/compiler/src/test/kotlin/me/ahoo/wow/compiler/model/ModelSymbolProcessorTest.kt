@@ -208,7 +208,7 @@ class ModelSymbolProcessorTest {
     }
 
     @Test
-    fun `what V10 cannot bind fails the generation`() {
+    fun `what the processor cannot bind fails the generation`() {
         val unsupported = SourceFile.kotlin(
             "Order.kt",
             """
@@ -239,7 +239,7 @@ class ModelSymbolProcessorTest {
         result.messages.assert()
             .contains("takes me.ahoo.wow.api.command.CommandResultAccessor, a 9.x framework type")
             .contains(
-                "takes me.ahoo.wow.api.command.CommandMessage<sample.CancelOrder>: a V10 decide function takes the"
+                "takes me.ahoo.wow.api.command.CommandMessage<sample.CancelOrder>: a decide function takes the"
             )
     }
 

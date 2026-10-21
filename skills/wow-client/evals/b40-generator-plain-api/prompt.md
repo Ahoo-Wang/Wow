@@ -6,7 +6,7 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-Generate a type-safe TypeScript API client from this OpenAPI spec. Use the wow-generator CLI to generate the client code into a src/generated/petstore directory. The generated code should include proper TypeScript types and an API client class for the pets endpoints.
+Generate a type-safe TypeScript API client from this OpenAPI spec. Use the wow-generator CLI to generate the client code into a src/generated/petstore directory. The generated code should include proper TypeScript types and an API client class for the pets endpoints. Give the code and the commands in your answer.
 
 Files from the user's project, shown inline:
 

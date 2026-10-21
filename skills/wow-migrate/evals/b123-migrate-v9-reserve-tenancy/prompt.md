@@ -27,4 +27,4 @@ fun onCommand(command: CommandMessage<Register>, loginNames: LoginNamePrepareKey
     }
 ```
 
-两个 `PrepareKey` 都存在 9.x 的 MongoDB 里。团队计划把两处都改成 `scope.reserve("user.login-name", loginName)` 和 `scope.reserve("user.employee-no", employeeNo)`，并认为预留数据不用迁移。
+两个 `PrepareKey` 都存在 9.x 的 MongoDB 里。团队计划把两处都改成 `scope.reserve("user.login-name", loginName)` 和 `scope.reserve("user.employee-no", employeeNo)`，并认为预留数据不用迁移。在回答里给出代码和命令。

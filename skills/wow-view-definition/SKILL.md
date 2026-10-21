@@ -15,6 +15,8 @@ Every Wow V10 query model has one route, `/{context}/{aggregate}/{model}/query`,
 
 ## Before writing
 
+**No checkout is no reason to stop.** When the project, the sources or a shell are not available (only a diff, a snippet or a description), still deliver: write the test, the fix or the code against what was shown, mark each name to confirm in the project, and give the commands to run and what they should show. Never answer with only a plan or a question.
+
 1. **Get the descriptor, in this order:** a descriptor already committed beside the definitions; then a development or staging service, `GET` on the model's query route (a client: `describe()` on the generated `…SnapshotQueryClient` or `…EventQueryClient`, or on wow-client's `SnapshotQueryClient`). Reading a production service needs the user's explicit consent in this conversation; a production URL in config, docs or history is not consent. Credentials come from the environment; never ask for a token in chat or print one.
 2. **Commit what you read** as JSON beside the definition and name its `version` (the `ETag`) in a comment or the test, so a later descriptor shows its drift in review.
 3. **Read the scenario for the audience:** who opens the view, what they work through (record views), what they ask (analysis views), what they glance at (a board), what one record is called for them (`recordNoun`), and which languages the host serves.

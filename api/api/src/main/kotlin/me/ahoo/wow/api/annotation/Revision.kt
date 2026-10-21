@@ -14,7 +14,7 @@
 package me.ahoo.wow.api.annotation
 
 /**
- * The revision of a domain event's schema (V10, decisions D22 and D55). An event without it is at revision 1.
+ * The revision of a domain event's schema (decisions D22 and D55). An event without it is at revision 1.
  *
  * The log stores each event with the revision it was written at. When the event's structure changes in a way old
  * records do not fit, raise the revision and give an upgrade from each earlier revision to the next one: records of

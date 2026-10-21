@@ -21,7 +21,7 @@ import kotlin.time.Duration
  * [owner] holds [partition] for subscription group [group] until [expiresAt] (epoch milliseconds, exclusive).
  *
  * [epoch] counts the acquisitions of the partition: each time it changes hands, or its owner takes it back after it
- * expired or was released, the epoch is one more. V10 does not fence on it (decision D45); it shows handovers in
+ * expired or was released, the epoch is one more. Wow does not fence on it (decision D45); it shows handovers in
  * metrics and tests.
  *
  * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
@@ -105,7 +105,7 @@ class Member @InternalWowApi constructor(
  * node's fair share from the live [members], releases surplus leases and acquires free ones.
  *
  * The store's clock decides liveness. A backend that takes the time from each node, not from the database, relies on
- * the nodes' clock skew being small against the TTL. Since V10 does not fence (D45), a short overlap of two owners
+ * the nodes' clock skew being small against the TTL. Since Wow does not fence (D45), a short overlap of two owners
  * during a handover is only duplicate work, never a wrong result.
  */
 @WowSpi

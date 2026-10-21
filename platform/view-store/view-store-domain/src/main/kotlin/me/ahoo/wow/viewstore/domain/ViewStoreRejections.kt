@@ -16,8 +16,8 @@ package me.ahoo.wow.viewstore.domain
 import me.ahoo.wow.api.annotation.ErrorCode
 
 /**
- * The codes the view store rejects a command with: the 9.x `ViewStoreErrorCodes` as V10 rejections. A rule the 9.x
- * starter checked on the path (the scope ids, the closed routes) has no code: V10 takes the identity from the
+ * The codes the view store rejects a command with: the 9.x `ViewStoreErrorCodes` as 10.x rejections. A rule the 9.x
+ * starter checked on the path (the scope ids, the closed routes) has no code: 10.x takes the identity from the
  * principal, and its routes are the Manifest's.
  */
 object ViewStoreRejections {

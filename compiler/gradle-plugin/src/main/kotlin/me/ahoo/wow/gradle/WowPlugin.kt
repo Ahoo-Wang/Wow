@@ -48,15 +48,15 @@ import org.gradle.process.CommandLineArgumentProvider
 import java.util.Properties
 
 /**
- * `me.ahoo.wow`: builds a V10 domain module. It needs the Kotlin JVM plugin (`kotlin("jvm")`), also for a module of
+ * `me.ahoo.wow`: builds a domain module. It needs the Kotlin JVM plugin (`kotlin("jvm")`), also for a module of
  * Java sources only: KSP processes the module's Java sources within the Kotlin compilation, and the models it
  * generates are Kotlin. A module that applies this plugin without it fails to configure, naming the fix, instead of
- * building without models (decision D229 G-8). V10 builds with Gradle only (decision D239 ②). Once the Kotlin JVM
+ * building without models (decision D229 G-8). Wow builds with Gradle only (decision D239 ②). Once the Kotlin JVM
  * plugin is applied, it
  *
  * - applies KSP with `wow-compiler` (of the plugin's version, unless [WowExtension.addCompilerDependency] is false)
  *   in `generate` mode, so the module's aggregates compile into models and its Manifest fragment
- *   (`META-INF/wow/manifest/<project name>.json`, decision D74); only the V10 model processor runs, the 9.x ones
+ *   (`META-INF/wow/manifest/<project name>.json`, decision D74); only the model processor runs, the 9.x ones
  *   (`wow-metadata.json`, query helpers) are excluded;
  * - registers [GENERATE_FRAGMENT_TASK] ([GenerateManifestFragment]), which completes the fragment with the
  *   schemas Jackson introspection gives (decision D73); the completed fragment is part of the module's resources in
@@ -356,7 +356,7 @@ class WowPlugin : Plugin<Project> {
             ksp.arg(MODEL_OPTION, "generate")
             ksp.arg(MODULE_OPTION, project.name)
             ksp.arg(ContextArgument(extension.context))
-            // A V10 module is built by the model processor alone; the 9.x processors serve wow-core.
+            // A module is built by the model processor alone; the 9.x processors serve wow-core.
             NINE_X_PROCESSORS.forEach(ksp::excludeProcessor)
         }
         project.configurations.named(KSP_CONFIGURATION) { configuration ->

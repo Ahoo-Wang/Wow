@@ -98,7 +98,7 @@ wow:
 
 Its Kubernetes network policy lets anyone the cluster admits reach the HTTP port, and only the shop's own pods reach the internal port:
 
-<!-- sample: deploy/v10/eshop-ordering/networkpolicy.yaml -->
+<!-- sample: deploy/eshop-ordering/networkpolicy.yaml -->
 
 ```yaml
 # Decision D173: only the eShop's own pods reach the internal port (this service's nodes, and the services whose waits

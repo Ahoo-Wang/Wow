@@ -25,6 +25,8 @@ The job: someone asks a business question ("how many orders shipped late last we
 
 ## Workflow
 
+No reachable service is no reason to stop: give the exact request bodies and the commands that send them (`curl` with the token from the environment), say what each answers, and state that no number was read. Production still needs the user's consent first.
+
 1. Restate the question as a query plan in business terms: which model (and aggregate or dataset), which records, which measure, which breakdown, which period and time zone. A question across aggregates is a dataset's if one serves it; never join two queries' results by hand.
 2. Map every field to a descriptor `path` (or one of its `aliases`). A field the descriptor does not list does not exist for querying; never invent one, say what is missing.
 3. Stay inside what the descriptor grants: the field's `filter.operators`, `sort.paged`/`sort.cursor`, `aggregate` groups and functions, `analysis`, `limits` and `constraints`. The same question can be fine on one backend and refused on another; the descriptor of this service is the authority.

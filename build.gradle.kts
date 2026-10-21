@@ -47,30 +47,30 @@ fun Project.testLogbackConfiguration(): String =
     "-Dlogback.configurationFile=${projectDir.toPath().relativize(rootProject.file("config/logback.xml").toPath())}"
 
 val dependenciesProject = project(":wow-dependencies")
-// The V10 BOM (`:bom` in bom/bom, artifact wow-bom per D87).
+// The BOM (`:bom` in bom/bom, artifact wow-bom per D87).
 val bomProject = project(":bom")
 val bomProjects = setOf(dependenciesProject, bomProject)
 
-// The V10 example, the eShop (D158, D159, D204): built and checked with the V10 modules, never published, and named
-// like an application's modules, without the `wow-` prefix of a V10 artifact. It is five contexts of an API, a domain
+// The example, the eShop (D158, D159, D204): built and checked with the modules, never published, and named
+// like an application's modules, without the `wow-` prefix of a published artifact. It is five contexts of an API, a domain
 // and a server each, and its end-to-end tests, :eshop-e2e.
 val eshopProjects = listOf("catalog", "basket", "ordering", "inventory", "payment").flatMap { context ->
     listOf("api", "domain", "server").map { "eshop-$context-$it" }
 } + "eshop-e2e"
-// The V10 quickstart (D217): the sample of documentation/docs/{en,zh}/start/quickstart.md, one module that is its
+// The quickstart (D217): the sample of documentation/docs/{en,zh}/start/quickstart.md, one module that is its
 // domain and its server, built and tested like the eShop, never published. The Java smoke test (D229 G-8): a domain
 // written in Java, built by the compiler and tested with the test DSL, never published.
 val exampleNames = eshopProjects + "quickstart" + "java-smoke"
 val exampleProjects = includedProjects(*exampleNames.map { ":$it" }.toTypedArray())
 
 val codeCoverageReportProject = project(":code-coverage-report")
-// The end-to-end architecture benchmark (decision D224, roadmap M7.5 B.0) under test/benchmarks/: the V10 benchmark
+// The end-to-end architecture benchmark (decision D224, roadmap M7.5 B.0) under test/benchmarks/: the benchmark
 // domain and server and the load generator (the 9.x twin runs from v10-9x-baseline, D262). Applications, like the
 // examples: never published, without an ABI dump, and left out of the coverage reports (code-coverage-report reads
-// `e2eBenchmarkProjects`). The V10 one builds and checks with the V10 modules (`:check`) as a user of them.
+// `e2eBenchmarkProjects`). The server builds and checks with the modules (`:check`) as a user of them.
 val e2eBenchmarkProjects = includedProjects(":benchmark-server", ":benchmark-load")
-// The V10 modules (documentation/designs/v10/06-modules.md). Every module builds on JDK 21 (decision D29); these stay
-// incubating until their API settles; :architecture (V10's dependency rules), :routing-spike (spike H2), :lease-spike
+// The modules (documentation/designs/v10/06-modules.md). Every module builds on JDK 21 (decision D29); these stay
+// incubating until their API settles; :architecture (Wow's dependency rules), :routing-spike (spike H2), :lease-spike
 // (spike H6) and the examples (:eshop-*, :quickstart, :java-smoke) are never published.
 val moduleProjects = listOf(
     "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query", "query-tck",
@@ -84,7 +84,7 @@ val moduleProjects = listOf(
     "routing-spike", "lease-spike", "benchmark-server",
 ).plus(exampleNames).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
 
-// The V10 modules a 10.x release publishes (06-modules.md §6; R.1 turns their publication on). Their ABI is kept in
+// The modules a 10.x release publishes (06-modules.md §6; R.1 turns their publication on). Their ABI is kept in
 // `api/<module>.api` (D88, D147, D216; see `abiValidation` below). :migrate-data (a CLI
 // application) and :manifest-tools (run in an isolated worker by the same-version Gradle plugin, D83) keep no dump:
 // their contract is not a JVM signature.
@@ -96,11 +96,11 @@ val abiProjects = includedProjects(
     ":compiler", ":gradle-plugin",
 )
 // What a 10.x release publishes to Maven (R.1, D205): the published modules above, :migrate-data and :manifest-tools
-// (published, without a dump), and the V10 BOM. :wow-dependencies goes out with them (see `releaseProjects`'
-// use below): every V10 POM imports it.
+// (published, without a dump), and the BOM. :wow-dependencies goes out with them (see `releaseProjects`'
+// use below): every POM imports it.
 val publishedLibraries = abiProjects + includedProjects(":migrate-data", ":manifest-tools")
 val releaseProjects = publishedLibraries + bomProject
-// V10 modules that use Wow the way an application does (D216): the eShop, the platform services' domains and servers,
+// Projects that use Wow the way an application does (D216): the eShop, the platform services' domains and servers,
 // and :architecture. They do not opt in to `@InternalWowApi` or `@ExperimentalWowApi`, so the compiler shows where
 // they reach past the public API.
 val userProjects = exampleProjects + includedProjects(
@@ -108,7 +108,7 @@ val userProjects = exampleProjects + includedProjects(
     ":analytics-catalog-server", ":architecture", ":benchmark-server",
 )
 
-// D87: a V10 project's name and directory carry no `wow-` prefix (`:kernel` in core/kernel); its jar, Kotlin module and
+// D87: a project's name and directory carry no `wow-` prefix (`:kernel` in core/kernel); its jar, Kotlin module and
 // Maven artifactId do (`wow-kernel`), so the coordinates users see are unchanged. A project whose name cannot be its
 // artifact minus the prefix (a Gradle task name, such as the test DSL's `:test-dsl`) is mapped here.
 val artifactIds = mapOf("test-dsl" to "wow-test")
@@ -118,12 +118,12 @@ fun Project.artifactName(): String =
     } else {
         name
     }
-// Libraries that build and test like the others but are not published yet: the V10 modules a release does not publish
+// Libraries that build and test like the others but are not published yet: the modules a release does not publish
 // (the platform's domains and servers, :architecture, the spikes and the eShop).
 val incubatingProjects = moduleProjects - publishedLibraries
 val publishProjects = subprojects - exampleProjects - codeCoverageReportProject - e2eBenchmarkProjects - incubatingProjects
 val libraryProjects = publishProjects - bomProjects + incubatingProjects + e2eBenchmarkProjects
-// What the V10 BOM constrains: exactly the V10 libraries a 10.x release publishes.
+// What the BOM constrains: exactly the libraries a 10.x release publishes.
 val bomConstrainedProjects = publishedLibraries
 val isInCI = !System.getenv("CI").isNullOrEmpty()
 ext.set("libraryProjects", libraryProjects)
@@ -289,7 +289,7 @@ configure(libraryProjects) {
                     "me.ahoo.wow.api.annotation.ExperimentalWowApi",
                 )
             }
-            // Test, contract and benchmark code exercises the SPI directly; main code opts in per module. Wow's own V10
+            // Test, contract and benchmark code exercises the SPI directly; main code opts in per module. Wow's own
             // modules implement or wire the `:spi` ports (D216), so they opt in whole; a user module does not.
             val wowModule = project in moduleProjects && project !in userProjects
             if (wowModule || name != "compileKotlin") {
@@ -298,7 +298,7 @@ configure(libraryProjects) {
             javaParameters = true
         }
     }
-    // V10 interfaces compile to plain JVM default methods, without the `DefaultImpls` classes (`-jvm-default=
+    // Wow's interfaces compile to plain JVM default methods, without the `DefaultImpls` classes (`-jvm-default=
     // no-compatibility`, D216): free before the API freeze, a binary break after it.
     if (project in moduleProjects) {
         tasks.withType<KotlinCompile> {
@@ -372,8 +372,8 @@ tasks.register(WowTestLayer.INTEGRATION.taskName) {
 }
 
 // Signatures: a release signs in CI with the key in SIGNING_*; elsewhere the signing.* properties of
-// ~/.gradle/gradle.properties sign. A V10 publication requires them with `-Pwow.publication.signed=true` (the
-// release's preflight). Without it, `publicationCheck` signs the V10 publications with a throwaway key it generates
+// ~/.gradle/gradle.properties sign. A publication requires them with `-Pwow.publication.signed=true` (the
+// release's preflight). Without it, `publicationCheck` signs the publications with a throwaway key it generates
 // (GnuPG, in a home of its own), so a pull request, which has no key, checks the signatures a release publishes too.
 val requireSignatures = providers.gradleProperty("wow.publication.signed").orNull.toBoolean()
 val prebuiltPublication = providers.gradleProperty("wow.publication.prebuilt").orNull.toBoolean()
@@ -520,7 +520,7 @@ configure(publishProjects) {
     }
 }
 
-// A V10 module's test fixtures (`:manifest`'s, say) are for Wow's own modules and stay unpublished
+// A module's test fixtures (`:manifest`'s, say) are for Wow's own modules and stay unpublished
 // (09-capability-parity.md, "端口 TCK"); the published TCKs are `:tck` and `:query-tck` (review R3.3-2). `java-test-fixtures` would add them to the `java`
 // component, so the release would build and ship a `-test-fixtures` jar.
 configure(releaseProjects) {
@@ -532,12 +532,12 @@ configure(releaseProjects) {
     }
 }
 
-// The release rehearsal of the V10 publications (R.1): `./gradlew publicationCheck` builds and
-// signs every V10 release module and :wow-dependencies as the release's preflight does (with the release key and
+// The release rehearsal of the publications (R.1): `./gradlew publicationCheck` builds and
+// signs every release module and :wow-dependencies as the release's preflight does (with the release key and
 // `-Pwow.publication.signed=true` there, with a throwaway key elsewhere, see Signatures), publishes them into
 // build/publication-check/repo, then checks that each library has its jar, sources and javadoc jars, POM and
 // Gradle module metadata, each with its signature; that every POM carries what Maven Central requires; that no
-// published POM depends on a Wow module the release leaves out, or on another version; that the V10 BOM constrains
+// published POM depends on a Wow module the release leaves out, or on another version; that the BOM constrains
 // exactly the published libraries; and that nothing else was published.
 //
 // A release's deploy jobs (package-deploy.yml) publish again with `-Pwow.publication.prebuilt=true`
@@ -576,7 +576,7 @@ configure(publicationProjects) {
 val prebuiltPublicationTasks = gradle.extensions.extraProperties["wowPublicationPrebuiltTasks"] as List<String>
 val deployGraphProblems = mutableListOf<String>()
 tasks.register("publicationCheck") {
-    description = "Publishes the V10 release modules into a scratch repository and checks what a release would ship."
+    description = "Publishes the release modules into a scratch repository and checks what a release would ship."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     val publishTasks = publicationProjects.map {
         it.tasks.named("publishAllPublicationsToPublicationCheckRepository")
@@ -705,7 +705,7 @@ tasks.register("publicationCheck") {
 
         val expected = (libraries + platforms + pluginMarker).toSortedSet()
         val published = groupDir.listFiles().orEmpty().filter { it.isDirectory }.map { it.name }.toSortedSet()
-        (published - expected).forEach { problems += "$it: published, but not a V10 release module" }
+        (published - expected).forEach { problems += "$it: published, but not a release module" }
 
         val documents = DocumentBuilderFactory.newInstance().newDocumentBuilder()
         fun Element.children(tag: String): List<Element> =
@@ -740,9 +740,9 @@ tasks.register("publicationCheck") {
             }
         }
         check(problems.isEmpty()) {
-            "The V10 publications of $releaseVersion are not ready to release:\n" + problems.joinToString("\n")
+            "The publications of $releaseVersion are not ready to release:\n" + problems.joinToString("\n")
         }
-        logger.lifecycle("Checked the V10 publications of $releaseVersion in $repository: ${expected.joinToString()}")
+        logger.lifecycle("Checked the publications of $releaseVersion in $repository: ${expected.joinToString()}")
     }
 }
 

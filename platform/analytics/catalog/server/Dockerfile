@@ -1,6 +1,6 @@
-# The V10 analytics catalog service image (decisions D238, D241): `./gradlew :analytics-catalog-server:installDist`
+# The analytics catalog service image (decisions D238, D241): `./gradlew :analytics-catalog-server:installDist`
 # after `pnpm --filter wow-analytics-catalog-console... build`, which puts the data-owner console in the distribution's
-# ui/. v10-image-deploy.yml builds it and tags only the release version: a pre-release never moves `latest`.
+# ui/. image-deploy.yml builds it and tags only the release version: a pre-release never moves `latest`.
 # Callers: the image trusts no identity header, and runs CoSec only in its `cosec` profile
 # (SPRING_PROFILES_ACTIVE=cosec, with COSEC_JWT_SECRET), which verifies each request's CoSec token; without it every
 # request is answered 401. WOW_PLATFORM_TRUSTIDENTITYHEADERS=true (the property wow.platform.trust-identity-headers)

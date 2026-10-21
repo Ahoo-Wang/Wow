@@ -1,4 +1,4 @@
-description = "Wow V10 ops: the parked aggregate, the read model of every service's failure ledger (roadmap 6.3f, 7.1a)"
+description = "Wow ops: the parked aggregate, the read model of every service's failure ledger (roadmap 6.3f, 7.1a)"
 
 // The minimal ops domain of work package 6.3f (decision D141); roadmap 7.1a builds the ops service on it. KSP with
 // :compiler compiles the aggregate and the saga into kernel models, their binding index and the module's Manifest

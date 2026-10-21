@@ -6,7 +6,7 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-订单定义里按 state.oldStatus 做筛选和分组。
+订单定义里按 state.oldStatus 做筛选和分组。在回答里给出代码和命令。
 
 Files from the user's project, shown inline:
 

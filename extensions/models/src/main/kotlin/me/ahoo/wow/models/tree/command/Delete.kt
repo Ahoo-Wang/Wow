@@ -21,7 +21,7 @@ import me.ahoo.wow.models.tree.TreeCoded
 
 /**
  * Deletes the node [code], which has no children. 9.x took the code from the route's path (`DELETE .../{code}`); a
- * V10 route carries the aggregate's id only, so the code is in the command's body.
+ * 10.x route carries the aggregate's id only, so the code is in the command's body.
  */
 @Summary("Delete tree node")
 @Description("Id is the tenant ID.")
