@@ -69,6 +69,7 @@ class OrderingAnalyticsTest {
         )
     private val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
     // endregion
+
     private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
 
     @AfterAll
@@ -101,13 +102,25 @@ class OrderingAnalyticsTest {
         ids(post(ORDERS, MATCH_ALL, bob)).assert().containsExactly(his)
         // Naming another buyer's order reads nothing: the caller's scope is ANDed with the query.
         ids(post(ORDERS, """{"kind":"list","filter":{"op":"ID","value":"$his"}}""", alice)).assert().isEmpty()
-        post(ORDERS, """{"kind":"single","filter":{"op":"ID","value":"$his"}}""", alice).first.assert().isEqualTo(NOT_FOUND)
-        val all = ids(post(ORDERS, """{"kind":"list","filter":{"op":"IN","field":"aggregateId","values":${array(hers + his)}}}""", EMPLOYEE))
+        post(
+            ORDERS,
+            """{"kind":"single","filter":{"op":"ID","value":"$his"}}""",
+            alice
+        ).first.assert().isEqualTo(NOT_FOUND)
+        val all = ids(
+            post(
+                ORDERS,
+                """{"kind":"list","filter":{"op":"IN","field":"aggregateId","values":${array(hers + his)}}}""",
+                EMPLOYEE
+            )
+        )
         all.assert().containsExactlyInAnyOrderElementsOf(hers + his)
         // An order's events, for its buyer only.
         val events = post(ORDER_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$his"}}""", bob)
         events.first.assert().isEqualTo(OK)
-        events.second.values().first()["events"][0]["name"].asString().assert().isEqualTo("eshop-ordering.order.OrderSubmitted")
+        events.second.values().first()["events"][0]["name"].asString().assert().isEqualTo(
+            "eshop-ordering.order.OrderSubmitted"
+        )
         post(ORDER_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$his"}}""", alice).second.values().toList()
             .assert().isEmpty()
     }
@@ -135,20 +148,30 @@ class OrderingAnalyticsTest {
         // A buyer reads their own orders' rows only, even naming another's.
         sales(ours, alice).map { it["aggregate_id"].asString() }.assert().containsExactlyInAnyOrderElementsOf(hers)
         sales(ours, bob).map { it["aggregate_id"].asString() }.assert().containsExactly(his)
-        sales("""{"kind":"list","filter":{"op":"EQ","field":"aggregate_id","value":"$his"}}""", alice).assert().isEmpty()
+        sales(
+            """{"kind":"list","filter":{"op":"EQ","field":"aggregate_id","value":"$his"}}""",
+            alice
+        ).assert().isEmpty()
 
         // An employee's revenue by buyer, over the tenant.
         val byBuyer = """{"kind":"aggregate","filter":{"op":"IN","field":"aggregate_id","values":${array(hers + his)}},""" +
             """"groupBy":[{"type":"TERMS","field":"owner_id","alias":"buyer"}],""" +
             """"metrics":[{"type":"COUNT","alias":"orders"},$REVENUE]}"""
-        sales(byBuyer, EMPLOYEE).associate { it["buyer"].asString() to (it["orders"].asLong() to it["revenue"].decimalValue().toInt()) }
+        sales(
+            byBuyer,
+            EMPLOYEE
+        ).associate { it["buyer"].asString() to (it["orders"].asLong() to it["revenue"].decimalValue().toInt()) }
             .assert().isEqualTo(
                 mapOf(
                     alice.getValue(OrderingCallers.USER) to (2L to 58),
                     bob.getValue(OrderingCallers.USER) to (1L to 29),
                 ),
             )
-        val count = post(SALES, """{"kind":"count","filter":{"op":"IN","field":"aggregate_id","values":${array(hers)}}}""", alice)
+        val count = post(
+            SALES,
+            """{"kind":"count","filter":{"op":"IN","field":"aggregate_id","values":${array(hers)}}}""",
+            alice
+        )
         count.second["count"].asLong().assert().isEqualTo(2)
     }
 
@@ -206,7 +229,11 @@ class OrderingAnalyticsTest {
     }
 
     /** Waits until [condition] holds of the rows [query] lists as [caller]: the Sink writes behind the commits. */
-    private fun awaitSales(query: String, caller: Map<String, String>, condition: (List<JsonNode>) -> Boolean): List<JsonNode> {
+    private fun awaitSales(
+        query: String,
+        caller: Map<String, String>,
+        condition: (List<JsonNode>) -> Boolean
+    ): List<JsonNode> {
         val deadline = System.nanoTime() + AWAIT.toNanos()
         var last: Pair<Int, JsonNode>? = null
         while (System.nanoTime() < deadline) {
