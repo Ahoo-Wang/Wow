@@ -1781,9 +1781,6 @@
           },
           "id" : {
             "type" : "string"
-          },
-          "isAssigned" : {
-            "type" : "boolean"
           }
         },
         "required" : [ "type", "tenantId", "id" ]

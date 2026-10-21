@@ -864,11 +864,13 @@ public final class me/ahoo/wow/spring/boot/WowProperties$HealthTopics {
 public final class me/ahoo/wow/spring/boot/WowProperties$Http {
 	public fun <init> ()V
 	public final fun getErrors ()Ljava/util/Map;
+	public final fun getGlobalErrors ()Z
 	public final fun getManifest ()Lme/ahoo/wow/spring/boot/WowProperties$Http$Manifest;
 	public final fun getOpenapi ()Lme/ahoo/wow/spring/boot/WowProperties$Http$OpenApi;
 	public final fun getRequestFacts ()Ljava/util/Set;
 	public final fun getServices ()Ljava/util/Map;
 	public final fun setErrors (Ljava/util/Map;)V
+	public final fun setGlobalErrors (Z)V
 	public final fun setManifest (Lme/ahoo/wow/spring/boot/WowProperties$Http$Manifest;)V
 	public final fun setOpenapi (Lme/ahoo/wow/spring/boot/WowProperties$Http$OpenApi;)V
 	public final fun setRequestFacts (Ljava/util/Set;)V

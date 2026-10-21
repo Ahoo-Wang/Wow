@@ -31,7 +31,8 @@ import java.util.concurrent.ConcurrentHashMap
  *   look-back window, so nothing committed while the full import ran is missed;
  * - [after] is the last instance whose streams are all imported, in the full import's id order; [completed] is set
  *   once every instance is;
- * - [tailedTo] is the latest commit time the tail has read.
+ * - [tailedTo] is the latest commit time the tail has read, and [tailedAt] when its last pass ended, by the tool's
+ *   clock: the final pass (`import --final`) takes the tail as continuous only when that pass is recent.
  *
  * Resuming repeats at most one page of instances, whose streams the import finds already in the log and skips.
  */
@@ -40,6 +41,7 @@ data class AggregateCheckpoint(
     val after: NineXAggregateId? = null,
     val completed: Boolean = false,
     val tailedTo: Long? = null,
+    val tailedAt: Long? = null,
 )
 
 /**
@@ -103,11 +105,22 @@ data class CompensationCheckpoint(
 )
 
 /**
+ * Where the rollback export of one V10 context stands ([EventStreamExporter], decision D32): [partitions] holds the
+ * last log sequence exported of each partition, and the counts are those of every run since it started.
+ */
+data class ExportCheckpoint(
+    val partitions: Map<Int, Long> = emptyMap(),
+    val exported: Long = 0,
+    val already: Long = 0,
+)
+
+/**
  * The checkpoints of a migration, by 9.x aggregate (`contextName.aggregateName`), in format [format]: the import's
  * ([aggregates]), the state comparison's ([compared]) and the snapshot writing's ([snapshots]); and the reservation
  * import's by 9.x `PrepareKey` name ([reservations]); and the compensation import's ([compensation]); and the tags
- * backfill's by V10 aggregate type ([tags], decision D259). The last five joined format 1 as optional properties
- * (roadmap 8b.2, 8b.4, finding A4-8, R4-Q2c): a file without them reads as before.
+ * backfill's by V10 aggregate type ([tags], decision D259); and the rollback export's by V10 context ([exports],
+ * decision D32). The last six joined format 1 as optional properties (roadmap 8b.2, 8b.4, 8c.1, finding A4-8, R4-Q2c):
+ * a file without them reads as before.
  */
 data class ImportCheckpoints(
     val format: Int = FORMAT,
@@ -117,6 +130,7 @@ data class ImportCheckpoints(
     val reservations: Map<String, ReservationCheckpoint> = emptyMap(),
     val compensation: CompensationCheckpoint? = null,
     val tags: Map<String, TagsCheckpoint> = emptyMap(),
+    val exports: Map<String, ExportCheckpoint> = emptyMap(),
 ) {
     init {
         require(format == FORMAT) { "Checkpoint format $format is not supported; this tool reads format $FORMAT." }
@@ -148,6 +162,11 @@ data class ImportCheckpoints(
 
     fun with(type: AggregateType, checkpoint: TagsCheckpoint): ImportCheckpoints =
         copy(tags = tags + (type.toString() to checkpoint))
+
+    fun exportOf(context: String): ExportCheckpoint? = exports[context]
+
+    fun withExport(context: String, checkpoint: ExportCheckpoint): ImportCheckpoints =
+        copy(exports = exports + (context to checkpoint))
 
     companion object {
         const val FORMAT: Int = 1

@@ -175,6 +175,19 @@ public final class me/ahoo/wow/viewstore/api/view/ShareView {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/viewstore/api/view/ViewAudienceChanged {
+	public fun <init> (Lme/ahoo/wow/viewstore/api/ViewAudience;Ljava/lang/String;)V
+	public final fun component1 ()Lme/ahoo/wow/viewstore/api/ViewAudience;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Lme/ahoo/wow/viewstore/api/ViewAudience;Ljava/lang/String;)Lme/ahoo/wow/viewstore/api/view/ViewAudienceChanged;
+	public static synthetic fun copy$default (Lme/ahoo/wow/viewstore/api/view/ViewAudienceChanged;Lme/ahoo/wow/viewstore/api/ViewAudience;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/viewstore/api/view/ViewAudienceChanged;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAudience ()Lme/ahoo/wow/viewstore/api/ViewAudience;
+	public final fun getToOwnerId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/viewstore/api/view/ViewClaimed {
 	public fun <init> (Ljava/lang/String;)V
 	public final fun component1 ()Ljava/lang/String;
