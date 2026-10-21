@@ -18,6 +18,19 @@ application {
 extra["wowService"] = "analytics-catalog-service"
 apply(from = rootProject.file("example/eshop/wow-manifest-compatibility.gradle.kts"))
 
+// The console (roadmap 7.2c), served by the server as static resources from the distribution's ui/ folder
+// (`spring.web.resources.static-locations`): `pnpm --filter wow-analytics-catalog-console... build` first, or the
+// folder is empty.
+distributions {
+    main {
+        contents {
+            from(rootProject.file("platform/analytics/catalog/console/dist")) {
+                into("ui")
+            }
+        }
+    }
+}
+
 dependencies {
     implementation(project(":analytics-catalog-domain"))
     implementation(project(":spring-boot"))

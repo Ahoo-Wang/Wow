@@ -29,6 +29,7 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.client.ClientMode
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.ForwardedHeaders
+import me.ahoo.wow.client.NamedCommand
 import me.ahoo.wow.client.Port
 import me.ahoo.wow.client.ServiceCredential
 import me.ahoo.wow.client.UserCredential
@@ -177,6 +178,79 @@ class HostClientsTest {
                 WowProperties.Clients.Mode.SERVICE
             )
         }.message.assert().contains("[ledger]")
+    }
+
+    @Test
+    fun `a peer described by its Manifest alone should take named commands, in either mode`(): Unit = runBlocking {
+        // No contract of the bank on the class path: its Manifest, read from the bank, is all the client knows.
+        val none = ContractDirectory(Manifest(), emptyList())
+        fun client(mode: ClientMode) = lazy {
+            WowClient.builder().endpoints(endpoints).contracts(none).manifestPeers(setOf(BANK)).apply {
+                when (mode) {
+                    is ClientMode.Service -> service(mode.credential)
+                    is ClientMode.User -> user(mode.credential)
+                }
+            }.build()
+        }
+        listOf(WowProperties.Clients.Mode.SERVICE, WowProperties.Clients.Mode.USER).forEach { mode ->
+            val peers = PeerClients(
+                mapOf(BANK to mode),
+                none,
+                client(ClientMode.Service(ServiceCredential.bearer(TOKEN))),
+                client(ClientMode.User(UserCredential.FORWARDED)),
+                mode,
+                described = setOf(BANK),
+            )
+            val commands = RoutedCommandClient(mockk(), peers).of(dave)
+            val opened = commands.wait(
+                NamedCommand("$BANK.account.OpenAccount", WowJson.mapper.readTree("""{"owner":"dave"}""")),
+                account.unassigned(Caller.DEFAULT_TENANT),
+                SendOptions.DEFAULT,
+            )
+            opened.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            assertThrows<IllegalArgumentException> {
+                runBlocking {
+                    commands.wait(NamedCommand("$BANK.account.Burn", WowJson.mapper.readTree("{}")), opened.ref)
+                }
+            }.message.assert().contains("does not declare the command Burn")
+            assertThrows<IllegalStateException> { runBlocking { commands.wait(Deposit(5), opened.ref) } }
+                .message.assert().contains("send it a NamedCommand")
+        }
+        // A named command to a context not described by its Manifest is refused before it is routed.
+        assertThrows<IllegalArgumentException> {
+            runBlocking {
+                RoutedCommandClient(mockk(), peers()).of(dave).wait(
+                    NamedCommand("$BANK.account.OpenAccount", WowJson.mapper.readTree("{}")),
+                    account.unassigned(Caller.DEFAULT_TENANT),
+                )
+            }
+        }.message.assert().contains("not described by its Manifest")
+    }
+
+    @Test
+    fun `contract manifest should admit a peer without its jar, and only such a peer`() {
+        val none = ContractDirectory(Manifest(), emptyList())
+        val service = WowProperties.Clients.Mode.SERVICE
+        PeerClients(mapOf("mail" to service), none, lazy { error("") }, lazy { error("") }, service, setOf("mail"))
+            .described.assert().containsExactly("mail")
+        assertThrows<IllegalArgumentException> {
+            PeerClients(emptyMap(), none, lazy { error("") }, lazy { error("") }, service, setOf("mail"))
+        }.message.assert().contains("not in wow.clients.contexts")
+        assertThrows<IllegalArgumentException> {
+            PeerClients(mapOf(BANK to service), contracts, lazy { error("") }, lazy { error("") }, service, setOf(BANK))
+        }.message.assert().contains("whose contract is on the class path")
+        val peers = WowAutoConfiguration().wowPeerClients(
+            WowProperties().apply {
+                clients.contexts["mail"] = WowProperties.Clients.ClientTarget().apply {
+                    contract = WowProperties.Clients.Contract.MANIFEST
+                }
+            },
+            endpoints,
+            ServiceCredential.NONE,
+            none,
+            GlobalIdGenerator.UUID_V7,
+        )
+        peers.described.assert().containsExactly("mail")
     }
 
     @Test

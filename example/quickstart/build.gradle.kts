@@ -35,11 +35,3 @@ dependencies {
     testImplementation(project(":test-dsl"))
     testImplementation("org.springframework:spring-test")
 }
-
-// QuickstartPageTest keeps the page's Kotlin and YAML samples equal to these sources.
-val quickstartPages = listOf("en", "zh").map { rootProject.file("documentation/docs/$it/guide/v10/quickstart.md") }
-tasks.test {
-    inputs.files(quickstartPages).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("quickstartPages")
-    systemProperty("wow.quickstart.module", projectDir.absolutePath)
-    systemProperty("wow.quickstart.pages", quickstartPages.joinToString(File.pathSeparator) { it.absolutePath })
-}
