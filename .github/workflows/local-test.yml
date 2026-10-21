@@ -15,7 +15,7 @@ name: Local Test
 on:
   push:
     branches:
-      - main
+      - v9
     paths:
       - '.github/workflows/local-test.yml'
       - 'build.gradle.kts'
@@ -37,7 +37,7 @@ on:
       - 'analytics/**'
       # The console is TypeScript; analytics-console-test.yml checks it.
       - '!analytics/console/**'
-      # The V10 tests, spikes and example (v10 branch; documentation/designs/v10/06-modules.md §4): v10.yml runs them.
+      # The V10 tests, spikes and example (on main, the V10 line; documentation/designs/v10/06-modules.md §4): its ci.yml runs them.
       - '!test/architecture/**'
       - '!test/kernel-benchmarks/**'
       - '!test/routing-spike/**'
@@ -67,7 +67,7 @@ on:
       - 'analytics/**'
       # The console is TypeScript; analytics-console-test.yml checks it.
       - '!analytics/console/**'
-      # The V10 tests, spikes and example (v10 branch; documentation/designs/v10/06-modules.md §4): v10.yml runs them.
+      # The V10 tests, spikes and example (on main, the V10 line; documentation/designs/v10/06-modules.md §4): its ci.yml runs them.
       - '!test/architecture/**'
       - '!test/kernel-benchmarks/**'
       - '!test/routing-spike/**'
@@ -75,10 +75,9 @@ on:
       - '!example/shop/**'
       - '!example/inventory/**'
       - '!example/e2e/**'
-  # v10-nightly.yml dispatches it on v10 every night: v10.yml checks the V10 modules there, and this the 9.x ones.
   workflow_dispatch:
 concurrency:
-  # A dispatched run (v10-nightly.yml) gets its own group, so it neither cancels nor is cancelled by a push run.
+  # A dispatched run gets its own group, so it neither cancels nor is cancelled by a push run.
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || format('{0}-{1}', github.event_name, github.ref) }}
   cancel-in-progress: true
 permissions:

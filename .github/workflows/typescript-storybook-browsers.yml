@@ -13,14 +13,11 @@
 
 # The Storybook interaction tests (typescript/storybook) in Firefox and WebKit.
 # Pull requests run them in Chromium only (typescript-storybook.yml); this
-# workflow runs nightly and by hand, never on a pull request, so it is not a
+# workflow runs by hand on v9 (schedules run on main only), never on a pull request, so it is not a
 # merge signal and release admission does not read it. A failure here is a
 # browser-specific defect to triage, not a reason to retry.
 name: TypeScript Storybook Browsers
 on:
-  schedule:
-    # 18:00 UTC, 02:00 in Asia/Shanghai.
-    - cron: '0 18 * * *'
   workflow_dispatch:
 
 permissions:

@@ -82,7 +82,7 @@ test('each TypeScript workflow file runs the jobs it defines and the static chec
 test('any other workflow, the release workflow included, runs only the workflow lint', () => {
   for (const path of [
     '.github/workflows/package-deploy.yml',
-    '.github/workflows/documentation-deploy.yml',
+    '.github/workflows/example-deploy.yml',
     '.github/workflows/view-store-deploy.yml',
     '.github/workflows/local-test.yml',
     '.github/workflows/gitee-sync.yml',

@@ -17,9 +17,9 @@
 name: TypeScript Contract
 on:
   pull_request:
-    branches: [main]
+    branches: [v9]
   push:
-    branches: [main]
+    branches: [v9]
   workflow_dispatch:
 
 permissions:
