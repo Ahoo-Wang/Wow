@@ -47,7 +47,7 @@ fun callerResolver(): CallerResolver = CallerResolver { request ->
 
 With CoSec (`wow-cosec`), `CoSecCallerResolver` makes the principal its own owner, unless it has one of the roles of `wow.cosec.tenant-level.roles` or one of the policies of `wow.cosec.tenant-level.policies`: such a principal is a tenant-level caller. Its subject is its id either way, so the operator of what it commits is recorded.
 
-An aggregate that every caller of its tenant reads, such as a product of a catalog, declares `@AggregateRoot(ownership = Ownership.TENANT)` ([Owners, spaces and tenants](./programming-model.md#owners-spaces-and-tenants)): no owner is recorded on it, and no read or write of it is restricted by the caller's owner. Its writes are then left to action-level authorization alone.
+An aggregate that every caller of its tenant reads, such as a product of a catalog, declares `@AggregateRoot(ownership = Ownership.TENANT)` ([Owners, spaces and tenants](../ownership.md)): no owner is recorded on it, and no read or write of it is restricted by the caller's owner. Its writes are then left to action-level authorization alone.
 
 ## Commands
 
@@ -182,7 +182,7 @@ curl -X POST localhost:8080/example/order/events/query \
 - The `events` model's filter names one aggregate's id and may bound `version` or `commitTime`, nothing else.
 - A query the model refuses is 400 `wow.query.invalid`, its violations naming each rule; one that does not read as a query is 400 `wow.query.malformed`; a timeout is 504 `wow.query.timeout`, not worth running again as it is; a `single` query that matches nothing is 404 `wow.query.not-found`.
 - The snapshots are queried on PostgreSQL and MongoDB. On the memory backend no query backend serves them, and their routes answer 404.
-- Every HTTP query runs under the budget `wow.query.http.*` (see [Configuration Keys](./configuration.md#query)).
+- Every HTTP query runs under the budget `wow.query.http.*` (see [Configuration Keys](../../reference/configuration.md#wow-query-http)).
 
 ## Datasets
 

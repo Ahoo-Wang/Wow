@@ -4,10 +4,10 @@ export const navbarEn: DefaultTheme.NavItem[] = [
     {text: 'Quick Start', link: '/start/quickstart', activeMatch: '/start/'},
     {
         text: 'Guide',
-        activeMatch: '/guide/v10/',
+        activeMatch: '/guide/(?!typescript/)',
         items: [
-            {text: 'Write a Service', link: '/guide/v10/'},
-            {text: 'Programming Model', link: '/guide/v10/programming-model'},
+            {text: 'Add Wow to a Service', link: '/start/existing-project'},
+            {text: 'Aggregates', link: '/guide/aggregates'},
             {text: 'Testing', link: '/guide/testing'},
             {text: 'HTTP API', link: '/guide/v10/http-api'},
             {text: 'Query Language', link: '/guide/v10/query'},

@@ -1,13 +1,13 @@
 import {DefaultTheme} from "vitepress/types/default-theme";
 
 export const navbarZh: DefaultTheme.NavItem[] = [
-    {text: '快速开始', link: '/zh/guide/v10/quickstart'},
+    {text: '快速开始', link: '/zh/start/quickstart', activeMatch: '/zh/start/'},
     {
         text: '指南',
-        activeMatch: '/zh/guide/v10/',
+        activeMatch: '/zh/guide/(?!typescript/)',
         items: [
-            {text: '编写服务', link: '/zh/guide/v10/'},
-            {text: '编程模型', link: '/zh/guide/v10/programming-model'},
+            {text: '接入已有服务', link: '/zh/start/existing-project'},
+            {text: '聚合', link: '/zh/guide/aggregates'},
             {text: '测试', link: '/zh/guide/testing'},
             {text: 'HTTP API', link: '/zh/guide/v10/http-api'},
             {text: '查询语言', link: '/zh/guide/v10/query'},

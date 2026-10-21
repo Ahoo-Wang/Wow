@@ -70,7 +70,7 @@ public class EshopOrderingDomainModelProvider : me.ahoo.wow.kernel.ModelProvider
 - **Its package** is the deepest package all of the module's models and processors share.
 - **Its dependencies** are looked up by type, and by qualifier for a parameter with `@Name`. On the host, `Dependencies` is the application's bean factory: a qualified dependency is the bean of that name; an unqualified one is the only bean of its type, or the primary one among several. A missing bean fails the start, naming the type (`MissingDependencyException`).
 
-The host loads every `ModelProvider` on its class path (`ModelProvider.load()`) and serves every model they build: by default, a service's class path decides the contexts it serves. `wow.contexts.include` and `wow.contexts.exclude` narrow that to some of them (see [Configuration Keys](./configuration.md#service-and-node)).
+The host loads every `ModelProvider` on its class path (`ModelProvider.load()`) and serves every model they build: by default, a service's class path decides the contexts it serves. `wow.contexts.include` and `wow.contexts.exclude` narrow that to some of them (see [Configuration Keys](../../reference/configuration.md#wow-contexts)).
 
 ## The Manifest fragment
 

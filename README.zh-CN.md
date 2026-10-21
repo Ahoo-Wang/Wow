@@ -53,9 +53,9 @@ HTTP 命令 → 聚合决策 → 领域事件 → 溯源状态 → 投影 / Saga
 
 1. 从 [Wow 项目模板](https://github.com/Ahoo-Wang/wow-project-template)创建或克隆仓库。
 2. 运行 `./gradlew :domain:check`，再以文档中的内存配置启动 `./gradlew :server:run`。
-3. 按[快速开始](documentation/docs/zh/guide/v10/quickstart.md)发送真实 `CreateDemo` 命令，等待 `SNAPSHOT`，并读取聚合版本 `1` 的状态。
+3. 按[快速开始](documentation/docs/zh/start/quickstart.md)发送真实 `CreateDemo` 命令，等待 `SNAPSHOT`，并读取聚合版本 `1` 的状态。
 
-这条路径会同时证明领域测试、生成路由、命令管道、事件溯源、快照等待和版本化状态读取。30 分钟是目标时长：功能链路已经过演练，但尚未测量新开发者首次完成的墙钟时间。若要在已有服务中接入，请改走[编写服务](documentation/docs/zh/guide/v10/index.md)。
+这条路径会同时证明领域测试、生成路由、命令管道、事件溯源、快照等待和版本化状态读取。30 分钟是目标时长：功能链路已经过演练，但尚未测量新开发者首次完成的墙钟时间。若要在已有服务中接入，请改走[编写服务](documentation/docs/zh/start/existing-project.md)。
 
 ## 仓库内的能力证据
 
@@ -95,9 +95,9 @@ HTTP 命令 → 聚合决策 → 领域事件 → 溯源状态 → 投影 / Saga
 
 ## 继续阅读
 
-- 从[编写服务](documentation/docs/zh/guide/v10/index.md)与[编程模型](documentation/docs/zh/guide/v10/programming-model.md)开始。
+- 从[编写服务](documentation/docs/zh/start/existing-project.md)与[编程模型](documentation/docs/zh/guide/aggregates.md)开始。
 - 阅读 Kotlin [订单服务](example)或 Java [银行转账](example/transfer)示例。
-- 在 [`Wow-Wait`](documentation/docs/zh/guide/v10/http-api.md#wow-wait) 中理解处理阶段，在[投影](documentation/docs/zh/guide/v10/programming-model.md#投影)建立读模型，在[失败](documentation/docs/zh/guide/v10/programming-model.md#失败)了解恢复边界。
+- 在 [`Wow-Wait`](documentation/docs/zh/guide/v10/http-api.md#wow-wait) 中理解处理阶段，在[投影](documentation/docs/zh/guide/projections.md)建立读模型，在[失败](documentation/docs/zh/guide/failures.md)了解恢复边界。
 - 查看[贡献指南](CONTRIBUTING.md)、[行为准则](CODE_OF_CONDUCT.md)和[安全策略](SECURITY.md)。
 - Wow 荣获 [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html)；官方结果给出的证据包括模块化设计、代码评审、测试、静态分析、双语文档和 Maven Central 发布历史。
 

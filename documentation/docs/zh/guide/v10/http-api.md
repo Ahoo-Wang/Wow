@@ -47,7 +47,7 @@ fun callerResolver(): CallerResolver = CallerResolver { request ->
 
 接 CoSec（`wow-cosec`）时，`CoSecCallerResolver` 让主体成为自己的所有者，除非它持有 `wow.cosec.tenant-level.roles` 中的某个角色或 `wow.cosec.tenant-level.policies` 中的某个策略：这样的主体是租户级调用方。两种情况下主体 `subject` 都是它的 ID，所以它提交的内容都记下了操作人。
 
-本租户所有调用方都要读的聚合，例如目录里的商品，声明 `@AggregateRoot(ownership = Ownership.TENANT)`（[所有者、空间与租户](./programming-model.md#所有者、空间与租户)）：它不记所有者，对它的读写都不按调用方的所有者限制，写只由动作级授权保护。
+本租户所有调用方都要读的聚合，例如目录里的商品，声明 `@AggregateRoot(ownership = Ownership.TENANT)`（[所有者、空间与租户](../ownership.md)）：它不记所有者，对它的读写都不按调用方的所有者限制，写只由动作级授权保护。
 
 ## 命令
 
@@ -182,7 +182,7 @@ curl -X POST localhost:8080/example/order/events/query \
 - `events` 模型的筛选条件指定一个聚合的 ID，可以再限定 `version` 或 `commitTime`，不能有其他条件。
 - 模型拒绝的查询返回 400 `wow.query.invalid`，其中的违例逐条指出规则；无法读成查询的返回 400 `wow.query.malformed`；超时为 504 `wow.query.timeout`，原样重跑没有意义；没有匹配记录的 `single` 查询为 404 `wow.query.not-found`。
 - 快照在 PostgreSQL 与 MongoDB 上可以查询。内存后端上没有查询后端提供快照，其路由返回 404。
-- 每个 HTTP 查询都在 `wow.query.http.*` 的预算下执行（见[配置项](./configuration.md#查询)）。
+- 每个 HTTP 查询都在 `wow.query.http.*` 的预算下执行（见[配置项](../../reference/configuration.md#wow-query-http)）。
 
 ## 数据集
 
