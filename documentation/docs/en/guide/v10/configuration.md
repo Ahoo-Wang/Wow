@@ -75,7 +75,7 @@ The host serves every context of the domain modules on its class path. `wow.cont
 | `wow.state-cache.capacity` | `4096` | The aggregate states kept per context between commands; `0` keeps none |
 | `wow.tenant.default` | `(0)` | The tenant of a caller that has none, such as the anonymous one |
 | `wow.aggregates.[<context>.<aggregate>].tenant` | None | A fixed tenant for every aggregate of the type, whoever the caller is. A type the node does not serve is refused at startup |
-| `wow.aggregates.[<context>.<aggregate>].routing` | `cluster` | How the type's commands are routed: `cluster` by `wow.cluster.router`; `kafka` through the context's command topic, durable once accepted (decision D143, see [Deployment](./deployment.md#kafka-router)). `kafka` needs `wow.kafka.bootstrap-servers`, and turns on the context's command intake. A type the node does not serve is refused at startup |
+| `wow.aggregates.[<context>.<aggregate>].routing` | `cluster` | How the type's commands are routed: `cluster` by `wow.cluster.router`; `kafka` through the context's command topic, durable once accepted (decision D143, see [Deployment](../../operate/kafka.md#durable-command-intake)). `kafka` needs `wow.kafka.bootstrap-servers`, and turns on the context's command intake. A type the node does not serve is refused at startup |
 
 Unless the application sets `spring.lifecycle.timeout-per-shutdown-phase`, the host sets it to `wow.wait.max-timeout + wow.cluster.drain-timeout`, so a stopping node has the time it needs; a smaller value the application sets is kept, with a warning.
 
@@ -160,7 +160,7 @@ Read when `wow-kafka` is on the class path; nothing is wired until `wow.kafka.bo
 | `wow.kafka.topic-prefix` | Empty | Put before every topic name, such as `staging.` for `staging.wow.shop.order.state` |
 | `wow.kafka.poll-timeout` | `200ms` | The longest a consumer's poll waits |
 | `wow.kafka.command-intake` | `false` | Whether each context the node hosts executes the commands of its topic `wow.<context>.commands`, which must exist with `wow.log.partitions` partitions |
-| `wow.kafka.topics.ddl` | `validate` | How the node manages the topics its contexts own at startup (decision D168): `validate` refuses to start when one is missing or a command topic does not have exactly `wow.log.partitions` partitions; `auto` creates the missing ones first, with the log's partitions; `none` checks only the partitions of the command topics the node reads. See [Deployment](./deployment.md#kafka) |
+| `wow.kafka.topics.ddl` | `validate` | How the node manages the topics its contexts own at startup (decision D168): `validate` refuses to start when one is missing or a command topic does not have exactly `wow.log.partitions` partitions; `auto` creates the missing ones first, with the log's partitions; `none` checks only the partitions of the command topics the node reads. See [Deployment](../../operate/kafka.md) |
 | `wow.kafka.topics.replication-factor` | The broker's default | The replication factor of the topics `auto` creates |
 | `wow.kafka.topics.configs.*` | Empty | The topic settings of the topics `auto` creates (`retention.ms`, `min.insync.replicas`, …) |
 | `wow.kafka.topics.partition-refresh` | `30s` | How often the node looks for partitions added to the topics it reads (other contexts' streams, its receipts), and its consumers' `metadata.max.age.ms`. New partitions are read within about twice this, without a restart |

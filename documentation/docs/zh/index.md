@@ -27,7 +27,7 @@ features:
 - title: 日志就是总线
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>'
   details: "追加是唯一的写。订阅带着检查点读日志，已提交的事实在传递途中不会丢失。"
-  link: /zh/guide/v10/deployment
+  link: /zh/operate/topology
 - title: 一份契约
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>'
   details: "Manifest 是唯一来源：REST 路由、OpenAPI、TypeScript 客户端与视图都从它推出。"
@@ -43,7 +43,7 @@ features:
 - title: PostgreSQL 或 MongoDB
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>'
   details: "两者都是一等后端；Kafka 承载跨上下文的消息，ClickHouse 承载数据集。"
-  link: /zh/guide/v10/deployment
+  link: /zh/operate/topology
 ---
 
 ## 荣誉

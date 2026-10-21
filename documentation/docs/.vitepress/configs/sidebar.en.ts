@@ -152,7 +152,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'HTTP API', link: 'http-api'},
                 {text: 'Query Language', link: 'query'},
                 {text: 'Configuration Keys', link: 'configuration'},
-                {text: 'Deployment', link: 'deployment'},
+                {text: 'Deployment', base: '/operate/', link: 'topology'},
             ],
         },
     ],

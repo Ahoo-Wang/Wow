@@ -143,7 +143,7 @@ Events are facts. The log keeps them for good, and Wow offers neither erasing ev
 
 - Keep personal data, such as names, addresses, phone numbers and free text about a person, out of events where you can. Keep it in a read model you can delete from, such as a projection's table or another service, and put an opaque id in the event.
 - When decide needs personal data, let it read the data through a domain service instead of carrying it in an event.
-- The operator of a commit is recorded as an opaque id. Request facts are recorded with every commit: the authenticated application, and, for requests on the public port, the client's remote address and user agent. Do not add personal data to `wow.http.request-facts`.
+- The operator of a commit is recorded as an opaque id. Request facts are recorded with every commit: the authenticated application and, for requests on the public port, the client's remote address and user agent. An IP address and a user agent are personal data, and once written they cannot be erased. Do not add further personal data to `wow.http.request-facts`.
 - Snapshots, the warehouse and search indexes are derived from the log: deleting a row there does not delete the fact.
 
 ## Tenants

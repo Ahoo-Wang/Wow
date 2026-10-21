@@ -98,7 +98,34 @@ The address is the pod's name under a headless service that also publishes pods 
 | ClickHouse | When the service writes the warehouse or serves datasets | The ClickHouse sink and dataset queries. |
 | Elasticsearch | Optional | Copies of snapshots and event streams for full-text search. It never holds the log. |
 
-A node keeps all of its own data in one backend, unless named stores split it per aggregate. The memory backend is for tests and trying things out: its data does not outlive the node. With `wow.backend: auto`, the default, a node that finds no durable backend falls back to memory only in a development profile; otherwise it does not start.
+### Choose a backend
+
+A node keeps its log, snapshots, checkpoints, leases, failure ledger, reserved keys and timers in one backend, chosen by `wow.backend`:
+
+| Backend | Module | The application provides |
+| --- | --- | --- |
+| `postgres` | `wow-postgres` | a `javax.sql.DataSource` bean |
+| `mongo` | `wow-mongo` | a `com.mongodb.client.MongoClient` bean, on a replica set; the database is `wow.mongo.database` |
+| `memory` | none | nothing: one node, whose data does not outlive it |
+
+`auto`, the default, takes PostgreSQL or MongoDB by the bean the application has. Without either, a node refuses to start, unless a development profile is active or its internal port binds the loopback interface alone; then it runs in memory and says so. The eShop's ordering service moves to PostgreSQL with its `postgres` profile:
+
+<!-- sample: example/eshop/ordering/ordering-server/src/main/resources/application.yaml#postgres -->
+
+```yaml
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: jdbc:postgresql://localhost:5432/eshop_ordering
+    username: postgres
+    password: postgres
+wow:
+  backend: postgres
+```
+
+The host creates its tables and collections at startup, unless `wow.ddl` says `validate` or `none`. The log and the snapshots are stored per aggregate type (`wow_log__<context>__<aggregate>`, `wow_snapshot__<context>__<aggregate>`). Named stores, `wow.stores`, split the data per aggregate instead: one aggregate's log on PostgreSQL, another's snapshots on Elasticsearch.
 
 A system usually also runs the platform services, which are Wow services themselves: the **ops service**, which collects every service's parked aggregates and gives operators a console ([The ops service and console](./ops-console)); the **view store**, which keeps users' saved views; and the **analytics catalog**, which defines and publishes datasets.
 

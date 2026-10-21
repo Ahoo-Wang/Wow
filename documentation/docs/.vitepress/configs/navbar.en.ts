@@ -11,7 +11,7 @@ export const navbarEn: DefaultTheme.NavItem[] = [
             {text: 'Testing', link: '/guide/v10/testing'},
             {text: 'HTTP API', link: '/guide/v10/http-api'},
             {text: 'Query Language', link: '/guide/v10/query'},
-            {text: 'Deployment', link: '/guide/v10/deployment'},
+            {text: 'Deployment', link: '/operate/topology'},
         ],
     },
     {

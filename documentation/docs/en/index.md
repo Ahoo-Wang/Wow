@@ -27,7 +27,7 @@ features:
 - title: The log is the bus
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>'
   details: "One append is the only write. Subscriptions read the log with checkpoints, so no committed fact is ever lost on the way."
-  link: /guide/v10/deployment
+  link: /operate/topology
 - title: One contract
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>'
   details: "The Manifest is the single source: REST routes, OpenAPI, the TypeScript client and the views are derived from it."
@@ -43,7 +43,7 @@ features:
 - title: PostgreSQL or MongoDB
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>'
   details: "Both are first-class backends; Kafka carries what crosses contexts, ClickHouse serves the datasets."
-  link: /guide/v10/deployment
+  link: /operate/topology
 ---
 
 ## Recognition

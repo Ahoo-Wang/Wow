@@ -153,7 +153,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: 'HTTP API', link: 'http-api'},
                 {text: '查询语言', link: 'query'},
                 {text: '配置项', link: 'configuration'},
-                {text: '部署', link: 'deployment'},
+                {text: '部署', base: '/zh/operate/', link: 'topology'},
             ],
         },
     ],

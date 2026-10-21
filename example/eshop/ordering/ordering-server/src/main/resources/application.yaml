@@ -48,6 +48,7 @@ eshop:
     # How long an order whose stock is confirmed waits for its payment before it cancels itself.
     payment-grace-period: 30m
 ---
+# region postgres
 spring:
   config:
     activate:
@@ -58,6 +59,7 @@ spring:
     password: postgres
 wow:
   backend: postgres
+# endregion
 ---
 spring:
   config:
