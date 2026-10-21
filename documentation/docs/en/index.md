@@ -39,7 +39,7 @@ features:
 - title: Tests in the model's terms
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l3 7-6 11-6-11 3-7Z"/><path d="M9 3 3 10h18L15 3"/></svg>'
   details: "Given events, when a command, expect events and state: aggregates, sagas and projections test without a server."
-  link: /guide/v10/testing
+  link: /guide/testing
 - title: PostgreSQL or MongoDB
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>'
   details: "Both are first-class backends; Kafka carries what crosses contexts, ClickHouse serves the datasets."
