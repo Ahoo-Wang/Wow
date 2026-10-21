@@ -384,7 +384,7 @@ context.command(AggregateType("inventory", "stock").ref(event.ref.tenantId, prod
 - 目标服务设置 `wow.kafka.command-intake: true` 后执行它的命令主题。主题必须已存在，且分区数恰好等于目标的日志分区数（`wow.log.partitions`，默认 64），否则那个节点无法启动。
 - 拒绝以回执的形式写回发送方的 `wow.<sender>.receipts`，交给 Saga 的 `@OnRejected` 处理函数。
 - 发送方从目标的 Manifest 中找到命令的类型名，该 Manifest 是发送服务的对端。
-- `ref` 的租户原样传递：一个系统中的所有上下文共用一个租户空间（见[部署](../../operate/topology.md)）。
+- `ref` 的租户原样传递：一个系统中的所有上下文共用一个租户空间（见[部署](../../operate/security.md#tenants)）。
 
 节点的某个 Saga 派生、定时或处理其他上下文命令的拒绝时，没有命令传输的节点无法启动。错误信息指出每个 Saga 与上下文：
 

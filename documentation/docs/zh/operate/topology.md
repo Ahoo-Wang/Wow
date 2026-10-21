@@ -98,7 +98,34 @@ env:
 | ClickHouse | 服务写数仓或提供数据集时 | ClickHouse Sink 和数据集查询。 |
 | Elasticsearch | 可选 | 快照和事件流的副本，用于全文检索。它从不保存日志。 |
 
-一个节点把它自己的所有数据放在一个后端里，除非用命名的存储按聚合拆分。内存后端用于测试和试用：它的数据不会比节点活得更久。在默认的 `wow.backend: auto` 下，找不到持久后端的节点只在开发 profile 中退回到内存；否则它不会启动。
+### 选择后端 {#choose-a-backend}
+
+节点把它的日志、快照、检查点、租约、失败台账、预留键和定时器放在同一个后端里，由 `wow.backend` 选择：
+
+| 后端 | 模块 | 应用提供 |
+| --- | --- | --- |
+| `postgres` | `wow-postgres` | 一个 `javax.sql.DataSource` Bean |
+| `mongo` | `wow-mongo` | 一个连接副本集的 `com.mongodb.client.MongoClient` Bean；数据库由 `wow.mongo.database` 指定 |
+| `memory` | 无 | 什么都不用：一个节点，数据不会比它活得更久 |
+
+默认的 `auto` 按应用提供的 Bean 选择 PostgreSQL 或 MongoDB。两者都没有时节点拒绝启动，除非处于开发 profile，或者它的内部端口只绑定在回环网卡上；这时它在内存中运行，并说明这一点。eShop 的 ordering 服务用它的 `postgres` profile 切换到 PostgreSQL：
+
+<!-- sample: example/eshop/ordering/ordering-server/src/main/resources/application.yaml#postgres -->
+
+```yaml
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: jdbc:postgresql://localhost:5432/eshop_ordering
+    username: postgres
+    password: postgres
+wow:
+  backend: postgres
+```
+
+除非 `wow.ddl` 设为 `validate` 或 `none`，宿主在启动时创建它的表和集合。日志和快照按聚合类型存储（`wow_log__<context>__<aggregate>`、`wow_snapshot__<context>__<aggregate>`）。命名的存储 `wow.stores` 改为按聚合拆分数据：一个聚合的日志在 PostgreSQL 上，另一个聚合的快照在 Elasticsearch 上。
 
 一个系统通常还运行平台服务，它们本身也是 Wow 服务：**ops 服务**汇集每个服务停放的聚合，并给运维人员一个控制台（[ops 服务与控制台](./ops-console)）；**视图存储**保存用户保存的视图；**分析目录**定义和发布数据集。
 
