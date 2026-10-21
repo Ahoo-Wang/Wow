@@ -177,8 +177,27 @@ class EventStreamImporter(
             }
             after = page.last().let { NineXPosition(it.createTime, it.id) }
         }
-        save(aggregate, checkpoint.copy(tailedTo = latest))
+        save(aggregate, checkpoint.copy(tailedTo = latest, tailedAt = clock()))
         return stats.report(done = true).also(progress)
+    }
+
+    /**
+     * Why the final pass of [aggregate] cannot be its tail (design 07 §3 step 3): its full import has not completed,
+     * the tail never ran, or its last pass ended more than [maxTailAgeMillis] ago, so it did not follow 9.x
+     * continuously; null when it can. A final pass that cannot be the tail is `import --restart`.
+     */
+    fun finalProblem(aggregate: NineXAggregate, maxTailAgeMillis: Long): String? {
+        val checkpoint = checkpoints.load().of(aggregate)
+        val tailedAt = checkpoint?.tailedAt
+        return when {
+            checkpoint == null || !checkpoint.completed -> "the full import of $aggregate has not completed"
+            tailedAt == null -> "the tail of $aggregate never ran"
+            clock() - tailedAt > maxTailAgeMillis ->
+                "the tail of $aggregate last ended ${clock() - tailedAt} ms ago, more than $maxTailAgeMillis ms: it " +
+                    "did not follow 9.x continuously"
+
+            else -> null
+        }
     }
 
     /** Imports [id]'s streams from [fromVersion] on, and returns the last version the log then holds of it. */

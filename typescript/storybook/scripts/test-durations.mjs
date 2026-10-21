@@ -13,7 +13,7 @@
 
 // Refreshes test-durations.json, the weights the shard sequencer balances
 // the CI shards with, from Vitest JSON reports. Each Chromium shard job of
-// typescript-storybook.yml uploads its report as `storybook-durations-<n>`:
+// ci.yml's storybook-interactions job uploads its report as `storybook-durations-<n>`:
 //
 //   gh run download <run-id> -p 'storybook-durations-*' -D "$tmp"
 //   node scripts/test-durations.mjs "$tmp"/*/*.json

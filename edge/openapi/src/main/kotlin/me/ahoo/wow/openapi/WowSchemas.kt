@@ -235,7 +235,6 @@ internal object WowSchemas {
             "type" to schemaRef(AGGREGATE_TYPE),
             "tenantId" to STRING,
             "id" to STRING,
-            "isAssigned" to BOOLEAN,
         ),
         listOf("type", "tenantId", "id"),
     )
