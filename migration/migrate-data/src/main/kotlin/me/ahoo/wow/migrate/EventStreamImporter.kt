@@ -169,8 +169,10 @@ class EventStreamImporter(
                 break
             }
             tailPage(aggregatePlan, page, reached, stats)
-            latest = maxOf(latest, page.maxOf { it.createTime })
-            after = page.last().let { NineXPosition(it.createTime, it.id) }
+            // A page is in commit-time order: its last stream is its latest.
+            val last = page.last()
+            latest = maxOf(latest, last.createTime)
+            after = NineXPosition(last.createTime, last.id)
         }
         save(aggregate, checkpoint.copy(tailedTo = latest, tailedAt = clock()))
         return stats.report(done = true).also(progress)
