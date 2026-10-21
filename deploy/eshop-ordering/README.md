@@ -1,10 +1,10 @@
-# eShop ordering on Kubernetes (Wow V10)
+# eShop ordering on Kubernetes
 
-These are plain manifests for one V10 service: the eShop ordering service (`example/eshop/ordering`), on PostgreSQL and Kafka, with two nodes. Use them as a template for your own service. [Deployment model](https://wow.ahoo.me/operate/topology) explains the settings they use.
+These are plain manifests for one Wow service: the eShop ordering service (`example/eshop/ordering`), on PostgreSQL and Kafka, with two nodes. Use them as a template for your own service. [Deployment model](https://wow.ahoo.me/operate/topology) explains the settings they use.
 
 | File | What it holds |
 | --- | --- |
-| `kustomization.yaml` | The set: `kubectl apply -k deploy/v10/eshop-ordering` |
+| `kustomization.yaml` | The set: `kubectl apply -k deploy/eshop-ordering` |
 | `configmap.yaml` | The settings every node shares, as environment variables: profiles, the PostgreSQL URL, the Kafka brokers, the log partitions |
 | `secret.yaml` | The PostgreSQL user and password; the cluster token of the internal port (`WOW_INTERNAL_TOKEN`, decision D226) and the shop's service tokens (`ESHOP_*_SERVICE_TOKEN`). These are example values; replace them |
 | `deployment.yaml` | The nodes. Each has its HTTP port (`8083`) and its internal port (`9093`). The node id is the pod name. The internal port binds the pod IP and is advertised under the headless name. The file also sets the probes and the shutdown grace period |
@@ -18,7 +18,7 @@ These are plain manifests for one V10 service: the eShop ordering service (`exam
 
    ```bash
    ./gradlew :eshop-ordering-server:installDist
-   docker build -f deploy/v10/eshop-ordering/Dockerfile -t wow-eshop-ordering-server:local \
+   docker build -f deploy/eshop-ordering/Dockerfile -t wow-eshop-ordering-server:local \
      example/eshop/ordering/ordering-server
    ```
 
@@ -39,7 +39,7 @@ These are plain manifests for one V10 service: the eShop ordering service (`exam
 ## Apply and check
 
 ```bash
-kubectl apply -k deploy/v10/eshop-ordering
+kubectl apply -k deploy/eshop-ordering
 kubectl rollout status deployment/eshop-ordering
 kubectl port-forward service/eshop-ordering 8083:80
 curl -s localhost:8083/wow/manifest

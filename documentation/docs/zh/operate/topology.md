@@ -57,7 +57,7 @@ flowchart LR
 
 在 Kubernetes 上，eShop 的 ordering 清单从 Pod 推出这三项：
 
-<!-- sample: deploy/v10/eshop-ordering/deployment.yaml#node -->
+<!-- sample: deploy/eshop-ordering/deployment.yaml#node -->
 
 ```yaml
 env:
@@ -87,7 +87,7 @@ env:
     value: $(POD_NAME).eshop-ordering-cluster.$(POD_NAMESPACE).svc.cluster.local:9093
 ```
 
-这个地址是 Pod 在一个 headless Service 下的名字，这个 Service 也发布尚未就绪的 Pod，所以正在启动或正在排空的节点仍能收到同伴的转发和信号。[eShop ordering 清单](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/v10/eshop-ordering)是一个服务的完整模板。
+这个地址是 Pod 在一个 headless Service 下的名字，这个 Service 也发布尚未就绪的 Pod，所以正在启动或正在排空的节点仍能收到同伴的转发和信号。[eShop ordering 清单](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering)是一个服务的完整模板。
 
 ## 服务需要什么 {#what-a-service-needs}
 
@@ -151,7 +151,7 @@ wow:
 
 类路径上有 Spring Boot Actuator 时，宿主把节点的健康状况加入就绪和存活分组：
 
-<!-- sample: deploy/v10/eshop-ordering/deployment.yaml#probes -->
+<!-- sample: deploy/eshop-ordering/deployment.yaml#probes -->
 
 ```yaml
 startupProbe:

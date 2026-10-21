@@ -1,4 +1,4 @@
-# The eShop ordering service on Wow V10, in plain manifests (roadmap P.4): kubectl apply -k deploy/v10/eshop-ordering
+# The eShop ordering service on Wow, in plain manifests (roadmap P.4): kubectl apply -k deploy/eshop-ordering
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 labels:

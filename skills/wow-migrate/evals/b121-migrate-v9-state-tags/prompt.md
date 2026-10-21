@@ -25,4 +25,4 @@ class TicketState(val id: String) : StatusCapable<TicketStatus>, StateAggregateT
 }
 ```
 
-运维还会通过 `ApplyTags` 给工单手工打 `priority` 标签。团队认为 V10 没有从状态推导标签的能力，打算让每个改派命令的 Saga 再发一条 `ApplyTags`。
+运维还会通过 `ApplyTags` 给工单手工打 `priority` 标签。团队认为 V10 没有从状态推导标签的能力，打算让每个改派命令的 Saga 再发一条 `ApplyTags`。在回答里给出代码和命令。

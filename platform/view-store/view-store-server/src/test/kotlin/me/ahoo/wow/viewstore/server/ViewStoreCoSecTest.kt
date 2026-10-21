@@ -129,7 +129,7 @@ abstract class ViewStoreCoSecContract {
 }
 
 /**
- * Behind a CoSec gateway (decision D236 ②), as `deploy/v10/view-store` runs it: the gateway authorized each request's
+ * Behind a CoSec gateway (decision D236 ②), as `deploy/view-store` runs it: the gateway authorized each request's
  * `CoSec-App-Id` by the application's roles, and the service, in CoSec's inject mode, trusts the application it
  * forwards (`wow.cosec.trust-injected-app`). Without that switch no application is authenticated at all.
  */

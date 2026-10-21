@@ -6,7 +6,7 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-Labels can just be the field paths and enum constants, like state.paidAmount and PAID; the users will figure it out.
+Labels can just be the field paths and enum constants, like state.paidAmount and PAID; the users will figure it out. Give the code and the commands in your answer.
 
 Files from the user's project, shown inline:
 
