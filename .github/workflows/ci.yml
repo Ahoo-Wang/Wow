@@ -113,8 +113,8 @@ jobs:
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true
-          flags: unit
-          name: unit
+          flags: jvm-unit
+          name: jvm-unit
           fail_ci_if_error: true
           verbose: true
           disable_search: true
