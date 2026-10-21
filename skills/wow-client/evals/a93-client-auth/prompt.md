@@ -6,4 +6,4 @@ max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-Wow 前端用生成的 CartCommandClient 调用接口，一直报 Missing required path parameter: ownerId，怎么让它从登录用户带上？
+Wow 前端用生成的 CartCommandClient 调用 V10 服务，一直返回 401 wow.auth.unauthenticated，怎么让它带上登录用户的身份？

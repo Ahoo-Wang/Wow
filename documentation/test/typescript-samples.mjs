@@ -425,10 +425,7 @@ export const IMPORT_SOURCES = markdown(join(repository, 'skills', 'wow-client'))
  * is temporary: the test fails once its Skill imports only exported names, so
  * the exception cannot outlive the work that removes it.
  */
-export const IMPORT_EXCEPTIONS = [
-    // Still teaches the 9.x client, which TS-9x removed; SK-1 rewrites it for the V10 client.
-    {source: 'skills/wow-client', owner: 'SK-1'},
-]
+export const IMPORT_EXCEPTIONS = []
 
 /** The `import { … } from '<entry>'` names of IMPORT_SOURCES that their entry does not export. */
 export function importProblems() {

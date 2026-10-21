@@ -1,8 +1,8 @@
 ---
 type: regex
-pattern: '9\.2\.1'
+pattern: 'events/query'
 match: contains
 target: last_message
 ---
 
-The answer names Wow 9.2.1.
+The answer names `events/query`.
