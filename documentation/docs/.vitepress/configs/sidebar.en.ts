@@ -187,6 +187,15 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             text: 'Test',
             items: [
                 {text: 'Test Domain Code', link: 'testing'},
+                {text: 'Test a Service', link: 'testing-services'},
+            ],
+        },
+        {
+            base: '/guide/',
+            text: 'Host',
+            items: [
+                {text: 'Host on Spring Boot', link: 'spring-boot'},
+                {text: 'Write the Domain in Java', link: 'java'},
             ],
         },
     ],
