@@ -18,7 +18,7 @@ import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.models.tree.Flat
 import me.ahoo.wow.models.tree.TreeCoded
 
-/** Updates the node [code] (in the command's body: V10 routes carry the aggregate's id only). */
+/** Updates the node [code] (in the command's body: 10.x routes carry the aggregate's id only). */
 @Summary("Update tree node")
 interface Update<E : Updated> : TreeCoded {
     @get:JsonIgnore

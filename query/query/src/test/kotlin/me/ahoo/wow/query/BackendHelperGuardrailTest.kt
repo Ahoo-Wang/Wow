@@ -20,7 +20,7 @@ import java.io.File
 /**
  * The storage backends read operands and paths through the query core's shared helpers ([operandValue],
  * [requiredOperandValue], [AdmittedQuery.physicalPath], [AdmittedQuery.systemPath]) instead of private copies that
- * drift apart. This scans the V10 storage backends' main sources (the query backends of work packages 6.2a and 6.2b
+ * drift apart. This scans the storage backends' main sources (the query backends of work packages 6.2a and 6.2b
  * land there) for the private declarations the helpers replace.
  *
  * [ALLOWED] lists tolerated occurrences by file and pattern, with their count. It is empty and can only shrink: a new

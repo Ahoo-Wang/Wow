@@ -16,7 +16,7 @@ package me.ahoo.wow.api.annotation
 import java.lang.annotation.Inherited
 
 /**
- * A description of a type or a field (V10), carried into the Manifest and the documentation generated from it.
+ * A description of a type or a field, carried into the Manifest and the documentation generated from it.
  *
  * @param value the description.
  */

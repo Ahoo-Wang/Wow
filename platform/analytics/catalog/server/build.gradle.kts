@@ -1,9 +1,9 @@
-description = "Wow V10 analytics catalog: the analytics catalog service on the Spring Boot host (roadmap 9.3b)"
+description = "Wow analytics catalog: the analytics catalog service on the Spring Boot host (roadmap 9.3b)"
 
 // The analytics catalog service (decisions D238, D241), in place of the 9.x analytics-catalog/ starter:
 // `./gradlew :analytics-catalog-server:run` starts it on the memory backend, its catalog on the ClickHouse
 // `wow.clickhouse.endpoint` names; `--args='--spring.profiles.active=postgres'` keeps the sources on PostgreSQL.
-// V10 modules are not published before M8 (decision D88).
+// Wow modules are not published before M8 (decision D88).
 plugins {
     application
 }

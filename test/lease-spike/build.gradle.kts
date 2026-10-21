@@ -1,4 +1,4 @@
-description = "V10 spike H6: partition leases, membership and rebalancing on PostgreSQL and MongoDB"
+description = "Wow spike H6: partition leases, membership and rebalancing on PostgreSQL and MongoDB"
 
 dependencies {
     integrationTestImplementation(project(":runtime"))

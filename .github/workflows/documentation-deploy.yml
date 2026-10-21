@@ -12,8 +12,8 @@
 #
 
 name: Documentation Build and Deploy
-# By hand only until the V10 documentation (W1/W2) is done: the site keeps its
-# 9.x content, and nothing deploys partial V10 pages to its root. DI-6 (#4699)
+# By hand only until the documentation (W1/W2) is done: the site keeps its
+# 9.x content, and nothing deploys partial 10.x pages to its root. DI-6 (#4699)
 # turns the push and schedule triggers back on, with 9.x served under /9.x/.
 on:
   workflow_dispatch:

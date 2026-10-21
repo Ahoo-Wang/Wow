@@ -18,11 +18,11 @@
 # typescript/RELEASING.md is the maintainer's checklist.
 #
 # On main (R.1, D217) it releases the 10.x pre-releases only (`v10.*-alpha.n`,
-# `-beta.n`, `-rc.n`; AGENTS.md "Releasing a V10 pre-release"): the gates and
-# the Maven publications cover the V10 modules, the V10 BOM and
+# `-beta.n`, `-rc.n`; AGENTS.md "Releasing a pre-release"): the gates and
+# the Maven publications cover the modules, the BOM and
 # wow-dependencies, the only projects the build has (D262); npm publishes
 # under `alpha`/`beta`/`next`, never `latest` (publish-npm.mjs);
-# v10-image-deploy.yml pushes the V10 server images under the version alone;
+# image-deploy.yml pushes the server images under the version alone;
 # and the GitHub pre-release carries the notes of
 # .github/release-notes/v10-prerelease.md.
 name: Packages Deploy
@@ -159,8 +159,8 @@ jobs:
         with:
           cache-read-only: true
 
-      # The V10 gates on the release commit itself: compile, unit tests,
-      # detekt and the ABI of the V10 modules (:check), and their
+      # The gates on the release commit itself: compile, unit tests,
+      # detekt and the ABI of the modules (:check), and their
       # container-backed tests.
       - name: Verify release build
         run: ./gradlew :check :integrationTest
@@ -357,14 +357,14 @@ jobs:
       - name: Smoke-test the published packages
         run: node .github/scripts/package-check.mjs --registry
 
-  # The V10 server images, under the release version alone (never `latest`),
+  # The server images, under the release version alone (never `latest`),
   # once the release is on Maven Central and npm.
   images:
     needs: npm-deploy
     permissions:
       contents: read
       packages: write
-    uses: ./.github/workflows/v10-image-deploy.yml
+    uses: ./.github/workflows/image-deploy.yml
     secrets: inherit
 
   # The GitHub pre-release of the tag: created from

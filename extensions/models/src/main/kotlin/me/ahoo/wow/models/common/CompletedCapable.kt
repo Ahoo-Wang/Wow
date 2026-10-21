@@ -16,7 +16,7 @@ package me.ahoo.wow.models.common
 /**
  * A type that is completed or not.
  *
- * 9.x extended `me.ahoo.wow.api.naming.CompletedCapable`, a part of 9.x wow-api the V10 wow-api leaves out, so this
+ * 9.x extended `me.ahoo.wow.api.naming.CompletedCapable`, a part of 9.x wow-api the 10.x wow-api leaves out, so this
  * declares the property itself.
  */
 interface CompletedCapable {

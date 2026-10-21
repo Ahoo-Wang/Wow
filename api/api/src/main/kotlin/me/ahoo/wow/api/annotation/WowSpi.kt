@@ -14,7 +14,7 @@
 package me.ahoo.wow.api.annotation
 
 /**
- * A Wow SPI (V10): a port that backends and transports implement. A minor release may change it, so a user opts in.
+ * A Wow SPI: a port that backends and transports implement. A minor release may change it, so a user opts in.
  */
 @RequiresOptIn(
     message = "Wow SPI for backend and transport implementations: a minor release may change it.",

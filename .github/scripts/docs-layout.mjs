@@ -35,7 +35,7 @@ export const MARKDOWN_LOCATIONS = [
   /^typescript\/storybook\/docs\/scenarios\.md$/,
   // Ledgers and release runbooks.
   /^docs\/todo\.md$/,
-  // The eShop's developer-experience gaps, to close before V10's M7.
+  // The eShop's developer-experience gaps, to close before M7.
   /^example\/eshop\/DX-GAPS\.md$/,
   /^typescript\/(?:TODO|MIGRATION|RELEASING|RELEASE_NOTES_TEMPLATE)\.md$/,
   // A minor release's notes draft, deleted once the release is published.
