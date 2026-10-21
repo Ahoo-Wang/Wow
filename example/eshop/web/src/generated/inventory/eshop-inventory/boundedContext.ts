@@ -21,6 +21,9 @@ export const EshopInventoryErrorCodes = {
 /** A {@link EshopInventoryErrorCodes} value. */
 export type EshopInventoryErrorCode = (typeof EshopInventoryErrorCodes)[keyof typeof EshopInventoryErrorCodes];
 
+/** The subscriptions of `eshop-inventory` a `handled` hop names. */
+export type EshopInventorySubscription = 'SupplierDeliverySaga.onSchedule';
+
 /** The hops of a wait chain (`Wow-Wait`) in `eshop-inventory`. */
 export const eshopInventoryWait = {
   /** Until a command of `eshop-inventory` passed admission. */
@@ -29,4 +32,6 @@ export const eshopInventoryWait = {
   committed: (): Hop => wait.committed(ESHOP_INVENTORY_BOUNDED_CONTEXT),
   /** Until the snapshot of `eshop-inventory` holds the commit. */
   snapshot: (): Hop => wait.snapshot(ESHOP_INVENTORY_BOUNDED_CONTEXT),
+  /** Until a subscription of `eshop-inventory` handled the commit. */
+  handled: (subscription: EshopInventorySubscription): Hop => wait.handled(subscription, ESHOP_INVENTORY_BOUNDED_CONTEXT),
 } as const;
