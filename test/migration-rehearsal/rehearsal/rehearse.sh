@@ -227,12 +227,16 @@ internal() {
   curl -sS -f -X "$2" "$1$3" -H "Wow-Cluster-Token: $CLUSTER_TOKEN" -H "Content-Type: application/json" ${4:+-d "$4"}
 }
 
-# resume_hosts: the operator's resume of both V10 hosts at the cut-over (deployment run book); prints their status.
+# resume_hosts: the operator's resume of both V10 hosts at the cut-over (deployment run book), at once, as an operator
+# resumes every node of every service; prints their status.
 resume_hosts() {
-  local body='{"by":"rehearsal","reason":"8c.1 cut-over"}'
-  internal "$V10_INTERNAL_URL" POST /wow/node/resume "$body"
-  echo
-  internal "$VIEWS_INTERNAL_URL" POST /wow/node/resume "$body"
+  local body='{"by":"rehearsal","reason":"8c.1 cut-over"}' v10 views
+  internal "$V10_INTERNAL_URL" POST /wow/node/resume "$body" >"$WORK/resume-v10.json" &
+  v10=$!
+  internal "$VIEWS_INTERNAL_URL" POST /wow/node/resume "$body" >"$WORK/resume-views.json" &
+  views=$!
+  wait "$v10" && wait "$views"
+  cat "$WORK/resume-v10.json" "$WORK/resume-views.json"
   echo
   echo '{"resumed":2}'
 }
