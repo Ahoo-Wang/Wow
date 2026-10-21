@@ -75,6 +75,25 @@ public final class me/ahoo/wow/query/BackendQueries {
 	public static final fun single (Lme/ahoo/wow/query/QueryBackend;Lme/ahoo/wow/query/AdmittedQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
+public final class me/ahoo/wow/query/CrossTenant {
+	public static final field ALL Lme/ahoo/wow/query/CrossTenant;
+	public static final field Companion Lme/ahoo/wow/query/CrossTenant$Companion;
+	public fun <init> ()V
+	public fun <init> (Ljava/util/Set;)V
+	public synthetic fun <init> (Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/util/Set;
+	public final fun copy (Ljava/util/Set;)Lme/ahoo/wow/query/CrossTenant;
+	public static synthetic fun copy$default (Lme/ahoo/wow/query/CrossTenant;Ljava/util/Set;ILjava/lang/Object;)Lme/ahoo/wow/query/CrossTenant;
+	public final fun covers (Ljava/lang/String;)Z
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getTenantIds ()Ljava/util/Set;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/query/CrossTenant$Companion {
+}
+
 public final class me/ahoo/wow/query/CursorPosition {
 	public fun <init> (Ljava/util/List;)V
 	public fun equals (Ljava/lang/Object;)Z
@@ -194,8 +213,11 @@ public final class me/ahoo/wow/query/QueryAdmission$Trusted {
 }
 
 public final class me/ahoo/wow/query/QueryAudit {
+	public static final field CROSS_TENANT_LOGGER Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/query/QueryAudit$Companion;
 	public final fun getAggregateType ()Lme/ahoo/wow/api/aggregate/AggregateType;
 	public final fun getCaller ()Lme/ahoo/wow/query/QueryCaller;
+	public final fun getCrossTenant ()Lme/ahoo/wow/query/CrossTenant;
 	public final fun getElapsed ()Ljava/time/Duration;
 	public final fun getEntry ()Lme/ahoo/wow/query/QueryEntry;
 	public final fun getErrorCode ()Ljava/lang/String;
@@ -209,6 +231,9 @@ public final class me/ahoo/wow/query/QueryAudit {
 	public final fun getRows ()J
 	public final fun getScopeFields ()Ljava/util/List;
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/query/QueryAudit$Companion {
 }
 
 public final class me/ahoo/wow/query/QueryAudit$Outcome : java/lang/Enum {
@@ -330,17 +355,19 @@ public final class me/ahoo/wow/query/QueryCaller {
 	public static final field IN_PROCESS Lme/ahoo/wow/query/QueryCaller;
 	public static final field UNSPECIFIED Lme/ahoo/wow/query/QueryCaller;
 	public fun <init> ()V
-	public fun <init> (Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/query/QueryEntry;Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/query/QueryScope;)V
-	public synthetic fun <init> (Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/query/QueryEntry;Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/query/QueryScope;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/query/QueryEntry;Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/query/QueryScope;Lme/ahoo/wow/query/CrossTenant;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/query/QueryEntry;Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/query/QueryScope;Lme/ahoo/wow/query/CrossTenant;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lme/ahoo/wow/api/caller/Caller;
 	public final fun component2 ()Lme/ahoo/wow/query/QueryEntry;
 	public final fun component3 ()Lme/ahoo/wow/api/query/FilterExpression;
 	public final fun component4 ()Lme/ahoo/wow/query/QueryScope;
-	public final fun copy (Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/query/QueryEntry;Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/query/QueryScope;)Lme/ahoo/wow/query/QueryCaller;
-	public static synthetic fun copy$default (Lme/ahoo/wow/query/QueryCaller;Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/query/QueryEntry;Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/query/QueryScope;ILjava/lang/Object;)Lme/ahoo/wow/query/QueryCaller;
+	public final fun component5 ()Lme/ahoo/wow/query/CrossTenant;
+	public final fun copy (Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/query/QueryEntry;Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/query/QueryScope;Lme/ahoo/wow/query/CrossTenant;)Lme/ahoo/wow/query/QueryCaller;
+	public static synthetic fun copy$default (Lme/ahoo/wow/query/QueryCaller;Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/query/QueryEntry;Lme/ahoo/wow/api/query/FilterExpression;Lme/ahoo/wow/query/QueryScope;Lme/ahoo/wow/query/CrossTenant;ILjava/lang/Object;)Lme/ahoo/wow/query/QueryCaller;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAttributes ()Ljava/util/Map;
 	public final fun getCaller ()Lme/ahoo/wow/api/caller/Caller;
+	public final fun getCrossTenant ()Lme/ahoo/wow/query/CrossTenant;
 	public final fun getEntry ()Lme/ahoo/wow/query/QueryEntry;
 	public final fun getPrincipal ()Lme/ahoo/wow/api/aggregate/Scope;
 	public final fun getScope ()Lme/ahoo/wow/query/QueryScope;

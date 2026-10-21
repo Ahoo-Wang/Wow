@@ -106,6 +106,7 @@ public final class me/ahoo/wow/http/query/HttpQueries {
 	public static final field NONE Lme/ahoo/wow/http/query/HttpQueries;
 	public final fun events (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/QueryGateway;
 	public final fun gateway (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;)Lme/ahoo/wow/query/QueryGateway;
+	public final fun getCrossTenant ()Z
 	public final fun getDatasetVisibility ()Lme/ahoo/wow/query/dataset/DatasetVisibility;
 	public final fun getDatasets ()Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
 	public final fun getDefaultListSize ()I

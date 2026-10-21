@@ -247,12 +247,27 @@ public final class me/ahoo/wow/client/wire/CallHeader {
 }
 
 public final class me/ahoo/wow/client/wire/ScopeHeader {
+	public static final field ALL_TENANTS Ljava/lang/String;
 	public static final field INSTANCE Lme/ahoo/wow/client/wire/ScopeHeader;
 	public static final field OWNER Ljava/lang/String;
 	public static final field SPACE Ljava/lang/String;
 	public static final field TENANT Ljava/lang/String;
 	public final fun format (Lme/ahoo/wow/runtime/admission/TargetScope;)Ljava/lang/String;
 	public final fun parse (Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/TargetScope;
+	public final fun parseQuery (Ljava/lang/String;)Lme/ahoo/wow/client/wire/ScopeHeader$QueryTarget;
+}
+
+public final class me/ahoo/wow/client/wire/ScopeHeader$QueryTarget {
+	public fun <init> (Lme/ahoo/wow/runtime/admission/TargetScope;Lme/ahoo/wow/query/CrossTenant;)V
+	public final fun component1 ()Lme/ahoo/wow/runtime/admission/TargetScope;
+	public final fun component2 ()Lme/ahoo/wow/query/CrossTenant;
+	public final fun copy (Lme/ahoo/wow/runtime/admission/TargetScope;Lme/ahoo/wow/query/CrossTenant;)Lme/ahoo/wow/client/wire/ScopeHeader$QueryTarget;
+	public static synthetic fun copy$default (Lme/ahoo/wow/client/wire/ScopeHeader$QueryTarget;Lme/ahoo/wow/runtime/admission/TargetScope;Lme/ahoo/wow/query/CrossTenant;ILjava/lang/Object;)Lme/ahoo/wow/client/wire/ScopeHeader$QueryTarget;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCrossTenant ()Lme/ahoo/wow/query/CrossTenant;
+	public final fun getTarget ()Lme/ahoo/wow/runtime/admission/TargetScope;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/client/wire/WowHeaders {

@@ -206,6 +206,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Configuration Keys', link: 'configuration'},
                 {text: 'Error Codes', link: 'error-codes'},
                 {text: 'Annotations', link: 'annotations'},
+                {text: 'Manifest Format', link: 'manifest'},
                 {text: 'Modules and Artifacts', link: 'modules'},
                 {text: 'API Levels', link: 'api-levels'},
             ],

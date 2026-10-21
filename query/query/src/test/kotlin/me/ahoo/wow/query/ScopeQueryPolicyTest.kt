@@ -13,6 +13,10 @@
 
 package me.ahoo.wow.query
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
@@ -28,6 +32,7 @@ import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
@@ -50,6 +55,7 @@ import me.ahoo.wow.query.schema.objectFixture
 import me.ahoo.wow.query.schema.scalarFixture
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import me.ahoo.wow.manifest.Ownership as ManifestOwnership
 
 class ScopeQueryPolicyTest {
@@ -221,6 +227,90 @@ class ScopeQueryPolicyTest {
                 SingleQuery(AggregateIdFilter("c")),
                 QueryCaller(Caller(tenantId = "t1"), entry = QueryEntry.HTTP)
             ).assert().isNull()
+        }
+    }
+
+    @Test
+    fun `a cross-tenant caller is restricted to its tenants, a fixed tenant kept`() {
+        runTest {
+            val caller = Caller(tenantId = "t1", scope = Scope("o1"), crossScope = true)
+            val policy = ScopeQueryPolicy()
+            val active = DeletionFilter(DeletionState.ACTIVE)
+            policy.evaluate(QueryCaller(caller, crossTenant = CrossTenant.ALL), context()).assert()
+                .isEqualTo(AndFilter(listOf(OwnerIdFilter("o1"), active)))
+            policy.evaluate(QueryCaller(caller, crossTenant = CrossTenant(setOf("t2"))), context()).assert()
+                .isEqualTo(AndFilter(listOf(TenantIdFilter("t2"), OwnerIdFilter("o1"), active)))
+            policy.evaluate(QueryCaller(caller, crossTenant = CrossTenant(setOf("t2", "t3"))), context()).assert()
+                .isEqualTo(
+                    AndFilter(
+                        listOf(
+                            OrFilter(listOf(TenantIdFilter("t2"), TenantIdFilter("t3"))),
+                            OwnerIdFilter("o1"),
+                            active
+                        ),
+                    ),
+                )
+            val fixed = QueryTenantPolicy { _, queryCaller -> "fixed".takeIf { queryCaller.tenantId == null } }
+            ScopeQueryPolicy(fixed).evaluate(QueryCaller(caller, crossTenant = CrossTenant.ALL), context()).assert()
+                .isEqualTo(AndFilter(listOf(TenantIdFilter("fixed"), OwnerIdFilter("o1"), active)))
+            QueryCaller(caller, crossTenant = CrossTenant.ALL).tenantId.assert().isNull()
+            QueryCaller(caller, crossTenant = CrossTenant.ALL).inProcess().crossTenant.assert().isNull()
+            runCatching { CrossTenant(emptySet()) }.exceptionOrNull()
+                .assert().isInstanceOf(IllegalArgumentException::class.java)
+            runCatching { CrossTenant(setOf(" ")) }.exceptionOrNull()
+                .assert().isInstanceOf(IllegalArgumentException::class.java)
+        }
+    }
+
+    @Test
+    fun `a fixed-tenant type never leaks another tenant to a cross-tenant caller, and every such query is logged`() {
+        runTest {
+            val storage = InMemoryQueryStorage()
+            listOf(
+                snapshot("a", "t1", Scope.NONE),
+                snapshot("b", "t2", Scope.NONE),
+                snapshot("c", "fixed", Scope.NONE),
+            ).forEach(storage::save)
+            val schema = ManifestFixtures.orderSchema()
+            fun gateway(tenants: QueryTenantPolicy) = DefaultQueryGateway(
+                ManifestFixtures.ORDER,
+                storage.create(ManifestFixtures.ORDER).backend,
+                FixedQueryModelSchemaProvider(schema),
+                policies = listOf(ScopeQueryPolicy(tenants)),
+            )
+            val sorted = ListQuery(
+                MatchAllFilter,
+                sort = listOf(Sort(QueryField("aggregateId"), Sort.Direction.ASC)),
+                limit = 100
+            )
+            val operator = Caller(tenantId = "t1", subject = "operator", crossScope = true)
+            val all = QueryCaller(operator, QueryEntry.HTTP, crossTenant = CrossTenant.ALL)
+            val logger = LoggerFactory.getLogger(QueryAudit.CROSS_TENANT_LOGGER) as Logger
+            val appender = ListAppender<ILoggingEvent>().apply { start() }
+            logger.addAppender(appender)
+            try {
+                // No observer audits: the gateway's observer is none.
+                val callers = gateway(QueryTenantPolicy.CALLERS)
+                callers.list(sorted, all).toList().map { it.path("aggregateId").stringValue() }
+                    .assert().containsExactly("a", "b", "c")
+                callers.list(sorted, all.copy(crossTenant = CrossTenant(setOf("t2", "fixed")))).toList()
+                    .map { it.path("aggregateId").stringValue() }.assert().containsExactly("b", "c")
+                callers.count(CountQuery(MatchAllFilter), all).count.assert().isEqualTo(3L)
+                val pinned = gateway { _, caller -> "fixed".takeIf { caller.tenantId == null } ?: caller.tenantId }
+                pinned.list(sorted, all).toList().map { it.path("aggregateId").stringValue() }
+                    .assert().containsExactly("c")
+                pinned.count(CountQuery(MatchAllFilter), all).count.assert().isEqualTo(1L)
+                // An ordinary caller of the same tenant is not served the cross-tenant count.
+                callers.count(CountQuery(MatchAllFilter), QueryCaller(operator, QueryEntry.HTTP)).count
+                    .assert().isEqualTo(1L)
+            } finally {
+                logger.detachAppender(appender)
+            }
+            val lines = appender.list.map { it.formattedMessage }
+            lines.size.assert().isEqualTo(5)
+            appender.list.all { it.level == Level.INFO }.assert().isTrue()
+            lines.first().assert().contains("operator", "tenant t1", "crossTenant=*", "outcome=COMPLETE")
+            lines[1].assert().contains("crossTenant=[t2, fixed]")
         }
     }
 

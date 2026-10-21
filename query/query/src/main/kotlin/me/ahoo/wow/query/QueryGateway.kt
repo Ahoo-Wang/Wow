@@ -369,7 +369,7 @@ class DefaultQueryGateway(
     }
 
     private fun trail(queryType: QueryType, query: Any, caller: QueryCaller): QueryAuditTrail? =
-        if (observer.audits) QueryAuditTrail(aggregateType, queryType, query, caller) else null
+        if (observer.audits(caller)) QueryAuditTrail(aggregateType, queryType, query, caller) else null
 
     private fun finished(queryType: QueryType, trail: QueryAuditTrail?, error: Throwable?) =
         observer.finished(aggregateType, queryType, trail, error)
