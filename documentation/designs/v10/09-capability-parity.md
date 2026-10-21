@@ -1,6 +1,6 @@
 # V10 与 9.x 的能力对照
 
-日期：2026-10-17。基线：`v10` `facbe4e83`（含审查修复 F1～F9 与基准诊断 B.D）。状态：持续维护。上位文档：[路线图](roadmap.md)（6.0i，D183；复核 D229）。
+日期：2026-10-21（上一版 2026-10-17，基线 `facbe4e83`）。2026-10-21 按 W0 文档写作对照代码更新 10 行（Elasticsearch、跨上下文解码、`@Retry` 分类、测试 fork、数据集注册与分析、健康、快速失败），并重新计数。状态：持续维护。上位文档：[路线图](roadmap.md)（6.0i，D183；复核 D229）。
 
 本文逐项列出 9.x 面向用户的能力在 V10 中的状态；迁移 Skill 的已知缺口表以本文为准。2026-10-17 按当时代码全面复核（上一版为 2026-10-13，基线 `f71209eda`），两侧都给出代码位置。
 
@@ -10,12 +10,12 @@
 
 | 类 | 数量 |
 |---|---|
-| A 已有 | 64 |
-| B 替代 | 41 |
-| C 放弃 | 24 |
-| D 推迟或计划 | 14 |
-| E 无决定（D229 已定去向） | 13 |
-| 合计 | 156 |
+| A 已有 | 73 |
+| B 替代 | 44 |
+| C 放弃 | 25 |
+| D 推迟或计划 | 7 |
+| E 无决定（D229 已定去向） | 11 |
+| 合计 | 160 |
 
 ## 2. 命令侧
 
@@ -87,7 +87,7 @@
 | 事件存储 Elasticsearch | `wow-elasticsearch` | C | D13（数据迁移见 G-5） |
 | 快照存储 MongoDB | `wow-mongo` | A | `backends/mongo/.../snapshot/MongoSnapshotStore.kt` |
 | 快照存储 Redis | `wow-redis` | C | D12 |
-| 快照存储 Elasticsearch | `wow-elasticsearch` | D | D167（6.7，发版前必做），未开工 |
+| 快照存储 Elasticsearch | `wow-elasticsearch` | A | `backends/elasticsearch`（`ElasticsearchStoreProvider`，`snapshot/`）：6.7 已完成（D167） |
 | 快照策略（版本间隔） | `SnapshotStrategy` | B | 每版本写（D4） |
 | 按聚合关闭快照 | 无 | A | `@AggregateRoot(snapshot = false)`（D195） |
 | 按聚合配置存储 | `storage-routing` | A | `wow.stores`、`runtime/log/LogGroupRouter.kt`、`SnapshotStoreRouter.kt`（D177、6.0g） |
@@ -108,9 +108,9 @@
 | Saga、投影、事件处理器 | `@StatelessSaga`、`@ProjectionProcessor`、`@EventProcessor` | B | `@Saga`、`@Projection`、`@Reactor`（D149）；Skill 覆盖 |
 | `@OnStateEvent`、`@OnMessage` | 注解 | B | `@OnEvent` + `StateEvent<S>`（D67、D81）；Skill 覆盖 |
 | 跨上下文事件处理 | Kafka 总线 | A | D134、D138、D140 |
-| 跨上下文事件带类型解码 | 共享类 | D | D178 已决定，**未实现、无工作包**（`SubscriptionBindings.kt:88` 仍为 `StateEventPayload` JSON） |
+| 跨上下文事件带类型解码 | 共享类 | A | DX-1c：修订号一致时解码为对端 api 的类，否则交付 `PublishedEvent`（D178、D267 ⑤） |
 | `@Retry` 次数、退避、超时 | `@Retry` | B | V10 `@Retry` + `wow.subscriptions.[…].parked.*`（P.1、P.3、P.10）；Skill 覆盖 |
-| `@Retry` 的可恢复分类与 `enabled` | `@Retry`、`RecoverableExceptionProvider` | E | G-6 |
+| `@Retry` 的可恢复分类与 `enabled` | `@Retry`、`RecoverableExceptionProvider` | A | `Retry.kt` 的 `recoverable`/`unrecoverable` 与 `FailureClassifier` SPI（P.16，D243） |
 | 订阅起点 | 无 | A | `@OnEvent(start)`、`wow.subscriptions.[…].start`（D154、D194） |
 | 处理器过滤器、拦截器、`@Order` | `filter/*` | C | D188、D186 |
 | Kafka 解码失败跳过 | `decodeFailureStrategy` | D | 上一版 §13 #16 推迟到 10.x（D184 记录）；V10 停放不可解码消息 |
@@ -130,13 +130,13 @@
 | ABAC 查询策略（含 CoSec `abac.` 属性） | `AbacQueryPolicy`、`CoSecAbacQueryPolicy` | A | `query/.../AbacQueryPolicy.kt`、`edge/cosec/.../CoSecCallerResolver.kt:83`（D129） |
 | 查询策略 SPI、作用域 | `QueryPolicy`、`QueryScope` | A | `QueryPolicy`、`ScopeQueryPolicy`、`QueryCaller` |
 | 快照查询 MongoDB | `wow-mongo` `query` | A | `backends/mongo/.../query/*`（6.2b） |
-| 快照查询 Elasticsearch | `wow-elasticsearch` `query` | D | D167（6.7） |
+| 快照查询 Elasticsearch | `wow-elasticsearch` `query` | A | `backends/elasticsearch` `query/`（D167，6.7） |
 | 跨聚合事件流查询与聚合（Mongo/ES） | `event/list`、`event/aggregation` | A | D235，A.M2 第一步 #4570：统一引擎，PostgreSQL、MongoDB、内存后端，按事件分析用 `expand("events")`；ES 随 6.7；限制见审查 R3.3-3、R3.4-1、R3.4-2 |
 | HTTP 查询路由 | `snapshot/list` 等 | B | `POST /{ctx}/{agg}/{model}/query`（D127）；Skill 只写了「查询改 FilterExpression」，未写路由对照 |
 | 列表流式返回 | `StreamingJsonArrayResponse` | A | `Accept: text/event-stream`（`edge/http/.../query/QueryHandler.kt:91`） |
 | 查询 schema 路由与刷新、actuator `wowQuerySchema` | `QuerySchemaHandlerFunction` | B | `GET` 能力描述（D127），schema 来自 Manifest（D37），无需刷新 |
 | 数据集目录、网关、路由 | `wow-query` `dataset` | A | `query/.../dataset/*`、`/wow/dataset`（6.1d，`WowRoutes.kt:372`） |
-| 数据集动态注册 | dataset-registry | D | D238：集中注册表服务，Wow 来源异步登记与分析师宽表（7.2b-1、7.2b-2） |
+| 数据集动态注册 | dataset-registry | B | 由 analytics 平台的 catalog 服务提供：Wow 来源异步登记与分析师宽表（D238、D251；7.2b-1、7.2b-2） |
 | ClickHouse 数据集后端 | `wow-clickhouse` | A | `backends/clickhouse/.../query/*`（6.4a） |
 | ClickHouse 数据集草稿 | `ClickHouseDatasetDrafts` | D | D238 ③(b)：分析师宽表从 `system.columns` 起草（7.2b-1） |
 | 预算、计数、游标 | `QueryBudget` 等 | A | `query/.../QueryBudget.kt`、计数缓存（D152） |
@@ -186,7 +186,7 @@
 | 能力 | 9.x | 类 | V10 位置 / 决定 |
 |---|---|---|---|
 | 聚合测试 | `AggregateSpec`、`aggregateVerifier` | A | `test/test-dsl` `aggregateSpec`（artifact `wow-test`，已发布） |
-| `fork`/`ref`、`givenState`、按类型 `expectError` | `wow-test` | 部分 | `givenState`、`expectError` 为 A；`fork` 是重放步骤而非复制状态（重复调用 mock），且无测试树，见 X-17、D245（工作包 T.1） |
+| `fork`/`ref`、`givenState`、按类型 `expectError` | `wow-test` | A | T.1：`fork` 复制状态，`aggregateSpecTests`/`sagaSpecTests` 测试树（D245） |
 | Saga/投影/反应器测试 | `SagaSpec` | A | `sagaSpec`、`projectionSpec`、`reactorSpec`（`ProcessorSpec.kt`） |
 | Java 测试 API | `AggregateVerifier`（Java 可用） | E | G-8 |
 | `TestValidator` | `test/validation` | C | D200 |
@@ -209,8 +209,8 @@
 | 平台服务的 CoSec/OTel/K8s 清单/控制台登录 | compensation-server、`deploy/compensation` | E | G-3 |
 | 补偿数据迁移 | — | E | G-1 |
 | view-store | `view-store/*` | A | `platform/view-store`（7.2a） |
-| dataset-registry | `dataset-registry/*` | D | D238（7.2b） |
-| analytics 服务与控制台 | `analytics/*` | D | D238：注册表服务默认提供查询，管理页面随之（7.2c）；集中的分析部署物不再单列 |
+| dataset-registry | `dataset-registry/*` | B | `platform/analytics/catalog`（D238、D251；7.2b） |
+| analytics 服务与控制台 | `analytics/*` | B | catalog 服务提供数据集查询，数据负责人控制台 `platform/analytics/catalog/console`（7.2c-1、7.2c-2）；镜像 `wow-analytics-catalog-server` |
 
 ## 13. 扩展模块
 
@@ -228,8 +228,8 @@
 |---|---|---|---|
 | `wow.*` 配置 | starter `*Properties` | B | 新键（D110，`WowProperties.kt`、配置元数据）；Skill 覆盖 |
 | 优雅停机 | `WowRuntimeSpringLifecycle` | A | `host/spring-boot/.../WowLifecycles.kt` |
-| 健康指示器（就绪、存活） | 无 | E | 两边都没有，V10 的新缺口：审查 R3.5-3，工作包 R3-H |
-| 缺少持久存储时快速失败 | 默认 Mongo，缺失即启动失败 | E | V10 静默退回内存，回退：审查 R3.5-1，工作包 R3-D |
+| 健康指示器（就绪、存活） | 无 | A | `wow.health.*` 与 Actuator 健康组（R3-H），deploy/v10 的探针使用它们 |
+| 缺少持久存储时快速失败 | 默认 Mongo，缺失即启动失败 | A | R3-D：`wow.backend=auto` 只在开发 profile（`wow.internal.dev-profiles`）下退回内存，否则启动失败 |
 | Maven 构建 | 运行期反射，Maven 可运行 | C | D239 ②：V10 目前只支持 Gradle（KSP、Manifest 补全）；快速开始与迁移 Skill 写明 |
 | CLI：TS 生成器 | `wow-generator` | A | `typescript/wow-generator`（Manifest 输入，5a.3） |
 
@@ -275,7 +275,7 @@
 | G-13 | 请求 ID、空间的请求头别名 | 只认 `Wow-Request-Id`、`Wow-Space` | **放弃**：网关改写请求头；迁移 Skill 写一行 | P.17（Skill） | 否 |
 | G-14 | springdoc 集成：Swagger UI、与应用接口合并、鉴权方案（2026-10-19 补登，原误判为 A） | 已补（P.19 #4574） | **GA 前补**（D233） | P.19 | 否 |
 
-D 类里最大的一项是 Elasticsearch 后端（6.7，D167：快照存储、快照查询、事件检索，规模 L），按 D167 须在 M8c 之前完成，目前尚无模块，排在上述 GA 前补齐项之后。已决定但未实现、也没有工作包的还有 D178（跨上下文事件带类型解码）与 D142（嵌套展开），登记为 10.x。
+Elasticsearch 后端（6.7，D167：快照存储、快照查询、事件检索）与 D178（跨上下文事件带类型解码，DX-1c）已完成。已决定但未实现、也没有工作包的还有 D142（嵌套展开），登记为 10.x。
 
 ## 18. 上一版 §13 的结案
 

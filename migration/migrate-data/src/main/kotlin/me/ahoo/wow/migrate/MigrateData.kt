@@ -33,6 +33,7 @@ import kotlin.system.exitProcess
  * migrate-data compare  --config <file> [--sample <percent>] [--restart]
  * migrate-data snapshot --config <file> [--restart]
  * migrate-data backfill-tags --config <file> [--restart] [--force]
+ * migrate-data export   --config <file> [--dry-run] [--restart]
  * ```
  *
  * - `check` scans the 9.x store and checks `migration-map.json` against it and the V10 Manifest.
@@ -68,6 +69,12 @@ import kotlin.system.exitProcess
  *   Elasticsearch cluster, it overwrites the events index documents indexed before the tags from the log
  *   ([TagsBackfiller.resink]), and only once the logs hold no stream without tags: the logs first, never the other
  *   way round; `--force` re-sinks anyway, leaving the documents of the streams still without tags.
+ *
+ * - `export` writes back to the 9.x store what V10 wrote after the cut-over, for a rollback after V10 has written
+ *   (decision D32; [EventStreamExporter]): it scans each V10 context's log first and refuses, writing nothing, when a
+ *   stream 9.x lacks holds a V10-only type (each named) or 9.x holds another stream at its version; then writes the
+ *   streams 9.x lacks, resuming from its checkpoint, and checks that each 9.x aggregate holds as many streams as V10
+ *   holds of its type. `--dry-run` only scans; `--restart` walks every partition from its first entry again.
  *
  * `compare`, `snapshot` and `backfill-tags` rebuild states with the services' V10 models, found on the configuration's `classpath`
  * ([MigrationModels]).
@@ -113,6 +120,7 @@ class MigrateData(
                         TAIL -> tail(plan, config, connections, ONCE in options)
                         COMPARE -> compare(plan, config, connections, sample ?: CompareOptions.ALL, RESTART in options)
                         BACKFILL_TAGS -> backfillTags(plan, config, connections, RESTART in options, FORCE in options)
+                        EXPORT -> export(plan, config, connections, DRY_RUN in options, RESTART in options)
                         else -> snapshot(plan, config, connections, RESTART in options)
                     }
                 }
@@ -393,6 +401,45 @@ class MigrateData(
         return if (left.isEmpty()) OK else FAILED
     }
 
+    /** Exports to 9.x what V10 wrote after the cut-over (decision D32): scan, then write, then count. */
+    private suspend fun export(
+        plan: MigrationPlan,
+        config: MigrationConfig,
+        connections: MigrationConnections,
+        dryRun: Boolean,
+        restart: Boolean,
+    ): Int {
+        val exporter = EventStreamExporter(
+            plan = plan,
+            logOf = connections::logOf,
+            target = connections.nineXTarget,
+            checkpoints = FileCheckpointRepository(Path.of(config.checkpoint)),
+            options = ExportOptions(config.pageSize, config.concurrency, dryRun, restart),
+            progress = { out.println(it.render()) },
+        )
+        val scans = plan.contexts.map { exporter.scan(it).also { scan -> out.println(scan.render()) } }
+        if (scans.any { !it.passed }) {
+            out.println(
+                "Export refused: 9.x cannot read the V10-only types above, or holds other streams where V10 wrote; " +
+                    "nothing was written (decision D32 covers the event types 9.x already had).",
+            )
+            return FAILED
+        }
+        if (dryRun) {
+            out.println("Dry run done: ${scans.sumOf { it.missing }} streams would be exported; nothing was written.")
+            return OK
+        }
+        scans.forEach { exporter.export(it) }
+        val counts = scans.flatMap { exporter.verify(it) }
+        counts.forEach { out.println(it.render()) }
+        if (counts.all { it.passed }) {
+            out.println("Export done: 9.x holds every stream V10 holds; start 9.x again.")
+            return OK
+        }
+        out.println("Export done, but 9.x and V10 hold different numbers of streams: see DIFFERS above.")
+        return DIFFERS
+    }
+
     private suspend fun tail(plan: MigrationPlan, config: MigrationConfig, connections: MigrationConnections, once: Boolean): Int {
         val source = connections.source
         if (source is CommitTimeIndexed) {
@@ -459,6 +506,7 @@ class MigrateData(
         private const val COMPARE = "compare"
         private const val SNAPSHOT = "snapshot"
         private const val BACKFILL_TAGS = "backfill-tags"
+        private const val EXPORT = "export"
         private const val CONFIG = "--config"
         private const val DRY_RUN = "--dry-run"
         private const val RESTART = "--restart"
@@ -475,7 +523,7 @@ class MigrateData(
 
         /** The suffix of the file of the keys the import confirmed, after the checkpoint file's name. */
         const val IMPORTED_KEYS = ".reservations.jsonl"
-        private val COMMANDS = setOf(CHECK, IMPORT, TAIL, COMPARE, SNAPSHOT, BACKFILL_TAGS)
+        private val COMMANDS = setOf(CHECK, IMPORT, TAIL, COMPARE, SNAPSHOT, BACKFILL_TAGS, EXPORT)
         private val KNOWN_OPTIONS = mapOf(
             CHECK to setOf(CONFIG),
             IMPORT to setOf(CONFIG, DRY_RUN, RESTART, FINAL, SNAPSHOTS),
@@ -483,6 +531,7 @@ class MigrateData(
             COMPARE to setOf(CONFIG, SAMPLE, RESTART),
             SNAPSHOT to setOf(CONFIG, RESTART),
             BACKFILL_TAGS to setOf(CONFIG, RESTART, FORCE),
+            EXPORT to setOf(CONFIG, DRY_RUN, RESTART),
         )
         private val USAGE = """
             Usage: migrate-data <command> --config <file>
@@ -496,7 +545,9 @@ class MigrateData(
               snapshot  [--restart]  writes the V10 snapshot of every imported instance
               backfill-tags  [--restart] [--force]  records the tags of the V10 streams appended without them,
                         then re-sinks the Elasticsearch events documents indexed without them
-            Exit codes: 0 done, 1 failed, 2 usage error, 3 the comparison found differences.
+              export    [--dry-run] [--restart]  writes back to the 9.x store what V10 wrote after the cut-over,
+                        for a rollback; refuses V10-only types; exits with 3 when the stream counts differ
+            Exit codes: 0 done, 1 failed, 2 usage error, 3 the comparison or the export's count found differences.
         """.trimIndent()
     }
 }

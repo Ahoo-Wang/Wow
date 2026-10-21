@@ -13,6 +13,16 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { DatasetClient, EventQueryClient } from '@ahoo-wang/wow-client';
+import {
+  DatasetResources,
+  MemoryViewStore,
+  ViewEngine,
+} from '@ahoo-wang/wow-view-engine';
+import {
+  PagingMode,
+  QueryValueKind,
+  type QueryModelDescriptor,
+} from '@ahoo-wang/wow-client/dsl';
 import { datasetCatalogOf, viewSourceOf } from '../src/index.js';
 import type { FakeDataset } from './support/fakeViewStore.js';
 import { actingAs, installFake } from './support.js';
@@ -23,6 +33,59 @@ const ROWS = [
 ];
 
 const DESCRIPTOR = { version: 'sha256:1', fields: [] };
+
+/** A dataset's descriptor as the V10 service answers it: two scalar columns. */
+const DATASET_DESCRIPTOR = {
+  model: 'DATASET',
+  version: 'sha256:1',
+  timeZone: 'UTC',
+  record: {
+    identity: 'order_id',
+    paging: [PagingMode.PAGED],
+    rootOperators: [],
+  },
+  limits: {
+    maxListSize: 1000,
+    defaultListSize: 10,
+    maxPageSize: 100,
+    maxPageWindow: 10_000,
+    maxFilterNodes: 256,
+    maxFilterValues: 1000,
+    maxSortFields: 8,
+    aggregation: {
+      maxGroups: 8,
+      maxMetrics: 16,
+      maxElements: 4,
+      maxLimit: 1000,
+      maxExpressionDepth: 8,
+      maxExpressionNodes: 64,
+    },
+  },
+  analysis: {
+    metrics: [],
+    expressions: false,
+    having: { metrics: [] },
+    sort: { groups: true, metrics: true },
+    dense: false,
+    approximate: [],
+    dateUnits: [],
+    dateParts: [],
+    dateDiffUnits: [],
+  },
+  fields: ['order_id', 'city'].map(path => ({
+    path,
+    types: ['STRING'],
+    kind: QueryValueKind.SCALAR,
+    nullable: false,
+    project: true,
+    filter: { operators: [] },
+    sort: { paged: true, cursor: true },
+    aliases: [],
+  })),
+  elements: [],
+  dynamic: [],
+  constraints: [],
+} as unknown as QueryModelDescriptor;
 
 function orders(): FakeDataset {
   return {
@@ -51,7 +114,12 @@ describe('the V10 data sources', () => {
 
     const entries = await catalog.list();
     expect(entries).toEqual([
-      { contextName: 'sales', name: 'orders', title: 'Orders', version: null },
+      {
+        contextName: 'sales',
+        name: 'orders',
+        title: 'Orders',
+        version: 'listed',
+      },
     ]);
     const source = catalog.source(entries[0]);
     const abort = new AbortController();
@@ -159,6 +227,44 @@ describe('the V10 data sources', () => {
       notModified: false,
       version: 'sha256:1',
     });
+  });
+
+  it('serve every dataset a V10 directory lists in an engine, end to end, its version never null', async () => {
+    // The V10 directory names no version. Read as `null`, the engine took
+    // every dataset for one it cannot serve and registered none (7.2c-2's
+    // rows page); nothing here is stubbed between the store's catalog and the
+    // engine's registry.
+    installFake({
+      datasets: [
+        {
+          ...orders(),
+          source: {
+            ...orders().source,
+            describe: vi.fn(async () => ({
+              notModified: false,
+              descriptor: DATASET_DESCRIPTOR,
+              version: DATASET_DESCRIPTOR.version,
+            })),
+          },
+        },
+      ],
+    });
+    const catalog = datasetCatalogOf(
+      new DatasetClient({ fetcher: actingAs({}) }),
+    );
+    for (const entry of await catalog.list())
+      expect(entry.version).not.toBeNull();
+    const engine = new ViewEngine({
+      resources: [],
+      store: new MemoryViewStore(),
+    });
+    const errors: unknown[] = [];
+    const served = await new DatasetResources(engine, catalog, (_, error) =>
+      errors.push(error),
+    ).refresh();
+    expect(errors).toEqual([]);
+    expect(served.map(({ id }) => id)).toEqual(['sales.orders']);
+    expect(engine.definitions.get('sales.orders')?.title).toBe('Orders');
   });
 
   it('read a dataset without a title as untitled', async () => {
