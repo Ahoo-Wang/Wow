@@ -9,6 +9,6 @@ PASS only if the answer does all of these:
 
 1. Says redeploying 9.x is not a rollback once V10 has written: 9.x lacks the streams V10 appended, which would be lost
 2. Gives the path: stop V10's writes and keep 9.x stopped, run migrate-data export --dry-run, then export, check its per-aggregate stream counts (EQUAL, or DIFFERS with exit 3), then start 9.x
-3. Explains that every stream V10 wrote with OrderCreated at revision 2, past the map's toRevision 1, has no 9.x form, so the export refuses (REFUSED) before writing anything, and that new orders created in V10 therefore block this rollback; leaves the way forward to the user's decision instead of inventing a down-converter
+3. Explains that every stream V10 wrote with OrderCreated at revision 2, past the map's toRevision 1, has no 9.x form, so the export refuses (REFUSED, and the dry run's VERDICT says no rollback by export with the time the window closed) before writing anything, and that new orders created in V10 therefore block this rollback; leaves the way forward to the user's decision instead of inventing a down-converter
 4. Notes what export never carries back (reservations, parked entries, projections' views) and that 9.x's snapshots stay stale until rewritten
 5. Confirms the pinned wow-migrate-data provides export before relying on it, and asks for production authorization for each step rather than claiming to have run anything

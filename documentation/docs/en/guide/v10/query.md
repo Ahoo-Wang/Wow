@@ -31,6 +31,15 @@ A body is one JSON object: `kind` names the operation, the other properties are 
 
 A property the kind does not have is 400 `wow.query.malformed` with the violation code `UNKNOWN_PROPERTY`; a body without `kind` or with another value is `INVALID_VALUE` or `UNKNOWN_VALUE`.
 
+## Across tenants
+
+A query reads the caller's tenant. A caller with `crossScope` may read other tenants on a query route by naming them in `Wow-Scope`: `tenant=*` for every tenant, or an inner list, `tenant=("t1" "t2")`. This is off until `wow.query.cross-tenant.enabled` is on, and while it is off such a query is 403 `wow.auth.forbidden`.
+
+- An aggregate type whose tenant is fixed is still read in that tenant alone. A list that leaves it out is 400 `wow.query.malformed`.
+- Every cross-tenant query is logged at INFO on `me.ahoo.wow.query.CrossTenantAudit`, whether or not a query observer audits.
+- Commands and state reads never cross tenants: a `tenant` of `*` or a list is 400 there.
+- In process, `QueryApi.trusted()` reads every tenant.
+
 ## Field paths
 
 A field is named by its logical path, a JSON string of segments joined by `.`: `state.address.city`. A segment starts with a letter or `_` and holds letters, digits, `_` and `-`; a segment after the first may also be an array index (`state.lines.0`).

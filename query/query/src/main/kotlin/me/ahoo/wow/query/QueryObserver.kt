@@ -23,7 +23,9 @@ import kotlin.coroutines.cancellation.CancellationException
 /**
  * Sees the outcome of every query a gateway runs: the hook a host's metrics (9.x `QueryMetricsObserver`, wired by the
  * host in 6.2c), logs ([QueryLogObserver]) and audit trail implement. A query ends in exactly one of [onComplete],
- * [onError] and [onCancel]; when [audits] is set, [onAudit] follows with its [QueryAudit].
+ * [onError] and [onCancel]; when [audits] is set, [onAudit] follows with its [QueryAudit]. A cross-tenant query
+ * (decision D254 ⑦) is audited whatever the observers: its audit is logged at INFO
+ * ([QueryAudit.CROSS_TENANT_LOGGER]).
  *
  * [start] observes the query as a stage of work (decision D174): its span and its time, from its admission to its
  * end; the gateway ends the [Observation] it returns once the query ends, telling it the failure it ended with.
@@ -35,7 +37,7 @@ interface QueryObserver {
     fun onError(aggregateType: AggregateType, queryType: QueryType, error: Throwable) = Unit
     fun onCancel(aggregateType: AggregateType, queryType: QueryType) = Unit
 
-    /** Whether this observer wants [onAudit]; the gateway builds audits only when one is wanted. */
+    /** Whether this observer wants [onAudit]; the gateway builds audits only when one is wanted or must be logged. */
     val audits: Boolean
         get() = false
 
@@ -106,6 +108,11 @@ private class CompositeObservation(private val observations: List<Observation>) 
 
 private val log = KotlinLogging.logger { }
 
+private val crossTenantAudit = KotlinLogging.logger(QueryAudit.CROSS_TENANT_LOGGER)
+
+/** Whether a query of [caller] builds its audit: an observer audits, or it reads across tenants and is logged. */
+internal fun QueryObserver.audits(caller: QueryCaller): Boolean = audits || caller.crossTenant != null
+
 /**
  * Tells this observer how a query or a state read of [aggregateType] ended, then audits it on [trail]: a completion,
  * a cancellation (the collector stopped early) or an error.
@@ -131,7 +138,14 @@ internal fun QueryObserver.finished(
             QueryAudit.Outcome.ERROR
         }
     }
-    trail?.let { isolated { onAudit(it.audit(outcome)) } }
+    val audit = trail?.audit(outcome) ?: return
+    if (audit.crossTenant != null) {
+        val caller = audit.caller.caller
+        crossTenantAudit.info { "Cross-tenant query by ${caller?.subject} of tenant ${caller?.tenantId}: $audit" }
+    }
+    if (audits) {
+        isolated { onAudit(audit) }
+    }
 }
 
 /** The observation [start] returns, or none when the observer fails to start one: an observer never fails a query. */
