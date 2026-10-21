@@ -236,6 +236,7 @@ curl -X POST localhost:8080/example/order/events/query \
 | `wow.command.busy` | 429 | 节点在途命令过多 |
 | `wow.command.unknown` | 503 | 不确定命令是否已提交；用同一请求 ID 重试是安全的 |
 | `wow.node.closing` | 503 | 节点正在关闭；请在其他节点重试 |
+| `wow.node.standby` | 503 | 节点处于待机状态，直到迁移切换：只提供读 |
 | `wow.subscription.parked` | 500 | 等待链上的某个订阅停放了这个聚合 |
 | `wow.wait.timeout` | 504 | 等待超时；命令可能已提交，问题详情带有最后到达的阶段 |
 | `wow.query.malformed` | 400 | 查询请求体无法读成查询 |

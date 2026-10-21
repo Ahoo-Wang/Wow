@@ -122,6 +122,26 @@ A stopping node stops taking new commands (`wow.node.closing`), hands off its pa
 
 The host has no health endpoint of its own. Its public port opens only once the node has started (backends, internal port, partitions) and closes first when it stops, so a probe of the public port tells whether the node takes traffic. The internal port stays open until the node has stopped, so a probe of it tells whether the node is alive, even while it drains. With Spring Boot Actuator on the classpath, `/actuator/health/readiness` reports `REFUSING_TRAFFIC` once the node starts to stop.
 
+## Standby for a migration's cut-over
+
+Through the dual-run window of a 9.x cut-over, `migrate-data tail` imports what 9.x keeps writing while the V10 service serves reads. Start its nodes with `wow.standby: true`:
+
+- They serve state reads and queries of what the tail imports.
+- They refuse every command with `wow.node.standby` (503), so nothing writes to V10 before the cut-over.
+- They join no lease group: no subscription handles anything, no parked entry is retried, no job or schedule runs. A saga or a reactor that starts at the end of its stream starts where the stream ends at the resume, so it never acts on the imported 9.x history again.
+
+At the cut-over, after 9.x has stopped and the final `migrate-data import --restart` has run, resume each node on its internal port with the cluster token. The body names who resumes it, for the audit:
+
+```bash
+curl -X POST "http://<node>:9090/wow/node/resume" \
+  -H "Wow-Cluster-Token: $WOW_INTERNAL_TOKEN" -H "Content-Type: application/json" \
+  -d '{"by": "<operator>", "reason": "cut-over <ticket>"}'
+```
+
+The node joins its lease groups, starts its subscriptions, its parked-entry retries, its jobs and its snapshot maintenance, then admits commands. It answers its standby status: `standby: false`, `resumedAt`, `resumedBy` and `reason`. It logs the same at `WARN`: who resumed it, why and when.
+
+`GET /wow/node/standby` (cluster token) answers that status at any time. Resuming a node that is not on standby changes nothing and answers when it was resumed. Resume every node of the service. One left on standby keeps refusing commands and takes no partition.
+
 ## Kubernetes
 
 [`deploy/v10/eshop-ordering`](https://github.com/Ahoo-Wang/Wow/tree/v10/deploy/v10/eshop-ordering) deploys the eShop ordering service as two nodes on PostgreSQL and Kafka, in plain manifests applied with `kubectl apply -k`. Use it as a template for a V10 service. Its README covers the image build and the Kafka topics.

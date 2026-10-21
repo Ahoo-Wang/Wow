@@ -63,6 +63,11 @@ import tools.jackson.core.JacksonException
  * [service][me.ahoo.wow.api.caller.Caller.service] identity [services] resolves (a service token or a CoSec service
  * principal, as on the call routes): a wait that crossed into another service is signalled by that service's nodes,
  * which hold no token of this one. Without [tokens] (development) both routes take every request.
+ *
+ * With [standby], the node's operator routes of a migration's cut-over (design 07 §3), with a cluster token only:
+ * `GET` [InternalHttp.STANDBY_PATH] answers whether the node is on standby and its [StandbyControl.Status]; `POST`
+ * [InternalHttp.RESUME_PATH] resumes it, the body naming who resumes it and why, `{"by": "…", "reason": "…"}` (`by`
+ * required, for the audit), and answers the resumption.
  */
 @InternalWowApi
 fun internalRoutes(
@@ -71,6 +76,7 @@ fun internalRoutes(
     scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     tokens: ClusterTokens = ClusterTokens.NONE,
     services: CallerResolver? = null,
+    standby: StandbyControl? = null,
 ): RouterFunction<ServerResponse> = coRouter {
     POST(InternalHttp.FORWARD_PATH) { request ->
         tokens.refusal(request, null)?.let { return@POST it.respond() }
@@ -94,7 +100,48 @@ fun internalRoutes(
         batch.forEach(signals)
         ServerResponse.noContent().buildAndAwait()
     }
+    if (standby != null) {
+        GET(InternalHttp.STANDBY_PATH) { request ->
+            tokens.refusal(request, null)?.let { return@GET it.respond() }
+            ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(standby.status())
+        }
+        POST(InternalHttp.RESUME_PATH) { request ->
+            tokens.refusal(request, null)?.let { return@POST it.respond() }
+            val body = request.decode { STANDBY_JSON.readTree(it) }
+            val by = body?.get("by")?.takeIf { it.isString }?.stringValue()?.takeIf(String::isNotBlank)
+                ?: return@POST Problem(
+                    HttpStatus.BAD_REQUEST.value(),
+                    HttpStatus.BAD_REQUEST.reasonPhrase,
+                    "A resume names who resumes the node, for the audit: {\"by\": \"…\", \"reason\": \"…\"}.",
+                    FrameworkCodes.MALFORMED,
+                ).respond()
+            val reason = body.get("reason")?.takeIf { it.isString }?.stringValue()
+            ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(standby.resume(by, reason))
+        }
+    }
 }
+
+/** A node's standby, as its operator routes see it (design 07 §3). */
+@InternalWowApi
+interface StandbyControl {
+    /** The node's standby now: whether it is on standby, and when and by whom it was resumed. */
+    fun status(): Status
+
+    /** Resumes the node, [by] naming who and [reason] why. */
+    suspend fun resume(by: String, reason: String?): Status
+
+    /** A node's standby: [standby] now, and its last resumption ([resumedAt], [resumedBy], [reason]). */
+    @InternalWowApi
+    data class Status(
+        val node: String,
+        val standby: Boolean,
+        val resumedAt: Long? = null,
+        val resumedBy: String? = null,
+        val reason: String? = null,
+    )
+}
+
+private val STANDBY_JSON = tools.jackson.databind.json.JsonMapper.builder().build()
 
 /** The routes of the internal port, its signals taken by [registry], the waits started on this node. */
 @InternalWowApi
@@ -104,7 +151,8 @@ fun internalRoutes(
     scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     tokens: ClusterTokens = ClusterTokens.NONE,
     services: CallerResolver? = null,
-): RouterFunction<ServerResponse> = internalRoutes(forward, { registry.signal(it) }, scope, tokens, services)
+    standby: StandbyControl? = null,
+): RouterFunction<ServerResponse> = internalRoutes(forward, { registry.signal(it) }, scope, tokens, services, standby)
 
 private val logger = KotlinLogging.logger {}
 

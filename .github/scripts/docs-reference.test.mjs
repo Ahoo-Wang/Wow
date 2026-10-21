@@ -15,6 +15,8 @@ import {
   queryErrorCodes,
   referencePages,
   staleMessage,
+  markedDeclarations,
+  publishedModules,
 } from './docs-reference.mjs';
 
 test('prose loses the design records’ references, and a KDoc link reads as code outside code spans', () => {
@@ -172,4 +174,97 @@ test('a failed check names the pages, their sources and the command that fixes t
       'with the change to their sources.',
     ].join('\n'),
   );
+});
+
+test('the published modules come from the build, in its order, with their directories and descriptions', () => {
+  const files = {
+    'build.gradle.kts': `val abiProjects = includedProjects(
+    ":api", ":test-dsl",
+)
+val publishedLibraries = abiProjects + includedProjects(":migrate-data")
+val artifactIds = mapOf("test-dsl" to "wow-test")`,
+    'settings.gradle.kts': `project(":api").projectDir = file("api/api")
+project(":test-dsl").projectDir = file("test/test-dsl")
+project(":migrate-data").projectDir = file("migration/migrate-data")`,
+    'api/api/build.gradle.kts':
+      'description = "Wow API: what domain code imports, " +\n    "and the wire types"\n',
+    'test/test-dsl/build.gradle.kts':
+      'description = "Wow Test: the test DSL"\n',
+    'migration/migrate-data/build.gradle.kts':
+      '// A tool.\ndescription = "Wow data migration: imports 9.x"\n',
+  };
+  assert.deepEqual(
+    publishedModules(path => files[path]),
+    [
+      {
+        project: 'api',
+        artifact: 'wow-api',
+        dir: 'api/api',
+        description: 'Wow API: what domain code imports, and the wire types',
+      },
+      {
+        project: 'test-dsl',
+        artifact: 'wow-test',
+        dir: 'test/test-dsl',
+        description: 'Wow Test: the test DSL',
+      },
+      {
+        project: 'migrate-data',
+        artifact: 'wow-migrate-data',
+        dir: 'migration/migrate-data',
+        description: 'Wow data migration: imports 9.x',
+      },
+    ],
+  );
+  assert.throws(
+    () =>
+      publishedModules(path =>
+        path === 'settings.gradle.kts' ? '' : files[path],
+      ),
+    /no directory for :api/,
+  );
+});
+
+test('the marked declarations are the public ones, members by their type, fun interfaces as interfaces', () => {
+  const source = `package me.ahoo.wow.q
+
+@WowSpi
+interface Backend {
+    @WowSpi
+    fun run(): Int
+
+    @OptIn(WowSpi::class)
+    fun other(): Int
+}
+
+/** A port. */
+@WowSpi
+fun interface Listener {
+    fun on()
+}
+
+@WowSpi
+internal class Hidden {
+    @WowSpi
+    fun inner() = Unit
+}
+
+@WowSpi
+inline fun <reified R : Any> Backend.rows(): R = TODO()
+
+class Plain {
+    @WowSpi
+    override fun toString() = ""
+
+    @WowSpi
+    val size: Int = 0
+}
+`;
+  assert.deepEqual(markedDeclarations(source, 'WowSpi'), [
+    { name: 'me.ahoo.wow.q.Backend', kind: 'interface' },
+    { name: 'me.ahoo.wow.q.Backend.run', kind: 'fun' },
+    { name: 'me.ahoo.wow.q.Listener', kind: 'interface' },
+    { name: 'me.ahoo.wow.q.rows', kind: 'fun' },
+    { name: 'me.ahoo.wow.q.Plain.size', kind: 'val' },
+  ]);
 });
