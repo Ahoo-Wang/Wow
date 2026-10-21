@@ -460,9 +460,9 @@ test('the modules, their tests, the platform and the root build run the JVM jobs
   for (const path of [
     'typescript/wow-client/src/index.ts',
     'documentation/designs/v10/roadmap.md',
-    'documentation/docs/en/guide/v10/index.md',
+    'documentation/docs/en/guide/aggregates.md',
     // Its samples are held by docs-samples.mjs, in the docs-layout job of every pull request.
-    'documentation/docs/en/guide/v10/quickstart.md',
+    'documentation/docs/en/start/quickstart.md',
     'README.md',
     'codecov.yml',
     '.github/workflows/nightly.yml',

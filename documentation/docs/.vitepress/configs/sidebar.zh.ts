@@ -117,23 +117,6 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             ],
         },
     ],
-    '/zh/guide/v10/': [
-        {
-            base: '/zh/guide/v10/',
-            text: '指南',
-            items: [
-                {text: '快速开始', link: 'quickstart'},
-                {text: '编写服务', link: 'index.html'},
-                {text: '编程模型', link: 'programming-model'},
-                {text: '编译器生成什么', link: 'generated-code'},
-                {text: '测试', base: '/zh/guide/', link: 'testing'},
-                {text: 'HTTP API', link: 'http-api'},
-                {text: '查询语言', link: 'query'},
-                {text: '配置项', link: 'configuration'},
-                {text: '部署', base: '/zh/operate/', link: 'topology'},
-            ],
-        },
-    ],
     '/zh/operate/': [
         {
             base: '/zh/operate/',
@@ -235,6 +218,16 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             items: [
                 {text: '在 Spring Boot 上运行', link: 'spring-boot'},
                 {text: '用 Java 编写领域', link: 'java'},
+            ],
+        },
+    ],
+    '/zh/start/': [
+        {
+            base: '/zh/start/',
+            text: '入门',
+            items: [
+                {text: '快速开始', link: 'quickstart'},
+                {text: '在已有服务中引入 Wow', link: 'existing-project'},
             ],
         },
     ],

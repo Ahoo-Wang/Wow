@@ -114,23 +114,6 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             ],
         },
     ],
-    '/guide/v10/': [
-        {
-            base: '/guide/v10/',
-            text: 'Guide',
-            items: [
-                {text: 'Quick Start', link: 'quickstart'},
-                {text: 'Write a Service', link: 'index.html'},
-                {text: 'Programming Model', link: 'programming-model'},
-                {text: 'What the Compiler Generates', link: 'generated-code'},
-                {text: 'Testing', base: '/guide/', link: 'testing'},
-                {text: 'HTTP API', link: 'http-api'},
-                {text: 'Query Language', link: 'query'},
-                {text: 'Configuration Keys', link: 'configuration'},
-                {text: 'Deployment', base: '/operate/', link: 'topology'},
-            ],
-        },
-    ],
     '/operate/': [
         {
             base: '/operate/',
@@ -232,6 +215,16 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             items: [
                 {text: 'Host on Spring Boot', link: 'spring-boot'},
                 {text: 'Write the Domain in Java', link: 'java'},
+            ],
+        },
+    ],
+    '/start/': [
+        {
+            base: '/start/',
+            text: 'Start',
+            items: [
+                {text: 'Quickstart', link: 'quickstart'},
+                {text: 'Add Wow to an Existing Service', link: 'existing-project'},
             ],
         },
     ],

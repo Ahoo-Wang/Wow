@@ -4,11 +4,11 @@
 
 <h1 align="center">Wow</h1>
 
-> **Wow 10.0 is in pre-release on this branch.** The stable 9.x line lives on the [`v9`](https://github.com/Ahoo-Wang/Wow/tree/v9) branch, and its documentation at [wow.ahoo.me](https://wow.ahoo.me/).
+> **Wow 10.0 is in pre-release on this branch.** The stable 9.x line lives on the [`v9`](https://github.com/Ahoo-Wang/Wow/tree/v9) branch.
 
 <p align="center"><strong>Domain Model as a Service</strong></p>
 
-<p align="center">A reactive CQRS and Event Sourcing framework for explicit, testable, and traceable domain decisions.</p>
+<p align="center">Write only the domain model, and get a system you can run: its API, its contract, its clients and its read models.</p>
 
 <p align="center">
   <a href="https://www.kaicode.org/2026.html"><img width="280" src="documentation/docs/public/images/kaicode-2026-wow.svg" alt="KaiCode'26 Excellent Award"/></a><br/>
@@ -18,90 +18,140 @@
 <p align="center">
   <a href="https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202-4EB1BA.svg" alt="License"/></a>
   <a href="https://github.com/Ahoo-Wang/Wow/releases"><img src="https://img.shields.io/github/release/Ahoo-Wang/Wow.svg" alt="GitHub release"/></a>
-  <a href="https://central.sonatype.com/artifact/me.ahoo.wow/wow-core"><img src="https://img.shields.io/maven-central/v/me.ahoo.wow/wow-core" alt="Maven Central"/></a>
+  <a href="https://central.sonatype.com/artifact/me.ahoo.wow/wow-bom"><img src="https://img.shields.io/maven-central/v/me.ahoo.wow/wow-bom" alt="Maven Central"/></a>
   <a href="https://codecov.io/gh/Ahoo-Wang/Wow"><img src="https://codecov.io/gh/Ahoo-Wang/Wow/branch/main/graph/badge.svg?token=uloJrLoQir" alt="Codecov"/></a>
-  <a href="https://github.com/Ahoo-Wang/Wow/actions/workflows/integration-test.yml"><img src="https://github.com/Ahoo-Wang/Wow/actions/workflows/integration-test.yml/badge.svg" alt="CI"/></a>
+  <a href="https://github.com/Ahoo-Wang/Wow/actions/workflows/ci.yml"><img src="https://github.com/Ahoo-Wang/Wow/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <a href="https://kotlin.link/"><img src="https://kotlin.link/awesome-kotlin.svg" alt="Awesome Kotlin"/></a>
-  <a href="https://atomgit.com/Ahoo-Wang/Wow"><img src="https://atomgit.com/Ahoo-Wang/Wow/star/new_badge.svg" alt="Wow" height="20px"/></a>
 </p>
 
 <p align="center">
-  <strong>Domain-Driven</strong> &middot; <strong>Event-Driven</strong> &middot; <strong>Test-Driven</strong> &middot; <strong>Declarative</strong> &middot; <strong>Reactive</strong>
-</p>
-
-<p align="center">
-  <a href="https://wow.ahoo.me/">English documentation</a> &middot; <a href="https://wow.ahoo.me/zh/">中文文档</a>
+  <a href="https://wow.ahoo.me/">Documentation</a> &middot; <a href="https://wow.ahoo.me/zh/">中文文档</a>
 </p>
 
 ---
 
-## What Wow Gives You
+## What you write, and what you get
 
-Wow turns each write into an observable domain flow:
+You write an aggregate: it takes a command, looks at its state, and decides the events.
 
-```text
-HTTP command → aggregate decision → domain event → sourced state → projection / saga
+<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt#withdraw -->
+
+```kotlin
+@OnCommand(produces = [Withdrawn::class])
+fun onCommand(command: Withdraw): Decision = when {
+    command.amount <= 0 ->
+        Decision.reject(Rejections.INVALID_AMOUNT, "${command.amount} is not positive.")
+
+    command.amount > state.balance ->
+        Decision.reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
+
+    else -> Decision.events(Withdrawn(command.amount))
+}
 ```
 
-You define commands, events, aggregate rules, and sourcing handlers. Wow supplies the reactive command pipeline, event persistence, snapshots, wait stages, projections, sagas, generated metadata, WebFlux routes, and a Given → When → Expect test DSL.
+and you test it in the same terms:
 
-This is most useful when business rules, state history, multiple read models, or cross-aggregate workflows justify Event Sourcing. For simple CRUD where one database transaction already expresses the whole problem, the added event-evolution and eventual-consistency costs may not pay off.
+<!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt#withdraw -->
 
-## 30-Minute First-Slice Target
+```kotlin
+@Test
+fun `a withdrawal the balance does not cover is rejected`() = aggregateSpec(model, id = "alice") {
+    given(AccountOpened("Alice"), Deposited(100))
+    whenCommand(Withdraw(150)) { expectRejected(Account.Rejections.INSUFFICIENT_BALANCE) }
+    whenCommand(Withdraw(30)) {
+        expectEvents(Withdrawn(30))
+        expectState { balance.assert().isEqualTo(70) }
+    }
+}
+```
 
-[![Use this template](https://img.shields.io/badge/Use%20this%20template-2ea44f?style=for-the-badge&logo=github)](https://github.com/new?template_name=wow-project-template&template_owner=Ahoo-Wang)
+From that, Wow gives you an HTTP route for every command, a state read and queries for every aggregate, an OpenAPI document, a typed TypeScript client, retries and parking for every handler, and a contract that the build checks for compatibility.
 
-1. Create or clone the [Wow Project Template](https://github.com/Ahoo-Wang/wow-project-template).
-2. Run `./gradlew :domain:check`, then start `./gradlew :server:run` with the documented in-memory configuration.
-3. Follow the [Quick Start](documentation/docs/en/guide/v10/quickstart.md) to send a real `CreateDemo` command, wait for `SNAPSHOT`, and read state at aggregate version `1`.
+## Why Wow
 
-That path proves the domain test, generated route, command pipeline, event sourcing, snapshot wait, and versioned state read. The 30-minute duration is a target: the functional path has been exercised, but a first-time developer's wall-clock completion has not been measured. If you are adding Wow to an existing service, use [Write a Service](documentation/docs/en/guide/v10/index.md).
+- **The log is the bus.** Every commit is appended to the log, and everything else (snapshots, read models, other contexts, the warehouse) follows it from there. Nothing is lost between a write and its consequences.
+- **You write decisions, not plumbing.** Aggregates decide; sagas derive commands; projections and reactors follow events. Routes, persistence, delivery and retries are the framework's.
+- **Failures are data.** A handler that keeps failing parks one aggregate, recorded in a ledger; it never skips an event or stops a subscription.
+- **One contract.** Routes, OpenAPI, typed clients, views and compatibility checks all come from one Manifest the compiler writes.
+- **Read models are disposable.** Every read model is rebuilt from the log, so changing one needs no migration.
 
-## Evidence in This Repository
+## Quickstart
 
-| Capability | What to inspect |
-| --- | --- |
-| Aggregate decisions and event-sourced state | [Order and cart example](example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain) and its [domain specifications](example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain) |
-| Command dispatch, event persistence, projections, and sagas | [wow-core](wow-core/src/main/kotlin/me/ahoo/wow) |
-| Given → When → Expect verification | [wow-test](test/wow-test/src/main/kotlin/me/ahoo/wow/test) |
-| Generated HTTP command and state routes | [wow-webflux](wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route) |
-| Optional storage, messaging, security, and telemetry integrations | [wow-spring-boot-starter feature capabilities](wow-spring-boot-starter/build.gradle.kts) |
-| Compensation and recovery operations | [The ops service and console](platform/ops) |
-| TypeScript client, React bindings, code generator, and view engine (npm `@ahoo-wang/wow-*`) | [typescript](typescript) and the [TypeScript guide](documentation/docs/en/guide/typescript/index.md) |
+1. Apply the Gradle plugin `me.ahoo.wow` and the BOM `me.ahoo.wow:wow-bom`.
+2. Write a command, an event, a state and an aggregate.
+3. `./gradlew run`, then send a command with `curl`.
 
-## Features
-
-<p align="center"><img src="documentation/docs/public/images/Features.png" alt="Wow features" width="95%"/></p>
+The [Quickstart](https://wow.ahoo.me/start/quickstart) walks through it in about thirty minutes.
 
 ## Architecture
 
-<p align="center"><img src="documentation/docs/public/images/Architecture.svg" alt="Architecture" width="95%"/></p>
+```mermaid
+flowchart LR
+    C[Clients] -->|commands| N[Service nodes]
+    N -->|decide| L[(Log)]
+    L --> S[Snapshots]
+    L --> P[Projections and reactors]
+    L --> G[Sagas]
+    G -->|commands| N
+    L -->|published streams| K[(Kafka)]
+    K --> O[Other contexts]
+    L --> W[(Warehouse)]
+```
 
-## Compatibility Baseline
+A service runs as one or more nodes over PostgreSQL or MongoDB; they split the log's partitions through leases in the same store. Contexts talk over Kafka. [Concepts](https://wow.ahoo.me/concepts/) explains the model.
 
-The current source tree declares:
+## Modules
 
-| Component | Baseline |
+| Artifact | Holds |
 | --- | --- |
-| Wow | `9.9.0` |
-| Java | 17+ |
-| Spring Boot | `4.1.1` |
-| Kotlin | `2.4.21` |
-| KSP | `2.3.12` |
+| `me.ahoo.wow:wow-bom` | The versions of every module |
+| `me.ahoo.wow:wow-api` | The annotations and types domain code uses |
+| `me.ahoo.wow:wow-kernel` | The kernel the generated models build on |
+| `me.ahoo.wow:wow-spring-boot` | The Spring Boot host |
+| `me.ahoo.wow:wow-test` | The test DSL |
+| `me.ahoo.wow:wow-postgres`, `wow-mongo` | The backends |
+| `me.ahoo.wow:wow-kafka`, `wow-clickhouse`, `wow-elasticsearch` | The transport, the warehouse, search |
 
-The project template evolves independently. The tutorial records the exact template commit and its pinned Wow version; inspect its [`gradle/libs.versions.toml`](https://github.com/Ahoo-Wang/wow-project-template/blob/main/gradle/libs.versions.toml) before starting. For another framework line, pin the exact [release](https://github.com/Ahoo-Wang/Wow/releases) and inspect that tag: for example, [`v6.20.16`](https://github.com/Ahoo-Wang/Wow/blob/v6.20.16/gradle/libs.versions.toml) declares Wow `6.20.16` and Spring Boot `3.5.11`.
+## TypeScript
 
-Source, binary, and wire compatibility are separate concerns. Validate the one your upgrade requires, especially persisted events and generated HTTP contracts.
+| Package | Does |
+| --- | --- |
+| `@ahoo-wang/wow-client` | Commands with their waits, state reads and queries |
+| `@ahoo-wang/wow-generator` | Typed clients generated from a service's Manifest |
+| `@ahoo-wang/wow-react` | React hooks for queries |
+| `@ahoo-wang/wow-view-engine` | Configurable data views: records, analyses and dashboards |
+| `@ahoo-wang/wow-view-store` | Saved views on a Wow server |
 
-## Continue
+## Platform services and examples
 
-- Start with [Write a Service](documentation/docs/en/guide/v10/index.md) and the [Programming Model](documentation/docs/en/guide/v10/programming-model.md).
-- Read the Kotlin [Order Service](example) or Java [Bank Transfer](example/transfer) example.
-- Explore waiting for processing stages in [`Wow-Wait`](documentation/docs/en/guide/v10/http-api.md#wow-wait), read models in [Projections](documentation/docs/en/guide/v10/programming-model.md#projections), and recovery in [Failures](documentation/docs/en/guide/v10/programming-model.md#failures).
-- Review [Contributing](CONTRIBUTING.md), the [Code of Conduct](CODE_OF_CONDUCT.md), and the [Security Policy](SECURITY.md).
-- Wow received the [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html) for evidence including its modular design, review discipline, testing, static analysis, bilingual documentation, and Maven Central release history.
+- [The ops service and console](platform/ops): the parked aggregates of every service in one place.
+- [The view store](platform/view-store): saved views and dashboards.
+- [The analytics catalog](platform/analytics/catalog): datasets across services (incubating).
+- [The eShop](example/eshop): five services on PostgreSQL, Kafka and ClickHouse, with a web UI.
+- [The quickstart](example/quickstart): the service of the Quickstart page.
 
-Related projects: [CosId](https://github.com/Ahoo-Wang/CosId), [CoSec](https://github.com/Ahoo-Wang/CoSec), [CoCache](https://github.com/Ahoo-Wang/CoCache), [Simba](https://github.com/Ahoo-Wang/Simba), [CoSky](https://github.com/Ahoo-Wang/CoSky), [CoApi](https://github.com/Ahoo-Wang/CoApi), and [FluentAssert](https://github.com/Ahoo-Wang/FluentAssert).
+## Requirements
+
+| Component | Version |
+| --- | --- |
+| Java | 21 |
+| Kotlin | 2.4.21 |
+| KSP | 2.3.12 |
+| Spring Boot | 4.1.1 |
+
+## From 9.x
+
+[Migrating from 9.x](https://wow.ahoo.me/migrate/) covers the source, the data and the cut-over. The 9.x line is maintained on the [`v9`](https://github.com/Ahoo-Wang/Wow/tree/v9) branch.
+
+## Agent Skills
+
+Six Skills help an agent write, migrate and query Wow applications: install the plugin `ahoo-wow-skills` from the Ahoo Skills Hub, or copy the [skills](skills) of an exact Wow tag into the agent's Skills directory.
+
+## Community
+
+- Read [Contributing](CONTRIBUTING.md), the [Code of Conduct](CODE_OF_CONDUCT.md) and the [Security Policy](SECURITY.md).
+- Wow received the [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html).
+- Related projects: [CosId](https://github.com/Ahoo-Wang/CosId), [CoSec](https://github.com/Ahoo-Wang/CoSec), [Simba](https://github.com/Ahoo-Wang/Simba) and [FluentAssert](https://github.com/Ahoo-Wang/FluentAssert).
 
 ## License
 
