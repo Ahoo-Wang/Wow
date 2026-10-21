@@ -34,10 +34,12 @@ permissions:
   contents: read
 
 concurrency:
-  # A manual full run (workflow_dispatch) gets its own group: in the push group
-  # it would sit pending behind the branch's runs and be replaced by the next
-  # merge.
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || format('{0}-{1}', github.event_name, github.ref) }}
+  # A pull request's new push cancels its older run. Every push to v10 runs to
+  # the end in a group of its own commit: in one group a newer push replaces
+  # the run still pending (GitHub keeps one), and that commit got no coverage
+  # report, so Codecov compared later pull requests with an older base. A manual
+  # full run (workflow_dispatch) gets its own group too.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || (github.event_name == 'push' && github.sha) || format('{0}-{1}', github.event_name, github.ref) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
