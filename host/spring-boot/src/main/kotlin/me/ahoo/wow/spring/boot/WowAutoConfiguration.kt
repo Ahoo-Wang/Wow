@@ -709,6 +709,7 @@ class WowAutoConfiguration {
         errorStatuses = properties.http.errors.mapValues { it.value.status },
         manifestEndpoint = properties.http.manifest.enabled,
         openApiEndpoint = properties.http.openapi.enabled,
+        clientFacts = properties.http.clientFacts,
     )
 
     /**
