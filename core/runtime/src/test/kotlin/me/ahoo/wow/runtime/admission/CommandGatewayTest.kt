@@ -651,7 +651,12 @@ class CommandGatewayTest {
 
     @Test
     fun `the framework codes are listed once each, in the wow namespace`() {
-        FrameworkCodes.ALL.size.assert().isEqualTo(23)
+        // Every code FrameworkCodes declares is in ALL, once: a code added without listing it fails here.
+        val declared = FrameworkCodes::class.java.declaredFields
+            .filter { java.lang.reflect.Modifier.isStatic(it.modifiers) && it.type == String::class.java }
+            .map { it.get(null) as String }
+        declared.assert().doesNotHaveDuplicates()
+        FrameworkCodes.ALL.assert().containsExactlyInAnyOrderElementsOf(declared)
         FrameworkCodes.ALL.forEach { it.assert().startsWith("wow.") }
         FrameworkCodes.ALL.assert().contains(
             FrameworkCodes.MALFORMED,
