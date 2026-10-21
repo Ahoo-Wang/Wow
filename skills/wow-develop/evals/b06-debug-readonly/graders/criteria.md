@@ -7,7 +7,7 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 
 PASS only if the answer does all of these:
 
-1. 从症状沿 handler 发现与注册路径定位第一个失败阶段
-2. 读取下游 OrderSaga，并从目标 Wow 版本核对 AutoRegistrar 与 ProcessorMetadataParser 契约
-3. 用证据说明缺少 StatelessSaga 标注为何不影响直接调用却阻止运行时发现
-4. 不修改文件，并说明可证伪条件与影响边界
+1. Locates the first failing stage at compile time: without `@Saga` the compiler generates no `orderSagaHandlers` and writes no `OrderSaga.*` subscription into the Manifest fragment, so the node never subscribes it
+2. Explains why the direct test passes: it calls the class's method itself, bypassing the generated handlers, while a `sagaSpec(orderSagaHandlers(...))` would fail to compile or find no handler
+3. Names the evidence to read: the module's `META-INF/wow/manifest/<module>.json` subscriptions and the generated `*Subscriptions.kt` in `build/generated/ksp`, against a saga of the same module that works
+4. Changes no file, and states what would falsify the hypothesis
