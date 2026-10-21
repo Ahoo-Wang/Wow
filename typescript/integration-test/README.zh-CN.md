@@ -29,10 +29,10 @@ pnpm --dir typescript/integration-test test
 
 ## CI
 
-`.github/workflows/typescript-contract.yml` 的 `v10-contract` 作业对着同一提交构建的服务
+`.github/workflows/ci.yml` 的 `view-store-contract` 作业对着同一提交构建的服务
 跑 `test`。
 
-`typecheck` 检查 `test`，不需要服务。`typescript.yml` 的 Quality 作业通过根目录的
+`typecheck` 检查 `test`，不需要服务。`ci.yml` 的 Quality 作业通过根目录的
 `pnpm typecheck` 在每个涉及 TypeScript 的拉取请求上运行它，所以 `wow-client`、
 `wow-view-store` 或 `wow-view-engine` 的类型改动破坏这些测试时，在那里就失败，
 不必等契约作业。
