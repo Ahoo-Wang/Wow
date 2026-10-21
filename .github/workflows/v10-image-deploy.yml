@@ -12,8 +12,9 @@
 #
 
 # The V10 server images of a 10.x pre-release (R.1, D205): the ops service
-# (wow-ops-server) and the V10 view store service (wow-view-store-server,
-# beside the 9.x image of that name). package-deploy.yml calls it once its
+# (wow-ops-server), the view store service (wow-view-store-server) and the
+# analytics catalog service with its data-owner console
+# (wow-analytics-catalog-server). package-deploy.yml calls it once its
 # gates passed; it can also be dispatched on a v10.* pre-release tag to push
 # the images again. Each image gets exactly the release version as its tag:
 # never `latest` and no `X.Y` tag, which stay on the 9.x line until 10.0.0 GA.
@@ -50,6 +51,11 @@ jobs:
             context: platform/view-store/view-store-server
             console: ''
             description: Wow V10 view store service. Pre-release, for evaluation; it does no authentication, run it behind your gateway.
+          - image: wow-analytics-catalog-server
+            project: analytics-catalog-server
+            context: platform/analytics/catalog/server
+            console: wow-analytics-catalog-console
+            description: Wow V10 analytics catalog service and its data-owner console. Pre-release, for evaluation; run it behind your gateway.
     steps:
       - name: Require a 10.x pre-release tag
         env:
@@ -89,7 +95,7 @@ jobs:
           node-version: 24.21.0
           cache: pnpm
 
-      # The console the ops server serves from its distribution's ui/.
+      # The console the server serves from its distribution's ui/.
       - name: Build the console
         if: matrix.console != ''
         env:

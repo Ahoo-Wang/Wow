@@ -934,7 +934,7 @@ export function fakeViewStore(
       if (records.length === 0)
         fail(
           404,
-          'wow.aggregate.not-found',
+          'wow.query.not-found',
           `No record of view-store.${name} matches the query.`,
         );
       return json(project(records[0]));

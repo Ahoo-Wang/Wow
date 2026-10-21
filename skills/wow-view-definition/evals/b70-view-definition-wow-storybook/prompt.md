@@ -10,29 +10,30 @@ allowed_tools: [Read, Glob, Grep, Skill]
 
 Files from the user's project, shown inline:
 
-`order-event-descriptor.json`:
+`order-events-descriptor.json`:
 
 ```json
 {
-  "model": "EVENT_STREAM",
-  "version": "sha256:order-event-fixture-v1",
+  "model": "EVENTS",
+  "version": "sha256:order-events-fixture-v1",
   "timeZone": "Asia/Shanghai",
   "record": {
-    "identity": "id",
+    "identity": "aggregateId",
     "paging": [
       "LIST",
       "PAGED",
       "CURSOR"
     ],
     "rootOperators": [
-      "ID",
-      "IDS",
       "AGGREGATE_ID",
       "AGGREGATE_IDS",
       "TENANT_ID",
       "OWNER_ID",
       "EXPRESSION"
-    ]
+    ],
+    "stream": {
+      "resumable": true
+    }
   },
   "limits": {
     "maxListSize": 1000,
@@ -100,46 +101,9 @@ Files from the user's project, shown inline:
       "HOUR",
       "DAY"
     ],
-    "firstLastOrderBy": "createTime"
+    "firstLastOrderBy": "commitTime"
   },
   "fields": [
-    {
-      "path": "id",
-      "types": [
-        "STRING"
-      ],
-      "kind": "SCALAR",
-      "nullable": false,
-      "project": true,
-      "filter": {
-        "operators": [
-          "EQ",
-          "NE",
-          "GT",
-          "GTE",
-          "LT",
-          "LTE",
-          "CONTAINS",
-          "STARTS_WITH",
-          "ENDS_WITH",
-          "IN",
-          "NOT_IN",
-          "BETWEEN",
-          "IS_EMPTY_STRING",
-          "IS_NOT_EMPTY_STRING",
-          "IS_NULL",
-          "IS_NOT_NULL",
-          "EXISTS",
-          "NOT_EXISTS"
-        ]
-      },
-      "sort": {
-        "paged": true,
-        "cursor": true
-      },
-      "role": "IDENTITY",
-      "aliases": []
-    },
     {
       "path": "aggregateId",
       "types": [
@@ -239,7 +203,7 @@ Files from the user's project, shown inline:
       "aliases": []
     },
     {
-      "path": "createTime",
+      "path": "commitTime",
       "types": [
         "INTEGER"
       ],
@@ -381,7 +345,7 @@ Files from the user's project, shown inline:
       "aliases": []
     },
     {
-      "path": "body",
+      "path": "events",
       "types": [
         "OBJECT"
       ],
@@ -404,7 +368,7 @@ Files from the user's project, shown inline:
       "aliases": []
     },
     {
-      "path": "body.bodyType",
+      "path": "events.name",
       "types": [
         "STRING"
       ],
@@ -450,16 +414,103 @@ Files from the user's project, shown inline:
         "expressionInput": false,
         "inMetricFilter": true
       },
-      "scope": "body",
-      "aliases": []
+      "scope": "events",
+      "aliases": [],
+      "description": "The event's name, <context>.<aggregate>.<Name>"
     },
     {
-      "path": "body.name",
+      "path": "events.revision",
       "types": [
         "STRING"
       ],
       "kind": "SCALAR",
-      "nullable": false,
+      "nullable": true,
+      "project": true,
+      "filter": {
+        "operators": [
+          "EQ",
+          "NE",
+          "GT",
+          "GTE",
+          "LT",
+          "LTE",
+          "CONTAINS",
+          "STARTS_WITH",
+          "ENDS_WITH",
+          "IN",
+          "NOT_IN",
+          "BETWEEN",
+          "IS_EMPTY_STRING",
+          "IS_NOT_EMPTY_STRING",
+          "IS_NULL",
+          "IS_NOT_NULL",
+          "EXISTS",
+          "NOT_EXISTS"
+        ]
+      },
+      "sort": {
+        "paged": false,
+        "cursor": false
+      },
+      "scope": "events",
+      "aliases": []
+    },
+    {
+      "path": "events.body.totalAmount",
+      "types": [
+        "DECIMAL"
+      ],
+      "kind": "SCALAR",
+      "nullable": true,
+      "project": true,
+      "filter": {
+        "operators": [
+          "EQ",
+          "NE",
+          "GT",
+          "GTE",
+          "LT",
+          "LTE",
+          "IN",
+          "NOT_IN",
+          "BETWEEN",
+          "IS_NULL",
+          "IS_NOT_NULL",
+          "EXISTS",
+          "NOT_EXISTS"
+        ]
+      },
+      "sort": {
+        "paged": false,
+        "cursor": false
+      },
+      "aggregate": {
+        "groups": [
+          "HISTOGRAM"
+        ],
+        "missingKey": false,
+        "functions": [
+          "SUM",
+          "AVG",
+          "MIN",
+          "MAX"
+        ],
+        "distinctCount": false,
+        "percentile": true,
+        "any": false,
+        "firstLast": true,
+        "expressionInput": true,
+        "inMetricFilter": true
+      },
+      "aliases": []
+    },
+    {
+      "path": "events.body.channel",
+      "types": [
+        "STRING"
+      ],
+      "kind": "SCALAR",
+      "nullable": true,
       "project": true,
       "filter": {
         "operators": [
@@ -500,11 +551,59 @@ Files from the user's project, shown inline:
         "expressionInput": false,
         "inMetricFilter": true
       },
-      "scope": "body",
       "aliases": []
     },
     {
-      "path": "body.revision",
+      "path": "events.body.paidAmount",
+      "types": [
+        "DECIMAL"
+      ],
+      "kind": "SCALAR",
+      "nullable": true,
+      "project": true,
+      "filter": {
+        "operators": [
+          "EQ",
+          "NE",
+          "GT",
+          "GTE",
+          "LT",
+          "LTE",
+          "IN",
+          "NOT_IN",
+          "BETWEEN",
+          "IS_NULL",
+          "IS_NOT_NULL",
+          "EXISTS",
+          "NOT_EXISTS"
+        ]
+      },
+      "sort": {
+        "paged": false,
+        "cursor": false
+      },
+      "aggregate": {
+        "groups": [
+          "HISTOGRAM"
+        ],
+        "missingKey": false,
+        "functions": [
+          "SUM",
+          "AVG",
+          "MIN",
+          "MAX"
+        ],
+        "distinctCount": false,
+        "percentile": true,
+        "any": false,
+        "firstLast": true,
+        "expressionInput": true,
+        "inMetricFilter": true
+      },
+      "aliases": []
+    },
+    {
+      "path": "events.body.paymentMethod",
       "types": [
         "STRING"
       ],
@@ -537,13 +636,95 @@ Files from the user's project, shown inline:
         "paged": false,
         "cursor": false
       },
-      "scope": "body",
+      "aggregate": {
+        "groups": [
+          "TERMS"
+        ],
+        "missingKey": true,
+        "functions": [],
+        "distinctCount": false,
+        "percentile": false,
+        "any": true,
+        "firstLast": true,
+        "expressionInput": false,
+        "inMetricFilter": true
+      },
+      "aliases": []
+    },
+    {
+      "path": "events.body.payerCard",
+      "types": [
+        "STRING"
+      ],
+      "kind": "SCALAR",
+      "nullable": true,
+      "project": true,
+      "filter": {
+        "operators": []
+      },
+      "sort": {
+        "paged": false,
+        "cursor": false
+      },
+      "sensitivity": {
+        "level": "CONFIDENTIAL",
+        "comparable": false
+      },
+      "aliases": []
+    },
+    {
+      "path": "events.body.reason",
+      "types": [
+        "STRING"
+      ],
+      "kind": "SCALAR",
+      "nullable": true,
+      "project": true,
+      "filter": {
+        "operators": [
+          "EQ",
+          "NE",
+          "GT",
+          "GTE",
+          "LT",
+          "LTE",
+          "CONTAINS",
+          "STARTS_WITH",
+          "ENDS_WITH",
+          "IN",
+          "NOT_IN",
+          "BETWEEN",
+          "IS_EMPTY_STRING",
+          "IS_NOT_EMPTY_STRING",
+          "IS_NULL",
+          "IS_NOT_NULL",
+          "EXISTS",
+          "NOT_EXISTS"
+        ]
+      },
+      "sort": {
+        "paged": false,
+        "cursor": false
+      },
+      "aggregate": {
+        "groups": [
+          "TERMS"
+        ],
+        "missingKey": true,
+        "functions": [],
+        "distinctCount": false,
+        "percentile": false,
+        "any": true,
+        "firstLast": true,
+        "expressionInput": false,
+        "inMetricFilter": true
+      },
       "aliases": []
     }
   ],
   "elements": [
     {
-      "path": "body",
+      "path": "events",
       "filter": true,
       "aggregate": true
     }
@@ -552,295 +733,8 @@ Files from the user's project, shown inline:
   "constraints": [
     {
       "type": "CURSOR_UNIQUE_SORT",
-      "appended": "id"
+      "appended": "aggregateId"
     }
-  ],
-  "variants": {
-    "element": "body",
-    "discriminator": "bodyType",
-    "values": [
-      {
-        "value": "com.example.order.OrderCreated",
-        "fields": [
-          {
-            "path": "body.totalAmount",
-            "types": [
-              "DECIMAL"
-            ],
-            "kind": "SCALAR",
-            "nullable": true,
-            "project": true,
-            "filter": {
-              "operators": [
-                "EQ",
-                "NE",
-                "GT",
-                "GTE",
-                "LT",
-                "LTE",
-                "IN",
-                "NOT_IN",
-                "BETWEEN",
-                "IS_NULL",
-                "IS_NOT_NULL",
-                "EXISTS",
-                "NOT_EXISTS"
-              ]
-            },
-            "sort": {
-              "paged": false,
-              "cursor": false
-            },
-            "aggregate": {
-              "groups": [
-                "HISTOGRAM"
-              ],
-              "missingKey": false,
-              "functions": [
-                "SUM",
-                "AVG",
-                "MIN",
-                "MAX"
-              ],
-              "distinctCount": false,
-              "percentile": true,
-              "any": false,
-              "firstLast": true,
-              "expressionInput": true,
-              "inMetricFilter": true
-            },
-            "aliases": []
-          },
-          {
-            "path": "body.channel",
-            "types": [
-              "STRING"
-            ],
-            "kind": "SCALAR",
-            "nullable": true,
-            "project": true,
-            "filter": {
-              "operators": [
-                "EQ",
-                "NE",
-                "GT",
-                "GTE",
-                "LT",
-                "LTE",
-                "CONTAINS",
-                "STARTS_WITH",
-                "ENDS_WITH",
-                "IN",
-                "NOT_IN",
-                "BETWEEN",
-                "IS_EMPTY_STRING",
-                "IS_NOT_EMPTY_STRING",
-                "IS_NULL",
-                "IS_NOT_NULL",
-                "EXISTS",
-                "NOT_EXISTS"
-              ]
-            },
-            "sort": {
-              "paged": false,
-              "cursor": false
-            },
-            "aggregate": {
-              "groups": [
-                "TERMS"
-              ],
-              "missingKey": true,
-              "functions": [],
-              "distinctCount": false,
-              "percentile": false,
-              "any": true,
-              "firstLast": true,
-              "expressionInput": false,
-              "inMetricFilter": true
-            },
-            "aliases": []
-          }
-        ]
-      },
-      {
-        "value": "com.example.order.OrderPaid",
-        "fields": [
-          {
-            "path": "body.paidAmount",
-            "types": [
-              "DECIMAL"
-            ],
-            "kind": "SCALAR",
-            "nullable": true,
-            "project": true,
-            "filter": {
-              "operators": [
-                "EQ",
-                "NE",
-                "GT",
-                "GTE",
-                "LT",
-                "LTE",
-                "IN",
-                "NOT_IN",
-                "BETWEEN",
-                "IS_NULL",
-                "IS_NOT_NULL",
-                "EXISTS",
-                "NOT_EXISTS"
-              ]
-            },
-            "sort": {
-              "paged": false,
-              "cursor": false
-            },
-            "aggregate": {
-              "groups": [
-                "HISTOGRAM"
-              ],
-              "missingKey": false,
-              "functions": [
-                "SUM",
-                "AVG",
-                "MIN",
-                "MAX"
-              ],
-              "distinctCount": false,
-              "percentile": true,
-              "any": false,
-              "firstLast": true,
-              "expressionInput": true,
-              "inMetricFilter": true
-            },
-            "aliases": []
-          },
-          {
-            "path": "body.paymentMethod",
-            "types": [
-              "STRING"
-            ],
-            "kind": "SCALAR",
-            "nullable": true,
-            "project": true,
-            "filter": {
-              "operators": [
-                "EQ",
-                "NE",
-                "GT",
-                "GTE",
-                "LT",
-                "LTE",
-                "CONTAINS",
-                "STARTS_WITH",
-                "ENDS_WITH",
-                "IN",
-                "NOT_IN",
-                "BETWEEN",
-                "IS_EMPTY_STRING",
-                "IS_NOT_EMPTY_STRING",
-                "IS_NULL",
-                "IS_NOT_NULL",
-                "EXISTS",
-                "NOT_EXISTS"
-              ]
-            },
-            "sort": {
-              "paged": false,
-              "cursor": false
-            },
-            "aggregate": {
-              "groups": [
-                "TERMS"
-              ],
-              "missingKey": true,
-              "functions": [],
-              "distinctCount": false,
-              "percentile": false,
-              "any": true,
-              "firstLast": true,
-              "expressionInput": false,
-              "inMetricFilter": true
-            },
-            "aliases": []
-          },
-          {
-            "path": "body.payerCard",
-            "types": [
-              "STRING"
-            ],
-            "kind": "SCALAR",
-            "nullable": true,
-            "project": true,
-            "filter": {
-              "operators": []
-            },
-            "sort": {
-              "paged": false,
-              "cursor": false
-            },
-            "sensitivity": {
-              "level": "CONFIDENTIAL",
-              "comparable": false
-            },
-            "aliases": []
-          }
-        ]
-      },
-      {
-        "value": "com.example.order.OrderCancelled",
-        "fields": [
-          {
-            "path": "body.reason",
-            "types": [
-              "STRING"
-            ],
-            "kind": "SCALAR",
-            "nullable": true,
-            "project": true,
-            "filter": {
-              "operators": [
-                "EQ",
-                "NE",
-                "GT",
-                "GTE",
-                "LT",
-                "LTE",
-                "CONTAINS",
-                "STARTS_WITH",
-                "ENDS_WITH",
-                "IN",
-                "NOT_IN",
-                "BETWEEN",
-                "IS_EMPTY_STRING",
-                "IS_NOT_EMPTY_STRING",
-                "IS_NULL",
-                "IS_NOT_NULL",
-                "EXISTS",
-                "NOT_EXISTS"
-              ]
-            },
-            "sort": {
-              "paged": false,
-              "cursor": false
-            },
-            "aggregate": {
-              "groups": [
-                "TERMS"
-              ],
-              "missingKey": true,
-              "functions": [],
-              "distinctCount": false,
-              "percentile": false,
-              "any": true,
-              "firstLast": true,
-              "expressionInput": false,
-              "inMetricFilter": true
-            },
-            "aliases": []
-          }
-        ]
-      }
-    ]
-  }
+  ]
 }
 ```

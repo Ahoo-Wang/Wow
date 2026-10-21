@@ -23,7 +23,14 @@ import { trackedFiles } from './docs-layout.mjs';
 //
 // A Kotlin or Java block that holds a whole file (a `package` or an `import`
 // line) must be a sample. One that only illustrates says so with
-// `<!-- sample: fragment -->`, which this check does not compare.
+// `<!-- sample: fragment -->`, which this check does not compare. A block
+// that shows 9.x code, as a migration does, says `<!-- sample: 9.x -->`.
+//
+// A Kotlin or Java block that is no sample (a fragment, or a snippet) imports
+// from Wow only what its published modules declare: each `import me.ahoo.wow.…`
+// names a class, a top-level function or property, or a package of an ABI
+// dump (`<module>/api/*.api`), so `@InternalWowApi` declarations and names that
+// are gone fail. A sample's imports are its source's, which compiles.
 //
 // Read: the site's pages, the root READMEs, and the Skills (not their evals).
 
@@ -114,11 +121,76 @@ export function sampleText(source, region) {
   return dedent(body).join('\n').trimEnd();
 }
 
-/** The problems of one page, read from `root`. */
-export function sampleProblems(page, text, root = ROOT) {
+/** The names the ABI dumps declare: a predicate over imported names. */
+export function abiNames(dumps) {
+  const names = new Set();
+  for (const dump of dumps) {
+    let type;
+    for (const line of dump.split('\n')) {
+      const declared = /^\S.*?\b((?:[\w$]+\/)+[\w$]+)\b/.exec(line);
+      if (declared) {
+        // The type and its packages; an outer type counts only by its own line (an internal type's
+        // companion can show in a dump without it).
+        const slash = declared[1].lastIndexOf('/');
+        type = declared[1].replaceAll('/', '.').replaceAll('$', '.');
+        names.add(type);
+        const packages = declared[1].slice(0, slash).split('/');
+        for (let i = 1; i <= packages.length; i++)
+          names.add(packages.slice(0, i).join('.'));
+        continue;
+      }
+      const member =
+        type && /^\s+public (.*?)\b(?:fun|field) (\w+) /.exec(line);
+      if (!member) continue;
+      const [, modifiers, name] = member;
+      const property = /^(?:get|is)([A-Z]\w*)$/.exec(name)?.[1];
+      const named = property
+        ? [name, `${property[0].toLowerCase()}${property.slice(1)}`]
+        : [name];
+      // A member of a type; a static one may also be a top-level function or property of its file facade
+      // (`FooKt`, or the name `@file:JvmName` gives it), imported from the package.
+      const owners = /\bstatic\b/.test(modifiers)
+        ? [type, type.slice(0, type.lastIndexOf('.'))]
+        : [type];
+      for (const owner of owners)
+        for (const each of named) names.add(`${owner}.${each}`);
+    }
+  }
+  return name => names.has(name);
+}
+
+/** The Wow names a block imports: `me.ahoo.wow.a.B`, or `me.ahoo.wow.a` for `me.ahoo.wow.a.*`. */
+export const wowImports = body =>
+  [
+    ...body.matchAll(
+      /^\s*import\s+(?:static\s+)?(me\.ahoo\.wow(?:\.\w+)+?)(\.\*)?(?:\s+as\s+\w+)?\s*;?\s*$/gm,
+    ),
+  ].map(match => match[1]);
+
+let published;
+const readDumps = root =>
+  abiNames(
+    trackedFiles(root)
+      .filter(path => /(?:^|\/)api\/[^/]+\.api$/.test(path))
+      .map(path => readFileSync(join(root, path), 'utf8')),
+  );
+
+/** The problems of one page, its samples read from `root`; `declared` tells the names the ABI dumps declare (the repository's by default). */
+export function sampleProblems(page, text, root = ROOT, declared) {
   const problems = [];
   for (const block of blocks(text)) {
     const where = `${page}:${block.line}`;
+    if (block.sample?.path === '9.x') continue;
+    if (
+      WHOLE_FILE.has(block.info) &&
+      (!block.sample || block.sample.path === 'fragment')
+    ) {
+      const known = declared ?? (published ??= readDumps(ROOT));
+      for (const name of wowImports(block.body).filter(name => !known(name)))
+        problems.push(
+          `${where}: ${name} is not in the ABI dump of any published module`,
+        );
+    }
     if (!block.sample) {
       if (
         WHOLE_FILE.has(block.info) &&

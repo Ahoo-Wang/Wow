@@ -7,6 +7,6 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 
 PASS only if the answer does all of these:
 
-1. Pushes back on passing tenant or user ids: WowViewStore takes only a fetcher and permissions, and fetcher-cosec's interceptors fill {tenantId} and {ownerId} from the token
-2. Applies CoSec to the store's fetcher and gives createShared and changeAudience only to the ops-lead role in permissions
-3. States the CoSec gateway rules for the view-store paths, including that claim and share need both sub == {ownerId} and the shared-write role and are excluded from the personal rule
+1. Pushes back on passing tenant or user ids: WowViewStore takes only a fetcher and permissions, no path names the tenant or owner, and the V10 view store service reads the caller (tenant, user, roles, CoSec-App-Id) from the principal the fetcher's CoSec interceptors send
+2. Applies CoSec to the store's fetcher and answers createShared and changeAudience by the role the service checks, view-store.shared-writer, granted to the ops-lead users in the identity provider rather than checking an ops-lead role the service does not know
+3. States that the service, not permissions, authorizes each write: shared writes need view-store.shared-writer, stored system views view-store.system-writer (editSystem only for it), and a user writes only its own views
