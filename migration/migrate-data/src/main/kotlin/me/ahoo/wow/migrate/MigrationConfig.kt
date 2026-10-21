@@ -145,12 +145,13 @@ data class ElasticsearchConfig(val uri: String, val indexPrefix: String = "")
  * tail from its checkpoint, then the reservations and the compensation executions walked again from the first, which
  * the tail does not follow, instead of walking every stream again as `import --restart` does.
  *
- * - [lookbackMillis] is how far before the tail's checkpoint the pass reads again: it covers the clocks of 9.x's nodes
- *   and the commits in flight when 9.x stopped, which may carry an earlier `createTime` than ones already read.
+ * - [lookbackMillis] is how far before the tail's checkpoint the pass reads again (60 s by default): it covers the
+ *   clocks of 9.x's nodes and the commits in flight when 9.x stopped, whose `createTime` is set before the write is
+ *   visible. Size it as twice the larger of the measured clock skew and the slowest 9.x commit latency.
  * - [maxTailAgeMillis] is how recent the tail's last pass must be for it to count as following 9.x continuously; an
  *   older one, or none, fails the pass: run `import --restart` then.
  */
-data class FinalPassConfig(val lookbackMillis: Long = 300_000, val maxTailAgeMillis: Long = 600_000) {
+data class FinalPassConfig(val lookbackMillis: Long = 60_000, val maxTailAgeMillis: Long = 600_000) {
     init {
         require(lookbackMillis >= 0) { "The final pass's look-back window is never negative." }
         require(maxTailAgeMillis > 0) { "The tail's age the final pass accepts is positive." }

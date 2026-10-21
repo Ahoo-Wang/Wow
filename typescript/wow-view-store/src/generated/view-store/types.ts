@@ -118,6 +118,16 @@ export type ShareView = Record<string, unknown>;
 export type ViewAudience = 'personal' | 'shared' | 'system';
 
 /**
+ * A 9.x view moved to another audience; history only, never produced
+ * - key: `me.ahoo.wow.viewstore.api.view.ViewAudienceChanged`
+ */
+export interface ViewAudienceChanged {
+  audience: ViewAudience;
+  toOwnerId: string;
+}
+
+
+/**
  * A shared view was made personal to toOwnerId, who becomes its owner
  * - key: `me.ahoo.wow.viewstore.api.view.ViewClaimed`
  */
