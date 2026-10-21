@@ -595,5 +595,5 @@ describe('the order views', () => {
 
 ## 可运行的示例 {#working-examples}
 
-- ops 控制台的定义、措辞和操作，以及 `parked.test.ts` 中的准入测试：[`platform/ops/console/src/views/`](https://github.com/Ahoo-Wang/Wow/tree/v10/platform/ops/console/src/views)。
+- ops 控制台的定义、措辞和操作，以及 `parked.test.ts` 中的准入测试：[`platform/ops/console/src/views/`](https://github.com/Ahoo-Wang/Wow/tree/main/platform/ops/console/src/views)。
 - Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--docs)，一份订单定义从声明到页面。

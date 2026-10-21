@@ -8,7 +8,7 @@ outline: deep
 
 `wow-compiler` 是一个 KSP 处理器。在 `generate` 模式下（Gradle 插件会设置它），它读取领域模块中带注解的类，把 Kotlin 源码与资源写到 `build/generated/ksp/main/`。运行时不靠扫描或反射发现任何东西：宿主加载编译器写出的内容。编译器无法绑定的模型会让编译失败，错误信息指出函数与违反的规则。
 
-对 eShop 的 [`eshop-ordering-domain`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/eshop/ordering/ordering-domain) 模块，编译器写出：
+对 eShop 的 [`eshop-ordering-domain`](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop/ordering/ordering-domain) 模块，编译器写出：
 
 ```text
 build/generated/ksp/main/

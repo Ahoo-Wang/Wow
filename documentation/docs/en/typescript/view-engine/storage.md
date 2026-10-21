@@ -237,7 +237,7 @@ export function storeError(status: number, message: string): ViewStoreError {
 
 ### Run the conformance suite
 
-The port has a conformance suite that `MemoryViewStore` and `WowViewStore` both run: lists, visibility, writes, stale revisions, system views, replays, preferences, audience changes. It is a test file in the repository, [`viewStoreConformance.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10/typescript/wow-view-engine/test/conformance/viewStoreConformance.ts), not published to npm. Copy it from the tag of the version you use, point its imports at the package, declare what your store can do, and connect it:
+The port has a conformance suite that `MemoryViewStore` and `WowViewStore` both run: lists, visibility, writes, stale revisions, system views, replays, preferences, audience changes. It is a test file in the repository, [`viewStoreConformance.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/conformance/viewStoreConformance.ts), not published to npm. Copy it from the tag of the version you use, point its imports at the package, declare what your store can do, and connect it:
 
 <!-- typecheck: skip — imports the test file copied from the repository and your own store -->
 

@@ -2,7 +2,7 @@
 
 The operator's console of the wow-ops service (roadmap 7.1b and 7.1c, decisions D14 and D141): every service's parked entries in one place, and an operator's actions on them. Ops never retries or skips anything itself: each action is recorded on the entry and sent by the ops saga to the owning service as the ledger's system command (`wow.ledger.*`), which runs it; what came of it arrives as the service's next record.
 
-It replaces the 9.x compensation dashboard, which left `v10` with the 9.x code (D262) and stays on `main`.
+It replaces the 9.x compensation dashboard, which left with the 9.x code (D262) and stays on `v9`.
 
 ## What it does
 

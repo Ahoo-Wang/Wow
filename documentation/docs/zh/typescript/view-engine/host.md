@@ -390,4 +390,4 @@ export const testEngine = new ViewEngine({
 
 ## 一个完整的宿主 {#a-complete-host}
 
-ops 控制台是一个完整的 V10 宿主：[`OpsHost.tsx`](https://github.com/Ahoo-Wang/Wow/blob/v10/platform/ops/console/src/app/OpsHost.tsx) 是它的 `ViewHost`；[`views/engine.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10/platform/ops/console/src/views/engine.ts) 基于停放条目的生成查询客户端构建它的引擎；[`views/bindings.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10/platform/ops/console/src/views/bindings.ts) 绑定它们，连同它们的阅读方式和操作。
+ops 控制台是一个完整的 V10 宿主：[`OpsHost.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/platform/ops/console/src/app/OpsHost.tsx) 是它的 `ViewHost`；[`views/engine.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/platform/ops/console/src/views/engine.ts) 基于停放条目的生成查询客户端构建它的引擎；[`views/bindings.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/platform/ops/console/src/views/bindings.ts) 绑定它们，连同它们的阅读方式和操作。

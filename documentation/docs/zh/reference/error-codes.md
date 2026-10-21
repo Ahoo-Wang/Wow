@@ -7,7 +7,7 @@ description: "框架的错误码与 HTTP 状态，以及查询请求被拒时的
 
 # 错误码
 
-框架应答请求时使用的每个代码，即 `application/problem+json` 正文与命令结果中的 `code`，由 [`FrameworkErrors`](https://github.com/Ahoo-Wang/Wow/blob/v10/api/manifest/src/main/kotlin/me/ahoo/wow/manifest/FrameworkErrors.kt) 生成；说明取自源码，为英文。领域拒绝的代码由领域自己定义，以 422 应答，除非宿主为它配置了别的状态（`wow.http.errors.[<code>].status`）。请求带 `If-Match` 时，`wow.aggregate.version-mismatch` 以 412 应答。
+框架应答请求时使用的每个代码，即 `application/problem+json` 正文与命令结果中的 `code`，由 [`FrameworkErrors`](https://github.com/Ahoo-Wang/Wow/blob/main/api/manifest/src/main/kotlin/me/ahoo/wow/manifest/FrameworkErrors.kt) 生成；说明取自源码，为英文。领域拒绝的代码由领域自己定义，以 422 应答，除非宿主为它配置了别的状态（`wow.http.errors.[<code>].status`）。请求带 `If-Match` 时，`wow.aggregate.version-mismatch` 以 412 应答。
 
 ## 框架错误码
 
@@ -49,7 +49,7 @@ description: "框架的错误码与 HTTP 状态，以及查询请求被拒时的
 
 ## 查询请求的代码
 
-被拒绝的查询请求（`wow.query.malformed` 或 `wow.query.invalid`）会列出它拒绝的每一处，各带下列一个代码与它所指的请求部分，由 [`QueryErrorCodes`](https://github.com/Ahoo-Wang/Wow/blob/v10/api/query-api/src/main/kotlin/me/ahoo/wow/api/query/QueryErrorCodes.kt) 生成。代码只增不改，也不复用。
+被拒绝的查询请求（`wow.query.malformed` 或 `wow.query.invalid`）会列出它拒绝的每一处，各带下列一个代码与它所指的请求部分，由 [`QueryErrorCodes`](https://github.com/Ahoo-Wang/Wow/blob/main/api/query-api/src/main/kotlin/me/ahoo/wow/api/query/QueryErrorCodes.kt) 生成。代码只增不改，也不复用。
 
 | 代码 | 分组 |
 | --- | --- |

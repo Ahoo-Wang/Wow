@@ -27,4 +27,4 @@ nonce 每次响应都是新的，由渲染 HTML 的程序同时写进响应头�
 
 ## 守住它的测试 {#the-tests-that-hold-it}
 
-在 Storybook 中，[`StrictCsp.test.stories.tsx`](https://github.com/Ahoo-Wang/Wow/blob/v10/typescript/storybook/stories/view-engine/StrictCsp.test.stories.tsx) 在页面上施加的正是这条策略，在走查以下内容时只要出现一次违规就失败：记录工作台（拖动列、从下拉中选择、加宽列、打开记录）、每种图表类型及其提示、SVG/PNG/CSV 导出，以及一个被读取、筛选、重新排布和保存的仪表盘。它与其他用例一起在 CI 中运行。
+在 Storybook 中，[`StrictCsp.test.stories.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/StrictCsp.test.stories.tsx) 在页面上施加的正是这条策略，在走查以下内容时只要出现一次违规就失败：记录工作台（拖动列、从下拉中选择、加宽列、打开记录）、每种图表类型及其提示、SVG/PNG/CSV 导出，以及一个被读取、筛选、重新排布和保存的仪表盘。它与其他用例一起在 CI 中运行。

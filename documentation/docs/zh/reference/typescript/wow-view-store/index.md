@@ -9,7 +9,7 @@ description: '@ahoo-wang/wow-view-store 包的 WowViewStore：视图引擎的 Vi
 `@ahoo-wang/wow-view-store` 从 Wow 9.2.0 起在 npm 上，与 [wow-view-engine](../wow-view-engine/) 一起，同一个 tag、同一个版本号发布。补丁版本不破坏它的公开面（入口的导出与错误码）；次版本可以破坏，它的发布说明逐条列出每个破坏与迁移步骤（[版本范围](../../../guide/typescript/compatibility.md#版本范围)）。以[包的 README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/README.zh-CN.md) 与[设计文档](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/view-store-backend.md)为准。
 :::
 
-`WowViewStore` 在[视图存储](https://github.com/Ahoo-Wang/Wow/tree/v10/platform/view-store)上实现视图引擎的 [`ViewStore` 端口](../wow-view-engine/#persistence)：保存的视图与偏好是两个 Wow 聚合，由独立的 `wow-view-store-server` 提供，或由引入了 `wow-view-store-starter` 的 Wow 服务提供。
+`WowViewStore` 在[视图存储](https://github.com/Ahoo-Wang/Wow/tree/main/platform/view-store)上实现视图引擎的 [`ViewStore` 端口](../wow-view-engine/#persistence)：保存的视图与偏好是两个 Wow 聚合，由独立的 `wow-view-store-server` 提供，或由引入了 `wow-view-store-starter` 的 Wow 服务提供。
 
 ## 入口
 
@@ -127,7 +127,7 @@ export declare const WowViewStoreErrorCodes: Readonly<{
 
 ## 宿主与网关
 
-宿主怎样接上 `WowViewStore`、怎样给出 `permissions`、不登录的页面怎样用它，见[视图存在哪里](../../../typescript/view-engine/storage.md#wowviewstore-views-on-a-wow-service)。服务端不做认证，每个部署都放在 CoSec 网关后面；网关的路径规则，包括只让平台管理员写系统视图的那一条，见[视图存储](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md)。
+宿主怎样接上 `WowViewStore`、怎样给出 `permissions`、不登录的页面怎样用它，见[视图存在哪里](../../../typescript/view-engine/storage.md#wowviewstore-views-on-a-wow-service)。服务端不做认证，每个部署都放在 CoSec 网关后面；网关的路径规则，包括只让平台管理员写系统视图的那一条，见[视图存储](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/v10/view-store/README.md)。
 
 ## 源码
 

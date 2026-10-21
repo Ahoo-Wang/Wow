@@ -4,6 +4,8 @@
 
 <h1 align="center">Wow</h1>
 
+> **Wow 10.0 is in pre-release on this branch.** The stable 9.x line lives on the [`v9`](https://github.com/Ahoo-Wang/Wow/tree/v9) branch, and its documentation at [wow.ahoo.me](https://wow.ahoo.me/).
+
 <p align="center"><strong>Domain Model as a Service</strong></p>
 
 <p align="center">A reactive CQRS and Event Sourcing framework for explicit, testable, and traceable domain decisions.</p>
