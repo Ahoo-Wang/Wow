@@ -7,7 +7,7 @@ description: "宿主 wow.* 配置的每个键：类型、默认值与含义。"
 
 # 配置项
 
-Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 229 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/v10/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性对应的 `wow.*` 键会在节点启动时报告。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`。
+Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 230 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/v10/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性对应的 `wow.*` 键会在节点启动时报告。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`。
 
 ## `wow`
 
@@ -229,6 +229,7 @@ The topics of other contexts the node reads.
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.http.errors` | `Map<String,Error>` |  | The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). |
+| `wow.http.global-errors` | `Boolean` | `true` | Answers what fails on the application's own routes as the framework routes' problem+json: on by default; off leaves those errors to Spring's error handling. |
 | `wow.http.request-facts` | `Set<String>` |  | The request headers copied into a command's headers, beside the standard request facts the edge records: `app_id`, the application the caller resolver authenticated, and on the public port `user_agent` and `remote_ip` (09 §17 G-10); none of the three can be listed. `remote_ip` is the server's remote address: behind a proxy, set `server.forward-headers-strategy` to have the server take it from the proxy's forwarded headers. |
 | `wow.http.services` | `Map<String,Service>` |  | The service identities the internal port trusts by their static tokens, by service name: a call whose `Authorization: Bearer` token is one of them is that service's, which alone may send `Wow-Call`, and only to the internal port. For a deployment without CoSec; with CoSec, `wow.cosec.service.roles` names its service principals. |
 
