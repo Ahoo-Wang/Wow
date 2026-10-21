@@ -70,6 +70,7 @@ class OrderingAnalyticsTest {
     private val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
     // endregion
 
+
     private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
 
     @AfterAll
