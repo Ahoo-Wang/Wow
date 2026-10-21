@@ -62,10 +62,22 @@ for step in steps:
     numbers = ", ".join(f"{key} {value}" for key, value in step["data"].items() if key not in ("command", "errors"))
     lines.append(f"| {step['step']} | {step['millis'] / 1000:.1f} s | {step['exit']} | {numbers} |")
 
+lines += [
+    "",
+    "## Offline cut-over (the default, D267 ⑳)",
+    "",
+    f"- Write stop (9.x stopped to V10 serving): {seconds('offline-write-stop')}: import {seconds('offline-import')}, "
+    f"compare {seconds('offline-compare')}, snapshot {seconds('offline-snapshot')}, "
+    f"backfill-tags {seconds('offline-backfill-tags')}, V10 hosts started {seconds('offline-start')}.",
+    f"- Compare: " + "; ".join(log_lines("offline-compare", r"compared:")),
+    f"- V10 states vs 9.x before it stopped: orders {data('offline-states-compare')}, "
+    f"views {data('offline-views-compare')}.",
+]
+
 lag = data("dual-run-lag")
 lines += [
     "",
-    "## Cut-over",
+    "## Online cut-over (dual-run, standby, final pass)",
     "",
     f"- Dual-run: 9.x took {data('dual-run-traffic').get('commands', '?')} writes in "
     f"{data('dual-run-traffic').get('seconds', '?')} s while the tail followed; caught up "
