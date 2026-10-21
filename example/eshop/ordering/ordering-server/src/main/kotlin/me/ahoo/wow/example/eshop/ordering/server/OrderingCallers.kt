@@ -49,7 +49,6 @@ class OrderingCallers {
     }
     // endregion
 
-
     companion object {
         /** The header naming the user. */
         const val USER: String = "X-User"
