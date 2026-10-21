@@ -62,14 +62,14 @@ export interface PaymentRefunded {
  * - key: `me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested`
  */
 export interface PaymentRequested {
-  amount: number;
+  amount: string;
   orderId: string;
 }
 
 
 /** - key: `me.ahoo.wow.example.eshop.payment.domain.payment.PaymentState` */
 export interface PaymentState {
-  amount: number;
+  amount: string;
   orderId: string;
   reason?: string | null;
   status: 'REQUESTED' | 'SUCCEEDED' | 'FAILED' | 'REFUNDED';
@@ -100,7 +100,7 @@ export interface RefundPayment {
  * - key: `me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment`
  */
 export interface RequestPayment {
-  amount: number;
+  amount: string;
   orderId: string;
 }
 

@@ -86,12 +86,12 @@ export class PaymentCommandClient {
    * Produces `PaymentRequested`.
    */
   requestPayment(body: RequestPayment, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.send(options?.id === undefined ? PaymentCommandPaths.REQUEST_PAYMENT_WITHOUT_ID : PaymentCommandPaths.REQUEST_PAYMENT, body, options);
+    return this.gateway.send(options?.id === undefined ? PaymentCommandPaths.REQUEST_PAYMENT_WITHOUT_ID : PaymentCommandPaths.REQUEST_PAYMENT, body, { ...options, bodyNumbers: PaymentAggregate.textNumbers.commands.RequestPayment });
   }
 
   /** `RequestPayment`, answered as one result per hop of its wait (`text/event-stream`). */
   requestPaymentStream(body: RequestPayment, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(options?.id === undefined ? PaymentCommandPaths.REQUEST_PAYMENT_WITHOUT_ID : PaymentCommandPaths.REQUEST_PAYMENT, body, options);
+    return this.gateway.stream(options?.id === undefined ? PaymentCommandPaths.REQUEST_PAYMENT_WITHOUT_ID : PaymentCommandPaths.REQUEST_PAYMENT, body, { ...options, bodyNumbers: PaymentAggregate.textNumbers.commands.RequestPayment });
   }
 
   /**

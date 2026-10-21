@@ -105,6 +105,12 @@ The CI jobs are in [`typescript-contract.yml`](https://github.com/Ahoo-Wang/Wow/
 
 pnpm 8 and later and npm 7 and later install missing peers by themselves; Yarn does not, so a Yarn project adds each peer explicitly. The install command of each reference page lists them.
 
+## Exact numbers and projected results
+
+From v10, a Manifest field of a Kotlin `Long`, `BigInteger` or `BigDecimal` (schema `format` `int64`, `bigint` or `decimal`) is a `string` in the generated types, with its digits exactly as the server wrote them. The wire still carries JSON numbers. The generated clients read such a field from the response's text, and write it back into a command body as an unquoted number. `parseJson` and `stringifyJson` of `@ahoo-wang/wow-client` do the same for a call of your own. This is a breaking change from the `number` that 9.x generated.
+
+A query written with literal `projection.include` paths answers records narrowed to those paths. A query built with `listQuery` or `pagedQuery`, or one with only an exclusion, answers whole records. A relative-time filter without a `zoneId` reads its days in UTC, never in the server's zone.
+
 ## What v10 removes
 
 Wow 9.x keeps everything below working; v10 removes all of it in one breaking release:

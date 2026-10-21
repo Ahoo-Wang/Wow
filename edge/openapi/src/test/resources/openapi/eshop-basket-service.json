@@ -2588,7 +2588,8 @@
             "type" : "integer"
           },
           "unitPrice" : {
-            "type" : "number"
+            "type" : "number",
+            "format" : "decimal"
           }
         },
         "required" : [ "productId", "quantity", "unitPrice" ],
@@ -2624,7 +2625,8 @@
             "type" : "integer"
           },
           "unitPrice" : {
-            "type" : "number"
+            "type" : "number",
+            "format" : "decimal"
           }
         },
         "required" : [ "productId", "quantity", "unitPrice" ]
@@ -2639,7 +2641,8 @@
             "type" : "integer"
           },
           "unitPrice" : {
-            "type" : "number"
+            "type" : "number",
+            "format" : "decimal"
           }
         },
         "required" : [ "productId", "quantity", "unitPrice" ],
@@ -2729,7 +2732,8 @@
                   "type" : "integer"
                 },
                 "unitPrice" : {
-                  "type" : "number"
+                  "type" : "number",
+                  "format" : "decimal"
                 }
               },
               "required" : [ "productId", "quantity", "unitPrice" ]

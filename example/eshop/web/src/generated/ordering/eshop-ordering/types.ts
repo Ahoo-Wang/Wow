@@ -53,7 +53,7 @@ export interface OrderCancelled {
 export interface OrderItem {
   productId: string;
   quantity: number;
-  unitPrice: number;
+  unitPrice: string;
 }
 
 
@@ -62,7 +62,7 @@ export interface OrderItem {
  * - key: `me.ahoo.wow.example.eshop.ordering.api.order.OrderPaid`
  */
 export interface OrderPaid {
-  amount: number;
+  amount: string;
   paymentId: string;
 }
 
@@ -80,7 +80,7 @@ export interface OrderState {
   items: OrderItem[];
   paymentId?: string | null;
   status: 'SUBMITTED' | 'AWAITING_VALIDATION' | 'STOCK_CONFIRMED' | 'PAID' | 'SHIPPED' | 'CANCELLED';
-  totalAmount: number;
+  totalAmount: string;
 }
 
 
@@ -113,7 +113,7 @@ export interface OrderSubmitted {
  * - key: `me.ahoo.wow.example.eshop.ordering.api.order.PayOrder`
  */
 export interface PayOrder {
-  amount: number;
+  amount: string;
   paymentId: string;
 }
 

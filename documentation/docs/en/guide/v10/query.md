@@ -137,7 +137,7 @@ A missing field and an explicit `null` are both null; only a missing field does 
 
 ### Relative time
 
-Each takes `field`, and optionally `zoneId` (an IANA zone such as `Asia/Shanghai`; the server's zone by default), `datePattern` (a `DateTimeFormatter` pattern, for a field stored as a formatted string) and `timeUnit` (`MILLISECONDS`, the default, or another `TimeUnit` name, for a field stored as an epoch number).
+Each takes `field`, and optionally `zoneId` (an IANA zone such as `Asia/Shanghai`, or an offset such as `+08:00`; UTC by default, never the server's own zone), `datePattern` (a `DateTimeFormatter` pattern, for a field stored as a formatted string) and `timeUnit` (`MILLISECONDS`, the default, or another `TimeUnit` name, for a field stored as an epoch number).
 
 | `op` | Further properties | Matches |
 | --- | --- | --- |
@@ -153,6 +153,8 @@ Each takes `field`, and optionally `zoneId` (an IANA zone such as `Asia/Shanghai
 ```json
 { "op": "RECENT_DAYS", "field": "lastEventTime", "days": 7, "zoneId": "Asia/Shanghai" }
 ```
+
+Instants travel as instants: an epoch number, or an ISO-8601 string with its offset (`2026-10-21T08:00:00Z`). Where a day's boundaries matter, the request names its zone; the TypeScript DSL sends `zoneId` whenever the caller gives one.
 
 ### System fields
 

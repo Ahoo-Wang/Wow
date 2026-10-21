@@ -53,14 +53,19 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import java.util.concurrent.TimeUnit
 
+/**
+ * Lowers relative time and derived operators. A relative-time filter that names no `zoneId` reads its days in
+ * [defaultZoneId], UTC (review R4-Q, Q-10): never the JVM's zone, so nodes in different zones answer a filter alike.
+ */
 @InternalWowApi
 class FilterNormalizer(
-    private val clock: Clock = Clock.systemDefaultZone(),
-    private val defaultZoneId: ZoneId = ZoneId.systemDefault(),
+    private val clock: Clock = Clock.systemUTC(),
+    private val defaultZoneId: ZoneId = ZoneOffset.UTC,
 ) {
     /**
      * Normalizes [expression] without a schema, at the clock's current moment: relative time lowers to a range in its

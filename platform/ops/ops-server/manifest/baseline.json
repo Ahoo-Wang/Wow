@@ -371,22 +371,26 @@
           "type" : "string"
         },
         "failedAt" : {
-          "type" : "integer"
+          "type" : "integer",
+          "format" : "int64"
         },
         "fromPosition" : {
-          "type" : [ "integer", "null" ]
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
         },
         "fromVersion" : {
           "type" : "integer"
         },
         "nextRetryAt" : {
-          "type" : [ "integer", "null" ]
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
         },
         "reason" : {
           "type" : "string"
         },
         "recordedAt" : {
-          "type" : "integer"
+          "type" : "integer",
+          "format" : "int64"
         },
         "recoverable" : {
           "type" : "string"
@@ -398,7 +402,8 @@
           "type" : "integer"
         },
         "retryAt" : {
-          "type" : [ "integer", "null" ]
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
         },
         "retrySpec" : {
           "$ref" : "#/$defs/me.ahoo.wow.api.ledger.LedgerRetrySpec"
@@ -513,13 +518,15 @@
       "type" : "object",
       "properties" : {
         "failedAt" : {
-          "type" : [ "integer", "null" ]
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
         },
         "outcome" : {
           "type" : "string"
         },
         "resolvedAt" : {
-          "type" : "integer"
+          "type" : "integer",
+          "format" : "int64"
         }
       },
       "required" : [ "outcome", "resolvedAt" ],
@@ -564,13 +571,15 @@
               "type" : "string"
             },
             "failedAt" : {
-              "type" : [ "integer", "null" ]
+              "type" : [ "integer", "null" ],
+              "format" : "int64"
             },
             "outcome" : {
               "type" : "string"
             },
             "resolvedAt" : {
-              "type" : "integer"
+              "type" : "integer",
+              "format" : "int64"
             },
             "service" : {
               "type" : "string"
@@ -635,18 +644,21 @@
         },
         "failedAt" : {
           "type" : "integer",
+          "format" : "int64",
           "x-wow-temporal" : {
             "unit" : "MILLISECONDS"
           }
         },
         "fromPosition" : {
-          "type" : [ "integer", "null" ]
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
         },
         "fromVersion" : {
           "type" : "integer"
         },
         "nextRetryAt" : {
           "type" : [ "integer", "null" ],
+          "format" : "int64",
           "x-wow-temporal" : {
             "unit" : "MILLISECONDS"
           }
@@ -659,6 +671,7 @@
         },
         "recordedAt" : {
           "type" : "integer",
+          "format" : "int64",
           "x-wow-temporal" : {
             "unit" : "MILLISECONDS"
           }
@@ -683,6 +696,7 @@
         },
         "resolvedAt" : {
           "type" : [ "integer", "null" ],
+          "format" : "int64",
           "x-wow-temporal" : {
             "unit" : "MILLISECONDS"
           }
@@ -692,6 +706,7 @@
         },
         "retryAt" : {
           "type" : [ "integer", "null" ],
+          "format" : "int64",
           "x-wow-temporal" : {
             "unit" : "MILLISECONDS"
           }

@@ -13,9 +13,11 @@
 
 import {
   type JsonServerSentEvent,
+  type ServerSentEvent,
   toJsonServerSentEventStream,
   toServerSentEventStream,
 } from '@ahoo-wang/fetcher-eventstream';
+import { marksNothing, parseJson, type TextNumbers } from './exactJson.js';
 import type { CommandResult } from './wire.js';
 import { isProblem, WowProblemError } from './problem.js';
 
@@ -152,7 +154,11 @@ export function resumableQueryRows<T>(
     lastEventId: string | undefined,
     received: number,
   ) => Promise<Response | undefined>,
-  options: StreamResumeOptions & { readonly signal?: AbortSignal } = {},
+  options: StreamResumeOptions & {
+    readonly signal?: AbortSignal;
+    /** The numbers of each record read as their exact text (review R4-Q, Q-9). */
+    readonly numbers?: TextNumbers;
+  } = {},
 ): ReadableStream<StreamedRow<T>> {
   const {
     maxRetries = 5,
@@ -160,9 +166,22 @@ export function resumableQueryRows<T>(
     maxDelayMs = 10_000,
     signal,
   } = options;
+  const numbers = options.numbers;
   const events = (from: Response) =>
-    toJsonServerSentEventStream<unknown>(
-      toServerSentEventStream(from),
+    (marksNothing(numbers)
+      ? toJsonServerSentEventStream<unknown>(toServerSentEventStream(from))
+      : toServerSentEventStream(from).pipeThrough(
+          new TransformStream<ServerSentEvent, JsonServerSentEvent<unknown>>({
+            transform(event, controller) {
+              const row =
+                event.event === ROW_EVENT || event.event === UNNAMED_EVENT;
+              controller.enqueue({
+                ...event,
+                data: parseJson(event.data, row ? numbers : undefined),
+              });
+            },
+          }),
+        )
     ).getReader();
   let reader = events(response);
   let lastEventId = options.lastEventId;

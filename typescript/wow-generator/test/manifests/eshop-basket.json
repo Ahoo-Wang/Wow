@@ -343,7 +343,7 @@
       "properties": {
         "productId": { "type": "string" },
         "quantity": { "type": "integer" },
-        "unitPrice": { "type": "number" }
+        "unitPrice": { "type": "number", "format": "decimal" }
       },
       "required": ["productId", "quantity", "unitPrice"],
       "description": "Add an item to the basket"
@@ -371,7 +371,7 @@
       "properties": {
         "productId": { "type": "string" },
         "quantity": { "type": "integer" },
-        "unitPrice": { "type": "number" }
+        "unitPrice": { "type": "number", "format": "decimal" }
       },
       "required": ["productId", "quantity", "unitPrice"]
     },
@@ -380,7 +380,7 @@
       "properties": {
         "productId": { "type": "string" },
         "quantity": { "type": "integer" },
-        "unitPrice": { "type": "number" }
+        "unitPrice": { "type": "number", "format": "decimal" }
       },
       "required": ["productId", "quantity", "unitPrice"],
       "description": "An item was added to the basket"

@@ -11,11 +11,11 @@
     "eshop-catalog/category/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "eshop-catalog/category/queryClient.ts": "b27dae70d981a61bcc7a71aaa81c85c51a09a9c11afc585132c801c07b0f8d33",
     "eshop-catalog/index.ts": "9697db0802273c783de91ac21ebdd65ec338bcd6f6263350990f6867594460fc",
-    "eshop-catalog/product/aggregate.ts": "c9a85e11330b9296a1bcb3d5e9370977c08c48d2578b5904d0ee3dd9fe2a9864",
-    "eshop-catalog/product/commandClient.ts": "b266db4832831c8541b3b1a43a4d209c0dff7859141ed8bbbd70fc44c4007490",
+    "eshop-catalog/product/aggregate.ts": "97c59b57d914bf02d46626cf46651349bf5427aa992edef08ce519a9a4d30ca9",
+    "eshop-catalog/product/commandClient.ts": "23fc40252beb33f821db0e8e26a868d7a4e7f441b3b68aaca98da012d4b78980",
     "eshop-catalog/product/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "eshop-catalog/product/queryClient.ts": "8ec333021eff78460bc25085bfeb16fce82e317204ec4793e3750e773a108e44",
-    "eshop-catalog/types.ts": "edb6f2be8e476e83d7a2665f70f88f7e791f6a8d12d28ae75a79a2b49db6fbe2",
+    "eshop-catalog/types.ts": "4525cf9336e39ecb90a6a53fe77284f73339bd21261b7df347a37672272093fd",
     "index.ts": "53358c402aac5a307b6b750416698301221b17837af9410680e7cc0fae083b90"
   }
 }

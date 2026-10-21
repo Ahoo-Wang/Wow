@@ -35,7 +35,9 @@ import me.ahoo.wow.manifest.Manifest
  * | a query semantics keyword (`x-wow-sensitive`, `x-wow-mask`, `x-wow-temporal`, …) changed | breaking |
  * | any other validation keyword (`format`, `pattern`, `minimum`, …) added or changed / removed | breaking / additive |
  *
- * Annotations (`description`, `title`, `default`, …) and `x-wow-index` are not contract and are ignored.
+ * Annotations (`description`, `title`, `default`, …) and `x-wow-index` are not contract and are ignored, and so is a
+ * wire `format` (`int64`, `bigint`, `decimal`) added, removed or swapped for another: it says how a client reads a
+ * number of its `type`, which the type rules already compare.
  */
 internal class SchemaCompatibility(
     private val baselineDefs: Map<String, Any?>,
@@ -207,6 +209,7 @@ internal class SchemaCompatibility(
                 val newValue = new[keyword]
                 when {
                     oldValue == newValue -> Unit
+                    keyword == FORMAT && listOfNotNull(oldValue, newValue).all { it in WIRE_FORMATS } -> Unit
                     keyword in QUERY_SEMANTICS -> breaking(path, "$keyword changed from $oldValue to $newValue")
                     newValue == null -> additive(path, "$keyword $oldValue lifted")
                     oldValue == null -> breaking(path, "$keyword $newValue imposed")
@@ -262,6 +265,10 @@ internal class SchemaCompatibility(
         const val ADDITIONAL_PROPERTIES = "additionalProperties"
         const val INTEGER = "integer"
         const val NUMBER = "number"
+        const val FORMAT = "format"
+
+        /** The formats of numbers a client reads from their text (review R4-Q, Q-9): no validation of the value. */
+        val WIRE_FORMATS = setOf("int64", "bigint", "decimal")
         val ALTERNATIVES = listOf("anyOf", "oneOf")
 
         /** The schema that accepts nothing, `false`. */
