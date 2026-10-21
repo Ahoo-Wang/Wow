@@ -56,7 +56,6 @@ class MongoBackend {
 }
 // endregion
 
-
 /** The `postgres` profile: a pooled `DataSource` on `spring.datasource.*`, which selects the PostgreSQL backend. */
 @Configuration(proxyBeanMethods = false)
 @Profile("postgres")
