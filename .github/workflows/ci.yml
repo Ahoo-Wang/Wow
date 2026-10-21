@@ -16,7 +16,10 @@
 # areas run (the JVM build, the TypeScript packages, the site, the stories, the
 # view store contract, the eShop web UI, the ops and catalog consoles, the
 # workflows), and `ci-gate` is the merge signal: it passes when every job that
-# ran passed. A manual dispatch runs everything.
+# ran passed. A manual dispatch runs everything. The Node 22 jobs (the unit
+# matrix's Node 22 legs, view-engine's Node 22 shards and Package / Node
+# 22.12.0) run on pushes to main and on dispatch, never on a pull request:
+# nightly.yml dispatches this workflow on main every night main moved.
 name: CI
 on:
   pull_request:
@@ -265,8 +268,9 @@ jobs:
       fail-fast: false
       matrix:
         package: ${{ fromJSON(needs.scope.outputs.unit-packages) }}
-        # Node 20 reached end of life on 2026-04-30.
-        node-version: [22, 24]
+        # Node 20 reached end of life on 2026-04-30. Node 22 off pull requests
+        # (see the top of the file).
+        node-version: ${{ fromJSON(github.event_name == 'pull_request' && '[24]' || '[22, 24]') }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -314,7 +318,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [22.12.0, 24]
+        # The floor, 22.12.0, off pull requests (see the top of the file).
+        node-version: ${{ fromJSON(github.event_name == 'pull_request' && '["24"]' || '["22.12.0", "24"]') }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -463,11 +468,11 @@ jobs:
 
   # Node 22 formats dates and numbers with its own ICU; the same assertions,
   # without coverage, in three shards that finish before Node 24's shards and
-  # their merge.
+  # their merge. Off pull requests (see the top of the file).
   view-engine-node22:
     name: View engine / Node 22 (${{ matrix.shard }}/3)
     needs: scope
-    if: needs.scope.outputs.view-engine == 'true'
+    if: github.event_name != 'pull_request' && needs.scope.outputs.view-engine == 'true'
     timeout-minutes: 20
     runs-on: ubuntu-latest
     strategy:

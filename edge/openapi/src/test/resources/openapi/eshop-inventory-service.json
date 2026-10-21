@@ -10,6 +10,9 @@
     "name" : "eshop-inventory.stock",
     "description" : "A product's stock: units on hand, and those reserved for orders"
   }, {
+    "name" : "eshop-inventory.schedule",
+    "description" : "The context's scheduled jobs (decision D198)."
+  }, {
     "name" : "eshop-inventory.snapshot",
     "description" : "The rebuild of the context's snapshots (decision D172)."
   }, {
@@ -1603,6 +1606,267 @@
           },
           "503" : {
             "$ref" : "#/components/responses/wow.descriptor.503"
+          }
+        }
+      }
+    },
+    "/eshop-inventory/schedule/{id}/wow.schedule.enable" : {
+      "post" : {
+        "tags" : [ "eshop-inventory.schedule" ],
+        "summary" : "Enable",
+        "description" : "Sends the job command `wow.schedule.Enable` (decision D198) to the job the path's id names, in the caller's tenant: `receive-deliveries`.",
+        "operationId" : "eshop-inventory.schedule.wow.schedule.Enable",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.schedule.Enable"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/wow.command.410"
+          },
+          "412" : {
+            "$ref" : "#/components/responses/wow.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.command.415"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.command.504"
+          }
+        }
+      }
+    },
+    "/eshop-inventory/schedule/{id}/wow.schedule.reschedule" : {
+      "post" : {
+        "tags" : [ "eshop-inventory.schedule" ],
+        "summary" : "Reschedule",
+        "description" : "Sends the job command `wow.schedule.Reschedule` (decision D198) to the job the path's id names, in the caller's tenant: `receive-deliveries`.",
+        "operationId" : "eshop-inventory.schedule.wow.schedule.Reschedule",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.schedule.Reschedule"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/wow.command.410"
+          },
+          "412" : {
+            "$ref" : "#/components/responses/wow.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.command.415"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.command.504"
+          }
+        }
+      }
+    },
+    "/eshop-inventory/schedule/{id}/wow.schedule.disable" : {
+      "post" : {
+        "tags" : [ "eshop-inventory.schedule" ],
+        "summary" : "Disable",
+        "description" : "Sends the job command `wow.schedule.Disable` (decision D198) to the job the path's id names, in the caller's tenant: `receive-deliveries`.",
+        "operationId" : "eshop-inventory.schedule.wow.schedule.Disable",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.schedule.Disable"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/wow.command.410"
+          },
+          "412" : {
+            "$ref" : "#/components/responses/wow.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.command.415"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.command.504"
           }
         }
       }

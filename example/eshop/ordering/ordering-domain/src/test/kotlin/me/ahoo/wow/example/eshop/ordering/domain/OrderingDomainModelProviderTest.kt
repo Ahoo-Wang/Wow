@@ -14,6 +14,8 @@
 package me.ahoo.wow.example.eshop.ordering.domain
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.example.eshop.ordering.domain.order.BuyerNotifications
+import me.ahoo.wow.example.eshop.ordering.domain.order.OrderSummaries
 import me.ahoo.wow.example.eshop.ordering.domain.order.PaymentPolicy
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
@@ -32,11 +34,14 @@ class OrderingDomainModelProviderTest {
         provider.fragment.assert().isEqualTo("META-INF/wow/manifest/eshop-ordering-domain.json")
         provider.models(Dependencies.of(PaymentPolicy(30.minutes))).map { it.type.toString() }
             .assert().containsExactly("eshop-ordering.order")
-        provider.processors(Dependencies.NONE).map { it.name }.assert().containsExactlyInAnyOrder(
+        val ports = Dependencies.of(OrderSummaries { _, _ -> }, BuyerNotifications { _, _, _ -> })
+        provider.processors(ports).map { it.name }.assert().containsExactlyInAnyOrder(
             "OrderProcessSaga.onOrderSubmitted",
             "OrderProcessSaga.onOrderAwaitingValidation",
             "OrderProcessSaga.onOrderCancelled",
             "OrderProcessSaga.onOrderShipped",
+            "OrderSummaryProjection.onEvent",
+            "ShipmentNotifier.onOrderShipped",
         )
     }
     // endregion
