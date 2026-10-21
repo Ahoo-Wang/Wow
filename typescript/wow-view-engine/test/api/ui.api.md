@@ -1470,8 +1470,39 @@ export interface DashboardWorkbenchProps {
     tokens?: ViewSurfaceProps['tokens'];
 }
 
+// @beta
+export interface DatasetBindingOptions {
+    options?(dataset: DatasetResource): Omit<ViewBindingOptions, 'route'> | undefined;
+    route(dataset: DatasetResource, instanceId: string | null): string;
+}
+
+// @beta
+export function datasetBindings(served: readonly DatasetResource[], input: DatasetBindingOptions): ViewBinding[];
+
+// @public
+interface DatasetDirectoryEntry {
+    // (undocumented)
+    contextName: string;
+    // (undocumented)
+    name: string;
+    // (undocumented)
+    title: string | null;
+    // (undocumented)
+    version: string | null;
+}
+
 // @public
 type DatasetOverrides = Partial<Pick<DefineDatasetSpec, 'title' | 'recordNoun' | 'fields'>>;
+
+// @public
+interface DatasetResource {
+    // @beta
+    catalog: number;
+    // (undocumented)
+    entry: DatasetDirectoryEntry;
+    // (undocumented)
+    id: string;
+}
 
 // @public
 interface DatasetWordingEditor {
@@ -1484,6 +1515,19 @@ interface DatasetWordingEditor {
     readonly revision: string;
     save(wording: DatasetOverrides, context: WriteContext): Promise<void>;
     readonly wording: DatasetOverrides;
+}
+
+// @beta
+export function DatasetWorkbench(input: DatasetWorkbenchProps): JSX.Element;
+
+// @beta
+export interface DatasetWorkbenchProps extends Omit<DataWorkbenchProps, 'definitionId'> {
+    className?: string;
+    datasetId?: string | null;
+    datasets: readonly DatasetResource[];
+    loading?: boolean;
+    onDatasetChange?(id: string): void;
+    onRefresh?(): void;
 }
 
 // @public
@@ -2080,6 +2124,11 @@ export const en: {
     readonly 'label.write.action.preferences': "Saving your preferences";
     readonly 'label.image.failed': "This image could not be loaded";
     readonly 'label.image.link': "Open the linked page";
+    readonly 'label.dataset.picker': "Dataset";
+    readonly 'label.dataset.none': "No dataset yet";
+    readonly 'label.dataset.none-hint': "A dataset appears here once a catalog serves it.";
+    readonly 'label.dataset.loading': "Reading the datasets…";
+    readonly 'label.dataset.refresh': "Read the datasets again";
     readonly 'label.embed.locked': "Set by this page";
     readonly 'label.embed.unavailable-removed': "Conditions its data source no longer offers are left out here; the saved view is unchanged.";
     readonly 'label.embed.locked-name': "{filter} (set by this page)";
@@ -8363,6 +8412,7 @@ class ViewEngine extends EngineResources {
     // (undocumented)
     preferences(definitionId: string): Promise<ViewPreferences>;
     publishAsSystem(id: string): Promise<ViewInstance>;
+    register(resource: Parameters<EngineResources['register']>[0]): void;
     // (undocumented)
     protected readonly registered: ReadonlyMap<string, ViewDefinition>;
     rememberTab(definitionId: string, instanceId: string, tabId: string): Promise<void>;

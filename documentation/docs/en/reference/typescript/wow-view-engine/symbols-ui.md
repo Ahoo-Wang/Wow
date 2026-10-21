@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine/ui exports, generated from i
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine/ui` exports — 253 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 21 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/ui.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine/ui` exports — 257 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 21 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/ui.api.md). This index is English only.
 
 ::: v-pre
 
@@ -57,6 +57,9 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 253 — with its kind and
 | `DataViewKind` | type | The kinds of view a data definition holds; a dashboard is a definition of its own. | — |
 | `DataWorkbench` | function | The data workbench: one view list of record and analysis views, and the editor and result of whichever is open. | [Workbenches and Embeds](./components#api-DataWorkbench) |
 | `DataWorkbenchProps` | interface | — | [Workbenches and Embeds](./components#api-DataWorkbench) |
+| `DatasetBindingOptions` | interface | How `datasetBindings` binds each dataset served: the options of its binding, asked of each one. | — |
+| `DatasetWorkbench` | function | The standalone dataset view (D93, Wow D238 ⑨): a picker of the datasets served — from one catalog or several — over the workbench of the one open. | — |
+| `DatasetWorkbenchProps` | interface | A standalone dataset view's props (D93): the datasets served, which one is open, and what `DataWorkbench` takes for it. | — |
 | `DetachedDialog` | interface | A window opened from a toolbar, whose content is drawn outside it: the export's (`ExportButton`, `ExportMenu`). | — |
 | `DetachedPopover` | interface | A popover opened from a toolbar, whose content is drawn outside it. | — |
 | `DialogHandle` | type | The handle `DetachedDialog` joins its two halves by. | — |
@@ -238,6 +241,7 @@ Every name `@ahoo-wang/wow-view-engine/ui` exports — 253 — with its kind and
 | `bind` | function | Binds a definition's behaviour in the host (host-integration.md 4). | [Host Wiring](./host#api-bind) |
 | `cellText` | function | One cell as text, for somewhere a React node cannot go — a CSV file, a copied selection, a title attribute. | — |
 | `cellValue` | function | One value as its field reads it. | — |
+| `datasetBindings` | function | A binding of each dataset served (D93): the host spreads them into the ones it hands `ViewHost`, so its navigation lists the datasets and a view of one opens at its route. | — |
 | `dedupeIssues` | function | One of each sentence. | — |
 | `displayValue` | function | A value as its field shows it, or `undefined` when the field's kind has nothing to add and the caller's own rendering stands: a number keeps its format, a boolean its wording. | — |
 | `en` | const | English wording for everything this package can report, by area. | — |
