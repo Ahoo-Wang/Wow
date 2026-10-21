@@ -193,6 +193,8 @@ project(":java-smoke").projectDir = file("example/java-smoke")
 // and its server on Wow modules only. Never published.
 include(":benchmark-server")
 project(":benchmark-server").projectDir = file("test/benchmarks/server")
+include(":migration-rehearsal")
+project(":migration-rehearsal").projectDir = file("test/migration-rehearsal")
 //endregion
 
 // The load generator of the end-to-end architecture benchmark (decision D224): a JVM of its own that depends on no Wow

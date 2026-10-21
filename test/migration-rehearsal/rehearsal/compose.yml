@@ -1,0 +1,35 @@
+# The stores of the blue-green rehearsal (roadmap 8c.1): MongoDB, the 9.x example's event store and its compensation
+# service's database, and PostgreSQL, the V10 log migrate-data imports into. The images are the ones the repository's
+# tests already use. rehearse.sh starts them and removes them, with their volumes, after the run.
+name: wow-migration-rehearsal
+
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: wow-rehearsal-mongo
+    command: ["mongod", "--bind_ip_all", "--wiredTigerCacheSizeGB", "1"]
+    ports:
+      - "${REHEARSAL_MONGO_PORT:-27017}:27017"
+    volumes:
+      - ./:/rehearsal:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ping: 1}).ok' | grep -q 1"]
+      interval: 2s
+      timeout: 10s
+      retries: 30
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: wow-rehearsal-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: example
+    command: ["postgres", "-c", "max_connections=200"]
+    ports:
+      - "${REHEARSAL_POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d example"]
+      interval: 2s
+      timeout: 5s
+      retries: 30

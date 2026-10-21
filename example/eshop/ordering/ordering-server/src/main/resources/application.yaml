@@ -78,6 +78,7 @@ wow:
     command-intake: true
 # endregion
 ---
+# region clickhouse
 spring:
   config:
     activate:
@@ -87,3 +88,4 @@ wow:
     # The order stream is written to ClickHouse by the Sink (eshop_ordering_order_state_flat, ...), and the sales
     # dataset, META-INF/wow/dataset/eshop-ordering.sales.json, is queried there: /wow/dataset/eshop-ordering/sales/query.
     endpoint: http://localhost:8123
+# endregion
