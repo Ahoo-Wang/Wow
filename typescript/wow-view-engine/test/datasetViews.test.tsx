@@ -188,6 +188,23 @@ describe('DatasetWorkbench (D93)', () => {
     expect(await screen.findByRole('heading', { name: 'Orders' })).toBeTruthy();
   });
 
+  it('offers to read the datasets again when the host can', async () => {
+    const onRefresh = vi.fn();
+    const { rerender } = render(
+      <DatasetWorkbench engine={engineOf()} datasets={[ORDERS]} />,
+    );
+    expect(screen.queryByLabelText('Read the datasets again')).toBeNull();
+    rerender(
+      <DatasetWorkbench
+        engine={engineOf()}
+        datasets={[ORDERS]}
+        onRefresh={onRefresh}
+      />,
+    );
+    await userEvent.click(screen.getByLabelText('Read the datasets again'));
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+
   it('says so while no dataset is served, and while the datasets are read', async () => {
     const { rerender } = render(
       <DatasetWorkbench engine={engineOf()} datasets={[]} />,
@@ -271,5 +288,60 @@ describe('a board over datasets of several services (D93)', () => {
     await waitFor(() =>
       sources.forEach(source => expect(source.paged).toHaveBeenCalled()),
     );
+  });
+
+  it('shows a panel whose dataset registers after the board opened', async () => {
+    const store = new MemoryViewStore();
+    const orders = { ...ordersDefinition(), id: ORDERS.id, title: 'Orders' };
+    // A session that saved the board while the dataset was served.
+    const before = new ViewEngine({
+      resources: resourcesOf(
+        [orders, overviewDefinition({ id: 'boards' })],
+        () => testSource(),
+      ),
+      store,
+    });
+    const view = await before.save(
+      before.create(ORDERS.id, {
+        title: 'Shop orders',
+        scope: 'shared',
+        config: defaultRecordConfig(orders),
+      }),
+    );
+    const board = await before.save(
+      before.create('boards', {
+        title: 'Across services',
+        scope: 'shared',
+        config: dashboardConfig({
+          panels: [
+            {
+              id: 'orders',
+              kind: 'view',
+              instanceId: view.id,
+              bindings: [],
+              layout: { x: 0, y: 0, w: 12, h: 4 },
+            } as DashboardPanel,
+          ],
+        }),
+      }),
+    );
+
+    // The next session opens the board before the directory is read.
+    const engine = new ViewEngine({
+      resources: resourcesOf([overviewDefinition({ id: 'boards' })], () =>
+        testSource(),
+      ),
+      store,
+    });
+    render(<EmbeddedDashboard engine={engine} instanceId={board.id} />);
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="panel-unavailable"]'),
+      ).toBeTruthy(),
+    );
+    const source = testSource();
+    act(() => engine.register({ definition: orders, source }));
+    expect(await screen.findByText('Shop orders')).toBeTruthy();
+    await waitFor(() => expect(source.paged).toHaveBeenCalled());
   });
 });

@@ -20,4 +20,5 @@ export const datasetMessages = {
   'label.dataset.none': 'No dataset yet',
   'label.dataset.none-hint': 'A dataset appears here once a catalog serves it.',
   'label.dataset.loading': 'Reading the datasets…',
+  'label.dataset.refresh': 'Read the datasets again',
 } as const satisfies Record<string, string>;

@@ -1905,6 +1905,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.dataset.none': '还没有数据集',
   'label.dataset.none-hint': '目录提供数据集之后，它就出现在这里。',
   'label.dataset.loading': '正在读取数据集…',
+  'label.dataset.refresh': '重新读取数据集',
   'label.filters.add': '添加筛选',
   'label.filters.add-grouping': '时间粒度',
   'label.filters.type.date': '日期',

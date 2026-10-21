@@ -13,6 +13,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { DatasetClient, EventQueryClient } from '@ahoo-wang/wow-client';
+import { DatasetResources } from '@ahoo-wang/wow-view-engine';
 import { datasetCatalogOf, viewSourceOf } from '../src/index.js';
 import type { FakeDataset } from './support/fakeViewStore.js';
 import { actingAs, installFake } from './support.js';
@@ -51,7 +52,12 @@ describe('the V10 data sources', () => {
 
     const entries = await catalog.list();
     expect(entries).toEqual([
-      { contextName: 'sales', name: 'orders', title: 'Orders', version: null },
+      {
+        contextName: 'sales',
+        name: 'orders',
+        title: 'Orders',
+        version: 'listed',
+      },
     ]);
     const source = catalog.source(entries[0]);
     const abort = new AbortController();
@@ -159,6 +165,23 @@ describe('the V10 data sources', () => {
       notModified: false,
       version: 'sha256:1',
     });
+  });
+
+  it("hand every dataset the directory lists to the engine's DatasetResources to describe", async () => {
+    // A V10 directory names no version; were it read as `null`, the engine
+    // would take every dataset for one it cannot serve and describe none.
+    const dataset = orders();
+    installFake({ datasets: [dataset] });
+    const engine = {
+      definitions: new Map<string, unknown>(),
+      register: vi.fn(),
+      unregister: vi.fn(() => true),
+    };
+    await new DatasetResources(
+      engine,
+      datasetCatalogOf(new DatasetClient({ fetcher: actingAs({}) })),
+    ).refresh();
+    expect(dataset.source.describe).toHaveBeenCalled();
   });
 
   it('read a dataset without a title as untitled', async () => {

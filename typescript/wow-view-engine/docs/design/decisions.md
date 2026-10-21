@@ -1061,5 +1061,7 @@
   - **`datasetBindings(served, { route, actions? })`**（`/ui`）：为每个提供着的数据集生成 `bind(id, { route, actions })`，宿主把它并进自己的绑定。
   - **`DatasetWorkbench`**（`/ui`）：选数据集的下拉加上它的 `DataWorkbench`。**修订 D85 的「不另做选择器」**：有导航的宿主照旧经绑定在导航里列出数据集；只有数据集、没有别的导航的应用（独立的数据集视图）需要这个下拉，它就是导航。数据集与视图都可由宿主的地址掌管（`datasetId`/`onDatasetChange`，`instanceId`/`onInstanceChange`）。
   - **看板不加概念**：看板仍是一份 `DashboardDefinition` 下的视图，面板的 `OwnedView.definitionId` 指向哪个数据集都行，几个服务的数据集可以放在同一块板上；视图存储把 `definitionId` 当不透明的字符串，存储不改。
+  - **看板等数据集登记**（2026-10-20，在浏览器里实测发现）：数据集读完目录才登记，看板可能先打开；面板读到「定义不在」（`view.definition.not-found`）不再算视图已没有，而是一次可以过去的失败；`engine.register` 之后，打开着的看板对失败的面板再问一次（`DashboardViewRuntime.retryReferences`），数据集一登记面板就出来，读者不必刷新。
+  - **V10 目录的版本**：V10 的数据集目录不给版本，`@ahoo-wang/wow-view-store` 的 `datasetCatalogOf` 原先把版本写成 `null`，而 `DatasetResources` 把 `null` 读作「提供不了」，于是一个数据集也不登记（同样是浏览器里实测发现，单元测试替换了 `refresh` 看不到）。改为给列出的每个数据集同一个版本 `listed`：目录只列它提供的数据集，数据集变没变由描述符的版本说。
   - **实验性**：这批新的公开 API 在 API 报告里标为 `@experimental`，GA 前可以再改。
 - **落点**：`src/runtime/datasetResources.ts`、`src/react/useDatasets.ts`、`src/ui/datasets/`；[host-integration.md 3.2](host-integration.md)；Wow 仓分析目录控制台的 Rows 页与 Boards 页。

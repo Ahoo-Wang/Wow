@@ -1334,7 +1334,90 @@ interface DashboardViewPanelBase extends DashboardPanelBase {
 type DashboardWidth = 'fixed' | 'full';
 
 // @public
+interface DatasetCatalog {
+    list(): Promise<readonly DatasetDirectoryEntry[]>;
+    overrides?(entry: DatasetDirectoryEntry): DatasetOverrides | undefined;
+    source(entry: DatasetDirectoryEntry): ViewSource;
+    wordings?: DatasetWordingStore;
+}
+
+// @public
+interface DatasetDirectoryEntry {
+    // (undocumented)
+    contextName: string;
+    // (undocumented)
+    name: string;
+    // (undocumented)
+    title: string | null;
+    // (undocumented)
+    version: string | null;
+}
+
+// @beta
+interface DatasetDuplicate {
+    // (undocumented)
+    dropped: number;
+    entry: DatasetDirectoryEntry;
+    id: string;
+    kept: number;
+}
+
+// @public
 type DatasetOverrides = Partial<Pick<DefineDatasetSpec, 'title' | 'recordNoun' | 'fields'>>;
+
+// @public
+interface DatasetRegistrar {
+    // (undocumented)
+    readonly definitions: ReadonlyMap<string, unknown>;
+    // (undocumented)
+    register(resource: {
+        definition: ReturnType<typeof defineDataset>;
+        source: ViewSource;
+        wording?: DatasetWordingEditor;
+    }): void;
+    // (undocumented)
+    unregister(definitionId: string): boolean;
+}
+
+// @public
+interface DatasetResource {
+    // @beta
+    catalog: number;
+    // (undocumented)
+    entry: DatasetDirectoryEntry;
+    // (undocumented)
+    id: string;
+}
+
+// @public
+class DatasetResources {
+    constructor(engine: DatasetRegistrar,
+    catalogs: DatasetCatalog | readonly DatasetCatalog[],
+    onError?: (entry: DatasetDirectoryEntry, error: unknown) => void,
+    onWordingError?: (error: unknown) => void, options?: DatasetResourcesOptions);
+    // @beta
+    get duplicates(): readonly DatasetDuplicate[];
+    // (undocumented)
+    refresh(): Promise<readonly DatasetResource[]>;
+    get resources(): readonly DatasetResource[];
+}
+
+// @public
+interface DatasetResourcesOptions {
+    // @beta
+    onCatalogError?(catalog: number, error: unknown): void;
+    // @beta
+    onDuplicate?(duplicate: DatasetDuplicate): void;
+}
+
+// @beta
+export interface DatasetsState {
+    datasets: readonly DatasetResource[];
+    duplicates: readonly DatasetDuplicate[];
+    error: unknown;
+    loading: boolean;
+    refresh(): void;
+}
 
 // @public
 interface DatasetWordingEditor {
@@ -1347,6 +1430,12 @@ interface DatasetWordingEditor {
     readonly revision: string;
     save(wording: DatasetOverrides, context: WriteContext): Promise<void>;
     readonly wording: DatasetOverrides;
+}
+
+// @public
+interface DatasetWordingStore {
+    list(signal?: AbortSignal): Promise<ReadonlyMap<string, StoredDatasetWording>>;
+    set(dataset: string, wording: DatasetOverrides, revision: string, context: WriteContext): Promise<string>;
 }
 
 // @public
@@ -1398,6 +1487,9 @@ interface DecimalNumeric {
 }
 
 // @public
+function defineDataset(descriptor: QueryModelDescriptor, spec: DefineDatasetSpec, options?: DefineViewOptions): DataViewDefinition;
+
+// @public
 interface DefineDatasetSpec {
     fields?: Readonly<Record<string, FieldSpec | string | false>>;
     // (undocumented)
@@ -1406,6 +1498,12 @@ interface DefineDatasetSpec {
     recordNoun?: string;
     source: string;
     title: string;
+}
+
+// @public
+interface DefineViewOptions {
+    // (undocumented)
+    kinds?: FieldKindRegistry;
 }
 
 // @public
@@ -3756,6 +3854,13 @@ export interface SplitOption {
 }
 
 // @public
+interface StoredDatasetWording {
+    revision: string;
+    // (undocumented)
+    wording: DatasetOverrides;
+}
+
+// @public
 type StringComparisonName = `${StringComparison}`;
 
 // @public (undocumented)
@@ -3892,6 +3997,9 @@ export function useAutoRefresh(runtime: ViewRuntime<ViewConfig> | null): Refresh
 
 // @public
 export function useDashboard(runtime: DashboardRuntime | null): DashboardController;
+
+// @beta
+export function useDatasets(resources: Pick<DatasetResources, 'refresh' | 'duplicates'>, key?: string | null): DatasetsState;
 
 // @public
 export function useFilterEditor(runtime: ViewRuntime | null): FilterEditorController;
@@ -4074,6 +4182,7 @@ class ViewEngine extends EngineResources {
     // (undocumented)
     preferences(definitionId: string): Promise<ViewPreferences>;
     publishAsSystem(id: string): Promise<ViewInstance>;
+    register(resource: Parameters<EngineResources['register']>[0]): void;
     // (undocumented)
     protected readonly registered: ReadonlyMap<string, ViewDefinition>;
     rememberTab(definitionId: string, instanceId: string, tabId: string): Promise<void>;

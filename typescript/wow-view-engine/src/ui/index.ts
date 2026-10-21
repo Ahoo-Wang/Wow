@@ -96,11 +96,11 @@ export {
 export {
   DatasetWorkbench,
   type DatasetWorkbenchProps,
-} from './datasets/DatasetWorkbench.js';
+} from './DatasetWorkbench.js';
 export {
   type DatasetBindingOptions,
   datasetBindings,
-} from './datasets/datasetBindings.js';
+} from './datasetBindings.js';
 // Building a board, batch B3 (D22 C–E): the tab bar, the commands a board's
 // menus call and the dialogs they open.
 export {

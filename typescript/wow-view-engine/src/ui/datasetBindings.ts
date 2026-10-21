@@ -11,18 +11,20 @@
  * limitations under the License.
  */
 
-import type { DatasetResource } from '../../runtime/datasetResources.js';
+import type { DatasetResource } from '../runtime/datasetResources.js';
 import {
   bind,
   type ViewBinding,
   type ViewBindingOptions,
-} from '../workbench/bindings.js';
+} from './workbench/bindings.js';
 
 /**
  * How `datasetBindings` binds each dataset served: the options of its
  * binding, asked of each one.
  *
- * @experimental
+ * Experimental (D93): it may change before 10.0 GA.
+ *
+ * @beta
  */
 export interface DatasetBindingOptions {
   /** Where a view of `dataset` lives: the host's route of it on `instanceId`. */
@@ -38,7 +40,9 @@ export interface DatasetBindingOptions {
  * it hands `ViewHost`, so its navigation lists the datasets and a view of
  * one opens at its route.
  *
- * @experimental
+ * Experimental (D93): it may change before 10.0 GA.
+ *
+ * @beta
  */
 export function datasetBindings(
   served: readonly DatasetResource[],

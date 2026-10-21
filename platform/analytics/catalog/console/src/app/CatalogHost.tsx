@@ -13,11 +13,11 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { DatasetResource } from "@ahoo-wang/wow-view-engine";
+import { useDatasets } from "@ahoo-wang/wow-view-engine/react";
 import { useReactRouter } from "@ahoo-wang/wow-view-engine/react-router";
 import { ViewHost } from "@ahoo-wang/wow-view-engine/ui";
 import { useI18n } from "@/i18n.tsx";
 import { callerKey } from "@/services/caller.ts";
-import type { CatalogServices } from "@/services/catalog.ts";
 import { consoleBindings } from "@/views/bindings.ts";
 import { engineMessages } from "@/views/messages.ts";
 import {
@@ -31,67 +31,57 @@ import { useCaller, useServices } from "./services.tsx";
 /** Wow's blue, the console's brand over the engine's porcelain preset. */
 const BRAND = "oklch(0.546 0.245 262.881)";
 
-/** The datasets served, each with the actions its rows offer; one whose cannot be read offers none. */
-async function readServed({
-  datasets,
-  references,
-}: CatalogServices): Promise<Pick<Served, "datasets" | "references">> {
-  const resources: readonly DatasetResource[] = await datasets.refresh();
-  const read = await Promise.all(
-    resources.map(({ id }) =>
-      references.actions(id).then(
-        (actions): [string, ReferenceActions] => [id, actions],
-        (error: unknown) => {
-          console.warn(`[datasets] ${id} offers no row actions`, error);
-          return null;
-        },
-      ),
-    ),
-  );
-  return {
-    datasets: resources,
-    references: Object.fromEntries(read.filter((entry) => entry !== null)),
-  };
-}
-
 /**
- * The datasets the node serves, read again for each caller (another one sees
- * other datasets and may act on other rows) and on `refresh`.
+ * The actions each served dataset's rows offer, read again whenever the
+ * datasets are; one whose cannot be read offers none.
  */
-function useServed(): Served {
-  const services = useServices();
-  const caller = useCaller();
-  const [round, setRound] = useState(0);
-  // What is asked for now: the caller's datasets, read again on each refresh.
-  const asked = caller ? `${callerKey(caller)}#${round}` : null;
-  const [served, setServed] = useState<
-    Omit<Served, "refresh" | "loading"> & { for: string | null }
-  >({ for: null, datasets: [], references: {}, error: null });
+function useReferences(
+  datasets: readonly DatasetResource[],
+): Readonly<Record<string, ReferenceActions>> {
+  const { references } = useServices();
+  const [read, setRead] = useState<{
+    for: readonly DatasetResource[];
+    actions: Readonly<Record<string, ReferenceActions>>;
+  }>({ for: [], actions: {} });
   useEffect(() => {
-    if (asked === null) return;
     let live = true;
-    readServed(services).then(
-      (read) => {
-        if (live) setServed({ ...read, for: asked, error: null });
-      },
-      (error: unknown) => {
-        if (live) setServed((current) => ({ ...current, for: asked, error }));
-      },
-    );
+    Promise.all(
+      datasets.map(({ id }) =>
+        references.actions(id).then(
+          (actions): [string, ReferenceActions] => [id, actions],
+          (error: unknown) => {
+            console.warn(`[datasets] ${id} offers no row actions`, error);
+            return null;
+          },
+        ),
+      ),
+    ).then((entries) => {
+      if (live)
+        setRead({
+          for: datasets,
+          actions: Object.fromEntries(
+            entries.filter((entry) => entry !== null),
+          ),
+        });
+    });
     return () => {
       live = false;
     };
-  }, [services, asked]);
-  return useMemo(
-    () => ({
-      datasets: served.datasets,
-      references: served.references,
-      error: served.error,
-      loading: asked !== null && served.for !== asked,
-      refresh: () => setRound((value) => value + 1),
-    }),
-    [served, asked],
-  );
+  }, [datasets, references]);
+  return read.for === datasets ? read.actions : {};
+}
+
+/**
+ * The datasets the node serves (the view engine's `useDatasets`), read again
+ * for each caller — another one sees other datasets and may act on other
+ * rows — and on `refresh`, with the actions their rows offer.
+ */
+function useServed(): Served {
+  const { datasets } = useServices();
+  const caller = useCaller();
+  const served = useDatasets(datasets, caller ? callerKey(caller) : null);
+  const references = useReferences(served.datasets);
+  return useMemo(() => ({ ...served, references }), [served, references]);
 }
 
 /**

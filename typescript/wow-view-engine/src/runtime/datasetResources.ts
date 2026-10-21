@@ -116,7 +116,7 @@ export interface DatasetResource {
    * Which of the catalogs serves it, by its place in the list
    * `DatasetResources` was given (0 for one catalog).
    *
-   * @experimental
+   * @beta
    */
   catalog: number;
 }
@@ -125,7 +125,9 @@ export interface DatasetResource {
  * A dataset a catalog listed under an id an earlier catalog serves (D238 ⑨):
  * left out, the earlier one's kept.
  *
- * @experimental
+ * Experimental (D93): it may change before 10.0 GA.
+ *
+ * @beta
  */
 export interface DatasetDuplicate {
   /** The definition id both name, `{context}.{dataset}`. */
@@ -141,15 +143,23 @@ export interface DatasetDuplicate {
  * What `DatasetResources` tells besides a dataset it cannot serve: each
  * duplicate it leaves out, and a catalog whose directory cannot be read.
  *
- * @experimental
+ * Experimental (D93): it may change before 10.0 GA. Its members are tagged
+ * rather than the interface, as the constructor of the public
+ * `DatasetResources` names it.
  */
 export interface DatasetResourcesOptions {
-  /** Told of each duplicate a refresh leaves out (`DatasetResources.duplicates`). */
+  /**
+   * Told of each duplicate a refresh leaves out (`DatasetResources.duplicates`).
+   *
+   * @beta
+   */
   onDuplicate?(duplicate: DatasetDuplicate): void;
   /**
    * Told when the catalog at `catalog` cannot list its datasets: the ones it
    * served stay as they were, and the refresh goes on with the others. Only
    * when no catalog can list does the refresh fail.
+   *
+   * @beta
    */
   onCatalogError?(catalog: number, error: unknown): void;
 }
@@ -231,7 +241,7 @@ export class DatasetResources {
    * The datasets the last refresh left out because an earlier catalog serves
    * their id.
    *
-   * @experimental
+   * @beta
    */
   get duplicates(): readonly DatasetDuplicate[] {
     return this.found;

@@ -21,7 +21,9 @@ import type {
 /**
  * The datasets a `DatasetResources` serves, as `useDatasets` reads them.
  *
- * @experimental
+ * Experimental (D93): it may change before 10.0 GA.
+ *
+ * @beta
  */
 export interface DatasetsState {
   /** The datasets served, in the directories' order, as read last. */
@@ -43,7 +45,9 @@ export interface DatasetsState {
  * nothing (no caller yet). A read that lands after another was asked for is
  * dropped.
  *
- * @experimental
+ * Experimental (D93): it may change before 10.0 GA.
+ *
+ * @beta
  */
 export function useDatasets(
   resources: Pick<DatasetResources, 'refresh' | 'duplicates'>,

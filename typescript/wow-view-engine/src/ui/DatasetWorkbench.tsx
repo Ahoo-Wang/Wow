@@ -13,33 +13,36 @@
 
 import { cn } from 'cn';
 import { useId, useState } from 'react';
-import { DatabaseIcon } from 'lucide-react';
-import type { DatasetResource } from '../../runtime/datasetResources.js';
+import { DatabaseIcon, RefreshCwIcon } from 'lucide-react';
+import type { DatasetResource } from '../runtime/datasetResources.js';
+import { Button } from './components/button.js';
 import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from '../components/empty.js';
+} from './components/empty.js';
 import {
   Select,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../components/select.js';
-import { Spinner } from '../components/spinner.js';
-import { DataWorkbench, type DataWorkbenchProps } from '../DataWorkbench.js';
-import { useViewMessages } from '../kit/MessagesProvider.js';
-import { SelectContent } from '../kit/popups.js';
-import { ViewSurface } from '../kit/ViewSurface.js';
+} from './components/select.js';
+import { Spinner } from './components/spinner.js';
+import { DataWorkbench, type DataWorkbenchProps } from './DataWorkbench.js';
+import { useViewMessages } from './kit/MessagesProvider.js';
+import { SelectContent } from './kit/popups.js';
+import { ViewSurface } from './kit/ViewSurface.js';
 
 /**
  * A standalone dataset view's props (D93): the datasets served, which one is
  * open, and what `DataWorkbench` takes for it.
  *
- * @experimental
+ * Experimental (D93): it may change before 10.0 GA.
+ *
+ * @beta
  */
 export interface DatasetWorkbenchProps extends Omit<
   DataWorkbenchProps,
@@ -55,8 +58,13 @@ export interface DatasetWorkbenchProps extends Omit<
   datasetId?: string | null;
   /** Told which dataset the reader picked, so a host can write it into its route. */
   onDatasetChange?(id: string): void;
-  /** Whether the datasets are being read: shown while none is served yet. */
+  /** Whether the datasets are being read: shown beside the picker. */
   loading?: boolean;
+  /**
+   * Reads the datasets again (`useDatasets`' `refresh`): given, the bar
+   * offers it, so a dataset published since appears without a reload.
+   */
+  onRefresh?(): void;
   /** Classes of the root, for the host's layout. */
   className?: string;
 }
@@ -74,13 +82,16 @@ function nameOf({ id, entry }: DatasetResource): string {
  * (`datasetBindings`) and opens each in a `DataWorkbench`. A board over
  * datasets is an ordinary board whose panels name them.
  *
- * @experimental
+ * Experimental (D93): it may change before 10.0 GA.
+ *
+ * @beta
  */
 export function DatasetWorkbench({
   datasets,
   datasetId,
   onDatasetChange,
   loading = false,
+  onRefresh,
   className,
   ...workbench
 }: DatasetWorkbenchProps) {
@@ -107,39 +118,53 @@ export function DatasetWorkbench({
         tokens={workbench.tokens}
         messages={workbench.messages}
         locale={workbench.locale}
-        className="fve:flex fve:items-center fve:gap-2 fve:border-b fve:px-3 fve:py-2"
       >
-        <span id={labelId} className="fve:text-sm fve:text-muted-foreground">
-          {messages.label('label.dataset.picker')}
-        </span>
-        <Select
-          items={datasets.map(dataset => ({
-            value: dataset.id,
-            label: nameOf(dataset),
-          }))}
-          value={open}
-          disabled={datasets.length === 0}
-          onValueChange={value => {
-            const next = datasets.find(({ id }) => id === value);
-            if (next) pick(next.id);
-          }}
-        >
-          <SelectTrigger size="sm" aria-labelledby={labelId}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {datasets.map(dataset => (
-                <SelectItem key={dataset.id} value={dataset.id}>
-                  {nameOf(dataset)}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
-        {loading && (
-          <Spinner aria-label={messages.label('label.dataset.loading')} />
-        )}
+        <div className="fve:flex fve:items-center fve:gap-2 fve:border-b fve:px-3 fve:py-2">
+          <span id={labelId} className="fve:text-sm fve:text-muted-foreground">
+            {messages.label('label.dataset.picker')}
+          </span>
+          <Select
+            items={datasets.map(dataset => ({
+              value: dataset.id,
+              label: nameOf(dataset),
+            }))}
+            value={open}
+            disabled={datasets.length === 0}
+            onValueChange={value => {
+              const next = datasets.find(({ id }) => id === value);
+              if (next) pick(next.id);
+            }}
+          >
+            <SelectTrigger size="sm" aria-labelledby={labelId}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {datasets.map(dataset => (
+                  <SelectItem key={dataset.id} value={dataset.id}>
+                    {nameOf(dataset)}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+          {loading && (
+            <Spinner aria-label={messages.label('label.dataset.loading')} />
+          )}
+          {onRefresh && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={messages.label('label.dataset.refresh')}
+              title={messages.label('label.dataset.refresh')}
+              disabled={loading}
+              onClick={onRefresh}
+            >
+              <RefreshCwIcon />
+            </Button>
+          )}
+        </div>
       </ViewSurface>
       {open === null ? (
         loading ? null : (
