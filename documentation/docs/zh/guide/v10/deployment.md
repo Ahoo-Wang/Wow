@@ -142,7 +142,7 @@ kafka-topics --bootstrap-server localhost:9092 --create --topic wow.inventory.st
 
 - 尽量不把个人信息（姓名、地址、电话、关于某人的自由文本）放进事件。把它放进可以删除的读模型（投影的表、另一个服务），事件里只放不透明的 ID。
 - 命令需要个人信息来做决定时，让命令函数通过服务读取它，而不是把它带进事件。
-- 命令的操作人只记录不透明的 ID。复制进事件的请求事实（`wow.http.request-facts`）也不能是个人信息。公开端口会记录每条命令的客户端地址与 `User-Agent`（`remote_ip`、`user_agent`），与 9.x 一致，用于审计：它们是个人信息，写入永不删除的事件流，一经记录便无法删除。设置 `wow.http.client-facts: false` 可两项都不记录。
+- 命令的操作人只记录不透明的 ID。复制进事件的请求事实（`wow.http.request-facts`）也不能是个人信息；IP 地址与 User-Agent 不记录。
 - 快照与 ClickHouse 的表都由日志派生：在那里删除一行并不会删除事实。
 
 ## 一个租户空间
