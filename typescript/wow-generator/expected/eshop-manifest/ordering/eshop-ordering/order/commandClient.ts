@@ -72,12 +72,12 @@ export class OrderCommandClient {
    * Produces `OrderPaid`.
    */
   payOrder(id: string, body: PayOrder, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(OrderCommandPaths.PAY_ORDER, body, { ...options, id });
+    return this.gateway.send(OrderCommandPaths.PAY_ORDER, body, { ...options, id, bodyNumbers: OrderAggregate.textNumbers.commands.PayOrder });
   }
 
   /** `PayOrder`, answered as one result per hop of its wait (`text/event-stream`). */
   payOrderStream(id: string, body: PayOrder, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(OrderCommandPaths.PAY_ORDER, body, { ...options, id });
+    return this.gateway.stream(OrderCommandPaths.PAY_ORDER, body, { ...options, id, bodyNumbers: OrderAggregate.textNumbers.commands.PayOrder });
   }
 
   /**
@@ -101,12 +101,12 @@ export class OrderCommandClient {
    * Produces `OrderSubmitted`.
    */
   submitOrder(body: SubmitOrder, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.send(options?.id === undefined ? OrderCommandPaths.SUBMIT_ORDER_WITHOUT_ID : OrderCommandPaths.SUBMIT_ORDER, body, options);
+    return this.gateway.send(options?.id === undefined ? OrderCommandPaths.SUBMIT_ORDER_WITHOUT_ID : OrderCommandPaths.SUBMIT_ORDER, body, { ...options, bodyNumbers: OrderAggregate.textNumbers.commands.SubmitOrder });
   }
 
   /** `SubmitOrder`, answered as one result per hop of its wait (`text/event-stream`). */
   submitOrderStream(body: SubmitOrder, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(options?.id === undefined ? OrderCommandPaths.SUBMIT_ORDER_WITHOUT_ID : OrderCommandPaths.SUBMIT_ORDER, body, options);
+    return this.gateway.stream(options?.id === undefined ? OrderCommandPaths.SUBMIT_ORDER_WITHOUT_ID : OrderCommandPaths.SUBMIT_ORDER, body, { ...options, bodyNumbers: OrderAggregate.textNumbers.commands.SubmitOrder });
   }
 
   /**

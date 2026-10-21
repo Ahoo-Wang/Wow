@@ -467,10 +467,10 @@ interface CursorPage<T> {
 }
 
 // @public
-interface CursorQuery<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> {
+interface CursorQuery<FIELDS extends string = string> {
     cursor?: string | null;
     filter: FilterExpression<FIELDS>;
-    projection?: Projection<FIELDS, INCLUDE>;
+    projection?: Projection<FIELDS>;
     size?: number;
     sort?: FieldSort<FIELDS>[];
 }
@@ -863,7 +863,7 @@ interface FilterCapable<FIELDS extends string = string> {
 type FilterExpression<FIELDS extends string = string> = MatchFilter | MetadataFilter | LogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | DeletionFilter | ElementMatchFilter<FIELDS> | SearchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS> | ExpressionFilter<FIELDS>;
 
 // @public
-interface FilterListQuery<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> extends FilterQueryable<FIELDS, INCLUDE> {
+interface FilterListQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
     limit?: number;
 }
 
@@ -978,17 +978,17 @@ enum FilterOperator {
 }
 
 // @public
-interface FilterPagedQuery<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> extends FilterQueryable<FIELDS, INCLUDE> {
+interface FilterPagedQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
     // (undocumented)
     pagination?: Pagination;
 }
 
 // @public
-interface FilterQueryable<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> extends FilterCapable<FIELDS>, ProjectionCapable<FIELDS, INCLUDE>, SortCapable<FIELDS> {
+interface FilterQueryable<FIELDS extends string = string> extends FilterCapable<FIELDS>, ProjectionCapable<FIELDS>, SortCapable<FIELDS> {
 }
 
 // @public
-interface FilterSingleQuery<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> extends FilterQueryable<FIELDS, INCLUDE> {
+interface FilterSingleQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
 }
 
 // @public
@@ -1120,6 +1120,13 @@ export interface Hop {
     // (undocumented)
     readonly subscription?: string | null;
 }
+
+// @public
+export type Including<Q, INCLUDE extends string> = Q & {
+    readonly projection: {
+        readonly include: readonly INCLUDE[];
+    };
+};
 
 // @public
 export function isProblem(value: unknown): value is Problem;
@@ -1257,7 +1264,7 @@ export interface OwnerTransferred {
 }
 
 // @public
-export interface PagedQuery<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> extends FilterPagedQuery<FIELDS, INCLUDE> {
+export interface PagedQuery<FIELDS extends string = string> extends FilterPagedQuery<FIELDS> {
     total?: TotalMode;
 }
 
@@ -1328,20 +1335,20 @@ export interface Problem {
 export const PROBLEM_TYPE_PREFIX = "urn:wow:error:";
 
 // @public
-type Projected<R, INCLUDE extends string, FIELDS extends string = string> = string extends INCLUDE ? R : [FIELDS] extends [INCLUDE] ? R : PickPaths<R, INCLUDE>;
+type Projected<R, INCLUDE extends string> = string extends INCLUDE ? R : PickPaths<R, INCLUDE>;
 
 // @public
-interface Projection<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> {
+interface Projection<FIELDS extends string = string> {
     // (undocumented)
     exclude?: FIELDS[];
     // (undocumented)
-    include?: INCLUDE[];
+    include?: FIELDS[];
 }
 
 // @public
-interface ProjectionCapable<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> {
+interface ProjectionCapable<FIELDS extends string = string> {
     // (undocumented)
-    projection?: Projection<FIELDS, INCLUDE>;
+    projection?: Projection<FIELDS>;
 }
 
 // @public
@@ -1398,17 +1405,29 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     // (undocumented)
     readonly client: WowClientOptions;
     count(query: CountQuery<FIELDS>, options?: RequestOptions): Promise<CountResult>;
-    cursor<INCLUDE extends FIELDS = FIELDS>(query: CursorQuery<FIELDS, INCLUDE>, options?: RequestOptions): Promise<CursorPage<Projected<R, INCLUDE, FIELDS>>>;
+    cursor<const INCLUDE extends FIELDS>(query: Including<CursorQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<CursorPage<Projected<R, INCLUDE>>>;
+    // (undocumented)
+    cursor(query: CursorQuery<FIELDS>, options?: RequestOptions): Promise<CursorPage<R>>;
     describe(version?: string, options?: RequestOptions): Promise<DescriptorResult>;
-    list<INCLUDE extends FIELDS = FIELDS>(query: FilterListQuery<FIELDS, INCLUDE>, options?: RequestOptions): Promise<Projected<R, INCLUDE, FIELDS>[]>;
-    listStream<INCLUDE extends FIELDS = FIELDS>(query: FilterListQuery<FIELDS, INCLUDE>, options?: ListStreamOptions): Promise<ReadableStream<Projected<R, INCLUDE, FIELDS>>>;
-    listStreamRows<INCLUDE extends FIELDS = FIELDS>(query: FilterListQuery<FIELDS, INCLUDE>, options?: ListStreamOptions): Promise<ReadableStream<StreamedRow<Projected<R, INCLUDE, FIELDS>>>>;
+    list<const INCLUDE extends FIELDS>(query: Including<FilterListQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<Projected<R, INCLUDE>[]>;
+    // (undocumented)
+    list(query: FilterListQuery<FIELDS>, options?: RequestOptions): Promise<R[]>;
+    listStream<const INCLUDE extends FIELDS>(query: Including<FilterListQuery<FIELDS>, INCLUDE>, options?: ListStreamOptions): Promise<ReadableStream<Projected<R, INCLUDE>>>;
+    // (undocumented)
+    listStream(query: FilterListQuery<FIELDS>, options?: ListStreamOptions): Promise<ReadableStream<R>>;
+    listStreamRows<const INCLUDE extends FIELDS>(query: Including<FilterListQuery<FIELDS>, INCLUDE>, options?: ListStreamOptions): Promise<ReadableStream<StreamedRow<Projected<R, INCLUDE>>>>;
+    // (undocumented)
+    listStreamRows(query: FilterListQuery<FIELDS>, options?: ListStreamOptions): Promise<ReadableStream<StreamedRow<R>>>;
     // (undocumented)
     readonly numbers?: TextNumbers | undefined;
-    paged<INCLUDE extends FIELDS = FIELDS>(query: PagedQuery<FIELDS, INCLUDE>, options?: RequestOptions): Promise<PagedResult<Projected<R, INCLUDE, FIELDS>>>;
+    paged<const INCLUDE extends FIELDS>(query: Including<PagedQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<PagedResult<Projected<R, INCLUDE>>>;
+    // (undocumented)
+    paged(query: PagedQuery<FIELDS>, options?: RequestOptions): Promise<PagedResult<R>>;
     // (undocumented)
     readonly path: string;
-    single<INCLUDE extends FIELDS = FIELDS>(query: FilterSingleQuery<FIELDS, INCLUDE>, options?: RequestOptions): Promise<Projected<R, INCLUDE, FIELDS>>;
+    single<const INCLUDE extends FIELDS>(query: Including<FilterSingleQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<Projected<R, INCLUDE>>;
+    // (undocumented)
+    single(query: FilterSingleQuery<FIELDS>, options?: RequestOptions): Promise<R>;
 }
 
 // @public

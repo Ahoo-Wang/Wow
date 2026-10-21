@@ -3,8 +3,8 @@
   "files": {
     "eshop-payment/boundedContext.ts": "b8d6d5ce2a8925eea9335e2fcd505736fc522f3e90caf12d55a521ef139942e4",
     "eshop-payment/index.ts": "8b2ef50ffb4bc4742da2edef17d54fb83457f9c5a855f11deba1fe22c7f83bac",
-    "eshop-payment/payment/aggregate.ts": "2bb7ed3b29d54824ed362572febd7bdc6bb87b301d699bc7d109cd6e4b058235",
-    "eshop-payment/payment/commandClient.ts": "a1944d1d07a83f059966ed906ef0a2a02b77d82a5500449f4336d0fc96eb353b",
+    "eshop-payment/payment/aggregate.ts": "984e26bf64b5529e0279aa7823edb95dd79e146fee609c1eb7121f4f69464cd3",
+    "eshop-payment/payment/commandClient.ts": "0f48218b8610eb54456f03a56d487e8a18cfb005243e38f1a5d5156bf1be3853",
     "eshop-payment/payment/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "eshop-payment/payment/queryClient.ts": "fba35ec5bee8e42abb62204940705c30c097aeea2a71b47aff40cdd6b5b3b445",
     "eshop-payment/types.ts": "90a9b7b707ba8f804d5b91d9bc9383cb42cb3bdfd80a91116335f8edc0303c38",

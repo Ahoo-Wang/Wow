@@ -13,6 +13,7 @@
 
 import { describe, expectTypeOf, it } from 'vitest';
 import {
+  filter,
   listQuery,
   type PickPaths,
   type Projected,
@@ -41,7 +42,7 @@ type CartField =
   | 'state.lines.sku';
 
 // Read by `typeof` alone: what the client's methods return.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 declare const client: SnapshotQueryClient<Cart, CartField>;
 
 describe('projected records (review R4-Q, Q-14)', () => {
@@ -61,24 +62,48 @@ describe('projected records (review R4-Q, Q-14)', () => {
 
   it('keeps the whole record without literal includes', () => {
     expectTypeOf<Projected<Cart, string>>().toEqualTypeOf<Cart>();
-    expectTypeOf<Projected<Cart, CartField, CartField>>().toEqualTypeOf<Cart>();
   });
 
   it('types what a snapshot query answers by its projection', () => {
-    type Narrowed = Awaited<
-      ReturnType<
-        typeof client.list<'aggregateId' | 'state.name' | 'state.lines.sku'>
-      >
-    >[number];
+    const listed = () =>
+      client.list({
+        filter: filter.matchAll(),
+        projection: {
+          include: ['aggregateId', 'state.name', 'state.lines.sku'],
+        },
+      });
+    type Narrowed = Awaited<ReturnType<typeof listed>>[number];
     expectTypeOf<Narrowed>().toEqualTypeOf<{
       readonly aggregateId: string;
       readonly state: { name: string; lines: { sku: string }[] };
     }>();
-    const query = listQuery({
-      projection: projection({ include: ['state.name'] }),
-    });
-    expectTypeOf(query.projection?.include).toEqualTypeOf<
-      'state.name'[] | undefined
+    // A query written where the client takes it narrows by its literal include.
+    const inline = () =>
+      client.paged({
+        filter: filter.eq('state.name', 'a'),
+        projection: { include: ['state.name', 'aggregateId'] },
+      });
+    expectTypeOf<
+      Awaited<ReturnType<typeof inline>>['list'][number]
+    >().toEqualTypeOf<{
+      readonly aggregateId: string;
+      readonly state: { name: string };
+    }>();
+    // An exclusion alone, or a query the DSL built, answers whole records.
+    const excluded = () =>
+      client.single({
+        filter: filter.matchAll(),
+        projection: { exclude: ['state.note'] },
+      });
+    expectTypeOf<Awaited<ReturnType<typeof excluded>>>().toEqualTypeOf<
+      SnapshotRecord<Cart>
+    >();
+    const built = () =>
+      client.list(
+        listQuery({ projection: projection({ include: ['state.name'] }) }),
+      );
+    expectTypeOf<Awaited<ReturnType<typeof built>>[number]>().toEqualTypeOf<
+      SnapshotRecord<Cart>
     >();
     type Whole = Awaited<ReturnType<typeof client.single>>;
     expectTypeOf<Whole>().toEqualTypeOf<SnapshotRecord<Cart>>();

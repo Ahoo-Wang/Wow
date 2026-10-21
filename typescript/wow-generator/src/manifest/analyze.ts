@@ -67,6 +67,14 @@ export interface TypeModel {
   readonly references: readonly string[];
 }
 
+/**
+ * The numbers of a value read and written as their exact text, as
+ * `@ahoo-wang/wow-client`'s `TextNumbers` holds them: `true` at such a number,
+ * else its members' marks by name, `'*'` for every item or map value.
+ */
+export type TextNumbersModel =
+  true | { readonly [member: string]: TextNumbersModel };
+
 /** A command of an aggregate client. */
 export interface CommandModel {
   readonly name: string;
@@ -83,6 +91,8 @@ export interface CommandModel {
   readonly produces: readonly string[];
   /** What the command's class says it is, as the Manifest describes it. */
   readonly description?: string;
+  /** Its body has exact numbers, under `textNumbers.commands` of its aggregate. */
+  readonly bodyNumbers?: boolean;
 }
 
 /** A lifecycle command an aggregate lists. */
@@ -132,6 +142,12 @@ export interface AggregateModel {
   }[];
   readonly lifecycle: readonly LifecycleModel[];
   readonly queryModels: readonly string[];
+  /** The exact numbers of its state, events (by wire name) and commands; none when it has none. */
+  readonly textNumbers?: {
+    readonly state?: TextNumbersModel;
+    readonly events?: Readonly<Record<string, TextNumbersModel>>;
+    readonly commands?: Readonly<Record<string, TextNumbersModel>>;
+  };
 }
 
 /** A bounded context and what its modules declare. */
@@ -463,6 +479,53 @@ class SchemaTypes {
     );
   }
 
+  /**
+   * The exact numbers of a schema: each `integer` or `number` of a
+   * {@link TEXT_NUMBER_FORMATS} format, through objects, arrays, maps and
+   * alternatives; undefined when it has none. A recursive reference is not
+   * followed: its numbers read as numbers.
+   */
+  textNumbers(
+    schema: unknown,
+    seen: ReadonlySet<string> = new Set(),
+  ): TextNumbersModel | undefined {
+    if (!isObject(schema)) return undefined;
+    const ref =
+      typeof schema.$ref === 'string' ? schemaKey(schema.$ref) : undefined;
+    if (ref !== undefined) {
+      const target = this.schemaOf(ref);
+      if (seen.has(ref) || target === undefined) return undefined;
+      return this.textNumbers(target, new Set([...seen, ref]));
+    }
+    const alternatives = ['oneOf', 'anyOf', 'allOf'].flatMap(member =>
+      Array.isArray(schema[member]) ? (schema[member] as unknown[]) : [],
+    );
+    const marks = alternatives
+      .map(alternative => this.textNumbers(alternative, seen))
+      .filter((mark): mark is TextNumbersModel => mark !== undefined);
+    const types = typesOf(schema);
+    if (
+      (types.includes('integer') || types.includes('number')) &&
+      typeof schema.format === 'string' &&
+      TEXT_NUMBER_FORMATS.has(schema.format)
+    ) {
+      marks.push(true);
+    }
+    const members: Record<string, TextNumbersModel> = {};
+    if (isObject(schema.properties)) {
+      for (const [name, property] of Object.entries(schema.properties)) {
+        const mark = this.textNumbers(property, seen);
+        if (mark !== undefined) members[name] = mark;
+      }
+    }
+    const each =
+      this.textNumbers(schema.items, seen) ??
+      this.textNumbers(schema.additionalProperties, seen);
+    if (each !== undefined) members['*'] = each;
+    if (Object.keys(members).length > 0) marks.push(members);
+    return mergeTextNumbers(marks);
+  }
+
   /** The `state.*` paths of a state schema a query can filter and sort on. */
   fields(
     schema: JsonSchema,
@@ -489,6 +552,34 @@ class SchemaTypes {
     }
     return paths;
   }
+}
+
+/**
+ * The marks of a value any of `marks` describes: `true` when each is, else
+ * the members of the objects among them merged (a value is a number or an
+ * object, so its object marks are the ones that apply to members).
+ */
+function mergeTextNumbers(
+  marks: readonly TextNumbersModel[],
+): TextNumbersModel | undefined {
+  if (marks.length === 0) return undefined;
+  const objects = marks.filter(
+    (mark): mark is { readonly [member: string]: TextNumbersModel } =>
+      mark !== true,
+  );
+  if (objects.length === 0) return true;
+  const merged: Record<string, TextNumbersModel[]> = {};
+  for (const object of objects) {
+    for (const [member, mark] of Object.entries(object)) {
+      (merged[member] ??= []).push(mark);
+    }
+  }
+  return Object.fromEntries(
+    Object.entries(merged).map(([member, all]) => [
+      member,
+      mergeTextNumbers(all)!,
+    ]),
+  );
 }
 
 function emptyBody(
@@ -698,8 +789,33 @@ function aggregateModel(
       mounted: command.mounted ?? false,
       produces: command.produces ?? [],
       ...(command.description ? { description: command.description } : {}),
+      ...(types.textNumbers({ $ref: command.schema }) === undefined
+        ? {}
+        : { bodyNumbers: true }),
     };
   });
+  const stateNumbers = types.textNumbers({ $ref: aggregate.state.schema });
+  const eventNumbers = Object.fromEntries(
+    (aggregate.events ?? []).flatMap(event => {
+      const mark = types.textNumbers({ $ref: event.schema });
+      return mark === undefined
+        ? []
+        : [[wireNameOf(context, aggregate, event.name), mark]];
+    }),
+  );
+  const commandNumbers = Object.fromEntries(
+    (aggregate.commands ?? []).flatMap(command => {
+      const mark = types.textNumbers({ $ref: command.schema });
+      return mark === undefined ? [] : [[command.name, mark]];
+    }),
+  );
+  const textNumbers = {
+    ...(stateNumbers === undefined ? {} : { state: stateNumbers }),
+    ...(Object.keys(eventNumbers).length === 0 ? {} : { events: eventNumbers }),
+    ...(Object.keys(commandNumbers).length === 0
+      ? {}
+      : { commands: commandNumbers }),
+  };
   const stateKey = schemaKey(aggregate.state.schema);
   const stateSchema =
     stateKey === undefined ? undefined : types.schemaOf(stateKey);
@@ -719,13 +835,23 @@ function aggregateModel(
     commands,
     events: (aggregate.events ?? []).map(event => ({
       name: event.name,
-      wireName: event.name.includes('.')
-        ? event.name
-        : `${context.name}.${aggregate.name}.${event.name}`,
+      wireName: wireNameOf(context, aggregate, event.name),
       revision: event.revision ?? 1,
       type: typeOfRef(types, event.schema, `${where}.${event.name}`),
     })),
     lifecycle,
     queryModels: (aggregate.queries ?? []).map(query => query.model),
+    ...(Object.keys(textNumbers).length === 0 ? {} : { textNumbers }),
   };
+}
+
+/** The name the server sends an event by: `context.aggregate.Event`, or a name already qualified. */
+function wireNameOf(
+  context: ManifestContext,
+  aggregate: ManifestAggregate,
+  name: string,
+): string {
+  return name.includes('.')
+    ? name
+    : `${context.name}.${aggregate.name}.${name}`;
 }

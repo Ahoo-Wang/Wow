@@ -13,6 +13,17 @@ export const ProductAggregate = {
   path: '/eshop-catalog/product',
   ownership: 'TENANT',
   snapshot: true,
+  textNumbers: {
+    state: { price: true },
+    events: {
+      'eshop-catalog.product.ProductCreated': { price: true },
+      'eshop-catalog.product.ProductPriceChanged': { previous: true, price: true },
+    },
+    commands: {
+      ChangeProductPrice: { price: true },
+      CreateProduct: { price: true },
+    },
+  },
 } as const;
 
 /** The `state.*` paths of `product`'s snapshots a query filters, sorts and projects on. */

@@ -320,16 +320,16 @@ export interface CursorPage<T> {
 }
 
 // @public
-export interface CursorQuery<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> {
+export interface CursorQuery<FIELDS extends string = string> {
     cursor?: string | null;
     filter: FilterExpression<FIELDS>;
-    projection?: Projection<FIELDS, INCLUDE>;
+    projection?: Projection<FIELDS>;
     size?: number;
     sort?: FieldSort<FIELDS>[];
 }
 
 // @public
-export function cursorQuery<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS>(input: CursorQuery<FIELDS, INCLUDE>): CursorQuery<FIELDS, INCLUDE>;
+export function cursorQuery<FIELDS extends string = string>(input: CursorQuery<FIELDS>): CursorQuery<FIELDS>;
 
 // @public
 export interface DateDiffAggregationExpression<FIELDS extends string = string> {
@@ -725,7 +725,7 @@ export interface FilterCapable<FIELDS extends string = string> {
 export type FilterExpression<FIELDS extends string = string> = MatchFilter | MetadataFilter | LogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | DeletionFilter | ElementMatchFilter<FIELDS> | SearchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS> | ExpressionFilter<FIELDS>;
 
 // @public
-export interface FilterListQuery<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> extends FilterQueryable<FIELDS, INCLUDE> {
+export interface FilterListQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
     limit?: number;
 }
 
@@ -840,17 +840,17 @@ export enum FilterOperator {
 }
 
 // @public
-export interface FilterPagedQuery<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> extends FilterQueryable<FIELDS, INCLUDE> {
+export interface FilterPagedQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
     // (undocumented)
     pagination?: Pagination;
 }
 
 // @public
-export interface FilterQueryable<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> extends FilterCapable<FIELDS>, ProjectionCapable<FIELDS, INCLUDE>, SortCapable<FIELDS> {
+export interface FilterQueryable<FIELDS extends string = string> extends FilterCapable<FIELDS>, ProjectionCapable<FIELDS>, SortCapable<FIELDS> {
 }
 
 // @public
-export interface FilterSingleQuery<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> extends FilterQueryable<FIELDS, INCLUDE> {
+export interface FilterSingleQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
 }
 
 // @public
@@ -940,9 +940,9 @@ export interface LimitsDescriptor {
 }
 
 // @public
-export function listQuery<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS>(input?: QueryOptions<FIELDS, INCLUDE> & {
+export function listQuery<FIELDS extends string = string>(input?: QueryOptions<FIELDS> & {
     limit?: number;
-}): FilterListQuery<FIELDS, INCLUDE>;
+}): FilterListQuery<FIELDS>;
 
 // @public
 export type LogicalFilter<FIELDS extends string = string> = {
@@ -1035,9 +1035,9 @@ export interface PagedList<T> {
 export function pagedList<T>(input?: Partial<PagedList<T>>): PagedList<T>;
 
 // @public
-export function pagedQuery<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS>(input?: QueryOptions<FIELDS, INCLUDE> & {
+export function pagedQuery<FIELDS extends string = string>(input?: QueryOptions<FIELDS> & {
     pagination?: Pagination;
-}): FilterPagedQuery<FIELDS, INCLUDE>;
+}): FilterPagedQuery<FIELDS>;
 
 // @public
 export interface Pagination {
@@ -1078,26 +1078,23 @@ export type PickPaths<T, P extends string> = T extends readonly (infer E)[] ? Pi
 } : T;
 
 // @public
-export type Projected<R, INCLUDE extends string, FIELDS extends string = string> = string extends INCLUDE ? R : [FIELDS] extends [INCLUDE] ? R : PickPaths<R, INCLUDE>;
+export type Projected<R, INCLUDE extends string> = string extends INCLUDE ? R : PickPaths<R, INCLUDE>;
 
 // @public
-export interface Projection<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> {
+export interface Projection<FIELDS extends string = string> {
     // (undocumented)
     exclude?: FIELDS[];
     // (undocumented)
-    include?: INCLUDE[];
+    include?: FIELDS[];
 }
 
 // @public
-export function projection<const INCLUDE extends string = string, const EXCLUDE extends string = INCLUDE>(input?: {
-    include?: INCLUDE[];
-    exclude?: EXCLUDE[];
-}): Projection<INCLUDE | EXCLUDE, INCLUDE>;
+export function projection<FIELDS extends string = string>(input?: Projection<FIELDS>): Projection<FIELDS>;
 
 // @public
-export interface ProjectionCapable<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> {
+export interface ProjectionCapable<FIELDS extends string = string> {
     // (undocumented)
-    projection?: Projection<FIELDS, INCLUDE>;
+    projection?: Projection<FIELDS>;
 }
 
 // @public
@@ -1217,7 +1214,7 @@ export const QueryModels: Readonly<{
 }>;
 
 // @public
-type QueryOptions<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS> = Partial<FilterQueryable<FIELDS, INCLUDE>>;
+type QueryOptions<FIELDS extends string = string> = Partial<FilterQueryable<FIELDS>>;
 
 // @public
 export type QuerySemanticType = TemporalDate | TemporalEpoch | TemporalFormatted | NumericDecimal | NumericMoney | DurationSemantic | ReferenceSemantic;
@@ -1339,7 +1336,7 @@ export enum SensitivityLevel {
 }
 
 // @public
-export function singleQuery<FIELDS extends string = string, INCLUDE extends FIELDS = FIELDS>(input?: QueryOptions<FIELDS, INCLUDE>): FilterSingleQuery<FIELDS, INCLUDE>;
+export function singleQuery<FIELDS extends string = string>(input?: QueryOptions<FIELDS>): FilterSingleQuery<FIELDS>;
 
 // @public
 export interface SortCapable<FIELDS extends string = string> {

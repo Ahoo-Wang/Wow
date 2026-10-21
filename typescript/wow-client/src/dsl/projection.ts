@@ -15,16 +15,9 @@ import { queryField } from './field.js';
 
 /**
  * Interface for field projection.
- *
- * @typeParam FIELDS - The field paths of the model.
- * @typeParam INCLUDE - The paths `include` names, inferred from a literal
- *   list: a query client narrows its records to them ({@link Projected}).
  */
-export interface Projection<
-  FIELDS extends string = string,
-  INCLUDE extends FIELDS = FIELDS,
-> {
-  include?: INCLUDE[];
+export interface Projection<FIELDS extends string = string> {
+  include?: FIELDS[];
   exclude?: FIELDS[];
 }
 
@@ -52,20 +45,16 @@ export type PickPaths<T, P extends string> = T extends readonly (infer E)[]
     : T;
 
 /**
- * The records of type `R` a query with the projection's `include` paths
- * `INCLUDE` returns (review R4-Q, Q-14): `R` itself when the query includes no
- * literal paths (every field, or an exclusion alone), else `R` narrowed to
- * those paths ({@link PickPaths}).
+ * The records of type `R` a query whose projection includes the paths
+ * `INCLUDE` returns (review R4-Q, Q-14): `R` narrowed to those paths
+ * ({@link PickPaths}), or `R` itself when they are not literal. A query
+ * client answers so for a query whose `include` it sees as literal paths;
+ * any other query (an exclusion alone, or one whose projection is optional,
+ * as the DSL builds it) answers whole records.
  */
-export type Projected<
-  R,
-  INCLUDE extends string,
-  FIELDS extends string = string,
-> = string extends INCLUDE
+export type Projected<R, INCLUDE extends string> = string extends INCLUDE
   ? R
-  : [FIELDS] extends [INCLUDE]
-    ? R
-    : PickPaths<R, INCLUDE>;
+  : PickPaths<R, INCLUDE>;
 
 /**
  * Creates a Projection object with the provided parameters.
@@ -78,21 +67,12 @@ export type Projected<
  *   every field.
  * @param options.include - Array of field names to include in the projection. Optional.
  * @param options.exclude - Array of field names to exclude from the projection. Optional.
- * @typeParam INCLUDE - The included paths, inferred from a literal list, so a
- *   query client narrows its records to them ({@link Projected}).
- * @typeParam EXCLUDE - The excluded paths; the included ones when absent.
  * @returns A Projection object with the specified parameters
  */
-export function projection<
-  const INCLUDE extends string = string,
-  const EXCLUDE extends string = INCLUDE,
->({
+export function projection<FIELDS extends string = string>({
   include,
   exclude,
-}: {
-  include?: INCLUDE[];
-  exclude?: EXCLUDE[];
-} = {}): Projection<INCLUDE | EXCLUDE, INCLUDE> {
+}: Projection<FIELDS> = {}): Projection<FIELDS> {
   // Kotlin holds these as `QueryField`, which refuses a path its pattern does
   // not match. A projection entry is a path like any other. Both keys stay
   // present whether or not they were given: the shape this factory returns is
@@ -106,9 +86,6 @@ export function projection<
 /**
  * Interface for objects that support field projection.
  */
-export interface ProjectionCapable<
-  FIELDS extends string = string,
-  INCLUDE extends FIELDS = FIELDS,
-> {
-  projection?: Projection<FIELDS, INCLUDE>;
+export interface ProjectionCapable<FIELDS extends string = string> {
+  projection?: Projection<FIELDS>;
 }

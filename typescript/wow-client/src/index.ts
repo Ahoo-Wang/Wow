@@ -83,6 +83,7 @@ export {
   type DescriptorResult,
   EventQueryClient,
   type ListStreamOptions,
+  type Including,
   type PagedQuery,
   type PagedResult,
   QueryModelClient,

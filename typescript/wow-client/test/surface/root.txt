@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client — 104 names, from src/index.ts.
+# @ahoo-wang/wow-client — 105 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 type  AggregateManifest
@@ -34,6 +34,7 @@ value FrameworkErrorCodes
 type  FunctionInfo
 type  FunctionKind
 type  Hop
+type  Including
 type  LifecycleCommand
 value LifecycleCommands
 type  ListStreamOptions
