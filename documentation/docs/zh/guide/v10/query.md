@@ -31,6 +31,15 @@ V10 服务在 `POST /<context>/<aggregate>/<model>/query` 上回答其读模型�
 
 该种查询没有的属性返回 400 `wow.query.malformed`，违例码为 `UNKNOWN_PROPERTY`；缺少 `kind` 或取值不对时为 `INVALID_VALUE` 或 `UNKNOWN_VALUE`。
 
+## 跨租户查询
+
+查询读取调用方所在的租户。带 `crossScope` 的调用方可以在查询路由上用 `Wow-Scope` 指定其他租户：`tenant=*` 表示所有租户，或者用内部列表 `tenant=("t1" "t2")`。在 `wow.query.cross-tenant.enabled` 打开之前，这一功能是关闭的，关闭时这类查询返回 403 `wow.auth.forbidden`。
+
+- 租户固定的聚合类型仍然只读它自己的租户。列表里不含该租户时返回 400 `wow.query.malformed`。
+- 每次跨租户查询都会以 INFO 级别记录到 `me.ahoo.wow.query.CrossTenantAudit`，无论是否有查询观察者做审计。
+- 命令与状态读从不跨租户：在那里 `tenant` 为 `*` 或列表时返回 400。
+- 进程内代码用 `QueryApi.trusted()` 读取所有租户。
+
 ## 字段路径
 
 字段以逻辑路径命名，即用 `.` 连接各段的 JSON 字符串：`state.address.city`。每段以字母或 `_` 开头，由字母、数字、`_` 与 `-` 组成；第一段之后的段也可以是数组下标（`state.lines.0`）。

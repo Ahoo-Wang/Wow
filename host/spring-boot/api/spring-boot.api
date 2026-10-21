@@ -231,6 +231,7 @@ public final class me/ahoo/wow/spring/boot/QueryProperties {
 	public final fun getAbac ()Lme/ahoo/wow/spring/boot/QueryProperties$Abac;
 	public final fun getAdaptive ()Lme/ahoo/wow/spring/boot/QueryProperties$Adaptive;
 	public final fun getCountCache ()Lme/ahoo/wow/spring/boot/QueryProperties$CountCache;
+	public final fun getCrossTenant ()Lme/ahoo/wow/spring/boot/QueryProperties$CrossTenant;
 	public final fun getDataset ()Lme/ahoo/wow/spring/boot/QueryProperties$Dataset;
 	public final fun getEnabled ()Z
 	public final fun getEvents ()Lme/ahoo/wow/spring/boot/QueryProperties$Events;
@@ -250,6 +251,7 @@ public final class me/ahoo/wow/spring/boot/QueryProperties {
 	public final fun setAbac (Lme/ahoo/wow/spring/boot/QueryProperties$Abac;)V
 	public final fun setAdaptive (Lme/ahoo/wow/spring/boot/QueryProperties$Adaptive;)V
 	public final fun setCountCache (Lme/ahoo/wow/spring/boot/QueryProperties$CountCache;)V
+	public final fun setCrossTenant (Lme/ahoo/wow/spring/boot/QueryProperties$CrossTenant;)V
 	public final fun setDataset (Lme/ahoo/wow/spring/boot/QueryProperties$Dataset;)V
 	public final fun setEnabled (Z)V
 	public final fun setEvents (Lme/ahoo/wow/spring/boot/QueryProperties$Events;)V
@@ -345,6 +347,12 @@ public final class me/ahoo/wow/spring/boot/QueryProperties$CountCache {
 	public final fun setMaxEntries (I)V
 	public final fun setPagedTotals (Z)V
 	public final fun setTtl (Ljava/time/Duration;)V
+}
+
+public final class me/ahoo/wow/spring/boot/QueryProperties$CrossTenant {
+	public fun <init> ()V
+	public final fun getEnabled ()Z
+	public final fun setEnabled (Z)V
 }
 
 public final class me/ahoo/wow/spring/boot/QueryProperties$Dataset {

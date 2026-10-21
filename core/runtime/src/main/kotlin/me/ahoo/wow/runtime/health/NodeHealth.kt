@@ -49,12 +49,15 @@ import kotlin.time.Duration.Companion.seconds
  *   decision D134): the partitions it owns against its share by HRW, the members, whether a hand-over is in progress,
  *   and the context's lease store. `DOWN` when the lease store is down, when the ownership does not run, or when the
  *   node has owned none of a share that is not empty for [HealthOptions.handoverGrace]; `DEGRADED` when it owns
- *   another set than its share for that long, or the lease store failed lately.
+ *   another set than its share for that long, or the lease store failed lately. On a node on standby
+ *   ([ServiceNode.standby], design 07 §3), which joins no lease group until it is resumed, a group that does not run
+ *   is `UP`, marked `standby`: the node serves reads.
  * - `stores`: each event log (one per log group, decision D177), from the node's own calls and a probe of its head
  *   every [HealthOptions.sampleInterval]: the last success, the failures lately and since when they fail. `DOWN` when
  *   its calls have failed (or its probe has not answered) for [HealthOptions.storeDownAfter] with no success since.
  * - `topics`: each topic the node reads (decision D134), by where it is in joining its lease group (review R2.1-8):
- *   `DOWN` while it is joining when [HealthOptions.topicsRequired], `DEGRADED` otherwise.
+ *   `DOWN` while it is joining when [HealthOptions.topicsRequired], `DEGRADED` otherwise; `UP`, marked `standby`, while
+ *   a node on standby has not joined it.
  * - `subscriptions`: each subscription of each runtime, from the last sample: its lag behind the log's head in the
  *   partitions it runs here, its parked entries (the service's, from the ledgers), and the partitions it has paused
  *   ([SubscriptionPauses], each runtime's systemic pauses of P.16, decision D243). Never `DOWN`: a subscription that falls behind
@@ -269,12 +272,17 @@ class NodeHealth(
         )
         leaseStore?.let { details[LEASE_STORE] = mapOf("status" to it.status.name) + it.details }
         val handover = handoverStatus(name, owned, target)
+        val standby = !ownership.isRunning && node.standby
         val status = when {
+            standby -> HealthStatus.UP
             !ownership.isRunning -> HealthStatus.DOWN
             else -> HealthStatus.worst(listOfNotNull(leaseStore?.status, handover))
         }
         if (!ownership.isRunning) {
             details["running"] = false
+        }
+        if (standby) {
+            details[STANDBY] = true
         }
         return ComponentHealth(name, status, details)
     }
@@ -298,18 +306,22 @@ class NodeHealth(
         TOPICS,
         node.topicSubscriptions.map { (topic, subscriptions) ->
             val state = subscriptions.joinState
+            val standby = state == TopicSubscriptions.JoinState.STOPPED && node.standby
             val status = when (state) {
                 TopicSubscriptions.JoinState.READING -> HealthStatus.UP
                 TopicSubscriptions.JoinState.JOINING ->
                     if (options.topicsRequired) HealthStatus.DOWN else HealthStatus.DEGRADED
 
-                TopicSubscriptions.JoinState.STOPPED -> HealthStatus.DOWN
+                TopicSubscriptions.JoinState.STOPPED -> if (standby) HealthStatus.UP else HealthStatus.DOWN
             }
             val details = linkedMapOf<String, Any?>(
                 "state" to state.name,
                 "subscriptions" to subscriptions.subscriptions.map { it.name },
                 "joinFailures" to subscriptions.joinFailures,
             )
+            if (standby) {
+                details[STANDBY] = true
+            }
             subscriptions.lastJoinFailure?.let { details["lastJoinFailure"] = it::class.java.simpleName }
             ComponentHealth(topic, status, details)
         },
@@ -510,6 +522,9 @@ class NodeHealth(
         const val SUBSCRIPTIONS: String = "subscriptions"
         const val EXECUTOR: String = "executor"
         const val LEASE_STORE: String = "leaseStore"
+
+        /** The detail that marks a lease group or a topic a node on standby has not joined. */
+        private const val STANDBY = "standby"
         private val TICK: Duration = 1.seconds
         private const val TICKS_PER_STALL = 4
         private val MIN_PROBE_TIMEOUT: Duration = 1.seconds

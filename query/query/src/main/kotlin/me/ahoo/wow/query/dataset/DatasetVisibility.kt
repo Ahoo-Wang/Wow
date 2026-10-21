@@ -31,8 +31,8 @@ fun interface DatasetVisibility {
     companion object {
         /**
          * What the scope policy lets the caller read (decision D129): a platform-level dataset is seen by the callers
-         * of [its tenant][QueryDatasetScope.PLATFORM_TENANT] only, since any other tenant's queries of it match
-         * nothing; and a caller whose principal sets an owner or a space sees only the datasets with that column,
+         * of [its tenant][QueryDatasetScope.PLATFORM_TENANT] only (and by a cross-tenant caller that reads it), since
+         * any other tenant's queries of it match nothing; and a caller whose principal sets an owner or a space sees only the datasets with that column,
          * since its queries of any other fail closed (`UNKNOWN_FIELD`). Every query of a dataset the caller sees is
          * restricted to its tenant, owner and space.
          */
@@ -40,7 +40,9 @@ fun interface DatasetVisibility {
         val DEFAULT: DatasetVisibility = DatasetVisibility { dataset, caller ->
             val scope = dataset.scope
             val fixed = scope.fixedTenantId
-            (fixed == null || caller.tenantId == null || caller.tenantId == fixed) &&
+            val tenant = fixed == null ||
+                caller.crossTenant?.covers(fixed) ?: (caller.tenantId == null || caller.tenantId == fixed)
+            tenant &&
                 (caller.principal.ownerId == null || scope.owner != null) &&
                 (caller.principal.spaceId == null || scope.space != null)
         }

@@ -153,6 +153,8 @@ class QueryNode(
     manifest: Manifest = queryManifest(),
     /** How lists stream as server-sent events. */
     val streams: QueryStreams = QueryStreams(),
+    /** Whether queries may cross tenants (`wow.query.cross-tenant.enabled`). */
+    crossTenant: Boolean = false,
 ) {
     private val gateway = snapshots(cartSnapshots(storage, entryPolicy, policies = policies, manifest = manifest))
 
@@ -193,6 +195,7 @@ class QueryNode(
             snapshotStatus = snapshotStatus,
             policies = listOfNotNull(policyGateway),
             streams = streams,
+            crossTenant = crossTenant,
         )
     }
 
