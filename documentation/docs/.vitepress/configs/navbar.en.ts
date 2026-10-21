@@ -46,6 +46,8 @@ export const navbarEn: DefaultTheme.NavItem[] = [
             {text: 'Configuration Keys', link: '/reference/configuration'},
             {text: 'Error Codes', link: '/reference/error-codes'},
             {text: 'Annotations', link: '/reference/annotations'},
+            {text: 'Modules and Artifacts', link: '/reference/modules'},
+            {text: 'API Levels', link: '/reference/api-levels'},
             {text: 'What the Compiler Generates', link: '/guide/v10/generated-code'},
             {text: 'Kotlin API', link: '/dokka/index.html', target: '_blank'},
             {text: 'Storybook', link: '/storybook/', target: '_blank'},
