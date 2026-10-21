@@ -42,6 +42,58 @@
         { "from": "cart_item_removed", "to": "CartItemRemoved" }
       ],
       "state": { "ignore": ["id"] }
+    },
+    {
+      "from": "view-store.view",
+      "to": "view-store.view",
+      "commands": [
+        { "from": "create_view", "to": "CreateView" },
+        { "from": "save_view", "to": "SaveView" },
+        { "from": "rename_view", "to": "RenameView" },
+        { "from": "share_view", "to": "ShareView" },
+        { "from": "claim_view", "to": "ClaimView" },
+        { "from": "delete_view", "to": "wow.lifecycle.DeleteAggregate" }
+      ],
+      "events": [
+        {
+          "from": "view_created",
+          "fromRevision": "0.0.1",
+          "to": "ViewCreated",
+          "toRevision": 1,
+          "upgrade": "viewCreatedFrom1"
+        },
+        {
+          "from": "view_saved",
+          "fromRevision": "0.0.1",
+          "to": "ViewSaved",
+          "toRevision": 1,
+          "upgrade": "viewSavedFrom1"
+        },
+        { "from": "view_renamed", "to": "ViewRenamed" },
+        { "from": "view_audience_changed", "to": "ViewAudienceChanged", "owner": "toOwnerId" },
+        { "from": "default_aggregate_deleted", "to": "wow.lifecycle.AggregateDeleted" }
+      ],
+      "state": { "ignore": ["id", "kind"] }
+    },
+    {
+      "from": "view-store.view_preferences",
+      "to": "view-store.view_preferences",
+      "commands": [{ "from": "set_view_preferences", "to": "SetViewPreferences" }],
+      "events": [{ "from": "view_preferences_set", "to": "ViewPreferencesSet" }],
+      "state": { "ignore": ["id"] }
+    },
+    {
+      "from": "view-store.dataset_wording",
+      "to": "view-store.dataset_wording",
+      "commands": [
+        { "from": "set_dataset_wording", "to": "SetDatasetWording" },
+        { "from": "clear_dataset_wording", "to": "ClearDatasetWording" }
+      ],
+      "events": [
+        { "from": "dataset_wording_set", "to": "DatasetWordingSet" },
+        { "from": "default_aggregate_deleted", "to": "DatasetWordingCleared" }
+      ],
+      "state": { "ignore": ["id", "isEmpty"] }
     }
   ],
   "subscriptions": [{ "from": "example-service.CartSaga" }]

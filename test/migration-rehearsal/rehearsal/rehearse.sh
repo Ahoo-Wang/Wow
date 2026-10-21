@@ -12,34 +12,41 @@
 # limitations under the License.
 #
 # The blue-green rehearsal of roadmap 8c.1 (design 07 §3, decision D32): one complete 9.x → V10 cut-over of the 9.x
-# example, with both rollbacks. Every step is timed into $WORK/steps.jsonl; report.py renders $WORK/report.md.
+# example and of the view store it embeds, with both rollbacks. Two V10 hosts take over: the rehearsal host (context
+# example) and the V10 view store service (context view-store, platform/view-store), both on one PostgreSQL database.
+# Every step is timed into $WORK/steps.jsonl; report.py renders $WORK/report.md.
 #
-#   1. seed      the 9.x example-server (v10-9x-baseline) with ORDERS orders and their carts, and the 9.x compensation
-#                service's database with unresolved CartSaga executions
+#   1. seed      the 9.x example-server (v10-9x-baseline) with ORDERS orders and their carts, VIEWS views (saved,
+#                renamed, shared and claimed, deleted), its users' preferences and its tenants' dataset wordings, and the
+#                9.x compensation service's database with unresolved CartSaga executions
 #   2. import    migrate-data check and import into the V10 log on PostgreSQL
-#   3. dual-run  the V10 host starts on standby (wow.standby): it serves reads and refuses commands while 9.x keeps
-#                taking writes for DUAL_RUN_SECONDS and migrate-data tail follows them; the lag is how long V10 takes to
-#                read what 9.x last wrote once the writes stop
+#   3. dual-run  the V10 hosts start on standby (wow.standby): they serve reads and refuse commands while 9.x keeps
+#                taking writes (orders, carts, view renames) for DUAL_RUN_SECONDS and migrate-data tail follows them;
+#                the lag is how long V10 takes to read what 9.x last wrote once the writes stop
 #   4. cut-over  9.x stops (the write stop starts); the final pass (import --final: the tail from its checkpoint,
 #                or import --restart with FINAL_PASS=restart), compare, snapshot and backfill-tags; the operator
-#                resumes the V10 host on its internal port, and it serves writes (the write stop ends)
+#                resumes the V10 hosts on their internal ports, and they serve writes (the write stop ends)
 #   5. rollback before V10 writes: export --dry-run finds nothing to write back, 9.x starts again on its own store,
-#                and its states equal V10's; then the cut-over again
-#   6. V10 traffic for V10_SECONDS: orders moved on, carts filled
-#   7. rollback after V10 writes: V10 stops, export writes its streams back, 9.x starts and its states equal V10's,
-#                and it takes writes again
-#   8. refusal   V10 creates orders (OrderCreated at revision 2, which 9.x cannot read) and export --dry-run refuses
+#                and its states (orders, views) equal V10's; then the cut-over again
+#   6. V10 traffic for V10_SECONDS: orders moved on, carts filled, views renamed
+#   7. rollback after V10 writes: V10 stops, export writes its streams back, 9.x starts, its order states equal
+#                V10's and it renames every view V10 renamed on the version V10 left, and it takes writes again
+#   8. refusal   V10 creates orders and saves views (OrderCreated and ViewSaved at revision 2, which 9.x cannot
+#                read) and export --dry-run refuses
 #
 # Environment: NINEX_HOME (the 9.x example-server's installDist), V10_HOME (:migration-rehearsal's installDist),
-# MIGRATE_HOME (:migrate-data's installDist), MANIFEST (the rehearsal host's Manifest), WORK (an empty directory);
-# ORDERS (200), DUAL_RUN_SECONDS (20), V10_SECONDS (20), CONCURRENCY (32), EXECUTIONS (ORDERS / 20), SAMPLE (every
-# n-th order compared, 1), FINAL_PASS (final: import --final; restart: import --restart).
+# VIEWS_HOME (:view-store-server's installDist), MIGRATE_HOME (:migrate-data's installDist), MANIFEST (the rehearsal
+# host's Manifest), VIEWS_MANIFEST (the view store service's Manifest), WORK (an empty directory); ORDERS (200),
+# VIEWS (ORDERS / 4), DUAL_RUN_SECONDS (20), V10_SECONDS (20), CONCURRENCY (32), EXECUTIONS (ORDERS / 20), SAMPLE
+# (every n-th order and view compared, 1), FINAL_PASS (final: import --final; restart: import --restart).
 set -euo pipefail
 
 REHEARSAL="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 : "${NINEX_HOME:?the 9.x example-server installation}" "${V10_HOME:?the rehearsal host installation}"
+: "${VIEWS_HOME:?the view store service installation}" "${VIEWS_MANIFEST:?the view store service Manifest}"
 : "${MIGRATE_HOME:?the migrate-data installation}" "${MANIFEST:?the rehearsal host Manifest}" "${WORK:?a work directory}"
 ORDERS="${ORDERS:-200}"
+VIEWS="${VIEWS:-$((ORDERS / 4 > 0 ? ORDERS / 4 : 1))}"
 DUAL_RUN_SECONDS="${DUAL_RUN_SECONDS:-20}"
 V10_SECONDS="${V10_SECONDS:-20}"
 CONCURRENCY="${CONCURRENCY:-32}"
@@ -51,10 +58,15 @@ POSTGRES_PORT="${REHEARSAL_POSTGRES_PORT:-5432}"
 NINEX_PORT="${NINEX_PORT:-18080}"
 V10_PORT="${V10_PORT:-18090}"
 V10_INTERNAL_PORT="${V10_INTERNAL_PORT:-19090}"
+VIEWS_PORT="${VIEWS_PORT:-18091}"
+VIEWS_INTERNAL_PORT="${VIEWS_INTERNAL_PORT:-19091}"
 NINEX_URL="http://localhost:$NINEX_PORT"
 V10_URL="http://localhost:$V10_PORT"
 V10_INTERNAL_URL="http://localhost:$V10_INTERNAL_PORT"
-# The cluster token of the V10 host (wow.internal.token): its internal port, the resume among its routes, takes it.
+VIEWS_URL="http://localhost:$VIEWS_PORT"
+VIEWS_INTERNAL_URL="http://localhost:$VIEWS_INTERNAL_PORT"
+# The cluster token of the V10 hosts (wow.internal.token): their internal ports, the resume among their routes, take
+# it. Each service has its own; one is enough here.
 CLUSTER_TOKEN="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
 mkdir -p "$WORK"
 STEPS="$WORK/steps.jsonl"
@@ -95,12 +107,16 @@ step() {
   fi
 }
 
-# The kinds of difference compare may report, each explained and signed off (design 07 §3 step 4):
-# - $tags: 9.x merged the tags its extractor derived into the stored ones, so a changed address kept the old province;
-#   V10's @Tags replaces each key it derives (decision D220). An intended change.
-EXPLAINED_KINDS="${EXPLAINED_KINDS:-\$tags}"
+# The kinds of difference compare may report, by aggregate, each explained and signed off (design 07 §3 step 4):
+# - example-service.order:$tags: 9.x merged the tags its extractor derived into the stored ones, so a changed address
+#   kept the old province; V10's @Tags replaces each key it derives (decision D220). An intended change.
+# - view-store.dataset_wording:@deleted, every difference of a wording 9.x deleted: 9.x's ClearDatasetWording was a
+#   DeleteAggregate, which kept the wording's last values and let it never be set again; V10 clears it
+#   (DatasetWordingCleared, mapped from the 9.x deletion), keeps it, and sets it again. An intended change.
+EXPLAINED_KINDS="${EXPLAINED_KINDS:-example-service.order:\$tags view-store.dataset_wording:@deleted}"
 
-# compared NAME CMD…: a comparison that passes, or differs only in the EXPLAINED_KINDS.
+# compared NAME CMD…: a comparison that passes, or whose every DIFFERS line differs only in what EXPLAINED_KINDS
+# explains for its aggregate: a field (aggregate:field), or anything of an instance 9.x deleted (aggregate:@deleted).
 compared() {
   local name="$1"
   shift
@@ -112,14 +128,29 @@ compared() {
     log "$name exited with $code"
     exit 1
   fi
-  local kinds unexplained
-  kinds="$(grep -oE 'differing fields: .*' "$WORK/$name.log" | sed -E 's/differing fields: //; s/ \([0-9]+\)//g; s/, /|/g' | tr '|' '\n' | sort -u)"
-  unexplained="$(printf '%s\n' "$kinds" | grep -vxF -f <(printf '%s\n' $EXPLAINED_KINDS) || true)"
-  if [ -n "$unexplained" ]; then
-    log "$name found unexplained differences: $unexplained"
+  if ! python3 - "$WORK/$name.log" "$EXPLAINED_KINDS" <<'PY'
+import re, sys
+explained = set(sys.argv[2].split())
+unexplained = set()
+for line in open(sys.argv[1]):
+    match = re.match(r"^DIFFERS (\S+) \S+ v\d+: (.*)$", line.rstrip("\n"))
+    if not match:
+        continue
+    aggregate, rendered = match.groups()
+    if f"{aggregate}:@deleted" in explained and "$deleted: 9.x true" in rendered:
+        continue
+    for field in re.findall(r"(?:^|; )([^;]+?): 9\.x ", rendered):
+        if f"{aggregate}:{field}" not in explained:
+            unexplained.add(f"{aggregate}:{field}")
+if unexplained:
+    print(" ".join(sorted(unexplained)))
+    sys.exit(1)
+PY
+  then
+    log "$name found unexplained differences (above)"
     exit 1
   fi
-  log "$name: every difference is an explained kind ($(echo $kinds))"
+  log "$name: every difference is an explained kind ($EXPLAINED_KINDS)"
 }
 
 java_home() { echo "${JAVA_HOME:?JAVA_HOME (JDK 21)}"; }
@@ -167,15 +198,48 @@ start_v10() {
   await_http "$V10_URL" v10
 }
 
-# internal METHOD PATH [BODY]: a call to the V10 host's internal port with the cluster token; prints the answer.
+# start_views [standby]: the V10 view store service, on the rehearsal host's database; on standby when asked. It takes
+# its callers from the headers (X-User, X-Tenant, CoSec-App-Id), as a local run of it does.
+start_views() {
+  local standby="${1:-}"
+  (
+    cd "$VIEWS_HOME"
+    env JAVA_OPTS="-Xmx1g" WOW_INTERNAL_TOKEN="$CLUSTER_TOKEN" ./bin/view-store-server \
+      --spring.profiles.active=postgres --server.port="$VIEWS_PORT" \
+      --wow.internal.port="$VIEWS_INTERNAL_PORT" --wow.internal.host=127.0.0.1 \
+      --spring.datasource.url="jdbc:postgresql://localhost:$POSTGRES_PORT/example" \
+      --wow.platform.trust-identity-headers=true \
+      --wow.standby="$([ "$standby" = standby ] && echo true || echo false)" \
+      --logging.level.root=warn \
+      >>"$WORK/views.out" 2>&1 &
+    echo $! >"$WORK/views.pid"
+  )
+  await_http "$VIEWS_URL" views
+}
+
+start_hosts() { start_v10 "${1:-}"; start_views "${1:-}"; }
+stop_hosts() { stop_pid v10; stop_pid views; }
+
+# internal URL METHOD PATH [BODY]: a call to a V10 host's internal port with the cluster token; prints the answer.
 internal() {
-  curl -sS -f -X "$1" "$V10_INTERNAL_URL$2" -H "Wow-Cluster-Token: $CLUSTER_TOKEN" -H "Content-Type: application/json" \
-    ${3:+-d "$3"}
+  curl -sS -f -X "$2" "$1$3" -H "Wow-Cluster-Token: $CLUSTER_TOKEN" -H "Content-Type: application/json" ${4:+-d "$4"}
+}
+
+# resume_hosts: the operator's resume of both V10 hosts at the cut-over (deployment run book); prints their status.
+resume_hosts() {
+  local body='{"by":"rehearsal","reason":"8c.1 cut-over"}'
+  internal "$V10_INTERNAL_URL" POST /wow/node/resume "$body"
+  echo
+  internal "$VIEWS_INTERNAL_URL" POST /wow/node/resume "$body"
+  echo
+  echo '{"resumed":2}'
 }
 
 # standby_refuses: a command sent to the V10 host on standby is refused with wow.node.standby (503); prints the status.
 standby_refuses() {
-  internal GET /wow/node/standby
+  internal "$V10_INTERNAL_URL" GET /wow/node/standby
+  echo
+  internal "$VIEWS_INTERNAL_URL" GET /wow/node/standby
   echo
   local answer code
   answer="$(curl -sS -o - -w '\n%{http_code}' -X POST "$V10_URL/example/cart/standby-probe/add-cart-item" \
@@ -200,12 +264,30 @@ stop_pid() {
 }
 
 ninex_streams() {
-  mongosh_run wow_example_db --eval 'print(JSON.stringify({orders: db.order_event_stream.countDocuments({}), carts: db.cart_event_stream.countDocuments({})}))'
+  mongosh_run wow_example_db --eval 'print(JSON.stringify({orders: db.order_event_stream.countDocuments({}), carts: db.cart_event_stream.countDocuments({}), views: db.view_event_stream.countDocuments({}), preferences: db.view_preferences_event_stream.countDocuments({}), wordings: db.dataset_wording_event_stream.countDocuments({})}))'
+}
+
+# The view store's traffic runs beside the orders' through a window: views_traffic_start VERSION BASE SECONDS NAME,
+# then views_traffic_join NAME, which records it as a step.
+views_traffic_start() {
+  views_traffic_started="$(now_ms)"
+  driver views traffic --version="$1" --base="$2" --book="$WORK/views.tsv" --seconds="$3" --touched="$WORK/$4-touched.tsv" \
+    >"$WORK/$4.log" 2>&1 &
+  echo $! >"$WORK/views-traffic.pid"
+}
+views_traffic_join() {
+  local code=0
+  wait "$(cat "$WORK/views-traffic.pid")" || code=$?
+  rm -f "$WORK/views-traffic.pid"
+  record "$1" "$views_traffic_started" "$code" "$(grep -E '^\{.*\}$' "$WORK/$1.log" | tail -1 || true)"
+  [ "$code" = 0 ] || { tail -40 "$WORK/$1.log" >&2; exit 1; }
 }
 
 cleanup() {
   stop_pid tail || true
+  stop_pid views-traffic || true
   stop_pid v10 || true
+  stop_pid views || true
   stop_pid ninex || true
   if [ "${KEEP_STORES:-false}" != "true" ]; then compose down -v >/dev/null 2>&1 || true; fi
 }
@@ -214,10 +296,11 @@ trap cleanup EXIT
 write_config() {
   cp "$REHEARSAL/migration-map.json" "$WORK/migration-map.json"
   cp "$MANIFEST" "$WORK/manifest.json"
+  cp "$VIEWS_MANIFEST" "$WORK/views-manifest.json"
   cat >"$WORK/migrate-data.json" <<EOF
 {
   "map": "migration-map.json",
-  "manifests": ["manifest.json"],
+  "manifests": ["manifest.json", "views-manifest.json"],
   "checkpoint": "migrate-data.checkpoint.json",
   "source": { "uri": "mongodb://localhost:$MONGO_PORT", "database": "wow_example_db", "createCommitTimeIndex": true },
   "target": {
@@ -226,8 +309,8 @@ write_config() {
     "username": "postgres",
     "password": "postgres"
   },
-  "partitions": { "example": 64 },
-  "classpath": ["$V10_HOME/lib"],
+  "partitions": { "example": 64, "view-store": 64 },
+  "classpath": ["$V10_HOME/lib", "$VIEWS_HOME/lib"],
   "compensation": { "database": "compensation_db", "service": "example-service" },
   "lookbackMillis": 5000,
   "pollIntervalMillis": 500,
@@ -244,6 +327,7 @@ write_config
 # 1. seed
 start_ninex
 step seed 0 driver seed --version=9x --base="$NINEX_URL" --book="$WORK/book.tsv" --orders="$ORDERS"
+step seed-views 0 driver views seed --base="$NINEX_URL" --book="$WORK/views.tsv" --views="$VIEWS"
 step seed-compensation 0 mongosh_run --eval "var count = $EXECUTIONS, example = 'wow_example_db', compensation = 'compensation_db'" /rehearsal/seed-compensation.js
 step ninex-seeded 0 ninex_streams
 
@@ -252,13 +336,16 @@ step check 0 migrate check
 step import 0 migrate import
 
 # 3. dual-run
-start_v10 standby
+start_hosts standby
 step standby-refuses 0 standby_refuses
 JAVA_OPTS="-Xmx2g" "$MIGRATE_HOME/bin/migrate-data" tail --config "$WORK/migrate-data.json" >"$WORK/tail.log" 2>&1 &
 echo $! >"$WORK/tail.pid"
+views_traffic_start 9x "$NINEX_URL" "$DUAL_RUN_SECONDS" dual-run-views
 step dual-run-traffic 0 driver traffic --version=9x --base="$NINEX_URL" --book="$WORK/book.tsv" --seconds="$DUAL_RUN_SECONDS" --touched="$WORK/dual-run-touched.tsv"
+views_traffic_join dual-run-views
 writes_stopped="$(now_ms)"
 step dual-run-lag 0 driver await --base="$V10_URL" --touched="$WORK/dual-run-touched.tsv"
+step dual-run-views-lag 0 driver views await --base="$VIEWS_URL" --touched="$WORK/dual-run-views-touched.tsv"
 stop_pid tail
 
 # 4. cut-over: the write stop runs from 9.x stopping to V10 serving
@@ -268,40 +355,49 @@ step final-import 0 migrate import "--$FINAL_PASS"
 compared compare migrate compare
 step snapshot 0 migrate snapshot
 step backfill-tags 0 migrate backfill-tags
-step resume 0 internal POST /wow/node/resume '{"by":"rehearsal","reason":"8c.1 cut-over"}'
+step resume 0 resume_hosts
 record write-stop "$cutover_started" 0 "{\"writesStoppedMs\":$writes_stopped}"
 step v10-states 0 driver states --version=v10 --base="$V10_URL" --book="$WORK/book.tsv" --sample="$SAMPLE" --out="$WORK/v10-cutover.json"
+step v10-views-states 0 driver views states --version=v10 --base="$VIEWS_URL" --book="$WORK/views.tsv" --sample="$SAMPLE" --out="$WORK/v10-views-cutover.json"
 
 # 5. rollback before V10 writes
-stop_pid v10
+stop_hosts
 step rollback-before-dry-run 0 migrate export --dry-run
 start_ninex
 step rollback-before-states 0 driver states --version=9x --base="$NINEX_URL" --book="$WORK/book.tsv" --sample="$SAMPLE" --out="$WORK/9x-rollback-before.json"
 step rollback-before-compare 0 driver compare "$WORK/v10-cutover.json" "$WORK/9x-rollback-before.json"
+step rollback-before-views-states 0 driver views states --version=9x --base="$NINEX_URL" --book="$WORK/views.tsv" --sample="$SAMPLE" --out="$WORK/9x-views-rollback-before.json"
+step rollback-before-views-compare 0 driver compare "$WORK/v10-views-cutover.json" "$WORK/9x-views-rollback-before.json"
 stop_pid ninex
-start_v10
+start_hosts
 
 # 6. V10 traffic
+views_traffic_start v10 "$VIEWS_URL" "$V10_SECONDS" v10-views
 step v10-traffic 0 driver traffic --version=v10 --base="$V10_URL" --book="$WORK/book.tsv" --seconds="$V10_SECONDS" --touched="$WORK/v10-touched.tsv"
+views_traffic_join v10-views
 step v10-states-after 0 driver states --version=v10 --base="$V10_URL" --book="$WORK/book.tsv" --sample="$SAMPLE" --out="$WORK/v10-after.json"
 
 # 7. rollback after V10 writes
 rollback_started="$(now_ms)"
-stop_pid v10
+stop_hosts
 step export-dry-run 0 migrate export --dry-run
 step export 0 migrate export
 start_ninex
 record rollback-after "$rollback_started" 0
 step rollback-after-states 0 driver states --version=9x --base="$NINEX_URL" --book="$WORK/book.tsv" --sample="$SAMPLE" --out="$WORK/9x-rollback-after.json"
 step rollback-after-compare 0 driver compare "$WORK/v10-after.json" "$WORK/9x-rollback-after.json"
+# 9.x reads the views' export: each view V10 renamed takes a 9.x rename on the version V10 left.
+step rollback-after-views 0 driver views verify --base="$NINEX_URL" --touched="$WORK/v10-views-touched.tsv"
 step ninex-after-rollback-traffic 0 driver traffic --version=9x --base="$NINEX_URL" --book="$WORK/book.tsv" --seconds=5
 step ninex-after-rollback 0 ninex_streams
 
-# 8. refusal: V10 writes a type 9.x cannot read
+# 8. refusal: V10 writes types 9.x cannot read
 stop_pid ninex
-start_v10
+start_hosts
 step v10-new-orders 0 driver traffic --version=v10 --base="$V10_URL" --book="$WORK/book.tsv" --seconds=3 --create=5
-stop_pid v10
+# Views 9.x has not renamed since the rollback: V10 saves them on the versions 9.x holds too.
+step v10-saved-views 0 driver views traffic --version=v10 --base="$VIEWS_URL" --book="$WORK/views.tsv" --save=5 --except="$WORK/v10-views-touched.tsv"
+stop_hosts
 step export-refused 1 migrate export --dry-run
 
 log "done: $STEPS"

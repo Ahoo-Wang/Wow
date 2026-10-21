@@ -21,8 +21,11 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
 
-/** The answer of a command: whether it was applied, the aggregate's version after it, and why not. */
-data class Outcome(val ok: Boolean, val version: Int?, val error: String?)
+/**
+ * The answer of a command: whether it was applied, the aggregate's version after it, why not, and the aggregate's id
+ * when the version chose it (a 9.x view's create).
+ */
+data class Outcome(val ok: Boolean, val version: Int?, val error: String?, val id: String? = null)
 
 /**
  * One version's routes for the example's order and cart: the 9.x example-server's (wow-webflux, the paths its OpenAPI

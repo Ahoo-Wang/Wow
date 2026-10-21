@@ -13,7 +13,8 @@
 
 # The blue-green rehearsal of roadmap 8c.1 (design 07 §3, decision D32) on a GitHub runner: the 9.x example-server
 # built from `nine_x_ref` (v10-9x-baseline, D262), seeded at a production-shaped size, migrated by migrate-data into
-# the rehearsal host's V10 log, cut over with a dual-run window, and rolled back before and after V10 writes
+# the V10 logs of the rehearsal host and of the V10 view store service, cut over with a dual-run window on standby
+# hosts, and rolled back before and after V10 writes
 # (test/migration-rehearsal/rehearsal/rehearse.sh). The report is the run's summary; the steps' logs are an artifact.
 #
 # A run starts when a branch `ci-repro/migration-rehearsal/**` is pushed (`git push origin <ref>:ci-repro/migration-rehearsal/<name>`), with the
@@ -102,7 +103,7 @@ jobs:
           else:
               settings.update({key: os.environ[key.upper()] for key in defaults if os.environ.get(key.upper())})
           for key, value in settings.items():
-              pattern = r"[A-Za-z0-9._/-]+" if key == "nine_x_ref" else r"[0-9]+|on|off|final|restart"
+              pattern = r"[A-Za-z0-9._/-]+" if key == "nine_x_ref" else r"[0-9]+|final|restart"
               if not re.fullmatch(pattern, value):
                   raise SystemExit(f"{key}: {value!r} is not a valid setting")
               print(f"{key}={value}")
@@ -122,12 +123,14 @@ jobs:
           cache-read-only: true
       - name: Build
         run: |
-          ./gradlew :migration-rehearsal:installDist :migrate-data:installDist --stacktrace
+          ./gradlew :migration-rehearsal:installDist :view-store-server:installDist :migrate-data:installDist --stacktrace
           (cd ninex && ./gradlew :example-server:installDist -x test --stacktrace)
       - name: Rehearse
         env:
           NINEX_HOME: ${{ github.workspace }}/ninex/example/example-server/build/install/example-server
           V10_HOME: ${{ github.workspace }}/test/migration-rehearsal/build/install/migration-rehearsal
+          VIEWS_HOME: ${{ github.workspace }}/platform/view-store/view-store-server/build/install/view-store-server
+          VIEWS_MANIFEST: ${{ github.workspace }}/platform/view-store/view-store-server/manifest/baseline.json
           MIGRATE_HOME: ${{ github.workspace }}/migration/migrate-data/build/install/migrate-data
           MANIFEST: ${{ github.workspace }}/test/migration-rehearsal/build/wow/manifest-fragment/META-INF/wow/manifest/migration-rehearsal.json
           WORK: ${{ runner.temp }}/rehearsal

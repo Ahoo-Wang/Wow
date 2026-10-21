@@ -48,7 +48,9 @@ lines += [
     f"- 9.x seeded: {seed.get('orders', '?')} orders over {seed.get('tenants', '?')} tenants, "
     f"{seed.get('carts', '?')} carts; {seed.get('commands', '?')} commands in {seed.get('seconds', '?')} s "
     f"({seed.get('perSecond', '?')}/s, {seed.get('failed', '?')} failed).",
-    f"- 9.x streams: {seeded.get('orders', '?')} order streams, {seeded.get('carts', '?')} cart streams.",
+    f"- 9.x streams: {seeded.get('orders', '?')} order streams, {seeded.get('carts', '?')} cart streams, "
+    f"{seeded.get('views', '?')} view streams, {seeded.get('preferences', '?')} preferences streams, "
+    f"{seeded.get('wordings', '?')} wording streams.",
     f"- 9.x compensation: {data('seed-compensation').get('executions', '?')} unresolved CartSaga executions.",
     "",
     "## Steps",
@@ -80,7 +82,26 @@ lines += [
     f"- After V10 writes ({data('v10-traffic').get('commands', '?')} V10 commands): rollback took {seconds('rollback-after')}; "
     + "; ".join(log_lines("export", r" done: |^EQUAL|^DIFFERS"))
     + f"; 9.x states vs V10: {data('rollback-after-compare')}; 9.x then took {data('ninex-after-rollback-traffic').get('commands', '?')} writes.",
-    f"- Refusal: after V10 created orders, export --dry-run exited {by_name.get('export-refused', {}).get('exit', '?')}: "
+    f"- Refusal: after V10 created orders and saved views, export --dry-run exited "
+    f"{by_name.get('export-refused', {}).get('exit', '?')}: "
     + "; ".join(log_lines("export-refused", r"REFUSED|CONFLICT")[:3]),
+]
+
+views = data("seed-views")
+lines += [
+    "",
+    "## View store",
+    "",
+    f"- 9.x seeded: {views.get('views', '?')} views ({views.get('shared', '?')} shared, {views.get('deleted', '?')} "
+    f"deleted, the others personal, some claimed from shared), {views.get('preferences', '?')} users' preferences, "
+    f"{views.get('wordings', '?')} dataset wordings; {views.get('commands', '?')} commands, {views.get('failed', '?')} failed.",
+    f"- Dual-run: 9.x took {data('dual-run-views').get('commands', '?')} view renames beside the orders; the standby "
+    f"V10 view store read them {data('dual-run-views-lag').get('caughtUpMillis', '?')} ms after the writes stopped.",
+    f"- Compare: " + "; ".join(log_lines("compare", r"^view-store\.[a-z_]+ compared:")),
+    f"- Before V10 writes: 9.x views vs V10: {data('rollback-before-views-compare')}.",
+    f"- After V10 writes ({data('v10-views').get('commands', '?')} V10 renames of "
+    f"{data('v10-views').get('touched', '?')} views): "
+    + "; ".join(log_lines("export", r"^(EQUAL|DIFFERS) view-store"))
+    + f"; 9.x renamed each on the version V10 left: {data('rollback-after-views')}.",
 ]
 print("\n".join(lines))

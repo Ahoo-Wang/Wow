@@ -46,6 +46,7 @@ data class BookedOrder(val ref: OrderRef, val status: String, val version: Int, 
  * driver await   --base=<v10 url> --touched=<file> [--timeout=S]
  * driver states  --version=9x|v10 --base=<url> --book=<file> --out=<file> [--sample=N]
  * driver compare <states a> <states b>
+ * driver views …  (the view store's part, see ViewsDriver)
  * ```
  *
  * - `seed` creates N orders, each taken through a lifecycle drawn from its index (some only created, some with a
@@ -53,8 +54,8 @@ data class BookedOrder(val ref: OrderRef, val status: String, val version: Int, 
  * - `traffic` moves existing orders on by one step at a time for S seconds, and adds to carts; with `--create`, it
  *   creates K new orders instead, and nothing else. It records each order it wrote and its version in the touched file.
  * - `await` waits until the rehearsal host holds every touched order at its version: the tail's lag behind 9.x.
- * - `states` reads every N-th order's state; `compare` compares two such files, numbers by value, and exits with 3
- *   when an order differs.
+ * - `states` reads every N-th order's state; `compare` compares two such files (of orders, or of views), numbers by
+ *   value, and exits with 3 when one differs.
  *
  * Each command prints one JSON line of its numbers, which rehearse.sh copies into the report.
  */
@@ -70,8 +71,9 @@ class RehearsalDriver(private val args: List<String>) {
         "await" -> await()
         "states" -> states()
         "compare" -> compare(File(args[1]), File(args[2]))
+        "views" -> ViewsDriver(args.drop(1), concurrency).run()
         else -> {
-            System.err.println("Usage: driver seed|traffic|await|states|compare … (see RehearsalDriver)")
+            System.err.println("Usage: driver seed|traffic|await|states|compare|views … (see RehearsalDriver)")
             USAGE
         }
     }
@@ -262,7 +264,7 @@ class RehearsalDriver(private val args: List<String>) {
         val ids = (a.propertyNames() + b.propertyNames()).toSortedSet()
         val differing = ids.filter { id -> a.get(id) == null || b.get(id) == null || !same(a.get(id), b.get(id)) }
         differing.take(MAX_PRINTED).forEach { System.err.println("DIFFERS $it: ${a.get(it)} / ${b.get(it)}") }
-        println("""{"command":"compare","orders":${ids.size},"differing":${differing.size}}""")
+        println("""{"command":"compare","instances":${ids.size},"differing":${differing.size}}""")
         return if (differing.isEmpty()) OK else DIFFERS
     }
 
