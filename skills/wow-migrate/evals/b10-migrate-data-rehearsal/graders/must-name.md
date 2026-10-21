@@ -1,8 +1,8 @@
 ---
 type: regex
-pattern: 'import --restart'
+pattern: 'import --(final|restart)'
 match: contains
 target: last_message
 ---
 
-The answer names the final `import --restart` pass.
+The answer names the final pass, `import --final` or `import --restart`.
