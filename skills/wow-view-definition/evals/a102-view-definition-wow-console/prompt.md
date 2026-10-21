@@ -6,4 +6,4 @@ max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-The MongoDB descriptor for the compensation console's execution_failed snapshot no longer grants CONTAINS on the error message; revise the console's view definitions under compensation/dashboard/src/views to fit it.
+The PostgreSQL descriptor of the ops service's parked snapshot no longer grants CONTAINS on the entry's cause; revise the ops console's view definitions under platform/ops/console/src/views to fit it.
