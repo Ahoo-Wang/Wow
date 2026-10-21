@@ -134,6 +134,23 @@ class EventStreamImporterTest {
     }
 
     @Test
+    fun `the tail skips with one log read an instance whose latest stream the log already holds`(): Unit = runTest {
+        val streams = NineXExample.streams().filter { it.aggregate == order }
+        val source = InMemoryNineXEventSource(streams)
+        now = streams.last().createTime + 1
+        importer(source).importAll(order)
+        // A look-back over the whole history reads every stream again: each is already there.
+        importer(source, ImportOptions(lookbackMillis = now)).tailOnce(order).also {
+            it.imported.assert().isEqualTo(0)
+            it.skipped.assert().isEqualTo(streams.size.toLong())
+            it.instances.assert().isEqualTo(1)
+        }
+        // Another command at the latest version is not the 9.x stream: the instance is imported, which stops on it.
+        source.add(streams.last().copy(id = "other", version = streams.size + 1, commandId = "c-x", requestId = "c-x"))
+        importer(source, ImportOptions(lookbackMillis = now)).tailOnce(order).imported.assert().isEqualTo(1)
+    }
+
+    @Test
     fun `the tail brings an instance up to date when it meets a later stream first`(): Unit = runTest {
         val streams = NineXExample.streams().filter { it.aggregate == order }
         val source = InMemoryNineXEventSource(streams.take(1))
