@@ -1,0 +1,12 @@
+{
+  "kind": "paged",
+  "filter": {
+    "op": "AND",
+    "operands": [
+      { "op": "EQ", "field": "state.status", "value": "PUBLISHED" },
+      { "op": "BETWEEN", "field": "state.price", "lowerBound": 5, "upperBound": 50 }
+    ]
+  },
+  "sort": [{ "field": "state.price", "direction": "ASC" }],
+  "pagination": { "index": 1, "size": 20 }
+}

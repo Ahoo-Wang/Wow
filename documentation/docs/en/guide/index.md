@@ -33,6 +33,7 @@ These pages show how to do one thing each, with code from the repository's examp
 | [Read State](./reading-state) | Read an aggregate's state at any version or instant, cache it, read your own writes |
 | [Query Snapshots](./queries) | Find aggregates by their state, in Kotlin and over HTTP; declare indexes and masks |
 | [Query Event Streams](./event-queries) | Query the log, one row per commit; analyze events |
+| [Publish Datasets from a Service](./datasets) | Declare a dataset over the warehouse, scoped and masked, and query it |
 
 ## Across contexts
 
@@ -46,6 +47,9 @@ These pages show how to do one thing each, with code from the repository's examp
 | Page | Shows how to |
 | --- | --- |
 | [Serve and Call the HTTP API](./http) | Authenticate callers, send commands, wait, retry, stream, read errors |
+| [The Manifest and Compatibility](./manifest) | Build and merge the contract, give peers their part, keep changes compatible |
+| [OpenAPI and springdoc](./openapi) | Get the OpenAPI document, merge it into springdoc's |
+| [What the Compiler Generates](./generated-code) | Know the model factories, handlers, query fields, binding index and contract code |
 
 ## Test
 

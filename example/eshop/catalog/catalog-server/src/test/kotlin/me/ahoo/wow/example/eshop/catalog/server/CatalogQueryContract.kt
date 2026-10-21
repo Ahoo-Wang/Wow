@@ -309,6 +309,21 @@ abstract class CatalogQueryContract {
         filed("""{"op":"EQ","field":"operator.id","value":"$EMPLOYEE_ID"}""").assert().isEmpty()
     }
 
+    /**
+     * The examples of the query language reference (`reference/query-language.md` of the site), each a file of
+     * `docs/query-language/`, sent as they are to the products' snapshot query route: each is a query the model admits
+     * and runs, as the page says it does.
+     */
+    @Test
+    fun `the query language reference's examples should run on the products' snapshot model`() {
+        storefront.product(storefront.category(), storefront.brand(), "9.00")
+        QUERY_LANGUAGE_EXAMPLES.forEach { name ->
+            val body = requireNotNull(javaClass.getResource("/docs/query-language/$name.json")) { "No example $name." }
+                .readText()
+            catalog.post(PRODUCTS, body, EMPLOYEE).assertOk()
+        }
+    }
+
     private fun JsonNode.assertOperator(id: String) {
         this["id"].asString().assert().isEqualTo(id)
         this["tenantId"].asString().assert().isEqualTo(Caller.DEFAULT_TENANT)
@@ -327,6 +342,12 @@ abstract class CatalogQueryContract {
         const val BAD_REQUEST = 400
         const val FORBIDDEN = 403
         const val NOT_MODIFIED = 304
+
+        /** The example files of the query language reference, by name. */
+        val QUERY_LANGUAGE_EXAMPLES = listOf(
+            "request", "in", "strings", "presence", "relative-time", "system-fields", "nor", "projection", "cursor",
+            "count", "aggregate",
+        )
     }
 }
 
