@@ -31,7 +31,8 @@ import java.util.concurrent.ConcurrentHashMap
  *   look-back window, so nothing committed while the full import ran is missed;
  * - [after] is the last instance whose streams are all imported, in the full import's id order; [completed] is set
  *   once every instance is;
- * - [tailedTo] is the latest commit time the tail has read.
+ * - [tailedTo] is the latest commit time the tail has read, and [tailedAt] when its last pass ended, by the tool's
+ *   clock: the final pass (`import --final`) takes the tail as continuous only when that pass is recent.
  *
  * Resuming repeats at most one page of instances, whose streams the import finds already in the log and skips.
  */
@@ -40,6 +41,7 @@ data class AggregateCheckpoint(
     val after: NineXAggregateId? = null,
     val completed: Boolean = false,
     val tailedTo: Long? = null,
+    val tailedAt: Long? = null,
 )
 
 /**
