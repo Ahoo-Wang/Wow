@@ -237,7 +237,7 @@ export function storeError(status: number, message: string): ViewStoreError {
 
 ### 运行一致性测试套件 {#run-the-conformance-suite}
 
-这个端口有一套一致性测试，`MemoryViewStore` 和 `WowViewStore` 都会运行：列表、可见性、写入、过期的 revision、系统视图、重放、偏好、受众变更。它是仓库里的一个测试文件 [`viewStoreConformance.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10/typescript/wow-view-engine/test/conformance/viewStoreConformance.ts)，没有发布到 npm。从你所用版本的 tag 复制它，把它的 import 指向这个包，声明你的存储能做什么，然后接上它：
+这个端口有一套一致性测试，`MemoryViewStore` 和 `WowViewStore` 都会运行：列表、可见性、写入、过期的 revision、系统视图、重放、偏好、受众变更。它是仓库里的一个测试文件 [`viewStoreConformance.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/conformance/viewStoreConformance.ts)，没有发布到 npm。从你所用版本的 tag 复制它，把它的 import 指向这个包，声明你的存储能做什么，然后接上它：
 
 <!-- typecheck: skip — imports the test file copied from the repository and your own store -->
 

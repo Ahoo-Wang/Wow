@@ -18,7 +18,7 @@ outline: deep
 | [部署](../../operate/topology.md) | PostgreSQL 或 MongoDB、内部端口、Kafka、ClickHouse、个人信息、租户 |
 
 ::: warning V10 处于预发布
-V10 在 [`v10` 分支](https://github.com/Ahoo-Wang/Wow/tree/v10) 上开发。第一个预发布 `10.0.0-alpha.3` 只用于试用与评估：它不做兼容性承诺，9.x 数据的迁移也尚未完成（见[快速开始](./quickstart.md)）。它的模块以 `me.ahoo.wow:wow-*` 发布在 Maven Central，BOM 为 `me.ahoo.wow:wow-bom`，Gradle 插件为 `me.ahoo.wow`。本 V10 栏目之外的指南描述的是 9.x。
+V10 在 [`main` 分支](https://github.com/Ahoo-Wang/Wow/tree/main) 上开发；9.x 在 [`v9`](https://github.com/Ahoo-Wang/Wow/tree/v9) 上维护。第一个预发布 `10.0.0-alpha.3` 只用于试用与评估：它不做兼容性承诺，9.x 数据的迁移也尚未完成（见[快速开始](./quickstart.md)）。它的模块以 `me.ahoo.wow:wow-*` 发布在 Maven Central，BOM 为 `me.ahoo.wow:wow-bom`，Gradle 插件为 `me.ahoo.wow`。本 V10 栏目之外的指南描述的是 9.x。
 :::
 
 ## 前提
@@ -29,7 +29,7 @@ V10 在 [`v10` 分支](https://github.com/Ahoo-Wang/Wow/tree/v10) 上开发。�
 
 ## 划分模块
 
-一个服务由三个 Gradle 模块组成。下面以 `catalog` 上下文为例；仓库内 eShop 示例 [`example/eshop`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/eshop) 的每个上下文（`catalog`、`basket`、`ordering`、`inventory`、`payment`）都是同样的结构。
+一个服务由三个 Gradle 模块组成。下面以 `catalog` 上下文为例；仓库内 eShop 示例 [`example/eshop`](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop) 的每个上下文（`catalog`、`basket`、`ordering`、`inventory`、`payment`）都是同样的结构。
 
 | 模块 | 内容 | 依赖 |
 | --- | --- | --- |
@@ -194,7 +194,7 @@ dependencies {
 }
 ```
 
-[`example/wow-manifest-fragment.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/v10/example/wow-manifest-fragment.gradle.kts) 执行的正是插件 `generateWowManifestFragment` 执行的内容，并应用 [`example/wow-contract.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/v10/example/wow-contract.gradle.kts)，像插件一样把领域的契约打包进它的 api 模块。eShop 的服务端在设置 `extra["wowService"]` 之后应用 [`example/eshop/wow-manifest-compatibility.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/v10/example/eshop/wow-manifest-compatibility.gradle.kts)，代替 `mergeWowManifest` 与 Manifest 兼容性检查。KSP 选项如下：
+[`example/wow-manifest-fragment.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/example/wow-manifest-fragment.gradle.kts) 执行的正是插件 `generateWowManifestFragment` 执行的内容，并应用 [`example/wow-contract.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/example/wow-contract.gradle.kts)，像插件一样把领域的契约打包进它的 api 模块。eShop 的服务端在设置 `extra["wowService"]` 之后应用 [`example/eshop/wow-manifest-compatibility.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/example/eshop/wow-manifest-compatibility.gradle.kts)，代替 `mergeWowManifest` 与 Manifest 兼容性检查。KSP 选项如下：
 
 | 选项 | 含义 |
 | --- | --- |

@@ -22,9 +22,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 // what the sources give; `--write` (`pnpm docs:reference`) writes them.
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
-const SOURCE = 'https://github.com/Ahoo-Wang/Wow/blob/v10/';
+const SOURCE = 'https://github.com/Ahoo-Wang/Wow/blob/main/';
 /** A directory of the repository on GitHub. */
-const TREE = 'https://github.com/Ahoo-Wang/Wow/tree/v10/';
+const TREE = 'https://github.com/Ahoo-Wang/Wow/tree/main/';
 const SELF = '.github/scripts/docs-reference.mjs';
 
 const METADATA =

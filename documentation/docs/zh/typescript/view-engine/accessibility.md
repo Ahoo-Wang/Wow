@@ -52,7 +52,7 @@ description: 视图引擎的界面怎样满足 WCAG 2.2 AA：怎样评估的、�
 
 ## 已知缺口 {#known-gaps}
 
-- **完整的人工读屏走查**，即用 VoiceOver 配 Safari、NVDA 配 Firefox 或 Chrome 走完核心任务，除了抽查之外还没有做过。它的分步检查清单在包的设计文档中：[读屏走查](https://github.com/Ahoo-Wang/Wow/blob/v10/typescript/wow-view-engine/docs/design/screen-reader-walkthrough.md)。
+- **完整的人工读屏走查**，即用 VoiceOver 配 Safari、NVDA 配 Firefox 或 Chrome 走完核心任务，除了抽查之外还没有做过。它的分步检查清单在包的设计文档中：[读屏走查](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/screen-reader-walkthrough.md)。
 - **被截断的文本**在鼠标悬停时会在提示中完整显示，但键盘获得焦点时不会；读屏会从可访问名称中读出完整文本。
 
 ## 逐条准则 {#criterion-by-criterion}

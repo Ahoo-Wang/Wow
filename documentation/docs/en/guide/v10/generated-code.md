@@ -8,7 +8,7 @@ outline: deep
 
 `wow-compiler` is a KSP processor. In `generate` mode (the Gradle plugin sets it) it reads a domain module's annotated classes and writes Kotlin sources and resources into `build/generated/ksp/main/`. Nothing is found by scanning or reflection at run time: the host loads what the compiler wrote. A model the compiler cannot bind fails the compilation with a message naming the function and the rule.
 
-For the eShop's [`eshop-ordering-domain`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/eshop/ordering/ordering-domain) module, the compiler writes:
+For the eShop's [`eshop-ordering-domain`](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop/ordering/ordering-domain) module, the compiler writes:
 
 ```text
 build/generated/ksp/main/

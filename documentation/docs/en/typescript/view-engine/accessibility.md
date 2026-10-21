@@ -52,7 +52,7 @@ Most "not applicable" rows below are for this reason.
 
 ## Known gaps
 
-- **A full human screen-reader pass** with VoiceOver and Safari, and NVDA with Firefox or Chrome, over the core tasks has not been run beyond the spot check. A step-by-step checklist for it is in the package's design documents: [screen-reader walkthrough](https://github.com/Ahoo-Wang/Wow/blob/v10/typescript/wow-view-engine/docs/design/screen-reader-walkthrough.md).
+- **A full human screen-reader pass** with VoiceOver and Safari, and NVDA with Firefox or Chrome, over the core tasks has not been run beyond the spot check. A step-by-step checklist for it is in the package's design documents: [screen-reader walkthrough](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/screen-reader-walkthrough.md).
 - **Cut text** opens whole in a tooltip on hover, but not on keyboard focus; a screen reader reads the whole text from the accessible name.
 
 ## Criterion by criterion
