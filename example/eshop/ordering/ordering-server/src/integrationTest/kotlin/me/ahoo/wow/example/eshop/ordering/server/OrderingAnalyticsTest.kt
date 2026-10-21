@@ -45,6 +45,7 @@ import java.util.UUID
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OrderingAnalyticsTest {
+    // region containers
     private val postgres = PostgreSQLContainer("postgres:17-alpine").also { it.start() }
     private val clickhouse = ClickHouseContainer(DockerImageName.parse(CLICKHOUSE_IMAGE)).also { it.start() }
     private val context = SpringApplicationBuilder(OrderingServer::class.java, InMemoryOrderingTopics::class.java)
@@ -67,6 +68,7 @@ class OrderingAnalyticsTest {
             "--wow.wait.max-timeout=15s",
         )
     private val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
+    // endregion
     private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
 
     @AfterAll

@@ -33,6 +33,7 @@ import java.net.http.HttpResponse
 import java.time.Duration
 
 /** The test's command transport in place of Kafka, as the guide gives it: the sagas' commands to the inventory stay in memory. */
+// region topics
 @Configuration(proxyBeanMethods = false)
 class InMemoryOrderingTopics {
     @Bean
@@ -41,6 +42,7 @@ class InMemoryOrderingTopics {
     @Bean
     fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics(topics, producer = topics)
 }
+// endregion
 
 /**
  * The ordering service as its `application.yaml` configures it, on random ports, with its topics in memory and a
@@ -49,6 +51,7 @@ class InMemoryOrderingTopics {
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class OrderingServerTest {
+    // region start
     private val context = SpringApplicationBuilder(OrderingServer::class.java, InMemoryOrderingTopics::class.java).run(
         "--spring.main.banner-mode=off",
         "--server.port=0",
@@ -61,6 +64,7 @@ class OrderingServerTest {
         "--wow.timers.poll-interval=200ms",
         "--eshop.ordering.payment-grace-period=2s",
     )
+    // endregion
     private val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
     private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
     private val json = JsonMapper.builder().build()
@@ -111,6 +115,7 @@ class OrderingServerTest {
         status("order-paid").assert().isEqualTo("SHIPPED")
     }
 
+    // region grace
     @Test
     fun `an order not paid within its grace period should cancel itself`() {
         submit("order-unpaid")
@@ -124,6 +129,7 @@ class OrderingServerTest {
         late.first.assert().isEqualTo(CONFLICT)
         late.second["code"].asString().assert().isEqualTo("eshop-ordering.order.wrong-status")
     }
+    // endregion
 
     @Test
     fun `an order should be its buyer's to read, and every order an employee's`() {
