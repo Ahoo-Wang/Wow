@@ -204,7 +204,7 @@ test('a workflow trigger names only main or a pattern', () => {
   assert.deepEqual(
     foreignBranches(`on:
   pull_request:
-    branches: [main, v10] # the old line
+    branches: [main, v8] # an old line
   push:
     branches:
       - main
@@ -215,7 +215,7 @@ test('a workflow trigger names only main or a pattern', () => {
     tags:
       - 'v*'
 `),
-    ['v10', 'v9'],
+    ['v8', 'v9'],
   );
   assert.deepEqual(
     foreignBranches('on:\n  push:\n    branches: [ main ]\n'),

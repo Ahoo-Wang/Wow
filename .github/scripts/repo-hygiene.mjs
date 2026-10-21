@@ -155,8 +155,11 @@ export function staleLabelerGlobs(yaml, files) {
     .filter(glob => !matches(files, glob));
 }
 
-/** The branches a workflow trigger may name: this line's and the site's. */
-export const BRANCHES = ['main', 'gh-pages'];
+/**
+ * The branches a workflow trigger may name: this line's and the site's, and
+ * `v10`, its name until the branch switch (CI-3), which drops it after.
+ */
+export const BRANCHES = ['main', 'gh-pages', 'v10'];
 
 /**
  * The branch names of a workflow's `branches:` and `branches-ignore:` filters,
