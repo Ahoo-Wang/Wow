@@ -139,10 +139,14 @@ object ArchitectureRules {
      */
     val EXAMPLES = ESHOP + QUICKSTART + JAVA_SMOKE
 
+    /** The [TOOLS] that are applications: they use Wow as a user does. */
+    private val APPLICATION_TOOLS = setOf("benchmark-server", "migration-rehearsal")
+
     /**
      * The projects that are neither modules, platform services nor examples (review R2.5-7): the BOM, these
-     * rules, the spikes H2 and H6 and the Wow side of the end-to-end benchmark (decision D224). Spike H3,
-     * `:kernel-benchmarks`, ran the 9.x kernel beside the Wow 10 one and left with the 9.x code (decision D262).
+     * rules, the spikes H2 and H6, the Wow side of the end-to-end benchmark (decision D224) and the Wow 10 host of
+     * the blue-green migration rehearsal (roadmap 8c.1). Spike H3, `:kernel-benchmarks`, ran the 9.x kernel beside
+     * the Wow 10 one and left with the 9.x code (decision D262).
      */
     val TOOLS = listOf(
         WowProject("bom", "bom/bom"),
@@ -150,6 +154,7 @@ object ArchitectureRules {
         WowProject("routing-spike", "test/routing-spike"),
         WowProject("lease-spike", "test/lease-spike"),
         WowProject("benchmark-server", "test/benchmarks/server"),
+        WowProject("migration-rehearsal", "test/migration-rehearsal"),
     )
 
     /**
@@ -610,11 +615,12 @@ object ArchitectureRules {
 
     /**
      * The projects that use Wow as an application does (decision D216; `userProjects` of the root build): the
-     * examples, the platform's domains and services and the end-to-end benchmark. They compile against the public API
-     * as a user does, so they never opt in to `InternalWowApi` (an `ERROR`-level opt-in).
+     * examples, the platform's domains and services, the end-to-end benchmark and the migration rehearsal's host. They
+     * compile against the public API as a user does, so they never opt in to `InternalWowApi` (an `ERROR`-level
+     * opt-in).
      */
     val USER_PROJECTS: List<WowProject> =
-        EXAMPLES + listOf(OPS_DOMAIN, VIEW_STORE_DOMAIN) + PLATFORM_SERVERS + TOOLS.filter { it.name == "benchmark-server" }
+        EXAMPLES + listOf(OPS_DOMAIN, VIEW_STORE_DOMAIN) + PLATFORM_SERVERS + TOOLS.filter { it.name in APPLICATION_TOOLS }
 
     private val INTERNAL_OPT_IN = Regex("""\bInternalWowApi\b""")
 

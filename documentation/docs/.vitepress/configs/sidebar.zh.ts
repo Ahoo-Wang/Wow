@@ -126,7 +126,15 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '部署模型', link: 'topology'},
                 {text: '配置服务', link: 'configuration'},
                 {text: 'PostgreSQL', link: 'postgresql'},
+                {text: 'MongoDB', link: 'mongodb'},
                 {text: 'Kafka', link: 'kafka'},
+                {text: 'ClickHouse', link: 'clickhouse'},
+                {text: 'Kubernetes', link: 'kubernetes'},
+                {text: '健康、指标与追踪', link: 'observability'},
+                {text: '伸缩与容量', link: 'scaling'},
+                {text: '重建与重放', link: 'replay'},
+                {text: '升级部署', link: 'upgrades'},
+                {text: '故障排查', link: 'troubleshooting'},
                 {text: '保护部署', link: 'security'},
                 {text: 'ops 服务与控制台', link: 'ops-console'},
             ],
@@ -140,6 +148,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '从 9.x 迁移', link: 'index.html'},
                 {text: 'V10 中的 9.x 能力', link: 'capabilities'},
                 {text: '迁移数据', link: 'data'},
+                {text: '平台服务', link: 'platform'},
                 {text: 'migrate-data 命令行', base: '/zh/reference/', link: 'migrate-data'},
             ],
         },
@@ -174,6 +183,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '读取状态', link: 'reading-state'},
                 {text: '查询快照', link: 'queries'},
                 {text: '查询事件流', link: 'event-queries'},
+                {text: '发布数据集', link: 'datasets'},
             ],
         },
         {
@@ -189,6 +199,9 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             text: '契约',
             items: [
                 {text: '提供和调用 HTTP API', link: 'http'},
+                {text: 'Manifest 与兼容', link: 'manifest'},
+                {text: 'OpenAPI 与 springdoc', link: 'openapi'},
+                {text: '编译器生成什么', link: 'generated-code'},
             ],
         },
         {
@@ -205,6 +218,16 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             items: [
                 {text: '在 Spring Boot 上运行', link: 'spring-boot'},
                 {text: '用 Java 编写领域', link: 'java'},
+            ],
+        },
+    ],
+    '/zh/start/': [
+        {
+            base: '/zh/start/',
+            text: '入门',
+            items: [
+                {text: '快速开始', link: 'quickstart'},
+                {text: '在已有服务中引入 Wow', link: 'existing-project'},
             ],
         },
     ],
@@ -233,6 +256,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             items: [
                 {text: '术语表', link: 'glossary'},
                 {text: 'HTTP API', link: 'http'},
+                {text: '查询语言', link: 'query-language'},
                 {text: '线上协议', link: 'protocols'},
                 {text: 'migrate-data 命令行', link: 'migrate-data'},
                 {text: '配置项', link: 'configuration'},
