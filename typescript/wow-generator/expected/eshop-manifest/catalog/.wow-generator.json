@@ -15,7 +15,7 @@
     "eshop-catalog/product/commandClient.ts": "b266db4832831c8541b3b1a43a4d209c0dff7859141ed8bbbd70fc44c4007490",
     "eshop-catalog/product/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "eshop-catalog/product/queryClient.ts": "8ec333021eff78460bc25085bfeb16fce82e317204ec4793e3750e773a108e44",
-    "eshop-catalog/types.ts": "edb6f2be8e476e83d7a2665f70f88f7e791f6a8d12d28ae75a79a2b49db6fbe2",
+    "eshop-catalog/types.ts": "4525cf9336e39ecb90a6a53fe77284f73339bd21261b7df347a37672272093fd",
     "index.ts": "53358c402aac5a307b6b750416698301221b17837af9410680e7cc0fae083b90"
   }
 }

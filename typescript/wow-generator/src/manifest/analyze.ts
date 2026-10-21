@@ -29,6 +29,19 @@ import {
   schemaKey,
 } from './document';
 
+/**
+ * The formats of numbers a Wow Manifest marks for reading from their text,
+ * typed `string` (review R4-Q, Q-9; decision D254): an integer past
+ * JavaScript's safe range (`int64`, `bigint`) and an exact decimal
+ * (`decimal`). The wire keeps JSON numbers; `@ahoo-wang/wow-client` reads these
+ * from the response's source text. A plain OpenAPI document keeps `number`.
+ */
+const TEXT_NUMBER_FORMATS: ReadonlySet<string> = new Set([
+  'int64',
+  'bigint',
+  'decimal',
+]);
+
 /** A property of a generated interface. */
 export interface PropertyModel {
   /** As written in the interface: quoted when it is no identifier. */
@@ -375,7 +388,10 @@ class SchemaTypes {
         return 'string';
       case 'integer':
       case 'number':
-        return 'number';
+        return typeof schema.format === 'string' &&
+          TEXT_NUMBER_FORMATS.has(schema.format)
+          ? 'string'
+          : 'number';
       case 'boolean':
         return 'boolean';
       case 'null':

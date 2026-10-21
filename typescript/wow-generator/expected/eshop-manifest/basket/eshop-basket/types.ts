@@ -8,7 +8,7 @@
 export interface AddBasketItem {
   productId: string;
   quantity: number;
-  unitPrice: number;
+  unitPrice: string;
 }
 
 
@@ -41,7 +41,7 @@ export type BasketCleared = Record<string, unknown>;
 export interface BasketItem {
   productId: string;
   quantity: number;
-  unitPrice: number;
+  unitPrice: string;
 }
 
 
@@ -52,7 +52,7 @@ export interface BasketItem {
 export interface BasketItemAdded {
   productId: string;
   quantity: number;
-  unitPrice: number;
+  unitPrice: string;
 }
 
 
