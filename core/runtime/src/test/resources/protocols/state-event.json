@@ -10,8 +10,7 @@
         "name": "account"
       },
       "tenantId": "t1",
-      "id": "alice",
-      "isAssigned": true
+      "id": "alice"
     },
     "version": 2,
     "commandId": "c-2",

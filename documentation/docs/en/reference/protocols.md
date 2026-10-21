@@ -36,7 +36,7 @@ These values appear inside most structures.
 
 | Value | JSON | Notes |
 | --- | --- | --- |
-| Aggregate reference | `{"type": {"context", "name"}, "tenantId", "id"}` | A creation that leaves its id to the server has the `id` `(none)`. The examples below still show a derived `isAssigned`, which is removed from the wire before 10.0; do not read it. |
+| Aggregate reference | `{"type": {"context", "name"}, "tenantId", "id"}` | A creation that leaves its id to the server has the `id` `(none)`. |
 | Scope | `{"ownerId", "spaceId"}` | Either may be null. On a command, the caller's scope; on a commit or a snapshot, the aggregate's after the commit. |
 | Causation | `{"correlationId", "causationId"}` | `correlationId` is the root command's id; `causationId` is the direct cause, for a saga's command the commit it handled. A command sent directly by a caller has none and is its own root. |
 | Operator | `{"id", "tenantId", "crossScope"}` | Whose name a commit is recorded under: the caller's subject and own tenant; `crossScope` when it acted in another tenant or scope. |
@@ -110,8 +110,7 @@ A published state event:
         "name": "account"
       },
       "tenantId": "t1",
-      "id": "alice",
-      "isAssigned": true
+      "id": "alice"
     },
     "version": 2,
     "commandId": "c-2",
@@ -191,8 +190,7 @@ The topic's partition is the one the target context's log assigns to `ref`, so t
         "name": "account"
       },
       "tenantId": "t1",
-      "id": "alice",
-      "isAssigned": true
+      "id": "alice"
     },
     "body": {
       "amount": 30
@@ -221,8 +219,7 @@ The topic's partition is the one the target context's log assigns to `ref`, so t
           "name": "transfer"
         },
         "tenantId": "t1",
-        "id": "tr-9",
-        "isAssigned": true
+        "id": "tr-9"
       },
       "version": 1,
       "committed": false
@@ -280,8 +277,7 @@ The target of a cross-context command writes a receipt to the sending context's 
         "name": "account"
       },
       "tenantId": "t1",
-      "id": "alice",
-      "isAssigned": true
+      "id": "alice"
     },
     "error": {
       "code": "bank.account.insufficient-balance",
@@ -301,8 +297,7 @@ The target of a cross-context command writes a receipt to the sending context's 
           "name": "transfer"
         },
         "tenantId": "t1",
-        "id": "tr-9",
-        "isAssigned": true
+        "id": "tr-9"
       },
       "version": 1
     },
@@ -377,8 +372,7 @@ A hop that completes sends a signal straight to the internal port of the node th
         "name": "account"
       },
       "tenantId": "t1",
-      "id": "alice",
-      "isAssigned": true
+      "id": "alice"
     },
     "hop": {
       "stage": "HANDLED",

@@ -13,8 +13,7 @@
         "name": "account"
       },
       "tenantId": "t1",
-      "id": "alice",
-      "isAssigned": true
+      "id": "alice"
     },
     "body": {
       "amount": 30
@@ -43,8 +42,7 @@
           "name": "transfer"
         },
         "tenantId": "t1",
-        "id": "tr-9",
-        "isAssigned": true
+        "id": "tr-9"
       },
       "version": 1,
       "committed": false
