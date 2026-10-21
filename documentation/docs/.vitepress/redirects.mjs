@@ -68,6 +68,7 @@ export const REDIRECTS = {
     '/guide/extensions/cosec': '/concepts/identity',
     '/guide/typescript/view-engine': '/typescript/view-engine/',
     '/workbench/': '/data/workbench',
+    '/guide/migration': '/migrate/',
     '/onboarding/': '/',
 }
 

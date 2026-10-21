@@ -39,11 +39,11 @@ class ViewStoreTransformersTest {
     @Test
     fun `the preferences and the wording should be sent to their derived ids, whatever the request names`() {
         PreferencesTarget().target(SetViewPreferences("orders"), "console", named = "someone-else").assert()
-            .isEqualTo(ScopedIds.preferences("alice", "console", "orders"))
+            .isEqualTo(ScopedIds.preferences(alice.tenantId, "alice", "console", "orders"))
         WordingTarget().target(SetDatasetWording("sales"), "console").assert()
-            .isEqualTo(ScopedIds.wording("console", "sales"))
+            .isEqualTo(ScopedIds.wording(alice.tenantId, "console", "sales"))
         WordingClearTarget().target(ClearDatasetWording("sales"), " console ").assert()
-            .isEqualTo(ScopedIds.wording("console", "sales"))
+            .isEqualTo(ScopedIds.wording(alice.tenantId, "console", "sales"))
     }
 
     @Test
