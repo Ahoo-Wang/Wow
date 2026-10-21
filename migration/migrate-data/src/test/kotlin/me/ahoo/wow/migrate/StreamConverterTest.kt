@@ -137,6 +137,10 @@ class StreamConverterTest {
             .scope.ownerId.assert().isEqualTo("customer-1")
         converter(map).convert(handed.copy(events = listOf(event("order_handed_over", "{}"))))
             .scope.ownerId.assert().isEqualTo("customer-1")
+        converter(map).convert(handed.copy(events = listOf(event("order_handed_over", """{"toOwnerId":1}"""))))
+            .scope.ownerId.assert().isEqualTo("customer-1")
+        // An event whose mapping names no owner field moves nothing.
+        converter(map).convert(created).scope.ownerId.assert().isEqualTo("customer-1")
         // A tenant-owned aggregate still records no owner.
         converter(map, Ownership.TENANT).convert(handed).scope.ownerId.assert().isNull()
     }
