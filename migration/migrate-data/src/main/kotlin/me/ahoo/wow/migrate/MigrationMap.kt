@@ -160,6 +160,9 @@ data class CommandMapping(val from: String, val to: String) {
  *   the 9.x `OwnerTransferred.toOwnerId`, which is `wow.lifecycle.OwnerTransferred.ownerId`. A domain event's shape
  *   changes belong to its upgrade functions, not here.
  * - [upgrade] names the V10 upgrade function the Skill wrote for it; recorded for the report, not run by the tool.
+ * - [owner] names the top-level field of the 9.x payload that holds the owner the event moved the aggregate to: for a
+ *   domain event that implements 9.x `OwnerTransferred` (a view's `ViewAudienceChanged`, say), which 9.x applied as an
+ *   owner transfer. The stream then records that owner, as it records the owner of a `wow.lifecycle.OwnerTransferred`.
  */
 data class EventMapping(
     val from: String,
@@ -170,9 +173,12 @@ data class EventMapping(
     val retire: Boolean = false,
     val fields: Map<String, String> = emptyMap(),
     val upgrade: String? = null,
+    val owner: String? = null,
 ) {
     init {
         require(from.isNotBlank()) { "An event mapping names its 9.x event." }
+        require(owner == null || owner.isNotBlank()) { "The event mapping of $from names a blank owner field." }
+        require(!drop || owner == null) { "The event mapping of $from drops it and moves the owner." }
         require(!(drop && retire)) { "The event mapping of $from both drops and retires it." }
         require(drop == (to == null)) { "The event mapping of $from either names its V10 event or drops it." }
         require(to == null || to.isNotBlank()) { "The event mapping of $from names a blank V10 event." }

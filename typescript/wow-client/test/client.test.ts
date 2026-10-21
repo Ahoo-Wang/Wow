@@ -476,8 +476,9 @@ describe('problems', () => {
     expect(retryHintOf('wow.command.busy', 429).retryable).toBe(true);
     expect(retryHintOf('wow.command.contended', 409).retryable).toBe(true);
     expect(retryHintOf('wow.wait.timeout', 504).sameRequestId).toBe(true);
-    expect(retryHintOf('wow.query.timeout', 503)).toEqual({
-      retryable: true,
+    // A query that ran out of time would run as long again (decision D254 ③).
+    expect(retryHintOf('wow.query.timeout', 504)).toEqual({
+      retryable: false,
       sameRequestId: false,
     });
     expect(retryHintOf('wow.query.busy', 429, 1000)).toEqual({

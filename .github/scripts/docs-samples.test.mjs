@@ -9,7 +9,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { trackedFiles } from './docs-layout.mjs';
-import { isSampled, sampleProblems, sampleText } from './docs-samples.mjs';
+import {
+  abiNames,
+  isSampled,
+  sampleProblems,
+  sampleText,
+} from './docs-samples.mjs';
 
 const root = mkdtempSync(join(tmpdir(), 'docs-samples-'));
 mkdirSync(join(root, 'src'), { recursive: true });
@@ -158,4 +163,87 @@ test('the check reads the pages, the root READMEs and the Skills, not their eval
   assert.ok(!isSampled('documentation/designs/v10/README.md'));
   assert.ok(!isSampled('typescript/wow-client/README.md'));
   assert.ok(trackedFiles().some(isSampled));
+});
+
+test('the ABI dumps declare types, their members, and the top-level names of their facades', () => {
+  const declared = abiNames([
+    `public abstract interface annotation class me/ahoo/wow/api/annotation/AggregateRoot : java/lang/annotation/Annotation {
+}
+
+public final class me/ahoo/wow/api/query/dsl/QueryDsl {
+	public static final fun pagedQuery (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/api/query/PagedQuery;
+}
+
+public final class me/ahoo/wow/api/Scope$Companion {
+	public final fun getGlobal ()Lme/ahoo/wow/api/Scope;
+}
+`,
+  ]);
+  assert.ok(declared('me.ahoo.wow.api.annotation.AggregateRoot'));
+  assert.ok(declared('me.ahoo.wow.api.annotation'));
+  assert.ok(declared('me.ahoo.wow.api.query.dsl.pagedQuery'));
+  assert.ok(declared('me.ahoo.wow.api.Scope.Companion.global'));
+  assert.ok(!declared('me.ahoo.wow.api.query.dsl.listQuery'));
+  assert.ok(!declared('me.ahoo.wow.command.CommandGateway'));
+});
+
+test('a block that is no sample imports from Wow only what the ABI dumps declare', () => {
+  const declared = name =>
+    name === 'me.ahoo.wow.api.annotation.AggregateRoot' ||
+    name === 'me.ahoo.wow.api';
+  const fragment = (...imports) =>
+    page(
+      '<!-- sample: fragment -->',
+      '```kotlin',
+      ...imports.map(name => `import ${name}`),
+      '```',
+    );
+  assert.deepEqual(
+    sampleProblems(
+      'p.md',
+      fragment(
+        'me.ahoo.wow.api.annotation.AggregateRoot',
+        'me.ahoo.wow.api.*',
+        'kotlin.time.Duration',
+      ),
+      root,
+      declared,
+    ),
+    [],
+  );
+  assert.deepEqual(
+    sampleProblems(
+      'p.md',
+      fragment('me.ahoo.wow.command.CommandGateway as Gateway'),
+      root,
+      declared,
+    ),
+    [
+      'p.md:2: me.ahoo.wow.command.CommandGateway is not in the ABI dump of any published module',
+    ],
+  );
+  // A snippet without the fragment comment too; a 9.x block, as a migration shows it, is not read.
+  assert.match(
+    sampleProblems(
+      'p.md',
+      page('```java', 'import static me.ahoo.wow.Gone.gone;', '```'),
+      root,
+      declared,
+    )[0],
+    /me\.ahoo\.wow\.Gone\.gone is not/,
+  );
+  assert.deepEqual(
+    sampleProblems(
+      'p.md',
+      page(
+        '<!-- sample: 9.x -->',
+        '```kotlin',
+        'import me.ahoo.wow.command.CommandGateway',
+        '```',
+      ),
+      root,
+      declared,
+    ),
+    [],
+  );
 });

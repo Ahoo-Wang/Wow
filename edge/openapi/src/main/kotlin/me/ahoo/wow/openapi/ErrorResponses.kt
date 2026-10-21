@@ -128,10 +128,10 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
             FrameworkErrors.STORAGE_UNAVAILABLE,
         )
 
-        /** The query codes a query route never answers: a dataset's, and a state read's. */
-        private val POINT_READ_ONLY = setOf(
+        /** The query codes only a dataset's routes answer: one not served, and one not queryable now. */
+        private val DATASET_ONLY = setOf(
             FrameworkErrors.QUERY_DATASET_UNAVAILABLE,
-            FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED,
+            FrameworkErrors.QUERY_DATASET_NOT_FOUND,
         )
 
         /**
@@ -140,18 +140,22 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
          */
         val STATE_READ: List<String> = STATE + FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED
 
-        /** The codes a query answers: the query codes (decisions D130, D150), and not-found for a `single` one. */
+        /**
+         * The codes a query answers: the query codes (decisions D130, D150) but a dataset's and a state read's,
+         * `wow.query.not-found` a `single` one that matches nothing among them (review R4-Q, Q-4).
+         */
         val QUERY: List<String> = listOf(FrameworkErrors.AUTH_UNAUTHENTICATED, FrameworkErrors.AUTH_FORBIDDEN) +
-            FrameworkErrors.ALL.map { it.code }
-                .filter { it.startsWith(QUERY_PREFIX) && it !in POINT_READ_ONLY } +
-            listOf(FrameworkErrors.AGGREGATE_NOT_FOUND, FrameworkErrors.STORAGE_UNAVAILABLE)
+            FrameworkErrors.ALL.map { it.code }.filter {
+                it.startsWith(QUERY_PREFIX) && it !in DATASET_ONLY && it != FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED
+            } +
+            FrameworkErrors.STORAGE_UNAVAILABLE
 
         /**
          * The codes a dataset query answers: a query's, but `wow.query.busy`, which only the stores' query bulkheads
          * answer (review R3.4-2), and a dataset backend has none; and `wow.query.dataset-unavailable`, a dataset served
-         * but not queryable now (decision D259 7.2b-2).
+         * but not queryable now (decision D259 7.2b-2); and `wow.query.dataset-not-found`, one not served to the caller.
          */
-        val DATASET_QUERY: List<String> = QUERY - FrameworkErrors.QUERY_BUSY + FrameworkErrors.QUERY_DATASET_UNAVAILABLE
+        val DATASET_QUERY: List<String> = QUERY - FrameworkErrors.QUERY_BUSY + DATASET_ONLY
 
         /** The codes a query model's capability descriptor answers. */
         val DESCRIPTOR: List<String> = listOf(
@@ -159,6 +163,9 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
             FrameworkErrors.QUERY_FAILED,
             FrameworkErrors.STORAGE_UNAVAILABLE,
         )
+
+        /** The codes a dataset's descriptor answers: a model's, and `wow.query.dataset-not-found`. */
+        val DATASET_DESCRIPTOR: List<String> = DESCRIPTOR + FrameworkErrors.QUERY_DATASET_NOT_FOUND
 
         /** The codes the dataset list answers. */
         val DATASET_LIST: List<String> = listOf(
