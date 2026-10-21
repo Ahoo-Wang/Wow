@@ -6,4 +6,4 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-On the dev Wow ordering service, show me what happened to order o-1042 and when: every change, oldest first. I only need the answer.
+On the dev Wow ordering service, show me what happened to order o-1042 and when: every change, oldest first. I only need the answer. Give the code and the commands in your answer.

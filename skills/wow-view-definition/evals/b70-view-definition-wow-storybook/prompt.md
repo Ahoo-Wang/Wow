@@ -6,7 +6,7 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-在 Wow 仓库 Storybook 的零售场景里，为订单事件流加一个「付款事件」视图和故事。
+在 Wow 仓库 Storybook 的零售场景里，为订单事件流加一个「付款事件」视图和故事。在回答里给出代码和命令。
 
 Files from the user's project, shown inline:
 
