@@ -179,6 +179,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Read State', link: 'reading-state'},
                 {text: 'Query Snapshots', link: 'queries'},
                 {text: 'Query Event Streams', link: 'event-queries'},
+                {text: 'Publish Datasets', link: 'datasets'},
             ],
         },
         {

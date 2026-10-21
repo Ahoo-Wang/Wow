@@ -33,6 +33,7 @@ These pages show how to do one thing each, with code from the repository's examp
 | [Read State](./reading-state) | Read an aggregate's state at any version or instant, cache it, read your own writes |
 | [Query Snapshots](./queries) | Find aggregates by their state, in Kotlin and over HTTP; declare indexes and masks |
 | [Query Event Streams](./event-queries) | Query the log, one row per commit; analyze events |
+| [Publish Datasets from a Service](./datasets) | Declare a dataset over the warehouse, scoped and masked, and query it |
 
 ## Across contexts
 
