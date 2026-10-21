@@ -168,17 +168,59 @@ class EventStreamImporter(
             if (page.isEmpty()) {
                 break
             }
-            page.forEach { stream ->
-                if ((reached[stream.aggregateId] ?: 0) < stream.version) {
-                    stats.instances.incrementAndGet()
-                    reached[stream.aggregateId] = importInstance(aggregatePlan, stream.aggregateId, stream.version, stats)
-                }
-                latest = maxOf(latest, stream.createTime)
-            }
-            after = page.last().let { NineXPosition(it.createTime, it.id) }
+            tailPage(aggregatePlan, page, reached, stats)
+            // A page is in commit-time order: its last stream is its latest.
+            val last = page.last()
+            latest = maxOf(latest, last.createTime)
+            after = NineXPosition(last.createTime, last.id)
         }
         save(aggregate, checkpoint.copy(tailedTo = latest, tailedAt = clock()))
         return stats.report(done = true).also(progress)
+    }
+
+    /**
+     * The streams of one page of the tail, by instance, [ImportOptions.concurrency] instances at a time: an instance
+     * whose latest stream of the page the log already holds, the same command at the same version, is skipped with one
+     * read of the log; any other is brought up to date from its earliest stream of the page on ([importInstance]),
+     * which also settles a stream the log holds otherwise. Most of what a final pass reads again from its look-back
+     * window is skipped this way, so it costs the streams 9.x committed since the tail last read.
+     */
+    private suspend fun tailPage(
+        plan: AggregatePlan,
+        page: List<NineXStream>,
+        reached: MutableMap<NineXAggregateId, Int>,
+        stats: Stats,
+    ) {
+        val behind = page.filter { (reached[it.aggregateId] ?: 0) < it.version }.groupBy { it.aggregateId }
+        val permits = Semaphore(options.concurrency)
+        val done = coroutineScope {
+            behind.map { (id, streams) ->
+                async {
+                    permits.withPermit {
+                        stats.instances.incrementAndGet()
+                        id to tailInstance(plan, id, streams, stats)
+                    }
+                }
+            }.awaitAll()
+        }
+        done.forEach { (id, version) -> reached[id] = maxOf(reached[id] ?: 0, version) }
+    }
+
+    /** Brings [id] up to [streams]' latest version; returns the version the log then holds of it. */
+    private suspend fun tailInstance(
+        plan: AggregatePlan,
+        id: NineXAggregateId,
+        streams: List<NineXStream>,
+        stats: Stats
+    ): Int {
+        val last = streams.maxBy { it.version }
+        val held = logOf(plan.target.context).read(plan.target.ref(id.tenantId, id.id), last.version, last.version)
+            .firstOrNull()
+        if (held?.commandId == last.commandId) {
+            stats.skipped.addAndGet(streams.size.toLong())
+            return last.version
+        }
+        return importInstance(plan, id, streams.minOf { it.version }, stats)
     }
 
     /**

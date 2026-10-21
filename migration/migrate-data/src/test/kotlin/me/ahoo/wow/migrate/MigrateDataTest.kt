@@ -371,7 +371,7 @@ class MigrateDataTest {
             "env:PASSWORD"
         ) { if (it == "PASSWORD") "secret" else null }.assert().isEqualTo("secret")
         assertThrows<MigrationException> { MigrationConfig.resolve("env:MISSING") { null } }
-        config.final.assert().isEqualTo(FinalPassConfig(lookbackMillis = 300_000, maxTailAgeMillis = 600_000))
+        config.final.assert().isEqualTo(FinalPassConfig(lookbackMillis = 60_000, maxTailAgeMillis = 600_000))
         assertThrows<IllegalArgumentException> { FinalPassConfig(lookbackMillis = -1) }
         assertThrows<IllegalArgumentException> { FinalPassConfig(maxTailAgeMillis = 0) }
     }
