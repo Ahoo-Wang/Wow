@@ -16,7 +16,7 @@ export const navbarZh: DefaultTheme.NavItem[] = [
     },
     {
         text: 'TypeScript',
-        activeMatch: '/zh/(guide/typescript|typescript|reference/typescript)/',
+        activeMatch: '/zh/(typescript|reference/typescript)/',
         items: [
             {
                 text: '指南',

@@ -16,7 +16,7 @@ export const navbarEn: DefaultTheme.NavItem[] = [
     },
     {
         text: 'TypeScript',
-        activeMatch: '/(guide/typescript|typescript|reference/typescript)/',
+        activeMatch: '/(typescript|reference/typescript)/',
         items: [
             {
                 text: 'Guide',

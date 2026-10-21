@@ -83,7 +83,7 @@ const typescriptEn: DefaultTheme.SidebarItem[] = [
             {text: 'Generate from Any OpenAPI Document', link: 'openapi-client'},
             {text: 'Authentication and Interceptors', link: 'authentication'},
             {text: 'Compatibility and Versions', link: 'compatibility'},
-            {text: 'Troubleshooting', base: '/guide/typescript/', link: 'troubleshooting'},
+            {text: 'Troubleshooting', link: 'troubleshooting'},
         ],
     },
     {
@@ -104,7 +104,6 @@ const typescriptEn: DefaultTheme.SidebarItem[] = [
 ]
 
 export const sidebarEn: DefaultTheme.Sidebar = {
-    '/guide/typescript/': typescriptEn,
     '/typescript/': typescriptEn,
     '/reference/typescript/': typescriptEn,
     '/data/': [
