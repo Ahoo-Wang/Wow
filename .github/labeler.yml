@@ -83,7 +83,6 @@ dependencies:
           - '.github/**'
           - 'config/**'
           - 'deploy/**'
-          - 'patches/**'
           - 'gradle/**'
           - 'bom/**'
           - '*.gradle.kts'
