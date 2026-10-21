@@ -17,9 +17,9 @@ diff --git a/src/main/kotlin/example/order/OrderSaga.kt b/src/main/kotlin/exampl
 --- a/src/main/kotlin/example/order/OrderSaga.kt
 +++ b/src/main/kotlin/example/order/OrderSaga.kt
 @@ -16,2 +16 @@
--import me.ahoo.wow.api.annotation.StatelessSaga
+-import me.ahoo.wow.api.annotation.Saga
  import example.api.order.OrderCreated
 @@ -21,2 +20 @@
--@StatelessSaga
+-@Saga
  class OrderSaga {
 ```

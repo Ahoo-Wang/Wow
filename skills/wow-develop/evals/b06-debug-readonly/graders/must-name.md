@@ -1,8 +1,8 @@
 ---
 type: regex
-pattern: 'StatelessSaga'
+pattern: '@Saga'
 match: contains
 target: last_message
 ---
 
-The answer names `@StatelessSaga`.
+The answer names `@Saga`.
