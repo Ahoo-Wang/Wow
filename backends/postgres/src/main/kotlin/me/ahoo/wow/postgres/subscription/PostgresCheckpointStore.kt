@@ -17,11 +17,13 @@ import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.autoCommitted
+import me.ahoo.wow.postgres.inTransaction
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
+import java.sql.Connection
 import javax.sql.DataSource
 
 /**
@@ -73,8 +75,10 @@ class PostgresCheckpointStore(
     }
 
     /**
-     * The upserts [save] makes one by one, as one JDBC batch: one round trip. They go in key order, so two batches
-     * touching the same rows lock them in the same order.
+     * The upserts [save] makes one by one, as one JDBC batch in one transaction: one round trip and one commit, one WAL
+     * flush (work package B.O-5; in autocommit each upsert of a batch was a transaction of its own). They go in key
+     * order, so two batches touching the same rows lock them in the same order. A failed batch commits none of them,
+     * and the caller saves them again, as it saves any batch that failed: each upsert only moves a position forward.
      */
     override suspend fun saveAll(group: String, checkpoints: List<Checkpoint>) {
         if (checkpoints.isEmpty()) {
@@ -82,17 +86,21 @@ class PostgresCheckpointStore(
         }
         dispatcher.jdbc {
             dataSource.autoCommitted { connection ->
-                connection.prepareStatement(SAVE).use { save ->
-                    checkpoints.sortedWith(compareBy({ it.subscription }, { it.partition })).forEach {
-                        save.setString(1, group)
-                        save.setString(2, it.subscription)
-                        save.setInt(3, it.partition)
-                        save.setLong(4, it.position)
-                        save.addBatch()
-                    }
-                    save.executeBatch()
-                }
+                inTransaction(connection) { saveBatch(connection, group, checkpoints) }
             }
+        }
+    }
+
+    private fun saveBatch(connection: Connection, group: String, checkpoints: List<Checkpoint>) {
+        connection.prepareStatement(SAVE).use { save ->
+            checkpoints.sortedWith(compareBy({ it.subscription }, { it.partition })).forEach {
+                save.setString(1, group)
+                save.setString(2, it.subscription)
+                save.setInt(3, it.partition)
+                save.setLong(4, it.position)
+                save.addBatch()
+            }
+            save.executeBatch()
         }
     }
 
