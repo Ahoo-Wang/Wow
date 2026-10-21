@@ -83,6 +83,7 @@ dependencies:
           - '.github/**'
           - 'config/**'
           - 'deploy/**'
+          - 'patches/**'
           - 'gradle/**'
           - 'bom/**'
           - 'wow-dependencies/**'

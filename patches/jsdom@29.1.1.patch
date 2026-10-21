@@ -1,0 +1,15 @@
+diff --git a/lib/jsdom/living/css/helpers/computed-style.js b/lib/jsdom/living/css/helpers/computed-style.js
+index a8da57febe42d0218e25afe3cd1d775ee7bb13be..3571b5f34dcd560c6acdf47e8ccdad32bf4aa224 100644
+--- a/lib/jsdom/living/css/helpers/computed-style.js
++++ b/lib/jsdom/living/css/helpers/computed-style.js
+@@ -243,6 +243,10 @@ function getInheritedPropertyValue(property, elementImpl, { inherit, initial, is
+         return replaceGlobalKeywords(property, value, parent, { inherit, initial, isColor });
+       }
+       return value;
++    } else if (!isColor) {
++      // The parent's computed value already accounts for inheritance, even when it is empty: walking on
++      // re-resolves every ancestor from each one, which is O(2^depth) (jsdom/jsdom#4330, #4371).
++      break;
+     } else if (!parent.parentElement || !inherit) {
+       break;
+     }

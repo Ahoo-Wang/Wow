@@ -62,7 +62,7 @@ const VIEW_STORE_CONTRACT_PATH =
 // packages and files the console builds with, and the workflow itself.
 const OPS_CONSOLE = 'opsConsole';
 const OPS_CONSOLE_PATH =
-  /^(?:platform\/ops\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ci\.yml$)/;
+  /^(?:platform\/ops\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|patches\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ci\.yml$)/;
 // ci.yml's catalog-console jobs: the analytics catalog console's lint, types,
 // tests and build, and its end-to-end suite against the catalog server it is
 // served by, as the ops-console jobs do the ops console's. Decided
@@ -70,7 +70,7 @@ const OPS_CONSOLE_PATH =
 // the workspace packages and files the console builds with, and the workflow.
 const CATALOG_CONSOLE = 'catalogConsole';
 const CATALOG_CONSOLE_PATH =
-  /^(?:platform\/analytics\/catalog\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ci\.yml$)/;
+  /^(?:platform\/analytics\/catalog\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|patches\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ci\.yml$)/;
 
 // A light scope stands in for a full one when only Markdown changed, so it
 // turns off again once any path turns the full scope on.
