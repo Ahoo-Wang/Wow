@@ -8,7 +8,7 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 PASS only if the answer does all of these:
 
 1. Runs the rehearsal on an isolated, empty V10 target with the V10 Manifests and the services' domain jars on the tool's classpath, and keeps rehearsal, production reads, production writes and the traffic switch as separate authorizations
-2. Orders the tool's steps: check (the map against the 9.x store and the Manifests) before import, import resumed after an interruption without duplicates, tail while 9.x writes (its createTime index is a write to 9.x needing its own authorization), compare, snapshot, and backfill-tags before ABAC event timelines
+2. Orders the tool's steps: check (the map against the 9.x store and the Manifests) before import, import resumed after an interruption without duplicates, compare, snapshot, and backfill-tags before ABAC event timelines
 3. Treats compare's exit 3 as a gate: every kind of difference explained as a known 9.x defect or an intended change and signed off, unexplained kinds block the cut-over, and the share of instances with a 9.x snapshot is reported
-4. Names the cut-over's final pass: stop 9.x's writers (the compensation service too), then import --final after a tail that ran continuously (import --restart otherwise) for the streams, reservations and unresolved executions, then compare again
+4. Plans the cut-over offline by default: stop 9.x's writers (the compensation service too), then import, compare, snapshot and backfill-tags once, then start V10; it times that import on production-sized data in the rehearsal, and offers tail, standby and a final pass (import --final or --restart) only as the option when the import does not fit the stop
 5. Lists what it could not verify (the real 9.x data, timings at production size, the rollback) as MISSING EVIDENCE and does not claim to have run anything
