@@ -11,7 +11,7 @@ description: 通过生成的客户端发送命令，等待它跨 Saga 和上下�
 
 ## 只创建一次客户端 {#create-the-clients-once}
 
-每个客户端都通过一个 Fetcher 发送：服务的基础 URL，以及为每个请求签名的拦截器（[认证](../guide/typescript/authentication)）。每个服务创建一次 Fetcher，再基于它创建客户端：
+每个客户端都通过一个 Fetcher 发送：服务的基础 URL，以及为每个请求签名的拦截器（[认证](./authentication)）。每个服务创建一次 Fetcher，再基于它创建客户端：
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
