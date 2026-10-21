@@ -6,7 +6,7 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-在订单分析里加一个按买家手机号分组的维度，找出下单最多的手机号。
+在订单分析里加一个按买家手机号分组的维度，找出下单最多的手机号。在回答里给出代码和命令。
 
 Files from the user's project, shown inline:
 

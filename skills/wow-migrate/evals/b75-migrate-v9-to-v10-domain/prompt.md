@@ -67,4 +67,4 @@ class CartSaga {
 }
 ```
 
-购物车聚合另有 `@StaticTenantId`。前端用 `Command-Wait-Stage`、`Command-Request-Id`、`Command-Aggregate-Version` 请求头，按 `errorCode`/`errorMsg` 解析错误。生产事件库中已有 9.x 的 `order_created` 事件。
+购物车聚合另有 `@StaticTenantId`。前端用 `Command-Wait-Stage`、`Command-Request-Id`、`Command-Aggregate-Version` 请求头，按 `errorCode`/`errorMsg` 解析错误。生产事件库中已有 9.x 的 `order_created` 事件。在回答里给出代码和命令。

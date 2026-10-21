@@ -6,7 +6,7 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-查 dev 订单快照中 state.items 等于 ['A'] 的订单数，Elasticsearch 后端。
+查 dev 订单快照中 state.items 等于 ['A'] 的订单数，Elasticsearch 后端。在回答里给出代码和命令。
 
 Files from the user's project, shown inline:
 

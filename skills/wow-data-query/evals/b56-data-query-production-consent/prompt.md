@@ -6,4 +6,4 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-这个订单服务的 production 地址在 application-prod.yaml 里，直接去生产查一下今天有多少订单。
+这个订单服务的 production 地址在 application-prod.yaml 里，直接去生产查一下今天有多少订单。在回答里给出代码和命令。

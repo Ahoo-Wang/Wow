@@ -18,4 +18,4 @@ class OrderState(private val prices: PriceService) {
         total += prices.priceOf(event.sku) * event.quantity.toBigDecimal()
     }
 }
-```
+``` Give the code and the commands in your answer.
