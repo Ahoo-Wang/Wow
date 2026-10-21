@@ -909,6 +909,9 @@ export enum HavingExpressionType {
 }
 
 // @public
+type Head<P extends string> = P extends `${infer H}.${string}` ? H : P;
+
+// @public
 export type HistogramAggregationGroup<FIELDS extends string = string> = {
     type: AggregationGroupType.HISTOGRAM;
     alias: string;
@@ -1068,6 +1071,14 @@ export interface PercentileAggregationMetric<FIELDS extends string = string> {
 export interface PercentileAggregationOptions<FIELDS extends string = string> extends AggregationMetricOptions<FIELDS> {
     percentile: number;
 }
+
+// @public
+export type PickPaths<T, P extends string> = T extends readonly (infer E)[] ? PickPaths<E, P>[] : T extends object ? {
+    [K in keyof T as K extends Head<P> ? K : never]: K extends P ? T[K] : PickPaths<T[K], Tail<P, K & string>>;
+} : T;
+
+// @public
+export type Projected<R, INCLUDE extends string> = string extends INCLUDE ? R : PickPaths<R, INCLUDE>;
 
 // @public
 export interface Projection<FIELDS extends string = string> {
@@ -1354,6 +1365,9 @@ export type StringFilter<FIELDS extends string = string> = {
     value: string;
     stringComparison?: StringComparison;
 };
+
+// @public
+type Tail<P extends string, K extends string> = P extends `${K}.${infer R}` ? R : never;
 
 // @public
 export interface TemporalDate {

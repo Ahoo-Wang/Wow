@@ -137,7 +137,7 @@ V10 服务在 `POST /<context>/<aggregate>/<model>/query` 上回答其读模型�
 
 ### 相对时间
 
-每个都接受 `field`，以及可选的 `zoneId`（IANA 时区，如 `Asia/Shanghai`；默认为服务器时区）、`datePattern`（`DateTimeFormatter` 模式，用于以格式化字符串存储的字段）与 `timeUnit`（默认 `MILLISECONDS`，或其他 `TimeUnit` 名称，用于以 epoch 数字存储的字段）。
+每个都接受 `field`，以及可选的 `zoneId`（IANA 时区，如 `Asia/Shanghai`，或偏移，如 `+08:00`；默认 UTC，从不使用服务器自身的时区）、`datePattern`（`DateTimeFormatter` 模式，用于以格式化字符串存储的字段）与 `timeUnit`（默认 `MILLISECONDS`，或其他 `TimeUnit` 名称，用于以 epoch 数字存储的字段）。
 
 | `op` | 其他属性 | 匹配 |
 | --- | --- | --- |
@@ -153,6 +153,8 @@ V10 服务在 `POST /<context>/<aggregate>/<model>/query` 上回答其读模型�
 ```json
 { "op": "RECENT_DAYS", "field": "lastEventTime", "days": 7, "zoneId": "Asia/Shanghai" }
 ```
+
+时间点以时间点传输：epoch 数字，或带偏移的 ISO-8601 字符串（`2026-10-21T08:00:00Z`）。凡是一天的边界会影响结果，请求都应写明时区；调用方给出 `zoneId` 时，TypeScript DSL 就会发送它。
 
 ### 系统字段
 

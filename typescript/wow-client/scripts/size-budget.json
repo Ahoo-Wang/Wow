@@ -2,8 +2,8 @@
   "$comment": "Regression ceilings in gzipped bytes, checked by scripts/verify-package.mjs through .github/scripts/size-budget.mjs. Size is not a target: each ceiling sits about 15-20% above what was measured when it was set, to catch an accidental blow-up. Raise one on purpose, in the pull request that needs it, and update its reason.",
   "ceilings": {
     ".": {
-      "gzip": 7400,
-      "reason": "Moved 2026-10-20 from ./v10 when the V10 client became the root (TS-9x, D239): raised 2026-10-19, about 15% over the 6,445 B measured then (5,590 B before): resumable query streams (D253, R3-B4) add about 850 B, the resume loop with its backoff, Retry-After and abort handling, intended growth."
+      "gzip": 10600,
+      "reason": "Raised 2026-10-21, about 18% over the 9,007 B measured then (6,445 B before): the exact numbers of review R4-Q Q-9 (decision D254), a path-aware JSON reader and writer (about 2,400 B gzipped as built, 1,960 B minified) so int64, bigint and decimal fields keep their digits, and the clients' marks for them, intended growth."
     },
     "./dsl": {
       "gzip": 11888,

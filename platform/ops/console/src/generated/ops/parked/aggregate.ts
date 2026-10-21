@@ -13,6 +13,17 @@ export const ParkedAggregate = {
   path: '/ops/parked',
   ownership: 'TENANT',
   snapshot: true,
+  textNumbers: {
+    state: { failedAt: true, fromPosition: true, nextRetryAt: true, recordedAt: true, resolvedAt: true, retryAt: true },
+    events: {
+      'ops.parked.ParkedRecorded': { entry: { failedAt: true, fromPosition: true, nextRetryAt: true, recordedAt: true, retryAt: true } },
+      'ops.parked.ParkedResolved': { failedAt: true, resolvedAt: true },
+    },
+    commands: {
+      RecordParked: { entry: { failedAt: true, fromPosition: true, nextRetryAt: true, recordedAt: true, retryAt: true } },
+      RecordResolved: { resolution: { failedAt: true, resolvedAt: true } },
+    },
+  },
 } as const;
 
 /** The `state.*` paths of `parked`'s snapshots a query filters, sorts and projects on. */
