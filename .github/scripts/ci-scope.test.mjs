@@ -731,6 +731,13 @@ test('the unit matrix reruns a package and the packages built on it', () => {
   assert.deepEqual(unitPackages([errorTable]), ['wow-client']);
   assert.deepEqual(on([errorTable]), ['sdk']);
   assert.ok(scopes([errorTable]).jvm);
+  // The view store service's Manifest baseline, which wow-view-store's
+  // generated clients are held to, reruns wow-view-store and the JVM jobs.
+  const viewStoreBaseline =
+    'platform/view-store/view-store-server/manifest/baseline.json';
+  assert.deepEqual(unitPackages([viewStoreBaseline]), ['wow-view-store']);
+  assert.ok(scopes([viewStoreBaseline]).sdk);
+  assert.ok(scopes([viewStoreBaseline]).jvm);
   // Whatever else turns the sdk scope on reruns them all.
   for (const path of [
     '.github/workflows/ci.yml',
