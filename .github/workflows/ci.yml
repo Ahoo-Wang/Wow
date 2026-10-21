@@ -1020,8 +1020,13 @@ jobs:
         catalog-console-e2e,
       ]
     if: always()
-    timeout-minutes: 5
+    # The patch coverage wait below is bounded at 15 minutes.
+    timeout-minutes: 20
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Codecov's check runs on the pull request's head commit.
+      checks: read
     steps:
       - name: Require every scoped job to pass or be skipped
         env:
@@ -1034,3 +1039,26 @@ jobs:
               *) exit 1 ;;
             esac
           done
+      # Patch coverage is part of the merge signal: on a pull request whose run
+      # uploaded coverage (the JVM check or shards, the TypeScript units or
+      # view-engine), Codecov's codecov/patch on the head commit must pass
+      # (codecov.yml: 90%, threshold 1%). A run without coverage leaves it out,
+      # so a required codecov/patch never blocks a change Codecov does not see.
+      - name: Check out the gate script
+        if: >-
+          github.event_name == 'pull_request' &&
+          (needs.check.result != 'skipped' || needs.integration.result != 'skipped' ||
+          needs.unit.result != 'skipped' || needs.view-engine.result != 'skipped')
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - name: Require Codecov's patch status to pass
+        if: >-
+          github.event_name == 'pull_request' &&
+          (needs.check.result != 'skipped' || needs.integration.result != 'skipped' ||
+          needs.unit.result != 'skipped' || needs.view-engine.result != 'skipped')
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node .github/scripts/codecov-patch.mjs
