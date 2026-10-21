@@ -14,7 +14,7 @@
 # The blue-green rehearsal of roadmap 8c.1 (design 07 §3, decision D32) on a GitHub runner: the 9.x example-server
 # built from `nine_x_ref` (v10-9x-baseline, D262), seeded at a production-shaped size, migrated by migrate-data into
 # the V10 logs of the rehearsal host and of the V10 view store service, cut over with a dual-run window on standby
-# hosts, and rolled back before and after V10 writes
+# hosts, and rolled back before and after V10 writes; an offline cut-over of the same data (D267 ⑳) runs first
 # (test/migration-rehearsal/rehearsal/rehearse.sh). The report is the run's summary; the steps' logs are an artifact.
 #
 # A run starts when a branch `ci-repro/migration-rehearsal/**` is pushed (`git push origin <ref>:ci-repro/migration-rehearsal/<name>`), with the

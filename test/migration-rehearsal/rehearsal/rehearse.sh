@@ -12,14 +12,18 @@
 # limitations under the License.
 #
 # The blue-green rehearsal of roadmap 8c.1 (design 07 §3, decision D32): one complete 9.x → V10 cut-over of the 9.x
-# example and of the view store it embeds, with both rollbacks. Two V10 hosts take over: the rehearsal host (context
-# example) and the V10 view store service (context view-store, platform/view-store), both on one PostgreSQL database.
-# Every step is timed into $WORK/steps.jsonl; report.py renders $WORK/report.md.
+# example and of the view store it embeds, with both rollbacks, and before it an offline cut-over of the same data, the
+# default way (decision D267 ⑳). Two V10 hosts take over: the rehearsal host (context example) and the V10 view store
+# service (context view-store, platform/view-store), both on one PostgreSQL database. Every step is timed into
+# $WORK/steps.jsonl; report.py renders $WORK/report.md.
 #
 #   1. seed      the 9.x example-server (v10-9x-baseline) with ORDERS orders and their carts, VIEWS views (saved,
 #                renamed, shared and claimed, deleted), its users' preferences and its tenants' dataset wordings, and the
 #                9.x compensation service's database with unresolved CartSaga executions
-#   2. import    migrate-data check and import into the V10 log on PostgreSQL
+#   1b. offline  the offline cut-over, into its own database (offline): 9.x stops (the write stop starts), import,
+#                compare, snapshot and backfill-tags, and the V10 hosts start and serve (the write stop ends); their
+#                sampled states equal 9.x's before it stopped. They stop and 9.x starts again for the online cut-over
+#   2. import    migrate-data check and import into the V10 log on PostgreSQL (database example)
 #   3. dual-run  the V10 hosts start on standby (wow.standby): they serve reads and refuse commands while 9.x keeps
 #                taking writes (orders, carts, view renames) for DUAL_RUN_SECONDS and migrate-data tail follows them;
 #                the lag is how long V10 takes to read what 9.x last wrote once the writes stop
@@ -62,6 +66,8 @@ V10_PORT="${V10_PORT:-18090}"
 V10_INTERNAL_PORT="${V10_INTERNAL_PORT:-19090}"
 VIEWS_PORT="${VIEWS_PORT:-18091}"
 VIEWS_INTERNAL_PORT="${VIEWS_INTERNAL_PORT:-19091}"
+# The database of the V10 log the hosts and migrate-data use: example, or offline through the offline cut-over.
+TARGET_DB=example
 NINEX_URL="http://localhost:$NINEX_PORT"
 V10_URL="http://localhost:$V10_PORT"
 V10_INTERNAL_URL="http://localhost:$V10_INTERNAL_PORT"
@@ -157,7 +163,7 @@ PY
 
 java_home() { echo "${JAVA_HOME:?JAVA_HOME (JDK 21)}"; }
 driver() { "$(java_home)/bin/java" -cp "$V10_HOME/lib/*" me.ahoo.wow.rehearsal.driver.RehearsalDriverKt "$@" --concurrency="$CONCURRENCY"; }
-migrate() { JAVA_OPTS="-Xmx2g" "$MIGRATE_HOME/bin/migrate-data" "$1" --config "$WORK/migrate-data.json" "${@:2}"; }
+migrate() { JAVA_OPTS="-Xmx2g" "$MIGRATE_HOME/bin/migrate-data" "$1" --config "$WORK/migrate-data-$TARGET_DB.json" "${@:2}"; }
 
 await_http() {
   local url="$1" name="$2"
@@ -185,41 +191,45 @@ start_ninex() {
   await_http "$NINEX_URL" ninex
 }
 
-# start_v10 [standby]: the V10 host; on standby (wow.standby) when asked, until resume_v10.
-start_v10() {
+# launch_v10 [standby]: the V10 host on TARGET_DB; on standby (wow.standby) when asked, until resume_hosts.
+launch_v10() {
   local standby="${1:-}"
   (
     cd "$V10_HOME"
     env JAVA_OPTS="-Xmx1g" WOW_INTERNAL_TOKEN="$CLUSTER_TOKEN" ./bin/migration-rehearsal \
       --server.port="$V10_PORT" --wow.internal.port="$V10_INTERNAL_PORT" \
-      --spring.datasource.url="jdbc:postgresql://localhost:$POSTGRES_PORT/example" \
+      --spring.datasource.url="jdbc:postgresql://localhost:$POSTGRES_PORT/$TARGET_DB" \
       --wow.standby="$([ "$standby" = standby ] && echo true || echo false)" \
       >>"$WORK/v10.out" 2>&1 &
     echo $! >"$WORK/v10.pid"
   )
-  await_http "$V10_URL" v10
 }
 
-# start_views [standby]: the V10 view store service, on the rehearsal host's database; on standby when asked. It takes
+# launch_views [standby]: the V10 view store service, on the rehearsal host's database; on standby when asked. It takes
 # its callers from the headers (X-User, X-Tenant, CoSec-App-Id), as a local run of it does.
-start_views() {
+launch_views() {
   local standby="${1:-}"
   (
     cd "$VIEWS_HOME"
     env JAVA_OPTS="-Xmx1g" WOW_INTERNAL_TOKEN="$CLUSTER_TOKEN" ./bin/view-store-server \
       --spring.profiles.active=postgres --server.port="$VIEWS_PORT" \
       --wow.internal.port="$VIEWS_INTERNAL_PORT" --wow.internal.host=127.0.0.1 \
-      --spring.datasource.url="jdbc:postgresql://localhost:$POSTGRES_PORT/example" \
+      --spring.datasource.url="jdbc:postgresql://localhost:$POSTGRES_PORT/$TARGET_DB" \
       --wow.platform.trust-identity-headers=true \
       --wow.standby="$([ "$standby" = standby ] && echo true || echo false)" \
       --logging.level.root=warn \
       >>"$WORK/views.out" 2>&1 &
     echo $! >"$WORK/views.pid"
   )
-  await_http "$VIEWS_URL" views
 }
 
-start_hosts() { start_v10 "${1:-}"; start_views "${1:-}"; }
+# start_hosts [standby]: both V10 hosts, started together; returns once both are healthy.
+start_hosts() {
+  launch_v10 "${1:-}"
+  launch_views "${1:-}"
+  await_http "$V10_URL" v10
+  await_http "$VIEWS_URL" views
+}
 stop_hosts() { stop_pid v10; stop_pid views; }
 
 # internal URL METHOD PATH [BODY]: a call to a V10 host's internal port with the cluster token; prints the answer.
@@ -295,19 +305,21 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# write_config DB: migrate-data's configuration for the V10 log in database DB, with its own checkpoint.
 write_config() {
+  local db="$1"
   cp "$REHEARSAL/migration-map.json" "$WORK/migration-map.json"
   cp "$MANIFEST" "$WORK/manifest.json"
   cp "$VIEWS_MANIFEST" "$WORK/views-manifest.json"
-  cat >"$WORK/migrate-data.json" <<EOF
+  cat >"$WORK/migrate-data-$db.json" <<EOF
 {
   "map": "migration-map.json",
   "manifests": ["manifest.json", "views-manifest.json"],
-  "checkpoint": "migrate-data.checkpoint.json",
+  "checkpoint": "migrate-data-$db.checkpoint.json",
   "source": { "uri": "mongodb://localhost:$MONGO_PORT", "database": "wow_example_db", "createCommitTimeIndex": true },
   "target": {
     "type": "postgres",
-    "jdbcUrl": "jdbc:postgresql://localhost:$POSTGRES_PORT/example",
+    "jdbcUrl": "jdbc:postgresql://localhost:$POSTGRES_PORT/$db",
     "username": "postgres",
     "password": "postgres"
   },
@@ -324,7 +336,9 @@ EOF
 log "stores up"
 compose down -v >/dev/null 2>&1 || true
 compose up -d --wait
-write_config
+docker exec wow-rehearsal-postgres createdb -U postgres offline
+write_config example
+write_config offline
 
 # 1. seed
 start_ninex
@@ -332,15 +346,35 @@ step seed 0 driver seed --version=9x --base="$NINEX_URL" --book="$WORK/book.tsv"
 step seed-views 0 driver views seed --base="$NINEX_URL" --book="$WORK/views.tsv" --settings="$WORK/settings.tsv" --views="$VIEWS"
 step seed-compensation 0 mongosh_run --eval "var count = $EXECUTIONS, example = 'wow_example_db', compensation = 'compensation_db'" /rehearsal/seed-compensation.js
 step ninex-seeded 0 ninex_streams
+step check 0 migrate check
+
+# 1b. offline: the write stop runs from 9.x stopping to V10 serving, with no tail and no standby
+step offline-9x-states 0 driver states --version=9x --base="$NINEX_URL" --book="$WORK/book.tsv" --sample="$SAMPLE" --out="$WORK/9x-offline.json"
+step offline-9x-views-states 0 driver views states --version=9x --base="$NINEX_URL" --book="$WORK/views.tsv" --sample="$SAMPLE" --out="$WORK/9x-views-offline.json"
+TARGET_DB=offline
+offline_started="$(now_ms)"
+stop_pid ninex
+step offline-import 0 migrate import
+compared offline-compare migrate compare
+step offline-snapshot 0 migrate snapshot
+step offline-backfill-tags 0 migrate backfill-tags
+step offline-start 0 start_hosts
+record offline-write-stop "$offline_started" 0
+step offline-v10-states 0 driver states --version=v10 --base="$V10_URL" --book="$WORK/book.tsv" --sample="$SAMPLE" --out="$WORK/v10-offline.json"
+step offline-states-compare 0 driver compare "$WORK/v10-offline.json" "$WORK/9x-offline.json"
+step offline-v10-views-states 0 driver views states --version=v10 --base="$VIEWS_URL" --book="$WORK/views.tsv" --sample="$SAMPLE" --out="$WORK/v10-views-offline.json"
+step offline-views-compare 0 driver compare "$WORK/v10-views-offline.json" "$WORK/9x-views-offline.json"
+stop_hosts
+TARGET_DB=example
+start_ninex
 
 # 2. import
-step check 0 migrate check
 step import 0 migrate import
 
 # 3. dual-run
 start_hosts standby
 step standby-refuses 0 standby_refuses
-JAVA_OPTS="-Xmx2g" "$MIGRATE_HOME/bin/migrate-data" tail --config "$WORK/migrate-data.json" >"$WORK/tail.log" 2>&1 &
+JAVA_OPTS="-Xmx2g" "$MIGRATE_HOME/bin/migrate-data" tail --config "$WORK/migrate-data-example.json" >"$WORK/tail.log" 2>&1 &
 echo $! >"$WORK/tail.pid"
 views_traffic_start 9x "$NINEX_URL" "$DUAL_RUN_SECONDS" dual-run-views
 step dual-run-traffic 0 driver traffic --version=9x --base="$NINEX_URL" --book="$WORK/book.tsv" --seconds="$DUAL_RUN_SECONDS" --touched="$WORK/dual-run-touched.tsv"
