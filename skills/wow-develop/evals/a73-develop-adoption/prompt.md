@@ -1,6 +1,6 @@
 ---
-name: a73-develop-v10-adoption
-tags: [activation, trigger, v10]
+name: a73-develop-adoption
+tags: [activation, trigger]
 runs: 3
 max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]

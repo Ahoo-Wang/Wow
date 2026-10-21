@@ -1,5 +1,5 @@
 ---
-name: b130-review-v10-evolve-io
+name: b130-review-evolve-io
 tags: [behavior, review, read-only]
 runs: 3
 max_turns: 10

@@ -1,5 +1,5 @@
 ---
-name: b129-develop-v10-projection-idempotent
+name: b129-develop-projection-idempotent
 tags: [behavior, positive, projection]
 runs: 3
 max_turns: 10

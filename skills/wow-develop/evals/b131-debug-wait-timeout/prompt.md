@@ -1,5 +1,5 @@
 ---
-name: b131-debug-v10-wait-timeout
+name: b131-debug-wait-timeout
 tags: [behavior, diagnose, read-only]
 runs: 3
 max_turns: 10

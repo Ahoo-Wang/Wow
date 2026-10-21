@@ -1,5 +1,5 @@
 ---
-name: b128-develop-v10-saga-on-rejected
+name: b128-develop-saga-on-rejected
 tags: [behavior, positive, saga]
 runs: 3
 max_turns: 10

@@ -46,7 +46,7 @@ internal object ModelSource {
         }
         appendLine()
         appendLine(
-            "/** The V10 model of [${binding.root}], in bounded context [context]; [configure] runs after the bindings. */",
+            "/** The model of [${binding.root}], in bounded context [context]; [configure] runs after the bindings. */",
         )
         val parameters = listOf("context: String") + binding.dependencies.map { "${it.name}: ${it.type}" } +
             "configure: me.ahoo.wow.kernel.AggregateModelBuilder<$state>.() -> Unit = {}"

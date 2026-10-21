@@ -19,9 +19,9 @@ import me.ahoo.test.asserts.assert
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 
-/** The V10 annotation set (design 01 §3, decisions D67 and D68) as the model processor reads it. */
+/** The annotation set (design 01 §3, decisions D67 and D68) as the model processor reads it. */
 @OptIn(ExperimentalCompilerApi::class)
-class V10AnnotationSetTest {
+class AnnotationSetTest {
     private val basket = SourceFile.kotlin(
         "Basket.kt",
         """
@@ -194,18 +194,20 @@ class V10AnnotationSetTest {
     )
 
     @Test
-    fun `an annotation V10 removed is a compile error that points to the migration skill`() {
+    fun `an annotation Wow 10 removed is a compile error that points to the migration skill`() {
         val (_, result) = compileModel("generate", legacy)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
-        val skill = "the wow-migrate skill rewrites 9.x code into V10"
+        val skill = "the wow-migrate skill rewrites 9.x code for Wow 10"
         result.messages.assert()
-            .contains("aggregate root Legacy is annotated @AggregateRoute, which V10 removed: routes are materialized")
             .contains(
-                "aggregate root Legacy is annotated @Spaced, which V10 removed: it is removed with no counterpart"
+                "aggregate root Legacy is annotated @AggregateRoute, which Wow 10 removed: routes are materialized"
+            )
+            .contains(
+                "aggregate root Legacy is annotated @Spaced, which Wow 10 removed: it is removed with no counterpart"
             )
             .contains("aggregate root Legacy's function onCommand is annotated @Order")
             .contains(
-                "aggregate root Legacy's function onError is annotated @OnError, which V10 removed: reject with a " +
+                "aggregate root Legacy's function onError is annotated @OnError, which Wow 10 removed: reject with a " +
                     "Rejection, and compensate in a @Saga; $skill"
             )
             .contains(
@@ -217,7 +219,7 @@ class V10AnnotationSetTest {
             .contains("command Ping is annotated @VoidCommand")
             .contains("command Ping is annotated @CommandRoute")
             .contains("command Ping's field note is annotated @Generated")
-            .contains("event Pinged is annotated @Event, which V10 removed: use @Revision")
+            .contains("event Pinged is annotated @Event, which Wow 10 removed: use @Revision")
             .contains("event Pinged is annotated @ValueObject")
     }
 
@@ -269,7 +271,7 @@ class V10AnnotationSetTest {
         )
         val (_, result) = compileModel("generate", kotlinCommands, javaCommand)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
-        val identity = "which V10 removed (decision D68): a command carries no identity: it is Command.ref"
+        val identity = "which Wow 10 removed (decision D68): a command carries no identity: it is Command.ref"
         result.messages.assert()
             .contains("command Open's field id is annotated @AggregateId, $identity")
             .contains("command Open's field tenantId is annotated @TenantId, $identity")
@@ -452,6 +454,6 @@ class V10AnnotationSetTest {
             .contains("processor Shapes has two handlers named twice")
             .contains("handler Shapes.retried is annotated @Retry(timeout = \"soon\"): it is a duration")
             .contains("handler Deriving.onEvent returns kotlin.String: a @Saga handler returns the commands it derives")
-            .contains("processor Legacy is annotated @StatelessSaga, which V10 removed: use @Saga")
+            .contains("processor Legacy is annotated @StatelessSaga, which Wow 10 removed: use @Saga")
     }
 }
