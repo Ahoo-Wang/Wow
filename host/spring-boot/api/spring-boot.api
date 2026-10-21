@@ -1079,9 +1079,9 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Snapshot {
 
 public final class me/ahoo/wow/spring/boot/WowProperties$StateCache {
 	public fun <init> ()V
-	public final fun getCapacity ()I
+	public final fun getCapacity ()Ljava/lang/Integer;
 	public final fun getRecentRequests ()I
-	public final fun setCapacity (I)V
+	public final fun setCapacity (Ljava/lang/Integer;)V
 	public final fun setRecentRequests (I)V
 }
 
