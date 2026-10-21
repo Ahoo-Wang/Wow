@@ -16,9 +16,9 @@
 # the rehearsal host's V10 log, cut over with a dual-run window, and rolled back before and after V10 writes
 # (test/migration-rehearsal/rehearsal/rehearse.sh). The report is the run's summary; the steps' logs are an artifact.
 #
-# A run starts when a branch `rehearsal-run/**` is pushed (`git push origin <ref>:rehearsal-run/<name>`), with the
+# A run starts when a branch `ci-repro/migration-rehearsal/**` is pushed (`git push origin <ref>:ci-repro/migration-rehearsal/<name>`), with the
 # defaults below, over which `test/migration-rehearsal/rehearsal/run.json` at the pushed commit may set `orders`,
-# `dual_run_seconds`, `v10_seconds`, `concurrency`, `sample`, `dual_run_host` and `nine_x_ref`. Delete the branch
+# `dual_run_seconds`, `v10_seconds`, `concurrency`, `sample`, `dual_run_host`, `final_pass` and `nine_x_ref`. Delete the branch
 # afterwards. It can also be dispatched by hand once the file is on the default branch. Never on a pull request or a
 # schedule: the heavy run belongs here, not on a pull request's checks.
 name: Migration rehearsal
@@ -45,6 +45,11 @@ on:
         description: 'Every n-th order whose state is compared across the rollbacks'
         type: string
         default: '10'
+      final_pass:
+        description: 'The final pass after 9.x stops: final (import --final, the tail from its checkpoint) or restart'
+        type: choice
+        options: ['final', 'restart']
+        default: 'final'
       dual_run_host:
         description: 'Whether the V10 host runs through the dual-run window (on) or starts at the cut-over (off)'
         type: choice
@@ -55,7 +60,7 @@ on:
         type: string
         default: 'v10-9x-baseline'
   push:
-    branches: ['rehearsal-run/**']
+    branches: ['ci-repro/migration-rehearsal/**']
 
 permissions:
   contents: read
@@ -87,12 +92,14 @@ jobs:
           CONCURRENCY: ${{ inputs.concurrency }}
           SAMPLE: ${{ inputs.sample }}
           DUAL_RUN_HOST: ${{ inputs.dual_run_host }}
+          FINAL_PASS: ${{ inputs.final_pass }}
           NINE_X_REF: ${{ inputs.nine_x_ref }}
         run: |
           python3 - <<'EOF' >>"$GITHUB_OUTPUT"
           import json, os, re
           defaults = {"orders": "50000", "dual_run_seconds": "120", "v10_seconds": "60", "concurrency": "64",
-                      "sample": "10", "dual_run_host": "off", "nine_x_ref": "v10-9x-baseline"}
+                      "sample": "10", "dual_run_host": "off", "final_pass": "final",
+                      "nine_x_ref": "v10-9x-baseline"}
           settings = dict(defaults)
           if os.environ["EVENT"] == "push":
               path = "test/migration-rehearsal/rehearsal/run.json"
@@ -101,7 +108,7 @@ jobs:
           else:
               settings.update({key: os.environ[key.upper()] for key in defaults if os.environ.get(key.upper())})
           for key, value in settings.items():
-              pattern = r"[A-Za-z0-9._/-]+" if key == "nine_x_ref" else r"[0-9]+|on|off"
+              pattern = r"[A-Za-z0-9._/-]+" if key == "nine_x_ref" else r"[0-9]+|on|off|final|restart"
               if not re.fullmatch(pattern, value):
                   raise SystemExit(f"{key}: {value!r} is not a valid setting")
               print(f"{key}={value}")
@@ -136,6 +143,7 @@ jobs:
           CONCURRENCY: ${{ steps.settings.outputs.concurrency }}
           SAMPLE: ${{ steps.settings.outputs.sample }}
           DUAL_RUN_HOST: ${{ steps.settings.outputs.dual_run_host }}
+          FINAL_PASS: ${{ steps.settings.outputs.final_pass }}
         run: test/migration-rehearsal/rehearsal/rehearse.sh
       - name: Summary
         if: always()

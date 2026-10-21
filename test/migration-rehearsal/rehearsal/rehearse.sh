@@ -19,7 +19,8 @@
 #   2. import    migrate-data check and import into the V10 log on PostgreSQL
 #   3. dual-run  9.x keeps taking writes for DUAL_RUN_SECONDS while migrate-data tail follows it; the lag is how long
 #                the tail takes to catch up once the writes stop
-#   4. cut-over  9.x stops (the write stop starts); the final import --restart, compare, snapshot and backfill-tags;
+#   4. cut-over  9.x stops (the write stop starts); the final pass (import --final: the tail from its checkpoint,
+#                or import --restart with FINAL_PASS=restart), compare, snapshot and backfill-tags;
 #                the V10 host starts and serves writes (the write stop ends)
 #   5. rollback before V10 writes: export --dry-run finds nothing to write back, 9.x starts again on its own store,
 #                and its states equal V10's; then the cut-over again
@@ -31,7 +32,8 @@
 # Environment: NINEX_HOME (the 9.x example-server's installDist), V10_HOME (:migration-rehearsal's installDist),
 # MIGRATE_HOME (:migrate-data's installDist), MANIFEST (the rehearsal host's Manifest), WORK (an empty directory);
 # ORDERS (200), DUAL_RUN_SECONDS (20), V10_SECONDS (20), CONCURRENCY (32), EXECUTIONS (ORDERS / 20), SAMPLE (every
-# n-th order compared, 1), DUAL_RUN_HOST (off: the V10 host starts at the cut-over; on: it runs through the dual-run).
+# n-th order compared, 1), DUAL_RUN_HOST (off: the V10 host starts at the cut-over; on: it runs through the dual-run),
+# FINAL_PASS (final: import --final; restart: import --restart).
 set -euo pipefail
 
 REHEARSAL="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -44,6 +46,7 @@ CONCURRENCY="${CONCURRENCY:-32}"
 EXECUTIONS="${EXECUTIONS:-$((ORDERS / 20 > 0 ? ORDERS / 20 : 1))}"
 SAMPLE="${SAMPLE:-1}"
 DUAL_RUN_HOST="${DUAL_RUN_HOST:-off}"
+FINAL_PASS="${FINAL_PASS:-final}"
 MONGO_PORT="${REHEARSAL_MONGO_PORT:-27017}"
 POSTGRES_PORT="${REHEARSAL_POSTGRES_PORT:-5432}"
 NINEX_PORT="${NINEX_PORT:-18080}"
@@ -202,7 +205,8 @@ write_config() {
   "classpath": ["$V10_HOME/lib"],
   "compensation": { "database": "compensation_db", "service": "example-service" },
   "lookbackMillis": 5000,
-  "pollIntervalMillis": 500
+  "pollIntervalMillis": 500,
+  "final": { "lookbackMillis": 60000, "maxTailAgeMillis": 600000 }
 }
 EOF
 }
@@ -240,7 +244,7 @@ fi
 # 4. cut-over: the write stop runs from 9.x stopping to V10 serving
 cutover_started="$(now_ms)"
 stop_pid ninex
-step final-import 0 migrate import --restart
+step final-import 0 migrate import "--$FINAL_PASS"
 compared compare migrate compare
 step snapshot 0 migrate snapshot
 step backfill-tags 0 migrate backfill-tags

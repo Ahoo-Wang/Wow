@@ -72,6 +72,7 @@ import java.util.concurrent.ConcurrentHashMap
  * - [partitions] gives each V10 context its partition count, which must be the services' own: a log refuses another.
  * - [pageSize], [streamBatch], [concurrency] and [lookbackMillis] are [ImportOptions]; [pollIntervalMillis] is the
  *   pause between two tail passes.
+ * - [final] is the final pass after 9.x stops (`import --final`, [FinalPassConfig]).
  */
 data class MigrationConfig(
     val map: String,
@@ -88,6 +89,7 @@ data class MigrationConfig(
     val classpath: List<String> = emptyList(),
     val compensation: CompensationConfig? = null,
     val elasticsearch: ElasticsearchConfig? = null,
+    val final: FinalPassConfig = FinalPassConfig(),
 ) {
     /** The options of an import, a dry run when [dryRun], a final complete pass when [restart]. */
     fun options(dryRun: Boolean = false, restart: Boolean = false): ImportOptions = ImportOptions(
@@ -137,6 +139,23 @@ data class MigrationConfig(
  * documents indexed there before the indices learned the tags (decision D259), and nothing else.
  */
 data class ElasticsearchConfig(val uri: String, val indexPrefix: String = "")
+
+/**
+ * The final pass of the import once 9.x has stopped writing (`import --final`, design 07 §3 step 3): one pass of the
+ * tail from its checkpoint, then the reservations and the compensation executions walked again from the first, which
+ * the tail does not follow, instead of walking every stream again as `import --restart` does.
+ *
+ * - [lookbackMillis] is how far before the tail's checkpoint the pass reads again: it covers the clocks of 9.x's nodes
+ *   and the commits in flight when 9.x stopped, which may carry an earlier `createTime` than ones already read.
+ * - [maxTailAgeMillis] is how recent the tail's last pass must be for it to count as following 9.x continuously; an
+ *   older one, or none, fails the pass: run `import --restart` then.
+ */
+data class FinalPassConfig(val lookbackMillis: Long = 300_000, val maxTailAgeMillis: Long = 600_000) {
+    init {
+        require(lookbackMillis >= 0) { "The final pass's look-back window is never negative." }
+        require(maxTailAgeMillis > 0) { "The tail's age the final pass accepts is positive." }
+    }
+}
 
 /**
  * The 9.x MongoDB event store: its connection [uri] and [database]. The tool does not write to it unless
