@@ -40,6 +40,7 @@ import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
  */
 @Saga
 class BasketCheckoutSaga {
+    // region call
     @OnEvent(calls = [SubmitOrder::class])
     suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketCheckedOut>, context: SagaContext) {
         val checkedOut = event.event
@@ -50,6 +51,7 @@ class BasketCheckoutSaga {
             ),
         )
     }
+    // endregion
 
     private companion object {
         val ORDER = EshopOrderingContract.Order.TYPE

@@ -179,7 +179,7 @@ livenessProbe:
 
 ## 迁移切换时的待机 {#standby-for-a-migrations-cut-over}
 
-在 [9.x 切换](../migrate/data)的双轨运行窗口里，`migrate-data tail` 导入 9.x 仍在写入的数据，V10 服务则提供读取。让它的节点以 `wow.standby: true` 启动：
+在 [9.x 在线切换](../migrate/data#online-cut-over-for-large-systems)的双轨运行窗口里，`migrate-data tail` 导入 9.x 仍在写入的数据，V10 服务则提供读取。让它的节点以 `wow.standby: true` 启动：
 
 - 它们为追尾导入的数据提供状态读取和查询。
 - 它们报告为就绪（`/actuator/health/readiness` 为 `UP`，其租约组与主题标为 `standby`），所以负载均衡会把这些读请求发给它们。

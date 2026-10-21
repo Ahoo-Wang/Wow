@@ -35,6 +35,14 @@ class OrderingServer {
     @Bean
     fun paymentPolicy(@Value("\${eshop.ordering.payment-grace-period:30m}") gracePeriod: Duration): PaymentPolicy =
         PaymentPolicy(gracePeriod.toKotlinDuration())
+
+    /** Where the order-summary projection keeps the buyers' order history: the service's memory here. */
+    @Bean
+    fun orderSummaries(): InMemoryOrderSummaries = InMemoryOrderSummaries()
+
+    /** How the shipment notifier tells a buyer: the service's log here. */
+    @Bean
+    fun buyerNotifications(): LoggedBuyerNotifications = LoggedBuyerNotifications()
 }
 
 fun main(args: Array<String>) {

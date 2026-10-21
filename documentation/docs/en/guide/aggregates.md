@@ -1,0 +1,228 @@
+---
+title: Write an Aggregate
+description: Write an aggregate's commands, its command functions and its state; take domain services, create aggregates, add results, reserve keys and schedule commands from a decision.
+outline: deep
+---
+
+# Write an Aggregate
+
+An aggregate is the unit that decides: it takes one command at a time, looks at its own state, and decides the events. This page writes one, with the eShop's order as the example. [Deciding and Evolving](../concepts/programming-model) explains the model behind it.
+
+## Where the code goes
+
+An aggregate spans two modules of its context:
+
+| Module | Holds | Read by |
+| --- | --- | --- |
+| `*-api` | The commands and events, plain data classes | The service, and every peer that sends its commands or reads its events |
+| `*-domain` | The root class and its state class | The service only |
+
+The compiler reads the domain module at build time and generates the aggregate's model, its binding and its part of the Manifest. Nothing is scanned at run time.
+
+## Write the commands
+
+A command is a data class of the api module. It holds what the caller asks, never who the aggregate is: the id comes from the route or from the saga that sends the command, the tenant, owner and space from the caller, and the expected version from `If-Match`.
+
+<!-- sample: example/eshop/ordering/ordering-api/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/api/order/OrderCommands.kt#submit-order -->
+
+```kotlin
+/**
+ * Submits an order of [items]. The basket context sends it when its buyer checks out, with the order's id fixed by the
+ * basket. The order belongs to the buyer: a saga's command carries the scope of the basket it is derived from, whose
+ * owner is its buyer (decision D189), and the order takes its owner from the command that creates it.
+ */
+@CreateAggregate
+@Summary("Submit an order")
+data class SubmitOrder(
+    val items: List<OrderItem>,
+)
+```
+
+`@Summary` gives the command a one-line summary for the Manifest and the OpenAPI document. A command that takes no data is a `data object`, such as `ShipOrder`.
+
+Whether a command may create its aggregate is part of its class:
+
+| The command class | Is accepted when |
+| --- | --- |
+| `@CreateAggregate` | The aggregate does not exist yet; otherwise `wow.aggregate.exists` |
+| `@AllowCreate` | Whether or not the aggregate exists |
+| Neither | The aggregate exists; otherwise `wow.aggregate.not-found` |
+
+Each command is served at `POST /<context>/<aggregate>/{id}/<command>`, the command's name in kebab case, as the Manifest lists its routes: `POST /eshop-ordering/order/{id}/submit-order`. A creating command is also served without `{id}`, and the server gives the aggregate its id. Admission first looks for the aggregate the same request id already created and reuses its id, so a creation sent twice creates one aggregate.
+
+## Write the root
+
+The root is a class annotated `@AggregateRoot`, built from its state. Its command functions decide: each takes a command and returns what it decided.
+
+<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
+
+```kotlin
+@OnCommand(produces = [OrderSubmitted::class])
+fun onCommand(command: SubmitOrder): Decision {
+    val invalid = command.items.isEmpty() || command.items.any { it.quantity <= 0 || it.unitPrice.signum() < 0 }
+    if (invalid) {
+        return Decision.reject(Rejections.INVALID_ITEMS, "The order's items are not valid: ${command.items}.")
+    }
+    return Decision.events(OrderSubmitted(command.items))
+}
+```
+
+The compiler finds every non-private function annotated `@OnCommand`, or named `onCommand`. The first parameter is the command; the return value is the decision:
+
+| Returns | Means |
+| --- | --- |
+| `Decision.events(e1, e2, …)` | These events, appended together as one event stream |
+| `Decision.NoOp` | The command is accepted and changes nothing; nothing is written |
+| `Decision.reject(code, message)` | The command is refused; nothing is written, and the caller gets the code ([Rejections and Error Codes](./rejections)) |
+| An event, or a list of events | These events |
+| `Unit`, `null` or an empty list | Nothing changes |
+
+A function that returns `Decision` does not tell the compiler which events it can produce, so it lists them in `@OnCommand(produces = [...])`. The Manifest publishes that list. A function whose return type already names its events, such as an event class or a sealed type of them, does not repeat them.
+
+The aggregate is named after the root class in snake case (`Order` is `order`, `ViewPreferences` is `view_preferences`), or by `@Name`.
+
+## Read the admitted command
+
+A command function that needs what admission learned about the request takes `Command<X>` instead of `X`:
+
+| Member | Holds |
+| --- | --- |
+| `body` | The command `X` |
+| `ref` | The aggregate: its context, name, tenant and id |
+| `scope` | The caller's owner and space |
+| `headers` | The request facts the host keeps (`wow.http.request-facts`), such as the calling application |
+| `causation`, `operator` | The chain the command belongs to, and whose name it is recorded in |
+
+The basket's id is its buyer's user id, so its first command checks the caller against it:
+
+<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
+
+```kotlin
+@OnCommand(produces = [BasketItemAdded::class])
+fun onCommand(command: Command<AddBasketItem>): Decision {
+    val owner = command.scope.ownerId
+    if (owner != null && owner != command.ref.id) {
+        return Decision.reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
+    }
+    val adding = command.body
+    if (adding.quantity <= 0 || adding.unitPrice.signum() < 0) {
+        return Decision.reject(Rejections.INVALID_ITEM, "$adding is not a valid item.")
+    }
+    return Decision.events(BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity))
+}
+```
+
+## Take domain services
+
+The parameters after the command are domain services, or the `DecideScope`. A service becomes a parameter of the generated model, and the host binds it once, when it builds the model: it takes the application's only bean of that type, or its primary one. `@Name("…")` on the parameter takes the bean of that name instead, so two parameters of one type can take two beans.
+
+The order takes its payment policy as a service, and schedules its own cancellation with the `DecideScope` once its stock is confirmed:
+
+<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#confirm-stock -->
+
+```kotlin
+/**
+ * Confirms one product. A confirmation the order does not wait for changes nothing: one read again from the
+ * stock stream, or one that arrives after another product's shortage cancelled the order (that reservation is
+ * released when the inventory hears of the cancellation).
+ */
+@OnCommand(
+    produces = [OrderStockItemConfirmed::class, OrderStockConfirmed::class],
+    schedules = [CANCEL_ORDER],
+)
+fun onCommand(command: ConfirmOrderStock, paymentPolicy: PaymentPolicy, scope: DecideScope): Decision {
+    val waiting = state.status == OrderStatus.AWAITING_VALIDATION &&
+        command.productId in state.products() &&
+        command.productId !in state.confirmedProducts
+    if (!waiting) {
+        return Decision.NoOp
+    }
+    val confirmed = OrderStockItemConfirmed(command.productId)
+    if (state.confirmedProducts + command.productId != state.products()) {
+        return Decision.events(confirmed)
+    }
+    scope.schedule(
+        PAYMENT_GRACE_PERIOD,
+        ScheduleRule.after(paymentPolicy.gracePeriod),
+        CancelOrder(PAYMENT_TIMEOUT)
+    )
+    return Decision.events(confirmed, OrderStockConfirmed)
+}
+```
+
+A service may do I/O. A function that blocks its thread, such as one that calls JDBC, is annotated `@Blocking` and runs on a virtual thread. A function may also be `suspend`, or return a Reactor `Mono`, which needs `wow-reactor` on the class path.
+
+## Ask the kernel for more
+
+The `DecideScope` is what a decision can ask of the kernel besides its events:
+
+| Member | Does |
+| --- | --- |
+| `command` | The command being decided, as `Command<*>` |
+| `ids` | The node's id generators, for an id the decision needs |
+| `putResult(key, value)` | Adds a value to what the caller is answered once the events are appended. It is not stored: a repeated request is not answered it again |
+| `reserve(namespace, key)` | Reserves a unique key, such as a user name, for this aggregate; `false` when another aggregate holds it |
+| `release(namespace, key)` | Releases a key this aggregate holds, once the events are appended |
+| `onAppendFailure { … }` | Undoes an outside act when the events are surely not appended |
+| `afterAppend { … }` | Runs once the events are appended; a failure is logged, not raised |
+| `schedule(key, rule, command, target)` | Schedules a command, to this aggregate unless `target` names another. It is written with the events, or not at all |
+| `cancelSchedule(key)` | Cancels the schedule this aggregate keeps under `key` |
+
+A checkout answers the caller with the id of the order it submits:
+
+<!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#checkout -->
+
+```kotlin
+@Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
+@OnCommand(produces = [BasketCheckedOut::class])
+fun onCommand(command: CheckoutBasket, scope: DecideScope): Decision {
+    if (state.items.isEmpty()) {
+        return Decision.reject(Rejections.EMPTY, "The basket is empty.")
+    }
+    val orderId = "${scope.command.ref.id}-${state.checkouts + 1}"
+    scope.putResult(ORDER_ID_RESULT, orderId)
+    return Decision.events(BasketCheckedOut(orderId, state.items))
+}
+```
+
+The caller reads it from the result's `results`, `{"orderId": "alice-1"}`.
+
+A function that schedules a command declares the command's full type name in `@OnCommand(schedules = [...])`, as the order does with `eshop-ordering.order.CancelOrder`: the compiler cannot read the calls in a function's body, and the Manifest lists them.
+
+## Write the state
+
+The state class holds a sourcing function for each event, annotated `@OnSourcing` or named `onSourcing`. A sourcing function applies one event: it takes no service and does no I/O.
+
+<!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderState.kt#sourcing -->
+
+```kotlin
+fun onSourcing(event: OrderSubmitted) {
+    items = event.items
+    totalAmount = event.items.fold(BigDecimal.ZERO) { total, item ->
+        total + item.unitPrice.multiply(BigDecimal(item.quantity))
+    }
+    status = OrderStatus.SUBMITTED
+}
+```
+
+- Every event the aggregate can produce needs a sourcing function, even one that changes nothing.
+- A sourcing function that changes the state in place returns nothing. One that returns the state type returns the new state instead, for an immutable state.
+- Give every property a value before the first event. The kernel serializes the state as it is, for snapshots and for the published stream.
+- A command function never changes the state, it only reads it. The test DSL compares the state before and after each decision and fails the test if it changed.
+
+## Run code after every command
+
+A function annotated `@AfterCommand`, or named `afterCommand`, runs after the command functions it applies to: those in `include`, all of them when `include` is empty, less those in `exclude`. It sees the state the command function saw, and returns events, which are appended after the command's own in the same stream. It does not run when the command is rejected, and it cannot reject. When it fails, the whole command fails and nothing is written.
+
+## Lifecycle commands
+
+Every aggregate also handles five system commands of `me.ahoo.wow.api.lifecycle`: `DeleteAggregate`, `RestoreAggregate`, `TransferOwner`, `TransferSpace` and `ApplyTags`. They change the aggregate's metadata, not its state, and a deleted aggregate refuses every command but `RestoreAggregate`. `@AggregateRoot(lifecycle = [...])` narrows the list; an empty list enables none.
+
+## Test it
+
+Test each command function with `aggregateSpec`: given these events, when this command, expect these events and this state. [Test Domain Code](./testing) shows how.
+
+## Next
+
+- [Rejections and Error Codes](./rejections): declare the codes a command is refused with.
+- [Write a Saga](./sagas): derive commands from what an aggregate decided.

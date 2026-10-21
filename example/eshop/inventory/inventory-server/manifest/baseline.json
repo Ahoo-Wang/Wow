@@ -112,7 +112,30 @@
       } ],
       "ownership" : "TENANT"
     } ],
-    "subscriptions" : [ ],
+    "subscriptions" : [ {
+      "name" : "SupplierDeliverySaga.onSchedule",
+      "kind" : "SAGA",
+      "source" : {
+        "context" : "eshop-inventory",
+        "aggregates" : [ "schedule" ],
+        "events" : [ ]
+      },
+      "function" : {
+        "kind" : "SAGA",
+        "context" : "eshop-inventory",
+        "processor" : "SupplierDeliverySaga",
+        "name" : "onSchedule"
+      },
+      "start" : "END",
+      "job" : {
+        "name" : "receive-deliveries",
+        "cron" : "0 0 6 * * *",
+        "zone" : "UTC",
+        "scope" : "SYSTEM",
+        "sharded" : false,
+        "misfire" : "COALESCE"
+      }
+    } ],
     "published" : [ {
       "aggregate" : "stock",
       "topic" : "wow.eshop-inventory.stock.state",
