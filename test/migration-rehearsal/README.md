@@ -22,7 +22,7 @@ Before that online cut-over, it runs an offline one of the same data into a data
 
 ## Running
 
-The heavy run is on GitHub Actions: push a branch `ci-repro/migration-rehearsal/<name>`. Settings come from `rehearsal/run.json` at the pushed commit, or from the workflow's inputs once it is on the default branch. See [`v10-migration-rehearsal.yml`](../../.github/workflows/v10-migration-rehearsal.yml).
+The heavy run is on GitHub Actions: push a branch `ci-repro/migration-rehearsal/<name>`. Settings come from `rehearsal/run.json` at the pushed commit, or from the workflow's inputs once it is on the default branch. See [`migration-rehearsal.yml`](../../.github/workflows/migration-rehearsal.yml).
 
 A smoke run on a workstation, small sizes only:
 

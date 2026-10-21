@@ -69,7 +69,7 @@ val codeCoverageReportProject = project(":code-coverage-report")
 // examples: never published, without an ABI dump, and left out of the coverage reports (code-coverage-report reads
 // `e2eBenchmarkProjects`). The server builds and checks with the modules (`:check`) as a user of them. The Wow 10 host
 // of the blue-green migration rehearsal (roadmap 8c.1, test/migration-rehearsal/) is such an application too: the 9.x
-// example ported, which its workflow drives against the 9.x one (v10-migration-rehearsal.yml).
+// example ported, which its workflow drives against the 9.x one (migration-rehearsal.yml).
 val e2eBenchmarkProjects = includedProjects(":benchmark-server", ":benchmark-load", ":migration-rehearsal")
 // The modules (documentation/designs/v10/06-modules.md). Every module builds on JDK 21 (decision D29); these stay
 // incubating until their API settles; :architecture (Wow's dependency rules), :routing-spike (spike H2), :lease-spike
