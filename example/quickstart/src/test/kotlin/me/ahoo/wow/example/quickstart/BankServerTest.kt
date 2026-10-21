@@ -73,7 +73,7 @@ class BankServerTest {
     }
 
     @Test
-    fun `the teller should deposit in process through the CommandGateway`() {
+    fun `the teller should deposit in process through the CommandClient`() {
         post("/bank/account/bob/open-account", """{"owner":"Bob"}""").status(OK)
         val teller = context.getBean(Teller::class.java)
         val result = runBlocking { teller.deposit("bob", 40) }
