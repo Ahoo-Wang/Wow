@@ -1,7 +1,7 @@
 import {DefaultTheme} from "vitepress/types/default-theme";
 
 export const navbarEn: DefaultTheme.NavItem[] = [
-    {text: 'Quick Start', link: '/guide/v10/quickstart'},
+    {text: 'Quick Start', link: '/start/quickstart', activeMatch: '/start/'},
     {
         text: 'Guide',
         activeMatch: '/guide/v10/',

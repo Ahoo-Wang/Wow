@@ -205,6 +205,16 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             ],
         },
     ],
+    '/start/': [
+        {
+            base: '/start/',
+            text: 'Start',
+            items: [
+                {text: 'Quickstart', link: 'quickstart'},
+                {text: 'Add Wow to an Existing Service', link: 'existing-project'},
+            ],
+        },
+    ],
     '/concepts/': [
         {
             base: '/concepts/',
