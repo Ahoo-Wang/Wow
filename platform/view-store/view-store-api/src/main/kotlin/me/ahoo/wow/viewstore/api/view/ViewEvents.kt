@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.Summary
 import me.ahoo.wow.viewstore.api.ViewAudience
 import me.ahoo.wow.viewstore.api.ViewKind
 
+// region view-created
 /** Revision 2 records the [kind]; a 9.x record (revision 1) has none, and is read with its config's `kind`. */
 @Summary("A view was saved")
 @Revision(2)
@@ -29,6 +30,7 @@ data class ViewCreated(
     val appId: String,
     val config: Map<String, Any?>,
 )
+// endregion
 
 /** Revision 2 records the [kind]; a 9.x record (revision 1) has none, and is read with its config's `kind`. */
 @Summary("A view's config was overwritten")

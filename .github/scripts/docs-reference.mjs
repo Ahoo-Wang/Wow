@@ -519,7 +519,7 @@ export function modulesPage(locale, modules) {
     words.head,
     '| --- | --- | --- |',
     row('wow-bom', 'bom/bom', words.bomRow),
-    row('wow-dependencies', 'wow-dependencies', words.dependenciesRow),
+    row('wow-dependencies', 'bom/dependencies', words.dependenciesRow),
     ...modules.map(({ artifact, dir, description }) =>
       row(artifact, dir, plain(holds(description))),
     ),

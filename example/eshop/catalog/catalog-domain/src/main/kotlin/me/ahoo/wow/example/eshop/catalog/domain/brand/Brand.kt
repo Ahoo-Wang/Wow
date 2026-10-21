@@ -54,6 +54,7 @@ class Brand(private val state: BrandState) {
     suspend fun onCommand(command: CreateBrand, scope: DecideScope): Decision =
         take(command.name, scope) ?: Decision.events(BrandCreated(command.name.trim()))
 
+    // region rename
     @OnCommand(produces = [BrandRenamed::class])
     suspend fun onCommand(command: RenameBrand, scope: DecideScope): Decision {
         if (command.name.trim() == state.name) return Decision.NoOp
@@ -64,7 +65,9 @@ class Brand(private val state: BrandState) {
         }
         return Decision.events(BrandRenamed(command.name.trim()))
     }
+    // endregion
 
+    // region take
     /** Rejects a blank name or one another brand holds; null when this brand may take [name]. */
     private suspend fun take(name: String, scope: DecideScope): Decision? = when {
         name.isBlank() -> Decision.reject(Rejections.BLANK_NAME, "A brand needs a name.")
@@ -73,6 +76,7 @@ class Brand(private val state: BrandState) {
 
         else -> null
     }
+    // endregion
 
     /**
      * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them

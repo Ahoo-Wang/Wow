@@ -14,7 +14,7 @@ description: "Wow 每次发布到 Maven Central 的每个制品，以及它包�
 | 制品 | 目录 | 内容 |
 | --- | --- | --- |
 | `me.ahoo.wow:wow-bom` | [`bom/bom`](https://github.com/Ahoo-Wang/Wow/tree/main/bom/bom) | BOM：下列每个制品的版本，构建以 platform 导入。 |
-| `me.ahoo.wow:wow-dependencies` | [`wow-dependencies`](https://github.com/Ahoo-Wang/Wow/tree/main/wow-dependencies) | 第三方依赖的版本，每个发布的 POM 都导入它。 |
+| `me.ahoo.wow:wow-dependencies` | [`bom/dependencies`](https://github.com/Ahoo-Wang/Wow/tree/main/bom/dependencies) | 第三方依赖的版本，每个发布的 POM 都导入它。 |
 | `me.ahoo.wow:wow-api` | [`api/api`](https://github.com/Ahoo-Wang/Wow/tree/main/api/api) | What domain code imports (the annotations, Decision, DecideScope, StateEvent, Scope), the value types of the wire contract (Command, CommandResult, WaitPlan) and the typed QueryApi |
 | `me.ahoo.wow:wow-manifest` | [`api/manifest`](https://github.com/Ahoo-Wang/Wow/tree/main/api/manifest) | The contract every projection reads (REST, OpenAPI, clients, views, Skills); plain data |
 | `me.ahoo.wow:wow-query-api` | [`api/query-api`](https://github.com/Ahoo-Wang/Wow/tree/main/api/query-api) | The query protocol (filters, sort, pagination, projection, aggregation) and the query field annotations, as plain data; no dependencies |
@@ -42,7 +42,7 @@ description: "Wow 每次发布到 Maven Central 的每个制品，以及它包�
 | `me.ahoo.wow:wow-tck-containers` | [`test/tck-containers`](https://github.com/Ahoo-Wang/Wow/tree/main/test/tck-containers) | The Testcontainers the backends' integration tests run the TCK specs against |
 | `me.ahoo.wow:wow-ops-api` | [`platform/ops/ops-api`](https://github.com/Ahoo-Wang/Wow/tree/main/platform/ops/ops-api) | The commands, events and value types of the ops context |
 | `me.ahoo.wow:wow-view-store-api` | [`platform/view-store/view-store-api`](https://github.com/Ahoo-Wang/Wow/tree/main/platform/view-store/view-store-api) | The commands, events and value types of the view store context |
-| `me.ahoo.wow:wow-compiler` | [`compiler/compiler`](https://github.com/Ahoo-Wang/Wow/tree/main/compiler/compiler) | Aggregate models and Manifest fragments from the V10 annotations |
+| `me.ahoo.wow:wow-compiler` | [`compiler/compiler`](https://github.com/Ahoo-Wang/Wow/tree/main/compiler/compiler) | Aggregate models and Manifest fragments from the annotations |
 | `me.ahoo.wow:wow-gradle-plugin` | [`compiler/gradle-plugin`](https://github.com/Ahoo-Wang/Wow/tree/main/compiler/gradle-plugin) | Applies KSP and wow-compiler, and assembles the Manifest with Jackson-introspected schemas |
 | `me.ahoo.wow:wow-migrate-data` | [`migration/migrate-data`](https://github.com/Ahoo-Wang/Wow/tree/main/migration/migrate-data) | Imports 9.x event streams into the V10 log and verifies them |
 | `me.ahoo.wow:wow-manifest-tools` | [`compiler/manifest-tools`](https://github.com/Ahoo-Wang/Wow/tree/main/compiler/manifest-tools) | Completes Manifest fragments with Jackson-introspected schemas and merges them; run by wow-gradle-plugin in isolated workers, never at runtime |
