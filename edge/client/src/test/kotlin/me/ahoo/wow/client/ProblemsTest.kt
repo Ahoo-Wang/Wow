@@ -30,7 +30,7 @@ class ProblemsTest {
         Problems.hintOf(FrameworkErrors.COMMAND_UNKNOWN, 503, 1.seconds).assert()
             .isEqualTo(RetryHint(true, true, 1.seconds))
         Problems.hintOf(FrameworkErrors.QUERY_BUSY, 429, null).assert().isEqualTo(RetryHint(true, false))
-        Problems.hintOf(FrameworkErrors.QUERY_TIMEOUT, 503, null).retryable.assert().isFalse()
+        Problems.hintOf(FrameworkErrors.QUERY_TIMEOUT, 504, null).retryable.assert().isFalse()
         Problems.hintOf(FrameworkErrors.AUTH_FORBIDDEN, 403, null).retryable.assert().isFalse()
         Problems.hintOf(null, 503, null).assert().isEqualTo(RetryHint(true, true))
         Problems.hintOf(null, 429, null).retryable.assert().isTrue()
