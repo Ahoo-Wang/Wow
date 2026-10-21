@@ -1,6 +1,6 @@
 # From commands to actions
 
-A command on a record is declared, not drawn. The host says **what**: which commands, when each is available, what a refusal says, whether to ask first and what to ask for. The engine does **where and how**: the row's button and menu, the selection bar, the record detail, the question and the form, a selection partly able to take it, a few at a time with progress and stop, the outcome, the refresh. In depth: [Declared Actions](https://wow.ahoo.me/guide/typescript/view-engine-actions.html) (declaring, `rowFields`, placement, confirmation and forms, bulk, outcomes, slots, `actionHarness`).
+A command on a record is declared, not drawn. The host says **what**: which commands, when each is available, what a refusal says, whether to ask first and what to ask for. The engine does **where and how**: the row's button and menu, the selection bar, the record detail, the question and the form, a selection partly able to take it, a few at a time with progress and stop, the outcome, the refresh. In depth: [Actions](https://wow.ahoo.me/typescript/view-engine/actions) (declaring, `rowFields`, placement, confirmation and forms, bulk, outcomes, slots, `actionHarness`).
 
 ## Decide, command by command
 
@@ -10,7 +10,7 @@ A command on a record is declared, not drawn. The host says **what**: which comm
 | Which one is pressed most? | The next step of the queue (ship a paid order, retry a failure). At most one per resource. | `primary: true` |
 | When is it available? | The aggregate's own rule, read from the record's state: the same condition the command handler checks. Do not invent a stricter one; the server keeps the last word. | `available: (row, { now, input }) => true \| reason` |
 | What does a refusal say? | Why not, in the audience's words, and what to do instead where there is something (「只有已付款的订单能发货」). Never a code or a constant. | a `text(key)` reason |
-| Does it read fields the view may not show? | The rule reads state fields; a row carries only the shown columns, the row key, card fields and the fields sorts and summaries read. A development build (`NODE_ENV=development`) warns `record.action.unfetched` through `onIssue` when a rule reads a field the row did not fetch (9.2.2): open each view with actions once while developing. There the rules see each row through a read-watching proxy (`structuredClone` of it throws); production passes rows as they are. | the definition's `record.rowFields` (ask `wow-view-definition`) |
+| Does it read fields the view may not show? | The rule reads state fields; a row carries only the shown columns, the row key, card fields and the fields sorts and summaries read. A development build (`NODE_ENV=development`) warns `record.action.unfetched` through `onIssue` when a rule reads a field the row did not fetch: open each view with actions once while developing. There the rules see each row through a read-watching proxy (`structuredClone` of it throws); production passes rows as they are. | the definition's `record.rowFields` (ask `wow-view-definition`) |
 | Does availability change with time alone? | A hold that expires, a timeout passing. | `changesAt: (row, { now }) => ms \| null`; the engine asks again then, keep no timer |
 | May this person do it at all? | A role the host knows. | `hidden: row => …` (absent), as against `available` (disabled with why) |
 | Does it lose something? | Cancelling, refunding, deleting, forcing past a limit: what is lost does not come back. | `tone: 'danger'` and `confirm: { title, body }` saying the consequence; `ask` left out (`'always'`), so one record is asked too |
@@ -19,8 +19,8 @@ A command on a record is declared, not drawn. The host says **what**: which comm
 | May a selection take it? | Only if running it on many at once is something people do and recoverable. | `on: ['row', 'detail']` to keep it off the selection bar |
 | What else does it need? | A value the command carries: a reason, a new value. One field of options becomes a choice in the menu (with a `confirm` asked once after the pick, unless `ask: 'bulk'`); anything else a form in the question. | `form: { name: { label, options \| input, required, initial } }`; `run(row, input)` |
 | Which record does it go to? | The aggregate id, whatever the row key is. With a business `rowKey` (an order number), read the id off the row; the definition lists it in `record.rowFields`. | `run: row => commands.ship(idOf(row))` |
-| When is it done? | Only once the read model shows it, so the refresh after shows the new state. | `run` sends with `waitStrategy({ stage: CommandStage.SNAPSHOT })` (the `Command-Wait-Stage` header; or the stage the projection needs) and throws on refusal |
-| What if no answer comes back? | A timeout, an abort or a dropped connection after sending leaves the outcome unknown: the engine says 「结果未知，先刷新核对」 and lets go of those rows, and the reader may press again after checking. So the command must be idempotent. | `run` sends the aggregate version the row showed — `commandHeaders({ aggregateVersion })` (`Command-Aggregate-Version`, the definition lists `version` in `record.rowFields`) — so a second send after the first took is refused as a conflict rather than applied twice, and a `requestId` (`Command-Request-Id`) the service deduplicates a retry of one send by; `timeout: ms` where a hung request should stop holding the surface |
+| When is it done? | Only once the read model shows it, so the refresh after shows the new state. | `run` sends with the wait plan `[wait.snapshot()]` (the `Wow-Wait` header; or the projection's stage the view reads) and throws on refusal |
+| What if no answer comes back? | A timeout, an abort or a dropped connection after sending leaves the outcome unknown: the engine says 「结果未知，先刷新核对」 and lets go of those rows, and the reader may press again after checking. So the command must be idempotent. | `run` sends the aggregate version the row showed — `expectedVersion` (`If-Match`; the definition lists `version` in `record.rowFields`) — so a second send after the first took is refused as a conflict rather than applied twice; the gateway gives each send a request id (`Wow-Request-Id`), by which the service answers a retry of that send with the first outcome; `timeout: ms` where a hung request should stop holding the surface |
 
 `run` takes one record; the engine runs a selection a few at a time. What `run` throws is the host's monitoring's too: the environment's `onError` hears it as `kind: 'action'`, with the action's id and the record. There is no batch `runMany` until the service has a batch command. Slots (`slots: { row, bulk, global }`) are for what a declaration cannot say — a link out, a control of the host's own — and a slot that sends a command calls the context's `run` so it reports on the same line.
 
@@ -49,7 +49,7 @@ export function orderCommands(fetcher: Fetcher): OrderCommands {
   const send = async (command: string, id: string, body: object = {}) => {
     // The id fills `{id}`, encoded by the gateway, never pasted into the path. A refused
     // command rejects; the engine reports the service's reason and leaves the order selected.
-    await commands.send(`/example/order/{id}/${command}`, body, { id, wait: { plan } });
+    await commands.send(`/sales/order/{id}/${command}`, body, { id, wait: { plan } });
   };
   return {
     ship: id => send('ship-order', id),
@@ -294,7 +294,7 @@ it.each(['zh-CN', 'en'] as const)('every action key has words in %s', locale => 
 
 ### The command client
 
-Test the commands themselves against a stubbed `fetch` (`vi.stubGlobal('fetch', …)` returning `Response.json({})`): the path with the id encoded in it (`a/1` → `a%2F1`), the body, and the `Command-Wait-Stage: SNAPSHOT` header.
+Test the commands themselves against a stubbed `fetch` (`vi.stubGlobal('fetch', …)` returning `Response.json({})`): the path with the id encoded in it (`a/1` → `a%2F1`), the body, and the `Wow-Wait` header the plan writes.
 
 ### Where the tests run
 
