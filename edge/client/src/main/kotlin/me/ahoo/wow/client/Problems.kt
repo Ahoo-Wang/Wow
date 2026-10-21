@@ -32,7 +32,8 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * A problem a peer answered with (RFC 9457, decisions D101, D102): its HTTP [status], its Wow [code] (none for one
  * that is only HTTP's, or a body that is no problem, such as a proxy's), its [detail], the command's [result] when it
- * had a ref, and the `Retry-After` it carried.
+ * had a ref, the `Retry-After` it carried, and the aggregate's current [version] a state read of a minimum version was
+ * answered with (`wow.query.min-version-not-reached`, review R4-Q, Q-13).
  */
 internal class PeerProblem(
     val status: Int,
@@ -40,6 +41,7 @@ internal class PeerProblem(
     val detail: String?,
     val result: CommandResult?,
     val retryAfter: Duration?,
+    val version: Int? = null,
 ) {
     /** What a client may do about it: the hint of [code] and [status] ([Problems.hintOf]). */
     val hint: RetryHint get() = Problems.hintOf(code, status, retryAfter)
@@ -77,18 +79,21 @@ internal object Problems {
     /**
      * The codes a retry may get past, each with whether it keeps the request id: a command whose outcome is unknown, a
      * closing or busy node, a store that is down, a schedule not due yet, a contended aggregate, a wait that timed out
-     * (whose command may have committed); a query over its store's bulkhead. `wow.query.timeout` is not one (decision
+     * (whose command may have committed); a query over its store's bulkhead, a state read of a version not reached
+     * yet. `wow.query.timeout` is not one (decision
      * D254 ③): the same query would run as long again.
      */
     private val RETRYABLE: Map<String, Boolean> = mapOf(
         FrameworkErrors.COMMAND_UNKNOWN to true,
         FrameworkErrors.NODE_CLOSING to true,
+        FrameworkErrors.NODE_STANDBY to true,
         FrameworkErrors.STORAGE_UNAVAILABLE to true,
         FrameworkErrors.SCHEDULE_NOT_DUE to true,
         FrameworkErrors.COMMAND_BUSY to true,
         FrameworkErrors.COMMAND_CONTENDED to true,
         FrameworkErrors.WAIT_TIMEOUT to true,
         FrameworkErrors.QUERY_BUSY to false,
+        FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED to false,
     )
 
     /**
@@ -116,6 +121,7 @@ internal object Problems {
             detail = node?.text("detail") ?: body.decodeToString().take(MAX_DETAIL).takeIf { it.isNotBlank() },
             result = result,
             retryAfter = headers.firstValue("Retry-After").orElse(null)?.let(::retryAfterOf),
+            version = node?.get("version")?.takeIf { it.isInt }?.asInt(),
         )
     }
 

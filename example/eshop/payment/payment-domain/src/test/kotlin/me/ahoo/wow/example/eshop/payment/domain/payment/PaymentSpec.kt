@@ -115,6 +115,7 @@ class PaymentSpec {
         }
     }
 
+    // region fork
     @Test
     fun `a requested payment should end confirmed and refunded, or failed`() = paymentSpec {
         whenCommand(RequestPayment(ORDER, AMOUNT)) { expectEventTypes(PaymentRequested::class) }
@@ -139,7 +140,9 @@ class PaymentSpec {
             whenCommand(FailPayment(DECLINED)) { expectEvents(PaymentFailed(DECLINED)) }
         }
     }
+    // endregion
 
+    // region tree
     /**
      * The same lifecycle as a tree of tests: each command is a test and each fork a container, forked from the checks
      * of the request, so a failing branch is reported on its own and the others still run.
@@ -165,7 +168,9 @@ class PaymentSpec {
         }
         whenCommand(RefundPayment(REFUSED)) { expectRejected(Payment.Rejections.WRONG_STATUS) }
     }
+    // endregion
 
+    // region given-state
     @Test
     fun `a payment given as succeeded should be refunded`() = paymentSpec {
         givenState(version = 2) {
@@ -177,6 +182,7 @@ class PaymentSpec {
             expectState { transactionId.assert().isEqualTo(TRANSACTION) }
         }
     }
+    // endregion
 
     private companion object {
         const val ORDER = "alice-1"

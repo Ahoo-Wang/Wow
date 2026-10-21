@@ -13,10 +13,12 @@
 
 package me.ahoo.wow.runtime.state
 
+import kotlinx.coroutines.delay
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.read.MinVersionNotReachedException
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.Kernel
@@ -27,6 +29,10 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import tools.jackson.databind.JsonNode
 import java.time.Instant
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 /**
  * The state point reads of the node's aggregates (decisions D40, D112, D231): the public port's
@@ -43,6 +49,16 @@ interface StateReads {
      * that replays the log runs under the node's [ReplayGate] (its log store's query bulkhead, review R3.4-2).
      */
     suspend fun latest(ref: AggregateRef): StateReadView?
+
+    /**
+     * The latest state of [ref] at version [minVersion] or later (review R4-Q, Q-13: read your writes): its snapshot
+     * when it has reached [minVersion], else its log replayed from the snapshot to its head, as [at] a version is; and
+     * while the log too is below [minVersion] (the command has not committed yet), read again until a bounded wait
+     * runs out.
+     *
+     * @throws MinVersionNotReachedException when the aggregate stays below [minVersion] through the wait.
+     */
+    suspend fun latest(ref: AggregateRef, minVersion: Int): StateReadView?
 
     /**
      * The latest committed state of [ref], as [latest] reads it (review R2.3-6) but outside any [ReplayGate]: the
@@ -76,6 +92,9 @@ interface StateReads {
         @JvmField
         val NONE: StateReads = object : StateReads {
             override suspend fun latest(ref: AggregateRef): StateReadView? = null
+
+            override suspend fun latest(ref: AggregateRef, minVersion: Int): StateReadView? =
+                throw MinVersionNotReachedException(ref, minVersion, 0)
 
             override suspend fun committed(ref: AggregateRef): StateReadView? = null
 
@@ -166,7 +185,9 @@ data class EventView(val name: String, val revision: Int, val body: JsonNode)
  * [StateReplayLimitException].
  *
  * A snapshot behind the log's head is the latest state as it is: the snapshot is the read model, which the default
- * wait (`SNAPSHOT`, decision D69) has caught up before a command's answer. An aggregate whose model [registry] does
+ * wait (`SNAPSHOT`, decision D69) has caught up before a command's answer. A read that asks for a minimum version
+ * ([latest] of a version, review R4-Q, Q-13) catches a lagging snapshot up with the log instead, under [gate] and
+ * [maxReplay] too, and waits at most [minVersionWait] for a version not committed yet. An aggregate whose model [registry] does
  * not know, or whose context has no [ContextReads], is not found, and so is one with no commit. States are trees of
  * Wow's JSON (decision D122), so a decimal keeps its digits and its scale.
  */
@@ -176,9 +197,11 @@ class KernelStateReads(
     contexts: Map<String, ContextReads>,
     private val gate: ReplayGate = ReplayGate.OPEN,
     private val maxReplay: Int = DEFAULT_MAX_REPLAY,
+    private val minVersionWait: Duration = DEFAULT_MIN_VERSION_WAIT,
 ) : StateReads {
     init {
         require(maxReplay >= 1) { "A state read replays at least one stream." }
+        require(!minVersionWait.isNegative()) { "A state read waits no negative time for its minimum version." }
     }
 
     private val contexts: Map<String, ContextReads> = contexts.toMap()
@@ -190,6 +213,26 @@ class KernelStateReads(
     override suspend fun latest(ref: AggregateRef): StateReadView? = latest(ref, gate, maxReplay)
 
     override suspend fun committed(ref: AggregateRef): StateReadView? = latest(ref, ReplayGate.OPEN, Int.MAX_VALUE)
+
+    override suspend fun latest(ref: AggregateRef, minVersion: Int): StateReadView? {
+        require(minVersion >= 1) { "A committed state has a version from 1." }
+        val reads = contexts[ref.type.context] ?: return null
+        val model = registry.find(ref.type)?.erased() ?: return null
+        val deadline = TimeSource.Monotonic.markNow() + minVersionWait
+        var snapshot = reads.snapshots.load(ref)
+        while (true) {
+            snapshot?.takeIf { it.version >= minVersion }?.let { return it.view() }
+            val caughtUp = gate.replay(ref) {
+                bounded { reads.kernel.stateAt(model, ref, Instant.MAX, snapshot, maxReplay) }
+            }
+            if (caughtUp != null && caughtUp.version >= minVersion) return caughtUp.view(ref)
+            if (deadline.hasPassedNow()) {
+                throw MinVersionNotReachedException(ref, minVersion, caughtUp?.version ?: 0)
+            }
+            delay(MIN_VERSION_POLL.coerceAtMost(-deadline.elapsedNow()))
+            snapshot = reads.snapshots.load(ref)
+        }
+    }
 
     /** The snapshot of [ref], else its log replayed under [gate], at most [maxReplay] streams of it. */
     private suspend fun latest(ref: AggregateRef, gate: ReplayGate, maxReplay: Int): StateReadView? {
@@ -265,6 +308,15 @@ class KernelStateReads(
          * this, counted from the snapshot when it fits, else from version 1, is refused rather than replayed.
          */
         const val DEFAULT_MAX_REPLAY: Int = 10_000
+
+        /**
+         * How long a state read waits by default for an aggregate to reach the minimum version it asks for (review
+         * R4-Q, Q-13): a command answered at `ACCEPTED` commits within it.
+         */
+        val DEFAULT_MIN_VERSION_WAIT: Duration = 2.seconds
+
+        /** How often a state read waiting for its minimum version reads again. */
+        private val MIN_VERSION_POLL: Duration = 50.milliseconds
 
         @Suppress("UNCHECKED_CAST") // The kernel takes the model and its state together; nothing here names the type.
         private fun AggregateModel<*>.erased(): AggregateModel<Any> = this as AggregateModel<Any>

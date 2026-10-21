@@ -120,12 +120,17 @@ class ProblemTest {
     }
 
     @Test
-    fun `every framework code answered with 503 or 429 carries Retry-After, and no other`() {
+    fun `every framework code answered with 503 or 429 carries Retry-After, the min-version 409 too, and no other`() {
         val statuses = ErrorStatuses(Manifest())
         FrameworkErrors.ALL.forEach { error ->
-            val expected = ErrorStatuses.STORAGE_RETRY_AFTER_SECONDS.takeIf { error.status == 503 || error.status == 429 }
+            val expected = ErrorStatuses.STORAGE_RETRY_AFTER_SECONDS.takeIf {
+                error.status == 503 || error.status == 429 || error.code == FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED
+            }
             statuses.problemOf(error.code, "Later.").retryAfter.assert().describedAs(error.code).isEqualTo(expected)
         }
-        ErrorStatuses.RETRYABLE.assert().contains(FrameworkErrors.QUERY_TIMEOUT, FrameworkErrors.SCHEDULE_NOT_DUE)
+        ErrorStatuses.RETRYABLE.assert().contains(FrameworkErrors.SCHEDULE_NOT_DUE)
+        // A query that ran out of time is 504 without Retry-After: the same query would run as long (D254 ③).
+        ErrorStatuses.RETRYABLE.assert().doesNotContain(FrameworkErrors.QUERY_TIMEOUT)
+        statuses.problemOf(FrameworkErrors.QUERY_TIMEOUT, "Too long.").status.assert().isEqualTo(504)
     }
 }

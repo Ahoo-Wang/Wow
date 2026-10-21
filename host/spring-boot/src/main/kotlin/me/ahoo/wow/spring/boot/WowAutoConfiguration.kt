@@ -41,6 +41,7 @@ import me.ahoo.wow.http.internal.internalRoutes
 import me.ahoo.wow.http.ops.WebhookNotifier
 import me.ahoo.wow.http.ops.parkedRoutes
 import me.ahoo.wow.http.peerReadRoutes
+import me.ahoo.wow.http.problem.GlobalErrors
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.wowRoutes
 import me.ahoo.wow.kernel.AggregateModel
@@ -405,6 +406,8 @@ class WowAutoConfiguration {
         globalIds: GlobalIdGenerator,
     ): PeerClients {
         val clients = properties.clients
+        val described = clients.contexts
+            .filterValues { it.contract == WowProperties.Clients.Contract.MANIFEST }.keys
         fun client(mode: ClientMode) = lazy {
             val builder = WowClient.builder()
                 .endpoints(endpoints)
@@ -419,6 +422,7 @@ class WowAutoConfiguration {
                 )
                 .contracts(contracts)
                 .ids(globalIds)
+                .manifestPeers(described)
             when (mode) {
                 is ClientMode.Service -> builder.service(mode.credential)
                 is ClientMode.User -> builder.user(mode.credential)
@@ -431,6 +435,7 @@ class WowAutoConfiguration {
             client(ClientMode.Service(credential)),
             client(ClientMode.User(UserCredential.FORWARDED)),
             clients.mode,
+            described,
         )
     }
 
@@ -593,6 +598,7 @@ class WowAutoConfiguration {
                 node.waits,
                 tokens = clusterTokens(properties, environment, identity.bindHost),
                 services = services,
+                standby = NodeStandby(node),
             )
                 // The services' peer reads (decision D259), before the call routes: their catch-all routes of an
                 // unknown command would take a query's POST.
@@ -632,7 +638,8 @@ class WowAutoConfiguration {
         node: ServiceNode,
         events: ApplicationEventPublisher,
         availability: ObjectProvider<ApplicationAvailability>,
-    ): ServiceNodeLifecycle = ServiceNodeLifecycle(node, events) { availability.ifAvailable }
+        properties: WowProperties,
+    ): ServiceNodeLifecycle = ServiceNodeLifecycle(node, events, properties.standby) { availability.ifAvailable }
 
     /**
      * The node's command gateway (decision D92), through which the application sends commands in process. The node
@@ -670,7 +677,16 @@ class WowAutoConfiguration {
         // The query plane's gate runs a state read's replay under its log store's bulkhead (decision D246 ⑥, review
         // R4-Q Q-1), and `wow.query.state.max-replay` bounds it.
         val maxReplay = queries.ifAvailable?.state?.maxReplay ?: KernelStateReads.DEFAULT_MAX_REPLAY
-        return KernelStateReads(node.registry, contexts, gate.getIfAvailable { ReplayGate.OPEN }, maxReplay)
+        // How long a read of a minimum version waits for it (review R4-Q, Q-13): `wow.query.state.min-version-wait`.
+        val minVersionWait = queries.ifAvailable?.state?.minVersionWait?.toKotlinDuration()
+            ?: KernelStateReads.DEFAULT_MIN_VERSION_WAIT
+        return KernelStateReads(
+            node.registry,
+            contexts,
+            gate.getIfAvailable { ReplayGate.OPEN },
+            maxReplay,
+            minVersionWait,
+        )
     }
 
     @Bean
@@ -695,7 +711,22 @@ class WowAutoConfiguration {
         errorStatuses = properties.http.errors.mapValues { it.value.status },
         manifestEndpoint = properties.http.manifest.enabled,
         openApiEndpoint = properties.http.openapi.enabled,
+        clientFacts = properties.http.clientFacts,
     )
+
+    /**
+     * The error handling of the application's own routes (review M-3, decision D259): their failures answered as the
+     * framework routes' problem+json, unless `wow.http.global-errors` is off.
+     */
+    @Bean
+    @ConditionalOnProperty(
+        prefix = "${WowProperties.PREFIX}.http",
+        name = ["global-errors"],
+        havingValue = "true",
+        matchIfMissing = true,
+    )
+    @InternalWowApi
+    fun wowGlobalErrors(manifest: Manifest, options: WowHttpOptions): GlobalErrors = GlobalErrors(manifest, options)
 
     /** Lets the public server's graceful shutdown end before the server stops (review X-4, [GracefulShutdownSettled]). */
     @Bean

@@ -248,6 +248,9 @@
           },
           "503" : {
             "$ref" : "#/components/responses/wow.dataset-query.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.dataset-query.504"
           }
         }
       },
@@ -1391,7 +1394,7 @@
       "get" : {
         "tags" : [ "eshop-payment.payment" ],
         "summary" : "The aggregate's state",
-        "description" : "The latest state, the state at `version`, or the state as of `at`.",
+        "description" : "The latest state, the state at `version`, the state as of `at`, or the latest state at `minVersion` or later (409 `wow.query.min-version-not-reached` with the current `version` when it is not committed within the wait).",
         "operationId" : "eshop-payment.payment.state",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -1399,6 +1402,8 @@
           "$ref" : "#/components/parameters/version"
         }, {
           "$ref" : "#/components/parameters/at"
+        }, {
+          "$ref" : "#/components/parameters/minVersion"
         }, {
           "$ref" : "#/components/parameters/Wow-Scope"
         }, {
@@ -1442,6 +1447,9 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.state.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.state.409"
           },
           "429" : {
             "$ref" : "#/components/responses/wow.state.429"
@@ -1659,6 +1667,9 @@
           },
           "503" : {
             "$ref" : "#/components/responses/wow.query.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.query.504"
           }
         }
       },
@@ -1821,6 +1832,9 @@
           },
           "503" : {
             "$ref" : "#/components/responses/wow.query.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.query.504"
           }
         }
       },
@@ -2039,9 +2053,6 @@
           },
           "id" : {
             "type" : "string"
-          },
-          "isAssigned" : {
-            "type" : "boolean"
           }
         },
         "required" : [ "type", "tenantId", "id" ]
@@ -2948,7 +2959,7 @@
         "x-wow-error-codes" : [ "wow.auth.forbidden" ]
       },
       "wow.dataset-query.404" : {
-        "description" : "`wow.aggregate.not-found`: The aggregate does not exist.\nNot Found: no such dataset is served, or the caller does not see it.",
+        "description" : "`wow.query.not-found`: A single query matched no record: a query result, not a statement that an aggregate does not exist.\n`wow.query.dataset-not-found`: No dataset of that name is served to the caller.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -2956,7 +2967,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.aggregate.not-found" ]
+        "x-wow-error-codes" : [ "wow.query.not-found", "wow.query.dataset-not-found" ]
       },
       "wow.dataset-query.406" : {
         "description" : "Not Acceptable: the route answers in none of the types Accept names.",
@@ -3001,7 +3012,7 @@
         "x-wow-error-codes" : [ "wow.query.failed" ]
       },
       "wow.dataset-query.503" : {
-        "description" : "`wow.query.timeout`: The query ran longer than its budget allows; narrow it, or retry later.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.",
+        "description" : "`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.",
         "headers" : {
           "Retry-After" : {
             "$ref" : "#/components/headers/Retry-After"
@@ -3014,7 +3025,18 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.timeout", "wow.storage.unavailable" ]
+        "x-wow-error-codes" : [ "wow.storage.unavailable" ]
+      },
+      "wow.dataset-query.504" : {
+        "description" : "`wow.query.timeout`: The query ran longer than its budget allows; narrow it rather than run it again (decision D254 ③).",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.timeout" ]
       },
       "wow.dataset-descriptor.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -3028,14 +3050,15 @@
         "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
       },
       "wow.dataset-descriptor.404" : {
-        "description" : "Not Found: no such dataset is served, or the caller does not see it.",
+        "description" : "`wow.query.dataset-not-found`: No dataset of that name is served to the caller.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
               "$ref" : "#/components/schemas/wow.Problem"
             }
           }
-        }
+        },
+        "x-wow-error-codes" : [ "wow.query.dataset-not-found" ]
       },
       "wow.dataset-descriptor.406" : {
         "description" : "Not Acceptable: the route answers in none of the types Accept names.",
@@ -3237,7 +3260,7 @@
         "x-wow-error-codes" : [ "wow.command.failed", "wow.subscription.parked" ]
       },
       "eshop-payment.command.503" : {
-        "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
+        "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.node.standby`: The node is on standby until the cut-over: it serves reads only.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
         "headers" : {
           "Retry-After" : {
             "$ref" : "#/components/headers/Retry-After"
@@ -3250,7 +3273,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.command.unknown", "wow.node.closing", "wow.storage.unavailable", "wow.schedule.not-due" ]
+        "x-wow-error-codes" : [ "wow.command.unknown", "wow.node.closing", "wow.node.standby", "wow.storage.unavailable", "wow.schedule.not-due" ]
       },
       "eshop-payment.command.504" : {
         "description" : "`wow.wait.timeout`: The wait ran out of time; the command may have committed. The problem carries the last stage reached.",
@@ -3383,7 +3406,7 @@
         "x-wow-error-codes" : [ "wow.command.failed", "wow.subscription.parked" ]
       },
       "wow.command.503" : {
-        "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
+        "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.node.standby`: The node is on standby until the cut-over: it serves reads only.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
         "headers" : {
           "Retry-After" : {
             "$ref" : "#/components/headers/Retry-After"
@@ -3396,7 +3419,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.command.unknown", "wow.node.closing", "wow.storage.unavailable", "wow.schedule.not-due" ]
+        "x-wow-error-codes" : [ "wow.command.unknown", "wow.node.closing", "wow.node.standby", "wow.storage.unavailable", "wow.schedule.not-due" ]
       },
       "wow.command.504" : {
         "description" : "`wow.wait.timeout`: The wait ran out of time; the command may have committed. The problem carries the last stage reached.",
@@ -3463,6 +3486,17 @@
           }
         }
       },
+      "wow.state.409" : {
+        "description" : "`wow.query.min-version-not-reached`: The state read asked for a version the aggregate has not reached within the wait; the problem carries its current version: retry later.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.min-version-not-reached" ]
+      },
       "wow.state.429" : {
         "description" : "`wow.query.busy`: The query was not run: its store has as many queries running as it allows; retry later.",
         "content" : {
@@ -3524,7 +3558,7 @@
         "x-wow-error-codes" : [ "wow.auth.forbidden" ]
       },
       "wow.query.404" : {
-        "description" : "`wow.aggregate.not-found`: The aggregate does not exist.",
+        "description" : "`wow.query.not-found`: A single query matched no record: a query result, not a statement that an aggregate does not exist.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3532,7 +3566,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.aggregate.not-found" ]
+        "x-wow-error-codes" : [ "wow.query.not-found" ]
       },
       "wow.query.406" : {
         "description" : "Not Acceptable: the route answers in none of the types Accept names.",
@@ -3577,7 +3611,7 @@
         "x-wow-error-codes" : [ "wow.query.failed" ]
       },
       "wow.query.503" : {
-        "description" : "`wow.query.timeout`: The query ran longer than its budget allows; narrow it, or retry later.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.",
+        "description" : "`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.",
         "headers" : {
           "Retry-After" : {
             "$ref" : "#/components/headers/Retry-After"
@@ -3590,7 +3624,18 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.timeout", "wow.storage.unavailable" ]
+        "x-wow-error-codes" : [ "wow.storage.unavailable" ]
+      },
+      "wow.query.504" : {
+        "description" : "`wow.query.timeout`: The query ran longer than its budget allows; narrow it rather than run it again (decision D254 ③).",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.timeout" ]
       },
       "wow.descriptor.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -3773,6 +3818,15 @@
         "schema" : {
           "type" : "string",
           "format" : "date-time"
+        }
+      },
+      "minVersion" : {
+        "name" : "minVersion",
+        "in" : "query",
+        "description" : "Reads the latest state at this version or later, a command result's version (read your writes, review R4-Q, Q-13); not with version or at.",
+        "schema" : {
+          "type" : "integer",
+          "minimum" : 1
         }
       },
       "from" : {

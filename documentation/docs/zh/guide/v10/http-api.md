@@ -144,6 +144,7 @@ Wow-Wait: committed > handled(example/OrderSaga.onOrderCreated) > committed(inve
 | `GET /<context>/<aggregate>/{id}/state` | 最新状态，带 `ETag: "<version>"`；`If-None-Match` 匹配时 304 |
 | `GET …/state?version=n` | 版本 `n` 的状态 |
 | `GET …/state?at=<ISO-8601 时刻>` | 该时刻或之前最后一次提交之后的状态（`+` 写作 `%2B`） |
+| `GET …/state?minVersion=n` | 版本 `n` 或之后的最新状态：读到自己的写，`n` 取命令结果的 `version`。快照落后时用日志补齐；在 `wow.query.state.min-version-wait`（2s）内仍未提交到该版本时返回 409 `wow.query.min-version-not-reached`，其 `version` 为当前版本，并带 `Retry-After` |
 | `GET …/state/trace?from=&to=&limit=` | 从 `from`（1）到 `to`（最后一次）的提交，最多 `limit` 条，每条带事件及其后的状态 |
 
 调用方作用域之外的状态返回 403 `wow.aggregate.forbidden`；不存在的返回 404 `wow.aggregate.not-found`。属于租户的聚合（`Ownership.TENANT`）不检查调用方的所有者。已删除聚合的状态照常读取，`deleted` 为真。
@@ -179,7 +180,7 @@ curl -X POST localhost:8080/example/order/events/query \
 - 调用方只看到自己的聚合：自己的租户，以及它有值时的所有者与空间。不带所有者的租户级调用方看到本租户的全部聚合。查询准入从 Manifest 读取每个聚合的归属：属于租户的聚合（`Ownership.TENANT`）的查询不按调用方的所有者限制。除非查询指明删除状态，否则看不到已删除的聚合。
 - 快照查询可以筛选与排序系统字段（`tenantId`、`aggregateId`、`version`、`ownerId`、`spaceId`、`deleted`、`tags`、`firstEventTime`、`lastEventTime`、`operator`、`firstOperator`）以及补全后的片段中状态 Schema 描述的 `state.*`。状态字段上的 `@QueryIndex`（`me.ahoo.wow.api.query.annotation`，在 `wow-query-api` 中）声明一个由后端创建的索引（`wow.query.index.ddl`）；见[查询注解](./query.md#查询注解)。
 - `events` 模型的筛选条件指定一个聚合的 ID，可以再限定 `version` 或 `commitTime`，不能有其他条件。
-- 模型拒绝的查询返回 400 `wow.query.invalid`，其中的违例逐条指出规则；无法读成查询的返回 400 `wow.query.malformed`；超时为 `wow.query.timeout`。
+- 模型拒绝的查询返回 400 `wow.query.invalid`，其中的违例逐条指出规则；无法读成查询的返回 400 `wow.query.malformed`；超时为 504 `wow.query.timeout`，原样重跑没有意义；没有匹配记录的 `single` 查询为 404 `wow.query.not-found`。
 - 快照在 PostgreSQL 与 MongoDB 上可以查询。内存后端上没有查询后端提供快照，其路由返回 404。
 - 每个 HTTP 查询都在 `wow.query.http.*` 的预算下执行（见[配置项](./configuration.md#查询)）。
 
@@ -235,11 +236,16 @@ curl -X POST localhost:8080/example/order/events/query \
 | `wow.command.busy` | 429 | 节点在途命令过多 |
 | `wow.command.unknown` | 503 | 不确定命令是否已提交；用同一请求 ID 重试是安全的 |
 | `wow.node.closing` | 503 | 节点正在关闭；请在其他节点重试 |
+| `wow.node.standby` | 503 | 节点处于待机状态，直到迁移切换：只提供读 |
 | `wow.subscription.parked` | 500 | 等待链上的某个订阅停放了这个聚合 |
 | `wow.wait.timeout` | 504 | 等待超时；命令可能已提交，问题详情带有最后到达的阶段 |
 | `wow.query.malformed` | 400 | 查询请求体无法读成查询 |
 | `wow.query.invalid` | 400 | 查询未通过准入；违例逐条指出规则 |
 | `wow.query.failed` | 500 | 查询后端执行失败 |
-| `wow.query.timeout` | 503 | 查询超出了预算允许的时间 |
+| `wow.query.not-found` | 404 | `single` 查询没有匹配的记录 |
+| `wow.query.dataset-not-found` | 404 | 没有向调用方提供该名称的数据集 |
+| `wow.query.timeout` | 504 | 查询超出了预算允许的时间；应缩小查询而不是重试 |
 
 `GET /wow/manifest` 在 `errors` 下列出它们，并在每个上下文下列出该上下文自己的错误码。
+
+与这些路由并列的应用自有路由，出错时以同样的方式应答（`wow.http.global-errors`，默认开启）：来自 `CommandClient` 的 `CommandRejectedException` 或 `WowProblemException` 按其错误码、状态码与结果；存储不可用为 `wow.storage.unavailable` 并带 `Retry-After`；HTTP 状态（无此路由、不支持的方法或媒体类型）为只有该状态的问题详情（`about:blank`）；其他一律为不透露原因的 500，原因记入日志。关闭后这些错误交给 Spring 处理。

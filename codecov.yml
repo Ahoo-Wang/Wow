@@ -13,63 +13,63 @@ coverage:
   precision: 2
   status:
     # Changed and new main code must be covered by the tests that run on the pull request.
-    # `flags` names every flag (the TypeScript uploads all carry `typescript`, which has no paths, so nothing is
-    # filtered out); it is there so these statuses, like the components', wait for the `v10` flag's after_n_builds.
+    # `flags` names every flag (the TypeScript uploads all carry `typescript`; no flag has paths, so nothing is
+    # filtered out); it is there so these statuses, like the components', wait for the flags' after_n_builds.
     patch:
       default:
         target: 90%
         threshold: 1%
         flags:
-          - v10
+          - jvm-unit
+          - integration
           - typescript
     project:
       default:
         target: 80%
         threshold: 1%
         flags:
-          - v10
+          - jvm-unit
+          - integration
           - typescript
-# The JVM coverage is the `v10` flag (v10.yml): the V10 modules, their tests and
-# the examples. The JVM reports name each source file by its repository path
-# (test/code-coverage-report). The 9.x flags (`local`, `contract`,
-# `integration`, `full`) left with the 9.x code (decision D262).
+# The JVM coverage (ci.yml): the `jvm-unit` flag is the check job's report (every module's unit tests), the
+# `integration` flag the integration shards' (their container-backed tests). The reports name each source file by
+# its repository path (test/code-coverage-report).
 #
-# A full v10.yml run uploads the `v10` flag 5 times: the check and the 4 integration shards. Codecov judges a status
-# that reads a flag (the components', and patch and project above) only once that flag has `after_n_builds` uploads
-# of this commit, so a status is never judged on the check's coverage alone. A flag's real upload replaces the
-# carried-forward ones, which therefore count only until the first upload: a pull request that skips the JVM jobs
-# carries the 5 sessions of its base forward and is judged at once, and a run whose shard fails or uploads nothing
-# leaves those statuses unposted (not pending) for that commit. `codecov.notify.after_n_builds` and
-# `comment.after_n_builds` would count every session of the commit, the TypeScript packages' and the carried-forward
-# ones included, so no number there means "every v10 upload arrived"; they are left unset. Keep after_n_builds equal
-# to 1 + the shards of v10.yml's `integration` matrix.
+# A full run uploads `jvm-unit` once and `integration` once per shard (4). Codecov judges a status that reads a flag
+# (the components', and patch and project above) only once the flag has `after_n_builds` uploads of this commit, so
+# a status is never judged on part of the run. A flag's real upload replaces its carried-forward ones, which
+# therefore count only until its first upload: a pull request that skips the JVM jobs carries its base's sessions
+# forward and is judged at once, and a run whose shard fails or uploads nothing leaves those statuses unposted (not
+# pending) for that commit. `codecov.notify.after_n_builds` and `comment.after_n_builds` would count every session
+# of the commit, the TypeScript packages' and the carried-forward ones included, so they are left unset. The
+# integration flag's after_n_builds is the number of shards of ci.yml's `integration` matrix
+# (.github/scripts/integration-shards.mjs checks both).
+#
+# No flag has `paths`: a status filters the files by its own paths and its flags' together, so a flag's paths
+# would widen every component's to the whole flag (each component then reported the same number).
+#
+# The unit flag is `jvm-unit`, not `unit`: Codecov keeps a `unit` flag of this repository from 2021 that it no
+# longer counts among the repository's flags, so a component's `unit` regex matched nothing and every component
+# read the integration shards alone (`kernel`, with no container tests, had "no coverage on head"). The retired
+# flags (9.x's `local`, `contract`, `full`, and `v10`, which CI-2 split into these two) upload no more; they are not
+# carried forward, so their last sessions leave the reports instead of riding along on every commit.
 flag_management:
   default_rules:
     carryforward: true
   individual_flags:
+    - name: jvm-unit
+      after_n_builds: 1
+    - name: integration
+      after_n_builds: 4
     - name: v10
-      after_n_builds: 5
-      paths:
-        - api/**
-        - core/**
-        - compiler/**
-        - query/**
-        - backends/**
-        - edge/**
-        - host/**
-        - migration/**
-        - platform/**
-        - extensions/**
-        - example/eshop/**
-        - example/quickstart/**
-        - example/java-smoke/**
-        - test/architecture/**
-        - test/routing-spike/**
-        - test/lease-spike/**
-        - test/test-dsl/**
-        - test/tck/**
-        - test/tck-containers/**
-# One Codecov component per V10 module and per TypeScript package, so a drop in
+      carryforward: false
+    - name: local
+      carryforward: false
+    - name: contract
+      carryforward: false
+    - name: full
+      carryforward: false
+# One Codecov component per module and per TypeScript package, so a drop in
 # one module or package isn't hidden by the others. Each component gets its own
 # project status against its own previous coverage. Each TypeScript package also
 # uploads under its own `typescript-<package>` flag, so a pull request that tests
@@ -77,221 +77,173 @@ flag_management:
 # component.
 component_management:
   default_rules:
-    # The JVM flag; TypeScript components set their own flags below.
+    # The JVM flags; TypeScript components set their own flags below.
     flag_regexes:
-      - "^v10$"
+      - "^(jvm-unit|integration)$"
     statuses:
       - type: project
         target: auto
         threshold: 1%
   individual_components:
-    # V10 modules (documentation/designs/v10/06-modules.md §4). Every V10 component is v10-<name>, so none
-    # collides with a TypeScript package's (wow-view-store). They read only the `v10` flag, which v10.yml uploads
-    # (unit and integration tests).
-    - component_id: v10-api
-      name: v10-api
+    # The modules (documentation/designs/v10/06-modules.md §4), named after their Gradle projects; none collides
+    # with a TypeScript package's (wow-*). They read the `jvm-unit` and `integration` flags, so a module's coverage
+    # counts its unit and container tests.
+    - component_id: api
+      name: api
       paths:
         - api/api/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-manifest
-      name: v10-manifest
+    - component_id: manifest
+      name: manifest
       paths:
         - api/manifest/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-query-api
-      name: v10-query-api
+    - component_id: query-api
+      name: query-api
       paths:
         - api/query-api/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-compiler
-      name: v10-compiler
+    - component_id: compiler
+      name: compiler
       paths:
         - compiler/compiler/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-gradle-plugin
-      name: v10-gradle-plugin
+    - component_id: gradle-plugin
+      name: gradle-plugin
       paths:
         - compiler/gradle-plugin/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-manifest-tools
-      name: v10-manifest-tools
+    - component_id: manifest-tools
+      name: manifest-tools
       paths:
         - compiler/manifest-tools/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-spi
-      name: v10-spi
+    - component_id: spi
+      name: spi
       paths:
         - core/spi/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-kernel
-      name: v10-kernel
+    - component_id: kernel
+      name: kernel
       paths:
         - core/kernel/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-runtime
-      name: v10-runtime
+    - component_id: runtime
+      name: runtime
       paths:
         - core/runtime/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-reactor
-      name: v10-reactor
+    - component_id: reactor
+      name: reactor
       paths:
         - core/reactor/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-query
-      name: v10-query
+    - component_id: query
+      name: query
       paths:
         - query/query/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-postgres
-      name: v10-postgres
+    - component_id: query-tck
+      name: query-tck
+      paths:
+        - query/query-tck/src/main/**
+    - component_id: postgres
+      name: postgres
       paths:
         - backends/postgres/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-mongo
-      name: v10-mongo
+    - component_id: mongo
+      name: mongo
       paths:
         - backends/mongo/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-kafka
-      name: v10-kafka
+    - component_id: kafka
+      name: kafka
       paths:
         - backends/kafka/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-clickhouse
-      name: v10-clickhouse
+    - component_id: clickhouse
+      name: clickhouse
       paths:
         - backends/clickhouse/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-elasticsearch
-      name: v10-elasticsearch
+    - component_id: elasticsearch
+      name: elasticsearch
       paths:
         - backends/elasticsearch/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-openapi
-      name: v10-openapi
+    - component_id: openapi
+      name: openapi
       paths:
         - edge/openapi/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-http
-      name: v10-http
+    - component_id: http
+      name: http
       paths:
         - edge/http/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-client
-      name: v10-client
+    - component_id: client
+      name: client
       paths:
         - edge/client/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-cosec
-      name: v10-cosec
+    - component_id: client
+      name: client
+      paths:
+        - edge/client/src/main/**
+    - component_id: cosec
+      name: cosec
       paths:
         - edge/cosec/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-opentelemetry
-      name: v10-opentelemetry
+    - component_id: opentelemetry
+      name: opentelemetry
       paths:
         - edge/opentelemetry/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-spring-boot
-      name: v10-spring-boot
+    - component_id: spring-boot
+      name: spring-boot
       paths:
         - host/spring-boot/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-cosid
-      name: v10-cosid
+    - component_id: cosid
+      name: cosid
       paths:
         - extensions/cosid/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-models
-      name: v10-models
+    - component_id: models
+      name: models
       paths:
         - extensions/models/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-migrate-data
-      name: v10-migrate-data
+    - component_id: migrate-data
+      name: migrate-data
       paths:
         - migration/migrate-data/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-ops-api
-      name: v10-ops-api
+    - component_id: ops-api
+      name: ops-api
       paths:
         - platform/ops/ops-api/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-ops-domain
-      name: v10-ops-domain
+    - component_id: ops-domain
+      name: ops-domain
       paths:
         - platform/ops/ops-domain/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-ops-server
-      name: v10-ops-server
+    - component_id: ops-server
+      name: ops-server
       paths:
         - platform/ops/ops-server/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-view-store-api
-      name: v10-view-store-api
+    - component_id: view-store-api
+      name: view-store-api
       paths:
         - platform/view-store/view-store-api/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-view-store-domain
-      name: v10-view-store-domain
+    - component_id: view-store-domain
+      name: view-store-domain
       paths:
         - platform/view-store/view-store-domain/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-view-store-server
-      name: v10-view-store-server
+    - component_id: view-store-server
+      name: view-store-server
       paths:
         - platform/view-store/view-store-server/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-analytics-catalog-api
-      name: v10-analytics-catalog-api
+    - component_id: analytics-catalog-api
+      name: analytics-catalog-api
       paths:
         - platform/analytics/catalog/api/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-analytics-catalog-domain
-      name: v10-analytics-catalog-domain
+    - component_id: analytics-catalog-domain
+      name: analytics-catalog-domain
       paths:
         - platform/analytics/catalog/domain/src/main/**
-      flag_regexes:
-        - "^v10$"
-    - component_id: v10-analytics-catalog-server
-      name: v10-analytics-catalog-server
+    - component_id: analytics-catalog-server
+      name: analytics-catalog-server
       paths:
         - platform/analytics/catalog/server/src/main/**
-      flag_regexes:
-        - "^v10$"
+    - component_id: test-dsl
+      name: test-dsl
+      paths:
+        - test/test-dsl/src/main/**
+    - component_id: tck
+      name: tck
+      paths:
+        - test/tck/src/main/**
+    - component_id: tck-containers
+      name: tck-containers
+      paths:
+        - test/tck-containers/src/main/**
     - component_id: wow-client
       name: wow-client
       paths:

@@ -60,6 +60,9 @@ object ResultCodes {
     /** The node is shutting down, so the command was not taken; another node may take it (D115). */
     const val NODE_CLOSING = FrameworkErrors.NODE_CLOSING
 
+    /** The node is on standby until a migration's cut-over, so the command was not taken (design 07 §3). */
+    const val NODE_STANDBY = FrameworkErrors.NODE_STANDBY
+
     /**
      * A store the command needed could not be reached or did not answer in time
      * ([me.ahoo.wow.spi.StorageUnavailableException]); retrying with the same request id is safe.

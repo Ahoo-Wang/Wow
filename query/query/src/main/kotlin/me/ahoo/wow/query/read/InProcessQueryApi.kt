@@ -38,6 +38,7 @@ import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.read.AggregateState
 import me.ahoo.wow.api.read.EventQueries
 import me.ahoo.wow.api.read.EventStream
+import me.ahoo.wow.api.read.MinVersionNotReachedException
 import me.ahoo.wow.api.read.Positioned
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
@@ -213,12 +214,41 @@ class InProcessQueryApi @InternalWowApi constructor(
             return state(type.ref(tenant, id))
         }
 
-        override suspend fun state(ref: AggregateRef): AggregateState<S>? {
+        override suspend fun state(ref: AggregateRef): AggregateState<S>? = read(ref) { latest.committed(ref) }
+
+        override suspend fun state(id: String, minVersion: Int): AggregateState<S>? {
+            val tenant = checkNotNull(tenantOf()) {
+                "Trusted queries name no tenant: read the state of $type by its ref."
+            }
+            return state(type.ref(tenant, id), minVersion)
+        }
+
+        /**
+         * Only a state the caller may see answers that it is below [minVersion] (review R4-Q, Q-5): a hidden one, and
+         * one with no commit, are not found, as they are without a minimum version.
+         */
+        override suspend fun state(ref: AggregateRef, minVersion: Int): AggregateState<S>? {
+            require(minVersion >= 1) { "A committed state has a version from 1." }
+            var notReached: MinVersionNotReachedException? = null
+            val state = read(ref) {
+                try {
+                    latest.committed(ref, minVersion)
+                } catch (behind: MinVersionNotReachedException) {
+                    notReached = behind
+                    if (behind.version == 0) null else latest.committed(ref)
+                }
+            }
+            notReached?.let { if (state != null) throw it }
+            return state
+        }
+
+        /** The state of [ref] [load] reads, as the public port's state read answers it. */
+        private suspend fun read(ref: AggregateRef, load: suspend () -> CommittedState?): AggregateState<S>? {
             require(ref.type == type) { "$ref is not an aggregate of $type." }
             val reads = engine.reads
             return try {
                 reads.observed(type, StateRead.LATEST, caller) {
-                    when (val read = reads.read(caller, { latest.committed(ref) }, { it }) { checkScope(ref, it) }) {
+                    when (val read = reads.read(caller, load, { it }) { checkScope(ref, it) }) {
                         is ReadFacade.Read.Visible -> read.view.let {
                             AggregateState.of(it.ref, it.version, it.scope, it.deleted, it.tags, stateOf(read.state))
                         }

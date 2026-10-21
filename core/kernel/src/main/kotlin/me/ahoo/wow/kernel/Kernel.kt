@@ -318,6 +318,7 @@ class Kernel(
                 evolved.deleted,
                 evolved.tags,
                 evolved.schedules,
+                evolved.first,
             )
         }
 
@@ -399,7 +400,11 @@ class Kernel(
             // Recorded with each stream (decision D259): the events model filters by the tags after the commit.
             tags = metadata.tags,
         )
-        return Prepared.Append(stream, loaded.with(evolved, stream.version, metadata))
+        val after = loaded.with(evolved, stream.version, metadata)
+        if (stream.version == 1) {
+            after.first = FirstCommit.of(stream)
+        }
+        return Prepared.Append(stream, after)
     }
 
     /**
@@ -525,16 +530,23 @@ class Kernel(
      */
     private suspend fun <S : Any> load(model: AggregateModel<S>, requests: RequestCheck): Pair<CachedState, Boolean> {
         val ref = requests.ref
-        requests.cached()?.let { return it to true }
+        requests.cached()?.let {
+            observer.stateCache(ref.type.context, StateCacheOutcome.HIT)
+            return it to true
+        }
+        observer.stateCache(ref.type.context, StateCacheOutcome.MISS)
         snapshots.loadOrNull(ref)?.let { snapshot ->
             codec.fitting(model, snapshot)?.let { state ->
                 val tail = requests.tail(snapshot.version)
-                fromSnapshot(model, snapshot, state, tail.streams.asFlow())
-                    ?.let { return requests.derived(it, tail) to false }
+                fromSnapshot(model, snapshot, state, tail.streams.asFlow())?.let { loaded ->
+                    loaded.first = FirstCommit.of(snapshot)
+                    return requests.derived(loaded, tail) to false
+                }
             }
         }
         val streams = log.read(ref).toList()
         val replayed = replay(model, CachedState(model.initialState(ref), 0), streams)
+        replayed.first = streams.firstOrNull()?.let(FirstCommit::of)
         return requests.derived(replayed, AggregateTail.of(streams, emptyList())) to false
     }
 
@@ -833,7 +845,12 @@ class Kernel(
         var metadata = current.metadata
         stream.events.forEach { record ->
             // A retired event (D219) is skipped: the stream still counts as a version, the state stays as it is.
-            val event = codec.decodeUnlessRetired(model, record) ?: return@forEach
+            val event = try {
+                codec.decodeUnlessRetired(model, record)
+            } catch (@Suppress("TooGenericExceptionCaught") unreadable: RuntimeException) {
+                // An event the model cannot read, an upgrade that refuses a record among them, names its aggregate.
+                throw UnreadableEventException(stream.ref, stream.version, record.name, record.revision, unreadable)
+            } ?: return@forEach
             events?.add(event)
             state = model.evolve(state, event)
             metadata = KernelLifecycle.evolve(metadata, event)

@@ -121,6 +121,7 @@ class OrderSpec {
         }
     }
 
+    // region schedule
     @Test
     fun `an unpaid order should cancel itself once its grace period has passed`() = orderSpec {
         given(submitted, OrderAwaitingValidation, OrderStockItemConfirmed(MUG))
@@ -135,6 +136,7 @@ class OrderSpec {
             }
         }
     }
+    // endregion
 
     @Test
     fun `paying should pay the order and cancel its grace period`() = orderSpec {

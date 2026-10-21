@@ -54,6 +54,8 @@ export const FrameworkErrorCodes = {
   COMMAND_FAILED: 'wow.command.failed',
   /** 503: the node is shutting down; retry on another node. */
   NODE_CLOSING: 'wow.node.closing',
+  /** 503: the node is on standby until a migration's cut-over; it serves reads only. */
+  NODE_STANDBY: 'wow.node.standby',
   /** 503, with `Retry-After`: a store could not be reached in time; retry later. */
   STORAGE_UNAVAILABLE: 'wow.storage.unavailable',
   /** 503: a scheduled command arrived too long before its due time; it is sent again later. */
@@ -70,10 +72,23 @@ export const FrameworkErrorCodes = {
   QUERY_INVALID: 'wow.query.invalid',
   /** 500: the query backend failed to run the query. */
   QUERY_FAILED: 'wow.query.failed',
-  /** 503: the query ran longer than its budget allows. */
+  /** 504: the query ran longer than its budget allows; not retried (decision D254 ③). */
   QUERY_TIMEOUT: 'wow.query.timeout',
   /** 429, with `Retry-After`: the query's store runs as many queries as it allows; retry later. */
   QUERY_BUSY: 'wow.query.busy',
+  /**
+   * 404: a `single` query matched no record, whatever its model (review R4-Q,
+   * Q-4); a state read by id that finds none is `wow.aggregate.not-found`.
+   */
+  QUERY_NOT_FOUND: 'wow.query.not-found',
+  /** 404: no dataset of that name is served to the caller. */
+  QUERY_DATASET_NOT_FOUND: 'wow.query.dataset-not-found',
+  /**
+   * 409, with `Retry-After`: a state read asked for a version (`minVersion`) the
+   * aggregate has not reached within the wait; the problem's `version` is its
+   * current one (review R4-Q, Q-13).
+   */
+  QUERY_MIN_VERSION_NOT_REACHED: 'wow.query.min-version-not-reached',
   /** 409: the dataset is served but cannot be queried now (it needs revision, decision D259). */
   QUERY_DATASET_UNAVAILABLE: 'wow.query.dataset-unavailable',
   /** 403: the calling service may not call this command (a synchronous call on the internal port, decision D226). */
@@ -155,19 +170,21 @@ export interface RetryHint {
 
 /**
  * The codes a retry may get past, each with whether to keep the request id:
- * the 503s (`wow.command.unknown`, `wow.node.closing`,
- * `wow.storage.unavailable`, `wow.schedule.not-due`, `wow.query.timeout`),
- * the 429s `wow.command.busy` and `wow.query.busy`, the 409 `wow.command.contended` and the 504
+ * the 503s (`wow.command.unknown`, `wow.node.closing`, `wow.node.standby`,
+ * `wow.storage.unavailable`, `wow.schedule.not-due`),
+ * the 429s `wow.command.busy` and `wow.query.busy`, the 409s `wow.command.contended` and
+ * `wow.query.min-version-not-reached` (once the command commits), and the 504
  * `wow.wait.timeout`, whose command may have committed.
  */
 const RETRYABLE: ReadonlyMap<string, boolean> = new Map([
   [FrameworkErrorCodes.COMMAND_UNKNOWN, true],
   [FrameworkErrorCodes.NODE_CLOSING, true],
+  [FrameworkErrorCodes.NODE_STANDBY, true],
   [FrameworkErrorCodes.STORAGE_UNAVAILABLE, true],
   [FrameworkErrorCodes.SCHEDULE_NOT_DUE, true],
-  [FrameworkErrorCodes.QUERY_TIMEOUT, false],
   [FrameworkErrorCodes.COMMAND_BUSY, true],
   [FrameworkErrorCodes.QUERY_BUSY, false],
+  [FrameworkErrorCodes.QUERY_MIN_VERSION_NOT_REACHED, false],
   [FrameworkErrorCodes.COMMAND_CONTENDED, true],
   [FrameworkErrorCodes.WAIT_TIMEOUT, true],
 ]);

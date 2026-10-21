@@ -51,7 +51,8 @@ Execute only the stages required by the requested mode and explicitly authorized
 | Spring Boot 3 to 4 platform, starter/capability, configuration or Jackson migration | `references/spring-boot-3-to-4.md` |
 | Wow 9.x to V10 domain source: Gradle build, modules, annotations, command identity, handlers, rejections, request facts, events, upgrades and retired events, state and tags, sagas, reserved keys, routes and queries, tenancy, compensation, peer contexts, JSON, Java domains, REST clients, tests, `migration-map.json` | `references/v9-to-v10.md` |
 | Runtime dependency, isolated startup, HTTP/REST or actual transport, and shutdown validation | `references/runtime-rest-validation.md` |
-| Data inventory, rehearsal, cutover, reconciliation or rollback | `references/cutover-evidence.md` |
+| 9.x → V10 data with `wow-migrate-data`: the map check, import, tail, compare, snapshots, `backfill-tags`, reservations and parked executions | `references/data.md` |
+| Cut-over window, inventory, the types with no way back, rollback before and after V10 writes (`export`) | `references/cutover-evidence.md` |
 | Static discovery of v6 exposure | Read `scripts/audit-v6-usage.sh`, run it with `--help`, then execute it with the explicit target application/module root—not a monorepo default |
 | Migration plan or status report | Copy `assets/migration-matrix.md` and fill only evidence-backed fields |
 

@@ -15,6 +15,7 @@ package me.ahoo.wow.client
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.kernel.CommandTypes
@@ -44,11 +45,21 @@ import kotlin.time.toKotlinDuration
  * ```
  */
 class WowClient private constructor(
-    /** The command client, sending as an anonymous caller until [CommandClient.of] gives it another. */
-    val commands: CommandClient,
+    private val http: HttpCommandClient,
     /** The query client of the peers' read routes, for a caller ([QueryApi.of]); see [HttpQueryApi]. */
     val queries: QueryApi,
 ) {
+    /** The command client, sending as an anonymous caller until [CommandClient.of] gives it another. */
+    val commands: CommandClient get() = http
+
+    /**
+     * The Manifest of [context], a peer described by its Manifest alone ([Builder.manifestPeers]), read from its
+     * `GET /wow/manifest` as [caller] and kept a minute, as the [NamedCommand]s to it are checked against: what a
+     * console or a gateway offers of its commands (decision D257).
+     */
+    suspend fun manifestOf(context: String, caller: Caller): Manifest =
+        (http.of(caller) as HttpCommandClient).manifestOf(context)
+
     /** How a [WowClient] is built; every setting has a default. */
     class Builder internal constructor() {
         private var endpoints: EndpointResolver = EndpointResolver.NONE
@@ -61,6 +72,7 @@ class WowClient private constructor(
         private var commandTypes: CommandTypes? = null
         private var contracts: ContractDirectory? = null
         private var ids: GlobalIdGenerator = GlobalIdGenerator.UUID_V7
+        private var manifestPeers: Set<String> = emptySet()
 
         /** Where each context's service is (none by default: every call fails until it is given). */
         fun endpoints(endpoints: EndpointResolver): Builder = apply { this.endpoints = endpoints }
@@ -103,6 +115,12 @@ class WowClient private constructor(
         /** The class loader whose api jars carry the peers' contracts: the thread's context class loader by default. */
         fun classLoader(classLoader: ClassLoader): Builder = apply { this.classLoader = classLoader }
 
+        /**
+         * The peer contexts described by their Manifest alone (none by default), called without their api jars: each
+         * takes [NamedCommand]s only, which its `GET /wow/manifest` must declare (decision D257).
+         */
+        fun manifestPeers(contexts: Set<String>): Builder = apply { manifestPeers = contexts.toSet() }
+
         /** Names the commands as a node does, from its models and the contracts it knows: Wow's host gives its own. */
         @InternalWowApi
         fun commandTypes(commandTypes: CommandTypes): Builder = apply { this.commandTypes = commandTypes }
@@ -127,7 +145,12 @@ class WowClient private constructor(
                 ?: ContractDirectory.load(Manifest(), classLoader ?: Thread.currentThread().contextClassLoader)
             val names = commandTypes ?: ContractCommandTypes(contracts)
             return WowClient(
-                HttpCommandClient(transport, names, ids),
+                HttpCommandClient(
+                    transport,
+                    names,
+                    ids,
+                    described = manifestPeers.takeIf { it.isNotEmpty() }?.let { ManifestPeers(it, transport) },
+                ),
                 HttpQueryApi(transport, PeerModels.of(contracts.peers.map { it.manifest }), ids),
             )
         }

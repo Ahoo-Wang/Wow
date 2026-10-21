@@ -18,9 +18,15 @@ import { test } from 'node:test';
 import { scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
-// The TypeScript workflow scopes; `package` is derived from them, `v10` gates a Kotlin workflow, and `v10Contract` and
-// `opsConsole` are decided apart from the rules; each has its own tests.
-const KOTLIN_GATES = new Set(['package', 'v10', 'v10Contract', 'opsConsole']);
+// The TypeScript scopes; `package` is derived from them, `jvm` gates the JVM jobs, and `viewStoreContract`,
+// `opsConsole` and `catalogConsole` are decided apart from the rules; each has its own tests.
+const KOTLIN_GATES = new Set([
+  'package',
+  'jvm',
+  'viewStoreContract',
+  'opsConsole',
+  'catalogConsole',
+]);
 const gates = paths =>
   Object.entries(scopes(paths)).filter(([key]) => !KOTLIN_GATES.has(key));
 const all = paths => gates(paths).every(([, value]) => value);
@@ -49,25 +55,25 @@ test('lint and format rules run only the static checks and the site build', () =
     assert.deepEqual(on([path]), ['typescript', 'docs'], path);
 });
 
-test('each TypeScript workflow file runs the jobs it defines and the static checks', () => {
-  assert.deepEqual(on(['.github/workflows/typescript.yml']), [
+test('ci.yml runs every job it defines, and the static checks', () => {
+  assert.deepEqual(on(['.github/workflows/ci.yml']), [
     'typescript',
     'sdk',
     'docs',
     'viewEngine',
     'packageDocs',
     'viewEngineDocs',
-    'workflows',
-  ]);
-  assert.deepEqual(on(['.github/workflows/typescript-storybook.yml']), [
-    'typescript',
     'storybook',
     'workflows',
   ]);
-  assert.deepEqual(on(['.github/workflows/typescript-contract.yml']), [
-    'typescript',
-    'workflows',
-  ]);
+  const ci = scopes(['.github/workflows/ci.yml']);
+  assert.ok(
+    ci.jvm &&
+      ci.viewStoreContract &&
+      ci.opsConsole &&
+      ci.catalogConsole &&
+      ci.package,
+  );
   // Scheduled and dispatched only: nothing it defines runs on a pull request.
   assert.deepEqual(
     on(['.github/workflows/typescript-storybook-browsers.yml']),
@@ -184,7 +190,7 @@ test('the other packages unit-test only when a package outside view-engine chang
     'example/eshop/web/src/generated/basket/index.ts',
     'gradle.properties',
     'eslint.config.js',
-    '.github/workflows/typescript-storybook.yml',
+    '.github/workflows/typescript-storybook-browsers.yml',
   ]) {
     assert.ok(!scopes([path]).sdk, path);
   }
@@ -402,7 +408,7 @@ test('V10 modules skip the TypeScript workflow jobs', () => {
     assert.ok(none([path]), path);
 });
 
-test('V10 modules, their tests, the platform and the root build run v10.yml', () => {
+test('the modules, their tests, the platform and the root build run the JVM jobs', () => {
   for (const path of [
     'api/api/src/main/kotlin/me/ahoo/wow/api/decide/Command.kt',
     'compiler/gradle-plugin/src/functionalTest/kotlin/A.kt',
@@ -420,7 +426,7 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'test/test-dsl/src/main/kotlin/A.kt',
     'test/tck/src/main/kotlin/A.kt',
     'test/tck-containers/build.gradle.kts',
-    // The coverage report v10.yml uploads (coverageReport).
+    // The coverage reports ci.yml uploads (coverageReport).
     'test/code-coverage-report/build.gradle.kts',
     'edge/cosec/src/main/kotlin/A.kt',
     'extensions/cosid/src/main/kotlin/A.kt',
@@ -436,8 +442,6 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'test/benchmarks/server/build.gradle.kts',
     'test/benchmarks/load/src/main/kotlin/A.kt',
     'test/benchmarks/harness/bench.sh',
-    'documentation/docs/en/guide/v10/quickstart.md',
-    'documentation/docs/zh/guide/v10/quickstart.md',
     'bom/bom/build.gradle.kts',
     'wow-dependencies/build.gradle.kts',
     'gradle/libs.versions.toml',
@@ -446,25 +450,26 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'settings.gradle.kts',
     'gradle.properties',
     'gradlew',
-    '.github/workflows/v10.yml',
+    '.github/workflows/ci.yml',
     // An unknown path or a CI script runs everything.
     '.github/scripts/ci-scope.mjs',
     'new-directory/index.ts',
   ])
-    assert.ok(scopes([path]).v10, path);
+    assert.ok(scopes([path]).jvm, path);
   for (const path of [
     'typescript/wow-client/src/index.ts',
     'documentation/designs/v10/roadmap.md',
     'documentation/docs/en/guide/v10/index.md',
+    // Its samples are held by docs-samples.mjs, in the docs-layout job of every pull request.
+    'documentation/docs/en/guide/v10/quickstart.md',
     'README.md',
     'codecov.yml',
-    '.github/workflows/typescript.yml',
     '.github/workflows/v10-nightly.yml',
   ])
-    assert.ok(!scopes([path]).v10, path);
+    assert.ok(!scopes([path]).jvm, path);
   // A V10 path keeps the scopes its rule gives it.
   assert.deepEqual(on(['gradle.properties']), ['typescript']);
-  assert.ok(scopes(['.github/workflows/v10.yml']).workflows);
+  assert.ok(scopes(['.github/workflows/ci.yml']).workflows);
 });
 
 test('the V10 store, what its suites import, the service and its modules run the V10 contract', () => {
@@ -494,12 +499,12 @@ test('the V10 store, what its suites import, the service and its modules run the
     'settings.gradle.kts',
     'gradle.properties',
     'gradlew',
-    '.github/workflows/typescript-contract.yml',
+    '.github/workflows/ci.yml',
     // An unknown path or a CI script runs everything.
     '.github/scripts/ci-scope.mjs',
     'new-directory/index.ts',
   ])
-    assert.ok(scopes([path]).v10Contract, path);
+    assert.ok(scopes([path]).viewStoreContract, path);
   for (const path of [
     'typescript/wow-view-store/README.md',
     'typescript/wow-view-store/test/wowViewStore.test.ts',
@@ -517,21 +522,20 @@ test('the V10 store, what its suites import, the service and its modules run the
     'test/architecture/src/test/kotlin/A.kt',
     'example/eshop/e2e/build.gradle.kts',
     'documentation/designs/v10/roadmap.md',
-    '.github/workflows/v10.yml',
-    '.github/workflows/typescript-storybook.yml',
+    '.github/workflows/package-deploy.yml',
   ])
-    assert.ok(!scopes([path]).v10Contract, path);
+    assert.ok(!scopes([path]).viewStoreContract, path);
   // A V10 contract path keeps the scopes its rule gives it.
   assert.deepEqual(
     on(['platform/view-store/view-store-server/build.gradle.kts']),
     [],
   );
   assert.ok(
-    scopes(['platform/view-store/view-store-server/build.gradle.kts']).v10,
+    scopes(['platform/view-store/view-store-server/build.gradle.kts']).jvm,
   );
 });
 
-test('the ops console, the ops service and what the console builds with run ops-console-test.yml', () => {
+test('the ops console, the ops service and what the console builds with run the ops-console jobs', () => {
   for (const path of [
     'platform/ops/console/src/main.tsx',
     'platform/ops/console/package.json',
@@ -547,7 +551,7 @@ test('the ops console, the ops service and what the console builds with run ops-
     'pnpm-workspace.yaml',
     'patches/jsdom@29.1.1.patch',
     'tsconfig.base.json',
-    '.github/workflows/ops-console-test.yml',
+    '.github/workflows/ci.yml',
     // An unknown path or a CI script runs everything.
     '.github/scripts/ci-scope.mjs',
     'new-directory/index.ts',
@@ -558,13 +562,41 @@ test('the ops console, the ops service and what the console builds with run ops-
     'typescript/wow-react/src/index.ts',
     'core/kernel/src/main/kotlin/A.kt',
     'README.md',
-    '.github/workflows/v10.yml',
+    '.github/workflows/package-deploy.yml',
   ])
     assert.ok(!scopes([path]).opsConsole, path);
-  // The console's own path turns on no typescript.yml scope, and keeps v10.
+  // The console's own path turns on no TypeScript scope, and keeps the JVM's.
   assert.deepEqual(on(['platform/ops/console/src/main.tsx']), []);
-  assert.ok(scopes(['platform/ops/console/src/main.tsx']).v10);
-  assert.ok(scopes(['.github/workflows/ops-console-test.yml']).workflows);
+  assert.ok(scopes(['platform/ops/console/src/main.tsx']).jvm);
+});
+
+test('the catalog console, the catalog service and what the console builds with run the catalog-console jobs', () => {
+  for (const path of [
+    'platform/analytics/catalog/console/src/main.tsx',
+    'platform/analytics/catalog/console/package.json',
+    'platform/analytics/catalog/server/src/main/resources/application.yaml',
+    'platform/analytics/catalog/server/manifest/baseline.json',
+    'platform/analytics/catalog/domain/src/main/kotlin/A.kt',
+    'typescript/wow-client/src/index.ts',
+    'typescript/wow-view-engine/src/index.ts',
+    'pnpm-lock.yaml',
+    '.github/workflows/ci.yml',
+    'new-directory/index.ts',
+  ])
+    assert.ok(scopes([path]).catalogConsole, path);
+  for (const path of [
+    'platform/ops/console/src/main.tsx',
+    'core/kernel/src/main/kotlin/A.kt',
+    'README.md',
+    '.github/workflows/package-deploy.yml',
+  ])
+    assert.ok(!scopes([path]).catalogConsole, path);
+  // The console's own path turns on no TypeScript scope, and keeps the JVM's.
+  assert.deepEqual(on(['platform/analytics/catalog/console/src/main.tsx']), []);
+  assert.ok(scopes(['platform/analytics/catalog/console/src/main.tsx']).jvm);
+  assert.ok(
+    !scopes(['platform/analytics/catalog/console/src/main.tsx']).opsConsole,
+  );
 });
 
 test('isolated changes retain their relevant validation', () => {
@@ -626,9 +658,10 @@ test('the command reads the diff and runs everything without a base', () => {
         .map(key => `${key}=${value}\n`)
         .join('') +
       `package=${value}\n` +
-      `v10=${value}\n` +
-      `v10Contract=${value}\n` +
+      `jvm=${value}\n` +
+      `viewStoreContract=${value}\n` +
       `opsConsole=${value}\n` +
+      `catalogConsole=${value}\n` +
       `unitPackages=${value ? '["wow-client","wow-react","wow-generator","wow-view-store"]' : '[]'}\n`;
     assert.equal(run({ BASE_SHA: base, HEAD_SHA: head }), output(false));
     assert.equal(
@@ -664,7 +697,9 @@ test("a library's own tests, goldens and scripts rerun only that package", () =>
 test('the unit matrix reruns a package and the packages built on it', () => {
   const every = ['wow-client', 'wow-react', 'wow-generator', 'wow-view-store'];
   // The client's sources reach the hooks, the generator and the view store,
-  // which import its dist; theirs reach only themselves.
+  // which import its dist; the generator's reach the view store too, whose
+  // generated client is held to what it writes; the others' reach only
+  // themselves.
   assert.deepEqual(unitPackages(['typescript/wow-client/src/index.ts']), every);
   assert.deepEqual(unitPackages(['typescript/wow-client/package.json']), every);
   assert.deepEqual(unitPackages(['typescript/wow-react/src/index.ts']), [
@@ -672,6 +707,7 @@ test('the unit matrix reruns a package and the packages built on it', () => {
   ]);
   assert.deepEqual(unitPackages(['typescript/wow-generator/src/cli.ts']), [
     'wow-generator',
+    'wow-view-store',
   ]);
   assert.deepEqual(
     unitPackages(['typescript/wow-view-store/src/wowViewStore.ts']),
@@ -690,14 +726,21 @@ test('the unit matrix reruns a package and the packages built on it', () => {
     ['wow-react', 'wow-generator'],
   );
   // The V10 framework error table's snapshot (review R2.5-4), which
-  // wow-client's tests read, reruns wow-client and runs v10.yml.
+  // wow-client's tests read, reruns wow-client and runs the JVM jobs.
   const errorTable = 'api/manifest/src/test/resources/framework-errors.json';
   assert.deepEqual(unitPackages([errorTable]), ['wow-client']);
   assert.deepEqual(on([errorTable]), ['sdk']);
-  assert.ok(scopes([errorTable]).v10);
+  assert.ok(scopes([errorTable]).jvm);
+  // The view store service's Manifest baseline, which wow-view-store's
+  // generated clients are held to, reruns wow-view-store and the JVM jobs.
+  const viewStoreBaseline =
+    'platform/view-store/view-store-server/manifest/baseline.json';
+  assert.deepEqual(unitPackages([viewStoreBaseline]), ['wow-view-store']);
+  assert.ok(scopes([viewStoreBaseline]).sdk);
+  assert.ok(scopes([viewStoreBaseline]).jvm);
   // Whatever else turns the sdk scope on reruns them all.
   for (const path of [
-    '.github/workflows/typescript.yml',
+    '.github/workflows/ci.yml',
     'pnpm-lock.yaml',
     'typescript/new-package/src/index.ts',
     'new-directory/index.ts',
@@ -746,4 +789,71 @@ test('a path inside a published package runs the Package job without the unit ma
     'documentation/docs/en/index.md',
   ])
     assert.ok(!scopes([path]).package, path);
+});
+
+// A test that reads a file outside its package (a service's Manifest baseline,
+// a Kotlin source it is held to, another package's build) must run when that
+// file changes: #4715 changed the view store's baseline, and wow-view-store's
+// generated-client test, which the change never ran, broke on v10. Each
+// consumer's test files are scanned for the repository paths they name.
+test('every source a TypeScript test reads selects its job', () => {
+  const root = new URL('../../', import.meta.url).pathname;
+  const tracked = new Set(
+    execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' })
+      .split('\n')
+      .filter(Boolean),
+  );
+  const unit = name => path => unitPackages([path]).includes(name);
+  const consumers = [
+    ['typescript/wow-client', unit('wow-client')],
+    ['typescript/wow-react', unit('wow-react')],
+    ['typescript/wow-generator', unit('wow-generator')],
+    ['typescript/wow-view-store', unit('wow-view-store')],
+    ['typescript/wow-view-engine', path => scopes([path]).viewEngine],
+    ['platform/ops/console', path => scopes([path]).opsConsole],
+    [
+      'platform/analytics/catalog/console',
+      path => scopes([path]).catalogConsole,
+    ],
+    ['example/eshop/web', path => scopes([path]).jvm || scopes([path]).sdk],
+  ];
+  const TOP =
+    /^(?:api|core|query|backends|edge|host|extensions|migration|platform|example|typescript|test|documentation)\//;
+  const LITERAL = /['"`]([^'"`\n$]+\.[a-z]{2,5})['"`]/g;
+  const TEST = /(?:^|\/)(?:test|e2e)\/|\.test\.[cm]?[jt]sx?$/;
+  const problems = [];
+  let reads = 0;
+  for (const [dir, runs] of consumers) {
+    const files = [...tracked].filter(
+      file =>
+        file.startsWith(`${dir}/`) &&
+        TEST.test(file) &&
+        /\.[cm]?[jt]sx?$/.test(file) &&
+        !file.includes('/src/generated/'),
+    );
+    for (const file of files) {
+      // Code only: a comment naming a path reads nothing.
+      const source = readFileSync(join(root, file), 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/(^|[^:])\/\/.*$/gm, '$1');
+      for (const [, literal] of source.matchAll(LITERAL)) {
+        let path = literal.startsWith('.')
+          ? join(file, '..', literal)
+          : TOP.test(literal)
+            ? literal
+            : undefined;
+        if (!path) continue;
+        // Another package's build: its sources.
+        path = path.replace(
+          /^(typescript\/[^/]+)\/dist\/.*/,
+          '$1/src/index.ts',
+        );
+        if (path.startsWith(`${dir}/`) || !tracked.has(path)) continue;
+        reads++;
+        if (!runs(path)) problems.push(`${file} reads ${path}`);
+      }
+    }
+  }
+  assert.ok(reads >= 5, `only ${reads} reads found; the scan broke`);
+  assert.deepEqual(problems, []);
 });

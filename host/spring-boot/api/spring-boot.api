@@ -337,11 +337,13 @@ public final class me/ahoo/wow/spring/boot/QueryProperties$CountCache {
 	public final fun getEnabled ()Z
 	public final fun getEventsEnabled ()Z
 	public final fun getMaxEntries ()I
+	public final fun getPagedTotals ()Z
 	public final fun getTtl ()Ljava/time/Duration;
 	public final fun options ()Lme/ahoo/wow/query/QueryCountCacheOptions;
 	public final fun setEnabled (Z)V
 	public final fun setEventsEnabled (Z)V
 	public final fun setMaxEntries (I)V
+	public final fun setPagedTotals (Z)V
 	public final fun setTtl (Ljava/time/Duration;)V
 }
 
@@ -395,7 +397,9 @@ public final class me/ahoo/wow/spring/boot/QueryProperties$Sensitivity {
 public final class me/ahoo/wow/spring/boot/QueryProperties$State {
 	public fun <init> ()V
 	public final fun getMaxReplay ()I
+	public final fun getMinVersionWait ()Ljava/time/Duration;
 	public final fun setMaxReplay (I)V
+	public final fun setMinVersionWait (Ljava/time/Duration;)V
 }
 
 public final class me/ahoo/wow/spring/boot/QueryProperties$Stream {
@@ -498,6 +502,7 @@ public final class me/ahoo/wow/spring/boot/WowProperties {
 	public final fun getSchedules ()Ljava/util/Map;
 	public final fun getService ()Ljava/lang/String;
 	public final fun getSnapshot ()Lme/ahoo/wow/spring/boot/WowProperties$Snapshot;
+	public final fun getStandby ()Z
 	public final fun getStateCache ()Lme/ahoo/wow/spring/boot/WowProperties$StateCache;
 	public final fun getStateViews ()Lme/ahoo/wow/spring/boot/WowProperties$StateViews;
 	public final fun getStores ()Ljava/util/Map;
@@ -527,6 +532,7 @@ public final class me/ahoo/wow/spring/boot/WowProperties {
 	public final fun setSchedules (Ljava/util/Map;)V
 	public final fun setService (Ljava/lang/String;)V
 	public final fun setSnapshot (Lme/ahoo/wow/spring/boot/WowProperties$Snapshot;)V
+	public final fun setStandby (Z)V
 	public final fun setStateCache (Lme/ahoo/wow/spring/boot/WowProperties$StateCache;)V
 	public final fun setStateViews (Lme/ahoo/wow/spring/boot/WowProperties$StateViews;)V
 	public final fun setStores (Ljava/util/Map;)V
@@ -666,12 +672,22 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Clients {
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Clients$ClientTarget {
 	public fun <init> ()V
+	public final fun getContract ()Lme/ahoo/wow/spring/boot/WowProperties$Clients$Contract;
 	public final fun getInternalUrl ()Ljava/net/URI;
 	public final fun getMode ()Lme/ahoo/wow/spring/boot/WowProperties$Clients$Mode;
 	public final fun getUrl ()Ljava/net/URI;
+	public final fun setContract (Lme/ahoo/wow/spring/boot/WowProperties$Clients$Contract;)V
 	public final fun setInternalUrl (Ljava/net/URI;)V
 	public final fun setMode (Lme/ahoo/wow/spring/boot/WowProperties$Clients$Mode;)V
 	public final fun setUrl (Ljava/net/URI;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Clients$Contract : java/lang/Enum {
+	public static final field JAR Lme/ahoo/wow/spring/boot/WowProperties$Clients$Contract;
+	public static final field MANIFEST Lme/ahoo/wow/spring/boot/WowProperties$Clients$Contract;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spring/boot/WowProperties$Clients$Contract;
+	public static fun values ()[Lme/ahoo/wow/spring/boot/WowProperties$Clients$Contract;
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Clients$Mode : java/lang/Enum {
@@ -847,12 +863,16 @@ public final class me/ahoo/wow/spring/boot/WowProperties$HealthTopics {
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Http {
 	public fun <init> ()V
+	public final fun getClientFacts ()Z
 	public final fun getErrors ()Ljava/util/Map;
+	public final fun getGlobalErrors ()Z
 	public final fun getManifest ()Lme/ahoo/wow/spring/boot/WowProperties$Http$Manifest;
 	public final fun getOpenapi ()Lme/ahoo/wow/spring/boot/WowProperties$Http$OpenApi;
 	public final fun getRequestFacts ()Ljava/util/Set;
 	public final fun getServices ()Ljava/util/Map;
+	public final fun setClientFacts (Z)V
 	public final fun setErrors (Ljava/util/Map;)V
+	public final fun setGlobalErrors (Z)V
 	public final fun setManifest (Lme/ahoo/wow/spring/boot/WowProperties$Http$Manifest;)V
 	public final fun setOpenapi (Lme/ahoo/wow/spring/boot/WowProperties$Http$OpenApi;)V
 	public final fun setRequestFacts (Ljava/util/Set;)V
@@ -1065,9 +1085,9 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Snapshot {
 
 public final class me/ahoo/wow/spring/boot/WowProperties$StateCache {
 	public fun <init> ()V
-	public final fun getCapacity ()I
+	public final fun getCapacity ()Ljava/lang/Integer;
 	public final fun getRecentRequests ()I
-	public final fun setCapacity (I)V
+	public final fun setCapacity (Ljava/lang/Integer;)V
 	public final fun setRecentRequests (I)V
 }
 

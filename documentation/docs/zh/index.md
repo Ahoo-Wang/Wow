@@ -1,68 +1,97 @@
 ---
 layout: home
 kaicodeAward: true
-title: 基于 DDD & EventSourcing 的现代响应式 CQRS 架构微服务开发框架
+title: 领域模型即服务
 hero:
   name: "Wow"
   text: "领域模型即服务"
-  tagline: "基于 DDD & EventSourcing 的现代响应式 CQRS 架构微服务开发框架"
+  tagline: "只写领域模型，就得到一个能上线的系统。"
   image:
     src: /images/logo.svg
     alt: Wow
   actions:
     - theme: brand
-      text: 30 分钟快速上手
-      link: /zh/guide/getting-started
+      text: 快速开始
+      link: /zh/guide/v10/quickstart
     - theme: alt
-      text: 认识 Wow
-      link: /zh/guide/introduction
-    - theme: alt
-      text: 开发指南
-      link: /zh/guide/
+      text: Wow 怎样工作
+      link: /zh/concepts/
     - theme: alt
       text: GitHub
       link: https://github.com/Ahoo-Wang/Wow
 features:
-- title: 领域模型即服务
+- title: 只写领域模型
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>'
-  details: 围绕领域模型定义命令、事件与状态，Wow 生成 OpenAPI 元数据并装配运行链路，减少重复基础设施代码。
-  link: /zh/guide/domain/
-- title: 测试套件
+  details: "命令做出决定，事件演化状态，编译器在构建期把两者绑定好：没有反射，也没有基础设施代码。"
+  link: /zh/concepts/programming-model
+- title: 日志就是总线
+  icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>'
+  details: "一次追加是唯一的写。其他一切都从自己的检查点读日志，已提交的事实在途中不会丢失。"
+  link: /zh/concepts/event-log
+- title: 一份契约
+  icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>'
+  details: "Manifest 把服务描述一次。HTTP 路由、OpenAPI、TypeScript 客户端和视图都从它推出。"
+  link: /zh/concepts/contract
+- title: 读模型可重放
+  icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>'
+  details: "每个聚合的最新状态都能直接查询，每个读模型都能从日志开头重建。"
+  link: /zh/concepts/read-models
+- title: 失败是数据
   icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l3 7-6 11-6-11 3-7Z"/><path d="M9 3 3 10h18L15 3"/></svg>'
-  details: Given->When->Expect 测试套件直接验证命令、事件与状态；覆盖率和交付质量仍由应用门禁证明。
-  link: /zh/guide/test-suite
-- title: 可复现的性能基线
-  icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>'
-  details: 提供按用途分层的 JMH 基准任务；性能结论必须绑定当前代码、运行环境与结果清单，避免复用失去上下文的历史数据
-  link: /zh/guide/test-runtime#基准分三种用途
-- title: 可伸缩性
-  icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/></svg>'
-  details: 聚合、事件存储与消息抽象降低领域规则对存储拓扑的耦合；实际伸缩能力取决于热点、后端和部署验证。
-  link: /zh/guide/introduction.html#_2-性能与伸缩性
-- title: 分布式事务 (Saga)
-  icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>'
-  details: 利用 Saga 编排模式精心管理复杂多服务之间的事务流程，以降低分布式事务的复杂性
-  link: /zh/guide/event/saga
-- title: 事件补偿自动化
-  icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>'
-  details: 记录事件处理失败并提供重试、通知和可视化运维入口，帮助应用建立可验证的恢复流程。
-  link: /zh/guide/event/compensation
-- title: 端到端可观测 (Observability)
-  icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>'
-  details: 为命令、事件、投影、Saga 与存储链路提供 OpenTelemetry 观测点，支持应用定位异步阶段和失败边界。
-  link: /zh/guide/extensions/opentelemetry
-- title: 响应式编程 (Reactive)
-  icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>'
-  details: 核心运行链路采用 Reactor 非阻塞组合；吞吐、延迟和弹性仍需在实际 Adapter、硬件与负载下验证。
-- title: 商业智能
-  icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>'
-  details: 以状态事件和命令提供具有业务语义的数据源，并生成 ClickHouse 同步脚本；实时性与数据质量由应用运维保障。
-  link: /zh/guide/bi
+  details: "一再失败的处理函数，只停放它失败的那一个聚合。不跳过任何东西，别的也不会停。"
+  link: /zh/concepts/subscriptions
+- title: PostgreSQL 或 MongoDB
+  icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>'
+  details: "两者都是一等的日志后端。Kafka 承载跨上下文的东西，ClickHouse 提供数据集。"
+  link: /zh/concepts/event-log#backends
 ---
 
-## 从价值到首次成功
+## 你写什么，得到什么
 
-先读[简介](./guide/introduction.md)，判断 Wow 的价值、适用边界和采用成本；准备动手时，进入[30 分钟快速上手](./guide/getting-started.md)。领域测试、真实 HTTP 命令和版本化事件溯源状态均验证通过，才算完成第一次成功。
+快速开始里银行账户的一个命令函数，基于当前状态对一次取款做出决定：
+
+<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt#withdraw -->
+
+```kotlin
+@OnCommand(produces = [Withdrawn::class])
+fun onCommand(command: Withdraw): Decision = when {
+    command.amount <= 0 ->
+        Decision.reject(Rejections.INVALID_AMOUNT, "${command.amount} is not positive.")
+
+    command.amount > state.balance ->
+        Decision.reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
+
+    else -> Decision.events(Withdrawn(command.amount))
+}
+```
+
+它的测试用同样的语言来写：给定事件，执行一条命令，期望得到事件和状态，不需要启动服务：
+
+<!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt#withdraw -->
+
+```kotlin
+@Test
+fun `a withdrawal the balance does not cover is rejected`() = aggregateSpec(model, id = "alice") {
+    given(AccountOpened("Alice"), Deposited(100))
+    whenCommand(Withdraw(150)) { expectRejected(Account.Rejections.INSUFFICIENT_BALANCE) }
+    whenCommand(Withdraw(30)) {
+        expectEvents(Withdrawn(30))
+        expectState { balance.assert().isEqualTo(70) }
+    }
+}
+```
+
+不用再写代码，服务就能从这个模型得到：每条命令一个 HTTP 路由、状态读取和快照查询、一份 OpenAPI 文档、一份 Manifest（`wow-generator` 由它生成类型化的 TypeScript 客户端），以及以 `application/problem+json` 返回、带错误码的拒绝。
+
+## 从你的工作开始
+
+| 你想 | 从这里开始 |
+| --- | --- |
+| 判断 Wow 是否适合你的系统 | [Wow 怎样工作](/zh/concepts/)，然后是[术语表](/zh/reference/glossary) |
+| 编写一个服务 | [快速开始](/zh/guide/v10/quickstart)，然后是[决定与演化](/zh/concepts/programming-model) |
+| 从 TypeScript 前端调用服务 | [TypeScript 客户端](/zh/guide/typescript/) |
+| 在生产环境运行服务 | [身份、租户与访问](/zh/concepts/identity)，然后是[订阅、失败与重放](/zh/concepts/subscriptions) |
+| 分析数据 | [读模型](/zh/concepts/read-models)，然后是[工作台](/zh/workbench/) |
 
 ## 荣誉
 

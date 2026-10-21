@@ -1,46 +1,17 @@
 import {DefaultTheme} from "vitepress/types/default-theme";
 
 export const navbarEn: DefaultTheme.NavItem[] = [
+    {text: 'Quick Start', link: '/guide/v10/quickstart'},
     {
-        text: 'Start',
+        text: 'Guide',
+        activeMatch: '/guide/v10/',
         items: [
-            {text: 'Why Wow', link: '/guide/introduction'},
-            {text: '30-Minute Quickstart', link: '/guide/getting-started'},
-            {text: 'Adopt in an Existing Project', link: '/guide/existing-project'},
-            {text: 'Evaluate or Contribute by Role', link: '/onboarding/'},
-        ],
-    },
-    {text: 'Development Guide', link: '/guide/'},
-    {
-        text: 'Production Operations',
-        items: [
-            {text: 'Production Best Practices', link: '/guide/best-practices'},
-            {text: 'Backup, Restore, and Replay', link: '/guide/recovery'},
-            {text: 'Observability', link: '/guide/advanced/observability'},
-            {text: 'Troubleshooting', link: '/guide/troubleshooting'},
-            {text: 'Migration Guide', link: '/guide/migration'},
-        ],
-    },
-    {
-        text: 'Reference',
-        items: [
-            {
-                text: 'Configuration',
-                items: [
-                    {text: 'Core Configuration', link: '/reference/config/core'},
-                    {text: 'Infrastructure', link: '/reference/config/infrastructure'},
-                    {text: 'Observability', link: '/reference/config/observability'},
-                    {text: 'Compensation', link: '/reference/config/compensation'},
-                ],
-            },
-            {
-                text: 'Examples',
-                items: [
-                    {text: 'Order and Cart (Kotlin)', link: '/reference/example/order'},
-                    {text: 'Bank Transfer (Java)', link: '/reference/example/transfer'},
-                    {text: 'Event Compensation', link: '/reference/example/compensation'},
-                ],
-            },
+            {text: 'Write a Service', link: '/guide/v10/'},
+            {text: 'Programming Model', link: '/guide/v10/programming-model'},
+            {text: 'Testing', link: '/guide/testing'},
+            {text: 'HTTP API', link: '/guide/v10/http-api'},
+            {text: 'Query Language', link: '/guide/v10/query'},
+            {text: 'Deployment', link: '/guide/v10/deployment'},
         ],
     },
     {
@@ -66,15 +37,27 @@ export const navbarEn: DefaultTheme.NavItem[] = [
             },
         ],
     },
-    {text: 'API', link: '/dokka/index.html', target: '_blank'},
-    {text: 'Storybook', link: '/storybook/', target: '_blank'},
+    {text: 'Concepts', link: '/concepts/', activeMatch: '/concepts/'},
+    {
+        text: 'Reference',
+        items: [
+            {text: 'Glossary', link: '/reference/glossary'},
+            {text: 'Wire Protocols', link: '/reference/protocols'},
+            {text: 'Configuration Keys', link: '/reference/configuration'},
+            {text: 'Error Codes', link: '/reference/error-codes'},
+            {text: 'Annotations', link: '/reference/annotations'},
+            {text: 'Manifest Format', link: '/reference/manifest'},
+            {text: 'Modules and Artifacts', link: '/reference/modules'},
+            {text: 'API Levels', link: '/reference/api-levels'},
+            {text: 'What the Compiler Generates', link: '/guide/v10/generated-code'},
+            {text: 'Kotlin API', link: '/dokka/index.html', target: '_blank'},
+            {text: 'Storybook', link: '/storybook/', target: '_blank'},
+        ],
+    },
     {
         text: 'Resources',
         items: [
-            {text: 'Articles', link: '/articles/'},
-            {text: 'Agent Skills', link: '/guide/skills'},
-            {text: 'Project Template', link: 'https://github.com/Ahoo-Wang/wow-project-template'},
-            {text: 'Ecosystem', link: '/reference/ecosystem'},
+            {text: 'Contribute', link: '/contribute/documentation'},
             {text: 'Changelog', link: 'https://github.com/Ahoo-Wang/Wow/releases'},
         ],
     },

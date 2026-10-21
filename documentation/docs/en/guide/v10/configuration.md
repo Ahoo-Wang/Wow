@@ -34,6 +34,7 @@ wow:
 | `wow.internal.signal-queue-capacity` | `1024` | The wait signals queued per origin node before they are dropped |
 | `wow.contexts.include` | Empty: every context on the class path | The bounded contexts the node serves, by name |
 | `wow.contexts.exclude` | Empty | Contexts removed from what `include` (or the class path) gives |
+| `wow.standby` | `false` | The node starts on standby for a migration's dual-run window: it serves reads, refuses commands (`wow.node.standby`) and handles no subscription until its operator resumes it ([Deployment](./deployment.md#standby-for-a-migrations-cut-over)) |
 
 The host serves every context of the domain modules on its class path. `wow.contexts.*` selects some of them, for a class path that holds several contexts: a modular monolith that switches contexts by configuration, or end-to-end tests that start several services in one JVM, each including its own context (the eShop's `EshopSharedJvmTest`). The node is built for the selected contexts only: their models, their Manifest fragments, their routes and their processors; a context left out is another service's, reached through its peers. A name that is no context on the class path, a name both included and excluded, and a selection that leaves no context fail the startup, naming the contexts on the class path.
 
@@ -104,7 +105,9 @@ Unless the application sets `spring.lifecycle.timeout-per-shutdown-phase`, the h
 | Key | Default | Means |
 | --- | --- | --- |
 | `wow.http.request-facts` | Empty | The request headers copied into a command's headers, and so into the event stream |
+| `wow.http.client-facts` | `true` | Whether the public port records each command's client address and `User-Agent` (`remote_ip`, `user_agent`): personal data that cannot be erased once written |
 | `wow.http.errors.[<code>].status` | The Manifest's | The HTTP status of an error code |
+| `wow.http.global-errors` | `true` | Whether the application's own routes answer what fails on them as problems ([Error codes](./http-api.md#error-codes)) |
 | `wow.http.manifest.enabled` | `true` | Whether `GET /wow/manifest` is served |
 
 The public port is Spring Boot's `server.port`.

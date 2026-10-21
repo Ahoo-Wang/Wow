@@ -59,7 +59,7 @@ cd documentation
 pnpm docs:build
 ```
 
-For an end-to-end repository introduction, start with the [contributor onboarding guide](https://wow.ahoo.me/onboarding/contributor-guide.html). The [architecture guide](https://wow.ahoo.me/guide/advanced/architecture.html), [testing guide](https://wow.ahoo.me/guide/test-suite.html), and [getting-started guide](https://wow.ahoo.me/guide/getting-started.html) remain the canonical topic references.
+The [Quick Start](documentation/docs/en/guide/v10/quickstart.md), [Write a Service](documentation/docs/en/guide/v10/index.md) and [Testing](documentation/docs/en/guide/v10/testing.md) pages are the canonical topic references; the design records in [documentation/designs/v10](documentation/designs/v10/README.md) explain the architecture.
 
 ## Change Guidelines
 
@@ -67,7 +67,7 @@ For an end-to-end repository introduction, start with the [contributor onboardin
 - Preserve reactive `Mono` and `Flux` paths; do not introduce blocking calls into core runtime flows.
 - Keep the public JVM ABI of published modules binary compatible within a 9.x line. `./gradlew check` fails when a public signature no longer matches the module's `api/<module>.api`; run `./gradlew updateKotlinAbi` and commit the dump. Only additions are accepted in a patch; see [Binary Compatibility](AGENTS.md#binary-compatibility).
 - Add or update tests for behavior changes and defect fixes.
-- Put documentation where its readers look for it and update it in the same change: user-facing pages in `documentation/docs/{en,zh}/`, module usage in the module README, design records in `documentation/designs/`. Plans, review notes and scratch evidence stay out of the repository; see [Documentation Governance](https://wow.ahoo.me/guide/advanced/documentation-governance.html).
+- Put documentation where its readers look for it and update it in the same change: user-facing pages in `documentation/docs/{en,zh}/`, module usage in the module README, design records in `documentation/designs/`. Plans, review notes and scratch evidence stay out of the repository; see [Documentation Governance](documentation/docs/en/contribute/documentation.md).
 - Prefer the existing Wow test DSL and FluentAssert conventions in Kotlin tests.
 - Do not edit generated clients under an app's `src/generated/` when the Manifest or the generator can be fixed.
 - Keep generated output, credentials, signing keys, tokens, IDE state, `.gradle/`, and `node_modules/` out of commits.

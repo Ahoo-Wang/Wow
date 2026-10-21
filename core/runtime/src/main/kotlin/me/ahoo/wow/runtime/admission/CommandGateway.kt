@@ -301,6 +301,14 @@ class CommandGateway @InternalWowApi constructor(
     fun defaultWaitTimeout(context: String): Duration =
         coordinators[context]?.options?.let { minOf(it.defaultTimeout, it.maxTimeout) } ?: WaitPlan.DEFAULT_TIMEOUT
 
+    /**
+     * Whether the node is on standby ([me.ahoo.wow.runtime.node.ServiceNode.start]): every request is refused with
+     * [FrameworkCodes.NODE_STANDBY], before anything of it is read, until the node is resumed.
+     */
+    @InternalWowApi
+    @Volatile
+    var standby: Boolean = false
+
     /** Admits [request] and returns the result its wait ends with: the last one [send] emits. */
     suspend fun execute(request: CommandRequest): CommandResult {
         var last: CommandResult? = null
@@ -357,6 +365,13 @@ class CommandGateway @InternalWowApi constructor(
     private suspend fun admit(request: CommandRequest, facts: Facts): Admission {
         if (closed) {
             return facts.refuse(FrameworkCodes.NODE_CLOSING, "The node is closing.", CommandResult.Status.FAILED)
+        }
+        if (standby) {
+            return facts.refuse(
+                FrameworkCodes.NODE_STANDBY,
+                "The node is on standby until the cut-over: it serves reads and refuses commands.",
+                CommandResult.Status.FAILED,
+            )
         }
         // 1. The command type.
         val model = registry.find(facts.type) ?: return admitPeer(request, facts)

@@ -1,9 +1,8 @@
 ---
 type: regex
-pattern: 'drain'
-flags: i
+pattern: 'import --(final|restart)'
 match: contains
 target: last_message
 ---
 
-The answer names draining the old writers.
+The answer names the final pass, `import --final` or `import --restart`.

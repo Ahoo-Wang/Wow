@@ -1466,6 +1466,15 @@ export interface DatasetDirectoryEntry {
     version: string | null;
 }
 
+// @beta
+export interface DatasetDuplicate {
+    // (undocumented)
+    dropped: number;
+    entry: DatasetDirectoryEntry;
+    id: string;
+    kept: number;
+}
+
 // @public
 export type DatasetOverrides = Partial<Pick<DefineDatasetSpec, 'title' | 'recordNoun' | 'fields'>>;
 
@@ -1485,6 +1494,8 @@ export interface DatasetRegistrar {
 
 // @public
 export interface DatasetResource {
+    // @beta
+    catalog: number;
     // (undocumented)
     entry: DatasetDirectoryEntry;
     // (undocumented)
@@ -1493,12 +1504,23 @@ export interface DatasetResource {
 
 // @public
 export class DatasetResources {
-    constructor(engine: DatasetRegistrar, catalog: DatasetCatalog,
+    constructor(engine: DatasetRegistrar,
+    catalogs: DatasetCatalog | readonly DatasetCatalog[],
     onError?: (entry: DatasetDirectoryEntry, error: unknown) => void,
-    onWordingError?: (error: unknown) => void);
+    onWordingError?: (error: unknown) => void, options?: DatasetResourcesOptions);
+    // @beta
+    get duplicates(): readonly DatasetDuplicate[];
     // (undocumented)
     refresh(): Promise<readonly DatasetResource[]>;
     get resources(): readonly DatasetResource[];
+}
+
+// @public
+export interface DatasetResourcesOptions {
+    // @beta
+    onCatalogError?(catalog: number, error: unknown): void;
+    // @beta
+    onDuplicate?(duplicate: DatasetDuplicate): void;
 }
 
 // @public
@@ -5034,6 +5056,7 @@ export class ViewEngine extends EngineResources {
     // (undocumented)
     preferences(definitionId: string): Promise<ViewPreferences>;
     publishAsSystem(id: string): Promise<ViewInstance>;
+    register(resource: Parameters<EngineResources['register']>[0]): void;
     // (undocumented)
     protected readonly registered: ReadonlyMap<string, ViewDefinition>;
     rememberTab(definitionId: string, instanceId: string, tabId: string): Promise<void>;
