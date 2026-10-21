@@ -6,17 +6,18 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-// Checks that v10.yml's integration shards run every V10 integration test
-// exactly once (the scope job of v10.yml runs it):
+// Checks that ci.yml's integration shards run every integration test exactly
+// once (ci.yml's scope job runs it):
 //
-//   node .github/scripts/v10-integration-shards.mjs
+//   node .github/scripts/integration-shards.mjs
 //
 // Every project of `integrationTestProjects` (build.gradle.kts) must be in
 // the `projects` of exactly one shard of the `integration` job's matrix, and a
 // shard may name no other project. A project in no shard would never run on a
-// pull request; one in two would run twice. The `v10` flag's after_n_builds
-// (codecov.yml) must be the uploads of a full run: the check's and one per
-// shard, or Codecov would judge its statuses early or never.
+// pull request; one in two would run twice. Codecov's after_n_builds
+// (codecov.yml) must be the uploads of a full run: the `integration` flag's one
+// per shard, the `unit` flag's the check's one, or Codecov would judge its
+// statuses early or never.
 
 /** The Gradle paths of `integrationTestProjects = includedProjects(...)`. */
 export function gradleProjects(buildScript) {
@@ -33,7 +34,7 @@ export function gradleProjects(buildScript) {
 export function workflowShards(workflow) {
   const job = workflow.split(/^ {2}integration:$/m)[1]?.split(/^ {2}\S/m)[0];
   if (!job) {
-    throw new Error('v10.yml has no integration job');
+    throw new Error('ci.yml has no integration job');
   }
   return [...job.matchAll(/- shard: (\S+)\n\s+projects: ([^\n]+)/g)].map(
     ([, shard, projects]) => ({
@@ -43,9 +44,11 @@ export function workflowShards(workflow) {
   );
 }
 
-/** The `after_n_builds` of the `v10` flag in codecov.yml, or undefined. */
-export function codecovV10Builds(codecov) {
-  const builds = /- name: v10\n\s+after_n_builds: (\d+)/.exec(codecov)?.[1];
+/** The `after_n_builds` of the `flag` in codecov.yml, or undefined. */
+export function codecovBuilds(codecov, flag) {
+  const builds = new RegExp(
+    `- name: ${flag}\\n\\s+after_n_builds: (\\d+)`,
+  ).exec(codecov)?.[1];
   return builds === undefined ? undefined : Number(builds);
 }
 
@@ -85,25 +88,29 @@ if (
 ) {
   const projects = gradleProjects(readFileSync('build.gradle.kts', 'utf8'));
   const shards = workflowShards(
-    readFileSync('.github/workflows/v10.yml', 'utf8'),
+    readFileSync('.github/workflows/ci.yml', 'utf8'),
   );
   const problems = shardProblems(projects, shards);
-  const builds = codecovV10Builds(readFileSync('codecov.yml', 'utf8'));
-  if (builds !== shards.length + 1) {
-    problems.push(
-      `codecov.yml: the v10 flag's after_n_builds is ${builds}, not ${shards.length + 1} (the check and ${shards.length} shards)`,
-    );
+  const codecov = readFileSync('codecov.yml', 'utf8');
+  const expected = { unit: 1, integration: shards.length };
+  for (const [flag, builds] of Object.entries(expected)) {
+    const actual = codecovBuilds(codecov, flag);
+    if (actual !== builds) {
+      problems.push(
+        `codecov.yml: the ${flag} flag's after_n_builds is ${actual}, not ${builds}`,
+      );
+    }
   }
   for (const { shard, projects: shardProjects } of shards) {
     console.log(`${shard}: ${shardProjects.join(' ')}`);
   }
   if (problems.length > 0) {
     for (const problem of problems) {
-      console.error(`::error file=.github/workflows/v10.yml::${problem}`);
+      console.error(`::error file=.github/workflows/ci.yml::${problem}`);
     }
     process.exit(1);
   }
   console.log(
-    `${projects.length} integration test projects, each in exactly one of ${shards.length} shards; Codecov waits for ${builds} v10 uploads`,
+    `${projects.length} integration test projects, each in exactly one of ${shards.length} shards; Codecov waits for ${shards.length} integration uploads and 1 unit upload`,
   );
 }

@@ -177,10 +177,7 @@ test('verify names every workspace fetcher not on the floor', () => {
 });
 
 test('the fetcher-floor job pins, verifies, tests and smoke-tests the floor, and the gate needs it', () => {
-  const workflow = readFileSync(
-    join(ROOT, '.github/workflows/typescript.yml'),
-    'utf8',
-  );
+  const workflow = readFileSync(join(ROOT, '.github/workflows/ci.yml'), 'utf8');
   const job = workflow.slice(
     workflow.indexOf('\n  fetcher-floor:'),
     workflow.indexOf('\n  view-engine-shard:'),
@@ -200,6 +197,6 @@ test('the fetcher-floor job pins, verifies, tests and smoke-tests the floor, and
   }
   for (const pkg of ['wow-client', 'wow-react', 'wow-generator'])
     assert.match(job, new RegExp(pkg), pkg);
-  const gate = workflow.slice(workflow.indexOf('\n  typescript-gate:'));
+  const gate = workflow.slice(workflow.indexOf('\n  ci-gate:'));
   assert.match(gate, /^\s+fetcher-floor,$/m);
 });

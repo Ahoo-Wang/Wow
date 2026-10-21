@@ -66,7 +66,7 @@ class EShopOpenApiSnapshotTest {
 
         /** A result as `wow-http` writes it (`HttpJson`), every member set. */
         private const val COMMAND_RESULT = """{"format":1,"commandId":"c","requestId":"r","correlationId":"co",
-            "ref":{"type":{"context":"c","name":"a"},"tenantId":"t","id":"i","isAssigned":true},
+            "ref":{"type":{"context":"c","name":"a"},"tenantId":"t","id":"i"},
             "hop":{"stage":"HANDLED","context":"c","subscription":"s"},
             "function":{"kind":"SAGA","context":"c","processor":"p","name":"n"},"status":"FAILED","version":1,
             "duplicate":false,"error":{"code":"x","message":"m","violations":[{"path":"p","code":"c","message":"m"}]},

@@ -14,7 +14,10 @@
 package me.ahoo.wow.spi.json
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.DeserializationFeature
 import tools.jackson.module.kotlin.KotlinModule
 import tools.jackson.module.kotlin.readValue
 import java.math.BigDecimal
@@ -61,5 +64,20 @@ class WowJsonTest {
             .assert().containsExactly(KotlinModule::class.java.name)
         WowJson.mapper.readValue<Price>("""{"amount":1,"exact":1,"unknown":{"a":[1]}}""")
             .assert().isEqualTo(Price(1.0, BigDecimal.ONE))
+    }
+
+    @Test
+    fun `a ref should be written without its derived isAssigned, and read with or without it`() {
+        val ref = AggregateType("shop", "cart").ref("t1", "c-1")
+        val written = WowJson.mapper.writeValueAsString(ref)
+        written.assert().isEqualTo("""{"type":{"context":"shop","name":"cart"},"tenantId":"t1","id":"c-1"}""")
+        WowJson.mapper.writeValueAsString(
+            AggregateType("shop", "cart").unassigned("t1")
+        ).assert().doesNotContain("isAssigned")
+        // An older writer's payload still reads, even where unknown properties fail.
+        val older = """{"type":{"context":"shop","name":"cart"},"tenantId":"t1","id":"c-1","isAssigned":true}"""
+        WowJson.mapper.readValue<AggregateRef>(older).assert().isEqualTo(ref)
+        WowJson.builder().enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES).build()
+            .readValue<AggregateRef>(older).assert().isEqualTo(ref)
     }
 }
