@@ -86,7 +86,6 @@ dependencies:
           - 'patches/**'
           - 'gradle/**'
           - 'bom/**'
-          - 'wow-dependencies/**'
           - '*.gradle.kts'
           - 'gradle.properties'
           - 'package.json'
