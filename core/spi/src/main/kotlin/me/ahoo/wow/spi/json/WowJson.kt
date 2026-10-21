@@ -68,7 +68,7 @@ object WowJson {
 
     /** How an [AggregateRef] is written: without its derived [AggregateRef.isAssigned], read or not (D267 ⑮). */
     @JsonIgnoreProperties(ASSIGNED)
-    private abstract class AggregateRefJson
+    private interface AggregateRefJson
 
     /** The property name Jackson gives [AggregateRef.isAssigned]. */
     private const val ASSIGNED = "isAssigned"
