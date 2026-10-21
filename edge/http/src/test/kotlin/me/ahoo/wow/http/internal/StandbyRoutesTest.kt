@@ -83,6 +83,7 @@ class StandbyRoutesTest {
             it.body().assert().contains("names who resumes the node")
         }
         send(InternalHttp.RESUME_PATH, """{"by":" "}""").statusCode().assert().isEqualTo(400)
+        send(InternalHttp.RESUME_PATH, """{"by":7}""").statusCode().assert().isEqualTo(400)
         send(InternalHttp.RESUME_PATH, "not json").statusCode().assert().isEqualTo(400)
         resumes.assert().isEmpty()
 
@@ -92,7 +93,9 @@ class StandbyRoutesTest {
                 .contains("\"reason\":\"cut-over\"").contains("\"resumedAt\":42")
         }
         send(InternalHttp.RESUME_PATH, """{"by":"operator-2"}""").statusCode().assert().isEqualTo(200)
-        resumes.assert().containsExactly("operator-1" to "cut-over", "operator-2" to null)
+        // A reason that is not a string is none.
+        send(InternalHttp.RESUME_PATH, """{"by":"operator-3","reason":5}""").statusCode().assert().isEqualTo(200)
+        resumes.assert().containsExactly("operator-1" to "cut-over", "operator-2" to null, "operator-3" to null)
     }
 
     @Test

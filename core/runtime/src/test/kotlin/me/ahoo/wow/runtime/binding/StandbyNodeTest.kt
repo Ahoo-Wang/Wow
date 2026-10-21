@@ -40,10 +40,13 @@ import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.subscription.LeaseStore
+import me.ahoo.wow.spi.subscription.Member
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.time.Duration
 
 /**
  * A node on standby through the dual-run window of a migration's cut-over (design 07 §3, decision D32): it refuses
@@ -53,11 +56,23 @@ import java.util.concurrent.CopyOnWriteArrayList
  */
 class StandbyNodeTest {
     private val log = InMemoryEventLog(PARTITIONS)
+
+    @Volatile
+    private var leasesDown = false
+
+    /** The lease store, down once [leasesDown] is set: the node's join at the resume fails. */
+    private val store = InMemoryLeaseStore()
+    private val leases = object : LeaseStore by store {
+        override suspend fun heartbeat(group: String, node: String, address: String, ttl: Duration): Member {
+            check(!leasesDown) { "The lease store is down." }
+            return store.heartbeat(group, node, address, ttl)
+        }
+    }
     private val backends = BackendFactory {
         ContextBackends(
             log = log,
             checkpoints = InMemoryCheckpointStore(),
-            leases = InMemoryLeaseStore(),
+            leases = leases,
             ledger = InMemoryFailureLedger(),
             snapshots = InMemorySnapshotStore(),
             reservations = InMemoryReservationStore(),
@@ -168,6 +183,28 @@ class StandbyNodeTest {
         standby.start(standby = true)
         standby.stop()
         assertThrows<IllegalStateException> { standby.resume("operator") }
+
+        // Resumed without a reason, the resumption records none.
+        val unexplained = node()
+        unexplained.start(standby = true)
+        unexplained.resume("operator").also {
+            it.resumed.assert().isTrue()
+            it.reason.assert().isNull()
+        }
+        unexplained.stop()
+    }
+
+    @Test
+    fun `a resume that fails stops the node and throws`(): Unit = runBlocking {
+        val node = node()
+        node.start(standby = true)
+        leasesDown = true
+        assertThrows<IllegalStateException> { node.resume("operator", "cut-over") }
+            .message.assert().isEqualTo("The lease store is down.")
+        node.resumption.assert().isNull()
+        // Stopped: it refuses another resume, as any node that is not running.
+        assertThrows<IllegalStateException> { node.resume("operator") }
+            .message.assert().contains("only a running node resumes")
     }
 
     private companion object {
