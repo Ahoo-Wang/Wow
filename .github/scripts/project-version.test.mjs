@@ -31,6 +31,11 @@ function workspace(version = '9.1.5', overrides = {}) {
       private: true,
     },
     'platform/ops/console': { name: 'wow-ops-console', private: true, version },
+    'platform/analytics/catalog/console': {
+      name: 'wow-analytics-catalog-console',
+      private: true,
+      version,
+    },
     documentation: { name: 'documentation', version, private: true },
     ...overrides,
   };
@@ -53,11 +58,12 @@ test('the repository itself keeps every package on the gradle version', () => {
   );
 });
 
-test('versioned files are the typescript packages, the ops console and documentation', () => {
+test('versioned files are the typescript packages, the two consoles and documentation', () => {
   assert.deepEqual(versionedPackageFiles(workspace()), [
     'typescript/integration-test/package.json',
     'typescript/wow-client/package.json',
     'platform/ops/console/package.json',
+    'platform/analytics/catalog/console/package.json',
     'documentation/package.json',
   ]);
 });
@@ -77,7 +83,7 @@ test('set writes gradle.properties and every package.json, keeping layout', () =
   const root = workspace();
   const before = readFileSync(join(root, 'documentation/package.json'), 'utf8');
   const changed = setProjectVersion('9.2.0', root);
-  assert.equal(changed.length, 5);
+  assert.equal(changed.length, 6);
   assert.equal(readProjectVersion(root), '9.2.0');
   assert.match(
     readFileSync(join(root, 'gradle.properties'), 'utf8'),
