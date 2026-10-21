@@ -325,6 +325,8 @@ problem 的 `violations` 中每条违例有 `path`（请求体中的 JSON 路径
 
 `wow-query-api` 带有一套 Kotlin DSL（`me.ahoo.wow.api.query.dsl`），构建的查询对象与 JSON 读出的相同：用它构建的查询就是其 JSON 读成的查询，进程内调用方（`QueryGateway`）与 HTTP 客户端用的是同一种语言。
 
+<!-- sample: fragment -->
+
 ```kotlin
 import me.ahoo.wow.api.query.dsl.pagedQuery
 
