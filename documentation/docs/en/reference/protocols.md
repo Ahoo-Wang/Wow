@@ -36,7 +36,7 @@ These values appear inside most structures.
 
 | Value | JSON | Notes |
 | --- | --- | --- |
-| Aggregate reference | `{"type": {"context", "name"}, "tenantId", "id", "isAssigned"}` | `isAssigned` is false only for a creation that leaves its id to the server, whose `id` is then `(none)`; it is derived from `id`, and readers ignore it. |
+| Aggregate reference | `{"type": {"context", "name"}, "tenantId", "id"}` | A creation that leaves its id to the server has the `id` `(none)`. The examples below still show a derived `isAssigned`, which is removed from the wire before 10.0; do not read it. |
 | Scope | `{"ownerId", "spaceId"}` | Either may be null. On a command, the caller's scope; on a commit or a snapshot, the aggregate's after the commit. |
 | Causation | `{"correlationId", "causationId"}` | `correlationId` is the root command's id; `causationId` is the direct cause, for a saga's command the commit it handled. A command sent directly by a caller has none and is its own root. |
 | Operator | `{"id", "tenantId", "crossScope"}` | Whose name a commit is recorded under: the caller's subject and own tenant; `crossScope` when it acted in another tenant or scope. |
