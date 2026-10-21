@@ -179,7 +179,7 @@ livenessProbe:
 
 ## Standby for a migration's cut-over
 
-Through the dual-run window of a [9.x cut-over](../migrate/data), `migrate-data tail` imports what 9.x keeps writing while the V10 service serves reads. Start its nodes with `wow.standby: true`:
+Through the dual-run window of a 9.x cut-over, `migrate-data tail` imports what 9.x keeps writing while the V10 service serves reads. Start its nodes with `wow.standby: true`:
 
 - They serve state reads and queries of what the tail imports.
 - They refuse every command with `wow.node.standby` (503), so nothing writes to V10 before the cut-over.
