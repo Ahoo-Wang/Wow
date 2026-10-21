@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.subscription
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.kernel.HandlerRetry
+import me.ahoo.wow.kernel.UnreadableEventException
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.spi.StorageUnavailableException
@@ -32,7 +33,8 @@ import kotlin.time.Duration
 
 /**
  * How the subscriptions of a runtime classify their handlers' failures (decisions D229 G-6, D243): a handler's own
- * `@Retry(recoverable, unrecoverable)` ([HandlerRetry.classify]) first; then, for the failure and each of its causes
+ * `@Retry(recoverable, unrecoverable)` ([HandlerRetry.classify]) first, of the failure itself or, for an
+ * [UnreadableEventException], of what the kernel could not read; then, for the failure and each of its causes
  * in turn, each of [classifiers] in order, the first class one gives deciding; [FailureClass.RECOVERABLE] when none
  * does.
  */
@@ -40,7 +42,9 @@ import kotlin.time.Duration
 class FailureClassification(private val classifiers: List<FailureClassifier>) {
     /** The class of [failure] of a handler whose budget is [retry]. */
     fun classify(failure: Throwable, retry: HandlerRetry?): FailureClass {
-        retry?.classify(failure)?.let { return it }
+        // An event the kernel could not read classifies as what it could not read (its cause).
+        val subject = (failure as? UnreadableEventException)?.cause ?: failure
+        retry?.classify(subject)?.let { return it }
         causes(failure).forEach { cause ->
             classifiers.forEach { classifier -> classifier.classify(cause)?.let { return it } }
         }
