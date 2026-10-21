@@ -185,6 +185,19 @@ interface SnapshotQueries<S : Any> : ModelQueries<Snapshot<S>> {
      * @throws IllegalArgumentException when [ref] is not an aggregate of [type].
      */
     suspend fun state(ref: AggregateRef): AggregateState<S>?
+
+    /**
+     * The committed state of the aggregate [id] at version [minVersion] or later (review R4-Q, Q-13: read your writes,
+     * [me.ahoo.wow.api.result.CommandResult.version] the version a command wrote): the latest state, its snapshot
+     * caught up with its log when the snapshot lags; `null` when the caller may not see it.
+     *
+     * @throws MinVersionNotReachedException when the aggregate stays below [minVersion] through the read's wait
+     * (`wow.query.state.min-version-wait`): the command has not committed yet.
+     */
+    suspend fun state(id: String, minVersion: Int): AggregateState<S>?
+
+    /** The committed state of [ref] at version [minVersion] or later, as [state] of an id and a version reads it. */
+    suspend fun state(ref: AggregateRef, minVersion: Int): AggregateState<S>?
 }
 
 /** The events queries of an aggregate type (decision D235): one row per commit, an [EventStream]. */
@@ -203,3 +216,16 @@ inline fun <reified T : Any> ModelQueries<*>.dynamic(): RowQueries<T> = dynamic(
 /** The groups of [query] decoded as [G]; see [RowQueries.aggregate]. */
 inline fun <reified G : Any> RowQueries<*>.aggregate(query: AggregationQuery): Flow<G> =
     aggregate(query, G::class.java)
+
+/**
+ * A state read that asked for at least [minVersion] of [ref] (review R4-Q, Q-13: read your writes) while the
+ * aggregate stayed at [version] (0 when it has no commit) through the read's wait: the command whose version was asked
+ * for has not committed yet. The HTTP state route answers it `409` [CODE] with the version, and `Retry-After`.
+ */
+class MinVersionNotReachedException(val ref: AggregateRef, val minVersion: Int, val version: Int) :
+    RuntimeException("$ref is at version $version, not yet at $minVersion.") {
+    companion object {
+        /** The problem code of this failure, as the framework's error catalog names it. */
+        const val CODE: String = "wow.query.min-version-not-reached"
+    }
+}

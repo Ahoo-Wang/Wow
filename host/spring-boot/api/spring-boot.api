@@ -337,11 +337,13 @@ public final class me/ahoo/wow/spring/boot/QueryProperties$CountCache {
 	public final fun getEnabled ()Z
 	public final fun getEventsEnabled ()Z
 	public final fun getMaxEntries ()I
+	public final fun getPagedTotals ()Z
 	public final fun getTtl ()Ljava/time/Duration;
 	public final fun options ()Lme/ahoo/wow/query/QueryCountCacheOptions;
 	public final fun setEnabled (Z)V
 	public final fun setEventsEnabled (Z)V
 	public final fun setMaxEntries (I)V
+	public final fun setPagedTotals (Z)V
 	public final fun setTtl (Ljava/time/Duration;)V
 }
 
@@ -395,7 +397,9 @@ public final class me/ahoo/wow/spring/boot/QueryProperties$Sensitivity {
 public final class me/ahoo/wow/spring/boot/QueryProperties$State {
 	public fun <init> ()V
 	public final fun getMaxReplay ()I
+	public final fun getMinVersionWait ()Ljava/time/Duration;
 	public final fun setMaxReplay (I)V
+	public final fun setMinVersionWait (Ljava/time/Duration;)V
 }
 
 public final class me/ahoo/wow/spring/boot/QueryProperties$Stream {
@@ -666,12 +670,22 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Clients {
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Clients$ClientTarget {
 	public fun <init> ()V
+	public final fun getContract ()Lme/ahoo/wow/spring/boot/WowProperties$Clients$Contract;
 	public final fun getInternalUrl ()Ljava/net/URI;
 	public final fun getMode ()Lme/ahoo/wow/spring/boot/WowProperties$Clients$Mode;
 	public final fun getUrl ()Ljava/net/URI;
+	public final fun setContract (Lme/ahoo/wow/spring/boot/WowProperties$Clients$Contract;)V
 	public final fun setInternalUrl (Ljava/net/URI;)V
 	public final fun setMode (Lme/ahoo/wow/spring/boot/WowProperties$Clients$Mode;)V
 	public final fun setUrl (Ljava/net/URI;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Clients$Contract : java/lang/Enum {
+	public static final field JAR Lme/ahoo/wow/spring/boot/WowProperties$Clients$Contract;
+	public static final field MANIFEST Lme/ahoo/wow/spring/boot/WowProperties$Clients$Contract;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spring/boot/WowProperties$Clients$Contract;
+	public static fun values ()[Lme/ahoo/wow/spring/boot/WowProperties$Clients$Contract;
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Clients$Mode : java/lang/Enum {

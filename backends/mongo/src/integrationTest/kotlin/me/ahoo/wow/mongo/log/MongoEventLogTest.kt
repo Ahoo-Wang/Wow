@@ -100,21 +100,28 @@ class MongoEventLogTest : EventLogSpec() {
     @Test
     fun `contended appends keep retrying write conflicts past the transaction timeout, which bounds each attempt`(): Unit =
         runBlocking {
-            // Regression (B.G-4): the timeout bounded the driver's whole retry loop, so on a slow machine an append that
-            // kept losing write conflicts on the partition's counter ended unknown (the lease spike's direct run, 255 of
-            // 256). With a 600 ms timeout the old loop lost dozens here; each attempt is bounded now, the retries not.
+            // Regression (B.G-4): the timeout bounded the driver's whole retry loop, so an append that kept losing write
+            // conflicts on the partition's counter ended unknown once the timeout passed. Here a transaction of the
+            // test holds the counter for three timeouts: each attempt of the append loses at once (a write conflict
+            // is not waited for), so no attempt comes near the timeout however slow the machine, and the append must
+            // still be retrying when the counter is let go, then commit.
             val context = MongoLogFixture.newContext("contended")
             val client = MongoLogFixture.client
-            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1, transactionTimeout = 500.milliseconds)
+            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1, transactionTimeout = CONTENDED_TIMEOUT)
             log.createSchema()
             val type = AggregateType(context, "account")
-            val outcomes = (0 until CONTENDERS).map { index ->
-                async(Dispatchers.Default) {
-                    (1..CONTENDED_VERSIONS).map { version -> log.append(stream("a-$index", version, aggregate = type)) }
-                }
-            }.awaitAll().flatten()
-            outcomes.filterNot { it is AppendOutcome.Committed }.assert().isEmpty()
-            outcomes.size.assert().isEqualTo(CONTENDERS * CONTENDED_VERSIONS)
+            log.append(stream("a", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            val counters = client.getDatabase(MongoLogFixture.DATABASE)
+                .getCollection(MongoNames.of("wow_log", context, "partition"))
+            client.startSession().use { holder ->
+                holder.startTransaction()
+                counters.updateOne(holder, Filters.eq("_id", 0), Updates.set("heldBy", "test"))
+                val append = async(Dispatchers.Default) { log.append(stream("a", 2, aggregate = type)) }
+                delay(CONTENDED_TIMEOUT * 3)
+                append.isCompleted.assert().describedAs("still retrying past the transaction timeout").isFalse()
+                holder.abortTransaction()
+                append.await().assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            }
         }
 
     @Test
@@ -494,8 +501,7 @@ class MongoEventLogTest : EventLogSpec() {
     }
 
     private companion object {
-        const val CONTENDERS = 32
-        const val CONTENDED_VERSIONS = 8
+        val CONTENDED_TIMEOUT = 1.seconds
         const val TAIL_STALL_MS = 500L
         const val RACES = 5
         const val IDLE_POLLS = 13

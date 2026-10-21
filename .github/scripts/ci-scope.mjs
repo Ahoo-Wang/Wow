@@ -35,16 +35,14 @@ const PACKAGE = 'package';
 // v10.yml (v10 branch): `:check` and the V10 integration
 // tests. Not a TypeScript scope. Decided apart from RULES, by V10_PATH: the
 // V10 modules, their tests and spikes, the V10 examples (the eShop, the Java
-// smoke test and the quickstart, with the quickstart pages its test keeps in
-// step), the end-to-end benchmark (test/benchmarks, D224; not its README or
-// reports), the migration rehearsal's host and scripts (test/migration-rehearsal,
-// roadmap 8c.1), the platform
+// smoke test and the quickstart), the end-to-end benchmark (test/benchmarks, D224; not its README or
+// reports), the migration rehearsal's host and scripts (test/migration-rehearsal, roadmap 8c.1), the platform
 // they import, the coverage report v10.yml uploads (test/code-coverage-report:
 // coverageReport), and the root build and Gradle configuration every module
 // reads.
 const V10 = 'v10';
 const V10_PATH =
-  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|tck|tck-containers|benchmarks\/(?:server|load|harness)|migration-rehearsal)|example\/(?:eshop|quickstart|java-smoke)|wow-dependencies|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|documentation\/docs\/(?:en|zh)\/guide\/v10\/quickstart\.md$|\.github\/workflows\/v10\.yml$)/;
+  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|tck|tck-containers|benchmarks\/(?:server|load|harness)|migration-rehearsal)|example\/(?:eshop|quickstart|java-smoke)|wow-dependencies|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/v10\.yml$)/;
 // typescript-contract.yml (v10 branch): `test` of integration-test, the
 // V10 store (`@ahoo-wang/wow-view-store`) and the view engine on it
 // against the V10 view store service (platform/view-store) built from this
@@ -65,6 +63,14 @@ const V10_CONTRACT_PATH =
 const OPS_CONSOLE = 'opsConsole';
 const OPS_CONSOLE_PATH =
   /^(?:platform\/ops\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|patches\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ops-console-test\.yml$)/;
+// catalog-console-test.yml (v10 branch): the analytics catalog console's lint,
+// types, tests and build, and its end-to-end suite against the catalog server
+// it is served by, as ops-console-test.yml does the ops console's. Decided
+// apart from RULES, by CATALOG_CONSOLE_PATH: the console, the catalog service,
+// the workspace packages and files the console builds with, and the workflow.
+const CATALOG_CONSOLE = 'catalogConsole';
+const CATALOG_CONSOLE_PATH =
+  /^(?:platform\/analytics\/catalog\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|patches\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/catalog-console-test\.yml$)/;
 
 // A light scope stands in for a full one when only Markdown changed, so it
 // turns off again once any path turns the full scope on.
@@ -182,6 +188,9 @@ const RULES = [
   // checks it (OPS_CONSOLE_PATH), and v10.yml runs with the ops server that
   // serves it (V10_PATH).
   [/^platform\/ops\/console\//, []],
+  // The analytics catalog console (roadmap 7.2c), the same way:
+  // catalog-console-test.yml checks it (CATALOG_CONSOLE_PATH).
+  [/^platform\/analytics\/catalog\/console\//, []],
   // The site's samples compile against the eShop's committed generated
   // clients (documentation/test/typescript-samples.mjs); eshop-web-test.yml
   // checks the eShop web app itself.
@@ -254,6 +263,7 @@ export function scopes(paths) {
     V10,
     V10_CONTRACT,
     OPS_CONSOLE,
+    CATALOG_CONSOLE,
   ];
   const result = Object.fromEntries(keys.map(key => [key, false]));
   // Light scopes a path asks for alongside their full scope (the workflow
@@ -283,6 +293,8 @@ export function scopes(paths) {
   );
   // And the ops console's, the same way.
   result[OPS_CONSOLE] = paths.some(path => OPS_CONSOLE_PATH.test(path));
+  // And the analytics catalog console's.
+  result[CATALOG_CONSOLE] = paths.some(path => CATALOG_CONSOLE_PATH.test(path));
   return result;
 }
 

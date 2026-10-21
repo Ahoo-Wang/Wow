@@ -128,10 +128,22 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
             FrameworkErrors.STORAGE_UNAVAILABLE,
         )
 
+        /** The query codes a query route never answers: a dataset's, and a state read's. */
+        private val POINT_READ_ONLY = setOf(
+            FrameworkErrors.QUERY_DATASET_UNAVAILABLE,
+            FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED,
+        )
+
+        /**
+         * The codes a state read answers: a [STATE] code, or a minimum version not reached within its wait (review
+         * R4-Q, Q-13).
+         */
+        val STATE_READ: List<String> = STATE + FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED
+
         /** The codes a query answers: the query codes (decisions D130, D150), and not-found for a `single` one. */
         val QUERY: List<String> = listOf(FrameworkErrors.AUTH_UNAUTHENTICATED, FrameworkErrors.AUTH_FORBIDDEN) +
             FrameworkErrors.ALL.map { it.code }
-                .filter { it.startsWith(QUERY_PREFIX) && it != FrameworkErrors.QUERY_DATASET_UNAVAILABLE } +
+                .filter { it.startsWith(QUERY_PREFIX) && it !in POINT_READ_ONLY } +
             listOf(FrameworkErrors.AGGREGATE_NOT_FOUND, FrameworkErrors.STORAGE_UNAVAILABLE)
 
         /**
