@@ -73,7 +73,8 @@ Not every failure is the aggregate's fault, so failures fall into three classes:
 
 Because each subscription has a checkpoint, every read model can be rebuilt:
 
-- **Reset the checkpoint**, and the subscription reads the log again from where you set it.
+- **Start a new subscription**: a handler under a new name has no checkpoint, so it starts from its start position, the beginning of the log for a projection, and builds its read model again.
+- **Rebuild the snapshots**: raising an aggregate's state revision, or a rebuild request, rewrites its snapshots from the log.
 - **Rebuild side by side**: deploy the new version of a projection under a new subscription name, let it read from the start until it has caught up, switch the reads to it, and remove the old one. A changed read model needs no migration script.
 
 A new subscription starts where its kind needs it to. A projection starts at the beginning of the log, so it fills in the history. A saga or a reactor starts at the end, so going live does not send commands or effects for the past. A subscription to another context's published stream starts at the beginning. A handler can declare where it starts, and configuration overrides that, either way only for a subscription that has no checkpoint yet.

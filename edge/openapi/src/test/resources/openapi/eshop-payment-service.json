@@ -2682,7 +2682,8 @@
         "type" : "object",
         "properties" : {
           "amount" : {
-            "type" : "number"
+            "type" : "number",
+            "format" : "decimal"
           },
           "paymentId" : {
             "type" : "string"
@@ -2735,7 +2736,8 @@
         "type" : "object",
         "properties" : {
           "amount" : {
-            "type" : "number"
+            "type" : "number",
+            "format" : "decimal"
           },
           "orderId" : {
             "type" : "string"
@@ -2768,7 +2770,8 @@
         "type" : "object",
         "properties" : {
           "amount" : {
-            "type" : "number"
+            "type" : "number",
+            "format" : "decimal"
           },
           "orderId" : {
             "type" : "string"
@@ -2797,7 +2800,8 @@
         "type" : "object",
         "properties" : {
           "amount" : {
-            "type" : "number"
+            "type" : "number",
+            "format" : "decimal"
           },
           "orderId" : {
             "type" : "string"

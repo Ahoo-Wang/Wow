@@ -54,10 +54,14 @@ export function useLoad<T>(
   return [current, reload];
 }
 
-/** An amount in the shop's currency. */
-export function money(amount: number): string {
+/**
+ * An amount in the shop's currency: a decimal as its exact text (review R4-Q,
+ * Q-9), which `Intl.NumberFormat` formats from its digits (ES2023), or a number
+ * the page computed.
+ */
+export function money(amount: string | number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-  }).format(amount);
+  }).format(amount as number);
 }

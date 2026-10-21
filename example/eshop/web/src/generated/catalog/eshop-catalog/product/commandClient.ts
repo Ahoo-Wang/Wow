@@ -29,12 +29,12 @@ export class ProductCommandClient {
    * Produces `ProductPriceChanged`.
    */
   changeProductPrice(id: string, body: ChangeProductPrice, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(ProductCommandPaths.CHANGE_PRODUCT_PRICE, body, { ...options, id });
+    return this.gateway.send(ProductCommandPaths.CHANGE_PRODUCT_PRICE, body, { ...options, id, bodyNumbers: ProductAggregate.textNumbers.commands.ChangeProductPrice });
   }
 
   /** `ChangeProductPrice`, answered as one result per hop of its wait (`text/event-stream`). */
   changeProductPriceStream(id: string, body: ChangeProductPrice, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(ProductCommandPaths.CHANGE_PRODUCT_PRICE, body, { ...options, id });
+    return this.gateway.stream(ProductCommandPaths.CHANGE_PRODUCT_PRICE, body, { ...options, id, bodyNumbers: ProductAggregate.textNumbers.commands.ChangeProductPrice });
   }
 
   /**
@@ -44,12 +44,12 @@ export class ProductCommandClient {
    * Produces `ProductCreated`.
    */
   createProduct(body: CreateProduct, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.send(options?.id === undefined ? ProductCommandPaths.CREATE_PRODUCT_WITHOUT_ID : ProductCommandPaths.CREATE_PRODUCT, body, options);
+    return this.gateway.send(options?.id === undefined ? ProductCommandPaths.CREATE_PRODUCT_WITHOUT_ID : ProductCommandPaths.CREATE_PRODUCT, body, { ...options, bodyNumbers: ProductAggregate.textNumbers.commands.CreateProduct });
   }
 
   /** `CreateProduct`, answered as one result per hop of its wait (`text/event-stream`). */
   createProductStream(body: CreateProduct, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(options?.id === undefined ? ProductCommandPaths.CREATE_PRODUCT_WITHOUT_ID : ProductCommandPaths.CREATE_PRODUCT, body, options);
+    return this.gateway.stream(options?.id === undefined ? ProductCommandPaths.CREATE_PRODUCT_WITHOUT_ID : ProductCommandPaths.CREATE_PRODUCT, body, { ...options, bodyNumbers: ProductAggregate.textNumbers.commands.CreateProduct });
   }
 
   /**

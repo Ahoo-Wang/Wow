@@ -193,7 +193,7 @@ export function AdminPage() {
                     clients.products.createProduct(
                       {
                         name,
-                        price: Number(price),
+                        price,
                         description,
                         brandId: brandId || null,
                         categoryId: categoryId || null,
@@ -352,7 +352,7 @@ function ProductRow({
           onSubmit={(event) => {
             const { price } = fields(event);
             return act(() =>
-              clients.products.changeProductPrice(id, { price: Number(price) }),
+              clients.products.changeProductPrice(id, { price }),
             );
           }}
         >

@@ -30,12 +30,12 @@ export class BasketCommandClient {
    * Produces `BasketItemAdded`.
    */
   addBasketItem(body: AddBasketItem, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.send(options?.id === undefined ? BasketCommandPaths.ADD_BASKET_ITEM_WITHOUT_ID : BasketCommandPaths.ADD_BASKET_ITEM, body, options);
+    return this.gateway.send(options?.id === undefined ? BasketCommandPaths.ADD_BASKET_ITEM_WITHOUT_ID : BasketCommandPaths.ADD_BASKET_ITEM, body, { ...options, bodyNumbers: BasketAggregate.textNumbers.commands.AddBasketItem });
   }
 
   /** `AddBasketItem`, answered as one result per hop of its wait (`text/event-stream`). */
   addBasketItemStream(body: AddBasketItem, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(options?.id === undefined ? BasketCommandPaths.ADD_BASKET_ITEM_WITHOUT_ID : BasketCommandPaths.ADD_BASKET_ITEM, body, options);
+    return this.gateway.stream(options?.id === undefined ? BasketCommandPaths.ADD_BASKET_ITEM_WITHOUT_ID : BasketCommandPaths.ADD_BASKET_ITEM, body, { ...options, bodyNumbers: BasketAggregate.textNumbers.commands.AddBasketItem });
   }
 
   /**

@@ -533,7 +533,8 @@
           "type" : "integer"
         },
         "unitPrice" : {
-          "type" : "number"
+          "type" : "number",
+          "format" : "decimal"
         }
       },
       "required" : [ "productId", "quantity", "unitPrice" ]
@@ -542,7 +543,8 @@
       "type" : "object",
       "properties" : {
         "amount" : {
-          "type" : "number"
+          "type" : "number",
+          "format" : "decimal"
         },
         "paymentId" : {
           "type" : "string"
@@ -586,7 +588,8 @@
       "type" : "object",
       "properties" : {
         "amount" : {
-          "type" : "number"
+          "type" : "number",
+          "format" : "decimal"
         },
         "paymentId" : {
           "type" : "string"
@@ -638,7 +641,8 @@
           "enum" : [ "SUBMITTED", "AWAITING_VALIDATION", "STOCK_CONFIRMED", "PAID", "SHIPPED", "CANCELLED" ]
         },
         "totalAmount" : {
-          "type" : "number"
+          "type" : "number",
+          "format" : "decimal"
         }
       },
       "required" : [ "confirmedProducts", "items", "status", "totalAmount" ]
