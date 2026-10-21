@@ -242,6 +242,9 @@ interface MigrationConnections : Closeable {
 
     /** The event search Sinks of the configured Elasticsearch cluster; null when the configuration names none. */
     val eventSinks: ElasticsearchEventSinks? get() = null
+
+    /** The 9.x store the rollback export writes to (decision D32): the source store. */
+    val nineXTarget: NineXEventTarget get() = throw MigrationException("This run has no 9.x store to export to.")
 }
 
 /**
@@ -258,6 +261,8 @@ class ConfiguredConnections(private val config: MigrationConfig) : MigrationConn
         MongoNineXEventSource(sourceClient.getDatabase(config.source.database))
     override val snapshots: NineXSnapshotSource =
         MongoNineXSnapshotSource(sourceClient.getDatabase(config.source.database))
+    override val nineXTarget: NineXEventTarget =
+        MongoNineXEventTarget(sourceClient.getDatabase(config.source.database))
     private val targetClient: MongoClient? = config.target.uri?.takeIf { config.target.type == TargetConfig.MONGO }
         ?.let { MongoClients.create(requireNotNull(MigrationConfig.resolve(it))) }
     private val dataSource = lazy {

@@ -37,6 +37,7 @@ class AccountSpec {
         }
     }
 
+    // region withdraw
     @Test
     fun `a withdrawal the balance does not cover is rejected`() = aggregateSpec(model, id = "alice") {
         given(AccountOpened("Alice"), Deposited(100))
@@ -46,4 +47,5 @@ class AccountSpec {
             expectState { balance.assert().isEqualTo(70) }
         }
     }
+    // endregion
 }

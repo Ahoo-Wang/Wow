@@ -11,13 +11,20 @@
  * limitations under the License.
  */
 
-import type { DatasetResource } from "@ahoo-wang/wow-view-engine";
-import type { RecordActions } from "@ahoo-wang/wow-view-engine";
-import { bind, type ViewBinding } from "@ahoo-wang/wow-view-engine/ui";
+import type {
+  DatasetResource,
+  RecordActions,
+} from "@ahoo-wang/wow-view-engine";
+import {
+  bind,
+  datasetBindings,
+  type ViewBinding,
+} from "@ahoo-wang/wow-view-engine/ui";
 import { datasetDetail } from "@/detail/datasetDetail.tsx";
 import { sourceDetail } from "@/detail/sourceDetail.tsx";
 import type { CatalogCommands } from "./catalogCommands.ts";
 import { datasetActions } from "./datasetActions.ts";
+import { BOARDS } from "./boards.ts";
 import { DATASETS } from "./datasets.ts";
 import { sourceActions } from "./sourceActions.ts";
 import { SOURCES } from "./sources.ts";
@@ -30,6 +37,9 @@ export const DATASETS_PATH = "/datasets";
 
 /** Where a served dataset's rows are read. */
 export const ROWS_PATH = "/rows";
+
+/** Where the boards over the datasets live. */
+export const BOARDS_PATH = "/boards";
 
 /** Where a source or a dataset is drafted. */
 export const DRAFT_PATH = "/draft";
@@ -65,6 +75,11 @@ export function datasetsPath(view: string | null): string {
   return pathOf(DATASETS_PATH, view);
 }
 
+/** The boards' page on `board`, or on the first one (`null`). */
+export function boardsPath(board: string | null): string {
+  return pathOf(BOARDS_PATH, board);
+}
+
 /** The rows of the served dataset `dataset` (`{context}.{name}`) on `view`. */
 export function rowsPath(dataset: string, view: string | null): string {
   return pathOf(ROWS_PATH, view, { [DATASET_PARAM]: dataset });
@@ -93,12 +108,14 @@ export function consoleBindings(
       reading: datasetDetail,
       actions: datasetActions(commands),
     }),
-    ...served.map(({ id }) => {
-      const actions = rowActions(id);
-      return bind(id, {
-        route: (view) => rowsPath(id, view),
-        ...(actions ? { actions } : {}),
-      });
+    ...datasetBindings(served, {
+      route: ({ id }, view) => rowsPath(id, view),
+      options: ({ id }) => {
+        const actions = rowActions(id);
+        return actions ? { actions } : undefined;
+      },
     }),
+    // The boards: views of any dataset, of any service, side by side.
+    bind(BOARDS, { route: boardsPath }),
   ];
 }

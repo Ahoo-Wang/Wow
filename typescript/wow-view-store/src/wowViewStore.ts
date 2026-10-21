@@ -374,7 +374,7 @@ export class WowViewStore implements ViewStore {
       } catch (thrown) {
         if (
           thrown instanceof Failure &&
-          thrown.problemCode === FrameworkErrorCodes.AGGREGATE_NOT_FOUND
+          thrown.problemCode === FrameworkErrorCodes.QUERY_NOT_FOUND
         )
           return emptyPreferences();
         throw thrown;

@@ -71,7 +71,8 @@ class ClickHouseDatasetQueryBackendFactory @JvmOverloads constructor(
  * query's timeout as `max_execution_time` (decision D150), and a count stops after `limit + 1` matches.
  *
  * A record carries the dataset's declared fields at its root, decimals exact (decision D122) and dates as ISO-8601
- * instants. A keyset page orders by the cursor sort, whose fields are non-`Nullable` scalar columns (the only ones
+ * instants. A list and an offset page end their sort with the dataset's identity, so ties page stably; a keyset page
+ * orders by the cursor sort, whose fields are non-`Nullable` scalar columns (the only ones
  * granted cursor sort), and reads each row's position from extra columns: a date as epoch milliseconds, a decimal as
  * its exact text, anything else as its JSON value.
  */
@@ -157,8 +158,22 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
             filters.columnOf(it.field) to it.direction
         }
 
+        /**
+         * A list or an offset page, its sort ended by the dataset's identity when the sort lacks it (review R4-Q,
+         * Q-11): rows that tie on the sort keep one order from page to page. A dataset without an identity has no unique
+         * key to end it with.
+         */
         fun records(limit: Int?, offset: Int): ClickHouseStatement =
-            statement(filters.compile(query.filter), limit, offset)
+            statement(filters.compile(query.filter), limit, offset, order = sort + tieBreaker())
+
+        private fun tieBreaker(): List<Pair<TypedColumn, Sort.Direction>> {
+            val identity = dataset.identity?.let { table.column(it.path) } ?: return emptyList()
+            return if (sort.any { (column, _) -> column.name == identity.name }) {
+                emptyList()
+            } else {
+                listOf(identity to Sort.Direction.ASC)
+            }
+        }
 
         fun keyset(window: PageWindow.Keyset): ClickHouseStatement {
             val after = window.after?.let { position ->
@@ -179,7 +194,13 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
         fun position(row: ObjectNode): CursorPosition =
             CursorPosition(sort.indices.map { index -> row.get(positionAlias(index)).positionValue() })
 
-        private fun statement(where: String, limit: Int?, offset: Int, positions: Boolean = false): ClickHouseStatement {
+        private fun statement(
+            where: String,
+            limit: Int?,
+            offset: Int,
+            positions: Boolean = false,
+            order: List<Pair<TypedColumn, Sort.Direction>> = sort,
+        ): ClickHouseStatement {
             val selected = columns.map(::quoteIdentifier) + if (positions) {
                 sort.mapIndexed { index, (column, _) -> "${positionExpression(column)} AS ${positionAlias(index)}" }
             } else {
@@ -189,9 +210,9 @@ internal class ClickHouseDatasetQueryBackend internal constructor(
                 append("SELECT ").append(selected.joinToString(", "))
                 append(" FROM ").append(source(table))
                 append(" WHERE ").append(where)
-                if (sort.isNotEmpty()) {
-                    val order = sort.map { (column, direction) -> ordered(quoteIdentifier(column.name), direction) }
-                    append(" ORDER BY ").append(order.joinToString(", "))
+                if (order.isNotEmpty()) {
+                    val terms = order.map { (column, direction) -> ordered(quoteIdentifier(column.name), direction) }
+                    append(" ORDER BY ").append(terms.joinToString(", "))
                 }
                 limit?.let { append(" LIMIT ").append(it) }
                 if (offset > 0) append(" OFFSET ").append(offset)

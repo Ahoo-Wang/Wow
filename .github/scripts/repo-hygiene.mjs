@@ -14,7 +14,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 // files (no Gradle, no dependencies). Dead `v10` source links are checked by
 // documentation/test/source-links.test.mjs.
 //
-// Run by typescript.yml (the docs-layout job, on every pull request):
+// Run by ci.yml (the docs-layout job, on every pull request):
 //   node .github/scripts/repo-hygiene.mjs
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
