@@ -90,6 +90,23 @@ async function findFieldPicker(): Promise<Element | null> {
   return title.closest('[data-slot="popover-content"]');
 }
 
+/**
+ * The computed style with some properties answered differently. Its methods
+ * run on the real declaration: jsdom checks `this` and rejects the proxy.
+ */
+function overriding(
+  style: CSSStyleDeclaration,
+  values: Partial<Record<keyof CSSStyleDeclaration, string>>,
+): CSSStyleDeclaration {
+  return new Proxy(style, {
+    get: (target, key) => {
+      if (Object.hasOwn(values, key)) return values[key as keyof typeof values];
+      const value: unknown = Reflect.get(target, key, target);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
+}
+
 describe('popups carry the theme out of the root', () => {
   it('puts the root class and the surface theme on a popup', async () => {
     const engine = new ViewEngine({
@@ -159,12 +176,7 @@ describe('popups carry the theme out of the root', () => {
       (element: Element, pseudo?: string | null) => {
         const style = computedStyle(element, pseudo);
         return element.matches('[data-slot="view-surface"]')
-          ? new Proxy(style, {
-              get: (target, key) =>
-                key === 'colorScheme'
-                  ? 'dark'
-                  : Reflect.get(target, key, target),
-            })
+          ? overriding(style, { colorScheme: 'dark' })
           : style;
       },
     );
@@ -768,10 +780,7 @@ describe('every popup takes the type of its surface', () => {
       (element: Element, pseudo?: string | null) => {
         const style = computedStyle(element, pseudo);
         return element.matches('[data-slot="view-surface"]')
-          ? new Proxy(style, {
-              get: (target, key) =>
-                key === 'fontFamily' ? font : Reflect.get(target, key, target),
-            })
+          ? overriding(style, { fontFamily: font })
           : style;
       },
     );
