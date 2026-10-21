@@ -97,7 +97,7 @@ HTTP 命令 → 聚合决策 → 领域事件 → 溯源状态 → 投影 / Saga
 
 - 从[编写服务](documentation/docs/zh/start/existing-project.md)与[编程模型](documentation/docs/zh/guide/aggregates.md)开始。
 - 阅读 Kotlin [订单服务](example)或 Java [银行转账](example/transfer)示例。
-- 在 [`Wow-Wait`](documentation/docs/zh/guide/v10/http-api.md#wow-wait) 中理解处理阶段，在[投影](documentation/docs/zh/guide/projections.md)建立读模型，在[失败](documentation/docs/zh/guide/failures.md)了解恢复边界。
+- 在 [`Wow-Wait`](documentation/docs/zh/reference/http.md#wow-wait) 中理解处理阶段，在[投影](documentation/docs/zh/guide/projections.md)建立读模型，在[失败](documentation/docs/zh/guide/failures.md)了解恢复边界。
 - 查看[贡献指南](CONTRIBUTING.md)、[行为准则](CODE_OF_CONDUCT.md)和[安全策略](SECURITY.md)。
 - Wow 荣获 [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html)；官方结果给出的证据包括模块化设计、代码评审、测试、静态分析、双语文档和 Maven Central 发布历史。
 

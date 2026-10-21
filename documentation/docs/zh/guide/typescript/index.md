@@ -86,7 +86,7 @@ pnpm add -D @ahoo-wang/wow-generator typescript
 | 评估可保存的数据视图 | [视图引擎](../../typescript/view-engine/index.md) | [wow-view-engine 参考](../../reference/typescript/wow-view-engine/) |
 | 找出失败原因 | [排障](./troubleshooting.md) | — |
 
-这些契约的服务端见 [HTTP API](../v10/http-api.md) 与[查询语言](../v10/query.md)。拦截器内部机制、取消、服务端推送事件等通用 Fetcher 主题仍在 [fetcher.ahoo.me](https://fetcher.ahoo.me/zh/)。
+这些契约的服务端见 [HTTP API](../../reference/http.md) 与[查询语言](../../reference/query-language.md)。拦截器内部机制、取消、服务端推送事件等通用 Fetcher 主题仍在 [fetcher.ahoo.me](https://fetcher.ahoo.me/zh/)。
 
 ## 在 Storybook 中试用
 

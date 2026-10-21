@@ -114,19 +114,6 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             ],
         },
     ],
-    '/guide/v10/': [
-        {
-            base: '/guide/v10/',
-            text: 'Guide',
-            items: [
-                {text: 'What the Compiler Generates', link: 'generated-code'},
-                {text: 'Testing', base: '/guide/', link: 'testing'},
-                {text: 'HTTP API', link: 'http-api'},
-                {text: 'Query Language', link: 'query'},
-                {text: 'Deployment', base: '/operate/', link: 'topology'},
-            ],
-        },
-    ],
     '/operate/': [
         {
             base: '/operate/',
