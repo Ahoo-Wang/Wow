@@ -1,4 +1,4 @@
-# The ops service on Wow V10, in plain manifests (roadmap P.15): kubectl apply -k deploy/v10/ops
+# The ops service on Wow, in plain manifests (roadmap P.15): kubectl apply -k deploy/ops
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 labels:

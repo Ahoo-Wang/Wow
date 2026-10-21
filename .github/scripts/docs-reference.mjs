@@ -199,7 +199,7 @@ const cell = (text = '') =>
 export const plain = text =>
   text
     .replace(
-      /\s*\((?:[^()]|\([^()]*\))*\b(?:decisions?|reviews?|roadmap|findings?|D\d+|V10)\b(?:[^()]|\([^()]*\))*\)/g,
+      /\s*\((?:[^()]|\([^()]*\))*\b(?:decisions?|reviews?|roadmap|findings?|axioms?|designs?|D\d+)\b(?:[^()]|\([^()]*\))*\)/g,
       '',
     )
     // A KDoc link `[Name]` reads as code, outside code spans only.

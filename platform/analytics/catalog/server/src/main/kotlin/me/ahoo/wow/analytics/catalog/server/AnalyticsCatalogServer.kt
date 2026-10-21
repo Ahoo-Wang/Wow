@@ -27,7 +27,7 @@ import org.springframework.boot.runApplication
  * - an editor (an analyst) drafts an analyst's table, revises its scope and references and reviews its string columns,
  *   an approver marks it reviewed (`POST /analytics-catalog/source/{id}/...`) and accepts a Wow source's lower
  *   protection;
- * - the sources are read through the V10 query routes (`POST /analytics-catalog/source/snapshot/query`), on a backend
+ * - the sources are read through the query routes (`POST /analytics-catalog/source/snapshot/query`), on a backend
  *   that serves snapshot queries.
  *
  * Who calls is [AnalyticsCatalogCallers]'s to say; a deployment puts CoSec's resolver in its place. The data plane

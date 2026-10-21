@@ -16,4 +16,4 @@ const result = await commandClient.send<AddCartItem>({
   body: { productId, quantity, price: 19.9 },
 });
 if (result.errorCode !== ErrorCodes.SUCCEEDED) toast(result.errorMsg);
-```
+``` Give the code and the commands in your answer.

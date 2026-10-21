@@ -6,7 +6,7 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-给订单事件流写一个系统视图「大额付款」：付款金额超过 1000 的付款事件，并在分析里加一个只数这类事件的指标。
+给订单事件流写一个系统视图「大额付款」：付款金额超过 1000 的付款事件，并在分析里加一个只数这类事件的指标。在回答里给出代码和命令。
 
 Files from the user's project, shown inline:
 

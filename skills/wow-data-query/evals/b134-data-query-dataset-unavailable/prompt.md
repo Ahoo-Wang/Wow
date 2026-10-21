@@ -6,4 +6,4 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-From the staging Wow analytics service, what was last month's GMV per city? Use the dataset analytics.order_wide. When I tried, it answered 409 with code wow.query.dataset-unavailable.
+From the staging Wow analytics service, what was last month's GMV per city? Use the dataset analytics.order_wide. When I tried, it answered 409 with code wow.query.dataset-unavailable. Give the code and the commands in your answer.

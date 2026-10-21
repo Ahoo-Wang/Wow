@@ -1,5 +1,5 @@
 # Prettier owns the TypeScript toolchain only. Kotlin, Gradle, Markdown and YAML
-# elsewhere in the repository, the V10 apps (double quotes) and the
+# elsewhere in the repository, the apps (double quotes) and the
 # documentation site (four-space indent) keep their own styles, so everything is
 # ignored except the paths re-included below.
 /*
@@ -25,7 +25,7 @@ coverage/
 # Byte-for-byte generator snapshots, compared against ts-morph's own output by
 # the e2e test; reformatting them would fail every regeneration.
 typescript/wow-generator/expected/
-# Generated from the V10 view store's Manifest baseline, held byte for byte by
+# Generated from the view store's Manifest baseline, held byte for byte by
 # typescript/wow-view-store/test/generated.test.ts.
 typescript/wow-view-store/src/generated/
 test-output/

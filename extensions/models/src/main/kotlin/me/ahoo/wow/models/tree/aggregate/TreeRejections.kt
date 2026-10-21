@@ -14,7 +14,7 @@
 package me.ahoo.wow.models.tree.aggregate
 
 /**
- * The codes a [Tree] rejects a command with. 9.x threw `IllegalStateException` or `IllegalArgumentException`; in V10
+ * The codes a [Tree] rejects a command with. 9.x threw `IllegalStateException` or `IllegalArgumentException`; in 10.x
  * a rejection is a value with a stable code. Each rejection's extensions carry the codes or levels at fault.
  *
  * The compiler lists only the `@ErrorCode` constants of the module it processes in the Manifest, so these are not in

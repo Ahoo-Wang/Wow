@@ -36,7 +36,7 @@ data class AggregateType(val context: String, val name: String) {
 
 /**
  * The identity of one aggregate instance: its [type], its tenant and its id. Decided once, at admission; every unique
- * key in the log includes the tenant (V10 axiom A6), so two tenants may use the same [id] without meeting.
+ * key in the log includes the tenant (axiom A6), so two tenants may use the same [id] without meeting.
  *
  * A creation command may name no id yet, its ref's id [UNASSIGNED] (decision D191): admission gives it the id of the
  * aggregate its request already created, or a new one from the aggregate type's generator. Committed ids never change.

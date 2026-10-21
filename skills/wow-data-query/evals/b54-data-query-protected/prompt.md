@@ -6,7 +6,7 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-Group the dev customer service's customers by phone number and tell me which numbers have more than one account.
+Group the dev customer service's customers by phone number and tell me which numbers have more than one account. Give the code and the commands in your answer.
 
 Files from the user's project, shown inline:
 

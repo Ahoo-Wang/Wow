@@ -34,7 +34,7 @@ const WORKFLOWS = 'workflows';
 const PACKAGE = 'package';
 // ci.yml's JVM jobs: `:check` and the integration
 // tests. Not a TypeScript scope. Decided apart from RULES, by JVM_PATH: the
-// V10 modules, their tests and spikes, the V10 examples (the eShop, the Java
+// Wow modules, their tests and spikes, the examples (the eShop, the Java
 // smoke test and the quickstart), the end-to-end benchmark (test/benchmarks, D224; not its README or
 // reports), the platform
 // they import, the coverage reports ci.yml uploads (test/code-coverage-report:
@@ -44,11 +44,11 @@ const JVM = 'jvm';
 const JVM_PATH =
   /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|tck|tck-containers|benchmarks\/(?:server|load|harness))|example\/(?:eshop|quickstart|java-smoke)|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
 // ci.yml's view-store-contract job: `test` of integration-test, the
-// V10 store (`@ahoo-wang/wow-view-store`) and the view engine on it
-// against the V10 view store service (platform/view-store) built from this
+// view store client (`@ahoo-wang/wow-view-store`) and the view engine on it
+// against the view store service (platform/view-store) built from this
 // commit. Decided apart from RULES, by VIEW_STORE_CONTRACT_PATH: the packages the
 // suites import (the libraries' own tests and the engine's apart from its
-// port conformance suite left out), integration-test, the service, the V10
+// port conformance suite left out), integration-test, the service, the Wow
 // modules on its runtime and test classpath, the root build and the workflow.
 // Markdown is left out: nothing the suites run reads it.
 const VIEW_STORE_CONTRACT = 'viewStoreContract';
@@ -136,11 +136,11 @@ const RULES = [
     [DOCS, VIEW_ENGINE_DOCS],
   ],
   [/^documentation\//, [DOCS]],
-  // The V10 framework error table's snapshot (api/manifest, review R2.5-4):
+  // The framework error table's snapshot (api/manifest, review R2.5-4):
   // wow-client's tests check FrameworkErrorCodes against it
   // (test/frameworkErrors.test.ts), so a change to the table reruns them.
   [/^api\/manifest\/src\/test\/resources\/framework-errors\.json$/, [SDK]],
-  // The V10 view store service's Manifest baseline: wow-view-store's
+  // The view store service's Manifest baseline: wow-view-store's
   // src/generated/ is wow-generator's output for it, byte for byte
   // (test/generated.test.ts), so a change to it reruns wow-view-store.
   [
@@ -198,7 +198,7 @@ const RULES = [
     /^skills\/wow-(?:view-definition|view-host|client)\/(?!evals\/).+\.md$/,
     [DOCS],
   ],
-  // The ops console (roadmap 7.1b), a pnpm workspace member under the V10
+  // The ops console (roadmap 7.1b), a pnpm workspace member under the
   // platform: no package, story or site builds on it; the ops-console jobs
   // check it (OPS_CONSOLE_PATH), and the JVM jobs run with the ops server that
   // serves it (JVM_PATH).
@@ -210,7 +210,7 @@ const RULES = [
   // clients (documentation/test/typescript-samples.mjs); the eshop-web jobs
   // checks the eShop web app itself.
   [/^example\/eshop\/web\/src\/generated\//, [DOCS]],
-  // The V10 modules (documentation/designs/v10/06-modules.md §4; their tests
+  // The modules (documentation/designs/v10/06-modules.md §4; their tests
   // live under test/, below), the BOM, the dependency versions, the examples
   // and the end-to-end benchmark: the JVM jobs (JVM_PATH); no client or site builds
   // on them yet.

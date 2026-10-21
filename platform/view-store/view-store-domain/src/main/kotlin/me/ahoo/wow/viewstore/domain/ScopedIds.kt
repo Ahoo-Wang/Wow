@@ -20,7 +20,7 @@ import java.security.MessageDigest
  * the same parts always give the same id. They are derived exactly as the 9.x view store derived them
  * (`ViewPreferencesIds`, `DatasetWordingIds`): the tenant first, then the parts, joined by NUL, the first 32 hex
  * digits of their SHA-256. So the preferences and the wordings `migrate-data` imports from 9.x keep their ids, and a
- * route finds them after the cut-over (decision D267, found by the 8c.1 rehearsal). The tenant is redundant in V10,
+ * route finds them after the cut-over (decision D267, found by the 8c.1 rehearsal). The tenant is redundant in 10.x,
  * whose ids are unique per tenant (axiom A6), and no part names the aggregate type, since each type has its own
  * streams; both stay for this compatibility.
  */

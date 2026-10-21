@@ -32,7 +32,7 @@ import tools.jackson.databind.node.ObjectNode
 /**
  * A sensitive value inside maps and nested collections stays protected end to end: masked in results and rejected
  * where admission protects it, never silently left raw. 9.x inferred these rules from `@Sensitive` value classes; the
- * V10 schema states them directly on the container's leaf values, as the Manifest does.
+ * 10.x schema states them directly on the container's leaf values, as the Manifest does.
  */
 class SensitiveContainerValuesTest {
     private val phone = MaskRule(SensitivityLevel.DISPLAY)
