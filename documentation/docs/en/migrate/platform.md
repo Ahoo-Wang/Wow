@@ -22,7 +22,7 @@ To move:
 
 1. Deploy the ops service, and connect every V10 service to it.
 2. When migrating each service's data, give `migrate-data` the 9.x compensation service's database. It imports each unresolved execution (`FAILED` or `PREPARED`) as a parked aggregate of the mapped V10 subscription, from the failed version, with its retry state ([Migrate the Data](./data)).
-3. Stop the 9.x compensation service with the 9.x application, then run the final pass.
+3. Stop the 9.x compensation service with the 9.x application: before the import on the default, offline path; before the final pass on the online one.
 
 After the cut-over, the V10 services own the retries. Webhooks that told a team about 9.x failures move to the ops service's webhook, which tells it when an aggregate parks or spends its retries.
 
