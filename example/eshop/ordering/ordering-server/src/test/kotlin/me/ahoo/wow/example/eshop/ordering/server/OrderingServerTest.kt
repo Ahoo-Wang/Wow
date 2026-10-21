@@ -44,7 +44,6 @@ class InMemoryOrderingTopics {
 }
 // endregion
 
-
 /**
  * The ordering service as its `application.yaml` configures it, on random ports, with its topics in memory and a
  * payment grace period of two seconds. No inventory runs: the test confirms the order's products itself, as the
@@ -66,7 +65,6 @@ class OrderingServerTest {
         "--eshop.ordering.payment-grace-period=2s",
     )
     // endregion
-
 
     private val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
     private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
@@ -133,7 +131,6 @@ class OrderingServerTest {
         late.second["code"].asString().assert().isEqualTo("eshop-ordering.order.wrong-status")
     }
     // endregion
-
 
     @Test
     fun `an order should be its buyer's to read, and every order an employee's`() {
