@@ -45,6 +45,21 @@ class RequestFactsRoutesTest {
     }
 
     @Test
+    fun `a host that turns client facts off records neither the user agent nor the address (D267)`() {
+        val node = HttpNode(options = WowHttpOptions(clientFacts = false))
+        InternalServer(node.routes).use { server ->
+            WebTestClient.bindToServer().baseUrl("http://${server.address}").build()
+                .post().uri("/shop/cart/c-1/add-item")
+                .header("X-User", "alice")
+                .header("User-Agent", "shop-app/1.0")
+                .header("Content-Type", "application/json")
+                .bodyValue("""{"sku":"apple"}""")
+                .answer().status.assert().isEqualTo(200)
+        }
+        node.commands.single().headers.assert().isEmpty()
+    }
+
+    @Test
     fun `a request cannot set a default fact, even one the host lists`() {
         val node = HttpNode(options = WowHttpOptions(requestFacts = setOf("X-App-Id", "remote_ip", "User_Agent")))
         node.post(
