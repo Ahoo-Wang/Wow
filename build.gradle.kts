@@ -161,7 +161,7 @@ val integrationTestProjects = includedProjects(
     ":analytics-catalog-server",
     ":migrate-data",
 )
-// v10.yml runs the integration tests in shards (its `integration` matrix): `-Pwow.integration.projects=":mongo :postgres"`
+// ci.yml runs the integration tests in shards (its `integration` matrix): `-Pwow.integration.projects=":mongo :postgres"`
 // narrows `:integrationTest`, and the test data `integrationCoverageReport` reads, to those projects. The report
 // still covers the classes of every project above, so a shard's tests count on the modules of the other shards too.
 val integrationShardProjects = providers.gradleProperty("wow.integration.projects").orNull?.let { paths ->

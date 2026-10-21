@@ -673,6 +673,20 @@ export class ViewEngine extends EngineResources {
     return this.ledger.resolveConflict(target, choice);
   }
 
+  /**
+   * `EngineResources.register`, and every open board asked again for the
+   * views it could not read for want of a definition (D93): a board over
+   * datasets opens before their directory is read, and its panels come
+   * back once each dataset registers.
+   */
+  override register(
+    resource: Parameters<EngineResources['register']>[0],
+  ): void {
+    super.register(resource);
+    for (const runtime of this.runtimes.all())
+      if (runtime instanceof DashboardViewRuntime) runtime.retryReferences();
+  }
+
   /** Open runtimes, for a workbench that tracks its own tabs. */
   openRuntimes(): readonly ViewRuntime[] {
     return this.runtimes.all();

@@ -18,12 +18,12 @@ import { test } from 'node:test';
 import { scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
-// The TypeScript workflow scopes; `package` is derived from them, `v10` gates a Kotlin workflow, and `v10Contract`,
+// The TypeScript scopes; `package` is derived from them, `jvm` gates the JVM jobs, and `viewStoreContract`,
 // `opsConsole` and `catalogConsole` are decided apart from the rules; each has its own tests.
 const KOTLIN_GATES = new Set([
   'package',
-  'v10',
-  'v10Contract',
+  'jvm',
+  'viewStoreContract',
   'opsConsole',
   'catalogConsole',
 ]);
@@ -55,25 +55,25 @@ test('lint and format rules run only the static checks and the site build', () =
     assert.deepEqual(on([path]), ['typescript', 'docs'], path);
 });
 
-test('each TypeScript workflow file runs the jobs it defines and the static checks', () => {
-  assert.deepEqual(on(['.github/workflows/typescript.yml']), [
+test('ci.yml runs every job it defines, and the static checks', () => {
+  assert.deepEqual(on(['.github/workflows/ci.yml']), [
     'typescript',
     'sdk',
     'docs',
     'viewEngine',
     'packageDocs',
     'viewEngineDocs',
-    'workflows',
-  ]);
-  assert.deepEqual(on(['.github/workflows/typescript-storybook.yml']), [
-    'typescript',
     'storybook',
     'workflows',
   ]);
-  assert.deepEqual(on(['.github/workflows/typescript-contract.yml']), [
-    'typescript',
-    'workflows',
-  ]);
+  const ci = scopes(['.github/workflows/ci.yml']);
+  assert.ok(
+    ci.jvm &&
+      ci.viewStoreContract &&
+      ci.opsConsole &&
+      ci.catalogConsole &&
+      ci.package,
+  );
   // Scheduled and dispatched only: nothing it defines runs on a pull request.
   assert.deepEqual(
     on(['.github/workflows/typescript-storybook-browsers.yml']),
@@ -190,7 +190,7 @@ test('the other packages unit-test only when a package outside view-engine chang
     'example/eshop/web/src/generated/basket/index.ts',
     'gradle.properties',
     'eslint.config.js',
-    '.github/workflows/typescript-storybook.yml',
+    '.github/workflows/typescript-storybook-browsers.yml',
   ]) {
     assert.ok(!scopes([path]).sdk, path);
   }
@@ -408,7 +408,7 @@ test('V10 modules skip the TypeScript workflow jobs', () => {
     assert.ok(none([path]), path);
 });
 
-test('V10 modules, their tests, the platform and the root build run v10.yml', () => {
+test('the modules, their tests, the platform and the root build run the JVM jobs', () => {
   for (const path of [
     'api/api/src/main/kotlin/me/ahoo/wow/api/decide/Command.kt',
     'compiler/gradle-plugin/src/functionalTest/kotlin/A.kt',
@@ -426,7 +426,7 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'test/test-dsl/src/main/kotlin/A.kt',
     'test/tck/src/main/kotlin/A.kt',
     'test/tck-containers/build.gradle.kts',
-    // The coverage report v10.yml uploads (coverageReport).
+    // The coverage reports ci.yml uploads (coverageReport).
     'test/code-coverage-report/build.gradle.kts',
     'edge/cosec/src/main/kotlin/A.kt',
     'extensions/cosid/src/main/kotlin/A.kt',
@@ -453,12 +453,12 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'settings.gradle.kts',
     'gradle.properties',
     'gradlew',
-    '.github/workflows/v10.yml',
+    '.github/workflows/ci.yml',
     // An unknown path or a CI script runs everything.
     '.github/scripts/ci-scope.mjs',
     'new-directory/index.ts',
   ])
-    assert.ok(scopes([path]).v10, path);
+    assert.ok(scopes([path]).jvm, path);
   for (const path of [
     'typescript/wow-client/src/index.ts',
     'documentation/designs/v10/roadmap.md',
@@ -467,13 +467,12 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'documentation/docs/en/guide/v10/quickstart.md',
     'README.md',
     'codecov.yml',
-    '.github/workflows/typescript.yml',
     '.github/workflows/v10-nightly.yml',
   ])
-    assert.ok(!scopes([path]).v10, path);
+    assert.ok(!scopes([path]).jvm, path);
   // A V10 path keeps the scopes its rule gives it.
   assert.deepEqual(on(['gradle.properties']), ['typescript']);
-  assert.ok(scopes(['.github/workflows/v10.yml']).workflows);
+  assert.ok(scopes(['.github/workflows/ci.yml']).workflows);
 });
 
 test('the V10 store, what its suites import, the service and its modules run the V10 contract', () => {
@@ -503,12 +502,12 @@ test('the V10 store, what its suites import, the service and its modules run the
     'settings.gradle.kts',
     'gradle.properties',
     'gradlew',
-    '.github/workflows/typescript-contract.yml',
+    '.github/workflows/ci.yml',
     // An unknown path or a CI script runs everything.
     '.github/scripts/ci-scope.mjs',
     'new-directory/index.ts',
   ])
-    assert.ok(scopes([path]).v10Contract, path);
+    assert.ok(scopes([path]).viewStoreContract, path);
   for (const path of [
     'typescript/wow-view-store/README.md',
     'typescript/wow-view-store/test/wowViewStore.test.ts',
@@ -526,21 +525,20 @@ test('the V10 store, what its suites import, the service and its modules run the
     'test/architecture/src/test/kotlin/A.kt',
     'example/eshop/e2e/build.gradle.kts',
     'documentation/designs/v10/roadmap.md',
-    '.github/workflows/v10.yml',
-    '.github/workflows/typescript-storybook.yml',
+    '.github/workflows/package-deploy.yml',
   ])
-    assert.ok(!scopes([path]).v10Contract, path);
+    assert.ok(!scopes([path]).viewStoreContract, path);
   // A V10 contract path keeps the scopes its rule gives it.
   assert.deepEqual(
     on(['platform/view-store/view-store-server/build.gradle.kts']),
     [],
   );
   assert.ok(
-    scopes(['platform/view-store/view-store-server/build.gradle.kts']).v10,
+    scopes(['platform/view-store/view-store-server/build.gradle.kts']).jvm,
   );
 });
 
-test('the ops console, the ops service and what the console builds with run ops-console-test.yml', () => {
+test('the ops console, the ops service and what the console builds with run the ops-console jobs', () => {
   for (const path of [
     'platform/ops/console/src/main.tsx',
     'platform/ops/console/package.json',
@@ -556,7 +554,7 @@ test('the ops console, the ops service and what the console builds with run ops-
     'pnpm-workspace.yaml',
     'patches/jsdom@29.1.1.patch',
     'tsconfig.base.json',
-    '.github/workflows/ops-console-test.yml',
+    '.github/workflows/ci.yml',
     // An unknown path or a CI script runs everything.
     '.github/scripts/ci-scope.mjs',
     'new-directory/index.ts',
@@ -567,16 +565,15 @@ test('the ops console, the ops service and what the console builds with run ops-
     'typescript/wow-react/src/index.ts',
     'core/kernel/src/main/kotlin/A.kt',
     'README.md',
-    '.github/workflows/v10.yml',
+    '.github/workflows/package-deploy.yml',
   ])
     assert.ok(!scopes([path]).opsConsole, path);
-  // The console's own path turns on no typescript.yml scope, and keeps v10.
+  // The console's own path turns on no TypeScript scope, and keeps the JVM's.
   assert.deepEqual(on(['platform/ops/console/src/main.tsx']), []);
-  assert.ok(scopes(['platform/ops/console/src/main.tsx']).v10);
-  assert.ok(scopes(['.github/workflows/ops-console-test.yml']).workflows);
+  assert.ok(scopes(['platform/ops/console/src/main.tsx']).jvm);
 });
 
-test('the catalog console, the catalog service and what the console builds with run catalog-console-test.yml', () => {
+test('the catalog console, the catalog service and what the console builds with run the catalog-console jobs', () => {
   for (const path of [
     'platform/analytics/catalog/console/src/main.tsx',
     'platform/analytics/catalog/console/package.json',
@@ -586,7 +583,7 @@ test('the catalog console, the catalog service and what the console builds with 
     'typescript/wow-client/src/index.ts',
     'typescript/wow-view-engine/src/index.ts',
     'pnpm-lock.yaml',
-    '.github/workflows/catalog-console-test.yml',
+    '.github/workflows/ci.yml',
     'new-directory/index.ts',
   ])
     assert.ok(scopes([path]).catalogConsole, path);
@@ -594,12 +591,12 @@ test('the catalog console, the catalog service and what the console builds with 
     'platform/ops/console/src/main.tsx',
     'core/kernel/src/main/kotlin/A.kt',
     'README.md',
-    '.github/workflows/ops-console-test.yml',
+    '.github/workflows/package-deploy.yml',
   ])
     assert.ok(!scopes([path]).catalogConsole, path);
-  // The console's own path turns on no typescript.yml scope, and keeps v10.
+  // The console's own path turns on no TypeScript scope, and keeps the JVM's.
   assert.deepEqual(on(['platform/analytics/catalog/console/src/main.tsx']), []);
-  assert.ok(scopes(['platform/analytics/catalog/console/src/main.tsx']).v10);
+  assert.ok(scopes(['platform/analytics/catalog/console/src/main.tsx']).jvm);
   assert.ok(
     !scopes(['platform/analytics/catalog/console/src/main.tsx']).opsConsole,
   );
@@ -664,8 +661,8 @@ test('the command reads the diff and runs everything without a base', () => {
         .map(key => `${key}=${value}\n`)
         .join('') +
       `package=${value}\n` +
-      `v10=${value}\n` +
-      `v10Contract=${value}\n` +
+      `jvm=${value}\n` +
+      `viewStoreContract=${value}\n` +
       `opsConsole=${value}\n` +
       `catalogConsole=${value}\n` +
       `unitPackages=${value ? '["wow-client","wow-react","wow-generator","wow-view-store"]' : '[]'}\n`;
@@ -729,14 +726,14 @@ test('the unit matrix reruns a package and the packages built on it', () => {
     ['wow-react', 'wow-generator'],
   );
   // The V10 framework error table's snapshot (review R2.5-4), which
-  // wow-client's tests read, reruns wow-client and runs v10.yml.
+  // wow-client's tests read, reruns wow-client and runs the JVM jobs.
   const errorTable = 'api/manifest/src/test/resources/framework-errors.json';
   assert.deepEqual(unitPackages([errorTable]), ['wow-client']);
   assert.deepEqual(on([errorTable]), ['sdk']);
-  assert.ok(scopes([errorTable]).v10);
+  assert.ok(scopes([errorTable]).jvm);
   // Whatever else turns the sdk scope on reruns them all.
   for (const path of [
-    '.github/workflows/typescript.yml',
+    '.github/workflows/ci.yml',
     'pnpm-lock.yaml',
     'typescript/new-package/src/index.ts',
     'new-directory/index.ts',

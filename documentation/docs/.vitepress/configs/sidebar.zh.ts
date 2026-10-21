@@ -157,6 +157,33 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             ],
         },
     ],
+    '/zh/concepts/': [
+        {
+            base: '/zh/concepts/',
+            text: '概念',
+            items: [
+                {text: '架构总览', link: 'index.html'},
+                {text: '决定与演化', link: 'programming-model'},
+                {text: '日志就是总线', link: 'event-log'},
+                {text: '写：从准入到追加', link: 'write-path'},
+                {text: '等待结果', link: 'waits'},
+                {text: '订阅、失败与重放', link: 'subscriptions'},
+                {text: '读模型', link: 'read-models'},
+                {text: '一份契约：Manifest', link: 'contract'},
+                {text: '身份、租户与访问', link: 'identity'},
+                {text: '上下文之间', link: 'cross-context'},
+            ],
+        },
+    ],
+    '/zh/reference/': [
+        {
+            base: '/zh/reference/',
+            text: '参考',
+            items: [
+                {text: '术语表', link: 'glossary'},
+            ],
+        },
+    ],
     '/zh/contribute/': [
         {
             base: '/zh/contribute/',

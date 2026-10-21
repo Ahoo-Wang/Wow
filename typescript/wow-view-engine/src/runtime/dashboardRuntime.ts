@@ -387,6 +387,15 @@ export class DashboardViewRuntime
     this.rerun();
   }
 
+  /**
+   * Asks again for the views a panel could not read just now — one of a
+   * definition registered since (D93) — without re-running the others.
+   */
+  retryReferences(): void {
+    if (this.disposed) return;
+    if (this.references.retryFailed()) this.store.setState({ resolving: true });
+  }
+
   /** `refresh`, leaving out the panels `skip` names. */
   private rerun(skip?: (panel: DataViewRuntime) => boolean): void {
     if (this.disposed) return;

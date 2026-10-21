@@ -119,14 +119,16 @@ A cleanup follows the same procedure, one reviewable pull request per batch:
 
 ## Enforcement
 
-`.github/scripts/docs-layout.mjs` (`pnpm check:docs-layout`) runs on every pull request as the `docs-layout` job of `typescript.yml`, part of `typescript-gate`. It reads only the tracked files and fails when:
+`.github/scripts/docs-layout.mjs` (`pnpm check:docs-layout`) runs on every pull request as the `docs-layout` job of `ci.yml`, part of `ci-gate`. It reads only the tracked files and fails when:
 
 - a file is tracked under `document/` or `docs/superpowers/`;
 - Markdown is added outside the locations in [Canonical Locations](#canonical-locations);
 - PlantUML is added outside `documentation/diagrams/`;
 - an SVG sits beside a `.mmd` or PlantUML source of the same name.
 
-`.github/scripts/docs-samples.mjs` (`pnpm check:docs-samples`) runs in the same job. A fenced block after `<!-- sample: <path>[#<region>] -->` must equal that file of the repository, without its license header, or that `// region` of it; the module that owns the file compiles and tests it. A Kotlin or Java block with a `package` or `import` line must be such a sample, or say `<!-- sample: fragment -->`. It reads the site's pages, the root READMEs and the Skills.
+`.github/scripts/docs-samples.mjs` (`pnpm check:docs-samples`) runs in the same job. A fenced block after `<!-- sample: <path>[#<region>] -->` must equal that file of the repository, without its license header, or that `// region` of it; the module that owns the file compiles and tests it. A Kotlin or Java block with a `package` or `import` line must be such a sample, or say `<!-- sample: fragment -->`. A block that shows 9.x code, as a migration does, says `<!-- sample: 9.x -->` instead. In a Kotlin or Java block that is no sample, each `import me.ahoo.wow.…` must name a declaration of a published module's ABI dump (`<module>/api/*.api`). It reads the site's pages, the root READMEs and the Skills.
+
+`.github/scripts/docs-consistency.mjs` (`pnpm check:docs-consistency`) runs there too. Every English page has a Chinese page and the other way round, except a generated page, which may be English only; the two share their headings by level and their code blocks by language. Every `wow.*` key that a YAML or properties block sets is a key of the Spring Boot configuration metadata, compared as Spring binds it.
 
 The Documentation job of the same workflow builds the VitePress site with the locked dependency graph whenever the site or its samples change. The check is structural: whether a document is current, has one owner, or is working material in disguise remains a review question.
 

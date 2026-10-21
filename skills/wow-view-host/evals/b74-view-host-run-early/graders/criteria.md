@@ -8,4 +8,4 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 PASS only if the answer does all of these:
 
 1. Explains that the engine refreshes right after run resolves, so resolving before the read model reflects the command shows the old state
-2. Makes run wait for CommandStage.SNAPSHOT (or the stage the projection needs) and let a refusal reject so the engine reports the service's reason
+2. Makes run wait for the snapshot stage, wait.snapshot() in the Wow-Wait plan (or the projection stage the view reads), and let a refusal reject so the engine reports the service's reason
