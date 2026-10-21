@@ -27,7 +27,7 @@ Use the narrowest module task that covers the change. For example:
 ./gradlew :example-domain:test --tests "me.ahoo.wow.example.domain.order.OrderSpec"
 ```
 
-JavaScript projects (the TypeScript packages under `typescript/`, the V10 apps `platform/ops/console` and `example/eshop/web`, and the documentation site) share one pnpm workspace rooted at the repository root. Use Node.js 22.12 or later and install once from the root:
+JavaScript projects (the TypeScript packages under `typescript/`, the apps `platform/ops/console` and `example/eshop/web`, and the documentation site) share one pnpm workspace rooted at the repository root. Use Node.js 22.12 or later and install once from the root:
 
 ```bash
 pnpm install

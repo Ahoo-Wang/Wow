@@ -206,7 +206,7 @@ class AfterHookParametersTest {
     fun `a hook whose first parameter is a framework type takes no command`() {
         failing("fun afterCommand(type: me.ahoo.wow.api.aggregate.AggregateType): Audited = Audited(\"x\")")
             .assert().contains(
-                "afterCommand takes me.ahoo.wow.api.aggregate.AggregateType, a 9.x framework type with no V10 " +
+                "afterCommand takes me.ahoo.wow.api.aggregate.AggregateType, a 9.x framework type with no Wow 10 " +
                     "counterpart",
             )
     }

@@ -6,7 +6,7 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-客服要能在订单列表里按备注关键词搜索、按备注排序，另外把分析的 maxLimit 设成 5000。
+客服要能在订单列表里按备注关键词搜索、按备注排序，另外把分析的 maxLimit 设成 5000。在回答里给出代码和命令。
 
 Files from the user's project, shown inline:
 

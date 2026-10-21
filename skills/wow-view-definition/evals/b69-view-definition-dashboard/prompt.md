@@ -6,7 +6,7 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-给运营做一块「订单日报」看板：顶部一个日期筛选，放今日订单数、各渠道实付、以及待发货列表三个面板。
+给运营做一块「订单日报」看板：顶部一个日期筛选，放今日订单数、各渠道实付、以及待发货列表三个面板。在回答里给出代码和命令。
 
 Files from the user's project, shown inline:
 

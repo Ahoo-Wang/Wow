@@ -6,13 +6,13 @@ outline: deep
 
 # Kubernetes
 
-A Wow service runs on Kubernetes as a Deployment: its pods are the service's nodes, they find each other through the service's database, and they reach each other through a headless Service. Nothing else is needed: no operator, no ZooKeeper, no Kafka consumer group. This page walks through the manifests of the eShop's ordering service, in `deploy/v10/eshop-ordering`, which are a template for your own. [Deployment Model](./topology) explains the ideas behind them.
+A Wow service runs on Kubernetes as a Deployment: its pods are the service's nodes, they find each other through the service's database, and they reach each other through a headless Service. Nothing else is needed: no operator, no ZooKeeper, no Kafka consumer group. This page walks through the manifests of the eShop's ordering service, in `deploy/eshop-ordering`, which are a template for your own. [Deployment Model](./topology) explains the ideas behind them.
 
 ## The files
 
 | File | Holds |
 | --- | --- |
-| `kustomization.yaml` | The set: `kubectl apply -k deploy/v10/eshop-ordering` |
+| `kustomization.yaml` | The set: `kubectl apply -k deploy/eshop-ordering` |
 | `configmap.yaml` | The settings every node shares, as environment variables |
 | `secret.yaml` | The database credentials, the cluster token and the service tokens |
 | `deployment.yaml` | The nodes |
@@ -28,7 +28,7 @@ The image runs the service's Gradle distribution (`./gradlew :eshop-ordering-ser
 
 Every node of a service gets the same configuration from a ConfigMap, as environment variables that Spring Boot binds relaxed:
 
-<!-- sample: deploy/v10/eshop-ordering/configmap.yaml -->
+<!-- sample: deploy/eshop-ordering/configmap.yaml -->
 
 ```yaml
 # The settings every node shares, as environment variables (Spring Boot's relaxed binding: wow.kafka.bootstrap-servers
@@ -57,7 +57,7 @@ The secrets come from Secrets the same way: the database password, the cluster t
 
 ## The nodes
 
-<!-- sample: deploy/v10/eshop-ordering/deployment.yaml#rollout -->
+<!-- sample: deploy/eshop-ordering/deployment.yaml#rollout -->
 
 ```yaml
 # The nodes share the partitions through leases in PostgreSQL: no ZooKeeper, no consumer group.
@@ -76,7 +76,7 @@ Two replicas are two nodes, which split the log's partitions through leases in t
 
 Each node needs an identity and an address its peers can reach:
 
-<!-- sample: deploy/v10/eshop-ordering/deployment.yaml#node -->
+<!-- sample: deploy/eshop-ordering/deployment.yaml#node -->
 
 ```yaml
 env:
@@ -111,7 +111,7 @@ env:
 
 ## Two services
 
-<!-- sample: deploy/v10/eshop-ordering/service.yaml -->
+<!-- sample: deploy/eshop-ordering/service.yaml -->
 
 ```yaml
 # The public HTTP port, for clients and ingresses.
@@ -162,7 +162,7 @@ Never expose the internal port outside the cluster. The network policy admits on
 
 The host gives the node's health to Spring Boot Actuator's readiness and liveness groups, on the HTTP port:
 
-<!-- sample: deploy/v10/eshop-ordering/deployment.yaml#probes -->
+<!-- sample: deploy/eshop-ordering/deployment.yaml#probes -->
 
 ```yaml
 startupProbe:
@@ -191,7 +191,7 @@ Readiness fails while the node cannot serve: before it runs, while its log or le
 
 When Kubernetes stops a pod, the node first finishes the waits still open, then hands its partitions off after the commands in flight, saves its checkpoints, and closes its internal port last. The grace period must cover all of it:
 
-<!-- sample: deploy/v10/eshop-ordering/deployment.yaml#shutdown -->
+<!-- sample: deploy/eshop-ordering/deployment.yaml#shutdown -->
 
 ```yaml
 # The host's shutdown: the public server finishes its requests, the waits among them (wow.wait.max-timeout,
@@ -202,7 +202,7 @@ terminationGracePeriodSeconds: 90
 
 A short `preStop` pause gives the endpoints time to drop the pod before Spring Boot stops taking requests:
 
-<!-- sample: deploy/v10/eshop-ordering/deployment.yaml#prestop -->
+<!-- sample: deploy/eshop-ordering/deployment.yaml#prestop -->
 
 ```yaml
 lifecycle:
@@ -225,4 +225,4 @@ Add replicas to spread the partitions over more nodes; remove them to gather the
 3. Create the Kafka topics the service owns, since the ConfigMap sets `WOW_KAFKA_TOPICS_DDL=validate`: a command topic needs exactly as many partitions as the log ([Kafka](./kafka#creating-topics)).
 4. Replace the example secrets.
 
-Then `kubectl apply -k deploy/v10/eshop-ordering` and `kubectl rollout status deployment/eshop-ordering`.
+Then `kubectl apply -k deploy/eshop-ordering` and `kubectl rollout status deployment/eshop-ordering`.

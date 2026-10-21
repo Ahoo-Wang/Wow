@@ -1,10 +1,10 @@
-# The V10 view store service image (R.1): `./gradlew :view-store-server:installDist`.
-# v10-image-deploy.yml builds it and tags only the release version: a pre-release never moves `latest`, which stays
+# The view store service image (R.1): `./gradlew :view-store-server:installDist`.
+# image-deploy.yml builds it and tags only the release version: a pre-release never moves `latest`, which stays
 # on the 9.x image of the same name (view-store-deploy.yml).
 # Callers: the image trusts no identity header, and runs CoSec only in its `cosec` profile
 # (SPRING_PROFILES_ACTIVE=cosec, with COSEC_JWT_SECRET), which verifies each request's CoSec token; without it every
 # request is answered 401. WOW_PLATFORM_TRUSTIDENTITYHEADERS=true (the property wow.platform.trust-identity-headers)
-# takes them from X-User, X-Tenant and X-Role instead, for a local demo only. deploy/v10 runs it on Kubernetes.
+# takes them from X-User, X-Tenant and X-Role instead, for a local demo only. deploy runs it on Kubernetes.
 ARG APP_NAME=view-store-server
 ARG WORK_HOME=/opt/${APP_NAME}
 
@@ -20,7 +20,7 @@ COPY build/install/${APP_NAME} .
 FROM base AS run
 ARG WORK_HOME
 
-# A numeric user, so a pod's runAsNonRoot can verify it (deploy/v10).
+# A numeric user, so a pod's runAsNonRoot can verify it (deploy).
 RUN groupadd -r -g 10001 appgroup && useradd -r -u 10001 -g appgroup appuser
 
 COPY --from=build --chown=10001:10001 ${WORK_HOME} ${WORK_HOME}

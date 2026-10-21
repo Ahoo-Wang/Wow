@@ -1,4 +1,4 @@
-description = "Wow V10 analytics catalog: the source aggregate and the warehouse catalog it reads (roadmap 9.3b)"
+description = "Wow analytics catalog: the source aggregate and the warehouse catalog it reads (roadmap 9.3b)"
 
 // The analytics catalog's domain (decisions D238, D241). KSP with :compiler compiles the aggregate into its kernel
 // model, the binding index and the module's Manifest fragment, as the Gradle plugin `me.ahoo.wow` does for an

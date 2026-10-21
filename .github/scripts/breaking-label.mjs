@@ -28,9 +28,9 @@ import { isBreaking } from './release-admission.mjs';
 // signature is a `-`/`+` pair; a pure addition is `+` lines only. See
 // `removedSurfaceLines` for the lines that do not count.
 //
-// The V10 dumps (decision D216) get the same label: between the M7 exit and
+// The ABI dumps (decision D216) get the same label: between the M7 exit and
 // 10.0.0 GA a removed line is allowed, so the label is how such a pull
-// request is marked, and its description says what went and why; V10 adds no
+// request is marked, and its description says what went and why; Wow adds no
 // `@Deprecated(HIDDEN)` compatibility signatures. From GA the 9.x
 // rules apply to them (AGENTS.md, "Binary Compatibility").
 // Run by pr-labeler.yml:

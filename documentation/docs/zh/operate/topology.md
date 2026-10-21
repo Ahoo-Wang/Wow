@@ -57,7 +57,7 @@ flowchart LR
 
 在 Kubernetes 上，eShop 的 ordering 清单从 Pod 推出这三项：
 
-<!-- sample: deploy/v10/eshop-ordering/deployment.yaml#node -->
+<!-- sample: deploy/eshop-ordering/deployment.yaml#node -->
 
 ```yaml
 env:
@@ -87,7 +87,7 @@ env:
     value: $(POD_NAME).eshop-ordering-cluster.$(POD_NAMESPACE).svc.cluster.local:9093
 ```
 
-这个地址是 Pod 在一个 headless Service 下的名字，这个 Service 也发布尚未就绪的 Pod，所以正在启动或正在排空的节点仍能收到同伴的转发和信号。[eShop ordering 清单](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/v10/eshop-ordering)是一个服务的完整模板。
+这个地址是 Pod 在一个 headless Service 下的名字，这个 Service 也发布尚未就绪的 Pod，所以正在启动或正在排空的节点仍能收到同伴的转发和信号。[eShop ordering 清单](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering)是一个服务的完整模板。
 
 ## 服务需要什么 {#what-a-service-needs}
 
@@ -151,7 +151,7 @@ wow:
 
 类路径上有 Spring Boot Actuator 时，宿主把节点的健康状况加入就绪和存活分组：
 
-<!-- sample: deploy/v10/eshop-ordering/deployment.yaml#probes -->
+<!-- sample: deploy/eshop-ordering/deployment.yaml#probes -->
 
 ```yaml
 startupProbe:
@@ -179,7 +179,7 @@ livenessProbe:
 
 ## 迁移切换时的待机 {#standby-for-a-migrations-cut-over}
 
-在 [9.x 切换](../migrate/data)的双轨运行窗口里，`migrate-data tail` 导入 9.x 仍在写入的数据，V10 服务则提供读取。让它的节点以 `wow.standby: true` 启动：
+在 [9.x 在线切换](../migrate/data#online-cut-over-for-large-systems)的双轨运行窗口里，`migrate-data tail` 导入 9.x 仍在写入的数据，V10 服务则提供读取。让它的节点以 `wow.standby: true` 启动：
 
 - 它们为追尾导入的数据提供状态读取和查询。
 - 它们报告为就绪（`/actuator/health/readiness` 为 `UP`，其租约组与主题标为 `standby`），所以负载均衡会把这些读请求发给它们。

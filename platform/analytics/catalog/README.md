@@ -1,6 +1,6 @@
-# Analytics catalog (V10)
+# Analytics catalog
 
-**Incubating**, unpublished (decision D88): the V10 analytics catalog service, roadmap 9.3b (decisions D238, D241, D251):
+**Incubating**, unpublished (decision D88): the analytics catalog service, roadmap 9.3b (decisions D238, D241, D251):
 the control plane of the analytics platform, in place of the 9.x `dataset-registry/`, which stays until the 9.x cleanup
 (9.3c). The data plane (the Sink's writes, the dataset queries) never calls it on its own path.
 

@@ -25,8 +25,9 @@ import java.util.concurrent.atomic.AtomicLong
 enum class OffsetGapPolicy {
     /**
      * The read fails with an [OffsetGapException] (the default). A subscription retries its read with its backoff,
-     * logging each failure, so it stays where it is, parked in effect, until an operator moves its checkpoint (or
-     * chooses [EARLIEST]) once the loss is understood.
+     * logging each failure, so it stays where it is, parked in effect. Once the loss is understood, the recovery is to
+     * set `wow.kafka.offset-gap=earliest` and restart the node: the read resumes from the earliest retained offset,
+     * and the skipped range is lost to that subscription and stays counted.
      */
     FAIL,
 
@@ -72,7 +73,11 @@ internal class OffsetGaps(private val policy: OffsetGapPolicy = OffsetGapPolicy.
         val gap = OffsetGapException(topic, partition, from, start, end)
         return when (policy) {
             OffsetGapPolicy.FAIL -> {
-                logger.error("{} The read fails until its checkpoint is moved.", gap.message)
+                logger.error(
+                    "{} The read fails until the node restarts with wow.kafka.offset-gap=earliest, which resumes it " +
+                        "from the earliest retained offset.",
+                    gap.message,
+                )
                 throw gap
             }
 

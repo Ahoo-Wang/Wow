@@ -12,6 +12,12 @@
  */
 
 import { type Fetcher, fetcher as defaultFetcher } from '@ahoo-wang/fetcher';
+import {
+  marksNothing,
+  parseJson,
+  stringifyJson,
+  type TextNumbers,
+} from './exactJson.js';
 import { toWowProblemError } from './problem.js';
 
 /**
@@ -105,6 +111,8 @@ export interface Call {
   readonly query?: Readonly<Record<string, string | number | undefined>>;
   readonly headers?: Readonly<Record<string, string | undefined>>;
   readonly body?: unknown;
+  /** The body's numbers written as their exact text ({@link TextNumbers}). */
+  readonly bodyNumbers?: TextNumbers;
   readonly options?: RequestOptions;
   /** Answers a 304 rather than rejecting with it. */
   readonly notModified?: boolean;
@@ -161,12 +169,21 @@ export async function send(
   })) {
     if (value !== undefined) headers[name] = value;
   }
+  // A body with exact numbers goes as its own JSON text, those numbers unquoted.
+  const exact = call.body !== undefined && !marksNothing(call.bodyNumbers);
+  if (exact) headers['Content-Type'] = 'application/json';
   const url = `${client.basePath ?? ''}${call.path}${queryString(call.query)}`;
   try {
     return await (client.fetcher ?? defaultFetcher).fetch(url, {
       method: call.method,
       headers,
-      ...(call.body === undefined ? {} : { body: call.body as object }),
+      ...(call.body === undefined
+        ? {}
+        : {
+            body: exact
+              ? stringifyJson(call.body, call.bodyNumbers)
+              : (call.body as object),
+          }),
       ...(options.signal === undefined ? {} : { signal: options.signal }),
     });
   } catch (error) {
@@ -177,9 +194,17 @@ export async function send(
   }
 }
 
-/** The JSON body of a 2xx response. */
-export async function json<T>(response: Response): Promise<T> {
-  return (await response.json()) as T;
+/**
+ * The JSON body of a 2xx response; the numbers `numbers` marks come back as
+ * their exact text (review R4-Q, Q-9), and without marks it is
+ * `response.json()` itself.
+ */
+export async function json<T>(
+  response: Response,
+  numbers?: TextNumbers,
+): Promise<T> {
+  if (marksNothing(numbers)) return (await response.json()) as T;
+  return parseJson(await response.text(), numbers) as T;
 }
 
 /** The entity tag of a response without its quotes or weak marker. */

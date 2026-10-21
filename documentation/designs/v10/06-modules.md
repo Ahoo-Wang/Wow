@@ -106,7 +106,7 @@ flowchart BT
     MIG[wow-migrate-data] --> KER
 ```
 
-图是概略。权威的依赖清单是架构测试的 `V10Rules.ALLOWED_PROJECT_DEPENDENCIES`，此外还有：`wow-http → wow-openapi`、`wow-cosec → wow-http`、`wow-opentelemetry → wow-runtime, wow-query`、`wow-migrate-data → wow-postgres, wow-mongo`，以及 `extensions/` 下的 `wow-models`、`wow-cosid`。
+图是概略。权威的依赖清单是架构测试的 `ArchitectureRules.ALLOWED_PROJECT_DEPENDENCIES`，此外还有：`wow-http → wow-openapi`、`wow-cosec → wow-http`、`wow-opentelemetry → wow-runtime, wow-query`、`wow-migrate-data → wow-postgres, wow-mongo`，以及 `extensions/` 下的 `wow-models`、`wow-cosid`。
 
 由架构测试强制：
 

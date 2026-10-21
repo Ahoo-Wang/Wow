@@ -18,4 +18,4 @@ class OrderArchivedUpgrader : EventUpgrader {
 }
 ```
 
-生产 MongoDB 事件库里约有一万条订单流只含一个 `order_archived` 事件（当年 `archive_order` 命令只产生这一个事件）。团队打算在映射表里写 `{"from": "order_archived", "drop": true}` 了事。
+生产 MongoDB 事件库里约有一万条订单流只含一个 `order_archived` 事件（当年 `archive_order` 命令只产生这一个事件）。团队打算在映射表里写 `{"from": "order_archived", "drop": true}` 了事。在回答里给出代码和命令。

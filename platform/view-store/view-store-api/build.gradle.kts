@@ -1,4 +1,4 @@
-description = "Wow V10 view store: the commands, events and value types of the view store context (roadmap 7.2a)"
+description = "Wow view store: the commands, events and value types of the view store context (roadmap 7.2a)"
 
 dependencies {
     api(project(":api"))

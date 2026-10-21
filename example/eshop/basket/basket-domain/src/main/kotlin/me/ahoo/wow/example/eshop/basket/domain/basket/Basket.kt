@@ -43,6 +43,7 @@ import me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem
 @AggregateRoot
 @Description("A buyer's basket before checkout; its id is the buyer's user id")
 class Basket(private val state: BasketState) {
+    // region add-item
     @OnCommand(produces = [BasketItemAdded::class])
     fun onCommand(command: Command<AddBasketItem>): Decision {
         val owner = command.scope.ownerId
@@ -55,6 +56,7 @@ class Basket(private val state: BasketState) {
         }
         return Decision.events(BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity))
     }
+    // endregion
 
     /** Changing a quantity to the one the basket holds changes nothing. */
     @OnCommand(produces = [BasketItemQuantityChanged::class])
@@ -88,6 +90,7 @@ class Basket(private val state: BasketState) {
     fun onCommand(command: ClearBasket): Decision =
         if (state.items.isEmpty()) Decision.NoOp else Decision.events(BasketCleared)
 
+    // region checkout
     @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
     @OnCommand(produces = [BasketCheckedOut::class])
     fun onCommand(command: CheckoutBasket, scope: DecideScope): Decision {
@@ -98,6 +101,7 @@ class Basket(private val state: BasketState) {
         scope.putResult(ORDER_ID_RESULT, orderId)
         return Decision.events(BasketCheckedOut(orderId, state.items))
     }
+    // endregion
 
     companion object {
         /** The result [CheckoutBasket] answers the caller with: the id of the order it submits. */

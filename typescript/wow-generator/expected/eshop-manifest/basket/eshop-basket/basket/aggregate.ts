@@ -13,6 +13,16 @@ export const BasketAggregate = {
   path: '/eshop-basket/basket',
   ownership: 'OWNER',
   snapshot: true,
+  textNumbers: {
+    state: { items: { '*': { unitPrice: true } } },
+    events: {
+      'eshop-basket.basket.BasketCheckedOut': { items: { '*': { unitPrice: true } } },
+      'eshop-basket.basket.BasketItemAdded': { unitPrice: true },
+    },
+    commands: {
+      AddBasketItem: { unitPrice: true },
+    },
+  },
 } as const;
 
 /** The `state.*` paths of `basket`'s snapshots a query filters, sorts and projects on. */

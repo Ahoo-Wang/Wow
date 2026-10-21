@@ -53,7 +53,7 @@ import java.lang.reflect.WildcardType
 
 /**
  * The query module's two tiers (9.x design 9.3.0 §5 T2): the backend SPI, which storage modules implement and call,
- * and the application API, which must not reach it. 9.x marked the SPI `@WowSpi` and checked the marks; V10 has no
+ * and the application API, which must not reach it. 9.x marked the SPI `@WowSpi` and checked the marks; 10.x has no
  * such opt-in yet, so the SPI is listed here and only the second rule is checked.
  */
 class QueryApiTiersTest {

@@ -156,7 +156,7 @@ test('a sample comment applies only to the block right after it', () => {
 test('the check reads the pages, the root READMEs and the Skills, not their evals', () => {
   assert.ok(isSampled('documentation/docs/en/guide/v10/quickstart.md'));
   assert.ok(isSampled('README.zh-CN.md'));
-  assert.ok(isSampled('skills/wow-develop/references/v10-service.md'));
+  assert.ok(isSampled('skills/wow-develop/references/model.md'));
   assert.ok(
     !isSampled('skills/wow-develop/evals/a01-develop-aggregate/prompt.md'),
   );

@@ -21,8 +21,13 @@ import type {
   ContextModel,
   ManifestModel,
   TypeModel,
+  TextNumbersModel,
 } from '../manifest/analyze';
-import { camelCase, quoteStringLiteral } from '../naming/naming';
+import {
+  camelCase,
+  quoteStringLiteral,
+  resolvePropertyName,
+} from '../naming/naming';
 
 /** The entry of the client every generated module imports from. */
 export const WOW_CLIENT = '@ahoo-wang/wow-client';
@@ -175,6 +180,37 @@ function emitBoundedContext(context: ContextModel, modules: ModuleSet): void {
   );
 }
 
+/** A TypeScript literal of exact-number marks: `{ price: true, lines: { '*': { amount: true } } }`. */
+function textNumbersLiteral(marks: TextNumbersModel): string {
+  if (marks === true) return 'true';
+  return `{ ${Object.entries(marks)
+    .map(
+      ([member, mark]) =>
+        `${resolvePropertyName(member)}: ${textNumbersLiteral(mark)}`,
+    )
+    .join(', ')} }`;
+}
+
+/** The `textNumbers` member of an aggregate constant, or nothing when it has none. */
+function textNumbersMember(aggregate: AggregateModel): string {
+  const numbers = aggregate.textNumbers;
+  if (numbers === undefined) return '';
+  const groups = (['state', 'events', 'commands'] as const).flatMap(group => {
+    const value = numbers[group];
+    if (value === undefined) return [];
+    if (group === 'state')
+      return [`    state: ${textNumbersLiteral(value as TextNumbersModel)},`];
+    const entries = Object.entries(
+      value as Readonly<Record<string, TextNumbersModel>>,
+    ).map(
+      ([name, mark]) =>
+        `      ${resolvePropertyName(name)}: ${textNumbersLiteral(mark)},`,
+    );
+    return [`    ${group}: {\n${entries.join('\n')}\n    },`];
+  });
+  return `  textNumbers: {\n${groups.join('\n')}\n  },\n`;
+}
+
 function emitAggregate(
   aggregate: AggregateModel,
   context: ContextModel,
@@ -189,7 +225,7 @@ function emitAggregate(
     `${doc([
       `The aggregate \`${aggregate.context}.${aggregate.name}\`.`,
       aggregate.description,
-    ])}export const ${name}Aggregate = {\n  context: ${quoteStringLiteral(context.name)},\n  name: ${quoteStringLiteral(aggregate.name)},\n  path: ${quoteStringLiteral(`/${context.name}/${aggregate.name}`)},\n  ownership: ${quoteStringLiteral(aggregate.ownership)},\n  snapshot: ${aggregate.snapshot},\n} as const;`,
+    ])}export const ${name}Aggregate = {\n  context: ${quoteStringLiteral(context.name)},\n  name: ${quoteStringLiteral(aggregate.name)},\n  path: ${quoteStringLiteral(`/${context.name}/${aggregate.name}`)},\n  ownership: ${quoteStringLiteral(aggregate.ownership)},\n  snapshot: ${aggregate.snapshot},\n${textNumbersMember(aggregate)}} as const;`,
   );
   addStatement(
     module,
@@ -246,7 +282,12 @@ function commandMethods(
   command: CommandModel,
   paths: string,
   stream: boolean,
+  aggregateConstant: string,
 ): string {
+  // A body with exact numbers sends them unquoted: its marks go with the options.
+  const numbers = command.bodyNumbers
+    ? `, bodyNumbers: ${aggregateConstant}.textNumbers.commands.${resolvePropertyName(command.name) === command.name ? command.name : `[${quoteStringLiteral(command.name)}]`}`
+    : '';
   const body = command.bodyType === 'unknown' ? 'object' : command.bodyType;
   const bodyParam = command.bodyOptional
     ? `body: ${body} = {}`
@@ -267,12 +308,12 @@ function commandMethods(
   const byId = command.byIdPath;
   const unaddressed = command.unaddressedPath;
   if (byId && unaddressed) {
-    return `${comment}  ${name}(${bodyParam}, options?: CreateCommandOptions): ${returns} {\n    return this.gateway.${call}(options?.id === undefined ? ${paths}.${unaddressed.member} : ${paths}.${byId.member}, body, options);\n  }`;
+    return `${comment}  ${name}(${bodyParam}, options?: CreateCommandOptions): ${returns} {\n    return this.gateway.${call}(options?.id === undefined ? ${paths}.${unaddressed.member} : ${paths}.${byId.member}, body, ${numbers ? `{ ...options${numbers} }` : 'options'});\n  }`;
   }
   if (byId) {
-    return `${comment}  ${name}(id: string, ${bodyParam}, options?: CommandOptions): ${returns} {\n    return this.gateway.${call}(${paths}.${byId.member}, body, { ...options, id });\n  }`;
+    return `${comment}  ${name}(id: string, ${bodyParam}, options?: CommandOptions): ${returns} {\n    return this.gateway.${call}(${paths}.${byId.member}, body, { ...options, id${numbers} });\n  }`;
   }
-  return `${comment}  ${name}(${bodyParam}, options?: CommandOptions): ${returns} {\n    return this.gateway.${call}(${paths}.${unaddressed!.member}, body, options);\n  }`;
+  return `${comment}  ${name}(${bodyParam}, options?: CommandOptions): ${returns} {\n    return this.gateway.${call}(${paths}.${unaddressed!.member}, body, ${numbers ? `{ ...options${numbers} }` : 'options'});\n  }`;
 }
 
 function emitCommandClient(
@@ -297,8 +338,8 @@ function emitCommandClient(
     `${doc([`The command routes of \`${aggregate.context}.${aggregate.name}\`.`])}export const ${paths} = {\n${members.join('\n')}\n} as const;`,
   );
   const methods = commands.flatMap(command => [
-    commandMethods(command, paths, false),
-    commandMethods(command, paths, true),
+    commandMethods(command, paths, false, `${name}Aggregate`),
+    commandMethods(command, paths, true, `${name}Aggregate`),
   ]);
   const client = ['CommandGateway', 'CommandResult', 'WowClientOptions'];
   if (commands.length > 0) client.push('CommandResultStream');
@@ -326,7 +367,10 @@ function emitCommandClient(
       `${doc([lifecycle.description, `The lifecycle command \`${lifecycle.name}\`.`], '  ')}  ${lifecycle.method}(${params}): Promise<CommandResult> {\n    return this.gateway.lifecycle(${name}Aggregate.path, id, LifecycleCommands.${lifecycle.member}, ${lifecycle.bodyType ? 'body' : 'undefined'}, options);\n  }`,
     );
   }
-  if (aggregate.lifecycle.length > 0) {
+  if (
+    aggregate.lifecycle.length > 0 ||
+    commands.some(command => command.bodyNumbers)
+  ) {
     module.imports.add('./aggregate.js', [`${name}Aggregate`]);
   }
   module.imports.add(WOW_CLIENT, [...new Set(client)].sort());

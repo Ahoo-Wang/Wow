@@ -11,6 +11,7 @@
  * limitations under the License.
  */
 
+import type { TextNumbers } from './exactJson.js';
 import {
   expandPath,
   json,
@@ -37,6 +38,13 @@ export interface CommandOptions extends RequestOptions {
   readonly wait?: WaitOptions;
   /** The version the aggregate must be at (`If-Match`). */
   readonly expectedVersion?: number;
+  /**
+   * The body's numbers written as their exact text, unquoted JSON numbers
+   * (review R4-Q, Q-9; decision D122): a generated client sets it for a
+   * command with `int64`, `bigint` or `decimal` fields, which it types as
+   * `string`.
+   */
+  readonly bodyNumbers?: TextNumbers;
   /**
    * Resolve a result that did not succeed instead of rejecting with its
    * {@link WowProblemError}; `false` by default.
@@ -279,6 +287,9 @@ export class CommandGateway {
         : path,
       headers: commandHeaders(options, requestId, accept),
       body: body ?? {},
+      ...(options.bodyNumbers === undefined
+        ? {}
+        : { bodyNumbers: options.bodyNumbers }),
       options,
     });
   }

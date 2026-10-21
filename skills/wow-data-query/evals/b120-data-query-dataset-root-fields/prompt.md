@@ -6,11 +6,11 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-dev 环境的 Wow 服务有一个数据集 analytics.order_wide（订单 × 客户宽表）。帮我算一下各客户等级的订单数和 GMV。
+dev 环境的 Wow 服务有一个数据集 analytics.order_wide（订单 × 客户宽表）。帮我算一下各客户等级的订单数和 GMV。在回答里给出代码和命令。
 
 Files from the user's project, shown inline:
 
-`order-wide-descriptor.json` (from `GET /dataset/analytics/order_wide/schema`):
+`order-wide-descriptor.json` (from `GET /wow/dataset/analytics/order_wide/query`):
 
 ```json
 {

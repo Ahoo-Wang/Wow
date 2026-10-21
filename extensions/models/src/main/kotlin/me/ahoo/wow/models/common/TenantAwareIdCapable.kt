@@ -18,7 +18,7 @@ import me.ahoo.wow.api.caller.Caller
 /**
  * An [id] within a tenant, [tenantId].
  *
- * 9.x extended `TenantId` and `IdCapable` of 9.x wow-api, which the V10 wow-api leaves out, so this declares both
+ * 9.x extended `TenantId` and `IdCapable` of 9.x wow-api, which the 10.x wow-api leaves out, so this declares both
  * properties itself.
  */
 interface TenantAwareIdCapable<ID : Any> {

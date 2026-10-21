@@ -50,6 +50,7 @@ class Stock(private val state: StockState) {
         Decision.events(StockReceived(command.quantity))
     }
 
+    // region reserve
     @OnCommand(produces = [StockReserved::class])
     fun onCommand(command: ReserveStock, scope: DecideScope): Decision = whenPositive(command.quantity) {
         when {
@@ -62,6 +63,7 @@ class Stock(private val state: StockState) {
             else -> Decision.events(StockReserved(command.orderId, command.quantity))
         }
     }
+    // endregion
 
     /** Commits the order's reservation. Nothing reserved for the order is a rejection: a shipped order was reserved. */
     @OnCommand(produces = [ReservationCommitted::class])

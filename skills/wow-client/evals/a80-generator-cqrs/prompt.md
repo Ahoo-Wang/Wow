@@ -6,4 +6,4 @@ max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-用 wow-generator 从订单服务的 OpenAPI 文档生成 TypeScript 的 Wow 命令客户端和查询客户端，输出到 src/generated。
+用 wow-generator 从订单服务提交的 Wow Manifest（manifest/baseline.json）生成 TypeScript 的命令客户端和查询客户端，输出到 src/generated。

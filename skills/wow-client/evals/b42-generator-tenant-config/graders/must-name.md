@@ -1,8 +1,8 @@
 ---
 type: regex
-pattern: 'ignorePathParameters'
+pattern: 'textNumbers'
 match: contains
 target: last_message
 ---
 
-The answer names `ignorePathParameters`.
+The answer names `textNumbers`.

@@ -139,9 +139,12 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             base: '/zh/operate/',
             text: '运维',
             items: [
+                {text: '运行 Wow', link: 'index.html'},
                 {text: '部署模型', link: 'topology'},
-                {text: '保护部署', link: 'security'},
+                {text: '配置服务', link: 'configuration'},
+                {text: 'PostgreSQL', link: 'postgresql'},
                 {text: 'Kafka', link: 'kafka'},
+                {text: '保护部署', link: 'security'},
                 {text: 'ops 服务与控制台', link: 'ops-console'},
             ],
         },
@@ -161,9 +164,47 @@ export const sidebarZh: DefaultTheme.Sidebar = {
     '/zh/guide/': [
         {
             base: '/zh/guide/',
-            text: '开发指南',
+            text: '建模',
+            items: [
+                {text: '编写聚合', link: 'aggregates'},
+                {text: '拒绝与错误码', link: 'rejections'},
+                {text: '演进事件', link: 'event-evolution'},
+                {text: '所有者、空间与标签', link: 'ownership'},
+                {text: '唯一键', link: 'unique-keys'},
+            ],
+        },
+        {
+            base: '/zh/guide/',
+            text: '流程',
+            items: [
+                {text: '编写 Saga', link: 'sagas'},
+                {text: '投影与反应器', link: 'projections'},
+                {text: '定时命令', link: 'scheduling'},
+                {text: '失败与重试', link: 'failures'},
+            ],
+        },
+        {
+            base: '/zh/guide/',
+            text: '跨上下文',
+            items: [
+                {text: '发布与消费事件流', link: 'published-streams'},
+                {text: '调用其他服务', link: 'calling-services'},
+            ],
+        },
+        {
+            base: '/zh/guide/',
+            text: '测试',
             items: [
                 {text: '测试领域代码', link: 'testing'},
+                {text: '测试服务', link: 'testing-services'},
+            ],
+        },
+        {
+            base: '/zh/guide/',
+            text: '宿主',
+            items: [
+                {text: '在 Spring Boot 上运行', link: 'spring-boot'},
+                {text: '用 Java 编写领域', link: 'java'},
             ],
         },
     ],

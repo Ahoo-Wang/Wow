@@ -64,10 +64,12 @@ class EshopClientTest {
                 "--wow.clients.contexts.eshop-ordering.internal-url=http://127.0.0.1:${ordering.internalPort}",
             )
             basket.use {
+                // region send
                 val ref = EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "client-alice-1")
                 val submitted = basket.bean<CommandClient>().of(alice).wait(SubmitOrder(items), ref)
                 submitted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
                 submitted.ref.assert().isEqualTo(ref)
+                // endregion
                 // The same request id again is the same order (decision D191).
                 val queries = basket.bean<QueryApi>().of(alice).snapshots(EshopOrderingContract.Order.TYPE)
                 val state = queries.state("client-alice-1")!!
@@ -80,12 +82,14 @@ class EshopClientTest {
                 val bob = Caller.of(scope = Scope("bob"), subject = "bob")
                 basket.bean<QueryApi>().of(bob).snapshots(EshopOrderingContract.Order.TYPE).state("client-alice-1")
                     .assert().isNull()
+                // region rejected
                 // An order of no items is the ordering's rejection, typed.
                 val rejected = runCatching {
                     basket.bean<CommandClient>().of(alice)
                         .wait(SubmitOrder(emptyList()), EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "client-alice-2"))
                 }.exceptionOrNull() as CommandRejectedException
                 rejected.code.assert().contains("invalid")
+                // endregion
             }
         }
     }

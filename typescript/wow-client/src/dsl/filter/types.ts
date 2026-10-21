@@ -237,7 +237,8 @@ export interface SearchFilterOptions<FIELDS extends string = string> {
 export interface RelativeTimeFilterOptions {
   /**
    * Time zone that defines calendar days, e.g. `Asia/Shanghai` or `+08:00`.
-   * Defaults to the server process time zone. Must not be blank. A value
+   * Sent only when set; without it the server reads the days in UTC, never
+   * in its own zone (review R4-Q, Q-10). Must not be blank. A value
    * that starts with an optional `UTC`, `GMT` or `UT` prefix followed by `+`
    * or `-` must be a valid offset within +/-18:00; region IDs are checked by
    * the server only.

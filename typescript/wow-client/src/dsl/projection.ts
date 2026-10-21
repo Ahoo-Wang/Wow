@@ -21,6 +21,41 @@ export interface Projection<FIELDS extends string = string> {
   exclude?: FIELDS[];
 }
 
+/** The first segment of a dotted path. */
+type Head<P extends string> = P extends `${infer H}.${string}` ? H : P;
+
+/** What follows `K.` in the dotted paths of `P`. */
+type Tail<P extends string, K extends string> = P extends `${K}.${infer R}`
+  ? R
+  : never;
+
+/**
+ * `T` with only the dotted paths `P` (and the objects that lead to them): an
+ * included path keeps its descendants, an array its items' paths, and a
+ * nullable or optional value stays so.
+ */
+export type PickPaths<T, P extends string> = T extends readonly (infer E)[]
+  ? PickPaths<E, P>[]
+  : T extends object
+    ? {
+        [K in keyof T as K extends Head<P> ? K : never]: K extends P
+          ? T[K]
+          : PickPaths<T[K], Tail<P, K & string>>;
+      }
+    : T;
+
+/**
+ * The records of type `R` a query whose projection includes the paths
+ * `INCLUDE` returns (review R4-Q, Q-14): `R` narrowed to those paths
+ * ({@link PickPaths}), or `R` itself when they are not literal. A query
+ * client answers so for a query whose `include` it sees as literal paths;
+ * any other query (an exclusion alone, or one whose projection is optional,
+ * as the DSL builds it) answers whole records.
+ */
+export type Projected<R, INCLUDE extends string> = string extends INCLUDE
+  ? R
+  : PickPaths<R, INCLUDE>;
+
 /**
  * Creates a Projection object with the provided parameters.
  *

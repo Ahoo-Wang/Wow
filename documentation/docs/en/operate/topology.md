@@ -57,7 +57,7 @@ Each node advertises the address other nodes reach its internal port at:
 
 On Kubernetes, the eShop's ordering manifests derive all three from the pod:
 
-<!-- sample: deploy/v10/eshop-ordering/deployment.yaml#node -->
+<!-- sample: deploy/eshop-ordering/deployment.yaml#node -->
 
 ```yaml
 env:
@@ -87,7 +87,7 @@ env:
     value: $(POD_NAME).eshop-ordering-cluster.$(POD_NAMESPACE).svc.cluster.local:9093
 ```
 
-The address is the pod's name under a headless service that also publishes pods that are not ready, so a node that is starting or draining still receives its peers' forwards and signals. The [eShop ordering manifests](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/v10/eshop-ordering) are a complete template for one service.
+The address is the pod's name under a headless service that also publishes pods that are not ready, so a node that is starting or draining still receives its peers' forwards and signals. The [eShop ordering manifests](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering) are a complete template for one service.
 
 ## What a service needs
 
@@ -151,7 +151,7 @@ The host sizes Spring Boot's shutdown phase to fit, unless `spring.lifecycle.tim
 
 With Spring Boot Actuator on the classpath, the host contributes the node's health to the readiness and liveness groups:
 
-<!-- sample: deploy/v10/eshop-ordering/deployment.yaml#probes -->
+<!-- sample: deploy/eshop-ordering/deployment.yaml#probes -->
 
 ```yaml
 startupProbe:
@@ -179,7 +179,7 @@ livenessProbe:
 
 ## Standby for a migration's cut-over {#standby-for-a-migrations-cut-over}
 
-Through the dual-run window of a [9.x cut-over](../migrate/data), `migrate-data tail` imports what 9.x keeps writing while the V10 service serves reads. Start its nodes with `wow.standby: true`:
+Through the dual-run window of an [online 9.x cut-over](../migrate/data#online-cut-over-for-large-systems), `migrate-data tail` imports what 9.x keeps writing while the V10 service serves reads. Start its nodes with `wow.standby: true`:
 
 - They serve state reads and queries of what the tail imports.
 - They report ready (`/actuator/health/readiness` is `UP`, with their lease groups and topics marked `standby`), so the load balancer sends them those reads.

@@ -126,6 +126,19 @@ class FilterNormalizerTest {
     }
 
     @Test
+    fun `a relative-time filter without a zone reads its days in UTC, whatever the JVM's zone (Q-10)`() {
+        val jvmZone = java.util.TimeZone.getDefault()
+        java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Asia/Shanghai"))
+        try {
+            val defaults = FilterNormalizer(Clock.fixed(Instant.parse("2026-08-22T20:00:00Z"), ZoneOffset.UTC))
+            defaults.normalize(TodayFilter(QueryField("createdAt"))).assert()
+                .isEqualTo(defaults.normalize(TodayFilter(QueryField("createdAt"), "UTC")))
+        } finally {
+            java.util.TimeZone.setDefault(jvmZone)
+        }
+    }
+
+    @Test
     fun `should emit numeric boundaries in configured time unit`() {
         val normalized = FilterNormalizer(
             clock = Clock.fixed(Instant.parse("2026-08-22T12:00:00Z"), ZoneOffset.UTC),
