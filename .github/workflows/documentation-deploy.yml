@@ -12,24 +12,10 @@
 #
 
 name: Documentation Build and Deploy
+# By hand only until the V10 documentation (W1/W2) is done: the site keeps its
+# 9.x content, and nothing deploys partial V10 pages to its root. DI-6 (#4699)
+# turns the push and schedule triggers back on, with 9.x served under /9.x/.
 on:
-  schedule:
-    - cron: '0 0 * * *'
-  push:
-    branches:
-      - main
-    # Only what the site shows: the VitePress pages, and Storybook with the
-    # package sources it renders. Tests, CI scripts and design notes under
-    # typescript/ don't change the site, so they don't redeploy it.
-    paths:
-      - '.github/workflows/documentation-deploy.yml'
-      - 'documentation/**'
-      - 'typescript/storybook/**'
-      - 'typescript/*/src/**'
-      - 'typescript/*/package.json'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
   workflow_dispatch:
 
 permissions:
