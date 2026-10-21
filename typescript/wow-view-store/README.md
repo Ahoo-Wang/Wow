@@ -113,10 +113,10 @@ expected revision (`'0'` for one never written) and `clear` removes it.
 
 ## Documentation
 
-| To                                                                                              | Read                                                                                                             |
-| ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Choose where views live, wire `WowViewStore`, give permissions, serve a host nobody signs in to | [Where views live](https://wow.ahoo.me/guide/typescript/view-engine-storage#wowviewstore-views-on-a-wow-service) |
-| The exports, the contract, every request the port sends and how server errors map to the port   | [wow-view-store reference](https://wow.ahoo.me/reference/typescript/wow-view-store/)                             |
+| To                                                                                              | Read                                                                                                  |
+| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Choose where views live, wire `WowViewStore`, give permissions, serve a host nobody signs in to | [Saved views](https://wow.ahoo.me/typescript/view-engine/storage#wowviewstore-views-on-a-wow-service) |
+| The exports, the contract, every request the port sends and how server errors map to the port   | [wow-view-store reference](https://wow.ahoo.me/reference/typescript/wow-view-store/)                  |
 
 ## Testing
 

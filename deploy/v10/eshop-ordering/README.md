@@ -1,6 +1,6 @@
 # eShop ordering on Kubernetes (Wow V10)
 
-These are plain manifests for one V10 service: the eShop ordering service (`example/eshop/ordering`), on PostgreSQL and Kafka, with two nodes. Use them as a template for your own service. [Deploying a V10 Service](https://wow.ahoo.me/guide/v10/deployment) explains the settings they use.
+These are plain manifests for one V10 service: the eShop ordering service (`example/eshop/ordering`), on PostgreSQL and Kafka, with two nodes. Use them as a template for your own service. [Deployment model](https://wow.ahoo.me/operate/topology) explains the settings they use.
 
 | File | What it holds |
 | --- | --- |

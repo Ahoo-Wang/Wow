@@ -11,8 +11,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 // Keeps the repository free of leftovers that nothing reads: version catalog
 // entries no build script uses, ignore and labeler entries that name paths no
 // longer in the tree, and CI scripts nothing calls. It reads only the tracked
-// files (no Gradle, no dependencies). Dead `v10` source links are checked by
-// documentation/test/source-links.test.mjs.
+// files (no Gradle, no dependencies). Dead `main` source links are checked by
+// documentation/test/source-links.test.mjs. A workflow trigger names only this
+// line's branch, `main`, the site's `gh-pages`, or a pattern (`bench-run/**`):
+// after a branch is renamed, a trigger still naming the old one never fires.
 //
 // Run by ci.yml (the docs-layout job, on every pull request):
 //   node .github/scripts/repo-hygiene.mjs
@@ -153,6 +155,41 @@ export function staleLabelerGlobs(yaml, files) {
     .filter(glob => !matches(files, glob));
 }
 
+/** The branches a workflow trigger may name: this line's and the site's. */
+export const BRANCHES = ['main', 'gh-pages'];
+
+/**
+ * The branch names of a workflow's `branches:` and `branches-ignore:` filters,
+ * inline (`[main, v9]`) or as a list, that are neither in `branches` nor a
+ * pattern.
+ */
+export function foreignBranches(yaml, branches = BRANCHES) {
+  const names = [];
+  const lines = yaml.split('\n');
+  lines.forEach((line, index) => {
+    const filter = /^(\s*)branches(?:-ignore)?:\s*(.*)$/.exec(line);
+    if (!filter) return;
+    const inline = filter[2].replace(/#.*$/, '').trim();
+    if (inline.startsWith('[')) {
+      names.push(...inline.slice(1, -1).split(','));
+      return;
+    }
+    for (const item of lines.slice(index + 1)) {
+      const entry = /^\s*-\s*(.+)$/.exec(item);
+      if (!entry) break;
+      names.push(entry[1]);
+    }
+  });
+  return names
+    .map(name =>
+      name
+        .replace(/#.*$/, '')
+        .trim()
+        .replace(/^['"]|['"]$/g, ''),
+    )
+    .filter(name => name && !hasGlob(name) && !branches.includes(name));
+}
+
 /**
  * `.github/scripts/*.mjs` (tests aside) that no workflow, package.json script
  * or other script (`.github/scripts/`, a package's `scripts/`) names.
@@ -220,6 +257,17 @@ export function hygieneProblems(cwd = ROOT, allowed = ALLOWED) {
   if (files.includes(labeler)) {
     for (const glob of staleLabelerGlobs(read(labeler), files)) {
       report(labeler, glob, 'matches no tracked file');
+    }
+  }
+  for (const workflow of files.filter(file =>
+    /^\.github\/workflows\/[^/]+\.ya?ml$/.test(file),
+  )) {
+    for (const branch of foreignBranches(read(workflow))) {
+      report(
+        workflow,
+        branch,
+        `names a branch other than ${BRANCHES.join(', ')}`,
+      );
     }
   }
   for (const script of uncalledScripts(files, read)) {

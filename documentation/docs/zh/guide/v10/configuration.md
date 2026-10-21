@@ -33,7 +33,7 @@ wow:
 | `wow.internal.connect-timeout` | `1s` | 对端接受集群通道或信号发送连接的时限 |
 | `wow.internal.signal-queue-capacity` | `1024` | 每个来源节点排队的等待信号数，超过即丢弃 |
 | `wow.contexts.include` | 空：类路径上的全部上下文 | 节点提供的限界上下文，按名字 |
-| `wow.standby` | `false` | 节点以待机状态启动，用于迁移的双跑窗口：提供读，拒绝命令（`wow.node.standby`），不处理任何订阅，直到运维人员恢复它（[部署](./deployment.md#迁移切换时的待机)） |
+| `wow.standby` | `false` | 节点以待机状态启动，用于迁移的双跑窗口：提供读，拒绝命令（`wow.node.standby`），不处理任何订阅，直到运维人员恢复它（[拓扑](../../operate/topology.md#standby-for-a-migrations-cut-over)） |
 | `wow.contexts.exclude` | 空 | 从 `include`（或类路径）给出的上下文中去掉的上下文 |
 
 宿主提供类路径上领域模块的全部上下文。类路径上有多个上下文时，用 `wow.contexts.*` 选择其中一部分：按配置切换上下文的模块化单体，或在一个 JVM 中启动多个服务、每个只包含自己上下文的端到端测试（eShop 的 `EshopSharedJvmTest`）。节点只为选中的上下文构建：它们的模型、Manifest 片段、路由与处理器；没选中的上下文就是另一个服务的，经对端访问。类路径上不存在的名字、既包含又排除的名字，以及一个上下文都不剩的选择，都会让启动失败，并列出类路径上的上下文。
@@ -76,7 +76,7 @@ wow:
 | `wow.state-cache.capacity` | `4096` | 每个上下文在命令之间缓存的聚合状态数；`0` 不缓存 |
 | `wow.tenant.default` | `(0)` | 没有租户的调用方（例如匿名调用方）的租户 |
 | `wow.aggregates.[<context>.<aggregate>].tenant` | 无 | 为该类型的所有聚合固定租户，与调用方无关。节点不提供的类型在启动时被拒绝 |
-| `wow.aggregates.[<context>.<aggregate>].routing` | `cluster` | 该类型命令的路由方式：`cluster` 按 `wow.cluster.router`；`kafka` 经所在上下文的命令主题，接受即持久（决定 D143，见[部署](./deployment.md#kafka-router)）。`kafka` 需要 `wow.kafka.bootstrap-servers`，并开启该上下文的命令入口。节点不提供的类型在启动时被拒绝 |
+| `wow.aggregates.[<context>.<aggregate>].routing` | `cluster` | 该类型命令的路由方式：`cluster` 按 `wow.cluster.router`；`kafka` 经所在上下文的命令主题，接受即持久（决定 D143，见[部署](../../operate/kafka.md#durable-command-intake)）。`kafka` 需要 `wow.kafka.bootstrap-servers`，并开启该上下文的命令入口。节点不提供的类型在启动时被拒绝 |
 
 应用未设置 `spring.lifecycle.timeout-per-shutdown-phase` 时，宿主把它设为 `wow.wait.max-timeout + wow.cluster.drain-timeout`，让正在停止的节点有足够的时间；应用设置了更小的值时保留它，并给出警告。
 
@@ -142,6 +142,7 @@ wow:
 | `wow.query.in-process-timeout` | `30s` | 没有预算的进程内查询的超时 |
 | `wow.query.require-explicit-entry` | `false` | 查询是否必须说明自己是 HTTP 还是进程内；未说明时视为进程内 |
 | `wow.query.require-authenticated-scope` | `false` | HTTP 查询是否需要能固定模型所需作用域的认证作用域；关闭时信任声明的作用域 |
+| `wow.query.cross-tenant.enabled` | `false` | 带 `crossScope` 的调用方能否用 `Wow-Scope: tenant=*` 或租户列表跨租户查询；每次这类查询都以 INFO 级别审计 |
 | `wow.query.abac.enabled` | `false` | 是否用调用方的 `abac.<key>` 属性匹配快照的 `tags` 与每个事件流记录的 `tags` |
 | `wow.query.abac.require-principal-tags` | `false` | 调用方没有 ABAC 标签的 HTTP 查询是否被拒绝，而不是匹配所有资源 |
 | `wow.query.abac.match-missing-tag-key` | `true` | 缺少调用方某个标签键的资源是否作为公共资源匹配 |
@@ -163,7 +164,7 @@ wow:
 | `wow.kafka.topic-prefix` | 空 | 加在每个主题名前，例如 `staging.` 得到 `staging.wow.shop.order.state` |
 | `wow.kafka.poll-timeout` | `200ms` | 消费者一次 poll 最长等待的时间 |
 | `wow.kafka.command-intake` | `false` | 节点承载的每个上下文是否执行其主题 `wow.<context>.commands` 中的命令；该主题必须存在且分区数为 `wow.log.partitions` |
-| `wow.kafka.topics.ddl` | `validate` | 节点启动时如何管理本节点各上下文拥有的主题（决定 D168）：`validate` 在主题缺失、或命令主题的分区数不恰好等于 `wow.log.partitions` 时拒绝启动；`auto` 先按日志的分区数创建缺失的主题；`none` 只检查节点读取的命令主题的分区数。见[部署](./deployment.md#kafka) |
+| `wow.kafka.topics.ddl` | `validate` | 节点启动时如何管理本节点各上下文拥有的主题（决定 D168）：`validate` 在主题缺失、或命令主题的分区数不恰好等于 `wow.log.partitions` 时拒绝启动；`auto` 先按日志的分区数创建缺失的主题；`none` 只检查节点读取的命令主题的分区数。见[部署](../../operate/kafka.md) |
 | `wow.kafka.topics.replication-factor` | broker 的默认值 | `auto` 创建主题时的副本数 |
 | `wow.kafka.topics.configs.*` | 空 | `auto` 创建主题时的主题设置（`retention.ms`、`min.insync.replicas` 等） |
 | `wow.kafka.topics.partition-refresh` | `30s` | 节点多久检查一次所读主题（其他上下文的流、本上下文的回执）新增的分区，也是其消费者的 `metadata.max.age.ms`。新分区在大约两倍于此的时间内开始被读取，无需重启 |

@@ -11,20 +11,20 @@ export const navbarEn: DefaultTheme.NavItem[] = [
             {text: 'Testing', link: '/guide/testing'},
             {text: 'HTTP API', link: '/guide/v10/http-api'},
             {text: 'Query Language', link: '/guide/v10/query'},
-            {text: 'Deployment', link: '/guide/v10/deployment'},
+            {text: 'Deployment', link: '/operate/topology'},
         ],
     },
     {
         text: 'TypeScript',
-        activeMatch: '/(guide|reference)/typescript/',
+        activeMatch: '/(guide/typescript|typescript|reference/typescript)/',
         items: [
             {
                 text: 'Guide',
                 items: [
                     {text: 'Overview', link: '/guide/typescript/'},
                     {text: 'Generate a Client', link: '/guide/typescript/generated-client'},
-                    {text: 'View Engine', link: '/guide/typescript/view-engine'},
-                    {text: 'Using the Workbench (for users)', link: '/workbench/'},
+                    {text: 'View Engine', link: '/typescript/view-engine/'},
+                    {text: 'The Workbench (for users)', link: '/data/workbench'},
                 ],
             },
             {
@@ -37,12 +37,24 @@ export const navbarEn: DefaultTheme.NavItem[] = [
             },
         ],
     },
+    {text: 'Migrate', link: '/migrate/', activeMatch: '/migrate/'},
     {text: 'Concepts', link: '/concepts/', activeMatch: '/concepts/'},
+    {
+        text: 'Operate',
+        activeMatch: '/operate/',
+        items: [
+            {text: 'Deployment Model', link: '/operate/topology'},
+            {text: 'Secure a Deployment', link: '/operate/security'},
+            {text: 'Kafka', link: '/operate/kafka'},
+            {text: 'The Ops Service and Console', link: '/operate/ops-console'},
+        ],
+    },
     {
         text: 'Reference',
         items: [
             {text: 'Glossary', link: '/reference/glossary'},
             {text: 'Wire Protocols', link: '/reference/protocols'},
+            {text: 'migrate-data CLI', link: '/reference/migrate-data'},
             {text: 'Configuration Keys', link: '/reference/configuration'},
             {text: 'Error Codes', link: '/reference/error-codes'},
             {text: 'Annotations', link: '/reference/annotations'},

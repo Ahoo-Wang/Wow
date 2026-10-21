@@ -91,7 +91,7 @@ From that model, without more code, the service gets an HTTP route for each comm
 | Write a service | [Quick start](/guide/v10/quickstart), then [deciding and evolving](/concepts/programming-model) |
 | Call a service from a TypeScript front end | [TypeScript client](/guide/typescript/) |
 | Run services in production | [Identity, tenancy and access](/concepts/identity), then [subscriptions, failures and replay](/concepts/subscriptions) |
-| Analyze the data | [Read models](/concepts/read-models), then the [workbench](/workbench/) |
+| Analyze the data | [Read models](/concepts/read-models), then the [workbench](/data/workbench) |
 
 ## Recognition
 

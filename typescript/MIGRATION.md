@@ -4,6 +4,8 @@
 
 方案已与用户逐条确认（2026-09-23），经两轮自审，补充项均已并入。**迁移已完成**（第 0～3′ 步都已合并），**首发也已完成**（Wow 9.2.0，2026-10-03）；剩下的是第 4a 步的收尾与第 4b 步，见文末「进度」的「下一步」。
 
+> 2026-10-21：文中的流水线与汇总检查名是当时的记录。`v10` 上 `typescript.yml`、`typescript-contract.yml`、`typescript-storybook.yml` 已并入唯一的 `.github/workflows/ci.yml`，合并信号只有 `ci-gate`，发版准入只要求 `ci.yml` 的一次手动触发运行（CI-2，D265）；现状以根目录 `AGENTS.md` 的「CI And Release Workflows」为准。
+
 本文从 fetcher 仓 `docs/superpowers/specs/2026-09-23-wow-packages-migration-design.md` 复制而来（取自 Ahoo-Wang/fetcher#1899 分支 `bb0a9dabd`，含 2026-09-24 补的 `/fetcher` 子路径与 5.x 流水线两处），**此后以本仓这份为准**，迁移进度也只记在这里。用户 2026-09-24 定：放在 `typescript/MIGRATION.md`，不放 `docs/superpowers/`（那里在 Wow 被 `.gitignore` 忽略，且根目录 `AGENTS.md` 规定不再新增文件）。文中的 `#编号` 除 #2170、#3248、#3277 以外都指 fetcher 仓的 PR。
 
 - Fetcher 基线：`2f47af0f7`（#1849）。Wow 基线：`8eb3fe580`（#3277），版本 `9.1.5`。

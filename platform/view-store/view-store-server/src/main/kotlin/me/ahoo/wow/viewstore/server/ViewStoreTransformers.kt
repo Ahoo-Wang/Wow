@@ -35,7 +35,9 @@ class PreferencesTarget : CommandTransformer {
 
     override suspend fun transform(input: CommandInput): CommandTarget {
         val body = input.body as SetViewPreferences
-        val id = appOf(input)?.let { ScopedIds.preferences(input.caller.scope.ownerId, it, body.definitionId) }
+        val id = appOf(
+            input
+        )?.let { ScopedIds.preferences(input.tenantId, input.caller.scope.ownerId, it, body.definitionId) }
         return CommandTarget(input.type, id, body, input.headers)
     }
 }
@@ -46,7 +48,12 @@ class WordingTarget : CommandTransformer {
 
     override suspend fun transform(input: CommandInput): CommandTarget {
         val body = input.body as SetDatasetWording
-        return CommandTarget(input.type, appOf(input)?.let { ScopedIds.wording(it, body.dataset) }, body, input.headers)
+        return CommandTarget(
+            input.type,
+            appOf(input)?.let { ScopedIds.wording(input.tenantId, it, body.dataset) },
+            body,
+            input.headers
+        )
     }
 }
 
@@ -56,7 +63,12 @@ class WordingClearTarget : CommandTransformer {
 
     override suspend fun transform(input: CommandInput): CommandTarget {
         val body = input.body as ClearDatasetWording
-        return CommandTarget(input.type, appOf(input)?.let { ScopedIds.wording(it, body.dataset) }, body, input.headers)
+        return CommandTarget(
+            input.type,
+            appOf(input)?.let { ScopedIds.wording(input.tenantId, it, body.dataset) },
+            body,
+            input.headers
+        )
     }
 }
 

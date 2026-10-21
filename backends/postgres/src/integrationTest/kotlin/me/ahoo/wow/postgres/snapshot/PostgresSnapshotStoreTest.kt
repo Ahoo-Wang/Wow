@@ -98,10 +98,15 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
         store.saveAll((1..BATCH).flatMap { listOf(of(order, "o$it", 2), of(cart, "c$it", 1)) })
             .forEach { it.assert().isEqualTo(SnapshotSaveOutcome.Written) }
         counted.since(twoTypes).size.assert().isEqualTo(2)
+        // B.O-5: a batch, of one type or of two, is one transaction: one commit, one WAL flush.
+        val commits = counted.commits
+        store.saveAll((1..BATCH).flatMap { listOf(of(order, "o$it", 3), of(cart, "c$it", 2)) })
+            .forEach { it.assert().isEqualTo(SnapshotSaveOutcome.Written) }
+        (counted.commits - commits).assert().isEqualTo(1)
         // Refused ones (a replay) add one statement, which marks those of a higher state revision stale.
         store.save(of(order, "newer", 3).copyWith(stateRevision = 2)).assert().isTrue()
         val replay = counted.begin()
-        val outcomes = store.saveAll(listOf(of(order, "o1", 1), of(order, "o2", 3), of(order, "newer", 4)))
+        val outcomes = store.saveAll(listOf(of(order, "o1", 1), of(order, "o2", 4), of(order, "newer", 4)))
         outcomes.assert().containsExactly(
             SnapshotSaveOutcome.Refused,
             SnapshotSaveOutcome.Written,

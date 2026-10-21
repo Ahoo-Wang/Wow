@@ -4,6 +4,8 @@
 
 <h1 align="center">Wow</h1>
 
+> **Wow 10.0 正在本分支上预发布。** 稳定的 9.x 版本线在 [`v9`](https://github.com/Ahoo-Wang/Wow/tree/v9) 分支，文档在 [wow.ahoo.me](https://wow.ahoo.me/)。
+
 <p align="center"><strong>领域模型即服务</strong></p>
 
 <p align="center">让领域决策显式、可测试、可追溯的响应式 CQRS 与事件溯源框架。</p>

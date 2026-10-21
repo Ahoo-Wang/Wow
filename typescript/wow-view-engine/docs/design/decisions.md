@@ -513,7 +513,7 @@
   - **截图的范围**：主题一览的每一块（48 张）加三块关键屏（首页日报、分析工作台、工作台里的日报），共 51 张；再加要有理由。
   - **强制颜色下焦点是 `CanvasText` 的轮廓，选中行是 `Highlight` 的内框**；**纸上是预设的亮色一半、没有阴影、图表开花纹、颜色照印**，图表在打印开始与结束时重读主题。
 - **代价**：本机跑截图要 Docker（51 张约 40 秒，容器限 2 个 CPU）；CI 多一个拉镜像的作业。
-- **落点**：`typescript/storybook/`（`scripts/linux-browser.mjs`、`scripts/visual.mjs`、`vitest.config.ts` 的 `visual` 工程、`baselines/`、README「截图基线」）、`.github/workflows/typescript-storybook.yml`（`visual` 作业）、`src/styles.css`（`@media print`、`@media (forced-colors: active)`、暗色包进 `@media not print`）、`src/ui/charts/print.ts`；[ui/theme.md#打印与强制颜色](ui/theme.md#打印与强制颜色)、[ui/theme.md#质量门](ui/theme.md#质量门)。（见 test/styleBoundary.test.tsx「prints in the light half: the dark tokens and utilities hold off paper only (T5)」「keeps focus and selection in forced colours, in system colours (T5)」、test/chartTheme.test.tsx「redraws for paper when printing starts, and back when it ends (T5)」、Storybook「强制颜色与打印/回归」）
+- **落点**：`typescript/storybook/`（`scripts/linux-browser.mjs`、`scripts/visual.mjs`、`vitest.config.ts` 的 `visual` 工程、`baselines/`、README「截图基线」）、`.github/workflows/ci.yml`（`storybook-visual` 作业）、`src/styles.css`（`@media print`、`@media (forced-colors: active)`、暗色包进 `@media not print`）、`src/ui/charts/print.ts`；[ui/theme.md#打印与强制颜色](ui/theme.md#打印与强制颜色)、[ui/theme.md#质量门](ui/theme.md#质量门)。（见 test/styleBoundary.test.tsx「prints in the light half: the dark tokens and utilities hold off paper only (T5)」「keeps focus and selection in forced colours, in system colours (T5)」、test/chartTheme.test.tsx「redraws for paper when printing starts, and back when it ends (T5)」、Storybook「强制颜色与打印/回归」）
 
 ## D46 主题架构重构：五条结构、一张登记表（2026-09-25）
 
@@ -718,7 +718,7 @@
   - **无头**：不依赖 React、DOM 与样式表（`tsconfig.headless.json` 与 `test/architecture.test.ts` 的 `testing` 层：只能以纯类型引用 `runtime/source`，可用 `model`）。筛选交给 `mingo`（MongoDB 查询语言的 JavaScript 实现），构建时外置，只有 `/testing` 导入它。
   - **`mingo` 是可选的对等依赖**（评审 #3725）：`peerDependencies` 取 `catalog:peers` 的范围，`peerDependenciesMeta` 标 `optional`，本包自己的测试与构建经 `devDependencies` 拿到它。列成普通依赖会让每个宿主都装上它，而只有用 `/testing` 的宿主需要；用的宿主自己装（`pnpm add -D mingo`，README「Testing a host」写明）。仓内导入 `/testing` 的 Storybook 与补偿控制台都在开发依赖里声明它。
 - **没选**：私有工作区包（宿主拿不到，控制台之外的宿主还得再写一份）；放进根入口（生产代码从不需要它，还会把 `mingo` 带进每个宿主的包）。
-- **落点**：`src/testing/`；`test/surface/testing.txt`；`scripts/size-budget.json` 的 `./testing`；[宿主接入指南「用 /testing 测宿主」](https://wow.ahoo.me/zh/guide/typescript/view-engine-host#testing)；`typescript/storybook/stories/view-engine/rowSource.ts`；9.x 补偿控制台 e2e 的执行替身（V10 已删除）。
+- **落点**：`src/testing/`；`test/surface/testing.txt`；`scripts/size-budget.json` 的 `./testing`；[宿主接入指南「用 /testing 测宿主」](https://wow.ahoo.me/zh/typescript/view-engine/host#testing)；`typescript/storybook/stories/view-engine/rowSource.ts`；9.x 补偿控制台 e2e 的执行替身（V10 已删除）。
 
 ## D66 引擎的工具类带前缀 `fve:`，与宿主不再同名（2026-09-28）
 

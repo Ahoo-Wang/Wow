@@ -13,37 +13,19 @@
 
 import {DefaultTheme} from "vitepress/types/default-theme";
 
-// The view engine has four groups of its own in the TypeScript client area:
-// start, concepts, guides and reference. Batches B2–B5 of phase 7 each add
-// pages to their own group only (concepts in B2; host, actions and CSP in B3;
-// storage in B4; the API reference in B5) and leave the others alone.
-const viewEngineStart: DefaultTheme.SidebarItem = {
-    base: '/guide/typescript/',
+// The view engine's guides: one group of its own, beside the TypeScript client and the packages' reference.
+const viewEngineGuides: DefaultTheme.SidebarItem = {
+    base: '/typescript/view-engine/',
     text: 'View Engine',
     items: [
-        {text: 'Overview', link: 'view-engine'},
-    ],
-}
-
-const viewEngineConcepts: DefaultTheme.SidebarItem = {
-    base: '/guide/typescript/',
-    text: 'View Engine Concepts',
-    items: [
-        {text: 'Core Concepts', link: 'view-engine-concepts'},
-    ],
-}
-
-const viewEngineGuides: DefaultTheme.SidebarItem = {
-    base: '/guide/typescript/',
-    text: 'View Engine Guides',
-    items: [
-        {text: 'Writing a Definition', link: 'view-engine-definitions'},
-        {text: 'Theming', link: 'view-engine-theming'},
-        {text: 'Accessibility', link: 'view-engine-accessibility'},
-        {text: 'Where Views Live', link: 'view-engine-storage'},
-        {text: 'Fitting It into a Host', link: 'view-engine-host'},
-        {text: 'Declared Actions', link: 'view-engine-actions'},
-        {text: 'Content Security Policy', link: 'view-engine-csp'},
+        {text: 'Concepts', link: 'index.html'},
+        {text: 'Define Views', link: 'definitions'},
+        {text: 'Host the Engine', link: 'host'},
+        {text: 'Actions', link: 'actions'},
+        {text: 'Saved Views', link: 'storage'},
+        {text: 'Theming', link: 'theming'},
+        {text: 'Accessibility', link: 'accessibility'},
+        {text: 'Content Security Policy', link: 'csp'},
     ],
 }
 
@@ -85,11 +67,7 @@ const viewEngineReference: DefaultTheme.SidebarItem[] = [
     },
 ]
 
-// A group with no page yet stays out of the sidebar.
-const viewEngine: DefaultTheme.SidebarItem[] = [
-    ...[viewEngineStart, viewEngineConcepts, viewEngineGuides].filter((group) => group.items?.length),
-    ...viewEngineReference,
-]
+const viewEngine: DefaultTheme.SidebarItem[] = [viewEngineGuides, ...viewEngineReference]
 
 // One sidebar for the TypeScript client area: its guides and the reference of each package.
 const typescriptEn: DefaultTheme.SidebarItem[] = [
@@ -125,17 +103,14 @@ const typescriptEn: DefaultTheme.SidebarItem[] = [
 
 export const sidebarEn: DefaultTheme.Sidebar = {
     '/guide/typescript/': typescriptEn,
+    '/typescript/': typescriptEn,
     '/reference/typescript/': typescriptEn,
-    '/workbench/': [
+    '/data/': [
         {
-            text: 'Using the Workbench',
-            base: '/workbench/',
+            text: 'Data',
+            base: '/data/',
             items: [
-                {text: 'Overview', link: 'index.html'},
-                {text: 'Record Views', link: 'records'},
-                {text: 'Analysis Views', link: 'analysis'},
-                {text: 'Dashboards', link: 'dashboards'},
-                {text: 'Saving and Managing Views', link: 'views'},
+                {text: 'The Workbench', link: 'workbench'},
             ],
         },
     ],
@@ -152,7 +127,31 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'HTTP API', link: 'http-api'},
                 {text: 'Query Language', link: 'query'},
                 {text: 'Configuration Keys', link: 'configuration'},
-                {text: 'Deployment', link: 'deployment'},
+                {text: 'Deployment', base: '/operate/', link: 'topology'},
+            ],
+        },
+    ],
+    '/operate/': [
+        {
+            base: '/operate/',
+            text: 'Operate',
+            items: [
+                {text: 'Deployment Model', link: 'topology'},
+                {text: 'Secure a Deployment', link: 'security'},
+                {text: 'Kafka', link: 'kafka'},
+                {text: 'The Ops Service and Console', link: 'ops-console'},
+            ],
+        },
+    ],
+    '/migrate/': [
+        {
+            base: '/migrate/',
+            text: 'Migrate from 9.x',
+            items: [
+                {text: 'Migrating from 9.x', link: 'index.html'},
+                {text: '9.x Capabilities in V10', link: 'capabilities'},
+                {text: 'Migrate the Data', link: 'data'},
+                {text: 'migrate-data CLI', base: '/reference/', link: 'migrate-data'},
             ],
         },
     ],
@@ -190,6 +189,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             items: [
                 {text: 'Glossary', link: 'glossary'},
                 {text: 'Wire Protocols', link: 'protocols'},
+                {text: 'migrate-data CLI', link: 'migrate-data'},
                 {text: 'Configuration Keys', link: 'configuration'},
                 {text: 'Error Codes', link: 'error-codes'},
                 {text: 'Annotations', link: 'annotations'},

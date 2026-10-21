@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.query.CrossTenant
 import me.ahoo.wow.runtime.admission.TargetScope
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
@@ -101,6 +102,36 @@ class HeaderGrammarTest {
     )
     fun `what is not such a dictionary does not parse`(value: String) {
         assertThrownBy<IllegalArgumentException> { ScopeHeader.parse(value) }
+    }
+
+    @Test
+    fun `on a query route Wow-Scope tenant may name every tenant or a list of them`() {
+        ScopeHeader.parseQuery("tenant=*, owner=u1").assert().isEqualTo(
+            ScopeHeader.QueryTarget(TargetScope(scope = Scope("u1")), CrossTenant.ALL),
+        )
+        ScopeHeader.parseQuery("""tenant=( "t1"  t2 "t1" )""").crossTenant
+            .assert().isEqualTo(CrossTenant(setOf("t1", "t2")))
+        ScopeHeader.parseQuery("""tenant="t1"""").assert().isEqualTo(ScopeHeader.QueryTarget(TargetScope("t1"), null))
+        ScopeHeader.parseQuery("tenant=*t1").target.tenantId.assert().isEqualTo("*t1")
+        CrossTenant(setOf("t1")).covers("t2").assert().isFalse()
+        CrossTenant.ALL.covers("t2").assert().isTrue()
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["tenant=*", "tenant=(t1 t2)", "tenant=(t1)"])
+    fun `a command or a state read never names several tenants`(value: String) {
+        assertThrownBy<IllegalArgumentException> { ScopeHeader.parse(value) }
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings = [
+            "tenant=()", "tenant=(t1", "tenant=(\"t1\"\"t2\")", "tenant=(t1;x=1)", "tenant=(t1);x=1",
+            "owner=(u1)", "tenant=(\"\")",
+        ],
+    )
+    fun `a malformed tenant list does not parse`(value: String) {
+        assertThrownBy<IllegalArgumentException> { ScopeHeader.parseQuery(value) }
     }
 
     @Test

@@ -65,7 +65,7 @@ validator 只使用 Python 标准库，检查：
 - 每个 Skill 的 eval 套件形状：至少 3 个用例、kebab-case 目录、`prompt.md` frontmatter 键与 `claude plugin eval` 一致、grader 类型与 `arm` 合法、至少一个加载用例和一个 `arm: both` 的不加载用例；
 - `SKILL.md` description 不超过 60 个词（超出即失败）。
 
-`wow-view-definition` 与 `wow-view-host` 的 TypeScript 示例另由文档站的测试对照构建后的包编译（`documentation/test/typescript-samples.mjs`，与包 README 的示例同一机制）；`wow-client` 的示例多为片段，不编译，但同一测试检查它从 `@ahoo-wang/*` 入口导入的每个名称都由该入口导出。`typescript.yml` 的 docs 作业在这三个 Skill 的 Markdown（`evals/` 除外）变更时运行。
+`wow-view-definition` 与 `wow-view-host` 的 TypeScript 示例另由文档站的测试对照构建后的包编译（`documentation/test/typescript-samples.mjs`，与包 README 的示例同一机制）；`wow-client` 的示例多为片段，不编译，但同一测试检查它从 `@ahoo-wang/*` 入口导入的每个名称都由该入口导出。`ci.yml` 的 docs 作业在这三个 Skill 的 Markdown（`evals/` 除外）变更时运行。
 
 静态校验不会证明自然语言触发或答案正确。用 `claude plugin eval` 在本地执行用例（每次运行都是一次真实 Agent 会话，按登录账号计费，CI 不执行）：
 

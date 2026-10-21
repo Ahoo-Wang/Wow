@@ -40,7 +40,7 @@ test('只有已付款的订单能发货，并说明原因', () => {
 });
 ```
 
-相关指南：[把视图引擎接进宿主](../../../guide/typescript/view-engine-host.md#testing)（用 `/testing` 测宿主的接线）、[声明式操作](../../../guide/typescript/view-engine-actions.md#harness)（用 `actionHarness` 测操作的规则）、[写好一份定义](../../../guide/typescript/view-engine-definitions.md)（用 `admit` 自检一份定义）、[视图存在哪里](../../../guide/typescript/view-engine-storage.md)（对自己的 store 跑一致性测试）。
+相关指南：[把视图引擎接进宿主](../../../typescript/view-engine/host.md#testing)（用 `/testing` 测宿主的接线）、[声明式操作](../../../typescript/view-engine/actions.md#harness)（用 `actionHarness` 测操作的规则）、[写好一份定义](../../../typescript/view-engine/definitions.md)（用 `admit` 自检一份定义）、[视图存在哪里](../../../typescript/view-engine/storage.md)（对自己的 store 跑一致性测试）。
 
 ## admit {#api-admit}
 

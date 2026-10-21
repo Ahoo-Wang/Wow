@@ -2,7 +2,7 @@
 
 Load this reference instead of the 9.x domain references when the target builds against Wow V10. V10 is a rewrite, not a 9.x minor: none of the 9.x references, symbols, configuration keys or test classes apply to it, and none of this page applies to a 9.x target. A 9.x application moving to V10 is a cross-major migration and belongs to `wow-migrate`.
 
-Status: V10 is developed on the Wow repository's `v10` branch and ships pre-releases only (`v10.0.0-alpha.<n>` tags, without a compatibility promise; for `10.0.0-alpha.3`, `wow-bom`, `wow-kernel`, `wow-gradle-plugin` and the plugin marker of `me.ahoo.wow` are on Maven Central). Pin the exact pre-release, or treat a target pinned to a `v10` commit as a source baseline, and verify every symbol, default, key and route below against it before relying on it. Check that each artifact the build names exists for that version; record what does not resolve as unverified.
+Status: V10 is developed on the Wow repository's `main` branch and ships pre-releases only (`v10.0.0-alpha.<n>` tags, without a compatibility promise; for `10.0.0-alpha.3`, `wow-bom`, `wow-kernel`, `wow-gradle-plugin` and the plugin marker of `me.ahoo.wow` are on Maven Central). Pin the exact pre-release, or treat a target pinned to a `v10` commit as a source baseline, and verify every symbol, default, key and route below against it before relying on it. Check that each artifact the build names exists for that version; record what does not resolve as unverified.
 
 ## Recognize a V10 target
 

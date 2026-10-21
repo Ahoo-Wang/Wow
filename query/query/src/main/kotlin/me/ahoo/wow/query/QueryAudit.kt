@@ -71,6 +71,14 @@ class QueryAudit internal constructor(
 ) {
     enum class Outcome { COMPLETE, ERROR, CANCEL }
 
+    companion object {
+        /**
+         * The logger every cross-tenant query's audit goes to at INFO (decision D254 ⑦), whether or not a
+         * [QueryObserver] audits.
+         */
+        const val CROSS_TENANT_LOGGER: String = "me.ahoo.wow.query.CrossTenantAudit"
+    }
+
     /**
      * A hash of the submitted query's shape ([queryShapeOf]: operators, fields, value counts, sort, projection, groups,
      * metrics and the paging kind and size), with every value, search text, alias and cursor left out, so equal shapes
@@ -79,11 +87,18 @@ class QueryAudit internal constructor(
      */
     val fingerprint: String by lazy(fingerprinter)
 
+    /**
+     * The tenants a cross-tenant query read (decision D254 ⑦), the [caller]'s; null for any other. Every such audit is
+     * logged at INFO ([CROSS_TENANT_LOGGER]).
+     */
+    val crossTenant: CrossTenant? get() = caller.crossTenant
+
     /** Leaves [caller] out: it holds scope values and principal attributes that must not reach a log line. */
     override fun toString(): String =
         "QueryAudit(aggregateType=$aggregateType, queryType=$queryType, entry=$entry, model=$model, " +
             "modelVersion=$modelVersion, fingerprint=$fingerprint, scopeFields=$scopeFields, policies=$policies, " +
-            "rows=$rows, maskedFields=$maskedFields, outcome=$outcome, errorCode=$errorCode, elapsed=$elapsed)"
+            "rows=$rows, maskedFields=$maskedFields, outcome=$outcome, errorCode=$errorCode, elapsed=$elapsed" +
+            crossTenant?.let { ", crossTenant=${it.tenantIds ?: "*"}" }.orEmpty() + ")"
 }
 
 /** Collects one query's [QueryAudit]. */

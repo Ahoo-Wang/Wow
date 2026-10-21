@@ -40,7 +40,7 @@ test('only a paid order ships, and says why not', () => {
 });
 ```
 
-Guides: [Fitting the View Engine into a Host](../../../guide/typescript/view-engine-host.md#testing) (testing a host's wiring with `/testing`); [Declared Actions](../../../guide/typescript/view-engine-actions.md#harness) (testing actions' rules with `actionHarness`); [Writing a Definition](../../../guide/typescript/view-engine-definitions.md) (self-checking a definition with `admit`); [Where Views Live](../../../guide/typescript/view-engine-storage.md) (running the conformance suite on your own store).
+Guides: [Fitting the View Engine into a Host](../../../typescript/view-engine/host.md#testing) (testing a host's wiring with `/testing`); [Declared Actions](../../../typescript/view-engine/actions.md#harness) (testing actions' rules with `actionHarness`); [Writing a Definition](../../../typescript/view-engine/definitions.md) (self-checking a definition with `admit`); [Where Views Live](../../../typescript/view-engine/storage.md) (running the conformance suite on your own store).
 
 ## admit {#api-admit}
 

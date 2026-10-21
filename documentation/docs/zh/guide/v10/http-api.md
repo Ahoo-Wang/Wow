@@ -81,7 +81,7 @@ fun callerResolver(): CallerResolver = CallerResolver { request ->
 | `Wow-Request-Id` | 调用方给请求的 ID：带同一 ID 的重试被回答为已完成（`duplicate`），不会再次决定。同一 ID 配另一条命令是 `wow.command.request-id-reused` |
 | `If-Match: "n"` | 聚合必须处于的版本；否则 `wow.aggregate.version-mismatch`（412） |
 | `Accept: text/event-stream` | 每到达一跳发一个服务器发送事件，直到等待结束 |
-| `Wow-Scope` | 供带 `crossScope` 的调用方使用：要操作的租户、所有者与空间，RFC 8941 字典：`tenant="t1", owner="u1", space="s1"` |
+| `Wow-Scope` | 供带 `crossScope` 的调用方使用：要操作的租户、所有者与空间，RFC 8941 字典：`tenant="t1", owner="u1", space="s1"`。在查询路由上，`wow.query.cross-tenant.enabled` 打开时 `tenant=*` 或 `tenant=("t1" "t2")` 可跨租户读取 |
 | `Wow-Space` | 在调用方自己的空间中选择要操作的空间；解析器不授予时为 403 `wow.auth.forbidden` |
 
 `wow.http.request-facts` 列出的请求头会复制到命令的 `headers` 中，并写入事件流：只在这里列请求事实（例如调用方应用），绝不要列个人信息或密钥。
@@ -118,7 +118,7 @@ Wow-Wait: committed > handled(example/OrderSaga.onOrderCreated) > committed(inve
 
 ### 响应
 
-- **200** 带等待结束时的 `CommandResult`；计划止于 `accepted` 时为 **202**。只有当聚合类型经 Kafka 路由时（[Kafka Router](./deployment.md#kafka-router)），202 才表示命令不会丢失；否则命令在接收它的节点上脱离请求执行。
+- **200** 带等待结束时的 `CommandResult`；计划止于 `accepted` 时为 **202**。只有当聚合类型经 Kafka 路由时（[Kafka Router](../../operate/kafka.md#durable-command-intake)），202 才表示命令不会丢失；否则命令在接收它的节点上脱离请求执行。
 - 命令被拒绝或失败时返回 **RFC 9457 问题详情**（`application/problem+json`）：`type` 为 `urn:wow:error:<code>`，`code` 与 `status` 重复给出，正文带上结果。领域错误码的状态码取自它的 `@ErrorCode(status)`，默认 422，可用 `wow.http.errors.[<code>].status` 按错误码覆盖。
 - **带 `Accept: text/event-stream`** 时由第一个结果决定：准入拒绝返回问题详情；否则返回 200，之后每个结果一个事件（事件名为该跳的阶段，数据为结果），直到等待结束。准入之后的拒绝或失败是最后一个事件。
 

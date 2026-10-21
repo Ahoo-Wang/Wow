@@ -34,7 +34,7 @@ wow:
 | `wow.internal.signal-queue-capacity` | `1024` | The wait signals queued per origin node before they are dropped |
 | `wow.contexts.include` | Empty: every context on the class path | The bounded contexts the node serves, by name |
 | `wow.contexts.exclude` | Empty | Contexts removed from what `include` (or the class path) gives |
-| `wow.standby` | `false` | The node starts on standby for a migration's dual-run window: it serves reads, refuses commands (`wow.node.standby`) and handles no subscription until its operator resumes it ([Deployment](./deployment.md#standby-for-a-migrations-cut-over)) |
+| `wow.standby` | `false` | The node starts on standby for a migration's dual-run window: it serves reads, refuses commands (`wow.node.standby`) and handles no subscription until its operator resumes it ([Topology](../../operate/topology.md#standby-for-a-migrations-cut-over)) |
 
 The host serves every context of the domain modules on its class path. `wow.contexts.*` selects some of them, for a class path that holds several contexts: a modular monolith that switches contexts by configuration, or end-to-end tests that start several services in one JVM, each including its own context (the eShop's `EshopSharedJvmTest`). The node is built for the selected contexts only: their models, their Manifest fragments, their routes and their processors; a context left out is another service's, reached through its peers. A name that is no context on the class path, a name both included and excluded, and a selection that leaves no context fail the startup, naming the contexts on the class path.
 
@@ -76,7 +76,7 @@ The host serves every context of the domain modules on its class path. `wow.cont
 | `wow.state-cache.capacity` | `4096` | The aggregate states kept per context between commands; `0` keeps none |
 | `wow.tenant.default` | `(0)` | The tenant of a caller that has none, such as the anonymous one |
 | `wow.aggregates.[<context>.<aggregate>].tenant` | None | A fixed tenant for every aggregate of the type, whoever the caller is. A type the node does not serve is refused at startup |
-| `wow.aggregates.[<context>.<aggregate>].routing` | `cluster` | How the type's commands are routed: `cluster` by `wow.cluster.router`; `kafka` through the context's command topic, durable once accepted (decision D143, see [Deployment](./deployment.md#kafka-router)). `kafka` needs `wow.kafka.bootstrap-servers`, and turns on the context's command intake. A type the node does not serve is refused at startup |
+| `wow.aggregates.[<context>.<aggregate>].routing` | `cluster` | How the type's commands are routed: `cluster` by `wow.cluster.router`; `kafka` through the context's command topic, durable once accepted (decision D143, see [Deployment](../../operate/kafka.md#durable-command-intake)). `kafka` needs `wow.kafka.bootstrap-servers`, and turns on the context's command intake. A type the node does not serve is refused at startup |
 
 Unless the application sets `spring.lifecycle.timeout-per-shutdown-phase`, the host sets it to `wow.wait.max-timeout + wow.cluster.drain-timeout`, so a stopping node has the time it needs; a smaller value the application sets is kept, with a warning.
 
@@ -142,6 +142,7 @@ With `wow-cosec` on the class path, `CoSecCallerResolver` resolves the callers (
 | `wow.query.in-process-timeout` | `30s` | The timeout of an in-process query, which has no budget |
 | `wow.query.require-explicit-entry` | `false` | Whether a query must say whether it is HTTP or in-process; unspecified, it is taken as in-process |
 | `wow.query.require-authenticated-scope` | `false` | Whether an HTTP query needs an authenticated scope that pins the model's required scope; off, a declared scope is trusted |
+| `wow.query.cross-tenant.enabled` | `false` | Whether a caller with `crossScope` may query across tenants with `Wow-Scope: tenant=*` or a list of tenants; every such query is audited at INFO |
 | `wow.query.abac.enabled` | `false` | Whether the caller's `abac.<key>` attributes are matched against the snapshots' `tags` and the `tags` each event stream recorded |
 | `wow.query.abac.require-principal-tags` | `false` | Whether an HTTP query whose caller has no ABAC tags is rejected, instead of matching every resource |
 | `wow.query.abac.match-missing-tag-key` | `true` | Whether a resource that lacks one of the caller's tag keys matches, as a public resource |
@@ -163,7 +164,7 @@ Read when `wow-kafka` is on the class path; nothing is wired until `wow.kafka.bo
 | `wow.kafka.topic-prefix` | Empty | Put before every topic name, such as `staging.` for `staging.wow.shop.order.state` |
 | `wow.kafka.poll-timeout` | `200ms` | The longest a consumer's poll waits |
 | `wow.kafka.command-intake` | `false` | Whether each context the node hosts executes the commands of its topic `wow.<context>.commands`, which must exist with `wow.log.partitions` partitions |
-| `wow.kafka.topics.ddl` | `validate` | How the node manages the topics its contexts own at startup (decision D168): `validate` refuses to start when one is missing or a command topic does not have exactly `wow.log.partitions` partitions; `auto` creates the missing ones first, with the log's partitions; `none` checks only the partitions of the command topics the node reads. See [Deployment](./deployment.md#kafka) |
+| `wow.kafka.topics.ddl` | `validate` | How the node manages the topics its contexts own at startup (decision D168): `validate` refuses to start when one is missing or a command topic does not have exactly `wow.log.partitions` partitions; `auto` creates the missing ones first, with the log's partitions; `none` checks only the partitions of the command topics the node reads. See [Deployment](../../operate/kafka.md) |
 | `wow.kafka.topics.replication-factor` | The broker's default | The replication factor of the topics `auto` creates |
 | `wow.kafka.topics.configs.*` | Empty | The topic settings of the topics `auto` creates (`retention.ms`, `min.insync.replicas`, …) |
 | `wow.kafka.topics.partition-refresh` | `30s` | How often the node looks for partitions added to the topics it reads (other contexts' streams, its receipts), and its consumers' `metadata.max.age.ms`. New partitions are read within about twice this, without a restart |

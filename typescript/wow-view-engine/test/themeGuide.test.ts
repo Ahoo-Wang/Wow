@@ -62,19 +62,19 @@ const REPOSITORY = join(ROOT, '../..');
 const GUIDE = (language: string) =>
   join(
     REPOSITORY,
-    `documentation/docs/${language}/guide/typescript/view-engine-theming.md`,
+    `documentation/docs/${language}/typescript/view-engine/theming.md`,
   );
 const LANDING = (language: string) =>
   join(
     REPOSITORY,
-    `documentation/docs/${language}/guide/typescript/view-engine.md`,
+    `documentation/docs/${language}/typescript/view-engine/index.md`,
   );
 /** The guides of fitting the engine into a host, and of its CSP. */
 const HOST_GUIDES = ['host', 'csp'].flatMap(page =>
   ['en', 'zh'].map(language =>
     join(
       REPOSITORY,
-      `documentation/docs/${language}/guide/typescript/view-engine-${page}.md`,
+      `documentation/docs/${language}/typescript/view-engine/${page}.md`,
     ),
   ),
 );

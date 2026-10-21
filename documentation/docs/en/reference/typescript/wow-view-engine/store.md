@@ -7,7 +7,7 @@ description: 'The ViewStore port, the six ViewStoreError codes, ViewPermissions 
 
 The view engine persists two things only: saved views (`ViewInstance`) and personal preferences. `ViewStore` is the only port a backend must satisfy — on a Wow service use [`WowViewStore`](../wow-view-store/); only a backend that is not Wow implements it itself. The one implementation the package ships is `MemoryViewStore`, for tests, examples and query-only use.
 
-Guides: [Where Views Live](../../../guide/typescript/view-engine-storage.md) (which store to choose, wiring `WowViewStore`, implementing the port and running the conformance suite); [View Engine Core Concepts](../../../guide/typescript/view-engine-concepts.md) (saved views, revisions and conflicts); [View Store](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md) (the Kotlin server behind `WowViewStore`).
+Guides: [Where Views Live](../../../typescript/view-engine/storage.md) (which store to choose, wiring `WowViewStore`, implementing the port and running the conformance suite); [View Engine Core Concepts](../../../typescript/view-engine/index.md) (saved views, revisions and conflicts); [View Store](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/v10/view-store/README.md) (the Kotlin server behind `WowViewStore`).
 
 ## ViewStore {#api-ViewStore}
 

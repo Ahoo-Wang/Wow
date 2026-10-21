@@ -22,7 +22,7 @@
 # 9.x). Each suite runs in a job of its own; steps: .github/scripts/bench.mjs. The report job combines them
 # into report.md and the run summary.
 #
-# A run starts when a branch `bench-run/**` is pushed (`git push origin v10:bench-run/<name>`), with the
+# A run starts when a branch `bench-run/**` is pushed (`git push origin main:bench-run/<name>`), with the
 # defaults (tier L2), over which `test/benchmarks/bench-run.json` at the pushed commit may set `tier`, `suites`,
 # `dataset`, `aa`, `profile`, `warm_up`, `measure`, `repeats`, `fraction`, `p99_limit_ms`, `properties`, `base_ref` and `nine_x_ref`. Delete the branch afterwards. It can also be
 # dispatched by hand once the file is on the default branch (GitHub dispatches only workflows that are there). Never on
@@ -34,7 +34,7 @@ on:
       head_ref:
         description: 'V10 ref to measure (the head)'
         type: string
-        default: 'v10'
+        default: 'main'
       base_ref:
         description: 'V10 baseline ref (empty: the newest v10.* release tag that has the benchmark server)'
         type: string
@@ -165,7 +165,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           EVENT: ${{ github.event_name }}
-          HEAD_REF: ${{ inputs.head_ref || 'v10' }}
+          HEAD_REF: ${{ inputs.head_ref || 'main' }}
           BASE_REF: ${{ steps.settings.outputs.base-ref }}
           NEEDS_BASE: ${{ steps.settings.outputs.needs-base }}
           NINE_X_REF: ${{ steps.settings.outputs.nine-x-ref }}

@@ -38,27 +38,27 @@ test('every linked source file exists', () => {
     )
 })
 
-// The V10 pages link to `v10`, the branch they describe. Every tracked file is
-// checked, not only the pages above: a `v10` link breaks when its target moves
-// or leaves the tree, as the pre-eShop examples did. The 9.x pages' `main`
-// links wait for the documentation rewrite.
-const V10_LINK = /https:\/\/github\.com\/Ahoo-Wang\/Wow\/(?:blob|tree)\/v10\/([^)\s"'<>`\]]+)/g
-const v10Links = execFileSync('git', ['grep', '-l', '-E', 'github\\.com/Ahoo-Wang/Wow/(blob|tree)/v10/'], {
+// Every tracked file's links to the repository's own sources name `main`, the
+// branch the documentation describes, not a line anchor or another branch; a
+// link breaks when its target moves or leaves the tree, as the pre-eShop
+// examples did. A link built from a template (`${...}`) is left out.
+const MAIN_LINK = /https:\/\/github\.com\/Ahoo-Wang\/Wow\/(?:blob|tree)\/main\/([^)\s"'<>`\]$]+)/g
+const mainLinks = execFileSync('git', ['grep', '-l', '-E', 'github\\.com/Ahoo-Wang/Wow/(blob|tree)/main/'], {
     cwd: repository,
     encoding: 'utf8',
 })
     .split('\n')
     .filter(Boolean)
     .flatMap((page) =>
-        [...readFileSync(join(repository, page), 'utf8').matchAll(V10_LINK)].map(([, target]) => ({page, target})),
+        [...readFileSync(join(repository, page), 'utf8').matchAll(MAIN_LINK)].map(([, target]) => ({page, target})),
     )
 
-test('the V10 pages link to v10 sources', () => {
-    assert.ok(v10Links.length > 0, 'No v10 source links found; the pattern or the pages changed')
+test('the pages link to main sources', () => {
+    assert.ok(mainLinks.length > 100, `Only ${mainLinks.length} main source links found; the pattern or the pages changed`)
 })
 
-test('every v10 link points into the tree', () => {
-    const missing = v10Links.filter(
+test('every main link points into the tree', () => {
+    const missing = mainLinks.filter(
         ({target}) => !existsSync(join(repository, decodeURIComponent(target.split(/[#?]/)[0].replace(/[.,;:]+$/, '')))),
     )
     assert.deepEqual(

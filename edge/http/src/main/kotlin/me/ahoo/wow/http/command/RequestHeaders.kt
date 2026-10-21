@@ -66,11 +66,24 @@ internal class RequestHeaders(
         }
     }
 
-    /** The target scope of `Wow-Scope`, or null without it; one that does not parse is a problem with [malformed]. */
+    /**
+     * The target scope of `Wow-Scope`, or null without it; one that does not parse, or names several tenants (a query
+     * route's alone, [queryTarget]), is a problem with [malformed].
+     */
     fun target(request: ServerRequest, malformed: String = FrameworkCodes.MALFORMED): TargetScope? =
+        scope(request, malformed, ScopeHeader::parse)
+
+    /**
+     * What `Wow-Scope` names on a query route (decision D254 ⑦), or null without it: a target scope, or the tenants of a
+     * cross-tenant query; one that does not parse is a problem with [malformed].
+     */
+    fun queryTarget(request: ServerRequest, malformed: String): ScopeHeader.QueryTarget? =
+        scope(request, malformed, ScopeHeader::parseQuery)
+
+    private fun <T> scope(request: ServerRequest, malformed: String, parse: (String) -> T): T? =
         request.header(WowHeaders.SCOPE)?.let {
             try {
-                ScopeHeader.parse(it)
+                parse(it)
             } catch (invalid: IllegalArgumentException) {
                 throw problem(malformed, invalid.message ?: "Wow-Scope does not parse.")
             }

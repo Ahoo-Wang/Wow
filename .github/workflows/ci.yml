@@ -20,9 +20,9 @@
 name: CI
 on:
   pull_request:
-    branches: [v10]
+    branches: [main]
   push:
-    branches: [v10]
+    branches: [main]
   workflow_dispatch:
     inputs:
       update-screenshots:
@@ -34,7 +34,7 @@ permissions:
   contents: read
 
 concurrency:
-  # A pull request's new push cancels its older run. Every push to v10 runs to
+  # A pull request's new push cancels its older run. Every push to main runs to
   # the end in a group of its own commit: in one group a newer push replaces
   # the run still pending (GitHub keeps one), and that commit got no coverage
   # report, so Codecov compared later pull requests with an older base. A manual
@@ -101,7 +101,7 @@ jobs:
           distribution: 'temurin'
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
-          cache-read-only: ${{ github.ref != 'refs/heads/v10' }}
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - name: Check the V10 modules with coverage
         run: ./gradlew :check :code-coverage-report:coverageReport --stacktrace
       # The release rehearsal of the Maven publications (R.1), signed with a
@@ -158,7 +158,7 @@ jobs:
           distribution: 'temurin'
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
-          cache-read-only: ${{ github.ref != 'refs/heads/v10' }}
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - name: Run the V10 integration tests with coverage
         env:
           PROJECTS: ${{ matrix.projects }}
@@ -600,7 +600,7 @@ jobs:
           distribution: 'temurin'
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
-          cache-read-only: ${{ github.ref != 'refs/heads/v10' }}
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       # The service with the in-memory query backend of its own tests (its test
       # classes and the query backend specs, :query-tck, once :query's test
       # fixtures), as the global setup (test/view-store/globalSetup.ts) loads it.
@@ -796,7 +796,7 @@ jobs:
           distribution: 'temurin'
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
-          cache-read-only: ${{ github.ref != 'refs/heads/v10' }}
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - name: Build the eShop services
         run: ./gradlew :eshop-e2e:eshopLocalClasspath --stacktrace
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
@@ -874,7 +874,7 @@ jobs:
           distribution: 'temurin'
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
-          cache-read-only: ${{ github.ref != 'refs/heads/v10' }}
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       # The server's distribution and test classes: the suite starts it with
       # its ledger simulator (e2e/start-ops-server.mjs).
       - name: Build the ops server
@@ -959,7 +959,7 @@ jobs:
           distribution: 'temurin'
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
-          cache-read-only: ${{ github.ref != 'refs/heads/v10' }}
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       # The server's distribution and test classes: the suite starts it with
       # its warehouse simulator (e2e/start-catalog-server.mjs).
       - name: Build the catalog server
@@ -1034,63 +1034,3 @@ jobs:
               *) exit 1 ;;
             esac
           done
-
-  # The required checks of v10's branch protection before ci-gate, kept as
-  # aliases of it until the protection requires ci-gate; then they go. Each
-  # runs whatever ci-gate concluded and fails unless it passed: a job skipped
-  # because what it needs failed would count as passing.
-  v10-gate:
-    name: v10-gate
-    needs: ci-gate
-    if: always()
-    timeout-minutes: 5
-    runs-on: ubuntu-latest
-    steps:
-      - name: Require ci-gate to pass
-        env:
-          RESULT: ${{ needs.ci-gate.result }}
-        run: |
-          echo "ci-gate: $RESULT"
-          test "$RESULT" = success
-
-  typescript-gate:
-    name: typescript-gate
-    needs: ci-gate
-    if: always()
-    timeout-minutes: 5
-    runs-on: ubuntu-latest
-    steps:
-      - name: Require ci-gate to pass
-        env:
-          RESULT: ${{ needs.ci-gate.result }}
-        run: |
-          echo "ci-gate: $RESULT"
-          test "$RESULT" = success
-
-  typescript-contract-gate:
-    name: typescript-contract-gate
-    needs: ci-gate
-    if: always()
-    timeout-minutes: 5
-    runs-on: ubuntu-latest
-    steps:
-      - name: Require ci-gate to pass
-        env:
-          RESULT: ${{ needs.ci-gate.result }}
-        run: |
-          echo "ci-gate: $RESULT"
-          test "$RESULT" = success
-
-  typescript-storybook-gate:
-    name: typescript-storybook-gate
-    needs: ci-gate
-    if: always()
-    timeout-minutes: 5
-    runs-on: ubuntu-latest
-    steps:
-      - name: Require ci-gate to pass
-        env:
-          RESULT: ${{ needs.ci-gate.result }}
-        run: |
-          echo "ci-gate: $RESULT"
-          test "$RESULT" = success

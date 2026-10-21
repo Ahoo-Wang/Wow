@@ -7,7 +7,7 @@ description: 'ViewHost、bind、路由端口、声明的操作 actions() 与措�
 
 宿主在页面外面写一次 `ViewHost`，把几个端口填上：数据（`engine`）、路由（`router`）、主题、语言、每个资源在这个宿主里的行为（`bindings`）。其下的每个界面——工作台、嵌入、看板——只取自己所在处不同的东西：`<DataWorkbench definitionId="orders" />`。路由、国际化与主题仍然归宿主，端口只是通向它们的桥。
 
-相关指南：[把视图引擎接进宿主](../../../guide/typescript/view-engine-host.md)（`ViewHost`、[`bind`](../../../guide/typescript/view-engine-host.md#bind)、[路由端口](../../../guide/typescript/view-engine-host.md#router-port)、[措辞与语言](../../../guide/typescript/view-engine-host.md#messages)）、[声明式操作](../../../guide/typescript/view-engine-actions.md)（怎样[声明一个操作](../../../guide/typescript/view-engine-actions.md#declare)、放在哪、确认与结局）。
+相关指南：[把视图引擎接进宿主](../../../typescript/view-engine/host.md)（`ViewHost`、[`bind`](../../../typescript/view-engine/host.md#bind)、[路由端口](../../../typescript/view-engine/host.md#router-port)、[措辞与语言](../../../typescript/view-engine/host.md#messages)）、[声明式操作](../../../typescript/view-engine/actions.md)（怎样[声明一个操作](../../../typescript/view-engine/actions.md#declare)、放在哪、确认与结局）。
 
 ## ViewHost {#api-ViewHost}
 
@@ -67,7 +67,7 @@ export function AppHost({ engine, children }: { engine: ViewEngine; children: Re
 | `theme`、`preset`、`brand` | 主题的两条路：`theme="host"` 跟随宿主的 shadcn 主题（宿主导入 `shadcn-bridge.css`）；或 `preset` 命名一套预设（导入它的样式表），宿主自己的界面经 `fve-tokens` 穿上它。`brand` 是盖在预设上的品牌色 |
 | `colorMode`、`rememberColorMode` | 明暗：缺省 `system`，引擎在 `<html>` 上画 `.dark` 与 `color-scheme` 并实时跟随系统；`light`／`dark` 起始固定；`host` 表示宿主自己画（如 next-themes），引擎只跟随 `.dark`。读者用 `useColorMode` 另选；`rememberColorMode` 是在本机记住这个选择的 `localStorage` 键 |
 
-主题的细节见[视图引擎主题](../../../guide/typescript/view-engine-theming.md)。
+主题的细节见[视图引擎主题](../../../typescript/view-engine/theming.md)。
 
 ```ts
 export interface ViewHostProps {

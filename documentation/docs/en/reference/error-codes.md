@@ -7,7 +7,7 @@ description: "The framework's error codes with their HTTP statuses, and the code
 
 # Error Codes
 
-Every code the framework answers a request with, as `code` of the `application/problem+json` body and in a command's result, generated from [`FrameworkErrors`](https://github.com/Ahoo-Wang/Wow/blob/v10/api/manifest/src/main/kotlin/me/ahoo/wow/manifest/FrameworkErrors.kt). A domain rejection's code is the domain's own; it is answered with 422 unless the host sets another status for it (`wow.http.errors.[<code>].status`). With `If-Match`, `wow.aggregate.version-mismatch` is answered with 412.
+Every code the framework answers a request with, as `code` of the `application/problem+json` body and in a command's result, generated from [`FrameworkErrors`](https://github.com/Ahoo-Wang/Wow/blob/main/api/manifest/src/main/kotlin/me/ahoo/wow/manifest/FrameworkErrors.kt). A domain rejection's code is the domain's own; it is answered with 422 unless the host sets another status for it (`wow.http.errors.[<code>].status`). With `If-Match`, `wow.aggregate.version-mismatch` is answered with 412.
 
 ## Framework codes
 
@@ -49,7 +49,7 @@ Every code the framework answers a request with, as `code` of the `application/p
 
 ## Query request codes
 
-A rejected query request (`wow.query.malformed` or `wow.query.invalid`) lists what it rejects, each with one of these codes and the part of the request it names, generated from [`QueryErrorCodes`](https://github.com/Ahoo-Wang/Wow/blob/v10/api/query-api/src/main/kotlin/me/ahoo/wow/api/query/QueryErrorCodes.kt). Codes are added, never renamed or reused.
+A rejected query request (`wow.query.malformed` or `wow.query.invalid`) lists what it rejects, each with one of these codes and the part of the request it names, generated from [`QueryErrorCodes`](https://github.com/Ahoo-Wang/Wow/blob/main/api/query-api/src/main/kotlin/me/ahoo/wow/api/query/QueryErrorCodes.kt). Codes are added, never renamed or reused.
 
 | Code | Group |
 | --- | --- |

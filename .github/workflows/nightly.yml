@@ -1,0 +1,46 @@
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# The eShop's fault-injection soak (C.1), soak.yml, on main every night that
+# main moved. GitHub runs a schedule from the default branch only, which main is.
+name: Nightly
+on:
+  schedule:
+    - cron: '30 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    name: Dispatch the soak on main
+    if: github.repository == 'Ahoo-Wang/Wow'
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      FORCE: ${{ github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Dispatch
+        run: |
+          committed=$(gh api "repos/$GH_REPO/commits/main" --jq .commit.committer.date)
+          if [ "$FORCE" != true ] && [ "$(date -d "$committed" +%s)" -lt "$(date -d '1 day ago' +%s)" ]; then
+            echo "main has not moved since $committed"
+            exit 0
+          fi
+          gh workflow run soak.yml --ref main

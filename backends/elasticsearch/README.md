@@ -45,6 +45,6 @@ An aggregate whose `query.events.store` names the Elasticsearch store has its `e
 
 ## Coming from 9.x
 
-- The 9.x Elasticsearch event store (`wow-elasticsearch` 9.x as `wow.eventsourcing.store.storage=elasticsearch`) is **not a migration source** (decision D213): `migrate-data` reads a 9.x MongoDB event store only. Move the event streams to the 9.x MongoDB store first, then migrate them into the V10 log ([migrate-data](../../migration/migrate-data/README.md)).
+- The 9.x Elasticsearch event store (`wow-elasticsearch` 9.x as `wow.eventsourcing.store.storage=elasticsearch`) is **not a migration source** (decision D213): `migrate-data` reads a 9.x MongoDB event store only. Move the event streams to the 9.x MongoDB store first, then migrate them into the V10 log ([Migrate the data](https://wow.ahoo.me/migrate/data)).
 - The 9.x indices are not read: neither the 9.x snapshot indices nor the 9.x event stream indices have V10's layout (each V10 index records its layout in `_meta` and refuses another). Give V10 its own `index-prefix` or cluster; once the log is migrated, the V10 snapshots are written from it, and the event search Sink, started from the beginning of the log, fills the events index with every commit.
 - 9.x event search through the event store's own index becomes the `events` query model routed to this store; its records are commits (one per version), and per-event questions use `expand("events")`.

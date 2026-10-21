@@ -24,6 +24,7 @@ import me.ahoo.wow.postgres.EnsuredTables
 import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.autoCommitted
+import me.ahoo.wow.postgres.inTransaction
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.VirtualThreads
@@ -123,30 +124,54 @@ class PostgresSnapshotStore(
      * [PostgresSnapshotTables.MAX_ROWS] a statement), then, only when some were refused, one statement marking those of
      * a higher state revision stale. So a batch of one aggregate type that all lands is one round trip, as one save is.
      *
-     * A statement PostgreSQL refuses for a value ([PostgresFailures.isRefused]) wrote nothing: its snapshots are saved
-     * one by one, so the one refused is [SnapshotSaveOutcome.Failed] alone. Any other failure is thrown.
+     * All of it is one transaction, one commit and one WAL flush (work package B.O-5), the aggregate types in name
+     * order and each statement's rows in key order, so concurrent batches lock their common rows in the same order. A
+     * statement PostgreSQL refuses for a value ([PostgresFailures.isRefused]) aborts the transaction, which then wrote
+     * nothing: the rounds run again statement by statement in autocommit, where such a statement's snapshots are saved
+     * one by one, so the one refused is [SnapshotSaveOutcome.Failed] alone. Any other failure is thrown, and nothing of
+     * the batch was written.
      */
     override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> = dispatcher.jdbc {
         snapshots.forEach { require(it.ref.type.context == context) { "${it.ref} is not in context $context." } }
         val tablesOf = snapshots.map { it.ref.type.name }.distinct().associateWith(::tables)
-        val outcomes = arrayOfNulls<SnapshotSaveOutcome>(snapshots.size)
-        if (snapshots.isNotEmpty()) {
+        if (snapshots.isEmpty()) {
+            emptyList()
+        } else {
             dataSource.autoCommitted { connection ->
-                SnapshotSaveOutcome.rounds(snapshots).forEach { round ->
-                    round.groupBy { snapshots[it].ref.type.name }.forEach { (aggregate, indexes) ->
-                        // In key order, so concurrent statements lock their common rows in the same order.
-                        val ordered = indexes.sortedWith(compareBy(KEY_ORDER) { snapshots[it] })
-                        ordered.chunked(PostgresSnapshotTables.MAX_ROWS).forEach { chunk ->
-                            val rows = chunk.map(snapshots::get)
-                            saveRows(connection, tablesOf.getValue(aggregate), rows).forEachIndexed { at, outcome ->
-                                outcomes[chunk[at]] = outcome
-                            }
-                        }
+                try {
+                    inTransaction(connection) { saveRounds(connection, tablesOf, snapshots, alone = false) }
+                } catch (failure: SQLException) {
+                    PostgresFailures.refusedOrThrow(failure)
+                    saveRounds(connection, tablesOf, snapshots, alone = true)
+                }
+            }
+        }
+    }
+
+    /**
+     * Saves [snapshots] round by round on [connection]; their outcomes in order. With [alone], a statement refused for
+     * a value has its snapshots saved one by one; without, the refusal is thrown (it aborted the transaction).
+     */
+    private fun saveRounds(
+        connection: Connection,
+        tablesOf: Map<String, PostgresSnapshotTables>,
+        snapshots: List<SnapshotRecord>,
+        alone: Boolean,
+    ): List<SnapshotSaveOutcome> {
+        val outcomes = arrayOfNulls<SnapshotSaveOutcome>(snapshots.size)
+        SnapshotSaveOutcome.rounds(snapshots).forEach { round ->
+            round.groupBy { snapshots[it].ref.type.name }.toSortedMap().forEach { (aggregate, indexes) ->
+                // In key order, so concurrent statements lock their common rows in the same order.
+                val ordered = indexes.sortedWith(compareBy(KEY_ORDER) { snapshots[it] })
+                ordered.chunked(PostgresSnapshotTables.MAX_ROWS).forEach { chunk ->
+                    val rows = chunk.map(snapshots::get)
+                    saveRows(connection, tablesOf.getValue(aggregate), rows, alone).forEachIndexed { at, outcome ->
+                        outcomes[chunk[at]] = outcome
                     }
                 }
             }
         }
-        outcomes.map { checkNotNull(it) }
+        return outcomes.map { checkNotNull(it) }
     }
 
     /**
@@ -157,6 +182,7 @@ class PostgresSnapshotStore(
         connection: Connection,
         tables: PostgresSnapshotTables,
         snapshots: List<SnapshotRecord>,
+        alone: Boolean,
     ): List<SnapshotSaveOutcome> {
         val written = try {
             connection.prepareStatement(tables.saveRows(snapshots.size)).use { save ->
@@ -171,7 +197,9 @@ class PostgresSnapshotStore(
                 }
             }
         } catch (failure: SQLException) {
-            // Refused for a value, the statement wrote nothing; any other failure is thrown.
+            // Refused for a value, the statement wrote nothing; any other failure is thrown, and so is a refusal in the
+            // batch's transaction, which it aborted.
+            if (!alone) throw failure
             PostgresFailures.refusedOrThrow(failure)
             return snapshots.map { savedAlone(connection, tables, it) }
         }

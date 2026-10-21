@@ -52,6 +52,7 @@ cosec:
     enabled: false
   limiter:
     enabled: false
+# region roles
 wow:
   cosec:
     # Tenant-level callers (decision D189): their scope has no owner, so they read every entry of their tenant. An
@@ -59,6 +60,7 @@ wow:
     # which a principal of CoSec's default tenant is in. A principal with neither role reads nothing.
     tenant-level:
       roles: ops.operator, ops.viewer
+# endregion
 ---
 spring:
   config:

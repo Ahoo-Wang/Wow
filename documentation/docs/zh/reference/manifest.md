@@ -7,7 +7,7 @@ description: "服务的 Manifest 写成的 JSON：每个对象及其键。"
 
 # Manifest 格式
 
-服务的 Manifest 是一份 JSON 文档（`format` 1）：它的限界上下文、上下文中的聚合及其命令与事件、订阅、框架的错误码，以及 `$defs` 之下每个载荷的 JSON Schema 2020-12。模块的片段（`META-INF/wow/manifest/<module>.json`）形状相同，只是没有 `service`。下面每个对象及其键的提纲，由写出它的代码 [`ManifestTree`](https://github.com/Ahoo-Wang/Wow/blob/v10/api/manifest/src/main/kotlin/me/ahoo/wow/manifest/ManifestTree.kt) 生成；说明取自源码，为英文。
+服务的 Manifest 是一份 JSON 文档（`format` 1）：它的限界上下文、上下文中的聚合及其命令与事件、订阅、框架的错误码，以及 `$defs` 之下每个载荷的 JSON Schema 2020-12。模块的片段（`META-INF/wow/manifest/<module>.json`）形状相同，只是没有 `service`。下面每个对象及其键的提纲，由写出它的代码 [`ManifestTree`](https://github.com/Ahoo-Wang/Wow/blob/main/api/manifest/src/main/kotlin/me/ahoo/wow/manifest/ManifestTree.kt) 生成；说明取自源码，为英文。
 
 写出时省略的内容：
 

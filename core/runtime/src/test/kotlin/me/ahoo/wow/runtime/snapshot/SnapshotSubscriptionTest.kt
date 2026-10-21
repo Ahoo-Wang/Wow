@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.snapshot
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.toList
@@ -57,6 +58,7 @@ import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
@@ -321,6 +323,50 @@ class SnapshotSubscriptionTest {
             store.batches.assert().containsExactly(1, ids.size)
             ids.forEach { store.load(ref(it))!!.version.assert().isEqualTo(1) }
         }
+
+    @Test
+    fun `the snapshots of the partitions of one lane share the writes`(): Unit = runBlocking {
+        // B.O-5: partitions 0, 4 and 8 share a writer (p % 4), so a write holds more than one partition's snapshot.
+        listOf("p0", "p1", "p2").forEach { executor.execute(counter, command(it, Add())) as CommandOutcome.Committed }
+        fun entry(id: String, partition: Int) = async {
+            val stream = log.read(ref(id)).toList().single()
+            snapshots.subscription.handle(
+                snapshots.subscription.decoder.decode(stream, LogPosition(partition, 1), null)
+            )
+        }
+        val gate = CompletableDeferred<Unit>().also { store.gate = it }
+        val first = entry("p0", 0)
+        eventually { store.batches.size == 1 }
+        // Partitions 4 and 8 wait for the write partition 0 leads, and are written together after it.
+        val others = listOf(entry("p1", 4), entry("p2", 8))
+        delay(50)
+        store.batches.size.assert().isEqualTo(1)
+        store.gate = null
+        gate.complete(Unit)
+        (listOf(first) + others).awaitAll()
+        store.batches.assert().containsExactly(1, 2)
+        listOf("p0", "p1", "p2").forEach { store.load(ref(it))!!.version.assert().isEqualTo(1) }
+    }
+
+    @Test
+    fun `the partitions of other lanes write at once`(): Unit = runBlocking {
+        listOf("q0", "q1").forEach { executor.execute(counter, command(it, Add())) as CommandOutcome.Committed }
+        val gate = CompletableDeferred<Unit>().also { store.gate = it }
+        val handled = listOf("q0" to 0, "q1" to 1).map { (id, partition) ->
+            async {
+                val stream = log.read(ref(id)).toList().single()
+                snapshots.subscription.handle(
+                    snapshots.subscription.decoder.decode(stream, LogPosition(partition, 1), null)
+                )
+            }
+        }
+        // Partition 1's lane does not wait for partition 0's write.
+        eventually { store.batches.size == 2 }
+        store.gate = null
+        gate.complete(Unit)
+        handled.awaitAll()
+        store.batches.assert().containsExactly(1, 1)
+    }
 
     @Test
     fun `an entry made by hand, without a position, is written with partition 0's snapshots`(): Unit = runBlocking {

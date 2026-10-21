@@ -18,14 +18,19 @@ import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Proxy
 import java.sql.Connection
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.atomic.AtomicInteger
 import javax.sql.DataSource
 
 /**
  * [target] recording the SQL of every statement its connections prepare, so a test can pin how many statements an
- * operation takes (B.D diagnostics).
+ * operation takes (B.D diagnostics), and counting the transactions its connections commit (B.O-5).
  */
 class CountedDataSource(target: DataSource) {
     private val prepared = ConcurrentLinkedQueue<String>()
+    private val committed = AtomicInteger()
+
+    /** The transactions committed so far with `Connection.commit`, not counting autocommitted statements. */
+    val commits: Int get() = committed.get()
 
     val dataSource: DataSource = proxy(DataSource::class.java, target)
 
@@ -42,6 +47,9 @@ class CountedDataSource(target: DataSource) {
             InvocationHandler { _, method, args ->
                 if (method.name == "prepareStatement") {
                     prepared += args?.firstOrNull() as? String ?: ""
+                }
+                if (method.name == "commit") {
+                    committed.incrementAndGet()
                 }
                 val result = try {
                     method.invoke(delegate, *(args ?: emptyArray()))
