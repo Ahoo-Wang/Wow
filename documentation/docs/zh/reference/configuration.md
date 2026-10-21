@@ -525,7 +525,7 @@ Where the snapshots are by default: `wow.snapshot.store`.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.state-cache.capacity` | `Integer` | `4096` | The aggregate states kept per context between commands; 0 keeps none. |
+| `wow.state-cache.capacity` | `Integer` |  | The aggregate states kept per context between commands; 0 keeps none. Not set (the default), each context's cache is sized from the heap (work package B.O-4): a tenth of the maximum heap (`-Xmx`), split between the node's contexts, over an estimated 1 KB per state plus 12 bytes per recent request (about 4 KB with the default 256), at least 4096 and at most 131072 states. A miss costs a snapshot and a tail read before the command is decided, so size it to the aggregates written often: set it when states are much larger than 1 KB (a capacity times the average state size should stay well within the heap), or when a context has more hot aggregates than the default holds. The `wow.state-cache` counter (`hit`, `miss`, `evicted`) shows the fit. |
 | `wow.state-cache.recent-requests` | `Integer` | `256` | The requests each cached aggregate keeps of those it committed last, derived from the log, so that most commands skip looking their request id up; 0 looks every request id up. |
 
 ## `wow.state-views`
