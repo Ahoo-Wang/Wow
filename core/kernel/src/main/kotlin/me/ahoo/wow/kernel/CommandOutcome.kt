@@ -34,6 +34,8 @@ sealed interface CommandOutcome {
         val deleted: Boolean = false,
         val tags: Map<String, List<String>> = emptyMap(),
         val schedules: Map<String, ScheduleRule> = emptyMap(),
+        /** What the aggregate's first stream recorded, when the kernel knows it (work package B.O-4). */
+        val first: FirstCommit? = null,
     ) : CommandOutcome
 
     /** The same command was already committed as [stream]: it was not decided again. */

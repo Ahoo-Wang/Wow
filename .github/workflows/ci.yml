@@ -176,9 +176,10 @@ jobs:
 
   # Every pull request: tracked files follow the canonical locations of the
   # documentation governance page, the documentation's code samples equal the
-  # sources they show, and nothing is left that no one reads (unused catalog
-  # entries, stale ignore and labeler paths, CI scripts nothing runs). All read
-  # only the tracked files.
+  # sources they show and import only published names, the English and Chinese
+  # pages share one structure, configuration samples set only known keys, and
+  # nothing is left that no one reads (unused catalog entries, stale ignore and
+  # labeler paths, CI scripts nothing runs). All read only the tracked files.
   docs-layout:
     name: Documentation layout
     timeout-minutes: 5
@@ -194,6 +195,8 @@ jobs:
         run: node .github/scripts/docs-layout.mjs
       - name: Check documentation samples
         run: node .github/scripts/docs-samples.mjs
+      - name: Check documentation locales and configuration keys
+        run: node .github/scripts/docs-consistency.mjs
       - name: Check repository hygiene
         run: node .github/scripts/repo-hygiene.mjs
 

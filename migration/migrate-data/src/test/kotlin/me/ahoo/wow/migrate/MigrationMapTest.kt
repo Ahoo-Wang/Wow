@@ -83,6 +83,17 @@ class MigrationMapTest {
     }
 
     @Test
+    fun `an event mapping's owner field is named, and not on a dropped event`() {
+        EventMapping(
+            "order_handed_over",
+            to = "OrderHandedOver",
+            owner = "toOwnerId"
+        ).owner.assert().isEqualTo("toOwnerId")
+        assertThrows<IllegalArgumentException> { EventMapping("e", to = "E", owner = " ") }
+        assertThrows<IllegalArgumentException> { EventMapping("e", drop = true, owner = "toOwnerId") }
+    }
+
+    @Test
     fun `a retiring event mapping names the retired name and renames no field`() {
         val text = NineXExample.archivingMapText(""""to": "OrderArchived", "retire": true""")
         MigrationMap.read(text).aggregates.first().events.single { it.from == "order_archived" }.also {
