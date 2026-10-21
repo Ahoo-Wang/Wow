@@ -121,7 +121,7 @@ A JSON file. Relative paths resolve against the file's directory. A string writt
 | `concurrency` | `8` | Instances imported at a time. |
 | `lookbackMillis` | `300000` | How far before the last commit time it read the tail scans again. |
 | `pollIntervalMillis` | `1000` | The pause between two tail passes. |
-| `final.lookbackMillis` | `300000` | How far before the tail's checkpoint `import --final` reads again. It covers the clocks of 9.x's nodes and the commits in flight when 9.x stopped, which may carry an earlier commit time than streams already read. |
+| `final.lookbackMillis` | `60000` | How far before the tail's checkpoint `import --final` reads again. It covers the clocks of 9.x's nodes and the commits in flight when 9.x stopped, whose commit time is set before the write is visible. Make it twice the larger of the measured clock skew and the slowest 9.x commit. |
 | `final.maxTailAgeMillis` | `600000` | How recently the tail's last pass must have ended for `import --final` to accept it. |
 
 A service whose aggregates keep their logs in different V10 stores is migrated by one run per store, each with a map of the aggregates that store holds.
