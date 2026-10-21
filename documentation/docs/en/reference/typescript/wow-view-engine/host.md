@@ -7,7 +7,7 @@ description: 'ViewHost, bind, the router port, declared actions with actions(), 
 
 A host writes `ViewHost` once around its pages and fills a few ports: data (`engine`), router (`router`), theme, language, and what each resource does in this host (`bindings`). Every surface under it — a workbench, an embed, a board — takes only what differs where it stands: `<DataWorkbench definitionId="orders" />`. The router, the i18n and the theme stay the host's; the ports are bridges to them.
 
-Guides: [Fitting the View Engine into a Host](../../../guide/typescript/view-engine-host.md) (`ViewHost`, [`bind`](../../../guide/typescript/view-engine-host.md#bind), [the router port](../../../guide/typescript/view-engine-host.md#router-port), [messages and locale](../../../guide/typescript/view-engine-host.md#messages)); [Declared Actions](../../../guide/typescript/view-engine-actions.md) (how to [declare an action](../../../guide/typescript/view-engine-actions.md#declare), placement, confirmation and outcomes).
+Guides: [Fitting the View Engine into a Host](../../../typescript/view-engine/host.md) (`ViewHost`, [`bind`](../../../typescript/view-engine/host.md#bind), [the router port](../../../typescript/view-engine/host.md#router-port), [messages and locale](../../../typescript/view-engine/host.md#messages)); [Declared Actions](../../../typescript/view-engine/actions.md) (how to [declare an action](../../../typescript/view-engine/actions.md#declare), placement, confirmation and outcomes).
 
 ## ViewHost {#api-ViewHost}
 
@@ -67,7 +67,7 @@ export function AppHost({ engine, children }: { engine: ViewEngine; children: Re
 | `theme`, `preset`, `brand` | The theme's two paths: `theme="host"` follows the host's shadcn theme (the host imports `shadcn-bridge.css`); or `preset` names a preset (its stylesheet imported), which the host's own chrome wears through `fve-tokens`. `brand` is the brand colour over the preset |
 | `colorMode`, `rememberColorMode` | Light or dark: `system` by default — the engine paints `<html>`'s `.dark` and `color-scheme` and follows the system live; `light` / `dark` start pinned; `host` where the host paints its own mode (as next-themes does) and the engine only follows `.dark`. The reader picks another through `useColorMode`; `rememberColorMode` is the `localStorage` key that keeps the pick on this machine |
 
-Theming in detail: [Theming the View Engine](../../../guide/typescript/view-engine-theming.md).
+Theming in detail: [Theming the View Engine](../../../typescript/view-engine/theming.md).
 
 ```ts
 export interface ViewHostProps {

@@ -13,36 +13,19 @@
 
 import {DefaultTheme} from "vitepress/types/default-theme";
 
-// 视图引擎在 TypeScript 客户端区域里自成四组：入门、概念、指南、参考。
-// 阶段 7 的 B2～B5 各自只往自己的那一组里加页面（概念归 B2，宿主、操作与 CSP 归 B3，
-// 存储归 B4，API 参考归 B5），互不改动别的组。
-const viewEngineStart: DefaultTheme.SidebarItem = {
-    base: '/zh/guide/typescript/',
+// 视图引擎的指南自成一组，与 TypeScript 客户端和各包的参考并列。
+const viewEngineGuides: DefaultTheme.SidebarItem = {
+    base: '/zh/typescript/view-engine/',
     text: '视图引擎',
     items: [
-        {text: '概览', link: 'view-engine'},
-    ],
-}
-
-const viewEngineConcepts: DefaultTheme.SidebarItem = {
-    base: '/zh/guide/typescript/',
-    text: '视图引擎：概念',
-    items: [
-        {text: '核心概念', link: 'view-engine-concepts'},
-    ],
-}
-
-const viewEngineGuides: DefaultTheme.SidebarItem = {
-    base: '/zh/guide/typescript/',
-    text: '视图引擎：指南',
-    items: [
-        {text: '写好一份定义', link: 'view-engine-definitions'},
-        {text: '主题', link: 'view-engine-theming'},
-        {text: '可访问性', link: 'view-engine-accessibility'},
-        {text: '视图存在哪里', link: 'view-engine-storage'},
-        {text: '接进宿主', link: 'view-engine-host'},
-        {text: '声明式操作', link: 'view-engine-actions'},
-        {text: '内容安全策略', link: 'view-engine-csp'},
+        {text: '核心概念', link: 'index.html'},
+        {text: '定义视图', link: 'definitions'},
+        {text: '接入宿主', link: 'host'},
+        {text: '操作', link: 'actions'},
+        {text: '视图存在哪里', link: 'storage'},
+        {text: '主题', link: 'theming'},
+        {text: '可访问性', link: 'accessibility'},
+        {text: '内容安全策略', link: 'csp'},
     ],
 }
 
@@ -87,10 +70,7 @@ const viewEngineReference: DefaultTheme.SidebarItem[] = [
 ]
 
 // 还没有页面的组不出现在侧边栏里。
-const viewEngine: DefaultTheme.SidebarItem[] = [
-    ...[viewEngineStart, viewEngineConcepts, viewEngineGuides].filter((group) => group.items?.length),
-    ...viewEngineReference,
-]
+const viewEngine: DefaultTheme.SidebarItem[] = [viewEngineGuides, ...viewEngineReference]
 
 // TypeScript 客户端区域共用一个侧边栏：指南加上各个包的参考。
 const typescriptZh: DefaultTheme.SidebarItem[] = [
@@ -126,17 +106,14 @@ const typescriptZh: DefaultTheme.SidebarItem[] = [
 
 export const sidebarZh: DefaultTheme.Sidebar = {
     '/zh/guide/typescript/': typescriptZh,
+    '/zh/typescript/': typescriptZh,
     '/zh/reference/typescript/': typescriptZh,
-    '/zh/workbench/': [
+    '/zh/data/': [
         {
-            text: '使用工作台',
-            base: '/zh/workbench/',
+            text: '数据',
+            base: '/zh/data/',
             items: [
-                {text: '概览', link: 'index.html'},
-                {text: '记录视图', link: 'records'},
-                {text: '分析视图', link: 'analysis'},
-                {text: '仪表盘', link: 'dashboards'},
-                {text: '保存与管理视图', link: 'views'},
+                {text: '工作台', link: 'workbench'},
             ],
         },
     ],

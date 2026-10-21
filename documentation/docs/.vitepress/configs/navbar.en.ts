@@ -16,15 +16,15 @@ export const navbarEn: DefaultTheme.NavItem[] = [
     },
     {
         text: 'TypeScript',
-        activeMatch: '/(guide|reference)/typescript/',
+        activeMatch: '/(guide/typescript|typescript|reference/typescript)/',
         items: [
             {
                 text: 'Guide',
                 items: [
                     {text: 'Overview', link: '/guide/typescript/'},
                     {text: 'Generate a Client', link: '/guide/typescript/generated-client'},
-                    {text: 'View Engine', link: '/guide/typescript/view-engine'},
-                    {text: 'Using the Workbench (for users)', link: '/workbench/'},
+                    {text: 'View Engine', link: '/typescript/view-engine/'},
+                    {text: 'The Workbench (for users)', link: '/data/workbench'},
                 ],
             },
             {

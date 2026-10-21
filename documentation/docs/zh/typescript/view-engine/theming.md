@@ -1,13 +1,9 @@
 ---
-title: 视图引擎的主题
+title: 主题
 description: wow-view-engine 怎样穿上宿主的外观——三层变量、预设、作为输入的品牌色、引擎的角色与链接、图表的角色、亮暗与跟随系统、钉住、嵌入与弹层、shadcn 桥接，以及覆盖变量要守的对比度。
 ---
 
-# 视图引擎的主题
-
-::: info Wow 9.2.0 起在 npm 上
-`@ahoo-wang/wow-view-engine` 从 Wow 9.2.0 起在 npm 上。补丁版本不破坏[什么是公开的](#什么是公开的)里的 CSS 合同；其余兼容规则见[视图引擎](./view-engine.md)页。
-:::
+# 主题
 
 主题是宿主的外观，不是观察方式：它不存进视图、仪表盘或个人偏好，工作台里也没有主题开关。预设、品牌色与明暗都由宿主选，引擎跟随。下面的一切都是 CSS 自定义属性——没有主题对象。
 
@@ -20,7 +16,7 @@ description: wow-view-engine 怎样穿上宿主的外观——三层变量、预
 | 引擎跟宿主 | 已有 shadcn 主题（Tailwind v4）的宿主 | `theme="host"`，并引入 `shadcn-bridge.css`（[桥接](#shadcn-桥接)）                                                                                     |
 | 宿主跟引擎 | 没有主题、或愿意穿引擎主题的宿主      | `preset="porcelain"`（引入它的文件），可加 `brand="#1d4ed8"`（[预设](#预设)、[品牌色](#我有品牌色)）；宿主自己的外壳挂 [`fve-tokens`](#宿主自己的外壳) |
 
-`ViewHost` 把预设与品牌色点名在 `<html>` 上，也在那里画明暗（`colorMode`，[见下](#亮、暗与跟随系统)）。本页其余部分是这两行底下的东西，以及越过它们时伸手去拿的东西。`ViewHost` 的其余端口——路由、语言与每个资源的 `bind`——见[把引擎接进宿主](./view-engine-host.md)；页面开着严格的内容安全策略时样式表怎样加载，见[视图引擎的内容安全策略](./view-engine-csp.md)。
+`ViewHost` 把预设与品牌色点名在 `<html>` 上，也在那里画明暗（`colorMode`，[见下](#亮、暗与跟随系统)）。本页其余部分是这两行底下的东西，以及越过它们时伸手去拿的东西。`ViewHost` 的其余端口——路由、语言与每个资源的 `bind`——见[接入宿主](./host)；页面开着严格的内容安全策略时样式表怎样加载，见[内容安全策略](./csp)。补丁版本不破坏[什么是公开的](#什么是公开的)里的 CSS 合同。
 
 ## 样式表
 
@@ -286,7 +282,7 @@ declare const id: string;
 
 ## 嵌入与弹层
 
-菜单、下拉、气泡、提示与对话框都 portal 到 `<body>`，不在视图所在的那部分页面里。它们带着面解析出的结果——明暗写成 `data-theme`，预设写成 `data-fve-preset`，还有面找到的密度、涨跌约定与图表跟品牌的开关——所以钉住的嵌入，弹层也与它一致。嵌入本身——档位、开关与看板的筛选——见[把引擎接进宿主](./view-engine-host.md#embeds)。
+菜单、下拉、气泡、提示与对话框都 portal 到 `<body>`，不在视图所在的那部分页面里。它们带着面解析出的结果——明暗写成 `data-theme`，预设写成 `data-fve-preset`，还有面找到的密度、涨跌约定与图表跟品牌的开关——所以钉住的嵌入，弹层也与它一致。嵌入本身——档位、开关与看板的筛选——见[接入宿主](./host#embeds)。
 
 - **用属性切换，不要换样式表。** 图表从 token 读外观，面或祖先上这些属性一变就重读：`class`、`data-theme`、`data-fve-preset`、`data-fve-change-colors`、`data-fve-density`、`data-fve-brand-chart` 或 `style`。只换了样式表、没有属性变化时，图表会留在旧颜色上。
 - **设在某个元素上的变量到不了 `<body>`。** 嵌入外面那张卡片上设的 `--fve-*` 能传到嵌入，传不到它的弹层，因为弹层不在卡片里。整页的值写在 `:root` 上；只给一个视图的，用 `tokens` 或 `preset`。
@@ -334,7 +330,7 @@ import '@ahoo-wang/wow-view-engine/shadcn-bridge.css';
 }
 ```
 
-桥接覆盖的每个 token 及它的暗色一半各写一行，照 `shadcn-bridge.css` 列的那些。Storybook 的回归用例（`ShadcnBridge.test.stories.tsx`）把补偿控制台的 shadcn 主题连同桥接挂到一个工作台上，量出两种明暗下的控件边与焦点。
+桥接覆盖的每个 token 及它的暗色一半各写一行，照 `shadcn-bridge.css` 列的那些。Storybook 的回归用例（`ShadcnBridge.test.stories.tsx`）把一个真实控制台的 shadcn 主题连同桥接挂到一个工作台上，量出两种明暗下的控件边与焦点。
 
 ## 对比度由覆盖的人负责
 

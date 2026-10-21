@@ -190,7 +190,7 @@ logs.
 
 ## Hosts and the gateway
 
-How a host wires `WowViewStore`, gives its `permissions` and serves a page nobody signs in to is in [Where Views Live](../../../guide/typescript/view-engine-storage.md#wowviewstore-views-on-a-wow-service). The server does not authenticate, so every deployment runs behind the CoSec gateway; its path rules, including the one that keeps the system views to platform administrators, are in the [View Store](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md) page.
+How a host wires `WowViewStore`, gives its `permissions` and serves a page nobody signs in to is in [Saved Views](../../../typescript/view-engine/storage.md#wowviewstore-views-on-a-wow-service). The server does not authenticate, so every deployment runs behind the CoSec gateway; its path rules, including the one that keeps the system views to platform administrators, are in the [View Store](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md) page.
 
 ## Source
 

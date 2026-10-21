@@ -132,7 +132,7 @@ const RULES = [
   // guide's generated token tables too), and the API reference, whose symbol
   // index and issue-code tables are generated.
   [
-    /^documentation\/docs\/(?:en|zh)\/(?:guide\/typescript\/view-engine[\w-]*\.md$|reference\/typescript\/wow-view-engine\/)/,
+    /^documentation\/docs\/(?:en|zh)\/(?:typescript\/view-engine\/[\w-]+\.md$|reference\/typescript\/wow-view-engine\/)/,
     [DOCS, VIEW_ENGINE_DOCS],
   ],
   [/^documentation\//, [DOCS]],
