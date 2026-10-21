@@ -11,7 +11,7 @@ export const navbarEn: DefaultTheme.NavItem[] = [
             {text: 'Testing', link: '/guide/testing'},
             {text: 'HTTP API', link: '/guide/v10/http-api'},
             {text: 'Query Language', link: '/guide/v10/query'},
-            {text: 'Deployment', link: '/guide/v10/deployment'},
+            {text: 'Deployment', link: '/operate/topology'},
         ],
     },
     {
@@ -39,6 +39,16 @@ export const navbarEn: DefaultTheme.NavItem[] = [
     },
     {text: 'Migrate', link: '/migrate/', activeMatch: '/migrate/'},
     {text: 'Concepts', link: '/concepts/', activeMatch: '/concepts/'},
+    {
+        text: 'Operate',
+        activeMatch: '/operate/',
+        items: [
+            {text: 'Deployment Model', link: '/operate/topology'},
+            {text: 'Secure a Deployment', link: '/operate/security'},
+            {text: 'Kafka', link: '/operate/kafka'},
+            {text: 'The Ops Service and Console', link: '/operate/ops-console'},
+        ],
+    },
     {
         text: 'Reference',
         items: [

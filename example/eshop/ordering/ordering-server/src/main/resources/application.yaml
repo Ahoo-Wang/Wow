@@ -3,6 +3,7 @@ spring:
     name: eshop-ordering-service
 server:
   port: 8083
+# region internal-port
 wow:
   service: eshop-ordering-service
   # One node, its data in memory, for trying the service out. The `postgres` profile serves it from PostgreSQL; the
@@ -41,11 +42,13 @@ wow:
       eshop-payment-service:
         tokens:
           - ${ESHOP_PAYMENT_SERVICE_TOKEN:eshop-payment-local-service-token-not-a-secret}
+# endregion
 eshop:
   ordering:
     # How long an order whose stock is confirmed waits for its payment before it cancels itself.
     payment-grace-period: 30m
 ---
+# region postgres
 spring:
   config:
     activate:
@@ -56,11 +59,13 @@ spring:
     password: postgres
 wow:
   backend: postgres
+# endregion
 ---
 spring:
   config:
     activate:
       on-profile: kafka
+# region kafka
 wow:
   kafka:
     # Creates the topics the service owns when they are missing, for trying it out; production validates them, the
@@ -71,6 +76,7 @@ wow:
     # Execute the commands other contexts send to wow.eshop-ordering.commands (the payment's), which has as many
     # partitions as the context's log (wow.log.partitions, 64 by default).
     command-intake: true
+# endregion
 ---
 spring:
   config:

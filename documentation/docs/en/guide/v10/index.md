@@ -15,7 +15,7 @@ This page walks through a new Wow V10 service laid out as a real one is, in thre
 | [Testing](../testing.md) | `aggregateSpec` and where it lives, saga tests, server tests |
 | [HTTP API](./http-api.md) | Command routes, `Wow-Wait`, state reads, query routes, datasets |
 | [Configuration Keys](./configuration.md) | Every `wow.*` key with its default |
-| [Deployment](./deployment.md) | PostgreSQL or MongoDB, the internal port, Kafka, ClickHouse, personal data, tenants |
+| [Deployment](../../operate/topology.md) | PostgreSQL or MongoDB, the internal port, Kafka, ClickHouse, personal data, tenants |
 
 ::: warning V10 is a pre-release
 V10 is developed on the [`v10` branch](https://github.com/Ahoo-Wang/Wow/tree/v10). Its first pre-release, `10.0.0-alpha.3`, is for evaluation only: it carries no compatibility promise, and migrating 9.x data is unfinished (see the [Quick Start](./quickstart.md)). Its modules are on Maven Central as `me.ahoo.wow:wow-*`, with the BOM `me.ahoo.wow:wow-bom` and the Gradle plugin `me.ahoo.wow`. The rest of this guide (outside this V10 section) describes 9.x.
@@ -392,7 +392,7 @@ wow:
     port: 9090
 ```
 
-The host finds the domain's binding index on the class path, builds the models with the application's beans, merges the Manifest and serves its routes. A domain service that a command function or a processor takes as a parameter is a bean of the application, found by type (and by `@Name` when it carries one). On PostgreSQL, the application declares a `DataSource` bean and sets `wow.backend: postgres` (see [Deployment](./deployment.md)).
+The host finds the domain's binding index on the class path, builds the models with the application's beans, merges the Manifest and serves its routes. A domain service that a command function or a processor takes as a parameter is a bean of the application, found by type (and by `@Name` when it carries one). On PostgreSQL, the application declares a `DataSource` bean and sets `wow.backend: postgres` (see [Deployment](../../operate/topology.md)).
 
 ## Run it and send a command
 
@@ -417,4 +417,4 @@ A command answers its `CommandResult` once the snapshot holds the commit, so the
 
 - Add a saga, a projection or a scheduled command: [Programming Model](./programming-model.md).
 - Look at what the build generated: [What the Compiler Generates](./generated-code.md).
-- Run several nodes on PostgreSQL, reach another context over Kafka: [Deployment](./deployment.md).
+- Run several nodes on PostgreSQL, reach another context over Kafka: [Deployment](../../operate/topology.md).

@@ -384,7 +384,7 @@ context.command(AggregateType("inventory", "stock").ref(event.ref.tenantId, prod
 - The target's service executes its command topic when it sets `wow.kafka.command-intake: true`. The topic must exist with exactly as many partitions as the target's log (`wow.log.partitions`, 64 by default), or that node does not start.
 - A rejection comes back as a receipt on the sender's `wow.<sender>.receipts` and goes to the saga's `@OnRejected` handler.
 - The sender finds the command's type name in the target's Manifest, a peer of the sending service.
-- The tenant of the `ref` crosses as it is: every context of a system shares one tenant space (see [Deployment](./deployment.md#one-tenant-space)).
+- The tenant of the `ref` crosses as it is: every context of a system shares one tenant space (see [Deployment](../../operate/security.md#tenants)).
 
 A node without a command transport does not start when one of its sagas derives, schedules or handles the rejections of another context's commands. The message names each saga and context:
 
