@@ -1,112 +1,151 @@
 ---
-title: 视图引擎
-description: wow-view-engine 包做什么、它的设计立足于哪些事实，以及从哪里开始读。
+title: 视图引擎的核心概念
+description: 视图引擎为 Wow 前端做了什么、它的设计立足的三条事实，以及它由哪些部分组成：定义、视图、仪表盘、存储与宿主。
 ---
 
-# 视图引擎
+# 视图引擎的核心概念
 
-::: info Wow 9.2.0 起在 npm 上
-`@ahoo-wang/wow-view-engine` 从 Wow 9.2.0 起在 npm 上，与 Wow 同一个 tag、同一个版本号发布。从 9.2.0 起，补丁版本不破坏它的公开面：每个入口的导出，包括后端实现的 `ViewStore` 端口；[CSS 合同](./theming.md#什么是公开的)；消息键与 issue code；以及 `wow-view-engine` 命令。次版本可以破坏，它的发布说明逐条列出每个破坏与迁移步骤；Wow 包请停在同一个次版本上（[版本范围](../../guide/typescript/compatibility.md#版本范围)）。以旧形状保存的视图照常打开：引擎在读取时迁移存储的配置。
-:::
+业务应用里的大多数页面其实是同一种页面：一个带筛选、排序和分页的列表，有时加一张图，有时是一块数字仪表盘。每个业务对象都复制一份，“加一个筛选条件”“按仓库拆开看看”这样的需求，每次都变成一次代码改动。数据没有变，变的只是观察它的方式。
 
-视图引擎是面向 Wow 业务应用的数据视图引擎。应用在代码中声明“这份数据能怎样观察”：字段、类型、操作符、可用的维度与指标。用户在界面上决定“这次怎样观察”：筛选、列、排序、维度与指标、图表和面板组合。引擎把这次选择编译成 Wow 查询，通过 `@ahoo-wang/wow-client` 执行，渲染结果，并把值得保留的观察方式保存下来，一键重新打开。
-
-它是 `@ahoo-wang/fetcher-viewer` 的后继者；`fetcher-viewer` 留在 Fetcher 5.x，本站不再介绍。
-
-## 从哪里开始
-
-| 想做什么 | 阅读 |
-|---|---|
-| 从零接入一个业务对象：安装、查询描述、`defineView`、引擎、`ViewHost`、一个操作，对着示例服务端跑起来 | 视图引擎入门 |
-| 先弄清这些词：定义、记录与分析视图、看板、系统／共享／个人视图、revision 与存储，以及它们怎样相连 | [视图引擎的核心概念](./index.md) |
-| 写一份定义：描述符里的事实、措辞的键、收窄、`rowFields`、系统视图与看板、用 `admit` 自检 | [写好一份定义](./definitions.md) |
-| 换一套内置外观、用品牌色、接上宿主的 shadcn 主题 | [视图引擎的主题](./theming.md) |
-| 键盘、读屏与 WCAG 2.2 AA 符合性 | [视图引擎的可访问性](./accessibility.md) |
-| 把引擎接进应用：`ViewHost`、`bind`、路由端口、导航、嵌入、措辞与语言、用 `/testing` 测 | [把引擎接进宿主](./host.md) |
-| 记录上的命令：可用规则、放在哪、确认与表单、多选、结局 | [声明式操作](./actions.md) |
-| 在严格的内容安全策略下运行 | [视图引擎的内容安全策略](./csp.md) |
-| 选一个 store：内存、浏览器里的快照、Wow 服务端，或自己实现 `ViewStore` 并跑一致性测试 | [视图存在哪里](./storage.md) |
-| 在 Kotlin 服务里嵌入视图存储，或运行独立服务端：配置、存储、系统视图、网关规则 | [视图存储](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md) |
-| 不用工作台，用 `/react` 的无头 Hook（`useOpenView`、`useViewRuntime`、`useFilterEditor`、`useRecordTable`）画自己的界面 | [React Hooks](../../reference/typescript/wow-view-engine/react.md) |
-| 查一个公开名字的签名 | [wow-view-engine 参考](../../reference/typescript/wow-view-engine/)的专题：[引擎与资源](../../reference/typescript/wow-view-engine/engine.md)、[定义与字段类型](../../reference/typescript/wow-view-engine/definitions.md)、[宿主接线](../../reference/typescript/wow-view-engine/host.md)、[工作台与嵌入](../../reference/typescript/wow-view-engine/components.md)、[持久化端口](../../reference/typescript/wow-view-engine/store.md)、[测试工具](../../reference/typescript/wow-view-engine/testing.md)、[Issue code](../../reference/typescript/wow-view-engine/issues.md) |
-| 在浏览器里用 `WowViewStore` 连上 Wow 服务端的视图存储 | [wow-view-store 参考](../../reference/typescript/wow-view-store/) |
-
-## 要解决的问题
-
-业务系统里的大多数页面其实是同一种页面：一个带筛选、排序和分页的列表，有时再加一张图。每个业务对象都复制一份；“再加一个筛选条件”“按仓库拆开看看”这样的需求，每次都要改代码、排期、发版。数据没有变，变的只是观察方式。
+`@ahoo-wang/wow-view-engine` 把这件事变成配置。应用在代码里声明**一份数据集能怎样观察**：它的字段、每个字段叫什么、怎样过滤、排序和聚合。读者在界面上决定**这次怎样观察**：条件、列、维度与指标、图表、仪表盘。引擎把这次选择编译成 Wow 查询，渲染结果，并把值得保留的视图保存下来。
 
 | 面向 | 得到什么 |
-|---|---|
-| 业务用户 | 在声明的能力范围内调整范围、组织与呈现方式，保存常用视图并一键重新打开 |
-| 研发 | 每个业务对象只写一个定义和一个查询客户端，不再为列表、分析、概览各写一套页面；筛选、分页、保存与冲突处理只实现一次 |
-| 产品 | 支持范围内的呈现调整变成配置；新增业务对象只新增定义，引擎里不出现业务分支 |
+| --- | --- |
+| 读者 | 在应用允许的范围内过滤、排序、分组和画图；保存、分享并重新打开视图 |
+| 开发者 | 每个业务对象一份定义、一个数据源，而不是各写一个列表页、分析页和概览页 |
+| 产品 | 对已有数据的一种新的观察方式是一个保存的视图，而不是一次发版 |
 
-它不是数据库，不是权限系统，不是通用的低代码页面搭建工具，也不是 BI 建模工具。数据、聚合能力和授权都来自 Wow 服务。
+它不是数据库、权限系统，也不是通用的页面搭建器。数据、能过滤和聚合什么、谁能看到什么，都来自它背后的 Wow 服务。
 
-## 三条事实
+## 三条事实 {#three-facts}
 
-设计先固定三条事实，其余都由它们推出：
+设计立足于三条事实，其余都由它们推出：
 
 | 事实 | 推论 |
-|---|---|
-| 定义是代码 | 没有定义服务，也没有定义版本。改定义就是一次部署；已保存的视图在打开时校验 |
-| 配置是数据 | 只持久化 `ViewInstance` 和个人偏好。一致性靠乐观 revision 加幂等 `requestId` |
-| 运行时状态是临时的 | 草稿、结果、分页和选择都只存在于一个打开的 `ViewRuntime` 中，从不持久化 |
+| --- | --- |
+| **定义是代码** | 定义随应用发布。没有定义服务，也没有定义版本；保存的视图每次打开时都对照当前的定义检查。 |
+| **配置是数据** | 保存的视图是纯 JSON：读者的意图，从不包含编译后的值或组件名。只存储保存的视图和每个读者的偏好，带乐观 revision 和幂等的请求 ID。 |
+| **运行时状态是临时的** | 草稿、结果、页码、选中项都只存在于一个打开的视图里，从不存储。重新打开视图会从头运行。 |
 
 ```mermaid
 flowchart LR
-    Definition["ViewDefinition<br>代码"] --> Engine["ViewEngine"]
-    Store["ViewStore<br>已保存的 ViewInstance"] --> Engine
-    Engine --> Runtime["ViewRuntime<br>草稿、结果、选择"]
-    Runtime --> Query["wow-client 查询<br>paged、cursor、aggregate"]
-    Query --> Server["Wow 快照查询 API"]
-    Runtime --> UI["工作台或自定义界面"]
+    Definition["定义<br>代码"] --> Engine["ViewEngine"]
+    Store["ViewStore<br>保存的视图、偏好"] --> Engine
+    Source["ViewSource<br>一个 Wow 查询路由"] --> Engine
+    Engine --> Runtime["打开的视图<br>草稿、结果、选中项"]
+    Runtime --> UI["工作台、嵌入，<br>或你自己的界面"]
 ```
 
-## 视图
+## 组成部分 {#the-parts}
 
-| 视图 | 用户做什么 |
-|---|---|
-| 记录视图 | 筛选状态为待处理，按创建时间排序，只保留需要的列，保存为“今日待处理” |
-| 分析视图 | 以仓库为维度，以订单数和金额合计为指标，切换成柱状图 |
-| 仪表盘 | 把几个视图放在同一页，用全局时间范围统一约束 |
-| 嵌入视图或仪表盘 | 在业务页面里展示一个已保存的视图，例如某个客户的订单，不需要工作台 |
-| 系统视图 | 在定义里声明“全部”“待处理”“本周新增”，用户一打开就有可用的视图 |
+| 部分 | 是什么 | 在哪里 |
+| --- | --- | --- |
+| 定义（`ViewDefinition`） | 一份数据集**能**怎样观察：字段、它们的措辞、操作符、记录与分析能力，以及随它发布的系统视图 | 代码 |
+| 数据源（`ViewSource`） | 数据定义的行从哪里来：一个 Wow 查询路由，经生成的查询客户端访问 | 代码 |
+| 视图配置（`ViewConfig`） | 一种观察方式**具体**怎样：记录视图、分析视图或仪表盘 | 数据 |
+| 保存的视图（`ViewInstance`） | 带 ID、标题、受众和 revision 的配置 | 存储 |
+| 偏好（`ViewPreferences`） | 一个读者在一份定义上的习惯：视图的顺序、默认视图、仪表盘上次打开的标签页 | 存储 |
+| 引擎（`ViewEngine`） | 定义、数据源和存储的注册表，以及打开着的视图；每个应用一个 | 内存 |
+| 宿主（`ViewHost`） | 把引擎接到应用的路由、语言、主题和命令上的 React 层 | 代码 |
 
-## 内容安全策略（CSP）
+## 定义 {#definitions}
 
-引擎可以在严格的内容安全策略下运行：`script-src 'self'`、`style-src 'self'`，不开 `'unsafe-inline'` 与 `'unsafe-eval'`。要放行的只有三件事——样式表作为文件加载、打包进来的库加的样式带上页面的 nonce、PNG 导出载入 `blob:` 图片——每件为什么、策略怎样写、哪些测试守着它，见[视图引擎的内容安全策略](./csp.md)。
+定义的**事实**来自服务：每个 Wow 查询模型都在 `GET /{context}/{aggregate}/{model}/query` 描述自己：它的路径、值类型、枚举值、时间怎样保存、什么是敏感的。定义依据这份描述、用 [`defineView`](./definitions) 写成，并提交在描述旁边。定义再加上**选择**：读者看到哪些字段、按什么顺序、用什么措辞、收窄掉什么。
 
-## 在 Storybook 中试用
+服务能对一个字段做什么，例如存储支持哪些操作符、排序和聚合，随存储而变，所以定义不把它固定下来。运行时引擎通过数据源读取实时的描述，只提供这次部署允许的东西。
 
-每种视图都在 [Storybook](/storybook/) 里用内存夹具运行，放在一个宿主应用外壳中。保存、改名和删除都写入每次打开时新建的内存存储。
+定义有两种：
 
-Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--docs)按推荐的接法分五步带宿主走一遍——声明定义、接上数据、挂上 `ViewHost`、声明操作、画出页面——页上引用的是一个能跑的示例的真实源文件。
+- **数据定义**与一个数据源配对，承载一份数据集（快照、事件或数据集查询模型）的记录视图和分析视图。
+- **仪表盘定义**没有数据源。它是仪表盘所属的目录，仪表盘的面板展示各数据定义的视图。
 
-想先看引擎能画什么，打开[图型全景](/storybook/?path=/docs/view-engine-业务场景-图型全景--docs)：一块零售看板，22 种图型各用一次，每张图的标题就是它回答的分析问题，分走势、构成、分布与关系、地域与转化四个页签；点地图、省份或支付方式整板联动，文档页的「Show code」是这块板的全部配置。
+## 视图 {#views}
 
-| 视图 | Storybook |
-|---|---|
-| 记录视图 | [记录视图工作台](/storybook/?path=/docs/view-engine-组件状态-记录工作台--docs)及其[筛选编辑器](/storybook/?path=/docs/view-engine-组件状态-筛选编辑器--docs) |
-| 分析视图 | [分析工作台](/storybook/?path=/docs/view-engine-组件状态-分析工作台--docs) |
-| 仪表盘 | [仪表盘](/storybook/?path=/docs/view-engine-组件状态-仪表盘--docs) |
-| 嵌入视图或仪表盘 | [EmbeddedView](/storybook/?path=/docs/view-engine-组件状态-embeddedview--docs) 和 [EmbeddedDashboard](/storybook/?path=/docs/view-engine-组件状态-embeddeddashboard--docs) |
-| 主题 | [主题一览与对比度矩阵](/storybook/?path=/docs/view-engine-能力-主题与预设--docs) |
+视图是观察一份数据定义的一种方式：
 
-## 延伸阅读
+| 种类 | 回答 | 它的配置包含 |
+| --- | --- | --- |
+| 记录视图 | “哪些记录，按什么顺序”：一个分页的列表 | 条件、排序、每页条数、列、汇总，以及表格、卡片或看板布局 |
+| 分析视图 | “按什么分组，度量什么”：一次聚合的表格或图表 | 条件、维度、指标、保留哪些分组、排序、前 N 名、表格和图表 |
 
-- 视图引擎入门：把示例服务端的销售订单从零接进来，一步一个文件。
-- [视图引擎的核心概念](./index.md)：定义、视图、看板、系统／共享／个人视图、revision 与存储，各自是什么、为什么这样分。
-- [写好一份定义](./definitions.md)：从描述符的事实出发，逐项做选择，写措辞与系统视图，用 `admit` 自检。
-- [把引擎接进宿主](./host.md)：一个引擎、`ViewHost` 的端口、`bind`、路由、嵌入、措辞与语言，以及用 `/testing` 测接线。
-- [声明式操作](./actions.md)：记录上的命令怎样声明，引擎怎样放置、确认、批量执行并报告结局。
-- [视图引擎的内容安全策略](./csp.md)：严格策略下要放行的三件事，以及守着它的测试。
-- [视图存在哪里](./storage.md)：按「谁要看到保存的视图」选一个 store，接上 `WowViewStore`，或自己写一个并跑一致性测试。
-- [视图存储](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md)：Kotlin 服务端——嵌入 starter 还是独立服务端、Docker 镜像、配置项、系统视图，以及它需要的 [CoSec 网关规则](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md)。
-- [wow-view-engine 参考](../../reference/typescript/wow-view-engine/)：入口、概念、持久化端口与扩展点；[专题](../../reference/typescript/wow-view-engine/#topics)逐个给出宿主用到的签名，[Issue code](../../reference/typescript/wow-view-engine/issues.md) 列出引擎能报的每个 code。
-- [wow-view-store 参考](../../reference/typescript/wow-view-store/)：`WowViewStore`、Wow 服务端上的保存视图。
-- [使用工作台](../../data/workbench.md)：写给应用的使用者——记录视图、分析视图、仪表盘与保存的视图，不涉及代码；可以从应用的帮助入口链接过去。
-- [视图引擎的主题](./theming.md)：预设、宿主变量、亮暗与跟随系统、shadcn 桥接，以及覆盖变量要守的对比度。
-- [视图引擎的可访问性](./accessibility.md)：WCAG 2.2 AA 符合性声明、键盘与读屏走查，以及已知缺口。
-- [设计文档](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design)：模型以它为准。
-- [包 README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md)：安装、最短示例与包的各个入口。
+两者都只发送 Wow 查询：记录视图发分页查询或游标查询，分析视图发聚合查询。配置保存的是**意图**，所以它永远不会过时：
+
+```ts
+import type { RecordViewConfig } from '@ahoo-wang/wow-view-engine';
+
+export const PAID_THIS_WEEK: RecordViewConfig = {
+  kind: 'record',
+  filter: {
+    op: 'and',
+    children: [
+      { field: 'state.status', operator: 'IN', value: ['PAID'] },
+      // "This week" is stored as intent and resolved on every run.
+      {
+        field: 'firstEventTime',
+        operator: 'BETWEEN',
+        value: { type: 'preset', preset: 'thisWeek' },
+      },
+    ],
+  },
+  filterMode: 'simple',
+  refresh: { interval: null },
+  sort: [{ field: 'firstEventTime', direction: 'DESC' }],
+  pageSize: 20,
+  summaries: [{ field: 'state.totalAmount', fn: 'SUM' }],
+  layout: 'table',
+  table: {
+    columns: [
+      { field: 'aggregateId' },
+      { field: 'state.totalAmount' },
+      { field: 'firstEventTime' },
+    ],
+  },
+  card: { title: 'aggregateId', fields: ['state.totalAmount'] },
+};
+```
+
+- **保存的是配置，不是浏览状态。** 选中项、页码和结果从不保存。
+- **配置不指明组件。** 编辑器由字段的种类、操作符和值的形状推出，所以换一套界面不会碰到任何保存的视图。
+- **配置每次打开都会检查。** 它来自存储，不被信任：引用了定义里已经没有的字段的视图，会以需要修复的状态打开，并定位到它引用的地方。
+
+## 仪表盘 {#boards}
+
+仪表盘把几个视图放在一页上，使用 24 列网格，可以分标签页。一个面板展示一个保存的视图、一个仪表盘自有的分析，或者内容：标题、文本、图片、链接。仪表盘的筛选跨越定义：日期筛选通过每个面板所属定义的时间字段作用到它，仪表盘还可以有一个读者无法修改的固定范围。
+
+保存的视图或仪表盘也可以**嵌入**业务页面，外面不带工作台：例如在客户页面上展示该客户的订单。嵌入从不写入。见[嵌入](./host#embeds)。
+
+## 谁能看到视图 {#who-sees-a-view}
+
+每个保存的视图都有一个范围：
+
+| 范围 | 由谁配置 | 谁能看到 | 普通读者能做什么 |
+| --- | --- | --- | --- |
+| `system` | 开发者或运维人员 | 该定义的每个读者 | 打开它、设为默认、另存一份；不能修改 |
+| `shared` | 被允许分享的读者 | 该定义的每个读者 | 宿主权限允许的事；总能另存一份 |
+| `personal` | 任何读者 | 只有它的所有者 | 一切 |
+
+系统视图有三个来源：定义的代码；视图存储服务的配置；以及存储本身，被允许编辑系统视图的读者可以不经发版就在那里发布它们。存储里的系统视图是全局的：每个租户都能读到。这也是系统仪表盘只能展示系统视图的原因。存储的细节见[视图存在哪里](./storage)。
+
+## revision 与冲突 {#revisions-and-conflicts}
+
+几个人、几个标签页同时修改一个视图是常态。引擎不加锁：
+
+- **乐观 revision。** 每个保存的视图都带一个不透明的 revision，每次写入都带上它期望的 revision。另一次写入先到时，这次写入以冲突被拒绝，由读者选择：采用对方的、用自己的覆盖对方的，或者另存一份。
+- **幂等的请求 ID。** 一次逻辑写入只有一个请求 ID。超时后的重试复用它，所以重试永远不会建出第二个视图。
+- **结果未知既不是成功也不是失败。** 在它有定论之前，同一个视图不接受新的写入，草稿也保留着。
+
+## 接下来读什么 {#where-to-go-next}
+
+| 想要 | 阅读 |
+| --- | --- |
+| 依据查询模型的描述写一份定义 | [定义视图](./definitions) |
+| 把引擎放进应用：`ViewHost`、路由、嵌入、措辞、测试 | [接入宿主](./host) |
+| 在记录上提供命令 | [操作](./actions) |
+| 保存视图 | [视图存在哪里](./storage) |
+| 使用预设、品牌色，或跟随 shadcn 主题 | [主题](./theming) |
+| 键盘、读屏、WCAG 2.2 | [可访问性](./accessibility) |
+| 在严格的内容安全策略下运行 | [内容安全策略](./csp) |
+| 帮助读者使用工作台 | [工作台](../../data/workbench) |
+| 查一个签名 | [wow-view-engine 参考](../../reference/typescript/wow-view-engine/) |
+
+每个界面的每种状态都在 [Storybook](/storybook/) 里对着内存数据运行。

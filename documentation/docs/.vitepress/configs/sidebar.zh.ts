@@ -13,20 +13,18 @@
 
 import {DefaultTheme} from "vitepress/types/default-theme";
 
-// 视图引擎在 TypeScript 客户端区域里自成四组：入门、概念、指南、参考。
-// 阶段 7 的 B2～B5 各自只往自己的那一组里加页面（概念归 B2，宿主、操作与 CSP 归 B3，
-// 存储归 B4，API 参考归 B5），互不改动别的组。
+// 视图引擎的指南自成一组，与 TypeScript 客户端和各包的参考并列。
 const viewEngineGuides: DefaultTheme.SidebarItem = {
     base: '/zh/typescript/view-engine/',
-    text: '视图引擎：指南',
+    text: '视图引擎',
     items: [
-        {text: '概览', link: 'index.html'},
-        {text: '写好一份定义', link: 'definitions'},
+        {text: '核心概念', link: 'index.html'},
+        {text: '定义视图', link: 'definitions'},
+        {text: '接入宿主', link: 'host'},
+        {text: '操作', link: 'actions'},
+        {text: '视图存在哪里', link: 'storage'},
         {text: '主题', link: 'theming'},
         {text: '可访问性', link: 'accessibility'},
-        {text: '视图存在哪里', link: 'storage'},
-        {text: '接进宿主', link: 'host'},
-        {text: '声明式操作', link: 'actions'},
         {text: '内容安全策略', link: 'csp'},
     ],
 }

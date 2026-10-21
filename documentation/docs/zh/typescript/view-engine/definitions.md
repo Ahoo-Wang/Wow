@@ -1,52 +1,48 @@
 ---
-title: 写好一份定义
-description: 从查询描述写视图定义：描述给的事实、措辞的键、为受众收窄能力、record.rowFields、系统视图与看板，以及用 admit 自检。
+title: 定义视图
+description: 依据 Wow 查询模型的描述写一份视图定义：事实、能力与选择，措辞是键，收窄，行必须带的字段，系统视图与仪表盘，并用 admit 检查。
 ---
 
-# 写好一份定义
+# 定义视图
 
-本页回答：**手里有一份服务端的查询描述，怎样写出一份给对的人看、准入干净的定义？**
+定义说明一份数据集能怎样观察。本页为一个销售订单的快照模型逐项写出一份定义，并说明测试怎样证明引擎会准入它。背后的概念见[视图引擎的核心概念](./#definitions)。
 
-入门里的定义只列了五个字段、两个系统视图，够把列表跑起来。本页接着写同一个销售订单（聚合 `sales-order`），把每一项选择摊开：列哪些字段、叫什么、收窄什么、随定义发布哪些视图和看板，以及怎样在测试里证明它站得住。定义在模型里的位置见[核心概念](./index.md#定义)。
+## 1. 从描述开始，并把它提交 {#_1-start-from-the-description-and-commit-it}
 
-## 1. 先有描述符，并把它提交
+每个 Wow 查询模型都描述自己：`GET /{context}/{aggregate}/{model}/query` 返回它的描述，`ETag` 是描述的版本。生成的查询客户端用 `describe()` 读取它。把描述存成 JSON 放在定义旁边，两者一起提交：
 
-定义的事实来自服务端的查询描述：快照查询是 `GET /{聚合}/snapshot/schema`，事件流是 `GET /{聚合}/event/schema`。把它存成 JSON，放在定义旁边，和定义一起提交，并在注释或测试里记下它的 `version`：
-
-<!-- typecheck: skip — 导入的 JSON 是提交在旁边的描述快照，入门第 4 步有它的节选 -->
+<!-- typecheck: skip — the imported JSON is the description committed beside it -->
 
 ```ts
 // src/views/salesOrderDescriptor.ts
 import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
-// GET /sales-order/snapshot/schema，version sha256:a30adffc…
+// GET /sales/sales-order/snapshot/query, version sha256:a30adffc…
 import snapshot from './salesOrderDescriptor.json';
 
 export const salesOrderDescriptor = snapshot as unknown as QueryModelDescriptor;
 ```
 
-为什么提交一份快照，而不是在运行时去读：
+提交一份副本，而不是在运行时去请求，原因是：
 
-- **定义在模块加载时同步建好。** 页面不等网络，测试读的是同一份，结果可复现。
-- **漂移在评审里看得见。** 服务端升级后重新取一次覆盖它，`version` 变了，改动摆在 diff 里；准入会把每一处受影响的字段与视图报出来（第 7 节）。
-- **运行时仍读当下的描述。** 数据源提供 `describe` 时，引擎在第一次查询前再向服务端读一次，按这次部署当下的能力收窄（第 4 节）；快照只决定事实。
+- **定义在模块加载时同步构建**，测试读的也是同一个文件；
+- **漂移在评审里看得见**：服务变化后，重新取一次覆盖旧副本，diff 和准入测试会列出它影响的每个字段和视图；
+- **运行时仍会读取实时的描述**：在第一次查询之前，引擎通过数据源把能力收窄到这次部署允许的范围。
 
-## 2. 事实、能力与选择
+## 2. 事实、能力与选择 {#_2-facts-capabilities-and-choices}
 
-[`defineView(descriptor, spec)`](../../reference/typescript/wow-view-engine/definitions.md#api-defineView) 把描述符里的东西分成两类，加上定义自己的一类：
+[`defineView(descriptor, spec)`](../../reference/typescript/wow-view-engine/definitions.md#api-defineView) 把三类东西分开：
 
-| 哪一类 | 包括 | 从哪来 | 定义能做什么 |
-|---|---|---|---|
-| 事实 | 路径、值类型、枚举值、时间怎样存（语义）、敏感级别、弃用、数组的元素结构 | 提交的快照，固化进定义 | 只能选、命名；写了快照没有的路径或值是准入错误 |
-| 能力 | 操作符、排序、聚合、检索、上限 | 数据源当下的描述，随存储变 | 不写就随部署；写了只能收窄 |
-| 选择 | 列哪些字段、次序、措辞、单元格与语气、收窄、行的身份、看板的时刻、系统视图 | 定义 | 全部由你决定 |
+| 类别 | 是什么 | 来自 | 定义能做什么 |
+| --- | --- | --- | --- |
+| 事实 | 路径、值类型、枚举值、时间怎样保存、敏感级别、弃用、数组的元素 | 提交的描述 | 只能选择和命名；写了描述里没有的路径或值，就是准入错误 |
+| 能力 | 操作符、排序、聚合、检索、上限 | 实时的描述；随存储变化 | 不写就随部署；写了只能收窄 |
+| 选择 | 列哪些字段、什么顺序、什么措辞、单元格与语气、收窄、行的身份、系统视图 | 定义 | 全部由你决定 |
 
-同一个模型在 MongoDB 与 Elasticsearch 上能力不同（比如数组元素里的检索只有 Elasticsearch 有），所以能力不从快照固化：没收窄的那部分，同一份定义部署到哪种存储，就得到那种存储的能力。
+字段的种类从事实推出：枚举值或你写的 `options` 得到 `enum`；时间得到 `datetime` 或 `date`；布尔、数字和字符串各归其类；带元素的数组是 `elementMatch`。推不出来的，例如对象，需要你写 `kind`。
 
-字段的种类从事实推出：有枚举值或你写了 `options` 是 `enum`，唯独布尔字段写的 `options` 只给真与假各起名字（`{ true: '新客', false: '老客' }`），它仍是布尔；语义是纪元时间或格式化时间的是 `datetime`，日期的是 `date`；布尔、数字、字符串各归其类；写了 `elements` 的数组是 `elementMatch`。推不出的（对象、联合类型）要你写 `kind`，否则准入报 `definition.field.kind-unknown`。时刻以数存，但意思是时间，所以它只按日历分组（`DATE_HISTOGRAM`、`DATE_PART`），只有最早与最晚（`MIN`、`MAX`）。
+## 3. 一份定义，逐项选择 {#_3-a-definition-choice-by-choice}
 
-## 3. 一份定义，逐项选择
-
-场景：仓库与客服两拨人每天处理销售订单。仓库要清「待发货」，客服要按城市看销量。下面是给他们写的定义：
+仓库团队每天清理待发货的订单；客服按城市看销量。为他们写的定义：
 
 <!-- typecheck: file=salesOrders.ts -->
 <!-- typecheck-context
@@ -64,16 +60,17 @@ export const SALES_ORDERS = 'sales-orders';
 
 export const salesOrders = defineView(salesOrderDescriptor, {
   id: SALES_ORDERS,
-  // 宿主登记数据源时用的键。
+  // The key the host registers the source under.
   source: 'sales-order',
   title: text('orders.title'),
-  // 分析的计数单位：「12 张订单」，而不是「12 条记录」。
+  // What an analysis counts in: "12 orders", not "12 records".
   recordNoun: text('orders.noun'),
-  // 看板的日期筛选指的是下单时间。
+  // A board's date filter means when the order was placed.
   timeField: 'firstEventTime',
-  // 只出现列出的字段，按这个次序：字段选择器与默认列都照它排。
+  // Only what is listed appears, in this order: the field picker and the
+  // default columns follow it.
   fields: {
-    // 人们拿它查找、复制，从不按它分组。
+    // Looked up and copied, never grouped by.
     aggregateId: {
       label: text('orders.id'),
       cell: 'copyable',
@@ -82,7 +79,8 @@ export const salesOrders = defineView(salesOrderDescriptor, {
     'state.status': {
       label: text('orders.status'),
       cell: 'status',
-      // 读者会遇到的每个值都写上措辞；语气只给好、坏、等待中的值。
+      // Every value a reader meets, worded; a tone only for a value that is
+      // good, bad or waiting.
       options: {
         CREATED: { label: text('orders.created'), tone: 'neutral' },
         PAID: { label: text('orders.paid'), tone: 'warning' },
@@ -92,7 +90,7 @@ export const salesOrders = defineView(salesOrderDescriptor, {
     },
     'state.address.province': text('orders.province'),
     'state.address.city': text('orders.city'),
-    // 金额的合计有意义；平均每页多少钱没有。
+    // A total of the amounts means something; an average per page does not.
     'state.totalAmount': {
       label: text('orders.total'),
       summary: ['SUM'],
@@ -103,14 +101,14 @@ export const salesOrders = defineView(salesOrderDescriptor, {
       summary: ['SUM'],
       more: { numberFormat: { style: 'currency', currency: 'CNY' } },
     },
-    // 读者按天、按月看走势：用 wow-client 的枚举，不写字符串。
+    // Readers follow trends by day and by month: wow-client's enum, not strings.
     firstEventTime: {
       label: text('orders.placedAt'),
       analysis: {
         dateUnits: [AggregationDateUnit.DAY, AggregationDateUnit.MONTH],
       },
     },
-    // 一张订单的明细，每一项按商品读。
+    // An order's lines, each named by its product.
     'state.items': {
       label: text('orders.items'),
       elementTitle: 'productId',
@@ -120,7 +118,7 @@ export const salesOrders = defineView(salesOrderDescriptor, {
         price: text('orders.price'),
       },
     },
-    // 只在详情里读的自由文本：不筛选、不排序、不分组。
+    // Free text read in the detail only: never filtered, sorted or grouped.
     'state.address.detail': {
       label: text('orders.address'),
       cell: 'text',
@@ -131,42 +129,39 @@ export const salesOrders = defineView(salesOrderDescriptor, {
   },
   record: {
     layouts: ['table', 'card'],
-    // 宿主的「发货」读每一行的状态，不论视图显示不显示这一列（第 5 节）。
+    // The host's "Ship" reads each row's status, whether or not the view
+    // shows that column (section 5).
     rowFields: ['state.status'],
   },
-  // 随定义发布的系统视图（第 6 节）。
+  // The system views that ship with the definition (section 6).
   views: SALES_ORDER_VIEWS,
 });
 ```
 
-没写的也是选择：租户、所有者、国家与区县、应付余额，这两拨人都用不上，就不列。定义是一份**取舍**，不是描述符的副本；列得越长，选择器越难用。
-
-几条常用的选择，各对着一个问题：
+没写的也是选择：租户、所有者、区县、应付余额。定义是一份**取舍**，不是描述的副本：列得越长，字段选择器越难用。
 
 | 问题 | 选择 |
-|---|---|
-| 读者会读、筛、按它分组吗？ | 会就列，不会就不列。描述符多了字段，界面不会悄悄多一列 |
-| 它是人们称呼一条记录的方式吗？ | `cell: 'copyable'`、`analysis: false`；它唯一、可排序、人们按它查找时，做 `record.rowKey` |
-| 是只计数、不分组的 id 吗？ | `analysis: { groups: [] }`：仍能去重计数 |
-| 是自由文本吗？ | `cell: 'text'`、`sortable: false`、`analysis: false`；没人按它筛选时 `operators: []` |
-| 是类别吗？ | 每个读者看得到的值都写措辞（`options`），没人遇到的写 `false` 隐藏；只有好、坏、等待中的值带 `tone` |
-| 是金额或数量吗？ | 只给读者真会读的合计（`summary`），币种与单位写在 `more.numberFormat` |
-| 是时刻吗？ | 用 `analysis.dateUnits` 收到读者想的那几种粒度；以秒为单位读的（事件流的时间）写 `timePrecision: 'second'` |
-| 是数组吗？ | 元素写在 `elements` 里，键相对元素；`elementTitle` 指出哪个元素字段说出「这是哪一项」，否则单元格只说「3 项」 |
+| --- | --- |
+| 读者会读它、按它过滤或分组吗？ | 会就列，不会就不列。 |
+| 它是人们称呼一条记录的方式吗？ | `cell: 'copyable'`、`analysis: false`；它唯一且可排序时，作为 `record.rowKey`。 |
+| 是只计数、从不分组的 ID 吗？ | `analysis: { groups: [] }`：它仍能用于去重计数。 |
+| 是自由文本吗？ | `cell: 'text'`、`sortable: false`、`analysis: false`；没人按它过滤时写 `operators: []`。 |
+| 是类别吗？ | 为读者会遇到的每个值写措辞（`options`）；只有好、坏或等待中的值才带 `tone`。 |
+| 是金额或数量吗？ | 只给读者会读的合计（`summary`）；币种和单位写在 `more.numberFormat`。 |
+| 是时刻吗？ | 把 `analysis.dateUnits` 收窄到读者习惯的粒度。 |
+| 是数组吗？ | 它的元素写在 `elements` 里；`elementTitle` 指出哪个元素字段说明“这是哪一项”。 |
 
-字段很多时，用 `fieldGroups: [{ id, label, fields }]` 给选择器和记录详情分组，每组一个业务上的名字。
+字段很多的定义用 `fieldGroups` 给字段分组，每组一个业务上的名字。
 
-## 4. 措辞是键，收窄为了受众
+## 4. 措辞是键；为受众收窄 {#_4-words-are-keys-narrow-for-the-audience}
 
-### 措辞
-
-每个标题、标签、选项、系统视图名与指标的显示名都写成 `text(key)`，措辞放在每种语言一张的表里，交给宿主（[`ViewHost`](../../reference/typescript/wow-view-engine/host.md#api-ViewHost) 的 `messages`，或引擎的 `text`）。定义、配置与存储里始终是键，只在显示的地方才说成话，所以一个应用一个引擎，换语言只是重画：不重开、不重查，也不把视图标成「已修改」。单语的宿主仍可以直接写字符串。
+每个标题、标签、选项和视图名都写成 `text(key)`，措辞放在每种语言一张的表里，由宿主交给 [`ViewHost`](../../reference/typescript/wow-view-engine/host.md#api-ViewHost)。定义、配置和存储里只有键，所以切换语言只是重画：
 
 <!-- typecheck: file=words.ts -->
 
 ```ts
 // src/views/words.ts
-/** 每个键在宿主服务的每种语言里的措辞。`admit` 报出缺词的键（第 7 节）。 */
+/** The words of every key, in each language the host serves. `admit` reports a key without words (section 7). */
 export const SALES_ORDER_WORDS = {
   'zh-CN': {
     'orders.title': '销售订单',
@@ -187,14 +182,14 @@ export const SALES_ORDER_WORDS = {
     'orders.quantity': '件数',
     'orders.price': '单价',
     'orders.address': '详细地址',
-    // 系统视图与分析的措辞。
+    // The system views' and the analysis' words.
     'orders.toShip': '待发货',
     'orders.all': '全部订单',
     'orders.cityTotals': '各城市销售额',
     'orders.count': '订单数',
     'orders.perOrder': '客单价',
     'orders.day': '日期',
-    // 看板。
+    // The board.
     'overview.title': '订单概览',
     'overview.daily': '每日',
     'overview.today': '今天',
@@ -233,64 +228,47 @@ export const SALES_ORDER_WORDS = {
 } as const;
 ```
 
-措辞是读者的话，一个意思一个词：不写路径（`state.totalAmount`）、常量（`PAID`）、类名，也不写存储的词（文档、集合、快照、聚合）。漏了措辞的字段不会报错到界面上，而是退回描述里的 `description`，再退回路径本身——读者于是看到一个程序里的词，准入为此记一条 `definition.field.unlabelled`。类别的值同理：没写措辞的值显示描述，没有描述就显示原始常量。
+措辞是读者的话：绝不是路径、常量、类名或存储的词。没写措辞的字段先退回描述，再退回它的路径，准入会记下这一点。
 
-### 收窄
+**为受众收窄，绝不为复述存储而收窄。** 不写的能力随部署：同一份定义在 Elasticsearch 上提供短语检索，在 MongoDB 上没有。收窄会误导读者的东西，例如订单号的平均值、按 ID 分组。不要重复描述已经不提供的东西，也不要重复服务端的上限。运行时，引擎会再把你写的与实时描述取交集。
 
-能力不写，就随部署：同一份定义在 Elasticsearch 上有短语检索、在 MongoDB 上没有；服务端调高上限，引擎跟着读到，不必重新部署。所以**只为受众收窄，不为复述存储收窄**：
+敏感字段由引擎替你守住：敏感字段不参与分析，机密字段不能比较也不能排序。你要决定的只是列不列它。
 
-- 收窄那些会误导读者的：订单号的平均值、按堆栈排序、按 id 分组。上面的 `analysis: false`、`operators: []`、`sortable: false` 都是这一类。
-- 不复述描述已经不给的东西，也不替服务端写上限（`record.maxWindow`、`analysis.limits`），除非这群读者真要一个更低的。
-- 收窄到快照之外（比如列出这个存储没有的操作符）是一条 warning，不是 error：另一种存储可能给。运行时，引擎再把你写的与当下描述取交集；只有你**写了**的能力被这个存储削掉时，才报 `capability.*` 的发现。
+## 5. 行必须带的字段 {#_5-the-fields-a-row-must-carry}
 
-两类字段引擎替你守：带 `sensitivity` 的敏感字段自动退出分析（不做维度、指标、公式的操作数与指标条件），机密字段不能做任何比较与排序。你要决定的只是它出不出现——只在读者必须看到掩码值时列出，也别加一个能把掩码推回来的派生字段或条件。被弃用的路径换成它的消息里点名的那一条；确实要留，写 `deprecated: { message: '为什么' }`，否则一直有 warning。
+行的身份 `record.rowKey` 默认是描述里的身份，快照是 `aggregateId`。它必须是列出的、可排序的字段：每次记录查询都以它作为排序的最后一项，所以分页既不重复也不遗漏。
 
-## 5. 记录：行的身份与 `rowFields`
-
-`record.rowKey` 是每一行的身份，缺省是描述符的 `identity`（Wow 快照是 `aggregateId`）。它必须是列出的字段、可以排序：每次记录查询都以它收尾，分页才不重不漏。人们按业务编号查找时可以换成它；但命令仍按聚合 id 寻址，这时把聚合 id 也列出来，放进 [`rowFields`](../../reference/typescript/wow-view-engine/definitions.md#api-RecordCapability)。
-
-**引擎只查询视图显示的字段。** 一页要的只有：显示的列、卡片的字段、排序与汇总读的字段，以及行的身份。没显示的列不取，导出也不带——这让宽表的每一页都轻。代价是：宿主的代码（声明的操作的 `available`、批量操作、自定义单元格）读一个这个视图没显示的字段时，行上根本没有它。比如「发货」读 `state.status` 判断能不能发，而读者把状态列隐藏了，或者打开的系统视图本来就不显示状态：判断读到 `undefined`，按钮就一直是停用的。
-
-所以凡是宿主代码要从行上读的字段，不论显示与否，都写进 `record.rowFields`：
+**引擎只查询视图显示的东西**：可见的列、卡片的字段、排序和汇总读取的字段，以及身份。隐藏的列不会取回。所以当宿主代码从行上读一个字段时，例如检查状态的操作，这个字段在不显示它的视图里可能不存在。把宿主代码读取的每个字段都列进 `record.rowFields`：
 
 ```ts
 import type { RecordCapability } from '@ahoo-wang/wow-view-engine';
 
 export const record: Partial<RecordCapability> = {
   layouts: ['table', 'card'],
-  // 「发货」读状态；行的身份总会取，不必写。
+  // "Ship" reads the status; the row's identity is always fetched.
   rowFields: ['state.status'],
 };
 ```
 
-`rowFields` 里的每一项都必须是定义列出的字段（否则 `definition.record.row-field-unknown`），而且得是有值的路径，不能是搜索框这类无字段的种类（`definition.record.row-field-not-a-path`）。
+### 看板布局 {#a-kanban-layout}
 
-### 看板视图：一栏一个阶段 {#kanban}
-
-记录依次走过几个阶段的——商机、需求、工单——提供第三种布局 `'kanban'`：卡片按一个枚举字段的选项排成一栏一栏，每栏有自己的条数、汇总与「加载更多」。
+记录要依次经过几个阶段时，提供第三种布局 `'kanban'`：卡片按一个枚举字段的选项排成一栏一栏，每栏有自己的条数和自己的“加载更多”：
 
 ```ts
 import type { RecordCapability } from '@ahoo-wang/wow-view-engine';
 
 export const pipeline: Partial<RecordCapability> = {
-  // 一栏的下一批卡片就是它的下一页：游标读得最好。
+  // A lane's next cards are its next page: a cursor reads them best.
   paging: 'cursor',
   layouts: ['kanban', 'table', 'card'],
 };
 ```
 
-- **栏是枚举的选项**，按定义列出的顺序，带着选项的名字与语气；值不在其中的记录在「其他」栏，有卡片时才画。读者在看板视图设置里选分栏字段、收起几栏，一次最多 12 栏；提供这种布局却没有带选项的枚举字段，准入拒绝（`definition.record.kanban-no-lane`）。
-- **每栏是自己的一条查询**：视图的条件加上这一栏的条件，另有一条聚合数清每一栏；源提供游标时声明 `paging: 'cursor'`，一栏加载更多是往下接，不是数页。
-- **卡片就是卡片布局那一张**：同样的标题、正文与图片，一条记录在两种布局里是同一张卡。
-- **卡片换栏**是一个设置分栏字段的声明式操作（[`moves`](./actions.md#kanban-move)）；没有声明，卡片就留在原处。
+每一栏都是一条独立的查询，所以用游标读取下一批卡片最合适。把卡片移到另一栏，是一个设置分栏字段的声明式操作（[操作](./actions#kanban)）。
 
-## 6. 系统视图与看板
+## 6. 系统视图与仪表盘 {#_6-system-views-and-boards}
 
-### 系统视图：读者每天打开的那几张
-
-系统视图是定义随发布带上的起点：所有人可见、只读，读者另存为自己的再改。只写这群读者每天打开的那几张，不是所有可能的视图：一个队列一张，标题说它装着什么（「待发货」，而不是「订单列表 2」），按决定下一张先处理谁的字段排序，列按读的次序排，合计只放在有意义的地方。
-
-一个小函数让同一份定义的视图完整而一致：
+系统视图随定义发布：所有人可见、只读，读者修改之前先另存为自己的。只写读者每天打开的那几张，标题说明它装着什么（“待发货”），按决定下一条处理谁的字段排序：
 
 <!-- typecheck: file=salesOrderViews.ts -->
 
@@ -334,7 +312,7 @@ function queue(
   };
 }
 
-/** 各城市的销售额：最近 30 天，每次执行都按当下的日历求值。 */
+/** Sales by city: the last 30 days, resolved against the calendar on every run. */
 const cityTotals: AnalysisViewConfig = {
   kind: 'analysis',
   filter: {
@@ -367,7 +345,7 @@ const cityTotals: AnalysisViewConfig = {
       label: text('orders.total'),
     },
     {
-      // 比率是指标之上的指标，不是字段。
+      // A ratio is a metric over metrics, not a field.
       type: 'DERIVED',
       alias: 'perOrder',
       label: text('orders.perOrder'),
@@ -394,9 +372,10 @@ export const SALES_ORDER_VIEWS: SystemView[] = [
   {
     id: 'to-ship',
     title: text('orders.toShip'),
-    // 写在系统视图上，不在配置里：队列整体读，看板的日期筛选不作用于它。
+    // On the system view, not in its config: a queue is read whole, and a
+    // board's date filter never reaches it.
     timeField: null,
-    // 付款最早的先发。
+    // The earliest paid ships first.
     config: queue(
       [{ field: 'state.status', operator: 'IN', value: ['PAID'] }],
       { sort: [{ field: 'firstEventTime', direction: 'ASC' }] },
@@ -407,14 +386,12 @@ export const SALES_ORDER_VIEWS: SystemView[] = [
 ];
 ```
 
-- **id** 在定义内唯一、不含 `:`。引擎以 `system:<定义 id>:<视图 id>` 作它的实例 id，`systemInstanceId('sales-orders', 'to-ship')` 拼出同一个值，看板与路由按它引用。
-- **时间是意图。** 一段时间写成跟着日历走的 `BETWEEN`（`{ type: 'preset', preset: 'yesterday' }`、`{ type: 'relative', amount: 7, unit: 'day' }`），绝不把今天的日期写进配置。类别给 `IN`、`NOT_IN`，没有 `EQ`。
-- **`timeField`** 写在 [`SystemView`](../../reference/typescript/wow-view-engine/definitions.md#api-SystemView) 上：换一个时刻，或 `null` 让这张视图整体读、不受看板的日期筛选影响。
-- **分析视图按问题命名**（「各城市销售额」），每个维度与指标有显示名，按回答问题的那个指标排序，图型选能回答问题的那种，而不是最醒目的那种。
+- **id** 在定义内唯一，不含 `:`。它的实例 ID 是 `system:<definition>:<view>`，仪表盘和路由用 `systemInstanceId` 拼出它。
+- **时间是意图。** 一段时间随日历移动（`{ type: 'relative', amount: 7, unit: 'day' }`）；绝不把今天的日期写进配置。
+- 系统视图上的 **`timeField: null`** 让它不受仪表盘日期筛选的影响：队列要整体读。
+- **分析按它回答的问题命名**，并选择能回答这个问题的图。
 
-### 看板：读者先扫一眼的那一页
-
-看板是自己的一份定义（`kind: 'dashboard'`，没有数据源），它的系统视图就是系统看板。问自己：读者早上先看什么、按什么次序、哪个数点进去打开哪个队列。
+仪表盘是一份独立的定义，`kind: 'dashboard'`，没有数据源；它的系统视图就是系统仪表盘。问一问读者先看什么、按什么顺序、哪个数字点进去打开哪个队列：
 
 <!-- typecheck: file=overview.ts -->
 
@@ -430,7 +407,7 @@ import {
 } from '@ahoo-wang/wow-view-engine';
 import { SALES_ORDERS } from './salesOrders';
 
-/** 一个数：没有维度，范围内只有一行，所以 limit 为 1。 */
+/** One number: no dimension, one row over everything in range, so a limit of 1. */
 function card(
   metric: AnalysisViewConfig['metrics'][number],
   filter: AnalysisViewConfig['filter']['children'] = [],
@@ -470,7 +447,7 @@ const dailyTotal: AnalysisViewConfig = {
     },
   ],
   sort: [{ alias: 'day', direction: 'ASC' }],
-  // 一天一行：给读者能选的最长窗口留够。
+  // A row a day: room for the longest window a reader picks.
   limit: 92,
   chart: { type: 'line', cartesian: { x: 'day', series: [{ metric: 'total' }] } },
 };
@@ -485,7 +462,8 @@ export const overview: DashboardDefinition = {
       title: text('overview.daily'),
       config: {
         ...emptyDashboardConfig(),
-        // 看板唯一的日期筛选：经每份定义的 timeField 接到各块面板上。
+        // The board's one date filter: it reaches each panel through that
+        // definition's timeField.
         fields: [
           {
             name: 'window',
@@ -518,7 +496,7 @@ export const overview: DashboardDefinition = {
               kind: 'view',
               title: text('orders.toShip'),
               bindings: [],
-              // 现在还在等的，不管哪天付的款。
+              // What waits now, whenever it was paid.
               ignoresTime: true,
               layout: { w: 6, h: 2 },
               owned: {
@@ -528,7 +506,7 @@ export const overview: DashboardDefinition = {
                   [{ field: 'state.status', operator: 'IN', value: ['PAID'] }],
                 ),
               },
-              // 「在工作台中打开」打开队列本身，而不是一个计数。
+              // "Open in workbench" opens the queue itself, not a count.
               opens: systemInstanceId(SALES_ORDERS, 'to-ship'),
             },
           ],
@@ -548,7 +526,7 @@ export const overview: DashboardDefinition = {
               kind: 'view',
               title: text('orders.toShip'),
               bindings: [],
-              // 它的系统视图写了 timeField: null，所以整体读。
+              // Read whole: its system view says timeField: null.
               layout: { w: 24, h: 6 },
               instanceId: systemInstanceId(SALES_ORDERS, 'to-ship'),
             },
@@ -560,17 +538,14 @@ export const overview: DashboardDefinition = {
 };
 ```
 
-- 栅格 24 列。`inRows` 按行根据面板的尺寸排布：每一行从上一行最高的面板下方开始，所以增加面板或改变大小都不需要重新计算坐标。存下来的仍是每个面板的 `{ x, y, w, h }`。
-- **默认日期**是读者先查的那一段：日报开在「昨天」（一整天，已经结算），实时看板开在「今天」或一个短的相对窗口，一板待办的堆积不需要日期筛选。
-- **看板的日期与面板自己的时段是「且」。** 看板的窗口经 `timeField` 到达每块面板，与面板视图自己的条件取交集：一张自带「最近 30 天」的视图放到 7 天的看板上，读的是两者的重叠。给看板做的视图别带自己的时段。整张视图到处都整体读，就在它的系统视图上写 `timeField: null`；只有某一块面板不跟随，就在面板上写 `ignoresTime: true`。
-- **`opens`** 让「在工作台中打开」打开同一份定义的另一张视图：计数卡数的是队列列的东西时用它。
-- **系统看板只引用系统视图**：系统视图对所有租户可见，共享视图只属于一个租户（[核心概念](./index.md#系统视图的三种来源)）。看板自己拥有的分析不受这条约束。
+- `inRows` 根据面板的尺寸逐行排布面板，所以增加面板不需要重新编号。
+- **仪表盘的日期与面板自己的时段合并**：仪表盘的时间窗口通过 `timeField` 作用到每个面板，并与视图自己的条件取交集。`ignoresTime` 让某个面板不跟随。
+- **`opens`** 让“在工作台中打开”打开另一个视图，例如一个计数所统计的那个队列。
+- **系统仪表盘只展示系统视图**，它们每个租户都能读到。仪表盘自有的分析不受这条约束。
 
-## 7. 用 `admit` 自检
+## 7. 用 `admit` 检查 {#_7-check-it-with-admit}
 
-定义没有编译期的路径检查：路径是字符串，描述符才知道它对不对。补上这一道的是 `/testing` 的 [`admit`](../../reference/typescript/wow-view-engine/testing.md#api-admit)：它按引擎注册时的同一套规则准入你的声明——每个键在给定的措辞里说不说得出、定义自己的规则与每一份系统视图配置、看板对其他定义的引用，以及每份数据定义按它的 `source` 对着提交的描述快照收窄。全部站得住时返回 `[]`。
-
-一个测试准入宿主注册的全部定义，覆盖宿主服务的每种语言：
+路径只是一个字符串；只有描述知道它对不对。`/testing` 中的 [`admit`](../../reference/typescript/wow-view-engine/testing.md#api-admit) 按引擎注册它们时的规则准入你的声明：每个键都有措辞，每个系统视图和仪表盘都有效，每份数据定义都收窄到它提交的描述。全部成立时返回 `[]`。一个测试准入宿主注册的全部东西，覆盖它服务的每种语言：
 
 <!-- typecheck-context
 import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
@@ -592,9 +567,10 @@ describe('the order views', () => {
     const words: Readonly<Record<string, string>> = SALES_ORDER_WORDS[locale];
     expect(
       admit(
-        // 看板和它读的数据定义一起准入，引用才核对得到。
+        // A board is admitted with the data definitions it reads, so its
+        // references are checked.
         [salesOrders, overview],
-        // 按每份数据定义的 source：提交的快照。
+        // By each data definition's source: the committed snapshots.
         { 'sales-order': salesOrderDescriptor },
         { text: key => words[key] },
       ),
@@ -603,38 +579,21 @@ describe('the order views', () => {
 });
 ```
 
-`admit` 与定义都不需要浏览器，在 Node 环境里跑；宿主的 Vitest 若是浏览器或 jsdom 项目，给定义单独一份 `environment: 'node'` 的配置。
-
-每条发现带 `code`、`params`、指向定义里那一处的 `path`，以及它说的是哪份定义（`definition`）；`/ui` 的 `en`、`zhCN` 两套措辞为每个 code 写了一句话。在它点名的那项选择上改，不要靠放宽 `text`、不给描述符或过滤结果让它闭嘴：
+它不需要浏览器：在 Node 环境里运行。每条发现带一个 `code`、一个指向定义中那一处的 `path`，以及它说的是哪份定义。在它点名的那项选择上修正，而不是让它闭嘴：
 
 | 发现 | 回头看 |
-|---|---|
-| `definition.text.unknown` | 这个键在这种语言里没有措辞：补上，或改正拼错的键 |
-| `definition.field.undescribed`、`definition.option.undescribed` | 描述符里没有的路径或值。不要猜另一条路径；去掉它，说明缺什么、该从哪来（读模型的字段、模型的声明） |
+| --- | --- |
+| `definition.text.unknown` | 这个键在这种语言里没有措辞 |
+| `definition.field.undescribed`、`definition.option.undescribed` | 描述里没有的路径或值：去掉它，不要猜另一个 |
 | `definition.field.unlabelled` | 给字段一个读者的词 |
 | `definition.field.deprecated` | 换成替代的路径，或保留并写明理由 |
-| `capability.field.protected` | 列了敏感或机密字段：读者必须看到掩码时才留，并在测试里把这条写明 |
-| `definition.field.*-wider`、`capability.field.*-narrowed` | 收窄到了这个存储没有的能力：去掉，或者只为另一种有它的部署保留，并写明 |
-| `definition.record.row-key-*`、`definition.record.row-field-*` | 行的身份或 `rowFields` 不是列出的、可排序的、有值的字段 |
-| `definition.descriptor.missing` | 没把这个 `source` 的描述快照交给 `admit` |
-| `definition.view.*`、`filter.*`、`analysis.*`、`dashboard.*`、`record.*` | 某张系统视图或看板的配置：它点名的字段、操作符、别名或面板 |
+| `capability.field.protected` | 列了敏感字段：只在读者必须看到掩码值时保留，并断言这条发现 |
+| `definition.record.row-key-*`、`definition.record.row-field-*` | 身份或某个 `rowFields` 项不是列出的、可排序的、有值的字段 |
+| `definition.view.*`、`filter.*`、`analysis.*`、`dashboard.*` | 某个系统视图或仪表盘的配置 |
 
-有意留下的发现照原样断言，旁边写上理由，这样新出现的发现仍会让测试失败。
+有意保留的发现要原样断言，并写上理由，这样新出现的发现仍会让测试失败。`admit` 判断不了的是读者：字段、措辞、收窄和系统视图对他们是不是对的。这要靠评审。
 
-`admit` 判断不了的，是读者：列出的每个字段是不是他们读、筛、分组用的，次序对不对；措辞是不是他们的话、每种语言都有；每一处收窄是在保护读者还是在复述存储；系统视图与看板是不是开在他们最先要做的事上。这些在评审里看。
+## 可运行的示例 {#working-examples}
 
-## 完整的可运行版本
-
-- Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--docs)：一份订单定义从声明到页面；[随部署收窄](/storybook/?path=/docs/view-engine-能力-随部署收窄--docs)把同一份定义配上两种存储的描述，看能力怎样跟着变。
-- 它的源文件：[`ordersDefinition.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/ordersDefinition.ts)、[`ordersDescriptor.json`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/ordersDescriptor.json)，以及用 `admit` 核对它们的 [`integration.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/integration/integration.test.ts)。
-- 一个真实的宿主：补偿控制台的 [`src/views/`](https://github.com/Ahoo-Wang/Wow/tree/v10-9x-baseline/compensation/dashboard/src/views)，定义、每种语言的措辞与准入测试都在这里。
-- 设计文档：[`defineView` 的合并规则](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/host-integration.md)、[采用服务端的能力描述](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/capabilities.md)。
-- 让智能体照这套写定义：Skill [`wow-view-definition`](https://github.com/Ahoo-Wang/Wow/blob/main/skills/wow-view-definition/SKILL.md)。
-
-## 下一步
-
-| 接下来 | 阅读 |
-|---|---|
-| 定义、视图、看板与存储在模型里的位置 | [核心概念](./index.md) |
-| 把定义接进引擎、`ViewHost` 与一个操作 | 视图引擎入门 |
-| 换一套外观、接上宿主的主题 | [视图引擎的主题](./theming.md) |
+- ops 控制台的定义、措辞和操作，以及 `parked.test.ts` 中的准入测试：[`platform/ops/console/src/views/`](https://github.com/Ahoo-Wang/Wow/tree/v10/platform/ops/console/src/views)。
+- Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--docs)，一份订单定义从声明到页面。
