@@ -1,8 +1,8 @@
 ---
 type: regex
-pattern: 'import --(final|restart)'
+pattern: 'backfill-tags'
 match: contains
 target: last_message
 ---
 
-The answer names the final pass, `import --final` or `import --restart`.
+The answer names `backfill-tags`.

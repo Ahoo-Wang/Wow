@@ -6,4 +6,4 @@ max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-新增一个 Wow 订单 EventProcessor，并补齐正常、失败和重复投递测试。
+新增一个 Wow 订单 Projection，并补齐正常、失败和重复投递测试。

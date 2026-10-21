@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.example.eshop.inventory.server
 
+import me.ahoo.wow.example.eshop.inventory.domain.stock.SupplierDeliveries
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
+import org.springframework.context.annotation.Bean
 
 /**
  * The eShop's inventory service on the Wow host: the host finds the stock model through `eshop-inventory-domain`'s binding
@@ -23,7 +25,14 @@ import org.springframework.boot.runApplication
  * from Kafka with the `kafka` profile.
  */
 @SpringBootApplication(proxyBeanMethods = false)
-class InventoryServer
+class InventoryServer {
+    /**
+     * The suppliers' delivery feed the delivery job reads each morning. The shop has no receiving system, so none
+     * arrives; a deployment binds [SupplierDeliveries] to its warehouse's.
+     */
+    @Bean
+    fun supplierDeliveries(): SupplierDeliveries = SupplierDeliveries { _, _ -> emptyList() }
+}
 
 fun main(args: Array<String>) {
     runApplication<InventoryServer>(*args)
