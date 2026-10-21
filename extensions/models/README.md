@@ -1,6 +1,6 @@
-# wow-models (V10)
+# wow-models
 
-Shared model helpers for V10 domains, ported from 9.x `wow-models` (decision D187):
+Shared model helpers for Wow domains, ported from 9.x `wow-models` (decision D187):
 
 - `me.ahoo.wow.models.common`: capability interfaces (`NameCapable`, `NotBlankNameCapable`, `TitleCapable`,
   `RemarkCapable`, `ReasonCapable`, `QuantityCapable`, `TypeCapable`, `ItemIdCapable`, `CompletedCapable`,

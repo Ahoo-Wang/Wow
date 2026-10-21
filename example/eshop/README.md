@@ -1,11 +1,11 @@
 # Wow eShop
 
-A multi-service shop on Wow V10, modelled on the classic eShop reference application ([dotnet/eShop](https://github.com/dotnet/eShop)). It is the M6e milestone of the V10 roadmap (decisions D158 to D160). It checks two things before M7:
+A multi-service shop on Wow, modelled on the classic eShop reference application ([dotnet/eShop](https://github.com/dotnet/eShop)). It is the M6e milestone of the roadmap (decisions D158 to D160). It checks two things before M7:
 
 - that everything from M1 to M6 works together across several services;
 - that the developer experience holds up for someone who knows Wow only from the public documentation and the Skills. Each gap goes into [DX-GAPS.md](DX-GAPS.md).
 
-The eShop builds on the V10 modules only, and is never published. It is the V10 example: the shop (`example/shop`), its inventory (`example/inventory`) and their end-to-end tests (`example/e2e`) came before it and were folded into it (decision D204), each scenario they alone tested now covered here (see [Tests](#tests)).
+The eShop builds on the modules only, and is never published. It is the example: the shop (`example/shop`), its inventory (`example/inventory`) and their end-to-end tests (`example/e2e`) came before it and were folded into it (decision D204), each scenario they alone tested now covered here (see [Tests](#tests)).
 
 > **Status: E.1 to E.7 done.** The catalog has its products, brands and categories, and its storefront queries. The basket, ordering, inventory and payment contexts and the order flow between them work end to end on PostgreSQL and Kafka, the payment over a simulated gateway. All five services run together on PostgreSQL, Kafka and ClickHouse, with the sales dataset, a node killed mid-flow, and a load script with its baseline ([e2e/README.md](e2e/README.md)). The ordering runs on two nodes in the suite. A web UI drives the shop end to end ([Web UI](#web-ui)).
 
@@ -86,9 +86,9 @@ A declined payment's CancelOrder, and the grace period's scheduled one for an or
 
 ### Dependencies
 
-Each `-api` depends on `:api`. Each `-domain` depends on its API and on `:kernel`, and the compiler (KSP) generates its models, its binding index and its Manifest fragment. Each `-server` is a Spring Boot application on the host, `:spring-boot`. The architecture tests (`test/architecture`, `V10Rules`) enforce the rest:
+Each `-api` depends on `:api`. Each `-domain` depends on its API and on `:kernel`, and the compiler (KSP) generates its models, its binding index and its Manifest fragment. Each `-server` is a Spring Boot application on the host, `:spring-boot`. The architecture tests (`test/architecture`, `ArchitectureRules`) enforce the rest:
 
-- The eShop reaches V10 modules and other eShop projects only.
+- The eShop reaches Wow modules and other eShop projects only.
 - No `-api` or `-domain` reaches `:runtime`.
 
 ## Payment
@@ -277,7 +277,7 @@ The basket, ordering and inventory tests:
 ./gradlew :eshop-e2e:integrationTest                                # the services together
 ./gradlew :eshop-e2e:integrationTest --tests '*EshopFullChainTest'  # all five services
 ./gradlew :eshop-e2e:eshopLoad                                      # the load script
-./gradlew :check :integrationTest                               # everything V10, the eShop included
+./gradlew :check :integrationTest                               # everything, the eShop included
 ```
 
 Each service's output of a run of `:eshop-e2e` is kept in `example/eshop/e2e/build/eshop-logs/`.

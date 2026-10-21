@@ -33,7 +33,7 @@ import tools.jackson.core.type.TypeReference
 
 /**
  * The query bodies: `filter` is required and never null, `condition` (9.x's legacy filter) is an unknown property like
- * any other, and the V10 count and total additions.
+ * any other, and the 10.x count and total additions.
  */
 class QueryRequestJsonTest {
     private val mapper = QueryJson.mapper

@@ -44,7 +44,7 @@ import tools.jackson.databind.JsonNode
 data class QueryModelDescriptor(
     val model: QueryModel,
     val version: String,
-    /** The server's default time zone, used when a request names none. */
+    /** The zone a request that names none is read in: UTC (review R4-Q, Q-10). */
     val timeZone: String,
     val record: RecordDescriptor,
     val limits: LimitsDescriptor,

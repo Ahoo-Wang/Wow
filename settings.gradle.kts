@@ -17,7 +17,7 @@ plugins {
 rootProject.name = "Wow"
 
 /*
- * Only V10 projects remain: the 9.x code left early (decisions D244, D262; it lives on at the side branch
+ * Only 10.x projects remain: the 9.x code left early (decisions D244, D262; it lives on at the side branch
  * `v10-9x-baseline` and on `v9`). The build scope `-Pwow.scope` that told the two apart is gone.
  */
 
@@ -26,7 +26,7 @@ rootProject.name = "Wow"
  * deploy jobs (package-deploy.yml) download what the preflight built, signed and checked (`build/libs`,
  * `build/publications`) and publish it with this property, which leaves every task that makes a published file out of
  * the task graph, as `-x` would. The Sign tasks are left out too: the deploy jobs have no key, and the publications
- * upload the preflight's signatures, which the V10 signing configuration then requires (build.gradle.kts).
+ * upload the preflight's signatures, which the signing configuration then requires (build.gradle.kts).
  * `publicationCheck` (build.gradle.kts) runs such a publish and checks that it runs nothing but the publish tasks
  * and uploads every file, signed, so a published file no listed task makes, or a missing signature, fails a pull
  * request, not a release.
@@ -49,8 +49,8 @@ project(":wow-dependencies").projectDir = file("bom/dependencies")
 include(":code-coverage-report")
 project(":code-coverage-report").projectDir = file("test/code-coverage-report")
 
-//region v10 (documentation/designs/v10/06-modules.md)
-// The V10 BOM (artifact wow-bom, D87; release configuration R.1).
+//region wow (documentation/designs/v10/06-modules.md)
+// The BOM (artifact wow-bom, D87; release configuration R.1).
 include(":bom")
 project(":bom").projectDir = file("bom/bom")
 include(":api")
@@ -150,7 +150,7 @@ include(":routing-spike")
 project(":routing-spike").projectDir = file("test/routing-spike")
 include(":lease-spike")
 project(":lease-spike").projectDir = file("test/lease-spike")
-// The V10 example, the eShop (decisions D158, D159, D204): five contexts after the classic eShop reference application,
+// The example, the eShop (decisions D158, D159, D204): five contexts after the classic eShop reference application,
 // each an API, a domain and a server of its own, and their end-to-end tests. Every project is named `eshop-*`.
 include(":eshop-catalog-api")
 project(":eshop-catalog-api").projectDir = file("example/eshop/catalog/catalog-api")
@@ -184,18 +184,18 @@ include(":eshop-payment-server")
 project(":eshop-payment-server").projectDir = file("example/eshop/payment/payment-server")
 include(":eshop-e2e")
 project(":eshop-e2e").projectDir = file("example/eshop/e2e")
-// The V10 quickstart (decision D217): the sample the quickstart page shows, one module, its domain and its server.
+// The quickstart (decision D217): the sample the quickstart page shows, one module, its domain and its server.
 include(":quickstart")
 project(":quickstart").projectDir = file("example/quickstart")
 include(":java-smoke")
 project(":java-smoke").projectDir = file("example/java-smoke")
-// The V10 side of the end-to-end architecture benchmark (decision D224, roadmap M7.5 B.0): the twin benchmark domain
-// and its server on V10 modules only. Never published.
+// The 10.x side of the end-to-end architecture benchmark (decision D224, roadmap M7.5 B.0): the twin benchmark domain
+// and its server on Wow modules only. Never published.
 include(":benchmark-server")
 project(":benchmark-server").projectDir = file("test/benchmarks/server")
 //endregion
 
 // The load generator of the end-to-end architecture benchmark (decision D224): a JVM of its own that depends on no Wow
-// module, so it drives the 9.x (built from `v10-9x-baseline`, D262) and the V10 servers alike over HTTP.
+// module, so it drives the 9.x (built from `v10-9x-baseline`, D262) and the 10.x servers alike over HTTP.
 include(":benchmark-load")
 project(":benchmark-load").projectDir = file("test/benchmarks/load")

@@ -14,7 +14,7 @@
 package me.ahoo.wow.api.annotation
 
 /**
- * A rejection code of the domain (V10, decision D121), on a `const val` of type `String`, top-level or in an
+ * A rejection code of the domain (decision D121), on a `const val` of type `String`, top-level or in an
  * `object`, that holds the code a command function rejects with (`Decision.reject(code, message)`). The compiler lists
  * the codes of its module in the context's `errors` of the Manifest fragment, with [status] and [description]. In
  * Java it goes on a `static final String` field (decision D229 G-8).

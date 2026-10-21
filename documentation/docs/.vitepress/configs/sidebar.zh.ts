@@ -150,6 +150,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             base: '/zh/guide/',
             text: '建模',
             items: [
+                {text: '开发指南', link: 'index.html'},
                 {text: '编写聚合', link: 'aggregates'},
                 {text: '拒绝与错误码', link: 'rejections'},
                 {text: '演进事件', link: 'event-evolution'},
@@ -169,10 +170,26 @@ export const sidebarZh: DefaultTheme.Sidebar = {
         },
         {
             base: '/zh/guide/',
+            text: '读侧',
+            items: [
+                {text: '读取状态', link: 'reading-state'},
+                {text: '查询快照', link: 'queries'},
+                {text: '查询事件流', link: 'event-queries'},
+            ],
+        },
+        {
+            base: '/zh/guide/',
             text: '跨上下文',
             items: [
                 {text: '发布与消费事件流', link: 'published-streams'},
                 {text: '调用其他服务', link: 'calling-services'},
+            ],
+        },
+        {
+            base: '/zh/guide/',
+            text: '契约',
+            items: [
+                {text: '提供和调用 HTTP API', link: 'http'},
             ],
         },
         {
@@ -216,6 +233,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             text: '参考',
             items: [
                 {text: '术语表', link: 'glossary'},
+                {text: 'HTTP API', link: 'http'},
                 {text: '线上协议', link: 'protocols'},
                 {text: 'migrate-data 命令行', link: 'migrate-data'},
                 {text: '配置项', link: 'configuration'},

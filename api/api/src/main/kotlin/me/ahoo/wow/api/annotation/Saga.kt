@@ -14,7 +14,7 @@
 package me.ahoo.wow.api.annotation
 
 /**
- * A saga (V10, decision D67): a processor whose [OnEvent] functions derive commands from committed events. It
+ * A saga (decision D67): a processor whose [OnEvent] functions derive commands from committed events. It
  * replaces 9.x's `@StatelessSaga`, and compensation that 9.x wrote with `@OnError` is written as a saga.
  *
  * Each handler is compiled into its own subscription, named `processor.function` (design 04 §1). A handler takes the

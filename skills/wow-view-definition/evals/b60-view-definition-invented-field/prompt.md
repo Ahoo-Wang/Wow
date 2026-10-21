@@ -6,7 +6,7 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-Add a member points column to the orders definition and an analysis of average points by member level.
+Add a member points column to the orders definition and an analysis of average points by member level. Give the code and the commands in your answer.
 
 Files from the user's project, shown inline:
 

@@ -1,4 +1,4 @@
-description = "V10 spike H2: affinity routing (Partitioned) against Local and ingress hashing, on PostgreSQL"
+description = "Wow spike H2: affinity routing (Partitioned) against Local and ingress hashing, on PostgreSQL"
 
 dependencies {
     integrationTestImplementation(project(":runtime"))

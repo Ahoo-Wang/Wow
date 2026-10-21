@@ -1,0 +1,13 @@
+# The view store service on Wow, in plain manifests (roadmap P.15): kubectl apply -k deploy/view-store
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: wow-platform
+    includeSelectors: false
+resources:
+  - configmap.yaml
+  - secret.yaml
+  - service.yaml
+  - networkpolicy.yaml
+  - deployment.yaml

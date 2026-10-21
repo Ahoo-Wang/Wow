@@ -16,7 +16,7 @@ package me.ahoo.wow.api.annotation
 import java.lang.annotation.Inherited
 
 /**
- * A handler of a [Saga] for the success receipt of a command the saga derived (V10, decision D192), the counterpart
+ * A handler of a [Saga] for the success receipt of a command the saga derived (decision D192), the counterpart
  * of [OnRejected]: it takes a [me.ahoo.wow.api.subscribe.CommandCommitted] of the command's type (or of `*`, for every
  * command the saga derives) and, optionally, the `SagaContext`, and returns the commands it derives in turn, as an
  * [OnEvent] handler of a saga does.

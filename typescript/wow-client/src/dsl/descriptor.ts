@@ -713,7 +713,7 @@ export interface QueryModelDescriptor {
   model: QueryModel;
   /** `sha256:` and the hash of its content; also the ETag, quoted. */
   version: string;
-  /** The server's default time zone, used when a request names none. */
+  /** The zone a request that names none is read in: UTC (review R4-Q, Q-10). */
   timeZone: string;
   /** What holds for the records as a whole. */
   record: RecordDescriptor;

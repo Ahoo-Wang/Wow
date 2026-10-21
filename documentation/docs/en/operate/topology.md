@@ -57,7 +57,7 @@ Each node advertises the address other nodes reach its internal port at:
 
 On Kubernetes, the eShop's ordering manifests derive all three from the pod:
 
-<!-- sample: deploy/v10/eshop-ordering/deployment.yaml#node -->
+<!-- sample: deploy/eshop-ordering/deployment.yaml#node -->
 
 ```yaml
 env:
@@ -87,7 +87,7 @@ env:
     value: $(POD_NAME).eshop-ordering-cluster.$(POD_NAMESPACE).svc.cluster.local:9093
 ```
 
-The address is the pod's name under a headless service that also publishes pods that are not ready, so a node that is starting or draining still receives its peers' forwards and signals. The [eShop ordering manifests](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/v10/eshop-ordering) are a complete template for one service.
+The address is the pod's name under a headless service that also publishes pods that are not ready, so a node that is starting or draining still receives its peers' forwards and signals. The [eShop ordering manifests](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering) are a complete template for one service.
 
 ## What a service needs
 
@@ -151,7 +151,7 @@ The host sizes Spring Boot's shutdown phase to fit, unless `spring.lifecycle.tim
 
 With Spring Boot Actuator on the classpath, the host contributes the node's health to the readiness and liveness groups:
 
-<!-- sample: deploy/v10/eshop-ordering/deployment.yaml#probes -->
+<!-- sample: deploy/eshop-ordering/deployment.yaml#probes -->
 
 ```yaml
 startupProbe:

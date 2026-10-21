@@ -6,7 +6,7 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-Count dev orders whose state.oldStatus is SHIPPED.
+Count dev orders whose state.oldStatus is SHIPPED. Give the code and the commands in your answer.
 
 Files from the user's project, shown inline:
 

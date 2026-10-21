@@ -6,7 +6,7 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-仅在 fixture 内把平台依赖从 Wow v6.21.5 迁移到已发布的 Wow v8.9.6、Spring Boot 4.1.0 和 Kotlin 2.4.10，保持 Java 17 与现有 store/snapshot 配置不变；先记录变更前证据，再修改并检查精确 diff。给出所有尚未授权、尚未验证的生产数据切换步骤。
+仅在 fixture 内把平台依赖从 Wow v6.21.5 迁移到已发布的 Wow v8.9.6、Spring Boot 4.1.0 和 Kotlin 2.4.10，保持 Java 17 与现有 store/snapshot 配置不变；先记录变更前证据，再修改并检查精确 diff。给出所有尚未授权、尚未验证的生产数据切换步骤。在回答里给出代码和命令。
 
 Files from the user's project, shown inline:
 

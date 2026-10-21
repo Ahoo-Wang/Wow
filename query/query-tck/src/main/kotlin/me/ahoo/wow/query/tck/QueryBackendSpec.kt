@@ -111,7 +111,7 @@ import java.util.UUID
 import kotlin.time.toKotlinDuration
 
 /**
- * The query backend contract (decision D126; the 9.x `SnapshotQueryBackendSpec` of wow-tck, ported to the V10 snapshot
+ * The query backend contract (decision D126; the 9.x `SnapshotQueryBackendSpec` of wow-tck, ported to the 10.x snapshot
  * model): every snapshot query backend passes it. A backend's test extends it, stores the snapshots each test gives in
  * [store], and supplies its binding of an aggregate type in [binding].
  *
