@@ -221,6 +221,16 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             ],
         },
     ],
+    '/zh/start/': [
+        {
+            base: '/zh/start/',
+            text: '入门',
+            items: [
+                {text: '快速开始', link: 'quickstart'},
+                {text: '在已有服务中引入 Wow', link: 'existing-project'},
+            ],
+        },
+    ],
     '/zh/concepts/': [
         {
             base: '/zh/concepts/',
