@@ -651,7 +651,7 @@ class CommandGatewayTest {
 
     @Test
     fun `the framework codes are listed once each, in the wow namespace`() {
-        FrameworkCodes.ALL.size.assert().isEqualTo(22)
+        FrameworkCodes.ALL.size.assert().isEqualTo(23)
         FrameworkCodes.ALL.forEach { it.assert().startsWith("wow.") }
         FrameworkCodes.ALL.assert().contains(
             FrameworkCodes.MALFORMED,
@@ -661,6 +661,7 @@ class CommandGatewayTest {
             FrameworkCodes.AGGREGATE_FORBIDDEN,
             FrameworkCodes.BUSY,
             FrameworkCodes.NODE_CLOSING,
+            FrameworkCodes.NODE_STANDBY,
             FrameworkCodes.STORAGE_UNAVAILABLE,
             FrameworkCodes.SCHEDULE_NOT_DUE,
             FrameworkCodes.SCHEDULE_JOB_INVALID,
