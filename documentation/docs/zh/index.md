@@ -46,6 +46,43 @@ features:
   link: /zh/concepts/event-log#backends
 ---
 
+## 你写什么，得到什么
+
+快速开始里银行账户的一个命令函数，基于当前状态对一次取款做出决定：
+
+<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt#withdraw -->
+
+```kotlin
+@OnCommand(produces = [Withdrawn::class])
+fun onCommand(command: Withdraw): Decision = when {
+    command.amount <= 0 ->
+        Decision.reject(Rejections.INVALID_AMOUNT, "${command.amount} is not positive.")
+
+    command.amount > state.balance ->
+        Decision.reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
+
+    else -> Decision.events(Withdrawn(command.amount))
+}
+```
+
+它的测试用同样的语言来写：给定事件，执行一条命令，期望得到事件和状态，不需要启动服务：
+
+<!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt#withdraw -->
+
+```kotlin
+@Test
+fun `a withdrawal the balance does not cover is rejected`() = aggregateSpec(model, id = "alice") {
+    given(AccountOpened("Alice"), Deposited(100))
+    whenCommand(Withdraw(150)) { expectRejected(Account.Rejections.INSUFFICIENT_BALANCE) }
+    whenCommand(Withdraw(30)) {
+        expectEvents(Withdrawn(30))
+        expectState { balance.assert().isEqualTo(70) }
+    }
+}
+```
+
+不用再写代码，服务就能从这个模型得到：每条命令一个 HTTP 路由、状态读取和快照查询、一份 OpenAPI 文档、一份 Manifest（`wow-generator` 由它生成类型化的 TypeScript 客户端），以及以 `application/problem+json` 返回、带错误码的拒绝。
+
 ## 从你的工作开始
 
 | 你想 | 从这里开始 |

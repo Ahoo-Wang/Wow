@@ -21,11 +21,11 @@ description: 投影、Saga、反应器、快照和 Sink 怎样读日志，处理
 
 ```mermaid
 flowchart LR
-    LOG[(Partition p)] --> TAIL[One tail per partition<br/>on the partition's owner]
+    LOG[(分区 p)] --> TAIL[每个分区一个尾随读<br/>在分区的属主上]
     TAIL --> S1[snapshot]
     TAIL --> S2[OrderProjection.onEvent]
     TAIL --> S3[PaymentSaga.onOrderPlaced]
-    S1 & S2 & S3 --> CP[(Checkpoints<br/>per subscription and partition)]
+    S1 & S2 & S3 --> CP[(检查点<br/>按订阅和分区)]
 ```
 
 - **租约。** 拥有一个分区的节点运行该分区上的所有订阅。决定谁执行命令的也是这些租约，所以订阅需要的状态通常已经在那个节点的内存里。

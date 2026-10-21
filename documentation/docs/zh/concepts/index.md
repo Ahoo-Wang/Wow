@@ -13,7 +13,7 @@ Wow 做的每一件事，都服务于下面三件事之一：
 
 1. **写。** 把一个意图变成恰好一次的状态变更。命令基于最新已提交的状态做出决定，它的事件用一次原子追加提交。两个写者竞争时，由聚合的版本决定谁胜出。
 2. **传。** 把每一条已提交的事实至少一次地交给每一个观察者。观察者随时可以从头再来。
-3. **用。** 从同一份模型推出 HTTP 路由、客户端、查询、视图和看板，不用再写代码，也不用另建一套 BI 系统。
+3. **用。** 从同一份模型推出 HTTP 路由、客户端、查询、视图和仪表盘，不用再写代码，也不用另建一套 BI 系统。
 
 衡量标准很简单：领域模型之外你写的每一行代码，都是 Wow 欠你的；Wow 的每一个机制，都必须能从这三件事之一推出来。
 
@@ -40,29 +40,29 @@ Wow 做的每一件事，都服务于下面三件事之一：
 
 ```mermaid
 flowchart TB
-    subgraph Contract[Contract plane]
-        MODEL[Domain model]
-        COMPILER[Compiler]
+    subgraph Contract[契约平面]
+        MODEL[领域模型]
+        COMPILER[编译器]
         MANIFEST[(Manifest)]
     end
-    subgraph Write[Write plane]
-        GATEWAY[Admission<br/>identity · authorization]
-        ROUTER[Router]
-        KERNEL[Kernel<br/>decide · evolve · append]
+    subgraph Write[写平面]
+        GATEWAY[准入<br/>身份 · 授权]
+        ROUTER[路由器]
+        KERNEL[内核<br/>决定 · 演化 · 追加]
     end
-    LOG[(Event log<br/>one per context · partitioned)]
-    subgraph Flow[Subscription plane]
-        SUBS[Subscriptions<br/>leases · checkpoints · parking]
-        SNAP[Snapshots]
-        PROCESSORS[Projections · sagas · reactors]
+    LOG[(事件日志<br/>每个上下文一份 · 分区)]
+    subgraph Flow[订阅平面]
+        SUBS[订阅<br/>租约 · 检查点 · 停放]
+        SNAP[快照]
+        PROCESSORS[投影 · Saga · 反应器]
         SINKS[Sinks<br/>Kafka · ClickHouse · Elasticsearch]
     end
-    subgraph Read[Read plane]
-        QUERY[Queries]
+    subgraph Read[读平面]
+        QUERY[查询]
         EDGE[HTTP]
-        UI[TypeScript client · views · consoles]
+        UI[TypeScript 客户端 · 视图 · 控制台]
     end
-    CHANNEL[Internal port<br/>forwarding · signals]
+    CHANNEL[内部端口<br/>转发 · 信号]
 
     MODEL --> COMPILER --> MANIFEST
     COMPILER --> KERNEL

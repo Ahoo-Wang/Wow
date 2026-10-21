@@ -10,19 +10,19 @@ description: 一条命令的生命周期，从准入、路由、执行到追加�
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Caller
-    participant Edge as Receiving node
-    participant Owner as Owning node
-    participant Log
-    Caller->>Edge: command (request id, wait plan)
-    Edge->>Edge: admission: type, identity, authorization, decoding, validation
-    Edge->>Owner: forward over the cluster channel (or run locally)
-    Owner->>Owner: duplicate? → answer with the first result
-    Owner->>Owner: load state, decide, evolve
-    Owner->>Log: append (version and request id are unique)
-    Log-->>Owner: committed at a position
-    Owner-->>Edge: result and signals
-    Edge-->>Caller: result once the wait is satisfied
+    participant Caller as 调用方
+    participant Edge as 接收节点
+    participant Owner as 属主节点
+    participant Log as 日志
+    Caller->>Edge: 命令（请求 ID、等待计划）
+    Edge->>Edge: 准入：类型、身份、授权、解码、校验
+    Edge->>Owner: 经集群通道转发（或在本地执行）
+    Owner->>Owner: 重复？→ 用第一次的结果回答
+    Owner->>Owner: 加载状态、决定、演化
+    Owner->>Log: 追加（版本与请求 ID 唯一）
+    Log-->>Owner: 在某个位置提交
+    Owner-->>Edge: 结果与信号
+    Edge-->>Caller: 等待满足后返回结果
 ```
 
 ## 准入 {#admission}

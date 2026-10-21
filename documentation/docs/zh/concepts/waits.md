@@ -58,14 +58,14 @@ description: 发出命令后调用方可以等待什么、为什么默认等待�
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Caller
-    participant A as Context A, originating node
-    participant B as Context B, subscription or command
-    Caller->>A: command, wait plan: committed(A) > handled(B/…)
-    A->>A: register the wait: id, this node's internal address, the hops left, the deadline
-    A-->>B: published stream or command topic, carrying the wait context
-    B->>A: signal, straight to the originating node
-    A-->>Caller: the chain is complete
+    participant Caller as 调用方
+    participant A as 上下文 A，发起节点
+    participant B as 上下文 B，订阅或命令
+    Caller->>A: 命令，等待计划：committed(A) > handled(B/…)
+    A->>A: 登记等待：ID、本节点的内部地址、剩余的跳、截止时间
+    A-->>B: 发布的事件流或命令主题，带着等待上下文
+    B->>A: 信号，直接发往发起节点
+    A-->>Caller: 链已完成
 ```
 
 - **等待在命令发出之前登记。** 后面一跳的信号可能比前面一跳的先到，例如派生命令先提交了，Saga 自己那一跳才报告。发起节点保留提前到达的信号，按链的顺序重放。
