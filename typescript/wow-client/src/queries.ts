@@ -13,6 +13,8 @@
 
 import type { AggregationQuery } from './dsl/aggregation/index.js';
 import type { CursorPage, CursorQuery } from './dsl/cursorQuery.js';
+import type { Projected } from './dsl/projection.js';
+import { eventNumbers, type TextNumbers } from './exactJson.js';
 import type { QueryModelDescriptor } from './dsl/descriptor.js';
 import type { FilterCapable } from './dsl/filter/index.js';
 import type {
@@ -99,7 +101,9 @@ export type DescriptorResult =
 /**
  * Queries one query model of a Wow service: `POST {path}` with a body
  * whose `kind` names the operation, `GET {path}` for the capability
- * descriptor (decisions D127, D145).
+ * descriptor (decisions D127, D145). A query written with literal `include`
+ * paths answers records narrowed to them ({@link Projected}, review R4-Q,
+ * Q-14).
  *
  * @typeParam R - The record's type.
  * @typeParam FIELDS - The field paths a filter, sort or projection takes.
@@ -108,18 +112,38 @@ export class QueryModelClient<R, FIELDS extends string = string> {
   /**
    * @param path - The query route, `/{context}/{aggregate}/{model}/query`
    * @param client - How the service is reached
+   * @param numbers - The numbers of each record read as their exact text
+   *   (review R4-Q, Q-9)
    */
   constructor(
     readonly path: string,
     readonly client: WowClientOptions = {},
+    readonly numbers?: TextNumbers,
   ) {}
 
+  /** The marks of a list of records. */
+  private get listNumbers(): TextNumbers | undefined {
+    return this.numbers === undefined ? undefined : { '*': this.numbers };
+  }
+
+  /** The marks of a page of records. */
+  private get pageNumbers(): TextNumbers | undefined {
+    return this.numbers === undefined
+      ? undefined
+      : { list: { '*': this.numbers } };
+  }
+
   /** The records that match, at most `limit` (the server's default when absent). */
+  list<const INCLUDE extends FIELDS>(
+    query: Including<FilterListQuery<FIELDS>, INCLUDE>,
+    options?: RequestOptions,
+  ): Promise<Projected<R, INCLUDE>[]>;
+  list(query: FilterListQuery<FIELDS>, options?: RequestOptions): Promise<R[]>;
   async list(
     query: FilterListQuery<FIELDS>,
     options?: RequestOptions,
-  ): Promise<R[]> {
-    return json<R[]>(await this.post('list', query, options));
+  ): Promise<unknown> {
+    return json<R[]>(await this.post('list', query, options), this.listNumbers);
   }
 
   /**
@@ -130,10 +154,18 @@ export class QueryModelClient<R, FIELDS extends string = string> {
    * problem: see {@link StreamResumeOptions}. A `limit` counts every record
    * read, resumed or not.
    */
+  listStream<const INCLUDE extends FIELDS>(
+    query: Including<FilterListQuery<FIELDS>, INCLUDE>,
+    options?: ListStreamOptions,
+  ): Promise<ReadableStream<Projected<R, INCLUDE>>>;
+  listStream(
+    query: FilterListQuery<FIELDS>,
+    options?: ListStreamOptions,
+  ): Promise<ReadableStream<R>>;
   async listStream(
     query: FilterListQuery<FIELDS>,
     options?: ListStreamOptions,
-  ): Promise<ReadableStream<R>> {
+  ): Promise<unknown> {
     return (await this.listStreamRows(query, options)).pipeThrough(
       new TransformStream<StreamedRow<R>, R>({
         transform(row, controller) {
@@ -149,6 +181,14 @@ export class QueryModelClient<R, FIELDS extends string = string> {
    * ({@link StreamResumeOptions.lastEventId}), on another page or after a
    * restart.
    */
+  listStreamRows<const INCLUDE extends FIELDS>(
+    query: Including<FilterListQuery<FIELDS>, INCLUDE>,
+    options?: ListStreamOptions,
+  ): Promise<ReadableStream<StreamedRow<Projected<R, INCLUDE>>>>;
+  listStreamRows(
+    query: FilterListQuery<FIELDS>,
+    options?: ListStreamOptions,
+  ): Promise<ReadableStream<StreamedRow<R>>>;
   async listStreamRows(
     query: FilterListQuery<FIELDS>,
     options: ListStreamOptions = {},
@@ -175,32 +215,63 @@ export class QueryModelClient<R, FIELDS extends string = string> {
       {
         ...resume,
         ...(options.signal === undefined ? {} : { signal: options.signal }),
+        ...(this.numbers === undefined ? {} : { numbers: this.numbers }),
       },
     );
   }
 
   /** One page of the records that match, and their total. */
+  paged<const INCLUDE extends FIELDS>(
+    query: Including<PagedQuery<FIELDS>, INCLUDE>,
+    options?: RequestOptions,
+  ): Promise<PagedResult<Projected<R, INCLUDE>>>;
+  paged(
+    query: PagedQuery<FIELDS>,
+    options?: RequestOptions,
+  ): Promise<PagedResult<R>>;
   async paged(
     query: PagedQuery<FIELDS>,
     options?: RequestOptions,
-  ): Promise<PagedResult<R>> {
-    return json<PagedResult<R>>(await this.post('paged', query, options));
+  ): Promise<unknown> {
+    return json<PagedResult<R>>(
+      await this.post('paged', query, options),
+      this.pageNumbers,
+    );
   }
 
   /** One page of a forward-only cursor over the records that match. */
+  cursor<const INCLUDE extends FIELDS>(
+    query: Including<CursorQuery<FIELDS>, INCLUDE>,
+    options?: RequestOptions,
+  ): Promise<CursorPage<Projected<R, INCLUDE>>>;
+  cursor(
+    query: CursorQuery<FIELDS>,
+    options?: RequestOptions,
+  ): Promise<CursorPage<R>>;
   async cursor(
     query: CursorQuery<FIELDS>,
     options?: RequestOptions,
-  ): Promise<CursorPage<R>> {
-    return json<CursorPage<R>>(await this.post('cursor', query, options));
+  ): Promise<unknown> {
+    return json<CursorPage<R>>(
+      await this.post('cursor', query, options),
+      this.pageNumbers,
+    );
   }
 
   /** The first record that matches; rejects with 404 `wow.query.not-found` when none does. */
+  single<const INCLUDE extends FIELDS>(
+    query: Including<FilterSingleQuery<FIELDS>, INCLUDE>,
+    options?: RequestOptions,
+  ): Promise<Projected<R, INCLUDE>>;
+  single(
+    query: FilterSingleQuery<FIELDS>,
+    options?: RequestOptions,
+  ): Promise<R>;
   async single(
     query: FilterSingleQuery<FIELDS>,
     options?: RequestOptions,
-  ): Promise<R> {
-    return json<R>(await this.post('single', query, options));
+  ): Promise<unknown> {
+    return json<R>(await this.post('single', query, options), this.numbers);
   }
 
   /** How many records match, bounded by the count's limit. */
@@ -265,6 +336,14 @@ export class QueryModelClient<R, FIELDS extends string = string> {
   }
 }
 
+/**
+ * A query whose projection includes the literal paths `INCLUDE`: a query
+ * client narrows its records to them ({@link Projected}).
+ */
+export type Including<Q, INCLUDE extends string> = Q & {
+  readonly projection: { readonly include: readonly INCLUDE[] };
+};
+
 /** The query route of a model of an aggregate type. */
 export function queryPath(type: AggregateType, model: string): string {
   return `/${type.context}/${type.name}/${model}/query`;
@@ -292,7 +371,13 @@ export class SnapshotQueryClient<
     readonly type: AggregateType,
     client?: WowClientOptions,
   ) {
-    super(queryPath(type, 'snapshot'), client);
+    super(
+      queryPath(type, 'snapshot'),
+      client,
+      type.textNumbers?.state === undefined
+        ? undefined
+        : { state: type.textNumbers.state },
+    );
   }
 }
 
@@ -317,7 +402,12 @@ export class EventQueryClient<
     readonly type: AggregateType,
     client?: WowClientOptions,
   ) {
-    super(queryPath(type, 'events'), client);
+    const events = eventNumbers(type);
+    super(
+      queryPath(type, 'events'),
+      client,
+      events === undefined ? undefined : { events: { '*': events } },
+    );
   }
 }
 

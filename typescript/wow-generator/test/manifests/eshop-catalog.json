@@ -589,7 +589,7 @@
     },
     "me.ahoo.wow.example.eshop.catalog.api.product.ChangeProductPrice": {
       "type": "object",
-      "properties": { "price": { "type": "number" } },
+      "properties": { "price": { "type": "number", "format": "decimal" } },
       "required": ["price"],
       "description": "Change a product's price"
     },
@@ -600,7 +600,7 @@
         "categoryId": { "type": ["string", "null"] },
         "description": { "type": "string" },
         "name": { "type": "string" },
-        "price": { "type": "number" }
+        "price": { "type": "number", "format": "decimal" }
       },
       "required": ["name", "price"],
       "description": "Create a product"
@@ -617,7 +617,7 @@
         "categoryId": { "type": ["string", "null"] },
         "description": { "type": "string" },
         "name": { "type": "string" },
-        "price": { "type": "number" }
+        "price": { "type": "number", "format": "decimal" }
       },
       "required": ["name", "price"],
       "description": "A product was added to the catalog"
@@ -631,8 +631,8 @@
     "me.ahoo.wow.example.eshop.catalog.api.product.ProductPriceChanged": {
       "type": "object",
       "properties": {
-        "previous": { "type": "number" },
-        "price": { "type": "number" }
+        "previous": { "type": "number", "format": "decimal" },
+        "price": { "type": "number", "format": "decimal" }
       },
       "required": ["previous", "price"],
       "description": "A product's price changed"
@@ -684,7 +684,7 @@
         "categoryId": { "type": ["string", "null"] },
         "description": { "type": "string" },
         "name": { "type": "string" },
-        "price": { "type": "number" },
+        "price": { "type": "number", "format": "decimal" },
         "status": {
           "type": "string",
           "enum": ["DRAFT", "PUBLISHED", "DELISTED"]

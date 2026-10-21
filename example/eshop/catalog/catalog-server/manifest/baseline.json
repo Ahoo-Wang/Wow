@@ -535,7 +535,8 @@
       "type" : "object",
       "properties" : {
         "price" : {
-          "type" : "number"
+          "type" : "number",
+          "format" : "decimal"
         }
       },
       "required" : [ "price" ],
@@ -557,7 +558,8 @@
           "type" : "string"
         },
         "price" : {
-          "type" : "number"
+          "type" : "number",
+          "format" : "decimal"
         }
       },
       "required" : [ "name", "price" ],
@@ -588,7 +590,8 @@
           "type" : "string"
         },
         "price" : {
-          "type" : "number"
+          "type" : "number",
+          "format" : "decimal"
         }
       },
       "required" : [ "name", "price" ],
@@ -608,10 +611,12 @@
       "type" : "object",
       "properties" : {
         "previous" : {
-          "type" : "number"
+          "type" : "number",
+          "format" : "decimal"
         },
         "price" : {
-          "type" : "number"
+          "type" : "number",
+          "format" : "decimal"
         }
       },
       "required" : [ "previous", "price" ],
@@ -697,7 +702,8 @@
           "type" : "string"
         },
         "price" : {
-          "type" : "number"
+          "type" : "number",
+          "format" : "decimal"
         },
         "status" : {
           "type" : "string",

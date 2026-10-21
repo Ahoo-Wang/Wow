@@ -19,6 +19,7 @@ import {
   type WowClientOptions,
   WowHeaders,
 } from './http.js';
+import { eventNumbers, type TextNumbers } from './exactJson.js';
 import type {
   AggregateType,
   EventView,
@@ -124,7 +125,7 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
     }
     return {
       notModified: false,
-      view: await json<StateView<S>>(response),
+      view: await json<StateView<S>>(response, this.stateNumbers),
       etag: entityTag(response),
     };
   }
@@ -153,7 +154,29 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
         query: { from: options.from, to: options.to, limit: options.limit },
         options,
       }),
+      this.traceNumbers,
     );
+  }
+
+  /** The exact numbers of a state view: its state's. */
+  private get stateNumbers(): TextNumbers | undefined {
+    const state = this.type.textNumbers?.state;
+    return state === undefined ? undefined : { state };
+  }
+
+  /** The exact numbers of a trace: each commit's state and events. */
+  private get traceNumbers(): TextNumbers | undefined {
+    const state = this.type.textNumbers?.state;
+    const events = eventNumbers(this.type);
+    if (state === undefined && events === undefined) return undefined;
+    return {
+      commits: {
+        '*': {
+          ...(state === undefined ? {} : { state }),
+          ...(events === undefined ? {} : { events: { '*': events } }),
+        },
+      },
+    };
   }
 
   private statePath(id: string): string {

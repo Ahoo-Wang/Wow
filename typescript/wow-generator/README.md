@@ -46,7 +46,7 @@ const basket = new BasketCommandClient({ fetcher });
 const baskets = new BasketSnapshotQueryClient({ fetcher });
 
 await basket.addBasketItem(
-  { productId: 'p-1', quantity: 2, unitPrice: 10 },
+  { productId: 'p-1', quantity: 2, unitPrice: '10.00' },
   { id: 'buyer-1' },
 );
 const page = await baskets.paged({ filter: filter.matchAll() });

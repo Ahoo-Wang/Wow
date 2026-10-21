@@ -158,6 +158,14 @@ class SchemaCompatibilityTest {
             ),
             row("format imposed", STRING, STRING + ("format" to "date"), "BREAKING s: format date imposed"),
             row("format lifted", STRING + ("format" to "date"), STRING, "ADDITIVE s: format date lifted"),
+            // A wire format says how a client reads the number, not which numbers are valid (review R4-Q, Q-9).
+            row("wire format added", mapOf("type" to "integer"), mapOf("type" to "integer", "format" to "int64")),
+            row(
+                "wire format swapped",
+                mapOf("type" to "integer", "format" to "int64"),
+                mapOf("type" to "number", "format" to "decimal"),
+                "ADDITIVE s: type widened from [integer] to [number]",
+            ),
             row(
                 "pattern changed",
                 STRING + ("pattern" to "a"),

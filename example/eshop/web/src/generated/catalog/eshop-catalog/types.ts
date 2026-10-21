@@ -63,7 +63,7 @@ export interface CategoryState {
  * - key: `me.ahoo.wow.example.eshop.catalog.api.product.ChangeProductPrice`
  */
 export interface ChangeProductPrice {
-  price: number;
+  price: string;
 }
 
 
@@ -94,7 +94,7 @@ export interface CreateProduct {
   categoryId?: string | null;
   description?: string;
   name: string;
-  price: number;
+  price: string;
 }
 
 
@@ -116,7 +116,7 @@ export interface ProductCreated {
   categoryId?: string | null;
   description?: string;
   name: string;
-  price: number;
+  price: string;
 }
 
 
@@ -134,8 +134,8 @@ export interface ProductDelisted {
  * - key: `me.ahoo.wow.example.eshop.catalog.api.product.ProductPriceChanged`
  */
 export interface ProductPriceChanged {
-  previous: number;
-  price: number;
+  previous: string;
+  price: string;
 }
 
 
@@ -151,7 +151,7 @@ export interface ProductState {
   categoryId?: string | null;
   description: string;
   name: string;
-  price: number;
+  price: string;
   status: 'DRAFT' | 'PUBLISHED' | 'DELISTED';
 }
 

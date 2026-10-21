@@ -65,6 +65,7 @@ class OrderingServerTest {
         "--eshop.ordering.payment-grace-period=2s",
     )
     // endregion
+
     private val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
     private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
     private val json = JsonMapper.builder().build()

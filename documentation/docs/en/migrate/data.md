@@ -6,7 +6,17 @@ outline: deep
 
 # Migrate the Data
 
-This page walks through moving a 9.x service's data into V10 with the `migrate-data` tool, while 9.x keeps serving. By the end, the V10 log holds the whole history, V10 rebuilds the same state as 9.x for every aggregate you can compare, and you are ready to cut over. Every command and setting is listed in the [migrate-data reference](../reference/migrate-data).
+This page walks through moving a 9.x service's data into V10 with the `migrate-data` tool and cutting over. By the end, the V10 log holds the whole history, V10 rebuilds the same state as 9.x for every aggregate you can compare, and V10 serves the traffic. Every command and setting is listed in the [migrate-data reference](../reference/migrate-data).
+
+There are two ways to cut over:
+
+| | Offline, the default | Online, for large systems |
+| --- | --- | --- |
+| 9.x writes stop | Before the import, for the whole migration | Only for the final pass, after the history is imported while 9.x serves |
+| Steps | Import, compare, snapshots and tags, start V10 | Import, follow 9.x, V10 on standby, then a short final pass and resume |
+| Use it when | The service can stop writing for as long as a full import takes | A full import takes longer than the service can stop writing |
+
+The offline path is shorter and has fewer moving parts, so use it unless the write stop is too long. Measure it in a rehearsal: on 50,000 orders, a full offline import took 97 seconds; the online path stopped writes for 116 seconds, of which its final pass took 13. The online path pays off only once the history is much larger than the final window.
 
 ## What moves, and what does not
 
@@ -81,24 +91,16 @@ Run the tool from a checkout of the Wow release you migrate to:
 
 Fix the map, or the source, and check again until it passes. `import --dry-run` goes one step further: it reads and converts every stream without writing.
 
-## 3. Import
+## 3. Stop 9.x writing
+
+Stop every 9.x node that writes, and the 9.x compensation service. 9.x may keep serving reads from its own store, but nothing may commit until V10 takes over: a stream 9.x commits after the import is not in V10.
+
+## 4. Import
 
 `import` checks again, then imports every mapped aggregate, the reserved keys and the unresolved compensation executions. It records its progress in the checkpoint file, so a run that stops resumes where it stopped, repeating at most one page. Appends are idempotent: a stream already in the log is not written twice.
 
 - **Reserved keys.** A key 9.x holds forever becomes a confirmed reservation of the aggregate whose id its value holds, in the tenant that aggregate's 9.x streams record, and in the namespace and tenancy the map gives. Keys with a time to live, and expired keys, are skipped. A key whose owner cannot be found, or appears in several tenants, is printed as `UNRESOLVED` and not imported.
 - **Unresolved executions.** Each `FAILED` or `PREPARED` execution of the 9.x compensation service becomes a parked aggregate of the mapped V10 subscription, from the failed version, with its retry state and its recoverable mark. After the cut-over, the V10 service retries it, and the ops console lists it. An execution that cannot be placed is printed as `UNRESOLVED`.
-
-9.x keeps changing keys and executions while you migrate. Each import from the start reconciles what earlier runs imported: it releases a key 9.x gave up, and resolves an entry whose execution 9.x has since settled.
-
-## 4. Follow 9.x
-
-While 9.x still serves, `tail` follows the streams it commits after the import. 9.x has no position to resume from, so the tail scans by commit time, going back a window each pass, five minutes by default, to catch streams that became visible late; the log's version key absorbs the overlap.
-
-The tail reads each event stream collection by a `(createTime, _id)` index. Without it, the tail refuses to start and prints the command that creates it; build it when it suits the 9.x database, or let the tool create it.
-
-`tail` runs until it is stopped. `tail --once` makes one pass. Keep `tail` running until 9.x stops writing: the cut-over's final pass is then `import --final`, which reads from where the tail stopped instead of walking every stream again.
-
-Through this dual run, start the V10 service's nodes on standby, with [`wow.standby`](../reference/configuration) set to `true`. A node on standby serves state reads and queries of what the tail imports, and refuses every command with [`wow.node.standby`](../reference/error-codes) (503), so nothing writes to V10 before the cut-over. It joins no lease group: no subscription handles anything, no parked entry is retried, and no job or schedule runs. A saga or a reactor that starts at the end of its stream starts where the stream ends when the node resumes, so it never acts on the imported 9.x history.
 
 ## 5. Compare
 
@@ -116,7 +118,7 @@ DIFFERS example-service.order (0)/0VY3GwaK4OmV00E v4: paidAmount: 9.x 25.00, V10
 
 The summary of each aggregate gives the share of instances that have a 9.x snapshot, how many were compared, and the differing fields by kind. The command exits with `3` when anything differs.
 
-**Do not cut over on an unexplained difference.** Zero differences may not be reachable: 9.x snapshots can carry defects that V10 does not reproduce, and some aggregates have no snapshot to compare with. So review the differences kind by kind. Each kind must be explained, as a known 9.x defect or an intended change of semantics, and signed off. Where a field exists on one side only by design, list it in the map's `state.ignore`, and where the Skill renamed a state field, in `state.fields`.
+**Do not cut over on an unexplained difference.** Zero differences may not be reachable: 9.x snapshots can carry defects that V10 does not reproduce, and some aggregates have no snapshot to compare with. So review the differences kind by kind. Each kind must be explained, as a known 9.x defect or an intended change of semantics, and signed off. Where a field exists on one side only by design, list it in the map's `state.ignore`, and where the Skill renamed a state field, in `state.fields`. Review the kinds in a rehearsal, so the real cut-over only confirms them.
 
 `compare --sample 10` compares 10% of the instances, always the same ones, for quicker iterations.
 
@@ -128,20 +130,43 @@ The summary of each aggregate gives the share of instances that have a 9.x snaps
 
 Streams the import appended carry no tags yet, and attribute-based access control on the `events` model matches no stream without tags. Run `backfill-tags` once the import is done: it replays each aggregate and records the tags it had after each stream. If the services copy event streams to Elasticsearch, it then rewrites the search documents indexed without tags.
 
-## 8. Cut over
+## 8. Start V10 and switch traffic
 
-The cut-over is a blue-green switch:
-
-1. Stop 9.x writing, and stop the 9.x compensation service.
-2. Run the final pass. If `tail` followed 9.x until it stopped, run `import --final`: one tail pass from the tail's checkpoint, then the reserved keys and the compensation executions walked again, since the tail follows neither. It refuses, writing nothing, when an aggregate's tail did not run continuously. Otherwise, or after it refuses, run `import --restart`: a complete pass from the first instance, which takes as long as the whole history.
-3. Run `compare` and review the result.
-4. Run `snapshot` and `backfill-tags`.
-5. Resume every V10 node: `POST /wow/node/resume` on its internal port, with the cluster token and a JSON body naming who resumes it and why (`by`, `reason`). The node joins its lease groups, starts its subscriptions, retries and jobs, then admits commands; the resume ends the write stop. `GET /wow/node/standby` answers a node's status. A node left on standby keeps refusing commands and takes no partition.
-6. Switch traffic to V10, and move every external consumer of 9.x topics to the V10 published streams. There is no 9.x-format sink.
+1. Start the V10 service's nodes. A saga or a reactor starts at the end of its stream, so it does not act on the imported 9.x history; a projection starts at the beginning and builds its read model from it.
+2. Switch traffic to V10, and move every external consumer of 9.x topics to the V10 published streams. There is no 9.x-format sink.
 
 V10 parks the aggregate, not the event: a parked aggregate's later events wait while it is parked, and resuming it replays its streams from the failed version on, including streams 9.x had already handled after the failure. Handlers must tolerate that, as they tolerate any redelivery.
 
-## 9. Roll back
+## Online cut-over for large systems
+
+When a full import takes longer than the service can stop writing, import the history while 9.x still serves, follow what it keeps writing, and stop its writes only for a short final pass.
+
+### Import while 9.x serves
+
+Run steps 1 and 2, then `import` (step 4) without stopping 9.x. 9.x keeps changing keys and executions while you migrate: each import from the start reconciles what earlier runs imported, releasing a key 9.x gave up and resolving an entry whose execution 9.x has since settled.
+
+### Follow 9.x
+
+`tail` follows the streams 9.x commits after the import. 9.x has no position to resume from, so the tail scans by commit time, going back a window each pass, five minutes by default, to catch streams that became visible late; the log's version key absorbs the overlap.
+
+The tail reads each event stream collection by a `(createTime, _id)` index. Without it, the tail refuses to start and prints the command that creates it; build it when it suits the 9.x database, or let the tool create it.
+
+`tail` runs until it is stopped. `tail --once` makes one pass. Keep `tail` running until 9.x stops writing: the cut-over's final pass is then `import --final`, which reads from where the tail stopped instead of walking every stream again.
+
+### V10 on standby
+
+Through this dual run, start the V10 service's nodes on standby, with [`wow.standby`](../reference/configuration) set to `true`. A node on standby serves state reads and queries of what the tail imports, and refuses every command with [`wow.node.standby`](../reference/error-codes) (503), so nothing writes to V10 before the cut-over. It joins no lease group: no subscription handles anything, no parked entry is retried, and no job or schedule runs. A saga or a reactor that starts at the end of its stream starts where the stream ends when the node resumes, so it never acts on the imported 9.x history.
+
+### The cut-over
+
+1. Stop 9.x writing, and stop the 9.x compensation service.
+2. Run the final pass. If `tail` followed 9.x until it stopped, run `import --final`: one tail pass from the tail's checkpoint, then the reserved keys and the compensation executions walked again, since the tail follows neither. It refuses, writing nothing, when an aggregate's tail did not run continuously. Otherwise, or after it refuses, run `import --restart`: a complete pass from the first instance, which takes as long as the whole history.
+3. Run `compare` and review the result (step 5).
+4. Run `snapshot` and `backfill-tags` (steps 6 and 7).
+5. Resume every V10 node: `POST /wow/node/resume` on its internal port, with the cluster token and a JSON body naming who resumes it and why (`by`, `reason`). The node joins its lease groups, starts its subscriptions, retries and jobs, then admits commands; the resume ends the write stop. `GET /wow/node/standby` answers a node's status. A node left on standby keeps refusing commands and takes no partition.
+6. Switch traffic to V10, and move every external consumer of 9.x topics to the V10 published streams.
+
+## Roll back
 
 Until V10 writes anything, rolling back is switching traffic back to 9.x. Once V10 has served writes, 9.x lacks what V10 committed since the cut-over, and `export` writes it back into the 9.x store, for the event types 9.x already had.
 

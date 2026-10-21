@@ -1,7 +1,7 @@
 {
   "version": 1,
   "files": {
-    "eshop-inventory/boundedContext.ts": "a313df26f93d2034a524927b110111075bb47c3c44ab2833e87b7f7dedff3bbb",
+    "eshop-inventory/boundedContext.ts": "c3cef60fbe8d3bca37a1a056021cba45c1d0d01b7191ae7b5475ffc95a6819a4",
     "eshop-inventory/index.ts": "86daaf1034654bc7ce3eabf9e2ecde802b0880df401b0d4befc727dd6d3def76",
     "eshop-inventory/stock/aggregate.ts": "55864bc4fa8ff3a1df22ee8a9018c80d237555b68c6e3ee1fa472799c96867b9",
     "eshop-inventory/stock/commandClient.ts": "73cc5f04e5f929bea4d4ca3be0246c69c4467ee94251a20c9f167e203838e372",

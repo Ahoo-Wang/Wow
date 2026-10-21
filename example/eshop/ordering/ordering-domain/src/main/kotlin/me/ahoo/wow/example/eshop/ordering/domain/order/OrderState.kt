@@ -57,6 +57,7 @@ class OrderState {
         0
     ) { total, item -> total + item.quantity }
 
+    // region sourcing
     fun onSourcing(event: OrderSubmitted) {
         items = event.items
         totalAmount = event.items.fold(BigDecimal.ZERO) { total, item ->
@@ -64,6 +65,7 @@ class OrderState {
         }
         status = OrderStatus.SUBMITTED
     }
+    // endregion
 
     @Suppress("UnusedParameter")
     fun onSourcing(event: OrderAwaitingValidation) {
