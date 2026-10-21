@@ -30,9 +30,9 @@ Wow V10 是一次重新设计，而不是原地升级。它保留了 9.x 服务�
 
 ```mermaid
 flowchart LR
-    SRC[9.x source] --> SKILL[wow-migrate Skill] --> SRC10[V10 source]
+    SRC[9.x 源码] --> SKILL[wow-migrate Skill] --> SRC10[V10 源码]
     SKILL --> MAP[(migration-map.json)]
-    DATA[(9.x event store)] --> TOOL[migrate-data] --> LOG[(V10 log and snapshots)]
+    DATA[(9.x 事件存储)] --> TOOL[migrate-data] --> LOG[(V10 日志与快照)]
     MAP --> TOOL
     SRC10 -. Manifest .-> TOOL
 ```
