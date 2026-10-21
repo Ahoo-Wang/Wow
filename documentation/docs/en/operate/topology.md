@@ -177,7 +177,7 @@ livenessProbe:
 - **Readiness** fails until the node runs, while its log or lease store is down, while it owns none of its share of partitions past a hand-over grace period, or while a topic it reads is still joining.
 - **Liveness** fails only when the node is stuck: its dispatcher or its commands make no progress while its stores answer. It never fails for a storage outage, and not while the node drains, so an outage does not restart every node at once.
 
-## Standby for a migration's cut-over
+## Standby for a migration's cut-over {#standby-for-a-migrations-cut-over}
 
 Through the dual-run window of a 9.x cut-over, `migrate-data tail` imports what 9.x keeps writing while the V10 service serves reads. Start its nodes with `wow.standby: true`:
 
