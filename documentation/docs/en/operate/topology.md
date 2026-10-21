@@ -176,3 +176,23 @@ livenessProbe:
 
 - **Readiness** fails until the node runs, while its log or lease store is down, while it owns none of its share of partitions past a hand-over grace period, or while a topic it reads is still joining.
 - **Liveness** fails only when the node is stuck: its dispatcher or its commands make no progress while its stores answer. It never fails for a storage outage, and not while the node drains, so an outage does not restart every node at once.
+
+## Standby for a migration's cut-over
+
+Through the dual-run window of a [9.x cut-over](../migrate/data), `migrate-data tail` imports what 9.x keeps writing while the V10 service serves reads. Start its nodes with `wow.standby: true`:
+
+- They serve state reads and queries of what the tail imports.
+- They refuse every command with `wow.node.standby` (503), so nothing writes to V10 before the cut-over.
+- They join no lease group: no subscription handles anything, no parked entry is retried, no job or schedule runs. A saga or a reactor that starts at the end of its stream starts where the stream ends at the resume, so it never acts on the imported 9.x history.
+
+At the cut-over, once 9.x has stopped and the final pass, `compare`, `snapshot` and `backfill-tags` have run, resume each node on its internal port with the cluster token. The body names who resumes it and why, for the audit:
+
+```bash
+curl -X POST "http://<node>:9090/wow/node/resume" \
+  -H "Wow-Cluster-Token: $WOW_INTERNAL_TOKEN" -H "Content-Type: application/json" \
+  -d '{"by": "<operator>", "reason": "cut-over <ticket>"}'
+```
+
+The node joins its lease groups, starts its subscriptions, its parked-entry retries, its jobs and its snapshot maintenance, then admits commands. It answers its standby status, `standby: false`, `resumedAt`, `resumedBy` and `reason`, and logs the same at `WARN`.
+
+`GET /wow/node/standby`, with the cluster token, answers that status at any time. Resuming a node that is not on standby changes nothing and answers when it was resumed. Resume every node of the service: one left on standby keeps refusing commands and takes no partition.

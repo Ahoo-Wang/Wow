@@ -236,6 +236,7 @@ The framework's codes, as the Manifest lists them (`FrameworkErrors`):
 | `wow.command.busy` | 429 | The node has too many commands in flight |
 | `wow.command.unknown` | 503 | Whether the command committed is unknown; retrying with the same request id is safe |
 | `wow.node.closing` | 503 | The node is shutting down; retry on another node |
+| `wow.node.standby` | 503 | The node is on standby until a migration's cut-over: it serves reads only |
 | `wow.subscription.parked` | 500 | A subscription on the wait chain parked the aggregate |
 | `wow.wait.timeout` | 504 | The wait ran out of time; the command may have committed, and the problem carries the last stage reached |
 | `wow.query.malformed` | 400 | The query body cannot be read as a query |

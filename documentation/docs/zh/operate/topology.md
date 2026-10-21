@@ -176,3 +176,23 @@ livenessProbe:
 
 - **就绪**在以下情况失败：节点尚未运行、它的日志存储或租约存储不可用、交接宽限期过后它仍没有拥有应得的任何分区，或者它读取的某个主题仍在加入中。
 - **存活**只在节点卡住时失败：它的存储有响应，但它的调度器或命令没有进展。它从不因存储故障而失败，节点排空期间也不会失败，所以一次故障不会让所有节点同时重启。
+
+## 迁移切换时的待机 {#standby-for-a-migrations-cut-over}
+
+9.x 切换的双跑窗口里，`migrate-data tail` 持续导入 9.x 仍在写入的数据，V10 服务只提供读。为此让它的节点以 `wow.standby: true` 启动：
+
+- 节点为追尾导入的数据提供状态读取与查询。
+- 节点拒绝一切命令，返回 `wow.node.standby`（503），所以切换之前什么也不会写入 V10。
+- 节点不加入任何租约组：不处理订阅，不重试停放的条目，不运行作业或定时任务。从流末尾开始的 Saga 或 Reactor 从恢复时流的末尾开始，所以不会再对导入的 9.x 历史执行一遍。
+
+切换时，9.x 停止、最后一遍 `migrate-data import --restart` 完成之后，在每个节点的内部端口上带集群令牌恢复它。请求体写明由谁恢复，供审计：
+
+```bash
+curl -X POST "http://<node>:9090/wow/node/resume" \
+  -H "Wow-Cluster-Token: $WOW_INTERNAL_TOKEN" -H "Content-Type: application/json" \
+  -d '{"by": "<operator>", "reason": "cut-over <ticket>"}'
+```
+
+节点加入它的租约组，启动订阅、停放条目的重试、作业与快照维护，然后开始接收命令。它返回自己的待机状态：`standby: false`、`resumedAt`、`resumedBy` 与 `reason`，并以 `WARN` 级别记录同样的内容：由谁、为何、何时恢复。
+
+`GET /wow/node/standby`（集群令牌）随时返回该状态。恢复一个不在待机的节点不改变任何东西，只返回它何时被恢复过。要恢复服务的每个节点：留在待机的节点会继续拒绝命令，也不接管分区。

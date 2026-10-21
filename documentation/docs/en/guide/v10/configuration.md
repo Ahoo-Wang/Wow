@@ -34,6 +34,7 @@ wow:
 | `wow.internal.signal-queue-capacity` | `1024` | The wait signals queued per origin node before they are dropped |
 | `wow.contexts.include` | Empty: every context on the class path | The bounded contexts the node serves, by name |
 | `wow.contexts.exclude` | Empty | Contexts removed from what `include` (or the class path) gives |
+| `wow.standby` | `false` | The node starts on standby for a migration's dual-run window: it serves reads, refuses commands (`wow.node.standby`) and handles no subscription until its operator resumes it ([Topology](../../operate/topology.md#standby-for-a-migrations-cut-over)) |
 
 The host serves every context of the domain modules on its class path. `wow.contexts.*` selects some of them, for a class path that holds several contexts: a modular monolith that switches contexts by configuration, or end-to-end tests that start several services in one JVM, each including its own context (the eShop's `EshopSharedJvmTest`). The node is built for the selected contexts only: their models, their Manifest fragments, their routes and their processors; a context left out is another service's, reached through its peers. A name that is no context on the class path, a name both included and excluded, and a selection that leaves no context fail the startup, naming the contexts on the class path.
 

@@ -33,6 +33,7 @@ wow:
 | `wow.internal.connect-timeout` | `1s` | 对端接受集群通道或信号发送连接的时限 |
 | `wow.internal.signal-queue-capacity` | `1024` | 每个来源节点排队的等待信号数，超过即丢弃 |
 | `wow.contexts.include` | 空：类路径上的全部上下文 | 节点提供的限界上下文，按名字 |
+| `wow.standby` | `false` | 节点以待机状态启动，用于迁移的双跑窗口：提供读，拒绝命令（`wow.node.standby`），不处理任何订阅，直到运维人员恢复它（[拓扑](../../operate/topology.md#standby-for-a-migrations-cut-over)） |
 | `wow.contexts.exclude` | 空 | 从 `include`（或类路径）给出的上下文中去掉的上下文 |
 
 宿主提供类路径上领域模块的全部上下文。类路径上有多个上下文时，用 `wow.contexts.*` 选择其中一部分：按配置切换上下文的模块化单体，或在一个 JVM 中启动多个服务、每个只包含自己上下文的端到端测试（eShop 的 `EshopSharedJvmTest`）。节点只为选中的上下文构建：它们的模型、Manifest 片段、路由与处理器；没选中的上下文就是另一个服务的，经对端访问。类路径上不存在的名字、既包含又排除的名字，以及一个上下文都不剩的选择，都会让启动失败，并列出类路径上的上下文。

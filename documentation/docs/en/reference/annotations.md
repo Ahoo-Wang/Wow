@@ -7,7 +7,7 @@ description: "The annotations of the programming model: where each goes, its par
 
 # Annotations
 
-The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artifact `wow-api`), generated from [their sources](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation). The compiler reads them at build time; each name links to its source, whose documentation says the rest.
+The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artifact `wow-api`), generated from [their sources](https://github.com/Ahoo-Wang/Wow/tree/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation). The compiler reads them at build time; each name links to its source, whose documentation says the rest.
 
 ## `@AfterCommand`
 
