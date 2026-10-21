@@ -14,7 +14,7 @@ description: "Wow 每次发布到 Maven Central 的每个制品，以及它包�
 | 制品 | 目录 | 内容 |
 | --- | --- | --- |
 | `me.ahoo.wow:wow-bom` | [`bom/bom`](https://github.com/Ahoo-Wang/Wow/tree/v10/bom/bom) | BOM：下列每个制品的版本，构建以 platform 导入。 |
-| `me.ahoo.wow:wow-dependencies` | [`wow-dependencies`](https://github.com/Ahoo-Wang/Wow/tree/v10/wow-dependencies) | 第三方依赖的版本，每个发布的 POM 都导入它。 |
+| `me.ahoo.wow:wow-dependencies` | [`bom/dependencies`](https://github.com/Ahoo-Wang/Wow/tree/v10/bom/dependencies) | 第三方依赖的版本，每个发布的 POM 都导入它。 |
 | `me.ahoo.wow:wow-api` | [`api/api`](https://github.com/Ahoo-Wang/Wow/tree/v10/api/api) | What domain code imports, the value types of the wire contract (Command, CommandResult, WaitPlan) and the typed QueryApi |
 | `me.ahoo.wow:wow-manifest` | [`api/manifest`](https://github.com/Ahoo-Wang/Wow/tree/v10/api/manifest) | The contract every projection reads (REST, OpenAPI, clients, views, Skills); plain data |
 | `me.ahoo.wow:wow-query-api` | [`api/query-api`](https://github.com/Ahoo-Wang/Wow/tree/v10/api/query-api) | The query protocol (filters, sort, pagination, projection, aggregation) and the query field annotations, as plain data; no dependencies |

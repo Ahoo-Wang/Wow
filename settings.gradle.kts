@@ -45,6 +45,7 @@ if (providers.gradleProperty("wow.publication.prebuilt").orNull.toBoolean()) {
 }
 
 include(":wow-dependencies")
+project(":wow-dependencies").projectDir = file("bom/dependencies")
 include(":code-coverage-report")
 project(":code-coverage-report").projectDir = file("test/code-coverage-report")
 
