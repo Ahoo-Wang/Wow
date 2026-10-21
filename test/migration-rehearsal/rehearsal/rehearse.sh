@@ -31,8 +31,8 @@
 #   6. V10 traffic for V10_SECONDS: orders moved on, carts filled, views renamed
 #   7. rollback after V10 writes: V10 stops, export writes its streams back, 9.x starts, its order states equal
 #                V10's and it renames every view V10 renamed on the version V10 left, and it takes writes again
-#   8. refusal   V10 creates orders and saves views (OrderCreated and ViewSaved at revision 2, which 9.x cannot
-#                read) and export --dry-run refuses
+#   8. refusal   V10 creates orders and views (OrderCreated and ViewCreated at revision 2, which 9.x cannot read)
+#                and export --dry-run refuses
 #
 # Environment: NINEX_HOME (the 9.x example-server's installDist), V10_HOME (:migration-rehearsal's installDist),
 # VIEWS_HOME (:view-store-server's installDist), MIGRATE_HOME (:migrate-data's installDist), MANIFEST (the rehearsal
@@ -395,8 +395,7 @@ step ninex-after-rollback 0 ninex_streams
 stop_pid ninex
 start_hosts
 step v10-new-orders 0 driver traffic --version=v10 --base="$V10_URL" --book="$WORK/book.tsv" --seconds=3 --create=5
-# Views 9.x has not renamed since the rollback: V10 saves them on the versions 9.x holds too.
-step v10-saved-views 0 driver views traffic --version=v10 --base="$VIEWS_URL" --book="$WORK/views.tsv" --save=5 --except="$WORK/v10-views-touched.tsv"
+step v10-new-views 0 driver views traffic --version=v10 --base="$VIEWS_URL" --book="$WORK/views.tsv" --seconds=3 --create=5
 stop_hosts
 step export-refused 1 migrate export --dry-run
 

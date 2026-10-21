@@ -39,8 +39,7 @@ data class BookedView(val ref: ViewRef, val title: String, val version: Int, val
  *
  * ```text
  * driver views seed    --base=<9.x url> --book=<file> --views=N [--tenants=T] [--users=U]
- * driver views traffic --version=9x|v10 --base=<url> --book=<file> --seconds=S [--touched=<file>]
- *                      [--save=K [--except=<file>]]
+ * driver views traffic --version=9x|v10 --base=<url> --book=<file> --seconds=S [--touched=<file>] [--create=K]
  * driver views await   --base=<v10 url> --touched=<file> [--timeout=S]
  * driver views states  --version=9x|v10 --base=<url> --book=<file> --out=<file> [--sample=N]
  * driver views verify  --base=<9.x url> --touched=<file>
@@ -49,8 +48,8 @@ data class BookedView(val ref: ViewRef, val title: String, val version: Int, val
  * - `seed` creates N views in 9.x, each taken through what its index draws: saved, renamed, shared (its owner becomes
  *   `(shared)`) and claimed by another user (a 9.x `ViewAudienceChanged`, an owner transfer), or deleted; each user's
  *   preferences for a definition; each tenant's wording of three datasets, one of them cleared again.
- * - `traffic` renames personal views for S seconds; with `--save`, it saves K views instead (on V10 a `ViewSaved` at
- *   revision 2, which 9.x cannot read), none of those listed in the `--except` file, and nothing else.
+ * - `traffic` renames personal views for S seconds; with `--create`, it creates K views instead (on V10 a
+ *   `ViewCreated` at revision 2, which 9.x cannot read), and nothing else.
  * - `await` waits until V10 holds every touched view at its version; `states` reads every N-th view that is not
  *   deleted, its version and its state without what one version derives (`id`, V10's `kind`), for `driver compare`.
  * - `verify` renames, in 9.x after the rollback, every view V10 touched, and checks that 9.x applies it on the version
@@ -154,23 +153,22 @@ class ViewsDriver(private val args: List<String>, private val concurrency: Int) 
     private fun traffic(): Int {
         val endpoints = ViewEndpoints.of(required("version"), required("base"))
         val bookFile = File(required("book"))
-        val except = options["except"]?.let { readViews(File(it)).map { view -> view.ref.id }.toSet() }.orEmpty()
-        val run = Traffic(endpoints, readViews(bookFile), except)
-        val toSave = options["save"]?.toInt() ?: 0
-        if (toSave > 0) run.save(toSave) else run.rename(required("seconds").toLong())
+        val run = Traffic(endpoints, readViews(bookFile))
+        val toCreate = options["create"]?.toInt() ?: 0
+        if (toCreate > 0) run.create(toCreate) else run.rename(required("seconds").toLong())
         writeViews(bookFile, run.book.values)
         options["touched"]?.let { writeViews(File(it), run.touched.values) }
         println(
             run.stats.json(
                 "views-traffic",
-                "\"touched\":${run.touched.size},\"saved\":${if (toSave > 0) run.touched.size else 0}",
+                "\"touched\":${run.touched.size},\"created\":${if (toCreate > 0) run.touched.size else 0}",
             )
         )
         return OK
     }
 
-    /** One run of `traffic` over the booked views: it renames personal views, or saves some. */
-    private inner class Traffic(val endpoints: ViewEndpoints, views: List<BookedView>, except: Set<String>) {
+    /** One run of `traffic` over the booked views: it renames personal views, or creates some. */
+    private inner class Traffic(val endpoints: ViewEndpoints, views: List<BookedView>) {
         val book = ConcurrentHashMap(views.associateBy { it.ref.id })
         val touched = ConcurrentHashMap<String, BookedView>()
         val stats = Stats()
@@ -178,13 +176,18 @@ class ViewsDriver(private val args: List<String>, private val concurrency: Int) 
             .sorted()
         private val sequence = AtomicLong()
 
-        private val savable = personal - except
-
-        fun save(count: Int) = parallel(0 until count.coerceAtMost(savable.size)) { index ->
-            val view = book.getValue(savable[index])
-            val outcome = endpoints.save(view.ref, config(KINDS[index % KINDS.size], index + SAVE_SEED))
+        fun create(count: Int) = parallel(0 until count) { index ->
+            val owner = user(0)
+            val title = "New view $index"
+            val outcome = endpoints.create(
+                tenant(0, 1),
+                owner,
+                """{"definitionId":"${definition(
+                    index
+                )}","title":"$title","config":${config(KINDS[index % KINDS.size], index)}}""",
+            )
             stats.count(outcome)
-            if (outcome.ok) booked(view.copy(version = outcome.version ?: (view.version + 1)))
+            outcome.id?.let { booked(BookedView(ViewRef(it, tenant(0, 1), owner), title, outcome.version ?: 1, false)) }
         }
 
         fun rename(seconds: Long) {
@@ -333,7 +336,6 @@ class ViewsDriver(private val args: List<String>, private val concurrency: Int) 
         const val SHARED = 20
         const val CLAIMED = 50
         const val DELETED = 10
-        const val SAVE_SEED = 1_000
         const val WORKER_SEED = 7919
         const val POLL_MILLIS = 200L
         const val MAX_PRINTED = 20

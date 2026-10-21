@@ -82,7 +82,7 @@ lines += [
     f"- After V10 writes ({data('v10-traffic').get('commands', '?')} V10 commands): rollback took {seconds('rollback-after')}; "
     + "; ".join(log_lines("export", r" done: |^EQUAL|^DIFFERS"))
     + f"; 9.x states vs V10: {data('rollback-after-compare')}; 9.x then took {data('ninex-after-rollback-traffic').get('commands', '?')} writes.",
-    f"- Refusal: after V10 created orders and saved views, export --dry-run exited "
+    f"- Refusal: after V10 created orders and views, export --dry-run exited "
     f"{by_name.get('export-refused', {}).get('exit', '?')}: "
     + "; ".join(log_lines("export-refused", r"REFUSED|CONFLICT")[:3]),
 ]

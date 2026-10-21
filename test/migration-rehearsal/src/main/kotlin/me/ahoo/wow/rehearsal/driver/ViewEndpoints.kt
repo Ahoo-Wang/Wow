@@ -38,7 +38,7 @@ sealed class ViewEndpoints(val base: URI) {
         .connectTimeout(Duration.ofSeconds(5))
         .build()
 
-    /** Creates a view of [owner]'s; the 9.x store chooses its id, which [Outcome.id] holds. */
+    /** Creates a view of [owner]'s; the store chooses its id, which [Outcome.id] holds. */
     abstract fun create(tenant: String, owner: String, body: String): Outcome
 
     abstract fun rename(view: ViewRef, title: String): Outcome
@@ -150,7 +150,7 @@ sealed class ViewEndpoints(val base: URI) {
     /** The V10 view store service. */
     class V10(base: URI) : ViewEndpoints(base) {
         override fun create(tenant: String, owner: String, body: String): Outcome =
-            throw UnsupportedOperationException("The rehearsal creates its views in 9.x.")
+            command(tenant, owner, "view/create-view", body)
 
         override fun rename(view: ViewRef, title: String): Outcome =
             command(view.tenant, view.owner, "view/${view.id}/rename-view", """{"title":"$title"}""")
@@ -204,7 +204,7 @@ sealed class ViewEndpoints(val base: URI) {
             val node = runCatching { Endpoints.MAPPER.readTree(response.body()) }.getOrNull()
             val result = node?.get("result") ?: node
             return if (response.statusCode() == Endpoints.OK && result?.get("status")?.asString() == "SUCCEEDED") {
-                Outcome(true, result.get("version")?.asInt(), null)
+                Outcome(true, result.get("version")?.asInt(), null, node?.get("ref")?.get("id")?.asString())
             } else {
                 Outcome(false, null, "http-${response.statusCode()} ${node?.get("code")?.asString() ?: ""}")
             }
