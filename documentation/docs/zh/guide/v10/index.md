@@ -12,7 +12,7 @@ outline: deep
 | --- | --- |
 | [编程模型](./programming-model.md) | 聚合、命令、事件、拒绝；Saga、投影、反应器；定时命令；其他上下文 |
 | [编译器生成什么](./generated-code.md) | 模型工厂、`ModelProvider`、Manifest 片段、路由 |
-| [测试](./testing.md) | `aggregateSpec` 及其所在位置、Saga 测试、服务端测试 |
+| [测试](../testing.md) | `aggregateSpec` 及其所在位置、Saga 测试、服务端测试 |
 | [HTTP API](./http-api.md) | 命令路由、`Wow-Wait`、状态读取、查询路由、数据集 |
 | [配置项](./configuration.md) | 全部 `wow.*` 配置项及默认值 |
 | [部署](./deployment.md) | PostgreSQL 或 MongoDB、内部端口、Kafka、ClickHouse、个人信息、租户 |
@@ -349,7 +349,7 @@ class ProductSpec {
 }
 ```
 
-`productModel` 是编译器在 `Product` 旁边生成的工厂函数。测试函数要像上面这样返回 `Unit`：JUnit 会跳过返回值的测试方法。全部断言见[测试](./testing.md)。
+`productModel` 是编译器在 `Product` 旁边生成的工厂函数。测试函数要像上面这样返回 `Unit`：JUnit 会跳过返回值的测试方法。全部断言见[测试](../testing.md)。
 
 ## 编写服务端
 
