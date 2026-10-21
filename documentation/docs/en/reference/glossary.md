@@ -17,7 +17,7 @@ Each term has one meaning across these pages. The second column is the term the 
 | Aggregate type | 聚合类型 | The name of a kind of aggregate within its context, written `context.aggregate`. |
 | Alias | 别名 | A former name of a command or an event, kept so that history recorded under it still reads. See [Deciding and evolving](../concepts/programming-model#events-change-over-time). |
 | Analytics catalog | 分析目录 | The platform service where datasets are defined, approved and published. See [Read models](../concepts/read-models#three-query-models). |
-| API jar | api 的 jar | The published module of a bounded context that holds its commands, events and state classes and the contract peers read. See [One contract](../concepts/contract#contracts-between-services). |
+| API jar | api jar | The published module of a bounded context that holds its commands, events and state classes and the contract peers read. See [One contract](../concepts/contract#contracts-between-services). |
 | Backpressure | 背压 | A sign that a part of the system is loaded, such as a busy refusal or a wait timeout, which subscriptions answer by slowing down rather than by pausing or parking. See [Subscriptions](../concepts/subscriptions#failures-park-one-aggregate). |
 | Bounded context | 限界上下文 | A part of the domain with its own model, its own log and its own published language. See [Between contexts](../concepts/cross-context). |
 | Bulkhead | 舱壁 | The concurrency limit, with a short queue, that keeps queries from using up the connections writes need. See [Read models](../concepts/read-models#reads-must-not-slow-down-writes). |

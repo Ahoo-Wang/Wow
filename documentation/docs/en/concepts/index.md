@@ -25,7 +25,7 @@ These rules hold everywhere in Wow. The concept pages explain each of them.
 | --- | --- |
 | One write | The append to the log is the only write. Snapshots, projections, indexes, published streams and the warehouse are all derived by reading the log. |
 | The log is the bus | Inside a bounded context, a subscription is a reader of the log with a checkpoint. Between contexts, events travel on published streams. There is no separate event bus. |
-| Decide, then evolve | A command function decides which events happen. A sourcing function applies an event to the state and does no I/O. |
+| Decide, then evolve | A command function decides which events happen. An evolve function applies an event to the state and does no I/O. |
 | Bound at compile time | The compiler generates the bindings between your functions and the runtime. Nothing is discovered by reflection or classpath scanning at run time. |
 | Identity is a value | An aggregate is addressed by one value: context, aggregate type, tenant and id. It is decided once, at admission. Every unique key includes the tenant. |
 | Read models replay | Every subscription has a checkpoint, so every read model can be reset, rebuilt or backfilled from the log. |
