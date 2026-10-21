@@ -37,7 +37,7 @@ Each such type, once V10 writes it in production, makes the export refuse (decis
 
 ## The dual-run window
 
-From the first import until the switch, 9.x serves and V10 waits on standby. Start every V10 node with `wow.standby=true` against the production target: it serves state reads and queries of what the import writes, refuses every command with 503 `wow.node.standby` (Wow's clients treat it as retryable), and joins no lease or topic group, so it runs no subscription, retries no parked entry and runs no job, timer or snapshot maintenance. The read side can be checked against production data before the switch, and nothing V10 does can write. `GET /wow/node/standby` on a node's internal port says whether it is on standby.
+From the first import until the switch, 9.x serves and V10 waits on standby. Start every V10 node with `wow.standby=true` against the production target: it serves state reads and queries of what the import writes, refuses every command with 503 `wow.node.standby` (Wow's clients treat it as retryable), and joins no lease or topic group, so it runs no subscription, retries no parked entry and runs no job, timer or snapshot maintenance. The read side can be checked against production data before the switch, and nothing V10 does can write. A standby node reports ready: `/actuator/health/readiness` is `UP`, its lease groups and topics marked `standby` rather than `DOWN`, so the load balancer can send it reads during the dual-run (traffic stays on 9.x until the switch decides otherwise). `GET /wow/node/standby` on a node's internal port says whether it is on standby.
 
 ## The switch
 
