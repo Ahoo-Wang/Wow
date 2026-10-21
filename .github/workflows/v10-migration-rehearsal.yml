@@ -18,7 +18,7 @@
 #
 # A run starts when a branch `ci-repro/migration-rehearsal/**` is pushed (`git push origin <ref>:ci-repro/migration-rehearsal/<name>`), with the
 # defaults below, over which `test/migration-rehearsal/rehearsal/run.json` at the pushed commit may set `orders`,
-# `dual_run_seconds`, `v10_seconds`, `concurrency`, `sample`, `dual_run_host`, `final_pass` and `nine_x_ref`. Delete the branch
+# `dual_run_seconds`, `v10_seconds`, `concurrency`, `sample`, `final_pass` and `nine_x_ref`. Delete the branch
 # afterwards. It can also be dispatched by hand once the file is on the default branch. Never on a pull request or a
 # schedule: the heavy run belongs here, not on a pull request's checks.
 name: Migration rehearsal
@@ -50,11 +50,6 @@ on:
         type: choice
         options: ['final', 'restart']
         default: 'final'
-      dual_run_host:
-        description: 'Whether the V10 host runs through the dual-run window (on) or starts at the cut-over (off)'
-        type: choice
-        options: ['off', 'on']
-        default: 'off'
       nine_x_ref:
         description: 'Ref the 9.x example-server is built from'
         type: string
@@ -91,14 +86,13 @@ jobs:
           V10_SECONDS: ${{ inputs.v10_seconds }}
           CONCURRENCY: ${{ inputs.concurrency }}
           SAMPLE: ${{ inputs.sample }}
-          DUAL_RUN_HOST: ${{ inputs.dual_run_host }}
           FINAL_PASS: ${{ inputs.final_pass }}
           NINE_X_REF: ${{ inputs.nine_x_ref }}
         run: |
           python3 - <<'EOF' >>"$GITHUB_OUTPUT"
           import json, os, re
           defaults = {"orders": "50000", "dual_run_seconds": "120", "v10_seconds": "60", "concurrency": "64",
-                      "sample": "10", "dual_run_host": "off", "final_pass": "final",
+                      "sample": "10", "final_pass": "final",
                       "nine_x_ref": "v10-9x-baseline"}
           settings = dict(defaults)
           if os.environ["EVENT"] == "push":
@@ -142,7 +136,6 @@ jobs:
           V10_SECONDS: ${{ steps.settings.outputs.v10_seconds }}
           CONCURRENCY: ${{ steps.settings.outputs.concurrency }}
           SAMPLE: ${{ steps.settings.outputs.sample }}
-          DUAL_RUN_HOST: ${{ steps.settings.outputs.dual_run_host }}
           FINAL_PASS: ${{ steps.settings.outputs.final_pass }}
         run: test/migration-rehearsal/rehearsal/rehearse.sh
       - name: Summary

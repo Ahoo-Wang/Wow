@@ -17,11 +17,12 @@
 #   1. seed      the 9.x example-server (v10-9x-baseline) with ORDERS orders and their carts, and the 9.x compensation
 #                service's database with unresolved CartSaga executions
 #   2. import    migrate-data check and import into the V10 log on PostgreSQL
-#   3. dual-run  9.x keeps taking writes for DUAL_RUN_SECONDS while migrate-data tail follows it; the lag is how long
-#                the tail takes to catch up once the writes stop
+#   3. dual-run  the V10 host starts on standby (wow.standby): it serves reads and refuses commands while 9.x keeps
+#                taking writes for DUAL_RUN_SECONDS and migrate-data tail follows them; the lag is how long V10 takes to
+#                read what 9.x last wrote once the writes stop
 #   4. cut-over  9.x stops (the write stop starts); the final pass (import --final: the tail from its checkpoint,
-#                or import --restart with FINAL_PASS=restart), compare, snapshot and backfill-tags;
-#                the V10 host starts and serves writes (the write stop ends)
+#                or import --restart with FINAL_PASS=restart), compare, snapshot and backfill-tags; the operator
+#                resumes the V10 host on its internal port, and it serves writes (the write stop ends)
 #   5. rollback before V10 writes: export --dry-run finds nothing to write back, 9.x starts again on its own store,
 #                and its states equal V10's; then the cut-over again
 #   6. V10 traffic for V10_SECONDS: orders moved on, carts filled
@@ -32,8 +33,7 @@
 # Environment: NINEX_HOME (the 9.x example-server's installDist), V10_HOME (:migration-rehearsal's installDist),
 # MIGRATE_HOME (:migrate-data's installDist), MANIFEST (the rehearsal host's Manifest), WORK (an empty directory);
 # ORDERS (200), DUAL_RUN_SECONDS (20), V10_SECONDS (20), CONCURRENCY (32), EXECUTIONS (ORDERS / 20), SAMPLE (every
-# n-th order compared, 1), DUAL_RUN_HOST (off: the V10 host starts at the cut-over; on: it runs through the dual-run),
-# FINAL_PASS (final: import --final; restart: import --restart).
+# n-th order compared, 1), FINAL_PASS (final: import --final; restart: import --restart).
 set -euo pipefail
 
 REHEARSAL="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -45,7 +45,6 @@ V10_SECONDS="${V10_SECONDS:-20}"
 CONCURRENCY="${CONCURRENCY:-32}"
 EXECUTIONS="${EXECUTIONS:-$((ORDERS / 20 > 0 ? ORDERS / 20 : 1))}"
 SAMPLE="${SAMPLE:-1}"
-DUAL_RUN_HOST="${DUAL_RUN_HOST:-off}"
 FINAL_PASS="${FINAL_PASS:-final}"
 MONGO_PORT="${REHEARSAL_MONGO_PORT:-27017}"
 POSTGRES_PORT="${REHEARSAL_POSTGRES_PORT:-5432}"
@@ -54,6 +53,9 @@ V10_PORT="${V10_PORT:-18090}"
 V10_INTERNAL_PORT="${V10_INTERNAL_PORT:-19090}"
 NINEX_URL="http://localhost:$NINEX_PORT"
 V10_URL="http://localhost:$V10_PORT"
+V10_INTERNAL_URL="http://localhost:$V10_INTERNAL_PORT"
+# The cluster token of the V10 host (wow.internal.token): its internal port, the resume among its routes, takes it.
+CLUSTER_TOKEN="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
 mkdir -p "$WORK"
 STEPS="$WORK/steps.jsonl"
 : >"$STEPS"
@@ -150,16 +152,39 @@ start_ninex() {
   await_http "$NINEX_URL" ninex
 }
 
+# start_v10 [standby]: the V10 host; on standby (wow.standby) when asked, until resume_v10.
 start_v10() {
+  local standby="${1:-}"
   (
     cd "$V10_HOME"
-    env JAVA_OPTS="-Xmx1g" ./bin/migration-rehearsal \
+    env JAVA_OPTS="-Xmx1g" WOW_INTERNAL_TOKEN="$CLUSTER_TOKEN" ./bin/migration-rehearsal \
       --server.port="$V10_PORT" --wow.internal.port="$V10_INTERNAL_PORT" \
       --spring.datasource.url="jdbc:postgresql://localhost:$POSTGRES_PORT/example" \
+      --wow.standby="$([ "$standby" = standby ] && echo true || echo false)" \
       >>"$WORK/v10.out" 2>&1 &
     echo $! >"$WORK/v10.pid"
   )
   await_http "$V10_URL" v10
+}
+
+# internal METHOD PATH [BODY]: a call to the V10 host's internal port with the cluster token; prints the answer.
+internal() {
+  curl -sS -f -X "$1" "$V10_INTERNAL_URL$2" -H "Wow-Cluster-Token: $CLUSTER_TOKEN" -H "Content-Type: application/json" \
+    ${3:+-d "$3"}
+}
+
+# standby_refuses: a command sent to the V10 host on standby is refused with wow.node.standby (503); prints the status.
+standby_refuses() {
+  internal GET /wow/node/standby
+  echo
+  local answer code
+  answer="$(curl -sS -o - -w '\n%{http_code}' -X POST "$V10_URL/example/cart/standby-probe/add-cart-item" \
+    -H "Content-Type: application/json" -H "X-Rehearsal-Owner: standby-probe" \
+    -d '{"productId":"probe","quantity":1}')"
+  code="$(tail -1 <<<"$answer")"
+  echo "$answer"
+  [ "$code" = 503 ] && grep -q 'wow.node.standby' <<<"$answer"
+  printf '{"refused":%s}\n' "$code"
 }
 
 stop_pid() {
@@ -227,19 +252,14 @@ step check 0 migrate check
 step import 0 migrate import
 
 # 3. dual-run
-if [ "$DUAL_RUN_HOST" = "on" ]; then start_v10; fi
+start_v10 standby
+step standby-refuses 0 standby_refuses
 JAVA_OPTS="-Xmx2g" "$MIGRATE_HOME/bin/migrate-data" tail --config "$WORK/migrate-data.json" >"$WORK/tail.log" 2>&1 &
 echo $! >"$WORK/tail.pid"
 step dual-run-traffic 0 driver traffic --version=9x --base="$NINEX_URL" --book="$WORK/book.tsv" --seconds="$DUAL_RUN_SECONDS" --touched="$WORK/dual-run-touched.tsv"
 writes_stopped="$(now_ms)"
-if [ "$DUAL_RUN_HOST" = "on" ]; then
-  step dual-run-lag 0 driver await --base="$V10_URL" --touched="$WORK/dual-run-touched.tsv"
-  stop_pid tail
-else
-  # Without a V10 node the lag is how long the tail takes to drain what 9.x wrote: one pass after the writes stop.
-  stop_pid tail
-  step dual-run-lag 0 migrate tail --once
-fi
+step dual-run-lag 0 driver await --base="$V10_URL" --touched="$WORK/dual-run-touched.tsv"
+stop_pid tail
 
 # 4. cut-over: the write stop runs from 9.x stopping to V10 serving
 cutover_started="$(now_ms)"
@@ -248,7 +268,7 @@ step final-import 0 migrate import "--$FINAL_PASS"
 compared compare migrate compare
 step snapshot 0 migrate snapshot
 step backfill-tags 0 migrate backfill-tags
-if [ "$DUAL_RUN_HOST" != "on" ]; then start_v10; fi
+step resume 0 internal POST /wow/node/resume '{"by":"rehearsal","reason":"8c.1 cut-over"}'
 record write-stop "$cutover_started" 0 "{\"writesStoppedMs\":$writes_stopped}"
 step v10-states 0 driver states --version=v10 --base="$V10_URL" --book="$WORK/book.tsv" --sample="$SAMPLE" --out="$WORK/v10-cutover.json"
 
