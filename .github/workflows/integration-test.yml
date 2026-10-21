@@ -43,7 +43,6 @@ on:
       # The console is TypeScript; analytics-console-test.yml checks it.
       - '!analytics/console/**'
       - 'wow-cosec/**'
-  # v10-nightly.yml dispatches it on v10 every night: v10.yml checks the V10 modules there, and this the 9.x ones.
   workflow_dispatch:
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}

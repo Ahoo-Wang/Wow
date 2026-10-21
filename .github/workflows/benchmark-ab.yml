@@ -28,7 +28,7 @@ on:
     inputs:
       base:
         description: Base ref (branch, tag or SHA)
-        default: main
+        default: v9
         required: true
       head:
         description: Head ref (branch, tag or SHA)

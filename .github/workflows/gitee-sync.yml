@@ -1,12 +1,11 @@
 name: Sync to Gitee
+# v9, the 9.x line: a push to it mirrors the repository at once. The daily
+# schedule runs from the default branch, main, whose copy of this workflow
+# mirrors every branch, v9 included.
 on:
-  schedule:
-    - cron: '0 0 * * *'
   push:
     branches:
-      - main
-      - gh-pages
-#      - gh-pages-with-site-base
+      - v9
   workflow_dispatch:
 # The mirror authenticates with its own SSH key; the job needs no token.
 permissions: {}

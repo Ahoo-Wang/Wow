@@ -14,8 +14,9 @@ import {
 
 // Admits a release of the commit checked out at HEAD, the commit of a v* tag:
 //
-// 1. The commit is on main or on a maintenance branch (release-x.y), so a tag
-//    cannot ship a commit that no pull request brought in.
+// 1. The commit is on v9, the 9.x line, or on a maintenance branch
+//    (release-x.y), so a tag cannot ship a commit that no pull request brought
+//    in. main is the V10 line, with its own copy of this script.
 // 2. Every workflow in REQUIRED has a successful full run on exactly this
 //    commit, and its gate job passed in it. Only manual dispatch runs count:
 //    a dispatch run has no base to diff against, so its scope job turns every
@@ -50,13 +51,13 @@ export const REQUIRED = [
 ];
 
 /** Remote branches a release commit may come from. */
-const RELEASE_BRANCH = /^origin\/(?:main|release-\d+\.\d+)$/;
+const RELEASE_BRANCH = /^origin\/(?:v9|release-\d+\.\d+)$/;
 
-/** Some remote branch containing the commit is main or a release-x.y line. */
+/** Some remote branch containing the commit is v9 or a release-x.y line. */
 export function requireReleaseBranch(branches, sha) {
   assert.ok(
     branches.some(branch => RELEASE_BRANCH.test(branch.trim())),
-    `${sha} is on neither main nor a release-x.y branch (found: ${branches.join(', ') || 'none'})`,
+    `${sha} is on neither v9 nor a release-x.y branch (found: ${branches.join(', ') || 'none'})`,
   );
 }
 

@@ -75,7 +75,7 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: node .github/scripts/project-version.mjs check
 
-      # The commit is on main or release-x.y; full runs of the TypeScript,
+      # The commit is on v9 or release-x.y; full runs of the TypeScript,
       # contract and Storybook workflows passed on it (dispatched if missing);
       # breaking changes since the previous v* tag (a `!` title, a BREAKING
       # CHANGE footer, or a pull request labelled breaking-change) ship only

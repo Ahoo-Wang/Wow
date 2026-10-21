@@ -13,11 +13,9 @@
 
 name: Analytics Docker Image Deploy
 on:
-  schedule:
-    - cron: '0 10 * * *'
   push:
     branches:
-      - main
+      - v9
     # A release tag pushes `X.Y.Z` and `X.Y`, and `latest` when it is the
     # highest stable release (docker-latest.mjs). A pre-release tag
     # (`v9.2.0-rc.0`) pushes no image: an rc ships npm only

@@ -107,23 +107,25 @@ test('each gate must have passed in its run', () => {
   assert.throws(() => requireSuccessfulJob([gate], 'typescript-contract-gate'));
 });
 
-test('a release commit comes from main or a release-x.y branch', () => {
+test('a release commit comes from v9 or a release-x.y branch', () => {
   for (const branches of [
-    ['origin/main'],
+    ['origin/v9'],
     ['origin/feature', 'origin/release-9.1'],
-    ['  origin/main'],
+    ['  origin/v9'],
   ])
     assert.doesNotThrow(() => requireReleaseBranch(branches, 'target'));
   for (const branches of [
     [],
     ['origin/feature'],
-    ['origin/main-copy'],
+    // main is the V10 line.
+    ['origin/main'],
+    ['origin/v9-copy'],
     ['origin/release-9'],
-    ['fork/main'],
+    ['fork/v9'],
   ])
     assert.throws(
       () => requireReleaseBranch(branches, 'target'),
-      /target is on neither main nor a release-x.y branch/,
+      /target is on neither v9 nor a release-x.y branch/,
     );
 });
 

@@ -14,7 +14,7 @@
 name: Skills
 on:
   push:
-    branches: [ main ]
+    branches: [ v9 ]
     paths:
       - "skills/**"
       - "scripts/validate_wow_skills.py"

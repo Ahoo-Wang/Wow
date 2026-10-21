@@ -2,7 +2,7 @@ name: Codecov
 on:
   push:
     branches:
-      - main
+      - v9
     paths-ignore:
       - 'documentation/**'
       - 'schema/**'
