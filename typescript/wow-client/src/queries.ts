@@ -195,7 +195,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     return json<CursorPage<R>>(await this.post('cursor', query, options));
   }
 
-  /** The first record that matches; rejects with 404 when none does. */
+  /** The first record that matches; rejects with 404 `wow.query.not-found` when none does. */
   async single(
     query: FilterSingleQuery<FIELDS>,
     options?: RequestOptions,
