@@ -317,11 +317,14 @@ fun `the binding index should name the context and the fragment and build the or
     provider.fragment.assert().isEqualTo("META-INF/wow/manifest/eshop-ordering-domain.json")
     provider.models(Dependencies.of(PaymentPolicy(30.minutes))).map { it.type.toString() }
         .assert().containsExactly("eshop-ordering.order")
-    provider.processors(Dependencies.NONE).map { it.name }.assert().containsExactlyInAnyOrder(
+    val ports = Dependencies.of(OrderSummaries { _, _ -> }, BuyerNotifications { _, _, _ -> })
+    provider.processors(ports).map { it.name }.assert().containsExactlyInAnyOrder(
         "OrderProcessSaga.onOrderSubmitted",
         "OrderProcessSaga.onOrderAwaitingValidation",
         "OrderProcessSaga.onOrderCancelled",
         "OrderProcessSaga.onOrderShipped",
+        "OrderSummaryProjection.onEvent",
+        "ShipmentNotifier.onOrderShipped",
     )
 }
 ```
