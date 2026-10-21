@@ -29,6 +29,7 @@ import org.springframework.context.annotation.Profile
 import org.springframework.core.env.Environment
 import javax.sql.DataSource
 
+// region mongo
 /**
  * The benchmark's V10 server: the account and the transfer saga on MongoDB (the `mongo` profile) or PostgreSQL (the
  * `postgres` profile), its state stream published to Kafka (`application.yaml`). A node of a cluster takes its ports
@@ -53,6 +54,7 @@ class MongoBackend {
                 .build(),
         )
 }
+// endregion
 
 /** The `postgres` profile: a pooled `DataSource` on `spring.datasource.*`, which selects the PostgreSQL backend. */
 @Configuration(proxyBeanMethods = false)
