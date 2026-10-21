@@ -98,6 +98,8 @@ The tail reads each event stream collection by a `(createTime, _id)` index. With
 
 `tail` runs until it is stopped. `tail --once` makes one pass. Keep `tail` running until 9.x stops writing: the cut-over's final pass is then `import --final`, which reads from where the tail stopped instead of walking every stream again.
 
+Through this dual run, start the V10 service's nodes on standby, with [`wow.standby`](../reference/configuration) set to `true`. A node on standby serves state reads and queries of what the tail imports, and refuses every command with [`wow.node.standby`](../reference/error-codes) (503), so nothing writes to V10 before the cut-over. It joins no lease group: no subscription handles anything, no parked entry is retried, and no job or schedule runs. A saga or a reactor that starts at the end of its stream starts where the stream ends when the node resumes, so it never acts on the imported 9.x history.
+
 ## 5. Compare
 
 `compare` rebuilds each aggregate that has a 9.x snapshot to the snapshot's version, with the V10 model, and compares:
@@ -134,7 +136,8 @@ The cut-over is a blue-green switch:
 2. Run the final pass. If `tail` followed 9.x until it stopped, run `import --final`: one tail pass from the tail's checkpoint, then the reserved keys and the compensation executions walked again, since the tail follows neither. It refuses, writing nothing, when an aggregate's tail did not run continuously. Otherwise, or after it refuses, run `import --restart`: a complete pass from the first instance, which takes as long as the whole history.
 3. Run `compare` and review the result.
 4. Run `snapshot` and `backfill-tags`.
-5. Switch traffic to V10, and move every external consumer of 9.x topics to the V10 published streams. There is no 9.x-format sink.
+5. Resume every V10 node: `POST /wow/node/resume` on its internal port, with the cluster token and a JSON body naming who resumes it and why (`by`, `reason`). The node joins its lease groups, starts its subscriptions, retries and jobs, then admits commands; the resume ends the write stop. `GET /wow/node/standby` answers a node's status. A node left on standby keeps refusing commands and takes no partition.
+6. Switch traffic to V10, and move every external consumer of 9.x topics to the V10 published streams. There is no 9.x-format sink.
 
 V10 parks the aggregate, not the event: a parked aggregate's later events wait while it is parked, and resuming it replays its streams from the failed version on, including streams 9.x had already handled after the failure. Handlers must tolerate that, as they tolerate any redelivery.
 
