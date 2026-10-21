@@ -206,6 +206,26 @@ class NodeHealthTest {
         }
 
     @Test
+    fun `a node on standby should be ready, its lease group marked standby until it is resumed`(): Unit = runBlocking {
+        val node = node()
+        val health = health(node)
+        node.start(standby = true)
+        // It serves reads: ready, though it joins no lease group until it is resumed.
+        health.readiness().status.assert().isEqualTo(HealthStatus.UP)
+        val group = health.readiness().component(NodeHealth.OWNERSHIP)!!.components.single()
+        group.status.assert().isEqualTo(HealthStatus.UP)
+        group.details["standby"].assert().isEqualTo(true)
+        group.details["running"].assert().isEqualTo(false)
+
+        node.resume("operator")
+        eventually { health.readiness().status == HealthStatus.UP }
+        health.readiness().component(NodeHealth.OWNERSHIP)!!.components.single().details.keys.assert()
+            .doesNotContain("standby", "running")
+        node.stop()
+        health.readiness().status.assert().isEqualTo(HealthStatus.DOWN)
+    }
+
+    @Test
     fun `an unreachable lease store should make the node not ready until it answers again`(): Unit = runBlocking {
         val node = node()
         val health = health(node)
