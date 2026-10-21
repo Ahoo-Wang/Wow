@@ -36,7 +36,7 @@ JSON 示例由 Wow 自己写出：一个测试对每个示例编码，线上形�
 
 | 值 | JSON | 说明 |
 | --- | --- | --- |
-| 聚合引用 | `{"type": {"context", "name"}, "tenantId", "id", "isAssigned"}` | 只有把 ID 留给服务端生成的创建命令，`isAssigned` 才为 false，此时 `id` 是 `(none)`；它由 `id` 推出，读者忽略它。 |
+| 聚合引用 | `{"type": {"context", "name"}, "tenantId", "id"}` | 把 ID 留给服务端生成的创建命令，其 `id` 为 `(none)`。下面的示例仍带有推出的 `isAssigned`，它会在 10.0 之前从线上形式中移除；不要读取它。 |
 | 作用域 | `{"ownerId", "spaceId"}` | 两者都可以为 null。在命令上是调用方的作用域；在提交或快照上是提交后聚合的作用域。 |
 | 因果 | `{"correlationId", "causationId"}` | `correlationId` 是根命令的 ID；`causationId` 是直接原因，对 Saga 的命令是它处理的那次提交。调用方直接发出的命令没有因果，它自己就是根。 |
 | 操作人 | `{"id", "tenantId", "crossScope"}` | 提交以谁的名义记录：调用方的主体标识和它自己的租户；它在另一个租户或作用域中行事时 `crossScope` 为 true。 |
