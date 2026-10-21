@@ -89,7 +89,7 @@ TypeScript 的 npm 包与 Wow 的其余部分采用同一个支持策略，写�
 
 应用要兼容 9.1.5 之前的服务端，就在每个 `listQuery()` 里传 `limit`。CI 用已发布的服务端逐行核对：对 8.11.5、9.1.3、9.1.5 镜像的冒烟测试发送不带 `limit` 的列表和列表流，断言的正是上表的结果。wow-react 的 Hook 原样使用传入的查询，所以 `useListQuery`、`useListStreamQuery` 也一样。
 
-CI 任务在 [`typescript-contract.yml`](https://github.com/Ahoo-Wang/Wow/blob/main/.github/workflows/typescript-contract.yml)；它们保护的兼容代码列在 [`docs/compat-debt.md`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/docs/compat-debt.md)。
+CI 任务在 [`typescript-contract.yml`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/.github/workflows/typescript-contract.yml)；它们保护的兼容代码列在 [`docs/compat-debt.md`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/docs/compat-debt.md)。
 
 ## 运行环境与 peer 依赖
 
