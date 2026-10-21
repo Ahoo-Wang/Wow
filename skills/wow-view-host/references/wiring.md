@@ -1,6 +1,6 @@
 # Wiring
 
-In depth: [Host the engine](https://wow.ahoo.me/typescript/view-engine/host) (engine, `ViewHost`, `bind`, the router port, navigation, embeds, messages, the testing entry); member signatures in the [wow-view-engine reference](https://wow.ahoo.me/reference/typescript/wow-view-engine/). Two complete hosts to read: the ops console over the V10 ops service (`platform/ops/console/src/views/engine.ts`, `bindings.ts`, `parkedActions.ts`, `parkedCommands.ts`) and the Storybook walkthrough (`typescript/storybook/stories/view-engine/integration/`). Confirm signatures in the installed typings: a patch release never breaks the package's public surface, a minor release may (its notes list each break).
+In depth: [Host the engine](https://wow.ahoo.me/typescript/view-engine/host) (engine, `ViewHost`, `bind`, the router port, navigation, embeds, messages, the testing entry); member signatures in the [wow-view-engine reference](https://wow.ahoo.me/reference/typescript/wow-view-engine/). Two complete hosts to read: the ops console over the V10 ops service (`platform/ops/console/src/views/engine.ts`, `bindings.ts`, `parkedActions.ts`, `parkedCommands.ts`, and `src/app/OpsHost.tsx`) and the Storybook walkthrough (`typescript/storybook/stories/view-engine/integration/`). Confirm signatures in the installed typings: a patch release never breaks the package's public surface, a minor release may (its notes list each break).
 
 ## Sources: where each resource's rows come from
 
@@ -214,11 +214,11 @@ Give the workbench a definite height — `height`, not `min-height`. It fills it
 
 A page taller than the screen (a dashboard, a form) scrolls inside its own container (`overflow-y: auto`), never the document.
 
-To show a decided view inside a business page, embed it (`EmbeddedView`, `EmbeddedDashboard`; see [Host the engine](https://wow.ahoo.me/typescript/view-engine/host)); an embed never writes, and a page's lock is not a security boundary.
+To show a decided view inside a business page, embed it (`EmbeddedView`, `EmbeddedDashboard`; see [Embeds](https://wow.ahoo.me/typescript/view-engine/host#embeds)); an embed never writes, and a page's lock is not a security boundary.
 
 ## The record reading
 
-`reading` is how one record of the resource reads in its detail, wherever it opens (workbench, board panel, embed): `title(row)` names it in the header, `sections(context)` adds the host's own regions (a related view embedded, a form), `render(context)` replaces the body for a record better told in a layout of its own. See [Host the engine](https://wow.ahoo.me/typescript/view-engine/host).
+`reading` is how one record of the resource reads in its detail, wherever it opens (workbench, board panel, embed): `title(row)` names it in the header, `sections(context)` adds the host's own regions (a related view embedded, a form), `render(context)` replaces the body for a record better told in a layout of its own. See [`bind`](https://wow.ahoo.me/typescript/view-engine/host#bind).
 
 ## Routes, tested
 
