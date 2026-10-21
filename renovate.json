@@ -3,6 +3,7 @@
   "extends": [
     "config:recommended"
   ],
+  "baseBranches": ["main", "v9"],
   "timezone": "Asia/Shanghai",
   "labels": [
     "dependencies"

@@ -22,7 +22,7 @@ tasks.named<Test>("integrationTest") {
 // integration tests: `./gradlew :routing-spike:h2Stage2 -Pwow.h2.stage2.duration=PT5M`, or
 // `-Pwow.h2.stage2.mode=smoke` for a run of seconds that only checks the harness. The Gradle properties
 // `wow.h2.stage2.*` (Stage2Settings) reach the test JVM as system properties; the report and the nodes' output go to
-// build/h2-stage2/. The workflow v10-h2-stage2.yml runs it on a GitHub-hosted runner.
+// build/h2-stage2/. The workflow h2-stage2.yml runs it on a GitHub-hosted runner.
 val integrationTestSourceSet = sourceSets["integrationTest"]
 val stage2SourceSet = sourceSets.create("stage2") {
     // Stage 1's account model and access distributions.

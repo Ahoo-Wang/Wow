@@ -7,186 +7,186 @@ description: "The annotations of the programming model: where each goes, its par
 
 # Annotations
 
-The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artifact `wow-api`), generated from [their sources](https://github.com/Ahoo-Wang/Wow/tree/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation). The compiler reads them at build time; each name links to its source, whose documentation says the rest.
+The annotations of the programming model, in `me.ahoo.wow.api.annotation` (artifact `wow-api`), generated from [their sources](https://github.com/Ahoo-Wang/Wow/tree/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation). The compiler reads them at build time; each name links to its source, whose documentation says the rest.
 
 ## `@AfterCommand`
 
-[AfterCommand](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/AfterCommand.kt): A function of an `AggregateRoot` that runs after its command functions: it sees the state the command function saw, not yet evolved by its events, and returns events appended after them in the same stream.
+[AfterCommand](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/AfterCommand.kt): A function of an `AggregateRoot` that runs after its command functions: it sees the state the command function saw, not yet evolved by its events, and returns events appended after them in the same stream.
 
 - Targets: `FUNCTION`, `ANNOTATION_CLASS`
 - Parameters: `include: Array<KClass<*>> = []`, `exclude: Array<KClass<*>> = []`
 
 ## `@AggregateRoot`
 
-[AggregateRoot](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoot.kt): An aggregate root: the compiler turns it into an aggregate model, with its command functions (`OnCommand` or named `onCommand`), its state's sourcing functions (`OnSourcing` or named `onSourcing`) and its `AfterCommand` hooks.
+[AggregateRoot](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoot.kt): An aggregate root: the compiler turns it into an aggregate model, with its command functions (`OnCommand` or named `onCommand`), its state's sourcing functions (`OnSourcing` or named `onSourcing`) and its `AfterCommand` hooks.
 
 - Targets: `CLASS`, `ANNOTATION_CLASS`
 - Parameters: `lifecycle: Array<KClass<*>> = [DeleteAggregate::class, RestoreAggregate::class, TransferOwner::class, TransferSpace::class, ApplyTags::class]`, `published: Boolean = true`, `publishState: Boolean = true`, `topic: String = ""`, `ownership: Ownership = Ownership.OWNER`, `snapshot: Boolean = true`, `stateRevision: Int = 1`, `retiredEvents: Array<String> = []`
 
 ## `@Alias`
 
-[Alias](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Alias.kt): Former names of a command or event type.
+[Alias](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Alias.kt): Former names of a command or event type.
 
 - Targets: `CLASS`
 - Parameters: None.
 
 ## `@AllowCreate`
 
-[AllowCreate](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/AllowCreate.kt): A command that may also create its aggregate: it is accepted whether or not the aggregate exists.
+[AllowCreate](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/AllowCreate.kt): A command that may also create its aggregate: it is accepted whether or not the aggregate exists.
 
 - Targets: `CLASS`, `ANNOTATION_CLASS`
 - Parameters: None.
 
 ## `@Blocking`
 
-[Blocking](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Blocking.kt): A function that blocks its thread, such as one writing a projection or checking a uniqueness over JDBC.
+[Blocking](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Blocking.kt): A function that blocks its thread, such as one writing a projection or checking a uniqueness over JDBC.
 
 - Targets: `FUNCTION`
 - Parameters: None.
 
 ## `@BoundedContext`
 
-[BoundedContext](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/BoundedContext.kt): The bounded context a domain module belongs to.
+[BoundedContext](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/BoundedContext.kt): The bounded context a domain module belongs to.
 
 - Targets: `CLASS`, `ANNOTATION_CLASS`
 - Parameters: `name: String`, `description: String = ""`
 
 ## `@CreateAggregate`
 
-[CreateAggregate](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/CreateAggregate.kt): A command that creates its aggregate: it is accepted only while the aggregate does not exist yet.
+[CreateAggregate](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/CreateAggregate.kt): A command that creates its aggregate: it is accepted only while the aggregate does not exist yet.
 
 - Targets: `CLASS`, `ANNOTATION_CLASS`
 - Parameters: None.
 
 ## `@Description`
 
-[Description](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Description.kt): A description of a type or a field, carried into the Manifest and the documentation generated from it.
+[Description](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Description.kt): A description of a type or a field, carried into the Manifest and the documentation generated from it.
 
 - Targets: `CLASS`, `ANNOTATION_CLASS`, `PROPERTY`, `FIELD`
 - Parameters: `value: String`
 
 ## `@ErrorCode`
 
-[ErrorCode](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/ErrorCode.kt): A rejection code of the domain, on a `const val` of type `String`, top-level or in an `object`, that holds the code a command function rejects with (`Decision.reject(code, message)`).
+[ErrorCode](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/ErrorCode.kt): A rejection code of the domain, on a `const val` of type `String`, top-level or in an `object`, that holds the code a command function rejects with (`Decision.reject(code, message)`).
 
 - Targets: `PROPERTY`, `FIELD`
 - Parameters: `description: String = ""`, `status: Int = 422`
 
 ## `@MountedCommand`
 
-[MountedCommand](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/MountedCommand.kt): A command mounted under an aggregate's routes that no aggregate decides: it has no `@OnCommand`, and exactly one `CommandTransformer` of the service claims it, turning it into a command an aggregate decides, such as an import that becomes the aggregate's creation command or an external callback in a provider's shape.
+[MountedCommand](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/MountedCommand.kt): A command mounted under an aggregate's routes that no aggregate decides: it has no `@OnCommand`, and exactly one `CommandTransformer` of the service claims it, turning it into a command an aggregate decides, such as an import that becomes the aggregate's creation command or an external callback in a provider's shape.
 
 - Targets: `CLASS`, `ANNOTATION_CLASS`
 - Parameters: `aggregate: String`, `transformsTo: Array<String> = []`
 
 ## `@Name`
 
-[Name](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Name.kt): The name of an aggregate, a processor, a command or an event, in place of the one derived from the class's simple name.
+[Name](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Name.kt): The name of an aggregate, a processor, a command or an event, in place of the one derived from the class's simple name.
 
 - Targets: `CLASS`, `VALUE_PARAMETER`
 - Parameters: `value: String`
 
 ## `@OnCommand`
 
-[OnCommand](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommand.kt): A command function of an `AggregateRoot`: it takes the command, or a `Command` of it, and decides the events.
+[OnCommand](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommand.kt): A command function of an `AggregateRoot`: it takes the command, or a `Command` of it, and decides the events.
 
 - Targets: `FUNCTION`, `ANNOTATION_CLASS`
 - Parameters: `produces: Array<KClass<*>> = []`, `schedules: Array<String> = []`
 
 ## `@OnCommitted`
 
-[OnCommitted](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommitted.kt): A handler of a `Saga` for the success receipt of a command the saga derived, the counterpart of `OnRejected`: it takes a `me.ahoo.wow.api.subscribe.CommandCommitted` of the command's type (or of `*`, for every command the saga derives) and, optionally, the `SagaContext`, and returns the commands it derives in turn, as an `OnEvent` handler of a saga does.
+[OnCommitted](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnCommitted.kt): A handler of a `Saga` for the success receipt of a command the saga derived, the counterpart of `OnRejected`: it takes a `me.ahoo.wow.api.subscribe.CommandCommitted` of the command's type (or of `*`, for every command the saga derives) and, optionally, the `SagaContext`, and returns the commands it derives in turn, as an `OnEvent` handler of a saga does.
 
 - Targets: `FUNCTION`, `ANNOTATION_CLASS`
 - Parameters: None.
 
 ## `@OnEvent`
 
-[OnEvent](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnEvent.kt): An event handler of a `Projection`, `Reactor` or `Saga`: it takes a `me.ahoo.wow.api.subscribe.StateEvent` and, optionally, the processor's context.
+[OnEvent](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnEvent.kt): An event handler of a `Projection`, `Reactor` or `Saga`: it takes a `me.ahoo.wow.api.subscribe.StateEvent` and, optionally, the processor's context.
 
 - Targets: `FUNCTION`, `ANNOTATION_CLASS`
 - Parameters: `aggregates: Array<String> = []`, `derives: Array<KClass<*>> = []`, `schedules: Array<String> = []`, `calls: Array<KClass<*>> = []`, `start: Start = Start.DEFAULT`
 
 ## `@OnRejected`
 
-[OnRejected](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnRejected.kt): A handler of a `Saga` for the rejection of a command the saga derived: it takes a `me.ahoo.wow.api.subscribe.CommandRejected` of the command's type (or of `*`, for every command the saga derives) and, optionally, the `SagaContext`, and returns the commands that compensate, as an `OnEvent` handler of a saga does.
+[OnRejected](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnRejected.kt): A handler of a `Saga` for the rejection of a command the saga derived: it takes a `me.ahoo.wow.api.subscribe.CommandRejected` of the command's type (or of `*`, for every command the saga derives) and, optionally, the `SagaContext`, and returns the commands that compensate, as an `OnEvent` handler of a saga does.
 
 - Targets: `FUNCTION`, `ANNOTATION_CLASS`
 - Parameters: None.
 
 ## `@OnSchedule`
 
-[OnSchedule](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnSchedule.kt): A job of a `Saga` run by a cron rule: the handler takes a `me.ahoo.wow.api.schedule.ScheduleTick` and, optionally, the `SagaContext`, and returns the commands it derives, as an `@OnEvent` handler of a saga does.
+[OnSchedule](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnSchedule.kt): A job of a `Saga` run by a cron rule: the handler takes a `me.ahoo.wow.api.schedule.ScheduleTick` and, optionally, the `SagaContext`, and returns the commands it derives, as an `@OnEvent` handler of a saga does.
 
 - Targets: `FUNCTION`, `ANNOTATION_CLASS`
 - Parameters: `name: String`, `cron: String`, `zone: String = ScheduleRule.UTC`, `scope: JobScope = JobScope.SYSTEM`, `sharded: Boolean = false`, `misfire: Misfire = Misfire.COALESCE`
 
 ## `@OnSourcing`
 
-[OnSourcing](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnSourcing.kt): A sourcing function of an aggregate's state: it applies one event to the state.
+[OnSourcing](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/OnSourcing.kt): A sourcing function of an aggregate's state: it applies one event to the state.
 
 - Targets: `FUNCTION`, `ANNOTATION_CLASS`
 - Parameters: None.
 
 ## `@Projection`
 
-[Projection](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Projection.kt): A projection: a processor whose `OnEvent` functions write a read model from committed events.
+[Projection](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Projection.kt): A projection: a processor whose `OnEvent` functions write a read model from committed events.
 
 - Targets: `CLASS`
 - Parameters: None.
 
 ## `@Reactor`
 
-[Reactor](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Reactor.kt): A reactor: a processor whose `OnEvent` functions act on committed events, such as sending a notification or calling another system.
+[Reactor](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Reactor.kt): A reactor: a processor whose `OnEvent` functions act on committed events, such as sending a notification or calling another system.
 
 - Targets: `CLASS`
 - Parameters: None.
 
 ## `@Retry`
 
-[Retry](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Retry.kt): The in-process retry budget of a subscription handler: how often a failing call is attempted, how long it waits between attempts, and how long one attempt may run, before the aggregate is parked in the failure ledger.
+[Retry](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Retry.kt): The in-process retry budget of a subscription handler: how often a failing call is attempted, how long it waits between attempts, and how long one attempt may run, before the aggregate is parked in the failure ledger.
 
 - Targets: `CLASS`, `FUNCTION`
 - Parameters: `maxAttempts: Int = 0`, `initialBackoff: String = ""`, `maxBackoff: String = ""`, `timeout: String = ""`, `recoverable: Array<KClass<out Throwable>> = []`, `unrecoverable: Array<KClass<out Throwable>> = []`
 
 ## `@Revision`
 
-[Revision](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Revision.kt): The revision of a domain event's schema.
+[Revision](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Revision.kt): The revision of a domain event's schema.
 
 - Targets: `CLASS`
 - Parameters: `value: Int`
 
 ## `@Saga`
 
-[Saga](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Saga.kt): A saga: a processor whose `OnEvent` functions derive commands from committed events.
+[Saga](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Saga.kt): A saga: a processor whose `OnEvent` functions derive commands from committed events.
 
 - Targets: `CLASS`
 - Parameters: None.
 
 ## `@Summary`
 
-[Summary](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Summary.kt): A one-line summary of a type or a field, carried into the Manifest and the documentation generated from it.
+[Summary](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Summary.kt): A one-line summary of a type or a field, carried into the Manifest and the documentation generated from it.
 
 - Targets: `CLASS`, `ANNOTATION_CLASS`, `PROPERTY`, `FIELD`
 - Parameters: `value: String`
 
 ## `@Tags`
 
-[Tags](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Tags.kt): Marks the member of an aggregate's state that derives the aggregate's ABAC tags from its state, so query policies that filter by tags follow the state.
+[Tags](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Tags.kt): Marks the member of an aggregate's state that derives the aggregate's ABAC tags from its state, so query policies that filter by tags follow the state.
 
 - Targets: `FUNCTION`, `PROPERTY`
 - Parameters: None.
 
 ## `@Unaddressed`
 
-[Unaddressed](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Unaddressed.kt): A command whose request may name no aggregate: a `CommandTransformer` of the service finds the aggregate it acts on, such as one whose id the server derives from the caller and the body.
+[Unaddressed](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Unaddressed.kt): A command whose request may name no aggregate: a `CommandTransformer` of the service finds the aggregate it acts on, such as one whose id the server derives from the caller and the body.
 
 - Targets: `CLASS`, `ANNOTATION_CLASS`
 - Parameters: None.
 
 ## `@Upgrade`
 
-[Upgrade](https://github.com/Ahoo-Wang/Wow/blob/v10/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Upgrade.kt): An upgrade of a domain event's stored JSON from revision `from` to revision `from + 1`.
+[Upgrade](https://github.com/Ahoo-Wang/Wow/blob/main/api/api/src/main/kotlin/me/ahoo/wow/api/annotation/Upgrade.kt): An upgrade of a domain event's stored JSON from revision `from` to revision `from + 1`.
 
 - Targets: `FUNCTION`
 - Parameters: `event: KClass<*>`, `from: Int`

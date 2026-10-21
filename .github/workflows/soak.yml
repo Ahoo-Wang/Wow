@@ -12,12 +12,12 @@
 #
 
 # The eShop's fault-injection soak (work package C.1, `:eshop-e2e:soakTest`)
-# on the v10 branch. v10-nightly.yml (on main) dispatches it on v10 every night
-# v10 moved; it can also be dispatched by hand. The test fails when any
+# on main. nightly.yml dispatches it every night main moved; it can also be
+# dispatched by hand. The test fails when any
 # invariant is violated (EshopSoakTest asserts zero violations, the task never
 # retries), which fails the job; the report, the request log, every node's
 # output and the thread dumps are uploaded either way.
-name: V10 Soak
+name: Soak
 on:
   workflow_dispatch:
     inputs:

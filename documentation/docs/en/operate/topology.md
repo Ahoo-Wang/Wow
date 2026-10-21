@@ -87,7 +87,7 @@ env:
     value: $(POD_NAME).eshop-ordering-cluster.$(POD_NAMESPACE).svc.cluster.local:9093
 ```
 
-The address is the pod's name under a headless service that also publishes pods that are not ready, so a node that is starting or draining still receives its peers' forwards and signals. The [eShop ordering manifests](https://github.com/Ahoo-Wang/Wow/tree/v10/deploy/v10/eshop-ordering) are a complete template for one service.
+The address is the pod's name under a headless service that also publishes pods that are not ready, so a node that is starting or draining still receives its peers' forwards and signals. The [eShop ordering manifests](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/v10/eshop-ordering) are a complete template for one service.
 
 ## What a service needs
 

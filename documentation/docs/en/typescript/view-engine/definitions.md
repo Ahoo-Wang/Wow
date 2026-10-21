@@ -595,5 +595,5 @@ A finding kept on purpose is asserted exactly, with its reason, so a new one sti
 
 ## Working examples
 
-- The ops console's definitions, words and actions, and the admission test in `parked.test.ts`: [`platform/ops/console/src/views/`](https://github.com/Ahoo-Wang/Wow/tree/v10/platform/ops/console/src/views).
+- The ops console's definitions, words and actions, and the admission test in `parked.test.ts`: [`platform/ops/console/src/views/`](https://github.com/Ahoo-Wang/Wow/tree/main/platform/ops/console/src/views).
 - Storybook's [integration walkthrough](/storybook/?path=/docs/view-engine-接入导览--docs), one order definition from declaration to page.

@@ -106,9 +106,7 @@ test('a release commit comes from main or a release-x.y branch', () => {
     ['origin/feature', 'origin/release-9.1'],
     ['  origin/main'],
   ])
-    assert.doesNotThrow(() =>
-      requireReleaseBranch(branches, 'target', '9.8.1'),
-    );
+    assert.doesNotThrow(() => requireReleaseBranch(branches, 'target'));
   for (const branches of [
     [],
     ['origin/feature'],
@@ -117,28 +115,18 @@ test('a release commit comes from main or a release-x.y branch', () => {
     ['fork/main'],
   ])
     assert.throws(
-      () => requireReleaseBranch(branches, 'target', '9.8.1'),
+      () => requireReleaseBranch(branches, 'target'),
       /target is on neither main nor a release-x.y branch/,
     );
 });
 
-test("a major's pre-release may come from that major's development line", () => {
-  for (const version of ['10.0.0-alpha.1', '10.0.0-rc.0', '10.1.0-beta.2'])
-    assert.doesNotThrow(() =>
-      requireReleaseBranch(['origin/v10'], 'target', version),
-    );
-  for (const [branches, version] of [
-    // A stable release ships from main or a release-x.y line only.
-    [['origin/v10'], '10.0.0'],
-    // Another major's pre-release does not ship from this line.
-    [['origin/v10'], '11.0.0-rc.0'],
-    [['origin/v10'], '9.9.0-rc.0'],
-    [['origin/v10-spike'], '10.0.0-rc.0'],
-    [['fork/v10'], '10.0.0-rc.0'],
-  ])
+test('a development line other than main is no release branch', () => {
+  // The 10.x pre-releases came from v10 until it became main; 9.x releases
+  // from v9, with its own copy of this script.
+  for (const branches of [['origin/v10'], ['origin/v9'], ['origin/v11']])
     assert.throws(
-      () => requireReleaseBranch(branches, 'target', version),
-      /nor is .* a pre-release on its major's development line/,
+      () => requireReleaseBranch(branches, 'target'),
+      /target is on neither main nor a release-x.y branch/,
     );
 });
 

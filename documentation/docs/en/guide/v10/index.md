@@ -18,7 +18,7 @@ This page walks through a new Wow V10 service laid out as a real one is, in thre
 | [Deployment](../../operate/topology.md) | PostgreSQL or MongoDB, the internal port, Kafka, ClickHouse, personal data, tenants |
 
 ::: warning V10 is a pre-release
-V10 is developed on the [`v10` branch](https://github.com/Ahoo-Wang/Wow/tree/v10). Its first pre-release, `10.0.0-alpha.3`, is for evaluation only: it carries no compatibility promise, and migrating 9.x data is unfinished (see the [Quick Start](./quickstart.md)). Its modules are on Maven Central as `me.ahoo.wow:wow-*`, with the BOM `me.ahoo.wow:wow-bom` and the Gradle plugin `me.ahoo.wow`. The rest of this guide (outside this V10 section) describes 9.x.
+V10 is developed on the [`main` branch](https://github.com/Ahoo-Wang/Wow/tree/main); 9.x is maintained on [`v9`](https://github.com/Ahoo-Wang/Wow/tree/v9). Its first pre-release, `10.0.0-alpha.3`, is for evaluation only: it carries no compatibility promise, and migrating 9.x data is unfinished (see the [Quick Start](./quickstart.md)). Its modules are on Maven Central as `me.ahoo.wow:wow-*`, with the BOM `me.ahoo.wow:wow-bom` and the Gradle plugin `me.ahoo.wow`. The rest of this guide (outside this V10 section) describes 9.x.
 :::
 
 ## What you need
@@ -29,7 +29,7 @@ V10 is developed on the [`v10` branch](https://github.com/Ahoo-Wang/Wow/tree/v10
 
 ## Lay out the service
 
-A service is three Gradle modules. The example below is a `catalog` context; each context of the in-repo eShop, [`example/eshop`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/eshop) (`catalog`, `basket`, `ordering`, `inventory`, `payment`), has the same shape.
+A service is three Gradle modules. The example below is a `catalog` context; each context of the in-repo eShop, [`example/eshop`](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop) (`catalog`, `basket`, `ordering`, `inventory`, `payment`), has the same shape.
 
 | Module | Holds | Depends on |
 | --- | --- | --- |
@@ -194,7 +194,7 @@ dependencies {
 }
 ```
 
-[`example/wow-manifest-fragment.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/v10/example/wow-manifest-fragment.gradle.kts) runs what the plugin's `generateWowManifestFragment` runs, and applies [`example/wow-contract.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/v10/example/wow-contract.gradle.kts), which packages the domain's contract into its api modules as the plugin does. The eShop's servers apply [`example/eshop/wow-manifest-compatibility.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/v10/example/eshop/wow-manifest-compatibility.gradle.kts) after setting `extra["wowService"]`, in place of `mergeWowManifest` and the Manifest compatibility check. The KSP options are:
+[`example/wow-manifest-fragment.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/example/wow-manifest-fragment.gradle.kts) runs what the plugin's `generateWowManifestFragment` runs, and applies [`example/wow-contract.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/example/wow-contract.gradle.kts), which packages the domain's contract into its api modules as the plugin does. The eShop's servers apply [`example/eshop/wow-manifest-compatibility.gradle.kts`](https://github.com/Ahoo-Wang/Wow/blob/main/example/eshop/wow-manifest-compatibility.gradle.kts) after setting `extra["wowService"]`, in place of `mergeWowManifest` and the Manifest compatibility check. The KSP options are:
 
 | Option | Means |
 | --- | --- |
