@@ -14,6 +14,7 @@
 package me.ahoo.wow.rehearsal.driver
 
 import tools.jackson.databind.JsonNode
+import tools.jackson.databind.node.ObjectNode
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -29,7 +30,8 @@ data class ViewRef(val id: String, val tenant: String, val owner: String)
  * One version's routes for the view store: the 9.x view store the example-server embeds (`/view-store/tenant/{tenant}
  * /owner/{owner}/…`, the application in `CoSec-App-Id`), or the V10 view store service (`/view-store/<aggregate>/{id}
  * /<command>`, the caller in `X-User`, `X-Tenant` and `CoSec-App-Id`, with `wow.platform.trust-identity-headers`).
- * Every command is answered once its events are stored. The 9.x store closes its state routes, so a 9.x view is read
+ * A preferences or wording body is the 9.x route's input; V10's command also names the definition or the dataset the
+ * 9.x path named. Every command is answered once its events are stored. The 9.x store closes its state routes, so a 9.x view is read
  * from its snapshot, which the example-server writes at every version.
  */
 sealed class ViewEndpoints(val base: URI) {
@@ -172,10 +174,10 @@ sealed class ViewEndpoints(val base: URI) {
             throw UnsupportedOperationException("The V10 view store deletes no view in the rehearsal.")
 
         override fun setPreferences(tenant: String, owner: String, definition: String, body: String): Outcome =
-            command(tenant, owner, "view_preferences/set-view-preferences", body)
+            command(tenant, owner, "view_preferences/set-view-preferences", named(body, "definitionId", definition))
 
         override fun setWording(tenant: String, dataset: String, body: String): Outcome =
-            command(tenant, SHARED, "dataset_wording/set-dataset-wording", body)
+            command(tenant, SHARED, "dataset_wording/set-dataset-wording", named(body, "dataset", dataset))
 
         override fun clearWording(tenant: String, dataset: String): Outcome =
             throw UnsupportedOperationException("The V10 view store clears no wording in the rehearsal.")
@@ -210,14 +212,17 @@ sealed class ViewEndpoints(val base: URI) {
             }
         }
 
-        /** The caller V10 reads from the headers: the owner as the user, or the reserved owner `(shared)`. */
+        /** [body], a 9.x route's input, as the V10 command, which names in its body what the 9.x route's path named. */
+        private fun named(body: String, field: String, value: String): String =
+            (Endpoints.MAPPER.readTree(body) as ObjectNode).put(field, value).toString()
+
+        /** The caller V10 reads from the headers: the owner as the user, or the reserved owner `(shared)` and its writer. */
         private fun caller(request: HttpRequest.Builder, tenant: String, owner: String): HttpRequest.Builder =
             request.header("X-Tenant", tenant).apply {
                 if (owner == SHARED) {
-                    header(
-                        "Wow-Scope",
-                        "owner=\"$SHARED\""
-                    ).header("X-User", "rehearsal")
+                    // The owner (shared)'s writes take the shared writer's role.
+                    header("Wow-Scope", "owner=\"$SHARED\"").header("X-User", "rehearsal")
+                        .header("X-Role", SHARED_WRITER)
                 } else {
                     header("X-User", owner)
                 }
@@ -228,6 +233,7 @@ sealed class ViewEndpoints(val base: URI) {
         /** The one application the rehearsal's views, preferences and wordings are kept in. */
         const val APP = "rehearsal-app"
         const val SHARED = "(shared)"
+        private const val SHARED_WRITER = "view-store.shared-writer"
         private const val APP_ID = "CoSec-App-Id"
         private const val JSON = "application/json"
         private const val QUERY_PAGE = 200

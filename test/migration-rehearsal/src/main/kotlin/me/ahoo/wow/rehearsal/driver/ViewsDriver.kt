@@ -33,16 +33,34 @@ data class BookedView(val ref: ViewRef, val title: String, val version: Int, val
     }
 }
 
+/** One user's preferences for a definition, or (owner `(shared)`, definition the dataset) a tenant's wording. */
+data class BookedSetting(
+    val tenant: String,
+    val owner: String,
+    val definition: String,
+    val version: Int,
+    val cleared: Boolean
+) {
+    fun line(): String = listOf(tenant, owner, definition, version, if (cleared) 1 else 0).joinToString("\t")
+
+    companion object {
+        fun parse(line: String): BookedSetting = line.split('\t').let {
+            BookedSetting(it[0], it[1], it[2], it[3].toInt(), it[4] == "1")
+        }
+    }
+}
+
 /**
  * The view store's part of the rehearsal (`driver views …`), against the 9.x view store the example-server embeds or
  * the V10 view store service:
  *
  * ```text
- * driver views seed    --base=<9.x url> --book=<file> --views=N [--tenants=T] [--users=U]
+ * driver views seed     --base=<9.x url> --book=<file> --settings=<file> --views=N [--tenants=T] [--users=U]
  * driver views traffic --version=9x|v10 --base=<url> --book=<file> --seconds=S [--touched=<file>] [--create=K]
  * driver views await   --base=<v10 url> --touched=<file> [--timeout=S]
  * driver views states  --version=9x|v10 --base=<url> --book=<file> --out=<file> [--sample=N]
- * driver views verify  --base=<9.x url> --touched=<file>
+ * driver views verify   --base=<9.x url> --touched=<file>
+ * driver views settings --version=9x|v10 --base=<url> --settings=<file>
  * ```
  *
  * - `seed` creates N views in 9.x, each taken through what its index draws: saved, renamed, shared (its owner becomes
@@ -54,6 +72,10 @@ data class BookedView(val ref: ViewRef, val title: String, val version: Int, val
  *   deleted, its version and its state without what one version derives (`id`, V10's `kind`), for `driver compare`.
  * - `verify` renames, in 9.x after the rollback, every view V10 touched, and checks that 9.x applies it on the version
  *   V10 left: 9.x reads what export wrote back.
+ * - `settings` sets again every booked preferences and every wording not cleared, and checks that each lands on the
+ *   version after the booked one: on V10 after the cut-over, that its derived ids find what was imported (an id
+ *   derived otherwise starts an empty aggregate at version 1); on 9.x after the rollback, that 9.x reads what export
+ *   wrote back.
  */
 class ViewsDriver(private val args: List<String>, private val concurrency: Int) {
     private val options: Map<String, String> = args.filter { it.startsWith("--") }.associate { option ->
@@ -66,8 +88,9 @@ class ViewsDriver(private val args: List<String>, private val concurrency: Int) 
         "await" -> await()
         "states" -> states()
         "verify" -> verify()
+        "settings" -> settings()
         else -> {
-            System.err.println("Usage: driver views seed|traffic|await|states|verify … (see ViewsDriver)")
+            System.err.println("Usage: driver views seed|traffic|await|states|verify|settings … (see ViewsDriver)")
             USAGE
         }
     }
@@ -86,18 +109,34 @@ class ViewsDriver(private val args: List<String>, private val concurrency: Int) 
         parallel(0 until views) { index ->
             lifecycle(endpoints, index, tenants, users, stats)?.let { book[it.ref.id] = it }
         }
+        val settings = ConcurrentHashMap<String, BookedSetting>()
         parallel(0 until users) { index ->
-            val body = """{"order":["${definition(index)}-a","${definition(index)}-b"],"autoRun":${index % 2 == 0},""" +
-                """"lastTabs":{"main":"t$index"}}"""
-            stats.count(endpoints.setPreferences(tenant(index, tenants), user(index), definition(index), body))
+            val setting = BookedSetting(tenant(index, tenants), user(index), definition(index), 0, false)
+            val outcome = endpoints.setPreferences(
+                setting.tenant,
+                setting.owner,
+                setting.definition,
+                preferences(index, 0)
+            )
+            stats.count(outcome)
+            if (outcome.ok) settings[setting.key()] = setting.copy(version = outcome.version ?: 1)
         }
         parallel(0 until tenants) { index ->
             DATASETS.forEach { dataset ->
-                val body = """{"title":"$dataset of t$index","recordNoun":"$dataset","fields":{"id":"Id"}}"""
-                stats.count(endpoints.setWording("t$index", dataset, body))
+                val setting = BookedSetting("t$index", ViewEndpoints.SHARED, dataset, 0, false)
+                val outcome = endpoints.setWording(setting.tenant, dataset, wording(setting.tenant, dataset, 0))
+                stats.count(outcome)
+                if (outcome.ok) settings[setting.key()] = setting.copy(version = outcome.version ?: 1)
             }
-            stats.count(endpoints.clearWording("t$index", DATASETS.last()))
+            val cleared = endpoints.clearWording("t$index", DATASETS.last())
+            stats.count(cleared)
+            settings.computeIfPresent(
+                BookedSetting("t$index", ViewEndpoints.SHARED, DATASETS.last(), 0, false).key()
+            ) { _, wording ->
+                wording.copy(version = cleared.version ?: (wording.version + 1), cleared = cleared.ok)
+            }
         }
+        writeSettings(File(required("settings")), settings.values)
         writeViews(File(required("book")), book.values)
         val deleted = book.values.count { it.deleted }
         val shared = book.values.count { it.ref.owner == ViewEndpoints.SHARED }
@@ -273,6 +312,48 @@ class ViewsDriver(private val args: List<String>, private val concurrency: Int) 
         return if (mismatched.isEmpty()) OK else DIFFERS
     }
 
+    private fun settings(): Int {
+        val endpoints = ViewEndpoints.of(required("version"), required("base"))
+        val file = File(required("settings"))
+        val booked = file.readLines().filter { it.isNotBlank() }.map(BookedSetting::parse)
+        val next = ConcurrentHashMap(booked.associateBy { it.key() })
+        val mismatched = ConcurrentHashMap<String, String>()
+        val stats = Stats()
+        val live = booked.filterNot { it.cleared }
+        parallel(live.indices) { index ->
+            val setting = live[index]
+            val outcome = if (setting.owner == ViewEndpoints.SHARED) {
+                endpoints.setWording(
+                    setting.tenant,
+                    setting.definition,
+                    wording(setting.tenant, setting.definition, setting.version)
+                )
+            } else {
+                endpoints.setPreferences(
+                    setting.tenant,
+                    setting.owner,
+                    setting.definition,
+                    preferences(index, setting.version)
+                )
+            }
+            stats.count(outcome)
+            if (outcome.version != setting.version + 1) {
+                mismatched[setting.key()] = "${outcome.version ?: outcome.error} after ${setting.version}"
+            }
+            outcome.version?.let { version -> next[setting.key()] = setting.copy(version = version) }
+        }
+        mismatched.entries.take(MAX_PRINTED).forEach { (key, why) -> System.err.println("MISMATCH $key: $why") }
+        writeSettings(file, next.values)
+        val preferences = live.count { it.owner != ViewEndpoints.SHARED }
+        println(
+            stats.json(
+                "views-settings",
+                "\"preferences\":$preferences,\"wordings\":${live.size - preferences},\"mismatched\":${mismatched.size}",
+            )
+        )
+        return if (mismatched.isEmpty()) OK else DIFFERS
+    }
+
     /** [state] without what one version derives: 9.x's `id`, which V10's ref holds, and V10's `kind`, from `config`. */
     private fun normalized(state: JsonNode): ObjectNode = (state.deepCopy() as ObjectNode).apply {
         remove("id")
@@ -353,6 +434,25 @@ class ViewsDriver(private val args: List<String>, private val concurrency: Int) 
         fun definition(index: Int): String = "def-${index % DEFINITIONS}"
 
         fun config(kind: String, seed: Int): String = """{"kind":"$kind","columns":["c${seed % 7}","c${(seed + 3) % 7}"]}"""
+
+        /**
+         * A preferences body; [after] (the version it is set after) is part of it, so a set is never one the view
+         * store answers as unchanged, without an event.
+         */
+        fun preferences(seed: Int, after: Int): String =
+            """{"order":["${definition(seed)}-a","${definition(seed)}-b"],""" +
+                """"autoRun":${seed % 2 == 0},"lastTabs":{"main":"t$seed","after":"v$after"}}"""
+
+        /** A wording body, [after] part of it as in [preferences]. */
+        fun wording(tenant: String, dataset: String, after: Int): String =
+            """{"title":"$dataset of $tenant after v$after",""" +
+                """"recordNoun":"$dataset","fields":{"id":"Id"}}"""
+
+        fun BookedSetting.key(): String = "$tenant/$owner/$definition"
+
+        fun writeSettings(file: File, settings: Collection<BookedSetting>) {
+            file.writeText(settings.sortedBy { it.key() }.joinToString("\n", postfix = "\n") { it.line() })
+        }
 
         fun readViews(file: File): List<BookedView> = file.readLines().filter { it.isNotBlank() }.map(BookedView::parse)
 

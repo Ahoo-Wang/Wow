@@ -28,9 +28,11 @@
 #                resumes the V10 hosts on their internal ports, and they serve writes (the write stop ends)
 #   5. rollback before V10 writes: export --dry-run finds nothing to write back, 9.x starts again on its own store,
 #                and its states (orders, views) equal V10's; then the cut-over again
-#   6. V10 traffic for V10_SECONDS: orders moved on, carts filled, views renamed
+#   6. V10 traffic for V10_SECONDS: orders moved on, carts filled, views renamed; every user's preferences and every
+#                wording set again, on the version after the imported one
 #   7. rollback after V10 writes: V10 stops, export writes its streams back, 9.x starts, its order states equal
-#                V10's and it renames every view V10 renamed on the version V10 left, and it takes writes again
+#                V10's, it renames every view and sets every preferences and wording V10 wrote on the version V10
+#                left, and it takes writes again
 #   8. refusal   V10 creates orders and views (OrderCreated and ViewCreated at revision 2, which 9.x cannot read)
 #                and export --dry-run refuses
 #
@@ -327,7 +329,7 @@ write_config
 # 1. seed
 start_ninex
 step seed 0 driver seed --version=9x --base="$NINEX_URL" --book="$WORK/book.tsv" --orders="$ORDERS"
-step seed-views 0 driver views seed --base="$NINEX_URL" --book="$WORK/views.tsv" --views="$VIEWS"
+step seed-views 0 driver views seed --base="$NINEX_URL" --book="$WORK/views.tsv" --settings="$WORK/settings.tsv" --views="$VIEWS"
 step seed-compensation 0 mongosh_run --eval "var count = $EXECUTIONS, example = 'wow_example_db', compensation = 'compensation_db'" /rehearsal/seed-compensation.js
 step ninex-seeded 0 ninex_streams
 
@@ -375,6 +377,8 @@ start_hosts
 views_traffic_start v10 "$VIEWS_URL" "$V10_SECONDS" v10-views
 step v10-traffic 0 driver traffic --version=v10 --base="$V10_URL" --book="$WORK/book.tsv" --seconds="$V10_SECONDS" --touched="$WORK/v10-touched.tsv"
 views_traffic_join v10-views
+# V10's derived ids find the imported preferences and wordings: each set lands on the version after 9.x's.
+step v10-settings 0 driver views settings --version=v10 --base="$VIEWS_URL" --settings="$WORK/settings.tsv"
 step v10-states-after 0 driver states --version=v10 --base="$V10_URL" --book="$WORK/book.tsv" --sample="$SAMPLE" --out="$WORK/v10-after.json"
 
 # 7. rollback after V10 writes
@@ -388,6 +392,7 @@ step rollback-after-states 0 driver states --version=9x --base="$NINEX_URL" --bo
 step rollback-after-compare 0 driver compare "$WORK/v10-after.json" "$WORK/9x-rollback-after.json"
 # 9.x reads the views' export: each view V10 renamed takes a 9.x rename on the version V10 left.
 step rollback-after-views 0 driver views verify --base="$NINEX_URL" --touched="$WORK/v10-views-touched.tsv"
+step rollback-after-settings 0 driver views settings --version=9x --base="$NINEX_URL" --settings="$WORK/settings.tsv"
 step ninex-after-rollback-traffic 0 driver traffic --version=9x --base="$NINEX_URL" --book="$WORK/book.tsv" --seconds=5
 step ninex-after-rollback 0 ninex_streams
 

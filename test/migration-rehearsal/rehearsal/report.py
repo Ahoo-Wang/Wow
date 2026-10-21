@@ -103,5 +103,7 @@ lines += [
     f"{data('v10-views').get('touched', '?')} views): "
     + "; ".join(log_lines("export", r"^(EQUAL|DIFFERS) view-store"))
     + f"; 9.x renamed each on the version V10 left: {data('rollback-after-views')}.",
+    f"- Preferences and wordings: V10 set each on the version after the imported one: {data('v10-settings')}; "
+    f"after the rollback, 9.x on the version after V10's: {data('rollback-after-settings')}.",
 ]
 print("\n".join(lines))
