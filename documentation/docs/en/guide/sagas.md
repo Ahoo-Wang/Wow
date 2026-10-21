@@ -147,4 +147,3 @@ A saga's subscription that has no checkpoint in a partition starts at the end of
 ## Next
 
 - [Publish and Consume Streams](./published-streams): read another context's events in a saga.
-- [Failures and Retries](./failures): what happens when a handler throws.
