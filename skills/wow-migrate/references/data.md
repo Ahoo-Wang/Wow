@@ -30,18 +30,21 @@ It does not move: a 9.x Redis or Elasticsearch event store (move it to MongoDB o
 | `state` | Only for `compare`: 9.x state field renames, and fields one side has by design (`ignore`), each of which is an explained difference |
 | `headers` | The 9.x headers kept as request facts, by their V10 names; every other header is dropped |
 
+Map every event the 9.x code can still produce, not only those the store holds today: one that first appears while `tail` runs stops it there. An event V10 does not need is mapped and retired, not left out.
+
 ## The rehearsal
 
 Run it end to end on the isolated target, more than once, and keep each run's output as evidence:
 
 1. **`check`**: passes, or the map is wrong.
 2. **`import --dry-run`**, then **`import`**: every mapped aggregate, then the reservations and the unresolved executions, resuming from the checkpoint. Interrupt one run on purpose and resume it: the evidence that a stopped run repeats at most a page and duplicates nothing (the log's version key absorbs them).
-3. **`tail`** while 9.x keeps writing: it follows what 9.x commits after the import by re-reading a window of commit time. It needs a `(createTime, _id)` index on each `<aggregate>_event_stream`; the tool prints the command, and creating it is a write to 9.x that needs its own authorization.
+3. **`tail`** while 9.x keeps writing, continuously until 9.x stops: it follows what 9.x commits after the import by re-reading a window of commit time. It needs a `(createTime, _id)` index on each `<aggregate>_event_stream`; the tool prints the command, and creating it is a write to 9.x that needs its own authorization. A tail that ran without a gap is what lets the cut-over use the short final pass (`import --final`, `cutover-evidence.md`).
 4. **`compare`**: each 9.x snapshot against the V10 state rebuilt at the snapshot's version, then the reservations and the parked entries. Exit `3` means differences. Zero is not always reachable: a 9.x snapshot can carry a 9.x defect that V10 fixed, and an instance without a snapshot cannot be compared. Classify every kind of difference (the report groups them by field) as a known 9.x defect or an intended change, and have a person sign each kind off. An unexplained kind blocks the cut-over. Report the share of instances that had a snapshot to compare.
+   - **Tags are one such kind, by design.** After the import an aggregate's tags are what V10's `@Tags` derives from its current state, the last value of each key, not the union of every value 9.x ever derived (an order's province before its address changed). `compare` reports `$tags` on those aggregates as an explained difference. Any ABAC rule that matched a past value no longer matches them: list those rules for the user before the cut-over.
 5. **`snapshot`** (or `import --snapshots`): writes the V10 snapshots, so the V10 read side has no gap at the switch.
 6. **`backfill-tags`**: the import writes streams without the aggregate's tags, so ABAC on the `events` model matches none of them until this runs. Run it before any ABAC-restricted event timeline is used.
-7. **Start the V10 services on the target** and exercise the real surfaces: a command on a migrated aggregate appends at the next version, a state read and a query return the migrated state, the subscriptions rebuild the projections, and the ops console lists the parked entries.
-8. **Rehearse the rollback** in both forms (`cutover-evidence.md`), including `export --dry-run` after the V10 services wrote on the target, where the tool provides `export`.
+7. **Start the V10 services on the target on standby** (`wow.standby=true`, as the cut-over does), check that reads and queries serve the imported data while commands are refused with 503 `wow.node.standby`, then resume them (`cutover-evidence.md`) and exercise the real surfaces: a command on a migrated aggregate appends at the next version, a state read and a query return the migrated state, the subscriptions rebuild the projections, and the ops console lists the parked entries.
+8. **Rehearse the final pass and the rollback**: stop the 9.x writers, run the final pass the cut-over will use (`import --final` after a continuous tail, else `import --restart`) and time the write stop; then both rollbacks (`cutover-evidence.md`), including `export --dry-run` and its `VERDICT` line after the V10 services wrote on the target.
 
 Measure each step's duration on a copy of production's size: it sets the cut-over window, and the final pass runs inside it.
 
@@ -51,7 +54,7 @@ Measure each step's duration on a copy of production's size: it sets the cut-ove
 
 ## Checkpoints
 
-The checkpoint file keeps where every pass stands; `<checkpoint>.reservations.jsonl` beside it records the keys the import reserved. Keep the two together, per environment: a checkpoint from the rehearsal must never be used against production. Commands may run at once over one checkpoint (the tail beside `compare`), and `--restart` walks a pass from the first instance again, which the final pass at the cut-over uses.
+The checkpoint file keeps where every pass stands; `<checkpoint>.reservations.jsonl` beside it records the keys the import reserved. Keep the two together, per environment: a checkpoint from the rehearsal must never be used against production. Commands may run at once over one checkpoint (the tail beside `compare`), and `--restart` walks a pass from the first instance again. The checkpoint also records when each aggregate's tail last ended, which `import --final` checks.
 
 ## Limits to report
 

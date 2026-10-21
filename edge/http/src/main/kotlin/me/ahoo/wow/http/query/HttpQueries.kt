@@ -44,6 +44,10 @@ import me.ahoo.wow.runtime.snapshot.SnapshotStatus
  * and a state read sees a state as [visibility] says. [reads] is the read path of the state reads
  * ([ReadFacade], decision D237), the [QueryEngine]'s when it comes from one ([of]). [streams] is how a `list` streams
  * as server-sent events (decision D253).
+ *
+ * [crossTenant] is whether a caller that may act across scopes may query across tenants (decision D254 ⑦,
+ * `wow.query.cross-tenant.enabled`, off by default): `Wow-Scope: tenant=*` or `tenant=("t1" "t2")` on a query route,
+ * answered 403 `wow.auth.forbidden` while it is off.
  */
 class HttpQueries @InternalWowApi constructor(
     snapshots: Collection<QueryGateway> = emptyList(),
@@ -58,6 +62,7 @@ class HttpQueries @InternalWowApi constructor(
     val reads: ReadFacade? = null,
     @InternalWowApi
     val streams: QueryStreams = QueryStreams(),
+    val crossTenant: Boolean = false,
 ) {
     private val snapshots: Map<AggregateType, QueryGateway> = snapshots.associateBy { it.aggregateType }
     private val events: Map<AggregateType, QueryGateway> = events.associateBy { it.aggregateType }
@@ -103,7 +108,7 @@ class HttpQueries @InternalWowApi constructor(
 
         /**
          * The query models [engine] composed (decision D237), with [defaultListSize], the [snapshotStatus] of the
-         * node's snapshots and how lists stream ([streams]).
+         * node's snapshots, how lists stream ([streams]) and whether queries may cross tenants ([crossTenant]).
          */
         @InternalWowApi
         fun of(
@@ -111,6 +116,7 @@ class HttpQueries @InternalWowApi constructor(
             defaultListSize: Int = DEFAULT_LIST_SIZE,
             snapshotStatus: SnapshotStatus = SnapshotStatus.NONE,
             streams: QueryStreams = QueryStreams(),
+            crossTenant: Boolean = false,
         ): HttpQueries = HttpQueries(
             engine.snapshots,
             engine.events,
@@ -121,6 +127,7 @@ class HttpQueries @InternalWowApi constructor(
             engine.policies,
             engine.reads,
             streams,
+            crossTenant,
         )
     }
 }

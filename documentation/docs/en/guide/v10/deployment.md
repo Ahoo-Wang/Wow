@@ -127,6 +127,7 @@ The host has no health endpoint of its own. Its public port opens only once the 
 Through the dual-run window of a 9.x cut-over, `migrate-data tail` imports what 9.x keeps writing while the V10 service serves reads. Start its nodes with `wow.standby: true`:
 
 - They serve state reads and queries of what the tail imports.
+- They report ready (`/actuator/health/readiness` is `UP`, with their lease groups and topics marked `standby`), so the load balancer sends them those reads.
 - They refuse every command with `wow.node.standby` (503), so nothing writes to V10 before the cut-over.
 - They join no lease group: no subscription handles anything, no parked entry is retried, no job or schedule runs. A saga or a reactor that starts at the end of its stream starts where the stream ends at the resume, so it never acts on the imported 9.x history again.
 
