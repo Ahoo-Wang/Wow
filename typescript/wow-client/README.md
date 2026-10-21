@@ -16,7 +16,7 @@ same version.
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
 ```
 
-The version follows Wow, so a minor release may contain breaking changes: keep the Wow packages on one minor with `save-prefix=~` or `--save-exact`, as [version ranges](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges) explains.
+The version follows Wow, so a minor release may contain breaking changes: keep the Wow packages on one minor with `save-prefix=~` or `--save-exact`, as [version ranges](https://wow.ahoo.me/typescript/compatibility#version-ranges) explains.
 
 Peer dependencies: `@ahoo-wang/fetcher` and `@ahoo-wang/fetcher-eventstream`.
 

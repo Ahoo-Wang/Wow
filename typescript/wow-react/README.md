@@ -25,7 +25,7 @@ pnpm add react react-dom @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream \
 `@ahoo-wang/fetcher-eventstream` is a peer of `@ahoo-wang/wow-client`, not of
 this package.
 
-The version follows Wow, so a minor release may contain breaking changes: keep the Wow packages on one minor with `save-prefix=~` or `--save-exact`, as [version ranges](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges) explains.
+The version follows Wow, so a minor release may contain breaking changes: keep the Wow packages on one minor with `save-prefix=~` or `--save-exact`, as [version ranges](https://wow.ahoo.me/typescript/compatibility#version-ranges) explains.
 
 The hooks run their own request state machine: `@ahoo-wang/fetcher-react` is
 not needed, and neither is `@ahoo-wang/fetcher-wow`.

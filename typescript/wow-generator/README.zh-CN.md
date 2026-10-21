@@ -70,7 +70,7 @@ pnpm exec wow-generator generate \
 
 ## 版本
 
-版本号跟随 Wow，次版本可能带有破坏性改动：用 `save-prefix=~` 或 `--save-exact` 让 Wow 包停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。`wow-client` 须与生成器的次版本一致。需要 Node 22.12 或更高版本，以及 TypeScript 6 或更高版本：CI 测试 6.0 到最新的 7.x。
+版本号跟随 Wow，次版本可能带有破坏性改动：用 `save-prefix=~` 或 `--save-exact` 让 Wow 包停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/typescript/compatibility#版本范围)。`wow-client` 须与生成器的次版本一致。需要 Node 22.12 或更高版本，以及 TypeScript 6 或更高版本：CI 测试 6.0 到最新的 7.x。
 
 生成成功时先输出警告（如有），最后输出一行摘要：
 
@@ -181,6 +181,6 @@ OpenAPI schema 声明的每个属性都生成为必填。强类型后端根本�
 - [在 CI 中重新生成](https://wow.ahoo.me/zh/typescript/generate)
 - [从任意 OpenAPI 文档生成客户端](https://wow.ahoo.me/zh/typescript/openapi-client)
 - [wow-generator 参考](https://wow.ahoo.me/zh/reference/typescript/wow-generator/)
-- [兼容性与版本](https://wow.ahoo.me/zh/guide/typescript/compatibility)
+- [兼容性与版本](https://wow.ahoo.me/zh/typescript/compatibility)
 
 [English](./README.md) · [许可证](https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE)

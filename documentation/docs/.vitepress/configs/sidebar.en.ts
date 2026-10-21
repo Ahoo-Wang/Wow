@@ -82,7 +82,7 @@ const typescriptEn: DefaultTheme.SidebarItem[] = [
             {text: 'React Hooks', link: 'react'},
             {text: 'Generate from Any OpenAPI Document', link: 'openapi-client'},
             {text: 'Authentication and Interceptors', link: 'authentication'},
-            {text: 'Compatibility and Versions', base: '/guide/typescript/', link: 'compatibility'},
+            {text: 'Compatibility and Versions', link: 'compatibility'},
             {text: 'Troubleshooting', base: '/guide/typescript/', link: 'troubleshooting'},
         ],
     },

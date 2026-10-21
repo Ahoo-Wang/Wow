@@ -78,7 +78,7 @@ test('consumers compile on the TypeScript floor and the latest 7.x, as the docs 
     readFileSync(
       join(
         ROOT,
-        `documentation/docs/${locale}/guide/typescript/compatibility.md`,
+        `documentation/docs/${locale}/typescript/compatibility.md`,
       ),
       'utf8',
     );

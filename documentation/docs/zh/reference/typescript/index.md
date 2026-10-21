@@ -5,7 +5,7 @@ description: 各个 Wow TypeScript 包的参考，以及它们的状态与入口
 
 # TypeScript 参考
 
-每个包一份参考。按任务阅读请从 [TypeScript 指南](../../typescript/)开始；支持的服务端与运行环境见[兼容性矩阵](../../guide/typescript/compatibility.md)。
+每个包一份参考。按任务阅读请从 [TypeScript 指南](../../typescript/)开始；支持的服务端与运行环境见[兼容性矩阵](../../typescript/compatibility.md)。
 
 | 包 | 状态 | 入口 | 参考 |
 |---|---|---|---|

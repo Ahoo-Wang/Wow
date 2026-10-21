@@ -14,7 +14,7 @@ Node `>=22.12.0` 或现代浏览器。TypeScript 6 或更高版本：CI 测试 6
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-eventstream @ahoo-wang/wow-client
 ```
 
-版本号跟随 Wow，次版本可能带有破坏性改动：用 `save-prefix=~` 或 `--save-exact` 让 Wow 包停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。
+版本号跟随 Wow，次版本可能带有破坏性改动：用 `save-prefix=~` 或 `--save-exact` 让 Wow 包停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/typescript/compatibility#版本范围)。
 
 Peer 依赖：`@ahoo-wang/fetcher` 和 `@ahoo-wang/fetcher-eventstream`。
 
