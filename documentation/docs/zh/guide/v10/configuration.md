@@ -105,6 +105,7 @@ wow:
 | 配置项 | 默认值 | 含义 |
 | --- | --- | --- |
 | `wow.http.request-facts` | 空 | 复制到命令 headers、从而写入事件流的请求头 |
+| `wow.http.client-facts` | `true` | 公开端口是否记录每条命令的客户端地址与 `User-Agent`（`remote_ip`、`user_agent`）：个人信息，一经写入无法删除 |
 | `wow.http.errors.[<code>].status` | Manifest 中的值 | 某个错误码的 HTTP 状态码 |
 | `wow.http.global-errors` | `true` | 应用自己的路由出错时是否也以问题详情应答（[错误码](./http-api.md#错误码)） |
 | `wow.http.manifest.enabled` | `true` | 是否提供 `GET /wow/manifest` |
