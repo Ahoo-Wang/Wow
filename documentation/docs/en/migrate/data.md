@@ -138,6 +138,19 @@ The cut-over is a blue-green switch:
 
 V10 parks the aggregate, not the event: a parked aggregate's later events wait while it is parked, and resuming it replays its streams from the failed version on, including streams 9.x had already handled after the failure. Handlers must tolerate that, as they tolerate any redelivery.
 
+## 9. Roll back
+
+Until V10 writes anything, rolling back is switching traffic back to 9.x. Once V10 has served writes, 9.x lacks what V10 committed since the cut-over, and `export` writes it back into the 9.x store, for the event types 9.x already had.
+
+**There is a point of no return.** An event V10 writes at a revision beyond the one the map imports into (an event the V10 model moved on with `@Upgrade`), or of a type 9.x never had, has no 9.x form. The first such event V10 commits closes the rollback window. Put that moment in the cut-over plan, and decide before then whether to roll back.
+
+1. Stop V10's writes, and keep 9.x stopped. What V10 commits after `export` starts is not exported.
+2. Run `export --dry-run`. It scans each V10 context's log and prints, per aggregate type, how many streams 9.x lacks. A stream with a V10-only type is printed as `REFUSED`, and a stream 9.x holds at the same version with other content as `CONFLICT`; either one stops the export before anything is written. Each context ends with a `VERDICT` line: roll back by switching back, roll back by export (and how many streams go back), or no rollback by export, with the time the window closed.
+3. Run `export`. It scans again, writes the streams 9.x lacks, resuming from its checkpoint, and skips any stream 9.x already holds. It then compares, per aggregate, how many streams 9.x and V10 hold, and exits with `3` when they differ.
+4. Start 9.x. Its snapshots still show the state before the exported streams until 9.x writes those aggregates again or regenerates its snapshots.
+
+Only event streams go back. Reserved keys V10 made, aggregates it parked and its projections' views do not, and 9.x does not publish the exported streams on its event bus.
+
 ## Limits
 
 - Only the 9.x MongoDB event store is read. Move a Redis or Elasticsearch event store, or a compensation service on Elasticsearch, to MongoDB in 9.x first.

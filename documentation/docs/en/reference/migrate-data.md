@@ -26,11 +26,12 @@ Run it from a checkout of the Wow release you migrate to. It reads a 9.x MongoDB
 | `compare` | `--sample <percent>`, `--restart` | Compares each 9.x snapshot with the state V10 rebuilds from the log at the snapshot's version, then the reservations and the parked entries. |
 | `snapshot` | `--restart` | Writes the V10 snapshot of every imported aggregate at its last version. |
 | `backfill-tags` | `--restart`, `--force` | Records the tags of every V10 stream appended without them, then rewrites the Elasticsearch events documents indexed without them. |
+| `export` | `--dry-run`, `--restart` | Writes back to the 9.x store the streams V10 wrote after the cut-over, for a rollback; refuses streams with V10-only types. |
 
 | Option | Meaning |
 | --- | --- |
 | `--config <file>` | The configuration file. Required by every command. |
-| `--dry-run` | `import` reads and converts every stream but writes nothing and saves no checkpoint. |
+| `--dry-run` | `import` reads and converts every stream but writes nothing and saves no checkpoint; `export` scans and prints its verdict but writes nothing. |
 | `--restart` | Walks every instance again from the first, ignoring where the last pass stopped. With `import`, the final complete pass after 9.x stops writing; it also reconciles reserved keys and parked entries imported earlier. |
 | `--snapshots` | After `import`, runs `snapshot`. |
 | `--once` | `tail` makes one pass and ends. |
@@ -46,7 +47,7 @@ An option a command does not take is a usage error.
 | `0` | Done. |
 | `1` | Failed: the check, or a step that stopped. |
 | `2` | Usage error. |
-| `3` | `compare` found differences, in this run or in earlier runs it resumed. |
+| `3` | `compare` found differences, in this run or in earlier runs it resumed; or, after `export`, 9.x and V10 hold different numbers of streams of an aggregate. |
 
 ### Output
 
@@ -60,6 +61,10 @@ Lines that need attention start with a marker:
 | `UNRESOLVED` | A reserved key or a compensation execution could not be placed, and was not imported. |
 | `RELEASED` | A reservation imported earlier was released, because 9.x no longer confirms it to that owner. |
 | `RESOLVED` | A parked entry imported earlier was resolved, because its 9.x execution is settled. |
+| `REFUSED` | `export` found a stream with a type 9.x cannot read: an aggregate no 9.x aggregate maps to, or an event beyond the map's revision. Nothing is exported. |
+| `CONFLICT` | `export` found a stream 9.x holds at the same version with another command or tenant. Nothing is exported. |
+| `VERDICT` | `export --dry-run`'s conclusion for a context: switch back, export N streams, or no rollback by export since a given time. |
+| `EQUAL`, `DIFFERS` | After `export`, whether 9.x holds as many streams of an aggregate as V10. |
 
 ## Configuration file
 
@@ -244,9 +249,15 @@ Each unresolved execution becomes one parked entry:
 
 An execution whose processor is not mapped, whose aggregate the map does not import, whose subscription reads another context's published stream, or whose version the V10 log does not hold, is `UNRESOLVED`. Two executions of one subscription and aggregate become one entry, from the earlier version.
 
+## Export
+
+`export` reads the map backwards. Each V10 stream gets its 9.x aggregate, event names and revisions, field names and kept headers back; the root command's id, the command id, the command's 9.x name and the operator's id become the 9.x `trace_id`, `upstream_id`, `upstream_name` and `command_operator` headers. A stream's 9.x id is derived from its reference and version, the same on every run. Each event gets the body type 9.x recorded for its name and revision, and decimals are written as `Decimal128`.
+
+It writes into the 9.x store of `source`, and only into a collection with 9.x's unique `(aggregateId, version)` index, which 9.x creates when it starts; without it, `export` stops and prints the command that creates it. Its checkpoint is the last log position written per V10 context and partition.
+
 ## Checkpoints
 
-The checkpoint file, format 1, keeps where each pass stands: per 9.x aggregate, the import, the tail, the comparison and the snapshot writing; per `PrepareKey`, the reservation import; the compensation import; per V10 aggregate type, the tags backfill.
+The checkpoint file, format 1, keeps where each pass stands: per 9.x aggregate, the import, the tail, the comparison and the snapshot writing; per `PrepareKey`, the reservation import; the compensation import; per V10 aggregate type, the tags backfill; per V10 context and partition, the export.
 
 Beside it, `<checkpoint>.reservations.jsonl` records each key the import reserved, before reserving it, so a later import can release a key 9.x gave up. Keep the two files together.
 
