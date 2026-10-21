@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+import type { TextNumbers } from './exactJson.js';
+
 /**
  * The wire model of a Wow service: what its routes answer, as the server
  * writes it (`wow-api`'s `CommandResult`, the edge's state views, the query
@@ -21,6 +23,22 @@
 export interface AggregateType {
   readonly context: string;
   readonly name: string;
+  /**
+   * Which numbers of its states, events and commands are read and written
+   * as their exact text (review R4-Q, Q-9): the `int64`, `bigint` and
+   * `decimal` fields of its Manifest, as wow-generator writes them.
+   */
+  readonly textNumbers?: AggregateTextNumbers;
+}
+
+/** The numbers of an aggregate type kept as their exact text ({@link TextNumbers}). */
+export interface AggregateTextNumbers {
+  /** Those of its state. */
+  readonly state?: TextNumbers;
+  /** Those of each event's body, by the event's name as the server sends it. */
+  readonly events?: Readonly<Record<string, TextNumbers>>;
+  /** Those of each command's body, by the command's name. */
+  readonly commands?: Readonly<Record<string, TextNumbers>>;
 }
 
 /** One aggregate: its type, its tenant and its id. */

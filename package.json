@@ -1,7 +1,7 @@
 {
   "name": "wow-workspace",
   "private": true,
-  "description": "pnpm workspace root for Wow's TypeScript packages, the V10 apps (ops console, eShop web) and the documentation site",
+  "description": "pnpm workspace root for Wow's TypeScript packages, the apps (ops console, eShop web) and the documentation site",
   "type": "module",
   "packageManager": "pnpm@10.34.6",
   "engines": {

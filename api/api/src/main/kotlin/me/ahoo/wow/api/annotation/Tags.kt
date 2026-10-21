@@ -14,7 +14,7 @@
 package me.ahoo.wow.api.annotation
 
 /**
- * Marks the member of an aggregate's state that derives the aggregate's ABAC tags from its state (V10, decision D220;
+ * Marks the member of an aggregate's state that derives the aggregate's ABAC tags from its state (decision D220;
  * 9.x `StateAggregateTagsExtractor`), so query policies that filter by tags follow the state.
  *
  * The member is a function without parameters, or a property, of the state class, returning

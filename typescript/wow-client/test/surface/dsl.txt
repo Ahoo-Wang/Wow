@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client/dsl — 158 names, from src/dsl.ts.
+# @ahoo-wang/wow-client/dsl — 160 names, from src/dsl.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 value AGGREGATION_LIMITS
@@ -106,6 +106,8 @@ type  Pagination
 value PagingMode
 type  PercentileAggregationMetric
 type  PercentileAggregationOptions
+type  PickPaths
+type  Projected
 type  Projection
 type  ProjectionCapable
 type  QueryConstraintType

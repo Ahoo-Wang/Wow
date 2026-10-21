@@ -1,5 +1,5 @@
-# The V10 ops service image (R.1): `./gradlew :ops-server:installDist` after
-# `pnpm --filter wow-ops-console... build`, which puts the console in the distribution's ui/. v10-image-deploy.yml
+# The ops service image (R.1): `./gradlew :ops-server:installDist` after
+# `pnpm --filter wow-ops-console... build`, which puts the console in the distribution's ui/. image-deploy.yml
 # builds it and tags only the release version: a pre-release never moves `latest`.
 # Callers: the image trusts no identity header, and runs CoSec only in its `cosec` profile
 # (SPRING_PROFILES_ACTIVE=cosec, with COSEC_JWT_SECRET), which verifies each request's CoSec token; without it every

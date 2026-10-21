@@ -14,6 +14,7 @@ Files from the user's project, shown inline:
 
 ```kotlin
 dependencies {
-    implementation("me.ahoo.wow:wow-spring-boot-starter:8.16.3")
+    implementation(platform("me.ahoo.wow:wow-bom:10.0.0"))
+    implementation("me.ahoo.wow:wow-kernel")
 }
 ```

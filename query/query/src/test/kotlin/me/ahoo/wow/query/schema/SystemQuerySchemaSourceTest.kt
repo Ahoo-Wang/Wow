@@ -78,7 +78,7 @@ class SystemQuerySchemaSourceTest {
     }
 
     @Test
-    fun `snapshot system declaration should match the V10 snapshot record`() {
+    fun `snapshot system declaration should match the snapshot record`() {
         val fields = SystemQuerySchemaSource.declaration(QueryModel.SNAPSHOT).fields
 
         fields.keys.map(QueryField::path).assert().containsExactly(

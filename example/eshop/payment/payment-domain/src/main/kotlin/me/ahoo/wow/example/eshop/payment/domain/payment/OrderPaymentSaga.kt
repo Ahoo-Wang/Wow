@@ -52,17 +52,21 @@ import java.math.BigDecimal
  */
 @Saga
 class OrderPaymentSaga {
+    // region peer-stream
     @OnEvent(aggregates = [ORDER])
     fun onOrderStockConfirmed(
         event: StateTypedEvent<OrderView, OrderStockConfirmed>,
         context: SagaContext,
     ): Command<RequestPayment> = context.command(event.ref.id, RequestPayment(event.ref.id, event.state.totalAmount))
+    // endregion
 
+    // region peer-command
     @OnEvent
     fun onPaymentSucceeded(
         event: StateTypedEvent<PaymentState, PaymentSucceeded>,
         context: SagaContext,
     ): Command<PayOrder> = context.command(event.state.orderId, PayOrder(event.ref.id, event.state.amount))
+    // endregion
 
     @OnEvent
     fun onPaymentFailed(
@@ -71,6 +75,7 @@ class OrderPaymentSaga {
     ): Command<CancelOrder> =
         context.command(event.state.orderId, CancelOrder("The payment failed: ${event.event.reason}"))
 
+    // region peer-rejected
     /** An order that refuses its payment has the payment refunded. */
     @OnRejected
     fun onPayRejected(rejected: CommandRejected<PayOrder>, context: SagaContext): Command<RefundPayment> =
@@ -78,6 +83,7 @@ class OrderPaymentSaga {
             rejected.executionId.ref.id,
             RefundPayment("The order ${rejected.ref.id} refused the payment: ${rejected.error.message}"),
         )
+    // endregion
 
     companion object {
         /** The ordering context's order, which publishes its stream. */
@@ -85,8 +91,10 @@ class OrderPaymentSaga {
     }
 }
 
+// region order-view
 /**
  * The payment context's view of the ordering's order, decoded from the state the ordering context publishes: what
  * the order costs. Reading ignores the rest.
  */
 data class OrderView(val totalAmount: BigDecimal = BigDecimal.ZERO)
+// endregion

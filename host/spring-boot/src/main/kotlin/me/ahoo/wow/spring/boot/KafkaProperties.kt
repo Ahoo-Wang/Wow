@@ -35,9 +35,9 @@ import kotlin.time.toJavaDuration
  *   a partition that joins or leaves a topic's shared consumer, take effect within it.
  * - `wow.kafka.offset-gap` (finding A2-11): what a read of another context's topic does when its partition no longer
  *   holds the offset it is to read from (the retention deleted it, or the topic was created again): `fail` (the
- *   default) fails the read, so the subscription stays where it is, logging errors, until an operator moves its
- *   checkpoint; `earliest` reads on from the earliest offset retained. Either way the gap is logged as an error and
- *   counted (`wow.kafka.offset.gaps`).
+ *   default) fails the read, so the subscription stays where it is, logging errors; to recover, set `earliest` and
+ *   restart the node. `earliest` reads on from the earliest offset retained; the skipped range is lost to that
+ *   subscription. Either way the gap is logged as an error and counted (`wow.kafka.offset.gaps`).
  * - `wow.kafka.command-intake`: whether each context the node hosts executes the commands other contexts send to its
  *   command topic, `wow.<context>.commands` (decisions D135, D137); off by default. The topic must exist with as
  *   many partitions as the context's log, and the node checks it at start. Sending commands to other contexts and

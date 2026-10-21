@@ -7,7 +7,7 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 
 PASS only if the answer does all of these:
 
-1. Users aggregate command and query clients are generated under src/generated/user-service/user_service/users/ (output directory, then the context alias, then the aggregate)
-2. Tenant-based resource attribution is configured (ResourceAttributionPathSpec.TENANT inferred from /tenant/{tenantId} paths)
-3. The default_delete_aggregate operation generates a defaultDeleteAggregate method
-4. wow-generator.config.json is created with apiClients.users.ignorePathParameters and passed with -c when it is not in the working directory (there is no .fetcherrc.json; this is the only config file the CLI reads)
+1. Explains that a Long, BigInteger or BigDecimal field (Manifest format int64, bigint, decimal) is typed string in the regenerated clients and read and written exactly through the aggregate's textNumbers, so regenerating from the current Manifest is the fix, not parsing with Number
+2. Sends amount as a string ('19.90') through the generated InvoiceCommandClient, which writes it as an unquoted JSON number (bodyNumbers), and never converts it with Number or parseFloat
+3. Displays and computes with a decimal library or string formatting, and keeps comparisons and sorts on the server
+4. Notes that hand-written clients must pass bodyNumbers themselves

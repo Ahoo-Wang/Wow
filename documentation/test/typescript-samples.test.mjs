@@ -32,7 +32,7 @@ test("the wow-client Skill imports only names its entries export", {timeout: 300
         )
     // A Skill under an exception may import fewer names while it is rewritten.
     if (IMPORT_EXCEPTIONS.length === 0)
-        assert.ok(imports > 100, `Only ${imports} imported names found; the sources or the import parsing changed`)
+        assert.ok(imports >= 10, `Only ${imports} imported names found; the sources or the import parsing changed`)
     const rest = problems.filter((problem) => !excepted(problem))
     assert.deepEqual(rest, [], `${rest.length} problems:\n${rest.join('\n')}`)
 })

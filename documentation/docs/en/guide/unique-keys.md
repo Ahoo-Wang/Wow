@@ -1,0 +1,68 @@
+---
+title: Unique Keys Across Aggregates
+description: Keep a value unique across aggregates, such as a user name or a brand name, by reserving it from a decision and releasing it when it changes.
+outline: deep
+---
+
+# Unique Keys Across Aggregates
+
+An aggregate decides alone, so it cannot see whether another aggregate already uses a value. When a value must be unique across aggregates, such as a user name, an email address or a brand's name, the decision reserves it. A reservation is held by one aggregate at a time, commits with the aggregate's events, and is given up if they are not written. This page keeps the eShop's brand names unique.
+
+## Reserve a key
+
+`DecideScope.reserve(namespace, key)` reserves `key` in `namespace` for the deciding aggregate, and returns `false` when another aggregate holds it. A brand reserves its name as it takes it:
+
+<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#take -->
+
+```kotlin
+/** Rejects a blank name or one another brand holds; null when this brand may take [name]. */
+private suspend fun take(name: String, scope: DecideScope): Decision? = when {
+    name.isBlank() -> Decision.reject(Rejections.BLANK_NAME, "A brand needs a name.")
+    !scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name)) ->
+        Decision.reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
+
+    else -> null
+}
+```
+
+- **The namespace** names what is unique: `eshop-catalog.brand-name`. Brands and categories reserve in two namespaces, so a brand and a category may share a name.
+- **The key** is the value, normalized the way uniqueness is meant: the catalog trims and lowercases a name, so "Contoso" and " contoso " are one name.
+- **The scope** of uniqueness is the aggregate's bounded context and tenant: another tenant may hold the same key. `reserve(namespace, key, ReservationTenancy.SYSTEM)` makes a key unique across the context's tenants.
+- `reserve` is a `suspend` function, so a decide function that reserves keys is written in Kotlin.
+
+## What happens to a reservation
+
+1. `reserve` records the key as **pending** for this aggregate, with an expiry.
+2. When the decision's events are appended, the reservation is **confirmed**.
+3. When they are surely not appended (the decision rejects, the version conflicts and the command is decided again, or deciding fails), this attempt **gives its reservation up**. A process that dies first leaves it to expire.
+
+A key the aggregate already holds stays held whatever an attempt does, so deciding a command again never loses it.
+
+## Release a key
+
+A value that changes releases its old key. `DecideScope.release(namespace, key)` releases a key the aggregate holds once the events are appended: the release commits with them, and nothing is released when they are not. A rename reserves the new key and releases the old one in one decision:
+
+<!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#rename -->
+
+```kotlin
+@OnCommand(produces = [BrandRenamed::class])
+suspend fun onCommand(command: RenameBrand, scope: DecideScope): Decision {
+    if (command.name.trim() == state.name) return Decision.NoOp
+    take(command.name, scope)?.let { return it }
+    // A new spelling of the same name keeps its key.
+    if (CatalogNames.key(command.name) != CatalogNames.key(state.name)) {
+        scope.release(CatalogNames.BRAND_NAMES, CatalogNames.key(state.name))
+    }
+    return Decision.events(BrandRenamed(command.name.trim()))
+}
+```
+
+Deleting an aggregate releases none of its keys, so a restored aggregate still holds them. A delete that should give a key up releases it in the aggregate's own command before the delete.
+
+## Where reservations are kept
+
+The reservations are kept in the service's store, beside its log, so a confirmation is as durable as the commit it belongs to. They replace 9.x's `PrepareKey`; migrate-data imports what 9.x confirmed ([Migrate the Data](../migrate/data)).
+
+## Test it
+
+`aggregateSpec` runs reservations against an in-memory store. `givenReservation` reserves a key for another aggregate first, so a test can check that the command is rejected when the key is taken, and `holds(namespace, key)` says whether the aggregate under test holds a key: [Test Domain Code](./testing).

@@ -7,6 +7,6 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 
 PASS only if the answer does all of these:
 
-1. Sends the aggregation to the dataset's route, `POST …/dataset/analytics/order_wide/aggregation` (under the service root or its tenant prefix), not to a snapshot route
+1. Sends the aggregation to the dataset's route, `POST /wow/dataset/analytics/order_wide/query` with `"kind": "aggregate"`, not to a snapshot route
 2. Names the fields as the descriptor lists them, at the record root (`customer_level`, `amount`), with no `state.` prefix
 3. Groups by `customer_level` with `TERMS` and measures `COUNT` and the `SUM` of `amount`

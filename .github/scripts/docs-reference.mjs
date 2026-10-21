@@ -199,7 +199,7 @@ const cell = (text = '') =>
 export const plain = text =>
   text
     .replace(
-      /\s*\((?:[^()]|\([^()]*\))*\b(?:decisions?|reviews?|roadmap|findings?|D\d+|V10)\b(?:[^()]|\([^()]*\))*\)/g,
+      /\s*\((?:[^()]|\([^()]*\))*\b(?:decisions?|reviews?|roadmap|findings?|axioms?|designs?|D\d+)\b(?:[^()]|\([^()]*\))*\)/g,
       '',
     )
     // A KDoc link `[Name]` reads as code, outside code spans only.
@@ -519,7 +519,7 @@ export function modulesPage(locale, modules) {
     words.head,
     '| --- | --- | --- |',
     row('wow-bom', 'bom/bom', words.bomRow),
-    row('wow-dependencies', 'wow-dependencies', words.dependenciesRow),
+    row('wow-dependencies', 'bom/dependencies', words.dependenciesRow),
     ...modules.map(({ artifact, dir, description }) =>
       row(artifact, dir, plain(holds(description))),
     ),

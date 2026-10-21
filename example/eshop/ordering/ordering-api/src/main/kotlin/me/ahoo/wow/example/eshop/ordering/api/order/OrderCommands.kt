@@ -22,6 +22,7 @@ import java.math.BigDecimal
  * aggregate reference it is sent to: no command carries an identity field.
  */
 
+// region submit-order
 /**
  * Submits an order of [items]. The basket context sends it when its buyer checks out, with the order's id fixed by the
  * basket. The order belongs to the buyer: a saga's command carries the scope of the basket it is derived from, whose
@@ -32,6 +33,7 @@ import java.math.BigDecimal
 data class SubmitOrder(
     val items: List<OrderItem>,
 )
+// endregion
 
 /** Moves a submitted order on to the stock validation; the order-process saga sends it. */
 @Summary("Await the stock validation")

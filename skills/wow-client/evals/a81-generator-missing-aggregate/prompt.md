@@ -6,4 +6,4 @@ max_turns: 2
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-Our Wow service's OpenAPI spec only produces plain API clients from @ahoo-wang/wow-generator; the cart aggregate never gets a CartCommandClient. Explain which tags and operations the generator needs.
+Our generated OrderCommandClient has no method for the new CancelOrder command the Wow V10 ordering service shipped last week. Explain where the generated clients come from and how to get the method.

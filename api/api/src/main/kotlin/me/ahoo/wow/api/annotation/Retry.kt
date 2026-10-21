@@ -16,7 +16,7 @@ package me.ahoo.wow.api.annotation
 import kotlin.reflect.KClass
 
 /**
- * The in-process retry budget of a subscription handler (V10, roadmap P.3, in place of 9.x `@Retry`): how often a
+ * The in-process retry budget of a subscription handler (roadmap P.3, in place of 9.x `@Retry`): how often a
  * failing call is attempted, how long it waits between attempts, and how long one attempt may run, before the
  * aggregate is parked in the failure ledger. A [Projection], [Reactor] or [Saga] class carries it for all its
  * [OnEvent] handlers; a handler's own overrides it, setting by setting.

@@ -38,6 +38,7 @@ class AccountSpec {
         }
     }
 
+    // region rejection
     @Test
     fun `a Java rejection should carry the code of a Java field`() = aggregateSpec(model, id = "alice") {
         given(AccountOpened("Alice"), Deposited(100))
@@ -48,4 +49,5 @@ class AccountSpec {
             expectState { balance.assert().isEqualTo(70) }
         }
     }
+    // endregion
 }

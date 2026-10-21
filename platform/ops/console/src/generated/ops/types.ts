@@ -47,16 +47,16 @@ export interface LedgerAggregate {
 export interface LedgerEntry {
   aggregate: LedgerAggregate;
   context: string;
-  failedAt: number;
-  fromPosition?: number | null;
+  failedAt: string;
+  fromPosition?: string | null;
   fromVersion: number;
-  nextRetryAt?: number | null;
+  nextRetryAt?: string | null;
   reason: string;
-  recordedAt: number;
+  recordedAt: string;
   recoverable?: string;
   request?: string | null;
   retries?: number;
-  retryAt?: number | null;
+  retryAt?: string | null;
   retrySpec: LedgerRetrySpec;
   service: string;
   status: string;
@@ -105,9 +105,9 @@ export interface ParkedRecorded {
  * - key: `me.ahoo.wow.ops.api.parked.ParkedResolved`
  */
 export interface ParkedResolved {
-  failedAt?: number | null;
+  failedAt?: string | null;
   outcome: string;
-  resolvedAt: number;
+  resolvedAt: string;
 }
 
 
@@ -116,22 +116,22 @@ export interface ParkedState {
   aggregate: LedgerAggregate;
   context: string;
   errorType: string;
-  failedAt: number;
-  fromPosition?: number | null;
+  failedAt: string;
+  fromPosition?: string | null;
   fromVersion: number;
-  nextRetryAt?: number | null;
+  nextRetryAt?: string | null;
   outcome?: string | null;
   reason: string;
-  recordedAt: number;
+  recordedAt: string;
   recoverable: string;
   refusalCode?: string | null;
   refusalReason?: string | null;
   refusedAction?: string | null;
   request?: string | null;
   requested?: string | null;
-  resolvedAt?: number | null;
+  resolvedAt?: string | null;
   retries: number;
-  retryAt?: number | null;
+  retryAt?: string | null;
   retrySpec: LedgerRetrySpec;
   service: string;
   status: string;
@@ -164,7 +164,7 @@ export interface RecordParked {
  * - key: `me.ahoo.wow.ops.api.parked.RecordResolved`
  */
 export interface RecordResolved {
-  resolution: { aggregate: LedgerAggregate; context: string; failedAt?: number | null; outcome: string; resolvedAt: number; service: string; subscription: string; };
+  resolution: { aggregate: LedgerAggregate; context: string; failedAt?: string | null; outcome: string; resolvedAt: string; service: string; subscription: string; };
 }
 
 

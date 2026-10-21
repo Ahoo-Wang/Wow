@@ -1,8 +1,9 @@
-# @ahoo-wang/wow-client — 98 names, from src/index.ts.
+# @ahoo-wang/wow-client — 105 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 type  AggregateManifest
 type  AggregateRef
+type  AggregateTextNumbers
 type  AggregateType
 type  ApplyTags
 value CommandGateway
@@ -33,6 +34,7 @@ value FrameworkErrorCodes
 type  FunctionInfo
 type  FunctionKind
 type  Hop
+type  Including
 type  LifecycleCommand
 value LifecycleCommands
 type  ListStreamOptions
@@ -75,6 +77,8 @@ type  SystemEvent
 type  Tags
 type  TagsApplied
 type  TargetScope
+type  TextNumbers
+type  TextNumbersByName
 type  TotalMode
 type  TransferOwner
 type  TransferSpace
@@ -92,10 +96,13 @@ value formatWaitPlan
 value formatWaitTimeout
 value isProblem
 value newRequestId
+value parseJson
 value parseRetryAfter
 value queryPath
 value readProblem
 value requestIdOf
 value retryHintOf
+value stringifyJson
+value textNumbersBy
 value toWowProblemError
 value wait

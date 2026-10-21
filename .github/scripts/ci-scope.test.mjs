@@ -41,8 +41,6 @@ test('workspace configuration, CI scripts and unknown paths run every gate', () 
     'package.json',
     'pnpm-lock.yaml',
     'pnpm-workspace.yaml',
-    // A dependency patch pnpm-workspace.yaml applies.
-    'patches/jsdom@29.1.1.patch',
     'tsconfig.base.json',
     '.github/scripts/ci-scope.mjs',
     'new-directory/index.ts',
@@ -85,7 +83,7 @@ test('any other workflow, the release workflow included, runs only the workflow 
   for (const path of [
     '.github/workflows/package-deploy.yml',
     '.github/workflows/documentation-deploy.yml',
-    '.github/workflows/v10-image-deploy.yml',
+    '.github/workflows/image-deploy.yml',
     '.github/workflows/nightly.yml',
     '.github/workflows/gitee-sync.yml',
   ])
@@ -98,7 +96,7 @@ test('the Gradle build, the dependency versions and the examples skip the TypeSc
     'settings.gradle.kts',
     'gradle/libs.versions.toml',
     'gradlew',
-    'wow-dependencies/build.gradle.kts',
+    'bom/dependencies/build.gradle.kts',
     'test/benchmarks/README.md',
     'test/benchmarks/results/reports/v10-counts-e1-e3.md',
     'example/README.md',
@@ -379,7 +377,7 @@ test('Kotlin, Gradle, console and prose changes skip the TypeScript workflow job
     assert.ok(none([path]), path);
 });
 
-test('V10 modules skip the TypeScript workflow jobs', () => {
+test('Wow modules skip the TypeScript workflow jobs', () => {
   for (const path of [
     'api/api/src/main/kotlin/me/ahoo/wow/api/decide/Command.kt',
     'api/manifest/build.gradle.kts',
@@ -438,12 +436,12 @@ test('the modules, their tests, the platform and the root build run the JVM jobs
     'example/eshop/DX-GAPS.md',
     'example/quickstart/build.gradle.kts',
     'example/java-smoke/build.gradle.kts',
-    // The V10-against-9.x end-to-end benchmark (D224): its V10 side is in :check.
+    // The end-to-end benchmark against 9.x (D224): its 10.x side is in :check.
     'test/benchmarks/server/build.gradle.kts',
     'test/benchmarks/load/src/main/kotlin/A.kt',
     'test/benchmarks/harness/bench.sh',
     'bom/bom/build.gradle.kts',
-    'wow-dependencies/build.gradle.kts',
+    'bom/dependencies/build.gradle.kts',
     'gradle/libs.versions.toml',
     'config/detekt/detekt.yml',
     'build.gradle.kts',
@@ -467,12 +465,12 @@ test('the modules, their tests, the platform and the root build run the JVM jobs
     '.github/workflows/nightly.yml',
   ])
     assert.ok(!scopes([path]).jvm, path);
-  // A V10 path keeps the scopes its rule gives it.
+  // A path keeps the scopes its rule gives it.
   assert.deepEqual(on(['gradle.properties']), ['typescript']);
   assert.ok(scopes(['.github/workflows/ci.yml']).workflows);
 });
 
-test('the V10 store, what its suites import, the service and its modules run the V10 contract', () => {
+test('the view store client, what its suites import, the service and its modules run the contract', () => {
   for (const path of [
     'typescript/wow-view-store/src/wowViewStore.ts',
     'typescript/wow-view-store/package.json',
@@ -493,7 +491,7 @@ test('the V10 store, what its suites import, the service and its modules run the
     'host/spring-boot/src/main/kotlin/A.kt',
     'test/tck/src/main/kotlin/A.kt',
     'test/test-dsl/src/main/kotlin/A.kt',
-    'wow-dependencies/build.gradle.kts',
+    'bom/dependencies/build.gradle.kts',
     'gradle/libs.versions.toml',
     'build.gradle.kts',
     'settings.gradle.kts',
@@ -525,7 +523,7 @@ test('the V10 store, what its suites import, the service and its modules run the
     '.github/workflows/package-deploy.yml',
   ])
     assert.ok(!scopes([path]).viewStoreContract, path);
-  // A V10 contract path keeps the scopes its rule gives it.
+  // A contract path keeps the scopes its rule gives it.
   assert.deepEqual(
     on(['platform/view-store/view-store-server/build.gradle.kts']),
     [],
@@ -549,7 +547,6 @@ test('the ops console, the ops service and what the console builds with run the 
     'package.json',
     'pnpm-lock.yaml',
     'pnpm-workspace.yaml',
-    'patches/jsdom@29.1.1.patch',
     'tsconfig.base.json',
     '.github/workflows/ci.yml',
     // An unknown path or a CI script runs everything.
@@ -725,7 +722,7 @@ test('the unit matrix reruns a package and the packages built on it', () => {
     ]),
     ['wow-react', 'wow-generator'],
   );
-  // The V10 framework error table's snapshot (review R2.5-4), which
+  // The framework error table's snapshot (review R2.5-4), which
   // wow-client's tests read, reruns wow-client and runs the JVM jobs.
   const errorTable = 'api/manifest/src/test/resources/framework-errors.json';
   assert.deepEqual(unitPackages([errorTable]), ['wow-client']);

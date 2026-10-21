@@ -57,6 +57,7 @@ import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.ObjectNode
 import java.security.MessageDigest
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.util.HexFormat
 
 /**
@@ -65,12 +66,12 @@ import java.util.HexFormat
  *
  * @param budget the entry's budget; `null` for an unbudgeted entry.
  * @param defaultListSize the list size an entry applies when a list query sends none.
- * @param timeZone the server's default time zone, used when a request names none.
+ * @param timeZone the zone a request that names none is read in: UTC (review R4-Q, Q-10).
  */
 internal fun QueryModelSchema.describe(
     budget: QueryBudget?,
     defaultListSize: Int?,
-    timeZone: ZoneId = ZoneId.systemDefault(),
+    timeZone: ZoneId = ZoneOffset.UTC,
 ): QueryModelDescriptor = describedOnce(DescriptorKey(budget, defaultListSize, timeZone)) {
     QueryModelDescription(this, budget).descriptor(defaultListSize, timeZone)
 }

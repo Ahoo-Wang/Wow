@@ -16,7 +16,10 @@
 # areas run (the JVM build, the TypeScript packages, the site, the stories, the
 # view store contract, the eShop web UI, the ops and catalog consoles, the
 # workflows), and `ci-gate` is the merge signal: it passes when every job that
-# ran passed. A manual dispatch runs everything.
+# ran passed. A manual dispatch runs everything. The Node 22 jobs (the unit
+# matrix's Node 22 legs, view-engine's Node 22 shards and Package / Node
+# 22.12.0) run on pushes to main and on dispatch, never on a pull request:
+# nightly.yml dispatches this workflow on main every night main moved.
 name: CI
 on:
   pull_request:
@@ -80,8 +83,8 @@ jobs:
           HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
         run: node .github/scripts/ci-scope.mjs
 
-  # Compiles every V10 module, runs its unit tests (`:architecture:test` holds
-  # the V10 dependency rules) and detekt over them.
+  # Compiles every module, runs its unit tests (`:architecture:test` holds
+  # the dependency rules) and detekt over them.
   check:
     name: Check
     needs: scope
@@ -102,14 +105,14 @@ jobs:
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-      - name: Check the V10 modules with coverage
+      - name: Check the modules with coverage
         run: ./gradlew :check :code-coverage-report:coverageReport --stacktrace
       # The release rehearsal of the Maven publications (R.1), signed with a
-      # throwaway key the check generates (gpg): every V10 release module has
+      # throwaway key the check generates (gpg): every release module has
       # its jar, sources, javadoc, POM and metadata, signed, the BOM constrains
       # exactly them, no 9.x module is published, and the deploy jobs'
       # prebuilt publish uploads all of it with its signatures.
-      - name: Check the V10 publications
+      - name: Check the publications
         run: ./gradlew publicationCheck --stacktrace
       - name: Upload unit test coverage
         uses: codecov/codecov-action@v7
@@ -122,7 +125,7 @@ jobs:
           disable_search: true
           files: ./test/code-coverage-report/build/reports/jacoco/coverageReport/coverageReport.xml
 
-  # The container-backed tests of the V10 modules, in shards that run in parallel, each on a runner and a Docker of
+  # The container-backed tests of the modules, in shards that run in parallel, each on a runner and a Docker of
   # its own; the H2 and H6 spikes' suites skip themselves unless their flags are set. Each project of
   # `integrationTestProjects` (build.gradle.kts) is in exactly one shard's `projects`: the scope job checks it
   # (.github/scripts/integration-shards.mjs). The shards are balanced by the tests' measured durations (eShop end
@@ -159,7 +162,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-      - name: Run the V10 integration tests with coverage
+      - name: Run the integration tests with coverage
         env:
           PROJECTS: ${{ matrix.projects }}
         run: >-
@@ -265,8 +268,9 @@ jobs:
       fail-fast: false
       matrix:
         package: ${{ fromJSON(needs.scope.outputs.unit-packages) }}
-        # Node 20 reached end of life on 2026-04-30.
-        node-version: [22, 24]
+        # Node 20 reached end of life on 2026-04-30. Node 22 off pull requests
+        # (see the top of the file).
+        node-version: ${{ fromJSON(github.event_name == 'pull_request' && '[24]' || '[22, 24]') }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -314,7 +318,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version: [22.12.0, 24]
+        # The floor, 22.12.0, off pull requests (see the top of the file).
+        node-version: ${{ fromJSON(github.event_name == 'pull_request' && '["24"]' || '["22.12.0", "24"]') }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -463,11 +468,11 @@ jobs:
 
   # Node 22 formats dates and numbers with its own ICU; the same assertions,
   # without coverage, in three shards that finish before Node 24's shards and
-  # their merge.
+  # their merge. Off pull requests (see the top of the file).
   view-engine-node22:
     name: View engine / Node 22 (${{ matrix.shard }}/3)
     needs: scope
-    if: needs.scope.outputs.view-engine == 'true'
+    if: github.event_name != 'pull_request' && needs.scope.outputs.view-engine == 'true'
     timeout-minutes: 20
     runs-on: ubuntu-latest
     strategy:
@@ -578,9 +583,9 @@ jobs:
         run: |
           "$RUNNER_TEMP/actionlint" -color
 
-  # The V10 store (`@ahoo-wang/wow-view-store`) and the view engine on it
-  # against the V10 view store service (platform/view-store) built from this
-  # commit in the V10 build scope (`pnpm test`, roadmap 7.3a). The suites'
+  # The view store client (`@ahoo-wang/wow-view-store`) and the view engine on it
+  # against the view store service (platform/view-store) built from this
+  # commit in the build scope (`pnpm test`, roadmap 7.3a). The suites'
   # global setup starts the service in a JVM on the memory backend, every port
   # bound to 0, so no container or database runs; it prints the service's log
   # when the service fails to start.
@@ -604,7 +609,7 @@ jobs:
       # The service with the in-memory query backend of its own tests (its test
       # classes and the query backend specs, :query-tck, once :query's test
       # fixtures), as the global setup (test/view-store/globalSetup.ts) loads it.
-      - name: Build the V10 view store service
+      - name: Build the view store service
         run: ./gradlew :view-store-server:installDist :view-store-server:testClasses :query-tck:jar --stacktrace
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
@@ -614,7 +619,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Build packages
         run: pnpm --filter @ahoo-wang/wow-view-store... build
-      - name: Test the V10 store against the service
+      - name: Test the view store client against the service
         run: pnpm --filter wow-integration-test test
 
   storybook-build:
@@ -1020,8 +1025,13 @@ jobs:
         catalog-console-e2e,
       ]
     if: always()
-    timeout-minutes: 5
+    # The patch coverage wait below is bounded at 15 minutes.
+    timeout-minutes: 20
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Codecov's check runs on the pull request's head commit.
+      checks: read
     steps:
       - name: Require every scoped job to pass or be skipped
         env:
@@ -1034,3 +1044,26 @@ jobs:
               *) exit 1 ;;
             esac
           done
+      # Patch coverage is part of the merge signal: on a pull request whose run
+      # uploaded coverage (the JVM check or shards, the TypeScript units or
+      # view-engine), Codecov's codecov/patch on the head commit must pass
+      # (codecov.yml: 90%, threshold 1%). A run without coverage leaves it out,
+      # so a required codecov/patch never blocks a change Codecov does not see.
+      - name: Check out the gate script
+        if: >-
+          github.event_name == 'pull_request' &&
+          (needs.check.result != 'skipped' || needs.integration.result != 'skipped' ||
+          needs.unit.result != 'skipped' || needs.view-engine.result != 'skipped')
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+      - name: Require Codecov's patch status to pass
+        if: >-
+          github.event_name == 'pull_request' &&
+          (needs.check.result != 'skipped' || needs.integration.result != 'skipped' ||
+          needs.unit.result != 'skipped' || needs.view-engine.result != 'skipped')
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node .github/scripts/codecov-patch.mjs

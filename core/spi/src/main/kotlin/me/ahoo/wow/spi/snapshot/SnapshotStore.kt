@@ -20,7 +20,7 @@ import me.ahoo.wow.api.annotation.WowSpi
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * The snapshots of one bounded context: each aggregate's latest committed state, the default read model (V10 axiom
+ * The snapshots of one bounded context: each aggregate's latest committed state, the default read model (axiom
  * A11, documentation/designs/v10/03-log-and-snapshot.md §3). A snapshot is derived from the log and can be rebuilt
  * from it, so it is written outside the append and a lost write costs only a rebuild.
  *

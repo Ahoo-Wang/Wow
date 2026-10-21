@@ -1,104 +1,90 @@
 # Descriptor and read-only queries
 
-In depth: [Query](https://wow.ahoo.me/guide/query.html), [Filter Expressions](https://wow.ahoo.me/guide/query/filter-expression.html), [Snapshot Queries](https://wow.ahoo.me/guide/query/snapshot-query.html), [Event Stream Queries](https://wow.ahoo.me/guide/query/event-stream-query.html), [Snapshot Aggregation](https://wow.ahoo.me/guide/query/snapshot-aggregation.html), [Event Stream Aggregation](https://wow.ahoo.me/guide/query/event-stream-aggregation.html), [Query Model Schema](https://wow.ahoo.me/guide/query/query-model-schema.html) and [Field Masking](https://wow.ahoo.me/guide/query/masking.html). The running service's OpenAPI document (`/v3/api-docs`) is the authority on its exact paths.
+`{base}` is the service root (or the gateway path to it). Confirm every route against the service: `GET {base}/wow/manifest` lists its aggregates and their query models, and the descriptor is the authority on what each admits.
 
-## Where things are
+| Purpose | Request |
+| --- | --- |
+| A model's descriptor | `GET {base}/{context}/{aggregate}/{snapshot\|events}/query` (`ETag` = version; `If-None-Match` answers 304 while unchanged) |
+| A query | `POST` on the same route, a JSON body with `kind` |
+| The datasets the caller sees | `GET {base}/wow/dataset` (`name`, `context`, `dataset`, `title`, `path`) |
+| A dataset's descriptor and queries | `GET` / `POST {base}/wow/dataset/{context}/{dataset}/query` |
+| One aggregate's state, at a version or time, and its trace | `GET {base}/{context}/{aggregate}/{id}/state`, `?version=`, `?at=`, `…/state/trace` |
 
-`{base}` is the service root (or the gateway path to it). A route is `{base}/[{alias}/][tenant/{tenantId}/][owner/{ownerId}/]{resource}/…`: `{alias}` is the bounded-context alias, present when the service serves an aggregate of another context (or a gateway routes by context); `{resource}` is the aggregate's route name. Below, `{aggregate}` stands for `[{alias}/]{resource}`, for example `cart` or `example/cart`. The tenant and owner variants put their segments **after the alias and before the resource**: `{base}/example/tenant/{tenantId}/cart/snapshot/count`, `{base}/example/owner/{ownerId}/cart/…`, and `{base}/example/tenant/{tenantId}/owner/{ownerId}/cart/…` (when the aggregate has a dynamic tenant and an owner). The descriptor routes have no such variants.
-
-| Purpose | Snapshot route | Event-stream route |
-|---|---|---|
-| Descriptor | `GET {base}/{aggregate}/snapshot/schema` | `GET {base}/{aggregate}/event/schema` |
-| Count (body: a filter) | `POST …/snapshot/count` | `POST …/event/count` |
-| Breakdown / trend | `POST …/snapshot/aggregation` | `POST …/event/aggregation` |
-| A list | `POST …/snapshot/list` | `POST …/event/list` |
-| One page with a total | `POST …/snapshot/paged` | `POST …/event/paged` |
-| Rows after a cursor | `POST …/snapshot/cursor` | `POST …/event/cursor` |
-| First match (404 when none) | `POST …/snapshot/single` | — |
-
-- Snapshot `single`, `list`, `paged` and `cursor` also have a `/state` form that returns the state alone (the request still names `state.*` paths).
-- One aggregate's event history by version: `GET {base}/[{alias}/]tenant/{tenantId}/{resource}/{id}/event/{headVersion}/{tailVersion}` (without the tenant segment only when the aggregate has a `@StaticTenantId`), only when the user asked about that aggregate.
-- Out of bounds for this Skill: command routes; the snapshot `PUT` routes (`{aggregate}/snapshot/{afterId}/{limit}` regeneration, `{aggregate}/{id}/snapshot`); the deprecated `POST …/schema/refresh` (it reloads the schema on that instance); state-replay and tracing routes unless the user asked for one aggregate's history.
-- Ask for JSON (`Accept: application/json`); `list` and `aggregation` can also stream SSE.
-
-**Datasets** (`model` `DATASET`): wide tables and warehouse tables a service serves beside its aggregates. `GET {base}/dataset` lists them (`contextName`, `name`, `title`, `version`; `version` `null` means the dataset is unavailable now). Each one's routes are `{base}/dataset/{context}/{dataset}/{schema|count|aggregation|list|paged|cursor|single}`, also under `{base}/tenant/{tenantId}/…`, with the same bodies as the snapshot routes. Differences that change a query:
-
-- fields are columns at the record root: no `state.` prefix, no elements, no event variants;
-- a dataset has no default deletion scope unless it declares one, and its `record.identity` may be absent (then no `cursor`);
-- presence: a column that is not `Nullable` has no `IS_NULL`/`EXISTS`, and an array column reads an empty array as missing (`NULL_OR_EMPTY_AS_MISSING`);
-- `PERCENTILE` is listed in `analysis.approximate`; `DISTINCT_COUNT` is exact.
-
-The descriptor answers an `ETag` that is its `version` in double quotes (`"sha256:…"`). Send it back exactly as received in `If-None-Match` (quotes included) to get `304` while it is unchanged.
+Ask for JSON (`Accept: application/json`); `list` can stream as server-sent events, which an answer rarely needs. Out of bounds: command routes, `POST …/wow.snapshot.rebuild`, `/wow/ops/…`, anything that writes.
 
 ## Reading the descriptor
 
-- `model`, `version`, `timeZone`: the model, a content hash of what it admits, and the server's default zone.
-- `fields[]`, one per canonical logical path:
-  - `path` and `aliases`: the names a query may use (results always use the canonical path);
-  - `types`, `kind`, `nullable`, `enum` (never listed for protected fields), and `semantic` (time encoding, `DECIMAL` scale, `MONEY` currency);
-  - `sensitivity`: `level` is DISPLAY or CONFIDENTIAL, and `comparable` says whether it may be filtered or sorted;
-  - `project`: whether a projection may select it;
-  - `filter.operators`: the operators allowed on this field;
-  - `sort.paged` and `sort.cursor`;
-  - `aggregate`: `groups`, `functions`, `distinctCount`, `percentile`, `any`, `firstLast`, `missingKey`, `expressionInput`, `inMetricFilter`;
-  - `scope`: the element this field lives in. Filter it only inside an `ELEMENT_MATCH` on that element, with the path written relative to it;
-  - `deprecated` (`{ "message": … }`): still queryable; use the field the message names.
-- `elements[]`: the element paths `ELEMENT_MATCH` can scope (`filter`), aggregation can expand (`aggregate`), with `search` when full-text search inside the element is allowed.
-- `dynamic[]`: map-key patterns such as `state.attributes.{key}`, with their operators and `excludedKeys`.
-- `record`: `identity`, `paging` modes (`LIST`, `PAGED`, `CURSOR`), `defaultScope` (usually active aggregates only), `rootOperators` (id, tenant, owner, space and deletion filters), and `search`.
-- `limits`: maximum list and page size, page window, filter nodes and values, sort fields, and `aggregation` limits (groups, metrics, elements, `maxLimit`, expression depth). The descriptor's limits win over anything remembered.
-- `analysis`: metric kinds, `approximate`, `expressions`, `having`, `sort` (by group, by metric), `dense` fill, `dateUnits` for `DATE_HISTOGRAM`, `dateParts` for `DATE_PART`, and `dateDiffUnits`.
-- `constraints[]`: rules that span fields. Apply them before sending: `CURSOR_UNIQUE_SORT` (the cursor sort ends with the `appended` identity), `COUNT_REQUIRES_FILTER` (a count or paged query must not match everything), `STARTS_WITH_REQUIRES_PREFIX`, `PARALLEL_ARRAY_SORT`, `NULL_OR_EMPTY_AS_MISSING`, `ARRAY_EQUALITY`.
-- `variants` (event streams): the `element` holding the events (`body`), its `discriminator` (`bodyType`), and `values[]`: each event type's `value` with its payload `fields` relative to the event.
+- `model`, `version`, `timeZone`.
+- `fields[]`: `path` and `aliases`; `types`, `kind`, `nullable`, `enum` (never listed for protected fields), `semantic` (time encoding, decimal scale, money); `sensitivity` (`level`, `comparable`); `project`; `filter.operators`; `sort.paged`, `sort.cursor`; `aggregate` (`groups`, `functions`, `distinctCount`, `percentile`, `any`, `firstLast`, `missingKey`, `expressionInput`, `inMetricFilter`); `scope` (the element it lives in: filter it only inside an `ELEMENT_MATCH` on that element); `deprecated` (use the field its message names).
+- `elements[]`: collections an `ELEMENT_MATCH` (`filter`) or an aggregation's `elements` (`aggregate`) reaches.
+- `dynamic[]`: map-key patterns such as `tags.{key}`.
+- `record`: `identity`, `paging` (`LIST`, `PAGED`, `CURSOR`), `defaultScope`, `rootOperators` (operators that name no field: `ID`, `AGGREGATE_ID`, `TENANT_ID`, `OWNER_ID`, `SPACE_ID`, `DELETION`, …).
+- `limits`: list, page, page window, filter nodes and values, sort fields, aggregation limits. They win over anything remembered.
+- `analysis`: metric kinds, `approximate`, `expressions`, `having`, `sort`, `dense`, `dateUnits`, `dateParts`, `dateDiffUnits`, `windows`.
+- `constraints[]`: `CURSOR_UNIQUE_SORT`, `COUNT_REQUIRES_FILTER` (a count or paged total must not match everything), `AGGREGATE_REQUIRED` (an `events` query must name the aggregate), `STARTS_WITH_REQUIRES_PREFIX`, `PARALLEL_ARRAY_SORT`, `NULL_OR_EMPTY_AS_MISSING`, `ARRAY_EQUALITY`.
 
-## Query shapes
+## Fields by model
 
-A filter is a `FilterExpression`: `{"op": "<OPERATOR>", "field": "<path>", …}`, combined with `{"op": "AND", "operands": [...]}` (`OR`, `NOR` alike). Operator keys: `value` (`EQ`, `NE`, `GT`…, `CONTAINS`), `values` (`IN`, `NOT_IN`, `CONTAINS_ALL`), `lowerBound`/`upperBound` (`BETWEEN`), `days` and `zoneId` (`RECENT_DAYS`, `EARLIER_DAYS`), `zoneId` on the calendar operators (`TODAY`, `LAST_WEEK`, `THIS_MONTH`, …), `state` (`DELETION`: `ACTIVE`, `DELETED`, `ALL`). The published schema is `schema/query/v2/filter-expression.schema.json` in the Wow repository. The REST entry still accepts the 8.x `condition`/`operator` shape until 10.0; write `FilterExpression`.
+- **snapshot:** system fields at the root (`tenantId`, `aggregateId`, `version`, `ownerId`, `spaceId`, `deleted`, `tags`, `firstEventTime`, `lastEventTime`, `operator`, `firstOperator`), the state under `state.` (`state.status`).
+- **events:** `aggregateId`, `tenantId`, `version`, `commitTime`, `commandId`, `requestId`, `commandType`, `ownerId`, `spaceId`, `operator`, `tags`, and `events[]` of `{name, revision, body}`; event names are `<context>.<aggregate>.<Name>`.
+- **dataset:** columns at the root, no `state.` prefix, no event elements; `record.identity` may be absent (then no `cursor`).
 
-- **Count** sends the filter itself as the body, with no `filter` wrapper.
-- **Rows** share `{"filter", "projection": {"include": [...]}, "sort": [{"field", "direction"}]}` and differ in paging; unknown properties are rejected (`UNKNOWN_PROPERTY`), so send only the ones a shape has: `single` has no paging; `list` takes `limit`; `paged` takes `"pagination": {"index", "size"}` (`index` 1-based); `cursor` takes `size` (default 10) and the `cursor` token from the previous page (left out on the first), no `pagination`. Project only what the answer needs. On an event stream, a projection that selects `body.body` (the payload) must also select `body.bodyType` (`EVENT_PROJECTION_TYPE_REQUIRED`); `include: ["body"]` covers both.
-- **Aggregation**: `{"filter", "elements", "groupBy", "metrics", "sort", "limit", "having"}`. `metrics` is required; `sort` needs at least one `groupBy`; `limit` defaults to 100 and may go up to the descriptor's `limits.aggregation.maxLimit`, which is `min(maxListSize, 10000)`. Group types: `TERMS`, `HISTOGRAM`, `DATE_HISTOGRAM` (`unit`, `timeZone`), `DATE_PART`; metric types: `COUNT`, `NUMERIC` (`function`, `expression`), `DISTINCT_COUNT`, `PERCENTILE`, `ANY`, `FIRST`, `LAST`, `DERIVED` (over other metrics' aliases) — only as the descriptor grants them. `sort` names group or metric aliases; `having` is its own tree (`{"type": "AND", "operands": [...]}`), not a filter.
-- **Windows** (only the functions `analysis.windows` lists): nodes of a `DERIVED` metric's `expression`, each reading an earlier non-derived metric by alias. `{"type": "TOTAL", "metric", "within"?}` sums it over the groups sharing the `within` group aliases (all groups when absent; `COUNT` or `SUM` only), so a share is `{"type": "BINARY", "operator": "DIVIDE", "left": {"type": "METRIC_REF", "metric": "gmv"}, "right": {"type": "TOTAL", "metric": "gmv", "within": ["province"]}}`. `{"type": "RUNNING", "metric", "order": {"field", "direction"}, "within"?, "frame"?, "function"?: "SUM"|"AVG"}` is a running total, or a moving average over the last `frame` groups. `{"type": "PREVIOUS", "metric", "along": <DATE_HISTOGRAM alias>, "shift"?, "period"?}` is the value `shift` buckets (or `period`s, such as `YEAR`) earlier, read over the filter's range shifted back. `{"type": "RANK", "metric", "within"?, "direction"?}` is the dense rank; top N per group is `having` on it. At most 8 windows per query; `PREVIOUS_UNSHIFTABLE` means the filter conditions the date field outside its top-level AND.
+## Request shapes
+
+| `kind` | Properties | Response |
+| --- | --- | --- |
+| `single` | `filter`, `projection`, `sort` | The first record; 404 `wow.query.not-found` when none |
+| `list` | `filter`, `projection`, `sort`, `limit` | An array |
+| `paged` | `filter`, `projection`, `sort`, `pagination` `{index (from 1), size}`, `total` (`BOUNDED` default, `EXACT` usually refused over HTTP, `NONE`) | `{total, exact, list}` |
+| `cursor` | `filter`, `projection`, `sort`, `size`, `cursor` | `{list, nextCursor}` |
+| `count` | `filter`, `limit` | `{count, exact}` |
+| `aggregate` | `filter`, `elements`, `groupBy`, `metrics`, `sort`, `limit`, `having` | An array of rows keyed by the aliases |
+
+A property a kind does not have is refused (`UNKNOWN_PROPERTY`): send only its own. `filter` is required except in `aggregate`; `{"op": "MATCH_ALL"}` matches everything. A count stops at its `limit` (or the server's count limit): `exact: false` means "at least".
+
+**Filters** are `{"op", "field", …}`: `value` (`EQ`, `NE`, `GT`, `GTE`, `LT`, `LTE`, `CONTAINS`, `STARTS_WITH`, …), `values` (`IN`, `NOT_IN`, `CONTAINS_ALL`), `lowerBound`/`upperBound` (`BETWEEN`), presence (`IS_NULL`, `IS_NOT_NULL`, `EXISTS`, `NOT_EXISTS`), `ELEMENT_MATCH` with a `predicate` relative to the element, combinators `AND`, `OR`, `NOR` with `operands`. Relative time: `TODAY`, `YESTERDAY`, `THIS_WEEK`, `LAST_MONTH`, `RECENT_DAYS` (`days`), `EARLIER_DAYS`, `BEFORE_TODAY` (`time`), `BEFORE_NOW`/`AFTER_NOW` (`offset`, ISO-8601), each with an optional `zoneId` (UTC when absent), `datePattern`, `timeUnit`.
+
+**Aggregation:** `groupBy` `TERMS`, `HISTOGRAM`, `DATE_HISTOGRAM` (`unit`, `timeZone`, `dense`), `DATE_PART`; `metrics` `COUNT`, `NUMERIC` (`function`, `expression`), `DISTINCT_COUNT`, `PERCENTILE`, `ANY`, `FIRST`, `LAST`, `DERIVED`; each metric but `DERIVED` takes its own `filter`. `sort` names aliases; `having` is its own tree (`CONDITION`, `BETWEEN`, `IN`, `IS_NULL`, `AND`, `OR`). `limit` defaults to 100 groups. A `DATE_HISTOGRAM` key is the bucket's start in epoch milliseconds in its `timeZone`.
 
 ```json
-{"filter": {"op": "AND", "operands": [
-  {"op": "EQ", "field": "state.status", "value": "PAID"},
-  {"op": "RECENT_DAYS", "field": "state.createdAt", "days": 7, "zoneId": "Asia/Shanghai"}
-]},
- "groupBy": [{"type": "DATE_HISTOGRAM", "field": "state.createdAt", "alias": "day", "unit": "DAY", "timeZone": "Asia/Shanghai"}],
- "metrics": [{"type": "COUNT", "alias": "orders"}, {"type": "NUMERIC", "function": "SUM", "expression": {"type": "FIELD", "field": "state.amount"}, "alias": "revenue"}],
+{"kind": "aggregate",
+ "filter": {"op": "AND", "operands": [
+   {"op": "EQ", "field": "state.status", "value": "PAID"},
+   {"op": "RECENT_DAYS", "field": "state.paidAt", "days": 7, "zoneId": "Asia/Shanghai"}]},
+ "groupBy": [{"type": "DATE_HISTOGRAM", "field": "state.paidAt", "alias": "day", "unit": "DAY", "timeZone": "Asia/Shanghai"}],
+ "metrics": [{"type": "COUNT", "alias": "orders"},
+             {"type": "NUMERIC", "function": "SUM", "expression": {"type": "FIELD", "field": "state.amount"}, "alias": "revenue"}],
  "sort": [{"field": "day", "direction": "ASC"}],
  "limit": 31}
 ```
 
-A `DATE_HISTOGRAM` bucket key is the bucket's start in epoch milliseconds, aligned to its `timeZone`: say the zone with the answer.
+**Windows** (only the functions `analysis.windows` lists) are nodes of a `DERIVED` metric's `expression` over an earlier metric's alias: `TOTAL` (`within`: a share), `RUNNING` (`order`, `frame`, `function`: a running total or moving average), `PREVIOUS` (`along` a `DATE_HISTOGRAM` alias, `shift` or `period`: the previous period), `RANK` (`within`, `direction`; top N per group is `having` on it). The server computes them over every group before `having` and `limit`, which a hand computation over cut rows cannot.
 
-**Event payload conditions.** The predicate's paths are relative to the element: inside `ELEMENT_MATCH` on `body`, the type is `bodyType` and a payload field is `body.<field>`. Keep both in one predicate so they hold for the same event:
+**Events payload conditions** keep the name and the payload in one element predicate:
 
 ```json
-{"op": "ELEMENT_MATCH", "field": "body", "predicate": {"op": "AND", "operands": [
-  {"op": "EQ", "field": "bodyType", "value": "com.example.cart.CartItemAdded"},
-  {"op": "GT", "field": "body.quantity", "value": 1}
-]}}
+{"kind": "count",
+ "filter": {"op": "AND", "operands": [
+   {"op": "AGGREGATE_ID", "value": "order-42"},
+   {"op": "ELEMENT_MATCH", "field": "events", "predicate": {"op": "AND", "operands": [
+     {"op": "EQ", "field": "name", "value": "sales.order.OrderPaid"},
+     {"op": "GT", "field": "body.amount", "value": 1000}]}}]}}
 ```
 
-To count events rather than streams (one stream holds one command's events), aggregate with `"elements": [{"path": "body"}]`: after the expansion, groups, metrics and element filters are relative to one event (`bodyType`, `name`, `body.<field>`), while the root filter stays absolute. A root `COUNT` counts streams, an expanded one events: say which.
+A `count` of the events model counts commits; counting events needs an aggregation that expands `"elements": [{"path": "events"}]`, where the descriptor's `analysis` and the field's `aggregate` allow it. Without the aggregate named, an `events` query may be refused (`AGGREGATE_REQUIRED`, or `STORAGE_UNSUPPORTED` on `aggregateId`).
 
-## Rejections
+## Problems
 
-A rejected query answers `400` (or `403` for scope) with `errorCode` and `bindingErrors[{name, msg, code}]`. `name` is the field or JSON path.
+A refusal is `application/problem+json` with `code`, `status`, `detail` and `violations[{code, path, message}]`:
 
-- `UNKNOWN_FIELD`, `UNKNOWN_PROPERTY`: the field or key is not in the model. Re-read the descriptor.
-- `INVALID_JSON`, `BODY_NOT_OBJECT`, `EMPTY_BODY`, `UNKNOWN_TYPE`, `UNKNOWN_VALUE`, `INVALID_VALUE`, `INVALID_REQUEST`: the request's shape; fix it against the shapes above.
-- `UNSUPPORTED_CAPABILITY`, `VALUE_MISMATCH`, `NOT_COLLECTION`, `NOT_SINGLE_STRING`, `MODEL_SEARCH_UNSUPPORTED`: the operator, search or value does not fit the field.
-- `ELEMENT_SCOPE_REQUIRED`: move the condition inside an `ELEMENT_MATCH`. `METRIC_FILTER_SEARCH`, `METRIC_FILTER_ELEMENT_MATCH`, `METRIC_FILTER_ARRAY_FIELD`: a metric's own filter cannot hold that.
-- `PROTECTED_COMPARISON`, `PROTECTED_AGGREGATION`: a protected field was compared, grouped or used as a metric. Do not work around it.
-- `NOT_PROJECTABLE`, `INCOMPLETE_PROJECTION`, `EVENT_PROJECTION_TYPE_REQUIRED`: fix the projection.
-- `PARALLEL_ARRAY_SORT`, `ARRAY_EQUALITY`, `CURSOR_NOT_ALLOWED`, `MISSING_KEY_REQUIRES_STRING`, `ANY_REQUIRES_SINGLE_VALUE`, `FIRST_LAST_REQUIRES_SINGLE_VALUE`, `FIRST_LAST_REQUIRES_ORDER_BY`: a storage or aggregation constraint the descriptor lists.
-- `SIZE_OUT_OF_RANGE`, `FILTER_TOO_LARGE`, `EXPENSIVE_OPERATOR_DISABLED`, `COUNT_REQUIRES_FILTER`, `RESIDUAL_GROUPS_EXCEEDED`, `EXPLICIT_ENTRY_REQUIRED` (`errorCode` `IllegalArgument`): the query exceeds the entry budget. Narrow it (smaller limit or page, fewer conditions or values, a filter on a count) or drop the expensive feature `msg` names.
-- `STORAGE_UNSUPPORTED`, `TEMPORAL_AGGREGATION_UNSUPPORTED`, `TEMPORAL_REPRESENTATION_REQUIRED`, `IDENTITY_UNDEFINED`: the feature is not available on this model or storage. Answer without it.
-- `SORT_TOO_MANY`, `SORT_FIELD_DUPLICATE`, `CURSOR_SORT_TOO_MANY`, `CURSOR_SORT_DUPLICATE`: fix the sort (fewer fields, each once).
-- `INVALID_CURSOR`: the cursor token does not fit this model and sort. Restart from the first page.
-- `IllegalAccessQueryScope` (403): the server requires an authenticated tenant scope; the credentials lack it.
-
-A `500` (`InternalServerError`, for example `Query storage failed.`) is a server fault, not a query error: retry, and do not change the query. A second rejection after one fix, a repeated `5xx`, or a result that contradicts the data is a `wow-develop` diagnosis.
+| `code` | Status | Means | Do |
+| --- | --- | --- | --- |
+| `wow.query.malformed` | 400 | The body does not read as a query (`UNKNOWN_PROPERTY`, `INVALID_VALUE`, `UNKNOWN_TYPE`, `INVALID_JSON`, …) | Fix the shape |
+| `wow.query.invalid` | 400 | The model refuses it (`UNKNOWN_FIELD`, `UNSUPPORTED_CAPABILITY`, `VALUE_MISMATCH`, `ELEMENT_SCOPE_REQUIRED`, `PROTECTED_COMPARISON`, `PROTECTED_AGGREGATION`, `SIZE_OUT_OF_RANGE`, `FILTER_TOO_LARGE`, `EXPENSIVE_OPERATOR_DISABLED`, `COUNT_REQUIRES_FILTER`, `INVALID_CURSOR`, `STORAGE_UNSUPPORTED`, …) | Fix within the descriptor; never work around protection |
+| `wow.query.not-found` | 404 | A `single` matched nothing | Answer "none" |
+| `wow.query.dataset-not-found` | 404 | No such dataset for this caller | Re-read `GET /wow/dataset` |
+| `wow.query.dataset-unavailable` | 409 | The dataset is being revised | Try later, or answer from another source and say so |
+| `wow.query.busy` | 429 | The store's query bulkhead is full | Wait `Retry-After`, then retry once |
+| `wow.query.timeout` | 504 | Too heavy for the budget | Narrow the filter or the period |
+| `wow.auth.unauthenticated` / `wow.auth.forbidden` | 401 / 403 | Credentials missing, or the caller may not read this (another tenant, a `Wow-Scope` it may not use) | Stop and tell the user |
+| `wow.query.failed` | 500 | The backend failed | A diagnosis for `wow-develop`; do not change the query |

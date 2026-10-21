@@ -1,8 +1,8 @@
 ---
 type: regex
-pattern: 'toWowError'
+pattern: 'WowProblemError'
 match: contains
 target: last_message
 ---
 
-The answer names `toWowError`.
+The answer names `WowProblemError`.

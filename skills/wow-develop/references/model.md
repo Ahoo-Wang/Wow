@@ -1,0 +1,120 @@
+# The model: aggregates, commands, events, state
+
+The job: put a business rule where it holds. An aggregate decides each command from the command and its current state; the events it decides are the only thing written; the state is evolved from them. Verify every annotation and signature below in the target's version (`me.ahoo.wow.api.*`), and the generated code in its `build/generated/ksp`.
+
+## One aggregate, whole
+
+The quickstart's account: a state evolved by `onSourcing`, a root whose `onCommand` functions decide, and the rejection codes it answers with.
+
+<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt -->
+
+```kotlin
+package me.ahoo.wow.example.quickstart
+
+import me.ahoo.wow.api.annotation.AggregateRoot
+import me.ahoo.wow.api.annotation.ErrorCode
+import me.ahoo.wow.api.annotation.OnCommand
+import me.ahoo.wow.api.decide.Decision
+
+class AccountState {
+    var owner: String = ""
+        private set
+    var balance: Long = 0
+        private set
+
+    fun onSourcing(event: AccountOpened) {
+        owner = event.owner
+    }
+
+    fun onSourcing(event: Deposited) {
+        balance += event.amount
+    }
+
+    fun onSourcing(event: Withdrawn) {
+        balance -= event.amount
+    }
+}
+
+@AggregateRoot
+class Account(private val state: AccountState) {
+    fun onCommand(command: OpenAccount): AccountOpened = AccountOpened(command.owner)
+
+    @OnCommand(produces = [Deposited::class])
+    fun onCommand(command: Deposit): Decision =
+        if (command.amount <= 0) {
+            Decision.reject(Rejections.INVALID_AMOUNT, "${command.amount} is not positive.")
+        } else {
+            Decision.events(Deposited(command.amount))
+        }
+
+    @OnCommand(produces = [Withdrawn::class])
+    fun onCommand(command: Withdraw): Decision = when {
+        command.amount <= 0 ->
+            Decision.reject(Rejections.INVALID_AMOUNT, "${command.amount} is not positive.")
+
+        command.amount > state.balance ->
+            Decision.reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
+
+        else -> Decision.events(Withdrawn(command.amount))
+    }
+
+    /** The codes it rejects with, by local name: the Manifest and its answers say `bank.account.invalid-amount`. */
+    object Rejections {
+        @ErrorCode(description = "An amount is always positive.")
+        const val INVALID_AMOUNT = "invalid-amount"
+
+        @ErrorCode(description = "The balance does not cover the withdrawal.", status = 409)
+        const val INSUFFICIENT_BALANCE = "insufficient-balance"
+    }
+}
+```
+
+## Names
+
+- Context: `@BoundedContext(name, description)` on an object of the domain module; names match `[a-z][a-z0-9-]*` (no dot: it separates type names). The compiler fails on a name that breaks it. KSP option `wow.context` names the context when a module has no single `@BoundedContext`.
+- Aggregate: `@Name` or the root's simple name in `snake_case`. Types: `<context>.<aggregate>.<Name>`. Subscriptions: `<processor>.<function>`.
+
+## Commands and decisions
+
+- `@AggregateRoot class Root(private val state: State)` (or a root that is its own state). Attributes: `lifecycle` (default all five lifecycle commands), `published`, `publishState`, `topic`, `retiredEvents`.
+- Command functions: non-private, `@OnCommand` or named `onCommand`. First parameter the body `X` or `Command<X>` (`ref`, `scope`, `headers`, `causation`); then services (factory parameters bound once from beans; `@Name` qualifies by bean name) and `DecideScope`.
+- Return `Decision.events(...)`, `Decision.NoOp`, `Decision.reject(code, message)`, an event, a list of events, or nothing. `@OnCommand(produces = [...])` is required for a `Decision` return, so the Manifest knows the events, and forbidden when the return type names them.
+- Creation: `@CreateAggregate` on the command (the aggregate must not exist, else `wow.aggregate.exists`), `@AllowCreate` (either), neither (it must exist, else `wow.aggregate.not-found`).
+- `@Unaddressed`: a command whose request may name no aggregate because a `CommandTransformer` of the service finds it (a derived id).
+- **No identity in command bodies**: the id comes from the route or the saga's ref, tenant, owner and space from the caller, the expected version from `If-Match`.
+- **A decide function that blocks its thread** (JDBC, a blocking client) is marked `@Blocking`, so it runs on a virtual thread instead of the shared worker; otherwise make it `suspend` or return a Reactor type (`wow-reactor`). `@Blocking` is a compile error on evolve, `@Upgrade` and `@Tags` members, which do no I/O.
+- **Decide never mutates state**; the test DSL fails a spec that does. A decide function is deterministic given the command, the state and its services' answers.
+- `@AfterCommand(include, exclude)` or `afterCommand`: returns extra events in the same stream; it cannot reject.
+
+## Rejections and error codes
+
+- A rejection is a decision, not an exception: `Decision.reject(code, message)`. An exception thrown by decide is a failure (`wow.command.failed`), answered as 500.
+- Codes: `@ErrorCode(description, status = 422)` on a `const val String` in an `object` nested in the `@AggregateRoot` class, by local name (`const val EMPTY = "empty"`); the compiler and the kernel name it `<context>.<aggregate>.empty`. A code with a dot is full (`<context>.<code>` for a context-wide one). Never the `wow.` prefix; each code once per module. Peers compare with the api's generated `<Context>Contract.<Aggregate>.Errors.<NAME>`.
+- Choose the status for the caller: 422 (the default) for a rule the request breaks, 409 for a conflict with the current state. The kernel's own codes are in `KernelRejections`.
+
+## DecideScope
+
+`DecideScope` is the decide function's view of the request: `command`, `ids` (deterministic ids), `putResult`, `reserve(namespace, key[, tenancy])` (`suspend`) and `release(...)` for unique keys, `onAppendFailure`, `afterAppend`, `schedule(key, rule, command, target)` and `cancelSchedule(key)`.
+
+- **Unique keys** (a user name, an order number): `reserve` in decide; the reservation commits with the events and is released if the append fails. `tenancy` is `TENANT` (the default: unique within the tenant) or `SYSTEM` (unique across tenants). Every unique key includes the tenant unless it is meant to be global.
+- **Scheduled commands**: `schedule` / `cancelSchedule` in decide (`@OnCommand(schedules = ["ctx.agg.Command"])` declares them); at least once, never early; a rejection when due is the normal guard.
+
+## State and evolution
+
+- Evolve: on the state, `@OnSourcing` or `onSourcing`, one per produced event, even a no-op. Mutable in place by default, or returning the state type for an immutable state. No services, no I/O, no clock.
+- Every property initialized: the state is serialized as it is, and its schema fingerprint is in the Manifest.
+- Owner and space: the caller's scope places a new aggregate; the lifecycle commands move it (`TransferOwner`, `TransferSpace`).
+- Tags, which ABAC query policies filter by: `@Tags` on one member of the state, returning `Map<String, Collection<String>>`, pure. It is evaluated after every commit and on load, and each key it returns replaces that key's earlier values (`ApplyTags` sets the others, never these). Return every key it owns on every call, with an empty list for none: a key it stops returning keeps its last value.
+
+## Changing events after release
+
+Events are permanent. Change one only so that every stored version still reads:
+
+- `@Revision(n)` on the event class, and `@Upgrade(event = X::class, from = n)` on a top-level or `object` function taking and returning `JsonNode`/`ObjectNode`, a complete chain 1..n-1. A stored event is read at its revision and upgraded on load.
+- `@Alias` for a renamed event or command.
+- `@AggregateRoot(retiredEvents = [...])` for an event no longer produced: stored ones are skipped on load, their streams still a version.
+- The module's `check` compares the Manifest with its baseline and fails a break (an event's schema changed without a revision, a removed event without retiring it). Update the baseline only for an intended, reviewed change.
+
+## Java domains
+
+A module of Java sources applies `kotlin("jvm")` beside `id("me.ahoo.wow")` (the generated models are Kotlin). Java decide functions return an event or a `Decision` from `Decision.events(…)`, `Decision.reject(code, message)`, `Decision.NoOp.INSTANCE`; `@ErrorCode` goes on a `public static final String` field. Java cannot call the `suspend` APIs (`DecideScope.reserve`, `SagaContext.call`), and the test DSL is Kotlin only. State and event classes need public getters or record components.

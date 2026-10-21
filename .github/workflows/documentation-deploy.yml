@@ -12,8 +12,8 @@
 #
 
 name: Documentation Build and Deploy
-# The V10 pages at the root, the 9.x pages of the v9 branch under /9.x/. The
-# nightly run is what brings 9.x page changes to the site: v9 has no deploy
+# The current pages at the root, the 9.x pages of the v9 branch under /9.x/.
+# The nightly run is what brings 9.x page changes to the site: v9 has no deploy
 # workflow of its own (removed by #4738).
 on:
   schedule:
