@@ -36,13 +36,13 @@ const PACKAGE = 'package';
 // tests. Not a TypeScript scope. Decided apart from RULES, by JVM_PATH: the
 // Wow modules, their tests and spikes, the examples (the eShop, the Java
 // smoke test and the quickstart), the end-to-end benchmark (test/benchmarks, D224; not its README or
-// reports), the platform
+// reports), the migration rehearsal's host and scripts (test/migration-rehearsal, roadmap 8c.1), the platform
 // they import, the coverage reports ci.yml uploads (test/code-coverage-report:
 // coverageReport), and the root build and Gradle configuration every module
 // reads.
 const JVM = 'jvm';
 const JVM_PATH =
-  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|tck|tck-containers|benchmarks\/(?:server|load|harness))|example\/(?:eshop|quickstart|java-smoke)|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
+  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|tck|tck-containers|benchmarks\/(?:server|load|harness)|migration-rehearsal)|example\/(?:eshop|quickstart|java-smoke)|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
 // ci.yml's view-store-contract job: `test` of integration-test, the
 // view store client (`@ahoo-wang/wow-view-store`) and the view engine on it
 // against the view store service (platform/view-store) built from this
