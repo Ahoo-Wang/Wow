@@ -127,6 +127,7 @@ kafka-topics --bootstrap-server localhost:9092 --create --topic wow.inventory.st
 9.x 切换的双跑窗口里，`migrate-data tail` 持续导入 9.x 仍在写入的数据，V10 服务只提供读。为此让它的节点以 `wow.standby: true` 启动：
 
 - 节点为追尾导入的数据提供状态读取与查询。
+- 节点报告为就绪（`/actuator/health/readiness` 为 `UP`，其租约组与主题标为 `standby`），所以负载均衡会把这些读请求发给它们。
 - 节点拒绝一切命令，返回 `wow.node.standby`（503），所以切换之前什么也不会写入 V10。
 - 节点不加入任何租约组：不处理订阅，不重试停放的条目，不运行作业或定时任务。从流末尾开始的 Saga 或 Reactor 从恢复时流的末尾开始，所以不会再对导入的 9.x 历史执行一遍。
 

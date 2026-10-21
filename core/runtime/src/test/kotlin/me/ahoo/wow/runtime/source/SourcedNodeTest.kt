@@ -214,6 +214,26 @@ class SourcedNodeTest {
     }
 
     @Test
+    fun `a node on standby should be ready, its topics marked standby until it is resumed`(): Unit = runBlocking {
+        val node = node()
+        val health = NodeHealth(node, HealthOptions(storeDownAfter = Duration.ZERO))
+        node.start(standby = true)
+        val readiness = health.readiness()
+        readiness.status.assert().isEqualTo(HealthStatus.UP)
+        val topic = readiness.component(NodeHealth.TOPICS)!!.components.single()
+        topic.status.assert().isEqualTo(HealthStatus.UP)
+        topic.details["state"].assert().isEqualTo("STOPPED")
+        topic.details["standby"].assert().isEqualTo(true)
+
+        node.resume("operator")
+        node.topicSubscriptions.getValue(TOPIC).awaitStarted()
+        eventually { health.readiness().status == HealthStatus.UP }
+        health.readiness().component(NodeHealth.TOPICS)!!.components.single().details.keys.assert()
+            .doesNotContain("standby")
+        node.stop()
+    }
+
+    @Test
     fun `a sourced handler's subscription carries its own retry budget (P3)`() {
         val retry = HandlerRetry(maxAttempts = 2)
         val bindings = SubscriptionBindings(
