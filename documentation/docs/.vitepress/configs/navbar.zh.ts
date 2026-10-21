@@ -38,9 +38,11 @@ export const navbarZh: DefaultTheme.NavItem[] = [
         ],
     },
     {text: '迁移', link: '/zh/migrate/', activeMatch: '/zh/migrate/'},
+    {text: '概念', link: '/zh/concepts/', activeMatch: '/zh/concepts/'},
     {
         text: '参考',
         items: [
+            {text: '术语表', link: '/zh/reference/glossary'},
             {text: 'migrate-data 命令行', link: '/zh/reference/migrate-data'},
             {text: '配置项', link: '/zh/guide/v10/configuration'},
             {text: '编译器生成什么', link: '/zh/guide/v10/generated-code'},

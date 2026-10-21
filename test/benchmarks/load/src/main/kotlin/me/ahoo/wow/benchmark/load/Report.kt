@@ -192,10 +192,28 @@ object Report {
                 )
             }
         }
-        val stores = (resources["stores"] as Map<String, Any?>?)?.get("delta") as Map<String, Any?>?
-        stores?.filterValues { it != null }?.takeIf { it.isNotEmpty() }?.let {
+        // Each store's counters between the samples nearest the measured phase's edges (Kafka's: the warm-up to the
+        // drain), and the seconds they cover.
+        val stores = (resources["stores"] as Map<String, Map<String, Any?>?>?)?.filterValues { it?.get("delta") != null }
+        if (!stores.isNullOrEmpty()) {
             appendLine()
-            appendLine("Store operations in the measured phase: $it")
+            stores.forEach { (store, counters) ->
+                appendLine(
+                    "Store operations, $store (seconds ${counters!!["fromSecond"]} to ${counters["toSecond"]}): ${counters["delta"]}",
+                )
+            }
+        }
+        // PostgreSQL's commits and WAL flushes per second over the measured phase (B.O-3).
+        val series = resources["postgresSeries"] as List<Map<String, Any?>>?
+        if (!series.isNullOrEmpty()) {
+            fun column(key: String) = series.map { (it[key] as Number).toDouble() }
+            val syncMs = column("wal_sync_time")
+            appendLine()
+            appendLine(
+                "PostgreSQL per second: commits ${"%.0f".format(column("xact_commit").average())}, WAL flushes " +
+                    "${"%.0f".format(column("wal_sync").average())}, WAL flush time ${"%.0f".format(syncMs.average())} ms " +
+                    "(max ${"%.0f".format(syncMs.max())} ms), WAL write time ${"%.0f".format(column("wal_write_time").average())} ms",
+            )
         }
     }
 

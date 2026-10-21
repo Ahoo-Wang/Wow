@@ -38,9 +38,11 @@ export const navbarEn: DefaultTheme.NavItem[] = [
         ],
     },
     {text: 'Migrate', link: '/migrate/', activeMatch: '/migrate/'},
+    {text: 'Concepts', link: '/concepts/', activeMatch: '/concepts/'},
     {
         text: 'Reference',
         items: [
+            {text: 'Glossary', link: '/reference/glossary'},
             {text: 'migrate-data CLI', link: '/reference/migrate-data'},
             {text: 'Configuration Keys', link: '/guide/v10/configuration'},
             {text: 'What the Compiler Generates', link: '/guide/v10/generated-code'},

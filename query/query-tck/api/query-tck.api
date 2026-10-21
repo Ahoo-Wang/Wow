@@ -42,6 +42,7 @@ public abstract class me/ahoo/wow/query/tck/DatasetQueryBackendSpec {
 	public final fun having filters groups before the metric sort and limit ()V
 	public final fun keyset pages walk every record once in sort order ()V
 	public final fun offset pages carry the total ()V
+	public final fun offset pages over a sort with ties page every record once, ties in identity order (Q-11) ()V
 	public final fun previous reads the earlier period over the shifted range ()V
 	public final fun records sort, project and limit ()V
 	public final fun running windows follow their order within each partition, alike in the storage and in the core ()V

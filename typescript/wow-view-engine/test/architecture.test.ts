@@ -198,18 +198,21 @@ const UI_BELOW_ALL: readonly string[] = [
 /** Over `UI_BELOW_ALL`, under every feature folder. */
 const UI_KIT = 'kit';
 /**
- * What the ui root keeps: the `/ui` entry, the four shells that compose the
- * feature folders into a page, and the host's own pieces beside the entry
- * (`ViewHost`, its colour mode, the navigation it lists). Nothing under a
- * folder imports one of them.
+ * What the ui root keeps: the `/ui` entry, the five shells that compose the
+ * feature folders into a page (the standalone dataset view, D93, over the
+ * data workbench), and the host's own pieces beside the entry (`ViewHost`,
+ * its colour mode, the navigation it lists, the datasets' bindings). Nothing
+ * under a folder imports one of them.
  */
 const UI_ROOT: readonly string[] = [
   'DashboardWorkbench.tsx',
   'DataWorkbench.tsx',
+  'DatasetWorkbench.tsx',
   'EmbeddedDashboard.tsx',
   'EmbeddedView.tsx',
   'ViewHost.tsx',
   'colorMode.tsx',
+  'datasetBindings.ts',
   'index.ts',
   'viewNavigation.ts',
 ];

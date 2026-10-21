@@ -118,7 +118,6 @@ internal class OpenApiPaths(
         val path = "${Http.DATASETS_PATH}/{${OpenApiParameters.DATASET_CONTEXT}}/{${OpenApiParameters.DATASET}}/" +
             QueryRoutes.SEGMENT
         val parameters = listOf(OpenApiParameters.DATASET_CONTEXT, OpenApiParameters.DATASET)
-        val missing = 404 to "Not Found: no such dataset is served, or the caller does not see it."
         add(
             POST,
             path,
@@ -128,10 +127,10 @@ internal class OpenApiPaths(
                 null,
                 type("object"),
                 parameters,
-                missing = missing,
+                dataset = true,
             ),
         )
-        add(GET, path, describe("wow.dataset.describe", null, parameters, missing))
+        add(GET, path, describe("wow.dataset.describe", null, parameters, dataset = true))
     }
 
     private fun aggregateRoutes(context: String, aggregate: AggregateManifest) {
@@ -354,7 +353,7 @@ internal class OpenApiPaths(
         val operationId = "$tag.${query.model}"
         query.routes.forEach { route ->
             val operation = if (route.method == QueryRoutes.GET) {
-                describe("$operationId.describe", tag, emptyList(), missing = null)
+                describe("$operationId.describe", tag, emptyList(), dataset = false)
             } else {
                 query(
                     "$operationId.query",
@@ -362,7 +361,7 @@ internal class OpenApiPaths(
                     tag,
                     record,
                     emptyList(),
-                    missing = null,
+                    dataset = false,
                 )
             }
             add(route.method, route.path, operation)
@@ -375,7 +374,7 @@ internal class OpenApiPaths(
         tag: String?,
         record: Map<String, Any?>,
         pathParameters: List<String>,
-        missing: Pair<Int, String>?,
+        dataset: Boolean,
     ): Map<String, Any?> {
         val kinds = listOf(
             array(record),
@@ -414,9 +413,9 @@ internal class OpenApiPaths(
                     ),
                 ),
             ) + errors.of(
-                if (missing == null) "query" else "dataset-query",
-                if (missing == null) ErrorResponses.QUERY else ErrorResponses.DATASET_QUERY,
-                http = listOfNotNull(missing, ErrorResponses.NOT_ACCEPTABLE, ErrorResponses.UNSUPPORTED_MEDIA_TYPE).toMap(),
+                if (dataset) "dataset-query" else "query",
+                if (dataset) ErrorResponses.DATASET_QUERY else ErrorResponses.QUERY,
+                http = mapOf(ErrorResponses.NOT_ACCEPTABLE, ErrorResponses.UNSUPPORTED_MEDIA_TYPE),
             ),
         )
     }
@@ -425,7 +424,7 @@ internal class OpenApiPaths(
         operationId: String,
         tag: String?,
         pathParameters: List<String>,
-        missing: Pair<Int, String>?,
+        dataset: Boolean,
     ): Map<String, Any?> = obj(
         "tags" to listOf(tag ?: ManifestOpenApi.FRAMEWORK_TAG),
         "summary" to "The model's capability descriptor",
@@ -439,9 +438,9 @@ internal class OpenApiPaths(
             ),
             "304" to obj("description" to "Not Modified: the descriptor is at the version If-None-Match names."),
         ) + errors.of(
-            if (missing == null) "descriptor" else "dataset-descriptor",
-            ErrorResponses.DESCRIPTOR,
-            http = listOfNotNull(missing, ErrorResponses.NOT_ACCEPTABLE).toMap(),
+            if (dataset) "dataset-descriptor" else "descriptor",
+            if (dataset) ErrorResponses.DATASET_DESCRIPTOR else ErrorResponses.DESCRIPTOR,
+            http = mapOf(ErrorResponses.NOT_ACCEPTABLE),
         ),
     )
 

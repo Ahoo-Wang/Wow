@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 882 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -168,10 +168,12 @@ Every name `@ahoo-wang/wow-view-engine` exports — 882 — with its kind and th
 | `DataViewDefinition` | interface | — | — |
 | `DatasetCatalog` | interface | What `DatasetResources` reads: the dataset directory, and each dataset's source. | — |
 | `DatasetDirectoryEntry` | interface | One dataset of a service's directory: where it lives, how it is titled, and the version it was published at (`null` while it is not servable). | — |
+| `DatasetDuplicate` | interface | A dataset a catalog listed under an id an earlier catalog serves (D238 ⑨): left out, the earlier one's kept. | — |
 | `DatasetOverrides` | type | What a host may say over a dataset's derived definition; see `DatasetCatalog.overrides`. | — |
 | `DatasetRegistrar` | interface | The part of an engine `DatasetResources` drives (`ViewEngine` is one). | — |
 | `DatasetResource` | interface | A dataset served, as registered: its directory entry and its definition id. | — |
-| `DatasetResources` | class | Keeps an engine's datasets in step with a service's directory (D85): each`refresh` registers a dataset the directory newly lists, registers again one whose descriptor version changed, and removes one it no longer lists or whose schema does not compile (`version` `null`). | — |
+| `DatasetResources` | class | Keeps an engine's datasets in step with services' directories (D85): each`refresh` registers a dataset a directory newly lists, registers again one whose descriptor version changed, and removes one no directory lists any more or whose schema does not compile (`version` `null`). | — |
+| `DatasetResourcesOptions` | interface | What `DatasetResources` tells besides a dataset it cannot serve: each duplicate it leaves out, and a catalog whose directory cannot be read. | — |
 | `DatasetWordingEditor` | interface | What a dataset's wording editor reads and writes (D91): the fields the descriptor derives, the wording in force, and a save that stores it and registers the dataset again in the new words. | — |
 | `DatasetWordingStore` | interface | Where a dataset's wording is kept (D91); see `DatasetCatalog.wordings`. | — |
 | `DateInstant` | interface | The instant a value of this kind names, and what kind of value said it. | — |
