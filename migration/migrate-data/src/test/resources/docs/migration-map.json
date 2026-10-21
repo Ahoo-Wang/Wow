@@ -1,0 +1,42 @@
+{
+  "format": 1,
+  "headers": { "app_id": "app_id" },
+  "aggregates": [
+    {
+      "from": "order-service.order",
+      "to": "example.order",
+      "commands": [
+        { "from": "create_order", "to": "CreateOrder" },
+        { "from": "pay_order", "to": "PayOrder" }
+      ],
+      "events": [
+        {
+          "from": "order_created",
+          "fromRevision": "0.0.1",
+          "to": "OrderCreated",
+          "toRevision": 1,
+          "upgrade": "upgradeOrderCreatedFrom1"
+        },
+        { "from": "order_paid", "to": "OrderPaid" },
+        {
+          "from": "owner_transferred",
+          "to": "wow.lifecycle.OwnerTransferred",
+          "fields": { "toOwnerId": "ownerId" }
+        },
+        { "from": "order_archived", "to": "OrderArchived", "retire": true },
+        { "from": "order_noted", "drop": true }
+      ],
+      "state": {
+        "fields": { "orderStatus": "status" },
+        "ignore": ["payable"]
+      },
+      "reservations": [
+        { "from": "order_no", "namespace": "order.no", "tenancy": "SYSTEM", "ownerId": "orderId" }
+      ]
+    }
+  ],
+  "subscriptions": [
+    { "from": "order-service.OrderSaga", "functions": { "onEvent": "onOrderCreated" } },
+    { "from": "order-service.OrderProjector", "to": "OrderReports" }
+  ]
+}
