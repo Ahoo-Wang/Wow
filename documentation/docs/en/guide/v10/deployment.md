@@ -142,7 +142,7 @@ Events are facts and are never changed: the log keeps them for good, and V10 off
 
 - Keep personal data (names, addresses, phone numbers, free text about a person) out of events where you can. Put it in a read model you can delete from (a projection's table, another service), and keep an opaque id in the event.
 - When a command needs personal data to decide, let the decide function read it through a service rather than carrying it in the event.
-- The operator of a command is recorded as an opaque id only. Request facts copied into events (`wow.http.request-facts`) must not be personal data either; IP addresses and user agents are not recorded.
+- The operator of a command is recorded as an opaque id only. Request facts copied into events (`wow.http.request-facts`) must not be personal data either. The public port does record each command's client address and `User-Agent` (`remote_ip`, `user_agent`), as 9.x did, for audit: they are personal data, written into the event stream, which is never deleted, so they cannot be erased once recorded. Set `wow.http.client-facts: false` to record neither.
 - Snapshots and ClickHouse tables are derived from the log: deleting a row there does not delete the fact.
 
 ## One tenant space
