@@ -3,11 +3,15 @@
   "extends": [
     "config:recommended"
   ],
+  "baseBranchPatterns": ["main", "v9"],
   "timezone": "Asia/Shanghai",
   "labels": [
     "dependencies"
   ],
   "dependencyDashboard": true,
+  "vulnerabilityAlerts": {
+    "enabled": true
+  },
   "commitMessagePrefix": "fix(deps)",
   "commitMessageTopic": "{{depName}}",
   "rangeStrategy": "bump",
@@ -183,6 +187,23 @@
       "description": "Leave `engines` alone: the published packages' Node range (`>=22.12.0`, R3-05) is a compatibility promise changed on purpose, not by a dependency bump. Node itself is still updated where it is a tool version (workflows, `.nvmrc`).",
       "matchDepTypes": [
         "engines"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "v9, the 9.x line, takes patch updates and vulnerability fixes only: every other update type is off there. A vulnerability fix is raised anyway (vulnerabilityAlerts, whose rules Renovate applies after these).",
+      "matchBaseBranches": [
+        "v9"
+      ],
+      "matchUpdateTypes": [
+        "major",
+        "minor",
+        "pin",
+        "pinDigest",
+        "digest",
+        "lockFileMaintenance",
+        "rollback",
+        "replacement"
       ],
       "enabled": false
     }

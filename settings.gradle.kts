@@ -17,8 +17,8 @@ plugins {
 rootProject.name = "Wow"
 
 /*
- * Only V10 projects remain: the 9.x code left `v10` early (decisions D244, D262; it lives on at the side branch
- * `v10-9x-baseline` and on main). The build scope `-Pwow.scope` that told the two apart is gone.
+ * Only V10 projects remain: the 9.x code left early (decisions D244, D262; it lives on at the side branch
+ * `v10-9x-baseline` and on `v9`). The build scope `-Pwow.scope` that told the two apart is gone.
  */
 
 /*

@@ -12,6 +12,7 @@ import { test } from 'node:test';
 import {
   catalogEntries,
   concretePath,
+  foreignBranches,
   hygieneProblems,
   staleIgnoreEntries,
   staleLabelerGlobs,
@@ -197,6 +198,29 @@ test('allowed problems pass, and an allowance that is no longer a problem fails'
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('a workflow trigger names only main or a pattern', () => {
+  assert.deepEqual(
+    foreignBranches(`on:
+  pull_request:
+    branches: [main, v8] # an old line
+  push:
+    branches:
+      - main
+      - 'v9'
+      - 'bench-run/**'
+    branches-ignore:
+      - renovate/**
+    tags:
+      - 'v*'
+`),
+    ['v8', 'v9'],
+  );
+  assert.deepEqual(
+    foreignBranches('on:\n  push:\n    branches: [ main ]\n'),
+    [],
+  );
 });
 
 test('the repository holds', () => {

@@ -372,4 +372,4 @@ expect(commands.cancel).toHaveBeenCalledWith('O-1', 3, 'Buyer asked');
 
 ## A complete example
 
-The ops console's [`parkedActions.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10/platform/ops/console/src/views/parkedActions.ts) declares resume, skip, mark recoverable and apply a retry spec over parked entries, with forms and confirmations, and [`parkedActions.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10/platform/ops/console/src/views/parkedActions.test.ts) tests them with `actionHarness`.
+The ops console's [`parkedActions.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/platform/ops/console/src/views/parkedActions.ts) declares resume, skip, mark recoverable and apply a retry spec over parked entries, with forms and confirmations, and [`parkedActions.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/platform/ops/console/src/views/parkedActions.test.ts) tests them with `actionHarness`.

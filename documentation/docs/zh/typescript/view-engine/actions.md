@@ -372,4 +372,4 @@ expect(commands.cancel).toHaveBeenCalledWith('O-1', 3, 'Buyer asked');
 
 ## 一个完整的示例 {#a-complete-example}
 
-ops 控制台的 [`parkedActions.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10/platform/ops/console/src/views/parkedActions.ts) 为停放条目声明了恢复、跳过、标记为可恢复和应用重试规格，带表单和确认；[`parkedActions.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10/platform/ops/console/src/views/parkedActions.test.ts) 用 `actionHarness` 测试它们。
+ops 控制台的 [`parkedActions.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/platform/ops/console/src/views/parkedActions.ts) 为停放条目声明了恢复、跳过、标记为可恢复和应用重试规格，带表单和确认；[`parkedActions.test.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/platform/ops/console/src/views/parkedActions.test.ts) 用 `actionHarness` 测试它们。

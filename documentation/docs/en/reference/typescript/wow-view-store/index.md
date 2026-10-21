@@ -9,7 +9,7 @@ description: 'WowViewStore, the @ahoo-wang/wow-view-store package: the view engi
 `@ahoo-wang/wow-view-store` is on npm since Wow 9.2.0, released together with [wow-view-engine](../wow-view-engine/) from the same tag and with the same version as Wow. A patch release never breaks its public surface (the exports of the entry and the error codes); a minor release may, and its release notes list every break with the steps to follow ([version ranges](../../../guide/typescript/compatibility.md#version-ranges)). The [package README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-store/README.md) and the [design](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/view-store-backend.md) are the source of truth.
 :::
 
-`WowViewStore` implements the view engine's [`ViewStore` port](../wow-view-engine/#persistence) on the [view store](https://github.com/Ahoo-Wang/Wow/tree/v10/platform/view-store): saved views and preferences as two Wow aggregates, served by the standalone `wow-view-store-server` or by a Wow service that embeds `wow-view-store-starter`.
+`WowViewStore` implements the view engine's [`ViewStore` port](../wow-view-engine/#persistence) on the [view store](https://github.com/Ahoo-Wang/Wow/tree/main/platform/view-store): saved views and preferences as two Wow aggregates, served by the standalone `wow-view-store-server` or by a Wow service that embeds `wow-view-store-starter`.
 
 ## Entry
 
@@ -190,7 +190,7 @@ logs.
 
 ## Hosts and the gateway
 
-How a host wires `WowViewStore`, gives its `permissions` and serves a page nobody signs in to is in [Saved Views](../../../typescript/view-engine/storage.md#wowviewstore-views-on-a-wow-service). The server does not authenticate, so every deployment runs behind the CoSec gateway; its path rules, including the one that keeps the system views to platform administrators, are in the [View Store](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md) page.
+How a host wires `WowViewStore`, gives its `permissions` and serves a page nobody signs in to is in [Saved Views](../../../typescript/view-engine/storage.md#wowviewstore-views-on-a-wow-service). The server does not authenticate, so every deployment runs behind the CoSec gateway; its path rules, including the one that keeps the system views to platform administrators, are in the [View Store](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/v10/view-store/README.md) page.
 
 ## Source
 

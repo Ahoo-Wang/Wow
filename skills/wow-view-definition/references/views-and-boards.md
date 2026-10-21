@@ -1,6 +1,6 @@
 # System views, analyses and boards
 
-A system view is a starting point the definition ships: visible to everyone, read-only, saved as a reader's own. Write the few the audience opens every day, not every view they could build. In depth: [System views and boards](https://wow.ahoo.me/typescript/view-engine/definitions); the config shapes are in [model-shapes.md](https://github.com/Ahoo-Wang/Wow/blob/v10/typescript/wow-view-engine/docs/design/model-shapes.md). `admit` checks every config against its definition, so this page is about which views to write and how they read.
+A system view is a starting point the definition ships: visible to everyone, read-only, saved as a reader's own. Write the few the audience opens every day, not every view they could build. In depth: [System views and boards](https://wow.ahoo.me/typescript/view-engine/definitions); the config shapes are in [model-shapes.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/model-shapes.md). `admit` checks every config against its definition, so this page is about which views to write and how they read.
 
 A system view declared here (its instance id `system:<definition>:<view>`, `systemInstanceId(definitionId, viewId)`) is code: read-only for everyone, whatever the host grants, and changed only by a release. A host may also let an administrator publish **stored** system views from the screen (a copy of a saved view, editable without a release; `wow-view-host` grants `editSystem`). Those are the store's, not the definition's: write here the views every deployment must have, and leave tuning to stored ones.
 
@@ -159,7 +159,7 @@ export const CHANNEL_SALES: SystemView = {
 
 - A trend groups a moment by `DATE_HISTOGRAM` with the unit the audience thinks in, written as the string (`unit: 'DAY'`; the board below has one); the period is a relative filter, so it moves with the calendar.
 - Line items are an `elements` expansion of the array, its fields relative to the entry.
-- Chart types and their specs are in [ui/analysis.md](https://github.com/Ahoo-Wang/Wow/blob/v10/typescript/wow-view-engine/docs/design/ui/analysis.md); choose the one that answers the question, not the most striking.
+- Chart types and their specs are in [ui/analysis.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/ui/analysis.md); choose the one that answers the question, not the most striking.
 
 ## Boards: what people glance at
 
@@ -299,7 +299,7 @@ export const overview: DashboardDefinition = {
 - **The board's default date** is what its reader checks first: a daily report opens on `{ type: 'preset', preset: 'yesterday' }` (a whole day, settled), a live board on `'today'` or a short relative window, and a board of piles needs no date filter at all.
 - **The board's date filter and a panel's own period:** the board's window reaches every panel whose definition has a `timeField` and is **ANDed** with the panel view's own conditions. A panel view with its own period (`CHANNEL_SALES`'s last 30 days) placed on a 7-day board reads the overlap, the last 7 days. Leave the period off a view made for a board. A view read whole everywhere says `timeField: null` on its system view; one panel that should not follow the board says `ignoresTime: true`, as the count card above does.
 - `opens` names the view 「在工作台中打开」 opens instead of the panel's own, a view of the same definition; use it where a card counts what a queue lists.
-- Board filters other than the date are declared on the board and wired to panel fields of the same kind; give a required one a `default`. See [ui/dashboard.md](https://github.com/Ahoo-Wang/Wow/blob/v10/typescript/wow-view-engine/docs/design/ui/dashboard.md).
+- Board filters other than the date are declared on the board and wired to panel fields of the same kind; give a required one a `default`. See [ui/dashboard.md](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/docs/design/ui/dashboard.md).
 - `admit` resolves every panel's view against the other definitions you pass it, so register and admit the board together with the data definitions it reads.
 - A system board shows and opens system views or analyses it owns, never a personal or shared view: system views are global, shared ones belong to one tenant (saving such a board is refused, `dashboard.system.non-system-panels`).
 - Words a reader sees on a board (titles, a heading's `content`, field labels) are keys too; `admit` checks them.

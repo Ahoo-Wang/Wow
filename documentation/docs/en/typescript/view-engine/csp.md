@@ -27,4 +27,4 @@ The nonce is new for every response, written into the header and the page's meta
 
 ## The tests that hold it
 
-In Storybook, [`StrictCsp.test.stories.tsx`](https://github.com/Ahoo-Wang/Wow/blob/v10/typescript/storybook/stories/view-engine/StrictCsp.test.stories.tsx) puts exactly this policy on the page and fails on a single violation while it walks the record workbench (dragging a column, picking from a select, widening a column, opening a record), every chart type with its tooltip, the SVG, PNG and CSV exports, and a board read, filtered, rearranged and saved. It runs in CI with the other stories.
+In Storybook, [`StrictCsp.test.stories.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/storybook/stories/view-engine/StrictCsp.test.stories.tsx) puts exactly this policy on the page and fails on a single violation while it walks the record workbench (dragging a column, picking from a select, widening a column, opening a record), every chart type with its tooltip, the SVG, PNG and CSV exports, and a board read, filtered, rearranged and saved. It runs in CI with the other stories.
