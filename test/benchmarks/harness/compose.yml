@@ -28,8 +28,9 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: transfer
-    # bench.sh sets WOW_BENCH_PG_PRELOAD=pg_stat_statements for a profiled run only.
-    command: ["postgres", "-c", "max_connections=300", "-c", "shared_buffers=512MB", "-c", "shared_preload_libraries=${WOW_BENCH_PG_PRELOAD:-}"]
+    # bench.sh sets WOW_BENCH_PG_PRELOAD=pg_stat_statements for a profiled run only. track_wal_io_timing gives
+    # pg_stat_wal its write and flush times, which the load generator samples every second (B.O-3).
+    command: ["postgres", "-c", "max_connections=300", "-c", "shared_buffers=512MB", "-c", "track_wal_io_timing=on", "-c", "shared_preload_libraries=${WOW_BENCH_PG_PRELOAD:-}"]
     ports:
       - "5432:5432"
     healthcheck:

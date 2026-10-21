@@ -76,6 +76,12 @@ interface Observer {
      */
     fun forwardFailed(type: AggregateType, outcome: String) = Unit
 
+    /**
+     * A lookup of an aggregate's state in the state cache of [context] by the kernel, or a state evicted from it
+     * (work package B.O-4): [outcome] is `hit`, `miss` or `evicted`. A miss costs a snapshot and a tail read.
+     */
+    fun stateCache(context: String, outcome: String) = Unit
+
     /** One decision of [command]: its decide function and its after hooks. */
     fun deciding(command: Command<*>): Observation = Observation.NONE
 
