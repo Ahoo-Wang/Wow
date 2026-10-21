@@ -7,7 +7,7 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 
 PASS only if the answer does all of these:
 
-1. Imports and, eq, ownerId and listQuery from @ahoo-wang/wow-client/legacy because Wow 8.10 understands only the Condition model
-2. Keeps the query clients and everything else imported from the root entry
-3. Avoids getById/getStateById, which send a FilterExpression, and uses single/singleState with a /legacy aggregateId query for one aggregate
-4. Notes that /legacy is removed in v10 and that raw() is refused by servers from 8.11 on
+1. Explains that 409 wow.query.dataset-unavailable means the dataset is being revised (its sources changed and it needs a new revision), not a malformed query, so the query is not changed to work around it
+2. Re-reads GET /wow/dataset and the dataset's descriptor (GET on /wow/dataset/analytics/order_wide/query) before trying again later
+3. Offers an alternative only with its caveat: the per-city answer from another dataset or an aggregate's snapshots, saying what differs, or tells the user to ask the data owner to revise it
+4. Never fabricates the numbers and uses credentials from the environment

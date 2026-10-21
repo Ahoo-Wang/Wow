@@ -6,4 +6,4 @@ max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-Page PAID orders whose createdAt is yesterday in the Asia/Shanghai zone, 20 per page, newest first, returning only state objects.
+Page PAID orders created yesterday in the Asia/Shanghai zone, 20 per page, newest first, returning only aggregateId and state.total, with the generated OrderSnapshotQueryClient of a Wow V10 service.
