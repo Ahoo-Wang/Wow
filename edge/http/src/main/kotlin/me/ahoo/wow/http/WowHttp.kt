@@ -23,8 +23,11 @@ import tools.jackson.databind.json.JsonMapper
  * - [requestFacts] are the request headers copied into a command's headers, as they are named here; a name the
  *   framework reserves (`Wow-*`, `wow.*`) cannot be one. Beside them the edge records the standard request facts
  *   ([me.ahoo.wow.api.decide.RequestFacts]), which no request header sets: `app_id`, the caller's authenticated
- *   application (decision D232), and on the public port `user_agent` and `remote_ip` (09 §17 G-10); a listed name
- *   that is one of them is not copied.
+ *   application (decision D232), and on the public port `user_agent` and `remote_ip` (09 §17 G-10), unless
+ *   [clientFacts] is off; a listed name that is one of them is not copied.
+ * - [clientFacts] records the client's address and `User-Agent` (`remote_ip`, `user_agent`) on the public port's
+ *   commands, as 9.x did, for audit: personal data that cannot be erased once written, since events are never
+ *   deleted (decision D175). Off, neither is recorded (decision D267 ⑯).
  * - [errorStatuses] overrides the HTTP status of an error code, a domain rejection's (422 by default) or a framework
  *   one's.
  * - [manifestEndpoint] serves `GET /wow/manifest`; [openApiEndpoint] serves `GET /wow/openapi`.
@@ -37,6 +40,7 @@ class WowHttpOptions @InternalWowApi constructor(
     val errorStatuses: Map<String, Int> = emptyMap(),
     val manifestEndpoint: Boolean = true,
     val openApiEndpoint: Boolean = true,
+    val clientFacts: Boolean = true,
 ) {
     init {
         val reserved = requestFacts.filter { it.startsWith("wow-", ignoreCase = true) || it.startsWith("wow.") }
@@ -58,7 +62,8 @@ class WowHttpOptions @InternalWowApi constructor(
         errorStatuses: Map<String, Int> = this.errorStatuses,
         manifestEndpoint: Boolean = this.manifestEndpoint,
         openApiEndpoint: Boolean = this.openApiEndpoint,
-    ): WowHttpOptions = WowHttpOptions(requestFacts, errorStatuses, manifestEndpoint, openApiEndpoint)
+        clientFacts: Boolean = this.clientFacts,
+    ): WowHttpOptions = WowHttpOptions(requestFacts, errorStatuses, manifestEndpoint, openApiEndpoint, clientFacts)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is WowHttpOptions && valueFields() == other.valueFields()
@@ -67,9 +72,10 @@ class WowHttpOptions @InternalWowApi constructor(
 
     override fun toString(): String =
         "WowHttpOptions(requestFacts=$requestFacts, errorStatuses=$errorStatuses, " +
-            "manifestEndpoint=$manifestEndpoint, openApiEndpoint=$openApiEndpoint)"
+            "manifestEndpoint=$manifestEndpoint, openApiEndpoint=$openApiEndpoint, clientFacts=$clientFacts)"
 
-    private fun valueFields(): List<Any?> = listOf(requestFacts, errorStatuses, manifestEndpoint, openApiEndpoint)
+    private fun valueFields(): List<Any?> =
+        listOf(requestFacts, errorStatuses, manifestEndpoint, openApiEndpoint, clientFacts)
 }
 
 /** The paths of the framework's own public endpoints, under the reserved context `wow` (decision D104). */
