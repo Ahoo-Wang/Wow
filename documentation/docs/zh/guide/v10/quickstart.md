@@ -313,7 +313,7 @@ curl -X POST localhost:8080/bank/account/snapshot/query \
   -d '{"kind":"list","filter":{"op":"GTE","field":"state.balance","value":100}}'
 ```
 
-第一个返回版本与状态 `{"balance":100,"owner":"Alice"}`；第二个返回快照列表，其中有 `alice`。过滤、排序、分页与其他查询种类见[查询语言](./query.md)。内存后端只有在 `wow.query.memory.enabled` 打开时才提供查询；PostgreSQL 与 MongoDB 自己提供查询（[部署](./deployment.md)）。
+第一个返回版本与状态 `{"balance":100,"owner":"Alice"}`；第二个返回快照列表，其中有 `alice`。过滤、排序、分页与其他查询种类见[查询语言](./query.md)。内存后端只有在 `wow.query.memory.enabled` 打开时才提供查询；PostgreSQL 与 MongoDB 自己提供查询（[部署](../../operate/topology.md)）。
 
 ## 在进程内发送命令
 
@@ -350,5 +350,5 @@ class Teller(private val commands: CommandGateway) {
 
 - **完整示例。** [eShop](https://github.com/Ahoo-Wang/Wow/tree/v10/example/eshop) 是运行在 PostgreSQL、Kafka 与 ClickHouse 上的五个服务：跨上下文的 Saga、定时命令、查询索引、数据集与 Web 界面。
 - **TypeScript 客户端。** `npm install @ahoo-wang/wow-client@alpha` 安装同一个 alpha 的客户端；[wow-generator](https://github.com/Ahoo-Wang/Wow/tree/v10/typescript/wow-generator) 根据服务的 Manifest 生成带类型的命令与查询客户端。
-- **V10 指南。** [编写 V10 服务](./index.md) 按模块组织一个服务，然后是[编程模型](./programming-model.md)、[测试](../testing.md)、[HTTP API](./http-api.md)、[配置项](./configuration.md)与[部署](./deployment.md)。
+- **V10 指南。** [编写 V10 服务](./index.md) 按模块组织一个服务，然后是[编程模型](./programming-model.md)、[测试](../testing.md)、[HTTP API](./http-api.md)、[配置项](./configuration.md)与[部署](../../operate/topology.md)。
 - **本页示例。** 它是 Wow 仓库里的 [`example/quickstart`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/quickstart)，每次改动都会构建与测试。

@@ -152,7 +152,19 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'HTTP API', link: 'http-api'},
                 {text: 'Query Language', link: 'query'},
                 {text: 'Configuration Keys', link: 'configuration'},
-                {text: 'Deployment', link: 'deployment'},
+                {text: 'Deployment', base: '/operate/', link: 'topology'},
+            ],
+        },
+    ],
+    '/operate/': [
+        {
+            base: '/operate/',
+            text: 'Operate',
+            items: [
+                {text: 'Deployment Model', link: 'topology'},
+                {text: 'Secure a Deployment', link: 'security'},
+                {text: 'Kafka', link: 'kafka'},
+                {text: 'The Ops Service and Console', link: 'ops-console'},
             ],
         },
     ],

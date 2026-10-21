@@ -313,7 +313,7 @@ curl -X POST localhost:8080/bank/account/snapshot/query \
   -d '{"kind":"list","filter":{"op":"GTE","field":"state.balance","value":100}}'
 ```
 
-The first answers the version and the state, `{"balance":100,"owner":"Alice"}`; the second a list of snapshots, `alice`'s among them. [Query Language](./query.md) describes the filters, sorts, paging and the other kinds of query. On the memory backend the queries are served only with `wow.query.memory.enabled`; PostgreSQL and MongoDB serve them themselves ([Deployment](./deployment.md)).
+The first answers the version and the state, `{"balance":100,"owner":"Alice"}`; the second a list of snapshots, `alice`'s among them. [Query Language](./query.md) describes the filters, sorts, paging and the other kinds of query. On the memory backend the queries are served only with `wow.query.memory.enabled`; PostgreSQL and MongoDB serve them themselves ([Deployment](../../operate/topology.md)).
 
 ## Send commands in process
 
@@ -350,5 +350,5 @@ class Teller(private val commands: CommandGateway) {
 
 - **The full example.** The [eShop](https://github.com/Ahoo-Wang/Wow/tree/v10/example/eshop) is five services on PostgreSQL, Kafka and ClickHouse: sagas between contexts, scheduled commands, query indexes, datasets and a web UI.
 - **The TypeScript client.** `npm install @ahoo-wang/wow-client@alpha` installs the client of the same alpha; [wow-generator](https://github.com/Ahoo-Wang/Wow/tree/v10/typescript/wow-generator) generates typed command and query clients from a service's Manifest.
-- **The V10 guide.** [Write a V10 Service](./index.md) lays out a service in modules, then [Programming Model](./programming-model.md), [Testing](../testing.md), [HTTP API](./http-api.md), [Configuration Keys](./configuration.md) and [Deployment](./deployment.md).
+- **The V10 guide.** [Write a V10 Service](./index.md) lays out a service in modules, then [Programming Model](./programming-model.md), [Testing](../testing.md), [HTTP API](./http-api.md), [Configuration Keys](./configuration.md) and [Deployment](../../operate/topology.md).
 - **This sample.** It is [`example/quickstart`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/quickstart) in the Wow repository, built and tested with every change.

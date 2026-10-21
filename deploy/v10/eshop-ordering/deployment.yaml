@@ -47,6 +47,7 @@ spec:
             # The cluster token and the service tokens of the internal port (decisions D193, D226).
             - secretRef:
                 name: eshop-ordering-tokens
+          # region node
           env:
             - name: POD_NAME
               valueFrom:
@@ -72,10 +73,12 @@ spec:
               value: $(POD_IP)
             - name: WOW_NODE_ADDRESS
               value: $(POD_NAME).eshop-ordering-cluster.$(POD_NAMESPACE).svc.cluster.local:9093
+          # endregion
           # Actuator's probe groups on the HTTP port (review R3.5-3); the internal port stays cluster-only (D226). The
           # readiness fails until the node runs, while its log or lease store is down, while it owns none of its
           # partitions past the hand-over grace, or while a topic it reads is still joining. The liveness fails only
           # when the node is stuck, never for a storage outage, and not while the node drains: no restart storm.
+          # region probes
           startupProbe:
             httpGet:
               path: /actuator/health/readiness
@@ -94,6 +97,7 @@ spec:
               port: http
             periodSeconds: 10
             failureThreshold: 3
+          # endregion
           lifecycle:
             # Time for the endpoints to drop the pod before Spring Boot stops taking requests.
             preStop:
