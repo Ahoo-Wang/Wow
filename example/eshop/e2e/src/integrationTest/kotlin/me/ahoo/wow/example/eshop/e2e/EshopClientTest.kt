@@ -71,6 +71,7 @@ class EshopClientTest {
                 submitted.ref.assert().isEqualTo(ref)
                 // endregion
                 // The same request id again is the same order (decision D191).
+                // region read
                 val queries = basket.bean<QueryApi>().of(alice).snapshots(EshopOrderingContract.Order.TYPE)
                 val state = queries.state("client-alice-1")!!
                 state.scope.ownerId.assert().isEqualTo("alice")
@@ -82,6 +83,7 @@ class EshopClientTest {
                 val bob = Caller.of(scope = Scope("bob"), subject = "bob")
                 basket.bean<QueryApi>().of(bob).snapshots(EshopOrderingContract.Order.TYPE).state("client-alice-1")
                     .assert().isNull()
+                // endregion
                 // region rejected
                 // An order of no items is the ordering's rejection, typed.
                 val rejected = runCatching {

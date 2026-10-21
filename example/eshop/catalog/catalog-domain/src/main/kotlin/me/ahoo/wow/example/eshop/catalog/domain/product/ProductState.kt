@@ -34,6 +34,7 @@ class ProductState {
     var description: String = ""
         private set
 
+    // region indexes
     @field:QueryIndex
     var price: BigDecimal = BigDecimal.ZERO
         private set
@@ -49,6 +50,7 @@ class ProductState {
     @field:QueryIndex(with = ["state.price"])
     var status: ProductStatus = ProductStatus.DRAFT
         private set
+    // endregion
 
     fun onSourcing(event: ProductCreated) {
         name = event.name
