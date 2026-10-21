@@ -206,6 +206,8 @@ dependencies {
 
 领域模块在一个单独的对象上声明一次它的限界上下文：
 
+<!-- sample: fragment -->
+
 ```kotlin
 package com.example.catalog.domain
 
@@ -233,6 +235,8 @@ object CatalogBoundedContext
 
 `catalog-api` 放命令、事件与它们携带的值。命令不带身份字段：聚合 ID 来自路由（或发送它的 Saga），所有者与空间来自调用方。
 
+<!-- sample: fragment -->
+
 ```kotlin
 package com.example.catalog.api
 
@@ -257,6 +261,8 @@ data class PriceChanged(val price: BigDecimal)
 ## 编写聚合
 
 `catalog-domain` 放状态、聚合根与它拒绝时使用的错误码：
+
+<!-- sample: fragment -->
 
 ```kotlin
 package com.example.catalog.domain.product
@@ -313,6 +319,8 @@ class Product(private val state: ProductState) {
 
 `aggregateSpec` 在真实内核与内存日志上运行生成的模型：
 
+<!-- sample: fragment -->
+
 ```kotlin
 package com.example.catalog.domain.product
 
@@ -352,6 +360,8 @@ class ProductSpec {
 `productModel` 是编译器在 `Product` 旁边生成的工厂函数。测试函数要像上面这样返回 `Unit`：JUnit 会跳过返回值的测试方法。全部断言见[测试](../testing.md)。
 
 ## 编写服务端
+
+<!-- sample: fragment -->
 
 ```kotlin
 package com.example.catalog.server

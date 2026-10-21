@@ -206,6 +206,8 @@ dependencies {
 
 A domain module declares its bounded context once, on an object of its own:
 
+<!-- sample: fragment -->
+
 ```kotlin
 package com.example.catalog.domain
 
@@ -233,6 +235,8 @@ The compiler needs the context to write the fragment: either one `@BoundedContex
 
 `catalog-api` holds the commands, the events and the values they carry. A command carries no identity field: the aggregate's id comes from the route (or from the saga that sends it), the owner and the space from the caller.
 
+<!-- sample: fragment -->
+
 ```kotlin
 package com.example.catalog.api
 
@@ -257,6 +261,8 @@ data class PriceChanged(val price: BigDecimal)
 ## Write the aggregate
 
 `catalog-domain` holds the state, the root and the codes it rejects with:
+
+<!-- sample: fragment -->
 
 ```kotlin
 package com.example.catalog.domain.product
@@ -313,6 +319,8 @@ Functions named `onCommand` and `onSourcing` need no annotation. `@OnCommand(pro
 
 `aggregateSpec` runs the generated model on the real kernel with an in-memory log:
 
+<!-- sample: fragment -->
+
 ```kotlin
 package com.example.catalog.domain.product
 
@@ -352,6 +360,8 @@ class ProductSpec {
 `productModel` is the factory the compiler generated beside `Product`. Write the test functions so they return `Unit`, as above: JUnit skips a test method that returns a value. [Testing](../testing.md) lists every expectation.
 
 ## Write the server
+
+<!-- sample: fragment -->
 
 ```kotlin
 package com.example.catalog.server
