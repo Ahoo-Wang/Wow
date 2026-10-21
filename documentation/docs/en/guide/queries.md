@@ -6,7 +6,7 @@ outline: deep
 
 # Query Snapshots
 
-Every aggregate keeps a snapshot of its latest state, and the snapshots are a read model you can query without writing a projection: filter by any field of the state, sort, page, count and aggregate. This page writes queries in Kotlin and over HTTP, and declares the indexes and masks they need. [Query Language](../reference/query-language) is the full grammar; [Read State](./reading-state) reads one aggregate by its id.
+Every aggregate keeps a snapshot of its latest state, and the snapshots are a read model you can query without writing a projection: filter by any field of the state, sort, page, count and aggregate. This page writes queries in Kotlin and over HTTP, and declares the indexes and masks they need. [Read State](./reading-state) reads one aggregate by its id.
 
 ## Write a query in Kotlin
 
