@@ -169,6 +169,9 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             text: 'Processes',
             items: [
                 {text: 'Write a Saga', link: 'sagas'},
+                {text: 'Projections and Reactors', link: 'projections'},
+                {text: 'Scheduled Commands', link: 'scheduling'},
+                {text: 'Failures and Retries', link: 'failures'},
             ],
         },
         {
