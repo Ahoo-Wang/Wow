@@ -238,7 +238,7 @@ class AccountSpec {
 ./gradlew test
 ```
 
-[Testing](./testing.md) lists every expectation.
+[Testing](../testing.md) lists every expectation.
 
 ## Run the service
 
@@ -350,5 +350,5 @@ class Teller(private val commands: CommandGateway) {
 
 - **The full example.** The [eShop](https://github.com/Ahoo-Wang/Wow/tree/v10/example/eshop) is five services on PostgreSQL, Kafka and ClickHouse: sagas between contexts, scheduled commands, query indexes, datasets and a web UI.
 - **The TypeScript client.** `npm install @ahoo-wang/wow-client@alpha` installs the client of the same alpha; [wow-generator](https://github.com/Ahoo-Wang/Wow/tree/v10/typescript/wow-generator) generates typed command and query clients from a service's Manifest.
-- **The V10 guide.** [Write a V10 Service](./index.md) lays out a service in modules, then [Programming Model](./programming-model.md), [Testing](./testing.md), [HTTP API](./http-api.md), [Configuration Keys](./configuration.md) and [Deployment](../../operate/topology.md).
+- **The V10 guide.** [Write a V10 Service](./index.md) lays out a service in modules, then [Programming Model](./programming-model.md), [Testing](../testing.md), [HTTP API](./http-api.md), [Configuration Keys](./configuration.md) and [Deployment](../../operate/topology.md).
 - **This sample.** It is [`example/quickstart`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/quickstart) in the Wow repository, built and tested with every change.

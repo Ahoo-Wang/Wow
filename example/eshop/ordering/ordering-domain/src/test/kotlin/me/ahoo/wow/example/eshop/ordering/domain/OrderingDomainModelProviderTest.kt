@@ -25,6 +25,7 @@ import kotlin.time.Duration.Companion.minutes
 class OrderingDomainModelProviderTest {
     private val provider = ModelProvider.load().single()
 
+    // region provider
     @Test
     fun `the binding index should name the context and the fragment and build the order model`() {
         provider.context.assert().isEqualTo("eshop-ordering")
@@ -38,6 +39,7 @@ class OrderingDomainModelProviderTest {
             "OrderProcessSaga.onOrderShipped",
         )
     }
+    // endregion
 
     @Test
     fun `the fragment should declare the scheduled cancellation and the sagas' commands and sources`() {

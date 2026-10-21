@@ -8,7 +8,7 @@ export const navbarEn: DefaultTheme.NavItem[] = [
         items: [
             {text: 'Write a Service', link: '/guide/v10/'},
             {text: 'Programming Model', link: '/guide/v10/programming-model'},
-            {text: 'Testing', link: '/guide/v10/testing'},
+            {text: 'Testing', link: '/guide/testing'},
             {text: 'HTTP API', link: '/guide/v10/http-api'},
             {text: 'Query Language', link: '/guide/v10/query'},
             {text: 'Deployment', link: '/operate/topology'},
@@ -52,6 +52,7 @@ export const navbarEn: DefaultTheme.NavItem[] = [
         text: 'Reference',
         items: [
             {text: 'Glossary', link: '/reference/glossary'},
+            {text: 'Wire Protocols', link: '/reference/protocols'},
             {text: 'Configuration Keys', link: '/reference/configuration'},
             {text: 'Error Codes', link: '/reference/error-codes'},
             {text: 'Annotations', link: '/reference/annotations'},
