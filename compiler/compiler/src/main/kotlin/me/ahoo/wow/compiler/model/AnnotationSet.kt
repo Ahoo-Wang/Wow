@@ -20,16 +20,16 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 
 /**
- * The V10 annotation set (design 01 §3, decision D67). The V10 annotations keep the package
+ * The annotation set (design 01 §3, decision D67). Its annotations keep the package
  * `me.ahoo.wow.api.annotation` and the names of 9.x's, without the attributes only 9.x reads (decision D85); the
- * model processor recognizes only them. Any other annotation of that package on a V10 model (one compiled against 9.x
+ * model processor recognizes only them. Any other annotation of that package on a model (one compiled against 9.x
  * `wow-api`) is a compile error that points to the migration skill, and the identity annotations on a command's fields
  * are errors too (decision D68).
  */
-internal object V10Annotations {
+internal object AnnotationSet {
     const val PACKAGE = "me.ahoo.wow.api.annotation"
 
-    /** The V10 set, by simple name. */
+    /** The set, by simple name. */
     val NAMES = setOf(
         "BoundedContext",
         "AggregateRoot",
@@ -99,7 +99,7 @@ internal object V10Annotations {
         "a command carries no identity: it is Command.ref, from the route or the command message, and the scope " +
             "comes from the principal (decision D68)"
 
-    const val MIGRATION = "the wow-migrate skill rewrites 9.x code into V10 (design 07 §2)"
+    const val MIGRATION = "the wow-migrate skill rewrites 9.x code for Wow 10 (design 07 §2)"
 
     /**
      * The problems of the annotations on [annotated], described as [where]. A command's identity annotations get the
@@ -131,7 +131,7 @@ internal object V10Annotations {
             }
             val replacement = REPLACEMENTS[simpleName] ?: "it is removed with no counterpart"
             val identity = if (simpleName in IDENTITY_NAMES) " (decision D68)" else ""
-            "$where is annotated @$simpleName, which V10 removed$identity: $replacement; $MIGRATION"
+            "$where is annotated @$simpleName, which Wow 10 removed$identity: $replacement; $MIGRATION"
         }.distinct().toList()
 
     /**

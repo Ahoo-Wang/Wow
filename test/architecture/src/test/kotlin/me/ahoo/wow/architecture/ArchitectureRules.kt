@@ -15,56 +15,56 @@ package me.ahoo.wow.architecture
 
 import java.io.File
 
-/** A V10 module: its Gradle project name and its directory relative to the repository root. */
-data class V10Module(val name: String, val dir: String)
+/** A Wow project: its Gradle project name and its directory relative to the repository root. */
+data class WowProject(val name: String, val dir: String)
 
 /**
- * The V10 architecture rules (documentation/designs/v10/06-modules.md §3 and 07-migration.md §4).
+ * The architecture rules (documentation/designs/v10/06-modules.md §3 and 07-migration.md §4).
  */
-object V10Rules {
-    val API = V10Module("api", "api/api")
-    val MANIFEST = V10Module("manifest", "api/manifest")
-    val QUERY_API = V10Module("query-api", "api/query-api")
-    val SPI = V10Module("spi", "core/spi")
-    val KERNEL = V10Module("kernel", "core/kernel")
-    val RUNTIME = V10Module("runtime", "core/runtime")
-    val REACTOR = V10Module("reactor", "core/reactor")
-    val QUERY = V10Module("query", "query/query")
-    val POSTGRES = V10Module("postgres", "backends/postgres")
-    val MONGO = V10Module("mongo", "backends/mongo")
-    val KAFKA = V10Module("kafka", "backends/kafka")
-    val CLICKHOUSE = V10Module("clickhouse", "backends/clickhouse")
+object ArchitectureRules {
+    val API = WowProject("api", "api/api")
+    val MANIFEST = WowProject("manifest", "api/manifest")
+    val QUERY_API = WowProject("query-api", "api/query-api")
+    val SPI = WowProject("spi", "core/spi")
+    val KERNEL = WowProject("kernel", "core/kernel")
+    val RUNTIME = WowProject("runtime", "core/runtime")
+    val REACTOR = WowProject("reactor", "core/reactor")
+    val QUERY = WowProject("query", "query/query")
+    val POSTGRES = WowProject("postgres", "backends/postgres")
+    val MONGO = WowProject("mongo", "backends/mongo")
+    val KAFKA = WowProject("kafka", "backends/kafka")
+    val CLICKHOUSE = WowProject("clickhouse", "backends/clickhouse")
 
     /** Snapshots, their queries and event search on Elasticsearch, never a log (decisions D13, D167). */
-    val ELASTICSEARCH = V10Module("elasticsearch", "backends/elasticsearch")
-    val OPENAPI = V10Module("openapi", "edge/openapi")
-    val HTTP = V10Module("http", "edge/http")
+    val ELASTICSEARCH = WowProject("elasticsearch", "backends/elasticsearch")
+    val OPENAPI = WowProject("openapi", "edge/openapi")
+    val HTTP = WowProject("http", "edge/http")
 
     /** The typed command and query clients over HTTP (decisions D257, D259), on the JDK's HttpClient alone. */
-    val CLIENT = V10Module("client", "edge/client")
-    val COSEC = V10Module("cosec", "edge/cosec")
-    val OPENTELEMETRY = V10Module("opentelemetry", "edge/opentelemetry")
-    val SPRING_BOOT = V10Module("spring-boot", "host/spring-boot")
-    val COSID = V10Module("cosid", "extensions/cosid")
+    val CLIENT = WowProject("client", "edge/client")
+    val COSEC = WowProject("cosec", "edge/cosec")
+    val OPENTELEMETRY = WowProject("opentelemetry", "edge/opentelemetry")
+    val SPRING_BOOT = WowProject("spring-boot", "host/spring-boot")
+    val COSID = WowProject("cosid", "extensions/cosid")
 
     /** 9.x wow-models ported (decision D187): capability interfaces and the reusable Tree aggregate. */
-    val MODELS = V10Module("models", "extensions/models")
-    val MIGRATE_DATA = V10Module("migrate-data", "migration/migrate-data")
-    val COMPILER = V10Module("compiler", "compiler/compiler")
-    val GRADLE_PLUGIN = V10Module("gradle-plugin", "compiler/gradle-plugin")
-    val MANIFEST_TOOLS = V10Module("manifest-tools", "compiler/manifest-tools")
+    val MODELS = WowProject("models", "extensions/models")
+    val MIGRATE_DATA = WowProject("migrate-data", "migration/migrate-data")
+    val COMPILER = WowProject("compiler", "compiler/compiler")
+    val GRADLE_PLUGIN = WowProject("gradle-plugin", "compiler/gradle-plugin")
+    val MANIFEST_TOOLS = WowProject("manifest-tools", "compiler/manifest-tools")
 
     /** The test DSL (artifact `wow-test`; a project named `:test` would clash with the `test` task, decision D87). */
-    val TEST_DSL = V10Module("test-dsl", "test/test-dsl")
+    val TEST_DSL = WowProject("test-dsl", "test/test-dsl")
 
     /** The SPI contract specs every backend runs (decision D196). */
-    val TCK = V10Module("tck", "test/tck")
+    val TCK = WowProject("tck", "test/tck")
 
     /** The query backend contract specs every query backend runs (review R3.3-2). */
-    val QUERY_TCK = V10Module("query-tck", "query/query-tck")
+    val QUERY_TCK = WowProject("query-tck", "query/query-tck")
 
     /** The TCK's shared Testcontainers, apart from [TCK] so a spec needs no Docker. */
-    val TCK_CONTAINERS = V10Module("tck-containers", "test/tck-containers")
+    val TCK_CONTAINERS = WowProject("tck-containers", "test/tck-containers")
 
     /**
      * The test modules (decision D196), the gate of every iteration: any module's tests may build on them, through a
@@ -73,40 +73,40 @@ object V10Rules {
     val TEST_MODULES = listOf(TEST_DSL, TCK, QUERY_TCK, TCK_CONTAINERS)
 
     /** The ops context's API: its commands and events (roadmap 6.3f, 7.1a; decision D141). */
-    val OPS_API = V10Module("ops-api", "platform/ops/ops-api")
+    val OPS_API = WowProject("ops-api", "platform/ops/ops-api")
 
     /** The ops domain: the `parked` aggregate, the read model of every service's failure ledger (decision D141). */
-    val OPS_DOMAIN = V10Module("ops-domain", "platform/ops/ops-domain")
+    val OPS_DOMAIN = WowProject("ops-domain", "platform/ops/ops-domain")
 
     /** The view store's API: its commands, events and value types (roadmap 7.2a). */
-    val VIEW_STORE_API = V10Module("view-store-api", "platform/view-store/view-store-api")
+    val VIEW_STORE_API = WowProject("view-store-api", "platform/view-store/view-store-api")
 
     /** The view store's domain: the view, view preferences and dataset wording aggregates (roadmap 7.2a). */
-    val VIEW_STORE_DOMAIN = V10Module("view-store-domain", "platform/view-store/view-store-domain")
+    val VIEW_STORE_DOMAIN = WowProject("view-store-domain", "platform/view-store/view-store-domain")
 
     /** The analytics catalog's API: the commands, events and value types of its data sources (roadmap 9.3b). */
-    val ANALYTICS_CATALOG_API = V10Module("analytics-catalog-api", "platform/analytics/catalog/api")
+    val ANALYTICS_CATALOG_API = WowProject("analytics-catalog-api", "platform/analytics/catalog/api")
 
     /** The analytics catalog's domain: the source aggregate and its warehouse catalog port (decisions D238, D241). */
     val ANALYTICS_CATALOG_DOMAIN =
-        V10Module("analytics-catalog-domain", "platform/analytics/catalog/domain")
+        WowProject("analytics-catalog-domain", "platform/analytics/catalog/domain")
 
     /** The platform modules (roadmap M7): domains of their own, built on the kernel as an application's domain is. */
     val PLATFORM_MODULES =
         listOf(OPS_API, OPS_DOMAIN, VIEW_STORE_API, VIEW_STORE_DOMAIN, ANALYTICS_CATALOG_API, ANALYTICS_CATALOG_DOMAIN)
 
-    /** The ops service (roadmap 7.1a): an application of the V10 modules, on the Spring Boot host. */
-    val OPS_SERVER = V10Module("ops-server", "platform/ops/ops-server")
+    /** The ops service (roadmap 7.1a): an application of the Wow modules, on the Spring Boot host. */
+    val OPS_SERVER = WowProject("ops-server", "platform/ops/ops-server")
 
-    /** The view store service (roadmap 7.2a): an application of the V10 modules, on the Spring Boot host. */
-    val VIEW_STORE_SERVER = V10Module("view-store-server", "platform/view-store/view-store-server")
+    /** The view store service (roadmap 7.2a): an application of the Wow modules, on the Spring Boot host. */
+    val VIEW_STORE_SERVER = WowProject("view-store-server", "platform/view-store/view-store-server")
 
-    /** The analytics catalog service (roadmap 9.3b): an application of the V10 modules, on the Spring Boot host. */
+    /** The analytics catalog service (roadmap 9.3b): an application of the Wow modules, on the Spring Boot host. */
     val ANALYTICS_CATALOG_SERVER =
-        V10Module("analytics-catalog-server", "platform/analytics/catalog/server")
+        WowProject("analytics-catalog-server", "platform/analytics/catalog/server")
 
     /**
-     * The platform's services (roadmap M7): applications of the V10 modules, as the eShop's servers are, not modules
+     * The platform's services (roadmap M7): applications of the Wow modules, as the eShop's servers are, not modules
      * of the framework, so the rules of [MODULES] (Spring Boot only in the host, say) do not apply to them.
      */
     val PLATFORM_SERVERS = listOf(VIEW_STORE_SERVER, OPS_SERVER, ANALYTICS_CATALOG_SERVER)
@@ -121,47 +121,47 @@ object V10Rules {
 
     /** The eShop (decision D159): `:eshop-<context>-{api,domain,server}` in example/eshop/<context>, and `:eshop-e2e`. */
     val ESHOP = ESHOP_CONTEXTS.flatMap { context ->
-        listOf("api", "domain", "server").map { V10Module("eshop-$context-$it", "example/eshop/$context/$context-$it") }
-    } + V10Module("eshop-e2e", "example/eshop/e2e")
+        listOf("api", "domain", "server").map { WowProject("eshop-$context-$it", "example/eshop/$context/$context-$it") }
+    } + WowProject("eshop-e2e", "example/eshop/e2e")
 
     /**
-     * The quickstart (decision D217): the sample of the V10 quickstart page, one module that is both the domain and the
+     * The quickstart (decision D217): the sample of the quickstart page, one module that is both the domain and the
      * server of a tiny service.
      */
-    val QUICKSTART = V10Module("quickstart", "example/quickstart")
+    val QUICKSTART = WowProject("quickstart", "example/quickstart")
 
     /** The Java smoke test (decision D229 G-8): a domain module written in Java, built on the kernel only. */
-    val JAVA_SMOKE = V10Module("java-smoke", "example/java-smoke")
+    val JAVA_SMOKE = WowProject("java-smoke", "example/java-smoke")
 
     /**
-     * The V10 examples, the eShop (decisions D159, D204), the quickstart (D217) and the Java smoke test (D229 G-8):
-     * applications of the V10 modules, not ones of them, and the end-to-end tests across them.
+     * The examples, the eShop (decisions D159, D204), the quickstart (D217) and the Java smoke test (D229 G-8):
+     * applications of the Wow modules, not ones of them, and the end-to-end tests across them.
      */
     val EXAMPLES = ESHOP + QUICKSTART + JAVA_SMOKE
 
     /**
-     * The V10 projects that are neither modules, platform services nor examples (review R2.5-7): the V10 BOM, these
-     * rules, the spikes H2 and H6 and the V10 side of the end-to-end benchmark (decision D224). Spike H3,
-     * `:kernel-benchmarks`, ran the 9.x kernel beside the V10 one and left with the 9.x code (decision D262).
+     * The projects that are neither modules, platform services nor examples (review R2.5-7): the BOM, these
+     * rules, the spikes H2 and H6 and the Wow side of the end-to-end benchmark (decision D224). Spike H3,
+     * `:kernel-benchmarks`, ran the 9.x kernel beside the Wow 10 one and left with the 9.x code (decision D262).
      */
     val TOOLS = listOf(
-        V10Module("bom", "bom/bom"),
-        V10Module("architecture", "test/architecture"),
-        V10Module("routing-spike", "test/routing-spike"),
-        V10Module("lease-spike", "test/lease-spike"),
-        V10Module("benchmark-server", "test/benchmarks/server"),
+        WowProject("bom", "bom/bom"),
+        WowProject("architecture", "test/architecture"),
+        WowProject("routing-spike", "test/routing-spike"),
+        WowProject("lease-spike", "test/lease-spike"),
+        WowProject("benchmark-server", "test/benchmarks/server"),
     )
 
     /**
-     * Every project of the settings' `//region v10`, each in one group whose rules apply to it (review R2.5-7): a
+     * Every project of the settings' `//region wow`, each in one group whose rules apply to it (review R2.5-7): a
      * project in none would escape every rule of the module graph.
      */
-    val V10_PROJECTS: List<V10Module> = MODULES + PLATFORM_SERVERS + EXAMPLES + TOOLS
+    val WOW_PROJECTS: List<WowProject> = MODULES + PLATFORM_SERVERS + EXAMPLES + TOOLS
 
-    /** The 9.x project every V10 one may build on: the dependency versions, which the V10 POMs import (D87). */
+    /** The project every other one may build on: the dependency versions, which every published POM imports (D87). */
     val SHARED_9X: Set<String> = setOf("wow-dependencies")
 
-    /** Whether [project] belongs to a V10 example ([EXAMPLES]). */
+    /** Whether [project] belongs to an example ([EXAMPLES]). */
     fun isExample(project: String): Boolean =
         project.startsWith("eshop-") || project == QUICKSTART.name || project == JAVA_SMOKE.name
 
@@ -180,10 +180,10 @@ object V10Rules {
     val RUNTIME_MODULES = MODULES - COMPILER - GRADLE_PLUGIN - MANIFEST_TOOLS - TEST_MODULES.toSet()
 
     /**
-     * The project dependencies each V10 module may declare (06 §3): every module of [MODULES] has its entry, and
+     * The project dependencies each module may declare (06 §3): every module of [MODULES] has its entry, and
      * none names a 9.x module ([nineXReachViolations] checks the transitive graph too).
      */
-    val ALLOWED_PROJECT_DEPENDENCIES: Map<V10Module, Set<String>> = mapOf(
+    val ALLOWED_PROJECT_DEPENDENCIES: Map<WowProject, Set<String>> = mapOf(
         // The query protocol of the QueryApi (decision D260).
         API to setOf("query-api"),
         MANIFEST to emptySet(),
@@ -234,7 +234,7 @@ object V10Rules {
         COSID to setOf("spi"),
         // Domain code's API only (decision D187); the compiler only for the tests, which compile a sample tree.
         MODELS to setOf("api", "compiler"),
-        // The V10 log on either first-class backend, which the import writes to (roadmap 8b.1); runtime only for the
+        // The event log on either first-class backend, which the import writes to (roadmap 8b.1); runtime only for the
         // tests, which list and resume the imported parked entries as the ops routes do (roadmap 8b.4).
         // elasticsearch only for the tags backfill's re-sink of an events index (decision D259).
         MIGRATE_DATA to setOf("kernel", "postgres", "mongo", "elasticsearch", "runtime"),
@@ -269,7 +269,7 @@ object V10Rules {
      * (decision D110), CoSec and OpenTelemetry for its production shape (roadmap P.15), and the query module's test
      * fixtures for its tests.
      */
-    val ALLOWED_SERVER_DEPENDENCIES: Map<V10Module, Set<String>> = mapOf(
+    val ALLOWED_SERVER_DEPENDENCIES: Map<WowProject, Set<String>> = mapOf(
         OPS_SERVER to setOf("ops-domain", "spring-boot", "kafka", "postgres", "query", "cosec", "opentelemetry"),
         VIEW_STORE_SERVER to setOf("view-store-domain", "spring-boot", "postgres", "query", "cosec", "opentelemetry"),
         // ClickHouse: the warehouse its catalog reads (decision D241), whose client the host builds.
@@ -285,12 +285,12 @@ object V10Rules {
     )
 
     /**
-     * The platform's services reach the V10 modules and the platform's own projects only (decision D146), directly or
+     * The platform's services reach the Wow modules and the platform's own projects only (decision D146), directly or
      * transitively, as the example does: never a 9.x module or a spike. The eShop's projects are reached only through
      * the snapshot tests of `:openapi` ([ALLOWED_PROJECT_DEPENDENCIES]); a service's own dependencies, which
      * [ALLOWED_SERVER_DEPENDENCIES] holds, name none of them.
      */
-    fun platformOutsideV10Violations(repositoryRoot: File): List<String> {
+    fun platformOutsideWowViolations(repositoryRoot: File): List<String> {
         val graph = projectGraph(repositoryRoot)
         val allowed = (MODULES + PLATFORM_SERVERS).map { it.name }.toSet()
         return PLATFORM_SERVERS.map { it.name }.flatMap { server ->
@@ -446,7 +446,7 @@ object V10Rules {
         forbidden = listOf("com.github.victools"),
     )
 
-    /** The 9.x parts of 9.x wow-api that the V10 wow-api leaves out (06 §2.1; `query` moves to wow-query-api in M9). */
+    /** The 9.x parts of 9.x wow-api that the Wow 10 wow-api leaves out (06 §2.1; `query` moves to wow-query-api in M9). */
     private val API_9X = listOf(
         "abac", "command", "event", "exception", "messaging", "modeling", "naming", "query", "serialization",
         "Copyable", "Identifier", "Ordered", "Version", "Wow",
@@ -514,7 +514,7 @@ object V10Rules {
      * ([TEST_MODULES]) and the Manifest or its test fixtures in a test configuration ([TEST_SCOPED_MANIFEST_FIXTURES]):
      * those are allowed to every module.
      */
-    fun projectDependencies(repositoryRoot: File, module: V10Module): Set<String> =
+    fun projectDependencies(repositoryRoot: File, module: WowProject): Set<String> =
         PROJECT_DEPENDENCY.findAll(
             File(repositoryRoot, "${module.dir}/build.gradle.kts").readText()
                 .replace(TEST_SCOPED_TEST_MODULE, "")
@@ -524,7 +524,7 @@ object V10Rules {
             .toSet()
 
     /**
-     * The 9.x projects deleted from `v10` (decisions D244, D262; they live on at `v10-9x-baseline` and on main): the
+     * The 9.x projects deleted from `main` (decisions D244, D262; they live on at `v10-9x-baseline` and on `v9`): the
      * `wow-*` modules, the 9.x test modules, platforms, examples and benchmarks, and spike H3, which ran the 9.x
      * kernel. No project of these names comes back, and no build script depends on one ([deletedNineXViolations]).
      */
@@ -595,25 +595,25 @@ object V10Rules {
     }
 
     /**
-     * No V10 project reaches a project outside the settings' `//region v10` (decision D85; review R2.5-7), directly or
+     * No project reaches one outside the settings' `//region wow` (decision D85; review R2.5-7), directly or
      * transitively, but the shared dependency versions ([SHARED_9X]).
      */
     fun nineXReachViolations(repositoryRoot: File): List<String> {
         val graph = projectGraph(repositoryRoot)
-        val v10 = v10SettingsProjects(repositoryRoot)
-        return v10.sorted()
+        val wow = wowSettingsProjects(repositoryRoot)
+        return wow.sorted()
             .flatMap { project ->
-                reachable(graph, project).filterNot { it in v10 || it in SHARED_9X }.sorted()
+                reachable(graph, project).filterNot { it in wow || it in SHARED_9X }.sorted()
                     .map { "$project reaches :$it" }
             }
     }
 
     /**
-     * The projects that use Wow as an application does (decision D216; `v10UserProjects` of the root build): the
+     * The projects that use Wow as an application does (decision D216; `userProjects` of the root build): the
      * examples, the platform's domains and services and the end-to-end benchmark. They compile against the public API
      * as a user does, so they never opt in to `InternalWowApi` (an `ERROR`-level opt-in).
      */
-    val USER_PROJECTS: List<V10Module> =
+    val USER_PROJECTS: List<WowProject> =
         EXAMPLES + listOf(OPS_DOMAIN, VIEW_STORE_DOMAIN) + PLATFORM_SERVERS + TOOLS.filter { it.name == "benchmark-server" }
 
     private val INTERNAL_OPT_IN = Regex("""\bInternalWowApi\b""")
@@ -643,22 +643,22 @@ object V10Rules {
             }
         }
 
-    private val V10_REGION = Regex("""(?ms)^//region v10\b(.*?)^//endregion""")
+    private val WOW_REGION = Regex("""(?ms)^//region wow\b(.*?)^//endregion""")
 
-    /** The projects `settings.gradle.kts` includes in its `//region v10`: the V10 modules, spikes and tests. */
-    fun v10SettingsProjects(repositoryRoot: File): Set<String> {
+    /** The projects `settings.gradle.kts` includes in its `//region wow`: the modules, platform services, examples, spikes and tests. */
+    fun wowSettingsProjects(repositoryRoot: File): Set<String> {
         val settings = File(repositoryRoot, "settings.gradle.kts").readText()
-        val region = requireNotNull(V10_REGION.find(settings)) { "settings.gradle.kts has no //region v10." }
+        val region = requireNotNull(WOW_REGION.find(settings)) { "settings.gradle.kts has no //region wow." }
         return SETTINGS_INCLUDE.findAll(region.groupValues[1]).map { it.groupValues[2] }.toSet()
     }
 
     /**
-     * The example builds on the V10 modules only (decisions D118, D159), directly or transitively: it shows V10 as an
+     * The example builds on the Wow modules only (decisions D118, D159), directly or transitively: it shows Wow as an
      * application uses it, with no 9.x module, spike or test project on its classpath. Its projects, `:eshop-*`
      * ([isExample]), may build on each other, and its end-to-end tests run the platform's services
      * ([PLATFORM_SERVERS]) beside its own: the ops service shows the eShop's parked entries.
      */
-    fun exampleOutsideV10Violations(repositoryRoot: File): List<String> {
+    fun exampleOutsideWowViolations(repositoryRoot: File): List<String> {
         val graph = projectGraph(repositoryRoot)
         val examples = graph.keys.filter(::isExample).sorted()
         val modules = (MODULES + PLATFORM_SERVERS).map { it.name }.toSet()
@@ -684,7 +684,7 @@ object V10Rules {
      * construct may gain fields within a format (D59), and a data class's `copy` and `componentN` change their
      * signatures when it does.
      */
-    val PLAIN_CLASS_MODULES: List<V10Module> = listOf(API, SPI, MANIFEST)
+    val PLAIN_CLASS_MODULES: List<WowProject> = listOf(API, SPI, MANIFEST)
 
     /**
      * The data classes the ABI of [PLAIN_CLASS_MODULES] keeps, by their JVM names, each with why: closed value
@@ -728,8 +728,8 @@ object V10Rules {
     private val COMPATIBILITY_MARKER = Regex("""@Deprecated\b|\bcompat\(""")
 
     /**
-     * V10 keeps no compatibility code (decision D1): no `@Deprecated` declaration and no `compat(...)` marker in
-     * any V10 module's production sources. History is handled once, in the migration layer.
+     * Wow keeps no compatibility code (decision D1): no `@Deprecated` declaration and no `compat(...)` marker in
+     * any module's production sources. History is handled once, in the migration layer.
      */
     fun compatibilityMarkers(repositoryRoot: File): List<String> =
         MODULES.flatMap { module ->

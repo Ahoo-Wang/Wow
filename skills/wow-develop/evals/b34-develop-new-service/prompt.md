@@ -1,6 +1,6 @@
 ---
-name: b34-develop-v10-new-service
-tags: [behavior, v10, adoption, aggregate, test-first, downstream-application]
+name: b34-develop-new-service
+tags: [behavior, adoption, aggregate, test-first, downstream-application]
 runs: 3
 max_turns: 10
 allowed_tools: [Read, Glob, Grep, Skill]

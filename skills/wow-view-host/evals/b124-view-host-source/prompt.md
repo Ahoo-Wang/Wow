@@ -1,5 +1,5 @@
 ---
-name: b124-view-host-v10-source
+name: b124-view-host-source
 tags: [behavior, positive, sources]
 runs: 3
 max_turns: 10

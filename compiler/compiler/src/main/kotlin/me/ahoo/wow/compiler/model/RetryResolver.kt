@@ -101,8 +101,8 @@ internal object RetryResolver {
         } ?: return null
         val arguments = annotation.arguments.associate { it.name?.asString() to it.value }
         arguments.keys.filterNotNull().filterNot { it in SETTINGS }.sorted().forEach {
-            problems += "$where is annotated @Retry($it), a 9.x setting V10 does not have: V10's @Retry takes " +
-                "${SETTINGS.joinToString()}; ${V10Annotations.MIGRATION}"
+            problems += "$where is annotated @Retry($it), a 9.x setting Wow 10 does not have: its @Retry takes " +
+                "${SETTINGS.joinToString()}; ${AnnotationSet.MIGRATION}"
         }
         val maxAttempts = (arguments[MAX_ATTEMPTS] as? Int) ?: 0
         if (maxAttempts < 0) {

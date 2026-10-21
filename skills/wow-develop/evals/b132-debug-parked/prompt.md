@@ -1,5 +1,5 @@
 ---
-name: b132-debug-v10-parked
+name: b132-debug-parked
 tags: [behavior, diagnose, read-only]
 runs: 3
 max_turns: 10
