@@ -28,7 +28,7 @@ import kotlin.system.exitProcess
  *
  * ```text
  * migrate-data check    --config <file>                       the mapping check: a dry run that writes nothing
- * migrate-data import   --config <file> [--dry-run] [--restart] [--snapshots]
+ * migrate-data import   --config <file> [--dry-run] [--restart | --final] [--snapshots]
  * migrate-data tail     --config <file> [--once]
  * migrate-data compare  --config <file> [--sample <percent>] [--restart]
  * migrate-data snapshot --config <file> [--restart]
@@ -38,7 +38,10 @@ import kotlin.system.exitProcess
  * - `check` scans the 9.x store and checks `migration-map.json` against it and the V10 Manifest.
  * - `import` checks first and does not start on a failed check; then imports every mapped 9.x aggregate, resuming from
  *   its checkpoint. `--dry-run` converts every stream and appends none; `--restart` walks every instance again, the
- *   final complete pass once 9.x has stopped writing; `--snapshots` then writes the V10 snapshots, as `snapshot` does.
+ *   final complete pass once 9.x has stopped writing; `--final` is the shorter final pass when the tail followed 9.x
+ *   until it stopped: one tail pass from its checkpoint with the final look-back window
+ *   ([MigrationConfig.final]), then the reservations and the compensation walked again, refused (nothing written)
+ *   when an aggregate's tail did not run continuously; `--snapshots` then writes the V10 snapshots, as `snapshot` does.
  *   After the streams it imports the confirmed keys of every mapped 9.x `PrepareKey` as V10 reservations
  *   ([ReservationImporter]), and, when the configuration names the 9.x compensation database, the unresolved 9.x
  *   executions as parked entries of the V10 service's failure ledger ([CompensationImporter]), resuming from their
@@ -129,6 +132,8 @@ class MigrateData(
                 "$SAMPLE takes a percentage from 1 to 100."
 
             DRY_RUN in options && SNAPSHOTS in options -> "A dry run writes no snapshots: $DRY_RUN or $SNAPSHOTS."
+            FINAL in options && (RESTART in options || DRY_RUN in options) ->
+                "The final pass is $FINAL alone: not with $RESTART or $DRY_RUN."
             else -> null
         }
     }
@@ -154,6 +159,9 @@ class MigrateData(
     ): Int {
         if (check(plan, connections) != OK) {
             return FAILED
+        }
+        if (FINAL in options) {
+            return finalPass(plan, config, connections, SNAPSHOTS in options)
         }
         val dryRun = DRY_RUN in options
         val checkpoints = if (dryRun) {
@@ -189,6 +197,61 @@ class MigrateData(
         }
         out.println(if (dryRun) "Dry run done: nothing was appended." else "Import done.")
         return if (SNAPSHOTS in options) snapshot(plan, config, connections, RESTART in options) else OK
+    }
+
+    /**
+     * The final pass once 9.x has stopped writing (`import --final`, design 07 §3 step 3): one pass of the tail from
+     * its checkpoint with the final look-back window, then the reservations and the compensation executions walked
+     * from the first. It refuses, writing nothing, when an aggregate's tail did not follow 9.x continuously: the final
+     * pass is then `import --restart`.
+     */
+    private suspend fun finalPass(
+        plan: MigrationPlan,
+        config: MigrationConfig,
+        connections: MigrationConnections,
+        snapshots: Boolean,
+    ): Int {
+        val checkpoints = FileCheckpointRepository(Path.of(config.checkpoint))
+        val importer = importer(
+            plan,
+            config.options().copy(lookbackMillis = config.final.lookbackMillis),
+            connections,
+            checkpoints,
+        )
+        val problems = plan.aggregates.keys.mapNotNull { importer.finalProblem(it, config.final.maxTailAgeMillis) }
+        if (problems.isNotEmpty()) {
+            problems.forEach { out.println("FAILED $it") }
+            out.println("The final pass needs a tail that followed 9.x until it stopped: run import $RESTART instead.")
+            return FAILED
+        }
+        plan.aggregates.keys.forEach { importer.tailOnce(it) }
+        ReservationImporter(
+            source = connections.source,
+            reservations = connections.reservations,
+            plan = plan,
+            store = connections::reservationStore,
+            checkpoints = checkpoints,
+            options = config.options(restart = true),
+            progress = { out.println(it.render()) },
+            report = out::println,
+            imported = importedKeys(config),
+        ).let { reservations -> plan.reservations.keys.forEach { reservations.importAll(it) } }
+        connections.compensation?.let { compensation ->
+            CompensationImporter(
+                source = compensation,
+                plan = plan,
+                logOf = connections::logOf,
+                ledger = connections::failureLedger,
+                checkpoints = checkpoints,
+                options = config.options(restart = true),
+                progress = { out.println(it.render()) },
+                report = out::println,
+            ).importAll()
+        }
+        out.println(
+            "Final pass done: the tail from its checkpoint, the reservations and the compensation walked again."
+        )
+        return if (snapshots) snapshot(plan, config, connections, restart = true) else OK
     }
 
     private suspend fun compare(
@@ -399,6 +462,7 @@ class MigrateData(
         private const val CONFIG = "--config"
         private const val DRY_RUN = "--dry-run"
         private const val RESTART = "--restart"
+        private const val FINAL = "--final"
         private const val SNAPSHOTS = "--snapshots"
         private const val ONCE = "--once"
         private const val SAMPLE = "--sample"
@@ -414,7 +478,7 @@ class MigrateData(
         private val COMMANDS = setOf(CHECK, IMPORT, TAIL, COMPARE, SNAPSHOT, BACKFILL_TAGS)
         private val KNOWN_OPTIONS = mapOf(
             CHECK to setOf(CONFIG),
-            IMPORT to setOf(CONFIG, DRY_RUN, RESTART, SNAPSHOTS),
+            IMPORT to setOf(CONFIG, DRY_RUN, RESTART, FINAL, SNAPSHOTS),
             TAIL to setOf(CONFIG, ONCE),
             COMPARE to setOf(CONFIG, SAMPLE, RESTART),
             SNAPSHOT to setOf(CONFIG, RESTART),
@@ -423,8 +487,9 @@ class MigrateData(
         private val USAGE = """
             Usage: migrate-data <command> --config <file>
               check     checks migration-map.json against the 9.x store and the V10 Manifest; writes nothing
-              import    [--dry-run] [--restart] [--snapshots]  imports the 9.x event streams into the V10 log,
-                        then writes the V10 snapshots with --snapshots
+              import    [--dry-run] [--restart | --final] [--snapshots]  imports the 9.x event streams into the V10
+                        log, then writes the V10 snapshots with --snapshots; --final is the final pass after 9.x
+                        stops: the tail from its checkpoint, then the reservations and compensation walked again
               tail      [--once]  follows what 9.x commits after the import, until stopped
               compare   [--sample <percent>] [--restart]  compares each 9.x snapshot with the V10 state rebuilt
                         from the log at its version; exits with 3 when one differs

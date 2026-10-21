@@ -140,6 +140,33 @@ class MigrateDataTest {
     }
 
     @Test
+    fun `import --final is the tail from its checkpoint, and needs a tail that followed 9x`(): Unit = runBlocking {
+        val config = config().toString()
+        run("import", "--config", config).assert().isEqualTo(MigrateData.OK)
+        run("import", "--config", config, "--final").assert().isEqualTo(MigrateData.FAILED)
+        printed.assert().contains("FAILED the tail of example-service.order never ran")
+            .contains("run import --restart instead")
+        run("tail", "--config", config, "--once").assert().isEqualTo(MigrateData.OK)
+        // 9.x commits once more before it stops: the final pass imports it, without walking every instance again.
+        val last = NineXExample.stream("order-stream-v4.json")
+        source.add(
+            last.copy(
+                id = "late",
+                version = 5,
+                commandId = "late",
+                requestId = "late",
+                createTime = System.currentTimeMillis()
+            )
+        )
+        run("import", "--config", config, "--final", "--snapshots").assert().isEqualTo(MigrateData.OK)
+        printed.assert().contains("Final pass done").contains("Snapshots done.")
+        val ref = NineXExample.orderModel.type.ref(last.aggregateId.tenantId, last.aggregateId.id)
+        log.read(ref).toList().map { it.version }.assert().containsExactly(1, 2, 3, 4, 5)
+        run("import", "--config", config, "--final", "--restart").assert().isEqualTo(MigrateData.USAGE_ERROR)
+        run("import", "--config", config, "--final", "--dry-run").assert().isEqualTo(MigrateData.USAGE_ERROR)
+    }
+
+    @Test
     fun `the tail refuses a 9x store without its index, and creates it only when told to`() {
         val indexed = IndexedSource(source)
         nineX = indexed
@@ -298,6 +325,9 @@ class MigrateDataTest {
             "env:PASSWORD"
         ) { if (it == "PASSWORD") "secret" else null }.assert().isEqualTo("secret")
         assertThrows<MigrationException> { MigrationConfig.resolve("env:MISSING") { null } }
+        config.final.assert().isEqualTo(FinalPassConfig(lookbackMillis = 300_000, maxTailAgeMillis = 600_000))
+        assertThrows<IllegalArgumentException> { FinalPassConfig(lookbackMillis = -1) }
+        assertThrows<IllegalArgumentException> { FinalPassConfig(maxTailAgeMillis = 0) }
     }
 
     @Test
