@@ -16,6 +16,7 @@ import {
   type MessageOverrides,
   type ViewMessages,
 } from "@ahoo-wang/wow-view-engine/ui";
+import { BOARD_WORDS } from "./boards.ts";
 import { DATASET_ACTION_WORDS } from "./datasetActions.ts";
 import { DATASET_WORDS } from "./datasets.ts";
 import { SOURCE_ACTION_WORDS } from "./sourceActions.ts";
@@ -24,6 +25,7 @@ import { scoped, type Locale, type Words } from "./words.ts";
 
 /** Each file's words, under the scope its keys are written in. */
 const WORDS: Readonly<Record<string, Words>> = {
+  boards: BOARD_WORDS,
   sources: SOURCE_WORDS,
   sourceActions: SOURCE_ACTION_WORDS,
   datasets: DATASET_WORDS,

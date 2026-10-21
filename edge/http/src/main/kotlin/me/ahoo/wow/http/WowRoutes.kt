@@ -417,8 +417,12 @@ private fun CoRouterFunctionDsl.queryRoutes(
 private fun CoRouterFunctionDsl.datasetRoutes(handler: QueryHandler) {
     GET(WowPaths.DATASETS) { request -> handler.listDatasets(request) }
     val path = "${WowPaths.DATASETS}/{$DATASET_CONTEXT}/{$DATASET_NAME}/${QueryRoutes.SEGMENT}"
-    POST(path) { request -> datasetOf(request)?.let { handler.queryDataset(request, it) } ?: noDataset(request) }
-    GET(path) { request -> datasetOf(request)?.let { handler.describeDataset(request, it) } ?: noDataset(request) }
+    POST(path) { request ->
+        datasetOf(request)?.let { handler.queryDataset(request, it) } ?: handler.noDataset(request)
+    }
+    GET(path) { request ->
+        datasetOf(request)?.let { handler.describeDataset(request, it) } ?: handler.noDataset(request)
+    }
 }
 
 private const val DATASET_CONTEXT = "context"
@@ -430,9 +434,6 @@ private fun datasetOf(request: ServerRequest): AggregateType? = try {
 } catch (_: IllegalArgumentException) {
     null
 }
-
-private suspend fun noDataset(request: ServerRequest): ServerResponse =
-    Problem.ofStatus(HttpStatus.NOT_FOUND, "No dataset at ${request.path()}.").respond()
 
 /**
  * [block]'s response, or the problem it was answered with: a store that is unavailable where no result carries it

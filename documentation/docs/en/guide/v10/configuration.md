@@ -106,6 +106,7 @@ Unless the application sets `spring.lifecycle.timeout-per-shutdown-phase`, the h
 | `wow.http.request-facts` | Empty | The request headers copied into a command's headers, and so into the event stream |
 | `wow.http.client-facts` | `true` | Whether the public port records each command's client address and `User-Agent` (`remote_ip`, `user_agent`): personal data that cannot be erased once written |
 | `wow.http.errors.[<code>].status` | The Manifest's | The HTTP status of an error code |
+| `wow.http.global-errors` | `true` | Whether the application's own routes answer what fails on them as problems ([Error codes](./http-api.md#error-codes)) |
 | `wow.http.manifest.enabled` | `true` | Whether `GET /wow/manifest` is served |
 
 The public port is Spring Boot's `server.port`.

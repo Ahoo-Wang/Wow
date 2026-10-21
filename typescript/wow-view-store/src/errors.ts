@@ -41,6 +41,7 @@ const CODES: Readonly<Record<string, ViewStoreErrorCode>> = {
   // from that one, so it is refused as the stale write it most likely is.
   [FrameworkErrorCodes.COMMAND_REQUEST_ID_REUSED]: 'CONFLICT',
   [FrameworkErrorCodes.AGGREGATE_NOT_FOUND]: 'NOT_FOUND',
+  [FrameworkErrorCodes.QUERY_NOT_FOUND]: 'NOT_FOUND',
   [FrameworkErrorCodes.AGGREGATE_DELETED]: 'NOT_FOUND',
   [ViewStoreErrorCodes.NOT_FOUND]: 'NOT_FOUND',
   [FrameworkErrorCodes.AUTH_UNAUTHENTICATED]: 'FORBIDDEN',

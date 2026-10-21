@@ -37,10 +37,14 @@ export const navbarZh: DefaultTheme.NavItem[] = [
             },
         ],
     },
+    {text: '概念', link: '/zh/concepts/', activeMatch: '/zh/concepts/'},
     {
         text: '参考',
         items: [
-            {text: '配置项', link: '/zh/guide/v10/configuration'},
+            {text: '术语表', link: '/zh/reference/glossary'},
+            {text: '配置项', link: '/zh/reference/configuration'},
+            {text: '错误码', link: '/zh/reference/error-codes'},
+            {text: '注解', link: '/zh/reference/annotations'},
             {text: '编译器生成什么', link: '/zh/guide/v10/generated-code'},
             {text: 'Kotlin API', link: '/dokka/index.html', target: '_blank'},
             {text: 'Storybook', link: '/storybook/', target: '_blank'},

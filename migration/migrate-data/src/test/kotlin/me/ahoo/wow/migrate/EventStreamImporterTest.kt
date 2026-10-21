@@ -148,6 +148,25 @@ class EventStreamImporterTest {
     }
 
     @Test
+    fun `the final pass is the tail only when the tail followed 9x until it stopped`(): Unit = runTest {
+        val source = InMemoryNineXEventSource(NineXExample.streams().filter { it.aggregate == order })
+        importer(
+            source
+        ).finalProblem(order, MAX_TAIL_AGE).assert().isEqualTo("the full import of $order has not completed")
+        importer(source).importAll(order)
+        importer(source).finalProblem(order, MAX_TAIL_AGE).assert().isEqualTo("the tail of $order never ran")
+        importer(source).tailOnce(order)
+        checkpoints.load().of(order)!!.tailedAt.assert().isEqualTo(now)
+        importer(source).finalProblem(order, MAX_TAIL_AGE).assert().isNull()
+        now += MAX_TAIL_AGE + 1
+        importer(source).finalProblem(order, MAX_TAIL_AGE).assert()
+            .isEqualTo(
+                "the tail of $order last ended ${MAX_TAIL_AGE + 1} ms ago, more than $MAX_TAIL_AGE ms: it did not " +
+                    "follow 9.x continuously",
+            )
+    }
+
+    @Test
     fun `the tail needs a completed full import`(): Unit = runTest {
         assertThrows<MigrationException> { importer(InMemoryNineXEventSource()).tailOnce(order) }
         checkpoints.save(ImportCheckpoints().with(order, AggregateCheckpoint(startedAt = 1)))
@@ -281,5 +300,9 @@ class EventStreamImporterTest {
         assertThrows<IllegalArgumentException> { ImportOptions(concurrency = 0) }
         assertThrows<IllegalArgumentException> { ImportOptions(lookbackMillis = -1) }
         assertThrows<IllegalArgumentException> { ImportOptions(maxUnknownRetries = -1) }
+    }
+
+    private companion object {
+        const val MAX_TAIL_AGE = 60_000L
     }
 }
