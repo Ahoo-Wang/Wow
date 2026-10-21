@@ -227,11 +227,17 @@ export class PanelReferences {
 /**
  * Whether a failed read says the view is not there for this reader — the
  * store's `NOT_FOUND` or `FORBIDDEN`, or another answer it would give again
- * (`INVALID`, `UNSUPPORTED`), or the engine's own refusal (a definition this
- * release does not declare) — rather than that it could not be read just
- * now: the store `UNAVAILABLE`, or a failure nobody named.
+ * (`INVALID`, `UNSUPPORTED`), or the engine's own refusal of the view —
+ * rather than that it could not be read just now: the store `UNAVAILABLE`,
+ * a failure nobody named, or a definition not registered yet
+ * (`view.definition.not-found`): a dataset registers when its directory is
+ * read (D85, D93), after a board over it may have opened, and the engine
+ * asks the board again then (`ViewEngine.register`).
  */
 function gone(error: unknown): boolean {
   if (isViewStoreError(error)) return error.code !== 'UNAVAILABLE';
-  return isViewCommandError(error);
+  return (
+    isViewCommandError(error) &&
+    error.issue.code !== 'view.definition.not-found'
+  );
 }
