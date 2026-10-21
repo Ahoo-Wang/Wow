@@ -23,7 +23,7 @@ patchedDependencies:
 catalogs:
   peers:
     # Development and tests run on fetcher 6 (the default catalog below);
-    # typescript.yml's fetcher-floor job pins the floor of this range
+    # ci.yml's fetcher-floor job pins the floor of this range
     # (.github/scripts/fetcher-floor.mjs) and runs the tests and the package
     # check on it.
     '@ahoo-wang/fetcher': '^5.1.5 || ^6.0.0'

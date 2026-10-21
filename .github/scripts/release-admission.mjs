@@ -42,16 +42,13 @@ import {
 //    a subject whose `(#N)` was edited away, is caught only by its own `!` or
 //    BREAKING CHANGE footer (typescript/RELEASING.md「发版准入」).
 //
-// The Gradle workflows are not in REQUIRED: the release workflow's preflight
-// runs `./gradlew :check :integrationTest` (unit, contract and integration
-// tests) on this very commit before anything is published.
+// ci.yml is the one CI workflow; its dispatch run turns every scope on, the
+// JVM jobs included, and the release workflow's preflight still runs
+// `./gradlew :check :integrationTest` on this very commit before anything is
+// published.
 
 /** Workflows that must pass in full on the release commit, with their gate job. */
-export const REQUIRED = [
-  { workflow: 'typescript.yml', gate: 'typescript-gate' },
-  { workflow: 'typescript-contract.yml', gate: 'typescript-contract-gate' },
-  { workflow: 'typescript-storybook.yml', gate: 'typescript-storybook-gate' },
-];
+export const REQUIRED = [{ workflow: 'ci.yml', gate: 'ci-gate' }];
 
 /** Remote branches a release commit may come from. */
 const RELEASE_BRANCH = /^origin\/(?:main|release-\d+\.\d+)$/;

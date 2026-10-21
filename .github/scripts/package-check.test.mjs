@@ -204,12 +204,9 @@ test('a dist-tag that is missing or points elsewhere is a problem', () => {
 });
 
 test('the package job builds every published package before checking them', () => {
-  const workflow = readFileSync(
-    join(ROOT, '.github/workflows/typescript.yml'),
-    'utf8',
-  );
+  const workflow = readFileSync(join(ROOT, '.github/workflows/ci.yml'), 'utf8');
   const job = /^ {2}package:\n(?:(?: {4}.*)?\n)+/m.exec(workflow)?.[0];
-  assert.ok(job, 'typescript.yml has no package job');
+  assert.ok(job, 'ci.yml has no package job');
   // The build takes its packages from PUBLISHED, the list the check reads,
   // so a package added there cannot reach the check unbuilt.
   const build = job.indexOf('node .github/scripts/publish-npm.mjs --list');
