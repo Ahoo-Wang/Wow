@@ -83,7 +83,7 @@ pnpm add -D @ahoo-wang/wow-generator typescript
 | 用用户的令牌签名请求，填入租户与所有者 | [认证与拦截器](./authentication.md) | — |
 | 为不来自 Wow 的 OpenAPI 文档生成客户端 | [从任意 OpenAPI 文档生成客户端](./generated-client.md) | [生成结果](../../reference/typescript/wow-generator/generated-output.md) |
 | 让生成代码与服务保持一致 | [在 CI 中重新生成](./regenerate-in-ci.md) | [生成器 CLI](../../reference/typescript/wow-generator/cli.md) |
-| 评估可保存的数据视图 | [视图引擎](./view-engine.md) | [wow-view-engine 参考](../../reference/typescript/wow-view-engine/) |
+| 评估可保存的数据视图 | [视图引擎](../../typescript/view-engine/index.md) | [wow-view-engine 参考](../../reference/typescript/wow-view-engine/) |
 | 找出失败原因 | [排障](./troubleshooting.md) | — |
 
 这些契约的服务端见 [HTTP API](../v10/http-api.md) 与[查询语言](../v10/query.md)。拦截器内部机制、取消、服务端推送事件等通用 Fetcher 主题仍在 [fetcher.ahoo.me](https://fetcher.ahoo.me/zh/)。

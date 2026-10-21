@@ -52,8 +52,8 @@ export type Language = keyof Words;
  * that sends the rest there).
  */
 export const THEME_PAGES: readonly [file: string, language: Language][] = [
-  ['../../documentation/docs/en/guide/typescript/view-engine-theming.md', 'en'],
-  ['../../documentation/docs/zh/guide/typescript/view-engine-theming.md', 'zh'],
+  ['../../documentation/docs/en/typescript/view-engine/theming.md', 'en'],
+  ['../../documentation/docs/zh/typescript/view-engine/theming.md', 'zh'],
 ];
 
 const ENTRIES: readonly TokenEntry[] = TOKENS;

@@ -1,13 +1,9 @@
 ---
-title: Theming the View Engine
+title: Theming
 description: How wow-view-engine takes a host's look — three layers of variables, presets, a brand colour as an input, the engine's roles and links, the charts' roles, light, dark and system mode, pinning, embeds and popups, the shadcn bridge, and the contrast an override owes.
 ---
 
-# Theming the View Engine
-
-::: info On npm since Wow 9.2.0
-`@ahoo-wang/wow-view-engine` is on npm since Wow 9.2.0. A patch release never breaks the CSS contract in [What is public](#what-is-public); the other compatibility rules are on the [View Engine](./view-engine.md) page.
-:::
+# Theming
 
 The theme is the host's look, not a way of observing: nothing about it is saved in a view, a dashboard or a preference, and the workbench has no theme switch. The host picks a preset, a brand colour and a mode; the engine follows. Everything below is CSS custom properties — there is no theme object.
 
@@ -20,7 +16,7 @@ A host makes one choice, on `ViewHost` (the package README's quick start):
 | The engine follows you | A host with a shadcn theme (Tailwind v4)            | `theme="host"`, and import `shadcn-bridge.css` ([the bridge](#the-shadcn-bridge))  |
 | You follow the engine  | A host with no theme, or happy to wear the engine's | `preset="porcelain"` (import its file), optionally `brand="#1d4ed8"` ([presets](#presets), [a brand colour](#i-have-a-brand-colour)); your own chrome wears [`fve-tokens`](#your-own-chrome-fve-tokens) |
 
-`ViewHost` names the preset and the brand on `<html>` and paints light or dark there (`colorMode`, [below](#light-dark-and-system)). The rest of this page is what those two lines stand on, and what to reach for past them. The rest of `ViewHost`'s ports — the router, the language and each resource's `bind` — are in [Fitting the View Engine into a Host](./view-engine-host.md); how the stylesheets load under a strict Content Security Policy is in [Content Security Policy for the View Engine](./view-engine-csp.md).
+`ViewHost` names the preset and the brand on `<html>` and paints light or dark there (`colorMode`, [below](#light-dark-and-system)). The rest of this page is what those two lines stand on, and what to reach for past them. The rest of `ViewHost`'s ports — the router, the language and each resource's `bind` — are in [Host the engine](./host); how the stylesheets load under a strict Content Security Policy is in [Content Security Policy](./csp). A patch release never breaks the CSS contract in [What is public](#what-is-public).
 
 ## Stylesheets
 
@@ -286,7 +282,7 @@ declare const id: string;
 
 ## Embeds and popups
 
-Menus, selects, popovers, tooltips and dialogs are portalled to `<body>`, outside the part of the page the view sits in. They carry what the surface resolved — its mode as `data-theme`, its preset as `data-fve-preset`, and the density, change convention and brand-chart switch it found — so a pinned embed's popups match it. The embeds themselves — their tiers, their switches and a board's filters — are in [Fitting the View Engine into a Host](./view-engine-host.md#embeds).
+Menus, selects, popovers, tooltips and dialogs are portalled to `<body>`, outside the part of the page the view sits in. They carry what the surface resolved — its mode as `data-theme`, its preset as `data-fve-preset`, and the density, change convention and brand-chart switch it found — so a pinned embed's popups match it. The embeds themselves — their tiers, their switches and a board's filters — are in [Host the engine](./host#embeds).
 
 - **Use an attribute, not a stylesheet swap.** A chart reads its look off the tokens and is told to read it again when one of these attributes changes on the surface or an ancestor: `class`, `data-theme`, `data-fve-preset`, `data-fve-change-colors`, `data-fve-density`, `data-fve-brand-chart` or `style`. A stylesheet replaced with no attribute changing leaves charts in the old colours.
 - **Variables set on one element stop at `<body>`.** `--fve-*` set on a card around an embed reach the embed but not its popups, which are not inside the card. Put page-wide values on `:root`; use `tokens` or `preset` for one view.
@@ -334,7 +330,7 @@ The bridge reads your tokens as colours, as a Tailwind v4 shadcn theme writes th
 }
 ```
 
-One line for each token the bridge covers, and its dark half, as `shadcn-bridge.css` lists them. A Storybook regression test (`ShadcnBridge.test.stories.tsx`) hangs the compensation console's shadcn theme on a workbench with the bridge and measures its control edges and focus in both modes.
+One line for each token the bridge covers, and its dark half, as `shadcn-bridge.css` lists them. A Storybook regression test (`ShadcnBridge.test.stories.tsx`) hangs a real console's shadcn theme on a workbench with the bridge and measures its control edges and focus in both modes.
 
 ## Contrast is the overrider's responsibility
 

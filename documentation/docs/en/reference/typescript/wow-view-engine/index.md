@@ -6,10 +6,10 @@ description: 'Entries, concepts, persistence port, and extension points of the @
 # wow-view-engine reference
 
 ::: info On npm since Wow 9.2.0
-`@ahoo-wang/wow-view-engine` is on npm since Wow 9.2.0, released from the same tag and with the same version as Wow. A patch release never breaks the exports (the `ViewStore` port among them), the CSS contract, the message keys and issue codes, or the `wow-view-engine` command; a minor release lists every break in its release notes ([compatibility](../../../guide/typescript/view-engine.md)). The [design documents](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design) are the source of truth for the model. The symbols a host uses most are described by hand in the [topic pages](#topics) below; every name each entry exports is in the generated [symbol index](./symbols).
+`@ahoo-wang/wow-view-engine` is on npm since Wow 9.2.0, released from the same tag and with the same version as Wow. A patch release never breaks the exports (the `ViewStore` port among them), the CSS contract, the message keys and issue codes, or the `wow-view-engine` command; a minor release lists every break in its release notes ([compatibility](../../../typescript/view-engine/index.md)). The [design documents](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design) are the source of truth for the model. The symbols a host uses most are described by hand in the [topic pages](#topics) below; every name each entry exports is in the generated [symbol index](./symbols).
 :::
 
-For what the engine does, read the [View Engine guide](../../../guide/typescript/view-engine.md); for a walkthrough that wires one business object from zero, Getting Started with the View Engine.
+For what the engine does, read the [View Engine guide](../../../typescript/view-engine/index.md); for a walkthrough that wires one business object from zero, Getting Started with the View Engine.
 
 ## Entries
 
@@ -25,11 +25,11 @@ For what the engine does, read the [View Engine guide](../../../guide/typescript
 | `/themes/<name>.css` | One optional preset alone |
 | `/shadcn-bridge.css` | Optional: a host's shadcn tokens read into the view's variables, except `input`, `ring`, the status and the chart colours |
 
-The root entry has no React or DOM dependency. `react` and `react-dom` are peer dependencies needed only by `/react` and `/ui`; `react-router` only by `/react-router`, and `mingo` only by `/testing`; all four are optional peers. The package's command, `wow-view-engine theme-check`, checks a host's theme against the registry ([checking a theme](../../../guide/typescript/view-engine-theming.md#checking-a-theme)).
+The root entry has no React or DOM dependency. `react` and `react-dom` are peer dependencies needed only by `/react` and `/ui`; `react-router` only by `/react-router`, and `mingo` only by `/testing`; all four are optional peers. The package's command, `wow-view-engine theme-check`, checks a host's theme against the registry ([checking a theme](../../../typescript/view-engine/theming.md#checking-a-theme)).
 
 ## Concepts
 
-What each type does and where it lives — code, data, the store or memory — together with system, shared and personal views, revisions and conflicts: [View Engine Core Concepts](../../../guide/typescript/view-engine-concepts.md).
+What each type does and where it lives — code, data, the store or memory — together with system, shared and personal views, revisions and conflicts: [View Engine Core Concepts](../../../typescript/view-engine/index.md).
 
 Built-in field kinds: `string`, `number`, `boolean`, `date`, `datetime`, `enum`, `reference`, `array`, `elementMatch`, `search`, and the kinds backed by Wow's metadata filters: `documentId`, `aggregateId`, `tenantId`, `ownerId`, `spaceId`, and `deletion`.
 
@@ -90,7 +90,7 @@ Architecture tests enforce the dependency rules: `model` imports nothing; `filte
 | Data source | Each entry of `resources` pairs a definition with its source, a `wow-client` query client |
 | Persistence | `WowViewStore` on a Wow server; implement `ViewStore` for any other backend |
 | Actions | Declare them with `actions()` and bind them (`bind(id, { actions })`): the engine places, confirms, runs and reports them; `slots` (`global`, `bulk`, `row` render functions) are the escape hatch. They are code and are never saved |
-| Appearance | CSS variables, presets and the shadcn bridge (see [Theming the View Engine](../../../guide/typescript/view-engine-theming.md)); replace components by composing the `/react` hooks |
+| Appearance | CSS variables, presets and the shadcn bridge (see [Theming the View Engine](../../../typescript/view-engine/theming.md)); replace components by composing the `/react` hooks |
 | Wording | `en` and `zhCN` catalogues, merged through the `messages` prop or `MessagesProvider` |
 
 ## Topics {#topics}

@@ -6,10 +6,10 @@ description: '@ahoo-wang/wow-view-engine 包的入口、概念、持久化端口
 # wow-view-engine 参考
 
 ::: info Wow 9.2.0 起在 npm 上
-`@ahoo-wang/wow-view-engine` 从 Wow 9.2.0 起在 npm 上，与 Wow 同一个 tag、同一个版本号发布。补丁版本不破坏导出（包括 `ViewStore` 端口）、CSS 合同、消息键与 issue code，以及 `wow-view-engine` 命令；次版本的破坏逐条写进发布说明（[兼容规则](../../../guide/typescript/view-engine.md)）。模型以[设计文档](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design)为准。宿主常用的符号在下面的[专题页](#topics)里手写说明；每个入口导出的全部名字见生成的[符号索引](/reference/typescript/wow-view-engine/symbols)（英文）。
+`@ahoo-wang/wow-view-engine` 从 Wow 9.2.0 起在 npm 上，与 Wow 同一个 tag、同一个版本号发布。补丁版本不破坏导出（包括 `ViewStore` 端口）、CSS 合同、消息键与 issue code，以及 `wow-view-engine` 命令；次版本的破坏逐条写进发布说明（[兼容规则](../../../typescript/view-engine/index.md)）。模型以[设计文档](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design)为准。宿主常用的符号在下面的[专题页](#topics)里手写说明；每个入口导出的全部名字见生成的[符号索引](/reference/typescript/wow-view-engine/symbols)（英文）。
 :::
 
-引擎做什么，见[视图引擎指南](../../../guide/typescript/view-engine.md)；从零接入一个业务对象的完整走读，见视图引擎入门。
+引擎做什么，见[视图引擎指南](../../../typescript/view-engine/index.md)；从零接入一个业务对象的完整走读，见视图引擎入门。
 
 ## 入口
 
@@ -25,11 +25,11 @@ description: '@ahoo-wang/wow-view-engine 包的入口、概念、持久化端口
 | `/themes/<名>.css` | 单独一套可选的预设 |
 | `/shadcn-bridge.css` | 可选：把宿主的 shadcn token 读进视图的变量，`input`、`ring`、状态色与图表色除外 |
 
-根入口不依赖 React 或 DOM。`react` 和 `react-dom` 是 peer 依赖，只有 `/react` 和 `/ui` 需要；`react-router` 只有 `/react-router` 需要，`mingo` 只有 `/testing` 需要；这四个都是可选的 peer。包带一个命令 `wow-view-engine theme-check`，按登记表检查宿主的主题（[检查主题](../../../guide/typescript/view-engine-theming.md#检查一套主题)）。
+根入口不依赖 React 或 DOM。`react` 和 `react-dom` 是 peer 依赖，只有 `/react` 和 `/ui` 需要；`react-router` 只有 `/react-router` 需要，`mingo` 只有 `/testing` 需要；这四个都是可选的 peer。包带一个命令 `wow-view-engine theme-check`，按登记表检查宿主的主题（[检查主题](../../../typescript/view-engine/theming.md#检查一套主题)）。
 
 ## 概念
 
-每个类型做什么、住在哪里——代码、数据、存储还是内存——以及系统、共享与个人视图、revision 与冲突，见[视图引擎的核心概念](../../../guide/typescript/view-engine-concepts.md)。
+每个类型做什么、住在哪里——代码、数据、存储还是内存——以及系统、共享与个人视图、revision 与冲突，见[视图引擎的核心概念](../../../typescript/view-engine/index.md)。
 
 内置字段类型：`string`、`number`、`boolean`、`date`、`datetime`、`enum`、`reference`、`array`、`elementMatch`、`search`，以及由 Wow 元数据过滤支撑的 `documentId`、`aggregateId`、`tenantId`、`ownerId`、`spaceId` 和 `deletion`。
 
@@ -90,7 +90,7 @@ flowchart LR
 | 数据源 | `resources` 的每一项把一份定义与它的数据源（一个 `wow-client` 查询客户端）配成对 |
 | 持久化 | Wow 服务端用 `WowViewStore`；别的后端实现 `ViewStore` |
 | 操作 | 用 `actions()` 声明并绑到定义上（`bind(id, { actions })`）：放在哪、确认、执行与汇报由引擎负责；`slots`（`global`、`bulk`、`row` 三个渲染函数）是逃生口。它们是代码，从不保存 |
-| 外观 | CSS 变量、预设与 shadcn 桥接（见[视图引擎的主题](../../../guide/typescript/view-engine-theming.md)）；通过组合 `/react` Hook 替换组件 |
+| 外观 | CSS 变量、预设与 shadcn 桥接（见[视图引擎的主题](../../../typescript/view-engine/theming.md)）；通过组合 `/react` Hook 替换组件 |
 | 文案 | `en`（英文）与 `zhCN` 两套文案，通过 `messages` 属性或 `MessagesProvider` 合并 |
 
 ## 专题 {#topics}

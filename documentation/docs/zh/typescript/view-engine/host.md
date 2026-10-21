@@ -68,7 +68,7 @@ export const engine = new ViewEngine({
 - 给数据源用的 `Fetcher` 设一个超时（`new Fetcher({ timeout })`）。`@ahoo-wang/fetcher` 缺省不超时，引擎也不给查询计时；一个接了连接却不答的服务端会让视图一直在打开中，还占着引擎的查询位，看板的其他面板跟着饿着。
 - 开发构建里没有接 `onIssue` 时，引擎按资源把准入发现打印出来，每条带改法。它们该进定义的 [`admit`](../../reference/typescript/wow-view-engine/testing.md#api-admit) 测试（[下文](#testing)），不该被一个处理函数吞掉。
 
-数据源与存储怎样选，见入门的第 6 步与[视图存在哪里](./view-engine-storage.md)。
+数据源与存储怎样选，见入门的第 6 步与[视图存在哪里](./storage.md)。
 
 ## `ViewHost`：页面外面唯一的一层
 
@@ -81,7 +81,7 @@ export const engine = new ViewEngine({
 | `navigate` | 路由 | 想亲手接每一条去处时写它，优先于 `router` |
 | `locale`、`messages` | 语言 | 值显示所用的语言，以及合并在现行措辞之上的措辞表（[下文](#messages)） |
 | `bindings` | 命令 | 每个资源一条 [`bind(id, …)`](../../reference/typescript/wow-view-engine/host.md#api-bind)：路由、操作、读法（[下文](#bind)） |
-| `theme`、`preset`、`brand` | 主题 | 两条路选一条：`theme="host"` 跟宿主的 shadcn 主题，或 `preset` 穿引擎的预设（[视图引擎的主题](./view-engine-theming.md)） |
+| `theme`、`preset`、`brand` | 主题 | 两条路选一条：`theme="host"` 跟宿主的 shadcn 主题，或 `preset` 穿引擎的预设（[视图引擎的主题](./theming.md)） |
 | `colorMode`、`rememberColorMode` | 主题 | 亮暗：缺省 `system`，引擎在第一次绘制前给 `<html>` 写 `.dark` 与 `color-scheme` 并跟随系统；`light`／`dark` 从钉住开始；宿主自己管亮暗（如 next-themes）时写 `host`，引擎不碰 `<html>`。读者经 `useColorMode()` 的 `{ mode, setMode }` 换模式，`rememberColorMode` 给一个 `localStorage` 键就记在这台机器上 |
 
 <!-- typecheck: file=Host.tsx -->
@@ -139,7 +139,7 @@ export function Host({
 | 选项 | 是什么 |
 |---|---|
 | `route(instanceId, target?)` | 打开这个资源的页面路径。`instanceId` 是要打开的视图或看板，`null` 是没人存过的视图（追问、看板自己的分析），落在页面的缺省上 |
-| `actions` | 记录上的命令，声明的（[声明式操作](./view-engine-actions.md)） |
+| `actions` | 记录上的命令，声明的（[声明式操作](./actions.md)） |
 | `reading` | 一条记录在详情里怎样读：`title(row)` 给它起名，`sections(context)` 加宿主自己的区块，`render(context)` 整个换掉正文 |
 | `slots` | 逃生口：`row`、`bulk`、`global` 画宿主自己的标记，排在声明的操作之后 |
 
@@ -258,7 +258,7 @@ export function Places() {
 }
 ```
 
-用宿主自己的链接与侧栏组件（shadcn 的 `Sidebar`、顶栏都行）替换 `<a>`。宿主自己的外壳挂 `className="fve-tokens"` 就穿上引擎的主题（[宿主自己的外壳](./view-engine-theming.md#宿主自己的外壳)）。
+用宿主自己的链接与侧栏组件（shadcn 的 `Sidebar`、顶栏都行）替换 `<a>`。宿主自己的外壳挂 `className="fve-tokens"` 就穿上引擎的主题（[宿主自己的外壳](./theming.md#宿主自己的外壳)）。
 
 **页面的高度是宿主的事，而且必须是确定的高度。** 工作台永远填满它的容器、页脚贴底，所以容器要有 `height`，不是 `min-height`。外壳写成视口那么高、顶栏不动、内容区拿余下的高度；比屏幕高的页面（看板、表单）在自己的容器里滚，不滚整个文档：
 
@@ -349,7 +349,7 @@ export const ENGINE_WORDS = { ...zhCN, ...wording };
 |---|---|
 | `admit(definitions, descriptors, { text })` | 定义与看板在提交的查询描述上过一遍准入，每个键都有措辞；全都成立时返回 `[]` |
 | [`resolveNavigation(to, bindingOf)`](../../reference/typescript/wow-view-engine/testing.md#api-resolveNavigation) | 一条去处经绑定的 `route` 解析成什么，用的是引擎自己的解析 |
-| [`actionHarness(actions, rows, { now })`](../../reference/typescript/wow-view-engine/testing.md#api-actionHarness) | 声明的操作按引擎的规则读，不画界面（[声明式操作](./view-engine-actions.md#harness)） |
+| [`actionHarness(actions, rows, { now })`](../../reference/typescript/wow-view-engine/testing.md#api-actionHarness) | 声明的操作按引擎的规则读，不画界面（[声明式操作](./actions.md#harness)） |
 | [`memorySource(documents, options?)`](../../reference/typescript/wow-view-engine/testing.md#api-memorySource) | 内存里的 [`ViewSource`](../../reference/typescript/wow-view-engine/engine.md#api-ViewSource)，按 Wow 服务端在 MongoDB 上的语义筛选、排序、分页、投影与聚合，给页面测试与演示用 |
 
 路由表就用引擎自己的解析来测：
@@ -427,7 +427,7 @@ export const testEngine = new ViewEngine({
 
 | 接下来 | 阅读 |
 |---|---|
-| 记录上的命令：放在哪、先问什么、多选与结局 | [声明式操作](./view-engine-actions.md) |
-| 换一套外观、用品牌色、接上 shadcn 主题 | [视图引擎的主题](./view-engine-theming.md) |
-| 在严格的内容安全策略下运行 | [视图引擎的内容安全策略](./view-engine-csp.md) |
-| 保存的视图存在哪里：内存、本地、Wow 服务端或自己的存储 | [视图存在哪里](./view-engine-storage.md) |
+| 记录上的命令：放在哪、先问什么、多选与结局 | [声明式操作](./actions.md) |
+| 换一套外观、用品牌色、接上 shadcn 主题 | [视图引擎的主题](./theming.md) |
+| 在严格的内容安全策略下运行 | [视图引擎的内容安全策略](./csp.md) |
+| 保存的视图存在哪里：内存、本地、Wow 服务端或自己的存储 | [视图存在哪里](./storage.md) |

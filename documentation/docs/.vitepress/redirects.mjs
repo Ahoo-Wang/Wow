@@ -58,10 +58,12 @@ export const REDIRECTS = {
     '/guide/extensions/spring-boot-starter': '/guide/v10/',
     '/guide/extensions/mongo': '/guide/v10/deployment',
     '/guide/extensions/kafka': '/guide/v10/deployment',
-    '/guide/extensions/view-store': '/guide/typescript/view-engine-storage',
+    '/guide/extensions/view-store': '/typescript/view-engine/storage',
     '/reference/config/core': '/guide/v10/configuration',
     '/reference/config/infrastructure': '/guide/v10/configuration',
     '/reference/config/observability': '/guide/v10/configuration',
+    '/guide/typescript/view-engine': '/typescript/view-engine/',
+    '/workbench/': '/data/workbench',
     '/onboarding/': '/',
 }
 

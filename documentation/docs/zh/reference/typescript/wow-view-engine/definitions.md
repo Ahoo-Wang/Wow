@@ -7,7 +7,7 @@ description: 'defineView 与它的规格、text 键、FieldKind 与字段类型�
 
 定义是代码：它随应用发布，说清一个业务对象能被怎样观察——哪些字段、各是什么类型、能怎样筛选、排序和汇总，以及随定义一起发布的系统视图。用户保存的每个视图都按它校验。`defineView` 从来源的查询描述构建一份数据定义：描述给出事实，规格在其中挑选、命名、收窄。
 
-相关指南：[写好一份定义](../../../guide/typescript/view-engine-definitions.md)（从描述符出发逐项选择、措辞、系统视图与看板）、[视图引擎的核心概念](../../../guide/typescript/view-engine-concepts.md)（定义在模型里的位置）、视图引擎入门（第 5 步的一份完整定义）。
+相关指南：[写好一份定义](../../../typescript/view-engine/definitions.md)（从描述符出发逐项选择、措辞、系统视图与看板）、[视图引擎的核心概念](../../../typescript/view-engine/index.md)（定义在模型里的位置）、视图引擎入门（第 5 步的一份完整定义）。
 
 ## defineView {#api-defineView}
 

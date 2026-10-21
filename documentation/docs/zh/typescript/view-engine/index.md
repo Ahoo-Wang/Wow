@@ -6,7 +6,7 @@ description: wow-view-engine 包做什么、它的设计立足于哪些事实，
 # 视图引擎
 
 ::: info Wow 9.2.0 起在 npm 上
-`@ahoo-wang/wow-view-engine` 从 Wow 9.2.0 起在 npm 上，与 Wow 同一个 tag、同一个版本号发布。从 9.2.0 起，补丁版本不破坏它的公开面：每个入口的导出，包括后端实现的 `ViewStore` 端口；[CSS 合同](./view-engine-theming.md#什么是公开的)；消息键与 issue code；以及 `wow-view-engine` 命令。次版本可以破坏，它的发布说明逐条列出每个破坏与迁移步骤；Wow 包请停在同一个次版本上（[版本范围](./compatibility.md#版本范围)）。以旧形状保存的视图照常打开：引擎在读取时迁移存储的配置。
+`@ahoo-wang/wow-view-engine` 从 Wow 9.2.0 起在 npm 上，与 Wow 同一个 tag、同一个版本号发布。从 9.2.0 起，补丁版本不破坏它的公开面：每个入口的导出，包括后端实现的 `ViewStore` 端口；[CSS 合同](./theming.md#什么是公开的)；消息键与 issue code；以及 `wow-view-engine` 命令。次版本可以破坏，它的发布说明逐条列出每个破坏与迁移步骤；Wow 包请停在同一个次版本上（[版本范围](../../guide/typescript/compatibility.md#版本范围)）。以旧形状保存的视图照常打开：引擎在读取时迁移存储的配置。
 :::
 
 视图引擎是面向 Wow 业务应用的数据视图引擎。应用在代码中声明“这份数据能怎样观察”：字段、类型、操作符、可用的维度与指标。用户在界面上决定“这次怎样观察”：筛选、列、排序、维度与指标、图表和面板组合。引擎把这次选择编译成 Wow 查询，通过 `@ahoo-wang/wow-client` 执行，渲染结果，并把值得保留的观察方式保存下来，一键重新打开。
@@ -18,14 +18,14 @@ description: wow-view-engine 包做什么、它的设计立足于哪些事实，
 | 想做什么 | 阅读 |
 |---|---|
 | 从零接入一个业务对象：安装、查询描述、`defineView`、引擎、`ViewHost`、一个操作，对着示例服务端跑起来 | 视图引擎入门 |
-| 先弄清这些词：定义、记录与分析视图、看板、系统／共享／个人视图、revision 与存储，以及它们怎样相连 | [视图引擎的核心概念](./view-engine-concepts.md) |
-| 写一份定义：描述符里的事实、措辞的键、收窄、`rowFields`、系统视图与看板、用 `admit` 自检 | [写好一份定义](./view-engine-definitions.md) |
-| 换一套内置外观、用品牌色、接上宿主的 shadcn 主题 | [视图引擎的主题](./view-engine-theming.md) |
-| 键盘、读屏与 WCAG 2.2 AA 符合性 | [视图引擎的可访问性](./view-engine-accessibility.md) |
-| 把引擎接进应用：`ViewHost`、`bind`、路由端口、导航、嵌入、措辞与语言、用 `/testing` 测 | [把引擎接进宿主](./view-engine-host.md) |
-| 记录上的命令：可用规则、放在哪、确认与表单、多选、结局 | [声明式操作](./view-engine-actions.md) |
-| 在严格的内容安全策略下运行 | [视图引擎的内容安全策略](./view-engine-csp.md) |
-| 选一个 store：内存、浏览器里的快照、Wow 服务端，或自己实现 `ViewStore` 并跑一致性测试 | [视图存在哪里](./view-engine-storage.md) |
+| 先弄清这些词：定义、记录与分析视图、看板、系统／共享／个人视图、revision 与存储，以及它们怎样相连 | [视图引擎的核心概念](./index.md) |
+| 写一份定义：描述符里的事实、措辞的键、收窄、`rowFields`、系统视图与看板、用 `admit` 自检 | [写好一份定义](./definitions.md) |
+| 换一套内置外观、用品牌色、接上宿主的 shadcn 主题 | [视图引擎的主题](./theming.md) |
+| 键盘、读屏与 WCAG 2.2 AA 符合性 | [视图引擎的可访问性](./accessibility.md) |
+| 把引擎接进应用：`ViewHost`、`bind`、路由端口、导航、嵌入、措辞与语言、用 `/testing` 测 | [把引擎接进宿主](./host.md) |
+| 记录上的命令：可用规则、放在哪、确认与表单、多选、结局 | [声明式操作](./actions.md) |
+| 在严格的内容安全策略下运行 | [视图引擎的内容安全策略](./csp.md) |
+| 选一个 store：内存、浏览器里的快照、Wow 服务端，或自己实现 `ViewStore` 并跑一致性测试 | [视图存在哪里](./storage.md) |
 | 在 Kotlin 服务里嵌入视图存储，或运行独立服务端：配置、存储、系统视图、网关规则 | [视图存储](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md) |
 | 不用工作台，用 `/react` 的无头 Hook（`useOpenView`、`useViewRuntime`、`useFilterEditor`、`useRecordTable`）画自己的界面 | [React Hooks](../../reference/typescript/wow-view-engine/react.md) |
 | 查一个公开名字的签名 | [wow-view-engine 参考](../../reference/typescript/wow-view-engine/)的专题：[引擎与资源](../../reference/typescript/wow-view-engine/engine.md)、[定义与字段类型](../../reference/typescript/wow-view-engine/definitions.md)、[宿主接线](../../reference/typescript/wow-view-engine/host.md)、[工作台与嵌入](../../reference/typescript/wow-view-engine/components.md)、[持久化端口](../../reference/typescript/wow-view-engine/store.md)、[测试工具](../../reference/typescript/wow-view-engine/testing.md)、[Issue code](../../reference/typescript/wow-view-engine/issues.md) |
@@ -75,7 +75,7 @@ flowchart LR
 
 ## 内容安全策略（CSP）
 
-引擎可以在严格的内容安全策略下运行：`script-src 'self'`、`style-src 'self'`，不开 `'unsafe-inline'` 与 `'unsafe-eval'`。要放行的只有三件事——样式表作为文件加载、打包进来的库加的样式带上页面的 nonce、PNG 导出载入 `blob:` 图片——每件为什么、策略怎样写、哪些测试守着它，见[视图引擎的内容安全策略](./view-engine-csp.md)。
+引擎可以在严格的内容安全策略下运行：`script-src 'self'`、`style-src 'self'`，不开 `'unsafe-inline'` 与 `'unsafe-eval'`。要放行的只有三件事——样式表作为文件加载、打包进来的库加的样式带上页面的 nonce、PNG 导出载入 `blob:` 图片——每件为什么、策略怎样写、哪些测试守着它，见[视图引擎的内容安全策略](./csp.md)。
 
 ## 在 Storybook 中试用
 
@@ -96,17 +96,17 @@ Storybook 的[接入导览](/storybook/?path=/docs/view-engine-接入导览--doc
 ## 延伸阅读
 
 - 视图引擎入门：把示例服务端的销售订单从零接进来，一步一个文件。
-- [视图引擎的核心概念](./view-engine-concepts.md)：定义、视图、看板、系统／共享／个人视图、revision 与存储，各自是什么、为什么这样分。
-- [写好一份定义](./view-engine-definitions.md)：从描述符的事实出发，逐项做选择，写措辞与系统视图，用 `admit` 自检。
-- [把引擎接进宿主](./view-engine-host.md)：一个引擎、`ViewHost` 的端口、`bind`、路由、嵌入、措辞与语言，以及用 `/testing` 测接线。
-- [声明式操作](./view-engine-actions.md)：记录上的命令怎样声明，引擎怎样放置、确认、批量执行并报告结局。
-- [视图引擎的内容安全策略](./view-engine-csp.md)：严格策略下要放行的三件事，以及守着它的测试。
-- [视图存在哪里](./view-engine-storage.md)：按「谁要看到保存的视图」选一个 store，接上 `WowViewStore`，或自己写一个并跑一致性测试。
+- [视图引擎的核心概念](./index.md)：定义、视图、看板、系统／共享／个人视图、revision 与存储，各自是什么、为什么这样分。
+- [写好一份定义](./definitions.md)：从描述符的事实出发，逐项做选择，写措辞与系统视图，用 `admit` 自检。
+- [把引擎接进宿主](./host.md)：一个引擎、`ViewHost` 的端口、`bind`、路由、嵌入、措辞与语言，以及用 `/testing` 测接线。
+- [声明式操作](./actions.md)：记录上的命令怎样声明，引擎怎样放置、确认、批量执行并报告结局。
+- [视图引擎的内容安全策略](./csp.md)：严格策略下要放行的三件事，以及守着它的测试。
+- [视图存在哪里](./storage.md)：按「谁要看到保存的视图」选一个 store，接上 `WowViewStore`，或自己写一个并跑一致性测试。
 - [视图存储](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md)：Kotlin 服务端——嵌入 starter 还是独立服务端、Docker 镜像、配置项、系统视图，以及它需要的 [CoSec 网关规则](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md)。
 - [wow-view-engine 参考](../../reference/typescript/wow-view-engine/)：入口、概念、持久化端口与扩展点；[专题](../../reference/typescript/wow-view-engine/#topics)逐个给出宿主用到的签名，[Issue code](../../reference/typescript/wow-view-engine/issues.md) 列出引擎能报的每个 code。
 - [wow-view-store 参考](../../reference/typescript/wow-view-store/)：`WowViewStore`、Wow 服务端上的保存视图。
-- [使用工作台](../../workbench/)：写给应用的使用者——记录视图、分析视图、仪表盘与保存的视图，不涉及代码；可以从应用的帮助入口链接过去。
-- [视图引擎的主题](./view-engine-theming.md)：预设、宿主变量、亮暗与跟随系统、shadcn 桥接，以及覆盖变量要守的对比度。
-- [视图引擎的可访问性](./view-engine-accessibility.md)：WCAG 2.2 AA 符合性声明、键盘与读屏走查，以及已知缺口。
+- [使用工作台](../../data/workbench.md)：写给应用的使用者——记录视图、分析视图、仪表盘与保存的视图，不涉及代码；可以从应用的帮助入口链接过去。
+- [视图引擎的主题](./theming.md)：预设、宿主变量、亮暗与跟随系统、shadcn 桥接，以及覆盖变量要守的对比度。
+- [视图引擎的可访问性](./accessibility.md)：WCAG 2.2 AA 符合性声明、键盘与读屏走查，以及已知缺口。
 - [设计文档](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design)：模型以它为准。
 - [包 README](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/README.md)：安装、最短示例与包的各个入口。

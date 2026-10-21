@@ -261,8 +261,8 @@ test("the site's view-engine pages also run the tests that read them", () => {
     'documentation/docs/en/reference/typescript/wow-view-engine/store.md',
     'documentation/docs/zh/reference/typescript/wow-view-engine/issues.md',
     'documentation/docs/en/reference/typescript/wow-view-engine/symbols-ui.md',
-    'documentation/docs/en/guide/typescript/view-engine-theming.md',
-    'documentation/docs/zh/guide/typescript/view-engine.md',
+    'documentation/docs/en/typescript/view-engine/theming.md',
+    'documentation/docs/zh/typescript/view-engine/index.md',
   ])
     assert.deepEqual(on([path]), ['docs', 'viewEngineDocs'], path);
   for (const path of [

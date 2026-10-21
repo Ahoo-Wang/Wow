@@ -87,10 +87,10 @@ await datasets.refresh();
 
 ## 文档
 
-| 想做的事                                                          | 读                                                                                                             |
-| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| 选择视图放在哪里、接入 `WowViewStore`、给出权限、服务不登录的宿主 | [视图存放在哪里](https://wow.ahoo.me/zh/guide/typescript/view-engine-storage#wowviewstore-视图存在-wow-服务上) |
-| 导出、合同、端口发出的每个请求，以及服务端错误怎样映射到端口      | [wow-view-store 参考](https://wow.ahoo.me/zh/reference/typescript/wow-view-store/)                             |
+| 想做的事                                                          | 读                                                                                                       |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| 选择视图放在哪里、接入 `WowViewStore`、给出权限、服务不登录的宿主 | [视图存放在哪里](https://wow.ahoo.me/zh/typescript/view-engine/storage#wowviewstore-视图存在-wow-服务上) |
+| 导出、合同、端口发出的每个请求，以及服务端错误怎样映射到端口      | [wow-view-store 参考](https://wow.ahoo.me/zh/reference/typescript/wow-view-store/)                       |
 
 ## 测试
 

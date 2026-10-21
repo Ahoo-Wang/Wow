@@ -6,7 +6,7 @@ description: wow-view-engine 对 WCAG 2.2 AA 的符合性声明——评估方�
 # 视图引擎的可访问性
 
 ::: info Wow 9.2.0 起在 npm 上
-`@ahoo-wang/wow-view-engine` 从 Wow 9.2.0 起在 npm 上；兼容规则见[视图引擎](./view-engine.md)页。本页描述的是仓库里当前的状态，随代码一起更新。
+`@ahoo-wang/wow-view-engine` 从 Wow 9.2.0 起在 npm 上；兼容规则见[视图引擎](./index.md)页。本页描述的是仓库里当前的状态，随代码一起更新。
 :::
 
 本页是视图引擎界面（`@ahoo-wang/wow-view-engine/ui`：记录工作台、分析工作台、仪表盘、两种嵌入）对 [WCAG 2.2](https://www.w3.org/TR/WCAG22/) A 级与 AA 级的符合性声明。结论先说：
@@ -20,7 +20,7 @@ description: wow-view-engine 对 WCAG 2.2 AA 的符合性声明——评估方�
 ## 声明的范围
 
 - **评估对象**：Wow 仓库 `main`（`722065901`，2026-10-01，PR #3855 合入之后）加上随本页这一版合入的修复（[第三轮走查](#第三轮走查修掉的问题)），`typescript/wow-view-engine` 的 `/ui` 入口；第二轮评估的是 `c1494d2ed` 加上 PR #3826、#3834，第一轮评估的是 `b17f36a3c`。无头的根入口与 `/react` 不画界面，不在范围内。
-- **宿主的责任**：视图引擎总是放在宿主的页面里。页面标题（2.4.2）、页面语言（3.1.1）、跳到主要内容的链接、全站导航的一致性、登录（3.3.8）与帮助入口（3.2.6）都是宿主的；覆盖 `--fve-*` 颜色变量的宿主要自己守对比度（见[视图引擎的主题](./view-engine-theming.md#对比度由覆盖的人负责)）。下表里「不适用」的几条多半是这个原因。
+- **宿主的责任**：视图引擎总是放在宿主的页面里。页面标题（2.4.2）、页面语言（3.1.1）、跳到主要内容的链接、全站导航的一致性、登录（3.3.8）与帮助入口（3.2.6）都是宿主的；覆盖 `--fve-*` 颜色变量的宿主要自己守对比度（见[视图引擎的主题](./theming.md#对比度由覆盖的人负责)）。下表里「不适用」的几条多半是这个原因。
 - **示例数据**：走查在 [Storybook](/storybook/) 的宿主外壳里进行，用的是仓库自带的零售数据集与回归夹具。
 
 ## 评估方法
@@ -83,7 +83,7 @@ description: wow-view-engine 对 WCAG 2.2 AA 的符合性声明——评估方�
 
 ### 声明式操作
 
-宿主用 `actions()` 声明的命令：行上的主操作与「⋯」菜单、多选后的批量栏、带表单的操作与危险确认、进度与结果。第二轮走查时加的，发现的缺口已[修掉](#声明式操作的修复)，下表按修复后的分支重走（Storybook 里 Chromium 上的纯键盘，与 jsdom）。操作怎样声明、引擎把它们放在哪，见[声明式操作](./view-engine-actions.md)。
+宿主用 `actions()` 声明的命令：行上的主操作与「⋯」菜单、多选后的批量栏、带表单的操作与危险确认、进度与结果。第二轮走查时加的，发现的缺口已[修掉](#声明式操作的修复)，下表按修复后的分支重走（Storybook 里 Chromium 上的纯键盘，与 jsdom）。操作怎样声明、引擎把它们放在哪，见[声明式操作](./actions.md)。
 
 | 任务 | 键盘 | 读屏 |
 |---|---|---|
@@ -266,8 +266,8 @@ description: wow-view-engine 对 WCAG 2.2 AA 的符合性声明——评估方�
 
 ## 延伸阅读
 
-- [视图引擎](./view-engine.md)：它解决的问题与用法。
-- [视图引擎的主题](./view-engine-theming.md)：覆盖颜色变量时要守的对比度。
-- [把引擎接进宿主](./view-engine-host.md)：页面已有 `main` 时的 `landmark="region"`、页面的高度与嵌入。
-- [声明式操作](./view-engine-actions.md)：停用的操作为什么仍可获焦、什么时候问、问题框是 `dialog` 还是 `alertdialog`。
+- [视图引擎](./index.md)：它解决的问题与用法。
+- [视图引擎的主题](./theming.md)：覆盖颜色变量时要守的对比度。
+- [把引擎接进宿主](./host.md)：页面已有 `main` 时的 `landmark="region"`、页面的高度与嵌入。
+- [声明式操作](./actions.md)：停用的操作为什么仍可获焦、什么时候问、问题框是 `dialog` 还是 `alertdialog`。
 - [设计文档](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design)：焦点与播报的规则在 `ui/README.md`。

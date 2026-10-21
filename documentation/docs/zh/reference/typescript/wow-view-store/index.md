@@ -127,7 +127,7 @@ export declare const WowViewStoreErrorCodes: Readonly<{
 
 ## 宿主与网关
 
-宿主怎样接上 `WowViewStore`、怎样给出 `permissions`、不登录的页面怎样用它，见[视图存在哪里](../../../guide/typescript/view-engine-storage.md#wowviewstore-视图存在-wow-服务上)。服务端不做认证，每个部署都放在 CoSec 网关后面；网关的路径规则，包括只让平台管理员写系统视图的那一条，见[视图存储](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md)。
+宿主怎样接上 `WowViewStore`、怎样给出 `permissions`、不登录的页面怎样用它，见[视图存在哪里](../../../typescript/view-engine/storage.md#wowviewstore-视图存在-wow-服务上)。服务端不做认证，每个部署都放在 CoSec 网关后面；网关的路径规则，包括只让平台管理员写系统视图的那一条，见[视图存储](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md)。
 
 ## 源码
 

@@ -149,7 +149,7 @@ export const orderActions = (commands: OrderCommands) =>
   ]);
 ```
 
-在资源上绑定它们：[`bind('orders', { route, actions: orderActions(orderCommands(fetcher)) })`](../../reference/typescript/wow-view-engine/host.md#api-bind)（[把引擎接进宿主](./view-engine-host.md#bind)）。资源在哪里出现，操作就跟到哪里。
+在资源上绑定它们：[`bind('orders', { route, actions: orderActions(orderCommands(fetcher)) })`](../../reference/typescript/wow-view-engine/host.md#api-bind)（[把引擎接进宿主](./host.md#bind)）。资源在哪里出现，操作就跟到哪里。
 
 | 成员 | 是什么 |
 |---|---|
@@ -248,7 +248,7 @@ export const ordersDefinition = defineView(descriptor, {
 
 ## 在看板视图里换栏 {#kanban-move}
 
-[看板视图](./view-engine-definitions#kanban)把记录视图按一个枚举字段的阶段排成一栏一栏。把卡片移到另一栏就是一个普通的命令，用 `moves` 点名它设置的字段，声明一次：
+[看板视图](./definitions.md#kanban)把记录视图按一个枚举字段的阶段排成一栏一栏。把卡片移到另一栏就是一个普通的命令，用 `moves` 点名它设置的字段，声明一次：
 
 <!-- typecheck: file=dealActions.ts -->
 
@@ -406,6 +406,6 @@ expect(commands.cancel).toHaveBeenCalledWith('O-1', 3, '买家要求');
 
 | 接下来 | 阅读 |
 |---|---|
-| [`ViewHost`](../../reference/typescript/wow-view-engine/host.md#api-ViewHost)、`bind`、路由与嵌入 | [把引擎接进宿主](./view-engine-host.md) |
-| 键盘与读屏怎样走一遍声明式操作 | [视图引擎的可访问性](./view-engine-accessibility.md) |
+| [`ViewHost`](../../reference/typescript/wow-view-engine/host.md#api-ViewHost)、`bind`、路由与嵌入 | [把引擎接进宿主](./host.md) |
+| 键盘与读屏怎样走一遍声明式操作 | [视图引擎的可访问性](./accessibility.md) |
 | 从零接一个业务对象，带一个操作 | 视图引擎入门 |

@@ -16,15 +16,15 @@ export const navbarZh: DefaultTheme.NavItem[] = [
     },
     {
         text: 'TypeScript',
-        activeMatch: '/zh/(guide|reference)/typescript/',
+        activeMatch: '/zh/(guide/typescript|typescript|reference/typescript)/',
         items: [
             {
                 text: '指南',
                 items: [
                     {text: '概览', link: '/zh/guide/typescript/'},
                     {text: '生成客户端', link: '/zh/guide/typescript/generated-client'},
-                    {text: '视图引擎', link: '/zh/guide/typescript/view-engine'},
-                    {text: '使用工作台（面向使用者）', link: '/zh/workbench/'},
+                    {text: '视图引擎', link: '/zh/typescript/view-engine/'},
+                    {text: '使用工作台（面向使用者）', link: '/zh/data/workbench'},
                 ],
             },
             {

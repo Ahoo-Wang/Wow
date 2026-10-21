@@ -7,7 +7,7 @@ description: '视图引擎报告的每个 issue code 与它的缺省措辞，由
 
 引擎的每个内核都以同一种形状报告问题：`Issue`。措辞不在模型里：`code` 是稳定的分支键，`params` 带着句子需要的值，界面层按 `code` 在措辞目录里找句子。所以宿主可以按 `code` 分支（比如对某种失败给出自己的处理），也可以按键改写措辞（[措辞](./host#api-MessagesProvider)）。
 
-相关指南：[写好一份定义](../../../guide/typescript/view-engine-definitions.md)（`admit` 报出的问题怎样读、怎样修）、[把视图引擎接进宿主](../../../guide/typescript/view-engine-host.md#messages)（按键改写措辞）。
+相关指南：[写好一份定义](../../../typescript/view-engine/definitions.md)（`admit` 报出的问题怎样读、怎样修）、[把视图引擎接进宿主](../../../typescript/view-engine/host.md#messages)（按键改写措辞）。
 
 ## Issue {#api-Issue}
 

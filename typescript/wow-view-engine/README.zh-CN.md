@@ -4,9 +4,9 @@
 
 **Wow View Engine 是面向 Wow 业务应用的数据视图引擎。** 业务应用用代码声明一份数据"能被怎样观察"：字段、类型、操作符、可用的维度与指标。用户在界面上决定"这一次怎样观察"：筛选、列、排序、维度与指标、图表、面板组合。引擎把这种观察方式编译成 Wow 查询、执行、渲染，并把有价值的观察方式保存下来供下次直接打开。
 
-它是 `@ahoo-wang/wow-client` 之上的展示层，也是 `@ahoo-wang/fetcher-viewer` 的继任者。指南与参考都在[文档站](https://wow.ahoo.me/zh/guide/typescript/view-engine)；本页只讲安装、最短的可运行示例与各个入口。
+它是 `@ahoo-wang/wow-client` 之上的展示层，也是 `@ahoo-wang/fetcher-viewer` 的继任者。指南与参考都在[文档站](https://wow.ahoo.me/zh/typescript/view-engine/)；本页只讲安装、最短的可运行示例与各个入口。
 
-> **兼容性。** 补丁版本不破坏公开面：每个入口的导出，包括后端实现的 `ViewStore` 端口；CSS 合同（[什么是公开的](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#什么是公开的)）；消息键与 issue code；以及 `wow-view-engine` 命令。次版本可以破坏，它的发布说明逐条列出每个破坏与迁移步骤；Wow 包请停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。用户以旧形状保存的视图照常打开：引擎在读取时迁移存储的配置。
+> **兼容性。** 补丁版本不破坏公开面：每个入口的导出，包括后端实现的 `ViewStore` 端口；CSS 合同（[什么是公开的](https://wow.ahoo.me/zh/typescript/view-engine/theming#什么是公开的)）；消息键与 issue code；以及 `wow-view-engine` 命令。次版本可以破坏，它的发布说明逐条列出每个破坏与迁移步骤；Wow 包请停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。用户以旧形状保存的视图照常打开：引擎在读取时迁移存储的配置。
 
 ## 安装
 
@@ -108,7 +108,7 @@ const engine = new ViewEngine({
 });
 ```
 
-每个**资源**把一份定义和它的行从哪里来配成一对；在应用启动时把每个资源登记一次，**整个应用一个引擎**。要把定义收窄到服务端允许的范围，给来源加上 `describe`（[引擎与资源](https://wow.ahoo.me/zh/guide/typescript/view-engine-getting-started#_6-引擎与资源)）。
+每个**资源**把一份定义和它的行从哪里来配成一对；在应用启动时把每个资源登记一次，**整个应用一个引擎**。要把定义收窄到服务端允许的范围，给来源加上 `describe`（[引擎与资源](https://wow.ahoo.me/zh/typescript/view-engine/host)）。
 
 ### 3. 渲染工作台
 
@@ -126,21 +126,21 @@ export function OrdersPage() {
 }
 ```
 
-真实应用的页面外面套一层 `ViewHost`，把引擎、你的路由、语言、主题与命令接起来：见[把引擎放进宿主](https://wow.ahoo.me/zh/guide/typescript/view-engine-host)。
+真实应用的页面外面套一层 `ViewHost`，把引擎、你的路由、语言、主题与命令接起来：见[把引擎放进宿主](https://wow.ahoo.me/zh/typescript/view-engine/host)。
 
 ## 文档
 
-| 想做的事                                           | 读                                                                                                                                    |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| 判断引擎是否合适，以及它的模型                     | [概览](https://wow.ahoo.me/zh/guide/typescript/view-engine)、[核心概念](https://wow.ahoo.me/zh/guide/typescript/view-engine-concepts) |
-| 写定义：手写，或从查询描述生成                     | [写好一份定义](https://wow.ahoo.me/zh/guide/typescript/view-engine-definitions)                                                       |
-| 把引擎放进宿主：`ViewHost`、路由、嵌入、措辞、测试 | [宿主](https://wow.ahoo.me/zh/guide/typescript/view-engine-host)                                                                      |
-| 在记录上提供命令                                   | [声明式操作](https://wow.ahoo.me/zh/guide/typescript/view-engine-actions)                                                             |
-| 保存视图                                           | [存储](https://wow.ahoo.me/zh/guide/typescript/view-engine-storage)                                                                   |
-| 主题，以及检查宿主主题                             | [主题](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming)                                                                   |
-| 在严格的内容安全策略下运行                         | [CSP](https://wow.ahoo.me/zh/guide/typescript/view-engine-csp)                                                                        |
-| 可访问性                                           | [可访问性](https://wow.ahoo.me/zh/guide/typescript/view-engine-accessibility)                                                         |
-| 按入口列出的全部导出                               | [参考](https://wow.ahoo.me/zh/reference/typescript/wow-view-engine/)                                                                  |
+| 想做的事                                           | 读                                                                                                                 |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| 判断引擎是否合适，以及它的模型                     | [概览](https://wow.ahoo.me/zh/typescript/view-engine/)、[核心概念](https://wow.ahoo.me/zh/typescript/view-engine/) |
+| 写定义：手写，或从查询描述生成                     | [写好一份定义](https://wow.ahoo.me/zh/typescript/view-engine/definitions)                                          |
+| 把引擎放进宿主：`ViewHost`、路由、嵌入、措辞、测试 | [宿主](https://wow.ahoo.me/zh/typescript/view-engine/host)                                                         |
+| 在记录上提供命令                                   | [声明式操作](https://wow.ahoo.me/zh/typescript/view-engine/actions)                                                |
+| 保存视图                                           | [存储](https://wow.ahoo.me/zh/typescript/view-engine/storage)                                                      |
+| 主题，以及检查宿主主题                             | [主题](https://wow.ahoo.me/zh/typescript/view-engine/theming)                                                      |
+| 在严格的内容安全策略下运行                         | [CSP](https://wow.ahoo.me/zh/typescript/view-engine/csp)                                                           |
+| 可访问性                                           | [可访问性](https://wow.ahoo.me/zh/typescript/view-engine/accessibility)                                            |
+| 按入口列出的全部导出                               | [参考](https://wow.ahoo.me/zh/reference/typescript/wow-view-engine/)                                               |
 
 设计——模型、内核、运行时与界面上的决定——在 [docs/design/](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-view-engine/docs/design/)，它是模型的唯一依据。
 
@@ -151,14 +151,14 @@ export function OrdersPage() {
 | `@ahoo-wang/wow-view-engine` | 模型类型与常量；四个纯内核（`validate*` / `compile*` / `project*` 及其旁边的读法）；运行时只导出宿主要握的，不导出它由什么搭成——`ViewEngine`、`validateDefinition`、运行时合同 `ViewRuntime`、`RecordViewRuntime`、`DashboardRuntime`、`AnyViewRuntime` 连同它们签名里出现的每一个类型、`hasResult`、`hasAsked`、`isRecordRuntime`、`actions` 连同声明式操作的类型、写入错误 `ViewWriteError` 与 `ViewCommandError`、`ExportCancelledError`、`RuntimeEnvironment`、`defaultRuntimeEnvironment`、`ViewSource`、`OptionSource`；`ViewStore` 端口、`MemoryViewStore` 与 `localStorageSnapshot`                                                                              |
 | `/react`                     | 钩子与无样式控制器，连同它们交出的类型：`useViewEngine`、`useOpenView`、`useViewRuntime`、`useViewList`、`useViewManager`、`useWorkbench`、`useLeaveGuard`、`useFilterEditor`、`useRecordTable`、`useAnalysisEditor`、`useAnalysisResult`、`useDashboard`、`useSaveCommands`、`useRecordActions`（一个记录面上的声明式操作：每条记录与选中的能做什么、等读者回答的确认或表单、唯一的执行器）、`RecordActionSlots`，以及保存命令报告的两个写入结局类型（`SettledWrite`、`RecoveredWrite`）                                                                                                                                                                                |
 | `/ui`                        | 默认组件、视图与工作台，连同它们的 props：`DataWorkbench`、`DashboardWorkbench`、`DashboardEditExtensions`、`useDashboardExtensions`、`EmbeddedView`、`EmbeddedDashboard`、`ViewHost`、`bind`、`useEngine`、`useViewNavigation`、`useColorMode`、`ViewHeader`、`SaveActions`、`ViewManager`、`LeaveDialog`、`EditorBand`、`FilterPanel`、`StatusStrip`、`AppliedBar`、`ResultToolbar`、`RowActions`、`RecordTable`、`RecordCards`、`RecordPagination`、`AnalysisTable`、`AnalysisChart`、`DashboardGrid`、`HeadingPanel`、`MarkdownPanel`、`ImagePanel`、`LinksPanel`、`MessagesProvider`；措辞目录 `en` 与 `zhCN`；一个值的读法 `cellValue`、`cellText`、`displayValue` |
-| `/testing`                   | `memorySource` 与 `matches`：带 Wow 查询语义的内存 `ViewSource`；`resolveNavigation`：引擎自己按宿主绑定解析离开的路，供宿主测路由；`admit`：按提交的描述符准入宿主的声明；`actionHarness`：按引擎的规则读宿主声明的操作，不画界面——供宿主测试使用（[测试宿主](https://wow.ahoo.me/zh/guide/typescript/view-engine-host#testing)）                                                                                                                                                                                                                                                                                                                                       |
+| `/testing`                   | `memorySource` 与 `matches`：带 Wow 查询语义的内存 `ViewSource`；`resolveNavigation`：引擎自己按宿主绑定解析离开的路，供宿主测路由；`admit`：按提交的描述符准入宿主的声明；`actionHarness`：按引擎的规则读宿主声明的操作，不画界面——供宿主测试使用（[测试宿主](https://wow.ahoo.me/zh/typescript/view-engine/host#testing)）                                                                                                                                                                                                                                                                                                                                             |
 | `/react-router`              | `useReactRouter`：把 React Router 接成视图宿主的路由端口。React Router 是可选 peer，只有这个入口加载它                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | `/styles.css`                | 主题。显式导入；任何 JS 入口都不会引入 CSS，产物也不会在 `.fve-root`／`.fve-tokens` 两个样式边界之外绘制任何东西（preflight 与 base 在构建时收进边界内、不加权重，工具类一律带 `fve:` 前缀、与宿主的不同名，所以宿主的导入次序无关）——预设的复位规则除外，它只在挂了预设的元素上清空 `--fvp-*` 层——`scripts/verify-package.mjs` 在每次构建时逐条核对。                                                                                                                                                                                                                                                                                                                   |
-| `/themes.css`                | 预设，可选：只有按 `data-fve-preset` 选中的 `--fvp-*` 赋值（[预设](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#预设)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `/themes/<名>.css`           | 单独一套预设，给只用一套的宿主：就是 `themes.css` 里它那一块（[预设](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#预设)）。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `/shadcn-bridge.css`         | 可选：把宿主的 shadcn token 读进 `--fvp-*` 变量，`input`、`ring`、状态色、图表色与阴影除外，且只在没挂预设时生效（[桥接](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#shadcn-桥接)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `/themes.css`                | 预设，可选：只有按 `data-fve-preset` 选中的 `--fvp-*` 赋值（[预设](https://wow.ahoo.me/zh/typescript/view-engine/theming#预设)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `/themes/<名>.css`           | 单独一套预设，给只用一套的宿主：就是 `themes.css` 里它那一块（[预设](https://wow.ahoo.me/zh/typescript/view-engine/theming#预设)）。                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `/shadcn-bridge.css`         | 可选：把宿主的 shadcn token 读进 `--fvp-*` 变量，`input`、`ring`、状态色、图表色与阴影除外，且只在没挂预设时生效（[桥接](https://wow.ahoo.me/zh/typescript/view-engine/theming#shadcn-桥接)），由同一个脚本核对。                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
-这就是公开面，而且逐个名字守着。每个入口把它导出的名字逐个写出，按声明它的文件分组，不整模块转出（`test/architecture.test.ts`），所以文件为包内邻居写的 `export` 不会意外变成公开的。每个代码入口的完整清单——每一个名字，以及它是类型还是值——在 `test/surface/`（`root.txt`、`react.txt`、`ui.txt`、`testing.txt`、`react-router.txt`）：入口多导出了清单上没有的名字、或不再导出清单上有的名字，`test/publicSurface.test.ts` 就失败；`scripts/verify-package.mjs` 再拿同一份清单核对构建出的每个 JS 入口。往清单里加一个名字或拿掉一个，就是改公开面，按改公开面来审。命令也是公开面：`test/surface/bin.txt` 列出 `bin`（`wow-view-engine`）与它认的每个子命令（[`theme-check`](https://wow.ahoo.me/zh/guide/typescript/view-engine-theming#检查一套主题)）。
+这就是公开面，而且逐个名字守着。每个入口把它导出的名字逐个写出，按声明它的文件分组，不整模块转出（`test/architecture.test.ts`），所以文件为包内邻居写的 `export` 不会意外变成公开的。每个代码入口的完整清单——每一个名字，以及它是类型还是值——在 `test/surface/`（`root.txt`、`react.txt`、`ui.txt`、`testing.txt`、`react-router.txt`）：入口多导出了清单上没有的名字、或不再导出清单上有的名字，`test/publicSurface.test.ts` 就失败；`scripts/verify-package.mjs` 再拿同一份清单核对构建出的每个 JS 入口。往清单里加一个名字或拿掉一个，就是改公开面，按改公开面来审。命令也是公开面：`test/surface/bin.txt` 列出 `bin`（`wow-view-engine`）与它认的每个子命令（[`theme-check`](https://wow.ahoo.me/zh/typescript/view-engine/theming#检查一套主题)）。
 
 ## 开发
 

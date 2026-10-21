@@ -83,7 +83,7 @@ For the React hooks, add `react`, `react-dom`, and `@ahoo-wang/wow-react`. `wow-
 | Sign requests with the user's token, fill tenant and owner | [Authentication and Interceptors](./authentication.md) | — |
 | Generate a client from an OpenAPI document that is not from Wow | [Generate a Client from Any OpenAPI Document](./generated-client.md) | [Generated output](../../reference/typescript/wow-generator/generated-output.md) |
 | Keep generated code in step with the service | [Regenerate in CI](./regenerate-in-ci.md) | [Generator CLI](../../reference/typescript/wow-generator/cli.md) |
-| Evaluate saved data views | [View Engine](./view-engine.md) | [wow-view-engine reference](../../reference/typescript/wow-view-engine/) |
+| Evaluate saved data views | [View Engine](../../typescript/view-engine/index.md) | [wow-view-engine reference](../../reference/typescript/wow-view-engine/) |
 | Find why something fails | [Troubleshooting](./troubleshooting.md) | — |
 
 The server side of these contracts is described in the [HTTP API](../v10/http-api.md) and the [Query Language](../v10/query.md). The generic Fetcher topics, including interceptor internals, cancellation, and server-sent events, stay at [fetcher.ahoo.me](https://fetcher.ahoo.me/).
