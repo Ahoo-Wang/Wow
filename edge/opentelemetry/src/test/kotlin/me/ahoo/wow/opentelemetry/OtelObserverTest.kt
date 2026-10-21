@@ -133,7 +133,10 @@ class OtelObserverTest {
         observer.signalDropped("node-2", "queue-full")
         observer.forwardFailed(ORDER, "unknown")
         observer.tailRead(SALES, 3, "gap")
+        observer.stateCache(SALES, "miss")
         val meters = telemetry.meters
+        meters.get(WowMetrics.STATE_CACHE).tags(WowMetrics.CONTEXT, SALES, WowMetrics.OUTCOME, "miss").counter().count()
+            .assert().isEqualTo(1.0)
         meters.get(WowMetrics.TAIL_READS).tags(WowMetrics.CONTEXT, SALES, WowMetrics.REASON, "gap").counter().count()
             .assert().isEqualTo(1.0)
         meters.get(WowMetrics.REFUSED).tags(WowMetrics.CONTEXT, SALES, WowMetrics.CODE, "wow.command.busy")
