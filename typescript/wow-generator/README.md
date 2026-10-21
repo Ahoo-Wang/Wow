@@ -206,9 +206,9 @@ Regenerate after every contract change and compile the result before publishing.
 
 ## Documentation
 
-- [Quick start: generate a client from a Wow service and call it](https://wow.ahoo.me/guide/typescript/quick-start)
-- [Regenerate in CI](https://wow.ahoo.me/guide/typescript/regenerate-in-ci)
-- [Generate a client from any OpenAPI document](https://wow.ahoo.me/guide/typescript/generated-client)
+- [Generate a client from a Wow service](https://wow.ahoo.me/typescript/generate)
+- [Regenerate in CI](https://wow.ahoo.me/typescript/generate#keep-the-clients-in-step)
+- [Generate a client from any OpenAPI document](https://wow.ahoo.me/typescript/openapi-client)
 - [wow-generator reference](https://wow.ahoo.me/reference/typescript/wow-generator/)
 - [Compatibility and versions](https://wow.ahoo.me/guide/typescript/compatibility)
 

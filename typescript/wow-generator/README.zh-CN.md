@@ -177,9 +177,9 @@ OpenAPI schema 声明的每个属性都生成为必填。强类型后端根本�
 
 ## 文档
 
-- [快速开始：从 Wow 服务生成客户端并调用](https://wow.ahoo.me/zh/guide/typescript/quick-start)
-- [在 CI 中重新生成](https://wow.ahoo.me/zh/guide/typescript/regenerate-in-ci)
-- [从任意 OpenAPI 文档生成客户端](https://wow.ahoo.me/zh/guide/typescript/generated-client)
+- [从 Wow 服务生成客户端](https://wow.ahoo.me/zh/typescript/generate)
+- [在 CI 中重新生成](https://wow.ahoo.me/zh/typescript/generate)
+- [从任意 OpenAPI 文档生成客户端](https://wow.ahoo.me/zh/typescript/openapi-client)
 - [wow-generator 参考](https://wow.ahoo.me/zh/reference/typescript/wow-generator/)
 - [兼容性与版本](https://wow.ahoo.me/zh/guide/typescript/compatibility)
 

@@ -259,7 +259,7 @@ follows Wow.
 
 ## Documentation
 
-- [TypeScript guide](https://wow.ahoo.me/guide/typescript/)
+- [TypeScript guide](https://wow.ahoo.me/typescript/)
 - [Interactive query hook stories](https://wow.ahoo.me/storybook/?path=/docs/react-hooks-wow-queries--docs)
 
 [中文](./README.zh-CN.md) · [License](https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE)
