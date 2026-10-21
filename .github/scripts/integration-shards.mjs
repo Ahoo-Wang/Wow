@@ -16,7 +16,7 @@ import { pathToFileURL } from 'node:url';
 // shard may name no other project. A project in no shard would never run on a
 // pull request; one in two would run twice. Codecov's after_n_builds
 // (codecov.yml) must be the uploads of a full run: the `integration` flag's one
-// per shard, the `unit` flag's the check's one, or Codecov would judge its
+// per shard, the `jvm-unit` flag's the check's one, or Codecov would judge its
 // statuses early or never.
 
 /** The Gradle paths of `integrationTestProjects = includedProjects(...)`. */
@@ -92,7 +92,7 @@ if (
   );
   const problems = shardProblems(projects, shards);
   const codecov = readFileSync('codecov.yml', 'utf8');
-  const expected = { unit: 1, integration: shards.length };
+  const expected = { 'jvm-unit': 1, integration: shards.length };
   for (const [flag, builds] of Object.entries(expected)) {
     const actual = codecovBuilds(codecov, flag);
     if (actual !== builds) {
