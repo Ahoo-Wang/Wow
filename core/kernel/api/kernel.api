@@ -467,6 +467,16 @@ public final class me/ahoo/wow/kernel/TypedEventsKt {
 	public static final fun eachEvent (Lme/ahoo/wow/api/subscribe/StateEvent;Ljava/lang/Class;Lme/ahoo/wow/api/subscribe/SubscriptionContext;Lkotlin/jvm/functions/Function3;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
+public final class me/ahoo/wow/kernel/UnreadableEventException : java/lang/IllegalStateException {
+	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;ILjava/lang/RuntimeException;)V
+	public fun getCause ()Ljava/lang/RuntimeException;
+	public synthetic fun getCause ()Ljava/lang/Throwable;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getRevision ()I
+	public final fun getVersion ()I
+}
+
 public final class me/ahoo/wow/kernel/memory/InMemoryTopics : me/ahoo/wow/spi/transport/PartitionedSource, me/ahoo/wow/spi/transport/TopicAdmin, me/ahoo/wow/spi/transport/TopicProducer {
 	public fun <init> ()V
 	public fun <init> (I)V

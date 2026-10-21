@@ -194,6 +194,9 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             items: [
                 {text: '术语表', link: 'glossary'},
                 {text: 'migrate-data 命令行', link: 'migrate-data'},
+                {text: '配置项', link: 'configuration'},
+                {text: '错误码', link: 'error-codes'},
+                {text: '注解', link: 'annotations'},
             ],
         },
     ],

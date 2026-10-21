@@ -193,6 +193,9 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             items: [
                 {text: 'Glossary', link: 'glossary'},
                 {text: 'migrate-data CLI', link: 'migrate-data'},
+                {text: 'Configuration Keys', link: 'configuration'},
+                {text: 'Error Codes', link: 'error-codes'},
+                {text: 'Annotations', link: 'annotations'},
             ],
         },
     ],

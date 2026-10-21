@@ -136,7 +136,8 @@ import me.ahoo.wow.client.RetryPolicy as ClientRetryPolicy
  *   override of an `@OnSchedule` job's rule (decision D198), see [Schedule]; a job no handler of the node runs fails
  *   its start.
  * - `wow.tenant.default`: the tenant of a caller that has none (D97).
- * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.manifest.enabled`,
+ * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.global-errors` (on: the application's own
+ *   routes answer problem+json, review M-3), `wow.http.manifest.enabled`,
  *   `wow.http.openapi.enabled` (`GET /wow/openapi`, the OpenAPI document of the routes),
  *   `wow.http.openapi.springdoc.enabled` and `group` (the springdoc bridge, decision D233);
  *   `wow.http.services.<service>.tokens`: the service identities the internal port trusts without CoSec (decision
@@ -949,6 +950,12 @@ class WowProperties {
 
         /** The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). */
         var errors: MutableMap<String, Error> = LinkedHashMap()
+
+        /**
+         * Answers what fails on the application's own routes as the framework routes' problem+json (review M-3,
+         * decision D259): on by default; off leaves those errors to Spring's error handling.
+         */
+        var globalErrors: Boolean = true
         var manifest: Manifest = Manifest()
         var openapi: OpenApi = OpenApi()
 
