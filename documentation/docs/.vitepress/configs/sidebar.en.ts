@@ -81,7 +81,7 @@ const typescriptEn: DefaultTheme.SidebarItem[] = [
             {text: 'Read and Query', link: 'queries'},
             {text: 'React Hooks', link: 'react'},
             {text: 'Generate from Any OpenAPI Document', link: 'openapi-client'},
-            {text: 'Authentication and Interceptors', base: '/guide/typescript/', link: 'authentication'},
+            {text: 'Authentication and Interceptors', link: 'authentication'},
             {text: 'Compatibility and Versions', base: '/guide/typescript/', link: 'compatibility'},
             {text: 'Troubleshooting', base: '/guide/typescript/', link: 'troubleshooting'},
         ],
