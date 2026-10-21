@@ -45,9 +45,10 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  *
  * - **Merged writes**: of an aggregate's entries waiting together, only the latest is written; the waits on the
  *   earlier ones complete with it ([Subscription.coalesces]).
- * - **Batched writes** (decision D248 ②): the snapshots built while a write runs, of every partition's aggregates, are
- *   written together, with one [SnapshotStore.saveAll] of at most [writeBatch] ([SnapshotWrites]), one commit on a
- *   transactional store (work package B.O-5: per partition, most writes held one snapshot); each entry's
+ * - **Batched writes** (decision D248 ②): the snapshots built while a write runs are written together, with one
+ *   [SnapshotStore.saveAll] of at most [writeBatch] ([SnapshotWrites]), one commit on a transactional store. The
+ *   partitions share [WRITE_LANES] writers (work package B.O-5): one per partition left most writes with a single
+ *   snapshot, one for all of them could not keep up with a node's commits; each entry's
  *   handling, and so its wait signal and checkpoint, ends only once the write that covers it is durable, and a
  *   snapshot the store fails parks only its own aggregate.
  * - **The state**: read as every state consumer of the context reads it ([EntryDecoder.stateEvents], decision D133),
@@ -97,8 +98,8 @@ class SnapshotSubscription(
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val written = LruMap<AggregateRef, Written>(capacity)
 
-    /** The batched writes, of every partition together. */
-    private val writes = SnapshotWrites(store, writeBatch)
+    /** The batched writes, partition `p`'s in lane `p % WRITE_LANES`: an aggregate's always in the same lane. */
+    private val writes = List(WRITE_LANES) { SnapshotWrites(store, writeBatch) }
 
     init {
         require(models.isNotEmpty()) { "A snapshot subscription needs the aggregate types it snapshots." }
@@ -143,7 +144,7 @@ class SnapshotSubscription(
         // The view knows the first stream when the kernel loaded the aggregate (work package B.O-4): no store read.
         val known = if (version == 1) FirstCommit.of(stream) else held?.first ?: view?.first
         if (view != null && known != null) {
-            save(snapshotOf(model, stream, view.state, known, view.deleted, view.tags, view.schedules))
+            save(entry, snapshotOf(model, stream, view.state, known, view.deleted, view.tags, view.schedules))
             return
         }
         val stored = store.load(ref)
@@ -153,7 +154,7 @@ class SnapshotSubscription(
         }
         val first = known ?: stored?.let(FirstCommit::of) ?: firstOf(ref)
         val state = entry.state(stored)
-        save(snapshotOf(model, stream, state.state, first, state.deleted, state.tags, state.schedules))
+        save(entry, snapshotOf(model, stream, state.state, first, state.deleted, state.tags, state.schedules))
     }
 
     /**
@@ -185,11 +186,12 @@ class SnapshotSubscription(
     )
 
     /**
-     * Saves [snapshot] with the saves waiting with it, of any partition: written or not, the store then holds its version
-     * or a later one (a version-guarded save).
+     * Saves [snapshot], [entry]'s, with the saves waiting in its lane, of any of the lane's partitions: written or not,
+     * the store then holds its version or a later one (a version-guarded save).
      */
-    private suspend fun save(snapshot: SnapshotRecord) {
-        writes.save(snapshot)
+    private suspend fun save(entry: SubscribedEntry, snapshot: SnapshotRecord) {
+        val partition = entry.position?.partition ?: 0
+        writes[Math.floorMod(partition, WRITE_LANES)].save(snapshot)
         remember(snapshot.ref, FirstCommit.of(snapshot), snapshot.version)
     }
 
@@ -206,5 +208,13 @@ class SnapshotSubscription(
     private suspend fun firstOf(ref: AggregateRef): FirstCommit {
         val stream = checkNotNull(log.read(ref, 1, 1).firstOrNull()) { "The log does not hold $ref@1." }
         return FirstCommit.of(stream)
+    }
+
+    private companion object {
+        /**
+         * The snapshot writers a subscription runs at once (work package B.O-5): each batches the saves of a quarter
+         * of the partitions, so a write commits several partitions' snapshots and four writes keep up with a node.
+         */
+        const val WRITE_LANES = 4
     }
 }

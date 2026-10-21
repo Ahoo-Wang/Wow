@@ -325,8 +325,8 @@ class SnapshotSubscriptionTest {
         }
 
     @Test
-    fun `the snapshots of different partitions share the writes`(): Unit = runBlocking {
-        // B.O-5: one write for every partition, so a write holds more than one partition's single snapshot.
+    fun `the snapshots of the partitions of one lane share the writes`(): Unit = runBlocking {
+        // B.O-5: partitions 0, 4 and 8 share a writer (p % 4), so a write holds more than one partition's snapshot.
         listOf("p0", "p1", "p2").forEach { executor.execute(counter, command(it, Add())) as CommandOutcome.Committed }
         fun entry(id: String, partition: Int) = async {
             val stream = log.read(ref(id)).toList().single()
@@ -337,8 +337,8 @@ class SnapshotSubscriptionTest {
         val gate = CompletableDeferred<Unit>().also { store.gate = it }
         val first = entry("p0", 0)
         eventually { store.batches.size == 1 }
-        // Partitions 1 and 2 wait for the write partition 0 leads, and are written together after it.
-        val others = listOf(entry("p1", 1), entry("p2", 2))
+        // Partitions 4 and 8 wait for the write partition 0 leads, and are written together after it.
+        val others = listOf(entry("p1", 4), entry("p2", 8))
         delay(50)
         store.batches.size.assert().isEqualTo(1)
         store.gate = null
@@ -346,6 +346,26 @@ class SnapshotSubscriptionTest {
         (listOf(first) + others).awaitAll()
         store.batches.assert().containsExactly(1, 2)
         listOf("p0", "p1", "p2").forEach { store.load(ref(it))!!.version.assert().isEqualTo(1) }
+    }
+
+    @Test
+    fun `the partitions of other lanes write at once`(): Unit = runBlocking {
+        listOf("q0", "q1").forEach { executor.execute(counter, command(it, Add())) as CommandOutcome.Committed }
+        val gate = CompletableDeferred<Unit>().also { store.gate = it }
+        val handled = listOf("q0" to 0, "q1" to 1).map { (id, partition) ->
+            async {
+                val stream = log.read(ref(id)).toList().single()
+                snapshots.subscription.handle(
+                    snapshots.subscription.decoder.decode(stream, LogPosition(partition, 1), null)
+                )
+            }
+        }
+        // Partition 1's lane does not wait for partition 0's write.
+        eventually { store.batches.size == 2 }
+        store.gate = null
+        gate.complete(Unit)
+        handled.awaitAll()
+        store.batches.assert().containsExactly(1, 1)
     }
 
     @Test
