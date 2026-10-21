@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine — 882 names, from src/index.ts.
+# @ahoo-wang/wow-view-engine — 884 names, from src/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value ALWAYS_VISIBLE
@@ -154,10 +154,12 @@ type  DataViewConfigBase
 type  DataViewDefinition
 type  DatasetCatalog
 type  DatasetDirectoryEntry
+type  DatasetDuplicate
 type  DatasetOverrides
 type  DatasetRegistrar
 type  DatasetResource
 value DatasetResources
+type  DatasetResourcesOptions
 type  DatasetWordingEditor
 type  DatasetWordingStore
 type  DateInstant

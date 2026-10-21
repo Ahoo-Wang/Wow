@@ -30,7 +30,8 @@ import tools.jackson.databind.node.ObjectNode
  *   id has no V10 field.
  * - **Scope.** The 9.x owner and space, blank read as none, narrowed by the V10 aggregate's ownership (decision D189:
  *   a `TENANT` aggregate records no owner). A stream that transfers the owner or the space carries the new one, as V10
- *   records the scope after the commit (D56).
+ *   records the scope after the commit (D56): by a lifecycle transfer, or by a 9.x event whose mapping names its
+ *   [owner][EventMapping.owner] field.
  * - **Operator.** The 9.x `command_operator` header ([NineXOperators], decision D163).
  * - **Causation.** The correlation id is the 9.x `trace_id` (the chain's root command), the command id when it has
  *   none. A root command's stream is caused by its command, as V10 records it; a derived command's stream records only
@@ -68,7 +69,7 @@ class StreamConverter(private val plan: MigrationPlan) {
             commandType = commandType,
             commitTime = stream.createTime,
             events = events,
-            scope = aggregate.ownership.scopeOf(scopeOf(stream, events)),
+            scope = aggregate.ownership.scopeOf(scopeOf(aggregate, stream, events)),
             causation = Causation(correlationId, correlationId),
             headers = aggregate.headers.mapNotNull { (from, to) -> stream.header[from]?.let { to to it } }.toMap(),
             operator = NineXOperators.operatorOf(stream.header, tenantId),
@@ -93,8 +94,11 @@ class StreamConverter(private val plan: MigrationPlan) {
         return WowJson.mapper.writeValueAsString(renamed)
     }
 
-    /** The 9.x scope of [stream], moved by an owner or space transfer among its converted [events]. */
-    private fun scopeOf(stream: NineXStream, events: List<EventRecord>): Scope {
+    /**
+     * The 9.x scope of [stream], moved by an owner or space transfer among its converted [events], or by a 9.x event
+     * whose mapping names its owner field.
+     */
+    private fun scopeOf(aggregate: AggregatePlan, stream: NineXStream, events: List<EventRecord>): Scope {
         var ownerId = stream.ownerId.ifBlank { null }
         var spaceId = stream.spaceId.ifBlank { null }
         events.forEach { event ->
@@ -102,6 +106,10 @@ class StreamConverter(private val plan: MigrationPlan) {
                 Lifecycle.OWNER_TRANSFERRED -> ownerId = field(event, "ownerId") ?: ownerId
                 Lifecycle.SPACE_TRANSFERRED -> spaceId = field(event, "spaceId") ?: spaceId
             }
+        }
+        stream.events.forEach { event ->
+            val field = aggregate.eventOf(event.name, event.revision)?.owner ?: return@forEach
+            ownerId = event.body.get(field)?.takeIf { it.isString }?.stringValue()?.ifBlank { null } ?: ownerId
         }
         return Scope(ownerId, spaceId)
     }

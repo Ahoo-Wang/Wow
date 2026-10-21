@@ -9,5 +9,5 @@ PASS only if the answer does all of these:
 
 1. Puts the definition and system view in the retail scenario's modules and admits it over the committed descriptor
 2. Writes a *.stories.tsx story with a *.test.stories.tsx twin that asserts what the audience sees and that the view is not refused
-3. Keeps payload conditions inside ELEMENT_MATCH on body with the bodyType condition
+3. Keeps payload conditions inside ELEMENT_MATCH on events with the events.name condition
 4. Runs the Storybook type check, lint and interaction tests and reports each exit code, without changing the view engine itself

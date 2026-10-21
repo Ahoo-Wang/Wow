@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-view-engine/ui — 253 names, from src/ui/index.ts.
+# @ahoo-wang/wow-view-engine/ui — 257 names, from src/ui/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Entries」, docs/design/decisions.md D29).
 value AUDIENCE_ICON
@@ -43,6 +43,9 @@ type  DashboardWorkbenchProps
 type  DataViewKind
 value DataWorkbench
 type  DataWorkbenchProps
+type  DatasetBindingOptions
+value DatasetWorkbench
+type  DatasetWorkbenchProps
 type  DetachedDialog
 type  DetachedPopover
 type  DialogHandle
@@ -224,6 +227,7 @@ type  WriteOutcomeProps
 value bind
 value cellText
 value cellValue
+value datasetBindings
 value dedupeIssues
 value displayValue
 value en

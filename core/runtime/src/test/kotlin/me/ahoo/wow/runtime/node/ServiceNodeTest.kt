@@ -32,6 +32,7 @@ import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.runtime.FrameworkCodes
+import me.ahoo.wow.runtime.StateCacheSizing
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandRequest
 import me.ahoo.wow.runtime.cluster.ClusterCodec
@@ -128,6 +129,17 @@ class ServiceNodeTest {
         aggregateId = id,
         wait = wait,
     )
+
+    @Test
+    fun `each context's state cache is sized from the heap unless the host sizes it`() {
+        // Work package B.O-4: a tenth of the heap split between the node's contexts, or the configured capacity.
+        node("sized", BANK, "audit").stateCacheCapacity
+            .assert().isEqualTo(StateCacheSizing.capacity(contexts = 2, recentRequests = 256))
+        node("configured", options = fastNodeOptions().copyWith(stateCacheCapacity = 7)).stateCacheCapacity
+            .assert().isEqualTo(7)
+        node("uncached", options = fastNodeOptions().copyWith(stateCacheCapacity = 0)).stateCacheCapacity
+            .assert().isZero()
+    }
 
     @Test
     fun `a single node admits, executes and snapshots commands through its gateway`(): Unit = runBlocking {

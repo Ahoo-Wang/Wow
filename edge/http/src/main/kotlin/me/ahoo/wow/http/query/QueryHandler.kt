@@ -65,7 +65,6 @@ import me.ahoo.wow.runtime.admission.TenantConflictException
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.springframework.http.HttpHeaders
-import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.codec.ServerSentEvent
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -195,10 +194,16 @@ internal class QueryHandler(
         json(listed)
     }
 
-    /** The gateway of the dataset [name] when [caller] sees it; a 404 problem otherwise. */
+    /** The gateway of the dataset [name] when [caller] sees it; 404 `wow.query.dataset-not-found` otherwise. */
     private fun dataset(name: AggregateType, caller: QueryCaller): DatasetQueryGateway =
         queries.datasets[name]?.takeIf { queries.datasetVisibility.visible(it.dataset, caller) }
-            ?: throw ProblemException(Problem.ofStatus(HttpStatus.NOT_FOUND, "No dataset $name is served."))
+            ?: throw ProblemException(
+                statuses.problemOf(QueryErrors.DATASET_NOT_FOUND, "No dataset $name is served.", name.context),
+            )
+
+    /** A dataset path that names no dataset: 404 `wow.query.dataset-not-found`. */
+    suspend fun noDataset(request: ServerRequest): ServerResponse =
+        statuses.problemOf(QueryErrors.DATASET_NOT_FOUND, "No dataset at ${request.path()}.").respond()
 
     /** The query of [request]'s body, once the body and the response it asks for can be served. */
     private suspend fun body(request: ServerRequest): QueryBody {
@@ -287,7 +292,7 @@ internal class QueryHandler(
 
     private suspend fun single(record: ObjectNode?, type: AggregateType, rebuilding: Boolean = false): ServerResponse =
         json(
-            record ?: throw problem(FrameworkCodes.NOT_FOUND, "No record of $type matches the query.", type),
+            record ?: throw problem(QueryErrors.NOT_FOUND, "No record of $type matches the query.", type),
             rebuilding,
         )
 

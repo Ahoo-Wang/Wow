@@ -37,7 +37,7 @@ export interface CatalogServices {
   commands: CatalogCommands;
   engine: ViewEngine;
   /** The datasets this node serves, registered in `engine` as the directory lists them. */
-  datasets: Pick<DatasetResources, "refresh">;
+  datasets: Pick<DatasetResources, "refresh" | "duplicates">;
   /** The commands a served dataset's rows offer on the aggregates they refer to (D238 ⑤, D257). */
   references: {
     actions(dataset: string): Promise<ReferenceActions>;
