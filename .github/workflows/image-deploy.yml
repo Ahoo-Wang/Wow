@@ -11,7 +11,7 @@
 # limitations under the License.
 #
 
-# The server images of a 10.x pre-release (R.1, D205): the ops service
+# The V10 server images of a 10.x pre-release (R.1, D205): the ops service
 # (wow-ops-server), the view store service (wow-view-store-server) and the
 # analytics catalog service with its data-owner console
 # (wow-analytics-catalog-server). package-deploy.yml calls it once its
@@ -45,17 +45,17 @@ jobs:
             project: ops-server
             context: platform/ops/ops-server
             console: wow-ops-console
-            description: Wow ops service. Pre-release, for evaluation; run it behind your gateway.
+            description: Wow V10 ops service. Pre-release, for evaluation; run it behind your gateway.
           - image: wow-view-store-server
             project: view-store-server
             context: platform/view-store/view-store-server
             console: ''
-            description: Wow view store service. Pre-release, for evaluation; it does no authentication, run it behind your gateway.
+            description: Wow V10 view store service. Pre-release, for evaluation; it does no authentication, run it behind your gateway.
           - image: wow-analytics-catalog-server
             project: analytics-catalog-server
             context: platform/analytics/catalog/server
             console: wow-analytics-catalog-console
-            description: Wow analytics catalog service and its data-owner console. Pre-release, for evaluation; run it behind your gateway.
+            description: Wow V10 analytics catalog service and its data-owner console. Pre-release, for evaluation; run it behind your gateway.
     steps:
       - name: Require a 10.x pre-release tag
         env:
@@ -64,7 +64,7 @@ jobs:
           case "$REF" in
             refs/tags/v10.*-*) echo "Pushing the images of $REF" ;;
             *)
-              echo "::error::The images are pushed from a v10.* pre-release tag, not $REF."
+              echo "::error::V10 images are pushed from a v10.* pre-release tag, not $REF."
               exit 1
               ;;
           esac
