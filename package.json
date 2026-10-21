@@ -21,6 +21,8 @@
     "check:docs-layout": "node .github/scripts/docs-layout.mjs",
     "check:docs-samples": "node .github/scripts/docs-samples.mjs",
     "check:docs-consistency": "node .github/scripts/docs-consistency.mjs",
+    "check:docs-reference": "node .github/scripts/docs-reference.mjs",
+    "docs:reference": "node .github/scripts/docs-reference.mjs --write",
     "check:hygiene": "node .github/scripts/repo-hygiene.mjs"
   },
   "devDependencies": {

@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.spi.json
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.schedule.ScheduleRule
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.cfg.JsonNodeFeature
@@ -32,6 +34,8 @@ import tools.jackson.module.kotlin.KotlinModule
  *   trailing zeros. An integer is an `Int`, a `Long` or, beyond `Long`, a [java.math.BigInteger], whichever holds it,
  *   which is exact already. Typed properties (`Double`, `BigDecimal`, ...) are read as their type says.
  *
+ * - An [AggregateRef] is written as its type, tenant and id: its derived [AggregateRef.isAssigned] stays off the wire
+ *   (decision D267 ⑮), and a payload that still carries it, from an older writer, is read as if it did not.
  * - A read ignores the properties it does not know, at every level, as Jackson 3 does by default; stated here so that
  *   the cluster codec's lenient reading (decision D48) and the event codec's reading of older payloads do not rest on
  *   a library default.
@@ -41,6 +45,7 @@ object WowJson {
     fun builder(): JsonMapper.Builder = JsonMapper.builder()
         .addModule(KotlinModule.Builder().build())
         .addMixIn(ScheduleRule::class.java, ScheduleRuleJson::class.java)
+        .addMixIn(AggregateRef::class.java, AggregateRefJson::class.java)
         .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
         .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
         .disable(JsonNodeFeature.STRIP_TRAILING_BIGDECIMAL_ZEROES)
@@ -60,4 +65,11 @@ object WowJson {
         JsonSubTypes.Type(value = ScheduleRule.Cron::class, name = "cron"),
     )
     private abstract class ScheduleRuleJson
+
+    /** How an [AggregateRef] is written: without its derived [AggregateRef.isAssigned], read or not (D267 ⑮). */
+    @JsonIgnoreProperties(ASSIGNED)
+    private interface AggregateRefJson
+
+    /** The property name Jackson gives [AggregateRef.isAssigned]. */
+    private const val ASSIGNED = "isAssigned"
 }
