@@ -130,7 +130,7 @@ A cleanup follows the same procedure, one reviewable pull request per batch:
 
 `.github/scripts/docs-consistency.mjs` (`pnpm check:docs-consistency`) runs there too. Every English page has a Chinese page and the other way round, except a generated page, which may be English only; the two share their headings by level and their code blocks by language. Every `wow.*` key that a YAML or properties block sets is a key of the Spring Boot configuration metadata, compared as Spring binds it.
 
-The reference pages of the configuration keys, the error codes and the annotations (`reference/{configuration,error-codes,annotations}.md`) are generated from their sources by `.github/scripts/docs-reference.mjs`; the same job fails when a committed page is not what the sources give. Regenerate them with `pnpm docs:reference` in the change that changes a source.
+The reference pages of the configuration keys, the error codes, the annotations, the published modules and the API levels (`reference/{configuration,error-codes,annotations,modules,api-levels}.md`) are generated from their sources by `.github/scripts/docs-reference.mjs`; the same job fails when a committed page is not what the sources give. Regenerate them with `pnpm docs:reference` in the change that changes a source.
 
 The Documentation job of the same workflow builds the VitePress site with the locked dependency graph whenever the site or its samples change. The check is structural: whether a document is current, has one owner, or is working material in disguise remains a review question.
 

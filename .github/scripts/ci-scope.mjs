@@ -147,6 +147,18 @@ const RULES = [
     /^platform\/view-store\/view-store-server\/manifest\/baseline\.json$/,
     [SDK],
   ],
+  // Other sources a package's tests read outside typescript/ (the CI script
+  // test "every source a TypeScript test reads selects its job" finds them):
+  // wow-client's query error codes are held to :query-api's QueryErrorCodes.kt,
+  // and view-engine's store limits to the view store service's ViewConfigs.kt.
+  [
+    /^api\/query-api\/src\/main\/kotlin\/me\/ahoo\/wow\/api\/query\/QueryErrorCodes\.kt$/,
+    [SDK],
+  ],
+  [
+    /^platform\/view-store\/view-store-domain\/src\/main\/kotlin\/me\/ahoo\/wow\/viewstore\/domain\/view\/ViewConfigs\.kt$/,
+    [VIEW_ENGINE],
+  ],
   // The single version source: quality checks every package.json against it.
   [/^gradle\.properties$/, [TYPESCRIPT]],
   // The Gradle build: the JVM jobs (JVM_PATH).
@@ -237,9 +249,14 @@ const UNIT_RULES = [
     match => [match[1]],
   ],
   [/^typescript\/wow-client\//, () => UNIT_PACKAGES],
+  // wow-view-store's generated client is held to what the generator writes.
+  [
+    /^typescript\/wow-generator\/(?!test\/|expected\/|scripts\/)/,
+    () => ['wow-generator', 'wow-view-store'],
+  ],
   [/^typescript\/(wow-(?:react|generator|view-store))\//, match => [match[1]]],
   [
-    /^api\/manifest\/src\/test\/resources\/framework-errors\.json$/,
+    /^(?:api\/manifest\/src\/test\/resources\/framework-errors\.json|api\/query-api\/src\/main\/kotlin\/me\/ahoo\/wow\/api\/query\/QueryErrorCodes\.kt)$/,
     () => ['wow-client'],
   ],
   [

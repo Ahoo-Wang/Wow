@@ -7,7 +7,7 @@ description: "Every key of the host's wow.* configuration, its type, default and
 
 # Configuration Keys
 
-Every key of the `wow.*` configuration a Spring Boot host reads, 231 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/v10/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property names is reported when the node starts. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`.
+Every key of the `wow.*` configuration a Spring Boot host reads, 232 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/v10/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property names is reported when the node starts. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`.
 
 ## `wow`
 
@@ -18,6 +18,7 @@ Every key of the `wow.*` configuration a Spring Boot host reads, 231 in all, gen
 | `wow.ddl` | `StoreDdl` | `auto` | How the stores manage the framework's tables, collections and indexes: `auto` creates what is missing (the default), `validate` creates nothing and refuses a store whose schema is missing or in another format, `none` creates and checks nothing; `wow.stores.<name>.ddl` overrides it for one store. |
 | `wow.schedules` | `Map<String,Schedule>` |  | Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*`. |
 | `wow.service` | `String` |  | The service's name; `spring.application.name` when not set. |
+| `wow.standby` | `Boolean` | `false` | Whether the node starts on standby: through the dual-run window of a migration's cut-over it serves reads of what `migrate-data` imports, refuses every command (`wow.node.standby`, 503), and handles no subscription, retries no parked entry and runs no job, until its operator resumes it on the internal port (`POST /wow/node/resume` with the cluster token, naming who resumes it). A subscription that starts at the end of its stream starts where the stream ends at the resume. |
 | `wow.stores` | `Map<String,Store>` |  | The named store instances, by name: `wow.stores.<name>.type` and its settings. |
 | `wow.subscriptions` | `Map<String,SubscriptionSettings>` |  | Per subscription, by its name (bracketed in a property name: `wow.subscriptions.[CartSaga.onOrderCreated]`). |
 

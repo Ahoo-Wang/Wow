@@ -210,13 +210,14 @@ class InternalServerLifecycle(
 class ServiceNodeLifecycle(
     private val node: ServiceNode,
     private val events: ApplicationEventPublisher,
+    private val standby: Boolean = false,
     private val availability: () -> ApplicationAvailability?,
 ) : SmartLifecycle {
     @Volatile
     private var running = false
 
     override fun start() {
-        runBlocking { node.start() }
+        runBlocking { node.start(standby) }
         running = true
     }
 
