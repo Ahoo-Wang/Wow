@@ -837,11 +837,7 @@ class Kernel(
                 codec.decodeUnlessRetired(model, record)
             } catch (@Suppress("TooGenericExceptionCaught") unreadable: RuntimeException) {
                 // An event the model cannot read, an upgrade that refuses a record among them, names its aggregate.
-                throw IllegalStateException(
-                    "${stream.ref} v${stream.version}: the event ${record.name}@${record.revision} does not read: " +
-                        unreadable.message,
-                    unreadable,
-                )
+                throw UnreadableEventException(stream.ref, stream.version, record.name, record.revision, unreadable)
             } ?: return@forEach
             events?.add(event)
             state = model.evolve(state, event)
