@@ -210,7 +210,7 @@ V10 服务在 `POST /<context>/<aggregate>/<model>/query` 上回答其读模型�
 
 | `kind` | 请求属性 | 响应 |
 | --- | --- | --- |
-| `single` | `filter`、`projection`、`sort` | 按 `sort` 的第一条记录；没有匹配时 404 `wow.aggregate.not-found` |
+| `single` | `filter`、`projection`、`sort` | 按 `sort` 的第一条记录；没有匹配时 404 `wow.query.not-found` |
 | `list` | `filter`、`projection`、`sort`、`limit` | 记录的 JSON 数组；`Accept: text/event-stream` 时为服务器发送事件 |
 | `paged` | `filter`、`projection`、`sort`、`pagination`、`total` | `{"total": …, "exact": …, "list": [记录]}` |
 | `cursor` | `filter`、`projection`、`sort`、`size`、`cursor` | `{"list": [记录], "nextCursor": …}` |
@@ -317,13 +317,15 @@ V10 服务在 `POST /<context>/<aggregate>/<model>/query` 上回答其读模型�
 | `wow.query.malformed` | 400 | 请求体无法读成查询：`EMPTY_BODY`、`BODY_NOT_OBJECT`、`INVALID_JSON`、`UNKNOWN_PROPERTY`、`UNKNOWN_TYPE`（未知的 `op` 或 `type`）、`UNKNOWN_VALUE`、`INVALID_VALUE`、`INVALID_REQUEST`（查询类型自身的规则，如 `operands` 为空） |
 | `wow.query.invalid` | 400 | 模型拒绝；每条违例指出其规则，如 `UNKNOWN_FIELD`、`UNSUPPORTED_CAPABILITY`、`VALUE_MISMATCH`、`ELEMENT_SCOPE_REQUIRED`、`SIZE_OUT_OF_RANGE`、`FILTER_TOO_LARGE`、`EXPENSIVE_OPERATOR_DISABLED`、`INVALID_CURSOR`、`STORAGE_UNSUPPORTED` |
 | `wow.query.failed` | 500 | 后端失败 |
-| `wow.query.timeout` | 503 | 查询执行超过 `wow.query.http.timeout` |
+| `wow.query.timeout` | 504 | 查询执行超过 `wow.query.http.timeout`；不重试 |
 
 problem 的 `violations` 中每条违例有 `path`（请求体中的 JSON 路径，如 `filter.operands`）、`code` 与 `message`。
 
 ## Kotlin DSL
 
 `wow-query-api` 带有一套 Kotlin DSL（`me.ahoo.wow.api.query.dsl`），构建的查询对象与 JSON 读出的相同：用它构建的查询就是其 JSON 读成的查询，进程内调用方（`QueryGateway`）与 HTTP 客户端用的是同一种语言。
+
+<!-- sample: fragment -->
 
 ```kotlin
 import me.ahoo.wow.api.query.dsl.pagedQuery

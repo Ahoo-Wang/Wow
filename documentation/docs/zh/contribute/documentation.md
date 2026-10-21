@@ -126,6 +126,10 @@ Wow 按读者决定每类文档的位置，每类只放一处。本页给出原�
 - PlantUML 出现在 `documentation/diagrams/` 之外；
 - SVG 与同名的 `.mmd` 或 PlantUML 图源放在一起。
 
+同一个作业还运行 `.github/scripts/docs-samples.mjs`（`pnpm check:docs-samples`）。`<!-- sample: <路径>[#<区域>] -->` 之后的代码块必须与仓库里的那个文件（去掉许可证头）或其中那个 `// region` 逐字相同；文件由所属模块编译与测试。带 `package` 或 `import` 行的 Kotlin 或 Java 代码块必须是这样的样例，或者标明 `<!-- sample: fragment -->`。展示 9.x 代码的块（迁移时会用到）改为标明 `<!-- sample: 9.x -->`。不是样例的 Kotlin 或 Java 代码块里，每个 `import me.ahoo.wow.…` 都必须是某个已发布模块 ABI 转储（`<模块>/api/*.api`）里的声明。它读取文档站的页面、根目录的 README 与 Skills。
+
+`.github/scripts/docs-consistency.mjs`（`pnpm check:docs-consistency`）也在这个作业里运行。每个英文页面都有对应的中文页面，反之亦然；生成的页面可以只有英文。两者的标题层级序列与代码块的语言序列必须一致。YAML 或 properties 代码块里设置的每个 `wow.*` 键，都必须是 Spring Boot 配置元数据里的键，按 Spring 的宽松绑定规则比较。
+
 同一工作流的 Documentation 作业在文档站或其示例变化时，用锁定的依赖构建 VitePress 站点。该检查只看结构：文档是否仍然有效、是否只有一个归属、是否是改头换面的工作材料，仍由 review 判断。
 
 ## Review 清单
