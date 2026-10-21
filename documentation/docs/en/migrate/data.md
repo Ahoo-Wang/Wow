@@ -96,7 +96,7 @@ While 9.x still serves, `tail` follows the streams it commits after the import. 
 
 The tail reads each event stream collection by a `(createTime, _id)` index. Without it, the tail refuses to start and prints the command that creates it; build it when it suits the 9.x database, or let the tool create it.
 
-`tail` runs until it is stopped. `tail --once` makes one pass.
+`tail` runs until it is stopped. `tail --once` makes one pass. Keep `tail` running until 9.x stops writing: the cut-over's final pass is then `import --final`, which reads from where the tail stopped instead of walking every stream again.
 
 ## 5. Compare
 
@@ -131,7 +131,7 @@ Streams the import appended carry no tags yet, and attribute-based access contro
 The cut-over is a blue-green switch:
 
 1. Stop 9.x writing, and stop the 9.x compensation service.
-2. Run the final `import --restart`: a complete pass from the first instance, which also picks up the keys and executions that changed since the last run.
+2. Run the final pass. If `tail` followed 9.x until it stopped, run `import --final`: one tail pass from the tail's checkpoint, then the reserved keys and the compensation executions walked again, since the tail follows neither. It refuses, writing nothing, when an aggregate's tail did not run continuously. Otherwise, or after it refuses, run `import --restart`: a complete pass from the first instance, which takes as long as the whole history.
 3. Run `compare` and review the result.
 4. Run `snapshot` and `backfill-tags`.
 5. Switch traffic to V10, and move every external consumer of 9.x topics to the V10 published streams. There is no 9.x-format sink.

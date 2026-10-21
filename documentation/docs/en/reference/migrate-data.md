@@ -21,7 +21,7 @@ Run it from a checkout of the Wow release you migrate to. It reads a 9.x MongoDB
 | Command | Options | What it does |
 | --- | --- | --- |
 | `check` | | Checks the map against the 9.x store and the V10 Manifests. Writes nothing. |
-| `import` | `--dry-run`, `--restart`, `--snapshots` | Checks, then imports every mapped 9.x aggregate, then the reserved keys and the unresolved compensation executions, resuming from the checkpoint. |
+| `import` | `--dry-run`, `--restart` or `--final`, `--snapshots` | Checks, then imports every mapped 9.x aggregate, then the reserved keys and the unresolved compensation executions, resuming from the checkpoint. |
 | `tail` | `--once` | Follows what 9.x commits after the import, until stopped. |
 | `compare` | `--sample <percent>`, `--restart` | Compares each 9.x snapshot with the state V10 rebuilds from the log at the snapshot's version, then the reservations and the parked entries. |
 | `snapshot` | `--restart` | Writes the V10 snapshot of every imported aggregate at its last version. |
@@ -33,6 +33,7 @@ Run it from a checkout of the Wow release you migrate to. It reads a 9.x MongoDB
 | `--config <file>` | The configuration file. Required by every command. |
 | `--dry-run` | `import` reads and converts every stream but writes nothing and saves no checkpoint; `export` scans and prints its verdict but writes nothing. |
 | `--restart` | Walks every instance again from the first, ignoring where the last pass stopped. With `import`, the final complete pass after 9.x stops writing; it also reconciles reserved keys and parked entries imported earlier. |
+| `--final` | `import`'s shorter final pass after 9.x stops writing, when the tail followed 9.x until it stopped: one tail pass from the tail's checkpoint, reading `final.lookbackMillis` before it, then the reserved keys and the compensation executions walked again from the first. It refuses, writing nothing, when an aggregate's import did not complete or its tail's last pass ended more than `final.maxTailAgeMillis` ago; run `import --restart` then. Not with `--restart` or `--dry-run`. |
 | `--snapshots` | After `import`, runs `snapshot`. |
 | `--once` | `tail` makes one pass and ends. |
 | `--sample <percent>` | `compare` compares that share of the instances, chosen by a hash of tenant and id, so every run compares the same ones. Another sample restarts the comparison. |
@@ -45,7 +46,7 @@ An option a command does not take is a usage error.
 | Code | Meaning |
 | --- | --- |
 | `0` | Done. |
-| `1` | Failed: the check, or a step that stopped. |
+| `1` | Failed: the check, a step that stopped, or `import --final` refused. |
 | `2` | Usage error. |
 | `3` | `compare` found differences, in this run or in earlier runs it resumed; or, after `export`, 9.x and V10 hold different numbers of streams of an aggregate. |
 
@@ -56,6 +57,7 @@ Lines that need attention start with a marker:
 | Marker | Meaning |
 | --- | --- |
 | `PROBLEM` | The check found something that stops the import. |
+| `FAILED` | A step stopped, with the reason; or `import --final` refused an aggregate, whose import did not complete or whose tail did not follow 9.x until it stopped, and wrote nothing. |
 | `WARNING` | The check found something that does not stop it, such as a mapping nothing uses. |
 | `DIFFERS` | `compare` found a difference: a state, a reservation or a parked entry. |
 | `UNRESOLVED` | A reserved key or a compensation execution could not be placed, and was not imported. |
@@ -119,6 +121,8 @@ A JSON file. Relative paths resolve against the file's directory. A string writt
 | `concurrency` | `8` | Instances imported at a time. |
 | `lookbackMillis` | `300000` | How far before the last commit time it read the tail scans again. |
 | `pollIntervalMillis` | `1000` | The pause between two tail passes. |
+| `final.lookbackMillis` | `300000` | How far before the tail's checkpoint `import --final` reads again. It covers the clocks of 9.x's nodes and the commits in flight when 9.x stopped, which may carry an earlier commit time than streams already read. |
+| `final.maxTailAgeMillis` | `600000` | How recently the tail's last pass must have ended for `import --final` to accept it. |
 
 A service whose aggregates keep their logs in different V10 stores is migrated by one run per store, each with a map of the aggregates that store holds.
 
@@ -257,7 +261,7 @@ It writes into the 9.x store of `source`, and only into a collection with 9.x's 
 
 ## Checkpoints
 
-The checkpoint file, format 1, keeps where each pass stands: per 9.x aggregate, the import, the tail, the comparison and the snapshot writing; per `PrepareKey`, the reservation import; the compensation import; per V10 aggregate type, the tags backfill; per V10 context and partition, the export.
+The checkpoint file, format 1, keeps where each pass stands: per 9.x aggregate, the import, the tail and when its last pass ended, the comparison and the snapshot writing; per `PrepareKey`, the reservation import; the compensation import; per V10 aggregate type, the tags backfill; per V10 context and partition, the export.
 
 Beside it, `<checkpoint>.reservations.jsonl` records each key the import reserved, before reserving it, so a later import can release a key 9.x gave up. Keep the two files together.
 
