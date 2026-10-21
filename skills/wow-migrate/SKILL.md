@@ -1,6 +1,6 @@
 ---
 name: "wow-migrate"
-description: "Handle breaking Wow migrations in downstream services with a named Wow version, me.ahoo.wow imports or wow-* dependencies: pinned cross-major upgrades, Wow source/configuration/generated/runtime contract breaks, Wow-managed storage/data history conversion, reconciliation, cutover and incompatible-write rollback, plus reviews and failures of such migrations. Not the Wow framework repository beyond its platform ports, generic database migrations, first adoption without history, or routine same-major upgrades."
+description: "Handle breaking Wow migrations, chiefly 9.x to V10, in downstream services and their TypeScript callers: Kotlin source, configuration, generated contracts, HTTP routes, fetcher-wow and 9.x wow-client or wow-generator to V10, data import, reconciliation, cut-over and rollback, plus reviews and failures of such migrations. Not the Wow framework repository beyond its platform ports, generic database migrations, or first adoption without history."
 ---
 
 # Migrate Wow Across Breaking Boundaries
@@ -50,6 +50,7 @@ Execute only the stages required by the requested mode and explicitly authorized
 | Platform, source, generated metadata, runtime or custom store audit | `references/migration-risk-map.md` |
 | Spring Boot 3 to 4 platform, starter/capability, configuration or Jackson migration | `references/spring-boot-3-to-4.md` |
 | Wow 9.x to V10 domain source: Gradle build, modules, annotations, command identity, handlers, rejections, request facts, events, upgrades and retired events, state and tags, sagas, reserved keys, routes and queries, tenancy, compensation, peer contexts, JSON, Java domains, REST clients, tests, `migration-map.json` | `references/v9-to-v10.md` |
+| HTTP routes and headers, and the TypeScript clients that call the service: `@ahoo-wang/fetcher-wow`, `fetcher-generator`, the 9.x `wow-client`, `wow-generator` and `wow-react` to V10 | `references/http-and-clients.md` |
 | Runtime dependency, isolated startup, HTTP/REST or actual transport, and shutdown validation | `references/runtime-rest-validation.md` |
 | 9.x → V10 data with `wow-migrate-data`: the map check, import, tail, compare, snapshots, `backfill-tags`, reservations and parked executions | `references/data.md` |
 | Cut-over window, inventory, the types with no way back, rollback before and after V10 writes (`export`) | `references/cutover-evidence.md` |
