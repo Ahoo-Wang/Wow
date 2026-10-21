@@ -158,7 +158,30 @@ export const sidebarEn: DefaultTheme.Sidebar = {
     '/guide/': [
         {
             base: '/guide/',
-            text: 'Developer Guide',
+            text: 'Model',
+            items: [
+                {text: 'Write an Aggregate', link: 'aggregates'},
+                {text: 'Rejections and Error Codes', link: 'rejections'},
+            ],
+        },
+        {
+            base: '/guide/',
+            text: 'Processes',
+            items: [
+                {text: 'Write a Saga', link: 'sagas'},
+            ],
+        },
+        {
+            base: '/guide/',
+            text: 'Across Contexts',
+            items: [
+                {text: 'Publish and Consume Streams', link: 'published-streams'},
+                {text: 'Call Other Services', link: 'calling-services'},
+            ],
+        },
+        {
+            base: '/guide/',
+            text: 'Test',
             items: [
                 {text: 'Test Domain Code', link: 'testing'},
             ],

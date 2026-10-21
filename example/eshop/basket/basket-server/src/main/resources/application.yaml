@@ -14,6 +14,7 @@ wow:
     # their waits. The value is for trying the shop out on one machine; a deployment sets WOW_INTERNAL_TOKEN, a secret
     # of at least 32 characters, the same on every node of the service.
     token: ${WOW_INTERNAL_TOKEN:eshop-basket-local-cluster-token-not-a-secret}
+  # region calls
   # The checkout saga submits the order to the ordering service synchronously (decision D193), through its command
   # gateway on its internal port (wow.internal.port there; its public port refuses a call), with this service's
   # credential, which the ordering service trusts (wow.http.services.eshop-basket-service.tokens there). The token below is for trying the shop out on one machine:
@@ -23,6 +24,7 @@ wow:
       eshop-ordering:
         url: http://127.0.0.1:9093
     token: ${ESHOP_BASKET_SERVICE_TOKEN:eshop-basket-local-service-token-not-a-secret}
+  # endregion
   http:
     # The services a wait that starts here crosses into signal it back with their service tokens (decision D226): the
     # checkout's wait follows the order through the ordering, the inventory and the payment.
