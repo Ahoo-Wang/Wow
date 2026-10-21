@@ -149,11 +149,20 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '编写服务', link: 'index.html'},
                 {text: '编程模型', link: 'programming-model'},
                 {text: '编译器生成什么', link: 'generated-code'},
-                {text: '测试', link: 'testing'},
+                {text: '测试', base: '/zh/guide/', link: 'testing'},
                 {text: 'HTTP API', link: 'http-api'},
                 {text: '查询语言', link: 'query'},
                 {text: '配置项', link: 'configuration'},
                 {text: '部署', link: 'deployment'},
+            ],
+        },
+    ],
+    '/zh/guide/': [
+        {
+            base: '/zh/guide/',
+            text: '开发指南',
+            items: [
+                {text: '测试领域代码', link: 'testing'},
             ],
         },
     ],

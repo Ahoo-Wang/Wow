@@ -8,7 +8,7 @@ export const navbarZh: DefaultTheme.NavItem[] = [
         items: [
             {text: '编写服务', link: '/zh/guide/v10/'},
             {text: '编程模型', link: '/zh/guide/v10/programming-model'},
-            {text: '测试', link: '/zh/guide/v10/testing'},
+            {text: '测试', link: '/zh/guide/testing'},
             {text: 'HTTP API', link: '/zh/guide/v10/http-api'},
             {text: '查询语言', link: '/zh/guide/v10/query'},
             {text: '部署', link: '/zh/guide/v10/deployment'},
