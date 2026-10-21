@@ -57,11 +57,13 @@ import me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted
  */
 @Saga
 class OrderProcessSaga {
+    // region derive
     @OnEvent
     fun onOrderSubmitted(
         event: StateTypedEvent<OrderState, OrderSubmitted>,
         context: SagaContext,
     ): Command<AwaitStockValidation> = context.command(event.ref.id, AwaitStockValidation)
+    // endregion
 
     @OnEvent
     fun onOrderAwaitingValidation(
@@ -71,6 +73,7 @@ class OrderProcessSaga {
         context.command(productId, ReserveStock(event.ref.id, quantity))
     }
 
+    // region committed
     /** A product the inventory reserved confirms it on the order that asked for it. */
     @OnCommitted
     fun onReserveCommitted(
@@ -78,7 +81,9 @@ class OrderProcessSaga {
         context: SagaContext
     ): Command<ConfirmOrderStock> =
         context.command(committed.executionId.ref.id, ConfirmOrderStock(committed.aggregateId))
+    // endregion
 
+    // region rejected
     /** A product the inventory cannot reserve cancels the order that asked for it. */
     @OnRejected
     fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: SagaContext): Command<CancelOrder> =
@@ -86,6 +91,7 @@ class OrderProcessSaga {
             rejected.executionId.ref.id,
             CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}"),
         )
+    // endregion
 
     @OnEvent
     fun onOrderCancelled(
@@ -95,6 +101,7 @@ class OrderProcessSaga {
         context.command(productId, ReleaseReservation(event.ref.id))
     }
 
+    // region release-rejected
     /**
      * A release the inventory rejects needs no compensation: it rejects one only for a product it has no stock of,
      * which reserved nothing either. Without this handler, the rejection would park the order for the saga; returning
@@ -103,6 +110,7 @@ class OrderProcessSaga {
     @Suppress("UnusedParameter")
     @OnRejected
     fun onReleaseRejected(rejected: CommandRejected<ReleaseReservation>) = Unit
+    // endregion
 
     @OnEvent
     fun onOrderShipped(
