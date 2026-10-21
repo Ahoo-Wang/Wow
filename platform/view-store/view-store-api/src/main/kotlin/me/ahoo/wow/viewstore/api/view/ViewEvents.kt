@@ -48,8 +48,8 @@ data class ViewClaimed(val toOwnerId: String)
  * **History only: never produced, only evolved.** The 9.x view's move to another audience (its `ViewAudienceChanged`,
  * a 9.x owner transfer), kept so the 9.x history `migrate-data` imports still loads: a view moves to [audience] as
  * [ViewShared] or [ViewClaimed] moves it. No command produces it (the view store's tests check it); a view shared or
- * claimed in V10 records [ViewShared] or [ViewClaimed]. [toOwnerId] is the owner 9.x moved the view to, which the import
- * records as the stream's owner (its map's `owner` field).
+ * claimed in 10.x records [ViewShared] or [ViewClaimed]. [toOwnerId] is the owner 9.x moved the view to, which the
+ * import records as the stream's owner (its map's `owner` field).
  */
 @Summary("A 9.x view moved to another audience; history only, never produced")
 data class ViewAudienceChanged(val audience: ViewAudience, val toOwnerId: String)

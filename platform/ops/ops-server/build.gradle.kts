@@ -1,8 +1,8 @@
-description = "Wow V10 ops: the ops service on the Spring Boot host (roadmap 7.1a)"
+description = "Wow ops: the ops service on the Spring Boot host (roadmap 7.1a)"
 
 // The aggregation and operation surface of every service's failure ledger (decisions D14, D141), in place of the 9.x
 // compensation server: `./gradlew :ops-server:run --args='--spring.profiles.active=kafka'` starts it on the memory
-// backend with Kafka on localhost, `postgres,kafka` on PostgreSQL. V10 modules are not published before M8 (D88).
+// backend with Kafka on localhost, `postgres,kafka` on PostgreSQL. Wow modules are not published before M8 (D88).
 plugins {
     application
 }

@@ -34,7 +34,7 @@ interface NotBlankTypeCapable : TypeCapable {
 /**
  * The type of a polymorphic value, which a client both reads and writes.
  *
- * 9.x marked it read-write for OpenAPI with Swagger's `@Schema(accessMode = READ_WRITE)`; in V10 the schemas come from
+ * 9.x marked it read-write for OpenAPI with Swagger's `@Schema(accessMode = READ_WRITE)`; in 10.x the schemas come from
  * the Manifest and only wow-openapi depends on Swagger, so this carries no Swagger annotation.
  */
 interface PolymorphicTypeCapable : NotBlankTypeCapable {

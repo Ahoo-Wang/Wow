@@ -23,7 +23,7 @@ import org.testcontainers.utility.DockerImageName
 import java.time.Duration
 
 /**
- * The containers the V10 integration tests run against (decision D196): one image per backend, so every module tests
+ * The containers the integration tests run against (decision D196): one image per backend, so every module tests
  * the versions the others do.
  *
  * The properties are shared: started on first use and kept for the rest of the JVM (Testcontainers removes them when

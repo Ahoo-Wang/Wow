@@ -1,4 +1,4 @@
-description = "Wow V10 eShop: end-to-end tests across the eShop's services"
+description = "Wow eShop: end-to-end tests across the eShop's services"
 
 // Test-only and never published (decision D159).
 //

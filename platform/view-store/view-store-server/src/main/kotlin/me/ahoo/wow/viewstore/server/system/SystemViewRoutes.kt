@@ -30,7 +30,7 @@ import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.coRouter
 
 /**
- * The system views route of the 9.x starter, on V10 (roadmap 7.2a), read-only:
+ * The system views route of the 9.x starter, on 10.x (roadmap 7.2a), read-only:
  *
  * - `GET /view-store/system-views?definitionId=`: the system views of the caller's tenant and application, configured
  *   and stored ([StoredSystemViews]); all of them without a definition;

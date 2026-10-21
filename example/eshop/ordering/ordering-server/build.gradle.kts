@@ -1,4 +1,4 @@
-description = "Wow V10 eShop: the ordering service on the Spring Boot host"
+description = "Wow eShop: the ordering service on the Spring Boot host"
 
 // An application: `./gradlew :eshop-ordering-server:run --args='--spring.profiles.active=kafka'` starts it on the
 // memory backend with Kafka on localhost (example/eshop/README.md). Never published (decision D159): the root build

@@ -1,4 +1,4 @@
-description = "Wow V10 eShop: the catalog service on the Spring Boot host"
+description = "Wow eShop: the catalog service on the Spring Boot host"
 
 // An application: `./gradlew :eshop-catalog-server:run` starts it on the memory backend, and
 // `./gradlew :eshop-catalog-server:run --args='--spring.profiles.active=postgres'` on PostgreSQL

@@ -15,7 +15,7 @@ Every artifact a release publishes to Maven Central under the group `me.ahoo.wow
 | --- | --- | --- |
 | `me.ahoo.wow:wow-bom` | [`bom/bom`](https://github.com/Ahoo-Wang/Wow/tree/main/bom/bom) | The BOM: the versions of every artifact below, which a build imports as a platform. |
 | `me.ahoo.wow:wow-dependencies` | [`wow-dependencies`](https://github.com/Ahoo-Wang/Wow/tree/main/wow-dependencies) | The versions of the third-party dependencies, which every published POM imports. |
-| `me.ahoo.wow:wow-api` | [`api/api`](https://github.com/Ahoo-Wang/Wow/tree/main/api/api) | What domain code imports, the value types of the wire contract (Command, CommandResult, WaitPlan) and the typed QueryApi |
+| `me.ahoo.wow:wow-api` | [`api/api`](https://github.com/Ahoo-Wang/Wow/tree/main/api/api) | What domain code imports (the annotations, Decision, DecideScope, StateEvent, Scope), the value types of the wire contract (Command, CommandResult, WaitPlan) and the typed QueryApi |
 | `me.ahoo.wow:wow-manifest` | [`api/manifest`](https://github.com/Ahoo-Wang/Wow/tree/main/api/manifest) | The contract every projection reads (REST, OpenAPI, clients, views, Skills); plain data |
 | `me.ahoo.wow:wow-query-api` | [`api/query-api`](https://github.com/Ahoo-Wang/Wow/tree/main/api/query-api) | The query protocol (filters, sort, pagination, projection, aggregation) and the query field annotations, as plain data; no dependencies |
 | `me.ahoo.wow:wow-spi` | [`core/spi`](https://github.com/Ahoo-Wang/Wow/tree/main/core/spi) | The ports a backend implements (log, snapshots, checkpoints, leases, failure ledger, reservations, sinks) |

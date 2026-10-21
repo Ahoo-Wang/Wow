@@ -17,7 +17,7 @@ import java.lang.annotation.Inherited
 import kotlin.reflect.KClass
 
 /**
- * A command function of an [AggregateRoot] (V10): it takes the command, or a `Command` of it, and decides the events.
+ * A command function of an [AggregateRoot]: it takes the command, or a `Command` of it, and decides the events.
  * A function named `onCommand` needs no annotation, but only the annotation declares [produces].
  *
  * @param produces the events of the aggregate the function can decide, which the Manifest lists as the command's
