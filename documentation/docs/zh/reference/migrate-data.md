@@ -25,7 +25,6 @@ outline: deep
 | `tail` | `--once` | 追踪 9.x 在导入之后提交的内容，直到被停止。 |
 | `compare` | `--sample <percent>`、`--restart` | 把每个 9.x 快照与 V10 在快照版本上从日志重建的状态比较，然后比较预留和停放的条目。 |
 | `snapshot` | `--restart` | 为每个导入的聚合写入它最后一个版本的 V10 快照。 |
-| `--final` | 9.x 停止写入后 `import` 更短的最后一次遍历，用于追尾一直追到 9.x 停止的情况：从追尾的检查点跑一轮追尾，并往前多读 `final.lookbackMillis`，然后从头重新遍历预留键和补偿执行。如果某个聚合的导入没有完成，或者它的追尾最后一轮结束于 `final.maxTailAgeMillis` 之前，它会拒绝执行，什么都不写；这时运行 `import --restart`。不能与 `--restart` 或 `--dry-run` 一起使用。 |
 | `backfill-tags` | `--restart`、`--force` | 为每条追加时没有标签的 V10 流记录标签，然后改写没有标签就被索引的 Elasticsearch 事件文档。 |
 | `export` | `--dry-run`、`--restart` | 为回滚把 V10 在切换之后写入的流写回 9.x 存储；拒绝带有 V10 独有类型的流。 |
 
@@ -34,6 +33,7 @@ outline: deep
 | `--config <file>` | 配置文件。每个命令都必须指定。 |
 | `--dry-run` | `import` 读取并转换每条流，但不写入，也不保存检查点；`export` 扫描并打印它的结论，但不写入。 |
 | `--restart` | 忽略上一轮停在哪里，从第一个实例重新遍历每个实例。与 `import` 一起用，就是 9.x 停止写入之后最后那一次完整遍历；它还会对账之前导入的预留键和停放的条目。 |
+| `--final` | 9.x 停止写入后 `import` 更短的最后一次遍历，用于追尾一直追到 9.x 停止的情况：从追尾的检查点跑一轮追尾，并往前多读 `final.lookbackMillis`，然后从头重新遍历预留键和补偿执行。如果某个聚合的导入没有完成，或者它的追尾最后一轮结束于 `final.maxTailAgeMillis` 之前，它会拒绝执行，什么都不写；这时运行 `import --restart`。不能与 `--restart` 或 `--dry-run` 一起使用。 |
 | `--snapshots` | 在 `import` 之后运行 `snapshot`。 |
 | `--once` | `tail` 跑一轮就结束。 |
 | `--sample <percent>` | `compare` 只比对这个比例的实例，按租户和 ID 的哈希挑选，所以每次运行比对的都是同一批。换一个比例会重新开始比对。 |
