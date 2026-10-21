@@ -86,7 +86,7 @@ A declined payment's CancelOrder, and the grace period's scheduled one for an or
 
 ### Dependencies
 
-Each `-api` depends on `:api`. Each `-domain` depends on its API and on `:kernel`, and the compiler (KSP) generates its models, its binding index and its Manifest fragment. Each `-server` is a Spring Boot application on the host, `:spring-boot`. The architecture tests (`test/architecture`, `V10Rules`) enforce the rest:
+Each `-api` depends on `:api`. Each `-domain` depends on its API and on `:kernel`, and the compiler (KSP) generates its models, its binding index and its Manifest fragment. Each `-server` is a Spring Boot application on the host, `:spring-boot`. The architecture tests (`test/architecture`, `ArchitectureRules`) enforce the rest:
 
 - The eShop reaches V10 modules and other eShop projects only.
 - No `-api` or `-domain` reaches `:runtime`.

@@ -59,13 +59,13 @@ import me.ahoo.wow.manifest.ManifestTree
 import tools.jackson.databind.json.JsonMapper
 
 /**
- * Compiles annotated aggregate roots into V10 aggregate models (decision D37): for each `@AggregateRoot` it
+ * Compiles annotated aggregate roots into aggregate models (decision D37): for each `@AggregateRoot` it
  * generates `fun <root>Model(context: String): AggregateModel<State>`, built with the kernel DSL, so the annotated
  * and the DSL style are one model and the runtime never reflects.
  *
  * Command and event types are named `context.aggregate.Name` (decision D55): the class's simple name, or its `@Name`.
  *
- * It recognizes only the V10 annotation set (design 01 §3, decision D67; [V10Annotations]): any other annotation of
+ * It recognizes only the annotation set (design 01 §3, decision D67; [AnnotationSet]): any other annotation of
  * `me.ahoo.wow.api.annotation` on the root, its state, its commands or its events is a problem that points to the
  * migration skill, and so is an identity annotation on a command's field (decision D68). An event's `@Name`,
  * `@Revision` and `@Alias` and a command's `@Name` and `@Alias` flow into the model ([AliasCheck] checks the aliases).
@@ -603,17 +603,17 @@ internal class ModelSymbolProcessor(
         return unwrapped.declaration as? KSClassDeclaration
     }
 
-    /** What V10 does not recognize on the model's types: the root, its state, its commands and its events. */
+    /** What the processor does not recognize on the model's types: the root, its state, its commands and its events. */
     private fun annotationProblems(
         root: KSClassDeclaration,
         state: KSClassDeclaration,
         commands: List<KSClassDeclaration>,
         events: List<KSClassDeclaration>,
     ): List<String> = (
-        V10Annotations.problemsOfType(root, "aggregate root", state = state == root) +
-            (if (state != root) V10Annotations.problemsOfType(state, "state", state = true) else emptyList()) +
-            commands.distinct().filterNot { it.isFramework() }.flatMap { V10Annotations.problemsOfType(it, "command") } +
-            events.distinct().filterNot { it.isFramework() }.flatMap { V10Annotations.problemsOfType(it, "event") }
+        AnnotationSet.problemsOfType(root, "aggregate root", state = state == root) +
+            (if (state != root) AnnotationSet.problemsOfType(state, "state", state = true) else emptyList()) +
+            commands.distinct().filterNot { it.isFramework() }.flatMap { AnnotationSet.problemsOfType(it, "command") } +
+            events.distinct().filterNot { it.isFramework() }.flatMap { AnnotationSet.problemsOfType(it, "event") }
         ).distinct()
 
     /**
@@ -718,7 +718,7 @@ internal class ModelSymbolProcessor(
             return null
         }
         if (FRAMEWORK_PACKAGES.any { commandType.render().startsWith(it) }) {
-            problems += "$name takes ${commandType.render()}: a V10 decide function takes the command body, " +
+            problems += "$name takes ${commandType.render()}: a decide function takes the command body, " +
                 "or $COMMAND of it"
             return null
         }
@@ -751,7 +751,7 @@ internal class ModelSymbolProcessor(
     /**
      * The argument for a parameter after the command: the decide scope itself, or a dependency the model factory
      * takes, qualified by the parameter's `@Name` (decision D119). One type with one qualifier, or none, is one
-     * dependency, however many functions take it. A framework type of 9.x has no V10 counterpart to pass.
+     * dependency, however many functions take it. A framework type of 9.x has no Wow 10 counterpart to pass.
      */
     @OptIn(KspExperimental::class)
     private fun argument(
@@ -771,7 +771,7 @@ internal class ModelSymbolProcessor(
             return "this"
         }
         if (FRAMEWORK_PACKAGES.any { rendered.startsWith(it) }) {
-            problems += "$function takes $rendered, a 9.x framework type with no V10 counterpart"
+            problems += "$function takes $rendered, a 9.x framework type with no Wow 10 counterpart"
             return null
         }
         if (parameter.hasDefault) {

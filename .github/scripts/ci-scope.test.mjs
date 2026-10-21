@@ -41,8 +41,6 @@ test('workspace configuration, CI scripts and unknown paths run every gate', () 
     'package.json',
     'pnpm-lock.yaml',
     'pnpm-workspace.yaml',
-    // A dependency patch pnpm-workspace.yaml applies.
-    'patches/jsdom@29.1.1.patch',
     'tsconfig.base.json',
     '.github/scripts/ci-scope.mjs',
     'new-directory/index.ts',
@@ -552,7 +550,6 @@ test('the ops console, the ops service and what the console builds with run the 
     'package.json',
     'pnpm-lock.yaml',
     'pnpm-workspace.yaml',
-    'patches/jsdom@29.1.1.patch',
     'tsconfig.base.json',
     '.github/workflows/ci.yml',
     // An unknown path or a CI script runs everything.

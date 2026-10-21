@@ -61,7 +61,7 @@ import me.ahoo.wow.api.subscribe.StateEvent
  *   the rejections of the same command class, or both of every command (`CommandRejected<*>`);
  * - an `@OnCommitted` handler (decision D192) likewise, taking a `CommandCommitted` instead: no handler is both, nor
  *   two of a saga the receipts of the same command class;
- * - no annotation outside the V10 set ([V10Annotations]);
+ * - no annotation outside the annotation set ([AnnotationSet]);
  * - the generated binding can reach it: the class is concrete, not private, not generic, an `object` or constructed
  *   by a constructor that is not private, whose parameters are domain services, each qualified by its `@Name`
  *   (decision D119); a handler's state type takes no type arguments.
@@ -82,7 +82,7 @@ internal object SubscriptionResolver {
 
     /** The 9.x processor annotations: a class with one of them is read as a processor, to report it. */
     val REMOVED_KIND_ANNOTATIONS: List<String> = listOf("ProjectionProcessor", "EventProcessor", "StatelessSaga")
-        .map { "${V10Annotations.PACKAGE}.$it" }
+        .map { "${AnnotationSet.PACKAGE}.$it" }
 
     val ON_EVENT: String = OnEvent::class.java.name
     val ON_REJECTED: String = Receipt.REJECTED.annotation
@@ -118,7 +118,7 @@ internal object SubscriptionResolver {
     ): SubscriptionBinding {
         val className = processor.simpleName.asString()
         val name = processor.getAnnotationsByType(Name::class).firstOrNull()?.value ?: className
-        val problems = V10Annotations.problems(processor, "processor $className", processor = true).toMutableList()
+        val problems = AnnotationSet.problems(processor, "processor $className", processor = true).toMutableList()
         val processorRetry = RetryResolver.read(processor, "processor $className", problems)
         val kinds = Kind.entries.filter { kind -> processor.hasAnnotation(kind.annotation) }
         val kind = kinds.singleOrNull()
@@ -137,7 +137,7 @@ internal object SubscriptionResolver {
             problems += receiptProblems(className, name, kind, receipt, receiptHandlers)
         }
         processor.getDeclaredFunctions().forEach {
-            problems += V10Annotations.problemsOfFunction(it, "processor $className", processor = true)
+            problems += AnnotationSet.problemsOfFunction(it, "processor $className", processor = true)
         }
         (functions + receiptFunctions.values.flatten() + jobFunctions).distinct().groupBy { it.simpleName.asString() }
             .filterValues { it.size > 1 }.keys.forEach {

@@ -1,8 +1,8 @@
 ---
 type: regex
-pattern: 'snapshot/schema'
+pattern: 'snapshot/query'
 match: contains
 target: last_message
 ---
 
-The answer names the `snapshot/schema` descriptor route.
+The answer names the `snapshot/query` route.
