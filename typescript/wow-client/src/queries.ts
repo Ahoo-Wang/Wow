@@ -14,6 +14,7 @@
 import type { AggregationQuery } from './dsl/aggregation/index.js';
 import type { CursorPage, CursorQuery } from './dsl/cursorQuery.js';
 import type { Projected } from './dsl/projection.js';
+import { eventNumbers, type TextNumbers } from './exactJson.js';
 import type { QueryModelDescriptor } from './dsl/descriptor.js';
 import type { FilterCapable } from './dsl/filter/index.js';
 import type {
@@ -112,11 +113,26 @@ export class QueryModelClient<R, FIELDS extends string = string> {
   /**
    * @param path - The query route, `/{context}/{aggregate}/{model}/query`
    * @param client - How the service is reached
+   * @param numbers - The numbers of each record read as their exact text
+   *   (review R4-Q, Q-9)
    */
   constructor(
     readonly path: string,
     readonly client: WowClientOptions = {},
+    readonly numbers?: TextNumbers,
   ) {}
+
+  /** The marks of a list of records. */
+  private get listNumbers(): TextNumbers | undefined {
+    return this.numbers === undefined ? undefined : { '*': this.numbers };
+  }
+
+  /** The marks of a page of records. */
+  private get pageNumbers(): TextNumbers | undefined {
+    return this.numbers === undefined
+      ? undefined
+      : { list: { '*': this.numbers } };
+  }
 
   /** The records that match, at most `limit` (the server's default when absent). */
   async list<INCLUDE extends FIELDS = FIELDS>(
@@ -125,6 +141,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
   ): Promise<Projected<R, INCLUDE, FIELDS>[]> {
     return json<Projected<R, INCLUDE, FIELDS>[]>(
       await this.post('list', query, options),
+      this.listNumbers,
     );
   }
 
@@ -184,6 +201,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
       {
         ...resume,
         ...(options.signal === undefined ? {} : { signal: options.signal }),
+        ...(this.numbers === undefined ? {} : { numbers: this.numbers }),
       },
     );
   }
@@ -195,6 +213,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
   ): Promise<PagedResult<Projected<R, INCLUDE, FIELDS>>> {
     return json<PagedResult<Projected<R, INCLUDE, FIELDS>>>(
       await this.post('paged', query, options),
+      this.pageNumbers,
     );
   }
 
@@ -205,6 +224,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
   ): Promise<CursorPage<Projected<R, INCLUDE, FIELDS>>> {
     return json<CursorPage<Projected<R, INCLUDE, FIELDS>>>(
       await this.post('cursor', query, options),
+      this.pageNumbers,
     );
   }
 
@@ -215,6 +235,7 @@ export class QueryModelClient<R, FIELDS extends string = string> {
   ): Promise<Projected<R, INCLUDE, FIELDS>> {
     return json<Projected<R, INCLUDE, FIELDS>>(
       await this.post('single', query, options),
+      this.numbers,
     );
   }
 
@@ -307,7 +328,13 @@ export class SnapshotQueryClient<
     readonly type: AggregateType,
     client?: WowClientOptions,
   ) {
-    super(queryPath(type, 'snapshot'), client);
+    super(
+      queryPath(type, 'snapshot'),
+      client,
+      type.textNumbers?.state === undefined
+        ? undefined
+        : { state: type.textNumbers.state },
+    );
   }
 }
 
@@ -332,7 +359,12 @@ export class EventQueryClient<
     readonly type: AggregateType,
     client?: WowClientOptions,
   ) {
-    super(queryPath(type, 'events'), client);
+    const events = eventNumbers(type);
+    super(
+      queryPath(type, 'events'),
+      client,
+      events === undefined ? undefined : { events: { '*': events } },
+    );
   }
 }
 

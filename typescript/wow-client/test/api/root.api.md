@@ -46,11 +46,19 @@ export interface AggregateRef {
 }
 
 // @public
+export interface AggregateTextNumbers {
+    readonly commands?: Readonly<Record<string, TextNumbers>>;
+    readonly events?: Readonly<Record<string, TextNumbers>>;
+    readonly state?: TextNumbers;
+}
+
+// @public
 export interface AggregateType {
     // (undocumented)
     readonly context: string;
     // (undocumented)
     readonly name: string;
+    readonly textNumbers?: AggregateTextNumbers;
 }
 
 // @public
@@ -251,6 +259,9 @@ interface BinaryAggregationExpression<FIELDS extends string = string> {
 }
 
 // @public
+const BY: unique symbol;
+
+// @public
 type CalendarFilter<FIELDS extends string = string> = RelativeTimeFilterOptions & {
     op: FilterOperator.TODAY | FilterOperator.TOMORROW | FilterOperator.THIS_WEEK | FilterOperator.NEXT_WEEK | FilterOperator.LAST_WEEK | FilterOperator.THIS_MONTH | FilterOperator.LAST_MONTH | FilterOperator.YESTERDAY | FilterOperator.NEXT_MONTH | FilterOperator.LAST_YEAR | FilterOperator.THIS_YEAR | FilterOperator.NEXT_YEAR;
     field: QueryField<FIELDS>;
@@ -294,6 +305,7 @@ export interface CommandManifest {
 
 // @public
 export interface CommandOptions extends RequestOptions {
+    readonly bodyNumbers?: TextNumbers;
     readonly expectedVersion?: number;
     readonly requestId?: string;
     readonly resolveRejected?: boolean;
@@ -1275,6 +1287,9 @@ enum PagingMode {
 }
 
 // @public
+export function parseJson(text: string, marks?: TextNumbers): unknown;
+
+// @public
 export function parseRetryAfter(value: string | null | undefined, now?: number): number | undefined;
 
 // @public
@@ -1378,7 +1393,7 @@ type QueryModel = (typeof QueryModels)[keyof typeof QueryModels] | (string & {})
 
 // @public
 export class QueryModelClient<R, FIELDS extends string = string> {
-    constructor(path: string, client?: WowClientOptions);
+    constructor(path: string, client?: WowClientOptions, numbers?: TextNumbers | undefined);
     aggregate<ROW = Record<string, unknown>>(query: AggregationQuery<FIELDS, string>, options?: RequestOptions): Promise<ROW[]>;
     // (undocumented)
     readonly client: WowClientOptions;
@@ -1388,6 +1403,8 @@ export class QueryModelClient<R, FIELDS extends string = string> {
     list<INCLUDE extends FIELDS = FIELDS>(query: FilterListQuery<FIELDS, INCLUDE>, options?: RequestOptions): Promise<Projected<R, INCLUDE, FIELDS>[]>;
     listStream<INCLUDE extends FIELDS = FIELDS>(query: FilterListQuery<FIELDS, INCLUDE>, options?: ListStreamOptions): Promise<ReadableStream<Projected<R, INCLUDE, FIELDS>>>;
     listStreamRows<INCLUDE extends FIELDS = FIELDS>(query: FilterListQuery<FIELDS, INCLUDE>, options?: ListStreamOptions): Promise<ReadableStream<StreamedRow<Projected<R, INCLUDE, FIELDS>>>>;
+    // (undocumented)
+    readonly numbers?: TextNumbers | undefined;
     paged<INCLUDE extends FIELDS = FIELDS>(query: PagedQuery<FIELDS, INCLUDE>, options?: RequestOptions): Promise<PagedResult<Projected<R, INCLUDE, FIELDS>>>;
     // (undocumented)
     readonly path: string;
@@ -1751,6 +1768,9 @@ type StringFilter<FIELDS extends string = string> = {
 };
 
 // @public
+export function stringifyJson(value: unknown, marks?: TextNumbers): string;
+
+// @public
 export interface SubscriptionManifest {
     // (undocumented)
     readonly [property: string]: unknown;
@@ -1820,6 +1840,24 @@ type TermsAggregationGroup<FIELDS extends string = string> = {
     missingKey?: string;
     scope?: AggregationGroupScope;
 } & AggregationGroupInput<FIELDS>;
+
+// @public
+export type TextNumbers = true | TextNumbersByName | {
+    readonly [member: string]: TextNumbers;
+};
+
+// @public
+export function textNumbersBy(discriminant: string, member: string, cases: Readonly<Record<string, TextNumbers>>): TextNumbersByName;
+
+// @public
+export interface TextNumbersByName {
+    // (undocumented)
+    readonly [BY]: {
+        readonly discriminant: string;
+        readonly member: string;
+        readonly cases: Readonly<Record<string, TextNumbers>>;
+    };
+}
 
 // @public
 enum TimeUnit {

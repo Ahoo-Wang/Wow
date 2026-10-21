@@ -33,6 +33,13 @@ export {
   type TransferSpace,
 } from './commands.js';
 export {
+  parseJson,
+  stringifyJson,
+  type TextNumbers,
+  textNumbersBy,
+  type TextNumbersByName,
+} from './exactJson.js';
+export {
   formatScope,
   type RequestOptions,
   type TargetScope,
