@@ -145,6 +145,12 @@ class EventStreamImporterTest {
             it.skipped.assert().isEqualTo(streams.size.toLong())
             it.instances.assert().isEqualTo(1)
         }
+        // A page a stream: the instance spans the pages, each page after the first meets it reached already, and
+        // each of its streams is skipped by its own read.
+        importer(source, ImportOptions(pageSize = 1, lookbackMillis = now)).tailOnce(order).also {
+            it.imported.assert().isEqualTo(0)
+            it.skipped.assert().isEqualTo(streams.size.toLong())
+        }
         // Another command at the latest version is not the 9.x stream: the instance is imported, which stops on it.
         source.add(streams.last().copy(id = "other", version = streams.size + 1, commandId = "c-x", requestId = "c-x"))
         importer(source, ImportOptions(lookbackMillis = now)).tailOnce(order).imported.assert().isEqualTo(1)
@@ -170,6 +176,9 @@ class EventStreamImporterTest {
         importer(
             source
         ).finalProblem(order, MAX_TAIL_AGE).assert().isEqualTo("the full import of $order has not completed")
+        checkpoints.save(ImportCheckpoints().with(order, AggregateCheckpoint(startedAt = 1)))
+        importer(source).finalProblem(order, MAX_TAIL_AGE).assert()
+            .isEqualTo("the full import of $order has not completed")
         importer(source).importAll(order)
         importer(source).finalProblem(order, MAX_TAIL_AGE).assert().isEqualTo("the tail of $order never ran")
         importer(source).tailOnce(order)
