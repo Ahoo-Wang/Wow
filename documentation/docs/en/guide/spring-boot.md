@@ -1,6 +1,6 @@
 ---
 title: Host on Spring Boot
-description: Run a service on the Spring Boot host: what it assembles from the class path, how it chooses a backend, which beans it takes from the application, and how it checks its configuration.
+description: "Run a service on the Spring Boot host: what it assembles from the class path, how it chooses a backend, which beans it takes from the application, and how it checks its configuration."
 outline: deep
 ---
 

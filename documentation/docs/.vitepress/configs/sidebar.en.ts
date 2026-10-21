@@ -136,9 +136,12 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             base: '/operate/',
             text: 'Operate',
             items: [
+                {text: 'Running Wow', link: 'index.html'},
                 {text: 'Deployment Model', link: 'topology'},
-                {text: 'Secure a Deployment', link: 'security'},
+                {text: 'Configure a Service', link: 'configuration'},
+                {text: 'PostgreSQL', link: 'postgresql'},
                 {text: 'Kafka', link: 'kafka'},
+                {text: 'Secure a Deployment', link: 'security'},
                 {text: 'The Ops Service and Console', link: 'ops-console'},
             ],
         },
