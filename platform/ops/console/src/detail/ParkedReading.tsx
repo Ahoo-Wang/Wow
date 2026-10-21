@@ -135,7 +135,9 @@ export function ParkedReading({
   const entry = entryOf(row);
   const option = (kind: string, value: string | null | undefined) =>
     value ? optionWord(locale, kind, value) : undefined;
-  const time = (value: number | null | undefined) => formatTime(value, locale);
+  // An epoch-millisecond Long reads as its exact text (review R4-Q, Q-9).
+  const time = (value: string | number | null | undefined) =>
+    formatTime(value === null || value === undefined ? value : Number(value), locale);
   const label = (key: ParkedField) => words[key];
   const spec = entry.retrySpec;
   const aggregate = entry.aggregate;

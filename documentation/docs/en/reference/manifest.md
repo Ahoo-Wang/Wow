@@ -7,7 +7,7 @@ description: "The JSON a service's Manifest is written as: every object and its 
 
 # Manifest Format
 
-A service's Manifest is one JSON document (`format` 1): its bounded contexts, their aggregates with the commands and events they speak, their subscriptions, the framework's error codes, and the JSON Schema 2020-12 of every payload under `$defs`. A module's fragment (`META-INF/wow/manifest/<module>.json`) has the same shape without `service`. This outline of every object and its keys is generated from the code that writes it, [`ManifestTree`](https://github.com/Ahoo-Wang/Wow/blob/v10/api/manifest/src/main/kotlin/me/ahoo/wow/manifest/ManifestTree.kt).
+A service's Manifest is one JSON document (`format` 1): its bounded contexts, their aggregates with the commands and events they speak, their subscriptions, the framework's error codes, and the JSON Schema 2020-12 of every payload under `$defs`. A module's fragment (`META-INF/wow/manifest/<module>.json`) has the same shape without `service`. This outline of every object and its keys is generated from the code that writes it, [`ManifestTree`](https://github.com/Ahoo-Wang/Wow/blob/main/api/manifest/src/main/kotlin/me/ahoo/wow/manifest/ManifestTree.kt).
 
 What the writer leaves out:
 

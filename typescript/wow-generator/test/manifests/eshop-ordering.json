@@ -520,14 +520,14 @@
       "properties": {
         "productId": { "type": "string" },
         "quantity": { "type": "integer" },
-        "unitPrice": { "type": "number" }
+        "unitPrice": { "type": "number", "format": "decimal" }
       },
       "required": ["productId", "quantity", "unitPrice"]
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderPaid": {
       "type": "object",
       "properties": {
-        "amount": { "type": "number" },
+        "amount": { "type": "number", "format": "decimal" },
         "paymentId": { "type": "string" }
       },
       "required": ["amount", "paymentId"],
@@ -563,7 +563,7 @@
     "me.ahoo.wow.example.eshop.ordering.api.order.PayOrder": {
       "type": "object",
       "properties": {
-        "amount": { "type": "number" },
+        "amount": { "type": "number", "format": "decimal" },
         "paymentId": { "type": "string" }
       },
       "required": ["amount", "paymentId"],
@@ -609,7 +609,7 @@
             "CANCELLED"
           ]
         },
-        "totalAmount": { "type": "number" }
+        "totalAmount": { "type": "number", "format": "decimal" }
       },
       "required": ["confirmedProducts", "items", "status", "totalAmount"]
     },

@@ -89,4 +89,4 @@ A test that fails and then passes at the same commit is a defect, in the test or
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every pull request. Its `scope` job (`.github/scripts/ci-scope.mjs`) decides which jobs run: Kotlin, Gradle, app and prose paths skip it, and unknown paths run everything. `typescript-gate` is the merge signal; it also covers `workflow-lint`, which runs actionlint whenever any workflow changes. When you add a directory, classify it in `ci-scope.mjs` and cover it in `ci-scope.test.mjs`. The ops console and the eShop web app keep their own `ops-console-test.yml` and `eshop-web-test.yml`.
+`.github/workflows/ci.yml` runs on every pull request. Its `scope` job (`.github/scripts/ci-scope.mjs`) decides which jobs run: Kotlin, Gradle, app and prose paths skip it, and unknown paths run everything. `ci-gate` is the merge signal; it also covers `workflow-lint`, which runs actionlint whenever any workflow changes. When you add a directory, classify it in `ci-scope.mjs` and cover it in `ci-scope.test.mjs`. The ops console and the eShop web app keep their own `ops-console-test.yml` and `eshop-web-test.yml`.

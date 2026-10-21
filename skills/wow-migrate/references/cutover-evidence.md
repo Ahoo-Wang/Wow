@@ -1,6 +1,8 @@
 # Cut-over and rollback, 9.x to V10
 
-The job: move traffic from a 9.x service to its V10 service with the history intact, and keep a way back that is real. 9.x and V10 never write the same data at once: there is no mixed-version protocol between them. The 9.x cluster keeps serving while the data is imported and followed (`data.md`); the switch is a short stop of 9.x's writes, a final pass, and traffic to V10. Every step below needs the authorization of its own scope: rehearsal writes, production reads, production data writes, the traffic switch and the release are separate.
+The job: move traffic from a 9.x service to its V10 service with the history intact, and keep a way back that is real. 9.x and V10 never write the same data at once: there is no mixed-version protocol between them.
+
+**Offline is the default** (decision D267 ⑳): stop 9.x's writes, import everything, compare, write the snapshots and tags, start V10. It has the fewest steps and the least that can go wrong, and most 9.x systems import within a maintenance window; the rehearsal's timing proves whether this one does. **Online is the option** for a system whose import does not fit a window it can stop for: 9.x keeps serving while the data is imported and followed, V10 waits on standby, and the write stop shrinks to a final pass. Choose by the rehearsal's measured import time against the stop the business accepts, and record the choice. Every step below needs the authorization of its own scope: rehearsal writes, production reads, production data writes, the traffic switch and the release are separate.
 
 ## Inventory before any write
 
@@ -23,7 +25,7 @@ From an end-to-end rehearsal on an isolated target (`data.md`):
 2. An interrupted `import` resumed without duplicates, and a re-run that writes nothing.
 3. `compare` with every kind of difference explained and signed off, and the share of instances compared.
 4. The V10 services started on the target: a command on a migrated aggregate appends at the next version, reads and queries return the migrated state, projections rebuilt, parked entries listed.
-5. Timings of the final pass on production-sized data, which set the window.
+5. Timings on production-sized data: the whole `import` (with `compare`, `snapshot`, `backfill-tags`) for an offline cut-over, which sets the window and decides whether offline fits; or the final pass for an online one.
 6. Both rollback paths below rehearsed, with the list of what cannot go back.
 
 ## Before the cut-over: the point of no easy return
@@ -35,11 +37,29 @@ Rolling back after V10 has written needs every stream V10 wrote to have a 9.x fo
 
 Each such type, once V10 writes it in production, makes the export refuse (decision D267 ⑪): the first such write is **the end of the rollback window**, and the cut-over plan names it as such. Either accept that the cut-over is one-way from that write, or keep those shapes and types out of the first V10 release until the window has closed. It is the user's decision; record it.
 
-## The dual-run window
+## The offline switch (default)
 
-From the first import until the switch, 9.x serves and V10 waits on standby. Start every V10 node with `wow.standby=true` against the production target: it serves state reads and queries of what the import writes, refuses every command with 503 `wow.node.standby` (Wow's clients treat it as retryable), and joins no lease or topic group, so it runs no subscription, retries no parked entry and runs no job, timer or snapshot maintenance. The read side can be checked against production data before the switch, and nothing V10 does can write. `GET /wow/node/standby` on a node's internal port says whether it is on standby.
+1. **Announce the window; stop 9.x's writes.** Stop ingress to the 9.x services and drain their command queues, and stop the 9.x compensation service with them. Check that no 9.x writer is left (the inventory), and that in-flight work meets the agreed gate.
+2. **Take and verify the backup** of the 9.x stores.
+3. **Import:** `check`, then `import` (the streams, then the reservations and the unresolved executions; resumable from its checkpoint if it stops).
+4. **Gate:** `compare` shows only the signed-off kinds; no unexplained `UNRESOLVED` key or execution. Otherwise stop here and restart 9.x: V10 has written nothing.
+5. **Prepare the read side:** `snapshot`, and `backfill-tags` where ABAC reads the `events` model.
+6. **Start the V10 services** against the production target and probe the critical paths: a command on a migrated aggregate, a read, a query, a subscription, the ops service's parked entries.
+7. **Move the external consumers** of the 9.x bus to the V10 Kafka Sink.
+8. **Switch traffic to V10**, then scale V10 out. Keep 9.x stopped, not deleted.
+9. **Observe** the agreed signals: errors and problem codes, latency, command waits, subscription lag and parked aggregates, and the consumers. The rollback decision is taken on them.
 
-## The switch
+No `tail`, no standby and no final pass: they exist only to shorten the stop, and offline does not need them.
+
+## The online switch (option, for large systems)
+
+Use it only when the rehearsal shows the full import does not fit the stop the business accepts. It adds the tail during the dual-run, V10 nodes on standby, and a shorter final pass (`data.md`).
+
+### The dual-run window
+
+From the first import until the switch, 9.x serves and V10 waits on standby. Start every V10 node with `wow.standby=true` against the production target: it serves state reads and queries of what the import writes, refuses every command with 503 `wow.node.standby` (Wow's clients treat it as retryable), and joins no lease or topic group, so it runs no subscription, retries no parked entry and runs no job, timer or snapshot maintenance. The read side can be checked against production data before the switch, and nothing V10 does can write. A standby node reports ready: `/actuator/health/readiness` is `UP`, its lease groups and topics marked `standby` rather than `DOWN`, so the load balancer can send it reads during the dual-run (traffic stays on 9.x until the switch decides otherwise). `GET /wow/node/standby` on a node's internal port says whether it is on standby.
+
+### The switch
 
 1. **Announce the window; stop 9.x's writes.** Stop ingress to the 9.x services and drain their command queues, and stop the 9.x compensation service with them. Check that no 9.x writer is left (the inventory), and that in-flight work meets the agreed gate.
 2. **Take and verify the final backup** of the 9.x stores.
@@ -51,13 +71,13 @@ From the first import until the switch, 9.x serves and V10 waits on standby. Sta
 6. **Move the external consumers** of the 9.x bus to the V10 Kafka Sink.
 7. **Resume every V10 node:** `POST /wow/node/resume` on each node's internal port with the cluster token and a body `{"by": "<operator>", "reason": "<why>"}` (`by` is required: without it the node answers 400). The node joins its groups, starts the rest of its work and then admits commands; the resume ends the write stop. A subscription that starts at the end of its stream starts where the stream ends at the resume. Each resume is recorded (node, time, operator, reason) and returned by `GET /wow/node/standby` (also with the cluster token); check every node reports it. A resume that fails stops the node: start it again on standby, find the cause in its log, and resume it before the switch; a node that is not on standby treats a resume as a no-op.
 8. **Switch traffic to V10**, then scale V10 out. Keep 9.x stopped, not deleted.
-9. **Observe** the agreed signals: errors and problem codes, latency, command waits, subscription lag and parked aggregates, and the consumers. The rollback decision is taken on them.
+9. **Observe** as offline does.
 
 ## Rollback
 
 Two paths, never confused:
 
-- **V10 has not written yet** (stopped before the resume, or traffic switched back before the first V10 commit): stop V10, switch traffic back, restart 9.x on its untouched stores. Nothing to reconcile.
+- **V10 has not written yet** (stopped at the gate or, online, before the resume; or traffic switched back before the first V10 commit): stop V10, switch traffic back, restart 9.x on its untouched stores. Nothing to reconcile.
 - **V10 has written** (decision D32): 9.x does not have V10's streams, so restarting 9.x alone loses them. Stop V10's writes and keep 9.x stopped. Run `migrate-data export --dry-run`: it scans each V10 context's log up to its heads and prints per aggregate type how many streams 9.x lacks, `REFUSED` for each stream of a type with no 9.x form (as listed above) and `CONFLICT` for a stream 9.x holds otherwise; either stops the export before anything is written. Each context ends with a `VERDICT` line, which is the answer to give the user:
   - `roll back by switching back`: 9.x holds every stream V10 holds;
   - `roll back by export: N streams go back to 9.x`;
@@ -73,4 +93,4 @@ Two paths, never confused:
 
 ## Report
 
-The inventory, the rehearsal's evidence (each command with its exit code and counts), the signed-off difference kinds, the list of types with no way back and the user's decision on them, the window's timings, the switch's steps as done, and every gap as `MISSING EVIDENCE`. State separately: data imported and compared, V10 serving, external consumers moved, rollback rehearsed; none implies the next.
+Offline or online and why, the inventory, the rehearsal's evidence (each command with its exit code and counts), the signed-off difference kinds, the list of types with no way back and the user's decision on them, the window's timings, the switch's steps as done, and every gap as `MISSING EVIDENCE`. State separately: data imported and compared, V10 serving, external consumers moved, rollback rehearsed; none implies the next.

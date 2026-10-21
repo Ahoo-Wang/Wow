@@ -105,6 +105,12 @@ CI 任务在 [`typescript-contract.yml`](https://github.com/Ahoo-Wang/Wow/blob/v
 
 pnpm 8 及以后、npm 7 及以后会自动安装缺失的 peer；Yarn 不会，Yarn 项目需要逐个显式添加。每个参考页的安装命令都列出了它们。
 
+## 精确数字与投影结果
+
+从 v10 起，Manifest 中 Kotlin `Long`、`BigInteger` 或 `BigDecimal` 的字段（schema `format` 为 `int64`、`bigint` 或 `decimal`）在生成的类型里是 `string`，数字与服务端写出的完全一致。线路上仍是 JSON 数字。生成的客户端从响应原文读取这类字段，写入命令体时再写回不带引号的数字。自己发起调用时，`@ahoo-wang/wow-client` 的 `parseJson` 与 `stringifyJson` 做同样的事。相对 9.x 生成的 `number`，这是一项破坏性变更。
+
+查询里写了字面量 `projection.include` 路径时，返回的记录类型收窄到这些路径。用 `listQuery`、`pagedQuery` 构造的查询，或只有排除项的查询，返回完整记录。不带 `zoneId` 的相对时间过滤按 UTC 计算日期，从不使用服务端的时区。
+
 ## v10 移除什么
 
 下列内容在整个 Wow 9.x 期间保持可用；v10 在一个破坏性版本里一并移除：

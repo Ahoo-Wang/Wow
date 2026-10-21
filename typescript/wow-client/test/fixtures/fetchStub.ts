@@ -23,6 +23,8 @@ export interface SentRequest {
   headers: Headers;
   /** The JSON body, parsed; `undefined` when the request has none. */
   body: unknown;
+  /** The body as sent, when it is text. */
+  text?: string;
   signal?: AbortSignal;
 }
 
@@ -42,6 +44,7 @@ export function stubFetch(respond: Responder = () => jsonResponse({})) {
         headers: new Headers(init?.headers),
         body:
           typeof init?.body === 'string' ? JSON.parse(init.body) : init?.body,
+        ...(typeof init?.body === 'string' ? { text: init.body } : {}),
         signal: init?.signal ?? undefined,
       };
       requests.push(sent);

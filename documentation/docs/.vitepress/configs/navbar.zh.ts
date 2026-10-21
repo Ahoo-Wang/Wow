@@ -11,20 +11,20 @@ export const navbarZh: DefaultTheme.NavItem[] = [
             {text: '测试', link: '/zh/guide/testing'},
             {text: 'HTTP API', link: '/zh/guide/v10/http-api'},
             {text: '查询语言', link: '/zh/guide/v10/query'},
-            {text: '部署', link: '/zh/guide/v10/deployment'},
+            {text: '部署', link: '/zh/operate/topology'},
         ],
     },
     {
         text: 'TypeScript',
-        activeMatch: '/zh/(guide|reference)/typescript/',
+        activeMatch: '/zh/(guide/typescript|typescript|reference/typescript)/',
         items: [
             {
                 text: '指南',
                 items: [
                     {text: '概览', link: '/zh/guide/typescript/'},
                     {text: '生成客户端', link: '/zh/guide/typescript/generated-client'},
-                    {text: '视图引擎', link: '/zh/guide/typescript/view-engine'},
-                    {text: '使用工作台（面向使用者）', link: '/zh/workbench/'},
+                    {text: '视图引擎', link: '/zh/typescript/view-engine/'},
+                    {text: '使用工作台（面向使用者）', link: '/zh/data/workbench'},
                 ],
             },
             {
@@ -37,12 +37,24 @@ export const navbarZh: DefaultTheme.NavItem[] = [
             },
         ],
     },
+    {text: '迁移', link: '/zh/migrate/', activeMatch: '/zh/migrate/'},
     {text: '概念', link: '/zh/concepts/', activeMatch: '/zh/concepts/'},
+    {
+        text: '运维',
+        activeMatch: '/zh/operate/',
+        items: [
+            {text: '部署模型', link: '/zh/operate/topology'},
+            {text: '保护部署', link: '/zh/operate/security'},
+            {text: 'Kafka', link: '/zh/operate/kafka'},
+            {text: 'ops 服务与控制台', link: '/zh/operate/ops-console'},
+        ],
+    },
     {
         text: '参考',
         items: [
             {text: '术语表', link: '/zh/reference/glossary'},
             {text: '线上协议', link: '/zh/reference/protocols'},
+            {text: 'migrate-data 命令行', link: '/zh/reference/migrate-data'},
             {text: '配置项', link: '/zh/reference/configuration'},
             {text: '错误码', link: '/zh/reference/error-codes'},
             {text: '注解', link: '/zh/reference/annotations'},

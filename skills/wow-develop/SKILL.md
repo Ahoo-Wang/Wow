@@ -1,63 +1,66 @@
 ---
 name: "wow-develop"
-description: "Build, review, debug or explain Wow behavior in downstream Kotlin/Java services with me.ahoo.wow imports, wow-* dependencies or Wow requests: aggregates, commands, sagas, projections, queries, configuration; findings, merge readiness; failing-pipeline root cause, fixed when authorized. Covers 9.x, V10, first adoption, routine same-major upgrades. Not the Wow framework repository, generic DDD/CQRS, or breaking migrations and data cutovers, reviews and diagnosis included (wow-migrate)."
+description: "Build, review, debug or explain Wow V10 services in downstream Kotlin/Java code with me.ahoo.wow imports, wow-* dependencies or Wow requests: aggregates, rejections, sagas, projections, reactors, failures, tests, Spring Boot hosting; findings, merge readiness; root cause, fixed when authorized. Includes first adoption. Not the Wow framework repository, generic DDD/CQRS, 9.x services (the v9 plugin), or 9.x-to-V10 migration (wow-migrate)."
 ---
 
-# Develop, Review and Debug Wow Services
+# Develop, Review and Diagnose Wow V10 Services
+
+The job: someone is building or running a service on Wow V10 and needs a change made, a change judged, or a failure explained. The deliverable is one of: code with its tests passing; findings with evidence and a merge verdict; or the failing stage, its cause and, when authorized, the fix with a regression test. This Skill owns the whole task in whichever mode it takes.
 
 ## Scope gate
 
-Use only for a downstream application; the Wow framework repository and its modules never qualify. Require scoped `me.ahoo.wow` imports, `wow-*` dependencies, explicit failing Wow behavior, or an explicit downstream request to use, adopt, configure, review, or explain Wow. Routine same-major non-breaking upgrades qualify; cross-major upgrades, known source/configuration/generated/runtime breaks, Wow-managed storage/data changes, and failures or reviews of such a migration or data cutover belong to `wow-migrate`. Checkout-wide markers, application scopes without Wow semantics, negated/comparative mentions, release or build tooling, dashboards, and generic Kotlin, Java, Spring, Reactor, DDD, CQRS, or Event Sourcing vocabulary do not qualify. Otherwise state that this Skill does not apply and stop using it.
+Use only for a downstream application that builds, or is adopting, Wow V10. Require scoped `me.ahoo.wow` imports, `wow-*` dependencies, explicit failing Wow behavior, or an explicit request to use, adopt, configure, review or explain Wow. Not this Skill:
 
-Own the whole task, whichever mode it takes; do not hand it to another Wow Skill.
+- **The Wow framework repository and its modules.**
+- **A 9.x service** (`wow-spring-boot-starter`, `wow-core`, `@StatelessSaga`, `@EventProcessor`, `CommandGateway.sendAndWait`, `wow-metadata.json`): say it is 9.x and that the 9.x Skills ship on the `v9` branch's plugin; do not apply V10 APIs to it.
+- **A 9.x service moving to V10**, its data or its cut-over: `wow-migrate`.
+- **TypeScript code** calling a service: `wow-client`. **Data answers** from a running service: `wow-data-query`. **Views**: `wow-view-definition`, `wow-view-host`.
+- Checkout-wide markers, negated or comparative mentions, release or build tooling, dashboards, and generic Kotlin, Java, Spring, Reactor, DDD, CQRS or Event Sourcing vocabulary.
+
+Otherwise say this Skill does not apply and stop using it.
+
+## Recognize V10 before anything else
+
+V10 when the build or sources show: the Gradle plugin `id("me.ahoo.wow")` or `me.ahoo.wow:wow-bom` of a 10.x version; `wow-kernel`, `wow-spring-boot`, `wow-runtime`, `wow-postgres`, `wow-mongo`; imports of `me.ahoo.wow.api.decide.Decision`, `me.ahoo.wow.api.decide.DecideScope`, `me.ahoo.wow.api.subscribe.StateEvent`, `me.ahoo.wow.test.aggregateSpec`; annotations `@Saga`, `@Reactor`, `@Projection`, `@OnRejected`, `@ErrorCode`; resources `META-INF/wow/manifest/<module>.json`. Pin the exact Wow version from the build and its resolved dependencies; every symbol, default, key and route in these references is verified against that version's source, or labelled unverified. A V10 module that depends on a 9.x module is a defect.
 
 ## Contract
 
-- Treat the current checkout, its tests, generated contracts, and resolved dependencies as authoritative.
-- Resolve the actual Wow version from the downstream build and dependency graph before applying exact symbols, defaults, or version rules; label version-specific conclusions unverified when the version cannot be confirmed. The version selects the surface: see [Target version](#target-version).
-- Treat commands as intent, domain events as committed facts, and sourced state as reconstructed memory. Keep aggregate invariants inside the aggregate boundary and external side effects outside it.
-- Preserve reactive execution, serialization compatibility, module boundaries, and public contracts unless the user authorizes a breaking change.
-- Keep read-only requests (review, diagnosis, lookup) read-only: no edits, comments, approvals, merges, or remote changes without explicit authorization.
-- Report source-backed answers or changed files and behavior, exact verification commands and results, compatibility or operational risk, and remaining evidence gaps. Never replace an unavailable test with “should pass.”
+- The current checkout, its tests, its Manifest and its resolved dependencies are the authority; the references say where to look, not what is true today.
+- Commands are intent, events are committed facts, state is evolved memory. A decide function decides from the command and the state and never mutates; an evolve function applies one event and does no I/O; side effects live in sagas, reactors and projections.
+- Keep handlers non-blocking (`suspend`, or Reactor types with `wow-reactor`), events free of personal data (they are permanent), and identity out of command bodies.
+- Keep read-only requests (review, diagnosis, lookup) read-only: no edits, comments, approvals, merges or remote changes without explicit authorization.
+- Report the answer or the changed files and behavior, each verification command with its result, compatibility or operational risk, and every evidence gap. Never write "should pass" for a test that did not run.
 
 ## Modes
 
-**Develop or explain.** Frame the outcome, writable scope, compatibility boundary, and completion evidence; resolve the build, module, relevant source, tests, configuration, and generated contracts. Identify the owning boundary, invariant, message and failure flow. For behavior changes use RED→GREEN→REFACTOR; if a change is not unit-testable, name the narrowest replacement evidence before editing. Run the narrowest relevant check first and broaden only when the boundary requires it.
+**Develop or explain.** Frame the outcome, the writable scope, the compatibility boundary (events, rejection codes, Manifest, configuration) and the completion evidence. Find the owning context, aggregate, invariant, event and failure flow. Write the test first with the V10 test DSL (`references/testing.md`), see it fail, make it pass, refactor. Run the narrowest check first (`./gradlew :<domain>:test`), then the module's `check`, which runs the Manifest compatibility check.
 
-**Review** (findings, merge readiness). Resolve the diff range: worktree state, requested base, merge-base, staged/unstaged changes, touched modules. Read changed files with their callers, consumers, neighbors, tests, configuration, and generated outputs. Check Wow semantics and observable behavior before style against `references/review-rubric.md`, verifying exact APIs in the checkout. Run the narrowest checks when feasible; label the rest unverified. Lead with findings ordered by severity, each with tight file/line evidence, impact, trigger, and the smallest correct direction; if none remain, say so. List every intentionally omitted write, remote, approval, or merge action.
+**Review** (findings, merge readiness). Resolve the diff range (working tree, base, merge-base, touched modules). Read the changed files with their callers, processors, tests, configuration and generated Manifest. Check behavior against `references/review-rubric.md` before style. Run the narrowest checks when feasible; label the rest unverified. Lead with findings by severity, each with file and line, impact, trigger and the smallest correct direction; if none remain, say so. List every write, remote, approval or merge action left undone.
 
-**Review-and-fix** (only when the user authorizes fixes): finish the findings pass first; select only authorized findings; add a failing test or equivalent pre-fix evidence; implement one coherent fix pass; verify; review the new diff again from the requested base; repeat only for new issues inside the authorized scope. “Review and fix” is not permission to fix unrelated pre-existing issues.
+**Review-and-fix** (only when the user authorizes fixes): finish the findings first; fix only the authorized ones, each with a failing test first; review the new diff again from the base. "Review and fix" is not permission to fix unrelated issues.
 
-**Diagnose** (failure, hang, wrong state, reproducer). Capture the exact command, request, event, test, configuration, log, stack trace, timing, and expected behavior. Run the narrowest safe, non-mutating reproducer and keep its exact result; if that is unavailable, unsafe, or unauthorized, say so and continue from logs, traces, source, tests, and configuration without inventing one. Locate the first incorrect stage with `references/pipeline-map.md`, comparing with a working path in the same checkout. State one falsifiable hypothesis (“stage X fails because Y”), run the smallest test that distinguishes it, and conclude with the failing stage, cause, affected boundary, and unknowns. Do not add retries, relax assertions, or change annotations before proving where the pipeline breaks. Load `references/handler-discovery.md` only when a handler is missing, unregistered, unmatched, or unselected — not for configuration, Query DSL, lifecycle, or assertion failures.
+**Diagnose** (failure, hang, wrong state, a timeout, a 4xx or 5xx). Capture the exact command, request, headers, response problem, log, stack trace, timing and expected behavior. Run the narrowest safe, non-mutating reproducer; when that is unavailable or unauthorized, say so and work from logs, the problem's `code`, source, tests and configuration. Locate the first wrong stage with `references/diagnose.md`, state one falsifiable hypothesis, run the smallest check that distinguishes it, and conclude with the stage, the cause, the boundary and what is still unknown. Do not add retries, relax assertions or change annotations before the stage is proven. The ops routes and console are read-only evidence; resuming or skipping a parked entry is a production write that needs its own authorization.
 
-**Diagnose-and-fix** (only when a fix is requested): keep the reproducer or add a failing regression test; make the smallest change that addresses the confirmed cause; run the reproducer and relevant regression checks; inspect the diff for altered contracts or adjacent pipeline risk. Do not combine independent hypotheses into one patch. Report pre-fix evidence alongside the fix.
+**Diagnose-and-fix** (only when a fix is requested): keep the reproducer or add a failing regression test, make the smallest change at the confirmed cause, rerun the reproducer and the relevant checks, and inspect the diff for changed contracts.
 
-## Target version
+## Load by the job
 
-V10 and 9.x are different programming models, modules and configuration, not one API at two versions. Decide which one the target builds against before loading anything else:
-
-- **V10** (`wow-kernel`, `wow-spring-boot`, the Gradle plugin `me.ahoo.wow`, imports of `me.ahoo.wow.api.decide` or `me.ahoo.wow.kernel`, `@Saga`, `@Reactor`, `@Projection`, `aggregateSpec`): load `references/v10-service.md` and only it as the domain reference; it holds the recognition markers, the surface and its V10-specific review checks. The 9.x references below do not apply, not even their symbol names. Load `references/review-rubric.md` or `references/pipeline-map.md` for their workflow only, and check each 9.x-specific item against the V10 reference before using it.
-- **9.x or 8.x**: use the domain references below. Nothing in `references/v10-service.md` applies.
-- **9.x moving to V10**: a cross-major migration; it belongs to `wow-migrate`.
-
-## Load one domain reference first (9.x and 8.x targets)
-
-| Primary scope | Load |
+| The work is about | Load |
 |---|---|
-| Aggregate, command, event, sourcing, lifecycle, tenant/owner routing | `references/aggregate-sourcing.md` |
-| Saga, Projection, EventProcessor, retry, idempotency | `references/saga-processors.md` |
-| CommandGateway, wait, delivery ambiguity, HTTP command routes | `references/command-delivery.md` |
-| Query DSL, Snapshot/EventStream, QueryPolicy, Schema, pagination or HTTP query boundaries | `references/query-read-model.md` |
-| Spring Boot starter, feature capability, storage or bus routing | `references/starter-storage.md` |
-| Runtime ownership, readiness, fatal handling, drain or shutdown | `references/runtime-lifecycle.md` |
-| Uniqueness, reservation, rollback, or reprepare with PrepareKey | `references/prepare-key.md` |
+| Aggregates, commands, events, state, rejections and error codes, creation and lifecycle, revisions and upgrades, retired events, reservations, owner, space and tags, scheduled commands | `references/model.md` |
+| Sagas, projections, reactors, handlers by event type, `@OnRejected`, retries, parking and the failure ledger, start positions, idempotency | `references/processes.md` |
+| Another context: its published events, sending it commands, synchronous calls | `references/cross-context.md` |
+| Tests: aggregate, saga, projection and reactor specs, forks, time, server tests | `references/testing.md` |
+| Build and modules, the Spring Boot host, backends, configuration keys, callers, request facts, the internal port | `references/hosting.md` |
+| State reads, queries, HTTP routes and headers, the Manifest and OpenAPI, clients over HTTP | `references/reads.md` |
+| A failure: a symptom to its first wrong stage | `references/diagnose.md` |
+| A review | `references/review-rubric.md` |
 
-Add `references/review-rubric.md` for a review and `references/pipeline-map.md` for a diagnosis. Load a second domain reference only when the task genuinely crosses domains; read only the relevant sections, then verify every exact symbol and default in the current source.
+Load the one reference the job needs first, a second only when the task crosses into it, and read only the relevant sections. Verify every exact symbol and default in the target's source before relying on it.
 
-## Source discovery and shared gates
+## Shared gates
 
-- For any exact annotation, property, DSL method, gateway API, or generated contract, inspect its definition, every compiler/runtime consumer, representative tests, and downstream usage. Change generated output only through its source or generator.
-- Do not introduce blocking or manual subscription into reactive runtime paths.
-- Verify event/schema/API compatibility when changing public messages or metadata.
-- Use the assertion style already established by the target module; Kotlin Wow tests normally use `me.ahoo.test.asserts.assert` and `.assert()`.
-- Guides: https://wow.ahoo.me/guide/ (testing: https://wow.ahoo.me/guide/test-suite.html, troubleshooting: https://wow.ahoo.me/guide/troubleshooting.html). V10: https://wow.ahoo.me/guide/v10/ once the site carries it; until then the Wow repository's `v10` branch (`documentation/docs/en/guide/v10/` and the example, the eShop: `example/eshop`, five services with their end-to-end tests).
+- An exact annotation, property, DSL method or route: read its definition, the compiler or runtime code that consumes it, a representative test and the downstream usage. Change generated output (the Manifest, `<root>Model`, `<processor>Handlers`, a TypeScript client) only through its source.
+- A change to an event, a command, a rejection code or the state's shape is a contract change: the module's `check` compares the Manifest with its baseline and fails on a break. Do not update the baseline to silence it without the user's decision.
+- Use the assertion style of the module; Kotlin Wow tests use `me.ahoo.test.asserts.assert` and `.assert()`.
+- Guides: https://wow.ahoo.me/guide/ for the target's version; examples in the Wow repository: `example/quickstart` (one aggregate, its spec and server test) and `example/eshop` (five services, sagas across contexts, end-to-end tests).

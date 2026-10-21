@@ -46,11 +46,19 @@ export interface AggregateRef {
 }
 
 // @public
+export interface AggregateTextNumbers {
+    readonly commands?: Readonly<Record<string, TextNumbers>>;
+    readonly events?: Readonly<Record<string, TextNumbers>>;
+    readonly state?: TextNumbers;
+}
+
+// @public
 export interface AggregateType {
     // (undocumented)
     readonly context: string;
     // (undocumented)
     readonly name: string;
+    readonly textNumbers?: AggregateTextNumbers;
 }
 
 // @public
@@ -251,6 +259,9 @@ interface BinaryAggregationExpression<FIELDS extends string = string> {
 }
 
 // @public
+const BY: unique symbol;
+
+// @public
 type CalendarFilter<FIELDS extends string = string> = RelativeTimeFilterOptions & {
     op: FilterOperator.TODAY | FilterOperator.TOMORROW | FilterOperator.THIS_WEEK | FilterOperator.NEXT_WEEK | FilterOperator.LAST_WEEK | FilterOperator.THIS_MONTH | FilterOperator.LAST_MONTH | FilterOperator.YESTERDAY | FilterOperator.NEXT_MONTH | FilterOperator.LAST_YEAR | FilterOperator.THIS_YEAR | FilterOperator.NEXT_YEAR;
     field: QueryField<FIELDS>;
@@ -294,6 +305,7 @@ export interface CommandManifest {
 
 // @public
 export interface CommandOptions extends RequestOptions {
+    readonly bodyNumbers?: TextNumbers;
     readonly expectedVersion?: number;
     readonly requestId?: string;
     readonly resolveRejected?: boolean;
@@ -1089,6 +1101,9 @@ enum HavingExpressionType {
 }
 
 // @public
+type Head<P extends string> = P extends `${infer H}.${string}` ? H : P;
+
+// @public
 type HistogramAggregationGroup<FIELDS extends string = string> = {
     type: AggregationGroupType.HISTOGRAM;
     alias: string;
@@ -1105,6 +1120,13 @@ export interface Hop {
     // (undocumented)
     readonly subscription?: string | null;
 }
+
+// @public
+export type Including<Q, INCLUDE extends string> = Q & {
+    readonly projection: {
+        readonly include: readonly INCLUDE[];
+    };
+};
 
 // @public
 export function isProblem(value: unknown): value is Problem;
@@ -1272,6 +1294,9 @@ enum PagingMode {
 }
 
 // @public
+export function parseJson(text: string, marks?: TextNumbers): unknown;
+
+// @public
 export function parseRetryAfter(value: string | null | undefined, now?: number): number | undefined;
 
 // @public
@@ -1283,6 +1308,11 @@ interface PercentileAggregationMetric<FIELDS extends string = string> {
     // (undocumented)
     type: AggregationMetricType.PERCENTILE;
 }
+
+// @public
+type PickPaths<T, P extends string> = T extends readonly (infer E)[] ? PickPaths<E, P>[] : T extends object ? {
+    [K in keyof T as K extends Head<P> ? K : never]: K extends P ? T[K] : PickPaths<T[K], Tail<P, K & string>>;
+} : T;
 
 // @public
 export interface Problem {
@@ -1303,6 +1333,9 @@ export interface Problem {
 
 // @public
 export const PROBLEM_TYPE_PREFIX = "urn:wow:error:";
+
+// @public
+type Projected<R, INCLUDE extends string> = string extends INCLUDE ? R : PickPaths<R, INCLUDE>;
 
 // @public
 interface Projection<FIELDS extends string = string> {
@@ -1367,19 +1400,33 @@ type QueryModel = (typeof QueryModels)[keyof typeof QueryModels] | (string & {})
 
 // @public
 export class QueryModelClient<R, FIELDS extends string = string> {
-    constructor(path: string, client?: WowClientOptions);
+    constructor(path: string, client?: WowClientOptions, numbers?: TextNumbers | undefined);
     aggregate<ROW = Record<string, unknown>>(query: AggregationQuery<FIELDS, string>, options?: RequestOptions): Promise<ROW[]>;
     // (undocumented)
     readonly client: WowClientOptions;
     count(query: CountQuery<FIELDS>, options?: RequestOptions): Promise<CountResult>;
+    cursor<const INCLUDE extends FIELDS>(query: Including<CursorQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<CursorPage<Projected<R, INCLUDE>>>;
+    // (undocumented)
     cursor(query: CursorQuery<FIELDS>, options?: RequestOptions): Promise<CursorPage<R>>;
     describe(version?: string, options?: RequestOptions): Promise<DescriptorResult>;
+    list<const INCLUDE extends FIELDS>(query: Including<FilterListQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<Projected<R, INCLUDE>[]>;
+    // (undocumented)
     list(query: FilterListQuery<FIELDS>, options?: RequestOptions): Promise<R[]>;
+    listStream<const INCLUDE extends FIELDS>(query: Including<FilterListQuery<FIELDS>, INCLUDE>, options?: ListStreamOptions): Promise<ReadableStream<Projected<R, INCLUDE>>>;
+    // (undocumented)
     listStream(query: FilterListQuery<FIELDS>, options?: ListStreamOptions): Promise<ReadableStream<R>>;
+    listStreamRows<const INCLUDE extends FIELDS>(query: Including<FilterListQuery<FIELDS>, INCLUDE>, options?: ListStreamOptions): Promise<ReadableStream<StreamedRow<Projected<R, INCLUDE>>>>;
+    // (undocumented)
     listStreamRows(query: FilterListQuery<FIELDS>, options?: ListStreamOptions): Promise<ReadableStream<StreamedRow<R>>>;
+    // (undocumented)
+    readonly numbers?: TextNumbers | undefined;
+    paged<const INCLUDE extends FIELDS>(query: Including<PagedQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<PagedResult<Projected<R, INCLUDE>>>;
+    // (undocumented)
     paged(query: PagedQuery<FIELDS>, options?: RequestOptions): Promise<PagedResult<R>>;
     // (undocumented)
     readonly path: string;
+    single<const INCLUDE extends FIELDS>(query: Including<FilterSingleQuery<FIELDS>, INCLUDE>, options?: RequestOptions): Promise<Projected<R, INCLUDE>>;
+    // (undocumented)
     single(query: FilterSingleQuery<FIELDS>, options?: RequestOptions): Promise<R>;
 }
 
@@ -1740,6 +1787,9 @@ type StringFilter<FIELDS extends string = string> = {
 };
 
 // @public
+export function stringifyJson(value: unknown, marks?: TextNumbers): string;
+
+// @public
 export interface SubscriptionManifest {
     // (undocumented)
     readonly [property: string]: unknown;
@@ -1771,6 +1821,9 @@ export interface TagsApplied {
     // (undocumented)
     readonly tags: Tags;
 }
+
+// @public
+type Tail<P extends string, K extends string> = P extends `${K}.${infer R}` ? R : never;
 
 // @public
 export interface TargetScope {
@@ -1806,6 +1859,24 @@ type TermsAggregationGroup<FIELDS extends string = string> = {
     missingKey?: string;
     scope?: AggregationGroupScope;
 } & AggregationGroupInput<FIELDS>;
+
+// @public
+export type TextNumbers = true | TextNumbersByName | {
+    readonly [member: string]: TextNumbers;
+};
+
+// @public
+export function textNumbersBy(discriminant: string, member: string, cases: Readonly<Record<string, TextNumbers>>): TextNumbersByName;
+
+// @public
+export interface TextNumbersByName {
+    // (undocumented)
+    readonly [BY]: {
+        readonly discriminant: string;
+        readonly member: string;
+        readonly cases: Readonly<Record<string, TextNumbers>>;
+    };
+}
 
 // @public
 enum TimeUnit {

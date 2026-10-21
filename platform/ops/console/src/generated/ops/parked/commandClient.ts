@@ -2,6 +2,7 @@
 
 import { CommandGateway, type CommandOptions, type CommandResult, type CommandResultStream, type CreateCommandOptions, type WowClientOptions } from '@ahoo-wang/wow-client';
 import type { ApplyRetrySpec, MarkRecoverable, RecordActionRefused, RecordParked, RecordResolved, Resume, Skip } from '../types.js';
+import { ParkedAggregate } from './aggregate.js';
 
 /** The command routes of `ops.parked`. */
 export const ParkedCommandPaths = {
@@ -73,12 +74,12 @@ export class ParkedCommandClient {
    * Produces `ParkedRecorded`.
    */
   recordParked(body: RecordParked, options?: CreateCommandOptions): Promise<CommandResult> {
-    return this.gateway.send(options?.id === undefined ? ParkedCommandPaths.RECORD_PARKED_WITHOUT_ID : ParkedCommandPaths.RECORD_PARKED, body, options);
+    return this.gateway.send(options?.id === undefined ? ParkedCommandPaths.RECORD_PARKED_WITHOUT_ID : ParkedCommandPaths.RECORD_PARKED, body, { ...options, bodyNumbers: ParkedAggregate.textNumbers.commands.RecordParked });
   }
 
   /** `RecordParked`, answered as one result per hop of its wait (`text/event-stream`). */
   recordParkedStream(body: RecordParked, options?: CreateCommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(options?.id === undefined ? ParkedCommandPaths.RECORD_PARKED_WITHOUT_ID : ParkedCommandPaths.RECORD_PARKED, body, options);
+    return this.gateway.stream(options?.id === undefined ? ParkedCommandPaths.RECORD_PARKED_WITHOUT_ID : ParkedCommandPaths.RECORD_PARKED, body, { ...options, bodyNumbers: ParkedAggregate.textNumbers.commands.RecordParked });
   }
 
   /**
@@ -87,12 +88,12 @@ export class ParkedCommandClient {
    * Produces `ParkedResolved`.
    */
   recordResolved(id: string, body: RecordResolved, options?: CommandOptions): Promise<CommandResult> {
-    return this.gateway.send(ParkedCommandPaths.RECORD_RESOLVED, body, { ...options, id });
+    return this.gateway.send(ParkedCommandPaths.RECORD_RESOLVED, body, { ...options, id, bodyNumbers: ParkedAggregate.textNumbers.commands.RecordResolved });
   }
 
   /** `RecordResolved`, answered as one result per hop of its wait (`text/event-stream`). */
   recordResolvedStream(id: string, body: RecordResolved, options?: CommandOptions): Promise<CommandResultStream> {
-    return this.gateway.stream(ParkedCommandPaths.RECORD_RESOLVED, body, { ...options, id });
+    return this.gateway.stream(ParkedCommandPaths.RECORD_RESOLVED, body, { ...options, id, bodyNumbers: ParkedAggregate.textNumbers.commands.RecordResolved });
   }
 
   /**

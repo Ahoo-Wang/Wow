@@ -37,7 +37,7 @@
 ## 协作规则
 
 - **PR 描述就是交接说明**：写清完成了什么、定了什么、有哪些坑；接手的人从分支加 PR 描述接着做。
-- **合并前审查**：功能 PR 合并前有一轮独立的只读审查，发现修完再合。合并用 `gh pr merge <N> --squash --auto`，靠分支保护的必需检查（PR Safety、typescript-gate、typescript-contract-gate、typescript-storybook-gate）。
+- **合并前审查**：功能 PR 合并前有一轮独立的只读审查，发现修完再合。合并用 `gh pr merge <N> --squash --auto`，靠分支保护的必需检查（`v10` 上是 PR Safety 与 `ci-gate`）。
 - **合并前核对改动范围**：`gh pr diff <N> --name-only` 里出现范围之外的路径就不合（#3573 曾因用旧 base 压缩提交，悄悄回退了后端的改动）。压缩提交只用 `git reset --soft $(git merge-base HEAD origin/main)`。
 - **推送前本地验证**（rebase 后也要重跑）：`pnpm --filter @ahoo-wang/wow-view-engine test`（含三份 tsc）、`lint:check`、`build`（含体积上限）、清单型测试、受影响的单测与故事、prettier；按改动范围追加控制台（e2e 带 `CI=1`）、截图、契约、文档的门禁。CI 负责全量。
 - **查询后端的契约变更走交接协议**：凡是 TS 要镜像的契约，后端先开 PR 不合并，TS 侧推一个普通提交后回复「TS ready: #N」；镜像的门禁包含视图引擎的措辞与查询拒绝的测试和 `test:type`。

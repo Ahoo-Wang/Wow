@@ -57,6 +57,7 @@ import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 @AggregateRoot
 @Description("A buyer's order, from its submission to its shipment")
 class Order(private val state: OrderState) {
+    // region submit
     @OnCommand(produces = [OrderSubmitted::class])
     fun onCommand(command: SubmitOrder): Decision {
         val invalid = command.items.isEmpty() || command.items.any { it.quantity <= 0 || it.unitPrice.signum() < 0 }
@@ -65,6 +66,7 @@ class Order(private val state: OrderState) {
         }
         return Decision.events(OrderSubmitted(command.items))
     }
+    // endregion
 
     /** Moving on an order that is no longer submitted, one cancelled meanwhile say, changes nothing. */
     @Suppress("UnusedParameter") // The command has no body: its type is what the function handles.
@@ -72,6 +74,7 @@ class Order(private val state: OrderState) {
     fun onCommand(command: AwaitStockValidation): Decision =
         if (state.status == OrderStatus.SUBMITTED) Decision.events(OrderAwaitingValidation) else Decision.NoOp
 
+    // region confirm-stock
     /**
      * Confirms one product. A confirmation the order does not wait for changes nothing: one read again from the
      * stock stream, or one that arrives after another product's shortage cancelled the order (that reservation is
@@ -99,6 +102,7 @@ class Order(private val state: OrderState) {
         )
         return Decision.events(confirmed, OrderStockConfirmed)
     }
+    // endregion
 
     @OnCommand(produces = [OrderPaid::class])
     fun onCommand(command: PayOrder, scope: DecideScope): Decision = whenStatus(
@@ -157,6 +161,7 @@ class Order(private val state: OrderState) {
         private const val CANCEL_ORDER = "eshop-ordering.order.CancelOrder"
     }
 
+    // region rejections
     /**
      * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them
      * `<context>.order.<code>` (decision D259), as its peers read them from the api's generated contract.
@@ -173,4 +178,5 @@ class Order(private val state: OrderState) {
         @ErrorCode(description = "A payment pays the order's total amount.")
         const val WRONG_AMOUNT = "wrong-amount"
     }
+    // endregion
 }

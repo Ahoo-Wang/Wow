@@ -183,7 +183,7 @@ export function BasketPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        {money(item.unitPrice * item.quantity)}
+                        {money(Number(item.unitPrice) * item.quantity)}
                       </TableCell>
                       <TableCell>
                         <Button
@@ -205,7 +205,7 @@ export function BasketPage() {
                     <TableCell className="text-right" data-testid="total">
                       {money(
                         basket.value.reduce(
-                          (sum, item) => sum + item.unitPrice * item.quantity,
+                          (sum, item) => sum + Number(item.unitPrice) * item.quantity,
                           0,
                         ),
                       )}

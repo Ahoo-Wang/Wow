@@ -26,9 +26,9 @@ import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 
 /**
- * The snapshot writes of one partition of a snapshot subscription (decision D248 ②): the subscription's lanes, one per
- * aggregate, each [save] the snapshot they built, and the saves waiting together are written with one
- * [SnapshotStore.saveAll], at most [maxBatch] at a time.
+ * The snapshot writes of a snapshot subscription, of all its partitions together (decision D248 ②, work package
+ * B.O-5): the subscription's lanes, one per aggregate, each [save] the snapshot they built, and the saves waiting
+ * together are written with one [SnapshotStore.saveAll], at most [maxBatch] at a time.
  *
  * - **No waiting for a batch to fill** (as the log's group commit, decision D11): a save finding no write running
  *   leads one at once, after a [yield] that lets the lanes ready in the same instant join it; the saves arriving while

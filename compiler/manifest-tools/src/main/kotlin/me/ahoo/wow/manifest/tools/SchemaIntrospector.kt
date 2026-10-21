@@ -24,6 +24,8 @@ import com.github.victools.jsonschema.generator.SchemaGenerationContext
 import com.github.victools.jsonschema.generator.SchemaGenerator
 import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder
 import com.github.victools.jsonschema.generator.SchemaVersion
+import com.github.victools.jsonschema.generator.TypeAttributeOverrideV2
+import com.github.victools.jsonschema.generator.TypeScope
 import com.github.victools.jsonschema.generator.impl.DefinitionKey
 import com.github.victools.jsonschema.generator.naming.SchemaDefinitionNamingStrategy
 import com.github.victools.jsonschema.module.jackson.JacksonOption
@@ -205,6 +207,7 @@ internal class SchemaIntrospector(
                 Overrides(schemaOverrides.mapValues { (type, schema) -> parse(type, schema) }, mapper),
             )
             .withTypeAttributeOverride(queryKeywords)
+            .withTypeAttributeOverride(WireFormats)
             .withDescriptionResolver { scope -> describe(scope.type.erasedType) }
         builder.forFields()
             .withRequiredCheck(::isKotlinRequired)
@@ -231,6 +234,36 @@ internal class SchemaIntrospector(
                 .firstOrNull { it.internalName == member.declaredName }
             return property?.name?.takeIf { it != member.declaredName }
         }
+    }
+
+    /**
+     * The `format` of the wire values a plain JSON type does not tell apart (review R4-Q, Q-9; decision D254 ⑤):
+     * an integer past JavaScript's safe range (`int64`, a `Long`; `bigint`, a `BigInteger`), an exact decimal
+     * (`decimal`, a `BigDecimal`), an instant with its offset (`date-time`) and a calendar date (`date`). The wire keeps
+     * numbers and ISO-8601 strings (decision D122); a client reads `int64`, `bigint` and `decimal` from their text.
+     */
+    private object WireFormats : TypeAttributeOverrideV2 {
+        private val FORMATS: Map<Class<*>, String> = mapOf(
+            Long::class.javaPrimitiveType!! to INT64,
+            java.lang.Long::class.java to INT64,
+            java.math.BigInteger::class.java to "bigint",
+            java.math.BigDecimal::class.java to "decimal",
+            java.time.Instant::class.java to DATE_TIME,
+            java.time.OffsetDateTime::class.java to DATE_TIME,
+            java.time.ZonedDateTime::class.java to DATE_TIME,
+            java.time.LocalDate::class.java to "date",
+        )
+
+        override fun overrideTypeAttributes(attributes: ObjectNode, scope: TypeScope, context: SchemaGenerationContext) {
+            val format = FORMATS[scope.type.erasedType] ?: return
+            if (!attributes.has(FORMAT)) {
+                attributes.put(FORMAT, format)
+            }
+        }
+
+        private const val FORMAT = "format"
+        private const val INT64 = "int64"
+        private const val DATE_TIME = "date-time"
     }
 
     /** Definitions keyed by the JVM binary name of their type, so the fragment's references find them. */

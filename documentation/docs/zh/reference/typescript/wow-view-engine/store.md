@@ -7,7 +7,7 @@ description: 'ViewStore 端口、ViewStoreError 的六个代码、ViewPermission
 
 视图引擎只持久化两样东西：保存的视图（`ViewInstance`）与个人偏好。`ViewStore` 是后端唯一要满足的端口——在 Wow 服务上用 [`WowViewStore`](../wow-view-store/)，只有不是 Wow 的后端才自己实现它。包里自带的唯一实现是 `MemoryViewStore`，给测试、示例与只查询的场景。
 
-相关指南：[视图存在哪里](../../../guide/typescript/view-engine-storage.md)（选哪一个 store、接上 `WowViewStore`、自己实现端口并跑一致性测试）、[视图引擎的核心概念](../../../guide/typescript/view-engine-concepts.md)（保存的视图、revision 与冲突）、[视图存储](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md)（`WowViewStore` 背后的 Kotlin 服务端）。
+相关指南：[视图存在哪里](../../../typescript/view-engine/storage.md)（选哪一个 store、接上 `WowViewStore`、自己实现端口并跑一致性测试）、[视图引擎的核心概念](../../../typescript/view-engine/index.md)（保存的视图、revision 与冲突）、[视图存储](https://github.com/Ahoo-Wang/Wow/blob/main/deploy/v10/view-store/README.md)（`WowViewStore` 背后的 Kotlin 服务端）。
 
 ## ViewStore {#api-ViewStore}
 

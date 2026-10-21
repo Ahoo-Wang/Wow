@@ -86,7 +86,7 @@ test('any other workflow, the release workflow included, runs only the workflow 
     '.github/workflows/package-deploy.yml',
     '.github/workflows/documentation-deploy.yml',
     '.github/workflows/v10-image-deploy.yml',
-    '.github/workflows/v10-nightly.yml',
+    '.github/workflows/nightly.yml',
     '.github/workflows/gitee-sync.yml',
   ])
     assert.deepEqual(on([path]), ['workflows'], path);
@@ -98,7 +98,7 @@ test('the Gradle build, the dependency versions and the examples skip the TypeSc
     'settings.gradle.kts',
     'gradle/libs.versions.toml',
     'gradlew',
-    'wow-dependencies/build.gradle.kts',
+    'bom/dependencies/build.gradle.kts',
     'test/benchmarks/README.md',
     'test/benchmarks/results/reports/v10-counts-e1-e3.md',
     'example/README.md',
@@ -261,8 +261,8 @@ test("the site's view-engine pages also run the tests that read them", () => {
     'documentation/docs/en/reference/typescript/wow-view-engine/store.md',
     'documentation/docs/zh/reference/typescript/wow-view-engine/issues.md',
     'documentation/docs/en/reference/typescript/wow-view-engine/symbols-ui.md',
-    'documentation/docs/en/guide/typescript/view-engine-theming.md',
-    'documentation/docs/zh/guide/typescript/view-engine.md',
+    'documentation/docs/en/typescript/view-engine/theming.md',
+    'documentation/docs/zh/typescript/view-engine/index.md',
   ])
     assert.deepEqual(on([path]), ['docs', 'viewEngineDocs'], path);
   for (const path of [
@@ -446,7 +446,7 @@ test('the modules, their tests, the platform and the root build run the JVM jobs
     'test/migration-rehearsal/build.gradle.kts',
     'test/migration-rehearsal/rehearsal/rehearse.sh',
     'bom/bom/build.gradle.kts',
-    'wow-dependencies/build.gradle.kts',
+    'bom/dependencies/build.gradle.kts',
     'gradle/libs.versions.toml',
     'config/detekt/detekt.yml',
     'build.gradle.kts',
@@ -467,7 +467,7 @@ test('the modules, their tests, the platform and the root build run the JVM jobs
     'documentation/docs/en/guide/v10/quickstart.md',
     'README.md',
     'codecov.yml',
-    '.github/workflows/v10-nightly.yml',
+    '.github/workflows/nightly.yml',
   ])
     assert.ok(!scopes([path]).jvm, path);
   // A V10 path keeps the scopes its rule gives it.
@@ -496,7 +496,7 @@ test('the V10 store, what its suites import, the service and its modules run the
     'host/spring-boot/src/main/kotlin/A.kt',
     'test/tck/src/main/kotlin/A.kt',
     'test/test-dsl/src/main/kotlin/A.kt',
-    'wow-dependencies/build.gradle.kts',
+    'bom/dependencies/build.gradle.kts',
     'gradle/libs.versions.toml',
     'build.gradle.kts',
     'settings.gradle.kts',

@@ -13,6 +13,17 @@ export const OrderAggregate = {
   path: '/eshop-ordering/order',
   ownership: 'OWNER',
   snapshot: true,
+  textNumbers: {
+    state: { items: { '*': { unitPrice: true } }, totalAmount: true },
+    events: {
+      'eshop-ordering.order.OrderPaid': { amount: true },
+      'eshop-ordering.order.OrderSubmitted': { items: { '*': { unitPrice: true } } },
+    },
+    commands: {
+      PayOrder: { amount: true },
+      SubmitOrder: { items: { '*': { unitPrice: true } } },
+    },
+  },
 } as const;
 
 /** The `state.*` paths of `order`'s snapshots a query filters, sorts and projects on. */

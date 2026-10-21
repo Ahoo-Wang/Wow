@@ -13,6 +13,15 @@ export const PaymentAggregate = {
   path: '/eshop-payment/payment',
   ownership: 'OWNER',
   snapshot: true,
+  textNumbers: {
+    state: { amount: true },
+    events: {
+      'eshop-payment.payment.PaymentRequested': { amount: true },
+    },
+    commands: {
+      RequestPayment: { amount: true },
+    },
+  },
 } as const;
 
 /** The `state.*` paths of `payment`'s snapshots a query filters, sorts and projects on. */

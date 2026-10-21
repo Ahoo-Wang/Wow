@@ -64,6 +64,8 @@ const markdown = (dir) =>
 export const SOURCES = [
     ...['en', 'zh'].flatMap((locale) => [
         ...markdown(join(documentation, `docs/${locale}/guide/typescript`)),
+        ...markdown(join(documentation, `docs/${locale}/typescript`)),
+        ...markdown(join(documentation, `docs/${locale}/data`)),
         ...markdown(join(documentation, `docs/${locale}/reference/typescript`)),
     ]),
     ...['wow-client', 'wow-generator', 'wow-view-engine', 'wow-view-store'].flatMap((pkg) =>
@@ -99,8 +101,8 @@ const ENTRIES = {
 /** The package a page documents, whose entries come first. */
 function packageOf(page) {
     if (/^skills\/wow-view-/.test(page)) return 'wow-view-engine'
-    // The view engine's guides (`view-engine`, `view-engine-*`) document that package.
-    if (/guide\/typescript\/view-engine(?:-[a-z-]+)?\.md$/.test(page)) return 'wow-view-engine'
+    // The view engine's guides (`typescript/view-engine/*`) document that package.
+    if (/(?:^|\/)typescript\/view-engine\/[a-z-]+\.md$/.test(page)) return 'wow-view-engine'
     const match = /(?:reference\/typescript\/|^typescript\/)(wow-[a-z-]+)/.exec(page)
     return match && ENTRIES[match[1]] ? match[1] : 'wow-client'
 }

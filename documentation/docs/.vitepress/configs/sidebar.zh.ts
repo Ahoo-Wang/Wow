@@ -13,36 +13,19 @@
 
 import {DefaultTheme} from "vitepress/types/default-theme";
 
-// 视图引擎在 TypeScript 客户端区域里自成四组：入门、概念、指南、参考。
-// 阶段 7 的 B2～B5 各自只往自己的那一组里加页面（概念归 B2，宿主、操作与 CSP 归 B3，
-// 存储归 B4，API 参考归 B5），互不改动别的组。
-const viewEngineStart: DefaultTheme.SidebarItem = {
-    base: '/zh/guide/typescript/',
+// 视图引擎的指南自成一组，与 TypeScript 客户端和各包的参考并列。
+const viewEngineGuides: DefaultTheme.SidebarItem = {
+    base: '/zh/typescript/view-engine/',
     text: '视图引擎',
     items: [
-        {text: '概览', link: 'view-engine'},
-    ],
-}
-
-const viewEngineConcepts: DefaultTheme.SidebarItem = {
-    base: '/zh/guide/typescript/',
-    text: '视图引擎：概念',
-    items: [
-        {text: '核心概念', link: 'view-engine-concepts'},
-    ],
-}
-
-const viewEngineGuides: DefaultTheme.SidebarItem = {
-    base: '/zh/guide/typescript/',
-    text: '视图引擎：指南',
-    items: [
-        {text: '写好一份定义', link: 'view-engine-definitions'},
-        {text: '主题', link: 'view-engine-theming'},
-        {text: '可访问性', link: 'view-engine-accessibility'},
-        {text: '视图存在哪里', link: 'view-engine-storage'},
-        {text: '接进宿主', link: 'view-engine-host'},
-        {text: '声明式操作', link: 'view-engine-actions'},
-        {text: '内容安全策略', link: 'view-engine-csp'},
+        {text: '核心概念', link: 'index.html'},
+        {text: '定义视图', link: 'definitions'},
+        {text: '接入宿主', link: 'host'},
+        {text: '操作', link: 'actions'},
+        {text: '视图存在哪里', link: 'storage'},
+        {text: '主题', link: 'theming'},
+        {text: '可访问性', link: 'accessibility'},
+        {text: '内容安全策略', link: 'csp'},
     ],
 }
 
@@ -87,10 +70,7 @@ const viewEngineReference: DefaultTheme.SidebarItem[] = [
 ]
 
 // 还没有页面的组不出现在侧边栏里。
-const viewEngine: DefaultTheme.SidebarItem[] = [
-    ...[viewEngineStart, viewEngineConcepts, viewEngineGuides].filter((group) => group.items?.length),
-    ...viewEngineReference,
-]
+const viewEngine: DefaultTheme.SidebarItem[] = [viewEngineGuides, ...viewEngineReference]
 
 // TypeScript 客户端区域共用一个侧边栏：指南加上各个包的参考。
 const typescriptZh: DefaultTheme.SidebarItem[] = [
@@ -126,17 +106,14 @@ const typescriptZh: DefaultTheme.SidebarItem[] = [
 
 export const sidebarZh: DefaultTheme.Sidebar = {
     '/zh/guide/typescript/': typescriptZh,
+    '/zh/typescript/': typescriptZh,
     '/zh/reference/typescript/': typescriptZh,
-    '/zh/workbench/': [
+    '/zh/data/': [
         {
-            text: '使用工作台',
-            base: '/zh/workbench/',
+            text: '数据',
+            base: '/zh/data/',
             items: [
-                {text: '概览', link: 'index.html'},
-                {text: '记录视图', link: 'records'},
-                {text: '分析视图', link: 'analysis'},
-                {text: '仪表盘', link: 'dashboards'},
-                {text: '保存与管理视图', link: 'views'},
+                {text: '工作台', link: 'workbench'},
             ],
         },
     ],
@@ -153,14 +130,67 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: 'HTTP API', link: 'http-api'},
                 {text: '查询语言', link: 'query'},
                 {text: '配置项', link: 'configuration'},
-                {text: '部署', link: 'deployment'},
+                {text: '部署', base: '/zh/operate/', link: 'topology'},
+            ],
+        },
+    ],
+    '/zh/operate/': [
+        {
+            base: '/zh/operate/',
+            text: '运维',
+            items: [
+                {text: '部署模型', link: 'topology'},
+                {text: '保护部署', link: 'security'},
+                {text: 'Kafka', link: 'kafka'},
+                {text: 'ops 服务与控制台', link: 'ops-console'},
+            ],
+        },
+    ],
+    '/zh/migrate/': [
+        {
+            base: '/zh/migrate/',
+            text: '从 9.x 迁移',
+            items: [
+                {text: '从 9.x 迁移', link: 'index.html'},
+                {text: 'V10 中的 9.x 能力', link: 'capabilities'},
+                {text: '迁移数据', link: 'data'},
+                {text: 'migrate-data 命令行', base: '/zh/reference/', link: 'migrate-data'},
             ],
         },
     ],
     '/zh/guide/': [
         {
             base: '/zh/guide/',
-            text: '开发指南',
+            text: '建模',
+            items: [
+                {text: '编写聚合', link: 'aggregates'},
+                {text: '拒绝与错误码', link: 'rejections'},
+                {text: '演进事件', link: 'event-evolution'},
+                {text: '所有者、空间与标签', link: 'ownership'},
+                {text: '唯一键', link: 'unique-keys'},
+            ],
+        },
+        {
+            base: '/zh/guide/',
+            text: '流程',
+            items: [
+                {text: '编写 Saga', link: 'sagas'},
+                {text: '投影与反应器', link: 'projections'},
+                {text: '定时命令', link: 'scheduling'},
+                {text: '失败与重试', link: 'failures'},
+            ],
+        },
+        {
+            base: '/zh/guide/',
+            text: '跨上下文',
+            items: [
+                {text: '发布与消费事件流', link: 'published-streams'},
+                {text: '调用其他服务', link: 'calling-services'},
+            ],
+        },
+        {
+            base: '/zh/guide/',
+            text: '测试',
             items: [
                 {text: '测试领域代码', link: 'testing'},
             ],
@@ -191,6 +221,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             items: [
                 {text: '术语表', link: 'glossary'},
                 {text: '线上协议', link: 'protocols'},
+                {text: 'migrate-data 命令行', link: 'migrate-data'},
                 {text: '配置项', link: 'configuration'},
                 {text: '错误码', link: 'error-codes'},
                 {text: '注解', link: 'annotations'},

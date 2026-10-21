@@ -412,7 +412,7 @@
     "me.ahoo.wow.example.eshop.ordering.api.order.PayOrder": {
       "type": "object",
       "properties": {
-        "amount": { "type": "number" },
+        "amount": { "type": "number", "format": "decimal" },
         "paymentId": { "type": "string" }
       },
       "required": ["amount", "paymentId"],
@@ -445,7 +445,7 @@
     "me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested": {
       "type": "object",
       "properties": {
-        "amount": { "type": "number" },
+        "amount": { "type": "number", "format": "decimal" },
         "orderId": { "type": "string" }
       },
       "required": ["amount", "orderId"],
@@ -466,7 +466,7 @@
     "me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment": {
       "type": "object",
       "properties": {
-        "amount": { "type": "number" },
+        "amount": { "type": "number", "format": "decimal" },
         "orderId": { "type": "string" }
       },
       "required": ["amount", "orderId"],
@@ -485,7 +485,7 @@
     "me.ahoo.wow.example.eshop.payment.domain.payment.PaymentState": {
       "type": "object",
       "properties": {
-        "amount": { "type": "number" },
+        "amount": { "type": "number", "format": "decimal" },
         "orderId": { "type": "string" },
         "reason": { "type": ["string", "null"] },
         "status": {
