@@ -1,0 +1,4 @@
+{
+  "kind": "list",
+  "filter": { "op": "IS_NULL", "field": "state.brandId" }
+}

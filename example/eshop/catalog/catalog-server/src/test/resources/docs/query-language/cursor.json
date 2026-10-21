@@ -1,0 +1,6 @@
+{
+  "kind": "cursor",
+  "filter": { "op": "EQ", "field": "state.status", "value": "PUBLISHED" },
+  "sort": [{ "field": "lastEventTime", "direction": "DESC" }],
+  "size": 20
+}
