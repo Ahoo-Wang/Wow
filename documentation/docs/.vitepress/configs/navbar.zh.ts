@@ -37,6 +37,7 @@ export const navbarZh: DefaultTheme.NavItem[] = [
             },
         ],
     },
+    {text: '概念', link: '/zh/concepts/', activeMatch: '/zh/concepts/'},
     {
         text: '运维',
         activeMatch: '/zh/operate/',
@@ -50,6 +51,7 @@ export const navbarZh: DefaultTheme.NavItem[] = [
     {
         text: '参考',
         items: [
+            {text: '术语表', link: '/zh/reference/glossary'},
             {text: '配置项', link: '/zh/guide/v10/configuration'},
             {text: '编译器生成什么', link: '/zh/guide/v10/generated-code'},
             {text: 'Kotlin API', link: '/dokka/index.html', target: '_blank'},

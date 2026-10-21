@@ -75,6 +75,16 @@ A 9.x event the V10 aggregate no longer has (the 9.x `DroppedEvent`) is mapped i
 - `retire` writes the record as stored under the name `to`, which the V10 aggregate lists in `@AggregateRoot(retiredEvents)` (decision D219). Loading skips it, so its stream still counts as a version. The check fails when `to` is not in the aggregate's retired events in the Manifest.
 - `drop` leaves the event out of its stream. A stream whose every event is dropped would leave its version empty, which the log cannot hold, so the check counts those streams and fails before anything is imported. Map such events with `retire` instead.
 
+## Events that moved the owner
+
+9.x applied any event implementing its `OwnerTransferred` as an owner transfer: the aggregate's owner became the event's `toOwnerId`. A domain event of that kind (a view's `ViewAudienceChanged`) names the field in its mapping, so the imported stream records the owner it moved to, as it records the owner of a `wow.lifecycle.OwnerTransferred`:
+
+```json
+{ "from": "view_audience_changed", "to": "ViewAudienceChanged", "owner": "toOwnerId" }
+```
+
+A blank or missing value leaves the stream's own owner. An aggregate whose V10 ownership is `TENANT` records none either way.
+
 ## Reservations (9.x `PrepareKey`)
 
 9.x's `MongoPrepareKey` keeps each `PrepareKey` in a collection `prepare_<name>`, one document per key: `{_id: <key>, value: <the prepared value>, ttlAt: <Date>}`. The value is the `PrepareKey<V>`'s `V`: a string, or a document of its fields. A key prepared forever has `ttlAt` at 9.x's `TTL_FOREVER` (6666-06-06). 9.x keys have no tenant.

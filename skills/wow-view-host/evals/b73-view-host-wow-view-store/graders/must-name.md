@@ -1,8 +1,8 @@
 ---
 type: regex
-pattern: '\{ownerId\}'
+pattern: 'view-store\.shared-writer'
 match: contains
 target: last_message
 ---
 
-The answer names `{ownerId}`.
+The answer names `view-store.shared-writer`.

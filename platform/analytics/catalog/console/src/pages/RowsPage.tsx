@@ -11,82 +11,62 @@
  * limitations under the License.
  */
 
+import { useCallback } from "react";
 import { useSearchParams } from "react-router";
-import { RefreshCw } from "lucide-react";
+import { DatasetWorkbench } from "@ahoo-wang/wow-view-engine/ui";
 import { CallerGate } from "@/app/CallerGate.tsx";
 import { useServed } from "@/app/served.tsx";
-import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n.tsx";
+import { callerKey } from "@/services/caller.ts";
 import { problemText } from "@/views/catalogCommands.ts";
-import { DATASET_PARAM } from "@/views/bindings.ts";
-import { CONTROL } from "@/detail/parts.tsx";
-import { Workbench } from "./Workbench.tsx";
+import { DATASET_PARAM, VIEW_PARAM } from "@/views/bindings.ts";
 
 /**
  * A served dataset's rows, read as any reader of it reads them: through the
- * node's query policies (D251), in the view engine's workbench. The dataset
- * open is in the address (`?dataset=`), the first served by default.
+ * node's query policies (D251), in the view engine's standalone dataset view
+ * (`DatasetWorkbench`, D238 ⑨). The dataset and the view open are in the
+ * address (`?dataset=`, `?view=`); a row offers the commands of the
+ * aggregates it refers to (`referenceActions`).
  */
 export default function RowsPage() {
   const { t } = useI18n();
   const served = useServed();
   const [params, setParams] = useSearchParams();
-  const asked = params.get(DATASET_PARAM);
-  const open =
-    served.datasets.find(({ id }) => id === asked)?.id ??
-    served.datasets[0]?.id ??
-    null;
+  const onDatasetChange = useCallback(
+    (dataset: string) => setParams({ [DATASET_PARAM]: dataset }),
+    [setParams],
+  );
+  const onInstanceChange = useCallback(
+    (view: string | null) =>
+      setParams((current) => {
+        const next = new URLSearchParams(current);
+        if (view === null) next.delete(VIEW_PARAM);
+        else next.set(VIEW_PARAM, view);
+        return next;
+      }),
+    [setParams],
+  );
   return (
     <CallerGate>
       {(caller) => (
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex items-center gap-2 border-b px-3 py-2 text-sm">
-            <label className="flex items-center gap-2">
-              <span className="text-muted-foreground">{t("dataset")}</span>
-              <select
-                className={CONTROL}
-                value={open ?? ""}
-                disabled={served.datasets.length === 0}
-                onChange={(event) =>
-                  setParams({ [DATASET_PARAM]: event.target.value })
-                }
-              >
-                {served.datasets.map(({ id, entry }) => (
-                  <option key={id} value={id}>
-                    {entry.title ? `${entry.title} (${id})` : id}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t("reload")}
-              title={t("reload")}
-              disabled={served.loading}
-              onClick={served.refresh}
-            >
-              <RefreshCw />
-            </Button>
-            {served.loading ? (
-              <span className="text-muted-foreground">{t("loading")}</span>
-            ) : null}
-          </div>
           {served.error ? (
             <p role="alert" className="p-4 text-sm text-destructive">
               {t("datasetsFailed", { message: problemText(served.error) })}
             </p>
           ) : null}
-          {open === null ? (
-            served.loading ? null : (
-              <p className="p-6 text-sm text-muted-foreground">
-                {t("noDatasets")}
-              </p>
-            )
-          ) : (
-            <Workbench key={open} definitionId={open} caller={caller} />
-          )}
+          <DatasetWorkbench
+            // Another caller reads other rows: the workbench starts over.
+            key={callerKey(caller)}
+            datasets={served.datasets}
+            loading={served.loading}
+            onRefresh={served.refresh}
+            datasetId={params.get(DATASET_PARAM)}
+            onDatasetChange={onDatasetChange}
+            instanceId={params.get(VIEW_PARAM)}
+            onInstanceChange={onInstanceChange}
+            landmark="region"
+          />
         </div>
       )}
     </CallerGate>

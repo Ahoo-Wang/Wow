@@ -297,7 +297,7 @@ src/
     cache.ts                  — `DescriptorCache`: one descriptor per source, read once and waited for, checked again past `DESCRIPTOR_MAX_AGE_MS` with the version held, one read in flight per source
     index.ts                  — The capabilities layer
   runtime/                    — Stateful layer; never imports react or ui
-    datasetResources.ts       — `DatasetResources` (D85): an engine's datasets kept in step with a service's directory — registered, registered again on a new version, removed when no longer listed
+    datasetResources.ts       — `DatasetResources` (D85, D93): an engine's datasets kept in step with one service's directory or several — registered, registered again on a new version, removed when no longer listed; an id two catalogs list is the first one's, the other reported (`duplicates`, `onDuplicate`), a catalog that cannot be read keeps what it served (`onCatalogError`)
     dashboardRuntime.ts       — `DashboardViewRuntime`: the parts in `dashboard/` assembled over one `RuntimeStore` and one clock — admission, the state and the timer wired, and `sync`, which lines the references, the child runtimes and what the filters hold up with the config; only the tab on screen runs (`showTab`)
     definitions.ts            — The definition registry: judged once, refused at the point of use
     capabilities.ts           — `SourceCapabilities`: the descriptor cache one engine holds, read before a view over a source first runs (`prepareFor`), checked again on a refresh and on the page coming back; each definition narrowed once per version and its findings reported once (`effective`), refused where the descriptor contradicts it; the limits per source; who runs on a source, told when its descriptor changes (`watch`)
@@ -409,6 +409,7 @@ src/
     useRecordActions.ts       — `useRecordActions`: the declared actions of one record surface — what a record and the selection are offered, the clock their `changesAt` moves, the press that asks first or runs, the question or form pending (able, refused by reason, what is missing), only-the-able, and the runner
     useSearchBox.ts           — The view's search kept on hand: the definition's search field, the draft's and the applied text, set / submit / clear; whether the source searches it by words (`byWords`)
     useUnavailable.ts         — What the open view uses that its source no longer admits, and 「移除不可用的条件」 (`UnavailableController`)
+    useDatasets.ts            — `useDatasets` (D93): the datasets a `DatasetResources` serves, read again when the host's key (the caller) changes and on `refresh`, with the duplicates left out, `loading` and `error`
     useDashboard.ts           — Dashboard panels, geometry and state; the board's edit commands, its tabs, `preload` for a view about to be added, and a press on a panel's group (`crossFilter`, `pressed`, `destination`, `destinationBoard`)
     usePanelFollowUps.ts      — The follow-up menu on a dashboard panel (D22 H): `useAnalysisResult`'s workbench half routed to the host (`ViewNavigation` of kind `unsaved`, the board's filters folded into the view's own), and `ownedNavigation` for a board's own analysis
     useFilterEditor.ts        — Filter tree editor controller
@@ -438,13 +439,15 @@ src/
       newView.ts              — What `create` makes: the kind's default config and the audience it goes to
       releaseDeleted.ts       — Lets a workbench's pinned id go once the view is deleted
       handOver.ts             — `useHandOver`: a view a host hands the workbench (D26 Q30) — a saved one opened by its id, one nobody saved held as `handed` so the shell opens it folded — once per object through the leave guard, under what the page holds as its scope; `useHandedConditions`, the reader's board values put onto a handed saved view's own conditions
-  ui/                         — Default look; may import every layer. Three tiers: `kit/` under every feature folder, the feature folders, and at the root only the `/ui` entry, the four shells and the host's own pieces
+  ui/                         — Default look; may import every layer. Three tiers: `kit/` under every feature folder, the feature folders, and at the root only the `/ui` entry, the five shells and the host's own pieces
     DashboardWorkbench.tsx    — Default Dashboard workbench: no 「正在显示」 band (D27), the board's fixed scope handed to the filter bar, a finding about a filter or a panel said by its name
+    DatasetWorkbench.tsx      — The standalone dataset view (D93): a picker of the datasets served, from one catalog or several, over the `DataWorkbench` of the one open; the dataset and the view the host's to route
     DataWorkbench.tsx         — The data workbench: one list of record and analysis views; `useWorkbench` + both parts + `WorkbenchShell`, joined (D18-1, D20)
     EmbeddedDashboard.tsx     — A saved board on a business page (D22), read and never written (D36): a tier (static, interactive), each filter adjustable, locked or hidden (`filterModes`) — the locked and hidden values the page's own and followed (`pageValues`), the reader's the host's address (`initialFilters`/`onFiltersChange`, never a held one), every filter read as what it holds in the static tier — the filter bar, tabs and grid (`ReadBoard`), the title, panel-title, export and fill-the-screen switches
     EmbeddedView.tsx          — A saved record or analysis view on a business page (D22), never written (D36): a tier (static, interactive), the page's narrowing ANDed onto the view's own (`scopeFilter`), and the title, search, export, record detail, auto-refresh, fill-the-screen and 在工作台中打开 switches; a dashboard is `EmbeddedDashboard`'s
     ViewHost.tsx              — `ViewHost`: the host's one entry, made of ports — data (`engine`), router, language, theme (`theme`/`preset`/`brand` on `<html>`), commands (`bindings`) — nesting like the provider, the outermost painting `<html>` (host-integration.md 4.2)
     colorMode.tsx             — `ColorModeHost` and `useColorMode`: light or dark painted on `<html>` — the system's followed live, a reader's pick kept under a key — or left to the host (`host`)
+    datasetBindings.ts        — `datasetBindings` (D93): a binding of each dataset served, at the host's route and with the options it asks for (its rows' actions)
     viewNavigation.ts         — `useViewNavigation`: the host's navigation as data — each routed resource and its system views, titles said, where the address is (4.3)
     index.ts                  — The `/ui` entry: the default look, built on shadcn/ui with Base UI primitives
     actions/                  — Declared actions drawn (host-integration.md 5.1); over `filter` and `record`
@@ -742,6 +745,7 @@ src/
       dashboard.ts            — the dashboard grid, its panels, and the dashboard kernel behind them
       definition.ts           — definition admission, worded for whoever wrote the release
       embed.ts                — an embedded view or dashboard: a filter the page locked
+      datasets.ts             — the standalone dataset view (D93): the picker, and what it says while no dataset is served
       filters.ts              — a board's filters, batch C2: the filter bar, a panel a filter does not reach, a filter's settings and wiring
       en.ts                   — the English catalogue: the files below, spread
       export.ts               — the export window

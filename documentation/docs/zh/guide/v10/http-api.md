@@ -180,7 +180,7 @@ curl -X POST localhost:8080/example/order/events/query \
 - 调用方只看到自己的聚合：自己的租户，以及它有值时的所有者与空间。不带所有者的租户级调用方看到本租户的全部聚合。查询准入从 Manifest 读取每个聚合的归属：属于租户的聚合（`Ownership.TENANT`）的查询不按调用方的所有者限制。除非查询指明删除状态，否则看不到已删除的聚合。
 - 快照查询可以筛选与排序系统字段（`tenantId`、`aggregateId`、`version`、`ownerId`、`spaceId`、`deleted`、`tags`、`firstEventTime`、`lastEventTime`、`operator`、`firstOperator`）以及补全后的片段中状态 Schema 描述的 `state.*`。状态字段上的 `@QueryIndex`（`me.ahoo.wow.api.query.annotation`，在 `wow-query-api` 中）声明一个由后端创建的索引（`wow.query.index.ddl`）；见[查询注解](./query.md#查询注解)。
 - `events` 模型的筛选条件指定一个聚合的 ID，可以再限定 `version` 或 `commitTime`，不能有其他条件。
-- 模型拒绝的查询返回 400 `wow.query.invalid`，其中的违例逐条指出规则；无法读成查询的返回 400 `wow.query.malformed`；超时为 `wow.query.timeout`。
+- 模型拒绝的查询返回 400 `wow.query.invalid`，其中的违例逐条指出规则；无法读成查询的返回 400 `wow.query.malformed`；超时为 504 `wow.query.timeout`，原样重跑没有意义；没有匹配记录的 `single` 查询为 404 `wow.query.not-found`。
 - 快照在 PostgreSQL 与 MongoDB 上可以查询。内存后端上没有查询后端提供快照，其路由返回 404。
 - 每个 HTTP 查询都在 `wow.query.http.*` 的预算下执行（见[配置项](./configuration.md#查询)）。
 
@@ -241,6 +241,8 @@ curl -X POST localhost:8080/example/order/events/query \
 | `wow.query.malformed` | 400 | 查询请求体无法读成查询 |
 | `wow.query.invalid` | 400 | 查询未通过准入；违例逐条指出规则 |
 | `wow.query.failed` | 500 | 查询后端执行失败 |
-| `wow.query.timeout` | 503 | 查询超出了预算允许的时间 |
+| `wow.query.not-found` | 404 | `single` 查询没有匹配的记录 |
+| `wow.query.dataset-not-found` | 404 | 没有向调用方提供该名称的数据集 |
+| `wow.query.timeout` | 504 | 查询超出了预算允许的时间；应缩小查询而不是重试 |
 
 `GET /wow/manifest` 在 `errors` 下列出它们，并在每个上下文下列出该上下文自己的错误码。

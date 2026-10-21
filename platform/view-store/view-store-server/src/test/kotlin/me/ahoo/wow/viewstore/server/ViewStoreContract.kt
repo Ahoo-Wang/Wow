@@ -236,7 +236,7 @@ abstract class ViewStoreContract {
             state["title"].asString().assert().isEqualTo("Sales")
             state["fields"]["amount"]["label"].asString().assert().isEqualTo("金额")
         }
-        store.post(WORDING_QUERY, query, ALICE_ELSEWHERE).assertProblem(NOT_FOUND, "wow.aggregate.not-found")
+        store.post(WORDING_QUERY, query, ALICE_ELSEWHERE).assertProblem(NOT_FOUND, "wow.query.not-found")
         store.post(WORDING_CLEAR, """{"dataset":"$dataset"}""", CAROL).assertOk()
         store.post(WORDING_QUERY, query, BOB).assertOk().json["state"]["title"].isNull.assert().isTrue()
         store.post(WORDING_CLEAR, """{"dataset":"$dataset"}""", CAROL.withoutApp)

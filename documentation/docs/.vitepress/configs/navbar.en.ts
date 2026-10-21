@@ -37,6 +37,7 @@ export const navbarEn: DefaultTheme.NavItem[] = [
             },
         ],
     },
+    {text: 'Concepts', link: '/concepts/', activeMatch: '/concepts/'},
     {
         text: 'Operate',
         activeMatch: '/operate/',
@@ -50,6 +51,7 @@ export const navbarEn: DefaultTheme.NavItem[] = [
     {
         text: 'Reference',
         items: [
+            {text: 'Glossary', link: '/reference/glossary'},
             {text: 'Configuration Keys', link: '/guide/v10/configuration'},
             {text: 'What the Compiler Generates', link: '/guide/v10/generated-code'},
             {text: 'Kotlin API', link: '/dokka/index.html', target: '_blank'},
