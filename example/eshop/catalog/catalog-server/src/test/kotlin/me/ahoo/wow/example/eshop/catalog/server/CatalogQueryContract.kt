@@ -242,6 +242,7 @@ abstract class CatalogQueryContract {
     @Test
     fun `a product's events should be read by version and analyzed per event`() {
         val product = storefront.product(storefront.category(), storefront.brand(), "3.00")
+        // region events
         val events = catalog.post(PRODUCT_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$product"}}""", BUYER)
             .assertOk().json
         events.values().map { it["version"].asInt() }.assert().containsExactly(1, 2)
@@ -265,6 +266,8 @@ abstract class CatalogQueryContract {
             "eshop-catalog.product.ProductCreated" to 1L,
             "eshop-catalog.product.ProductPublished" to 1L,
         )
+        // endregion
+
         // A root metric over an event field must expand the events first (review X-8).
         catalog.post(
             PRODUCT_EVENTS,

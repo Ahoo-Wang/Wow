@@ -52,6 +52,7 @@ class ProductState {
         private set
     // endregion
 
+
     fun onSourcing(event: ProductCreated) {
         name = event.name
         price = event.price

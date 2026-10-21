@@ -34,6 +34,7 @@ import org.springframework.context.annotation.Configuration
  */
 @Configuration(proxyBeanMethods = false)
 class OrderingCallers {
+    // region resolver
     @Bean
     fun orderingCallerResolver(): CallerResolver = CallerResolver { request ->
         val headers = request.headers()
@@ -46,6 +47,8 @@ class OrderingCallers {
             attributes = if (employee) mapOf(ROLES to listOf(EMPLOYEE)) else emptyMap(),
         )
     }
+    // endregion
+
 
     companion object {
         /** The header naming the user. */
