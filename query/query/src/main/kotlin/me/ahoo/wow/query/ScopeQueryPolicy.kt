@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
@@ -81,7 +82,8 @@ fun interface QueryOwnership {
 /**
  * The caller's scope as a [QueryPolicy] (decision D129), appended at admission step 2 to every query:
  *
- * - the tenant [tenants] gives the caller, when it gives one;
+ * - the tenant [tenants] gives the caller, when it gives one; else, for a [cross-tenant][QueryCaller.crossTenant]
+ *   caller, its tenants (none for every tenant): a type whose tenant is fixed keeps its own;
  * - an owner equality when the caller's [principal][QueryCaller.principal] names an owner (an owner-level caller,
  *   decision D189) and [ownerships] says the aggregate type belongs to its owner, and a space equality when it names
  *   a space: a tenant-level caller, whose principal names no owner, reads every aggregate of its tenant;
@@ -105,7 +107,7 @@ class ScopeQueryPolicy(
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
         val owned = ownerships.ownershipOf(context.aggregateType) == Ownership.OWNER
         val restrictions = listOfNotNull(
-            tenants.tenantOf(context.aggregateType, caller)?.let(::TenantIdFilter),
+            tenants.tenantOf(context.aggregateType, caller)?.let(::TenantIdFilter) ?: caller.crossTenant?.filter(),
             caller.principal.ownerId?.takeIf { owned }?.let(::OwnerIdFilter),
             caller.principal.spaceId?.let(::SpaceIdFilter),
             context.schema.profile?.defaultScope(context.filter)?.takeUnless { it === MatchAllFilter },
@@ -121,6 +123,12 @@ class ScopeQueryPolicy(
         /** Before every other policy, so a scope failure is reported first. */
         const val ORDER: Int = Int.MIN_VALUE
     }
+}
+
+/** The tenants this reads as a filter: null for every tenant. */
+private fun CrossTenant.filter(): FilterExpression? {
+    val tenants = tenantIds?.map(::TenantIdFilter) ?: return null
+    return tenants.singleOrNull() ?: OrFilter(tenants)
 }
 
 /** The filter of the query being admitted: every gateway operation's query carries one. */
