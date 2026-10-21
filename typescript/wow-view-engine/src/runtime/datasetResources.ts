@@ -242,8 +242,7 @@ export class DatasetResources {
     const lists = await Promise.allSettled(
       this.catalogs.map(catalog => catalog.list()),
     );
-    if (lists.every(list => list.status === 'rejected'))
-      throw (lists[0] as PromiseRejectedResult).reason;
+    if (lists.every(list => list.status === 'rejected')) throw lists[0].reason;
     const servable = new Map<string, Listed>();
     const duplicates: DatasetDuplicate[] = [];
     const unread = new Set<number>();

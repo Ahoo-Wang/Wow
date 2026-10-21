@@ -1900,6 +1900,11 @@ export const zhCN: Readonly<Record<string, string>> = {
     '数据源不再支持的条件在这里已去掉；保存的视图没有改。',
   'label.embed.locked-name': '{filter}（由页面设定）',
   'label.embed.any': '不限',
+  // 独立的数据集视图（D93）：选数据集，以及还没有数据集时说什么。
+  'label.dataset.picker': '数据集',
+  'label.dataset.none': '还没有数据集',
+  'label.dataset.none-hint': '目录提供数据集之后，它就出现在这里。',
+  'label.dataset.loading': '正在读取数据集…',
   'label.filters.add': '添加筛选',
   'label.filters.add-grouping': '时间粒度',
   'label.filters.type.date': '日期',
