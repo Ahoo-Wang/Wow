@@ -161,7 +161,30 @@ export const sidebarZh: DefaultTheme.Sidebar = {
     '/zh/guide/': [
         {
             base: '/zh/guide/',
-            text: '开发指南',
+            text: '建模',
+            items: [
+                {text: '编写聚合', link: 'aggregates'},
+                {text: '拒绝与错误码', link: 'rejections'},
+            ],
+        },
+        {
+            base: '/zh/guide/',
+            text: '流程',
+            items: [
+                {text: '编写 Saga', link: 'sagas'},
+            ],
+        },
+        {
+            base: '/zh/guide/',
+            text: '跨上下文',
+            items: [
+                {text: '发布与消费事件流', link: 'published-streams'},
+                {text: '调用其他服务', link: 'calling-services'},
+            ],
+        },
+        {
+            base: '/zh/guide/',
+            text: '测试',
             items: [
                 {text: '测试领域代码', link: 'testing'},
             ],
