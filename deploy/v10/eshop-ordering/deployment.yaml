@@ -5,6 +5,7 @@ metadata:
   labels:
     app.kubernetes.io/name: eshop-ordering
 spec:
+  # region rollout
   # The nodes share the partitions through leases in PostgreSQL: no ZooKeeper, no consumer group.
   replicas: 2
   selector:
@@ -15,6 +16,7 @@ spec:
     rollingUpdate:
       maxSurge: 1
       maxUnavailable: 0
+  # endregion
   template:
     metadata:
       labels:
@@ -23,10 +25,12 @@ spec:
     spec:
       # With the headless service of this name, each pod has the DNS name <pod>.eshop-ordering-cluster.<namespace>...
       subdomain: eshop-ordering-cluster
+      # region shutdown
       # The host's shutdown: the public server finishes its requests, the waits among them (wow.wait.max-timeout,
       # 60s); the node then hands its partitions off after their commands in flight (wow.cluster.drain-timeout, 10s)
       # and saves its checkpoints. 5s of preStop, 60s and 10s, with room to spare: raise it with those settings.
       terminationGracePeriodSeconds: 90
+      # endregion
       containers:
         - name: eshop-ordering
           # Built from this repository, see README.md.
@@ -98,11 +102,13 @@ spec:
             periodSeconds: 10
             failureThreshold: 3
           # endregion
+          # region prestop
           lifecycle:
             # Time for the endpoints to drop the pod before Spring Boot stops taking requests.
             preStop:
               exec:
                 command: ["sleep", "5"]
+          # endregion
           resources:
             requests:
               cpu: 500m
