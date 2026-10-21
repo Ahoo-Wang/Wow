@@ -196,6 +196,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '读取状态', link: 'reading-state'},
                 {text: '查询快照', link: 'queries'},
                 {text: '查询事件流', link: 'event-queries'},
+                {text: '发布数据集', link: 'datasets'},
             ],
         },
         {
@@ -211,6 +212,9 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             text: '契约',
             items: [
                 {text: '提供和调用 HTTP API', link: 'http'},
+                {text: 'Manifest 与兼容', link: 'manifest'},
+                {text: 'OpenAPI 与 springdoc', link: 'openapi'},
+                {text: '编译器生成什么', link: 'generated-code'},
             ],
         },
         {
@@ -255,6 +259,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             items: [
                 {text: '术语表', link: 'glossary'},
                 {text: 'HTTP API', link: 'http'},
+                {text: '查询语言', link: 'query-language'},
                 {text: '线上协议', link: 'protocols'},
                 {text: 'migrate-data 命令行', link: 'migrate-data'},
                 {text: '配置项', link: 'configuration'},

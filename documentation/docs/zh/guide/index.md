@@ -33,6 +33,7 @@ description: 按任务说明怎样编写 Wow 服务：从领域模型到读侧�
 | [读取状态](./reading-state) | 读取聚合在任意版本或时刻的状态、缓存它、写后即可查 |
 | [查询快照](./queries) | 按状态查找聚合，用 Kotlin 或经 HTTP；声明索引和脱敏 |
 | [查询事件流](./event-queries) | 查询日志，每次提交一行；分析事件 |
+| [从服务发布数据集](./datasets) | 基于数仓声明数据集，限定范围并脱敏，然后查询它 |
 
 ## 跨上下文 {#across-contexts}
 
@@ -46,6 +47,9 @@ description: 按任务说明怎样编写 Wow 服务：从领域模型到读侧�
 | 页面 | 说明怎样 |
 | --- | --- |
 | [提供和调用 HTTP API](./http) | 认证调用方、发送命令、等待、重试、流式读取、读取错误 |
+| [Manifest 与兼容](./manifest) | 构建和合并契约，把对端需要的部分交给对端，让改变保持兼容 |
+| [OpenAPI 与 springdoc](./openapi) | 获取 OpenAPI 文档，并把它合并进 springdoc 的文档 |
+| [编译器生成什么](./generated-code) | 了解模型工厂、处理函数、查询字段、绑定索引和契约代码 |
 
 ## 测试 {#test}
 
