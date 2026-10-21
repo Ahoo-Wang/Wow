@@ -16,6 +16,7 @@
   { "code": "wow.command.unknown", "status": 503 },
   { "code": "wow.command.failed", "status": 500 },
   { "code": "wow.node.closing", "status": 503 },
+  { "code": "wow.node.standby", "status": 503 },
   { "code": "wow.storage.unavailable", "status": 503 },
   { "code": "wow.schedule.not-due", "status": 503 },
   { "code": "wow.schedule.job-invalid", "status": 400 },

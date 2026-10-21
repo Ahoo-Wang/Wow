@@ -30,6 +30,7 @@ description: "框架的错误码与 HTTP 状态，以及查询请求被拒时的
 | `wow.command.unknown` | 503 | Whether the command committed is unknown; retrying with the same request id is safe. |
 | `wow.command.failed` | 500 | The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike. |
 | `wow.node.closing` | 503 | The node is shutting down; retry on another node. |
+| `wow.node.standby` | 503 | The node is on standby until the cut-over: it serves reads only. |
 | `wow.storage.unavailable` | 503 | A store could not be reached or did not answer in time; retry later, a command with the same request id. |
 | `wow.schedule.not-due` | 503 | A scheduled command arrived too long before its due time on this node's clock; it is sent again later. |
 | `wow.schedule.job-invalid` | 400 | The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled. |

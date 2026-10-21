@@ -23,6 +23,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const SOURCE = 'https://github.com/Ahoo-Wang/Wow/blob/v10/';
+/** A directory of the repository on GitHub. */
+const TREE = 'https://github.com/Ahoo-Wang/Wow/tree/v10/';
 const SELF = '.github/scripts/docs-reference.mjs';
 
 const METADATA =
@@ -34,6 +36,9 @@ const FRAMEWORK_ERRORS_SNAPSHOT =
 const QUERY_ERROR_CODES =
   'api/query-api/src/main/kotlin/me/ahoo/wow/api/query/QueryErrorCodes.kt';
 const ANNOTATIONS = 'api/api/src/main/kotlin/me/ahoo/wow/api/annotation';
+const BUILD = 'build.gradle.kts';
+const SETTINGS = 'settings.gradle.kts';
+const GROUP = 'me.ahoo.wow';
 
 const WORDS = {
   en: {
@@ -62,10 +67,40 @@ const WORDS = {
       title: 'Annotations',
       description:
         'The annotations of the programming model: where each goes, its parameters, and what it says.',
-      intro: `The annotations of the programming model, in \`me.ahoo.wow.api.annotation\` (artifact \`wow-api\`), generated from [their sources](${SOURCE}${ANNOTATIONS}). The compiler reads them at build time; each name links to its source, whose documentation says the rest.`,
+      intro: `The annotations of the programming model, in \`me.ahoo.wow.api.annotation\` (artifact \`wow-api\`), generated from [their sources](${TREE}${ANNOTATIONS}). The compiler reads them at build time; each name links to its source, whose documentation says the rest.`,
       targets: 'Targets',
       parameters: 'Parameters',
       none: 'None.',
+    },
+    modules: {
+      title: 'Modules and Artifacts',
+      description:
+        'Every artifact a Wow release publishes to Maven Central, and what it holds.',
+      intro: `Every artifact a release publishes to Maven Central under the group \`${GROUP}\`, generated from the build (\`abiProjects\` and \`publishedLibraries\` in [\`${BUILD}\`](${SOURCE}${BUILD})) and each module's own description. Import the BOM and leave the versions out:`,
+      bom: `\`implementation(platform("${GROUP}:wow-bom:<version>"))\`, then \`implementation("${GROUP}:wow-spring-boot")\` and the rest without a version. The Gradle plugin \`${GROUP}\` applies the compiler (KSP) and assembles the service's Manifest.`,
+      head: '| Artifact | Directory | Holds |',
+      bomRow:
+        'The BOM: the versions of every artifact below, which a build imports as a platform.',
+      dependenciesRow:
+        'The versions of the third-party dependencies, which every published POM imports.',
+    },
+    levels: {
+      title: 'API Levels',
+      description:
+        'What each level of the public API promises, and the declarations that are experimental or SPI.',
+      intro: `Every public declaration of a published module has one of four levels. The ABI dumps (\`<module>/api/<module>.api\`) record the signatures of the first three, so a change to them shows in review.`,
+      table: [
+        '| Level | Marker | Promise |',
+        '| --- | --- | --- |',
+        '| Public | none | A 10.x patch release keeps it binary compatible. A 10.x minor release may change it; its release notes name every such change. |',
+        '| Experimental | `@ExperimentalWowApi` | A 10.x minor release may change or remove it. Using it needs `@OptIn(ExperimentalWowApi::class)`, a compiler warning otherwise. |',
+        '| SPI | `@WowSpi` | A port that backends and transports implement; a minor release may change it. Using it needs `@OptIn(WowSpi::class)`, a compiler warning otherwise. |',
+        "| Internal | `@InternalWowApi` | For Wow's own modules: it may change or go in any release. An application cannot opt in (a compiler error), and the dumps leave it out. |",
+      ],
+      generated: `The two lists below are generated from the sources of the published modules: the public declarations that carry the marker.`,
+      experimental: 'Experimental declarations',
+      spi: 'SPI declarations',
+      head: '| Declaration | Kind | Module |',
     },
   },
   zh: {
@@ -91,10 +126,36 @@ const WORDS = {
     annotations: {
       title: '注解',
       description: '编程模型的注解：用在哪里、有哪些参数、表达什么。',
-      intro: `编程模型的注解，位于 \`me.ahoo.wow.api.annotation\`（制品 \`wow-api\`），由[它们的源码](${SOURCE}${ANNOTATIONS})生成；说明取自源码，为英文。编译器在构建期读取它们；每个名字都链接到源码，其余细节见源码中的文档。`,
+      intro: `编程模型的注解，位于 \`me.ahoo.wow.api.annotation\`（制品 \`wow-api\`），由[它们的源码](${TREE}${ANNOTATIONS})生成；说明取自源码，为英文。编译器在构建期读取它们；每个名字都链接到源码，其余细节见源码中的文档。`,
       targets: '目标',
       parameters: '参数',
       none: '无。',
+    },
+    modules: {
+      title: '模块与制品',
+      description: 'Wow 每次发布到 Maven Central 的每个制品，以及它包含什么。',
+      intro: `每次发布以 \`${GROUP}\` 为 group 发布到 Maven Central 的每个制品，由构建（[\`${BUILD}\`](${SOURCE}${BUILD}) 里的 \`abiProjects\` 与 \`publishedLibraries\`）与每个模块自己的 description 生成；说明取自源码，为英文。导入 BOM，其余制品不写版本：`,
+      bom: `\`implementation(platform("${GROUP}:wow-bom:<version>"))\`，然后 \`implementation("${GROUP}:wow-spring-boot")\` 等都不带版本。Gradle 插件 \`${GROUP}\` 接好编译器（KSP）并汇总服务的 Manifest。`,
+      head: '| 制品 | 目录 | 内容 |',
+      bomRow: 'BOM：下列每个制品的版本，构建以 platform 导入。',
+      dependenciesRow: '第三方依赖的版本，每个发布的 POM 都导入它。',
+    },
+    levels: {
+      title: 'API 级别',
+      description: '公开 API 每个级别的承诺，以及实验性与 SPI 的声明。',
+      intro: `已发布模块的每个公开声明都属于四个级别之一。ABI 转储（\`<module>/api/<module>.api\`）记录前三个级别的签名，所以对它们的改动会在审阅中显现。`,
+      table: [
+        '| 级别 | 标记 | 承诺 |',
+        '| --- | --- | --- |',
+        '| 公开 | 无 | 10.x 的补丁版本保持二进制兼容。10.x 的次版本可能改动它，并在发布说明中列出每一处。 |',
+        '| 实验性 | `@ExperimentalWowApi` | 10.x 的次版本可能改动或移除它。使用时需要 `@OptIn(ExperimentalWowApi::class)`，否则编译器给出警告。 |',
+        '| SPI | `@WowSpi` | 后端与传输实现的端口；次版本可能改动它。使用时需要 `@OptIn(WowSpi::class)`，否则编译器给出警告。 |',
+        '| 内部 | `@InternalWowApi` | 只供 Wow 自己的模块使用，任何版本都可能改动或移除。应用无法选择使用（编译错误），ABI 转储也不包含它。 |',
+      ],
+      generated: `下面两张表由已发布模块的源码生成：带有该标记的公开声明。`,
+      experimental: '实验性声明',
+      spi: 'SPI 声明',
+      head: '| 声明 | 种类 | 模块 |',
     },
   },
 };
@@ -372,6 +433,186 @@ export function annotationsPage(locale, annotations) {
   return page(locale, words.title, words.description, ANNOTATIONS, body);
 }
 
+// Modules
+
+const kotlinStrings = source =>
+  [...source.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map(match => match[1]).join('');
+
+/** The published modules from the root build: `[{ project, artifact, dir, description }]`, in the build's order. */
+export function publishedModules(read) {
+  const build = read(BUILD);
+  const list = name => {
+    const body = new RegExp(
+      `val ${name} = ([^\\n]*?)includedProjects\\(([\\s\\S]*?)\\)`,
+    ).exec(build);
+    if (!body) throw new Error(`${BUILD}: no ${name}`);
+    return [...body[2].matchAll(/":([\w-]+)"/g)].map(match => match[1]);
+  };
+  const artifactIds = Object.fromEntries(
+    [
+      ...(/val artifactIds = mapOf\(([^)]*)\)/.exec(build)?.[1] ?? '').matchAll(
+        /"([\w-]+)" to "([\w-]+)"/g,
+      ),
+    ].map(match => [match[1], match[2]]),
+  );
+  const settings = read(SETTINGS);
+  return [...list('abiProjects'), ...list('publishedLibraries')].map(
+    project => {
+      const dir = new RegExp(
+        `project\\(":${project}"\\)\\.projectDir = file\\("([^"]+)"\\)`,
+      ).exec(settings)?.[1];
+      if (!dir) throw new Error(`${SETTINGS}: no directory for :${project}`);
+      const description =
+        /^description = ((?:"(?:[^"\\]|\\.)*"\s*\+?\s*)+)/m.exec(
+          read(`${dir}/build.gradle.kts`),
+        )?.[1];
+      if (!description)
+        throw new Error(`${dir}/build.gradle.kts: no description`);
+      return {
+        project,
+        artifact: artifactIds[project] ?? `wow-${project}`,
+        dir,
+        description: kotlinStrings(description),
+      };
+    },
+  );
+}
+
+/** A module's description without the artifact's name it starts with ("Wow Kernel: …"). */
+const holds = description => {
+  const text = description.replace(/^Wow [^:]+:\s*/, '');
+  return text[0].toUpperCase() + text.slice(1);
+};
+
+export function modulesPage(locale, modules) {
+  const words = WORDS[locale].modules;
+  const row = (artifact, dir, text) =>
+    `| \`${GROUP}:${artifact}\` | [\`${dir}\`](${TREE}${dir}) | ${cell(text)} |`;
+  const body = [
+    words.intro,
+    '',
+    words.bom,
+    '',
+    words.head,
+    '| --- | --- | --- |',
+    row('wow-bom', 'bom/bom', words.bomRow),
+    row('wow-dependencies', 'wow-dependencies', words.dependenciesRow),
+    ...modules.map(({ artifact, dir, description }) =>
+      row(artifact, dir, plain(holds(description))),
+    ),
+    '',
+  ];
+  return page(
+    locale,
+    words.title,
+    words.description,
+    `${BUILD}, ${SETTINGS}`,
+    body,
+  );
+}
+
+// API levels
+
+const kotlinFiles = (root, dir) => {
+  try {
+    return readdirSync(join(root, dir), { recursive: true })
+      .filter(file => String(file).endsWith('.kt'))
+      .map(file => `${dir}/${String(file).split('\\').join('/')}`)
+      .sort();
+  } catch {
+    return [];
+  }
+};
+
+const DECLARATION =
+  /^(\s*)((?:(?:public|internal|private|protected|override|open|abstract|sealed|data|value|enum|annotation|inline|suspend|operator|infix|const|lateinit|expect|actual)\s+)*)(fun\s+interface|class|interface|object|fun|val|var|typealias|constructor)\b\s*(?:<[^>]*>\s*)?(?:[\w.<>?, ]+\.)?(\w+)?/;
+
+/** The public declarations of a Kotlin source that carry `@marker`: `[{ name, kind }]`, members by their type. */
+export function markedDeclarations(source, marker) {
+  const pkg = /^package ([\w.]+)/m.exec(source)?.[1] ?? '';
+  const lines = source.split('\n');
+  const types = [];
+  const found = [];
+  let marked = false;
+  for (const line of lines) {
+    const declaration = DECLARATION.exec(line);
+    if (new RegExp(`^\\s*@${marker}\\b`).test(line) && !/@OptIn/.test(line)) {
+      marked = true;
+      continue;
+    }
+    if (!declaration) {
+      if (marked && !/^\s*(?:@|\/\/|\*|\/\*)/.test(line) && line.trim())
+        marked = false;
+      continue;
+    }
+    const [, indent, modifiers, written, name] = declaration;
+    const kind = written.startsWith('fun ') ? 'interface' : written;
+    while (types.length && types.at(-1).indent >= indent.length) types.pop();
+    const owner = types.at(-1);
+    const hidden =
+      /\b(?:internal|private|protected|override)\b/.test(modifiers) ||
+      owner?.hidden;
+    if (marked && !hidden && kind !== 'constructor' && name) {
+      found.push({
+        name: [pkg, ...types.map(type => type.name), name]
+          .filter(Boolean)
+          .join('.'),
+        kind,
+      });
+    }
+    if (/^(?:class|interface|object)$/.test(kind) && name)
+      types.push({ indent: indent.length, name, hidden });
+    marked = false;
+  }
+  return found;
+}
+
+export function levelsPage(locale, experimental, spi) {
+  const words = WORDS[locale].levels;
+  const rows = list =>
+    list.map(
+      ({ name, kind, artifact }) =>
+        `| \`${name}\` | ${kind} | \`${artifact}\` |`,
+    );
+  const body = [
+    words.intro,
+    '',
+    ...words.table,
+    '',
+    words.generated,
+    '',
+    `## ${words.experimental}`,
+    '',
+    words.head,
+    '| --- | --- | --- |',
+    ...rows(experimental),
+    '',
+    `## ${words.spi}`,
+    '',
+    words.head,
+    '| --- | --- | --- |',
+    ...rows(spi),
+    '',
+  ];
+  return page(
+    locale,
+    words.title,
+    words.description,
+    'the published modules\u2019 sources',
+    body,
+  );
+}
+
+const marked = (root, read, modules, marker) =>
+  modules.flatMap(({ artifact, dir }) =>
+    kotlinFiles(root, `${dir}/src/main/kotlin`).flatMap(file =>
+      markedDeclarations(read(file), marker).map(declaration => ({
+        ...declaration,
+        artifact,
+      })),
+    ),
+  );
+
 /** Every generated page: `{ path: text }`, read from `root`. */
 export function referencePages(root = ROOT) {
   const read = path => readFileSync(join(root, path), 'utf8');
@@ -402,12 +643,17 @@ export function referencePages(root = ROOT) {
         annotation &&
         !/^(?:InternalWowApi|ExperimentalWowApi|WowSpi)$/.test(annotation.name),
     );
+  const modules = publishedModules(read);
+  const experimental = marked(root, read, modules, 'ExperimentalWowApi');
+  const spi = marked(root, read, modules, 'WowSpi');
   const pages = {};
   for (const locale of Object.keys(WORDS)) {
     const dir = `documentation/docs/${locale}/reference`;
     pages[`${dir}/configuration.md`] = configurationPage(locale, metadata);
     pages[`${dir}/error-codes.md`] = errorCodesPage(locale, framework, query);
     pages[`${dir}/annotations.md`] = annotationsPage(locale, annotations);
+    pages[`${dir}/modules.md`] = modulesPage(locale, modules);
+    pages[`${dir}/api-levels.md`] = levelsPage(locale, experimental, spi);
   }
   return pages;
 }
@@ -421,6 +667,10 @@ export const SOURCES = {
     QUERY_ERROR_CODES,
   ],
   'annotations.md': [`${ANNOTATIONS}/`],
+  'modules.md': [BUILD, SETTINGS, "each published module's build.gradle.kts"],
+  'api-levels.md': [
+    "the @ExperimentalWowApi and @WowSpi declarations of the published modules' src/main/kotlin",
+  ],
 };
 
 /** What a check that found `stale` pages says: the pages, their sources, and the one step that fixes them. */
