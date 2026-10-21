@@ -54,6 +54,8 @@ export const FrameworkErrorCodes = {
   COMMAND_FAILED: 'wow.command.failed',
   /** 503: the node is shutting down; retry on another node. */
   NODE_CLOSING: 'wow.node.closing',
+  /** 503: the node is on standby until a migration's cut-over; it serves reads only. */
+  NODE_STANDBY: 'wow.node.standby',
   /** 503, with `Retry-After`: a store could not be reached in time; retry later. */
   STORAGE_UNAVAILABLE: 'wow.storage.unavailable',
   /** 503: a scheduled command arrived too long before its due time; it is sent again later. */
@@ -168,7 +170,7 @@ export interface RetryHint {
 
 /**
  * The codes a retry may get past, each with whether to keep the request id:
- * the 503s (`wow.command.unknown`, `wow.node.closing`,
+ * the 503s (`wow.command.unknown`, `wow.node.closing`, `wow.node.standby`,
  * `wow.storage.unavailable`, `wow.schedule.not-due`),
  * the 429s `wow.command.busy` and `wow.query.busy`, the 409s `wow.command.contended` and
  * `wow.query.min-version-not-reached` (once the command commits), and the 504
@@ -177,6 +179,7 @@ export interface RetryHint {
 const RETRYABLE: ReadonlyMap<string, boolean> = new Map([
   [FrameworkErrorCodes.COMMAND_UNKNOWN, true],
   [FrameworkErrorCodes.NODE_CLOSING, true],
+  [FrameworkErrorCodes.NODE_STANDBY, true],
   [FrameworkErrorCodes.STORAGE_UNAVAILABLE, true],
   [FrameworkErrorCodes.SCHEDULE_NOT_DUE, true],
   [FrameworkErrorCodes.COMMAND_BUSY, true],

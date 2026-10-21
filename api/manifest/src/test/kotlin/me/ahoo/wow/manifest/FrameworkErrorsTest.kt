@@ -41,6 +41,7 @@ class FrameworkErrorsTest {
                 "wow.command.unknown" to 503,
                 "wow.command.failed" to 500,
                 "wow.node.closing" to 503,
+                "wow.node.standby" to 503,
                 "wow.storage.unavailable" to 503,
                 "wow.schedule.not-due" to 503,
                 "wow.schedule.job-invalid" to 400,

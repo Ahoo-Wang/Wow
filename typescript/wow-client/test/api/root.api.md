@@ -1016,6 +1016,7 @@ export const FrameworkErrorCodes: {
     readonly COMMAND_UNKNOWN: "wow.command.unknown";
     readonly COMMAND_FAILED: "wow.command.failed";
     readonly NODE_CLOSING: "wow.node.closing";
+    readonly NODE_STANDBY: "wow.node.standby";
     readonly STORAGE_UNAVAILABLE: "wow.storage.unavailable";
     readonly SCHEDULE_NOT_DUE: "wow.schedule.not-due";
     readonly SCHEDULE_JOB_INVALID: "wow.schedule.job-invalid";
