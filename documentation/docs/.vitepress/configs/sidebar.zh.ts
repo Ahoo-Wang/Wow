@@ -165,6 +165,9 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             items: [
                 {text: '编写聚合', link: 'aggregates'},
                 {text: '拒绝与错误码', link: 'rejections'},
+                {text: '演进事件', link: 'event-evolution'},
+                {text: '所有者、空间与标签', link: 'ownership'},
+                {text: '唯一键', link: 'unique-keys'},
             ],
         },
         {
@@ -172,6 +175,9 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             text: '流程',
             items: [
                 {text: '编写 Saga', link: 'sagas'},
+                {text: '投影与反应器', link: 'projections'},
+                {text: '定时命令', link: 'scheduling'},
+                {text: '失败与重试', link: 'failures'},
             ],
         },
         {
