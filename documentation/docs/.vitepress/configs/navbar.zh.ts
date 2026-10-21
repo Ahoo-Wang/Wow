@@ -42,6 +42,7 @@ export const navbarZh: DefaultTheme.NavItem[] = [
         text: '参考',
         items: [
             {text: '术语表', link: '/zh/reference/glossary'},
+            {text: '线上协议', link: '/zh/reference/protocols'},
             {text: '配置项', link: '/zh/reference/configuration'},
             {text: '错误码', link: '/zh/reference/error-codes'},
             {text: '注解', link: '/zh/reference/annotations'},

@@ -189,6 +189,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             text: 'Reference',
             items: [
                 {text: 'Glossary', link: 'glossary'},
+                {text: 'Wire Protocols', link: 'protocols'},
                 {text: 'Configuration Keys', link: 'configuration'},
                 {text: 'Error Codes', link: 'error-codes'},
                 {text: 'Annotations', link: 'annotations'},

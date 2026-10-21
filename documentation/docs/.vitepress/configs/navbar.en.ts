@@ -42,6 +42,7 @@ export const navbarEn: DefaultTheme.NavItem[] = [
         text: 'Reference',
         items: [
             {text: 'Glossary', link: '/reference/glossary'},
+            {text: 'Wire Protocols', link: '/reference/protocols'},
             {text: 'Configuration Keys', link: '/reference/configuration'},
             {text: 'Error Codes', link: '/reference/error-codes'},
             {text: 'Annotations', link: '/reference/annotations'},

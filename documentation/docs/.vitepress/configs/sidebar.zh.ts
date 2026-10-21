@@ -190,6 +190,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             text: '参考',
             items: [
                 {text: '术语表', link: 'glossary'},
+                {text: '线上协议', link: 'protocols'},
                 {text: '配置项', link: 'configuration'},
                 {text: '错误码', link: 'error-codes'},
                 {text: '注解', link: 'annotations'},

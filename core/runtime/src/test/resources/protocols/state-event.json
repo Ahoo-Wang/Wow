@@ -1,0 +1,54 @@
+{
+  "format": 1,
+  "kind": "state-event",
+  "id": "bank.account/t1/alice@2",
+  "type": "bank.account",
+  "payload": {
+    "ref": {
+      "type": {
+        "context": "bank",
+        "name": "account"
+      },
+      "tenantId": "t1",
+      "id": "alice"
+    },
+    "version": 2,
+    "commandId": "c-2",
+    "requestId": "r-2",
+    "commandType": "bank.account.Deposit",
+    "commitTime": 1760950800000,
+    "events": [
+      {
+        "name": "bank.account.Deposited",
+        "revision": 1,
+        "payload": {
+          "amount": 100
+        }
+      }
+    ],
+    "state": {
+      "version": 2,
+      "schemaFingerprint": "43bfa906ccc015f9dc85b5ad142a24dcb99668d69f98ebd9d1ae73471c97be4d",
+      "state": {
+        "owner": "Alice",
+        "balance": 100
+      }
+    },
+    "scope": {
+      "ownerId": "u-42",
+      "spaceId": null
+    },
+    "deleted": false,
+    "tags": {},
+    "causation": null,
+    "headers": {
+      "app_id": "teller-app"
+    },
+    "operator": {
+      "id": "u-42",
+      "tenantId": "t1",
+      "crossScope": false
+    }
+  },
+  "transport": null
+}
