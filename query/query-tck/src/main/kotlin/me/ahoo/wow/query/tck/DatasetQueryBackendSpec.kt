@@ -237,6 +237,33 @@ abstract class DatasetQueryBackendSpec {
     }
 
     @Test
+    fun `offset pages over a sort with ties page every record once, ties in identity order (Q-11)`() = blocking {
+        val all = orders.list(ListQuery(EqualFilter(TENANT_COLUMN, "t1"), limit = MAX_LIST))
+            .map { it.path(ID).stringValue() }.sorted()
+        val paged = (1..3).flatMap { index ->
+            val query = PagedQuery(
+                EqualFilter(TENANT_COLUMN, "t1"),
+                // Every record ties on its tenant.
+                sort = listOf(Sort(TENANT_COLUMN, Sort.Direction.ASC)),
+                pagination = Pagination(index, 2),
+                total = TotalMode.NONE,
+            )
+            orders.backend.paged(
+                QueryAdmission.Trusted.paged(query, orders.schema)
+            ).list.map { it.path(ID).stringValue() }
+        }
+        paged.assert().isEqualTo(all)
+        orders.list(
+            ListQuery(
+                EqualFilter(TENANT_COLUMN, "t1"),
+                sort = listOf(Sort(TENANT_COLUMN, Sort.Direction.ASC)),
+                limit = 2
+            ),
+        ).map { it.path(ID).stringValue() }.assert().isEqualTo(all.take(2))
+        Unit
+    }
+
+    @Test
     fun `counts are bounded by their limit`() = blocking {
         val count = orders.backend.countBounded(
             QueryAdmission.Trusted.count(CountQuery(MatchAllFilter, 3), orders.schema)

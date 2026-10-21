@@ -924,11 +924,13 @@ export {
 } from './runtime/define/defineDataset.js';
 export {
   type DatasetCatalog,
+  type DatasetDuplicate,
   type DatasetDirectoryEntry,
   type DatasetOverrides,
   type DatasetRegistrar,
   type DatasetResource,
   DatasetResources,
+  type DatasetResourcesOptions,
   type DatasetWordingEditor,
   type DatasetWordingStore,
   type StoredDatasetWording,

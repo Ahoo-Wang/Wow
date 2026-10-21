@@ -248,6 +248,9 @@
           },
           "503" : {
             "$ref" : "#/components/responses/wow.dataset-query.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.dataset-query.504"
           }
         }
       },
@@ -1669,6 +1672,9 @@
           },
           "503" : {
             "$ref" : "#/components/responses/wow.query.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.query.504"
           }
         }
       },
@@ -1831,6 +1837,9 @@
           },
           "503" : {
             "$ref" : "#/components/responses/wow.query.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.query.504"
           }
         }
       },
@@ -2999,7 +3008,7 @@
         "x-wow-error-codes" : [ "wow.auth.forbidden" ]
       },
       "wow.dataset-query.404" : {
-        "description" : "`wow.aggregate.not-found`: The aggregate does not exist.\nNot Found: no such dataset is served, or the caller does not see it.",
+        "description" : "`wow.query.not-found`: A single query matched no record: a query result, not a statement that an aggregate does not exist.\n`wow.query.dataset-not-found`: No dataset of that name is served to the caller.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3007,7 +3016,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.aggregate.not-found" ]
+        "x-wow-error-codes" : [ "wow.query.not-found", "wow.query.dataset-not-found" ]
       },
       "wow.dataset-query.406" : {
         "description" : "Not Acceptable: the route answers in none of the types Accept names.",
@@ -3052,7 +3061,7 @@
         "x-wow-error-codes" : [ "wow.query.failed" ]
       },
       "wow.dataset-query.503" : {
-        "description" : "`wow.query.timeout`: The query ran longer than its budget allows; narrow it, or retry later.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.",
+        "description" : "`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.",
         "headers" : {
           "Retry-After" : {
             "$ref" : "#/components/headers/Retry-After"
@@ -3065,7 +3074,18 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.timeout", "wow.storage.unavailable" ]
+        "x-wow-error-codes" : [ "wow.storage.unavailable" ]
+      },
+      "wow.dataset-query.504" : {
+        "description" : "`wow.query.timeout`: The query ran longer than its budget allows; narrow it rather than run it again (decision D254 ③).",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.timeout" ]
       },
       "wow.dataset-descriptor.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -3079,14 +3099,15 @@
         "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
       },
       "wow.dataset-descriptor.404" : {
-        "description" : "Not Found: no such dataset is served, or the caller does not see it.",
+        "description" : "`wow.query.dataset-not-found`: No dataset of that name is served to the caller.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
               "$ref" : "#/components/schemas/wow.Problem"
             }
           }
-        }
+        },
+        "x-wow-error-codes" : [ "wow.query.dataset-not-found" ]
       },
       "wow.dataset-descriptor.406" : {
         "description" : "Not Acceptable: the route answers in none of the types Accept names.",
@@ -3586,7 +3607,7 @@
         "x-wow-error-codes" : [ "wow.auth.forbidden" ]
       },
       "wow.query.404" : {
-        "description" : "`wow.aggregate.not-found`: The aggregate does not exist.",
+        "description" : "`wow.query.not-found`: A single query matched no record: a query result, not a statement that an aggregate does not exist.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3594,7 +3615,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.aggregate.not-found" ]
+        "x-wow-error-codes" : [ "wow.query.not-found" ]
       },
       "wow.query.406" : {
         "description" : "Not Acceptable: the route answers in none of the types Accept names.",
@@ -3639,7 +3660,7 @@
         "x-wow-error-codes" : [ "wow.query.failed" ]
       },
       "wow.query.503" : {
-        "description" : "`wow.query.timeout`: The query ran longer than its budget allows; narrow it, or retry later.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.",
+        "description" : "`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.",
         "headers" : {
           "Retry-After" : {
             "$ref" : "#/components/headers/Retry-After"
@@ -3652,7 +3673,18 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.query.timeout", "wow.storage.unavailable" ]
+        "x-wow-error-codes" : [ "wow.storage.unavailable" ]
+      },
+      "wow.query.504" : {
+        "description" : "`wow.query.timeout`: The query ran longer than its budget allows; narrow it rather than run it again (decision D254 ③).",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.timeout" ]
       },
       "wow.descriptor.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
