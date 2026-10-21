@@ -1,6 +1,6 @@
 # wow-migrate-data
 
-Moves a 9.x application's data into V10 (design [07 §3](../../documentation/designs/v10/07-migration.md)): it checks `migration-map.json`, imports the 9.x event streams into the V10 log, the 9.x `PrepareKey` keys into the V10 reservations and the 9.x compensation service's unresolved executions into the V10 failure ledger, follows what 9.x keeps writing, compares every 9.x snapshot with the state V10 rebuilds, and writes the V10 snapshots. The 9.x source is a MongoDB event store (decision D213); the V10 target is PostgreSQL or MongoDB.
+Moves a 9.x application's data into V10 (design [07 §3](../../documentation/designs/v10/07-migration.md)): it checks `migration-map.json`, imports the 9.x event streams into the V10 log, the 9.x `PrepareKey` keys into the V10 reservations and the 9.x compensation service's unresolved executions into the V10 failure ledger, follows what 9.x keeps writing, compares every 9.x snapshot with the state V10 rebuilds, and writes the V10 snapshots. For a rollback after the cut-over, it exports what V10 wrote back to the 9.x store (decision D32). The 9.x source is a MongoDB event store (decision D213); the V10 target is PostgreSQL or MongoDB.
 
 ## Running
 
@@ -11,13 +11,14 @@ Moves a 9.x application's data into V10 (design [07 §3](../../documentation/des
 | Command | Options | What it does |
 | --- | --- | --- |
 | `check` | | Checks `migration-map.json` against the 9.x store and the V10 Manifests. Writes nothing. |
-| `import` | `--dry-run`, `--restart`, `--snapshots` | Checks, then imports every mapped 9.x aggregate, then the reservations and the unresolved compensation executions, resuming from the checkpoint. `--dry-run` writes nothing; `--restart` is the final complete pass after 9.x stops writing; `--snapshots` then runs `snapshot`. |
+| `import` | `--dry-run`, `--restart` or `--final`, `--snapshots` | Checks, then imports every mapped 9.x aggregate, then the reservations and the unresolved compensation executions, resuming from the checkpoint. `--dry-run` writes nothing; `--restart` is the final complete pass after 9.x stops writing; `--final` is the shorter final pass when the tail followed 9.x until it stopped (see [The final pass](#the-final-pass)); `--snapshots` then runs `snapshot`. |
 | `tail` | `--once` | Follows what 9.x commits after the import. It needs a `(createTime, _id)` index on each `<aggregate>_event_stream`; it prints the command, or creates it with `source.createCommitTimeIndex`. |
 | `compare` | `--sample <percent>`, `--restart` | Compares each 9.x snapshot with the V10 state rebuilt from the imported log at the snapshot's version, then the reservations and the parked entries. |
 | `snapshot` | `--restart` | Writes the V10 snapshot of every imported instance at its last version. |
 | `backfill-tags` | `--restart`, `--force` | Records the tags of every V10 stream appended without them, then re-sinks the Elasticsearch events documents indexed without them (see [Backfilling the tags](#backfilling-the-tags)). |
+| `export` | `--dry-run`, `--restart` | Writes back to the 9.x store the streams V10 wrote after the cut-over, for a rollback; refuses V10-only types (see [Rolling back](#rolling-back-after-v10-has-written)). |
 
-Exit codes: `0` done, `1` failed (the check, or a step that stopped), `2` usage error, `3` `compare` found differences.
+Exit codes: `0` done, `1` failed (the check, or a step that stopped), `2` usage error, `3` `compare` found differences, or the stream counts differ after `export`.
 
 ## Configuration
 
@@ -75,6 +76,20 @@ A 9.x event the V10 aggregate no longer has (the 9.x `DroppedEvent`) is mapped i
 - `retire` writes the record as stored under the name `to`, which the V10 aggregate lists in `@AggregateRoot(retiredEvents)` (decision D219). Loading skips it, so its stream still counts as a version. The check fails when `to` is not in the aggregate's retired events in the Manifest.
 - `drop` leaves the event out of its stream. A stream whose every event is dropped would leave its version empty, which the log cannot hold, so the check counts those streams and fails before anything is imported. Map such events with `retire` instead.
 
+## The final pass
+
+Once 9.x has stopped writing, the final pass imports what it committed since the tail last read. `import --restart` walks every instance again, so it takes as long as the whole history: about 97 s for the roughly 296,000 streams of the 8c.1 rehearsal, half its write stop. When the tail followed 9.x until it stopped, `import --final` replaces it:
+
+1. It checks each mapped aggregate: its full import completed, and its tail's last pass ended at most `final.maxTailAgeMillis` ago (10 minutes by default). Otherwise it prints why and writes nothing; the final pass is then `import --restart`.
+2. It runs one tail pass from the tail's checkpoint, reading again `final.lookbackMillis` before it (5 minutes by default). The window covers the clocks of 9.x's nodes and the commits in flight when 9.x stopped, which may carry an earlier `createTime` than commits already read.
+3. It walks the reservations and the compensation executions again from the first, as `--restart` does, since the tail follows neither.
+
+`compare` stays the gate after the final pass, whichever ran. Keep `import --restart` for a migration whose tail did not run continuously.
+
+```json
+"final": { "lookbackMillis": 300000, "maxTailAgeMillis": 600000 }
+```
+
 ## Events that moved the owner
 
 9.x applied any event implementing its `OwnerTransferred` as an owner transfer: the aggregate's owner became the event's `toOwnerId`. A domain event of that kind (a view's `ViewAudienceChanged`) names the field in its mapping, so the imported stream records the owner it moved to, as it records the owner of a `wow.lifecycle.OwnerTransferred`:
@@ -109,7 +124,7 @@ The owner is that aggregate's instance with the id, in the tenant its 9.x stream
 
 9.x keeps serving while the migration runs, so a key it confirmed may be rolled back (a rename) or reprepared for another owner after an import reserved it. The import records each key it reserves in `<checkpoint>.reservations.jsonl`, beside the checkpoint file, before reserving it. A walk from the first key (the first `import`, or `--restart`) first releases each recorded key that V10 still holds for the recorded owner and 9.x no longer confirms to that owner (printed as `RELEASED`), then reserves what 9.x holds now, so a key that moved is reserved for its new owner instead of stopping the import. A key V10 holds without a record, which V10 reserved itself, is never released; a recorded key V10 no longer holds for its owner is forgotten. `compare` checks both ways: every confirmed 9.x key is reserved in V10 for the same owner, and every recorded key V10 still holds is still confirmed to that owner in 9.x; it prints each that is not.
 
-The reservation store is the target backend's, under its default name, as the V10 host uses it. `tail` does not follow `PrepareKey`s: the final `import --restart`, once 9.x has stopped writing, reserves the keys 9.x confirmed since and releases those it gave up.
+The reservation store is the target backend's, under its default name, as the V10 host uses it. `tail` does not follow `PrepareKey`s: the final pass (`import --final` or `--restart`), once 9.x has stopped writing, reserves the keys 9.x confirmed since and releases those it gave up.
 
 ## Compensation (9.x `ExecutionFailed`)
 
@@ -154,7 +169,7 @@ Cut-over notes:
 
 - V10 parks the aggregate, not the event (D14): its later events wait while it is parked, and a resume handles its streams from the failed version on, including those 9.x already handled after the failure. Handlers must tolerate that, as they tolerate any redelivery.
 - Two executions of one subscription and aggregate become one entry, from the earlier version, with the retry state of the first one imported.
-- `tail` does not follow the compensation service. Stop the 9.x compensation service with the application, then run the final `import --restart`.
+- `tail` does not follow the compensation service. Stop the 9.x compensation service with the application, then run the final pass (`import --final` or `--restart`).
 - After the cut-over the V10 service owns the retries, and an entry resolved in V10 is no longer parked, so a later `compare` reports it.
 - Entries and keys imported before the import recorded their origin (the reason's mark, the keys file) cannot be told from V10's own: run the import from a fresh V10 target, or with `--restart` after removing them.
 
@@ -187,9 +202,24 @@ The summary of each aggregate gives the share of instances that have a 9.x snaps
 
 On 100,000 aggregates of 2 streams each (page 500, concurrency 8, containers on a laptop) the backfill took 12.7 s on PostgreSQL (0.13 ms per aggregate) and 44.9 s on MongoDB (0.45 ms per aggregate): `TagsBackfillCostSpike`, run with `-Dwow.spike.tags=true`.
 
+## Rolling back after V10 has written
+
+Decision D32: once V10 has served writes after the cut-over, going back to 9.x needs what V10 wrote in the 9.x store. `export` writes it there, for the event types 9.x already had:
+
+1. Stop V10's writes, and keep 9.x stopped. What V10 commits after `export` starts is not exported.
+2. `export --dry-run` scans each V10 context's log up to its heads and prints, per aggregate type, the streams it holds and how many 9.x lacks. A stream 9.x lacks that holds a V10-only type is printed as `REFUSED` with the type: an aggregate no 9.x aggregate maps to, or an event the map does not reach at its V10 revision (one V10 moved on with `@Upgrade`, or a new one). A stream 9.x holds at the same version with another command or tenant is printed as `CONFLICT`. Either stops the export before anything is written. Each context ends with a `VERDICT` line: roll back by switching back (9.x holds every stream V10 holds), roll back by export (and how many streams go back), or no rollback by export, with the time the window closed: the commit time of the first stream V10 wrote that 9.x cannot read, the earliest of the times each `REFUSED` line gives for its type.
+3. `export` scans again, then writes the streams 9.x lacks, a page of each partition at a time, resuming from its checkpoint. It is idempotent: a stream 9.x already holds by its instance and version, with the same command, is skipped, so a run again writes nothing. Then it prints, per 9.x aggregate, whether 9.x holds as many streams as V10 holds of its type (`EQUAL` or `DIFFERS`, exit `3`).
+4. Start 9.x. It loads each instance from its last snapshot on, and the exported streams are after it. Its snapshots themselves, which its queries read, still show the state before them until 9.x writes the instance again or regenerates its snapshots.
+
+Each stream goes back by the map read backwards: the 9.x aggregate, event names and revisions (an event mapped from any 9.x revision gets the latest revision of its name the store holds), renamed fields and kept headers get their 9.x names back; the correlation id, the command id, the command's 9.x name and the operator's id become the `trace_id`, `upstream_id`, `upstream_name` and `command_operator` headers. 9.x needs ids V10 does not keep: a stream's id is derived from its ref and version, the same on every run. Each event gets the `bodyType` 9.x recorded for its name and revision, and decimals are written as `Decimal128`.
+
+`export` writes only into a 9.x collection with 9.x's unique `(aggregateId, version)` index, which 9.x creates when it starts; without it, it stops and prints the command that creates it.
+
+Limits: only event streams go back. Reservations V10 made, entries it parked, and its projections' views have no 9.x form here. A 9.x consumer of the event bus does not see the exported streams: 9.x does not publish what it reads from its store.
+
 ## Checkpoints
 
-The checkpoint file (format 1) keeps, per 9.x aggregate, where the import, the tail, the comparison and the snapshot writing stand; per `PrepareKey`, where its reservation import stands; and where the compensation import stands; per V10 aggregate type, where the tags backfill stands. The keys the reservation import reserved are kept beside it, in `<checkpoint>.reservations.jsonl`: keep the two together. Commands may run at once over the same checkpoint file, the tail beside `compare` or `snapshot`: each change of it holds a lock on `<checkpoint>.lock` (left in place, empty) and replaces the file atomically after forcing the new content to the disk, so none loses another's progress. A stopped run repeats at most one page. A resumed comparison keeps the counts of the earlier runs, so it still exits with `3` when they found differences. `--restart` starts a pass again from the first instance, and another `--sample` restarts the comparison.
+The checkpoint file (format 1) keeps, per 9.x aggregate, where the import, the tail (and when its last pass ended), the comparison and the snapshot writing stand; per `PrepareKey`, where its reservation import stands; and where the compensation import stands; per V10 aggregate type, where the tags backfill stands; per V10 context, the last log sequence `export` wrote of each partition. The keys the reservation import reserved are kept beside it, in `<checkpoint>.reservations.jsonl`: keep the two together. Commands may run at once over the same checkpoint file, the tail beside `compare` or `snapshot`: each change of it holds a lock on `<checkpoint>.lock` (left in place, empty) and replaces the file atomically after forcing the new content to the disk, so none loses another's progress. A stopped run repeats at most one page. A resumed comparison keeps the counts of the earlier runs, so it still exits with `3` when they found differences. `--restart` starts a pass again from the first instance, and another `--sample` restarts the comparison.
 
 ## Limits
 
