@@ -40,6 +40,7 @@ describe('the V10 store reads a failure', () => {
     ['wow.aggregate.version-mismatch', 412, 'CONFLICT'],
     ['wow.command.request-id-reused', 409, 'CONFLICT'],
     ['wow.aggregate.not-found', 404, 'NOT_FOUND'],
+    ['wow.query.not-found', 404, 'NOT_FOUND'],
     ['wow.aggregate.deleted', 410, 'NOT_FOUND'],
     ['view-store.not-found', 404, 'NOT_FOUND'],
     ['wow.auth.unauthenticated', 401, 'FORBIDDEN'],

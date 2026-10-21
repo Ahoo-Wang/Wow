@@ -1,4 +1,4 @@
-# Message keys — 2191.
+# Message keys — 2196.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -1201,6 +1201,11 @@ label.dashboard.write-forbidden
 label.dashboard.write-in-flight
 label.dashboard.write-unsupported
 label.dashboard.wrong-kind
+label.dataset.loading
+label.dataset.none
+label.dataset.none-hint
+label.dataset.picker
+label.dataset.refresh
 label.date-diff-unit.DAY
 label.date-diff-unit.HOUR
 label.date-diff-unit.MINUTE

@@ -202,6 +202,36 @@ private fun resources(options: Options): Resources = Resources(
     kafkaContainer = options.optional("kafka"),
 )
 
+/**
+ * The [resources]' samplers through a run's phases: they start at the warm-up and are read at the measured phase's
+ * edges, on threads of their own, so nothing they do delays a send or starts inside the measured phase (B.O-2).
+ */
+private class Sampling(private val resources: Resources) {
+    private var preparing: Thread? = null
+    private var starting: Thread? = null
+    private var stopping: Thread? = null
+
+    fun on(phase: String) {
+        when (phase) {
+            "warm-up" -> preparing = thread(name = "resources-prepare") { resources.prepare() }
+            "measure" -> starting = thread(name = "resources-start") {
+                preparing?.join()
+                resources.start()
+            }
+            "drain" -> stopping = thread(name = "resources-stop") {
+                starting?.join()
+                resources.stopped.set(resources.stop())
+            }
+        }
+    }
+
+    /** After the drain: waits for the stop's reads, then the reads that start a process of their own. */
+    fun finish() {
+        stopping?.join()
+        resources.complete()
+    }
+}
+
 /** One open-loop run; its results go to `--out` as `result.json` and `summary.md`. */
 private fun run(client: Client, targets: List<URI>, options: Options): Int {
     val mix = mixOf(options)
@@ -213,9 +243,7 @@ private fun run(client: Client, targets: List<URI>, options: Options): Int {
     val out = File(options.required("out")).apply { mkdirs() }
     val resources = resources(options)
     val startedAt = Instant.now()
-    // The samplers start and stop on threads of their own, so reading the stores' counters never delays a send.
-    var starting: Thread? = null
-    var stopping: Thread? = null
+    val sampling = Sampling(resources)
     val measured = OpenLoop(
         client = client,
         mix = mix,
@@ -227,15 +255,9 @@ private fun run(client: Client, targets: List<URI>, options: Options): Int {
         maxInFlight = options.int("max-in-flight", OpenLoop.DEFAULT_MAX_IN_FLIGHT),
     ) { phase ->
         println("[run] ${client.adapter.name} ${mix.label} @ $rate/s: $phase")
-        when (phase) {
-            "measure" -> starting = thread(name = "resources-start") { resources.start() }
-            "drain" -> stopping = thread(name = "resources-stop") {
-                starting?.join()
-                resources.stopped.set(resources.stop())
-            }
-        }
+        sampling.on(phase)
     }.run()
-    stopping?.join()
+    sampling.finish()
     val result = Report.result(
         label = options.string("label", "run"),
         adapter = client.adapter,

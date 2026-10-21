@@ -1,50 +1,50 @@
 # Wow Agent Skills
 
-本目录提供六个按用户交付结果划分的 Wow Agent Skills：两个面向 Kotlin/Java 服务（开发、审查与诊断合为 `wow-develop`，破坏性迁移为 `wow-migrate`），一个面向调用 Wow 服务的 TypeScript 应用（生成与手写客户端合为 `wow-client`），一个面向运行中 Wow 服务的数据问答，两个面向 Wow View Engine：一个写视图定义，一个接入宿主。被选中的 Skill 负责从取证到完成验证的整个任务。
+本目录提供六个 Wow Agent Skills，面向在 **Wow V10** 上构建应用的人。每个 Skill 对应读者手上的一项工作，交付一种结果，并负责从取证到完成验证的整个任务。9.x 应用使用 `v9` 分支上的插件（0.x），本插件只教 V10。
 
-这些 Skills 不复制框架 API 文档，而是补充工作流、架构不变量、授权边界和完成证据。具体 API、配置、默认值、模块名和生成契约必须在目标 checkout 或精确目标 tag 中重新确认。
+这些 Skills 不复制框架 API 文档，而是补充工作流、架构不变量、授权边界和完成证据。具体 API、配置、默认值、模块名和生成契约必须在目标 checkout 或精确的目标 tag 中重新确认。
 
-所有 Skill 仅服务于使用或引入 Wow 的下游应用，Wow 框架仓库自身一律不激活，唯一的例外见下一段。下游任务还必须确认主要交付对象确实是 Wow 行为、代码或迁移：目标应用源码存在 `me.ahoo.wow` import 或 `wow-*` Gradle/Maven dependency/starter，或任务明确要引入、使用、解释或迁移到 Wow。TypeScript 侧的对应标记是 `@ahoo-wang/wow-client`、`@ahoo-wang/wow-react`、`@ahoo-wang/wow-generator` 依赖或 import，或迁移前的 `@ahoo-wang/fetcher-wow`、`@ahoo-wang/fetcher-generator`。Wow 仓库 `typescript/` 下这些包自身的开发同样不激活本包。视图定义与宿主接入的对应标记是 `@ahoo-wang/wow-view-engine`（或 `@ahoo-wang/wow-view-store`）依赖或 import。仅在否定、比较或排除语境中提到 Wow 不能触发本包；DDD、CQRS、Event Sourcing、aggregate、saga、projection、command gateway、Spring、Reactor、Kotlin 或 Java 等通用词也不能。
+## 按工作选择
 
-例外（D10）：Wow 仓库内的视图定义可以激活 `wow-view-definition`，即 Storybook 场景中的定义、系统视图与故事（`typescript/storybook/stories/view-engine/`），以及补偿控制台的视图定义（`compensation/dashboard/src/views/`）；这两处的宿主接线（引擎与资源、`ViewHost`、路由、存储与声明式操作，如控制台的 `src/views/engine.ts`、`routes.ts`、`executionActions.ts`、`viewStore.ts` 与 `src/features/App/ConsoleHost.tsx`）可以激活 `wow-view-host`。修改视图引擎本身（`typescript/wow-view-engine/`）或 `@ahoo-wang/wow-view-store` 包仍不激活任何 Skill。
+| 你在做的事 | Skill | 交付物 | 不负责 |
+|---|---|---|---|
+| 开发、审查或诊断一个 V10 服务（Kotlin/Java）：聚合、拒绝、Saga、投影、查询、测试、Spring Boot 宿主 | `wow-develop` | 代码与测试；审查结论与合并准备度；根因与修复（修复需授权） | 9.x 服务的迁移（`wow-migrate`）；TypeScript 代码 |
+| 写调用 Wow 服务的 TypeScript 代码：从 Manifest 生成客户端，发命令并等待，查询与流，React hooks，CoSec 鉴权 | `wow-client` | 生成的或手写的客户端代码，以及在 CI 里重新生成的检查 | 服务端代码；视图引擎的定义与接入；9.x 客户端的迁移（`wow-migrate`） |
+| 用运行中服务的实时数据回答业务问题 | `wow-data-query` | 答案、所用的只读查询、注意事项（含数据集 409、舱壁 429） | 交付代码（`wow-client`）；查询报错或结果异常的诊断（`wow-develop`） |
+| 为视图引擎写视图定义：列哪些字段、用什么词、收窄什么、系统视图与看板 | `wow-view-definition` | `defineView` 定义、提交的能力描述快照、各语言的词、`admit` 测试 | 宿主接线（`wow-view-host`）；客户端代码；数据问答；改视图引擎本身 |
+| 把视图引擎接到宿主应用：引擎与数据源、数据集、视图存储、`ViewHost`、路由、把命令声明成操作 | `wow-view-host` | 宿主接线代码，以及 `actionHarness`、`resolveNavigation`、`admit` 测试 | 定义里声明什么（`wow-view-definition`）；引擎之外的客户端代码；改视图引擎本身 |
+| 把 9.x 服务迁到 V10：Kotlin 源码、配置、HTTP 与 TypeScript 客户端、数据导入与校验、切换与回滚 | `wow-migrate` | 改写后的源码与 `migration-map.json`、数据演练与切换的证据、回滚方案 | 首次采用（`wow-develop`）；V10 内部的常规升级；与 Wow 无关的数据库迁移 |
 
-V9 是当前维护基线和默认术语。`wow-develop` 仍可服务 V8 下游应用，但必须先从目标构建与解析依赖确认实际 Wow 版本，再应用精确符号、默认值或 V9 规则；无法确认时标记版本结论未验证。V8 到 V9 的旧类型、配置和行为映射只保存在 `wow-migrate`。V10（`v10` 分支，只有 `10.0.0-alpha.n` 预发布版）是另一套编程模型、模块与配置：`wow-develop` 先按目标构建判断是 V10 还是 9.x，V10 目标只加载 `references/v10-service.md`，9.x 目标只加载其余领域 references；从零编写的 V10 服务属于首次采用，由 `wow-develop` 负责，9.x 到 V10 的改写属于 `wow-migrate`。
+**按交付物选，不按涉及的组件名选。** 答案来自运行中服务的数据选 `wow-data-query`；视图定义、系统视图、看板或它们的故事选 `wow-view-definition`；引擎在宿主里的接线选 `wow-view-host`；下游 TypeScript 应用里的代码选 `wow-client`。Kotlin/Java 服务中，起点是 9.x 的源码、配置、客户端或数据时选 `wow-migrate`（包括对这类迁移的审查与诊断），其余开发、审查与诊断都选 `wow-develop`。运维集群与处置故障暂由 `wow-develop` 的诊断部分覆盖（ops 路由只读）。
 
-同一主版本也可能有实现 SPI 变更。查询参考按目标是否具备 `QueryFilter.prepare`、`QueryPolicy.evaluate` 和 `QueryAdmission`（Backend 原语接收 `AdmittedQuery`）区分固定管道与历史实现；Backend 仍接收 `(query, schema)` 的中间目标只共享阶段顺序，不能把 around chain、验证模式或旧构造器套到所有 V9 目标。评估用例中的固定 commit 是源码基线，不是已发布制品证明；带明确历史版本的案例继续按其原始合同评估。
+## 何时激活
 
-## Skills
+所有 Skill 只服务于使用或引入 Wow 的下游应用。目标必须确实以 Wow 为交付对象：源码里有 `me.ahoo.wow` import 或 `wow-*` 依赖（V10 的 Gradle 插件 `me.ahoo.wow` 与 BOM `me.ahoo.wow:wow-bom`），TypeScript 侧有 `@ahoo-wang/wow-client`、`@ahoo-wang/wow-react`、`@ahoo-wang/wow-generator`、`@ahoo-wang/wow-view-engine` 或 `@ahoo-wang/wow-view-store` 依赖或 import，或任务明确要引入、使用、解释或迁移到 Wow。仅在否定、比较或排除语境中提到 Wow 不触发；DDD、CQRS、Event Sourcing、aggregate、saga、projection、Spring、Reactor、Kotlin、Java 等通用词也不触发。
 
-| Skill | Primary outcome | Boundary |
-|---|---|---|
-| `wow-develop` | 设计、实现、测试、重构或解释 Wow 行为；输出 findings、合并准备度或完成 review-and-fix；复现、定位已有故障或完成 diagnose-and-fix | 不用于破坏性迁移、数据切换及对它们的审查或诊断 |
-| `wow-migrate` | 破坏性版本、生成/运行时契约或 Wow-managed 存储/数据迁移 | 不用于无历史/兼容转换的首次采用、无已知破坏且无数据迁移的常规 v8 升级或普通故障 |
-| `wow-client` | 用 `@ahoo-wang/wow-client`、`@ahoo-wang/wow-react` 编写 TypeScript 命令、查询与 React 查询 hook 代码，用 `wow-generator` CLI 或 `CodeGenerator` 从 OpenAPI 生成模型与 Wow CQRS 客户端，或从 `@ahoo-wang/fetcher-wow`、`@ahoo-wang/fetcher-generator` 换过来 | 不用于 Kotlin/Java 服务端工作或视图引擎的定义与接入 |
-| `wow-data-query` | 读取运行中 Wow 服务的查询能力描述，执行只读查询回答业务数据问题，交付答案、所用查询与注意事项 | 不交付代码（属于 `wow-client`）；查询报错或结果异常的诊断属于 `wow-develop` |
-| `wow-view-definition` | 依据业务场景与已提交的查询能力描述，用 `defineView` 决定并写出视图定义：列哪些字段、用什么词、收窄什么、系统视图（记录、分析）与看板；自检就是引擎的 `admit` | 不接入宿主（属于 `wow-view-host`），不写运行时客户端代码（属于 `wow-client`），不回答数据问题（属于 `wow-data-query`），不改视图引擎本身 |
-| `wow-view-host` | 把视图引擎接入宿主应用：一个引擎与它的资源（定义 + Wow 查询源与描述）、视图存储（`MemoryViewStore`、`localStorageSnapshot`、`WowViewStore`、存储的系统视图与 `editSystem`、CoSec 网关规则）、`ViewHost`、`bind` 与路由，把 Wow 命令声明成操作，以及从已弃用的 `@ahoo-wang/fetcher-viewer` 迁来；以 `actionHarness`、`resolveNavigation` 与 `admit` 自检 | 不决定定义里声明什么（属于 `wow-view-definition`），不写引擎之外的客户端代码（属于 `wow-client`），不改视图引擎本身 |
+Wow 框架仓库自身一律不激活，例外只有两处：
 
-## Selection
+- **视图**：仓库内的视图定义可以激活 `wow-view-definition`，即 Storybook 场景（`typescript/storybook/stories/view-engine/`）与 ops 控制台的定义（`platform/ops/console/src/views/` 里的 `parked.ts`、`overview.ts` 与它们的词）；这两处的宿主接线（ops 控制台的 `engine.ts`、`bindings.ts`、`parkedActions.ts`、`parkedCommands.ts`）可以激活 `wow-view-host`。修改视图引擎本身（`typescript/wow-view-engine/`）或 `@ahoo-wang/wow-view-store` 包不激活任何 Skill。
+- **平台服务的移植**：把仓库里 9.x 的平台模块（它的源码在 `main` 与 `v10-9x-baseline` 上）移植为 `platform/` 下的 V10 项目，按下游迁移使用 `wow-migrate`。
 
-按交付结果选择，不按涉及的组件名选择：答案来自运行中服务的数据选 `wow-data-query`；视图定义、系统视图、看板或它们的故事选 `wow-view-definition`；引擎在宿主里的接线选 `wow-view-host`；下游 TypeScript 应用中的代码（生成或手写）选 `wow-client`。Kotlin/Java 服务中，跨主版本、同主版本 Wow source/config/generated/runtime 破坏性变化，或 Wow-managed 存储/历史数据的转换、对账、切换及不兼容写入回滚是主问题时选 `wow-migrate`（包括对这类迁移的审查与诊断），其余开发、审查、诊断都选 `wow-develop`；与 Wow 行为或 API 无直接关系时不激活本包。
+## 安装
 
-`review-and-fix` 与 `diagnose-and-fix` 都由 `wow-develop` 完成，修复只在用户授权后进行。
+插件 `ahoo-wow-skills`（`plugins.json`）包含这六个 Skill。两种安装方式：
 
-### 改名（插件 0.2.0）
+1. **从 Ahoo Skills Hub 安装插件** `ahoo-wow-skills`，用所用 Agent 的插件命令。Hub 负责同步、生成和验证插件产物；Wow 仓库拥有并维护 Skill 内容。
+2. **直接拷贝**：把本目录下六个 Skill 目录（每个含 `SKILL.md`、`agents/`、`references/`，以及有的 `assets/`、`scripts/`）从精确的 Wow tag 拷到 Agent 的 Skills 目录，例如项目里的 `.claude/skills/<skill>/`。`evals/` 是维护用例，不需要拷贝。
 
-`wow-review` 与 `wow-debug` 并入 `wow-develop`，`wow-generator` 并入 `wow-client`。旧名称不保留别名；它们的 references 移到吸收它们的 Skill，eval 用例同样迁入。
+安装后的 Skill 只依赖各自目录里的内容，不依赖仓库根目录的脚本。插件版本与框架版本独立；升级后刷新或重新安装插件，再确认六个 Skill 都能被发现。9.x 应用安装 `v9` 分支上的插件。
 
 ## Content model
 
 - `SKILL.md` 只保存入口契约、核心流程、授权边界和 reference 选择规则。
 - `references/` 保存稳定决策、源码发现方法和风险边界，按需加载。
 - `assets/` 保存可复制到输出中的模板，不作为推理资料默认加载。
-- Skill 内的 `scripts/` 只承载重复、确定且容易手写出错的操作；当前仅 `wow-migrate/scripts/audit-v6-usage.sh` 符合这一边界。
+- Skill 内的 `scripts/` 只承载重复、确定且容易手写出错的操作。
 - `evals/<case>/prompt.md` 与 `evals/<case>/graders/*.md` 是 `claude plugin eval` 的用例：`prompt.md` 是交给 Agent 的请求（setup 文件内联在请求中），frontmatter 的 `tags` 恰含 `activation` 或 `behavior` 之一。
   - `activation` 用例设 `max_turns: 2`，只有一个 `tool_used: Skill` grader：`trigger` 用例要求本 Skill 加载；`negative` 用例（`min: 0`、`max: 0`、`arm: both`）要求它不加载，包括应由相邻 Skill 或相邻工具（Axon、Spring Data、axios、openapi-generator 等）处理的请求。
   - `behavior` 用例用 `llm` grader 的 PASS 条目评判答案，可再用 `regex` grader 要求答案点出关键符号；其 `tool_used: Skill` grader 只是加载指示。
 - eval 用例不属于安装后工作流，也不由 Skill 加载。
-
-安装后的六个 Skill 仅依赖各自目录中的 `SKILL.md`、`agents/` 和按需资源，不依赖仓库根目录的维护脚本。
 
 ## Validation
 
@@ -79,6 +79,4 @@ SKILLS_EVAL_RUNS=3 SKILLS_EVAL_MAX_COST=5 SKILLS_EVAL_CONCURRENCY=2 node scripts
 
 ## Distribution
 
-`plugins.json` 显式列出可分发的六个 Skill。Ahoo Skills Hub 负责同步、生成和验证插件产物；Wow 仓库拥有并维护 Skill 内容。本架构不分发旧名称或兼容别名；发布后，既有安装必须刷新或重新安装插件，再确认六个 Skill 均可发现。
-
-框架版本与 Skill 插件版本独立。仓库源码修订不代表 Hub 已分发，也不会更新既有安装；源码验证、插件发布和安装刷新应分别报告状态。
+`plugins.json` 显式列出可分发的六个 Skill。本架构不分发旧名称或兼容别名。源码验证、插件发布和安装刷新应分别报告状态：仓库源码修订不代表 Hub 已分发，也不会更新既有安装。

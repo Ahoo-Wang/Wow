@@ -20,6 +20,7 @@
     "check:versions": "node .github/scripts/project-version.mjs check",
     "check:docs-layout": "node .github/scripts/docs-layout.mjs",
     "check:docs-samples": "node .github/scripts/docs-samples.mjs",
+    "check:docs-consistency": "node .github/scripts/docs-consistency.mjs",
     "check:hygiene": "node .github/scripts/repo-hygiene.mjs"
   },
   "devDependencies": {

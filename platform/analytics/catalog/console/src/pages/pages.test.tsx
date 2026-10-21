@@ -11,10 +11,16 @@
  * limitations under the License.
  */
 
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
-import { EDITOR, renderConsole } from "@/app/testing.tsx";
+import {
+  defaultRecordConfig,
+  emptyDashboardConfig,
+  type DataViewDefinition,
+} from "@ahoo-wang/wow-view-engine";
+import { catalogEngine, EDITOR, renderConsole } from "@/app/testing.tsx";
+import { BOARDS } from "@/views/boards.ts";
 
 const SERVED = [
   {
@@ -25,6 +31,7 @@ const SERVED = [
       title: "Orders",
       version: "v1",
     },
+    catalog: 0,
   },
 ];
 
@@ -98,16 +105,16 @@ describe("the draft page", () => {
 describe("the rows page", () => {
   afterEach(() => localStorage.clear());
 
-  it("reads the rows of the first dataset served", async () => {
-    const { refresh } = renderConsole(EDITOR, {
+  it("reads the rows of the first dataset served, read again for another caller", async () => {
+    const { refresh, callers } = renderConsole(EDITOR, {
       path: "/rows",
       served: SERVED,
     });
     expect(await screen.findByText("Hangzhou")).toBeVisible();
-    expect(screen.getByRole("combobox", { name: "Dataset" })).toHaveValue(
-      "shop.order_wide",
+    expect(screen.getByLabelText("Dataset")).toHaveTextContent(
+      "Orders (shop.order_wide)",
     );
-    await userEvent.click(screen.getByRole("button", { name: "Read again" }));
+    act(() => callers.set({ ...EDITOR, user: "bob" }));
     await waitFor(() => expect(refresh).toHaveBeenCalledTimes(2));
   });
 
@@ -144,6 +151,56 @@ describe("the rows page", () => {
 
   it("says when no dataset is served", async () => {
     renderConsole(EDITOR, { path: "/rows" });
-    expect(await screen.findByText(/No dataset is served yet/)).toBeVisible();
+    expect(await screen.findByText("No dataset yet")).toBeVisible();
+  });
+});
+
+describe("the boards page", () => {
+  afterEach(() => localStorage.clear());
+
+  it("shows a board whose panels name views of the datasets served", async () => {
+    const engine = catalogEngine(SERVED);
+    const view = await engine.save(
+      engine.create("shop.order_wide", {
+        title: "All orders, saved",
+        scope: "personal",
+        config: defaultRecordConfig(
+          engine.definitions.get("shop.order_wide") as DataViewDefinition,
+        ),
+      }),
+    );
+    const board = await engine.save(
+      engine.create(BOARDS, {
+        title: "Orders board",
+        scope: "personal",
+        config: {
+          ...emptyDashboardConfig(),
+          panels: [
+            {
+              id: "orders",
+              kind: "view",
+              instanceId: view.id,
+              bindings: [],
+              layout: { x: 0, y: 0, w: 12, h: 4 },
+            },
+          ],
+        },
+      }),
+    );
+    renderConsole(EDITOR, {
+      path: `/boards?view=${encodeURIComponent(board.id)}`,
+      served: SERVED,
+      engine,
+    });
+    expect((await screen.findAllByText("Orders board")).length).toBeGreaterThan(
+      0,
+    );
+    expect(
+      (await screen.findAllByText("All orders, saved")).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: "Boards" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
   });
 });

@@ -19,7 +19,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const GRADLE_VERSION = /^version=(.*)$/m;
-const EXTRA_PACKAGES = ['platform/ops/console', 'documentation'];
+const EXTRA_PACKAGES = [
+  'platform/ops/console',
+  'platform/analytics/catalog/console',
+  'documentation',
+];
 
 const VERSION = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/;
 
