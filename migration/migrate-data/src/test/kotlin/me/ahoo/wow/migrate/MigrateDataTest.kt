@@ -167,6 +167,48 @@ class MigrateDataTest {
     }
 
     @Test
+    fun `import --final walks the reservations and the compensation again`(): Unit = runBlocking {
+        val id = NineXExample.stream("order-stream-v1.json").aggregateId
+        prepared.add(NineXPreparedKey("order_no", "NO-1", WowJson.mapper.readTree("""{"orderId":"${id.id}"}"""), null))
+        val map = NineXExample.MAP_TEXT.replace(
+            "\"to\": \"example.order\",",
+            "\"to\": \"example.order\", \"reservations\": [ { \"from\": \"order_no\", \"namespace\": \"order.no\", " +
+                "\"ownerId\": \"orderId\" } ],",
+        )
+        val reserving = config(map).toString()
+        run("import", "--config", reserving).assert().isEqualTo(MigrateData.OK)
+        run("tail", "--config", reserving, "--once").assert().isEqualTo(MigrateData.OK)
+        run("import", "--config", reserving, "--final").assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        printed.assert().contains("PrepareKey order_no reservations done").contains("Final pass done")
+            .doesNotContain("Snapshots done.")
+
+        prepared.remove("order_no", "NO-1")
+        nineXCompensation = InMemoryNineXCompensationSource(NineXCompensationExample.executions())
+        Files.writeString(directory.resolve("migration-map.json"), NineXCompensationExample.mapText())
+        Files.writeString(directory.resolve("manifest.json"), NineXCompensationExample.MANIFEST_TEXT)
+        val compensating = directory.resolve("compensating.json")
+        Files.writeString(
+            compensating,
+            """
+            {
+              "map": "migration-map.json",
+              "manifests": ["manifest.json"],
+              "checkpoint": "compensating.checkpoint.json",
+              "source": { "uri": "mongodb://localhost:27017", "database": "example_db" },
+              "target": { "type": "postgres", "jdbcUrl": "jdbc:postgresql://localhost:5432/wow" },
+              "partitions": { "example": 4 },
+              "compensation": { "database": "compensation_db", "service": "example-service" }
+            }
+            """.trimIndent(),
+        )
+        run("import", "--config", compensating.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        run("tail", "--config", compensating.toString(), "--once").assert().isEqualTo(MigrateData.OK)
+        run("import", "--config", compensating.toString(), "--final").assert().describedAs(printed)
+            .isEqualTo(MigrateData.OK)
+        printed.assert().contains("9.x compensation done")
+    }
+
+    @Test
     fun `the tail refuses a 9x store without its index, and creates it only when told to`() {
         val indexed = IndexedSource(source)
         nineX = indexed
