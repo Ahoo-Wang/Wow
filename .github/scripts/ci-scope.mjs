@@ -42,7 +42,7 @@ const PACKAGE = 'package';
 // reads.
 const JVM = 'jvm';
 const JVM_PATH =
-  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|tck|tck-containers|benchmarks\/(?:server|load|harness))|example\/(?:eshop|quickstart|java-smoke)|wow-dependencies|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
+  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|tck|tck-containers|benchmarks\/(?:server|load|harness))|example\/(?:eshop|quickstart|java-smoke)|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
 // ci.yml's view-store-contract job: `test` of integration-test, the
 // V10 store (`@ahoo-wang/wow-view-store`) and the view engine on it
 // against the V10 view store service (platform/view-store) built from this
@@ -53,7 +53,7 @@ const JVM_PATH =
 // Markdown is left out: nothing the suites run reads it.
 const VIEW_STORE_CONTRACT = 'viewStoreContract';
 const VIEW_STORE_CONTRACT_PATH =
-  /^(?:typescript\/(?:wow-(?:client|view-store)\/(?!(?:test|expected|scripts)\/)|wow-view-engine\/(?!test\/(?!conformance\/))|integration-test\/)|(?:api|compiler|core|query|backends|edge|host|platform\/view-store|test\/(?:tck|test-dsl)|wow-dependencies|gradle)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
+  /^(?:typescript\/(?:wow-(?:client|view-store)\/(?!(?:test|expected|scripts)\/)|wow-view-engine\/(?!test\/(?!conformance\/))|integration-test\/)|(?:api|compiler|core|query|backends|edge|host|platform\/view-store|test\/(?:tck|test-dsl)|bom\/dependencies|gradle)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
 // ci.yml's ops-console jobs: the ops console's lint, types, tests and
 // build, and its end-to-end suite against the ops server it is served by. Not a
 // TypeScript scope. Decided apart from RULES, by
@@ -62,7 +62,7 @@ const VIEW_STORE_CONTRACT_PATH =
 // packages and files the console builds with, and the workflow itself.
 const OPS_CONSOLE = 'opsConsole';
 const OPS_CONSOLE_PATH =
-  /^(?:platform\/ops\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|patches\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ci\.yml$)/;
+  /^(?:platform\/ops\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ci\.yml$)/;
 // ci.yml's catalog-console jobs: the analytics catalog console's lint, types,
 // tests and build, and its end-to-end suite against the catalog server it is
 // served by, as the ops-console jobs do the ops console's. Decided
@@ -70,7 +70,7 @@ const OPS_CONSOLE_PATH =
 // the workspace packages and files the console builds with, and the workflow.
 const CATALOG_CONSOLE = 'catalogConsole';
 const CATALOG_CONSOLE_PATH =
-  /^(?:platform\/analytics\/catalog\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|patches\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ci\.yml$)/;
+  /^(?:platform\/analytics\/catalog\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ci\.yml$)/;
 
 // A light scope stands in for a full one when only Markdown changed, so it
 // turns off again once any path turns the full scope on.
@@ -215,7 +215,7 @@ const RULES = [
   // and the end-to-end benchmark: the JVM jobs (JVM_PATH); no client or site builds
   // on them yet.
   [
-    /^(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|wow-dependencies|example|gradle)\//,
+    /^(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|example|gradle)\//,
     [],
   ],
   // Other Gradle modules and prose.

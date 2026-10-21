@@ -1,8 +1,8 @@
 ---
 type: regex
-pattern: 'CommandStage\.SNAPSHOT'
+pattern: 'wait\.snapshot\(\)|minVersion'
 match: contains
 target: last_message
 ---
 
-The answer names `CommandStage.SNAPSHOT`.
+The answer names `wait.snapshot()`.

@@ -186,7 +186,7 @@ class RetryBindingTest {
 
     @Test
     fun `a 9x setting of @Retry should fail the compilation`() {
-        // 9.x's @Retry, with settings V10's does not have, in place of V10's.
+        // 9.x's @Retry, with settings Wow 10's does not have, in place of Wow 10's.
         val nineX = SourceFile.kotlin(
             "NineXRetry.kt",
             """
@@ -225,7 +225,7 @@ class RetryBindingTest {
         val (_, result) = compileModel("generate", options, nineX, legacy)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert()
-            .contains("handler Legacy.onEvent is annotated @Retry(enabled), a 9.x setting V10 does not have")
-            .contains("handler Legacy.onEvent is annotated @Retry(maxRetries), a 9.x setting V10 does not have")
+            .contains("handler Legacy.onEvent is annotated @Retry(enabled), a 9.x setting Wow 10 does not have")
+            .contains("handler Legacy.onEvent is annotated @Retry(maxRetries), a 9.x setting Wow 10 does not have")
     }
 }

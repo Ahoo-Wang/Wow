@@ -163,6 +163,9 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Developer Guide', link: 'index.html'},
                 {text: 'Write an Aggregate', link: 'aggregates'},
                 {text: 'Rejections and Error Codes', link: 'rejections'},
+                {text: 'Evolve Events', link: 'event-evolution'},
+                {text: 'Owners, Spaces and Tags', link: 'ownership'},
+                {text: 'Unique Keys', link: 'unique-keys'},
             ],
         },
         {
@@ -170,6 +173,9 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             text: 'Processes',
             items: [
                 {text: 'Write a Saga', link: 'sagas'},
+                {text: 'Projections and Reactors', link: 'projections'},
+                {text: 'Scheduled Commands', link: 'scheduling'},
+                {text: 'Failures and Retries', link: 'failures'},
             ],
         },
         {

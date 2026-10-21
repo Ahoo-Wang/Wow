@@ -5,4 +5,4 @@ match: contains
 target: last_message
 ---
 
-The answer names the `yesterday(...)` filter builder.
+The answer names `yesterday(`.

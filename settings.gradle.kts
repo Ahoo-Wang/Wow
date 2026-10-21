@@ -45,10 +45,11 @@ if (providers.gradleProperty("wow.publication.prebuilt").orNull.toBoolean()) {
 }
 
 include(":wow-dependencies")
+project(":wow-dependencies").projectDir = file("bom/dependencies")
 include(":code-coverage-report")
 project(":code-coverage-report").projectDir = file("test/code-coverage-report")
 
-//region v10 (documentation/designs/v10/06-modules.md)
+//region wow (documentation/designs/v10/06-modules.md)
 // The V10 BOM (artifact wow-bom, D87; release configuration R.1).
 include(":bom")
 project(":bom").projectDir = file("bom/bom")
