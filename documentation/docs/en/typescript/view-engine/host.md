@@ -390,4 +390,4 @@ export const testEngine = new ViewEngine({
 
 ## A complete host
 
-The ops console is a complete V10 host: [`OpsHost.tsx`](https://github.com/Ahoo-Wang/Wow/blob/v10/platform/ops/console/src/app/OpsHost.tsx) is its `ViewHost`; [`views/engine.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10/platform/ops/console/src/views/engine.ts) builds its engine over the generated query client of the parked entries; [`views/bindings.ts`](https://github.com/Ahoo-Wang/Wow/blob/v10/platform/ops/console/src/views/bindings.ts) binds them, with their reading and actions.
+The ops console is a complete V10 host: [`OpsHost.tsx`](https://github.com/Ahoo-Wang/Wow/blob/main/platform/ops/console/src/app/OpsHost.tsx) is its `ViewHost`; [`views/engine.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/platform/ops/console/src/views/engine.ts) builds its engine over the generated query client of the parked entries; [`views/bindings.ts`](https://github.com/Ahoo-Wang/Wow/blob/main/platform/ops/console/src/views/bindings.ts) binds them, with their reading and actions.

@@ -11,12 +11,9 @@
 # limitations under the License.
 #
 
-# The eShop's fault-injection soak (C.1), v10-soak.yml, on the v10 branch every
-# night that v10 moved. GitHub runs a schedule from the default branch only, so
-# this file takes effect on main: it dispatches the workflow on v10, which runs
-# v10's copy of it there. The 9.x suites it dispatched until 9.3c left v10 with
-# the 9.x code (decision D262).
-name: V10 Nightly
+# The eShop's fault-injection soak (C.1), soak.yml, on main every night that
+# main moved. GitHub runs a schedule from the default branch only, which main is.
+name: Nightly
 on:
   schedule:
     - cron: '30 18 * * *'
@@ -27,7 +24,7 @@ permissions:
 
 jobs:
   dispatch:
-    name: Dispatch the soak on v10
+    name: Dispatch the soak on main
     if: github.repository == 'Ahoo-Wang/Wow'
     timeout-minutes: 5
     runs-on: ubuntu-latest
@@ -41,9 +38,9 @@ jobs:
     steps:
       - name: Dispatch
         run: |
-          committed=$(gh api "repos/$GH_REPO/commits/v10" --jq .commit.committer.date)
+          committed=$(gh api "repos/$GH_REPO/commits/main" --jq .commit.committer.date)
           if [ "$FORCE" != true ] && [ "$(date -d "$committed" +%s)" -lt "$(date -d '1 day ago' +%s)" ]; then
-            echo "v10 has not moved since $committed"
+            echo "main has not moved since $committed"
             exit 0
           fi
-          gh workflow run v10-soak.yml --ref v10
+          gh workflow run soak.yml --ref main

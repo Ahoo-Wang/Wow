@@ -87,7 +87,7 @@ env:
     value: $(POD_NAME).eshop-ordering-cluster.$(POD_NAMESPACE).svc.cluster.local:9093
 ```
 
-这个地址是 Pod 在一个 headless Service 下的名字，这个 Service 也发布尚未就绪的 Pod，所以正在启动或正在排空的节点仍能收到同伴的转发和信号。[eShop ordering 清单](https://github.com/Ahoo-Wang/Wow/tree/v10/deploy/v10/eshop-ordering)是一个服务的完整模板。
+这个地址是 Pod 在一个 headless Service 下的名字，这个 Service 也发布尚未就绪的 Pod，所以正在启动或正在排空的节点仍能收到同伴的转发和信号。[eShop ordering 清单](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/v10/eshop-ordering)是一个服务的完整模板。
 
 ## 服务需要什么 {#what-a-service-needs}
 
