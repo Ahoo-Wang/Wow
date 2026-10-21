@@ -41,7 +41,7 @@ Each entry in the ops service is one parked aggregate of one subscription, with 
 
 ## Deploy it
 
-The ops service is a Wow service on PostgreSQL and Kafka, behind CoSec, which serves its console as static files. [`deploy/v10/ops`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/v10/ops) holds Kubernetes manifests for two nodes, built on the same choices as the eShop services ([Deployment model](./topology)):
+The ops service is a Wow service on PostgreSQL and Kafka, behind CoSec, which serves its console as static files. [`deploy/ops`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/ops) holds Kubernetes manifests for two nodes, built on the same choices as the eShop services ([Deployment model](./topology)):
 
 1. Build the image with the console in it, or use a released image.
 2. Provide PostgreSQL and Kafka.

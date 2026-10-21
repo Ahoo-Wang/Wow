@@ -364,7 +364,7 @@ test('Storybook and the packages the site renders or compiles samples against bu
 test('Kotlin, Gradle, console and prose changes skip the TypeScript workflow jobs', () => {
   for (const path of [
     'test/tck/src/main/kotlin/Spec.kt',
-    'deploy/v10/ops/deployment.yaml',
+    'deploy/ops/deployment.yaml',
     'platform/ops/console/src/main.tsx',
     'platform/ops/console/package.json',
     'config/detekt/detekt.yml',

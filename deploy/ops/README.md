@@ -1,10 +1,10 @@
-# The ops service on Kubernetes (Wow V10)
+# The ops service on Kubernetes
 
 Plain manifests for the ops service (`platform/ops/ops-server`): every service's parked entries in one place and the operator's console, on PostgreSQL and Kafka, behind CoSec, with two nodes. They follow the [eShop ordering manifests](../eshop-ordering/README.md); the choices there (internal port, probes, shutdown, node id) hold here too.
 
 | File | What it holds |
 | --- | --- |
-| `kustomization.yaml` | The set: `kubectl apply -k deploy/v10/ops` |
+| `kustomization.yaml` | The set: `kubectl apply -k deploy/ops` |
 | `configmap.yaml` | The settings every node shares, as environment variables: the profiles (`postgres,kafka,cosec`), the PostgreSQL URL, the Kafka brokers, the log partitions, OpenTelemetry |
 | `secret.yaml` | The PostgreSQL user and password; the cluster token of the internal port (`WOW_INTERNAL_TOKEN`, decision D226) and the secret CoSec signs its tokens with (`COSEC_JWT_SECRET`). These are example values; replace them |
 | `deployment.yaml` | The nodes: the HTTP port (`8088`: the console and the ops routes) and the internal port (`9098`); probes, shutdown, and the OpenTelemetry Operator's annotation |
@@ -40,7 +40,7 @@ Plain manifests for the ops service (`platform/ops/ops-server`): every service's
 ## Apply and sign in
 
 ```bash
-kubectl apply -k deploy/v10/ops
+kubectl apply -k deploy/ops
 kubectl rollout status deployment/ops
 kubectl port-forward service/ops 8088:80
 ```

@@ -228,7 +228,7 @@
 |---|---|---|---|
 | `wow.*` 配置 | starter `*Properties` | B | 新键（D110，`WowProperties.kt`、配置元数据）；Skill 覆盖 |
 | 优雅停机 | `WowRuntimeSpringLifecycle` | A | `host/spring-boot/.../WowLifecycles.kt` |
-| 健康指示器（就绪、存活） | 无 | A | `wow.health.*` 与 Actuator 健康组（R3-H），deploy/v10 的探针使用它们 |
+| 健康指示器（就绪、存活） | 无 | A | `wow.health.*` 与 Actuator 健康组（R3-H），deploy 的探针使用它们 |
 | 缺少持久存储时快速失败 | 默认 Mongo，缺失即启动失败 | A | R3-D：`wow.backend=auto` 只在开发 profile（`wow.internal.dev-profiles`）下退回内存，否则启动失败 |
 | Maven 构建 | 运行期反射，Maven 可运行 | C | D239 ②：V10 目前只支持 Gradle（KSP、Manifest 补全）；快速开始与迁移 Skill 写明 |
 | CLI：TS 生成器 | `wow-generator` | A | `typescript/wow-generator`（Manifest 输入，5a.3） |

@@ -41,7 +41,7 @@ ops 服务里的每个条目，是一个订阅里的一个停放的聚合，带�
 
 ## 部署 {#deploy-it}
 
-ops 服务是一个运行在 PostgreSQL 和 Kafka 上、位于 CoSec 之后的 Wow 服务，它以静态文件提供控制台。[`deploy/v10/ops`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/v10/ops) 里有两个节点的 Kubernetes 清单，做法与 eShop 的服务相同（[部署模型](./topology)）：
+ops 服务是一个运行在 PostgreSQL 和 Kafka 上、位于 CoSec 之后的 Wow 服务，它以静态文件提供控制台。[`deploy/ops`](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/ops) 里有两个节点的 Kubernetes 清单，做法与 eShop 的服务相同（[部署模型](./topology)）：
 
 1. 构建包含控制台的镜像，或使用已发布的镜像。
 2. 准备 PostgreSQL 和 Kafka。

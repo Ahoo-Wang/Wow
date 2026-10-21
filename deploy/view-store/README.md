@@ -1,10 +1,10 @@
-# The view store on Kubernetes (Wow V10)
+# The view store on Kubernetes
 
 Plain manifests for the view store service (`platform/view-store/view-store-server`): saved views, preferences and dataset wording of the view engine's front ends, on PostgreSQL, behind a CoSec gateway, with two nodes. They follow the [eShop ordering manifests](../eshop-ordering/README.md); the choices there (internal port, probes, shutdown, node id) hold here too.
 
 | File | What it holds |
 | --- | --- |
-| `kustomization.yaml` | The set: `kubectl apply -k deploy/v10/view-store` |
+| `kustomization.yaml` | The set: `kubectl apply -k deploy/view-store` |
 | `configmap.yaml` | The settings every node shares, as environment variables: the profiles (`postgres,cosec`), the PostgreSQL URL, the trust in the gateway's application, the log partitions, OpenTelemetry |
 | `secret.yaml` | The PostgreSQL user and password; the cluster token of the internal port (`WOW_INTERNAL_TOKEN`, decision D226) and the secret CoSec signs its tokens with (`COSEC_JWT_SECRET`). These are example values; replace them |
 | `deployment.yaml` | The nodes: the HTTP port (`8080`) and the internal port (`9090`); probes, shutdown, and the OpenTelemetry Operator's annotation |
@@ -31,7 +31,7 @@ Plain manifests for the view store service (`platform/view-store/view-store-serv
 ## Apply and check
 
 ```bash
-kubectl apply -k deploy/v10/view-store
+kubectl apply -k deploy/view-store
 kubectl rollout status deployment/view-store
 ```
 
