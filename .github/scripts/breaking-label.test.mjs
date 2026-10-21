@@ -142,7 +142,7 @@ test('every committed ABI dump, API report and surface list is a surface record'
   assert.ok(tracked.some(path => path.endsWith('.api.md')));
   assert.ok(tracked.some(path => path.endsWith('.txt')));
   for (const path of tracked) assert.equal(isSurfaceFile(path), true, path);
-  // The V10 dumps (decision D216): a removed line there is labelled too.
+  // The ABI dumps (decision D216): a removed line there is labelled too.
   for (const path of ['api/api/api/api.api', 'core/runtime/api/runtime.api'])
     assert.equal(isSurfaceFile(path), true, path);
   for (const path of [

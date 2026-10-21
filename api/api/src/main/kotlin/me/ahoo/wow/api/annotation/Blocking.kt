@@ -16,7 +16,7 @@ package me.ahoo.wow.api.annotation
 import java.lang.annotation.Inherited
 
 /**
- * A function that blocks its thread, such as one writing a projection or checking a uniqueness over JDBC (V10, design
+ * A function that blocks its thread, such as one writing a projection or checking a uniqueness over JDBC (design
  * 01 §4). A synchronous function is otherwise taken for pure computation and runs inline on a shared worker; the
  * generated call runs this one on the blocking dispatcher, a virtual thread per call. It applies to command functions
  * (`@OnCommand`), after hooks (`@AfterCommand`), subscription handlers (`@OnEvent`, `@OnRejected`, `@OnCommitted`) and

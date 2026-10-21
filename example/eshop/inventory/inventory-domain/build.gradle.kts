@@ -1,4 +1,4 @@
-description = "Wow V10 eShop: the inventory context's aggregates"
+description = "Wow eShop: the inventory context's aggregates"
 
 // KSP with :compiler compiles the aggregates into kernel models, their binding index (D107) and the module's Manifest
 // fragment, as the Gradle plugin `me.ahoo.wow` does for an application. The plugin cannot be applied to a project of

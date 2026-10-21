@@ -1,4 +1,4 @@
-description = "Wow V10 symbol processing: aggregate models and Manifest fragments from the V10 annotations"
+description = "Wow symbol processing: aggregate models and Manifest fragments from the annotations"
 
 dependencies {
     implementation(project(":api"))

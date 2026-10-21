@@ -1,7 +1,7 @@
-description = "Wow V10 view store: the view store service on the Spring Boot host (roadmap 7.2a)"
+description = "Wow view store: the view store service on the Spring Boot host (roadmap 7.2a)"
 
-// The 9.x standalone view store server (view-store/wow-view-store-server) on V10: `./gradlew :view-store-server:run`
-// starts it on the memory backend, `--args='--spring.profiles.active=postgres'` on PostgreSQL. V10 modules are not
+// The 9.x standalone view store server (view-store/wow-view-store-server) on 10.x: `./gradlew :view-store-server:run`
+// starts it on the memory backend, `--args='--spring.profiles.active=postgres'` on PostgreSQL. Wow modules are not
 // published before M8 (decision D88).
 plugins {
     application

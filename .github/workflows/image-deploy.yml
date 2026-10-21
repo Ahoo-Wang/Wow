@@ -18,7 +18,7 @@
 # gates passed; it can also be dispatched on a v10.* pre-release tag to push
 # the images again. Each image gets exactly the release version as its tag:
 # never `latest` and no `X.Y` tag, which stay on the 9.x line until 10.0.0 GA.
-name: V10 Docker Images Deploy
+name: Docker Images Deploy
 on:
   workflow_call:
   workflow_dispatch:
@@ -30,7 +30,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  v10-image-deploy:
+  image-deploy:
     name: Push ${{ matrix.image }}
     runs-on: ubuntu-latest
     timeout-minutes: 60

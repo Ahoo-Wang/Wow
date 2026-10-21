@@ -14,8 +14,8 @@
 package me.ahoo.wow.models.common
 
 /**
- * A type that has a [name]: the V10 counterpart of 9.x's `me.ahoo.wow.api.naming.Named`, a part of 9.x wow-api the V10
- * wow-api leaves out.
+ * A type that has a [name]: the 10.x counterpart of 9.x's `me.ahoo.wow.api.naming.Named`, a part of 9.x wow-api the
+ * 10.x wow-api leaves out.
  */
 interface NameCapable {
     val name: String

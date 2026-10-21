@@ -311,7 +311,7 @@ internal object QueryJsonGoldenCases {
         "group.dense" to AggregationGroup.DatePart(QueryField("createTime"), "weekday", AggregationDatePart.DAY_OF_WEEK, dense = true),
     )
 
-    /** V10 additions: no 9.x counterpart. */
+    /** 10.x additions: no 9.x counterpart. */
     fun v10Cases(): List<Pair<String, Any>> = listOf(
         "paged.exact" to PagedQuery(MatchAllFilter, total = TotalMode.EXACT),
         "paged.none" to PagedQuery(MatchAllFilter, total = TotalMode.NONE),

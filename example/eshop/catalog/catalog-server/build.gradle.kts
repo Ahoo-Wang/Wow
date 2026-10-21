@@ -1,4 +1,4 @@
-description = "Wow V10 eShop: the catalog service on the Spring Boot host"
+description = "Wow eShop: the catalog service on the Spring Boot host"
 
 // An application: `./gradlew :eshop-catalog-server:run` starts it on the memory backend, and
 // `./gradlew :eshop-catalog-server:run --args='--spring.profiles.active=postgres'` on PostgreSQL
@@ -17,6 +17,7 @@ application {
 extra["wowService"] = "eshop-catalog-service"
 apply(from = rootProject.file("example/eshop/wow-manifest-compatibility.gradle.kts"))
 
+// region dependencies
 dependencies {
     implementation(project(":eshop-catalog-domain"))
     implementation(project(":spring-boot"))
@@ -30,3 +31,4 @@ dependencies {
     testImplementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
     testImplementation(libs.json.schema.validator)
 }
+// endregion

@@ -17,7 +17,7 @@ import java.lang.annotation.Inherited
 import kotlin.reflect.KClass
 
 /**
- * An event handler of a [Projection], [Reactor] or [Saga] (V10, decision D67): it takes a
+ * An event handler of a [Projection], [Reactor] or [Saga] (decision D67): it takes a
  * [me.ahoo.wow.api.subscribe.StateEvent] and, optionally, the processor's context. Each handler is its own
  * subscription, named `processor.function`.
  *

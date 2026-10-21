@@ -28,7 +28,7 @@ internal fun MongoException.isDuplicateKey(): Boolean =
  * When the key exists but the guard fails, the upsert tries to insert and the unique key index refuses it. The same
  * happens when a concurrent writer inserted the key between this write's match and its insert, and then the guard
  * may well hold against the document that won. So on a duplicate key [write] runs once more without upsert: the key
- * exists by then (the V10 stores remove a document only on an explicit delete or release), and the update applies
+ * exists by then (the stores remove a document only on an explicit delete or release), and the update applies
  * exactly when the guard holds against the latest document. MongoDB re-evaluates a single-document write's filter
  * after a write conflict, so of concurrent guarded updates only those whose guard still holds apply.
  */

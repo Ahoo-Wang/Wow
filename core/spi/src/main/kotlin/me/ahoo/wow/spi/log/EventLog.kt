@@ -20,7 +20,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.WowSpi
 
 /**
- * The log of one bounded context: the only place a fact is written (V10 axiom A1).
+ * The log of one bounded context: the only place a fact is written (axiom A1).
  *
  * The contract every backend keeps, checked by the TCK:
  * - unique keys are (`ref`, `version`) and (`tenantId`, `requestId`) within each aggregate type; `ref` includes the
