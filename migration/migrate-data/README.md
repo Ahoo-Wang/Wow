@@ -89,6 +89,16 @@ Once 9.x has stopped writing, the final pass imports what it committed since the
 "final": { "lookbackMillis": 300000, "maxTailAgeMillis": 600000 }
 ```
 
+## Events that moved the owner
+
+9.x applied any event implementing its `OwnerTransferred` as an owner transfer: the aggregate's owner became the event's `toOwnerId`. A domain event of that kind (a view's `ViewAudienceChanged`) names the field in its mapping, so the imported stream records the owner it moved to, as it records the owner of a `wow.lifecycle.OwnerTransferred`:
+
+```json
+{ "from": "view_audience_changed", "to": "ViewAudienceChanged", "owner": "toOwnerId" }
+```
+
+A blank or missing value leaves the stream's own owner. An aggregate whose V10 ownership is `TENANT` records none either way.
+
 ## Reservations (9.x `PrepareKey`)
 
 9.x's `MongoPrepareKey` keeps each `PrepareKey` in a collection `prepare_<name>`, one document per key: `{_id: <key>, value: <the prepared value>, ttlAt: <Date>}`. The value is the `PrepareKey<V>`'s `V`: a string, or a document of its fields. A key prepared forever has `ttlAt` at 9.x's `TTL_FOREVER` (6666-06-06). 9.x keys have no tenant.

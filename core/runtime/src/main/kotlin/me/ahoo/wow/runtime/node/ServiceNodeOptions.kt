@@ -250,7 +250,8 @@ enum class Routing {
  *   most as many.
  * - [maxRegisteredWaits]: the waits the node holds at once (review R3.4-3, [WaitOptions.maxRegistered]); beyond it a
  *   command that would register one is refused as busy, before it runs.
- * - [stateCacheCapacity]: the aggregate states kept per context between commands; 0 keeps none.
+ * - [stateCacheCapacity]: the aggregate states kept per context between commands; 0 keeps none, null (the default)
+ *   sizes each context's cache from the heap ([me.ahoo.wow.runtime.StateCacheSizing]).
  * - [recentRequests]: the requests each cached aggregate keeps of those it committed last (decision D261), derived
  *   from the log, so that most commands skip looking their request id up; 0 looks every request id up (D46).
  * - [stateViews]: the bounds of each context's state views, shared by its state consumers (decision D133).
@@ -281,7 +282,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
     val subscription: SubscriptionOptions = SubscriptionOptions(),
     val appendQueue: AppendQueueOptions = AppendQueueOptions(),
     val laneCapacity: Int = DEFAULT_LANE_CAPACITY,
-    val stateCacheCapacity: Int = DEFAULT_STATE_CACHE_CAPACITY,
+    val stateCacheCapacity: Int? = null,
     val defaultWaitTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT,
     val stateViews: StateViewOptions = StateViewOptions(),
     val timers: TimerOptions = TimerOptions(),
@@ -300,7 +301,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         require(maxInFlight >= 1) { "A node takes at least one command in flight." }
         require(defaultWaitTimeout.isPositive()) { "The default wait timeout is positive." }
         require(laneCapacity >= 1) { "A lane takes at least one command." }
-        require(stateCacheCapacity >= 0) { "The state cache capacity is never negative." }
+        require(stateCacheCapacity == null || stateCacheCapacity >= 0) { "The state cache capacity is never negative." }
         require(recentRequests >= 0) { "The recent requests kept per aggregate are never negative." }
     }
 
@@ -314,7 +315,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         subscription: SubscriptionOptions = this.subscription,
         appendQueue: AppendQueueOptions = this.appendQueue,
         laneCapacity: Int = this.laneCapacity,
-        stateCacheCapacity: Int = this.stateCacheCapacity,
+        stateCacheCapacity: Int? = this.stateCacheCapacity,
         defaultWaitTimeout: Duration = this.defaultWaitTimeout,
         stateViews: StateViewOptions = this.stateViews,
         timers: TimerOptions = this.timers,
@@ -372,7 +373,6 @@ class ServiceNodeOptions @InternalWowApi constructor(
 
     companion object {
         const val DEFAULT_LANE_CAPACITY: Int = 1_024
-        const val DEFAULT_STATE_CACHE_CAPACITY: Int = 4_096
 
         /** About 3 KB per cached aggregate, 12 MB for a full default state cache (decision D261). */
         const val DEFAULT_RECENT_REQUESTS: Int = 256

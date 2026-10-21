@@ -16,7 +16,10 @@ package me.ahoo.wow.kernel
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.snapshot.SnapshotRecord
 
 /**
  * Where the kernel keeps aggregates' states between commands, so a command does not replay the log.
@@ -80,7 +83,39 @@ class CachedState(
      */
     internal var requests: RecentRequests? = null
 
+    /**
+     * What the aggregate's first stream recorded (its commit time and operator), when the kernel loaded or created the
+     * aggregate: the snapshot's, the replayed first stream's, or the creating stream's (work package B.O-4). A state
+     * view carries it, so the snapshot subscription writes the snapshot without reading the stored one for it.
+     */
+    var first: FirstCommit? = null
+        internal set
+
     internal fun with(state: Any, version: Int, metadata: KernelLifecycle.Metadata): CachedState =
         CachedState(state, version, metadata.scope, metadata.deleted, metadata.tags, metadata.schedules)
-            .also { it.requests = requests }
+            .also {
+                it.requests = requests
+                it.first = first
+            }
+}
+
+/** What an aggregate's first stream recorded: its commit time ([eventTime]) and its [operator], the creator (D163). */
+@InternalWowApi
+data class FirstCommit(val eventTime: Long, val operator: Operator?) {
+    @InternalWowApi
+    companion object {
+        /** What [stream], an aggregate's first, recorded. */
+        fun of(stream: EventStreamRecord): FirstCommit = FirstCommit(stream.commitTime, stream.operator)
+
+        /** What [snapshot] keeps of its aggregate's first stream. */
+        fun of(snapshot: SnapshotRecord): FirstCommit = FirstCommit(snapshot.firstEventTime, snapshot.firstOperator)
+    }
+}
+
+/** The outcomes of [me.ahoo.wow.spi.observation.Observer.stateCache] (work package B.O-4). */
+@InternalWowApi
+object StateCacheOutcome {
+    const val HIT: String = "hit"
+    const val MISS: String = "miss"
+    const val EVICTED: String = "evicted"
 }
