@@ -26,6 +26,7 @@ import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -55,6 +56,7 @@ class MigrateDataTest {
     private val reservationStore = InMemoryReservationStore()
     private var nineXCompensation: NineXCompensationSource? = null
     private val ledger = InMemoryFailureLedger()
+    private val exportTarget = InMemoryNineXEventTarget(source)
 
     private val connections = object : MigrationConnections {
         override val source: NineXEventSource get() = nineX
@@ -72,6 +74,8 @@ class MigrateDataTest {
         override val compensation: NineXCompensationSource? get() = nineXCompensation
 
         override fun failureLedger(): FailureLedger = ledger
+
+        override val nineXTarget: NineXEventTarget get() = exportTarget
 
         override fun close() {
             closed = true
@@ -423,6 +427,53 @@ class MigrateDataTest {
         }
         bare.compensation.assert().isNull()
         assertThrows<MigrationException> { bare.failureLedger() }
+        assertThrows<MigrationException> { bare.nineXTarget }
+    }
+
+    @Test
+    fun `export writes back what V10 wrote after the cut-over, and refuses a V10-only type`(): Unit = runBlocking {
+        val config = config().toString()
+        run("import", "--config", config).assert().isEqualTo(MigrateData.OK)
+        val last = StreamConverter(NineXExample.plan).convert(NineXExample.stream("order-stream-v4.json"))
+        log.append(
+            last.copyWith(
+                version = 5,
+                commandId = "v10-receive",
+                requestId = "v10-receive",
+                events = listOf(EventRecord("example.order.OrderReceived", 1, "{}")),
+            ),
+        )
+        run("export", "--config", config, "--dry-run").assert().isEqualTo(MigrateData.OK)
+        printed.assert().contains("Dry run done: 1 streams would be exported; nothing was written.")
+        exportTarget.written.assert().isEmpty()
+
+        run("export", "--config", config).assert().isEqualTo(MigrateData.OK)
+        printed.assert().contains("example done: 1 streams exported to 9.x, 8 already there")
+            .contains("EQUAL example-service.order <- example.order: V10 5 streams, 9.x 5 streams")
+            .contains("Export done: 9.x holds every stream V10 holds; start 9.x again.")
+        FileCheckpointRepository(directory.resolve("migrate-data.checkpoint.json")).load()
+            .exportOf(NineXExample.CONTEXT)!!.exported.assert().isEqualTo(1)
+
+        source.add(
+            NineXExample.stream("cart-stream-v1.json").let {
+                it.copy(id = "9x-only", aggregateId = it.aggregateId.copy(id = "9x-cart"))
+            }
+        )
+        run("export", "--config", config).assert().isEqualTo(MigrateData.DIFFERS)
+        printed.assert().contains("DIFFERS example-service.cart").contains("hold different numbers of streams")
+
+        log.append(
+            last.copyWith(
+                version = 6,
+                commandId = "v10-v2",
+                requestId = "v10-v2",
+                events = listOf(EventRecord("example.order.OrderCreated", 2, "{}")),
+            ),
+        )
+        run("export", "--config", config).assert().isEqualTo(MigrateData.FAILED)
+        printed.assert().contains("REFUSED the V10 event example.order.OrderCreated@2").contains("Export refused")
+        exportTarget.written.size.assert().isEqualTo(1)
+        run("export", "--config", config, "--snapshots").assert().isEqualTo(MigrateData.USAGE_ERROR)
     }
 
     @Test

@@ -410,7 +410,7 @@ export const TooltipSaysTheChangeFromTheDayBefore: Story = {
 /**
  * 一万天的日折线（D33 批 A 判据）：一万个点按绘图区的宽度采样。预算是从换一次
  * 主题下发新的 option 到 `data-drawn` 不超过 500ms（本机实测约 186ms，CI 上
- * 390～630ms 随 runner 起伏）；这里只守 1500ms 的回归线——`typescript-storybook-gate`
+ * 390～630ms 随 runner 起伏）；这里只守 1500ms 的回归线——`ci-gate`
  * 是 main 的必过项，一台慢 runner 的抖动不该挡住合并，而数量级的变慢照样拦得住。
  * 横轴隔几个写一个，写到的年份变了就写出年份。
  */
