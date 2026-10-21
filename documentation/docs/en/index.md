@@ -46,6 +46,43 @@ features:
   link: /concepts/event-log#backends
 ---
 
+## What you write, and what you get
+
+A command function of the quickstart's bank account decides a withdrawal against the current state:
+
+<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt#withdraw -->
+
+```kotlin
+@OnCommand(produces = [Withdrawn::class])
+fun onCommand(command: Withdraw): Decision = when {
+    command.amount <= 0 ->
+        Decision.reject(Rejections.INVALID_AMOUNT, "${command.amount} is not positive.")
+
+    command.amount > state.balance ->
+        Decision.reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
+
+    else -> Decision.events(Withdrawn(command.amount))
+}
+```
+
+Its test says it in the same terms, given events, when a command, expect events and state, with no server:
+
+<!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt#withdraw -->
+
+```kotlin
+@Test
+fun `a withdrawal the balance does not cover is rejected`() = aggregateSpec(model, id = "alice") {
+    given(AccountOpened("Alice"), Deposited(100))
+    whenCommand(Withdraw(150)) { expectRejected(Account.Rejections.INSUFFICIENT_BALANCE) }
+    whenCommand(Withdraw(30)) {
+        expectEvents(Withdrawn(30))
+        expectState { balance.assert().isEqualTo(70) }
+    }
+}
+```
+
+From that model, without more code, the service gets an HTTP route for each command, a state read and snapshot queries, an OpenAPI document, a Manifest from which `wow-generator` generates a typed TypeScript client, and its rejections as `application/problem+json` with their error codes.
+
 ## Start where your job is
 
 | You want to | Start with |
