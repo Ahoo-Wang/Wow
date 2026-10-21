@@ -7,7 +7,7 @@ Judge only the agent's final answer. It worked in an empty, read-only directory 
 
 PASS only if the answer does all of these:
 
-1. Generates from a committed OpenAPI document (or a pinned service URL with -H credentials and --timeout) into a directory owned only by the generator, and commits the .wow-generator.json manifest
-2. Runs wow-generator generate with --strict in CI, then fails when git status --porcelain (or git diff --exit-code after staging) reports changes under the output directory
-3. Treats exit codes by kind: 2 input, 3 configuration, 4 specification or --strict warnings, 1 internal
+1. Generates from the Manifest the service commits (or a pinned GET /wow/manifest with -H credentials from the environment and --timeout) into a directory owned only by the generator, and commits the .wow-generator.json manifest
+2. Runs wow-generator generate with --strict in CI, then fails when git diff --exit-code (or git status --porcelain) reports changes under the output directory
+3. Treats exit codes by kind: 2 input, 3 configuration, 4 specification or --strict warnings, 5 output, 1 internal
 4. Type-checks the project after regenerating

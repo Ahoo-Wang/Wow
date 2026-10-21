@@ -34,7 +34,7 @@ internal object MountedCommandResolver {
         val annotation = declaration.getAnnotationsByType(MountedCommand::class).first()
         val name = declaration.simpleName.asString()
         val transformsTo = annotation.transformsTo.toList()
-        val problems = V10Annotations.problemsOfType(declaration, "mounted command") +
+        val problems = AnnotationSet.problemsOfType(declaration, "mounted command") +
             transformsTo.filterNot { COMMAND_NAME.matches(it) }.map {
                 "mounted command $name transforms to \"$it\": @MountedCommand(transformsTo) names each command as " +
                     "context.aggregate.Command"
