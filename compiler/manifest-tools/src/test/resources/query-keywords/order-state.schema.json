@@ -45,6 +45,7 @@
         }
       },
       "createdAt" : {
+        "format" : "int64",
         "type" : "integer",
         "x-wow-temporal" : {
           "unit" : "SECONDS"
@@ -68,6 +69,7 @@
           "type" : "object",
           "properties" : {
             "quantity" : {
+              "format" : "decimal",
               "type" : "number",
               "x-wow-decimal" : {
                 "scale" : 3
@@ -85,6 +87,7 @@
         "x-wow-alias" : [ "state.remark" ]
       },
       "paid" : {
+        "format" : "decimal",
         "type" : "number",
         "x-wow-money" : {
           "currencyField" : "currency",
@@ -126,6 +129,7 @@
         }
       },
       "rate" : {
+        "format" : "decimal",
         "type" : "number",
         "x-wow-decimal" : {
           "scale" : 4
@@ -152,6 +156,7 @@
         }
       },
       "tip" : {
+        "format" : "decimal",
         "type" : "number",
         "x-wow-money" : {
           "currency" : "JPY",
@@ -169,6 +174,7 @@
         }
       },
       "total" : {
+        "format" : "decimal",
         "type" : "number",
         "x-wow-money" : {
           "currency" : "CNY"
