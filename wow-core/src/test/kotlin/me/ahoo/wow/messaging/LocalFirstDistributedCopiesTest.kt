@@ -36,7 +36,6 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 class LocalFirstDistributedCopiesTest {
@@ -361,15 +360,17 @@ class LocalFirstDistributedCopiesTest {
     @Test
     fun `a force stop cancels the running and the queued copies`() {
         val copies = LocalFirstDistributedCopies()
-        val cancelled = AtomicBoolean()
-        val running = copies.enqueue("1", send = Mono.never<Void>().doOnCancel { cancelled.set(true) })
+        val cancelled = CountDownLatch(1)
+        val running = copies.enqueue("1", send = Mono.never<Void>().doOnCancel { cancelled.countDown() })
         running.decide(LocalHandoff.REFUSED)
         val queued = copies.enqueue("2")
         awaitUntil { sent.size == 1 }
 
         copies.forceStop()
 
-        cancelled.get().assert().isTrue()
+        // The send starts on Schedulers.parallel(), and `sent` records it before the send's subscription reaches the
+        // copy: a force stop in between cancels the send when that subscription arrives, on the parallel thread.
+        cancelled.await(30, TimeUnit.SECONDS).assert().isTrue()
         running.sent.test().expectError().verify()
         queued.sent.test().expectError().verify()
         copies.pending.assert().isZero()
@@ -399,8 +400,10 @@ class LocalFirstDistributedCopiesTest {
     @Test
     fun `the runtime cancels copies still queued at its shutdown deadline`() {
         val copies = LocalFirstDistributedCopies()
-        val cancelled = AtomicBoolean()
-        copies.enqueue("1", send = Mono.never<Void>().doOnCancel { cancelled.set(true) }).decide(LocalHandoff.REFUSED)
+        val cancelled = CountDownLatch(1)
+        copies.enqueue("1", send = Mono.never<Void>().doOnCancel { cancelled.countDown() }).decide(LocalHandoff.REFUSED)
+        // A stop before the parallel thread starts the send would cancel the copy without ever subscribing the send.
+        awaitUntil { sent.size == 1 }
         val runtime = WowRuntime(
             components = listOf(copies),
             shutdownTimeout = Duration.ofMillis(200),
@@ -410,6 +413,6 @@ class LocalFirstDistributedCopiesTest {
 
         runCatching { runtime.stopGracefully().block(Duration.ofSeconds(5)) }
 
-        cancelled.get().assert().isTrue()
+        cancelled.await(30, TimeUnit.SECONDS).assert().isTrue()
     }
 }
