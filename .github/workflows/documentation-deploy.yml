@@ -12,10 +12,27 @@
 #
 
 name: Documentation Build and Deploy
-# By hand only until the V10 documentation (W1/W2) is done: the site keeps its
-# 9.x content, and nothing deploys partial V10 pages to its root. DI-6 (#4699)
-# turns the push and schedule triggers back on, with 9.x served under /9.x/.
+# The V10 pages at the root, the 9.x pages of the v9 branch under /9.x/. The
+# nightly run is what brings 9.x page changes to the site: v9 has no deploy
+# workflow of its own (removed by #4738).
 on:
+  schedule:
+    - cron: '0 0 * * *'
+  push:
+    branches:
+      - main
+    # Only what the site shows: the VitePress pages, and Storybook with the
+    # package sources it renders. Tests, CI scripts and design notes under
+    # typescript/ don't change the site, so they don't redeploy it.
+    paths:
+      - '.github/workflows/documentation-deploy.yml'
+      - 'documentation/**'
+      - 'typescript/storybook/**'
+      - 'typescript/*/src/**'
+      - 'typescript/*/package.json'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
   workflow_dispatch:
 
 permissions:
@@ -30,9 +47,8 @@ permissions:
 # Three builds run in parallel and meet in one Pages artifact: VitePress at the
 # root with Storybook at /storybook/ (one job, one install), Dokka at /dokka/,
 # and the 9.x pages at /9.x/, built from the v9 maintenance branch (decision
-# D265 ④). A push to v9 does not run this workflow (its copy of the workflow
-# deploys nothing from v9), so 9.x page changes reach the site with the nightly
-# run or a dispatch.
+# D265 ④). v9 has no deploy workflow (removed by #4738), so 9.x page changes
+# reach /9.x/ with the nightly run or a dispatch.
 jobs:
   dokka:
     concurrency:
