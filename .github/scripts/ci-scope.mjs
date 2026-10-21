@@ -140,6 +140,13 @@ const RULES = [
   // wow-client's tests check FrameworkErrorCodes against it
   // (test/frameworkErrors.test.ts), so a change to the table reruns them.
   [/^api\/manifest\/src\/test\/resources\/framework-errors\.json$/, [SDK]],
+  // The V10 view store service's Manifest baseline: wow-view-store's
+  // src/generated/ is wow-generator's output for it, byte for byte
+  // (test/generated.test.ts), so a change to it reruns wow-view-store.
+  [
+    /^platform\/view-store\/view-store-server\/manifest\/baseline\.json$/,
+    [SDK],
+  ],
   // Other sources a package's tests read outside typescript/ (the CI script
   // test "every source a TypeScript test reads selects its job" finds them):
   // wow-client's query error codes are held to :query-api's QueryErrorCodes.kt,
@@ -251,6 +258,10 @@ const UNIT_RULES = [
   [
     /^(?:api\/manifest\/src\/test\/resources\/framework-errors\.json|api\/query-api\/src\/main\/kotlin\/me\/ahoo\/wow\/api\/query\/QueryErrorCodes\.kt)$/,
     () => ['wow-client'],
+  ],
+  [
+    /^platform\/view-store\/view-store-server\/manifest\/baseline\.json$/,
+    () => ['wow-view-store'],
   ],
 ];
 

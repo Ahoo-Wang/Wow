@@ -134,6 +134,29 @@ class EventStreamImporterTest {
     }
 
     @Test
+    fun `the tail skips with one log read an instance whose latest stream the log already holds`(): Unit = runTest {
+        val streams = NineXExample.streams().filter { it.aggregate == order }
+        val source = InMemoryNineXEventSource(streams)
+        now = streams.last().createTime + 1
+        importer(source).importAll(order)
+        // A look-back over the whole history reads every stream again: each is already there.
+        importer(source, ImportOptions(lookbackMillis = now)).tailOnce(order).also {
+            it.imported.assert().isEqualTo(0)
+            it.skipped.assert().isEqualTo(streams.size.toLong())
+            it.instances.assert().isEqualTo(1)
+        }
+        // A page a stream: the instance spans the pages, each page after the first meets it reached already, and
+        // each of its streams is skipped by its own read.
+        importer(source, ImportOptions(pageSize = 1, lookbackMillis = now)).tailOnce(order).also {
+            it.imported.assert().isEqualTo(0)
+            it.skipped.assert().isEqualTo(streams.size.toLong())
+        }
+        // Another command at the latest version is not the 9.x stream: the instance is imported, which stops on it.
+        source.add(streams.last().copy(id = "other", version = streams.size + 1, commandId = "c-x", requestId = "c-x"))
+        importer(source, ImportOptions(lookbackMillis = now)).tailOnce(order).imported.assert().isEqualTo(1)
+    }
+
+    @Test
     fun `the tail brings an instance up to date when it meets a later stream first`(): Unit = runTest {
         val streams = NineXExample.streams().filter { it.aggregate == order }
         val source = InMemoryNineXEventSource(streams.take(1))
@@ -148,11 +171,36 @@ class EventStreamImporterTest {
     }
 
     @Test
+    fun `the tail imports an instance from its lowest version in the page, whatever the commit times say`(): Unit =
+        runTest {
+            val streams = NineXExample.streams().filter { it.aggregate == order }
+            val source = InMemoryNineXEventSource(streams.take(2))
+            now = streams.first().createTime + 1
+            importer(source).importAll(order)
+            // Versions 3 and 4 committed in the same millisecond, 4 read first: the page holds the instance out of order.
+            val at = streams.last().createTime
+            source.add(streams[2].copy(id = "b-3", createTime = at))
+            source.add(streams[3].copy(id = "a-4", createTime = at))
+            now = at + 1
+            importer(source).tailOnce(order).imported.assert().isEqualTo(2)
+            // A page a stream: version 4 is held, so skipped; version 3, in the next page, is behind what is reached.
+            importer(source, ImportOptions(pageSize = 1, lookbackMillis = now)).tailOnce(order).also {
+                it.imported.assert().isEqualTo(0)
+                it.skipped.assert().isEqualTo(3)
+            }
+            log.read(AggregateRef(NineXExample.orderModel.type, "(0)", streams.first().aggregateId.id)).toList()
+                .map { it.version }.assert().containsExactly(1, 2, 3, 4)
+        }
+
+    @Test
     fun `the final pass is the tail only when the tail followed 9x until it stopped`(): Unit = runTest {
         val source = InMemoryNineXEventSource(NineXExample.streams().filter { it.aggregate == order })
         importer(
             source
         ).finalProblem(order, MAX_TAIL_AGE).assert().isEqualTo("the full import of $order has not completed")
+        checkpoints.save(ImportCheckpoints().with(order, AggregateCheckpoint(startedAt = 1)))
+        importer(source).finalProblem(order, MAX_TAIL_AGE).assert()
+            .isEqualTo("the full import of $order has not completed")
         importer(source).importAll(order)
         importer(source).finalProblem(order, MAX_TAIL_AGE).assert().isEqualTo("the tail of $order never ran")
         importer(source).tailOnce(order)
