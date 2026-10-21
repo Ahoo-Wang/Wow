@@ -468,12 +468,16 @@ class SnapshotSubscriptionTest {
         val other = SnapshotSubscription("shop", listOf(counter), store, kernel, log, codec)
         val deleted = Executor(kernel, views = other.views)
             .execute(counter, command("a", DeleteAggregate)) as CommandOutcome.Committed
+        deleted.first.assert().isNotNull()
         log.reads.clear()
+        val loads = store.loads.get()
 
         val resumed = runtime(InMemoryCheckpointStore().also { it.save("shop", "snapshot", 0, 2) }, other)
         resumed.start(setOf(0))
         eventually { resumed.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, deleted.stream) }
-        // The first event time comes from the stored snapshot and the rest from the view: the log is not read.
+        // The view carries what the kernel loaded of the first stream (work package B.O-4): neither the stored
+        // snapshot nor the log is read.
+        store.loads.get().assert().isEqualTo(loads)
         log.reads.assert().isEmpty()
         other.views.size.assert().isEqualTo(1)
         val snapshot = store.load(ref("a"))!!

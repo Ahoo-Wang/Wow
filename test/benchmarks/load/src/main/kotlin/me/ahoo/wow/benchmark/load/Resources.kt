@@ -32,15 +32,19 @@ fun execute(vararg command: String, timeoutSeconds: Long = 30): String? = try {
 /**
  * The cost of a run, captured beside it over its measured phase (decision D224):
  *
- * - each server JVM ([processes], name to pid): its CPU time and resident memory from `ps` every second, and its
- *   garbage collector and heap from `jstat -gc`, one sampling process per JVM; the bytes it allocated, read once at
- *   start and once at stop over the Attach API ([Allocations]), so the results give bytes per operation beside CPU;
+ * - each server JVM ([processes], name to pid): its CPU time and resident memory every second (`/proc` on Linux, `ps`
+ *   elsewhere), its garbage collector and heap from `jstat -gc`, one sampling process per JVM, and the bytes it
+ *   allocated ([Allocations]), so the results give bytes per operation beside CPU;
  * - each container ([containers]): its CPU and memory from one `docker stats` stream;
- * - the stores' operation counters before and after: MongoDB's `serverStatus().opcounters` ([mongoContainer]),
- *   PostgreSQL's `pg_stat_database` of [postgresDatabase] ([postgresContainer]) and the end offsets of every Kafka topic
- *   ([kafkaContainer]), whose difference is what the measured phase wrote and read.
+ * - the stores' operation counters: MongoDB's `serverStatus().opcounters` ([mongoContainer]) and PostgreSQL's
+ *   `pg_stat_database` of [postgresDatabase] with `pg_stat_wal` ([postgresContainer]), each from one session that
+ *   prints them every second, and the end offsets of every Kafka topic ([kafkaContainer]).
  *
- * The samplers are processes of their own, a few percent of a core; the results say what they were.
+ * Nothing starts inside the measured phase (B.O-2): [prepare], at the warm-up, starts every sampling process, opens
+ * the allocation connections and reads the Kafka offsets once (`kafka-get-offsets` is a JVM of its own); [start] and
+ * [stop] only read what is already running, and [complete], after the drain, reads the Kafka offsets again. The
+ * stores' counters at the phase's edges are the samples nearest to them; PostgreSQL's also give a per-second series of
+ * commits and WAL writes and flushes (B.O-3). The samplers are a few percent of a core; the results say what they were.
  */
 class Resources(
     private val processes: Map<String, Long>,
@@ -51,63 +55,102 @@ class Resources(
     private val kafkaContainer: String?,
 ) {
     private val psSamples = mutableListOf<Map<String, Any>>()
-    private val gcLines = processes.keys.associateWith { mutableListOf<String>() }
-    private val dockerLines = mutableListOf<String>()
+    private val gcLines = processes.keys.associateWith { mutableListOf<Pair<Long, String>>() }
+    private val dockerLines = mutableListOf<Pair<Long, String>>()
+    private val mongoSamples = mutableListOf<Pair<Long, Map<String, Double>>>()
+    private val postgresSamples = mutableListOf<Pair<Long, Map<String, Double>>>()
     private val samplers = mutableListOf<Process>()
+    private var allocations: Map<String, Allocations.Reader?> = emptyMap()
     private var psThread: Thread? = null
+    private var preparedAt = 0L
+    private var readyAt = 0L
     private var startedAt = 0L
+    private var stoppedAt = 0L
+    private var kafkaBefore: Pair<Long, Map<String, Long>?>? = null
 
     @Volatile
     private var sampling = false
     private var loadCpuBefore = 0.0
-    private var storesBefore: Map<String, Any?> = emptyMap()
     private var cpuBefore: Map<String, Double> = emptyMap()
     private var allocatedBefore: Map<String, Long?> = emptyMap()
 
-    /** What [stop] captured, once it has. */
+    /** What [stop] captured, once it has; [complete] adds the Kafka offsets. */
     val stopped = AtomicReference<Map<String, Any?>>()
 
     /**
-     * Starts the samplers: the allocation counters first (the first attach starts a JVM's management agent, which
-     * should not count), then the CPU times, then the stores' counters, which take a moment to read.
+     * Starts every sampling process and opens the allocation connections, at the warm-up: the first attach starts a
+     * JVM's management agent, and `mongosh`, `psql` and `jstat` take a moment to start, none of which may land in the
+     * measured phase. The Kafka offsets are read last, once.
      */
-    fun start() {
-        allocatedBefore = processes.mapValues { (_, pid) -> Allocations.totalAllocatedBytes(pid) }
-        startedAt = System.currentTimeMillis()
-        loadCpuBefore = ownCpuSeconds()
-        cpuBefore = ps().mapValues { (it.value["cpuSeconds"] as Number).toDouble() }
-        sampling = true
-        psThread = thread(name = "ps-sampler", isDaemon = true) {
-            while (sampling) {
-                val at = System.currentTimeMillis() - startedAt
-                ps().forEach { (name, sample) -> synchronized(psSamples) { psSamples += sample + ("process" to name) + ("t" to at) } }
-                Thread.sleep(SAMPLE_MILLIS)
-            }
-        }
+    fun prepare() {
+        preparedAt = System.currentTimeMillis()
         processes.forEach { (name, pid) ->
             stream(listOf(JSTAT, "-gc", "-t", pid.toString(), SAMPLE_MILLIS.toString())) { line ->
-                synchronized(gcLines) { gcLines.getValue(name) += line }
+                synchronized(gcLines) { gcLines.getValue(name) += System.currentTimeMillis() to line }
             }
         }
         if (containers.isNotEmpty()) {
             val format = "{{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}"
             stream(listOf("docker", "stats", "--format", format) + containers) { line ->
-                synchronized(dockerLines) { dockerLines += "${System.currentTimeMillis() - startedAt}\t$line" }
+                synchronized(dockerLines) { dockerLines += System.currentTimeMillis() to line }
             }
         }
-        storesBefore = storeCounters()
+        mongoContainer?.let { container ->
+            stream(listOf("docker", "exec", container, "mongosh", "--quiet", "--eval", MONGO_LOOP)) { line ->
+                Samples.columns(
+                    line,
+                    MONGO_COLUMNS,
+                    ' '
+                )?.let { synchronized(mongoSamples) { mongoSamples += Samples.at(it) to it } }
+            }
+        }
+        postgresContainer?.let { container ->
+            val command =
+                listOf("docker", "exec", "-i", container, "psql", "-U", "postgres", "-d", postgresDatabase, "-XqtA")
+            stream(
+                command,
+                input = "${postgresQuery(postgresDatabase)}\n\\watch ${SAMPLE_MILLIS / MILLIS_PER_SECOND}\n"
+            ) { line ->
+                Samples.columns(line, POSTGRES_COLUMNS, '|')?.let {
+                    synchronized(postgresSamples) { postgresSamples += Samples.at(it) to it }
+                }
+            }
+        }
+        allocations = processes.mapValues { (_, pid) -> Allocations.connect(pid) }
+        readyAt = System.currentTimeMillis()
+        kafkaBefore = kafkaContainer?.let { System.currentTimeMillis() to kafkaOffsets(it) }
     }
 
-    /** Stops the samplers and gives back what they captured, for the results. */
+    /** The measured phase starts: reads what [prepare] started, and launches nothing. */
+    fun start() {
+        allocatedBefore = allocations.mapValues { (_, reader) -> reader?.read() }
+        startedAt = System.currentTimeMillis()
+        loadCpuBefore = ownCpuSeconds()
+        cpuBefore = cpu().mapValues { (it.value["cpuSeconds"] as Number).toDouble() }
+        sampling = true
+        psThread = thread(name = "cpu-sampler", isDaemon = true) {
+            while (sampling) {
+                val at = System.currentTimeMillis() - startedAt
+                cpu().forEach { (name, sample) -> synchronized(psSamples) { psSamples += sample + ("process" to name) + ("t" to at) } }
+                Thread.sleep(SAMPLE_MILLIS)
+            }
+        }
+    }
+
+    /** The measured phase ends: gives back what the samplers captured over it, for the results. */
     fun stop(): Map<String, Any?> {
         sampling = false
-        val seconds = (System.currentTimeMillis() - startedAt) / MILLIS_PER_SECOND.toDouble()
-        val cpuAfter = ps().mapValues { (it.value["cpuSeconds"] as Number).toDouble() }
+        stoppedAt = System.currentTimeMillis()
+        val seconds = (stoppedAt - startedAt) / MILLIS_PER_SECOND.toDouble()
+        val cpuAfter = cpu().mapValues { (it.value["cpuSeconds"] as Number).toDouble() }
         val loadCpu = ownCpuSeconds() - loadCpuBefore
-        val allocatedAfter = processes.mapValues { (_, pid) -> Allocations.totalAllocatedBytes(pid) }
-        samplers.forEach { it.destroy() }
+        val allocatedAfter = allocations.mapValues { (_, reader) -> reader?.read() }
         psThread?.join()
-        val storesAfter = storeCounters()
+        // One more sample of each store after the edge, then the sampling processes stop.
+        Thread.sleep(SAMPLE_MILLIS + SAMPLE_MILLIS / 2)
+        samplers.forEach { it.destroy() }
+        allocations.values.forEach { it?.close() }
+        val window = startedAt..stoppedAt
         return mapOf(
             "seconds" to seconds,
             "processes" to processes.mapValues { (name, pid) ->
@@ -122,7 +165,7 @@ class Resources(
                     "allocatedBytes" to allocated,
                     "rssMaxMb" to (samples.maxOfOrNull { it["rssMb"] as Double } ?: 0.0),
                     "samples" to samples.map { mapOf("t" to it["t"], "cpuSeconds" to it["cpuSeconds"], "rssMb" to it["rssMb"]) },
-                    "gc" to gc(synchronized(gcLines) { gcLines.getValue(name).toList() }),
+                    "gc" to gc(synchronized(gcLines) { Samples.within(gcLines.getValue(name).toList(), window) }),
                 )
             },
             // The load generator's own CPU, to tell a run it could not drive from one the servers could not keep up with.
@@ -131,18 +174,79 @@ class Resources(
                 "averageCores" to loadCpu / seconds,
                 "availableProcessors" to Runtime.getRuntime().availableProcessors(),
             ),
-            "containers" to containers(synchronized(dockerLines) { dockerLines.toList() }),
-            "stores" to mapOf("before" to storesBefore, "after" to storesAfter, "delta" to delta(storesBefore, storesAfter)),
-            "samplers" to "ps every ${SAMPLE_MILLIS}ms; jstat -gc -t <pid> $SAMPLE_MILLIS per JVM; " +
-                "the allocated bytes of each JVM over the Attach API at start and stop; one docker stats stream",
+            "containers" to containers(synchronized(dockerLines) { Samples.within(dockerLines.toList(), window) }),
+            "stores" to stores(window),
+            "postgresSeries" to synchronized(postgresSamples) {
+                Samples.perSecond(postgresSamples.toList(), window, POSTGRES_SERIES)
+            },
+            // Whether every sampler was up before the measured phase began, and how long before.
+            "samplersReadyBeforeMeasureSeconds" to (startedAt - readyAt) / MILLIS_PER_SECOND.toDouble(),
+            "samplers" to "${if (procAvailable) "/proc" else "ps"} every ${SAMPLE_MILLIS}ms; jstat -gc -t <pid> $SAMPLE_MILLIS per JVM; " +
+                "one docker stats stream; one mongosh and one psql session sampling every ${SAMPLE_MILLIS}ms; " +
+                "allocations over JMX connections opened at the warm-up; all started at the warm-up",
         )
     }
 
-    private fun stream(command: List<String>, onLine: (String) -> Unit) {
+    /** After the drain: the Kafka offsets again (a JVM of its own, so outside the measured phase), added to [stopped]. */
+    fun complete() {
+        val stoppedMap = stopped.get() ?: return
+        val before = kafkaBefore ?: return
+        val container = kafkaContainer ?: return
+        val afterAt = System.currentTimeMillis()
+        val after = kafkaOffsets(container)
+        val stores = (stoppedMap["stores"] as? Map<*, *>)?.mapKeys { it.key.toString() }.orEmpty()
+        val kafka = mapOf(
+            // The offsets were read at the warm-up and after the drain: the delta covers more than the measured phase.
+            "fromSecond" to (before.first - startedAt) / MILLIS_PER_SECOND.toDouble(),
+            "toSecond" to (afterAt - startedAt) / MILLIS_PER_SECOND.toDouble(),
+            "before" to before.second,
+            "after" to after,
+            "delta" to before.second?.let { b -> after?.mapValues { (topic, offset) -> offset - (b[topic] ?: 0L) } },
+        )
+        stopped.set(stoppedMap + ("stores" to stores + ("kafkaEndOffsets" to kafka)))
+    }
+
+    private fun stores(window: LongRange): Map<String, Any?> = buildMap {
+        fun edges(samples: List<Pair<Long, Map<String, Double>>>): Map<String, Any?>? {
+            val before = Samples.atOrBefore(samples, window.first) ?: return null
+            val after = Samples.atOrAfter(samples, window.last) ?: return null
+            return mapOf(
+                "fromSecond" to (before.first - window.first) / MILLIS_PER_SECOND.toDouble(),
+                "toSecond" to (after.first - window.first) / MILLIS_PER_SECOND.toDouble(),
+                "before" to before.second,
+                "after" to after.second,
+                "delta" to after.second.mapValues { (key, value) -> Samples.whole(value - (before.second[key] ?: 0.0)) },
+            )
+        }
+        if (mongoContainer != null) put("mongo", edges(synchronized(mongoSamples) { mongoSamples.toList() }))
+        if (postgresContainer != null) {
+            put(
+                "postgres",
+                edges(synchronized(postgresSamples) { postgresSamples.toList() })
+            )
+        }
+    }
+
+    private fun kafkaOffsets(container: String): Map<String, Long>? =
+        execute("docker", "exec", container, "kafka-get-offsets", "--bootstrap-server", "localhost:9092")
+            ?.lines()
+            ?.filter { it.count { c -> c == ':' } >= 2 }
+            ?.groupBy(
+                { it.substringBeforeLast(':').substringBeforeLast(':') }
+            ) { it.substringAfterLast(':').toLongOrNull() ?: 0L }
+            ?.mapValues { it.value.sum() }
+            ?.toSortedMap()
+
+    private fun stream(command: List<String>, input: String? = null, onLine: (String) -> Unit) {
         val process = try {
             ProcessBuilder(command).redirectError(ProcessBuilder.Redirect.DISCARD).start()
         } catch (_: java.io.IOException) {
             return
+        }
+        if (input != null) {
+            // The input stays open: psql repeats its \watch until it is stopped.
+            process.outputStream.write(input.toByteArray())
+            process.outputStream.flush()
         }
         samplers += process
         thread(name = "sampler-${command.first()}", isDaemon = true) {
@@ -158,9 +262,23 @@ class Resources(
     private fun ownCpuSeconds(): Double =
         ProcessHandle.current().info().totalCpuDuration().map { it.toNanos() / NANOS_PER_SECOND }.orElse(0.0)
 
-    /** `ps` of every process: its cumulative CPU time and resident memory. */
-    private fun ps(): Map<String, Map<String, Any>> {
+    private val procAvailable = File("/proc/self/stat").exists()
+    private val clockTicks by lazy { execute("getconf", "CLK_TCK")?.trim()?.toDoubleOrNull() ?: DEFAULT_CLOCK_TICKS }
+    private val pageKb by lazy { (execute("getconf", "PAGESIZE")?.trim()?.toDoubleOrNull() ?: DEFAULT_PAGE_BYTES) / KB }
+
+    /** Every process's cumulative CPU time and resident memory: `/proc` on Linux (no process started), else `ps`. */
+    private fun cpu(): Map<String, Map<String, Any>> {
         if (processes.isEmpty()) return emptyMap()
+        if (procAvailable) {
+            return processes.mapNotNull { (name, pid) ->
+                val stat = try {
+                    File("/proc/$pid/stat").readText()
+                } catch (_: java.io.IOException) {
+                    return@mapNotNull null
+                }
+                Samples.procStat(stat, clockTicks, pageKb)?.let { name to it }
+            }.toMap()
+        }
         val output = execute("ps", "-o", "pid=,rss=,time=", "-p", processes.values.joinToString(",")) ?: return emptyMap()
         val byPid = output.lines().mapNotNull { line ->
             val parts = line.trim().split(Regex("\\s+"))
@@ -177,12 +295,13 @@ class Resources(
     }
 
     /**
-     * The first and last `jstat -gc -t` sample of a JVM, and the most heap used: the collections and their time during
-     * the run are the difference of the counters (`YGC`, `YGCT`, `FGC`, `FGCT`, `CGC`, `CGCT`, `GCT`).
+     * The first and last `jstat -gc -t` sample of a JVM in the measured phase, and the most heap used: the collections
+     * and their time during the phase are the difference of the counters (`YGC`, `YGCT`, `FGC`, `FGCT`, `CGC`, `CGCT`,
+     * `GCT`). jstat prints its header once, at its start in the warm-up.
      */
     private fun gc(lines: List<String>): Map<String, Any?> {
-        val header = lines.firstOrNull {
-            it.trim().startsWith("Timestamp")
+        val header = synchronized(gcLines) {
+            gcLines.values.asSequence().flatten().map { it.second }.firstOrNull { it.trim().startsWith("Timestamp") }
         }?.trim()?.split(Regex("\\s+")) ?: return mapOf("samples" to 0)
         val rows = lines.filterNot { it.trim().startsWith("Timestamp") || it.isBlank() }.mapNotNull { line ->
             val values = line.trim().split(Regex("\\s+"))
@@ -202,14 +321,14 @@ class Resources(
         )
     }
 
-    /** The `docker stats` lines per container: CPU percentages and memory. */
+    /** The `docker stats` lines per container in the measured phase: CPU percentages and memory. */
     private fun containers(lines: List<String>): Map<String, Any?> {
         val ansi = Regex("\u001B\\[[0-9;]*[A-Za-z]")
         val byName = lines.mapNotNull { raw ->
             val parts = raw.replace(ansi, "").split('\t')
-            if (parts.size < DOCKER_FIELDS) return@mapNotNull null
-            val cpu = parts[2].removeSuffix("%").toDoubleOrNull() ?: return@mapNotNull null
-            parts[1].trim() to mapOf("t" to parts[0].toLong(), "cpuPercent" to cpu, "memory" to parts[3], "netIO" to parts[4], "blockIO" to parts[5])
+            if (parts.size < DOCKER_FIELDS - 1) return@mapNotNull null
+            val cpu = parts[1].removeSuffix("%").toDoubleOrNull() ?: return@mapNotNull null
+            parts[0].trim() to mapOf("cpuPercent" to cpu, "memory" to parts[2], "netIO" to parts[3], "blockIO" to parts[4])
         }.groupBy({ it.first }, { it.second })
         return byName.mapValues { (_, samples) ->
             val cpu = samples.map { it["cpuPercent"] as Double }
@@ -224,71 +343,6 @@ class Resources(
         }
     }
 
-    private fun storeCounters(): Map<String, Any?> = buildMap {
-        mongoContainer?.let { container ->
-            val output = execute(
-                "docker",
-                "exec",
-                container,
-                "mongosh",
-                "--quiet",
-                "--eval",
-                "const o = db.serverStatus().opcounters; print(['insert','query','update','delete','getmore','command'].map(k => k + '=' + o[k]).join(' '))",
-            )
-            put(
-                "mongo",
-                output?.trim()?.split(
-                    ' '
-                )?.associate { it.substringBefore('=') to it.substringAfter('=').toLongOrNull() }
-            )
-        }
-        postgresContainer?.let { container ->
-            val columns = listOf(
-                "xact_commit",
-                "tup_inserted",
-                "tup_updated",
-                "tup_deleted",
-                "tup_fetched",
-                "tup_returned",
-                "blks_read",
-                "blks_hit"
-            )
-            val output = execute(
-                "docker", "exec", container, "psql", "-U", "postgres", "-d", postgresDatabase, "-tAc",
-                "select ${columns.joinToString(",")} from pg_stat_database where datname = '$postgresDatabase'",
-            )
-            put(
-                "postgres",
-                output?.trim()?.split('|')?.let { values -> columns.zip(values.map { it.toLongOrNull() }).toMap() }
-            )
-        }
-        kafkaContainer?.let { container ->
-            val output = execute(
-                "docker",
-                "exec",
-                container,
-                "kafka-get-offsets",
-                "--bootstrap-server",
-                "localhost:9092"
-            )
-            put(
-                "kafkaEndOffsets",
-                output?.lines()?.filter {
-                    it.count { c -> c == ':' } >= 2
-                }?.groupBy({ it.substringBeforeLast(':').substringBeforeLast(':') }) {
-                    it.substringAfterLast(':').toLongOrNull() ?: 0L
-                }?.mapValues { it.value.sum() }?.toSortedMap(),
-            )
-        }
-    }
-
-    private fun delta(before: Map<String, Any?>, after: Map<String, Any?>): Map<String, Any?> = after.mapValues { (store, values) ->
-        val earlier = before[store] as? Map<*, *> ?: return@mapValues null
-        (values as? Map<*, *>)?.entries?.associate { (key, value) ->
-            key.toString() to ((value as? Long ?: 0L) - (earlier[key] as? Long ?: 0L))
-        }
-    }
-
     companion object {
         const val SAMPLE_MILLIS = 1_000L
 
@@ -296,14 +350,47 @@ class Resources(
         private val JSTAT = File(System.getProperty("java.home"), "bin/jstat").path
         private const val MILLIS_PER_SECOND = 1_000L
         private const val KB_PER_MB = 1_024.0
+        private const val KB = 1_024.0
         private const val NANOS_PER_SECOND = 1_000_000_000.0
         private const val SIXTY = 60.0
         private const val SECONDS_PER_DAY = 86_400.0
         private const val PS_FIELDS = 3
         private const val DOCKER_FIELDS = 6
+        private const val DEFAULT_CLOCK_TICKS = 100.0
+        private const val DEFAULT_PAGE_BYTES = 4_096.0
         private val HEAP_USED = listOf("S0U", "S1U", "EU", "OU")
         private val HEAP_CAPACITY = listOf("S0C", "S1C", "EC", "OC")
         private val GC_COUNTERS = listOf("YGC", "YGCT", "FGC", "FGCT", "CGC", "CGCT", "GCT")
+
+        /** MongoDB's operation counters once a second, as `<epoch> <insert> <query> ...`. */
+        private val MONGO_COLUMNS = listOf("epoch", "insert", "query", "update", "delete", "getmore", "command")
+        private const val MONGO_LOOP =
+            "while (true) { const o = db.serverStatus().opcounters; " +
+                "print([Date.now() / 1000, o.insert, o.query, o.update, o.delete, o.getmore, o.command].join(' ')); sleep(1000); }"
+
+        /** PostgreSQL's database counters and WAL statistics (`track_wal_io_timing` gives the times), once a second. */
+        private val POSTGRES_COLUMNS = listOf(
+            "epoch", "xact_commit", "xact_rollback", "tup_inserted", "tup_updated", "tup_deleted", "tup_fetched",
+            "tup_returned", "blks_read", "blks_hit", "wal_records", "wal_fpi", "wal_bytes", "wal_buffers_full", "wal_write",
+            "wal_sync", "wal_write_time", "wal_sync_time",
+        )
+
+        /** The per-second series kept of PostgreSQL's samples: commits, and WAL records, bytes, writes and flushes. */
+        private val POSTGRES_SERIES = listOf(
+            "xact_commit",
+            "wal_records",
+            "wal_bytes",
+            "wal_write",
+            "wal_sync",
+            "wal_write_time",
+            "wal_sync_time",
+        )
+
+        private fun postgresQuery(database: String): String =
+            "select extract(epoch from clock_timestamp()), d.xact_commit, d.xact_rollback, d.tup_inserted, d.tup_updated, " +
+                "d.tup_deleted, d.tup_fetched, d.tup_returned, d.blks_read, d.blks_hit, w.wal_records, w.wal_fpi, " +
+                "w.wal_bytes, w.wal_buffers_full, w.wal_write, w.wal_sync, w.wal_write_time, w.wal_sync_time " +
+                "from pg_stat_database d, pg_stat_wal w where d.datname = '$database';"
 
         /** Where the run happened (decision D224: machine, commit, JVM), as far as the machine tells. */
         fun environment(repository: File?): Map<String, Any?> = mapOf(

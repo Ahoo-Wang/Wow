@@ -137,6 +137,12 @@ object WowMetrics {
      */
     const val TAIL_READS: String = "wow.log.tail.reads"
 
+    /**
+     * Counter: the kernel's lookups of a state in a context's state cache and the states evicted from it (work package
+     * B.O-4); tags context, outcome (`hit`, `miss`, `evicted`).
+     */
+    const val STATE_CACHE: String = "wow.state-cache"
+
     /** Gauge: the commands in a context's executor, waiting in their lanes or in the kernel; tag context. */
     const val EXECUTOR_IN_FLIGHT: String = "wow.executor.in-flight"
 
