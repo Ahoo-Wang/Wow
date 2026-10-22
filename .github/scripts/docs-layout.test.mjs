@@ -29,7 +29,7 @@ const allowed = [
   'typescript/wow-client/test/api/root.api.md',
   'typescript/wow-view-engine/THIRD_PARTY_NOTICES.md',
   '.github/ISSUE_TEMPLATE/bug_report.md',
-  '.github/release-notes/v10-prerelease.md',
+  '.github/release-notes/prerelease.md',
   'documentation/diagrams/Event-Compensation-UserCase.puml',
   'documentation/docs/public/images/logo.svg',
   'typescript/storybook/stories/view-engine/Intro.mdx',
