@@ -68,12 +68,13 @@ description: 用 wow-migrate Skill 把 9.x 服务的 Kotlin 源码改写为 V10�
 /**
  * Submits an order of [items]. The basket context sends it when its buyer checks out, with the order's id fixed by the
  * basket. The order belongs to the buyer: a saga's command carries the scope of the basket it is derived from, whose
- * owner is its buyer (decision D189), and the order takes its owner from the command that creates it.
+ * owner is its buyer (decision D189), and the order takes its owner from the command that creates it. An order has
+ * items, each valid ([OrderItem]'s constraints): the gateway checks that before the order decides.
  */
 @CreateAggregate
 @Summary("Submit an order")
 data class SubmitOrder(
-    val items: List<OrderItem>,
+    @field:NotEmpty @field:Valid val items: List<OrderItem>,
 )
 ```
 
@@ -91,11 +92,6 @@ data class SubmitOrder(
  * `<context>.order.<code>` (decision D259), as its peers read them from the api's generated contract.
  */
 object Rejections {
-    @ErrorCode(
-        description = "An order has at least one item, each of a positive quantity and a price not negative."
-    )
-    const val INVALID_ITEMS = "invalid-items"
-
     @ErrorCode(description = "The order's status does not allow the command.", status = 409)
     const val WRONG_STATUS = "wrong-status"
 
@@ -108,13 +104,7 @@ object Rejections {
 
 ```kotlin
 @OnCommand(produces = [OrderSubmitted::class])
-fun onCommand(command: SubmitOrder): Decision {
-    val invalid = command.items.isEmpty() || command.items.any { it.quantity <= 0 || it.unitPrice.signum() < 0 }
-    if (invalid) {
-        return Decision.reject(Rejections.INVALID_ITEMS, "The order's items are not valid: ${command.items}.")
-    }
-    return Decision.events(OrderSubmitted(command.items))
-}
+fun onCommand(command: SubmitOrder): Decision = Decision.events(OrderSubmitted(command.items))
 ```
 
 拒绝携带一个错误码和一条消息：9.x 的 `bindingErrors` 放进消息里，读取它们的客户端要随之改变。`CommandValidator` 变成边缘处的 Jakarta 校验（`wow.command.invalid`），或者一个拒绝。
@@ -149,14 +139,13 @@ fun onOrderSubmitted(
 <!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#take -->
 
 ```kotlin
-/** Rejects a blank name or one another brand holds; null when this brand may take [name]. */
-private suspend fun take(name: String, scope: DecideScope): Decision? = when {
-    name.isBlank() -> Decision.reject(Rejections.BLANK_NAME, "A brand needs a name.")
-    !scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name)) ->
+/** Rejects a name another brand holds; null when this brand may take [name]. */
+private suspend fun take(name: String, scope: DecideScope): Decision? =
+    if (scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name))) {
+        null
+    } else {
         Decision.reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
-
-    else -> null
-}
+    }
 ```
 
 [跨聚合的唯一键](../guide/unique-keys)解释预留。

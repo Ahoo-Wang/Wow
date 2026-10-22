@@ -284,33 +284,17 @@
       "includeState" : true
     } ],
     "errors" : [ {
-      "code" : "eshop-catalog.brand.blank-name",
-      "status" : 422,
-      "description" : "A brand's name is never blank."
-    }, {
       "code" : "eshop-catalog.brand.name-taken",
       "status" : 409,
       "description" : "Another brand has this name."
-    }, {
-      "code" : "eshop-catalog.category.blank-name",
-      "status" : 422,
-      "description" : "A category's name is never blank."
     }, {
       "code" : "eshop-catalog.category.name-taken",
       "status" : 409,
       "description" : "Another category has this name."
     }, {
-      "code" : "eshop-catalog.product.blank-name",
-      "status" : 422,
-      "description" : "A product's name is never blank."
-    }, {
       "code" : "eshop-catalog.product.incomplete",
       "status" : 409,
       "description" : "A published product has a brand and a category."
-    }, {
-      "code" : "eshop-catalog.product.invalid-price",
-      "status" : 422,
-      "description" : "A product's price is more than zero."
     }, {
       "code" : "eshop-catalog.product.not-published",
       "status" : 409,

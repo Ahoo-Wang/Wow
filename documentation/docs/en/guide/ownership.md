@@ -60,9 +60,6 @@ fun onCommand(command: Command<AddBasketItem>): Decision {
         return Decision.reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
     }
     val adding = command.body
-    if (adding.quantity <= 0 || adding.unitPrice.signum() < 0) {
-        return Decision.reject(Rejections.INVALID_ITEM, "$adding is not a valid item.")
-    }
     return Decision.events(BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity))
 }
 ```

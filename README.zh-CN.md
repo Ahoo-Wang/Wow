@@ -38,15 +38,12 @@
 
 ```kotlin
 @OnCommand(produces = [Withdrawn::class])
-fun onCommand(command: Withdraw): Decision = when {
-    command.amount <= 0 ->
-        Decision.reject(Rejections.INVALID_AMOUNT, "${command.amount} is not positive.")
-
-    command.amount > state.balance ->
+fun onCommand(command: Withdraw): Decision =
+    if (command.amount > state.balance) {
         Decision.reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
-
-    else -> Decision.events(Withdrawn(command.amount))
-}
+    } else {
+        Decision.events(Withdrawn(command.amount))
+    }
 ```
 
 并且用同样的语言测试它：

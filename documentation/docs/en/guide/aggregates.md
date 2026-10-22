@@ -29,12 +29,13 @@ A command is a data class of the api module. It holds what the caller asks, neve
 /**
  * Submits an order of [items]. The basket context sends it when its buyer checks out, with the order's id fixed by the
  * basket. The order belongs to the buyer: a saga's command carries the scope of the basket it is derived from, whose
- * owner is its buyer (decision D189), and the order takes its owner from the command that creates it.
+ * owner is its buyer (decision D189), and the order takes its owner from the command that creates it. An order has
+ * items, each valid ([OrderItem]'s constraints): the gateway checks that before the order decides.
  */
 @CreateAggregate
 @Summary("Submit an order")
 data class SubmitOrder(
-    val items: List<OrderItem>,
+    @field:NotEmpty @field:Valid val items: List<OrderItem>,
 )
 ```
 
@@ -58,13 +59,7 @@ The root is a class annotated `@AggregateRoot`, built from its state. Its comman
 
 ```kotlin
 @OnCommand(produces = [OrderSubmitted::class])
-fun onCommand(command: SubmitOrder): Decision {
-    val invalid = command.items.isEmpty() || command.items.any { it.quantity <= 0 || it.unitPrice.signum() < 0 }
-    if (invalid) {
-        return Decision.reject(Rejections.INVALID_ITEMS, "The order's items are not valid: ${command.items}.")
-    }
-    return Decision.events(OrderSubmitted(command.items))
-}
+fun onCommand(command: SubmitOrder): Decision = Decision.events(OrderSubmitted(command.items))
 ```
 
 The compiler finds every non-private function annotated `@OnCommand`, or named `onCommand`. The first parameter is the command; the return value is the decision:
@@ -105,9 +100,6 @@ fun onCommand(command: Command<AddBasketItem>): Decision {
         return Decision.reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
     }
     val adding = command.body
-    if (adding.quantity <= 0 || adding.unitPrice.signum() < 0) {
-        return Decision.reject(Rejections.INVALID_ITEM, "$adding is not a valid item.")
-    }
     return Decision.events(BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity))
 }
 ```

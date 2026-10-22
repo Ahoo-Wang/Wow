@@ -52,12 +52,6 @@ class ProductSpec {
     }
 
     @Test
-    fun `creating a product should need a name and a positive price`() = aggregateSpec(model, id = "mug") {
-        whenCommand(CreateProduct(" ", BigDecimal("8.50"))) { expectRejected(Product.Rejections.BLANK_NAME) }
-        whenCommand(CreateProduct("Wow mug", BigDecimal.ZERO)) { expectRejected(Product.Rejections.INVALID_PRICE) }
-    }
-
-    @Test
     fun `creating a product twice should be refused`() = aggregateSpec(model, id = "mug") {
         given(draft)
         whenCommand(CreateProduct("Wow mug", BigDecimal("8.50"))) { expectRejected("wow.aggregate.exists") }
@@ -77,7 +71,6 @@ class ProductSpec {
             whenCommand(UpdateProduct("Big mug", "Half a litre", brandId = "wow", categoryId = "mugs")) {
                 expectUnchanged()
             }
-            whenCommand(UpdateProduct("", "")) { expectRejected(Product.Rejections.BLANK_NAME) }
         }
 
     @Test
@@ -100,7 +93,6 @@ class ProductSpec {
             expectState { price.assert().isEqualByComparingTo("9.00") }
         }
         whenCommand(ChangeProductPrice(BigDecimal("9.000"))) { expectUnchanged() }
-        whenCommand(ChangeProductPrice(BigDecimal("-1"))) { expectRejected(Product.Rejections.INVALID_PRICE) }
     }
 
     @Test

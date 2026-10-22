@@ -3181,15 +3181,14 @@
         }
       },
       "eshop-inventory.command.422" : {
-        "description" : "`eshop-inventory.stock.invalid-quantity`: A quantity of stock is positive.\nA rejection by the domain, with the code it chose (decision D121); the problem carries the command's result.",
+        "description" : "A rejection by the domain, with the code it chose (decision D121); the problem carries the command's result.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
               "$ref" : "#/components/schemas/wow.Problem"
             }
           }
-        },
-        "x-wow-error-codes" : [ "eshop-inventory.stock.invalid-quantity" ]
+        }
       },
       "eshop-inventory.command.429" : {
         "description" : "`wow.command.busy`: The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; retry later.",

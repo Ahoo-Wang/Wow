@@ -103,8 +103,6 @@ export const ESHOP_ORDERING_BOUNDED_CONTEXT = 'eshop-ordering';
 
 /** The domain error codes of `eshop-ordering`, each a problem's `code` with the status the Manifest gives it. */
 export const EshopOrderingErrorCodes = {
-  /** 422: An order has at least one item, each of a positive quantity and a price not negative. */
-  ORDER_INVALID_ITEMS: 'eshop-ordering.order.invalid-items',
   /** 422: A payment pays the order's total amount. */
   ORDER_WRONG_AMOUNT: 'eshop-ordering.order.wrong-amount',
   /** 409: The order's status does not allow the command. */

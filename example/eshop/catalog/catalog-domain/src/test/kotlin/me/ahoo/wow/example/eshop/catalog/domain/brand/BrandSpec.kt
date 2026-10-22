@@ -36,11 +36,6 @@ class BrandSpec {
     }
 
     @Test
-    fun `a brand should need a name`() = aggregateSpec(model, id = "contoso") {
-        whenCommand(CreateBrand("  ")) { expectRejected(Brand.Rejections.BLANK_NAME) }
-    }
-
-    @Test
     fun `renaming a brand should take the new name, and the same name should change nothing`() =
         aggregateSpec(model, id = "contoso") {
             whenCommand(CreateBrand("Contoso")) { expectEventTypes(BrandCreated::class.java) }
@@ -54,6 +49,5 @@ class BrandSpec {
             }
             holds(CatalogNames.BRAND_NAMES, "fabrikam").assert().isTrue()
             holds(CatalogNames.BRAND_NAMES, "contoso").assert().isFalse()
-            whenCommand(RenameBrand("")) { expectRejected(Brand.Rejections.BLANK_NAME) }
         }
 }

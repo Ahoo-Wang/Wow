@@ -3155,7 +3155,7 @@
         }
       },
       "eshop-basket.command.422" : {
-        "description" : "`eshop-basket.basket.empty`: An empty basket cannot be checked out.\n`eshop-basket.basket.invalid-item`: A basket's quantity is positive, and its price not negative.\nA rejection by the domain, with the code it chose (decision D121); the problem carries the command's result.",
+        "description" : "`eshop-basket.basket.empty`: An empty basket cannot be checked out.\nA rejection by the domain, with the code it chose (decision D121); the problem carries the command's result.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3163,7 +3163,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "eshop-basket.basket.empty", "eshop-basket.basket.invalid-item" ]
+        "x-wow-error-codes" : [ "eshop-basket.basket.empty" ]
       },
       "eshop-basket.command.429" : {
         "description" : "`wow.command.busy`: The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; retry later.",

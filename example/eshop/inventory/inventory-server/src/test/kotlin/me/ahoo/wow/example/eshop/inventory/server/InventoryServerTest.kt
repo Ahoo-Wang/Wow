@@ -14,10 +14,17 @@
 package me.ahoo.wow.example.eshop.inventory.server
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import org.junit.jupiter.api.Test
 import org.springframework.boot.builder.SpringApplicationBuilder
+import tools.jackson.databind.json.JsonMapper
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.time.Duration
 
 /** The inventory service as its `application.yaml` configures it, on random ports. */
 class InventoryServerTest {
@@ -37,5 +44,46 @@ class InventoryServerTest {
             val manifest = context.getBean(Manifest::class.java)
             manifest.contexts.single().aggregates.map { it.name }.assert().containsExactly("stock")
         }
+    }
+
+    @Test
+    fun `a quantity that is not positive should be invalid before the stock decides`() {
+        SpringApplicationBuilder(InventoryServer::class.java).run(
+            "--spring.main.banner-mode=off",
+            "--server.port=0",
+            "--server.address=127.0.0.1",
+            "--wow.internal.port=0",
+            "--wow.internal.host=127.0.0.1",
+        ).use { context ->
+            val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
+            HttpClient.newHttpClient().use { http ->
+                fun post(path: String, body: String): HttpResponse<String> = http.send(
+                    HttpRequest.newBuilder(URI.create("http://127.0.0.1:$port$path"))
+                        .timeout(Duration.ofSeconds(30))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(body))
+                        .build(),
+                    HttpResponse.BodyHandlers.ofString(),
+                )
+                val invalid = listOf(
+                    "/eshop-inventory/stock/mug/receive-stock" to """{"quantity":0}""",
+                    "/eshop-inventory/stock/mug/reserve-stock" to """{"orderId":"o-1","quantity":-1}""",
+                )
+                for ((path, body) in invalid) {
+                    val response = post(path, body)
+                    response.statusCode().assert().describedAs(response.body()).isEqualTo(BAD_REQUEST)
+                    val problem = JsonMapper.builder().build().readTree(response.body())
+                    problem["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
+                    problem["violations"].single().let {
+                        it["path"].asString().assert().isEqualTo("quantity")
+                        it["code"].asString().assert().isEqualTo("Positive")
+                    }
+                }
+            }
+        }
+    }
+
+    private companion object {
+        const val BAD_REQUEST = 400
     }
 }

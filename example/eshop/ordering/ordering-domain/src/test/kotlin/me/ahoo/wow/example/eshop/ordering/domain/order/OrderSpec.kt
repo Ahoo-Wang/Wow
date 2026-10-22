@@ -66,17 +66,6 @@ class OrderSpec {
     }
 
     @Test
-    fun `an order without items, or with an invalid one, should be rejected`() = orderSpec {
-        whenCommand(SubmitOrder(emptyList())) { expectRejected(Order.Rejections.INVALID_ITEMS) }
-        whenCommand(SubmitOrder(listOf(OrderItem(MUG, MUG_PRICE, 0)))) {
-            expectRejected(Order.Rejections.INVALID_ITEMS)
-        }
-        whenCommand(SubmitOrder(listOf(OrderItem(MUG, BigDecimal("-1"), 1)))) {
-            expectRejected(Order.Rejections.INVALID_ITEMS)
-        }
-    }
-
-    @Test
     fun `a submitted order should await its stock validation once`() = orderSpec {
         given(submitted)
         whenCommand(AwaitStockValidation) {

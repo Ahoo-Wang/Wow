@@ -12,8 +12,6 @@ export const ESHOP_BASKET_BOUNDED_CONTEXT = 'eshop-basket';
 export const EshopBasketErrorCodes = {
   /** 422: An empty basket cannot be checked out. */
   BASKET_EMPTY: 'eshop-basket.basket.empty',
-  /** 422: A basket's quantity is positive, and its price not negative. */
-  BASKET_INVALID_ITEM: 'eshop-basket.basket.invalid-item',
   /** 404: The basket does not hold the product. */
   BASKET_ITEM_NOT_FOUND: 'eshop-basket.basket.item-not-found',
   /** 403: A basket belongs to the buyer whose id it has. */

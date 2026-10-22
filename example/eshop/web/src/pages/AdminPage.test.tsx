@@ -127,11 +127,11 @@ describe("the catalog admin", () => {
     ]);
   });
 
-  it("shows a rejection with its violations", async () => {
+  it("shows an invalid command with its violations", async () => {
     const { transport } = catalog(() =>
-      problemAnswer(422, "Unprocessable Content", "eshop-catalog.product.invalid-price", {
-        detail: "A price is positive.",
-        violations: [{ path: "price", code: "positive", message: "must be positive" }],
+      problemAnswer(400, "Bad Request", "wow.command.invalid", {
+        detail: "CreateProduct is invalid.",
+        violations: [{ path: "price", code: "Positive", message: "must be greater than 0" }],
       }),
     );
     renderShop("/admin", ERIN, transport);
@@ -139,11 +139,9 @@ describe("the catalog admin", () => {
     await userEvent.type(within(form).getByLabelText("Name"), "Free mug");
     await userEvent.type(within(form).getByLabelText("Price"), "0");
     await userEvent.click(within(form).getByRole("button", { name: "Create product" }));
-    expect(
-      await screen.findByText("eshop-catalog.product.invalid-price"),
-    ).toBeInTheDocument();
-    expect(screen.getByText("A price is positive.")).toBeInTheDocument();
-    expect(screen.getByText(/must be positive/)).toBeInTheDocument();
+    expect(await screen.findByText("wow.command.invalid")).toBeInTheDocument();
+    expect(screen.getByText("CreateProduct is invalid.")).toBeInTheDocument();
+    expect(screen.getByText(/must be greater than 0/)).toBeInTheDocument();
   });
 
   it("tells a buyer the catalog refuses its changes", async () => {

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.quickstart
 
+import jakarta.validation.constraints.Positive
 import me.ahoo.wow.api.annotation.BoundedContext
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Summary
@@ -25,10 +26,10 @@ object BankBoundedContext
 data class OpenAccount(val owner: String)
 
 @Summary("Deposit money")
-data class Deposit(val amount: Long)
+data class Deposit(@field:Positive val amount: Long)
 
 @Summary("Withdraw money")
-data class Withdraw(val amount: Long)
+data class Withdraw(@field:Positive val amount: Long)
 
 @Summary("An account was opened")
 data class AccountOpened(val owner: String)
