@@ -16,6 +16,7 @@ package me.ahoo.wow.example.eshop.payment.server
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.memory.InMemoryTopics
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.runtime.contract.ContractDirectory
@@ -118,17 +119,31 @@ class PaymentServerTest {
             .toString().assert().contains("simulated-k-2")
     }
 
+    @Test
+    fun `a payment of nothing should be invalid before the payment decides`() {
+        val response = send("order-free", "0")
+        response.statusCode().assert().describedAs(response.body()).isEqualTo(BAD_REQUEST)
+        val problem = json.readTree(response.body())
+        problem["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
+        problem["violations"].single().let {
+            it["path"].asString().assert().isEqualTo("amount")
+            it["code"].asString().assert().isEqualTo("Positive")
+        }
+    }
+
     private fun request(order: String, amount: String) {
-        val response = http.send(
-            HttpRequest.newBuilder(uri("/eshop-payment/payment/$order/request-payment"))
-                .timeout(TIMEOUT)
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString("""{"orderId":"$order","amount":$amount}"""))
-                .build(),
-            HttpResponse.BodyHandlers.ofString(),
-        )
+        val response = send(order, amount)
         response.statusCode().assert().describedAs(response.body()).isEqualTo(OK)
     }
+
+    private fun send(order: String, amount: String): HttpResponse<String> = http.send(
+        HttpRequest.newBuilder(uri("/eshop-payment/payment/$order/request-payment"))
+            .timeout(TIMEOUT)
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString("""{"orderId":"$order","amount":$amount}"""))
+            .build(),
+        HttpResponse.BodyHandlers.ofString(),
+    )
 
     private fun state(id: String): JsonNode {
         val response = http.send(
@@ -151,6 +166,7 @@ class PaymentServerTest {
 
     private companion object {
         const val OK = 200
+        const val BAD_REQUEST = 400
         val TIMEOUT: Duration = Duration.ofSeconds(30)
         val DEADLINE: Duration = Duration.ofSeconds(20)
         val POLL: Duration = Duration.ofMillis(100)

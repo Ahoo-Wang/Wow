@@ -10,20 +10,12 @@ export const ESHOP_CATALOG_BOUNDED_CONTEXT = 'eshop-catalog';
 
 /** The domain error codes of `eshop-catalog`, each a problem's `code` with the status the Manifest gives it. */
 export const EshopCatalogErrorCodes = {
-  /** 422: A brand's name is never blank. */
-  BRAND_BLANK_NAME: 'eshop-catalog.brand.blank-name',
   /** 409: Another brand has this name. */
   BRAND_NAME_TAKEN: 'eshop-catalog.brand.name-taken',
-  /** 422: A category's name is never blank. */
-  CATEGORY_BLANK_NAME: 'eshop-catalog.category.blank-name',
   /** 409: Another category has this name. */
   CATEGORY_NAME_TAKEN: 'eshop-catalog.category.name-taken',
-  /** 422: A product's name is never blank. */
-  PRODUCT_BLANK_NAME: 'eshop-catalog.product.blank-name',
   /** 409: A published product has a brand and a category. */
   PRODUCT_INCOMPLETE: 'eshop-catalog.product.incomplete',
-  /** 422: A product's price is more than zero. */
-  PRODUCT_INVALID_PRICE: 'eshop-catalog.product.invalid-price',
   /** 409: Only a published product can be delisted. */
   PRODUCT_NOT_PUBLISHED: 'eshop-catalog.product.not-published',
 } as const;

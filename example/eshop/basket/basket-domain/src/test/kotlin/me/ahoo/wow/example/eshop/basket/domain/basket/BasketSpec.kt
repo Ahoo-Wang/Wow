@@ -69,12 +69,6 @@ class BasketSpec {
     }
 
     @Test
-    fun `an item of no quantity or a negative price should be rejected`() = basketSpec {
-        whenCommand(AddBasketItem(MUG, MUG_PRICE, 0)) { expectRejected(Basket.Rejections.INVALID_ITEM) }
-        whenCommand(AddBasketItem(MUG, BigDecimal("-1"), 1)) { expectRejected(Basket.Rejections.INVALID_ITEM) }
-    }
-
-    @Test
     fun `changing a quantity should replace it`() = basketSpec {
         given(BasketItemAdded(MUG, MUG_PRICE, 2), BasketItemAdded(CAP, CAP_PRICE, 1))
         whenCommand(ChangeBasketItemQuantity(MUG, 5)) {
@@ -84,7 +78,6 @@ class BasketSpec {
             }
         }
         whenCommand(ChangeBasketItemQuantity(MUG, 5)) { expectUnchanged() }
-        whenCommand(ChangeBasketItemQuantity(MUG, 0)) { expectRejected(Basket.Rejections.INVALID_ITEM) }
         whenCommand(ChangeBasketItemQuantity("hat", 1)) { expectRejected(Basket.Rejections.ITEM_NOT_FOUND) }
     }
 

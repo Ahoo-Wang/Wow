@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.eshop.inventory.api.stock
 
+import jakarta.validation.constraints.Positive
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.Summary
 
@@ -25,7 +26,7 @@ import me.ahoo.wow.api.annotation.Summary
 @AllowCreate
 @Summary("Receive stock")
 data class ReceiveStock(
-    val quantity: Int,
+    @field:Positive val quantity: Int,
 )
 
 /**
@@ -36,7 +37,7 @@ data class ReceiveStock(
 @Summary("Reserve stock for an order")
 data class ReserveStock(
     val orderId: String,
-    val quantity: Int,
+    @field:Positive val quantity: Int,
 )
 
 /** Takes the units reserved for the order [orderId] out of stock for good, once the order is shipped. */

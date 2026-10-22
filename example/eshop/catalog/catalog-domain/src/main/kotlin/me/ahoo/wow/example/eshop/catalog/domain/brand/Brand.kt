@@ -68,14 +68,13 @@ class Brand(private val state: BrandState) {
     // endregion
 
     // region take
-    /** Rejects a blank name or one another brand holds; null when this brand may take [name]. */
-    private suspend fun take(name: String, scope: DecideScope): Decision? = when {
-        name.isBlank() -> Decision.reject(Rejections.BLANK_NAME, "A brand needs a name.")
-        !scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name)) ->
+    /** Rejects a name another brand holds; null when this brand may take [name]. */
+    private suspend fun take(name: String, scope: DecideScope): Decision? =
+        if (scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name))) {
+            null
+        } else {
             Decision.reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
-
-        else -> null
-    }
+        }
     // endregion
 
     /**
@@ -83,9 +82,6 @@ class Brand(private val state: BrandState) {
      * `<context>.brand.<code>` (decision D259), as its peers read them from the api's generated contract.
      */
     object Rejections {
-        @ErrorCode(description = "A brand's name is never blank.")
-        const val BLANK_NAME = "blank-name"
-
         @ErrorCode(description = "Another brand has this name.", status = 409)
         const val NAME_TAKEN = "name-taken"
     }

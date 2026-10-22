@@ -63,7 +63,6 @@ class OrderingDomainModelProviderTest {
         committed["derives"].single().asString().assert().isEqualTo("eshop-ordering.order.ConfirmOrderStock")
         subscriptions.keys.assert().noneMatch { it.startsWith("StockConfirmationSaga") }
         context["errors"].values().map { it["code"].asString() }.assert().contains(
-            "eshop-ordering.order.invalid-items",
             "eshop-ordering.order.wrong-status",
             "eshop-ordering.order.wrong-amount",
         )

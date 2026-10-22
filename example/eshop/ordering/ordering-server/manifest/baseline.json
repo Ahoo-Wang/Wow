@@ -305,10 +305,6 @@
       "includeState" : true
     } ],
     "errors" : [ {
-      "code" : "eshop-ordering.order.invalid-items",
-      "status" : 422,
-      "description" : "An order has at least one item, each of a positive quantity and a price not negative."
-    }, {
       "code" : "eshop-ordering.order.wrong-amount",
       "status" : 422,
       "description" : "A payment pays the order's total amount."

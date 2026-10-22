@@ -30,7 +30,6 @@ import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
 import me.ahoo.wow.example.eshop.catalog.api.product.ProductUpdated
 import me.ahoo.wow.example.eshop.catalog.api.product.PublishProduct
 import me.ahoo.wow.example.eshop.catalog.api.product.UpdateProduct
-import java.math.BigDecimal
 
 // region root
 /**
@@ -47,7 +46,7 @@ class Product(private val state: ProductState) {
 // endregion
     @OnCommand(produces = [ProductCreated::class])
     fun onCommand(command: CreateProduct): Decision =
-        invalid(command.name) ?: invalid(command.price) ?: Decision.events(
+        Decision.events(
             ProductCreated(
                 name = command.name,
                 price = command.price,
@@ -59,7 +58,6 @@ class Product(private val state: ProductState) {
 
     @OnCommand(produces = [ProductUpdated::class])
     fun onCommand(command: UpdateProduct): Decision {
-        invalid(command.name)?.let { return it }
         if (state.status == ProductStatus.PUBLISHED && (command.brandId == null || command.categoryId == null)) {
             return Decision.reject(Rejections.INCOMPLETE, "A published product keeps its brand and category.")
         }
@@ -72,7 +70,7 @@ class Product(private val state: ProductState) {
     }
 
     @OnCommand(produces = [ProductPriceChanged::class])
-    fun onCommand(command: ChangeProductPrice): Decision = invalid(command.price) ?: when {
+    fun onCommand(command: ChangeProductPrice): Decision = when {
         command.price.compareTo(state.price) == 0 -> Decision.NoOp
         else -> Decision.events(ProductPriceChanged(command.price, previous = state.price))
     }
@@ -95,26 +93,11 @@ class Product(private val state: ProductState) {
             Decision.events(ProductDelisted(command.reason))
         }
 
-    private fun invalid(name: String): Decision? =
-        if (name.isBlank()) Decision.reject(Rejections.BLANK_NAME, "A product needs a name.") else null
-
-    private fun invalid(price: BigDecimal): Decision? = if (price.signum() <= 0) {
-        Decision.reject(Rejections.INVALID_PRICE, "$price is not more than zero.")
-    } else {
-        null
-    }
-
     /**
      * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them
      * `<context>.product.<code>` (decision D259), as its peers read them from the api's generated contract.
      */
     object Rejections {
-        @ErrorCode(description = "A product's name is never blank.")
-        const val BLANK_NAME = "blank-name"
-
-        @ErrorCode(description = "A product's price is more than zero.")
-        const val INVALID_PRICE = "invalid-price"
-
         @ErrorCode(description = "A published product has a brand and a category.", status = 409)
         const val INCOMPLETE = "incomplete"
 

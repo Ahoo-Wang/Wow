@@ -15,10 +15,12 @@ package me.ahoo.wow.example.quickstart
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.result.CommandResult
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.assertThrows
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.http.MediaType
@@ -73,6 +75,18 @@ class BankServerTest {
     }
 
     @Test
+    fun `an amount that is not positive should be invalid before the account decides`() {
+        post("/bank/account/carol/open-account", """{"owner":"Carol"}""").status(OK)
+        for (command in listOf("deposit", "withdraw")) {
+            post("/bank/account/carol/$command", """{"amount":0}""").status(BAD_REQUEST).apply {
+                body["type"].asString().assert().isEqualTo("urn:wow:error:wow.command.invalid")
+                body["violations"].single()["path"].asString().assert().isEqualTo("amount")
+                body["violations"].single()["code"].asString().assert().isEqualTo("Positive")
+            }
+        }
+    }
+
+    @Test
     fun `the teller should deposit in process through the CommandClient`() {
         post("/bank/account/bob/open-account", """{"owner":"Bob"}""").status(OK)
         val teller = context.getBean(Teller::class.java)
@@ -80,6 +94,9 @@ class BankServerTest {
         result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         result.version.assert().isEqualTo(2)
         get("/bank/account/bob/state").status(OK).body["state"]["balance"].asLong().assert().isEqualTo(40L)
+        // The gateway checks an in-process command's constraints too.
+        val invalid = assertThrows<CommandRejectedException> { runBlocking { teller.deposit("bob", 0) } }
+        invalid.result.error?.code.assert().isEqualTo("wow.command.invalid")
     }
 
     private class Answer(val status: Int, val body: JsonNode) {
@@ -98,6 +115,7 @@ class BankServerTest {
 
     private companion object {
         const val OK = 200
+        const val BAD_REQUEST = 400
         const val CONFLICT = 409
     }
 }

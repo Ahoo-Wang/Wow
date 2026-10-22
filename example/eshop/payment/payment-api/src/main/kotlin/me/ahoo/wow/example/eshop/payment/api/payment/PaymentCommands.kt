@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.eshop.payment.api.payment
 
+import jakarta.validation.constraints.Positive
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Summary
 import java.math.BigDecimal
@@ -30,7 +31,7 @@ import java.math.BigDecimal
 @Summary("Request a payment")
 data class RequestPayment(
     val orderId: String,
-    val amount: BigDecimal,
+    @field:Positive val amount: BigDecimal,
 )
 
 /** Records that the gateway approved the payment, under its [transactionId]. The gateway saga sends it. */

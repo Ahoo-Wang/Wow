@@ -13,14 +13,15 @@
 
 package me.ahoo.wow.example.eshop.catalog.api.category
 
+import jakarta.validation.constraints.NotBlank
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Summary
 
 /** Adds a category named [name] to the catalog; the name is unique among the catalog's categories, ignoring case. */
 @CreateAggregate
 @Summary("Create a category")
-data class CreateCategory(val name: String)
+data class CreateCategory(@field:NotBlank val name: String)
 
 /** Renames the category; the new name is unique too. */
 @Summary("Rename a category")
-data class RenameCategory(val name: String)
+data class RenameCategory(@field:NotBlank val name: String)
