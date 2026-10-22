@@ -162,7 +162,7 @@ class KafkaCommandIntakeTest {
         backends,
         channel,
         // Each node signals the other's waits, as /wow/internal/signals would.
-        remoteSignals = SignalSender { origin, signal -> nodes.firstOrNull { it.node == origin.node }?.waits?.signal(signal) },
+        remoteSignals = SignalSender { origin, signal, _ -> nodes.firstOrNull { it.node == origin.node }?.waits?.signal(signal) },
         options = NODE_OPTIONS,
         subscriptions = bindings,
         contracts = contracts,

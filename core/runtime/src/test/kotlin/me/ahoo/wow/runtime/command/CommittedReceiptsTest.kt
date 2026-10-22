@@ -72,7 +72,7 @@ class CommittedReceiptsTest {
     private var refuseConfirmation = false
 
     /** Each node's signals to another node go straight to that node's waits, as the internal signal entry would. */
-    private val signals = SignalSender { origin: Origin, signal: WaitSignal ->
+    private val signals = SignalSender { origin: Origin, signal: WaitSignal, _ ->
         nodes.firstOrNull { it.node == origin.node }?.waits?.signal(signal)
     }
 

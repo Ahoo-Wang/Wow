@@ -299,7 +299,7 @@ class TestNode(val name: String, private val cluster: TestCluster) {
         accountManifest(),
         { cluster.backends },
         cluster.channel,
-        remoteSignals = { origin, signal -> cluster.nodes[origin.node]?.registry?.signal(signal) },
+        remoteSignals = { origin, signal, _ -> cluster.nodes[origin.node]?.registry?.signal(signal) },
         options = ServiceNodeOptions(
             cluster = cluster.options,
             subscription = testOptions(checkpointInterval = 1.hours),

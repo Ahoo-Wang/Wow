@@ -92,7 +92,7 @@ class CrossContextWaitTest {
     data class OrderView(val quantity: Int, val cancelled: Boolean)
 
     /** Every node's signals to another node go straight to that node's waits, unless it is gone. */
-    private val signals = SignalSender { origin: Origin, signal: WaitSignal ->
+    private val signals = SignalSender { origin: Origin, signal: WaitSignal, _ ->
         signalled += signal
         if (!(salesGone && origin.service == SALES_SERVICE)) {
             nodes.firstOrNull { it.node == origin.node }?.waits?.signal(signal)

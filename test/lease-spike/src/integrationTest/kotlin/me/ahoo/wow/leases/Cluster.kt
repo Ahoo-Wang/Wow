@@ -147,7 +147,7 @@ class SpikeNode(val name: String, private val cluster: SpikeCluster, private val
     }
 
     private val registry = WaitRegistry()
-    private val signals = LocalSignalSender(name, registry) { origin, signal ->
+    private val signals = LocalSignalSender(name, registry) { origin, signal, _ ->
         cluster.nodes[origin.node]?.registry?.signal(signal)
     }
     private val kernel = Kernel(log, states = LruStateCache(CACHE_CAPACITY))

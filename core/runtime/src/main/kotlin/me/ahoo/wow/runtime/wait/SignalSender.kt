@@ -25,15 +25,20 @@ import me.ahoo.wow.spi.wait.Origin
  * sender is best effort and must not hold up its caller (a subscription that has just handled an entry, or the node
  * that executed a derived command): a sender that crosses the network queues and returns, and drops what it cannot
  * deliver instead of retrying.
+ *
+ * A signal is worth delivering until its wait's [deadline][me.ahoo.wow.spi.wait.WaitContext.deadline] and no longer
+ * (decision D64): a sender gives a signal that long, so an origin that is slow to take it, under load, still ends its
+ * wait, and drops one whose wait is over.
  */
 @InternalWowApi
 fun interface SignalSender {
-    suspend fun send(origin: Origin, signal: WaitSignal)
+    /** Delivers [signal] to [origin], while its wait lasts: until [deadline], in epoch milliseconds. */
+    suspend fun send(origin: Origin, signal: WaitSignal, deadline: Long)
 
     @InternalWowApi
     companion object {
         /** Sends nothing: no one waits on this node's signals. */
-        val NONE: SignalSender = SignalSender { _, _ -> }
+        val NONE: SignalSender = SignalSender { _, _, _ -> }
     }
 }
 
@@ -60,18 +65,18 @@ class LocalSignalSender private constructor(
 
     /** The sender of [node], whichever service a signal's origin names. */
     constructor(node: String, registry: WaitRegistry, remote: SignalSender = DROP) : this(registry, node, null, remote)
-    override suspend fun send(origin: Origin, signal: WaitSignal) {
+    override suspend fun send(origin: Origin, signal: WaitSignal, deadline: Long) {
         if (origin.node == node && (service == null || origin.service == service)) {
             registry.signal(signal)
         } else {
-            remote.send(origin, signal)
+            remote.send(origin, signal, deadline)
         }
     }
 
     private companion object {
         val logger = KotlinLogging.logger {}
 
-        val DROP = SignalSender { origin, signal ->
+        val DROP = SignalSender { origin, signal, _ ->
             logger.debug { "No sender to ${origin.node}; dropping the signal of wait ${signal.waitId}." }
         }
     }

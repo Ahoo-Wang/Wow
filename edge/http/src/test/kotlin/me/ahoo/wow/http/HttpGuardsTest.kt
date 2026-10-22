@@ -28,7 +28,6 @@ class HttpGuardsTest {
     fun `a signal sender should refuse settings that cannot send`() {
         assertThrownBy<IllegalArgumentException> { HttpSignalSender(queueCapacity = 0) }
         assertThrownBy<IllegalArgumentException> { HttpSignalSender(concurrency = 0) }
-        assertThrownBy<IllegalArgumentException> { HttpSignalSender(timeout = Duration.ZERO) }
         assertThrownBy<IllegalArgumentException> { HttpSignalSender(idleTimeout = Duration.ZERO) }
     }
 

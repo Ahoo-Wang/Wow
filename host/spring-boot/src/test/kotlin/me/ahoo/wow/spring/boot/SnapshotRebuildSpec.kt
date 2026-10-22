@@ -275,7 +275,7 @@ abstract class SnapshotRebuildSpec {
             manifest(context, revision),
             backends.factory,
             channel,
-            remoteSignals = { origin, signal -> nodes[origin.node]?.waits?.signal(signal) },
+            remoteSignals = { origin, signal, _ -> nodes[origin.node]?.waits?.signal(signal) },
             options = OPTIONS,
         )
         nodes[name] = node

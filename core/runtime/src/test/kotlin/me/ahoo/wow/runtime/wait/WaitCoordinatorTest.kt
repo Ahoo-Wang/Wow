@@ -759,7 +759,7 @@ class WaitCoordinatorTest {
         val sender = LocalSignalSender(
             "node-1",
             registry
-        ) { origin, signal -> sent += "${origin.node}:${signal.waitId}" }
+        ) { origin, signal, _ -> sent += "${origin.node}:${signal.waitId}" }
         val result = CommandResult(
             commandId = "c-1",
             requestId = "r-1",
@@ -770,8 +770,12 @@ class WaitCoordinatorTest {
             status = CommandResult.Status.SUCCEEDED,
             signalTime = 1L,
         )
-        sender.send(Origin("node-2", "10.0.0.2:9090", "shop"), WaitSignal(waitId = "w-9", result = result))
-        sender.send(origin, WaitSignal(waitId = "w-8", result = result))
+        sender.send(
+            Origin("node-2", "10.0.0.2:9090", "shop"),
+            WaitSignal(waitId = "w-9", result = result),
+            Long.MAX_VALUE
+        )
+        sender.send(origin, WaitSignal(waitId = "w-8", result = result), Long.MAX_VALUE)
         sent.assert().containsExactly("node-2:w-9")
     }
 

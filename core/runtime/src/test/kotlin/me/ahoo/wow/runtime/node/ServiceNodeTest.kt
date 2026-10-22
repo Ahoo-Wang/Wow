@@ -103,7 +103,7 @@ class ServiceNodeTest {
         accountsManifest(*contexts),
         backends,
         channel,
-        remoteSignals = { origin, signal -> nodes[origin.node]?.waits?.signal(signal) },
+        remoteSignals = { origin, signal, _ -> nodes[origin.node]?.waits?.signal(signal) },
         options = options,
         subscriptions = subscriptions,
         listener = listener,

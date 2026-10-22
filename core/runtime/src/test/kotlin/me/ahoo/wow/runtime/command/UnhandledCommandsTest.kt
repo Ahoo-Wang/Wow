@@ -58,7 +58,7 @@ class UnhandledCommandsTest {
         Executor(Kernel(InMemoryEventLog())),
         WaitRegistry(),
         SubscriptionDirectory.NONE,
-        SignalSender { _, signal -> signalled += signal },
+        SignalSender { _, signal, _ -> signalled += signal },
         WaitOptions(Origin("node-1", "node-1:9090", SHOP_SERVICE)),
     )
     private val topics = InMemoryTopics(1)

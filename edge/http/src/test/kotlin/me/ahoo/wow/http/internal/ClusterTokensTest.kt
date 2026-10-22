@@ -150,11 +150,13 @@ class ClusterTokensTest {
             ).use { sender ->
                 sender.send(
                     Origin("node-1", server.address, "bank-service"),
-                    WaitSignal(waitId = "w-own", result = committed("c-1"))
+                    WaitSignal(waitId = "w-own", result = committed("c-1")),
+                    deadline(),
                 )
                 sender.send(
                     Origin("node-2", server.address, "ordering-service"),
-                    WaitSignal(waitId = "w-x", result = committed("c-2"))
+                    WaitSignal(waitId = "w-x", result = committed("c-2")),
+                    deadline(),
                 )
                 eventually { signals.size == 2 }
                 signals.map { it.waitId }.assert().containsExactlyInAnyOrder("w-own", "w-x")
@@ -163,7 +165,8 @@ class ClusterTokensTest {
             HttpSignalSender(client, service = "bank-service", clusterToken = CURRENT).use { sender ->
                 sender.send(
                     Origin("node-2", server.address, "ordering-service"),
-                    WaitSignal(waitId = "w-y", result = committed("c-3"))
+                    WaitSignal(waitId = "w-y", result = committed("c-3")),
+                    deadline(),
                 )
                 eventually { sender.dropped == 1L }
             }
@@ -183,7 +186,8 @@ class ClusterTokensTest {
         ).use { sender ->
             sender.send(
                 Origin("node-1", server.address, "bank-service"),
-                WaitSignal(waitId = "w-exfiltrated", result = committed("c-1"))
+                WaitSignal(waitId = "w-exfiltrated", result = committed("c-1")),
+                deadline(),
             )
             eventually { sender.dropped == 1L }
         }
@@ -191,7 +195,8 @@ class ClusterTokensTest {
         HttpSignalSender(client, service = "bank-service", clusterToken = CURRENT).use { sender ->
             sender.send(
                 Origin("node-1", server.address, "bank-service"),
-                WaitSignal(waitId = "w-unknown", result = committed("c-2"))
+                WaitSignal(waitId = "w-unknown", result = committed("c-2")),
+                deadline(),
             )
             eventually { sender.dropped == 1L }
         }

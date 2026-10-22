@@ -59,7 +59,7 @@ class WaitArrivalTest {
         Executor(Kernel(InMemoryEventLog(partitions = 2))),
         WaitRegistry(),
         directory,
-        LocalSignalSender("node-1", WaitRegistry()) { _, signal -> sent += signal.result },
+        LocalSignalSender("node-1", WaitRegistry()) { _, signal, _ -> sent += signal.result },
         WaitOptions(Origin("node-1", "127.0.0.1:9090", "shop")),
     )
 

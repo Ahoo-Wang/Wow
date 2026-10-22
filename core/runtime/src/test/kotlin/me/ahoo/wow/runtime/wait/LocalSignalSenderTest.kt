@@ -42,22 +42,25 @@ class LocalSignalSenderTest {
     fun `a signal for another service's node of the same id goes to the remote sender`(): Unit = runBlocking {
         // Review R2.1-6: node ids are unique within a service only.
         val sent = CopyOnWriteArrayList<String>()
-        val sender = LocalSignalSender("node-1", "payment", WaitRegistry()) { origin, signal ->
+        val sender = LocalSignalSender("node-1", "payment", WaitRegistry()) { origin, signal, _ ->
             sent += "${origin.service}/${origin.node}:${signal.waitId}"
         }
-        sender.send(Origin("node-1", "10.0.0.1:9090", "order"), WaitSignal(waitId = "w-7", result = result))
-        sender.send(Origin("node-1", "10.0.0.2:9090", "payment"), WaitSignal(waitId = "w-6", result = result))
+        sender.send(Origin("node-1", "10.0.0.1:9090", "order"), WaitSignal(waitId = "w-7", result = result), DEADLINE)
+        sender.send(Origin("node-1", "10.0.0.2:9090", "payment"), WaitSignal(waitId = "w-6", result = result), DEADLINE)
         sent.assert().containsExactly("order/node-1:w-7")
     }
 
     @Test
     fun `without a service the node id alone decides`(): Unit = runBlocking {
         val sent = CopyOnWriteArrayList<String>()
-        val sender = LocalSignalSender("node-1", WaitRegistry()) { origin, signal ->
-            sent += "${origin.node}:${signal.waitId}"
+        val sender = LocalSignalSender("node-1", WaitRegistry()) { origin, signal, deadline ->
+            sent += "${origin.node}:${signal.waitId}@$deadline"
         }
-        sender.send(Origin("node-1", "10.0.0.1:9090", "order"), WaitSignal(waitId = "w-5", result = result))
-        sender.send(Origin("node-2", "10.0.0.2:9090", "order"), WaitSignal(waitId = "w-4", result = result))
-        sent.assert().containsExactly("node-2:w-4")
+        sender.send(Origin("node-1", "10.0.0.1:9090", "order"), WaitSignal(waitId = "w-5", result = result), DEADLINE)
+        sender.send(Origin("node-2", "10.0.0.2:9090", "order"), WaitSignal(waitId = "w-4", result = result), DEADLINE)
+        // The remote sender is given the wait's deadline, which bounds its request (roadmap §6 item 1).
+        sent.assert().containsExactly("node-2:w-4@$DEADLINE")
     }
 }
+
+private const val DEADLINE = 1_700_000_000_000L

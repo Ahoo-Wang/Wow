@@ -132,3 +132,6 @@ suspend fun eventually(timeout: Duration = 10.seconds, condition: suspend () -> 
         }
     }
 }
+
+/** The deadline of a wait that has [left] to run: what a signal for it is given. */
+fun deadline(left: Duration = 10.seconds): Long = System.currentTimeMillis() + left.inWholeMilliseconds
