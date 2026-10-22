@@ -111,6 +111,9 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             text: 'Data',
             base: '/data/',
             items: [
+                {text: 'Data in a Wow System', link: 'index.html'},
+                {text: 'Query for Analysis', link: 'querying'},
+                {text: 'Datasets and the Analytics Catalog', link: 'datasets'},
                 {text: 'The Workbench', link: 'workbench'},
             ],
         },

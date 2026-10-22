@@ -1,0 +1,10 @@
+{
+  "kind": "aggregate",
+  "filter": { "op": "EQ", "field": "state.status", "value": "PUBLISHED" },
+  "groupBy": [{ "type": "HISTOGRAM", "field": "state.price", "interval": 10, "alias": "band" }],
+  "metrics": [
+    { "type": "COUNT", "alias": "products" },
+    { "type": "NUMERIC", "function": "MIN", "expression": { "type": "FIELD", "field": "state.price" }, "alias": "cheapest" }
+  ],
+  "sort": [{ "field": "band", "direction": "ASC" }]
+}

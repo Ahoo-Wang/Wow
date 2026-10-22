@@ -1,0 +1,10 @@
+{
+  "kind": "aggregate",
+  "filter": { "op": "RECENT_DAYS", "field": "firstEventTime", "days": 365 },
+  "groupBy": [{ "type": "DATE_HISTOGRAM", "field": "firstEventTime", "unit": "MONTH", "timeZone": "UTC", "alias": "month" }],
+  "metrics": [
+    { "type": "COUNT", "alias": "listed" },
+    { "type": "DERIVED", "expression": { "type": "RUNNING", "metric": "listed", "order": { "field": "month", "direction": "ASC" } }, "alias": "listedSoFar" }
+  ],
+  "sort": [{ "field": "month", "direction": "ASC" }]
+}
