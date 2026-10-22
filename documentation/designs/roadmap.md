@@ -311,7 +311,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | B.3 | E4 读：按 ID 读状态、列表查询 | 同上 |
 | B.4 | E5 集群：1 节点对 3 节点跑 E1 与 E3，负载分布为均匀、Zipf（s = 1.1）、热点 | 同上 |
 | B.D | 诊断（不作结论）：端到端出现差距时，用同构对照（去掉总线、同一存储）与 JMH 内核微基准（H3 复测）定位差距来自哪一层 | 报告中的归因 |
-| B.R | 报告：`test/benchmarks/results/reports/v10-vs-9x.md` 与原始数据（JSON、直方图）入库；方法、环境、可复现命令；结论只来自端到端，V10 不占优的项如实写明并分析原因；本机同机测得的结果标明为方向性 | 报告入库 |
+| B.R | **已完成（2026-10-22）**：[报告](../../test/benchmarks/results/reports/v10-vs-9x.md)，数据来自 Actions 运行 39722957720（L3）与 39722970362（L4）。报告：`test/benchmarks/results/reports/v10-vs-9x.md` 与原始数据（JSON、直方图）入库；方法、环境、可复现命令；结论只来自端到端，V10 不占优的项如实写明并分析原因；本机同机测得的结果标明为方向性 | 报告入库 |
 
 ### M8 迁移层
 
@@ -332,7 +332,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | WP | 内容 | 出口 |
 |---|---|---|
 | 9.1 | **已完成（2026-10-22：W0、W1 A～K、补缺 L～O，中英文；DI-6 #4699 上线）。** 文档全面重写（用户 2026-10-13：开发期间不维护文档）：以代码与设计文档为准重写文档站 V10 版本（指南、迁移指南、契约页）；设计文档照常维护 | 中英文结构对齐；与代码一致 |
-| 9.2 | **进行中（2026-10-22 更正）：仓库里只有早期的计数报告（`v10-counts-e1-e3`，标为初步、已过时）与 spike 报告；B.O 的成对 A/B 只在 Actions 的运行产物里。L3（含对比 9.x）与 L4 已在 Actions 上运行，报告写成 `v10-vs-9x.md` 入库；9.x 的 JMH 报告移到 `results/reports/9.x/`。** 基准报告：与 9.x 的同场景对比 | `test/benchmarks/results/` 入库（D265 ③） |
+| 9.2 | **已完成（2026-10-22）：[`v10-vs-9x.md`](../../test/benchmarks/results/reports/v10-vs-9x.md) 入库，取代初步的计数报告；9.x 的 JMH 报告在 `results/reports/9.x/`。对比 9.x（MongoDB）上限约 2 倍、每次操作的 CPU 与分配更低，同速率下 E1 的 p50 更高；三节点下发现等待信号超时的缺陷（§6 性能第 1 项）。** 基准报告：与 9.x 的同场景对比 | `test/benchmarks/results/` 入库（D265 ③） |
 | R.1 | **已完成（#4500）。** 发布配置（D205）：V10 模块开启发布（artifactId 按 D87）、BOM、npm 预发布 dist-tag（`alpha`/`beta`，不动 `latest`）、Docker 预发布镜像不动 `latest`；发布与准入的工作流随之调整 | 发布演练（dry-run）通过；第一个预发布之前完成 |
 | 9.3 | **`10.0.0-alpha.3`（2026-10-15）、`10.0.0-alpha.4`（2026-10-22，用户选择 alpha.4 而非 rc）已发布：Maven Central、npm `alpha`、镜像与 GitHub 预发布。** 试用反馈收敛；第一个预发布 `10.0.0-alpha.1` 提前到 M7 完成后、R.1 与最小快速开始之后（D217，不做兼容性承诺）；之后的 alpha、beta 自行发布（D202） | 无阻塞问题 |
 | 9.3a | 平台目录搬迁到 `platform/`：取消 | 由 D146 取消：平台在 M7 新建于 `platform/<名字>/`，9.x 目录随 M9 删除 |
@@ -383,15 +383,16 @@ rc 之后不丢的清单：每一项写明来源，排期时再拆成路线图�
 
 ### 性能优化（按收益排序）
 
-来自 L3 全面基准（Actions 运行 39722957720，4 核 runner，10 万账户；2026-10-22），细节与数据在基准报告 `v10-vs-9x.md` 的「优化空间」一节。先登记，不派工；排期时由用户决定。
+来自全面基准（Actions 运行 39722957720 的 L3 与 39722970362 的 L4，4 核 runner，10 万账户；2026-10-22），数据见[基准报告](../../test/benchmarks/results/reports/v10-vs-9x.md)的「Room for optimization」一节。先登记，不派工；排期时由用户决定。
 
 | 序 | 事项 | 证据 | 来源 |
 | --- | --- | --- | --- |
-| 1 | 中等负载下的尾延迟：找出停顿出在 Saga 等待、Kafka 一跳还是 PostgreSQL 提交合并，并消除 | E3（PostgreSQL）饱和约 1,328/s，60%（797/s）时 p50 8～22 ms、p99 0.57～1.2 s，服务端约 1 核、PostgreSQL 约 1.1 核，未用满 CPU；本机 E1 80% 时 p99 1.04 s。B.O-2～B.O-5 之后仍在 | L3 `e3-pg`；本机基准 |
-| 2 | 每次操作的存储往返：状态缓存未命中时的加载（缓存每上下文 4,096，账户 10 万）；先拆分 E1 的 3.16 条语句各是什么，再定缓存大小或批量加载 | PostgreSQL E1 3.31 次/op、E3 5.46 次/op，缓存命中时的理想约为 1 条追加 | L3 `component-pg` |
-| 3 | 每次操作的内存分配与 CPU：序列化、信封与载荷的复制 | PostgreSQL E1 约 100 KiB/op、E3 约 243 KiB/op；E3 约 3.2 ms CPU/op；MongoDB 为其约 3 倍 | L3 `component-pg`、`component-mongo`、`e3-pg` |
-| 4 | MongoDB 的追加：属主分配序号，去掉分区计数器与多文档事务（D250 ③ 的 10.x 原型） | MongoDB E1 6.02 次往返/op（计数器 findAndModify 0.97、commitTransaction 0.93），单 JVM 吞吐 523/s，PostgreSQL 为 2,352/s | L3 `component-mongo`；D250 |
-| 5 | 基准报告工具：组件套件（L1）的成对对比表输出 `NaN` 行 | `component-pg`、`component-mongo` 的 summary | L3 运行产物 |
+| 1 | **节点之间的等待信号超时（缺陷）**：查清发往某个节点的信号为何在低速率下超过 1 秒并修复；它卡住多节点部署 | 三节点 E5 每次运行丢弃 287～1,378 个信号（原因 `failed`，日志为 `HttpTimeoutException`，几乎全部发往同一个节点），50/s、服务端 0.54 核时也有；灌数时 132（PostgreSQL）与 115（MongoDB）次创建已提交却答 `504 wow.wait.timeout`。原因未定：JDK 客户端与 Reactor Netty 1.3.7 内部端口之间的 HTTP/2 连接，或接收端的信号入口 | L4 `e5-pg`、`e5-mongo` |
+| 2 | 中等负载下的尾延迟：找出停顿出在 Saga 等待、Kafka 一跳、PostgreSQL 提交合并还是状态缓存淘汰，并消除 | p99 ≤ 200 ms 的可持续速率只到饱和的 37%（E1）与 50%（E3，PostgreSQL），MongoDB 16%～22%；E1（PostgreSQL）60% 负载时 p99 0.9～3.1 s，服务端与数据库都未饱和；本机 E1 80% 时 p99 1.04 s。B.O-2～B.O-5 之后仍在 | L4 `sustainable-*`；L3 `e1-pg-uniform`、`e3-pg`；本机基准 |
+| 3 | MongoDB 的追加：属主分配序号，去掉分区计数器与多文档事务（D250 ③ 的 10.x 原型） | 同速率下 E1 的 p50 为 9.x 的 2.1～3.9 倍、MongoDB CPU 1.7 对 1.35 核；可持续速率约为 PostgreSQL 的三分之一；E1 每次 6.02 次往返（计数器 findAndModify 0.97、commitTransaction 0.93） | L3 `vs-9x-e1`、`component-mongo`；L4 `sustainable-mongo`；D250 |
+| 4 | 每次操作的存储往返：状态缓存未命中时的加载（缓存每上下文 4,096，账户 10 万）；先拆分 E1 的 3.16 条语句各是什么，再定缓存大小或批量加载 | PostgreSQL E1 3.31 次/op、E3 5.46 次/op，缓存命中时的理想约为 1 条追加 | L3 `component-pg` |
+| 5 | 每次操作的内存分配与 CPU：序列化、信封与载荷的复制 | PostgreSQL E1 约 100 KiB/op、E3 约 243 KiB/op；E3 在可持续速率下约 5.6 ms CPU/op；MongoDB 约为其 3 倍 | L3 `component-*`；L4 `sustainable-pg` |
+| 6 | 基准工具：灌数有一次失败即判整轮 E5 失败；交接轮里负载生成器继续发往已停的节点；L1 的成对对比表输出 `NaN` 行；30 秒预热在这些 runner 上达不到稳态（各轮前后半段超出界限） | E5 两个任务失败；交接轮 1,474、1,618 次 `ClosedChannelException`；`component-*` 的 summary | L3、L4 运行产物 |
 
 ### 条件到达时做
 
