@@ -1,6 +1,6 @@
 {
   "name": "@ahoo-wang/wow-client",
-  "version": "10.0.0-alpha.3",
+  "version": "10.0.0-alpha.4",
   "description": "TypeScript client for Wow (https://github.com/Ahoo-Wang/Wow): commands with their waits and event streams, state reads, snapshot, event and dataset queries, the Manifest and RFC 9457 problems, and the query DSL, built on Fetcher.",
   "keywords": [
     "wow",
