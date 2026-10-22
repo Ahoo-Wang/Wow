@@ -176,12 +176,15 @@ val integrationShardProjects = providers.gradleProperty("wow.integration.project
 // `coverageReport` reads, to the shard's modules. The named shards list theirs and `rest` takes every other module, so
 // each module is checked in exactly one shard. They are balanced by task time (a local `--profile` of `:check`,
 // 2026-10-22, about 37 task-minutes): the host's tests about 5 minutes, the Gradle plugin's 4, the compiler's 3¼; the
-// host and the applications on it share one compilation, as do the tools.
+// host and the applications on it share one compilation, as do the tools. A module whose code other modules' tests
+// exercise sits with them (CoSec, the HTTP edge and the client with the host, the analytics catalog's domain with its
+// server): Codecov merges the shards' reports line by line but not branch by branch, so a branch covered half in one
+// shard and half in another would count as partly covered.
 val checkShards = mapOf(
     "host" to includedProjects(
-        ":spring-boot", ":ops-server", ":view-store-server", ":analytics-catalog-server", ":eshop-catalog-server",
-        ":eshop-basket-server", ":eshop-ordering-server", ":eshop-inventory-server", ":eshop-payment-server",
-        ":quickstart", ":java-smoke",
+        ":spring-boot", ":cosec", ":http", ":client", ":ops-server", ":view-store-server", ":analytics-catalog-server",
+        ":analytics-catalog-domain", ":eshop-catalog-server", ":eshop-basket-server", ":eshop-ordering-server",
+        ":eshop-inventory-server", ":eshop-payment-server", ":quickstart", ":java-smoke",
     ),
     "tooling" to includedProjects(
         ":compiler", ":gradle-plugin", ":manifest-tools", ":models", ":query", ":query-api", ":query-tck",
