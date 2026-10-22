@@ -495,6 +495,65 @@ export function lastSignals(log) {
   }
 }
 
+/** Every `bench-signals {json}` line of a server log with its log time (epoch milliseconds), in order. */
+function signalLines(log) {
+  const lines = [];
+  for (const line of log.split('\n')) {
+    const at = line.indexOf('bench-signals {');
+    const time =
+      /^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?(?:Z|[+-]\d\d:?\d\d))/.exec(
+        line,
+      );
+    if (at < 0 || !time) continue;
+    try {
+      lines.push({
+        time: Date.parse(time[1]),
+        signals: JSON.parse(line.slice(at + 'bench-signals '.length)),
+      });
+    } catch {
+      // A line cut short: the next second's line counts again.
+    }
+  }
+  return lines;
+}
+
+/**
+ * The signals a server log counted in [from, to] (epoch milliseconds): its last line by `to` less its last line before
+ * `from`, per kind and key, nothing that did not grow. A node's counts are cumulative from its start, so its last line
+ * alone holds the seeding and priming too, which run flat out. A node started within the window (restarted in a
+ * hand-over) counts from zero; one stopped within it, up to its last line. Undefined when no line falls by `to`.
+ */
+export function signalsWithin(log, from, to) {
+  const lines = signalLines(log);
+  const end = lines.filter(line => line.time <= to).at(-1);
+  if (!end) return undefined;
+  const base = lines.filter(line => line.time < from).at(-1)?.signals ?? {};
+  const within = { t: end.signals.t };
+  for (const [kind, counts] of Object.entries(end.signals)) {
+    if (kind === 't' || typeof counts !== 'object') continue;
+    for (const [key, count] of Object.entries(counts)) {
+      const grown = count - (base[kind]?.[key] ?? 0);
+      if (grown > 0) {
+        within[kind] ??= {};
+        within[kind][key] = grown;
+      }
+    }
+  }
+  return within;
+}
+
+/** The measured phase of a load generator's `result.json`, in epoch milliseconds; undefined without its times. */
+export function measuredWindow(result) {
+  const started = Date.parse(result?.startedAt ?? '');
+  const warmUp = result?.load?.warmUpSeconds;
+  const measure = result?.load?.measureSeconds;
+  if (Number.isNaN(started) || warmUp === undefined || measure === undefined)
+    return undefined;
+  const from = started + warmUp * 1000;
+  // The node logs its counts once a second: a second's grace takes the line that closes the phase.
+  return { from, to: from + measure * 1000 + 1000 };
+}
+
 /** The signals of several nodes' logs, summed per kind and key (a cluster's nodes, a restarted node's log). */
 export function mergeSignals(all) {
   const present = all.filter(Boolean);
@@ -1314,7 +1373,7 @@ const signalsText = signals =>
 /** The steps of a cliff suite: completions against the rate, errors and the node's signals. */
 function cliffTable(suite) {
   const lines = [
-    '| Step | Rate | Throughput | Kept up | Failed | p50 | p99 | Worst-second p99 | Errors | Node signals (cumulative) |',
+    '| Step | Rate | Throughput | Kept up | Failed | p50 | p99 | Worst-second p99 | Errors | Node signals (measured phase) |',
     '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
   ];
   for (const run of suite.runs) {
@@ -1381,7 +1440,7 @@ function capacityTable(suite) {
 /** The runs of a cluster suite: steady against hand-over. */
 function clusterTable(suite) {
   const lines = [
-    '| Run | Rate | Throughput | Failed | p50 | p99 | Worst-second p99 | Seconds below half the rate | Lowest second | Errors | Node signals (all nodes) |',
+    '| Run | Rate | Throughput | Failed | p50 | p99 | Worst-second p99 | Seconds below half the rate | Lowest second | Errors | Node signals (all nodes, measured phase) |',
     '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
   ];
   for (const run of suite.runs) {
@@ -1822,12 +1881,20 @@ export function runSuite(name, options) {
     } else {
       suite.failures++;
     }
-    // Every node's last signals line, a restarted node's included, summed (also for a failed run: its logs stay).
+    // Every node's signals, a restarted node's included, summed: what the measured phase counted when the run has
+    // its result, else each node's last line (a failed run: its logs stay), which also holds the seeding and priming.
     if (existsSync(dir)) {
+      const window =
+        run.status === 'ok' ? measuredWindow(readJson(file)) : undefined;
       const signals = mergeSignals(
         readdirSync(dir)
           .filter(file => /^node-.*\.log$/.test(file))
-          .map(file => lastSignals(readFileSync(join(dir, file), 'utf8'))),
+          .map(file => readFileSync(join(dir, file), 'utf8'))
+          .map(log =>
+            window
+              ? signalsWithin(log, window.from, window.to)
+              : lastSignals(log),
+          ),
       );
       if (signals) run.signals = signals;
     }
