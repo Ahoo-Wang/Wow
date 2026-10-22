@@ -30,8 +30,8 @@ class SnapshotStoreRouter(
     private val default: SnapshotStore,
     private val stores: Map<AggregateType, SnapshotStore>,
 ) : SnapshotStore {
-    /** The store of [type]'s snapshots. */
-    fun storeOf(type: AggregateType): SnapshotStore = stores[type] ?: default
+    /** The store of [type]'s snapshots, behind its own routing. */
+    override fun storeOf(type: AggregateType): SnapshotStore = (stores[type] ?: default).storeOf(type)
 
     override suspend fun save(snapshot: SnapshotRecord): Boolean = storeOf(snapshot.ref.type).save(snapshot)
 

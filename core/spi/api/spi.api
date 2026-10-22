@@ -360,6 +360,7 @@ public abstract interface class me/ahoo/wow/spi/log/EventLog {
 	public abstract fun readEntries (Lme/ahoo/wow/api/aggregate/AggregateRef;II)Lkotlinx/coroutines/flow/Flow;
 	public static synthetic fun readEntries$default (Lme/ahoo/wow/spi/log/EventLog;Lme/ahoo/wow/api/aggregate/AggregateRef;IIILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
 	public fun readTail (Lme/ahoo/wow/api/aggregate/AggregateRef;IILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun readWithSnapshot (Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/spi/snapshot/SnapshotStore;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun tail (ILjava/lang/Long;)Lkotlinx/coroutines/flow/Flow;
 	public static synthetic fun tail$default (Lme/ahoo/wow/spi/log/EventLog;ILjava/lang/Long;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
 }
@@ -467,6 +468,20 @@ public final class me/ahoo/wow/spi/log/Partitioner {
 	public final fun partitionOf (Lme/ahoo/wow/api/aggregate/AggregateRef;I)I
 	public final fun requirePartitions (I)I
 	public final fun slotOf (Lme/ahoo/wow/api/aggregate/AggregateRef;)I
+}
+
+public final class me/ahoo/wow/spi/log/SnapshotTail {
+	public static final field Companion Lme/ahoo/wow/spi/log/SnapshotTail$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getSnapshot ()Lme/ahoo/wow/spi/snapshot/SnapshotRecord;
+	public final fun getTail ()Lme/ahoo/wow/spi/log/AggregateTail;
+	public fun hashCode ()I
+	public static final fun of (Lme/ahoo/wow/spi/snapshot/SnapshotRecord;Lme/ahoo/wow/spi/log/AggregateTail;)Lme/ahoo/wow/spi/log/SnapshotTail;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/log/SnapshotTail$Companion {
+	public final fun of (Lme/ahoo/wow/spi/snapshot/SnapshotRecord;Lme/ahoo/wow/spi/log/AggregateTail;)Lme/ahoo/wow/spi/log/SnapshotTail;
 }
 
 public final class me/ahoo/wow/spi/log/TailPacer {
@@ -763,6 +778,7 @@ public abstract interface class me/ahoo/wow/spi/snapshot/SnapshotStore {
 	public abstract fun rewrite (Lme/ahoo/wow/spi/snapshot/SnapshotRecord;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun save (Lme/ahoo/wow/spi/snapshot/SnapshotRecord;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun saveAll (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun storeOf (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/spi/snapshot/SnapshotStore;
 	public abstract fun table (Lme/ahoo/wow/api/aggregate/AggregateType;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 

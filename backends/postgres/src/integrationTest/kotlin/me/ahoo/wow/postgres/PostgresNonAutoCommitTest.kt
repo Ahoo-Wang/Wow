@@ -95,6 +95,8 @@ class PostgresNonAutoCommitTest {
         override fun createLog(context: String, partitions: Int): EventLog =
             PostgresEventLog(dataSource, context, partitions).also { it.createSchema() }
 
+        override fun createSnapshots(context: String): SnapshotStore = PostgresSnapshotStore(dataSource, context)
+
         @AfterEach
         fun restored() = returned.assertRestored()
     }

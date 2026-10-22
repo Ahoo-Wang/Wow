@@ -96,8 +96,11 @@ abstract class KernelRoundTripsSpec {
     /** The round trips of one warm append on this backend, the append itself. */
     protected abstract val append: Int
 
-    /** The round trips of a cold load's reads beyond the snapshot: the tail with the earlier requests. */
-    protected abstract val tail: Int
+    /**
+     * The round trips of a cold load's reads (decision D268): the snapshot and the tail after it with the earlier
+     * requests, together where the log reads its database's snapshots with the tail.
+     */
+    protected abstract val load: Int
 
     private val log by lazy { log(context) }
     private val snapshots by lazy { snapshots(context) }
@@ -173,7 +176,7 @@ abstract class KernelRoundTripsSpec {
     }
 
     @Test
-    fun `a cold load reads the snapshot, then the tail with the earlier requests in one round trip`(): Unit =
+    fun `a cold load reads the snapshot and the tail with the earlier requests in its load's round trips`(): Unit =
         runBlocking {
             val writer = Kernel(log, codec)
             val ref = ref("cold")
@@ -183,7 +186,7 @@ abstract class KernelRoundTripsSpec {
             listOf(256 to 0, 0 to 1).forEach { (recent, lookups) ->
                 val (outcome, trips) = kernel(recent).trips(command(ref, Add(1)))
                 outcome.assert().isInstanceOf(CommandOutcome.Committed::class.java)
-                trips.assert().describedAs("recentRequests=$recent").isEqualTo(1 + tail + lookups + append)
+                trips.assert().describedAs("recentRequests=$recent").isEqualTo(load + lookups + append)
             }
         }
 
@@ -195,7 +198,9 @@ abstract class KernelRoundTripsSpec {
 /** [KernelRoundTripsSpec] on PostgreSQL: a round trip is a statement. */
 class PostgresKernelRoundTripsTest : KernelRoundTripsSpec() {
     override val append = 1
-    override val tail = 1
+
+    /** The snapshot with the tail, one statement. */
+    override val load = 1
 
     override fun log(context: String): EventLog =
         PostgresEventLog(Counted.dataSource, context, 4).also { it.createSchema() }
@@ -247,7 +252,9 @@ class PostgresKernelRoundTripsTest : KernelRoundTripsSpec() {
 class MongoKernelRoundTripsTest : KernelRoundTripsSpec() {
     /** The append's transaction: the version read, the counter, the insert and the commit. */
     override val append = 4
-    override val tail = 1
+
+    /** The snapshot, then the tail. */
+    override val load = 2
 
     override fun log(context: String): EventLog =
         MongoEventLog(Counted.client, DATABASE, context, 4).also { it.createSchema() }

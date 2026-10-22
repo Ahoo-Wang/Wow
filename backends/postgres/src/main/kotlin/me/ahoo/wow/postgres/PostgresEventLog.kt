@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.postgres
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -38,10 +39,13 @@ import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.log.SnapshotTail
 import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.log.TailPacer
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
+import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import org.postgresql.util.PSQLException
@@ -545,6 +549,69 @@ class PostgresEventLog(
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * One statement when [snapshots] keeps [ref]'s snapshots in this log's database (decision D268): the snapshot, the
+     * tail from its version and the request keys before it, as one snapshot of the database sees them. Otherwise, or
+     * when that statement fails, the snapshot and the tail are read apart, as the port's default does.
+     */
+    @Suppress("TooGenericExceptionCaught") // Whatever the one statement throws, the reads apart decide the outcome.
+    override suspend fun readWithSnapshot(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail {
+        require(earlier >= 0) { "At most a non-negative number of earlier requests." }
+        val store = snapshots.storeOf(ref.type) as? PostgresSnapshotStore
+            ?: return super.readWithSnapshot(ref, snapshots, earlier)
+        val read = try {
+            dispatcher.jdbc {
+                dataSource.autoCommitted { connection ->
+                    store.sharedTable(dataSource, context, ref.type.name)?.let { snapshot ->
+                        withTable(
+                            connection,
+                            ref.type
+                        ) { tailWithSnapshot(connection, it, snapshot, store, ref, earlier) }
+                    }
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
+        }
+        return read ?: super.readWithSnapshot(ref, snapshots, earlier)
+    }
+
+    private fun tailWithSnapshot(
+        connection: Connection,
+        table: AggregateLogTable,
+        snapshot: String,
+        store: PostgresSnapshotStore,
+        ref: AggregateRef,
+        earlier: Int,
+    ): SnapshotTail = connection.prepareStatement(table.tailWithSnapshot(snapshot)).use { query ->
+        query.setString(1, ref.tenantId)
+        query.setString(2, ref.id)
+        query.setString(3, ref.id)
+        query.setString(4, ref.tenantId)
+        query.setString(5, ref.id)
+        query.setString(6, ref.tenantId)
+        query.setInt(7, earlier)
+        query.executeQuery().use { rows ->
+            val streams = ArrayList<EventStreamRecord>()
+            val keys = ArrayList<CommittedRequest>()
+            var loaded: SnapshotRecord? = null
+            while (rows.next()) {
+                when (rows.getInt("part")) {
+                    0 -> streams += streamOf(table.aggregate, rows)
+                    1 -> keys += CommittedRequest(
+                        rows.getInt("version"),
+                        rows.getString("request_id"),
+                        rows.getString("command_type"),
+                    )
+                    else -> loaded = store.snapshotOf(ref.type, rows, "s_")
+                }
+            }
+            SnapshotTail(loaded, AggregateTail(streams, keys.asReversed()))
         }
     }
 

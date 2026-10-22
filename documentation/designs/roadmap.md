@@ -388,7 +388,7 @@ rc 之后不丢的清单：每一项写明来源，排期时再拆成路线图�
 | 序 | 事项 | 证据 | 来源 |
 | --- | --- | --- | --- |
 | 1 | 中等负载下的尾延迟：找出停顿出在 Saga 等待、Kafka 一跳还是 PostgreSQL 提交合并，并消除 | E3（PostgreSQL）饱和约 1,328/s，60%（797/s）时 p50 8～22 ms、p99 0.57～1.2 s，服务端约 1 核、PostgreSQL 约 1.1 核，未用满 CPU；本机 E1 80% 时 p99 1.04 s。B.O-2～B.O-5 之后仍在 | L3 `e3-pg`；本机基准 |
-| 2 | 每次操作的存储往返：状态缓存未命中时的加载（缓存每上下文 4,096，账户 10 万）；先拆分 E1 的 3.16 条语句各是什么，再定缓存大小或批量加载 | PostgreSQL E1 3.31 次/op、E3 5.46 次/op，缓存命中时的理想约为 1 条追加 | L3 `component-pg` |
+| 2 | ~~每次操作的存储往返~~：已做（D268，2026-10-22）。E1 的语句拆分为读快照 1、读尾部 1、追加 1（基准依次轮转账户，状态缓存全部未命中）；快照与尾部合成一条语句后，本机 L1（PostgreSQL E1，10 万账户）为 2.22 次/op（原 3.32）。原条目：状态缓存未命中时的加载；先拆分语句，再定缓存大小或批量加载 | PostgreSQL E1 3.31 次/op、E3 5.46 次/op，缓存命中时的理想约为 1 条追加 | L3 `component-pg` |
 | 3 | 每次操作的内存分配与 CPU：序列化、信封与载荷的复制 | PostgreSQL E1 约 100 KiB/op、E3 约 243 KiB/op；E3 约 3.2 ms CPU/op；MongoDB 为其约 3 倍 | L3 `component-pg`、`component-mongo`、`e3-pg` |
 | 4 | MongoDB 的追加：属主分配序号，去掉分区计数器与多文档事务（D250 ③ 的 10.x 原型） | MongoDB E1 6.02 次往返/op（计数器 findAndModify 0.97、commitTransaction 0.93），单 JVM 吞吐 523/s，PostgreSQL 为 2,352/s | L3 `component-mongo`；D250 |
 | 5 | 基准报告工具：组件套件（L1）的成对对比表输出 `NaN` 行 | `component-pg`、`component-mongo` 的 summary | L3 运行产物 |

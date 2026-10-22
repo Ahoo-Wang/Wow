@@ -103,6 +103,8 @@ class StoreActivityTest {
         log.read(ref).toList().size.assert().isEqualTo(1)
         log.readEntries(ref).toList().size.assert().isEqualTo(1)
         log.readTail(ref, 1, 1).streams.size.assert().isEqualTo(1)
+        log.readWithSnapshot(ref, me.ahoo.wow.kernel.memory.InMemorySnapshotStore(), 1).tail.streams.size
+            .assert().isEqualTo(1)
         log.tail(me.ahoo.wow.spi.log.Partitioner.partitionOf(ref, 2)).let { tail ->
             kotlinx.coroutines.withTimeoutOrNull(100) { tail.collect { } }
         }

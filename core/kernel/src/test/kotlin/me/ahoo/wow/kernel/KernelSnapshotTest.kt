@@ -28,6 +28,7 @@ import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.SnapshotTail
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.junit.jupiter.api.Test
@@ -46,6 +47,10 @@ class KernelSnapshotTest {
 
         override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail =
             delegate.readTail(ref, fromVersion, earlier).also { streamsRead += it.streams.size }
+
+        /** Read through [read] and [readTail], so that they count it. */
+        override suspend fun readWithSnapshot(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail =
+            super.readWithSnapshot(ref, snapshots, earlier)
     }
 
     private val codec = EventCodec()
@@ -159,7 +164,8 @@ class KernelSnapshotTest {
         snapshots.save(other).assert().isTrue()
         log.streamsRead = 0
         send(kernel, AddItem("apple", 10)).cart().items.assert().isEqualTo(mapOf("apple" to 14, "pear" to 6))
-        log.streamsRead.assert().isEqualTo(5)
+        // Read with the snapshot (D268), the tail from version 4 comes before the snapshot is found not to fit.
+        log.streamsRead.assert().isEqualTo(2 + 5)
     }
 
     @Test
@@ -201,7 +207,8 @@ class KernelSnapshotTest {
         snapshots.save(stale)
         log.streamsRead = 0
         send(kernel, AddItem("apple", 10)).cart().items.assert().isEqualTo(mapOf("apple" to 14, "pear" to 6))
-        log.streamsRead.assert().isEqualTo(5)
+        // Read with the snapshot (D268), the tail from version 4 comes before the snapshot is found not to fit.
+        log.streamsRead.assert().isEqualTo(2 + 5)
     }
 
     @Test
@@ -210,7 +217,8 @@ class KernelSnapshotTest {
         snapshots.save(snapshots.load(ref)!!.copyWith(version = 4, state = """{"items": "not a map"}"""))
         log.streamsRead = 0
         send(kernel, AddItem("apple", 10)).cart().items.assert().isEqualTo(mapOf("apple" to 14, "pear" to 6))
-        log.streamsRead.assert().isEqualTo(5)
+        // Read with the snapshot (D268), the tail from version 4 comes before the snapshot is found not to fit.
+        log.streamsRead.assert().isEqualTo(2 + 5)
     }
 
     @Test
@@ -283,7 +291,8 @@ class KernelSnapshotTest {
             Command("c-lossy", "r-lossy", ref, AddItem("apple", 10)),
         )
         outcome.cart().items.assert().isEqualTo(mapOf("apple" to 14, "pear" to 6))
-        log.streamsRead.assert().isEqualTo(5)
+        // The tail from the snapshot's version 3, read with it (D268), then the whole log.
+        log.streamsRead.assert().isEqualTo(3 + 5)
     }
 
     @Test
