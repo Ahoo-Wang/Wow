@@ -11,11 +11,11 @@ test('TypeScript samples compile against the built packages', {timeout: 300_000}
         assert.ok(built(pkg), `typescript/${pkg} is not built; run \`pnpm --filter documentation^... build\``)
     const {samples, projects, failures} = await check()
     assert.ok(samples.length > 100, `Only ${samples.length} samples found; the sources or the fence pattern changed`)
-    // The quick starts compile with the tsconfig.json they show (review 2026-09 round 2, P0-2).
-    for (const guide of ['quick-start'])
+    // The page that shows a tsconfig.json compiles with it (review 2026-09 round 2, P0-2).
+    for (const guide of ['generate'])
         for (const locale of ['en', 'zh'])
             assert.ok(
-                projects.some(({page}) => page === `documentation/docs/${locale}/guide/typescript/${guide}.md`),
+                projects.some(({page}) => page === `documentation/docs/${locale}/typescript/${guide}.md`),
                 `the ${locale} ${guide} page is no longer checked as a project; it lost its <!-- typecheck: file=tsconfig.json -->`,
             )
     assert.deepEqual(failures, [], `${failures.length} diagnostics:\n${failures.join('\n')}`)

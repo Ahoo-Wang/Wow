@@ -21,8 +21,10 @@ export const navbarEn: DefaultTheme.NavItem[] = [
             {
                 text: 'Guide',
                 items: [
-                    {text: 'Overview', link: '/guide/typescript/'},
-                    {text: 'Generate a Client', link: '/guide/typescript/generated-client'},
+                    {text: 'Overview', link: '/typescript/'},
+                    {text: 'Generate a Client', link: '/typescript/generate'},
+                    {text: 'Send Commands', link: '/typescript/commands'},
+                    {text: 'Read and Query', link: '/typescript/queries'},
                     {text: 'View Engine', link: '/typescript/view-engine/'},
                     {text: 'The Workbench (for users)', link: '/data/workbench'},
                 ],

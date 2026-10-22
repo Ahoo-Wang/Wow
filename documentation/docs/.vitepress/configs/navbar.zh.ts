@@ -21,8 +21,10 @@ export const navbarZh: DefaultTheme.NavItem[] = [
             {
                 text: '指南',
                 items: [
-                    {text: '概览', link: '/zh/guide/typescript/'},
-                    {text: '生成客户端', link: '/zh/guide/typescript/generated-client'},
+                    {text: '概览', link: '/zh/typescript/'},
+                    {text: '生成客户端', link: '/zh/typescript/generate'},
+                    {text: '发送命令', link: '/zh/typescript/commands'},
+                    {text: '读取与查询', link: '/zh/typescript/queries'},
                     {text: '视图引擎', link: '/zh/typescript/view-engine/'},
                     {text: '使用工作台（面向使用者）', link: '/zh/data/workbench'},
                 ],

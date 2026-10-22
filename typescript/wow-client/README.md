@@ -140,7 +140,7 @@ enforces on arrival, so a bad query fails where it was built.
 
 ## Documentation
 
-- [TypeScript guide](https://wow.ahoo.me/guide/typescript/)
+- [TypeScript guide](https://wow.ahoo.me/typescript/)
 - [Interactive query stories](https://wow.ahoo.me/storybook/)
 
 [中文](./README.zh-CN.md) · [License](https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE)

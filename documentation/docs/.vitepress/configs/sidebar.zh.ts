@@ -75,16 +75,17 @@ const viewEngine: DefaultTheme.SidebarItem[] = [viewEngineGuides, ...viewEngineR
 // TypeScript 客户端区域共用一个侧边栏：指南加上各个包的参考。
 const typescriptZh: DefaultTheme.SidebarItem[] = [
     {
-        base: '/zh/guide/typescript/',
-        text: 'TypeScript 客户端',
+        base: '/zh/typescript/',
+        text: 'TypeScript',
         items: [
             {text: '概览', link: 'index.html'},
-            {text: '快速开始', link: 'quick-start'},
-            {text: '认证与拦截器', link: 'authentication'},
-            {text: '从任意 OpenAPI 文档生成', link: 'generated-client'},
-            {text: '在 CI 中重新生成', link: 'regenerate-in-ci'},
-            {text: '兼容性与版本', link: 'compatibility'},
-            {text: '排障', link: 'troubleshooting'},
+            {text: '生成客户端', link: 'generate'},
+            {text: '发送命令', link: 'commands'},
+            {text: '读取与查询', link: 'queries'},
+            {text: '从任意 OpenAPI 文档生成', link: 'openapi-client'},
+            {text: '认证与拦截器', base: '/zh/guide/typescript/', link: 'authentication'},
+            {text: '兼容性与版本', base: '/zh/guide/typescript/', link: 'compatibility'},
+            {text: '排障', base: '/zh/guide/typescript/', link: 'troubleshooting'},
         ],
     },
     {

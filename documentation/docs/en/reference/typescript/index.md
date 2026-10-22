@@ -5,7 +5,7 @@ description: The reference of each Wow TypeScript package, with its status and e
 
 # TypeScript Reference
 
-One reference per package. Start with the [TypeScript guide](../../guide/typescript/) for the task-oriented pages, and the [compatibility matrix](../../guide/typescript/compatibility.md) for supported servers and runtimes.
+One reference per package. Start with the [TypeScript guide](../../typescript/) for the task-oriented pages, and the [compatibility matrix](../../guide/typescript/compatibility.md) for supported servers and runtimes.
 
 | Package | Status | Entry points | Reference |
 |---|---|---|---|
