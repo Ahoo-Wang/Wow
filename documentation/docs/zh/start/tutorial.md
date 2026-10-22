@@ -31,7 +31,26 @@ curl -s localhost:8083/eshop-ordering/order/alice-1/state "${BUYER[@]}"
 
 ## 1. 购物篮做出决定 {#_1-the-basket-decides}
 
-basket 上下文的 `Basket` 聚合接收每条命令，查看它的状态，然后决定事件。添加商品时检查购物篮属于调用方本人，并且商品有效：
+命令用 Jakarta 约束声明它必须具有的形状，这些约束在命令准入时、任何聚合看到它之前检查；违反约束的命令以 `wow.command.invalid` 被拒绝：
+
+<!-- sample: example/eshop/basket/basket-api/src/main/kotlin/me/ahoo/wow/example/eshop/basket/api/basket/BasketCommands.kt#add-item -->
+
+```kotlin
+/**
+ * Adds [quantity] of [productId] at [unitPrice] to the basket, creating the basket on its first item. Adding a product
+ * already in the basket adds to its quantity, at the new price. The constraints are the command's shape: the gateway
+ * checks them before the basket decides, and answers a violation `wow.command.invalid` (400).
+ */
+@AllowCreate
+@Summary("Add an item to the basket")
+data class AddBasketItem(
+    val productId: String,
+    @field:PositiveOrZero val unitPrice: BigDecimal,
+    @field:Positive val quantity: Int,
+)
+```
+
+然后 basket 上下文的 `Basket` 聚合接收这条命令，查看它的状态，并决定事件。添加商品时只检查需要状态的东西：购物篮属于调用方本人：
 
 <!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
 
@@ -87,7 +106,7 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 
 `context.command` 为推导出的命令赋予一个从提交推导出的 ID，所以 Saga 重试时发送的是同一条命令，ordering 上下文把它当作重复命令回答，而不会创建第二个订单。`calls = [SubmitOrder::class]` 在契约中声明这次调用，没有对端处理它时，服务拒绝启动（[Saga](../guide/sagas)）。
 
-在 ordering 上下文中，`Order` 聚合像处理任何命令一样决定 `SubmitOrder`：
+在 ordering 上下文中，`SubmitOrder` 的约束已在准入时检查过，所以 `Order` 聚合直接记录这个订单：
 
 <!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
 
