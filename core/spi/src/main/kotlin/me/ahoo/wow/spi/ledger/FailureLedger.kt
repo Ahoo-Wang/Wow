@@ -21,7 +21,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 
 /**
- * The failure ledger of one service (documentation/designs/v10/04-subscriptions.md §2, decision D14).
+ * The failure ledger of one service (documentation/designs/04-subscriptions.md §2, decision D14).
  *
  * When a subscription has retried an aggregate's entry past its limit, it parks **the aggregate**: the ledger records
  * (subscription, aggregate, from version, reason) and the subscription moves on with every other aggregate, its

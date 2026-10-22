@@ -9,7 +9,7 @@ description: Wow 的设计记录放在哪里，决策台账和评审台账怎样
 
 ## Wow 10 {#wow-10}
 
-Wow 10 是整体重新设计的，它的记录集中在 [`documentation/designs/v10/`](https://github.com/Ahoo-Wang/Wow/tree/main/documentation/designs/v10) 中，以中文撰写：
+Wow 10 是整体重新设计的，它的记录集中在 [`documentation/designs/`](https://github.com/Ahoo-Wang/Wow/tree/main/documentation/designs) 中，以中文撰写：
 
 | 记录 | 包含 |
 | --- | --- |

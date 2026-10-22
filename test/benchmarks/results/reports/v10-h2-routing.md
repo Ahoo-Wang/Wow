@@ -1,6 +1,6 @@
 # V10 Spike H2 (Phase 1): Does Affinity Routing Pay For Its Forwarding Hop?
 
-Spike H2 of the V10 design (`documentation/designs/v10/decisions.md` on the `v10` branch) asks whether routing each command to its partition's owner (`Partitioned`) is worth the extra in-cluster hop compared with executing it on whichever node received it (`Local`). Phase 1 simulates the cluster in one JVM against a real PostgreSQL. It does pay. Under skewed and hot load, Partitioned has the lower p99, about 45% fewer store reads per command, no version conflicts and up to 45% less CPU per command. Under uniform cold load it costs about half a millisecond at the median and stays within one forward round trip at p99. Against the pre-registered criteria the verdict is **Partitioned default**.
+Spike H2 of the V10 design (`documentation/designs/decisions.md` on the `v10` branch) asks whether routing each command to its partition's owner (`Partitioned`) is worth the extra in-cluster hop compared with executing it on whichever node received it (`Local`). Phase 1 simulates the cluster in one JVM against a real PostgreSQL. It does pay. Under skewed and hot load, Partitioned has the lower p99, about 45% fewer store reads per command, no version conflicts and up to 45% less CPU per command. Under uniform cold load it costs about half a millisecond at the median and stays within one forward round trip at p99. Against the pre-registered criteria the verdict is **Partitioned default**.
 
 ## What Is Measured
 

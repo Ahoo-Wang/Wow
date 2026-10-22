@@ -20,7 +20,7 @@ import kotlin.time.Duration
 
 /**
  * Reserved keys: uniqueness across aggregate instances, such as a user name unique within a tenant
- * (documentation/designs/v10/01-programming-model.md §7, decisions D38, D50; 9.x `PrepareKey`).
+ * (documentation/designs/01-programming-model.md §7, decisions D38, D50; 9.x `PrepareKey`).
  *
  * A key is unique within its [ReservationScope]: one bounded context, one tenant (or [ReservationScope.SYSTEM_TENANT]
  * for keys unique across the context's tenants) and one namespace. It is held by at most one owner, an aggregate

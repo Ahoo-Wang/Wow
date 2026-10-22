@@ -19,7 +19,7 @@ import java.io.File
 data class WowProject(val name: String, val dir: String)
 
 /**
- * The architecture rules (documentation/designs/v10/06-modules.md §3 and 07-migration.md §4).
+ * The architecture rules (documentation/designs/06-modules.md §3 and 07-migration.md §4).
  */
 object ArchitectureRules {
     val API = WowProject("api", "api/api")

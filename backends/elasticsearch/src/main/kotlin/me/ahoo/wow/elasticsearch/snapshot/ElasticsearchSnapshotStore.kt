@@ -49,7 +49,7 @@ import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The [SnapshotStore] of one bounded context on Elasticsearch (documentation/designs/v10/03-log-and-snapshot.md §3).
+ * The [SnapshotStore] of one bounded context on Elasticsearch (documentation/designs/03-log-and-snapshot.md §3).
  *
  * Each aggregate type has its own index, `wow_snapshot__<context>__<aggregate>` (decision D161, [ElasticsearchNames]),
  * holding one document per aggregate, its id the tenant and the aggregate id ([ElasticsearchNames.documentId]), laid

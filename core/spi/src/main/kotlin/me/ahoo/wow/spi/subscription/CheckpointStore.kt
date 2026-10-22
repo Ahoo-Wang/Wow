@@ -17,7 +17,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 
 /**
- * The checkpoints of subscriptions (documentation/designs/v10/04-subscriptions.md §1): one per (subscription group,
+ * The checkpoints of subscriptions (documentation/designs/04-subscriptions.md §1): one per (subscription group,
  * subscription, partition), the lowest log sequence up to which every entry of the partition is completed.
  *
  * A checkpoint only moves forward: [save] ignores a position lower than the stored one, and saving the stored one

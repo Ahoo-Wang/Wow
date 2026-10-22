@@ -160,7 +160,7 @@ test('the check reads the pages, the root READMEs and the Skills, not their eval
   assert.ok(
     !isSampled('skills/wow-develop/evals/a01-develop-aggregate/prompt.md'),
   );
-  assert.ok(!isSampled('documentation/designs/v10/README.md'));
+  assert.ok(!isSampled('documentation/designs/README.md'));
   assert.ok(!isSampled('typescript/wow-client/README.md'));
   assert.ok(trackedFiles().some(isSampled));
 });

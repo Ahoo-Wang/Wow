@@ -210,7 +210,7 @@ const RULES = [
   // clients (documentation/test/typescript-samples.mjs); the eshop-web jobs
   // checks the eShop web app itself.
   [/^example\/eshop\/web\/src\/generated\//, [DOCS]],
-  // The modules (documentation/designs/v10/06-modules.md §4; their tests
+  // The modules (documentation/designs/06-modules.md §4; their tests
   // live under test/, below), the BOM, the dependency versions, the examples
   // and the end-to-end benchmark: the JVM jobs (JVM_PATH); no client or site builds
   // on them yet.

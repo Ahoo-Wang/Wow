@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
 
 /**
- * Spike H2, stage 2 (documentation/designs/v10/decisions.md, H2 and D155): three node JVMs on the Spring Boot host,
+ * Spike H2, stage 2 (documentation/designs/decisions.md, H2 and D155): three node JVMs on the Spring Boot host,
  * each receiving commands over its public HTTP route and forwarding them to the partition's owner over the real
  * cluster channel (HTTP/2 on the internal port); the log and the snapshots on a durable PostgreSQL (default
  * `synchronous_commit` and fsync). Per access distribution (stage 1's uniform and Zipf s=1.1) and router (Partitioned,

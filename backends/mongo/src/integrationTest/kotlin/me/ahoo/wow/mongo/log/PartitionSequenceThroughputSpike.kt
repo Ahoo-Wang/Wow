@@ -36,7 +36,7 @@ import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Spike H1 (documentation/designs/v10/decisions.md), MongoDB half: can the partition sequence, assigned by a
+ * Spike H1 (documentation/designs/decisions.md), MongoDB half: can the partition sequence, assigned by a
  * multi-document transaction that bumps the partition's counter, carry the commit rate? Runs only with `-Dwow.spike.h1=true`; writes its table to
  * `build/spike-h1-mongo.md`.
  */

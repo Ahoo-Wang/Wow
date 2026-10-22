@@ -35,7 +35,7 @@ import javax.sql.DataSource
 import kotlin.time.Duration
 
 /**
- * The [ReservationStore] on PostgreSQL (documentation/designs/v10/01-programming-model.md §7, decision D38), in the
+ * The [ReservationStore] on PostgreSQL (documentation/designs/01-programming-model.md §7, decision D38), in the
  * same database as the log: one row per reserved key, keyed by `(context, tenant_id, namespace, key)`, its owner in
  * three columns and the holds of a pending reservation in a `text[]` ([PostgresReservationTables]).
  *

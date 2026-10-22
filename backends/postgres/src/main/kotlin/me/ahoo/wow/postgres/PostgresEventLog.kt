@@ -60,7 +60,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The [EventLog] of one bounded context on PostgreSQL (documentation/designs/v10/03-log-and-snapshot.md §2).
+ * The [EventLog] of one bounded context on PostgreSQL (documentation/designs/03-log-and-snapshot.md §2).
  *
  * The log takes one table per aggregate type, `wow_log__<context>__<aggregate>` (decision D162); a context-level
  * table holds one counter row per partition, so partitions, their sequences, leases and checkpoints stay per context.

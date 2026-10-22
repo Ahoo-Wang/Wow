@@ -34,7 +34,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 
 /**
- * The [FailureLedger] contract (documentation/designs/v10/04-subscriptions.md §2) every backend passes. A backend's
+ * The [FailureLedger] contract (documentation/designs/04-subscriptions.md §2) every backend passes. A backend's
  * test extends it and supplies a ledger from [createLedger].
  */
 abstract class FailureLedgerSpec {

@@ -1,6 +1,6 @@
 # V10 Spike H1 (PostgreSQL): Partition Sequences Under A Row Lock
 
-Spike H1 of the V10 design (`documentation/designs/v10/decisions.md` on the `v10` branch) asks whether assigning each log entry a partition sequence in commit-visible order can carry the commit rate. For PostgreSQL it can: on a laptop's Docker, the single-statement append reaches about 30,000 appends a second over 64 partitions, about 70% of what plain inserts of the same rows reach, and the full log contract holds.
+Spike H1 of the V10 design (`documentation/designs/decisions.md` on the `v10` branch) asks whether assigning each log entry a partition sequence in commit-visible order can carry the commit rate. For PostgreSQL it can: on a laptop's Docker, the single-statement append reaches about 30,000 appends a second over 64 partitions, about 70% of what plain inserts of the same rows reach, and the full log contract holds.
 
 ## What Is Measured
 

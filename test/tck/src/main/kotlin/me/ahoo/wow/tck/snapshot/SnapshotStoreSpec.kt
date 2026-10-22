@@ -33,7 +33,7 @@ import org.junit.jupiter.api.Test
 import java.util.UUID
 
 /**
- * The [SnapshotStore] contract (documentation/designs/v10/03-log-and-snapshot.md §3) every backend passes. A
+ * The [SnapshotStore] contract (documentation/designs/03-log-and-snapshot.md §3) every backend passes. A
  * backend's test extends it and supplies a fresh, empty store from [createStore].
  */
 abstract class SnapshotStoreSpec {

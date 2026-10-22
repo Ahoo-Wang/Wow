@@ -60,7 +60,7 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * The write kernel: turns one admitted command into at most one committed event stream
- * (documentation/designs/v10/02-write-path.md §1).
+ * (documentation/designs/02-write-path.md §1).
  *
  * 1. **Deduplicate before deciding** (D46): a request id already committed in the tenant is never decided again; a
  *    command of another type reusing it is rejected. Commands are told apart by their model name only, not by a hash

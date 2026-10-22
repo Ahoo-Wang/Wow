@@ -51,7 +51,7 @@ class EventRecord @InternalWowApi constructor(val name: String, val revision: In
 
 /**
  * The events one command produced, committed together by one append: the unit of fact
- * (documentation/designs/v10/08-data-protocols.md §4).
+ * (documentation/designs/08-data-protocols.md §4).
  *
  * - [version] is the aggregate's version after this stream; the first stream of an aggregate is version 1 and each
  *   next one is exactly one more.

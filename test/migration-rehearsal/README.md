@@ -1,6 +1,6 @@
 # Migration rehearsal
 
-The blue-green rehearsal of roadmap 8c.1 (design [07 §3](../../documentation/designs/v10/07-migration.md), decision D32). It runs one complete 9.x → V10 cut-over of the 9.x example and of the view store the example-server embeds, then rolls it back twice: once before V10 has written, and once after. Two V10 hosts take over, both on one PostgreSQL database: this host (context `example`) and the V10 view store service (`platform/view-store`, context `view-store`).
+The blue-green rehearsal of roadmap 8c.1 (design [07 §3](../../documentation/designs/07-migration.md), decision D32). It runs one complete 9.x → V10 cut-over of the 9.x example and of the view store the example-server embeds, then rolls it back twice: once before V10 has written, and once after. Two V10 hosts take over, both on one PostgreSQL database: this host (context `example`) and the V10 view store service (`platform/view-store`, context `view-store`).
 
 Before that online cut-over, it runs an offline one of the same data into a database of its own, the default way (decision D267 ⑳): 9.x stops, then `import`, `compare`, `snapshot` and `backfill-tags` run and the V10 hosts start. Their sampled states must equal 9.x's from before it stopped. The report times its write stop beside the online one.
 

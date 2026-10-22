@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test
 import java.util.UUID
 
 /**
- * The [CheckpointStore] contract (documentation/designs/v10/04-subscriptions.md §1, decision D45) every backend
+ * The [CheckpointStore] contract (documentation/designs/04-subscriptions.md §1, decision D45) every backend
  * passes. A backend's test extends it and supplies the store from [createStore]; each test uses its own group, so
  * the tests may share one store.
  */

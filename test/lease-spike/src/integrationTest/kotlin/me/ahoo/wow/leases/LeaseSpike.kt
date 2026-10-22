@@ -37,7 +37,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Spike H6 (documentation/designs/v10/decisions.md): do storage leases support membership and rebalancing? Nodes in
+ * Spike H6 (documentation/designs/decisions.md): do storage leases support membership and rebalancing? Nodes in
  * one JVM, each with its own clients of a real PostgreSQL or MongoDB, its own `PartitionOwnership`, subscriptions,
  * router and coordinator, joined by the loopback cluster channel, under a steady write load. Each repetition starts
  * three nodes and then joins, leaves gracefully and kills nodes one at a time (see [PLAN]), measuring each change.

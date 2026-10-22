@@ -35,7 +35,7 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The [ReservationStore] contract (documentation/designs/v10/01-programming-model.md §7; findings A1-2, A1-3, A1-10)
+ * The [ReservationStore] contract (documentation/designs/01-programming-model.md §7; findings A1-2, A1-3, A1-10)
  * every backend passes. A backend's test extends it and supplies a store whose expiry follows [clock] from
  * [createStore].
  */

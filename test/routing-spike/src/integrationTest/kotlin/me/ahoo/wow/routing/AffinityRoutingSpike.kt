@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 
 /**
- * Spike H2, phase 1 (documentation/designs/v10/decisions.md): does affinity routing (Partitioned) pay for its
+ * Spike H2, phase 1 (documentation/designs/decisions.md): does affinity routing (Partitioned) pay for its
  * forwarding hop? Simulated nodes, each with its own pool, kernel, executor and state cache, share one real
  * PostgreSQL log and snapshot store; the cluster channel serializes commands for real and injects 0.3 to 1 ms.
  *

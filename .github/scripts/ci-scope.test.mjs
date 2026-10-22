@@ -459,7 +459,7 @@ test('the modules, their tests, the platform and the root build run the JVM jobs
     assert.ok(scopes([path]).jvm, path);
   for (const path of [
     'typescript/wow-client/src/index.ts',
-    'documentation/designs/v10/roadmap.md',
+    'documentation/designs/roadmap.md',
     'documentation/docs/en/guide/aggregates.md',
     // Its samples are held by docs-samples.mjs, in the docs-layout job of every pull request.
     'documentation/docs/en/start/quickstart.md',
@@ -522,7 +522,7 @@ test('the view store client, what its suites import, the service and its modules
     'extensions/cosid/src/main/kotlin/A.kt',
     'test/architecture/src/test/kotlin/A.kt',
     'example/eshop/e2e/build.gradle.kts',
-    'documentation/designs/v10/roadmap.md',
+    'documentation/designs/roadmap.md',
     '.github/workflows/package-deploy.yml',
   ])
     assert.ok(!scopes([path]).viewStoreContract, path);

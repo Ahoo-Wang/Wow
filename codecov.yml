@@ -85,7 +85,7 @@ component_management:
         target: auto
         threshold: 1%
   individual_components:
-    # The modules (documentation/designs/v10/06-modules.md §4), named after their Gradle projects; none collides
+    # The modules (documentation/designs/06-modules.md §4), named after their Gradle projects; none collides
     # with a TypeScript package's (wow-*). They read the `jvm-unit` and `integration` flags, so a module's coverage
     # counts its unit and container tests.
     - component_id: api
