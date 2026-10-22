@@ -212,10 +212,6 @@
       "includeState" : true
     } ],
     "errors" : [ {
-      "code" : "eshop-payment.payment.invalid-amount",
-      "status" : 422,
-      "description" : "A payment is of a positive amount."
-    }, {
       "code" : "eshop-payment.payment.wrong-status",
       "status" : 409,
       "description" : "The payment's status does not allow the command."

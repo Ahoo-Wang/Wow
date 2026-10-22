@@ -59,13 +59,7 @@ import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 class Order(private val state: OrderState) {
     // region submit
     @OnCommand(produces = [OrderSubmitted::class])
-    fun onCommand(command: SubmitOrder): Decision {
-        val invalid = command.items.isEmpty() || command.items.any { it.quantity <= 0 || it.unitPrice.signum() < 0 }
-        if (invalid) {
-            return Decision.reject(Rejections.INVALID_ITEMS, "The order's items are not valid: ${command.items}.")
-        }
-        return Decision.events(OrderSubmitted(command.items))
-    }
+    fun onCommand(command: SubmitOrder): Decision = Decision.events(OrderSubmitted(command.items))
     // endregion
 
     /** Moving on an order that is no longer submitted, one cancelled meanwhile say, changes nothing. */
@@ -167,11 +161,6 @@ class Order(private val state: OrderState) {
      * `<context>.order.<code>` (decision D259), as its peers read them from the api's generated contract.
      */
     object Rejections {
-        @ErrorCode(
-            description = "An order has at least one item, each of a positive quantity and a price not negative."
-        )
-        const val INVALID_ITEMS = "invalid-items"
-
         @ErrorCode(description = "The order's status does not allow the command.", status = 409)
         const val WRONG_STATUS = "wrong-status"
 

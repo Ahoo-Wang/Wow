@@ -62,11 +62,16 @@ class CatalogEndToEndTest {
     }
 
     @Test
-    fun `a product should be refused a price that is not more than zero`() {
+    fun `a product should be refused a blank name or a price that is not more than zero`() {
         catalog.post("/eshop-catalog/product/create-product", """{"name":"Free mug","price":0}""")
-            .assertProblem(UNPROCESSABLE, "eshop-catalog.product.invalid-price")
-        catalog.post("/eshop-catalog/product/create-product", """{"name":" ","price":1}""")
-            .assertProblem(UNPROCESSABLE, "eshop-catalog.product.blank-name")
+            .assertInvalid("price" to "Positive")
+        catalog.post("/eshop-catalog/product/create-product", """{"name":" ","price":-1}""")
+            .assertInvalid("name" to "NotBlank", "price" to "Positive")
+        val id = catalog.post("/eshop-catalog/product/create-product", """{"name":"Wow tray","price":4}""").assertOk()
+            .json["ref"]["id"].asString()
+        catalog.post("/eshop-catalog/product/$id/update-product", """{"name":""}""").assertInvalid("name" to "NotBlank")
+        catalog.post("/eshop-catalog/product/$id/change-product-price", """{"price":0}""")
+            .assertInvalid("price" to "Positive")
     }
 
     @Test
@@ -79,6 +84,8 @@ class CatalogEndToEndTest {
             .json["ref"]["id"].asString()
         catalog.post("/eshop-catalog/brand/$other/rename-brand", """{"name":"$name"}""")
             .assertProblem(CONFLICT, "eshop-catalog.brand.name-taken")
+        catalog.post("/eshop-catalog/brand/create-brand", """{"name":"  "}""").assertInvalid("name" to "NotBlank")
+        catalog.post("/eshop-catalog/brand/$other/rename-brand", """{"name":""}""").assertInvalid("name" to "NotBlank")
     }
 
     @Test
@@ -87,8 +94,11 @@ class CatalogEndToEndTest {
         catalog.post("/eshop-catalog/category/create-category", """{"name":"$name"}""").assertOk()
         catalog.post("/eshop-catalog/category/create-category", """{"name":"$name"}""")
             .assertProblem(CONFLICT, "eshop-catalog.category.name-taken")
-        catalog.post("/eshop-catalog/category/create-category", """{"name":""}""")
-            .assertProblem(UNPROCESSABLE, "eshop-catalog.category.blank-name")
+        catalog.post("/eshop-catalog/category/create-category", """{"name":""}""").assertInvalid("name" to "NotBlank")
+        val id = catalog.post("/eshop-catalog/category/create-category", """{"name":"${unique("Plates")}"}""")
+            .assertOk().json["ref"]["id"].asString()
+        catalog.post("/eshop-catalog/category/$id/rename-category", """{"name":" "}""")
+            .assertInvalid("name" to "NotBlank")
     }
 
     @Test
@@ -113,7 +123,6 @@ class CatalogEndToEndTest {
 
     private companion object {
         const val CONFLICT = 409
-        const val UNPROCESSABLE = 422
         const val NOT_FOUND = 404
         const val FORBIDDEN = 403
     }

@@ -5412,15 +5412,14 @@
         }
       },
       "eshop-catalog.command.422" : {
-        "description" : "`eshop-catalog.brand.blank-name`: A brand's name is never blank.\n`eshop-catalog.category.blank-name`: A category's name is never blank.\n`eshop-catalog.product.blank-name`: A product's name is never blank.\n`eshop-catalog.product.invalid-price`: A product's price is more than zero.\nA rejection by the domain, with the code it chose (decision D121); the problem carries the command's result.",
+        "description" : "A rejection by the domain, with the code it chose (decision D121); the problem carries the command's result.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
               "$ref" : "#/components/schemas/wow.Problem"
             }
           }
-        },
-        "x-wow-error-codes" : [ "eshop-catalog.brand.blank-name", "eshop-catalog.category.blank-name", "eshop-catalog.product.blank-name", "eshop-catalog.product.invalid-price" ]
+        }
       },
       "eshop-catalog.command.429" : {
         "description" : "`wow.command.busy`: The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; retry later.",

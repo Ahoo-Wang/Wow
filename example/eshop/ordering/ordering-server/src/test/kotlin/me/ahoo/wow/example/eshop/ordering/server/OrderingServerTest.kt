@@ -15,6 +15,7 @@ package me.ahoo.wow.example.eshop.ordering.server
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.memory.InMemoryTopics
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
@@ -147,6 +148,24 @@ class OrderingServerTest {
         read("order-alice", mapOf(OrderingCallers.USER to " ")).first.assert().isEqualTo(OK)
     }
 
+    @Test
+    fun `an order without items, or with an invalid one, should be invalid before the order decides`() {
+        val empty = post("/eshop-ordering/order/order-empty/submit-order", """{"items":[]}""")
+        empty.first.assert().describedAs(empty.second.toString()).isEqualTo(BAD_REQUEST)
+        empty.second["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
+        empty.second["violations"].single()["path"].asString().assert().isEqualTo("items")
+        empty.second["violations"].single()["code"].asString().assert().isEqualTo("NotEmpty")
+
+        val invalid = post(
+            "/eshop-ordering/order/order-invalid/submit-order",
+            """{"items":[{"productId":"mug","unitPrice":-1,"quantity":0}]}""",
+        )
+        invalid.first.assert().isEqualTo(BAD_REQUEST)
+        invalid.second["violations"].values().map { it["path"].asString() to it["code"].asString() }
+            .assert().containsExactly("items[0].quantity" to "Positive", "items[0].unitPrice" to "PositiveOrZero")
+        read("order-invalid").first.assert().isEqualTo(NOT_FOUND)
+    }
+
     private fun submit(id: String, headers: Map<String, String> = emptyMap()) {
         val submitted = post(
             "/eshop-ordering/order/$id/submit-order",
@@ -194,6 +213,7 @@ class OrderingServerTest {
 
     private companion object {
         const val OK = 200
+        const val BAD_REQUEST = 400
         const val CONFLICT = 409
         const val NOT_FOUND = 404
         const val UNPROCESSABLE = 422

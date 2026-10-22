@@ -10,8 +10,6 @@ export const ESHOP_PAYMENT_BOUNDED_CONTEXT = 'eshop-payment';
 
 /** The domain error codes of `eshop-payment`, each a problem's `code` with the status the Manifest gives it. */
 export const EshopPaymentErrorCodes = {
-  /** 422: A payment is of a positive amount. */
-  PAYMENT_INVALID_AMOUNT: 'eshop-payment.payment.invalid-amount',
   /** 409: The payment's status does not allow the command. */
   PAYMENT_WRONG_STATUS: 'eshop-payment.payment.wrong-status',
 } as const;

@@ -12,8 +12,6 @@ export const ESHOP_INVENTORY_BOUNDED_CONTEXT = 'eshop-inventory';
 export const EshopInventoryErrorCodes = {
   /** 409: Fewer units are available than the order asks for. */
   STOCK_INSUFFICIENT: 'eshop-inventory.stock.insufficient',
-  /** 422: A quantity of stock is positive. */
-  STOCK_INVALID_QUANTITY: 'eshop-inventory.stock.invalid-quantity',
   /** 409: Nothing is reserved for the order. */
   STOCK_NO_RESERVATION: 'eshop-inventory.stock.no-reservation',
 } as const;
