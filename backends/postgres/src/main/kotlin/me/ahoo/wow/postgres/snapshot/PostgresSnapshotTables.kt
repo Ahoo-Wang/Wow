@@ -204,6 +204,28 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
         /** The version of this layout. */
         const val FORMAT = 1
 
+        /**
+         * The columns a snapshot is read from ([PostgresSnapshotStore.snapshotOf]) with the SQL type each is read as:
+         * the `jsonb` ones as `text`, so that a statement can union them with typed NULLs (decision D268).
+         */
+        val READ_COLUMNS: List<Pair<String, String>> = listOf(
+            "tenant_id" to "text",
+            "aggregate_id" to "text",
+            "version" to "integer",
+            "schema_fingerprint" to "text",
+            "state" to "text",
+            "owner_id" to "text",
+            "space_id" to "text",
+            "deleted" to "boolean",
+            "first_event_time" to "bigint",
+            "last_event_time" to "bigint",
+            "tags" to "text",
+            "operator" to "text",
+            "first_operator" to "text",
+            "schedules" to "text",
+            "state_revision" to "integer",
+        )
+
         const val PREFIX = "wow_snapshot"
 
         /** The parameters of one snapshot's row. */

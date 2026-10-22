@@ -21,6 +21,7 @@ import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
+import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.LogGroupBackends
 import me.ahoo.wow.runtime.subscription.Appender
@@ -61,6 +62,23 @@ class StoreActivityTest {
         activity.probeEnded()
         activity.probing.assert().isEqualTo(StoreActivity.NONE)
         activity.toString().assert().isEqualTo("StoreActivity(log, bank)")
+    }
+
+    @Test
+    fun `a tracked log should record a read with the snapshot as the store's`(): Unit = runBlocking {
+        val log = NodeStores.track(
+            "bank",
+            ContextBackends(
+                InMemoryEventLog(2),
+                InMemoryCheckpointStore(),
+                InMemoryLeaseStore(),
+                InMemoryFailureLedger()
+            ),
+        ).log
+        val activity = activityOf(log)!!
+        log.readWithSnapshot(me.ahoo.wow.runtime.subscription.cart("c-1"), InMemorySnapshotStore(), 1)
+            .tail.streams.assert().isEmpty()
+        activity.lastSuccess.assert().isNotEqualTo(StoreActivity.NONE)
     }
 
     @Test

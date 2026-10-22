@@ -16,6 +16,7 @@ interface EventLog {
     suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord?
     suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord?   // 不带聚合类型，有默认实现
     suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail   // 冷加载：尾部加最近请求键，一次往返（D261）
+    suspend fun readWithSnapshot(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail   // 冷加载：快照加尾部，同库时一条语句（D268），有默认实现
     suspend fun lineage(partition: Int): PartitionLineage   // 分区谱系，D240 预留，有默认实现
     fun tail(partition: Int, after: Long? = null): Flow<LogEntry>   // 有序、可续读、不跳过
     suspend fun head(partition: Int): Long?
@@ -63,7 +64,7 @@ sealed interface AppendOutcome {
 
 | 用途 | 怎么用 |
 |---|---|
-| 写侧加速 | 缓存未命中时，快照加尾部重建状态 |
+| 写侧加速 | 缓存未命中时，快照加尾部重建状态；快照与日志同在一个 PostgreSQL 库时一条语句读出（D268） |
 | 默认读模型 | 查询协议直接查快照；能力描述由 Manifest 中的状态 schema 推出，用户不写投影 |
 | 视图与数据 | view-engine 的记录、分析视图与数据集默认建在快照上 |
 

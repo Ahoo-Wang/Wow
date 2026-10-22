@@ -71,6 +71,13 @@ interface SnapshotStore {
     suspend fun load(ref: AggregateRef): SnapshotRecord?
 
     /**
+     * The store that holds [type]'s snapshots behind any routing (decision D268): this store by default, the one a
+     * router sends [type] to otherwise. A log backend asks it to tell whether it can read a snapshot together with the
+     * tail ([me.ahoo.wow.spi.log.EventLog.readWithSnapshot]).
+     */
+    fun storeOf(type: AggregateType): SnapshotStore = this
+
+    /**
      * Stores [snapshot], rebuilt from the log, in place of the stored one (decision D172): when the store holds none
      * for its ref, or holds the same or a lower version, whatever its state revision; returns whether it was written.
      * A stored version above [snapshot]'s, written meanwhile, stays. Writing clears a stale mark of a version up to

@@ -29,7 +29,9 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
+import me.ahoo.wow.spi.log.SnapshotTail
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
@@ -211,6 +213,9 @@ private class TrackedEventLog(
 
     override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail =
         activity.call(::unavailable) { log.readTail(ref, fromVersion, earlier) }
+
+    override suspend fun readWithSnapshot(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail =
+        activity.call(::unavailable) { log.readWithSnapshot(ref, snapshots, earlier) }
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
         log.readEntries(ref, fromVersion, toVersion).tracked()

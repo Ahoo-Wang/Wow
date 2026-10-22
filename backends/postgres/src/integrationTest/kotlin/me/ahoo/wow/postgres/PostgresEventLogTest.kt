@@ -28,7 +28,11 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
+import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
@@ -38,6 +42,8 @@ import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.log.EventLogSpec
 import org.junit.jupiter.api.Test
 import java.lang.reflect.InvocationTargetException
@@ -55,6 +61,8 @@ import kotlin.time.Duration.Companion.milliseconds
 
 class PostgresEventLogTest : EventLogSpec() {
     override fun createLog(context: String, partitions: Int): EventLog = PostgresFixture.log(partitions, context)
+
+    override fun createSnapshots(context: String): SnapshotStore = PostgresSnapshotStore(PostgresFixture.dataSource, context)
 
     /** A `\u0000` in a payload string: PostgreSQL's `jsonb` does not take it (finding A2-7). */
     override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
@@ -231,6 +239,93 @@ class PostgresEventLogTest : EventLogSpec() {
             counted.since(mark).size.assert().isEqualTo(READ_STATEMENTS)
         }
     }
+
+    @Test
+    fun `a snapshot in the log's database is read with the tail in one statement`(): Unit = runBlocking {
+        // D268: a cache miss reads the snapshot and the tail after it in one round trip.
+        val counted = CountedDataSource(PostgresFixture.dataSource)
+        val context = PostgresFixture.newContext()
+        val type = AggregateType(context, "order")
+        val writer = PostgresFixture.log(1, context)
+        (1..3).forEach { writer.append(stream("a", it, aggregate = type)) }
+        val reader = PostgresEventLog(counted.dataSource, context, 1).also { it.createSchema() }
+        val snapshots = PostgresSnapshotStore(counted.dataSource, context)
+        val ref = type.ref("tenant", "a")
+        reader.readWithSnapshot(ref, snapshots, 1)
+        snapshots.save(snapshot(ref, 2))
+        val mark = counted.begin()
+        val read = reader.readWithSnapshot(ref, snapshots, 1)
+        counted.since(mark).size.assert().isEqualTo(1)
+        read.snapshot?.version.assert().isEqualTo(2)
+        read.tail.streams.map { it.version }.assert().containsExactly(2, 3)
+        read.tail.earlier.map { it.version }.assert().containsExactly(1)
+    }
+
+    @Test
+    fun `a snapshot in another database is read apart from the tail`(): Unit = runBlocking {
+        val context = PostgresFixture.newContext()
+        val type = AggregateType(context, "order")
+        val log = PostgresFixture.log(1, context)
+        (1..3).forEach { log.append(stream("a", it, aggregate = type)) }
+        val elsewhere = PostgresSnapshotStore(CountedDataSource(PostgresFixture.dataSource).dataSource, context)
+        val ref = type.ref("tenant", "a")
+        elsewhere.save(snapshot(ref, 2))
+        val read = log.readWithSnapshot(ref, elsewhere, 1)
+        read.snapshot?.version.assert().isEqualTo(2)
+        read.tail.streams.map { it.version }.assert().containsExactly(2, 3)
+    }
+
+    @Test
+    fun `snapshots of another kind or another context are read apart from the tail`(): Unit = runBlocking {
+        val context = PostgresFixture.newContext()
+        val type = AggregateType(context, "order")
+        val log = PostgresFixture.log(1, context)
+        (1..3).forEach { log.append(stream("a", it, aggregate = type)) }
+        val ref = type.ref("tenant", "a")
+        val store = PostgresSnapshotStore(PostgresFixture.dataSource, context)
+        store.save(snapshot(ref, 2))
+        val wrapped = object : SnapshotStore by store {
+            override fun storeOf(type: AggregateType): SnapshotStore = this
+        }
+        log.readWithSnapshot(ref, wrapped, 1).tail.streams.map { it.version }.assert().containsExactly(2, 3)
+        val otherContext = PostgresSnapshotStore(PostgresFixture.dataSource, PostgresFixture.newContext())
+        // Not read together: the other context's store refuses the aggregate, as its load alone does.
+        runCatching { log.readWithSnapshot(ref, otherContext, 1) }.exceptionOrNull()
+            .assert().isInstanceOf(IllegalArgumentException::class.java)
+    }
+
+    @Test
+    fun `a failing statement falls back to reading the snapshot and the tail apart`(): Unit = runBlocking {
+        val context = PostgresFixture.newContext()
+        val type = AggregateType(context, "order")
+        val log = PostgresFixture.log(1, context)
+        (1..3).forEach { log.append(stream("a", it, aggregate = type)) }
+        val ref = type.ref("tenant", "a")
+        val store = PostgresSnapshotStore(PostgresFixture.dataSource, context)
+        store.save(snapshot(ref, 2))
+        PostgresFixture.dataSource.connection.use { connection ->
+            connection.createStatement().use { it.execute("DROP TABLE ${PostgresSnapshotTables(context, "order").snapshot}") }
+        }
+        // The snapshot store still believes its table is there; a load that fails is read as none, as the kernel does.
+        val tolerant = object : SnapshotStore by store {
+            override suspend fun load(ref: AggregateRef): SnapshotRecord? = null
+        }
+        val read = log.readWithSnapshot(ref, tolerant, 1)
+        read.snapshot.assert().isNull()
+        read.tail.streams.map { it.version }.assert().containsExactly(1, 2, 3)
+    }
+
+    private fun snapshot(ref: AggregateRef, version: Int) = SnapshotRecord(
+        ref = ref,
+        version = version,
+        schemaFingerprint = "fingerprint",
+        state = """{"version":$version}""",
+        scope = Scope("owner", "space"),
+        deleted = false,
+        firstEventTime = 1L,
+        lastEventTime = version.toLong(),
+        tags = emptyMap(),
+    )
 
     @Test
     fun `concurrent first reads of a table make sure of it once`(): Unit = runBlocking {

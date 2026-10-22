@@ -168,6 +168,9 @@ class Kernel(
         require(!maxEarlyWait.isNegative()) { "The maximum early wait is never negative." }
     }
 
+    /** The snapshots a cache miss reads with the log's tail, a failing load read as none (decision D268). */
+    private val loading: SnapshotStore? = snapshots?.let(::TolerantSnapshots)
+
     /**
      * Executes [admitted] on [model]'s aggregate, its scope narrowed to what the model's ownership keeps
      * ([me.ahoo.wow.api.aggregate.Ownership.scopeOf], decision D189).
@@ -535,16 +538,17 @@ class Kernel(
             return it to true
         }
         observer.stateCache(ref.type.context, StateCacheOutcome.MISS)
-        snapshots.loadOrNull(ref)?.let { snapshot ->
+        val read = loading?.let { log.readWithSnapshot(ref, it, requests.earlier) }
+        read?.snapshot?.let { snapshot ->
             codec.fitting(model, snapshot)?.let { state ->
-                val tail = requests.tail(snapshot.version)
-                fromSnapshot(model, snapshot, state, tail.streams.asFlow())?.let { loaded ->
+                fromSnapshot(model, snapshot, state, read.tail.streams.asFlow())?.let { loaded ->
                     loaded.first = FirstCommit.of(snapshot)
-                    return requests.derived(loaded, tail) to false
+                    return requests.derived(loaded, read.tail) to false
                 }
             }
         }
-        val streams = log.read(ref).toList()
+        // Without a snapshot the read holds every stream; with one that does not fit, the log is read again whole.
+        val streams = read?.takeIf { it.snapshot == null }?.tail?.streams ?: log.read(ref).toList()
         val replayed = replay(model, CachedState(model.initialState(ref), 0), streams)
         replayed.first = streams.firstOrNull()?.let(FirstCommit::of)
         return requests.derived(replayed, AggregateTail.of(streams, emptyList())) to false

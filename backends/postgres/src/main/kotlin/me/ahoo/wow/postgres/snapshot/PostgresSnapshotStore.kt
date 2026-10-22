@@ -360,20 +360,29 @@ class PostgresSnapshotStore(
         }
     }
 
-    private fun snapshotOf(type: AggregateType, row: ResultSet) = SnapshotRecord(
-        ref = type.ref(row.getString("tenant_id"), row.getString("aggregate_id")),
-        version = row.getInt("version"),
-        schemaFingerprint = row.getString("schema_fingerprint"),
-        state = row.getString("state"),
-        scope = Scope(row.getString("owner_id"), row.getString("space_id")),
-        deleted = row.getBoolean("deleted"),
-        firstEventTime = row.getLong("first_event_time"),
-        lastEventTime = row.getLong("last_event_time"),
-        tags = decodeTags(row.getString("tags")),
-        operator = row.getString("operator")?.let(::decodeOperator),
-        firstOperator = row.getString("first_operator")?.let(::decodeOperator),
-        schedules = row.getString("schedules")?.let(::decodeSchedules).orEmpty(),
-        stateRevision = row.getInt("state_revision"),
+    /**
+     * The table of [aggregateName]'s snapshots, made sure of, when this store keeps [context]'s snapshots in
+     * [dataSource] (decision D268): the log of that context in that database reads a snapshot with its tail in one
+     * statement. Null when the store is another context's or in another database.
+     */
+    internal fun sharedTable(dataSource: DataSource, context: String, aggregateName: String): String? =
+        if (dataSource === this.dataSource && context == this.context) tables(aggregateName).snapshot else null
+
+    /** The snapshot of [row], its columns named with [prefix] ([PostgresSnapshotTables.READ_COLUMNS]). */
+    internal fun snapshotOf(type: AggregateType, row: ResultSet, prefix: String = "") = SnapshotRecord(
+        ref = type.ref(row.getString(prefix + "tenant_id"), row.getString(prefix + "aggregate_id")),
+        version = row.getInt(prefix + "version"),
+        schemaFingerprint = row.getString(prefix + "schema_fingerprint"),
+        state = row.getString(prefix + "state"),
+        scope = Scope(row.getString(prefix + "owner_id"), row.getString(prefix + "space_id")),
+        deleted = row.getBoolean(prefix + "deleted"),
+        firstEventTime = row.getLong(prefix + "first_event_time"),
+        lastEventTime = row.getLong(prefix + "last_event_time"),
+        tags = decodeTags(row.getString(prefix + "tags")),
+        operator = row.getString(prefix + "operator")?.let(::decodeOperator),
+        firstOperator = row.getString(prefix + "first_operator")?.let(::decodeOperator),
+        schedules = row.getString(prefix + "schedules")?.let(::decodeSchedules).orEmpty(),
+        stateRevision = row.getInt(prefix + "state_revision"),
     )
 
     private fun PreparedStatement.setNullableString(index: Int, value: String?) {

@@ -98,11 +98,10 @@ internal class RequestCheck(
     fun cached(): CachedState? = states.take(ref)?.takeIf { caching }
 
     /**
-     * The aggregate's tail from [fromVersion], its snapshot's version, read with the request keys before it (C3): one
-     * more than are kept, so that a full window tells a truncated history.
+     * How many request keys before its snapshot a load reads with the aggregate's tail (C3): one more than are kept,
+     * so that a full window tells a truncated history.
      */
-    suspend fun tail(fromVersion: Int): AggregateTail =
-        log.readTail(ref, fromVersion, if (recentRequests == 0) 0 else recentRequests + 1)
+    val earlier: Int get() = if (recentRequests == 0) 0 else recentRequests + 1
 
     /** [loaded], read with [tail] (a replay's tail holds every stream), with the recent requests derived from it. */
     fun derived(loaded: CachedState, tail: AggregateTail): CachedState =
