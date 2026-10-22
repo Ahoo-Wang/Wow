@@ -28,7 +28,7 @@ Every Wow system does three things, and every mechanism in it follows from one o
 | 7 | Read models replay | Every read model can be rebuilt from the log |
 | 8 | Failures are data | A failure is recorded in a ledger and parks the one aggregate that failed. Nothing is skipped |
 | 9 | One contract | The Manifest the compiler writes is the source of routes, OpenAPI, clients, views and compatibility checks |
-| 10 | No host lock-in | The runtime does not depend on Spring; Spring Boot is one host |
+| 10 | No host lock-in | The runtime and the domain depend on no Spring type, which keeps other hosts possible. In 10.0 the supported host is Spring Boot: composing a node outside it is still internal API |
 | 11 | State is a read model | Every aggregate's latest state can be queried, with no projection written |
 
 What these add up to, as guarantees a release must keep:
