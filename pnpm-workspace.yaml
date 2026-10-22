@@ -51,8 +51,8 @@ catalog:
   d3-random: ^3.0.1
   dayjs: ^1.11.23
   dequal: ^2.0.3
-  '@dnd-kit/dom': 0.5.0
-  '@dnd-kit/react': 0.5.0
+  '@dnd-kit/dom': 0.5.1
+  '@dnd-kit/react': 0.5.1
   echarts: ^6.1.0
   eslint: ^10.13.0
   eslint-plugin-import-x: ^4.17.1
