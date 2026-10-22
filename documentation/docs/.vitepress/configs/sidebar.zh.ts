@@ -238,8 +238,12 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             base: '/zh/start/',
             text: '入门',
             items: [
+                {text: '从这里开始', link: 'index.html'},
+                {text: '为什么选择 Wow', link: 'why-wow'},
                 {text: '快速开始', link: 'quickstart'},
                 {text: '在已有服务中引入 Wow', link: 'existing-project'},
+                {text: '教程：端到端的两个上下文', link: 'tutorial'},
+                {text: 'Agent Skills', link: 'skills'},
             ],
         },
     ],

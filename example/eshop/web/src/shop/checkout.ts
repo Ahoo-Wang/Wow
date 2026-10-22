@@ -112,6 +112,7 @@ export function orderIdOf(result: CommandResult): string | undefined {
     : undefined;
 }
 
+// region checkout
 /**
  * Checks `basketId` out, waiting for the whole chain as server-sent events:
  * `onProgress` gets each hop's result as it arrives. An admission refusal
@@ -155,6 +156,7 @@ export async function checkout(
   onProgress(progress);
   return progress;
 }
+// endregion
 
 /** A hop as the `Wow-Wait` header writes it. */
 export function hopText(hop: Hop): string {

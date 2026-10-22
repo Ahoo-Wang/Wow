@@ -236,8 +236,12 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             base: '/start/',
             text: 'Start',
             items: [
+                {text: 'Start Here', link: 'index.html'},
+                {text: 'Why Wow', link: 'why-wow'},
                 {text: 'Quickstart', link: 'quickstart'},
                 {text: 'Add Wow to an Existing Service', link: 'existing-project'},
+                {text: 'Tutorial: Two Contexts End to End', link: 'tutorial'},
+                {text: 'Agent Skills', link: 'skills'},
             ],
         },
     ],

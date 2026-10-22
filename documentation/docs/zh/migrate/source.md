@@ -118,7 +118,7 @@ fun onCommand(command: SubmitOrder): Decision = Decision.events(OrderSubmitted(c
 
 ## 处理器 {#processors}
 
-Saga、投影或 Reactor 恰好带有 `@Saga`、`@Projection`、`@Reactor` 之一；每个处理函数都是一个独立的订阅，名为 `processor.function`。处理函数接收提交的 `StateEvent`（或其中的一个事件，`StateTypedEvent<S, E>`），Saga 返回它推导出的命令，用 `context.command(…)` 构建，让它们的 ID 是确定的：
+Saga、投影或反应器恰好带有 `@Saga`、`@Projection`、`@Reactor` 之一；每个处理函数都是一个独立的订阅，名为 `processor.function`。处理函数接收提交的 `StateEvent`（或其中的一个事件，`StateTypedEvent<S, E>`），Saga 返回它推导出的命令，用 `context.command(…)` 构建，让它们的 ID 是确定的：
 
 <!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderProcessSaga.kt#derive -->
 
