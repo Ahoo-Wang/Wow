@@ -114,6 +114,9 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             text: '数据',
             base: '/zh/data/',
             items: [
+                {text: 'Wow 系统中的数据', link: 'index.html'},
+                {text: '分析查询', link: 'querying'},
+                {text: '数据集与分析目录', link: 'datasets'},
                 {text: '工作台', link: 'workbench'},
             ],
         },
