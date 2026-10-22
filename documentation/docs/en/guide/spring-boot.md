@@ -110,7 +110,7 @@ The host takes these from the application when it defines them, and falls back t
 | `GlobalIdGenerator`, `AggregateIdGenerator` | Generate request ids and aggregate ids; per type by `wow.aggregates.[<context>.<aggregate>].id-generator` |
 | `FailureClassifier` | Classifies the failures of subscription handlers ([Failures and Retries](./failures)) |
 | `ServiceCredential` | The credential a synchronous call or a typed client presents to another service |
-| A Bean Validation provider | Checks the constraints of command bodies ([Rejections and Error Codes](./rejections#codes-the-framework-rejects-with)) |
+| A Bean Validation provider (`spring-boot-starter-validation`) | Checks the Jakarta constraints of every command body at admission, answering `wow.command.invalid` (400) ([Write an Aggregate](./aggregates#check-its-shape)) |
 
 ## Configuration is checked
 

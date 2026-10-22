@@ -152,7 +152,7 @@ Events lose identity fields the same way: the 9.x `OrderCreated.orderId` is now 
 | `CommandResultAccessor.setCommandResult(k, v)` | `DecideScope.putResult(k, v)`; returned with this commit only, not persisted, absent from a duplicate's answer |
 | `require`/`check`/thrown exception | `Decision.reject(code, message)` with the code declared by `@ErrorCode` |
 | `onError(...)` | Delete when it only logs; compensation becomes a `@Saga` |
-| `CommandValidator.validate()` on the body | Jakarta constraints at the edge (`wow.command.invalid`, 400); a rule Jakarta cannot express is a rejection in decide |
+| `CommandValidator.validate()` on the body, or a `require` on the command's own fields | Jakarta constraints on the command class (`@field:Positive`, `@field:NotBlank`, `@field:Valid`), checked at admission for every command (`wow.command.invalid`, 400, with `violations`); a rule that needs the state, or one Jakarta cannot express, is a rejection in decide |
 | Injected service; `@Name("x")` parameter | Parameter of the generated factory, bound once by the host; `@Name("x")` qualifies it |
 | `GlobalIdGenerator.generateAsString()`, `NamedAggregate.generateId()` inside decide | `scope.ids.next()`, `scope.ids.next(type)` on the `DecideScope` (decision D171): the node's generators (UUIDv7, or CosId with `wow-cosid`), fixed ids in the test DSL. A decision decided again after a version conflict takes new ids, which is safe: the conflicting attempt appended nothing, and a retried request is answered from its first commit (`Wow-Request-Id`), not decided again. Derive an id from `command.ref` only when a client must know it before the answer. A saga takes ids from `SagaContext.ids`; the commands it derives keep their deterministic ids |
 | Return `Any`, event, list, `Mono` | `Decision` (`events`, `NoOp`, `reject`), an event, a list, a sealed type, or a publisher through `wow-reactor` |
@@ -727,7 +727,7 @@ A domain written in Java migrates like a Kotlin one, within these limits (decisi
 | An event implementing `OwnerTransferred`; a decide function for a lifecycle command | Not in a decide function: a saga derives `TransferOwner` ([Ownership and owner moves](#ownership-and-owner-moves)). |
 | A starter's own routes (derived ids, replay, "unchanged" answers, path-scoped reserved owners) | Transformers, snapshot queries, `NoOp`, request-id deduplication and a `CallerResolver` ([Routes and handlers of a 9.x starter](#routes-and-handlers-of-a-9x-starter)). |
 | `bindingErrors` of a domain exception | No place in a rejection; said in its message. |
-| `CommandValidator.validate()` | No V10 counterpart in the domain API; Jakarta at the edge or a decide rejection. The example's China-only address rule was dropped. |
+| `CommandValidator.validate()` | No V10 counterpart in the domain API; Jakarta constraints on the command, checked at admission, or a decide rejection. The example's China-only address rule was dropped. |
 | `@Order`, swagger `@Tag`/`@Schema` | No equivalent; dropped. |
 | `@EntityObject`, `@ValueObject`, `Identifier` | Removed. |
 | `ErrorInfo` on events | Plain data. |

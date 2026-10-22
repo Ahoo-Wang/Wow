@@ -63,6 +63,8 @@ dependencies {
     implementation("me.ahoo.wow:wow-kernel")
     // The Spring Boot host: auto-configuration, the HTTP routes, the memory backend.
     implementation("me.ahoo.wow:wow-spring-boot")
+    // Jakarta Bean Validation: the host checks the commands' constraints (@field:Positive) at admission.
+    implementation("org.springframework.boot:spring-boot-starter-validation")
     // The aggregate test DSL, package me.ahoo.wow.test.
     testImplementation("me.ahoo.wow:wow-test")
     testImplementation(platform("org.junit:junit-bom:6.1.3"))
@@ -80,7 +82,7 @@ tasks.test {
 
 ## 编写命令和事件 {#write-the-commands-and-events}
 
-用 `@BoundedContext` 命名一次上下文。命令和事件都是数据类。命令不带聚合 ID：ID 来自路由。
+用 `@BoundedContext` 命名一次上下文。命令和事件都是数据类。命令不带聚合 ID：ID 来自路由。存款和取款的金额为正：这是命令的形状，一个由宿主在账户决定之前检查的 Jakarta 约束。
 
 <!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Bank.kt -->
 
@@ -117,7 +119,7 @@ data class Withdrawn(val amount: Long)
 
 ## 编写状态和聚合 {#write-the-state-and-the-aggregate}
 
-状态在 `onSourcing` 函数中应用每个事件。聚合在 `onCommand` 函数中决定每条命令：它返回事件，或者返回一个以错误码拒绝命令的 `Decision`，这时什么都不写。
+状态在 `onSourcing` 函数中应用每个事件。聚合在 `onCommand` 函数中决定每条命令：它返回事件，或者返回一个以错误码拒绝命令的 `Decision`，这时什么都不写。它只拒绝需要它状态的命令：余额不足以支付的取款。
 
 <!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt -->
 
@@ -284,6 +286,15 @@ curl -X POST localhost:8080/bank/account/alice/withdraw \
 ```
 
 命令在快照包含它的提交后返回结果：`"status":"SUCCEEDED"`，以及账户新的 `version`，所以紧接着的读取能看到这次改变。取款被拒绝：回答是一个 RFC 9457 problem，状态 409，带 `"code":"bank.account.insufficient-balance"`。
+
+金额为零的存款根本到不了账户：
+
+```bash
+curl -X POST localhost:8080/bank/account/alice/deposit \
+  -H 'Content-Type: application/json' -d '{"amount":0}'
+```
+
+它回答状态 400，带 `"code":"wow.command.invalid"` 及其 `violations`：`[{"path":"amount","code":"Positive","message":"must be greater than 0"}]`。
 
 ## 读取与查询 {#read-and-query}
 

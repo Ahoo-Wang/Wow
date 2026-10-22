@@ -64,7 +64,7 @@ fun onCommand(command: Command<AddBasketItem>): Decision {
 }
 ```
 
-After the basket exists, the kernel keeps it to the owner that created it.
+The item's quantity and price are the command's shape: its constraints are checked before the function runs ([Write an Aggregate](./aggregates#check-its-shape)), so the function checks only the caller. After the basket exists, the kernel keeps it to the owner that created it.
 
 ## Commands a saga sends
 

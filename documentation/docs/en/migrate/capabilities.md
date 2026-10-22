@@ -27,7 +27,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Bloom filter idempotency checker | Replaced | Each cached aggregate keeps its most recent requests, derived from the log; storage answers the rest. |
 | Command rewriter (`CommandBuilderRewriter`) | Replaced | A command transformer at admission; it may not change the command's identity. |
 | Commands mounted on another aggregate (`@AggregateRoot(commands)`) | Replaced | `@MountedCommand`, and `@Unaddressed` for commands that do not name their aggregate. |
-| Command validation (Jakarta Bean Validation) | Replaced | Validation at admission, with Jakarta validation as one validator. |
+| Command validation (Jakarta Bean Validation) | Replaced | Validation at admission: Jakarta constraints on the command class, checked for every command (HTTP, in process, sagas, other contexts) and answered `wow.command.invalid` (400). A rule that needs the state is a rejection. |
 | `@VoidCommand` | Dropped | Send the command and do not wait past `ACCEPTED`. |
 | Custom routes (`@CommandRoute`, `@AggregateRoute`) | Dropped | Routes are derived from the Manifest: `POST /{context}/{aggregate}/{id}/{command}`, or without `{id}` for a creation. |
 | `Command-*` request headers | Replaced | `Wow-Wait`, `Wow-Wait-Timeout`, `Wow-Request-Id`, `If-Match`, `Wow-Scope`, `Wow-Space`. |

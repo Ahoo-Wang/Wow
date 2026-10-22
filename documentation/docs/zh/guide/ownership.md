@@ -64,7 +64,7 @@ fun onCommand(command: Command<AddBasketItem>): Decision {
 }
 ```
 
-购物车存在之后，内核把它限定给创建它的所有者。
+条目的数量和价格是命令的形状：它的约束在函数运行之前就已检查（[编写聚合](./aggregates#check-its-shape)），所以函数只检查调用方。购物车存在之后，内核把它限定给创建它的所有者。
 
 ## Saga 发出的命令 {#commands-a-saga-sends}
 
