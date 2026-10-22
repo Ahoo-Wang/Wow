@@ -42,6 +42,9 @@ class LargerGatedDataSource {
 
     companion object {
         const val POOL_SIZE = 8
+
+        /** The connection the lease store keeps for itself (decision D270): the others are the appends' and queries'. */
+        const val LEASE_CONNECTIONS = 1
     }
 }
 
@@ -94,7 +97,8 @@ class PostgresAdaptiveQueryLimitTest {
                 pool.held.get().assert().isEqualTo(bulkhead.ceiling)
 
                 // Appends wait for a connection: the bound halves, down to the floor; the held queries run on.
-                pressing(pool, free = LargerGatedDataSource.POOL_SIZE - bulkhead.ceiling) {
+                val free = LargerGatedDataSource.POOL_SIZE - LargerGatedDataSource.LEASE_CONNECTIONS - bulkhead.ceiling
+                pressing(pool, free = free) {
                     // Each period ends while a thread awaits a connection: two in a row halve the bound, 4, 2, 1.
                     eventually {
                         eventually { pool.awaiting() >= 1 }
