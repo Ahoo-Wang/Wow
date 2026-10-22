@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 /** Diagnostics of the signal timeouts: event-loop lag, JVM hiccups, CPU and GC, a line a second. */
 class BenchDiag : AutoCloseable {
-    private val ticker = Executors.newScheduledThreadPool(2) { task -> Thread(task, "bench-diag").apply { isDaemon = true } }
+    private val ticker = Executors.newScheduledThreadPool(3) { task -> Thread(task, "bench-diag").apply { isDaemon = true } }
     private val hiccup = AtomicLong()
     private val loopLag = ConcurrentHashMap<String, AtomicLong>()
     private var gcLast = 0L
@@ -32,17 +32,46 @@ class BenchDiag : AutoCloseable {
         }, "bench-hiccup").apply { isDaemon = true }.start()
         ticker.scheduleAtFixedRate({ probeLoops() }, 1000, 50, TimeUnit.MILLISECONDS)
         ticker.scheduleAtFixedRate({ report() }, 1, 1, TimeUnit.SECONDS)
+        ticker.scheduleAtFixedRate({ reportStacks() }, 10, 10, TimeUnit.SECONDS)
     }
+
+    private class Probe(@Volatile var thread: Thread? = null, @Volatile var pendingSince: Long = 0)
+
+    private val probes = ConcurrentHashMap<String, Probe>()
+    private val stacks = ConcurrentHashMap<String, AtomicLong>()
 
     private fun probeLoops() {
         HttpResources.get().onServer(true).forEach { executor: EventExecutor ->
             val name = executor.toString().substringAfterLast('@')
-            val at = System.nanoTime()
+            val probe = probes.computeIfAbsent(name) { Probe() }
+            val now = System.nanoTime()
+            val pending = probe.pendingSince
+            if (pending != 0L) {
+                // Still blocked: sample what the loop's thread runs.
+                if (now - pending > 150_000_000L) {
+                    probe.thread?.let { thread ->
+                        val frames = thread.stackTrace.take(40)
+                        val key = frames.filterNot { it.className.startsWith("java.") || it.className.startsWith("jdk.") || it.className.startsWith("sun.") }
+                            .take(25).joinToString("\n    at ") + "\n  top: " + frames.take(6).joinToString(" <- ")
+                        stacks.computeIfAbsent(key) { AtomicLong() }.incrementAndGet()
+                    }
+                }
+                return@forEach
+            }
+            probe.pendingSince = now
             executor.execute {
+                probe.thread = Thread.currentThread()
                 loopLag.computeIfAbsent(name) { AtomicLong() }
-                    .accumulateAndGet((System.nanoTime() - at) / 1_000_000, ::maxOf)
+                    .accumulateAndGet((System.nanoTime() - now) / 1_000_000, ::maxOf)
+                probe.pendingSince = 0
             }
         }
+    }
+
+    private fun reportStacks() {
+        val top = stacks.entries.sortedByDescending { it.value.get() }.take(5)
+        stacks.clear()
+        top.forEach { log.warn("bench-diag blocked-loop samples=${it.value.get()}\n    at ${it.key}") }
     }
 
     private fun report() {
