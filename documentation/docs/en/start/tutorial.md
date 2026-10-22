@@ -31,7 +31,26 @@ The eShop's servers read the caller from an `X-User` header to keep the example 
 
 ## 1. The basket decides
 
-The basket context's `Basket` aggregate takes each command, looks at its state, and decides the events. Adding an item checks that the basket is the caller's own and the item is valid:
+A command states the shape it must have with Jakarta constraints, checked when it is admitted, before any aggregate sees it; one that breaks them is refused with `wow.command.invalid`:
+
+<!-- sample: example/eshop/basket/basket-api/src/main/kotlin/me/ahoo/wow/example/eshop/basket/api/basket/BasketCommands.kt#add-item -->
+
+```kotlin
+/**
+ * Adds [quantity] of [productId] at [unitPrice] to the basket, creating the basket on its first item. Adding a product
+ * already in the basket adds to its quantity, at the new price. The constraints are the command's shape: the gateway
+ * checks them before the basket decides, and answers a violation `wow.command.invalid` (400).
+ */
+@AllowCreate
+@Summary("Add an item to the basket")
+data class AddBasketItem(
+    val productId: String,
+    @field:PositiveOrZero val unitPrice: BigDecimal,
+    @field:Positive val quantity: Int,
+)
+```
+
+The basket context's `Basket` aggregate then takes the command, looks at its state, and decides the events. Adding an item checks only what needs the state: that the basket is the caller's own:
 
 <!-- sample: example/eshop/basket/basket-domain/src/main/kotlin/me/ahoo/wow/example/eshop/basket/domain/basket/Basket.kt#add-item -->
 
@@ -43,9 +62,6 @@ fun onCommand(command: Command<AddBasketItem>): Decision {
         return Decision.reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
     }
     val adding = command.body
-    if (adding.quantity <= 0 || adding.unitPrice.signum() < 0) {
-        return Decision.reject(Rejections.INVALID_ITEM, "$adding is not a valid item.")
-    }
     return Decision.events(BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity))
 }
 ```
@@ -90,19 +106,13 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 
 `context.command` gives the derived command an id derived from the commit, so a retry of the saga sends the same command, and the ordering context answers it as a duplicate instead of creating a second order. `calls = [SubmitOrder::class]` declares the call in the contract, and the service refuses to start when no peer decides it ([Sagas](../guide/sagas)).
 
-In the ordering context, the `Order` aggregate decides `SubmitOrder` like any command:
+In the ordering context, `SubmitOrder`'s constraints were checked on admission, so the `Order` aggregate records the order:
 
 <!-- sample: example/eshop/ordering/ordering-domain/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/Order.kt#submit -->
 
 ```kotlin
 @OnCommand(produces = [OrderSubmitted::class])
-fun onCommand(command: SubmitOrder): Decision {
-    val invalid = command.items.isEmpty() || command.items.any { it.quantity <= 0 || it.unitPrice.signum() < 0 }
-    if (invalid) {
-        return Decision.reject(Rejections.INVALID_ITEMS, "The order's items are not valid: ${command.items}.")
-    }
-    return Decision.events(OrderSubmitted(command.items))
-}
+fun onCommand(command: SubmitOrder): Decision = Decision.events(OrderSubmitted(command.items))
 ```
 
 From there the ordering context's own saga reserves the stock in the inventory context and asks the payment context for the payment, each step a command and the events it commits ([The order flow](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop#the-order-flow)).

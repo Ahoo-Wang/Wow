@@ -43,9 +43,6 @@ fun onCommand(command: Command<AddBasketItem>): Decision {
         return Decision.reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
     }
     val adding = command.body
-    if (adding.quantity <= 0 || adding.unitPrice.signum() < 0) {
-        return Decision.reject(Rejections.INVALID_ITEM, "$adding is not a valid item.")
-    }
     return Decision.events(BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity))
 }
 ```
@@ -96,13 +93,7 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 
 ```kotlin
 @OnCommand(produces = [OrderSubmitted::class])
-fun onCommand(command: SubmitOrder): Decision {
-    val invalid = command.items.isEmpty() || command.items.any { it.quantity <= 0 || it.unitPrice.signum() < 0 }
-    if (invalid) {
-        return Decision.reject(Rejections.INVALID_ITEMS, "The order's items are not valid: ${command.items}.")
-    }
-    return Decision.events(OrderSubmitted(command.items))
-}
+fun onCommand(command: SubmitOrder): Decision = Decision.events(OrderSubmitted(command.items))
 ```
 
 从这里开始，ordering 上下文自己的 Saga 在 inventory 上下文中预留库存，并向 payment 上下文请求支付，每一步都是一条命令以及它提交的事件（[订单流程](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop#the-order-flow)）。
