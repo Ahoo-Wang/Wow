@@ -89,7 +89,7 @@ From that model, without more code, the service gets an HTTP route for each comm
 | --- | --- |
 | Decide whether Wow fits your system | [How Wow works](/concepts/), then the [glossary](/reference/glossary) |
 | Write a service | [Quick start](/start/quickstart), then [deciding and evolving](/concepts/programming-model) |
-| Call a service from a TypeScript front end | [TypeScript client](/guide/typescript/) |
+| Call a service from a TypeScript front end | [TypeScript client](/typescript/) |
 | Run services in production | [Identity, tenancy and access](/concepts/identity), then [subscriptions, failures and replay](/concepts/subscriptions) |
 | Analyze the data | [Read models](/concepts/read-models), then the [workbench](/data/workbench) |
 

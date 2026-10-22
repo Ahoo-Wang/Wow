@@ -89,7 +89,7 @@ fun `a withdrawal the balance does not cover is rejected`() = aggregateSpec(mode
 | --- | --- |
 | 判断 Wow 是否适合你的系统 | [Wow 怎样工作](/zh/concepts/)，然后是[术语表](/zh/reference/glossary) |
 | 编写一个服务 | [快速开始](/zh/start/quickstart)，然后是[决定与演化](/zh/concepts/programming-model) |
-| 从 TypeScript 前端调用服务 | [TypeScript 客户端](/zh/guide/typescript/) |
+| 从 TypeScript 前端调用服务 | [TypeScript 客户端](/zh/typescript/) |
 | 在生产环境运行服务 | [身份、租户与访问](/zh/concepts/identity)，然后是[订阅、失败与重放](/zh/concepts/subscriptions) |
 | 分析数据 | [读模型](/zh/concepts/read-models)，然后是[工作台](/zh/data/workbench) |
 

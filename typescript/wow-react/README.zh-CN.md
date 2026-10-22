@@ -232,7 +232,7 @@ if (
 
 ## 文档
 
-- [TypeScript 指南](https://wow.ahoo.me/zh/guide/typescript/)
+- [TypeScript 指南](https://wow.ahoo.me/zh/typescript/)
 - [交互式查询 hook Story](https://wow.ahoo.me/storybook/?path=/docs/react-hooks-wow-queries--docs)
 
 [English](./README.md) · [许可证](https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE)
