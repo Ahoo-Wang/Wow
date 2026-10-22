@@ -13,6 +13,7 @@ import {
   anomaliesOf,
   CLUSTER,
   drifted,
+  measuredWindow,
   mergeSignals,
   planMatrix,
   parseJob,
@@ -31,6 +32,7 @@ import {
   resolveInputs,
   roundOrder,
   lastSignals,
+  signalsWithin,
   runSettings,
   runSuite,
   spread,
@@ -737,6 +739,51 @@ test('lastSignals reads the last signals line', () => {
     { t: 2, refused: { 'wow.command.busy': 4 } },
   );
   assert.equal(lastSignals('nothing'), undefined);
+});
+
+test('signalsWithin counts what grew in the measured phase only', () => {
+  const log = [
+    '2026-10-22T10:14:44.000Z  WARN 1 --- [x] BenchSignals : bench-signals {"t":1,"signalDropped":{"failed":259},"tailRead":{"idle":900}}',
+    '2026-10-22T10:22:54.000Z  WARN 1 --- [x] BenchSignals : bench-signals {"t":2,"signalDropped":{"failed":259},"tailRead":{"idle":910}}',
+    'noise without a time bench-signals {"t":9,"refused":{"wow.command.busy":99}}',
+    '2026-10-22T10:23:30.000Z  WARN 1 --- [x] BenchSignals : bench-signals {"t":3,"signalDropped":{"failed":259},"tailRead":{"idle":915}}',
+    '2026-10-22T10:24:40.000Z  WARN 1 --- [x] BenchSignals : bench-signals {"t":4,"signalDropped":{"failed":300},"tailRead":{"idle":999}}',
+  ].join('\n');
+  const from = Date.parse('2026-10-22T10:23:00Z');
+  const to = Date.parse('2026-10-22T10:24:00Z');
+  assert.deepEqual(signalsWithin(log, from, to), {
+    t: 3,
+    tailRead: { idle: 5 },
+  });
+  // A node started in the window (restarted in a hand-over) counts from zero.
+  assert.deepEqual(
+    signalsWithin(
+      '2026-10-22T10:23:10Z INFO bench-signals {"t":1,"forwardFailed":{"local":4}}',
+      from,
+      to,
+    ),
+    { t: 1, forwardFailed: { local: 4 } },
+  );
+  assert.equal(signalsWithin(log, 0, from - 3_600_000), undefined);
+  assert.equal(signalsWithin('nothing', from, to), undefined);
+});
+
+test("measuredWindow is the result's measured phase, with a second's grace", () => {
+  assert.deepEqual(
+    measuredWindow({
+      startedAt: '2026-10-22T10:22:39.907Z',
+      load: { warmUpSeconds: 15, measureSeconds: 90 },
+    }),
+    {
+      from: Date.parse('2026-10-22T10:22:54.907Z'),
+      to: Date.parse('2026-10-22T10:24:25.907Z'),
+    },
+  );
+  assert.equal(
+    measuredWindow({ load: { warmUpSeconds: 15, measureSeconds: 90 } }),
+    undefined,
+  );
+  assert.equal(measuredWindow(undefined), undefined);
 });
 
 test('a cliff suite steps up until two steps in a row are not kept up', () => {

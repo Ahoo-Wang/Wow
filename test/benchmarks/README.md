@@ -175,7 +175,7 @@ Every V10 run sets `bench.signals.enabled=true`. With it, the benchmark server's
 
 p99.9 is reported only when a run has at least 1000 samples beyond it (a million operations); otherwise it shows `n/a`.
 
-The report reads every node's last such line and flags these anomalies:
+The report counts what these lines grew by over each run's measured phase, summed over the nodes (a restarted node's log included): a node's counts are cumulative from its start, so its last line alone also holds the seeding and priming, which run flat out. A failed run, which has no measured phase, shows each node's last line. It flags these anomalies:
 
 - a partition paused (D243);
 - a tail read the store after a gap or an overflow (D249);
