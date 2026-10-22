@@ -458,7 +458,7 @@ AGENTS.md 里所有指向旧文档页的链接，由 DI-1 一并改掉。
   - `typescript/MIGRATION.md`：内容并入 `migrate/http-and-clients` 后删除，同时从 `docs-layout.mjs` 的白名单里去掉。
   - `migration/migrate-data/README.md`：正文搬到 `migrate/data` 与 `reference/migrate-data`，README 只留几行加链接。
   - `QuickstartPageTest` 与 quickstart build 文件里引用文档页的那部分，由 DI-2 取代。
-- skills：§4.2 列出的 references、evals、scripts。它们留在 main（GA 后为 `v9`），不在 v10 上存档。
+- skills：§4.2 列出的 references、evals、scripts。它们留在 `v9`（9.x 维护线），不在 `main` 上存档。
 
 ---
 
@@ -466,7 +466,7 @@ AGENTS.md 里所有指向旧文档页的链接，由 DI-1 一并改掉。
 
 ### 8.1 现实约束
 
-- 站点只从 `main` 部署（`documentation-deploy.yml`，GitHub Pages）。v10 上的中间状态不会上线，所以按页面组分批合入是安全的。站点会在 GA 切换（D265 ④：`v10` 改名为 `main`）后第一次构建时整体换成 V10。
+- 站点从 `main` 部署（`documentation-deploy.yml`，GitHub Pages）：根目录是 Wow 10 的页面，`/9.x/` 是 `v9` 分支构建的 9.x 页面与 Storybook（DI-6 #4699、#4786，2026-10-22 上线）。
 - GitHub Pages 没有服务端跳转。VitePress 没有开 `cleanUrls`，所以 `/guide/x` 对应的文件是 `guide/x.html`。
 
 ### 8.2 方案（需要用户批准 DI-6）

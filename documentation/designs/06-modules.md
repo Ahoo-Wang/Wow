@@ -1,6 +1,6 @@
 # V10 模块与目录
 
-日期：2026-10-11。基线：`main` `b5813af56f`。状态：草案。上位文档：[00 目标架构](00-architecture.md)（A4、A5、A10）。相关决定：D9、D10、D27、D29、D30、D31、D41～D44、D125、D126、D132、D144、D146、D147。
+日期：2026-10-11。基线：`main` `b5813af56f`。状态：已实现（实现以代码为准，偏离记在决策的「实现」说明里；2026-10-22 复核分支与路径）。上位文档：[00 目标架构](00-architecture.md)（A4、A5、A10）。相关决定：D9、D10、D27、D29、D30、D31、D41～D44、D125、D126、D132、D144、D146、D147。
 
 ## 1. 划分原则
 
@@ -52,7 +52,7 @@
 | 迁移 | `wow-migrate-data` | 数据迁移工具（[07](07-migration.md)） | （新增） |
 | 发布 | `wow-bom`、`wow-dependencies` | BOM 与依赖版本 | 同名 |
 
-平台模块（wow-ops、view-store、dataset-registry、analytics）保持 9.x 的 `api / domain / starter / server` 四件套；它们是 Wow 应用，只依赖公开模块，用来证明框架。M7 把它们作为新的 V10 项目建在 `platform/<名字>/`（D146）。
+平台模块（ops、view-store、analytics 的 catalog；dataset-registry 已并入 analytics catalog，D251）保持 9.x 的 `api / domain / starter / server` 四件套；它们是 Wow 应用，只依赖公开模块，用来证明框架。M7 把它们作为新的 V10 项目建在 `platform/<名字>/`（D146）。
 
 示例：eShop（`example/eshop/`，D158、D159）：五个上下文各有 `api`、`domain`、`server` 三个项目（`:eshop-<上下文>-*`）与只用于测试、不发布的 `:eshop-e2e`，都只能依赖 V10 模块（D118）；原 `:shop-*`、`:inventory-*` 与 `:example-e2e` 已由 D204 收拢进 eShop 并删除（#4432）。
 
@@ -125,26 +125,24 @@ flowchart BT
 api/            wow-api  wow-query-api  wow-manifest
 compiler/       wow-compiler  wow-gradle-plugin  wow-manifest-tools
 core/           wow-spi  wow-kernel  wow-runtime  wow-reactor
-query/          wow-query
+query/          wow-query  query-tck
 backends/       wow-postgres  wow-mongo  wow-elasticsearch  wow-clickhouse  wow-kafka
-edge/           wow-http  wow-openapi  wow-cosec  wow-opentelemetry
+edge/           wow-http  wow-client  wow-openapi  wow-cosec  wow-opentelemetry
 host/           wow-spring-boot
-test/           test-dsl  tck  tck-containers  architecture  kernel-benchmarks（V10）；wow-test  wow-tck  wow-it  wow-mock（9.x，M9 删除）
+test/           test-dsl  tck  tck-containers  architecture  code-coverage-report  benchmarks/  migration-rehearsal（不发布）  routing-spike  lease-spike（spike）
 extensions/     wow-models  wow-cosid
 migration/      wow-migrate-data
-bom/            wow-bom  wow-dependencies
-platform/       ops/  view-store/  dataset-registry/  analytics/
-example/        9.x 示例原地不动；V10 的 eshop/（唯一的 V10 示例，D204）与 quickstart/（D217）
-typescript/     （同 9.x）
-documentation/  docs/  skills/  build-logic/  config/  （同 9.x）
+bom/            bom/（wow-bom，项目 :bom）  dependencies/（wow-dependencies，项目 :wow-dependencies）
+platform/       ops/  view-store/  analytics/（平台服务，不发布）
+example/        eshop/（D204）  quickstart/（D217）  java-smoke/
+deploy/         各服务的 Kubernetes 清单（eshop-ordering 等）
+typescript/     wow-client  wow-react  wow-generator  wow-view-engine  wow-view-store  storybook  integration-test
+documentation/  docs/（文档站）  designs/（本目录）；skills/  build-logic/  config/ 在根目录
 ```
 
-**搬迁时机**：`v10` 分支每周合入 main（[路线图](roadmap.md) §1）。main 上仍在活跃变化的目录（`typescript/`、`view-store/`、`dataset-registry/`、`analytics/`、`compensation/dashboard/`、`documentation/`）若在分支上提早搬家，每次前向合并都会冲突。所以：
+**现状（2026-10-22）**：9.x 的 `wow-*` 平铺模块已随 9.3c 全部删除（D262），9.x 只在 `v9` 分支；`v10` 已改名为 `main`（D265 ④）。名称中的版本特例已去掉（N-1）：`wow-dependencies` 移到 `bom/dependencies/`、`deploy/v10/` 移到 `deploy/`、基准测试在 `test/benchmarks/`（BM-1）。已发布模块的清单与 ABI 规则见 AGENTS.md 的「Releasing a pre-release」与「Binary Compatibility」。
 
-- V10 **新名字**的模块在 M0 就按新结构建立：`wow-manifest`、`wow-query-api`、`wow-spi`、`wow-kernel`、`wow-runtime`、`wow-reactor`、`wow-postgres`、`wow-http`、`wow-spring-boot`、`wow-migrate-data`，以及架构测试 `wow-architecture`（`test/`）。起初在孵化中、不发布；R.1 起作为 10.x 预发布发布，`v10PublishedProjects` 的 ABI 自 M7 出口冻结起由转储校验（D216，见 AGENTS.md 的「Releasing a V10 pre-release」），用 JDK 21（D29）。
-- 与 9.x **同名**的模块（`wow-api`、`wow-query`、`wow-compiler`、`wow-mongo`、`wow-elasticsearch`、`wow-clickhouse`、`wow-kafka`、`wow-openapi`、`wow-cosec`、`wow-opentelemetry`、`wow-test`、`wow-tck`、BOM）**不原地演进**（D85）：V10 重写时在新目录另起模块，只放 V10 代码，项目名不带前缀（D87），artifactId 是 `wow-<名字>`；9.x 模块的项目名与目录不动，前向合并照常，`v10` 不发布它们，但保留它们的 ABI 校验（D90）；架构测试禁止同时依赖新旧两边（H3 的 `:kernel-benchmarks` 具名豁免）。项目名与 artifactId 可以不同，所以同名的 artifact 不妨碍新旧模块并存。
-- 被整体替换的 9.x 模块（`wow-core`、`wow-spring`、`wow-spring-boot-starter`、`wow-webflux`、`wow-rest-contract`、`wow-redis`、`wow-bi`、`wow-schema`、`wow-metadata`、`wow-mock`）留在原地，在替换它的里程碑里删除。
-- 平台模块不搬迁（D146，修订原先 M9 前「只做搬迁的提交」）：M7 在 `platform/<名字>/` 新建 V10 项目，9.x 的平台目录留在原地、移植后只修缺陷，M9 随 9.x 删除；新项目的 CI 路径过滤（`ci-scope.mjs`）与部署工作流的 `paths` 随项目建立。
+演进的历史（D85 新旧并存、D87 项目名、D90 ABI 校验、D146 平台新建于 `platform/`、前向合并）见决策台账；它们在 9.x 删除后不再约束目录。
 
 ## 5. 平台基线
 
@@ -155,5 +153,5 @@ documentation/  docs/  skills/  build-logic/  config/  （同 9.x）
 
 ## 6. 待细化
 
-- `wow-it` 的内容：端到端、多节点、迁移演练是否各成模块。
-- 发布模块清单：已定（R.1、D216），即 `build.gradle.kts` 的 `v10PublishedProjects` 加 `:migrate-data`、`:manifest-tools`。
+- ~~`wow-it` 的内容~~：已定，不设 `wow-it`：端到端在 `:eshop-e2e`，多节点与故障注入在各模块的集成测试，迁移演练在 `test/migration-rehearsal`。
+- 发布模块清单：已定（R.1、D216），即 `build.gradle.kts` 的 `publishProjects`（`abiProjects` 加 `:migrate-data`、`:manifest-tools` 与两个 BOM）。
