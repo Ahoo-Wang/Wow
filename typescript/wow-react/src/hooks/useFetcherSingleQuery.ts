@@ -101,6 +101,10 @@ export function useFetcherSingleQuery<
     FilterSingleQuery<FIELDS>
   >,
 ): UseFetcherSingleQueryReturn<R, FIELDS, E, FilterSingleQuery<FIELDS>>;
+/**
+ * {@link useFetcherSingleQuery} typed by a query `Q` of your own, a subtype of
+ * `FilterSingleQuery`, such as one whose literal projection narrows the result.
+ */
 export function useFetcherSingleQuery<
   R,
   FIELDS extends string = string,

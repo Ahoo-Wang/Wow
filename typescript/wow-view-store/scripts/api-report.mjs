@@ -22,14 +22,32 @@
 // is written to a temporary folder for review. With `-u` the reports are
 // rewritten from the build; commit the change on purpose.
 //
+// The same run writes each entry's doc model (API Extractor's `.api.json`)
+// to that temporary folder and renders it into the documentation site's
+// symbol index, one English page per entry (`.github/scripts/symbol-index.mjs`):
+// a committed page that differs fails as a report does, and `-u` rewrites
+// it. A TSDoc summary changed in the source is therefore accepted here too.
+//
 // Either way, a top-level declaration of an entry without a doc comment
 // fails: every export, and every unexported type a signature names, carries
 // at least a summary, which is what an editor shows on hover.
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Extractor, ExtractorConfig } from '@microsoft/api-extractor';
+import {
+  curatedCoverage,
+  itemsOf,
+  referenceFolder,
+  renderIndex,
+} from '../../../.github/scripts/symbol-index.mjs';
 
 const packageRoot = fileURLToPath(new URL('../', import.meta.url));
 const update = process.argv.includes('-u');
@@ -38,6 +56,14 @@ const update = process.argv.includes('-u');
 const ENTRIES = {
   'dist/index.d.ts': 'root',
 };
+
+/** Report name → the entry it reports and its symbol index page. */
+const PAGES = {
+  root: { entry: '@ahoo-wang/wow-view-store', page: 'symbols.md' },
+};
+
+/** The site's reference folder of this package, where the index pages go. */
+const REFERENCE = referenceFolder('wow-view-store');
 
 /**
  * The top-level declarations a report marks `(undocumented)`. API Extractor
@@ -93,7 +119,11 @@ try {
           // with it, so the report spells its shape out too.
           includeForgottenExports: true,
         },
-        docModel: { enabled: false },
+        // Read by the symbol index below, never committed.
+        docModel: {
+          enabled: true,
+          apiJsonFilePath: join(tempFolder, `${name}.api.json`),
+        },
         dtsRollup: { enabled: false },
         tsdocMetadata: { enabled: false },
         messages: {
@@ -159,11 +189,39 @@ try {
       failed = true;
     } else if (!result.succeeded) failed = true;
   }
+
+  // The symbol index, from the doc models just written.
+  const coverage = curatedCoverage(REFERENCE);
+  for (const [report, { entry, page }] of Object.entries(PAGES)) {
+    const model = join(tempFolder, `${report}.api.json`);
+    if (!existsSync(model)) continue;
+    const rendered = renderIndex({
+      packageDir: 'wow-view-store',
+      entry,
+      report,
+      items: itemsOf(JSON.parse(readFileSync(model, 'utf8'))),
+      coverage,
+    });
+    const committed = join(REFERENCE, page);
+    if (update) writeFileSync(committed, rendered);
+    else if (
+      !existsSync(committed) ||
+      readFileSync(committed, 'utf8') !== rendered
+    ) {
+      writeFileSync(join(tempFolder, page), rendered);
+      console.error(
+        `${report}: the symbol index ${committed} differs from the build. ` +
+          `The new page is ${join(tempFolder, page)}; ` +
+          'if the change is intended, run `pnpm test:api -u` and commit it.',
+      );
+      failed = true;
+    }
+  }
 } finally {
   if (!failed) rmSync(tempFolder, { recursive: true, force: true });
 }
 
 if (failed) process.exit(1);
 console.log(
-  `${Object.keys(ENTRIES).length} API report(s) ${update ? 'written' : 'match the build'}.`,
+  `${Object.keys(ENTRIES).length} API report(s) and symbol index page(s) ${update ? 'written' : 'match the build'}.`,
 );

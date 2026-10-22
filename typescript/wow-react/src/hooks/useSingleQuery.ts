@@ -87,6 +87,10 @@ export interface UseSingleQueryReturn<
 export function useSingleQuery<R, FIELDS extends string = string, E = Error>(
   options: UseSingleQueryOptions<R, FIELDS, E, FilterSingleQuery<FIELDS>>,
 ): UseSingleQueryReturn<R, FIELDS, E, FilterSingleQuery<FIELDS>>;
+/**
+ * {@link useSingleQuery} typed by a query `Q` of your own, a subtype of
+ * `FilterSingleQuery`, such as one whose literal projection narrows the result.
+ */
 export function useSingleQuery<
   R,
   FIELDS extends string = string,

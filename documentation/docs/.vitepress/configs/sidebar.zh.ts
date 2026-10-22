@@ -65,6 +65,8 @@ const viewEngineReference: DefaultTheme.SidebarItem[] = [
         collapsed: true,
         items: [
             {text: 'Store 与合同', link: 'index.html'},
+            // 生成的符号索引只有英文版。
+            {text: '符号索引（英文）', base: '/reference/typescript/wow-view-store/', link: 'symbols'},
         ],
     },
 ]
@@ -86,6 +88,26 @@ const typescriptZh: DefaultTheme.SidebarItem[] = [
             {text: '认证与拦截器', link: 'authentication'},
             {text: '兼容性与版本', link: 'compatibility'},
             {text: '排障', link: 'troubleshooting'},
+        ],
+    },
+    {
+        base: '/zh/reference/typescript/wow-client/',
+        text: 'wow-client',
+        collapsed: true,
+        items: [
+            {text: '概览', link: 'index.html'},
+            // 生成的符号索引只有英文版。
+            {text: '根入口（英文）', base: '/reference/typescript/wow-client/', link: 'symbols'},
+            {text: '/dsl（英文）', base: '/reference/typescript/wow-client/', link: 'symbols-dsl'},
+        ],
+    },
+    {
+        base: '/zh/reference/typescript/wow-react/',
+        text: 'wow-react',
+        collapsed: true,
+        items: [
+            {text: '概览', link: 'index.html'},
+            {text: '符号索引（英文）', base: '/reference/typescript/wow-react/', link: 'symbols'},
         ],
     },
     {

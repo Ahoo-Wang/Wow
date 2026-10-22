@@ -63,6 +63,7 @@ const viewEngineReference: DefaultTheme.SidebarItem[] = [
         collapsed: true,
         items: [
             {text: 'Store and Contract', link: 'index.html'},
+            {text: 'Symbol Index', link: 'symbols'},
         ],
     },
 ]
@@ -84,6 +85,25 @@ const typescriptEn: DefaultTheme.SidebarItem[] = [
             {text: 'Authentication and Interceptors', link: 'authentication'},
             {text: 'Compatibility and Versions', link: 'compatibility'},
             {text: 'Troubleshooting', link: 'troubleshooting'},
+        ],
+    },
+    {
+        base: '/reference/typescript/wow-client/',
+        text: 'wow-client',
+        collapsed: true,
+        items: [
+            {text: 'Overview', link: 'index.html'},
+            {text: 'Root entry', link: 'symbols'},
+            {text: '/dsl', link: 'symbols-dsl'},
+        ],
+    },
+    {
+        base: '/reference/typescript/wow-react/',
+        text: 'wow-react',
+        collapsed: true,
+        items: [
+            {text: 'Overview', link: 'index.html'},
+            {text: 'Symbol Index', link: 'symbols'},
         ],
     },
     {

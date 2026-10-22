@@ -91,6 +91,10 @@ export interface UseListQueryReturn<
 export function useListQuery<R, FIELDS extends string = string, E = Error>(
   options: UseListQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
 ): UseListQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
+/**
+ * {@link useListQuery} typed by a query `Q` of your own, a subtype of
+ * `FilterListQuery`, such as one whose literal projection narrows the result.
+ */
 export function useListQuery<
   R,
   FIELDS extends string = string,

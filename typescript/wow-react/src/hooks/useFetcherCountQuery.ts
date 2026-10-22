@@ -85,6 +85,10 @@ export interface UseFetcherCountQueryReturn<
 export function useFetcherCountQuery<FIELDS extends string = string, E = Error>(
   options: UseFetcherCountQueryOptions<FIELDS, E, CountQuery<FIELDS>>,
 ): UseFetcherCountQueryReturn<FIELDS, E, CountQuery<FIELDS>>;
+/**
+ * {@link useFetcherCountQuery} typed by a query `Q` of your own, a subtype of
+ * `CountQuery`.
+ */
 export function useFetcherCountQuery<
   FIELDS extends string = string,
   E = Error,
