@@ -588,9 +588,9 @@ class NodeHealthTest {
             return leases.acquire(group, partition, owner, ttl)
         }
 
-        override suspend fun renew(group: String, partition: Int, owner: String, ttl: Duration): Lease? {
+        override suspend fun renew(group: String, partitions: Collection<Int>, owner: String, ttl: Duration): List<Lease> {
             check()
-            return leases.renew(group, partition, owner, ttl)
+            return leases.renew(group, partitions, owner, ttl)
         }
 
         override suspend fun release(group: String, partition: Int, owner: String): Boolean {

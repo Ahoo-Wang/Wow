@@ -49,9 +49,8 @@ data class LeaseGroup(val service: String, val context: String) {
  * The tuning of partition ownership and the cluster channel on one node (design 02 §3; decisions D70–D72, D80, D223).
  *
  * - [leaseTtl], renewed every [renewInterval]: how long a partition stays with a node that stopped renewing. A
- *   renewal round renews the held leases concurrently, at most [leaseParallelism] at a time, and acquisitions are
- *   bounded the same way: a round then takes about `owned / leaseParallelism × store latency`, which must stay well
- *   inside `leaseTtl − renewInterval` (spike H6). A lease left unrenewed that long is taken as lost (finding A1-8), so
+ *   renewal round renews the held leases with one call (decision D270), and acquisitions run at most [leaseParallelism]
+ *   at a time: a round must stay well inside `leaseTtl − renewInterval` (spike H6). A lease left unrenewed that long is taken as lost (finding A1-8), so
  *   [renewInterval] is less than half of [leaseTtl] (review R2.1-5): otherwise every lease would be lost between two
  *   rounds.
  * - [memberTtl], refreshed every [heartbeatInterval]: how long a node stays a member after its last heartbeat.

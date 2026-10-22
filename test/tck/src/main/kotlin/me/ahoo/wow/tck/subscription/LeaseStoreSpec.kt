@@ -80,7 +80,7 @@ abstract class LeaseStoreSpec {
         store.owners(group).assert().isEmpty()
         val taken = store.acquire(group, 0, "node-b", TTL)
         taken.assert().isEqualTo(Lease(group, 0, "node-b", 2, clock.millis() + TTL.inWholeMilliseconds))
-        store.renew(group, 0, "node-a", TTL).assert().isNull()
+        store.renew(group, listOf(0), "node-a", TTL).assert().isEmpty()
         store.release(group, 0, "node-a").assert().isFalse()
         store.owners(group).assert().containsExactly(taken)
     }
@@ -104,14 +104,35 @@ abstract class LeaseStoreSpec {
     fun `only the owner renews, and only while the lease is live`(): Unit = runBlocking {
         store.acquire(group, 0, "node-a", TTL)
         clock.advance(TTL - 1.seconds)
-        store.renew(group, 0, "node-b", TTL).assert().isNull()
-        val renewed = store.renew(group, 0, "node-a", TTL)
-        renewed.assert().isEqualTo(Lease(group, 0, "node-a", 1, clock.millis() + TTL.inWholeMilliseconds))
+        store.renew(group, listOf(0), "node-b", TTL).assert().isEmpty()
+        val renewed = store.renew(group, listOf(0), "node-a", TTL)
+        renewed.assert().containsExactly(Lease(group, 0, "node-a", 1, clock.millis() + TTL.inWholeMilliseconds))
         clock.advance(TTL - 1.seconds)
-        store.owners(group).assert().containsExactly(renewed)
+        store.owners(group).assert().isEqualTo(renewed)
         clock.advance(1.seconds)
-        store.renew(group, 0, "node-a", TTL).assert().isNull()
-        store.renew(group, 1, "node-a", TTL).assert().isNull()
+        store.renew(group, listOf(0), "node-a", TTL).assert().isEmpty()
+        store.renew(group, listOf(1), "node-a", TTL).assert().isEmpty()
+    }
+
+    @Test
+    fun `a renewal renews the live leases the owner holds and leaves the others out`(): Unit = runBlocking {
+        store.acquire(group, 0, "node-a", TTL)
+        store.acquire(group, 1, "node-a", TTL)
+        store.acquire(group, 2, "node-b", TTL)
+        store.acquire(group, 3, "node-a", TTL)
+        store.release(group, 3, "node-a")
+        clock.advance(TTL - 1.seconds)
+        val expiresAt = clock.millis() + TTL.inWholeMilliseconds
+        store.renew(group, listOf(0, 1, 2, 3, 4), "node-a", TTL).sortedBy { it.partition }.assert().containsExactly(
+            Lease(group, 0, "node-a", 1, expiresAt),
+            Lease(group, 1, "node-a", 1, expiresAt),
+        )
+        store.owners(
+            group
+        ).filter { it.owner == "node-a" }.map { it.expiresAt }.assert().containsExactly(expiresAt, expiresAt)
+        clock.advance(TTL)
+        store.renew(group, listOf(0, 1), "node-a", TTL).assert().isEmpty()
+        store.renew(group, emptyList(), "node-a", TTL).assert().isEmpty()
     }
 
     @Test
@@ -122,7 +143,7 @@ abstract class LeaseStoreSpec {
         store.release(group, 0, "node-a").assert().isTrue()
         store.release(group, 0, "node-a").assert().isFalse()
         store.owners(group).assert().isEmpty()
-        store.renew(group, 0, "node-a", TTL).assert().isNull()
+        store.renew(group, listOf(0), "node-a", TTL).assert().isEmpty()
         store.acquire(group, 0, "node-b", TTL)?.epoch.assert().isEqualTo(2L)
         store.release(group, 1, "node-a").assert().isFalse()
     }

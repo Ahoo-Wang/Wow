@@ -75,13 +75,9 @@ class RenewalRoundSpike {
     ) : LeaseStore by delegate {
         val lost = AtomicInteger()
 
-        override suspend fun renew(group: String, partition: Int, owner: String, ttl: Duration): Lease? {
+        override suspend fun renew(group: String, partitions: Collection<Int>, owner: String, ttl: Duration): List<Lease> {
             delay(latency)
-            return delegate.renew(group, partition, owner, ttl).also {
-                if (it == null) {
-                    lost.incrementAndGet()
-                }
-            }
+            return delegate.renew(group, partitions, owner, ttl).also { lost.addAndGet(partitions.size - it.size) }
         }
     }
 

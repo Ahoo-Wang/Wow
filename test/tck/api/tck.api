@@ -218,6 +218,7 @@ public abstract class me/ahoo/wow/tck/subscription/LeaseStoreSpec {
 	public final fun a live lease cannot be taken, an expired one can ()V
 	public final fun a node that leaves is no longer a member but keeps its leases ()V
 	public final fun a released lease can be acquired at once ()V
+	public final fun a renewal renews the live leases the owner holds and leaves the others out ()V
 	public final fun an owner taking back its expired lease starts a new epoch ()V
 	public final fun concurrent acquisitions of a partition have exactly one winner ()V
 	public final fun concurrent acquisitions of an expired partition have exactly one winner ()V

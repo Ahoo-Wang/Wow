@@ -295,11 +295,9 @@ class CountingLeases(
     override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? =
         timed("acquire") { delegate.acquire(group, partition, owner, ttl) }
 
-    override suspend fun renew(group: String, partition: Int, owner: String, ttl: Duration): Lease? =
-        timed("renew") { delegate.renew(group, partition, owner, ttl) }.also {
-            if (it == null) {
-                timeline.now().lostLeases.increment()
-            }
+    override suspend fun renew(group: String, partitions: Collection<Int>, owner: String, ttl: Duration): List<Lease> =
+        timed("renew") { delegate.renew(group, partitions, owner, ttl) }.also {
+            repeat(partitions.size - it.size) { timeline.now().lostLeases.increment() }
         }
 
     override suspend fun release(group: String, partition: Int, owner: String): Boolean =

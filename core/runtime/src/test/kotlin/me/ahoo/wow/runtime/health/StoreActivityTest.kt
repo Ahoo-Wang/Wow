@@ -159,7 +159,7 @@ class StoreActivityTest {
         leases.heartbeat("g", "n", "a:1", 10.seconds)
         leases.members("g").size.assert().isEqualTo(1)
         leases.acquire("g", 0, "n", 10.seconds).assert().isNotNull()
-        leases.renew("g", 0, "n", 10.seconds).assert().isNotNull()
+        leases.renew("g", listOf(0), "n", 10.seconds).size.assert().isEqualTo(1)
         leases.owners("g").size.assert().isEqualTo(1)
         leases.release("g", 0, "n").assert().isTrue()
         leases.leave("g", "n")
