@@ -197,14 +197,22 @@ class HttpSignalSender(
      */
     private suspend fun deliver(outbox: Outbox, pending: List<Pending>) {
         val now = clock()
-        val (live, expired) = pending.partition { it.deadline > now }
-        expired.forEach { drop(outbox.address, it.signal, EXPIRED, "its wait was over before it was sent") }
+        val live = ArrayList<Pending>(pending.size)
+        var latest = now
+        for (entry in pending) {
+            if (entry.deadline > now) {
+                live += entry
+                latest = maxOf(latest, entry.deadline)
+            } else {
+                drop(outbox.address, entry.signal, EXPIRED, "its wait was over before it was sent")
+            }
+        }
         if (live.isEmpty()) {
             return
         }
         val batch = live.map { it.signal }
         val body = if (batch.size == 1) ClusterCodec.encode(batch.single()) else ClusterCodec.encodeSignals(batch)
-        val status = post(outbox, batch, body, live.maxOf { it.deadline } - now) ?: return
+        val status = post(outbox, batch, body, latest - now) ?: return
         when {
             status in SUCCESS -> Unit
             status == BAD_REQUEST && batch.size > 1 -> {
