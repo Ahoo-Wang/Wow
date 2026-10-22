@@ -105,6 +105,10 @@ export function useFetcherListQuery<
 >(
   options: UseFetcherListQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
 ): UseFetcherListQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
+/**
+ * {@link useFetcherListQuery} typed by a query `Q` of your own, a subtype of
+ * `FilterListQuery`, such as one whose literal projection narrows the result.
+ */
 export function useFetcherListQuery<
   R,
   FIELDS extends string = string,

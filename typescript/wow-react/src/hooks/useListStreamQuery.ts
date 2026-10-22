@@ -123,6 +123,10 @@ export function useListStreamQuery<
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, FilterListQuery<FIELDS>>,
 ): UseListStreamQueryReturn<R, FIELDS, E, FilterListQuery<FIELDS>>;
+/**
+ * {@link useListStreamQuery} typed by a query `Q` of your own, a subtype of
+ * `FilterListQuery`, such as one whose literal projection narrows the result.
+ */
 export function useListStreamQuery<
   R,
   FIELDS extends string = string,

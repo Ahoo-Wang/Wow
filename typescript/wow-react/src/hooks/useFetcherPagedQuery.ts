@@ -100,6 +100,10 @@ export function useFetcherPagedQuery<
 >(
   options: UseFetcherPagedQueryOptions<R, FIELDS, E, PagedQuery<FIELDS>>,
 ): UseFetcherPagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
+/**
+ * {@link useFetcherPagedQuery} typed by a query `Q` of your own, a subtype of
+ * `PagedQuery`, such as one whose literal projection narrows the result.
+ */
 export function useFetcherPagedQuery<
   R,
   FIELDS extends string = string,

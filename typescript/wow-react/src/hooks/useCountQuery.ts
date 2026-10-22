@@ -82,6 +82,10 @@ export interface UseCountQueryReturn<
 export function useCountQuery<FIELDS extends string = string, E = Error>(
   options: UseCountQueryOptions<FIELDS, E, CountQuery<FIELDS>>,
 ): UseCountQueryReturn<FIELDS, E, CountQuery<FIELDS>>;
+/**
+ * {@link useCountQuery} typed by a query `Q` of your own, a subtype of
+ * `CountQuery`.
+ */
 export function useCountQuery<
   FIELDS extends string = string,
   E = Error,

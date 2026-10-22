@@ -46,8 +46,9 @@
   "scripts": {
     "build": "vite build && pnpm test:package",
     "test:package": "node scripts/verify-package.mjs",
-    "test": "vitest run --coverage && pnpm test:type",
+    "test": "vitest run --coverage && pnpm test:type && pnpm test:api",
     "test:type": "tsc --noEmit -p test/tsconfig.types.json",
+    "test:api": "node scripts/api-report.mjs",
     "lint": "eslint . --fix",
     "clean": "rm -rf dist"
   },
@@ -63,6 +64,7 @@
     "@ahoo-wang/fetcher": "catalog:",
     "@ahoo-wang/wow-client": "workspace:~",
     "@eslint/js": "catalog:",
+    "@microsoft/api-extractor": "catalog:",
     "@rolldown/plugin-babel": "catalog:",
     "@testing-library/react": "catalog:",
     "@types/react": "catalog:",

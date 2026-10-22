@@ -91,6 +91,10 @@ export interface UsePagedQueryReturn<
 export function usePagedQuery<R, FIELDS extends string = string, E = Error>(
   options: UsePagedQueryOptions<R, FIELDS, E, PagedQuery<FIELDS>>,
 ): UsePagedQueryReturn<R, FIELDS, E, PagedQuery<FIELDS>>;
+/**
+ * {@link usePagedQuery} typed by a query `Q` of your own, a subtype of
+ * `PagedQuery`, such as one whose literal projection narrows the result.
+ */
 export function usePagedQuery<
   R,
   FIELDS extends string = string,
