@@ -16,9 +16,13 @@ description: "公开 API 每个级别的承诺，以及实验性与 SPI 的声�
 | SPI | `@WowSpi` | 后端与传输实现的端口；次版本可能改动它。使用时需要 `@OptIn(WowSpi::class)`，否则编译器给出警告。 |
 | 内部 | `@InternalWowApi` | 只供 Wow 自己的模块使用，任何版本都可能改动或移除。应用无法选择使用（编译错误），ABI 转储也不包含它。 |
 
+## API 之外 {#beyond-the-api}
+
+API 只是升级要保持兼容的三样东西之一。在同一个主版本内，相邻的次版本可以并行运行：集群通道、等待信号、Kafka 信封、日志条目和租约，对前一个和后一个次版本都保持可读（[升级部署](../operate/upgrades)）。服务自己的契约，即它的命令、事件、状态和错误码，由构建的兼容性检查对照提交的基线来保证（[Manifest 与兼容](../guide/manifest)）。跨主版本时，服务通过一次蓝绿切换迁移一次。
+
 下面两张表由已发布模块的源码生成：带有该标记的公开声明。
 
-## 实验性声明
+## 实验性声明 {#experimental-declarations}
 
 | 声明 | 种类 | 模块 |
 | --- | --- | --- |
@@ -57,7 +61,7 @@ description: "公开 API 每个级别的承诺，以及实验性与 SPI 的声�
 | `me.ahoo.wow.http.ops.WebhookNotifier` | class | `wow-http` |
 | `me.ahoo.wow.client.java.JavaQueries.datasets` | fun | `wow-client` |
 
-## SPI 声明
+## SPI 声明 {#spi-declarations}
 
 | 声明 | 种类 | 模块 |
 | --- | --- | --- |
