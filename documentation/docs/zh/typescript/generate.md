@@ -86,7 +86,7 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 | `index.ts` | 以上全部，再导出一次 |
 | `.wow-generator.json` | 这次运行写出的文件，以便之后的运行删除它不再写出的文件 |
 
-eShop ordering 的上下文文件：
+eShop ordering 的上下文文件。它的错误码只是领域的拒绝：违反约束的命令回答框架的 `wow.command.invalid`（`FrameworkErrorCodes.COMMAND_INVALID`）及其 `violations`（[发送命令](./commands)）。
 
 <!-- sample: example/eshop/web/src/generated/ordering/eshop-ordering/boundedContext.ts -->
 

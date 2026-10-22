@@ -4,7 +4,7 @@ The job: put a business rule where it holds. An aggregate decides each command f
 
 ## One aggregate, whole
 
-The quickstart's account: a state evolved by `onSourcing`, a root whose `onCommand` functions decide, and the rejection codes it answers with.
+The quickstart's account: a state evolved by `onSourcing`, a root whose `onCommand` functions decide, and the rejection codes it answers with. A deposit's positive amount is no rejection: it is `@field:Positive` on the `Deposit` class, checked at admission.
 
 <!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt -->
 
@@ -70,6 +70,7 @@ class Account(private val state: AccountState) {
 - Creation: `@CreateAggregate` on the command (the aggregate must not exist, else `wow.aggregate.exists`), `@AllowCreate` (either), neither (it must exist, else `wow.aggregate.not-found`).
 - `@Unaddressed`: a command whose request may name no aggregate because a `CommandTransformer` of the service finds it (a derived id).
 - **No identity in command bodies**: the id comes from the route or the saga's ref, tenant, owner and space from the caller, the expected version from `If-Match`.
+- **A command's shape is a Jakarta constraint on its class**, not a check in decide: `@field:Positive`, `@field:PositiveOrZero`, `@field:NotBlank`, `@field:NotEmpty`, `@field:Valid` for nested values (`jakarta.validation:jakarta.validation-api` in the api module, a provider such as `spring-boot-starter-validation` in the service). The gateway checks every command it takes (HTTP, `CommandClient`, sagas, other contexts) and answers `wow.command.invalid` (400) with `violations` (path, constraint simple name, message). Decide keeps the rules that need the state or the caller.
 - **A decide function that blocks its thread** (JDBC, a blocking client) is marked `@Blocking`, so it runs on a virtual thread instead of the shared worker; otherwise make it `suspend` or return a Reactor type (`wow-reactor`). `@Blocking` is a compile error on evolve, `@Upgrade` and `@Tags` members, which do no I/O.
 - **Decide never mutates state**; the test DSL fails a spec that does. A decide function is deterministic given the command, the state and its services' answers.
 - `@AfterCommand(include, exclude)` or `afterCommand`: returns extra events in the same stream; it cannot reject.
@@ -78,6 +79,7 @@ class Account(private val state: AccountState) {
 
 - A rejection is a decision, not an exception: `Decision.reject(code, message)`. An exception thrown by decide is a failure (`wow.command.failed`), answered as 500.
 - Codes: `@ErrorCode(description, status = 422)` on a `const val String` in an `object` nested in the `@AggregateRoot` class, by local name (`const val EMPTY = "empty"`); the compiler and the kernel name it `<context>.<aggregate>.empty`. A code with a dot is full (`<context>.<code>` for a context-wide one). Never the `wow.` prefix; each code once per module. Peers compare with the api's generated `<Context>Contract.<Aggregate>.Errors.<NAME>`.
+- A code is for a rule that needs the state or the caller (not the owner, not found, empty, insufficient); a rule about the command alone is a constraint on its class, with no code.
 - Choose the status for the caller: 422 (the default) for a rule the request breaks, 409 for a conflict with the current state. The kernel's own codes are in `KernelRejections`.
 
 ## DecideScope

@@ -86,7 +86,7 @@ For each bounded context, a directory named after it:
 | `index.ts` | Everything above, exported again |
 | `.wow-generator.json` | The files the run wrote, so a later run deletes the ones it no longer writes |
 
-The eShop ordering's context file:
+The eShop ordering's context file. Its error codes are the domain's rejections only: a command that breaks its constraints answers the framework's `wow.command.invalid` (`FrameworkErrorCodes.COMMAND_INVALID`) with its `violations` ([Send Commands](./commands)).
 
 <!-- sample: example/eshop/web/src/generated/ordering/eshop-ordering/boundedContext.ts -->
 

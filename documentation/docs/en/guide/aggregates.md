@@ -41,6 +41,31 @@ data class SubmitOrder(
 
 `@Summary` gives the command a one-line summary for the Manifest and the OpenAPI document. A command that takes no data is a `data object`, such as `ShipOrder`.
 
+### Check its shape
+
+A rule about the command alone, such as a positive quantity, a name that is not blank or an order that has items, is a Jakarta Bean Validation constraint on the command class, with Kotlin's `@field:` target:
+
+<!-- sample: example/eshop/basket/basket-api/src/main/kotlin/me/ahoo/wow/example/eshop/basket/api/basket/BasketCommands.kt#add-item -->
+
+```kotlin
+/**
+ * Adds [quantity] of [productId] at [unitPrice] to the basket, creating the basket on its first item. Adding a product
+ * already in the basket adds to its quantity, at the new price. The constraints are the command's shape: the gateway
+ * checks them before the basket decides, and answers a violation `wow.command.invalid` (400).
+ */
+@AllowCreate
+@Summary("Add an item to the basket")
+data class AddBasketItem(
+    val productId: String,
+    @field:PositiveOrZero val unitPrice: BigDecimal,
+    @field:Positive val quantity: Int,
+)
+```
+
+The gateway checks the constraints of every command it takes before the aggregate decides: a command from a route, from an in-process `CommandClient`, from a saga or from another context. A violation is answered `wow.command.invalid` (400), and the problem lists each one with its property path (`items[0].quantity`), its constraint (`Positive`) and its message. A nested value is checked when its property is `@field:Valid`, as `SubmitOrder`'s items are. The api module depends on `jakarta.validation:jakarta.validation-api`, and the service needs a Bean Validation provider ([Host on Spring Boot](./spring-boot#what-the-class-path-decides)).
+
+A rule that needs the aggregate's state or the caller stays in the command function, as a rejection with an error code ([Rejections and Error Codes](./rejections)): the order's function below has nothing left to check.
+
 Whether a command may create its aggregate is part of its class:
 
 | The command class | Is accepted when |

@@ -27,7 +27,7 @@ outline: deep
 | 布隆过滤器幂等检查 | 替代 | 每个缓存的聚合保存它最近的请求（从日志推出）；其余由存储回答。 |
 | 命令改写器（`CommandBuilderRewriter`） | 替代 | 准入时的命令转换器；它不能改变命令的身份。 |
 | 挂在另一个聚合上的命令（`@AggregateRoot(commands)`） | 替代 | `@MountedCommand`；不指明聚合的命令用 `@Unaddressed`。 |
-| 命令校验（Jakarta Bean Validation） | 替代 | 在准入时校验，Jakarta 校验是其中一种校验器。 |
+| 命令校验（Jakarta Bean Validation） | 替代 | 在准入时校验：命令类上的 Jakarta 约束，对每条命令（HTTP、进程内、Saga、其他上下文）检查，回答 `wow.command.invalid`（400）。需要状态的规则是拒绝。 |
 | `@VoidCommand` | 放弃 | 发送命令，等待不超过 `ACCEPTED`。 |
 | 自定义路由（`@CommandRoute`、`@AggregateRoute`） | 放弃 | 路由从 Manifest 推出：`POST /{context}/{aggregate}/{id}/{command}`，创建命令不带 `{id}`。 |
 | `Command-*` 请求头 | 替代 | `Wow-Wait`、`Wow-Wait-Timeout`、`Wow-Request-Id`、`If-Match`、`Wow-Scope`、`Wow-Space`。 |

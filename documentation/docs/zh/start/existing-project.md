@@ -71,6 +71,8 @@ kotlin {
 
 dependencies {
     api("me.ahoo.wow:wow-api:$wowVersion")
+    // The commands' constraints (@field:Positive, @field:NotBlank); Spring Boot's version, which wow-api brings.
+    api("jakarta.validation:jakarta.validation-api")
 }
 ```
 
@@ -178,7 +180,7 @@ object CatalogBoundedContext
 
 ## 编写契约和领域 {#write-the-contract-and-the-domain}
 
-api 模块包含命令和事件，它们是不带身份字段的数据类（[编写聚合](../guide/aggregates#write-the-commands)）。领域模块包含根、它的状态和它的错误码（[编写聚合](../guide/aggregates#write-the-root)），并用测试 DSL 测试它们（[测试领域代码](../guide/testing)）。
+api 模块包含命令和事件，它们是不带身份字段的数据类，其形状由 Jakarta 约束检查（[编写聚合](../guide/aggregates#write-the-commands)）。领域模块包含根、它的状态和它的错误码，即需要状态的规则（[编写聚合](../guide/aggregates#write-the-root)），并用测试 DSL 测试它们（[测试领域代码](../guide/testing)）。
 
 ## 编写服务器 {#write-the-server}
 

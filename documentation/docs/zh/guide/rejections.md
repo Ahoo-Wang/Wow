@@ -15,7 +15,14 @@ outline: deep
 | `Decision.reject(code, message)` | 命令被**拒绝**：什么都不写，调用方拿到错误码和消息。用同一个请求 ID 再发一次，仍会被拒绝。 |
 | 函数抛出异常 | 命令以 `wow.command.failed`（500）**失败**：什么都不写，重试也同样失败。失败是一个缺陷，绝不是对调用方请求的回答。 |
 
-请求在聚合的当前状态下无法满足时拒绝：空订单、要发货却未支付的订单、库存不足。只有程序或它的服务出了问题时，才让函数抛出异常。
+请求在聚合的当前状态下、或对它的调用方无法满足时拒绝：结账时为空的购物车、要发货却未支付的订单、库存不足、不拥有该购物车的买家。只有程序或它的服务出了问题时，才让函数抛出异常。
+
+只关乎命令本身形状的规则，例如数量不为正、名称为空白、订单没有条目，不是拒绝：它是命令类上的 Jakarta 约束，网关在聚合决定之前以 `wow.command.invalid`（400）拒绝该命令（[编写聚合](./aggregates#check-its-shape)）。于是聚合只为需要它状态的规则声明错误码。
+
+| 规则需要 | 放在哪里 | 调用方得到 |
+| --- | --- | --- |
+| 只有命令本身 | 命令上的 Jakarta 约束（`@field:Positive`、`@field:NotBlank`、`@field:NotEmpty`、`@field:Valid`） | `wow.command.invalid`（400）及其 `violations` |
+| 聚合的状态或调用方 | 带 `@ErrorCode` 的 `Decision.reject` | 该错误码及其状态（默认 422） |
 
 ## 声明错误码 {#declare-the-codes}
 
@@ -69,7 +76,7 @@ fun onCommand(command: ReserveStock, scope: DecideScope): Decision = when {
 
 **在 HTTP 上**，拒绝以错误码的状态回答，响应体是 `application/problem+json`，其 `type` 是 `urn:wow:error:<code>`，`code` 成员是完整的错误码。完整的形状见[线上协议](../reference/protocols)。
 
-**在 Kotlin 中**，命令客户端抛出 `CommandRejectedException`，它的 `code` 是完整的错误码：
+**在 Kotlin 中**，命令客户端抛出 `CommandRejectedException`，它的 `code` 是完整的错误码，聚合的拒绝和准入时的拒绝都一样：
 
 <!-- sample: example/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#rejected -->
 
@@ -87,7 +94,7 @@ rejected.result.error!!.violations.single().path.assert().isEqualTo("items")
 
 **发出这条命令的 Saga** 在它的 `@OnRejected` 处理函数中收到拒绝，并决定怎样补偿：见[编写 Saga](./sagas#handle-a-rejection)。
 
-**测试**用 `expectRejected(code)` 期望它，本地名或完整名都可以：见[测试领域代码](./testing#expect)。
+**测试**用 `expectRejected(code)` 期望它，本地名或完整名都可以：见[测试领域代码](./testing#expect)。`aggregateSpec` 运行内核而不经过准入，所以命令的约束在服务器上测试：违反约束的请求回答 400 `wow.command.invalid`，带违反项的路径和约束。
 
 ## 框架用来拒绝的错误码 {#codes-the-framework-rejects-with}
 

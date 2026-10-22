@@ -71,6 +71,8 @@ kotlin {
 
 dependencies {
     api("me.ahoo.wow:wow-api:$wowVersion")
+    // The commands' constraints (@field:Positive, @field:NotBlank); Spring Boot's version, which wow-api brings.
+    api("jakarta.validation:jakarta.validation-api")
 }
 ```
 
@@ -178,7 +180,7 @@ The name is part of every type name (`eshop-catalog.product.CreateProduct`), eve
 
 ## Write the contract and the domain
 
-The api module holds the commands and events, data classes without identity fields ([Write an Aggregate](../guide/aggregates#write-the-commands)). The domain module holds the root, its state and its error codes ([Write an Aggregate](../guide/aggregates#write-the-root)), and tests them with the test DSL ([Test Domain Code](../guide/testing)).
+The api module holds the commands and events, data classes without identity fields, their shape checked by Jakarta constraints ([Write an Aggregate](../guide/aggregates#write-the-commands)). The domain module holds the root, its state and its error codes, the rules that need the state ([Write an Aggregate](../guide/aggregates#write-the-root)), and tests them with the test DSL ([Test Domain Code](../guide/testing)).
 
 ## Write the server
 
