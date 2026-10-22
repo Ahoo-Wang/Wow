@@ -70,7 +70,18 @@ class InternalServer(
             .protocol(HttpProtocol.HTTP11, HttpProtocol.H2C)
             .httpRequestDecoder { it.h2cMaxContentLength(maxMessageSize) }
             .doOnChannelInit { _, channel, _ -> KeepAliveReads.install(channel) }
-            .handle(adapter)
+            .handle { request, response ->
+                val started = System.nanoTime()
+                val version = request.version().text()
+                DIAG_VERSIONS.computeIfAbsent(version + " " + request.path()) { java.util.concurrent.atomic.AtomicLong() }
+                    .incrementAndGet()
+                adapter.apply(request, response).doFinally { signal ->
+                    val ms = (System.nanoTime() - started) / 1_000_000
+                    if (ms > DIAG_SLOW_MS) {
+                        logger.warn { "DIAG slow internal $version ${request.uri()} ${ms}ms $signal" }
+                    }
+                }
+            }
         host?.let { configured = configured.host(it) }
         server = configured.bindNow().also { logger.info { "Wow internal port bound at ${it.address()}." } }
     }
@@ -83,7 +94,12 @@ class InternalServer(
         logger.info { "Wow internal port stopped." }
     }
 
-    private companion object {
-        val logger = KotlinLogging.logger {}
+    companion object {
+        private val logger = KotlinLogging.logger {}
+        private const val DIAG_SLOW_MS = 250L
+
+        /** Requests by protocol version and path (diagnostics). */
+        val DIAG_VERSIONS: java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.AtomicLong> =
+            java.util.concurrent.ConcurrentHashMap()
     }
 }

@@ -171,10 +171,15 @@ class HttpSignalSender(
 
         private suspend fun dispatch(batch: List<WaitSignal>) {
             permits.acquire()
+            val queued = System.nanoTime()
             scope.launch {
+                val lag = (System.nanoTime() - queued) / 1_000_000
+                if (lag > DIAG_SLOW_MS) logger.warn { "DIAG dispatch lag ${address} ${lag}ms" }
+                INFLIGHT.incrementAndGet()
                 try {
                     deliver(this@Outbox, batch)
                 } finally {
+                    INFLIGHT.decrementAndGet()
                     permits.release()
                 }
             }
@@ -217,7 +222,19 @@ class HttpSignalSender(
             }
         }
         val request = builder.POST(HttpRequest.BodyPublishers.ofByteArray(body)).build()
-        client.sendAsync(request, HttpResponse.BodyHandlers.discarding()).await().statusCode()
+        val started = System.nanoTime()
+        try {
+            val response = client.sendAsync(request, HttpResponse.BodyHandlers.discarding()).await()
+            val ms = (System.nanoTime() - started) / 1_000_000
+            if (ms > DIAG_SLOW_MS) {
+                logger.warn { "DIAG slow signal ${outbox.address} ${ms}ms batch=${batch.size} bytes=${body.size} version=${response.version()} status=${response.statusCode()} inflight=${INFLIGHT.get()}" }
+            }
+            response.statusCode()
+        } catch (failure: Exception) {
+            val ms = (System.nanoTime() - started) / 1_000_000
+            logger.warn { "DIAG failed signal ${outbox.address} ${ms}ms batch=${batch.size} bytes=${body.size} inflight=${INFLIGHT.get()} $failure" }
+            throw failure
+        }
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (failure: Exception) {
@@ -245,5 +262,7 @@ class HttpSignalSender(
         private val SUCCESS = 200..299
         private const val AUTHORIZATION = "Authorization"
         private val logger = KotlinLogging.logger {}
+        private const val DIAG_SLOW_MS = 250L
+        private val INFLIGHT = java.util.concurrent.atomic.AtomicInteger()
     }
 }

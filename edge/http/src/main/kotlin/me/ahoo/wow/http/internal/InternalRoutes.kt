@@ -91,13 +91,19 @@ fun internalRoutes(
         ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(ClusterCodec.encode(reply))
     }
     POST(InternalHttp.SIGNALS_PATH) { request ->
+        val t0 = System.nanoTime()
         tokens.refusal(request, services)?.let { return@POST it.respond() }
         val batch = try {
             request.decode(ClusterCodec::decodeSignals) ?: return@POST malformed()
         } catch (_: DataBufferLimitException) {
             return@POST ServerResponse.status(CONTENT_TOO_LARGE).buildAndAwait()
         }
+        val t1 = System.nanoTime()
         batch.forEach(signals)
+        val t2 = System.nanoTime()
+        if (t2 - t0 > 100_000_000L) {
+            logger.warn { "DIAG signal entry body=${(t1 - t0) / 1_000_000}ms apply=${(t2 - t1) / 1_000_000}ms batch=${batch.size} thread=${Thread.currentThread().name}" }
+        }
         ServerResponse.noContent().buildAndAwait()
     }
     if (standby != null) {

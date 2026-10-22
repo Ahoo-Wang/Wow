@@ -42,6 +42,7 @@ dependencies {
     implementation(project(":postgres"))
     implementation(project(":kafka"))
     implementation("com.zaxxer:HikariCP")
+    implementation("io.projectreactor.netty:reactor-netty-http")
     ksp(project(":compiler"))
     testImplementation(project(":test-dsl"))
 }
