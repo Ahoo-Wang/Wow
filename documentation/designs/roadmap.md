@@ -1,22 +1,20 @@
-# V10 路线图
+# Wow 10 路线图
 
-日期：2026-10-11。基线：`main` `b5813af56f`。状态：草案。架构见 [00](00-architecture.md)，待决事项见 [决策台账](decisions.md)。
+日期：2026-10-22（初稿 2026-10-11，基线 `main` `b5813af56f`）。状态：持续维护。架构见 [00](00-architecture.md)，待决事项见 [决策台账](decisions.md)。
 
 本页只写里程碑、工作包、依赖与出口；不写逐步实施计划。工作包完成时，在本页把状态改为「完成」并注明 PR；里程碑全部完成后，更新相关专题文档的状态。
 
 ## 1. 分支与发布
 
-V10 在长期分支 `v10` 上开发，全部完成后一次合入 main（D2）。main 继续作为 9.x 的发布线。
+Wow 10 在长期分支 `v10` 上开发（D2），2026-10-21 按 D265 ④ 切换：`v10` 改名为默认分支 `main`，原 main 改名为 `v9`（9.x 维护线），不做合并。
 
 | 规则 | 内容 |
 |---|---|
-| 前向合并 | main 至少每周合入 `v10` 一次（`git merge`，不 cherry-pick），冲突在 `v10` 上解决；`v10` 完成前不合入 main。前向合并**本地合并、本地验证后直接推送**合并提交，不走 PR：仓库禁用了合并提交（`allow_merge_commit: false`），PR 只能 squash 或 rebase，都会丢掉 main 这个父提交，下次合并会把解决过的冲突再冲突一遍 |
-| 其余改动走 PR | 工作包、决策台账与设计文档的修改都开 PR 合入 `v10`，squash 合并；工作包完成时在本页注明 PR。合并前在本地预演合并后的状态，通过后用 `gh pr merge --squash --admin --match-head-commit <已验证的提交>` 合并，与 main 的做法一致 |
-| 分支保护 | `v10` 要求经 PR 合入，不要求审批，禁止强制推送与删除；`enforce_admins` 关闭（与 main 一致），所以管理员仍能直接推送前向合并。M0 的 0.1 让 CI 覆盖 `v10` 之后，再把与 main 相同的门禁设为必需检查 |
-| main 上的分工 | V10 要替换的 JVM 运行时模块（wow-core 运行时、总线、存储、补偿）在 main 上只修缺陷；V10 沿用的部分（查询协议、view-engine、数据集、TS 包）照常开发，经前向合并进入 `v10` |
-| CI | `local-test`、`contract-test`、`integration-test`、`typescript*` 覆盖 `v10`；9 → 10 不混部，由迁移演练取代 `mixed-version`；但 10.x 内相邻次版本必须能滚动升级（D48），所以 `mixed-version` 在 10.0 GA 后以「上一个 10.x 次版本 + 当前构建」重新启用 |
-| 预发布 | 第一个预发布提前到 M7 之后（D217，修订 D124、D147）：`10.0.0-alpha.3` 已发布（alpha.1、alpha.2 未完整发布，D218），不做兼容性承诺；之后的 alpha、beta 自行发布，rc 与 GA 须用户确认（D202） |
-| 合入 | M9 的出口满足后按 D265 ④ 切换：`main` 改名为 `v9`（9.x 维护线），`v10` 改名为 `main` 并设为默认分支（不做合并），从 main 发 `10.0.0` |
+| `main` | Wow 10 的开发与发布线。改动走 PR、squash 合并；必需检查为 PR Safety 与 `ci-gate`（`ci-gate` 在上传覆盖率的 PR 上等 `codecov/patch`）；协调者审查后开启自动合并 |
+| `v9` | 9.x 维护线：只修缺陷，自有的工作流与发布准入；Renovate 只给它补丁与安全更新（#4753）；文档站的 `/9.x/` 由 `main` 的部署工作流从 `v9` 构建（DI-6） |
+| CI | 唯一的 `ci.yml`，按改动范围运行；PR 上不跑 Node 22（main 推送与夜间跑）；负载、浸泡与基准只在 GitHub Actions 上跑。9 → 10 不混部，由迁移演练取代 `mixed-version`；10.x 内相邻次版本须能滚动升级（D48），`mixed-version` 在 10.0 GA 后以「上一个 10.x 次版本 + 当前构建」重新启用 |
+| 预发布 | `10.0.0-alpha.3`（2026-10-15）、`10.0.0-alpha.4`（2026-10-22）；不做兼容性承诺。打标签与对外发布须用户确认，rc 与 GA 须用户确认（D202） |
+| GA | 从 `main` 发 `10.0.0`；GA 时的事项见 CI-3 |
 
 ## 2. 里程碑总览
 
@@ -45,7 +43,7 @@ flowchart LR
 
 | 里程碑 | 目标 | 出口门槛 | 必须先拍板的决定 |
 |---|---|---|---|
-| M0 准备 | 分支、CI、守护规则、决定评审、模块与目录骨架 | CI 覆盖 `v10` | （已全部拍板） |
+| M0 准备 | 分支、CI、守护规则、决定评审、模块与目录骨架 | CI 覆盖开发线 | （已全部拍板） |
 | M1 Spike | 验证 H1～H4、H6 | 各 spike 报告入库 | — |
 | M2 模型与内核 | 领域模型能写、能测 | CI 绿 | （已全部拍板） |
 | M3 日志与快照 | 唯一事实源成立 | CI 绿（含 TCK） | （已全部拍板） |
@@ -55,9 +53,14 @@ flowchart LR
 | M6e eShop 验证 | 经典 eShop 的 5 个上下文全跑在 V10 上，验证 M1～M6 的能力与开发体验（D158～D160） | CI 绿（含 `:eshop-e2e` 的下单全链路与故障场景）；`DX-GAPS.md` 里阻塞 M7 的条目已补 | （已全部拍板） |
 | M7 平台迁移 | 平台模块跑在 V10 上 | CI 绿；API 冻结，V10 模块开始 ABI 转储与校验（D88、D147） | 入口：`09-capability-parity.md` 入库，缺失项补齐或获用户批准豁免（D183）；即 M6p 的 P.1～P.5 完成（D184） |
 | M8 迁移层 | 源码与数据一次性迁移 | CI 绿（含 8c.1 演练） | （已全部拍板） |
-| M9 发布 | GA 与合入 main | `10.0.0`（打标签前须用户确认，D124） | （已全部拍板） |
+| M9 发布 | rc 与 GA | `10.0.0`（打标签前须用户确认，D124） | （已全部拍板） |
+
+里程碑状态（2026-10-22）：M0～M8 完成；M9 进行中：API 已冻结（#4740），分支已切换（CI-3），文档站已上线（9.1），`10.0.0-alpha.4` 发布中（9.3）；余下 rc 与 GA（9.4）。
 
 ## 3. 工作包
+
+状态（2026-10-22）：M0～M8 的工作包全部完成，表中未逐行标注的也已完成；M9 一节逐项标注。未排期的后续事项在 §6。
+
 
 ### M0 准备
 
@@ -87,13 +90,13 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | WP | 内容 | 出口 |
 |---|---|---|
 | 2.1 | `wow-api`：`AggregateRef`、`Command`、`EventStream`、`StateEvent`、`Decision`、`Rejection`、revision | API 评审通过；ABI 转储开始记录；完成：身份、命令、决定类型（Ahoo-Wang/Wow#4212）；`StateEvent<S>`、`@Revision`（Ahoo-Wang/Wow#4250） |
-| 2.2 | DSL 写法与 `AggregateModel` | 内存中可执行；进行中：DSL 与 `AggregateModel`（Ahoo-Wang/Wow#4212） |
-| 2.3 | `wow-compiler`：注解 → 绑定代码（按签名选定同步、`suspend`、Reactor 调用；`@Blocking` 派发）；Manifest v0（聚合、命令、事件） | 生成结果可复现；与 DSL 产出同一模型；进行中：`ModelSymbolProcessor` 生成内核模型（同步、`suspend`、Reactor、依赖参数、`Command<X>`、创建三态、after 钩子），`wow.model=report` 输出覆盖报告；`@Blocking` 派发与 Manifest 待做 |
-| 2.4 | 内核：两级去重与命令指纹（D46）、decide → evolve → append、冲突重试、结局查明、生命周期事件、`onAppendFailure`；可变状态失败时的丢弃重载与提交时的版本视图 | 内核特征测试；进行中：去重与指纹、提交循环、冲突重试、结局查明（Ahoo-Wang/Wow#4212）；生命周期事件、版本视图、`onAppendFailure` 待做；丢弃重载完成（`StateCache`：未提交即丢弃）；`onAppendFailure` 与 `afterAppend`（`DecideScope`）完成（Ahoo-Wang/Wow#4215） |
+| 2.2 | DSL 写法与 `AggregateModel` | 内存中可执行；完成 |
+| 2.3 | `wow-compiler`：注解 → 绑定代码（按签名选定同步、`suspend`、Reactor 调用；`@Blocking` 派发）；Manifest v0（聚合、命令、事件） | 生成结果可复现；与 DSL 产出同一模型；完成 |
+| 2.4 | 内核：两级去重与命令指纹（D46）、decide → evolve → append、冲突重试、结局查明、生命周期事件、`onAppendFailure`；可变状态失败时的丢弃重载与提交时的版本视图 | 内核特征测试；完成 |
 | 2.5 | 事件 revision 与升级链 | 多 revision 的读取测试；完成：升级函数逐级升级、事件改名的别名（Ahoo-Wang/Wow#4215） |
 | 2.6 | 测试 DSL 与内存日志；decide 修改状态的检测（F4） | example 领域用 V10 写法通过全部领域测试；完成：`aggregateSpec`，暂放 `wow-kernel` 的 testFixtures，`wow-test` 原地重写时搬入；默认检测 decide 修改状态（Ahoo-Wang/Wow#4215） |
-| 2.7 | `wow-reactor`：返回 `Mono`/`Flux` 的处理函数的 KSP 生成调用、`ReactiveCommandGateway`、`ReactiveQueryGateway` | example 领域保留 Reactor 写法的处理函数通过测试；进行中：`awaitResult` 与生成代码对 `Mono`/`Flux` 返回的调用；两个 Gateway 待做 |
-| 2.8 | 预留键端口与内核的回滚（D38）；after 钩子（D39） | 唯一性约束的领域测试；after 钩子完成（Ahoo-Wang/Wow#4215）；预留键端口与 PostgreSQL 实现完成（Ahoo-Wang/Wow#4222）；`DecideScope.reserve` 完成：待确认预留随追加确认、失败时释放、崩溃时过期（R8），键归聚合所有；预留随日志条目记录、由内置订阅确认（D50）待做 |
+| 2.7 | `wow-reactor`：返回 `Mono`/`Flux` 的处理函数的 KSP 生成调用、`ReactiveCommandGateway`、`ReactiveQueryGateway` | example 领域保留 Reactor 写法的处理函数通过测试；完成 |
+| 2.8 | 预留键端口与内核的回滚（D38）；after 钩子（D39） | 唯一性约束的领域测试；after 钩子完成（Ahoo-Wang/Wow#4215）；预留键端口与 PostgreSQL 实现完成（Ahoo-Wang/Wow#4222）；`DecideScope.reserve` 完成：待确认预留随追加确认、失败时释放、崩溃时过期（R8），键归聚合所有；预留随日志条目记录、由内置订阅确认（D50，Ahoo-Wang/Wow#4260）完成 |
 
 ### M3 日志与快照
 
@@ -101,8 +104,8 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 |---|---|---|
 | 3.1 | `EventLog` 合同与 TCK（唯一键、版本连续、位置不跳过、续读一致） | 内存实现通过；完成：`EventLogSpec`（`wow-spi` 的 testFixtures），内存与 PostgreSQL 实现均通过（Ahoo-Wang/Wow#4216） |
 | 3.2 | PostgreSQL 实现（含检查点、租约、失败台账、预留键） | TCK 全绿；故障注入不跳过；日志完成（Ahoo-Wang/Wow#4216）；快照（Ahoo-Wang/Wow#4219）、检查点与租约（Ahoo-Wang/Wow#4221）、失败台账与预留键（Ahoo-Wang/Wow#4222）完成，合同测试在 `wow-spi` 的 testFixtures，内存实现在 `wow-kernel` |
-| 3.3 | MongoDB 实现（D11，一等后端；含分组提交与预留键） | 同上；进行中：日志与分组提交（`appendAll`，冲突时拆回逐条）通过 `EventLogSpec`；快照、检查点、租约、台账、预留键待做 |
-| 3.4 | 快照存储合同与 TCK；schema 指纹；Mongo、ES、PostgreSQL 实现 | TCK 全绿；进行中：`SnapshotStoreSpec`、内存与 PostgreSQL 实现（Ahoo-Wang/Wow#4219）；Mongo、ES 待做 |
+| 3.3 | MongoDB 实现（D11，一等后端；含分组提交与预留键） | 同上；完成 |
+| 3.4 | 快照存储合同与 TCK；schema 指纹；Mongo、ES、PostgreSQL 实现 | TCK 全绿；完成 |
 
 ### M4 运行时
 
@@ -124,7 +127,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 
 | WP | 内容 | 出口 |
 |---|---|---|
-| 5a.1 | Manifest 完整版（路由、错误码、查询能力、订阅、发布流）；Jackson 内省生成 schema 的 Gradle 任务（D73）；服务级合并与 `GET /wow/manifest`（D74） | schema 评审；v0 完成（Ahoo-Wang/Wow#4259：模型、片段与合并、`wow-gradle-plugin` 与 `wow-manifest-tools`、victools 生成 schema，D83、D84）；路由、错误码、查询能力、发布流与 `GET /wow/manifest` 待做 |
+| 5a.1 | Manifest 完整版（路由、错误码、查询能力、订阅、发布流）；Jackson 内省生成 schema 的 Gradle 任务（D73）；服务级合并与 `GET /wow/manifest`（D74） | schema 评审；完成（v0：Ahoo-Wang/Wow#4259：模型、片段与合并、`wow-gradle-plugin` 与 `wow-manifest-tools`、victools 生成 schema，D83、D84；其余随 M5 合并） |
 | 5a.4 | Manifest 兼容性门禁（D76）：与上一个已发布版本比较，主版本内的破坏性差异使 CI 失败 | 加法与破坏的分类测试；在 example 服务上演示 |
 | 5a.2 | `wow-openapi`：Manifest → OpenAPI | 快照测试 |
 | 5a.3 | `wow-generator` 读 Manifest；`wow-client` V10 | 对 Manifest 快照的生成测试（对真实服务的契约测试在 5b.2） |
@@ -168,7 +171,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 
 | WP | 内容 | 规模 | 依赖 | 出口 |
 |---|---|---|---|---|
-| 6.0b | 订阅绑定：`:kernel` 的 `ProcessorBinding`、KSP 生成、运行时适配（D149）、`SagaContext` 的上下文内派发、多读者状态视图与 `stateEvents` 解码器（D133）；阻塞 K 路与 S 路 | L | 6.0a | shop 的 Saga 与投影在运行时执行；进行中：KSP 订阅绑定 |
+| 6.0b | 订阅绑定：`:kernel` 的 `ProcessorBinding`、KSP 生成、运行时适配（D149）、`SagaContext` 的上下文内派发、多读者状态视图与 `stateEvents` 解码器（D133）；阻塞 K 路与 S 路 | L | 6.0a | shop 的 Saga 与投影在运行时执行；完成 |
 | 6.0c | 本上下文的拒绝交给 `@OnRejected`、等待立即失败（D153）；订阅起点配置（D154）；发布声明（D156） | M | 6.0a、6.0b | 拒绝不停放、`@OnRejected` 补偿与起点覆盖的测试 |
 | 6.3a | `:spi` 的端口与信封（D132）；`:kafka` 传输；Kafka Sink | M | 6.0b | Sink 的集成测试 |
 | 6.3b | Kafka 来源的订阅运行时：租约分配、停放与按 key 重扫（D134、D140） | L | 6.3a | 来源订阅的停放与恢复测试 |
@@ -242,9 +245,9 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | P.13 | 订阅起点、指南发现的不一致与派生命令的作用域（D194、D195、D199）：派生命令不对已存在的目标做作用域检查，删除 `CartSaga` 的收窄；`@OnEvent(start)`、跨上下文订阅默认 `BEGINNING`；内部端口默认绑成员地址；`@AggregateRoot(snapshot = false)`；读重试 `max-attempts` 接上；指南写明 Decider DSL 只用于测试 | S～M | M7 前 | 新加入的库存服务不丢已发货订单（去掉 inventory 的 `start: beginning` 配置，G10）；关闭快照的聚合无 `SNAPSHOT` 阶段的等待测试 |
 | P.14 | 状态点读的响应脱敏（D229 G-2）：`GET …/state`、`?version=`、`?at=`、`/state/trace` 与 `events` 模型按查询 schema 应用遮罩；默认请求事实 `remote_ip`、`user_agent`（G-10） | S | GA 前（安全回归，beta 前） | 脱敏与请求事实的端到端测试 |
 | P.15 | 平台服务的生产形态（D229 G-3）：ops、view-store 服务带 `:cosec`、`:opentelemetry`；控制台 CoSec 登录；`deploy/v10/` 补平台服务的 K8s 清单 | S | GA 前（8c.1 之前） | 带 CoSec 的端到端；清单可在本地集群起服务 |
-| P.16 | `@Retry` 的可恢复性分类（D229 G-6）与系统性故障暂停（D243）：带默认值的 `recoverable`、`unrecoverable` 属性与可恢复分类端口；三类——不可恢复直接停放、可恢复按聚合重试后停放、系统性暂停整个分区并持续重试（指标 `wow.subscription.paused`） | M | GA 前 | 不可恢复的失败不重试；下游抖动不停放聚合、恢复后自动继续 |
+| P.16 | **已完成（D243）。** `@Retry` 的可恢复性分类（D229 G-6）与系统性故障暂停（D243）：带默认值的 `recoverable`、`unrecoverable` 属性与可恢复分类端口；三类——不可恢复直接停放、可恢复按聚合重试后停放、系统性暂停整个分区并持续重试（指标 `wow.subscription.paused`） | M | GA 前 | 不可恢复的失败不重试；下游抖动不停放聚合、恢复后自动继续 |
 | T.1 | 测试 DSL 的 fork（D245）：复制运行时而不重放、可选的 `@TestFactory` 测试树、在断言块里 fork、处理器规范同样支持 | M | GA 前 | fork 不再调用 mock；一个 fork 失败不影响其他 fork；IDE 里显示场景树 |
-| P.17 | Java 用户体验的说明与冒烟测试（D229 G-8，Java 门面与阻塞桥在 10.x）；迁移 Skill 的漂移（09 复核 §4.2，含 G-13 请求头别名、`@QueryReference`、自定义 Jackson 模块、查询路由对照） | S | GA 前 | Java 领域的冒烟测试；Skill 评测通过 |
+| P.17 | **已完成（#4682 Java 门面，`example/java-smoke`）。** Java 用户体验的说明与冒烟测试（D229 G-8，Java 门面与阻塞桥在 10.x）；迁移 Skill 的漂移（09 复核 §4.2，含 G-13 请求头别名、`@QueryReference`、自定义 Jackson 模块、查询路由对照） | S | GA 前 | Java 领域的冒烟测试；Skill 评测通过 |
 | P.18 | 应用标识 `app_id`（D232）：标准请求事实 `app_id`（`CallerResolver` 只填已认证的值，CoSec 实现取认证过的应用）、`Caller` 标准属性 `app`、派生命令继承的可传播事实白名单；view-store 与 analytics 改读它并删除各自的解析；P.14 之后 | 事件流的请求头带认证过的 `app_id`；客户端自报的 `CoSec-App-Id` 不被采信；Saga 派生的命令带上游的 `app_id`；view-store 与 analytics 的行为不变 |
 | P.18b | `app_id` 的来源（D236）：注入模式的信任开关（默认关闭）；`Wow-Call` 携带根请求的可传播事实 | 注入模式开关开启时记录网关注入的应用；同步调用的目标记录根请求的 `app_id` |
 | P.19 | springdoc 桥接（D233，G-14）：`:spring-boot` 的 `compileOnly` springdoc 与 swagger-core、`OpenApiCustomizer` 合并 Manifest 文档进默认文档、`wow` 分组、路径或组件冲突启动失败、`OpenApiOptions` 的 securitySchemes 由宿主按调用方解析器填写、只含公开端口路由 | eShop 一个服务的 `/v3/api-docs` 同含 Wow 路由与应用的 Controller 并通过 3.1 schema 校验；`wow` 分组只含 Wow 路由；冲突的路径让启动失败；Swagger UI 打开且 Try it out 带身份；内部端口路由不在文档里 |
@@ -290,7 +293,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | R4-Q2 | **已完成**（2026-10-20：#4663、#4665、#4670）。 events 可见性下推（D254 ①）：策略编译为过滤、声明适用模型、批量钉住、描述符列约束；events 计数缓存按日志位置 | 启用 ABAC 时跨聚合时间线可用 |
 | R4-Q3 | 类型化读 API（D254 ②）：`QueryApi`、KSP 状态类型、调用者范围与显式 `trusted()`、进程内默认预算、Java 门面；`SubscriptionContext` 与对端服务的读 | Saga 与对端服务不再手写无类型的读 |
 | R4-Q4 | 派生读一致性（D254 ⑥）：计数缓存在已确认写时失效或分页总数默认不缓存；点读最小版本 | 跨节点分页总数与行一致；命令后点读可要求最小版本 |
-| R4-Q5 | 契约与客户端保真（D254 ⑤）：OpenAPI 查询描述、TS 精度、时区、投影类型、改名的增量路径 | 生成器得到精确的查询类型；TS 不丢精度 |
+| R4-Q5 | **Q5a 已完成（#4740，2026-10-21 API 冻结）；Q5b 冻结后只做增量，未排期。** 契约与客户端保真（D254 ⑤）：OpenAPI 查询描述、TS 精度、时区、投影类型、改名的增量路径 | 生成器得到精确的查询类型；TS 不丢精度 |
 | R4-Q7 | 小修（D254 ③⑦）：超时 504、错误码统一、ClickHouse 并列分页唯一键与 TCK 用例、跨租户范围 | — |
 | DX-1 | **已完成**（2026-10-20：DX-1b #4636、#4639、#4642；DX-1c #4674；DX-1d #4667）。 契约推导的名字与类型（D256）：api 的 jar 带上生成的上下文常量、`ref`、查询字段常量；错误码本地名加前缀推导；`derives` 收类或推导；对端事件类型化解码；`call` 进 Manifest；`@OnRejected` 可返回 `Unit`；与 R4-Q3 一起设计 | eShop 里不再手写上下文常量、`AggregateType("…")`、全名错误码、字符串 `derives` 与事件名匹配 |
 | DX-2 | DX 小修（D256）：本地开发的内存传输开关（G27）、数据集 schema 由目录服务提供、不进 Manifest（G31，D267 ⑦）、约定的 `integrationTest` 源集（G17）、跨上下文租户的文档与启动校验（G13） | eShop 的这四条 DX 缺口关闭 |
@@ -322,34 +325,34 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | 8b.4 | 补偿数据迁移（D229 G-1）：9.x 补偿服务里未解决的 `ExecutionFailed` 导入各服务的停放台账（含重试规格与可恢复标记）；`compare` 校验 | 未解决执行的对比零差异；8c.1 前完成 |
 | 8c.0 | 反向导出（D32）：`migrate-data export` 把 V10 中 9.x 已有类型的事件以 9.x 编解码写回 9.x 事件流；V10 独有类型拒绝并逐一列出；可续跑、幂等；按计数与 9.x 状态校验 | 切换后已写入仍可回滚；8c.1 前完成 |
 | 8c.0b | 待命节点（D267 ⑫）：`wow.standby` 启动只读、拒绝命令、不跑订阅；内部端口 `POST /wow/node/resume` 逐节点恢复并审计 | 双跑窗口内 V10 不写入、不重放 9.x 已处理的事件；8c.1 前完成 |
-| 8c.1 | 蓝绿演练：example（以迁移测试夹具领域搭仅供演练的 V10 宿主，不发布）、compensation、view-store 的生产形数据；双跑窗口为 V10 服务读、`migrate-data tail` 跟随 9.x 写入，再原子切换写入，记录滞后、窗口时长与停写时刻 | 一次完整切换，含切换后写入再回滚与写入前回滚两种演练（D32）；另记一次离线切换（D267 ⑳，默认方式）的停写时长（M8 出口） |
+| 8c.1 | **已完成（2026-10-21：#4705，5 万订单；离线停写 243.4 s、在线 159.5 s，两种回滚与拒绝导出）。** 蓝绿演练：example（以迁移测试夹具领域搭仅供演练的 V10 宿主，不发布）、compensation、view-store 的生产形数据；双跑窗口为 V10 服务读、`migrate-data tail` 跟随 9.x 写入，再原子切换写入，记录滞后、窗口时长与停写时刻 | 一次完整切换，含切换后写入再回滚与写入前回滚两种演练（D32）；另记一次离线切换（D267 ⑳，默认方式）的停写时长（M8 出口） |
 
 ### M9 发布
 
 | WP | 内容 | 出口 |
 |---|---|---|
-| 9.1 | 文档全面重写（用户 2026-10-13：开发期间不维护文档）：以代码与设计文档为准重写文档站 V10 版本（指南、迁移指南、契约页）；设计文档照常维护 | 中英文结构对齐；与代码一致 |
-| 9.2 | 基准报告：与 9.x 的同场景对比 | `test/benchmarks/results/` 入库（D265 ③） |
-| R.1 | 发布配置（D205）：V10 模块开启发布（artifactId 按 D87）、BOM、npm 预发布 dist-tag（`alpha`/`beta`，不动 `latest`）、Docker 预发布镜像不动 `latest`；发布与准入的工作流随之调整 | 发布演练（dry-run）通过；第一个预发布之前完成 |
-| 9.3 | 试用反馈收敛；第一个预发布 `10.0.0-alpha.1` 提前到 M7 完成后、R.1 与最小快速开始之后（D217，不做兼容性承诺）；之后的 alpha、beta 自行发布（D202） | 无阻塞问题 |
+| 9.1 | **已完成（2026-10-22：W0、W1 A～K、补缺 L～O，中英文；DI-6 #4699 上线）。** 文档全面重写（用户 2026-10-13：开发期间不维护文档）：以代码与设计文档为准重写文档站 V10 版本（指南、迁移指南、契约页）；设计文档照常维护 | 中英文结构对齐；与代码一致 |
+| 9.2 | **已入库（`test/benchmarks/results/reports/`；B.O 的成对 A/B 计时）。** 基准报告：与 9.x 的同场景对比 | `test/benchmarks/results/` 入库（D265 ③） |
+| R.1 | **已完成（#4500）。** 发布配置（D205）：V10 模块开启发布（artifactId 按 D87）、BOM、npm 预发布 dist-tag（`alpha`/`beta`，不动 `latest`）、Docker 预发布镜像不动 `latest`；发布与准入的工作流随之调整 | 发布演练（dry-run）通过；第一个预发布之前完成 |
+| 9.3 | **`10.0.0-alpha.3`（2026-10-15）、`10.0.0-alpha.4`（2026-10-22，用户选择 alpha.4 而非 rc）：Maven Central 已发布，npm、镜像与 GitHub 预发布待 npmjs 故障恢复后补齐。** 试用反馈收敛；第一个预发布 `10.0.0-alpha.1` 提前到 M7 完成后、R.1 与最小快速开始之后（D217，不做兼容性承诺）；之后的 alpha、beta 自行发布（D202） | 无阻塞问题 |
 | 9.3a | 平台目录搬迁到 `platform/`：取消 | 由 D146 取消：平台在 M7 新建于 `platform/<名字>/`，9.x 目录随 M9 删除 |
-| 9.3b | 7.2b-1、7.2b-2 已完成（#4661、#4671、#4672、#4673），7.2c-1 已完成（#4675），7.2c-2、7.2c-3 进行中。 数仓数据集与分析平台目录（D238；D251 改名为 `analytics` 平台的 `catalog` 服务，控制面与数据面分离；数据集查询走查询舱壁，默认上限 8，D247；取代原「7.2b、7.2c 跑在 V10 上」）：**7.2b-1** 注册表服务（平台服务，聚合与生命周期）与数据源目录——`WarehouseCatalog` 的 ClickHouse 实现、Sink 写 `wow_catalog` 与信任规则（D241）、分析师宽表的起草（`system.columns`）与审查；**7.2b-2** 宽表定义的编译与发布（join、选列、过滤、计算列，敏感性血缘、租户 join、主体聚合）、来源变化时重新编译与「需要修订」；**7.2c-1** 分发（注册表发布流）与查询（注册表服务默认提供，其他服务可订阅）、行的聚合引用；**7.2c-2** 数据负责人的管理页面（控制台迁到 V10 客户端）与视图引擎按聚合引用给出操作；**7.2c-3** 视图引擎的独立数据集视图（跨服务看板，D238 ⑨） | 两类来源都能发布宽表并被查询；敏感字段按继承脱敏；来源 schema 变化后数据集标为需要修订而不出错；行上的操作发到拥有该聚合的服务；端到端（D145） |
+| 9.3b | 7.2b-1、7.2b-2 已完成（#4661、#4671、#4672、#4673），7.2c-1 已完成（#4675），7.2c-2、7.2c-3 已完成（#4692、#4716）。 数仓数据集与分析平台目录（D238；D251 改名为 `analytics` 平台的 `catalog` 服务，控制面与数据面分离；数据集查询走查询舱壁，默认上限 8，D247；取代原「7.2b、7.2c 跑在 V10 上」）：**7.2b-1** 注册表服务（平台服务，聚合与生命周期）与数据源目录——`WarehouseCatalog` 的 ClickHouse 实现、Sink 写 `wow_catalog` 与信任规则（D241）、分析师宽表的起草（`system.columns`）与审查；**7.2b-2** 宽表定义的编译与发布（join、选列、过滤、计算列，敏感性血缘、租户 join、主体聚合）、来源变化时重新编译与「需要修订」；**7.2c-1** 分发（注册表发布流）与查询（注册表服务默认提供，其他服务可订阅）、行的聚合引用；**7.2c-2** 数据负责人的管理页面（控制台迁到 V10 客户端）与视图引擎按聚合引用给出操作；**7.2c-3** 视图引擎的独立数据集视图（跨服务看板，D238 ⑨） | 两类来源都能发布宽表并被查询；敏感字段按继承脱敏；来源 schema 变化后数据集标为需要修订而不出错；行上的操作发到拥有该聚合的服务；端到端（D145） |
 | 9.3c | **已完成**（2026-10-20：#4640、#4651、#4652、#4653、#4654）。**GA 前清理 v9**（D244，D262 提前：最后一次前向合并后立即分波删除，基准对照用旁路分支 `v10-9x-baseline`，不再等 7.2b/7.2c）：最后一次前向合并后，分波删除 9.x——示例与测试 → 9.x 平台（compensation、view-store、dataset-registry、analytics）→ 24 个 `wow-*` 核心模块与 `test/wow-*` → 9.x 的 CI、部署、文档、构建与覆盖率的双轨配置；加架构规则禁止依赖已删模块；前提是 7.2b/7.2c、TS-9x 落地，B.1～B.4 的 9.x 基线已测 | `v10` 分支里没有 9.x 代码与 `wow.scope` 的 9.x 范围；全部 V10 门禁照常 |
 | CI-1 | **已完成**（2026-10-20：#4655（缓存命中后 Check 约 8.5 分钟））。 CI 提速一期（D265 ①）：推送 v10 时写 Gradle 缓存；集成测试按后端拆成 3～4 路并行；`codecov.yml` 加 `after_n_builds`；不改名称。9.3c 收尾后立即做 | 典型 PR 的 Check 命中缓存；集成测试墙钟约 5 分钟；不再有部分上传的覆盖率误报 |
-| CI-2 | CI 重构二期与去特例（D265 ①②）：合并成 `ci.yml`，按影响范围执行，唯一必需检查 `ci-gate`，启用合并队列；构建任务、工作流、任务名、范围输出、Codecov flag 与组件去掉 `v10` 前缀，不留别名；排队 PR 合完后做，必需检查与合并队列由用户改设置 | 典型 PR 的 CI 墙钟 6～8 分钟；PR 不再手动合入最新 v10 再重跑；构建与 CI 里没有 `v10` 特例 |
-| N-1 | 代码与仓库去特例（D265 ②③）：代码注释与报错里的「V10」改为平常措辞（`migration/**` 除外）；`V10Rules`、`V10Annotations`、`deploy/v10/`、Skill 的 `v10-service` 等改名；`wow-dependencies/` 移到 `bom/dependencies/`（坐标不变）；CI-2 之后做 | 除 D265 ⑤ 的保留项外，仓库里没有 `v10` 特例 |
-| BM-1 | 基准测试迁到 `test/benchmarks/`（D265 ③，用户决定）：harness、`:benchmark-load`、`:benchmark-server`、results，工作流 `bench.yml`；作为基准工作流叠加 PR 的最后一个 | 根目录没有 `wow-benchmarks/` |
+| CI-2 | **已完成（#4689、#4726）。** CI 重构二期与去特例（D265 ①②）：合并成 `ci.yml`，按影响范围执行，唯一必需检查 `ci-gate`，启用合并队列；构建任务、工作流、任务名、范围输出、Codecov flag 与组件去掉 `v10` 前缀，不留别名；排队 PR 合完后做，必需检查与合并队列由用户改设置 | 典型 PR 的 CI 墙钟 6～8 分钟；PR 不再手动合入最新 v10 再重跑；构建与 CI 里没有 `v10` 特例 |
+| N-1 | **已完成（#4742、#4766、#4767、#4769）。** 代码与仓库去特例（D265 ②③）：代码注释与报错里的「V10」改为平常措辞（`migration/**` 除外）；`V10Rules`、`V10Annotations`、`deploy/v10/`、Skill 的 `v10-service` 等改名；`wow-dependencies/` 移到 `bom/dependencies/`（坐标不变）；CI-2 之后做 | 除 D265 ⑤ 的保留项外，仓库里没有 `v10` 特例 |
+| BM-1 | **已完成（#4668）。** 基准测试迁到 `test/benchmarks/`（D265 ③，用户决定）：harness、`:benchmark-load`、`:benchmark-server`、results，工作流 `bench.yml`；作为基准工作流叠加 PR 的最后一个 | 根目录没有 `wow-benchmarks/` |
 | H-1 | **已完成**（2026-10-20：#4657）。 仓库卫生（D266，残留审查 R24、R05、R07、R27、R29）：V10 指南里指向已删除示例的链接改到 eShop，并给文档链接测试加上 `blob`/`tree` 目标存在性检查；删除构建脚本里已为空的 9.x 发布排除块；PR 标签规则改为 V10 目录；清理 todo 台账；删除 `schema/` | 文档站从 v10 部署时没有 404；V10 的 PR 有领域标签 |
-| SK-1 | Skill 改写为 V10（D266 ③）：wow-develop、wow-client、wow-view-*、wow-data-query 与 skills README；9.x 参考留在 main；DX-1d 之后，与 9.1 并行 | v10 上的 Skill 只教 V10 |
-| B.O-1 | 周期性多秒停顿（首份瓶颈线索，2026-10-20）：PG@10 万、预填充、80% 负载下每 6～7 秒有 2～4 秒 p50 由约 3 ms 升到 100～770 ms；已排除 GC、安全点、PG 检查点；服务端 3 核用掉约 2.6 核；状态缓存 4096 远小于 10 万聚合；1 千数据稳态下有缺口读。探测（在含 OV-1、OV-2 的基线上）：50% 负载、后台任务逐秒时间线、间隔对照、缓存加大、A/A 复测 | 找到主导原因并派出 B.O-n 优化 |
+| SK-1 | **已完成（#4754、#4761、#4768、#4770、#4773）。** Skill 改写为 V10（D266 ③）：wow-develop、wow-client、wow-view-*、wow-data-query 与 skills README；9.x 参考留在 main；DX-1d 之后，与 9.1 并行 | v10 上的 Skill 只教 V10 |
+| B.O-1 | **已完成（由 B.O-2～B.O-5 处理）。** 周期性多秒停顿（首份瓶颈线索，2026-10-20）：PG@10 万、预填充、80% 负载下每 6～7 秒有 2～4 秒 p50 由约 3 ms 升到 100～770 ms；已排除 GC、安全点、PG 检查点；服务端 3 核用掉约 2.6 核；状态缓存 4096 远小于 10 万聚合；1 千数据稳态下有缺口读。探测（在含 OV-1、OV-2 的基线上）：50% 负载、后台任务逐秒时间线、间隔对照、缓存加大、A/A 复测 | 找到主导原因并派出 B.O-n 优化 |
 | B.O-2～B.O-5 | **已完成**（#4685、#4688、#4719）：测量去干扰；状态缓存按堆定；PostgreSQL 提交合并（D267 ⑲） | 60% 负载下 p50/p99 优于 v10、无忙拒绝 |
 | F-1 · F-2 | 偶发失败修复：**已完成**。F-1 #4662 `StateViews` 记录与读取各自两次加锁导致漏读视图（真实缺陷）；F-2 #4664 Kafka 主题可见性竞争与健康探测语义（D267 ④） | 主线 CI 连续全绿 |
-| CI-3 | 分支切换（D265 ④，rc 时做：SW-1 与 9.x 侧 PR 先行，约 2～3 小时）：分支改名与默认分支；GA 时：工作流分支过滤、发布门禁放行正式版标签、npm `latest`、文档 `tree/v10/` 链接、`nightly.yml` 与 `release.yml` 整理 | 正式版标签能发布；定时任务在默认分支生效 |
-| 9.4 | rc（须用户确认，D202），rc 时按 D265 ④ 切换：`main` 改名 `v9`，`v10` 改名 `main` 并设为默认分支（不做合并）；发 `10.0.0`（打标签前问用户） | GA |
+| CI-3 | **分支切换已完成（2026-10-21：#4738、#4739、#4741；Renovate 管 main 与 v9，#4753）；GA 时的事项仍待做。** 分支切换（D265 ④，rc 时做：SW-1 与 9.x 侧 PR 先行，约 2～3 小时）：分支改名与默认分支；GA 时：工作流分支过滤、发布门禁放行正式版标签、npm `latest`、文档 `tree/v10/` 链接、`nightly.yml` 与 `release.yml` 整理 | 正式版标签能发布；定时任务在默认分支生效 |
+| 9.4 | rc（须用户确认，D202）：分支已在 2026-10-21 切换（CI-3）；rc 的时间由用户决定，之后发 `10.0.0`（打标签前问用户） | GA |
 
 ## 4. 并行与关键路径
 
-关键路径：M1 → M2 → M3 → M4 → M6 → M6e → M7 → M8c → M9。可并行：M5a 与 M3 同时（都只依赖 M2）；M8a 在 M2 之后即可试点；M8b 在 M3 之后开始。同一时间最多三路，避免改同一批模块。
+M0～M8 已完成；M9 余下 rc 与 GA（9.4）。到 GA 的关键路径：试用反馈（9.3）→ 路线图 §6 的「GA 前」事项 → rc → `10.0.0`。
 
 ## 5. 当前进度与下一步
 

@@ -1,6 +1,6 @@
 # V10 迁移层
 
-日期：2026-10-11。基线：`main` `b5813af56f`。状态：草案。上位文档：[00 目标架构](00-architecture.md) §1。相关决定：D1、D3、D20、D21、D22。
+日期：2026-10-11。基线：`main` `b5813af56f`。状态：已实现（实现以代码为准，偏离记在决策的「实现」说明里；2026-10-22 复核分支与路径）。上位文档：[00 目标架构](00-architecture.md) §1。相关决定：D1、D3、D20、D21、D22。
 
 ## 1. 原则
 
@@ -63,7 +63,7 @@ TS 侧（D20）：`wow-generator` 按 Manifest 重新生成客户端；应用代
 ## 4. 清洁度守护
 
 - 架构测试：`migration/` 之外不依赖它，不出现 9.x 类型名与配置键；9.x 源码知识只在 Skill 参考里。
-- `v10` 分支禁止 `@Deprecated` 与 `compat(...)` 标记；`docs/compat-debt.md` 与 `check:compat-debt` 删除，换成禁止标记的检查。
+- Wow 10（`main`）禁止 `@Deprecated` 与 `compat(...)` 标记；`docs/compat-debt.md` 与 `check:compat-debt` 删除，换成禁止标记的检查。
 - 以后的演进（D22）：框架格式只在下一次迁移层里变化；领域事件 revision 属于用户模型（[01](01-programming-model.md) §8）。
 
 ## 5. 寿命与支持范围（D21）
