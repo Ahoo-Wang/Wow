@@ -14,6 +14,7 @@
 package me.ahoo.wow.postgres.snapshot
 
 import me.ahoo.wow.postgres.PostgresIdentifiers
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The table and statements of one aggregate type's snapshots (decision D161): one table per bounded context and
@@ -130,13 +131,19 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
      * [save] of [rows] snapshots of distinct refs as one autocommitted statement, each row guarded as [save] guards
      * one (decision D248 ②); given in key order, the rows are locked in that order. Returns the key of each row inserted or replaced; a refused one returns none.
      */
-    fun saveRows(rows: Int): String = upsert(SAVE_GUARD, rows, "tenant_id, aggregate_id")
+    fun saveRows(rows: Int): String = saves.computeIfAbsent(rows) { upsert(SAVE_GUARD, it, "tenant_id, aggregate_id") }
+
+    /** [saveRows] and [markRefusedRows] by row count, built once each: a batch is at most the writer's batch. */
+    private val saves = ConcurrentHashMap<Int, String>()
+    private val marks = ConcurrentHashMap<Int, String>()
 
     /**
      * [markRefused] of [rows] refused snapshots of distinct refs as one statement: the key, the refused version and
      * its state revision of each. It locks the rows it marks in key order first, as [saveRows] does.
      */
-    fun markRefusedRows(rows: Int): String = """
+    fun markRefusedRows(rows: Int): String = marks.computeIfAbsent(rows, ::markRefused)
+
+    private fun markRefused(rows: Int): String = """
         UPDATE $snapshot AS stored SET stale_version = GREATEST(COALESCE(stored.stale_version, 0), refused.version)
         FROM (
             SELECT locked.tenant_id, locked.aggregate_id, input.version FROM $snapshot AS locked

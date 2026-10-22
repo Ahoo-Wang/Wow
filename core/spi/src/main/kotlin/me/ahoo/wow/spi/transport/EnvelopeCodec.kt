@@ -78,33 +78,54 @@ object EnvelopeCodec {
     /** The message of [envelope] under [key]: its value encoded, its headers. */
     fun message(key: String, envelope: Envelope): TopicMessage = TopicMessage(key, encode(envelope), headers(envelope))
 
-    /** The message of [record]: keyed by its aggregate ref (decision D58). */
-    fun message(record: StateEventRecord): TopicMessage = message(record.ref.toString(), stateEvent(record))
+    /**
+     * The message of [record]: keyed by its aggregate ref (decision D58), its value the bytes of [stateEvent]'s
+     * envelope, written from the record at once rather than through the envelope's JSON tree (decision D269).
+     */
+    fun message(record: StateEventRecord): TopicMessage {
+        val type = record.ref.type.toString()
+        val value = mapper.writeValueAsBytes(
+            StateEventEnvelopeWire(
+                format = Envelope.FORMAT,
+                kind = EnvelopeKind.STATE_EVENT.wire,
+                id = record.id,
+                type = type,
+                payload = wireOf(record),
+                transport = record.transport?.let(TransportWire::of),
+            ),
+        )
+        val headers = mapOf(
+            EnvelopeHeaders.FORMAT to Envelope.FORMAT.toString(),
+            EnvelopeHeaders.KIND to EnvelopeKind.STATE_EVENT.wire,
+            EnvelopeHeaders.TYPE to type,
+        )
+        return TopicMessage(record.ref.toString(), value, headers)
+    }
 
     /** The envelope of [record]. */
     fun stateEvent(record: StateEventRecord): Envelope = Envelope(
         kind = EnvelopeKind.STATE_EVENT,
         id = record.id,
         type = record.ref.type.toString(),
-        payload = mapper.valueToTree(
-            StateEventWire(
-                ref = record.ref,
-                version = record.version,
-                commandId = record.commandId,
-                requestId = record.requestId,
-                commandType = record.commandType,
-                commitTime = record.commitTime,
-                events = record.events,
-                state = record.state,
-                scope = record.scope,
-                deleted = record.deleted,
-                tags = record.tags,
-                causation = record.causation,
-                headers = record.headers,
-                operator = record.operator,
-            ),
-        ),
+        payload = mapper.valueToTree(wireOf(record)),
         transport = record.transport,
+    )
+
+    private fun wireOf(record: StateEventRecord) = StateEventWire(
+        ref = record.ref,
+        version = record.version,
+        commandId = record.commandId,
+        requestId = record.requestId,
+        commandType = record.commandType,
+        commitTime = record.commitTime,
+        events = record.events,
+        state = record.state,
+        scope = record.scope,
+        deleted = record.deleted,
+        tags = record.tags,
+        causation = record.causation,
+        headers = record.headers,
+        operator = record.operator,
     )
 
     /** The record [envelope] holds, with the envelope's transport. */
@@ -139,6 +160,16 @@ object EnvelopeCodec {
         val id: String,
         val type: String,
         val payload: JsonNode,
+        val transport: TransportWire? = null,
+    )
+
+    /** [EnvelopeWire] with the state event's payload as itself, for writing (decision D269): the same fields, in order. */
+    private data class StateEventEnvelopeWire(
+        val format: Int,
+        val kind: String,
+        val id: String,
+        val type: String,
+        val payload: StateEventWire,
         val transport: TransportWire? = null,
     )
 

@@ -14,6 +14,7 @@
 package me.ahoo.wow.postgres
 
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The tables and statements of one context's log (decision D162). Names derive from the context and the aggregate
@@ -300,7 +301,14 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
      * [PostgresSnapshotTables.READ_COLUMNS]; without a snapshot the tail is every stream and no earlier keys follow.
      * The parameters: the snapshot's tenant and id, the tail's id and tenant, the earlier keys' id, tenant and limit.
      */
-    fun tailWithSnapshot(snapshot: String): String {
+    fun tailWithSnapshot(
+        snapshot: String
+    ): String = tailsWithSnapshot.computeIfAbsent(snapshot, ::buildTailWithSnapshot)
+
+    /** [tailWithSnapshot] by snapshot table, built once each. */
+    private val tailsWithSnapshot = ConcurrentHashMap<String, String>()
+
+    private fun buildTailWithSnapshot(snapshot: String): String {
         val typedNulls = PostgresSnapshotTables.READ_COLUMNS.joinToString(
             ", "
         ) { (name, type) -> "NULL::$type AS s_$name" }

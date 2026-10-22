@@ -116,6 +116,38 @@ class EnvelopeCodecTest {
     }
 
     @Test
+    fun `a message should be written byte for byte as its envelope through the JSON tree`() {
+        // D269: message(record) writes the record at once; the wire must not change from the envelope's tree.
+        val bare = record(state = null).let {
+            StateEventRecord(
+                ref = it.ref,
+                version = 1,
+                commandId = "c-1",
+                requestId = "r-1",
+                commandType = "shop.order.Place",
+                commitTime = 1L,
+                events = listOf(StateEventPayload("shop.order.Placed", 1, tree("""{"items":[]}"""))),
+            )
+        }
+        val texts = record(
+            state = StateView(
+                2,
+                "f3",
+                tree(
+                    """{"name":"ü \" é ☃","nested":{"list":[1,2.0,-0.0,1e400,null,true],"big":123456789012345678901234567890.123400},"empty":{}}"""
+                ),
+            ),
+        )
+        listOf(record(), record(state = null), bare, texts).forEach { record ->
+            val message = EnvelopeCodec.message(record)
+            val envelope = EnvelopeCodec.stateEvent(record)
+            String(message.value).assert().isEqualTo(String(EnvelopeCodec.encode(envelope)))
+            message.headers.assert().isEqualTo(EnvelopeCodec.headers(envelope))
+            message.key.assert().isEqualTo(record.ref.toString())
+        }
+    }
+
+    @Test
     fun `a reader should ignore the fields it does not know`() {
         val json = """{"format":1,"kind":"command","id":"c-1","type":"shop.order.Place","payload":{"a":1},
             |"added":true,"transport":{"trace":{"t":"1"},"later":1}}

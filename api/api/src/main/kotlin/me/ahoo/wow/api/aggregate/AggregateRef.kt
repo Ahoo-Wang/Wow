@@ -31,6 +31,11 @@ data class AggregateType(val context: String, val name: String) {
      */
     fun unassigned(tenantId: String): AggregateRef = AggregateRef(this, tenantId, AggregateRef.UNASSIGNED)
 
+    /** Computed once: a type keys the node's maps on every command's path. */
+    private val hash = 31 * context.hashCode() + name.hashCode()
+
+    override fun hashCode(): Int = hash
+
     override fun toString(): String = "$context.$name"
 }
 
@@ -49,6 +54,11 @@ data class AggregateRef(val type: AggregateType, val tenantId: String, val id: S
 
     /** Whether the id is chosen: not [UNASSIGNED]. */
     val isAssigned: Boolean get() = id != UNASSIGNED
+
+    /** Computed once: a ref keys the state cache, the lanes and the waits on every command's path. */
+    private val hash = 31 * (31 * type.hashCode() + tenantId.hashCode()) + id.hashCode()
+
+    override fun hashCode(): Int = hash
 
     override fun toString(): String = "$type/$tenantId/$id"
 
