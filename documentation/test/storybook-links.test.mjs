@@ -47,5 +47,5 @@ test('story links open outside the VitePress router', () => {
 })
 
 test('the sitemap lists Storybook', () => {
-    assert.ok(readFileSync(dist('sitemap.xml'), 'utf8').includes('<loc>https://wow.ahoo.me/storybook/</loc>'))
+    assert.ok(readFileSync(dist('sitemap.xml'), 'utf8').includes('<loc>https://wow.ahoo.me/9.x/storybook/</loc>'))
 })

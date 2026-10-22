@@ -36,16 +36,13 @@ const userConfig = defineConfig({
             ['meta', {name: 'twitter:description', content: description}],
         ]
     },
+    // The 9.x pages are served under /9.x/ (built with `--base /9.x/` by the site's deploy on main), beside the
+    // current documentation at the root; their Storybook is built there too. 9.x publishes no API reference.
     sitemap: {
-        hostname: 'https://wow.ahoo.me/',
+        hostname: 'https://wow.ahoo.me/9.x/',
         transformItems: (items) => {
             items.push({
-                url: 'https://wow.ahoo.me/dokka/index.html',
-                changefreq: 'weekly',
-                priority: 0.8
-            })
-            items.push({
-                url: 'https://wow.ahoo.me/storybook/',
+                url: 'https://wow.ahoo.me/9.x/storybook/',
                 changefreq: 'weekly',
                 priority: 0.8
             })

@@ -70,7 +70,6 @@ export const navbarEn: DefaultTheme.NavItem[] = [
             },
         ],
     },
-    {text: 'API', link: '/dokka/index.html', target: '_blank'},
     {text: 'Storybook', link: '/storybook/', target: '_blank'},
     {
         text: 'Resources',
