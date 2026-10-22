@@ -354,3 +354,23 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 ## 5. 当前进度与下一步
 
 当前位置、进行中与下一步、推进的工作方式见[进度](progress.md)。
+
+## 6. 已登记、未排期的事项
+
+rc 之后不丢的清单：每一项写明来源，排期时再拆成路线图行。
+
+### GA 前
+
+| 事项 | 来源 |
+| --- | --- |
+| 文档缺页：P0 `start/index`、`start/why-wow`；P1、P2 各页；CONTRIBUTING.md 的 V10 重写 | [文档方案](docs-plan.md) §10（用户 2026-10-22） |
+| 9.x 站点导航的 API 文档链接 `/9.x/dokka/` 为 404：DI-6 只构建 9.x 的 VitePress 页面；在 v9 上去掉该导航项，或部署时跳转到当前的 `/dokka/` | DI-6 上线后的检查（2026-10-22） |
+
+### 10.x 候选
+
+| 事项 | 来源 |
+| --- | --- |
+| Manifest 与 OpenAPI 输出命令体上的 Jakarta 约束（`@Positive`→`exclusiveMinimum`、`@NotBlank`→`minLength`、`@Size`、`@Pattern` 等），让生成的 TS 客户端与表单也带上约束；示例已改为用 Jakarta 校验输入（D106），生成器尚不读取这些注解。增加 schema 关键字在 Manifest 兼容性检查里是破坏性的，须定好对已发布契约的处理 | 用户 2026-10-22，Jakarta 校验改造 |
+| 移动订阅检查点的运维工具（路由、运维动作或命令行） | D267 ㉒ |
+| 节点恢复时并行获取分区：现为逐个获取，每个约 140 ms，64 个分区约 9 秒，计入迁移停写 | 8c.1 发现 10（#4705） |
+| `wow-operate` Skill | [文档方案](docs-plan.md) §9 |
