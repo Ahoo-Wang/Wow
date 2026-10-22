@@ -76,10 +76,7 @@ test('consumers compile on the TypeScript floor and the latest 7.x, as the docs 
     assert.equal(manifest(dir).peerDependencies?.typescript, undefined, dir);
   const compatibility = locale =>
     readFileSync(
-      join(
-        ROOT,
-        `documentation/docs/${locale}/typescript/compatibility.md`,
-      ),
+      join(ROOT, `documentation/docs/${locale}/typescript/compatibility.md`),
       'utf8',
     );
   assert.match(
