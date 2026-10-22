@@ -1,31 +1,25 @@
 ---
-title: V10 Quick Start
-description: Try Wow 10.0.0-alpha.3 in one module, from the Gradle build to a running service that takes commands and answers queries.
+title: 快速开始
+description: 在一个 Gradle 模块中构建一个小服务，从构建到一个能接收命令、回答查询的运行节点，大约三十分钟。
 outline: deep
 ---
 
-# V10 Quick Start
+# 快速开始
 
-Wow V10 is the next major version of Wow: you write the domain as plain Kotlin classes (commands, events, a state and an aggregate that decides), and the compiler turns them into models and a Manifest that a Spring Boot host serves over HTTP. It is a rewrite on a new kernel, log and cluster, so its API, configuration and storage differ from 9.x.
+在 Wow 中，你用普通的 Kotlin 编写领域：命令、事件、一个状态，以及一个做出决定的聚合。编译器把它们变成模型和契约，Spring Boot 宿主经 HTTP 提供它们，不需要写控制器或仓储。本页在一个 Gradle 模块中构建一个小的银行服务：一个 `account` 聚合、它的测试，以及一个把数据放在内存中的服务器。
 
-::: danger 10.0.0-alpha.3 is for evaluation only
-
-- **No compatibility promise.** An alpha may change the API, the configuration, the HTTP routes and the storage and wire formats of the alpha before it.
-- **No migration from 9.x yet.** Importing 9.x event streams is unfinished (milestone M8): do not migrate production data to an alpha.
-- **Try it, and tell us.** Use it to evaluate V10 and report what does not work in the [issues](https://github.com/Ahoo-Wang/Wow/issues). The rest of this site, outside the V10 section, describes 9.x.
-
+::: warning 预发布版本
+Wow 10.0.0-alpha.3 是预发布版本。在 10.0.0 之前，它的 API、配置和存储格式仍可能改变。
 :::
 
-This page builds a small bank service in one Gradle module: an `account` aggregate, its test, and a server on the memory backend. The [eShop](#where-to-go-next) is the full example.
+## 你需要什么 {#what-you-need}
 
-## What you need
+- JDK 21。
+- 带 Kotlin JVM 插件的 Gradle 9。Wow Gradle 插件会应用 KSP 和 Wow 编译器。
 
-- JDK 21.
-- Gradle 9 with the Kotlin JVM plugin. The Wow Gradle plugin applies KSP and the Wow compiler for you.
+## 准备构建 {#set-up-the-build}
 
-## Set up Gradle
-
-`settings.gradle.kts`:
+`settings.gradle.kts`：
 
 ```kotlin
 pluginManagement {
@@ -44,7 +38,7 @@ dependencyResolutionManagement {
 rootProject.name = "bank"
 ```
 
-`build.gradle.kts`:
+`build.gradle.kts`：
 
 ```kotlin
 plugins {
@@ -82,11 +76,11 @@ tasks.test {
 }
 ```
 
-The plugin is published to Maven Central with its marker, so `pluginManagement` needs `mavenCentral()`. Maven Central has only exact versions of an alpha: write `10.0.0-alpha.3`, not a range. A real service splits into an `-api`, a `-domain` and a `-server` module ([Write a V10 Service](./index.md#lay-out-the-service)); one module is enough to try V10.
+插件连同它的 marker 一起发布到 Maven Central，所以 `pluginManagement` 需要 `mavenCentral()`。预发布版本在那里只有确切的版本号：要写 `10.0.0-alpha.3`，不能写范围。真实的服务会拆成 api、domain 和 server 三个模块（[在已有服务中引入 Wow](./existing-project)）；试用时一个模块就够了。
 
-## Write the commands and events
+## 编写命令和事件 {#write-the-commands-and-events}
 
-A context is named once, with `@BoundedContext`. Commands and events are plain classes; a command carries no aggregate id, which comes from the route.
+用 `@BoundedContext` 命名一次上下文。命令和事件都是数据类。命令不带聚合 ID：ID 来自路由。
 
 <!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Bank.kt -->
 
@@ -120,9 +114,9 @@ data class Deposited(val amount: Long)
 data class Withdrawn(val amount: Long)
 ```
 
-## Write the state and the aggregate
+## 编写状态和聚合 {#write-the-state-and-the-aggregate}
 
-The state applies events in its `onSourcing` functions. The aggregate decides each command in an `onCommand` function: it returns the events, or a `Decision` that may reject the command with an error code. A rejection writes nothing.
+状态在 `onSourcing` 函数中应用每个事件。聚合在 `onCommand` 函数中决定每条命令：它返回事件，或者返回一个以错误码拒绝命令的 `Decision`，这时什么都不写。
 
 <!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt -->
 
@@ -187,11 +181,11 @@ class Account(private val state: AccountState) {
 }
 ```
 
-`@OnCommand(produces)` tells the Manifest which events a function returning `Decision` can produce. [Programming Model](./programming-model.md) has the full rules.
+`@OnCommand(produces = ...)` 告诉契约，返回 `Decision` 的函数能产生哪些事件。所有规则见[编写聚合](../guide/aggregates)。
 
-## Test it
+## 测试 {#test-it}
 
-The compiler generated `accountModel` beside `Account`. `aggregateSpec` runs it on the real kernel with an in-memory log:
+编译器在 `Account` 旁边生成了 `accountModel`。`aggregateSpec` 在真实的内核和内存日志上运行它：给定这些事件，执行这条命令，期望得到这些事件和这个状态。
 
 <!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt -->
 
@@ -238,11 +232,11 @@ class AccountSpec {
 ./gradlew test
 ```
 
-[Testing](../testing.md) lists every expectation.
+全部断言见[测试领域代码](../guide/testing)。
 
-## Run the service
+## 运行服务 {#run-the-service}
 
-The server is a Spring Boot application. The host finds the generated models on the class path and serves them:
+服务器是一个 Spring Boot 应用。宿主在类路径上找到生成的模型并提供它们：
 
 <!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/BankServer.kt -->
 
@@ -260,7 +254,7 @@ fun main(args: Array<String>) {
 }
 ```
 
-`src/main/resources/application.yaml` runs one node with its data in memory, and serves the snapshot queries from memory too (`wow.query.memory.enabled`):
+`src/main/resources/application.yaml` 运行一个把数据放在内存中的节点，并且也从内存提供快照查询：
 
 <!-- sample: example/quickstart/src/main/resources/application.yaml -->
 
@@ -285,11 +279,11 @@ wow:
 ./gradlew run
 ```
 
-The node serves the public routes on port 8080 and its internal port on 9090. It warns that its data is in memory, and that every request is the anonymous caller until the application declares a `CallerResolver` bean (see [HTTP API](./http-api.md#callers)).
+节点在 8080 端口上提供路由，在 9090 端口上提供内部端口。它会警告数据在内存中，并且在应用认证调用方之前，每个请求都是匿名调用方（[提供和调用 HTTP API](../guide/http#who-the-caller-is)）。
 
-## Send commands over HTTP
+## 发送命令 {#send-commands}
 
-Each command has a route, `POST /<context>/<aggregate>/<id>/<command>`, its name in kebab case:
+每条命令都有一个路由 `POST /<context>/<aggregate>/<id>/<command>`，命令名采用 kebab case：
 
 ```bash
 curl -X POST localhost:8080/bank/account/alice/open-account \
@@ -300,11 +294,11 @@ curl -X POST localhost:8080/bank/account/alice/withdraw \
   -H 'Content-Type: application/json' -d '{"amount":150}'
 ```
 
-A command answers its `CommandResult` (`"status":"SUCCEEDED"`, the new `version`) once the snapshot holds its commit, so a read right after it sees the change. The withdrawal is rejected: the answer is an RFC 9457 problem, status 409, `"type":"urn:wow:error:bank.account.insufficient-balance"`.
+命令在快照包含它的提交后返回结果：`"status":"SUCCEEDED"`，以及账户新的 `version`，所以紧接着的读取能看到这次改变。取款被拒绝：回答是一个 RFC 9457 problem，状态 409，带 `"code":"bank.account.insufficient-balance"`。
 
-## Query the snapshots
+## 读取与查询 {#read-and-query}
 
-Read one aggregate's snapshot, then query them all with a filter:
+读取一个账户的状态，再按余额查询所有账户：
 
 ```bash
 curl localhost:8080/bank/account/alice/state
@@ -313,42 +307,41 @@ curl -X POST localhost:8080/bank/account/snapshot/query \
   -d '{"kind":"list","filter":{"op":"GTE","field":"state.balance","value":100}}'
 ```
 
-The first answers the version and the state, `{"balance":100,"owner":"Alice"}`; the second a list of snapshots, `alice`'s among them. [Query Language](./query.md) describes the filters, sorts, paging and the other kinds of query. On the memory backend the queries are served only with `wow.query.memory.enabled`; PostgreSQL and MongoDB serve them themselves ([Deployment](../../operate/topology.md)).
+第一个请求返回版本和状态 `{"balance":100,"owner":"Alice"}`；第二个返回快照列表，其中有 `alice` 的。过滤、排序、分页和其他种类的查询见[查询快照](../guide/queries)。在内存后端上，只有设置了 `wow.query.memory.enabled` 才提供查询；PostgreSQL 和 MongoDB 自己就能提供。
 
-## Send commands in process
+## 从代码发送命令 {#send-commands-from-code}
 
-Application code sends commands through the node's `CommandGateway`, a bean of the host. It runs the same admission as the HTTP routes:
+应用代码通过宿主的 `CommandClient` 发送命令对象，经过与 HTTP 路由相同的准入：
 
 <!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Teller.kt -->
 
 ```kotlin
 package me.ahoo.wow.example.quickstart
 
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.runtime.admission.CommandBody
-import me.ahoo.wow.runtime.admission.CommandGateway
-import me.ahoo.wow.runtime.admission.CommandRequest
 import org.springframework.stereotype.Service
 
+/** Deposits from application code, through the host's [CommandClient]: the same admission as the HTTP routes. */
 @Service
-class Teller(private val commands: CommandGateway) {
-    suspend fun deposit(accountId: String, amount: Long): CommandResult {
-        val request = CommandRequest.builder(
-            context = "bank",
-            aggregate = "account",
-            command = "Deposit",
-            body = CommandBody.of("""{"amount":$amount}"""),
-        ).aggregateId(accountId).build()
-        return commands.execute(request)
+class Teller(private val commands: CommandClient) {
+    suspend fun deposit(accountId: String, amount: Long): CommandResult =
+        commands.wait(Deposit(amount), ACCOUNT.ref(Caller.DEFAULT_TENANT, accountId))
+
+    private companion object {
+        val ACCOUNT = AggregateType("bank", "account")
     }
 }
 ```
 
-`execute` waits as an HTTP command does and returns the last result; `send` returns each one as a `Flow`.
+`wait` 在命令的等待结束时回答，默认是快照；`send` 在命令被接受后就回答。其余用法见[调用其他服务](../guide/calling-services)。
 
-## Where to go next
+## 接下来读什么 {#where-to-go-next}
 
-- **The full example.** The [eShop](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop) is five services on PostgreSQL, Kafka and ClickHouse: sagas between contexts, scheduled commands, query indexes, datasets and a web UI.
-- **The TypeScript client.** `npm install @ahoo-wang/wow-client@alpha` installs the client of the same alpha; [wow-generator](https://github.com/Ahoo-Wang/Wow/tree/main/typescript/wow-generator) generates typed command and query clients from a service's Manifest.
-- **The V10 guide.** [Write a V10 Service](./index.md) lays out a service in modules, then [Programming Model](./programming-model.md), [Testing](../testing.md), [HTTP API](./http-api.md), [Configuration Keys](./configuration.md) and [Deployment](../../operate/topology.md).
-- **This sample.** It is [`example/quickstart`](https://github.com/Ahoo-Wang/Wow/tree/main/example/quickstart) in the Wow repository, built and tested with every change.
+- **概念。** [架构总览](../concepts/)说明宿主为你做了什么。
+- **真实的服务。** [在已有服务中引入 Wow](./existing-project) 把服务按模块组织起来。
+- **指南。** [开发指南](../guide/)说明每项任务：Saga、投影、查询、测试。
+- **完整的示例。** [eShop](https://github.com/Ahoo-Wang/Wow/tree/main/example/eshop) 是基于 PostgreSQL、Kafka 和 ClickHouse 的五个服务，带有上下文之间的 Saga、定时命令、数据集和一个 Web 界面。
+- **这个示例**就是 [`example/quickstart`](https://github.com/Ahoo-Wang/Wow/tree/main/example/quickstart)，每次改动都会构建和测试。

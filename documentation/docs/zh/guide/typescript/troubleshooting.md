@@ -5,7 +5,7 @@ description: 按报错信息找出 wow-client、wow-generator 与 wow-react 常�
 
 # TypeScript 客户端排障
 
-本页回答：**Wow TypeScript 包报的这个错是什么意思，怎样修？** 在本页搜索你看到的报错。服务端的故障——命令超时、版本冲突、投影——见服务端的[错误码](../v10/http-api.md#错误码)。
+本页回答：**Wow TypeScript 包报的这个错是什么意思，怎样修？** 在本页搜索你看到的报错。服务端的故障——命令超时、版本冲突、投影——见服务端的[错误码](../../reference/error-codes.md)。
 
 大多数请求失败以 fetcher 的 `ExchangeError` 到达代码；它的 `message` 和 `cause` 说明了出了什么错，服务端有应答时 `await toWowError(error)` 能读出 Wow 的错误码。见错误处理。
 

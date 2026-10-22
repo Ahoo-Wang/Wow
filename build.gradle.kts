@@ -57,7 +57,7 @@ val bomProjects = setOf(dependenciesProject, bomProject)
 val eshopProjects = listOf("catalog", "basket", "ordering", "inventory", "payment").flatMap { context ->
     listOf("api", "domain", "server").map { "eshop-$context-$it" }
 } + "eshop-e2e"
-// The quickstart (D217): the sample of documentation/docs/{en,zh}/guide/v10/quickstart.md, one module that is its
+// The quickstart (D217): the sample of documentation/docs/{en,zh}/start/quickstart.md, one module that is its
 // domain and its server, built and tested like the eShop, never published. The Java smoke test (D229 G-8): a domain
 // written in Java, built by the compiler and tested with the test DSL, never published.
 val exampleNames = eshopProjects + "quickstart" + "java-smoke"

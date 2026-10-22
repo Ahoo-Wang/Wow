@@ -12,7 +12,7 @@ hero:
   actions:
     - theme: brand
       text: Quick Start
-      link: /guide/v10/quickstart
+      link: /start/quickstart
     - theme: alt
       text: How Wow Works
       link: /concepts/
@@ -88,8 +88,8 @@ From that model, without more code, the service gets an HTTP route for each comm
 | You want to | Start with |
 | --- | --- |
 | Decide whether Wow fits your system | [How Wow works](/concepts/), then the [glossary](/reference/glossary) |
-| Write a service | [Quick start](/guide/v10/quickstart), then [deciding and evolving](/concepts/programming-model) |
-| Call a service from a TypeScript front end | [TypeScript client](/guide/typescript/) |
+| Write a service | [Quick start](/start/quickstart), then [deciding and evolving](/concepts/programming-model) |
+| Call a service from a TypeScript front end | [TypeScript client](/typescript/) |
 | Run services in production | [Identity, tenancy and access](/concepts/identity), then [subscriptions, failures and replay](/concepts/subscriptions) |
 | Analyze the data | [Read models](/concepts/read-models), then the [workbench](/data/workbench) |
 

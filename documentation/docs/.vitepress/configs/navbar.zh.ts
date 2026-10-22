@@ -1,16 +1,16 @@
 import {DefaultTheme} from "vitepress/types/default-theme";
 
 export const navbarZh: DefaultTheme.NavItem[] = [
-    {text: '快速开始', link: '/zh/guide/v10/quickstart'},
+    {text: '快速开始', link: '/zh/start/quickstart', activeMatch: '/zh/start/'},
     {
         text: '指南',
-        activeMatch: '/zh/guide/v10/',
+        activeMatch: '/zh/guide/(?!typescript/)',
         items: [
-            {text: '编写服务', link: '/zh/guide/v10/'},
-            {text: '编程模型', link: '/zh/guide/v10/programming-model'},
+            {text: '接入已有服务', link: '/zh/start/existing-project'},
+            {text: '聚合', link: '/zh/guide/aggregates'},
             {text: '测试', link: '/zh/guide/testing'},
-            {text: 'HTTP API', link: '/zh/guide/v10/http-api'},
-            {text: '查询语言', link: '/zh/guide/v10/query'},
+            {text: 'HTTP API', link: '/zh/guide/http'},
+            {text: '查询', link: '/zh/guide/queries'},
             {text: '部署', link: '/zh/operate/topology'},
         ],
     },
@@ -21,8 +21,10 @@ export const navbarZh: DefaultTheme.NavItem[] = [
             {
                 text: '指南',
                 items: [
-                    {text: '概览', link: '/zh/guide/typescript/'},
-                    {text: '生成客户端', link: '/zh/guide/typescript/generated-client'},
+                    {text: '概览', link: '/zh/typescript/'},
+                    {text: '生成客户端', link: '/zh/typescript/generate'},
+                    {text: '发送命令', link: '/zh/typescript/commands'},
+                    {text: '读取与查询', link: '/zh/typescript/queries'},
                     {text: '视图引擎', link: '/zh/typescript/view-engine/'},
                     {text: '使用工作台（面向使用者）', link: '/zh/data/workbench'},
                 ],
@@ -61,7 +63,8 @@ export const navbarZh: DefaultTheme.NavItem[] = [
             {text: 'Manifest 格式', link: '/zh/reference/manifest'},
             {text: '模块与制品', link: '/zh/reference/modules'},
             {text: 'API 级别', link: '/zh/reference/api-levels'},
-            {text: '编译器生成什么', link: '/zh/guide/v10/generated-code'},
+            {text: 'HTTP API', link: '/zh/reference/http'},
+            {text: '查询语言', link: '/zh/reference/query-language'},
             {text: 'Kotlin API', link: '/dokka/index.html', target: '_blank'},
             {text: 'Storybook', link: '/storybook/', target: '_blank'},
         ],

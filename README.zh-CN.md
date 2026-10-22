@@ -4,11 +4,11 @@
 
 <h1 align="center">Wow</h1>
 
-> **Wow 10.0 正在本分支上预发布。** 稳定的 9.x 版本线在 [`v9`](https://github.com/Ahoo-Wang/Wow/tree/v9) 分支，文档在 [wow.ahoo.me](https://wow.ahoo.me/)。
+> **Wow 10.0 正在本分支上预发布。** 稳定的 9.x 版本线在 [`v9`](https://github.com/Ahoo-Wang/Wow/tree/v9) 分支。
 
 <p align="center"><strong>领域模型即服务</strong></p>
 
-<p align="center">让领域决策显式、可测试、可追溯的响应式 CQRS 与事件溯源框架。</p>
+<p align="center">只写领域模型，就得到一个能运行的系统：它的 API、契约、客户端和读模型。</p>
 
 <p align="center">
   <a href="https://www.kaicode.org/2026.html"><img width="280" src="documentation/docs/public/images/kaicode-2026-wow.svg" alt="KaiCode'26 Excellent Award"/></a><br/>
@@ -18,15 +18,10 @@
 <p align="center">
   <a href="https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202-4EB1BA.svg" alt="License"/></a>
   <a href="https://github.com/Ahoo-Wang/Wow/releases"><img src="https://img.shields.io/github/release/Ahoo-Wang/Wow.svg" alt="GitHub release"/></a>
-  <a href="https://central.sonatype.com/artifact/me.ahoo.wow/wow-core"><img src="https://img.shields.io/maven-central/v/me.ahoo.wow/wow-core" alt="Maven Central"/></a>
+  <a href="https://central.sonatype.com/artifact/me.ahoo.wow/wow-bom"><img src="https://img.shields.io/maven-central/v/me.ahoo.wow/wow-bom" alt="Maven Central"/></a>
   <a href="https://codecov.io/gh/Ahoo-Wang/Wow"><img src="https://codecov.io/gh/Ahoo-Wang/Wow/branch/main/graph/badge.svg?token=uloJrLoQir" alt="Codecov"/></a>
-  <a href="https://github.com/Ahoo-Wang/Wow/actions/workflows/integration-test.yml"><img src="https://github.com/Ahoo-Wang/Wow/actions/workflows/integration-test.yml/badge.svg" alt="CI"/></a>
+  <a href="https://github.com/Ahoo-Wang/Wow/actions/workflows/ci.yml"><img src="https://github.com/Ahoo-Wang/Wow/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
   <a href="https://kotlin.link/"><img src="https://kotlin.link/awesome-kotlin.svg" alt="Awesome Kotlin"/></a>
-  <a href="https://deepwiki.com/Ahoo-Wang/Wow"><img src="https://deepwiki.com/badge.svg" alt="DeepWiki"/></a>
-</p>
-
-<p align="center">
-  <strong>领域驱动</strong> &middot; <strong>事件驱动</strong> &middot; <strong>测试驱动</strong> &middot; <strong>声明式设计</strong> &middot; <strong>响应式</strong>
 </p>
 
 <p align="center">
@@ -35,74 +30,129 @@
 
 ---
 
-## Wow 提供什么
+## 你写什么，得到什么
 
-Wow 把每次写入变成可观察的领域链路：
+你编写一个聚合：它接收一条命令，查看自己的状态，决定发生哪些事件。
 
-```text
-HTTP 命令 → 聚合决策 → 领域事件 → 溯源状态 → 投影 / Saga
+<!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt#withdraw -->
+
+```kotlin
+@OnCommand(produces = [Withdrawn::class])
+fun onCommand(command: Withdraw): Decision = when {
+    command.amount <= 0 ->
+        Decision.reject(Rejections.INVALID_AMOUNT, "${command.amount} is not positive.")
+
+    command.amount > state.balance ->
+        Decision.reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
+
+    else -> Decision.events(Withdrawn(command.amount))
+}
 ```
 
-你负责定义命令、事件、聚合规则和溯源函数；Wow 提供响应式命令管道、事件持久化、快照、等待阶段、投影、Saga、元数据生成、WebFlux 路由和 Given → When → Expect 测试 DSL。
+并且用同样的语言测试它：
 
-当业务规则复杂，需要状态历史、多种读模型或跨聚合流程时，这套模型更有价值。若问题只是简单 CRUD，且一个数据库事务已经能完整表达需求，引入事件演进和最终一致性的成本可能得不偿失。
+<!-- sample: example/quickstart/src/test/kotlin/me/ahoo/wow/example/quickstart/AccountSpec.kt#withdraw -->
 
-## 30 分钟首条链路目标
+```kotlin
+@Test
+fun `a withdrawal the balance does not cover is rejected`() = aggregateSpec(model, id = "alice") {
+    given(AccountOpened("Alice"), Deposited(100))
+    whenCommand(Withdraw(150)) { expectRejected(Account.Rejections.INSUFFICIENT_BALANCE) }
+    whenCommand(Withdraw(30)) {
+        expectEvents(Withdrawn(30))
+        expectState { balance.assert().isEqualTo(70) }
+    }
+}
+```
 
-[![Use this template](https://img.shields.io/badge/Use%20this%20template-2ea44f?style=for-the-badge&logo=github)](https://github.com/new?template_name=wow-project-template&template_owner=Ahoo-Wang)
+由此，Wow 给你每条命令的 HTTP 路由、每个聚合的状态读取和查询、一份 OpenAPI 文档、一个类型化的 TypeScript 客户端、每个处理函数的重试与停放，以及一份由构建检查兼容性的契约。
 
-1. 从 [Wow 项目模板](https://github.com/Ahoo-Wang/wow-project-template)创建或克隆仓库。
-2. 运行 `./gradlew :domain:check`，再以文档中的内存配置启动 `./gradlew :server:run`。
-3. 按[快速开始](documentation/docs/zh/guide/v10/quickstart.md)发送真实 `CreateDemo` 命令，等待 `SNAPSHOT`，并读取聚合版本 `1` 的状态。
+## 为什么选择 Wow
 
-这条路径会同时证明领域测试、生成路由、命令管道、事件溯源、快照等待和版本化状态读取。30 分钟是目标时长：功能链路已经过演练，但尚未测量新开发者首次完成的墙钟时间。若要在已有服务中接入，请改走[编写服务](documentation/docs/zh/guide/v10/index.md)。
+- **日志就是总线。** 每次提交都追加到日志，其他一切（快照、读模型、其他上下文、数仓）都从那里跟随它。写入与它的后果之间不会丢失任何东西。
+- **你写的是决定，而不是管道。** 聚合做出决定；Saga 派生命令；投影和反应器跟随事件。路由、持久化、投递和重试都由框架负责。
+- **失败是数据。** 一再失败的处理函数会停放一个聚合，并记进台账；它从不跳过事件，也不停止订阅。
+- **一份契约。** 路由、OpenAPI、类型化客户端、视图和兼容检查，都来自编译器写出的同一份 Manifest。
+- **读模型可以丢弃。** 每个读模型都能从日志重建，所以改变它不需要迁移。
 
-## 仓库内的能力证据
+## 快速开始
 
-| 能力 | 可检查的实现与测试 |
-| --- | --- |
-| 聚合决策与事件溯源状态 | [订单与购物车示例](example/example-domain/src/main/kotlin/me/ahoo/wow/example/domain)及其[领域规约](example/example-domain/src/test/kotlin/me/ahoo/wow/example/domain) |
-| 命令调度、事件持久化、投影与 Saga | [wow-core](wow-core/src/main/kotlin/me/ahoo/wow) |
-| Given → When → Expect 验证 | [wow-test](test/wow-test/src/main/kotlin/me/ahoo/wow/test) |
-| 生成的 HTTP 命令与状态路由 | [wow-webflux](wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route) |
-| 可选存储、消息、安全与可观测集成 | [wow-spring-boot-starter Feature Capabilities](wow-spring-boot-starter/build.gradle.kts) |
-| 补偿与恢复操作 | [ops 服务与控制台](platform/ops) |
-| TypeScript 客户端、React 绑定、代码生成器与视图引擎（npm `@ahoo-wang/wow-*`） | [typescript](typescript)与 [TypeScript 指南](documentation/docs/zh/guide/typescript/index.md) |
+1. 应用 Gradle 插件 `me.ahoo.wow` 和 BOM `me.ahoo.wow:wow-bom`。
+2. 编写一条命令、一个事件、一个状态和一个聚合。
+3. `./gradlew run`，然后用 `curl` 发送一条命令。
 
-## 特性
-
-<p align="center"><img src="documentation/docs/public/images/Features.png" alt="Wow 特性" width="95%"/></p>
+[快速开始](https://wow.ahoo.me/zh/start/quickstart)用大约三十分钟带你走完。
 
 ## 架构
 
-<p align="center"><img src="documentation/docs/public/images/Architecture.svg" alt="架构" width="95%"/></p>
+```mermaid
+flowchart LR
+    C[Clients] -->|commands| N[Service nodes]
+    N -->|decide| L[(Log)]
+    L --> S[Snapshots]
+    L --> P[Projections and reactors]
+    L --> G[Sagas]
+    G -->|commands| N
+    L -->|published streams| K[(Kafka)]
+    K --> O[Other contexts]
+    L --> W[(Warehouse)]
+```
 
-## 兼容性基线
+一个服务以一个或多个节点运行在 PostgreSQL 或 MongoDB 之上；它们通过同一个存储中的租约划分日志的分区。上下文之间通过 Kafka 通信。模型见[概念](https://wow.ahoo.me/zh/concepts/)。
 
-当前源码声明：
+## 模块
 
-| 组件 | 基线 |
+| 制品 | 包含 |
 | --- | --- |
-| Wow | `9.9.0` |
-| Java | 17+ |
-| Spring Boot | `4.1.1` |
-| Kotlin | `2.4.21` |
-| KSP | `2.3.12` |
+| `me.ahoo.wow:wow-bom` | 每个模块的版本 |
+| `me.ahoo.wow:wow-api` | 领域代码使用的注解和类型 |
+| `me.ahoo.wow:wow-kernel` | 生成的模型所基于的内核 |
+| `me.ahoo.wow:wow-spring-boot` | Spring Boot 宿主 |
+| `me.ahoo.wow:wow-test` | 测试 DSL |
+| `me.ahoo.wow:wow-postgres`、`wow-mongo` | 后端 |
+| `me.ahoo.wow:wow-kafka`、`wow-clickhouse`、`wow-elasticsearch` | 传输、数仓、检索 |
 
-项目模板独立演进。教程会记录实际验证的模板提交与其固定的 Wow 版本；开始前仍应检查模板的 [`gradle/libs.versions.toml`](https://github.com/Ahoo-Wang/wow-project-template/blob/main/gradle/libs.versions.toml)。使用其他框架版本时，先固定精确 [Release](https://github.com/Ahoo-Wang/Wow/releases) 再查看对应 tag：例如 [`v6.20.16`](https://github.com/Ahoo-Wang/Wow/blob/v6.20.16/gradle/libs.versions.toml) 声明 Wow `6.20.16` 与 Spring Boot `3.5.11`。
+## TypeScript
 
-源码、二进制和线协议兼容是三个不同范围。升级时只验证真正需要的范围，并重点检查持久化事件与生成的 HTTP 契约。
+| 包 | 作用 |
+| --- | --- |
+| `@ahoo-wang/wow-client` | 带等待的命令、状态读取和查询 |
+| `@ahoo-wang/wow-generator` | 从服务的 Manifest 生成类型化客户端 |
+| `@ahoo-wang/wow-react` | 用于查询的 React hooks |
+| `@ahoo-wang/wow-view-engine` | 可配置的数据视图：记录、分析和仪表盘 |
+| `@ahoo-wang/wow-view-store` | 保存在 Wow 服务端的视图 |
 
-## 继续阅读
+## 平台服务与示例
 
-- 从[编写服务](documentation/docs/zh/guide/v10/index.md)与[编程模型](documentation/docs/zh/guide/v10/programming-model.md)开始。
-- 阅读 Kotlin [订单服务](example)或 Java [银行转账](example/transfer)示例。
-- 在 [`Wow-Wait`](documentation/docs/zh/guide/v10/http-api.md#wow-wait) 中理解处理阶段，在[投影](documentation/docs/zh/guide/v10/programming-model.md#投影)建立读模型，在[失败](documentation/docs/zh/guide/v10/programming-model.md#失败)了解恢复边界。
-- 查看[贡献指南](CONTRIBUTING.md)、[行为准则](CODE_OF_CONDUCT.md)和[安全策略](SECURITY.md)。
-- Wow 荣获 [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html)；官方结果给出的证据包括模块化设计、代码评审、测试、静态分析、双语文档和 Maven Central 发布历史。
+- [ops 服务与控制台](platform/ops)：把每个服务停放的聚合汇集到一处。
+- [视图存储](platform/view-store)：保存的视图和仪表盘。
+- [分析目录](platform/analytics/catalog)：跨服务的数据集（孵化中）。
+- [eShop](example/eshop)：基于 PostgreSQL、Kafka 和 ClickHouse 的五个服务，带 Web 界面。
+- [quickstart](example/quickstart)：快速开始页面中的那个服务。
 
-相关项目：[CosId](https://github.com/Ahoo-Wang/CosId)、[CoSec](https://github.com/Ahoo-Wang/CoSec)、[CoCache](https://github.com/Ahoo-Wang/CoCache)、[Simba](https://github.com/Ahoo-Wang/Simba)、[CoSky](https://github.com/Ahoo-Wang/CoSky)、[CoApi](https://github.com/Ahoo-Wang/CoApi)和 [FluentAssert](https://github.com/Ahoo-Wang/FluentAssert)。
+## 环境要求
 
-## License
+| 组件 | 版本 |
+| --- | --- |
+| Java | 21 |
+| Kotlin | 2.4.21 |
+| KSP | 2.3.12 |
+| Spring Boot | 4.1.1 |
 
-Wow 基于 [Apache 2.0](LICENSE) 协议开源。
+## 从 9.x 迁移
+
+[从 9.x 迁移](https://wow.ahoo.me/zh/migrate/)涵盖源码、数据和切换。9.x 版本线在 [`v9`](https://github.com/Ahoo-Wang/Wow/tree/v9) 分支上维护。
+
+## Agent Skills
+
+六个 Skill 帮助 Agent 编写、迁移和查询 Wow 应用：从 Ahoo Skills Hub 安装插件 `ahoo-wow-skills`，或者把某个确切 Wow tag 下的 [skills](skills) 复制到 Agent 的 Skills 目录。
+
+## 社区
+
+- 阅读[贡献指南](CONTRIBUTING.md)、[行为准则](CODE_OF_CONDUCT.md)和[安全策略](SECURITY.md)。
+- Wow 荣获 [KaiCode’26 Excellent Award](https://www.kaicode.org/2026.html)。
+- 相关项目：[CosId](https://github.com/Ahoo-Wang/CosId)、[CoSec](https://github.com/Ahoo-Wang/CoSec)、[Simba](https://github.com/Ahoo-Wang/Simba) 和 [FluentAssert](https://github.com/Ahoo-Wang/FluentAssert)。
+
+## 许可证
+
+Wow 以 [Apache 2.0 许可证](LICENSE)发布。

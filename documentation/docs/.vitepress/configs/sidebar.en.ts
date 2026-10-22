@@ -72,16 +72,17 @@ const viewEngine: DefaultTheme.SidebarItem[] = [viewEngineGuides, ...viewEngineR
 // One sidebar for the TypeScript client area: its guides and the reference of each package.
 const typescriptEn: DefaultTheme.SidebarItem[] = [
     {
-        base: '/guide/typescript/',
-        text: 'TypeScript Client',
+        base: '/typescript/',
+        text: 'TypeScript',
         items: [
             {text: 'Overview', link: 'index.html'},
-            {text: 'Quick Start', link: 'quick-start'},
-            {text: 'Authentication and Interceptors', link: 'authentication'},
-            {text: 'Generate from Any OpenAPI Document', link: 'generated-client'},
-            {text: 'Regenerate in CI', link: 'regenerate-in-ci'},
-            {text: 'Compatibility and Versions', link: 'compatibility'},
-            {text: 'Troubleshooting', link: 'troubleshooting'},
+            {text: 'Generate a Client', link: 'generate'},
+            {text: 'Send Commands', link: 'commands'},
+            {text: 'Read and Query', link: 'queries'},
+            {text: 'Generate from Any OpenAPI Document', link: 'openapi-client'},
+            {text: 'Authentication and Interceptors', base: '/guide/typescript/', link: 'authentication'},
+            {text: 'Compatibility and Versions', base: '/guide/typescript/', link: 'compatibility'},
+            {text: 'Troubleshooting', base: '/guide/typescript/', link: 'troubleshooting'},
         ],
     },
     {
@@ -114,23 +115,6 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Query for Analysis', link: 'querying'},
                 {text: 'Datasets and the Analytics Catalog', link: 'datasets'},
                 {text: 'The Workbench', link: 'workbench'},
-            ],
-        },
-    ],
-    '/guide/v10/': [
-        {
-            base: '/guide/v10/',
-            text: 'Guide',
-            items: [
-                {text: 'Quick Start', link: 'quickstart'},
-                {text: 'Write a Service', link: 'index.html'},
-                {text: 'Programming Model', link: 'programming-model'},
-                {text: 'What the Compiler Generates', link: 'generated-code'},
-                {text: 'Testing', base: '/guide/', link: 'testing'},
-                {text: 'HTTP API', link: 'http-api'},
-                {text: 'Query Language', link: 'query'},
-                {text: 'Configuration Keys', link: 'configuration'},
-                {text: 'Deployment', base: '/operate/', link: 'topology'},
             ],
         },
     ],
@@ -235,6 +219,16 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             items: [
                 {text: 'Host on Spring Boot', link: 'spring-boot'},
                 {text: 'Write the Domain in Java', link: 'java'},
+            ],
+        },
+    ],
+    '/start/': [
+        {
+            base: '/start/',
+            text: 'Start',
+            items: [
+                {text: 'Quickstart', link: 'quickstart'},
+                {text: 'Add Wow to an Existing Service', link: 'existing-project'},
             ],
         },
     ],

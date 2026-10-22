@@ -1,16 +1,16 @@
 import {DefaultTheme} from "vitepress/types/default-theme";
 
 export const navbarEn: DefaultTheme.NavItem[] = [
-    {text: 'Quick Start', link: '/guide/v10/quickstart'},
+    {text: 'Quick Start', link: '/start/quickstart', activeMatch: '/start/'},
     {
         text: 'Guide',
-        activeMatch: '/guide/v10/',
+        activeMatch: '/guide/(?!typescript/)',
         items: [
-            {text: 'Write a Service', link: '/guide/v10/'},
-            {text: 'Programming Model', link: '/guide/v10/programming-model'},
+            {text: 'Add Wow to a Service', link: '/start/existing-project'},
+            {text: 'Aggregates', link: '/guide/aggregates'},
             {text: 'Testing', link: '/guide/testing'},
-            {text: 'HTTP API', link: '/guide/v10/http-api'},
-            {text: 'Query Language', link: '/guide/v10/query'},
+            {text: 'HTTP API', link: '/guide/http'},
+            {text: 'Queries', link: '/guide/queries'},
             {text: 'Deployment', link: '/operate/topology'},
         ],
     },
@@ -21,8 +21,10 @@ export const navbarEn: DefaultTheme.NavItem[] = [
             {
                 text: 'Guide',
                 items: [
-                    {text: 'Overview', link: '/guide/typescript/'},
-                    {text: 'Generate a Client', link: '/guide/typescript/generated-client'},
+                    {text: 'Overview', link: '/typescript/'},
+                    {text: 'Generate a Client', link: '/typescript/generate'},
+                    {text: 'Send Commands', link: '/typescript/commands'},
+                    {text: 'Read and Query', link: '/typescript/queries'},
                     {text: 'View Engine', link: '/typescript/view-engine/'},
                     {text: 'The Workbench (for users)', link: '/data/workbench'},
                 ],
@@ -61,7 +63,8 @@ export const navbarEn: DefaultTheme.NavItem[] = [
             {text: 'Manifest Format', link: '/reference/manifest'},
             {text: 'Modules and Artifacts', link: '/reference/modules'},
             {text: 'API Levels', link: '/reference/api-levels'},
-            {text: 'What the Compiler Generates', link: '/guide/v10/generated-code'},
+            {text: 'HTTP API', link: '/reference/http'},
+            {text: 'Query Language', link: '/reference/query-language'},
             {text: 'Kotlin API', link: '/dokka/index.html', target: '_blank'},
             {text: 'Storybook', link: '/storybook/', target: '_blank'},
         ],

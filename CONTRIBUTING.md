@@ -59,7 +59,7 @@ cd documentation
 pnpm docs:build
 ```
 
-The [Quick Start](documentation/docs/en/guide/v10/quickstart.md), [Write a Service](documentation/docs/en/guide/v10/index.md) and [Testing](documentation/docs/en/guide/v10/testing.md) pages are the canonical topic references; the design records in [documentation/designs/v10](documentation/designs/v10/README.md) explain the architecture.
+The [Quick Start](documentation/docs/en/start/quickstart.md), [Add Wow to an Existing Service](documentation/docs/en/start/existing-project.md) and [Testing](documentation/docs/en/guide/testing.md) pages are the canonical topic references; the design records in [documentation/designs/v10](documentation/designs/v10/README.md) explain the architecture.
 
 ## Change Guidelines
 
