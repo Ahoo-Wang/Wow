@@ -29,11 +29,6 @@ A code is a `const val` of type `String` annotated `@ErrorCode`, in an `object` 
  * `<context>.order.<code>` (decision D259), as its peers read them from the api's generated contract.
  */
 object Rejections {
-    @ErrorCode(
-        description = "An order has at least one item, each of a positive quantity and a price not negative."
-    )
-    const val INVALID_ITEMS = "invalid-items"
-
     @ErrorCode(description = "The order's status does not allow the command.", status = 409)
     const val WRONG_STATUS = "wrong-status"
 
@@ -55,16 +50,14 @@ A command function returns the rejection with the code's local name and a messag
 
 ```kotlin
 @OnCommand(produces = [StockReserved::class])
-fun onCommand(command: ReserveStock, scope: DecideScope): Decision = whenPositive(command.quantity) {
-    when {
-        command.orderId in state.reservations -> Decision.NoOp
-        command.quantity > state.available -> Decision.reject(
-            Rejections.INSUFFICIENT,
-            "Only ${state.available} of ${scope.command.ref.id} are available, not ${command.quantity}.",
-        )
+fun onCommand(command: ReserveStock, scope: DecideScope): Decision = when {
+    command.orderId in state.reservations -> Decision.NoOp
+    command.quantity > state.available -> Decision.reject(
+        Rejections.INSUFFICIENT,
+        "Only ${state.available} of ${scope.command.ref.id} are available, not ${command.quantity}.",
+    )
 
-        else -> Decision.events(StockReserved(command.orderId, command.quantity))
-    }
+    else -> Decision.events(StockReserved(command.orderId, command.quantity))
 }
 ```
 
@@ -81,12 +74,13 @@ The message may say anything that helps a person: amounts, ids, the state the ag
 <!-- sample: example/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#rejected -->
 
 ```kotlin
-// An order of no items is the ordering's rejection, typed.
+// An order of no items breaks SubmitOrder's constraints: the ordering refuses it at admission, typed.
 val rejected = runCatching {
     basket.bean<CommandClient>().of(alice)
         .wait(SubmitOrder(emptyList()), EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "client-alice-2"))
 }.exceptionOrNull() as CommandRejectedException
-rejected.code.assert().contains("invalid")
+rejected.code.assert().isEqualTo("wow.command.invalid")
+rejected.result.error!!.violations.single().path.assert().isEqualTo("items")
 ```
 
 **A peer** compares the code with a constant instead of a string. The api module's generated contract holds every code of its context by its full name, `EshopOrderingContract.Order.Errors.WRONG_STATUS`, so a peer that depends on the ordering's api reads the same value the ordering rejects with.

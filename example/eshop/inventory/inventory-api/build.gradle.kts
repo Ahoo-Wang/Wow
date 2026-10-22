@@ -2,6 +2,8 @@ description = "Wow eShop: the inventory context's commands, events and value typ
 
 dependencies {
     api(project(":api"))
+    // The commands' Jakarta constraints, which the host checks at admission (decision D106).
+    api("jakarta.validation:jakarta.validation-api")
     // The query fields of the generated contract code (EshopInventoryContract.<Aggregate>.STATE__*), decision D259.
     api(project(":query-api"))
 }

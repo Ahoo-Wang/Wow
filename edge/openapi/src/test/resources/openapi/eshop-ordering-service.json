@@ -3280,7 +3280,7 @@
         }
       },
       "eshop-ordering.command.422" : {
-        "description" : "`eshop-ordering.order.invalid-items`: An order has at least one item, each of a positive quantity and a price not negative.\n`eshop-ordering.order.wrong-amount`: A payment pays the order's total amount.\nA rejection by the domain, with the code it chose (decision D121); the problem carries the command's result.",
+        "description" : "`eshop-ordering.order.wrong-amount`: A payment pays the order's total amount.\nA rejection by the domain, with the code it chose (decision D121); the problem carries the command's result.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3288,7 +3288,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "eshop-ordering.order.invalid-items", "eshop-ordering.order.wrong-amount" ]
+        "x-wow-error-codes" : [ "eshop-ordering.order.wrong-amount" ]
       },
       "eshop-ordering.command.429" : {
         "description" : "`wow.command.busy`: The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; retry later.",

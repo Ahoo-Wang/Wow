@@ -21,6 +21,8 @@ apply(from = rootProject.file("example/eshop/wow-manifest-compatibility.gradle.k
 dependencies {
     implementation(project(":eshop-catalog-domain"))
     implementation(project(":spring-boot"))
+    // A Bean Validation provider: the host checks each command's constraints with it (decision D106).
+    implementation("org.springframework.boot:spring-boot-starter-validation")
     // The `postgres` profile: the host runs on PostgreSQL when the application gives it a DataSource, and serves the
     // snapshot queries there, with the indexes the product's state declares.
     implementation(project(":postgres"))

@@ -364,7 +364,9 @@ rc 之后不丢的清单：每一项写明来源，排期时再拆成路线图�
 | 事项 | 来源 |
 | --- | --- |
 | 文档缺页：P0 `start/index`、`start/why-wow`；P1、P2 各页；CONTRIBUTING.md 的 V10 重写 | [文档方案](docs-plan.md) §10（用户 2026-10-22） |
-| 9.x 站点导航的 API 文档链接 `/9.x/dokka/` 为 404：DI-6 只构建 9.x 的 VitePress 页面；在 v9 上去掉该导航项，或部署时跳转到当前的 `/dokka/` | DI-6 上线后的检查（2026-10-22） |
+| ~~9.x 站点导航的 API 文档链接 `/9.x/dokka/` 为 404~~：已修，v9 去掉导航项并修正 sitemap（#4785），DI-6 增加 9.x Storybook（#4786） | DI-6 上线后的检查（2026-10-22） |
+| TypeScript 参考 `reference/typescript/*`：符号索引生成器推广到 wow-client、wow-react、wow-view-store（wow-react 先补 API 报告），生成页面并加检查；目前只有 wow-generator 与 wow-view-engine 有 | 文档方案 §2.9 的逐条核对（2026-10-22） |
+| AGENTS.md 中过时的 9.x 内容（代码风格的 CommandBus 示例、ABI 一节、已删除的文档治理页链接） | 同上 |
 
 ### 10.x 候选
 

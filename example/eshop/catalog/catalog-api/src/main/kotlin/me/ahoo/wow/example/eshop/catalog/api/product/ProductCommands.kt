@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.example.eshop.catalog.api.product
 
+import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Positive
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Summary
 import java.math.BigDecimal
@@ -24,8 +26,8 @@ import java.math.BigDecimal
 @CreateAggregate
 @Summary("Create a product")
 data class CreateProduct(
-    val name: String,
-    val price: BigDecimal,
+    @field:NotBlank val name: String,
+    @field:Positive val price: BigDecimal,
     val description: String = "",
     val brandId: String? = null,
     val categoryId: String? = null,
@@ -34,7 +36,7 @@ data class CreateProduct(
 /** Replaces the product's name, description, brand and category. */
 @Summary("Update a product")
 data class UpdateProduct(
-    val name: String,
+    @field:NotBlank val name: String,
     val description: String = "",
     val brandId: String? = null,
     val categoryId: String? = null,
@@ -42,7 +44,7 @@ data class UpdateProduct(
 
 /** Changes the product's price. */
 @Summary("Change a product's price")
-data class ChangeProductPrice(val price: BigDecimal)
+data class ChangeProductPrice(@field:Positive val price: BigDecimal)
 
 /** Puts the product on the storefront; a delisted product can be published again. */
 @Summary("Publish a product")

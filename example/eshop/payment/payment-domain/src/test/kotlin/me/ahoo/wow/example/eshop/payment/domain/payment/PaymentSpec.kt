@@ -51,13 +51,6 @@ class PaymentSpec {
     }
 
     @Test
-    fun `a payment of nothing should be rejected`() {
-        paymentSpec {
-            whenCommand(RequestPayment(ORDER, BigDecimal.ZERO)) { expectRejected(Payment.Rejections.INVALID_AMOUNT) }
-        }
-    }
-
-    @Test
     fun `a requested payment should be confirmed once`() {
         paymentSpec {
             given(PaymentRequested(ORDER, AMOUNT))

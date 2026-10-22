@@ -91,13 +91,17 @@ Each `-api` depends on `:api`. Each `-domain` depends on its API and on `:kernel
 - The eShop reaches Wow modules and other eShop projects only.
 - No `-api` or `-domain` reaches `:runtime`.
 
+### Validation
+
+A command's shape is checked before its aggregate decides: each `-api` puts Jakarta constraints on its commands (`@field:Positive`, `@field:NotBlank`, `@field:NotEmpty`, `@field:Valid` for the items of an order), and each `-server` has a Bean Validation provider (`spring-boot-starter-validation`). The gateway checks every command it takes, from HTTP, in process, or from a saga or another context, and answers a violation `wow.command.invalid` (400) with its `violations` (decision D106). An aggregate rejects only what needs its state or its caller, with an `@ErrorCode`: a buyer who does not own the basket, a product the basket does not hold, an empty basket, a short stock.
+
 ## Payment
 
 Work package E.5, after the classic eShop's `PaymentProcessor`. One aggregate, `payment`, one per order: its id is the order's.
 
 | Command | Sent by | Accepted when | Rejections |
 | --- | --- | --- | --- |
-| `RequestPayment` (creates it) | `OrderPaymentSaga`, on the order's `OrderStockConfirmed` | The payment does not exist yet | `invalid-amount` (422): an amount that is not positive |
+| `RequestPayment` (creates it) | `OrderPaymentSaga`, on the order's `OrderStockConfirmed` | The payment does not exist yet | None: an amount that is not positive breaks the command's constraint (`wow.command.invalid`, 400) |
 | `ConfirmPayment` | `PaymentGatewaySaga`, when the gateway approves | `REQUESTED`; again on `SUCCEEDED` changes nothing | `wrong-status` (409) |
 | `FailPayment` | `PaymentGatewaySaga`, when the gateway declines | `REQUESTED`; again on `FAILED` changes nothing | `wrong-status` (409) |
 | `RefundPayment` | `OrderPaymentSaga`, when the order rejects its `PayOrder`; the gateway's chargeback callback, `ChargebackNotified` | `SUCCEEDED`; again on `REFUNDED` changes nothing | `wrong-status` (409) |
@@ -136,11 +140,11 @@ Work package E.1. Three aggregates, the classic eShop's catalog items, brands an
 
 | Aggregate | Commands | Rejections |
 | --- | --- | --- |
-| `product` | `CreateProduct` (a draft; brand and category optional), `UpdateProduct` (name, description, brand, category), `ChangeProductPrice`, `PublishProduct`, `DelistProduct` | `blank-name` and `invalid-price` (422); `incomplete` (409): publishing without a brand and a category, or removing one from a published product; `not-published` (409): delisting a product that is not published |
-| `brand` | `CreateBrand`, `RenameBrand` | `blank-name` (422); `name-taken` (409) |
-| `category` | `CreateCategory`, `RenameCategory` | `blank-name` (422); `name-taken` (409) |
+| `product` | `CreateProduct` (a draft; brand and category optional), `UpdateProduct` (name, description, brand, category), `ChangeProductPrice`, `PublishProduct`, `DelistProduct` | `incomplete` (409): publishing without a brand and a category, or removing one from a published product; `not-published` (409): delisting a product that is not published |
+| `brand` | `CreateBrand`, `RenameBrand` | `name-taken` (409) |
+| `category` | `CreateCategory`, `RenameCategory` | `name-taken` (409) |
 
-- **Codes.** Each code is `eshop-catalog.<aggregate>.<code>`, answered as an RFC 9457 problem.
+- **Codes.** Each code is `eshop-catalog.<aggregate>.<code>`, answered as an RFC 9457 problem. A blank name or a price that is not more than zero breaks the command's constraints instead (`wow.command.invalid`, 400).
 - **Product status.** A product is `DRAFT`, `PUBLISHED` or `DELISTED`. A delisted product can be published again. Publishing a published product, or a command that changes nothing, is accepted and writes nothing.
 - **Unique names.** Brand and category names are unique, ignoring case and surrounding blanks. The aggregate reserves the name with `DecideScope.reserve`. A renamed brand or category keeps its old name reserved, because nothing releases a reserved key yet ([G19](DX-GAPS.md)).
 - **References.** A product names its brand and category by id. The catalog does not check that they exist.

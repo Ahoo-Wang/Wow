@@ -19,6 +19,8 @@ apply(from = rootProject.file("example/eshop/wow-manifest-compatibility.gradle.k
 dependencies {
     implementation(project(":eshop-inventory-domain"))
     implementation(project(":spring-boot"))
+    // A Bean Validation provider: the host checks each command's constraints with it (decision D106).
+    implementation("org.springframework.boot:spring-boot-starter-validation")
     // The `kafka` profile: the commands the ordering context sends arrive on wow.eshop-inventory.commands, the receipts
     // of those this context rejects go back to it, and the stock stream is published.
     implementation(project(":kafka"))

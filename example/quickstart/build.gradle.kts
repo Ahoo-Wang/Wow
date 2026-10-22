@@ -31,6 +31,8 @@ apply(from = rootProject.file("example/wow-manifest-fragment.gradle.kts"))
 dependencies {
     implementation(project(":kernel"))
     implementation(project(":spring-boot"))
+    // The commands' Jakarta constraints and a Bean Validation provider: the host checks them at admission (D106).
+    implementation("org.springframework.boot:spring-boot-starter-validation")
     ksp(project(":compiler"))
     testImplementation(project(":test-dsl"))
     testImplementation("org.springframework:spring-test")
