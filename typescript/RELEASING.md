@@ -1,13 +1,13 @@
 # 发布手册
 
-Maven 和 npm 用同一个版本号、同一个 `v*` tag 一起发布（见 [MIGRATION.md](MIGRATION.md)「发布策略」）。本文是维护者照做的手册：发布流水线怎么把关、日常发版和出错时怎么处理。
+Maven 和 npm 用同一个版本号、同一个 `v*` tag 一起发布：版本号只在 `gradle.properties` 定义，破坏性改动只进 `x.Y.0`（见下文「发版准入」）。本文是维护者照做的手册：发布流水线怎么把关、日常发版和出错时怎么处理。
 
 **9.2.0 已发布**（2026-10-03，tag `v9.2.0` → `7fe4934b5`，[GitHub release](https://github.com/Ahoo-Wang/Wow/releases/tag/v9.2.0)）：五个发布包在 npm 上的首发。它的发布说明就是那个 release，草稿已删。此后的补丁：
 
 - **9.2.1**（2026-10-04，[release](https://github.com/Ahoo-Wang/Wow/releases/tag/v9.2.1)）：服务端渲染修复、fetcher peers 放宽到 `^5.1.5 || ^6.0.0`、React peer 下限 `^19.0.0`。
 - **9.2.2**（2026-10-04，[release](https://github.com/Ahoo-Wang/Wow/releases/tag/v9.2.2)，[Packages Deploy](https://github.com/Ahoo-Wang/Wow/actions/runs/37180601238)）：视图引擎的稳健性修复与 Kotlin ABI 基线。`npm-smoke` 第一次两路都超时——npm 接受 wow-client 之后约 13 分钟才对外提供，当时等待上限是 5 分钟；重跑后全绿。之后等待上限改为 30 分钟，`npm-deploy` 也不再需要审批，改为等 Maven 两路成功（#3908）。
 
-**9.3.0 已发布**（2026-10-09，tag `v9.3.0` → `e71384074`（#4025 的合并提交），[GitHub release](https://github.com/Ahoo-Wang/Wow/releases/tag/v9.3.0)，[Packages Deploy](https://github.com/Ahoo-Wang/Wow/actions/runs/37882720912)）：整体重构的次版本，按用户决定**不发 rc**——五个发布包自 9.2.3 起源码没有变化，rc 只发 npm 验证不到 JVM 侧；控制台试用改在 main 的本地构建上做（[MIGRATION.md](MIGRATION.md)「9.3.0 控制台试用记录」）。`admission`（27 个破坏性 PR 都点名）、`preflight`、`github-deploy`、`central-deploy`、`npm-deploy`（五个包都带 provenance，`latest: 9.3.0`）、两个 `npm-smoke` 全部成功；三个镜像的 `9.3.0`、`9.3`、`latest` 在 Docker Hub、ghcr、阿里云 digest 一致。发布说明就是那个 release，草稿已删。
+**9.3.0 已发布**（2026-10-09，tag `v9.3.0` → `e71384074`（#4025 的合并提交），[GitHub release](https://github.com/Ahoo-Wang/Wow/releases/tag/v9.3.0)，[Packages Deploy](https://github.com/Ahoo-Wang/Wow/actions/runs/37882720912)）：整体重构的次版本，按用户决定**不发 rc**——五个发布包自 9.2.3 起源码没有变化，rc 只发 npm 验证不到 JVM 侧；控制台试用改在 main 的本地构建上做（记录见 git 历史）。`admission`（27 个破坏性 PR 都点名）、`preflight`、`github-deploy`、`central-deploy`、`npm-deploy`（五个包都带 provenance，`latest: 9.3.0`）、两个 `npm-smoke` 全部成功；三个镜像的 `9.3.0`、`9.3`、`latest` 在 Docker Hub、ghcr、阿里云 digest 一致。发布说明就是那个 release，草稿已删。
 
 下一个版本按「发版准入」第 3 条定：上一个 tag 以来没有破坏性改动就是下一个补丁版本；有就只能是下一个次版本（`x.Y.0`），准入拒绝补丁版本。最新发布是 `v9.9.0`（2026-10-12，[release](https://github.com/Ahoo-Wang/Wow/releases/tag/v9.9.0)）。草稿开始写时放在 `release-notes/v<版本>.md`。
 

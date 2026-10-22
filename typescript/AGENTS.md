@@ -4,7 +4,7 @@ These rules apply under `typescript/` and to the pnpm workspace files at the rep
 
 ## Migration In Progress
 
-The packages that move here from [fetcher](https://github.com/Ahoo-Wang/fetcher) (`wow-client`, `wow-react`, `wow-view-engine`, `wow-generator`, `storybook`, `integration-test`) arrive in steps. Read [MIGRATION.md](MIGRATION.md) first: it holds the plan, what has landed, the pull requests in flight and the next step. Update its "进度" section whenever a migration pull request merges.
+The packages here (`wow-client`, `wow-react`, `wow-view-engine`, `wow-generator`, `storybook`, `integration-test`) moved from [fetcher](https://github.com/Ahoo-Wang/fetcher) for Wow 9.2; the move is complete, and its record is in git history. How an application moves from the 9.x packages to V10 is the documentation's `migrate/http-and-clients` page.
 
 ## Packages
 

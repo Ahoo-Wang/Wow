@@ -292,7 +292,7 @@ test("every view-engine test that reads the site's pages is in test:docs", () =>
 
 test('other Markdown under typescript/ alone runs only its format check', () => {
   for (const path of [
-    'typescript/MIGRATION.md',
+    'typescript/TODO.md',
     'typescript/AGENTS.md',
     'typescript/wow-client/docs/superpowers/plans/a.md',
     'typescript/wow-react/AGENTS.md',
@@ -332,7 +332,7 @@ test('Markdown next to code keeps everything the code runs', () => {
     'packageDocs',
     'viewEngineDocs',
   ]);
-  assert.deepEqual(on(['typescript/MIGRATION.md', 'gradle.properties']), [
+  assert.deepEqual(on(['typescript/TODO.md', 'gradle.properties']), [
     'typescript',
   ]);
   // The order of paths does not matter.

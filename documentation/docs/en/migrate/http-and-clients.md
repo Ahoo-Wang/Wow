@@ -48,10 +48,10 @@ A 9.x error body, `errorCode`, `errorMsg` and `bindingErrors`, is an RFC 9457 pr
 | `@ahoo-wang/fetcher-wow`, or a 9.x `@ahoo-wang/wow-client` | `@ahoo-wang/wow-client` of the V10 version, with the peers `@ahoo-wang/fetcher` and `@ahoo-wang/fetcher-eventstream` |
 | `@ahoo-wang/fetcher-generator`, or a 9.x `wow-generator` reading `/v3/api-docs` | `@ahoo-wang/wow-generator` of the V10 version, reading the service's Manifest: `GET /wow/manifest` or its committed `manifest/baseline.json`. The OpenAPI-to-Wow path, the `fetcher-generator` command and `fetcher-generator.config.json` are gone |
 | `@ahoo-wang/fetcher-react`'s Wow hooks, or a 9.x `wow-react` | `@ahoo-wang/wow-react` of the V10 version |
-| `@ahoo-wang/fetcher-viewer` | `@ahoo-wang/wow-view-engine`, rebuilt with a definition and a host |
+| `@ahoo-wang/fetcher-viewer` (frozen at 5.x), and `fetcher-react`'s data monitor it used | `@ahoo-wang/wow-view-engine`, rebuilt with a definition and a host |
 | The 9.x view store's routes | `@ahoo-wang/wow-view-store`'s `WowViewStore` on the V10 view store service |
 
-Keep every Wow package on one V10 minor ([Compatibility and Versions](../typescript/compatibility)).
+Keep every Wow package on one V10 minor ([Compatibility and Versions](../typescript/compatibility)). The fetcher repository's agent Skills for these packages, `fetcher-wow-cqrs` and `fetcher-openapi-generator`, became Wow's `wow-client` Skill. The `@ahoo-wang/fetcher` core packages stay in their own repository and are peers of every Wow package; no fetcher package depends on a Wow one.
 
 ## Client code
 
