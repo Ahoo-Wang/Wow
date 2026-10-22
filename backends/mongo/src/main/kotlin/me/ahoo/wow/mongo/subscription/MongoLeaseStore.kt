@@ -110,6 +110,36 @@ class MongoLeaseStore(
             )?.let { leaseOf(it) }
         }
 
+    /**
+     * Two round trips for every partition (decision D270): the live leases [owner] holds are extended to one expiry,
+     * then the leases at that expiry are read back. A node renews its leases one round at a time, so no other call of
+     * [owner] sets the same expiry in between.
+     */
+    override suspend fun renewAll(
+        group: String,
+        partitions: Collection<Int>,
+        owner: String,
+        ttl: Duration
+    ): List<Lease> {
+        if (partitions.isEmpty()) {
+            return emptyList()
+        }
+        return dispatcher.mongo {
+            val now = clock.millis()
+            val expiresAt = now + ttl.inWholeMilliseconds
+            val held = Filters.and(
+                Filters.eq(GROUP, group),
+                Filters.`in`(PARTITION, partitions),
+                Filters.eq(OWNER, owner)
+            )
+            leases.updateMany(Filters.and(held, Filters.gt(EXPIRES_AT, now)), Updates.set(EXPIRES_AT, expiresAt))
+            leases.find(Filters.and(held, Filters.eq(EXPIRES_AT, expiresAt)))
+                .sort(Sorts.ascending(PARTITION))
+                .map { leaseOf(it) }
+                .toList()
+        }
+    }
+
     override suspend fun release(group: String, partition: Int, owner: String): Boolean = dispatcher.mongo {
         leases.updateOne(liveLeaseOf(group, partition, owner, clock.millis()), Updates.set(EXPIRES_AT, 0L))
             .matchedCount == 1L

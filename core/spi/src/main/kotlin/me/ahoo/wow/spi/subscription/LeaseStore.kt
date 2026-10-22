@@ -120,6 +120,14 @@ interface LeaseStore {
     /** Extends the live lease [owner] holds on [partition] to [ttl] from now; null when [owner] no longer holds it. */
     suspend fun renew(group: String, partition: Int, owner: String, ttl: Duration): Lease?
 
+    /**
+     * Extends to [ttl] from now each live lease [owner] holds on one of [partitions] (decision D270), and returns them;
+     * a partition [owner] no longer holds is left out. A node renews all its leases with one call each round, so a
+     * backend renews them in one round trip where it can; a failure fails the whole call. By default, [renew] each.
+     */
+    suspend fun renewAll(group: String, partitions: Collection<Int>, owner: String, ttl: Duration): List<Lease> =
+        partitions.mapNotNull { renew(group, it, owner, ttl) }
+
     /** Releases the live lease [owner] holds on [partition], so another node can acquire it at once. */
     suspend fun release(group: String, partition: Int, owner: String): Boolean
 

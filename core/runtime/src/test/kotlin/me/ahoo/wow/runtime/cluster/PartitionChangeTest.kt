@@ -64,6 +64,14 @@ class PartitionChangeTest {
                 return delegate.renew(group, partition, owner, ttl)
             }
 
+            /** Through [renew], so that it fails too (decision D270: a round renews with one call). */
+            override suspend fun renewAll(
+                group: String,
+                partitions: Collection<Int>,
+                owner: String,
+                ttl: Duration,
+            ): List<Lease> = super.renewAll(group, partitions, owner, ttl)
+
             override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? {
                 check(!down) { "The lease store is unreachable." }
                 return delegate.acquire(group, partition, owner, ttl)

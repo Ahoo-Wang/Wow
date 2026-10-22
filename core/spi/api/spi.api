@@ -1024,6 +1024,7 @@ public abstract interface class me/ahoo/wow/spi/subscription/LeaseStore {
 	public abstract fun owners (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun release (Ljava/lang/String;ILjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun renew-zkXUZaI (Ljava/lang/String;ILjava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun renewAll-zkXUZaI (Ljava/lang/String;Ljava/util/Collection;Ljava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/spi/subscription/Member {

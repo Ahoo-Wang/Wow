@@ -91,9 +91,9 @@ class LeaseRenewalTest {
         }
 
     @Test
-    fun `every renewal round is reported, and a failing renewal does not stop the others`(): Unit =
+    fun `every renewal round renews all its leases with one call and is reported`(): Unit =
         runTest(timeout = 1.minutes) {
-            val store = SlowLeases(InMemoryLeaseStore(virtualClock()), renewLatency = 10.milliseconds, failing = 3)
+            val store = SlowLeases(InMemoryLeaseStore(virtualClock()), renewLatency = 10.milliseconds)
             val rounds = CopyOnWriteArrayList<RenewalRound>()
             val ownership = ownership(store, rounds)
 
@@ -107,9 +107,11 @@ class LeaseRenewalTest {
                 full.forEach {
                     it.group.assert().isEqualTo(GROUP)
                     it.node.assert().isEqualTo(NODE)
-                    it.failed.assert().isEqualTo(1)
+                    it.failed.assert().isZero()
                     it.lost.assert().isZero()
                 }
+                // Decision D270: one store call a round, whatever the leases held.
+                store.calls.get().assert().isEqualTo(rounds.count { it.leases > 0 })
                 ownership.owned.size.assert().isEqualTo(PARTITIONS)
             } finally {
                 ownership.stop()
@@ -119,10 +121,10 @@ class LeaseRenewalTest {
     @Test
     fun `a round that outlasts the margin is reported with the leases it lost, even when the hook fails`(): Unit =
         runTest(timeout = 1.minutes) {
-            // One renewal at a time: the serial round of H6, 64 × 150 ms = 9.6 s against a 7 s margin.
-            val store = SlowLeases(InMemoryLeaseStore(virtualClock()), renewLatency = 150.milliseconds)
+            // A store that takes 8 s to renew, against a 7 s margin (spike H6).
+            val store = SlowLeases(InMemoryLeaseStore(virtualClock()), renewLatency = 8.seconds)
             val rounds = CopyOnWriteArrayList<RenewalRound>()
-            val ownership = ownership(store, rounds, ClusterOptions(leaseParallelism = 1)) {
+            val ownership = ownership(store, rounds) {
                 error("The metric hook failed.")
             }
             try {
@@ -150,6 +152,14 @@ class LeaseRenewalTest {
                     check(!down) { "The lease store is unreachable." }
                     return delegate.renew(group, partition, owner, ttl)
                 }
+
+                /** Through [renew], so that it fails too (decision D270: a round renews with one call). */
+                override suspend fun renewAll(
+                    group: String,
+                    partitions: Collection<Int>,
+                    owner: String,
+                    ttl: Duration,
+                ): List<Lease> = super.renewAll(group, partitions, owner, ttl)
 
                 override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? {
                     check(!down) { "The lease store is unreachable." }
@@ -236,23 +246,25 @@ class LeaseRenewalTest {
         private val delegate: LeaseStore,
         private val renewLatency: Duration,
         private val acquireLatency: Duration = Duration.ZERO,
-        private val failing: Int? = null,
     ) : LeaseStore by delegate {
         val lost = AtomicInteger()
+        val calls = AtomicInteger()
 
         override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? {
             delay(acquireLatency)
             return delegate.acquire(group, partition, owner, ttl)
         }
 
-        override suspend fun renew(group: String, partition: Int, owner: String, ttl: Duration): Lease? {
+        /** One call a round (decision D270): [renewLatency] once for every partition, as one statement takes. */
+        override suspend fun renewAll(
+            group: String,
+            partitions: Collection<Int>,
+            owner: String,
+            ttl: Duration
+        ): List<Lease> {
+            calls.incrementAndGet()
             delay(renewLatency)
-            check(partition != failing) { "The store failed to renew $partition." }
-            return delegate.renew(group, partition, owner, ttl).also {
-                if (it == null) {
-                    lost.incrementAndGet()
-                }
-            }
+            return delegate.renewAll(group, partitions, owner, ttl).also { lost.addAndGet(partitions.size - it.size) }
         }
     }
 

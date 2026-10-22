@@ -14,7 +14,10 @@
 package me.ahoo.wow.postgres.subscription
 
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
@@ -26,6 +29,7 @@ import me.ahoo.wow.spi.subscription.Member
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
+import java.sql.SQLException
 import java.time.Clock
 import javax.sql.DataSource
 import kotlin.time.Duration
@@ -34,7 +38,11 @@ import kotlin.time.Duration
  * The [LeaseStore] on PostgreSQL: one row per (group, partition) in `wow_lease` and one per (group, node), with the
  * node's internal address, in `wow_lease_member`.
  *
- * Every operation is one autocommitted statement. An acquisition is an upsert whose update applies only when the
+ * Every operation is one autocommitted statement, on a connection the store borrows once and keeps (decision D270):
+ * the store's operations run one at a time on it, so a renewal never waits behind the commands for a connection of
+ * the pool they share. A connection that fails as a connection ([PostgresFailures.isTransient]) is given back and the
+ * failure thrown; the next operation borrows another. The pool lends the commands one connection less, and a pool
+ * that detects leaks reports this one once. An acquisition is an upsert whose update applies only when the
  * stored lease has expired or belongs to the acquiring node; PostgreSQL re-checks that condition against the latest
  * row after waiting for a concurrent writer, so concurrent acquisitions have exactly one winner. A release keeps the
  * row with expiry 0, so the next acquisition continues its epoch.
@@ -82,6 +90,27 @@ class PostgresLeaseStore(
         }
     }
 
+    /** One statement for every partition (decision D270). */
+    override suspend fun renewAll(
+        group: String,
+        partitions: Collection<Int>,
+        owner: String,
+        ttl: Duration
+    ): List<Lease> {
+        if (partitions.isEmpty()) {
+            return emptyList()
+        }
+        val now = clock.millis()
+        return execute(RENEW_ALL) {
+            setLong(1, now + ttl.inWholeMilliseconds)
+            setString(2, group)
+            setString(3, owner)
+            setArray(4, connection.createArrayOf("integer", partitions.toTypedArray()))
+            setLong(5, now)
+            executeQuery().use { rows -> rows.map(::leaseOf) }
+        }
+    }
+
     override suspend fun release(group: String, partition: Int, owner: String): Boolean = execute(RELEASE) {
         setString(1, group)
         setInt(2, partition)
@@ -122,8 +151,28 @@ class PostgresLeaseStore(
         }
     }
 
+    /** The connection the operations run on, one at a time ([pinning]); null until the first and after a failure. */
+    private var pinned: Connection? = null
+    private val pinning = Mutex()
+
     private suspend fun <T> execute(sql: String, block: PreparedStatement.() -> T): T = dispatcher.jdbc {
-        dataSource.autoCommitted { connection: Connection -> connection.prepareStatement(sql).use { it.block() } }
+        pinning.withLock {
+            val connection = pinned ?: dataSource.connection.also {
+                if (!it.autoCommit) {
+                    it.autoCommit = true
+                }
+                pinned = it
+            }
+            try {
+                connection.prepareStatement(sql).use { it.block() }
+            } catch (failure: SQLException) {
+                if (PostgresFailures.isTransient(failure) || connection.isClosed) {
+                    pinned = null
+                    runCatching { connection.close() }
+                }
+                throw failure
+            }
+        }
     }
 
     private suspend fun <T> single(sql: String, row: (ResultSet) -> T, bind: PreparedStatement.() -> Unit): T? =
@@ -196,6 +245,13 @@ class PostgresLeaseStore(
                 epoch = CASE WHEN l.owner = excluded.owner AND l.expires_at > ? THEN l.epoch ELSE l.epoch + 1 END,
                 expires_at = excluded.expires_at
             WHERE l.expires_at <= ? OR l.owner = excluded.owner
+            RETURNING $LEASE_COLUMNS
+        """.trimIndent()
+
+        /** [RENEW] of every partition in the array (parameter 4). */
+        val RENEW_ALL = """
+            UPDATE $LEASES SET expires_at = ?
+            WHERE subscription_group = ? AND owner = ? AND partition = ANY(?) AND expires_at > ?
             RETURNING $LEASE_COLUMNS
         """.trimIndent()
 

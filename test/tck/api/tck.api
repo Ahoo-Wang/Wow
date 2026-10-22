@@ -226,6 +226,7 @@ public abstract class me/ahoo/wow/tck/subscription/LeaseStoreSpec {
 	public final fun members carry the address of their last heartbeat ()V
 	public final fun only the owner renews, and only while the lease is live ()V
 	public final fun owners lists the live leases of one group in partition order ()V
+	public final fun renewAll renews the live leases the owner holds and leaves the others out ()V
 	public final fun the owner acquiring again extends its lease and keeps the epoch ()V
 }
 

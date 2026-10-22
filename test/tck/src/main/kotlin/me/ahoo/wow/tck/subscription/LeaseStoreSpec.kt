@@ -115,6 +115,27 @@ abstract class LeaseStoreSpec {
     }
 
     @Test
+    fun `renewAll renews the live leases the owner holds and leaves the others out`(): Unit = runBlocking {
+        store.acquire(group, 0, "node-a", TTL)
+        store.acquire(group, 1, "node-a", TTL)
+        store.acquire(group, 2, "node-b", TTL)
+        store.acquire(group, 3, "node-a", TTL)
+        store.release(group, 3, "node-a")
+        clock.advance(TTL - 1.seconds)
+        val expiresAt = clock.millis() + TTL.inWholeMilliseconds
+        store.renewAll(group, listOf(0, 1, 2, 3, 4), "node-a", TTL).sortedBy { it.partition }.assert().containsExactly(
+            Lease(group, 0, "node-a", 1, expiresAt),
+            Lease(group, 1, "node-a", 1, expiresAt),
+        )
+        store.owners(
+            group
+        ).filter { it.owner == "node-a" }.map { it.expiresAt }.assert().containsExactly(expiresAt, expiresAt)
+        clock.advance(TTL)
+        store.renewAll(group, listOf(0, 1), "node-a", TTL).assert().isEmpty()
+        store.renewAll(group, emptyList(), "node-a", TTL).assert().isEmpty()
+    }
+
+    @Test
     fun `a released lease can be acquired at once`(): Unit = runBlocking {
         store.acquire(group, 0, "node-a", TTL)
         store.release(group, 0, "node-b").assert().isFalse()
