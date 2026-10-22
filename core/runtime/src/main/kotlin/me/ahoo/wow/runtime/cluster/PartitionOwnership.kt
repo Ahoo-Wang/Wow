@@ -88,7 +88,7 @@ data class RenewalRound(
  *   holds outside it and acquires those inside it. Members that briefly disagree are arbitrated by the leases and
  *   converge on the next round; a partition the old owner still holds is acquired once it is released or expires.
  * - **Leases** are renewed every [ClusterOptions.renewInterval], counted from the start of the previous round, all
- *   held leases of a round with one [LeaseStore.renewAll] (decision D270), so a round does not grow with the number
+ *   held leases of a round with one [LeaseStore.renew] (decision D270), so a round does not grow with the number
  *   held times the store's latency (spike H6) and asks the store's pool for one connection, not one per lease.
  *   Renewing starts before the first acquisition.
  *   Each round is reported to [renewalRounds] and logged, as a warning when it took more than half the margin
@@ -515,7 +515,7 @@ class PartitionOwnership internal constructor(
     }
 
     /**
-     * Renews every held lease once, all with one [LeaseStore.renewAll] (decision D270). A partition the call does not
+     * Renews every held lease once, all with one [LeaseStore.renew] (decision D270). A partition the call does not
      * give back is lost, unless it was handed off meanwhile; a call that throws leaves every lease to the next round,
      * each lost only once it is overdue.
      */
@@ -530,7 +530,7 @@ class PartitionOwnership internal constructor(
         if (held.isNotEmpty()) {
             val asked = timeSource.markNow()
             val renewed = try {
-                leases.renewAll(
+                leases.renew(
                     group.name,
                     held.map { it.first },
                     node,

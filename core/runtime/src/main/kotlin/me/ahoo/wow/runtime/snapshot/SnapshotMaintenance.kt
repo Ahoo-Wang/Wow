@@ -296,7 +296,7 @@ class SnapshotMaintenance(
                 }
             }
             after = pending.last()
-            leases.renew(lease, 0, node, options.leaseTtl)
+            leases.renew(lease, listOf(0), node, options.leaseTtl)
         }
     }
 

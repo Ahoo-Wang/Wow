@@ -79,19 +79,8 @@ class PostgresLeaseStore(
         }
     }
 
-    override suspend fun renew(group: String, partition: Int, owner: String, ttl: Duration): Lease? {
-        val now = clock.millis()
-        return single(RENEW, ::leaseOf) {
-            setLong(1, now + ttl.inWholeMilliseconds)
-            setString(2, group)
-            setInt(3, partition)
-            setString(4, owner)
-            setLong(5, now)
-        }
-    }
-
     /** One statement for every partition (decision D270). */
-    override suspend fun renewAll(
+    override suspend fun renew(
         group: String,
         partitions: Collection<Int>,
         owner: String,
@@ -101,7 +90,7 @@ class PostgresLeaseStore(
             return emptyList()
         }
         val now = clock.millis()
-        return execute(RENEW_ALL) {
+        return execute(RENEW) {
             setLong(1, now + ttl.inWholeMilliseconds)
             setString(2, group)
             setString(3, owner)
@@ -248,16 +237,10 @@ class PostgresLeaseStore(
             RETURNING $LEASE_COLUMNS
         """.trimIndent()
 
-        /** [RENEW] of every partition in the array (parameter 4). */
-        val RENEW_ALL = """
-            UPDATE $LEASES SET expires_at = ?
-            WHERE subscription_group = ? AND owner = ? AND partition = ANY(?) AND expires_at > ?
-            RETURNING $LEASE_COLUMNS
-        """.trimIndent()
-
+        /** Renews the live leases of every partition in the array (parameter 4) the owner holds. */
         val RENEW = """
             UPDATE $LEASES SET expires_at = ?
-            WHERE subscription_group = ? AND partition = ? AND owner = ? AND expires_at > ?
+            WHERE subscription_group = ? AND owner = ? AND partition = ANY(?) AND expires_at > ?
             RETURNING $LEASE_COLUMNS
         """.trimIndent()
 

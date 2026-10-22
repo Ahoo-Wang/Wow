@@ -38,7 +38,7 @@ class PostgresLeaseStoreTest : LeaseStoreSpec() {
         val group = "pinned-" + UUID.randomUUID()
         store.acquire(group, 0, "node-a", TTL)
         store.acquire(group, 1, "node-a", TTL)
-        store.renewAll(group, listOf(0, 1), "node-a", TTL).map { it.partition }.assert().containsExactlyInAnyOrder(0, 1)
+        store.renew(group, listOf(0, 1), "node-a", TTL).map { it.partition }.assert().containsExactlyInAnyOrder(0, 1)
         store.heartbeat(group, "node-a", "10.0.0.1:9090", TTL)
         store.members(group).map { it.node }.assert().containsExactly("node-a")
         store.owners(group).size.assert().isEqualTo(2)
@@ -46,8 +46,8 @@ class PostgresLeaseStoreTest : LeaseStoreSpec() {
 
         // The kept connection breaks: the operation fails, and the next borrows another.
         pool.last!!.close()
-        runCatching { store.renew(group, 0, "node-a", TTL) }.isFailure.assert().isTrue()
-        store.renew(group, 0, "node-a", TTL)?.partition.assert().isEqualTo(0)
+        runCatching { store.renew(group, listOf(0), "node-a", TTL) }.isFailure.assert().isTrue()
+        store.renew(group, listOf(0), "node-a", TTL).map { it.partition }.assert().containsExactly(0)
         store.release(group, 1, "node-a").assert().isTrue()
         pool.borrowed.get().assert().isEqualTo(2)
     }

@@ -47,11 +47,14 @@ class InMemoryLeaseStore(private val clock: Clock = Clock.systemUTC()) : LeaseSt
         Lease(group, partition, owner, epoch, now + ttl.inWholeMilliseconds).also { leases[group to partition] = it }
     }
 
-    override suspend fun renew(group: String, partition: Int, owner: String, ttl: Duration): Lease? = lock.withLock {
-        val now = clock.millis()
-        val current = held(group, partition, owner, now) ?: return null
-        current.copyWith(expiresAt = now + ttl.inWholeMilliseconds).also { leases[group to partition] = it }
-    }
+    override suspend fun renew(group: String, partitions: Collection<Int>, owner: String, ttl: Duration): List<Lease> =
+        lock.withLock {
+            val now = clock.millis()
+            partitions.mapNotNull { partition ->
+                held(group, partition, owner, now)?.copyWith(expiresAt = now + ttl.inWholeMilliseconds)
+                    ?.also { leases[group to partition] = it }
+            }
+        }
 
     override suspend fun release(group: String, partition: Int, owner: String): Boolean = lock.withLock {
         val current = held(group, partition, owner, clock.millis()) ?: return false

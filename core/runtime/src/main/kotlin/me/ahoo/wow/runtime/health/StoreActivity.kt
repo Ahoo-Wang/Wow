@@ -253,11 +253,8 @@ private class TrackedLeaseStore(private val leases: LeaseStore, val activity: St
     override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? =
         activity.call(::anyFailure) { leases.acquire(group, partition, owner, ttl) }
 
-    override suspend fun renew(group: String, partition: Int, owner: String, ttl: Duration): Lease? =
-        activity.call(::anyFailure) { leases.renew(group, partition, owner, ttl) }
-
-    override suspend fun renewAll(group: String, partitions: Collection<Int>, owner: String, ttl: Duration): List<Lease> =
-        activity.call(::anyFailure) { leases.renewAll(group, partitions, owner, ttl) }
+    override suspend fun renew(group: String, partitions: Collection<Int>, owner: String, ttl: Duration): List<Lease> =
+        activity.call(::anyFailure) { leases.renew(group, partitions, owner, ttl) }
 
     override suspend fun release(group: String, partition: Int, owner: String): Boolean =
         activity.call(::anyFailure) { leases.release(group, partition, owner) }

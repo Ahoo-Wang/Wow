@@ -148,18 +148,15 @@ class LeaseRenewalTest {
             val delegate = InMemoryLeaseStore(virtualClock())
             var down = false
             val store = object : LeaseStore by delegate {
-                override suspend fun renew(group: String, partition: Int, owner: String, ttl: Duration): Lease? {
-                    check(!down) { "The lease store is unreachable." }
-                    return delegate.renew(group, partition, owner, ttl)
-                }
-
-                /** Through [renew], so that it fails too (decision D270: a round renews with one call). */
-                override suspend fun renewAll(
+                override suspend fun renew(
                     group: String,
                     partitions: Collection<Int>,
                     owner: String,
-                    ttl: Duration,
-                ): List<Lease> = super.renewAll(group, partitions, owner, ttl)
+                    ttl: Duration
+                ): List<Lease> {
+                    check(!down) { "The lease store is unreachable." }
+                    return delegate.renew(group, partitions, owner, ttl)
+                }
 
                 override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? {
                     check(!down) { "The lease store is unreachable." }
@@ -256,7 +253,7 @@ class LeaseRenewalTest {
         }
 
         /** One call a round (decision D270): [renewLatency] once for every partition, as one statement takes. */
-        override suspend fun renewAll(
+        override suspend fun renew(
             group: String,
             partitions: Collection<Int>,
             owner: String,
@@ -264,7 +261,7 @@ class LeaseRenewalTest {
         ): List<Lease> {
             calls.incrementAndGet()
             delay(renewLatency)
-            return delegate.renewAll(group, partitions, owner, ttl).also { lost.addAndGet(partitions.size - it.size) }
+            return delegate.renew(group, partitions, owner, ttl).also { lost.addAndGet(partitions.size - it.size) }
         }
     }
 

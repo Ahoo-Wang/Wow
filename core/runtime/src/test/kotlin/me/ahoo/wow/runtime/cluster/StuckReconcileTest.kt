@@ -133,17 +133,8 @@ class StuckReconcileTest {
         @Volatile
         var losing = false
 
-        override suspend fun renew(group: String, partition: Int, owner: String, ttl: Duration): Lease? =
-            if (losing && partition == this.partition) null else delegate.renew(group, partition, owner, ttl)
-
-        /** Through [renew], so that the partition is found lost (decision D270: a round renews with one call). */
-        override suspend fun renewAll(
-            group: String,
-            partitions: Collection<Int>,
-            owner: String,
-            ttl: Duration
-        ): List<Lease> =
-            super.renewAll(group, partitions, owner, ttl)
+        override suspend fun renew(group: String, partitions: Collection<Int>, owner: String, ttl: Duration): List<Lease> =
+            delegate.renew(group, if (losing) partitions - partition else partitions, owner, ttl)
     }
 
     /**

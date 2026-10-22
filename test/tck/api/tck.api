@@ -218,6 +218,7 @@ public abstract class me/ahoo/wow/tck/subscription/LeaseStoreSpec {
 	public final fun a live lease cannot be taken, an expired one can ()V
 	public final fun a node that leaves is no longer a member but keeps its leases ()V
 	public final fun a released lease can be acquired at once ()V
+	public final fun a renewal renews the live leases the owner holds and leaves the others out ()V
 	public final fun an owner taking back its expired lease starts a new epoch ()V
 	public final fun concurrent acquisitions of a partition have exactly one winner ()V
 	public final fun concurrent acquisitions of an expired partition have exactly one winner ()V
@@ -226,7 +227,6 @@ public abstract class me/ahoo/wow/tck/subscription/LeaseStoreSpec {
 	public final fun members carry the address of their last heartbeat ()V
 	public final fun only the owner renews, and only while the lease is live ()V
 	public final fun owners lists the live leases of one group in partition order ()V
-	public final fun renewAll renews the live leases the owner holds and leaves the others out ()V
 	public final fun the owner acquiring again extends its lease and keeps the epoch ()V
 }
 
