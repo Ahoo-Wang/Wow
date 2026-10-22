@@ -1,6 +1,6 @@
 {
   "name": "wow-integration-test",
-  "version": "10.0.0-alpha.3",
+  "version": "10.0.0-alpha.4",
   "private": true,
   "description": "Contract tests of the view store client and the view engine against the view store service",
   "keywords": [

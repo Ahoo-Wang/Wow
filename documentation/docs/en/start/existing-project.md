@@ -36,7 +36,7 @@ pluginManagement {
     }
     plugins {
         kotlin("jvm") version "2.4.21"
-        id("me.ahoo.wow") version "10.0.0-alpha.3"
+        id("me.ahoo.wow") version "10.0.0-alpha.4"
     }
 }
 
@@ -53,7 +53,7 @@ include("catalog-api", "catalog-domain", "catalog-server")
 `gradle.properties` names the Wow version once:
 
 ```properties
-wowVersion=10.0.0-alpha.3
+wowVersion=10.0.0-alpha.4
 ```
 
 `catalog-api/build.gradle.kts`:

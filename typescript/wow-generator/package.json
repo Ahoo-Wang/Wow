@@ -1,6 +1,6 @@
 {
   "name": "@ahoo-wang/wow-generator",
-  "version": "10.0.0-alpha.3",
+  "version": "10.0.0-alpha.4",
   "description": "Generates the typed TypeScript clients of a Wow service from its Manifest, and TypeScript models and Fetcher decorator clients from any OpenAPI 3 document (https://github.com/Ahoo-Wang/Wow).",
   "keywords": [
     "wow",
