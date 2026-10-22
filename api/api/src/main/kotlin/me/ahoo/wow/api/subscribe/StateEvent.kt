@@ -35,7 +35,9 @@ import me.ahoo.wow.api.decide.Causation
  * - [operator] is whose name the commit is recorded in (decision D163); the commands a saga derives from it keep it.
  *
  * [state] is a copy read from the commit's state view, never the live instance: changing it affects no one. It is the
- * state after the whole commit, also for a [StateTypedEvent] of one of its events (decision D264). A handler of
+ * state after the whole commit, also for a [StateTypedEvent] of one of its events (decision D264). The runtime
+ * decodes it on its first read (decision D269), so a handler that only reads [events] costs no decoding; a state that
+ * does not decode fails that read, and a handler that catches every exception there swallows the failure with it. A handler of
  * another context's published stream declares a nullable state, `StateEvent<OrderView?>`, when the upstream
  * publishes the stream without it (decision D140): [state] is then null. `S` is covariant, so a
  * `StateEvent<OrderView>` is a `StateEvent<OrderView?>`.
@@ -89,7 +91,7 @@ interface StateEvent<out S> {
         commandType,
         commitTime,
         events,
-        state,
+        lazyOf(state),
         scope,
         causation,
         headers,
@@ -121,7 +123,42 @@ interface StateEvent<out S> {
             commandType,
             commitTime,
             events,
-            state,
+            lazyOf(state),
+            scope,
+            causation,
+            headers,
+            operator,
+        )
+
+        /**
+         * A committed stream whose state [decode] gives on its first read, once (decision D269): a handler that never
+         * reads [StateEvent.state] costs no decoding, and one that does gets its own copy, as from [invoke]. A failure
+         * of [decode] is thrown by that read. The runtime builds them.
+         */
+        @InternalWowApi
+        @Suppress("LongParameterList")
+        fun <S> deferred(
+            ref: AggregateRef,
+            version: Int,
+            commandId: String,
+            requestId: String,
+            commandType: String,
+            commitTime: Long,
+            events: List<Any>,
+            scope: Scope = Scope.NONE,
+            causation: Causation? = null,
+            headers: Map<String, String> = emptyMap(),
+            operator: Operator? = null,
+            decode: () -> S,
+        ): StateEvent<S> = CommittedStateEvent(
+            ref,
+            version,
+            commandId,
+            requestId,
+            commandType,
+            commitTime,
+            events,
+            lazy(decode),
             scope,
             causation,
             headers,
@@ -161,7 +198,7 @@ private class CommittedStateEvent<out S>(
     override val commandType: String,
     override val commitTime: Long,
     override val events: List<Any>,
-    override val state: S,
+    private val stateOf: Lazy<S>,
     override val scope: Scope,
     override val causation: Causation?,
     override val headers: Map<String, String>,
@@ -173,6 +210,8 @@ private class CommittedStateEvent<out S>(
         require(commandType.isNotBlank()) { "A state event names the type of its command." }
         require(events.isNotEmpty()) { "A state event holds at least one event." }
     }
+
+    override val state: S get() = stateOf.value
 
     override fun equals(other: Any?): Boolean =
         this === other || other is CommittedStateEvent<*> && valueFields() == other.valueFields()

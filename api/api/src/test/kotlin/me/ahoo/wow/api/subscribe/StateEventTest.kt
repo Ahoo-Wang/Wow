@@ -57,6 +57,45 @@ class StateEventTest {
     }
 
     @Test
+    fun `a deferred state is decoded on its first read, once, and equals the same stream given its state`() {
+        var decodes = 0
+        val deferred = StateEvent.deferred(
+            ref = ref,
+            version = 3,
+            commandId = "cmd-3",
+            requestId = "req-3",
+            commandType = "example.cart.AddItem",
+            commitTime = 42,
+            events = listOf("ItemAdded"),
+        ) {
+            decodes++
+            mapOf("items" to 1)
+        }
+        val typed = StateTypedEvent.of<Map<String, Int>, String>(deferred, 0)
+        deferred.events.assert().containsExactly("ItemAdded")
+        decodes.assert().isEqualTo(0)
+        typed.state.assert().isEqualTo(mapOf("items" to 1))
+        deferred.state.assert().isSameAs(typed.state)
+        decodes.assert().isEqualTo(1)
+        deferred.assert().isEqualTo(stateEvent())
+    }
+
+    @Test
+    fun `a deferred state that does not decode fails its read`() {
+        val deferred = StateEvent.deferred(
+            ref = ref,
+            version = 3,
+            commandId = "cmd-3",
+            requestId = "req-3",
+            commandType = "example.cart.AddItem",
+            commitTime = 42,
+            events = listOf("ItemAdded"),
+        ) { throw IllegalStateException("not this state") }
+        deferred.id.assert().isEqualTo("example.cart/tenant/c-1@3")
+        assertThrownBy<IllegalStateException> { deferred.state }
+    }
+
+    @Test
     fun `a state event holds a committed stream`() {
         assertThrownBy<IllegalArgumentException> { stateEvent().copyWith(version = 0) }
         assertThrownBy<IllegalArgumentException> { stateEvent().copyWith(commandId = " ") }

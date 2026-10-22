@@ -406,8 +406,8 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 "${record.id} carries no state, but ${handler.name} takes a state that is not nullable."
             }
             val type = handler.stateType
-            val state: Any? = view?.let { if (type == null) it.state else context.codec.decodeTree(it.state, type) }
-            return StateEvent(
+            // Decoded on the handler's first read of it (decision D269).
+            return StateEvent.deferred(
                 ref = record.ref,
                 version = record.version,
                 commandId = record.commandId,
@@ -415,12 +415,11 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 commandType = record.commandType,
                 commitTime = record.commitTime,
                 events = events,
-                state = state,
                 scope = record.scope,
                 causation = record.causation,
                 headers = record.headers,
                 operator = record.operator,
-            )
+            ) { view?.let { if (type == null) it.state else context.codec.decodeTree(it.state, type) } }
         }
 
         /**
@@ -437,7 +436,9 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             val stream = entry.stream
             val model = context.models.first { it.type == stream.ref.type }
             val view = entry.state()
-            return StateEvent(
+            // The view is read here, a suspending read when it is not held; its state is decoded on the handler's
+            // first read of it (decision D269).
+            return StateEvent.deferred(
                 ref = stream.ref,
                 version = stream.version,
                 commandId = stream.commandId,
@@ -445,12 +446,11 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 commandType = stream.commandType,
                 commitTime = stream.commitTime,
                 events = entry.events,
-                state = context.codec.decodeState(model, view.state),
                 scope = stream.scope,
                 causation = stream.causation,
                 headers = stream.headers,
                 operator = stream.operator,
-            )
+            ) { context.codec.decodeState(model, view.state) }
         }
     }
 }
