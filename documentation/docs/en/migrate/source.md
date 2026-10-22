@@ -107,7 +107,7 @@ object Rejections {
 fun onCommand(command: SubmitOrder): Decision = Decision.events(OrderSubmitted(command.items))
 ```
 
-A rejection carries a code and a message: 9.x `bindingErrors` go into the message, and the clients that read them change. `CommandValidator` becomes Jakarta validation at the edge (`wow.command.invalid`), or a rejection.
+A rejection carries a code and a message: 9.x `bindingErrors` go into the message, and the clients that read them change. A 9.x `CommandValidator`, or a `require` on the command's own fields, becomes a Jakarta constraint on the command class, as `SubmitOrder`'s `@field:NotEmpty @field:Valid` items above: the gateway checks it at admission and answers `wow.command.invalid` (400) with the violations. A rule that needs the state stays a rejection.
 
 ## Events and state
 

@@ -8,6 +8,7 @@ Judge behavior before style. Each finding: file and line, what goes wrong, when 
 - An evolve function with services, I/O, a clock, or a missing `onSourcing` for an event the aggregate produces.
 - A command function returning `Decision` without `@OnCommand(produces)`.
 - An exception thrown for a business rule instead of `Decision.reject(code, …)`; an error code without `@ErrorCode`, with the `wow.` prefix, or reused.
+- A check of the command's own shape in decide (a quantity not positive, a blank name, an empty list) with an error code, instead of a Jakarta constraint on the command class; a constraint on a nested value without `@field:Valid` on its property; a service with constraints but no Bean Validation provider (they are then never checked).
 - Identity in a command body (aggregate id, tenant, owner); the caller's identity read from a raw header instead of the `Caller`.
 - A unique key that does not include the tenant without meaning to be global; uniqueness checked by a query instead of `DecideScope.reserve`.
 - An event changed after release without `@Revision` and an `@Upgrade` chain, an event deleted instead of retired, or the Manifest baseline updated to hide a break.
@@ -35,3 +36,4 @@ Judge behavior before style. Each finding: file and line, what goes wrong, when 
 - A behavior change without a spec, or a spec that asserts nothing a regression would break (`expectNoError` alone).
 - A JUnit function that returns a value (skipped silently).
 - A saga test without `expectDeterministic()` where determinism matters; a rejection path untested.
+- A command constraint tested in a spec (`aggregateSpec` runs no admission) instead of at the server, by the 400 `wow.command.invalid` and its violation's path and constraint.

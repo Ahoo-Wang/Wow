@@ -63,6 +63,8 @@ dependencies {
     implementation("me.ahoo.wow:wow-kernel")
     // The Spring Boot host: auto-configuration, the HTTP routes, the memory backend.
     implementation("me.ahoo.wow:wow-spring-boot")
+    // Jakarta Bean Validation: the host checks the commands' constraints (@field:Positive) at admission.
+    implementation("org.springframework.boot:spring-boot-starter-validation")
     // The aggregate test DSL, package me.ahoo.wow.test.
     testImplementation("me.ahoo.wow:wow-test")
     testImplementation(platform("org.junit:junit-bom:6.1.3"))
@@ -80,7 +82,7 @@ The plugin is published to Maven Central with its marker, so `pluginManagement` 
 
 ## Write the commands and events
 
-Name the context once, with `@BoundedContext`. Commands and events are data classes. A command carries no aggregate id: the id comes from the route.
+Name the context once, with `@BoundedContext`. Commands and events are data classes. A command carries no aggregate id: the id comes from the route. A deposit and a withdrawal are of a positive amount: that is the command's shape, a Jakarta constraint the host checks before the account decides.
 
 <!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Bank.kt -->
 
@@ -117,7 +119,7 @@ data class Withdrawn(val amount: Long)
 
 ## Write the state and the aggregate
 
-The state applies each event in an `onSourcing` function. The aggregate decides each command in an `onCommand` function: it returns events, or a `Decision` that rejects the command with an error code, in which case nothing is written.
+The state applies each event in an `onSourcing` function. The aggregate decides each command in an `onCommand` function: it returns events, or a `Decision` that rejects the command with an error code, in which case nothing is written. It rejects only what needs its state, a withdrawal the balance does not cover.
 
 <!-- sample: example/quickstart/src/main/kotlin/me/ahoo/wow/example/quickstart/Account.kt -->
 
@@ -284,6 +286,15 @@ curl -X POST localhost:8080/bank/account/alice/withdraw \
 ```
 
 A command answers its result, `"status":"SUCCEEDED"` with the account's new `version`, once the snapshot holds its commit, so a read right after it sees the change. The withdrawal is rejected: the answer is an RFC 9457 problem, status 409, with `"code":"bank.account.insufficient-balance"`.
+
+A deposit of nothing never reaches the account:
+
+```bash
+curl -X POST localhost:8080/bank/account/alice/deposit \
+  -H 'Content-Type: application/json' -d '{"amount":0}'
+```
+
+It answers status 400 with `"code":"wow.command.invalid"` and its `violations`, `[{"path":"amount","code":"Positive","message":"must be greater than 0"}]`.
 
 ## Read and query
 

@@ -41,6 +41,31 @@ data class SubmitOrder(
 
 `@Summary` 为命令提供一行摘要，用于 Manifest 和 OpenAPI 文档。不带数据的命令是一个 `data object`，例如 `ShipOrder`。
 
+### 检查它的形状 {#check-its-shape}
+
+只关乎命令本身的规则，例如数量为正、名称不为空白、订单有条目，是命令类上的 Jakarta Bean Validation 约束，用 Kotlin 的 `@field:` 目标：
+
+<!-- sample: example/eshop/basket/basket-api/src/main/kotlin/me/ahoo/wow/example/eshop/basket/api/basket/BasketCommands.kt#add-item -->
+
+```kotlin
+/**
+ * Adds [quantity] of [productId] at [unitPrice] to the basket, creating the basket on its first item. Adding a product
+ * already in the basket adds to its quantity, at the new price. The constraints are the command's shape: the gateway
+ * checks them before the basket decides, and answers a violation `wow.command.invalid` (400).
+ */
+@AllowCreate
+@Summary("Add an item to the basket")
+data class AddBasketItem(
+    val productId: String,
+    @field:PositiveOrZero val unitPrice: BigDecimal,
+    @field:Positive val quantity: Int,
+)
+```
+
+网关在聚合决定之前检查它接收的每条命令的约束：来自路由、进程内 `CommandClient`、Saga 或另一个上下文的命令都一样。违反约束时回答 `wow.command.invalid`（400），problem 列出每个违反项的属性路径（`items[0].quantity`）、约束（`Positive`）和消息。属性标注 `@field:Valid` 时检查嵌套的值，`SubmitOrder` 的条目就是这样。api 模块依赖 `jakarta.validation:jakarta.validation-api`，服务需要一个 Bean Validation 实现（[托管在 Spring Boot 上](./spring-boot#what-the-class-path-decides)）。
+
+需要聚合状态或调用方的规则留在命令函数里，作为带错误码的拒绝（[拒绝与错误码](./rejections)）：下面订单的函数已经没有要检查的了。
+
 命令能否创建它的聚合，由它的类决定：
 
 | 命令类 | 何时被接受 |

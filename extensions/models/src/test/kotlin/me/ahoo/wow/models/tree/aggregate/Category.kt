@@ -23,6 +23,7 @@ import me.ahoo.wow.models.tree.command.DeleteCategory
 import me.ahoo.wow.models.tree.command.MoveCategory
 import me.ahoo.wow.models.tree.command.UpdateCategory
 
+// region tree
 /**
  * A tenant's category tree: every handler is the library's [Tree]'s, bound with the concrete commands. The verify
  * hooks add a rule of the domain, and one of the tree's codes is declared to the Manifest with its status.
@@ -55,3 +56,4 @@ class Category(state: CategoryState) :
         const val PARENT_NOT_FOUND = "tree.parent-not-found"
     }
 }
+// endregion

@@ -16,6 +16,10 @@ Every public declaration of a published module has one of four levels. The ABI d
 | SPI | `@WowSpi` | A port that backends and transports implement; a minor release may change it. Using it needs `@OptIn(WowSpi::class)`, a compiler warning otherwise. |
 | Internal | `@InternalWowApi` | For Wow's own modules: it may change or go in any release. An application cannot opt in (a compiler error), and the dumps leave it out. |
 
+## Beyond the API
+
+The API is one of three things an upgrade keeps compatible. Within a major version, adjacent minor versions run side by side: the cluster channel, the wait signals, the Kafka envelope, the log's entries and the leases stay readable by the minor version before and after ([Upgrade a Deployment](../operate/upgrades)). A service's own contract, its commands, events, state and error codes, is held to its committed baseline by the build's compatibility check ([The Manifest](../guide/manifest)). Across a major version, a service moves once, with a blue-green cut-over.
+
 The two lists below are generated from the sources of the published modules: the public declarations that carry the marker.
 
 ## Experimental declarations

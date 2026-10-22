@@ -15,7 +15,14 @@ A command the aggregate refuses is a business outcome, not an error of the progr
 | `Decision.reject(code, message)` | The command is **rejected**: nothing is written, and the caller gets the code and the message. Sending it again with the same request id is rejected again. |
 | The function throws | The command **fails** with `wow.command.failed` (500): nothing is written, and a retry fails alike. A failure is a defect, never an answer to the caller's request. |
 
-Reject when the request cannot be granted in the aggregate's current state: an empty order, an unpaid order that is shipped, a short stock. Let a function throw only when something is wrong with the program or its services.
+Reject when the request cannot be granted in the aggregate's current state, or by its caller: a basket checked out empty, an unpaid order that is shipped, a short stock, a buyer who does not own the basket. Let a function throw only when something is wrong with the program or its services.
+
+A rule about the command's own shape, such as a quantity that is not positive, a blank name or an order of no items, is no rejection: it is a Jakarta constraint on the command class, and the gateway refuses the command with `wow.command.invalid` (400) before the aggregate decides ([Write an Aggregate](./aggregates#check-its-shape)). The aggregate then declares codes only for what needs its state.
+
+| The rule needs | Where it goes | The caller gets |
+| --- | --- | --- |
+| The command alone | A Jakarta constraint on the command (`@field:Positive`, `@field:NotBlank`, `@field:NotEmpty`, `@field:Valid`) | `wow.command.invalid` (400) with its `violations` |
+| The aggregate's state or the caller | `Decision.reject` with an `@ErrorCode` | The code, with its status (422 by default) |
 
 ## Declare the codes
 
@@ -69,7 +76,7 @@ The message may say anything that helps a person: amounts, ids, the state the ag
 
 **Over HTTP**, a rejection is answered with the code's status and an `application/problem+json` body whose `type` is `urn:wow:error:<code>` and whose `code` member is the full code. [Wire Protocols](../reference/protocols) describes the whole shape.
 
-**In Kotlin**, the command client throws a `CommandRejectedException` whose `code` is the full code:
+**In Kotlin**, the command client throws a `CommandRejectedException` whose `code` is the full code, for a rejection by the aggregate as for one at admission:
 
 <!-- sample: example/eshop/e2e/src/integrationTest/kotlin/me/ahoo/wow/example/eshop/e2e/EshopClientTest.kt#rejected -->
 
@@ -87,7 +94,7 @@ rejected.result.error!!.violations.single().path.assert().isEqualTo("items")
 
 **A saga** that sent the command gets the rejection in its `@OnRejected` handler and decides how to compensate: [Write a Saga](./sagas#handle-a-rejection).
 
-**A test** expects it with `expectRejected(code)`, by the local or the full name: [Test Domain Code](./testing#expect).
+**A test** expects it with `expectRejected(code)`, by the local or the full name: [Test Domain Code](./testing#expect). `aggregateSpec` runs the kernel without admission, so a command's constraints are tested against the server: a request that breaks them answers 400 `wow.command.invalid` with the violation's path and constraint.
 
 ## Codes the framework rejects with
 
