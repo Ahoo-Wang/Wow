@@ -1,6 +1,6 @@
 # V10 Spike H1 (MongoDB): Partition Sequences In Transactions
 
-Spike H1 of the V10 design (`documentation/designs/v10/decisions.md` on the `v10` branch) asks whether assigning each log entry a partition sequence, in commit-visible order, can carry the commit rate. The PostgreSQL half is in `v10-h1-postgres-partition-sequence.md`. This is the MongoDB half: a first-class backend by decision D11.
+Spike H1 of the V10 design (`documentation/designs/decisions.md` on the `v10` branch) asks whether assigning each log entry a partition sequence, in commit-visible order, can carry the commit rate. The PostgreSQL half is in `v10-h1-postgres-partition-sequence.md`. This is the MongoDB half: a first-class backend by decision D11.
 
 MongoDB can carry it only when one owner appends to each partition. Contending writers collapse a partition, as design finding F1 predicted. When a partition's owner queues appends and commits each batch in one transaction (group commit), the log reaches about 4,400 to 5,600 appends a second, roughly half of plain inserts. That is about a sixth of PostgreSQL's rate on the same machine.
 

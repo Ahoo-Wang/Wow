@@ -47,7 +47,7 @@ import org.junit.jupiter.api.assertThrows
 import java.util.UUID
 
 /**
- * The [EventLog] contract (documentation/designs/v10/03-log-and-snapshot.md §1) every backend passes. A backend's
+ * The [EventLog] contract (documentation/designs/03-log-and-snapshot.md §1) every backend passes. A backend's
  * test extends it and supplies a fresh, empty log from [createLog].
  */
 @Suppress("LargeClass") // One contract, one test per rule.

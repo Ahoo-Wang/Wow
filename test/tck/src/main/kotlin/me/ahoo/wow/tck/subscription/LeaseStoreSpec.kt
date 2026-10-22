@@ -29,7 +29,7 @@ import java.util.UUID
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The [LeaseStore] contract (documentation/designs/v10/04-subscriptions.md §1, decisions D24 and D45) every backend
+ * The [LeaseStore] contract (documentation/designs/04-subscriptions.md §1, decisions D24 and D45) every backend
  * passes. A backend's test extends it and supplies a store whose time comes from [clock]; each test uses its own
  * group, so the tests may share one table.
  */

@@ -9,7 +9,7 @@ A design record explains why the code is shaped the way it is: the problem, the 
 
 ## Wow 10
 
-Wow 10 was redesigned as a whole, and its records live together in [`documentation/designs/v10/`](https://github.com/Ahoo-Wang/Wow/tree/main/documentation/designs/v10), in Chinese:
+Wow 10 was redesigned as a whole, and its records live together in [`documentation/designs/`](https://github.com/Ahoo-Wang/Wow/tree/main/documentation/designs), in Chinese:
 
 | Record | Holds |
 | --- | --- |

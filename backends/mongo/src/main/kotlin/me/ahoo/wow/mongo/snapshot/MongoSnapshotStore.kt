@@ -55,7 +55,7 @@ import org.bson.conversions.Bson
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The [SnapshotStore] of one bounded context on MongoDB (documentation/designs/v10/03-log-and-snapshot.md §3).
+ * The [SnapshotStore] of one bounded context on MongoDB (documentation/designs/03-log-and-snapshot.md §3).
  *
  * Each aggregate type has its own collection, `wow_snapshot__<context>__<aggregate>` (decision D161), holding one
  * document per aggregate, keyed by a unique index on (tenant, aggregate id); the document has no aggregate name, the

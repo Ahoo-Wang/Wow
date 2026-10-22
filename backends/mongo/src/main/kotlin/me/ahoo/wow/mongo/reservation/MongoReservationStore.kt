@@ -40,7 +40,7 @@ import java.time.Clock
 import kotlin.time.Duration
 
 /**
- * The [ReservationStore] on MongoDB (documentation/designs/v10/01-programming-model.md §7, decision D38): one document
+ * The [ReservationStore] on MongoDB (documentation/designs/01-programming-model.md §7, decision D38): one document
  * per reserved key, `{context, tenant_id, namespace, key, owner: {aggregate, tenant_id, id}, expires_at, holds}`, keyed
  * by a unique index on `(context, tenant_id, namespace, key)` (finding A1-3; the system tenant is the empty string),
  * its owner structured (finding A1-10; its context is the key's) and an index on the owner. A null `expires_at` marks

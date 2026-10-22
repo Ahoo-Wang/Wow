@@ -96,7 +96,6 @@ dependencies:
       - any-glob-to-any-file:
           - '**/*.md'
           - 'documentation/**'
-          - 'docs/**'
 
 skills:
   - changed-files:

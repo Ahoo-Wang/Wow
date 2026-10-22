@@ -93,7 +93,7 @@ class Member @InternalWowApi constructor(
 
 /**
  * Partition ownership within a subscription group, the deployment unit whose nodes share the partitions of a log
- * (documentation/designs/v10/04-subscriptions.md §1, 02-write-path.md §3, decision D24). Leases live in storage: no
+ * (documentation/designs/04-subscriptions.md §1, 02-write-path.md §3, decision D24). Leases live in storage: no
  * ZooKeeper, consumer group or registry.
  *
  * A lease is live while the store's clock is before its expiry. At most one node holds a live lease of a partition;

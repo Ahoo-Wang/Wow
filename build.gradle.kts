@@ -71,7 +71,7 @@ val codeCoverageReportProject = project(":code-coverage-report")
 // of the blue-green migration rehearsal (roadmap 8c.1, test/migration-rehearsal/) is such an application too: the 9.x
 // example ported, which its workflow drives against the 9.x one (migration-rehearsal.yml).
 val e2eBenchmarkProjects = includedProjects(":benchmark-server", ":benchmark-load", ":migration-rehearsal")
-// The modules (documentation/designs/v10/06-modules.md). Every module builds on JDK 21 (decision D29); these stay
+// The modules (documentation/designs/06-modules.md). Every module builds on JDK 21 (decision D29); these stay
 // incubating until their API settles; :architecture (Wow's dependency rules), :routing-spike (spike H2), :lease-spike
 // (spike H6) and the examples (:eshop-*, :quickstart, :java-smoke) are never published.
 val moduleProjects = listOf(

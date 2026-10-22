@@ -14,7 +14,7 @@
 package me.ahoo.wow.api.decide
 
 /**
- * Where a command comes from (documentation/designs/v10/08-data-protocols.md §4): [correlationId] is the id of the
+ * Where a command comes from (documentation/designs/08-data-protocols.md §4): [correlationId] is the id of the
  * root command of the chain, and [causationId] the direct upstream, such as the event stream (`ref@version`) a saga
  * reacted to. A command a user sends directly carries none: it is its own root.
  */

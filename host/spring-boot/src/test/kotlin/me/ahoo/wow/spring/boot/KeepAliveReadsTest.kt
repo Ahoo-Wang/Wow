@@ -96,7 +96,7 @@ class KeepAliveReadsTest {
     @Test
     fun `without the handler the request after it should stay unread while Reactor Netty has the defect`() {
         // The defect this handler works around (reactor/reactor-netty@a115965). Once the BOM brings a Reactor Netty
-        // that fixes it, this fails: drop KeepAliveReads and this test then (docs/todo.md).
+        // that fixes it, this fails: drop KeepAliveReads and this test then (documentation/designs/roadmap.md §6).
         answered(HttpServer.create().doOnChannelInit { _, channel, _ -> lateAcknowledging(channel) })
             .assert().isLessThan(REQUESTS)
     }

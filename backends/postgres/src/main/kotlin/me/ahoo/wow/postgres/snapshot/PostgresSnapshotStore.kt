@@ -42,7 +42,7 @@ import java.sql.Types
 import javax.sql.DataSource
 
 /**
- * The [SnapshotStore] of one bounded context on PostgreSQL (documentation/designs/v10/03-log-and-snapshot.md §3).
+ * The [SnapshotStore] of one bounded context on PostgreSQL (documentation/designs/03-log-and-snapshot.md §3).
  *
  * Each aggregate type has a table of its own (decision D161, [PostgresSnapshotTables]), created on its first save or
  * load, which claims its format version first ([PostgresFormat]). One table holds one row per aggregate. The state and the tags are `jsonb`, so the snapshot can be queried in place

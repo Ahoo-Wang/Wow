@@ -82,7 +82,7 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * The [EventLog] of one bounded context on MongoDB, a first-class log backend (decision D11;
- * documentation/designs/v10/03-log-and-snapshot.md §2). It needs a replica set, for transactions.
+ * documentation/designs/03-log-and-snapshot.md §2). It needs a replica set, for transactions.
  *
  * The log takes one collection per aggregate type, `wow_log__<context>__<aggregate>` (decision D162); a context-level
  * collection holds one counter document per partition, so partitions, their sequences, leases and checkpoints stay

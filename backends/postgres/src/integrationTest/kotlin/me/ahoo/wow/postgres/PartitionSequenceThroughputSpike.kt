@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 
 /**
- * Spike H1 (documentation/designs/v10/decisions.md): can the partition sequence, assigned under the partition
+ * Spike H1 (documentation/designs/decisions.md): can the partition sequence, assigned under the partition
  * counter's row lock, carry the commit rate? And how long does a tail read of a partition take when its entries are
  * spread over the tables of several aggregate types (decision D162)? Runs only with `-Dwow.spike.h1=true`; writes its
  * tables to `build/spike-h1.md`.

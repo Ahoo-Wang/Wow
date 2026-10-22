@@ -2,7 +2,7 @@
 
 日期：2026-10-20。基线：`v10` `db3155777d`。状态：**已批准**（协调者 2026-10-20；§9 的决定见文末）。范围：`documentation/docs/{en,zh}`（VitePress 站）、`README(.zh-CN).md`、`CONTRIBUTING.md`、`skills/**`。本方案只读仓库，没有写任何页面。
 
-依据：`documentation/designs/v10/**`（00～09、decisions D1～D266、roadmap 9.1 / SK-1 / H-1 / CI-2 / CI-3 / N-1、reviews）、现有 `guide/v10/` 九页草稿、`example/quickstart` 与 eShop、`documentation/test/*`、`.github/scripts/docs-layout.mjs`、`skills/README.md`，以及 R5 残留审查（R21～R25、R28）。
+依据：`documentation/designs/**`（00～09、decisions D1～D266、roadmap 9.1 / SK-1 / H-1 / CI-2 / CI-3 / N-1、reviews）、现有 `guide/v10/` 九页草稿、`example/quickstart` 与 eShop、`documentation/test/*`、`.github/scripts/docs-layout.mjs`、`skills/README.md`，以及 R5 残留审查（R21～R25、R28）。
 
 ---
 
@@ -195,7 +195,7 @@ GEN = 由真相源生成，提交生成结果，测试比对；HAND = 手写并�
 | contribute/index | Codebase tour | 模块地图与依赖方向、`:architecture` 守的规则、API 级别 | 06；AGENTS | M | L（N-1、CI-2 改名之后） | P1 |
 | contribute/testing | Test layers | 单元测试与容器测试、TCK、`test-dsl`、CI 的门禁 | AGENTS Testing（取代 `guide/test-runtime.md`，AGENTS 里的链接随之改） | M | L（CI-2） | P1 |
 | contribute/documentation | Documentation governance | 每类文档归哪里、样例机制、生成页的再生成命令、中英对齐 | 由 `guide/advanced/documentation-governance.md` 搬来并重写；`docs-layout.mjs` 的 `GOVERNANCE` 常量随之改 | M | S | P0（DI-1 要用） |
-| contribute/design-records | Design records and decisions | designs/v10、决策台账、审查台账怎么用 | designs/v10/README | S | S | P2 |
+| contribute/design-records | Design records and decisions | designs、决策台账、审查台账怎么用 | designs/README | S | S | P2 |
 | contribute/backends | Write a backend | SPI 端口、`HostStoreProvider`、TCK、`QueryBackendSpec` | D237；R3-A | M | L（R3-A） | P2 |
 
 ### 2.11 页数小计（每种语言）
@@ -522,7 +522,7 @@ AGENTS.md 里所有指向旧文档页的链接，由 DI-1 一并改掉。
 - `typescript/wow-view-engine/test/referenceDocs.test.ts`、`themeGuide.test.ts`、`fixtures/themeDocs.ts`、`scripts/symbol-index.mjs`（引用文档路径）。
 - 各包 README（wow-client、wow-react、wow-view-store、wow-view-engine、wow-generator，中英文）、`typescript/storybook/README.md`、`typescript/RELEASE_NOTES_TEMPLATE.md`。
 - `example/eshop/README.md`、`DX-GAPS.md`、`deploy/eshop-ordering/README.md`、`skills/wow-view-host/references/wiring.md`、`build.gradle.kts`（含站点 URL 的那一处）。
-- `documentation/designs/v10/{README,progress}.md` 里提到 `guide/v10` 的地方改成新路径。
+- `documentation/designs/{README,progress}.md` 里提到 `guide/v10` 的地方改成新路径。
 
 ---
 

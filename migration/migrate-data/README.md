@@ -8,6 +8,6 @@ Moves a 9.x application's data into Wow V10: it checks `migration-map.json`, imp
 
 - The procedure, from the first check to the cut-over and the rollback: [Migrate the data](https://wow.ahoo.me/migrate/data).
 - Every command, option, exit code, configuration property, map property and checkpoint file: [migrate-data CLI](https://wow.ahoo.me/reference/migrate-data).
-- The design: [07 §3](../../documentation/designs/v10/07-migration.md).
+- The design: [07 §3](../../documentation/designs/07-migration.md).
 
 The tags backfill's cost is measured on demand: `./gradlew :migrate-data:integrationTest -Dwow.spike.tags=true` (`TagsBackfillCostSpike`).

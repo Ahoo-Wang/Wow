@@ -4,7 +4,7 @@
 
 The client of a Wow service's routes and the query DSL. Workspace rules live
 in `typescript/AGENTS.md`; the design is
-`documentation/designs/v10/` (the routes in `05-read-and-contract.md` and
+`documentation/designs/` (the routes in `05-read-and-contract.md` and
 `08-data-protocols.md`, the decisions in `decisions.md`), which the doc
 comments cite by decision number.
 

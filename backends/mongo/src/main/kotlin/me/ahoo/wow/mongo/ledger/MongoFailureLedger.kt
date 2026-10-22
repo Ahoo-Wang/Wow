@@ -43,7 +43,7 @@ import org.bson.conversions.Bson
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * The [FailureLedger] of one service on MongoDB (documentation/designs/v10/04-subscriptions.md §2), in the service's
+ * The [FailureLedger] of one service on MongoDB (documentation/designs/04-subscriptions.md §2), in the service's
  * own database: one document per parked (subscription, aggregate), keyed by a unique index on (service, subscription,
  * context, aggregate name, tenant, id). The key starts with [service], the service the ledger is of (finding A2-13):
  * services that share a database, and subscriptions of one name, see and resolve only their own entries. The

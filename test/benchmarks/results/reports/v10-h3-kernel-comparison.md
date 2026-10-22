@@ -1,6 +1,6 @@
 # V10 Spike H3: Coroutine Kernel Against The 9.3 Reactor Kernel
 
-Spike H3 of the V10 design (`documentation/designs/v10/decisions.md` on the `v10` branch) asks whether the V10 coroutine write kernel costs more than the 9.3 Reactor kernel. It does not: on the same JVM it processes the same command about 7.7 times faster with half the allocation, while also doing work 9.3 leaves to the store and the bus.
+Spike H3 of the V10 design (`documentation/designs/decisions.md` on the `v10` branch) asks whether the V10 coroutine write kernel costs more than the 9.3 Reactor kernel. It does not: on the same JVM it processes the same command about 7.7 times faster with half the allocation, while also doing work 9.3 leaves to the store and the bus.
 
 ## What Is Measured
 

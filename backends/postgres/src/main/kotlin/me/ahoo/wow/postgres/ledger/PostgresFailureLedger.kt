@@ -36,7 +36,7 @@ import javax.sql.DataSource
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
- * The [FailureLedger] of one service on PostgreSQL (documentation/designs/v10/04-subscriptions.md §2), in the
+ * The [FailureLedger] of one service on PostgreSQL (documentation/designs/04-subscriptions.md §2), in the
  * service's own database: one row per parked (subscription, aggregate). The key starts with [service], the service the
  * ledger is of (finding A2-13): services that share a database, and subscriptions of one name, see and resolve only
  * their own entries. The table's layout is recorded as format 1 ([PostgresFormat], decision D59).

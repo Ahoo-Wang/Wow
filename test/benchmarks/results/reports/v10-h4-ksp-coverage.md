@@ -1,6 +1,6 @@
 # V10 Spike H4: KSP Binds The Annotation Model
 
-Spike H4 of the V10 design (`documentation/designs/v10/decisions.md` on the `v10` branch) asks whether compile-time binding (D37: KSP, no reflection, no fallback) covers the semantics real Wow domains use. It does. The compiler and kernel had to grow to cover them, as the fallback in H4 says ("fill the compiler, never go back to reflection"). A minority of handler signatures use 9.x framework types; those have a V10 form and are rewritten by the migration Skill.
+Spike H4 of the V10 design (`documentation/designs/decisions.md` on the `v10` branch) asks whether compile-time binding (D37: KSP, no reflection, no fallback) covers the semantics real Wow domains use. It does. The compiler and kernel had to grow to cover them, as the fallback in H4 says ("fill the compiler, never go back to reflection"). A minority of handler signatures use 9.x framework types; those have a V10 form and are rewritten by the migration Skill.
 
 ## What Is Measured
 

@@ -30,4 +30,4 @@ npm 首发（`9.2.0-rc.0`）之前要做的事记在这里，按顺序做，同�
 
 视图引擎之外、要改 Wow 服务端的事。
 
-当前没有条目。2026-10-20 对照 V10 复核了 9.x 留下的三条，都已删去：ES 的时间分组与过滤语义差异两条落在 9.x 的 `wow-elasticsearch`、`wow-query` 上，V10 的 `:elasticsearch`（`backends/elasticsearch`）按 Manifest 的 schema 映射状态，时间字段映射为 `date` 时直接 `date_histogram`，各后端的过滤语义由 `:query-tck` 的 `FilterSemantics` 矩阵统一检查；Reactor Netty 1.3.7 停止读取一条与 [docs/todo.md](../../../../docs/todo.md) 里「Reactor Netty 1.3.8 进 BOM 后去掉 `KeepAliveReads`」是同一个缺陷，在那里跟进。
+当前没有条目。2026-10-20 对照 V10 复核了 9.x 留下的三条，都已删去：ES 的时间分组与过滤语义差异两条落在 9.x 的 `wow-elasticsearch`、`wow-query` 上，V10 的 `:elasticsearch`（`backends/elasticsearch`）按 Manifest 的 schema 映射状态，时间字段映射为 `date` 时直接 `date_histogram`，各后端的过滤语义由 `:query-tck` 的 `FilterSemantics` 矩阵统一检查；Reactor Netty 1.3.7 停止读取一条与 [路线图](../../../../documentation/designs/roadmap.md) §6 里「去掉 `KeepAliveReads`」是同一个缺陷，在那里跟进。
