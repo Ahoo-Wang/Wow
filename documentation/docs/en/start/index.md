@@ -44,4 +44,4 @@ Pick the path that matches what you came to do. Each lists the pages to read in 
 2. [9.x Capabilities in V10](../migrate/capabilities), then [Migrate the Source](../migrate/source).
 3. [Migrate the Data](../migrate/data) and [Cut Over](../migrate/cutover).
 
-Contributing to Wow itself starts with [Contribute](../contribute/documentation).
+Contributing to Wow itself starts with [Codebase Tour](../contribute/).

@@ -116,21 +116,22 @@ example/eshop/e2e/          :eshop-e2e: the eShop's services end to end on Postg
 - Spring Boot dependency management is centralized through `wow-dependencies`, which imports the BOM version from `gradle/libs.versions.toml`.
 - All JVM packages live under `me.ahoo.wow`; examples use `me.ahoo.wow.example`.
 - Source files use the Apache 2.0 copyright header already present in the repository.
-- Keep command/event paths reactive with Reactor `Mono`/`Flux`; do not introduce blocking calls into core dispatch, event store, projection, saga, or transport flows.
+- The core is coroutines (`suspend`, `Flow`); a domain's handlers are `suspend`, synchronous, or Reactor through `:reactor`. Do not block a thread in the core's paths: a blocking handler is marked `@Blocking` and runs on a virtual thread, and a blocking driver runs on its backend's own dispatcher.
 - Prefer focused interfaces and module boundaries (06-modules.md §3, held by `:architecture`): the programming model in `:api`, the decide/evolve/append loop in `:kernel`, the node in `:runtime`, Spring wiring in `:spring-boot` only, and storage or transport concerns in their backends.
 - Serialization uses Jackson; framework code uses the existing Jackson stack and Spring compatibility modules where already present.
 - ID generation uses CosId and existing Wow ID helpers.
 - Logging uses kotlin-logging, SLF4J, and Logback.
 - Detekt uses `config/detekt/detekt.yml`; line-length and several style rules are intentionally relaxed.
 
-Typical Kotlin API style:
+Typical Kotlin API style, a port of `:spi`:
 
 ```kotlin
-interface CommandBus :
-    MessageBus<CommandMessage<*>, ServerCommandExchange<*>>,
-    TopicKindCapable {
-    override val topicKind: TopicKind
-        get() = TopicKind.COMMAND
+@WowSpi
+interface StoreProvider {
+    val type: String
+    val requirement: String get() = "its resources"
+    fun available(resources: StoreResources): Boolean = false
+    fun open(config: StoreConfig): Store
 }
 ```
 
@@ -150,16 +151,16 @@ Breaking changes, Kotlin or TypeScript, ship only in an `x.Y.0` release. A chang
 
 ### Binary Compatibility
 
-Every published Maven module except the BOMs (`publishProjects` minus `bomProjects` in `build.gradle.kts`) keeps its public JVM ABI in `<module>/api/<module>.api`: classes, constructors, methods and fields with their JVM signatures, including synthetic overloads such as a `DeprecationLevel.HIDDEN` constructor kept for old callers. Declarations marked `@InternalWowApi` are left out; `@WowSpi` declarations (the query backend and command aggregate SPI, an opt-in with a compiler warning) stay in the dump. An interface member marked `@InternalWowApi` also drops out of the dumps of the classes in other modules that implement the interface. The dumps come from Kotlin's built-in ABI validation (`abiValidation` in the Kotlin Gradle plugin); `:check` (ci.yml) depends on `checkKotlinAbi`, so a pull request that changes a public signature without its dump fails.
+Every published Maven module except the BOMs (`publishProjects` minus `bomProjects` in `build.gradle.kts`) keeps its public JVM ABI in `<module>/api/<module>.api`: classes, constructors, methods and fields with their JVM signatures, synthetic overloads included. Declarations marked `@InternalWowApi` are left out; `@WowSpi` declarations (the storage, query and transport ports, an opt-in with a compiler warning) stay in the dump. An interface member marked `@InternalWowApi` also drops out of the dumps of the classes in other modules that implement the interface. The dumps come from Kotlin's built-in ABI validation (`abiValidation` in the Kotlin Gradle plugin); `:check` (ci.yml) depends on `checkKotlinAbi`, so a pull request that changes a public signature without its dump fails.
 
 When the check fails, run `./gradlew updateKotlinAbi` (or `./gradlew :<module>:updateKotlinAbi`) and commit the rewritten dumps with the change. Read the dump diff before committing it:
 
-- Only `+` lines (a new class, member or overload): additive, allowed in any 9.x release, patches included.
-- Any `-` line, or a changed one (a removed or renamed declaration, a parameter added to a constructor or function even with a default value, a changed return type): a binary break. In a patch, keep the old signature instead, for example a secondary constructor or overload marked `@Deprecated(…, level = DeprecationLevel.HIDDEN)` with a `compat(<scope>)` comment, so the dump goes back to additive. A removal ships only in an `x.Y.0`, marked breaking as above, with a `## Breaking` section naming the removed signatures and what callers use instead. An `x.Y.0` keeps no binary-only shims: it changes signatures cleanly instead of adding hidden overloads or leftover non-bean copies, and drops the ones earlier patches added.
+- Only `+` lines (a new class, member or overload): additive, allowed in any release, patches included.
+- Any `-` line, or a changed one (a removed or renamed declaration, a parameter added to a constructor or function even with a default value, a changed return type): a binary break. From 10.0.0 GA it ships only in an `x.Y.0`, marked breaking as above, with a `## Breaking` section naming the removed signatures and what callers use instead. Wow keeps no compatibility code (decision D1): a break changes the signature cleanly, with no hidden overload, `@Deprecated` bridge or `compat(...)` marker kept for old callers, which `:architecture` rejects.
 
 A module that starts publishing commits its first dump in the same pull request; the check fails while a published module has none.
 
-The ABI dumps (D216) follow these rules only from 10.0.0 GA. Between the M7 exit and GA they are a review tool: a `-` or changed line is allowed, but the pull request carries the `breaking-change` label and says in its description which signatures went and why. Wow keeps no `@Deprecated(…, level = DeprecationLevel.HIDDEN)` compatibility signatures or `compat(...)` markers (`:architecture` rejects them); the dump diff is the record. `@ExperimentalWowApi` declarations stay in the dumps, so their changes show too, and a reviewer accepts their `-` lines as expected. A known gap of the Kotlin Gradle plugin (2.4.21): a class whose `@InternalWowApi` primary constructor has default arguments and a value-class parameter (`kotlin.time.Duration`: `WaitPlan` and the runtime, Kafka and ClickHouse `*Options`) keeps that constructor's synthetic default-argument overload (`public synthetic fun <init> (…ILkotlin/jvm/internal/DefaultConstructorMarker;)V`) in its dump; those lines are accepted and change whenever the constructor does.
+The ABI dumps (D216) follow these rules only from 10.0.0 GA. Between the M7 exit and GA they are a review tool: a `-` or changed line is allowed, but the pull request carries the `breaking-change` label and says in its description which signatures went and why; the dump diff is the record. `@ExperimentalWowApi` declarations stay in the dumps, so their changes show too, and a reviewer accepts their `-` lines as expected. A known gap of the Kotlin Gradle plugin (2.4.21): a class whose `@InternalWowApi` primary constructor has default arguments and a value-class parameter (`kotlin.time.Duration`: `WaitPlan` and the runtime, Kafka and ClickHouse `*Options`) keeps that constructor's synthetic default-argument overload (`public synthetic fun <init> (…ILkotlin/jvm/internal/DefaultConstructorMarker;)V`) in its dump; those lines are accepted and change whenever the constructor does.
 
 `pr-labeler.yml` applies the same rule to the diff: a pull request that removes or changes a line of a Kotlin dump (`**/api/*.api`), a TypeScript API report (`typescript/*/test/api/*.api.md`) or a surface list (`typescript/*/test/surface/*.txt`) is labelled `breaking-change`, which keeps it out of a patch release; `+` lines alone add no label. Blank lines, a surface list's `#` header, an API report's `//` comments and lines that only moved or were re-indented within the same file do not count (`.github/scripts/breaking-label.mjs`). When a changed line is not a break, a maintainer removes the label after the last push (the labeler runs again on every push and adds it back) and says why in the pull request.
 
@@ -201,11 +202,11 @@ On `main`, `package-deploy.yml` releases only 10.x pre-releases (`v10.x.y-alpha.
 - Ask first before adding dependencies or moving responsibilities across module boundaries.
 - Never commit secrets, signing keys, Maven credentials, GitHub tokens, generated build output, `node_modules/`, `.gradle/`, or IDE-local state.
 - Never edit generated clients in an app's `src/generated/` as the primary fix when the Manifest or the generator can be fixed instead.
-- Never bypass Reactor with blocking code in core runtime paths.
+- Never block a thread in the core's runtime paths.
 
 ## Documentation
 
-Each kind of document has one home, chosen by its reader; [Documentation Governance](documentation/docs/en/guide/advanced/documentation-governance.md) is the full policy. `pnpm check:docs-layout` checks the tracked files against it; the `docs-layout` job of `ci.yml` runs it on every pull request.
+Each kind of document has one home, chosen by its reader; [Documentation Governance](documentation/docs/en/contribute/documentation.md) is the full policy. `pnpm check:docs-layout` checks the tracked files against it; the `docs-layout` job of `ci.yml` runs it on every pull request.
 
 - User documentation: `documentation/docs/{en,zh}/` (VitePress). Update the owning page in the same change as the behavior, and keep the English and Chinese pages structurally aligned.
 - Entry and module usage: `README.md` and `README.zh-CN.md`, at the root and beside each published module or package. They link to the site instead of copying it.

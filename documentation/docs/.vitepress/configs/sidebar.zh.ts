@@ -290,6 +290,10 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             base: '/zh/contribute/',
             text: '参与贡献',
             items: [
+                {text: '代码库导览', link: 'index.html'},
+                {text: '测试层次', link: 'testing'},
+                {text: '编写后端', link: 'backends'},
+                {text: '设计记录', link: 'design-records'},
                 {text: '文档治理', link: 'documentation'},
             ],
         },
