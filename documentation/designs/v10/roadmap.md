@@ -354,3 +354,25 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 ## 5. 当前进度与下一步
 
 当前位置、进行中与下一步、推进的工作方式见[进度](progress.md)。
+
+## 6. 已登记、未排期的事项
+
+rc 之后不丢的清单：每一项写明来源，排期时再拆成路线图行。
+
+### GA 前
+
+| 事项 | 来源 |
+| --- | --- |
+| 文档缺页：P0 `start/index`、`start/why-wow`；P1、P2 各页；CONTRIBUTING.md 的 V10 重写 | [文档方案](docs-plan.md) §10（用户 2026-10-22） |
+| ~~9.x 站点导航的 API 文档链接 `/9.x/dokka/` 为 404~~：已修，v9 去掉导航项并修正 sitemap（#4785），DI-6 增加 9.x Storybook（#4786） | DI-6 上线后的检查（2026-10-22） |
+| TypeScript 参考 `reference/typescript/*`：符号索引生成器推广到 wow-client、wow-react、wow-view-store（wow-react 先补 API 报告），生成页面并加检查；目前只有 wow-generator 与 wow-view-engine 有 | 文档方案 §2.9 的逐条核对（2026-10-22） |
+| AGENTS.md 中过时的 9.x 内容（代码风格的 CommandBus 示例、ABI 一节、已删除的文档治理页链接） | 同上 |
+
+### 10.x 候选
+
+| 事项 | 来源 |
+| --- | --- |
+| Manifest 与 OpenAPI 输出命令体上的 Jakarta 约束（`@Positive`→`exclusiveMinimum`、`@NotBlank`→`minLength`、`@Size`、`@Pattern` 等），让生成的 TS 客户端与表单也带上约束；示例已改为用 Jakarta 校验输入（D106），生成器尚不读取这些注解。增加 schema 关键字在 Manifest 兼容性检查里是破坏性的，须定好对已发布契约的处理 | 用户 2026-10-22，Jakarta 校验改造 |
+| 移动订阅检查点的运维工具（路由、运维动作或命令行） | D267 ㉒ |
+| 节点恢复时并行获取分区：现为逐个获取，每个约 140 ms，64 个分区约 9 秒，计入迁移停写 | 8c.1 发现 10（#4705） |
+| `wow-operate` Skill | [文档方案](docs-plan.md) §9 |
