@@ -48,6 +48,7 @@ export function callerHeaders(user: User): Record<string, string> {
     : { "X-User": user.id };
 }
 
+// region caller
 /** Sends the caller's headers on every request, as a host's CoSec interceptor sends its token. */
 class CallerHeaders implements RequestInterceptor {
   readonly name = "EshopCaller";
@@ -59,6 +60,7 @@ class CallerHeaders implements RequestInterceptor {
     Object.assign(exchange.ensureRequestHeaders(), callerHeaders(this.user));
   }
 }
+// endregion
 
 /**
  * The generated clients of the five services, all on one fetcher of the

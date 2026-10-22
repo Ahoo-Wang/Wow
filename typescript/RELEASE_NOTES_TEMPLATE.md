@@ -116,7 +116,7 @@ not label it breaking.
 ## TypeScript packages
 
 Install or upgrade with a `~<major>.<minor>` range: a minor release may break
-(see [version ranges](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges)).
+(see [version ranges](https://wow.ahoo.me/typescript/compatibility#version-ranges)).
 Every package in `PUBLISHED` (`.github/scripts/publish-npm.mjs`) ships together
 at `<version>`; the packages peer on each other with `~`, so upgrade them
 together.

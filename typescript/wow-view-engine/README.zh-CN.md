@@ -6,7 +6,7 @@
 
 它是 `@ahoo-wang/wow-client` 之上的展示层，也是 `@ahoo-wang/fetcher-viewer` 的继任者。指南与参考都在[文档站](https://wow.ahoo.me/zh/typescript/view-engine/)；本页只讲安装、最短的可运行示例与各个入口。
 
-> **兼容性。** 补丁版本不破坏公开面：每个入口的导出，包括后端实现的 `ViewStore` 端口；CSS 合同（[什么是公开的](https://wow.ahoo.me/zh/typescript/view-engine/theming#什么是公开的)）；消息键与 issue code；以及 `wow-view-engine` 命令。次版本可以破坏，它的发布说明逐条列出每个破坏与迁移步骤；Wow 包请停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。用户以旧形状保存的视图照常打开：引擎在读取时迁移存储的配置。
+> **兼容性。** 补丁版本不破坏公开面：每个入口的导出，包括后端实现的 `ViewStore` 端口；CSS 合同（[什么是公开的](https://wow.ahoo.me/zh/typescript/view-engine/theming#什么是公开的)）；消息键与 issue code；以及 `wow-view-engine` 命令。次版本可以破坏，它的发布说明逐条列出每个破坏与迁移步骤；Wow 包请停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/typescript/compatibility#版本范围)。用户以旧形状保存的视图照常打开：引擎在读取时迁移存储的配置。
 
 ## 安装
 
@@ -17,7 +17,7 @@ pnpm add @ahoo-wang/fetcher \
 pnpm add react react-dom
 ```
 
-版本号跟随 Wow，次版本可能带有破坏性改动：用 `save-prefix=~` 或 `--save-exact` 让 Wow 包停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。
+版本号跟随 Wow，次版本可能带有破坏性改动：用 `save-prefix=~` 或 `--save-exact` 让 Wow 包停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/typescript/compatibility#版本范围)。
 
 Peer 依赖：`@ahoo-wang/wow-client`（以及它需要的 fetcher 包）；`react` 与 `react-dom` 只用于 `/react` 和 `/ui` 入口，`react-router` 只用于 `/react-router`，`mingo` 只用于 `/testing`。根入口可在 Node 中运行。要把保存的视图放在 Wow 服务端，再加 [`@ahoo-wang/wow-view-store`](../wow-view-store/README.zh-CN.md)（在 Wow V10 服务上用它的 `/v10` 入口，数据源也走 V10 的查询路由）。只提供 ES 模块；Node `>=22.12.0` 或当前的浏览器；TypeScript 6 及以上。
 

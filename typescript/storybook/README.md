@@ -218,7 +218,7 @@ pnpm exec vite preview --outDir storybook-static --host 127.0.0.1 --port 6007 --
 node scripts/verify-storybook-browser.mjs http://127.0.0.1:6007
 ```
 
-移动故事时同步检查首页、导览（`Intro.mdx`）、宿主导航（`AppShell.tsx`）、验证脚本、测试中的地址，以及文档站里指向故事的链接（`documentation/docs/**/guide/typescript/*.md`，文档站的 `storybook-links` 测试按 `index.json` 检查它们）。
+移动故事时同步检查首页、导览（`Intro.mdx`）、宿主导航（`AppShell.tsx`）、验证脚本、测试中的地址，以及文档站里指向故事的链接（`documentation/docs/**/typescript/*.md`，文档站的 `storybook-links` 测试按 `index.json` 检查它们）。
 
 ## 截图基线
 

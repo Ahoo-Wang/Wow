@@ -9,7 +9,7 @@ Manifest 生成的客户端访问；另有视图引擎在 Wow 服务查询路由
 随 Wow 发布，与 Wow 同一个 tag、同一个版本号，与视图引擎一起发布。
 
 > **兼容性。** 补丁版本不破坏公开面（入口的导出与错误码）；次版本可以破坏，它的发布说明
-> 逐条列出每个破坏与迁移步骤。Wow 包请停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/guide/typescript/compatibility#版本范围)。
+> 逐条列出每个破坏与迁移步骤。Wow 包请停在同一个次版本上，见[版本范围](https://wow.ahoo.me/zh/typescript/compatibility#版本范围)。
 
 ## 使用
 

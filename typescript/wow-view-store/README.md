@@ -14,7 +14,7 @@ with the view engine.
 > **Compatibility.** A patch release never breaks the public surface (the
 > exports of the entry and the error codes); a minor release may, and its
 > release notes list every break with the steps to follow. Keep the Wow
-> packages on one minor, as [version ranges](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges)
+> packages on one minor, as [version ranges](https://wow.ahoo.me/typescript/compatibility#version-ranges)
 > explains.
 
 ## Use

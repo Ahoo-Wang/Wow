@@ -83,9 +83,9 @@ const typescriptZh: DefaultTheme.SidebarItem[] = [
             {text: '发送命令', link: 'commands'},
             {text: '读取与查询', link: 'queries'},
             {text: '从任意 OpenAPI 文档生成', link: 'openapi-client'},
-            {text: '认证与拦截器', base: '/zh/guide/typescript/', link: 'authentication'},
-            {text: '兼容性与版本', base: '/zh/guide/typescript/', link: 'compatibility'},
-            {text: '排障', base: '/zh/guide/typescript/', link: 'troubleshooting'},
+            {text: '认证与拦截器', link: 'authentication'},
+            {text: '兼容性与版本', link: 'compatibility'},
+            {text: '排障', link: 'troubleshooting'},
         ],
     },
     {
@@ -106,7 +106,6 @@ const typescriptZh: DefaultTheme.SidebarItem[] = [
 ]
 
 export const sidebarZh: DefaultTheme.Sidebar = {
-    '/zh/guide/typescript/': typescriptZh,
     '/zh/typescript/': typescriptZh,
     '/zh/reference/typescript/': typescriptZh,
     '/zh/data/': [

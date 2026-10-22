@@ -78,7 +78,7 @@ in it, with no Wow conventions on top.
 
 ## Versions
 
-The version follows Wow, so a minor release may contain breaking changes: keep the Wow packages on one minor with `save-prefix=~` or `--save-exact`, as [version ranges](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges) explains. `wow-client` has to be on the generator's minor version. Node 22.12 or later is required, and TypeScript 6 or later: CI tests 6.0 through the latest 7.x.
+The version follows Wow, so a minor release may contain breaking changes: keep the Wow packages on one minor with `save-prefix=~` or `--save-exact`, as [version ranges](https://wow.ahoo.me/typescript/compatibility#version-ranges) explains. `wow-client` has to be on the generator's minor version. Node 22.12 or later is required, and TypeScript 6 or later: CI tests 6.0 through the latest 7.x.
 
 A successful run prints its warnings, if any, and one summary line:
 
@@ -210,6 +210,6 @@ Regenerate after every contract change and compile the result before publishing.
 - [Regenerate in CI](https://wow.ahoo.me/typescript/generate#keep-the-clients-in-step)
 - [Generate a client from any OpenAPI document](https://wow.ahoo.me/typescript/openapi-client)
 - [wow-generator reference](https://wow.ahoo.me/reference/typescript/wow-generator/)
-- [Compatibility and versions](https://wow.ahoo.me/guide/typescript/compatibility)
+- [Compatibility and versions](https://wow.ahoo.me/typescript/compatibility)
 
 [中文](./README.zh-CN.md) · [License](https://github.com/Ahoo-Wang/Wow/blob/main/LICENSE)

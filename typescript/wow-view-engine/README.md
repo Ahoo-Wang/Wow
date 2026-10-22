@@ -6,7 +6,7 @@ Released with Wow, from the same tag and with the same version.
 
 It is the presentation layer on top of `@ahoo-wang/wow-client` and the successor of `@ahoo-wang/fetcher-viewer`. The guides and the reference live on the [documentation site](https://wow.ahoo.me/typescript/view-engine/); this page covers installing the package, the shortest working example and its entries.
 
-> **Compatibility.** A patch release never breaks the public surface: the exports of every entry, including the `ViewStore` port a backend implements; the CSS contract ([what is public](https://wow.ahoo.me/typescript/view-engine/theming#what-is-public)); the message keys and issue codes; and the `wow-view-engine` command. A minor release may break it, and its release notes list every break with the steps to follow; keep the Wow packages on one minor, as [version ranges](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges) explains. Views users saved in an older form keep opening: the engine migrates stored configs on read.
+> **Compatibility.** A patch release never breaks the public surface: the exports of every entry, including the `ViewStore` port a backend implements; the CSS contract ([what is public](https://wow.ahoo.me/typescript/view-engine/theming#what-is-public)); the message keys and issue codes; and the `wow-view-engine` command. A minor release may break it, and its release notes list every break with the steps to follow; keep the Wow packages on one minor, as [version ranges](https://wow.ahoo.me/typescript/compatibility#version-ranges) explains. Views users saved in an older form keep opening: the engine migrates stored configs on read.
 
 ## Install
 
@@ -17,7 +17,7 @@ pnpm add @ahoo-wang/fetcher \
 pnpm add react react-dom
 ```
 
-The version follows Wow, so a minor release may contain breaking changes: keep the Wow packages on one minor with `save-prefix=~` or `--save-exact`, as [version ranges](https://wow.ahoo.me/guide/typescript/compatibility#version-ranges) explains.
+The version follows Wow, so a minor release may contain breaking changes: keep the Wow packages on one minor with `save-prefix=~` or `--save-exact`, as [version ranges](https://wow.ahoo.me/typescript/compatibility#version-ranges) explains.
 
 Peer dependencies: `@ahoo-wang/wow-client` (and the fetcher packages it needs); `react` and `react-dom` only for the `/react` and `/ui` entries, `react-router` only for `/react-router`, and `mingo` only for `/testing`. The root entry runs in Node. To keep saved views on a Wow server, add [`@ahoo-wang/wow-view-store`](../wow-view-store/README.md) (its `/v10` entry on a Wow V10 service, with the V10 query routes as data sources). ES modules only; Node `>=22.12.0` or a current browser; TypeScript 6 or later.
 
