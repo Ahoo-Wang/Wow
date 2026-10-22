@@ -278,6 +278,10 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             base: '/contribute/',
             text: 'Contribute',
             items: [
+                {text: 'Codebase Tour', link: 'index.html'},
+                {text: 'Test Layers', link: 'testing'},
+                {text: 'Write a Backend', link: 'backends'},
+                {text: 'Design Records', link: 'design-records'},
                 {text: 'Documentation Governance', link: 'documentation'},
             ],
         },
