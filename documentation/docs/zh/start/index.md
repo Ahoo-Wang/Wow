@@ -44,4 +44,4 @@ description: 阅读 Wow 文档的六条路径，每类读者一条，每条都�
 2. [V10 中的 9.x 能力](../migrate/capabilities)，然后是[迁移源码](../migrate/source)。
 3. [迁移数据](../migrate/data)和[切换](../migrate/cutover)。
 
-为 Wow 本身做贡献，从[参与贡献](../contribute/documentation)开始。
+为 Wow 本身做贡献，从[参与贡献](../contribute/)开始。
