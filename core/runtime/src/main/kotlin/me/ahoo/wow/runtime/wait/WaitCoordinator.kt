@@ -847,7 +847,7 @@ class WaitCoordinator(
     @Suppress("TooGenericExceptionCaught") // A signal is best effort: whatever fails, the command's result stands.
     suspend fun signal(wait: WaitContext, result: CommandResult) {
         try {
-            signals.send(wait.origin, WaitSignal(waitId = wait.waitId, result = result))
+            signals.send(wait.origin, WaitSignal(waitId = wait.waitId, result = result), wait.deadline)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {

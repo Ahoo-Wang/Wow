@@ -65,7 +65,7 @@ class PeerCommandsTest {
     private val stock = StockItems().apply { broken = false }
     private val actions = CopyOnWriteArrayList<CommandAction>()
 
-    private val signals = SignalSender { origin: Origin, signal: WaitSignal ->
+    private val signals = SignalSender { origin: Origin, signal: WaitSignal, _ ->
         nodes.firstOrNull { it.node == origin.node }?.waits?.signal(signal)
     }
 

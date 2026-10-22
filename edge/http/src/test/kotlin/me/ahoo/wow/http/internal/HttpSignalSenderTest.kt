@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.system.measureTimeMillis
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /** [HttpSignalSender] against the signal route on bare Reactor Netty (design 04 §6.3, decisions D65, D109). */
 class HttpSignalSenderTest {
@@ -76,7 +77,7 @@ class HttpSignalSenderTest {
     fun `signals reach the origin's signal entry over HTTP2`(): Unit = runBlocking {
         val sender = sender()
         val signals = (1..20).map(::signal)
-        signals.forEach { sender.send(origin(server.address), it) }
+        signals.forEach { sender.send(origin(server.address), it, deadline()) }
         eventually { received.size == signals.size }
         received.assert().containsExactlyInAnyOrderElementsOf(signals)
         sender.dropped.assert().isEqualTo(0)
@@ -103,7 +104,7 @@ class HttpSignalSenderTest {
                 derived = listOf("c-2", "c-3"),
             ),
         )
-        sender.send(origin(server.address), signal)
+        sender.send(origin(server.address), signal, deadline())
         eventually { received.size == 1 }
         received.single().assert().isEqualTo(signal)
         (received.single().result.results["price"] as BigDecimal).scale().assert().isEqualTo(2)
@@ -127,7 +128,7 @@ class HttpSignalSenderTest {
             // takes from a queue of one depends on how the two interleave (review A5-12); the batches have their test.
             val sender = sender(queueCapacity = 1, concurrency = 1, maxBatch = 1)
             val elapsed = measureTimeMillis {
-                (1..10).forEach { sender.send(origin(stuck.address), signal(it)) }
+                (1..10).forEach { sender.send(origin(stuck.address), signal(it), deadline()) }
             }
             elapsed.assert().isLessThan(1_000)
             // At most one is in flight, one taken off the queue for the next request and one queued; the rest are
@@ -155,9 +156,9 @@ class HttpSignalSenderTest {
             },
         ).use { origin ->
             val sender = sender(concurrency = 1)
-            sender.send(origin(origin.address), signal(0))
+            sender.send(origin(origin.address), signal(0), deadline())
             eventually { requests.get() == 1 }
-            (1..30).forEach { sender.send(origin(origin.address), signal(it)) }
+            (1..30).forEach { sender.send(origin(origin.address), signal(it), deadline()) }
             release.complete(Unit)
             eventually { signals.size == 31 }
             requests.get().assert().isLessThan(5)
@@ -182,7 +183,7 @@ class HttpSignalSenderTest {
             },
         ).use { old ->
             val sender = sender(concurrency = 1)
-            (1..6).forEach { sender.send(origin(old.address), signal(it)) }
+            (1..6).forEach { sender.send(origin(old.address), signal(it), deadline()) }
             release.complete(Unit)
             eventually { singles.size == 6 }
             singles.map { it.waitId }.assert().containsExactlyInAnyOrder("w-1", "w-2", "w-3", "w-4", "w-5", "w-6")
@@ -200,10 +201,10 @@ class HttpSignalSenderTest {
         }
         withRefusingPort { gone ->
             val sender = HttpSignalSender(observer = observer).also { senders += it }
-            sender.send(origin("127.0.0.1:$gone"), signal(1))
+            sender.send(origin("127.0.0.1:$gone"), signal(1), deadline())
             eventually { reasons.size == 1 }
             sender.close()
-            sender.send(origin("127.0.0.1:$gone"), signal(2))
+            sender.send(origin("127.0.0.1:$gone"), signal(2), deadline())
         }
         reasons.assert().containsExactly(HttpSignalSender.FAILED, HttpSignalSender.CLOSED)
     }
@@ -213,23 +214,83 @@ class HttpSignalSenderTest {
         InternalServer(coRouter { POST(InternalHttp.SIGNALS_PATH) { ServerResponse.status(503).buildAndAwait() } })
             .use { failing ->
                 val sender = sender()
-                sender.send(origin(failing.address), signal(1))
+                sender.send(origin(failing.address), signal(1), deadline())
                 eventually { sender.dropped == 1L }
             }
         withRefusingPort { gone ->
             val sender = sender()
-            sender.send(origin("127.0.0.1:$gone"), signal(2))
+            sender.send(origin("127.0.0.1:$gone"), signal(2), deadline())
             eventually { sender.dropped == 1L }
+        }
+    }
+
+    @Test
+    fun `a signal waits on a lagging origin as long as its wait does`(): Unit = runBlocking {
+        // The origin answers after 1.5 s, as one whose event loops lag under load did (roadmap §6 item 1): the
+        // wait has 5 s left, so its signal is still worth delivering.
+        val taken = CopyOnWriteArrayList<WaitSignal>()
+        InternalServer(
+            coRouter {
+                POST(InternalHttp.SIGNALS_PATH) { request ->
+                    val batch = ClusterCodec.decodeSignals(request.awaitBody<ByteArray>())
+                    delay(1_500)
+                    taken += batch
+                    ServerResponse.noContent().buildAndAwait()
+                }
+            },
+        ).use { lagging ->
+            val sender = sender()
+            sender.send(origin(lagging.address), signal(1), deadline())
+            eventually(5.seconds) { taken.size == 1 }
+            delay(200)
+            sender.dropped.assert().isEqualTo(0)
+        }
+    }
+
+    @Test
+    fun `a signal whose wait is over is dropped unsent`(): Unit = runBlocking {
+        val reasons = CopyOnWriteArrayList<String>()
+        val sender = HttpSignalSender(
+            observer = object : Observer {
+                override fun signalDropped(origin: String, reason: String) {
+                    reasons += reason
+                }
+            },
+        ).also { senders += it }
+        sender.send(origin(server.address), signal(1), System.currentTimeMillis() - 1)
+        eventually { reasons.size == 1 }
+        reasons.assert().containsExactly(HttpSignalSender.EXPIRED)
+        received.assert().isEmpty()
+    }
+
+    @Test
+    fun `a request is given until its wait's deadline and no longer`(): Unit = runBlocking {
+        val release = CompletableDeferred<Unit>()
+        InternalServer(
+            coRouter {
+                POST(InternalHttp.SIGNALS_PATH) {
+                    release.await()
+                    ServerResponse.noContent().buildAndAwait()
+                }
+            },
+        ).use { stuck ->
+            val sender = sender()
+            val elapsed = measureTimeMillis {
+                sender.send(origin(stuck.address), signal(1), deadline(300.milliseconds))
+                eventually(5.seconds) { sender.dropped == 1L }
+            }
+            elapsed.assert().isLessThan(3_000)
+            release.complete(Unit)
         }
     }
 
     @Test
     fun `an idle origin's queue goes away and a new one takes its next signals`(): Unit = runBlocking {
         val sender = sender(idle = 50.milliseconds)
-        sender.send(origin(server.address), signal(1))
+        sender.send(origin(server.address), signal(1), deadline())
         eventually { received.size == 1 }
         delay(200)
-        sender.send(origin(server.address), signal(2))
+        sender.send(origin(server.address), signal(2), deadline())
         eventually { received.size == 2 }
         sender.dropped.assert().isEqualTo(0)
     }
@@ -238,7 +299,7 @@ class HttpSignalSenderTest {
     fun `a closed sender drops what it is given`(): Unit = runBlocking {
         val sender = sender()
         sender.close()
-        sender.send(origin(server.address), signal(1))
+        sender.send(origin(server.address), signal(1), deadline())
         sender.dropped.assert().isEqualTo(1)
         received.assert().isEmpty()
     }

@@ -240,7 +240,7 @@ class InProcessCommandClientTest {
         val topics = InMemoryTopics(2).also { it.create(PREFIX + "wow.stock.commands", 4) }
         val channel = LoopbackClusterChannel()
         val nodes = CopyOnWriteArrayList<ServiceNode>()
-        val signals = SignalSender { to: Origin, signal: WaitSignal ->
+        val signals = SignalSender { to: Origin, signal: WaitSignal, _ ->
             nodes.firstOrNull { it.node == to.node }?.waits?.signal(signal)
         }
         val stock = StockItems().apply { broken = false }

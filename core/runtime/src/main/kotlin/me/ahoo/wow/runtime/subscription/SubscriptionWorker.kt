@@ -284,7 +284,7 @@ internal class SubscriptionWorker(
             error,
         ).let { if (rejection != null) it.copyWith(status = CommandResult.Status.REJECTED) else it }
         try {
-            signals.send(wait.origin, WaitSignal(waitId = wait.waitId, result = result))
+            signals.send(wait.origin, WaitSignal(waitId = wait.waitId, result = result), wait.deadline)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
