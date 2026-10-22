@@ -15,14 +15,13 @@ An aggregate decides alone, so it cannot see whether another aggregate already u
 <!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/brand/Brand.kt#take -->
 
 ```kotlin
-/** Rejects a blank name or one another brand holds; null when this brand may take [name]. */
-private suspend fun take(name: String, scope: DecideScope): Decision? = when {
-    name.isBlank() -> Decision.reject(Rejections.BLANK_NAME, "A brand needs a name.")
-    !scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name)) ->
+/** Rejects a name another brand holds; null when this brand may take [name]. */
+private suspend fun take(name: String, scope: DecideScope): Decision? =
+    if (scope.reserve(CatalogNames.BRAND_NAMES, CatalogNames.key(name))) {
+        null
+    } else {
         Decision.reject(Rejections.NAME_TAKEN, "Another brand is named \"${name.trim()}\".")
-
-    else -> null
-}
+    }
 ```
 
 - **The namespace** names what is unique: `eshop-catalog.brand-name`. Brands and categories reserve in two namespaces, so a brand and a category may share a name.

@@ -13,14 +13,15 @@
 
 package me.ahoo.wow.example.eshop.catalog.api.brand
 
+import jakarta.validation.constraints.NotBlank
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Summary
 
 /** Adds a brand named [name] to the catalog; the name is unique among the catalog's brands, ignoring case. */
 @CreateAggregate
 @Summary("Create a brand")
-data class CreateBrand(val name: String)
+data class CreateBrand(@field:NotBlank val name: String)
 
 /** Renames the brand; the new name is unique too. */
 @Summary("Rename a brand")
-data class RenameBrand(val name: String)
+data class RenameBrand(@field:NotBlank val name: String)

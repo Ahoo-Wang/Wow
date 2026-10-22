@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.example.eshop.ordering.api.order
 
+import jakarta.validation.Valid
+import jakarta.validation.constraints.NotEmpty
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Summary
 import java.math.BigDecimal
@@ -26,12 +28,13 @@ import java.math.BigDecimal
 /**
  * Submits an order of [items]. The basket context sends it when its buyer checks out, with the order's id fixed by the
  * basket. The order belongs to the buyer: a saga's command carries the scope of the basket it is derived from, whose
- * owner is its buyer (decision D189), and the order takes its owner from the command that creates it.
+ * owner is its buyer (decision D189), and the order takes its owner from the command that creates it. An order has
+ * items, each valid ([OrderItem]'s constraints): the gateway checks that before the order decides.
  */
 @CreateAggregate
 @Summary("Submit an order")
 data class SubmitOrder(
-    val items: List<OrderItem>,
+    @field:NotEmpty @field:Valid val items: List<OrderItem>,
 )
 // endregion
 

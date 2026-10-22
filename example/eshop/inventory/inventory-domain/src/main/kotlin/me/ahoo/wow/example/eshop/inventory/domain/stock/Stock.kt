@@ -46,22 +46,18 @@ import me.ahoo.wow.example.eshop.inventory.api.stock.StockReserved
 @Description("A product's stock: units on hand, and those reserved for orders")
 class Stock(private val state: StockState) {
     @OnCommand(produces = [StockReceived::class])
-    fun onCommand(command: ReceiveStock): Decision = whenPositive(command.quantity) {
-        Decision.events(StockReceived(command.quantity))
-    }
+    fun onCommand(command: ReceiveStock): Decision = Decision.events(StockReceived(command.quantity))
 
     // region reserve
     @OnCommand(produces = [StockReserved::class])
-    fun onCommand(command: ReserveStock, scope: DecideScope): Decision = whenPositive(command.quantity) {
-        when {
-            command.orderId in state.reservations -> Decision.NoOp
-            command.quantity > state.available -> Decision.reject(
-                Rejections.INSUFFICIENT,
-                "Only ${state.available} of ${scope.command.ref.id} are available, not ${command.quantity}.",
-            )
+    fun onCommand(command: ReserveStock, scope: DecideScope): Decision = when {
+        command.orderId in state.reservations -> Decision.NoOp
+        command.quantity > state.available -> Decision.reject(
+            Rejections.INSUFFICIENT,
+            "Only ${state.available} of ${scope.command.ref.id} are available, not ${command.quantity}.",
+        )
 
-            else -> Decision.events(StockReserved(command.orderId, command.quantity))
-        }
+        else -> Decision.events(StockReserved(command.orderId, command.quantity))
     }
     // endregion
 
@@ -82,21 +78,11 @@ class Stock(private val state: StockState) {
         return Decision.events(ReservationReleased(command.orderId, quantity))
     }
 
-    private inline fun whenPositive(quantity: Int, decide: () -> Decision): Decision =
-        if (quantity > 0) {
-            decide()
-        } else {
-            Decision.reject(Rejections.INVALID_QUANTITY, "$quantity is not a positive quantity.")
-        }
-
     /**
      * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them
      * `<context>.stock.<code>` (decision D259), as its peers read them from the api's generated contract.
      */
     object Rejections {
-        @ErrorCode(description = "A quantity of stock is positive.")
-        const val INVALID_QUANTITY = "invalid-quantity"
-
         @ErrorCode(description = "Fewer units are available than the order asks for.", status = 409)
         const val INSUFFICIENT = "insufficient"
 

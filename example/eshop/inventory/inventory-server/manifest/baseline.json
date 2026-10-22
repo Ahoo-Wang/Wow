@@ -146,10 +146,6 @@
       "status" : 409,
       "description" : "Fewer units are available than the order asks for."
     }, {
-      "code" : "eshop-inventory.stock.invalid-quantity",
-      "status" : 422,
-      "description" : "A quantity of stock is positive."
-    }, {
       "code" : "eshop-inventory.stock.no-reservation",
       "status" : 409,
       "description" : "Nothing is reserved for the order."

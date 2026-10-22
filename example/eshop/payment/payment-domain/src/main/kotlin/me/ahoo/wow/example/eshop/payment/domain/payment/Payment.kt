@@ -49,14 +49,7 @@ import me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment
 class Payment(private val state: PaymentState) {
     @OnCommand(produces = [PaymentRequested::class])
     fun onCommand(command: RequestPayment): Decision =
-        if (command.amount.signum() > 0) {
-            Decision.events(PaymentRequested(command.orderId, command.amount))
-        } else {
-            Decision.reject(
-                Rejections.INVALID_AMOUNT,
-                "A payment is of a positive amount, not ${command.amount}."
-            )
-        }
+        Decision.events(PaymentRequested(command.orderId, command.amount))
 
     @OnCommand(produces = [PaymentSucceeded::class])
     fun onCommand(command: ConfirmPayment): Decision = when (state.status) {
@@ -89,9 +82,6 @@ class Payment(private val state: PaymentState) {
      * `<context>.payment.<code>` (decision D259), as its peers read them from the api's generated contract.
      */
     object Rejections {
-        @ErrorCode(description = "A payment is of a positive amount.")
-        const val INVALID_AMOUNT = "invalid-amount"
-
         @ErrorCode(description = "The payment's status does not allow the command.", status = 409)
         const val WRONG_STATUS = "wrong-status"
     }

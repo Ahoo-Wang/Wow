@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.example.eshop.basket.api.basket.EshopBasketContract
 import me.ahoo.wow.kernel.memory.InMemoryTopics
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
@@ -138,6 +139,34 @@ class BasketServerTest {
     }
 
     @Test
+    fun `an item of no quantity or a negative price should be invalid before the basket decides`() {
+        val invalid = post(
+            "/eshop-basket/basket/frank/add-basket-item",
+            """{"productId":"mug","unitPrice":-1,"quantity":0}""",
+            "frank",
+        )
+        invalid.first.assert().describedAs(invalid.second.toString()).isEqualTo(BAD_REQUEST)
+        invalid.second["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_INVALID)
+        invalid.second["violations"].values().map { it["path"].asString() to it["code"].asString() }
+            .assert().containsExactly("quantity" to "Positive", "unitPrice" to "PositiveOrZero")
+        // Nothing was decided: the basket was not created.
+        read("frank", mapOf(BasketCallers.USER to "frank")).first.assert().isEqualTo(NOT_FOUND)
+
+        post(
+            "/eshop-basket/basket/frank/add-basket-item",
+            """{"productId":"mug","unitPrice":8.50,"quantity":1}""",
+            "frank",
+        ).first.assert().isEqualTo(OK)
+        val quantity = post(
+            "/eshop-basket/basket/frank/change-basket-item-quantity",
+            """{"productId":"mug","quantity":0}""",
+            "frank",
+        )
+        quantity.first.assert().isEqualTo(BAD_REQUEST)
+        quantity.second["violations"].single()["path"].asString().assert().isEqualTo("quantity")
+    }
+
+    @Test
     fun `an employee should read every buyer's basket, and the anonymous caller too`() {
         post(
             "/eshop-basket/basket/erin-buyer/add-basket-item",
@@ -186,6 +215,7 @@ class BasketServerTest {
 
     private companion object {
         const val OK = 200
+        const val BAD_REQUEST = 400
         const val FORBIDDEN = 403
         const val NOT_FOUND = 404
         const val UNPROCESSABLE = 422

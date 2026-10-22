@@ -87,12 +87,13 @@ class EshopClientTest {
                 // endregion
 
                 // region rejected
-                // An order of no items is the ordering's rejection, typed.
+                // An order of no items breaks SubmitOrder's constraints: the ordering refuses it at admission, typed.
                 val rejected = runCatching {
                     basket.bean<CommandClient>().of(alice)
                         .wait(SubmitOrder(emptyList()), EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "client-alice-2"))
                 }.exceptionOrNull() as CommandRejectedException
-                rejected.code.assert().contains("invalid")
+                rejected.code.assert().isEqualTo("wow.command.invalid")
+                rejected.result.error!!.violations.single().path.assert().isEqualTo("items")
                 // endregion
             }
         }

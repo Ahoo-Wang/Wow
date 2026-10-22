@@ -51,9 +51,6 @@ class Basket(private val state: BasketState) {
             return Decision.reject(Rejections.NOT_OWNER, "The basket ${command.ref.id} is not $owner's.")
         }
         val adding = command.body
-        if (adding.quantity <= 0 || adding.unitPrice.signum() < 0) {
-            return Decision.reject(Rejections.INVALID_ITEM, "$adding is not a valid item.")
-        }
         return Decision.events(BasketItemAdded(adding.productId, adding.unitPrice, adding.quantity))
     }
     // endregion
@@ -65,14 +62,10 @@ class Basket(private val state: BasketState) {
             Rejections.ITEM_NOT_FOUND,
             "The basket holds no ${command.productId}.",
         )
-        return when {
-            command.quantity <= 0 -> Decision.reject(
-                Rejections.INVALID_ITEM,
-                "${command.quantity} is not a positive quantity.",
-            )
-
-            command.quantity == item.quantity -> Decision.NoOp
-            else -> Decision.events(BasketItemQuantityChanged(command.productId, command.quantity))
+        return if (command.quantity == item.quantity) {
+            Decision.NoOp
+        } else {
+            Decision.events(BasketItemQuantityChanged(command.productId, command.quantity))
         }
     }
 
@@ -113,9 +106,6 @@ class Basket(private val state: BasketState) {
      * `<context>.basket.<code>` (decision D259), as its peers read them from the api's generated contract.
      */
     object Rejections {
-        @ErrorCode(description = "A basket's quantity is positive, and its price not negative.")
-        const val INVALID_ITEM = "invalid-item"
-
         @ErrorCode(description = "The basket does not hold the product.", status = 404)
         const val ITEM_NOT_FOUND = "item-not-found"
 

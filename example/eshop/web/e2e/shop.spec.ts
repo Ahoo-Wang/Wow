@@ -82,11 +82,9 @@ test("the shop end to end: catalog, basket, checkout to payment, orders, shippin
     await expect(tv.getByTestId("stock")).toHaveText("1 / 1");
   });
 
-  await test.step("a rejected command shows its problem", async () => {
+  await test.step("an invalid command shows its problem", async () => {
     await submit(page, "New product", { Id: "", Name: "Free mug", Description: "", Price: "0" });
-    await expect(page.getByTestId("problem-code")).toHaveText(
-      "eshop-catalog.product.invalid-price",
-    );
+    await expect(page.getByTestId("problem-code")).toHaveText("wow.command.invalid");
   });
 
   await test.step("a buyer finds the product and fills the basket", async () => {

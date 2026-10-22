@@ -13,13 +13,15 @@
 
 package me.ahoo.wow.example.eshop.ordering.api.order
 
+import jakarta.validation.constraints.Positive
+import jakarta.validation.constraints.PositiveOrZero
 import java.math.BigDecimal
 
 /** A line of an order: [quantity] units of [productId] at [unitPrice] each. */
 data class OrderItem(
     val productId: String,
-    val unitPrice: BigDecimal,
-    val quantity: Int,
+    @field:PositiveOrZero val unitPrice: BigDecimal,
+    @field:Positive val quantity: Int,
 )
 
 /**

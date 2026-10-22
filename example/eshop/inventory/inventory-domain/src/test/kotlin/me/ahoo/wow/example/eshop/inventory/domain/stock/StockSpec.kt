@@ -59,13 +59,6 @@ class StockSpec {
     }
 
     @Test
-    fun `a quantity that is not positive should be rejected`() = stockSpec {
-        given(StockReceived(10))
-        whenCommand(ReceiveStock(0)) { expectRejected(Stock.Rejections.INVALID_QUANTITY) }
-        whenCommand(ReserveStock(ORDER, -1)) { expectRejected(Stock.Rejections.INVALID_QUANTITY) }
-    }
-
-    @Test
     fun `reserving should hold the units for the order`() = stockSpec {
         given(StockReceived(10))
         whenCommand(ReserveStock(ORDER, 3)) {

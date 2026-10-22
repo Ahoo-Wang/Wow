@@ -1,7 +1,7 @@
 {
   "version": 1,
   "files": {
-    "eshop-catalog/boundedContext.ts": "1726c7e1dda703eb4631e49a68f47dfa64f1230a9884b7e7baec2d750ba25da9",
+    "eshop-catalog/boundedContext.ts": "79e49767132a0ed678c70bfdfdd5a3f834dda1a1a7390930cba616d94e6821b6",
     "eshop-catalog/brand/aggregate.ts": "c60c5009a4f37e1f1e198afea83733d77967980bedb4c35b84abcef6f6ee0246",
     "eshop-catalog/brand/commandClient.ts": "87ce5134eae0f969ec6a1b9e3d8180e48dc16105764f824f2d2523059f5308a1",
     "eshop-catalog/brand/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",

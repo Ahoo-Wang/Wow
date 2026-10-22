@@ -14,6 +14,7 @@
 package me.ahoo.wow.example.eshop.catalog.server
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.manifest.FrameworkErrors
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.http.HttpHeaders
@@ -38,6 +39,17 @@ class Answer(val status: Int, val headers: HttpHeaders, val body: JsonNode?) {
         return this
     }
 
+    /**
+     * Asserts this is the problem `wow.command.invalid` (400) the gateway answers a command that breaks its body's
+     * constraints with, its violations exactly [violations] (path to constraint), and returns it.
+     */
+    fun assertInvalid(vararg violations: Pair<String, String>): Answer {
+        assertProblem(BAD_REQUEST, FrameworkErrors.COMMAND_INVALID)
+        json["violations"].values().map { it["path"].asString() to it["code"].asString() }
+            .assert().containsExactly(*violations)
+        return this
+    }
+
     /** Asserts the command or query succeeded, and returns it. */
     fun assertOk(): Answer {
         status.assert().describedAs(body.toString()).isEqualTo(OK)
@@ -46,6 +58,7 @@ class Answer(val status: Int, val headers: HttpHeaders, val body: JsonNode?) {
 
     private companion object {
         const val OK = 200
+        const val BAD_REQUEST = 400
     }
 }
 

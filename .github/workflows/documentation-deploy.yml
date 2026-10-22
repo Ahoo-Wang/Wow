@@ -46,7 +46,7 @@ permissions:
 #
 # Three builds run in parallel and meet in one Pages artifact: VitePress at the
 # root with Storybook at /storybook/ (one job, one install), Dokka at /dokka/,
-# and the 9.x pages at /9.x/, built from the v9 maintenance branch (decision
+# and the 9.x pages with their Storybook at /9.x/, built from the v9 branch (decision
 # D265 ④). v9 has no deploy workflow (removed by #4738), so 9.x page changes
 # reach /9.x/ with the nightly run or a dispatch.
 jobs:
@@ -121,14 +121,14 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # The 9.x documentation as the v9 branch has it: its VitePress pages only,
-  # under /9.x/, with that branch's own lockfile. Its Storybook and Dokka are
-  # not served; the current ones are at /storybook/ and /dokka/.
+  # The 9.x documentation as the v9 branch has it, with that branch's own
+  # lockfile: its VitePress pages under /9.x/ and its Storybook at
+  # /9.x/storybook/. 9.x publishes no API reference; /dokka/ is the current one.
   site-9x:
     concurrency:
       group: docs-site-9x-${{ github.ref }}
       cancel-in-progress: true
-    name: VitePress (9.x)
+    name: VitePress and Storybook (9.x)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout v9
@@ -151,6 +151,11 @@ jobs:
 
       - name: Build VitePress site under /9.x/
         run: pnpm --filter documentation exec vitepress build docs --base /9.x/
+
+      # The 9.x pages link to their own stories (/9.x/storybook/...): v9's
+      # Storybook, built into the same dist and verified against its index.json.
+      - name: Build 9.x Storybook
+        run: pnpm --filter documentation storybook:build
 
       - name: Upload 9.x site
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

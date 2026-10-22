@@ -156,10 +156,6 @@
       "status" : 422,
       "description" : "An empty basket cannot be checked out."
     }, {
-      "code" : "eshop-basket.basket.invalid-item",
-      "status" : 422,
-      "description" : "A basket's quantity is positive, and its price not negative."
-    }, {
       "code" : "eshop-basket.basket.item-not-found",
       "status" : 404,
       "description" : "The basket does not hold the product."
