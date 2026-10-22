@@ -172,10 +172,43 @@ val integrationShardProjects = providers.gradleProperty("wow.integration.project
     }.toSet()
 } ?: integrationTestProjects
 
+// ci.yml runs `:check` in shards (its `check` matrix): `-Pwow.check.shard=<name>` narrows `:check`, and the test data
+// `coverageReport` reads, to the shard's modules. The named shards list theirs and `rest` takes every other module, so
+// each module is checked in exactly one shard. They are balanced by task time (a local `--profile` of `:check`,
+// 2026-10-22, about 37 task-minutes): the host's tests about 5 minutes, the Gradle plugin's 4, the compiler's 3¼; the
+// host and the applications on it share one compilation, as do the tools. A module whose code other modules' tests
+// exercise sits with them (CoSec, the HTTP edge and the client with the host, the analytics catalog's domain with its
+// server): Codecov merges the shards' reports line by line but not branch by branch, so a branch covered half in one
+// shard and half in another would count as partly covered.
+val checkShards = mapOf(
+    "host" to includedProjects(
+        ":spring-boot", ":cosec", ":http", ":client", ":ops-server", ":view-store-server", ":analytics-catalog-server",
+        ":analytics-catalog-domain", ":eshop-catalog-server", ":eshop-basket-server", ":eshop-ordering-server",
+        ":eshop-inventory-server", ":eshop-payment-server", ":quickstart", ":java-smoke",
+    ),
+    "tooling" to includedProjects(
+        ":compiler", ":gradle-plugin", ":manifest-tools", ":models", ":query", ":query-api", ":query-tck",
+        ":migrate-data", ":elasticsearch",
+    ),
+)
+checkShards.forEach { (name, projects) ->
+    val strays = projects - moduleProjects
+    require(strays.isEmpty()) { "The check shard $name names projects that are not modules: $strays" }
+}
+checkShards.values.flatten().groupBy { it }.filterValues { it.size > 1 }.keys.let { twice ->
+    require(twice.isEmpty()) { "Modules in two check shards: $twice" }
+}
+val checkShardProjects: Set<Project> = when (val shard = providers.gradleProperty("wow.check.shard").orNull) {
+    null -> moduleProjects
+    "rest" -> moduleProjects - checkShards.values.flatten().toSet()
+    else -> requireNotNull(checkShards[shard]) { "No check shard $shard: ${checkShards.keys + "rest"}" }
+}
+
 ext.set("localTestProjects", localTestProjects)
 ext.set("integrationTestProjects", integrationTestProjects)
 ext.set("moduleProjects", moduleProjects)
 ext.set("integrationShardProjects", integrationShardProjects)
+ext.set("checkShardProjects", checkShardProjects)
 
 fun Project.registerJvmTestLayer(
     layer: WowTestLayer,
@@ -361,9 +394,9 @@ tasks.register("allLocalTest") {
 // is checked from the API freeze at the M7 exit (D88, D147, D216): `checkKotlinAbi` of `abiProjects` against their
 // `api/<module>.api`. `./gradlew check` also runs it, with the `check` of the projects outside `moduleProjects`.
 tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) {
-    dependsOn(moduleProjects.map { it.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) })
-    dependsOn(moduleProjects.map { it.tasks.named("detekt") })
-    dependsOn(abiProjects.map { it.tasks.named("checkKotlinAbi") })
+    dependsOn(checkShardProjects.map { it.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) })
+    dependsOn(checkShardProjects.map { it.tasks.named("detekt") })
+    dependsOn(abiProjects.filter { it in checkShardProjects }.map { it.tasks.named("checkKotlinAbi") })
 }
 
 // Container-backed (Docker/Testcontainers). The spikes' suites skip themselves unless their flags are set.

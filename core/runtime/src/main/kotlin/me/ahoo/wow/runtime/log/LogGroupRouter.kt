@@ -23,7 +23,9 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
+import me.ahoo.wow.spi.log.SnapshotTail
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.snapshot.SnapshotStore
 
 /**
  * The log of a context whose aggregates are in several log groups (decision D177), as its kernel and its readers by
@@ -71,6 +73,9 @@ internal class LogGroupRouter(
 
     override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail =
         logOf(ref.type).readTail(ref, fromVersion, earlier)
+
+    override suspend fun readWithSnapshot(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail =
+        logOf(ref.type).readWithSnapshot(ref, snapshots, earlier)
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
         logOf(ref.type).readEntries(ref, fromVersion, toVersion)

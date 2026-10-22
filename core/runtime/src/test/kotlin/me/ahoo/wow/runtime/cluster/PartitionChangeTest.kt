@@ -59,9 +59,14 @@ class PartitionChangeTest {
         val delegate = InMemoryLeaseStore(virtualClock())
         var down = false
         val store = object : LeaseStore by delegate {
-            override suspend fun renew(group: String, partition: Int, owner: String, ttl: Duration): Lease? {
+            override suspend fun renew(
+                group: String,
+                partitions: Collection<Int>,
+                owner: String,
+                ttl: Duration
+            ): List<Lease> {
                 check(!down) { "The lease store is unreachable." }
-                return delegate.renew(group, partition, owner, ttl)
+                return delegate.renew(group, partitions, owner, ttl)
             }
 
             override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? {

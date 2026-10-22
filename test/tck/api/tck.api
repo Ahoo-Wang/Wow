@@ -70,6 +70,7 @@ public abstract class me/ahoo/wow/tck/log/EventLogSpec {
 	public final fun concurrent appends of one request at one version commit once, the others are duplicates ()V
 	public final fun concurrent appends to one version let exactly one win ()V
 	protected abstract fun createLog (Ljava/lang/String;I)Lme/ahoo/wow/spi/log/EventLog;
+	protected fun createSnapshots (Ljava/lang/String;)Lme/ahoo/wow/spi/snapshot/SnapshotStore;
 	public final fun every partition is created with no parent at epoch 0, and keeps that lineage as entries land ()V
 	public final fun head is the last committed sequence of a partition, null when it is empty ()V
 	public final fun one aggregate id under two aggregate types is two streams ()V
@@ -79,6 +80,8 @@ public abstract class me/ahoo/wow/tck/log/EventLogSpec {
 	public final fun readEntries returns a version range in version order, each entry with its position and transport ()V
 	public final fun readTail gives fewer earlier request keys only when none is left before them ()V
 	public final fun readTail gives the tail from a version and the latest earlier request keys, newest first ()V
+	public final fun readWithSnapshot gives the snapshot and the tail from its version with the earlier request keys ()V
+	public final fun readWithSnapshot without a snapshot gives every stream and no earlier request keys ()V
 	protected fun refused (Lme/ahoo/wow/spi/log/EventStreamRecord;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public final fun scope, causation, headers and operator read back as appended, absent ones too ()V
 	protected final fun stream (Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;)Lme/ahoo/wow/spi/log/EventStreamRecord;
@@ -215,6 +218,7 @@ public abstract class me/ahoo/wow/tck/subscription/LeaseStoreSpec {
 	public final fun a live lease cannot be taken, an expired one can ()V
 	public final fun a node that leaves is no longer a member but keeps its leases ()V
 	public final fun a released lease can be acquired at once ()V
+	public final fun a renewal renews the live leases the owner holds and leaves the others out ()V
 	public final fun an owner taking back its expired lease starts a new epoch ()V
 	public final fun concurrent acquisitions of a partition have exactly one winner ()V
 	public final fun concurrent acquisitions of an expired partition have exactly one winner ()V

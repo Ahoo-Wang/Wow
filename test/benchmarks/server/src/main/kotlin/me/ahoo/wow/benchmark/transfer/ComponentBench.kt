@@ -259,16 +259,25 @@ class ComponentCounters {
 
 private val EXECUTIONS = setOf("execute", "executeQuery", "executeUpdate", "executeBatch", "executeLargeUpdate")
 
-/** [target] seen as [type]: each call reported to [onCall] by its method's name, its result passed through [wrap]. */
-private fun <T : Any> proxy(target: T, type: Class<T>, onCall: (String) -> Unit, wrap: (Any?) -> Any? = { it }): T =
+/**
+ * [target] seen as [type]: each call reported to [onCall] by its method's name and arguments, its result passed through
+ * [wrap] with the same arguments.
+ */
+private fun <T : Any> proxy(
+    target: T,
+    type: Class<T>,
+    onCall: (String, Array<Any?>) -> Unit,
+    wrap: (Any?, Array<Any?>) -> Any? = { result, _ -> result },
+): T =
     type.cast(
         Proxy.newProxyInstance(
             type.classLoader,
             arrayOf(type),
             InvocationHandler { _, method, arguments ->
-                onCall(method.name)
+                val given: Array<Any?> = arguments ?: emptyArray()
+                onCall(method.name, given)
                 try {
-                    wrap(method.invoke(target, *(arguments ?: emptyArray())))
+                    wrap(method.invoke(target, *given), given)
                 } catch (failure: InvocationTargetException) {
                     throw failure.targetException
                 }
@@ -276,20 +285,41 @@ private fun <T : Any> proxy(target: T, type: Class<T>, onCall: (String) -> Unit,
         ),
     )
 
-/** [dataSource] with its statements' executions and its connections' commits and rollbacks counted on [counter]. */
+/**
+ * [dataSource] with its statements' executions, by [what each runs][statementLabel], and its connections' commits and
+ * rollbacks counted on [counter].
+ */
 private fun counted(dataSource: DataSource, counter: StoreCounter): DataSource {
-    val onStatement: (String) -> Unit = { name -> if (name in EXECUTIONS) counter.count("statement") }
-    fun statement(value: Any?): Any? = when (value) {
-        is CallableStatement -> proxy(value, CallableStatement::class.java, onStatement)
-        is PreparedStatement -> proxy(value, PreparedStatement::class.java, onStatement)
-        is Statement -> proxy(value, Statement::class.java, onStatement)
-        else -> value
+    fun statement(value: Any?, sql: String?): Any? {
+        val onStatement: (String, Array<Any?>) -> Unit = { name, arguments ->
+            if (name in EXECUTIONS) counter.count(statementLabel(sql ?: arguments.firstOrNull() as? String))
+        }
+        return when (value) {
+            is CallableStatement -> proxy(value, CallableStatement::class.java, onStatement)
+            is PreparedStatement -> proxy(value, PreparedStatement::class.java, onStatement)
+            is Statement -> proxy(value, Statement::class.java, onStatement)
+            else -> value
+        }
     }
-    val onConnection: (String) -> Unit = { name -> if (name == "commit" || name == "rollback") counter.count(name) }
+    val onConnection: (String, Array<Any?>) -> Unit = { name, _ ->
+        if (name == "commit" || name == "rollback") counter.count(name)
+    }
     fun connection(value: Any?): Any? = if (value is Connection) {
-        proxy(value, Connection::class.java, onConnection) { statement(it) }
+        proxy(value, Connection::class.java, onConnection) { result, arguments ->
+            statement(result, arguments.firstOrNull() as? String)
+        }
     } else {
         value
     }
-    return proxy(dataSource, DataSource::class.java, {}) { connection(it) }
+    return proxy(dataSource, DataSource::class.java, { _, _ -> }) { result, _ -> connection(result) }
+}
+
+private val SQL_TABLE = Regex("""\b(?:from|into|update|join)\s+("?[\w.]+"?)""", RegexOption.IGNORE_CASE)
+
+/** A statement's count key: `statement` with its verb and first table, `select wow_events` say, so a run shows each. */
+internal fun statementLabel(sql: String?): String {
+    val text = sql?.trim()?.takeIf { it.isNotEmpty() } ?: return "statement"
+    val verb = text.substringBefore(' ').lowercase()
+    val table = SQL_TABLE.find(text)?.groupValues?.get(1)?.trim('"')
+    return listOfNotNull("statement", verb, table).joinToString(" ")
 }

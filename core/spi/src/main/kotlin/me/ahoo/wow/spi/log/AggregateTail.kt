@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.log
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.snapshot.SnapshotRecord
 
 /**
  * The request key of one committed stream (decision D261): the aggregate's [version] it committed, its [requestId] and
@@ -71,5 +72,29 @@ class AggregateTail @InternalWowApi constructor(
         @JvmStatic
         fun of(streams: List<EventStreamRecord>, earlier: List<CommittedRequest>): AggregateTail =
             AggregateTail(streams, earlier)
+    }
+}
+
+/**
+ * What [EventLog.readWithSnapshot] reads of one aggregate (decision D268): its [snapshot], null when it has none, and
+ * the [tail] after it, every stream of the aggregate when there is no snapshot.
+ *
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
+ */
+class SnapshotTail @InternalWowApi constructor(
+    val snapshot: SnapshotRecord?,
+    val tail: AggregateTail,
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is SnapshotTail && snapshot == other.snapshot && tail == other.tail
+
+    override fun hashCode(): Int = 31 * snapshot.hashCode() + tail.hashCode()
+
+    override fun toString(): String = "SnapshotTail(snapshot=$snapshot, tail=$tail)"
+
+    companion object {
+        /** A SnapshotTail of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(snapshot: SnapshotRecord?, tail: AggregateTail): SnapshotTail = SnapshotTail(snapshot, tail)
     }
 }

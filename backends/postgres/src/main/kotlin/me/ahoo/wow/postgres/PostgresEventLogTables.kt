@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.postgres
 
+import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
+import java.util.concurrent.ConcurrentHashMap
+
 /**
  * The tables and statements of one context's log (decision D162). Names derive from the context and the aggregate
  * types (rule of D161, [PostgresNames]) and are part of the format, whose version is [FORMAT] (decision D59):
@@ -291,6 +294,35 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
         "UNION ALL (SELECT 1 AS part, tenant_id, aggregate_id, version, NULL, request_id, command_type, NULL, " +
         "NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL FROM $log WHERE aggregate_id = ? AND tenant_id = ? " +
         "AND version < ? ORDER BY version DESC LIMIT ?) ORDER BY part, version"
+
+    /**
+     * An aggregate's snapshot in [snapshot] and its [tail] from the snapshot's version, in one statement and so one
+     * snapshot of the database (decision D268): the snapshot row is `part` 2, its columns named `s_` plus those of
+     * [PostgresSnapshotTables.READ_COLUMNS]; without a snapshot the tail is every stream and no earlier keys follow.
+     * The parameters: the snapshot's tenant and id, the tail's id and tenant, the earlier keys' id, tenant and limit.
+     */
+    fun tailWithSnapshot(
+        snapshot: String
+    ): String = tailsWithSnapshot.computeIfAbsent(snapshot, ::buildTailWithSnapshot)
+
+    /** [tailWithSnapshot] by snapshot table, built once each. */
+    private val tailsWithSnapshot = ConcurrentHashMap<String, String>()
+
+    private fun buildTailWithSnapshot(snapshot: String): String {
+        val typedNulls = PostgresSnapshotTables.READ_COLUMNS.joinToString(
+            ", "
+        ) { (name, type) -> "NULL::$type AS s_$name" }
+        val nulls = PostgresSnapshotTables.READ_COLUMNS.joinToString(", ") { "NULL" }
+        val factNulls = FACTS.split(",").joinToString(", ") { "NULL" }
+        val read = PostgresSnapshotTables.READ_COLUMNS.joinToString(", ") { (name, type) -> "s.$name::$type" }
+        return "WITH s AS (SELECT * FROM $snapshot WHERE tenant_id = ? AND aggregate_id = ?) " +
+            "SELECT 0 AS part, $FACTS, $typedNulls FROM $log WHERE aggregate_id = ? AND tenant_id = ? " +
+            "AND version >= coalesce((SELECT version FROM s), 1) " +
+            "UNION ALL (SELECT 1 AS part, tenant_id, aggregate_id, version, NULL, request_id, command_type, NULL, " +
+            "NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, $nulls FROM $log WHERE aggregate_id = ? " +
+            "AND tenant_id = ? AND version < (SELECT version FROM s) ORDER BY version DESC LIMIT ?) " +
+            "UNION ALL SELECT 2 AS part, $factNulls, $read FROM s ORDER BY part, version"
+    }
 
     val entries = "SELECT partition, sequence, $FACTS, transport FROM $log WHERE aggregate_id = ? AND tenant_id = ? " +
         "AND version BETWEEN ? AND ? ORDER BY version"

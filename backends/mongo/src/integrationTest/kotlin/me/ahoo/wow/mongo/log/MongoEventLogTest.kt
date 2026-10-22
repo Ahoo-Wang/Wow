@@ -46,6 +46,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.CountedMongo
 import me.ahoo.wow.mongo.MongoNames
+import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -53,6 +54,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.containers.WowContainers
 import me.ahoo.wow.tck.log.EventLogSpec
 import org.bson.BsonDocument
@@ -65,6 +67,9 @@ import kotlin.time.Duration.Companion.seconds
 
 class MongoEventLogTest : EventLogSpec() {
     override fun createLog(context: String, partitions: Int): EventLog = MongoLogFixture.log(partitions, context)
+
+    override fun createSnapshots(context: String): SnapshotStore =
+        MongoSnapshotStore(MongoLogFixture.client, MongoLogFixture.DATABASE, context).also { it.createSchema() }
 
     /** A decimal of 40 significant digits: MongoDB keeps at most 34 exactly. */
     override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(

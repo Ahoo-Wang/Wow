@@ -11,13 +11,14 @@
 # limitations under the License.
 #
 
-# The V10 server images of a 10.x pre-release (R.1, D205): the ops service
+# The server images of a release (R.1, D205): the ops service
 # (wow-ops-server), the view store service (wow-view-store-server) and the
 # analytics catalog service with its data-owner console
 # (wow-analytics-catalog-server). package-deploy.yml calls it once its
-# gates passed; it can also be dispatched on a v10.* pre-release tag to push
-# the images again. Each image gets exactly the release version as its tag:
-# never `latest` and no `X.Y` tag, which stay on the 9.x line until 10.0.0 GA.
+# gates passed; it can also be dispatched on a release tag to push the images
+# again. release-plan.mjs gives the tags: a pre-release gets exactly its
+# version, never `latest` and no `X.Y`; a stable release gets its version and
+# `X.Y`, and `latest` when it is the latest line.
 name: Docker Images Deploy
 on:
   workflow_call:
@@ -30,7 +31,56 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      major: ${{ steps.plan.outputs.major }}
+      line: ${{ steps.plan.outputs.line }}
+      prerelease: ${{ steps.plan.outputs.prerelease }}
+      latest: ${{ steps.plan.outputs.latest }}
+    steps:
+      - name: Require a release tag
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          case "$REF" in
+            refs/tags/v*) echo "Pushing the images of $REF" ;;
+            *)
+              echo "::error::Images are pushed from a v* release tag, not $REF."
+              exit 1
+              ;;
+          esac
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # All v* tags decide whether this release is the latest line.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24.21.0
+
+      # gradle.properties, every package.json and the release tag agree.
+      - name: Verify release versions
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node .github/scripts/project-version.mjs check
+
+      - name: Plan the release
+        id: plan
+        env:
+          REF: ${{ github.ref }}
+        run: node .github/scripts/release-plan.mjs
+
   image-deploy:
+    needs: plan
     name: Push ${{ matrix.image }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -45,44 +95,41 @@ jobs:
             project: ops-server
             context: platform/ops/ops-server
             console: wow-ops-console
-            description: Wow V10 ops service. Pre-release, for evaluation; run it behind your gateway.
+            service: ops service
+            caveat: run it behind your gateway.
           - image: wow-view-store-server
             project: view-store-server
             context: platform/view-store/view-store-server
             console: ''
-            description: Wow V10 view store service. Pre-release, for evaluation; it does no authentication, run it behind your gateway.
+            service: view store service
+            caveat: it does no authentication, run it behind your gateway.
           - image: wow-analytics-catalog-server
             project: analytics-catalog-server
             context: platform/analytics/catalog/server
             console: wow-analytics-catalog-console
-            description: Wow V10 analytics catalog service and its data-owner console. Pre-release, for evaluation; run it behind your gateway.
+            service: analytics catalog service and its data-owner console
+            caveat: run it behind your gateway.
     steps:
-      - name: Require a 10.x pre-release tag
-        env:
-          REF: ${{ github.ref }}
-        run: |
-          case "$REF" in
-            refs/tags/v10.*-*) echo "Pushing the images of $REF" ;;
-            *)
-              echo "::error::V10 images are pushed from a v10.* pre-release tag, not $REF."
-              exit 1
-              ;;
-          esac
-
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Read the release version
-        id: version
+      # A pre-release says it is one; the caveat holds for every release.
+      - name: Describe the image
+        id: describe
+        env:
+          MAJOR: ${{ needs.plan.outputs.major }}
+          PRERELEASE: ${{ needs.plan.outputs.prerelease }}
+          SERVICE: ${{ matrix.service }}
+          CAVEAT: ${{ matrix.caveat }}
         run: |
-          version="$(sed -n 's/^version=//p' gradle.properties)"
-          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
-            echo "::error::tag ${GITHUB_REF_NAME} != v${version} (gradle.properties)"
-            exit 1
+          if [ "$PRERELEASE" = true ]; then
+            description="Wow V${MAJOR} ${SERVICE}. Pre-release, for evaluation; ${CAVEAT}"
+          else
+            description="Wow V${MAJOR} ${SERVICE}. ${CAVEAT^}"
           fi
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "description=${description}" >> "$GITHUB_OUTPUT"
 
       - name: Set up pnpm
         if: matrix.console != ''
@@ -157,9 +204,11 @@ jobs:
           flavor: |
             latest=false
           tags: |
-            type=raw,value=${{ steps.version.outputs.version }}
+            type=raw,value=${{ needs.plan.outputs.version }}
+            type=raw,value=${{ needs.plan.outputs.line }},enable=${{ needs.plan.outputs.prerelease == 'false' }}
+            type=raw,value=latest,enable=${{ needs.plan.outputs.latest == 'true' }}
           labels: |
-            org.opencontainers.image.description=${{ matrix.description }}
+            org.opencontainers.image.description=${{ steps.describe.outputs.description }}
 
       - name: Build and push
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0

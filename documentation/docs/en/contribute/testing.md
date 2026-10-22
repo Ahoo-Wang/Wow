@@ -46,7 +46,7 @@ A backend implements the ports of `:spi`, and its correctness is the contract, n
 
 `ci.yml` runs on every pull request, scoped by the paths it changes: a documentation-only or TypeScript-only change skips the JVM jobs.
 
-- **JVM:** `:check` with the publication check, and `:integrationTest` in four shards.
+- **JVM:** `:check` in three shards, one of them with the publication check, and `:integrationTest` in four shards.
 - **TypeScript:** static checks, the unit matrix, the package checks, the Storybook interactions, the eShop web app and the consoles.
 - **Documentation:** the site, its layout and repository hygiene.
 - **Coverage:** Codecov requires 90% of changed main code covered, and no module's coverage may drop by more than 1%.

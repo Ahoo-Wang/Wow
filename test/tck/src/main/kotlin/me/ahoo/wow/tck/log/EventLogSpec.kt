@@ -27,6 +27,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.CommittedRequest
@@ -35,9 +36,12 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.log.SnapshotTail
 import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
+import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import me.ahoo.wow.tck.ExactJson
@@ -67,6 +71,27 @@ abstract class EventLogSpec {
      * default, for a backend that stores every stream, which skips the cases of a refused stream.
      */
     protected open fun refused(stream: EventStreamRecord): EventStreamRecord? = null
+
+    /**
+     * A new, empty snapshot store of bounded context [context] that this backend's log reads with its tails
+     * ([EventLog.readWithSnapshot], decision D268): one in the log's database where the backend has one. Null, the
+     * default, skips those cases.
+     */
+    protected open fun createSnapshots(context: String): SnapshotStore? = null
+
+    private fun snapshot(id: String, version: Int) = SnapshotRecord(
+        ref = type.ref("tenant", id),
+        version = version,
+        schemaFingerprint = "fingerprint",
+        state = """{"id":"$id","version":$version}""",
+        scope = Scope("owner", "space"),
+        deleted = false,
+        firstEventTime = 1_700_000_000_001L,
+        lastEventTime = 1_700_000_000_000L + version,
+        tags = mapOf("tier" to listOf("gold")),
+        operator = Operator("bob", "tenant"),
+        schedules = mapOf("remind" to ScheduleRule.After(60_000)),
+    )
 
     protected fun stream(
         id: String,
@@ -439,6 +464,49 @@ abstract class EventLogSpec {
             it.earlier.map { key -> key.version }.assert().containsExactly(3, 2)
         }
         log.readTail(type.ref("tenant", "missing"), 1, 5).assert().isEqualTo(AggregateTail.of(emptyList(), emptyList()))
+    }
+
+    @Test
+    fun `readWithSnapshot gives the snapshot and the tail from its version with the earlier request keys`(): Unit =
+        runBlocking {
+            val snapshots = createSnapshots(context)
+            Assumptions.assumeTrue(snapshots != null, "This backend has no snapshot store to read with the log.")
+            checkNotNull(snapshots)
+            val log = createLog()
+            val appended = (1..6).map { stream("a", it) }
+            appended.forEach { log.append(it) }
+            log.append(stream("b", 1))
+            val saved = snapshot("a", 4)
+            snapshots.save(saved).assert().isTrue()
+            snapshots.save(snapshot("a", 2).copyWith(ref = type.ref("other", "a"))).assert().isTrue()
+            val read = log.readWithSnapshot(type.ref("tenant", "a"), snapshots, 2)
+            val loaded = checkNotNull(read.snapshot)
+            ExactJson.of(loaded.state).assert().isEqualTo(ExactJson.of(saved.state))
+            loaded.copyWith(state = saved.state).assert().isEqualTo(saved)
+            read.tail.streams.map { it.version }.assert().containsExactly(4, 5, 6)
+            read.tail.streams.first().assertSameAs(appended[3])
+            read.tail.earlier.assert().containsExactly(
+                CommittedRequest.of(appended[2]),
+                CommittedRequest.of(appended[1])
+            )
+            log.readWithSnapshot(type.ref("tenant", "a"), snapshots, 0).tail.earlier.assert().isEmpty()
+        }
+
+    @Test
+    fun `readWithSnapshot without a snapshot gives every stream and no earlier request keys`(): Unit = runBlocking {
+        val snapshots = createSnapshots(context)
+        Assumptions.assumeTrue(snapshots != null, "This backend has no snapshot store to read with the log.")
+        checkNotNull(snapshots)
+        val log = createLog()
+        val appended = (1..3).map { stream("a", it) }
+        appended.forEach { log.append(it) }
+        val read = log.readWithSnapshot(type.ref("tenant", "a"), snapshots, 5)
+        read.snapshot.assert().isNull()
+        read.tail.streams.map { it.version }.assert().containsExactly(1, 2, 3)
+        read.tail.streams.last().assertSameAs(appended[2])
+        read.tail.earlier.assert().isEmpty()
+        log.readWithSnapshot(type.ref("tenant", "missing"), snapshots, 5)
+            .assert().isEqualTo(SnapshotTail.of(null, AggregateTail.of(emptyList(), emptyList())))
     }
 
     @Test

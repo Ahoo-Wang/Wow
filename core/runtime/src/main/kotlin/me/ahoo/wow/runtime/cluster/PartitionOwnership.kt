@@ -41,7 +41,6 @@ import me.ahoo.wow.runtime.timer.TimerRunner
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import kotlin.time.TimeMark
@@ -89,8 +88,9 @@ data class RenewalRound(
  *   holds outside it and acquires those inside it. Members that briefly disagree are arbitrated by the leases and
  *   converge on the next round; a partition the old owner still holds is acquired once it is released or expires.
  * - **Leases** are renewed every [ClusterOptions.renewInterval], counted from the start of the previous round, all
- *   held leases of a round concurrently, at most [ClusterOptions.leaseParallelism] at a time, so a round does not
- *   grow with the number held times the store's latency (spike H6). Renewing starts before the first acquisition.
+ *   held leases of a round with one [LeaseStore.renew] (decision D270), so a round does not grow with the number
+ *   held times the store's latency (spike H6) and asks the store's pool for one connection, not one per lease.
+ *   Renewing starts before the first acquisition.
  *   Each round is reported to [renewalRounds] and logged, as a warning when it took more than half the margin
  *   `leaseTtl − renewInterval`. A lease lost to expiry stops the partition here, and so does one left unrenewed for
  *   `leaseTtl − renewInterval` (the store unreachable, say), without a release; the next reconcile acquires it anew.
@@ -188,7 +188,6 @@ class PartitionOwnership internal constructor(
     /** This node's internal address, as the other members reach it. */
     val address: String get() = addressOf()
     private val lifecycle = Mutex()
-    private val renewals = Semaphore(options.leaseParallelism)
     private val acquisitions = Semaphore(options.leaseParallelism)
     private val reconcileLock = Mutex()
     private val gates = ConcurrentHashMap<Int, Gate>()
@@ -516,45 +515,56 @@ class PartitionOwnership internal constructor(
     }
 
     /**
-     * Renews every held lease once, concurrently within [ClusterOptions.leaseParallelism]; a renewal that throws is
-     * retried on the next round without holding up the others.
+     * Renews every held lease once, all with one [LeaseStore.renew] (decision D270). A partition the call does not
+     * give back is lost, unless it was handed off meanwhile; a call that throws leaves every lease to the next round,
+     * each lost only once it is overdue.
      */
+    @Suppress("TooGenericExceptionCaught") // A failed renewal is retried on the next round.
     private suspend fun renew() {
         val started = timeSource.markNow()
         // A lease left unrenewed too long is taken as lost here, not renewed (finding A1-8).
         val overdue = loseOverdue()
         val held = gates.entries.filter { !it.value.lost }.map { it.key to it.value }
-        val lost = AtomicInteger(overdue)
-        val failed = AtomicInteger()
-        coroutineScope {
+        var lost = overdue
+        var failed = 0
+        if (held.isNotEmpty()) {
+            val asked = timeSource.markNow()
+            val renewed = try {
+                leases.renew(
+                    group.name,
+                    held.map { it.first },
+                    node,
+                    options.leaseTtl
+                ).mapTo(HashSet()) { it.partition }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                logger.warn(
+                    failure
+                ) { "$node failed to renew ${held.size} leases of $group; retrying on the next round." }
+                null
+            }
             held.forEach { (partition, gate) ->
-                launch {
-                    renewals.withPermit {
-                        when (renewOne(partition, gate)) {
-                            Renewal.LOST -> lost.incrementAndGet()
-                            Renewal.FAILED -> failed.incrementAndGet()
-                            Renewal.RENEWED -> Unit
-                        }
-                    }
+                when (renewalOf(partition, gate, asked, renewed)) {
+                    Renewal.LOST -> lost++
+                    Renewal.FAILED -> failed++
+                    Renewal.RENEWED -> Unit
                 }
             }
         }
-        val round = RenewalRound(group, node, held.size + overdue, lost.get(), failed.get(), started.elapsedNow())
-        report(round)
+        report(RenewalRound(group, node, held.size + overdue, lost, failed, started.elapsedNow()))
     }
 
-    @Suppress("TooGenericExceptionCaught") // A failed renewal is retried on the next round.
-    private suspend fun renewOne(partition: Int, gate: Gate): Renewal {
-        val asked = timeSource.markNow()
-        val renewed = try {
-            leases.renew(group.name, partition, node, options.leaseTtl)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (failure: Exception) {
-            logger.warn(failure) { "$node failed to renew partition $partition of $group; retrying on the next round." }
+    /** How [partition]'s lease fared in a round asked at [asked]: [renewed] the partitions renewed, null on a failure. */
+    private fun renewalOf(partition: Int, gate: Gate, asked: TimeMark, renewed: Set<Int>?): Renewal {
+        if (renewed == null) {
             return if (loseIfOverdue(partition, gate)) Renewal.LOST else Renewal.FAILED
         }
-        if (renewed != null) {
+        if (gate.lost) {
+            // Taken as lost while the round ran, overdue (finding A1-8): the round reports it.
+            return Renewal.LOST
+        }
+        if (partition in renewed) {
             gate.renewedAt = asked
             return Renewal.RENEWED
         }

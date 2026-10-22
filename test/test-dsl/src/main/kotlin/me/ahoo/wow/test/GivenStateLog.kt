@@ -24,7 +24,9 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
+import me.ahoo.wow.spi.log.SnapshotTail
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.snapshot.SnapshotStore
 
 /**
  * The log of an [AggregateSpec] whose aggregate starts in a given state ([AggregateSpec.givenState]) at version
@@ -51,6 +53,10 @@ internal class GivenStateLog(private val delegate: EventLog) : EventLog by deleg
 
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
         delegate.read(ref, from(fromVersion), to(toVersion)).map { it.shifted(offset) }
+
+    /** Read as [read] shifts it, never in one round trip by the delegate, which keeps the streams unshifted. */
+    override suspend fun readWithSnapshot(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail =
+        super.readWithSnapshot(ref, snapshots, earlier)
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
         delegate.readEntries(ref, from(fromVersion), to(toVersion)).map { it.shifted(offset) }

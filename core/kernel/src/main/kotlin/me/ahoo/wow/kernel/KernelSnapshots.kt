@@ -45,6 +45,14 @@ internal suspend fun SnapshotStore?.loadOrNull(ref: AggregateRef): SnapshotRecor
 }
 
 /**
+ * [store] as a cache-miss load reads it with the log ([me.ahoo.wow.spi.log.EventLog.readWithSnapshot], decision D268):
+ * a snapshot that fails to load is none ([loadOrNull]), so only the log's failure fails the command.
+ */
+internal class TolerantSnapshots(private val store: SnapshotStore) : SnapshotStore by store {
+    override suspend fun load(ref: AggregateRef): SnapshotRecord? = store.loadOrNull(ref)
+}
+
+/**
  * The state [snapshot] holds, decoded, or null when it does not fit: written at another state revision (decision
  * D172) or for another state schema, or not decodable.
  */

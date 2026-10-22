@@ -7,14 +7,23 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import {
+  checkShardProblems,
   codecovBuilds,
+  gradleCheckShards,
   gradleProjects,
   shardProblems,
+  workflowCheckShards,
   workflowShards,
 } from './integration-shards.mjs';
 
 const workflow = `jobs:
   check:
+    strategy:
+      matrix:
+        include:
+          - shard: host
+          - shard: rest
+            publications: true
     steps: []
   integration:
     strategy:
@@ -95,5 +104,46 @@ test('ci.yml runs every integration test project exactly once', () => {
   assert.deepEqual(shardProblems(projects, shards), []);
   const codecov = readFileSync('codecov.yml', 'utf8');
   assert.equal(codecovBuilds(codecov, 'integration'), shards.length);
-  assert.equal(codecovBuilds(codecov, 'jvm-unit'), 1);
+  assert.equal(
+    codecovBuilds(codecov, 'jvm-unit'),
+    workflowCheckShards(readFileSync('.github/workflows/ci.yml', 'utf8'))
+      .length,
+  );
+});
+
+test('the check shards are read from build.gradle.kts and the check job', () => {
+  const buildScript = `val checkShards = mapOf(
+    "host" to includedProjects(
+        ":spring-boot",
+    ),
+    "tooling" to includedProjects(":compiler"),
+)`;
+  assert.deepEqual(gradleCheckShards(buildScript), ['host', 'tooling', 'rest']);
+  assert.deepEqual(workflowCheckShards(workflow), ['host', 'rest']);
+  assert.throws(() => gradleCheckShards('val x = 1'), /no checkShards/);
+});
+
+test('a check shard left out, run twice, or unknown is a problem', () => {
+  assert.deepEqual(checkShardProblems(['host', 'rest'], ['host', 'rest']), []);
+  assert.deepEqual(
+    checkShardProblems(
+      ['host', 'tooling', 'rest'],
+      ['host', 'rest', 'rest', 'extra'],
+    ),
+    [
+      'the check shard tooling runs 0 times in the check matrix',
+      'the check shard rest runs 2 times in the check matrix',
+      "the check matrix's shard extra is not a check shard of build.gradle.kts",
+    ],
+  );
+});
+
+test('ci.yml runs every check shard exactly once', () => {
+  assert.deepEqual(
+    checkShardProblems(
+      gradleCheckShards(readFileSync('build.gradle.kts', 'utf8')),
+      workflowCheckShards(readFileSync('.github/workflows/ci.yml', 'utf8')),
+    ),
+    [],
+  );
 });
