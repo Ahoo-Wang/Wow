@@ -23,7 +23,7 @@ const allowed = [
   'typescript/TODO.md',
   'typescript/RELEASING.md',
   'typescript/release-notes/v9.8.0.md',
-  'test/benchmarks/results/reports/quick-webflux.md',
+  'test/benchmarks/results/reports/9.x/quick-webflux.md',
   'skills/wow-client/references/api.md',
   '.claude/skills/shadcn/SKILL.md',
   'typescript/wow-client/test/api/root.api.md',
