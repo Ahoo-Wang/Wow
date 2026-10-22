@@ -11,7 +11,7 @@ A generated command client has one method per command of its aggregate. A call p
 
 ## Create the clients once
 
-Every client sends through a Fetcher: the service's base URL, and the interceptors that sign each request ([Authentication](../guide/typescript/authentication)). Create the Fetcher once per service, and the clients over it:
+Every client sends through a Fetcher: the service's base URL, and the interceptors that sign each request ([Authentication](./authentication)). Create the Fetcher once per service, and the clients over it:
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';

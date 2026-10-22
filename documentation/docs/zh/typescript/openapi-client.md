@@ -9,7 +9,7 @@ description: 从一份不来自 Wow 的最小 OpenAPI 文档生成类型化的 I
 
 <!-- typecheck-generate: openapi.json -->
 
-## 1. 准备使用方项目
+## 1. 准备使用方项目 {#_1-prepare-a-consumer-project}
 
 ```bash
 pnpm add @ahoo-wang/fetcher @ahoo-wang/fetcher-decorator \
@@ -33,7 +33,7 @@ pnpm add -D @ahoo-wang/wow-generator typescript@6.0.3
 }
 ```
 
-## 2. 保存接口契约
+## 2. 保存接口契约 {#_2-save-the-contract}
 
 将下列完整文档保存为 `openapi.json`。根标签、操作标签、operationId 和 200 响应 Schema 为生成普通类型化 API 客户端提供了必要信息。
 
@@ -97,7 +97,7 @@ pnpm add -D @ahoo-wang/wow-generator typescript@6.0.3
 }
 ```
 
-## 3. 生成并编译
+## 3. 生成并编译 {#_3-generate-and-compile}
 
 ```bash
 pnpm exec wow-generator generate -i ./openapi.json -o ./src/generated -t ./tsconfig.json
@@ -108,7 +108,7 @@ pnpm exec tsc --noEmit -p ./tsconfig.json
 
 工作目录下没有 `wow-generator.config.json` 时，CLI 按默认值生成。只有需要覆盖默认行为时再添加配置，参见[配置优先级](../reference/typescript/wow-generator/configuration)。
 
-## 4. 在生成目录外编写调用方
+## 4. 在生成目录外编写调用方 {#_4-write-the-caller-outside-generated-files}
 
 保存为 `src/loadItem.ts`，然后再次执行 TypeScript 检查：
 
@@ -126,7 +126,7 @@ export async function loadItem(baseURL: string): Promise<Item> {
 
 本地运行验证可以模拟 fetch 返回 `Response.json({ id: '42' })`，调用函数后断言最终 URL 和返回 ID，并在 `finally` 中恢复 fetch。
 
-## 5. 重新生成并审阅
+## 5. 重新生成并审阅 {#_5-regenerate-and-review}
 
 修改源文档后重跑同一命令，检查模型、方法签名和所有权清单的变化后再接受差异。不要把应用代码放入 `src/generated`：在相同路径再次生成的文件会被覆盖。未修改的过时受管文件可能被删除，已经修改的过时文件会保留。生成不是目录级原子事务，失败后应检查部分输出。
 

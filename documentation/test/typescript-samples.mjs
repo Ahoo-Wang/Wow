@@ -63,7 +63,6 @@ const markdown = (dir) =>
 
 export const SOURCES = [
     ...['en', 'zh'].flatMap((locale) => [
-        ...markdown(join(documentation, `docs/${locale}/guide/typescript`)),
         ...markdown(join(documentation, `docs/${locale}/typescript`)),
         ...markdown(join(documentation, `docs/${locale}/data`)),
         ...markdown(join(documentation, `docs/${locale}/reference/typescript`)),
