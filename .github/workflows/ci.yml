@@ -75,7 +75,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Check every integration test project is in exactly one shard
+      - name: Check the shards of the check and integration matrices
         run: node .github/scripts/integration-shards.mjs
       - id: scope
         env:
@@ -84,9 +84,14 @@ jobs:
         run: node .github/scripts/ci-scope.mjs
 
   # Compiles every module, runs its unit tests (`:architecture:test` holds
-  # the dependency rules) and detekt over them.
+  # the dependency rules) and detekt over them, in shards that run in
+  # parallel: `-Pwow.check.shard` narrows `:check` to the modules
+  # build.gradle.kts gives the shard (`checkShards`; `rest` takes every other
+  # module, so each is checked once), and the scope job checks that this
+  # matrix names exactly those shards (.github/scripts/integration-shards.mjs).
+  # The `rest` shard also checks the publications.
   check:
-    name: Check
+    name: Check (${{ matrix.shard }})
     needs: scope
     if: needs.scope.outputs.jvm == 'true'
     timeout-minutes: 40
@@ -94,6 +99,14 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: host
+          - shard: tooling
+          - shard: rest
+            publications: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -106,20 +119,23 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - name: Check the modules with coverage
-        run: ./gradlew :check :code-coverage-report:coverageReport --stacktrace
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: ./gradlew :check :code-coverage-report:coverageReport "-Pwow.check.shard=$SHARD" --stacktrace
       # The release rehearsal of the Maven publications (R.1), signed with a
       # throwaway key the check generates (gpg): every release module has
       # its jar, sources, javadoc, POM and metadata, signed, the BOM constrains
       # exactly them, no 9.x module is published, and the deploy jobs'
       # prebuilt publish uploads all of it with its signatures.
       - name: Check the publications
+        if: matrix.publications
         run: ./gradlew publicationCheck --stacktrace
       - name: Upload unit test coverage
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true
           flags: jvm-unit
-          name: jvm-unit
+          name: jvm-unit-${{ matrix.shard }}
           fail_ci_if_error: true
           verbose: true
           disable_search: true

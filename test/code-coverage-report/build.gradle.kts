@@ -199,7 +199,10 @@ tasks.named<JacocoReport>("codeCoverageReport") {
 // container-backed tests.
 @Suppress("UNCHECKED_CAST")
 val moduleProjects = (rootProject.ext.get("moduleProjects") as Iterable<Project>) - e2eBenchmarkProjects
-registerLayerCoverageReport("coverageReport", moduleProjects, "test")
+// A shard of ci.yml's check matrix (`-Pwow.check.shard`) reports the test data of its own modules.
+@Suppress("UNCHECKED_CAST")
+val checkShardProjects = rootProject.ext.get("checkShardProjects") as Iterable<Project>
+registerLayerCoverageReport("coverageReport", moduleProjects, "test", checkShardProjects - e2eBenchmarkProjects)
 // A shard of ci.yml's integration matrix (`-Pwow.integration.projects`) reports the test data of its own projects.
 @Suppress("UNCHECKED_CAST")
 val integrationShardProjects = rootProject.ext.get("integrationShardProjects") as Iterable<Project>

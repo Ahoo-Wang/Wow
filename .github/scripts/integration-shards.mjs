@@ -6,18 +6,20 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-// Checks that ci.yml's integration shards run every integration test exactly
-// once (ci.yml's scope job runs it):
+// Checks that ci.yml's check and integration shards run every module's checks
+// and every integration test exactly once (ci.yml's scope job runs it):
 //
 //   node .github/scripts/integration-shards.mjs
 //
 // Every project of `integrationTestProjects` (build.gradle.kts) must be in
 // the `projects` of exactly one shard of the `integration` job's matrix, and a
 // shard may name no other project. A project in no shard would never run on a
-// pull request; one in two would run twice. Codecov's after_n_builds
-// (codecov.yml) must be the uploads of a full run: the `integration` flag's one
-// per shard, the `jvm-unit` flag's the check's one, or Codecov would judge its
-// statuses early or never.
+// pull request; one in two would run twice. The `check` job's matrix must run
+// each check shard of build.gradle.kts (`checkShards` and `rest`) once and no
+// other: a shard left out would leave its modules unchecked. Codecov's
+// after_n_builds (codecov.yml) must be the uploads of a full run: one per shard
+// of each matrix, the `integration` flag's and the `jvm-unit` flag's, or
+// Codecov would judge its statuses early or never.
 
 /** The Gradle paths of `integrationTestProjects = includedProjects(...)`. */
 export function gradleProjects(buildScript) {
@@ -45,6 +47,50 @@ export function workflowShards(workflow) {
 }
 
 /** The `after_n_builds` of the `flag` in codecov.yml, or undefined. */
+/** The check shards build.gradle.kts declares (`checkShards`), and `rest`, which takes every other module. */
+export function gradleCheckShards(buildScript) {
+  const block = /val checkShards = mapOf\(([\s\S]*?)\n\)/.exec(buildScript);
+  if (!block) {
+    throw new Error('build.gradle.kts declares no checkShards');
+  }
+  return [
+    ...[...block[1].matchAll(/"([\w-]+)" to includedProjects\(/g)].map(
+      match => match[1],
+    ),
+    'rest',
+  ];
+}
+
+/** The shards of ci.yml's check matrix. */
+export function workflowCheckShards(workflow) {
+  const job = workflow.split(/^ {2}check:$/m)[1]?.split(/^ {2}\S/m)[0];
+  if (!job) {
+    throw new Error('ci.yml has no check job');
+  }
+  return [...job.matchAll(/- shard: (\S+)/g)].map(match => match[1]);
+}
+
+/** Whether ci.yml's check matrix runs each shard of build.gradle.kts once, and no other. */
+export function checkShardProblems(gradleShards, workflowShards) {
+  const problems = [];
+  for (const shard of gradleShards) {
+    const runs = workflowShards.filter(it => it === shard).length;
+    if (runs !== 1) {
+      problems.push(
+        `the check shard ${shard} runs ${runs} times in the check matrix`,
+      );
+    }
+  }
+  for (const shard of new Set(workflowShards)) {
+    if (!gradleShards.includes(shard)) {
+      problems.push(
+        `the check matrix's shard ${shard} is not a check shard of build.gradle.kts`,
+      );
+    }
+  }
+  return problems;
+}
+
 export function codecovBuilds(codecov, flag) {
   const builds = new RegExp(
     `- name: ${flag}\\n\\s+after_n_builds: (\\d+)`,
@@ -90,9 +136,20 @@ if (
   const shards = workflowShards(
     readFileSync('.github/workflows/ci.yml', 'utf8'),
   );
-  const problems = shardProblems(projects, shards);
+  const workflow = readFileSync('.github/workflows/ci.yml', 'utf8');
+  const checkShards = workflowCheckShards(workflow);
+  const problems = [
+    ...shardProblems(projects, shards),
+    ...checkShardProblems(
+      gradleCheckShards(readFileSync('build.gradle.kts', 'utf8')),
+      checkShards,
+    ),
+  ];
   const codecov = readFileSync('codecov.yml', 'utf8');
-  const expected = { 'jvm-unit': 1, integration: shards.length };
+  const expected = {
+    'jvm-unit': checkShards.length,
+    integration: shards.length,
+  };
   for (const [flag, builds] of Object.entries(expected)) {
     const actual = codecovBuilds(codecov, flag);
     if (actual !== builds) {
@@ -111,6 +168,6 @@ if (
     process.exit(1);
   }
   console.log(
-    `${projects.length} integration test projects, each in exactly one of ${shards.length} shards; Codecov waits for ${shards.length} integration uploads and 1 unit upload`,
+    `${projects.length} integration test projects, each in exactly one of ${shards.length} shards; check shards ${checkShards.join(', ')}; Codecov waits for ${shards.length} integration uploads and ${checkShards.length} unit uploads`,
   );
 }

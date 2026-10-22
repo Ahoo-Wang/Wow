@@ -31,19 +31,20 @@ coverage:
           - jvm-unit
           - integration
           - typescript
-# The JVM coverage (ci.yml): the `jvm-unit` flag is the check job's report (every module's unit tests), the
+# The JVM coverage (ci.yml): the `jvm-unit` flag is the check shards' reports (every module's unit tests), the
 # `integration` flag the integration shards' (their container-backed tests). The reports name each source file by
 # its repository path (test/code-coverage-report).
 #
-# A full run uploads `jvm-unit` once and `integration` once per shard (4). Codecov judges a status that reads a flag
+# A full run uploads `jvm-unit` once per shard of ci.yml's `check` matrix (3) and `integration` once per shard of its
+# `integration` matrix (4). Codecov judges a status that reads a flag
 # (the components', and patch and project above) only once the flag has `after_n_builds` uploads of this commit, so
 # a status is never judged on part of the run. A flag's real upload replaces its carried-forward ones, which
 # therefore count only until its first upload: a pull request that skips the JVM jobs carries its base's sessions
 # forward and is judged at once, and a run whose shard fails or uploads nothing leaves those statuses unposted (not
 # pending) for that commit. `codecov.notify.after_n_builds` and `comment.after_n_builds` would count every session
 # of the commit, the TypeScript packages' and the carried-forward ones included, so they are left unset. The
-# integration flag's after_n_builds is the number of shards of ci.yml's `integration` matrix
-# (.github/scripts/integration-shards.mjs checks both).
+# jvm-unit and integration flags' after_n_builds are the numbers of shards of ci.yml's `check` and `integration`
+# matrices (.github/scripts/integration-shards.mjs checks both).
 #
 # No flag has `paths`: a status filters the files by its own paths and its flags' together, so a flag's paths
 # would widen every component's to the whole flag (each component then reported the same number).
@@ -58,7 +59,7 @@ flag_management:
     carryforward: true
   individual_flags:
     - name: jvm-unit
-      after_n_builds: 1
+      after_n_builds: 3
     - name: integration
       after_n_builds: 4
     - name: v10
