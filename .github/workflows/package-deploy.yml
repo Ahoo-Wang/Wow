@@ -17,14 +17,18 @@
 # the signing key, the Sonatype credentials and npm's OIDC identity.
 # typescript/RELEASING.md is the maintainer's checklist.
 #
-# On main (R.1, D217) it releases the 10.x pre-releases only (`v10.*-alpha.n`,
-# `-beta.n`, `-rc.n`; AGENTS.md "Releasing a pre-release"): the gates and
-# the Maven publications cover the modules, the BOM and
-# wow-dependencies, the only projects the build has (D262); npm publishes
-# under `alpha`/`beta`/`next`, never `latest` (publish-npm.mjs);
-# image-deploy.yml pushes the server images under the version alone;
-# and the GitHub pre-release carries the notes of
-# .github/release-notes/v10-prerelease.md.
+# release-plan.mjs decides what a tag publishes (AGENTS.md "Releasing"): the
+# gates and the Maven publications cover the modules, the BOM and
+# wow-dependencies, the only projects the build has (D262). A pre-release
+# (`-alpha.n`, `-beta.n`, `-rc.n`) goes to npm under `alpha`/`beta`/`next`,
+# never `latest` (publish-npm.mjs); image-deploy.yml pushes its server images
+# under the version alone; its GitHub pre-release carries the notes of
+# .github/release-notes/prerelease.md. A stable release goes to npm under
+# `latest` when it is the latest line (`release-<x.y>` otherwise), its images
+# also get `<x.y>` and, on the latest line, `latest`, and its GitHub release
+# is marked latest on the latest line, with .github/release-notes/stable.md
+# when none exists. A tag of an older major is refused: it releases from its
+# maintenance branch (9.x from v9).
 name: Packages Deploy
 on:
   release:
@@ -43,6 +47,11 @@ jobs:
   admission:
     runs-on: ubuntu-latest
     timeout-minutes: 100
+    outputs:
+      prerelease: ${{ steps.plan.outputs.prerelease }}
+      latest: ${{ steps.plan.outputs.latest }}
+      line: ${{ steps.plan.outputs.line }}
+      notes: ${{ steps.plan.outputs.notes }}
     permissions:
       contents: read
       # Release admission reads the full runs of this commit and dispatches
@@ -58,11 +67,7 @@ jobs:
           REF: ${{ github.ref }}
         run: |
           case "$REF" in
-            refs/tags/v10.*-*) echo "Releasing $REF" ;;
-            refs/tags/v*)
-              echo "::error::v10 releases 10.x pre-releases only (v10.x.y-alpha.n, -beta.n, -rc.n), not $REF; 9.x releases from v9."
-              exit 1
-              ;;
+            refs/tags/v*) echo "Releasing $REF" ;;
             *)
               echo "::error::Releases run from a v* tag, not $REF. Choose the tag under 'Use workflow from'."
               exit 1
@@ -81,6 +86,14 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 24.21.0
+
+      # A v<version> tag of the highest major; pre-release or stable, and
+      # whether it is the latest line.
+      - name: Plan the release
+        id: plan
+        env:
+          REF: ${{ github.ref }}
+        run: node .github/scripts/release-plan.mjs
 
       # gradle.properties, every package.json and the release tag agree.
       - name: Verify release versions
@@ -357,8 +370,8 @@ jobs:
       - name: Smoke-test the published packages
         run: node .github/scripts/package-check.mjs --registry
 
-  # The server images, under the release version alone (never `latest`),
-  # once the release is on Maven Central and npm.
+  # The server images, under the tags release-plan.mjs gives them, once the
+  # release is on Maven Central and npm.
   images:
     needs: npm-deploy
     permissions:
@@ -367,12 +380,14 @@ jobs:
     uses: ./.github/workflows/image-deploy.yml
     secrets: inherit
 
-  # The GitHub pre-release of the tag: created from
-  # .github/release-notes/v10-prerelease.md when the run was dispatched on the
-  # tag (a release created by hand started it otherwise). Either way it is
-  # marked a pre-release and never the latest release.
-  prerelease-notes:
-    needs: npm-smoke
+  # The GitHub release of the tag: created from the plan's notes template
+  # (.github/release-notes/prerelease.md or stable.md) when the run was
+  # dispatched on the tag (a release created by hand started it otherwise).
+  # Either way a pre-release is marked a pre-release and never the latest
+  # release; a stable release is not a pre-release, and is the latest release
+  # when it is the latest line.
+  release-notes:
+    needs: [admission, npm-smoke]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -383,16 +398,25 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Create or mark the GitHub pre-release
+      - name: Create or mark the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.admission.outputs.prerelease }}
+          LATEST: ${{ needs.admission.outputs.latest }}
+          LINE: ${{ needs.admission.outputs.line }}
+          NOTES: ${{ needs.admission.outputs.notes }}
         run: |
           version="${TAG#v}"
-          if gh release view "$TAG" > /dev/null 2>&1; then
-            gh release edit "$TAG" --prerelease --latest=false
+          if [ "$PRERELEASE" = true ]; then
+            flags=(--prerelease --latest=false)
           else
-            sed "s/VERSION/${version}/g" .github/release-notes/v10-prerelease.md > "$RUNNER_TEMP/notes.md"
-            gh release create "$TAG" --verify-tag --prerelease --latest=false \
+            flags=(--prerelease=false "--latest=${LATEST}")
+          fi
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" "${flags[@]}"
+          else
+            sed -e "s/VERSION/${version}/g" -e "s/LINE/${LINE}/g" "$NOTES" > "$RUNNER_TEMP/notes.md"
+            gh release create "$TAG" --verify-tag "${flags[@]}" \
               --title "Wow ${version}" --notes-file "$RUNNER_TEMP/notes.md"
           fi
