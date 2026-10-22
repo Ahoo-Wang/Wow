@@ -1,6 +1,6 @@
 # V10 数据协议
 
-日期：2026-10-12。基线：`v10` `4224` 之后。状态：已采纳（D55～D60 已定）。上位文档：[00 目标架构](00-architecture.md)（A1、A6、A11）。相关决定：D15、D17、D22、D25、D46、D48、D49、D50、D51、D132、D135、D136、D142、D163、D164。
+日期：2026-10-12。基线：PR #4224 之后。状态：已采纳（D55～D60 已定）。上位文档：[00 目标架构](00-architecture.md)（A1、A6、A11）。相关决定：D15、D17、D22、D25、D46、D48、D49、D50、D51、D132、D135、D136、D142、D163、D164。
 
 本文定义 V10 中跨越进程、存储或版本边界的数据结构：命令、事件流、`StateEventRecord`、快照、命令结果、等待信号、Kafka 信封。这些结构一旦落盘或上线，就只能按 §9 的规则演进，所以在 M4（运行时）与 M6（Kafka）之前定下。
 
@@ -38,7 +38,7 @@ class Command<C : Any>(   // 普通类，构造函数 @InternalWowApi，经公�
     val headers: Map<String, String> = emptyMap(),
     val causation: Causation? = null, // 新增：因果链（§4）
     val operator: Operator? = null,   // 操作人（D163）：准入由 Caller 转成；派生命令继承根命令的操作人
-    val wait: WaitPlan = WaitPlan.SNAPSHOT, // 新增：等待计划（D61～D64、D69），默认等快照；只留在发起节点
+    val wait: WaitPlan = WaitPlan.DEFAULT,  // 新增：等待计划（D61～D64、D69）；默认等快照，聚合无快照时退回 COMMITTED（D195）；只留在发起节点
 )
 ```
 
@@ -64,6 +64,7 @@ data class EventStreamRecord(
     val causation: Causation? = null,       // 新增
     val headers: Map<String, String> = emptyMap(), // 新增：来自命令
     val operator: Operator? = null,         // 操作人（D163），审计的主依据
+    val tags: Map<String, List<String>>? = null, // 提交后聚合的标签（D267 ②）：null 未记录，{} 无标签；供 events 查询的 ABAC 下推
 )
 
 data class Scope(val ownerId: String?, val spaceId: String?) // wow-api 的值类型：所有者与空间的组合
@@ -97,7 +98,7 @@ data class Transport(
     val reservations: List<ReservationKey> = emptyList(), // 本次尝试做过的预留，由订阅确认（D50）
     val trace: Map<String, String> = emptyMap(),   // W3C traceparent 等
     val releases: List<ReservationKey> = emptyList(), // 提交后释放的键，由订阅兜底（D225）
-)   // 记录类型将改为普通类（D228）
+)   // 普通类，构造函数 @InternalWowApi，用 of(...) 创建（D228）
 ```
 
 `EventLog.append` 改为接收 `(stream, transport)`。`findByRequestId`、`read` 只返回事实；`tail` 返回带传输段的 `LogEntry`，供订阅与信号使用。
@@ -107,11 +108,14 @@ data class Transport(
 线上与存储形式叫 `StateEventRecord`，与 `EventStreamRecord`、`SnapshotRecord` 同一命名惯例；处理函数拿到的类型化形式是 `wow-api` 的 `StateEvent<S>`（D81）。`StateEventRecord` 与 `StateView` 定义在 `wow-spi`（D132），因为 Sink 所在的后端只能依赖 `wow-spi`。
 
 ```kotlin
-data class StateEventRecord(
-    val position: LogPosition,      // 发布到 Kafka 后，下游用偏移量；位置只在上下文内有意义
-    val stream: EventStreamRecord,  // 事实
-    val state: StateView,           // 提交后的状态视图
-)
+class StateEventRecord(              // 同一次提交的事实字段加提交后的状态，平铺
+    val ref: AggregateRef, val version: Int, val commandId: String, val requestId: String,
+    val commandType: String, val commitTime: Long,
+    val events: List<StateEventPayload>,  // name、revision、payload: JsonNode
+    val state: StateView? = null,         // null：该聚合类型不发布状态（D140）
+    val scope: Scope, val deleted: Boolean, val tags: Map<String, List<String>>?,
+    val causation: Causation?, val headers: Map<String, String>, val operator: Operator?,
+)   // 日志位置不在记录里，下游用 Kafka 偏移量；传输段随信封
 data class StateView(val version: Int, val schemaFingerprint: String, val state: JsonNode)
 ```
 
@@ -151,6 +155,7 @@ class CommandResult(
     val results: Map<String, Any> = emptyMap(), // putResult（D51：只在首次提交时有）
     val derived: List<String> = emptyList(), // Saga 跳：从这次提交派生的命令 ID（D62）
     val signalTime: Long,
+    val transformedFrom: TransformedFrom? = null, // 转换器把请求的命令改成了本命令（D182）
     val chainEnded: Boolean = false, // 链在计划之前结束：这一跳之后没有派生（D212）
     val pending: List<Hop> = emptyList(), // chainEnded 时，计划里未到达的跳，按顺序
 )
@@ -170,8 +175,8 @@ class CommandResult(
 
 - **HTTP**：成功返回 200 与 `CommandResult`。拒绝和失败返回 `application/problem+json`（RFC 9457）：`type` 为 `urn:wow:error:<码>`，扩展成员有 `code`、`violations`，完整的 `CommandResult` 嵌在 `result` 下（D101；展平会让 `status` 与 RFC 9457 的整数状态冲突），客户端仍只需一种解析方式。
 - **SSE**：等待链上每一跳到达时推送一个 `CommandResult`，最后一跳之后关闭；链提前结束时（D212），最后一个结果带 `chainEnded` 与 `pending`，同步响应返回的也是它。
-- **`function` 保留**：SSE 流式推送每一跳的结果时，客户端要知道是谁处理的（命令函数、哪个投影器、哪个 Saga 函数）。`kind` 取 COMMAND、PROJECT、REACT、SAGA、SNAPSHOT；订阅由 `处理器.函数` 编成（[04](04-subscriptions.md) §1），所以 `processor` 与 `name` 直接来自订阅定义。
-- **`bindingErrors` 改名保留**：字段级校验错误是 `error.violations: List<FieldViolation(path, code, message)>`，客户端表单直接使用；HTTP 上作为 problem+json 的扩展成员 `violations` 输出。
+- **`function` 保留**：SSE 流式推送每一跳的结果时，客户端要知道是谁处理的（命令函数、哪个投影器、哪个 Saga 函数）。`kind` 取 COMMAND、PROJECT、REACT、SAGA、SNAPSHOT、RESERVATION、TIMERS（后三者是内置订阅 `snapshot`、`reservation`、`timers`）；订阅由 `处理器.函数` 编成（[04](04-subscriptions.md) §1），所以 `processor` 与 `name` 直接来自订阅定义。
+- **`bindingErrors` 改名保留**：字段级校验错误是 `error.violations: List<Violation(path, code, message)>`，客户端表单直接使用；HTTP 上作为 problem+json 的扩展成员 `violations` 输出。`ErrorInfo` 还带 `extensions`（D211：领域拒绝的结构化扩展，problem+json 写成扩展成员）。
 
 ## 8. 等待信号与 Kafka 信封
 
