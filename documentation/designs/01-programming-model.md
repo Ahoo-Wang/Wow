@@ -1,6 +1,6 @@
 # V10 领域编程模型
 
-日期：2026-10-11。基线：`main` `b5813af56f`。状态：已实现（实现以代码为准，偏离记在决策的「实现」说明里；2026-10-22 复核分支与路径）。上位文档：[00 目标架构](00-architecture.md)（A3、A4、A6）。相关决定：D7、D8、D9、D22、D36、D37、D38、D39、D49、D136、D138、D140、D149。
+日期：2026-10-11。基线：9.8.0（`v9` 上的 `b5813af56f`）。状态：已实现（实现以代码为准，偏离记在决策的「实现」说明里；2026-10-22 复核分支与路径）。上位文档：[00 目标架构](00-architecture.md)（A3、A4、A6）。相关决定：D7、D8、D9、D22、D36、D37、D38、D39、D49、D136、D138、D140、D149。
 
 ## 1. 五类函数
 
@@ -11,6 +11,8 @@
 | React | `(StateEvent[, ReactContext]) -> Unit`，三种调用形态同 Decide | 允许，自行幂等 | 进入失败台账，停放该聚合 |
 | Saga | `(StateEvent[, SagaContext]) -> List<Command>`，三种调用形态同 Decide | 允许 | 派生命令请求 ID 确定。同上下文的命令要等到 `COMMITTED`，跨上下文的命令等到持久 `ACCEPTED`（D33），Saga 才算完成；派生命令被拒绝视为处理失败，进入失败台账，除非 Saga 声明该拒绝是预期结果；跨上下文命令的拒绝以回执交给 Saga 的 `@OnRejected` 处理函数（D136） |
 | Project | `(StateEvent[, ProjectContext]) -> Unit`，三种调用形态同 Decide | 允许，写入按版本守卫 | 同 React |
+
+处理函数的首参有三种，按声明严格分派（D264）：`StateEvent<S>`（每条事件流调用一次）、`StateTypedEvent<S, E>`（标准写法，流中每个事件 E 调用一次，`state` 是整次提交之后的状态）、裸 `E`（前者的简写）；编译器据此推导状态类型、聚合与事件过滤，并写进 Manifest。
 
 - React、Saga、Project 的上下文提供确定性的 `executionId = (订阅, AggregateRef, 版本)`，用户拿它给外部调用做幂等键（KaeX mvp 的 `executionId` 做法）。
 - 订阅其他上下文发布的流、而上游关闭了状态时，处理函数声明可空的状态：`StateEvent<OrderView?>`；上游不带状态而 `S` 不可空，启动即失败（D140）。
@@ -25,7 +27,7 @@
 | 好处 | 不可变状态的做法 | 可变状态下内核的做法 |
 |---|---|---|
 | 失败不污染状态 | 旧值天然不变 | 演化或追加失败时丢弃该实例，从缓存外重新加载（9.3 已实施并验证，Q14）。失败是少数路径，成本只落在失败时 |
-| 并发安全 | 值可以共享 | 每个聚合一个邮箱，同一时刻只有一个协程访问该实例 |
+| 并发安全 | 值可以共享 | 每个聚合一条车道，同一时刻只有一个协程访问该实例 |
 | 每个版本有稳定的视图 | 每个版本是不同的值 | 提交时把状态序列化一次（快照与 Sink 本来就需要），作为该版本的不可变视图；订阅与快照只拿这个视图，不拿活的实例 |
 
 所以 V10 两种写法都支持，**可变是默认的惯用写法**：`evolve` 以状态为接收者、直接修改字段；喜欢不可变的用户把 `evolve` 写成返回新状态的函数，KSP 按签名识别。测试 DSL 对两者一样：given 事件，when 命令，then 事件与状态。
@@ -39,8 +41,8 @@
 val cart = aggregate<CartState>("example", "cart") {
     initial { CartState(it) }
     decide<AddCartItem> { state, cmd ->
-        if (state.items.size >= MAX) reject(CartFull)
-        else emit(CartItemAdded(cmd.productId, cmd.quantity))
+        if (state.items.size >= MAX) Decision.reject("example.cart.full", "购物车已满")
+        else Decision.events(CartItemAdded(cmd.productId, cmd.quantity))
     }
     evolve<CartItemAdded> { e -> items[e.productId] = e.quantity }   // 可变：this 是 CartState
 }
@@ -64,7 +66,7 @@ class CartState(val id: String) {
 
 **注解写法怎样绑定**（H4 的结论，D49）：
 
-- 命令处理函数的第一个参数是命令体 `X`，或者被准入的命令 `Command<X>`；后者带着准入得到的请求事实：所有者、空间、请求头白名单内的事实（如认证过的调用方应用 `app_id`、`remote_ip`、`user_agent`，D232）；调用方应用另作 `Caller` 的标准属性 `app` 供授权策略判断。（D55 之后没有命令指纹，同一请求 ID 只比较命令类型名。）
+- 命令处理函数的第一个参数是命令体 `X`，或者被准入的命令 `Command<X>`；后者带着准入得到的请求事实：所有者、空间，框架填写的标准事实（`app_id`、`remote_ip`、`user_agent`，任何请求头都不能设置它们；`app_id` 只在 CoSec 以该应用的角色授权了本次请求时记录，D232、D236），以及宿主列入请求头白名单的事实；调用方应用另作 `Caller` 的标准属性 `app` 供授权策略判断。（D55 之后没有命令指纹，同一请求 ID 只比较命令类型名。）
 - 其后的参数是领域服务，成为生成的工厂函数 `xxxModel(context, 服务…)` 的参数，由宿主在构建模型时绑定一次；`DecideScope` 类型的参数传入本次决定的作用域。依赖因此在构造期绑定，运行时不按类型解析。
 - 返回给调用方的附加结果（9.x 的 `CommandResultAccessor`）经 `DecideScope.putResult` 写入，随提交结果返回，不持久化，所以重复请求得到的回答不含它。
 - 创建语义三态：`@CreateAggregate` 必须新建，`@AllowCreate` 新建或已有皆可，其余只作用于已有聚合。
@@ -114,13 +116,13 @@ V10 注解在 V10 的 `wow-api` 模块里按上表原样定义（D85 修订 D79�
 
 | 形态 | 识别方式 | 生成的调用 |
 |---|---|---|
-| 同步 | 普通函数 | 直接调用：没有续体分配，没有调度器切换，在邮箱的工作线程上内联执行 |
+| 同步 | 普通函数 | 直接调用：没有续体分配，没有调度器切换，在车道的工作线程上内联执行 |
 | `suspend` | `suspend` 修饰 | 在当前协程里调用，只在函数真正挂起时让出线程 |
 | Reactor | 返回 `Mono`、`Flux`、`Publisher` | 经 `wow-reactor` 转换（§5） |
 
 **同步不等于不阻塞。** 同步函数默认被视为非阻塞的纯计算，内联在共享工作线程上执行。做阻塞 I/O 的同步函数（例如用 JDBC 写投影）必须标 `@Blocking`（沿用 9.x 的注解与语义），生成的调用把它派发到阻塞调度器；JVM 基线升到 21 后（D29），阻塞调度器用虚拟线程。未标注却阻塞的函数会卡住同一工作线程上的其他聚合，由观测接缝统计处理耗时并告警。
 
-**内核本身也只在真正的 I/O 处挂起。** 状态缓存命中、处理函数为同步时，一条命令从邮箱取出到追加之前全是直线调用，唯一的挂起点是追加；内核实现不得在这条路径上插入 `withContext` 或调度器切换。冲突重试时会重新调用 decide，所以纯计算的同步 decide 让重试也几乎没有成本。
+**内核本身也只在真正的 I/O 处挂起。** 状态缓存命中、处理函数为同步时，一条命令从车道取出到追加之前全是直线调用，唯一的挂起点是追加；内核实现不得在这条路径上插入 `withContext` 或调度器切换。冲突重试时会重新调用 decide，所以纯计算的同步 decide 让重试也几乎没有成本。
 
 H3 的基准分别测同步与 `suspend` 处理函数，作为这条快速路径的验收。
 
@@ -129,13 +131,13 @@ H3 的基准分别测同步与 `suspend` 处理函数，作为这条快速路径
 协程是内核与 SPI 的唯一模型（D9）。用户的编程模型仍然可以用 Reactor，由独立模块 `wow-reactor` 适配，内核不感知：
 
 - **处理函数**：Decide、React、Saga、Project 可以返回 `Mono`、`Flux` 或 `Publisher`。KSP 在编译期识别返回类型，生成经 `wow-reactor` 转换的调用；类路径上没有 `wow-reactor` 时编译报错。
-- **调用方**：`wow-reactor` 目前只提供处理函数的 Reactor 适配（`ReactorResults`），没有 `ReactiveCommandGateway`、`ReactiveQueryGateway`；调用网关用协程。Java 用户可以用它，或用 `CompletableFuture` 形式。
+- **调用方**：`wow-reactor` 目前只提供处理函数的 Reactor 适配（`awaitResult`），没有 `ReactiveCommandGateway`、`ReactiveQueryGateway`；调用网关用协程。Java 用户可以用它，或用 `CompletableFuture` 形式。
 - **边界**：只适配用户编程模型。SPI（日志、快照、租约）只有协程形式；存储实现者需要桥接 Reactor 驱动时，自己在实现里用 kotlinx-coroutines-reactor。
 - **上下文**：`ReactorContext` 在适配时传递，返回 `Mono` 的处理函数仍能读到它。
 
 ## 6. 内核提供的部分
 
-- **after 钩子**（D39）：Decide 的一部分，用于在命令函数之后追加事件（例如对一组命令统一补一个事件）。按 include/exclude 匹配命令类型，按声明顺序执行；看到的状态与命令函数相同（尚未演化）；它的事件拼在命令函数的事件之后，组成**同一条**事件流，随后一起演化、一次追加。调用形态与 Decide 相同（§4），可以做 I/O；任何一个失败，整条命令失败，不写入。语义与 9.x 的 `@AfterCommand` 一致（`CommandEntry.invokeWithAfter`）。
+- **after 钩子**（D39）：Decide 的一部分，用于在命令函数之后追加事件（例如对一组命令统一补一个事件）。按 include/exclude 匹配命令类型，按声明顺序执行；看到的状态与命令函数相同（尚未演化）；它的事件拼在命令函数的事件之后，组成**同一条**事件流，随后一起演化、一次追加。调用形态与 Decide 相同（§4），可以做 I/O；任何一个失败，整条命令失败，不写入。语义与 9.x 的 `@AfterCommand` 一致；由 `Kernel` 在命令函数之后依次执行（DSL 的 `after`、`afterSuspending`、`afterBlocking`）。
 - **生命周期事件**：删除、恢复、转移所有者、转移空间、打标签，是每个聚合都有的系统命令与系统事件，由内核提供 decide 与 evolve，作用于快照元数据（[03](03-log-and-snapshot.md)）；用户可以覆盖。
 - **定时事件**（D198）：`wow.ScheduleSet`、`wow.ScheduleCancelled` 同为每个聚合都有的系统事件，由 `DecideScope.schedule` / `cancelSchedule` 或 Saga 发来的系统命令 `wow.schedule.Set` / `Cancel` 产生；规则 `at`、`after`、`cron`，周期由触发器推进；上下文级作业用 `@OnSchedule`，所属聚合为内置的 `<ctx>.schedule`（可按租户）。
 - **身份**：`AggregateRef(上下文, 聚合, 租户, ID)`，由准入决定一次（[02](02-write-path.md)）。
@@ -169,6 +171,6 @@ H3 的基准分别测同步与 `suspend` 处理函数，作为这条快速路径
 ## 9. 待细化
 
 - DSL 的完整清单（守卫）；注解集见 §3（D67）。
-- Java Builder 的形状（D8 的退路）；纯 Maven 的 Java 项目如何接入 KSP。
-- 可变状态丢弃重载的范围：只丢该聚合的实例，还是连同它所在邮箱的在途命令一起重试。
+- 构建：目前只支持 Gradle（KSP 与 Gradle Worker 里的 Manifest 补全，D239 ②）；纯 Maven 项目不在 10.0 范围内。Java 用 Kotlin 的 `AggregateModelBuilder` 或注解写法。
+- 可变状态丢弃重载的范围：只丢该聚合的实例，还是连同它所在车道的在途命令一起重试。
 - 升级函数能否删除字段、拆分事件、丢弃事件。

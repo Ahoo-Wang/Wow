@@ -1,10 +1,10 @@
 # V10 读平面与契约
 
-日期：2026-10-11。基线：`main` `b5813af56f`。状态：已实现（实现以代码为准，偏离记在决策的「实现」说明里；2026-10-22 复核分支与路径）。上位文档：[00 目标架构](00-architecture.md)（A9、A11）。相关决定：D4、D16、D17、D18、D125～D131、D150～D152。
+日期：2026-10-11。基线：9.8.0（`v9` 上的 `b5813af56f`）。状态：已实现（实现以代码为准，偏离记在决策的「实现」说明里；2026-10-22 复核分支与路径）。上位文档：[00 目标架构](00-architecture.md)（A9、A11）。相关决定：D4、D16、D17、D18、D125～D131、D150～D152。
 
 ## 1. 读平面
 
-[查询目标架构](../2026-09-24-query-target-architecture-design.md)与[数据集平台](../2026-10-11-dataset-platform-design.md)基本保留，它们已经是从第一性原理推出的。V10 只做四件事：
+9.x 的查询协议与数据集设计基本保留（现行规则见 D125～D131、D235、D238、D254、D259），它们已经是从第一性原理推出的。V10 只做四件事：
 
 - 查询协议独立为 `wow-query-api`，只保留 `FilterExpression`，删除 Condition 全链路。
 - 快照是默认读模型（[03](03-log-and-snapshot.md)），自定义投影只补快照满足不了的需求；查询后端（Mongo、ES、PostgreSQL、ClickHouse）只是它们的存储。
@@ -35,7 +35,7 @@
 
 **读者**：运行时（命令按类型名解码、HTTP 路由、等待链校验、错误码、查询路由）、OpenAPI / TS 生成器 / view-engine、其他上下文（发布的 `StateEvent` 是公开语言，D23、D58）、迁移工具与 Skill（事件名、revision、别名）、兼容性门禁。
 
-**结构**（草案，随 5a.1 定稿）：
+**结构**（以 `wow-manifest` 的数据类为准，下列为主要字段）：
 
 ```text
 {
@@ -44,25 +44,27 @@
   "contexts": [{
     "name", "description",
     "aggregates": [{
-      "name", "description",
+      "name", "description", "ownership", "retired", "schedules",
       "state":    { "schema": "#/$defs/…", "fingerprint" },
-      "snapshot": { "enabled" },
-      "commands": [{ "name", "aliases", "schema", "creation",
-                     "produces": [事件名…], "errors": [错误码…],
-                     "route": { "method", "path" } }],
+      "snapshot": { "enabled", "stateRevision" },
+      "commands": [{ "name", "aliases", "schema", "creation", "produces": [事件名…],
+                     "routes": [{ "method", "path" }], "mounted", "transformsTo" }],
       "events":   [{ "name", "aliases", "revision", "schema" }],
       "lifecycle":[启用的系统命令],
       "queries":  [{ "model": "snapshot | events", "routes" }]
     }],
     "subscriptions": [{ "name", "kind": "PROJECTION | REACTOR | SAGA",
-                        "source": { "context", "aggregates", "events" },
-                        "function": FunctionInfo, "derives": [命令名…] }],
+                        "source": { "context", "aggregates", "events", "nullableState" },
+                        "function": FunctionInfo, "derives": [命令名…], "calls": [命令名…],
+                        "rejected", "committed", "start", "retry", "schedules", "job" }],
     "published": [{ "topic", "aggregates", "includeState" }],
     "errors":    [{ "code", "status", "description" }]
   }],
   "$defs": { JSON Schema 2020-12 }
 }
 ```
+
+错误码登记在上下文的 `errors`，命令不各自列出。
 
 - **schema 按 Jackson 的实际行为生成**（D73）：KSP 产出结构与类型清单（片段）；构建期的 Gradle 任务加载编译后的类，用 Jackson 自己的序列化器内省出 JSON Schema。schema 因此就是线上的真实形状（命名策略、`@JsonProperty`、自定义序列化器、Kotlin 默认值都由 Jackson 决定，不在 KSP 里重新实现）；状态 schema 指纹（快照，[03](03-log-and-snapshot.md) §3）也由它计算。任务由 `wow-gradle-plugin` 提供（D83），生成器用 victools 加其 Jackson 模块，自定义序列化器由显式覆盖配置补上（D84）。内省只在构建期，运行时仍不反射（D37）。
 - **组装与发布**（D74）：每个模块的片段放在 `META-INF/wow/manifest/<模块>.json`，运行时启动时合并，名字冲突拒绝启动；Gradle 任务同时合并出服务的 `manifest.json` 供离线工具使用。服务在公开端口发布 `GET /wow/manifest`，按普通 API 鉴权；跨上下文的下游从上游的构建产物或该端点取得，构建期生成类型化的消费代码。
@@ -73,8 +75,8 @@
   - Jackson 写出来不是对象的类型（自定义序列化器、`@JsonValue`），要在 `schemaOverrides` 显式给出 schema，否则任务失败，不猜（D84）。`$defs` 的键是类的二进制名，只引用一次的类型内联。
   - 状态 schema 指纹调用内核的 `EventCodec.stateSchemaFingerprint`，与运行时一致。限制：运行时若定制了 ObjectMapper，构建期的值会不同。
 - **查询**（D128，修订上面草案原先的上下文级、带 `capabilities` 的 `queries`）：`queries` 在聚合下，编译器在开启快照时写 `snapshot`，另加 `events`；能力不进 Manifest，因为它取决于按类路径选择的后端（D110），由查询路由的 `GET` 返回（D127）。可查询的快照字段：`tenantId`、`aggregateId`、`version`、`ownerId`、`spaceId`、`deleted`、`tags`、`firstEventTime`、`lastEventTime`、`state.*`；9.x 的 `eventId`、`snapshotTime` 去掉（`operator`、`firstOperator` 由 D163 恢复，见 §1）。
-- **对端契约**（D139，由 D234 修订）：上游 domain 的编译器片段筛出对端需要的部分，装进上游 `*-api` 的 jar（`META-INF/wow/contract/`）；下游只依赖上游的 api，运行时从类路径加载进 `ContractDirectory`，用于发送前的命令校验、跨上下文的链校验与命令类型名；`wowPeers` 删除。
-- **数据集不并入**（D75）：数据集由 dataset-registry 在运行时注册，作为查询侧的运行时目录单独提供；Manifest 只描述编译期的代码契约，view-engine 两者都读。
+- **对端契约**（D139，由 D234 修订）：上游 domain 的编译器片段筛出对端需要的部分，装进上游 `*-api` 的 jar（`META-INF/wow/contract.json`）；下游只依赖上游的 api，运行时从类路径加载进 `ContractDirectory`，用于发送前的命令校验、跨上下文的链校验与命令类型名；`wowPeers` 删除。
+- **数据集不并入**（D75）：数据集由 analytics 目录服务（`platform/analytics/catalog`，D238、D251）在运行时提供，不进 Manifest（D267 ⑦）；Manifest 只描述编译期的代码契约，view-engine 两者都读。
 - **兼容性门禁**（D76）：CI 比较本次构建与上一个已发布版本的 Manifest，把差异分为加法（新增可选字段、新增命令）与破坏（删除命令或事件、新增必填字段、事件 schema 变化却没有升 revision 或没有升级函数）。主版本内出现破坏即失败（D48、D59、R5-1）；线上契约的兼容性由它守，不靠 ABI 转储。
 
 
@@ -88,15 +90,15 @@ M5 的定稿（D92～D118）：准入顺序与扩展点（D92）、`Caller` 与 
 - 错误：RFC 9457 `application/problem+json`，`type` 指向 Manifest 中的错误码。
 - 查询（D127）：`POST /{context}/{aggregate}/{model}/query`，`model` 为 `snapshot` 或 `events`（投影名推迟，D131）；请求体的 `kind` 为 `list`、`paged`、`cursor`、`single`、`count`、`aggregate` 之一，`Accept: text/event-stream` 时流式返回 `list`；同一路径的 `GET` 返回能力描述并带 `ETag`。HTTP 把 `Caller`（`crossScope` 时加 `Wow-Scope`）映射为 `QueryCaller`，路由级授权仍由 CoSec WebFilter 负责（D93、D129）。 `events` 模型按聚合模型当前的读法返回事件：用当前名、升级到当前 revision 的 body，退役事件不返回；未知名字或比模型更新的 revision 原样返回（审查 A4-16），与生成的 TS 事件联合类型一致。
 - 历史状态（D40，[03](03-log-and-snapshot.md) §4，Ahoo-Wang/Wow#4317）：
-  - `GET /{context}/{aggregate}/{id}/state?version=` 或 `?at=<ISO-8601>`；`ETag` 取版本，支持 304。按时刻读以提交时间随版本递增为前提。
+  - `GET /{context}/{aggregate}/{id}/state?version=`、`?at=<ISO-8601>` 或 `?minVersion=N`（三者互斥；`minVersion` 要求最新状态不低于 N，否则有界等待 `wow.query.state.min-version-wait` 后 409 `wow.query.min-version-not-reached`，D267 ①）；`ETag` 为 `"<版本>-<响应摘要>"`，支持 304。按时刻读以提交时间随版本递增为前提。
   - 逐事件追溯 `GET …/{id}/state/trace?from=&to=&limit=`，`limit` 默认 100、最大 1000，超过即拒绝；返回 `{ref, commits[]}`。
-  - 参数不合法：400 `wow.command.malformed`；在第一次提交之前或区间为空：404 `wow.aggregate.not-found`；某次提交不在调用方的作用域内：403。
+  - 参数不合法：400 `wow.query.invalid`（回放过长带 `REPLAY_TOO_LONG`，上限 `wow.query.state.max-replay`，默认 10000）；在第一次提交之前或区间为空，或状态、某次提交调用方看不到：404 `wow.aggregate.not-found`（D254 ④，原因只进审计）。
   - 读路由经 `WowJson` 输出精确的数字（D122）。
 
 ## 4. TypeScript
 
 - `wow-client` 只保留 `FilterExpression` 与 Manifest 驱动的客户端，删除 `/legacy` 与 fetcher 旧名。
-- `wow-generator` 读 Manifest，不读 OpenAPI。
+- `wow-generator` 以 Manifest 为主输入，生成类型化的命令、查询与状态客户端；也可读任意 OpenAPI 3 文档生成模型与装饰器客户端（OpenAPI 路径不带 Wow 语义）。
 - springdoc 桥接（D233）：有 springdoc 的 Spring Boot 宿主把 Manifest 的 OpenAPI 合并进 springdoc 的默认文档并另设 `wow` 分组；冲突即启动失败；securitySchemes 由宿主按调用方解析器填写；只含公开端口的路由。
 - view-engine 从 Manifest 派生默认视图。
 

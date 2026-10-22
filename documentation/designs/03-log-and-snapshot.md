@@ -1,6 +1,6 @@
 # V10 日志与快照
 
-日期：2026-10-11。基线：`main` `b5813af56f`。状态：已实现（实现以代码为准，偏离记在决策的「实现」说明里；2026-10-22 复核分支与路径）。上位文档：[00 目标架构](00-architecture.md)（A1、A6、A11）。相关决定：D4、D10、D11、D12、D13、D25、D28。
+日期：2026-10-11。基线：9.8.0（`v9` 上的 `b5813af56f`）。状态：已实现（实现以代码为准，偏离记在决策的「实现」说明里；2026-10-22 复核分支与路径）。上位文档：[00 目标架构](00-architecture.md)（A1、A6、A11）。相关决定：D4、D10、D11、D12、D13、D25、D28。
 
 ## 1. 日志合同
 
@@ -14,6 +14,9 @@ interface EventLog {
     fun readEntries(ref: AggregateRef, fromVersion: Int = 1, toVersion: Int = Int.MAX_VALUE): Flow<LogEntry>
     suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition?
     suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord?
+    suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord?   // 不带聚合类型，有默认实现
+    suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail   // 冷加载：尾部加最近请求键，一次往返（D261）
+    suspend fun lineage(partition: Int): PartitionLineage   // 分区谱系，D240 预留，有默认实现
     fun tail(partition: Int, after: Long? = null): Flow<LogEntry>   // 有序、可续读、不跳过
     suspend fun head(partition: Int): Long?
 }
@@ -35,7 +38,7 @@ sealed interface AppendOutcome {
 
 - **身份与唯一键**：`(aggregateRef, version)`、`(tenant, requestId)`，`aggregateRef` 含租户（9.x 不含，B27）。
 - **版本**：从 1 开始，严格加 1。
-- **分区**：每个限界上下文一份日志，分区数 P 在上下文内固定（D28）；`partition = hash(aggregateRef) mod P`，同一聚合永远在同一分区。哈希算法本身是格式契约（跨 JVM、跨版本固定，例如 FNV-1a 64；不得用 `String.hashCode`），换算法等于重分区。
+- **分区**：每个限界上下文一份日志，分区数 P 在上下文内固定（D28）；`slot = floorMod(hash(aggregateRef), 4096)`，`partition = slot mod P`，同一聚合永远在同一分区。槽位数 4096 是格式契约，永不变；P 必须是 2 的幂且整除 4096（默认 64，D240、D246），以便以后按倍数在线分裂。哈希算法本身也是格式契约（FNV-1a 64，哈希键 `context/tenant/id`；不得用 `String.hashCode`），换算法等于重分区。
 - **位置**：分区内单调的序号，**序号顺序等于提交可见的顺序**。提交时间与自增 ID 都不满足这一条，因为先分配的事务可能后提交。KaeX mvp 用 CosId 事件流 ID 做扫描游标，在自己的 `EventStore.scanForRecovery` 里记下了这个缺口：分布式 ID 只是趋势递增，晚提交的低 ID 会被分页续扫永久跳过，于是每个持久后端都得另写「回看窗口重扫」。V10 把位置定义成提交可见的序号，从合同上消除这类问题。`tail` 不跳过任何已提交条目，同一位置续读得到相同序列。
 - **条目** = 事件流（事实：事件、版本、`commandId`/`requestId`、提交时间）+ 传输元数据（只在等待超出 `COMMITTED` 时写：`WaitContext`；不属于事实，领域代码与查询看不到，Kafka Sink 只把它放进信封的传输段，迁移与重放会丢弃，D25）。
 
@@ -52,7 +55,7 @@ sealed interface AppendOutcome {
 
 **串行放在属主本地，而不是数据库锁上**（对抗验证 F1）：MongoDB 事务遇到同一文档的并发修改时不排队，而是以写冲突中止，由客户端重试；多个节点同时向一个分区追加，计数文档上会出现中止风暴，吞吐塌缩而不是排队。所以分区序号的分配依赖 Partitioned 路由（D6）：稳态下一个分区只有它的属主在追加，属主用一个本地的分区追加队列串行提交，数据库上没有争用；只在属主交接或降级为 Local 时才有冲突，此时靠重试保证正确。这让 D11 依赖 D6：H2 若推翻 Partitioned 默认值，MongoDB 后端的吞吐必须重新评估。H1 的实测（`test/benchmarks/results/reports/v10-h1-mongo-partition-sequence.md`）：同一分区 32 个写者并发追加只有约 100 次/秒、p99 1.4 秒；同样的负载交给属主排队、一次事务提交一批（`EventLog.appendAll`），约 5.6 千次/秒。
 
-**分组提交要逐条隔离**（对抗验证 F2）：PostgreSQL 的唯一约束冲突、MongoDB 的重复键都会中止整个事务。分组提交里一条事件流的版本冲突不能拖垮同组其他流：PostgreSQL 不做分组提交（逐条自动提交的语句已够快，没有用保存点）；MongoDB 在事务前为每条流编码，编码失败的流单独以 `Rejected` 结束，事务确定中止时把该组拆回逐条提交，提交结局未知时每条都返回 `Unknown`（审查 A2-5、A2-6）。改变 P 需要一次离线重分区，由数据工具完成，不是运行时功能。日志存储可以按聚合配置为不同的日志组（D177，`LogGroupRouter`）；每个日志组内分区数固定。Elasticsearch 不再作为日志后端（D13）。
+**分组提交要逐条隔离**（对抗验证 F2）：PostgreSQL 的唯一约束冲突、MongoDB 的重复键都会中止整个事务。分组提交里一条事件流的版本冲突不能拖垮同组其他流：PostgreSQL 的 `appendAll` 是一条自动提交的语句：逐条检查版本，分区计数器一次加 k，序号连续无空洞，冲突时整句回滚、逐条重试，结果未知时整组 `Unknown`（D248）；PostgreSQL 的追加队列默认关闭；MongoDB 在事务前为每条流编码，编码失败的流单独以 `Rejected` 结束，事务确定中止时把该组拆回逐条提交，提交结局未知时每条都返回 `Unknown`（审查 A2-5、A2-6）。改变 P 需要一次离线重分区，由数据工具完成，不是运行时功能。日志存储可以按聚合配置为不同的日志组（D177，`LogGroupRouter`）；每个日志组内分区数固定。Elasticsearch 不再作为日志后端（D13）。
 
 ## 3. 快照：状态即读模型
 
@@ -85,6 +88,6 @@ sealed interface AppendOutcome {
 ## 5. 待细化
 
 - 各后端的表/集合结构与索引；租约、检查点、失败台账的存储结构。
-- 分区计数行的热点与「可见水位」两种方案的取舍（H1）。
+- ~~分区计数行的热点与「可见水位」两种方案的取舍~~：已定（D250），保持每分区计数器连续；属主分配序号留作 10.x 原型。
 - 快照 schema 指纹的计算方式；蓝绿重建快照时读流量的切换。
 - 日志的保留与归档（是否允许冷数据分层）。

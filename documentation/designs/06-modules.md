@@ -1,6 +1,6 @@
 # V10 模块与目录
 
-日期：2026-10-11。基线：`main` `b5813af56f`。状态：已实现（实现以代码为准，偏离记在决策的「实现」说明里；2026-10-22 复核分支与路径）。上位文档：[00 目标架构](00-architecture.md)（A4、A5、A10）。相关决定：D9、D10、D27、D29、D30、D31、D41～D44、D125、D126、D132、D144、D146、D147。
+日期：2026-10-11。基线：9.8.0（`v9` 上的 `b5813af56f`）。状态：已实现（实现以代码为准，偏离记在决策的「实现」说明里；2026-10-22 复核分支与路径）。上位文档：[00 目标架构](00-architecture.md)（A4、A5、A10）。相关决定：D9、D10、D27、D29、D30、D31、D41～D44、D125、D126、D132、D144、D146、D147。
 
 ## 1. 划分原则
 
@@ -81,7 +81,7 @@ me.ahoo.wow.api
 | `command`（`CommandMessage`、`CommandResultAccessor`…）、`event`（`DomainEvent`、`EventMessage`） | 约 850 行 | 删除，由 `Command`、`StateEvent` 取代 |
 | 生命周期事件、`exception/ErrorInfo`、`abac` | 约 1,100 行 | 按 V10 语义重做（`lifecycle`、`result`；标签进生命周期命令） |
 
-**时机**：V10 的 `wow-api` 是新目录 `api/api` 里的新模块（Gradle 项目 `:api`，artifactId `wow-api`，D85、D87），只放上表的包；9.x 的 `wow-api` 原地不动，供 `wow-core` 等 9.x 模块使用，M9 随 9.x 一起删除。`query` 不等 M9：M6 在 `api/query-api` 另起 `:query-api`（D125），与 `:query`（D126）一起移植，`REPLACED_9X` 把它们分别与 `wow-api`、`wow-query` 配对；移植合入后，main 上的 9.x 查询代码只修缺陷（修订原先「`query` 在 M9 搬入」）。
+**现状**：Wow 10 的 `wow-api` 在 `api/api`（Gradle 项目 `:api`，artifactId `wow-api`，D85、D87），只放上表的包；查询协议在 `api/query-api`。9.x 的 `wow-api` 与它的查询代码已随 9.3c 删除（D262），只在 `v9` 分支。
 
 ## 3. 依赖方向
 
@@ -119,7 +119,7 @@ flowchart BT
 
 ## 4. 目录结构（D41）
 
-9.x 有 20 多个 `wow-*` 平铺在根目录，测试、补偿、示例又各自成组，结构不一致。V10 按 §2 的层分目录；V10 模块的 Gradle 项目名与目录不带 `wow-` 前缀，artifactId 与 jar 名由根构建统一设为 `wow-<名字>`（D87）；下表列的是 artifactId，目录名去掉前缀即是（如 `wow-kernel` 在 `core/kernel`）：
+9.x（现在在 `v9` 分支）有 20 多个 `wow-*` 平铺在根目录，测试、补偿、示例又各自成组，结构不一致。V10 按 §2 的层分目录；V10 模块的 Gradle 项目名与目录不带 `wow-` 前缀，artifactId 与 jar 名由根构建统一设为 `wow-<名字>`（D87）；下表列的是 artifactId，目录名去掉前缀即是（如 `wow-kernel` 在 `core/kernel`）：
 
 ```text
 api/            wow-api  wow-query-api  wow-manifest

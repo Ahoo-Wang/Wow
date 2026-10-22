@@ -67,7 +67,7 @@ flowchart LR
 | WP | 内容 | 出口 |
 |---|---|---|
 | 0.1 | 从 main 切出 `v10`；CI 工作流与发布准入覆盖 `v10` | 完成：Ahoo-Wang/Wow#4210；`v10` 的必需检查与 main 相同（不含 `mixed-version-gate`） |
-| 0.2 | 架构测试骨架：[06](06-modules.md) §3 的依赖规则、禁止 `@Deprecated` 与 `compat(...)` | 完成：`test/wow-architecture`（模块依赖图、禁止的外部依赖、兼容标记，各带夹具自测） |
+| 0.2 | 架构测试骨架：[06](06-modules.md) §3 的依赖规则、禁止 `@Deprecated` 与 `compat(...)` | 完成：`test/architecture`（模块依赖图、禁止的外部依赖、兼容标记，各带夹具自测） |
 | 0.3 | 决策台账评审：拍板 M2 之前必须定的决定 | 完成：除等 spike 数据的 D6、D10、D27、D28 外全部拍板 |
 | 0.4 | 模块与目录骨架：按 [06](06-modules.md) §4 建立 V10 的空模块与目录；平台目录暂不搬迁 | 完成：10 个 V10 模块（孵化中、JDK 21），CI 路径过滤覆盖新目录 |
 
@@ -244,7 +244,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | P.12 | 跨上下文同步调用客户端（D193）：Saga 经它调用对方的 HTTP 命令网关，自动带确定的请求 ID、根作用域与操作人（服务凭证，目标 CoSec 只对服务身份信任声明的根作用域）、等待链头；对方地址配置 | M | M7 前 | 对方宕机时按预算重试后停放、恢复后单号不变；买家结账经同步调用创建的单据属于买家 |
 | P.13 | 订阅起点、指南发现的不一致与派生命令的作用域（D194、D195、D199）：派生命令不对已存在的目标做作用域检查，删除 `CartSaga` 的收窄；`@OnEvent(start)`、跨上下文订阅默认 `BEGINNING`；内部端口默认绑成员地址；`@AggregateRoot(snapshot = false)`；读重试 `max-attempts` 接上；指南写明 Decider DSL 只用于测试 | S～M | M7 前 | 新加入的库存服务不丢已发货订单（去掉 inventory 的 `start: beginning` 配置，G10）；关闭快照的聚合无 `SNAPSHOT` 阶段的等待测试 |
 | P.14 | 状态点读的响应脱敏（D229 G-2）：`GET …/state`、`?version=`、`?at=`、`/state/trace` 与 `events` 模型按查询 schema 应用遮罩；默认请求事实 `remote_ip`、`user_agent`（G-10） | S | GA 前（安全回归，beta 前） | 脱敏与请求事实的端到端测试 |
-| P.15 | 平台服务的生产形态（D229 G-3）：ops、view-store 服务带 `:cosec`、`:opentelemetry`；控制台 CoSec 登录；`deploy/v10/` 补平台服务的 K8s 清单 | S | GA 前（8c.1 之前） | 带 CoSec 的端到端；清单可在本地集群起服务 |
+| P.15 | 平台服务的生产形态（D229 G-3）：ops、view-store 服务带 `:cosec`、`:opentelemetry`；控制台 CoSec 登录；`deploy/` 补平台服务的 K8s 清单 | S | GA 前（8c.1 之前） | 带 CoSec 的端到端；清单可在本地集群起服务 |
 | P.16 | **已完成（D243）。** `@Retry` 的可恢复性分类（D229 G-6）与系统性故障暂停（D243）：带默认值的 `recoverable`、`unrecoverable` 属性与可恢复分类端口；三类——不可恢复直接停放、可恢复按聚合重试后停放、系统性暂停整个分区并持续重试（指标 `wow.subscription.paused`） | M | GA 前 | 不可恢复的失败不重试；下游抖动不停放聚合、恢复后自动继续 |
 | T.1 | 测试 DSL 的 fork（D245）：复制运行时而不重放、可选的 `@TestFactory` 测试树、在断言块里 fork、处理器规范同样支持 | M | GA 前 | fork 不再调用 mock；一个 fork 失败不影响其他 fork；IDE 里显示场景树 |
 | P.17 | **已完成（#4682 Java 门面，`example/java-smoke`）。** Java 用户体验的说明与冒烟测试（D229 G-8，Java 门面与阻塞桥在 10.x）；迁移 Skill 的漂移（09 复核 §4.2，含 G-13 请求头别名、`@QueryReference`、自定义 Jackson 模块、查询路由对照） | S | GA 前 | Java 领域的冒烟测试；Skill 评测通过 |
@@ -340,7 +340,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | 9.3c | **已完成**（2026-10-20：#4640、#4651、#4652、#4653、#4654）。**GA 前清理 v9**（D244，D262 提前：最后一次前向合并后立即分波删除，基准对照用旁路分支 `v10-9x-baseline`，不再等 7.2b/7.2c）：最后一次前向合并后，分波删除 9.x——示例与测试 → 9.x 平台（compensation、view-store、dataset-registry、analytics）→ 24 个 `wow-*` 核心模块与 `test/wow-*` → 9.x 的 CI、部署、文档、构建与覆盖率的双轨配置；加架构规则禁止依赖已删模块；前提是 7.2b/7.2c、TS-9x 落地，B.1～B.4 的 9.x 基线已测 | `v10` 分支里没有 9.x 代码与 `wow.scope` 的 9.x 范围；全部 V10 门禁照常 |
 | CI-1 | **已完成**（2026-10-20：#4655（缓存命中后 Check 约 8.5 分钟））。 CI 提速一期（D265 ①）：推送 v10 时写 Gradle 缓存；集成测试按后端拆成 3～4 路并行；`codecov.yml` 加 `after_n_builds`；不改名称。9.3c 收尾后立即做 | 典型 PR 的 Check 命中缓存；集成测试墙钟约 5 分钟；不再有部分上传的覆盖率误报 |
 | CI-2 | **已完成（#4689、#4726）。** CI 重构二期与去特例（D265 ①②）：合并成 `ci.yml`，按影响范围执行，唯一必需检查 `ci-gate`，启用合并队列；构建任务、工作流、任务名、范围输出、Codecov flag 与组件去掉 `v10` 前缀，不留别名；排队 PR 合完后做，必需检查与合并队列由用户改设置 | 典型 PR 的 CI 墙钟 6～8 分钟；PR 不再手动合入最新 v10 再重跑；构建与 CI 里没有 `v10` 特例 |
-| N-1 | **已完成（#4742、#4766、#4767、#4769）。** 代码与仓库去特例（D265 ②③）：代码注释与报错里的「V10」改为平常措辞（`migration/**` 除外）；`V10Rules`、`V10Annotations`、`deploy/v10/`、Skill 的 `v10-service` 等改名；`wow-dependencies/` 移到 `bom/dependencies/`（坐标不变）；CI-2 之后做 | 除 D265 ⑤ 的保留项外，仓库里没有 `v10` 特例 |
+| N-1 | **已完成（#4742、#4766、#4767、#4769）。** 代码与仓库去特例（D265 ②③）：代码注释与报错里的「V10」改为平常措辞（`migration/**` 除外）；`V10Rules`、`V10Annotations`、`deploy/`、Skill 的 `v10-service` 等改名；`wow-dependencies/` 移到 `bom/dependencies/`（坐标不变）；CI-2 之后做 | 除 D265 ⑤ 的保留项外，仓库里没有 `v10` 特例 |
 | BM-1 | **已完成（#4668）。** 基准测试迁到 `test/benchmarks/`（D265 ③，用户决定）：harness、`:benchmark-load`、`:benchmark-server`、results，工作流 `bench.yml`；作为基准工作流叠加 PR 的最后一个 | 根目录没有 `wow-benchmarks/` |
 | H-1 | **已完成**（2026-10-20：#4657）。 仓库卫生（D266，残留审查 R24、R05、R07、R27、R29）：V10 指南里指向已删除示例的链接改到 eShop，并给文档链接测试加上 `blob`/`tree` 目标存在性检查；删除构建脚本里已为空的 9.x 发布排除块；PR 标签规则改为 V10 目录；清理 todo 台账；删除 `schema/` | 文档站从 v10 部署时没有 404；V10 的 PR 有领域标签 |
 | SK-1 | **已完成（#4754、#4761、#4768、#4770、#4773）。** Skill 改写为 V10（D266 ③）：wow-develop、wow-client、wow-view-*、wow-data-query 与 skills README；9.x 参考留在 main；DX-1d 之后，与 9.1 并行 | v10 上的 Skill 只教 V10 |
@@ -366,10 +366,10 @@ rc 之后不丢的清单：每一项写明来源，排期时再拆成路线图�
 
 | 事项 | 来源 |
 | --- | --- |
-| 文档缺页：P0 `start/index`、`start/why-wow`；P1、P2 各页；CONTRIBUTING.md 的 V10 重写 | [文档方案](docs-plan.md) §10（用户 2026-10-22） |
+| ~~文档缺页~~：已补（2026-10-22：L～O 组 #4784、#4789、#4791、#4792；`reference/api-stability` 并入 api-levels）。原清单：P0 `start/index`、`start/why-wow`；P1、P2 各页；CONTRIBUTING.md 的 V10 重写 | [文档方案](docs-plan.md) §10（用户 2026-10-22） |
 | ~~9.x 站点导航的 API 文档链接 `/9.x/dokka/` 为 404~~：已修，v9 去掉导航项并修正 sitemap（#4785），DI-6 增加 9.x Storybook（#4786） | DI-6 上线后的检查（2026-10-22） |
-| TypeScript 参考 `reference/typescript/*`：符号索引生成器推广到 wow-client、wow-react、wow-view-store（wow-react 先补 API 报告），生成页面并加检查；目前只有 wow-generator 与 wow-view-engine 有 | 文档方案 §2.9 的逐条核对（2026-10-22） |
-| AGENTS.md 中过时的 9.x 内容（代码风格的 CommandBus 示例、ABI 一节、已删除的文档治理页链接） | 同上 |
+| ~~TypeScript 参考~~：已补（#4792）。原条目：TypeScript 参考 `reference/typescript/*`：符号索引生成器推广到 wow-client、wow-react、wow-view-store（wow-react 先补 API 报告），生成页面并加检查；目前只有 wow-generator 与 wow-view-engine 有 | 文档方案 §2.9 的逐条核对（2026-10-22） |
+| ~~AGENTS.md 中过时~~：已改（#4791）。原条目：AGENTS.md 中过时的 9.x 内容（代码风格的 CommandBus 示例、ABI 一节、已删除的文档治理页链接） | 同上 |
 
 ### 10.x 候选
 

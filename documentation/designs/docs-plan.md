@@ -1,6 +1,6 @@
 # V10 文档重写：信息架构方案
 
-日期：2026-10-20。基线：`v10` `db3155777d`。状态：**已批准**（协调者 2026-10-20；§9 的决定见文末）。范围：`documentation/docs/{en,zh}`（VitePress 站）、`README(.zh-CN).md`、`CONTRIBUTING.md`、`skills/**`。本方案只读仓库，没有写任何页面。
+日期：2026-10-20。基线：`db3155777d`。状态：**已完成**（2026-10-22：W0、W1 A～K、补缺 L～O 已合并，站点已上线；GA 前的缺页已由 L～O 组补齐）。下文是当时的方案与实施记录，其中的 `guide/v10/`、`v10` 分支等名称是方案时的状态。范围：`documentation/docs/{en,zh}`（VitePress 站）、`README(.zh-CN).md`、`CONTRIBUTING.md`、`skills/**`。本方案只读仓库，没有写任何页面。
 
 依据：`documentation/designs/**`（00～09、decisions D1～D266、roadmap 9.1 / SK-1 / H-1 / CI-2 / CI-3 / N-1、reviews）、现有 `guide/v10/` 九页草稿、`example/quickstart` 与 eShop、`documentation/test/*`、`.github/scripts/docs-layout.mjs`、`skills/README.md`，以及 R5 残留审查（R21～R25、R28）。
 
