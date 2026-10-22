@@ -4,7 +4,7 @@ Every report names the commit, command, environment and raw results that reprodu
 
 ## Wow 10
 
-The current end-to-end report of Wow 10 against 9.x is written from the L3 and L4 runs of the benchmark workflow (`bench.yml`); it is added here as `v10-vs-9x.md` (roadmap B.R, 9.2).
+[v10-vs-9x](v10-vs-9x.md) is the current end-to-end report (roadmap B.R, 9.2), written from the L3 and L4 runs of the benchmark workflow (`bench.yml`) on 2026-10-22. It compares Wow 10 with 9.x, checks the current code against `10.0.0-alpha.4`, and gives the sustainable rates, the cliff, a three-node cluster with a hand-over, a cold cache over a million accounts, and the store round trips and allocation per operation.
 
 Earlier Wow 10 evidence, each valid for the commit it names:
 
@@ -16,7 +16,7 @@ Earlier Wow 10 evidence, each valid for the commit it names:
 | [v10-h4-ksp-coverage](v10-h4-ksp-coverage.md) | Spike H4: KSP binds the annotation model | Spike, decided |
 | [v10-h6-leases](v10-h6-leases.md) | Spike H6: storage leases for membership and rebalancing | Spike, decided |
 | [v10-mongo-write-amplification](v10-mongo-write-amplification.md) | B.D: store operations per command on MongoDB | Diagnostic; the paths changed since (D248, D261) |
-| [v10-counts-e1-e3](v10-counts-e1-e3.md) | Store round trips, operations and allocations per operation, 9.x against Wow 10 | **Preliminary**, measured before R3-A, R3-B, P.16, D248 and D261; do not cite |
+| [v10-counts-e1-e3](v10-counts-e1-e3.md) | Store round trips, operations and allocations per operation, 9.x against Wow 10 | Superseded by [v10-vs-9x](v10-vs-9x.md#store-round-trips-and-allocation-per-operation-l1); measured before R3-A, R3-B, P.16, D248 and D261 |
 | [v10-ps2-partition-idle](v10-ps2-partition-idle.md) | PS-2: what an idle partition costs | Valid for its commit |
 | [v10-vs-9x-smoke](v10-vs-9x-smoke.md) | The harness's first end-to-end smoke run | Not a benchmark |
 
