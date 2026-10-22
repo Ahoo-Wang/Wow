@@ -148,7 +148,11 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             items: [
                 {text: 'Migrating from 9.x', link: 'index.html'},
                 {text: '9.x Capabilities in V10', link: 'capabilities'},
+                {text: 'Migrate the Source', link: 'source'},
+                {text: 'Configuration Keys', link: 'configuration'},
+                {text: 'HTTP and TypeScript Clients', link: 'http-and-clients'},
                 {text: 'Migrate the Data', link: 'data'},
+                {text: 'Cut Over', link: 'cutover'},
                 {text: 'Platform Services', link: 'platform'},
                 {text: 'migrate-data CLI', base: '/reference/', link: 'migrate-data'},
             ],

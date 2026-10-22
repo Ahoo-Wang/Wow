@@ -657,7 +657,7 @@ sequenceDiagram
 - 顺带（F19 的一半）：`createClientFilePath`（返回 `SourceFile`）改成 `clientModulePath`（只返回路径）；`stateAggregatedTypeNames` 的拆分留给 B7。`addJSDoc`、`addSchemaJSDoc`、`addMainSchemaJSDoc` 改为往结构的 `docs` 里追加。
 - 测试：直接驱动 `TypeGenerator` 的约束测试改为给它一个 `ModuleBuilder`，生成后 `build()` 再做类型检查；驱动生成器的测试在 `generate()` 后调 `context.modules.build()`；`typeGenerator`、`decorators`、`queryClientGenerator`、`emit/imports`、`emit/jsdoc` 的单元测试改为断言结构。覆盖率 97.68 / 93.72 / 99.53 / 98.63（门槛 97 / 92.5 / 98.5 / 98）。
 
-每批的收尾：本地跑改到的包的 `lint:check`、`typecheck`、`test`（`vitest --maxWorkers=2`）、`build`，重活包进 `heavy.sh`；PR 描述写明「产物是否逐字节不变」，改了的列出差异；合并后更新 `typescript/MIGRATION.md` 的进度。
+每批的收尾：本地跑改到的包的 `lint:check`、`typecheck`、`test`（`vitest --maxWorkers=2`）、`build`，重活包进 `heavy.sh`；PR 描述写明「产物是否逐字节不变」，改了的列出差异。
 
 **B5**（`TypeResolver` 独立，#3388）实施时定下的细节：
 
@@ -681,7 +681,7 @@ sequenceDiagram
 - 诊断改为返回值的第一步：解析器不再拿 `Logger`，警告放进 `WowModel.warnings`，流水线紧接着依次 `logger.warn`。原来命令的警告在构造函数里打、聚合的警告在 `resolve()` 里打，两者之间没有别的日志，所以顺序和文案都不变（警告 golden 不变）。
 - F18：生成器进程不再在运行时加载任何 `@ahoo-wang/*` 包。`combineURLs` 换成 `naming/paths.ts` 的 `combinePaths`（逐字移植；`test/naming/paths.test.ts` 用同一张表同时断言两者结果相同，fetcher 只作为开发依赖在测试里加载）；`output/` 因此允许导入 `naming/`。`ContentTypeValues` 换成 `openapi/responses.ts` 的 `APPLICATION_JSON`、`TEXT_EVENT_STREAM`。`ResourceAttributionPathSpec` 换成 `wow/conventions.ts` 的 `TENANT_PATH_PREFIX`、`OWNER_PATH_PREFIX`，测试断言它们等于 wow-client 枚举的值。`scripts/verify-package.mjs` 加第 6 条：`dist` 里每个 `.js`/`.cjs` 都不许 `import`/`require` `@ahoo-wang/*`，构建时就拦住回退。peer 依赖不变（生成的代码需要它们），类型导入照旧（编译后消失）。
 - 测试：`test/aggregate/` 并入 `test/wow/`。原 `aggregateResolver.test.ts`（29 个用例，mock 掉 `openapi/*` 后直接调私有方法）和 `aggregateResolver.integration.test.ts` 删除，由 `resolveWowModel.test.ts`（30 个用例，每个都是一份真实的小 Wow 文档改一处）取代；`aggregate/utils.test.ts`、`model/wowTypeMapping.test.ts` 和 `client/utils.test.ts` 里的 `inferPathSpecType` 合并成 `wow/conventions.test.ts`，并补了 `isWowSchema` 的表；`modelGenerator.test.ts` 里调私有 `isWowSchema` 的用例改调约定模块。新增 `openapi/document.test.ts`。覆盖率 98.03 / 94.64 / 99.57 / 98.95（门槛 97 / 92.5 / 98.5 / 98）。
-- 文档：9.x 兼容清单的两个标记路径、文档站 `wow-discovery`、`programmatic-api`（中英）里的源码链接和 `AggregateResolver` 字样、`MIGRATION.md` 的一处行号引用，随文件搬移更新。
+- 文档：9.x 兼容清单的两个标记路径、文档站 `wow-discovery`、`programmatic-api`（中英）里的源码链接和 `AggregateResolver` 字样，随文件搬移更新。
 - 产物：`expected/`、OpenAI golden、警告 golden、`type-resolver.json` 逐字节不变；integration-test、dashboard 的生成物由契约 CI 同源重新生成比对。
 
 **B7**（分析模型与流水线，#3403）实施时定下的细节：

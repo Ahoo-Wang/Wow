@@ -150,7 +150,11 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             items: [
                 {text: '从 9.x 迁移', link: 'index.html'},
                 {text: 'V10 中的 9.x 能力', link: 'capabilities'},
+                {text: '迁移源码', link: 'source'},
+                {text: '配置项', link: 'configuration'},
+                {text: 'HTTP 与 TypeScript 客户端', link: 'http-and-clients'},
                 {text: '迁移数据', link: 'data'},
+                {text: '切换', link: 'cutover'},
                 {text: '平台服务', link: 'platform'},
                 {text: 'migrate-data 命令行', base: '/zh/reference/', link: 'migrate-data'},
             ],

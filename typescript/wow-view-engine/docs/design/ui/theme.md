@@ -1,6 +1,6 @@
 # UI 层：主题
 
-本页是主题的合同与机制：几条轴、三层变量、角色、登记表、品牌色、内置预设、图表怎样跟上，以及守住这些的门。弹层怎样带走主题、明暗怎样判定、面为什么不嵌套，见 [README.md#主题弹层与明暗](README.md#主题弹层与明暗)；宿主第一步选哪条路（引擎跟宿主，或宿主跟引擎）与 **ViewHost** 怎样写 `<html>`，见 [host-integration.md](../host-integration.md) 4.1、4.2；面向宿主的写法在文档站的主题指南（`documentation/docs/{en,zh}/guide/typescript/view-engine-theming.md`）。
+本页是主题的合同与机制：几条轴、三层变量、角色、登记表、品牌色、内置预设、图表怎样跟上，以及守住这些的门。弹层怎样带走主题、明暗怎样判定、面为什么不嵌套，见 [README.md#主题弹层与明暗](README.md#主题弹层与明暗)；宿主第一步选哪条路（引擎跟宿主，或宿主跟引擎）与 **ViewHost** 怎样写 `<html>`，见 [host-integration.md](../host-integration.md) 4.1、4.2；面向宿主的写法在文档站的主题指南（`documentation/docs/{en,zh}/typescript/view-engine/theming.md`）。
 
 裁定：[D30](../decisions.md#d30-阶段-5-内置多主题的十条裁定2026-09-24)（阶段 5 的十条）、[D35](../decisions.md#d35-内置主题目录与三条轴的四条裁定2026-09-24)（目录与三条轴）、[D43](../decisions.md#d43-主题可以说面怎样分层控件怎样画2026-09-25)（面怎样分层、控件怎样画）、[D45](../decisions.md#d45-主题一览拆成每套一个故事截图基线在-playwright-的-linux-容器里截2026-09-25)（一览与截图基线）、[D46](../decisions.md#d46-主题架构重构五条结构一张登记表2026-09-25)（五条结构、一张登记表）、[D57](../decisions.md#d57-点击目标由-theme-check-报错样式表不设下限2026-09-26)（点击目标）、[D66](../decisions.md#d66-引擎的工具类带前缀-fve与宿主不再同名2026-09-28)（工具类前缀）。
 
