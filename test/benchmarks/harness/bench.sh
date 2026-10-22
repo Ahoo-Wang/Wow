@@ -30,7 +30,8 @@
 #          server's installed distribution, by default this tree's server/build/install/benchmark-server: another
 #          build of the same version, such as a baseline's), --seed-concurrency=32 (accounts opened at once),
 #          --load-cpus=<list> and --server-cpus=<list> (Linux, taskset lists: the load generator on its own CPUs, the
-#          servers and the containers on the others), --prime (an untimed pass over every account before the run),
+#          servers and the containers on the others), --prime (an untimed pass over every account before the run,
+#          then a wait until the nodes are quiet again),
 #          --jfr-settings=<.jfc> (with --jfr; on PostgreSQL --jfr also dumps pg_stat_statements and checkpoints),
 #          and any other --name=value of the load generator's run or saturate, passed through.
 set -euo pipefail
@@ -230,7 +231,7 @@ setup() {
   load check --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --scenario="$(opt scenario "")" \
     --mix="$(opt mix "")" | tee "$OUT/check.log" >&2
   # --prime: an untimed pass over every seeded account (D224 note ⑤), so a large data set is measured warm.
-  local primed=false prime_seconds=0
+  local primed=false prime_seconds=0 settle_seconds=0
   if [ "$(opt prime false)" = true ]; then
     log "priming $ACCOUNTS accounts"
     local prime_started=$SECONDS
@@ -238,6 +239,13 @@ setup() {
       --concurrency="$(opt seed-concurrency 256)" --out="$OUT" | tee "$OUT/prime.log" >&2
     primed=true
     prime_seconds=$((SECONDS - prime_started))
+    # The prime leaves the nodes a backlog (roadmap §6, performance item 2): wait until they are quiet again, so the
+    # warm-up starts from the steady state rather than from that backlog.
+    local settle_pids="" settle_started=$SECONDS
+    for n in $(seq 1 "$NODES"); do settle_pids="${settle_pids}node-$n:${SERVER_PIDS[$((n - 1))]},"; done
+    load settle --version="$VERSION" --targets="$TARGET_LIST" --pids="${settle_pids%,}" --out="$OUT" \
+      | tee "$OUT/settle.log" >&2
+    settle_seconds=$((SECONDS - settle_started))
   fi
   # The statements counted from here on are the run's (warm-up and measured phase), not the seeding's.
   if [ -n "${WOW_BENCH_PG_PRELOAD:-}" ]; then postgres_sql "create extension if not exists pg_stat_statements; select pg_stat_statements_reset();" >/dev/null; fi
@@ -246,7 +254,7 @@ setup() {
   PIDS=${PIDS%,}
   local jvm; jvm=$("$JAVA_HOME/bin/java" -version 2>&1 | tr '\n' ' ' | sed 's/;/,/g')
   META="backend=$BACKEND;nodes=$NODES;heap=$HEAP;gc=G1;serverJvm=$jvm;stores=kafka $store;primed=$primed"
-  META="$META;primeSeconds=$prime_seconds;accounts=$ACCOUNTS"
+  META="$META;primeSeconds=$prime_seconds;settleSeconds=$settle_seconds;accounts=$ACCOUNTS"
 }
 
 # Runs SQL on the benchmark's PostgreSQL container.

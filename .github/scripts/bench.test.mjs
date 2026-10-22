@@ -1171,7 +1171,10 @@ test('p99.9 is reported only with a thousand tail samples', () => {
   assert.equal(many.p999, 50);
   const primed = metrics({
     results: {},
-    meta: { primed: 'true', primeSeconds: '35' },
+    meta: { primed: 'true', primeSeconds: '35', settleSeconds: '12' },
   });
-  assert.deepEqual([primed.primed, primed.primeSeconds], [true, 35]);
+  assert.deepEqual(
+    [primed.primed, primed.primeSeconds, primed.settleSeconds],
+    [true, 35, 12],
+  );
 });

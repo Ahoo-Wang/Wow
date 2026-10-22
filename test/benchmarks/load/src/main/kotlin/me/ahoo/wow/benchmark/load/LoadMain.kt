@@ -33,6 +33,7 @@ import kotlin.system.exitProcess
  * - `check`: one operation of every scenario, each checked as a run checks it;
  * - `prime`: an untimed pass that touches every seeded account once, so a run on a large data set measures warm
  *   caches rather than filling them;
+ * - `settle`: after the prime, waits until every node is quiet again, so the warm-up does not start on its backlog;
  * - `run`: one open-loop run of a scenario at a fixed rate, its results and resources written as JSON and Markdown;
  * - `saturate`: the closed-loop saturation finder.
  *
@@ -56,6 +57,7 @@ fun main(args: Array<String>) {
         "seed" -> seed(client, targets, options)
         "check" -> check(client, targets, options)
         "prime" -> prime(client, targets, options)
+        "settle" -> settle(options)
         "run" -> run(client, targets, options)
         "saturate" -> saturate(client, targets, options)
         else -> usage()
@@ -69,6 +71,10 @@ private const val DEFAULT_ACCOUNTS = 1_000
 private const val DEFAULT_BALANCE = 1_000_000_000_000L
 private const val DEFAULT_SEED_CONCURRENCY = 32
 private const val PRIME_CONCURRENCY = 256
+private const val SETTLE_QUIET_CORES = 0.25
+private const val SETTLE_QUIET_SECONDS = 3
+private const val SETTLE_MAX_SECONDS = 180
+private const val MILLIS_PER_SECOND = 1_000L
 private const val DEFAULT_SEED = 20_261_015L
 private const val PERCENT = 100.0
 private const val MICROS_PER_MILLI = 1_000.0
@@ -76,9 +82,10 @@ private const val MICROS_PER_MILLI = 1_000.0
 private fun usage(): Nothing {
     System.err.println(
         """
-        usage: benchmark-load <seed|check|run|saturate> --version=9x|v10 --targets=http://host:port[,…] [options]
+        usage: benchmark-load <seed|check|prime|settle|run|saturate> --version=9x|v10 --targets=http://host:port[,…] [options]
           seed:     --accounts=1000 --concurrency=32 --balance=1000000000000
           prime:    --accounts=1000 --concurrency=256 --out=<dir>
+          settle:   --pids=name:pid,… --quiet-cores=0.25 --quiet-seconds=3 --max-seconds=180 --out=<dir>
           check:    --accounts=1000 [--scenario=… | --mix=…: only those]
           run:      --scenario=E1|E1-large|E2|E3|E4-state|E4-list (or --mix=E1:50,E4-state:40,E4-list:10) --rate=<ops/s>
                     --warm-up=30 --measure=60
@@ -154,6 +161,47 @@ private fun prime(client: Client, targets: List<URI>, options: Options): Int {
     options.optional("out")?.let {
         File(it).apply { mkdirs() }.resolve("prime.json").writeText(
             Json.write(mapOf("accounts" to accounts, "seconds" to seconds, "failed" to failures.get())) + "\n",
+        )
+    }
+    return 0
+}
+
+/**
+ * After the prime (roadmap §6, performance item 2): the prime runs closed loop at full speed and leaves the nodes
+ * work behind it, such as their subscriptions' backlog, which a short warm-up does not absorb on a small runner, so
+ * the measured phase would start with a queue. Waits until every node of `--pids` used less than `--quiet-cores` of
+ * CPU for `--quiet-seconds` seconds in a row, at most `--max-seconds`; prints each second's cores and writes
+ * `settle.json` (the seconds it took, whether it got quiet, the series) to `--out`. Not getting quiet is not a
+ * failure: the run goes on and the results say so.
+ */
+private fun settle(options: Options): Int {
+    val resources = resources(options)
+    val quietCores = options.double("quiet-cores", SETTLE_QUIET_CORES)
+    val quietSeconds = options.int("quiet-seconds", SETTLE_QUIET_SECONDS)
+    val maxSeconds = options.int("max-seconds", SETTLE_MAX_SECONDS)
+    val started = System.nanoTime()
+    val series = mutableListOf<Map<String, Double>>()
+    var before = resources.cpuSeconds()
+    var quietFor = 0
+    while (quietFor < quietSeconds && series.size < maxSeconds) {
+        Thread.sleep(MILLIS_PER_SECOND)
+        val now = resources.cpuSeconds()
+        val cores = now.mapValues { (name, seconds) -> seconds - (before[name] ?: seconds) }
+        before = now
+        series += cores
+        quietFor = if (cores.values.all { it < quietCores }) quietFor + 1 else 0
+        println("[settle] ${series.size}s: ${cores.entries.joinToString { "${it.key} ${"%.2f".format(it.value)}" }}")
+    }
+    val seconds = (System.nanoTime() - started) / OpenLoop.NANOS_PER_SECOND.toDouble()
+    val quiet = quietFor >= quietSeconds
+    println(
+        "[settle] ${if (quiet) "quiet" else "not quiet"} after ${"%.0f".format(seconds)}s " +
+            "(below $quietCores cores for $quietSeconds s in a row)",
+    )
+    options.optional("out")?.let {
+        File(it).apply { mkdirs() }.resolve("settle.json").writeText(
+            Json.write(mapOf("seconds" to seconds, "quiet" to quiet, "quietCores" to quietCores, "cores" to series)) +
+                "\n",
         )
     }
     return 0
