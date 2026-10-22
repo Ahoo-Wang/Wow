@@ -44,7 +44,6 @@ import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.log.TailPacer
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
-import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
@@ -566,10 +565,11 @@ class PostgresEventLog(
             dispatcher.jdbc {
                 dataSource.autoCommitted { connection ->
                     store.sharedTable(dataSource, context, ref.type.name)?.let { snapshot ->
-                        withTable(
-                            connection,
-                            ref.type
-                        ) { tailWithSnapshot(connection, it, snapshot, store, ref, earlier) }
+                        withTable(connection, ref.type) { table ->
+                            connection.readSnapshotTail(table.tailWithSnapshot(snapshot), store, ref, earlier) {
+                                streamOf(table.aggregate, it)
+                            }
+                        }
                     }
                 }
             }
@@ -579,40 +579,6 @@ class PostgresEventLog(
             null
         }
         return read ?: super.readWithSnapshot(ref, snapshots, earlier)
-    }
-
-    private fun tailWithSnapshot(
-        connection: Connection,
-        table: AggregateLogTable,
-        snapshot: String,
-        store: PostgresSnapshotStore,
-        ref: AggregateRef,
-        earlier: Int,
-    ): SnapshotTail = connection.prepareStatement(table.tailWithSnapshot(snapshot)).use { query ->
-        query.setString(1, ref.tenantId)
-        query.setString(2, ref.id)
-        query.setString(3, ref.id)
-        query.setString(4, ref.tenantId)
-        query.setString(5, ref.id)
-        query.setString(6, ref.tenantId)
-        query.setInt(7, earlier)
-        query.executeQuery().use { rows ->
-            val streams = ArrayList<EventStreamRecord>()
-            val keys = ArrayList<CommittedRequest>()
-            var loaded: SnapshotRecord? = null
-            while (rows.next()) {
-                when (rows.getInt("part")) {
-                    0 -> streams += streamOf(table.aggregate, rows)
-                    1 -> keys += CommittedRequest(
-                        rows.getInt("version"),
-                        rows.getString("request_id"),
-                        rows.getString("command_type"),
-                    )
-                    else -> loaded = store.snapshotOf(ref.type, rows, "s_")
-                }
-            }
-            SnapshotTail(loaded, AggregateTail(streams, keys.asReversed()))
-        }
     }
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {

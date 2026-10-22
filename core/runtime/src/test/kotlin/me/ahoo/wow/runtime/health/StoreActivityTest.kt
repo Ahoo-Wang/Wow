@@ -21,6 +21,7 @@ import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
+import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.LogGroupBackends
 import me.ahoo.wow.runtime.subscription.Appender
@@ -64,6 +65,23 @@ class StoreActivityTest {
     }
 
     @Test
+    fun `a tracked log should record a read with the snapshot as the store's`(): Unit = runBlocking {
+        val log = NodeStores.track(
+            "bank",
+            ContextBackends(
+                InMemoryEventLog(2),
+                InMemoryCheckpointStore(),
+                InMemoryLeaseStore(),
+                InMemoryFailureLedger()
+            ),
+        ).log
+        val activity = activityOf(log)!!
+        log.readWithSnapshot(me.ahoo.wow.runtime.subscription.cart("c-1"), InMemorySnapshotStore(), 1)
+            .tail.streams.assert().isEmpty()
+        activity.lastSuccess.assert().isNotEqualTo(StoreActivity.NONE)
+    }
+
+    @Test
     fun `a tracked log should record its reads, appends and outages, and only the store's`(): Unit = runBlocking {
         val memory = InMemoryEventLog(2)
         val other = InMemoryEventLog(2)
@@ -103,8 +121,6 @@ class StoreActivityTest {
         log.read(ref).toList().size.assert().isEqualTo(1)
         log.readEntries(ref).toList().size.assert().isEqualTo(1)
         log.readTail(ref, 1, 1).streams.size.assert().isEqualTo(1)
-        log.readWithSnapshot(ref, me.ahoo.wow.kernel.memory.InMemorySnapshotStore(), 1).tail.streams.size
-            .assert().isEqualTo(1)
         log.tail(me.ahoo.wow.spi.log.Partitioner.partitionOf(ref, 2)).let { tail ->
             kotlinx.coroutines.withTimeoutOrNull(100) { tail.collect { } }
         }
