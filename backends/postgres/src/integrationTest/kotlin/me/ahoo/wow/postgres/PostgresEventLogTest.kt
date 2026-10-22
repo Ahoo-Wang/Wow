@@ -32,6 +32,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
+import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
@@ -272,6 +273,46 @@ class PostgresEventLogTest : EventLogSpec() {
         val read = log.readWithSnapshot(ref, elsewhere, 1)
         read.snapshot?.version.assert().isEqualTo(2)
         read.tail.streams.map { it.version }.assert().containsExactly(2, 3)
+    }
+
+    @Test
+    fun `snapshots of another kind or another context are read apart from the tail`(): Unit = runBlocking {
+        val context = PostgresFixture.newContext()
+        val type = AggregateType(context, "order")
+        val log = PostgresFixture.log(1, context)
+        (1..3).forEach { log.append(stream("a", it, aggregate = type)) }
+        val ref = type.ref("tenant", "a")
+        val store = PostgresSnapshotStore(PostgresFixture.dataSource, context)
+        store.save(snapshot(ref, 2))
+        val wrapped = object : SnapshotStore by store {
+            override fun storeOf(type: AggregateType): SnapshotStore = this
+        }
+        log.readWithSnapshot(ref, wrapped, 1).tail.streams.map { it.version }.assert().containsExactly(2, 3)
+        val otherContext = PostgresSnapshotStore(PostgresFixture.dataSource, PostgresFixture.newContext())
+        // Not read together: the other context's store refuses the aggregate, as its load alone does.
+        runCatching { log.readWithSnapshot(ref, otherContext, 1) }.exceptionOrNull()
+            .assert().isInstanceOf(IllegalArgumentException::class.java)
+    }
+
+    @Test
+    fun `a failing statement falls back to reading the snapshot and the tail apart`(): Unit = runBlocking {
+        val context = PostgresFixture.newContext()
+        val type = AggregateType(context, "order")
+        val log = PostgresFixture.log(1, context)
+        (1..3).forEach { log.append(stream("a", it, aggregate = type)) }
+        val ref = type.ref("tenant", "a")
+        val store = PostgresSnapshotStore(PostgresFixture.dataSource, context)
+        store.save(snapshot(ref, 2))
+        PostgresFixture.dataSource.connection.use { connection ->
+            connection.createStatement().use { it.execute("DROP TABLE ${PostgresSnapshotTables(context, "order").snapshot}") }
+        }
+        // The snapshot store still believes its table is there; a load that fails is read as none, as the kernel does.
+        val tolerant = object : SnapshotStore by store {
+            override suspend fun load(ref: AggregateRef): SnapshotRecord? = null
+        }
+        val read = log.readWithSnapshot(ref, tolerant, 1)
+        read.snapshot.assert().isNull()
+        read.tail.streams.map { it.version }.assert().containsExactly(1, 2, 3)
     }
 
     private fun snapshot(ref: AggregateRef, version: Int) = SnapshotRecord(
