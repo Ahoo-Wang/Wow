@@ -29,11 +29,8 @@ It replaces the preliminary counts report `v10-counts-e1-e3` for the store round
   - E3 on PostgreSQL kept up at every step to 500/s, with p99 at most 133 ms.
   - On MongoDB it kept up to 300/s with p50 2.6 s, then collapsed at 400/s: busy refusals, wait timeouts and paused saga partitions, which resumed.
   - 9.x on MongoDB collapsed between 300/s and 400/s too, but from p50 5.6 s at 300/s.
-- **Cluster: a defect.** On three nodes, wait signals sent to one node timed out at their 1 s limit, at rates as low as 50/s.
-  - While the accounts were seeded, 132 (PostgreSQL) and 115 (MongoDB) creations answered `504 wow.wait.timeout` although they had committed.
-  - The harness treats a failed seed as a failed run, so both E5 jobs failed.
-  - Facts are not lost (the commands committed), but a client is told a timeout for a command that succeeded.
-- **Hand-over** of a stopped node completes with no second below half the rate. The worst second's p99 is 2.3–7.1 s, consistent with the lease TTL of 10 s.
+- **Cluster.** The first L4 run found a defect: on three nodes, wait signals between the nodes timed out at a fixed 1 s while the seeding saturated the runner's CPUs, and committed creations answered `504 wow.wait.timeout`. A signal now gets its wait's deadline instead (#4822). The rerun dropped no signal and timed out no wait; both seeds of 100,000 accounts and every steady run completed without a failure.
+- **Hand-over** of a stopped node completes with no second below half the rate. The worst second's p99 is 1.6–7.4 s, consistent with the lease TTL of 10 s.
 - **Cold cache, a million accounts, not primed:**
   - PostgreSQL: E1 at 200/s with p99 6.4 ms; point reads at 500/s with p99 2.8 ms.
   - MongoDB: 110 ms and 6.6 ms.
@@ -42,8 +39,8 @@ It replaces the preliminary counts report `v10-counts-e1-e3` for the store round
 
 | | |
 | --- | --- |
-| Runs | L3 grid with the 9.x suites [39722957720](https://github.com/Ahoo-Wang/Wow/actions/runs/39722957720) (`tier=L3`, `suites=ab,component,vs-9x`); L4 [39722970362](https://github.com/Ahoo-Wang/Wow/actions/runs/39722970362) (`tier=L4`) |
-| Head | `main` at `d3336ce650` (L3) and `1ac5ef00ac` (L4): the code of `10.0.0-alpha.4` with documentation and comment changes only |
+| Runs | L3 grid with the 9.x suites [39722957720](https://github.com/Ahoo-Wang/Wow/actions/runs/39722957720) (`tier=L3`, `suites=ab,component,vs-9x`); L4 [39722970362](https://github.com/Ahoo-Wang/Wow/actions/runs/39722970362) (`tier=L4`); E5 again after the signal fix, [39893318539](https://github.com/Ahoo-Wang/Wow/actions/runs/39893318539) (`suites=e5-pg,e5-mongo`, 2026-10-23) |
+| Head | `main` at `d3336ce650` (L3) and `1ac5ef00ac` (L4): the code of `10.0.0-alpha.4` with documentation and comment changes only. The E5 rerun: `main` at `203ab6ecdf`, with the signal fix (#4822), the measured-phase signal counts (#4823) and the settle after the prime (#4824) |
 | Baseline | `10.0.0-alpha.4` (`c57cedbc28`), the default `base_ref` |
 | 9.x | branch `v10-9x-baseline`, the 9.x twin of the domain (D262) |
 | Runners | GitHub-hosted, 4 cores each: AMD EPYC 7763, 9V45, 9V74, Intel Xeon 8370C, 8573C. The processor differs between jobs. |
@@ -146,34 +143,31 @@ PostgreSQL reached no cliff within the steps measured.
 
 Three nodes, requests round-robin, 90 s measured. In the hand-over runs node 2 is stopped 25 s into the measured phase and restarted 20 s later.
 
+The rerun after the signal fix ([39893318539](https://github.com/Ahoo-Wang/Wow/actions/runs/39893318539), AMD EPYC 7763):
+
 | Backend | Run | Rate | Throughput | Failed | p50 | p99 | Worst-second p99 | Lowest second |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| PostgreSQL | E1 steady | 150/s | **failed** (seed) | | | | | |
-| PostgreSQL | E1 hand-over | 150/s | 134/s | 1,474 | 3.8 ms | 406 ms | 2,277 ms | 100/s |
-| PostgreSQL | E3 steady | 50/s | 50/s | 0 | 6.6 ms | 16.2 ms | 47.5 ms | 50/s |
-| PostgreSQL | E3 hand-over | 50/s | 43/s | 650 | 7.9 ms | 1,196 ms | 3,999 ms | 33/s |
-| MongoDB | E1 steady | 150/s | 150/s | 0 | 5.5 ms | 76.8 ms | 176 ms | 150/s |
-| MongoDB | E1 hand-over | 150/s | 132/s | 1,618 | 9.6 ms | 2,163 ms | 4,194 ms | 100/s |
-| MongoDB | E3 steady | 50/s | **failed** (seed) | | | | | |
-| MongoDB | E3 hand-over | 50/s | 44/s | 521 | 17.5 ms | 2,507 ms | 7,128 ms | 33/s |
+| PostgreSQL | E1 steady | 150/s | 150/s | 0 | 3.2 ms | 9.5 ms | 43.0 ms | 150/s |
+| PostgreSQL | E1 hand-over | 150/s | 133/s | 1,533 | 3.8 ms | 145 ms | 1,589 ms | 100/s |
+| PostgreSQL | E3 steady | 50/s | 50/s | 0 | 6.4 ms | 17.0 ms | 63.7 ms | 50/s |
+| PostgreSQL | E3 hand-over | 50/s | 44/s | 503 | 8.1 ms | 655 ms | 1,919 ms | 33/s |
+| MongoDB | E1 steady | 150/s | 150/s | 0 | 6.0 ms | 64.0 ms | 334 ms | 150/s |
+| MongoDB | E1 hand-over | 150/s | 131/s | 1,697 | 12.0 ms | 1,475 ms | 4,325 ms | 100/s |
+| MongoDB | E3 steady | 50/s | 50/s | 0 | 12.2 ms | 60.7 ms | 162 ms | 50/s |
+| MongoDB | E3 hand-over | 50/s | 44/s | 538 | 19.7 ms | 2,736 ms | 7,384 ms | 33/s |
 
-**Wait signals time out between nodes.**
-- A command that arrives at one node and commits on its partition's owner is answered by a signal back to the first node.
-- Every E5 run dropped such signals: 287–1,378 per run, all with the reason `failed`.
-- In the PostgreSQL E1 run, the log names the reason as `HttpTimeoutException: request timed out` after the sender's 1 s limit (`HttpSignalSender`, `DEFAULT_TIMEOUT`). Nearly all of them went to one node, port 19092. That node's signal entry then logged `AbortedException: Connection has been closed` as 500 for the requests the sender gave up on.
-- Drops happened at 50/s in the E3 steady run on PostgreSQL, with the server at 0.54 cores, so it is not CPU starvation.
-- While 100,000 accounts were seeded at a concurrency of 256, 132 (PostgreSQL) and 115 (MongoDB) creations answered `504 wow.wait.timeout` while committed: the nodes counted `waitTimedOut COMMITTED`.
+**Wait signals between nodes: found and fixed.** The first L4 run ([39722970362](https://github.com/Ahoo-Wang/Wow/actions/runs/39722970362)) dropped 287–1,378 signals per run, and while 100,000 accounts were seeded at a concurrency of 256, 132 (PostgreSQL) and 115 (MongoDB) committed creations answered `504 wow.wait.timeout`, so both E5 jobs failed.
+- A command that arrives at one node and commits on its partition's owner is answered by a signal back to the first node, sent over the internal port.
+- The seeding and the prime ran the three nodes, Kafka and the store at full speed on the runner's 3 free cores (each node above 0.7 cores, CPU pressure 830–920 ms/s, no steal, iowait about 0.5%). The event loops could not get a core within the signal's fixed 1 s limit, so the signals were dropped. It was not a defect of low load: during the measured phases each node used about 0.1 cores. The drop counts were also cumulative since the nodes started, so the seeding's drops were reported in the steady rows.
+- A signal now gets its wait's deadline, and one whose deadline has passed is not sent (`expired`) (#4822). The report counts the node signals of the measured phase only (#4823).
+- The rerun dropped no signal and timed out no wait, in the seeding, the prime or the measured phases. Two of 100,000 deposits in one prime (PostgreSQL, before the E3 steady run) were answered as failed: the forward to the owner ended `unknown` while the runner was saturated, and the client was told so rather than told a timeout for a committed command.
 
-The cause is not established. Candidates:
-- the HTTP/2 connection between the JDK client and the node's Reactor Netty internal server, which runs the same `reactor-netty` 1.3.7 as the keep-alive defect behind `KeepAliveReads`;
-- the signal entry's handling on the receiving node.
-
-**Hand-over.** The failed requests in the hand-over runs are mostly the load generator's, not the cluster's. It keeps sending a third of the requests to the stopped node, and they fail as `ClosedChannelException`: 1,474 at 150/s over about 20 s is in line with that. A load balancer reading the readiness probe would stop routing to the node.
+**Hand-over.** The failed requests in the hand-over runs are the load generator's, not the cluster's. It keeps sending a third of the requests to the stopped node, and they fail as `ClosedChannelException`: about 1,500 at 150/s over the 20 s the node is down. A load balancer reading the readiness probe would stop routing to the node.
 
 What the cluster itself shows:
 - no second below half the rate;
-- the worst second's p99 is 2.3–7.1 s while the stopped node's leases expire (TTL 10 s);
-- 8–64 commands ran on the node that received them (`forwardFailed local`), as decided for an unreachable owner (D71);
+- the worst second's p99 is 1.6–7.4 s while the stopped node's leases expire (TTL 10 s);
+- 4–166 commands ran on the node that received them (`forwardFailed local`), as decided for an unreachable owner (D71);
 - a few tail reads read the store (`tailRead gap`).
 
 ## Cold cache, a million accounts (L4)
@@ -204,7 +198,7 @@ Head and baseline agree to the second decimal. These numbers supersede `v10-coun
 
 The items below are ranked by expected gain. All are registered in [roadmap §6](../../../../documentation/designs/roadmap.md), registered only, not dispatched.
 
-1. **Wait signals between nodes time out (defect).** In a cluster, a committed command can be answered as a timeout. Find out why signals to one node exceed 1 s at 50/s, and fix it. This gates any multi-node deployment.
+1. ~~**Wait signals between nodes time out (defect).**~~ Fixed (#4822); the E5 rerun dropped no signal (see the cluster section).
 2. **Tail latency at moderate load.** The sustainable rate is only 37–50% of saturation on PostgreSQL and 16–22% on MongoDB.
    - E1 on PostgreSQL at 60% of saturation has p99 between 0.9 and 3.1 s with neither the server nor the database saturated.
    - Every grid run's second half differs from its first beyond the limits (`unstable`), so the warm-up does not reach the steady state either.
