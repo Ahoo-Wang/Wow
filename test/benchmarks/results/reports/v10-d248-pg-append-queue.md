@@ -36,6 +36,17 @@ Throughput and p50 at each concurrency, rounds 1 and 2.
 - **On**, both keep growing to 512: E1 +11% and +24% at saturation, E3 +76% and +38%, with a lower p50 at the same high concurrency.
 - **At low concurrency** the queue costs 1–5% of throughput at the same concurrency, the p50 unchanged; single points differ more, within the noise of one machine.
 
+## On GitHub Actions after the merge
+
+[39956730984](https://github.com/Ahoo-Wang/Wow/actions/runs/39956730984) (`sustainable-pg`, 100k, `main` at `896081659`, the queue on), on an AMD EPYC 7763 runner (4 cores):
+
+| Scenario | Sustainable (≤ 1% errors, p99 ≤ 200 ms) | Saturation | Share | CPU ms/op |
+| --- | --- | --- | --- | --- |
+| E1 | 909/s | 1,939/s | 47% | 2.59 |
+| E3 | 426/s | 758/s | 56% | 6.06 |
+
+The earlier `sustainable-pg` runs were on other processors (Xeon 8370C, EPYC 9V45, Xeon 8573C), so their rates do not divide by these; the shares of saturation are in their range (E1 47–53%, E3 50–56%). This run neither confirms nor refutes the local gain: that takes the queue off and on paired on one runner, which the `pg-append-queue` suite does. Near the limit the E1 probe at 970/s still began its measured phase with a queue (p99 1.6 s in its first second, decaying to under 100 ms from the sixth), the case roadmap §6 item 6 keeps as an anomaly.
+
 ## Conclusion
 
 The queue goes on by default for PostgreSQL, as it is for MongoDB (decision D271 ⑧). With both on, the per-store preset (`Store.queuesAppends`) has nothing left to choose and is removed; `wow.log.append-queue.enabled=false` turns the queue off.
