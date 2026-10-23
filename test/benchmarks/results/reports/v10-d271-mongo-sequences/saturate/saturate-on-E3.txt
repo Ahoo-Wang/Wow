@@ -1,0 +1,8 @@
+[saturate] v10 E3: concurrency=1 throughput=245.2/s p50=3ms errors={}
+[saturate] v10 E3: concurrency=2 throughput=426.3/s p50=4ms errors={}
+[saturate] v10 E3: concurrency=4 throughput=564.5/s p50=6ms errors={}
+[saturate] v10 E3: concurrency=8 throughput=860.0/s p50=8ms errors={}
+[saturate] v10 E3: concurrency=16 throughput=957.4/s p50=15ms errors={}
+[saturate] v10 E3: concurrency=32 throughput=679.7/s p50=38ms errors={}
+[saturate] v10 E3: concurrency=64 throughput=948.4/s p50=63ms errors={}
+[saturate] saturation: 957.4/s at concurrency 16

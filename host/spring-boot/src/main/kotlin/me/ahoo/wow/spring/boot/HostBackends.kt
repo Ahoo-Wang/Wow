@@ -86,8 +86,8 @@ class HostBackends @InternalWowApi constructor(
 
         /**
          * The node's [stores] by name, each context's stores opened as [layout] says (decision D177), its logs of
-         * [partitions] partitions. The append queue is on when a log store queues its appends ([Store.queuesAppends]),
-         * else off when one does not (PostgreSQL's, MongoDB's), else on.
+         * [partitions] partitions. The append queue is on when a log store queues its appends ([Store.queuesAppends],
+         * MongoDB's), else off when one does not (PostgreSQL's), else on.
          */
         @InternalWowApi
         fun of(stores: Map<String, Store>, layout: StoreLayout, partitions: Int): HostBackends {

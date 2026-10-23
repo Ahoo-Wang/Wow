@@ -54,10 +54,10 @@ class MongoHostTest {
     }
 
     @Test
-    fun `the host should run on MongoDB, its appends straight to the log`() {
+    fun `the host should run on MongoDB with the append queue`() {
         host.context.getBean(HostBackends::class.java).type.assert().isEqualTo("mongo")
-        // Decision D271: an append is one insert at a sequence of the node's block; no partition append queue.
-        host.node.options.appendQueue.enabled.assert().isFalse()
+        // Decision D271: the queue gathers a partition's appends into one insertMany per collection under load.
+        host.node.options.appendQueue.enabled.assert().isTrue()
         host.node.options.routing.assert().isEqualTo(Routing.PARTITIONED)
     }
 

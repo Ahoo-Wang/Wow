@@ -90,8 +90,7 @@ class MixedStoresTest {
     @Order(1)
     fun `each aggregate's log, snapshots, timers and checkpoints are on its store`() {
         first.node.context(TREASURY).logGroups.map { it.store }.assert().containsExactly("pg", "mongo")
-        // Neither store queues its appends (decision D271).
-        first.context.getBean(HostBackends::class.java).appendQueue.enabled.assert().isFalse()
+        first.context.getBean(HostBackends::class.java).appendQueue.enabled.assert().isTrue()
         first.post("/treasury/vault/v-1/open-vault", """{"sealAfterMillis":300}""").status.assert().isEqualTo(200)
         first.post("/treasury/ledger/l-1/open-ledger", """{"closeAfterMillis":300}""").status.assert().isEqualTo(200)
         eventually { first.sealed("vault", "v-1") && first.sealed("ledger", "l-1") }
