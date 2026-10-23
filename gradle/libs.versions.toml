@@ -2,7 +2,7 @@
 # libraries
 spring-boot = "4.1.1"
 cosid = "3.2.1"
-cosec = "6.0.0"
+cosec = "6.1.1"
 testcontainers = "2.0.5"
 opentelemetry = "1.66.0"
 opentelemetry-instrumentation = "2.32.0"
