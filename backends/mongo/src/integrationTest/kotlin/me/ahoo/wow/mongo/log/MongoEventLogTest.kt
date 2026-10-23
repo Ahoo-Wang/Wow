@@ -27,7 +27,9 @@ import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
 import com.mongodb.client.TransactionBody
 import com.mongodb.client.model.Filters
+import com.mongodb.client.model.InsertManyOptions
 import com.mongodb.client.model.Updates
+import com.mongodb.client.result.InsertManyResult
 import com.mongodb.client.result.InsertOneResult
 import com.mongodb.event.CommandListener
 import com.mongodb.event.CommandStartedEvent
@@ -448,7 +450,10 @@ class MongoEventLogTest : EventLogSpec() {
      * The fixture's client whose log collections run each insert through [insert], given the document and the real
      * insert to call or not: a fault injected where a stream or a placeholder is written.
      */
-    private fun faulty(insert: (Document, () -> Unit) -> Unit): MongoClient {
+    private fun faulty(
+        many: (List<Document>, () -> Unit) -> Unit = { _, insert -> insert() },
+        insert: (Document, () -> Unit) -> Unit = { _, write -> write() },
+    ): MongoClient {
         val real = MongoLogFixture.client
         return object : MongoClient by real {
             override fun getDatabase(databaseName: String): MongoDatabase =
@@ -457,7 +462,7 @@ class MongoEventLogTest : EventLogSpec() {
                         val collection = real.getDatabase(databaseName).getCollection(collectionName)
                         val aggregate =
                             collectionName.startsWith("wow_log__") && !collectionName.endsWith("__partition")
-                        return if (aggregate) Faulty(collection, insert) else collection
+                        return if (aggregate) Faulty(collection, insert, many) else collection
                     }
                 }
         }
@@ -466,12 +471,21 @@ class MongoEventLogTest : EventLogSpec() {
     private class Faulty(
         private val real: MongoCollection<Document>,
         private val insert: (Document, () -> Unit) -> Unit,
+        private val many: (List<Document>, () -> Unit) -> Unit,
     ) : MongoCollection<Document> by real {
-        override fun withWriteConcern(writeConcern: WriteConcern) = Faulty(real.withWriteConcern(writeConcern), insert)
+        override fun withWriteConcern(writeConcern: WriteConcern) =
+            Faulty(real.withWriteConcern(writeConcern), insert, many)
 
-        override fun withReadConcern(readConcern: ReadConcern) = Faulty(real.withReadConcern(readConcern), insert)
+        override fun withReadConcern(readConcern: ReadConcern) = Faulty(real.withReadConcern(readConcern), insert, many)
 
-        override fun withTimeout(timeout: Long, timeUnit: TimeUnit) = Faulty(real.withTimeout(timeout, timeUnit), insert)
+        override fun withTimeout(timeout: Long, timeUnit: TimeUnit) =
+            Faulty(real.withTimeout(timeout, timeUnit), insert, many)
+
+        override fun insertMany(documents: List<Document>, options: InsertManyOptions): InsertManyResult {
+            var result: InsertManyResult? = null
+            many(documents) { result = real.insertMany(documents, options) }
+            return result ?: throw MongoSocketReadTimeoutException("no reply", ServerAddress(), IOException("timed out"))
+        }
 
         override fun insertOne(document: Document): InsertOneResult {
             var result: InsertOneResult? = null
@@ -484,7 +498,7 @@ class MongoEventLogTest : EventLogSpec() {
     fun `an insert whose reply is lost is unknown, and its stream stays where it landed`(): Unit = runBlocking {
         val context = MongoLogFixture.newContext()
         var lose = true
-        val client = faulty { document, insert ->
+        val client = faulty { document: Document, insert: () -> Unit ->
             insert()
             if (lose && !document.containsKey(MongoEventLog.GAP)) {
                 lose = false
@@ -502,7 +516,7 @@ class MongoEventLogTest : EventLogSpec() {
     fun `an insert that never left is unknown, and a placeholder takes its sequence`(): Unit = runBlocking {
         val context = MongoLogFixture.newContext()
         var drop = true
-        val client = faulty { document, insert ->
+        val client = faulty { document: Document, insert: () -> Unit ->
             if (drop && !document.containsKey(MongoEventLog.GAP)) {
                 drop = false
             } else {
@@ -521,7 +535,7 @@ class MongoEventLogTest : EventLogSpec() {
     fun `a placeholder that cannot be written is filled by the tail`(): Unit = runBlocking {
         val context = MongoLogFixture.newContext()
         var failures = 2
-        val client = faulty { _, insert ->
+        val client = faulty { _: Document, insert: () -> Unit ->
             // The stream's insert and then its placeholder's are lost; the tail's fill goes through.
             if (failures > 0) failures-- else insert()
         }
@@ -532,7 +546,60 @@ class MongoEventLogTest : EventLogSpec() {
         tailed(log, 1).single().stream.ref.id.assert().isEqualTo("b")
     }
 
+    private fun group(context: String, vararg ids: String): List<Pair<EventStreamRecord, Nothing?>> =
+        ids.map { stream(it, 1, aggregate = AggregateType(context, "order")) to null }
+
+    @Test
+    fun `a group whose reply is lost is unknown for each stream, and the streams stay where they landed`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            var lose = true
+            val client = faulty(many = { _, insert ->
+                insert()
+                if (lose) {
+                    lose = false
+                    throw MongoSocketReadTimeoutException("reply lost", ServerAddress(), IOException("timed out"))
+                }
+            })
+            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+            log.appendAll(group(context, "a", "b")).forEach { it.assert().isInstanceOf(AppendOutcome.Unknown::class.java) }
+            log.append(group(context, "c").single().first).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            tailed(log, 3).map { it.stream.ref.id }.assert().containsExactly("a", "b", "c")
+        }
+
+    @Test
+    fun `a group the server refuses is thrown, and placeholders take its sequences`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        var refuse = true
+        val client = faulty(many = { _, insert ->
+            if (refuse) {
+                refuse = false
+                throw MongoException(QUOTA_EXCEEDED, "refused")
+            }
+            insert()
+        })
+        val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+        assertThrownBy<MongoException> { runBlocking { log.appendAll(group(context, "a", "b")) } }
+        log.append(group(context, "c").single().first).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        tailed(log, 1).single().stream.ref.id.assert().isEqualTo("c")
+    }
+
+    @Test
+    fun `a group whose block another node sealed is appended again, each stream alone`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val stopped = MongoLogFixture.log(1, context)
+        val owner = MongoLogFixture.log(1, context)
+        stopped.append(group(context, "a").single().first)
+        owner.append(group(context, "b").single().first)
+        tailed(owner, 2).map { it.stream.ref.id }.assert().containsExactly("a", "b")
+        stopped.appendAll(group(context, "c", "d")).forEach { outcome ->
+            (outcome as AppendOutcome.Committed).position.sequence.assert().isGreaterThan(MongoEventLog.BLOCK * 2)
+        }
+        tailed(owner, 4).map { it.stream.ref.id }.assert().containsExactly("a", "b", "c", "d")
+    }
+
     private companion object {
+        const val QUOTA_EXCEEDED = 12_501
         const val TAIL_STALL_MS = 500L
         const val RACES = 5
         const val IDLE_POLLS = 13

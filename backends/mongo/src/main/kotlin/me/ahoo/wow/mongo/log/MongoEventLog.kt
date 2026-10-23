@@ -1195,11 +1195,8 @@ class MongoEventLog(
         const val REQUEST_KEY = "request_key"
         const val POSITION_KEY = "position_key"
 
-        /**
-         * The version of this layout (decision D59): 2 since appends allocate sequences from blocks and the tail steps
-         * over placeholders (decision D271), which a reader of 1 would read as streams.
-         */
-        const val FORMAT = 2
+        /** The version of this layout (decision D59). */
+        const val FORMAT = 1
 
         /** A stream's facts: every field but the transport. */
         val FACTS: Bson = Projections.exclude(TRANSPORT)
