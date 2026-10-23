@@ -66,7 +66,9 @@ export const DATASETS = {
 // Priming (D224 note ⑤): from PRIME_FROM accounts up, every run touches each seeded account once before its warm-up
 // (bench.sh --prime), untimed, so the measured window is not still filling the caches; at uniform keys and a few
 // hundred operations a second, a warm-up alone touches only a small share of 100k aggregates. A suite marked `cold`
-// is never primed. The node keeps STATE_CACHE aggregates per context (V10's default `wow.state-cache.capacity`):
+// is never primed. After the prime, bench.sh waits until the nodes are quiet again (`settle`): the closed-loop prime
+// leaves them a backlog that a 10 s warm-up does not absorb on a 4-core runner (roadmap §6, performance item 2).
+// The node keeps STATE_CACHE aggregates per context (V10's default `wow.state-cache.capacity`):
 // above that, the steady state a run reaches, primed or not, is a full cache with evictions, which the report says.
 export const PRIME_FROM = 100000;
 export const STATE_CACHE = 4096;
@@ -1084,6 +1086,7 @@ export function metrics(result) {
     p999: (results.ok ?? 0) * 0.001 >= P999_TAIL ? latency.p999 : undefined,
     primed: result?.meta?.primed === 'true',
     primeSeconds: Number(result?.meta?.primeSeconds) || undefined,
+    settleSeconds: Number(result?.meta?.settleSeconds) || undefined,
     worstSecondP99: results.worstSecondP99Ms,
     serverCores,
     containers,
@@ -1516,14 +1519,12 @@ function pairTable(suite, mode) {
 /** What a suite's runs started from: primed or not, and whether its accounts fit the node's state cache. */
 function primingLines(suite) {
   if (!suite.accounts || suite.kind === 'component') return [];
-  const seconds = range(
-    [...(suite.runs ?? []), ...(suite.probes ?? [])].map(
-      run => run.metrics?.primeSeconds,
-    ),
-  );
+  const runs = [...(suite.runs ?? []), ...(suite.probes ?? [])];
+  const seconds = range(runs.map(run => run.metrics?.primeSeconds));
+  const settled = range(runs.map(run => run.metrics?.settleSeconds));
   const lines = [
     suite.primed
-      ? `Primed: every run touched each of the ${suite.accounts} accounts once before its warm-up, untimed${seconds ? ` (${num(seconds.min, 0)}–${num(seconds.max, 0)} s)` : ''}.`
+      ? `Primed: every run touched each of the ${suite.accounts} accounts once before its warm-up, untimed${seconds ? ` (${num(seconds.min, 0)}–${num(seconds.max, 0)} s)` : ''}, then waited until the nodes were quiet again${settled ? ` (${num(settled.min, 0)}–${num(settled.max, 0)} s)` : ''}.`
       : suite.cold
         ? `Cold: not primed on purpose; the caches start empty and the keys are uniform over ${suite.accounts} accounts.`
         : `Not primed: ${suite.accounts} accounts, below ${PRIME_FROM}.`,

@@ -126,7 +126,7 @@ class Resources(
         allocatedBefore = allocations.mapValues { (_, reader) -> reader?.read() }
         startedAt = System.currentTimeMillis()
         loadCpuBefore = ownCpuSeconds()
-        cpuBefore = cpu().mapValues { (it.value["cpuSeconds"] as Number).toDouble() }
+        cpuBefore = cpuSeconds()
         sampling = true
         psThread = thread(name = "cpu-sampler", isDaemon = true) {
             while (sampling) {
@@ -265,6 +265,9 @@ class Resources(
     private val procAvailable = File("/proc/self/stat").exists()
     private val clockTicks by lazy { execute("getconf", "CLK_TCK")?.trim()?.toDoubleOrNull() ?: DEFAULT_CLOCK_TICKS }
     private val pageKb by lazy { (execute("getconf", "PAGESIZE")?.trim()?.toDoubleOrNull() ?: DEFAULT_PAGE_BYTES) / KB }
+
+    /** Every process's cumulative CPU seconds, read as [cpu] reads them. */
+    fun cpuSeconds(): Map<String, Double> = cpu().mapValues { (it.value["cpuSeconds"] as Number).toDouble() }
 
     /** Every process's cumulative CPU time and resident memory: `/proc` on Linux (no process started), else `ps`. */
     private fun cpu(): Map<String, Map<String, Any>> {
