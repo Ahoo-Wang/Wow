@@ -1056,6 +1056,10 @@ fs.writeFileSync(opt('out') + '/component.json', JSON.stringify({ scenario: opt(
   const report = renderReport([suite]);
   assert.match(report, /## L1 component counts/);
   assert.match(report, /\| component-pg@1k \| E1 \| head \| 4\.50 \|/);
+  // Its runs have no rounds: no pairs table, which printed a NaN row (roadmap §6 performance item 6).
+  assert.deepEqual(pairs(suite), []);
+  assert.doesNotMatch(report, /Pairs at the calibrated rates/);
+  assert.doesNotMatch(report, /NaN/);
 });
 
 test('a cold suite runs at a million accounts whatever the job says', () => {

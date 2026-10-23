@@ -1190,7 +1190,8 @@ export function roundOrder(arms, round) {
 
 /** The pairs of a paired suite: per round, the two arms' runs and their ratios. */
 export function pairs(suite, mode = CALIBRATED) {
-  if (suite.arms.length < 2) return [];
+  // A component suite has a head and a baseline too, but no rounds: its comparison is its own table.
+  if (suite.kind === 'component' || suite.arms.length < 2) return [];
   const [a, b] = suite.arms.map(arm => arm.id);
   const runs = suite.runs.filter(run => modeOf(run) === mode);
   const rounds = [...new Set(runs.map(run => run.round))].sort((x, y) => x - y);
