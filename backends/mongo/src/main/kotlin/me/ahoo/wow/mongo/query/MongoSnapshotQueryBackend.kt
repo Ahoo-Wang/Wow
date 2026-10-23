@@ -29,6 +29,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICountQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.QueryField
@@ -77,7 +78,7 @@ class MongoSnapshotQueryBackend internal constructor(
     override val cursorPositions: CursorPositionCodec = MongoCursorCodec
 
     override fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> = flow {
-        val find = collection.find(MongoMatchCompiler.compile(query.query.filter, query))
+        val find = collection.find(match(query.query.filter, query))
             .projection(MongoProjections.native(query))
             .sort(totalSort(query))
             .batchSize(options.fetchSize)
@@ -101,7 +102,7 @@ class MongoSnapshotQueryBackend internal constructor(
         }
 
     private fun offset(query: AdmittedQuery<Queryable<*>>, window: PageWindow.Offset): BackendPage {
-        val filter = MongoMatchCompiler.compile(query.query.filter, query)
+        val filter = match(query.query.filter, query)
         val rows = if (window.limit == 0) {
             emptyList()
         } else {
@@ -126,7 +127,7 @@ class MongoSnapshotQueryBackend internal constructor(
     private fun keyset(query: AdmittedQuery<Queryable<*>>, window: PageWindow.Keyset): BackendPage {
         val sort = physicalSort(query, query.query.sort)
         val paths = sort.map { it.field.path }
-        val match = MongoMatchCompiler.compile(query.query.filter, query)
+        val match = match(query.query.filter, query)
         val filter = window.after?.let { Filters.and(match, MongoKeyset.after(sort, it.values)) } ?: match
         val positions = ArrayList<CursorPosition>()
         val rows = collection.find(filter)
@@ -146,12 +147,16 @@ class MongoSnapshotQueryBackend internal constructor(
     override suspend fun count(query: AdmittedQuery<ICountQuery>): Long = withContext(dispatcher) {
         timed(query.timeout) {
             count(
-                MongoMatchCompiler.compile(query.query.filter, query),
+                match(query.query.filter, query),
                 query.query.limit?.let { it + 1L },
                 query.timeout,
             )
         }
     }
+
+    /** [filter], of [query], within the documents' [MongoQueryDocuments.scope]. */
+    private fun match(filter: FilterExpression, query: AdmittedQuery<*>): Bson =
+        scoped(MongoMatchCompiler.compile(filter, query), documents.scope)
 
     /** The documents matching [filter]; with a [limit], at most `limit` of them (decision D150). */
     private fun count(filter: Bson, limit: Long?, timeout: Duration?): Long {
@@ -164,7 +169,9 @@ class MongoSnapshotQueryBackend internal constructor(
     override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flow<ObjectNode> = flow {
         val limit = (window as? GroupWindow.First)?.limit
         // Without groups, `$group` with a null id emits nothing over no documents: the core emits the empty summary.
-        val pipeline = collection.aggregate(MongoAggregationCompiler.compile(query, limit, documents.edgeTieBreakers))
+        val pipeline = collection.aggregate(
+            MongoAggregationCompiler.compile(query, limit, documents.edgeTieBreakers, documents.scope),
+        )
             .allowDiskUse(true)
             .maxTime(query.timeout)
         timed(query.timeout) {

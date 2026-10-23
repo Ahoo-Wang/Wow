@@ -63,10 +63,11 @@ public abstract class me/ahoo/wow/tck/log/EventLogSpec {
 	public final fun appendAll gives each stream the outcome append would ()V
 	public final fun appendAll keeps each stream's transport ()V
 	public final fun appendAll reports a retry of a request at the version it committed as a duplicate ()V
-	public final fun appendAll sequences a group of two aggregate types without gaps ()V
+	public final fun appendAll sequences a group of two aggregate types in order ()V
 	public final fun appendAll sequences a group without gaps ()V
-	public final fun appendAll sequences the streams around a conflict without a gap ()V
+	public final fun appendAll sequences the streams around a conflict in order ()V
 	public final fun appends of two aggregate types interleaved in one partition tail back in sequence order ()V
+	protected final fun assertIncreasingAfter (Ljava/util/List;J)V
 	public final fun concurrent appends of one request at one version commit once, the others are duplicates ()V
 	public final fun concurrent appends to one version let exactly one win ()V
 	protected abstract fun createLog (Ljava/lang/String;I)Lme/ahoo/wow/spi/log/EventLog;

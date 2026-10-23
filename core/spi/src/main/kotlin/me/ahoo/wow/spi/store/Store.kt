@@ -65,8 +65,8 @@ abstract class Store(val config: StoreConfig) {
 
     /**
      * The store's preset of the partition append queue (`wow.log.append-queue.enabled` when not set; decision D52): true
-     * when its log should take appends through the queue (MongoDB, whose transactions abort each other on one
-     * partition's counter), false when it should not (PostgreSQL), null when it has no preference.
+     * when its log should take appends through the queue (MongoDB, whose group commit carries more under load,
+     * decision D271), false when it should not (PostgreSQL), null when it has no preference.
      */
     open val queuesAppends: Boolean? get() = null
 

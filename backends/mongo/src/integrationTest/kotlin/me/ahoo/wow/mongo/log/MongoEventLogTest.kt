@@ -14,20 +14,27 @@
 package me.ahoo.wow.mongo.log
 
 import com.mongodb.ConnectionString
+import com.mongodb.MongoBulkWriteException
 import com.mongodb.MongoClientSettings
 import com.mongodb.MongoException
-import com.mongodb.ServerAddress
 import com.mongodb.MongoSocketReadTimeoutException
-import com.mongodb.client.ClientSession
+import com.mongodb.ReadConcern
+import com.mongodb.ServerAddress
+import com.mongodb.WriteConcern
+import com.mongodb.bulk.BulkWriteError
+import com.mongodb.bulk.BulkWriteResult
+import com.mongodb.bulk.WriteConcernError
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
-import com.mongodb.client.TransactionBody
+import com.mongodb.client.MongoCollection
+import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
+import com.mongodb.client.model.InsertManyOptions
 import com.mongodb.client.model.Updates
+import com.mongodb.client.result.InsertManyResult
+import com.mongodb.client.result.InsertOneResult
 import com.mongodb.event.CommandListener
 import com.mongodb.event.CommandStartedEvent
-import io.mockk.every
-import io.mockk.spyk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -58,12 +65,13 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.containers.WowContainers
 import me.ahoo.wow.tck.log.EventLogSpec
 import org.bson.BsonDocument
+import org.bson.Document
 import org.junit.jupiter.api.Test
 import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 class MongoEventLogTest : EventLogSpec() {
     override fun createLog(context: String, partitions: Int): EventLog = MongoLogFixture.log(partitions, context)
@@ -100,33 +108,6 @@ class MongoEventLogTest : EventLogSpec() {
             MongoLogFixture.log(2, context).lineage(1).assert().isEqualTo(PartitionLineage.ROOT)
             counters.deleteOne(Filters.eq("_id", 1))
             runCatching { log.lineage(1) }.exceptionOrNull().assert().isInstanceOf(IllegalStateException::class.java)
-        }
-
-    @Test
-    fun `contended appends keep retrying write conflicts past the transaction timeout, which bounds each attempt`(): Unit =
-        runBlocking {
-            // Regression (B.G-4): the timeout bounded the driver's whole retry loop, so an append that kept losing write
-            // conflicts on the partition's counter ended unknown once the timeout passed. Here a transaction of the
-            // test holds the counter for three timeouts: each attempt of the append loses at once (a write conflict
-            // is not waited for), so no attempt comes near the timeout however slow the machine, and the append must
-            // still be retrying when the counter is let go, then commit.
-            val context = MongoLogFixture.newContext("contended")
-            val client = MongoLogFixture.client
-            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1, transactionTimeout = CONTENDED_TIMEOUT)
-            log.createSchema()
-            val type = AggregateType(context, "account")
-            log.append(stream("a", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
-            val counters = client.getDatabase(MongoLogFixture.DATABASE)
-                .getCollection(MongoNames.of("wow_log", context, "partition"))
-            client.startSession().use { holder ->
-                holder.startTransaction()
-                counters.updateOne(holder, Filters.eq("_id", 0), Updates.set("heldBy", "test"))
-                val append = async(Dispatchers.Default) { log.append(stream("a", 2, aggregate = type)) }
-                delay(CONTENDED_TIMEOUT * 3)
-                append.isCompleted.assert().describedAs("still retrying past the transaction timeout").isFalse()
-                holder.abortTransaction()
-                append.await().assert().isInstanceOf(AppendOutcome.Committed::class.java)
-            }
         }
 
     @Test
@@ -237,131 +218,6 @@ class MongoEventLogTest : EventLogSpec() {
         log.append(valid).assert().isInstanceOf(AppendOutcome.Committed::class.java)
     }
 
-    /** A client whose transactions run [transaction], given the commit they would make. */
-    /** The fixture's client, each transaction's commit run through [commit], which calls the real one or throws. */
-    private fun clientWith(commit: (() -> Unit) -> Unit): MongoClient {
-        val real = MongoLogFixture.client
-        return object : MongoClient by real {
-            override fun startSession(): ClientSession = spyk(real.startSession()).also { session ->
-                every { session.commitTransaction() } answers { commit { callOriginal() } }
-            }
-        }
-    }
-
-    private fun twoInPartitionZero(context: String): List<EventStreamRecord> {
-        val type = AggregateType(context, "order")
-        return generateSequence(1) { it + 1 }.map { "g-$it" }
-            .filter { Partitioner.partitionOf(type.ref("tenant", it), 4) == 0 }
-            .take(2)
-            .map { stream(it, 1, aggregate = type) }
-            .toList()
-    }
-
-    @Test
-    fun `a group whose commit is unknown is unknown for each stream, never appended again`(): Unit = runBlocking {
-        // Finding A2-6: the group committed, its result unknown; appended again one by one, each met a conflict.
-        val context = MongoLogFixture.newContext()
-        val committing = clientWith { commit ->
-            commit()
-            // The commit's reply lost: the driver gives up on an unknown commit result.
-            throw MongoSocketReadTimeoutException("commit result unknown", ServerAddress(), IOException("timed out"))
-                .apply { addLabel(MongoException.UNKNOWN_TRANSACTION_COMMIT_RESULT_LABEL) }
-        }
-        val log = MongoEventLog(committing, MongoLogFixture.DATABASE, context, 4).also { it.createSchema() }
-        val streams = twoInPartitionZero(context)
-        log.appendAll(streams.map { it to null }).forEach { it.assert().isInstanceOf(AppendOutcome.Unknown::class.java) }
-        val committed = MongoLogFixture.log(4, context)
-        committed.head(0).assert().isEqualTo(2L)
-        streams.forEach { committed.read(it.ref).toList().single().version.assert().isEqualTo(1) }
-    }
-
-    @Test
-    fun `an unknown commit result from a server that answered is retried, and the append committed once`(): Unit =
-        runBlocking {
-            val context = MongoLogFixture.newContext()
-            var unknown = true
-            val committing = clientWith { commit ->
-                commit()
-                if (unknown) {
-                    unknown = false
-                    throw MongoException("commit result unknown").apply {
-                        addLabel(MongoException.UNKNOWN_TRANSACTION_COMMIT_RESULT_LABEL)
-                    }
-                }
-            }
-            val log = MongoEventLog(committing, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
-            val appended = stream("a", 1, aggregate = AggregateType(context, "order"))
-            log.append(appended).assert().isInstanceOf(AppendOutcome.Committed::class.java)
-            MongoLogFixture.log(1, context).read(appended.ref).toList().size.assert().isEqualTo(1)
-        }
-
-    @Test
-    fun `a commit aborted after it applied is tried again, and its retry finds the request committed`(): Unit =
-        runBlocking {
-            // A transient error after the commit applied: the transaction is no longer open, nothing to abort.
-            val context = MongoLogFixture.newContext()
-            var transient = true
-            val committing = clientWith { commit ->
-                commit()
-                if (transient) {
-                    transient = false
-                    throw MongoException("aborted").apply { addLabel(MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL) }
-                }
-            }
-            val log = MongoEventLog(committing, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
-            val appended = stream("a", 1, aggregate = AggregateType(context, "order"))
-            log.append(appended).assert().isInstanceOf(AppendOutcome.AlreadyCommitted::class.java)
-            MongoLogFixture.log(1, context).read(appended.ref).toList().size.assert().isEqualTo(1)
-        }
-
-    @Test
-    fun `an abort that fails joins the failure that caused it, and the transaction is tried again`(): Unit =
-        runBlocking {
-            val context = MongoLogFixture.newContext()
-            val real = MongoLogFixture.client
-            var aborted = false
-            val client = object : MongoClient by real {
-                override fun startSession(): ClientSession = spyk(real.startSession()).also { session ->
-                    every { session.commitTransaction() } answers {
-                        if (aborted) {
-                            callOriginal()
-                        } else {
-                            throw MongoException("aborted").apply {
-                                addLabel(MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL)
-                            }
-                        }
-                    }
-                    every { session.abortTransaction() } answers {
-                        aborted = true
-                        callOriginal()
-                        throw MongoException("abort failed")
-                    }
-                }
-            }
-            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
-            log.append(stream("a", 1, aggregate = AggregateType(context, "order")))
-                .assert().isInstanceOf(AppendOutcome.Committed::class.java)
-            aborted.assert().isTrue()
-        }
-
-    @Test
-    fun `a group aborted for sure falls back to one append per stream`(): Unit = runBlocking {
-        val context = MongoLogFixture.newContext()
-        var aborted = false
-        val aborting = clientWith { commit ->
-            if (aborted) {
-                commit()
-            } else {
-                aborted = true
-                throw MongoException("aborted").apply { addLabel(MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL) }
-            }
-        }
-        val log = MongoEventLog(aborting, MongoLogFixture.DATABASE, context, 4).also { it.createSchema() }
-        log.appendAll(twoInPartitionZero(context).map { it to null })
-            .forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
-        log.head(0).assert().isEqualTo(2L)
-    }
-
     @Test
     fun `reads outside an append read what a majority committed`(): Unit = runBlocking {
         // Finding A2-2: a tail reading `local` could deliver an entry a failover then rolls back.
@@ -424,8 +280,8 @@ class MongoEventLogTest : EventLogSpec() {
     }
 
     @Test
-    fun `an append to a warm aggregate is one transaction of three statements`(): Unit = runBlocking {
-        // B.D diagnostics, decision D11: read the version, bump the partition counter, insert; then the commit.
+    fun `an append to a warm aggregate is one insert`(): Unit = runBlocking {
+        // Decision D271: the sequence comes from the node's block, the previous one from the log's memory.
         val context = MongoLogFixture.newContext()
         val log = MongoEventLog(CountedMongo.client, MongoLogFixture.DATABASE, context, 1)
             .also { it.createSchema() }
@@ -433,12 +289,7 @@ class MongoEventLogTest : EventLogSpec() {
         log.append(stream("a", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
         val (outcome, sent) = CountedMongo.commandsOf { runBlocking { log.append(stream("a", 2, aggregate = type)) } }
         outcome.assert().isInstanceOf(AppendOutcome.Committed::class.java)
-        sent.assert().containsExactly(
-            CountedMongo.Sent("find", collection(context, "order")),
-            CountedMongo.Sent("findAndModify", collection(context, "partition")),
-            CountedMongo.Sent("insert", collection(context, "order")),
-            CountedMongo.Sent("commitTransaction", null),
-        )
+        sent.assert().containsExactly(CountedMongo.Sent("insert", collection(context, "order")))
     }
 
     @Test
@@ -491,7 +342,8 @@ class MongoEventLogTest : EventLogSpec() {
         val log = MongoLogFixture.log(1, context)
         val type = AggregateType(context, "order")
         val big = oversized(stream("big", 1, aggregate = type))
-        // Finding R2.2-2: the driver's size check escaped as an exception rather than a refusal.
+        // Finding R2.2-2: the driver's size check escaped as an exception rather than a refusal. Its sequence holds a
+        // placeholder, which is no stream (decision D271).
         log.append(big).assert().isInstanceOf(AppendOutcome.Rejected::class.java)
         log.head(0).assert().isNull()
         val outcomes = log.appendAll(
@@ -505,8 +357,331 @@ class MongoEventLogTest : EventLogSpec() {
             .assert().containsExactlyInAnyOrder("before", "after")
     }
 
+    /** The streams [log] tails from the start of partition 0 within the stall grace and a margin, by sequence. */
+    private suspend fun tailed(log: EventLog, count: Int): List<LogEntry> =
+        withTimeout(TAIL_TIMEOUT_MS + MongoEventLog.STALL_GRACE.inWholeMilliseconds * 2) {
+            log.tail(0).take(count).toList()
+        }
+
+    private fun counter(context: String) =
+        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection(context, "partition"))
+            .find(Filters.eq("_id", 0)).first()!!
+
+    @Test
+    fun `a conflicting append leaves a placeholder the tail steps over and no read by aggregate sees`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            val log = MongoLogFixture.log(1, context)
+            val type = AggregateType(context, "order")
+            log.append(stream("a", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            log.append(stream("a", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Conflict::class.java)
+            val b = log.append(stream("b", 1, aggregate = type)) as AppendOutcome.Committed
+            b.position.sequence.assert().isEqualTo(3L)
+            tailed(log, 2).map { it.position.sequence }.assert().containsExactly(1L, 3L)
+            log.head(0).assert().isEqualTo(3L)
+            log.read(type.ref("tenant", "a")).toList().size.assert().isEqualTo(1)
+            log.untagged(type, null, 10).assert().containsExactly(type.ref("tenant", "a"), type.ref("tenant", "b"))
+        }
+
+    @Test
+    fun `a node's unused remainder is closed when another node's block lies past it`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val first = MongoLogFixture.log(1, context)
+        val second = MongoLogFixture.log(1, context)
+        val type = AggregateType(context, "order")
+        first.append(stream("a", 1, aggregate = type))
+        (second.append(stream("b", 1, aggregate = type)) as AppendOutcome.Committed).position.sequence
+            .assert().isEqualTo(MongoEventLog.BLOCK + 1)
+        // The first node's tail waits at 2, its own sequence not allocated, then closes its block there.
+        tailed(first, 2).map { it.stream.ref.id }.assert().containsExactly("a", "b")
+        (first.append(stream("c", 1, aggregate = type)) as AppendOutcome.Committed).position.sequence
+            .assert().isGreaterThan(MongoEventLog.BLOCK * 2)
+        counter(context).getList("blocks", org.bson.Document::class.java).map { it.getLong("from") }
+            .assert().doesNotContain(1L)
+    }
+
+    @Test
+    fun `a stopped node's block is sealed, and its late write takes a new block`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val stopped = MongoLogFixture.log(1, context)
+        val owner = MongoLogFixture.log(1, context)
+        val type = AggregateType(context, "order")
+        stopped.append(stream("a", 1, aggregate = type))
+        owner.append(stream("b", 1, aggregate = type))
+        // The owner's tail waits at 2, in the stopped node's block, then seals the rest of it with placeholders.
+        tailed(owner, 2).map { it.stream.ref.id }.assert().containsExactly("a", "b")
+        // The node was not stopped after all: its next sequence is taken, so it appends from a new block.
+        val late = stopped.append(stream("c", 1, aggregate = type)) as AppendOutcome.Committed
+        late.position.sequence.assert().isGreaterThan(MongoEventLog.BLOCK * 2)
+        tailed(owner, 3).map { it.stream.ref.id }.assert().containsExactly("a", "b", "c")
+    }
+
+    @Test
+    fun `an aggregate's next stream lands after its previous one, whichever node wrote that`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val first = MongoLogFixture.log(1, context)
+        val second = MongoLogFixture.log(1, context)
+        val type = AggregateType(context, "order")
+        first.append(stream("x", 1, aggregate = type))
+        val v2 = second.append(stream("a", 1, aggregate = type)).let { second.append(stream("a", 2, aggregate = type)) }
+        val v3 = first.append(stream("a", 3, aggregate = type))
+        ((v3 as AppendOutcome.Committed).position.sequence > (v2 as AppendOutcome.Committed).position.sequence)
+            .assert().isTrue()
+        val versions = withTimeout(TAIL_TIMEOUT_MS + MongoEventLog.STALL_GRACE.inWholeMilliseconds * 4) {
+            first.tail(0).take(4).toList()
+        }.filter { it.stream.ref.id == "a" }.map { it.stream.version }
+        versions.assert().containsExactly(1, 2, 3)
+    }
+
+    @Test
+    fun `an append to a collection its block does not list takes a new block`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val log = MongoLogFixture.log(1, context)
+        val order = AggregateType(context, "order")
+        val cart = AggregateType(context, "cart")
+        log.append(stream("a", 1, aggregate = order))
+        (log.append(stream("b", 1, aggregate = cart)) as AppendOutcome.Committed).position.sequence
+            .assert().isEqualTo(MongoEventLog.BLOCK + 1)
+        tailed(log, 2).map { it.stream.ref.type }.assert().containsExactly(order, cart)
+    }
+
+    /**
+     * The fixture's client whose log collections run each insert through [insert], given the document and the real
+     * insert to call or not: a fault injected where a stream or a placeholder is written.
+     */
+    private fun faulty(
+        many: (List<Document>, () -> Unit) -> Unit = { _, insert -> insert() },
+        insert: (Document, () -> Unit) -> Unit = { _, write -> write() },
+    ): MongoClient {
+        val real = MongoLogFixture.client
+        return object : MongoClient by real {
+            override fun getDatabase(databaseName: String): MongoDatabase =
+                object : MongoDatabase by real.getDatabase(databaseName) {
+                    override fun getCollection(collectionName: String): MongoCollection<Document> {
+                        val collection = real.getDatabase(databaseName).getCollection(collectionName)
+                        val aggregate =
+                            collectionName.startsWith("wow_log__") && !collectionName.endsWith("__partition")
+                        return if (aggregate) Faulty(collection, insert, many) else collection
+                    }
+                }
+        }
+    }
+
+    private class Faulty(
+        private val real: MongoCollection<Document>,
+        private val insert: (Document, () -> Unit) -> Unit,
+        private val many: (List<Document>, () -> Unit) -> Unit,
+    ) : MongoCollection<Document> by real {
+        override fun withWriteConcern(writeConcern: WriteConcern) =
+            Faulty(real.withWriteConcern(writeConcern), insert, many)
+
+        override fun withReadConcern(readConcern: ReadConcern) = Faulty(real.withReadConcern(readConcern), insert, many)
+
+        override fun withTimeout(timeout: Long, timeUnit: TimeUnit) =
+            Faulty(real.withTimeout(timeout, timeUnit), insert, many)
+
+        override fun insertMany(documents: List<Document>, options: InsertManyOptions): InsertManyResult {
+            var result: InsertManyResult? = null
+            many(documents) { result = real.insertMany(documents, options) }
+            return result ?: throw MongoSocketReadTimeoutException("no reply", ServerAddress(), IOException("timed out"))
+        }
+
+        override fun insertOne(document: Document): InsertOneResult {
+            var result: InsertOneResult? = null
+            insert(document) { result = real.insertOne(document) }
+            return result ?: throw MongoSocketReadTimeoutException("no reply", ServerAddress(), IOException("timed out"))
+        }
+    }
+
+    @Test
+    fun `an insert whose reply is lost is unknown, and its stream stays where it landed`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        var lose = true
+        val client = faulty { document: Document, insert: () -> Unit ->
+            insert()
+            if (lose && !document.containsKey(MongoEventLog.GAP)) {
+                lose = false
+                throw MongoSocketReadTimeoutException("reply lost", ServerAddress(), IOException("timed out"))
+            }
+        }
+        val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+        val type = AggregateType(context, "order")
+        log.append(stream("a", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Unknown::class.java)
+        log.append(stream("b", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        tailed(log, 2).map { it.stream.ref.id }.assert().containsExactly("a", "b")
+    }
+
+    @Test
+    fun `an insert that never left is unknown, and a placeholder takes its sequence`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        var drop = true
+        val client = faulty { document: Document, insert: () -> Unit ->
+            if (drop && !document.containsKey(MongoEventLog.GAP)) {
+                drop = false
+            } else {
+                insert()
+            }
+        }
+        val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+        val type = AggregateType(context, "order")
+        log.append(stream("a", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Unknown::class.java)
+        log.append(stream("b", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        tailed(log, 1).single().stream.ref.id.assert().isEqualTo("b")
+        log.read(type.ref("tenant", "a")).toList().assert().isEmpty()
+    }
+
+    @Test
+    fun `a placeholder that cannot be written is filled by the tail`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        var failures = 2
+        val client = faulty { _: Document, insert: () -> Unit ->
+            // The stream's insert and then its placeholder's are lost; the tail's fill goes through.
+            if (failures > 0) failures-- else insert()
+        }
+        val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+        val type = AggregateType(context, "order")
+        log.append(stream("a", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Unknown::class.java)
+        log.append(stream("b", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        tailed(log, 1).single().stream.ref.id.assert().isEqualTo("b")
+    }
+
+    private fun group(context: String, vararg ids: String): List<Pair<EventStreamRecord, Nothing?>> =
+        ids.map { stream(it, 1, aggregate = AggregateType(context, "order")) to null }
+
+    @Test
+    fun `a group whose reply is lost is unknown for each stream, and the streams stay where they landed`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            var lose = true
+            val client = faulty(many = { _, insert ->
+                insert()
+                if (lose) {
+                    lose = false
+                    throw MongoSocketReadTimeoutException("reply lost", ServerAddress(), IOException("timed out"))
+                }
+            })
+            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+            log.appendAll(group(context, "a", "b")).forEach { it.assert().isInstanceOf(AppendOutcome.Unknown::class.java) }
+            log.append(group(context, "c").single().first).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            tailed(log, 3).map { it.stream.ref.id }.assert().containsExactly("a", "b", "c")
+        }
+
+    @Test
+    fun `a group the server refuses is thrown, and placeholders take its sequences`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        var refuse = true
+        val client = faulty(many = { _, insert ->
+            if (refuse) {
+                refuse = false
+                throw MongoException(QUOTA_EXCEEDED, "refused")
+            }
+            insert()
+        })
+        val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+        assertThrownBy<MongoException> { runBlocking { log.appendAll(group(context, "a", "b")) } }
+        log.append(group(context, "c").single().first).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        tailed(log, 1).single().stream.ref.id.assert().isEqualTo("c")
+    }
+
+    @Test
+    fun `a group whose block another node sealed is appended again, each stream alone`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val stopped = MongoLogFixture.log(1, context)
+        val owner = MongoLogFixture.log(1, context)
+        stopped.append(group(context, "a").single().first)
+        owner.append(group(context, "b").single().first)
+        tailed(owner, 2).map { it.stream.ref.id }.assert().containsExactly("a", "b")
+        stopped.appendAll(group(context, "c", "d")).forEach { outcome ->
+            (outcome as AppendOutcome.Committed).position.sequence.assert().isGreaterThan(MongoEventLog.BLOCK * 2)
+        }
+        tailed(owner, 4).map { it.stream.ref.id }.assert().containsExactly("a", "b", "c", "d")
+    }
+
+    @Test
+    fun `an insert the server refuses, or any failure, is thrown with its sequence filled`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val failures = ArrayDeque<RuntimeException>(
+            listOf(MongoException(QUOTA_EXCEEDED, "refused"), IllegalStateException("broken")),
+        )
+        val client = faulty { document: Document, insert: () -> Unit ->
+            if (!document.containsKey(MongoEventLog.GAP)) failures.removeFirstOrNull()?.let { throw it }
+            insert()
+        }
+        val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+        assertThrownBy<MongoException> { runBlocking { log.append(group(context, "a").single().first) } }
+        assertThrownBy<IllegalStateException> { runBlocking { log.append(group(context, "b").single().first) } }
+        log.append(group(context, "c").single().first).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        tailed(log, 1).single().stream.ref.id.assert().isEqualTo("c")
+    }
+
+    private fun bulk(documents: List<Document>, error: BulkWriteError?, concern: WriteConcernError?) =
+        MongoBulkWriteException(
+            BulkWriteResult.acknowledged(documents.size - listOfNotNull(error).size, 0, 0, 0, emptyList(), emptyList()),
+            listOfNotNull(error),
+            concern,
+            ServerAddress(),
+            emptySet(),
+        )
+
+    @Test
+    fun `a group member the server refuses alone is unknown or rejected, the others commit`(): Unit = runBlocking {
+        listOf(QUOTA_EXCEEDED to AppendOutcome.Unknown::class.java, TOO_LARGE to AppendOutcome.Rejected::class.java)
+            .forEach { (code, expected) ->
+                val context = MongoLogFixture.newContext()
+                var faulted = false
+                lateinit var real: MongoCollection<Document>
+                val client = faulty(many = { documents, insert ->
+                    if (faulted) {
+                        insert()
+                    } else {
+                        faulted = true
+                        real = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
+                            .getCollection(collection(context, "order"))
+                        real.insertMany(documents.drop(1))
+                        throw bulk(documents, BulkWriteError(code, "failed", BsonDocument(), 0), null)
+                    }
+                })
+                val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+                val outcomes = log.appendAll(group(context, "a", "b"))
+                outcomes[0].assert().isInstanceOf(expected)
+                outcomes[1].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+                tailed(log, 1).single().stream.ref.id.assert().isEqualTo("b")
+            }
+    }
+
+    @Test
+    fun `a group whose write concern failed is unknown for each stream`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        var faulted = false
+        val client = faulty(many = { documents, insert ->
+            insert()
+            if (!faulted) {
+                faulted = true
+                throw bulk(documents, null, WriteConcernError(WRITE_CONCERN_FAILED, "", "no majority", BsonDocument()))
+            }
+        })
+        val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+        log.appendAll(group(context, "a", "b")).forEach { it.assert().isInstanceOf(AppendOutcome.Unknown::class.java) }
+        tailed(log, 2).map { it.stream.ref.id }.assert().containsExactly("a", "b")
+    }
+
+    @Test
+    fun `a group holds streams of one partition and distinct aggregates`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val log = MongoLogFixture.log(4, context)
+        val type = AggregateType(context, "order")
+        val ids = generateSequence(1) { it + 1 }.map { "p-$it" }
+        val (zero, one) = Partitioner.partitionOf(type.ref("tenant", "p-1"), 4).let { first ->
+            "p-1" to ids.first { Partitioner.partitionOf(type.ref("tenant", it), 4) != first }
+        }
+        assertThrownBy<IllegalArgumentException> { runBlocking { log.appendAll(group(context, zero, one)) } }
+        assertThrownBy<IllegalArgumentException> { runBlocking { log.appendAll(group(context, zero, zero)) } }
+    }
+
     private companion object {
-        val CONTENDED_TIMEOUT = 1.seconds
+        const val QUOTA_EXCEEDED = 12_501
+        const val TOO_LARGE = 10_334
+        const val WRITE_CONCERN_FAILED = 64
         const val TAIL_STALL_MS = 500L
         const val RACES = 5
         const val IDLE_POLLS = 13

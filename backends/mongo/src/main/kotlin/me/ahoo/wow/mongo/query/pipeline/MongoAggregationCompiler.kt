@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.mongo.query.MongoMatchCompiler
 import me.ahoo.wow.mongo.query.MongoSnapshotDocuments
+import me.ahoo.wow.mongo.query.scoped
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.aggregation.DenseDateGrid
 import me.ahoo.wow.query.aggregation.denseGroup
@@ -50,9 +51,11 @@ internal object MongoAggregationCompiler {
         admitted: AdmittedQuery<AggregationQuery>,
         limit: Int? = admitted.query.limit,
         tieBreakers: List<String> = MongoSnapshotDocuments.edgeTieBreakers,
+        /** The documents' scope ([me.ahoo.wow.mongo.query.MongoQueryDocuments.scope]). */
+        scope: Bson? = null,
     ): List<Bson> = buildList {
         val query = admitted.query
-        add(Aggregates.match(MongoMatchCompiler.compile(query.filter, admitted)))
+        add(Aggregates.match(scoped(MongoMatchCompiler.compile(query.filter, admitted), scope)))
 
         query.elements.forEach { element ->
             add(Aggregates.unwind("\$${admitted.path(element.path)}"))

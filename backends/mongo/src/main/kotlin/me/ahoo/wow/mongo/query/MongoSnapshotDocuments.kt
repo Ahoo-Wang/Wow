@@ -13,12 +13,14 @@
 
 package me.ahoo.wow.mongo.query
 
+import com.mongodb.client.model.Filters
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.SnapshotFields
 import org.bson.Document
+import org.bson.conversions.Bson
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 
@@ -127,6 +129,12 @@ internal interface MongoQueryDocuments {
     /** The stored fields, ascending, that order the documents tied on a `FIRST` / `LAST` metric's ordering field. */
     val edgeTieBreakers: List<String>
 
+    /**
+     * The condition the collection's documents of this kind meet, which every query adds to its filter: null when
+     * every document of the collection is one (a log collection also holds placeholders, decision D271).
+     */
+    val scope: Bson? get() = null
+
     /** [path], a logical path of the model, where the document stores it. */
     fun physical(path: QueryPathTemplate): QueryPathTemplate
 
@@ -136,6 +144,9 @@ internal interface MongoQueryDocuments {
     /** The record of [document]; a field a native projection left out is absent. */
     fun record(document: Document): ObjectNode
 }
+
+/** [filter] within [scope], when there is one. */
+internal fun scoped(filter: Bson, scope: Bson?): Bson = scope?.let { Filters.and(it, filter) } ?: filter
 
 /** [path] with its first segment renamed as [names] says, when it names one. */
 internal fun renameRoot(path: QueryPathTemplate, names: Map<String, String>): QueryPathTemplate {

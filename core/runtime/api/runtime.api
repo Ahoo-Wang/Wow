@@ -498,8 +498,7 @@ public final class me/ahoo/wow/runtime/log/AppendQueueOptions {
 }
 
 public final class me/ahoo/wow/runtime/log/AppendQueueOptions$Companion {
-	public final fun getMONGO ()Lme/ahoo/wow/runtime/log/AppendQueueOptions;
-	public final fun getPOSTGRES ()Lme/ahoo/wow/runtime/log/AppendQueueOptions;
+	public final fun getOFF ()Lme/ahoo/wow/runtime/log/AppendQueueOptions;
 }
 
 public final class me/ahoo/wow/runtime/log/HandoffLog$Companion {

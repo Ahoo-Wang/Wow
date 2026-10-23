@@ -39,7 +39,8 @@ import kotlin.coroutines.CoroutineContext
 
 /**
  * Whether a [PartitionAppendQueue] queues appends ([enabled]), and the most appends one [EventLog.appendAll] takes
- * ([maxBatch]). A node's log backend picks its default: [MONGO] or [POSTGRES].
+ * ([maxBatch]). A node's log store may pick its default ([me.ahoo.wow.spi.store.Store.queuesAppends]): MongoDB's is on,
+ * PostgreSQL's [OFF].
  *
  * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -65,17 +66,12 @@ class AppendQueueOptions @InternalWowApi constructor(
         private const val DEFAULT_MAX_BATCH = 64
 
         /**
-         * MongoDB: on. Its transactions abort each other when two writers bump one partition's counter, so the
-         * partition owner serializes the appends and commits them in groups (decisions D11, D52; spike H1).
+         * Off, appends go straight to the log: PostgreSQL's. One autocommit statement allocates the sequence (D10) and
+         * contending writers queue on the counter row; its log commits a group in one statement too (D248), but
+         * batching is not measured to be faster yet; turn it on where it is. MongoDB's queue is on: a group is one
+         * `insertMany` per collection (D271), which carries more under load than single inserts.
          */
-        val MONGO = AppendQueueOptions(enabled = true)
-
-        /**
-         * PostgreSQL: off, appends go straight to the log. One autocommit statement allocates the sequence (D10);
-         * contending writers queue on the counter row instead of aborting. The log commits a group in one statement
-         * too (D248), but batching is not measured to be faster yet; turn it on where it is.
-         */
-        val POSTGRES = AppendQueueOptions(enabled = false)
+        val OFF = AppendQueueOptions(enabled = false)
     }
 }
 

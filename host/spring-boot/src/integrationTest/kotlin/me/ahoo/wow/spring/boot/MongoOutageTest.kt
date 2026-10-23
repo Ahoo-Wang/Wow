@@ -53,9 +53,9 @@ class OutageMongoClient {
 }
 
 /**
- * A command appending while MongoDB does not answer (C.1 finding F2): the append's transaction is bounded by
- * `wow.mongo.transaction-timeout` (decision D261), so the command is answered before its wait ends, with a retryable
- * 503 problem: `wow.storage.unavailable` when no commit was sent, else `wow.command.unknown`. Once the database is
+ * A command appending while MongoDB does not answer (C.1 finding F2): the append's insert is bounded by
+ * `wow.mongo.append-timeout` (decision D261), so the command is answered before its wait ends, with a retryable 503
+ * problem: `wow.command.unknown` when the insert went unanswered, `wow.storage.unavailable` when it failed for sure. Once the database is
  * back, the same request id commits once.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -87,8 +87,8 @@ class MongoOutageTest {
             mongo.dockerClient.unpauseContainerCmd(mongo.containerId).exec()
         }
 
-        // The append's transaction failed, or its commit went unanswered, while the database stopped answering: whether it
-        // committed is unknown (finding A2-6, decision D261). Both answers are 503 and retryable with the request id.
+        // The append's insert failed, or went unanswered, while the database stopped answering: whether it landed is
+        // unknown (finding A2-6, decision D261). Both answers are 503 and retryable with the request id.
         failed.status.assert().isEqualTo(UNAVAILABLE)
         failed.contentType.assert().isEqualTo("application/problem+json")
         val problem = failed.body!!

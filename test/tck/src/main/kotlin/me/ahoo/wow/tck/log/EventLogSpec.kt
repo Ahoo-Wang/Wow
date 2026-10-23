@@ -93,6 +93,15 @@ abstract class EventLogSpec {
         schedules = mapOf("remind" to ScheduleRule.After(60_000)),
     )
 
+    /**
+     * These sequences increase from after [floor]: a partition's sequences only increase, and a backend may leave some
+     * unused (decision D271).
+     */
+    protected fun List<Long>.assertIncreasingAfter(floor: Long) {
+        zipWithNext().all { (earlier, later) -> later > earlier }.assert().describedAs("$this increase").isTrue()
+        (first() > floor).assert().describedAs("$this start after $floor").isTrue()
+    }
+
     protected fun stream(
         id: String,
         version: Int,
@@ -697,7 +706,7 @@ abstract class EventLogSpec {
 
     @Suppress("DestructuringDeclarationWithTooManyEntries")
     @Test
-    fun `appendAll sequences the streams around a conflict without a gap`(): Unit = runBlocking {
+    fun `appendAll sequences the streams around a conflict in order`(): Unit = runBlocking {
         val log = createLog(partitions = 4)
         val (first, gap, taken, last) = idsInPartitionZero(4, 4)
         log.append(stream(taken, 1))
@@ -706,9 +715,10 @@ abstract class EventLogSpec {
         )
         outcomes[1].assert().isEqualTo(AppendOutcome.Conflict(0))
         outcomes[2].assert().isEqualTo(AppendOutcome.Conflict(1))
-        listOf(outcomes[0], outcomes[3]).map { (it as AppendOutcome.Committed).position.sequence }
-            .assert().isEqualTo(listOf(2L, 3L))
-        log.head(0).assert().isEqualTo(3L)
+        // A backend may leave the conflicting streams' sequences unused (decision D271): they only increase.
+        val committed = listOf(outcomes[0], outcomes[3]).map { (it as AppendOutcome.Committed).position.sequence }
+        committed.assertIncreasingAfter(1L)
+        log.head(0).assert().isEqualTo(committed.last())
         withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(3).toList() }.map { it.stream.ref.id }
             .assert().isEqualTo(listOf(taken, first, last))
     }
@@ -728,8 +738,9 @@ abstract class EventLogSpec {
         (outcomes[1] as AppendOutcome.AlreadyCommitted).existing.ref.id.assert().isEqualTo(first)
         outcomes[2].assert().isInstanceOf(AppendOutcome.Committed::class.java)
         log.read(type.ref("tenant", repeat)).toList().assert().isEmpty()
-        withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }.map { it.position.sequence }
-            .assert().isEqualTo(listOf(1L, 2L))
+        val tailed = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }
+        tailed.map { it.stream.ref.id }.assert().isEqualTo(listOf(first, other))
+        tailed.map { it.position.sequence }.assertIncreasingAfter(0L)
     }
 
     @Test
@@ -760,13 +771,14 @@ abstract class EventLogSpec {
                 }
             }
             val entries = tailed.await()
-            entries.map { it.position.sequence }.assert().isEqualTo((1L..total).toList())
+            entries.map { it.position.sequence }.assertIncreasingAfter(0L)
             writers.forEach { (aggregate, id) ->
                 entries.filter { it.stream.ref == aggregate.ref("tenant", id) }.map { it.stream.version }
                     .assert().isEqualTo((1..perWriter).toList())
             }
-            log.head(0).assert().isEqualTo(total.toLong())
-            val resumed = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0, after = 7).take(total - 7).toList() }
+            log.head(0).assert().isEqualTo(entries.last().position.sequence)
+            val after = entries[6].position.sequence
+            val resumed = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0, after = after).take(total - 7).toList() }
             resumed.assert().isEqualTo(entries.drop(7))
             log.read(other.ref("tenant", "w1")).toList().map { it.ref.type }.distinct().assert().containsExactly(other)
             log.readEntries(type.ref("tenant", "w1")).toList().map { it.position }
@@ -774,14 +786,13 @@ abstract class EventLogSpec {
         }
 
     @Test
-    fun `appendAll sequences a group of two aggregate types without gaps`(): Unit = runBlocking {
+    fun `appendAll sequences a group of two aggregate types in order`(): Unit = runBlocking {
         val log = createLog(partitions = 4)
         val ids = idsInPartitionZero(3, 4).zip(idsInPartitionZero(3, 4, other))
         val group = ids.flatMap { (first, second) ->
             listOf(stream(first, 1) to null, stream(second, 1, aggregate = other) to null)
         }
-        log.appendAll(group).map { (it as AppendOutcome.Committed).position.sequence }
-            .assert().isEqualTo((1L..6L).toList())
+        log.appendAll(group).map { (it as AppendOutcome.Committed).position.sequence }.assertIncreasingAfter(0L)
         val entries = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(6).toList() }
         entries.map { it.stream.ref }.assert().isEqualTo(group.map { it.first.ref })
     }

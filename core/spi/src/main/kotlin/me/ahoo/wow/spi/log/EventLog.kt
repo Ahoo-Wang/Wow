@@ -28,9 +28,11 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  *   tenant. Each aggregate type is stored apart (decision D162), so a request id reused by two aggregate types of
  *   the context commits twice (decision D55 makes the reuse the caller's error);
  * - an aggregate's first stream is version 1 and each next stream is exactly one more;
- * - a stream lands in the partition [Partitioner] assigns its ref, and the sequence within a partition is the order
- *   in which commits became visible: [tail] never skips a committed entry and reads the same entries again from the
- *   same position;
+ * - a stream lands in the partition [Partitioner] assigns its ref, at a sequence that orders it within the partition:
+ *   an aggregate's streams are in version order. [tail] delivers in sequence order, never skips a committed entry,
+ *   never delivers one before a lower sequence that may still commit, and reads the same entries again from the same
+ *   position. A backend may leave sequences unused (MongoDB's blocks, decision D271): a partition's sequences
+ *   increase, without the promise that each follows the last by one;
  * - [partitions] is a power of two that divides [Partitioner.SLOTS] (decision D240): a log of another count fails
  *   when it is created;
  * - each partition stores its [PartitionLineage] beside its counter, [PartitionLineage.ROOT] for every partition the

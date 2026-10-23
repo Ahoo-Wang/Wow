@@ -127,7 +127,7 @@ internal object StoreInstances {
             name = name,
             type = type,
             ddl = store?.ddl ?: properties.ddl,
-            options = mapOf(TRANSACTION_TIMEOUT to properties.mongo.transactionTimeout.toKotlinDuration().toString()) +
+            options = mapOf(APPEND_TIMEOUT to properties.mongo.appendTimeout.toKotlinDuration().toString()) +
                 store?.options().orEmpty() + mapOf(DATABASE to properties.mongo.database).filterKeys {
                     store?.database.isNullOrBlank()
                 },
@@ -159,7 +159,7 @@ internal object StoreInstances {
     private const val DATABASE = "database"
 
     /** The option bounding a MongoDB append's transaction, which `wow.mongo.transaction-timeout` gives by default. */
-    private const val TRANSACTION_TIMEOUT = "transaction-timeout"
+    private const val APPEND_TIMEOUT = "append-timeout"
 }
 
 /** The application's beans as the resources its stores are opened over (a `DataSource`, a `MongoClient`). */

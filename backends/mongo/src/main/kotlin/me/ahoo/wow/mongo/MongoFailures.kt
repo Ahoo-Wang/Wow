@@ -36,7 +36,7 @@ import me.ahoo.wow.spi.StorageUnavailableException
  */
 internal object MongoFailures {
     /** The server's error code of a document beyond the BSON size limit. */
-    private const val BSON_OBJECT_TOO_LARGE = 10334
+    const val BSON_OBJECT_TOO_LARGE = 10334
 
     private val TRANSIENT_LABELS = listOf(
         MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL,
@@ -53,25 +53,11 @@ internal object MongoFailures {
             TRANSIENT_LABELS.any(failure::hasErrorLabel)
 
     /**
-     * Whether [failure] says the server could not be reached or did not answer: a socket that failed or timed out, a
-     * timeout (server selection, or an operation past its time limit), a pool cleared after a failure, or a node that
-     * is no longer primary. Retrying it within a transaction only holds the command past its wait.
+     * Whether a write that failed with [failure] may have been applied all the same: a timeout (server selection, the
+     * operation's time limit) or a failed socket left its result unknown. Any other failure the server answered.
      */
-    fun isUnreachable(failure: MongoException): Boolean =
-        failure is MongoSocketException ||
-            failure is MongoTimeoutException ||
-            failure is MongoConnectionPoolClearedException ||
-            failure is MongoNotPrimaryException ||
-            failure is MongoNodeIsRecoveringException
-
-    /**
-     * Whether a transaction that failed with [failure] may have committed all the same: the driver gave up on a commit
-     * whose result is unknown (`UnknownTransactionCommitResult`), or a timeout or a failed socket left it open. Any
-     * other failure aborted it for sure.
-     */
-    fun isCommitUnknown(failure: MongoException): Boolean =
-        failure.hasErrorLabel(MongoException.UNKNOWN_TRANSACTION_COMMIT_RESULT_LABEL) ||
-            failure is MongoTimeoutException ||
+    fun isWriteUnknown(failure: MongoException): Boolean =
+        failure is MongoTimeoutException ||
             failure is MongoSocketException ||
             failure is MongoExecutionTimeoutException
 
