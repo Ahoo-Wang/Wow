@@ -16,18 +16,24 @@ package me.ahoo.wow.mongo.log
 import com.mongodb.ConnectionString
 import com.mongodb.MongoClientSettings
 import com.mongodb.MongoException
+import com.mongodb.ReadConcern
 import com.mongodb.ServerAddress
 import com.mongodb.MongoSocketReadTimeoutException
+import com.mongodb.WriteConcern
 import com.mongodb.client.ClientSession
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
+import com.mongodb.client.MongoCollection
+import com.mongodb.client.MongoDatabase
 import com.mongodb.client.TransactionBody
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Updates
+import com.mongodb.client.result.InsertOneResult
 import com.mongodb.event.CommandListener
 import com.mongodb.event.CommandStartedEvent
 import io.mockk.every
 import io.mockk.spyk
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -58,6 +64,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.containers.WowContainers
 import me.ahoo.wow.tck.log.EventLogSpec
 import org.bson.BsonDocument
+import org.bson.Document
 import org.junit.jupiter.api.Test
 import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
@@ -435,6 +442,94 @@ class MongoEventLogTest : EventLogSpec() {
         (log.append(stream("b", 1, aggregate = cart)) as AppendOutcome.Committed).position.sequence
             .assert().isEqualTo(MongoEventLog.BLOCK + 1)
         tailed(log, 2).map { it.stream.ref.type }.assert().containsExactly(order, cart)
+    }
+
+    /**
+     * The fixture's client whose log collections run each insert through [insert], given the document and the real
+     * insert to call or not: a fault injected where a stream or a placeholder is written.
+     */
+    private fun faulty(insert: (Document, () -> Unit) -> Unit): MongoClient {
+        val real = MongoLogFixture.client
+        return object : MongoClient by real {
+            override fun getDatabase(databaseName: String): MongoDatabase =
+                object : MongoDatabase by real.getDatabase(databaseName) {
+                    override fun getCollection(collectionName: String): MongoCollection<Document> {
+                        val collection = real.getDatabase(databaseName).getCollection(collectionName)
+                        val aggregate =
+                            collectionName.startsWith("wow_log__") && !collectionName.endsWith("__partition")
+                        return if (aggregate) Faulty(collection, insert) else collection
+                    }
+                }
+        }
+    }
+
+    private class Faulty(
+        private val real: MongoCollection<Document>,
+        private val insert: (Document, () -> Unit) -> Unit,
+    ) : MongoCollection<Document> by real {
+        override fun withWriteConcern(writeConcern: WriteConcern) = Faulty(real.withWriteConcern(writeConcern), insert)
+
+        override fun withReadConcern(readConcern: ReadConcern) = Faulty(real.withReadConcern(readConcern), insert)
+
+        override fun withTimeout(timeout: Long, timeUnit: TimeUnit) = Faulty(real.withTimeout(timeout, timeUnit), insert)
+
+        override fun insertOne(document: Document): InsertOneResult {
+            var result: InsertOneResult? = null
+            insert(document) { result = real.insertOne(document) }
+            return result ?: throw MongoSocketReadTimeoutException("no reply", ServerAddress(), IOException("timed out"))
+        }
+    }
+
+    @Test
+    fun `an insert whose reply is lost is unknown, and its stream stays where it landed`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        var lose = true
+        val client = faulty { document, insert ->
+            insert()
+            if (lose && !document.containsKey(MongoEventLog.GAP)) {
+                lose = false
+                throw MongoSocketReadTimeoutException("reply lost", ServerAddress(), IOException("timed out"))
+            }
+        }
+        val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+        val type = AggregateType(context, "order")
+        log.append(stream("a", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Unknown::class.java)
+        log.append(stream("b", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        tailed(log, 2).map { it.stream.ref.id }.assert().containsExactly("a", "b")
+    }
+
+    @Test
+    fun `an insert that never left is unknown, and a placeholder takes its sequence`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        var drop = true
+        val client = faulty { document, insert ->
+            if (drop && !document.containsKey(MongoEventLog.GAP)) {
+                drop = false
+            } else {
+                insert()
+            }
+        }
+        val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+        val type = AggregateType(context, "order")
+        log.append(stream("a", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Unknown::class.java)
+        log.append(stream("b", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        tailed(log, 1).single().stream.ref.id.assert().isEqualTo("b")
+        log.read(type.ref("tenant", "a")).toList().assert().isEmpty()
+    }
+
+    @Test
+    fun `a placeholder that cannot be written is filled by the tail`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        var failures = 2
+        val client = faulty { _, insert ->
+            // The stream's insert and then its placeholder's are lost; the tail's fill goes through.
+            if (failures > 0) failures-- else insert()
+        }
+        val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+        val type = AggregateType(context, "order")
+        log.append(stream("a", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Unknown::class.java)
+        log.append(stream("b", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        tailed(log, 1).single().stream.ref.id.assert().isEqualTo("b")
     }
 
     private companion object {
