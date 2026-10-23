@@ -19,6 +19,7 @@ import java.net.http.HttpClient
 import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicInteger
@@ -70,6 +71,7 @@ private const val CONNECT_TIMEOUT_SECONDS = 5L
 private const val DEFAULT_ACCOUNTS = 1_000
 private const val DEFAULT_BALANCE = 1_000_000_000_000L
 private const val DEFAULT_SEED_CONCURRENCY = 32
+private const val SEED_ROUNDS = 3
 private const val PRIME_CONCURRENCY = 256
 private const val SETTLE_QUIET_CORES = 0.25
 private const val SETTLE_QUIET_SECONDS = 3
@@ -99,15 +101,45 @@ private fun usage(): Nothing {
     exitProcess(2)
 }
 
-/** Opens [Options] `accounts` accounts, at most `concurrency` at a time. */
+/**
+ * Opens [Options] `accounts` accounts, at most `concurrency` at a time. A creation that failed may have committed all
+ * the same (a wait that timed out, decision D261; roadmap §6 performance item 6): up to [SEED_ROUNDS] times, each
+ * failed account is read, and opened again only when it does not exist. The seed fails only for accounts still missing.
+ */
 private fun seed(client: Client, targets: List<URI>, options: Options): Int {
     val accounts = options.int("accounts", DEFAULT_ACCOUNTS)
     val balance = options.long("balance", DEFAULT_BALANCE)
     val permits = Semaphore(options.int("concurrency", DEFAULT_SEED_CONCURRENCY))
-    val failures = AtomicInteger()
     val firstFailure = AtomicReference<String>()
     val started = System.nanoTime()
-    val futures = (0 until accounts).map { index ->
+    var missing = openAll(client, targets, (0 until accounts).toList(), balance, permits, firstFailure)
+    var retried = 0
+    repeat(SEED_ROUNDS) {
+        if (missing.isEmpty()) return@repeat
+        retried += missing.size
+        val absent = missing.filterNot { index -> exists(client, targets[index % targets.size], index) }
+        missing = openAll(client, targets, absent, balance, permits, firstFailure)
+    }
+    val seconds = (System.nanoTime() - started) / OpenLoop.NANOS_PER_SECOND.toDouble()
+    println(
+        "[seed] ${client.adapter.name}: $accounts accounts in ${"%.1f".format(seconds)}s, " +
+            "$retried retried, ${missing.size} failed",
+    )
+    firstFailure.get()?.let { println("[seed] first failure: $it") }
+    return if (missing.isEmpty()) 0 else 1
+}
+
+/** Opens the accounts [indices]; the ones whose creation failed. */
+private fun openAll(
+    client: Client,
+    targets: List<URI>,
+    indices: List<Int>,
+    balance: Long,
+    permits: Semaphore,
+    firstFailure: AtomicReference<String>,
+): List<Int> {
+    val failed = ConcurrentLinkedQueue<Int>()
+    val futures = indices.map { index ->
         permits.acquire()
         val request = client.adapter.openAccount(
             targets[index % targets.size],
@@ -118,18 +150,19 @@ private fun seed(client: Client, targets: List<URI>, options: Options): Int {
         client.command(request).handle { error, failure ->
             val reason = error ?: failure?.let { OpenLoop.rootCause(it).toString() }
             if (reason != null) {
-                failures.incrementAndGet()
+                failed += index
                 firstFailure.compareAndSet(null, "${accountId(index)}: $reason")
             }
             permits.release()
         }
     }
     CompletableFuture.allOf(*futures.toTypedArray()).join()
-    val seconds = (System.nanoTime() - started) / OpenLoop.NANOS_PER_SECOND.toDouble()
-    println("[seed] ${client.adapter.name}: $accounts accounts in ${"%.1f".format(seconds)}s, ${failures.get()} failed")
-    firstFailure.get()?.let { println("[seed] first failure: $it") }
-    return if (failures.get() == 0) 0 else 1
+    return failed.sorted()
 }
+
+/** Whether the account [index] exists: its state reads back. */
+private fun exists(client: Client, base: URI, index: Int): Boolean =
+    runCatching { client.read(client.adapter.state(base, accountId(index))).join() == null }.getOrDefault(false)
 
 /**
  * The priming pass (D224 note ⑤): every seeded account once, `concurrency` at a time, closed loop and untimed. Each
