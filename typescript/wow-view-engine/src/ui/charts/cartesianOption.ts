@@ -437,7 +437,9 @@ function markOf(
   return {
     ...common,
     type: 'line',
-    smooth: entry.configured?.smooth === true,
+    smooth:
+      entry.configured?.step !== true && entry.configured?.smooth === true,
+    step: entry.configured?.step === true,
     symbol: 'circle',
     symbolSize: 6,
     showSymbol: data.points.length <= DOTS_UP_TO,

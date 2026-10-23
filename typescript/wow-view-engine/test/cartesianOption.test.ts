@@ -529,7 +529,10 @@ describe('cartesianOption: lines, areas and a combo', () => {
   it('draws a line with a dot on each point, a gap where one is missing', () => {
     const option = as('line', {
       ...bar({
-        series: [{ metric: 'orders', smooth: true }, { metric: 'total' }],
+        series: [
+          { metric: 'orders', smooth: true },
+          { metric: 'total', step: true },
+        ],
       }),
       type: 'line',
     });
@@ -537,6 +540,14 @@ describe('cartesianOption: lines, areas and a combo', () => {
     expect(orders.type).toBe('line');
     expect(orders.smooth).toBe(true);
     expect(total.smooth).toBe(false);
+    expect(orders.step).toBe(false);
+    expect(total.step).toBe(true);
+    const conflicting = as('line', {
+      ...bar({ series: [{ metric: 'orders', smooth: true, step: true }] }),
+      type: 'line',
+    });
+    expect(conflicting.series[0].step).toBe(true);
+    expect(conflicting.series[0].smooth).toBe(false);
     expect(orders.showSymbol).toBe(true);
     expect(orders.connectNulls).toBe(false);
     expect(orders).not.toHaveProperty('areaStyle');

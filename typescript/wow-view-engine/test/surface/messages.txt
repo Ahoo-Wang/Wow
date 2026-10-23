@@ -1,4 +1,4 @@
-# Message keys — 2196.
+# Message keys — 2197.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -929,6 +929,7 @@ label.chart.stage-name
 label.chart.statistic.average
 label.chart.statistic.caption
 label.chart.statistic.median
+label.chart.step
 label.chart.tab.axes
 label.chart.tab.data
 label.chart.tab.display

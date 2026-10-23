@@ -468,6 +468,7 @@ export const analysisMessages = {
     'Each stack reads as shares of its total; the tooltip keeps the values',
   'label.chart.horizontal': 'Horizontal',
   'label.chart.smooth': 'Smooth lines',
+  'label.chart.step': 'Step lines',
   'label.chart.missing': 'Missing values',
   'label.chart.missing.zero': 'Zero',
   'label.chart.missing.gap': 'Leave a gap',

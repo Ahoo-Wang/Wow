@@ -725,11 +725,20 @@ describe('the chart options’ display page', () => {
       expect(draft().chart.cartesian?.orientation).toBe('horizontal'),
     );
     fireEvent.click(
+      within(panel()!).getByRole('checkbox', { name: 'Step lines' }),
+    );
+    await waitFor(() =>
+      expect(draft().chart.cartesian?.series.every(s => s.step)).toBe(true),
+    );
+    expect(draft().chart.cartesian?.series.every(s => !s.smooth)).toBe(true);
+
+    fireEvent.click(
       within(panel()!).getByRole('checkbox', { name: 'Smooth lines' }),
     );
     await waitFor(() =>
       expect(draft().chart.cartesian?.series.every(s => s.smooth)).toBe(true),
     );
+    expect(draft().chart.cartesian?.series.every(s => !s.step)).toBe(true);
 
     // Unchecked again, smoothing leaves no `false` behind; the orientation
     // says upright, since saying nothing now lets long names lay the bars

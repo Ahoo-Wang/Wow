@@ -846,6 +846,8 @@ interface CartesianSeries {
     // (undocumented)
     smooth?: boolean;
     stack?: string;
+    // (undocumented)
+    step?: boolean;
     type?: 'bar' | 'line' | 'area';
 }
 
