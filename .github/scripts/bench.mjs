@@ -2212,7 +2212,8 @@ export function queueVerdict(suite) {
       verdict =
         'suggests **on**: more throughput at saturation, or a p99 lower by 10% or more at the same load, and neither worse';
     } else {
-      verdict = 'no clear difference within 5% (keep the current default, off)';
+      verdict =
+        'no clear difference within 5% (keep the current default, on since D248 ④)';
     }
   }
   return { saturationRatio, p99, verdict };
