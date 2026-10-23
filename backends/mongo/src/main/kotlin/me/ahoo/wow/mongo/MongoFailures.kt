@@ -36,7 +36,7 @@ import me.ahoo.wow.spi.StorageUnavailableException
  */
 internal object MongoFailures {
     /** The server's error code of a document beyond the BSON size limit. */
-    private const val BSON_OBJECT_TOO_LARGE = 10334
+    const val BSON_OBJECT_TOO_LARGE = 10334
 
     private val TRANSIENT_LABELS = listOf(
         MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL,

@@ -19,6 +19,7 @@ import com.mongodb.MongoException
 import com.mongodb.MongoWriteException
 import com.mongodb.ReadConcern
 import com.mongodb.WriteConcern
+import com.mongodb.WriteError
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.model.Aggregates
@@ -332,6 +333,149 @@ class MongoEventLog(
         }
         error("The blocks of partition $partition of $context were sealed under $MAX_SEALED appends in a row.")
     }
+
+    /**
+     * Appends [streams] of one partition with one unordered `insertMany` per aggregate collection (group commit,
+     * decisions D52, D271): each stream takes its own sequence, and gets the outcome [append] would give it. A stream
+     * the store refuses alone fails alone; a sequence no stream took gets its placeholder; a stream whose position
+     * another node sealed is appended again alone. A group whose write is unknown is unknown for each stream it held
+     * (finding A2-6).
+     */
+    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+        if (streams.size <= 1) {
+            return streams.map { (stream, transport) -> append(stream, transport) }
+        }
+        val partition = Partitioner.partitionOf(streams.first().first.ref, partitions)
+        require(
+            streams.all { (stream) ->
+                stream.ref.type.context == context && Partitioner.partitionOf(stream.ref, partitions) == partition
+            },
+        ) { "A group commit appends streams of one partition of $context." }
+        require(streams.map { it.first.ref }.toSet().size == streams.size) {
+            "A group commit appends distinct aggregates."
+        }
+        return dispatcher.mongo { appendGroup(partition, streams) }.also { outcomes ->
+            if (outcomes.any { it is AppendOutcome.Committed }) pacer.committed(partition)
+        }
+    }
+
+    /** One stream of a group, encoded, at the sequence allocated to it. */
+    private class Member(
+        val index: Int,
+        val stream: EventStreamRecord,
+        val collection: AggregateCollection,
+        val document: Document,
+        val sequence: Long,
+    )
+
+    private fun appendGroup(partition: Int, streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+        val outcomes = arrayOfNulls<AppendOutcome>(streams.size)
+        val members = ArrayList<Member>(streams.size)
+        streams.forEachIndexed { index, (stream, transport) ->
+            val collection = collectionOf(stream.ref.type)
+            val document = encode(partition, stream, transport).getOrElse {
+                outcomes[index] = AppendOutcome.Rejected(it)
+                return@forEachIndexed
+            }
+            val after = previousOf(collection, stream) ?: run {
+                val conflict = AppendOutcome.Conflict(currentVersion(collection, stream.ref))
+                outcomes[index] = duplicateOr(collection, stream, conflict)
+                return@forEachIndexed
+            }
+            val allocation = sequencer.allocate(partition, collection.name, after) { known().map { it.name } }
+            allocation.closing?.let(::close)
+            document[SEQUENCE] = allocation.sequence
+            members += Member(index, stream, collection, document, allocation.sequence)
+        }
+        members.groupBy { it.collection }.forEach { (collection, group) ->
+            insertGroup(collection, group).forEach { (index, outcome) -> outcomes[index] = outcome }
+        }
+        // A member whose position was taken (its block sealed) has no outcome yet: it is appended again, alone.
+        return outcomes.mapIndexed { index, outcome -> outcome ?: appendNow(streams[index].first, streams[index].second) }
+    }
+
+    /**
+     * Inserts [group], members of one collection, with one unordered `insertMany`: each member's outcome by its index,
+     * none for a member whose position was taken.
+     */
+    private fun insertGroup(collection: AggregateCollection, group: List<Member>): Map<Int, AppendOutcome?> {
+        val failures: Map<Int, WriteError> = try {
+            collection.appends.insertMany(group.map { it.document }, InsertManyOptions().ordered(false))
+            emptyMap()
+        } catch (bulk: MongoBulkWriteException) {
+            if (bulk.writeConcernError != null) {
+                return group.associate { it.index to unknown(it, bulk) }
+            }
+            bulk.writeErrors.associate { it.index to it }
+        } catch (tooLarge: BsonMaximumSizeExceededException) {
+            // A document beyond the size limit, which the driver refuses as it reaches it, after the batches before it
+            // went: a member that landed is committed, the others are appended alone, so it fails alone (R2.2-2).
+            return group.associate { member ->
+                if (landed(collection, member)) {
+                    member.index to outcomeOf(collection, member, null)
+                } else {
+                    fill(collection, member.stream.ref.partitionIn(), member.sequence, GAP_FAILED)
+                    member.index to null
+                }
+            }
+        } catch (failure: MongoException) {
+            if (!MongoFailures.isWriteUnknown(failure)) {
+                group.forEach { fill(collection, it.stream.ref.partitionIn(), it.sequence, GAP_FAILED) }
+                throw failure
+            }
+            return group.associate { it.index to unknown(it, failure) }
+        }
+        return group.withIndex().associate { (at, member) ->
+            member.index to outcomeOf(collection, member, failures[at])
+        }
+    }
+
+    /** [member]'s outcome after its insert, which failed with [error] when there is one. */
+    private fun outcomeOf(collection: AggregateCollection, member: Member, error: WriteError?): AppendOutcome? {
+        val partition = member.stream.ref.partitionIn()
+        val stream = member.stream
+        if (error == null) {
+            sequencer.settle(partition, member.sequence)
+            lastSequences[stream.ref] = LastSequence(stream.version, member.sequence)
+            return AppendOutcome.Committed(LogPosition(partition, member.sequence))
+        }
+        if (error.category == ErrorCategory.DUPLICATE_KEY && error.message.contains(POSITION_KEY)) {
+            sequencer.abandon(partition, member.sequence)
+            sequencer.settle(partition, member.sequence)
+            return null
+        }
+        lastSequences.remove(stream.ref)
+        fill(collection, partition, member.sequence, GAP_FAILED)
+        return when {
+            error.code == MongoFailures.BSON_OBJECT_TOO_LARGE -> AppendOutcome.Rejected(
+                MongoException(error.code, error.message)
+            )
+            error.category != ErrorCategory.DUPLICATE_KEY -> AppendOutcome.Unknown(
+                MongoException(error.code, error.message)
+            )
+            error.message.contains(REQUEST_KEY) ->
+                findByRequestIdIn(collection, stream.ref.tenantId, stream.requestId)
+                    ?.let { AppendOutcome.AlreadyCommitted(it) }
+                    ?: AppendOutcome.Unknown(MongoException(error.code, error.message))
+
+            else -> duplicateOr(collection, stream, AppendOutcome.Conflict(currentVersion(collection, stream.ref)))
+        }
+    }
+
+    /** Whether [member]'s stream is at its position: the document there has its request. */
+    private fun landed(collection: AggregateCollection, member: Member): Boolean =
+        collection.committed.find(
+            Filters.and(Filters.eq(PARTITION, member.stream.ref.partitionIn()), Filters.eq(SEQUENCE, member.sequence)),
+        ).projection(Projections.include(REQUEST_ID)).firstOrNull()?.getString(REQUEST_ID) == member.stream.requestId
+
+    /** [member]'s outcome when its group's write is unknown: a placeholder takes its sequence unless it landed. */
+    private fun unknown(member: Member, failure: MongoException): AppendOutcome {
+        lastSequences.remove(member.stream.ref)
+        fill(member.collection, member.stream.ref.partitionIn(), member.sequence, GAP_UNKNOWN)
+        return AppendOutcome.Unknown(failure)
+    }
+
+    private fun AggregateRef.partitionIn(): Int = Partitioner.partitionOf(this, partitions)
 
     /**
      * The sequence [stream] must follow in its partition, its aggregate's previous stream's, or null when that is not
