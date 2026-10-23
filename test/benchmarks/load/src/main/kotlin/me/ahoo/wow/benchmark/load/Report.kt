@@ -87,6 +87,7 @@ object Report {
                 "worstSecondP99Ms" to worstSecond?.get("p99Ms"),
                 "worstSecond" to worstSecond?.get("second"),
                 "maxSendLagMs" to measured.maxSendLagNanos.get() / OpenLoop.NANOS_PER_MICRO / MICROS_PER_MILLI,
+                "rerouted" to measured.rerouted,
                 "failedLatencyMs" to latencies(measured.errorLatency),
                 "byScenario" to byScenario(measured, measure),
                 "perSecond" to seconds,
@@ -145,6 +146,9 @@ object Report {
                     "${ms(latency["max"])} | ${ms(results["worstSecondP99Ms"] as Double?)} |",
             )
             (results["errors"] as Map<String, Long>).takeIf { it.isNotEmpty() }?.let { appendLine("\nErrors: $it") }
+            (results["rerouted"] as Long?)?.takeIf { it > 0 }?.let {
+                appendLine("\nRerouted: $it operations a node refused ran on the next node.")
+            }
             (results["byScenario"] as Map<String, Map<String, Any?>>?)?.let { appendScenarios(it) }
             resources?.let { appendResources(it) }
         }

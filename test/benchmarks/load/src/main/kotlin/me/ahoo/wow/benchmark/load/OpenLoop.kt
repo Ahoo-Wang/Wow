@@ -33,12 +33,14 @@ import java.util.concurrent.locks.LockSupport
  * the phase and the second its scheduled time falls in. At most [maxInFlight] operations are outstanding: one
  * scheduled beyond that is not sent and is counted as `generator-overload`, which marks the run as not keeping up.
  * Operation `i` runs the scenario [mix] picks for it; a mix also records each scenario's latencies and errors apart.
+ * The operations go round robin to the [targets] that are up ([Targets]): a node that refuses a connection, such as one
+ * a hand-over run stopped, is left out for a moment, and an operation it refused runs on the next node.
  */
 class OpenLoop(
     private val client: Client,
     private val mix: Mix,
     private val keys: KeyChooser,
-    private val targets: List<URI>,
+    targets: List<URI>,
     private val rate: Double,
     private val warmUpSeconds: Int,
     private val measureSeconds: Int,
@@ -47,8 +49,9 @@ class OpenLoop(
 ) {
     init {
         require(rate > 0) { "The rate is positive." }
-        require(targets.isNotEmpty()) { "At least one target." }
     }
+
+    private val nodes = Targets(targets)
 
     /** What the measured phase recorded. */
     class Measured(seconds: Int) {
@@ -58,6 +61,9 @@ class OpenLoop(
         val errors = ConcurrentHashMap<String, LongAdder>()
         val scheduled = AtomicLong()
         val maxSendLagNanos = AtomicLong()
+
+        /** The operations of the run a refused connection moved to another node ([Targets.rerouted]). */
+        var rerouted = 0L
 
         /** Each scenario's latencies and failures, apart (a mix's). */
         val byScenario = ConcurrentHashMap<Scenario, Histogram>()
@@ -118,11 +124,7 @@ class OpenLoop(
             }
             val scenario = mix.pick(i)
             val account = keys.next()
-            val target = Target(
-                targets[(i % targets.size).toInt()],
-                account,
-                if (scenario.transfers) keys.nextOtherThan(account) else account,
-            )
+            val other = if (scenario.transfers) keys.nextOtherThan(account) else account
             if (inFlight.incrementAndGet() > maxInFlight) {
                 inFlight.decrementAndGet()
                 if (inMeasure) measured.error(OVERLOAD)
@@ -130,7 +132,7 @@ class OpenLoop(
             }
             outstanding.incrementAndGet()
             val second = ((offset - warmUpEnd) / NANOS_PER_SECOND).toInt()
-            scenario.run(client, target).handle { error, failure ->
+            nodes.run(scenario, client, i, account, other).handle { error, failure ->
                 if (inMeasure) measured.complete(second, scheduled, error, failure, scenario.takeIf { mix.mixed })
                 inFlight.decrementAndGet()
                 if (outstanding.decrementAndGet() == 0L) done.countDown()
@@ -139,6 +141,7 @@ class OpenLoop(
         onPhase("drain")
         if (outstanding.decrementAndGet() == 0L) done.countDown()
         done.await(VersionAdapter.REQUEST_TIMEOUT.toSeconds() + DRAIN_MARGIN_SECONDS, TimeUnit.SECONDS)
+        measured.rerouted = nodes.rerouted.get()
         return measured
     }
 

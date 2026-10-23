@@ -462,8 +462,10 @@ export function jfrViews(dir) {
 
 // kind `capacity`: per scenario, the closed-loop saturation bounds a bisection over the open-loop rate; a probe holds
 // when at most 1% fails, at least 97% of the rate completes and p99 is within `p99_limit_ms`. The bisection stops
-// when the bracket is within 5% of its top or after `probes` probes; the capacity is the highest rate that held.
-export const CAPACITY = { warmUp: 10, measure: 30, probes: 6, tolerance: 0.05 };
+// when the bracket is within 5% of its top or after `probes` probes; the capacity is the highest rate that held. Each
+// probe warms up 30 s, as a timed run does: near the limit a 10 s warm-up left a queue the measured phase began with
+// (roadmap §6 performance items 2 and 6).
+export const CAPACITY = { warmUp: 30, measure: 30, probes: 6, tolerance: 0.05 };
 
 // kind `cluster`: three nodes (bench.sh --nodes=3), requests round-robin, each scenario at a fixed rate a minute and
 // a half, once steady and once with node 2 stopped (SIGTERM, its partitions hand over) `stopAfter` seconds into the
@@ -1190,7 +1192,8 @@ export function roundOrder(arms, round) {
 
 /** The pairs of a paired suite: per round, the two arms' runs and their ratios. */
 export function pairs(suite, mode = CALIBRATED) {
-  if (suite.arms.length < 2) return [];
+  // A component suite has a head and a baseline too, but no rounds: its comparison is its own table.
+  if (suite.kind === 'component' || suite.arms.length < 2) return [];
   const [a, b] = suite.arms.map(arm => arm.id);
   const runs = suite.runs.filter(run => modeOf(run) === mode);
   const rounds = [...new Set(runs.map(run => run.round))].sort((x, y) => x - y);
