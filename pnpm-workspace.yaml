@@ -120,8 +120,8 @@ catalog:
   vitepress-plugin-llms: ^1.14.0
   vitepress-plugin-mermaid: ^2.0.17
   vitest: ^4.1.11
-  '@vitest/browser': ^4.1.11
-  '@vitest/browser-playwright': ^4.1.11
+  '@vitest/browser': ^4.1.12
+  '@vitest/browser-playwright': ^4.1.12
   '@vitest/coverage-v8': 4.1.11
   '@vitest/ui': ^4.1.11
   world-atlas: ^2.0.2
