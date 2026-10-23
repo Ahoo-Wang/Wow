@@ -1,12 +1,12 @@
 ---
 title: MongoDB
-description: Run a service on MongoDB, which needs a replica set; the collections Wow creates, transactions and read concern, read preferences for queries, and schema management.
+description: Run a service on MongoDB, which needs a replica set; the collections Wow creates, appends and read concern, read preferences for queries, and schema management.
 outline: deep
 ---
 
 # MongoDB
 
-On MongoDB, one database holds what a service stores: its log, its snapshots, its timers, and its checkpoints, leases, failure ledger and reservations. An append is one multi-document transaction, so MongoDB must run as a replica set. This page connects a service and describes what it relies on.
+On MongoDB, one database holds what a service stores: its log, its snapshots, its timers, and its checkpoints, leases, failure ledger and reservations. Appends and reads go through a majority, so MongoDB must run as a replica set. This page connects a service and describes what it relies on.
 
 ## Connect a service
 
@@ -45,11 +45,10 @@ The connection string names the replica set, `mongodb://mongo-1,mongo-2,mongo-3/
 
 ## A replica set is required
 
-- **Transactions.** An append reads the aggregate's version, increments its partition's counter and inserts the stream, in one transaction. A standalone server has no transactions; even one development node runs as a single-member replica set.
-- **Majority.** Appends are acknowledged by a majority (`w: majority`), and every read outside an append, the subscriptions' tails among them, reads what a majority has committed (`readConcern: majority`). A subscription therefore never acts on a commit a failover later rolls back. The cost is about one replication round trip before an entry reaches the tails. A replica set whose majority cannot commit, such as one with an arbiter and a member down, stalls the tails until it can.
-- **Contention.** Two transactions on one partition's counter abort each other and retry. The node therefore queues the appends of each partition it owns, and a partition is written by its owner.
+- **Majority.** Appends are acknowledged by a majority (`w: majority`), and every read, the subscriptions' tails among them, reads what a majority has committed (`readConcern: majority`). A subscription therefore never acts on a commit a failover later rolls back. The cost is about one replication round trip before an entry reaches the tails. A replica set whose majority cannot commit, such as one with an arbiter and a member down, stalls the tails until it can. A standalone server has no majority; even one development node runs as a single-member replica set.
+- **Appends.** An append is one insert, without a transaction. A node takes a block of 256 sequences of a partition from its counter and gives them to its appends in turn; the unique keys refuse a version or a request that is already taken. A sequence a node took and did not write gets a placeholder, which the tails step over, so a partition's sequences increase with gaps. Appends to one partition do not contend, and need no queue.
 
-`wow.mongo.transaction-timeout` (5 seconds by default) bounds an append's transaction and its retries, below the default wait timeout, so a command appending during an outage is answered before its wait ends.
+`wow.mongo.append-timeout` (5 seconds by default) bounds an append's insert, below the default wait timeout, so a command appending during an outage is answered before its wait ends.
 
 ## The collections
 
@@ -57,8 +56,8 @@ The stores create their collections and indexes on first use, named as on Postgr
 
 | Collection | Holds |
 | --- | --- |
-| `wow_log__<context>__<aggregate>` | The log of one aggregate type, one document per committed stream |
-| `wow_log__<context>__partition` | One counter document per partition of the context's log |
+| `wow_log__<context>__<aggregate>` | The log of one aggregate type, one document per committed stream, and the placeholders of sequences no stream took |
+| `wow_log__<context>__partition` | One counter document per partition of the context's log: the sequences given out, and the blocks still open |
 | `wow_log_aggregate` | Which aggregate collections each context's log has |
 | `wow_snapshot__<context>__<aggregate>` | One document per aggregate: its latest snapshot |
 | `wow_snapshot_table` | The state revision each snapshot collection holds |

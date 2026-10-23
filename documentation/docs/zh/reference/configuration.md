@@ -325,8 +325,8 @@ The hand-over of the node's own commits to its tails in memory: a tail waits its
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
+| `wow.mongo.append-timeout` | `Duration` | `PT5S` | How long an append's insert may take on a store that sets none in its `options.append-timeout`: below the default wait timeout, so a command appending during an outage is answered before its wait ends. |
 | `wow.mongo.database` | `String` | `wow` | The database of the log and the stores on the MongoDB backend. |
-| `wow.mongo.transaction-timeout` | `Duration` | `PT5S` | How long an append's transaction, its retries included, may take on a store that sets none in its `options.transaction-timeout`: below the default wait timeout, so a command appending during an outage is answered before its wait ends. |
 
 ## `wow.node`
 

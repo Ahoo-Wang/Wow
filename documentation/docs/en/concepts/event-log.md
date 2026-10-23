@@ -49,9 +49,9 @@ Partitions are also the unit of ownership. Each node of a service owns a share o
 
 ## Positions
 
-Within a partition, each entry has a position: a sequence number, assigned as the entry commits. **The order of positions is the order in which commits become visible.**
+Within a partition, each entry has a position: a sequence number, increasing along the partition. **A reader of the log reads positions in order and never steps over one that may still commit.**
 
-That rule is what makes reading safe. A commit time or an auto-increment id does not satisfy it: a transaction that took its id first can commit last, and a reader paging by id would skip it for good. Because positions follow visibility, a reader that reads a partition from a position, and reads on from the last position it saw, misses nothing and sees the same sequence every time.
+That rule is what makes reading safe. A commit time or an auto-increment id read as it comes does not satisfy it: a transaction that took its id first can commit last, and a reader paging by id would skip it for good. The log's reader waits at such a position until the entry lands there, or the position is known to stay empty. So a reader that reads a partition from a position, and reads on from the last position it saw, misses nothing and sees the same sequence every time. Positions may skip numbers: only their order counts.
 
 The only ordering guarantee is per aggregate: one aggregate's events arrive in version order. Entries of different aggregates, even in one partition, even when one caused the other, have no order a reader may rely on.
 
@@ -62,7 +62,7 @@ The log contract has no optional parts: a backend implements all of it, or it is
 | Backend | Use |
 | --- | --- |
 | PostgreSQL | The first choice. One statement checks the version, numbers the entry and inserts it; a conflict rolls it all back and leaves no gap. |
-| MongoDB | A first-class backend. A transaction numbers the entry; the partition's owner commits in batches, so the database sees no contention. It needs a replica set. |
+| MongoDB | A first-class backend. An append is one insert at a position the node took from a block it reserved; a position it took and did not write is marked empty, so positions have gaps. It needs a replica set. |
 | Memory | Tests and examples. |
 
 Each aggregate type has its own log table or collection, so access rights, change data capture and rebuilds work per aggregate. Partitions, positions and leases are still per context. Different aggregates of one context can keep their logs in different stores.
