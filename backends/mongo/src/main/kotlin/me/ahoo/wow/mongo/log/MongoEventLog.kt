@@ -387,6 +387,12 @@ class MongoEventLog(
                 fill(collection, partition, sequence, GAP_FAILED)
                 throw thrown
             }
+        } catch (
+            @Suppress("TooGenericExceptionCaught") // Whatever else failed, the sequence is filled before it is thrown.
+            failure: RuntimeException,
+        ) {
+            fill(collection, partition, sequence, GAP_FAILED)
+            throw failure
         }
         lastSequences.remove(stream.ref)
         fill(collection, partition, sequence, if (outcome is AppendOutcome.Unknown) GAP_UNKNOWN else GAP_FAILED)

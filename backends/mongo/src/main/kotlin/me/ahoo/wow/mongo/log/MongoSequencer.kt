@@ -126,12 +126,14 @@ internal class MongoSequencer(
                 var closing: Closing? = null
                 val usable = current?.takeIf { it.next <= it.to && collection in it.collections && it.next > after }
                 val block = usable ?: run {
+                    // Reserved first: a reservation that fails leaves the current block as it was.
+                    val fresh = reserve(registered() + collection)
                     closing = current?.let(::retire)
                     retired.filter { it.done }.forEach {
                         retired -= it
                         done += it
                     }
-                    reserve(registered() + collection).also { current = it }
+                    fresh.also { current = it }
                 }
                 val sequence = block.next++
                 block.pending += sequence
@@ -148,8 +150,10 @@ internal class MongoSequencer(
             if (block.next > block.to) return null
             block.closed = true
             block.pending += block.next
-            return Closing(partition, block.next, block.to, block.collections.first())
+            return closingOf(block)
         }
+
+        private fun closingOf(block: Block) = Closing(partition, block.next, block.to, block.collections.first())
 
         private fun remove(block: Block) =
             remove(partition, OpenBlock(node, block.from, block.to, block.collections.toList()))
@@ -199,7 +203,10 @@ internal class MongoSequencer(
             val block = block(sequence) ?: return Resolution.Wait
             when {
                 sequence in block.unfilled -> Resolution.Fill(block.unfilled.getValue(sequence))
-                sequence >= block.next && block === current -> Resolution.Close(checkNotNull(retire(block)))
+                sequence < block.next -> Resolution.Wait
+                block === current -> Resolution.Close(checkNotNull(retire(block)))
+                // Closed, its range not written yet (the write failed): write it again.
+                block.closed && block.next in block.pending -> Resolution.Close(closingOf(block))
 
                 else -> Resolution.Wait
             }
