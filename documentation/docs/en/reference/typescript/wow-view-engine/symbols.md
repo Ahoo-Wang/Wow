@@ -9,7 +9,7 @@ description: 'Every name @ahoo-wang/wow-view-engine exports, generated from its 
      built declarations; regenerate with
      `pnpm --filter @ahoo-wang/wow-view-engine test:api -u` after a build. -->
 
-Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
+Every name `@ahoo-wang/wow-view-engine` exports — 886 — with its kind and the first sentence of its TSDoc, generated from the built declarations. 43 of them are described by hand in the curated pages, linked in the last column; the rest are read from their source through the signature in the [API report](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-view-engine/test/api/root.api.md). This index is English only.
 
 ::: v-pre
 
@@ -704,6 +704,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `isSingleStringField` | function | Whether one record holds at most one string in this field. | — |
 | `isSmooth` | function | — | — |
 | `isStacked` | function | Whether every series that can stack is stacked; a lone series is not "stacked", and neither is a chart with nothing that stacks. | — |
+| `isStepped` | function | — | — |
 | `isSystemInstanceId` | function | True for any id in the namespace a `ViewStore` must not issue. | — |
 | `isSystemScope` | function | Whether the view was configured for everyone rather than by a user. | — |
 | `isValidTimeZone` | function | Whether a runtime can resolve this zone; an unknown one makes dayjs throw. | — |
@@ -895,6 +896,7 @@ Every name `@ahoo-wang/wow-view-engine` exports — 884 — with its kind and th
 | `withStacked` | function | Stacking is one choice for the whole chart — series stacked in twos and threes is a spec the panel does not offer — so every series that can stack joins the one stack or leaves it. | — |
 | `withStageOrder` | function | — | — |
 | `withStagesFrom` | function | A funnel whose stages are a group's values needs their order, which is business knowledge the kernel does not have (`fitChartSlots` leaves it empty). | — |
+| `withStep` | function | — | — |
 | `withText` | function | `value` with every key in it said by `resolve`, and the same object where it holds none. | — |
 | `withoutLevelsFrom` | function | The chain cut at `index`: that level and every level inside it leave. | — |
 | `wordReferences` | function | A derived metric's text with every reference `metricReferenceText` wrote in it replaced by what `word` makes of its summary, its name and the condition it counts under, when it has one. | — |

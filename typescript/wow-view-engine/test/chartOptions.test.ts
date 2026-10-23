@@ -14,6 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   isSmooth,
+  isStepped,
   isStacked,
   offersStacking,
   stacks,
@@ -22,6 +23,7 @@ import {
   withSlot,
   stageValues,
   withSmooth,
+  withStep,
   withStacked,
   withStageOrder,
   withStagesFrom,
@@ -118,7 +120,7 @@ describe('chartOptions', () => {
     ).toBe(false);
   });
 
-  it('stacks and smooths every series as one choice, and reads it back', () => {
+  it('stacks, smooths, and steps every series as one choice, and reads it back', () => {
     expect(isStacked(cartesian)).toBe(false);
     const stacked = withStacked(cartesian, true);
     expect(stacked.series.map(series => series.stack)).toEqual(['all', 'all']);
@@ -143,6 +145,18 @@ describe('chartOptions', () => {
     expect(isSmooth(smooth)).toBe(true);
     expect(
       withSmooth(smooth, false).series.every(series => !('smooth' in series)),
+    ).toBe(true);
+
+    expect(isStepped(cartesian)).toBe(false);
+    const stepped = withStep(cartesian, true);
+    expect(stepped.series.every(series => series.step === true)).toBe(true);
+    expect(isStepped(stepped)).toBe(true);
+    expect(stepped.series.every(series => !('smooth' in series))).toBe(true);
+    expect(
+      withStep(stepped, false).series.every(series => !('step' in series)),
+    ).toBe(true);
+    expect(
+      withSmooth(stepped, true).series.every(series => !('step' in series)),
     ).toBe(true);
   });
 

@@ -19,6 +19,7 @@ import {
   chartMarks,
   isPercentStacked,
   isSmooth,
+  isStepped,
   isStacked,
   offersPercentStack,
   offersStacking,
@@ -27,6 +28,7 @@ import {
   valueLabelsOn,
   withPercentStack,
   withSmooth,
+  withStep,
   withStacked,
 } from '../../analysis/index.js';
 import {
@@ -325,12 +327,20 @@ function CartesianDisplay(props: OptionsPageProps) {
         }
       />
       {curved && (
-        <CheckField
-          data-slot="chart-smooth"
-          label={messages.label('label.chart.smooth')}
-          checked={isSmooth(spec)}
-          onChange={on => update(withSmooth(spec, on))}
-        />
+        <>
+          <CheckField
+            data-slot="chart-smooth"
+            label={messages.label('label.chart.smooth')}
+            checked={isSmooth(spec)}
+            onChange={on => update(withSmooth(spec, on))}
+          />
+          <CheckField
+            data-slot="chart-step"
+            label={messages.label('label.chart.step')}
+            checked={isStepped(spec)}
+            onChange={on => update(withStep(spec, on))}
+          />
+        </>
       )}
       {/*
         What a point the rows lack draws as. The default is the kernel's

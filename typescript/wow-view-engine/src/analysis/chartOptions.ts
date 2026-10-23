@@ -183,7 +183,7 @@ export function withPercentStack(
 export function isSmooth(spec: CartesianSpec): boolean {
   return (
     spec.series.length > 0 &&
-    spec.series.every(series => series.smooth === true)
+    spec.series.every(series => series.smooth === true && series.step !== true)
   );
 }
 
@@ -191,7 +191,29 @@ export function withSmooth(spec: CartesianSpec, on: boolean): CartesianSpec {
   return {
     ...spec,
     series: spec.series.map(series =>
-      on ? { ...series, smooth: true } : without(series, 'smooth'),
+      on
+        ? { ...without(series, 'step'), smooth: true }
+        : without(series, 'smooth'),
+    ),
+  };
+}
+
+/** Whether every series uses step interpolation. */
+export function isStepped(spec: CartesianSpec): boolean {
+  return (
+    spec.series.length > 0 &&
+    spec.series.every(series => series.step === true && series.smooth !== true)
+  );
+}
+
+/** Step interpolation is a chart-wide choice and replaces smoothing. */
+export function withStep(spec: CartesianSpec, on: boolean): CartesianSpec {
+  return {
+    ...spec,
+    series: spec.series.map(series =>
+      on
+        ? { ...without(series, 'smooth'), step: true }
+        : without(series, 'step'),
     ),
   };
 }

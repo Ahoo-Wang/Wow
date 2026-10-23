@@ -722,6 +722,8 @@ interface CartesianSeries {
     // (undocumented)
     smooth?: boolean;
     stack?: string;
+    // (undocumented)
+    step?: boolean;
     type?: 'bar' | 'line' | 'area';
 }
 
@@ -2928,6 +2930,7 @@ export const en: {
     readonly 'label.chart.percent-stack.hint': "Each stack reads as shares of its total; the tooltip keeps the values";
     readonly 'label.chart.horizontal': "Horizontal";
     readonly 'label.chart.smooth': "Smooth lines";
+    readonly 'label.chart.step': "Step lines";
     readonly 'label.chart.missing': "Missing values";
     readonly 'label.chart.missing.zero': "Zero";
     readonly 'label.chart.missing.gap': "Leave a gap";

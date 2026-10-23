@@ -802,6 +802,8 @@ export interface CartesianSeries {
     // (undocumented)
     smooth?: boolean;
     stack?: string;
+    // (undocumented)
+    step?: boolean;
     type?: 'bar' | 'line' | 'area';
 }
 
@@ -2968,6 +2970,9 @@ export function isSmooth(spec: CartesianSpec): boolean;
 
 // @public
 export function isStacked(spec: CartesianSpec, type?: ChartType): boolean;
+
+// @public (undocumented)
+export function isStepped(spec: CartesianSpec): boolean;
 
 // @public
 export interface Issue {
@@ -5474,6 +5479,9 @@ export function withStageOrder(spec: FunnelSpec, order: string[]): FunnelSpec;
 
 // @public
 export function withStagesFrom(chart: ChartSpec, rows: readonly RecordData[]): ChartSpec;
+
+// @public (undocumented)
+export function withStep(spec: CartesianSpec, on: boolean): CartesianSpec;
 
 // @public
 export function withText<T>(value: T, resolve: TextResolver, missing?: (key: string, path: readonly (string | number)[]) => void): T;

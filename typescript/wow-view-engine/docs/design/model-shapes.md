@@ -44,7 +44,8 @@ export interface CartesianSpec {
     type?: 'bar' | 'line' | 'area'; // combo 时逐系列必填
     axis?: 'left' | 'right'; // 不写为左；组合图刚换进来的系列按量纲补（comboAxis）
     stack?: string; // 同名系列堆叠
-    smooth?: boolean;
+    smooth?: boolean; // 平滑连线
+    step?: boolean; // 阶梯连线；与 smooth 互斥
   }[];
   orientation?: 'vertical' | 'horizontal'; // 不写：柱状图的类目名长时横放（drawsHorizontal），其余竖放；写了照写
   yAxis?: { left?: AxisSpec; right?: AxisSpec };

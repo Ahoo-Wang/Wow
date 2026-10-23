@@ -206,6 +206,7 @@ export interface CartesianSeries {
    */
   stack?: string;
   smooth?: boolean;
+  step?: boolean;
 }
 
 export interface CartesianSpec {
