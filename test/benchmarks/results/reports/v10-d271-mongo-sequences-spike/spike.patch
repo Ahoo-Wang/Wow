@@ -1,0 +1,199 @@
+diff --git a/backends/mongo/src/main/kotlin/me/ahoo/wow/mongo/log/MongoEventLog.kt b/backends/mongo/src/main/kotlin/me/ahoo/wow/mongo/log/MongoEventLog.kt
+index 197aa3dd1..7babc7648 100644
+--- a/backends/mongo/src/main/kotlin/me/ahoo/wow/mongo/log/MongoEventLog.kt
++++ b/backends/mongo/src/main/kotlin/me/ahoo/wow/mongo/log/MongoEventLog.kt
+@@ -36,6 +36,8 @@ import com.mongodb.client.model.UpdateOneModel
+ import com.mongodb.client.model.UpdateOptions
+ import com.mongodb.client.model.Updates
+ import kotlinx.coroutines.CoroutineDispatcher
++import java.util.concurrent.locks.ReentrantLock
++import kotlin.concurrent.withLock
+ import kotlinx.coroutines.flow.Flow
+ import kotlinx.coroutines.flow.flow
+ import me.ahoo.wow.api.aggregate.AggregateRef
+@@ -184,6 +186,9 @@ class MongoEventLog(
+ 
+         /** The entries a majority has committed: every read outside an append's transaction (finding A2-2). */
+         val committed: MongoCollection<Document> = log.withReadConcern(ReadConcern.MAJORITY)
++
++        /** D271 spike: appends outside a transaction, acknowledged by a majority. */
++        val appends: MongoCollection<Document> = log.withWriteConcern(WriteConcern.MAJORITY)
+     }
+ 
+     /**
+@@ -295,39 +300,56 @@ class MongoEventLog(
+         val collection = collectionOf(stream.ref.type)
+         val partition = Partitioner.partitionOf(stream.ref, partitions)
+         val document = encode(partition, stream, transport).getOrElse { return AppendOutcome.Rejected(it) }
+-        // Whether a transaction's commit may have been sent: before it, any failure aborted the transaction for sure.
+-        var committing = false
++        // D271 spike: a sequence of this node's block, one insert; the unique keys refuse a taken version or request.
++        val sequence = blocks[partition].next()
+         val outcome = try {
+-            client.startSession().use { session ->
+-                transact(session, committing = { committing = true }) {
+-                    val current = collection.log.find(session, refFilter(stream.ref))
+-                        .sort(Sorts.descending(VERSION))
+-                        .limit(1)
+-                        .firstOrNull()
+-                        ?.getInteger(VERSION) ?: 0
+-                    if (current != stream.version - 1) {
+-                        AppendOutcome.Conflict(current)
+-                    } else {
+-                        val sequence = counters.findOneAndUpdate(
+-                            session,
+-                            Filters.eq(ID, partition),
+-                            Updates.inc(SEQUENCE, 1L),
+-                            FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER),
+-                        )!!.getLong(SEQUENCE)
+-                        collection.log.insertOne(session, document.append(SEQUENCE, sequence))
+-                        AppendOutcome.Committed(LogPosition(partition, sequence))
+-                    }
+-                }
+-            }
++            collection.appends.insertOne(document.append(SEQUENCE, sequence))
++            AppendOutcome.Committed(LogPosition(partition, sequence))
+         } catch (tooLarge: BsonMaximumSizeExceededException) {
+-            // The driver refused the document before sending it, so the transaction wrote nothing (finding R2.2-2).
+             AppendOutcome.Rejected(tooLarge)
+         } catch (failure: MongoException) {
+-            outcomeOf(failure, committing, collection, stream)
++            outcomeOf(failure, true, collection, stream)
++        }
++        if (outcome !is AppendOutcome.Committed && outcome !is AppendOutcome.Unknown) {
++            fillGap(collection, partition, sequence)
+         }
+         return if (outcome is AppendOutcome.Conflict) duplicateOr(collection, stream, outcome) else outcome
+     }
+ 
++    /** D271 spike: a placeholder at a sequence this node allocated and did not write, so the tail steps over it. */
++    private fun fillGap(collection: AggregateCollection, partition: Int, sequence: Long) {
++        val key = "~gap~$partition~$sequence"
++        try {
++            collection.appends.insertOne(
++                Document(PARTITION, partition).append(SEQUENCE, sequence).append(GAP, true)
++                    .append(AGGREGATE_ID, key).append(TENANT_ID, GAP).append(VERSION, 0).append(REQUEST_ID, key),
++            )
++        } catch (failure: MongoException) {
++            if (!failure.isDuplicateKey()) throw failure
++        }
++    }
++
++    /** D271 spike: one partition's block of sequences, reserved from its counter [BLOCK] at a time. */
++    private inner class Block(private val partition: Int) {
++        private val lock = ReentrantLock()
++        private var next = 1L
++        private var end = 0L
++
++        fun next(): Long = lock.withLock {
++            if (next > end) {
++                end = counters.findOneAndUpdate(
++                    Filters.eq(ID, partition),
++                    Updates.inc(SEQUENCE, BLOCK),
++                    FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER),
++                )!!.getLong(SEQUENCE)
++                next = end - BLOCK + 1
++            }
++            next++
++        }
++    }
++
++    private val blocks = List(partitions) { Block(it) }
++
+     /**
+      * Runs [body] in a transaction of [session] and commits it, retrying as the driver's `withTransaction` does: the
+      * whole transaction on a `TransientTransactionError` (a write conflict on the partition's counter, say), the commit
+@@ -456,6 +478,8 @@ class MongoEventLog(
+      * group, since the group may have committed (finding A2-6): the kernel reads each version slot to settle it.
+      */
+     override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
++        // D271 spike: no group transaction, each stream appends alone.
++        if (streams.isNotEmpty()) return streams.map { (stream, transport) -> append(stream, transport) }
+         if (streams.size <= 1) {
+             return streams.map { (stream, transport) -> append(stream, transport) }
+         }
+@@ -776,22 +800,36 @@ class MongoEventLog(
+         }
+         var head = 0L
+         val entries = ArrayList<LogEntry>()
++        val gaps = HashSet<Long>()
+         committedCounters.aggregate(pipeline).forEach { document ->
+             val branch = document.getInteger(BRANCH)
+-            if (branch == null) {
+-                head = document.getLong(HEAD)
+-            } else {
+-                entries += entryOf(known[branch].aggregate, document)
++            when {
++                branch == null -> head = document.getLong(HEAD)
++                document.getBoolean(GAP) == true -> gaps += document.getLong(SEQUENCE)
++                else -> entries += entryOf(known[branch].aggregate, document)
+             }
+         }
+         entries.sortBy { it.position.sequence }
+-        val run = contiguousRun(entries, last).take(tailBatch)
+-        val expected = minOf(head - last, tailBatch.toLong()).coerceAtLeast(0)
++        // D271 spike: the contiguous run from last + 1, stepping over placeholders.
++        val bySequence = entries.associateBy { it.position.sequence }
++        val run = ArrayList<LogEntry>()
++        var next = last + 1
++        while (run.size < tailBatch) {
++            val entry = bySequence[next]
++            when {
++                entry != null -> run += entry
++                next !in gaps -> break
++            }
++            next++
++        }
++        // D271 spike: the counter is the blocks reserved, not the entries committed; behind when entries lie past a gap.
++        check(head >= 0)
++        val behind = entries.any { it.position.sequence >= next }
+         val again = when {
+-            run.size < expected -> register().map { it.name } != known.map { it.name }
++            behind -> register().map { it.name } != known.map { it.name }
+             else -> run.size == tailBatch
+         }
+-        return TailBatch(run, again, behind = run.size < expected)
++        return TailBatch(run, again, behind = behind)
+     }
+ 
+     /** One read of a tail: its [entries], whether to read again at once, whether the counter is ahead of them. */
+@@ -814,8 +852,11 @@ class MongoEventLog(
+     override suspend fun head(partition: Int): Long? {
+         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
+         return dispatcher.mongo {
+-            // The counter is bumped in the transaction that inserts the entry, so it is the last committed sequence.
+-            committedCounters.find(Filters.eq(ID, partition)).firstOrNull()?.getLong(SEQUENCE)?.takeIf { it > 0 }
++            // D271 spike: the highest sequence committed in any aggregate collection.
++            (registered ?: register()).mapNotNull { collection ->
++                collection.committed.find(Filters.eq(PARTITION, partition)).sort(Sorts.descending(SEQUENCE)).limit(1)
++                    .projection(Projections.include(SEQUENCE)).firstOrNull()?.getLong(SEQUENCE)
++            }.maxOrNull()
+         }
+     }
+ 
+@@ -955,6 +996,12 @@ class MongoEventLog(
+         val DEFAULT_MAX_POLL_INTERVAL = 1.seconds
+         const val DEFAULT_TAIL_BATCH = 500
+ 
++        /** D271 spike: the sequences one reservation of a partition's counter gives a node. */
++        const val BLOCK = 256L
++
++        /** D271 spike: the field that marks a placeholder. */
++        const val GAP = "gap"
++
+         /** The registry of aggregate collections, shared by the logs of every context. */
+         const val REGISTRY = "wow_log_aggregate"
+         const val PREFIX = "wow_log"
+diff --git a/core/runtime/src/main/kotlin/me/ahoo/wow/runtime/log/PartitionAppendQueue.kt b/core/runtime/src/main/kotlin/me/ahoo/wow/runtime/log/PartitionAppendQueue.kt
+index 091dfed88..9250edc09 100644
+--- a/core/runtime/src/main/kotlin/me/ahoo/wow/runtime/log/PartitionAppendQueue.kt
++++ b/core/runtime/src/main/kotlin/me/ahoo/wow/runtime/log/PartitionAppendQueue.kt
+@@ -68,7 +68,7 @@ class AppendQueueOptions @InternalWowApi constructor(
+          * MongoDB: on. Its transactions abort each other when two writers bump one partition's counter, so the
+          * partition owner serializes the appends and commits them in groups (decisions D11, D52; spike H1).
+          */
+-        val MONGO = AppendQueueOptions(enabled = true)
++        val MONGO = AppendQueueOptions(enabled = false) // D271 spike: appends no longer abort each other
+ 
+         /**
+          * PostgreSQL: off, appends go straight to the log. One autocommit statement allocates the sequence (D10);

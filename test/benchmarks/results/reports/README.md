@@ -18,6 +18,7 @@ Earlier Wow 10 evidence, each valid for the commit it names:
 | [v10-mongo-write-amplification](v10-mongo-write-amplification.md) | B.D: store operations per command on MongoDB | Diagnostic; the paths changed since (D248, D261) |
 | [v10-counts-e1-e3](v10-counts-e1-e3.md) | Store round trips, operations and allocations per operation, 9.x against Wow 10 | Superseded by [v10-vs-9x](v10-vs-9x.md#store-round-trips-and-allocation-per-operation-l1); measured before R3-A, R3-B, P.16, D248 and D261 |
 | [v10-ps2-partition-idle](v10-ps2-partition-idle.md) | PS-2: what an idle partition costs | Valid for its commit |
+| [v10-d271-mongo-sequences-spike](v10-d271-mongo-sequences-spike.md) | Spike D271: appends on MongoDB without a transaction, owner-assigned sequences (happy path) | Spike, decided (D271) |
 | [v10-vs-9x-smoke](v10-vs-9x-smoke.md) | The harness's first end-to-end smoke run | Not a benchmark |
 
 ## 9.x
