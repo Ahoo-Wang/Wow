@@ -60,6 +60,20 @@ The E3 rows from 128 up for the baseline and the queue on are the high-concurren
 - **With single inserts** (queue off) E3 levels off at about 900–930/s from concurrency 64, below the baseline's group commit at 512 (1,169–1,238/s): each insert pays MongoDB's per-write cost alone.
 - **With the queue on**, a partition's appends under load become one `insertMany` per collection: E1 peaks at 3,169/s against 2,772/s (+14%), E3 at 1,526/s against 1,238/s (+23%), with a lower p50 at every concurrency. At low concurrency a group holds one stream, so the queue costs nothing measurable.
 
+## On GitHub Actions after the merge
+
+[39929517589](https://github.com/Ahoo-Wang/Wow/actions/runs/39929517589) (`suites=sustainable-mongo,e5-mongo`, 100k, `main` at `7b9c1ff30`). The sustainable rates ran on the same processor as the run before D271, [39870041854](https://github.com/Ahoo-Wang/Wow/actions/runs/39870041854) (AMD EPYC 9V45, 4 cores), so the two compare:
+
+| Scenario | Sustainable (≤ 1% errors, p99 ≤ 200 ms) before | After | CPU ms/op before | After | Saturation before | After |
+| --- | --- | --- | --- | --- | --- | --- |
+| E1 | 423/s | **771/s** (+82%) | 5.52 | 3.24 | 1,934/s | 1,646/s |
+| E2 | 297/s | **569/s** (+92%) | 6.68 | 4.11 | 1,054/s | 1,401/s |
+| E3 | 186/s | **259/s** (+39%) | 12.18 | 9.08 | 849/s | 1,036/s |
+
+On that processor PostgreSQL sustained E1 1,318/s and E3 580/s: MongoDB now carries 58% and 45% of them, against about a third before. E1's closed-loop saturation is lower than before while its sustainable rate is higher; the closed loop finds the deepest queue's throughput, the sustainable rate the latency, which is what improved.
+
+Three nodes (`e5-mongo`, AMD EPYC 7763): every steady run without a failure (E1 150/s p99 37 ms, E3 50/s p99 132 ms); no wait timed out, no signal dropped, no partition paused. Through a hand-over no second fell below half the rate; the worst second's p99 was 3.0 s (E1) and 5.9 s (E3), against 4.3 s and 7.4 s before; the failed requests are the load generator's to the stopped node (roadmap §6 item 6).
+
 ## Conclusion
 
 D271 halves MongoDB's round trips per operation and cuts allocation by about a third. With the append queue on, which stays MongoDB's default (its reason changed: grouping inserts, no longer avoiding aborts), it is faster than `main` at every load measured.
