@@ -14,18 +14,20 @@
 package me.ahoo.wow.mongo.log
 
 import com.mongodb.ConnectionString
+import com.mongodb.MongoBulkWriteException
 import com.mongodb.MongoClientSettings
 import com.mongodb.MongoException
+import com.mongodb.MongoSocketReadTimeoutException
 import com.mongodb.ReadConcern
 import com.mongodb.ServerAddress
-import com.mongodb.MongoSocketReadTimeoutException
 import com.mongodb.WriteConcern
-import com.mongodb.client.ClientSession
+import com.mongodb.bulk.BulkWriteError
+import com.mongodb.bulk.BulkWriteResult
+import com.mongodb.bulk.WriteConcernError
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
-import com.mongodb.client.TransactionBody
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.InsertManyOptions
 import com.mongodb.client.model.Updates
@@ -33,9 +35,6 @@ import com.mongodb.client.result.InsertManyResult
 import com.mongodb.client.result.InsertOneResult
 import com.mongodb.event.CommandListener
 import com.mongodb.event.CommandStartedEvent
-import io.mockk.every
-import io.mockk.spyk
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -70,9 +69,9 @@ import org.bson.Document
 import org.junit.jupiter.api.Test
 import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.seconds
 
 class MongoEventLogTest : EventLogSpec() {
     override fun createLog(context: String, partitions: Int): EventLog = MongoLogFixture.log(partitions, context)
@@ -598,8 +597,91 @@ class MongoEventLogTest : EventLogSpec() {
         tailed(owner, 4).map { it.stream.ref.id }.assert().containsExactly("a", "b", "c", "d")
     }
 
+    @Test
+    fun `an insert the server refuses, or any failure, is thrown with its sequence filled`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val failures = ArrayDeque<RuntimeException>(
+            listOf(MongoException(QUOTA_EXCEEDED, "refused"), IllegalStateException("broken")),
+        )
+        val client = faulty { document: Document, insert: () -> Unit ->
+            if (!document.containsKey(MongoEventLog.GAP)) failures.removeFirstOrNull()?.let { throw it }
+            insert()
+        }
+        val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+        assertThrownBy<MongoException> { runBlocking { log.append(group(context, "a").single().first) } }
+        assertThrownBy<IllegalStateException> { runBlocking { log.append(group(context, "b").single().first) } }
+        log.append(group(context, "c").single().first).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        tailed(log, 1).single().stream.ref.id.assert().isEqualTo("c")
+    }
+
+    private fun bulk(documents: List<Document>, error: BulkWriteError?, concern: WriteConcernError?) =
+        MongoBulkWriteException(
+            BulkWriteResult.acknowledged(documents.size - listOfNotNull(error).size, 0, 0, 0, emptyList(), emptyList()),
+            listOfNotNull(error),
+            concern,
+            ServerAddress(),
+            emptySet(),
+        )
+
+    @Test
+    fun `a group member the server refuses alone is unknown or rejected, the others commit`(): Unit = runBlocking {
+        listOf(QUOTA_EXCEEDED to AppendOutcome.Unknown::class.java, TOO_LARGE to AppendOutcome.Rejected::class.java)
+            .forEach { (code, expected) ->
+                val context = MongoLogFixture.newContext()
+                var faulted = false
+                lateinit var real: MongoCollection<Document>
+                val client = faulty(many = { documents, insert ->
+                    if (faulted) {
+                        insert()
+                    } else {
+                        faulted = true
+                        real = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
+                            .getCollection(collection(context, "order"))
+                        real.insertMany(documents.drop(1))
+                        throw bulk(documents, BulkWriteError(code, "failed", BsonDocument(), 0), null)
+                    }
+                })
+                val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+                val outcomes = log.appendAll(group(context, "a", "b"))
+                outcomes[0].assert().isInstanceOf(expected)
+                outcomes[1].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+                tailed(log, 1).single().stream.ref.id.assert().isEqualTo("b")
+            }
+    }
+
+    @Test
+    fun `a group whose write concern failed is unknown for each stream`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        var faulted = false
+        val client = faulty(many = { documents, insert ->
+            insert()
+            if (!faulted) {
+                faulted = true
+                throw bulk(documents, null, WriteConcernError(WRITE_CONCERN_FAILED, "", "no majority", BsonDocument()))
+            }
+        })
+        val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+        log.appendAll(group(context, "a", "b")).forEach { it.assert().isInstanceOf(AppendOutcome.Unknown::class.java) }
+        tailed(log, 2).map { it.stream.ref.id }.assert().containsExactly("a", "b")
+    }
+
+    @Test
+    fun `a group holds streams of one partition and distinct aggregates`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val log = MongoLogFixture.log(4, context)
+        val type = AggregateType(context, "order")
+        val ids = generateSequence(1) { it + 1 }.map { "p-$it" }
+        val (zero, one) = Partitioner.partitionOf(type.ref("tenant", "p-1"), 4).let { first ->
+            "p-1" to ids.first { Partitioner.partitionOf(type.ref("tenant", it), 4) != first }
+        }
+        assertThrownBy<IllegalArgumentException> { runBlocking { log.appendAll(group(context, zero, one)) } }
+        assertThrownBy<IllegalArgumentException> { runBlocking { log.appendAll(group(context, zero, zero)) } }
+    }
+
     private companion object {
         const val QUOTA_EXCEEDED = 12_501
+        const val TOO_LARGE = 10_334
+        const val WRITE_CONCERN_FAILED = 64
         const val TAIL_STALL_MS = 500L
         const val RACES = 5
         const val IDLE_POLLS = 13
