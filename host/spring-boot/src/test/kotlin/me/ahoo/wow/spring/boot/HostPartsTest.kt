@@ -167,7 +167,6 @@ class BackendSelectionTest {
         opened.assert().isEqualTo(1)
         backends.type.assert().isNull()
         backends.local.assert().isFalse()
-        backends.appendQueue.assert().isEqualTo(AppendQueueOptions())
     }
 
     @Test
@@ -235,8 +234,7 @@ class WowPropertiesTest {
         properties.log.partitions.assert().isEqualTo(64)
         properties.cluster.options().assert().isEqualTo(ClusterOptions())
         properties.subscription.options().assert().isEqualTo(SubscriptionOptions())
-        properties.log.appendQueue.options(AppendQueueOptions.OFF).assert().isEqualTo(AppendQueueOptions.OFF)
-        properties.log.appendQueue.options(AppendQueueOptions()).assert().isEqualTo(AppendQueueOptions())
+        properties.log.appendQueue.options().assert().isEqualTo(AppendQueueOptions())
         properties.tenant.default.assert().isEqualTo("(0)")
         properties.wait.defaultTimeout.assert().isEqualTo(Duration.ofSeconds(10))
         properties.wait.maxTimeout.assert().isEqualTo(Duration.ofSeconds(60))
@@ -278,7 +276,7 @@ class WowPropertiesTest {
         properties.backend.assert().isEqualTo("mongo")
         properties.mongo.database.assert().isEqualTo("shop")
         properties.log.partitions.assert().isEqualTo(16)
-        properties.log.appendQueue.options(AppendQueueOptions()).enabled.assert().isFalse()
+        properties.log.appendQueue.options().enabled.assert().isFalse()
         properties.cluster.router.assert().isEqualTo(Routing.LOCAL)
         properties.cluster.options().leaseTtl.assert().isEqualTo(20.seconds)
         properties.cluster.options().drainTimeout.assert().isEqualTo(500.milliseconds)

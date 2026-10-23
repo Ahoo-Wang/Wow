@@ -82,7 +82,6 @@ class StoreSpiTest {
         store.durable.assert().isTrue()
         store.holdsLogs.assert().isTrue()
         store.holdsSnapshots.assert().isTrue()
-        store.queuesAppends.assert().isNull()
         store.openedLog("ctx").assert().isNull()
         store.toString().assert().isEqualTo("a (acme)")
     }

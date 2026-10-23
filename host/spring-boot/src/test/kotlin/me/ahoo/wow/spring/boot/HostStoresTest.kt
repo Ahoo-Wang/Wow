@@ -21,7 +21,6 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
-import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotPlacement
@@ -276,27 +275,20 @@ class HostStoresTest {
         backends.snapshotStoreOf(other)?.name.assert().isEqualTo("a")
         backends.type.assert().isEqualTo("memory")
         backends.local.assert().isTrue()
-        backends.appendQueue.assert().isEqualTo(AppendQueueOptions())
         backends.createSchemas()
         bank.log.read(account.ref("t", "x")).toList().assert().isEmpty()
         HostBackends.of { error("unused") }.snapshotStoreOf(account).assert().isNull()
     }
 
     @Test
-    fun `the append queue follows the log stores, a queuing one first`() {
-        val queuing = Unopened("q", "acme", queuesAppends = true)
-        val postgres = Unopened("p", "postgres", queuesAppends = false)
+    fun `a host on several durable stores is of its default log store's type`() {
+        val other = Unopened("q", "acme")
+        val postgres = Unopened("p", "postgres")
         val layout = StoreLayout("p", logs = mapOf(account to "q"))
-        HostBackends.of(mapOf("q" to queuing, "p" to postgres), layout, 1).let {
-            it.appendQueue.assert().isEqualTo(AppendQueueOptions())
+        HostBackends.of(mapOf("q" to other, "p" to postgres), layout, 1).let {
             it.type.assert().isEqualTo("postgres")
             it.local.assert().isFalse()
         }
-        HostBackends.of(mapOf("p" to postgres), StoreLayout("p"), 1).appendQueue.assert()
-            .isEqualTo(AppendQueueOptions.OFF)
-        // A store with no preset leaves the queue on.
-        HostBackends.of(mapOf("x" to Unopened("x", "acme")), StoreLayout("x"), 1).appendQueue.assert()
-            .isEqualTo(AppendQueueOptions())
     }
 
     @Test
@@ -429,7 +421,6 @@ class HostStoresTest {
         type: String,
         override val location: Any = Any(),
         override val holdsLogs: Boolean = true,
-        override val queuesAppends: Boolean? = null,
     ) : Store(StoreConfig(name, type)) {
         override fun openCheckpoints(): CheckpointStore = error("unused")
 

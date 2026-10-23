@@ -86,8 +86,6 @@ internal class PostgresStore(
 
     override val location: Any get() = dataSource
 
-    override val queuesAppends: Boolean get() = false
-
     /** HikariCP's threads awaiting a connection of the appends' pool (decision D252); null for another pool. */
     override fun waitingForConnection(): Int? = dataSource.threadsAwaitingConnection()
 

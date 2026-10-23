@@ -39,8 +39,9 @@ import kotlin.coroutines.CoroutineContext
 
 /**
  * Whether a [PartitionAppendQueue] queues appends ([enabled]), and the most appends one [EventLog.appendAll] takes
- * ([maxBatch]). A node's log store may pick its default ([me.ahoo.wow.spi.store.Store.queuesAppends]): MongoDB's is on,
- * PostgreSQL's [OFF].
+ * ([maxBatch]). On by default for every backend (decision D248, measured 2026-10-23): a group is one statement on
+ * PostgreSQL and one `insertMany` per collection on MongoDB, which carry more under load than single appends and cost
+ * a few per cent at low concurrency. `wow.log.append-queue.enabled=false` turns it off.
  *
  * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -64,14 +65,6 @@ class AppendQueueOptions @InternalWowApi constructor(
 
     companion object {
         private const val DEFAULT_MAX_BATCH = 64
-
-        /**
-         * Off, appends go straight to the log: PostgreSQL's. One autocommit statement allocates the sequence (D10) and
-         * contending writers queue on the counter row; its log commits a group in one statement too (D248), but
-         * batching is not measured to be faster yet; turn it on where it is. MongoDB's queue is on: a group is one
-         * `insertMany` per collection (D271), which carries more under load than single inserts.
-         */
-        val OFF = AppendQueueOptions(enabled = false)
     }
 }
 

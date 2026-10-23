@@ -17,7 +17,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.http.internal.internalRoutes
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.runtime.cluster.ClusterChannel
-import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.manifest.ManifestLoader
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -128,7 +127,7 @@ class WowLifecyclesTest {
     @Test
     fun `the backends lifecycle should create the schemas once started`() {
         var created = 0
-        val backends = HostBackends(null, AppendQueueOptions(), listOf({ created++ })) { _, _ ->
+        val backends = HostBackends(null, listOf({ created++ })) { _, _ ->
             HostBackends.memory(1).factory.backends("bank")
         }
         val lifecycle = BackendsLifecycle(backends)

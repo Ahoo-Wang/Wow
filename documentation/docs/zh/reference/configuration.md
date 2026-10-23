@@ -304,7 +304,7 @@ The topics the node's contexts own: their DDL, and how `auto` creates them.
 
 ## `wow.log.append-queue`
 
-The partition append queue; each setting not given is the backend's preset (AppendQueueOptions).
+The partition append queue; each setting not given is the default (AppendQueueOptions): on, 64 a group.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |

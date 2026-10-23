@@ -263,7 +263,7 @@ class PartitionAppendQueueTest {
         AppendQueueOptions().enabled.assert().isTrue()
         AppendQueueOptions().enabled.assert().isTrue()
         val log = RecordingLog(InMemoryEventLog(PARTITIONS))
-        val queue = PartitionAppendQueue(log, AppendQueueOptions.OFF)
+        val queue = PartitionAppendQueue(log, AppendQueueOptions(enabled = false))
         queue.enabled.assert().isFalse()
 
         queue.append(stream(type.ref("tenant", "direct"), 1)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
