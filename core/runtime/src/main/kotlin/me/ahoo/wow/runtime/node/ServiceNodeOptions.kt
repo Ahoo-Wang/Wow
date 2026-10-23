@@ -242,8 +242,7 @@ enum class Routing {
  * - [subscription]: the subscriptions of every context, the built-in ones included, with the starts the host
  *   configures for some of them ([SubscriptionOptions.starts], decision D154): a name no subscription of the node has
  *   fails its assembly.
- * - [appendQueue]: the partition append queue, by the log store's preset (on for MongoDB, [AppendQueueOptions.OFF]
- *   on PostgreSQL).
+ * - [appendQueue]: the partition append queue, on by default (decision D248).
  * - [laneCapacity]: the commands one aggregate may have waiting in the executor.
  * - [maxInFlight]: the commands the node may have in flight in its executors, all contexts together (decision D228 ②,
  *   [me.ahoo.wow.runtime.InFlightLimit]); beyond it a command is refused as busy. Each partition append queue holds at

@@ -88,8 +88,8 @@ import me.ahoo.wow.client.RetryPolicy as ClientRetryPolicy
  *   several targets (decision D172, [Snapshot]): `wow.snapshot.targets` and `wow.snapshot.primary`, per aggregate type
  *   `.snapshot.store` as a list and `.snapshot.primary`; `wow.snapshot.interval`, `batch` and `pages` tune the
  *   snapshot maintenance, `wow.snapshot.write-batch` how many snapshots of a partition one write holds at most.
- * - `wow.log.partitions` (64; a power of two that divides 4096, decision D240) and `wow.log.append-queue.*`, whose
- *   defaults are the backend's preset; `wow.log.poll-interval` (50ms) and `wow.log.max-poll-interval` (1s), how often
+ * - `wow.log.partitions` (64; a power of two that divides 4096, decision D240) and `wow.log.append-queue.*` (on, at
+ *   most 64 appends a group, decision D248); `wow.log.poll-interval` (50ms) and `wow.log.max-poll-interval` (1s), how often
  *   the tails of a PostgreSQL or MongoDB log poll: at the first while they find entries, backing off to the second
  *   while they find none (finding A2-14). `wow.log.handoff.enabled` (true), `capacity` (1024) and `gap-wait` (1s):
  *   the node hands its own commits to its subscriptions' tails in memory (decision D249), which read the store only
@@ -536,13 +536,14 @@ class WowProperties {
         var gapWait: Duration = DEFAULT_HANDOFF.gapWait.toJavaDuration()
     }
 
-    /** The partition append queue; each setting not given is the backend's preset ([AppendQueueOptions]). */
+    /** The partition append queue; each setting not given is the default ([AppendQueueOptions]): on, 64 a group. */
     class AppendQueue {
         var enabled: Boolean? = null
         var maxBatch: Int? = null
 
-        fun options(preset: AppendQueueOptions): AppendQueueOptions =
-            AppendQueueOptions(enabled = enabled ?: preset.enabled, maxBatch = maxBatch ?: preset.maxBatch)
+        fun options(): AppendQueueOptions = AppendQueueOptions().let { default ->
+            AppendQueueOptions(enabled = enabled ?: default.enabled, maxBatch = maxBatch ?: default.maxBatch)
+        }
     }
 
     class Cluster {

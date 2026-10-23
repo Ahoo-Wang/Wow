@@ -16,7 +16,6 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
-import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.store.StoreLayout
@@ -33,14 +32,12 @@ import java.util.concurrent.CopyOnWriteArrayList
  *
  * [type] is the store type the host selected (`memory` when any log is in memory, else the default log store's), or
  * null for the application's own [BackendFactory] bean, whose schemas are the application's; [local] whether a log is
- * on a store no other node shares ([Store.durable] false), so the node serves alone; [appendQueue] is the backends'
- * preset of the partition append queue. [shared] creates the schemas of the stores the contexts share; [open] opens a
+ * on a store no other node shares ([Store.durable] false), so the node serves alone. [shared] creates the schemas of the stores the contexts share; [open] opens a
  * context's stores and adds what creates their schemas. [stores] are the node's store instances by name, and [layout]
  * where each aggregate's log and snapshots are (decision D177), when the host opened them.
  */
 class HostBackends @InternalWowApi constructor(
     val type: String?,
-    val appendQueue: AppendQueueOptions,
     shared: List<() -> Unit> = emptyList(),
     @InternalWowApi
     val stores: Map<String, Store> = emptyMap(),
@@ -86,22 +83,14 @@ class HostBackends @InternalWowApi constructor(
 
         /**
          * The node's [stores] by name, each context's stores opened as [layout] says (decision D177), its logs of
-         * [partitions] partitions. The append queue is on when a log store queues its appends ([Store.queuesAppends],
-         * MongoDB's), else off when one does not (PostgreSQL's), else on.
+         * [partitions] partitions.
          */
         @InternalWowApi
         fun of(stores: Map<String, Store>, layout: StoreLayout, partitions: Int): HostBackends {
             val logs = layout.logStores.map(stores::getValue)
             val local = logs.firstOrNull { !it.durable }
-            val presets = logs.mapNotNull(Store::queuesAppends)
-            val appendQueue = when {
-                true in presets -> AppendQueueOptions(enabled = true)
-                false in presets -> AppendQueueOptions(enabled = false)
-                else -> AppendQueueOptions()
-            }
             return HostBackends(
                 local?.type ?: stores.getValue(layout.log).type,
-                appendQueue,
                 stores.values.map { store -> { store.createSchemas() } },
                 stores,
                 layout,
@@ -111,6 +100,6 @@ class HostBackends @InternalWowApi constructor(
 
         /** The application's own [factory]: the host neither selects nor prepares its stores. */
         fun of(factory: BackendFactory): HostBackends =
-            HostBackends(null, AppendQueueOptions(), local = false) { context, _ -> factory.backends(context) }
+            HostBackends(null, local = false) { context, _ -> factory.backends(context) }
     }
 }

@@ -71,9 +71,8 @@ internal class MongoStoreProvider : StoreProvider {
 
 /**
  * A store on MongoDB over [client], in [database]: each context its own log, snapshot and timer collections; the
- * checkpoints, leases, failure ledger and reservations shared. A log on it is appended through the partition append
- * queue by default (decision D52): an append is one insert at a sequence of the node's block (decision D271), and the
- * queue gathers a partition's appends into one `insertMany` per collection under load, at no cost when it is idle.
+ * checkpoints, leases, failure ledger and reservations shared. An append is one insert at a sequence of the node's
+ * block (decision D271); the partition append queue gathers a partition's appends into one `insertMany` per collection.
  */
 internal class MongoStore(
     config: StoreConfig,
@@ -84,8 +83,6 @@ internal class MongoStore(
     private val ddl = config.ddl
 
     override val location: Any get() = client to database
-
-    override val queuesAppends: Boolean get() = true
 
     override fun openCheckpoints(): CheckpointStore =
         MongoCheckpointStore(client, database, ddl = ddl).also { schema(it::createSchema) }

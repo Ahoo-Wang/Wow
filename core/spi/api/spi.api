@@ -891,7 +891,6 @@ public abstract class me/ahoo/wow/spi/store/Store {
 	public final fun getLedger ()Lme/ahoo/wow/spi/ledger/FailureLedger;
 	public abstract fun getLocation ()Ljava/lang/Object;
 	public final fun getName ()Ljava/lang/String;
-	public fun getQueuesAppends ()Ljava/lang/Boolean;
 	public final fun getReservations ()Lme/ahoo/wow/spi/reservation/ReservationStore;
 	public final fun getType ()Ljava/lang/String;
 	public final fun log (Ljava/lang/String;I)Lme/ahoo/wow/spi/log/EventLog;

@@ -64,13 +64,6 @@ abstract class Store(val config: StoreConfig) {
     open val holdsSnapshots: Boolean get() = true
 
     /**
-     * The store's preset of the partition append queue (`wow.log.append-queue.enabled` when not set; decision D52): true
-     * when its log should take appends through the queue (MongoDB, whose group commit carries more under load,
-     * decision D271), false when it should not (PostgreSQL), null when it has no preference.
-     */
-    open val queuesAppends: Boolean? get() = null
-
-    /**
      * How many callers wait now for a connection of the pool the store's appends draw from (decision D252: the fast
      * half of its write pressure), as the pool says it (HikariCP's threads awaiting a connection, the MongoDB driver's
      * pending check-outs); null when the store's pool does not say. Called about once a second; it does no I/O.
