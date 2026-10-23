@@ -172,7 +172,7 @@ class LocalSagaStateTest {
 
     @Test
     fun `a saga chain should read no store for the state of the node's own commits, behind an append queue`() {
-        steadyChains(AppendQueueOptions.MONGO)
+        steadyChains(AppendQueueOptions())
     }
 
     @Test

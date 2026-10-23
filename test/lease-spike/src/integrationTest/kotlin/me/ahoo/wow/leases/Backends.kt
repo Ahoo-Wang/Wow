@@ -27,8 +27,6 @@ import me.ahoo.wow.postgres.PostgresEventLog
 import me.ahoo.wow.postgres.ledger.PostgresFailureLedger
 import me.ahoo.wow.postgres.subscription.PostgresCheckpointStore
 import me.ahoo.wow.postgres.subscription.PostgresLeaseStore
-import me.ahoo.wow.runtime.log.AppendQueueOptions
-import me.ahoo.wow.runtime.log.PartitionAppendQueue
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.subscription.CheckpointStore
@@ -139,10 +137,8 @@ class MongoBackend : Backend {
 
     override fun node(context: String, partitions: Int): NodeStores {
         val client = client()
-        // The partition owner's append queue MongoDB needs (spike H1, finding F1; D52): without it, concurrent appends
-        // to one partition abort each other's transactions and the log collapses under this spike's load. Two nodes
-        // appending to one partition (Local fallback during a change, D71) still contend, as they would in production.
-        val log = PartitionAppendQueue(MongoEventLog(client, DATABASE, context, partitions), AppendQueueOptions.MONGO)
+        // Appends of one partition no longer contend (decision D271): each is one insert at a sequence of a block.
+        val log = MongoEventLog(client, DATABASE, context, partitions)
         return NodeStores(
             log = log,
             leases = MongoLeaseStore(client, DATABASE),

@@ -18,6 +18,7 @@ import com.mongodb.client.MongoClient
 import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import com.mongodb.client.model.Filters
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
@@ -33,6 +34,7 @@ import me.ahoo.wow.query.schema.QueryStorageAdapter
 import me.ahoo.wow.query.schema.QueryStorageFacts
 import me.ahoo.wow.spi.VirtualThreads
 import org.bson.Document
+import org.bson.conversions.Bson
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 
@@ -97,6 +99,9 @@ internal object MongoEventDocuments : MongoQueryDocuments {
         EventStreamFields.EVENTS to "events",
     )
     private val LOGICAL: Map<String, String> = PHYSICAL.entries.associate { (logical, physical) -> physical to logical }
+
+    /** The streams of a log collection, not its placeholders (decision D271), which have no version. */
+    override val scope: Bson = Filters.exists("version")
 
     private val ABSENT_AS_NULL = setOf(EventStreamFields.OPERATOR, EventStreamFields.TAGS)
     private const val PAYLOAD = "payload"

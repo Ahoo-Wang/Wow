@@ -66,7 +66,7 @@ class PartitionAppendQueueTest {
     @Test
     fun `appends queued meanwhile are committed together, each caller with its own outcome`(): Unit = runBlocking {
         val log = GatedLog(InMemoryEventLog(PARTITIONS))
-        val queue = PartitionAppendQueue(log, AppendQueueOptions.MONGO)
+        val queue = PartitionAppendQueue(log, AppendQueueOptions())
         val refs = refsOfOnePartition(5)
         val first = async(Dispatchers.Default) { queue.append(stream(refs[0], 1)) }
         log.entered.await()
@@ -92,7 +92,7 @@ class PartitionAppendQueueTest {
         inner.append(stream(behind, 1))
         inner.append(stream(duplicate, 1, requestId = "taken"))
         val log = GatedLog(inner)
-        val queue = PartitionAppendQueue(log, AppendQueueOptions.MONGO)
+        val queue = PartitionAppendQueue(log, AppendQueueOptions())
         val blocker = refsOfOnePartition(4).last()
         val blocked = async(Dispatchers.Default) { queue.append(stream(blocker, 1)) }
         log.entered.await()
@@ -116,7 +116,7 @@ class PartitionAppendQueueTest {
     @Test
     fun `appends of one aggregate go in separate batches, in order`(): Unit = runBlocking {
         val log = GatedLog(InMemoryEventLog(PARTITIONS))
-        val queue = PartitionAppendQueue(log, AppendQueueOptions.MONGO)
+        val queue = PartitionAppendQueue(log, AppendQueueOptions())
         val (blocker, ref) = refsOfOnePartition(2)
         val blocked = async(Dispatchers.Default) { queue.append(stream(blocker, 1)) }
         log.entered.await()
@@ -135,7 +135,7 @@ class PartitionAppendQueueTest {
     @Test
     fun `a failing batch fails each of its callers, and the lane goes on`(): Unit = runBlocking {
         val log = GatedLog(InMemoryEventLog(PARTITIONS), failBatch = 2)
-        val queue = PartitionAppendQueue(log, AppendQueueOptions.MONGO)
+        val queue = PartitionAppendQueue(log, AppendQueueOptions())
         val refs = refsOfOnePartition(4)
         val blocked = async(Dispatchers.Default) { queue.append(stream(refs[0], 1)) }
         log.entered.await()
@@ -157,7 +157,7 @@ class PartitionAppendQueueTest {
     @Test
     fun `a caller cancelled while queued is never appended`(): Unit = runBlocking {
         val log = GatedLog(InMemoryEventLog(PARTITIONS))
-        val queue = PartitionAppendQueue(log, AppendQueueOptions.MONGO)
+        val queue = PartitionAppendQueue(log, AppendQueueOptions())
         val (blocker, cancelled, kept) = refsOfOnePartition(3)
         val blocked = async(Dispatchers.Default) { queue.append(stream(blocker, 1)) }
         log.entered.await()
@@ -178,7 +178,7 @@ class PartitionAppendQueueTest {
     @Test
     fun `a full lane makes the next caller wait for room instead of queueing without bound`(): Unit = runBlocking {
         val log = GatedLog(InMemoryEventLog(PARTITIONS))
-        val queue = PartitionAppendQueue(log, AppendQueueOptions.MONGO, capacity = 1)
+        val queue = PartitionAppendQueue(log, AppendQueueOptions(), capacity = 1)
         val refs = refsOfOnePartition(4)
         val (blocker, queued, cancelled) = refs
         val waiting = refs[3]
@@ -209,7 +209,7 @@ class PartitionAppendQueueTest {
     @Test
     fun `a caller cancelled once its append is in a batch leaves it committed`(): Unit = runBlocking {
         val log = GatedLog(InMemoryEventLog(PARTITIONS))
-        val queue = PartitionAppendQueue(log, AppendQueueOptions.MONGO)
+        val queue = PartitionAppendQueue(log, AppendQueueOptions())
         val ref = refsOfOnePartition(1).single()
         val caller = launch(Dispatchers.Default) { queue.append(stream(ref, 1)) }
         log.entered.await()
@@ -223,7 +223,7 @@ class PartitionAppendQueueTest {
     @Test
     fun `close commits what is queued and refuses later appends`(): Unit = runBlocking {
         val log = GatedLog(InMemoryEventLog(PARTITIONS))
-        val queue = PartitionAppendQueue(log, AppendQueueOptions.MONGO)
+        val queue = PartitionAppendQueue(log, AppendQueueOptions())
         val refs = refsOfOnePartition(2)
         // One batch in the log, the other append queued behind it, before the queue closes: launched together, the
         // second could still be on its way to the queue when it closed, and be refused.
@@ -246,7 +246,7 @@ class PartitionAppendQueueTest {
     @Test
     fun `appendAll queues each stream on its own partition's lane`(): Unit = runBlocking {
         val log = RecordingLog(InMemoryEventLog(PARTITIONS))
-        val queue = PartitionAppendQueue(log, AppendQueueOptions.MONGO)
+        val queue = PartitionAppendQueue(log, AppendQueueOptions())
         val streams = (0 until 8).map { stream(type.ref("tenant", "spread-$it"), 1) }
 
         val outcomes = queue.appendAll(streams.map { it to null })
@@ -261,9 +261,9 @@ class PartitionAppendQueueTest {
     @Test
     fun `disabled, as by default for PostgreSQL, every call goes straight to the log`(): Unit = runBlocking {
         AppendQueueOptions().enabled.assert().isTrue()
-        AppendQueueOptions.MONGO.enabled.assert().isTrue()
+        AppendQueueOptions().enabled.assert().isTrue()
         val log = RecordingLog(InMemoryEventLog(PARTITIONS))
-        val queue = PartitionAppendQueue(log, AppendQueueOptions.POSTGRES)
+        val queue = PartitionAppendQueue(log, AppendQueueOptions.OFF)
         queue.enabled.assert().isFalse()
 
         queue.append(stream(type.ref("tenant", "direct"), 1)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
@@ -299,7 +299,7 @@ class PartitionAppendQueueTest {
     @Test
     fun `many aggregates appending concurrently all commit, in batches, at a sane rate`(): Unit = runBlocking {
         val log = RecordingLog(InMemoryEventLog(PARTITIONS))
-        val queue = PartitionAppendQueue(log, AppendQueueOptions.MONGO)
+        val queue = PartitionAppendQueue(log, AppendQueueOptions())
         val positions = CopyOnWriteArrayList<LogPosition>()
         val started = System.nanoTime()
         withTimeout(30.seconds) {

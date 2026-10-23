@@ -283,17 +283,17 @@ class HostStoresTest {
     }
 
     @Test
-    fun `the append queue follows the log stores, MongoDB first`() {
-        val mongo = Unopened("m", "mongo", queuesAppends = true)
+    fun `the append queue follows the log stores, a queuing one first`() {
+        val queuing = Unopened("q", "acme", queuesAppends = true)
         val postgres = Unopened("p", "postgres", queuesAppends = false)
-        val layout = StoreLayout("p", logs = mapOf(account to "m"))
-        HostBackends.of(mapOf("m" to mongo, "p" to postgres), layout, 1).let {
-            it.appendQueue.assert().isEqualTo(AppendQueueOptions.MONGO)
+        val layout = StoreLayout("p", logs = mapOf(account to "q"))
+        HostBackends.of(mapOf("q" to queuing, "p" to postgres), layout, 1).let {
+            it.appendQueue.assert().isEqualTo(AppendQueueOptions())
             it.type.assert().isEqualTo("postgres")
             it.local.assert().isFalse()
         }
         HostBackends.of(mapOf("p" to postgres), StoreLayout("p"), 1).appendQueue.assert()
-            .isEqualTo(AppendQueueOptions.POSTGRES)
+            .isEqualTo(AppendQueueOptions.OFF)
         // A store with no preset leaves the queue on.
         HostBackends.of(mapOf("x" to Unopened("x", "acme")), StoreLayout("x"), 1).appendQueue.assert()
             .isEqualTo(AppendQueueOptions())

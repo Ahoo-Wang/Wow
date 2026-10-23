@@ -14,7 +14,6 @@
 package me.ahoo.wow.mongo
 
 import com.mongodb.MongoClientSettings
-import com.mongodb.MongoConnectionPoolClearedException
 import com.mongodb.MongoException
 import com.mongodb.MongoExecutionTimeoutException
 import com.mongodb.MongoNodeIsRecoveringException
@@ -25,8 +24,6 @@ import com.mongodb.MongoTimeoutException
 import com.mongodb.ServerAddress
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
-import com.mongodb.connection.ClusterId
-import com.mongodb.connection.ServerId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -157,37 +154,17 @@ class MongoFailuresTest {
     }
 
     @Test
-    fun `a commit may have happened after an unknown commit result, a timeout or a failed socket`() {
-        // Finding A2-6: only a definite abort is appended again one stream at a time.
+    fun `a write may have landed after a timeout or a failed socket, not after an answer`() {
+        // Finding A2-6, decision D271: an insert whose result is unknown leaves the outcome unknown.
         listOf(
-            MongoException("commit").apply { addLabel(MongoException.UNKNOWN_TRANSACTION_COMMIT_RESULT_LABEL) },
             MongoTimeoutException("Timed out while waiting for a server"),
             MongoSocketReadException("Prematurely reached end of stream", address),
             MongoExecutionTimeoutException(MAX_TIME_EXPIRED, "operation exceeded time limit"),
-        ).forEach { MongoFailures.isCommitUnknown(it).assert().describedAs("$it").isTrue() }
+        ).forEach { MongoFailures.isWriteUnknown(it).assert().describedAs("$it").isTrue() }
         listOf(
             MongoException(DUPLICATE_KEY, "E11000 duplicate key error"),
-            MongoException("aborted").apply { addLabel(MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL) },
-        ).forEach { MongoFailures.isCommitUnknown(it).assert().describedAs("$it").isFalse() }
-    }
-
-    @Test
-    fun `a server that failed or did not answer is unreachable, one that answered with an error is not`() {
-        // Decision D261: an append's transaction does not retry an unreachable server, so its command is answered.
-        listOf(
-            MongoSocketOpenException("Exception opening socket", address, IOException("Connection refused")),
-            MongoSocketReadException("Prematurely reached end of stream", address),
-            MongoTimeoutException("Timed out while waiting for a server"),
-            MongoConnectionPoolClearedException(ServerId(ClusterId(), address), null),
-            MongoNotPrimaryException(BsonDocument(), address),
-            MongoNodeIsRecoveringException(BsonDocument(), address),
-        ).forEach { MongoFailures.isUnreachable(it).assert().describedAs("$it").isTrue() }
-        listOf(
-            MongoException(WRITE_CONFLICT, "WriteConflict").apply {
-                addLabel(MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL)
-            },
-            MongoException(DUPLICATE_KEY, "E11000 duplicate key error"),
-        ).forEach { MongoFailures.isUnreachable(it).assert().describedAs("$it").isFalse() }
+            MongoException(WRITE_CONFLICT, "WriteConflict"),
+        ).forEach { MongoFailures.isWriteUnknown(it).assert().describedAs("$it").isFalse() }
     }
 
     @Test

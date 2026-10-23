@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.mongo.log.MongoLogFixture
@@ -28,6 +29,7 @@ import me.ahoo.wow.query.list
 import me.ahoo.wow.query.tck.EventQueryBackendSpec
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventStreamRecord
+import org.bson.Document
 import org.junit.jupiter.api.Test
 
 /** The events backend contract against MongoDB (decision D235): each test's fresh context is a fresh log. */
@@ -51,6 +53,19 @@ class MongoEventQueryBackendTest : EventQueryBackendSpec() {
         ).create(type).backend
         // The test replica set has one member: the read falls back to the primary.
         secondary.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema)).toList().assert().hasSize(7)
+    }
+
+    @Test
+    fun `a query reads the streams of the log collection, never its placeholders`(): Unit = runBlocking {
+        val schema = given().schema
+        // Decision D271: a sequence the log allocated and did not write holds a placeholder, which has no version.
+        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
+            .getCollection(MongoEventQueryStorage(MongoLogFixture.client, MongoLogFixture.DATABASE, type.context)
+                .collection(type.name))
+            .insertOne(Document("partition", 0).append("sequence", Long.MAX_VALUE).append("gap", "failed"))
+        val backend = binding(type).backend
+        backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema)).toList().assert().hasSize(7)
+        backend.count(QueryAdmission.Trusted.count(CountQuery(MatchAllFilter), schema)).assert().isEqualTo(7L)
     }
 
     private companion object {

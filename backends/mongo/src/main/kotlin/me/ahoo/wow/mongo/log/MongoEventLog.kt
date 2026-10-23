@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.mongo.log
 
+import com.mongodb.ErrorCategory
+import com.mongodb.MongoBulkWriteException
 import com.mongodb.MongoException
 import com.mongodb.MongoWriteException
 import com.mongodb.ReadConcern
@@ -28,6 +30,7 @@ import com.mongodb.client.model.Field
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.FindOneAndUpdateOptions
 import com.mongodb.client.model.IndexOptions
+import com.mongodb.client.model.InsertManyOptions
 import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.ReturnDocument
@@ -73,6 +76,7 @@ import me.ahoo.wow.spi.wait.WaitContext
 import org.bson.BsonMaximumSizeExceededException
 import org.bson.Document
 import org.bson.conversions.Bson
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
@@ -82,37 +86,44 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * The [EventLog] of one bounded context on MongoDB, a first-class log backend (decision D11;
- * documentation/designs/03-log-and-snapshot.md §2). It needs a replica set, for transactions.
+ * documentation/designs/03-log-and-snapshot.md §2). It needs a replica set, for its majority reads and writes.
  *
  * The log takes one collection per aggregate type, `wow_log__<context>__<aggregate>` (decision D162); a context-level
  * collection holds one counter document per partition, so partitions, their sequences, leases and checkpoints stay
- * per context. A counter also holds its partition's lineage, `parent` (null) and `epoch` (0) (decision D240): format 1
- * reserves them for the online splits of 10.x, and [lineage] reads them back. An append is one multi-document transaction: read the aggregate's version from its collection, `$inc`
- * the partition's counter, insert the stream into its aggregate's collection at that sequence. Two transactions
- * bumping one counter conflict and the later one aborts and retries (the driver retries transient transaction
- * errors), so the sequence order is the order commits become visible, whichever collection they land in, and no
- * sequence is skipped. That abort-and-retry is why appends to one partition should come from its owner, serialized
- * (finding F1).
+ * per context. A counter also holds its partition's lineage, `parent` (null) and `epoch` (0) (decision D240), which
+ * [lineage] reads back, and the partition's open blocks.
+ *
+ * **Appends** (decision D271). An append is one `insertOne` acknowledged by a majority, at a sequence this node
+ * allocated from a block it reserved on the partition's counter ([MongoSequencer]); no transaction. The unique keys
+ * settle the rest: a taken version is a conflict, a taken request a duplicate, a taken position a block another node
+ * sealed (the append takes a new sequence). Every sequence the tail passes is final: an entry, or a placeholder. A
+ * sequence allocated and not written gets a placeholder at once (a conflict, a refusal) or as soon as it can (an
+ * unknown outcome, written over by the stream if it landed); a block's unused remainder is closed by one range
+ * placeholder; and the block of a node that stopped is sealed with a placeholder at each of its sequences left, in
+ * each collection it may write, so a late write of that node meets a taken position. Placeholders have no aggregate,
+ * version or request: the reads by aggregate and the version and request keys never see them. An aggregate's next
+ * stream takes a sequence after its previous one, which the log remembers from its reads and appends, so a partition
+ * keeps each aggregate's streams in version order across owners.
  *
  * **Aggregate collections.** An aggregate type's collection and its indexes are created the first time this log
  * touches the type, or up front by [createCollection]; a new aggregate type needs no restart. Every aggregate collection is recorded in a registry collection ([REGISTRY]) before its first entry is
  * written, and [tail] reads the context's collections from it.
  *
  * **Tail.** [tail] reads a partition in one aggregation: the partition's counter first, then, through `$unionWith`,
- * each aggregate collection's first entries after the last sequence; it merges them by sequence and emits only the
- * contiguous run from the last sequence. Every entry up to the counter it read committed before the counter was read,
- * so a run shorter than the counter calls for means a collection this log does not know yet (it reads the registry
- * again and retries) or one read before a commit landed (it retries after the poll interval): it never steps over a
- * missing sequence.
+ * each aggregate collection's first entries and placeholders after the last sequence; it merges them by sequence and
+ * emits the entries of the run from the last sequence that is final, stepping over placeholders. It never steps over
+ * a missing sequence: an append of some node may still land there. Missing for [STALL_GRACE], the sequence is
+ * resolved through the counter's open blocks: this node's own remainder is closed, its own unfilled sequence filled,
+ * another node's block sealed; entries past it while it waits may also be in a collection this log does not know yet,
+ * so it reads the registry again.
  *
- * **Read concern.** Every read outside an append's transaction, the tail, [head], the version slot reads
- * ([readEntries], [positionOf]) and the request lookups included, reads what a majority of the replica set has
- * committed (`readConcern: majority`, finding A2-2). With the default (`local`), a tail could deliver an entry the
- * primary committed and lost in a failover before it replicated, which is then rolled back: its subscriptions would
- * have acted on a fact that never was, and the next append, taking its sequence again, would be skipped for good,
- * the checkpoints past it. The cost is latency: an entry reaches the tail once a majority has it, about one
- * replication round trip after its commit (appends already wait for it, `w: majority`). The backend so needs a
- * replica set whose majority can commit: an arbiter that makes a majority unreachable stalls the tail.
+ * **Read concern.** Every read, the tail, [head], the version slot reads ([readEntries], [positionOf]) and the
+ * request lookups included, reads what a majority of the replica set has committed (`readConcern: majority`, finding
+ * A2-2). With the default (`local`), a tail could deliver an entry the primary committed and lost in a failover
+ * before it replicated, which is then rolled back: its subscriptions would have acted on a fact that never was. The
+ * cost is latency: an entry reaches the tail once a majority has it, about one replication round trip after its
+ * commit (appends already wait for it, `w: majority`). The backend so needs a replica set whose majority can commit:
+ * an arbiter that makes a majority unreachable stalls the tail.
  *
  * **Request ids.** The request key is `(tenant_id, request_id)` within each aggregate collection: a request id reused
  * by two aggregate types commits twice (decision D55 makes the reuse the caller's error). The kernel's pre-check, the
@@ -147,12 +158,10 @@ class MongoEventLog(
     /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
     private val ddl: StoreDdl = StoreDdl.AUTO,
     /**
-     * How long one attempt of an append's transaction may take (decision D261): a server that does not answer fails
-     * it, and is not retried, so a command appending during an outage is answered before its wait ends, with the
-     * retryable storage error when no commit was sent, else unknown. Below the default wait timeout. Write conflicts
-     * on the partition's counter are retried, each attempt bounded anew ([transact]).
+     * How long an append's insert may take (decision D261): a server that does not answer fails it, so a command
+     * appending during an outage is answered before its wait ends, as unknown. Below the default wait timeout.
      */
-    transactionTimeout: Duration = DEFAULT_TRANSACTION_TIMEOUT,
+    appendTimeout: Duration = DEFAULT_APPEND_TIMEOUT,
 ) : EventLog,
     TagsBackfill {
     /** Validates the partition count first (decision D240): a log of another count is refused when it is built. */
@@ -165,11 +174,18 @@ class MongoEventLog(
     /** The counters as a majority has committed them: what the tail and [head] read (finding A2-2). */
     private val committedCounters: MongoCollection<Document> = counters.withReadConcern(ReadConcern.MAJORITY)
     private val registry: MongoCollection<Document> = database.getCollection(REGISTRY)
-    private val transaction = TransactionOptions.builder()
-        .readConcern(ReadConcern.SNAPSHOT)
-        .writeConcern(WriteConcern.MAJORITY)
-        .timeout(transactionTimeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
-        .build()
+    private val appendMillis = appendTimeout.inWholeMilliseconds
+
+    private val sequencer =
+        MongoSequencer(
+            counters.withWriteConcern(WriteConcern.MAJORITY),
+            UUID.randomUUID().toString(),
+            BLOCK,
+            partitions,
+        )
+
+    /** Each aggregate's last sequence as this log saw it: an aggregate's next stream is allocated after it. */
+    private val lastSequences = LastSequences(LAST_SEQUENCES)
 
     /** The aggregate collections whose creation and registration this log has made sure of. */
     private val ensured = ConcurrentHashMap<String, AggregateCollection>()
@@ -182,8 +198,12 @@ class MongoEventLog(
     private inner class AggregateCollection(val aggregate: String, val name: String) {
         val log: MongoCollection<Document> = database.getCollection(name)
 
-        /** The entries a majority has committed: every read outside an append's transaction (finding A2-2). */
+        /** The entries a majority has committed: every read (finding A2-2). */
         val committed: MongoCollection<Document> = log.withReadConcern(ReadConcern.MAJORITY)
+
+        /** The appends and placeholders, acknowledged by a majority within the append timeout. */
+        val appends: MongoCollection<Document> =
+            log.withWriteConcern(WriteConcern.MAJORITY).withTimeout(appendMillis, TimeUnit.MILLISECONDS)
     }
 
     /**
@@ -254,8 +274,9 @@ class MongoEventLog(
         }
         MongoFormat.claim(database, collection.name, FORMAT, ddl)
         val log = collection.log
-        MongoFormat.index(log, Indexes.ascending(AGGREGATE_ID, TENANT_ID, VERSION), unique(VERSION_KEY), ddl)
-        MongoFormat.index(log, Indexes.ascending(TENANT_ID, REQUEST_ID), unique(REQUEST_KEY), ddl)
+        // Placeholders have no version and no request: the two keys cover the streams alone.
+        MongoFormat.index(log, Indexes.ascending(AGGREGATE_ID, TENANT_ID, VERSION), streams(VERSION_KEY, VERSION), ddl)
+        MongoFormat.index(log, Indexes.ascending(TENANT_ID, REQUEST_ID), streams(REQUEST_KEY, REQUEST_ID), ddl)
         MongoFormat.index(log, Indexes.ascending(PARTITION, SEQUENCE), unique(POSITION_KEY), ddl)
         if (ddl != StoreDdl.AUTO) {
             // The registry is the schema's: a validated or foreign schema registered its collections already.
@@ -278,6 +299,18 @@ class MongoEventLog(
 
     private fun unique(name: String): IndexOptions = IndexOptions().unique(true).name(name)
 
+    /** A unique index of the documents that have [field], the streams'. */
+    private fun streams(name: String, field: String): IndexOptions =
+        unique(name).partialFilterExpression(Filters.exists(field))
+
+    /** The aggregate collections this log knows: the registry as last read, and the ones it made sure of since. */
+    private fun known(): List<AggregateCollection> =
+        ((registered ?: register()) + ensured.values).distinctBy { it.name }
+
+    /** The aggregate collection named [name], reading the registry again when this log does not know it. */
+    private fun collectionNamed(name: String): AggregateCollection =
+        known().firstOrNull { it.name == name } ?: register().first { it.name == name }
+
     /** Reads the registry again: the aggregate collections of the context, in registry order. */
     private fun register(): List<AggregateCollection> =
         registry.find(Filters.eq(CONTEXT, context)).sort(Sorts.ascending(AGGREGATE))
@@ -295,136 +328,130 @@ class MongoEventLog(
         val collection = collectionOf(stream.ref.type)
         val partition = Partitioner.partitionOf(stream.ref, partitions)
         val document = encode(partition, stream, transport).getOrElse { return AppendOutcome.Rejected(it) }
-        // Whether a transaction's commit may have been sent: before it, any failure aborted the transaction for sure.
-        var committing = false
+        val after = previousOf(collection, stream)
+            ?: return duplicateOr(collection, stream, AppendOutcome.Conflict(currentVersion(collection, stream.ref)))
+        // A taken position is a block another node sealed: the next allocation comes from a new block.
+        repeat(MAX_SEALED) {
+            val allocation = sequencer.allocate(partition, collection.name, after) { known().map { it.name } }
+            allocation.closing?.let(::close)
+            insert(collection, stream, document, allocation)?.let { return it }
+        }
+        error("The blocks of partition $partition of $context were sealed under $MAX_SEALED appends in a row.")
+    }
+
+    /**
+     * The sequence [stream] must follow in its partition, its aggregate's previous stream's, or null when that is not
+     * the version before [stream]'s (a conflict). An aggregate's first stream follows none; the previous stream is the
+     * one this log saw last when its version fits, else the aggregate's latest, read. A version already taken by
+     * another node since is the version key's to refuse.
+     */
+    private fun previousOf(collection: AggregateCollection, stream: EventStreamRecord): Long? {
+        if (stream.version == 1) return 0
+        lastSequences[stream.ref]?.takeIf { it.version == stream.version - 1 }?.let { return it.sequence }
+        val latest = collection.committed.find(refFilter(stream.ref))
+            .sort(Sorts.descending(VERSION))
+            .projection(Projections.include(VERSION, SEQUENCE))
+            .limit(1)
+            .firstOrNull()
+            ?: return null
+        lastSequences[stream.ref] = LastSequence(latest.getInteger(VERSION), latest.getLong(SEQUENCE))
+        return latest.getLong(SEQUENCE).takeIf { latest.getInteger(VERSION) == stream.version - 1 }
+    }
+
+    /**
+     * Inserts [document] at [allocation]'s sequence: the outcome, or null when the position was taken (the block was
+     * sealed). A sequence the stream did not take gets its placeholder, unless the outcome is unknown and the stream
+     * landed.
+     */
+    private fun insert(
+        collection: AggregateCollection,
+        stream: EventStreamRecord,
+        document: Document,
+        allocation: MongoSequencer.Allocation,
+    ): AppendOutcome? {
+        val partition = allocation.partition
+        val sequence = allocation.sequence
+        document.remove(ID)
+        document[SEQUENCE] = sequence
         val outcome = try {
-            client.startSession().use { session ->
-                transact(session, committing = { committing = true }) {
-                    val current = collection.log.find(session, refFilter(stream.ref))
-                        .sort(Sorts.descending(VERSION))
-                        .limit(1)
-                        .firstOrNull()
-                        ?.getInteger(VERSION) ?: 0
-                    if (current != stream.version - 1) {
-                        AppendOutcome.Conflict(current)
-                    } else {
-                        val sequence = counters.findOneAndUpdate(
-                            session,
-                            Filters.eq(ID, partition),
-                            Updates.inc(SEQUENCE, 1L),
-                            FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER),
-                        )!!.getLong(SEQUENCE)
-                        collection.log.insertOne(session, document.append(SEQUENCE, sequence))
-                        AppendOutcome.Committed(LogPosition(partition, sequence))
-                    }
-                }
-            }
+            collection.appends.insertOne(document)
+            sequencer.settle(partition, sequence)
+            lastSequences[stream.ref] = LastSequence(stream.version, sequence)
+            return AppendOutcome.Committed(LogPosition(partition, sequence))
         } catch (tooLarge: BsonMaximumSizeExceededException) {
-            // The driver refused the document before sending it, so the transaction wrote nothing (finding R2.2-2).
+            // The driver refused the document before sending it (finding R2.2-2).
             AppendOutcome.Rejected(tooLarge)
         } catch (failure: MongoException) {
-            outcomeOf(failure, committing, collection, stream)
+            if (failure.isDuplicateKey() && failure.message.orEmpty().contains(POSITION_KEY)) {
+                sequencer.abandon(partition, sequence)
+                sequencer.settle(partition, sequence)
+                return null
+            }
+            try {
+                outcomeOf(failure, collection, stream)
+            } catch (thrown: MongoException) {
+                fill(collection, partition, sequence, GAP_FAILED)
+                throw thrown
+            }
         }
+        lastSequences.remove(stream.ref)
+        fill(collection, partition, sequence, if (outcome is AppendOutcome.Unknown) GAP_UNKNOWN else GAP_FAILED)
         return if (outcome is AppendOutcome.Conflict) duplicateOr(collection, stream, outcome) else outcome
     }
 
     /**
-     * Runs [body] in a transaction of [session] and commits it, retrying as the driver's `withTransaction` does: the
-     * whole transaction on a `TransientTransactionError` (a write conflict on the partition's counter, say), the commit
-     * on an `UnknownTransactionCommitResult`, for at most [MAX_RETRY]. Unlike it, each attempt is bounded by the
-     * transaction timeout, and a server that cannot be reached ([MongoFailures.isUnreachable]) is not retried, so a
-     * command appending during an outage is answered before its wait ends. [committing] is called before each commit.
+     * The outcome of [stream]'s insert that failed with [failure]. A duplicate key is a conflict or a duplicate
+     * request; a document beyond the size limit is refused; a write whose result the driver does not know (a timeout,
+     * a failed socket) is unknown (finding A2-6); any other failure the server answered wrote nothing and is thrown,
+     * so the command is answered with the storage error.
      */
-    private fun <T> transact(session: ClientSession, committing: () -> Unit = {}, body: () -> T): T {
-        val until = System.nanoTime() + MAX_RETRY.inWholeNanoseconds
-        while (true) {
-            session.startTransaction(transaction)
-            val result = attempt(session, until, body) ?: continue
-            committing()
-            if (committed(session, until)) {
-                return result.value
-            }
+    private fun outcomeOf(failure: MongoException, collection: AggregateCollection, stream: EventStreamRecord) =
+        when {
+            MongoFailures.isTooLarge(failure) -> AppendOutcome.Rejected(failure)
+            MongoFailures.isWriteUnknown(failure) -> AppendOutcome.Unknown(failure)
+            !failure.isDuplicateKey() -> throw failure
+            failure.message.orEmpty().contains(REQUEST_KEY) ->
+                findByRequestIdIn(collection, stream.ref.tenantId, stream.requestId)
+                    ?.let { AppendOutcome.AlreadyCommitted(it) } ?: AppendOutcome.Unknown(failure)
+
+            else -> AppendOutcome.Conflict(currentVersion(collection, stream.ref))
         }
-    }
 
-    /** What [body] returned in one attempt of a transaction; null when the transaction is to be tried again. */
-    private fun <T> attempt(session: ClientSession, until: Long, body: () -> T): Attempted<T>? = try {
-        Attempted(body())
-    } catch (failure: MongoException) {
-        abort(session, failure)
-        if (!retries(failure, MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL, until)) throw failure
-        null
-    } catch (
-        @Suppress("TooGenericExceptionCaught") // Aborts whatever else failed, then rethrows it unchanged.
-        failure: RuntimeException,
-    ) {
-        abort(session, failure)
-        throw failure
-    }
-
-    /** Commits [session]'s transaction: true once committed, false when the whole transaction is to be tried again. */
-    private fun committed(session: ClientSession, until: Long): Boolean {
-        while (true) {
-            try {
-                session.commitTransaction()
-                return true
-            } catch (failure: MongoException) {
-                when {
-                    retries(failure, MongoException.UNKNOWN_TRANSACTION_COMMIT_RESULT_LABEL, until) -> Unit
-                    retries(failure, MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL, until) -> {
-                        abort(session, failure)
-                        return false
-                    }
-
-                    else -> throw failure
-                }
-            }
-        }
-    }
-
-    /** Whether [failure], labelled [label], is retried: a server that answered, before [until] (nanoseconds). */
-    private fun retries(failure: MongoException, label: String, until: Long): Boolean =
-        failure.hasErrorLabel(label) && !MongoFailures.isUnreachable(failure) && System.nanoTime() < until
-
-    private class Attempted<T>(val value: T)
-
-    /** Aborts [session]'s transaction after [failure], when it is still open; a failing abort joins [failure]. */
-    private fun abort(session: ClientSession, failure: Throwable) {
-        if (!session.hasActiveTransaction()) return
+    /**
+     * Writes a placeholder at [sequence] of [partition] in [collection] and settles the sequence: a stream that landed
+     * there takes it first, and settles it as well. A placeholder that cannot be written now is left to the tail.
+     */
+    private fun fill(collection: AggregateCollection, partition: Int, sequence: Long, reason: String) {
         try {
-            session.abortTransaction()
-        } catch (aborting: MongoException) {
-            failure.addSuppressed(aborting)
+            collection.appends.insertOne(placeholder(partition, sequence, reason))
+        } catch (failure: MongoException) {
+            if (!failure.isDuplicateKey()) {
+                sequencer.unfilled(partition, sequence, collection.name)
+                return
+            }
         }
+        sequencer.settle(partition, sequence)
     }
 
-    /**
-     * The outcome of [stream]'s transaction that failed with [failure]; [committing] says whether its commit may have
-     * been sent. Inside a transaction a duplicate key may surface as a write or a command error: go by its code. A
-     * transient failure before the commit aborted the transaction for sure: it is thrown, so the command is answered
-     * with the retryable storage error rather than an unknown outcome (finding A2-6 keeps unknown for a commit).
-     */
-    private fun outcomeOf(
-        failure: MongoException,
-        committing: Boolean,
-        collection: AggregateCollection,
-        stream: EventStreamRecord,
-    ): AppendOutcome = when {
-        MongoFailures.isTooLarge(failure) -> AppendOutcome.Rejected(failure)
-        !committing && MongoFailures.isTransient(failure) -> throw failure
-        !failure.isDuplicateKey() -> AppendOutcome.Unknown(failure)
-        failure.message.orEmpty().contains(REQUEST_KEY) ->
-            findByRequestIdIn(collection, stream.ref.tenantId, stream.requestId)
-                ?.let { AppendOutcome.AlreadyCommitted(it) } ?: AppendOutcome.Unknown(failure)
-
-        else -> AppendOutcome.Conflict(currentVersion(collection, stream.ref))
+    /** Writes [closing], a block's unused remainder, as one range placeholder, and settles it. */
+    private fun close(closing: MongoSequencer.Closing) {
+        val placeholder = placeholder(closing.partition, closing.from, GAP_CLOSED).append(GAP_TO, closing.to)
+        try {
+            collectionNamed(closing.collection).appends.insertOne(placeholder)
+        } catch (failure: MongoException) {
+            if (!failure.isDuplicateKey()) throw failure
+        }
+        sequencer.settle(closing)
     }
 
+    private fun placeholder(partition: Int, sequence: Long, reason: String): Document =
+        Document(PARTITION, partition).append(SEQUENCE, sequence).append(GAP, reason).append(GAP_NODE, sequencer.node)
+
     /**
-     * [stream]'s document in [partition], its sequence still to be set: encoded before any transaction, so a stream
-     * MongoDB cannot store ([ExactBson]'s [IllegalArgumentException]) is refused alone (finding A2-5). A document beyond
-     * MongoDB's size limit is only known when the driver writes it: [appendNow] refuses it, and [commitGroup] falls
-     * back to one append per stream, so it fails alone as well (finding R2.2-2).
+     * [stream]'s document in [partition], its sequence still to be set: encoded before it is written, so a stream
+     * MongoDB cannot store ([ExactBson]'s [IllegalArgumentException]) is refused alone (finding A2-5). A document
+     * beyond MongoDB's size limit is only known when the driver writes it, and [insert] refuses it then (finding
+     * R2.2-2).
      */
     private fun encode(partition: Int, stream: EventStreamRecord, transport: Transport?): Result<Document> = try {
         Result.success(documentOf(partition, stream, transport))
@@ -443,138 +470,6 @@ class MongoEventLog(
     ): AppendOutcome =
         findByRequestIdIn(collection, stream.ref.tenantId, stream.requestId)?.let { AppendOutcome.AlreadyCommitted(it) }
             ?: conflict
-
-    /**
-     * Group commit: one transaction reads every aggregate's version (one aggregation per aggregate type), bumps the
-     * partition counter once by the number of streams that fit, and inserts them with one `insertMany` per aggregate
-     * type; streams whose version does not fit get their conflict without a write.
-     *
-     * Each stream is encoded first, outside the transaction: one MongoDB cannot store is [AppendOutcome.Rejected] and
-     * left out, the others commit together (finding A2-5). When the transaction fails, a definite abort (a duplicate
-     * key, a transient error retried to the driver's limit) falls back to one append per stream, which gives each its
-     * own outcome; a commit whose result is unknown, or a timeout, is [AppendOutcome.Unknown] for every stream of the
-     * group, since the group may have committed (finding A2-6): the kernel reads each version slot to settle it.
-     */
-    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
-        if (streams.size <= 1) {
-            return streams.map { (stream, transport) -> append(stream, transport) }
-        }
-        val partition = Partitioner.partitionOf(streams.first().first.ref, partitions)
-        require(
-            streams.all { (stream) ->
-                stream.ref.type.context == context && Partitioner.partitionOf(stream.ref, partitions) == partition
-            }
-        ) {
-            "A group commit appends streams of one partition of $context."
-        }
-        require(streams.map { it.first.ref }.toSet().size == streams.size) {
-            "A group commit appends distinct aggregates."
-        }
-        return dispatcher.mongo {
-            val encoded = streams.map { (stream, transport) -> encode(partition, stream, transport) }
-            val members = streams.indices.filter { encoded[it].isSuccess }
-            val outcomes: Map<Int, AppendOutcome> = when (members.size) {
-                0 -> emptyMap()
-                1 -> members.associateWith { appendNow(streams[it].first, streams[it].second) }
-                else -> {
-                    val grouped = commitGroup(partition, members.map { streams[it].first to encoded[it].getOrThrow() })
-                    members.zip(grouped).associate { (index, outcome) ->
-                        index to (outcome ?: appendNow(streams[index].first, streams[index].second))
-                    }
-                }
-            }
-            streams.indices.map { index ->
-                outcomes[index] ?: AppendOutcome.Rejected(checkNotNull(encoded[index].exceptionOrNull()))
-            }
-        }.also { outcomes ->
-            if (outcomes.any { it is AppendOutcome.Committed }) pacer.committed(partition)
-        }
-    }
-
-    /**
-     * Commits [members], streams with their documents, in one transaction: their outcomes, each null when the
-     * transaction was aborted for sure and the stream is to be appended alone.
-     */
-    private fun commitGroup(partition: Int, members: List<Pair<EventStreamRecord, Document>>): List<AppendOutcome?> {
-        val collections = members.map { it.first.ref.type }.distinct().associateWith { collectionOf(it) }
-        return try {
-            client.startSession().use { session ->
-                transact(session) { appendGroup(session, partition, collections, members) }
-            }.mapIndexed { index, outcome ->
-                val stream = members[index].first
-                if (outcome is AppendOutcome.Conflict) {
-                    duplicateOr(collections.getValue(stream.ref.type), stream, outcome)
-                } else {
-                    outcome
-                }
-            }
-        } catch (tooLarge: BsonMaximumSizeExceededException) {
-            // A member's document is beyond the size limit; the driver never sent it, so the group is aborted for
-            // sure: each stream appended alone gets its own outcome, the oversized one its refusal (finding R2.2-2).
-            members.map { null }
-        } catch (failure: MongoException) {
-            if (MongoFailures.isCommitUnknown(failure)) {
-                members.map { AppendOutcome.Unknown(failure) }
-            } else {
-                members.map { null }
-            }
-        }
-    }
-
-    private fun appendGroup(
-        session: ClientSession,
-        partition: Int,
-        collections: Map<AggregateType, AggregateCollection>,
-        members: List<Pair<EventStreamRecord, Document>>,
-    ): List<AppendOutcome> {
-        val streams = members.map { it.first }
-        val versions = streams.groupBy { it.ref.type }
-            .flatMap { (type, ofType) -> currentVersions(session, collections.getValue(type), ofType.map { it.ref }) }
-            .toMap()
-        val fits = members.filter { (stream) -> versions.getOrDefault(stream.ref, 0) == stream.version - 1 }
-        if (fits.isEmpty()) {
-            return streams.map { AppendOutcome.Conflict(versions.getOrDefault(it.ref, 0)) }
-        }
-        val last = counters.findOneAndUpdate(
-            session,
-            Filters.eq(ID, partition),
-            Updates.inc(SEQUENCE, fits.size.toLong()),
-            FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER),
-        )!!.getLong(SEQUENCE)
-        val first = last - fits.size + 1
-        val sequences = fits.withIndex().associate { (index, member) -> member.first.ref to first + index }
-        fits.groupBy { it.first.ref.type }.forEach { (type, ofType) ->
-            collections.getValue(type).log.insertMany(
-                session,
-                ofType.map { (stream, document) -> document.append(SEQUENCE, sequences.getValue(stream.ref)) },
-            )
-        }
-        return streams.map { stream ->
-            sequences[stream.ref]?.let { AppendOutcome.Committed(LogPosition(partition, it)) }
-                ?: AppendOutcome.Conflict(versions.getOrDefault(stream.ref, 0))
-        }
-    }
-
-    /** The current version of each of [refs], read in one aggregation; an aggregate with no stream is absent. */
-    private fun currentVersions(
-        session: ClientSession,
-        collection: AggregateCollection,
-        refs: List<AggregateRef>,
-    ): List<Pair<AggregateRef, Int>> =
-        collection.log.aggregate(
-            session,
-            listOf(
-                Aggregates.match(Filters.or(refs.map { refFilter(it) })),
-                Aggregates.group(
-                    Document(AGGREGATE_ID, "$$AGGREGATE_ID").append(TENANT_ID, "$$TENANT_ID"),
-                    Accumulators.max(VERSION, "$$VERSION"),
-                ),
-            ),
-        ).map { group ->
-            val key = group.get(ID, Document::class.java)
-            AggregateType(context, collection.aggregate)
-                .ref(key.getString(TENANT_ID), key.getString(AGGREGATE_ID)) to group.getInteger(VERSION)
-        }.toList()
 
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = flow {
         val streams = dispatcher.mongo {
@@ -599,7 +494,7 @@ class MongoEventLog(
         require(limit >= 1) { "A page holds at least one aggregate." }
         return dispatcher.mongo {
             val collection = collectionOf(type)
-            val untagged = Filters.exists(TAGS, false)
+            val untagged = Filters.and(Filters.exists(VERSION), Filters.exists(TAGS, false))
             val filter = if (after == null) {
                 untagged
             } else {
@@ -660,13 +555,20 @@ class MongoEventLog(
                 Aggregates.match(Filters.and(refFilter(ref), Filters.lt(VERSION, fromVersion))),
                 Aggregates.sort(Sorts.descending(VERSION)),
                 Aggregates.limit(earlier.coerceAtLeast(1)),
-                Aggregates.project(Projections.fields(Projections.include(VERSION, REQUEST_ID, COMMAND_TYPE))),
+                Aggregates.project(
+                    Projections.fields(Projections.include(VERSION, REQUEST_ID, COMMAND_TYPE, SEQUENCE)),
+                ),
                 Aggregates.addFields(Field(BRANCH, 1)),
             )
             val pipeline = if (earlier == 0) tail else tail + Aggregates.unionWith(collection.name, keys)
             val streams = ArrayList<EventStreamRecord>()
             val requests = ArrayList<CommittedRequest>()
+            var last: LastSequence? = null
             collection.committed.aggregate(pipeline).batchSize(earlier + READ_TAIL_BATCH).forEach { document ->
+                val version = document.getInteger(VERSION)
+                if (last.let { it == null || version > it.version }) {
+                    last = LastSequence(version, document.getLong(SEQUENCE))
+                }
                 if (document.getInteger(BRANCH) == 0) {
                     streams += streamOf(collection.aggregate, document)
                 } else {
@@ -679,6 +581,7 @@ class MongoEventLog(
             }
             streams.sortBy { it.version }
             requests.sortByDescending { it.version }
+            last?.let { lastSequences[ref] = it }
             AggregateTail(streams, requests)
         }
     }
@@ -737,15 +640,28 @@ class MongoEventLog(
         var last = after ?: 0L
         var idle = pacer.interval
         var woken = false
+        var stalled = 0L
+        var since = 0L
         while (true) {
             val mark = pacer.mark(partition)
             val batch = dispatcher.mongo { readTail(partition, last) }
-            batch.entries.forEach {
-                emit(it)
-                last = it.position.sequence
+            batch.entries.forEach { emit(it) }
+            last = batch.through
+            val missing = batch.missing
+            when {
+                missing == null -> stalled = 0L
+                missing != stalled -> {
+                    stalled = missing
+                    since = System.nanoTime()
+                }
+
+                System.nanoTime() - since >= STALL_GRACE.inWholeNanoseconds -> {
+                    dispatcher.mongo { resolve(partition, missing) }
+                    since = System.nanoTime()
+                }
             }
             if (!batch.again) {
-                val pace = pacer.await(partition, mark, batch.entries.isNotEmpty(), idle, woken && !batch.behind)
+                val pace = pacer.await(partition, mark, batch.entries.isNotEmpty(), idle, woken && missing == null)
                 idle = pace.idle
                 woken = pace.woken
             }
@@ -754,15 +670,17 @@ class MongoEventLog(
 
     /**
      * One read of the tail after [last]: the counter of [partition], then each aggregate collection's first
-     * [tailBatch] entries after it, in one aggregation over the counters; the contiguous run of entries from
-     * `last + 1`, and whether to read again at once. A run shorter than the counter calls for reads the registry and,
-     * when that finds new collections, reads again at once.
+     * [tailBatch] entries and placeholders after it, in one aggregation over the counters. It gives the entries of the
+     * final run from `last + 1` (placeholders stepped over), the sequence that run reaches, and the first missing one
+     * when anything lies past it. Reads again at once after a full batch, or when the counter's open blocks name a
+     * collection this log does not know, or entries lie past a missing sequence (a collection created since: the
+     * registry is read again).
      */
     private fun readTail(partition: Int, last: Long): TailBatch {
-        val known = registered ?: register()
+        val known = known()
         val pipeline = listOf(
             Aggregates.match(Filters.eq(ID, partition)),
-            Aggregates.project(Projections.fields(Projections.excludeId(), Projections.computed(HEAD, "$$SEQUENCE"))),
+            Aggregates.project(Projections.fields(Projections.excludeId(), Projections.include(MongoSequencer.BLOCKS))),
         ) + known.withIndex().map { (index, collection) ->
             Aggregates.unionWith(
                 collection.name,
@@ -774,28 +692,78 @@ class MongoEventLog(
                 ),
             )
         }
-        var head = 0L
-        val entries = ArrayList<LogEntry>()
+        val entries = HashMap<Long, LogEntry>()
+        val gaps = HashMap<Long, Long>()
+        var counter: Document? = null
         committedCounters.aggregate(pipeline).forEach { document ->
             val branch = document.getInteger(BRANCH)
-            if (branch == null) {
-                head = document.getLong(HEAD)
-            } else {
-                entries += entryOf(known[branch].aggregate, document)
+            val sequence = document.getLong(SEQUENCE)
+            when {
+                branch == null -> counter = document
+                document.containsKey(GAP) -> gaps.merge(sequence, document.getLong(GAP_TO) ?: sequence, ::maxOf)
+                else -> entries[sequence] = entryOf(known[branch].aggregate, document)
             }
         }
-        entries.sortBy { it.position.sequence }
-        val run = contiguousRun(entries, last).take(tailBatch)
-        val expected = minOf(head - last, tailBatch.toLong()).coerceAtLeast(0)
-        val again = when {
-            run.size < expected -> register().map { it.name } != known.map { it.name }
-            else -> run.size == tailBatch
+        val run = ArrayList<LogEntry>()
+        var next = last + 1
+        while (run.size < tailBatch) {
+            val entry = entries[next]
+            when {
+                entry != null -> run += entry
+                next in gaps -> next = gaps.getValue(next)
+                else -> break
+            }
+            next++
         }
-        return TailBatch(run, again, behind = run.size < expected)
+        val missing = next.takeIf { entries.keys.any { it > next } || gaps.keys.any { it > next } }
+        val names = known.map { it.name }.toSet()
+        val unknown = sequencer.openBlocks(counter).any { block -> block.collections.any { it !in names } }
+        val again = when {
+            run.size == tailBatch -> true
+            unknown || missing != null -> register().map { it.name }.toSet() != names
+            else -> false
+        }
+        return TailBatch(run, through = next - 1, missing, again)
     }
 
-    /** One read of a tail: its [entries], whether to read again at once, whether the counter is ahead of them. */
-    private class TailBatch(val entries: List<LogEntry>, val again: Boolean, val behind: Boolean)
+    /**
+     * One read of a tail: its [entries], the last sequence of its final run ([through], past placeholders), the first
+     * missing sequence with something past it, and whether to read again at once.
+     */
+    private class TailBatch(val entries: List<LogEntry>, val through: Long, val missing: Long?, val again: Boolean)
+
+    /**
+     * Resolves [sequence] of [partition], missing past the grace while something lies past it, through the counter's
+     * open blocks ([MongoSequencer.resolve]).
+     */
+    private fun resolve(partition: Int, sequence: Long) {
+        val counter = committedCounters.find(Filters.eq(ID, partition)).firstOrNull()
+        when (val resolution = sequencer.resolve(partition, sequence, sequencer.openBlocks(counter))) {
+            MongoSequencer.Resolution.Wait -> Unit
+            is MongoSequencer.Resolution.Close -> close(resolution.closing)
+            is MongoSequencer.Resolution.Fill ->
+                fill(collectionNamed(resolution.collection), partition, sequence, GAP_UNKNOWN)
+
+            is MongoSequencer.Resolution.Seal -> seal(partition, sequence, resolution.block)
+        }
+    }
+
+    /**
+     * Seals [block], another node's, from [from]: a placeholder at each of its sequences left in each collection it may
+     * write, so a write of that node still to come meets a taken position; then takes it out of the counter's list.
+     */
+    private fun seal(partition: Int, from: Long, block: MongoSequencer.OpenBlock) {
+        val placeholders = (from..block.to).map { placeholder(partition, it, GAP_SEALED) }
+        block.collections.forEach { name ->
+            try {
+                collectionNamed(name).appends
+                    .insertMany(placeholders.map(::Document), InsertManyOptions().ordered(false))
+            } catch (failure: MongoBulkWriteException) {
+                if (failure.writeErrors.any { it.category != ErrorCategory.DUPLICATE_KEY }) throw failure
+            }
+        }
+        sequencer.remove(partition, block)
+    }
 
     /**
      * The lineage of [partition] from its counter document (decision D240): its `parent` and `epoch`, read as
@@ -811,11 +779,25 @@ class MongoEventLog(
         }
     }
 
+    /**
+     * The highest sequence of a stream in [partition], in one aggregation over the collections this log knows; a
+     * placeholder is no stream, and a reader that reads the tail up to the head waits for a stream there. The counter
+     * is the blocks reserved, not the streams written (decision D271). An append in flight may still land below it:
+     * one concurrent with this read, which a subscription starting from the head may count as committed before it.
+     */
     override suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         return dispatcher.mongo {
-            // The counter is bumped in the transaction that inserts the entry, so it is the last committed sequence.
-            committedCounters.find(Filters.eq(ID, partition)).firstOrNull()?.getLong(SEQUENCE)?.takeIf { it > 0 }
+            val known = known()
+            if (known.isEmpty()) return@mongo null
+            val highest = listOf(
+                Aggregates.match(Filters.and(Filters.eq(PARTITION, partition), Filters.exists(VERSION))),
+                Aggregates.sort(Sorts.descending(SEQUENCE)),
+                Aggregates.limit(1),
+                Aggregates.project(Projections.include(SEQUENCE)),
+            )
+            val pipeline = highest + known.drop(1).map { Aggregates.unionWith(it.name, highest) }
+            known.first().committed.aggregate(pipeline).maxOfOrNull { it.getLong(SEQUENCE) }
         }
     }
 
@@ -971,20 +953,44 @@ class MongoEventLog(
         const val BRANCH = "branch"
         const val HEAD = "head"
 
-        /** How long the driver's `withTransaction` retries a transaction; [transact] retries as long. */
-        val MAX_RETRY: Duration = 2.minutes
+        /** How long an append's insert may take by default: below the default wait timeout of 10 seconds. */
+        val DEFAULT_APPEND_TIMEOUT: Duration = 5.seconds
 
-        /** How long an append's transaction may take by default: below the default wait timeout of 10 seconds. */
-        val DEFAULT_TRANSACTION_TIMEOUT: Duration = 5.seconds
+        /** The sequences one reservation of a partition's counter gives a node (decision D271). */
+        const val BLOCK = 256L
+
+        /** The most blocks an append takes when each was sealed under it before it gives up. */
+        const val MAX_SEALED = 4
+
+        /** The aggregates whose last sequence the log remembers. */
+        const val LAST_SEQUENCES = 65_536
+
+        /** How long the tail waits at a missing sequence before it resolves it through the open blocks. */
+        val STALL_GRACE: Duration = 1.seconds
+
+        /** A placeholder's field: why its sequence holds no stream. */
+        const val GAP = "gap"
+
+        /** A range placeholder's last sequence. */
+        const val GAP_TO = "gap_to"
+
+        /** The node that wrote a placeholder. */
+        const val GAP_NODE = "gap_node"
+
+        /** A sequence whose stream was refused or conflicted. */
+        const val GAP_FAILED = "failed"
+
+        /** A sequence whose stream's write had an unknown outcome and did not land. */
+        const val GAP_UNKNOWN = "unknown"
+
+        /** A block's unused remainder. */
+        const val GAP_CLOSED = "closed"
+
+        /** A sequence of a block another node sealed. */
+        const val GAP_SEALED = "sealed"
 
         /** The streams of tail [readTail]'s first batch holds beyond the earlier request keys. */
         const val READ_TAIL_BATCH = 1000
-
-        /** The entries of [entries], in sequence order, that continue `last` without a gap. */
-        fun contiguousRun(entries: List<LogEntry>, last: Long): List<LogEntry> {
-            var next = last + 1
-            return entries.takeWhile { it.position.sequence == next++ }
-        }
 
         const val ID = "_id"
         const val PARTITION = "partition"
@@ -1030,10 +1036,45 @@ class MongoEventLog(
         const val REQUEST_KEY = "request_key"
         const val POSITION_KEY = "position_key"
 
-        /** The version of this layout (decision D59). */
-        const val FORMAT = 1
+        /**
+         * The version of this layout (decision D59): 2 since appends allocate sequences from blocks and the tail steps
+         * over placeholders (decision D271), which a reader of 1 would read as streams.
+         */
+        const val FORMAT = 2
 
         /** A stream's facts: every field but the transport. */
         val FACTS: Bson = Projections.exclude(TRANSPORT)
+    }
+}
+
+/** An aggregate's last stream as a [MongoEventLog] saw it: its version and sequence. */
+private class LastSequence(val version: Int, val sequence: Long)
+
+/**
+ * Each aggregate's last stream as a [MongoEventLog] saw it, for at most [capacity] aggregates, the least recently used
+ * dropped first: an aggregate it does not hold is read from the log.
+ */
+private class LastSequences(private val capacity: Int) {
+    private val sequences = object : LinkedHashMap<AggregateRef, LastSequence>(INITIAL, LOAD_FACTOR, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<AggregateRef, LastSequence>): Boolean =
+            size > capacity
+    }
+
+    operator fun get(ref: AggregateRef): LastSequence? = synchronized(sequences) { sequences[ref] }
+
+    /** Records [last] as [ref]'s, unless a later version is recorded. */
+    operator fun set(ref: AggregateRef, last: LastSequence) {
+        synchronized(sequences) {
+            sequences.merge(ref, last) { held, seen -> if (seen.version > held.version) seen else held }
+        }
+    }
+
+    fun remove(ref: AggregateRef) {
+        synchronized(sequences) { sequences.remove(ref) }
+    }
+
+    private companion object {
+        const val INITIAL = 1_024
+        const val LOAD_FACTOR = 0.75f
     }
 }
