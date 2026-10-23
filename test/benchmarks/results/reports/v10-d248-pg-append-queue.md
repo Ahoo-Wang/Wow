@@ -36,6 +36,31 @@ Throughput and p50 at each concurrency, rounds 1 and 2.
 - **On**, both keep growing to 512: E1 +11% and +24% at saturation, E3 +76% and +38%, with a lower p50 at the same high concurrency.
 - **At low concurrency** the queue costs 1–5% of throughput at the same concurrency, the p50 unchanged; single points differ more, within the noise of one machine.
 
+## On GitHub Actions after the merge
+
+[39956730984](https://github.com/Ahoo-Wang/Wow/actions/runs/39956730984) (`sustainable-pg`, 100k, `main` at `896081659`, the queue on), on an AMD EPYC 7763 runner (4 cores):
+
+| Scenario | Sustainable (≤ 1% errors, p99 ≤ 200 ms) | Saturation | Share | CPU ms/op |
+| --- | --- | --- | --- | --- |
+| E1 | 909/s | 1,939/s | 47% | 2.59 |
+| E3 | 426/s | 758/s | 56% | 6.06 |
+
+The earlier `sustainable-pg` runs were on other processors (Xeon 8370C, EPYC 9V45, Xeon 8573C), so their rates do not divide by these; the shares of saturation are in their range (E1 47–53%, E3 50–56%). This run neither confirms nor refutes the local gain: that takes the queue off and on paired on one runner, which the `pg-append-queue` suite does. Near the limit the E1 probe at 970/s still began its measured phase with a queue (p99 1.6 s in its first second, decaying to under 100 ms from the sixth), the case roadmap §6 item 6 keeps as an anomaly.
+
+### Off and on paired on one runner
+
+[39968017660](https://github.com/Ahoo-Wang/Wow/actions/runs/39968017660) (the `pg-append-queue` suite, E1, 100k, Xeon 8573C): each arm's closed-loop saturation once, then two rounds of both arms at one offered load, 1,415/s (60% of the queue off's saturation).
+
+| | Queue off | Queue on | On/off |
+| --- | --- | --- | --- |
+| Closed-loop saturation | 2,359/s | 2,224/s | 0.94 |
+| Failed at 1,415/s | 1,051–1,557 (`429 wow.command.busy`) | 0 | |
+| p50 at 1,415/s | 122–131 ms | 100–108 ms | 0.82 |
+| p99 at 1,415/s | 4.36–5.34 s | 1.46–1.81 s | 0.27–0.42 |
+| CPU ms/op | 1.91–1.94 | 1.90–1.94 | 1.0 |
+
+The suite's verdict reads "off", from the saturation alone: one closed-loop run per arm, 6% lower with the queue on, at the edge of a single run's noise, where the two local rounds found it 11–24% higher. At the same offered load, which is what a service sees, the queue on refused nothing where off refused 1,000–1,500 commands (the node's in-flight bound), and its p99 was a third. All four rounds are marked unstable: 1,415/s is near this runner's limit, and each began its measured phase with a queue.
+
 ## Conclusion
 
-The queue goes on by default for PostgreSQL, as it is for MongoDB (decision D271 ⑧). With both on, the per-store preset (`Store.queuesAppends`) has nothing left to choose and is removed; `wow.log.append-queue.enabled=false` turns the queue off.
+The queue goes on by default for PostgreSQL, as it is for MongoDB (decision D271 ⑧): at the same load it refuses nothing and its tail is shorter, and its closed-loop ceiling is higher locally and within a single run's noise on the 4-core runner. With both on, the per-store preset (`Store.queuesAppends`) has nothing left to choose and is removed; `wow.log.append-queue.enabled=false` turns the queue off.
