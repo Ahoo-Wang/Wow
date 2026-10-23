@@ -959,10 +959,10 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Log {
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Mongo {
 	public fun <init> ()V
+	public final fun getAppendTimeout ()Ljava/time/Duration;
 	public final fun getDatabase ()Ljava/lang/String;
-	public final fun getTransactionTimeout ()Ljava/time/Duration;
+	public final fun setAppendTimeout (Ljava/time/Duration;)V
 	public final fun setDatabase (Ljava/lang/String;)V
-	public final fun setTransactionTimeout (Ljava/time/Duration;)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Node {

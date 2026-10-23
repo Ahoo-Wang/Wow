@@ -127,7 +127,10 @@ internal class MongoSequencer(
                 val usable = current?.takeIf { it.next <= it.to && collection in it.collections && it.next > after }
                 val block = usable ?: run {
                     closing = current?.let(::retire)
-                    retired.filter { it.done }.forEach { retired -= it; done += it }
+                    retired.filter { it.done }.forEach {
+                        retired -= it
+                        done += it
+                    }
                     reserve(registered() + collection).also { current = it }
                 }
                 val sequence = block.next++

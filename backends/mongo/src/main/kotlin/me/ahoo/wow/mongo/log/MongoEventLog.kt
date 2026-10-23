@@ -18,22 +18,17 @@ import com.mongodb.MongoBulkWriteException
 import com.mongodb.MongoException
 import com.mongodb.MongoWriteException
 import com.mongodb.ReadConcern
-import com.mongodb.TransactionOptions
 import com.mongodb.WriteConcern
-import com.mongodb.client.ClientSession
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoCollection
-import com.mongodb.client.model.Accumulators
 import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.BulkWriteOptions
 import com.mongodb.client.model.Field
 import com.mongodb.client.model.Filters
-import com.mongodb.client.model.FindOneAndUpdateOptions
 import com.mongodb.client.model.IndexOptions
-import com.mongodb.client.model.InsertManyOptions
 import com.mongodb.client.model.Indexes
+import com.mongodb.client.model.InsertManyOptions
 import com.mongodb.client.model.Projections
-import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Sorts
 import com.mongodb.client.model.UpdateOneModel
 import com.mongodb.client.model.UpdateOptions
@@ -81,7 +76,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -704,17 +698,7 @@ class MongoEventLog(
                 else -> entries[sequence] = entryOf(known[branch].aggregate, document)
             }
         }
-        val run = ArrayList<LogEntry>()
-        var next = last + 1
-        while (run.size < tailBatch) {
-            val entry = entries[next]
-            when {
-                entry != null -> run += entry
-                next in gaps -> next = gaps.getValue(next)
-                else -> break
-            }
-            next++
-        }
+        val (run, next) = finalRun(entries, gaps, last, tailBatch)
         val missing = next.takeIf { entries.keys.any { it > next } || gaps.keys.any { it > next } }
         val names = known.map { it.name }.toSet()
         val unknown = sequencer.openBlocks(counter).any { block -> block.collections.any { it !in names } }
@@ -933,6 +917,31 @@ class MongoEventLog(
     )
 
     internal companion object {
+        /**
+         * The entries of the final run after [last], at most [limit]: each sequence from `last + 1` is an entry of
+         * [entries] or a placeholder of [gaps] (its first sequence to its last), until one is neither; and the first
+         * sequence the run did not reach.
+         */
+        fun finalRun(
+            entries: Map<Long, LogEntry>,
+            gaps: Map<Long, Long>,
+            last: Long,
+            limit: Int,
+        ): Pair<List<LogEntry>, Long> {
+            val run = ArrayList<LogEntry>()
+            var next = last + 1
+            while (run.size < limit) {
+                val entry = entries[next]
+                when {
+                    entry != null -> run += entry
+                    next in gaps -> next = gaps.getValue(next)
+                    else -> break
+                }
+                next++
+            }
+            return run to next
+        }
+
         val DEFAULT_POLL_INTERVAL = 50.milliseconds
         val DEFAULT_MAX_POLL_INTERVAL = 1.seconds
         const val DEFAULT_TAIL_BATCH = 500

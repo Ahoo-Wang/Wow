@@ -144,10 +144,7 @@ class MongoBackend : Backend {
             leases = MongoLeaseStore(client, DATABASE),
             checkpoints = MongoCheckpointStore(client, DATABASE),
             ledger = MongoFailureLedger(client, DATABASE),
-            close = {
-                log.close()
-                client.close()
-            },
+            close = { client.close() },
         )
     }
 

@@ -250,8 +250,11 @@ class PostgresKernelRoundTripsTest : KernelRoundTripsSpec() {
 
 /** [KernelRoundTripsSpec] on MongoDB: a round trip is a command the driver sends. */
 class MongoKernelRoundTripsTest : KernelRoundTripsSpec() {
-    /** The append's transaction: the version read, the counter, the insert and the commit. */
-    override val append = 4
+    /**
+     * The insert, at a sequence of the node's block (decision D271): the version before it is the one the log saw last,
+     * from the load or the previous append.
+     */
+    override val append = 1
 
     /** The snapshot, then the tail. */
     override val load = 2
