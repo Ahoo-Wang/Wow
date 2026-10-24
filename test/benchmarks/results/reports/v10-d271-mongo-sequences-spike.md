@@ -51,4 +51,4 @@ Below saturation, where latency sets the throughput, E3 carries about 1.5–1.9�
 
 ## Conclusion
 
-The gain is real and largest where Wow 10 on MongoDB fell short in the L4 run (v10-vs-9x): at moderate load, where E1's p50 was 2–4× 9.x's and the sustainable rates 16–22% of saturation. The spike also showed that the placeholders are not optional. D271 goes ahead with the full design (decision D271, A′).
+The gain is real and largest where Wow 10 on MongoDB fell short in the L4 run ([v10-vs-9x](https://github.com/Ahoo-Wang/Wow/blob/26f1fa05030db5bcaeae70c34b6531dd1938c821/test/benchmarks/results/reports/v10-vs-9x.md)): at moderate load, where E1's p50 was 2–4× 9.x's and the sustainable rates 16–22% of saturation. The spike also showed that the placeholders are not optional. D271 goes ahead with the full design (decision D271, A′).

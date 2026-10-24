@@ -12,29 +12,27 @@
 # limitations under the License.
 #
 # The harness of the end-to-end benchmark (decision D224; test/benchmarks/README.md). Each run starts from empty
-# stores: it starts the stores and the bus (compose.yml), starts the servers of one version in their topology (one node
-# or a cluster), seeds the accounts, checks every scenario once, runs the load generator, then stops the servers and
-# removes the containers with their volumes, whatever happens. Runs on macOS's bash 3.2. The 9.x server left this
-# branch (decision D262): set WOW_BENCH_9X_REPO to a worktree of the side branch v10-9x-baseline, where `build` builds
-# it and `--version=9x` runs it from.
+# stores: it starts the stores and the bus (compose.yml), starts the servers in their topology (one node or a cluster),
+# seeds the accounts, checks every scenario once, runs the load generator, then stops the servers and removes the
+# containers with their volumes, whatever happens. Runs on macOS's bash 3.2.
 #
 #   bench.sh build
-#   bench.sh run      --version=9x|v10 [--backend=mongo|postgres] [--nodes=1|3] --scenario=E1 --rate=50 [options]
-#   bench.sh saturate --version=9x|v10 [--backend=...] [--nodes=...] --scenario=E1 [--max-concurrency=256] [options]
+#   bench.sh run      [--backend=mongo|postgres] [--nodes=1|3] --scenario=E1 --rate=50 [options]
+#   bench.sh saturate [--backend=...] [--nodes=...] --scenario=E1 [--max-concurrency=256] [options]
 #   bench.sh component --backend=mongo|postgres --scenario=E1|E3|E1-large [--ops=20000] [--warm-up-ops=2000]
 #                      [--concurrency=64] [options]   (L1: the V10 domain on the kernel and one store, in one JVM)
-#   bench.sh up       --version=... [--backend=...] [--nodes=...] [--accounts=...] [--prime] [--jfr] [options]
+#   bench.sh up       [--backend=...] [--nodes=...] [--accounts=...] [--prime] [--jfr] [options]
 #   bench.sh down
 #
 # A session: `up` starts the stores, the servers, seeds and primes as a run would, and leaves them up; a `run` or
 # `saturate` with --reuse then measures on them (after waiting until the nodes are quiet), and leaves them up too;
-# `down` stops them. A reused run must name the session's version, backend, nodes, accounts, heap and install. With
+# `down` stops them. A reused run must name the session's backend, nodes, accounts, heap and install. With
 # `up --jfr`, each reused run dumps the servers' recordings over its warm-up and measured phase.
 #
 # Options: --warm-up=30 --measure=60 --distribution=uniform|zipf|hot --accounts=1000 --label=run --out=<dir>
 #          --heap=1g --jfr (a flight recording per server) --settle=<s> (after the nodes are up), --install=<dir> (the
 #          server's installed distribution, by default this tree's server/build/install/benchmark-server: another
-#          build of the same version, such as a baseline's), --seed-concurrency=32 (accounts opened at once),
+#          build, such as a baseline's), --seed-concurrency=32 (accounts opened at once),
 #          --load-cpus=<list> and --server-cpus=<list> (Linux, taskset lists: the load generator on its own CPUs, the
 #          servers and the containers on the others), --prime (an untimed pass over every account before the run,
 #          then a wait until the nodes are quiet again),
@@ -47,7 +45,6 @@ REPO="$(cd "$HARNESS/../../.." && pwd)"
 JAVA_HOME="${JAVA_HOME:?Set JAVA_HOME to a JDK 21.}"
 export JAVA_HOME
 LOAD="$REPO/test/benchmarks/load/build/install/benchmark-load/bin/benchmark-load"
-NINE_X_REPO="${WOW_BENCH_9X_REPO:-}"
 PUBLIC_PORT=18080
 INTERNAL_PORT=19090
 SERVER_PIDS=()
@@ -57,7 +54,7 @@ SESSION="$REPO/test/benchmarks/results/e2e/.session"
 UP=false
 
 usage() {
-  sed -n '14,35p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,40p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -68,11 +65,6 @@ compose() { docker compose -f "$HARNESS/compose.yml" "$@"; }
 build() {
   log "building the servers and the load generator"
   (cd "$REPO" && ./gradlew --console=plain -q :benchmark-server:installDist :benchmark-load:installDist)
-  if [ -n "$NINE_X_REPO" ]; then
-    (cd "$NINE_X_REPO" && ./gradlew --console=plain -q :e2e-bench-9x:installDist)
-  else
-    log "WOW_BENCH_9X_REPO is not set: the 9.x server is not built"
-  fi
 }
 
 down() {
@@ -108,7 +100,7 @@ parse() {
     esac
     OPTIONS="$OPTIONS${argument#--}
 "
-    case " --version --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --seed-concurrency --load-cpus --server-cpus --prime --reuse " in
+    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --seed-concurrency --load-cpus --server-cpus --prime --reuse " in
       *" $key "*) ;;
       *) PASS+=("$argument") ;;
     esac
@@ -142,38 +134,29 @@ load() {
   ${PREFIX[@]+"${PREFIX[@]}"} "$LOAD" "$@"
 }
 
-# The launcher of the server distribution $1: benchmark-server, or a build from before test/benchmarks/ (a baseline's
-# e2e-bench-v10, the 9.x tree's e2e-bench-9x).
+# The launcher of the server distribution $1: benchmark-server, or a baseline's from before test/benchmarks/
+# (e2e-bench-v10).
 server_launcher() {
   local name
-  for name in benchmark-server e2e-bench-v10 e2e-bench-9x; do
+  for name in benchmark-server e2e-bench-v10; do
     if [ -x "$1/bin/$name" ]; then echo "$1/bin/$name"; return; fi
   done
   echo "$1/bin/benchmark-server"
 }
 
-# Starts node $1 (1-based) of $VERSION; its output goes to $OUT/node-$1.log. The launcher execs java, so the pid it
+# Starts node $1 (1-based); its output goes to $OUT/node-$1.log. The launcher execs java, so the pid it
 # records is the server JVM's.
 start_node() {
   local n=$1
   local port=$((PUBLIC_PORT + n - 1)) internal=$((INTERNAL_PORT + n - 1))
-  local args=("--server.port=$port")
-  if [ "$VERSION" = 9x ]; then
-    args+=("--cosid.machine.distributor.manual.machine-id=$n")
-  else
-    args+=("--spring.profiles.active=$BACKEND" "--wow.internal.port=$internal" "--wow.node.id=node-$n")
-  fi
+  local args=("--server.port=$port" "--spring.profiles.active=$BACKEND" "--wow.internal.port=$internal" "--wow.node.id=node-$n")
   local jvm="-Xms$HEAP -Xmx$HEAP -XX:+UseG1GC"
   if [ "$(opt jfr false)" = true ]; then
     jvm="$jvm -XX:StartFlightRecording=filename=$OUT/node-$n.jfr,settings=$(opt jfr-settings profile)"
   fi
-  # --install names the build; else 9.x runs from its v10-9x-baseline tree (D262) and V10 from this one.
+  # --install names the build; else the one in this tree.
   local install
-  if [ "$VERSION" = 9x ]; then
-    install=$(opt install "$NINE_X_REPO/wow-benchmarks/e2e/bench-9x/build/install/e2e-bench-9x")
-  else
-    install=$(opt install "$REPO/test/benchmarks/server/build/install/benchmark-server")
-  fi
+  install=$(opt install "$REPO/test/benchmarks/server/build/install/benchmark-server")
   local launcher
   launcher=$(server_launcher "$install")
   pin server-cpus
@@ -187,7 +170,6 @@ start_node() {
 await_node() {
   local n=$1
   local url=${TARGETS[$((n - 1))]} pid=${SERVER_PIDS[$((n - 1))]} probe=/wow/manifest
-  if [ "$VERSION" = 9x ]; then probe=/wow/id/global; fi
   local attempt
   for attempt in $(seq 1 120); do
     if ! kill -0 "$pid" 2>/dev/null; then
@@ -200,19 +182,13 @@ await_node() {
 }
 
 setup() {
-  VERSION=$(opt version "")
-  if [ "$VERSION" != 9x ] && [ "$VERSION" != v10 ]; then log "--version=9x|v10"; usage; fi
   BACKEND=$(opt backend mongo)
-  if [ "$VERSION" = 9x ] && [ "$BACKEND" != mongo ]; then log "9.x runs on MongoDB only (D224)"; exit 2; fi
-  if [ "$VERSION" = 9x ] && [ -z "$NINE_X_REPO" ] && [ -z "$(opt install "")" ]; then
-    log "--version=9x needs WOW_BENCH_9X_REPO, a worktree of v10-9x-baseline (D262), or --install"; exit 2
-  fi
   NODES=$(opt nodes 1)
   HEAP=$(opt heap 1g)
   ACCOUNTS=$(opt accounts 1000)
   LABEL=$(opt label run)
   local scenario; scenario=$(opt scenario saturation)
-  OUT=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-$LABEL-$VERSION-$BACKEND-n$NODES-$scenario")
+  OUT=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-$LABEL-$BACKEND-n$NODES-$scenario")
   mkdir -p "$OUT"
   if [ ! -x "$LOAD" ]; then build; fi
   if [ "$(opt reuse false)" = true ]; then
@@ -236,7 +212,7 @@ setup() {
   STORE_OPTION="--$store=wow-e2e-bench-$store"
   local n
   for n in $(seq 1 "$NODES"); do
-    log "starting $VERSION node $n on $BACKEND"
+    log "starting node $n on $BACKEND"
     start_node "$n"
     await_node "$n"
   done
@@ -247,18 +223,18 @@ setup() {
   sleep "$settle"
   TARGET_LIST=$(IFS=,; echo "${TARGETS[*]}")
   log "seeding $ACCOUNTS accounts"
-  load seed --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" \
+  load seed --targets="$TARGET_LIST" --accounts="$ACCOUNTS" \
     --concurrency="$(opt seed-concurrency 32)" | tee "$OUT/seed.log" >&2
   log "checking every scenario once"
   # Only the run's scenarios, so a baseline without a newer scenario (E1-large) still runs the ones it has.
-  load check --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --scenario="$(opt scenario "")" \
+  load check --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --scenario="$(opt scenario "")" \
     --mix="$(opt mix "")" | tee "$OUT/check.log" >&2
   # --prime: an untimed pass over every seeded account (D224 note ⑤), so a large data set is measured warm.
   local primed=false prime_seconds=0 settle_seconds=0
   if [ "$(opt prime false)" = true ]; then
     log "priming $ACCOUNTS accounts"
     local prime_started=$SECONDS
-    load prime --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" \
+    load prime --targets="$TARGET_LIST" --accounts="$ACCOUNTS" \
       --concurrency="$(opt seed-concurrency 256)" --out="$OUT" | tee "$OUT/prime.log" >&2
     primed=true
     prime_seconds=$((SECONDS - prime_started))
@@ -266,7 +242,7 @@ setup() {
     # warm-up starts from the steady state rather than from that backlog.
     local settle_pids="" settle_started=$SECONDS
     for n in $(seq 1 "$NODES"); do settle_pids="${settle_pids}node-$n:${SERVER_PIDS[$((n - 1))]},"; done
-    load settle --version="$VERSION" --targets="$TARGET_LIST" --pids="${settle_pids%,}" --out="$OUT" \
+    load settle --targets="$TARGET_LIST" --pids="${settle_pids%,}" --out="$OUT" \
       | tee "$OUT/settle.log" >&2
     settle_seconds=$((SECONDS - settle_started))
   fi
@@ -293,9 +269,9 @@ setup() {
   fi
 }
 
-# What a reused run must match of the session: the version, backend, nodes, accounts, heap and install.
+# What a reused run must match of the session: the backend, nodes, accounts, heap and install.
 session_key() {
-  echo "version=$VERSION;backend=$BACKEND;nodes=$NODES;accounts=$ACCOUNTS;heap=$HEAP;install=$(opt install "")"
+  echo "backend=$BACKEND;nodes=$NODES;accounts=$ACCOUNTS;heap=$HEAP;install=$(opt install "")"
 }
 
 # Takes up the session `up` left (--reuse): its servers and targets, once the nodes are quiet again.
@@ -321,7 +297,7 @@ resume() {
   PIDS=${PIDS%,}
   # The run before may have left the nodes a backlog, as a prime does: wait until they are quiet.
   local settle_started=$SECONDS
-  load settle --version="$VERSION" --targets="$TARGET_LIST" --pids="$PIDS" --out="$OUT" | tee "$OUT/settle.log" >&2
+  load settle --targets="$TARGET_LIST" --pids="$PIDS" --out="$OUT" | tee "$OUT/settle.log" >&2
   if [ "$S_STORE" = postgres ] && [ "$S_JFR" = true ]; then
     postgres_sql "select pg_stat_statements_reset();" >/dev/null || true
   fi
@@ -369,7 +345,7 @@ run() {
   parse "$@"
   setup
   log "running $(opt scenario ?) at $(opt rate ?)/s"
-  load run --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --label="$LABEL" --out="$OUT" \
+  load run --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --label="$LABEL" --out="$OUT" \
     --pids="$PIDS" --containers="$CONTAINERS" --kafka=wow-e2e-bench-kafka "$STORE_OPTION" --repository="$REPO" \
     --meta="$META" ${PASS[@]+"${PASS[@]}"}
   dump_recordings "$(( $(opt warm-up 30) + $(opt measure 60) + 5 ))"
@@ -382,7 +358,7 @@ run() {
 saturate() {
   parse "$@"
   setup
-  load saturate --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --out="$OUT" \
+  load saturate --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --out="$OUT" \
     --meta="$META" ${PASS[@]+"${PASS[@]}"}
   log "results in $OUT"
 }
@@ -392,7 +368,6 @@ saturate() {
 # has no ComponentBench (one older than it) exits 3.
 component() {
   parse "$@"
-  VERSION=v10
   BACKEND=$(opt backend mongo)
   local scenario; scenario=$(opt scenario E1)
   OUT=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-component-$BACKEND-$scenario")

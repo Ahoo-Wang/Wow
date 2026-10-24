@@ -25,7 +25,7 @@
 ## 3. 进行中与下一步
 
 - **试用 `10.0.0-alpha.4`**：收集反馈；本机基准（2026-10-22，M4 Pro，PostgreSQL 单节点 E1）：饱和约 8,670 次/秒；开环 50%（4,300/s）p99 7.2 ms，80%（6,900/s）p99 1.04 s 并有 53 次 `wow.command.busy`，尾延迟后来查明主要是基准工具造成的（测量开头带着 prime 留下的队列，路线图 §6 性能第 2 项）。
-- **全面基准报告**（2026-10-22，[`v10-vs-9x.md`](../../test/benchmarks/results/reports/v10-vs-9x.md)，Actions L3 与 L4）：之后的 D268～D271 与 D248 ④ 改变了 MongoDB 的追加与两个后端的默认值，报告中 MongoDB 与对比 9.x 的数字已过时；各项的单独证据在 [`results/reports/`](../../test/benchmarks/results/reports/README.md)（D271 的原型与实测、D248 ④）。GA 前在 Actions 上重跑 L3 与 L4，刷新报告。
+- **全面基准报告**（2026-10-22，[`v10-vs-9x.md`](https://github.com/Ahoo-Wang/Wow/blob/26f1fa05030db5bcaeae70c34b6531dd1938c821/test/benchmarks/results/reports/v10-vs-9x.md)，Actions L3 与 L4）：之后的 D268～D271 与 D248 ④ 改变了 MongoDB 的追加与两个后端的默认值，报告中 MongoDB 与对比 9.x 的数字已过时；各项的单独证据在 [`results/reports/`](../../test/benchmarks/results/reports/README.md)（D271 的原型与实测、D248 ④）。GA 前在 Actions 上重跑 L3 与 L4，刷新报告。
 - **之后**：路线图 §6 的「GA 前」事项与性能项已全部完成；rc 的时间由用户决定（9.4）。
 
 ## 全面审查结论（M7.5，D221；用户 2026-10-16 确认通过）

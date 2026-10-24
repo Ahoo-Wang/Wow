@@ -51,13 +51,10 @@ class MixTest {
 
 class LargePayloadTest {
     @Test
-    fun `the large payload should be five notes of 2 KB, on V10 only`() {
+    fun `the large payload should be five notes of 2 KB`() {
         Scenario.of("E1-large").assert().isEqualTo(Scenario.E1_LARGE)
         Scenario.LARGE_NOTES.length.assert().isEqualTo(5 * (2_048 + 2) + 4 + 2)
-        VersionAdapter.V10.supports(Scenario.E1_LARGE).assert().isTrue()
-        VersionAdapter.NineX.supports(Scenario.E1_LARGE).assert().isFalse()
-        VersionAdapter.NineX.supports(Scenario.E1).assert().isTrue()
-        val request = VersionAdapter.V10.annotate(java.net.URI.create("http://h:1"), "acc-1", "[\"a\"]")
+        val request = TransferApi.annotate(java.net.URI.create("http://h:1"), "acc-1", "[\"a\"]")
         request.uri().path.assert().isEqualTo("/transfer/account/acc-1/annotate")
         request.headers().firstValue("Wow-Wait").get().assert().isEqualTo("committed")
     }

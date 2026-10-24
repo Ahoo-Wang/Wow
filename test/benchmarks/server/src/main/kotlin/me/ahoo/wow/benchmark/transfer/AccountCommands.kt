@@ -15,8 +15,8 @@ package me.ahoo.wow.benchmark.transfer
 
 import me.ahoo.wow.api.annotation.CreateAggregate
 
-// 9.x names each command's route; V10 derives `POST /transfer/account/{id}/<kebab name>` from the Manifest. The
-// aggregate id is the path's on both.
+// The route of each command is derived from the Manifest: `POST /transfer/account/{id}/<kebab name>`, the aggregate id
+// the path's.
 
 @CreateAggregate
 data class OpenAccount(val owner: String, val balance: Long)
@@ -42,6 +42,6 @@ data class FreezeAccount(val reason: String)
 
 /**
  * Attaches [notes] to the account, one event each: the benchmark's large-payload variant (D224 note ⑥, five events of
- * about 2 KB per command). V10 only; it has no 9.x twin.
+ * about 2 KB per command).
  */
 data class Annotate(val notes: List<String>)

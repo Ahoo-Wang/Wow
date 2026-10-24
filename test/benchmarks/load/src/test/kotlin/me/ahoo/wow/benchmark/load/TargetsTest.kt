@@ -30,7 +30,7 @@ class TargetsTest {
         createContext("/") { exchange ->
             answered.incrementAndGet()
             val body = """{"status":"SUCCEEDED"}""".toByteArray()
-            exchange.sendResponseHeaders(VersionAdapter.OK, body.size.toLong())
+            exchange.sendResponseHeaders(TransferApi.OK, body.size.toLong())
             exchange.responseBody.use { it.write(body) }
         }
         start()
@@ -39,7 +39,7 @@ class TargetsTest {
 
     /** A port nothing listens on: a stopped node, which refuses connections. */
     private val stopped = URI.create("http://127.0.0.1:${ServerSocket(0).use { it.localPort }}")
-    private val client = Client(HttpClient.newHttpClient(), VersionAdapter.V10)
+    private val client = Client(HttpClient.newHttpClient())
 
     @AfterEach
     fun stop() = server.stop(0)

@@ -1,0 +1,53 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.benchmark.load
+
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
+import java.net.URI
+
+/** The wait mapping of each scenario, on the wire (test/benchmarks/README.md). */
+class TransferApiTest {
+    private val base = URI.create("http://127.0.0.1:8080")
+
+    @Test
+    fun `a command should wait for committed, snapshot or the chain to the target's commit`() {
+        val stored = TransferApi.deposit(base, "acc-1", 1, Wait.STORED)
+        stored.uri().path.assert().isEqualTo("/transfer/account/acc-1/deposit")
+        stored.headers().firstValue("Wow-Wait").get().assert().isEqualTo("committed")
+        TransferApi.deposit(base, "acc-1", 1, Wait.SNAPSHOT).headers().firstValue("Wow-Wait").get()
+            .assert().isEqualTo("snapshot")
+        TransferApi.prepare(base, "acc-1", "acc-2", 1).headers().firstValue("Wow-Wait").get()
+            .assert().isEqualTo("committed > handled(TransferSaga.onPrepared) > committed")
+        TransferApi.state(base, "acc-1").uri().path.assert().isEqualTo("/transfer/account/acc-1/state")
+    }
+
+    @Test
+    fun `answers should be read as the server writes them`() {
+        val v10 = """{"commandId":"c","ref":{"tenantId":"(0)","id":"acc-2"},"status":"SUCCEEDED","version":3}"""
+        TransferApi.commandError(200, v10).assert().isNull()
+        TransferApi.commandVersion(v10).assert().isEqualTo(3)
+        TransferApi.commandAggregate(v10).assert().isEqualTo("acc-2")
+        TransferApi.commandError(
+            409,
+            """{"code":"wow.command.busy"}"""
+        ).assert().isEqualTo("http-409-wow.command.busy")
+    }
+
+    @Test
+    fun `results should be written as JSON`() {
+        Json.write(mapOf("a" to listOf(1, 2), "b" to "x\"y", "c" to null)).assert()
+            .isEqualTo("{\n  \"a\": [1, 2],\n  \"b\": \"x\\\"y\",\n  \"c\": null\n}")
+    }
+}

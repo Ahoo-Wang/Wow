@@ -13,10 +13,9 @@
 
 package me.ahoo.wow.benchmark.transfer
 
-// The shared table of cases (decision D224): this file is the same, byte for byte, in the 9.x and the V10 module
-// (SharedCasesTest in :e2e-bench-v10 checks it), and each version's specs run every case through its own test DSL.
+// The table of cases (decision D224) the specs run through the test DSL.
 
-/** The account's fields as both versions' states hold them. */
+/** The account's fields as the state holds them. */
 data class Balances(val owner: String, val balance: Long, val locked: Long = 0, val frozen: Boolean = false)
 
 /**

@@ -43,7 +43,6 @@ import kotlin.system.exitProcess
 fun main(args: Array<String>) {
     val command = args.firstOrNull() ?: usage()
     val options = Options.parse(args.drop(1))
-    val adapter = VersionAdapter.of(options.required("version"))
     val targets = options.required("targets").split(',').map { URI.create(it.trim().trimEnd('/')) }
     val executor = Executors.newFixedThreadPool(
         options.int("client-threads", Runtime.getRuntime().availableProcessors())
@@ -53,7 +52,7 @@ fun main(args: Array<String>) {
         .connectTimeout(Duration.ofSeconds(CONNECT_TIMEOUT_SECONDS))
         .executor(executor)
         .build()
-    val client = Client(http, adapter)
+    val client = Client(http)
     val status = when (command) {
         "seed" -> seed(client, targets, options)
         "check" -> check(client, targets, options)
@@ -84,7 +83,7 @@ private const val MICROS_PER_MILLI = 1_000.0
 private fun usage(): Nothing {
     System.err.println(
         """
-        usage: benchmark-load <seed|check|prime|settle|run|saturate> --version=9x|v10 --targets=http://host:port[,…] [options]
+        usage: benchmark-load <seed|check|prime|settle|run|saturate> --targets=http://host:port[,…] [options]
           seed:     --accounts=1000 --concurrency=32 --balance=1000000000000
           prime:    --accounts=1000 --concurrency=256 --out=<dir>
           settle:   --pids=name:pid,… --quiet-cores=0.25 --quiet-seconds=3 --max-seconds=180 --out=<dir>
@@ -123,7 +122,7 @@ private fun seed(client: Client, targets: List<URI>, options: Options): Int {
     }
     val seconds = (System.nanoTime() - started) / OpenLoop.NANOS_PER_SECOND.toDouble()
     println(
-        "[seed] ${client.adapter.name}: $accounts accounts in ${"%.1f".format(seconds)}s, " +
+        "[seed] $accounts accounts in ${"%.1f".format(seconds)}s, " +
             "$retried retried, ${missing.size} failed",
     )
     firstFailure.get()?.let { println("[seed] first failure: $it") }
@@ -142,7 +141,7 @@ private fun openAll(
     val failed = ConcurrentLinkedQueue<Int>()
     val futures = indices.map { index ->
         permits.acquire()
-        val request = client.adapter.openAccount(
+        val request = TransferApi.openAccount(
             targets[index % targets.size],
             accountId(index),
             ownerOf(index),
@@ -163,7 +162,7 @@ private fun openAll(
 
 /** Whether the account [index] exists: its state reads back. */
 private fun exists(client: Client, base: URI, index: Int): Boolean =
-    runCatching { client.read(client.adapter.state(base, accountId(index))).join() == null }.getOrDefault(false)
+    runCatching { client.read(TransferApi.state(base, accountId(index))).join() == null }.getOrDefault(false)
 
 /**
  * The priming pass (D224 note ⑤): every seeded account once, `concurrency` at a time, closed loop and untimed. Each
@@ -182,7 +181,7 @@ private fun prime(client: Client, targets: List<URI>, options: Options): Int {
         permits.acquire()
         val target = targets[index % targets.size]
         val id = accountId(index)
-        client.command(client.adapter.deposit(target, id, 1, Wait.STORED))
+        client.command(TransferApi.deposit(target, id, 1, Wait.STORED))
             .handle { error, failure ->
                 if (error != null || failure != null) failures.incrementAndGet()
                 permits.release()
@@ -191,7 +190,7 @@ private fun prime(client: Client, targets: List<URI>, options: Options): Int {
     CompletableFuture.allOf(*futures.toTypedArray()).join()
     val seconds = (System.nanoTime() - started) / OpenLoop.NANOS_PER_SECOND.toDouble()
     val took = "%.1f".format(seconds)
-    println("[prime] ${client.adapter.name}: $accounts accounts in ${took}s, ${failures.get()} failed")
+    println("[prime] $accounts accounts in ${took}s, ${failures.get()} failed")
     options.optional("out")?.let {
         File(it).apply { mkdirs() }.resolve("prime.json").writeText(
             Json.write(mapOf("accounts" to accounts, "seconds" to seconds, "failed" to failures.get())) + "\n",
@@ -245,12 +244,11 @@ private fun settle(options: Options): Int {
 private fun check(client: Client, targets: List<URI>, options: Options): Int {
     val accounts = options.int("accounts", DEFAULT_ACCOUNTS)
     var failed = 0
-    // The run's own scenarios when it names them (--mix, or a --scenario the generator knows), else every one the
-    // version supports: a baseline older than a scenario still runs the others.
+    // The run's own scenarios when it names them (--mix, or a --scenario the generator knows), else every one.
     val named = options.optional("mix")?.let(Mix::parse)?.parts?.map { it.first }
         ?: options.optional("scenario")?.let { label -> Scenario.entries.firstOrNull { it.label.equals(label, true) } }
             ?.let(::listOf)
-    (named ?: Scenario.entries.filter(client.adapter::supports)).forEach { scenario ->
+    (named ?: Scenario.entries).forEach { scenario ->
         val target = Target(targets.first(), 0, minOf(1, accounts - 1))
         val started = System.nanoTime()
         val error = try {
@@ -259,7 +257,7 @@ private fun check(client: Client, targets: List<URI>, options: Options): Int {
             OpenLoop.rootCause(failure).toString()
         }
         val millis = (System.nanoTime() - started) / OpenLoop.NANOS_PER_SECOND.toDouble() * MICROS_PER_MILLI
-        println("[check] ${client.adapter.name} ${scenario.label}: ${error ?: "ok"} (${"%.1f".format(millis)} ms)")
+        println("[check] ${scenario.label}: ${error ?: "ok"} (${"%.1f".format(millis)} ms)")
         if (error != null) failed++
     }
     return if (failed == 0) 0 else 1
@@ -336,13 +334,12 @@ private fun run(client: Client, targets: List<URI>, options: Options): Int {
         measureSeconds = measure,
         maxInFlight = options.int("max-in-flight", OpenLoop.DEFAULT_MAX_IN_FLIGHT),
     ) { phase ->
-        println("[run] ${client.adapter.name} ${mix.label} @ $rate/s: $phase")
+        println("[run] ${mix.label} @ $rate/s: $phase")
         sampling.on(phase)
     }.run()
     sampling.finish()
     val result = Report.result(
         label = options.string("label", "run"),
-        adapter = client.adapter,
         mix = mix,
         rate = rate,
         warmUp = warmUp,
@@ -377,11 +374,10 @@ private fun saturate(client: Client, targets: List<URI>, options: Options): Int 
         warmUpSeconds = options.int("warm-up", 5),
         stepSeconds = options.int("step", 10),
         sweep = options.string("sweep", "false").toBoolean(),
-    ) { println("[saturate] ${client.adapter.name} ${mix.label}: $it") }.run()
+    ) { println("[saturate] ${mix.label}: $it") }.run()
     val best = steps.maxByOrNull { it.throughput }
     val result = mapOf(
         "schema" to "wow-e2e-bench/saturation/1",
-        "version" to client.adapter.name,
         "scenario" to mix.label,
         "keys" to keyChooser(options, seed).describe(),
         "targets" to targets.map { it.toString() },
