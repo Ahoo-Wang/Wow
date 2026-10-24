@@ -14,9 +14,11 @@
 package me.ahoo.wow.runtime
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
@@ -28,16 +30,23 @@ import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.Test
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
 class ExecutorTest {
     data class Add(val amount: Int)
     data class Hold(val gate: String)
+    data class Push(val amount: Int)
+    data class Fail(val reason: String)
     data class Added(val amount: Int)
 
     class Counter(val id: String) {
@@ -66,6 +75,8 @@ class ExecutorTest {
             gates.getValue(body.gate).await()
             Decision.events(Added(0))
         }
+        decide<Push>(Creation.ALLOWED) { _, body -> Decision.events(Added(body.amount)) }
+        decide<Fail>(Creation.ALLOWED) { _, body -> error("failed ${body.reason}") }
         evolve<Added> { total += it.amount }
     }
     private val cache = LruStateCache(capacity = 16)
@@ -199,6 +210,102 @@ class ExecutorTest {
         gate.complete(Unit)
         held.await().assert().isInstanceOf(CommandOutcome.Committed::class.java)
         withTimeout(TIMEOUT_MS) { closing.await() }
+    }
+
+    /** Records the size of each appendAll. */
+    private class BatchLog(private val delegate: EventLog = InMemoryEventLog()) : EventLog by delegate {
+        val batches = CopyOnWriteArrayList<Int>()
+
+        override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+            batches += streams.size
+            return delegate.appendAll(streams)
+        }
+    }
+
+    /** [count] Push commands of aggregate [id] queued behind a held command, then released: their outcomes. */
+    private suspend fun CoroutineScope.queuedBehindHold(
+        executor: Executor,
+        id: String,
+        count: Int,
+    ): List<CommandOutcome> {
+        val gate = CompletableDeferred<Unit>().also { gates[id] = it }
+        val held = async(Dispatchers.Default) { executor.execute(model, command(id, Hold(id))) }
+        withTimeout(TIMEOUT_MS) { holding.computeIfAbsent(id) { CompletableDeferred() }.await() }
+        val queued = (1..count).map { amount ->
+            async(Dispatchers.Default) { executor.execute(model, command(id, Push(amount))) }
+        }
+        withTimeout(TIMEOUT_MS) { while (executor.commandsInFlight < count + 1) yield() }
+        gate.complete(Unit)
+        held.await().assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        return queued.awaitAll()
+    }
+
+    @Test
+    fun `a hot aggregate's queued commands commit in batches, in order`(): Unit = runBlocking {
+        val log = BatchLog()
+        val states = LruStateCache(capacity = 16)
+        val batching = Executor(Kernel(log, states = states), maxBatch = 4)
+        val outcomes = queuedBehindHold(batching, "hot", 10)
+        val versions = outcomes.map { (it as CommandOutcome.Committed).stream.version }
+        versions.sorted().assert().isEqualTo((2..11).toList())
+        log.batches.assert().isNotEmpty()
+        log.batches.all { it in 2..4 }.assert().isTrue()
+        (states.take(model.type.ref("t", "hot"))!!.state as Counter).total.assert().isEqualTo((1..10).sum())
+        batching.activeLanes.assert().isEqualTo(0)
+        batching.commandsInFlight.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `a queued command that fails fails its own caller, and the others commit`(): Unit = runBlocking {
+        val id = "fails"
+        val batching = Executor(Kernel(InMemoryEventLog(), states = LruStateCache(capacity = 16)), maxBatch = 4)
+        val gate = CompletableDeferred<Unit>().also { gates[id] = it }
+        val held = async(Dispatchers.Default) { batching.execute(model, command(id, Hold(id))) }
+        withTimeout(TIMEOUT_MS) { holding.computeIfAbsent(id) { CompletableDeferred() }.await() }
+        val before = async(Dispatchers.Default) { batching.execute(model, command(id, Push(1))) }
+        withTimeout(TIMEOUT_MS) { while (batching.commandsInFlight < 2) yield() }
+        val failing = async(Dispatchers.Default) { runCatching { batching.execute(model, command(id, Fail("x"))) } }
+        withTimeout(TIMEOUT_MS) { while (batching.commandsInFlight < 3) yield() }
+        val after = async(Dispatchers.Default) { batching.execute(model, command(id, Push(2))) }
+        withTimeout(TIMEOUT_MS) { while (batching.commandsInFlight < 4) yield() }
+        gate.complete(Unit)
+        held.await()
+        (before.await() as CommandOutcome.Committed).stream.version.assert().isEqualTo(2)
+        failing.await().exceptionOrNull()?.message.assert().isEqualTo("failed x")
+        (after.await() as CommandOutcome.Committed).stream.version.assert().isEqualTo(3)
+        batching.activeLanes.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `a batch takes at least one command`() {
+        runCatching { Executor(Kernel(InMemoryEventLog()), maxBatch = 0) }.exceptionOrNull()
+            .assert().isInstanceOf(IllegalArgumentException::class.java)
+    }
+
+    @Test
+    fun `a batch of one runs each command alone`(): Unit = runBlocking {
+        val log = BatchLog()
+        val alone = Executor(Kernel(log, states = LruStateCache(capacity = 16)), maxBatch = 1)
+        queuedBehindHold(alone, "one", 5).map { (it as CommandOutcome.Committed).stream.version }.sorted()
+            .assert().isEqualTo((2..6).toList())
+        log.batches.assert().isEmpty()
+    }
+
+    @Test
+    fun `a queued command whose caller is cancelled leaves the lane to the others`(): Unit = runBlocking {
+        val id = "cancel"
+        val gate = CompletableDeferred<Unit>().also { gates[id] = it }
+        val held = async(Dispatchers.Default) { executor.execute(model, command(id, Hold(id))) }
+        withTimeout(TIMEOUT_MS) { holding.computeIfAbsent(id) { CompletableDeferred() }.await() }
+        val cancelled = async(Dispatchers.Default) { executor.execute(model, command(id, Push(100))) }
+        val kept = async(Dispatchers.Default) { executor.execute(model, command(id, Push(1))) }
+        withTimeout(TIMEOUT_MS) { while (executor.commandsInFlight < 3) yield() }
+        cancelled.cancelAndJoin()
+        gate.complete(Unit)
+        held.await()
+        (withTimeout(TIMEOUT_MS) { kept.await() } as CommandOutcome.Committed).stream.version.assert().isEqualTo(2)
+        executor.activeLanes.assert().isEqualTo(0)
+        (cache.take(model.type.ref("t", id))!!.state as Counter).total.assert().isEqualTo(1)
     }
 
     private companion object {

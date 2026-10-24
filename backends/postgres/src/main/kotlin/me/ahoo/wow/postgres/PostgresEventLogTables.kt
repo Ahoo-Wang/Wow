@@ -132,8 +132,9 @@ internal class PostgresEventLogTables(val context: String) {
      * [AggregateLogTable.append]; [branches] is the index in [tables] of each stream's table, in the group's order:
      *
      * - `input` holds the streams, each with its place in the group (`ord`) and its table (`branch`);
-     * - `current` reads each aggregate's version from its table, `fits` keeps the streams exactly one version ahead of
-     *   it, ranked in the group's order;
+     * - `current` reads each aggregate's version from its table, `fits` keeps the streams that follow it: an aggregate's
+     *   n-th stream of the group (`links`, by version) fits when it is n versions ahead, so its streams fit together
+     *   or not at all, ranked in the group's order;
      * - `bump` takes as many sequences from the partition's counter as streams fit (locking its row until the statement
      *   commits), none when none fits;
      * - one insert per table writes its fitting streams at `bump - fits + rank`: the group's sequences are contiguous
@@ -170,9 +171,16 @@ internal class PostgresEventLogTables(val context: String) {
         return """
             WITH input (ord, branch, ${AggregateLogTable.COLUMNS}) AS (VALUES $values),
             current AS ($current),
+            links AS (
+                SELECT input.ord, row_number() OVER (
+                    PARTITION BY input.branch, input.tenant_id, input.aggregate_id ORDER BY input.version
+                ) AS link
+                FROM input
+            ),
             fits AS (
                 SELECT input.*, row_number() OVER (ORDER BY input.ord) AS rank, count(*) OVER () AS total
-                FROM input JOIN current ON current.ord = input.ord WHERE current.version = input.version - 1
+                FROM input JOIN current ON current.ord = input.ord JOIN links ON links.ord = input.ord
+                WHERE input.version - current.version = links.link
             ), bump AS (
                 UPDATE $partitions SET sequence = sequence + (SELECT count(*) FROM fits)
                 WHERE partition = $partition AND EXISTS (SELECT 1 FROM fits)

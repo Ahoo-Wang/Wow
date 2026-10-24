@@ -724,6 +724,61 @@ abstract class EventLogSpec {
     }
 
     @Test
+    fun `appendAll commits an aggregate's consecutive streams together, in order`(): Unit = runBlocking {
+        // Roadmap §6 item 10: a kernel's batch of one aggregate's commands, beside another aggregate's append.
+        val log = createLog(partitions = 4)
+        val (hot, other) = idsInPartitionZero(2, 4)
+        log.append(stream(hot, 1))
+        val chain = (2..5).map { stream(hot, it) }
+        val outcomes = log.appendAll(
+            listOf(chain[0] to null, stream(other, 1) to null, chain[1] to null, chain[2] to null, chain[3] to null),
+        )
+        outcomes.forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
+        outcomes.map { (it as AppendOutcome.Committed).position.sequence }.assertIncreasingAfter(1L)
+        log.read(type.ref("tenant", hot)).toList().map { it.version }.assert().containsExactly(1, 2, 3, 4, 5)
+        (log.append(stream(hot, 6)) as AppendOutcome.Committed).position.sequence
+            .assert().isGreaterThan((outcomes.last() as AppendOutcome.Committed).position.sequence)
+    }
+
+    @Test
+    fun `appendAll appends none of an aggregate's streams after its first conflicts`(): Unit = runBlocking {
+        val log = createLog(partitions = 4)
+        val (hot, other) = idsInPartitionZero(2, 4)
+        log.append(stream(hot, 1))
+        log.append(stream(hot, 2))
+        val outcomes = log.appendAll(
+            listOf(stream(hot, 2) to null, stream(hot, 3) to null, stream(other, 1) to null, stream(hot, 4) to null),
+        )
+        outcomes[0].assert().isEqualTo(AppendOutcome.Conflict(2))
+        outcomes[1].assert().isEqualTo(AppendOutcome.Conflict(2))
+        outcomes[2].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        outcomes[3].assert().isEqualTo(AppendOutcome.Conflict(2))
+        log.read(type.ref("tenant", hot)).toList().map { it.version }.assert().containsExactly(1, 2)
+        log.append(stream(hot, 3)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+    }
+
+    @Test
+    fun `appendAll commits an aggregate's streams up to one that is a duplicate, and none after it`(): Unit =
+        runBlocking {
+            val log = createLog(partitions = 4)
+            val (hot, other, elsewhere) = idsInPartitionZero(3, 4)
+            log.append(stream(elsewhere, 1, requestId = "taken"))
+            val outcomes = log.appendAll(
+                listOf(
+                    stream(hot, 1) to null,
+                    stream(hot, 2, requestId = "taken") to null,
+                    stream(other, 1) to null,
+                    stream(hot, 3) to null,
+                ),
+            )
+            outcomes[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            (outcomes[1] as AppendOutcome.AlreadyCommitted).existing.ref.id.assert().isEqualTo(elsewhere)
+            outcomes[2].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            outcomes[3].assert().isEqualTo(AppendOutcome.Conflict(1))
+            log.read(type.ref("tenant", hot)).toList().map { it.version }.assert().containsExactly(1)
+        }
+
+    @Test
     fun `appendAll commits a request id repeated in a group once, the repeat is a duplicate`(): Unit = runBlocking {
         val log = createLog(partitions = 4)
         val (first, repeat, other) = idsInPartitionZero(3, 4)

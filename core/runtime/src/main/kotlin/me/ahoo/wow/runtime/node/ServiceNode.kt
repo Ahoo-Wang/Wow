@@ -1157,7 +1157,7 @@ class ServiceNode @InternalWowApi constructor(
             groups = logGroups.drop(1).map { it.subscriptions },
             partitionChanged = { partition -> states.invalidate(partition, backends.log.partitions) },
         )
-        val executor = Executor(kernel, options.laneCapacity, views.takeIf { it.types.isNotEmpty() }, inFlight)
+        val executor = Executor(kernel, options.laneCapacity, options.maxBatch, views.forExecutor(), inFlight)
         return Parts(
             context,
             models,
@@ -1464,3 +1464,6 @@ class ServiceNode @InternalWowApi constructor(
  */
 @InternalWowApi
 data class Resumption(val node: String, val at: Long?, val by: String, val reason: String?, val resumed: Boolean)
+
+/** The state views an executor records commits in: none when no reader of the context reads any aggregate type. */
+private fun StateViews.forExecutor(): StateViews? = takeIf { it.types.isNotEmpty() }

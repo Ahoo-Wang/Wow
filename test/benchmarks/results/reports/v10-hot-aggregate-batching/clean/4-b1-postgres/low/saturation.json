@@ -1,0 +1,61 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "hot",
+    "accounts": 100000,
+    "hotFraction": 0.5,
+    "hotKeys": 1
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 2729.6,
+  "saturationConcurrency": 8,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 1831.55,
+      "ok": 36631,
+      "errors": {},
+      "p50Ms": 0.497,
+      "p99Ms": 1.183
+    },
+    {
+      "concurrency": 2,
+      "throughput": 2261.05,
+      "ok": 45221,
+      "errors": {},
+      "p50Ms": 0.827,
+      "p99Ms": 1.703
+    },
+    {
+      "concurrency": 4,
+      "throughput": 2649.4,
+      "ok": 52988,
+      "errors": {},
+      "p50Ms": 1.367,
+      "p99Ms": 3.359
+    },
+    {
+      "concurrency": 8,
+      "throughput": 2729.6,
+      "ok": 54592,
+      "errors": {},
+      "p50Ms": 2.879,
+      "p99Ms": 7.359
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "primed": "true",
+    "primeSeconds": "23",
+    "settleSeconds": "4",
+    "accounts": "100000",
+    "session": "/private/tmp/claude-501/-Users-worker-work-Wow--claude-worktrees-performance-optimization-327071/1e81896d-3639-40f5-8c4f-ed1ecfc9cafd/scratchpad/ab/batch-clean/4-b1-postgres/up"
+  }
+}
