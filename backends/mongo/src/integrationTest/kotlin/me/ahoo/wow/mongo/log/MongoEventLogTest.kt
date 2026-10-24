@@ -280,6 +280,30 @@ class MongoEventLogTest : EventLogSpec() {
     }
 
     @Test
+    fun `an append that reads its aggregate's latest stream reads the version key`(): Unit = runBlocking {
+        // D271: the version key is a partial index; a lookup by the aggregate's key alone scanned the collection.
+        val context = MongoLogFixture.newContext()
+        val type = AggregateType(context, "order")
+        MongoLogFixture.log(1, context).append(stream("a", 1, aggregate = type))
+        // A log that has not seen the aggregate reads its latest stream before appending.
+        val cold = MongoLogFixture.log(1, context)
+        val database = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
+        val namespace = "${MongoLogFixture.DATABASE}.${collection(context, "order")}"
+        database.runCommand(Document("profile", 2))
+        try {
+            cold.append(stream("a", 2, aggregate = type)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        } finally {
+            database.runCommand(Document("profile", 0))
+        }
+        val reads = database.getCollection("system.profile")
+            .find(Filters.and(Filters.eq("ns", namespace), Filters.eq("op", "query")))
+            .map { it.getString("planSummary") }
+            .toList()
+        reads.assert().isNotEmpty()
+        reads.forEach { it.assert().startsWith("IXSCAN") }
+    }
+
+    @Test
     fun `an append to a warm aggregate is one insert`(): Unit = runBlocking {
         // Decision D271: the sequence comes from the node's block, the previous one from the log's memory.
         val context = MongoLogFixture.newContext()
