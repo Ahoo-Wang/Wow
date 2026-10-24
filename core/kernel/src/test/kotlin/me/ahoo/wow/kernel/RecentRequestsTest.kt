@@ -73,6 +73,51 @@ class RecentRequestsTest {
     }
 
     @Test
+    fun `the rings start small and grow with the requests, up to the capacity`() {
+        val recent = RecentRequests.of(256, emptyList(), listOf(stream(1)), reachedStart = true)
+        recent.bytes.assert().isEqualTo(RecentRequests.INITIAL * RecentRequests.REQUEST_BYTES)
+        (2..20).forEach { recent.add("request-$it", it) }
+        recent.bytes.assert().isEqualTo(32 * RecentRequests.REQUEST_BYTES)
+        (1..20).forEach { recent.versionOf("request-$it").assert().isEqualTo(it) }
+        recent.complete.assert().isTrue()
+        (21..300).forEach { recent.add("request-$it", it) }
+        recent.bytes.assert().isEqualTo(256 * RecentRequests.REQUEST_BYTES)
+        recent.size.assert().isEqualTo(256)
+        recent.versionOf("request-44").assert().isNull()
+        recent.versionOf("request-45").assert().isEqualTo(45)
+        recent.versionOf("request-300").assert().isEqualTo(300)
+        recent.complete.assert().isFalse()
+    }
+
+    @Test
+    fun `a ring that wrapped grows with its oldest request first`() {
+        val recent = RecentRequests.of(12, emptyList(), (1..8).map(::stream), reachedStart = true)
+        // Full at eight slots; the next request grows the rings to twelve, the oldest still first.
+        recent.add("request-9", 9)
+        (10..14).forEach { recent.add("request-$it", it) }
+        recent.size.assert().isEqualTo(12)
+        recent.versionOf("request-2").assert().isNull()
+        (3..14).forEach { recent.versionOf("request-$it").assert().isEqualTo(it) }
+        recent.bytes.assert().isEqualTo(12 * RecentRequests.REQUEST_BYTES)
+    }
+
+    @Test
+    fun `a load sizes the rings for the requests it brings`() {
+        val recent = RecentRequests.of(256, (40 downTo 1).map(::key), listOf(stream(41)), reachedStart = true)
+        recent.bytes.assert().isEqualTo(41 * RecentRequests.REQUEST_BYTES)
+        RecentRequests.of(4, emptyList(), listOf(stream(1)), reachedStart = true).bytes
+            .assert().isEqualTo(4 * RecentRequests.REQUEST_BYTES)
+    }
+
+    @Test
+    fun `a cached state weighs its state and its rings`() {
+        val cached = CachedState("state", 1)
+        cached.bytes.assert().isEqualTo(CachedState.STATE_BYTES)
+        cached.requests = RecentRequests.of(256, emptyList(), listOf(stream(1)), reachedStart = true)
+        cached.bytes.assert().isEqualTo(CachedState.STATE_BYTES + RecentRequests.INITIAL * RecentRequests.REQUEST_BYTES)
+    }
+
+    @Test
     fun `a request id hashes to 64 bits, the same for the same id`() {
         RecentRequests.hashOf("request").assert().isEqualTo(RecentRequests.hashOf("request"))
         RecentRequests.hashOf("request").assert().isNotEqualTo(RecentRequests.hashOf("requesu"))

@@ -84,6 +84,12 @@ class CachedState(
     internal var requests: RecentRequests? = null
 
     /**
+     * The estimated bytes it takes in a cache: [STATE_BYTES] for the state with its metadata, and what its recent
+     * requests' rings take. A state cache bounded by bytes weighs it by this when it is put.
+     */
+    val bytes: Long get() = STATE_BYTES + (requests?.bytes ?: 0)
+
+    /**
      * What the aggregate's first stream recorded (its commit time and operator), when the kernel loaded or created the
      * aggregate: the snapshot's, the replayed first stream's, or the creating stream's (work package B.O-4). A state
      * view carries it, so the snapshot subscription writes the snapshot without reading the stored one for it.
@@ -97,6 +103,18 @@ class CachedState(
                 it.requests = requests
                 it.first = first
             }
+
+    @InternalWowApi
+    companion object {
+        /**
+         * The estimated bytes of a state object with its metadata, its recent requests aside; a domain whose states
+         * are much larger bounds its cache by their number instead.
+         */
+        const val STATE_BYTES: Long = 1_024
+
+        /** The bytes one recent request takes in its rings: its 64-bit hash and its version. */
+        const val REQUEST_BYTES: Long = RecentRequests.REQUEST_BYTES
+    }
 }
 
 /** What an aggregate's first stream recorded: its commit time ([eventTime]) and its [operator], the creator (D163). */
