@@ -58,12 +58,15 @@ import me.ahoo.wow.spi.StorageUnavailableException
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
+import org.springframework.http.server.PathContainer
 import org.springframework.web.reactive.function.server.CoRouterFunctionDsl
+import org.springframework.web.reactive.function.server.HandlerFunction
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.coRouter
+import reactor.core.publisher.Mono
 
 /**
  * The routes of the public port (roadmap 5b.2; decisions D16, D30, D92–D104, D112, D113), materialized from
@@ -144,17 +147,15 @@ fun wowRoutes(
         if (queries.datasets !== DatasetQueryGateways.NONE) {
             datasetRoutes(queryHandler)
         }
-        served.contexts.forEach { context ->
-            context.aggregates.forEach { aggregate ->
-                commandRoutes(context.name, aggregate, commands, statuses)
-                val type = AggregateType(context.name, aggregate.name)
-                val state = "/${context.name}/${aggregate.name}/${CommandRoutes.ID}/${WowPaths.STATE}"
-                GET(state) { request -> statuses.answering { states.handle(request, type) } }
-                GET("$state/${WowPaths.TRACE}") { request -> statuses.answering { states.trace(request, type) } }
-                queryRoutes(type, aggregate, queries, queryHandler)
-            }
-            systemRoutes(context, commands, statuses)
+        aggregateRoutes(served) { context, aggregate ->
+            commandRoutes(context, aggregate, commands, statuses)
+            val type = AggregateType(context, aggregate.name)
+            val state = "/$context/${aggregate.name}/${CommandRoutes.ID}/${WowPaths.STATE}"
+            GET(state) { request -> statuses.answering { states.handle(request, type) } }
+            GET("$state/${WowPaths.TRACE}") { request -> statuses.answering { states.trace(request, type) } }
+            queryRoutes(type, aggregate, queries, queryHandler)
         }
+        served.contexts.forEach { context -> systemRoutes(context, commands, statuses) }
         manifest.contexts.map { it.name }.distinct().forEach { context ->
             path("/$context/**").invoke { request ->
                 Problem.ofStatus(HttpStatus.NOT_FOUND, "No route ${request.method()} ${request.path()}.").respond()
@@ -293,11 +294,9 @@ fun callRoutes(
     )
     val served = withTransformedRoutes(manifest, gateway)
     return coRouter {
-        served.contexts.forEach { context ->
-            context.aggregates.forEach { aggregate -> commandRoutes(context.name, aggregate, commands, statuses) }
-            // The snapshot rebuild and the job commands, which a service calls when its permits list them (D226).
-            systemRoutes(context, commands, statuses)
-        }
+        aggregateRoutes(served) { context, aggregate -> commandRoutes(context, aggregate, commands, statuses) }
+        // The snapshot rebuild and the job commands, which a service calls when its permits list them (D226).
+        served.contexts.forEach { context -> systemRoutes(context, commands, statuses) }
         // A command route of a served context that is none of the above: a command the caller's contract names and
         // this service does not decide, such as one of a newer version of it (review X-5). The gateway refuses it as
         // `wow.command.unhandled` with its REJECTED result, which the calling saga takes as a rejection, not as a
@@ -310,6 +309,55 @@ fun callRoutes(
                 statuses.answering { commands.handle(request, unknownTarget(context.name, request, byId = false)) }
             }
         }
+    }
+}
+
+/**
+ * The [routes] of each aggregate of [served], found by the path's first two segments, `/{context}/{aggregate}`, in one
+ * lookup (roadmap §6 performance item 11): WebFlux matches a request against the routes in order, about 50 ns each,
+ * so a command of the 50th of 50 aggregates (18 routes each) took 46 µs to match, against under 1 µs within its
+ * aggregate's routes. When some command or query route of [served] is not under its aggregate's
+ * `/{context}/{aggregate}/` (a Manifest read from elsewhere may say any path), the routes stay one list, in order, so
+ * that no request matches another route than before.
+ */
+private fun CoRouterFunctionDsl.aggregateRoutes(
+    served: Manifest,
+    routes: CoRouterFunctionDsl.(context: String, aggregate: AggregateManifest) -> Unit,
+) {
+    val prefixed = served.contexts.all { context ->
+        context.aggregates.all { aggregate ->
+            val prefix = "/${context.name}/${aggregate.name}/"
+            (aggregate.commands.flatMap { it.routes } + aggregate.queries.flatMap { it.routes })
+                .all { it.path.startsWith(prefix) }
+        }
+    }
+    if (!prefixed) {
+        served.contexts.forEach { context -> context.aggregates.forEach { routes(context.name, it) } }
+        return
+    }
+    val byContext = served.contexts.groupBy { it.name }.mapValues { (name, contexts) ->
+        contexts.flatMap { it.aggregates }.associate { aggregate ->
+            aggregate.name to coRouter { routes(name, aggregate) }
+        }
+    }
+    add(AggregateRouter(byContext))
+}
+
+/** Routes a request to the routes of the aggregate its path's first two segments name, if any. */
+private class AggregateRouter(
+    private val byContext: Map<String, Map<String, RouterFunction<ServerResponse>>>,
+) : RouterFunction<ServerResponse> {
+    override fun route(request: ServerRequest): Mono<HandlerFunction<ServerResponse>> {
+        // A separator before each segment: "/", context, "/", aggregate, ...
+        val elements = request.requestPath().pathWithinApplication().elements()
+        val context = (elements.getOrNull(1) as? PathContainer.PathSegment)?.valueToMatch()
+        val aggregate = (elements.getOrNull(AGGREGATE_SEGMENT) as? PathContainer.PathSegment)?.valueToMatch()
+        val routes = byContext[context]?.get(aggregate) ?: return Mono.empty()
+        return routes.route(request)
+    }
+
+    private companion object {
+        const val AGGREGATE_SEGMENT = 3
     }
 }
 

@@ -1,0 +1,65 @@
+// Copy into edge/http/src/test/kotlin/me/ahoo/wow/http/RouteMatchBench.kt and run with
+// ./gradlew :http:test --tests 'me.ahoo.wow.http.RouteMatchBench' -i | grep ROUTEBENCH
+// (the license header and detekt do not apply to this copy; it is not compiled here).
+package me.ahoo.wow.http
+
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.copyWith
+import org.junit.jupiter.api.Test
+import org.springframework.http.codec.HttpMessageReader
+import org.springframework.mock.http.server.reactive.MockServerHttpRequest
+import org.springframework.mock.web.server.MockServerWebExchange
+import org.springframework.web.reactive.function.server.HandlerStrategies
+import org.springframework.web.reactive.function.server.RouterFunction
+import org.springframework.web.reactive.function.server.ServerRequest
+import org.springframework.web.reactive.function.server.ServerResponse
+
+class RouteMatchBench {
+    /** The test cart's Manifest with [aggregates] copies of the cart, each under its own path. */
+    private fun manifest(aggregates: Int): Manifest {
+        val base = cartManifest()
+        val context = base.contexts.single()
+        val cart = context.aggregates.single()
+        val copies = (0 until aggregates).map { n ->
+            val name = "cart$n"
+            cart.copyWith(
+                name = name,
+                commands = cart.commands.map { c ->
+                    c.copyWith(routes = c.routes.map { it.copyWith(path = it.path.replace("/shop/cart/", "/shop/$name/")) })
+                },
+                queries = cart.queries.map { q ->
+                    q.copyWith(routes = q.routes.map { it.copyWith(path = it.path.replace("/shop/cart/", "/shop/$name/")) })
+                },
+            )
+        }
+        return base.copyWith(contexts = listOf(context.copyWith(aggregates = copies)))
+    }
+
+    private val readers: List<HttpMessageReader<*>> = HandlerStrategies.withDefaults().messageReaders()
+
+    private fun request(path: String): ServerRequest =
+        ServerRequest.create(MockServerWebExchange.from(MockServerHttpRequest.post(path).build()), readers)
+
+    /** The time of one match of [path], less the time of creating its request. */
+    private fun measure(label: String, router: RouterFunction<ServerResponse>, path: String) {
+        check(router.route(request(path)).block() != null) { "no route for $path" }
+        val n = 200_000
+        repeat(n) { router.route(request(path)).block() }
+        val base = System.nanoTime()
+        repeat(n) { request(path) }
+        val created = System.nanoTime() - base
+        val start = System.nanoTime()
+        repeat(n) { router.route(request(path)).block() }
+        val took = System.nanoTime() - start
+        println("ROUTEBENCH $label: ${(took - created) / n} ns per match")
+    }
+
+    @Test
+    fun measure() {
+        for (a in listOf(1, 10, 50)) {
+            val node = HttpNode(manifest = manifest(a))
+            measure("aggregates=$a first", node.routes, "/shop/cart0/1/add-item")
+            measure("aggregates=$a last", node.routes, "/shop/cart${a - 1}/1/add-item")
+        }
+    }
+}
