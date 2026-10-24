@@ -208,6 +208,26 @@ The same L1 rounds, `main` before the first part (A) against this change alone (
 
 About 7 KB less per snapshot written: E1 writes one per command, E3 three. With the tail read's change (first part) on `main` as well, L1 allocates 189.6–190.1 KB per E1 command and 379.3–380.0 KB per E3 command, against 223.5–224.3 and 423.4–425.8 KB before both: −15% and −11%.
 
+## Candidate 2, both parts end to end
+
+The two parts together (D2) against the baseline (A), on sessions of 100,000 primed accounts as in the one-aggregation trial: two alternating rounds, each with L1, a closed loop at concurrency 1 to 4 and open loops at 1,720/s (E1) and 714/s (E3) ([results](v10-local-baseline/mongo-allocation-e2e/)). Per command:
+
+| | A | D2 |
+| --- | --- | --- |
+| E1 allocated | 216, 222 KB | 193, 190 KB (−12%) |
+| E3 allocated | 517, 530 KB | 465, 457 KB (−12%) |
+| E1 server CPU | 0.936, 0.946 ms | 0.884, 0.946 ms |
+| E3 server CPU | 2.034, 2.111 ms | 1.952, 2.025 ms |
+| E1 MongoDB CPU | 1.66, 1.60 ms | 1.60, 1.66 ms |
+| E1 p50 / p99 | 4.6 / 26, 4.3 / 24 ms | 4.1 / 25, 4.5 / 25 ms |
+| p50 at concurrency 1 | 1.30, 1.27 ms | 1.33, 1.35 ms |
+
+- The allocation falls end to end as in L1, 12% per command in both scenarios and both rounds.
+- Server CPU may fall with it, but not beyond doubt: E3 4% lower in both pairs, E1 6% lower in one pair and the same in the other, at the edge of one run's ±2.5%. The JVM's young collections are cheap at these rates, so bytes allocated buy little CPU here.
+- MongoDB's CPU and the latencies, at 50% and at concurrency 1, do not move.
+
+The parts stay: fewer bytes per command for the same work, from code that is no more complex. Further allocation work on MongoDB is unlikely to pay in CPU on this evidence; the next candidates go after what costs CPU.
+
 ## Candidate 2, tried: snapshot reads from raw BSON
 
 Tried on 2026-10-24 and dropped. A snapshot's load decodes the stored document into a `Document` tree (6.8% of the node's allocation on MongoDB E1 was the driver's decoding of replies to loads), turns its state into a JSON tree and writes that as text. The change ([`mongo-snapshot-raw.patch`](v10-local-baseline/mongo-snapshot-raw/mongo-snapshot-raw.patch), with its tests) took the reply raw (`RawBsonDocument`), read it field by field in one pass and wrote the state to JSON text as it read it; tests pinned the text to the old one. The module's tests passed.
