@@ -275,7 +275,9 @@ class PartitionAppendQueueTest {
                 ),
             )
             outcomes.forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
-            log.batches.last().filter { it.ref == hot }.map { it.version }.assert().containsExactly(2, 3, 4)
+            // The other aggregate's unit may commit in a batch of its own; the hot one's streams are in one, in order.
+            log.batches.single { batch -> batch.any { it.ref == hot && it.version == 2 } }
+                .filter { it.ref == hot }.map { it.version }.assert().containsExactly(2, 3, 4)
             // A conflict at the first stops the rest of the aggregate's.
             val stopped = queue.appendAll(listOf(stream(hot, 4, "again") to null, stream(hot, 5) to null))
             stopped.assert().containsExactly(AppendOutcome.Conflict(4), AppendOutcome.Conflict(4))
