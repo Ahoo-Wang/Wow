@@ -96,6 +96,7 @@ private fun usage(): Nothing {
                     --pids=name:pid,… --containers=name,… --mongo=<container> --postgres=<container>
                     --postgres-database=transfer --kafka=<container> --repository=<dir> --meta=key=value;…
           saturate: --scenario=… (or --mix=…) --start-concurrency=1 --max-concurrency=256 --warm-up=5 --step=10 --out=<dir>
+                    --sweep (every step up to the maximum, not only up to where the throughput levels off)
         """.trimIndent(),
     )
     exitProcess(2)
@@ -375,6 +376,7 @@ private fun saturate(client: Client, targets: List<URI>, options: Options): Int 
         maxConcurrency = options.int("max-concurrency", 256),
         warmUpSeconds = options.int("warm-up", 5),
         stepSeconds = options.int("step", 10),
+        sweep = options.string("sweep", "false").toBoolean(),
     ) { println("[saturate] ${client.adapter.name} ${mix.label}: $it") }.run()
     val best = steps.maxByOrNull { it.throughput }
     val result = mapOf(

@@ -23,7 +23,13 @@
 #   bench.sh saturate --version=9x|v10 [--backend=...] [--nodes=...] --scenario=E1 [--max-concurrency=256] [options]
 #   bench.sh component --backend=mongo|postgres --scenario=E1|E3|E1-large [--ops=20000] [--warm-up-ops=2000]
 #                      [--concurrency=64] [options]   (L1: the V10 domain on the kernel and one store, in one JVM)
+#   bench.sh up       --version=... [--backend=...] [--nodes=...] [--accounts=...] [--prime] [--jfr] [options]
 #   bench.sh down
+#
+# A session: `up` starts the stores, the servers, seeds and primes as a run would, and leaves them up; a `run` or
+# `saturate` with --reuse then measures on them (after waiting until the nodes are quiet), and leaves them up too;
+# `down` stops them. A reused run must name the session's version, backend, nodes, accounts, heap and install. With
+# `up --jfr`, each reused run dumps the servers' recordings over its warm-up and measured phase.
 #
 # Options: --warm-up=30 --measure=60 --distribution=uniform|zipf|hot --accounts=1000 --label=run --out=<dir>
 #          --heap=1g --jfr (a flight recording per server) --settle=<s> (after the nodes are up), --install=<dir> (the
@@ -46,6 +52,9 @@ PUBLIC_PORT=18080
 INTERNAL_PORT=19090
 SERVER_PIDS=()
 TARGETS=()
+# The session `up` leaves for runs with --reuse: its settings, servers and targets.
+SESSION="$REPO/test/benchmarks/results/e2e/.session"
+UP=false
 
 usage() {
   sed -n '14,35p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
@@ -68,11 +77,19 @@ build() {
 
 down() {
   local pid
+  if [ -f "$SESSION" ]; then
+    # shellcheck disable=SC1090
+    SERVER_PIDS=($(. "$SESSION"; echo "$S_PIDS"))
+    rm -f "$SESSION"
+  fi
   for pid in ${SERVER_PIDS[@]+"${SERVER_PIDS[@]}"}; do
     kill "$pid" 2>/dev/null || true
   done
   for pid in ${SERVER_PIDS[@]+"${SERVER_PIDS[@]}"}; do
     wait "$pid" 2>/dev/null || true
+    # A session's server is not this shell's child: wait until it is gone, at most 30 s.
+    local _
+    for _ in $(seq 1 150); do kill -0 "$pid" 2>/dev/null || break; sleep 0.2; done
   done
   compose down -v --remove-orphans >/dev/null 2>&1 || true
 }
@@ -91,7 +108,7 @@ parse() {
     esac
     OPTIONS="$OPTIONS${argument#--}
 "
-    case " --version --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --seed-concurrency --load-cpus --server-cpus --prime " in
+    case " --version --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --seed-concurrency --load-cpus --server-cpus --prime --reuse " in
       *" $key "*) ;;
       *) PASS+=("$argument") ;;
     esac
@@ -198,7 +215,11 @@ setup() {
   OUT=$(opt out "$REPO/test/benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-$LABEL-$VERSION-$BACKEND-n$NODES-$scenario")
   mkdir -p "$OUT"
   if [ ! -x "$LOAD" ]; then build; fi
-  trap down EXIT
+  if [ "$(opt reuse false)" = true ]; then
+    resume
+    return
+  fi
+  if [ "$UP" != true ]; then trap down EXIT; fi
   down
   local store=postgres
   if [ "$BACKEND" = mongo ]; then store=mongo; fi
@@ -255,6 +276,70 @@ setup() {
   local jvm; jvm=$("$JAVA_HOME/bin/java" -version 2>&1 | tr '\n' ' ' | sed 's/;/,/g')
   META="backend=$BACKEND;nodes=$NODES;heap=$HEAP;gc=G1;serverJvm=$jvm;stores=kafka $store;primed=$primed"
   META="$META;primeSeconds=$prime_seconds;settleSeconds=$settle_seconds;accounts=$ACCOUNTS"
+  if [ "$UP" = true ]; then
+    {
+      printf 'S_KEY=%q\n' "$(session_key)"
+      printf 'S_PIDS=%q\n' "${SERVER_PIDS[*]}"
+      printf 'S_TARGETS=%q\n' "${TARGETS[*]}"
+      printf 'S_STORE=%q\n' "$store"
+      printf 'S_META=%q\n' "$META"
+      printf 'S_JFR=%q\n' "$(opt jfr false)"
+      printf 'S_OUT=%q\n' "$OUT"
+    } >"$SESSION"
+  fi
+}
+
+# What a reused run must match of the session: the version, backend, nodes, accounts, heap and install.
+session_key() {
+  echo "version=$VERSION;backend=$BACKEND;nodes=$NODES;accounts=$ACCOUNTS;heap=$HEAP;install=$(opt install "")"
+}
+
+# Takes up the session `up` left (--reuse): its servers and targets, once the nodes are quiet again.
+resume() {
+  if [ ! -f "$SESSION" ]; then log "--reuse: no session; run bench.sh up first"; exit 2; fi
+  # shellcheck disable=SC1090
+  . "$SESSION"
+  if [ "$S_KEY" != "$(session_key)" ]; then
+    log "--reuse: the session is $S_KEY, not $(session_key)"; exit 2
+  fi
+  SERVER_PIDS=($S_PIDS)
+  TARGETS=($S_TARGETS)
+  local pid
+  for pid in "${SERVER_PIDS[@]}"; do
+    if ! kill -0 "$pid" 2>/dev/null; then log "--reuse: the session's server $pid is gone; run bench.sh up again"; exit 2; fi
+  done
+  TARGET_LIST=$(IFS=,; echo "${TARGETS[*]}")
+  CONTAINERS="wow-e2e-bench-kafka,wow-e2e-bench-$S_STORE"
+  STORE_OPTION="--$S_STORE=wow-e2e-bench-$S_STORE"
+  local n
+  PIDS=""
+  for n in $(seq 1 "$NODES"); do PIDS="${PIDS}node-$n:${SERVER_PIDS[$((n - 1))]},"; done
+  PIDS=${PIDS%,}
+  # The run before may have left the nodes a backlog, as a prime does: wait until they are quiet.
+  local settle_started=$SECONDS
+  load settle --version="$VERSION" --targets="$TARGET_LIST" --pids="$PIDS" --out="$OUT" | tee "$OUT/settle.log" >&2
+  if [ "$S_STORE" = postgres ] && [ "$S_JFR" = true ]; then
+    postgres_sql "select pg_stat_statements_reset();" >/dev/null || true
+  fi
+  META="${S_META%%;settleSeconds=*};settleSeconds=$((SECONDS - settle_started));accounts=$ACCOUNTS;session=$S_OUT"
+}
+
+# A reused run's flight recordings: each server's, over the last $1 seconds (its warm-up and measured phase).
+dump_recordings() {
+  [ "$(opt reuse false)" = true ] && [ "${S_JFR:-false}" = true ] || return 0
+  local n
+  for n in $(seq 1 "$NODES"); do
+    "$JAVA_HOME/bin/jcmd" "${SERVER_PIDS[$((n - 1))]}" JFR.dump filename="$OUT/node-$n.jfr" begin="-${1}s" \
+      >/dev/null 2>&1 || log "no recording of node $n"
+  done
+}
+
+# Starts a session (see the header): the stores and servers stay up for runs with --reuse until `down`.
+up() {
+  parse "$@"
+  UP=true
+  setup
+  log "session up: $(session_key); measure with --reuse, stop with bench.sh down"
 }
 
 # Runs SQL on the benchmark's PostgreSQL container.
@@ -282,7 +367,10 @@ run() {
   load run --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --label="$LABEL" --out="$OUT" \
     --pids="$PIDS" --containers="$CONTAINERS" --kafka=wow-e2e-bench-kafka "$STORE_OPTION" --repository="$REPO" \
     --meta="$META" ${PASS[@]+"${PASS[@]}"}
-  if [ -n "${WOW_BENCH_PG_PRELOAD:-}" ]; then postgres_stats; fi
+  dump_recordings "$(( $(opt warm-up 30) + $(opt measure 60) + 5 ))"
+  if [ -n "${WOW_BENCH_PG_PRELOAD:-}" ] || { [ "${S_STORE:-}" = postgres ] && [ "${S_JFR:-false}" = true ]; }; then
+    postgres_stats
+  fi
   log "results in $OUT"
 }
 
@@ -338,6 +426,7 @@ case "$command" in
   run) run "$@" ;;
   saturate) saturate "$@" ;;
   component) component "$@" ;;
+  up) up "$@" ;;
   down) down ;;
   *) usage ;;
 esac
