@@ -150,12 +150,35 @@ By share of the limiting resource times how much of it a change can remove. Each
 
 | # | Candidate | Evidence | Expected effect | Size |
 | --- | --- | --- | --- | --- |
-| 1 | **MongoDB: load the snapshot and the tail in one aggregation**, as D268 did on PostgreSQL | a load is `find` + `aggregate`; L1 3.32 round trips per E1 command against PostgreSQL's 2.79; 74% of commands load | one round trip less per load (L1 about 2.3 per command), a lower p50 at low concurrency; one read point for both parts | contained in the MongoDB event log and snapshot store |
+| 1 | ~~**MongoDB: load the snapshot and the tail in one aggregation**, as D268 did on PostgreSQL~~ (tried and dropped, [below](#candidate-1-tried-one-aggregation-on-mongodb)) | a load is `find` + `aggregate`; L1 3.32 round trips per E1 command against PostgreSQL's 2.79; 74% of commands load | one round trip less per load (L1 about 2.3 per command), a lower p50 at low concurrency; one read point for both parts | contained in the MongoDB event log and snapshot store |
 | 2 | **MongoDB: allocation in the snapshot store, log tail and driver** | 220 KB per command in the server, 2.6 times PostgreSQL in L1; snapshot store, tail and driver about two thirds of it | fewer bytes per command, less GC and carrier CPU (40% of the node's CPU) | find the decoding that dominates first |
 | 3 | **PostgreSQL: fewer WAL flushes per command** | WAL 80–85% busy from 50% load; per command 0.93 append statements, each its own commit, beside 0.54 snapshot statements and 0.27 checkpoints in their own transactions | commit the derived writes (snapshots, checkpoints) without waiting for the flush, or in fewer transactions | a durability decision: needs agreement first (D267 ⑲ kept `synchronous_commit` on for the whole database) |
 | 4 | **Hot aggregates: more than one command per commit** | zipf: throughput flat from concurrency 32, p50 2–3 ms; the hottest lanes commit one command at a time | the hottest aggregate's rate bounded by batches, not by one commit each | a change to the executor's lane: design first |
 | 5 | **HTTP: WebFlux routing per request** | 17% of the node's CPU on Netty threads, 22% of allocation on PostgreSQL E1, mostly routing | a cheaper match for the command endpoint | medium |
 | 6 | Kafka producer | 4.5% of the node's CPU | small | low priority |
+
+## Candidate 1, tried: one aggregation on MongoDB
+
+Measured on 2026-10-23 and dropped. The change ([`mongo-one-load.patch`](v10-local-baseline/mongo-one-load/mongo-one-load.patch), against `main` at `c58787552`) read a snapshot and its tail in one database aggregation when the snapshot store shares the log's client, database and context: the snapshot, then by `$lookup` on its version the tail from it and the request keys before it, unwound one row each, falling back to the reads apart otherwise. On MongoDB 7.0 both inner reads used the log's partial version index, examining as many keys as they returned, and the `$lookup` with its `$unwind` streamed the rows. The module's tests passed.
+
+Four alternating rounds (A `main`, B the change, A, B; [`abab.sh`](v10-local-baseline/mongo-one-load/abab.sh), raw results beside it), each with L1 at concurrency 16, then a session on 100,000 primed accounts: closed loop at concurrency 1 to 4, and open loop at 1,720/s (E1) and 714/s (E3), about half of the baseline's peaks. Per command, the two rounds of each arm:
+
+| | A | B |
+| --- | --- | --- |
+| L1 E1 round trips | 3.32, 3.33 | 2.30, 2.30 |
+| L1 E3 round trips | 5.61, 5.59 | 4.59, 4.60 |
+| L1 E1 allocated | 224, 225 KB | 231, 228 KB |
+| E1 server CPU | 0.891, 0.904 ms | 1.008, 0.996 ms |
+| E1 MongoDB CPU | 2.39, 1.65 ms | 2.53, 2.02 ms |
+| E1 p50 / p99 | 9.7 / 84, 4.4 / 24 ms | 13.3 / 108, 6.0 / 48 ms |
+| E3 server CPU | 2.170, 1.956 ms | 2.154, 2.026 ms |
+| p50 at concurrency 1 | 1.45, 1.20 ms | 1.49, 1.43 ms |
+
+- The round trip went as intended: the snapshot's `find` fell from 1.00 per command to none.
+- Nothing it should buy followed. Server CPU on E1 rose about 11% in both pairs, beyond one run's ±2.5%; MongoDB's CPU and the latencies at 50% were worse in both pairs, though they vary widely between rounds of one arm; the p50 at concurrency 1, where a round trip saved should show first, did not fall.
+- Inside MongoDB, the aggregation costs what it saves: 3,000 loads over 5,000 aggregates from `mongosh` in the container took 0.38–0.39 ms each as `find` plus `aggregate` and 0.40 ms as one aggregation. On loopback a round trip is tens of microseconds while a load is about 0.4 ms of the server's work, and the correlated `$lookup` with `$expr`, `$documents` and a nested `$unionWith` costs more to run than the two plain reads. D268 pays on PostgreSQL because one statement with a CTE is cheap there; MongoDB has no such cheap form.
+
+Where the database is a network hop away a round trip weighs more, but nothing measured here supports the change, so it is not merged. The lever on MongoDB's loads is their execution and their number (the state cache), not their round trips.
 
 ## Notes on method
 
