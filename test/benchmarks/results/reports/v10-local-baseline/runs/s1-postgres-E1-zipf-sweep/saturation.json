@@ -1,0 +1,109 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "version": "v10",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "zipf",
+    "accounts": 100000,
+    "zipfExponent": 1.1
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 4354.1,
+  "saturationConcurrency": 32,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 961.2,
+      "ok": 9612,
+      "errors": {},
+      "p50Ms": 0.923,
+      "p99Ms": 2.559
+    },
+    {
+      "concurrency": 2,
+      "throughput": 1925.1,
+      "ok": 19251,
+      "errors": {},
+      "p50Ms": 0.907,
+      "p99Ms": 2.527
+    },
+    {
+      "concurrency": 4,
+      "throughput": 3013.3,
+      "ok": 30133,
+      "errors": {},
+      "p50Ms": 1.247,
+      "p99Ms": 2.591
+    },
+    {
+      "concurrency": 8,
+      "throughput": 3955.6,
+      "ok": 39556,
+      "errors": {},
+      "p50Ms": 1.807,
+      "p99Ms": 5.055
+    },
+    {
+      "concurrency": 16,
+      "throughput": 4230.1,
+      "ok": 42301,
+      "errors": {},
+      "p50Ms": 2.351,
+      "p99Ms": 17.279
+    },
+    {
+      "concurrency": 32,
+      "throughput": 4354.1,
+      "ok": 43541,
+      "errors": {},
+      "p50Ms": 2.239,
+      "p99Ms": 48.895
+    },
+    {
+      "concurrency": 64,
+      "throughput": 4215.4,
+      "ok": 42154,
+      "errors": {},
+      "p50Ms": 2.319,
+      "p99Ms": 119.295
+    },
+    {
+      "concurrency": 128,
+      "throughput": 4245.0,
+      "ok": 42450,
+      "errors": {},
+      "p50Ms": 2.271,
+      "p99Ms": 244.735
+    },
+    {
+      "concurrency": 256,
+      "throughput": 4040.8,
+      "ok": 40408,
+      "errors": {},
+      "p50Ms": 2.367,
+      "p99Ms": 593.919
+    },
+    {
+      "concurrency": 512,
+      "throughput": 3991.4,
+      "ok": 39914,
+      "errors": {},
+      "p50Ms": 2.463,
+      "p99Ms": 1081.343
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "primed": "true",
+    "primeSeconds": "41",
+    "settleSeconds": "3",
+    "accounts": "100000",
+    "session": "/private/tmp/claude-501/-Users-worker-work-Wow--claude-worktrees-performance-optimization-327071/1e81896d-3639-40f5-8c4f-ed1ecfc9cafd/scratchpad/baseline/s1-postgres-up"
+  }
+}

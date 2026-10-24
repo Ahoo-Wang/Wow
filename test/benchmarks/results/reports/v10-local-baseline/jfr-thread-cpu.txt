@@ -1,0 +1,66 @@
+## s1-mongo-E1-uniform-0.5 sum of thread loads x10 cores = 1.59 cores
+   0.64 cores  40.1% ForkJoinPool-N-worker-N
+   0.53 cores  33.2% DefaultDispatcher-worker-N
+   0.21 cores  13.3% reactor-http-nio-N
+   0.09 cores   5.9% CN CompilerThreadN
+   0.05 cores   3.4% kafka-producer-network-thread | producer-N
+   0.03 cores   1.8% Read-Updater
+   0.03 cores   1.7% Read-Poller
+   0.00 cores   0.1% wow-wait-deadlines-N
+   0.00 cores   0.1% JFR Periodic Tasks
+   0.00 cores   0.1% Attach Listener
+## s1-mongo-E1-zipf-0.5 sum of thread loads x10 cores = 0.97 cores
+   0.41 cores  42.7% DefaultDispatcher-worker-N
+   0.31 cores  32.5% ForkJoinPool-N-worker-N
+   0.13 cores  13.5% reactor-http-nio-N
+   0.05 cores   5.0% kafka-producer-network-thread | producer-N
+   0.02 cores   2.0% Read-Updater
+   0.02 cores   1.7% Read-Poller
+   0.01 cores   1.0% CN CompilerThreadN
+   0.01 cores   0.8% wow-wait-deadlines-N
+   0.00 cores   0.5% VirtualThread-unparker
+   0.00 cores   0.1% JFR Periodic Tasks
+## s1-mongo-E3-uniform-0.5 sum of thread loads x10 cores = 1.28 cores
+   0.58 cores  45.5% ForkJoinPool-N-worker-N
+   0.47 cores  36.7% DefaultDispatcher-worker-N
+   0.12 cores   9.1% reactor-http-nio-N
+   0.05 cores   4.1% kafka-producer-network-thread | producer-N
+   0.02 cores   1.9% Read-Poller
+   0.02 cores   1.8% Read-Updater
+   0.00 cores   0.2% CN CompilerThreadN
+   0.00 cores   0.1% JFR Periodic Tasks
+   0.00 cores   0.1% Service Thread
+   0.00 cores   0.1% JFR Recorder Thread
+## s1-postgres-E1-uniform-0.5 sum of thread loads x10 cores = 1.83 cores
+   0.78 cores  42.7% DefaultDispatcher-worker-N
+   0.54 cores  29.8% ForkJoinPool-N-worker-N
+   0.31 cores  16.8% reactor-http-nio-N
+   0.08 cores   4.5% kafka-producer-network-thread | producer-N
+   0.04 cores   2.2% Read-Updater
+   0.04 cores   2.1% Read-Poller
+   0.01 cores   0.7% HikariPool-N:connection-adder
+   0.01 cores   0.4% CN CompilerThreadN
+   0.00 cores   0.2% wow-wait-deadlines-N
+   0.00 cores   0.2% JFR Periodic Tasks
+## s1-postgres-E1-zipf-0.5 sum of thread loads x10 cores = 1.19 cores
+   0.56 cores  47.2% DefaultDispatcher-worker-N
+   0.34 cores  28.8% ForkJoinPool-N-worker-N
+   0.13 cores  10.5% reactor-http-nio-N
+   0.05 cores   4.2% kafka-producer-network-thread | producer-N
+   0.05 cores   4.0% Read-Updater
+   0.04 cores   3.6% Read-Poller
+   0.01 cores   0.9% wow-wait-deadlines-N
+   0.00 cores   0.3% CN CompilerThreadN
+   0.00 cores   0.1% JFR Periodic Tasks
+   0.00 cores   0.0% Attach Listener
+## s1-postgres-E3-uniform-0.5 sum of thread loads x10 cores = 1.60 cores
+   0.75 cores  47.1% DefaultDispatcher-worker-N
+   0.52 cores  32.4% ForkJoinPool-N-worker-N
+   0.13 cores   8.2% reactor-http-nio-N
+   0.08 cores   5.1% kafka-producer-network-thread | producer-N
+   0.04 cores   2.8% Read-Updater
+   0.04 cores   2.7% Read-Poller
+   0.01 cores   0.9% HikariPool-N:connection-adder
+   0.00 cores   0.2% CN CompilerThreadN
+   0.00 cores   0.2% wow-wait-deadlines-N
+   0.00 cores   0.1% VirtualThread-unparker
