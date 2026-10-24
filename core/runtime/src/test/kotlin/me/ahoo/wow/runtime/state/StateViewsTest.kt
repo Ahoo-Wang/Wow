@@ -134,6 +134,28 @@ class StateViewsTest {
         }
 
     @Test
+    fun `a batch's streams should each have a pending view, until committed or expected again`(): Unit =
+        runBlocking {
+            // A lane appending a batch (decision D273) expects one view per stream before any commits.
+            val kernel = Kernel(InMemoryEventLog(), codec = codec)
+            val views = views()
+            val committed = (1..3).map { n ->
+                kernel.execute(cartModel(), Command("c-$n", "r-$n", alice, AddItems(listOf("item-$n"))))
+                    as CommandOutcome.Committed
+            }
+            committed.forEach { views.expect(cartModel(), it.stream, CachedState(it.state, it.stream.version)) }
+            // The first committed: the views after it stay pending. (Reading a pending view makes it a view: the
+            // reader holds its commit; so the later ones are read last.)
+            views.record(cartModel(), committed[0])
+            views.get(alice, 1).assert().isNotNull()
+            views.get(alice, 2).assert().isNull()
+            // The second expected again (decided again on a new state): it replaces itself and the one after it.
+            views.expect(cartModel(), committed[1].stream, CachedState(committed[1].state, 2))
+            views.get(committed[2].stream).assert().isNull()
+            views.get(committed[1].stream).assert().isNotNull()
+        }
+
+    @Test
     fun `a pending view of another append should not be recorded, and forget should drop it`(): Unit = runBlocking {
         val kernel = Kernel(InMemoryEventLog(), codec = codec)
         val views = views()
