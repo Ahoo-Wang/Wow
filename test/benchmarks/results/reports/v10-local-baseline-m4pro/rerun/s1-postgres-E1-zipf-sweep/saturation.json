@@ -1,0 +1,108 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "zipf",
+    "accounts": 100000,
+    "zipfExponent": 1.1
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 4512.2,
+  "saturationConcurrency": 32,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 1550.5,
+      "ok": 46515,
+      "errors": {},
+      "p50Ms": 0.547,
+      "p99Ms": 1.599
+    },
+    {
+      "concurrency": 2,
+      "throughput": 1939.2666666666667,
+      "ok": 58178,
+      "errors": {},
+      "p50Ms": 0.703,
+      "p99Ms": 5.599
+    },
+    {
+      "concurrency": 4,
+      "throughput": 3110.9666666666667,
+      "ok": 93329,
+      "errors": {},
+      "p50Ms": 0.927,
+      "p99Ms": 6.239
+    },
+    {
+      "concurrency": 8,
+      "throughput": 3455.6,
+      "ok": 103668,
+      "errors": {},
+      "p50Ms": 1.519,
+      "p99Ms": 7.967
+    },
+    {
+      "concurrency": 16,
+      "throughput": 4142.066666666667,
+      "ok": 124262,
+      "errors": {},
+      "p50Ms": 1.999,
+      "p99Ms": 20.223
+    },
+    {
+      "concurrency": 32,
+      "throughput": 4512.2,
+      "ok": 135366,
+      "errors": {},
+      "p50Ms": 1.847,
+      "p99Ms": 47.615
+    },
+    {
+      "concurrency": 64,
+      "throughput": 3987.266666666667,
+      "ok": 119618,
+      "errors": {},
+      "p50Ms": 1.927,
+      "p99Ms": 152.575
+    },
+    {
+      "concurrency": 128,
+      "throughput": 4228.733333333334,
+      "ok": 126862,
+      "errors": {},
+      "p50Ms": 2.007,
+      "p99Ms": 286.719
+    },
+    {
+      "concurrency": 256,
+      "throughput": 3588.2,
+      "ok": 107646,
+      "errors": {},
+      "p50Ms": 2.415,
+      "p99Ms": 811.007
+    },
+    {
+      "concurrency": 512,
+      "throughput": 3853.1,
+      "ok": 115593,
+      "errors": {},
+      "p50Ms": 2.431,
+      "p99Ms": 1433.599
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.13\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "primed": "true",
+    "primeSeconds": "17",
+    "settleSeconds": "4",
+    "accounts": "100000",
+    "session": "/Users/ahoo/.gemini/antigravity/worktrees/Wow/wow-m4pro-rerun/test/benchmarks/results/reports/v10-local-baseline-m4pro/rerun/s1-postgres-up"
+  }
+}
