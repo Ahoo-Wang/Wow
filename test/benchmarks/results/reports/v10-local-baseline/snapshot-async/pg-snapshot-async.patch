@@ -1,0 +1,127 @@
+diff --git a/backends/postgres/src/integrationTest/kotlin/me/ahoo/wow/postgres/snapshot/PostgresSnapshotStoreTest.kt b/backends/postgres/src/integrationTest/kotlin/me/ahoo/wow/postgres/snapshot/PostgresSnapshotStoreTest.kt
+index 7897edc90..c6644e4df 100644
+--- a/backends/postgres/src/integrationTest/kotlin/me/ahoo/wow/postgres/snapshot/PostgresSnapshotStoreTest.kt
++++ b/backends/postgres/src/integrationTest/kotlin/me/ahoo/wow/postgres/snapshot/PostgresSnapshotStoreTest.kt
+@@ -13,6 +13,8 @@
+ 
+ package me.ahoo.wow.postgres.snapshot
+ 
++import com.zaxxer.hikari.HikariConfig
++import com.zaxxer.hikari.HikariDataSource
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.async
+ import kotlinx.coroutines.awaitAll
+@@ -28,6 +30,11 @@ import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
+ import me.ahoo.wow.spi.snapshot.SnapshotStore
+ import me.ahoo.wow.tck.snapshot.SnapshotStoreSpec
+ import org.junit.jupiter.api.Test
++import java.lang.reflect.InvocationTargetException
++import java.lang.reflect.Method
++import java.lang.reflect.Proxy
++import java.sql.Connection
++import javax.sql.DataSource
+ 
+ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
+     override fun createStore(context: String): SnapshotStore = PostgresFixture.snapshotStore(context)
+@@ -116,6 +123,60 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
+         store.pending(order, 2, limit = 10).assert().contains(order.ref("tenant", "newer"))
+     }
+ 
++    @Test
++    fun `a batch commits without waiting for its WAL, and the connection keeps its own setting`(): Unit = runBlocking {
++        // Roadmap §6 item 9: snapshots are derived from the log, so their batch need not wait for the flush.
++        val pool = PostgresFixture.dataSource
++        val single = HikariDataSource(
++            HikariConfig().apply {
++                jdbcUrl = pool.jdbcUrl
++                username = pool.username
++                password = pool.password
++                maximumPoolSize = 1
++            },
++        )
++        single.use { target ->
++            val atCommit = ArrayList<String>()
++            val observed = committing(target) { connection -> atCommit += settingOf(connection) }
++            val context = PostgresFixture.newContext()
++            val store = PostgresSnapshotStore(observed, context)
++            val type = AggregateType(context, "order")
++            // The first use creates the table, in a transaction of its own.
++            store.save(snapshot("o0", 1).copyWith(ref = type.ref("tenant", "o0"))).assert().isTrue()
++            atCommit.clear()
++            store.saveAll((1..3).map { snapshot("o$it", 1).copyWith(ref = type.ref("tenant", "o$it")) })
++                .forEach { it.assert().isEqualTo(SnapshotSaveOutcome.Written) }
++            atCommit.assert().containsExactly("off")
++            // SET LOCAL ends with the transaction: the pool's one connection is back to the server's setting.
++            target.connection.use { settingOf(it) }.assert().isEqualTo("on")
++        }
++    }
++
++    /** [target] whose connections run [beforeCommit] on themselves just before each commit. */
++    private fun committing(target: DataSource, beforeCommit: (Connection) -> Unit): DataSource =
++        Proxy.newProxyInstance(DataSource::class.java.classLoader, arrayOf(DataSource::class.java)) { _, method, args ->
++            val result = invoke(method, target, args)
++            if (method.name != "getConnection") return@newProxyInstance result
++            val connection = result as Connection
++            Proxy.newProxyInstance(Connection::class.java.classLoader, arrayOf(Connection::class.java)) { _, call, callArgs ->
++                if (call.name == "commit") beforeCommit(connection)
++                invoke(call, connection, callArgs)
++            }
++        } as DataSource
++
++    private fun invoke(method: Method, target: Any, args: Array<out Any?>?): Any? = try {
++        method.invoke(target, *(args ?: emptyArray()))
++    } catch (failure: InvocationTargetException) {
++        throw failure.targetException
++    }
++
++    private fun settingOf(connection: Connection): String = connection.createStatement().use { statement ->
++        statement.executeQuery("SELECT current_setting('synchronous_commit')").use { rows ->
++            rows.next()
++            rows.getString(1)
++        }
++    }
++
+     @Test
+     fun `a batch larger than one statement takes is cut into statements`(): Unit = runBlocking {
+         val counted = CountedDataSource(PostgresFixture.dataSource)
+diff --git a/backends/postgres/src/main/kotlin/me/ahoo/wow/postgres/snapshot/PostgresSnapshotStore.kt b/backends/postgres/src/main/kotlin/me/ahoo/wow/postgres/snapshot/PostgresSnapshotStore.kt
+index 1468916cc..e070d212d 100644
+--- a/backends/postgres/src/main/kotlin/me/ahoo/wow/postgres/snapshot/PostgresSnapshotStore.kt
++++ b/backends/postgres/src/main/kotlin/me/ahoo/wow/postgres/snapshot/PostgresSnapshotStore.kt
+@@ -124,8 +124,12 @@ class PostgresSnapshotStore(
+      * [PostgresSnapshotTables.MAX_ROWS] a statement), then, only when some were refused, one statement marking those of
+      * a higher state revision stale. So a batch of one aggregate type that all lands is one round trip, as one save is.
+      *
+-     * All of it is one transaction, one commit and one WAL flush (work package B.O-5), the aggregate types in name
+-     * order and each statement's rows in key order, so concurrent batches lock their common rows in the same order. A
++     * All of it is one transaction, one commit (work package B.O-5), the aggregate types in name order and each
++     * statement's rows in key order, so concurrent batches lock their common rows in the same order. The commit does
++     * not wait for its WAL to be flushed (`synchronous_commit` off for the transaction alone, roadmap §6 item 9): a
++     * snapshot is derived from the log, so a crash that loses the last of these commits costs a longer tail to replay,
++     * never a fact. PostgreSQL flushes the WAL in order, so a durable commit after them, such as the checkpoint of the
++     * subscription that saved them, makes them durable too, and a checkpoint never passes a snapshot it lost. A
+      * statement PostgreSQL refuses for a value ([PostgresFailures.isRefused]) aborts the transaction, which then wrote
+      * nothing: the rounds run again statement by statement in autocommit, where such a statement's snapshots are saved
+      * one by one, so the one refused is [SnapshotSaveOutcome.Failed] alone. Any other failure is thrown, and nothing of
+@@ -139,7 +143,10 @@ class PostgresSnapshotStore(
+         } else {
+             dataSource.autoCommitted { connection ->
+                 try {
+-                    inTransaction(connection) { saveRounds(connection, tablesOf, snapshots, alone = false) }
++                    inTransaction(connection) {
++                        connection.createStatement().use { it.execute(ASYNC_COMMIT) }
++                        saveRounds(connection, tablesOf, snapshots, alone = false)
++                    }
+                 } catch (failure: SQLException) {
+                     PostgresFailures.refusedOrThrow(failure)
+                     saveRounds(connection, tablesOf, snapshots, alone = true)
+@@ -394,6 +401,9 @@ class PostgresSnapshotStore(
+     }
+ 
+     internal companion object {
++        /** A snapshot batch's transaction commits without waiting for its WAL to be flushed. */
++        private const val ASYNC_COMMIT = "SET LOCAL synchronous_commit TO OFF"
++
+         /** The parameters of one refused snapshot's row of [PostgresSnapshotTables.markRefusedRows]. */
+         const val MARK_PARAMETERS = 4
+ 
