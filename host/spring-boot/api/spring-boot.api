@@ -792,8 +792,10 @@ public final class me/ahoo/wow/spring/boot/WowProperties$CosId {
 public final class me/ahoo/wow/spring/boot/WowProperties$Executor {
 	public fun <init> ()V
 	public final fun getLaneCapacity ()I
+	public final fun getMaxBatch ()I
 	public final fun getMaxInFlight ()I
 	public final fun setLaneCapacity (I)V
+	public final fun setMaxBatch (I)V
 	public final fun setMaxInFlight (I)V
 }
 

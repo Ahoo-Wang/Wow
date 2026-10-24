@@ -57,11 +57,23 @@ interface EventLog {
      * order. A partition's owner calls it with the appends it has queued (group commit, finding F1): a backend may
      * commit them together to share the round trips, as long as every outcome is what [append] would have returned:
      * a stream the backend refuses ([AppendOutcome.Rejected]) fails alone, and a group whose commit is unknown is
-     * [AppendOutcome.Unknown] for each stream, never appended again one by one. The streams target distinct aggregates.
-     * By default they are appended one by one.
+     * [AppendOutcome.Unknown] for each stream, never appended again one by one.
+     *
+     * Several streams of one aggregate come in consecutive versions, in order (a kernel's batch of the commands its
+     * aggregate had queued, roadmap §6 item 10). They commit as a prefix: once one of them does not commit, the
+     * aggregate's later streams are not appended, each [AppendOutcome.Conflict] at the version that stream's outcome
+     * leaves the aggregate at ([notAppendedAfter]), whether the backend tried them or not. By default the streams are
+     * appended one by one, an aggregate's later streams skipped once one did not commit.
      */
-    suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> =
-        streams.map { (stream, transport) -> append(stream, transport) }
+    suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+        val failed = HashMap<AggregateRef, AppendOutcome>()
+        return streams.map { (stream, transport) ->
+            failed[stream.ref]?.let { return@map it }
+            append(stream, transport).also { outcome ->
+                if (outcome !is AppendOutcome.Committed) failed[stream.ref] = notAppendedAfter(stream, outcome)
+            }
+        }
+    }
 
     /** The streams of [ref] with versions in [fromVersion]..[toVersion], in version order: facts only. */
     fun read(ref: AggregateRef, fromVersion: Int = 1, toVersion: Int = Int.MAX_VALUE): Flow<EventStreamRecord>

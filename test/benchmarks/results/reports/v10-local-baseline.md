@@ -284,6 +284,56 @@ At 100,000 uniform accounts and a 1 GB heap the default state cache held about 2
 - On PostgreSQL the reads fall as much, but its CPU and latencies move both ways with the session's disk (round 2's E1 p99 was 146 and 57 ms, a slow fsync in both arms); the store CPU of E3 is 35% lower in round 1 and 16% higher in round 2.
 - The heap holds every state in less than the old default used for a quarter of them: 780–855 MB at most against 820–871 MB.
 
+**Then: the last sequences MongoDB's log remembers.** With every state cached, a command no longer loads its aggregate, and the log reads the aggregate's last stream itself when it does not remember it: it remembered 65,536 aggregates, fewer than the cache now holds. It now remembers as many as the state caches can hold at most (a tenth of the heap at 1 KB a state, about 105,000 at 1 GB). MongoDB, `main` (F2) against the change (H), two rounds ([`seq-ab.sh`](v10-local-baseline/state-cache/last-sequences/seq-ab.sh), results beside it):
+
+| Per command | F2 | H |
+| --- | --- | --- |
+| E1 finds | 0.35, 0.35 | 0.05, 0.05 |
+| E3 finds | 0.70, 0.70 | 0.01, 0.01 |
+| E1 server / MongoDB CPU | 0.638 / 1.03, 0.687 / 1.16 ms | 0.617 / 1.07, 0.701 / 1.16 ms |
+| E3 server / MongoDB CPU | 1.705 / 2.78, 1.782 / 3.02 ms | 1.798 / 2.46, 1.837 / 2.93 ms |
+| Heap used, most | 812–841 MB | 800–839 MB |
+
+The round trip is gone; on loopback it was an indexed read of a few tens of microseconds, so the CPU and the latencies move within the noise. It stays: a round trip less per command where the database is a network hop away, at no cost in CPU, heap or code.
+
+
+## Candidate 5: the HTTP routes, found by aggregate
+
+The ranking put 22% of PostgreSQL E1's allocation in HTTP, "mostly routing". A recording on `main` after the state cache (PostgreSQL E1 at 1,906/s, 100,000 accounts, one aggregate type) puts less there: allocation under WebFlux and Netty first is 11% of the node's, and under the route matching itself (`RouterFunction.route`, the request predicates, `PathPattern`) 2.6%, counting each sample once; the matching is 10% of the Netty threads' execution samples, about 1.7% of the node's CPU. Most of the HTTP share is Netty's decoding, the exchange and its headers, spread over many frames.
+
+The matching grows with the routes, though. WebFlux tries a request against the routes in order, and a context's routes were one list: each aggregate adds 18 (its commands, lifecycle, state, trace and queries), and each route tried costs about 50 ns. The change finds an aggregate's routes by the path's first two segments, `/{context}/{aggregate}`, in one lookup, and matches only those; a Manifest with a command or query route outside its aggregate's path keeps one list. One match, the test cart's routes copied once per aggregate ([`RouteMatchBench.kt`](v10-local-baseline/http-routing/RouteMatchBench.kt.txt), 200,000 matches after 200,000 to warm up, the request's creation subtracted):
+
+| A command of the last aggregate | `main` | Found by aggregate |
+| --- | --- | --- |
+| 1 aggregate | 0.80 µs | 1.09 µs |
+| 10 aggregates | 6.7 µs | 1.0 µs |
+| 50 aggregates | 31.2 µs | 1.1 µs |
+
+- With 50 aggregates a command of the last one spent 31 µs matching, about 5% of the 0.55–0.65 ms of node CPU an E1 command takes here; now about 1 µs, whichever aggregate.
+- With one aggregate the lookup adds 0.3 µs, 0.05% of a command: the benchmark's single aggregate type shows neither end to end, so the change is taken on these numbers and the costs it bounds, not on an end-to-end run.
+
+## On Actions: the changes since this baseline, together
+
+L3 ([run 40087911162](https://github.com/Ahoo-Wang/Wow/actions/runs/40087911162)) measured `main` at `350888740` against this baseline's `222f37be8` (#4847), so it holds #4850, #4851, #4858 and #4859 together: one 4-core runner per suite, three rounds at each arm's calibrated rate and two at one rate for both. No suite has an A/A threshold yet (`test/benchmarks/noise.json`), so the report marks every ratio `uncalibrated`; the CPU and bytes per operation are the ratios to read, as here (stage 0: ±2–5% across sessions), the latencies only with their ranges. Head over base, at one rate for both arms:
+
+| Suite at 100,000 accounts | CPU per op | Allocated per op | p99 | Saturation |
+| --- | --- | --- | --- | --- |
+| E1 MongoDB, uniform | 0.965 | 0.683 | 0.318 | 1.09 |
+| E1 MongoDB, Zipf | 0.953 | 0.863 | 1.513 (0.60–2.42) | 1.00 |
+| E2 MongoDB | 0.391 | 0.922 | 0.503 | 1.21 |
+| E3 MongoDB | 0.965 | 0.737 | 0.471 | 1.12 |
+| Mixed MongoDB | 0.906 | 0.744 | 0.639 | 1.26 |
+| Large MongoDB | 0.919 | 0.803 | 0.428 | 1.16 |
+| E1 PostgreSQL, uniform | 0.912 | 0.767 | 0.453 | 1.07 |
+| E3 PostgreSQL | 0.942 | 0.854 | 0.287 | 1.48 |
+| Mixed PostgreSQL | 0.924 | 0.890 | 1.196 | 1.08 |
+| Large PostgreSQL | 0.877 | 0.915 | 0.570 | 1.14 |
+
+- At 100,000 accounts, where the old default cache held a quarter of them, every suite spends less: 4–12% less CPU and 8–32% fewer bytes per command (E2 on MongoDB: 61% less CPU, its base fell behind at the shared rate), with the closed-loop ceiling up to 48% higher (E1 with Zipf keys unchanged: its hottest accounts' lanes bound it). The p99 is lower in eight suites (0.29–0.64) and higher in two: Zipf on MongoDB (1.51, over 0.60–2.42) and mixed on PostgreSQL (1.20).
+- At 1,000 accounts, which both arms cache whole, the CPU per command is 0.95–1.03 and the bytes 0.92–1.00: the changes cost nothing where the cache does not matter. One ratio there is off: E3 on PostgreSQL at one rate, p95 and p99 4–5 times the base's over two pairs (1.5–9.3), at the same CPU (1.03); the latencies of a 4-core runner's fsync, not a cost, until a rerun shows otherwise.
+- Large on MongoDB at its calibrated rate: the head's calibration chose 80% of its saturation and did not keep up there (throughput 0.31 of the base's, p50 231 times); at one rate both kept up and the head's p99 was 0.43 of the base's. A calibration that overshoots, not a regression.
+
+L4 ([run 40087914268](https://github.com/Ahoo-Wang/Wow/actions/runs/40087914268)) measured the same `main` alone, for capacity: on a 4-core runner, the most a node sustains with at most 1% errors and p99 within 200 ms is 1,922/s for E1 and 656/s for E3 on PostgreSQL, 577/s for E1, 368/s for E2 and 193/s for E3 on MongoDB (4.4 ms of CPU per E1 command against PostgreSQL's 1.2: MongoDB shares the runner's four cores). The E3 cliff kept up to 500/s on both, PostgreSQL's p99 184 ms at the top step, MongoDB's p50 782 ms from 400/s. The E5 hand-overs lost nothing but three of MongoDB's E3 waits (`wow.wait.timeout`), with the worst second's p99 at 1.6–7.1 s during the hand-over; a million cold accounts at 200 E1 and 500 E4 a second kept up on both. Its cold suites' report still described the state cache as 4,096 states a context, the count before #4859; it now says what the default holds.
 
 ## Tried and ruled out
 
@@ -304,3 +354,15 @@ Virtual threads cost 9–29% less, at the same or lower latency. The first recor
 
 **What did differ: the disk.** These runs flushed the WAL in 0.14 ms (487 ms over 3,452 flushes a second at 1,906/s), the stage 1 baseline in 0.54 ms (805 ms over 1,496). With the same build and load, that alone moved E1's p99 from 106 ms to 3–5 ms and PostgreSQL's CPU per command from 0.86 to 0.35 ms. Docker Desktop's fsync time varies by a factor of four between sessions on this machine, so local PostgreSQL latencies compare only within one ABAB, and the WAL flush time per flush belongs beside each result (`summary.md` gives it). The baseline's finding that the WAL limits PostgreSQL at 50% holds at 0.54 ms a flush; at 0.14 ms the WAL is still busy half of each second, but nothing queues behind it.
 
+**Snapshot batches committed without waiting for the WAL** (roadmap §6 item 9). A snapshot is derived from the log, so its batch's transaction could set `synchronous_commit` off for itself alone (`SET LOCAL`), the log's appends and the checkpoints staying durable ([`pg-snapshot-async.patch`](v10-local-baseline/snapshot-async/pg-snapshot-async.patch), never merged). PostgreSQL, `main` (F2) against the change (I), three rounds on one build each ([`async-ab.sh`](v10-local-baseline/snapshot-async/async-ab.sh), results beside it). Per command:
+
+| | F2 | I |
+| --- | --- | --- |
+| E1 WAL flushes | 1.17, 1.62, 1.79 | 0.95, 0.95, 0.94 |
+| E3 WAL flushes | 3.69, 3.54, 4.57 | 2.47, 2.47, 2.80 |
+| E1 server CPU | 0.880, 0.704, 0.592 ms | 0.806, 0.656, 0.741 ms |
+| E3 server CPU | 1.809, 1.850, 1.643 ms | 2.149, 1.957, 1.849 ms |
+| E3 PostgreSQL CPU | 1.37, 1.37, 1.09 ms | 1.52, 1.42, 1.10 ms |
+| Commits | 1.84–2.02 (E1), 5.54–5.79 (E3) | 1.96–1.99, 5.37–5.78 |
+
+The flushes fell by a fifth to a third, and nothing followed: E3's server CPU rose 6–19% in every round, its PostgreSQL CPU did not fall, and E1 stayed within the noise. A flush took 0.15–0.36 ms in these sessions, so the flushes saved were cheap, while each batch paid a statement more and, committing sooner, left the snapshot subscription smaller batches. Not merged. A store whose flush is much slower (a network disk) may weigh differently; that takes a paired run there, not this one.

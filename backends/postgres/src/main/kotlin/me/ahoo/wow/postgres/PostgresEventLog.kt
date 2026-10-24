@@ -43,6 +43,8 @@ import me.ahoo.wow.spi.log.SnapshotTail
 import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.log.TailPacer
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.log.notAppendedAfter
+import me.ahoo.wow.spi.log.requireChains
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.wait.Origin
@@ -363,33 +365,40 @@ class PostgresEventLog(
         ) {
             "A group commit appends streams of one partition of $context."
         }
-        require(streams.map { it.first.ref }.toSet().size == streams.size) {
-            "A group commit appends distinct aggregates."
-        }
+        requireChains(streams)
         return dispatcher.jdbc {
-            streams.chunked(MAX_GROUP).flatMap { group ->
-                var sent = false
-                try {
-                    dataSource.autoCommitted { connection ->
-                        val types = group.map { (stream) -> stream.ref.type }.distinct()
-                        types.forEach { tableOf(connection, it) }
-                        sent = true
-                        try {
-                            appendGroupIn(connection, partition, group)
-                        } catch (failure: PSQLException) {
-                            // A table is gone: the statement ran nothing ([withTable]); make sure of them again, once.
-                            if (failure.sqlState != UNDEFINED_TABLE) throw failure
-                            types.forEach { ensured.forget(it.name, tableOf(connection, it)) }
-                            appendGroupIn(connection, partition, group)
-                        }
-                    }
-                } catch (failure: SQLException) {
-                    val outcome = unsentOrOutcome(failure, sent)
-                    group.map { outcome }
+            val outcomes = arrayOfNulls<AppendOutcome>(streams.size)
+            chunksOf(streams, MAX_GROUP).forEach { chunk ->
+                appendChunk(partition, chunk.map { it.value }).forEachIndexed { at, outcome ->
+                    outcomes[chunk[at].index] = outcome
                 }
             }
+            outcomes.map { checkNotNull(it) }
         }.also { outcomes ->
             if (outcomes.any { it is AppendOutcome.Committed }) pacer.committed(partition)
+        }
+    }
+
+    /** One statement's [group]: their outcomes, every one the same when the statement's outcome is a failure. */
+    private fun appendChunk(partition: Int, group: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+        var sent = false
+        return try {
+            dataSource.autoCommitted { connection ->
+                val types = group.map { (stream) -> stream.ref.type }.distinct()
+                types.forEach { tableOf(connection, it) }
+                sent = true
+                try {
+                    appendGroupIn(connection, partition, group)
+                } catch (failure: PSQLException) {
+                    // A table is gone: the statement ran nothing ([withTable]); make sure of them again, once.
+                    if (failure.sqlState != UNDEFINED_TABLE) throw failure
+                    types.forEach { ensured.forget(it.name, tableOf(connection, it)) }
+                    appendGroupIn(connection, partition, group)
+                }
+            }
+        } catch (failure: SQLException) {
+            val outcome = unsentOrOutcome(failure, sent)
+            group.map { outcome }
         }
     }
 
@@ -417,21 +426,37 @@ class PostgresEventLog(
             val definite = PostgresFailures.isRefused(failure) || failure.sqlState == DEADLOCK_DETECTED ||
                 tables.any { constraint == it.versionKey || constraint == it.requestKey }
             if (!definite) throw failure
-            return group.mapIndexed { index, (stream, transport) ->
-                try {
-                    appendIn(connection, tablesOf[index], partition, stream, transport)
-                } catch (alone: SQLException) {
-                    outcomeOf(alone)
-                }
-            }
+            return appendAlone(connection, partition, group, tablesOf)
         }
+        val failed = HashMap<AggregateRef, AppendOutcome>()
         return group.mapIndexed { index, (stream) ->
             val (version, sequence) = rows[index]
-            if (sequence == null) {
+            failed[stream.ref] ?: if (sequence == null) {
                 duplicateOr(connection, tablesOf[index], stream) { AppendOutcome.Conflict(version) }
+                    .also { failed[stream.ref] = notAppendedAfter(stream, it) }
             } else {
                 AppendOutcome.Committed(LogPosition(partition, sequence))
             }
+        }
+    }
+
+    /**
+     * [group] appended one by one, after its statement aborted for one of them: an aggregate's later streams are not
+     * appended once one did not commit ([EventLog.appendAll]).
+     */
+    private fun appendAlone(
+        connection: Connection,
+        partition: Int,
+        group: List<Pair<EventStreamRecord, Transport?>>,
+        tablesOf: List<AggregateLogTable>,
+    ): List<AppendOutcome> {
+        val failed = HashMap<AggregateRef, AppendOutcome>()
+        return group.mapIndexed { index, (stream, transport) ->
+            failed[stream.ref] ?: try {
+                appendIn(connection, tablesOf[index], partition, stream, transport)
+            } catch (alone: SQLException) {
+                outcomeOf(alone)
+            }.also { if (it !is AppendOutcome.Committed) failed[stream.ref] = notAppendedAfter(stream, it) }
         }
     }
 
@@ -978,4 +1003,25 @@ class PostgresEventLog(
             }
         }
     }
+}
+
+/** A stream with its transport, as [EventLog.appendAll] takes it. */
+private typealias Appended = Pair<EventStreamRecord, Transport?>
+
+/**
+ * [streams] cut into groups of about [size] each, with their places in [streams]: an aggregate's streams go into the
+ * group of its first one, whose statement checks each against its predecessor ([PostgresEventLogTables.appendGroup]).
+ */
+private fun chunksOf(streams: List<Appended>, size: Int): List<List<IndexedValue<Appended>>> {
+    val chunks = ArrayList<ArrayList<IndexedValue<Appended>>>()
+    val chunkOf = HashMap<AggregateRef, ArrayList<IndexedValue<Appended>>>()
+    streams.withIndex().forEach { entry ->
+        val ref = entry.value.first.ref
+        val chunk = chunkOf[ref]
+            ?: chunks.lastOrNull()?.takeIf { it.size < size }
+            ?: ArrayList<IndexedValue<Appended>>().also { chunks += it }
+        chunk += entry
+        chunkOf[ref] = chunk
+    }
+    return chunks
 }

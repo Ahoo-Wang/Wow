@@ -103,7 +103,8 @@ import me.ahoo.wow.client.RetryPolicy as ClientRetryPolicy
  *   beyond which a command that waits past ACCEPTED is not run and is `wow.command.busy`.
  * - `wow.state-views.capacity` (4096), `max-age` (1m), `max-bytes` (64 MiB): the bounds of each context's state views
  *   (decision D133), see [StateViews].
- * - `wow.executor.lane-capacity` (1024), `wow.executor.max-in-flight` (4096, the node's commands in flight, beyond
+ * - `wow.executor.lane-capacity` (1024), `wow.executor.max-batch` (32, the queued commands of one aggregate committed
+ *   with one append), `wow.executor.max-in-flight` (4096, the node's commands in flight, beyond
  *   which a command is `wow.command.busy`, decision D228 ②), `wow.state-cache.capacity` (bounded by a share of
  *   the heap in bytes unless set, B.O-4), `wow.state-cache.recent-requests` (256, the requests each cached aggregate keeps of those it committed last,
  *   decision D261), `wow.subscription.*`.
@@ -621,6 +622,12 @@ class WowProperties {
     class Executor {
         /** The commands one aggregate may have waiting in the executor. */
         var laneCapacity: Int = ServiceNodeOptions.DEFAULT_LANE_CAPACITY
+
+        /**
+         * The most of one aggregate's queued commands the executor decides in turn and commits with one append
+         * (roadmap §6 item 10); 1 runs each alone. It never waits to fill a batch.
+         */
+        var maxBatch: Int = ServiceNodeOptions.DEFAULT_MAX_BATCH
 
         /**
          * The commands the node may have in flight, all contexts together (decision D228 ②): beyond it a command is

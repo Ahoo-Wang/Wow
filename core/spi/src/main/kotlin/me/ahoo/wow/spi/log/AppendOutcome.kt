@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spi.log
 
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
@@ -130,6 +131,29 @@ sealed interface AppendOutcome {
             /** A Rejected of the given fields; parameters added later come last, with a default. */
             @JvmStatic
             fun of(cause: Throwable): Rejected = Rejected(cause)
+        }
+    }
+}
+
+/**
+ * The outcome of a stream that came after [failed], of the same aggregate, in one [EventLog.appendAll], when [failed]
+ * did not commit ([outcome]): not appended, a conflict at the version [outcome] leaves the aggregate at, the
+ * conflict's own when [outcome] is one, else the version before [failed]'s.
+ */
+fun notAppendedAfter(failed: EventStreamRecord, outcome: AppendOutcome): AppendOutcome.Conflict =
+    outcome as? AppendOutcome.Conflict ?: AppendOutcome.Conflict.of(failed.version - 1)
+
+/**
+ * Checks what [EventLog.appendAll] takes of one aggregate: its streams in consecutive versions, in order. A backend
+ * that commits a group in one write relies on it to commit them as a prefix.
+ */
+fun requireChains(streams: List<Pair<EventStreamRecord, Transport?>>) {
+    val last = HashMap<AggregateRef, Int>()
+    streams.forEach { (stream) ->
+        last.put(stream.ref, stream.version)?.let { previous ->
+            require(stream.version == previous + 1) {
+                "${stream.ref}'s streams in a group come in consecutive versions: ${stream.version} after $previous."
+            }
         }
     }
 }

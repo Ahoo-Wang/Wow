@@ -328,6 +328,11 @@ public final class me/ahoo/wow/spi/log/AppendOutcome$Unknown$Companion {
 	public final fun of (Ljava/lang/Throwable;)Lme/ahoo/wow/spi/log/AppendOutcome$Unknown;
 }
 
+public final class me/ahoo/wow/spi/log/AppendOutcomeKt {
+	public static final fun notAppendedAfter (Lme/ahoo/wow/spi/log/EventStreamRecord;Lme/ahoo/wow/spi/log/AppendOutcome;)Lme/ahoo/wow/spi/log/AppendOutcome$Conflict;
+	public static final fun requireChains (Ljava/util/List;)V
+}
+
 public final class me/ahoo/wow/spi/log/CommittedRequest {
 	public static final field Companion Lme/ahoo/wow/spi/log/CommittedRequest$Companion;
 	public fun equals (Ljava/lang/Object;)Z
