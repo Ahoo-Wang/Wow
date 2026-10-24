@@ -110,8 +110,8 @@ class StateViewOptions @InternalWowApi constructor(
  *   append, a pending view of the aggregate, and [record] then makes it a view; a reader handed the commit meanwhile
  *   gets the pending view ([get] by stream) only for that very append, the same command, request and commit time at
  *   the same version: the entry it holds proves that append committed. The lane [forget]s it whatever the outcome, so
- *   an append that did not commit (or whose outcome is unknown) leaves nothing behind. An aggregate has at most one
- *   pending view, while its lane runs a command.
+ *   an append that did not commit (or whose outcome is unknown) leaves nothing behind. An aggregate has a pending
+ *   view for each stream its lane is appending: one, or the streams of a batch (roadmap §6 item 10).
  * - **Reading**: a view is used only for the exact version it was taken at ([get]), never taken away: every reader
  *   gets it. [floor] gives the latest one before a version, which a reader behind it evolves with the log's tail.
  * - **Eviction**: a reader [pass]es an aggregate's version once it is done with it. A view is evicted once every
@@ -185,7 +185,7 @@ class StateViews(
         }
         val stream = committed.stream
         val stripe = Stripes.pick(stripes, stream.ref)
-        val view = stripe.pending(stream.ref, stream)
+        val view = stripe.pending(stream)
             ?: SerializedState(
                 stream.version,
                 codec.stateText(committed.state),
@@ -248,6 +248,30 @@ class StateViews(
         /** The pending view of each aggregate whose lane is appending ([expect]): not counted against the bounds. */
         private val expected = HashMap<AggregateRef, Pending>()
 
+        /** The pending view of [stream]'s very append, among those expected of its aggregate. */
+        private fun pendingOf(stream: EventStreamRecord): Pending? {
+            var pending = expected[stream.ref]
+            while (pending != null && !pending.isOf(stream)) pending = pending.earlier
+            return pending
+        }
+
+        /** Drops [ref]'s pending views up to [version]: committed. */
+        private fun committedUpTo(ref: AggregateRef, version: Int) {
+            var pending = expected[ref] ?: return
+            if (pending.version <= version) {
+                expected.remove(ref)
+                return
+            }
+            while (true) {
+                val earlier = pending.earlier ?: return
+                if (earlier.version <= version) {
+                    pending.earlier = null
+                    return
+                }
+                pending = earlier
+            }
+        }
+
         /** Every view held, in the order it was put: the oldest first. */
         private val order = LinkedHashMap<Key, Entry>()
 
@@ -283,13 +307,17 @@ class StateViews(
         }
 
         fun expect(ref: AggregateRef, pending: Pending) = lock.withLock {
+            // One expected again replaces it and those after it: they were decided on a state that did not commit.
+            var earlier = expected[ref]
+            while (earlier != null && earlier.version >= pending.version) earlier = earlier.earlier
+            pending.earlier = earlier
             expected[ref] = pending
         }
 
         fun forget(ref: AggregateRef): Pending? = lock.withLock { expected.remove(ref) }
 
-        fun pending(ref: AggregateRef, stream: EventStreamRecord): SerializedState? = lock.withLock {
-            expected[ref]?.takeIf { it.isOf(stream) }?.view
+        fun pending(stream: EventStreamRecord): SerializedState? = lock.withLock {
+            pendingOf(stream)?.view
         }
 
         /**
@@ -298,7 +326,7 @@ class StateViews(
          */
         fun commit(ref: AggregateRef, view: SerializedState, readers: Set<String>) = lock.withLock {
             put(ref, view, readers)
-            expected.remove(ref)
+            committedUpTo(ref, view.version)
         }
 
         /**
@@ -307,7 +335,7 @@ class StateViews(
          */
         fun committed(stream: EventStreamRecord, readers: Set<String>?): SerializedState? = lock.withLock {
             val ref = stream.ref
-            get(ref, stream.version) ?: expected[ref]?.takeIf { it.isOf(stream) }?.view?.also { view ->
+            get(ref, stream.version) ?: pendingOf(stream)?.view?.also { view ->
                 readers?.let { put(ref, view, it) }
             }
         }
@@ -353,6 +381,11 @@ class StateViews(
 
     /** The [view] after [stream], expected before [stream] is appended. */
     private class Pending(private val stream: EventStreamRecord, val view: SerializedState) {
+        val version: Int get() = stream.version
+
+        /** The pending view of the aggregate's stream before this one, appended in the same batch. */
+        var earlier: Pending? = null
+
         /** Whether [committed] is this very append: the same command, request and commit time at the same version. */
         fun isOf(committed: EventStreamRecord): Boolean =
             committed.version == stream.version &&

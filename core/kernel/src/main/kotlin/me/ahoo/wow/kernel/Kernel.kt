@@ -235,13 +235,15 @@ class Kernel(
         val ref = queued.first().command.ref
         require(queued.all { it.command.ref == ref }) { "A batch holds the commands of one aggregate." }
         // Without recent requests every request id is looked up first (D46): each command runs alone.
-        val members = if (recentRequests > 0) membersOf(model, queued) else BatchMembers()
+        val members = if (recentRequests > 0) membersOf(model, queued, appending) else BatchMembers()
         if (members.streams.isEmpty()) {
             return listOf(alone(model, queued.first(), appending)) + List(queued.size - 1) { BatchOutcome.Again }
         }
-        val outcomes = commitBatch(members, appending) + List(queued.size - members.streams.size) { BatchOutcome.Again }
+        val outcomes = commitBatch(members) + List(queued.size - members.streams.size) { BatchOutcome.Again }
         // The first stream did not commit and is decided again: alone, within execute's attempts, so the lane always
         // makes progress.
+        // A command that failed deciding may have evolved the state part way: it is dropped, and reloaded.
+        if (members.tainted) states.take(ref)
         return if (outcomes.first() is BatchOutcome.Again) {
             listOf(alone(model, queued.first(), appending)) + outcomes.drop(1)
         } else {
@@ -269,7 +271,11 @@ class Kernel(
      * The batch [queued] starts: the stream of each command it takes, decided in order on the state the ones before
      * it left. Empty when the first command cannot start one: its state, if loaded, is cached again unchanged.
      */
-    private suspend fun <S : Any> membersOf(model: AggregateModel<S>, queued: List<QueuedCommand>): BatchMembers {
+    private suspend fun <S : Any> membersOf(
+        model: AggregateModel<S>,
+        queued: List<QueuedCommand>,
+        appending: ((EventStreamRecord, CachedState) -> Unit)?,
+    ): BatchMembers {
         val lease = currentCoroutineContext()[ExecutionLease]
         val members = BatchMembers()
         var state: CachedState? = null
@@ -289,6 +295,8 @@ class Kernel(
             }
             val member = decided(model, decider, entry, command, commandType, requests, current, members) ?: break
             members.streams += member
+            // Before the next command evolves the same (mutable) state further.
+            appending?.invoke(member.stream, member.evolved)
             state = member.evolved
         }
         if (members.streams.isEmpty()) {
@@ -331,6 +339,7 @@ class Kernel(
             failure: Exception,
         ) {
             attempt.compensate(failure)
+            members.tainted = true
             return null
         }
         if (prepared !is Prepared.Append) {
@@ -341,12 +350,8 @@ class Kernel(
     }
 
     /** Appends the batch's streams and settles each: the outcomes of [members], in order. */
-    private suspend fun commitBatch(
-        members: BatchMembers,
-        appending: ((EventStreamRecord, CachedState) -> Unit)?,
-    ): List<BatchOutcome> = withContext(NonCancellable) {
+    private suspend fun commitBatch(members: BatchMembers): List<BatchOutcome> = withContext(NonCancellable) {
         val batch = members.streams
-        batch.forEach { appending?.invoke(it.stream, it.evolved) }
         val observations = batch.map { observer.appending(it.stream) }
         val appended = try {
             log.appendAll(
@@ -401,6 +406,9 @@ class Kernel(
     /** The streams a batch takes, in order. */
     private class BatchMembers {
         val streams = ArrayList<BatchMember>()
+
+        /** Whether a command failed deciding after the state was taken: it may have evolved it part way. */
+        var tainted = false
     }
 
     /** One command of a batch, decided: its stream and the state after it. */
