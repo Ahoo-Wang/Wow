@@ -452,10 +452,7 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
     ...suites[0].refs,
     skipped: ['e3-pg (no V10 baseline)'],
   });
-  assert.match(
-    report,
-    /Head: `v10` h1; V10 baseline: `base` b1; harness/,
-  );
+  assert.match(report, /Head: `v10` h1; V10 baseline: `base` b1; harness/);
   assert.match(report, /\*\*Skipped:\*\* e3-pg \(no V10 baseline\)/);
   assert.match(
     report,
