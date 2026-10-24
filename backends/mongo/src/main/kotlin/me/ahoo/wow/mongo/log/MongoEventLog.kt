@@ -184,7 +184,7 @@ class MongoEventLog(
         )
 
     /** Each aggregate's last sequence as this log saw it: an aggregate's next stream is allocated after it. */
-    private val lastSequences = LastSequences(LAST_SEQUENCES)
+    private val lastSequences = LastSequences(lastSequencesFor(Runtime.getRuntime().maxMemory()))
 
     /** The aggregate collections whose creation and registration this log has made sure of. */
     private val ensured = ConcurrentHashMap<String, AggregateCollection>()
@@ -1134,8 +1134,22 @@ class MongoEventLog(
         /** The most blocks an append takes when each was sealed under it before it gives up. */
         const val MAX_SEALED = 4
 
-        /** The aggregates whose last sequence the log remembers. */
+        /** The fewest aggregates whose last sequence the log remembers. */
         const val LAST_SEQUENCES = 65_536
+
+        /**
+         * The aggregates whose last sequence a log remembers on a heap of at most [maxHeap] bytes: as many states as
+         * the node's state caches can hold at most (a tenth of the heap at 1 KB a state, `StateCacheSizing`), at least
+         * [LAST_SEQUENCES]. A command on a cached state does not read its aggregate first, so the log reads the last
+         * stream itself when it does not remember it: one more round trip on each append. An entry takes about 100
+         * bytes, a hundredth of the heap at most.
+         */
+        fun lastSequencesFor(maxHeap: Long): Int =
+            (maxHeap / CACHE_SHARE / STATE_BYTES).coerceIn(LAST_SEQUENCES.toLong(), Int.MAX_VALUE.toLong()).toInt()
+
+        /** The share of the heap and the smallest state of `StateCacheSizing` and `CachedState.STATE_BYTES`. */
+        private const val CACHE_SHARE = 10
+        private const val STATE_BYTES = 1_024
 
         /** How long the tail waits at a missing sequence before it resolves it through the open blocks. */
         val STALL_GRACE: Duration = 1.seconds

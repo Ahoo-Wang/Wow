@@ -284,6 +284,18 @@ At 100,000 uniform accounts and a 1 GB heap the default state cache held about 2
 - On PostgreSQL the reads fall as much, but its CPU and latencies move both ways with the session's disk (round 2's E1 p99 was 146 and 57 ms, a slow fsync in both arms); the store CPU of E3 is 35% lower in round 1 and 16% higher in round 2.
 - The heap holds every state in less than the old default used for a quarter of them: 780–855 MB at most against 820–871 MB.
 
+**Then: the last sequences MongoDB's log remembers.** With every state cached, a command no longer loads its aggregate, and the log reads the aggregate's last stream itself when it does not remember it: it remembered 65,536 aggregates, fewer than the cache now holds. It now remembers as many as the state caches can hold at most (a tenth of the heap at 1 KB a state, about 105,000 at 1 GB). MongoDB, `main` (F2) against the change (H), two rounds ([`seq-ab.sh`](v10-local-baseline/state-cache/last-sequences/seq-ab.sh), results beside it):
+
+| Per command | F2 | H |
+| --- | --- | --- |
+| E1 finds | 0.35, 0.35 | 0.05, 0.05 |
+| E3 finds | 0.70, 0.70 | 0.01, 0.01 |
+| E1 server / MongoDB CPU | 0.638 / 1.03, 0.687 / 1.16 ms | 0.617 / 1.07, 0.701 / 1.16 ms |
+| E3 server / MongoDB CPU | 1.705 / 2.78, 1.782 / 3.02 ms | 1.798 / 2.46, 1.837 / 2.93 ms |
+| Heap used, most | 812–841 MB | 800–839 MB |
+
+The round trip is gone; on loopback it was an indexed read of a few tens of microseconds, so the CPU and the latencies move within the noise. It stays: a round trip less per command where the database is a network hop away, at no cost in CPU, heap or code.
+
 
 ## Tried and ruled out
 
