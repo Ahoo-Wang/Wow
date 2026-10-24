@@ -1,0 +1,22 @@
+# Top statements by total execution time (pg_stat_statements, since the run's warm-up began)
+ERROR:  relation "pg_stat_statements" does not exist
+LINE 1: ...place(query, '\s+', ' ', 'g'), 140) as query from pg_stat_st...
+                                                             ^
+# Checkpoints (pg_stat_checkpointer)
+ num_timed | num_requested | restartpoints_timed | restartpoints_req | restartpoints_done | write_time | sync_time | buffers_written |          stats_reset          
+-----------+---------------+---------------------+-------------------+--------------------+------------+-----------+-----------------+-------------------------------
+         0 |             3 |                   0 |                 0 |                  0 |      54977 |        80 |           40368 | 2026-10-24 12:07:07.813845+00
+(1 row)
+
+# Waits now (pg_stat_activity)
+ wait_event_type |      wait_event      | count 
+-----------------+----------------------+-------
+ Client          | ClientRead           |    11
+ Timeout         | CheckpointWriteDelay |     1
+ Activity        | WalWriterMain        |     1
+                 |                      |     1
+ Activity        | AutovacuumMain       |     1
+ Activity        | BgwriterMain         |     1
+ Activity        | LogicalLauncherMain  |     1
+(7 rows)
+
