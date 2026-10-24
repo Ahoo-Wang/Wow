@@ -14,8 +14,21 @@
 package me.ahoo.wow.mongo
 
 import me.ahoo.wow.spi.json.WowJson
+import org.bson.BsonArray
+import org.bson.BsonBoolean
+import org.bson.BsonDecimal128
+import org.bson.BsonDocument
+import org.bson.BsonInt32
+import org.bson.BsonInt64
+import org.bson.BsonNull
+import org.bson.BsonString
+import org.bson.BsonValue
 import org.bson.Document
 import org.bson.types.Decimal128
+import tools.jackson.core.JsonParser
+import tools.jackson.core.JsonToken
+import tools.jackson.core.exc.StreamReadException
+import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ArrayNode
 import tools.jackson.databind.node.BooleanNode
@@ -52,6 +65,55 @@ internal object ExactBson {
         val node = mapper.readTree(text)
         require(node is ObjectNode) { "A stored JSON document must be an object, not ${node.nodeType}." }
         return document(node)
+    }
+
+    /**
+     * The JSON object [text] as a BSON document, by the rules [document] follows, read token by token: no JSON tree and
+     * no [Document] in between, and a value the driver writes without looking a codec up.
+     */
+    fun bson(text: String): BsonDocument = mapper.createParser(text).use { parser ->
+        val first = parser.nextToken()
+        require(first == JsonToken.START_OBJECT) { "A stored JSON document must be an object, not $first." }
+        val document = documentOf(parser)
+        // As the mapper reads a tree: what follows the object is a malformed document, not a value refused.
+        if (mapper.isEnabled(DeserializationFeature.FAIL_ON_TRAILING_TOKENS) && parser.nextToken() != null) {
+            throw StreamReadException(parser, "A stored JSON document is one object, with nothing after it.")
+        }
+        document
+    }
+
+    /** The object [parser] is at the start of, through its end. */
+    private fun documentOf(parser: JsonParser): BsonDocument = BsonDocument().apply {
+        while (parser.nextToken() == JsonToken.PROPERTY_NAME) {
+            val name = parser.currentName()
+            require(NUL !in name) { "The key ${name.replace(NUL, '?')} holds \\u0000, which a BSON key cannot." }
+            parser.nextToken()
+            put(name, valueOf(parser))
+        }
+    }
+
+    private fun valueOf(parser: JsonParser): BsonValue = when (val token = parser.currentToken()) {
+        JsonToken.START_OBJECT -> documentOf(parser)
+        JsonToken.START_ARRAY -> BsonArray().apply {
+            while (parser.nextToken() != JsonToken.END_ARRAY) {
+                add(valueOf(parser))
+            }
+        }
+
+        JsonToken.VALUE_STRING -> BsonString(parser.string)
+        JsonToken.VALUE_TRUE -> BsonBoolean.TRUE
+        JsonToken.VALUE_FALSE -> BsonBoolean.FALSE
+        JsonToken.VALUE_NULL -> BsonNull.VALUE
+        JsonToken.VALUE_NUMBER_INT -> integerOf(parser)
+        JsonToken.VALUE_NUMBER_FLOAT -> BsonDecimal128(decimal128(parser.decimalValue))
+        else -> throw IllegalArgumentException("A stored JSON document holds no $token.")
+    }
+
+    /** The integer [parser] is at: an int32 or an int64 as it fits, beyond int64 a Decimal128 of scale 0. */
+    private fun integerOf(parser: JsonParser): BsonValue = when (parser.numberType) {
+        JsonParser.NumberType.INT -> BsonInt32(parser.intValue)
+        JsonParser.NumberType.LONG -> BsonInt64(parser.longValue)
+        else -> BsonDecimal128(decimal128(BigDecimal(parser.bigIntegerValue)))
     }
 
     /** The BSON [document] as JSON text, its decimals as written. */

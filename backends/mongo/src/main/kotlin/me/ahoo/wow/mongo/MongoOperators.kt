@@ -14,6 +14,11 @@
 package me.ahoo.wow.mongo
 
 import me.ahoo.wow.api.caller.Operator
+import org.bson.BsonBoolean
+import org.bson.BsonDocument
+import org.bson.BsonNull
+import org.bson.BsonString
+import org.bson.BsonValue
 import org.bson.Document
 
 /**
@@ -30,6 +35,13 @@ internal object MongoOperators {
     fun document(operator: Operator?): Document? = operator?.let {
         Document(ID, it.id).append(TENANT_ID, it.tenantId).append(CROSS_SCOPE, it.crossScope)
     }
+
+    /** [operator] as its BSON sub-document; BSON null for none. */
+    fun bson(operator: Operator?): BsonValue = operator?.let {
+        BsonDocument(ID, BsonString(it.id))
+            .append(TENANT_ID, BsonString(it.tenantId))
+            .append(CROSS_SCOPE, BsonBoolean.valueOf(it.crossScope))
+    } ?: BsonNull.VALUE
 
     /** The operator [document] holds; null for none, as a document written before the field has. */
     fun of(document: Document?): Operator? = document?.let {

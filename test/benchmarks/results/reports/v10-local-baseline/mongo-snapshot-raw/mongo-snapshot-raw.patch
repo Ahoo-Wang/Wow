@@ -1,0 +1,447 @@
+diff --git a/backends/mongo/src/main/kotlin/me/ahoo/wow/mongo/ExactBson.kt b/backends/mongo/src/main/kotlin/me/ahoo/wow/mongo/ExactBson.kt
+index 8b7362f76..c601e76f8 100644
+--- a/backends/mongo/src/main/kotlin/me/ahoo/wow/mongo/ExactBson.kt
++++ b/backends/mongo/src/main/kotlin/me/ahoo/wow/mongo/ExactBson.kt
+@@ -21,10 +21,13 @@ import org.bson.BsonDocument
+ import org.bson.BsonInt32
+ import org.bson.BsonInt64
+ import org.bson.BsonNull
++import org.bson.BsonReader
+ import org.bson.BsonString
++import org.bson.BsonType
+ import org.bson.BsonValue
+ import org.bson.Document
+ import org.bson.types.Decimal128
++import tools.jackson.core.JsonGenerator
+ import tools.jackson.core.JsonParser
+ import tools.jackson.core.JsonToken
+ import tools.jackson.core.exc.StreamReadException
+@@ -39,6 +42,7 @@ import tools.jackson.databind.node.LongNode
+ import tools.jackson.databind.node.NullNode
+ import tools.jackson.databind.node.ObjectNode
+ import tools.jackson.databind.node.StringNode
++import java.io.StringWriter
+ import java.math.BigDecimal
+ 
+ /**
+@@ -116,6 +120,69 @@ internal object ExactBson {
+         else -> BsonDecimal128(decimal128(BigDecimal(parser.bigIntegerValue)))
+     }
+ 
++    /**
++     * The document [reader] is at, as JSON text by the rules of [json]: read value by value and written as it is read,
++     * with no [Document] or JSON tree in between. The reader ends past the document.
++     */
++    fun json(reader: BsonReader): String {
++        val text = StringWriter()
++        mapper.createGenerator(text).use { generator -> write(reader, generator) }
++        return text.toString()
++    }
++
++    private fun write(reader: BsonReader, generator: JsonGenerator) {
++        when (val type = reader.currentBsonType) {
++            BsonType.DOCUMENT -> {
++                reader.readStartDocument()
++                generator.writeStartObject()
++                while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
++                    generator.writeName(reader.readName())
++                    write(reader, generator)
++                }
++                reader.readEndDocument()
++                generator.writeEndObject()
++            }
++
++            BsonType.ARRAY -> {
++                reader.readStartArray()
++                generator.writeStartArray()
++                while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
++                    write(reader, generator)
++                }
++                reader.readEndArray()
++                generator.writeEndArray()
++            }
++
++            BsonType.STRING -> generator.writeString(reader.readString())
++            BsonType.BOOLEAN -> generator.writeBoolean(reader.readBoolean())
++            BsonType.NULL -> {
++                reader.readNull()
++                generator.writeNull()
++            }
++
++            else -> writeNumber(type, reader, generator)
++        }
++    }
++
++    private fun writeNumber(type: BsonType, reader: BsonReader, generator: JsonGenerator) {
++        when (type) {
++            BsonType.INT32 -> generator.writeNumber(reader.readInt32())
++            BsonType.INT64 -> generator.writeNumber(reader.readInt64())
++            BsonType.DOUBLE -> generator.writeNumber(reader.readDouble())
++            // A NaN or an infinity has no JSON number, as [number] reads it.
++            BsonType.DECIMAL128 -> {
++                val decimal = reader.readDecimal128()
++                if (decimal.isNaN || decimal.isInfinite) {
++                    generator.writeNull()
++                } else {
++                    generator.writeNumber(decimal.bigDecimalValue())
++                }
++            }
++
++            else -> throw IllegalStateException("A stored $type is not JSON.")
++        }
++    }
++
+     /** The BSON [document] as JSON text, its decimals as written. */
+     fun json(document: Document): String = mapper.writeValueAsString(node(document))
+ 
+diff --git a/backends/mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoOperators.kt b/backends/mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoOperators.kt
+index c07e08d53..3e6acfd55 100644
+--- a/backends/mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoOperators.kt
++++ b/backends/mongo/src/main/kotlin/me/ahoo/wow/mongo/MongoOperators.kt
+@@ -17,7 +17,9 @@ import me.ahoo.wow.api.caller.Operator
+ import org.bson.BsonBoolean
+ import org.bson.BsonDocument
+ import org.bson.BsonNull
++import org.bson.BsonReader
+ import org.bson.BsonString
++import org.bson.BsonType
+ import org.bson.BsonValue
+ import org.bson.Document
+ 
+@@ -43,6 +45,29 @@ internal object MongoOperators {
+             .append(CROSS_SCOPE, BsonBoolean.valueOf(it.crossScope))
+     } ?: BsonNull.VALUE
+ 
++    /** The operator the sub-document [reader] is at holds; null for a BSON null. */
++    fun of(reader: BsonReader): Operator? {
++        if (reader.currentBsonType == BsonType.NULL) {
++            reader.readNull()
++            return null
++        }
++        var id: String? = null
++        var tenantId: String? = null
++        var crossScope = false
++        reader.readStartDocument()
++        while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
++            when (reader.readName()) {
++                ID -> id = reader.readString()
++                TENANT_ID -> tenantId = reader.readString()
++                CROSS_SCOPE -> crossScope = reader.readBoolean()
++                else -> reader.skipValue()
++            }
++        }
++        reader.readEndDocument()
++        val stored = checkNotNull(id) { "A stored operator has no $ID." }
++        return Operator(stored, checkNotNull(tenantId) { "A stored operator has no $TENANT_ID." }, crossScope)
++    }
++
+     /** The operator [document] holds; null for none, as a document written before the field has. */
+     fun of(document: Document?): Operator? = document?.let {
+         Operator(it.getString(ID), it.getString(TENANT_ID), it.getBoolean(CROSS_SCOPE, false))
+diff --git a/backends/mongo/src/main/kotlin/me/ahoo/wow/mongo/snapshot/MongoSnapshotStore.kt b/backends/mongo/src/main/kotlin/me/ahoo/wow/mongo/snapshot/MongoSnapshotStore.kt
+index 2cf3fedaf..6a40051f0 100644
+--- a/backends/mongo/src/main/kotlin/me/ahoo/wow/mongo/snapshot/MongoSnapshotStore.kt
++++ b/backends/mongo/src/main/kotlin/me/ahoo/wow/mongo/snapshot/MongoSnapshotStore.kt
+@@ -35,6 +35,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
+ import me.ahoo.wow.api.aggregate.AggregateType
+ import me.ahoo.wow.api.aggregate.Scope
+ import me.ahoo.wow.api.annotation.InternalWowApi
++import me.ahoo.wow.api.caller.Operator
+ import me.ahoo.wow.api.schedule.ScheduleRule
+ import me.ahoo.wow.mongo.ExactBson
+ import me.ahoo.wow.mongo.MongoFailures
+@@ -52,14 +53,20 @@ import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
+ import me.ahoo.wow.spi.snapshot.SnapshotStore
+ import me.ahoo.wow.spi.snapshot.SnapshotTable
+ import org.bson.BsonArray
++import org.bson.BsonBinaryReader
+ import org.bson.BsonBoolean
+ import org.bson.BsonDocument
+ import org.bson.BsonInt32
+ import org.bson.BsonInt64
+ import org.bson.BsonNull
++import org.bson.BsonReader
+ import org.bson.BsonString
++import org.bson.BsonType
+ import org.bson.BsonValue
+ import org.bson.Document
++import org.bson.RawBsonDocument
++import org.bson.codecs.DecoderContext
++import org.bson.codecs.DocumentCodec
+ import org.bson.conversions.Bson
+ import java.util.concurrent.ConcurrentHashMap
+ 
+@@ -404,37 +411,109 @@ class MongoSnapshotStore(
+         backfilled = document.getBoolean(BACKFILLED),
+     )
+ 
++    /**
++     * The stored document of [ref] as the server sent it ([RawBsonDocument]), read field by field in one pass: no
++     * [Document] tree, and the state written to JSON text as it is read ([ExactBson.json]).
++     */
+     override suspend fun load(ref: AggregateRef): SnapshotRecord? = dispatcher.mongo {
+         require(ref.type.context == context) { "$ref is not in context $context." }
+-        collectionOf(ref.type.name).find(keyFilter(ref)).firstOrNull()?.let { snapshotOf(ref.type, it) }
++        collectionOf(ref.type.name).withDocumentClass(RawBsonDocument::class.java).find(keyFilter(ref)).first()
++            ?.let { BsonBinaryReader(it.byteBuffer.asNIO()).use { reader -> snapshotOf(ref.type, reader) } }
+     }
+ 
+-    private fun keyFilter(ref: AggregateRef): Bson = Filters.and(
+-        Filters.eq(TENANT_ID, ref.tenantId),
+-        Filters.eq(AGGREGATE_ID, ref.id),
+-    )
+-
+-    private fun snapshotOf(type: AggregateType, document: Document): SnapshotRecord {
+-        val tags = document.get(TAGS, Document::class.java)
++    private fun keyFilter(ref: AggregateRef): Bson =
++        BsonDocument(TENANT_ID, BsonString(ref.tenantId)).append(AGGREGATE_ID, BsonString(ref.id))
++
++    @Suppress("CyclomaticComplexMethod") // One branch per stored field, in one pass.
++    private fun snapshotOf(type: AggregateType, reader: BsonReader): SnapshotRecord {
++        var tenantId: String? = null
++        var aggregateId: String? = null
++        var version: Int? = null
++        var fingerprint: String? = null
++        var state: String? = null
++        var ownerId: String? = null
++        var spaceId: String? = null
++        var deleted: Boolean? = null
++        var firstEventTime: Long? = null
++        var lastEventTime: Long? = null
++        var tags: Map<String, List<String>>? = null
++        var operator: Operator? = null
++        var firstOperator: Operator? = null
++        var schedules: Map<String, ScheduleRule> = emptyMap()
++        var stateRevision = 1
++        reader.readStartDocument()
++        while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
++            when (reader.readName()) {
++                TENANT_ID -> tenantId = reader.readString()
++                AGGREGATE_ID -> aggregateId = reader.readString()
++                VERSION -> version = reader.readInt32()
++                SCHEMA_FINGERPRINT -> fingerprint = reader.readString()
++                STATE -> state = ExactBson.json(reader)
++                OWNER_ID -> ownerId = stringOf(reader)
++                SPACE_ID -> spaceId = stringOf(reader)
++                DELETED -> deleted = reader.readBoolean()
++                FIRST_EVENT_TIME -> firstEventTime = reader.readInt64()
++                LAST_EVENT_TIME -> lastEventTime = reader.readInt64()
++                TAGS -> tags = tagsOf(reader)
++                OPERATOR -> operator = MongoOperators.of(reader)
++                FIRST_OPERATOR -> firstOperator = MongoOperators.of(reader)
++                SCHEDULES -> schedules = schedulesOf(reader)
++                STATE_REVISION -> stateRevision = reader.readInt32()
++                else -> reader.skipValue()
++            }
++        }
++        reader.readEndDocument()
++        fun <T : Any> stored(value: T?, field: String): T = checkNotNull(value) { "A stored snapshot has no $field." }
+         return SnapshotRecord(
+-            ref = type.ref(document.getString(TENANT_ID), document.getString(AGGREGATE_ID)),
+-            version = document.getInteger(VERSION),
+-            schemaFingerprint = document.getString(SCHEMA_FINGERPRINT),
+-            state = ExactBson.json(document.get(STATE, Document::class.java)),
+-            scope = Scope(document.getString(OWNER_ID), document.getString(SPACE_ID)),
+-            deleted = document.getBoolean(DELETED),
+-            firstEventTime = document.getLong(FIRST_EVENT_TIME),
+-            lastEventTime = document.getLong(LAST_EVENT_TIME),
+-            tags = tags.keys.associateWith { tags.getList(it, String::class.java).toList() },
+-            operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
+-            firstOperator = MongoOperators.of(document.get(FIRST_OPERATOR, Document::class.java)),
+-            schedules = document.get(SCHEDULES, Document::class.java)?.let { schedules ->
+-                schedules.keys.associateWith { MongoRules.of(schedules.get(it, Document::class.java)) }
+-            }.orEmpty(),
+-            stateRevision = document.getInteger(STATE_REVISION) ?: 1,
++            ref = type.ref(stored(tenantId, TENANT_ID), stored(aggregateId, AGGREGATE_ID)),
++            version = stored(version, VERSION),
++            schemaFingerprint = stored(fingerprint, SCHEMA_FINGERPRINT),
++            state = stored(state, STATE),
++            scope = Scope(ownerId, spaceId),
++            deleted = stored(deleted, DELETED),
++            firstEventTime = stored(firstEventTime, FIRST_EVENT_TIME),
++            lastEventTime = stored(lastEventTime, LAST_EVENT_TIME),
++            tags = stored(tags, TAGS),
++            operator = operator,
++            firstOperator = firstOperator,
++            schedules = schedules,
++            stateRevision = stateRevision,
+         )
+     }
+ 
++    /** The string [reader] is at; null for a BSON null. */
++    private fun stringOf(reader: BsonReader): String? = if (reader.currentBsonType == BsonType.NULL) {
++        reader.readNull()
++        null
++    } else {
++        reader.readString()
++    }
++
++    private fun tagsOf(reader: BsonReader): Map<String, List<String>> = buildMap {
++        reader.readStartDocument()
++        while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
++            val tag = reader.readName()
++            val values = ArrayList<String>()
++            reader.readStartArray()
++            while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
++                values += reader.readString()
++            }
++            reader.readEndArray()
++            put(tag, values)
++        }
++        reader.readEndDocument()
++    }
++
++    /** The schedules [reader] is at, each rule as [MongoRules.of] reads it; none for a BSON null. */
++    private fun schedulesOf(reader: BsonReader): Map<String, ScheduleRule> {
++        if (reader.currentBsonType == BsonType.NULL) {
++            reader.readNull()
++            return emptyMap()
++        }
++        val schedules = DOCUMENTS.decode(reader, DecoderContext.builder().build())
++        return schedules.keys.associateWith { MongoRules.of(schedules.get(it, Document::class.java)) }
++    }
++
+     internal companion object {
+         /** The version of this layout (decision D59). */
+         const val FORMAT = 1
+@@ -508,6 +587,9 @@ class MongoSnapshotStore(
+ 
+         private const val LITERAL = "\$literal"
+ 
++        /** Decodes the rare sub-documents read as documents (the schedules). */
++        private val DOCUMENTS = DocumentCodec()
++
+         /** The bulk write of a batch: unordered, so one refused upsert does not stop the others. */
+         private val UNORDERED: BulkWriteOptions = BulkWriteOptions().ordered(false)
+ 
+diff --git a/backends/mongo/src/test/kotlin/me/ahoo/wow/mongo/ExactBsonTest.kt b/backends/mongo/src/test/kotlin/me/ahoo/wow/mongo/ExactBsonTest.kt
+index b1f539b11..9221c6cf8 100644
+--- a/backends/mongo/src/test/kotlin/me/ahoo/wow/mongo/ExactBsonTest.kt
++++ b/backends/mongo/src/test/kotlin/me/ahoo/wow/mongo/ExactBsonTest.kt
+@@ -14,10 +14,16 @@
+ package me.ahoo.wow.mongo
+ 
+ import me.ahoo.test.asserts.assert
++import me.ahoo.test.asserts.assertThrownBy
++import org.bson.BsonBinaryReader
+ import org.bson.BsonDocument
++import org.bson.Document
+ import org.bson.RawBsonDocument
+ import org.bson.codecs.BsonDocumentCodec
+ import org.bson.codecs.DocumentCodec
++import org.bson.types.Decimal128
++import org.bson.types.ObjectId
++import org.junit.jupiter.api.Test
+ import org.junit.jupiter.params.ParameterizedTest
+ import org.junit.jupiter.params.provider.ValueSource
+ import tools.jackson.core.JacksonException
+@@ -45,6 +51,46 @@ class ExactBsonTest {
+         bytesOf(streamed).assert().isEqualTo(tree.byteBuffer.array())
+     }
+ 
++    @ParameterizedTest
++    @ValueSource(
++        strings = [
++            """{}""",
++            """{"a":1,"b":"x","c":true,"d":false,"e":null}""",
++            """{"nested":{"list":[1,[2,3],{"k":"v"},[],{}],"empty":{}}}""",
++            """{"long":9223372036854775807,"negative":-9223372036854775808,"big":123456789012345678901234567890}""",
++            """{"scale":2.50,"zero":0.0,"exponent":1e3,"small":-1.5E-7,"digits":1.234567890123456789012345678901234}""",
++            """{"unicode":"é中文\uD83D\uDE00","escaped":"a\"b\\c\n\u0001"}""",
++        ],
++    )
++    fun `the streamed JSON is the one the document gives`(text: String) {
++        val document = ExactBson.document(text)
++        BsonBinaryReader(RawBsonDocument(document, DocumentCodec()).byteBuffer.asNIO()).use { reader ->
++            reader.readBsonType()
++            ExactBson.json(reader).assert().isEqualTo(ExactBson.json(document))
++        }
++    }
++
++    @Test
++    fun `doubles and decimals without a JSON number read as the document reads them`() {
++        // Doubles from before decimals were exact, and a NaN or an infinity an aggregation may compute.
++        val document = Document("double", 1.5).append("whole", 2.0).append("nan", Decimal128.NaN)
++            .append("infinite", Decimal128.POSITIVE_INFINITY).append("list", listOf(Decimal128.NEGATIVE_INFINITY, 0.25))
++        BsonBinaryReader(RawBsonDocument(document, DocumentCodec()).byteBuffer.asNIO()).use { reader ->
++            reader.readBsonType()
++            ExactBson.json(reader).assert().isEqualTo(ExactBson.json(document))
++        }
++    }
++
++    @Test
++    fun `a stored value that is not JSON is refused`() {
++        val document = Document("id", ObjectId())
++        BsonBinaryReader(RawBsonDocument(document, DocumentCodec()).byteBuffer.asNIO()).use { reader ->
++            reader.readBsonType()
++            assertThrownBy<IllegalStateException> { ExactBson.json(reader) }
++        }
++        assertThrownBy<IllegalStateException> { ExactBson.json(document) }
++    }
++
+     @ParameterizedTest
+     @ValueSource(
+         strings = [
+diff --git a/backends/mongo/src/test/kotlin/me/ahoo/wow/mongo/MongoOperatorsTest.kt b/backends/mongo/src/test/kotlin/me/ahoo/wow/mongo/MongoOperatorsTest.kt
+new file mode 100644
+index 000000000..a66994fd2
+--- /dev/null
++++ b/backends/mongo/src/test/kotlin/me/ahoo/wow/mongo/MongoOperatorsTest.kt
+@@ -0,0 +1,57 @@
++/*
++ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *      http://www.apache.org/licenses/LICENSE-2.0
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package me.ahoo.wow.mongo
++
++import me.ahoo.test.asserts.assert
++import me.ahoo.test.asserts.assertThrownBy
++import me.ahoo.wow.api.caller.Operator
++import org.bson.BsonBinaryReader
++import org.bson.Document
++import org.bson.RawBsonDocument
++import org.bson.codecs.DocumentCodec
++import org.junit.jupiter.api.Test
++
++class MongoOperatorsTest {
++    /** Reads the field `operator` of [document] with [MongoOperators.of], as a snapshot's load does. */
++    private fun read(document: Document): Operator? =
++        BsonBinaryReader(RawBsonDocument(document, DocumentCodec()).byteBuffer.asNIO()).use { reader ->
++            reader.readStartDocument()
++            reader.readBsonType()
++            reader.readName()
++            MongoOperators.of(reader)
++        }
++
++    @Test
++    fun `an operator reads back as its document reads`() {
++        val operator = Operator("bob", "tenant", crossScope = true)
++        val stored = Document("operator", MongoOperators.document(operator))
++        read(stored).assert().isEqualTo(MongoOperators.of(MongoOperators.document(operator)))
++        read(stored)?.crossScope.assert().isEqualTo(true)
++    }
++
++    @Test
++    fun `a null operator is none, and a field it does not know is skipped`() {
++        read(Document("operator", null)).assert().isNull()
++        val operator = Document("id", "bob").append("extra", Document("x", 1)).append("tenantId", "t")
++        val stored = Document("operator", operator)
++        read(stored).assert().isEqualTo(Operator("bob", "t"))
++        read(stored)?.crossScope.assert().isEqualTo(false)
++    }
++
++    @Test
++    fun `an operator without its id or tenant is refused`() {
++        assertThrownBy<IllegalStateException> { read(Document("operator", Document("tenantId", "t"))) }
++        assertThrownBy<IllegalStateException> { read(Document("operator", Document("id", "bob"))) }
++    }
++}
