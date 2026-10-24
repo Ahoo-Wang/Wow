@@ -29,8 +29,7 @@ import reactor.netty.http.server.HttpServer
  * WebFlux server, serving [routes] (the cluster channel and the wait signals) over HTTP/1.1 and h2c. Its codecs take
  * messages of up to [maxMessageSize] bytes, which the host derives from the public port's codec limit
  * ([InternalHttp.messageLimit], review A3-9), and the server takes an upgrade request of up to that size too, as the
- * JDK client reaches HTTP/2 by upgrading the first request of a connection; it keeps reading its HTTP/1.1 connections
- * ([KeepAliveReads]). Its cluster routes take the service's cluster token, its call routes a service identity
+ * JDK client reaches HTTP/2 by upgrading the first request of a connection. Its cluster routes take the service's cluster token, its call routes a service identity
  * (decision D226); bind it to [host] where only the cluster reaches it all the same.
  */
 class InternalServer(
@@ -69,7 +68,6 @@ class InternalServer(
             .port(port)
             .protocol(HttpProtocol.HTTP11, HttpProtocol.H2C)
             .httpRequestDecoder { it.h2cMaxContentLength(maxMessageSize) }
-            .doOnChannelInit { _, channel, _ -> KeepAliveReads.install(channel) }
             .handle(adapter)
         host?.let { configured = configured.host(it) }
         server = configured.bindNow().also { logger.info { "Wow internal port bound at ${it.address()}." } }

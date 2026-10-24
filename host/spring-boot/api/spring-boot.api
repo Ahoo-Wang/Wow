@@ -455,7 +455,6 @@ public final class me/ahoo/wow/spring/boot/WowAutoConfiguration {
 	public final fun wowHttpOptions (Lme/ahoo/wow/spring/boot/WowProperties;)Lme/ahoo/wow/http/WowHttpOptions;
 	public final fun wowInternalHttpClient (Lme/ahoo/wow/spring/boot/WowProperties;)Ljava/net/http/HttpClient;
 	public final fun wowJsonMapper ()Ltools/jackson/databind/json/JsonMapper;
-	public final fun wowKeepAliveReads ()Lorg/springframework/boot/reactor/netty/NettyServerCustomizer;
 	public final fun wowParkedRouterFunction (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/runtime/node/ServiceNode;Lme/ahoo/wow/http/caller/CallerResolver;Lme/ahoo/wow/http/WowHttpOptions;Lorg/springframework/beans/factory/ObjectProvider;)Lorg/springframework/web/reactive/function/server/RouterFunction;
 }
 

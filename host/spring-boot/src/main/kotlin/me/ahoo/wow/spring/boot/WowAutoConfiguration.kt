@@ -99,7 +99,6 @@ import org.springframework.boot.availability.ApplicationAvailability
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.context.properties.bind.Binder
-import org.springframework.boot.reactor.netty.NettyServerCustomizer
 import org.springframework.context.ApplicationContext
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.annotation.Bean
@@ -732,12 +731,6 @@ class WowAutoConfiguration {
     @Bean
     @InternalWowApi
     fun wowGracefulShutdownSettled(): GracefulShutdownSettled = GracefulShutdownSettled()
-
-    /** The public server keeps reading its HTTP/1.1 keep-alive connections ([KeepAliveReads]). */
-    @Bean
-    fun wowKeepAliveReads(): NettyServerCustomizer = NettyServerCustomizer { server ->
-        server.doOnChannelInit { _, channel, _ -> KeepAliveReads.install(channel) }
-    }
 
     /**
      * The response masks of the state reads and the `events` model (09 §17 G-2): the Manifest's sensitive fields, with
