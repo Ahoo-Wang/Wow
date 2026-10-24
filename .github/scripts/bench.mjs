@@ -62,10 +62,12 @@ export const DATASETS = {
 // hundred operations a second, a warm-up alone touches only a small share of 100k aggregates. A suite marked `cold`
 // is never primed. After the prime, bench.sh waits until the nodes are quiet again (`settle`): the closed-loop prime
 // leaves them a backlog that a 10 s warm-up does not absorb on a 4-core runner (roadmap §6, performance item 2).
-// The node keeps STATE_CACHE aggregates per context (V10's default `wow.state-cache.capacity`):
-// above that, the steady state a run reaches, primed or not, is a full cache with evictions, which the report says.
+// Unless `wow.state-cache.capacity` is set, the node's state caches hold a tenth of its heap in estimated bytes, a
+// state of few recent requests at about 1 KB (B.O-4): STATE_CACHE states at the harness's 1 GB heap, fewer as their
+// rings grow. Above that, the steady state a run reaches, primed or not, is a full cache with evictions, which the
+// report says.
 export const PRIME_FROM = 100000;
-export const STATE_CACHE = 4096;
+export const STATE_CACHE = 104857;
 
 // The E3 latency suspects on MongoDB (H1 to H5 of the E3 analysis): a rate
 // sweep, then one key toggled at a time at the middle rate.
@@ -1495,7 +1497,7 @@ function primingLines(suite) {
   ];
   if (suite.accounts > STATE_CACHE) {
     lines.push(
-      `The accounts exceed the node's state cache (${STATE_CACHE} per context, \`wow.state-cache.capacity\`): the steady state is a full cache with evictions.`,
+      `The accounts exceed the node's state cache (a tenth of the 1 GB heap, about ${STATE_CACHE} states of few requests): the steady state is a full cache with evictions.`,
     );
   }
   return [...lines, ''];
