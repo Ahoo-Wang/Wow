@@ -35,6 +35,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoFailures
 import me.ahoo.wow.mongo.MongoFormat
@@ -50,6 +51,14 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
+import org.bson.BsonArray
+import org.bson.BsonBoolean
+import org.bson.BsonDocument
+import org.bson.BsonInt32
+import org.bson.BsonInt64
+import org.bson.BsonNull
+import org.bson.BsonString
+import org.bson.BsonValue
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.util.concurrent.ConcurrentHashMap
@@ -193,26 +202,39 @@ class MongoSnapshotStore(
         again.forEach { index -> outcomes[index] = SnapshotSaveOutcome.of(saveNow(snapshots, batch[index])) }
     }
 
-    /** The filter of [snapshot]'s save: its key, a lower stored version, of the same or a lower state revision. */
-    private fun guardOf(snapshot: SnapshotRecord): Bson = Filters.and(
-        keyFilter(snapshot.ref),
-        Filters.lt(VERSION, snapshot.version),
-        // A snapshot written before state revisions has none: it is of revision 1, which no revision is below.
-        Filters.or(Filters.lte(STATE_REVISION, snapshot.stateRevision), Filters.exists(STATE_REVISION, false)),
-    )
+    /**
+     * The filter of [snapshot]'s save, as BSON: its key, a lower stored version, of the same or a lower state
+     * revision. A snapshot written before state revisions has none: it is of revision 1, which no revision is below.
+     */
+    private fun guardOf(snapshot: SnapshotRecord): Bson = BsonDocument(TENANT_ID, BsonString(snapshot.ref.tenantId))
+        .append(AGGREGATE_ID, BsonString(snapshot.ref.id))
+        .append(VERSION, BsonDocument("\$lt", BsonInt32(snapshot.version)))
+        .append(
+            "\$or",
+            BsonArray(
+                listOf(
+                    BsonDocument(STATE_REVISION, BsonDocument("\$lte", BsonInt32(snapshot.stateRevision))),
+                    BsonDocument(STATE_REVISION, BsonDocument("\$exists", BsonBoolean.FALSE)),
+                ),
+            ),
+        )
 
     /**
      * The update of [snapshot]'s save as a pipeline: every field set to its value (`$literal`, so a value that reads
      * like an expression is written as it is), and a stale mark of a version up to [snapshot]'s removed.
      */
     private fun pipelineOf(snapshot: SnapshotRecord): List<Bson> {
-        val fields = Document()
-        fieldsOf(snapshot).forEach { (field, value) -> fields[field] = Document(LITERAL, value) }
-        fields[STALE_VERSION] = Document(
+        val fields = BsonDocument()
+        for ((field, value) in fieldsOf(snapshot)) {
+            fields[field] = BsonDocument(LITERAL, value)
+        }
+        val unmarked =
+            BsonDocument("\$lte", BsonArray(listOf(BsonString("\$$STALE_VERSION"), BsonInt32(snapshot.version))))
+        fields[STALE_VERSION] = BsonDocument(
             "\$cond",
-            listOf(Document("\$lte", listOf("\$$STALE_VERSION", snapshot.version)), "\$\$REMOVE", "\$$STALE_VERSION"),
+            BsonArray(listOf(unmarked, BsonString("\$\$REMOVE"), BsonString("\$$STALE_VERSION"))),
         )
-        return listOf(Document("\$set", fields))
+        return listOf(BsonDocument("\$set", fields))
     }
 
     override suspend fun rewrite(snapshot: SnapshotRecord): Boolean = dispatcher.mongo {
@@ -230,7 +252,7 @@ class MongoSnapshotStore(
      * the write, of the version it wrote, stays.
      */
     private fun upsert(snapshots: MongoCollection<Document>, guarded: Bson, snapshot: SnapshotRecord): Boolean {
-        val update = Updates.combine(fieldsOf(snapshot).map { (field, value) -> Updates.set(field, value) })
+        val update = BsonDocument("\$set", fieldsOf(snapshot))
         // Before the write: the stored document's stale mark, null when it has none or there was no document.
         var marked: Number? = null
         val written = conditionalUpsert { upsert ->
@@ -253,22 +275,32 @@ class MongoSnapshotStore(
         return written
     }
 
-    /** The fields a save writes of [snapshot], each with its BSON value. */
-    private fun fieldsOf(snapshot: SnapshotRecord): List<Pair<String, Any?>> = listOf(
-        VERSION to snapshot.version,
-        SCHEMA_FINGERPRINT to snapshot.schemaFingerprint,
-        STATE to ExactBson.document(snapshot.state),
-        OWNER_ID to snapshot.scope.ownerId,
-        SPACE_ID to snapshot.scope.spaceId,
-        DELETED to snapshot.deleted,
-        FIRST_EVENT_TIME to snapshot.firstEventTime,
-        LAST_EVENT_TIME to snapshot.lastEventTime,
-        TAGS to Document(snapshot.tags),
-        OPERATOR to MongoOperators.document(snapshot.operator),
-        FIRST_OPERATOR to MongoOperators.document(snapshot.firstOperator),
-        SCHEDULES to Document(snapshot.schedules.mapValues { MongoRules.document(it.value) }),
-        STATE_REVISION to snapshot.stateRevision,
-    )
+    /**
+     * The fields a save writes of [snapshot], as BSON: the driver writes them without rendering or looking a codec up
+     * (the state included, [ExactBson.bson]).
+     */
+    private fun fieldsOf(snapshot: SnapshotRecord): BsonDocument = BsonDocument()
+        .append(VERSION, BsonInt32(snapshot.version))
+        .append(SCHEMA_FINGERPRINT, BsonString(snapshot.schemaFingerprint))
+        .append(STATE, ExactBson.bson(snapshot.state))
+        .append(OWNER_ID, stringOf(snapshot.scope.ownerId))
+        .append(SPACE_ID, stringOf(snapshot.scope.spaceId))
+        .append(DELETED, BsonBoolean.valueOf(snapshot.deleted))
+        .append(FIRST_EVENT_TIME, BsonInt64(snapshot.firstEventTime))
+        .append(LAST_EVENT_TIME, BsonInt64(snapshot.lastEventTime))
+        .append(TAGS, BsonDocument().apply { snapshot.tags.forEach { (tag, values) -> put(tag, stringsOf(values)) } })
+        .append(OPERATOR, MongoOperators.bson(snapshot.operator))
+        .append(FIRST_OPERATOR, MongoOperators.bson(snapshot.firstOperator))
+        .append(SCHEDULES, schedulesOf(snapshot.schedules))
+        .append(STATE_REVISION, BsonInt32(snapshot.stateRevision))
+
+    private fun stringOf(value: String?): BsonValue = value?.let(::BsonString) ?: BsonNull.VALUE
+
+    private fun stringsOf(values: List<String>) = BsonArray(values.map(::BsonString))
+
+    private fun schedulesOf(schedules: Map<String, ScheduleRule>) = BsonDocument().apply {
+        schedules.forEach { (name, rule) -> put(name, MongoRules.bson(rule)) }
+    }
 
     override suspend fun markStale(ref: AggregateRef): Boolean = dispatcher.mongo {
         require(ref.type.context == context) { "$ref is not in context $context." }

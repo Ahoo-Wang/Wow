@@ -15,7 +15,10 @@ package me.ahoo.wow.mongo
 
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.json.WowJson
+import org.bson.BsonDocument
+import org.bson.BsonDocumentWrapper
 import org.bson.Document
+import org.bson.codecs.DocumentCodec
 
 /**
  * A schedule's rule (decision D198) as the MongoDB stores keep it: the sub-document Wow's JSON writes it as, `{type,
@@ -25,8 +28,13 @@ internal object MongoRules {
     /** [rule] as its sub-document. */
     fun document(rule: ScheduleRule): Document = Document(WowJson.mapper.convertValue(rule, MAP))
 
+    /** [rule] as its BSON sub-document, its values as [document] gives them. */
+    fun bson(rule: ScheduleRule): BsonDocument = BsonDocumentWrapper(document(rule), DOCUMENT_CODEC)
+
     /** The rule [document] holds. */
     fun of(document: Document): ScheduleRule = WowJson.mapper.convertValue(document, ScheduleRule::class.java)
+
+    private val DOCUMENT_CODEC = DocumentCodec()
 
     @Suppress("UNCHECKED_CAST")
     private val MAP: Class<Map<String, Any?>> = Map::class.java as Class<Map<String, Any?>>
