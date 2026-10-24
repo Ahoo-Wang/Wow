@@ -35,6 +35,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoFailures
@@ -52,14 +53,20 @@ import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
 import org.bson.BsonArray
+import org.bson.BsonBinaryReader
 import org.bson.BsonBoolean
 import org.bson.BsonDocument
 import org.bson.BsonInt32
 import org.bson.BsonInt64
 import org.bson.BsonNull
+import org.bson.BsonReader
 import org.bson.BsonString
+import org.bson.BsonType
 import org.bson.BsonValue
 import org.bson.Document
+import org.bson.RawBsonDocument
+import org.bson.codecs.DecoderContext
+import org.bson.codecs.DocumentCodec
 import org.bson.conversions.Bson
 import java.util.concurrent.ConcurrentHashMap
 
@@ -404,35 +411,107 @@ class MongoSnapshotStore(
         backfilled = document.getBoolean(BACKFILLED),
     )
 
+    /**
+     * The stored document of [ref] as the server sent it ([RawBsonDocument]), read field by field in one pass: no
+     * [Document] tree, and the state written to JSON text as it is read ([ExactBson.json]).
+     */
     override suspend fun load(ref: AggregateRef): SnapshotRecord? = dispatcher.mongo {
         require(ref.type.context == context) { "$ref is not in context $context." }
-        collectionOf(ref.type.name).find(keyFilter(ref)).firstOrNull()?.let { snapshotOf(ref.type, it) }
+        collectionOf(ref.type.name).withDocumentClass(RawBsonDocument::class.java).find(keyFilter(ref)).first()
+            ?.let { BsonBinaryReader(it.byteBuffer.asNIO()).use { reader -> snapshotOf(ref.type, reader) } }
     }
 
-    private fun keyFilter(ref: AggregateRef): Bson = Filters.and(
-        Filters.eq(TENANT_ID, ref.tenantId),
-        Filters.eq(AGGREGATE_ID, ref.id),
-    )
+    private fun keyFilter(ref: AggregateRef): Bson =
+        BsonDocument(TENANT_ID, BsonString(ref.tenantId)).append(AGGREGATE_ID, BsonString(ref.id))
 
-    private fun snapshotOf(type: AggregateType, document: Document): SnapshotRecord {
-        val tags = document.get(TAGS, Document::class.java)
+    @Suppress("CyclomaticComplexMethod") // One branch per stored field, in one pass.
+    private fun snapshotOf(type: AggregateType, reader: BsonReader): SnapshotRecord {
+        var tenantId: String? = null
+        var aggregateId: String? = null
+        var version: Int? = null
+        var fingerprint: String? = null
+        var state: String? = null
+        var ownerId: String? = null
+        var spaceId: String? = null
+        var deleted: Boolean? = null
+        var firstEventTime: Long? = null
+        var lastEventTime: Long? = null
+        var tags: Map<String, List<String>>? = null
+        var operator: Operator? = null
+        var firstOperator: Operator? = null
+        var schedules: Map<String, ScheduleRule> = emptyMap()
+        var stateRevision = 1
+        reader.readStartDocument()
+        while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+            when (reader.readName()) {
+                TENANT_ID -> tenantId = reader.readString()
+                AGGREGATE_ID -> aggregateId = reader.readString()
+                VERSION -> version = reader.readInt32()
+                SCHEMA_FINGERPRINT -> fingerprint = reader.readString()
+                STATE -> state = ExactBson.json(reader)
+                OWNER_ID -> ownerId = stringOf(reader)
+                SPACE_ID -> spaceId = stringOf(reader)
+                DELETED -> deleted = reader.readBoolean()
+                FIRST_EVENT_TIME -> firstEventTime = reader.readInt64()
+                LAST_EVENT_TIME -> lastEventTime = reader.readInt64()
+                TAGS -> tags = tagsOf(reader)
+                OPERATOR -> operator = MongoOperators.of(reader)
+                FIRST_OPERATOR -> firstOperator = MongoOperators.of(reader)
+                SCHEDULES -> schedules = schedulesOf(reader)
+                STATE_REVISION -> stateRevision = reader.readInt32()
+                else -> reader.skipValue()
+            }
+        }
+        reader.readEndDocument()
+        fun <T : Any> stored(value: T?, field: String): T = checkNotNull(value) { "A stored snapshot has no $field." }
         return SnapshotRecord(
-            ref = type.ref(document.getString(TENANT_ID), document.getString(AGGREGATE_ID)),
-            version = document.getInteger(VERSION),
-            schemaFingerprint = document.getString(SCHEMA_FINGERPRINT),
-            state = ExactBson.json(document.get(STATE, Document::class.java)),
-            scope = Scope(document.getString(OWNER_ID), document.getString(SPACE_ID)),
-            deleted = document.getBoolean(DELETED),
-            firstEventTime = document.getLong(FIRST_EVENT_TIME),
-            lastEventTime = document.getLong(LAST_EVENT_TIME),
-            tags = tags.keys.associateWith { tags.getList(it, String::class.java).toList() },
-            operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
-            firstOperator = MongoOperators.of(document.get(FIRST_OPERATOR, Document::class.java)),
-            schedules = document.get(SCHEDULES, Document::class.java)?.let { schedules ->
-                schedules.keys.associateWith { MongoRules.of(schedules.get(it, Document::class.java)) }
-            }.orEmpty(),
-            stateRevision = document.getInteger(STATE_REVISION) ?: 1,
+            ref = type.ref(stored(tenantId, TENANT_ID), stored(aggregateId, AGGREGATE_ID)),
+            version = stored(version, VERSION),
+            schemaFingerprint = stored(fingerprint, SCHEMA_FINGERPRINT),
+            state = stored(state, STATE),
+            scope = Scope(ownerId, spaceId),
+            deleted = stored(deleted, DELETED),
+            firstEventTime = stored(firstEventTime, FIRST_EVENT_TIME),
+            lastEventTime = stored(lastEventTime, LAST_EVENT_TIME),
+            tags = stored(tags, TAGS),
+            operator = operator,
+            firstOperator = firstOperator,
+            schedules = schedules,
+            stateRevision = stateRevision,
         )
+    }
+
+    /** The string [reader] is at; null for a BSON null. */
+    private fun stringOf(reader: BsonReader): String? = if (reader.currentBsonType == BsonType.NULL) {
+        reader.readNull()
+        null
+    } else {
+        reader.readString()
+    }
+
+    private fun tagsOf(reader: BsonReader): Map<String, List<String>> = buildMap {
+        reader.readStartDocument()
+        while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+            val tag = reader.readName()
+            val values = ArrayList<String>()
+            reader.readStartArray()
+            while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+                values += reader.readString()
+            }
+            reader.readEndArray()
+            put(tag, values)
+        }
+        reader.readEndDocument()
+    }
+
+    /** The schedules [reader] is at, each rule as [MongoRules.of] reads it; none for a BSON null. */
+    private fun schedulesOf(reader: BsonReader): Map<String, ScheduleRule> {
+        if (reader.currentBsonType == BsonType.NULL) {
+            reader.readNull()
+            return emptyMap()
+        }
+        val schedules = DOCUMENTS.decode(reader, DecoderContext.builder().build())
+        return schedules.keys.associateWith { MongoRules.of(schedules.get(it, Document::class.java)) }
     }
 
     internal companion object {
@@ -507,6 +586,9 @@ class MongoSnapshotStore(
         const val STALE_VERSION = "stale_version"
 
         private const val LITERAL = "\$literal"
+
+        /** Decodes the rare sub-documents read as documents (the schedules). */
+        private val DOCUMENTS = DocumentCodec()
 
         /** The bulk write of a batch: unordered, so one refused upsert does not stop the others. */
         private val UNORDERED: BulkWriteOptions = BulkWriteOptions().ordered(false)

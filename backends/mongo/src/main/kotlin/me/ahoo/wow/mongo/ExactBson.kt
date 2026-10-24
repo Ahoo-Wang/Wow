@@ -21,10 +21,13 @@ import org.bson.BsonDocument
 import org.bson.BsonInt32
 import org.bson.BsonInt64
 import org.bson.BsonNull
+import org.bson.BsonReader
 import org.bson.BsonString
+import org.bson.BsonType
 import org.bson.BsonValue
 import org.bson.Document
 import org.bson.types.Decimal128
+import tools.jackson.core.JsonGenerator
 import tools.jackson.core.JsonParser
 import tools.jackson.core.JsonToken
 import tools.jackson.core.exc.StreamReadException
@@ -39,6 +42,7 @@ import tools.jackson.databind.node.LongNode
 import tools.jackson.databind.node.NullNode
 import tools.jackson.databind.node.ObjectNode
 import tools.jackson.databind.node.StringNode
+import java.io.StringWriter
 import java.math.BigDecimal
 
 /**
@@ -114,6 +118,69 @@ internal object ExactBson {
         JsonParser.NumberType.INT -> BsonInt32(parser.intValue)
         JsonParser.NumberType.LONG -> BsonInt64(parser.longValue)
         else -> BsonDecimal128(decimal128(BigDecimal(parser.bigIntegerValue)))
+    }
+
+    /**
+     * The document [reader] is at, as JSON text by the rules of [json]: read value by value and written as it is read,
+     * with no [Document] or JSON tree in between. The reader ends past the document.
+     */
+    fun json(reader: BsonReader): String {
+        val text = StringWriter()
+        mapper.createGenerator(text).use { generator -> write(reader, generator) }
+        return text.toString()
+    }
+
+    private fun write(reader: BsonReader, generator: JsonGenerator) {
+        when (val type = reader.currentBsonType) {
+            BsonType.DOCUMENT -> {
+                reader.readStartDocument()
+                generator.writeStartObject()
+                while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+                    generator.writeName(reader.readName())
+                    write(reader, generator)
+                }
+                reader.readEndDocument()
+                generator.writeEndObject()
+            }
+
+            BsonType.ARRAY -> {
+                reader.readStartArray()
+                generator.writeStartArray()
+                while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+                    write(reader, generator)
+                }
+                reader.readEndArray()
+                generator.writeEndArray()
+            }
+
+            BsonType.STRING -> generator.writeString(reader.readString())
+            BsonType.BOOLEAN -> generator.writeBoolean(reader.readBoolean())
+            BsonType.NULL -> {
+                reader.readNull()
+                generator.writeNull()
+            }
+
+            else -> writeNumber(type, reader, generator)
+        }
+    }
+
+    private fun writeNumber(type: BsonType, reader: BsonReader, generator: JsonGenerator) {
+        when (type) {
+            BsonType.INT32 -> generator.writeNumber(reader.readInt32())
+            BsonType.INT64 -> generator.writeNumber(reader.readInt64())
+            BsonType.DOUBLE -> generator.writeNumber(reader.readDouble())
+            // A NaN or an infinity has no JSON number, as [number] reads it.
+            BsonType.DECIMAL128 -> {
+                val decimal = reader.readDecimal128()
+                if (decimal.isNaN || decimal.isInfinite) {
+                    generator.writeNull()
+                } else {
+                    generator.writeNumber(decimal.bigDecimalValue())
+                }
+            }
+
+            else -> throw IllegalStateException("A stored $type is not JSON.")
+        }
     }
 
     /** The BSON [document] as JSON text, its decimals as written. */

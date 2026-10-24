@@ -14,10 +14,16 @@
 package me.ahoo.wow.mongo
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
+import org.bson.BsonBinaryReader
 import org.bson.BsonDocument
+import org.bson.Document
 import org.bson.RawBsonDocument
 import org.bson.codecs.BsonDocumentCodec
 import org.bson.codecs.DocumentCodec
+import org.bson.types.Decimal128
+import org.bson.types.ObjectId
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 import tools.jackson.core.JacksonException
@@ -43,6 +49,46 @@ class ExactBsonTest {
         val streamed = ExactBson.bson(text)
         val tree = RawBsonDocument(ExactBson.document(text), DocumentCodec())
         bytesOf(streamed).assert().isEqualTo(tree.byteBuffer.array())
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+        strings = [
+            """{}""",
+            """{"a":1,"b":"x","c":true,"d":false,"e":null}""",
+            """{"nested":{"list":[1,[2,3],{"k":"v"},[],{}],"empty":{}}}""",
+            """{"long":9223372036854775807,"negative":-9223372036854775808,"big":123456789012345678901234567890}""",
+            """{"scale":2.50,"zero":0.0,"exponent":1e3,"small":-1.5E-7,"digits":1.234567890123456789012345678901234}""",
+            """{"unicode":"é中文\uD83D\uDE00","escaped":"a\"b\\c\n\u0001"}""",
+        ],
+    )
+    fun `the streamed JSON is the one the document gives`(text: String) {
+        val document = ExactBson.document(text)
+        BsonBinaryReader(RawBsonDocument(document, DocumentCodec()).byteBuffer.asNIO()).use { reader ->
+            reader.readBsonType()
+            ExactBson.json(reader).assert().isEqualTo(ExactBson.json(document))
+        }
+    }
+
+    @Test
+    fun `doubles and decimals without a JSON number read as the document reads them`() {
+        // Doubles from before decimals were exact, and a NaN or an infinity an aggregation may compute.
+        val document = Document("double", 1.5).append("whole", 2.0).append("nan", Decimal128.NaN)
+            .append("infinite", Decimal128.POSITIVE_INFINITY).append("list", listOf(Decimal128.NEGATIVE_INFINITY, 0.25))
+        BsonBinaryReader(RawBsonDocument(document, DocumentCodec()).byteBuffer.asNIO()).use { reader ->
+            reader.readBsonType()
+            ExactBson.json(reader).assert().isEqualTo(ExactBson.json(document))
+        }
+    }
+
+    @Test
+    fun `a stored value that is not JSON is refused`() {
+        val document = Document("id", ObjectId())
+        BsonBinaryReader(RawBsonDocument(document, DocumentCodec()).byteBuffer.asNIO()).use { reader ->
+            reader.readBsonType()
+            assertThrownBy<IllegalStateException> { ExactBson.json(reader) }
+        }
+        assertThrownBy<IllegalStateException> { ExactBson.json(document) }
     }
 
     @ParameterizedTest

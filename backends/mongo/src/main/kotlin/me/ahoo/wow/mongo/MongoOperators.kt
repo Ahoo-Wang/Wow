@@ -17,7 +17,9 @@ import me.ahoo.wow.api.caller.Operator
 import org.bson.BsonBoolean
 import org.bson.BsonDocument
 import org.bson.BsonNull
+import org.bson.BsonReader
 import org.bson.BsonString
+import org.bson.BsonType
 import org.bson.BsonValue
 import org.bson.Document
 
@@ -42,6 +44,29 @@ internal object MongoOperators {
             .append(TENANT_ID, BsonString(it.tenantId))
             .append(CROSS_SCOPE, BsonBoolean.valueOf(it.crossScope))
     } ?: BsonNull.VALUE
+
+    /** The operator the sub-document [reader] is at holds; null for a BSON null. */
+    fun of(reader: BsonReader): Operator? {
+        if (reader.currentBsonType == BsonType.NULL) {
+            reader.readNull()
+            return null
+        }
+        var id: String? = null
+        var tenantId: String? = null
+        var crossScope = false
+        reader.readStartDocument()
+        while (reader.readBsonType() != BsonType.END_OF_DOCUMENT) {
+            when (reader.readName()) {
+                ID -> id = reader.readString()
+                TENANT_ID -> tenantId = reader.readString()
+                CROSS_SCOPE -> crossScope = reader.readBoolean()
+                else -> reader.skipValue()
+            }
+        }
+        reader.readEndDocument()
+        val stored = checkNotNull(id) { "A stored operator has no $ID." }
+        return Operator(stored, checkNotNull(tenantId) { "A stored operator has no $TENANT_ID." }, crossScope)
+    }
 
     /** The operator [document] holds; null for none, as a document written before the field has. */
     fun of(document: Document?): Operator? = document?.let {
