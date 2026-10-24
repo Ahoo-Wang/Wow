@@ -219,7 +219,9 @@ setup() {
     resume
     return
   fi
-  if [ "$UP" != true ]; then trap down EXIT; fi
+  # Everything started here stops when the script ends, also for `up` until its session is written, so an `up`
+  # that fails leaves no server behind.
+  trap down EXIT
   down
   local store=postgres
   if [ "$BACKEND" = mongo ]; then store=mongo; fi
@@ -339,6 +341,7 @@ up() {
   parse "$@"
   UP=true
   setup
+  trap - EXIT
   log "session up: $(session_key); measure with --reuse, stop with bench.sh down"
 }
 
