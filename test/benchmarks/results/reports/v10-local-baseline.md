@@ -248,6 +248,43 @@ No difference beyond one run's noise, so it is not merged. A first comparison ha
 - Attribute CPU by thread from `jdk.ThreadCPULoad`, not from execution samples, while the stores run on virtual threads.
 - A recorded run is slower than an unrecorded one; compare recorded with recorded.
 
+## The state cache: what holding every account buys
+
+At 100,000 uniform accounts and a 1 GB heap the default state cache held about 25,600 states, so 74% of commands loaded their aggregate first. The default was sized for each state's recent requests at their full 256 (3 KB of rings each, allocated whatever the aggregate committed). Two alternating rounds on one build each, the default against `wow.state-cache.capacity=131072` (every account held), on fresh primed sessions ([`cache-ab.sh`](v10-local-baseline/state-cache/capacity/cache-ab.sh), results beside it). PostgreSQL ran on `main` before #4858, MongoDB on `main` after it: before the fix, the large cache made MongoDB scan its log on each append (#4858).
+
+| Per command | PostgreSQL round 1 | PostgreSQL round 2 | MongoDB round 1 | MongoDB round 2 |
+| --- | --- | --- | --- | --- |
+| E1 server CPU | 0.482 → 0.475 ms | 0.889 → 0.843 ms | 0.907 → 0.706 ms | 0.933 → 0.799 ms |
+| E1 store CPU | 0.26 → 0.24 ms | 0.72 → 0.56 ms | 2.47 → 1.21 ms | 2.02 → 1.56 ms |
+| E3 server CPU | 1.600 → 1.356 ms | 1.952 → 1.898 ms | 2.233 → 1.787 ms | 2.091 → 1.832 ms |
+| E3 store CPU | 0.97 → 0.80 ms | 2.60 → 1.49 ms | 6.73 → 3.40 ms | 5.18 → 3.67 ms |
+| E3 p50 / p99 | 1.8 / 6 → 1.1 / 4 ms | 190 / 1,163 → 2.7 / 21 ms | 33 / 395 → 5.4 / 74 ms | 12.2 / 88 → 6.2 / 54 ms |
+| p50 at concurrency 1 | 0.47 → 0.45 ms | 0.87 → 0.65 ms | 1.79 → 1.11 ms | 1.42 → 1.11 ms |
+| Heap used, most | 821–856 → 966–971 MB | | 834–860 → 946–961 MB | |
+
+- Holding every account cuts the store's work most: PostgreSQL reads 58% fewer rows per command (E1 6.5 → 2.7, E3 19.5 → 8.4), MongoDB spends 23–51% less CPU; the node spends 12–22% less on MongoDB and up to 15% less on PostgreSQL.
+- Where the store is the limit, the misses are what queue: in PostgreSQL's second round (a slower disk, as below), E3 at the default queued to a p50 of 190 ms and did not with every account held.
+- The heap paid for it: 966–971 MB of the 1 GB at most, against 821–860 MB. Most of that is rings for requests the accounts never made (a few each), the waste the next change removes.
+- With every state cached, MongoDB still looked up 0.35 previous streams per E1 command: the log remembers the last sequences of 65,536 aggregates, fewer than the cache holds.
+
+**The change: bound the cache by bytes.** Each state's recent-request rings now start at 8 slots and double up to `recent-requests` (256), and a cache the host does not size is bounded by a tenth of the heap in estimated bytes (each state weighed at 1 KB plus its rings, at least 4,096 full states), instead of a count sized for full rings. A configured `capacity` still bounds by number. The same rounds, `main` (F) against the change (G) on one build each ([`bytes-ab.sh`](v10-local-baseline/state-cache/bytes/bytes-ab.sh), results beside it):
+
+| Per command | PostgreSQL round 1 | PostgreSQL round 2 | MongoDB round 1 | MongoDB round 2 |
+| --- | --- | --- | --- | --- |
+| Reads (PostgreSQL rows, MongoDB finds), E3 | 19.3 → 8.4 | 19.0 → 8.2 | 1.49 → 0.70 | 1.51 → 0.70 |
+| E1 server CPU | 0.710 → 0.763 ms | 0.946 → 0.922 ms | 0.882 → 0.833 ms | 0.948 → 0.668 ms |
+| E1 store CPU | 0.47 → 0.44 ms | 0.75 → 0.68 ms | 2.55 → 1.56 ms | 3.30 → 1.15 ms |
+| E3 server CPU | 1.953 → 1.788 ms | 2.172 → 2.126 ms | 2.312 → 1.790 ms | 2.218 → 1.801 ms |
+| E3 store CPU | 1.62 → 1.05 ms | 1.72 → 2.00 ms | 7.75 → 3.28 ms | 8.59 → 2.68 ms |
+| E3 p50 / p99 | 3.4 / 13 → 1.6 / 7 ms | 3.7 / 161 → 7.9 / 177 ms | 62 / 272 → 5.2 / 48 ms | 145 / 901 → 4.4 / 34 ms |
+| Heap used, most | 825–860 → 780–807 MB | 820–846 → 781–812 MB | 850–852 → 802–850 MB | 847–871 → 820–855 MB |
+
+- The default now holds every account, and the reads fall as with the large capacity: 55–57% fewer on both backends.
+- MongoDB gains most: its CPU per command 39–69% lower, the node's 6–30% lower, E3's p50 from 62–145 ms to 4–5 ms.
+- On PostgreSQL the reads fall as much, but its CPU and latencies move both ways with the session's disk (round 2's E1 p99 was 146 and 57 ms, a slow fsync in both arms); the store CPU of E3 is 35% lower in round 1 and 16% higher in round 2.
+- The heap holds every state in less than the old default used for a quarter of them: 780–855 MB at most against 820–871 MB.
+
+
 ## Tried and ruled out
 
 Two hypotheses from the platform-thread recordings below, each measured and rejected on 2026-10-24.
