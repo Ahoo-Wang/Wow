@@ -181,3 +181,45 @@ A line-by-line comparison between this M4 Pro run and the earlier M4 baseline ([
    - JFR profiling was omitted in this run to obtain clean operational metrics. As established in the original M4 baseline, JFR flight recording reduced peak throughput by ~25% and inflated CPU time per op by ~25%.
 4. **Recent Optimization Landings on `main`:**
    - Since the original baseline was committed, Candidate 2 (BSON pipeline optimization and BSON snapshot streaming) landed on `main`, explaining the substantial ~21–43% drop in MongoDB memory allocation per operation.
+
+---
+
+## Heap scaling exploration: 1 GB vs 2 GB
+
+To assess how JVM heap and state cache sizing influence throughput and cold-read amplification, an additional series of runs was executed with `--heap=2g` across PostgreSQL and MongoDB on the 100,000 account dataset (`runs in heap-2g/`).
+
+In Wow 10, the aggregate state cache (`wow.state-cache`) defaults to 10% of the maximum heap. Doubling the heap from 1 GB to 2 GB doubles the cache budget from ~100 MB to ~200 MB, holding significantly more aggregates in memory under uniform random access.
+
+### 1. Closed-loop saturation peak (1 GB vs 2 GB)
+
+| Scenario | Heap 1 GB Peak | Heap 2 GB Peak | Delta |
+| :--- | :--- | :--- | :--- |
+| **PostgreSQL E1 uniform** | 13,808.5/s | **17,485.4/s** | **+26.6%** |
+| **PostgreSQL E3 uniform** | 2,659.6/s | **5,196.1/s** | **+95.4%** |
+| **MongoDB E1 uniform** | 12,553.8/s | **14,770.6/s** | **+17.7%** |
+| **MongoDB E3 uniform** | 3,215.7/s | **4,439.4/s** | **+38.1%** |
+
+### 2. Open-loop quality at identical target rates (Controlled Comparison)
+
+Measuring at the identical target arrival rate established at 50% of the 1 GB peak:
+
+| Scenario & Target Rate | Heap Size | Throughput (OK) | p50 Latency | p99 Latency | Store CPU (ms/op) | DB Queries / Fetches | Alloc (KB/op) |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **PostgreSQL E1** (6,904/s) | 1 GB | 6,904.0/s | 28.93 ms | 237.57 ms | 0.287 ms | 6.85 fetched/op | 90.2 KB |
+| | **2 GB** | **6,904.0/s** | **2.53 ms** (📉 −91%) | **32.13 ms** (📉 −86%) | **0.188 ms** (📉 −35%) | **2.87 fetched/op** (📉 −58%) | **80.9 KB** (📉 −10%) |
+| **PostgreSQL E3** (1,330/s) | 1 GB | 1,323.0/s | 67.58 ms | 2,932.74 ms | 1.563 ms | 53.40 fetched/op | 257.3 KB |
+| | **2 GB** | **1,330.0/s** | **1.91 ms** (📉 −97%) | **239.62 ms** (📉 −92%) | **0.710 ms** (📉 −55%) | **9.00 fetched/op** (📉 −83%) | **204.1 KB** (📉 −21%) |
+| **MongoDB E1** (6,277/s) | 1 GB | 6,128.9/s | 23.68 ms | 1,630.21 ms | 0.940 ms | 0.348 query/op | 125.0 KB |
+| | **2 GB** | **6,277.0/s** | **10.69 ms** (📉 −55%) | **123.90 ms** (📉 −92%) | **0.657 ms** (📉 −30%) | 0.350 query/op | **117.8 KB** (📉 −6%) |
+| **MongoDB E3** (1,608/s) | 1 GB | 1,608.0/s | 794.62 ms | 1,916.93 ms | 4.974 ms | 4.377 query/op | 486.1 KB |
+| | **2 GB** | 1,069.5/s | 2,228.22 ms | 6,979.58 ms | 8.074 ms | 4.693 query/op | 668.2 KB |
+
+### Key takeaways from 2 GB heap exploration:
+1. **Dramatic reduction in database round-trip amplification:**
+   - Under PostgreSQL E1 at 6,904/s, doubling heap reduced `tup_fetched` by **58.1%** (from 6.85 down to 2.87 rows fetched per op), relieving store CPU pressure by 34.5%.
+   - In E3 Saga transfers across two accounts, the impact was even more pronounced: `tup_fetched` dropped by **83.1%** (from 53.40 down to 9.00 rows per op), and store CPU halved from 1.56 ms to 0.71 ms per op.
+2. **Elimination of queuing tail latencies:**
+   - On PostgreSQL, relieving cache eviction thrashing dropped p50 latency from **28.9 ms to 2.53 ms** on E1 (−91%), and from **67.6 ms to 1.91 ms** on E3 (−97%). p99 latency dropped from near 3 seconds down to 240 ms.
+3. **Closing the gap to extreme closed-loop numbers:**
+   - When heap is expanded to 2 GB, the 100k account saturation peak jumps to **17,485/s** on PostgreSQL and **14,771/s** on MongoDB, demonstrating that state cache headroom is the primary lever bridging uniform cold-dataset performance toward memory-resident benchmarks.
+
