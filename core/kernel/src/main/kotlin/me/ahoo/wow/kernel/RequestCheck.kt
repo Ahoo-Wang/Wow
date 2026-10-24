@@ -46,7 +46,8 @@ internal class RequestCheck(
     /** The answer to the command when [EventStreamRecord] committed its request (D46, D94, D55). */
     private val duplicate: (EventStreamRecord) -> CommandOutcome,
 ) {
-    private val pure = decider is DecideFunction.Sync &&
+    /** Whether the decide function and its after hooks do no I/O ([DecideFunction.Sync], [AfterFunction.Sync]). */
+    val pure = decider is DecideFunction.Sync &&
         model.afterFunctions(command.body.javaClass).all { it is AfterFunction.Sync }
     private val leaseHeld = lease?.held == true
 

@@ -145,6 +145,7 @@ import kotlin.time.Duration.Companion.seconds
  * append's trace ([Transport.trace]), so the subscriptions that handle it continue the command's trace.
  */
 @InternalWowApi
+@Suppress("LargeClass") // The write path: one command, or a batch of an aggregate's (roadmap §6 item 10), on one state.
 class Kernel(
     private val log: EventLog,
     private val codec: EventCodec = EventCodec(),
@@ -210,6 +211,207 @@ class Kernel(
             committed ?: throw cancelled
         }
     }
+
+    /**
+     * Executes [queued], commands of one aggregate in arrival order, deciding each on the state the ones before it left
+     * and appending their streams with one [EventLog.appendAll] (roadmap §6 item 10): the aggregate's commands are
+     * committed together instead of one append each. Each command's outcome is what [execute] would have given it.
+     *
+     * The first command always runs, alone through [execute] when it cannot start a batch. A batch takes the commands
+     * after it while each one is pure (its decide function and after hooks do no I/O, so deciding it again costs
+     * nothing), is not sent for a schedule, is not among the aggregate's recent requests or the batch's own, and
+     * appends a stream; it ends before the first that is not, which is [BatchOutcome.Again]: the lane runs it next,
+     * alone if need be. The streams commit as a prefix ([EventLog.appendAll]); the first that does not commit is
+     * settled as [execute] settles an append, and the commands after it, compensated, are [BatchOutcome.Again]: their
+     * streams were decided on a state that did not commit. The aggregate's state is then dropped from the cache, as
+     * a later stream evolved it.
+     */
+    suspend fun <S : Any> executeBatch(
+        model: AggregateModel<S>,
+        queued: List<QueuedCommand>,
+        appending: ((EventStreamRecord, CachedState) -> Unit)? = null,
+    ): List<BatchOutcome> {
+        require(queued.isNotEmpty()) { "A batch holds at least one command." }
+        val ref = queued.first().command.ref
+        require(queued.all { it.command.ref == ref }) { "A batch holds the commands of one aggregate." }
+        // Without recent requests every request id is looked up first (D46): each command runs alone.
+        val members = if (recentRequests > 0) membersOf(model, queued) else BatchMembers()
+        if (members.streams.isEmpty()) {
+            return listOf(alone(model, queued.first(), appending)) + List(queued.size - 1) { BatchOutcome.Again }
+        }
+        val outcomes = commitBatch(members, appending) + List(queued.size - members.streams.size) { BatchOutcome.Again }
+        // The first stream did not commit and is decided again: alone, within execute's attempts, so the lane always
+        // makes progress.
+        return if (outcomes.first() is BatchOutcome.Again) {
+            listOf(alone(model, queued.first(), appending)) + outcomes.drop(1)
+        } else {
+            outcomes
+        }
+    }
+
+    /** [entry] executed alone, through [execute]: its outcome, or its failure. */
+    private suspend fun <S : Any> alone(
+        model: AggregateModel<S>,
+        entry: QueuedCommand,
+        appending: ((EventStreamRecord, CachedState) -> Unit)?,
+    ): BatchOutcome = try {
+        BatchOutcome.Done(execute(model, entry.command, entry.wait, appending))
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (
+        @Suppress("TooGenericExceptionCaught") // A command's failure is its own, as execute throws it.
+        failure: Exception,
+    ) {
+        BatchOutcome.Failed(failure)
+    }
+
+    /**
+     * The batch [queued] starts: the stream of each command it takes, decided in order on the state the ones before
+     * it left. Empty when the first command cannot start one: its state, if loaded, is cached again unchanged.
+     */
+    private suspend fun <S : Any> membersOf(model: AggregateModel<S>, queued: List<QueuedCommand>): BatchMembers {
+        val lease = currentCoroutineContext()[ExecutionLease]
+        val members = BatchMembers()
+        var state: CachedState? = null
+        var caching = false
+        for (entry in queued) {
+            val command = entry.command.narrowedTo(model)
+            val decider = model.decider(command.body.javaClass) ?: break
+            val commandType = model.commandType(command.body.javaClass)
+            val requests = RequestCheck(log, states, recentRequests, model, decider, command, lease) {
+                duplicate(it, command, commandType)
+            }
+            // A command with I/O to decide, or sent for a schedule, runs alone: it ends the batch, or is the first.
+            if (!requests.pure || command.schedule != null) break
+            val current = state ?: load(model, requests).first.also {
+                state = it
+                caching = requests.caching
+            }
+            val member = decided(model, decider, entry, command, commandType, requests, current, members) ?: break
+            members.streams += member
+            state = member.evolved
+        }
+        if (members.streams.isEmpty()) {
+            // Nothing evolved it: the state goes back as it was taken (C4: only under the lease), and the first command
+            // runs alone.
+            state?.takeIf { caching && it.version > 0 }?.let { states.put(queued.first().command.ref, it) }
+        }
+        return members
+    }
+
+    /**
+     * [command] decided on [current] as a member of [members]' batch; null when it cannot join it: a request the
+     * aggregate or the batch holds, one refused before deciding, or one that fails, appends nothing or is refused
+     * deciding (each decided again alone, at no cost: it is pure).
+     */
+    @Suppress("LongParameterList")
+    private suspend fun <S : Any> decided(
+        model: AggregateModel<S>,
+        decider: DecideFunction<S>,
+        entry: QueuedCommand,
+        command: Command<*>,
+        commandType: CommandType,
+        requests: RequestCheck,
+        current: CachedState,
+        members: BatchMembers,
+    ): BatchMember? {
+        val repeated = current.requests?.versionOf(command.requestId) != null ||
+            members.streams.any { it.stream.requestId == command.requestId }
+        if (repeated || admissible(decider, command, current) != null) return null
+        val encode = { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
+        val attempt =
+            AttemptScope(command, ids, current, reservations, reservationTtl, entry.wait.beyondCommitted(), encode)
+        val prepared = try {
+            prepare(model, decider, attempt, current, command, commandType.name)
+        } catch (cancelled: CancellationException) {
+            attempt.compensate(cancelled)
+            throw cancelled
+        } catch (
+            @Suppress("TooGenericExceptionCaught") // Decided again alone, where it fails as execute fails it.
+            failure: Exception,
+        ) {
+            attempt.compensate(failure)
+            return null
+        }
+        if (prepared !is Prepared.Append) {
+            attempt.compensate()
+            return null
+        }
+        return BatchMember(command, commandType, requests, attempt, prepared.stream, prepared.evolved)
+    }
+
+    /** Appends the batch's streams and settles each: the outcomes of [members], in order. */
+    private suspend fun commitBatch(
+        members: BatchMembers,
+        appending: ((EventStreamRecord, CachedState) -> Unit)?,
+    ): List<BatchOutcome> = withContext(NonCancellable) {
+        val batch = members.streams
+        batch.forEach { appending?.invoke(it.stream, it.evolved) }
+        val observations = batch.map { observer.appending(it.stream) }
+        val appended = try {
+            log.appendAll(
+                batch.mapIndexed { at, member -> member.stream to member.attempt.transport(observations[at].trace) }
+            )
+        } catch (
+            @Suppress("TooGenericExceptionCaught") // Compensates whatever failed; each command fails with it.
+            failure: Exception,
+        ) {
+            batch.forEach { it.attempt.compensate(failure) }
+            states.take(batch.first().stream.ref)
+            return@withContext batch.map { BatchOutcome.Failed(failure) }
+        }
+        var stopped = false
+        batch.mapIndexed { at, member ->
+            observations[at].outcome(appended[at].observedName)
+            if (stopped) {
+                member.attempt.compensate()
+                return@mapIndexed BatchOutcome.Again
+            }
+            val settled = settled(member.stream, appended[at])
+            if (settled !is AppendOutcome.Committed) {
+                stopped = true
+            }
+            try {
+                settleAppend(settled, member.stream, member.evolved, member.attempt, member.commandType, member.requests)
+                    ?.let { outcome ->
+                        observer.executing(member.command, member.commandType.name).outcome(outcome.observedName)
+                        BatchOutcome.Done(outcome)
+                    }
+                    ?: BatchOutcome.Again
+            } catch (
+                @Suppress("TooGenericExceptionCaught") // A refused stream fails its own command, as execute throws it.
+                failure: Exception,
+            ) {
+                BatchOutcome.Failed(failure)
+            }
+        }.also {
+            // A stream after the last committed one evolved the cached state: it is dropped, and reloaded.
+            if (stopped) states.take(batch.first().stream.ref)
+        }
+    }
+
+    /** [outcome] of [stream]'s append, settled as [append] settles it. */
+    private suspend fun settled(stream: EventStreamRecord, outcome: AppendOutcome): AppendOutcome = when (outcome) {
+        is AppendOutcome.Unknown -> settleUnknown(stream, outcome)
+        is AppendOutcome.AlreadyCommitted -> duplicateOf(stream, outcome)
+        is AppendOutcome.Conflict -> settleConflict(stream, outcome)
+        else -> outcome
+    }
+
+    /** The streams a batch takes, in order. */
+    private class BatchMembers {
+        val streams = ArrayList<BatchMember>()
+    }
+
+    /** One command of a batch, decided: its stream and the state after it. */
+    private class BatchMember(
+        val command: Command<*>,
+        val commandType: CommandType,
+        val requests: RequestCheck,
+        val attempt: AttemptScope,
+        val stream: EventStreamRecord,
+        val evolved: CachedState,
+    )
 
     private suspend fun <S : Any> executeAdmitted(
         model: AggregateModel<S>,
@@ -448,12 +650,7 @@ class Kernel(
      * again would run the decision's I/O twice (decision D46).
      */
     private suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
-        when (val outcome = log.append(stream, transport)) {
-            is AppendOutcome.Unknown -> settleUnknown(stream, outcome)
-            is AppendOutcome.AlreadyCommitted -> duplicateOf(stream, outcome)
-            is AppendOutcome.Conflict -> settleConflict(stream, outcome)
-            else -> outcome
-        }
+        settled(stream, log.append(stream, transport))
 
     /** [duplicate] of [stream]: [stream] itself committed when it names this very append (finding A1-1). */
     private suspend fun duplicateOf(
