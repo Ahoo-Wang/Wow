@@ -208,6 +208,20 @@ The same L1 rounds, `main` before the first part (A) against this change alone (
 
 About 7 KB less per snapshot written: E1 writes one per command, E3 three.
 
+## Candidate 2, third part: snapshot reads from raw BSON
+
+A snapshot's load decoded the stored document into a `Document` tree (6.8% of the node's allocation on MongoDB E1, in the driver's decoding of the reply), turned its state into a JSON tree and wrote that as text. The reply now stays raw (`RawBsonDocument`) and is read field by field in one pass, the state written to JSON text as it is read (`ExactBson.json(reader)`; tests pin it to the text the document gave, doubles, decimals without a JSON number and refusals included).
+
+L1, the second part alone (D) against the second and third (E) ([results](v10-local-baseline/mongo-snapshot-raw/)):
+
+| Per command | D | E |
+| --- | --- | --- |
+| E1 allocated | 213.9, 214.6 KB | 194.2, 187.3 KB (−11%) |
+| E3 allocated | 407.0, 407.1 KB | 376.5, 380.7 KB (−7%) |
+| Round trips | 3.32–3.33 (E1), 5.60 (E3) | 3.32–3.33, 5.60 |
+
+20–27 KB less per load (one per command in L1).
+
 ## Notes on method
 
 - Judge a change locally on the stable quantities: CPU and allocation per operation, round trips, commits, rows and WAL per operation. Throughput and latency only at low concurrency, or over many alternating rounds.
