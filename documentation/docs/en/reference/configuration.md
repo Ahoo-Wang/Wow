@@ -164,6 +164,7 @@ The keys wow-cosid reads (`wow.cosid.*`), bound here as cosec is.
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `wow.executor.lane-capacity` | `Integer` | `1024` | The commands one aggregate may have waiting in the executor. |
+| `wow.executor.max-batch` | `Integer` | `32` | The most of one aggregate's queued commands the executor commits with one append; 1 runs each alone. |
 | `wow.executor.max-in-flight` | `Integer` | `4096` | The commands the node may have in flight, all contexts together: beyond it a command is refused as `wow.command.busy` (429, with `Retry-After`) instead of queued. |
 
 ## `wow.health`

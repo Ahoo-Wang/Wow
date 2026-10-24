@@ -244,6 +244,8 @@ enum class Routing {
  *   fails its assembly.
  * - [appendQueue]: the partition append queue, on by default (decision D248).
  * - [laneCapacity]: the commands one aggregate may have waiting in the executor.
+ * - [maxBatch]: the most of one aggregate's queued commands the executor commits with one append (roadmap §6 item
+ *   10); 1 runs each alone.
  * - [maxInFlight]: the commands the node may have in flight in its executors, all contexts together (decision D228 ②,
  *   [me.ahoo.wow.runtime.InFlightLimit]); beyond it a command is refused as busy. Each partition append queue holds at
  *   most as many.
@@ -295,11 +297,13 @@ class ServiceNodeOptions @InternalWowApi constructor(
     val maxRegisteredWaits: Int = WaitOptions.DEFAULT_MAX_REGISTERED,
     val handoff: HandoffOptions = HandoffOptions(),
     val recentRequests: Int = DEFAULT_RECENT_REQUESTS,
+    val maxBatch: Int = DEFAULT_MAX_BATCH,
 ) {
     init {
         require(maxInFlight >= 1) { "A node takes at least one command in flight." }
         require(defaultWaitTimeout.isPositive()) { "The default wait timeout is positive." }
         require(laneCapacity >= 1) { "A lane takes at least one command." }
+        require(maxBatch >= 1) { "A batch takes at least one command." }
         require(stateCacheCapacity == null || stateCacheCapacity >= 0) { "The state cache capacity is never negative." }
         require(recentRequests >= 0) { "The recent requests kept per aggregate are never negative." }
     }
@@ -327,6 +331,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         maxRegisteredWaits: Int = this.maxRegisteredWaits,
         handoff: HandoffOptions = this.handoff,
         recentRequests: Int = this.recentRequests,
+        maxBatch: Int = this.maxBatch,
     ): ServiceNodeOptions = ServiceNodeOptions(
         cluster,
         routing,
@@ -348,6 +353,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         maxRegisteredWaits,
         handoff,
         recentRequests,
+        maxBatch,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -362,16 +368,19 @@ class ServiceNodeOptions @InternalWowApi constructor(
             "defaultWaitTimeout=$defaultWaitTimeout, stateViews=$stateViews, timers=$timers, " +
             "schedules=$schedules, kafkaRouted=$kafkaRouted, unknownWaitContexts=$unknownWaitContexts, " +
             "ledger=$ledger, snapshots=$snapshots, maxInFlight=$maxInFlight, maxRegisteredWaits=$maxRegisteredWaits, " +
-            "handoff=$handoff, recentRequests=$recentRequests)"
+            "handoff=$handoff, recentRequests=$recentRequests, maxBatch=$maxBatch)"
 
     private fun valueFields(): List<Any?> = listOf(
         cluster, routing, maxWaitTimeout, maxWaitHops, subscription, appendQueue, laneCapacity, stateCacheCapacity,
         defaultWaitTimeout, stateViews, timers, schedules, kafkaRouted, unknownWaitContexts, ledger, snapshots,
-        maxInFlight, maxRegisteredWaits, handoff, recentRequests,
+        maxInFlight, maxRegisteredWaits, handoff, recentRequests, maxBatch,
     )
 
     companion object {
         const val DEFAULT_LANE_CAPACITY: Int = 1_024
+
+        /** A batch's commands decide on the same state one after another: 32 take well under a millisecond. */
+        const val DEFAULT_MAX_BATCH: Int = 32
 
         /** About 3 KB per cached aggregate, 12 MB for a full default state cache (decision D261). */
         const val DEFAULT_RECENT_REQUESTS: Int = 256
