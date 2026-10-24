@@ -31,7 +31,6 @@ object Report {
     @Suppress("LongParameterList")
     fun result(
         label: String,
-        adapter: VersionAdapter,
         mix: Mix,
         rate: Double,
         warmUp: Int,
@@ -63,7 +62,6 @@ object Report {
         return mapOf(
             "schema" to "wow-e2e-bench/run/1",
             "label" to label,
-            "version" to adapter.name,
             "scenario" to mix.label,
             "scenarioDescription" to mix.description,
             "startedAt" to startedAt.toString(),
@@ -127,7 +125,7 @@ object Report {
         val resources = result["resources"] as Map<String, Any?>?
         val keys = load["keys"] as Map<String, Any?>
         return buildString {
-            appendLine("# ${result["label"]}: ${result["version"]} ${result["scenario"]}")
+            appendLine("# ${result["label"]}: ${result["scenario"]}")
             appendLine()
             appendLine(
                 "${result["scenarioDescription"]}; ${meta.entries.joinToString(", ") { "${it.key} ${it.value}" }}."

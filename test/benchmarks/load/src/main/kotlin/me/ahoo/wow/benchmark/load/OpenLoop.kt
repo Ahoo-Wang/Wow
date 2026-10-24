@@ -140,7 +140,7 @@ class OpenLoop(
         }
         onPhase("drain")
         if (outstanding.decrementAndGet() == 0L) done.countDown()
-        done.await(VersionAdapter.REQUEST_TIMEOUT.toSeconds() + DRAIN_MARGIN_SECONDS, TimeUnit.SECONDS)
+        done.await(TransferApi.REQUEST_TIMEOUT.toSeconds() + DRAIN_MARGIN_SECONDS, TimeUnit.SECONDS)
         measured.rerouted = nodes.rerouted.get()
         return measured
     }

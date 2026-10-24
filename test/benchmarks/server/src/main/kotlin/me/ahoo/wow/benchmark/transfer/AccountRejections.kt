@@ -16,7 +16,7 @@ package me.ahoo.wow.benchmark.transfer
 import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.decide.Decision
 
-/** Why the account rejects a command: the same codes on both versions. */
+/** Why the account rejects a command. */
 object AccountRejections {
     @ErrorCode(description = "An amount is positive, a balance not negative.")
     const val INVALID_AMOUNT = "transfer.account.invalid-amount"

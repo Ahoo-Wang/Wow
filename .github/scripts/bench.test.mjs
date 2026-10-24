@@ -37,6 +37,7 @@ import {
   runSuite,
   spread,
   SUITES,
+  suitesOf,
 } from './bench.mjs';
 
 const result = (throughput, p99, cores = 1) => ({
@@ -61,18 +62,13 @@ test('resolveInputs checks the inputs and expands all', () => {
     repeats: '2',
     fraction: '0.8',
   });
-  // `all` is every suite but the 9.x ones; `vs-9x` names those.
-  assert.deepEqual(
-    [...all.suites].sort(),
-    Object.keys(SUITES)
-      .filter(name => SUITES[name].group !== '9x')
-      .sort(),
-  );
+  // `all` is every suite.
+  assert.deepEqual([...all.suites].sort(), Object.keys(SUITES).sort());
   assert.equal(all.fraction, 0.8);
   assert.equal(all.p99LimitMs, 200);
   assert.deepEqual(
     resolveInputs({
-      suites: 'vs-9x e3-pg',
+      suites: 'head e3-pg',
       warmUp: 1,
       measure: 5,
       repeats: 1,
@@ -80,7 +76,7 @@ test('resolveInputs checks the inputs and expands all', () => {
       p99LimitMs: '500',
     }),
     {
-      suites: ['vs-9x-e1', 'vs-9x-e3', 'vs-9x-cliff-e3', 'e3-pg'],
+      suites: [...suitesOf('head'), 'e3-pg'],
       warmUp: 1,
       measure: 5,
       repeats: 1,
@@ -329,7 +325,7 @@ test('queueVerdict reads saturation and same-load p99', () => {
   assert.match(queueVerdict(suite(970, 6.8)).verdict, /on/);
 });
 
-// A stand-in for bench.sh: writes what the real one writes, a saturation of 100/s for 9x and 150/s for v10, and
+// A stand-in for bench.sh: writes what the real one writes, a saturation of 150/s, and
 // throughput = rate; the first v10 run is slower by 10%, so the drift check adds a round.
 function fakeBench(dir) {
   const path = join(dir, 'bench.sh');
@@ -345,10 +341,10 @@ fs.appendFileSync(${JSON.stringify(join(dir, 'calls.log'))}, [command, ...args, 
 if (process.env.SPRING_APPLICATION_JSON?.includes('bench.signals.enabled')) {
   fs.writeFileSync(out + '/node-1.log', 'x bench-signals {"t":1}\\nx WARN bench-signals {"t":2,"tailRead":{"gap":3}}\\n');
 }
-// The head is the V10 build without --install, the baseline the one with it.
-const head = opt('version') === 'v10' && !opt('install');
+// The head is the build without --install, the baseline the one with it.
+const head = !opt('install');
 if (command === 'saturate') {
-  fs.writeFileSync(out + '/saturation.json', JSON.stringify({ saturationThroughput: opt('version') === '9x' ? 100 : 150, saturationConcurrency: 16 }));
+  fs.writeFileSync(out + '/saturation.json', JSON.stringify({ saturationThroughput: 150, saturationConcurrency: 16 }));
 } else {
   console.log('[run] fake: measure');
   // A cluster run lingers a moment, so the hand-over helper sees the measured phase start.
@@ -432,11 +428,6 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
     out: join(dir, 'results', 'e3-mongo-diag'),
   });
   assert.equal(diag.runs.length, SUITES['e3-mongo-diag'].runs.length);
-  const vs9x = runSuite('vs-9x-e1', {
-    ...options,
-    out: join(dir, 'results', 'vs-9x-e1'),
-  });
-  assert.deepEqual(vs9x.rates, { '9x': 80, head: 90 });
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
   // Every V10 run turns the signals on, its own properties beside them; the baseline runs its own build.
   assert.match(
@@ -449,17 +440,13 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
   );
   assert.match(
     calls,
-    /saturate --version=v10 --backend=mongo --install=\/builds\/base\/benchmark-server --scenario=E1 --distribution=uniform --accounts=100000 --seed-concurrency=256 --prime --warm-up=3 --step=8/,
-  );
-  assert.match(
-    calls,
-    /saturate --version=9x --backend=mongo --scenario=E1 .*props=\n/,
+    /saturate --backend=mongo --install=\/builds\/base\/benchmark-server --scenario=E1 --distribution=uniform --accounts=100000 --seed-concurrency=256 --prime --warm-up=3 --step=8/,
   );
 
   const suites = readSuites(join(dir, 'results'));
   assert.deepEqual(
     suites.map(s => s.name),
-    ['e1-mongo-uniform', 'e3-mongo-diag', 'pg-append-queue', 'vs-9x-e1'],
+    ['e1-mongo-uniform', 'e3-mongo-diag', 'pg-append-queue'],
   );
   const report = renderReport(suites, {
     ...suites[0].refs,
@@ -467,7 +454,7 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
   });
   assert.match(
     report,
-    /Head: `v10` h1; V10 baseline: `base` b1; 9\.x: not run/,
+    /Head: `v10` h1; V10 baseline: `base` b1; harness/,
   );
   assert.match(report, /\*\*Skipped:\*\* e3-pg \(no V10 baseline\)/);
   assert.match(
@@ -478,7 +465,6 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
     report,
     /\| e1-mongo-uniform@100k \| head\/base \| equal rate 90\.0\/s \| 1\.000 \| 1\.000 \(1\.000–1\.000, n=2\)/,
   );
-  assert.match(report, /\| vs-9x-e1@100k \| head\/9x \| calibrated/);
   assert.match(report, /## E3 on MongoDB: diagnostics/);
   assert.match(report, /wow\.log\.max-poll-interval=5s/);
   assert.match(report, /## PostgreSQL append queue/);
@@ -498,29 +484,20 @@ test('runSuite pairs the arms, adds a round on drift, and the report combines th
 });
 
 test('planMatrix skips the suites whose commits are missing and lists the builds', () => {
-  const suites = ['e1-mongo-uniform', 'cliff-e3-pg', 'vs-9x-e1'];
+  const suites = ['e1-mongo-uniform', 'cliff-e3-pg'];
+  assert.deepEqual(planMatrix({ suites, headSha: 'h', baseSha: '' }), {
+    suites: ['cliff-e3-pg'],
+    jobs: ['cliff-e3-pg.100k'],
+    skipped: [
+      'e1-mongo-uniform (no V10 baseline: set base_ref; no v10.* release tag has the benchmark yet)',
+    ],
+    builds: [{ side: 'head', sha: 'h' }],
+  });
   assert.deepEqual(
-    planMatrix({ suites, headSha: 'h', baseSha: '', nineXSha: 'n' }),
-    {
-      suites: ['cliff-e3-pg', 'vs-9x-e1'],
-      jobs: ['cliff-e3-pg.100k', 'vs-9x-e1.100k'],
-      skipped: [
-        'e1-mongo-uniform (no V10 baseline: set base_ref; no v10.* release tag has the benchmark yet)',
-      ],
-      builds: [
-        { side: 'head', sha: 'h', scope: 'v10', kind: 'v10' },
-        { side: '9x', sha: 'n', scope: 'all', kind: '9x' },
-      ],
-    },
-  );
-  assert.deepEqual(
-    planMatrix({
-      suites,
-      headSha: 'h',
-      baseSha: 'b',
-      nineXSha: 'n',
-    }).builds.map(build => build.side),
-    ['head', 'base', '9x'],
+    planMatrix({ suites, headSha: 'h', baseSha: 'b' }).builds.map(
+      build => build.side,
+    ),
+    ['head', 'base'],
   );
 });
 
@@ -589,7 +566,7 @@ test('a cluster suite runs three nodes steady and with a hand-over', () => {
   const calls = readFileSync(join(dir, 'calls.log'), 'utf8');
   assert.match(
     calls,
-    /run --version=v10 --backend=postgres --scenario=E1 --distribution=uniform --accounts=100000 --seed-concurrency=256 --prime --nodes=3 --rate=150\.0 --warm-up=15 --measure=90/,
+    /run --backend=postgres --scenario=E1 --distribution=uniform --accounts=100000 --seed-concurrency=256 --prime --nodes=3 --rate=150\.0 --warm-up=15 --measure=90/,
   );
   // The hand-over helper ran beside bench.sh and logged what it did (here it finds no node to stop).
   assert.match(
@@ -693,7 +670,6 @@ test('runSettings: dispatch inputs, or the defaults with the run file over them 
       .repeats,
     '3',
   );
-  assert.equal(runSettings({ event: 'push' }).nine_x_ref, 'v10-9x-baseline');
   assert.equal(runSettings({ event: 'push' }).base_ref, '');
   assert.equal(
     runSettings({

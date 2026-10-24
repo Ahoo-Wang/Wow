@@ -36,23 +36,23 @@ data class Target(val base: URI, val account: Int, val other: Int)
  */
 enum class Scenario(val description: String, val transfers: Boolean = false) {
     /** E1 write: a deposit, answered once its events are stored. */
-    E1("deposit, answered once stored (9.x PROCESSED, V10 committed)") {
+    E1("deposit, answered once stored") {
         override fun run(client: Client, target: Target): CompletableFuture<String?> =
-            client.command(client.adapter.deposit(target.base, accountId(target.account), 1, Wait.STORED))
+            client.command(TransferApi.deposit(target.base, accountId(target.account), 1, Wait.STORED))
     },
 
     /** E2 read-your-write: a deposit answered once the snapshot holds it, then a read of the state that shows it. */
     E2("deposit answered at the snapshot, then a state read that shows it") {
         override fun run(client: Client, target: Target): CompletableFuture<String?> {
             val id = accountId(target.account)
-            return client.send(client.adapter.deposit(target.base, id, 1, Wait.SNAPSHOT)).thenCompose { answer ->
-                val error = client.adapter.commandError(answer.statusCode(), answer.body())
+            return client.send(TransferApi.deposit(target.base, id, 1, Wait.SNAPSHOT)).thenCompose { answer ->
+                val error = TransferApi.commandError(answer.statusCode(), answer.body())
                 if (error != null) return@thenCompose CompletableFuture.completedFuture(error)
-                val written = client.adapter.commandVersion(answer.body())
-                client.send(client.adapter.state(target.base, id)).thenApply { read ->
-                    val version = client.adapter.stateVersion(read.body())
+                val written = TransferApi.commandVersion(answer.body())
+                client.send(TransferApi.state(target.base, id)).thenApply { read ->
+                    val version = TransferApi.stateVersion(read.body())
                     when {
-                        read.statusCode() != VersionAdapter.OK -> "read-http-${read.statusCode()}"
+                        read.statusCode() != TransferApi.OK -> "read-http-${read.statusCode()}"
                         written == null || version == null -> "read-no-version"
                         version < written -> "read-stale"
                         else -> null
@@ -66,9 +66,9 @@ enum class Scenario(val description: String, val transfers: Boolean = false) {
     E3("transfer, answered once the saga's entry is stored on the target", transfers = true) {
         override fun run(client: Client, target: Target): CompletableFuture<String?> {
             val to = accountId(target.other)
-            return client.send(client.adapter.prepare(target.base, accountId(target.account), to, 1)).thenApply {
-                client.adapter.commandError(it.statusCode(), it.body())
-                    ?: if (client.adapter.commandAggregate(it.body()) == to) null else "chain-not-at-target"
+            return client.send(TransferApi.prepare(target.base, accountId(target.account), to, 1)).thenApply {
+                TransferApi.commandError(it.statusCode(), it.body())
+                    ?: if (TransferApi.commandAggregate(it.body()) == to) null else "chain-not-at-target"
             }
         }
     },
@@ -79,19 +79,19 @@ enum class Scenario(val description: String, val transfers: Boolean = false) {
      */
     E1_LARGE("annotation of five ~2 KB notes, five events, answered once stored") {
         override fun run(client: Client, target: Target): CompletableFuture<String?> =
-            client.command(client.adapter.annotate(target.base, accountId(target.account), LARGE_NOTES))
+            client.command(TransferApi.annotate(target.base, accountId(target.account), LARGE_NOTES))
     },
 
     /** E4 read by id: the account's state from the snapshots. */
     E4_STATE("state read by id from the snapshots") {
         override fun run(client: Client, target: Target): CompletableFuture<String?> =
-            client.read(client.adapter.state(target.base, accountId(target.account)))
+            client.read(TransferApi.state(target.base, accountId(target.account)))
     },
 
     /** E4 list query: ten accounts from the snapshots. */
     E4_LIST("list query of 10 snapshots") {
         override fun run(client: Client, target: Target): CompletableFuture<String?> =
-            client.read(client.adapter.list(target.base, LIST_LIMIT))
+            client.read(TransferApi.list(target.base, LIST_LIMIT))
     },
     ;
 
@@ -117,16 +117,16 @@ enum class Scenario(val description: String, val transfers: Boolean = false) {
     }
 }
 
-/** The HTTP client of a run with the version's [adapter]. */
-class Client(val http: HttpClient, val adapter: VersionAdapter) {
+/** The HTTP client of a run, speaking [TransferApi]. */
+class Client(val http: HttpClient) {
     fun send(request: HttpRequest): CompletableFuture<HttpResponse<String>> =
         http.sendAsync(request, HttpResponse.BodyHandlers.ofString())
 
     /** A command: null once it reached its wait point. */
     fun command(request: HttpRequest): CompletableFuture<String?> =
-        send(request).thenApply { adapter.commandError(it.statusCode(), it.body()) }
+        send(request).thenApply { TransferApi.commandError(it.statusCode(), it.body()) }
 
     /** A read: null once answered 200. */
     fun read(request: HttpRequest): CompletableFuture<String?> =
-        send(request).thenApply { if (it.statusCode() == VersionAdapter.OK) null else "read-http-${it.statusCode()}" }
+        send(request).thenApply { if (it.statusCode() == TransferApi.OK) null else "read-http-${it.statusCode()}" }
 }

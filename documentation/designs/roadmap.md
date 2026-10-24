@@ -306,12 +306,12 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | PS-1 | **已完成（#4585）。** 槽位间接层（D240 ①）：`Partitioner` 先算 4096 个槽位再取模 P，P 须为 2 的幂且整除 4096（启动校验）；分区元数据在格式 1 内预留父分区与纪元；TCK 证明现有分区结果不变 | 对现有日志、检查点、Kafka 分区零影响；非法 P 启动失败 |
 | PS-2 | **已完成**：每个分区空闲约 1.34～1.43 次往返/秒，默认 P 保持 64（D246 ①）。每个分区的空闲成本测量（D240 ②） | 测量报告入库与默认 P 的结论 |
 | B.0 | **已完成（#4541）。** 基准领域与负载工具（D224）：两边各实现一份语义相同的「账户 + 转账 Saga」基准领域（9.x 与 V10 各一个基准专用模块，逐行对齐业务逻辑）；Kotlin 开环负载生成器（JDK HttpClient、自写的对数线性直方图，独立 JVM，不加新依赖）；环境编排与资源采集 | 两边的基准服务能起、负载工具能跑通 E1 |
-| B.1 | **已完成（2026-10-22，[报告](../../test/benchmarks/results/reports/v10-vs-9x.md)，#4815）。** E1 写入：客户端等到命令已处理；单节点；9.x MongoDB 加 Kafka，V10 MongoDB 与 PostgreSQL（V10 的 PostgreSQL 单列，不与 9.x 比） | 吞吐、p50/p99/p999、最差一秒 p99，与每节点 CPU、堆、GC、存储读写同时采集 |
-| B.2 | **已完成（2026-10-22，[报告](../../test/benchmarks/results/reports/v10-vs-9x.md)，#4815）。** E2 写后读、E3 跨聚合链路：等到快照或投影可见再读到新状态；等到转账 Saga 两边入账 | 同上 |
-| B.3 | **已完成（2026-10-22，[报告](../../test/benchmarks/results/reports/v10-vs-9x.md)，#4815）。** E4 读：按 ID 读状态、列表查询 | 同上 |
-| B.4 | **已完成（2026-10-23，[报告](../../test/benchmarks/results/reports/v10-vs-9x.md)）。** 首次 L4 的 E5 两个任务因 §6 性能第 1 项（节点之间的等待信号超时）失败（Actions 39722970362）；修复后重跑（Actions 39893318539）：没有丢弃的信号、没有等待超时，两次灌数与各稳态轮零失败；交接轮最差一秒 p99 1.6～7.4 s（租约 TTL 10 s），失败的请求是负载生成器继续发往已停节点的（§6 性能第 6 项）。 E5 集群：1 节点对 3 节点跑 E1 与 E3，负载分布为均匀、Zipf（s = 1.1）、热点 | 同上 |
+| B.1 | **已完成（2026-10-22，[报告](https://github.com/Ahoo-Wang/Wow/blob/26f1fa05030db5bcaeae70c34b6531dd1938c821/test/benchmarks/results/reports/v10-vs-9x.md)，#4815）。** E1 写入：客户端等到命令已处理；单节点；9.x MongoDB 加 Kafka，V10 MongoDB 与 PostgreSQL（V10 的 PostgreSQL 单列，不与 9.x 比） | 吞吐、p50/p99/p999、最差一秒 p99，与每节点 CPU、堆、GC、存储读写同时采集 |
+| B.2 | **已完成（2026-10-22，[报告](https://github.com/Ahoo-Wang/Wow/blob/26f1fa05030db5bcaeae70c34b6531dd1938c821/test/benchmarks/results/reports/v10-vs-9x.md)，#4815）。** E2 写后读、E3 跨聚合链路：等到快照或投影可见再读到新状态；等到转账 Saga 两边入账 | 同上 |
+| B.3 | **已完成（2026-10-22，[报告](https://github.com/Ahoo-Wang/Wow/blob/26f1fa05030db5bcaeae70c34b6531dd1938c821/test/benchmarks/results/reports/v10-vs-9x.md)，#4815）。** E4 读：按 ID 读状态、列表查询 | 同上 |
+| B.4 | **已完成（2026-10-23，[报告](https://github.com/Ahoo-Wang/Wow/blob/26f1fa05030db5bcaeae70c34b6531dd1938c821/test/benchmarks/results/reports/v10-vs-9x.md)）。** 首次 L4 的 E5 两个任务因 §6 性能第 1 项（节点之间的等待信号超时）失败（Actions 39722970362）；修复后重跑（Actions 39893318539）：没有丢弃的信号、没有等待超时，两次灌数与各稳态轮零失败；交接轮最差一秒 p99 1.6～7.4 s（租约 TTL 10 s），失败的请求是负载生成器继续发往已停节点的（§6 性能第 6 项）。 E5 集群：1 节点对 3 节点跑 E1 与 E3，负载分布为均匀、Zipf（s = 1.1）、热点 | 同上 |
 | B.D | **已完成（#4546）。** 诊断（不作结论）：端到端出现差距时，用同构对照（去掉总线、同一存储）与 JMH 内核微基准（H3 复测）定位差距来自哪一层 | 报告中的归因 |
-| B.R | **已完成（2026-10-22）**：[报告](../../test/benchmarks/results/reports/v10-vs-9x.md)，数据来自 Actions 运行 39722957720（L3）与 39722970362（L4）。报告：`test/benchmarks/results/reports/v10-vs-9x.md` 与原始数据（JSON、直方图）入库；方法、环境、可复现命令；结论只来自端到端，V10 不占优的项如实写明并分析原因；本机同机测得的结果标明为方向性 | 报告入库 |
+| B.R | **已完成（2026-10-22）**：[报告](https://github.com/Ahoo-Wang/Wow/blob/26f1fa05030db5bcaeae70c34b6531dd1938c821/test/benchmarks/results/reports/v10-vs-9x.md)，数据来自 Actions 运行 39722957720（L3）与 39722970362（L4）。报告：`test/benchmarks/results/reports/v10-vs-9x.md` 与原始数据（JSON、直方图）入库；方法、环境、可复现命令；结论只来自端到端，V10 不占优的项如实写明并分析原因；本机同机测得的结果标明为方向性 | 报告入库 |
 
 ### M8 迁移层
 
@@ -332,7 +332,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | WP | 内容 | 出口 |
 |---|---|---|
 | 9.1 | **已完成（2026-10-22：W0、W1 A～K、补缺 L～O，中英文；DI-6 #4699 上线）。** 文档全面重写（用户 2026-10-13：开发期间不维护文档）：以代码与设计文档为准重写文档站 V10 版本（指南、迁移指南、契约页）；设计文档照常维护 | 中英文结构对齐；与代码一致 |
-| 9.2 | **已完成（2026-10-22）：[`v10-vs-9x.md`](../../test/benchmarks/results/reports/v10-vs-9x.md) 入库，取代初步的计数报告；9.x 的 JMH 报告在 `results/reports/9.x/`。对比 9.x（MongoDB）上限约 2 倍、每次操作的 CPU 与分配更低，同速率下 E1 的 p50 更高；三节点下发现等待信号超时的缺陷（§6 性能第 1 项）。** 基准报告：与 9.x 的同场景对比 | `test/benchmarks/results/` 入库（D265 ③） |
+| 9.2 | **已完成（2026-10-22）：[`v10-vs-9x.md`](https://github.com/Ahoo-Wang/Wow/blob/26f1fa05030db5bcaeae70c34b6531dd1938c821/test/benchmarks/results/reports/v10-vs-9x.md) 入库，取代初步的计数报告；9.x 的 JMH 报告在 `results/reports/9.x/`。对比 9.x（MongoDB）上限约 2 倍、每次操作的 CPU 与分配更低，同速率下 E1 的 p50 更高；三节点下发现等待信号超时的缺陷（§6 性能第 1 项）。** 基准报告：与 9.x 的同场景对比 | `test/benchmarks/results/` 入库（D265 ③） |
 | R.1 | **已完成（#4500）。** 发布配置（D205）：V10 模块开启发布（artifactId 按 D87）、BOM、npm 预发布 dist-tag（`alpha`/`beta`，不动 `latest`）、Docker 预发布镜像不动 `latest`；发布与准入的工作流随之调整 | 发布演练（dry-run）通过；第一个预发布之前完成 |
 | 9.3 | **`10.0.0-alpha.3`（2026-10-15）、`10.0.0-alpha.4`（2026-10-22，用户选择 alpha.4 而非 rc）已发布：Maven Central、npm `alpha`、镜像与 GitHub 预发布。** 试用反馈收敛；第一个预发布 `10.0.0-alpha.1` 提前到 M7 完成后、R.1 与最小快速开始之后（D217，不做兼容性承诺）；之后的 alpha、beta 自行发布（D202） | 无阻塞问题 |
 | 9.3a | 平台目录搬迁到 `platform/`：取消 | 由 D146 取消：平台在 M7 新建于 `platform/<名字>/`，9.x 目录随 M9 删除 |
@@ -383,7 +383,7 @@ rc 之后不丢的清单：每一项写明来源，排期时再拆成路线图�
 
 ### 性能优化（按收益排序）
 
-来自全面基准（Actions 运行 39722957720 的 L3 与 39722970362 的 L4，4 核 runner，10 万账户；2026-10-22），数据见[基准报告](../../test/benchmarks/results/reports/v10-vs-9x.md)的「Room for optimization」一节。先登记，不派工；排期时由用户决定。
+来自全面基准（Actions 运行 39722957720 的 L3 与 39722970362 的 L4，4 核 runner，10 万账户；2026-10-22），数据见[基准报告](https://github.com/Ahoo-Wang/Wow/blob/26f1fa05030db5bcaeae70c34b6531dd1938c821/test/benchmarks/results/reports/v10-vs-9x.md)的「Room for optimization」一节。先登记，不派工；排期时由用户决定。
 
 | 序 | 事项 | 证据 | 来源 |
 | --- | --- | --- | --- |

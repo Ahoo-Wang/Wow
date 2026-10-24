@@ -4,7 +4,7 @@ Every report names the commit, command, environment and raw results that reprodu
 
 ## Wow 10
 
-[v10-vs-9x](v10-vs-9x.md) is the current end-to-end report (roadmap B.R, 9.2), written from the L3 and L4 runs of the benchmark workflow (`bench.yml`) on 2026-10-22. It compares Wow 10 with 9.x, checks the current code against `10.0.0-alpha.4`, and gives the sustainable rates, the cliff, a three-node cluster with a hand-over, a cold cache over a million accounts, and the store round trips and allocation per operation.
+Wow 10 is measured against itself: each change by alternating rounds against the code before it ([v10-local-baseline](v10-local-baseline.md) and the reports of the changes below), and the head against a V10 baseline by each run of the benchmark workflow (`bench.yml`), whose report is the run's own. The comparison with 9.x ended once it had settled Wow 10's advantage: E1 saturated at 3.66 times and E3 at 2.78 times 9.x's on one runner, at 14–18% less CPU per operation (Actions run 40041875440, `main` at `d73709d85`). Its last report, [v10-vs-9x](https://github.com/Ahoo-Wang/Wow/blob/26f1fa05030db5bcaeae70c34b6531dd1938c821/test/benchmarks/results/reports/v10-vs-9x.md) (roadmap B.R, 9.2), stays at that commit.
 
 Earlier Wow 10 evidence, each valid for the commit it names:
 
@@ -16,13 +16,12 @@ Earlier Wow 10 evidence, each valid for the commit it names:
 | [v10-h4-ksp-coverage](v10-h4-ksp-coverage.md) | Spike H4: KSP binds the annotation model | Spike, decided |
 | [v10-h6-leases](v10-h6-leases.md) | Spike H6: storage leases for membership and rebalancing | Spike, decided |
 | [v10-mongo-write-amplification](v10-mongo-write-amplification.md) | B.D: store operations per command on MongoDB | Diagnostic; the paths changed since (D248, D261) |
-| [v10-counts-e1-e3](v10-counts-e1-e3.md) | Store round trips, operations and allocations per operation, 9.x against Wow 10 | Superseded by [v10-vs-9x](v10-vs-9x.md#store-round-trips-and-allocation-per-operation-l1); measured before R3-A, R3-B, P.16, D248 and D261 |
+| [v10-counts-e1-e3](v10-counts-e1-e3.md) | Store round trips, operations and allocations per operation, 9.x against Wow 10 | Superseded by [v10-vs-9x](https://github.com/Ahoo-Wang/Wow/blob/26f1fa05030db5bcaeae70c34b6531dd1938c821/test/benchmarks/results/reports/v10-vs-9x.md#store-round-trips-and-allocation-per-operation-l1); measured before R3-A, R3-B, P.16, D248 and D261 |
 | [v10-ps2-partition-idle](v10-ps2-partition-idle.md) | PS-2: what an idle partition costs | Valid for its commit |
 | [v10-d271-mongo-sequences-spike](v10-d271-mongo-sequences-spike.md) | Spike D271: appends on MongoDB without a transaction, owner-assigned sequences (happy path) | Spike, decided (D271) |
 | [v10-d271-mongo-sequences](v10-d271-mongo-sequences.md) | D271 against `main` on MongoDB: round trips, allocation and closed-loop saturation, with the append queue off and on | Valid for its commits |
 | [v10-d248-pg-append-queue](v10-d248-pg-append-queue.md) | D248 ④: the append queue on PostgreSQL, off against on, closed-loop saturation | Decided (D248 ④) |
 | [v10-local-baseline](v10-local-baseline.md) | The local baseline: A/A noise, cost per operation by resource, the node's CPU by thread and allocation by part, the stores' time by statement, ranked candidates | Baseline for its commit |
-| [v10-vs-9x-smoke](v10-vs-9x-smoke.md) | The harness's first end-to-end smoke run | Not a benchmark |
 
 ## 9.x
 

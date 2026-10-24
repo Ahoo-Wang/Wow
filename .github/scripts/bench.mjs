@@ -34,21 +34,15 @@ import { pathToFileURL } from 'node:url';
 // throughput or p99, one more round runs. bench.sh starts every run on fresh
 // containers and servers. `report` combines the suites' results.
 
-// The arms: a build (`install`: `head`, the pushed or dispatched V10 ref; `base`, the V10 baseline ref; `9x`, the
-// 9.x server from `nine_x_ref`) on a backend, and the server properties it runs with (handed to the servers as
-// SPRING_APPLICATION_JSON, which bench.sh's servers inherit). Every V10 run also turns on the benchmark server's
-// BenchSignals (SIGNALS), which count the node's overload and fallback signals for the anomaly checks.
-const NINE_X = { id: '9x', version: '9x', backend: 'mongo', install: '9x' };
-const v10 = (install, backend) => ({
-  id: install,
-  version: 'v10',
-  backend,
-  install,
-});
-const HEAD_MONGO = v10('head', 'mongo');
-const BASE_MONGO = v10('base', 'mongo');
-const HEAD_PG = v10('head', 'postgres');
-const BASE_PG = v10('base', 'postgres');
+// The arms: a build (`install`: `head`, the pushed or dispatched V10 ref; `base`, the V10 baseline ref) on a backend,
+// and the server properties it runs with (handed to the servers as SPRING_APPLICATION_JSON, which bench.sh's servers
+// inherit). Every run also turns on the benchmark server's BenchSignals (SIGNALS), which count the node's overload and
+// fallback signals for the anomaly checks.
+const arm = (install, backend) => ({ id: install, backend, install });
+const HEAD_MONGO = arm('head', 'mongo');
+const BASE_MONGO = arm('base', 'mongo');
+const HEAD_PG = arm('head', 'postgres');
+const BASE_PG = arm('base', 'postgres');
 const withProps = (arm, id, props) => ({ ...arm, id, props });
 export const SIGNALS = { 'bench.signals.enabled': true };
 
@@ -78,10 +72,10 @@ export const STATE_CACHE = 4096;
 const DIAG_RATE = 20;
 
 // Suite groups: `ab` compares the V10 baseline with the head (they need a baseline ref, and are skipped without one),
-// `head` measures the head alone, `9x` compares the head with 9.x (opt-in as `vs-9x`; removed at GA).
+// `head` measures the head alone.
 //
 // kind `paired`: saturation of each arm, open-loop calibration, then rounds of one run per arm; the ratio is
-// arms[1] / arms[0] (head/base, head/9x). `sharedRate`: both arms run at the first arm's calibrated rate.
+// arms[1] / arms[0] (head/base). `sharedRate`: both arms run at the first arm's calibrated rate.
 // kind `fixed`: the listed runs once each, at fixed rates. kind `steps`: the cliff steps (CLIFF). kind `capacity`:
 // the sustainable rate of each scenario by bisection (CAPACITY). kind `cluster`: three nodes, steady and with a node
 // stopped and restarted mid-measurement (CLUSTER).
@@ -303,29 +297,6 @@ export const SUITES = {
     HEAD_MONGO,
     'E3 on MongoDB in fixed open-loop steps, as cliff-e3-pg.',
   ),
-  'vs-9x-e1': {
-    group: '9x',
-    kind: 'paired',
-    scenario: 'E1',
-    distribution: 'uniform',
-    arms: [NINE_X, HEAD_MONGO],
-    answers: 'E1 write on MongoDB: the head against 9.x (D224; removed at GA).',
-  },
-  'vs-9x-e3': {
-    group: '9x',
-    kind: 'paired',
-    scenario: 'E3',
-    distribution: 'uniform',
-    arms: [NINE_X, HEAD_MONGO],
-    answers: 'E3 saga chain on MongoDB: the head against 9.x.',
-  },
-  'vs-9x-cliff-e3': {
-    ...cliff(
-      NINE_X,
-      'E3 on 9.x in the cliff steps, the reference for cliff-e3-mongo (9.x has no signals).',
-    ),
-    group: '9x',
-  },
 };
 
 /** The suites of a group. */
@@ -806,7 +777,6 @@ export const DEFAULTS = {
   fraction: '0.8',
   p99_limit_ms: '200',
   base_ref: '',
-  nine_x_ref: 'v10-9x-baseline',
   // Server properties (a JSON object) for the last arm of every paired suite: the head, or in an A/A run its
   // second arm, so `"aa": true` with properties puts the head's defaults against the changed head, paired.
   properties: '',
@@ -838,8 +808,8 @@ export function runSettings({ event, inputs = {}, config }) {
 }
 
 /**
- * The settings, checked. `suites` is `all` (every suite but the 9.x ones), names separated by commas or spaces, or
- * the group names `ab`, `head` and `vs-9x` among them.
+ * The settings, checked. `suites` is `all` (every suite), names separated by commas or spaces, or the group names
+ * `ab` and `head` among them.
  */
 export function resolveInputs({
   tier = DEFAULTS.tier,
@@ -859,7 +829,6 @@ export function resolveInputs({
     ab: ['ab'],
     head: ['head'],
     component: ['component'],
-    'vs-9x': ['9x'],
   };
   if (!suites?.trim() && !TIERS[tier]) {
     throw new Error(
@@ -948,8 +917,8 @@ export function parseJob(id) {
 }
 
 /**
- * The jobs of a run: the suites that can run (those of group `ab` need a baseline commit, the `9x` ones a 9.x
- * commit), the ones skipped and why, and the builds they need, one per side.
+ * The jobs of a run: the suites that can run (those of group `ab` need a baseline commit), the ones skipped and why,
+ * and the builds they need, one per side.
  */
 export function planMatrix({
   suites,
@@ -957,7 +926,6 @@ export function planMatrix({
   aa = false,
   headSha,
   baseSha,
-  nineXSha,
 }) {
   const skipped = [];
   const runnable = suites.filter(name => {
@@ -969,21 +937,14 @@ export function planMatrix({
       );
       return false;
     }
-    if (group === '9x' && !nineXSha) {
-      skipped.push(`${name} (no 9.x commit)`);
-      return false;
-    }
     return true;
   });
   const groups = new Set(runnable.map(name => SUITES[name].group));
   const builds = [
-    { side: 'head', sha: headSha, scope: 'v10', kind: 'v10' },
+    { side: 'head', sha: headSha },
     // The baseline build serves the baseline suites, and the component suites when a baseline is given.
     ...((groups.has('ab') && !aa) || (groups.has('component') && baseSha && !aa)
-      ? [{ side: 'base', sha: baseSha, scope: 'v10', kind: 'v10' }]
-      : []),
-    ...(groups.has('9x')
-      ? [{ side: '9x', sha: nineXSha, scope: 'all', kind: '9x' }]
+      ? [{ side: 'base', sha: baseSha }]
       : []),
   ];
   const jobs = runnable.flatMap(name =>
@@ -1823,11 +1784,10 @@ export function runSuite(name, options) {
     );
     writeFileSync(join(out, 'summary.md'), renderSuite(suite));
   };
-  // The options every bench.sh call of an arm takes: its version, backend and build (`--install`, when the build is
+  // The options every bench.sh call of an arm takes: its backend and build (`--install`, when the build is
   // not the one in the harness's own tree), the scenario and the keys.
   // A mixed suite names its scenarios in --mix (the --scenario only labels the run's directory).
   const common = (arm, scenario = definition.scenario) => [
-    `--version=${arm.version}`,
     `--backend=${arm.backend}`,
     ...(installs[arm.install] ? [`--install=${installs[arm.install]}`] : []),
     `--scenario=${scenario}`,
@@ -1841,8 +1801,7 @@ export function runSuite(name, options) {
     ...(cpus.load ? [`--load-cpus=${cpus.load}`] : []),
     ...(cpus.server ? [`--server-cpus=${cpus.server}`] : []),
   ];
-  const propsOf = arm =>
-    arm.version === 'v10' ? { ...SIGNALS, ...arm.props } : arm.props;
+  const propsOf = arm => ({ ...SIGNALS, ...arm.props });
   const measureRun = (
     runName,
     arm,
@@ -2234,11 +2193,11 @@ export function renderReport(suites, meta = {}) {
     '# V10 end-to-end benchmark (D224) on GitHub Actions',
     '',
     `Head: \`${meta.headRef ?? '?'}\` ${meta.headSha ?? ''}; V10 baseline: ${meta.baseSha ? `\`${meta.baseRef}\` ${meta.baseSha}` : 'none'}; ` +
-      `9.x: ${meta.nineXSha ? `\`${meta.nineXRef}\` ${meta.nineXSha}` : 'not run'}; harness and load generator from ${meta.harness ?? '?'}.`,
+      `harness and load generator from ${meta.harness ?? '?'}.`,
     '',
     `Tier: ${meta.tier ?? '?'}; coverage: ${suites.map(labelOf).join(', ') || 'none'}.`,
     '',
-    "Each suite ran on one runner of its own, so only its ratios compare across suites; absolute numbers are that runner's. Ratios are b/a per pair (head/base, head/9x): median (min–max, n pairs). Lower is better except throughput.",
+    "Each suite ran on one runner of its own, so only its ratios compare across suites; absolute numbers are that runner's. Ratios are b/a per pair (head/base): median (min–max, n pairs). Lower is better except throughput.",
     '',
   ];
   if (meta.skipped?.length > 0) {
@@ -2445,7 +2404,7 @@ export function renderReport(suites, meta = {}) {
       '',
       SUITES['e3-mongo-diag'].answers,
       '',
-      '| Run | Version | Properties | Rate | Throughput | Failed | p50 | p95 | p99 | p999 | Worst-second p99 | MongoDB CPU | Kafka CPU | Server CPU |',
+      '| Run | Arm | Properties | Rate | Throughput | Failed | p50 | p95 | p99 | p999 | Worst-second p99 | MongoDB CPU | Kafka CPU | Server CPU |',
       '| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |',
     );
     for (const run of diag.runs) {
@@ -2453,9 +2412,9 @@ export function renderReport(suites, meta = {}) {
       const m = run.metrics;
       lines.push(
         run.status === 'ok'
-          ? `| ${run.name} | ${arm.version} | ${propsText(arm.props)} | ${num(run.rate)}/s | ${num(m.throughput)}/s | ${m.failed} | ${ms(m.p50)} | ${ms(m.p95)} | ` +
+          ? `| ${run.name} | ${arm.id} | ${propsText(arm.props)} | ${num(run.rate)}/s | ${num(m.throughput)}/s | ${m.failed} | ${ms(m.p50)} | ${ms(m.p95)} | ` +
               `${ms(m.p99)} | ${ms(m.p999)} | ${ms(m.worstSecondP99)} | ${num(m.containers.mongo, 0)}% | ${num(m.containers.kafka, 0)}% | ${num(m.serverCores, 2)} cores |`
-          : `| ${run.name} | ${arm.version} | ${propsText(arm.props)} | ${num(run.rate)}/s | **${run.status}** | | | | | | | | | |`,
+          : `| ${run.name} | ${arm.id} | ${propsText(arm.props)} | ${num(run.rate)}/s | **${run.status}** | | | | | | | | | |`,
       );
     }
   }
@@ -2529,7 +2488,6 @@ if (
         fraction: env.FRACTION,
         p99_limit_ms: env.P99_LIMIT_MS,
         base_ref: env.BASE_REF,
-        nine_x_ref: env.NINE_X_REF,
         properties: env.PROPERTIES,
       },
     });
@@ -2568,7 +2526,6 @@ if (
         // The component suites take a baseline when there is one, and run the head alone otherwise.
         'needs-base':
           (groups.has('ab') || groups.has('component')) && !inputs.aa,
-        'nine-x-ref': groups.has('9x') ? settings.nine_x_ref : '',
       });
     } else if (command === 'matrix') {
       const plan = planMatrix({
@@ -2577,7 +2534,6 @@ if (
         aa: env.AA === 'true',
         headSha: env.HEAD_SHA,
         baseSha: env.BASE_SHA,
-        nineXSha: env.NINE_X_SHA,
       });
       for (const skipped of plan.skipped)
         console.log(`::warning::Skipped ${skipped}`);
@@ -2612,7 +2568,6 @@ if (
           [
             ['head', env.INSTALL_HEAD],
             ['base', env.INSTALL_BASE],
-            ['9x', env.INSTALL_9X],
           ].filter(([, dir]) => dir),
         ),
         refs: {
@@ -2620,8 +2575,6 @@ if (
           headSha: env.HEAD_SHA,
           baseRef: env.BASE_REF,
           baseSha: env.BASE_SHA,
-          nineXRef: env.NINE_X_REF,
-          nineXSha: env.NINE_X_SHA,
           harness: env.HARNESS,
           tier: env.TIER,
         },

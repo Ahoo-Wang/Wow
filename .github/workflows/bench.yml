@@ -16,15 +16,13 @@
 # each scenario), overload behaviour (the cliff steps), a three-node cluster with a hand-over, and an anomaly check of
 # every run (partition pauses, store fallbacks of the tails, error spikes, dips, long tails) so a run surfaces defects.
 # The head is the pushed or dispatched ref; the baseline is `base_ref`, else the newest v10.* release tag that has the
-# benchmark (without either, the baseline suites are skipped); the optional `vs-9x` suites build 9.x from
-# `nine_x_ref` (v10-9x-baseline, the last commit of v10 with the 9.x code, D262; removed at GA). The harness and the
-# load generator come from the head (from the 9.x ref only when a vs-9x suite needs them and the head's cannot drive
-# 9.x). Each suite runs in a job of its own; steps: .github/scripts/bench.mjs. The report job combines them
-# into report.md and the run summary.
+# benchmark (without either, the baseline suites are skipped). The harness and the load generator come from the head.
+# Each suite runs in a job of its own; steps: .github/scripts/bench.mjs. The report job combines them into report.md
+# and the run summary.
 #
 # A run starts when a branch `bench-run/**` is pushed (`git push origin main:bench-run/<name>`), with the
 # defaults (tier L2), over which `test/benchmarks/bench-run.json` at the pushed commit may set `tier`, `suites`,
-# `dataset`, `aa`, `profile`, `warm_up`, `measure`, `repeats`, `fraction`, `p99_limit_ms`, `properties`, `base_ref` and `nine_x_ref`. Delete the branch afterwards. It can also be
+# `dataset`, `aa`, `profile`, `warm_up`, `measure`, `repeats`, `fraction`, `p99_limit_ms`, `properties` and `base_ref`. Delete the branch afterwards. It can also be
 # dispatched by hand once the file is on the default branch (GitHub dispatches only workflows that are there). Never on
 # a pull request or a schedule, and no merge signal.
 name: Bench
@@ -45,7 +43,7 @@ on:
         options: [L1, L2, L3, L4]
         default: L2
       suites:
-        description: 'Suites or groups (all, ab, head, vs-9x) separated by commas, instead of the tier'
+        description: 'Suites or groups (all, ab, head) separated by commas, instead of the tier'
         type: string
         default: ''
       dataset:
@@ -84,10 +82,6 @@ on:
         description: 'p99 limit of the sustainable-rate suites, in milliseconds'
         type: string
         default: '200'
-      nine_x_ref:
-        description: 'Ref the 9.x server of the vs-9x suites is built from'
-        type: string
-        default: 'v10-9x-baseline'
   push:
     branches: ['bench-run/**']
 
@@ -126,8 +120,6 @@ jobs:
       head-sha: ${{ steps.refs.outputs.head-sha }}
       base-ref: ${{ steps.refs.outputs.base-ref }}
       base-sha: ${{ steps.refs.outputs.base-sha }}
-      nine-x-ref: ${{ steps.settings.outputs.nine-x-ref }}
-      nine-x-sha: ${{ steps.refs.outputs.nine-x-sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -156,7 +148,6 @@ jobs:
           P99_LIMIT_MS: ${{ inputs.p99_limit_ms }}
           PROPERTIES: ${{ inputs.properties }}
           BASE_REF: ${{ inputs.base_ref }}
-          NINE_X_REF: ${{ inputs.nine_x_ref }}
         run: node .github/scripts/bench.mjs plan
       # Every ref is pinned to its commit here, so every job builds and measures the same code. Without `base_ref`,
       # the baseline is the newest v10.* release tag that has the benchmark's V10 server.
@@ -168,7 +159,6 @@ jobs:
           HEAD_REF: ${{ inputs.head_ref || 'main' }}
           BASE_REF: ${{ steps.settings.outputs.base-ref }}
           NEEDS_BASE: ${{ steps.settings.outputs.needs-base }}
-          NINE_X_REF: ${{ steps.settings.outputs.nine-x-ref }}
         run: |
           sha() {
             gh api "repos/$GITHUB_REPOSITORY/commits/$(jq -rn --arg ref "$1" '$ref | @uri')" --jq .sha
@@ -195,14 +185,11 @@ jobs:
           fi
           base_sha=""
           if [ -n "$base_ref" ] && [ "$NEEDS_BASE" = true ]; then base_sha=$(sha "$base_ref"); fi
-          nine_x_sha=""
-          if [ -n "$NINE_X_REF" ]; then nine_x_sha=$(sha "$NINE_X_REF"); fi
           {
             echo "head-ref=$head_ref"
             echo "head-sha=$head_sha"
             echo "base-ref=$base_ref"
             echo "base-sha=$base_sha"
-            echo "nine-x-sha=$nine_x_sha"
           } | tee -a "$GITHUB_OUTPUT"
       - name: Plan the jobs
         id: matrix
@@ -212,11 +199,10 @@ jobs:
           AA: ${{ steps.settings.outputs.aa }}
           HEAD_SHA: ${{ steps.refs.outputs.head-sha }}
           BASE_SHA: ${{ steps.refs.outputs.base-sha }}
-          NINE_X_SHA: ${{ steps.refs.outputs.nine-x-sha }}
         run: node .github/scripts/bench.mjs matrix
 
-  # The servers' and the load generator's distributions (installDist), one job per build the suites need (head, base,
-  # 9x), packed as tarballs so the launchers keep their mode.
+  # The servers' and the load generator's distributions (installDist), one job per build the suites need (head, base),
+  # packed as tarballs so the launchers keep their mode.
   build:
     name: Build ${{ matrix.side }}
     needs: plan
@@ -241,14 +227,10 @@ jobs:
       - name: Build
         env:
           SIDE: ${{ matrix.side }}
-          SCOPE: ${{ matrix.scope }}
-          KIND: ${{ matrix.kind }}
         run: |
           # The layout of the commit: test/benchmarks/ (:benchmark-server, :benchmark-load), or a baseline from before the
-          # move, or the 9.x tree (wow-benchmarks/e2e/, :e2e-bench-*).
-          if [ "$KIND" = 9x ]; then
-            server=wow-benchmarks/e2e/bench-9x; project=:e2e-bench-9x; load=wow-benchmarks/e2e/load; loader=:e2e-bench-load
-          elif [ -d test/benchmarks/server ]; then
+          # move (wow-benchmarks/e2e/, :e2e-bench-*).
+          if [ -d test/benchmarks/server ]; then
             server=test/benchmarks/server; project=:benchmark-server; load=test/benchmarks/load; loader=:benchmark-load
           else
             server=wow-benchmarks/e2e/bench-v10; project=:e2e-bench-v10; load=wow-benchmarks/e2e/load; loader=:e2e-bench-load
@@ -259,7 +241,8 @@ jobs:
           fi
           tasks=("$project:installDist")
           if [ -d "$load" ]; then tasks+=("$loader:installDist"); fi
-          ./gradlew -Pwow.scope="$SCOPE" "${tasks[@]}" --stacktrace
+          # A baseline from before the scope was removed builds its V10 modules with it; later commits ignore it.
+          ./gradlew -Pwow.scope=v10 "${tasks[@]}" --stacktrace
           # Each tarball holds the installed distribution's directory alone, whatever the layout.
           mkdir -p "$RUNNER_TEMP/dist"
           tar -C "$server/build/install" -czf "$RUNNER_TEMP/dist/server.tgz" .
@@ -287,8 +270,6 @@ jobs:
       HEAD_SHA: ${{ needs.plan.outputs.head-sha }}
       BASE_REF: ${{ needs.plan.outputs.base-ref }}
       BASE_SHA: ${{ needs.plan.outputs.base-sha }}
-      NINE_X_REF: ${{ needs.plan.outputs.nine-x-ref }}
-      NINE_X_SHA: ${{ needs.plan.outputs.nine-x-sha }}
       TIER: ${{ needs.plan.outputs.tier }}
       AA: ${{ needs.plan.outputs.aa }}
       PROFILE: ${{ needs.plan.outputs.profile }}
@@ -322,15 +303,11 @@ jobs:
           mkdir -p repo/test/benchmarks/server/build/install repo/test/benchmarks/load/build/install
           tar -xzf "$dist/bench-dist-head/server.tgz" -C repo/test/benchmarks/server/build/install
           tar -xzf "$dist/bench-dist-head/load.tgz" -C repo/test/benchmarks/load/build/install
-          for side in base 9x; do
-            if [ -f "$dist/bench-dist-$side/server.tgz" ]; then
-              mkdir -p "$RUNNER_TEMP/install-$side"
-              tar -xzf "$dist/bench-dist-$side/server.tgz" -C "$RUNNER_TEMP/install-$side"
-              name=INSTALL_BASE
-              if [ "$side" = 9x ]; then name=INSTALL_9X; fi
-              echo "$name=$(ls -d "$RUNNER_TEMP/install-$side"/*/)" >> "$GITHUB_ENV"
-            fi
-          done
+          if [ -f "$dist/bench-dist-base/server.tgz" ]; then
+            mkdir -p "$RUNNER_TEMP/install-base"
+            tar -xzf "$dist/bench-dist-base/server.tgz" -C "$RUNNER_TEMP/install-base"
+            echo "INSTALL_BASE=$(ls -d "$RUNNER_TEMP/install-base"/*/)" >> "$GITHUB_ENV"
+          fi
           ls repo/test/benchmarks/*/build/install/*/bin "$RUNNER_TEMP"/install-*/*/bin 2>/dev/null || true
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
