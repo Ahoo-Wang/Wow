@@ -85,7 +85,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24.21.0
+          node-version: 24.22.1
 
       # A v<version> tag of the highest major; pre-release or stable, and
       # whether it is the latest line.
@@ -132,7 +132,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24.21.0
+          node-version: 24.22.1
           cache: pnpm
 
       - name: Install JavaScript dependencies
@@ -316,7 +316,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
-          node-version: 24.21.0
+          node-version: 24.22.1
 
       - name: Set up npm
         run: npm install --global "npm@$NPM_VERSION"
