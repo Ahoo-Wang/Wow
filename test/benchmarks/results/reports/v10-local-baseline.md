@@ -247,3 +247,23 @@ No difference beyond one run's noise, so it is not merged. A first comparison ha
 - Run cost measurements at about 50% of the closed-loop peak at most; at 75% the uniform runs queue or collapse, and their costs per operation shift with the queue (the stage 0 outlier).
 - Attribute CPU by thread from `jdk.ThreadCPULoad`, not from execution samples, while the stores run on virtual threads.
 - A recorded run is slower than an unrecorded one; compare recorded with recorded.
+
+## Tried and ruled out
+
+Two hypotheses from the platform-thread recordings below, each measured and rejected on 2026-10-24.
+
+**Store calls on platform threads.** JFR 21 barely samples virtual threads, so a local build ran the stores' calls on a fixed pool of 256 platform threads ([`platform-pool.patch`](v10-local-baseline/threads/platform-pool.patch), never merged). Its first recording looked far cheaper than the baseline's, which raised the question whether virtual threads, pinned in synchronized blocks of the drivers on JDK 21, were costing CPU and latency. Two alternating rounds on both backends, each a fresh primed session with the same runs ([`threads-ab.sh`](v10-local-baseline/threads/threads-ab.sh), results beside it), say no. Server CPU per command:
+
+| | Virtual threads (as shipped) | Platform pool |
+| --- | --- | --- |
+| PostgreSQL E1, 1,906/s | 0.596, 0.677 ms | 0.769, 0.776 ms |
+| PostgreSQL E3, 800/s | 1.625, 1.826 ms | 2.049, 2.050 ms |
+| MongoDB E1, 1,720/s | 0.902, 0.864 ms | 0.980, 0.944 ms |
+| MongoDB E3, 722/s | 1.912, 1.901 ms | 2.196, 2.089 ms |
+
+Virtual threads cost 9–29% less, at the same or lower latency. The first recording's difference was its session, not its threads.
+
+**Snapshot-table bloat.** Every command updates its aggregate's snapshot row, so a long closed loop might leave PostgreSQL slower through dead tuples and index growth. In one session, E1 at 1,906/s fresh, then a closed loop to concurrency 512, then E1 again ([`bloat.sh`](v10-local-baseline/snapshot-table/bloat.sh), [`stats.txt`](v10-local-baseline/snapshot-table/stats.txt)): 96% of the snapshot table's updates were HOT, its heap stayed at 32 MB and its indexes at 7.5 MB, autovacuum kept its dead tuples near 14,000 of 100,000, and E1 went from p99 3 ms and 0.570 ms of server CPU to p99 4 ms and 0.611 ms. No bloat worth a change.
+
+**What did differ: the disk.** These runs flushed the WAL in 0.14 ms (487 ms over 3,452 flushes a second at 1,906/s), the stage 1 baseline in 0.54 ms (805 ms over 1,496). With the same build and load, that alone moved E1's p99 from 106 ms to 3–5 ms and PostgreSQL's CPU per command from 0.86 to 0.35 ms. Docker Desktop's fsync time varies by a factor of four between sessions on this machine, so local PostgreSQL latencies compare only within one ABAB, and the WAL flush time per flush belongs beside each result (`summary.md` gives it). The baseline's finding that the WAL limits PostgreSQL at 50% holds at 0.54 ms a flush; at 0.14 ms the WAL is still busy half of each second, but nothing queues behind it.
+

@@ -1,0 +1,36 @@
+## after-prime 01:00:24
+             relname             | n_live_tup | n_dead_tup | n_tup_ins | n_tup_upd | n_tup_hot_upd | autovacuum_count | autoanalyze_count |    heap    | indexes | total  
+---------------------------------+------------+------------+-----------+-----------+---------------+------------------+-------------------+------------+---------+--------
+ wow_checkpoint                  |        512 |        659 |       512 |     28176 |         23454 |                1 |                 1 | 472 kB     | 80 kB   | 592 kB
+ wow_log__transfer__account      |     200337 |          0 |    200006 |         0 |             0 |                1 |                 1 | 112 MB     | 32 MB   | 144 MB
+ wow_snapshot__transfer__account |     100343 |      44866 |    100000 |    100006 |         67995 |                1 |                 1 | 32 MB      | 7416 kB | 39 MB
+ wow_snapshot_table              |          1 |          1 |         1 |         1 |             1 |                0 |                 0 | 8192 bytes | 16 kB   | 32 kB
+(4 rows)
+
+## after-e1-fresh 01:02:03
+             relname             | n_live_tup | n_dead_tup | n_tup_ins | n_tup_upd | n_tup_hot_upd | autovacuum_count | autoanalyze_count |    heap    | indexes | total  
+---------------------------------+------------+------------+-----------+-----------+---------------+------------------+-------------------+------------+---------+--------
+ wow_checkpoint                  |        512 |        649 |       512 |     74200 |         69478 |                3 |                 3 | 472 kB     | 80 kB   | 592 kB
+ wow_log__transfer__account      |     371971 |          0 |    371546 |         0 |             0 |                3 |                 3 | 175 MB     | 53 MB   | 229 MB
+ wow_snapshot__transfer__account |      99999 |      12617 |    100000 |    271546 |        237984 |                2 |                 3 | 32 MB      | 7560 kB | 39 MB
+ wow_snapshot_table              |          1 |          1 |         1 |         1 |             1 |                0 |                 0 | 8192 bytes | 16 kB   | 32 kB
+(4 rows)
+
+## after-sweep 01:04:37
+             relname             | n_live_tup | n_dead_tup | n_tup_ins | n_tup_upd | n_tup_hot_upd | autovacuum_count | autoanalyze_count |    heap    | indexes | total  
+---------------------------------+------------+------------+-----------+-----------+---------------+------------------+-------------------+------------+---------+--------
+ wow_checkpoint                  |        512 |        854 |       512 |    148952 |        144230 |                5 |                 5 | 472 kB     | 80 kB   | 592 kB
+ wow_log__transfer__account      |     925696 |          0 |    927362 |         0 |             0 |                5 |                 5 | 383 MB     | 146 MB  | 529 MB
+ wow_snapshot__transfer__account |      99996 |      13557 |    100000 |    826754 |        791469 |                2 |                 5 | 32 MB      | 7560 kB | 39 MB
+ wow_snapshot_table              |          1 |          1 |         1 |         1 |             1 |                0 |                 0 | 8192 bytes | 16 kB   | 32 kB
+(4 rows)
+
+## after-e1-after 01:06:16
+             relname             | n_live_tup | n_dead_tup | n_tup_ins | n_tup_upd | n_tup_hot_upd | autovacuum_count | autoanalyze_count |    heap    | indexes | total  
+---------------------------------+------------+------------+-----------+-----------+---------------+------------------+-------------------+------------+---------+--------
+ wow_checkpoint                  |        512 |        758 |       512 |    195482 |        190760 |                7 |                 7 | 472 kB     | 80 kB   | 592 kB
+ wow_log__transfer__account      |    1100556 |          0 |   1100318 |         0 |             0 |                6 |                 7 | 447 MB     | 173 MB  | 620 MB
+ wow_snapshot__transfer__account |     100000 |      14171 |    100000 |   1000318 |        964871 |                2 |                 7 | 32 MB      | 7560 kB | 39 MB
+ wow_snapshot_table              |          1 |          1 |         1 |         1 |             1 |                0 |                 0 | 8192 bytes | 16 kB   | 32 kB
+(4 rows)
+

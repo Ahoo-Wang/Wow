@@ -1,0 +1,18 @@
+#!/bin/bash
+# ABAB: store calls on virtual threads (D2, as shipped) against a platform pool of 256 (P), both backends.
+set -uo pipefail
+S=${S:?the working directory holding the installs and wt-bench/}
+B=$S/wt-bench/test/benchmarks/harness/bench.sh
+say() { echo "$(date +%T) $*"; }
+for round in 1 2; do for arm in D2 P; do for spec in postgres:1906:800 mongo:1720:722; do
+  IFS=: read -r be e1 e3 <<<"$spec"
+  O=$S/threads/$round-$arm-$be; mkdir -p "$O"
+  C="--version=v10 --backend=$be --accounts=100000 --install=$S/$arm"
+  say "$round $arm $be up"
+  $B up $C --prime --seed-concurrency=128 --out="$O/up" > "$O/up.log" 2>&1 || { say "up failed"; $B down >/dev/null 2>&1; continue; }
+  $B saturate --reuse $C --scenario=E1 --max-concurrency=4 --sweep --out="$O/low" > "$O/low.log" 2>&1 || say "low failed"
+  $B run --reuse $C --scenario=E1 --rate=$e1 --warm-up=30 --measure=60 --out="$O/e1" > "$O/e1.log" 2>&1 || say "e1 failed"
+  $B run --reuse $C --scenario=E3 --rate=$e3 --warm-up=30 --measure=60 --out="$O/e3" > "$O/e3.log" 2>&1 || say "e3 failed"
+  $B down > /dev/null 2>&1; sleep 10
+done; done; done
+say done
