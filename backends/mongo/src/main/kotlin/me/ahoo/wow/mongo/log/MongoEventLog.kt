@@ -952,9 +952,15 @@ class MongoEventLog(
         return tail + BsonDocument("\$unionWith", BsonDocument("coll", BsonString(collection)).append("pipeline", keys))
     }
 
+    /**
+     * The streams of [ref]. The version key is a partial index over the documents with a version (decision D271), so
+     * a read uses it only when its filter implies one: a lookup of the latest stream by its key alone would scan the
+     * collection.
+     */
     private fun refFilter(ref: AggregateRef): Bson = Filters.and(
         Filters.eq(AGGREGATE_ID, ref.id),
         Filters.eq(TENANT_ID, ref.tenantId),
+        Filters.exists(VERSION),
     )
 
     /** [stream]'s document, its sequence set when it is inserted. */
