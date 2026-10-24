@@ -1,0 +1,12 @@
+diff --git a/core/spi/src/main/kotlin/me/ahoo/wow/spi/VirtualThreads.kt b/core/spi/src/main/kotlin/me/ahoo/wow/spi/VirtualThreads.kt
+index 1e06c9b79..81e11faba 100644
+--- a/core/spi/src/main/kotlin/me/ahoo/wow/spi/VirtualThreads.kt
++++ b/core/spi/src/main/kotlin/me/ahoo/wow/spi/VirtualThreads.kt
+@@ -26,6 +26,6 @@ import java.util.concurrent.Executors
+ object VirtualThreads {
+     /** A virtual thread per call. */
+     val dispatcher: CoroutineDispatcher by lazy {
+-        Executors.newVirtualThreadPerTaskExecutor().asCoroutineDispatcher()
++        Executors.newFixedThreadPool(256, java.util.concurrent.ThreadFactory { r -> Thread(r, "store-call").apply { isDaemon = true } }).asCoroutineDispatcher()
+     }
+ }
