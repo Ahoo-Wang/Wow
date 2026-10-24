@@ -279,6 +279,8 @@ setup() {
   META="backend=$BACKEND;nodes=$NODES;heap=$HEAP;gc=G1;serverJvm=$jvm;stores=kafka $store;primed=$primed"
   META="$META;primeSeconds=$prime_seconds;settleSeconds=$settle_seconds;accounts=$ACCOUNTS"
   if [ "$UP" = true ]; then
+    # results/e2e is ignored by git: a fresh checkout has no such directory until a run's output makes one.
+    mkdir -p "$(dirname "$SESSION")"
     {
       printf 'S_KEY=%q\n' "$(session_key)"
       printf 'S_PIDS=%q\n' "${SERVER_PIDS[*]}"
