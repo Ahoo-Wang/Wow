@@ -1,0 +1,17 @@
+{
+  opcounters: {
+    insert: Long('6070516'),
+    query: Long('2029556'),
+    update: Long('6336330'),
+    delete: Long('0'),
+    getmore: Long('39'),
+    command: Long('34246')
+  },
+  wt_cache: {
+    bytes: 940826127,
+    max: 1073741824,
+    evicted: 506108
+  },
+  checkpoint_ms: 1913,
+  checkpoint_max_ms: 1913
+}

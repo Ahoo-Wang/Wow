@@ -1,0 +1,10 @@
+Failure rate > 1%: total=283740, failed=9527 (3.36%)
+Error distribution: {"http-429-wow.command.busy":9527}
+Node CPU: 0.503 ms/op
+wow-e2e-bench-kafka CPU: 0.108 ms/op (avg 49.5%)
+wow-e2e-bench-mongo CPU: 1.854 ms/op (avg 847.5%)
+
+Mongo serverStatus diff:
+Before: {"opcounters":{"insert":4494814,"query":1854510,"update":4873119,"delete":0,"getmore":0,"command":988322},"wt_cache":{"bytes":930696386,"max":1073741824,"evicted":16823375},"checkpoint_ms":1368,"checkpoint_max_ms":5288}
+After:  {"opcounters":{"insert":4910897,"query":2346970,"update":5316006,"delete":0,"getmore":78,"command":1192048},"wt_cache":{"bytes":943036057,"max":1073741824,"evicted":24578971},"checkpoint_ms":1192,"checkpoint_max_ms":5288}
+Opcounters delta: {"insert":416083,"query":492460,"update":442887,"delete":0,"getmore":78,"command":203726}

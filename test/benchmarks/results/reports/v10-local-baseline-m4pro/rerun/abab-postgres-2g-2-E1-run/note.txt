@@ -1,0 +1,5 @@
+Failure rate > 1%: total=365519, failed=26066 (7.13%)
+Error distribution: {"http-429-wow.command.busy":26066}
+Node CPU: 0.388 ms/op
+wow-e2e-bench-kafka CPU: 0.079 ms/op (avg 44.4%)
+wow-e2e-bench-postgres CPU: 0.298 ms/op (avg 168.9%)
