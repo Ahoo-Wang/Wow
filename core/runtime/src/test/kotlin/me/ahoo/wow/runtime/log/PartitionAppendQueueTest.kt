@@ -259,6 +259,30 @@ class PartitionAppendQueueTest {
     }
 
     @Test
+    fun `one aggregate's streams of one call go into one batch, in order, and commit as a prefix`(): Unit =
+        runBlocking {
+            // Roadmap §6 item 10: a kernel's batch of an aggregate's commands reaches the log in one group commit.
+            val log = RecordingLog(InMemoryEventLog(PARTITIONS))
+            val queue = PartitionAppendQueue(log, AppendQueueOptions())
+            val (hot, other) = refsOfOnePartition(2)
+            queue.append(stream(hot, 1), null)
+            val outcomes = queue.appendAll(
+                listOf(
+                    stream(hot, 2) to null,
+                    stream(other, 1) to null,
+                    stream(hot, 3) to null,
+                    stream(hot, 4) to null
+                ),
+            )
+            outcomes.forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
+            log.batches.last().filter { it.ref == hot }.map { it.version }.assert().containsExactly(2, 3, 4)
+            // A conflict at the first stops the rest of the aggregate's.
+            val stopped = queue.appendAll(listOf(stream(hot, 4, "again") to null, stream(hot, 5) to null))
+            stopped.assert().containsExactly(AppendOutcome.Conflict(4), AppendOutcome.Conflict(4))
+            queue.close()
+        }
+
+    @Test
     fun `disabled, as by default for PostgreSQL, every call goes straight to the log`(): Unit = runBlocking {
         AppendQueueOptions().enabled.assert().isTrue()
         AppendQueueOptions().enabled.assert().isTrue()

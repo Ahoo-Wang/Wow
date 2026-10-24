@@ -16,16 +16,17 @@ package me.ahoo.wow.runtime
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.BatchOutcome
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.QueuedCommand
 import me.ahoo.wow.runtime.state.StateViews
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.wait.WaitContext
@@ -37,22 +38,31 @@ import kotlin.time.Duration.Companion.milliseconds
  * Runs commands through [kernel], one at a time per aggregate and in arrival order, without one aggregate ever
  * waiting for another (design 02 §1, step 3).
  *
- * Each aggregate with commands in flight has a lane: a fair lock its commands queue on, in the callers' coroutines,
- * so a decide function suspended on I/O holds up only its own aggregate. A lane exists only while it has commands;
- * at most [laneCapacity] may wait on one, and the next is refused as busy rather than queued without bound.
+ * Each aggregate with commands in flight has a lane: a queue of its commands in arrival order, run by one of the
+ * callers' coroutines at a time, the lane's leader, so a decide function suspended on I/O holds up only its own
+ * aggregate. A lane exists only while it has commands; at most [laneCapacity] may wait on one, and the next is refused
+ * as busy rather than queued without bound.
+ *
+ * The leader runs its own command, the head of the queue, and when others queue behind it, up to [maxBatch] of them
+ * with it as one batch ([Kernel.executeBatch], roadmap §6 item 10): decided in turn and committed with one append, so a
+ * hot aggregate commits a batch per append instead of a command. It never waits to fill a batch: an idle aggregate's
+ * command runs alone, as [Kernel.execute] runs it. The commands the batch did not finish
+ * ([BatchOutcome.Again]) go back to the head of the queue, in order, and the leader hands the lane to the command at
+ * the head, which leads the next batch in its own coroutine: a caller waits for its own command, never for others'.
+ * A [maxBatch] of 1 runs every command alone.
  *
  * The node bounds its commands in flight as a whole too (decision D228 ②): every executor of a node shares one
  * [InFlightLimit], counted when a command enters, so a store that slows down (rather than fails) turns the commands
  * beyond it into `wow.command.busy` (429, with `Retry-After`) instead of an unbounded queue spread over many lanes.
- * A command that waits in its lane with a [WaitContext] whose deadline passes before its turn is withdrawn: it never
- * enters the kernel ([CommandWithdrawnException]), so the caller's timed-out wait is not followed by an execution
+ * A command that waits in its lane with a [WaitContext] whose deadline passes before a batch takes it is withdrawn: it
+ * never enters the kernel ([CommandWithdrawnException]), so the caller's timed-out wait is not followed by an execution
  * nobody waits for, and a retry with the same request id runs it afresh.
  *
  * [close] stops taking commands at once (a late command fails instead of waiting on a lane nobody will run) and
  * returns when the commands already taken have finished.
  *
  * When [views] are given, each commit's state view is recorded in them before the lane moves on to the aggregate's
- * next command, while nothing can change the state (design 01 §2): the context's state consumers (the snapshot
+ * next batch, while nothing can change the state (design 01 §2): the context's state consumers (the snapshot
  * subscription, the subscriptions of annotated processors) read it (decision D133). It is taken just before the append
  * ([StateViews.expect]), since the log may hand the commit to this node's subscriptions before the kernel returns
  * (decisions D249, D261), and recorded once the append committed. A view is only an optimisation,
@@ -63,6 +73,8 @@ import kotlin.time.Duration.Companion.milliseconds
 class Executor(
     private val kernel: Kernel,
     private val laneCapacity: Int = DEFAULT_LANE_CAPACITY,
+    /** The most commands of one aggregate a batch takes (`wow.executor.max-batch`); 1 runs each alone. */
+    private val maxBatch: Int = DEFAULT_MAX_BATCH,
     private val views: StateViews? = null,
     /** The node's bound on its commands in flight, shared by the executors of all its contexts. */
     private val limit: InFlightLimit = InFlightLimit(),
@@ -77,6 +89,7 @@ class Executor(
 
     init {
         require(laneCapacity >= 1) { "A lane takes at least one command." }
+        require(maxBatch >= 1) { "A batch takes at least one command." }
     }
 
     /** The aggregates with commands in flight. */
@@ -89,18 +102,16 @@ class Executor(
     suspend fun execute(model: AggregateModel<*>, command: Command<*>, wait: WaitContext? = null): CommandOutcome {
         val lane = enter(command.ref)
         try {
-            lock(lane, command, wait)
-            try {
-                val appending = views?.let { expecting(it, model) }
-                return kernel.execute(model, command, wait, appending).also { outcome ->
-                    if (outcome is CommandOutcome.Committed && views != null) {
-                        recordView(views, model, outcome)
-                    }
-                }
-            } finally {
-                // Before the lane moves on: the aggregate's next command expects its own.
-                views?.forget(command.ref)
-                lane.lock.unlock()
+            val own = Queued(model, command, wait)
+            val leading = synchronized(lane) {
+                lane.queue.addLast(own)
+                !lane.leading.also { lane.leading = true }
+            }
+            val turn = if (leading) BatchOutcome.Again else turnOf(lane, own)
+            return when (val outcome = if (turn is BatchOutcome.Again) lead(lane, own) else turn) {
+                is BatchOutcome.Done -> outcome.outcome
+                is BatchOutcome.Failed -> throw outcome.failure
+                BatchOutcome.Again -> error("The leader's own command always runs.")
             }
         } finally {
             leave(command.ref)
@@ -108,26 +119,88 @@ class Executor(
     }
 
     /**
-     * Takes [lane]'s lock for [command]; when it has to queue and [wait]'s deadline passes first, withdraws the command
-     * instead. [Mutex.lock] gives the lock back when it is cancelled after taking it, and a lock taken just as the
-     * timeout fires is kept ([locked]): the command then runs.
+     * Waits for [own]'s turn behind [lane]'s leader: its outcome, from the batch that took it, or [BatchOutcome.Again]
+     * when the lane is handed to it to lead. When its [WaitContext]'s deadline passes while it is still queued, it is
+     * withdrawn instead; a turn that came just as the deadline passed is kept: the command then runs.
      */
-    private suspend fun lock(lane: Lane, command: Command<*>, wait: WaitContext?) {
-        if (lane.lock.tryLock()) {
-            return
+    private suspend fun turnOf(lane: Lane, own: Queued): BatchOutcome {
+        try {
+            val deadline = own.wait?.deadline ?: return own.turn.await()
+            val remaining = (deadline - clock()).coerceAtLeast(0).milliseconds
+            withTimeoutOrNull(remaining) { own.turn.await() }?.let { return it }
+            synchronized(lane) {
+                if (!own.turn.isCompleted && lane.queue.remove(own)) {
+                    throw CommandWithdrawnException(own.command.ref, own.command.id)
+                }
+            }
+            // Taken by a batch, or handed the lane: no longer withdrawn.
+            return own.turn.await()
+        } catch (cancelled: CancellationException) {
+            abandon(lane, own)
+            throw cancelled
         }
-        val deadline = wait?.deadline
-        if (deadline == null) {
-            lane.lock.lock()
-            return
+    }
+
+    /** [own]'s caller was cancelled: it leaves the queue, and hands the lane on when it was handed it. */
+    private fun abandon(lane: Lane, own: Queued) = synchronized(lane) {
+        if (!own.turn.isCompleted) {
+            // Unless a batch took it: its outcome then goes to nobody.
+            lane.queue.remove(own)
+        } else if (own.turn.getCompleted() is BatchOutcome.Again) {
+            lane.queue.remove(own)
+            handOff(lane)
         }
-        var locked = false
-        withTimeoutOrNull((deadline - clock()).coerceAtLeast(0).milliseconds) {
-            lane.lock.lock()
-            locked = true
+    }
+
+    /**
+     * Runs a batch from the head of [lane]'s queue, [own] first, then hands the lane on: [own]'s outcome. The others
+     * get theirs, or go back to the head of the queue, in order, when the batch did not finish them (or threw).
+     */
+    private suspend fun lead(lane: Lane, own: Queued): BatchOutcome {
+        val batch = synchronized(lane) {
+            check(lane.queue.first() === own) { "The leader's command heads its lane." }
+            List(minOf(maxBatch, lane.queue.size)) { lane.queue.removeFirst() }
         }
-        if (!locked) {
-            throw CommandWithdrawnException(command.ref, command.id)
+        val model = own.model
+        var outcomes: List<BatchOutcome>? = null
+        try {
+            val appending = views?.let { expecting(it, model) }
+            outcomes = if (batch.size == 1) {
+                listOf(BatchOutcome.Done(kernel.execute(model, own.command, own.wait, appending)))
+            } else {
+                kernel.executeBatch(model, batch.map { QueuedCommand(it.command, it.wait) }, appending)
+            }
+            if (views != null) {
+                outcomes.forEach { outcome ->
+                    ((outcome as? BatchOutcome.Done)?.outcome as? CommandOutcome.Committed)?.let {
+                        recordView(views, model, it)
+                    }
+                }
+            }
+            return outcomes.first()
+        } finally {
+            // Before the lane moves on: the aggregate's next batch expects its own.
+            views?.forget(own.command.ref)
+            synchronized(lane) {
+                for (at in batch.indices.reversed()) {
+                    val again = outcomes == null || outcomes[at] is BatchOutcome.Again
+                    if (at > 0 && again) lane.queue.addFirst(batch[at])
+                }
+                handOff(lane)
+            }
+            outcomes?.forEachIndexed { at, outcome ->
+                if (at > 0 && outcome !is BatchOutcome.Again) batch[at].turn.complete(outcome)
+            }
+        }
+    }
+
+    /** Hands [lane] to the command at the head of its queue, or leaves it without a leader; under [lane]'s monitor. */
+    private fun handOff(lane: Lane) {
+        val next = lane.queue.firstOrNull()
+        if (next == null) {
+            lane.leading = false
+        } else {
+            next.turn.complete(BatchOutcome.Again)
         }
     }
 
@@ -211,14 +284,24 @@ class Executor(
         }
     }
 
-    /** Guarded by the map's per-key atomicity: [commands] changes only inside [ConcurrentHashMap.compute]. */
+    /**
+     * [commands] changes only inside [ConcurrentHashMap.compute]; [queue] and [leading] only under the lane's monitor.
+     * The lane has a leader while its queue is not empty.
+     */
     private class Lane {
-        val lock = Mutex()
         var commands = 0
+        val queue = ArrayDeque<Queued>()
+        var leading = false
+    }
+
+    /** A command in its lane: [turn] is its outcome, or [BatchOutcome.Again] when it is handed the lane to lead. */
+    private class Queued(val model: AggregateModel<*>, val command: Command<*>, val wait: WaitContext?) {
+        val turn = CompletableDeferred<BatchOutcome>()
     }
 
     private companion object {
         const val DEFAULT_LANE_CAPACITY = 1_024
+        const val DEFAULT_MAX_BATCH = 32
         val logger = KotlinLogging.logger {}
     }
 }

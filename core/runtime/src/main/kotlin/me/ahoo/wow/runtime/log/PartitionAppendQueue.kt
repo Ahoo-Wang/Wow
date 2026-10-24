@@ -76,8 +76,9 @@ class AppendQueueOptions @InternalWowApi constructor(
  * (spike H1: about 100 appends a second with 32 concurrent writers on one partition, about 5.6 thousand queued).
  *
  * Each caller gets its own stream's outcome, as [EventLog.appendAll] returns it: a conflict or a duplicate of one
- * stream does not fail the others. A batch holds distinct aggregates; a second append of an aggregate already in the
- * batch waits for the next one, so appends of one aggregate keep their order. A batch whose [EventLog.appendAll]
+ * stream does not fail the others. The streams of one aggregate that one call hands over (a kernel's batch, roadmap §6
+ * item 10) queue as one unit and go into one batch together, so the log commits them as a prefix; a unit of an
+ * aggregate already in the batch waits for the next one, so appends of one aggregate keep their order. A batch whose [EventLog.appendAll]
  * throws fails each of its callers with that exception, as a failing [EventLog.append] would; the lane goes on with
  * the next batch. A caller cancelled while its append is still queued takes it out of the queue: it is never
  * appended. Once taken into a batch, the append completes whatever the caller does.
@@ -124,17 +125,21 @@ class PartitionAppendQueue(
         if (!enabled) {
             return log.append(stream, transport)
         }
-        return await(listOf(enqueue(stream, transport))).single()
+        return await(listOf(enqueue(listOf(stream to transport)))).single().single()
     }
 
-    /** Queues each stream on its partition's lane, grouped with what other callers queued, and awaits them all. */
+    /**
+     * Queues the streams on their partitions' lanes, each aggregate's as one unit, grouped with what other callers
+     * queued, and awaits them all.
+     */
     override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
         if (!enabled) {
             return log.appendAll(streams)
         }
-        val queued = ArrayList<Pending>(streams.size)
+        val units = streams.indices.groupBy { streams[it].first.ref }.values.toList()
+        val queued = ArrayList<Pending>(units.size)
         try {
-            streams.forEach { (stream, transport) -> queued += enqueue(stream, transport) }
+            units.forEach { unit -> queued += enqueue(unit.map { streams[it] }) }
         } catch (failure: IllegalStateException) {
             queued.forEach { it.withdraw() }
             throw failure
@@ -142,13 +147,17 @@ class PartitionAppendQueue(
             queued.forEach { it.withdraw() }
             throw cancelled
         }
-        return await(queued)
+        val outcomes = arrayOfNulls<AppendOutcome>(streams.size)
+        units.zip(await(queued)).forEach { (unit, unitOutcomes) ->
+            unit.zip(unitOutcomes).forEach { (index, outcome) -> outcomes[index] = outcome }
+        }
+        return outcomes.map { checkNotNull(it) }
     }
 
-    /** Queues [stream] on its partition's lane, waiting for room when the lane is full. */
-    private suspend fun enqueue(stream: EventStreamRecord, transport: Transport?): Pending {
-        val pending = Pending(stream, transport, waiting)
-        val lane = lanes[Partitioner.partitionOf(stream.ref, log.partitions)]
+    /** Queues [streams], one aggregate's, as one unit on its partition's lane, waiting for room when it is full. */
+    private suspend fun enqueue(streams: List<Pair<EventStreamRecord, Transport?>>): Pending {
+        val pending = Pending(streams, waiting)
+        val lane = lanes[Partitioner.partitionOf(pending.ref, log.partitions)]
         check(!closed) { "The append queue is closed." }
         waiting.incrementAndGet()
         try {
@@ -164,7 +173,7 @@ class PartitionAppendQueue(
         return pending
     }
 
-    private suspend fun await(queued: List<Pending>): List<AppendOutcome> = try {
+    private suspend fun await(queued: List<Pending>): List<List<AppendOutcome>> = try {
         queued.map { it.outcome.await() }
     } catch (cancelled: CancellationException) {
         queued.forEach { it.withdraw() }
@@ -195,20 +204,25 @@ class PartitionAppendQueue(
         }
     }
 
-    /** Takes up to [AppendQueueOptions.maxBatch] appends of distinct aggregates, in queue order. */
+    /**
+     * Takes units of distinct aggregates, in queue order, up to [AppendQueueOptions.maxBatch] streams; the first unit
+     * whatever its size.
+     */
     private fun take(queued: ArrayDeque<Pending>): List<Pending> {
         val batch = ArrayList<Pending>(queued.size)
         val refs = HashSet<AggregateRef>()
+        var streams = 0
         val iterator = queued.iterator()
-        while (iterator.hasNext() && batch.size < options.maxBatch) {
+        while (iterator.hasNext() && streams < options.maxBatch) {
             val pending = iterator.next()
-            if (pending.stream.ref in refs) {
+            if (pending.ref in refs || batch.isNotEmpty() && streams + pending.streams.size > options.maxBatch) {
                 continue
             }
             iterator.remove()
             if (pending.take()) {
                 batch += pending
-                refs += pending.stream.ref
+                refs += pending.ref
+                streams += pending.streams.size
             }
         }
         return batch
@@ -216,9 +230,10 @@ class PartitionAppendQueue(
 
     /** Not cancellable: an append taken into a batch completes. */
     private suspend fun commit(batch: List<Pending>) = withContext(NonCancellable) {
+        val streams = batch.flatMap { it.streams }
         val outcomes = try {
-            log.appendAll(batch.map { it.stream to it.transport }).also {
-                check(it.size == batch.size) { "The log returned ${it.size} outcomes for ${batch.size} appends." }
+            log.appendAll(streams).also {
+                check(it.size == streams.size) { "The log returned ${it.size} outcomes for ${streams.size} appends." }
             }
         } catch (
             @Suppress("TooGenericExceptionCaught") // Whatever the log throws, each caller of the batch gets it.
@@ -228,16 +243,23 @@ class PartitionAppendQueue(
             batch.forEach { it.outcome.completeExceptionally(failure) }
             return@withContext
         }
-        batch.zip(outcomes).forEach { (pending, outcome) -> pending.outcome.complete(outcome) }
+        var at = 0
+        batch.forEach { pending ->
+            pending.outcome.complete(outcomes.subList(at, at + pending.streams.size))
+            at += pending.streams.size
+        }
     }
 
-    /** One queued append: taken into a batch by the lane, or withdrawn by its cancelled caller, never both. */
+    /**
+     * One queued unit, the streams of one aggregate in version order: taken into a batch by the lane, or withdrawn by
+     * its cancelled caller, never both.
+     */
     private class Pending(
-        val stream: EventStreamRecord,
-        val transport: Transport?,
-        private val waiting: AtomicInteger
+        val streams: List<Pair<EventStreamRecord, Transport?>>,
+        private val waiting: AtomicInteger,
     ) {
-        val outcome = CompletableDeferred<AppendOutcome>()
+        val ref: AggregateRef = streams.first().first.ref
+        val outcome = CompletableDeferred<List<AppendOutcome>>()
         private val state = AtomicInteger(QUEUED)
 
         fun take(): Boolean = leave(TAKEN)

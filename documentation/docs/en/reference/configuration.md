@@ -7,7 +7,7 @@ description: "Every key of the host's wow.* configuration, its type, default and
 
 # Configuration Keys
 
-Every key of the `wow.*` configuration a Spring Boot host reads, 233 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property names is reported when the node starts. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`.
+Every key of the `wow.*` configuration a Spring Boot host reads, 234 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property names is reported when the node starts. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`.
 
 ## `wow`
 
@@ -164,6 +164,7 @@ The keys wow-cosid reads (`wow.cosid.*`), bound here as cosec is.
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `wow.executor.lane-capacity` | `Integer` | `1024` | The commands one aggregate may have waiting in the executor. |
+| `wow.executor.max-batch` | `Integer` | `32` | The most of one aggregate's queued commands the executor decides in turn and commits with one append; 1 runs each alone. It never waits to fill a batch. |
 | `wow.executor.max-in-flight` | `Integer` | `4096` | The commands the node may have in flight, all contexts together: beyond it a command is refused as `wow.command.busy` (429, with `Retry-After`) instead of queued. |
 
 ## `wow.health`

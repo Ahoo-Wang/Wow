@@ -512,6 +512,7 @@ class WowAutoConfiguration {
                 appendQueue = properties.log.appendQueue.options(),
                 handoff = properties.log.handoffOptions(),
                 laneCapacity = properties.executor.laneCapacity,
+                maxBatch = properties.executor.maxBatch,
                 maxInFlight = properties.executor.maxInFlight,
                 stateCacheCapacity = properties.stateCache.capacity,
                 recentRequests = properties.stateCache.recentRequests,
