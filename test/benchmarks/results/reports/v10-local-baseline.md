@@ -316,3 +316,15 @@ Virtual threads cost 9–29% less, at the same or lower latency. The first recor
 
 **What did differ: the disk.** These runs flushed the WAL in 0.14 ms (487 ms over 3,452 flushes a second at 1,906/s), the stage 1 baseline in 0.54 ms (805 ms over 1,496). With the same build and load, that alone moved E1's p99 from 106 ms to 3–5 ms and PostgreSQL's CPU per command from 0.86 to 0.35 ms. Docker Desktop's fsync time varies by a factor of four between sessions on this machine, so local PostgreSQL latencies compare only within one ABAB, and the WAL flush time per flush belongs beside each result (`summary.md` gives it). The baseline's finding that the WAL limits PostgreSQL at 50% holds at 0.54 ms a flush; at 0.14 ms the WAL is still busy half of each second, but nothing queues behind it.
 
+**Snapshot batches committed without waiting for the WAL** (roadmap §6 item 9). A snapshot is derived from the log, so its batch's transaction could set `synchronous_commit` off for itself alone (`SET LOCAL`), the log's appends and the checkpoints staying durable ([`pg-snapshot-async.patch`](v10-local-baseline/snapshot-async/pg-snapshot-async.patch), never merged). PostgreSQL, `main` (F2) against the change (I), three rounds on one build each ([`async-ab.sh`](v10-local-baseline/snapshot-async/async-ab.sh), results beside it). Per command:
+
+| | F2 | I |
+| --- | --- | --- |
+| E1 WAL flushes | 1.17, 1.62, 1.79 | 0.95, 0.95, 0.94 |
+| E3 WAL flushes | 3.69, 3.54, 4.57 | 2.47, 2.47, 2.80 |
+| E1 server CPU | 0.880, 0.704, 0.592 ms | 0.806, 0.656, 0.741 ms |
+| E3 server CPU | 1.809, 1.850, 1.643 ms | 2.149, 1.957, 1.849 ms |
+| E3 PostgreSQL CPU | 1.37, 1.37, 1.09 ms | 1.52, 1.42, 1.10 ms |
+| Commits | 1.84–2.02 (E1), 5.54–5.79 (E3) | 1.96–1.99, 5.37–5.78 |
+
+The flushes fell by a fifth to a third, and nothing followed: E3's server CPU rose 6–19% in every round, its PostgreSQL CPU did not fall, and E1 stayed within the noise. A flush took 0.15–0.36 ms in these sessions, so the flushes saved were cheap, while each batch paid a statement more and, committing sooner, left the snapshot subscription smaller batches. Not merged. A store whose flush is much slower (a network disk) may weigh differently; that takes a paired run there, not this one.
