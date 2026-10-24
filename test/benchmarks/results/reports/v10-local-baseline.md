@@ -206,7 +206,20 @@ The same L1 rounds, `main` before the first part (A) against this change alone (
 | E3 allocated | 424.9, 423.2 KB | 404.8, 406.1 KB (−4.5%) |
 | Round trips | 3.32–3.33 (E1), 5.60 (E3) | 3.32–3.33, 5.60 |
 
-About 7 KB less per snapshot written: E1 writes one per command, E3 three.
+About 7 KB less per snapshot written: E1 writes one per command, E3 three. With the tail read's change (first part) on `main` as well, L1 allocates 189.6–190.1 KB per E1 command and 379.3–380.0 KB per E3 command, against 223.5–224.3 and 423.4–425.8 KB before both: −15% and −11%.
+
+## Candidate 2, tried: snapshot reads from raw BSON
+
+Tried on 2026-10-24 and dropped. A snapshot's load decodes the stored document into a `Document` tree (6.8% of the node's allocation on MongoDB E1 was the driver's decoding of replies to loads), turns its state into a JSON tree and writes that as text. The change ([`mongo-snapshot-raw.patch`](v10-local-baseline/mongo-snapshot-raw/mongo-snapshot-raw.patch), with its tests) took the reply raw (`RawBsonDocument`), read it field by field in one pass and wrote the state to JSON text as it read it; tests pinned the text to the old one. The module's tests passed.
+
+L1, `main` with the first two parts (D2) against the same with this change (E) ([results](v10-local-baseline/mongo-snapshot-raw/)):
+
+| Per command | D2 | E |
+| --- | --- | --- |
+| E1 allocated | 189.6, 190.1 KB | 188.7, 190.1 KB |
+| E3 allocated | 380.0, 379.3 KB | 381.6, 375.8 KB |
+
+No difference beyond one run's noise, so it is not merged. A first comparison had shown −11% and −7%: its control was built before the first part reached `main` and the change after, so it measured the first part again; the rerun above has both arms on the same base. The tree of a snapshot's small document is a small share of what a load allocates; the reply's buffers are not, and a raw document keeps them.
 
 ## Notes on method
 
