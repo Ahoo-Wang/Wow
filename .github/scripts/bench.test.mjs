@@ -1137,7 +1137,8 @@ test('large data sets are primed before every run; small ones are not; the repor
     report,
     /Primed: every run touched each of the 100000 accounts once before its warm-up/,
   );
-  assert.match(report, /exceed the node's state cache \(4096 per context/);
+  // 100k accounts fit the state cache a 1 GB heap holds by bytes (B.O-4): no evictions to warn of.
+  assert.doesNotMatch(report, /exceed the node's state cache/);
   assert.match(report, /Not primed: 1000 accounts, below 100000\./);
 });
 

@@ -297,6 +297,29 @@ At 100,000 uniform accounts and a 1 GB heap the default state cache held about 2
 The round trip is gone; on loopback it was an indexed read of a few tens of microseconds, so the CPU and the latencies move within the noise. It stays: a round trip less per command where the database is a network hop away, at no cost in CPU, heap or code.
 
 
+## On Actions: the changes since this baseline, together
+
+L3 ([run 40087911162](https://github.com/Ahoo-Wang/Wow/actions/runs/40087911162)) measured `main` at `350888740` against this baseline's `222f37be8` (#4847), so it holds #4850, #4851, #4858 and #4859 together: one 4-core runner per suite, three rounds at each arm's calibrated rate and two at one rate for both. No suite has an A/A threshold yet (`test/benchmarks/noise.json`), so the report marks every ratio `uncalibrated`; the CPU and bytes per operation are the ratios to read, as here (stage 0: ±2–5% across sessions), the latencies only with their ranges. Head over base, at one rate for both arms:
+
+| Suite at 100,000 accounts | CPU per op | Allocated per op | p99 | Saturation |
+| --- | --- | --- | --- | --- |
+| E1 MongoDB, uniform | 0.965 | 0.683 | 0.318 | 1.09 |
+| E1 MongoDB, Zipf | 0.953 | 0.863 | 1.513 (0.60–2.42) | 1.00 |
+| E2 MongoDB | 0.391 | 0.922 | 0.503 | 1.21 |
+| E3 MongoDB | 0.965 | 0.737 | 0.471 | 1.12 |
+| Mixed MongoDB | 0.906 | 0.744 | 0.639 | 1.26 |
+| Large MongoDB | 0.919 | 0.803 | 0.428 | 1.16 |
+| E1 PostgreSQL, uniform | 0.912 | 0.767 | 0.453 | 1.07 |
+| E3 PostgreSQL | 0.942 | 0.854 | 0.287 | 1.48 |
+| Mixed PostgreSQL | 0.924 | 0.890 | 1.196 | 1.08 |
+| Large PostgreSQL | 0.877 | 0.915 | 0.570 | 1.14 |
+
+- At 100,000 accounts, where the old default cache held a quarter of them, every suite spends less: 4–12% less CPU and 8–32% fewer bytes per command (E2 on MongoDB: 61% less CPU, its base fell behind at the shared rate), with the closed-loop ceiling up to 48% higher (E1 with Zipf keys unchanged: its hottest accounts' lanes bound it). The p99 is lower in eight suites (0.29–0.64) and higher in two: Zipf on MongoDB (1.51, over 0.60–2.42) and mixed on PostgreSQL (1.20).
+- At 1,000 accounts, which both arms cache whole, the CPU per command is 0.95–1.03 and the bytes 0.92–1.00: the changes cost nothing where the cache does not matter. One ratio there is off: E3 on PostgreSQL at one rate, p95 and p99 4–5 times the base's over two pairs (1.5–9.3), at the same CPU (1.03); the latencies of a 4-core runner's fsync, not a cost, until a rerun shows otherwise.
+- Large on MongoDB at its calibrated rate: the head's calibration chose 80% of its saturation and did not keep up there (throughput 0.31 of the base's, p50 231 times); at one rate both kept up and the head's p99 was 0.43 of the base's. A calibration that overshoots, not a regression.
+
+L4 ([run 40087914268](https://github.com/Ahoo-Wang/Wow/actions/runs/40087914268)) measured the same `main` alone, for capacity: on a 4-core runner, the most a node sustains with at most 1% errors and p99 within 200 ms is 1,922/s for E1 and 656/s for E3 on PostgreSQL, 577/s for E1, 368/s for E2 and 193/s for E3 on MongoDB (4.4 ms of CPU per E1 command against PostgreSQL's 1.2: MongoDB shares the runner's four cores). The E3 cliff kept up to 500/s on both, PostgreSQL's p99 184 ms at the top step, MongoDB's p50 782 ms from 400/s. The E5 hand-overs lost nothing but three of MongoDB's E3 waits (`wow.wait.timeout`), with the worst second's p99 at 1.6–7.1 s during the hand-over; a million cold accounts at 200 E1 and 500 E4 a second kept up on both. Its cold suites' report still described the state cache as 4,096 states a context, the count before #4859; it now says what the default holds.
+
 ## Tried and ruled out
 
 Two hypotheses from the platform-thread recordings below, each measured and rejected on 2026-10-24.
