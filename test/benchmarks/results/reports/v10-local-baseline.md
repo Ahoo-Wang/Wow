@@ -137,12 +137,12 @@ The WAL is the limit: at 50% of the peak PostgreSQL flushed it 1,496 times a sec
 | Collection, operation | Per command | Time each | Share |
 | --- | --- | --- | --- |
 | log, `aggregate` (loads and tails) | 1.48 | 258 µs | 36% |
-| snapshots, `update` (upserts) | 1.00 | 283 µs | 27% |
+| snapshots, `update` (upserts, statements) | 1.00 | 283 µs | 27% |
 | log, `insert` | 0.99 | 276 µs | 26% |
 | snapshots, `find` (loads) | 0.74 | 120 µs | 8% |
 | checkpoints, `update` | 0.28 | 107 µs | 3% |
 
-The store spends 1.06 ms per command inside these operations; its container used 2.07 ms of CPU per command at the same rate in stage 1.
+The store spends 1.06 ms per command inside these operations; its container used 2.07 ms of CPU per command at the same rate in stage 1. `top` counts statements, not requests: in a second probe at the same rate (`serverStatus`), 1.28 update statements per command arrived in 0.55 `update` requests, so the snapshots' upserts are batched (D248 ②, one unordered `bulkWrite` per round and aggregate type) at about two per request beside the checkpoints; the log's inserts were 1.00 documents in 0.99 requests, one per append, since at this load the append queue rarely holds two of one partition. A snapshot per version is the store's work by design (the snapshots are also the query model); batching saves round trips, not that work.
 
 ## Ranked candidates
 
