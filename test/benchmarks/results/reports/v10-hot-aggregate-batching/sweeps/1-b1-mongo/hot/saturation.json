@@ -1,0 +1,101 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "hot",
+    "accounts": 100000,
+    "hotFraction": 0.5,
+    "hotKeys": 1
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 1843.3,
+  "saturationConcurrency": 8,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 763.0,
+      "ok": 7630,
+      "errors": {},
+      "p50Ms": 1.271,
+      "p99Ms": 2.943
+    },
+    {
+      "concurrency": 2,
+      "throughput": 1309.6,
+      "ok": 13096,
+      "errors": {},
+      "p50Ms": 1.407,
+      "p99Ms": 3.727
+    },
+    {
+      "concurrency": 4,
+      "throughput": 1726.7,
+      "ok": 17267,
+      "errors": {},
+      "p50Ms": 2.031,
+      "p99Ms": 6.943
+    },
+    {
+      "concurrency": 8,
+      "throughput": 1843.3,
+      "ok": 18433,
+      "errors": {},
+      "p50Ms": 3.743,
+      "p99Ms": 13.631
+    },
+    {
+      "concurrency": 16,
+      "throughput": 1757.9,
+      "ok": 17579,
+      "errors": {},
+      "p50Ms": 10.175,
+      "p99Ms": 32.767
+    },
+    {
+      "concurrency": 32,
+      "throughput": 1716.5,
+      "ok": 17165,
+      "errors": {},
+      "p50Ms": 24.575,
+      "p99Ms": 67.583
+    },
+    {
+      "concurrency": 64,
+      "throughput": 1803.8,
+      "ok": 18038,
+      "errors": {},
+      "p50Ms": 51.199,
+      "p99Ms": 116.223
+    },
+    {
+      "concurrency": 128,
+      "throughput": 1737.9,
+      "ok": 17379,
+      "errors": {},
+      "p50Ms": 6.495,
+      "p99Ms": 226.303
+    },
+    {
+      "concurrency": 256,
+      "throughput": 1748.7,
+      "ok": 17487,
+      "errors": {},
+      "p50Ms": 232.447,
+      "p99Ms": 458.751
+    }
+  ],
+  "meta": {
+    "backend": "mongo",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+    "stores": "kafka mongo",
+    "primed": "true",
+    "primeSeconds": "34",
+    "settleSeconds": "4",
+    "accounts": "100000",
+    "session": "/private/tmp/claude-501/-Users-worker-work-Wow--claude-worktrees-performance-optimization-327071/1e81896d-3639-40f5-8c4f-ed1ecfc9cafd/scratchpad/ab/batch/1-b1-mongo/up"
+  }
+}

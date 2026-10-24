@@ -1,0 +1,61 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "hot",
+    "accounts": 100000,
+    "hotFraction": 0.5,
+    "hotKeys": 1
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 1912.2,
+  "saturationConcurrency": 8,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 882.75,
+      "ok": 17655,
+      "errors": {},
+      "p50Ms": 1.071,
+      "p99Ms": 2.575
+    },
+    {
+      "concurrency": 2,
+      "throughput": 1548.9,
+      "ok": 30978,
+      "errors": {},
+      "p50Ms": 1.151,
+      "p99Ms": 3.151
+    },
+    {
+      "concurrency": 4,
+      "throughput": 1851.25,
+      "ok": 37025,
+      "errors": {},
+      "p50Ms": 1.903,
+      "p99Ms": 7.039
+    },
+    {
+      "concurrency": 8,
+      "throughput": 1912.2,
+      "ok": 38244,
+      "errors": {},
+      "p50Ms": 3.695,
+      "p99Ms": 14.079
+    }
+  ],
+  "meta": {
+    "backend": "mongo",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+    "stores": "kafka mongo",
+    "primed": "true",
+    "primeSeconds": "31",
+    "settleSeconds": "3",
+    "accounts": "100000",
+    "session": "/private/tmp/claude-501/-Users-worker-work-Wow--claude-worktrees-performance-optimization-327071/1e81896d-3639-40f5-8c4f-ed1ecfc9cafd/scratchpad/ab/batch-clean/1-b1-mongo/up"
+  }
+}
