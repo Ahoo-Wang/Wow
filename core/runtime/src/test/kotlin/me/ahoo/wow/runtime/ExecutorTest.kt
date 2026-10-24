@@ -46,6 +46,7 @@ class ExecutorTest {
     data class Add(val amount: Int)
     data class Hold(val gate: String)
     data class Push(val amount: Int)
+    data class Fail(val reason: String)
     data class Added(val amount: Int)
 
     class Counter(val id: String) {
@@ -75,6 +76,7 @@ class ExecutorTest {
             Decision.events(Added(0))
         }
         decide<Push>(Creation.ALLOWED) { _, body -> Decision.events(Added(body.amount)) }
+        decide<Fail>(Creation.ALLOWED) { _, body -> error("failed ${body.reason}") }
         evolve<Added> { total += it.amount }
     }
     private val cache = LruStateCache(capacity = 16)
@@ -251,6 +253,33 @@ class ExecutorTest {
         (states.take(model.type.ref("t", "hot"))!!.state as Counter).total.assert().isEqualTo((1..10).sum())
         batching.activeLanes.assert().isEqualTo(0)
         batching.commandsInFlight.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `a queued command that fails fails its own caller, and the others commit`(): Unit = runBlocking {
+        val id = "fails"
+        val batching = Executor(Kernel(InMemoryEventLog(), states = LruStateCache(capacity = 16)), maxBatch = 4)
+        val gate = CompletableDeferred<Unit>().also { gates[id] = it }
+        val held = async(Dispatchers.Default) { batching.execute(model, command(id, Hold(id))) }
+        withTimeout(TIMEOUT_MS) { holding.computeIfAbsent(id) { CompletableDeferred() }.await() }
+        val before = async(Dispatchers.Default) { batching.execute(model, command(id, Push(1))) }
+        withTimeout(TIMEOUT_MS) { while (batching.commandsInFlight < 2) yield() }
+        val failing = async(Dispatchers.Default) { runCatching { batching.execute(model, command(id, Fail("x"))) } }
+        withTimeout(TIMEOUT_MS) { while (batching.commandsInFlight < 3) yield() }
+        val after = async(Dispatchers.Default) { batching.execute(model, command(id, Push(2))) }
+        withTimeout(TIMEOUT_MS) { while (batching.commandsInFlight < 4) yield() }
+        gate.complete(Unit)
+        held.await()
+        (before.await() as CommandOutcome.Committed).stream.version.assert().isEqualTo(2)
+        failing.await().exceptionOrNull()?.message.assert().isEqualTo("failed x")
+        (after.await() as CommandOutcome.Committed).stream.version.assert().isEqualTo(3)
+        batching.activeLanes.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `a batch takes at least one command`() {
+        runCatching { Executor(Kernel(InMemoryEventLog()), maxBatch = 0) }.exceptionOrNull()
+            .assert().isInstanceOf(IllegalArgumentException::class.java)
     }
 
     @Test

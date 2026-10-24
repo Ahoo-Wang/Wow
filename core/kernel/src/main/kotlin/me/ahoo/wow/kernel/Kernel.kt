@@ -299,12 +299,17 @@ class Kernel(
             appending?.invoke(member.stream, member.evolved)
             state = member.evolved
         }
-        if (members.streams.isEmpty()) {
+        if (members.streams.isEmpty() && caching && !members.tainted) {
             // Nothing evolved it: the state goes back as it was taken (C4: only under the lease), and the first command
-            // runs alone.
-            state?.takeIf { caching && it.version > 0 }?.let { states.put(queued.first().command.ref, it) }
+            // runs alone. A first command that failed deciding may have evolved it part way: it is dropped.
+            putBack(queued.first().command.ref, state)
         }
         return members
+    }
+
+    /** Caches [state] of [ref] again, unless it is the initial state of an aggregate not yet created. */
+    private fun putBack(ref: AggregateRef, state: CachedState?) {
+        state?.takeIf { it.version > 0 }?.let { states.put(ref, it) }
     }
 
     /**

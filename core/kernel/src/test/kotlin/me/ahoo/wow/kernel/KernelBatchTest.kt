@@ -17,8 +17,10 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
@@ -26,6 +28,8 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Transport
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import java.io.IOException
 
 /** A batch of one aggregate's queued commands, decided in turn and committed with one append (roadmap §6 item 10). */
 class KernelBatchTest {
@@ -131,11 +135,84 @@ class KernelBatchTest {
         (checkNotNull(states.states[ref]).state as CartState).items.assert().isEqualTo(mapOf("a" to 1, "b" to 2))
     }
 
-    /** Records the streams of each appendAll. */
+    @Test
+    fun `a command that fails deciding ends the batch, drops the state, and fails alone`() = runTest {
+        val tally = tallyModel()
+        kernel.execute(tally, Command("first", "first", tallyRef, TallyAdd(1)))
+        val ended = kernel.executeBatch(
+            tally,
+            listOf(tallied(TallyAdd(2)), tallied(TallyBoom("x")), tallied(TallyAdd(3)))
+        )
+        ended[0].version().assert().isEqualTo(2)
+        ended.drop(1).forEach { it.assert().isEqualTo(BatchOutcome.Again) }
+        // It may have evolved the state part way: dropped, and loaded again.
+        states.states[tallyRef].assert().isNull()
+        val alone = kernel.executeBatch(tally, listOf(tallied(TallyBoom("y")), tallied(TallyAdd(3))))
+        (alone[0] as BatchOutcome.Failed).failure.message.assert().isEqualTo("boom y")
+        alone[1].assert().isEqualTo(BatchOutcome.Again)
+        states.states[tallyRef].assert().isNull()
+    }
+
+    @Test
+    fun `a command of a type the aggregate does not decide ends the batch`() = runTest {
+        create()
+        val outcomes = batch(queued(AddItem("a", 1)), queued(TallyAdd(1)))
+        outcomes[0].version().assert().isEqualTo(2)
+        outcomes[1].assert().isEqualTo(BatchOutcome.Again)
+    }
+
+    @Test
+    fun `an append that throws fails every command of the batch and drops the state`() = runTest {
+        create()
+        log.failure = IOException("unreachable")
+        val outcomes = batch(queued(AddItem("a", 1)), queued(AddItem("b", 1)))
+        outcomes.forEach { (it as BatchOutcome.Failed).failure.message.assert().isEqualTo("unreachable") }
+        states.states[ref].assert().isNull()
+        log.failure = null
+        batch(queued(AddItem("a", 1)))[0].version().assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `a batch holds at least one command, all of one aggregate`() = runTest {
+        assertThrows<IllegalArgumentException> { kernel.executeBatch(cartModel, emptyList()) }
+        val other = QueuedCommand(Command("other", "other", cartModel.type.ref("tenant", "cart-2"), AddItem("a", 1)))
+        assertThrows<IllegalArgumentException> {
+            kernel.executeBatch(
+                cartModel,
+                listOf(queued(AddItem("a", 1)), other)
+            )
+        }
+    }
+
+    private val tallyRef = AggregateType("example", "tally").ref("tenant", "tally-1")
+
+    private fun tallied(body: Any) = QueuedCommand(
+        Command("command-${++sequence}", "request-$sequence", tallyRef, body)
+    )
+
+    /** A tally whose [TallyBoom] fails deciding, as a decide function that throws does. */
+    private fun tallyModel() = aggregate<Tally>("example", "tally") {
+        initial { Tally(it.id) }
+        decide<TallyAdd>(Creation.ALLOWED) { _, command -> Decision.events(TallyAdded(command.amount)) }
+        decide<TallyBoom>(Creation.ALLOWED) { _, command -> error("boom ${command.reason}") }
+        evolve<TallyAdded> { total += it.amount }
+    }
+
+    class Tally(val id: String) {
+        var total = 0
+    }
+
+    data class TallyAdd(val amount: Int)
+    data class TallyBoom(val reason: String)
+    data class TallyAdded(val amount: Int)
+
+    /** Records the streams of each appendAll; fails it with [failure] when set. */
     private class RecordingLog(private val delegate: EventLog = InMemoryEventLog()) : EventLog by delegate {
         val groups = mutableListOf<List<EventStreamRecord>>()
+        var failure: Exception? = null
 
         override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+            failure?.let { throw it }
             groups += streams.map { it.first }
             return delegate.appendAll(streams)
         }

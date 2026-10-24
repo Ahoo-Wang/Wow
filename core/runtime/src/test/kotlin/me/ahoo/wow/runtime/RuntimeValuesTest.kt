@@ -82,6 +82,9 @@ class RuntimeValuesTest {
         ServiceNodeOptions().copyWith(recentRequests = 0).assert().isEqualTo(ServiceNodeOptions(recentRequests = 0))
         ServiceNodeOptions().recentRequests.assert().isEqualTo(ServiceNodeOptions.DEFAULT_RECENT_REQUESTS)
         org.junit.jupiter.api.assertThrows<IllegalArgumentException> { ServiceNodeOptions(recentRequests = -1) }
+        ServiceNodeOptions().copyWith(maxBatch = 1).assert().isEqualTo(ServiceNodeOptions(maxBatch = 1))
+        ServiceNodeOptions().maxBatch.assert().isEqualTo(ServiceNodeOptions.DEFAULT_MAX_BATCH)
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> { ServiceNodeOptions(maxBatch = 0) }
     }
 
     @Test
