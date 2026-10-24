@@ -104,8 +104,8 @@ import me.ahoo.wow.client.RetryPolicy as ClientRetryPolicy
  * - `wow.state-views.capacity` (4096), `max-age` (1m), `max-bytes` (64 MiB): the bounds of each context's state views
  *   (decision D133), see [StateViews].
  * - `wow.executor.lane-capacity` (1024), `wow.executor.max-in-flight` (4096, the node's commands in flight, beyond
- *   which a command is `wow.command.busy`, decision D228 ②), `wow.state-cache.capacity` (sized from the heap
- *   unless set, B.O-4), `wow.state-cache.recent-requests` (256, the requests each cached aggregate keeps of those it committed last,
+ *   which a command is `wow.command.busy`, decision D228 ②), `wow.state-cache.capacity` (bounded by a share of
+ *   the heap in bytes unless set, B.O-4), `wow.state-cache.recent-requests` (256, the requests each cached aggregate keeps of those it committed last,
  *   decision D261), `wow.subscription.*`.
  * - `wow.subscriptions.[<subscription>].start`: `beginning`, `end` or an ISO-8601 instant, where the subscription
  *   (`processor.function`, bracketed for its dot) starts in a partition it has no checkpoint in yet, instead of its
@@ -644,12 +644,14 @@ class WowProperties {
     class StateCache {
         /**
          * The aggregate states kept per context between commands; 0 keeps none. Not set (the default), each context's
-         * cache is sized from the heap (work package B.O-4): a tenth of the maximum heap (`-Xmx`), split between the
-         * node's contexts, over an estimated 1 KB per state plus 12 bytes per recent request (about 4 KB with the
-         * default 256), at least 4096 and at most 131072 states. A miss costs a snapshot and a tail read before the
-         * command is decided, so size it to the aggregates written often: set it when states are much larger than 1 KB
-         * (a capacity times the average state size should stay well within the heap), or when a context has more hot
-         * aggregates than the default holds. The `wow.state-cache` counter (`hit`, `miss`, `evicted`) shows the fit.
+         * cache is bounded by bytes instead (work package B.O-4): a tenth of the maximum heap (`-Xmx`), split between
+         * the node's contexts, each state weighed at an estimated 1 KB plus 12 bytes per recent request it holds (its
+         * rings grow with the requests the aggregate commits, up to `recent-requests`), and at least 4096 states with
+         * full rings. Most aggregates commit few requests, so the default holds several times as many of them as a
+         * count sized for full rings. A miss costs a snapshot and a tail read before the command is decided, so the
+         * cache should hold the aggregates written often: set a capacity when states are much larger than 1 KB (a
+         * capacity times the average state size should stay well within the heap). The `wow.state-cache` counter
+         * (`hit`, `miss`, `evicted`) shows the fit.
          */
         var capacity: Int? = null
 

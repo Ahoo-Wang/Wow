@@ -21,7 +21,9 @@ import me.ahoo.wow.spi.log.EventStreamRecord
  * The requests an aggregate committed most recently, at most [capacity] of them (decision D261): derived from the log
  * when the aggregate is loaded and kept beside its cached state, never stored. Each is a 64-bit hash of its request id
  * and the version it committed, in two primitive rings (12 bytes a request), so a hit only names the version whose
- * stream the kernel reads to confirm the request (a hash may collide) and to answer it as a duplicate.
+ * stream the kernel reads to confirm the request (a hash may collide) and to answer it as a duplicate. The rings start
+ * at [INITIAL] slots and double as requests come, up to [capacity]: most aggregates commit a few requests, and the
+ * state cache holds as many states as its bytes allow ([bytes]).
  *
  * [complete] says it holds every request the aggregate ever committed: a miss then proves the request is not the
  * aggregate's. It holds at most [capacity], so it stops being complete once an older request is left out, read or
@@ -29,9 +31,9 @@ import me.ahoo.wow.spi.log.EventStreamRecord
  *
  * Not thread-safe: it lives in the [CachedState] one command at a time has taken.
  */
-internal class RecentRequests private constructor(private val capacity: Int) {
-    private val hashes = LongArray(capacity)
-    private val versions = IntArray(capacity)
+internal class RecentRequests private constructor(private val capacity: Int, slots: Int) {
+    private var hashes = LongArray(slots)
+    private var versions = IntArray(hashes.size)
 
     /** The ring's slot of the oldest request. */
     private var start = 0
@@ -42,11 +44,14 @@ internal class RecentRequests private constructor(private val capacity: Int) {
     var complete = true
         private set
 
+    /** The bytes its rings take. */
+    val bytes: Long get() = hashes.size * REQUEST_BYTES
+
     /** The version that committed a request whose id hashes as [requestId]'s, the latest; null when none did. */
     fun versionOf(requestId: String): Int? {
         val hash = hashOf(requestId)
         for (offset in size - 1 downTo 0) {
-            val slot = (start + offset) % capacity
+            val slot = (start + offset) % hashes.size
             if (hashes[slot] == hash) {
                 return versions[slot]
             }
@@ -60,11 +65,28 @@ internal class RecentRequests private constructor(private val capacity: Int) {
             start = (start + 1) % capacity
             size--
             complete = false
+        } else if (size == hashes.size) {
+            grow()
         }
-        val slot = (start + size) % capacity
+        val slot = (start + size) % hashes.size
         hashes[slot] = hashOf(requestId)
         versions[slot] = version
         size++
+    }
+
+    /** Doubles the rings, up to [capacity], the oldest request first. */
+    private fun grow() {
+        val slots = minOf(capacity, hashes.size * 2)
+        val grownHashes = LongArray(slots)
+        val grownVersions = IntArray(slots)
+        for (offset in 0 until size) {
+            val slot = (start + offset) % hashes.size
+            grownHashes[offset] = hashes[slot]
+            grownVersions[offset] = versions[slot]
+        }
+        hashes = grownHashes
+        versions = grownVersions
+        start = 0
     }
 
     companion object {
@@ -80,8 +102,8 @@ internal class RecentRequests private constructor(private val capacity: Int) {
             reachedStart: Boolean,
         ): RecentRequests {
             require(capacity >= 1) { "Recent requests hold at least one request." }
-            val recent = RecentRequests(capacity)
             val total = earlier.size + streams.size
+            val recent = RecentRequests(capacity, total.coerceIn(minOf(capacity, INITIAL), capacity))
             recent.complete = reachedStart && total <= capacity
             val skip = (total - capacity).coerceAtLeast(0)
             var index = 0
@@ -115,6 +137,12 @@ internal class RecentRequests private constructor(private val capacity: Int) {
             hash = (hash xor (hash ushr MIX_SHIFT)) * MIX_2
             return hash xor (hash ushr MIX_SHIFT)
         }
+
+        /** The slots the rings start with. */
+        const val INITIAL = 8
+
+        /** The bytes one request takes: its 64-bit hash and its version. */
+        const val REQUEST_BYTES: Long = 12
 
         private const val FNV_OFFSET = -0x340d631b7bdddcdbL
         private const val FNV_PRIME = 0x100000001b3L

@@ -540,12 +540,25 @@ class ServiceNode @InternalWowApi constructor(
     val timerLoop: TimerLoop = TimerLoop(options.timers, clock)
 
     /**
-     * The aggregate states each context's cache keeps (work package B.O-4): the configured capacity, else sized from
-     * the heap over the contexts the node serves ([StateCacheSizing]).
+     * The aggregate states each context's cache keeps (work package B.O-4): the configured capacity, or null when it
+     * is bounded by [stateCacheBytes].
      */
     @InternalWowApi
-    val stateCacheCapacity: Int = options.stateCacheCapacity
-        ?: StateCacheSizing.capacity(served.map { it.type.context }.distinct().size.coerceAtLeast(1), options.recentRequests)
+    val stateCacheCapacity: Int? = options.stateCacheCapacity
+
+    /**
+     * The estimated bytes each context's cache holds when no capacity is configured: sized from the heap over the
+     * contexts the node serves ([StateCacheSizing]); null when a capacity bounds it.
+     */
+    @InternalWowApi
+    val stateCacheBytes: Long? = if (stateCacheCapacity == null) {
+        StateCacheSizing.maxBytes(
+            served.map { it.type.context }.distinct().size.coerceAtLeast(1),
+            options.recentRequests,
+        )
+    } else {
+        null
+    }
 
     private val parts: List<Parts> = served.groupBy { it.type.context }.map { (context, contextModels) ->
         assemble(context, contextModels, opened.getValue(context), codec, subscriptions)
@@ -1087,11 +1100,17 @@ class ServiceNode @InternalWowApi constructor(
             )
         }
 
-    /** The state cache of [context]'s kernel, of [stateCacheCapacity] states, each eviction observed. */
-    private fun stateCacheOf(context: String): StateCache = if (stateCacheCapacity > 0) {
-        LruStateCache(stateCacheCapacity) { observer.stateCache(context, StateCacheOutcome.EVICTED) }
-    } else {
-        StateCache.None
+    /**
+     * The state cache of [context]'s kernel, of [stateCacheCapacity] states or [stateCacheBytes] of them, each eviction
+     * observed.
+     */
+    private fun stateCacheOf(context: String): StateCache {
+        val evicted = { observer.stateCache(context, StateCacheOutcome.EVICTED) }
+        return when (val capacity = stateCacheCapacity) {
+            null -> LruStateCache(maxBytes = checkNotNull(stateCacheBytes), evicted = evicted)
+            0 -> StateCache.None
+            else -> LruStateCache(capacity = capacity, evicted = evicted)
+        }
     }
 
     private fun assemble(

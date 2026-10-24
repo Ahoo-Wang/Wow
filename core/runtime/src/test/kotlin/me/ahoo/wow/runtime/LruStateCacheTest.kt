@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.CachedState
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class LruStateCacheTest {
     private val type = AggregateType("test", "counter")
@@ -39,6 +40,52 @@ class LruStateCacheTest {
         cache.take(type.ref("t", "a")).assert().isNotNull()
         cache.take(type.ref("t", "a")).assert().isNull()
         cache.size.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `a cache bounded by bytes evicts the least recently used past its bytes`() {
+        val one = CachedState("a", 1).bytes
+        var evicted = 0
+        val cache = LruStateCache(maxBytes = 2 * one) { evicted++ }
+        cache.put(type.ref("t", "a"), CachedState("a", 1))
+        cache.put(type.ref("t", "b"), CachedState("b", 1))
+        cache.bytes.assert().isEqualTo(2 * one)
+        cache.put(type.ref("t", "a"), cache.take(type.ref("t", "a"))!!)
+        cache.put(type.ref("t", "c"), CachedState("c", 1))
+        evicted.assert().isEqualTo(1)
+        cache.take(type.ref("t", "b")).assert().isNull()
+        cache.take(type.ref("t", "a"))!!.state.assert().isEqualTo("a")
+        cache.bytes.assert().isEqualTo(one)
+    }
+
+    @Test
+    fun `putting a state again weighs it once`() {
+        val cache = LruStateCache(maxBytes = 4 * CachedState.STATE_BYTES)
+        repeat(3) { cache.put(type.ref("t", "a"), CachedState(it, 1)) }
+        cache.size.assert().isEqualTo(1)
+        cache.bytes.assert().isEqualTo(CachedState.STATE_BYTES)
+        cache.invalidate(0, 1)
+        cache.size.assert().isZero()
+        cache.bytes.assert().isZero()
+    }
+
+    @Test
+    fun `a cache is bounded by a capacity, bytes or both`() {
+        assertThrows<IllegalArgumentException> { LruStateCache() }
+        assertThrows<IllegalArgumentException> { LruStateCache(capacity = 0) }
+        assertThrows<IllegalArgumentException> { LruStateCache(maxBytes = CachedState.STATE_BYTES - 1) }
+        val both = LruStateCache(capacity = 2, maxBytes = 1_000 * CachedState.STATE_BYTES)
+        repeat(5) { both.put(type.ref("t", "a-$it"), CachedState(it, 1)) }
+        both.size.assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `a large cache bounded by bytes is striped within its bytes`() {
+        val cache = LruStateCache(maxBytes = 1_000 * CachedState.STATE_BYTES)
+        repeat(5_000) { cache.put(type.ref("t", "a-$it"), CachedState(it, 1)) }
+        cache.bytes.assert().isLessThanOrEqualTo(1_000 * CachedState.STATE_BYTES)
+        cache.size.assert().isGreaterThan(900)
+        cache.take(type.ref("t", "a-4999"))!!.state.assert().isEqualTo(4_999)
     }
 
     @Test

@@ -22,29 +22,44 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
- * A [StateCache] of at most [capacity] aggregates, evicting the least recently used. Taking a state out (for a
- * command) frees its slot until the command puts it back. [invalidate] drops a partition's states when the node
- * acquires or releases it (decision D261), scanning every stripe.
+ * A [StateCache] of at most [capacity] aggregates and [maxBytes] of their estimated size ([CachedState.bytes]),
+ * evicting the least recently used while either is passed. Taking a state out (for a command) frees its room until the
+ * command puts it back, weighed again then. [invalidate] drops a partition's states when the node acquires or releases
+ * it (decision D261), scanning every stripe.
  *
  * A large cache is striped by aggregate (review A5-3): each of up to [Stripes.MAX] stripes is an LRU of its share of
- * the capacity under its own lock, so the commands of different aggregates rarely take the same lock. Eviction is
- * then least recently used within a stripe; a cache smaller than two stripes' minimum is one exact LRU.
+ * the bounds under its own lock, so the commands of different aggregates rarely take the same lock. Eviction is then
+ * least recently used within a stripe; a cache smaller than two stripes' minimum is one exact LRU.
  */
 @InternalWowApi
 class LruStateCache(
-    private val capacity: Int,
+    private val capacity: Int = Int.MAX_VALUE,
+    private val maxBytes: Long = Long.MAX_VALUE,
     /** Called for each state evicted to make room, from the putting thread: a metric hook (work package B.O-4). */
     private val evicted: () -> Unit = {},
 ) : StateCache {
     init {
         require(capacity >= 1) { "A state cache holds at least one state." }
+        require(maxBytes >= CachedState.STATE_BYTES) { "A state cache holds at least one state's bytes." }
+        require(capacity < Int.MAX_VALUE || maxBytes < Long.MAX_VALUE) { "A state cache is bounded." }
     }
 
-    private val stripes: Array<Stripe> = Stripes.of(capacity).let { count ->
-        Array(count) { index -> Stripe(Stripes.share(capacity, count, index), evicted) }
+    /** Striped by the most states it may hold: its capacity, or as many as its bytes hold at their smallest. */
+    private val stripes: Array<Stripe> =
+        stripesOf(Stripes.of(minOf(capacity.toLong(), maxBytes / CachedState.STATE_BYTES).toInt()))
+
+    private fun stripesOf(count: Int): Array<Stripe> = Array(count) { index ->
+        Stripe(
+            if (capacity == Int.MAX_VALUE) Int.MAX_VALUE else Stripes.share(capacity, count, index),
+            if (maxBytes == Long.MAX_VALUE) Long.MAX_VALUE else maxBytes / count,
+            evicted,
+        )
     }
 
     val size: Int get() = stripes.sumOf { it.size }
+
+    /** The estimated bytes of the states it holds. */
+    val bytes: Long get() = stripes.sumOf { it.bytes }
 
     override fun take(ref: AggregateRef): CachedState? = Stripes.pick(stripes, ref).take(ref)
 
@@ -56,23 +71,53 @@ class LruStateCache(
         stripes.forEach { stripe -> stripe.removeIf { Partitioner.partitionOf(it, partitions) == partition } }
     }
 
-    private class Stripe(private val capacity: Int, private val evicted: () -> Unit) {
+    /** A state with the bytes it was weighed at when put. */
+    private class Held(val state: CachedState, val bytes: Long)
+
+    private class Stripe(private val capacity: Int, private val maxBytes: Long, private val evicted: () -> Unit) {
         private val lock = ReentrantLock()
-        private val states = object : LinkedHashMap<AggregateRef, CachedState>(INITIAL, LOAD_FACTOR, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<AggregateRef, CachedState>): Boolean =
-                (size > capacity).also { if (it) evicted() }
-        }
+        private val states = LinkedHashMap<AggregateRef, Held>(INITIAL, LOAD_FACTOR, true)
+        private var held = 0L
 
         val size: Int get() = lock.withLock { states.size }
 
-        fun take(ref: AggregateRef): CachedState? = lock.withLock { states.remove(ref) }
+        val bytes: Long get() = lock.withLock { held }
+
+        fun take(ref: AggregateRef): CachedState? = lock.withLock {
+            states.remove(ref)?.let { taken ->
+                held -= taken.bytes
+                taken.state
+            }
+        }
 
         fun put(ref: AggregateRef, state: CachedState) {
-            lock.withLock { states[ref] = state }
+            lock.withLock {
+                val weighed = Held(state, state.bytes)
+                states.put(ref, weighed)?.let { replaced -> held -= replaced.bytes }
+                held += weighed.bytes
+                val eldest = states.entries.iterator()
+                while ((states.size > capacity || held > maxBytes) && eldest.hasNext()) {
+                    val entry = eldest.next()
+                    // The state just put stays, the eldest is evicted first: it is the last in access order.
+                    if (entry.key == ref) break
+                    eldest.remove()
+                    held -= entry.value.bytes
+                    evicted()
+                }
+            }
         }
 
         fun removeIf(matches: (AggregateRef) -> Boolean) {
-            lock.withLock { states.keys.removeIf(matches) }
+            lock.withLock {
+                val all = states.entries.iterator()
+                while (all.hasNext()) {
+                    val entry = all.next()
+                    if (matches(entry.key)) {
+                        all.remove()
+                        held -= entry.value.bytes
+                    }
+                }
+            }
         }
     }
 
@@ -82,10 +127,6 @@ class LruStateCache(
     }
 }
 
-/**
- * How a per-context structure keyed by aggregate is striped (review A5-3): [of] gives the stripes of a [capacity],
- * at most [MAX] of at least [MIN_SHARE] each, so a small one stays one stripe with exact bounds.
- */
 internal object Stripes {
     const val MAX: Int = 16
     const val MIN_SHARE: Int = 256

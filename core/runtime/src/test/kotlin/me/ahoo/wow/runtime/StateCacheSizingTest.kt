@@ -24,27 +24,21 @@ class StateCacheSizingTest {
     private val gib = 1L shl 30
 
     @Test
-    fun `a tenth of the heap over the estimated entry, split between the contexts`() {
+    fun `a tenth of the heap, split between the contexts`() {
         StateCacheSizing.entryBytes(256).assert().isEqualTo(1_024L + 256 * 12)
-        // 4 GiB: 429 MB over 4096 bytes is 104857 states for one context, half of it for two.
-        StateCacheSizing.capacity(contexts = 1, recentRequests = 256, maxHeap = 4 * gib).assert().isEqualTo(104_857)
-        StateCacheSizing.capacity(contexts = 2, recentRequests = 256, maxHeap = 4 * gib).assert().isEqualTo(52_428)
-        // Fewer recent requests, smaller entries: more of them.
-        StateCacheSizing.capacity(contexts = 1, recentRequests = 0, maxHeap = 1 * gib).assert().isEqualTo(104_857)
+        StateCacheSizing.maxBytes(contexts = 1, recentRequests = 256, maxHeap = 4 * gib).assert().isEqualTo(429_496_729)
+        StateCacheSizing.maxBytes(contexts = 2, recentRequests = 256, maxHeap = 4 * gib).assert().isEqualTo(214_748_364)
     }
 
     @Test
-    fun `a small heap keeps the former default, a large one the cap`() {
-        StateCacheSizing.capacity(contexts = 1, recentRequests = 256, maxHeap = 256L shl 20).assert().isEqualTo(6_553)
-        StateCacheSizing.capacity(contexts = 1, recentRequests = 256, maxHeap = 64L shl 20)
-            .assert().isEqualTo(StateCacheSizing.MIN)
-        StateCacheSizing.capacity(contexts = 8, recentRequests = 256, maxHeap = 4 * gib).assert().isEqualTo(13_107)
-        StateCacheSizing.capacity(contexts = 1, recentRequests = 256, maxHeap = 64 * gib)
-            .assert().isEqualTo(StateCacheSizing.MAX)
-        StateCacheSizing.capacity(contexts = 1, recentRequests = 256)
-            .assert().isBetween(StateCacheSizing.MIN, StateCacheSizing.MAX)
-        assertThrows<IllegalArgumentException> { StateCacheSizing.capacity(contexts = 0, recentRequests = 256) }
-        assertThrows<IllegalArgumentException> { StateCacheSizing.capacity(contexts = 1, recentRequests = -1) }
+    fun `a small heap still holds the former default of full states`() {
+        val floor = StateCacheSizing.MIN * StateCacheSizing.entryBytes(256)
+        StateCacheSizing.maxBytes(contexts = 1, recentRequests = 256, maxHeap = 64L shl 20).assert().isEqualTo(floor)
+        StateCacheSizing.maxBytes(contexts = 8, recentRequests = 256, maxHeap = 1 * gib).assert().isEqualTo(floor)
+        StateCacheSizing.maxBytes(contexts = 1, recentRequests = 0, maxHeap = 1L shl 20)
+            .assert().isEqualTo(StateCacheSizing.MIN * CachedState.STATE_BYTES)
+        assertThrows<IllegalArgumentException> { StateCacheSizing.maxBytes(contexts = 0, recentRequests = 256) }
+        assertThrows<IllegalArgumentException> { StateCacheSizing.maxBytes(contexts = 1, recentRequests = -1) }
     }
 
     @Test

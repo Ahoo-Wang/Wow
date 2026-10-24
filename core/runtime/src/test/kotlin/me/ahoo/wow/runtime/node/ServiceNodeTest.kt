@@ -132,11 +132,13 @@ class ServiceNodeTest {
 
     @Test
     fun `each context's state cache is sized from the heap unless the host sizes it`() {
-        // Work package B.O-4: a tenth of the heap split between the node's contexts, or the configured capacity.
-        node("sized", BANK, "audit").stateCacheCapacity
-            .assert().isEqualTo(StateCacheSizing.capacity(contexts = 2, recentRequests = 256))
-        node("configured", options = fastNodeOptions().copyWith(stateCacheCapacity = 7)).stateCacheCapacity
-            .assert().isEqualTo(7)
+        // Work package B.O-4: a tenth of the heap in bytes, split between the node's contexts, or the configured capacity.
+        val sized = node("sized", BANK, "audit")
+        sized.stateCacheCapacity.assert().isNull()
+        sized.stateCacheBytes.assert().isEqualTo(StateCacheSizing.maxBytes(contexts = 2, recentRequests = 256))
+        val configured = node("configured", options = fastNodeOptions().copyWith(stateCacheCapacity = 7))
+        configured.stateCacheCapacity.assert().isEqualTo(7)
+        configured.stateCacheBytes.assert().isNull()
         node("uncached", options = fastNodeOptions().copyWith(stateCacheCapacity = 0)).stateCacheCapacity
             .assert().isZero()
     }
