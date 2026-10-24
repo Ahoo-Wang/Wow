@@ -66,6 +66,8 @@ import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.log.TailPacer
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.log.notAppendedAfter
+import me.ahoo.wow.spi.log.requireChains
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
@@ -355,9 +357,7 @@ class MongoEventLog(
                 stream.ref.type.context == context && Partitioner.partitionOf(stream.ref, partitions) == partition
             },
         ) { "A group commit appends streams of one partition of $context." }
-        require(streams.map { it.first.ref }.toSet().size == streams.size) {
-            "A group commit appends distinct aggregates."
-        }
+        requireChains(streams)
         return dispatcher.mongo { appendGroup(partition, streams) }.also { outcomes ->
             if (outcomes.any { it is AppendOutcome.Committed }) pacer.committed(partition)
         }
@@ -372,39 +372,61 @@ class MongoEventLog(
         val sequence: Long,
     )
 
+    /**
+     * [streams] encoded and sequenced, then inserted with one `insertMany` per collection. An aggregate's later streams
+     * follow the sequence its previous one in the group took, and are not appended once one did not commit
+     * ([EventLog.appendAll]).
+     */
     private fun appendGroup(partition: Int, streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
         val outcomes = arrayOfNulls<AppendOutcome>(streams.size)
+        val failed = HashMap<AggregateRef, AppendOutcome>()
+        val previous = HashMap<AggregateRef, Long>()
         val members = ArrayList<Member>(streams.size)
         streams.forEachIndexed { index, (stream, transport) ->
+            failed[stream.ref]?.let {
+                outcomes[index] = it
+                return@forEachIndexed
+            }
             val collection = collectionOf(stream.ref.type)
             val document = encode(partition, stream, transport).getOrElse {
                 outcomes[index] = AppendOutcome.Rejected(it)
+                failed[stream.ref] = notAppendedAfter(stream, AppendOutcome.Rejected(it))
                 return@forEachIndexed
             }
-            val after = previousOf(collection, stream) ?: run {
+            val after = previous[stream.ref] ?: previousOf(collection, stream) ?: run {
                 val conflict = AppendOutcome.Conflict(currentVersion(collection, stream.ref))
                 outcomes[index] = duplicateOr(collection, stream, conflict)
+                failed[stream.ref] = notAppendedAfter(stream, checkNotNull(outcomes[index]))
                 return@forEachIndexed
             }
             val allocation = sequencer.allocate(partition, collection.name, after) { known().map { it.name } }
             allocation.closing?.let(::close)
             document[SEQUENCE] = allocation.sequence
+            previous[stream.ref] = allocation.sequence
             members += Member(index, stream, collection, document, allocation.sequence)
         }
         members.groupBy { it.collection }.forEach { (collection, group) ->
             insertGroup(collection, group).forEach { (index, outcome) -> outcomes[index] = outcome }
         }
-        // A member whose position was taken (its block sealed) has no outcome yet: it is appended again, alone.
-        return outcomes.mapIndexed { index, outcome -> outcome ?: appendNow(streams[index].first, streams[index].second) }
+        // A member whose position was taken (its block sealed), or that its insert did not reach, has no outcome yet:
+        // it is appended again, alone, in order, unless one of its aggregate's did not commit.
+        failed.clear()
+        return outcomes.mapIndexed { index, outcome ->
+            val (stream, transport) = streams[index]
+            failed[stream.ref] ?: (outcome ?: appendNow(stream, transport)).also {
+                if (it !is AppendOutcome.Committed) failed[stream.ref] = notAppendedAfter(stream, it)
+            }
+        }
     }
 
     /**
-     * Inserts [group], members of one collection, with one unordered `insertMany`: each member's outcome by its index,
-     * none for a member whose position was taken.
+     * Inserts [group], members of one collection, with one ordered `insertMany`: each member's outcome by its index,
+     * none for a member whose position was taken or that the insert did not reach. It stops at its first failure, so
+     * an aggregate's streams land as a prefix.
      */
     private fun insertGroup(collection: AggregateCollection, group: List<Member>): Map<Int, AppendOutcome?> {
         val failures: Map<Int, WriteError> = try {
-            collection.appends.insertMany(group.map { it.document }, InsertManyOptions().ordered(false))
+            collection.appends.insertMany(group.map { it.document }, InsertManyOptions().ordered(true))
             emptyMap()
         } catch (bulk: MongoBulkWriteException) {
             if (bulk.writeConcernError != null) {
@@ -429,8 +451,15 @@ class MongoEventLog(
             }
             return group.associate { it.index to unknown(it, failure) }
         }
+        // Ordered: the members after the first failure were not tried; a placeholder takes each one's sequence.
+        val stopped = failures.keys.minOrNull() ?: group.size
         return group.withIndex().associate { (at, member) ->
-            member.index to outcomeOf(collection, member, failures[at])
+            if (at > stopped) {
+                fill(collection, member.stream.ref.partitionIn(), member.sequence, GAP_FAILED)
+                member.index to null
+            } else {
+                member.index to outcomeOf(collection, member, failures[at])
+            }
         }
     }
 

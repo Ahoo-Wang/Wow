@@ -653,15 +653,12 @@ class MongoEventLogTest : EventLogSpec() {
             .forEach { (code, expected) ->
                 val context = MongoLogFixture.newContext()
                 var faulted = false
-                lateinit var real: MongoCollection<Document>
                 val client = faulty(many = { documents, insert ->
                     if (faulted) {
                         insert()
                     } else {
+                        // An ordered insert stops at its first failure: the members after it are not written.
                         faulted = true
-                        real = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
-                            .getCollection(collection(context, "order"))
-                        real.insertMany(documents.drop(1))
                         throw bulk(documents, BulkWriteError(code, "failed", BsonDocument(), 0), null)
                     }
                 })
