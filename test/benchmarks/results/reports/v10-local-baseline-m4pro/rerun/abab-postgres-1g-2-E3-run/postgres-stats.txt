@@ -1,0 +1,39 @@
+# Top statements by total execution time (pg_stat_statements, since the run's warm-up began)
+  calls  | total_ms | mean_ms | max_ms |   rows   |                                                                    query                                                                     
+---------+----------+---------+--------+----------+----------------------------------------------------------------------------------------------------------------------------------------------
+ 1631441 | 628367.2 |   0.385 |  190.5 | 62919391 | WITH s AS (SELECT * FROM "wow_snapshot__transfer__account" WHERE tenant_id = $1 AND aggregate_id = $2) SELECT 0 AS part, tenant_id, aggregat
+ 2867032 | 176973.8 |   0.062 |  191.8 |  2867032 | WITH current AS ( SELECT coalesce(max(version), 0) AS version FROM "wow_log__transfer__account" WHERE aggregate_id = $1 AND tenant_id = $2 )
+  248911 |  37503.3 |   0.151 | 3538.7 |   497822 | WITH input (ord, branch, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, events, owner_id, space_id, co
+  133338 |  22251.1 |   0.167 |   16.9 |   400014 | WITH input (ord, branch, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, events, owner_id, space_id, co
+  682541 |  19922.0 |   0.029 |    6.3 |   682541 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, de
+   82728 |  16275.9 |   0.197 |   35.2 |   330912 | WITH input (ord, branch, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, events, owner_id, space_id, co
+   55886 |  15253.0 |   0.273 | 2139.9 |   279430 | WITH input (ord, branch, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, events, owner_id, space_id, co
+   39833 |  10918.6 |   0.274 |   35.1 |   238998 | WITH input (ord, branch, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, events, owner_id, space_id, co
+  161657 |   9832.8 |   0.061 |    7.2 |   323314 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, de
+   29787 |   9174.0 |   0.308 |   12.8 |   208509 | WITH input (ord, branch, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, events, owner_id, space_id, co
+    1553 |   8879.1 |   5.717 |   20.1 |   397568 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, de
+   91796 |   7954.9 |   0.087 |   10.7 |   275388 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, de
+   21963 |   7520.2 |   0.342 |   14.1 |   175704 | WITH input (ord, branch, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, events, owner_id, space_id, co
+   16625 |   6159.4 |   0.370 |   16.4 |   149625 | WITH input (ord, branch, tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, events, owner_id, space_id, co
+   55369 |   6148.9 |   0.111 |    6.6 |   221476 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, de
+(15 rows)
+
+# Checkpoints (pg_stat_checkpointer)
+ num_timed | num_requested | restartpoints_timed | restartpoints_req | restartpoints_done | write_time | sync_time | buffers_written |          stats_reset          
+-----------+---------------+---------------------+-------------------+--------------------+------------+-----------+-----------------+-------------------------------
+         0 |            20 |                   0 |                 0 |                  0 |     837206 |      6948 |          154846 | 2026-10-24 16:55:39.644826+00
+(1 row)
+
+# Waits now (pg_stat_activity)
+ wait_event_type |     wait_event      | count 
+-----------------+---------------------+-------
+ Client          | ClientRead          |    12
+ Activity        | WalWriterMain       |     1
+ Timeout         | VacuumDelay         |     1
+ Activity        | LogicalLauncherMain |     1
+ Activity        | AutovacuumMain      |     1
+ Activity        | CheckpointerMain    |     1
+                 |                     |     1
+ Activity        | BgwriterMain        |     1
+(8 rows)
+

@@ -1,0 +1,6 @@
+# Top statements by total execution time (pg_stat_statements, since the run's warm-up began)
+Error response from daemon: No such container: wow-e2e-bench-postgres
+# Checkpoints (pg_stat_checkpointer)
+Error response from daemon: No such container: wow-e2e-bench-postgres
+# Waits now (pg_stat_activity)
+Error response from daemon: No such container: wow-e2e-bench-postgres
