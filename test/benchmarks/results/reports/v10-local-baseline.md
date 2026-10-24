@@ -194,6 +194,20 @@ L1 on MongoDB, concurrency 16, two alternating rounds of `main` (A) and the chan
 
 About 24 KB less per load, the same in E1 and E3 (one load per command in L1). The snapshot store's writes are next: their encoding was another 5.7% of the node's allocation.
 
+## Candidate 2, second part: snapshot writes as BSON
+
+A snapshot's save parsed its state into a JSON tree, copied it into a `Document`, wrapped each field in another `Document` for `$literal`, and left the driver to render it all through its codecs: 5.7% of the node's allocation in encoding and about as much in building. The state now streams from its JSON text into BSON (`ExactBson.bson`, by the rules of `ExactBson.document`; a test pins the two to the same bytes and the same refusals), and the filter and the update are built as BSON.
+
+The same L1 rounds, `main` before the first part (A) against this change alone (D) ([results](v10-local-baseline/mongo-snapshot-bson/)):
+
+| Per command | A | D |
+| --- | --- | --- |
+| E1 allocated | 222.6, 223.4 KB | 215.3, 216.1 KB (−3.3%) |
+| E3 allocated | 424.9, 423.2 KB | 404.8, 406.1 KB (−4.5%) |
+| Round trips | 3.32–3.33 (E1), 5.60 (E3) | 3.32–3.33, 5.60 |
+
+About 7 KB less per snapshot written: E1 writes one per command, E3 three.
+
 ## Notes on method
 
 - Judge a change locally on the stable quantities: CPU and allocation per operation, round trips, commits, rows and WAL per operation. Throughput and latency only at low concurrency, or over many alternating rounds.
