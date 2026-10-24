@@ -398,4 +398,3 @@ rc 之后不丢的清单：每一项写明来源，排期时再拆成路线图�
 
 | 事项 | 条件与落点 | 来源 |
 | --- | --- | --- |
-| 去掉 `KeepAliveReads`：宿主的两个 HTTP 服务器为绕开 Reactor Netty 1.3.7 的缺陷（上一个请求结束前到达的 keep-alive 请求被缓冲，答完后无人再请求读，下一个请求留在 socket 里直到客户端超时；上游修复 reactor/reactor-netty@a115965，随 1.3.8 发布）挂了这个 handler | Spring Boot BOM 带来的 reactor-netty ≥ 1.3.8 时，`KeepAliveReadsTest` 的「without the handler」用例失败：删掉 `host/spring-boot/.../KeepAliveReads.kt`、它在 `InternalServer` 与 `WowAutoConfiguration` 的安装和这个测试 | 原 `docs/todo.md`（2026-10-22 并入本节） |
