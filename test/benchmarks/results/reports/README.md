@@ -21,6 +21,7 @@ Earlier Wow 10 evidence, each valid for the commit it names:
 | [v10-d271-mongo-sequences-spike](v10-d271-mongo-sequences-spike.md) | Spike D271: appends on MongoDB without a transaction, owner-assigned sequences (happy path) | Spike, decided (D271) |
 | [v10-d271-mongo-sequences](v10-d271-mongo-sequences.md) | D271 against `main` on MongoDB: round trips, allocation and closed-loop saturation, with the append queue off and on | Valid for its commits |
 | [v10-d248-pg-append-queue](v10-d248-pg-append-queue.md) | D248 ④: the append queue on PostgreSQL, off against on, closed-loop saturation | Decided (D248 ④) |
+| [v10-local-baseline](v10-local-baseline.md) | The local baseline: A/A noise, cost per operation by resource, the node's CPU by thread and allocation by part, the stores' time by statement, ranked candidates | Baseline for its commit |
 | [v10-vs-9x-smoke](v10-vs-9x-smoke.md) | The harness's first end-to-end smoke run | Not a benchmark |
 
 ## 9.x

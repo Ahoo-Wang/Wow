@@ -1,0 +1,38 @@
+# Top statements by total execution time (pg_stat_statements, since the run's warm-up began)
+ calls | total_ms | mean_ms | max_ms |  rows  |                                                                    query                                                                     
+-------+----------+---------+--------+--------+----------------------------------------------------------------------------------------------------------------------------------------------
+ 63408 |   5645.9 |   0.089 |    4.4 | 442940 | WITH s AS (SELECT * FROM "wow_snapshot__transfer__account" WHERE tenant_id = $1 AND aggregate_id = $2) SELECT 0 AS part, tenant_id, aggregat
+ 85755 |   5261.4 |   0.061 |    1.2 |  85755 | WITH current AS ( SELECT coalesce(max(version), 0) AS version FROM "wow_log__transfer__account" WHERE aggregate_id = $1 AND tenant_id = $2 )
+ 84199 |   3510.5 |   0.042 |    1.1 |  84199 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, de
+ 45856 |    668.9 |   0.015 |    0.8 |  45856 | INSERT INTO wow_checkpoint AS c (subscription_group, subscription, partition, position) VALUES ($1, $2, $3, $4) ON CONFLICT (subscription_gr
+   495 |     77.8 |   0.157 |    1.4 |    990 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, de
+ 84944 |     27.1 |   0.000 |    0.4 |      0 | BEGIN
+    92 |     17.5 |   0.190 |    0.6 |    276 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, de
+   256 |     16.0 |   0.063 |    0.2 |    256 | SELECT sequence FROM "wow_log__transfer__partition" WHERE partition = $1
+    46 |     11.3 |   0.247 |    0.7 |    184 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, de
+    96 |      6.0 |   0.062 |    0.2 |     96 | select extract($1 from clock_timestamp()), d.xact_commit, d.xact_rollback, d.tup_inserted, d.tup_updated, d.tup_deleted, d.tup_fetched, d.tu
+   188 |      4.5 |   0.024 |    0.1 |    188 | SELECT subscription_group, node, address, expires_at FROM wow_lease_member WHERE subscription_group = $1 AND expires_at > $2 ORDER BY node C
+    94 |      4.4 |   0.046 |    0.1 |   6016 | SELECT subscription_group, partition, owner, epoch, expires_at FROM wow_lease WHERE subscription_group = $1 AND expires_at > $2 ORDER BY par
+    14 |      4.1 |   0.296 |    0.7 |     70 | INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, de
+    32 |      3.5 |   0.109 |    0.3 |   2048 | UPDATE wow_lease SET expires_at = $1 WHERE subscription_group = $2 AND owner = $3 AND partition = ANY($4) AND expires_at > $5 RETURNING subs
+    50 |      2.9 |   0.059 |    0.2 |     50 | INSERT INTO wow_lease_member (subscription_group, node, address, expires_at) VALUES ($1, $2, $3, $4) ON CONFLICT (subscription_group, node) 
+(15 rows)
+
+# Checkpoints (pg_stat_checkpointer)
+ num_timed | num_requested | restartpoints_timed | restartpoints_req | restartpoints_done | write_time | sync_time | buffers_written |          stats_reset          
+-----------+---------------+---------------------+-------------------+--------------------+------------+-----------+-----------------+-------------------------------
+         0 |             2 |                   0 |                 0 |                  0 |          9 |        10 |           26211 | 2026-10-24 00:45:27.382084+00
+(1 row)
+
+# Waits now (pg_stat_activity)
+ wait_event_type |      wait_event      | count 
+-----------------+----------------------+-------
+ Client          | ClientRead           |    11
+ Timeout         | CheckpointWriteDelay |     1
+ Activity        | WalWriterMain        |     1
+                 |                      |     1
+ Activity        | AutovacuumMain       |     1
+ Activity        | BgwriterMain         |     1
+ Activity        | LogicalLauncherMain  |     1
+(7 rows)
+

@@ -23,8 +23,8 @@ import java.util.concurrent.atomic.LongAdder
 /**
  * The closed-loop saturation finder (decision D224): [concurrency] workers each send an operation and send the next
  * when it completes, for a step of [stepSeconds] after [warmUpSeconds]; the concurrency doubles from
- * [startConcurrency] until the throughput stops growing by [minGain] two steps in a row, errors pass [maxErrorRate],
- * or [maxConcurrency] is reached. The highest throughput seen is the saturation point the open-loop runs take their
+ * [startConcurrency] until the throughput stops growing by [minGain] two steps in a row (unless it [sweep]s), errors
+ * pass [maxErrorRate], or [maxConcurrency] is reached. The highest throughput seen is the saturation point the open-loop runs take their
  * 50% and 80% rates from. A closed loop's latencies understate a saturated server's (coordinated omission): they are
  * recorded only to show where the knee is, never as a result.
  */
@@ -39,6 +39,8 @@ class ClosedLoop(
     private val stepSeconds: Int,
     private val minGain: Double = DEFAULT_MIN_GAIN,
     private val maxErrorRate: Double = DEFAULT_MAX_ERROR_RATE,
+    /** Every step up to [maxConcurrency], however little one gains: the whole curve rather than its knee. */
+    private val sweep: Boolean = false,
     private val log: (String) -> Unit = {},
 ) {
     /** One step: its concurrency, throughput and latencies. */
@@ -67,7 +69,7 @@ class ClosedLoop(
             steps += step
             if (step.errorRate > maxErrorRate) break
             flat = if (step.throughput < best * (1 + minGain)) flat + 1 else 0
-            if (flat >= FLAT_STEPS) break
+            if (flat >= FLAT_STEPS && !sweep) break
             concurrency *= 2
         }
         return steps

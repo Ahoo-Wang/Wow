@@ -99,6 +99,17 @@ test/benchmarks/harness/bench.sh saturate --version=9x --scenario=E1 --max-concu
 
 `--accounts=<n>` with `--seed-concurrency=<n>` sizes the data set; seeding opens the accounts over HTTP, about 3,000 a second at a concurrency of 128 on a laptop. A creation that fails may have committed all the same, so up to three rounds, each failed account is read and opened again only when it does not exist; the seed fails only for accounts still missing. `--mix=E1:50,E4-state:40` runs a weighted mix of scenarios instead of one. On Linux, `--load-cpus` and `--server-cpus` pin the load generator, and the servers with the containers, to separate CPUs. `--install=<dir>` runs another build of the same version, for instance a baseline's `installDist` output (`<dir>` is the distribution's root, the one holding `bin/`); by default the harness runs the build in this tree.
 
+For many runs on one data set, a **session** seeds and primes once:
+
+```bash
+test/benchmarks/harness/bench.sh up --version=v10 --backend=postgres --accounts=100000 --prime --jfr
+test/benchmarks/harness/bench.sh saturate --reuse --version=v10 --backend=postgres --accounts=100000 --scenario=E1 --sweep
+test/benchmarks/harness/bench.sh run --reuse --version=v10 --backend=postgres --accounts=100000 --scenario=E1 --rate=1900
+test/benchmarks/harness/bench.sh down
+```
+
+`up` starts the stores and servers, seeds and primes as a run would, and leaves them up; each run with `--reuse` waits until the nodes are quiet (`load settle`), measures, and leaves them up too; `down` stops them. A reused run names the session's version, backend, nodes, accounts, heap and install, and is refused otherwise. With `up --jfr`, each reused run dumps the servers' recordings over its warm-up and measured phase (and on PostgreSQL resets `pg_stat_statements` before it). `saturate --sweep` runs every concurrency up to `--max-concurrency` instead of stopping at the knee. Runs on one session share the data the previous runs wrote, so each run's aggregates are further along than on a fresh seed; compare runs of one session with each other. The [local baseline](results/reports/v10-local-baseline.md) is made this way.
+
 A run writes `result.json` (load, results, histogram, resources, machine, commit, JVM and configuration) and `summary.md` beside the servers' logs to `test/benchmarks/results/e2e/<time>-<label>-<version>-<backend>-n<nodes>-<scenario>/`, which git ignores; a report copies the results it cites into `results/reports/`. Ports: public 18080 to 18082, V10 internal 19090 to 19092, MongoDB 27017, PostgreSQL 5432, Kafka 9092.
 
 On one machine every service, store and the load generator share the CPU: results are directional, and the report says so (D224).
