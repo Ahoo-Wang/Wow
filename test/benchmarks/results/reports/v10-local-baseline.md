@@ -297,6 +297,21 @@ At 100,000 uniform accounts and a 1 GB heap the default state cache held about 2
 The round trip is gone; on loopback it was an indexed read of a few tens of microseconds, so the CPU and the latencies move within the noise. It stays: a round trip less per command where the database is a network hop away, at no cost in CPU, heap or code.
 
 
+## Candidate 5: the HTTP routes, found by aggregate
+
+The ranking put 22% of PostgreSQL E1's allocation in HTTP, "mostly routing". A recording on `main` after the state cache (PostgreSQL E1 at 1,906/s, 100,000 accounts, one aggregate type) puts less there: allocation under WebFlux and Netty first is 11% of the node's, and under the route matching itself (`RouterFunction.route`, the request predicates, `PathPattern`) 2.6%, counting each sample once; the matching is 10% of the Netty threads' execution samples, about 1.7% of the node's CPU. Most of the HTTP share is Netty's decoding, the exchange and its headers, spread over many frames.
+
+The matching grows with the routes, though. WebFlux tries a request against the routes in order, and a context's routes were one list: each aggregate adds 18 (its commands, lifecycle, state, trace and queries), and each route tried costs about 50 ns. The change finds an aggregate's routes by the path's first two segments, `/{context}/{aggregate}`, in one lookup, and matches only those; a Manifest with a command or query route outside its aggregate's path keeps one list. One match, the test cart's routes copied once per aggregate ([`RouteMatchBench.kt`](v10-local-baseline/http-routing/RouteMatchBench.kt.txt), 200,000 matches after 200,000 to warm up, the request's creation subtracted):
+
+| A command of the last aggregate | `main` | Found by aggregate |
+| --- | --- | --- |
+| 1 aggregate | 0.80 µs | 1.09 µs |
+| 10 aggregates | 6.7 µs | 1.0 µs |
+| 50 aggregates | 31.2 µs | 1.1 µs |
+
+- With 50 aggregates a command of the last one spent 31 µs matching, about 5% of the 0.55–0.65 ms of node CPU an E1 command takes here; now about 1 µs, whichever aggregate.
+- With one aggregate the lookup adds 0.3 µs, 0.05% of a command: the benchmark's single aggregate type shows neither end to end, so the change is taken on these numbers and the costs it bounds, not on an end-to-end run.
+
 ## On Actions: the changes since this baseline, together
 
 L3 ([run 40087911162](https://github.com/Ahoo-Wang/Wow/actions/runs/40087911162)) measured `main` at `350888740` against this baseline's `222f37be8` (#4847), so it holds #4850, #4851, #4858 and #4859 together: one 4-core runner per suite, three rounds at each arm's calibrated rate and two at one rate for both. No suite has an A/A threshold yet (`test/benchmarks/noise.json`), so the report marks every ratio `uncalibrated`; the CPU and bytes per operation are the ratios to read, as here (stage 0: ±2–5% across sessions), the latencies only with their ranges. Head over base, at one rate for both arms:
