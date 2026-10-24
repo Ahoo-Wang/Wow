@@ -180,6 +180,20 @@ Four alternating rounds (A `main`, B the change, A, B; [`abab.sh`](v10-local-bas
 
 Where the database is a network hop away a round trip weighs more, but nothing measured here supports the change, so it is not merged. The lever on MongoDB's loads is their execution and their number (the state cache), not their round trips.
 
+## Candidate 2, first part: the tail read's pipeline as BSON
+
+On MongoDB E1 at 50%, 9.7% of the node's allocation went to encoding the tail read's request ([`jfr-components.txt`](v10-local-baseline/jfr-components.txt) and the recording), most of it in the driver's rendering of the pipeline: it renders a pipeline of builders (`Aggregates`, `Filters`, `Projections`) on every call, and renders its last stage once more to look for `$out` or `$merge`, which for the tail read is the whole `$unionWith` of the request keys. Each rendering resolves codecs anew for every nested document. The fixed stages are now rendered once, and the matches and the limit built as BSON, so the driver renders nothing.
+
+L1 on MongoDB, concurrency 16, two alternating rounds of `main` (A) and the change (C) ([`l1ab.sh`](v10-local-baseline/mongo-tail-bson/l1ab.sh), results beside it):
+
+| Per command | A | C |
+| --- | --- | --- |
+| E1 allocated | 223.5, 224.3 KB | 199.5, 199.1 KB (−11%) |
+| E3 allocated | 425.8, 423.4 KB | 402.5, 399.1 KB (−5.6%) |
+| Round trips | 3.31–3.32 (E1), 5.59–5.60 (E3) | 3.32–3.34, 5.59–5.60 |
+
+About 24 KB less per load, the same in E1 and E3 (one load per command in L1). The snapshot store's writes are next: their encoding was another 5.7% of the node's allocation.
+
 ## Notes on method
 
 - Judge a change locally on the stable quantities: CPU and allocation per operation, round trips, commits, rows and WAL per operation. Throughput and latency only at low concurrency, or over many alternating rounds.

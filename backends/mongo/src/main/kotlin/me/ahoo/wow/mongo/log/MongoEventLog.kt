@@ -69,7 +69,11 @@ import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
+import org.bson.BsonArray
+import org.bson.BsonDocument
+import org.bson.BsonInt32
 import org.bson.BsonMaximumSizeExceededException
+import org.bson.BsonString
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.util.UUID
@@ -683,28 +687,15 @@ class MongoEventLog(
     /**
      * One aggregation (decision D261): the tail by the version key, then, through `$unionWith` on the same
      * collection, the request keys of the latest streams before it, newest first. The first batch holds them all
-     * ([READ_TAIL_BATCH] streams of tail beyond them), so a typical read is one command.
+     * ([READ_TAIL_BATCH] streams of tail beyond them), so a typical read is one command. Its stages are BSON
+     * already ([tailStages]): the driver renders builders on every call, and the last stage once more.
      */
     override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail {
         require(fromVersion >= 1) { "A stream has a version from 1." }
         require(earlier >= 0) { "At most a non-negative number of earlier requests." }
         return dispatcher.mongo {
             val collection = collectionOf(ref.type)
-            val tail = listOf(
-                Aggregates.match(Filters.and(refFilter(ref), Filters.gte(VERSION, fromVersion))),
-                Aggregates.project(FACTS),
-                Aggregates.addFields(Field(BRANCH, 0)),
-            )
-            val keys = listOf(
-                Aggregates.match(Filters.and(refFilter(ref), Filters.lt(VERSION, fromVersion))),
-                Aggregates.sort(Sorts.descending(VERSION)),
-                Aggregates.limit(earlier.coerceAtLeast(1)),
-                Aggregates.project(
-                    Projections.fields(Projections.include(VERSION, REQUEST_ID, COMMAND_TYPE, SEQUENCE)),
-                ),
-                Aggregates.addFields(Field(BRANCH, 1)),
-            )
-            val pipeline = if (earlier == 0) tail else tail + Aggregates.unionWith(collection.name, keys)
+            val pipeline = tailStages(ref, fromVersion, earlier, collection.name)
             val streams = ArrayList<EventStreamRecord>()
             val requests = ArrayList<CommittedRequest>()
             var last: LastSequence? = null
@@ -944,6 +935,22 @@ class MongoEventLog(
     private fun currentVersion(collection: AggregateCollection, ref: AggregateRef): Int =
         collection.committed.find(refFilter(ref)).sort(Sorts.descending(VERSION)).limit(1).firstOrNull()
             ?.getInteger(VERSION) ?: 0
+
+    /** [readTail]'s stages, as BSON: the dynamic matches and limit built here, the rest rendered once. */
+    private fun tailStages(ref: AggregateRef, fromVersion: Int, earlier: Int, collection: String): List<Bson> {
+        fun versions(operator: String) = BsonDocument(
+            "\$match",
+            BsonDocument(AGGREGATE_ID, BsonString(ref.id))
+                .append(TENANT_ID, BsonString(ref.tenantId))
+                .append(VERSION, BsonDocument(operator, BsonInt32(fromVersion))),
+        )
+        val tail = listOf(versions("\$gte"), TAIL_FACTS, TAIL_BRANCH)
+        if (earlier == 0) return tail
+        val keys = BsonArray(
+            listOf(versions("\$lt"), KEYS_ORDER, BsonDocument("\$limit", BsonInt32(earlier)), KEYS_FIELDS, KEYS_BRANCH),
+        )
+        return tail + BsonDocument("\$unionWith", BsonDocument("coll", BsonString(collection)).append("pipeline", keys))
+    }
 
     private fun refFilter(ref: AggregateRef): Bson = Filters.and(
         Filters.eq(AGGREGATE_ID, ref.id),
@@ -1200,6 +1207,15 @@ class MongoEventLog(
 
         /** A stream's facts: every field but the transport. */
         val FACTS: Bson = Projections.exclude(TRANSPORT)
+
+        /** The fixed stages of [readTail], rendered once. */
+        private val TAIL_FACTS = Aggregates.project(FACTS).toBsonDocument()
+        private val TAIL_BRANCH = Aggregates.addFields(Field(BRANCH, 0)).toBsonDocument()
+        private val KEYS_ORDER = Aggregates.sort(Sorts.descending(VERSION)).toBsonDocument()
+        private val KEYS_FIELDS = Aggregates.project(
+            Projections.fields(Projections.include(VERSION, REQUEST_ID, COMMAND_TYPE, SEQUENCE)),
+        ).toBsonDocument()
+        private val KEYS_BRANCH = Aggregates.addFields(Field(BRANCH, 1)).toBsonDocument()
     }
 }
 
