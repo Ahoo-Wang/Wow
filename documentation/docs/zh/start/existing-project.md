@@ -36,7 +36,7 @@ pluginManagement {
     }
     plugins {
         kotlin("jvm") version "2.4.21"
-        id("me.ahoo.wow") version "10.0.0-alpha.4"
+        id("me.ahoo.wow") version "10.0.0-alpha.5"
     }
 }
 
@@ -53,7 +53,7 @@ include("catalog-api", "catalog-domain", "catalog-server")
 `gradle.properties` 只写一次 Wow 的版本：
 
 ```properties
-wowVersion=10.0.0-alpha.4
+wowVersion=10.0.0-alpha.5
 ```
 
 `catalog-api/build.gradle.kts`：
