@@ -10,6 +10,7 @@ V10 is measured against itself: each change against the code before it (alternat
 | --- | --- | --- |
 | `server/` | `:benchmark-server` | The account and transfer saga domain, its specs and its Spring Boot server, on V10 modules only (in the V10 region of the settings, checked by `:check`) |
 | `load/` | `:benchmark-load` | The load generator: a JVM of its own on the JDK alone, no Wow module and no library |
+| `axon-server/` | none (a build of its own) | The industry comparison's server: the same domain on Axon Framework 4 with its JDBC event storage engine on PostgreSQL, no Axon Server, behind the routes E1 and E3 use. Axon Framework 4 runs on Spring Boot 3, Wow on 4, so it builds alone: `./gradlew -p test/benchmarks/axon-server installDist` |
 | `harness/` | none | `compose.yml` (MongoDB, PostgreSQL, Kafka) and `bench.sh` (start, seed, check, run, collect, clean up) |
 | `results/` | none | The committed performance evidence: every report with the commit, command, environment and raw results that reproduce it |
 
@@ -105,6 +106,10 @@ An ABAB compares two builds (or two configurations) on one machine: fresh sessio
 A run writes `result.json` (load, results, histogram, resources, machine, commit, JVM and configuration) and `summary.md` beside the servers' logs to `test/benchmarks/results/e2e/<time>-<label>-<version>-<backend>-n<nodes>-<scenario>/`, which git ignores; a report copies the results it cites into `results/reports/`. Ports: public 18080 to 18082, V10 internal 19090 to 19092, MongoDB 27017, PostgreSQL 5432, Kafka 9092.
 
 On one machine every service, store and the load generator share the CPU: results are directional, and the report says so (D224).
+
+## The industry comparison
+
+Besides itself, V10 is compared once before GA with Axon Framework 4 on PostgreSQL ([`v10-vs-axon.md`](results/reports/v10-vs-axon.md), user 2026-10-25): one node, E1 and E3, the same load generator and harness. `bench.sh --install=test/benchmarks/axon-server/build/install/axon-server` runs the Axon server instead of Wow's; `--server-args="--wow.kafka.bootstrap-servers="` runs Wow with Kafka off, as the Axon server has no bus. The Axon server reads `Wow-Wait` headers not at all: each route waits for its scenario's completion point (E1 the command's unit of work committed, E3 the target's entry committed after the transfer's tracking processor handled `Prepared`).
 
 ## Running it on GitHub Actions
 
