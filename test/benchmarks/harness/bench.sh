@@ -413,6 +413,9 @@ case "$command" in
   up) up "$@" ;;
   down) down ;;
   # The tables of an ABAB: a directory of sessions named <round>-<arm>-<backend>, a phase directory in each.
-  compare) node "$REPO/.github/scripts/bench-compare.mjs" "$@" ;;
+  compare)
+    if [ -z "${1:-}" ] || [ ! -d "$1" ]; then usage; fi
+    root=$(cd "$1" && pwd)
+    (cd "$REPO" && pnpm --silent bench:compare "$root") ;;
   *) usage ;;
 esac
