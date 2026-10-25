@@ -66,6 +66,7 @@ import me.ahoo.wow.tck.containers.WowContainers
 import me.ahoo.wow.tck.log.EventLogSpec
 import org.bson.BsonDocument
 import org.bson.Document
+import org.junit.jupiter.api.Assumptions.assumeFalse
 import org.junit.jupiter.api.Test
 import java.io.IOException
 import java.util.concurrent.CopyOnWriteArrayList
@@ -294,9 +295,11 @@ class MongoEventLogTest : EventLogSpec() {
                 .first()!!.getString("request_id").assert().isEqualTo("taken")
             documents.find(Filters.exists(MongoEventLog.GAP)).toList().assert().isNotEmpty()
             documents.listIndexes().map { it.getString("name") }.toList()
-                .assert().containsExactlyInAnyOrder("_id_", MongoEventLog.VERSION_KEY, MongoEventLog.REQUEST_KEY)
+                .assert().containsExactlyInAnyOrderElementsOf(
+                    listOf("_id_", MongoEventLog.VERSION_KEY, MongoEventLog.REQUEST_KEY) + MongoLogFixture.shardIndexes,
+                )
             // Decision D277: both keys lead with the partition, so they stay unique on a collection sharded by it.
-            documents.listIndexes().filter { it.getString("name") != "_id_" }
+            documents.listIndexes().filter { it.getString("name") in setOf(MongoEventLog.VERSION_KEY, MongoEventLog.REQUEST_KEY) }
                 .map { (it["key"] as Document).keys.first() }.toList()
                 .assert().containsExactly("partition", "partition")
         }
@@ -345,6 +348,8 @@ class MongoEventLogTest : EventLogSpec() {
     @Test
     fun `an append that reads its aggregate's latest stream reads the version key`(): Unit = runBlocking {
         // D271: the version key is a partial index; a lookup by the aggregate's key alone scanned the collection.
+        // The profiler this reads runs on a shard's members, not on a mongos.
+        assumeFalse(MongoLogFixture.sharded, "The profiler is not on a mongos.")
         val context = MongoLogFixture.newContext()
         val type = AggregateType(context, "order")
         MongoLogFixture.log(1, context).append(stream("a", 1, aggregate = type))

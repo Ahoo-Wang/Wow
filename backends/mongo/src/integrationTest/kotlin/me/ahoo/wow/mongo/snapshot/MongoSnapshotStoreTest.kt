@@ -66,7 +66,9 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
             Document("t", "t2").append("a", "a"),
         )
         snapshots.listIndexes().map { it.getString("name") }.toList()
-            .assert().containsExactlyInAnyOrder("_id_", MongoSnapshotStore.OWNER_INDEX, MongoSnapshotStore.SPACE_INDEX)
+            .assert().containsExactlyInAnyOrderElementsOf(
+                listOf("_id_", MongoSnapshotStore.OWNER_INDEX, MongoSnapshotStore.SPACE_INDEX) + MongoLogFixture.shardIndexes,
+            )
         store.pending(type, 2, limit = 10).assert().containsExactly(type.ref("t1", "a"), type.ref("t1", "b"), type.ref("t2", "a"))
         store.pending(type, 2, after = type.ref("t1", "b"), limit = 10).assert().containsExactly(type.ref("t2", "a"))
     }

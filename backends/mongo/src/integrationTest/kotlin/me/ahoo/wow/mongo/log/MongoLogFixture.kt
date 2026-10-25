@@ -18,6 +18,7 @@ import com.mongodb.client.MongoClients
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Updates
 import me.ahoo.wow.mongo.MongoFormat
+import me.ahoo.wow.mongo.MongoShards
 import me.ahoo.wow.tck.containers.WowContainers
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -26,6 +27,12 @@ object MongoLogFixture {
     val client: MongoClient by lazy { MongoClients.create(WowContainers.mongoUrl) }
 
     private val contexts = AtomicInteger()
+
+    /** Whether the tests run on a sharded cluster (`wow.mongo.url` names a mongos, roadmap §6 item 18). */
+    val sharded: Boolean by lazy { MongoShards.isMongos(client) }
+
+    /** The index a collection keeps for its shard key, on a sharded cluster only (decision D277). */
+    val shardIndexes: List<String> get() = if (sharded) listOf(MongoShards.SHARD_KEY) else emptyList()
 
     fun newContext(prefix: String = "tck"): String = "$prefix-${contexts.incrementAndGet()}"
 
