@@ -275,9 +275,10 @@ class MongoEventLogTest : EventLogSpec() {
     @Test
     fun `an entry's _id is its position, a placeholder's too, and the position has no index of its own`(): Unit =
         runBlocking {
-            // Roadmap §6 item 17: `partition << 51 | sequence`, so a partition's entries are one range of _id.
+            // Roadmap §6 item 17: `partition << 51 | sequence`, so a partition's entries are one range of _id. One
+            // partition, so the second request meets the first.
             val context = MongoLogFixture.newContext()
-            val log = MongoLogFixture.log(4, context)
+            val log = MongoLogFixture.log(1, context)
             val order = AggregateType(context, "order")
             val committed = log.append(stream("a", 1, requestId = "taken", aggregate = order)) as AppendOutcome.Committed
             // A duplicate request fails at the insert: a placeholder takes its sequence.
@@ -294,6 +295,29 @@ class MongoEventLogTest : EventLogSpec() {
             documents.find(Filters.exists(MongoEventLog.GAP)).toList().assert().isNotEmpty()
             documents.listIndexes().map { it.getString("name") }.toList()
                 .assert().containsExactlyInAnyOrder("_id_", MongoEventLog.VERSION_KEY, MongoEventLog.REQUEST_KEY)
+            // Decision D277: both keys lead with the partition, so they stay unique on a collection sharded by it.
+            documents.listIndexes().filter { it.getString("name") != "_id_" }
+                .map { (it["key"] as Document).keys.first() }.toList()
+                .assert().containsExactly("partition", "partition")
+        }
+
+    @Test
+    fun `a request id reused in another partition commits, each aggregate's lookup finds its own`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            val log = MongoLogFixture.log(4, context)
+            val order = AggregateType(context, "order")
+            val (a, b) = "p-1" to generateSequence(2) { it + 1 }.map { "p-$it" }
+                .first { Partitioner.partitionOf(order.ref("tenant", it), 4) != Partitioner.partitionOf(order.ref("tenant", "p-1"), 4) }
+            log.append(stream(a, 1, requestId = "reused", aggregate = order))
+                .assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            log.append(stream(b, 1, requestId = "reused", aggregate = order))
+                .assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            log.findByRequestId(order.ref("tenant", a), "reused")?.ref?.id.assert().isEqualTo(a)
+            log.findByRequestId(order.ref("tenant", b), "reused")?.ref?.id.assert().isEqualTo(b)
+            // Without the aggregate the lookup seeks every partition and finds one of them.
+            log.findByRequestId(order, "tenant", "reused")?.ref?.id.assert().isIn(a, b)
+            log.findByRequestId("tenant", "reused")?.ref?.id.assert().isIn(a, b)
         }
 
     @Test

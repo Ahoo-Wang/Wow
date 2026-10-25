@@ -282,9 +282,15 @@ class MongoEventLog(
             "${collection.name} was written by an earlier 10.0 alpha, whose entries have no position as their _id: " +
                 "rebuild the log, an alpha's data is not migrated."
         }
-        // Placeholders have no version and no request: the two keys cover the streams alone.
-        MongoFormat.index(log, Indexes.ascending(AGGREGATE_ID, TENANT_ID, VERSION), streams(VERSION_KEY, VERSION), ddl)
-        MongoFormat.index(log, Indexes.ascending(TENANT_ID, REQUEST_ID), streams(REQUEST_KEY, REQUEST_ID), ddl)
+        // Placeholders have no version and no request: the two keys cover the streams alone. Both lead with the
+        // partition, so they stay unique on a collection sharded by it (decision D277).
+        MongoFormat.index(
+            log,
+            Indexes.ascending(PARTITION, AGGREGATE_ID, TENANT_ID, VERSION),
+            streams(VERSION_KEY, VERSION),
+            ddl,
+        )
+        MongoFormat.index(log, Indexes.ascending(PARTITION, TENANT_ID, REQUEST_ID), streams(REQUEST_KEY, REQUEST_ID), ddl)
         if (ddl != StoreDdl.AUTO) {
             // The registry is the schema's: a validated or foreign schema registered its collections already.
             return collection
@@ -500,7 +506,7 @@ class MongoEventLog(
                 MongoException(error.code, error.message)
             )
             error.message.contains(REQUEST_KEY) ->
-                findByRequestIdIn(collection, stream.ref.tenantId, stream.requestId)
+                requestIn(collection, stream.ref, stream.requestId)
                     ?.let { AppendOutcome.AlreadyCommitted(it) }
                     ?: AppendOutcome.Unknown(MongoException(error.code, error.message))
 
@@ -509,9 +515,12 @@ class MongoEventLog(
     }
 
     /** Whether [member]'s stream is at its position: the document there has its request. */
-    private fun landed(collection: AggregateCollection, member: Member): Boolean =
-        collection.committed.find(Filters.eq(ID, positionId(member.stream.ref.partitionIn(), member.sequence)))
-            .projection(Projections.include(REQUEST_ID)).firstOrNull()?.getString(REQUEST_ID) == member.stream.requestId
+    private fun landed(collection: AggregateCollection, member: Member): Boolean {
+        val partition = member.stream.ref.partitionIn()
+        val position = Filters.and(Filters.eq(PARTITION, partition), Filters.eq(ID, positionId(partition, member.sequence)))
+        return collection.committed.find(position).projection(Projections.include(REQUEST_ID)).firstOrNull()
+            ?.getString(REQUEST_ID) == member.stream.requestId
+    }
 
     /** [member]'s outcome when its group's write is unknown: a placeholder takes its sequence unless it landed. */
     private fun unknown(member: Member, failure: MongoException): AppendOutcome {
@@ -521,6 +530,9 @@ class MongoEventLog(
     }
 
     private fun AggregateRef.partitionIn(): Int = Partitioner.partitionOf(this, partitions)
+
+    /** Every partition of the log: a lookup of the request key without the aggregate seeks it in each. */
+    private val everyPartition: Bson = Filters.`in`(PARTITION, (0 until partitions).toList())
 
     /** Whether a duplicate key [message] is the position's: another writer's entry, or a placeholder, took it. */
     private fun isPositionTaken(message: String): Boolean = message.contains(POSITION_INDEX)
@@ -603,7 +615,7 @@ class MongoEventLog(
             MongoFailures.isWriteUnknown(failure) -> AppendOutcome.Unknown(failure)
             !failure.isDuplicateKey() -> throw failure
             failure.message.orEmpty().contains(REQUEST_KEY) ->
-                findByRequestIdIn(collection, stream.ref.tenantId, stream.requestId)
+                requestIn(collection, stream.ref, stream.requestId)
                     ?.let { AppendOutcome.AlreadyCommitted(it) } ?: AppendOutcome.Unknown(failure)
 
             else -> AppendOutcome.Conflict(currentVersion(collection, stream.ref))
@@ -661,7 +673,7 @@ class MongoEventLog(
         stream: EventStreamRecord,
         conflict: AppendOutcome.Conflict,
     ): AppendOutcome =
-        findByRequestIdIn(collection, stream.ref.tenantId, stream.requestId)?.let { AppendOutcome.AlreadyCommitted(it) }
+        requestIn(collection, stream.ref, stream.requestId)?.let { AppendOutcome.AlreadyCommitted(it) }
             ?: conflict
 
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = flow {
@@ -679,8 +691,8 @@ class MongoEventLog(
     }
 
     /**
-     * The streams without tags after [after], read in the version key's order `(aggregate_id, tenant_id, version)`
-     * and folded into their aggregates until [limit] are found: the walk follows that index and stops there.
+     * The streams without tags after [after], read in the version key's order `(partition, aggregate_id, tenant_id,
+     * version)` and folded into their aggregates until [limit] are found: the walk follows that index and stops there.
      */
     @InternalWowApi
     override suspend fun untagged(type: AggregateType, after: AggregateRef?, limit: Int): List<AggregateRef> {
@@ -694,15 +706,21 @@ class MongoEventLog(
                 Filters.and(
                     untagged,
                     Filters.or(
-                        Filters.gt(AGGREGATE_ID, after.id),
-                        Filters.and(Filters.eq(AGGREGATE_ID, after.id), Filters.gt(TENANT_ID, after.tenantId)),
+                        Filters.gt(PARTITION, after.partitionIn()),
+                        Filters.and(
+                            Filters.eq(PARTITION, after.partitionIn()),
+                            Filters.or(
+                                Filters.gt(AGGREGATE_ID, after.id),
+                                Filters.and(Filters.eq(AGGREGATE_ID, after.id), Filters.gt(TENANT_ID, after.tenantId)),
+                            ),
+                        ),
                     ),
                 )
             }
             val found = LinkedHashSet<AggregateRef>()
             collection.committed.find(filter)
                 .projection(Projections.include(AGGREGATE_ID, TENANT_ID))
-                .sort(Sorts.ascending(AGGREGATE_ID, TENANT_ID, VERSION))
+                .sort(Sorts.ascending(PARTITION, AGGREGATE_ID, TENANT_ID, VERSION))
                 .batchSize(limit)
                 .cursor().use { cursor ->
                     while (found.size < limit && cursor.hasNext()) {
@@ -786,9 +804,21 @@ class MongoEventLog(
             ?.let { LogPosition(it.getInteger(PARTITION), it.getLong(SEQUENCE)) }
     }
 
-    /** The stream committed for [requestId] within [tenantId] in [type]'s collection: one indexed find. */
+    /**
+     * The stream committed for [requestId] in [ref]'s partition of its collection: one indexed find. The request key
+     * is unique within a partition (decision D277), which is what an append of [ref] meets.
+     */
+    override suspend fun findByRequestId(ref: AggregateRef, requestId: String): EventStreamRecord? =
+        dispatcher.mongo {
+            requestIn(collectionOf(ref.type), ref, requestId)
+        }
+
+    /**
+     * The stream committed for [requestId] within [tenantId] in [type]'s collection, in any partition: one find, an
+     * index seek per partition.
+     */
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
-        dispatcher.mongo { findByRequestIdIn(collectionOf(type), tenantId, requestId) }
+        dispatcher.mongo { findByRequestIdIn(collectionOf(type), everyPartition, tenantId, requestId) }
 
     /**
      * The stream committed for [requestId] within [tenantId] in any aggregate collection of the context this log
@@ -800,7 +830,7 @@ class MongoEventLog(
             val known = ((registered ?: register()) + ensured.values).distinctBy { it.name }
             if (known.isEmpty()) return@mongo null
             fun branch(index: Int) = listOf(
-                Aggregates.match(Filters.and(Filters.eq(TENANT_ID, tenantId), Filters.eq(REQUEST_ID, requestId))),
+                Aggregates.match(Filters.and(everyPartition, Filters.eq(TENANT_ID, tenantId), Filters.eq(REQUEST_ID, requestId))),
                 Aggregates.limit(1),
                 Aggregates.addFields(Field(BRANCH, index)),
             )
@@ -866,7 +896,11 @@ class MongoEventLog(
                 collection.name,
                 listOf(
                     Aggregates.match(
-                        Filters.and(Filters.gt(ID, positionId(partition, last)), Filters.lt(ID, positionId(partition + 1, 0))),
+                        Filters.and(
+                            Filters.eq(PARTITION, partition),
+                            Filters.gt(ID, positionId(partition, last)),
+                            Filters.lt(ID, positionId(partition + 1, 0)),
+                        ),
                     ),
                     Aggregates.sort(Sorts.ascending(ID)),
                     Aggregates.limit(tailBatch),
@@ -965,6 +999,7 @@ class MongoEventLog(
             val highest = listOf(
                 Aggregates.match(
                     Filters.and(
+                        Filters.eq(PARTITION, partition),
                         Filters.gte(ID, positionId(partition, 0)),
                         Filters.lt(ID, positionId(partition + 1, 0)),
                         Filters.exists(VERSION),
@@ -979,8 +1014,12 @@ class MongoEventLog(
         }
     }
 
-    private fun findByRequestIdIn(collection: AggregateCollection, tenantId: String, requestId: String) =
-        collection.committed.find(Filters.and(Filters.eq(TENANT_ID, tenantId), Filters.eq(REQUEST_ID, requestId)))
+    /** The stream committed for [requestId] that an append of [ref] meets: the request key in [ref]'s partition. */
+    private fun requestIn(collection: AggregateCollection, ref: AggregateRef, requestId: String) =
+        findByRequestIdIn(collection, Filters.eq(PARTITION, ref.partitionIn()), ref.tenantId, requestId)
+
+    private fun findByRequestIdIn(collection: AggregateCollection, partitions: Bson, tenantId: String, requestId: String) =
+        collection.committed.find(Filters.and(partitions, Filters.eq(TENANT_ID, tenantId), Filters.eq(REQUEST_ID, requestId)))
             .projection(FACTS)
             .firstOrNull()
             ?.let { streamOf(collection.aggregate, it) }
@@ -993,7 +1032,8 @@ class MongoEventLog(
     private fun tailStages(ref: AggregateRef, fromVersion: Int, earlier: Int, collection: String): List<Bson> {
         fun versions(operator: String) = BsonDocument(
             "\$match",
-            BsonDocument(AGGREGATE_ID, BsonString(ref.id))
+            BsonDocument(PARTITION, BsonInt32(ref.partitionIn()))
+                .append(AGGREGATE_ID, BsonString(ref.id))
                 .append(TENANT_ID, BsonString(ref.tenantId))
                 .append(VERSION, BsonDocument(operator, BsonInt32(fromVersion))),
         )
@@ -1011,6 +1051,7 @@ class MongoEventLog(
      * collection.
      */
     private fun refFilter(ref: AggregateRef): Bson = Filters.and(
+        Filters.eq(PARTITION, ref.partitionIn()),
         Filters.eq(AGGREGATE_ID, ref.id),
         Filters.eq(TENANT_ID, ref.tenantId),
         Filters.exists(VERSION),

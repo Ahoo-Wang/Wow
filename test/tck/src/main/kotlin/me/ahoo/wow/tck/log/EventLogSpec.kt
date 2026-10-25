@@ -271,7 +271,8 @@ abstract class EventLogSpec {
 
     @Test
     fun `a request id reused by another command type finds the stream committed for it`(): Unit = runBlocking {
-        val log = createLog()
+        // One partition: a request key may be unique within a partition only (decision D277).
+        val log = createLog(partitions = 1)
         log.append(stream("a", 1, requestId = "request", commandType = "$context.aggregate.Open"))
         val again = log.append(stream("b", 1, requestId = "request", commandType = "$context.aggregate.Close"))
         (again as AppendOutcome.AlreadyCommitted).existing.commandType.assert().isEqualTo("$context.aggregate.Open")
@@ -529,7 +530,8 @@ abstract class EventLogSpec {
     @Test
     fun `a request id reused in a tenant and aggregate type answers the first commit, in another tenant it commits`(): Unit =
         runBlocking {
-            val log = createLog()
+            // One partition: a request key may be unique within a partition only (decision D277).
+            val log = createLog(partitions = 1)
             val first = stream("a", 1, requestId = "request")
             log.append(first)
             val again = log.append(stream("b", 1, requestId = "request")) as AppendOutcome.AlreadyCommitted
@@ -544,6 +546,29 @@ abstract class EventLogSpec {
             log.findByRequestId(type, "tenant", "missing").assert().isNull()
             log.findByRequestId(type, "nobody", "request").assert().isNull()
             log.findByRequestId(other, "tenant", "request").assert().isNull()
+            // The lookup by an aggregate finds what an append of it meets: here the first commit.
+            log.findByRequestId(type.ref("tenant", "b"), "request")?.ref.assert().isEqualTo(first.ref)
+            log.findByRequestId(type.ref("tenant", "b"), "missing").assert().isNull()
+            log.findByRequestId(type.ref("other", "b"), "request")?.ref.assert().isEqualTo(type.ref("other", "a"))
+        }
+
+    @Test
+    fun `a request id reused by aggregates of two partitions is answered by the first commit or commits again`(): Unit =
+        runBlocking {
+            // Decision D277: a request key unique within a partition, as MongoDB's, does not meet the other partition's.
+            val log = createLog(partitions = 4)
+            val first = stream("a", 1, requestId = "request")
+            log.append(first).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            val elsewhere = generateSequence(1) { it + 1 }.map { "b-$it" }
+                .first { Partitioner.partitionOf(type.ref("tenant", it), 4) != Partitioner.partitionOf(first.ref, 4) }
+            when (val again = log.append(stream(elsewhere, 1, requestId = "request"))) {
+                is AppendOutcome.AlreadyCommitted -> again.existing.ref.assert().isEqualTo(first.ref)
+                is AppendOutcome.Committed ->
+                    log.findByRequestId(type.ref("tenant", elsewhere), "request")?.ref.assert()
+                        .isEqualTo(type.ref("tenant", elsewhere))
+                else -> throw AssertionError("Neither a duplicate nor a commit: $again")
+            }
+            log.findByRequestId(first.ref, "request")?.ref.assert().isEqualTo(first.ref)
         }
 
     @Test
@@ -914,7 +939,8 @@ abstract class EventLogSpec {
 
     @Test
     fun `a request id is unique within its tenant and aggregate type`(): Unit = runBlocking {
-        val log = createLog()
+        // One partition: a request key may be unique within a partition only (decision D277).
+        val log = createLog(partitions = 1)
         val first = stream("a", 1, requestId = "request")
         log.append(first).assert().isInstanceOf(AppendOutcome.Committed::class.java)
         (log.append(stream("b", 1, requestId = "request")) as AppendOutcome.AlreadyCommitted)
