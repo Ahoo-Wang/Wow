@@ -26,7 +26,7 @@ import kotlin.time.Duration.Companion.seconds
  * How long a store's calls to PostgreSQL may wait for a reply (JDBC's network timeout, the socket's read timeout in
  * pgjdbc), decision D279 on PostgreSQL: without one, a reply lost on the way blocks its caller forever, pgjdbc's
  * socket reads having no timeout by default. Every connection a store borrows has [OPERATION] unless its store sets
- * another (`wow.postgres.operation-timeout`); the schema's statements (format records, tables, indexes) have [DDL],
+ * another (`wow.postgres.operation-timeout`) or the application's pool sets a shorter one; the schema's statements (format records, tables, indexes) have [DDL],
  * as an index built over a large table may take minutes. A call that times out loses its connection (pgjdbc closes
  * it, the pool replaces it) and fails as an I/O error: a transient failure, a write's outcome unknown. The queries
  * keep their own budget (`statement_timeout`, decision D150) on the connections of their own data source.
@@ -65,8 +65,10 @@ object PostgresTimeouts {
 }
 
 /**
- * A [DataSource] whose connections are bounded by [timeout] when they are lent. A pool such as HikariCP gives a
- * connection its own default back when it is returned, so the next borrower of the pool sees it unchanged.
+ * A [DataSource] whose connections are bounded by [timeout] when they are lent, unless the application's pool bounds
+ * them tighter already (pgjdbc's `socketTimeout`): Wow's default never loosens a timeout the application chose. A
+ * pool such as HikariCP gives a connection its own default back when it is returned, so the next borrower of the pool
+ * sees it unchanged.
  */
 private class TimedDataSource(private val delegate: DataSource, timeout: Duration) : DataSource by delegate {
     private val millis = timeout.inWholeMilliseconds.toInt()
@@ -76,9 +78,14 @@ private class TimedDataSource(private val delegate: DataSource, timeout: Duratio
     override fun getConnection(username: String?, password: String?): Connection =
         delegate.getConnection(username, password).bounded()
 
-    private fun Connection.bounded(): Connection = also { it.setNetworkTimeout(PostgresTimeouts.DIRECT, millis) }
+    /** Bounded by [millis], unless the pool's driver already bounds it tighter (its own `socketTimeout`). */
+    private fun Connection.bounded(): Connection = also {
+        val current = it.networkTimeout
+        if (current == 0 || current > millis) it.setNetworkTimeout(PostgresTimeouts.DIRECT, millis)
+    }
 
-    override fun <T : Any?> unwrap(iface: Class<T>): T = if (iface.isInstance(this)) iface.cast(this) else delegate.unwrap(iface)
+    override fun <T : Any?> unwrap(iface: Class<T>): T =
+        if (iface.isInstance(this)) iface.cast(this) else delegate.unwrap(iface)
 
     override fun isWrapperFor(iface: Class<*>): Boolean = iface.isInstance(this) || delegate.isWrapperFor(iface)
 }

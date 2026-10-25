@@ -14,9 +14,12 @@
 package me.ahoo.wow.postgres
 
 import kotlinx.coroutines.runBlocking
+import com.zaxxer.hikari.HikariConfig
+import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.postgres.subscription.PostgresCheckpointStore
+import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.Test
 import java.sql.SQLException
 import kotlin.time.Duration.Companion.milliseconds
@@ -51,6 +54,26 @@ class PostgresTimeoutsTest {
     }
 
     @Test
+    fun `a pool that bounds its connections tighter keeps its own timeout`() {
+        // An application's `socketTimeout` shorter than Wow's default is the application's choice.
+        val container = WowContainers.postgres
+        val config = HikariConfig().apply {
+            jdbcUrl = container.jdbcUrl
+            username = container.username
+            password = container.password
+            maximumPoolSize = 1
+            addDataSourceProperty("socketTimeout", "1")
+        }
+        HikariDataSource(config).use { tight ->
+            PostgresTimeouts.timed(tight).connection.use { it.networkTimeout.assert().isEqualTo(TIGHT_MS) }
+            // A tighter default than the pool's still applies.
+            PostgresTimeouts.timed(tight, SHORT).connection.use {
+                it.networkTimeout.assert().isEqualTo(SHORT.inWholeMilliseconds.toInt())
+            }
+        }
+    }
+
+    @Test
     fun `one data source and timeout give one wrapper, so stores of one database find each other`() {
         // Decision D268: the log reads a snapshot with its tail when both stores are on one data source.
         val first = PostgresTimeouts.timed(PostgresFixture.dataSource, SHORT)
@@ -61,5 +84,6 @@ class PostgresTimeoutsTest {
 
     private companion object {
         val SHORT = 300.milliseconds
+        const val TIGHT_MS = 1_000
     }
 }
