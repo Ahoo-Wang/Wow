@@ -28,6 +28,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.MongoFormat
+import me.ahoo.wow.mongo.MongoTimeouts
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.StoreDdl
@@ -40,6 +41,7 @@ import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
 import org.bson.Document
 import org.bson.conversions.Bson
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -71,8 +73,10 @@ class MongoFailureLedger(
     private val service: String = DEFAULT_SERVICE,
     /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
     private val ddl: StoreDdl = StoreDdl.AUTO,
+    /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
+    operationTimeout: Duration = MongoTimeouts.OPERATION,
 ) : FailureLedger {
-    private val database = client.getDatabase(databaseName)
+    private val database = MongoTimeouts.database(client, databaseName, operationTimeout)
     private val ledger: MongoCollection<Document> = database.getCollection(collection)
 
     /**

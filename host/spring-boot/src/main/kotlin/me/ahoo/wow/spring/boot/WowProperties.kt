@@ -78,7 +78,8 @@ import me.ahoo.wow.client.RetryPolicy as ClientRetryPolicy
  *   provider (`me.ahoo.wow.spi.store.StoreProvider`, review R3.3-1); `wow.mongo.database`: the database of a MongoDB
  *   store that names none, and `wow.mongo.append-timeout` (5s, decision D261) how long one of its appends' inserts
  *   may take, unless its `options.append-timeout` says; `wow.mongo.sharding` (`auto` or `off`, decision D277)
- *   whether a store on a sharded cluster shards its log and snapshots; `wow.ddl` (`auto`, `validate` or `none`), how the stores manage the framework's
+ *   whether a store on a sharded cluster shards its log and snapshots; `wow.mongo.operation-timeout` (30s) how long
+ *   each of its other calls may take; `wow.ddl` (`auto`, `validate` or `none`), how the stores manage the framework's
  *   tables (review A5-10), `wow.stores.<name>.ddl` per store.
  * - `wow.stores.<name>.*`: the named store instances (decision D177, [Store]); `wow.log.store` and
  *   `wow.snapshot.store`, the stores of the aggregates' logs and snapshots by default; `wow.stores.<name>.query.*`,
@@ -351,6 +352,13 @@ class WowProperties {
          * `options.sharding` overrides it.
          */
         var sharding: String = "auto"
+
+        /**
+         * How long each call of a MongoDB store may take besides appends (`append-timeout`) and the schema's commands
+         * (5 minutes): a reply lost on the way fails the call instead of blocking it forever. A store's
+         * `options.operation-timeout` overrides it.
+         */
+        var operationTimeout: Duration = 30.seconds.toJavaDuration()
     }
 
     class Log {

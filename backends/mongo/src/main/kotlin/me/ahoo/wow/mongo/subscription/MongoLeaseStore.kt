@@ -26,6 +26,7 @@ import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.MongoFormat
+import me.ahoo.wow.mongo.MongoTimeouts
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.StoreDdl
@@ -59,8 +60,10 @@ class MongoLeaseStore(
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
     private val ddl: StoreDdl = StoreDdl.AUTO,
+    /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
+    operationTimeout: Duration = MongoTimeouts.OPERATION,
 ) : LeaseStore {
-    private val database = client.getDatabase(databaseName)
+    private val database = MongoTimeouts.database(client, databaseName, operationTimeout)
     private val leases: MongoCollection<Document> = database.getCollection(LEASES)
     private val members: MongoCollection<Document> = database.getCollection(MEMBERS)
 

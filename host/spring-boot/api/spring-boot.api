@@ -967,9 +967,11 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Mongo {
 	public fun <init> ()V
 	public final fun getAppendTimeout ()Ljava/time/Duration;
 	public final fun getDatabase ()Ljava/lang/String;
+	public final fun getOperationTimeout ()Ljava/time/Duration;
 	public final fun getSharding ()Ljava/lang/String;
 	public final fun setAppendTimeout (Ljava/time/Duration;)V
 	public final fun setDatabase (Ljava/lang/String;)V
+	public final fun setOperationTimeout (Ljava/time/Duration;)V
 	public final fun setSharding (Ljava/lang/String;)V
 }
 

@@ -564,14 +564,23 @@ class MongoEventLogTest : EventLogSpec() {
         val real = MongoLogFixture.client
         return object : MongoClient by real {
             override fun getDatabase(databaseName: String): MongoDatabase =
-                object : MongoDatabase by real.getDatabase(databaseName) {
-                    override fun getCollection(collectionName: String): MongoCollection<Document> {
-                        val collection = real.getDatabase(databaseName).getCollection(collectionName)
-                        val aggregate =
-                            collectionName.startsWith("wow_log__") && !collectionName.endsWith("__partition")
-                        return if (aggregate) Faulty(collection, insert, many) else collection
-                    }
-                }
+                FaultyDatabase(real.getDatabase(databaseName), insert, many)
+        }
+    }
+
+    /** A database whose aggregate log collections are [Faulty], also once it is given a timeout. */
+    private class FaultyDatabase(
+        private val real: MongoDatabase,
+        private val insert: (Document, () -> Unit) -> Unit,
+        private val many: (List<Document>, () -> Unit) -> Unit,
+    ) : MongoDatabase by real {
+        override fun withTimeout(timeout: Long, timeUnit: TimeUnit): MongoDatabase =
+            FaultyDatabase(real.withTimeout(timeout, timeUnit), insert, many)
+
+        override fun getCollection(collectionName: String): MongoCollection<Document> {
+            val collection = real.getCollection(collectionName)
+            val aggregate = collectionName.startsWith("wow_log__") && !collectionName.endsWith("__partition")
+            return if (aggregate) Faulty(collection, insert, many) else collection
         }
     }
 

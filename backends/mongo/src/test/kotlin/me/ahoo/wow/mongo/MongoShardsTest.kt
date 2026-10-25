@@ -48,7 +48,8 @@ class MongoShardsTest {
     private var documents = 0L
     private var chunks = 1L
 
-    private val admin = mockk<MongoDatabase> {
+    private val admin: MongoDatabase = mockk {
+        every { withTimeout(any(), any()) } answers { self as MongoDatabase }
         every { runCommand(any<Bson>()) } answers {
             val command = firstArg<Document>()
             commands += command
@@ -61,7 +62,8 @@ class MongoShardsTest {
             }
         }
     }
-    private val config = mockk<MongoDatabase> {
+    private val config: MongoDatabase = mockk {
+        every { withTimeout(any(), any()) } answers { self as MongoDatabase }
         every { getCollection("collections") } returns mockk {
             every { find(any<Bson>()) } returns mockk<FindIterable<Document>> {
                 every { first() } returns Document("_id", NAMESPACE).append("uuid", "uuid-1")
@@ -77,7 +79,8 @@ class MongoShardsTest {
     }
     private val database = mockk<MongoDatabase> { every { name } returns "wow" }
     private val index = slot<Bson>()
-    private val collection = mockk<MongoCollection<Document>> {
+    private val collection: MongoCollection<Document> = mockk {
+        every { withTimeout(any(), any()) } answers { self as MongoCollection<Document> }
         every { namespace } returns MongoNamespace(NAMESPACE)
         every { createIndex(capture(index), any<IndexOptions>()) } returns MongoShards.SHARD_KEY
         every { estimatedDocumentCount() } answers { documents }
