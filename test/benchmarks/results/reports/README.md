@@ -23,7 +23,7 @@ Earlier Wow 10 evidence, each valid for the commit it names:
 | [v10-d248-pg-append-queue](v10-d248-pg-append-queue.md) | D248 ④: the append queue on PostgreSQL, off against on, closed-loop saturation | Decided (D248 ④) |
 | [v10-local-baseline](v10-local-baseline.md) | The local baseline: A/A noise, cost per operation by resource, the node's CPU by thread and allocation by part, the stores' time by statement, ranked candidates | Baseline for its commit |
 | [v10-hot-aggregate-batching](v10-hot-aggregate-batching.md) | D273: an aggregate's queued commands committed with one append, `max-batch` 1 against 32: saturation with a hot account and with Zipf keys, the cost per command where nothing queues | Decided (D273) |
-| [v10-local-baseline-m4pro](v10-local-baseline-m4pro.md) | The local baseline on Apple M4 Pro (14 cores, 24 GB, Docker 12 CPUs / 16 GB): clean measurements without JFR, A/A spread, saturation sweeps, cost per operation at 25%/50%/75%, and L1 component scaling | Baseline for its commit |
+| [v10-local-baseline-m4pro](v10-local-baseline-m4pro.md) | The local baseline on an Apple M4 Pro (Docker 12 CPUs / 16 GB, no JFR): A/A spread, ceilings and costs per operation, 1 GB against 2 GB of heap (the state cache's budget), L1 | Baseline for its commit |
 
 ## 9.x
 
