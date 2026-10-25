@@ -47,6 +47,9 @@ import java.util.concurrent.ConcurrentHashMap
 class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     private val stateFingerprints = ConcurrentHashMap<Class<*>, String>()
 
+    /** The sizes of the states this codec writes and reads (decision D274), which a state cache weighs them by. */
+    val sizes: StateSizes = StateSizes()
+
     /** [event] as a record of [model]. */
     fun encode(model: AggregateModel<*>, event: Any): EventRecord {
         val type = model.eventType(event.javaClass)
@@ -112,8 +115,12 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     /** [command] as JSON: the body of a scheduled command (decision D166), read back by its type when it is due. */
     fun commandText(command: Any): String = mapper.writeValueAsString(command)
 
-    /** [state] as text, to tell whether something changed it, and as a snapshot holds it. */
-    fun stateText(state: Any): String = mapper.writeValueAsString(state)
+    /** [state] as text, to tell whether something changed it, and as a snapshot holds it; its length is measured. */
+    fun stateText(state: Any): String {
+        val text = mapper.writeValueAsString(state)
+        sizes.record(state.javaClass, text.length)
+        return text
+    }
 
     /** [state] as a tree of the JSON [stateText] writes: a copy, keeping every number exact (D122). */
     fun stateTree(state: Any): JsonNode = mapper.valueToTree(state)

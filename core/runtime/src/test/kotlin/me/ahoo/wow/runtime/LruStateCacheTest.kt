@@ -59,6 +59,18 @@ class LruStateCacheTest {
     }
 
     @Test
+    fun `a cache weighs its states as it is told, when they are put`() {
+        // A node weighs them by their classes' measured sizes (decision D274): here, a quarter of the fixed estimate.
+        val small = CachedState.STATE_BYTES / 4
+        val cache = LruStateCache(maxBytes = 2 * CachedState.STATE_BYTES, weigh = { small })
+        repeat(8) { cache.put(type.ref("t", "s-$it"), CachedState(it, 1)) }
+        cache.size.assert().isEqualTo(8)
+        cache.bytes.assert().isEqualTo(8 * small)
+        cache.put(type.ref("t", "s-8"), CachedState(8, 1))
+        cache.size.assert().isEqualTo(8)
+    }
+
+    @Test
     fun `putting a state again weighs it once`() {
         val cache = LruStateCache(maxBytes = 4 * CachedState.STATE_BYTES)
         repeat(3) { cache.put(type.ref("t", "a"), CachedState(it, 1)) }

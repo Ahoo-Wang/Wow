@@ -1101,13 +1101,17 @@ class ServiceNode @InternalWowApi constructor(
         }
 
     /**
-     * The state cache of [context]'s kernel, of [stateCacheCapacity] states or [stateCacheBytes] of them, each eviction
-     * observed.
+     * The state cache of [context]'s kernel, of [stateCacheCapacity] states or [stateCacheBytes] of them weighed by the
+     * sizes [codec] measures (decision D274), each eviction observed.
      */
-    private fun stateCacheOf(context: String): StateCache {
+    private fun stateCacheOf(context: String, codec: EventCodec): StateCache {
         val evicted = { observer.stateCache(context, StateCacheOutcome.EVICTED) }
         return when (val capacity = stateCacheCapacity) {
-            null -> LruStateCache(maxBytes = checkNotNull(stateCacheBytes), evicted = evicted)
+            null -> LruStateCache(
+                maxBytes = checkNotNull(stateCacheBytes),
+                evicted = evicted,
+                weigh = codec.sizes::bytesOf,
+            )
             0 -> StateCache.None
             else -> LruStateCache(capacity = capacity, evicted = evicted)
         }
@@ -1125,7 +1129,7 @@ class ServiceNode @InternalWowApi constructor(
         val routed = routedLog(groups)
         val log = PartitionAppendQueue(routed, options.appendQueue, capacity = options.maxInFlight)
         val names = ContextCommandTypes(models, contracts)
-        val states = stateCacheOf(context)
+        val states = stateCacheOf(context, codec)
         val kernel = kernelOf(log, backends, codec, names, states)
         val snaps = nodeSnapshots.assembly(context, models, backends, kernel, routed, codec)
         val views = StateViews(codec, stateReaders(context, models, snaps.readers, application), options.stateViews)
