@@ -25,6 +25,7 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-opentelemetry` �
 | `wow.log.append-queue.depth` | Gauge | `context` | 在日志追加队列中等待的提交 |
 | `wow.log.tail.reads` | Counter | `context`, `reason` | 因为内存无法接续而读取存储的 tail：`start`、`gap`、`overflow`、`idle` |
 | `wow.state-cache` | Counter | `context`, `outcome` | 状态缓存的查找和逐出：`hit`、`miss`（一次快照读取和一次 tail 读取）、`evicted` |
+| `wow.reservation.lost` | Counter | `context` | 待定预留过期后被另一个所有者占用、已提交事实丢失的唯一键（决策 D50）：来自追加后内核的确认，或 `reservation` 订阅的确认 |
 
 ### 订阅 {#subscriptions}
 

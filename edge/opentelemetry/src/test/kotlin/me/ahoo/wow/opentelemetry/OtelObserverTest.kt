@@ -134,7 +134,11 @@ class OtelObserverTest {
         observer.forwardFailed(ORDER, "unknown")
         observer.tailRead(SALES, 3, "gap")
         observer.stateCache(SALES, "miss")
+        observer.reservationLost(SALES)
         val meters = telemetry.meters
+        meters.get(
+            WowMetrics.RESERVATION_LOST
+        ).tags(WowMetrics.CONTEXT, SALES).counter().count().assert().isEqualTo(1.0)
         meters.get(WowMetrics.STATE_CACHE).tags(WowMetrics.CONTEXT, SALES, WowMetrics.OUTCOME, "miss").counter().count()
             .assert().isEqualTo(1.0)
         meters.get(WowMetrics.TAIL_READS).tags(WowMetrics.CONTEXT, SALES, WowMetrics.REASON, "gap").counter().count()

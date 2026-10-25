@@ -111,14 +111,21 @@ class PostgresReservationStore(
             }
         }
 
-    override suspend fun confirm(scope: ReservationScope, key: String, owner: AggregateRef): ConfirmOutcome {
+    override suspend fun confirm(
+        scope: ReservationScope,
+        key: String,
+        owner: AggregateRef,
+        version: Int,
+    ): ConfirmOutcome {
         requireOwnContext(scope, owner)
         return jdbc { connection ->
             // A holder that went away between the upsert and the read is retried: the next upsert takes the key.
             repeat(CONFIRM_ATTEMPTS) {
                 val now = clock.millis()
                 val confirmed = connection.prepareStatement(tables.confirm).use { confirm ->
-                    confirm.setLong(confirm.setOwner(confirm.setKey(1, scope, key), owner), now)
+                    val index = confirm.setOwner(confirm.setKey(1, scope, key), owner)
+                    confirm.setInt(index, version)
+                    confirm.setLong(index + 1, now)
                     confirm.executeQuery().use { it.next() }
                 }
                 if (confirmed) {
@@ -136,10 +143,10 @@ class PostgresReservationStore(
         }
     }
 
-    override suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef): Boolean =
+    override suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef, version: Int): Boolean =
         jdbc { connection ->
             connection.prepareStatement(tables.release).use { release ->
-                release.setOwner(release.setKey(1, scope, key), owner)
+                release.setInt(release.setOwner(release.setKey(1, scope, key), owner), version)
                 release.executeUpdate() == 1
             }
         }
@@ -189,6 +196,7 @@ class PostgresReservationStore(
                     .ref(row.getString("owner_tenant_id"), row.getString("owner_id")),
                 expiresAt = row.getObject("expires_at") as Long?,
                 holds = holds.toSet(),
+                version = row.getInt("version"),
             )
         }
     }

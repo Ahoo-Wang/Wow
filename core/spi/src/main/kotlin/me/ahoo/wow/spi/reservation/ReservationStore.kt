@@ -34,6 +34,10 @@ import kotlin.time.Duration
  * appended [abandon]s only its own hold. The key stays reserved while another attempt still holds it, and a confirmed
  * key is never abandoned (finding A1-2).
  *
+ * A confirmed reservation records the [version] of its owner's fact that last confirmed it, and a release names the
+ * version of the fact that gave the key up: a release frees only a key no later fact confirmed, so a subscription
+ * replaying an old rename (`A→B`, then `B→A`) never frees the key a later fact of the owner confirmed again.
+ *
  * Every operation that changes a reservation names its owner and does nothing for anyone else. Expiry is judged by
  * the implementation's clock, so the nodes sharing a store need clocks that agree within a small fraction of the
  * time to live.
@@ -66,25 +70,37 @@ interface ReservationStore {
     suspend fun abandon(scope: ReservationScope, key: String, owner: AggregateRef, hold: String): Boolean
 
     /**
-     * Confirms [owner]'s reservation of [key] for a committed fact, making it permanent and clearing its holds. A
-     * pending reservation of [owner] is confirmed even if it expired; a key held by no one, or only by another owner's
-     * expired pending reservation, is taken confirmed: the fact committed, so it gets its key back. Confirming again
-     * changes nothing, so a replay is idempotent.
+     * Confirms [owner]'s reservation of [key] for its fact committed at [version], making it permanent and clearing
+     * its holds. A pending reservation of [owner] is confirmed even if it expired; a key held by no one, or only by
+     * another owner's expired pending reservation, is taken confirmed: the fact committed, so it gets its key back.
+     * The reservation keeps the greater of its version and [version], so confirming again, or a replay of an older
+     * fact, changes nothing. [version] is the fact's stream version, [UNVERSIONED] when there is none (a key imported
+     * from 9.x).
      *
      * @return [ConfirmOutcome.Confirmed], or [ConfirmOutcome.Taken] when another owner's live reservation holds the key.
      */
-    suspend fun confirm(scope: ReservationScope, key: String, owner: AggregateRef): ConfirmOutcome
+    suspend fun confirm(scope: ReservationScope, key: String, owner: AggregateRef, version: Int): ConfirmOutcome
 
     /**
-     * Releases [owner]'s reservation of [key], pending or confirmed, whatever its holds: the owner gave the key up in
-     * a committed fact (a rename), or an operator frees it.
+     * Releases [owner]'s reservation of [key], whatever its holds, for the owner's fact committed at [version] that
+     * gave the key up (a rename): a pending one, or one confirmed at [version] or below. A key a later fact
+     * confirmed is kept: the release is an old fact's, replayed. [ANY_VERSION] frees the key
+     * whichever fact confirmed it.
      *
      * @return true when [owner] held the key and released it.
      */
-    suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef): Boolean
+    suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef, version: Int): Boolean
 
     /** The live reservation of [key] in [scope]: confirmed, or pending and not expired. */
     suspend fun find(scope: ReservationScope, key: String): Reservation?
+
+    companion object {
+        /** The version of a confirmation no fact of the log made (a key imported from 9.x), and of a pending key. */
+        const val UNVERSIONED: Int = 0
+
+        /** The version of a release that frees the key whichever fact confirmed it (a migration's converge). */
+        const val ANY_VERSION: Int = Int.MAX_VALUE
+    }
 }
 
 /**
@@ -145,8 +161,9 @@ class ReservationScope @InternalWowApi constructor(val context: String, val tena
 
 /**
  * [owner]'s reservation of [key] in [scope]. A pending reservation expires at [expiresAt] (epoch milliseconds) and is
- * held by the attempts in [holds]; a confirmed one has no expiry and no holds. Its owner is an aggregate of the
- * scope's context.
+ * held by the attempts in [holds]; a confirmed one has no expiry and no holds, and [version] is the version of the
+ * owner's fact that last confirmed it ([ReservationStore.UNVERSIONED] for a pending one). Its owner is an aggregate of
+ * the scope's context.
  *
  * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
@@ -156,6 +173,7 @@ class Reservation @InternalWowApi constructor(
     val owner: AggregateRef,
     val expiresAt: Long?,
     val holds: Set<String> = emptySet(),
+    val version: Int = ReservationStore.UNVERSIONED,
 ) {
     init {
         require(key.isNotEmpty()) { "A reservation needs a key." }
@@ -163,6 +181,9 @@ class Reservation @InternalWowApi constructor(
             "A key of ${scope.context} is reserved by an aggregate of that context, not $owner."
         }
         require(expiresAt != null || holds.isEmpty()) { "A confirmed reservation has no holds." }
+        require(
+            expiresAt == null || version == ReservationStore.UNVERSIONED
+        ) { "A pending reservation has no version." }
     }
 
     /** Whether the reservation is permanent. */
@@ -179,7 +200,8 @@ class Reservation @InternalWowApi constructor(
         owner: AggregateRef = this.owner,
         expiresAt: Long? = this.expiresAt,
         holds: Set<String> = this.holds,
-    ): Reservation = Reservation(scope, key, owner, expiresAt, holds)
+        version: Int = this.version,
+    ): Reservation = Reservation(scope, key, owner, expiresAt, holds, version)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is Reservation && valueFields() == other.valueFields()
@@ -187,9 +209,9 @@ class Reservation @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "Reservation(scope=$scope, key=$key, owner=$owner, expiresAt=$expiresAt, holds=$holds)"
+        "Reservation(scope=$scope, key=$key, owner=$owner, expiresAt=$expiresAt, holds=$holds, version=$version)"
 
-    private fun valueFields(): List<Any?> = listOf(scope, key, owner, expiresAt, holds)
+    private fun valueFields(): List<Any?> = listOf(scope, key, owner, expiresAt, holds, version)
 
     companion object {
         /** A Reservation of the given fields; parameters added later come last, with a default. */
@@ -201,7 +223,8 @@ class Reservation @InternalWowApi constructor(
             owner: AggregateRef,
             expiresAt: Long?,
             holds: Set<String> = emptySet(),
-        ): Reservation = Reservation(scope, key, owner, expiresAt, holds)
+            version: Int = ReservationStore.UNVERSIONED,
+        ): Reservation = Reservation(scope, key, owner, expiresAt, holds, version)
     }
 }
 

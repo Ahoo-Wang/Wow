@@ -21,6 +21,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.mongo.reservation.MongoReservationStore
 import me.ahoo.wow.spi.reservation.ReservationScope
+import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.tck.containers.WowContainers
 import org.bson.Document
 import org.junit.jupiter.api.Test
@@ -138,7 +139,7 @@ class NineXReservationImportTest {
         output.toString().assert()
             .contains("PrepareKey order_no compared: 2 confirmed keys, 0 differ, 0 without an owner")
             .contains("PrepareKey order_code compared: 1 confirmed keys, 0 differ, 0 without an owner")
-        store.release(scope(TENANT_B), "NO-2", ownerB).assert().isTrue()
+        store.release(scope(TENANT_B), "NO-2", ownerB, ReservationStore.ANY_VERSION).assert().isTrue()
         run("compare", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.DIFFERS)
         output.toString().assert().contains("DIFFERS PrepareKey order_no/NO-2: 9.x $ownerB, V10 (none)")
 
