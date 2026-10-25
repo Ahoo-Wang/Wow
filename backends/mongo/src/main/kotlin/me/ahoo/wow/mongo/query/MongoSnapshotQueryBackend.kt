@@ -29,12 +29,14 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICountQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoFailures
 import me.ahoo.wow.mongo.query.pipeline.MongoAggregationCompiler
@@ -156,7 +158,23 @@ class MongoSnapshotQueryBackend internal constructor(
 
     /** [filter], of [query], within the documents' [MongoQueryDocuments.scope]. */
     private fun match(filter: FilterExpression, query: AdmittedQuery<*>): Bson =
-        scoped(MongoMatchCompiler.compile(filter, query), documents.scope)
+        scoped(MongoMatchCompiler.compile(filter, query), scopeOf(filter))
+
+    /**
+     * The documents' [MongoQueryDocuments.scope] and, when [filter] holds one tenant, that tenant's keys
+     * ([MongoQueryDocuments.keysOf]).
+     */
+    private fun scopeOf(filter: FilterExpression): Bson? {
+        val keys = tenantOf(filter)?.let(documents::keysOf)
+        return listOfNotNull(documents.scope, keys).let { if (it.size > 1) Filters.and(it) else it.singleOrNull() }
+    }
+
+    /** The tenant [filter] requires, as admission adds it: a tenant filter, alone or among the operands of an AND. */
+    private fun tenantOf(filter: FilterExpression): String? = when (filter) {
+        is TenantIdFilter -> filter.value
+        is AndFilter -> filter.operands.firstNotNullOfOrNull(::tenantOf)
+        else -> null
+    }
 
     /** The documents matching [filter]; with a [limit], at most `limit` of them (decision D150). */
     private fun count(filter: Bson, limit: Long?, timeout: Duration?): Long {
@@ -170,7 +188,7 @@ class MongoSnapshotQueryBackend internal constructor(
         val limit = (window as? GroupWindow.First)?.limit
         // Without groups, `$group` with a null id emits nothing over no documents: the core emits the empty summary.
         val pipeline = collection.aggregate(
-            MongoAggregationCompiler.compile(query, limit, documents.edgeTieBreakers, documents.scope),
+            MongoAggregationCompiler.compile(query, limit, documents.edgeTieBreakers, scopeOf(query.query.filter)),
         )
             .allowDiskUse(true)
             .maxTime(query.timeout)

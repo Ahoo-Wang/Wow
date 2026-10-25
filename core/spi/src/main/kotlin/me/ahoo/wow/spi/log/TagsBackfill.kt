@@ -26,8 +26,9 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 @InternalWowApi
 interface TagsBackfill {
     /**
-     * The aggregates of [type] with at least one stream that records no tags, in the log's key order (aggregate id,
-     * then tenant), strictly after [after] when given, at most [limit]: a walk resumes from the last one it handled.
+     * The aggregates of [type] with at least one stream that records no tags, in an order of the log's own that is
+     * total and stable (its key's, such as aggregate id, then tenant), strictly after [after] when given, at most
+     * [limit]: a walk resumes from the last one it handled.
      */
     suspend fun untagged(type: AggregateType, after: AggregateRef? = null, limit: Int): List<AggregateRef>
 

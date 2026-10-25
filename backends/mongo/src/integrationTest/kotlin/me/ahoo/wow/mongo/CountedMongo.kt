@@ -42,7 +42,7 @@ object CountedMongo {
     val client: MongoClient by lazy {
         MongoClients.create(
             MongoClientSettings.builder()
-                .applyConnectionString(ConnectionString(WowContainers.mongo.replicaSetUrl))
+                .applyConnectionString(ConnectionString(WowContainers.mongoUrl))
                 .addCommandListener(listener)
                 .build(),
         )

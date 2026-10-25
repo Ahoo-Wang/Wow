@@ -77,7 +77,8 @@ import me.ahoo.wow.client.RetryPolicy as ClientRetryPolicy
  * - `wow.backend`: `auto` (the default), `memory`, `postgres`, `mongo`, or the type of a community backend's store
  *   provider (`me.ahoo.wow.spi.store.StoreProvider`, review R3.3-1); `wow.mongo.database`: the database of a MongoDB
  *   store that names none, and `wow.mongo.append-timeout` (5s, decision D261) how long one of its appends' inserts
- *   may take, unless its `options.append-timeout` says; `wow.ddl` (`auto`, `validate` or `none`), how the stores manage the framework's
+ *   may take, unless its `options.append-timeout` says; `wow.mongo.sharding` (`auto` or `off`, decision D277)
+ *   whether a store on a sharded cluster shards its log and snapshots; `wow.ddl` (`auto`, `validate` or `none`), how the stores manage the framework's
  *   tables (review A5-10), `wow.stores.<name>.ddl` per store.
  * - `wow.stores.<name>.*`: the named store instances (decision D177, [Store]); `wow.log.store` and
  *   `wow.snapshot.store`, the stores of the aggregates' logs and snapshots by default; `wow.stores.<name>.query.*`,
@@ -343,6 +344,13 @@ class WowProperties {
          * ends.
          */
         var appendTimeout: Duration = 5.seconds.toJavaDuration()
+
+        /**
+         * Whether a store on a sharded cluster shards its log and snapshot collections when it creates them (decision
+         * D277): `auto` when connected to a mongos with `ddl: auto`, `off` for a cluster its operators shard; a store's
+         * `options.sharding` overrides it.
+         */
+        var sharding: String = "auto"
     }
 
     class Log {

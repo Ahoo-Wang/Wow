@@ -19,7 +19,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
@@ -94,13 +93,9 @@ class KernelRecentRequestsTest {
             appends = 0
         }
 
-        override suspend fun findByRequestId(
-            type: AggregateType,
-            tenantId: String,
-            requestId: String,
-        ): EventStreamRecord? {
+        override suspend fun findByRequestId(ref: AggregateRef, requestId: String): EventStreamRecord? {
             lookups++
-            return if (hideRequests) null else delegate.findByRequestId(type, tenantId, requestId)
+            return if (hideRequests) null else delegate.findByRequestId(ref, requestId)
         }
 
         override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> {

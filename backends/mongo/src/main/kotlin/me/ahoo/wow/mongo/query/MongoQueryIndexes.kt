@@ -78,7 +78,7 @@ object MongoQueryIndexes {
     private val INDEXED = listOf(QueryCapability.SORT, QueryCapability.RANGE, QueryCapability.EXACT_MATCH)
 
     /** The index names the store keeps for itself. */
-    private val RESERVED = setOf(MongoSnapshotStore.SNAPSHOT_KEY, MongoSnapshotDocuments.ID + "_")
+    private val RESERVED = setOf(MongoSnapshotDocuments.ID + "_")
 
     /**
      * The indexes of the snapshot collection of [aggregate] in [context]: the two scope indexes, then those of

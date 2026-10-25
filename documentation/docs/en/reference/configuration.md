@@ -7,7 +7,7 @@ description: "Every key of the host's wow.* configuration, its type, default and
 
 # Configuration Keys
 
-Every key of the `wow.*` configuration a Spring Boot host reads, 237 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property names is reported when the node starts. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`.
+Every key of the `wow.*` configuration a Spring Boot host reads, 238 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property names is reported when the node starts. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`.
 
 ## `wow`
 
@@ -331,6 +331,7 @@ The hand-over of the node's own commits to its tails in memory: a tail waits its
 | --- | --- | --- | --- |
 | `wow.mongo.append-timeout` | `Duration` | `PT5S` | How long an append's insert may take on a store that sets none in its `options.append-timeout`: below the default wait timeout, so a command appending during an outage is answered before its wait ends. |
 | `wow.mongo.database` | `String` | `wow` | The database of the log and the stores on the MongoDB backend. |
+| `wow.mongo.sharding` | `String` | `auto` | Whether a store on a sharded cluster shards its log and snapshot collections when it creates them: `auto` when connected to a mongos with `ddl: auto`, `off` for a cluster its operators shard; a store's `options.sharding` overrides it. |
 
 ## `wow.node`
 

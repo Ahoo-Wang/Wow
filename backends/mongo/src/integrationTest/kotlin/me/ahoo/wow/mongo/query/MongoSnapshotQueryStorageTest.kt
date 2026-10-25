@@ -16,8 +16,10 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.ReadPreference
 import com.mongodb.client.model.Accumulators
 import com.mongodb.client.model.Aggregates
+import com.mongodb.client.model.Filters
 import com.mongodb.client.model.IndexOptions
 import com.mongodb.client.model.Indexes
+import com.mongodb.client.model.Sorts
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -268,6 +270,19 @@ class MongoSnapshotQueryStorageTest {
         counted.assert().contains("\"indexName\": \"${STATUS_INDEX.name}\"")
     }
 
+    @Test
+    fun `a query of one tenant in the default order reads the key's index, the tenant's range of it`(): Unit = runBlocking {
+        // Decision D277: no index but `_id_` holds the key; the backend bounds it to the tenant and sorts by it.
+        val type = seeded
+        val schema = schema(type)
+        val collection = database.getCollection(storage(type).collection(type.name))
+        val admitted = QueryAdmission.Trusted.list(ListQuery(TenantIdFilter("t3"), limit = 10), schema)
+        val filter = Filters.and(MongoSnapshotStore.tenantKeys("t3"), MongoMatchCompiler.compile(admitted.query.filter, admitted))
+        val found = collection.find(filter).sort(Sorts.ascending("_id")).limit(10)
+        found.explain().winningPlan().assert().contains("\"indexName\": \"_id_\"").doesNotContain("\"SORT\"")
+        found.map { it.getString("tenant_id") }.toList().assert().hasSize(10).allMatch { it == "t3" }
+    }
+
     private fun Document.winningPlan(): String =
         get("queryPlanner", Document::class.java).get("winningPlan", Document::class.java).toJson()
 
@@ -291,7 +306,8 @@ class MongoSnapshotQueryStorageTest {
             (0 until DOCUMENTS).chunked(BATCH).forEach { batch ->
                 collection.insertMany(
                     batch.map { i ->
-                        Document("tenant_id", "t${i % 10}")
+                        Document("_id", MongoSnapshotStore.keyOf(type.ref("t${i % 10}", "id-$i")))
+                            .append("tenant_id", "t${i % 10}")
                             .append("aggregate_id", "id-$i")
                             .append("version", 1)
                             .append("schema_fingerprint", "it")

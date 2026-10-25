@@ -139,10 +139,19 @@ interface EventLog {
     suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition?
 
     /**
-     * The stream committed for [requestId] within [tenantId] in aggregate type [type], if any: facts only. The request
-     * key is unique within an aggregate type (decision D162), so this is the stream an append of the request would
-     * find already committed; it reads that type's storage alone. The kernel's dedup pre-check calls it before every
-     * command.
+     * The stream committed for [requestId] by the aggregate [ref], or by another aggregate of its type and tenant that
+     * an append of [ref] would meet, if any: facts only. This is the stream an append of the request to [ref] would
+     * find already committed. A log whose request key is narrower than the aggregate type, such as MongoDB's, unique
+     * within a partition (decision D277), reads only what that append meets; by default the type's lookup. The
+     * kernel's dedup pre-check and its settling of a conflict call it.
+     */
+    suspend fun findByRequestId(ref: AggregateRef, requestId: String): EventStreamRecord? =
+        findByRequestId(ref.type, ref.tenantId, requestId)
+
+    /**
+     * The stream committed for [requestId] within [tenantId] in aggregate type [type], if any: facts only. It reads
+     * that type's storage alone, every partition of it. Admission calls it for a creation command that names no
+     * aggregate (decision D191); a caller that knows the aggregate calls the overload taking its [AggregateRef].
      */
     suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord?
 

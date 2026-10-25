@@ -1,0 +1,23 @@
+# run: E3
+
+transfer, answered once the saga's entry is stored on the target; backend mongo, nodes 1, heap 1g, gc G1, serverJvm openjdk version "21.0.12.1" 2026-08-18 LTS OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing), stores kafka mongo, primed true, primeSeconds 16, settleSeconds 4, accounts 100000, session /private/tmp/claude-501/-Users-worker-work-Wow--claude-worktrees-performance-optimization-327071/1e81896d-3639-40f5-8c4f-ed1ecfc9cafd/scratchpad/sharding-ab/2-B-mongo/up.
+
+Open loop at 700.0/s, uniform over 100000 accounts, 30 s warm-up, 60 s measured.
+
+| Throughput | OK | Failed | p50 | p95 | p99 | p999 | Max | Worst-second p99 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 700.0/s | 42000 | 0 | 2.3 ms | 6.1 ms | 10.9 ms | 29.6 ms | 65.1 ms | 52.5 ms |
+
+Load generator: 0.18 cores of 10 available to it.
+
+| Process | CPU (cores) | RSS max | Heap used max | GC count | GC time |
+| --- | --- | --- | --- | --- | --- |
+| node-1 | 1.22 | 887 MB | 776 MB | 25 | 0.219 s |
+
+| Container | CPU avg | CPU max | Memory |
+| --- | --- | --- | --- |
+| wow-e2e-bench-kafka | 35.3% | 142.0% | 1.815GiB / 7.748GiB |
+| wow-e2e-bench-mongo | 126.5% | 221.2% | 2.691GiB / 7.748GiB |
+
+Store operations, mongo (seconds -0.504 to 60.744): {epoch=61.24799990653992, insert=127040, query=325, update=158313, delete=0, getmore=0, command=950}
+Store operations, kafkaEndOffsets (seconds -30.014 to 62.14): {wow.transfer.account.state=187120}

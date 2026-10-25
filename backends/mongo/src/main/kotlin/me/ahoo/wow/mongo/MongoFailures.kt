@@ -20,6 +20,8 @@ import com.mongodb.MongoNodeIsRecoveringException
 import com.mongodb.MongoNotPrimaryException
 import com.mongodb.MongoSocketException
 import com.mongodb.MongoTimeoutException
+import com.mongodb.MongoWriteConcernException
+import com.mongodb.internal.connection.MongoWriteConcernWithResponseException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withContext
@@ -54,12 +56,17 @@ internal object MongoFailures {
 
     /**
      * Whether a write that failed with [failure] may have been applied all the same: a timeout (server selection, the
-     * operation's time limit) or a failed socket left its result unknown. Any other failure the server answered.
+     * operation's time limit) or a failed socket left its result unknown, and so did a write concern the server could
+     * not confirm, such as a primary that stepped down before a majority had the write (the write is on the primary,
+     * kept if it replicated, rolled back if not; the driver reports it with the response it retries on, a
+     * [MongoWriteConcernWithResponseException], when its retry fails too). Any other failure the server answered.
      */
     fun isWriteUnknown(failure: MongoException): Boolean =
         failure is MongoTimeoutException ||
             failure is MongoSocketException ||
-            failure is MongoExecutionTimeoutException
+            failure is MongoExecutionTimeoutException ||
+            failure is MongoWriteConcernException ||
+            failure is MongoWriteConcernWithResponseException
 
     /**
      * Whether [failure] is the server refusing a document beyond its size limit (`BSONObjectTooLarge`): the stream

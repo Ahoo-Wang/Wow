@@ -15,6 +15,7 @@ package me.ahoo.wow.mongo.query
 
 import com.mongodb.client.model.Filters
 import me.ahoo.wow.mongo.ExactBson
+import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
@@ -78,8 +79,11 @@ internal object MongoSnapshotDocuments : MongoQueryDocuments {
         "state" to OBJECT_TYPES,
     )
 
-    /** The tenant, then the aggregate ID: the unique key of a snapshot. */
-    override val tieBreakers: List<String> = listOf(TENANT_ID, AGGREGATE_ID)
+    /** The key of a snapshot, its `_id`: the tenant, then the aggregate ID (decision D277). */
+    override val tieBreakers: List<String> = listOf(ID)
+
+    /** [tenantId]'s snapshots, one range of their `_id`, which the default order then reads in index order. */
+    override fun keysOf(tenantId: String): Bson = MongoSnapshotStore.tenantKeys(tenantId)
 
     override val edgeTieBreakers: List<String> = listOf(AGGREGATE_ID, TENANT_ID)
 
@@ -134,6 +138,12 @@ internal interface MongoQueryDocuments {
      * every document of the collection is one (a log collection also holds placeholders, decision D271).
      */
     val scope: Bson? get() = null
+
+    /**
+     * The documents of [tenantId] as a condition on their key, which a query of one tenant adds so its tie-breakers
+     * are read from the key's index; null when the key is not the tenant's.
+     */
+    fun keysOf(tenantId: String): Bson? = null
 
     /** [path], a logical path of the model, where the document stores it. */
     fun physical(path: QueryPathTemplate): QueryPathTemplate

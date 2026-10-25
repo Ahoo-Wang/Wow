@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
@@ -677,11 +678,11 @@ class CommandGatewayTest {
     fun `a store unavailable while a command runs fails it as retryable, its retry commits (F2)`(): Unit = runBlocking {
         var down = true
         val failing = object : EventLog by log {
-            override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String) =
+            override suspend fun findByRequestId(ref: AggregateRef, requestId: String) =
                 if (down) {
                     throw StorageUnavailableException("The log is unavailable.", IllegalStateException("reset"))
                 } else {
-                    log.findByRequestId(type, tenantId, requestId)
+                    log.findByRequestId(ref, requestId)
                 }
         }
         val coordinator = WaitCoordinator(

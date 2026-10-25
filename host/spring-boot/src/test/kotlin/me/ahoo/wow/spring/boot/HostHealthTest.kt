@@ -257,6 +257,11 @@ class HostHealthTest {
                 log.readEntries(ref, fromVersion, toVersion).collect { emit(it) }
             }
 
+            override suspend fun findByRequestId(ref: AggregateRef, requestId: String): EventStreamRecord? {
+                checkLog()
+                return log.findByRequestId(ref, requestId)
+            }
+
             override suspend fun findByRequestId(
                 type: AggregateType,
                 tenantId: String,

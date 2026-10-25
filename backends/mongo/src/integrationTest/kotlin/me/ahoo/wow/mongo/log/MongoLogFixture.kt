@@ -18,16 +18,26 @@ import com.mongodb.client.MongoClients
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Updates
 import me.ahoo.wow.mongo.MongoFormat
+import me.ahoo.wow.mongo.MongoShards
 import me.ahoo.wow.tck.containers.WowContainers
 import java.util.concurrent.atomic.AtomicInteger
 
 /** One MongoDB replica set for the test JVM, and a fresh context (so fresh collections) per log. */
 object MongoLogFixture {
-    val client: MongoClient by lazy { MongoClients.create(WowContainers.mongo.replicaSetUrl) }
+    val client: MongoClient by lazy { MongoClients.create(WowContainers.mongoUrl) }
 
     private val contexts = AtomicInteger()
 
-    fun newContext(prefix: String = "tck"): String = "$prefix-${contexts.incrementAndGet()}"
+    /** Whether the tests run on a sharded cluster (`wow.mongo.url` names a mongos, roadmap §6 item 18). */
+    val sharded: Boolean by lazy { MongoShards.isMongos(client) }
+
+    /** The index a collection keeps for its shard key, on a sharded cluster only (decision D277). */
+    val shardIndexes: List<String> get() = if (sharded) listOf(MongoShards.SHARD_KEY) else emptyList()
+
+    /** This JVM's mark in the contexts it names, so a run against a cluster that kept an earlier run's names its own. */
+    private val run = java.util.UUID.randomUUID().toString().take(RUN_MARK)
+
+    fun newContext(prefix: String = "tck"): String = "$prefix-$run-${contexts.incrementAndGet()}"
 
     fun log(
         partitions: Int,
@@ -51,4 +61,5 @@ object MongoLogFixture {
     }
 
     const val DATABASE = "wow_v10_log"
+    private const val RUN_MARK = 6
 }
