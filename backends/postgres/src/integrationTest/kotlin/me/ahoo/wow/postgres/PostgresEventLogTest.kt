@@ -561,6 +561,104 @@ class PostgresEventLogTest : EventLogSpec() {
     }
 
     @Test
+    fun `a group of several partitions is one statement, and a duplicate in one retries each partition alone`(): Unit =
+        runBlocking {
+            // Roadmap §6 item 15: the append queue's mergers hand several partitions' groups to one call.
+            val counted = CountedDataSource(PostgresFixture.dataSource)
+            val context = PostgresFixture.newContext()
+            val log = PostgresEventLog(counted.dataSource, context, ACROSS).also { it.createSchema() }
+            val order = AggregateType(context, "order")
+            log.appendsAcrossPartitions.assert().isTrue()
+            log.append(stream("warm", 1, aggregate = order))
+            val ids = idsByPartition(order, ACROSS)
+            val mark = counted.begin()
+            val group = (0 until ACROSS).flatMap { partition -> ids[partition].take(2) }
+                .map { stream(it, 1, aggregate = order) to null }
+            val outcomes = log.appendAll(group)
+            counted.since(mark).size.assert().isEqualTo(1)
+            outcomes.assert().allMatch { it is AppendOutcome.Committed }
+            outcomes.map { (it as AppendOutcome.Committed).position.partition }.assert()
+                .isEqualTo(group.map { (stream) -> Partitioner.partitionOf(stream.ref, ACROSS) })
+            // A request committed in partition 0 repeated there: that partition's group answers it, the others commit.
+            val repeated = stream(ids[0][2], 1, requestId = group.first().first.requestId, aggregate = order)
+            val again = log.appendAll(
+                listOf(repeated to null) + (1 until ACROSS).map { stream(ids[it][2], 1, aggregate = order) to null },
+            )
+            again.first().assert().isInstanceOf(AppendOutcome.AlreadyCommitted::class.java)
+            again.drop(1).assert().allMatch { it is AppendOutcome.Committed }
+        }
+
+    @Test
+    fun `a value PostgreSQL refuses in a group of several partitions is rejected alone, the others commit`(): Unit =
+        runBlocking {
+            // The statement aborts as a whole; each partition is then appended as its own group (decision D280).
+            val context = PostgresFixture.newContext()
+            val order = AggregateType(context, "order")
+            val log = PostgresFixture.log(ACROSS, context, listOf(order.name))
+            val ids = idsByPartition(order, ACROSS)
+            val group = (0 until ACROSS).map { partition ->
+                // A NUL PostgreSQL refuses in a text column, in partition 1's stream.
+                val commandType = if (partition == 1) "$context.order.Act\u0000" else "$context.order.Act"
+                stream(ids[partition][0], 1, commandType = commandType, aggregate = order) to null
+            }
+            val outcomes = log.appendAll(group)
+            outcomes[1].assert().isInstanceOf(AppendOutcome.Rejected::class.java)
+            outcomes.filterIndexed { index, _ -> index != 1 }.assert().allMatch { it is AppendOutcome.Committed }
+            (0 until ACROSS).filter { it != 1 }.forEach { partition -> log.head(partition).assert().isEqualTo(1L) }
+        }
+
+    @Test
+    fun `a stream that does not fit in a group of several partitions conflicts alone, and another context is refused`(): Unit =
+        runBlocking {
+            val context = PostgresFixture.newContext()
+            val order = AggregateType(context, "order")
+            val log = PostgresFixture.log(ACROSS, context, listOf(order.name))
+            val ids = idsByPartition(order, ACROSS)
+            // Partition 2's aggregate has no stream yet: its version 2 conflicts, the other partitions commit.
+            val group = (0 until ACROSS).map { partition ->
+                stream(ids[partition][0], if (partition == 2) 2 else 1, aggregate = order) to null
+            }
+            val outcomes = log.appendAll(group)
+            outcomes[2].assert().isEqualTo(AppendOutcome.Conflict(0))
+            outcomes.filterIndexed { index, _ -> index != 2 }.assert().allMatch { it is AppendOutcome.Committed }
+            log.head(2).assert().isNull()
+            // A group holds the streams of this log's context alone.
+            val elsewhere = stream("x", 1, aggregate = AggregateType(PostgresFixture.newContext(), "order"))
+            assertThrownBy<IllegalArgumentException> { runBlocking { log.appendAll(group.take(1) + (elsewhere to null)) } }
+        }
+
+    @Test
+    fun `groups across overlapping partitions in any order commit at once, with no deadlock and no gap`(): Unit =
+        runBlocking {
+            // Each group locks its partitions' counters in partition order, whatever order its streams come in.
+            val context = PostgresFixture.newContext()
+            val order = AggregateType(context, "order")
+            val log = PostgresFixture.log(ACROSS, context, listOf(order.name))
+            val ids = idsByPartition(order, ACROSS)
+            val next = IntArray(ACROSS)
+            val groups = (0 until GROUPS).map { round ->
+                (0 until ACROSS).shuffled(java.util.Random(round.toLong())).take(ACROSS - 1).map { partition ->
+                    stream(ids[partition][next[partition]++], 1, aggregate = order) to null
+                }
+            }
+            val outcomes = coroutineScope {
+                groups.map { group -> async(Dispatchers.IO) { log.appendAll(group) } }.awaitAll().flatten()
+            }
+            outcomes.assert().allMatch { it is AppendOutcome.Committed }
+            outcomes.map { (it as AppendOutcome.Committed).position }.groupBy { it.partition }.forEach { (partition, at) ->
+                at.map { it.sequence }.sorted().assert().isEqualTo((1L..next[partition]).toList())
+            }
+        }
+
+    /** Aggregate ids of [type] by the partition of [partitions] each falls in, plenty of each. */
+    private fun idsByPartition(type: AggregateType, partitions: Int): List<List<String>> {
+        val ids = generateSequence(1) { it + 1 }.map { "x$it" }.take(partitions * PER_PARTITION * 4).toList()
+        return (0 until partitions).map { partition ->
+            ids.filter { Partitioner.partitionOf(type.ref("tenant", it), partitions) == partition }
+        }
+    }
+
+    @Test
     fun `groups of two partitions repeating each other's request ids in opposite orders do not deadlock`(): Unit =
         runBlocking {
             // Two groups wait on each other's request keys unless both take them in one order.
@@ -670,6 +768,9 @@ class PostgresEventLogTest : EventLogSpec() {
         const val PARTITIONS = 1
         const val WRITERS = 4
         const val STARTS = 200
+        const val ACROSS = 4
+        const val GROUPS = 24
+        const val PER_PARTITION = GROUPS
         const val ROUNDS = 100
         const val REQUESTS = 32
     }

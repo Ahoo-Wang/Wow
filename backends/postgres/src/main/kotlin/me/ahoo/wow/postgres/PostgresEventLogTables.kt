@@ -192,9 +192,78 @@ internal class PostgresEventLogTables(val context: String) {
         """.trimIndent()
     }
 
+    /**
+     * The group commit of streams of several partitions across [tables] as one autocommitted statement (roadmap §6
+     * item 15, decision D275 on PostgreSQL): [appendGroup] with each stream's partition in [parts], in the group's
+     * order beside [branches]. Each partition takes its own run of sequences, bumping its own counter by the streams
+     * of it that fit, ranked in the group's order, so each partition's sequences stay contiguous and in order.
+     *
+     * **Lock order.** The statement locks the counter rows of its partitions first, in partition order (`locked`, a
+     * `FOR UPDATE` above the sort), before it bumps them or inserts anything: two groups that share partitions take
+     * them in one order, and every group takes its counters before the request keys, which it then takes in
+     * [appendGroup]'s order. A group waiting on a counter holds no request key, so no cycle forms.
+     *
+     * The partitions are parameters, not literals, so the statement's text depends on the group's shape alone (its
+     * size and its tables) and PostgreSQL plans it once per shape, as it does [appendGroup].
+     *
+     * Parameters per stream: its partition, then [AggregateLogTable.STREAM_PARAMETERS] of it
+     * ([ACROSS_STREAM_PARAMETERS] in all). Returns per stream, in the group's order: `ord`, the aggregate's current
+     * `version`, and the `sequence` it was committed at in its partition, null when it did not fit.
+     */
+    fun appendGroupAcross(tables: List<AggregateLogTable>, branches: List<Int>): String {
+        val values = branches.withIndex().joinToString(", ") { (ord, branch) ->
+            "($ord, $branch, ?::integer, ?::text, ?::text, ?::integer, ?::text, ?::text, ?::text, ?::bigint, " +
+                "?::jsonb, ?::text, ?::text, ?::text, ?::text, ?::jsonb, ?::jsonb, ?::text, ?::text, ?::boolean, ?::jsonb)"
+        }
+        val current = tables.withIndex().joinToString(" UNION ALL ") { (branch, table) ->
+            "SELECT input.ord, coalesce((SELECT max(log.version) FROM ${table.log} AS log " +
+                "WHERE log.aggregate_id = input.aggregate_id AND log.tenant_id = input.tenant_id), 0) AS version " +
+                "FROM input WHERE input.branch = $branch"
+        }
+        val inserts = tables.withIndex().joinToString("") { (branch, table) ->
+            ", appended_$branch AS (INSERT INTO ${table.log} (partition, sequence, ${AggregateLogTable.COLUMNS}) " +
+                "SELECT fits.part, bump.sequence - fits.total + fits.rank, " +
+                AggregateLogTable.COLUMNS.split(", ").joinToString(", ") { "fits.$it" } +
+                " FROM fits JOIN bump ON bump.partition = fits.part WHERE fits.branch = $branch " +
+                "ORDER BY fits.tenant_id, fits.request_id RETURNING sequence)"
+        }
+        return """
+            WITH input (ord, branch, part, ${AggregateLogTable.COLUMNS}) AS (VALUES $values),
+            current AS ($current),
+            links AS (
+                SELECT input.ord, row_number() OVER (
+                    PARTITION BY input.branch, input.tenant_id, input.aggregate_id ORDER BY input.version
+                ) AS link
+                FROM input
+            ),
+            fits AS (
+                SELECT input.*, row_number() OVER (PARTITION BY input.part ORDER BY input.ord) AS rank,
+                    count(*) OVER (PARTITION BY input.part) AS total
+                FROM input JOIN current ON current.ord = input.ord JOIN links ON links.ord = input.ord
+                WHERE input.version - current.version = links.link
+            ), counts AS (
+                SELECT part, count(*) AS taken FROM fits GROUP BY part
+            ), locked AS (
+                SELECT partition FROM $partitions WHERE partition IN (SELECT part FROM counts)
+                ORDER BY partition FOR UPDATE
+            ), bump AS (
+                UPDATE $partitions SET sequence = $partitions.sequence + counts.taken
+                FROM counts WHERE $partitions.partition = counts.part
+                    AND $partitions.partition IN (SELECT partition FROM locked)
+                RETURNING $partitions.partition, $partitions.sequence
+            )$inserts
+            SELECT current.ord, current.version, bump.sequence - fits.total + fits.rank AS sequence
+            FROM current LEFT JOIN fits ON fits.ord = current.ord LEFT JOIN bump ON bump.partition = fits.part
+            ORDER BY current.ord
+        """.trimIndent()
+    }
+
     companion object {
         /** The version of this layout. */
         const val FORMAT = 1
+
+        /** The parameters of a stream in [appendGroupAcross]: its partition, then its own. */
+        const val ACROSS_STREAM_PARAMETERS = AggregateLogTable.STREAM_PARAMETERS + 1
 
         /** The registry of aggregate tables, shared by the logs of every context. */
         const val REGISTRY = "wow_log_aggregate"
