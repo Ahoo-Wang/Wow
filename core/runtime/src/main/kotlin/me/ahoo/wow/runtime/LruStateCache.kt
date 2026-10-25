@@ -17,12 +17,13 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.StateCache
+import me.ahoo.wow.kernel.StateSizes
 import me.ahoo.wow.spi.log.Partitioner
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /**
- * A [StateCache] of at most [capacity] aggregates and [maxBytes] of their estimated size ([CachedState.bytes]),
+ * A [StateCache] of at most [capacity] aggregates and [maxBytes] of their estimated size ([weigh]),
  * evicting the least recently used while either is passed. Taking a state out (for a command) frees its room until the
  * command puts it back, weighed again then. [invalidate] drops a partition's states when the node acquires or releases
  * it (decision D261), scanning every stripe.
@@ -35,6 +36,8 @@ import kotlin.concurrent.withLock
 class LruStateCache(
     private val capacity: Int = Int.MAX_VALUE,
     private val maxBytes: Long = Long.MAX_VALUE,
+    /** The estimated bytes of a state, weighed when it is put: its class's measured size ([StateSizes]) on a node. */
+    private val weigh: (CachedState) -> Long = CachedState::bytes,
     /** Called for each state evicted to make room, from the putting thread: a metric hook (work package B.O-4). */
     private val evicted: () -> Unit = {},
 ) : StateCache {
@@ -64,7 +67,8 @@ class LruStateCache(
     override fun take(ref: AggregateRef): CachedState? = Stripes.pick(stripes, ref).take(ref)
 
     override fun put(ref: AggregateRef, state: CachedState) {
-        Stripes.pick(stripes, ref).put(ref, state)
+        // Weighed outside the stripe's lock.
+        Stripes.pick(stripes, ref).put(ref, Held(state, weigh(state)))
     }
 
     override fun invalidate(partition: Int, partitions: Int) {
@@ -90,9 +94,8 @@ class LruStateCache(
             }
         }
 
-        fun put(ref: AggregateRef, state: CachedState) {
+        fun put(ref: AggregateRef, weighed: Held) {
             lock.withLock {
-                val weighed = Held(state, state.bytes)
                 states.put(ref, weighed)?.let { replaced -> held -= replaced.bytes }
                 held += weighed.bytes
                 val eldest = states.entries.iterator()

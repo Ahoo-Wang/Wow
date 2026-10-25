@@ -84,8 +84,8 @@ class CachedState(
     internal var requests: RecentRequests? = null
 
     /**
-     * The estimated bytes it takes in a cache: [STATE_BYTES] for the state with its metadata, and what its recent
-     * requests' rings take. A state cache bounded by bytes weighs it by this when it is put.
+     * The estimated bytes it takes in a cache before its class's size is measured ([StateSizes]): [STATE_BYTES] for the
+     * state with its metadata, and what its recent requests' rings take.
      */
     val bytes: Long get() = STATE_BYTES + (requests?.bytes ?: 0)
 
@@ -107,8 +107,9 @@ class CachedState(
     @InternalWowApi
     companion object {
         /**
-         * The estimated bytes of a state object with its metadata, its recent requests aside; a domain whose states
-         * are much larger bounds its cache by their number instead.
+         * The estimated bytes of a state object with its metadata, its recent requests aside, until its class's size
+         * is measured ([StateSizes]); a domain whose states are much larger and never measured bounds its cache by
+         * their number instead.
          */
         const val STATE_BYTES: Long = 1_024
 

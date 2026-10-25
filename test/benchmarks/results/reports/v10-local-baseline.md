@@ -335,6 +335,22 @@ L3 ([run 40087911162](https://github.com/Ahoo-Wang/Wow/actions/runs/40087911162)
 
 L4 ([run 40087914268](https://github.com/Ahoo-Wang/Wow/actions/runs/40087914268)) measured the same `main` alone, for capacity: on a 4-core runner, the most a node sustains with at most 1% errors and p99 within 200 ms is 1,922/s for E1 and 656/s for E3 on PostgreSQL, 577/s for E1, 368/s for E2 and 193/s for E3 on MongoDB (4.4 ms of CPU per E1 command against PostgreSQL's 1.2: MongoDB shares the runner's four cores). The E3 cliff kept up to 500/s on both, PostgreSQL's p99 184 ms at the top step, MongoDB's p50 782 ms from 400/s. The E5 hand-overs lost nothing but three of MongoDB's E3 waits (`wow.wait.timeout`), with the worst second's p99 at 1.6–7.1 s during the hand-over; a million cold accounts at 200 E1 and 500 E4 a second kept up on both. Its cold suites' report still described the state cache as 4,096 states a context, the count before #4859; it now says what the default holds.
 
+**Then: each state weighed by its class's measured size (D274).** The bytes bound held every account fresh, but not after traffic: each account's rings grow with its requests, and each state was still weighed at a fixed 1 KB. A heap histogram of a 1 GB node counted 95,786 cached states after the prime and 66,005 after an E1 sweep to concurrency 1,024 (1.6 million commands, about 16 an account); the next E1 read 12.0 rows a command against 2.87. The fixed 1 KB was also about twice what such a state takes: its entry, reference, first commit, scope, cache node and id string come to about 340 bytes, the `AccountState` and its rings to the rest of about 0.58 KB. The codec now measures each state class's mean JSON length where it writes or reads a state (the state views, the snapshots), and the cache weighs a state at 384 bytes plus twice its class's mean, plus its rings; a class not measured yet keeps the 1 KB. `main` (A) against the change (B), sessions A B B A on each backend, each: E1 at a fixed rate on the fresh cache, an E1 sweep to 1,024 (30 s a step), E1 again, then a heap histogram ([`sizes-ab.sh`](v10-local-baseline/state-cache/measured-sizes/sizes-ab.sh), results and histograms beside it):
+
+| After the sweep | PostgreSQL A | PostgreSQL B | MongoDB A | MongoDB B |
+| --- | --- | --- | --- | --- |
+| States cached | 68,894, 68,630 | 100,000, 100,000 | 76,027, 76,984 | 100,000, 100,000 |
+| Reads per E1 command | 10.2, 9.9 rows | 2.9, 3.1 rows | 0.24, 0.23 queries | 0.00, 0.00 queries |
+| Node CPU per E1 command | 0.738, 0.790 ms | 0.786, 0.799 ms | 0.816, 0.818 ms | 0.651, 0.699 ms |
+| Store CPU per E1 command | 0.69, 1.06 ms | 0.56, 0.63 ms | 2.46, 1.82 ms | 1.36, 1.41 ms |
+| Allocated per E1 command | 95.3, 96.2 KB | 86.4, 85.2 KB | 141.4, 145.6 KB | 129.7, 127.8 KB |
+| The sweep's peak | ≥ 6,818, ≥ 6,905/s | ≥ 9,685, ≥ 9,256/s | 5,153, 5,172/s | 6,371, 6,282/s |
+
+- Weighed by what they take, the 100,000 accounts stay cached after the traffic, and the reads fall back to the fresh cache's: 70% fewer rows on PostgreSQL, no queries on MongoDB.
+- The closed-loop peak rises 34–42% on PostgreSQL (both arms peaked at the top step, so the gap is at least that) and 22–24% on MongoDB; the low concurrencies, where nothing missed, are the same.
+- MongoDB spends 15–20% less node CPU and 22–45% less of its own per command, and both backends 9–12% fewer bytes. PostgreSQL's node CPU does not fall (its load is one statement, D268), its store's does, by 8–47%.
+- On the fresh cache, before the sweep, the two arms cost the same (node CPU 0.50–0.56 ms on PostgreSQL, 0.65–0.69 ms on MongoDB).
+
 ## Tried and ruled out
 
 Two hypotheses from the platform-thread recordings below, each measured and rejected on 2026-10-24.

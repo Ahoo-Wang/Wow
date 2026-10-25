@@ -1,0 +1,14 @@
+ num     #instances         #bytes  class name (module)
+-------------------------------------------------------
+   8:        100000        4800000  me.ahoo.wow.kernel.CachedState
+   9:        100000        4000000  me.ahoo.wow.benchmark.transfer.AccountState
+  10:        100000        4000000  me.ahoo.wow.kernel.RecentRequests
+  13:        104096        2498304  me.ahoo.wow.kernel.FirstCommit
+ 993:            26            832  me.ahoo.wow.kernel.EventType
+1131:            19            456  me.ahoo.wow.kernel.CommandType
+1132:            19            456  me.ahoo.wow.kernel.DecideFunction$Sync
+1210:             9            360  me.ahoo.wow.kernel.AggregateModel$deciders$2$1
+1211:             9            360  me.ahoo.wow.kernel.AggregateModel$deciders$2$2
+1423:             9            216  me.ahoo.wow.kernel.KernelLifecycle$$Lambda/0x000000d80152f4d8
+1424:             3            216  me.ahoo.wow.kernel.ProcessorBinding
+1445:             2            208  me.ahoo.wow.kernel.AggregateModel
