@@ -346,6 +346,22 @@ class MongoEventLogTest : EventLogSpec() {
     }
 
     @Test
+    fun `a new aggregate type's first appends at once make sure of its collection once`(): Unit = runBlocking {
+        // A node's first commands of a type all touch its collection at once: one of them creates it, the others wait.
+        val context = MongoLogFixture.newContext()
+        val type = AggregateType(context, "order")
+        val log = MongoEventLog(CountedMongo.client, MongoLogFixture.DATABASE, context, 4).also { it.createSchema() }
+        val (outcomes, sent) = CountedMongo.commandsOf {
+            runBlocking {
+                (1..FIRST_TOUCHES).map { async(Dispatchers.Default) { log.append(stream("o-$it", 1, aggregate = type)) } }
+                    .awaitAll()
+            }
+        }
+        outcomes.assert().allMatch { it is AppendOutcome.Committed }
+        sent.count { it.name == "createIndexes" }.assert().isEqualTo(2)
+    }
+
+    @Test
     fun `an append that reads its aggregate's latest stream reads the version key`(): Unit = runBlocking {
         // D271: the version key is a partial index; a lookup by the aggregate's key alone scanned the collection.
         // The profiler this reads runs on a shard's members, not on a mongos.
@@ -784,6 +800,7 @@ class MongoEventLogTest : EventLogSpec() {
         const val RACES = 5
         const val IDLE_POLLS = 13
         const val COMMITS = 5
+        const val FIRST_TOUCHES = 100
         const val SETTLE_MS = 100L
         const val OVERSIZED_BYTES = 17 * 1024 * 1024
     }
