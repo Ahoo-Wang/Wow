@@ -92,7 +92,17 @@ The first session of each backend ran the four sweeps (E1 uniform, Zipf, hot, E3
 | A fixed E1 after them | 81,055 | 69 MB (about 850 B an account) | 0.197 | 84.5 ms |
 
 - The sweeps commit tens of commands per account (the uniform one about 17, the Zipf and hot ones and E3's legs more), and each account's rings double from 8 slots towards the 256 the cache keeps (12 bytes a request): about 64 on average after these, more on the busy accounts. An account then weighs about 1.4 KB in the cache, and the 1 GB heap's tenth no longer holds 100,000 of them. The fixed rate's loads then go on growing the rings of the accounts they load, and the cache keeps shrinking (85,318 to 81,055 over one fixed run). An earlier version of this report put the rings at no more than 32 slots, counting only the uniform sweep; that was wrong.
-- Roadmap §6 item 20 takes the fix: what bounds a ring (a smaller count, an age, or neither of them weighed against the states).
+- **The fix, D278:** the cache keeps 32 recent requests per aggregate by default instead of 256, so a ring takes at most 384 bytes. An ABAB on the local M4 ([`item20/recent-requests-ab/`](v10-m4pro-snapshot/item20/recent-requests-ab/), one build, the setting through `SPRING_APPLICATION_JSON`, MongoDB in memory, sessions 256, 32, 32, 256; each aged by the E1 uniform, Zipf and hot sweeps, then E1 and E3 at fixed rates, 20 s warm-up and 40 s measured):
+
+| After the sweeps, E1 at 1,720/s | 256 (session 1) | 256 (session 4) | 32 (session 2) | 32 (session 3) |
+| --- | --- | --- | --- | --- |
+| Queries per op | 0.011 | 0.171 | 0.011 | 0.011 |
+| p50 / p99 | 1.50 / 19.2 ms | 1.54 / 88.6 ms | 1.08 / 5.8 ms | 1.28 / 12.3 ms |
+| Node CPU, allocated per op | 0.653 ms, 136 KB | 0.691 ms, 165 KB | 0.584 ms, 140 KB | 0.638 ms, 138 KB |
+| MongoDB CPU per op | 1.058 ms | 1.172 ms | 0.838 ms | 0.923 ms |
+
+  - With 256, one of the two sessions fell off the cache (session 4): the three sweeps reach the edge, the earlier reproduction, which also ran an E3 sweep, went past it. With 32, neither did.
+  - 32 costs nothing measurable: the sweeps' peaks (E1 uniform 9,566 and 9,023/s against 9,150 and 9,183/s; Zipf 8,227 and 8,342/s against 7,321 and 8,862/s) and E3 at its fixed rate (store operations equal, costs within the sessions' spread) are the same. The lookups D261 falls back to when a set does not cover a request would show as queries per op; they did not grow.
 - A node in production runs for days, not one fresh session: its aggregates' rings are full, which is closer to this than to a fresh session.
 
 ## Reading the runs
