@@ -127,11 +127,18 @@ internal object StoreInstances {
             name = name,
             type = type,
             ddl = store?.ddl ?: properties.ddl,
-            options = mapOf(
-                APPEND_TIMEOUT to properties.mongo.appendTimeout.toKotlinDuration().toString(),
-                SHARDING to properties.mongo.sharding,
-                OPERATION_TIMEOUT to properties.mongo.operationTimeout.toKotlinDuration().toString(),
-            ) +
+            // Each backend's defaults under its own type: both read `operation-timeout`.
+            options = when (type) {
+                POSTGRES -> mapOf(
+                    OPERATION_TIMEOUT to properties.postgres.operationTimeout.toKotlinDuration().toString(),
+                )
+
+                else -> mapOf(
+                    APPEND_TIMEOUT to properties.mongo.appendTimeout.toKotlinDuration().toString(),
+                    SHARDING to properties.mongo.sharding,
+                    OPERATION_TIMEOUT to properties.mongo.operationTimeout.toKotlinDuration().toString(),
+                )
+            } +
                 store?.options().orEmpty() + mapOf(DATABASE to properties.mongo.database).filterKeys {
                     store?.database.isNullOrBlank()
                 },
@@ -166,6 +173,7 @@ internal object StoreInstances {
     private const val APPEND_TIMEOUT = "append-timeout"
     private const val SHARDING = "sharding"
     private const val OPERATION_TIMEOUT = "operation-timeout"
+    private const val POSTGRES = "postgres"
 }
 
 /** The application's beans as the resources its stores are opened over (a `DataSource`, a `MongoClient`). */

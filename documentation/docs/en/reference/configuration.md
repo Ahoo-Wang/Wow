@@ -7,7 +7,7 @@ description: "Every key of the host's wow.* configuration, its type, default and
 
 # Configuration Keys
 
-Every key of the `wow.*` configuration a Spring Boot host reads, 239 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property names is reported when the node starts. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`.
+Every key of the `wow.*` configuration a Spring Boot host reads, 240 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property names is reported when the node starts. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`.
 
 ## `wow`
 
@@ -379,6 +379,12 @@ The webhook of the parked entries, posted to url when set: in Wow's JSON (`gener
 | `wow.ops.webhook.headers` | `Map<String,String>` |  |  |
 | `wow.ops.webhook.timeout` | `Duration` | `PT5S` |  |
 | `wow.ops.webhook.url` | `java.net.URI` |  |  |
+
+## `wow.postgres`
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `wow.postgres.operation-timeout` | `Duration` | `PT30S` | How long each call of a PostgreSQL store may wait for a reply besides the schema's statements (5 minutes) and the queries (their own `statement_timeout`), decision D279: a reply lost on the way fails the call, and its connection, instead of blocking it forever. A store's `options.operation-timeout` overrides it. |
 
 ## `wow.query`
 

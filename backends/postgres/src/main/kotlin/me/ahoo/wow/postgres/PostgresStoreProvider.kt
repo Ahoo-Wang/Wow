@@ -32,11 +32,13 @@ import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
 import javax.sql.DataSource
+import kotlin.time.Duration
 
 /**
  * The PostgreSQL stores (`wow.stores.<name>.type: postgres`, review R3.3-1), each over the application's `DataSource`
  * that its `data-source` option names, else the only one, and its queries over the one its `query-data-source` option
- * names (review R3.4-2), else the same. Found by `ServiceLoader`.
+ * names (review R3.4-2), else the same; its `operation-timeout` option bounds each of its other calls
+ * ([PostgresTimeouts.OPERATION] when not set). Found by `ServiceLoader`.
  */
 internal class PostgresStoreProvider : StoreProvider {
     override val type: String = TYPE
@@ -51,7 +53,8 @@ internal class PostgresStoreProvider : StoreProvider {
         val queries = config.option(QUERY_DATA_SOURCE)?.let { name ->
             config.resources.resource(DataSource::class.java, name, "${config.key}.$QUERY_DATA_SOURCE")
         }
-        return PostgresStore(config, dataSource, queries ?: dataSource)
+        val timeout = config.option(OPERATION_TIMEOUT)?.let(Duration::parse) ?: PostgresTimeouts.OPERATION
+        return PostgresStore(config, dataSource, queries ?: dataSource, timeout)
     }
 
     companion object {
@@ -65,6 +68,9 @@ internal class PostgresStoreProvider : StoreProvider {
          * R3.4-2): a pool of their own, so a query never holds a connection the appends wait for, or a read replica's.
          */
         const val QUERY_DATA_SOURCE = "query-data-source"
+
+        /** The option bounding each of the store's calls besides the schema's and the queries', such as `30s`. */
+        const val OPERATION_TIMEOUT = "operation-timeout"
     }
 }
 
@@ -78,8 +84,12 @@ internal class PostgresStore(
     config: StoreConfig,
     val dataSource: DataSource,
     val queryDataSource: DataSource = dataSource,
+    operationTimeout: Duration = PostgresTimeouts.OPERATION,
 ) : Store(config) {
     private val ddl = config.ddl
+
+    /** [dataSource] for the stores: each connection bounded by the operation timeout ([PostgresTimeouts]). */
+    private val timed = PostgresTimeouts.timed(dataSource, operationTimeout)
 
     /** Whether the queries draw from the pool the appends draw from. */
     val queriesShareAppends: Boolean get() = queryDataSource === dataSource
@@ -90,19 +100,19 @@ internal class PostgresStore(
     override fun waitingForConnection(): Int? = dataSource.threadsAwaitingConnection()
 
     override fun openCheckpoints(): CheckpointStore =
-        PostgresCheckpointStore(dataSource, ddl = ddl).also { schema(it::createSchema) }
+        PostgresCheckpointStore(timed, ddl = ddl).also { schema(it::createSchema) }
 
-    override fun openLeases(): LeaseStore = PostgresLeaseStore(dataSource, ddl = ddl).also { schema(it::createSchema) }
+    override fun openLeases(): LeaseStore = PostgresLeaseStore(timed, ddl = ddl).also { schema(it::createSchema) }
 
     override fun openLedger(): FailureLedger =
-        PostgresFailureLedger(dataSource, service = config.service, ddl = ddl).also { schema(it::createSchema) }
+        PostgresFailureLedger(timed, service = config.service, ddl = ddl).also { schema(it::createSchema) }
 
     override fun openReservations(): ReservationStore =
-        PostgresReservationStore(dataSource, ddl = ddl).also { schema(it::createSchema) }
+        PostgresReservationStore(timed, ddl = ddl).also { schema(it::createSchema) }
 
     override fun openLog(context: String, partitions: Int): EventLog =
         PostgresEventLog(
-            dataSource,
+            timed,
             context,
             partitions,
             pollInterval = config.polling.interval,
@@ -111,8 +121,8 @@ internal class PostgresStore(
         ).also { schema(it::createSchema) }
 
     override fun openSnapshots(context: String): SnapshotStore =
-        PostgresSnapshotStore(dataSource, context, ddl = ddl).also { schema(it::createSchema) }
+        PostgresSnapshotStore(timed, context, ddl = ddl).also { schema(it::createSchema) }
 
     override fun openTimers(context: String): TimerStore =
-        PostgresTimerStore(dataSource, context, ddl = ddl).also { schema(it::createSchema) }
+        PostgresTimerStore(timed, context, ddl = ddl).also { schema(it::createSchema) }
 }

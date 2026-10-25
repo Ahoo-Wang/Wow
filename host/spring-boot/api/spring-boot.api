@@ -505,6 +505,7 @@ public final class me/ahoo/wow/spring/boot/WowProperties {
 	public final fun getMongo ()Lme/ahoo/wow/spring/boot/WowProperties$Mongo;
 	public final fun getNode ()Lme/ahoo/wow/spring/boot/WowProperties$Node;
 	public final fun getOps ()Lme/ahoo/wow/spring/boot/WowProperties$Ops;
+	public final fun getPostgres ()Lme/ahoo/wow/spring/boot/WowProperties$Postgres;
 	public final fun getSchedules ()Ljava/util/Map;
 	public final fun getService ()Ljava/lang/String;
 	public final fun getSnapshot ()Lme/ahoo/wow/spring/boot/WowProperties$Snapshot;
@@ -535,6 +536,7 @@ public final class me/ahoo/wow/spring/boot/WowProperties {
 	public final fun setMongo (Lme/ahoo/wow/spring/boot/WowProperties$Mongo;)V
 	public final fun setNode (Lme/ahoo/wow/spring/boot/WowProperties$Node;)V
 	public final fun setOps (Lme/ahoo/wow/spring/boot/WowProperties$Ops;)V
+	public final fun setPostgres (Lme/ahoo/wow/spring/boot/WowProperties$Postgres;)V
 	public final fun setSchedules (Ljava/util/Map;)V
 	public final fun setService (Ljava/lang/String;)V
 	public final fun setSnapshot (Lme/ahoo/wow/spring/boot/WowProperties$Snapshot;)V
@@ -1015,6 +1017,12 @@ public final class me/ahoo/wow/spring/boot/WowProperties$ParkedSpec {
 	public final fun setMaxRetries (Ljava/lang/Integer;)V
 	public final fun setMinBackoff (Ljava/time/Duration;)V
 	public final fun specOver (Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Postgres {
+	public fun <init> ()V
+	public final fun getOperationTimeout ()Ljava/time/Duration;
+	public final fun setOperationTimeout (Ljava/time/Duration;)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Publish {
