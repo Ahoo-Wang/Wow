@@ -19,6 +19,7 @@ import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.IndexOptions
+import com.mongodb.client.model.Indexes
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.StoreDdl
 import org.bson.Document
@@ -66,6 +67,34 @@ internal object MongoShards {
         client.getDatabase(ADMIN).runCommand(Document("hello", 1)).getString("msg") == MONGOS
 
     /**
+     * Shards the log collection [collection] of [partitions] partitions by partition (decision D277): its entries of
+     * one partition are one range, one chunk each, spread over the shards while the collection is new. The shard
+     * key's index is `(partition, _id)`: the log's unique keys are partial, and no partial index serves a shard key.
+     */
+    fun shardLog(client: MongoClient, database: MongoDatabase, collection: MongoCollection<Document>, partitions: Int) =
+        shard(
+            client,
+            database,
+            collection,
+            Document(PARTITION, 1),
+            Indexes.ascending(PARTITION, ID),
+            (0 until partitions).map { Document(PARTITION, it) },
+        )
+
+    /**
+     * Shards the snapshot collection [collection] by tenant, then the aggregate id's hash (decision D277): new
+     * aggregates spread over the shards, a load reads one, a query of one tenant that tenant's chunks.
+     */
+    fun shardSnapshots(client: MongoClient, database: MongoDatabase, collection: MongoCollection<Document>) =
+        shard(
+            client,
+            database,
+            collection,
+            Document(TENANT_ID, 1).append(AGGREGATE_ID, HASHED),
+            Indexes.compoundIndex(Indexes.ascending(TENANT_ID), Indexes.hashed(AGGREGATE_ID)),
+        )
+
+    /**
      * Shards [collection] by [key], whose index [index] it creates first; when [chunks] are given and the collection
      * is new (empty, one chunk), splits it at each of them and spreads the chunks over the shards in turn.
      */
@@ -109,9 +138,9 @@ internal object MongoShards {
         val shards = admin.runCommand(Document("listShards", 1)).getList("shards", Document::class.java)
             .map { it.getString(ID) }
         if (shards.size < 2) return
-        chunks.drop(
-            1
-        ).forEach { bound -> tryCommand(admin, database, Document("split", namespace).append("middle", bound)) }
+        chunks.drop(1).forEach { bound ->
+            tryCommand(admin, database, Document("split", namespace).append("middle", bound))
+        }
         chunks.forEachIndexed { index, bound ->
             val target = shards[index % shards.size]
             tryCommand(admin, database, Document("moveChunk", namespace).append("find", bound).append("to", target))
@@ -126,6 +155,10 @@ internal object MongoShards {
         }
     }
 
+    private const val PARTITION = "partition"
+    private const val TENANT_ID = "tenant_id"
+    private const val AGGREGATE_ID = "aggregate_id"
+    private const val HASHED = "hashed"
     private const val ADMIN = "admin"
     private const val CONFIG = "config"
     private const val COLLECTIONS = "collections"

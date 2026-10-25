@@ -305,14 +305,7 @@ class MongoEventLog(
         )
         if (sharded) {
             // Decision D277: by partition, one chunk each, spread over the shards while the collection is new.
-            MongoShards.shard(
-                client,
-                database,
-                log,
-                Document(PARTITION, 1),
-                Indexes.ascending(PARTITION, ID),
-                (0 until partitions).map { Document(PARTITION, it) },
-            )
+            MongoShards.shardLog(client, database, log, partitions)
         }
         if (ddl != StoreDdl.AUTO) {
             // The registry is the schema's: a validated or foreign schema registered its collections already.

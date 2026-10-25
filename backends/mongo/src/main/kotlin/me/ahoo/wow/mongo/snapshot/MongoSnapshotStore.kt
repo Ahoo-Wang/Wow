@@ -129,13 +129,7 @@ class MongoSnapshotStore(
         ensure(database, context, aggregate, ddl).also { collection ->
             if (sharded) {
                 // Decision D277: by tenant, then the aggregate id's hash, so new aggregates spread over the shards.
-                MongoShards.shard(
-                    client,
-                    database,
-                    collection,
-                    Document(TENANT_ID, 1).append(AGGREGATE_ID, HASHED),
-                    Indexes.compoundIndex(Indexes.ascending(TENANT_ID), Indexes.hashed(AGGREGATE_ID)),
-                )
+                MongoShards.shardSnapshots(client, database, collection)
             }
         }
 
@@ -538,7 +532,6 @@ class MongoSnapshotStore(
         const val STALE_VERSION = "stale_version"
 
         private const val LITERAL = "\$literal"
-        private const val HASHED = "hashed"
 
         /** The bulk write of a batch: unordered, so one refused upsert does not stop the others. */
         private val UNORDERED: BulkWriteOptions = BulkWriteOptions().ordered(false)
