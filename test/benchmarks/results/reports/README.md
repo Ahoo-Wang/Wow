@@ -26,7 +26,11 @@ Earlier Wow 10 evidence, each valid for the commit it names:
 | [v10-local-baseline-m4pro](v10-local-baseline-m4pro.md) | The local baseline on an Apple M4 Pro (Docker 12 CPUs / 16 GB, no JFR): A/A spread, ceilings and costs per operation, 1 GB against 2 GB of heap (the state cache's budget), L1 | Baseline for its commit |
 | [v10-m4pro-snapshot](v10-m4pro-snapshot.md) | The milestone snapshot on the M4 Pro after D273–D275 and the production-like store settings: ceilings, A/A, 1 GB against 2 GB, L1, and the state cache missing after four sweeps (roadmap §6 item 20) | Snapshot for its commit |
 | [v10-mongo-sharding](v10-mongo-sharding.md) | MongoDB on a replica set of three and a sharded cluster (D277): the unique-key constraint, the layouts' cost, the failover tests and an end-to-end ABAB against `main` | Decision for D277 |
+<<<<<<< HEAD
 | [v10-pg-cross-partition](v10-pg-cross-partition.md) | PostgreSQL commits several partitions' groups with one statement (D280): L1 merging off against on, and end to end against `main` on disk (fixed rates and closed-loop sweeps), with the first version's regression | Decision for D280 |
+=======
+| [v10-e3-cost](v10-e3-cost.md) | Why an E3 transfer costs three times an E1 deposit: three commands at E1's cost each; and why JFR's CPU samples overstate platform threads when most work is on virtual threads | Finding (roadmap §6 item 16) |
+>>>>>>> origin/main
 
 ## 9.x
 
