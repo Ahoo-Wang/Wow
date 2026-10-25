@@ -1,0 +1,75 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E3",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 100000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 2542.0333333333333,
+  "saturationConcurrency": 1024,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 613.7333333333333,
+      "ok": 18412,
+      "errors": {},
+      "p50Ms": 1.471,
+      "p99Ms": 3.231
+    },
+    {
+      "concurrency": 4,
+      "throughput": 942.8333333333334,
+      "ok": 28285,
+      "errors": {},
+      "p50Ms": 3.679,
+      "p99Ms": 12.479
+    },
+    {
+      "concurrency": 16,
+      "throughput": 1530.7333333333333,
+      "ok": 45922,
+      "errors": {},
+      "p50Ms": 9.663,
+      "p99Ms": 23.423
+    },
+    {
+      "concurrency": 64,
+      "throughput": 1950.1333333333334,
+      "ok": 58504,
+      "errors": {},
+      "p50Ms": 31.103,
+      "p99Ms": 67.583
+    },
+    {
+      "concurrency": 256,
+      "throughput": 2276.5666666666666,
+      "ok": 68297,
+      "errors": {},
+      "p50Ms": 109.055,
+      "p99Ms": 194.559
+    },
+    {
+      "concurrency": 1024,
+      "throughput": 2542.0333333333333,
+      "ok": 76261,
+      "errors": {},
+      "p50Ms": 385.023,
+      "p99Ms": 856.063
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "primed": "true",
+    "primeSeconds": "19",
+    "settleSeconds": "3",
+    "accounts": "100000",
+    "session": "/private/tmp/claude-501/-Users-worker-work-Wow--claude-worktrees-performance-optimization-327071/1e81896d-3639-40f5-8c4f-ed1ecfc9cafd/scratchpad/pgx/e2e3/4-A-postgres/up"
+  }
+}
