@@ -21,6 +21,7 @@ import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.ReservationScope
+import me.ahoo.wow.spi.reservation.ReservationStore
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.time.Duration.Companion.hours
@@ -137,7 +138,12 @@ class ReservationImporterTest {
 
     @Test
     fun `a key another owner holds in V10 stops the import`(): Unit = runTest {
-        store.confirm(scope("(0)"), "NO-1", ownerB).assert().isEqualTo(ConfirmOutcome.Confirmed)
+        store.confirm(
+            scope("(0)"),
+            "NO-1",
+            ownerB,
+            ReservationStore.UNVERSIONED
+        ).assert().isEqualTo(ConfirmOutcome.Confirmed)
         assertThrows<MigrationException> { importer().importAll("order_no") }.message!!.assert()
             .contains("order_no/NO-1").contains(owner.toString()).contains(ownerB.toString())
     }
@@ -170,16 +176,16 @@ class ReservationImporterTest {
                 "confirmed to their owner in 9.x",
         )
 
-        store.release(scope("(0)"), "NO-1", owner)
+        store.release(scope("(0)"), "NO-1", owner, ReservationStore.ANY_VERSION)
         store.reserve(scope("(0)"), "NO-1", owner, "hold", 1.hours)
-        store.release(scope("tenant-b"), "NO-2", ownerB)
+        store.release(scope("tenant-b"), "NO-2", ownerB, ReservationStore.ANY_VERSION)
         val result = comparison().compare("order_no")
         result.differ.assert().isEqualTo(2)
         result.passed.assert().isFalse()
         reports.assert()
             .contains("DIFFERS PrepareKey order_no/NO-1: 9.x $owner, V10 $owner pending")
             .contains("DIFFERS PrepareKey order_no/NO-2: 9.x $ownerB, V10 (none)")
-        store.confirm(scope("tenant-b"), "NO-2", owner)
+        store.confirm(scope("tenant-b"), "NO-2", owner, ReservationStore.UNVERSIONED)
         comparison().compare("order_no")
         reports.assert().contains("DIFFERS PrepareKey order_no/NO-2: 9.x $ownerB, V10 $owner")
     }
@@ -232,8 +238,8 @@ class ReservationImporterTest {
     @Test
     fun `keys V10 holds that the import did not confirm are never released`(): Unit = runTest {
         // V10 already holds NO-1 for its owner, and holds NO-9 of its own, which 9.x never had.
-        store.confirm(scope("(0)"), "NO-1", owner)
-        store.confirm(scope("(0)"), "NO-9", owner)
+        store.confirm(scope("(0)"), "NO-1", owner, ReservationStore.UNVERSIONED)
+        store.confirm(scope("(0)"), "NO-9", owner, ReservationStore.UNVERSIONED)
         importer().importAll("order_no").assert().isEqualTo(ReservationProgress("order_no", 1, 1, 1, 1, 2, true))
         imported.all.map { it.key }.assert().containsExactly("NO-2")
 
@@ -248,8 +254,8 @@ class ReservationImporterTest {
     fun `a recorded key V10 no longer holds for its owner is forgotten, not released`(): Unit = runTest {
         importer().importAll("order_no")
         // Released in V10 (an operator), then taken by another owner.
-        store.release(scope("(0)"), "NO-1", owner)
-        store.confirm(scope("(0)"), "NO-1", ownerB)
+        store.release(scope("(0)"), "NO-1", owner, ReservationStore.ANY_VERSION)
+        store.confirm(scope("(0)"), "NO-1", ownerB, ReservationStore.UNVERSIONED)
         keys.remove("order_no", "NO-1")
         importer(ImportOptions(pageSize = 2, restart = true)).importAll("order_no").released.assert().isEqualTo(0)
         store.find(scope("(0)"), "NO-1")!!.owner.assert().isEqualTo(ownerB)

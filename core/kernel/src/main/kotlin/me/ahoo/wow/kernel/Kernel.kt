@@ -528,7 +528,7 @@ class Kernel(
     ): CommandOutcome? = when (appended) {
         is AppendOutcome.Committed -> {
             requests.committed(stream, evolved)
-            withContext(NonCancellable) { attempt.afterAppend() }
+            withContext(NonCancellable) { attempt.afterAppend(stream.version) }
             CommandOutcome.Committed(
                 stream,
                 appended.position,
@@ -1169,6 +1169,9 @@ class Kernel(
         private var reserved: MutableList<ReservationKey>? = null
         private var released: MutableList<ReservationKey>? = null
         private var hold: String? = null
+
+        /** The version the attempt's stream committed at, once [afterAppend] runs its actions. */
+        private var committed = ReservationStore.UNVERSIONED
         private var scheduled: LinkedHashMap<String, Any>? = null
 
         override fun schedule(key: String, rule: ScheduleRule, command: Any, target: AggregateRef) {
@@ -1239,7 +1242,7 @@ class Kernel(
             if (!held.confirmed) {
                 (reserved ?: ArrayList<ReservationKey>().also { reserved = it }) += reservation
                 onAppendFailure { store.abandon(scope, key, owner, hold) }
-                afterAppend { confirmed(store.confirm(scope, key, owner), scope, key) }
+                afterAppend { confirmed(store.confirm(scope, key, owner, committed), scope, key) }
             }
             return true
         }
@@ -1255,7 +1258,7 @@ class Kernel(
             (released ?: ArrayList<ReservationKey>().also { released = it }) += reservation
             val owner = command.ref
             val scope = ReservationScope.of(owner, reservation)
-            afterAppend { store.release(scope, key, owner) }
+            afterAppend { store.release(scope, key, owner, committed) }
         }
 
         /** Logs a key the committed fact lost to another owner: confirming cannot get it back. */
@@ -1296,7 +1299,8 @@ class Kernel(
         }
 
         @Suppress("TooGenericExceptionCaught")
-        suspend fun afterAppend() {
+        suspend fun afterAppend(version: Int) {
+            committed = version
             afterAppendActions?.forEach { action ->
                 try {
                     action()

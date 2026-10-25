@@ -71,19 +71,25 @@ class InMemoryReservationStore(private val clock: Clock = Clock.systemUTC()) : R
             true
         }
 
-    override suspend fun confirm(scope: ReservationScope, key: String, owner: AggregateRef): ConfirmOutcome =
+    override suspend fun confirm(
+        scope: ReservationScope,
+        key: String,
+        owner: AggregateRef,
+        version: Int,
+    ): ConfirmOutcome = lock.withLock {
+        val held = reservations[scope to key]
+        if (held != null && held.owner != owner && held.isLive(clock.millis())) {
+            return@withLock ConfirmOutcome.Taken(held)
+        }
+        val confirmed = maxOf(version, held?.takeIf { it.owner == owner }?.version ?: version)
+        reservations[scope to key] = Reservation(scope, key, owner, null, version = confirmed)
+        ConfirmOutcome.Confirmed
+    }
+
+    override suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef, version: Int): Boolean =
         lock.withLock {
             val held = reservations[scope to key]
-            if (held != null && held.owner != owner && held.isLive(clock.millis())) {
-                return@withLock ConfirmOutcome.Taken(held)
-            }
-            reservations[scope to key] = Reservation(scope, key, owner, null)
-            ConfirmOutcome.Confirmed
-        }
-
-    override suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef): Boolean =
-        lock.withLock {
-            if (reservations[scope to key]?.owner != owner) {
+            if (held?.owner != owner || held.confirmed && held.version > version) {
                 return@withLock false
             }
             reservations.remove(scope to key)

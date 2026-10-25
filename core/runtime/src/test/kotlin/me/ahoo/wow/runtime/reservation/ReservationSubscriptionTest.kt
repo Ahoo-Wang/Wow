@@ -104,27 +104,39 @@ class ReservationSubscriptionTest {
         val confirms = CopyOnWriteArrayList<Pair<String, AggregateRef>>()
         val releases = CopyOnWriteArrayList<Pair<String, AggregateRef>>()
 
+        /** The keys a release freed. */
+        val freed = CopyOnWriteArrayList<String>()
+
         @Volatile
         var failing = false
 
-        override suspend fun confirm(scope: ReservationScope, key: String, owner: AggregateRef): ConfirmOutcome {
+        override suspend fun confirm(
+            scope: ReservationScope,
+            key: String,
+            owner: AggregateRef,
+            version: Int,
+        ): ConfirmOutcome {
             confirms += key to owner
             check(!failing) { "The reservation store is down." }
-            return delegate.confirm(scope, key, owner)
+            return delegate.confirm(scope, key, owner, version)
         }
 
-        override suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef): Boolean {
+        override suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef, version: Int): Boolean {
             releases += key to owner
-            return delegate.release(scope, key, owner)
+            return delegate.release(scope, key, owner, version).also { if (it) freed += key }
         }
     }
 
     /** The kernel's view of the store: its after-append actions never happen, as when the node crashed. */
     private class CrashBeforeConfirm(private val delegate: ReservationStore) : ReservationStore by delegate {
-        override suspend fun confirm(scope: ReservationScope, key: String, owner: AggregateRef): ConfirmOutcome =
-            ConfirmOutcome.Confirmed
+        override suspend fun confirm(
+            scope: ReservationScope,
+            key: String,
+            owner: AggregateRef,
+            version: Int,
+        ): ConfirmOutcome = ConfirmOutcome.Confirmed
 
-        override suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef): Boolean = true
+        override suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef, version: Int) = true
     }
 
     private val clock = TestClock()
@@ -219,7 +231,7 @@ class ReservationSubscriptionTest {
         eventually { confirmedBy("ahoo", "u-1") && confirmedBy("kept", "u-3") }
         first.stop()
         // A saga moved the key: u-1 released it and u-2 holds it now.
-        reservations.release(SCOPE, "ahoo", user("u-1")).assert().isTrue()
+        reservations.release(SCOPE, "ahoo", user("u-1"), ReservationStore.ANY_VERSION).assert().isTrue()
         register("u-2", "ahoo").assert().isInstanceOf(CommandOutcome.Committed::class.java)
 
         // A new checkpoint replays every entry from the beginning.
@@ -229,6 +241,24 @@ class ReservationSubscriptionTest {
         confirmedBy("ahoo", "u-2").assert().isTrue()
         confirmedBy("kept", "u-3").assert().isTrue()
         ledger.isParked(Hop.RESERVATION_SUBSCRIPTION, user("u-1")).assert().isFalse()
+    }
+
+    @Test
+    fun `replaying an old rename never frees the key a later entry confirmed again`(): Unit = runBlocking {
+        // The kernel confirmed and released after each append: u-1 holds ahoo again, confirmed by its third entry.
+        val live = Kernel(log, reservations = reservations, reservationTtl = TTL)
+        listOf(Register("ahoo"), Move("bob"), Move("ahoo")).forEachIndexed { n, body ->
+            live.execute(model, Command("live-$n", "live-$n", user("u-1"), body))
+                .assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        }
+        confirmedBy("ahoo", "u-1").assert().isTrue()
+
+        // A subscription far behind replays the entries: the second's release of ahoo is an older fact's.
+        runtime().start(setOf(0, 1))
+        eventually { store.releases.size == 2 }
+        store.freed.toList().assert().isEqualTo(listOf("bob"))
+        confirmedBy("ahoo", "u-1").assert().isTrue()
+        find("bob").assert().isNull()
     }
 
     @Test

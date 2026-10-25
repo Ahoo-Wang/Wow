@@ -638,17 +638,20 @@ public final class me/ahoo/wow/spi/reservation/Reservation {
 	public final fun getKey ()Ljava/lang/String;
 	public final fun getOwner ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun getScope ()Lme/ahoo/wow/spi/reservation/ReservationScope;
+	public final fun getVersion ()I
 	public fun hashCode ()I
 	public final fun isLive (J)Z
 	public static final fun of (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;)Lme/ahoo/wow/spi/reservation/Reservation;
 	public static final fun of (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;Ljava/util/Set;)Lme/ahoo/wow/spi/reservation/Reservation;
+	public static final fun of (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;Ljava/util/Set;I)Lme/ahoo/wow/spi/reservation/Reservation;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/spi/reservation/Reservation$Companion {
 	public final fun of (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;)Lme/ahoo/wow/spi/reservation/Reservation;
 	public final fun of (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;Ljava/util/Set;)Lme/ahoo/wow/spi/reservation/Reservation;
-	public static synthetic fun of$default (Lme/ahoo/wow/spi/reservation/Reservation$Companion;Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;Ljava/util/Set;ILjava/lang/Object;)Lme/ahoo/wow/spi/reservation/Reservation;
+	public final fun of (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;Ljava/util/Set;I)Lme/ahoo/wow/spi/reservation/Reservation;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/reservation/Reservation$Companion;Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;Ljava/util/Set;IILjava/lang/Object;)Lme/ahoo/wow/spi/reservation/Reservation;
 }
 
 public final class me/ahoo/wow/spi/reservation/ReservationKey {
@@ -689,11 +692,19 @@ public final class me/ahoo/wow/spi/reservation/ReservationScope$Companion {
 }
 
 public abstract interface class me/ahoo/wow/spi/reservation/ReservationStore {
+	public static final field ANY_VERSION I
+	public static final field Companion Lme/ahoo/wow/spi/reservation/ReservationStore$Companion;
+	public static final field UNVERSIONED I
 	public abstract fun abandon (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun confirm (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun confirm (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun find (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun release (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun release (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun reserve-myKFqkg (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/spi/reservation/ReservationStore$Companion {
+	public static final field ANY_VERSION I
+	public static final field UNVERSIONED I
 }
 
 public abstract interface class me/ahoo/wow/spi/sink/Sink {

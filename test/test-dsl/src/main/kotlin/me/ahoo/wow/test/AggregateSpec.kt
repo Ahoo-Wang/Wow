@@ -39,6 +39,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.reservation.ReservationScope
+import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
@@ -220,7 +221,7 @@ class AggregateSpec<S : Any> private constructor(
         require(owner.type.context == ref.type.context) { "$owner reserves keys of its own context only." }
         runBlocking {
             val scope = ReservationScope.of(owner, ReservationKey(namespace, key, tenancy == ReservationTenancy.SYSTEM))
-            reservations.confirm(scope, key, owner)
+            reservations.confirm(scope, key, owner, ReservationStore.UNVERSIONED)
         }
     }
 

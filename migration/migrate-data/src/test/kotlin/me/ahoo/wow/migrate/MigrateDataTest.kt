@@ -290,7 +290,7 @@ class MigrateDataTest {
         run("compare", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
         printed.assert().contains("PrepareKey order_no compared: 1 confirmed keys, 0 differ")
 
-        reservationStore.release(scope, "NO-1", owner)
+        reservationStore.release(scope, "NO-1", owner, ReservationStore.ANY_VERSION)
         run("compare", "--config", config.toString()).assert().isEqualTo(MigrateData.DIFFERS)
         printed.assert().contains("DIFFERS PrepareKey order_no/NO-1: 9.x $owner, V10 (none)")
             .contains("1 confirmed keys of the PrepareKeys [order_no] are not reserved for their owners in V10")

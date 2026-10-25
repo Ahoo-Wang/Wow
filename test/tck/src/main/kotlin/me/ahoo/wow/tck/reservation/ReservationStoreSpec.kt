@@ -95,21 +95,21 @@ abstract class ReservationStoreSpec {
         val taken = store.reserve(scope, "alice", user2, H2, TTL)
         taken.assert().isEqualTo(pending(user2, H2))
         store.find(scope, "alice").assert().isEqualTo(taken)
-        store.confirm(scope, "alice", user1).assert().isEqualTo(ConfirmOutcome.Taken(taken!!))
+        store.confirm(scope, "alice", user1, 1).assert().isEqualTo(ConfirmOutcome.Taken(taken!!))
         store.abandon(scope, "alice", user1, H1).assert().isFalse()
-        store.release(scope, "alice", user1).assert().isFalse()
+        store.release(scope, "alice", user1, 2).assert().isFalse()
         store.find(scope, "alice").assert().isEqualTo(taken)
     }
 
     @Test
     fun `a confirmed reservation never expires`(): Unit = runBlocking {
         store.reserve(scope, "alice", user1, H1, TTL)
-        store.confirm(scope, "alice", user1).assert().isEqualTo(ConfirmOutcome.Confirmed)
+        store.confirm(scope, "alice", user1, 1).assert().isEqualTo(ConfirmOutcome.Confirmed)
         clock.advance(LONG_AFTER)
         store.reserve(scope, "alice", user2, H2, TTL).assert().isNull()
-        store.find(scope, "alice").assert().isEqualTo(Reservation(scope, "alice", user1, null))
-        store.confirm(scope, "alice", user1).assert().isEqualTo(ConfirmOutcome.Confirmed)
-        store.find(scope, "alice").assert().isEqualTo(Reservation(scope, "alice", user1, null))
+        store.find(scope, "alice").assert().isEqualTo(Reservation(scope, "alice", user1, null, version = 1))
+        store.confirm(scope, "alice", user1, 1).assert().isEqualTo(ConfirmOutcome.Confirmed)
+        store.find(scope, "alice").assert().isEqualTo(Reservation(scope, "alice", user1, null, version = 1))
     }
 
     @Test
@@ -117,43 +117,43 @@ abstract class ReservationStoreSpec {
         store.reserve(scope, "alice", user1, H1, TTL)
         clock.advance(TTL)
         store.find(scope, "alice").assert().isNull()
-        store.confirm(scope, "alice", user1).assert().isEqualTo(ConfirmOutcome.Confirmed)
-        store.find(scope, "alice").assert().isEqualTo(Reservation(scope, "alice", user1, null))
+        store.confirm(scope, "alice", user1, 1).assert().isEqualTo(ConfirmOutcome.Confirmed)
+        store.find(scope, "alice").assert().isEqualTo(Reservation(scope, "alice", user1, null, version = 1))
     }
 
     @Test
     fun `confirming a free key reinstates it for the committed fact`(): Unit = runBlocking {
-        store.confirm(scope, "never-reserved", user1).assert().isEqualTo(ConfirmOutcome.Confirmed)
+        store.confirm(scope, "never-reserved", user1, 1).assert().isEqualTo(ConfirmOutcome.Confirmed)
         store.find(scope, "never-reserved")?.owner.assert().isEqualTo(user1)
 
         store.reserve(scope, "alice", user1, H1, TTL)
         store.abandon(scope, "alice", user1, H1).assert().isTrue()
         store.find(scope, "alice").assert().isNull()
-        store.confirm(scope, "alice", user1).assert().isEqualTo(ConfirmOutcome.Confirmed)
-        store.find(scope, "alice").assert().isEqualTo(Reservation(scope, "alice", user1, null))
+        store.confirm(scope, "alice", user1, 1).assert().isEqualTo(ConfirmOutcome.Confirmed)
+        store.find(scope, "alice").assert().isEqualTo(Reservation(scope, "alice", user1, null, version = 1))
     }
 
     @Test
     fun `confirming takes the key over from another owner's expired pending reservation only`(): Unit = runBlocking {
         val held = store.reserve(scope, "alice", user2, H2, TTL)!!
-        store.confirm(scope, "alice", user1).assert().isEqualTo(ConfirmOutcome.Taken(held))
+        store.confirm(scope, "alice", user1, 1).assert().isEqualTo(ConfirmOutcome.Taken(held))
         store.find(scope, "alice").assert().isEqualTo(held)
         clock.advance(TTL)
-        store.confirm(scope, "alice", user1).assert().isEqualTo(ConfirmOutcome.Confirmed)
-        store.find(scope, "alice").assert().isEqualTo(Reservation(scope, "alice", user1, null))
-        store.confirm(scope, "alice", user2)
-            .assert().isEqualTo(ConfirmOutcome.Taken(Reservation(scope, "alice", user1, null)))
+        store.confirm(scope, "alice", user1, 1).assert().isEqualTo(ConfirmOutcome.Confirmed)
+        store.find(scope, "alice").assert().isEqualTo(Reservation(scope, "alice", user1, null, version = 1))
+        store.confirm(scope, "alice", user2, 1)
+            .assert().isEqualTo(ConfirmOutcome.Taken(Reservation(scope, "alice", user1, null, version = 1)))
     }
 
     @Test
     fun `only the owner abandons, confirms or releases a reservation`(): Unit = runBlocking {
         val held = store.reserve(scope, "alice", user1, H1, TTL)!!
         store.abandon(scope, "alice", user2, H1).assert().isFalse()
-        store.confirm(scope, "alice", user2).assert().isEqualTo(ConfirmOutcome.Taken(held))
-        store.release(scope, "alice", user2).assert().isFalse()
+        store.confirm(scope, "alice", user2, 1).assert().isEqualTo(ConfirmOutcome.Taken(held))
+        store.release(scope, "alice", user2, 2).assert().isFalse()
         store.find(scope, "alice").assert().isEqualTo(held)
         store.abandon(scope, "missing", user1, H1).assert().isFalse()
-        store.release(scope, "missing", user1).assert().isFalse()
+        store.release(scope, "missing", user1, 2).assert().isFalse()
     }
 
     @Test
@@ -173,13 +173,19 @@ abstract class ReservationStoreSpec {
     fun `abandoning never frees a confirmed key`(): Unit = runBlocking {
         store.reserve(scope, "alice", user1, H1, TTL)
         store.reserve(scope, "alice", user1, H2, TTL)
-        store.confirm(scope, "alice", user1).assert().isEqualTo(ConfirmOutcome.Confirmed)
+        store.confirm(scope, "alice", user1, 1).assert().isEqualTo(ConfirmOutcome.Confirmed)
         store.abandon(scope, "alice", user1, H2).assert().isFalse()
         store.abandon(scope, "alice", user1, H1).assert().isFalse()
-        store.find(scope, "alice").assert().isEqualTo(Reservation(scope, "alice", user1, null))
-        store.reserve(scope, "alice", user1, H3, TTL).assert().isEqualTo(Reservation(scope, "alice", user1, null))
+        store.find(scope, "alice").assert().isEqualTo(Reservation(scope, "alice", user1, null, version = 1))
+        store.reserve(
+            scope,
+            "alice",
+            user1,
+            H3,
+            TTL
+        ).assert().isEqualTo(Reservation(scope, "alice", user1, null, version = 1))
         store.abandon(scope, "alice", user1, H3).assert().isFalse()
-        store.find(scope, "alice").assert().isEqualTo(Reservation(scope, "alice", user1, null))
+        store.find(scope, "alice").assert().isEqualTo(Reservation(scope, "alice", user1, null, version = 1))
     }
 
     @Test
@@ -193,12 +199,12 @@ abstract class ReservationStoreSpec {
     fun `releasing frees the key, pending or confirmed`(): Unit = runBlocking {
         store.reserve(scope, "alice", user1, H1, TTL)
         store.reserve(scope, "alice", user1, H2, TTL)
-        store.release(scope, "alice", user1).assert().isTrue()
-        store.release(scope, "alice", user1).assert().isFalse()
+        store.release(scope, "alice", user1, 2).assert().isTrue()
+        store.release(scope, "alice", user1, 2).assert().isFalse()
         store.find(scope, "alice").assert().isNull()
         store.reserve(scope, "alice", user2, H1, TTL)?.owner.assert().isEqualTo(user2)
-        store.confirm(scope, "alice", user2).assert().isEqualTo(ConfirmOutcome.Confirmed)
-        store.release(scope, "alice", user2).assert().isTrue()
+        store.confirm(scope, "alice", user2, 1).assert().isEqualTo(ConfirmOutcome.Confirmed)
+        store.release(scope, "alice", user2, 2).assert().isTrue()
         store.find(scope, "alice").assert().isNull()
         store.reserve(scope, "alice", owner("user-3"), H1, TTL)?.owner.assert().isEqualTo(owner("user-3"))
     }
@@ -213,8 +219,14 @@ abstract class ReservationStoreSpec {
             store.reserve(scope, "alice", user1, H1, 2.seconds).assert().isEqualTo(renewed)
             clock.advance(TTL - 1.seconds)
             store.find(scope, "alice").assert().isEqualTo(renewed)
-            store.confirm(scope, "alice", user1).assert().isEqualTo(ConfirmOutcome.Confirmed)
-            store.reserve(scope, "alice", user1, H3, TTL).assert().isEqualTo(Reservation(scope, "alice", user1, null))
+            store.confirm(scope, "alice", user1, 1).assert().isEqualTo(ConfirmOutcome.Confirmed)
+            store.reserve(
+                scope,
+                "alice",
+                user1,
+                H3,
+                TTL
+            ).assert().isEqualTo(Reservation(scope, "alice", user1, null, version = 1))
             store.find(scope, "alice")?.confirmed.assert().isEqualTo(true)
         }
 
@@ -251,7 +263,7 @@ abstract class ReservationStoreSpec {
         val other = scope.copyWith(namespace = "$namespace-other")
         store.reserve(scope, "alice", user1, H1, TTL)
         store.reserve(other, "alice", user2, H1, TTL)?.owner.assert().isEqualTo(user2)
-        store.release(scope, "alice", user1).assert().isTrue()
+        store.release(scope, "alice", user1, 2).assert().isTrue()
         store.find(other, "alice")?.owner.assert().isEqualTo(user2)
     }
 
@@ -262,9 +274,9 @@ abstract class ReservationStoreSpec {
         val mine = store.reserve(scope, "alice", user1, H1, TTL)
         val theirs = store.reserve(otherTenant, "alice", elsewhere, H1, TTL)
         theirs.assert().isEqualTo(Reservation(otherTenant, "alice", elsewhere, mine!!.expiresAt, setOf(H1)))
-        store.confirm(otherTenant, "alice", elsewhere).assert().isEqualTo(ConfirmOutcome.Confirmed)
+        store.confirm(otherTenant, "alice", elsewhere, 1).assert().isEqualTo(ConfirmOutcome.Confirmed)
         store.find(scope, "alice").assert().isEqualTo(mine)
-        store.release(otherTenant, "alice", elsewhere).assert().isTrue()
+        store.release(otherTenant, "alice", elsewhere, 2).assert().isTrue()
         store.find(scope, "alice").assert().isEqualTo(mine)
         store.find(otherTenant, "alice").assert().isNull()
     }
@@ -275,7 +287,7 @@ abstract class ReservationStoreSpec {
         val elsewhere = AggregateType("$CONTEXT-other", "user").ref(TENANT, "user-1")
         val mine = store.reserve(scope, "alice", user1, H1, TTL)
         store.reserve(otherContext, "alice", elsewhere, H1, TTL)?.owner.assert().isEqualTo(elsewhere)
-        store.release(otherContext, "alice", elsewhere).assert().isTrue()
+        store.release(otherContext, "alice", elsewhere, 2).assert().isTrue()
         store.find(scope, "alice").assert().isEqualTo(mine)
     }
 
@@ -288,13 +300,13 @@ abstract class ReservationStoreSpec {
         val reserved = store.reserve(scope, "alice", slashed, H1, TTL)
         reserved?.owner.assert().isEqualTo(slashed)
         store.reserve(scope, "alice", tenantSlashed, H2, TTL).assert().isNull()
-        store.confirm(scope, "alice", tenantSlashed).assert().isEqualTo(ConfirmOutcome.Taken(reserved!!))
-        store.release(scope, "alice", tenantSlashed).assert().isFalse()
+        store.confirm(scope, "alice", tenantSlashed, 1).assert().isEqualTo(ConfirmOutcome.Taken(reserved!!))
+        store.release(scope, "alice", tenantSlashed, 2).assert().isFalse()
         store.abandon(scope, "alice", tenantSlashed, H1).assert().isFalse()
         store.find(scope, "alice").assert().isEqualTo(reserved)
         store.reserve(scope, "bob", dotted, "\$hold.x", TTL)?.owner.assert().isEqualTo(dotted)
-        store.confirm(scope, "bob", dotted).assert().isEqualTo(ConfirmOutcome.Confirmed)
-        store.find(scope, "bob").assert().isEqualTo(Reservation(scope, "bob", dotted, null))
+        store.confirm(scope, "bob", dotted, 1).assert().isEqualTo(ConfirmOutcome.Confirmed)
+        store.find(scope, "bob").assert().isEqualTo(Reservation(scope, "bob", dotted, null, version = 1))
     }
 
     @Test
@@ -303,10 +315,41 @@ abstract class ReservationStoreSpec {
         val elsewhere = owner("user-2", tenant = "tenant-b")
         store.reserve(system, "alice", user1, H1, TTL)?.scope?.isSystem.assert().isEqualTo(true)
         store.reserve(system, "alice", elsewhere, H2, TTL).assert().isNull()
-        store.confirm(system, "alice", user1).assert().isEqualTo(ConfirmOutcome.Confirmed)
+        store.confirm(system, "alice", user1, 1).assert().isEqualTo(ConfirmOutcome.Confirmed)
         store.reserve(system, "alice", elsewhere, H2, TTL).assert().isNull()
-        store.find(system, "alice").assert().isEqualTo(Reservation(system, "alice", user1, null))
+        store.find(system, "alice").assert().isEqualTo(Reservation(system, "alice", user1, null, version = 1))
         store.reserve(scope, "alice", user2, H1, TTL)?.owner.assert().isEqualTo(user2)
+    }
+
+    @Test
+    fun `a release frees only a key no later fact confirmed`(): Unit = runBlocking {
+        store.reserve(scope, "alice", user1, H1, TTL)
+        store.confirm(scope, "alice", user1, 3).assert().isEqualTo(ConfirmOutcome.Confirmed)
+        store.release(scope, "alice", user1, 2).assert().isFalse()
+        store.find(scope, "alice").assert().isEqualTo(Reservation(scope, "alice", user1, null, version = 3))
+        // A fact that reserves and releases a key gives it up.
+        store.release(scope, "alice", user1, 3).assert().isTrue()
+        store.find(scope, "alice").assert().isNull()
+    }
+
+    @Test
+    fun `confirming keeps the version of the latest fact`(): Unit = runBlocking {
+        store.confirm(scope, "alice", user1, 3)
+        store.confirm(scope, "alice", user1, 1).assert().isEqualTo(ConfirmOutcome.Confirmed)
+        store.find(scope, "alice")?.version.assert().isEqualTo(3)
+        store.confirm(scope, "alice", user1, 5)
+        store.find(scope, "alice")?.version.assert().isEqualTo(5)
+        store.release(scope, "alice", user1, 4).assert().isFalse()
+    }
+
+    @Test
+    fun `a pending key is released by any fact, and any version frees a confirmed one`(): Unit = runBlocking {
+        store.reserve(scope, "alice", user1, H1, TTL)?.version.assert().isEqualTo(ReservationStore.UNVERSIONED)
+        store.release(scope, "alice", user1, 1).assert().isTrue()
+        store.confirm(scope, "bob", user1, 7)
+        store.reserve(scope, "bob", user1, H1, TTL)?.version.assert().isEqualTo(7)
+        store.release(scope, "bob", user1, ReservationStore.ANY_VERSION).assert().isTrue()
+        store.find(scope, "bob").assert().isNull()
     }
 
     @Test
