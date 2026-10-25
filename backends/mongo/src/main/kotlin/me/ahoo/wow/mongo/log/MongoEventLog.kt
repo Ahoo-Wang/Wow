@@ -52,6 +52,7 @@ import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.MongoSharding
 import me.ahoo.wow.mongo.MongoShards
+import me.ahoo.wow.mongo.MongoTimeouts
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.StoreDdl
@@ -168,12 +169,14 @@ class MongoEventLog(
     appendTimeout: Duration = DEFAULT_APPEND_TIMEOUT,
     /** Whether the log shards its aggregate collections on a sharded cluster (decision D277). */
     private val sharding: MongoSharding = MongoSharding.AUTO,
+    /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
+    operationTimeout: Duration = MongoTimeouts.OPERATION,
 ) : EventLog,
     TagsBackfill {
     /** Validates the partition count first (decision D240): a log of another count is refused when it is built. */
     private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
 
-    private val database = client.getDatabase(databaseName)
+    private val database = MongoTimeouts.database(client, databaseName, operationTimeout)
 
     /** Whether this log shards its collections: asked of the server on the first collection it makes sure of. */
     private val sharded by lazy { sharding.shards(client, ddl) }

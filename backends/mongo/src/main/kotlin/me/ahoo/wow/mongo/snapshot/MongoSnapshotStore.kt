@@ -45,6 +45,7 @@ import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.MongoRules
 import me.ahoo.wow.mongo.MongoSharding
 import me.ahoo.wow.mongo.MongoShards
+import me.ahoo.wow.mongo.MongoTimeouts
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
@@ -67,6 +68,7 @@ import org.bson.BsonType
 import org.bson.BsonValue
 import org.bson.Document
 import org.bson.conversions.Bson
+import kotlin.time.Duration
 
 /**
  * The [SnapshotStore] of one bounded context on MongoDB (documentation/designs/03-log-and-snapshot.md §3).
@@ -99,8 +101,10 @@ class MongoSnapshotStore(
     private val ddl: StoreDdl = StoreDdl.AUTO,
     /** Whether the store shards its collections on a sharded cluster (decision D277). */
     sharding: MongoSharding = MongoSharding.AUTO,
+    /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
+    operationTimeout: Duration = MongoTimeouts.OPERATION,
 ) : SnapshotStore {
-    private val database = client.getDatabase(databaseName)
+    private val database = MongoTimeouts.database(client, databaseName, operationTimeout)
 
     /** Whether this store shards its collections: asked of the server on the first collection it makes sure of. */
     private val sharded by lazy { sharding.shards(client, ddl) }
