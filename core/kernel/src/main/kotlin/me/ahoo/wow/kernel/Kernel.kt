@@ -332,8 +332,8 @@ class Kernel(
             members.streams.any { it.stream.requestId == command.requestId }
         if (repeated || admissible(decider, command, current) != null) return null
         val encode = { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
-        val attempt =
-            AttemptScope(command, ids, current, reservations, reservationTtl, entry.wait.beyondCommitted(), encode)
+        val wait = entry.wait.beyondCommitted()
+        val attempt = AttemptScope(command, ids, current, reservations, reservationTtl, wait, observer, encode)
         val prepared = try {
             prepare(model, decider, attempt, current, command, commandType.name)
         } catch (cancelled: CancellationException) {
@@ -450,7 +450,8 @@ class Kernel(
             // Checked after every load (C5): a reload may hold the request another node committed meanwhile.
             requests.beforeDeciding(loaded)?.let { return it }
             admissible(decider, command, loaded)?.let { return requests.standing(loaded, cached, it) ?: continue }
-            val attempt = AttemptScope(command, ids, loaded, reservations, reservationTtl, waitBeyondCommitted, encode)
+            val attempt =
+                AttemptScope(command, ids, loaded, reservations, reservationTtl, waitBeyondCommitted, observer, encode)
             val prepared = try {
                 prepare(model, decider, attempt, loaded, command, commandType.name)
             } catch (
@@ -527,7 +528,7 @@ class Kernel(
     ): CommandOutcome? = when (appended) {
         is AppendOutcome.Committed -> {
             requests.committed(stream, evolved)
-            withContext(NonCancellable) { attempt.afterAppend() }
+            withContext(NonCancellable) { attempt.afterAppend(stream.version) }
             CommandOutcome.Committed(
                 stream,
                 appended.position,
@@ -1158,6 +1159,7 @@ class Kernel(
         private val reservations: ReservationStore?,
         private val reservationTtl: Duration,
         private val wait: WaitContext?,
+        private val observer: Observer,
         /** The type name and JSON of a command scheduled for a target. */
         private val encode: (AggregateRef, Any) -> Pair<String, String>,
     ) : DecideScope, KernelLifecycle.MetadataScope {
@@ -1167,6 +1169,9 @@ class Kernel(
         private var reserved: MutableList<ReservationKey>? = null
         private var released: MutableList<ReservationKey>? = null
         private var hold: String? = null
+
+        /** The version the attempt's stream committed at, once [afterAppend] runs its actions. */
+        private var committed = ReservationStore.UNVERSIONED
         private var scheduled: LinkedHashMap<String, Any>? = null
 
         override fun schedule(key: String, rule: ScheduleRule, command: Any, target: AggregateRef) {
@@ -1237,7 +1242,7 @@ class Kernel(
             if (!held.confirmed) {
                 (reserved ?: ArrayList<ReservationKey>().also { reserved = it }) += reservation
                 onAppendFailure { store.abandon(scope, key, owner, hold) }
-                afterAppend { confirmed(store.confirm(scope, key, owner), scope, key) }
+                afterAppend { confirmed(store.confirm(scope, key, owner, committed), scope, key) }
             }
             return true
         }
@@ -1253,7 +1258,7 @@ class Kernel(
             (released ?: ArrayList<ReservationKey>().also { released = it }) += reservation
             val owner = command.ref
             val scope = ReservationScope.of(owner, reservation)
-            afterAppend { store.release(scope, key, owner) }
+            afterAppend { store.release(scope, key, owner, committed) }
         }
 
         /** Logs a key the committed fact lost to another owner: confirming cannot get it back. */
@@ -1262,6 +1267,7 @@ class Kernel(
                 logger.error {
                     "${command.ref} committed with $key in $scope, which ${outcome.by.owner} holds: the key is lost."
                 }
+                observer.reservationLost(command.ref.type.context)
             }
         }
 
@@ -1293,7 +1299,8 @@ class Kernel(
         }
 
         @Suppress("TooGenericExceptionCaught")
-        suspend fun afterAppend() {
+        suspend fun afterAppend(version: Int) {
+            committed = version
             afterAppendActions?.forEach { action ->
                 try {
                     action()

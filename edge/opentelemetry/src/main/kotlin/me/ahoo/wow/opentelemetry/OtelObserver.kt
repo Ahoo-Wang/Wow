@@ -211,6 +211,10 @@ class OtelObserver(
         cached.counter(WowMetrics.STATE_CACHE, WowMetrics.CONTEXT, context, WowMetrics.OUTCOME, outcome).increment()
     }
 
+    override fun reservationLost(context: String) {
+        cached.counter(WowMetrics.RESERVATION_LOST, WowMetrics.CONTEXT, context).increment()
+    }
+
     override fun tailRead(context: String, partition: Int, reason: String) {
         cached.counter(WowMetrics.TAIL_READS, WowMetrics.CONTEXT, context, WowMetrics.REASON, reason).increment()
     }

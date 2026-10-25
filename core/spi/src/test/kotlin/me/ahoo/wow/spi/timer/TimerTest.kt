@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.timer
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.schedule.Misfire
@@ -64,6 +65,19 @@ class TimerTest {
         // Claimed or retried, the slot is still sent as due when it was.
         timer(slot = 3).copyWith(dueAt = 9).context.due.assert().isEqualTo(5L)
         assertThrownBy<IllegalArgumentException> { timer(slot = 0) }
+    }
+
+    @Test
+    fun `a timer's id escapes its names, so two schedules never join alike`() {
+        val type = AggregateType("shop", "order")
+        Timers.idOf(AggregateRef(type, "t", "o-1"), "pay", 2).assert().isEqualTo("shop.order/t/o-1#pay@2")
+        Timers.idOf(AggregateRef(type, "t", "a#b"), "c", 1)
+            .assert().isNotEqualTo(Timers.idOf(AggregateRef(type, "t", "a"), "b#c", 1))
+        Timers.idOf(AggregateRef(type, "t/a", "b"), "c", 1)
+            .assert().isNotEqualTo(Timers.idOf(AggregateRef(type, "t", "a/b"), "c", 1))
+        Timers.idOf(AggregateRef(AggregateType("a.b", "c"), "t", "o"), "k", 1)
+            .assert().isNotEqualTo(Timers.idOf(AggregateRef(AggregateType("a", "b.c"), "t", "o"), "k", 1))
+        Timers.idOf(AggregateRef(type, "t", "100%@x"), "k@1", 3).assert().isEqualTo("shop.order/t/100%25%40x#k%401@3")
     }
 
     @Test

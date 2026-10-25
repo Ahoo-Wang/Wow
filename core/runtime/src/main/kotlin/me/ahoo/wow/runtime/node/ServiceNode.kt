@@ -1134,7 +1134,7 @@ class ServiceNode @InternalWowApi constructor(
         val snaps = nodeSnapshots.assembly(context, models, backends, kernel, routed, codec)
         val views = StateViews(codec, stateReaders(context, models, snaps.readers, application), options.stateViews)
         val snapshots = snaps.subscriptions(views, options.snapshots.writeBatch)
-        val reservations = backends.reservations?.let { ReservationSubscription(context, it) }
+        val reservations = backends.reservations?.let { ReservationSubscription(context, it, observer) }
         val firing = LateFirer()
         val group = LeaseGroup(service, context)
         val progress = progressOf(group, groups)

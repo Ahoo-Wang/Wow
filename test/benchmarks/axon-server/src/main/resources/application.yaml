@@ -1,0 +1,35 @@
+# The industry comparison's Axon Framework server (test/benchmarks/README.md): one node on PostgreSQL, the harness's
+# database `transfer`, no Axon Server. The harness passes the Wow server's arguments (--spring.profiles.active,
+# --wow.*), which this server ignores.
+spring:
+  application:
+    name: transfer-axon
+  main:
+    banner-mode: off
+  datasource:
+    url: jdbc:postgresql://localhost:5432/transfer
+    username: postgres
+    password: postgres
+  # The connection pool is Spring Boot's default (HikariCP, 10 connections), as the Wow server's.
+server:
+  port: 8080
+logging:
+  level:
+    root: warn
+axon:
+  axonserver:
+    enabled: false
+  serializer:
+    general: jackson
+    events: jackson
+    messages: jackson
+  eventhandling:
+    processors:
+      transfer:
+        # A tracking processor, 16 segments with a thread each. Not the pooled streaming processor: on an event store
+        # without Axon Server (the embedded store over JDBC) its stream has no availability callback, so it polls for
+        # new events every 500 ms, and E3 at 300/s answered at a p50 of 303-319 ms with 1, 4 or 16 threads (2.1-2.2 ms
+        # tracking). The tracking processor waits on the embedded store's notice of each local append.
+        mode: tracking
+        thread-count: 16
+        initial-segment-count: 16

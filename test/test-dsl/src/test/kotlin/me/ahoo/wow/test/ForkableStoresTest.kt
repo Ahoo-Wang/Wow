@@ -70,9 +70,9 @@ class ForkableStoresTest {
         reservations.reserve(scope, "brief", owner, "h1", 1.milliseconds).assert().isNotNull()
         reservations.reserve(scope, "abandoned", owner, "h1", 1.hours).assert().isNotNull()
         reservations.abandon(scope, "abandoned", owner, "h1").assert().isTrue()
-        reservations.confirm(scope, "confirmed", owner)
-        reservations.confirm(scope, "released", owner)
-        reservations.release(scope, "released", owner).assert().isTrue()
+        reservations.confirm(scope, "confirmed", owner, 1)
+        reservations.confirm(scope, "released", owner, 1)
+        reservations.release(scope, "released", owner, 2).assert().isTrue()
         val held = reservations.find(scope, "held")!!
         Thread.sleep(2)
         val copy = ForkableReservationStore(reservations.writes)
@@ -82,7 +82,7 @@ class ForkableStoresTest {
         copy.find(scope, "confirmed")!!.owner.assert().isEqualTo(owner)
         copy.find(scope, "released").assert().isNull()
         // The copy goes on alone.
-        copy.release(scope, "confirmed", owner).assert().isTrue()
+        copy.release(scope, "confirmed", owner, 2).assert().isTrue()
         copy.reserve(scope, "confirmed", other, "h2", 1.hours).assert().isNotNull()
         reservations.find(scope, "confirmed")!!.owner.assert().isEqualTo(owner)
     }

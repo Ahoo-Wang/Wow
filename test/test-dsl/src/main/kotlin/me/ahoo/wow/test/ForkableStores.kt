@@ -112,11 +112,15 @@ internal class ForkableReservationStore(writes: List<ReservationWrite> = emptyLi
     override suspend fun abandon(scope: ReservationScope, key: String, owner: AggregateRef, hold: String): Boolean =
         write { it.abandon(scope, key, owner, hold) }
 
-    override suspend fun confirm(scope: ReservationScope, key: String, owner: AggregateRef): ConfirmOutcome =
-        write { it.confirm(scope, key, owner) }
+    override suspend fun confirm(
+        scope: ReservationScope,
+        key: String,
+        owner: AggregateRef,
+        version: Int,
+    ): ConfirmOutcome = write { it.confirm(scope, key, owner, version) }
 
-    override suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef): Boolean =
-        write { it.release(scope, key, owner) }
+    override suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef, version: Int): Boolean =
+        write { it.release(scope, key, owner, version) }
 
     override suspend fun find(scope: ReservationScope, key: String): Reservation? = store.find(scope, key)
 

@@ -20,6 +20,7 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -40,7 +41,9 @@ import me.ahoo.wow.spi.reservation.ReservationStore
  * - **Owner and scope**: the entry's aggregate, field by field, and the key's scope in its context and tenant (or
  *   across tenants for a system key, [ReservationScope.of]), as the kernel reserves.
  * - **Idempotent**: confirming a key its owner holds confirmed changes nothing, and releasing one it no longer holds
- *   does nothing, so a replay is harmless; neither ever touches another owner's key, so an old owner running beside
+ *   does nothing, so a replay is harmless; a release frees only a key no later entry confirmed, so replaying an
+ *   old rename (`A→B`, then `B→A`) never frees the key the later entry confirmed again (it may hold the old key back
+ *   until the later entry is replayed and releases it); neither ever touches another owner's key, so an old owner running beside
  *   the new one (decision D45) never takes a key from the owner that holds it now. A confirmation gets a free key back
  *   for the committed fact; a key another owner took meanwhile (after the pending reservation expired) is lost to
  *   it, which is logged as an error and passed over: parking cannot get it back.
@@ -48,7 +51,12 @@ import me.ahoo.wow.spi.reservation.ReservationStore
  *   never confirmed; it expires in the store, and the next reservation of the key takes it over.
  */
 @InternalWowApi
-class ReservationSubscription(context: String, private val store: ReservationStore) {
+class ReservationSubscription(
+    private val context: String,
+    private val store: ReservationStore,
+    /** Told of each key a committed fact lost ([Observer.reservationLost]). */
+    private val observer: Observer = Observer.NONE,
+) {
     /** The subscription to register: named [Hop.RESERVATION_SUBSCRIPTION], of every aggregate type of the context. */
     val subscription: Subscription = Subscription.builtIn(
         Hop.RESERVATION_SUBSCRIPTION,
@@ -62,16 +70,17 @@ class ReservationSubscription(context: String, private val store: ReservationSto
         val owner = entry.ref
         for (key in transport.reservations) {
             val scope = ReservationScope.of(owner, key)
-            val outcome = store.confirm(scope, key.key, owner)
+            val outcome = store.confirm(scope, key.key, owner, entry.version)
             if (outcome is ConfirmOutcome.Taken) {
                 logger.error {
                     "${entry.ref}@${entry.version} reserved ${key.key} in $scope, which ${outcome.by.owner} took " +
                         "after its pending reservation expired: the committed fact lost its key."
                 }
+                observer.reservationLost(context)
             }
         }
         for (key in transport.releases) {
-            store.release(ReservationScope.of(owner, key), key.key, owner)
+            store.release(ReservationScope.of(owner, key), key.key, owner, entry.version)
         }
     }
 }

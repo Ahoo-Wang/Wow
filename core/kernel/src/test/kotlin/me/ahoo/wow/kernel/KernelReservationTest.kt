@@ -29,9 +29,12 @@ import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.Reservation
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.reservation.ReservationScope
+import me.ahoo.wow.spi.reservation.ReservationStore
 import org.junit.jupiter.api.Test
 
 /** Decisions D38, D50: a decide function reserves and releases unique keys, and the kernel settles them with the append. */
@@ -104,8 +107,31 @@ class KernelReservationTest {
     fun `a committed command confirms its reservation`() = runTest {
         register("u-1", "ahoo").assert().isInstanceOf(CommandOutcome.Committed::class.java)
         find("ahoo").assert().isEqualTo(
-            Reservation(ReservationScope("test", "t", NAMES), "ahoo", model.type.ref("t", "u-1"), null),
+            Reservation(ReservationScope("test", "t", NAMES), "ahoo", model.type.ref("t", "u-1"), null, version = 1),
         )
+    }
+
+    @Test
+    fun `a key taken before the commit confirmed it is reported lost`() = runTest {
+        val thief = model.type.ref("t", "someone-else")
+        val taking = object : ReservationStore by reservations {
+            override suspend fun confirm(
+                scope: ReservationScope,
+                key: String,
+                owner: AggregateRef,
+                version: Int,
+            ): ConfirmOutcome = ConfirmOutcome.Taken.of(Reservation(scope, key, thief, null))
+        }
+        val lost = mutableListOf<String>()
+        val observer = object : Observer {
+            override fun reservationLost(context: String) {
+                lost += context
+            }
+        }
+        val kernel = Kernel(log, reservations = taking, observer = observer)
+
+        execute("u-1", Register("ahoo"), on = kernel).assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        lost.assert().isEqualTo(listOf("test"))
     }
 
     @Test
@@ -179,7 +205,7 @@ class KernelReservationTest {
         // Decided again on the committed rename: nothing left to do.
         slow.await().assert().isInstanceOf(CommandOutcome.Unchanged::class.java)
         find("ahoo").assert().isEqualTo(
-            Reservation(ReservationScope("test", "t", NAMES), "ahoo", model.type.ref("t", "u-1"), null),
+            Reservation(ReservationScope("test", "t", NAMES), "ahoo", model.type.ref("t", "u-1"), null, version = 2),
         )
         register("u-2", "ahoo").assert().isInstanceOf(CommandOutcome.Rejected::class.java)
     }

@@ -30,15 +30,19 @@ import me.ahoo.wow.spi.transport.TopicAdmin
 import me.ahoo.wow.spi.transport.TopicProducer
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionOutcome
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.autoconfigure.condition.SpringBootCondition
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationListener
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.ConditionContext
+import org.springframework.context.annotation.Conditional
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
+import org.springframework.core.type.AnnotatedTypeMetadata
 import kotlin.time.toKotlinDuration
 
 /**
@@ -72,7 +76,7 @@ import kotlin.time.toKotlinDuration
 @EnableConfigurationProperties(KafkaProperties::class)
 class KafkaAutoConfiguration {
     @Configuration(proxyBeanMethods = false)
-    @ConditionalOnProperty(prefix = KafkaProperties.PREFIX, name = ["bootstrap-servers"])
+    @Conditional(KafkaAutoConfiguration.OnBrokers::class)
     class KafkaTransport {
         @Bean(destroyMethod = "close")
         @ConditionalOnMissingBean(TopicProducer::class)
@@ -141,7 +145,7 @@ class KafkaAutoConfiguration {
      */
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnClass(name = [MICROMETER])
-    @ConditionalOnProperty(prefix = KafkaProperties.PREFIX, name = ["bootstrap-servers"])
+    @Conditional(KafkaAutoConfiguration.OnBrokers::class)
     class KafkaMetrics {
         /**
          * Counts the gaps of the node's source when it is Kafka's; an application's own source counts none.
@@ -160,6 +164,19 @@ class KafkaAutoConfiguration {
             }
                 .description("Offsets a Kafka read was to start from that its partition no longer holds.")
                 .register(meters.getIfUnique { Metrics.globalRegistry })
+    }
+
+    /**
+     * Whether the application names Kafka's brokers: `wow.kafka.bootstrap-servers` set and not blank, as
+     * [InMemoryTopicsAutoConfiguration] reads it, so a blank address (`--wow.kafka.bootstrap-servers=`) turns Kafka off.
+     */
+    internal class OnBrokers : SpringBootCondition() {
+        override fun getMatchOutcome(context: ConditionContext, metadata: AnnotatedTypeMetadata): ConditionOutcome =
+            if (context.environment.getProperty("${KafkaProperties.PREFIX}.bootstrap-servers").isNullOrBlank()) {
+                ConditionOutcome.noMatch("wow.kafka.bootstrap-servers is not set")
+            } else {
+                ConditionOutcome.match("wow.kafka.bootstrap-servers is set")
+            }
     }
 
     companion object {

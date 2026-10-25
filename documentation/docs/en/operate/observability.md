@@ -65,6 +65,7 @@ The spans carry the context, aggregate, tenant, command and subscription as attr
 | `wow.subscription.paused` | Gauge | 1 while a subscription has paused a partition on a systemic failure |
 | `wow.subscription.throttled` | Gauge | 1 while a subscription throttles a partition on backpressure |
 | `wow.subscription.undecodable` | Counter | Messages of a topic this version cannot decode |
+| `wow.reservation.lost` | Counter | Unique keys a committed fact lost to another owner after its pending reservation expired |
 | `wow.timer.delay` | Timer | How late a timer fires after its due time |
 | `wow.query` | Timer | A query, from its admission to its end |
 | `wow.query.limit` | Gauge | A store's current bound on concurrent queries |
@@ -82,4 +83,5 @@ The spans carry the context, aggregate, tenant, command and subscription as attr
 | `wow.subscription.backlog` growing | A subscription falls behind | Its lag, its handler's latency, the node's executor |
 | `wow.timer.delay` growing | Timers fire late | The node's load, the timers' store |
 | `wow.kafka.offset.gaps` above 0 | A subscription skipped or stopped at retained data | The topic's retention |
+| `wow.reservation.lost` above 0 | A unique key two aggregates now both rely on | The error log naming the key and its holder; the reservation time to live |
 | `wow.command.refused` with `wow.command.busy` | Nodes refuse commands under load | The number of nodes, the store's latency |

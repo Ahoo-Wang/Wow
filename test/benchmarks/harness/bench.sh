@@ -34,7 +34,9 @@
 # Options: --warm-up=30 --measure=60 --distribution=uniform|zipf|hot --accounts=1000 --label=run --out=<dir>
 #          --heap=1g --jfr (a flight recording per server) --settle=<s> (after the nodes are up), --install=<dir> (the
 #          server's installed distribution, by default this tree's server/build/install/benchmark-server: another
-#          build, such as a baseline's), --seed-concurrency=32 (accounts opened at once),
+#          build, such as a baseline's, or test/benchmarks/axon-server/build/install/axon-server for the Axon
+#          comparison), --server-args="<args>" (more arguments for every server, such as --wow.topics.in-memory=true),
+#          --seed-concurrency=32 (accounts opened at once),
 #          --load-cpus=<list> and --server-cpus=<list> (Linux, taskset lists: the load generator on its own CPUs, the
 #          servers and the containers on the others), --prime (an untimed pass over every account before the run,
 #          then a wait until the nodes are quiet again),
@@ -113,7 +115,7 @@ parse() {
     esac
     OPTIONS="$OPTIONS${argument#--}
 "
-    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --seed-concurrency --load-cpus --server-cpus --prime --reuse --tmpfs --mongo-cache-gb " in
+    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --server-args --seed-concurrency --load-cpus --server-cpus --prime --reuse --tmpfs --mongo-cache-gb " in
       *" $key "*) ;;
       *) PASS+=("$argument") ;;
     esac
@@ -147,11 +149,11 @@ load() {
   ${PREFIX[@]+"${PREFIX[@]}"} "$LOAD" "$@"
 }
 
-# The launcher of the server distribution $1: benchmark-server, or a baseline's from before test/benchmarks/
-# (e2e-bench-v10).
+# The launcher of the server distribution $1: benchmark-server, a baseline's from before test/benchmarks/
+# (e2e-bench-v10), or the industry comparison's Axon Framework server (axon-server).
 server_launcher() {
   local name
-  for name in benchmark-server e2e-bench-v10; do
+  for name in benchmark-server e2e-bench-v10 axon-server; do
     if [ -x "$1/bin/$name" ]; then echo "$1/bin/$name"; return; fi
   done
   echo "$1/bin/benchmark-server"
@@ -172,9 +174,12 @@ start_node() {
   install=$(opt install "$REPO/test/benchmarks/server/build/install/benchmark-server")
   local launcher
   launcher=$(server_launcher "$install")
+  # --server-args: more arguments for every server, separated by spaces (--wow.topics.in-memory=true).
+  local extra
+  read -r -a extra <<<"$(opt server-args "")"
   pin server-cpus
   JAVA_OPTS="$jvm" ${PREFIX[@]+"${PREFIX[@]}"} "$launcher" \
-    "${args[@]}" >"$OUT/node-$n.log" 2>&1 &
+    "${args[@]}" ${extra[@]+"${extra[@]}"} >"$OUT/node-$n.log" 2>&1 &
   SERVER_PIDS+=($!)
   TARGETS+=("http://127.0.0.1:$port")
 }
@@ -283,9 +288,9 @@ setup() {
   fi
 }
 
-# What a reused run must match of the session: the backend, nodes, accounts, heap and install.
+# What a reused run must match of the session: the backend, nodes, accounts, heap, install and server arguments.
 session_key() {
-  echo "backend=$BACKEND;nodes=$NODES;accounts=$ACCOUNTS;heap=$HEAP;install=$(opt install "")"
+  echo "backend=$BACKEND;nodes=$NODES;accounts=$ACCOUNTS;heap=$HEAP;install=$(opt install "");args=$(opt server-args "")"
 }
 
 # Takes up the session `up` left (--reuse): its servers and targets, once the nodes are quiet again.

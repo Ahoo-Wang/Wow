@@ -171,7 +171,7 @@ class ReservationImporter(
                 Standing.GONE -> false
                 Standing.CURRENT -> true
                 Standing.STALE -> {
-                    reservations.release(record.scope(), record.key, record.owner())
+                    reservations.release(record.scope(), record.key, record.owner(), ReservationStore.ANY_VERSION)
                     report(
                         "RELEASED PrepareKey $name/${record.key} of ${record.owner()}: 9.x no longer confirms it to them"
                     )
@@ -209,7 +209,7 @@ class ReservationImporter(
 
     private suspend fun confirm(step: KeyStep.Confirm) {
         val (key, owner) = step
-        val outcome = store().confirm(owner.scope, key.key, owner.owner)
+        val outcome = store().confirm(owner.scope, key.key, owner.owner, ReservationStore.UNVERSIONED)
         if (outcome is ConfirmOutcome.Taken) {
             throw MigrationException(
                 "The 9.x PrepareKey $key of ${owner.owner} is held in V10 by ${outcome.by.owner} " +
