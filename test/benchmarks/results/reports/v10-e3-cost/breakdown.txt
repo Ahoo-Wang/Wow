@@ -1,0 +1,112 @@
+## mongo/e1  node CPU 0.541 ms/op, 4241 CPU samples
+  kafka producer         cpu   7.9%   0.043 ms/op   alloc   4.4%
+  kafka consumer         cpu   0.0%   0.000 ms/op   alloc   0.0%
+  wait signals           cpu  14.5%   0.078 ms/op   alloc   6.4%
+  saga handling          cpu   2.4%   0.013 ms/op   alloc   3.3%
+  saga commands          cpu   0.0%   0.000 ms/op   alloc   0.0%
+  snapshot store         cpu  10.8%   0.059 ms/op   alloc  25.6%
+  subscriptions/sinks    cpu  15.1%   0.082 ms/op   alloc  10.4%
+  log tail               cpu   1.5%   0.008 ms/op   alloc   0.4%
+  pg driver              cpu   0.0%   0.000 ms/op   alloc   0.0%
+  mongo driver           cpu   5.6%   0.030 ms/op   alloc  21.9%
+  log append             cpu   4.8%   0.026 ms/op   alloc   3.5%
+  state load             cpu   1.2%   0.007 ms/op   alloc   0.2%
+  kernel                 cpu   3.6%   0.020 ms/op   alloc   0.7%
+  json                   cpu   4.1%   0.022 ms/op   alloc   1.8%
+  http/webflux/netty     cpu  17.2%   0.093 ms/op   alloc  17.0%
+  other                  cpu  11.3%   0.061 ms/op   alloc   4.3%
+  no stack               cpu   0.0%   0.000 ms/op   alloc   0.0%
+## mongo/e3  node CPU 1.629 ms/op, 738 CPU samples
+  kafka producer         cpu  23.4%   0.382 ms/op   alloc   6.4%
+  kafka consumer         cpu   0.0%   0.000 ms/op   alloc   0.0%
+  wait signals           cpu   8.5%   0.139 ms/op   alloc   6.4%
+  saga handling          cpu   1.9%   0.031 ms/op   alloc   4.3%
+  saga commands          cpu   0.0%   0.000 ms/op   alloc   0.0%
+  snapshot store         cpu  10.8%   0.177 ms/op   alloc  28.3%
+  subscriptions/sinks    cpu   6.5%   0.106 ms/op   alloc  14.1%
+  log tail               cpu   0.4%   0.007 ms/op   alloc   0.7%
+  pg driver              cpu   0.0%   0.000 ms/op   alloc   0.0%
+  mongo driver           cpu  15.2%   0.247 ms/op   alloc  25.2%
+  log append             cpu   2.2%   0.035 ms/op   alloc   4.4%
+  state load             cpu   0.3%   0.004 ms/op   alloc   0.2%
+  kernel                 cpu   0.1%   0.002 ms/op   alloc   0.3%
+  json                   cpu   3.7%   0.060 ms/op   alloc   0.6%
+  http/webflux/netty     cpu  23.2%   0.377 ms/op   alloc   7.0%
+  other                  cpu   3.8%   0.062 ms/op   alloc   2.2%
+  no stack               cpu   0.0%   0.000 ms/op   alloc   0.0%
+## postgres/e1  node CPU 0.401 ms/op, 2036 CPU samples
+  kafka producer         cpu  11.6%   0.047 ms/op   alloc   7.6%
+  kafka consumer         cpu   0.0%   0.000 ms/op   alloc   0.0%
+  wait signals           cpu  12.4%   0.050 ms/op   alloc   9.7%
+  saga handling          cpu   2.2%   0.009 ms/op   alloc   4.4%
+  saga commands          cpu   0.0%   0.000 ms/op   alloc   0.0%
+  snapshot store         cpu   5.2%   0.021 ms/op   alloc   7.1%
+  subscriptions/sinks    cpu  19.1%   0.076 ms/op   alloc  17.7%
+  log tail               cpu   0.9%   0.004 ms/op   alloc   1.9%
+  pg driver              cpu   2.4%   0.009 ms/op   alloc   6.4%
+  mongo driver           cpu   0.0%   0.000 ms/op   alloc   0.0%
+  log append             cpu   6.5%   0.026 ms/op   alloc   8.4%
+  state load             cpu   3.1%   0.012 ms/op   alloc   0.6%
+  kernel                 cpu   4.3%   0.017 ms/op   alloc   1.0%
+  json                   cpu   4.4%   0.018 ms/op   alloc   2.8%
+  http/webflux/netty     cpu  16.8%   0.067 ms/op   alloc  26.4%
+  other                  cpu  11.2%   0.045 ms/op   alloc   6.0%
+  no stack               cpu   0.0%   0.000 ms/op   alloc   0.0%
+## postgres/e3  node CPU 1.186 ms/op, 358 CPU samples
+  kafka producer         cpu  45.8%   0.543 ms/op   alloc  11.3%
+  kafka consumer         cpu   0.0%   0.000 ms/op   alloc   0.0%
+  wait signals           cpu   9.8%   0.116 ms/op   alloc  10.8%
+  saga handling          cpu   2.5%   0.030 ms/op   alloc   7.3%
+  saga commands          cpu   0.0%   0.000 ms/op   alloc   0.0%
+  snapshot store         cpu   2.0%   0.023 ms/op   alloc  11.6%
+  subscriptions/sinks    cpu   7.0%   0.083 ms/op   alloc  24.2%
+  log tail               cpu   0.6%   0.007 ms/op   alloc   0.8%
+  pg driver              cpu   2.0%   0.023 ms/op   alloc   5.8%
+  mongo driver           cpu   0.0%   0.000 ms/op   alloc   0.0%
+  log append             cpu   3.9%   0.046 ms/op   alloc  10.5%
+  state load             cpu   1.4%   0.017 ms/op   alloc   0.3%
+  kernel                 cpu   0.3%   0.003 ms/op   alloc   0.6%
+  json                   cpu   2.8%   0.033 ms/op   alloc   1.4%
+  http/webflux/netty     cpu  17.0%   0.202 ms/op   alloc  11.7%
+  other                  cpu   5.0%   0.060 ms/op   alloc   3.7%
+  no stack               cpu   0.0%   0.000 ms/op   alloc   0.0%
+## postgres/e1 at 1720/s: 3.12 cores, 1.815 ms/op
+   0.81 cores  0.472 ms/op  26.0% CN CompilerThreadN
+   0.75 cores  0.438 ms/op  24.1% main
+   0.57 cores  0.330 ms/op  18.2% DefaultDispatcher-worker-N
+   0.39 cores  0.225 ms/op  12.4% ForkJoinPool-N-worker-N
+   0.24 cores  0.141 ms/op   7.8% reactor-http-nio-N
+   0.21 cores  0.125 ms/op   6.9% DestroyJavaVM
+   0.05 cores  0.032 ms/op   1.7% kafka-producer-network-thread | producer-N
+   0.03 cores  0.018 ms/op   1.0% Read-Updater
+   0.03 cores  0.016 ms/op   0.9% Read-Poller
+## postgres/e3 at 700/s: 0.80 cores, 1.139 ms/op
+   0.39 cores  0.558 ms/op  49.0% DefaultDispatcher-worker-N
+   0.23 cores  0.324 ms/op  28.5% ForkJoinPool-N-worker-N
+   0.04 cores  0.063 ms/op   5.5% reactor-http-nio-N
+   0.04 cores  0.056 ms/op   4.9% Read-Poller
+   0.04 cores  0.054 ms/op   4.7% kafka-producer-network-thread | producer-N
+   0.04 cores  0.051 ms/op   4.4% Read-Updater
+   0.02 cores  0.022 ms/op   2.0% CN CompilerThreadN
+   0.00 cores  0.005 ms/op   0.5% wow-wait-deadlines-N
+   0.00 cores  0.001 ms/op   0.1% JFR Periodic Tasks
+## mongo/e1 at 1720/s: 2.96 cores, 1.722 ms/op
+   0.76 cores  0.441 ms/op  25.6% DefaultDispatcher-worker-N
+   0.72 cores  0.419 ms/op  24.4% ForkJoinPool-N-worker-N
+   0.53 cores  0.307 ms/op  17.8% main
+   0.39 cores  0.228 ms/op  13.2% reactor-http-nio-N
+   0.25 cores  0.144 ms/op   8.4% DestroyJavaVM
+   0.19 cores  0.109 ms/op   6.3% CN CompilerThreadN
+   0.07 cores  0.038 ms/op   2.2% kafka-producer-network-thread | producer-N
+   0.02 cores  0.011 ms/op   0.6% Read-Updater
+   0.02 cores  0.009 ms/op   0.5% Read-Poller
+## mongo/e3 at 700/s: 1.04 cores, 1.480 ms/op
+   0.48 cores  0.689 ms/op  46.5% DefaultDispatcher-worker-N
+   0.36 cores  0.508 ms/op  34.3% ForkJoinPool-N-worker-N
+   0.08 cores  0.117 ms/op   7.9% reactor-http-nio-N
+   0.05 cores  0.072 ms/op   4.9% kafka-producer-network-thread | producer-N
+   0.02 cores  0.028 ms/op   1.9% Read-Updater
+   0.02 cores  0.026 ms/op   1.8% Read-Poller
+   0.01 cores  0.014 ms/op   0.9% CN CompilerThreadN
+   0.01 cores  0.011 ms/op   0.8% VirtualThread-unparker
+   0.00 cores  0.006 ms/op   0.4% wow-wait-deadlines-N
