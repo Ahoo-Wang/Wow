@@ -41,6 +41,8 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     runtimeOnly("org.postgresql:postgresql")
     testImplementation("org.axonframework:axon-test")
+    // axon-test declares Hamcrest optional, and its fixtures need it.
+    testImplementation("org.hamcrest:hamcrest")
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
