@@ -56,8 +56,11 @@ import org.bson.BsonBoolean
 import org.bson.BsonDocument
 import org.bson.BsonInt32
 import org.bson.BsonInt64
+import org.bson.BsonMaxKey
+import org.bson.BsonMinKey
 import org.bson.BsonNull
 import org.bson.BsonString
+import org.bson.BsonType
 import org.bson.BsonValue
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -67,8 +70,10 @@ import java.util.concurrent.ConcurrentHashMap
  * The [SnapshotStore] of one bounded context on MongoDB (documentation/designs/03-log-and-snapshot.md §3).
  *
  * Each aggregate type has its own collection, `wow_snapshot__<context>__<aggregate>` (decision D161), holding one
- * document per aggregate, keyed by a unique index on (tenant, aggregate id); the document has no aggregate name, the
- * collection is the aggregate type. An aggregate type's collection is created, with its key and format record, the
+ * document per aggregate, whose `_id` is its key `{t: tenant, a: aggregate id}` (decision D277): no index besides
+ * `_id_` keeps it unique, and the key's order is the tenant's, then the aggregate id's. The document also holds the
+ * two as `tenant_id` and `aggregate_id`, which the queries read, and every write's filter names them, the shard key of
+ * a sharded collection; it has no aggregate name, the collection is the aggregate type. An aggregate type's collection is created, with its key and format record, the
  * first time this store touches the type, or up front by [createCollection]. Two partial indexes cover the predicates
  * the query side adds to every query (decision D151): `{tenant_id, owner_id}` and `{tenant_id, space_id}`, over the
  * snapshots that are not deleted.
@@ -206,7 +211,8 @@ class MongoSnapshotStore(
      * The filter of [snapshot]'s save, as BSON: its key, a lower stored version, of the same or a lower state
      * revision. A snapshot written before state revisions has none: it is of revision 1, which no revision is below.
      */
-    private fun guardOf(snapshot: SnapshotRecord): Bson = BsonDocument(TENANT_ID, BsonString(snapshot.ref.tenantId))
+    private fun guardOf(snapshot: SnapshotRecord): Bson = BsonDocument(ID, keyOf(snapshot.ref))
+        .append(TENANT_ID, BsonString(snapshot.ref.tenantId))
         .append(AGGREGATE_ID, BsonString(snapshot.ref.id))
         .append(VERSION, BsonDocument("\$lt", BsonInt32(snapshot.version)))
         .append(
@@ -329,17 +335,11 @@ class MongoSnapshotStore(
         val filter = if (after == null) {
             pending
         } else {
-            Filters.and(
-                pending,
-                Filters.or(
-                    Filters.gt(TENANT_ID, after.tenantId),
-                    Filters.and(Filters.eq(TENANT_ID, after.tenantId), Filters.gt(AGGREGATE_ID, after.id)),
-                ),
-            )
+            Filters.and(pending, Filters.gt(ID, keyOf(after)))
         }
         collectionOf(type.name).find(filter)
             .projection(Projections.include(TENANT_ID, AGGREGATE_ID))
-            .sort(Sorts.ascending(TENANT_ID, AGGREGATE_ID))
+            .sort(Sorts.ascending(ID))
             .limit(limit)
             .map { type.ref(it.getString(TENANT_ID), it.getString(AGGREGATE_ID)) }
             .toList()
@@ -410,6 +410,7 @@ class MongoSnapshotStore(
     }
 
     private fun keyFilter(ref: AggregateRef): Bson = Filters.and(
+        Filters.eq(ID, keyOf(ref)),
         Filters.eq(TENANT_ID, ref.tenantId),
         Filters.eq(AGGREGATE_ID, ref.id),
     )
@@ -439,8 +440,6 @@ class MongoSnapshotStore(
         /** The version of this layout (decision D59). */
         const val FORMAT = 1
 
-        const val SNAPSHOT_KEY = "snapshot_key"
-
         /** The partial index of the owner scope (decision D151). */
         const val OWNER_INDEX = "owner_ix"
 
@@ -463,9 +462,20 @@ class MongoSnapshotStore(
         /** The collection of [aggregate]'s snapshots in [context]. */
         fun collectionName(context: String, aggregate: String): String = MongoNames.of(PREFIX, context, aggregate)
 
+        /** The `_id` of [ref]'s snapshot (decision D277): its tenant, then its aggregate id. */
+        fun keyOf(ref: AggregateRef): BsonDocument =
+            BsonDocument(KEY_TENANT, BsonString(ref.tenantId)).append(KEY_AGGREGATE, BsonString(ref.id))
+
+        /** The keys of [tenantId]'s snapshots: one range of `_id`. */
+        fun tenantKeys(tenantId: String): Bson = Filters.and(
+            Filters.gt(ID, BsonDocument(KEY_TENANT, BsonString(tenantId)).append(KEY_AGGREGATE, BsonMinKey())),
+            Filters.lt(ID, BsonDocument(KEY_TENANT, BsonString(tenantId)).append(KEY_AGGREGATE, BsonMaxKey())),
+        )
+
         /**
          * Makes sure of the snapshot collection of [aggregate] in [context]: claims its format record ([MongoFormat]),
-         * then creates its key and scope indexes when missing, which creates the collection itself.
+         * refuses snapshots an alpha wrote, then creates its scope indexes when missing, which creates the collection
+         * itself.
          */
         fun ensure(
             database: MongoDatabase,
@@ -476,12 +486,14 @@ class MongoSnapshotStore(
             val name = collectionName(context, aggregate)
             MongoFormat.claim(database, name, FORMAT, ddl)
             return database.getCollection(name).also { collection ->
-                MongoFormat.index(
-                    collection,
-                    Indexes.ascending(TENANT_ID, AGGREGATE_ID),
-                    IndexOptions().unique(true).name(SNAPSHOT_KEY),
-                    ddl,
-                )
+                // A snapshot's key is its `_id` (decision D277): an alpha's have the driver's ObjectIds, and a save
+                // would add a second document for the aggregate beside it.
+                check(
+                    collection.find(Filters.type(ID, BsonType.OBJECT_ID)).projection(Projections.include(ID)).first() == null
+                ) {
+                    "$name was written by an earlier 10.0 alpha, whose snapshots have no key as their _id: rebuild " +
+                        "the snapshots from the log, an alpha's data is not migrated."
+                }
                 SCOPE_INDEXES.forEach { (index, field) ->
                     MongoFormat.index(collection, Indexes.ascending(TENANT_ID, field), scopeIndexOptions(index), ddl)
                 }
@@ -521,7 +533,9 @@ class MongoSnapshotStore(
 
         /** The records of the snapshot collections' claimed state revisions (decision D172). */
         const val TABLES = "wow_snapshot_table"
-        private const val ID = "_id"
+        const val ID = "_id"
+        private const val KEY_TENANT = "t"
+        private const val KEY_AGGREGATE = "a"
         private const val REVISION = "revision"
         private const val REBUILDING = "rebuilding"
         private const val BACKFILLED = "backfilled"

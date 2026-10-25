@@ -290,7 +290,12 @@ class MongoEventLog(
             streams(VERSION_KEY, VERSION),
             ddl,
         )
-        MongoFormat.index(log, Indexes.ascending(PARTITION, TENANT_ID, REQUEST_ID), streams(REQUEST_KEY, REQUEST_ID), ddl)
+        MongoFormat.index(
+            log,
+            Indexes.ascending(PARTITION, TENANT_ID, REQUEST_ID),
+            streams(REQUEST_KEY, REQUEST_ID),
+            ddl
+        )
         if (ddl != StoreDdl.AUTO) {
             // The registry is the schema's: a validated or foreign schema registered its collections already.
             return collection
@@ -517,7 +522,10 @@ class MongoEventLog(
     /** Whether [member]'s stream is at its position: the document there has its request. */
     private fun landed(collection: AggregateCollection, member: Member): Boolean {
         val partition = member.stream.ref.partitionIn()
-        val position = Filters.and(Filters.eq(PARTITION, partition), Filters.eq(ID, positionId(partition, member.sequence)))
+        val position = Filters.and(
+            Filters.eq(PARTITION, partition),
+            Filters.eq(ID, positionId(partition, member.sequence))
+        )
         return collection.committed.find(position).projection(Projections.include(REQUEST_ID)).firstOrNull()
             ?.getString(REQUEST_ID) == member.stream.requestId
     }
@@ -830,7 +838,9 @@ class MongoEventLog(
             val known = ((registered ?: register()) + ensured.values).distinctBy { it.name }
             if (known.isEmpty()) return@mongo null
             fun branch(index: Int) = listOf(
-                Aggregates.match(Filters.and(everyPartition, Filters.eq(TENANT_ID, tenantId), Filters.eq(REQUEST_ID, requestId))),
+                Aggregates.match(
+                    Filters.and(everyPartition, Filters.eq(TENANT_ID, tenantId), Filters.eq(REQUEST_ID, requestId))
+                ),
                 Aggregates.limit(1),
                 Aggregates.addFields(Field(BRANCH, index)),
             )
@@ -1019,7 +1029,9 @@ class MongoEventLog(
         findByRequestIdIn(collection, Filters.eq(PARTITION, ref.partitionIn()), ref.tenantId, requestId)
 
     private fun findByRequestIdIn(collection: AggregateCollection, partitions: Bson, tenantId: String, requestId: String) =
-        collection.committed.find(Filters.and(partitions, Filters.eq(TENANT_ID, tenantId), Filters.eq(REQUEST_ID, requestId)))
+        collection.committed.find(
+            Filters.and(partitions, Filters.eq(TENANT_ID, tenantId), Filters.eq(REQUEST_ID, requestId))
+        )
             .projection(FACTS)
             .firstOrNull()
             ?.let { streamOf(collection.aggregate, it) }

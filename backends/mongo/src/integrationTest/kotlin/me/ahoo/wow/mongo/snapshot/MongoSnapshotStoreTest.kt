@@ -49,6 +49,39 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
     }
 
     @Test
+    fun `a snapshot's _id is its key, and no other index holds the key`(): Unit = runBlocking {
+        // Decision D277: `{t: tenant, a: aggregate id}`, unique by `_id_` alone, in the tenant's, then the id's order.
+        val context = MongoLogFixture.newContext()
+        val store = store(context)
+        val type = AggregateType(context, "aggregate")
+        listOf("t2" to "a", "t1" to "b", "t1" to "a").forEach { (tenant, id) ->
+            store.save(snapshot(id, 1).copyWith(ref = type.ref(tenant, id))).assert().isTrue()
+        }
+        // A save of an older version meets the key and is refused, leaving one document.
+        store.save(snapshot("a", 1).copyWith(ref = type.ref("t1", "a"))).assert().isFalse()
+        val snapshots = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection(context))
+        snapshots.find().sort(Document("_id", 1)).map { it["_id"] as Document }.toList().assert().containsExactly(
+            Document("t", "t1").append("a", "a"),
+            Document("t", "t1").append("a", "b"),
+            Document("t", "t2").append("a", "a"),
+        )
+        snapshots.listIndexes().map { it.getString("name") }.toList()
+            .assert().containsExactlyInAnyOrder("_id_", MongoSnapshotStore.OWNER_INDEX, MongoSnapshotStore.SPACE_INDEX)
+        store.pending(type, 2, limit = 10).assert().containsExactly(type.ref("t1", "a"), type.ref("t1", "b"), type.ref("t2", "a"))
+        store.pending(type, 2, after = type.ref("t1", "b"), limit = 10).assert().containsExactly(type.ref("t2", "a"))
+    }
+
+    @Test
+    fun `snapshots an alpha wrote, under ObjectIds, are refused rather than saved beside`() {
+        val context = MongoLogFixture.newContext()
+        store(context)
+        // What an alpha left: a snapshot whose _id the server gave it.
+        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection(context))
+            .insertOne(Document("tenant_id", "tenant").append("aggregate_id", "a").append("version", 1))
+        assertThrownBy<IllegalStateException> { store(context) }.message().contains("earlier 10.0 alpha")
+    }
+
+    @Test
     fun `snapshots recorded in another format version are refused`() {
         val context = MongoLogFixture.newContext()
         store(context)

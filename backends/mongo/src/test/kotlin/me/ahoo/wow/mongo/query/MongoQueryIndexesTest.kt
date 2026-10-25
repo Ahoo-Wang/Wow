@@ -49,7 +49,6 @@ class MongoQueryIndexesTest {
         refuses(QueryIndexDeclaration("ix", listOf("state.issuedAt")))
         refuses(QueryIndexDeclaration("ix", listOf("state.keywords", "state.scores")))
         refuses(QueryIndexDeclaration("owner_ix", listOf("state.name")))
-        refuses(QueryIndexDeclaration("snapshot_key", listOf("state.name")))
         refuses(QueryIndexDeclaration("_id_", listOf("state.name")))
         refuses(QueryIndexDeclaration("ix", listOf("state.name")), QueryIndexDeclaration("ix", listOf("state.status")))
         assertThrownBy<IllegalArgumentException> { QueryIndexDeclaration("", listOf("state.name")) }
