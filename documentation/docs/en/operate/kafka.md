@@ -17,7 +17,7 @@ A service needs Kafka when one of these holds:
 - other contexts send commands to it;
 - an aggregate type's commands are routed through Kafka for durable intake.
 
-A node whose sagas send commands to another context does not start without a command transport. For local development, `wow.topics.in-memory: true` keeps the topics in the JVM instead, so services in one process reach each other without a broker.
+A node whose sagas send commands to another context does not start without a command transport. For local development, `wow.topics.in-memory: true` keeps the topics in the JVM instead, so services in one process reach each other without a broker. Those topics keep every record they are sent for the life of the JVM: under sustained load they fill the heap, so they are for trying a service out, never for a load test or a deployment.
 
 The transport is wired when the `wow-kafka` module is on the classpath and `wow.kafka.bootstrap-servers` is set. The eShop's ordering service connects with its `kafka` profile:
 
