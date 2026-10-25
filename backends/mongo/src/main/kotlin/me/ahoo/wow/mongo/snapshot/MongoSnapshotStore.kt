@@ -42,6 +42,8 @@ import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.MongoRules
+import me.ahoo.wow.mongo.MongoSharding
+import me.ahoo.wow.mongo.MongoShards
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
@@ -89,14 +91,19 @@ import java.util.concurrent.ConcurrentHashMap
  */
 @InternalWowApi
 class MongoSnapshotStore(
-    client: MongoClient,
+    private val client: MongoClient,
     databaseName: String,
     private val context: String,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
     private val ddl: StoreDdl = StoreDdl.AUTO,
+    /** Whether the store shards its collections on a sharded cluster (decision D277). */
+    sharding: MongoSharding = MongoSharding.AUTO,
 ) : SnapshotStore {
     private val database = client.getDatabase(databaseName)
+
+    /** Whether this store shards its collections: asked of the server on the first collection it makes sure of. */
+    private val sharded by lazy { sharding.shards(client, ddl) }
 
     /** The collections whose key and format this store has made sure of, by aggregate name. */
     private val ensured = ConcurrentHashMap<String, MongoCollection<Document>>()
@@ -118,7 +125,19 @@ class MongoSnapshotStore(
     private fun collectionOf(aggregate: String): MongoCollection<Document> =
         ensured[aggregate] ?: ensure(aggregate).also { ensured[aggregate] = it }
 
-    private fun ensure(aggregate: String): MongoCollection<Document> = ensure(database, context, aggregate, ddl)
+    private fun ensure(aggregate: String): MongoCollection<Document> =
+        ensure(database, context, aggregate, ddl).also { collection ->
+            if (sharded) {
+                // Decision D277: by tenant, then the aggregate id's hash, so new aggregates spread over the shards.
+                MongoShards.shard(
+                    client,
+                    database,
+                    collection,
+                    Document(TENANT_ID, 1).append(AGGREGATE_ID, HASHED),
+                    Indexes.compoundIndex(Indexes.ascending(TENANT_ID), Indexes.hashed(AGGREGATE_ID)),
+                )
+            }
+        }
 
     override suspend fun save(snapshot: SnapshotRecord): Boolean = dispatcher.mongo {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }
@@ -519,6 +538,7 @@ class MongoSnapshotStore(
         const val STALE_VERSION = "stale_version"
 
         private const val LITERAL = "\$literal"
+        private const val HASHED = "hashed"
 
         /** The bulk write of a batch: unordered, so one refused upsert does not stop the others. */
         private val UNORDERED: BulkWriteOptions = BulkWriteOptions().ordered(false)

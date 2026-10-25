@@ -49,6 +49,8 @@ import me.ahoo.wow.mongo.MongoFailures
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
+import me.ahoo.wow.mongo.MongoSharding
+import me.ahoo.wow.mongo.MongoShards
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.StoreDdl
@@ -164,12 +166,17 @@ class MongoEventLog(
      * appending during an outage is answered before its wait ends, as unknown. Below the default wait timeout.
      */
     appendTimeout: Duration = DEFAULT_APPEND_TIMEOUT,
+    /** Whether the log shards its aggregate collections on a sharded cluster (decision D277). */
+    private val sharding: MongoSharding = MongoSharding.AUTO,
 ) : EventLog,
     TagsBackfill {
     /** Validates the partition count first (decision D240): a log of another count is refused when it is built. */
     private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
 
     private val database = client.getDatabase(databaseName)
+
+    /** Whether this log shards its collections: asked of the server on the first collection it makes sure of. */
+    private val sharded by lazy { sharding.shards(client, ddl) }
     private val countersName = MongoNames.of(PREFIX, context, PARTITION_COUNTERS)
     private val counters: MongoCollection<Document> = database.getCollection(countersName)
 
@@ -296,6 +303,17 @@ class MongoEventLog(
             streams(REQUEST_KEY, REQUEST_ID),
             ddl
         )
+        if (sharded) {
+            // Decision D277: by partition, one chunk each, spread over the shards while the collection is new.
+            MongoShards.shard(
+                client,
+                database,
+                log,
+                Document(PARTITION, 1),
+                Indexes.ascending(PARTITION, ID),
+                (0 until partitions).map { Document(PARTITION, it) },
+            )
+        }
         if (ddl != StoreDdl.AUTO) {
             // The registry is the schema's: a validated or foreign schema registered its collections already.
             return collection

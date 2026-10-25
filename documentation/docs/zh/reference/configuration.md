@@ -7,7 +7,7 @@ description: "宿主 wow.* 配置的每个键：类型、默认值与含义。"
 
 # 配置项
 
-Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 237 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性对应的 `wow.*` 键会在节点启动时报告。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`。
+Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 238 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性对应的 `wow.*` 键会在节点启动时报告。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`。
 
 ## `wow`
 
@@ -331,6 +331,7 @@ The hand-over of the node's own commits to its tails in memory: a tail waits its
 | --- | --- | --- | --- |
 | `wow.mongo.append-timeout` | `Duration` | `PT5S` | How long an append's insert may take on a store that sets none in its `options.append-timeout`: below the default wait timeout, so a command appending during an outage is answered before its wait ends. |
 | `wow.mongo.database` | `String` | `wow` | The database of the log and the stores on the MongoDB backend. |
+| `wow.mongo.sharding` | `String` | `auto` | Whether a store on a sharded cluster shards its log and snapshot collections when it creates them: `auto` when connected to a mongos with `ddl: auto`, `off` for a cluster its operators shard; a store's `options.sharding` overrides it. |
 
 ## `wow.node`
 

@@ -37,7 +37,9 @@ import kotlin.time.Duration
 /**
  * The MongoDB stores (`wow.stores.<name>.type: mongo`, review R3.3-1), each over the application's `MongoClient` that
  * its `client` option names (else the only one), in the database its `database` option names (`wow` when not set);
- * its `append-timeout` option bounds an append's insert ([MongoEventLog.DEFAULT_APPEND_TIMEOUT] when not set).
+ * its `append-timeout` option bounds an append's insert ([MongoEventLog.DEFAULT_APPEND_TIMEOUT] when not set), and
+ * its `sharding` option, `auto` (the default) or `off`, whether it shards its collections on a sharded cluster
+ * ([MongoSharding], decision D277).
  * Found by `ServiceLoader`.
  */
 internal class MongoStoreProvider : StoreProvider {
@@ -52,6 +54,7 @@ internal class MongoStoreProvider : StoreProvider {
         config.resources.resource(MongoClient::class.java, config.option(CLIENT), "${config.key}.$CLIENT"),
         config.option(DATABASE) ?: DEFAULT_DATABASE,
         config.option(APPEND_TIMEOUT)?.let(Duration::parse) ?: MongoEventLog.DEFAULT_APPEND_TIMEOUT,
+        MongoSharding.of(config.option(SHARDING)),
     )
 
     companion object {
@@ -66,6 +69,9 @@ internal class MongoStoreProvider : StoreProvider {
 
         /** The option bounding an append's insert (decision D261), such as `5s`. */
         const val APPEND_TIMEOUT = "append-timeout"
+
+        /** The option saying whether the store shards its collections on a sharded cluster: `auto` or `off`. */
+        const val SHARDING = "sharding"
     }
 }
 
@@ -79,6 +85,7 @@ internal class MongoStore(
     val client: MongoClient,
     val database: String,
     private val appendTimeout: Duration = MongoEventLog.DEFAULT_APPEND_TIMEOUT,
+    private val sharding: MongoSharding = MongoSharding.AUTO,
 ) : Store(config) {
     private val ddl = config.ddl
 
@@ -106,10 +113,11 @@ internal class MongoStore(
             maxPollInterval = config.polling.maxInterval,
             ddl = ddl,
             appendTimeout = appendTimeout,
+            sharding = sharding,
         ).also { schema(it::createSchema) }
 
     override fun openSnapshots(context: String): SnapshotStore =
-        MongoSnapshotStore(client, database, context, ddl = ddl).also { schema(it::createSchema) }
+        MongoSnapshotStore(client, database, context, ddl = ddl, sharding = sharding).also { schema(it::createSchema) }
 
     override fun openTimers(context: String): TimerStore =
         MongoTimerStore(client, database, context, ddl = ddl).also { schema(it::createSchema) }

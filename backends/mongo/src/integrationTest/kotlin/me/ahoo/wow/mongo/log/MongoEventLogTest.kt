@@ -231,7 +231,7 @@ class MongoEventLogTest : EventLogSpec() {
             }
         }
         val settings = MongoClientSettings.builder()
-            .applyConnectionString(ConnectionString(WowContainers.mongo.replicaSetUrl))
+            .applyConnectionString(ConnectionString(WowContainers.mongoUrl))
             .addCommandListener(listener)
             .build()
         MongoClients.create(settings).use { client ->

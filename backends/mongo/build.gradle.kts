@@ -16,4 +16,7 @@ dependencies {
 // Spike H1 (MongoDB) measures throughput only on demand: ./gradlew :mongo:integrationTest -Dwow.spike.h1=true
 tasks.named<Test>("integrationTest") {
     systemProperty("wow.spike.h1", providers.systemProperty("wow.spike.h1").orElse("false").get())
+    // A MongoDB cluster to run against in place of the single-member container (roadmap §6 item 18):
+    // test/mongo-cluster/cluster.sh test rs|sharded
+    providers.systemProperty("wow.mongo.url").orNull?.let { systemProperty("wow.mongo.url", it) }
 }

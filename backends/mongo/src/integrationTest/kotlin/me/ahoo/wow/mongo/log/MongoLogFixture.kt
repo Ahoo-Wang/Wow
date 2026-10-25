@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /** One MongoDB replica set for the test JVM, and a fresh context (so fresh collections) per log. */
 object MongoLogFixture {
-    val client: MongoClient by lazy { MongoClients.create(WowContainers.mongo.replicaSetUrl) }
+    val client: MongoClient by lazy { MongoClients.create(WowContainers.mongoUrl) }
 
     private val contexts = AtomicInteger()
 

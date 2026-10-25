@@ -46,6 +46,12 @@ object WowContainers {
     /** A single-node replica set: the MongoDB backend writes in transactions. */
     val mongo: MongoDBContainer by lazy { newMongo().also { it.start() } }
 
+    /**
+     * The MongoDB the integration tests connect to: the cluster the system property [MONGO_URL] names when set, a
+     * replica set of three or a sharded cluster (roadmap §6 item 18, `test/mongo-cluster/cluster.sh`), else [mongo].
+     */
+    val mongoUrl: String by lazy { System.getProperty(MONGO_URL)?.takeIf(String::isNotBlank) ?: mongo.replicaSetUrl }
+
     val kafka: ConfluentKafkaContainer by lazy { newKafka().also { it.start() } }
 
     val clickHouse: ClickHouseContainer by lazy { newClickHouse().also { it.start() } }
@@ -69,6 +75,9 @@ object WowContainers {
             .withEnv("ES_JAVA_OPTS", "-Xms512m -Xmx512m")
             .waitingFor(Wait.forHttp("/_cluster/health?wait_for_status=yellow").forPort(ELASTICSEARCH_PORT))
             .withStartupTimeout(Duration.ofMinutes(5))
+
+    /** The system property naming a MongoDB cluster for [mongoUrl]. */
+    const val MONGO_URL = "wow.mongo.url"
 
     private const val ELASTICSEARCH_PORT = 9200
 }
