@@ -92,7 +92,7 @@ import me.ahoo.wow.client.RetryPolicy as ClientRetryPolicy
  *   `.snapshot.store` as a list and `.snapshot.primary`; `wow.snapshot.interval`, `batch` and `pages` tune the
  *   snapshot maintenance, `wow.snapshot.write-batch` how many snapshots of a partition one write holds at most.
  * - `wow.log.partitions` (64; a power of two that divides 4096, decision D240) and `wow.log.append-queue.*` (on, at
- *   most 64 appends a group, decision D248; the groups of several partitions merged into one call on MongoDB, two
+ *   most 64 appends a group, decision D248; the groups of several partitions merged into one call on MongoDB and PostgreSQL, two
  *   committers of at most 512 streams each, decision D275); `wow.log.poll-interval` (50ms) and `wow.log.max-poll-interval` (1s), how often
  *   the tails of a PostgreSQL or MongoDB log poll: at the first while they find entries, backing off to the second
  *   while they find none (finding A2-14). `wow.log.handoff.enabled` (true), `capacity` (1024) and `gap-wait` (1s):
@@ -572,7 +572,8 @@ class WowProperties {
 
         /**
          * Whether the partitions' groups go to a log that takes several partitions a call merged (decision D275): on
-         * by default, for MongoDB; a log that does not take them is called per partition.
+         * by default, for MongoDB and PostgreSQL (decision D280); a log that does not take them is called per
+         * partition.
          */
         var merge: Boolean? = null
 
