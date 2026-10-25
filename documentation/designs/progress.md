@@ -26,7 +26,7 @@
 
 ## 3. 进行中与下一步
 
-- **GA 前**：行业对比 Axon Framework 4 + PostgreSQL 本机已测（[报告](../../test/benchmarks/results/reports/v10-vs-axon.md)：单节点 E1 峰值 Wow 关闭 Kafka 为 Axon 的 4.2～4.5 倍、开启 Kafka 3.4～3.5 倍，E3 约 5 倍；Axon 连接池加到 32 后仍为 3.2～3.4 倍与 4.1～4.3 倍），待 M4 Pro 复测；M4 Pro 第二次快照（含 D280）；rc 前在 Actions 上重跑 L3、L4（第 19 项）。
+- **GA 前**：行业对比 Axon Framework 4 + PostgreSQL 本机已测（[报告](../../test/benchmarks/results/reports/v10-vs-axon.md)：单节点 E1 峰值 Wow 关闭 Kafka 为 Axon 的 4.2～4.5 倍、开启 Kafka 3.4～3.5 倍，E3 约 5 倍；Axon 连接池加到 32 后仍为 3.2～3.4 倍与 4.1～4.3 倍），待 M4 Pro 复测；M4 Pro 第二次快照已测（[报告](../../test/benchmarks/results/reports/v10-m4pro-snapshot-2.md)：E3 峰值 PostgreSQL ≥ 7,099/s（+62%）、MongoDB ≥ 5,781/s（+82%），扫描后缓存不再失效，定速的失败是 Docker 磁盘镜像 fsync 停顿后的 `wow.command.busy`）；rc 前在 Actions 上重跑 L3、L4（第 19 项）。
 - **基准**：日常改动只对当前 `main` 做 ABAB（长期运行的效应用老化后的定速段）；里程碑时 M4 Pro 快照与 Actions L3、L4。
 - **之后**：rc 的时间由用户决定（9.4）。
 
