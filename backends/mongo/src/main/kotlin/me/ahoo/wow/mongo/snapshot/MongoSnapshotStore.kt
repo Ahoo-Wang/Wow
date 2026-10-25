@@ -36,6 +36,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.mongo.EnsuredCollections
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoFailures
 import me.ahoo.wow.mongo.MongoFormat
@@ -44,6 +45,7 @@ import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.MongoRules
 import me.ahoo.wow.mongo.MongoSharding
 import me.ahoo.wow.mongo.MongoShards
+import me.ahoo.wow.mongo.MongoTimeouts
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
@@ -66,7 +68,7 @@ import org.bson.BsonType
 import org.bson.BsonValue
 import org.bson.Document
 import org.bson.conversions.Bson
-import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration
 
 /**
  * The [SnapshotStore] of one bounded context on MongoDB (documentation/designs/03-log-and-snapshot.md §3).
@@ -99,14 +101,16 @@ class MongoSnapshotStore(
     private val ddl: StoreDdl = StoreDdl.AUTO,
     /** Whether the store shards its collections on a sharded cluster (decision D277). */
     sharding: MongoSharding = MongoSharding.AUTO,
+    /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
+    operationTimeout: Duration = MongoTimeouts.OPERATION,
 ) : SnapshotStore {
-    private val database = client.getDatabase(databaseName)
+    private val database = MongoTimeouts.database(client, databaseName, operationTimeout)
 
     /** Whether this store shards its collections: asked of the server on the first collection it makes sure of. */
     private val sharded by lazy { sharding.shards(client, ddl) }
 
-    /** The collections whose key and format this store has made sure of, by aggregate name. */
-    private val ensured = ConcurrentHashMap<String, MongoCollection<Document>>()
+    /** The collections whose key and format this store has made sure of, by aggregate name, each once. */
+    private val ensured = EnsuredCollections<MongoCollection<Document>>()
 
     /**
      * Nothing to create up front: each aggregate type's collection is created on its first use ([createCollection]),
@@ -123,7 +127,7 @@ class MongoSnapshotStore(
     }
 
     private fun collectionOf(aggregate: String): MongoCollection<Document> =
-        ensured[aggregate] ?: ensure(aggregate).also { ensured[aggregate] = it }
+        ensured.get(aggregate) { ensure(aggregate) }
 
     private fun ensure(aggregate: String): MongoCollection<Document> =
         ensure(database, context, aggregate, ddl).also { collection ->

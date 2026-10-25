@@ -39,7 +39,8 @@ import kotlin.time.Duration
  * its `client` option names (else the only one), in the database its `database` option names (`wow` when not set);
  * its `append-timeout` option bounds an append's insert ([MongoEventLog.DEFAULT_APPEND_TIMEOUT] when not set), and
  * its `sharding` option, `auto` (the default) or `off`, whether it shards its collections on a sharded cluster
- * ([MongoSharding], decision D277).
+ * ([MongoSharding], decision D277), and its `operation-timeout` option how long each of its other calls may take
+ * ([MongoTimeouts.OPERATION] when not set).
  * Found by `ServiceLoader`.
  */
 internal class MongoStoreProvider : StoreProvider {
@@ -55,6 +56,7 @@ internal class MongoStoreProvider : StoreProvider {
         config.option(DATABASE) ?: DEFAULT_DATABASE,
         config.option(APPEND_TIMEOUT)?.let(Duration::parse) ?: MongoEventLog.DEFAULT_APPEND_TIMEOUT,
         MongoSharding.of(config.option(SHARDING)),
+        config.option(OPERATION_TIMEOUT)?.let(Duration::parse) ?: MongoTimeouts.OPERATION,
     )
 
     companion object {
@@ -72,6 +74,9 @@ internal class MongoStoreProvider : StoreProvider {
 
         /** The option saying whether the store shards its collections on a sharded cluster: `auto` or `off`. */
         const val SHARDING = "sharding"
+
+        /** The option bounding each of the store's calls besides appends and the schema's, such as `30s`. */
+        const val OPERATION_TIMEOUT = "operation-timeout"
     }
 }
 
@@ -86,22 +91,41 @@ internal class MongoStore(
     val database: String,
     private val appendTimeout: Duration = MongoEventLog.DEFAULT_APPEND_TIMEOUT,
     private val sharding: MongoSharding = MongoSharding.AUTO,
+    private val operationTimeout: Duration = MongoTimeouts.OPERATION,
 ) : Store(config) {
     private val ddl = config.ddl
 
     override val location: Any get() = client to database
 
     override fun openCheckpoints(): CheckpointStore =
-        MongoCheckpointStore(client, database, ddl = ddl).also { schema(it::createSchema) }
+        MongoCheckpointStore(
+            client,
+            database,
+            ddl = ddl,
+            operationTimeout = operationTimeout
+        ).also { schema(it::createSchema) }
 
     override fun openLeases(): LeaseStore =
-        MongoLeaseStore(client, database, ddl = ddl).also { schema(it::createSchema) }
+        MongoLeaseStore(
+            client,
+            database,
+            ddl = ddl,
+            operationTimeout = operationTimeout
+        ).also { schema(it::createSchema) }
 
     override fun openLedger(): FailureLedger =
-        MongoFailureLedger(client, database, service = config.service, ddl = ddl).also { schema(it::createSchema) }
+        MongoFailureLedger(
+            client,
+            database,
+            service = config.service,
+            ddl = ddl,
+            operationTimeout = operationTimeout,
+        ).also { schema(it::createSchema) }
 
     override fun openReservations(): ReservationStore =
-        MongoReservationStore(client, database, ddl = ddl).also { schema(it::createSchema) }
+        MongoReservationStore(client, database, ddl = ddl, operationTimeout = operationTimeout).also {
+            schema(it::createSchema)
+        }
 
     override fun openLog(context: String, partitions: Int): EventLog =
         MongoEventLog(
@@ -114,11 +138,21 @@ internal class MongoStore(
             ddl = ddl,
             appendTimeout = appendTimeout,
             sharding = sharding,
+            operationTimeout = operationTimeout,
         ).also { schema(it::createSchema) }
 
     override fun openSnapshots(context: String): SnapshotStore =
-        MongoSnapshotStore(client, database, context, ddl = ddl, sharding = sharding).also { schema(it::createSchema) }
+        MongoSnapshotStore(
+            client,
+            database,
+            context,
+            ddl = ddl,
+            sharding = sharding,
+            operationTimeout = operationTimeout,
+        ).also { schema(it::createSchema) }
 
     override fun openTimers(context: String): TimerStore =
-        MongoTimerStore(client, database, context, ddl = ddl).also { schema(it::createSchema) }
+        MongoTimerStore(client, database, context, ddl = ddl, operationTimeout = operationTimeout).also {
+            schema(it::createSchema)
+        }
 }

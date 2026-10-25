@@ -64,7 +64,7 @@ internal object MongoShards {
 
     /** Whether [client] talks to a mongos: the server a sharded cluster's clients connect to. */
     fun isMongos(client: MongoClient): Boolean =
-        client.getDatabase(ADMIN).runCommand(Document("hello", 1)).getString("msg") == MONGOS
+        MongoTimeouts.ddl(client.getDatabase(ADMIN)).runCommand(Document("hello", 1)).getString("msg") == MONGOS
 
     /**
      * Shards the log collection [collection] of [partitions] partitions by partition (decision D277): its entries of
@@ -108,7 +108,7 @@ internal object MongoShards {
     ) {
         MongoFormat.index(collection, index, IndexOptions().name(SHARD_KEY), StoreDdl.AUTO)
         val namespace = collection.namespace.fullName
-        val admin = client.getDatabase(ADMIN)
+        val admin = MongoTimeouts.ddl(client.getDatabase(ADMIN))
         try {
             admin.runCommand(Document("shardCollection", namespace).append("key", key))
         } catch (failure: MongoCommandException) {
@@ -124,7 +124,7 @@ internal object MongoShards {
 
     /** The chunks of [namespace], from the cluster's config database. */
     private fun chunksOf(client: MongoClient, namespace: String): Long {
-        val config = client.getDatabase(CONFIG)
+        val config = MongoTimeouts.ddl(client.getDatabase(CONFIG))
         val uuid = config.getCollection(COLLECTIONS).find(Filters.eq(ID, namespace)).first()?.get(UUID) ?: return 0
         return config.getCollection(CHUNKS).countDocuments(Filters.eq(UUID, uuid))
     }

@@ -130,6 +130,7 @@ internal object StoreInstances {
             options = mapOf(
                 APPEND_TIMEOUT to properties.mongo.appendTimeout.toKotlinDuration().toString(),
                 SHARDING to properties.mongo.sharding,
+                OPERATION_TIMEOUT to properties.mongo.operationTimeout.toKotlinDuration().toString(),
             ) +
                 store?.options().orEmpty() + mapOf(DATABASE to properties.mongo.database).filterKeys {
                     store?.database.isNullOrBlank()
@@ -164,6 +165,7 @@ internal object StoreInstances {
     /** The option bounding a MongoDB append's transaction, which `wow.mongo.transaction-timeout` gives by default. */
     private const val APPEND_TIMEOUT = "append-timeout"
     private const val SHARDING = "sharding"
+    private const val OPERATION_TIMEOUT = "operation-timeout"
 }
 
 /** The application's beans as the resources its stores are opened over (a `DataSource`, a `MongoClient`). */

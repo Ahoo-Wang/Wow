@@ -44,6 +44,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
+import me.ahoo.wow.mongo.EnsuredCollections
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoFailures
 import me.ahoo.wow.mongo.MongoFormat
@@ -51,6 +52,7 @@ import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.MongoSharding
 import me.ahoo.wow.mongo.MongoShards
+import me.ahoo.wow.mongo.MongoTimeouts
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.StoreDdl
@@ -82,7 +84,6 @@ import org.bson.BsonType
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.util.UUID
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -168,12 +169,14 @@ class MongoEventLog(
     appendTimeout: Duration = DEFAULT_APPEND_TIMEOUT,
     /** Whether the log shards its aggregate collections on a sharded cluster (decision D277). */
     private val sharding: MongoSharding = MongoSharding.AUTO,
+    /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
+    operationTimeout: Duration = MongoTimeouts.OPERATION,
 ) : EventLog,
     TagsBackfill {
     /** Validates the partition count first (decision D240): a log of another count is refused when it is built. */
     private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
 
-    private val database = client.getDatabase(databaseName)
+    private val database = MongoTimeouts.database(client, databaseName, operationTimeout)
 
     /** Whether this log shards its collections: asked of the server on the first collection it makes sure of. */
     private val sharded by lazy { sharding.shards(client, ddl) }
@@ -196,8 +199,8 @@ class MongoEventLog(
     /** Each aggregate's last sequence as this log saw it: an aggregate's next stream is allocated after it. */
     private val lastSequences = LastSequences(lastSequencesFor(Runtime.getRuntime().maxMemory()))
 
-    /** The aggregate collections whose creation and registration this log has made sure of. */
-    private val ensured = ConcurrentHashMap<String, AggregateCollection>()
+    /** The aggregate collections whose creation and registration this log has made sure of, each once. */
+    private val ensured = EnsuredCollections<AggregateCollection>()
 
     /** The aggregate collections of the context, as of the last read of the registry, in registry order. */
     @Volatile
@@ -269,8 +272,7 @@ class MongoEventLog(
     }
 
     /** The collection of [aggregate], created and registered when this log has not yet made sure it is. */
-    private fun collectionOf(aggregate: String): AggregateCollection =
-        ensured[aggregate] ?: ensure(aggregate).also { ensured[aggregate] = it }
+    private fun collectionOf(aggregate: String): AggregateCollection = ensured.get(aggregate) { ensure(aggregate) }
 
     /**
      * Claims the format of [aggregate]'s collection, creates its indexes and records it in the registry. Each step is

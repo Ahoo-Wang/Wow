@@ -38,8 +38,8 @@ internal object MongoFormat {
      */
     fun claim(database: MongoDatabase, structure: String, version: Int, ddl: StoreDdl) {
         when (ddl) {
-            StoreDdl.AUTO -> claim(database, structure, version)
-            StoreDdl.VALIDATE -> validate(database, structure, version)
+            StoreDdl.AUTO -> claim(MongoTimeouts.ddl(database), structure, version)
+            StoreDdl.VALIDATE -> validate(MongoTimeouts.ddl(database), structure, version)
             StoreDdl.NONE -> Unit
         }
     }
@@ -63,9 +63,9 @@ internal object MongoFormat {
      */
     fun index(collection: MongoCollection<Document>, keys: Bson, options: IndexOptions, ddl: StoreDdl) {
         when (ddl) {
-            StoreDdl.AUTO -> collection.createIndex(keys, options)
+            StoreDdl.AUTO -> MongoTimeouts.ddl(collection).createIndex(keys, options)
             StoreDdl.VALIDATE -> {
-                val names = collection.listIndexes().mapNotNull { it.getString("name") }.toSet()
+                val names = MongoTimeouts.ddl(collection).listIndexes().mapNotNull { it.getString("name") }.toSet()
                 check(options.name in names) {
                     "The index ${options.name} of ${collection.namespace.collectionName} is missing, and the store " +
                         "only validates its schema (ddl validate)."
