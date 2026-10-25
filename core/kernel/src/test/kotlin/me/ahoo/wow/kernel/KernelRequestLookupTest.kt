@@ -15,6 +15,7 @@ package me.ahoo.wow.kernel
 
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
@@ -42,13 +43,9 @@ class KernelRequestLookupTest {
         val perType = mutableListOf<AggregateType>()
         var contextWide = 0
 
-        override suspend fun findByRequestId(
-            type: AggregateType,
-            tenantId: String,
-            requestId: String,
-        ): EventStreamRecord? {
-            perType += type
-            return delegate.findByRequestId(type, tenantId, requestId)
+        override suspend fun findByRequestId(ref: AggregateRef, requestId: String): EventStreamRecord? {
+            perType += ref.type
+            return delegate.findByRequestId(ref, requestId)
         }
 
         override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? {

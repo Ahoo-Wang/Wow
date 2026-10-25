@@ -562,6 +562,11 @@ class NodeHealthTest {
             return log.head(partition)
         }
 
+        override suspend fun findByRequestId(ref: AggregateRef, requestId: String): EventStreamRecord? {
+            check()
+            return log.findByRequestId(ref, requestId)
+        }
+
         override suspend fun findByRequestId(
             type: me.ahoo.wow.api.aggregate.AggregateType,
             tenantId: String,

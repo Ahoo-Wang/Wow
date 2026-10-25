@@ -678,7 +678,7 @@ class Kernel(
      */
     private suspend fun settleConflict(stream: EventStreamRecord, conflict: AppendOutcome.Conflict): AppendOutcome {
         val existing = try {
-            log.findByRequestId(stream.ref.type, stream.ref.tenantId, stream.requestId)
+            log.findByRequestId(stream.ref, stream.requestId)
         } catch (
             @Suppress("TooGenericExceptionCaught") // Whatever stops the lookup, the conflict stands.
             failure: Exception,

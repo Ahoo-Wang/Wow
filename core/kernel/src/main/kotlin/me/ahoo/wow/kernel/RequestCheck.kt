@@ -70,7 +70,7 @@ internal class RequestCheck(
 
     /** The duplicate answer when the request id is committed; null when it is not, remembered. */
     suspend fun lookUp(): CommandOutcome? {
-        val existing = log.findByRequestId(model.type, command.ref.tenantId, command.requestId)
+        val existing = log.findByRequestId(command.ref, command.requestId)
         lookedUp = existing == null
         return existing?.let { duplicate(it) }
     }

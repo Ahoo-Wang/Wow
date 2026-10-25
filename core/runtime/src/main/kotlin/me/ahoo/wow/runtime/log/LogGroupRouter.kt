@@ -87,6 +87,9 @@ internal class LogGroupRouter(
     override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? =
         logOf(ref.type).positionOf(ref, version)
 
+    override suspend fun findByRequestId(ref: AggregateRef, requestId: String): EventStreamRecord? =
+        logOf(ref.type).findByRequestId(ref, requestId)
+
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         logOf(type).findByRequestId(type, tenantId, requestId)
 

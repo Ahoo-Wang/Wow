@@ -64,6 +64,9 @@ internal class GivenStateLog(private val delegate: EventLog) : EventLog by deleg
     override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? =
         if (version <= offset) null else delegate.positionOf(ref, version - offset)
 
+    override suspend fun findByRequestId(ref: AggregateRef, requestId: String): EventStreamRecord? =
+        delegate.findByRequestId(ref, requestId)?.shifted(offset)
+
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         delegate.findByRequestId(type, tenantId, requestId)?.shifted(offset)
 

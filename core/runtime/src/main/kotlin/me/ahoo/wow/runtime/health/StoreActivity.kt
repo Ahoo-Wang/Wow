@@ -225,6 +225,9 @@ private class TrackedEventLog(
     override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? =
         activity.call(::unavailable) { log.positionOf(ref, version) }
 
+    override suspend fun findByRequestId(ref: AggregateRef, requestId: String): EventStreamRecord? =
+        activity.call(::unavailable) { log.findByRequestId(ref, requestId) }
+
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         activity.call(::unavailable) { log.findByRequestId(type, tenantId, requestId) }
 

@@ -19,7 +19,6 @@ import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
@@ -446,11 +445,8 @@ class KernelTest {
                 return log.append(stream, transport)
             }
 
-            override suspend fun findByRequestId(
-                type: AggregateType,
-                tenantId: String,
-                requestId: String,
-            ): EventStreamRecord? = if (raced) throw IllegalStateException("down") else null
+            override suspend fun findByRequestId(ref: AggregateRef, requestId: String): EventStreamRecord? =
+                if (raced) throw IllegalStateException("down") else null
         }
         val outcome = Kernel(racing).execute(cartModel, command(AddItem("apple", 1))) as CommandOutcome.Committed
         outcome.stream.version.assert().isEqualTo(3)

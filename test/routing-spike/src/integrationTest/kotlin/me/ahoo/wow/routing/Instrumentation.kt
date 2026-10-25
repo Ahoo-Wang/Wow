@@ -76,6 +76,11 @@ class CountingEventLog(private val delegate: EventLog, private val counters: Cou
         return delegate.read(ref, fromVersion, toVersion)
     }
 
+    override suspend fun findByRequestId(ref: AggregateRef, requestId: String): EventStreamRecord? {
+        counters.dedupReads.increment()
+        return delegate.findByRequestId(ref, requestId)
+    }
+
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? {
         counters.dedupReads.increment()
         return delegate.findByRequestId(type, tenantId, requestId)
