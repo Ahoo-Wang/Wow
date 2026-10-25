@@ -311,7 +311,7 @@ The partition append queue; each setting not given is the default (AppendQueueOp
 | --- | --- | --- | --- |
 | `wow.log.append-queue.enabled` | `Boolean` |  |  |
 | `wow.log.append-queue.max-batch` | `Integer` |  |  |
-| `wow.log.append-queue.merge` | `Boolean` |  | Whether the partitions' groups go to a log that takes several partitions a call merged: on by default, for MongoDB; a log that does not take them is called per partition. |
+| `wow.log.append-queue.merge` | `Boolean` |  | Whether the partitions' groups go to a log that takes several partitions a call merged: on by default, for MongoDB and PostgreSQL; a log that does not take them is called per partition. |
 | `wow.log.append-queue.merge-max` | `Integer` |  | The most streams one merged call takes. |
 | `wow.log.append-queue.mergers` | `Integer` |  | The committers of the merged groups, each with one call in flight. |
 
