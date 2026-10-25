@@ -1,0 +1,36 @@
+[bench] starting kafka and mongo
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Creating 
+ Network wow-e2e-bench_default Created 
+ Network wow-e2e-bench_default Created 
+ Container wow-e2e-bench-mongo Creating 
+ Container wow-e2e-bench-kafka Creating 
+ Container wow-e2e-bench-kafka Created 
+ Container wow-e2e-bench-mongo Created 
+ Container wow-e2e-bench-kafka Starting 
+ Container wow-e2e-bench-mongo Starting 
+ Container wow-e2e-bench-kafka Started 
+ Container wow-e2e-bench-mongo Started 
+ Container wow-e2e-bench-mongo Waiting 
+ Container wow-e2e-bench-kafka Waiting 
+ Container wow-e2e-bench-mongo Healthy 
+ Container wow-e2e-bench-kafka Healthy 
+[bench] starting node 1 on mongo
+[bench] nodes up; settling 2s
+[bench] seeding 100000 accounts
+[seed] 100000 accounts in 31.0s, 0 retried, 0 failed
+[bench] checking every scenario once
+[check] E1: ok (37.8 ms)
+[check] E2: ok (29.6 ms)
+[check] E3: ok (16.9 ms)
+[check] E1-large: ok (8.1 ms)
+[check] E4-state: ok (3.1 ms)
+[check] E4-list: ok (70.2 ms)
+[bench] priming 100000 accounts
+[prime] 100000 accounts in 13.0s, 0 failed
+[settle] 1s: node-1 0.73
+[settle] 2s: node-1 0.11
+[settle] 3s: node-1 0.17
+[settle] 4s: node-1 0.06
+[settle] quiet after 4s (below 0.25 cores for 3 s in a row)
+[bench] session up: backend=mongo;nodes=1;accounts=100000;heap=1g;install=/private/tmp/claude-501/-Users-worker-work-Wow--claude-worktrees-performance-optimization-327071/1e81896d-3639-40f5-8c4f-ed1ecfc9cafd/scratchpad/SM-d277; measure with --reuse, stop with bench.sh down
