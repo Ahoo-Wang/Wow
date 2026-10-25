@@ -23,6 +23,8 @@
 #                      [--concurrency=64] [options]   (L1: the V10 domain on the kernel and one store, in one JVM)
 #   bench.sh up       [--backend=...] [--nodes=...] [--accounts=...] [--prime] [--jfr] [options]
 #   bench.sh down
+#   bench.sh compare <root>   (an ABAB's tables: sessions <root>/<round>-<arm>-<backend>/<phase>, by arm and round,
+#                              each arm's ratio to the first; .github/scripts/bench-compare.mjs)
 #
 # A session: `up` starts the stores, the servers, seeds and primes as a run would, and leaves them up; a `run` or
 # `saturate` with --reuse then measures on them (after waiting until the nodes are quiet), and leaves them up too;
@@ -37,7 +39,9 @@
 #          servers and the containers on the others), --prime (an untimed pass over every account before the run,
 #          then a wait until the nodes are quiet again),
 #          --jfr-settings=<.jfc> (with --jfr; on PostgreSQL --jfr also dumps pg_stat_statements and checkpoints),
-#          and any other --name=value of the load generator's run or saturate, passed through.
+#          and any other --name=value of the load generator's run or saturate, passed through (`saturate --growth=4`
+#          steps the concurrency 1, 4, 16, 64, 256, 1024: six steps for a sweep to 1,024 instead of eleven).
+
 set -euo pipefail
 
 HARNESS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -54,7 +58,7 @@ SESSION="$REPO/test/benchmarks/results/e2e/.session"
 UP=false
 
 usage() {
-  sed -n '14,40p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,44p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -408,5 +412,7 @@ case "$command" in
   component) component "$@" ;;
   up) up "$@" ;;
   down) down ;;
+  # The tables of an ABAB: a directory of sessions named <round>-<arm>-<backend>, a phase directory in each.
+  compare) node "$REPO/.github/scripts/bench-compare.mjs" "$@" ;;
   *) usage ;;
 esac
