@@ -1,6 +1,6 @@
 ---
 title: MongoDB
-description: 在 MongoDB 上运行服务，它需要副本集；故障切换、生产部署与分片集群，Wow 创建的集合、查询的读偏好，以及 schema 管理。
+description: 在 MongoDB 上运行服务，它需要副本集；Wow 创建的集合、追加和读关注、查询的读偏好，以及 schema 管理。
 outline: deep
 ---
 
@@ -50,44 +50,6 @@ class MongoBackend {
 
 `wow.mongo.append-timeout`（默认 5 秒）限制一次追加的插入时长，它低于默认的等待超时，所以在故障期间追加的命令会在它的等待结束之前得到回答。
 
-## 故障切换 {#failover}
-
-主节点让位或失效时，副本集在几秒内选出新的主节点（测试集群上让位约 2 秒；成员不再应答时，最长为 `electionTimeoutMillis`，默认 10 秒）。它对进行中的追加的影响：
-
-- 已确认提交的追加永远不会丢失：多数派已经有它，新的主节点也有它。
-- 确认被故障切换打断的追加，结局未知：它可能已经落地，也可能随旧主节点一起回滚。节点一旦能写，就在它的序号上写占位；如果流已经落地，占位撞上它，流保留。命令以结局未知回答，用同一请求 ID 重试时会找到这条流，或者只提交一次。
-- 服务端在写入之前就拒绝的追加，以可重试的 `wow.storage.unavailable` 回答；它什么也没写。
-- 驱动在故障切换后会重试一次写入（可重试写，默认开启）；选举那几秒里的大多数追加会等到它并提交。
-- 租约和检查点不受影响：持有者在新的主节点上续约，租约有效期内没有别的节点能拿走。
-
-后端的集成测试每晚在三节点副本集上运行：八个写入者追加时让主节点让位，以及把它杀掉再重启，然后把分区的尾随读到底（`test/mongo-cluster/cluster.sh test rs`）。
-
-## 生产部署 {#in-production}
-
-- **三个数据成员，不用仲裁节点。** 多数派写入和读取需要三个成员中的两个在线；仲裁节点参与选举但不存数据，一个数据成员宕机时多数派就无法提交，尾随读停滞。把成员放在三个故障域（可用区或机架）。
-- **延迟。** 每次追加都等多数派确认，即一次复制往返；成员之间的延迟保持在几毫秒内。用于灾备的远端成员设为 `priority: 0`、`votes: 0`，它既不会成为主节点，也不拖慢多数派。
-- **磁盘与缓存。** 日志以追加为主；给成员不会因 `fsync` 停顿的本地 SSD，并让 WiredTiger 缓存（默认为内存的一半减 1 GB）装得下快照集合的工作集和日志的近期条目。
-- **oplog。** 按从节点可能离开的最长维护时间（几小时到一天）设定大小：落后出 oplog 的从节点需要全量重新同步。
-- **每个服务一个数据库。** 它保存该服务的日志和存储；多个服务可以共用一个副本集或集群。
-
-## 分片集群 {#sharded-clusters}
-
-在分片集群上，服务连接 mongos 路由（`mongodb://mongos-1,mongos-2/`），存储在创建大集合时就给它们分片（决策 D277）：
-
-| 集合 | 分片键 | 原因 |
-| --- | --- | --- |
-| `wow_log__<context>__<aggregate>` | `{partition: 1}` | 一个分区的条目是一段连续范围；版本键与请求键都以分区开头，因此仍然唯一，按聚合的读取和尾随都只访问一个分片 |
-| `wow_snapshot__<context>__<aggregate>` | `{tenant_id: 1, aggregate_id: "hashed"}` | 快照的 `_id` 就是它的键；新聚合分散到各分片，加载只访问一个，单租户的查询只访问该租户的数据块 |
-
-- 新的日志集合在为空时按每个分区切块，并把各块轮流分到各分片；新的快照集合从一个数据块开始，由均衡器按数据量分散。
-- 计数器、注册表、检查点、租约、台账、预留和定时器都很小，不分片，留在数据库的主分片上。
-- 连接所用的用户需要分片权限：`clusterManager` 角色，或该数据库上的 `enableSharding` 以及 `splitChunk`、`moveChunk`。
-- `wow.mongo.sharding: off`（或某个存储的 `options.sharding: off`）不给集合分片，留给自行分片的运维；`wow.ddl: validate` 和 `none` 也不分片。
-- **分区是迁移的最小单位。** 它的数据块不能再切分，分区增长到超过块大小后，均衡器不再移动它。增加分片时，用 `moveChunk`（带 `forceJumbo`）迁移分区，或打开均衡器的 `attemptToBalanceJumboChunks`。默认 64 个分区时，S 个分片各得约 64 / S 个；热点分区就是热点分片。
-- 要让各服务使用各自的分片，在服务启动之前设定每个数据库的主分片（`enableSharding` 带 `primaryShard`）。
-
-后端的集成测试和 TCK 每晚也在两分片、每分片三成员的分片集群上运行（`test/mongo-cluster/cluster.sh test sharded`）。
-
 ## 集合 {#the-collections}
 
 存储在第一次使用时创建它们的集合和索引，命名方式与 PostgreSQL 相同：
@@ -97,7 +59,7 @@ class MongoBackend {
 | `wow_log__<context>__<aggregate>` | 一个聚合类型的日志，每条已提交的流一个文档，以及没有流占用的序号的占位 |
 | `wow_log__<context>__partition` | 上下文日志的每个分区一个计数器文档：已分出的序号，以及尚未封口的段 |
 | `wow_log_aggregate` | 每个上下文的日志有哪些聚合集合 |
-| `wow_snapshot__<context>__<aggregate>` | 每个聚合一个文档：它最新的快照，`_id` 为 `{t: 租户, a: 聚合 ID}` |
+| `wow_snapshot__<context>__<aggregate>` | 每个聚合一个文档：它最新的快照 |
 | `wow_snapshot_table` | 每个快照集合保存的状态修订号 |
 | `wow_timer__<context>` | 上下文的定时命令 |
 | `wow_checkpoint`、`wow_lease`、`wow_lease_member` | 每个订阅进行到哪里，以及哪个节点拥有哪个分区 |
