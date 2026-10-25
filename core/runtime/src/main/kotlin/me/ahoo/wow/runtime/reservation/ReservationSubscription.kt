@@ -20,6 +20,7 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -48,7 +49,12 @@ import me.ahoo.wow.spi.reservation.ReservationStore
  *   never confirmed; it expires in the store, and the next reservation of the key takes it over.
  */
 @InternalWowApi
-class ReservationSubscription(context: String, private val store: ReservationStore) {
+class ReservationSubscription(
+    private val context: String,
+    private val store: ReservationStore,
+    /** Told of each key a committed fact lost ([Observer.reservationLost]). */
+    private val observer: Observer = Observer.NONE,
+) {
     /** The subscription to register: named [Hop.RESERVATION_SUBSCRIPTION], of every aggregate type of the context. */
     val subscription: Subscription = Subscription.builtIn(
         Hop.RESERVATION_SUBSCRIPTION,
@@ -68,6 +74,7 @@ class ReservationSubscription(context: String, private val store: ReservationSto
                     "${entry.ref}@${entry.version} reserved ${key.key} in $scope, which ${outcome.by.owner} took " +
                         "after its pending reservation expired: the committed fact lost its key."
                 }
+                observer.reservationLost(context)
             }
         }
         for (key in transport.releases) {

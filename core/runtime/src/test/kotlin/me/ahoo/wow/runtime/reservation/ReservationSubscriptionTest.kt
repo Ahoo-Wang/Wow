@@ -32,6 +32,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.spi.ledger.FailureLedger
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -131,7 +132,13 @@ class ReservationSubscriptionTest {
     private val store = RecordingStore(reservations)
     private val log = InMemoryEventLog(partitions = 2)
     private val kernel = Kernel(log, reservations = CrashBeforeConfirm(reservations), reservationTtl = TTL)
-    private val confirming = ReservationSubscription("shop", store)
+    private val lost = CopyOnWriteArrayList<String>()
+    private val observer = object : Observer {
+        override fun reservationLost(context: String) {
+            lost += context
+        }
+    }
+    private val confirming = ReservationSubscription("shop", store, observer)
     private val ledger = InMemoryFailureLedger()
     private val sequence = AtomicInteger()
     private val runtimes = CopyOnWriteArrayList<SubscriptionRuntime>()
@@ -231,8 +238,9 @@ class ReservationSubscriptionTest {
         reservations.reserve(SCOPE, "ahoo", user("someone-else"), "hold", TTL).assert().isNotNull()
 
         runtime().start(setOf(0, 1))
-        eventually { store.confirms.isNotEmpty() }
+        eventually { lost.isNotEmpty() }
         find("ahoo")!!.owner.assert().isEqualTo(user("someone-else"))
+        lost.toList().assert().isEqualTo(listOf("shop"))
         ledger.isParked(Hop.RESERVATION_SUBSCRIPTION, user("u-1")).assert().isFalse()
     }
 

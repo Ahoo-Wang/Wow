@@ -332,8 +332,8 @@ class Kernel(
             members.streams.any { it.stream.requestId == command.requestId }
         if (repeated || admissible(decider, command, current) != null) return null
         val encode = { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
-        val attempt =
-            AttemptScope(command, ids, current, reservations, reservationTtl, entry.wait.beyondCommitted(), encode)
+        val wait = entry.wait.beyondCommitted()
+        val attempt = AttemptScope(command, ids, current, reservations, reservationTtl, wait, observer, encode)
         val prepared = try {
             prepare(model, decider, attempt, current, command, commandType.name)
         } catch (cancelled: CancellationException) {
@@ -450,7 +450,8 @@ class Kernel(
             // Checked after every load (C5): a reload may hold the request another node committed meanwhile.
             requests.beforeDeciding(loaded)?.let { return it }
             admissible(decider, command, loaded)?.let { return requests.standing(loaded, cached, it) ?: continue }
-            val attempt = AttemptScope(command, ids, loaded, reservations, reservationTtl, waitBeyondCommitted, encode)
+            val attempt =
+                AttemptScope(command, ids, loaded, reservations, reservationTtl, waitBeyondCommitted, observer, encode)
             val prepared = try {
                 prepare(model, decider, attempt, loaded, command, commandType.name)
             } catch (
@@ -1158,6 +1159,7 @@ class Kernel(
         private val reservations: ReservationStore?,
         private val reservationTtl: Duration,
         private val wait: WaitContext?,
+        private val observer: Observer,
         /** The type name and JSON of a command scheduled for a target. */
         private val encode: (AggregateRef, Any) -> Pair<String, String>,
     ) : DecideScope, KernelLifecycle.MetadataScope {
@@ -1262,6 +1264,7 @@ class Kernel(
                 logger.error {
                     "${command.ref} committed with $key in $scope, which ${outcome.by.owner} holds: the key is lost."
                 }
+                observer.reservationLost(command.ref.type.context)
             }
         }
 

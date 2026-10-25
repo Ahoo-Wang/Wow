@@ -143,6 +143,12 @@ object WowMetrics {
      */
     const val STATE_CACHE: String = "wow.state-cache"
 
+    /**
+     * Counter: the keys committed facts lost to another owner after their pending reservations expired (decision
+     * D50); tag context. Each breaks the uniqueness its fact reserved for: alert on it.
+     */
+    const val RESERVATION_LOST: String = "wow.reservation.lost"
+
     /** Gauge: the commands in a context's executor, waiting in their lanes or in the kernel; tag context. */
     const val EXECUTOR_IN_FLIGHT: String = "wow.executor.in-flight"
 

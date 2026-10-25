@@ -82,6 +82,13 @@ interface Observer {
      */
     fun stateCache(context: String, outcome: String) = Unit
 
+    /**
+     * A committed fact of [context] that lost a key it reserved (decision D50): another owner took the key after the
+     * fact's pending reservation expired, so confirming it could not get it back. Logged as an error too; a counter to
+     * alert on, since the fact now breaks the uniqueness it reserved for.
+     */
+    fun reservationLost(context: String) = Unit
+
     /** One decision of [command]: its decide function and its after hooks. */
     fun deciding(command: Command<*>): Observation = Observation.NONE
 
