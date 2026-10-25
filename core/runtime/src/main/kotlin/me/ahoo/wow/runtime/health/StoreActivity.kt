@@ -180,6 +180,8 @@ private class TrackedEventLog(
 ) : EventLog {
     override val partitions: Int get() = log.partitions
 
+    override val appendsAcrossPartitions: Boolean get() = log.appendsAcrossPartitions
+
     override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
         timed { activity.call(::unavailable) { log.append(stream, transport) } }.also(::record)
 

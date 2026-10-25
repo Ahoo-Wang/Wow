@@ -490,9 +490,15 @@ public final class me/ahoo/wow/runtime/ledger/LedgerPublishing$Companion {
 
 public final class me/ahoo/wow/runtime/log/AppendQueueOptions {
 	public static final field Companion Lme/ahoo/wow/runtime/log/AppendQueueOptions$Companion;
+	public static final field DEFAULT_MAX_BATCH I
+	public static final field DEFAULT_MERGERS I
+	public static final field DEFAULT_MERGE_MAX I
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getEnabled ()Z
 	public final fun getMaxBatch ()I
+	public final fun getMerge ()Z
+	public final fun getMergeMax ()I
+	public final fun getMergers ()I
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

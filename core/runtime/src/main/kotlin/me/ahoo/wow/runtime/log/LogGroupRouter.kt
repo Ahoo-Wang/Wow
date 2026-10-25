@@ -50,6 +50,10 @@ internal class LogGroupRouter(
 
     override val partitions: Int get() = default.partitions
 
+    /** Each group's share of a call goes to that group's log: across partitions when every group's log takes them. */
+    override val appendsAcrossPartitions: Boolean
+        get() = default.appendsAcrossPartitions && groups.values.all { it.appendsAcrossPartitions }
+
     /** The log of [type]'s group. */
     fun logOf(type: AggregateType): EventLog = groups[type] ?: default
 

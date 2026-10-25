@@ -740,6 +740,51 @@ abstract class EventLogSpec {
             .assert().isGreaterThan((outcomes.last() as AppendOutcome.Committed).position.sequence)
     }
 
+    /** One aggregate id in each of [partitions] partitions, in partition order, the [nth] one found in each. */
+    private fun idsByPartition(partitions: Int, nth: Int = 0): List<String> = (0 until partitions).map { partition ->
+        generateSequence(1) { it + 1 }.map { "p-$it" }
+            .filter { Partitioner.partitionOf(type.ref("tenant", it), partitions) == partition }
+            .drop(nth)
+            .first()
+    }
+
+    @Suppress("DestructuringDeclarationWithTooManyEntries")
+    @Test
+    fun `appendAll across partitions sequences each partition on its own, and one's conflict stops none of the others`():
+        Unit = runBlocking {
+        // Decision D275: a log that takes several partitions a call is handed several partitions' groups at once.
+        val log = createLog(partitions = 4)
+        Assumptions.assumeTrue(log.appendsAcrossPartitions, "This log takes one partition a call.")
+        val (zero, one, two, three) = idsByPartition(4)
+        val repeated = idsByPartition(4, nth = 1)[1]
+        log.append(stream(one, 1))
+        log.append(stream(idsByPartition(4, nth = 2)[1], 1, requestId = "taken"))
+        val outcomes = log.appendAll(
+            listOf(
+                stream(zero, 1) to null,
+                stream(one, 1) to null,
+                stream(two, 1) to null,
+                stream(zero, 2) to null,
+                stream(repeated, 1, requestId = "taken") to null,
+                stream(three, 1) to null,
+                stream(two, 2) to null,
+            ),
+        )
+        // A conflict and a duplicate in partition 1: the other partitions' streams commit all the same.
+        outcomes[1].assert().isEqualTo(AppendOutcome.Conflict(1))
+        outcomes[4].assert().isInstanceOf(AppendOutcome.AlreadyCommitted::class.java)
+        listOf(0, 2, 3, 5, 6).forEach { outcomes[it].assert().isInstanceOf(AppendOutcome.Committed::class.java) }
+        val positions = outcomes.filterIsInstance<AppendOutcome.Committed>().map { it.position }
+        positions.groupBy { it.partition }.keys.assert().containsExactlyInAnyOrder(0, 2, 3)
+        // Each partition's streams take its sequences in the order they came, after what it held.
+        (outcomes[3] as AppendOutcome.Committed).position.sequence
+            .assert().isGreaterThan((outcomes[0] as AppendOutcome.Committed).position.sequence)
+        (outcomes[6] as AppendOutcome.Committed).position.sequence
+            .assert().isGreaterThan((outcomes[2] as AppendOutcome.Committed).position.sequence)
+        log.read(type.ref("tenant", zero)).toList().map { it.version }.assert().containsExactly(1, 2)
+        log.read(type.ref("tenant", two)).toList().map { it.version }.assert().containsExactly(1, 2)
+    }
+
     @Test
     fun `appendAll appends none of an aggregate's streams after its first conflicts`(): Unit = runBlocking {
         val log = createLog(partitions = 4)

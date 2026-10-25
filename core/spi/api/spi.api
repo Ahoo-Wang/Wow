@@ -356,6 +356,7 @@ public abstract interface class me/ahoo/wow/spi/log/EventLog {
 	public fun appendAll (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun findByRequestId (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun findByRequestId (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun getAppendsAcrossPartitions ()Z
 	public abstract fun getPartitions ()I
 	public abstract fun head (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun lineage (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
