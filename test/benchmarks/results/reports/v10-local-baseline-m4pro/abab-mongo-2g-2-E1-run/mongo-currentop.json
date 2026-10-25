@@ -1,0 +1,98 @@
+[
+  {
+    op: 'insert',
+    ns: 'transfer.wow_log__transfer__account',
+    secs: Long('0'),
+    cmd: 'insert'
+  },
+  {
+    op: 'insert',
+    ns: 'transfer.wow_log__transfer__account',
+    secs: Long('0'),
+    cmd: 'insert'
+  },
+  {
+    op: 'none',
+    ns: '',
+    secs: undefined,
+    cmd: undefined
+  },
+  {
+    op: 'insert',
+    ns: 'transfer.wow_log__transfer__account',
+    secs: Long('0'),
+    cmd: 'insert'
+  },
+  {
+    op: 'insert',
+    ns: 'transfer.wow_log__transfer__account',
+    secs: Long('0'),
+    cmd: 'insert'
+  },
+  {
+    op: 'command',
+    ns: 'admin.$cmd',
+    secs: Long('8'),
+    cmd: 'hello'
+  },
+  {
+    op: 'insert',
+    ns: 'transfer.wow_log__transfer__account',
+    secs: Long('0'),
+    cmd: 'insert'
+  },
+  {
+    op: 'insert',
+    ns: 'transfer.wow_log__transfer__account',
+    secs: Long('0'),
+    cmd: 'insert'
+  },
+  {
+    op: 'command',
+    ns: 'admin.$cmd',
+    secs: Long('6'),
+    cmd: 'hello'
+  },
+  {
+    op: 'none',
+    ns: '',
+    secs: undefined,
+    cmd: undefined
+  },
+  {
+    op: 'none',
+    ns: '',
+    secs: undefined,
+    cmd: undefined
+  },
+  {
+    op: 'none',
+    ns: '',
+    secs: undefined,
+    cmd: undefined
+  },
+  {
+    op: 'insert',
+    ns: 'transfer.wow_log__transfer__account',
+    secs: Long('0'),
+    cmd: 'insert'
+  },
+  {
+    op: 'insert',
+    ns: 'transfer.wow_log__transfer__account',
+    secs: Long('0'),
+    cmd: 'insert'
+  },
+  {
+    op: 'command',
+    ns: 'admin.$cmd.aggregate',
+    secs: Long('0'),
+    cmd: 'aggregate'
+  },
+  {
+    op: 'insert',
+    ns: 'transfer.wow_log__transfer__account',
+    secs: Long('0'),
+    cmd: 'insert'
+  }
+]
