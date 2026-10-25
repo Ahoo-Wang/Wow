@@ -82,8 +82,18 @@ The first session of each backend ran the four sweeps (E1 uniform, Zipf, hot, E3
 
 - The node was quiet before each run (below 0.25 cores for 3 s), so no snapshot or subscription backlog remained.
 - About a third of the commands loaded their aggregate (MongoDB's queries per command), and PostgreSQL read its pages from disk; both stayed so over the 30 s warm-up and the 60 s measured, so the cache did not refill under the load.
-- The cause is not established yet. The sweeps committed 1.0–1.7 million E1 commands each (about 17 per account in the uniform one, too few to grow an account's recent-request rings past 32 slots) and about 350,000 transfers, each with its saga, in E3. Roadmap §6 item 20 follows it up: reproduce E3's sweep then a fixed E1 locally, and count what the state cache holds.
-- A node in production runs for days, not one fresh session: this is closer to its steady state than a fresh session is.
+- The cause, reproduced on the local M4 the next day ([`item20/`](v10-m4pro-snapshot/item20/), `repro.sh`, one MongoDB session in memory, a heap histogram after each step): **the accounts' recent-request rings** (decision D261), which grow with the requests an aggregate commits and count against the cache's bytes. An E3 sweep left every account cached; the E1 sweeps did not:
+
+| After | Cached accounts | Ring arrays, total | Fixed E1: queries per op | p50 |
+| --- | --- | --- | --- | --- |
+| Priming | 100,000 | 14 MB (about 140 B an account) | 0.003 | 0.9 ms |
+| An E3 sweep | 100,000 | 40 MB | 0.003 | 1.6 ms |
+| The E1 uniform, Zipf and hot sweeps | 85,318 | 67 MB | — | — |
+| A fixed E1 after them | 81,055 | 69 MB (about 850 B an account) | 0.197 | 84.5 ms |
+
+- The sweeps commit tens of commands per account (the uniform one about 17, the Zipf and hot ones and E3's legs more), and each account's rings double from 8 slots towards the 256 the cache keeps (12 bytes a request): about 64 on average after these, more on the busy accounts. An account then weighs about 1.4 KB in the cache, and the 1 GB heap's tenth no longer holds 100,000 of them. The fixed rate's loads then go on growing the rings of the accounts they load, and the cache keeps shrinking (85,318 to 81,055 over one fixed run). An earlier version of this report put the rings at no more than 32 slots, counting only the uniform sweep; that was wrong.
+- Roadmap §6 item 20 takes the fix: what bounds a ring (a smaller count, an age, or neither of them weighed against the states).
+- A node in production runs for days, not one fresh session: its aggregates' rings are full, which is closer to this than to a fresh session.
 
 ## Reading the runs
 
