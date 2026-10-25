@@ -273,6 +273,45 @@ class MongoEventLogTest : EventLogSpec() {
     }
 
     @Test
+    fun `an entry's _id is its position, a placeholder's too, and the position has no index of its own`(): Unit =
+        runBlocking {
+            // Roadmap §6 item 17: `partition << 51 | sequence`, so a partition's entries are one range of _id.
+            val context = MongoLogFixture.newContext()
+            val log = MongoLogFixture.log(4, context)
+            val order = AggregateType(context, "order")
+            val committed = log.append(stream("a", 1, requestId = "taken", aggregate = order)) as AppendOutcome.Committed
+            // A duplicate request fails at the insert: a placeholder takes its sequence.
+            log.append(stream("b", 1, requestId = "taken", aggregate = order))
+                .assert().isInstanceOf(AppendOutcome.AlreadyCommitted::class.java)
+            val documents = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
+                .getCollection(collection(context, "order"))
+            documents.find().toList().forEach { document ->
+                document.getLong("_id").assert()
+                    .isEqualTo(MongoEventLog.positionId(document.getInteger("partition"), document.getLong("sequence")))
+            }
+            documents.find(Filters.eq("_id", MongoEventLog.positionId(committed.position.partition, committed.position.sequence)))
+                .first()!!.getString("request_id").assert().isEqualTo("taken")
+            documents.find(Filters.exists(MongoEventLog.GAP)).toList().assert().isNotEmpty()
+            documents.listIndexes().map { it.getString("name") }.toList()
+                .assert().containsExactlyInAnyOrder("_id_", MongoEventLog.VERSION_KEY, MongoEventLog.REQUEST_KEY)
+        }
+
+    @Test
+    fun `a log an alpha wrote, its entries under ObjectIds, is refused rather than read without them`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            val order = AggregateType(context, "order")
+            MongoLogFixture.log(4, context).append(stream("a", 1, aggregate = order))
+            // What an alpha left: an entry whose _id the driver gave it.
+            MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection(context, "order"))
+                .insertOne(Document("partition", 0).append("sequence", 1L).append("version", 1))
+            val restarted = MongoLogFixture.log(4, context)
+            assertThrownBy<IllegalStateException> {
+                runBlocking { restarted.append(stream("b", 1, aggregate = order)) }
+            }.hasMessageContaining("earlier 10.0 alpha")
+        }
+
+    @Test
     fun `a different partition count is refused`() {
         val context = MongoLogFixture.newContext()
         MongoLogFixture.log(4, context)

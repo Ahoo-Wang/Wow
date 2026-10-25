@@ -76,6 +76,7 @@ import org.bson.BsonDocument
 import org.bson.BsonInt32
 import org.bson.BsonMaximumSizeExceededException
 import org.bson.BsonString
+import org.bson.BsonType
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.util.UUID
@@ -275,10 +276,15 @@ class MongoEventLog(
         }
         MongoFormat.claim(database, collection.name, FORMAT, ddl)
         val log = collection.log
+        // An entry's position is its `_id` (roadmap §6 item 17): a log an alpha wrote has the driver's ObjectIds, and
+        // its tail would read nothing of them.
+        check(log.find(Filters.type(ID, BsonType.OBJECT_ID)).projection(Projections.include(ID)).first() == null) {
+            "${collection.name} was written by an earlier 10.0 alpha, whose entries have no position as their _id: " +
+                "rebuild the log, an alpha's data is not migrated."
+        }
         // Placeholders have no version and no request: the two keys cover the streams alone.
         MongoFormat.index(log, Indexes.ascending(AGGREGATE_ID, TENANT_ID, VERSION), streams(VERSION_KEY, VERSION), ddl)
         MongoFormat.index(log, Indexes.ascending(TENANT_ID, REQUEST_ID), streams(REQUEST_KEY, REQUEST_ID), ddl)
-        MongoFormat.index(log, Indexes.ascending(PARTITION, SEQUENCE), unique(POSITION_KEY), ddl)
         if (ddl != StoreDdl.AUTO) {
             // The registry is the schema's: a validated or foreign schema registered its collections already.
             return collection
@@ -404,6 +410,7 @@ class MongoEventLog(
             val allocation = sequencer.allocate(partition, collection.name, after) { known().map { it.name } }
             allocation.closing?.let(::close)
             document[SEQUENCE] = allocation.sequence
+            document[ID] = positionId(partition, allocation.sequence)
             previous[stream.ref] = allocation.sequence
             members += Member(index, stream, collection, document, allocation.sequence)
         }
@@ -478,7 +485,7 @@ class MongoEventLog(
             lastSequences[stream.ref] = LastSequence(stream.version, member.sequence)
             return AppendOutcome.Committed(LogPosition(partition, member.sequence))
         }
-        if (error.category == ErrorCategory.DUPLICATE_KEY && error.message.contains(POSITION_KEY)) {
+        if (error.category == ErrorCategory.DUPLICATE_KEY && isPositionTaken(error.message)) {
             sequencer.abandon(partition, member.sequence)
             sequencer.settle(partition, member.sequence)
             return null
@@ -503,9 +510,8 @@ class MongoEventLog(
 
     /** Whether [member]'s stream is at its position: the document there has its request. */
     private fun landed(collection: AggregateCollection, member: Member): Boolean =
-        collection.committed.find(
-            Filters.and(Filters.eq(PARTITION, member.stream.ref.partitionIn()), Filters.eq(SEQUENCE, member.sequence)),
-        ).projection(Projections.include(REQUEST_ID)).firstOrNull()?.getString(REQUEST_ID) == member.stream.requestId
+        collection.committed.find(Filters.eq(ID, positionId(member.stream.ref.partitionIn(), member.sequence)))
+            .projection(Projections.include(REQUEST_ID)).firstOrNull()?.getString(REQUEST_ID) == member.stream.requestId
 
     /** [member]'s outcome when its group's write is unknown: a placeholder takes its sequence unless it landed. */
     private fun unknown(member: Member, failure: MongoException): AppendOutcome {
@@ -515,6 +521,9 @@ class MongoEventLog(
     }
 
     private fun AggregateRef.partitionIn(): Int = Partitioner.partitionOf(this, partitions)
+
+    /** Whether a duplicate key [message] is the position's: another writer's entry, or a placeholder, took it. */
+    private fun isPositionTaken(message: String): Boolean = message.contains(POSITION_INDEX)
 
     /**
      * The sequence [stream] must follow in its partition, its aggregate's previous stream's, or null when that is not
@@ -548,8 +557,8 @@ class MongoEventLog(
     ): AppendOutcome? {
         val partition = allocation.partition
         val sequence = allocation.sequence
-        document.remove(ID)
         document[SEQUENCE] = sequence
+        document[ID] = positionId(partition, sequence)
         val outcome = try {
             collection.appends.insertOne(document)
             sequencer.settle(partition, sequence)
@@ -559,7 +568,7 @@ class MongoEventLog(
             // The driver refused the document before sending it (finding R2.2-2).
             AppendOutcome.Rejected(tooLarge)
         } catch (failure: MongoException) {
-            if (failure.isDuplicateKey() && failure.message.orEmpty().contains(POSITION_KEY)) {
+            if (failure.isDuplicateKey() && isPositionTaken(failure.message.orEmpty())) {
                 sequencer.abandon(partition, sequence)
                 sequencer.settle(partition, sequence)
                 return null
@@ -628,7 +637,8 @@ class MongoEventLog(
     }
 
     private fun placeholder(partition: Int, sequence: Long, reason: String): Document =
-        Document(PARTITION, partition).append(SEQUENCE, sequence).append(GAP, reason).append(GAP_NODE, sequencer.node)
+        Document(ID, positionId(partition, sequence)).append(PARTITION, partition).append(SEQUENCE, sequence)
+            .append(GAP, reason).append(GAP_NODE, sequencer.node)
 
     /**
      * [stream]'s document in [partition], its sequence still to be set: encoded before it is written, so a stream
@@ -855,8 +865,10 @@ class MongoEventLog(
             Aggregates.unionWith(
                 collection.name,
                 listOf(
-                    Aggregates.match(Filters.and(Filters.eq(PARTITION, partition), Filters.gt(SEQUENCE, last))),
-                    Aggregates.sort(Sorts.ascending(SEQUENCE)),
+                    Aggregates.match(
+                        Filters.and(Filters.gt(ID, positionId(partition, last)), Filters.lt(ID, positionId(partition + 1, 0))),
+                    ),
+                    Aggregates.sort(Sorts.ascending(ID)),
                     Aggregates.limit(tailBatch),
                     Aggregates.addFields(Field(BRANCH, index)),
                 ),
@@ -951,8 +963,14 @@ class MongoEventLog(
             val known = known()
             if (known.isEmpty()) return@mongo null
             val highest = listOf(
-                Aggregates.match(Filters.and(Filters.eq(PARTITION, partition), Filters.exists(VERSION))),
-                Aggregates.sort(Sorts.descending(SEQUENCE)),
+                Aggregates.match(
+                    Filters.and(
+                        Filters.gte(ID, positionId(partition, 0)),
+                        Filters.lt(ID, positionId(partition + 1, 0)),
+                        Filters.exists(VERSION),
+                    ),
+                ),
+                Aggregates.sort(Sorts.descending(ID)),
                 Aggregates.limit(1),
                 Aggregates.project(Projections.include(SEQUENCE)),
             )
@@ -1255,7 +1273,18 @@ class MongoEventLog(
         const val PAYLOAD = "payload"
         const val VERSION_KEY = "version_key"
         const val REQUEST_KEY = "request_key"
-        const val POSITION_KEY = "position_key"
+
+        /** The index of `_id`, an entry's position: the one a duplicate position names. */
+        private const val POSITION_INDEX = "index: _id_ "
+
+        /** The bits of a position's sequence in its `_id`, below its partition's (12 bits, at most 4,096 partitions). */
+        const val SEQUENCE_BITS: Int = 51
+
+        /**
+         * An entry's `_id` (roadmap §6 item 17): its position, `partition << 51 | sequence`, one long, so that the
+         * position needs no index of its own and a partition's entries are one range of `_id`, in sequence order.
+         */
+        fun positionId(partition: Int, sequence: Long): Long = (partition.toLong() shl SEQUENCE_BITS) or sequence
 
         /** The version of this layout (decision D59). */
         const val FORMAT = 1
