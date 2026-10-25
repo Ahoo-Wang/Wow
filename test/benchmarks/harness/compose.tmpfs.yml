@@ -1,0 +1,11 @@
+# bench.sh --tmpfs: the stores' data in memory, over compose.yml. The Docker Desktop disk image's fsyncs stall for up to
+# seconds (the local baselines' WAL flushes and checkpoints took 0.7–5 s at their longest), which a run's tails then
+# measure instead of Wow; in memory, two arms compare by their own costs. The absolute numbers leave out a real disk's
+# flushes, so a baseline keeps the disk.
+services:
+  mongo:
+    tmpfs:
+      - /data/db
+  postgres:
+    tmpfs:
+      - /var/lib/postgresql/data

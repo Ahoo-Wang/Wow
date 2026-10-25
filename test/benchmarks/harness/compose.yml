@@ -7,7 +7,9 @@ services:
   mongo:
     image: mongo:7.0
     container_name: wow-e2e-bench-mongo
-    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--wiredTigerCacheSizeGB", "1"]
+    # WiredTiger's cache: 2 GB unless bench.sh --mongo-cache-gb says. At 1 GB it ran 88-94% full with heavy eviction
+    # under 100,000 accounts' traffic; a deployment sizes it to hold its indexes and hot documents.
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--wiredTigerCacheSizeGB", "${WOW_BENCH_MONGO_CACHE_GB:-2}"]
     ports:
       - "27017:27017"
     healthcheck:
@@ -30,7 +32,10 @@ services:
       POSTGRES_DB: transfer
     # bench.sh sets WOW_BENCH_PG_PRELOAD=pg_stat_statements for a profiled run only. track_wal_io_timing gives
     # pg_stat_wal its write and flush times, which the load generator samples every second (B.O-3).
-    command: ["postgres", "-c", "max_connections=300", "-c", "shared_buffers=512MB", "-c", "track_wal_io_timing=on", "-c", "shared_preload_libraries=${WOW_BENCH_PG_PRELOAD:-}"]
+    # A deployment's checkpoint settings: at the default max_wal_size (1 GB) every checkpoint was forced by the WAL's
+    # volume, every 40-100 s under load, each followed by full-page writes; at 8 GB and 15 min they come by time.
+    # lz4 compresses the full-page images. synchronous_commit and full_page_writes stay on.
+    command: ["postgres", "-c", "max_connections=300", "-c", "shared_buffers=512MB", "-c", "track_wal_io_timing=on", "-c", "max_wal_size=8GB", "-c", "checkpoint_timeout=15min", "-c", "wal_compression=lz4", "-c", "shared_preload_libraries=${WOW_BENCH_PG_PRELOAD:-}"]
     ports:
       - "5432:5432"
     healthcheck:
