@@ -1,0 +1,75 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E3",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 100000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 5794.733333333334,
+  "saturationConcurrency": 1024,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 857.8666666666667,
+      "ok": 25736,
+      "errors": {},
+      "p50Ms": 1.055,
+      "p99Ms": 2.223
+    },
+    {
+      "concurrency": 4,
+      "throughput": 1271.9,
+      "ok": 38157,
+      "errors": {},
+      "p50Ms": 3.055,
+      "p99Ms": 5.343
+    },
+    {
+      "concurrency": 16,
+      "throughput": 2501.4333333333334,
+      "ok": 75043,
+      "errors": {},
+      "p50Ms": 5.887,
+      "p99Ms": 13.695
+    },
+    {
+      "concurrency": 64,
+      "throughput": 3636.0333333333333,
+      "ok": 109081,
+      "errors": {},
+      "p50Ms": 17.279,
+      "p99Ms": 38.911
+    },
+    {
+      "concurrency": 256,
+      "throughput": 3790.866666666667,
+      "ok": 113726,
+      "errors": {},
+      "p50Ms": 70.143,
+      "p99Ms": 108.543
+    },
+    {
+      "concurrency": 1024,
+      "throughput": 5794.733333333334,
+      "ok": 173842,
+      "errors": {},
+      "p50Ms": 166.911,
+      "p99Ms": 419.839
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "primed": "true",
+    "primeSeconds": "10",
+    "settleSeconds": "4",
+    "accounts": "100000",
+    "session": "/private/tmp/claude-501/-Users-worker-work-Wow--claude-worktrees-performance-optimization-327071/c40c0d64-7f27-4258-a64d-34425fc669a4/scratchpad/vs-axon-2/4-W-postgres/up"
+  }
+}
