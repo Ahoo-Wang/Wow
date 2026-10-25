@@ -53,6 +53,9 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
     private val lock = Mutex()
     private val streams = HashMap<AggregateRef, MutableList<EventStreamRecord>>()
 
+    /** Its `appendAll` appends one stream at a time under the one lock, whichever partitions (decision D275). */
+    override val appendsAcrossPartitions: Boolean get() = true
+
     /** The streams committed for each (tenant, request id), in commit order: at most one per aggregate type. */
     private val requests = HashMap<Pair<String, String>, MutableList<EventStreamRecord>>()
     private val aggregateEntries = HashMap<AggregateRef, MutableList<LogEntry>>()

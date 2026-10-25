@@ -740,6 +740,11 @@ class MongoEventLogTest : EventLogSpec() {
             log.appendAll(group(context, zero, one))
                 .forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
             assertThrownBy<IllegalArgumentException> { runBlocking { log.appendAll(group(context, zero, zero)) } }
+            // A group holds this log's context alone.
+            val elsewhere = stream("x", 1, aggregate = AggregateType(MongoLogFixture.newContext(), "order"))
+            assertThrownBy<IllegalArgumentException> {
+                runBlocking { log.appendAll(group(context, zero) + (elsewhere to null)) }
+            }
         }
 
     private companion object {
