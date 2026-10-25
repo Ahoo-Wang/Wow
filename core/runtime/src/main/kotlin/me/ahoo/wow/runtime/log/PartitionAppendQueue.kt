@@ -76,8 +76,12 @@ class AppendQueueOptions @InternalWowApi constructor(
     companion object {
         const val DEFAULT_MAX_BATCH: Int = 64
 
-        /** One committer: a call in flight, the partitions' next groups merging behind it. */
-        const val DEFAULT_MERGERS: Int = 1
+        /**
+         * Two committers, measured (2026-10-24): one call in flight while the next merges what the partitions hand
+         * meanwhile. With one, every group waited for the call in flight (E3's p50 1.6 times unmerged); with four, the
+         * calls carried too little to save much.
+         */
+        const val DEFAULT_MERGERS: Int = 2
 
         /** The streams of eight partitions' full groups. */
         const val DEFAULT_MERGE_MAX: Int = 512

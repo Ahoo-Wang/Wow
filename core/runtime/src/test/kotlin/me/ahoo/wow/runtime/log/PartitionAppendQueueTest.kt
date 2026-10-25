@@ -378,7 +378,8 @@ class PartitionAppendQueueTest {
         runBlocking {
             // Decision D275: the store's fixed cost of a call is shared by the partitions' small groups.
             val log = GatedLog(InMemoryEventLog(PARTITIONS), acrossPartitions = true)
-            val queue = PartitionAppendQueue(log, AppendQueueOptions())
+            // One committer, so the call in flight holds the others' groups back until they merge.
+            val queue = PartitionAppendQueue(log, AppendQueueOptions(mergers = 1))
             queue.merging.assert().isTrue()
             val first = refIn(0)
             val sameLane = refIn(0, from = 1_000)
@@ -442,7 +443,7 @@ class PartitionAppendQueueTest {
         assertThrows<IllegalArgumentException> { AppendQueueOptions(mergers = 0) }
         assertThrows<IllegalArgumentException> { AppendQueueOptions(maxBatch = 64, mergeMax = 32) }
         AppendQueueOptions().merge.assert().isTrue()
-        AppendQueueOptions().mergers.assert().isEqualTo(1)
+        AppendQueueOptions().mergers.assert().isEqualTo(2)
         AppendQueueOptions().mergeMax.assert().isEqualTo(512)
     }
 
