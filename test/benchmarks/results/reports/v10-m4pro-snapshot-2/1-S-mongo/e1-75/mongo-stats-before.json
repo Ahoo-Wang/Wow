@@ -1,0 +1,8 @@
+{
+  "bytes currently in the cache": 1716964137,
+  "maximum bytes configured": 2147483648,
+  "unmodified pages evicted": 999017,
+  "modified pages evicted": 8266991,
+  "transaction checkpoint max time (msecs)": 1250,
+  "transaction checkpoint most recent time (msecs)": 1250
+}

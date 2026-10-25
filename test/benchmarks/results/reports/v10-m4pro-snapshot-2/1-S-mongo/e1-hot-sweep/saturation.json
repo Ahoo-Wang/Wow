@@ -1,0 +1,77 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "hot",
+    "accounts": 100000,
+    "hotFraction": 0.5,
+    "hotKeys": 1
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 9779.0,
+  "saturationConcurrency": 256,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 585.3333333333334,
+      "ok": 17560,
+      "errors": {},
+      "p50Ms": 1.735,
+      "p99Ms": 3.071
+    },
+    {
+      "concurrency": 4,
+      "throughput": 1731.4666666666667,
+      "ok": 51944,
+      "errors": {},
+      "p50Ms": 2.063,
+      "p99Ms": 5.247
+    },
+    {
+      "concurrency": 16,
+      "throughput": 4334.2,
+      "ok": 130026,
+      "errors": {},
+      "p50Ms": 3.439,
+      "p99Ms": 8.575
+    },
+    {
+      "concurrency": 64,
+      "throughput": 8807.033333333333,
+      "ok": 264211,
+      "errors": {},
+      "p50Ms": 6.591,
+      "p99Ms": 18.047
+    },
+    {
+      "concurrency": 256,
+      "throughput": 9779.0,
+      "ok": 293370,
+      "errors": {},
+      "p50Ms": 29.567,
+      "p99Ms": 79.359
+    },
+    {
+      "concurrency": 1024,
+      "throughput": 9665.033333333333,
+      "ok": 289951,
+      "errors": {},
+      "p50Ms": 150.527,
+      "p99Ms": 333.823
+    }
+  ],
+  "meta": {
+    "backend": "mongo",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.13\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)",
+    "stores": "kafka mongo",
+    "primed": "true",
+    "primeSeconds": "9",
+    "settleSeconds": "58",
+    "accounts": "100000",
+    "session": "/Users/ahoo/.gemini/antigravity/worktrees/Wow/wow-m4pro-snapshot-2/test/benchmarks/results/e2e/20261025-094252-run-mongo-n1-saturation"
+  }
+}

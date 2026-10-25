@@ -1,0 +1,75 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 100000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 21005.333333333332,
+  "saturationConcurrency": 1024,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 1825.1666666666667,
+      "ok": 54755,
+      "errors": {},
+      "p50Ms": 0.527,
+      "p99Ms": 0.811
+    },
+    {
+      "concurrency": 4,
+      "throughput": 3805.766666666667,
+      "ok": 114173,
+      "errors": {},
+      "p50Ms": 1.007,
+      "p99Ms": 1.879
+    },
+    {
+      "concurrency": 16,
+      "throughput": 7912.633333333333,
+      "ok": 237379,
+      "errors": {},
+      "p50Ms": 1.887,
+      "p99Ms": 4.287
+    },
+    {
+      "concurrency": 64,
+      "throughput": 14942.366666666667,
+      "ok": 448271,
+      "errors": {},
+      "p50Ms": 3.791,
+      "p99Ms": 9.983
+    },
+    {
+      "concurrency": 256,
+      "throughput": 16700.6,
+      "ok": 501018,
+      "errors": {},
+      "p50Ms": 14.463,
+      "p99Ms": 31.359
+    },
+    {
+      "concurrency": 1024,
+      "throughput": 21005.333333333332,
+      "ok": 630160,
+      "errors": {},
+      "p50Ms": 46.847,
+      "p99Ms": 94.207
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.13\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "primed": "true",
+    "primeSeconds": "7",
+    "settleSeconds": "3",
+    "accounts": "100000",
+    "session": "/Users/ahoo/.gemini/antigravity/worktrees/Wow/wow-m4pro-snapshot-2/test/benchmarks/results/e2e/20261025-091458-run-postgres-n1-saturation"
+  }
+}

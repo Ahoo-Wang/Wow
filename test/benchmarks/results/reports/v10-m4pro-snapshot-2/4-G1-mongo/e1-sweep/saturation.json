@@ -1,0 +1,75 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 100000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 16760.566666666666,
+  "saturationConcurrency": 1024,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 602.7666666666667,
+      "ok": 18083,
+      "errors": {},
+      "p50Ms": 1.759,
+      "p99Ms": 3.007
+    },
+    {
+      "concurrency": 4,
+      "throughput": 1617.6333333333334,
+      "ok": 48529,
+      "errors": {},
+      "p50Ms": 1.999,
+      "p99Ms": 7.391
+    },
+    {
+      "concurrency": 16,
+      "throughput": 4172.833333333333,
+      "ok": 125185,
+      "errors": {},
+      "p50Ms": 3.055,
+      "p99Ms": 9.919
+    },
+    {
+      "concurrency": 64,
+      "throughput": 9266.9,
+      "ok": 278007,
+      "errors": {},
+      "p50Ms": 5.855,
+      "p99Ms": 22.911
+    },
+    {
+      "concurrency": 256,
+      "throughput": 12494.8,
+      "ok": 374844,
+      "errors": {},
+      "p50Ms": 17.919,
+      "p99Ms": 45.311
+    },
+    {
+      "concurrency": 1024,
+      "throughput": 16760.566666666666,
+      "ok": 502817,
+      "errors": {},
+      "p50Ms": 59.391,
+      "p99Ms": 124.415
+    }
+  ],
+  "meta": {
+    "backend": "mongo",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.13\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)",
+    "stores": "kafka mongo",
+    "primed": "true",
+    "primeSeconds": "9",
+    "settleSeconds": "3",
+    "accounts": "100000",
+    "session": "/Users/ahoo/.gemini/antigravity/worktrees/Wow/wow-m4pro-snapshot-2/test/benchmarks/results/e2e/20261025-103004-run-mongo-n1-saturation"
+  }
+}
