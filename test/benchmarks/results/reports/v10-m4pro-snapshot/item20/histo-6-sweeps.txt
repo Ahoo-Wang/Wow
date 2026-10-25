@@ -1,0 +1,40 @@
+585:
+ num     #instances         #bytes  class name (module)
+-------------------------------------------------------
+   1:         85802       43594320  [J (java.base@21.0.12.1)
+   2:        414546       26988760  [B (java.base@21.0.12.1)
+   3:         94014       23319360  [I (java.base@21.0.12.1)
+   4:        407907        9789768  java.lang.String (java.base@21.0.12.1)
+   5:        218053        8722120  java.util.LinkedHashMap$Entry (java.base@21.0.12.1)
+   6:        190310        6089920  me.ahoo.wow.api.aggregate.AggregateRef
+   7:        190331        4567944  me.ahoo.wow.api.aggregate.AggregateType
+   8:         65329        4181056  java.util.LinkedHashMap (java.base@21.0.12.1)
+   9:         85318        4095264  me.ahoo.wow.kernel.CachedState
+  10:         85318        3412720  me.ahoo.wow.benchmark.transfer.AccountState
+  11:         85318        3412720  me.ahoo.wow.kernel.RecentRequests
+  12:         15288        3331512  [Ljava.util.HashMap$Node; (java.base@21.0.12.1)
+  13:        100000        2400000  me.ahoo.wow.mongo.log.LastSequence
+  14:         31014        2250016  [Ljava.lang.Object; (java.base@21.0.12.1)
+  15:         89414        2145936  me.ahoo.wow.kernel.FirstCommit
+  16:         18109        2142912  java.lang.Class (java.base@21.0.12.1)
+  17:         85318        2047632  me.ahoo.wow.runtime.LruStateCache$Held
+  18:         45772        1464704  java.util.HashMap$Node (java.base@21.0.12.1)
+  19:         43106        1379392  java.util.concurrent.ConcurrentHashMap$Node (java.base@21.0.12.1)
+  20:         54498        1307952  java.util.LinkedHashMap$LinkedEntrySet (java.base@21.0.12.1)
+  21:          4597        1036656  [Ljdk.internal.vm.FillerElement; (java.base@21.0.12.1)
+  22:         28789         690936  java.util.LinkedHashMap$LinkedKeySet (java.base@21.0.12.1)
+  23:         28296         679104  me.ahoo.wow.api.aggregate.Scope
+  24:         25300         607200  java.util.ArrayList (java.base@21.0.12.1)
+  25:           353         547416  [C (java.base@21.0.12.1)
+  26:           472         437168  [Ljava.util.concurrent.ConcurrentHashMap$Node; (java.base@21.0.12.1)
+  27:          8495         407760  java.util.HashMap (java.base@21.0.12.1)
+  28:         24760         396160  java.lang.Object (java.base@21.0.12.1)
+  29:          3751         360096  kotlin.reflect.jvm.internal.impl.metadata.ProtoBuf$Type
+  30:          3563         313544  java.lang.reflect.Method (java.base@21.0.12.1)
+  31:          6328         303744  java.lang.invoke.MemberName (java.base@21.0.12.1)
+  32:          4583         293312  me.ahoo.wow.spi.log.EventStreamRecord
+  33:          4842         232416  java.util.TreeMap (java.base@21.0.12.1)
+  34:          5553         222120  kotlin.reflect.jvm.internal.impl.protobuf.SmallSortedMap$1
+  35:          4868         194720  java.lang.invoke.MethodType (java.base@21.0.12.1)
+  36:          4857         194280  java.util.TreeMap$Entry (java.base@21.0.12.1)
+  37:          4093         163720  me.ahoo.wow.runtime.state.SerializedState

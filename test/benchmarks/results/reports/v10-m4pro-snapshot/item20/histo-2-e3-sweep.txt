@@ -1,0 +1,40 @@
+585:
+ num     #instances         #bytes  class name (module)
+-------------------------------------------------------
+   1:        432075       27966208  [B (java.base@21.0.12.1)
+   2:        100496       24116288  [J (java.base@21.0.12.1)
+   3:        110113       13747648  [I (java.base@21.0.12.1)
+   4:        423359       10160616  java.lang.String (java.base@21.0.12.1)
+   5:        228912        9156480  java.util.LinkedHashMap$Entry (java.base@21.0.12.1)
+   6:        202380        6476160  me.ahoo.wow.api.aggregate.AggregateRef
+   7:        100000        4800000  me.ahoo.wow.kernel.CachedState
+   8:        100000        4000000  me.ahoo.wow.benchmark.transfer.AccountState
+   9:        100000        4000000  me.ahoo.wow.kernel.RecentRequests
+  10:         57562        3353440  [Ljava.lang.Object; (java.base@21.0.12.1)
+  11:         11614        3160552  [Ljava.util.HashMap$Node; (java.base@21.0.12.1)
+  12:        104096        2498304  me.ahoo.wow.kernel.FirstCommit
+  13:        102543        2461032  java.util.ArrayList (java.base@21.0.12.1)
+  14:        102336        2456064  me.ahoo.wow.api.aggregate.AggregateType
+  15:        100000        2400000  me.ahoo.wow.mongo.log.LastSequence
+  16:        100000        2400000  me.ahoo.wow.runtime.LruStateCache$Held
+  17:         18321        2168480  java.lang.Class (java.base@21.0.12.1)
+  18:         46536        1489152  java.util.concurrent.ConcurrentHashMap$Node (java.base@21.0.12.1)
+  19:         46420        1485440  java.util.HashMap$Node (java.base@21.0.12.1)
+  20:         13234        1270464  kotlin.reflect.jvm.internal.impl.metadata.ProtoBuf$Type
+  21:         22229         889160  kotlin.reflect.jvm.internal.impl.protobuf.SmallSortedMap$1
+  22:         10004         880352  java.lang.reflect.Method (java.base@21.0.12.1)
+  23:         12492         799488  java.util.LinkedHashMap (java.base@21.0.12.1)
+  24:         22229         533496  kotlin.reflect.jvm.internal.impl.protobuf.FieldSet
+  25:           359         532672  [C (java.base@21.0.12.1)
+  26:          6226         531304  [Ljdk.internal.vm.FillerElement; (java.base@21.0.12.1)
+  27:           952         473424  [Ljava.util.concurrent.ConcurrentHashMap$Node; (java.base@21.0.12.1)
+  28:          8619         413712  java.util.HashMap (java.base@21.0.12.1)
+  29:         24700         395200  java.lang.Object (java.base@21.0.12.1)
+  30:          9196         367840  kotlin.reflect.jvm.internal.impl.km.KmType
+  31:          3085         345520  kotlin.reflect.jvm.internal.impl.metadata.ProtoBuf$Function
+  32:          7035         337680  java.lang.invoke.MemberName (java.base@21.0.12.1)
+  33:         13633         327192  kotlin.reflect.jvm.internal.ReflectProperties$LazySoftVal
+  34:          4860         311040  java.util.concurrent.ConcurrentHashMap (java.base@21.0.12.1)
+  35:         10399         288720  [Ljava.lang.Class; (java.base@21.0.12.1)
+  36:          4419         282816  kotlin.reflect.jvm.internal.impl.metadata.jvm.JvmProtoBuf$StringTableTypes$Record
+  37:          6370         254800  java.lang.ref.SoftReference (java.base@21.0.12.1)
