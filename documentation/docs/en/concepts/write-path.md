@@ -64,7 +64,7 @@ On the executing node, each aggregate with commands in flight has one lane. Its 
 
 Decide may do I/O, so a duplicate request must not run it again. Before deciding, the kernel checks whether the request id has already committed for this tenant and aggregate type. If it has, the command is answered with the first commit's result, marked as a duplicate, and nothing is decided.
 
-The kernel keeps, with each cached aggregate state, the requests that aggregate committed most recently, derived from the log (256 by default). A request it finds there needs no extra read. When the set cannot answer for certain, the kernel asks storage. The unique key on the request id is still the guarantee: whatever the set says, a request commits at most once.
+The kernel keeps, with each cached aggregate state, the requests that aggregate committed most recently, derived from the log (32 by default). A request it finds there needs no extra read. When the set cannot answer for certain, the kernel asks storage. The unique key on the request id is still the guarantee: whatever the set says, a request commits at most once.
 
 The log also records the command type each request id was used for. The same request id with a different command type is refused (`wow.command.request-id-reused`). The same request id with the same type is treated as a retry. So a request id belongs to one business request, and a client generates a new one for each.
 

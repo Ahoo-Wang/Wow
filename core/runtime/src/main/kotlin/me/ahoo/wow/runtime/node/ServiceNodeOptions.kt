@@ -382,8 +382,11 @@ class ServiceNodeOptions @InternalWowApi constructor(
         /** A batch's commands decide on the same state one after another: 32 take well under a millisecond. */
         const val DEFAULT_MAX_BATCH: Int = 32
 
-        /** About 3 KB per cached aggregate, 12 MB for a full default state cache (decision D261). */
-        const val DEFAULT_RECENT_REQUESTS: Int = 256
+        /**
+         * At most 384 bytes per cached aggregate (decisions D261, D278): a full ring of 256 took 3 KB, and on a node
+         * that served sustained traffic the rings crowded the states out of the cache by its bytes.
+         */
+        const val DEFAULT_RECENT_REQUESTS: Int = 32
     }
 }
 
