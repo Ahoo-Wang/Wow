@@ -68,7 +68,7 @@ run_tests() {
   up "$mode"
   trap down EXIT
   shift
-  (cd "$ROOT" && ./gradlew :mongo:integrationTest "-Dwow.mongo.url=$(url "$mode")" --rerun "$@")
+  (cd "$ROOT" && ./gradlew :mongo:integrationTest "-Dwow.mongo.url=$(url "$mode")" "-Dwow.mongo.container=$NAME" --rerun "$@")
 }
 
 case ${1:-} in

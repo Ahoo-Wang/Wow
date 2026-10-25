@@ -21,9 +21,12 @@ import com.mongodb.MongoNotPrimaryException
 import com.mongodb.MongoSocketOpenException
 import com.mongodb.MongoSocketReadException
 import com.mongodb.MongoTimeoutException
+import com.mongodb.MongoWriteConcernException
 import com.mongodb.ServerAddress
+import com.mongodb.bulk.WriteConcernError
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
+import com.mongodb.internal.connection.MongoWriteConcernWithResponseException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -40,6 +43,7 @@ import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.bson.BsonDocument
+import org.bson.BsonInt32
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -154,12 +158,27 @@ class MongoFailuresTest {
     }
 
     @Test
-    fun `a write may have landed after a timeout or a failed socket, not after an answer`() {
-        // Finding A2-6, decision D271: an insert whose result is unknown leaves the outcome unknown.
+    fun `a write may have landed after a timeout, a failed socket or an unconfirmed write concern, not after an answer`() {
+        // Finding A2-6, decision D271: an insert whose result is unknown leaves the outcome unknown. A write concern
+        // a stepping-down primary interrupted applied the write there (roadmap §6 item 18, the failover test).
+        val interrupted = MongoNodeIsRecoveringException(
+            BsonDocument("code", BsonInt32(INTERRUPTED_DUE_TO_REPL_STATE_CHANGE)),
+            address,
+        )
         listOf(
             MongoTimeoutException("Timed out while waiting for a server"),
             MongoSocketReadException("Prematurely reached end of stream", address),
             MongoExecutionTimeoutException(MAX_TIME_EXPIRED, "operation exceeded time limit"),
+            MongoWriteConcernException(
+                WriteConcernError(
+                    INTERRUPTED_DUE_TO_REPL_STATE_CHANGE,
+                    "",
+                    "operation was interrupted",
+                    BsonDocument()
+                ),
+                address,
+            ),
+            MongoWriteConcernWithResponseException(interrupted, BsonDocument()),
         ).forEach { MongoFailures.isWriteUnknown(it).assert().describedAs("$it").isTrue() }
         listOf(
             MongoException(DUPLICATE_KEY, "E11000 duplicate key error"),
@@ -187,6 +206,7 @@ class MongoFailuresTest {
 
     private companion object {
         const val MAX_TIME_EXPIRED = 50
+        const val INTERRUPTED_DUE_TO_REPL_STATE_CHANGE = 11602
         const val WRITE_CONFLICT = 112
         const val SELECTION_TIMEOUT_MS = 200L
         const val SHUTDOWN_IN_PROGRESS = 91

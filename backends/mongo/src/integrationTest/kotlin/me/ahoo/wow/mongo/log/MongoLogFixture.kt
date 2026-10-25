@@ -34,7 +34,10 @@ object MongoLogFixture {
     /** The index a collection keeps for its shard key, on a sharded cluster only (decision D277). */
     val shardIndexes: List<String> get() = if (sharded) listOf(MongoShards.SHARD_KEY) else emptyList()
 
-    fun newContext(prefix: String = "tck"): String = "$prefix-${contexts.incrementAndGet()}"
+    /** This JVM's mark in the contexts it names, so a run against a cluster that kept an earlier run's names its own. */
+    private val run = java.util.UUID.randomUUID().toString().take(RUN_MARK)
+
+    fun newContext(prefix: String = "tck"): String = "$prefix-$run-${contexts.incrementAndGet()}"
 
     fun log(
         partitions: Int,
@@ -58,4 +61,5 @@ object MongoLogFixture {
     }
 
     const val DATABASE = "wow_v10_log"
+    private const val RUN_MARK = 6
 }
