@@ -22,8 +22,8 @@ import java.util.concurrent.atomic.LongAdder
 
 /**
  * The closed-loop saturation finder (decision D224): [concurrency] workers each send an operation and send the next
- * when it completes, for a step of [stepSeconds] after [warmUpSeconds]; the concurrency doubles from
- * [startConcurrency] until the throughput stops growing by [minGain] two steps in a row (unless it [sweep]s), errors
+ * when it completes, for a step of [stepSeconds] after [warmUpSeconds]; the concurrency grows [growth] times a step
+ * from [startConcurrency] (doubles by default; 4 sweeps 1 to 1,024 in six steps instead of eleven) until the throughput stops growing by [minGain] two steps in a row (unless it [sweep]s), errors
  * pass [maxErrorRate], or [maxConcurrency] is reached. The highest throughput seen is the saturation point the open-loop runs take their
  * 50% and 80% rates from. A closed loop's latencies understate a saturated server's (coordinated omission): they are
  * recorded only to show where the knee is, never as a result.
@@ -41,6 +41,8 @@ class ClosedLoop(
     private val maxErrorRate: Double = DEFAULT_MAX_ERROR_RATE,
     /** Every step up to [maxConcurrency], however little one gains: the whole curve rather than its knee. */
     private val sweep: Boolean = false,
+    /** How many times the concurrency grows from one step to the next. */
+    private val growth: Int = 2,
     private val log: (String) -> Unit = {},
 ) {
     /** One step: its concurrency, throughput and latencies. */
@@ -53,6 +55,10 @@ class ClosedLoop(
     ) {
         val throughput: Double get() = ok.toDouble() / seconds
         val errorRate: Double get() = errors.values.sum().toDouble() / maxOf(1, ok + errors.values.sum())
+    }
+
+    init {
+        require(growth >= 2) { "The concurrency grows at least twofold a step." }
     }
 
     fun run(): List<Step> {
@@ -70,7 +76,7 @@ class ClosedLoop(
             if (step.errorRate > maxErrorRate) break
             flat = if (step.throughput < best * (1 + minGain)) flat + 1 else 0
             if (flat >= FLAT_STEPS && !sweep) break
-            concurrency *= 2
+            concurrency *= growth
         }
         return steps
     }
