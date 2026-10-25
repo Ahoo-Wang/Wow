@@ -39,6 +39,8 @@
 #          servers and the containers on the others), --prime (an untimed pass over every account before the run,
 #          then a wait until the nodes are quiet again),
 #          --jfr-settings=<.jfc> (with --jfr; on PostgreSQL --jfr also dumps pg_stat_statements and checkpoints),
+#          --tmpfs (the stores' data in memory, compose.tmpfs.yml: no disk-image fsync stalls, for comparing two arms;
+#          a baseline keeps the disk), --mongo-cache-gb=2 (MongoDB's WiredTiger cache),
 #          and any other --name=value of the load generator's run or saturate, passed through (`saturate --growth=4`
 #          steps the concurrency 1, 4, 16, 64, 256, 1024: six steps for a sweep to 1,024 instead of eleven).
 
@@ -58,13 +60,20 @@ SESSION="$REPO/test/benchmarks/results/e2e/.session"
 UP=false
 
 usage() {
-  sed -n '14,44p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,46p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
 log() { echo "[bench] $*" >&2; }
 
 compose() { docker compose -f "$HARNESS/compose.yml" "$@"; }
+
+# Starts kafka and the store $1: with --tmpfs its data in memory (compose.tmpfs.yml), MongoDB's cache --mongo-cache-gb.
+stores_up() {
+  local files=(-f "$HARNESS/compose.yml")
+  if [ "$(opt tmpfs false)" = true ]; then files+=(-f "$HARNESS/compose.tmpfs.yml"); fi
+  WOW_BENCH_MONGO_CACHE_GB=$(opt mongo-cache-gb 2) docker compose "${files[@]}" up -d --wait kafka "$1" >/dev/null
+}
 
 build() {
   log "building the servers and the load generator"
@@ -104,7 +113,7 @@ parse() {
     esac
     OPTIONS="$OPTIONS${argument#--}
 "
-    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --seed-concurrency --load-cpus --server-cpus --prime --reuse " in
+    case " --backend --nodes --label --out --heap --jfr --jfr-settings --settle --accounts --install --seed-concurrency --load-cpus --server-cpus --prime --reuse --tmpfs --mongo-cache-gb " in
       *" $key "*) ;;
       *) PASS+=("$argument") ;;
     esac
@@ -208,7 +217,7 @@ setup() {
   log "starting kafka and $store"
   # A profiled PostgreSQL run loads pg_stat_statements, for the statements behind the tails (postgres_stats).
   if [ "$(opt jfr false)" = true ] && [ "$store" = postgres ]; then export WOW_BENCH_PG_PRELOAD=pg_stat_statements; fi
-  compose up -d --wait kafka "$store" >/dev/null
+  stores_up "$store"
   if [ -n "$(opt server-cpus "")" ]; then
     docker update --cpuset-cpus "$(opt server-cpus "")" wow-e2e-bench-kafka "wow-e2e-bench-$store" >/dev/null
   fi
@@ -258,6 +267,7 @@ setup() {
   local jvm; jvm=$("$JAVA_HOME/bin/java" -version 2>&1 | tr '\n' ' ' | sed 's/;/,/g')
   META="backend=$BACKEND;nodes=$NODES;heap=$HEAP;gc=G1;serverJvm=$jvm;stores=kafka $store;primed=$primed"
   META="$META;primeSeconds=$prime_seconds;settleSeconds=$settle_seconds;accounts=$ACCOUNTS"
+  META="$META;tmpfs=$(opt tmpfs false);mongoCacheGb=$(opt mongo-cache-gb 2)"
   if [ "$UP" = true ]; then
     # results/e2e is ignored by git: a fresh checkout has no such directory until a run's output makes one.
     mkdir -p "$(dirname "$SESSION")"
@@ -389,7 +399,7 @@ component() {
   local store=postgres
   if [ "$BACKEND" = mongo ]; then store=mongo; fi
   log "starting kafka and $store"
-  compose up -d --wait kafka "$store" >/dev/null
+  stores_up "$store"
   if [ -n "$(opt server-cpus "")" ]; then
     docker update --cpuset-cpus "$(opt server-cpus "")" wow-e2e-bench-kafka "wow-e2e-bench-$store" >/dev/null
   fi
