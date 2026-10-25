@@ -608,6 +608,26 @@ class PostgresEventLogTest : EventLogSpec() {
         }
 
     @Test
+    fun `a stream that does not fit in a group of several partitions conflicts alone, and another context is refused`(): Unit =
+        runBlocking {
+            val context = PostgresFixture.newContext()
+            val order = AggregateType(context, "order")
+            val log = PostgresFixture.log(ACROSS, context, listOf(order.name))
+            val ids = idsByPartition(order, ACROSS)
+            // Partition 2's aggregate has no stream yet: its version 2 conflicts, the other partitions commit.
+            val group = (0 until ACROSS).map { partition ->
+                stream(ids[partition][0], if (partition == 2) 2 else 1, aggregate = order) to null
+            }
+            val outcomes = log.appendAll(group)
+            outcomes[2].assert().isEqualTo(AppendOutcome.Conflict(0))
+            outcomes.filterIndexed { index, _ -> index != 2 }.assert().allMatch { it is AppendOutcome.Committed }
+            log.head(2).assert().isNull()
+            // A group holds the streams of this log's context alone.
+            val elsewhere = stream("x", 1, aggregate = AggregateType(PostgresFixture.newContext(), "order"))
+            assertThrownBy<IllegalArgumentException> { runBlocking { log.appendAll(group.take(1) + (elsewhere to null)) } }
+        }
+
+    @Test
     fun `groups across overlapping partitions in any order commit at once, with no deadlock and no gap`(): Unit =
         runBlocking {
             // Each group locks its partitions' counters in partition order, whatever order its streams come in.

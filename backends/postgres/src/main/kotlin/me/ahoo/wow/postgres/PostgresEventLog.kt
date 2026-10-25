@@ -413,26 +413,39 @@ class PostgresEventLog(
     }
 
     /**
-     * [group] in one statement, its streams of the partitions in [parts]: [appendGroupIn] when they are of one; else
-     * one statement across them, retried a partition at a time on a definite abort.
+     * [group] in one statement, each stream of the partition in [parts] beside it: the single-partition statement
+     * ([PostgresEventLogTables.appendGroup]) when they are of one, the cross-partition one
+     * ([PostgresEventLogTables.appendGroupAcross], decision D280) otherwise. A definite abort appends them again: one
+     * by one in one partition, a partition at a time across several.
      */
     private fun appendGroupsIn(
         connection: Connection,
         parts: List<Int>,
         group: List<Pair<EventStreamRecord, Transport?>>,
     ): List<AppendOutcome> {
-        if (parts.distinct().size == 1) {
-            return appendGroupIn(connection, parts.first(), group)
-        }
+        val across = parts.distinct().size > 1
         val tablesOf = group.map { (stream) -> tableOf(connection, stream.ref.type) }
+        // Sorted: every group takes its tables' request keys in one order ([PostgresEventLogTables.appendGroup]).
         val tables = tablesOf.distinctBy { it.base }.sortedBy { it.base }
-        val sql = this.tables.appendGroupAcross(tables, tablesOf.map { table -> tables.indexOf(table) })
+        val branches = tablesOf.map { table -> tables.indexOf(table) }
+        val sql = if (across) {
+            this.tables.appendGroupAcross(
+                tables,
+                branches
+            )
+        } else {
+            this.tables.appendGroup(parts[0], tables, branches)
+        }
         val rows = try {
             connection.prepareStatement(sql).use { statement ->
                 group.forEachIndexed { index, (stream, transport) ->
-                    val first = index * PostgresEventLogTables.ACROSS_STREAM_PARAMETERS + 1
-                    statement.setInt(first, parts[index])
-                    bindStream(statement, first + 1, stream, transport)
+                    if (across) {
+                        val first = index * PostgresEventLogTables.ACROSS_STREAM_PARAMETERS + 1
+                        statement.setInt(first, parts[index])
+                        bindStream(statement, first + 1, stream, transport)
+                    } else {
+                        bindStream(statement, index * AggregateLogTable.STREAM_PARAMETERS + 1, stream, transport)
+                    }
                 }
                 statement.executeQuery().use { rows ->
                     rows.map { it.getInt("version") to it.getLong("sequence").takeUnless { _ -> it.wasNull() } }
@@ -440,17 +453,19 @@ class PostgresEventLog(
             }
         } catch (failure: PSQLException) {
             val constraint = failure.serverErrorMessage?.constraint
+            // PostgreSQL rolls back the statement it picks to end a deadlock: that is a definite abort too.
             val definite = PostgresFailures.isRefused(failure) || failure.sqlState == DEADLOCK_DETECTED ||
                 tables.any { constraint == it.versionKey || constraint == it.requestKey }
             if (!definite) throw failure
-            // A partition at a time: each its own group, whose conflicts and duplicates are its own.
-            val outcomes = arrayOfNulls<AppendOutcome>(group.size)
-            group.indices.groupBy { parts[it] }.forEach { (partition, indexes) ->
-                appendGroupIn(connection, partition, indexes.map { group[it] }).forEachIndexed { at, outcome ->
-                    outcomes[indexes[at]] = outcome
-                }
+            return if (across) {
+                appendByPartition(
+                    connection,
+                    parts,
+                    group
+                )
+            } else {
+                appendAlone(connection, parts[0], group, tablesOf)
             }
-            return outcomes.map { checkNotNull(it) }
         }
         val failed = HashMap<AggregateRef, AppendOutcome>()
         return group.mapIndexed { index, (stream) ->
@@ -464,42 +479,23 @@ class PostgresEventLog(
         }
     }
 
-    private fun appendGroupIn(
+    /** [group] a partition at a time, each its own group, whose conflicts and duplicates are its own (D280). */
+    private fun appendByPartition(
         connection: Connection,
-        partition: Int,
+        parts: List<Int>,
         group: List<Pair<EventStreamRecord, Transport?>>,
     ): List<AppendOutcome> {
-        val tablesOf = group.map { (stream) -> tableOf(connection, stream.ref.type) }
-        // Sorted: every group takes its tables' request keys in one order ([PostgresEventLogTables.appendGroup]).
-        val tables = tablesOf.distinctBy { it.base }.sortedBy { it.base }
-        val sql = this.tables.appendGroup(partition, tables, tablesOf.map { table -> tables.indexOf(table) })
-        val rows = try {
-            connection.prepareStatement(sql).use { statement ->
-                group.forEachIndexed { index, (stream, transport) ->
-                    bindStream(statement, index * AggregateLogTable.STREAM_PARAMETERS + 1, stream, transport)
-                }
-                statement.executeQuery().use { rows ->
-                    rows.map { it.getInt("version") to it.getLong("sequence").takeUnless { _ -> it.wasNull() } }
-                }
-            }
-        } catch (failure: PSQLException) {
-            val constraint = failure.serverErrorMessage?.constraint
-            // PostgreSQL rolls back the statement it picks to end a deadlock: that is a definite abort too.
-            val definite = PostgresFailures.isRefused(failure) || failure.sqlState == DEADLOCK_DETECTED ||
-                tables.any { constraint == it.versionKey || constraint == it.requestKey }
-            if (!definite) throw failure
-            return appendAlone(connection, partition, group, tablesOf)
-        }
-        val failed = HashMap<AggregateRef, AppendOutcome>()
-        return group.mapIndexed { index, (stream) ->
-            val (version, sequence) = rows[index]
-            failed[stream.ref] ?: if (sequence == null) {
-                duplicateOr(connection, tablesOf[index], stream) { AppendOutcome.Conflict(version) }
-                    .also { failed[stream.ref] = notAppendedAfter(stream, it) }
-            } else {
-                AppendOutcome.Committed(LogPosition(partition, sequence))
+        val outcomes = arrayOfNulls<AppendOutcome>(group.size)
+        group.indices.groupBy { parts[it] }.values.forEach { indexes ->
+            appendGroupsIn(
+                connection,
+                indexes.map { parts[it] },
+                indexes.map { group[it] }
+            ).forEachIndexed { at, outcome ->
+                outcomes[indexes[at]] = outcome
             }
         }
+        return outcomes.map { checkNotNull(it) }
     }
 
     /**
