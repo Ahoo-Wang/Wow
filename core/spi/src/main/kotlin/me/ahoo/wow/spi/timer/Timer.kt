@@ -28,8 +28,9 @@ import me.ahoo.wow.spi.log.Partitioner
  * One schedule of an aggregate (decisions D166, D198): send the command of type [commandType], [body] its JSON, to
  * [target] each time [rule] says, the next time [dueAt] (epoch milliseconds), for its [slot], due at [slotDueAt].
  *
- * - [id] is `ref#key@version`, the schedule as the owner's stream at [version] set it ([Timers.idOf]); the command of
- *   each slot is sent with the request id `id#slot` ([requestId]), so sending it again is deduplicated by its target.
+ * - [id] is `ref#key@version`, its names escaped, the schedule as the owner's stream at [version] set it
+ *   ([Timers.idOf]); the command of each slot is sent with the request id `id#slot` ([requestId]), so sending it again
+ *   is deduplicated by its target.
  * - [owner] and [key] name the schedule: the aggregate that set it ([Timers.ownerOf]), compared field by field, never
  *   by its joined name, so two aggregates whose tenant and id join alike keep their timers apart (finding A2-12);
  *   [version] orders the owner's changes ([TimerStore]).
@@ -264,9 +265,22 @@ object TimerOutcomes {
 
 /** How timers are named and derived from the log (decisions D166, D198). */
 object Timers {
-    /** The id of the schedule [ref] set under [key] in its stream at [version]: `ref#key@version`. */
+    /**
+     * The id of the schedule [ref] set under [key] in its stream at [version]: `context.aggregate/tenant/id#key@version`,
+     * each of its names with `%`, `/`, `#` and `@` (and the context's `.`) percent-escaped, so two schedules never
+     * share an id (and their slots a request id at one target) however their names join: `a#b` under `c` and `a` under
+     * `b#c` stay apart.
+     */
     @JvmStatic
-    fun idOf(ref: AggregateRef, key: String, version: Int): String = "$ref#$key@$version"
+    fun idOf(ref: AggregateRef, key: String, version: Int): String =
+        "${escaped(ref.type.context, CONTEXT_RESERVED)}.${escaped(ref.type.name)}/${escaped(ref.tenantId)}/" +
+            "${escaped(ref.id)}#${escaped(key)}@$version"
+
+    private val RESERVED = Regex("[%/#@]")
+    private val CONTEXT_RESERVED = Regex("[%/#@.]")
+
+    private fun escaped(name: String, reserved: Regex = RESERVED): String =
+        if (!reserved.containsMatchIn(name)) name else reserved.replace(name) { "%%%02X".format(it.value[0].code) }
 
     /** The owner of an aggregate's timers: the aggregate. */
     @JvmStatic
