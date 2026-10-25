@@ -30,9 +30,9 @@ import me.ahoo.wow.spi.transport.TopicAdmin
 import me.ahoo.wow.spi.transport.TopicProducer
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionOutcome
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
-import org.springframework.boot.autoconfigure.condition.ConditionOutcome
 import org.springframework.boot.autoconfigure.condition.SpringBootCondition
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -170,7 +170,7 @@ class KafkaAutoConfiguration {
      * Whether the application names Kafka's brokers: `wow.kafka.bootstrap-servers` set and not blank, as
      * [InMemoryTopicsAutoConfiguration] reads it, so a blank address (`--wow.kafka.bootstrap-servers=`) turns Kafka off.
      */
-    class OnBrokers : SpringBootCondition() {
+    internal class OnBrokers : SpringBootCondition() {
         override fun getMatchOutcome(context: ConditionContext, metadata: AnnotatedTypeMetadata): ConditionOutcome =
             if (context.environment.getProperty("${KafkaProperties.PREFIX}.bootstrap-servers").isNullOrBlank()) {
                 ConditionOutcome.noMatch("wow.kafka.bootstrap-servers is not set")
