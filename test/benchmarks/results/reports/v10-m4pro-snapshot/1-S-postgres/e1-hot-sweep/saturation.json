@@ -1,0 +1,77 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "hot",
+    "accounts": 100000,
+    "hotFraction": 0.5,
+    "hotKeys": 1
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 10259.8,
+  "saturationConcurrency": 256,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 1777.8,
+      "ok": 53334,
+      "errors": {},
+      "p50Ms": 0.523,
+      "p99Ms": 0.927
+    },
+    {
+      "concurrency": 4,
+      "throughput": 3017.0,
+      "ok": 90510,
+      "errors": {},
+      "p50Ms": 0.963,
+      "p99Ms": 6.847
+    },
+    {
+      "concurrency": 16,
+      "throughput": 5986.666666666667,
+      "ok": 179600,
+      "errors": {},
+      "p50Ms": 1.991,
+      "p99Ms": 8.127
+    },
+    {
+      "concurrency": 64,
+      "throughput": 7445.666666666667,
+      "ok": 223370,
+      "errors": {},
+      "p50Ms": 5.535,
+      "p99Ms": 43.775
+    },
+    {
+      "concurrency": 256,
+      "throughput": 10259.8,
+      "ok": 307794,
+      "errors": {},
+      "p50Ms": 30.463,
+      "p99Ms": 86.015
+    },
+    {
+      "concurrency": 1024,
+      "throughput": 6713.766666666666,
+      "ok": 201413,
+      "errors": {},
+      "p50Ms": 154.623,
+      "p99Ms": 2703.359
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.13\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "primed": "true",
+    "primeSeconds": "11",
+    "settleSeconds": "19",
+    "accounts": "100000",
+    "session": "/Users/ahoo/.gemini/antigravity/worktrees/Wow/wow-m4pro-snapshot/test/benchmarks/results/e2e/20261024-225058-run-postgres-n1-saturation"
+  }
+}
