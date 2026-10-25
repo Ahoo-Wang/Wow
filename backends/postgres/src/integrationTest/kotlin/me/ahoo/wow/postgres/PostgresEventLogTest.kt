@@ -589,6 +589,25 @@ class PostgresEventLogTest : EventLogSpec() {
         }
 
     @Test
+    fun `a value PostgreSQL refuses in a group of several partitions is rejected alone, the others commit`(): Unit =
+        runBlocking {
+            // The statement aborts as a whole; each partition is then appended as its own group (decision D280).
+            val context = PostgresFixture.newContext()
+            val order = AggregateType(context, "order")
+            val log = PostgresFixture.log(ACROSS, context, listOf(order.name))
+            val ids = idsByPartition(order, ACROSS)
+            val group = (0 until ACROSS).map { partition ->
+                // A NUL PostgreSQL refuses in a text column, in partition 1's stream.
+                val commandType = if (partition == 1) "$context.order.Act\u0000" else "$context.order.Act"
+                stream(ids[partition][0], 1, commandType = commandType, aggregate = order) to null
+            }
+            val outcomes = log.appendAll(group)
+            outcomes[1].assert().isInstanceOf(AppendOutcome.Rejected::class.java)
+            outcomes.filterIndexed { index, _ -> index != 1 }.assert().allMatch { it is AppendOutcome.Committed }
+            (0 until ACROSS).filter { it != 1 }.forEach { partition -> log.head(partition).assert().isEqualTo(1L) }
+        }
+
+    @Test
     fun `groups across overlapping partitions in any order commit at once, with no deadlock and no gap`(): Unit =
         runBlocking {
             // Each group locks its partitions' counters in partition order, whatever order its streams come in.
