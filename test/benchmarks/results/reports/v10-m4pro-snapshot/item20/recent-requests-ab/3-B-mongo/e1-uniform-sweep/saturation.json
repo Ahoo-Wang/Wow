@@ -1,0 +1,75 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 100000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 9182.5,
+  "saturationConcurrency": 1024,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 921.9666666666667,
+      "ok": 27659,
+      "errors": {},
+      "p50Ms": 1.015,
+      "p99Ms": 2.223
+    },
+    {
+      "concurrency": 4,
+      "throughput": 2607.9666666666667,
+      "ok": 78239,
+      "errors": {},
+      "p50Ms": 1.415,
+      "p99Ms": 3.839
+    },
+    {
+      "concurrency": 16,
+      "throughput": 4553.2,
+      "ok": 136596,
+      "errors": {},
+      "p50Ms": 3.199,
+      "p99Ms": 9.023
+    },
+    {
+      "concurrency": 64,
+      "throughput": 7101.5,
+      "ok": 213045,
+      "errors": {},
+      "p50Ms": 7.967,
+      "p99Ms": 24.191
+    },
+    {
+      "concurrency": 256,
+      "throughput": 7965.966666666666,
+      "ok": 238979,
+      "errors": {},
+      "p50Ms": 30.591,
+      "p99Ms": 77.311
+    },
+    {
+      "concurrency": 1024,
+      "throughput": 9182.5,
+      "ok": 275475,
+      "errors": {},
+      "p50Ms": 114.175,
+      "p99Ms": 250.879
+    }
+  ],
+  "meta": {
+    "backend": "mongo",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+    "stores": "kafka mongo",
+    "primed": "true",
+    "primeSeconds": "15",
+    "settleSeconds": "3",
+    "accounts": "100000",
+    "session": "/private/tmp/claude-501/-Users-worker-work-Wow--claude-worktrees-performance-optimization-327071/1e81896d-3639-40f5-8c4f-ed1ecfc9cafd/scratchpad/rr/ab/3-B-mongo/up"
+  }
+}

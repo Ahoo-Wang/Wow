@@ -1316,8 +1316,8 @@ class Kernel(
         val DEFAULT_RESERVATION_TTL = 30.seconds
         val DEFAULT_MAX_EARLY_WAIT = 5.seconds
 
-        /** The requests kept per cached aggregate by default (decision D261): about 3 KB each. */
-        const val DEFAULT_RECENT_REQUESTS = 256
+        /** The requests kept per cached aggregate by default (decisions D261, D278): at most 384 bytes each. */
+        const val DEFAULT_RECENT_REQUESTS = 32
         val logger = KotlinLogging.logger {}
     }
 }
