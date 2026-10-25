@@ -256,6 +256,10 @@ class WowPropertiesTest {
             "wow.mongo.database" to "shop",
             "wow.log.partitions" to "16",
             "wow.log.append-queue.enabled" to "false",
+            "wow.log.append-queue.max-batch" to "32",
+            "wow.log.append-queue.merge" to "false",
+            "wow.log.append-queue.mergers" to "3",
+            "wow.log.append-queue.merge-max" to "128",
             "wow.cluster.router" to "local",
             "wow.cluster.lease-ttl" to "20s",
             "wow.cluster.drain-timeout" to "500ms",
@@ -276,7 +280,9 @@ class WowPropertiesTest {
         properties.backend.assert().isEqualTo("mongo")
         properties.mongo.database.assert().isEqualTo("shop")
         properties.log.partitions.assert().isEqualTo(16)
-        properties.log.appendQueue.options().enabled.assert().isFalse()
+        properties.log.appendQueue.options().assert().isEqualTo(
+            AppendQueueOptions(enabled = false, maxBatch = 32, merge = false, mergers = 3, mergeMax = 128),
+        )
         properties.cluster.router.assert().isEqualTo(Routing.LOCAL)
         properties.cluster.options().leaseTtl.assert().isEqualTo(20.seconds)
         properties.cluster.options().drainTimeout.assert().isEqualTo(500.milliseconds)

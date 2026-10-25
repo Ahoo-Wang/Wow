@@ -23,6 +23,7 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.snapshot.SnapshotStoreRouter
 import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -100,6 +101,16 @@ class LogGroupRouterTest {
         assertThrows<UnsupportedOperationException> { router.tail(0, null) }
         assertThrows<UnsupportedOperationException> { router.head(0) }
         assertThrows<UnsupportedOperationException> { router.lineage(0) }
+    }
+
+    @Test
+    fun `the router takes several partitions a call when every group's log does`() {
+        router.appendsAcrossPartitions.assert().isTrue()
+        val single = object : EventLog by InMemoryEventLog(PARTITIONS) {
+            override val appendsAcrossPartitions: Boolean get() = false
+        }
+        LogGroupRouter(default, mapOf(invoices to single)).appendsAcrossPartitions.assert().isFalse()
+        LogGroupRouter(single, mapOf(invoices to grouped)).appendsAcrossPartitions.assert().isFalse()
     }
 
     @Test

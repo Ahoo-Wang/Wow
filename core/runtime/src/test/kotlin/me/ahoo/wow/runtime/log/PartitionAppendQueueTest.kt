@@ -430,6 +430,22 @@ class PartitionAppendQueueTest {
     }
 
     @Test
+    fun `a merged call takes at most mergeMax streams, the rest the next call`(): Unit = runBlocking {
+        val log = GatedLog(InMemoryEventLog(PARTITIONS), acrossPartitions = true)
+        val queue = PartitionAppendQueue(log, AppendQueueOptions(maxBatch = 1, mergers = 1, mergeMax = 2))
+        val held = async(Dispatchers.Default) { queue.append(stream(refIn(0), 1)) }
+        withTimeout(5.seconds) { log.entered.await() }
+        val others = (1 until PARTITIONS).map { partition ->
+            async(Dispatchers.Default) { queue.append(stream(refIn(partition), 1)) }
+        }
+        withTimeout(5.seconds) { while (queue.queued != 0) delay(1) }
+        log.release.complete(Unit)
+        (listOf(held) + others).forEach { it.await().assert().isInstanceOf(AppendOutcome.Committed::class.java) }
+        log.batches.all { it.size <= 2 }.assert().isTrue()
+        queue.close()
+    }
+
+    @Test
     fun `groups go per partition when merging is off or the log takes one partition a call`(): Unit = runBlocking {
         val across = RecordingLog(InMemoryEventLog(PARTITIONS), appendsAcrossPartitions = true)
         PartitionAppendQueue(across, AppendQueueOptions(merge = false)).apply { merging.assert().isFalse() }.close()
