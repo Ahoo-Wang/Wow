@@ -97,12 +97,14 @@ internal object PostgresFormat {
      * can fail on a concurrent create). Rolls back whatever [block] did when it fails, and leaves [connection] in the
      * autocommit mode it found it in (finding R2.2-1).
      */
-    internal fun <T> creating(connection: Connection, block: () -> T): T = inTransaction(connection) {
-        connection.prepareStatement("SELECT pg_advisory_xact_lock(?)").use { lock ->
-            lock.setLong(1, CREATION_LOCK)
-            lock.executeQuery().close()
+    internal fun <T> creating(connection: Connection, block: () -> T): T = PostgresTimeouts.ddl(connection) {
+        inTransaction(connection) {
+            connection.prepareStatement("SELECT pg_advisory_xact_lock(?)").use { lock ->
+                lock.setLong(1, CREATION_LOCK)
+                lock.executeQuery().close()
+            }
+            block()
         }
-        block()
     }
 
     /**
@@ -129,7 +131,7 @@ internal object PostgresFormat {
             }
         }
         if (present < columns.size) {
-            connection.createStatement().use { it.execute(alter) }
+            PostgresTimeouts.ddl(connection) { connection.createStatement().use { it.execute(alter) } }
         }
     }
 
