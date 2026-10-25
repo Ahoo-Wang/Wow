@@ -1,0 +1,28 @@
+L0 insert wall   3.95s cpu/op   21.2us
+L0 read   wall  10.53s cpu/op   93.2us
+L0 sizes count 400000 data 149555560 indexes 60686336 {"_id_":9396224,"aggregate_id_1_tenant_id_1_version_1":27586560,"tenant_id_1_request_id_1":23703552}
+L1 insert wall   4.14s cpu/op   18.6us
+L1 read   wall  11.95s cpu/op  107.3us
+L1 sizes count 400000 data 149555560 indexes 52969472 {"_id_":10948608,"partition_1_aggregate_id_1_tenant_id_1_version_1":20525056,"partition_1_tenant_id_1_request_id_1":21495808}
+L1 insert wall   4.31s cpu/op   19.4us
+L1 read   wall  12.41s cpu/op  111.0us
+L1 sizes count 400000 data 149555560 indexes 57372672 {"_id_":11206656,"partition_1_aggregate_id_1_tenant_id_1_version_1":22368256,"partition_1_tenant_id_1_request_id_1":23797760}
+L0 insert wall   4.74s cpu/op   23.7us
+L0 read   wall  12.82s cpu/op  114.4us
+L0 sizes count 400000 data 149555560 indexes 65105920 {"_id_":11268096,"aggregate_id_1_tenant_id_1_version_1":28078080,"tenant_id_1_request_id_1":25759744}
+S0 insert wall  35.66s cpu/op  224.4us
+S0 update wall  32.50s cpu/op  207.9us
+S0 read   wall  11.88s cpu/op  101.5us
+S0 sizes count 200000 data 55460410 indexes 28663808 {"_id_":5558272,"tenant_id_1_aggregate_id_1":12156928,"tenant_id_1_owner_id_1":5615616,"tenant_id_1_space_id_1":5332992}
+S1 insert wall  36.99s cpu/op  220.7us
+S1 update wall  35.50s cpu/op  227.1us
+S1 read   wall  14.81s cpu/op  126.8us
+S1 sizes count 200000 data 60349300 indexes 26796032 {"_id_":7180288,"tenant_id_1_owner_id_1":10104832,"tenant_id_1_space_id_1":9510912}
+S1 insert wall  36.13s cpu/op  249.4us
+S1 update wall  34.79s cpu/op  233.9us
+S1 read   wall  14.73s cpu/op  126.2us
+S1 sizes count 200000 data 60349300 indexes 18612224 {"_id_":6946816,"tenant_id_1_owner_id_1":6041600,"tenant_id_1_space_id_1":5623808}
+S0 insert wall  35.75s cpu/op  254.8us
+S0 update wall  32.15s cpu/op  234.4us
+S0 read   wall  14.76s cpu/op  123.9us
+S0 sizes count 200000 data 55460410 indexes 28663808 {"_id_":5595136,"tenant_id_1_aggregate_id_1":12169216,"tenant_id_1_owner_id_1":5623808,"tenant_id_1_space_id_1":5275648}
