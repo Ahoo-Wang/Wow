@@ -36,6 +36,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.mongo.EnsuredCollections
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoFailures
 import me.ahoo.wow.mongo.MongoFormat
@@ -66,7 +67,6 @@ import org.bson.BsonType
 import org.bson.BsonValue
 import org.bson.Document
 import org.bson.conversions.Bson
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The [SnapshotStore] of one bounded context on MongoDB (documentation/designs/03-log-and-snapshot.md §3).
@@ -105,8 +105,8 @@ class MongoSnapshotStore(
     /** Whether this store shards its collections: asked of the server on the first collection it makes sure of. */
     private val sharded by lazy { sharding.shards(client, ddl) }
 
-    /** The collections whose key and format this store has made sure of, by aggregate name. */
-    private val ensured = ConcurrentHashMap<String, MongoCollection<Document>>()
+    /** The collections whose key and format this store has made sure of, by aggregate name, each once. */
+    private val ensured = EnsuredCollections<MongoCollection<Document>>()
 
     /**
      * Nothing to create up front: each aggregate type's collection is created on its first use ([createCollection]),
@@ -123,7 +123,7 @@ class MongoSnapshotStore(
     }
 
     private fun collectionOf(aggregate: String): MongoCollection<Document> =
-        ensured[aggregate] ?: ensure(aggregate).also { ensured[aggregate] = it }
+        ensured.get(aggregate) { ensure(aggregate) }
 
     private fun ensure(aggregate: String): MongoCollection<Document> =
         ensure(database, context, aggregate, ddl).also { collection ->
