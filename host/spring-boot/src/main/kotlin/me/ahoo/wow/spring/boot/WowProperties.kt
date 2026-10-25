@@ -108,7 +108,7 @@ import me.ahoo.wow.client.RetryPolicy as ClientRetryPolicy
  * - `wow.executor.lane-capacity` (1024), `wow.executor.max-batch` (32, the queued commands of one aggregate committed
  *   with one append), `wow.executor.max-in-flight` (4096, the node's commands in flight, beyond
  *   which a command is `wow.command.busy`, decision D228 ②), `wow.state-cache.capacity` (bounded by a share of
- *   the heap in bytes unless set, B.O-4), `wow.state-cache.recent-requests` (256, the requests each cached aggregate keeps of those it committed last,
+ *   the heap in bytes unless set, B.O-4), `wow.state-cache.recent-requests` (32, the requests each cached aggregate keeps of those it committed last,
  *   decision D261), `wow.subscription.*`.
  * - `wow.subscriptions.[<subscription>].start`: `beginning`, `end` or an ISO-8601 instant, where the subscription
  *   (`processor.function`, bracketed for its dot) starts in a partition it has no checkpoint in yet, instead of its
