@@ -426,11 +426,13 @@ class PostgresEventLog(
         }
         val tablesOf = group.map { (stream) -> tableOf(connection, stream.ref.type) }
         val tables = tablesOf.distinctBy { it.base }.sortedBy { it.base }
-        val sql = this.tables.appendGroupAcross(parts, tables, tablesOf.map { table -> tables.indexOf(table) })
+        val sql = this.tables.appendGroupAcross(tables, tablesOf.map { table -> tables.indexOf(table) })
         val rows = try {
             connection.prepareStatement(sql).use { statement ->
                 group.forEachIndexed { index, (stream, transport) ->
-                    bindStream(statement, index * AggregateLogTable.STREAM_PARAMETERS + 1, stream, transport)
+                    val first = index * PostgresEventLogTables.ACROSS_STREAM_PARAMETERS + 1
+                    statement.setInt(first, parts[index])
+                    bindStream(statement, first + 1, stream, transport)
                 }
                 statement.executeQuery().use { rows ->
                     rows.map { it.getInt("version") to it.getLong("sequence").takeUnless { _ -> it.wasNull() } }

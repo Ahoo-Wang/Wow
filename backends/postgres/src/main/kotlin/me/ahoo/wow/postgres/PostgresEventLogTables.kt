@@ -203,13 +203,16 @@ internal class PostgresEventLogTables(val context: String) {
      * them in one order, and every group takes its counters before the request keys, which it then takes in
      * [appendGroup]'s order. A group waiting on a counter holds no request key, so no cycle forms.
      *
-     * Returns per stream, in the group's order: `ord`, the aggregate's current `version`, and the `sequence` it was
-     * committed at in its partition, null when it did not fit.
+     * The partitions are parameters, not literals, so the statement's text depends on the group's shape alone (its
+     * size and its tables) and PostgreSQL plans it once per shape, as it does [appendGroup].
+     *
+     * Parameters per stream: its partition, then [AggregateLogTable.STREAM_PARAMETERS] of it
+     * ([ACROSS_STREAM_PARAMETERS] in all). Returns per stream, in the group's order: `ord`, the aggregate's current
+     * `version`, and the `sequence` it was committed at in its partition, null when it did not fit.
      */
-    fun appendGroupAcross(parts: List<Int>, tables: List<AggregateLogTable>, branches: List<Int>): String {
-        require(parts.size == branches.size) { "Each stream has a partition and a table." }
+    fun appendGroupAcross(tables: List<AggregateLogTable>, branches: List<Int>): String {
         val values = branches.withIndex().joinToString(", ") { (ord, branch) ->
-            "($ord, $branch, ${parts[ord]}, ?::text, ?::text, ?::integer, ?::text, ?::text, ?::text, ?::bigint, " +
+            "($ord, $branch, ?::integer, ?::text, ?::text, ?::integer, ?::text, ?::text, ?::text, ?::bigint, " +
                 "?::jsonb, ?::text, ?::text, ?::text, ?::text, ?::jsonb, ?::jsonb, ?::text, ?::text, ?::boolean, ?::jsonb)"
         }
         val current = tables.withIndex().joinToString(" UNION ALL ") { (branch, table) ->
@@ -258,6 +261,9 @@ internal class PostgresEventLogTables(val context: String) {
     companion object {
         /** The version of this layout. */
         const val FORMAT = 1
+
+        /** The parameters of a stream in [appendGroupAcross]: its partition, then its own. */
+        const val ACROSS_STREAM_PARAMETERS = AggregateLogTable.STREAM_PARAMETERS + 1
 
         /** The registry of aggregate tables, shared by the logs of every context. */
         const val REGISTRY = "wow_log_aggregate"
