@@ -351,6 +351,28 @@ L4 ([run 40087914268](https://github.com/Ahoo-Wang/Wow/actions/runs/40087914268)
 - MongoDB spends 15–20% less node CPU and 22–45% less of its own per command, and both backends 9–12% fewer bytes. PostgreSQL's node CPU does not fall (its load is one statement, D268), its store's does, by 8–47%.
 - On the fresh cache, before the sweep, the two arms cost the same (node CPU 0.50–0.56 ms on PostgreSQL, 0.65–0.69 ms on MongoDB).
 
+
+## MongoDB: several partitions' groups in one call (D275)
+
+**Where MongoDB's time goes.** E1 at 1,720/s on a primed session, MongoDB's `top` before and after (its time per collection, spread over the commands): the log's inserts 489 µs a command, the snapshots' updates 441 µs, the checkpoints 47 µs, everything else under 6 µs. One insert of one document cost 489 µs, where a document of a large batch costs a few tens: on one container, the same documents, eight clients, `w:majority`, mongod's CPU per document was about 208 µs at one document an `insertMany`, 47 µs at 8 and 25 µs at 64 ([`run-batches.sh`](v10-local-baseline/cross-partition/mongo-inserts/run-batches.sh)). A call carries about 180 µs of fixed cost (the command, the oplog, the majority's acknowledgement), and at moderate load each of the 64 partitions' groups is one or two streams (1,720/s over 64 partitions is 27 a second each), so every append paid it alone.
+
+**The change.** The append queue's lanes keep one group of their partition in flight, as before, and hand it to the committers instead of calling the log; a committer takes the first group handed and those handed meanwhile, at most 512 streams, and commits them with one `appendAll`. MongoDB's log takes several partitions a call (`EventLog.appendsAcrossPartitions`): each stream takes its partition's sequence, and each collection's members go in one ordered `insertMany`, sorted by partition.
+
+**How many committers.** One build, merging off (A) against one committer and against two, the stores in memory (`--tmpfs`) so that the latencies are the node's, sessions A B C C B A, E1 at 1,720/s and E3 at 700/s ([`mergers-tmpfs-ab.sh`](v10-local-baseline/cross-partition/committers-tmpfs/mergers-tmpfs-ab.sh), results beside it):
+
+| Against merging off | One committer | Two committers |
+| --- | --- | --- |
+| E1 p50 / p99 | 1.09 / 0.90 | 0.75 / 0.55 |
+| E1 node / MongoDB / Kafka CPU per command | 0.79 / 0.70 / 0.83 | 0.83 / 0.68 / 0.78 |
+| E3 p50 / p99 | 1.62 / 3.14 | 1.10 / 0.94 |
+| E3 node / MongoDB CPU per command | 0.90 / 0.79 | 0.99 / 0.91 |
+
+- With one committer every group waits for the call in flight: the costs fall, E3's latency rises by half. With two, one call is in flight while the next merges what the partitions hand meanwhile: E1's p50 falls a quarter and its p99 nearly half, at a third less of MongoDB's CPU; E3 is within its noise and MongoDB spends 9% less. Two is the default.
+- A run on the disk with four committers ([`mergers-ab.sh`](v10-local-baseline/cross-partition/committers-disk/mergers-ab.sh)) kept E1's latency but lost most of the saving (MongoDB's CPU per E1 command 0.97 of unmerged): at 1,720/s four calls in flight carry too little each. Its sessions had disk stalls of seconds (448 and 48 commands failed in two of them), as did the first end-to-end run with one committer ([`merge-ab.sh`](v10-local-baseline/cross-partition/merge-disk/merge-ab.sh)); their latencies are not read here.
+- In one JVM, closed loop (L1, one committer, [`l1-ab.sh`](v10-local-baseline/cross-partition/l1/l1-ab.sh)), the insert calls per E1 command fell from 1.00 to 0.13 at concurrency 16, 0.89 to 0.04 at 64 and 0.40 to 0.01 at 256, and mongod's CPU per command by 37–55%.
+
+**A narrower lever: the log position as `_id`.** The log's documents take the driver's ObjectId, so an insert updates four trees: `_id` and the unique version, request and position indexes. The position as a long `_id` (`partition << 51 | sequence`) would replace the position index. Inserting the same 400,000 documents with eight clients, layouts alternating ([`run-layouts.sh`](v10-local-baseline/cross-partition/mongo-inserts/run-layouts.sh)): mongod's CPU per insert 30.9 and 33.7 µs with ObjectId and three unique indexes, 27.6 and 28.2 µs with the position as `_id` and two (about 14% less), 27.4 and 27.9 µs with that collection also clustered by `_id`; the indexes 76–90 MB, 55–57 MB and 50–51 MB. About 4 µs an insert is about 0.4% of a command's MongoDB CPU: the call's fixed cost, not the trees, is what the inserts pay. It is done before GA anyway (roadmap §6), for the smaller indexes and for a range sharding by partition later, while the format may still change; the clustered collection measured no better and needs MongoDB 5.3.
+
 ## Tried and ruled out
 
 Two hypotheses from the platform-thread recordings below, each measured and rejected on 2026-10-24.

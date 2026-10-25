@@ -687,17 +687,26 @@ class MongoEventLogTest : EventLogSpec() {
     }
 
     @Test
-    fun `a group holds streams of one partition and distinct aggregates`(): Unit = runBlocking {
-        val context = MongoLogFixture.newContext()
-        val log = MongoLogFixture.log(4, context)
-        val type = AggregateType(context, "order")
-        val ids = generateSequence(1) { it + 1 }.map { "p-$it" }
-        val (zero, one) = Partitioner.partitionOf(type.ref("tenant", "p-1"), 4).let { first ->
-            "p-1" to ids.first { Partitioner.partitionOf(type.ref("tenant", it), 4) != first }
+    fun `a group may hold several partitions, and an aggregate's streams only in consecutive versions`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            val log = MongoLogFixture.log(4, context)
+            val type = AggregateType(context, "order")
+            val ids = generateSequence(1) { it + 1 }.map { "p-$it" }
+            val (zero, one) = Partitioner.partitionOf(type.ref("tenant", "p-1"), 4).let { first ->
+                "p-1" to ids.first { Partitioner.partitionOf(type.ref("tenant", it), 4) != first }
+            }
+            // Decision D275: the queue hands several partitions' groups to one call.
+            log.appendsAcrossPartitions.assert().isTrue()
+            log.appendAll(group(context, zero, one))
+                .forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
+            assertThrownBy<IllegalArgumentException> { runBlocking { log.appendAll(group(context, zero, zero)) } }
+            // A group holds this log's context alone.
+            val elsewhere = stream("x", 1, aggregate = AggregateType(MongoLogFixture.newContext(), "order"))
+            assertThrownBy<IllegalArgumentException> {
+                runBlocking { log.appendAll(group(context, zero) + (elsewhere to null)) }
+            }
         }
-        assertThrownBy<IllegalArgumentException> { runBlocking { log.appendAll(group(context, zero, one)) } }
-        assertThrownBy<IllegalArgumentException> { runBlocking { log.appendAll(group(context, zero, zero)) } }
-    }
 
     private companion object {
         const val QUOTA_EXCEEDED = 12_501

@@ -7,7 +7,7 @@ description: "Every key of the host's wow.* configuration, its type, default and
 
 # Configuration Keys
 
-Every key of the `wow.*` configuration a Spring Boot host reads, 234 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property names is reported when the node starts. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`.
+Every key of the `wow.*` configuration a Spring Boot host reads, 237 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property names is reported when the node starts. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`.
 
 ## `wow`
 
@@ -311,6 +311,9 @@ The partition append queue; each setting not given is the default (AppendQueueOp
 | --- | --- | --- | --- |
 | `wow.log.append-queue.enabled` | `Boolean` |  |  |
 | `wow.log.append-queue.max-batch` | `Integer` |  |  |
+| `wow.log.append-queue.merge` | `Boolean` |  | Whether the partitions' groups go to a log that takes several partitions a call merged: on by default, for MongoDB; a log that does not take them is called per partition. |
+| `wow.log.append-queue.merge-max` | `Integer` |  | The most streams one merged call takes. |
+| `wow.log.append-queue.mergers` | `Integer` |  | The committers of the merged groups, each with one call in flight. |
 
 ## `wow.log.handoff`
 

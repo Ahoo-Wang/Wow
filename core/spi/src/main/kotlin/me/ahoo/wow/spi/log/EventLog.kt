@@ -53,9 +53,17 @@ interface EventLog {
     suspend fun append(stream: EventStreamRecord, transport: Transport? = null): AppendOutcome
 
     /**
-     * Appends [streams] of one partition, each atomically with its transport, and returns their outcomes in the same
-     * order. A partition's owner calls it with the appends it has queued (group commit, finding F1): a backend may
-     * commit them together to share the round trips, as long as every outcome is what [append] would have returned:
+     * Whether [appendAll] takes the streams of several partitions in one call (decision D275): the append queue then
+     * hands it what several partitions' owners queued at once, so that one store call carries them. False by default:
+     * the queue calls [appendAll] once per partition.
+     */
+    val appendsAcrossPartitions: Boolean get() = false
+
+    /**
+     * Appends [streams] of one partition (or of several, when [appendsAcrossPartitions]), each atomically with its
+     * transport, and returns their outcomes in the same order. A partition's owner calls it with the appends it has
+     * queued (group commit, finding F1): a backend may commit them together to share the round trips, as long as every
+     * outcome is what [append] would have returned:
      * a stream the backend refuses ([AppendOutcome.Rejected]) fails alone, and a group whose commit is unknown is
      * [AppendOutcome.Unknown] for each stream, never appended again one by one.
      *
@@ -64,6 +72,9 @@ interface EventLog {
      * aggregate's later streams are not appended, each [AppendOutcome.Conflict] at the version that stream's outcome
      * leaves the aggregate at ([notAppendedAfter]), whether the backend tried them or not. By default the streams are
      * appended one by one, an aggregate's later streams skipped once one did not commit.
+     *
+     * Across partitions, each partition's streams take its sequences in the order they come, and one partition's
+     * outcomes do not depend on another's: a stream that does not commit stops only its own aggregate's later streams.
      */
     suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
         val failed = HashMap<AggregateRef, AppendOutcome>()

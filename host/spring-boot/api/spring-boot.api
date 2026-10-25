@@ -622,9 +622,15 @@ public final class me/ahoo/wow/spring/boot/WowProperties$AppendQueue {
 	public fun <init> ()V
 	public final fun getEnabled ()Ljava/lang/Boolean;
 	public final fun getMaxBatch ()Ljava/lang/Integer;
+	public final fun getMerge ()Ljava/lang/Boolean;
+	public final fun getMergeMax ()Ljava/lang/Integer;
+	public final fun getMergers ()Ljava/lang/Integer;
 	public final fun options ()Lme/ahoo/wow/runtime/log/AppendQueueOptions;
 	public final fun setEnabled (Ljava/lang/Boolean;)V
 	public final fun setMaxBatch (Ljava/lang/Integer;)V
+	public final fun setMerge (Ljava/lang/Boolean;)V
+	public final fun setMergeMax (Ljava/lang/Integer;)V
+	public final fun setMergers (Ljava/lang/Integer;)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Backpressure {

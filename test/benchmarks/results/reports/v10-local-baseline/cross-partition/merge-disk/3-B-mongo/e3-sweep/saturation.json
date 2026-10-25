@@ -1,0 +1,75 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E3",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 100000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 2286.0333333333333,
+  "saturationConcurrency": 1024,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 288.26666666666665,
+      "ok": 8648,
+      "errors": {},
+      "p50Ms": 3.183,
+      "p99Ms": 8.447
+    },
+    {
+      "concurrency": 4,
+      "throughput": 591.0333333333333,
+      "ok": 17731,
+      "errors": {},
+      "p50Ms": 6.143,
+      "p99Ms": 17.791
+    },
+    {
+      "concurrency": 16,
+      "throughput": 1120.4333333333334,
+      "ok": 33613,
+      "errors": {},
+      "p50Ms": 12.415,
+      "p99Ms": 38.399
+    },
+    {
+      "concurrency": 64,
+      "throughput": 1683.9,
+      "ok": 50517,
+      "errors": {},
+      "p50Ms": 34.047,
+      "p99Ms": 98.303
+    },
+    {
+      "concurrency": 256,
+      "throughput": 2024.5,
+      "ok": 60735,
+      "errors": {},
+      "p50Ms": 122.879,
+      "p99Ms": 372.735
+    },
+    {
+      "concurrency": 1024,
+      "throughput": 2286.0333333333333,
+      "ok": 68581,
+      "errors": {},
+      "p50Ms": 425.983,
+      "p99Ms": 1064.959
+    }
+  ],
+  "meta": {
+    "backend": "mongo",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+    "stores": "kafka mongo",
+    "primed": "true",
+    "primeSeconds": "17",
+    "settleSeconds": "4",
+    "accounts": "100000",
+    "session": "/private/tmp/claude-501/-Users-worker-work-Wow--claude-worktrees-performance-optimization-327071/1e81896d-3639-40f5-8c4f-ed1ecfc9cafd/scratchpad/ab/merge/3-B-mongo/up"
+  }
+}

@@ -340,26 +340,27 @@ class MongoEventLog(
         error("The blocks of partition $partition of $context were sealed under $MAX_SEALED appends in a row.")
     }
 
+    /** A group may hold the streams of several partitions (decision D275): each takes its own partition's sequence. */
+    override val appendsAcrossPartitions: Boolean get() = true
+
     /**
-     * Appends [streams] of one partition with one unordered `insertMany` per aggregate collection (group commit,
-     * decisions D52, D271): each stream takes its own sequence, and gets the outcome [append] would give it. A stream
-     * the store refuses alone fails alone; a sequence no stream took gets its placeholder; a stream whose position
-     * another node sealed is appended again alone. A group whose write is unknown is unknown for each stream it held
-     * (finding A2-6).
+     * Appends [streams], of one partition or of several, with one ordered `insertMany` per aggregate collection (group
+     * commit, decisions D52, D271, D275): each stream takes its own partition's sequence, and gets the outcome [append]
+     * would give it. A stream the store refuses alone fails alone; a sequence no stream took gets its placeholder; a
+     * stream whose position another node sealed is appended again alone. A group whose write is unknown is unknown for
+     * each stream it held (finding A2-6).
      */
     override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
         if (streams.size <= 1) {
             return streams.map { (stream, transport) -> append(stream, transport) }
         }
-        val partition = Partitioner.partitionOf(streams.first().first.ref, partitions)
-        require(
-            streams.all { (stream) ->
-                stream.ref.type.context == context && Partitioner.partitionOf(stream.ref, partitions) == partition
-            },
-        ) { "A group commit appends streams of one partition of $context." }
+        require(streams.all { (stream) -> stream.ref.type.context == context }) {
+            "A group commit appends streams of $context."
+        }
         requireChains(streams)
-        return dispatcher.mongo { appendGroup(partition, streams) }.also { outcomes ->
-            if (outcomes.any { it is AppendOutcome.Committed }) pacer.committed(partition)
+        return dispatcher.mongo { appendGroup(streams) }.also { outcomes ->
+            outcomes.filterIsInstance<AppendOutcome.Committed>().map { it.position.partition }.distinct()
+                .forEach { pacer.committed(it) }
         }
     }
 
@@ -373,11 +374,11 @@ class MongoEventLog(
     )
 
     /**
-     * [streams] encoded and sequenced, then inserted with one `insertMany` per collection. An aggregate's later streams
-     * follow the sequence its previous one in the group took, and are not appended once one did not commit
-     * ([EventLog.appendAll]).
+     * [streams] encoded and sequenced, each in its partition, then inserted with one `insertMany` per collection. An
+     * aggregate's later streams follow the sequence its previous one in the group took, and are not appended once one
+     * did not commit ([EventLog.appendAll]).
      */
-    private fun appendGroup(partition: Int, streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+    private fun appendGroup(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
         val outcomes = arrayOfNulls<AppendOutcome>(streams.size)
         val failed = HashMap<AggregateRef, AppendOutcome>()
         val previous = HashMap<AggregateRef, Long>()
@@ -388,6 +389,7 @@ class MongoEventLog(
                 return@forEachIndexed
             }
             val collection = collectionOf(stream.ref.type)
+            val partition = stream.ref.partitionIn()
             val document = encode(partition, stream, transport).getOrElse {
                 outcomes[index] = AppendOutcome.Rejected(it)
                 failed[stream.ref] = notAppendedAfter(stream, AppendOutcome.Rejected(it))
@@ -405,8 +407,12 @@ class MongoEventLog(
             previous[stream.ref] = allocation.sequence
             members += Member(index, stream, collection, document, allocation.sequence)
         }
+        // By partition (stable, so an aggregate's streams keep their order): the ordered insert stops at its first
+        // failure, and the members after it are appended again alone; sorted, they are its own partition's and the
+        // later partitions', not every partition's.
         members.groupBy { it.collection }.forEach { (collection, group) ->
-            insertGroup(collection, group).forEach { (index, outcome) -> outcomes[index] = outcome }
+            insertGroup(collection, group.sortedBy { it.stream.ref.partitionIn() })
+                .forEach { (index, outcome) -> outcomes[index] = outcome }
         }
         // A member whose position was taken (its block sealed), or that its insert did not reach, has no outcome yet:
         // it is appended again, alone, in order, unless one of its aggregate's did not commit.

@@ -19,6 +19,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -365,7 +366,107 @@ class PartitionAppendQueueTest {
     }
 
     /** Records every batch it commits. */
-    private open class RecordingLog(private val delegate: EventLog) : EventLog by delegate {
+    /** The first aggregate found in [partition]. */
+    private fun refIn(partition: Int, from: Int = 0): AggregateRef = generateSequence(from) { it + 1 }
+        .map { type.ref("tenant", "account-$it") }
+        .first { Partitioner.partitionOf(it, PARTITIONS) == partition }
+
+    private fun partitionOf(stream: EventStreamRecord) = Partitioner.partitionOf(stream.ref, PARTITIONS)
+
+    @Test
+    fun `groups several partitions handed meanwhile commit with one call, each caller with its own outcome`(): Unit =
+        runBlocking {
+            // Decision D275: the store's fixed cost of a call is shared by the partitions' small groups.
+            val log = GatedLog(InMemoryEventLog(PARTITIONS), acrossPartitions = true)
+            // One committer, so the call in flight holds the others' groups back until they merge.
+            val queue = PartitionAppendQueue(log, AppendQueueOptions(mergers = 1))
+            queue.merging.assert().isTrue()
+            val first = refIn(0)
+            val sameLane = refIn(0, from = 1_000)
+            val held = async(Dispatchers.Default) { queue.append(stream(first, 1)) }
+            withTimeout(5.seconds) { log.entered.await() }
+            val others = (1 until PARTITIONS).map { partition ->
+                async(Dispatchers.Default) { queue.append(stream(refIn(partition), 1)) }
+            }
+            val behind = async(Dispatchers.Default) { queue.append(stream(sameLane, 1)) }
+            // The other partitions' groups are handed to the committer; partition 0's next waits for its first.
+            withTimeout(5.seconds) { while (queue.queued != 1) delay(1) }
+            log.release.complete(Unit)
+            (listOf(held, behind) + others).forEach {
+                it.await().assert().isInstanceOf(
+                    AppendOutcome.Committed::class.java
+                )
+            }
+            log.batches.first().map { it.ref }.assert().containsExactly(first)
+            log.batches[1].map(::partitionOf).toSet().assert().containsAll((1 until PARTITIONS).toList())
+            // One group of a partition in flight at a time: partition 0's two never share a call.
+            log.batches.none { batch -> batch.count { partitionOf(it) == 0 } > 1 }.assert().isTrue()
+            queue.close()
+        }
+
+    @Test
+    fun `a merged call that throws fails every caller of its groups, and the lanes go on`(): Unit = runBlocking {
+        // A log that throws on any call holding a stream of partition 1: whichever groups merged with it fail too.
+        val log = object : RecordingLog(InMemoryEventLog(PARTITIONS), appendsAcrossPartitions = true) {
+            var refusing = true
+
+            override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+                if (refusing && streams.any { partitionOf(it.first) == 1 }) error("The batch failed.")
+                return super.appendAll(streams)
+            }
+        }
+        val queue = PartitionAppendQueue(log, AppendQueueOptions())
+        val outcomes = (0 until PARTITIONS).map { partition ->
+            async(Dispatchers.Default) { runCatching { queue.append(stream(refIn(partition), 1)) } }
+        }.awaitAll()
+        outcomes[1].exceptionOrNull()?.message.assert().isEqualTo("The batch failed.")
+        outcomes.forEach { outcome ->
+            outcome.exceptionOrNull()?.message?.assert()?.isEqualTo("The batch failed.")
+                ?: outcome.getOrThrow().assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        }
+        log.refusing = false
+        queue.append(stream(refIn(1), 1)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        queue.close()
+    }
+
+    @Test
+    fun `a merged call takes at most mergeMax streams, the rest the next call`(): Unit = runBlocking {
+        val log = GatedLog(InMemoryEventLog(PARTITIONS), acrossPartitions = true)
+        val queue = PartitionAppendQueue(log, AppendQueueOptions(maxBatch = 1, mergers = 1, mergeMax = 2))
+        val held = async(Dispatchers.Default) { queue.append(stream(refIn(0), 1)) }
+        withTimeout(5.seconds) { log.entered.await() }
+        val others = (1 until PARTITIONS).map { partition ->
+            async(Dispatchers.Default) { queue.append(stream(refIn(partition), 1)) }
+        }
+        withTimeout(5.seconds) { while (queue.queued != 0) delay(1) }
+        log.release.complete(Unit)
+        (listOf(held) + others).forEach { it.await().assert().isInstanceOf(AppendOutcome.Committed::class.java) }
+        log.batches.all { it.size <= 2 }.assert().isTrue()
+        queue.close()
+    }
+
+    @Test
+    fun `groups go per partition when merging is off or the log takes one partition a call`(): Unit = runBlocking {
+        val across = RecordingLog(InMemoryEventLog(PARTITIONS), appendsAcrossPartitions = true)
+        PartitionAppendQueue(across, AppendQueueOptions(merge = false)).apply { merging.assert().isFalse() }.close()
+        PartitionAppendQueue(RecordingLog(InMemoryEventLog(PARTITIONS)), AppendQueueOptions())
+            .apply { merging.assert().isFalse() }.close()
+        PartitionAppendQueue(across, AppendQueueOptions(enabled = false)).apply { merging.assert().isFalse() }.close()
+    }
+
+    @Test
+    fun `merging takes at least one committer and one partition's group a call`() {
+        assertThrows<IllegalArgumentException> { AppendQueueOptions(mergers = 0) }
+        assertThrows<IllegalArgumentException> { AppendQueueOptions(maxBatch = 64, mergeMax = 32) }
+        AppendQueueOptions().merge.assert().isTrue()
+        AppendQueueOptions().mergers.assert().isEqualTo(2)
+        AppendQueueOptions().mergeMax.assert().isEqualTo(512)
+    }
+
+    private open class RecordingLog(
+        private val delegate: EventLog,
+        override val appendsAcrossPartitions: Boolean = false,
+    ) : EventLog by delegate {
         val batches = CopyOnWriteArrayList<List<EventStreamRecord>>()
 
         override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
@@ -375,7 +476,11 @@ class PartitionAppendQueueTest {
     }
 
     /** Holds its first batch until [release]; batch number [failBatch] (from 1) throws. */
-    private class GatedLog(delegate: EventLog, private val failBatch: Int? = null) : RecordingLog(delegate) {
+    private class GatedLog(
+        delegate: EventLog,
+        private val failBatch: Int? = null,
+        acrossPartitions: Boolean = false,
+    ) : RecordingLog(delegate, acrossPartitions) {
         val entered = CompletableDeferred<Unit>()
         val release = CompletableDeferred<Unit>()
 
