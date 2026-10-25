@@ -24,6 +24,7 @@ Earlier Wow 10 evidence, each valid for the commit it names:
 | [v10-local-baseline](v10-local-baseline.md) | The local baseline: A/A noise, cost per operation by resource, the node's CPU by thread and allocation by part, the stores' time by statement, ranked candidates | Baseline for its commit |
 | [v10-hot-aggregate-batching](v10-hot-aggregate-batching.md) | D273: an aggregate's queued commands committed with one append, `max-batch` 1 against 32: saturation with a hot account and with Zipf keys, the cost per command where nothing queues | Decided (D273) |
 | [v10-local-baseline-m4pro](v10-local-baseline-m4pro.md) | The local baseline on an Apple M4 Pro (Docker 12 CPUs / 16 GB, no JFR): A/A spread, ceilings and costs per operation, 1 GB against 2 GB of heap (the state cache's budget), L1 | Baseline for its commit |
+| [v10-m4pro-snapshot](v10-m4pro-snapshot.md) | The milestone snapshot on the M4 Pro after D273–D275 and the production-like store settings: ceilings, A/A, 1 GB against 2 GB, L1, and the state cache missing after four sweeps (roadmap §6 item 20) | Snapshot for its commit |
 
 ## 9.x
 
