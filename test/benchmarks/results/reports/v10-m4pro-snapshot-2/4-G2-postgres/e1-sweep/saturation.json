@@ -1,0 +1,75 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 100000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 18708.033333333333,
+  "saturationConcurrency": 1024,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 1782.0666666666666,
+      "ok": 53462,
+      "errors": {},
+      "p50Ms": 0.539,
+      "p99Ms": 0.827
+    },
+    {
+      "concurrency": 4,
+      "throughput": 3655.1666666666665,
+      "ok": 109655,
+      "errors": {},
+      "p50Ms": 1.031,
+      "p99Ms": 1.991
+    },
+    {
+      "concurrency": 16,
+      "throughput": 5808.2,
+      "ok": 174246,
+      "errors": {},
+      "p50Ms": 2.015,
+      "p99Ms": 8.095
+    },
+    {
+      "concurrency": 64,
+      "throughput": 8930.2,
+      "ok": 267906,
+      "errors": {},
+      "p50Ms": 4.383,
+      "p99Ms": 23.423
+    },
+    {
+      "concurrency": 256,
+      "throughput": 13123.466666666667,
+      "ok": 393704,
+      "errors": {},
+      "p50Ms": 16.511,
+      "p99Ms": 56.575
+    },
+    {
+      "concurrency": 1024,
+      "throughput": 18708.033333333333,
+      "ok": 561241,
+      "errors": {},
+      "p50Ms": 50.431,
+      "p99Ms": 186.367
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "2g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.13\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "primed": "true",
+    "primeSeconds": "8",
+    "settleSeconds": "3",
+    "accounts": "100000",
+    "session": "/Users/ahoo/.gemini/antigravity/worktrees/Wow/wow-m4pro-snapshot-2/test/benchmarks/results/e2e/20261025-102320-run-postgres-n1-saturation"
+  }
+}
