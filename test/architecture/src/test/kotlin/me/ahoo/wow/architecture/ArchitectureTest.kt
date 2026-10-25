@@ -149,6 +149,40 @@ class ArchitectureTest {
             .containsAll((ArchitectureRules.PLATFORM_MODULES + ArchitectureRules.PLATFORM_SERVERS).map { it.name })
     }
 
+    @Test
+    fun `a JSON mapper should be built through WowJson, or by a reader listed with its reason`() {
+        // Review A5: one place sets what Wow stores and sends (exact decimals, its modules, its mix-ins). A reader of
+        // other JSON, which those settings would change, is listed here on purpose.
+        val readersOfOtherJson = mapOf(
+            "core/spi/src/main/kotlin/me/ahoo/wow/spi/json/WowJson.kt" to "WowJson itself",
+            "core/runtime/src/main/kotlin/me/ahoo/wow/runtime/contract/ContractDirectory.kt" to "a peer's contract",
+            "core/runtime/src/main/kotlin/me/ahoo/wow/runtime/contract/ContractReader.kt" to "a peer's contract",
+            "core/runtime/src/main/kotlin/me/ahoo/wow/runtime/manifest/ManifestLoader.kt" to "a Manifest fragment",
+            "platform/analytics/catalog/server/src/main/kotlin/me/ahoo/wow/analytics/catalog/server/" +
+                "ClickHouseWarehouseCatalog.kt" to "ClickHouse's own JSON",
+        )
+        val builders = repositoryRoot.walkTopDown()
+            .onEnter { it.name != "build" && it.name != "node_modules" && !it.name.startsWith(".") }
+            .filter { it.isFile && it.extension == "kt" && "/src/main/" in it.invariantSeparatorsPath }
+            // The compiler and the test tooling run at build or test time: what they read is not what Wow stores.
+            .filterNot { file ->
+                TOOLING.any {
+                    file.relativeTo(
+                        repositoryRoot
+                    ).invariantSeparatorsPath.startsWith(it)
+                }
+            }
+            .filter { JSON_MAPPER_BUILDER.containsMatchIn(it.readText()) }
+            .map { it.relativeTo(repositoryRoot).invariantSeparatorsPath }
+            .toSet()
+        (builders - readersOfOtherJson.keys).assert()
+            .describedAs("Build a mapper with WowJson.builder(), or list the reader here with its reason")
+            .isEmpty()
+        (readersOfOtherJson.keys - builders).assert().describedAs(
+            "Listed readers that build no mapper any more"
+        ).isEmpty()
+    }
+
     @TestFactory
     fun `production sources should follow the dependency rules`(): List<DynamicTest> =
         ArchitectureRules.DEPENDENCY_RULES.map { rule ->
@@ -628,3 +662,6 @@ class ArchitectureTest {
         const val REPOSITORY_ROOT = "wow.repository.root"
     }
 }
+
+private val JSON_MAPPER_BUILDER = Regex("""\bJsonMapper\.builder\(""")
+private val TOOLING = listOf("compiler/", "test/")
