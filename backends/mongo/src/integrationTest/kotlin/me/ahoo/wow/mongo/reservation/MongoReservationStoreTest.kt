@@ -56,7 +56,7 @@ class MongoReservationStoreTest : ReservationStoreSpec() {
         store.reserve(scope, "\$key", owner, "\$hold", TTL)?.owner.assert().isEqualTo(owner)
         store.reserve(scope, "\$key", owner, "\$hold.2", TTL)?.holds.assert().isEqualTo(setOf("\$hold", "\$hold.2"))
         store.abandon(scope, "\$key", owner, "\$hold").assert().isTrue()
-        store.confirm(scope, "\$key", owner).assert().isEqualTo(ConfirmOutcome.Confirmed)
+        store.confirm(scope, "\$key", owner, 1).assert().isEqualTo(ConfirmOutcome.Confirmed)
         store.reserve(scope, "\$key", owner, "\$hold", TTL)?.confirmed.assert().isEqualTo(true)
         store.find(scope, "\$key")?.owner.assert().isEqualTo(owner)
     }

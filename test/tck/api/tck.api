@@ -116,6 +116,8 @@ public abstract class me/ahoo/wow/tck/reservation/ReservationStoreSpec {
 	public fun <init> ()V
 	public final fun a confirmed reservation never expires ()V
 	public final fun a live reservation keeps the key from another owner ()V
+	public final fun a pending key is released by any fact, and any version frees a confirmed one ()V
+	public final fun a release frees only a key no later fact confirmed ()V
 	public final fun a reservation is pending until its time to live passes ()V
 	public final fun a reservation is refused a time to live that is not positive and an owner of another context ()V
 	public final fun a system key is unique across tenants and apart from the tenants' own keys ()V
@@ -128,6 +130,7 @@ public abstract class me/ahoo/wow/tck/reservation/ReservationStoreSpec {
 	public final fun concurrent reservations and abandons of one owner keep the holds still in flight ()V
 	public final fun concurrent reservations of one key let exactly one owner win ()V
 	public final fun confirming a free key reinstates it for the committed fact ()V
+	public final fun confirming keeps the version of the latest fact ()V
 	public final fun confirming takes the key over from another owner's expired pending reservation only ()V
 	public final fun contexts are separate ()V
 	protected abstract fun createStore (Ljava/time/Clock;)Lme/ahoo/wow/spi/reservation/ReservationStore;

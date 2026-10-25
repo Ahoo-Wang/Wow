@@ -42,12 +42,13 @@ import kotlin.time.Duration
 
 /**
  * The [ReservationStore] on MongoDB (documentation/designs/01-programming-model.md §7, decision D38): one document
- * per reserved key, `{context, tenant_id, namespace, key, owner: {aggregate, tenant_id, id}, expires_at, holds}`, keyed
- * by a unique index on `(context, tenant_id, namespace, key)` (finding A1-3; the system tenant is the empty string),
- * its owner structured (finding A1-10; its context is the key's) and an index on the owner. A null `expires_at` marks
- * a confirmed reservation; a pending one expires at that epoch millisecond and is held by the attempts in `holds`
- * (finding A1-2). The layout is format [FORMAT] (decision D59); format 1, keyed by `(namespace, key)` with an `owner`
- * string, had no format record, so a collection of it is refused: drop it.
+ * per reserved key, `{context, tenant_id, namespace, key, owner: {aggregate, tenant_id, id}, expires_at, holds,
+ * version}`, keyed by a unique index on `(context, tenant_id, namespace, key)` (finding A1-3; the system tenant is the
+ * empty string), its owner structured (finding A1-10; its context is the key's) and an index on the owner. A null
+ * `expires_at` marks a confirmed reservation, `version` the owner's fact that last confirmed it; a pending one expires
+ * at that epoch millisecond and is held by the attempts in `holds` (finding A1-2), without a version. The layout is
+ * format [FORMAT] (decision D59); format 1, keyed by `(namespace, key)` with an `owner` string, had no format record,
+ * so a collection of it is refused: drop it.
  *
  * A reserve or a confirm is a conditional upsert (see [conditionalUpsert]) whose filter admits only the key's owner or
  * an expired pending reservation (a null expiry never passes `$lte`); a reserve's pipeline update keeps a confirmed
@@ -166,7 +167,12 @@ class MongoReservationStore(
             pulled
         }
 
-    override suspend fun confirm(scope: ReservationScope, key: String, owner: AggregateRef): ConfirmOutcome {
+    override suspend fun confirm(
+        scope: ReservationScope,
+        key: String,
+        owner: AggregateRef,
+        version: Int,
+    ): ConfirmOutcome {
         requireOwnContext(scope, owner)
         return dispatcher.mongo {
             val confirm = Updates.combine(
@@ -176,6 +182,8 @@ class MongoReservationStore(
                 ),
                 Updates.set(EXPIRES_AT, null),
                 Updates.set(HOLDS, emptyList<String>()),
+                // A pending reservation has none, so only the owner's own confirmed one keeps a greater version.
+                Updates.max(VERSION, version),
             )
             // A holder that went away between the upsert and the read is retried: the next upsert takes the key.
             repeat(WRITE_ATTEMPTS) {
@@ -198,9 +206,11 @@ class MongoReservationStore(
         }
     }
 
-    override suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef): Boolean =
+    override suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef, version: Int): Boolean =
         dispatcher.mongo {
-            reservations.deleteOne(Filters.and(keyFilter(scope, key), ownerFilter(owner))).deletedCount == 1L
+            val releasable = Filters.or(Filters.ne(EXPIRES_AT, null), Filters.lte(VERSION, version))
+            reservations.deleteOne(Filters.and(keyFilter(scope, key), ownerFilter(owner), releasable))
+                .deletedCount == 1L
         }
 
     override suspend fun find(scope: ReservationScope, key: String): Reservation? = dispatcher.mongo {
@@ -236,6 +246,7 @@ class MongoReservationStore(
             ).ref(owner.getString(TENANT_ID), owner.getString(ID)),
             expiresAt = document.getLong(EXPIRES_AT),
             holds = document.getList(HOLDS, String::class.java).orEmpty().toSet(),
+            version = document.getInteger(VERSION) ?: ReservationStore.UNVERSIONED,
         )
     }
 
@@ -258,6 +269,7 @@ class MongoReservationStore(
         const val OWNER_ID = "$OWNER.$ID"
         const val EXPIRES_AT = "expires_at"
         const val HOLDS = "holds"
+        const val VERSION = "version"
 
         fun requireOwnContext(scope: ReservationScope, owner: AggregateRef) =
             require(owner.type.context == scope.context) { "$owner reserves keys of its own context only." }

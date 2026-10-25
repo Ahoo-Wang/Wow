@@ -20,6 +20,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.WaitSignal
+import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.runtime.FrameworkCodes
@@ -107,7 +108,7 @@ fun internalRoutes(
         }
         POST(InternalHttp.RESUME_PATH) { request ->
             tokens.refusal(request, null)?.let { return@POST it.respond() }
-            val body = request.decode { STANDBY_JSON.readTree(it) }
+            val body = request.decode { HttpJson.mapper.readTree(it) }
             val by = body?.get("by")?.takeIf { it.isString }?.stringValue()?.takeIf(String::isNotBlank)
                 ?: return@POST Problem(
                     HttpStatus.BAD_REQUEST.value(),
@@ -140,8 +141,6 @@ interface StandbyControl {
         val reason: String? = null,
     )
 }
-
-private val STANDBY_JSON = tools.jackson.databind.json.JsonMapper.builder().build()
 
 /** The routes of the internal port, its signals taken by [registry], the waits started on this node. */
 @InternalWowApi

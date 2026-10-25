@@ -65,6 +65,7 @@ span 以属性的形式带着上下文、聚合、租户、命令和订阅（`wo
 | `wow.subscription.paused` | Gauge | 订阅因系统性故障暂停某个分区时为 1 |
 | `wow.subscription.throttled` | Gauge | 订阅因背压限流某个分区时为 1 |
 | `wow.subscription.undecodable` | Counter | 这个版本无法解码的主题消息 |
+| `wow.reservation.lost` | Counter | 待定预留过期后被另一个所有者占用、已提交事实丢失的唯一键 |
 | `wow.timer.delay` | Timer | 定时器在到期时间之后延迟多久触发 |
 | `wow.query` | Timer | 一个查询，从准入到结束 |
 | `wow.query.limit` | Gauge | 存储当前的并发查询上限 |
@@ -82,4 +83,5 @@ span 以属性的形式带着上下文、聚合、租户、命令和订阅（`wo
 | `wow.subscription.backlog` 持续增长 | 某个订阅落后了 | 它的落后量、处理函数的延迟、节点的执行器 |
 | `wow.timer.delay` 持续增长 | 定时器触发得晚了 | 节点的负载、定时器的存储 |
 | `wow.kafka.offset.gaps` 大于 0 | 某个订阅跳过了数据，或停在已过保留期的数据上 | 主题的保留期 |
+| `wow.reservation.lost` 大于 0 | 有唯一键被两个聚合同时依赖 | 指明该键及其持有者的错误日志；预留的存活时间 |
 | 带 `wow.command.busy` 的 `wow.command.refused` | 节点在负载下拒绝命令 | 节点数、存储的延迟 |
