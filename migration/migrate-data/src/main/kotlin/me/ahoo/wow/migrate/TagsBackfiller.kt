@@ -40,7 +40,7 @@ import kotlin.time.TimeSource
  * tenant); [completed] is set once none is left; [aggregates], [streams] and [millis] are those of every run since it
  * started: how many aggregates were replayed, how many streams got their tags, and how long it took.
  */
-data class TagsCheckpoint(
+internal data class TagsCheckpoint(
     val afterTenantId: String? = null,
     val afterId: String? = null,
     val completed: Boolean = false,
@@ -56,7 +56,7 @@ data class TagsCheckpoint(
  * The documents of an aggregate type's events index the re-sink reads and overwrites ([TagsBackfiller.resink]): an
  * [ElasticsearchEventSink] ([of]), or a test's.
  */
-interface UntaggedDocuments {
+internal interface UntaggedDocuments {
     /** The streams whose documents record no tags, in `(aggregateId, tenantId, version)` order after [after]. */
     suspend fun untagged(after: IndexedStream?, limit: Int): List<IndexedStream>
 
@@ -78,10 +78,10 @@ interface UntaggedDocuments {
 }
 
 /** One indexed stream: its aggregate and version. */
-data class IndexedStream(val ref: AggregateRef, val version: Int)
+internal data class IndexedStream(val ref: AggregateRef, val version: Int)
 
 /** The tags backfill of one V10 aggregate type since it started; see [TagsCheckpoint]. */
-data class TagsProgress(val type: AggregateType, val checkpoint: TagsCheckpoint) {
+internal data class TagsProgress(val type: AggregateType, val checkpoint: TagsCheckpoint) {
     fun render(): String {
         val perAggregate = if (checkpoint.aggregates == 0L) 0.0 else checkpoint.millis.toDouble() / checkpoint.aggregates
         return "$type tags${if (checkpoint.completed) " done" else ""}: ${checkpoint.aggregates} aggregates replayed, " +
@@ -103,7 +103,7 @@ data class TagsProgress(val type: AggregateType, val checkpoint: TagsCheckpoint)
  * - **Elasticsearch after.** An events index written before the tags holds documents without them: [resink]
  *   overwrites them from the log once it is backfilled ([untagged] says none is left).
  */
-class TagsBackfiller(
+internal class TagsBackfiller(
     private val models: MigrationModels,
     private val logOf: (String) -> EventLog,
     private val checkpoints: CheckpointRepository,

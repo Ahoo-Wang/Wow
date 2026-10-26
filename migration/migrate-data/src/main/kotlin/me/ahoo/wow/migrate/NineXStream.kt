@@ -18,7 +18,7 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
 /** A 9.x aggregate as its streams name it: `contextName.aggregateName`. */
-data class NineXAggregate(val context: String, val name: String) {
+internal data class NineXAggregate(val context: String, val name: String) {
     init {
         require(context.isNotBlank()) { "A 9.x aggregate needs a context name." }
         require(name.isNotBlank()) { "A 9.x aggregate needs an aggregate name." }
@@ -28,14 +28,14 @@ data class NineXAggregate(val context: String, val name: String) {
 }
 
 /** One 9.x aggregate instance: its id within its tenant. */
-data class NineXAggregateId(val id: String, val tenantId: String) : Comparable<NineXAggregateId> {
+internal data class NineXAggregateId(val id: String, val tenantId: String) : Comparable<NineXAggregateId> {
     override fun compareTo(other: NineXAggregateId): Int = compareValuesBy(this, other, { it.id }, { it.tenantId })
 
     override fun toString(): String = "$tenantId/$id"
 }
 
 /** One event of a 9.x stream: its [name] and 9.x [revision] (`0.0.1` unless `@Event` said otherwise), and [body]. */
-data class NineXEvent(val id: String, val name: String, val revision: String, val body: JsonNode)
+internal data class NineXEvent(val id: String, val name: String, val revision: String, val body: JsonNode)
 
 /**
  * One 9.x event stream, as the 9.x `EventStreamJsonSerializer` writes it and its event stores keep it: a MongoDB
@@ -44,7 +44,7 @@ data class NineXEvent(val id: String, val name: String, val revision: String, va
  * Read by its storage format only, never through 9.x classes (decision D85). [ownerId] and [spaceId] are blank when
  * 9.x recorded none.
  */
-data class NineXStream(
+internal data class NineXStream(
     val id: String,
     val aggregate: NineXAggregate,
     val aggregateId: NineXAggregateId,
@@ -117,7 +117,7 @@ data class NineXStream(
 }
 
 /** The 9.x framework headers of a stream: none is a request fact (design 07 §3). */
-object NineXHeaders {
+internal object NineXHeaders {
     /** The id of the root command of the chain (9.x `TraceMessagePropagator`): the V10 correlation id. */
     const val TRACE_ID: String = "trace_id"
 
@@ -141,4 +141,4 @@ object NineXHeaders {
 }
 
 /** The migration cannot go on: a mapping, a stream or the target is not what the import needs. */
-class MigrationException(message: String) : IllegalStateException(message)
+internal class MigrationException(message: String) : IllegalStateException(message)

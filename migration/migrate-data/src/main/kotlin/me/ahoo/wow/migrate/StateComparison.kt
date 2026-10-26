@@ -34,7 +34,7 @@ import tools.jackson.databind.JsonNode
  * The options of a comparison: [pageSize] snapshots per page, [concurrency] of them at a time, [sample] the percentage
  * of the instances compared (100 for all), and [restart] to compare again from the first instance.
  */
-data class CompareOptions(
+internal data class CompareOptions(
     val pageSize: Int = 500,
     val concurrency: Int = 8,
     val sample: Int = ALL,
@@ -62,7 +62,7 @@ data class CompareOptions(
  * [compared] of those were compared (the sample) and [differing] differ, by the [kinds] of difference
  * ([FieldDifference.kind]) with the number of instances that have each.
  */
-data class ComparisonReport(
+internal data class ComparisonReport(
     val aggregate: NineXAggregate,
     val instances: Long,
     val snapshots: Long,
@@ -107,7 +107,7 @@ data class ComparisonReport(
  * The full import of the aggregate must be complete. Nothing is written but the checkpoint.
  */
 @Suppress("LongParameterList")
-class StateComparison(
+internal class StateComparison(
     private val snapshots: NineXSnapshotSource,
     private val plan: MigrationPlan,
     private val models: MigrationModels,

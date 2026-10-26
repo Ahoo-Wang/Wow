@@ -39,7 +39,7 @@ import java.util.concurrent.atomic.AtomicLong
  *   a stream becomes visible after its `createTime`, so a stream committed earlier may appear later.
  * - [maxUnknownRetries] is how often an append whose outcome is unknown is tried again.
  */
-data class ImportOptions(
+internal data class ImportOptions(
     val pageSize: Int = 500,
     val streamBatch: Int = 200,
     val concurrency: Int = 8,
@@ -62,7 +62,7 @@ data class ImportOptions(
  * the [instances] walked, the streams [imported] and [skipped] (already in the log, from an earlier run), the
  * [events] imported and the request ids [rewritten] because another instance of the type holds them.
  */
-data class ImportProgress(
+internal data class ImportProgress(
     val aggregate: NineXAggregate,
     val instances: Long,
     val imported: Long,
@@ -106,7 +106,7 @@ data class ImportProgress(
  * - the log is behind (the tail met a stream whose predecessors it has not read yet): the missing streams are read
  *   from 9.x first.
  */
-class EventStreamImporter(
+internal class EventStreamImporter(
     private val source: NineXEventSource,
     private val plan: MigrationPlan,
     private val logOf: (String) -> EventLog,

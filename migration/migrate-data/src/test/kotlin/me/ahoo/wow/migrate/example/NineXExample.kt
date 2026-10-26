@@ -42,7 +42,7 @@ import java.math.BigDecimal
  * serializer writes a snapshot's state. The V10 port below follows the Skill reference: context `example`,
  * `OrderCreated` without its identity field at revision 2 with an upgrade from the 9.x shape (revision 1).
  */
-object NineXExample {
+internal object NineXExample {
     const val CONTEXT = "example"
 
     /**
@@ -219,9 +219,9 @@ object NineXExample {
     }
 }
 
-enum class OrderStatus { CREATED, PAID, SHIPPED, RECEIVED }
+internal enum class OrderStatus { CREATED, PAID, SHIPPED, RECEIVED }
 
-data class ShippingAddress(
+internal data class ShippingAddress(
     val country: String,
     val province: String,
     val city: String,
@@ -229,23 +229,23 @@ data class ShippingAddress(
     val detail: String,
 )
 
-data class OrderItem(val id: String, val productId: String, val price: BigDecimal, val quantity: Int) {
+internal data class OrderItem(val id: String, val productId: String, val price: BigDecimal, val quantity: Int) {
     val totalPrice: BigDecimal
         get() = price.multiply(quantity.toBigDecimal())
 }
 
 /** Revision 2: the 9.x `orderId` is the stream's ref now. */
-data class OrderCreated(val items: List<OrderItem>, val address: ShippingAddress, val fromCart: Boolean)
+internal data class OrderCreated(val items: List<OrderItem>, val address: ShippingAddress, val fromCart: Boolean)
 
-data class AddressChanged(val shippingAddress: ShippingAddress)
+internal data class AddressChanged(val shippingAddress: ShippingAddress)
 
-data class OrderPaid(val amount: BigDecimal, val paid: Boolean)
+internal data class OrderPaid(val amount: BigDecimal, val paid: Boolean)
 
-class OrderShipped
+internal class OrderShipped
 
-class OrderReceived
+internal class OrderReceived
 
-class OrderState(val id: String) {
+internal class OrderState(val id: String) {
     var items: List<OrderItem> = emptyList()
     var address: ShippingAddress? = null
     var totalAmount: BigDecimal = BigDecimal.ZERO
@@ -255,15 +255,15 @@ class OrderState(val id: String) {
         get() = totalAmount.minus(paidAmount)
 }
 
-data class CartItem(val productId: String, val quantity: Int)
+internal data class CartItem(val productId: String, val quantity: Int)
 
-data class CartItemAdded(val added: CartItem)
+internal data class CartItemAdded(val added: CartItem)
 
-data class CartQuantityChanged(val changed: CartItem)
+internal data class CartQuantityChanged(val changed: CartItem)
 
-data class CartItemRemoved(val productIds: Set<String>)
+internal data class CartItemRemoved(val productIds: Set<String>)
 
-class CartState(val id: String) {
+internal class CartState(val id: String) {
     var items: List<CartItem> = emptyList()
     val size: Int
         get() = items.size

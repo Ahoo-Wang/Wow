@@ -16,7 +16,7 @@ package me.ahoo.wow.migrate
 import java.util.concurrent.CopyOnWriteArrayList
 
 /** The 9.x compensation service's executions in memory, read as the MongoDB source reads them: unresolved, by id. */
-class InMemoryNineXCompensationSource(executions: Collection<NineXExecutionFailed> = emptyList()) :
+internal class InMemoryNineXCompensationSource(executions: Collection<NineXExecutionFailed> = emptyList()) :
     NineXCompensationSource {
     private val executions = CopyOnWriteArrayList(executions)
 

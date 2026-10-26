@@ -214,13 +214,13 @@ class ArchitectureTest {
 
     @Test
     fun `the ABI of the api, spi and manifest modules should hold no data class but the listed exceptions`() {
-        ArchitectureRules.dataClassMembers(repositoryRoot).assert().isEmpty()
+        SurfaceRules.dataClassMembers(repositoryRoot).assert().isEmpty()
     }
 
     @Test
     fun `data class rule should catch a copy or componentN and a stale exception`(@TempDir root: File) {
-        val exceptions = ArchitectureRules.DATA_CLASS_EXCEPTIONS.keys.toList()
-        ArchitectureRules.PLAIN_CLASS_MODULES.forEach { module ->
+        val exceptions = SurfaceRules.DATA_CLASS_EXCEPTIONS.keys.toList()
+        SurfaceRules.PLAIN_CLASS_MODULES.forEach { module ->
             File(root, "${module.dir}/api").mkdirs()
             File(root, "${module.dir}/api/${module.name}.api").writeText("")
         }
@@ -236,7 +236,7 @@ class ArchitectureTest {
                 """.trimIndent()
             },
         )
-        ArchitectureRules.dataClassMembers(root).assert().containsExactlyInAnyOrder(
+        SurfaceRules.dataClassMembers(root).assert().containsExactlyInAnyOrder(
             "api/api/api/api.api: me/ahoo/wow/api/Record: public final fun component1 ()Ljava/lang/String;",
             "api/api/api/api.api: me/ahoo/wow/api/Record: public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/api/Record;",
             "api/api/api/api.api: me/ahoo/wow/api/Record: public static synthetic fun copy${'$'}default " +

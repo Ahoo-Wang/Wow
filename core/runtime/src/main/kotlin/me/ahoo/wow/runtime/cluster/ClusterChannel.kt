@@ -13,12 +13,7 @@
 
 package me.ahoo.wow.runtime.cluster
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
 import me.ahoo.wow.api.annotation.InternalWowApi
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The cluster channel (design 02 §3; decisions D24, D26): the one internal channel between the nodes of a service,
@@ -65,39 +60,3 @@ class ClusterChannelException(
     cause: Throwable? = null,
     val unsent: Boolean = false,
 ) : RuntimeException(message, cause)
-
-/**
- * A [ClusterChannel] within one process, for tests and single-process samples: nodes [bind] their handlers to their
- * addresses. Each message still goes through its JSON wire form ([ClusterCodec]) both ways, and the handler runs in
- * [scope], apart from the caller, so a caller that gives up does not stop the owner, as over a network.
- *
- * [latency] runs after the handler and before the reply is returned, to delay replies from an address.
- */
-@InternalWowApi
-class LoopbackClusterChannel(
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
-    private val latency: suspend (address: String) -> Unit = {},
-) : ClusterChannel {
-    private val handlers = ConcurrentHashMap<String, ClusterChannelHandler>()
-
-    /** Serves [handler] at [address]. */
-    fun bind(address: String, handler: ClusterChannelHandler) {
-        check(handlers.putIfAbsent(address, handler) == null) { "$address is already bound." }
-    }
-
-    /** Stops serving [address]: forwards to it are refused, as by a node that is down. */
-    fun unbind(address: String) {
-        handlers.remove(address)
-    }
-
-    override suspend fun forward(address: String, request: ForwardCommand): ForwardReply {
-        val handler = handlers[address] ?: throw ClusterChannelException("Connection refused: $address", unsent = true)
-        val sent = ClusterCodec.encode(request)
-        val reply = scope.async {
-            val bytes = ClusterCodec.encode(handler.forward(ClusterCodec.decodeCommand(sent)))
-            latency(address)
-            bytes
-        }
-        return ClusterCodec.decodeReply(reply.await())
-    }
-}

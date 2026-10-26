@@ -45,7 +45,7 @@ import me.ahoo.wow.spi.json.WowJson
  * The V10 port keeps `CartSaga.onOrderCreated`, names the order saga's handlers `OrderSaga.onOrderCreated` and
  * `OrderSaga.onOrderState`, and moves the projector to a `reporting` context that reads the published order events.
  */
-object NineXCompensationExample {
+internal object NineXCompensationExample {
     const val ORDER_ID = "0VY3GwaK4OmV00E"
     const val TENANT = "(0)"
     const val CART_SAGA = "CartSaga.onOrderCreated"

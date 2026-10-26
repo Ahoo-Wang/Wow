@@ -779,68 +779,6 @@ object ArchitectureRules {
             .map { "$it reaches :${RUNTIME.name}" }
     }
 
-    /**
-     * The modules whose ABI holds no data class (decisions D216, D227, D228): a type users, backends or Wow's tools
-     * construct may gain fields within a format (D59), and a data class's `copy` and `componentN` change their
-     * signatures when it does.
-     */
-    val PLAIN_CLASS_MODULES: List<WowProject> = listOf(API, SPI, MANIFEST, QUERY_API)
-
-    /**
-     * The data classes the ABI of [PLAIN_CLASS_MODULES] keeps, by their JVM names, each with why: closed value
-     * types, whose fields are their identity, so a new field would make another type.
-     */
-    val DATA_CLASS_EXCEPTIONS: Map<String, String> = mapOf(
-        "me/ahoo/wow/api/aggregate/AggregateType" to "an aggregate's identity: its context and name",
-        "me/ahoo/wow/api/aggregate/AggregateRef" to "an aggregate instance's identity: its type, tenant and id",
-        "me/ahoo/wow/api/aggregate/Scope" to "the owner and space dimensions of authorization (D56, D189)",
-        "me/ahoo/wow/api/decide/Causation" to "the causal link of a command: its correlation and causation ids",
-        "me/ahoo/wow/api/subscribe/ExecutionId" to "a subscription's execution: its name, aggregate and version",
-        "me/ahoo/wow/spi/log/LogPosition" to "a position in the log: a partition and a sequence",
-        "me/ahoo/wow/spi/transport/PartitionOffsets" to "a range of offsets: its start and end",
-        "me/ahoo/wow/api/query/QueryField" to "a field path, its identity; generated code builds it (`<State>Properties`)",
-    )
-
-    private val ABI_CLASS = Regex("""^public (?:final |abstract |open |sealed )*class ([\w/$]+)""")
-    private val DATA_CLASS_MEMBER = Regex("""\bfun (?:copy|copy\${'$'}default|component\d+) \(""")
-
-    /**
-     * The `copy` and `componentN` members of the ABI dumps of [PLAIN_CLASS_MODULES] outside [DATA_CLASS_EXCEPTIONS],
-     * as `dump: class: member`, and each exception the dumps no longer have a data class for (a stale entry).
-     */
-    fun dataClassMembers(repositoryRoot: File): List<String> {
-        val dataClasses = mutableSetOf<String>()
-        val violations = PLAIN_CLASS_MODULES.flatMap { module ->
-            val dump = File(repositoryRoot, "${module.dir}/api/${module.name}.api")
-            var owner = ""
-            dump.readLines().mapNotNull { line ->
-                ABI_CLASS.find(line)?.let { owner = it.groupValues[1] }
-                if (DATA_CLASS_MEMBER.containsMatchIn(line)) {
-                    dataClasses += owner
-                    if (owner in DATA_CLASS_EXCEPTIONS) null else "${module.dir}/api/${module.name}.api: $owner: ${line.trim()}"
-                } else {
-                    null
-                }
-            }
-        }
-        return violations + (DATA_CLASS_EXCEPTIONS.keys - dataClasses).map { "stale exception: $it" }
-    }
-
-    private val ABI_ANY_CLASS = Regex("""^public [^{]*?\bclass ([\w/$]+)""")
-
-    /**
-     * The nested classes the ABI dumps of [MODULES] keep while their outer class is left out (finding R5.A-7): an
-     * `@InternalWowApi` outer class does not hide its nested classes or its companion, which then freeze into the
-     * dump on their own, so each one is marked too. As `dump: Outer$Nested`.
-     */
-    fun hiddenOuterViolations(repositoryRoot: File): List<String> = MODULES.flatMap { module ->
-        val dump = File(repositoryRoot, "${module.dir}/api/${module.name}.api")
-        if (!dump.isFile) return@flatMap emptyList()
-        val classes = dump.readLines().mapNotNull { ABI_ANY_CLASS.find(it)?.groupValues?.get(1) }.toSet()
-        classes.filter { '$' in it && it.substringBeforeLast('$') !in classes }.sorted()
-            .map { "${module.dir}/api/${module.name}.api: $it" }
-    }
-
     private val COMPATIBILITY_MARKER = Regex("""@Deprecated\b|\bcompat\(""")
 
     /**
