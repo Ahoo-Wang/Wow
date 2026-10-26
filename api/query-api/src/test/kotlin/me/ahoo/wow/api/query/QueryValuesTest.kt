@@ -41,8 +41,31 @@ class QueryValuesTest {
                 rebuilt.toString().assert().isEqualTo(sample.toString())
                 sample.javaClass.methods.singleOrNull { it.name == "copy" && !Modifier.isStatic(it.modifiers) }
                     ?.invoke(sample, *values)?.assert()?.isEqualTo(sample)
+                // Every default: Wow's copy of nothing is the value itself; the shortest factory takes the rest.
+                sample.javaClass.declaredMethods.singleOrNull { it.name == "copy\$default" }?.let { copy ->
+                    val arguments = copy.parameterTypes.drop(1).dropLast(2).map(::zero)
+                    copy.invoke(null, sample, *arguments.toTypedArray(), (1 shl arguments.size) - 1, null)
+                        .assert().isEqualTo(sample)
+                }
+                val shortest = sample.javaClass.methods
+                    .filter { Modifier.isStatic(it.modifiers) && it.name == "of" }
+                    .minBy { it.parameterCount }
+                runCatching {
+                    shortest.invoke(
+                        null,
+                        *shortest.parameters.map { property(sample, it.name) }.toTypedArray()
+                    )
+                }
             }
         }
+
+    private fun zero(type: Class<*>): Any? = when (type) {
+        Int::class.javaPrimitiveType -> 0
+        Long::class.javaPrimitiveType -> 0L
+        Double::class.javaPrimitiveType -> 0.0
+        Boolean::class.javaPrimitiveType -> false
+        else -> null
+    }
 
     private fun property(target: Any, name: String): Any? {
         val capitalized = name.replaceFirstChar { it.uppercase() }
