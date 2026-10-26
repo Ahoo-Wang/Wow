@@ -1048,6 +1048,8 @@ jobs:
       contents: read
       # Codecov's check runs on the pull request's head commit.
       checks: read
+      # This run's jobs, for when its coverage uploads were done.
+      actions: read
     steps:
       - name: Require every scoped job to pass or be skipped
         env:
@@ -1063,8 +1065,11 @@ jobs:
       # Patch coverage is part of the merge signal: on a pull request whose run
       # uploaded coverage (the JVM check or shards, the TypeScript units or
       # view-engine), Codecov's codecov/patch on the head commit must pass
-      # (codecov.yml: 90%, threshold 1%). A run without coverage leaves it out,
-      # so a required codecov/patch never blocks a change Codecov does not see.
+      # (codecov.yml: 90%, threshold 1%). Only a codecov/patch that Codecov
+      # started after this run's coverage uploads counts; an earlier one may be
+      # judged on carried-forward coverage. A run without coverage leaves it
+      # out, so a required codecov/patch never blocks a change Codecov does not
+      # see.
       - name: Check out the gate script
         if: >-
           github.event_name == 'pull_request' &&
