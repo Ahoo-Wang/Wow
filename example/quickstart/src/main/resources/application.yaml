@@ -12,3 +12,5 @@ wow:
       enabled: true
   internal:
     port: 9090
+    # On the loopback interface alone: the node runs for development, and serves the anonymous caller.
+    host: 127.0.0.1
