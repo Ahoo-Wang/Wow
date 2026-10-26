@@ -47,6 +47,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
+import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.EventManifest
@@ -80,6 +81,11 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.log.TransportCodec
+import me.ahoo.wow.spi.reservation.ReservationKey
+import me.ahoo.wow.spi.wait.Origin
+import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.ObjectNode
@@ -102,8 +108,12 @@ import java.util.UUID
  */
 @Suppress("LargeClass")
 abstract class EventQueryBackendSpec {
-    /** Stores [streams], all of [type], where the backend under test reads them. */
-    protected abstract suspend fun store(streams: List<EventStreamRecord>)
+    /**
+     * Stores [streams], all of [type], where the backend under test reads them, each appended with the transport
+     * bytes beside it, null for none (finding R5.B-3): a log stores them apart from the facts, and a Sink is handed
+     * them decoded with its record.
+     */
+    protected abstract suspend fun store(streams: List<Pair<EventStreamRecord, ByteArray?>>)
 
     /** The events query backend of [type], with its storage adapter. */
     protected abstract fun binding(type: AggregateType): QueryBackendBinding<QueryBackend>
@@ -175,8 +185,11 @@ abstract class EventQueryBackendSpec {
             backend.aggregate(QueryAdmission.Trusted.aggregate(query, schema)).toList()
     }
 
-    protected suspend fun given(streams: List<EventStreamRecord> = streams()): Fixture {
-        store(streams)
+    protected suspend fun given(
+        streams: List<EventStreamRecord> = streams(),
+        transported: (Int) -> Boolean = { false },
+    ): Fixture {
+        store(streams.mapIndexed { index, stream -> stream to TRANSPORT.takeIf { transported(index) } })
         val binding = binding(type)
         val provider = QueryModelCompiler.of(events = schemas).compile(context, binding.storage)
         return Fixture(binding.backend, provider.schema())
@@ -615,6 +628,71 @@ abstract class EventQueryBackendSpec {
         Unit
     }
 
+    // The transport stored beside a stream (finding R5.B-3)
+
+    /**
+     * Every other stream is appended carrying a transport (a wait with its origin and remaining hops, reservations,
+     * releases and a trace): the events query reads facts only, so its records, counts, pages, cursor, aggregations
+     * and expanded aggregations are what they are without it, and no record shows a field of it.
+     */
+    @Test
+    fun `streams appended with a transport read as the facts alone`() = blocking {
+        val fixture = given(transported = { it % 2 == 0 })
+        val records = fixture.list(ListQuery(MatchAllFilter, limit = MAX_LIST))
+        records.map { it.key() }.sorted().assert()
+            .containsExactly("o1@1", "o1@2", "o1@3", "o1@4", "o2@1", "o2@2", "o3@1")
+        records.forEach { record ->
+            record.propertyNames().filter { it in TRANSPORT_FIELDS }.assert().describedAs(record.key()).isEmpty()
+        }
+        val first = records.single { it.key() == "o1@1" }
+        first.path("commandId").stringValue().assert().isEqualTo("o1-command-1")
+        first.path("events").single().path("body").path("customerId").stringValue().assert().isEqualTo("c-one")
+        fixture.count(MatchAllFilter).assert().isEqualTo(7L)
+        fixture.keys(AggregateIdFilter("o2")).assert().containsExactly("o2@1", "o2@2")
+        val paged = PagedQuery(
+            TenantIdFilter(TENANT),
+            sort = listOf(Sort(COMMIT_TIME, Sort.Direction.ASC)),
+            pagination = Pagination(2, 2),
+            total = TotalMode.EXACT,
+        )
+        val page = fixture.backend.paged(QueryAdmission.Trusted.paged(paged, fixture.schema))
+        page.list.map { it.key() }.assert().containsExactly("o1@2", "o1@3")
+        page.total.assert().isEqualTo(6L)
+        if (fixture.schema.storage.paging.keyset != SupportMode.NONE) {
+            val seen = mutableListOf<String>()
+            var cursor: String? = null
+            do {
+                val admitted = QueryAdmission.Trusted.cursor(
+                    CursorQuery(MatchAllFilter, size = 2, cursor = cursor),
+                    fixture.schema,
+                )
+                val next = fixture.backend.cursor(admitted)
+                seen += next.list.map { it.key() }
+                cursor = next.nextCursor
+            } while (cursor != null)
+            seen.assert().containsExactly("o3@1", "o1@1", "o1@2", "o1@3", "o1@4", "o2@1", "o2@2")
+        }
+        fixture.aggregate(AggregationQuery(TenantIdFilter(TENANT), metrics = listOf(AggregationMetric.Count("c"))))
+            .single().path("c").longValue().assert().isEqualTo(6L)
+        fixture.aggregate(
+            AggregationQuery(
+                elements = listOf(AggregationElement(EVENTS, name("ItemAdded"))),
+                metrics = listOf(
+                    AggregationMetric.Count("items"),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.SUM,
+                        AggregationExpression.Field(QueryField("body.qty")),
+                        "qty",
+                    ),
+                ),
+            ),
+        ).single().let { row ->
+            row.path("items").longValue().assert().isEqualTo(3L)
+            row.path("qty").doubleValue().assert().isEqualTo(6.0)
+        }
+        Unit
+    }
+
     companion object {
         private const val CONTEXT_SUFFIX = 12
         private const val MAX_LIST = 100
@@ -626,6 +704,24 @@ abstract class EventQueryBackendSpec {
         private val EVENTS = QueryField("events")
         private val VERSION = QueryField("version")
         private val COMMIT_TIME = QueryField("commitTime")
+
+        /** The fields of a transport, none of which a record shows. */
+        private val TRANSPORT_FIELDS = setOf("transport", "wait", "reservations", "releases", "trace")
+
+        /** A transport as the runtime appends it: a wait past COMMITTED, keys reserved and released, a trace. */
+        private val TRANSPORT: ByteArray = TransportCodec.encode(
+            Transport.of(
+                wait = WaitContext.of(
+                    "w-1",
+                    Origin.of("node-1", "10.0.0.7:8081", "order-service"),
+                    listOf(Hop.handled("projector", "tck"), Hop.snapshot()),
+                    1_767_571_210_000L,
+                ),
+                reservations = listOf(ReservationKey.of("email", "a@b.c"), ReservationKey.of("login", "x", true)),
+                trace = mapOf("traceparent" to "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"),
+                releases = listOf(ReservationKey.of("email", "old@b.c")),
+            ),
+        )
 
         /** A record's `aggregateId@version`. */
         fun ObjectNode.key(): String = "${path("aggregateId").stringValue()}@${path("version").intValue()}"
