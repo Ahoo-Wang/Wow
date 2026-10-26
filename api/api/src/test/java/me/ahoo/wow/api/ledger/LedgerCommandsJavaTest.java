@@ -13,29 +13,29 @@
 
 package me.ahoo.wow.api.ledger;
 
+import me.ahoo.wow.api.aggregate.AggregateRef;
+import me.ahoo.wow.api.aggregate.AggregateType;
 import me.ahoo.wow.api.result.TransformedFrom;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** The ledger records and a transformed command built from Java, through their static factories (decision D216). */
-class LedgerRecordsJavaTest {
+/**
+ * The ledger's system commands and a transformed command built from Java, through their static factories (decisions
+ * D216, D304): an operations tool builds the commands from plain fields.
+ */
+class LedgerCommandsJavaTest {
+    private final AggregateRef ref = new AggregateType("sales", "order").ref("tenant", "o-1");
 
     @Test
-    void buildsARetrySpecWithAndWithoutApplied() {
-        LedgerRetrySpec spec = LedgerRetrySpec.of(3, "PT1M", "PT2M");
-        assertThat(spec.getApplied()).isFalse();
-        assertThat(LedgerRetrySpec.of(3, "PT1M", "PT2M", true).getApplied()).isTrue();
-        assertThat(spec).isEqualTo(LedgerRetrySpec.of(3, "PT1M", "PT2M", false));
-    }
-
-    @Test
-    void buildsAResolution() {
-        LedgerAggregate aggregate = new LedgerAggregate("sales", "order", "tenant", "o-1");
-        LedgerResolution resolution =
-            LedgerResolution.of("svc", "sales", "s", aggregate, null, LedgerResolution.NOT_PARKED, 7L);
-        assertThat(resolution.getFailedAt()).isNull();
-        assertThat(resolution.getOutcome()).isEqualTo("NOT_PARKED");
+    void buildsTheCommandsFromPlainFieldsOrARef() {
+        ResumeParked resume = ResumeParked.of("OrderSaga.onPlaced", "sales", "order", "tenant", "o-1");
+        assertThat(resume).isEqualTo(ResumeParked.of("OrderSaga.onPlaced", ref));
+        assertThat(resume.toRef()).isEqualTo(ref);
+        assertThat(SkipParked.of("s", ref).getAggregate()).isEqualTo("order");
+        assertThat(MarkParkedRecoverable.of("s", ref, "RECOVERABLE").getRecoverable()).isEqualTo("RECOVERABLE");
+        assertThat(ApplyParkedRetrySpec.of("s", ref).getMinBackoff()).isNull();
+        assertThat(ApplyParkedRetrySpec.of("s", ref, 3).getMaxRetries()).isEqualTo(3);
     }
 
     @Test

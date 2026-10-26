@@ -343,101 +343,6 @@
     "description" : "The calling service may not call this command: its wow.http.services.<service>.commands do not list it."
   } ],
   "$defs" : {
-    "me.ahoo.wow.api.ledger.LedgerAggregate" : {
-      "type" : "object",
-      "properties" : {
-        "context" : {
-          "type" : "string"
-        },
-        "id" : {
-          "type" : "string"
-        },
-        "name" : {
-          "type" : "string"
-        },
-        "tenantId" : {
-          "type" : "string"
-        }
-      },
-      "required" : [ "context", "id", "name", "tenantId" ]
-    },
-    "me.ahoo.wow.api.ledger.LedgerEntry" : {
-      "type" : "object",
-      "properties" : {
-        "aggregate" : {
-          "$ref" : "#/$defs/me.ahoo.wow.api.ledger.LedgerAggregate"
-        },
-        "context" : {
-          "type" : "string"
-        },
-        "failedAt" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "fromPosition" : {
-          "type" : [ "integer", "null" ],
-          "format" : "int64"
-        },
-        "fromVersion" : {
-          "type" : "integer"
-        },
-        "nextRetryAt" : {
-          "type" : [ "integer", "null" ],
-          "format" : "int64"
-        },
-        "reason" : {
-          "type" : "string"
-        },
-        "recordedAt" : {
-          "type" : "integer",
-          "format" : "int64"
-        },
-        "recoverable" : {
-          "type" : "string"
-        },
-        "request" : {
-          "type" : [ "string", "null" ]
-        },
-        "retries" : {
-          "type" : "integer"
-        },
-        "retryAt" : {
-          "type" : [ "integer", "null" ],
-          "format" : "int64"
-        },
-        "retrySpec" : {
-          "$ref" : "#/$defs/me.ahoo.wow.api.ledger.LedgerRetrySpec"
-        },
-        "service" : {
-          "type" : "string"
-        },
-        "status" : {
-          "type" : "string"
-        },
-        "subscription" : {
-          "type" : "string"
-        }
-      },
-      "required" : [ "aggregate", "context", "failedAt", "fromVersion", "reason", "recordedAt", "retrySpec", "service", "status", "subscription" ]
-    },
-    "me.ahoo.wow.api.ledger.LedgerRetrySpec" : {
-      "type" : "object",
-      "properties" : {
-        "applied" : {
-          "type" : "boolean"
-        },
-        "executionTimeout" : {
-          "type" : "string"
-        },
-        "maxRetries" : {
-          "type" : "integer"
-        },
-        "minBackoff" : {
-          "type" : "string"
-        }
-      },
-      "required" : [ "executionTimeout", "maxRetries", "minBackoff" ]
-    },
     "me.ahoo.wow.ops.api.parked.ActionRefused" : {
       "type" : "object",
       "properties" : {
@@ -484,6 +389,42 @@
       },
       "description" : "A retry spec was requested"
     },
+    "me.ahoo.wow.ops.api.parked.EntryAggregate" : {
+      "type" : "object",
+      "properties" : {
+        "context" : {
+          "type" : "string"
+        },
+        "id" : {
+          "type" : "string"
+        },
+        "name" : {
+          "type" : "string"
+        },
+        "tenantId" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "context", "id", "name", "tenantId" ]
+    },
+    "me.ahoo.wow.ops.api.parked.EntryRetrySpec" : {
+      "type" : "object",
+      "properties" : {
+        "applied" : {
+          "type" : "boolean"
+        },
+        "executionTimeout" : {
+          "type" : "string"
+        },
+        "maxRetries" : {
+          "type" : "integer"
+        },
+        "minBackoff" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "executionTimeout", "maxRetries", "minBackoff" ]
+    },
     "me.ahoo.wow.ops.api.parked.MarkRecoverable" : {
       "type" : "object",
       "properties" : {
@@ -504,11 +445,70 @@
       "required" : [ "recoverable" ],
       "description" : "A recoverable mark was requested"
     },
+    "me.ahoo.wow.ops.api.parked.ParkedEntry" : {
+      "type" : "object",
+      "properties" : {
+        "aggregate" : {
+          "$ref" : "#/$defs/me.ahoo.wow.ops.api.parked.EntryAggregate"
+        },
+        "context" : {
+          "type" : "string"
+        },
+        "failedAt" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "fromPosition" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
+        },
+        "fromVersion" : {
+          "type" : "integer"
+        },
+        "nextRetryAt" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
+        },
+        "reason" : {
+          "type" : "string"
+        },
+        "recordedAt" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "recoverable" : {
+          "type" : "string"
+        },
+        "request" : {
+          "type" : [ "string", "null" ]
+        },
+        "retries" : {
+          "type" : "integer"
+        },
+        "retryAt" : {
+          "type" : [ "integer", "null" ],
+          "format" : "int64"
+        },
+        "retrySpec" : {
+          "$ref" : "#/$defs/me.ahoo.wow.ops.api.parked.EntryRetrySpec"
+        },
+        "service" : {
+          "type" : "string"
+        },
+        "status" : {
+          "type" : "string"
+        },
+        "subscription" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "aggregate", "context", "failedAt", "fromVersion", "reason", "recordedAt", "retrySpec", "service", "status", "subscription" ]
+    },
     "me.ahoo.wow.ops.api.parked.ParkedRecorded" : {
       "type" : "object",
       "properties" : {
         "entry" : {
-          "$ref" : "#/$defs/me.ahoo.wow.api.ledger.LedgerEntry"
+          "$ref" : "#/$defs/me.ahoo.wow.ops.api.parked.ParkedEntry"
         }
       },
       "required" : [ "entry" ],
@@ -552,7 +552,7 @@
       "type" : "object",
       "properties" : {
         "entry" : {
-          "$ref" : "#/$defs/me.ahoo.wow.api.ledger.LedgerEntry"
+          "$ref" : "#/$defs/me.ahoo.wow.ops.api.parked.ParkedEntry"
         }
       },
       "required" : [ "entry" ],
@@ -565,7 +565,7 @@
           "type" : "object",
           "properties" : {
             "aggregate" : {
-              "$ref" : "#/$defs/me.ahoo.wow.api.ledger.LedgerAggregate"
+              "$ref" : "#/$defs/me.ahoo.wow.ops.api.parked.EntryAggregate"
             },
             "context" : {
               "type" : "string"
@@ -634,7 +634,7 @@
       "type" : "object",
       "properties" : {
         "aggregate" : {
-          "$ref" : "#/$defs/me.ahoo.wow.api.ledger.LedgerAggregate"
+          "$ref" : "#/$defs/me.ahoo.wow.ops.api.parked.EntryAggregate"
         },
         "context" : {
           "type" : "string"
@@ -712,7 +712,7 @@
           }
         },
         "retrySpec" : {
-          "$ref" : "#/$defs/me.ahoo.wow.api.ledger.LedgerRetrySpec"
+          "$ref" : "#/$defs/me.ahoo.wow.ops.api.parked.EntryRetrySpec"
         },
         "service" : {
           "type" : "string"

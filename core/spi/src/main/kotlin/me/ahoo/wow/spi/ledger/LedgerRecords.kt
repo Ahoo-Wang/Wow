@@ -11,8 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.ledger
+package me.ahoo.wow.spi.ledger
 
+import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 /*
@@ -20,7 +22,9 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * 08 §3): the ops context's `parked` aggregate takes a [LedgerEntry] as the member [Ledger.ENTRY] of its command
  * [Ledger.RECORD_PARKED], and a [LedgerResolution] as the member [Ledger.RESOLUTION] of [Ledger.RECORD_RESOLVED].
  * Fields are only ever added; a reader ignores the ones it does not know. Enumerated values travel as their names, so
- * a reader of an older version reads a value a newer writer added.
+ * a reader of an older version reads a value a newer writer added. They are the publication form of the ledger's
+ * [ParkedAggregate], internal to Wow (decision D304): a reader such as the ops service reads them from their JSON with
+ * types of its own.
  */
 
 /**
@@ -39,6 +43,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * Fields may be added: the runtime's ledger publisher builds it, and a reader reads it from its JSON; the
  * constructor is internal to Wow (decision D216).
  */
+@InternalWowApi
 class LedgerEntry @InternalWowApi constructor(
     val service: String,
     val context: String,
@@ -111,6 +116,7 @@ class LedgerEntry @InternalWowApi constructor(
         retrySpec, recoverable, request, status, nextRetryAt, recordedAt
     )
 
+    @InternalWowApi
     companion object {
         const val UNKNOWN: String = "UNKNOWN"
     }
@@ -123,6 +129,7 @@ class LedgerEntry @InternalWowApi constructor(
  *
  * Fields may be added (decision D216): construct it with [of]; the constructor is internal to Wow.
  */
+@InternalWowApi
 class LedgerRetrySpec @InternalWowApi constructor(
     val maxRetries: Int,
     val minBackoff: String,
@@ -140,6 +147,7 @@ class LedgerRetrySpec @InternalWowApi constructor(
 
     private fun valueFields(): List<Any?> = listOf(maxRetries, minBackoff, executionTimeout, applied)
 
+    @InternalWowApi
     companion object {
         /** At most [maxRetries] retries, the first [minBackoff] after the failure, each allowed [executionTimeout]. */
         @JvmStatic
@@ -161,6 +169,7 @@ class LedgerRetrySpec @InternalWowApi constructor(
  *
  * Fields may be added (decision D216): construct it with [of]; the constructor is internal to Wow.
  */
+@InternalWowApi
 class LedgerResolution @InternalWowApi constructor(
     val service: String,
     val context: String,
@@ -182,6 +191,7 @@ class LedgerResolution @InternalWowApi constructor(
     private fun valueFields(): List<Any?> =
         listOf(service, context, subscription, aggregate, failedAt, outcome, resolvedAt)
 
+    @InternalWowApi
     companion object {
         const val RESUMED: String = "RESUMED"
         const val SKIPPED: String = "SKIPPED"
@@ -202,5 +212,57 @@ class LedgerResolution @InternalWowApi constructor(
             outcome: String,
             resolvedAt: Long,
         ): LedgerResolution = LedgerResolution(service, context, subscription, aggregate, failedAt, outcome, resolvedAt)
+    }
+}
+
+/**
+ * A parked aggregate as the ledger's commands name it: the aggregate [name] of [context], its [tenantId] and [id]
+ * (the shape of an entry on the operator routes, `/wow/ops/parked`).
+ *
+ * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ */
+@InternalWowApi
+class LedgerAggregate @InternalWowApi constructor(
+    val context: String,
+    val name: String,
+    val tenantId: String,
+    val id: String,
+) {
+    /** The aggregate this names. */
+    fun toRef(): AggregateRef = AggregateType(context, name).ref(tenantId, id)
+
+    /** This LedgerAggregate with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        context: String = this.context,
+        name: String = this.name,
+        tenantId: String = this.tenantId,
+        id: String = this.id,
+    ): LedgerAggregate = LedgerAggregate(context, name, tenantId, id)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is LedgerAggregate && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "LedgerAggregate(context=$context, name=$name, tenantId=$tenantId, id=$id)"
+
+    private fun valueFields(): List<Any?> = listOf(context, name, tenantId, id)
+
+    @InternalWowApi
+    companion object {
+        /** [ref] as the ledger's commands name it. */
+        @JvmStatic
+        fun of(ref: AggregateRef): LedgerAggregate = LedgerAggregate(
+            ref.type.context,
+            ref.type.name,
+            ref.tenantId,
+            ref.id
+        )
+
+        /** A LedgerAggregate of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(context: String, name: String, tenantId: String, id: String): LedgerAggregate =
+            LedgerAggregate(context, name, tenantId, id)
     }
 }

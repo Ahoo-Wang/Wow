@@ -15,10 +15,10 @@ package me.ahoo.wow.ops.server
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.ledger.LedgerEntry
-import me.ahoo.wow.api.ledger.LedgerResolution
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.ops.api.parked.ParkedEntry
+import me.ahoo.wow.ops.api.parked.ParkedResolution
 import me.ahoo.wow.ops.testing.InMemoryOpsTopics
 import me.ahoo.wow.ops.testing.LedgerSimulator
 import me.ahoo.wow.runtime.cluster.CommandWire
@@ -111,10 +111,10 @@ class OpsNode(val context: ConfigurableApplicationContext) : AutoCloseable {
     }
 
     /** Publishes [entry] to `wow.ops.commands` as an owning service's ledger does; the id of its ops aggregate. */
-    fun publish(entry: LedgerEntry): String = runBlocking { ledger.publish(entry) }
+    fun publish(entry: ParkedEntry): String = runBlocking { ledger.publish(entry) }
 
     /** Publishes that [resolution]'s entry is resolved, as the owning service's ledger does. */
-    fun resolve(resolution: LedgerResolution) {
+    fun resolve(resolution: ParkedResolution) {
         runBlocking { ledger.resolve(resolution) }
     }
 

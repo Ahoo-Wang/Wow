@@ -23,7 +23,6 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.schedule.ScheduleJobs
-import me.ahoo.wow.api.snapshot.SnapshotRebuilds
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.CallerResolver
@@ -55,6 +54,7 @@ import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.state.StateReads
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
