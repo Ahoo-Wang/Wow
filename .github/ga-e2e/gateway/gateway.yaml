@@ -41,28 +41,118 @@ data:
               # it is not sent.
               forwarded:
                 enabled: false
+              # Connections to a service's pods idle at most 15 s (F13): a pod that died stays in the endpoints a little
+              # while, and a pooled connection to it answers a reset; shorter than that, a stale one is rare.
+              httpclient:
+                pool:
+                  max-idle-time: 15s
+              # Each service's routes (by context prefix, D313) twice (F13): a request with a Wow-Request-Id is retried
+              # once when the connection fails (reset, refused, timed out), POST included, since Wow deduplicates a
+              # command by its request id; a response is an answer and never retried (series INFORMATIONAL: no final
+              # status matches). Without the id, nothing is retried. The gateway cannot give a request an id of its
+              # own through configuration alone: no Spring Cloud Gateway filter generates a value.
               routes:
+                - id: eshop-catalog-deduplicable
+                  uri: http://eshop-catalog
+                  predicates: [Path=/eshop-catalog/**, Header=Wow-Request-Id]
+                  filters:
+                    - name: Retry
+                      args:
+                        retries: 1
+                        methods: GET,POST,PUT,PATCH,DELETE
+                        series: INFORMATIONAL
+                        exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: eshop-catalog
                   uri: http://eshop-catalog
                   predicates: [Path=/eshop-catalog/**]
+                - id: eshop-basket-deduplicable
+                  uri: http://eshop-basket
+                  predicates: [Path=/eshop-basket/**, Header=Wow-Request-Id]
+                  filters:
+                    - name: Retry
+                      args:
+                        retries: 1
+                        methods: GET,POST,PUT,PATCH,DELETE
+                        series: INFORMATIONAL
+                        exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: eshop-basket
                   uri: http://eshop-basket
                   predicates: [Path=/eshop-basket/**]
+                - id: eshop-ordering-deduplicable
+                  uri: http://eshop-ordering
+                  predicates: ["Path=/eshop-ordering/**,/wow/dataset/eshop-ordering/**", "Header=Wow-Request-Id"]
+                  filters:
+                    - name: Retry
+                      args:
+                        retries: 1
+                        methods: GET,POST,PUT,PATCH,DELETE
+                        series: INFORMATIONAL
+                        exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: eshop-ordering
                   uri: http://eshop-ordering
                   predicates: ["Path=/eshop-ordering/**,/wow/dataset/eshop-ordering/**"]
+                - id: eshop-inventory-deduplicable
+                  uri: http://eshop-inventory
+                  predicates: [Path=/eshop-inventory/**, Header=Wow-Request-Id]
+                  filters:
+                    - name: Retry
+                      args:
+                        retries: 1
+                        methods: GET,POST,PUT,PATCH,DELETE
+                        series: INFORMATIONAL
+                        exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: eshop-inventory
                   uri: http://eshop-inventory
                   predicates: [Path=/eshop-inventory/**]
+                - id: eshop-payment-deduplicable
+                  uri: http://eshop-payment
+                  predicates: [Path=/eshop-payment/**, Header=Wow-Request-Id]
+                  filters:
+                    - name: Retry
+                      args:
+                        retries: 1
+                        methods: GET,POST,PUT,PATCH,DELETE
+                        series: INFORMATIONAL
+                        exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: eshop-payment
                   uri: http://eshop-payment
                   predicates: [Path=/eshop-payment/**]
+                - id: ops-deduplicable
+                  uri: http://ops
+                  predicates: [Path=/ops/**, Header=Wow-Request-Id]
+                  filters:
+                    - name: Retry
+                      args:
+                        retries: 1
+                        methods: GET,POST,PUT,PATCH,DELETE
+                        series: INFORMATIONAL
+                        exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: ops
                   uri: http://ops
                   predicates: [Path=/ops/**]
+                - id: view-store-deduplicable
+                  uri: http://view-store
+                  predicates: [Path=/view-store/**, Header=Wow-Request-Id]
+                  filters:
+                    - name: Retry
+                      args:
+                        retries: 1
+                        methods: GET,POST,PUT,PATCH,DELETE
+                        series: INFORMATIONAL
+                        exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: view-store
                   uri: http://view-store
                   predicates: [Path=/view-store/**]
+                - id: analytics-catalog-deduplicable
+                  uri: http://analytics-catalog
+                  predicates: [Path=/analytics-catalog/**, Header=Wow-Request-Id]
+                  filters:
+                    - name: Retry
+                      args:
+                        retries: 1
+                        methods: GET,POST,PUT,PATCH,DELETE
+                        series: INFORMATIONAL
+                        exceptions: java.io.IOException,java.util.concurrent.TimeoutException
                 - id: analytics-catalog
                   uri: http://analytics-catalog
                   predicates: [Path=/analytics-catalog/**]
