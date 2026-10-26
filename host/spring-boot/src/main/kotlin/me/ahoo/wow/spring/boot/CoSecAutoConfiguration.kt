@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.spring.boot
 
-import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.cosec.CoSecCallerOptions
 import me.ahoo.wow.cosec.CoSecCallerResolver
@@ -33,6 +32,7 @@ import org.springframework.context.annotation.ConditionContext
 import org.springframework.context.annotation.Conditional
 import org.springframework.core.env.Environment
 import org.springframework.core.type.AnnotatedTypeMetadata
+import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
 
 /**
  * Wires CoSec into the host when the application has wow-cosec and CoSec's WebFlux module (review R5.C-12): the host
