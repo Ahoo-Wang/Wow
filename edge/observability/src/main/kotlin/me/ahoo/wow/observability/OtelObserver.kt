@@ -128,11 +128,11 @@ class OtelObserver(
     }
 
     override fun partitionPaused(group: String, subscription: String, partition: Int, reason: String) {
-        pausedNotice(group, subscription, partition, WowMetrics.PAUSED_KIND)
+        pausedNotice(group, subscription, WowMetrics.PAUSED_KIND)
     }
 
     override fun partitionResumed(group: String, subscription: String, partition: Int, pausedMillis: Long) {
-        pausedNotice(group, subscription, partition, WowMetrics.RESUMED_KIND)
+        pausedNotice(group, subscription, WowMetrics.RESUMED_KIND)
     }
 
     override fun partitionThrottled(group: String, subscription: String, partition: Int, throttled: Boolean) {
@@ -159,7 +159,7 @@ class OtelObserver(
         ).increment()
     }
 
-    private fun pausedNotice(group: String, subscription: String, partition: Int, kind: String) {
+    private fun pausedNotice(group: String, subscription: String, kind: String) {
         cached.counter(
             WowMetrics.PAUSED_NOTICES,
             WowMetrics.GROUP,

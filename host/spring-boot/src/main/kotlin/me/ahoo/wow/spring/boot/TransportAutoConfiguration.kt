@@ -178,7 +178,8 @@ class TransportAutoConfiguration {
             sources: ObjectProvider<PartitionedSource>,
             meters: ObjectProvider<MeterRegistry>
         ): FunctionCounter =
-            FunctionCounter.builder(WowMetrics.OFFSET_GAPS, sources) { _ -> sources.getIfUnique()?.offsetGaps?.toDouble() ?: 0.0 }
+            FunctionCounter
+                .builder(WowMetrics.OFFSET_GAPS, sources) { _ -> sources.getIfUnique()?.offsetGaps?.toDouble() ?: 0.0 }
                 .description("Offsets a read was to start from that its partition no longer holds.")
                 .register(meters.getIfUnique { Metrics.globalRegistry })
     }

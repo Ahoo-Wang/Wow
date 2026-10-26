@@ -87,7 +87,8 @@ class HostObservabilityTest {
         admit.parentSpanId.assert().isEqualTo(caller)
         beans.spans.finishedSpanItems.single { it.name == "execute $BANK.account" }.parentSpanId
             .assert().isEqualTo(admit.spanId)
-        beans.meters.find(WowMetrics.COMMAND_DURATION).tags(WowMetrics.CONTEXT, BANK, WowMetrics.OUTCOME, "committed").timer()!!
+        beans.meters.find(WowMetrics.COMMAND_DURATION)
+            .tags(WowMetrics.CONTEXT, BANK, WowMetrics.OUTCOME, "committed").timer()!!
             .count().assert().isEqualTo(1L)
         host.context.getBean(Observer::class.java).assert().isInstanceOf(OtelObserver::class.java)
         host.context.getBeansOfType(QueryObserver::class.java).values.filterIsInstance<OtelQueryObserver>()

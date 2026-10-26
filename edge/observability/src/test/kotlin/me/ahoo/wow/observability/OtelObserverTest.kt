@@ -147,9 +147,8 @@ class OtelObserverTest {
             WowMetrics.REASON,
             "failed",
         ).counter().count().assert().isEqualTo(1.0)
-        meters.get(
-            WowMetrics.RESERVATION_LOSSES
-        ).tags(WowMetrics.CONTEXT, SALES).counter().count().assert().isEqualTo(1.0)
+        meters.get(WowMetrics.RESERVATION_LOSSES)
+            .tags(WowMetrics.CONTEXT, SALES).counter().count().assert().isEqualTo(1.0)
         meters.get(WowMetrics.STATE_CACHE_LOOKUPS).tags(WowMetrics.CONTEXT, SALES, WowMetrics.OUTCOME, "miss")
             .counter().count().assert().isEqualTo(1.0)
         // An eviction is not a lookup: it counts on its own.
@@ -158,7 +157,8 @@ class OtelObserverTest {
         meters.find(WowMetrics.STATE_CACHE_LOOKUPS).tags(WowMetrics.OUTCOME, "evicted").counter().assert().isNull()
         meters.get(WowMetrics.TAIL_READS).tags(WowMetrics.CONTEXT, SALES, WowMetrics.REASON, "gap").counter().count()
             .assert().isEqualTo(1.0)
-        meters.get(WowMetrics.COMMAND_REFUSALS).tags(WowMetrics.CONTEXT, SALES, WowMetrics.ERROR_TYPE, "wow.command.busy")
+        meters.get(WowMetrics.COMMAND_REFUSALS)
+            .tags(WowMetrics.CONTEXT, SALES, WowMetrics.ERROR_TYPE, "wow.command.busy")
             .counter().count().assert().isEqualTo(2.0)
         meters.get(WowMetrics.WAIT_TIMEOUTS).tags(WowMetrics.AGGREGATE, "order", WowMetrics.STAGE, "committed")
             .counter().count().assert().isEqualTo(1.0)
@@ -176,14 +176,12 @@ class OtelObserverTest {
         observer.backpressured("sales", "Board.onEvent", 3, "wow.wait.timeout")
         val board = arrayOf(WowMetrics.GROUP, "sales", WowMetrics.SUBSCRIPTION, "Board.onEvent")
         listOf(WowMetrics.THROTTLED_KIND, WowMetrics.UNTHROTTLED_KIND).forEach {
-            telemetry.meters.get(
-                WowMetrics.THROTTLED_NOTICES
-            ).tags(*board, WowMetrics.KIND, it)
+            telemetry.meters.get(WowMetrics.THROTTLED_NOTICES)
+                .tags(*board, WowMetrics.KIND, it)
                 .counter().count().assert().isEqualTo(1.0)
         }
-        telemetry.meters.get(
-            WowMetrics.BACKPRESSURE_REFUSALS
-        ).tags(*board, WowMetrics.ERROR_TYPE, "wow.wait.timeout").counter().count()
+        telemetry.meters.get(WowMetrics.BACKPRESSURE_REFUSALS)
+            .tags(*board, WowMetrics.ERROR_TYPE, "wow.wait.timeout").counter().count()
             .assert().isEqualTo(2.0)
     }
 
