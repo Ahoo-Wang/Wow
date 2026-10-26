@@ -27,7 +27,7 @@ import java.net.http.HttpResponse
  * forward from a node of its own service alone, a signal from any service, and a node names its service on its own.
  */
 class HostDeclaredServicesTest {
-    private fun Host.post(path: String, service: String?): Int {
+    private fun Host.internal(path: String, service: String?): Int {
         val request = HttpRequest.newBuilder(InternalHttp.uri("127.0.0.1:$internalPort", path))
             .header("Content-Type", InternalHttp.JSON)
             .apply { service?.let { header(WowHeaders.SERVICE, it) } }
@@ -39,20 +39,20 @@ class HostDeclaredServicesTest {
     @Test
     fun `a host's forward route takes a node of its own service alone`() {
         startHost().use { host ->
-            host.post(InternalHttp.FORWARD_PATH, null).assert().isEqualTo(401)
-            host.post(InternalHttp.FORWARD_PATH, "ordering-service").assert().isEqualTo(403)
+            host.internal(InternalHttp.FORWARD_PATH, null).assert().isEqualTo(401)
+            host.internal(InternalHttp.FORWARD_PATH, "ordering-service").assert().isEqualTo(403)
             // Taken, then read: this body is no forward.
-            host.post(InternalHttp.FORWARD_PATH, "bank-service").assert().isEqualTo(400)
+            host.internal(InternalHttp.FORWARD_PATH, "bank-service").assert().isEqualTo(400)
         }
     }
 
     @Test
     fun `a host's signal route takes any service that names itself`() {
         startHost().use { host ->
-            host.post(InternalHttp.SIGNALS_PATH, null).assert().isEqualTo(401)
+            host.internal(InternalHttp.SIGNALS_PATH, null).assert().isEqualTo(401)
             // Taken, then read: this body is no signal.
-            host.post(InternalHttp.SIGNALS_PATH, "ordering-service").assert().isEqualTo(400)
-            host.post(InternalHttp.SIGNALS_PATH, "bank-service").assert().isEqualTo(400)
+            host.internal(InternalHttp.SIGNALS_PATH, "ordering-service").assert().isEqualTo(400)
+            host.internal(InternalHttp.SIGNALS_PATH, "bank-service").assert().isEqualTo(400)
         }
     }
 

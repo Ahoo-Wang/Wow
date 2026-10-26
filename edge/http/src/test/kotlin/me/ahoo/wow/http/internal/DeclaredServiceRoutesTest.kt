@@ -124,7 +124,10 @@ class DeclaredServiceRoutesTest {
     @Test
     fun `without a service the routes take every request`(): Unit = runBlocking {
         InternalServer(
-            internalRoutes(ClusterChannelHandler { ForwardReply(result = committed(it.command.id)) }, { signals += it }),
+            internalRoutes(
+                ClusterChannelHandler { ForwardReply(result = committed(it.command.id)) },
+                { signals += it }
+            ),
         ).use { open ->
             HttpClusterChannel(client).forward(open.address, forwardCommand("c-9")).result!!.commandId.assert()
                 .isEqualTo("c-9")

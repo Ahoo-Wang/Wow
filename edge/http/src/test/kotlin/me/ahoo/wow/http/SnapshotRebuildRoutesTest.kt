@@ -100,7 +100,4 @@ class SnapshotRebuildRoutesTest {
         node.http.post(path, list).headers.getFirst(WowHeaders.REBUILDING).assert().isNull()
         node.http.get(path).headers.getFirst(WowHeaders.REBUILDING).assert().isNull()
     }
-
-    private companion object {
-    }
 }
