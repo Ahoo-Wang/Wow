@@ -157,7 +157,7 @@ def generate_summary(root_dir, out_md_path):
     lines.append("| Docker Engine | 29.9.2 |")
     lines.append("| Docker 资源分配 | 12 CPUs，16 GB 内存 (15.6 GiB 可用) |")
     lines.append("| 虚拟机类型 | Apple Virtualization Framework (`useVirtualizationFramework: true`, `virtioFS: true`) |")
-    lines.append("| 磁盘镜像 | `Docker.raw` (96 GB, extfs, 未启用 `--tmpfs`，包含真实磁盘 I/O 成本) |")
+    lines.append("| 磁盘镜像 | `Docker.raw` (保持默认，未启用 `--tmpfs`，包含真实磁盘 I/O 成本) |")
     lines.append("| 数据库参数 | PostgreSQL: `max_wal_size=8GB`, `checkpoint_timeout=15min`, `wal_compression=lz4`, `shared_buffers=512MB`；MongoDB: WiredTiger cache 2 GB |")
     lines.append("| 测试数据集 | 100,000 账户 (`--accounts=100000`)，`--prime --seed-concurrency=128` |")
     lines.append("| 节点堆内存 | 默认 1 GB (`-Xms1g -Xmx1g -XX:+UseG1GC`)；第 3 节对比 1 GB 与 2 GB |")
