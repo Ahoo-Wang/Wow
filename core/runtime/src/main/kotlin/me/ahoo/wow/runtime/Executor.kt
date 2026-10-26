@@ -318,6 +318,7 @@ class Executor(
         var abandoned = false
     }
 
+    @InternalWowApi
     companion object {
         /** The commands one aggregate may have waiting by default (`wow.executor.lane-capacity`). */
         const val DEFAULT_LANE_CAPACITY: Int = 1_024

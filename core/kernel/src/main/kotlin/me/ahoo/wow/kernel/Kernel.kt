@@ -1311,6 +1311,7 @@ class Kernel(
         }
     }
 
+    @InternalWowApi
     companion object {
         /**
          * The requests kept per cached aggregate by default: at most 384 bytes each (decisions D261, D278). A full ring
