@@ -244,8 +244,9 @@ object ArchitectureRules {
             "clickhouse",
             "opentelemetry",
         ),
-        // CosId's generators as the node's (decision D171): the id SPIs only; it wires itself before the host.
-        COSID to setOf("spi"),
+        // CosId's generators as the node's (decision D171): the id SPIs only; it wires itself before the host. The host
+        // only for the tests, which generate the module's configuration metadata and check the host accepts its keys.
+        COSID to setOf("spi", "spring-boot"),
         // Domain code's API only (decision D187); the compiler only for the tests, which compile a sample tree.
         MODELS to setOf("api", "compiler"),
         // The event log on either first-class backend, which the import writes to (roadmap 8b.1); runtime only for the

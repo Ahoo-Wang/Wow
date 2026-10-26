@@ -14,9 +14,9 @@
 package me.ahoo.wow.cosid
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spring.boot.ConfigurationKeys
 import me.ahoo.wow.spring.boot.ConfigurationMetadata
-import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.mock.env.MockEnvironment

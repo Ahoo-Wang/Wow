@@ -31,6 +31,6 @@ class CosIdProperties {
         const val PREFIX: String = "wow.cosid"
 
         /** The key of [globalGenerator]. */
-        const val GLOBAL_GENERATOR: String = "$PREFIX.global-generator"
+        const val GLOBAL_GENERATOR: String = "wow.cosid.global-generator"
     }
 }

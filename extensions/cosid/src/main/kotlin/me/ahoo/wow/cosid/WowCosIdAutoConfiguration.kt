@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.cosid
 
-import me.ahoo.cosid.CosId
 import me.ahoo.cosid.provider.IdGeneratorProvider
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import org.springframework.context.annotation.Bean
@@ -83,7 +82,8 @@ class WowCosIdAutoConfiguration {
          * module imports no Spring Boot (decision D118), else [CosIdProperties]' default, its one default.
          */
         internal fun globalName(environment: Environment): String =
-            environment.getProperty(GLOBAL_GENERATOR)?.takeIf { it.isNotBlank() } ?: CosIdProperties().globalGenerator
+            environment.getProperty(CosIdProperties.GLOBAL_GENERATOR)?.takeIf { it.isNotBlank() }
+                ?: CosIdProperties().globalGenerator
 
         private fun runsCosId(context: ConditionContext): Boolean =
             context.beanFactory?.getBeanNamesForType(IdGeneratorProvider::class.java, true, false)
