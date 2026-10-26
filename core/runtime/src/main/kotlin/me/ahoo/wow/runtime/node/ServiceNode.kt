@@ -314,7 +314,8 @@ class LogGroupNode internal constructor(
  * 4. every context's [WaitCoordinator.join]: the commands still executing (a wait that timed out leaves its command
  *    executing) settle normally, at most until the waits' bound of step 2, and at least
  *    [me.ahoo.wow.runtime.cluster.ClusterOptions.drainTimeout];
- * 5. every context's [Executor.close], then its [WaitCoordinator.close];
+ * 5. every context's [WaitCoordinator.close], cancelling what still executes, then its [Executor.close], which waits
+ *    at most [me.ahoo.wow.runtime.cluster.ClusterOptions.drainTimeout] for its commands to finish;
  * 6. every context's [PartitionAppendQueue.close], committing what is queued.
  *
  * [listener] hears each [Step] once it is done. A step that fails is logged and the next ones still run; [stop] then
@@ -966,9 +967,10 @@ class ServiceNode @InternalWowApi constructor(
             }
         }
         step(Step.EXECUTORS_CLOSED) {
-            contexts.values.forEach {
-                it.executor.close()
-                it.coordinator.close()
+            // What still executes is cancelled first: the executors would otherwise wait for exactly those commands.
+            contexts.values.forEach { it.coordinator.close() }
+            coroutineScope {
+                contexts.values.forEach { launch { it.executor.close(options.cluster.drainTimeout) } }
             }
         }
         step(Step.LOGS_CLOSED) {
@@ -1432,7 +1434,10 @@ class ServiceNode @InternalWowApi constructor(
         /** No command executes in a coordinator any more, or the bound on waiting for them has passed. */
         EXECUTIONS_ENDED,
 
-        /** Every context's executor is closed, its commands finished, and its coordinator closed. */
+        /**
+         * Every context's coordinator is closed, cancelling what still executes, and its executor closed: its commands
+         * finished, or the bound on waiting for them passed.
+         */
         EXECUTORS_CLOSED,
 
         /** Every context's append queue is closed, what was queued committed. */

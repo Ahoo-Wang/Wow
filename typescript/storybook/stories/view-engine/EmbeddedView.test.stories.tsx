@@ -423,7 +423,7 @@ export const Interactive: Story = {
     );
     // Sorted by a header, and paged.
     await userEvent.click(
-      within(table).getByRole('button', { name: /按订单号升序排序/ }),
+      within(table).getByRole('button', { name: /订单号，升序排序/ }),
     );
     await waitFor(() =>
       expect(

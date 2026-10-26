@@ -180,7 +180,7 @@ describe('DataWorkbench interaction', () => {
       document.querySelectorAll('[data-slot="sort-position"]'),
     ).toHaveLength(0);
     expect(
-      screen.getByRole('button', { name: 'Sort: Amount Ascending' }),
+      screen.getByRole('button', { name: 'Amount, sorted Ascending' }),
     ).toBeDefined();
   });
 
@@ -206,7 +206,7 @@ describe('DataWorkbench interaction', () => {
     expect(document.querySelectorAll('thead [aria-sort]')).toHaveLength(0);
     // The sort control reads the draft: it says what Apply is about to run.
     expect(
-      screen.getByRole('button', { name: 'Sort: Amount Ascending' }),
+      screen.getByRole('button', { name: 'Amount, sorted Ascending' }),
     ).toBeDefined();
     expect(apply.querySelector('[data-slot="pending-dot"]')).not.toBeNull();
     // The arrow says what ran; the name says what the next press does from

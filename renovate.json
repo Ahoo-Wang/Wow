@@ -10,7 +10,11 @@
   ],
   "dependencyDashboard": true,
   "vulnerabilityAlerts": {
-    "enabled": true
+    "enabled": true,
+    "groupName": null,
+    "schedule": [],
+    "dependencyDashboardApproval": false,
+    "minimumReleaseAge": null
   },
   "semanticCommits": "enabled",
   "semanticCommitType": "fix",
@@ -23,7 +27,7 @@
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": [
-      "before 3pm on monday"
+      "before 3pm on the first day of the month"
     ],
     "commitMessageTopic": "lock files",
     "minimumReleaseAge": null
@@ -174,6 +178,26 @@
       ],
       "groupName": "vitepress",
       "commitMessageTopic": "VitePress documentation"
+    },
+    {
+      "description": "One weekly pull request for every non-major npm update, so the many pnpm-lock.yaml edits land together instead of conflicting and each re-running CI. Majors keep their own pull requests (and the dashboard approval above), peer ranges keep their own rule below, and security updates (vulnerabilityAlerts) ignore the group and the schedule. The window is the whole of Monday because the Renovate workflow runs at 02:17 UTC, which is 10:17 in the timezone above.",
+      "matchDatasources": [
+        "npm"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest"
+      ],
+      "matchDepTypes": [
+        "!pnpm.catalog.peers"
+      ],
+      "groupName": "npm non-major",
+      "commitMessageTopic": "npm non-major dependencies",
+      "schedule": [
+        "on monday"
+      ]
     },
     {
       "description": "Peer ranges of the published npm packages (the `peers` catalog in pnpm-workspace.yaml) are a published contract. Only widen them, never raise a lower bound, and only after dashboard approval; the default catalog keeps the versions CI tests against current.",

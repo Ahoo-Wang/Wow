@@ -100,7 +100,7 @@ export function ResultSlot({
  * aliases as if they were fields (D20: one control for one thing) — every
  * dimension and metric may order the groups, first by one, then by the
  * next. The label is a title rather than a `<label>`: the button carries a
- * name of its own that reads the sort back (「排序：金额的总和 降序」), and
+ * name of its own that reads the sort back (「金额的总和，降序排序」), and
  * the title names the group it stands in.
  */
 function SortField({ analysis }: { analysis: AnalysisEditorController }) {

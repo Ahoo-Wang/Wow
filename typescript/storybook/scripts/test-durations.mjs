@@ -26,6 +26,10 @@ import { fileURLToPath } from 'node:url';
 import { DURATIONS_FILE } from './shard-sequencer.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
+// A CI report names its files under the runner's checkout: a path outside
+// `root` is cut back to the package's path in the repository.
+const repository = fileURLToPath(new URL('../../..', import.meta.url));
+const packagePath = `/${relative(repository, root).split(sep).join('/')}/`;
 const reports = process.argv.slice(2);
 if (reports.length === 0) {
   console.error(
@@ -41,7 +45,10 @@ const measured = {};
 for (const report of reports) {
   const { testResults } = JSON.parse(readFileSync(report, 'utf8'));
   for (const { name, startTime, endTime } of testResults) {
-    const path = relative(root, name).split(sep).join('/');
+    const local = relative(root, name).split(sep).join('/');
+    const path = local.startsWith('../')
+      ? name.slice(name.lastIndexOf(packagePath) + packagePath.length)
+      : local;
     // Rounded to a tenth of a second, so a refresh changes only what moved.
     const ms = Math.round(Math.max(0, endTime - startTime) / 100) * 100;
     // Several browser instances of one file: the slowest one counts.

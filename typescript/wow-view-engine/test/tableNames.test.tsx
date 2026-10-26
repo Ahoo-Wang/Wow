@@ -52,7 +52,7 @@ describe('the record table', () => {
 describe('a column header', () => {
   /**
    * Its name is the column's label. Computed from what it holds, it was the
-   * sort button's action and the width handle's — 「按订单号升序排序 调整
+   * sort button's action and the width handle's — 「订单号，升序排序 调整
    * 订单号 宽度」 — and a reader hears the header's name in every cell it
    * walks into (second-round review, A11Y-10). The sort is `aria-sort`'s,
    * and the button keeps the action as its own name.

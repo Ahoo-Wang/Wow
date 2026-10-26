@@ -57,6 +57,14 @@ const yuan = (value: number) =>
 
 /** What the catalogue in force puts between two conditions. */
 const JOIN = zhCN['label.filter.join'];
+// The date condition's calendar button: named by its field, then the date
+// it shows (WCAG 2.5.3), so it is found by the field's part alone.
+const DATE_PICKED = new RegExp(
+  `^${formatMessage(zhCN, 'label.date.picked', {
+    field: formatMessage(zhCN, 'label.filter.value-of', { field: '创建时间' }),
+    value: '',
+  })}`,
+);
 
 export default meta;
 
@@ -398,9 +406,7 @@ export const WithTime: Story = {
     );
 
     // The calendar and its clock are one control, opened from the pill.
-    const trigger = await canvas.findByLabelText(
-      formatMessage(zhCN, 'label.filter.value-of', { field: '创建时间' }),
-    );
+    const trigger = await canvas.findByLabelText(DATE_PICKED);
     await userEvent.click(trigger);
 
     const popup = within(document.body);
@@ -653,9 +659,7 @@ export const TheCalendarSpeaksTheSurfaceLanguage: Story = {
         name: new RegExp(`^${zhCN['label.filter.panel']}`),
       }),
     );
-    const trigger = await canvas.findByLabelText(
-      formatMessage(zhCN, 'label.filter.value-of', { field: '创建时间' }),
-    );
+    const trigger = await canvas.findByLabelText(DATE_PICKED);
     await userEvent.click(trigger);
 
     const popup = within(document.body);
@@ -745,9 +749,7 @@ export const TheCalendarSpeaksTheSurfaceLanguage: Story = {
 
 /** The calendar popover of the one date condition, open and settled. */
 async function openCalendar(canvasElement: HTMLElement): Promise<HTMLElement> {
-  const trigger = await within(canvasElement).findByLabelText(
-    formatMessage(zhCN, 'label.filter.value-of', { field: '创建时间' }),
-  );
+  const trigger = await within(canvasElement).findByLabelText(DATE_PICKED);
   await userEvent.click(trigger);
   const popover = await waitFor(() => {
     const found = document.body.querySelector<HTMLElement>(

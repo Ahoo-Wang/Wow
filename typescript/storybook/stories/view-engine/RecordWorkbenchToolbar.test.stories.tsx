@@ -187,7 +187,8 @@ export const AutoRefresh: Story = {
       canvasElement.querySelector<HTMLElement>('[data-slot="refresh-cadence"]');
     const seconds = say('label.refresh.seconds', { count: 30 });
     /** The number on the key, whatever second of the count it is. */
-    const count = () => Number(cadence()?.textContent?.replace(/\D/g, ''));
+    const count = () =>
+      Number(cadence()?.getAttribute('data-reading')?.replace(/\D/g, ''));
 
     // The saved view already refreshes itself, so the credential is on the
     // button before anything is pressed — and it is counting down to the
@@ -254,7 +255,7 @@ export const AutoRefresh: Story = {
     // for all but its first second, so either is the right answer here.
     await waitFor(() =>
       expect([minutes, say('label.refresh.minutes', { count: 4 })]).toContain(
-        cadence()?.textContent,
+        cadence()?.getAttribute('data-reading'),
       ),
     );
     await expect(canvas.getByText(zhCN['label.header.unsaved'])).toBeVisible();

@@ -171,10 +171,10 @@ export const QueryAnnouncedInTheResult: Story = {
     );
     await waitFor(() =>
       expect(sortButton).toHaveAccessibleName(
-        `${say('label.sort.button', {
-          field: '金额',
+        say('label.sort.button', {
+          field: `金额 ${say('label.sort.more', { count: 1 })}`,
           direction: zhCN['label.sort.desc'],
-        })} ${say('label.sort.more', { count: 1 })}`,
+        }),
       ),
     );
     // And the words on it are unchanged by the name it was given.

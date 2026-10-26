@@ -104,7 +104,7 @@ describe('the time beside the calendar', () => {
       from: '2026-09-16',
       to: '2026-09-20',
     } as never);
-    await user.click(screen.getByRole('button', { name: 'Signed' }));
+    await user.click(screen.getByRole('button', { name: /^Signed: / }));
 
     expect(await screen.findByText('Whole day')).toBeTruthy();
     expect(
@@ -125,7 +125,7 @@ describe('the time beside the calendar', () => {
       type: 'absolute',
       from: '2026-09-20',
     } as never);
-    await user.click(screen.getByRole('button', { name: 'Signed' }));
+    await user.click(screen.getByRole('button', { name: /^Signed: / }));
     await user.click(await screen.findByRole('button', { name: 'Set a time' }));
 
     await user.keyboard('09');
@@ -143,7 +143,7 @@ describe('the time beside the calendar', () => {
       type: 'absolute',
       from: '2026-09-20T23:58',
     } as never);
-    await user.click(screen.getByRole('button', { name: 'Signed' }));
+    await user.click(screen.getByRole('button', { name: /^Signed: / }));
 
     await user.click(await screen.findByRole('textbox', { name: 'Time hour' }));
     // 23 is the last hour there is.
@@ -163,7 +163,7 @@ describe('the time beside the calendar', () => {
       type: 'absolute',
       from: '2026-09-16T09:30:00',
     } as never);
-    await user.click(screen.getByRole('button', { name: 'Signed' }));
+    await user.click(screen.getByRole('button', { name: /^Signed: / }));
     expect(box('Time hour').value).toBe('09');
     expect(box('Time minute').value).toBe('30');
 
@@ -180,7 +180,7 @@ describe('the time beside the calendar', () => {
       type: 'absolute',
       from: '2026-09-16T09:30',
     } as never);
-    await user.click(screen.getByRole('button', { name: 'Signed' }));
+    await user.click(screen.getByRole('button', { name: /^Signed: / }));
     expect(
       await screen.findByRole('grid', { name: 'September 2026' }),
     ).toBeTruthy();
@@ -195,7 +195,7 @@ describe('the time beside the calendar', () => {
       from: '2026-09-16T09:00',
       to: '2026-09-20T18:45',
     } as never);
-    await user.click(screen.getByRole('button', { name: 'Signed' }));
+    await user.click(screen.getByRole('button', { name: /^Signed: / }));
 
     await user.click(
       await screen.findByRole('button', { name: 'Clear To time' }),
@@ -231,7 +231,7 @@ describe('the time beside the calendar', () => {
   it('waits for a day before a time of day can be given', async () => {
     const user = userEvent.setup();
     editor({ input: 'dateRange', range: true, withTime: true });
-    await user.click(screen.getByRole('button', { name: 'Signed' }));
+    await user.click(screen.getByRole('button', { name: /^Signed: / }));
     expect(
       (
         (await screen.findByRole('button', {
@@ -266,7 +266,7 @@ describe('the time beside the calendar', () => {
       );
     }
     render(<Host />);
-    await user.click(screen.getByRole('button', { name: '签收时间' }));
+    await user.click(screen.getByRole('button', { name: /^签收时间：/ }));
     expect(
       await screen.findByRole('textbox', {
         name: `${zhCN['label.date.time-from']} 小时`,

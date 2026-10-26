@@ -3680,6 +3680,7 @@ export const en: {
     readonly 'label.date.past': "In the last";
     readonly 'label.date.future': "In the next";
     readonly 'label.date.pick': "Pick a date";
+    readonly 'label.date.picked': "{field}: {value}";
     readonly 'label.date.shape-of': "{field} kind";
     readonly 'label.date.direction-of': "{field} direction";
     readonly 'label.date.amount-of': "{field} amount";
@@ -4028,7 +4029,7 @@ export const en: {
     readonly 'label.columns.pinned.none': "{field} is no longer pinned";
     readonly 'label.columns.pinned.left': "{field} is now pinned left";
     readonly 'label.sort.title': "Sort";
-    readonly 'label.sort.button': "Sort: {field} {direction}";
+    readonly 'label.sort.button': "{field}, sorted {direction}";
     readonly 'label.sort.hint': "Rows are ordered by the first field, then by the next.";
     readonly 'label.sort.unsorted': "These rows are in no particular order.";
     readonly 'label.sort.asc': "Ascending";

@@ -190,7 +190,7 @@ filtersOnTab(panels, tab): Set<string>                         // 在一个标�
 **排序以行键收尾，分页才不重不漏**（2026-09-22 生产复审）。`compileRecord` 把配置里的 `sort` 原样编译，再在末尾追加 `{ field: rowKey, direction: ASC }`——**分页与游标两种查询都加**，一条规则；配置的 `sort` 里已经有行键（哪个方向都算）就不加，因为那个顺序已经是全序。原因是实测：对真实的 Wow 补偿服务按默认的 `eventTime DESC` 逐页翻，许多失败执行的 `eventTime` 精确到毫秒都相同，50 个页边界里有 15 个落在相同时间戳上，30 页 × 20 行的扫描 12 次里 11 次出现**同一行出现在两页上**（于是另一些行哪一页都没有）；追加 `state.id ASC` 后 12 次里 0 次。Wow 服务端的查询网关只给游标查询补唯一排序键，分页查询不补，别的后端更不一定补，而导出也是按页码翻的——一份文件可能重复一些行、漏掉另一些。所以一致性归引擎：行键按定义唯一，以它收尾的排序对任何后端都是全序。
 
 - 行键因此**必须可排序**，准入以 `definition.record.row-key-unsortable` 拒绝不声明 `sortable: true` 的行键（见「定义准入」）；
-- 这个收尾键是**查询的，不是用户的**：配置里存的仍是用户选的排序，表头的 `aria-sort`、排序位次、工具栏的「排序：… ↓ +N」都读配置而不读编译结果，所以没人选过的行键不会在界面上以排序的身份出现；
+- 这个收尾键是**查询的，不是用户的**：配置里存的仍是用户选的排序，表头的 `aria-sort`、排序位次、工具栏的「… ↓ +N」都读配置而不读编译结果，所以没人选过的行键不会在界面上以排序的身份出现；
 - 游标模式下它占 Wow `MAX_CURSOR_SORT_FIELDS` 的一格，用户可选的上限因此是 31（`maxSortFields`）。
 
 （见 test/stableOrder.test.ts「the row key breaks ties」、test/definition.test.ts「refuses a row key the definition does not declare sortable」、test/stableOrder.test.ts「a sort that ties, paged by index」与 test/recordWorkbenchInteraction.test.tsx「keeps the tie-breaking row key out of every sort control」）

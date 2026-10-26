@@ -14,7 +14,8 @@ coverage:
   status:
     # Changed and new main code must be covered by the tests that run on the pull request.
     # `flags` names every flag (the TypeScript uploads all carry `typescript`; no flag has paths, so nothing is
-    # filtered out); it is there so these statuses, like the components', wait for the flags' after_n_builds.
+    # filtered out); it is there so these statuses, like the components', wait for the flags' after_n_builds (which
+    # carried-forward sessions satisfy, see flag_management below).
     patch:
       default:
         target: 90%
@@ -35,13 +36,16 @@ coverage:
 # `integration` flag the integration shards' (their container-backed tests). The reports name each source file by
 # its repository path (test/code-coverage-report).
 #
-# A full run uploads `jvm-unit` once per shard of ci.yml's `check` matrix (3) and `integration` once per shard of its
+# A full run uploads `jvm-unit` once per shard of ci.yml's `check` matrix (4) and `integration` once per shard of its
 # `integration` matrix (4). Codecov judges a status that reads a flag
-# (the components', and patch and project above) only once the flag has `after_n_builds` uploads of this commit, so
-# a status is never judged on part of the run. A flag's real upload replaces its carried-forward ones, which
-# therefore count only until its first upload: a pull request that skips the JVM jobs carries its base's sessions
-# forward and is judged at once, and a run whose shard fails or uploads nothing leaves those statuses unposted (not
-# pending) for that commit. `codecov.notify.after_n_builds` and `comment.after_n_builds` would count every session
+# (the components', and patch and project above) only once the flag has `after_n_builds` sessions of this commit.
+# Carried-forward sessions satisfy `after_n_builds` until the flag's first real upload replaces them: a pull request
+# that skips the JVM jobs carries its base's sessions forward and is judged at once, but so is a pull request whose
+# TypeScript upload lands before any JVM shard's, so Codecov may post an early status judged on the base's JVM
+# coverage, then post it again once the shards have uploaded (not when the result is unchanged). ci.yml's ci-gate
+# takes the newest codecov/patch that Codecov started after the run's last coverage upload, and without one accepts an
+# earlier one only if it passed (.github/scripts/codecov-patch.mjs). A run whose shard fails or
+# uploads nothing after another has leaves those statuses unposted (not pending) for that commit. `codecov.notify.after_n_builds` and `comment.after_n_builds` would count every session
 # of the commit, the TypeScript packages' and the carried-forward ones included, so they are left unset. The
 # jvm-unit and integration flags' after_n_builds are the numbers of shards of ci.yml's `check` and `integration`
 # matrices (.github/scripts/integration-shards.mjs checks both).
@@ -59,7 +63,7 @@ flag_management:
     carryforward: true
   individual_flags:
     - name: jvm-unit
-      after_n_builds: 3
+      after_n_builds: 4
     - name: integration
       after_n_builds: 4
     - name: v10

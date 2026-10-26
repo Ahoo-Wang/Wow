@@ -619,7 +619,13 @@ export const PicksASpecificDay: Story = {
       await screen.findByRole('option', { name: zhCN['label.date.absolute'] }),
     );
     await expect(kind).toHaveTextContent(zhCN['label.date.absolute']);
-    const calendar = within(date).getByRole('button', { name: '日期' });
+    // The button is named by the field and the day it shows (WCAG 2.5.3).
+    const calendar = within(date).getByRole('button', {
+      name: label('label.date.picked', {
+        field: '日期',
+        value: '2026年9月21日',
+      }),
+    });
     // The day in force, now off the calendar: the board reads what it read,
     // and no card asks for a day.
     await waitFor(() => expect(calendar).toHaveTextContent('2026年9月21日'));
@@ -951,7 +957,10 @@ export const OnAPhone: Story = {
       await screen.findByRole('option', { name: zhCN['label.date.absolute'] }),
     );
     const calendar = await within(sheet).findByRole('button', {
-      name: '日期',
+      name: label('label.date.picked', {
+        field: '日期',
+        value: '2026年9月21日',
+      }),
     });
     await expect(
       getComputedStyle(calendar.closest('div.fve\\:flex')!).flexWrap,
