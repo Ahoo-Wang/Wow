@@ -171,7 +171,7 @@ Every other principal gets no `Write` ACL on the topic. With an authorizer and `
 
 ## Mistyped settings
 
-A mistyped security setting would silently leave its default in place, and some defaults allow everything. So the host refuses to start when an unknown key appears under `wow.cosec.*`, `wow.callers.*`, `wow.calls.*` or `wow.internal.*`; under `wow.callers` and `wow.peers`, each entry's keys are checked too. Other unknown `wow.*` keys are logged as warnings.
+A mistyped security setting would silently leave its default in place, and some defaults allow everything. So the host refuses to start when any `wow.*` key is unknown; under `wow.callers` and `wow.peers`, each entry's keys are checked too.
 
 ## Personal data in events
 

@@ -54,7 +54,7 @@ A 10.0.0 pre-release (`alpha`, `beta`, `rc`) makes no compatibility promise for 
 
 ### Configuration keys renamed before 10.0.0
 
-The configuration surface was settled once before 10.0.0, without aliases: a key of an earlier pre-release binds to nothing. Each row names what took its place.
+The configuration surface was settled once before 10.0.0, without aliases: a key of an earlier pre-release refuses the node's start, and the refusal names what took its place, as each row here does. So does any other `wow.*` key that no property of the host or of a module on the class path names.
 
 | Pre-release key | 10.0.0 |
 | --- | --- |
@@ -85,3 +85,4 @@ The configuration surface was settled once before 10.0.0, without aliases: a key
 | `wow.clients.retry.max-attempts`, `.backoff`, `.max-retry-after` | `wow.peer.retry.max-attempts`, `.initial-backoff`, `.max-retry-after` |
 | `wow.http.services.<service>.commands`, `.reads` | `wow.callers.<service>.commands`, `.reads` |
 | `wow.topics.in-memory` | `wow.transport`: `auto` (the default) keeps the topics in the JVM in development; `memory` asks for them, in development alone |
+| `wow.analytics.catalog.watch` | `wow.analytics.catalog.watch.enabled` |

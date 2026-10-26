@@ -7,7 +7,7 @@ description: "宿主 wow.* 配置的每个键：类型、默认值与含义。"
 
 # 配置项
 
-Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 229 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性对应的 `wow.*` 键会在节点启动时报告。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
+Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 230 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动；改过名的键会给出新键名。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
 
 ## `wow`
 
@@ -403,6 +403,14 @@ How a typed client's request that a peer answered with a problem a retry may get
 | `wow.peer.retry.initial-backoff` | `Duration` | `PT0.2S` | The wait before the first retry when the peer gives no `Retry-After`; it doubles at each next one. |
 | `wow.peer.retry.max-attempts` | `Integer` | `3` | The most attempts of a request in all; 1 never retries. |
 | `wow.peer.retry.max-retry-after` | `Duration` | `PT5S` | The longest `Retry-After` of a peer that is waited out; a peer that asks for longer is not retried. |
+
+## `wow.platform`
+
+The settings of the platform services that run on the host: `wow.platform.*`.
+
+| 键 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `wow.platform.trust-identity-headers` | `Boolean` | `false` | Whether a platform service takes its callers from the `X-User`, `X-Tenant` and `X-Role` request headers, which any client sets: for local runs, demos and tests only, so it is refused outside development. |
 
 ## `wow.postgres`
 

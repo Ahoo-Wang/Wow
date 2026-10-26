@@ -128,8 +128,8 @@ The host takes these from the application when it defines them, and falls back t
 
 Spring binds the keys it knows and ignores the rest, so a misspelled key would silently do nothing. The host compares every `wow.*` key of the environment with the configuration metadata on the class path when it starts:
 
-- An unknown key is logged as a warning, naming it.
-- An unknown key under `wow.cosec.`, `wow.callers.`, `wow.calls.` or `wow.internal.` stops the start: a mistyped security setting would leave a default in place that may allow everything.
+- An unknown key stops the start, naming it: a mistyped setting would leave a default in place, and some defaults allow everything. A key of an earlier version is named with the key that took its place, and a key of a module that is not on the class path (`wow.cosid.*` without wow-cosid) with that module.
+- Under a map of settings, such as `wow.aggregates`, `wow.stores`, `wow.callers` and `wow.peers`, each entry's own keys are checked to their leaves.
 
 Environment variables are not checked, since their names cannot be listed. [Configuration Keys](../reference/configuration) lists every key.
 
