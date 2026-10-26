@@ -70,9 +70,36 @@ Axon's E1 plateau, about 3,500/s, is close to what 10 connections give at about 
 
 The pool raises Axon's peaks by 31% (E1) and 20% (E3); Wow, on 10 connections, still does 3.2–3.4 and 4.1–4.3 times them.
 
+## On the M4 Pro
+
+The same sessions, W A A W, K K and one Axon session with 32 connections, on the M4 Pro of the [milestone snapshots](v10-m4pro-snapshot-2.md) (10 performance and 4 efficiency cores, Docker with 12 CPUs, the store on disk) at `c48c5d519`, run on 2026-10-25 ([`v10-vs-axon-m4pro/`](v10-vs-axon-m4pro/), `SUMMARY.md`). No session failed a command.
+
+| Closed-loop peak | Wow, Kafka off | Axon | Wow, Kafka on | Axon, 32 connections |
+| --- | --- | --- | --- | --- |
+| E1 | 22,212, 20,971/s (top step) | 4,544, 4,847/s | 18,926, 17,231/s (top step) | 6,770/s |
+| E3 | 7,427, 7,885/s (top step) | 1,414, 1,642/s | 6,879, 6,642/s (top step) | 1,920/s |
+| E1, one client | 1,902, 1,635/s | 941, 984/s | 1,776, 1,603/s | 1,037/s |
+| E3, one client | 903, 744/s | 360, 369/s | 721, 832/s | 367/s |
+
+- Wow's E1 peak is 4.3–4.9 times Axon's with Kafka off and 3.6–4.2 times with Kafka on; its E3 peak 4.5–5.6 times. Wow's peaks are at the top step, so the ratios are lower bounds; Axon's E3 falls past 16–64 clients (p99 5.9–8.7 s at 1,024), as on the local machine.
+- 32 connections raise Axon's peaks by 40–49% (E1) and 17–36% (E3); Wow on 10 still does 3.1–3.3 and 3.9–4.1 times them.
+
+| Fixed rates | Wow, Kafka off | Axon | Wow, Kafka on |
+| --- | --- | --- | --- |
+| E1 at 2,500/s: p50 | 0.57, 0.57 ms | 1.38, 1.34 ms | 0.61, 0.61 ms |
+| E1: node CPU per op | 0.554, 0.557 ms | 0.549, 0.544 ms | 0.691, 0.715 ms |
+| E1: PostgreSQL CPU per op | 0.201, 0.208 ms | 0.285, 0.284 ms | 0.224, 0.230 ms |
+| E3 at 700/s: p50 | 1.02, 1.07 ms | 3.04, 3.18 ms | 1.11, 1.11 ms |
+| E3: node CPU per op | 1.377, 1.353 ms | 1.324, 1.286 ms | 1.765, 1.842 ms |
+| E3: PostgreSQL CPU per op | 0.592, 0.620 ms | 1.001, 0.959 ms | 0.652, 0.662 ms |
+
+**Unlike the local machine, the node's CPU per command at these rates is the same** (E1) or 2–7% higher for Wow (E3), where locally Axon's was 1.3–1.4 times Wow's; PostgreSQL's stays 1.4–1.7 times higher for Axon, and Axon's p50 2.4–3 times Wow's. So the peaks' gap on the M4 Pro is not the node's cost per command at a moderate rate: it is how each scales with concurrency (Axon levels off at 16–64 clients) and the store's cost. Where each node's time goes was not profiled.
+
+The tails at the fixed rates came in single seconds on both servers (Axon's E1 p99 541 ms in one session, Wow's E3 p99 313–408 ms in three), as the snapshot's disk stalls do on this machine.
+
 ## Limits
 
-- One machine, one node, local Docker; the M4 Pro run follows. The rates and sweeps are E1 and E3 only: the Axon server has no state reads (E2, E4) and no large payloads.
+- Two machines, one node each, local Docker; no server disk. The rates and sweeps are E1 and E3 only: the Axon server has no state reads (E2, E4) and no large payloads.
 - Axon's configuration is its documented production one without Axon Server, with the two choices above (the tracking processor, 16 segments); Axon Server and its event store were not measured. Wow runs its defaults.
 - The first W session's E1 at 2,500/s had a p99 of 69 ms (one stall in the first measured seconds after the prime); its second session and the K sessions did not.
 - The first round's W arm used `wow.topics.in-memory`, a development mode whose topics keep every record in the JVM: the 1 GB node ran out of heap in its first E1 sweep, so those sessions are void, and W runs with Kafka off instead (which needed the fix that a blank broker address turns Kafka off).
