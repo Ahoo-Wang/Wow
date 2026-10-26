@@ -18,7 +18,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spring.boot.DevelopmentMode
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 
 class AnalyticsCatalogCallersTest {
@@ -53,5 +56,19 @@ class AnalyticsCatalogCallersTest {
     fun `a request without a user should have no caller`() {
         resolve().assert().isNull()
         resolve(AnalyticsCatalogCallers.USER to "  ").assert().isNull()
+    }
+
+    @Test
+    fun `the header callers should be for development alone (S-9)`() {
+        val configuration = AnalyticsCatalogConfiguration()
+        configuration.analyticsCatalogCallers(
+            DevelopmentMode("profile dev")
+        ).assert().isInstanceOf(AnalyticsCatalogCallers::class.java)
+        val refusal = assertThrows<WowConfigurationException> {
+            configuration.analyticsCatalogCallers(
+                DevelopmentMode.OFF
+            )
+        }
+        refusal.key.assert().isEqualTo(AnalyticsCatalogConfiguration.TRUST_IDENTITY_HEADERS)
     }
 }

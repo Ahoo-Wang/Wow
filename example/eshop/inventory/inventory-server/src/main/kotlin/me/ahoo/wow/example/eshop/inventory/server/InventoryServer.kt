@@ -14,6 +14,7 @@
 package me.ahoo.wow.example.eshop.inventory.server
 
 import me.ahoo.wow.example.eshop.inventory.domain.stock.SupplierDeliveries
+import me.ahoo.wow.http.caller.CallerResolver
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
@@ -32,6 +33,14 @@ class InventoryServer {
      */
     @Bean
     fun supplierDeliveries(): SupplierDeliveries = SupplierDeliveries { _, _ -> emptyList() }
+
+    /**
+     * Who calls the service: no one in particular. Its commands come from the ordering context's sagas over the
+     * cluster, and its public routes serve the anonymous caller of the default tenant; outside development the host
+     * wants that said in a bean (decision D301).
+     */
+    @Bean
+    fun anonymousCallers(): CallerResolver = CallerResolver.ANONYMOUS
 }
 
 fun main(args: Array<String>) {

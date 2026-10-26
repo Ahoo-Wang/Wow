@@ -21,7 +21,7 @@ Wow 服务有两扇门：公开端口，调用方在这里发送命令和查询�
 
 ## 认证调用方 {#authenticate-callers}
 
-宿主用它的 `CallerResolver` 把每个请求变成一个调用方。没有解析器时，每个请求都以默认租户的匿名调用方身份处理，宿主在启动时记录一条警告。只在试用时这样运行。
+宿主用它的 `CallerResolver` 把每个请求变成一个调用方。没有解析器时，开发中的节点（`wow.internal.dev-profiles` 中的某个 profile 生效，或内部端口只绑定回环接口）以默认租户的匿名调用方身份处理每个请求，并记录一条警告；其他节点拒绝启动。有意匿名的服务用一个返回 `CallerResolver.ANONYMOUS` 的 `CallerResolver` Bean 表明这一点。
 
 类路径上有 CoSec 时，它的解析器就是宿主的解析器。它从 CoSec 的安全上下文读取调用方：
 
@@ -31,6 +31,10 @@ Wow 服务有两扇门：公开端口，调用方在这里发送命令和查询�
 - **在别处行事。** 只有具有 `wow.cosec.cross-scope` 中某个角色或策略的主体，才能在 `Wow-Scope` 里指明另一个租户或作用域。
 - **服务。** CoSec 主体从来不是服务身份。服务只在内部端口上声明自己（[关上内部端口](#close-the-internal-port)）。
 - **应用。** 只有当 CoSec 通过该应用的角色权限授权了请求时，请求的 `CoSec-App-Id` 才成为调用方的应用，以及提交的 `app_id` 事实。客户端自己设置的请求头本身不被信任。在注入模式的 CoSec 网关之后，`wow.cosec.trust-injected-app` 会信任网关转发的应用；它默认关闭，只有当除了网关没有别的东西能访问服务时才安全。
+
+## 记录客户端地址 {#record-the-client-address}
+
+每条命令记录客户端的 `User-Agent` 和地址（`user_agent`、`remote_ip`），每个都截断到 512 个字符。公开端口前面总有网关，所以宿主从网关的 `X-Forwarded-For` 取地址：除非应用自己设置，宿主把 Spring Boot 的 `server.forward-headers-strategy` 设为 `framework`，并在启动时记录生效的策略。网关必须覆盖客户端发来的这个请求头。把策略设为 `none` 则记录连接的地址。
 
 ## 授权命令 {#authorize-commands}
 

@@ -22,6 +22,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
+import me.ahoo.wow.spring.boot.DevelopmentMode
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
@@ -37,6 +38,7 @@ import org.springframework.core.env.Environment
  * CoSec put on the request, which the `cosec` profile has it verify from the request's token ([securityContextParser]);
  * without CoSec (`cosec.enabled=false`, the default profile) no request has one, and each is answered 401, never
  * served on a client's word.
+ * The header switch is refused outside development ([DevelopmentMode], review S-9).
  *
  * What each caller may send is [OpsAuthorizer]'s to say; whether a caller is an operator, CoSec's policies when CoSec
  * authorizes the service's requests itself and `wow.cosec.authorizer.enabled` is on ([CoSecCommandAuthorizer]), else
@@ -46,10 +48,11 @@ import org.springframework.core.env.Environment
 class OpsConfiguration {
     @Bean
     @ConditionalOnProperty(TRUST_IDENTITY_HEADERS, havingValue = "true")
-    fun opsCallers(): CallerResolver {
+    fun opsCallers(development: DevelopmentMode): CallerResolver {
+        development.require(TRUST_IDENTITY_HEADERS, true, "takes the callers from headers any client sets")
         logger.warn {
             "$TRUST_IDENTITY_HEADERS=true: the ops service takes its callers from the X-User, X-Tenant and X-Role " +
-                "headers, which any client sets. For local runs, demos and tests only, never a deployment."
+                "headers, which any client sets: for local runs, demos and tests only (${development.reason})."
         }
         return OpsCallers()
     }

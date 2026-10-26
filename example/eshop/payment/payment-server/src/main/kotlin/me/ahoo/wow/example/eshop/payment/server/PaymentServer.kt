@@ -15,6 +15,7 @@ package me.ahoo.wow.example.eshop.payment.server
 
 import me.ahoo.wow.example.eshop.payment.domain.payment.PaymentGateway
 import me.ahoo.wow.example.eshop.payment.domain.payment.SimulatedPaymentGateway
+import me.ahoo.wow.http.caller.CallerResolver
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
@@ -44,6 +45,14 @@ class PaymentServer {
         val outage = outageFile.takeIf { it.isNotBlank() }?.let(::File)
         return SimulatedPaymentGateway(limit) { outage?.exists() == true }
     }
+
+    /**
+     * Who calls the service: no one in particular. Its commands come from the ordering context's sagas over the
+     * cluster, and its public routes serve the anonymous caller of the default tenant; outside development the host
+     * wants that said in a bean (decision D301).
+     */
+    @Bean
+    fun anonymousCallers(): CallerResolver = CallerResolver.ANONYMOUS
 }
 
 fun main(args: Array<String>) {

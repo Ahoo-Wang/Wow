@@ -16,7 +16,7 @@
 
 - React、Saga、Project 的上下文提供确定性的 `executionId = (订阅, AggregateRef, 版本)`，用户拿它给外部调用做幂等键（KaeX mvp 的 `executionId` 做法）。
 - 订阅其他上下文发布的流、而上游关闭了状态时，处理函数声明可空的状态：`StateEvent<OrderView?>`；上游不带状态而 `S` 不可空，启动即失败（D140）。
-- `Decision` 有三种：`Events(list)`、`NoOp` 与 `Rejected(Rejection)`。拒绝是一个值，不抛异常；一个返回类型表达全部结局（实现时由「`Decision` 加单独的 `Rejection` 返回」收敛而来）。
+- `Decision` 有三种：`Events(list)`、`NoOp` 与 `Rejected(Rejection)`。拒绝是一个值；一个返回类型表达全部结局（实现时由「`Decision` 加单独的 `Rejection` 返回」收敛而来）。写法上也可以抛出：`scope.reject(code, message)`（`RejectedException`），以及决定函数里的 `require`（→ `wow.command.invalid`，400）与 `check`/`error()`（→ `wow.command.refused`，409），内核都把它们收敛为同一个 `Rejected`；其他异常是技术故障（D311）；只认这两个类本身、不认子类，远程调用的故障是技术故障，决定函数里调用 Wow 客户端时对方的拒绝即本命令的拒绝，远程调用须幂等（D314）。
 - `@OnError` 删除：错误路径就是返回 `Rejection` 的分支；失败后的补偿动作写成 Saga。
 - 9.x 的证据：处理器运行时发现、参数无法解析时注入 `null`（B11、B15）；`@OnError` 在重试循环内执行（B4）。
 

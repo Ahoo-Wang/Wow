@@ -41,7 +41,7 @@ The semantics are those of the Java example `example/transfer`, ported to Kotlin
 | Snapshots | the same store |
 | Commands | routed between the nodes over their internal ports (the cluster router) |
 | Events to other services | the state stream published to Kafka (`wow.transfer.account.state`) |
-| Cluster of 3 | a node id and internal port per node, the cluster token, leases on the store |
+| Cluster of 3 | a node id and internal port per node, leases on the store |
 | Defaults otherwise | V10's |
 
 The servers run on JDK 21 with `-Xms1g -Xmx1g -XX:+UseG1GC` unless `--heap` says otherwise. `bench.sh` starts every run on empty containers and removes them afterwards.
