@@ -14,6 +14,7 @@
 package me.ahoo.wow.cosec
 
 import me.ahoo.cosec.api.context.request.DeviceIdCapable
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.WowHttpOptions
 
 /**
@@ -22,7 +23,8 @@ import me.ahoo.wow.http.WowHttpOptions
  * `CoSec-App-Id`, is not copied as the client sent it: the command records the application CoSec authorized the
  * request in as the standard request fact `app_id` ([CoSecCallerResolver.appOf], decision D232).
  */
-internal object CoSecRequestFacts {
+@InternalWowApi
+object CoSecRequestFacts {
     const val DEVICE_ID: String = DeviceIdCapable.DEVICE_ID_KEY
 
     @JvmField

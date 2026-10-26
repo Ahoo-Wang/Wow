@@ -31,12 +31,11 @@ import me.ahoo.wow.runtime.wait.commandFunction
 import me.ahoo.wow.runtime.wait.failed
 import me.ahoo.wow.runtime.wait.reachedResult
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.subscription.Member
 import me.ahoo.wow.spi.wait.WaitContext
-import me.ahoo.wow.spi.wait.toContext
-import me.ahoo.wow.spi.wait.toWire
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.EmptyCoroutineContext
@@ -182,11 +181,11 @@ class PartitionedRouter(
     ): ForwardCommand? {
         val waitLeft = wait?.let { (it.deadline - clock()).coerceAtLeast(0).milliseconds } ?: Duration.INFINITE
         withTimeoutOrNull(waitLeft) { channel.connect(peer.address) } ?: return null
+        val trace = currentCoroutineContext().trace
         return ForwardCommand(
             command = ClusterCodec.wire(model, command),
-            wait = wait?.toWire(),
+            transport = if (wait == null && trace.isEmpty()) null else Transport(wait = wait, trace = trace),
             deadline = minOf(clock() + options.forwardTimeout.inWholeMilliseconds, wait?.deadline ?: Long.MAX_VALUE),
-            trace = currentCoroutineContext().trace,
         )
     }
 
@@ -305,7 +304,7 @@ class PartitionedRouter(
  * refuses a partition it neither holds nor is about to hold, a forward past its deadline, and a type it does not
  * know; the sender then runs the command itself. It never forwards again.
  *
- * The command executes in the trace it was forwarded with ([ForwardCommand.trace]), which [observer] resumes
+ * The command executes in the trace its forward's transport carries ([ForwardCommand.transport]), which [observer] resumes
  * (decision D174).
  */
 @InternalWowApi
@@ -320,7 +319,7 @@ class ForwardEndpoint(
     private val groups: Map<String, PartitionOwnership> = groups.associateBy { it.group.context }
 
     override suspend fun forward(request: ForwardCommand): ForwardReply {
-        val trace = observer.resuming(request.trace)
+        val trace = observer.resuming(request.transport?.trace.orEmpty())
         return if (trace === EmptyCoroutineContext) forwarded(request) else withContext(trace) { forwarded(request) }
     }
 
@@ -330,7 +329,7 @@ class ForwardEndpoint(
         }
         val model = models[request.command.ref.type] ?: return ForwardReply.refused(Refusal.UNKNOWN_TYPE)
         val command = ClusterCodec.command(model, request.command) ?: return ForwardReply.refused(Refusal.UNKNOWN_TYPE)
-        val wait = request.wait?.toContext()
+        val wait = request.transport?.wait
         val execute: suspend () -> Settlement = { coordinator.executeHere(model, command, wait) }
         val ownership = groups[command.ref.type.context]
         val settlement = if (ownership == null) {

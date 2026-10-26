@@ -48,7 +48,7 @@ class FailedStartTest {
             assertThrows<IllegalStateException> { ownership.start() }
             ownership.isRunning.assert().isFalse()
             runtime.isRunning.assert().isFalse()
-            store.members(GROUP.name).assert().isEmpty()
+            store.members(GROUP.service).assert().isEmpty()
 
             ownership.start()
             try {
@@ -60,20 +60,19 @@ class FailedStartTest {
         }
 
     @Test
-    fun `a start whose first reconcile fails should leave the members and start again`(): Unit =
+    fun `a start whose read of the members fails should leave the members and start again`(): Unit =
         runTest(timeout = 1.minutes) {
             val runtime = runtime()
             val ownership = ownership(runtime)
-            // The routes read the members first, then the reconcile does: it fails.
-            leases.memberReadsFirst.set(1)
+            // The membership heartbeats, then reads the members (finding R5.B-4): the read fails.
             leases.memberReads.set(1)
             assertThrows<IllegalStateException> { ownership.start() }
             ownership.isRunning.assert().isFalse()
             runtime.isRunning.assert().isFalse()
             // It had heartbeated: it left the members again.
-            store.members(GROUP.name).assert().isEmpty()
+            store.members(GROUP.service).assert().isEmpty()
             delay(5.seconds)
-            store.members(GROUP.name).assert().isEmpty()
+            store.members(GROUP.service).assert().isEmpty()
 
             ownership.start()
             try {

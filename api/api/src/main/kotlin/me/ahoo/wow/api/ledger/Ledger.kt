@@ -99,59 +99,21 @@ object Ledger {
 }
 
 /**
- * A parked aggregate as the ledger's commands name it: the aggregate [name] of [context], its [tenantId] and [id]
- * (the shape of an entry on the operator routes, `/wow/ops/parked`).
- *
- * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ * A system command of the ledger (decision D304): an operator's action on [subscription]'s entry of the parked
+ * aggregate [id] of [tenantId], of the aggregate type [aggregate] of [context]. Its fields are plain values, so any
+ * operations tool, not only Wow's own, writes its JSON: `{"subscription": ..., "context": ..., "aggregate": ...,
+ * "tenantId": ..., "id": ...}`. A caller sends it as the system command its name says ([Ledger.COMMANDS]), which a
+ * service's call permits must list explicitly (`wow.ledger.*`).
  */
-class LedgerAggregate @InternalWowApi constructor(
-    val context: String,
-    val name: String,
-    val tenantId: String,
-    val id: String,
-) {
-    /** The aggregate this names. */
-    fun toRef(): AggregateRef = AggregateType(context, name).ref(tenantId, id)
-
-    /** This LedgerAggregate with the given fields replaced: Wow's own copy, left out of the ABI. */
-    @InternalWowApi
-    fun copyWith(
-        context: String = this.context,
-        name: String = this.name,
-        tenantId: String = this.tenantId,
-        id: String = this.id,
-    ): LedgerAggregate = LedgerAggregate(context, name, tenantId, id)
-
-    override fun equals(other: Any?): Boolean =
-        this === other || other is LedgerAggregate && valueFields() == other.valueFields()
-
-    override fun hashCode(): Int = valueFields().hashCode()
-
-    override fun toString(): String = "LedgerAggregate(context=$context, name=$name, tenantId=$tenantId, id=$id)"
-
-    private fun valueFields(): List<Any?> = listOf(context, name, tenantId, id)
-
-    companion object {
-        /** [ref] as the ledger's commands name it. */
-        @JvmStatic
-        fun of(ref: AggregateRef): LedgerAggregate = LedgerAggregate(
-            ref.type.context,
-            ref.type.name,
-            ref.tenantId,
-            ref.id
-        )
-
-        /** A LedgerAggregate of the given fields; parameters added later come last, with a default. */
-        @JvmStatic
-        fun of(context: String, name: String, tenantId: String, id: String): LedgerAggregate =
-            LedgerAggregate(context, name, tenantId, id)
-    }
-}
-
-/** A system command of the ledger: an operator's action on [subscription]'s entry of [aggregate]. */
 sealed interface LedgerCommand {
     val subscription: String
-    val aggregate: LedgerAggregate
+    val context: String
+    val aggregate: String
+    val tenantId: String
+    val id: String
+
+    /** The parked aggregate this names. */
+    fun toRef(): AggregateRef = AggregateType(context, aggregate).ref(tenantId, id)
 }
 
 /**
@@ -161,21 +123,38 @@ sealed interface LedgerCommand {
  */
 class ResumeParked @InternalWowApi constructor(
     override val subscription: String,
-    override val aggregate: LedgerAggregate,
+    override val context: String,
+    override val aggregate: String,
+    override val tenantId: String,
+    override val id: String,
 ) : LedgerCommand {
     override fun equals(other: Any?): Boolean =
         this === other || other is ResumeParked && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "ResumeParked(subscription=$subscription, aggregate=$aggregate)"
+    override fun toString(): String = "ResumeParked(subscription=$subscription, context=$context, aggregate=$aggregate, tenantId=$tenantId, id=$id)"
 
-    private fun valueFields(): List<Any?> = listOf(subscription, aggregate)
+    private fun valueFields(): List<Any?> = listOf(subscription, context, aggregate, tenantId, id)
 
     companion object {
         /** A ResumeParked of the given fields; parameters added later come last, with a default. */
         @JvmStatic
-        fun of(subscription: String, aggregate: LedgerAggregate): ResumeParked = ResumeParked(subscription, aggregate)
+        fun of(
+            subscription: String,
+            context: String,
+            aggregate: String,
+            tenantId: String,
+            id: String,
+        ): ResumeParked = ResumeParked(subscription, context, aggregate, tenantId, id)
+
+        /** A ResumeParked of [subscription]'s entry of [ref]. */
+        @JvmStatic
+        fun of(
+            subscription: String,
+            ref: AggregateRef,
+        ): ResumeParked =
+            ResumeParked(subscription, ref.type.context, ref.type.name, ref.tenantId, ref.id)
     }
 }
 
@@ -186,21 +165,38 @@ class ResumeParked @InternalWowApi constructor(
  */
 class SkipParked @InternalWowApi constructor(
     override val subscription: String,
-    override val aggregate: LedgerAggregate,
+    override val context: String,
+    override val aggregate: String,
+    override val tenantId: String,
+    override val id: String,
 ) : LedgerCommand {
     override fun equals(other: Any?): Boolean =
         this === other || other is SkipParked && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "SkipParked(subscription=$subscription, aggregate=$aggregate)"
+    override fun toString(): String = "SkipParked(subscription=$subscription, context=$context, aggregate=$aggregate, tenantId=$tenantId, id=$id)"
 
-    private fun valueFields(): List<Any?> = listOf(subscription, aggregate)
+    private fun valueFields(): List<Any?> = listOf(subscription, context, aggregate, tenantId, id)
 
     companion object {
         /** A SkipParked of the given fields; parameters added later come last, with a default. */
         @JvmStatic
-        fun of(subscription: String, aggregate: LedgerAggregate): SkipParked = SkipParked(subscription, aggregate)
+        fun of(
+            subscription: String,
+            context: String,
+            aggregate: String,
+            tenantId: String,
+            id: String,
+        ): SkipParked = SkipParked(subscription, context, aggregate, tenantId, id)
+
+        /** A SkipParked of [subscription]'s entry of [ref]. */
+        @JvmStatic
+        fun of(
+            subscription: String,
+            ref: AggregateRef,
+        ): SkipParked =
+            SkipParked(subscription, ref.type.context, ref.type.name, ref.tenantId, ref.id)
     }
 }
 
@@ -212,7 +208,10 @@ class SkipParked @InternalWowApi constructor(
  */
 class MarkParkedRecoverable @InternalWowApi constructor(
     override val subscription: String,
-    override val aggregate: LedgerAggregate,
+    override val context: String,
+    override val aggregate: String,
+    override val tenantId: String,
+    override val id: String,
     val recoverable: String,
 ) : LedgerCommand {
     override fun equals(other: Any?): Boolean =
@@ -220,16 +219,30 @@ class MarkParkedRecoverable @InternalWowApi constructor(
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String =
-        "MarkParkedRecoverable(subscription=$subscription, aggregate=$aggregate, recoverable=$recoverable)"
+    override fun toString(): String = "MarkParkedRecoverable(subscription=$subscription, context=$context, aggregate=$aggregate, tenantId=$tenantId, id=$id, recoverable=$recoverable)"
 
-    private fun valueFields(): List<Any?> = listOf(subscription, aggregate, recoverable)
+    private fun valueFields(): List<Any?> = listOf(subscription, context, aggregate, tenantId, id, recoverable)
 
     companion object {
         /** A MarkParkedRecoverable of the given fields; parameters added later come last, with a default. */
         @JvmStatic
-        fun of(subscription: String, aggregate: LedgerAggregate, recoverable: String): MarkParkedRecoverable =
-            MarkParkedRecoverable(subscription, aggregate, recoverable)
+        fun of(
+            subscription: String,
+            context: String,
+            aggregate: String,
+            tenantId: String,
+            id: String,
+            recoverable: String,
+        ): MarkParkedRecoverable = MarkParkedRecoverable(subscription, context, aggregate, tenantId, id, recoverable)
+
+        /** A MarkParkedRecoverable of [subscription]'s entry of [ref], [recoverable]. */
+        @JvmStatic
+        fun of(
+            subscription: String,
+            ref: AggregateRef,
+            recoverable: String,
+        ): MarkParkedRecoverable =
+            MarkParkedRecoverable(subscription, ref.type.context, ref.type.name, ref.tenantId, ref.id, recoverable)
     }
 }
 
@@ -242,7 +255,10 @@ class MarkParkedRecoverable @InternalWowApi constructor(
  */
 class ApplyParkedRetrySpec @InternalWowApi constructor(
     override val subscription: String,
-    override val aggregate: LedgerAggregate,
+    override val context: String,
+    override val aggregate: String,
+    override val tenantId: String,
+    override val id: String,
     val maxRetries: Int? = null,
     val minBackoff: String? = null,
     val executionTimeout: String? = null,
@@ -252,11 +268,18 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String =
-        "ApplyParkedRetrySpec(subscription=$subscription, aggregate=$aggregate, maxRetries=$maxRetries, " +
-            "minBackoff=$minBackoff, executionTimeout=$executionTimeout)"
+    override fun toString(): String = "ApplyParkedRetrySpec(subscription=$subscription, context=$context, aggregate=$aggregate, tenantId=$tenantId, id=$id, maxRetries=$maxRetries, minBackoff=$minBackoff, executionTimeout=$executionTimeout)"
 
-    private fun valueFields(): List<Any?> = listOf(subscription, aggregate, maxRetries, minBackoff, executionTimeout)
+    private fun valueFields(): List<Any?> = listOf(
+        subscription,
+        context,
+        aggregate,
+        tenantId,
+        id,
+        maxRetries,
+        minBackoff,
+        executionTimeout
+    )
 
     companion object {
         /** An ApplyParkedRetrySpec of the given fields; parameters added later come last, with a default. */
@@ -264,11 +287,43 @@ class ApplyParkedRetrySpec @InternalWowApi constructor(
         @JvmOverloads
         fun of(
             subscription: String,
-            aggregate: LedgerAggregate,
+            context: String,
+            aggregate: String,
+            tenantId: String,
+            id: String,
+            maxRetries: Int? = null,
+            minBackoff: String? = null,
+            executionTimeout: String? = null,
+        ): ApplyParkedRetrySpec = ApplyParkedRetrySpec(
+            subscription,
+            context,
+            aggregate,
+            tenantId,
+            id,
+            maxRetries,
+            minBackoff,
+            executionTimeout
+        )
+
+        /** An ApplyParkedRetrySpec of [subscription]'s entry of [ref], [maxRetries], [minBackoff], [executionTimeout]. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            subscription: String,
+            ref: AggregateRef,
             maxRetries: Int? = null,
             minBackoff: String? = null,
             executionTimeout: String? = null,
         ): ApplyParkedRetrySpec =
-            ApplyParkedRetrySpec(subscription, aggregate, maxRetries, minBackoff, executionTimeout)
+            ApplyParkedRetrySpec(
+                subscription,
+                ref.type.context,
+                ref.type.name,
+                ref.tenantId,
+                ref.id,
+                maxRetries,
+                minBackoff,
+                executionTimeout
+            )
     }
 }

@@ -62,32 +62,46 @@ class Lease @InternalWowApi constructor(
 }
 
 /**
- * [node] is a live member of subscription group [group] until [expiresAt] (epoch milliseconds, exclusive). [address]
- * is the node's internal address (`host:port` of its internal port, never the public one; decision D72): where the
- * cluster channel reaches it, so commands can be routed to the owners of partitions.
+ * [node] is a live member of [service] until [expiresAt] (epoch milliseconds, exclusive), serving the lease [groups]
+ * (finding R5.B-4): a node records its membership once per service, not once per lease group, and the groups it takes
+ * part in are a field of that one record. [address] is the node's internal address (`host:port` of its internal port,
+ * never the public one; decision D72): where the cluster channel reaches it, so commands can be routed to the owners
+ * of partitions.
+ *
+ * [service] keys the record: a service's node membership, or a narrower set keyed the same way, such as the nodes of
+ * one state revision (decision D172), whose records list no groups.
  *
  * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
 class Member @InternalWowApi constructor(
-    val group: String,
+    val service: String,
     val node: String,
     val address: String,
     val expiresAt: Long,
+    val groups: Set<String> = emptySet(),
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is Member && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "Member(group=$group, node=$node, address=$address, expiresAt=$expiresAt)"
+    override fun toString(): String =
+        "Member(service=$service, node=$node, address=$address, expiresAt=$expiresAt, groups=$groups)"
 
-    private fun valueFields(): List<Any?> = listOf(group, node, address, expiresAt)
+    private fun valueFields(): List<Any?> = listOf(service, node, address, expiresAt, groups)
 
     companion object {
         /** A Member of the given fields; parameters added later come last, with a default. */
         @JvmStatic
-        fun of(group: String, node: String, address: String, expiresAt: Long): Member =
-            Member(group, node, address, expiresAt)
+        @JvmOverloads
+        fun of(
+            service: String,
+            node: String,
+            address: String,
+            expiresAt: Long,
+            groups: Set<String> = emptySet()
+        ): Member =
+            Member(service, node, address, expiresAt, groups)
     }
 }
 
@@ -101,8 +115,11 @@ class Member @InternalWowApi constructor(
  * free partition have exactly one winner.
  *
  * Membership is separate from ownership because rebalancing needs it: a node that just joined holds no lease, so the
- * owners would never learn they must give partitions up. Each node [heartbeat]s its membership; the runtime derives a
- * node's fair share from the live [members], releases surplus leases and acquires free ones.
+ * owners would never learn they must give partitions up. Membership is recorded per service and ownership per lease
+ * group (finding R5.B-4): each node [heartbeat]s one record for its service, listing the lease groups it takes part
+ * in, and reads the service's live [members] once for all its groups; the runtime derives a node's fair share of a
+ * group from the members that list it, releases surplus leases and acquires free ones. The store operations of the
+ * control plane so grow with the groups only for the leases (renewals and owner reads), not for the membership.
  *
  * The store's clock decides liveness. A backend that takes the time from each node, not from the database, relies on
  * the nodes' clock skew being small against the TTL. Since Wow does not fence (D45), a short overlap of two owners
@@ -131,14 +148,21 @@ interface LeaseStore {
     suspend fun owners(group: String): List<Lease>
 
     /**
-     * Registers [node] as a member of [group] reachable at [address], or keeps it one, for [ttl] from now. A later
-     * heartbeat replaces the address, so a node restarted on another address is found there.
+     * Registers [node] as a member of [service] reachable at [address], serving the lease [groups], or keeps it one,
+     * for [ttl] from now. A later heartbeat replaces the address and the groups, so a node restarted on another address
+     * is found there, and one that stops taking part in a group drops it at once.
      */
-    suspend fun heartbeat(group: String, node: String, address: String, ttl: Duration): Member
+    suspend fun heartbeat(
+        service: String,
+        node: String,
+        address: String,
+        ttl: Duration,
+        groups: Set<String> = emptySet(),
+    ): Member
 
-    /** The live members of [group], in node order. */
-    suspend fun members(group: String): List<Member>
+    /** The live members of [service], in node order, each with the groups it serves. */
+    suspend fun members(service: String): List<Member>
 
-    /** Removes [node] from [group] at once, for a graceful shutdown; it keeps the leases it has not released. */
-    suspend fun leave(group: String, node: String)
+    /** Removes [node] from [service] at once, for a graceful shutdown; it keeps the leases it has not released. */
+    suspend fun leave(service: String, node: String)
 }

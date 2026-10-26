@@ -41,7 +41,7 @@ import org.springframework.core.env.Environment
  *
  * It warns at startup that nothing leaves the JVM, and fails with `wow.kafka.bootstrap-servers` set too.
  */
-@AutoConfiguration(before = [KafkaAutoConfiguration::class])
+@AutoConfiguration
 @ConditionalOnProperty(prefix = InMemoryTopicsAutoConfiguration.PREFIX, name = ["in-memory"], havingValue = "true")
 @EnableConfigurationProperties(WowProperties::class)
 @InternalWowApi

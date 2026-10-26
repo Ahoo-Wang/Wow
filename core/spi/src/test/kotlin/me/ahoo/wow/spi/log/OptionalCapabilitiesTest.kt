@@ -27,7 +27,7 @@ class OptionalCapabilitiesTest {
     private object Required : EventLog, SnapshotStore {
         override val partitions: Int = 1
 
-        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome = error("unused")
+        override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome = error("unused")
 
         override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = emptyFlow()
 

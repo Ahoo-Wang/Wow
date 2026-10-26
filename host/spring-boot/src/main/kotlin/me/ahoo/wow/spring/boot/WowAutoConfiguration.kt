@@ -491,6 +491,7 @@ class WowAutoConfiguration {
         validators: ObjectProvider<CommandValidator>,
         subscriptions: ObjectProvider<SubscriptionFactory>,
         sinks: ObjectProvider<PublishedSinks>,
+        providedSinks: ObjectProvider<ProvidedSinks>,
         listeners: ObjectProvider<ServiceNodeListener>,
         topics: ObjectProvider<SourceTopics>,
         notifiers: ObjectProvider<ParkedNotifier>,
@@ -555,7 +556,8 @@ class WowAutoConfiguration {
             subscriptions = bindings(
                 models.providers,
                 dependencies,
-                subscriptions.orderedStream().toList() + sinks.orderedStream().map { it.factory }.toList(),
+                subscriptions.orderedStream().toList() + sinks.orderedStream().map { it.factory }.toList() +
+                    providedSinks.ifAvailable?.sinks.orEmpty().map { it.factory },
             ),
             listener = { step -> stepListeners.forEach { it.onStep(step) } },
             contracts = contracts,

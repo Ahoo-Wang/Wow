@@ -23,7 +23,7 @@ public final class me/ahoo/wow/kafka/KafkaPartitionedSource : java/lang/AutoClos
 	public synthetic fun <init> (Lkotlin/jvm/functions/Function0;JLkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun close ()V
 	public final fun getOffsetGap ()Lme/ahoo/wow/kafka/OffsetGapPolicy;
-	public final fun getOffsetGaps ()J
+	public fun getOffsetGaps ()J
 	public fun offsets (Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun partitionOf (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun partitions (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -63,6 +63,20 @@ public final class me/ahoo/wow/kafka/KafkaTopicProducer : java/lang/AutoCloseabl
 
 public final class me/ahoo/wow/kafka/KafkaTopicProducer$Companion {
 	public final fun create (Lme/ahoo/wow/kafka/KafkaOptions;)Lme/ahoo/wow/kafka/KafkaTopicProducer;
+}
+
+public final class me/ahoo/wow/kafka/KafkaTransportProvider : me/ahoo/wow/spi/transport/TransportProvider {
+	public static final field Companion Lme/ahoo/wow/kafka/KafkaTransportProvider$Companion;
+	public static final field TYPE Ljava/lang/String;
+	public fun <init> ()V
+	public fun available (Lme/ahoo/wow/spi/transport/TransportConfig;)Z
+	public fun getRequirement ()Ljava/lang/String;
+	public fun getType ()Ljava/lang/String;
+	public fun open (Lme/ahoo/wow/spi/transport/TransportConfig;)Lme/ahoo/wow/spi/transport/TopicTransport;
+}
+
+public final class me/ahoo/wow/kafka/KafkaTransportProvider$Companion {
+	public final fun options (Lme/ahoo/wow/spi/transport/TransportConfig;)Lme/ahoo/wow/kafka/KafkaOptions;
 }
 
 public final class me/ahoo/wow/kafka/OffsetGapException : java/lang/IllegalStateException {

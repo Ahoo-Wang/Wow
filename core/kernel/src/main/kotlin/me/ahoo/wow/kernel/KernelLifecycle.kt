@@ -35,7 +35,7 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.api.schedule.SetSchedule
-import me.ahoo.wow.api.snapshot.SnapshotRebuilds
+import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 
 /**
  * The kernel's side of the lifecycle commands (design 01 §6) and of the schedule system commands (decision D198): their

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.api.snapshot
+package me.ahoo.wow.spi.snapshot
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -24,6 +24,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  *
  * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
  */
+@InternalWowApi
 class RebuildSnapshot @InternalWowApi constructor(val ids: List<String>) {
     init {
         require(ids.isNotEmpty()) { "A rebuild names the aggregates whose snapshots it rebuilds." }
@@ -40,6 +41,7 @@ class RebuildSnapshot @InternalWowApi constructor(val ids: List<String>) {
 
     private fun valueFields(): List<Any?> = listOf(ids)
 
+    @InternalWowApi
     companion object {
         /** A RebuildSnapshot of the given fields; parameters added later come last, with a default. */
         @JvmStatic
@@ -52,6 +54,7 @@ class RebuildSnapshot @InternalWowApi constructor(val ids: List<String>) {
  *
  * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
  */
+@InternalWowApi
 class SnapshotRebuildRequested @InternalWowApi constructor(val ids: List<String>) {
     override fun equals(other: Any?): Boolean =
         this === other || other is SnapshotRebuildRequested && valueFields() == other.valueFields()
@@ -62,6 +65,7 @@ class SnapshotRebuildRequested @InternalWowApi constructor(val ids: List<String>
 
     private fun valueFields(): List<Any?> = listOf(ids)
 
+    @InternalWowApi
     companion object {
         /** A SnapshotRebuildRequested of the given fields; parameters added later come last, with a default. */
         @JvmStatic
@@ -70,6 +74,7 @@ class SnapshotRebuildRequested @InternalWowApi constructor(val ids: List<String>
 }
 
 /** The names of the snapshot rebuild aggregate, its system command and event (decision D172). */
+@InternalWowApi
 object SnapshotRebuilds {
     /**
      * The name of the built-in aggregate that takes a context's rebuild requests: `<context>.snapshot`, one instance

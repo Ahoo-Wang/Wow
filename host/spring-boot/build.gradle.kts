@@ -1,6 +1,9 @@
 description = "Wow Spring Boot: auto-configuration by classpath; wiring only"
 
 dependencies {
+    // The Spring Boot BOM goes with the host alone (D287): an application on wow-spring-boot is a Spring Boot
+    // application and takes its versions; a module that depends on another Wow module does not.
+    api(platform(libs.spring.boot.dependencies))
     api(project(":runtime"))
     api(project(":http"))
     // The typed clients of the peers (decision D257) and the sagas' synchronous calls (decision D193).
@@ -19,10 +22,13 @@ dependencies {
     implementation("io.github.oshai:kotlin-logging-jvm")
     // The backend follows what the application puts on the classpath (`wow.backend`, D110): each backend's store
     // provider is found by ServiceLoader (review R3.3-1), so the host neither brings nor compiles against them.
-    // The Kafka transport and the ClickHouse Sink are wired when the application has them; the query plane comes
-    // with wow-http.
-    compileOnly(project(":kafka"))
+    // A topic transport and a Sink are found the same way, by their providers (finding R5.B-5), so the host compiles
+    // against neither the Kafka transport nor the ClickHouse Sink; the ClickHouse dataset backend is wired when the
+    // application has it. The query plane comes with wow-http.
     compileOnly(project(":clickhouse"))
+    // CoSec is wired when the application has wow-cosec and CoSec's WebFlux module, as Kafka is (review R5.C-12).
+    compileOnly(project(":cosec"))
+    compileOnly(libs.cosec.webflux)
     // Tracing and metrics are wired when the application has wow-opentelemetry (decision D174).
     compileOnly(project(":opentelemetry"))
     // Activated only when the application has it: a Bean Validation provider (D106). CosId's ids come from wow-cosid,
@@ -46,6 +52,8 @@ dependencies {
     testImplementation(project(":postgres"))
     testImplementation(project(":mongo"))
     testImplementation(project(":kafka"))
+    testImplementation(project(":cosec"))
+    testImplementation(libs.cosec.webflux)
     testImplementation(project(":clickhouse"))
     testImplementation(project(":opentelemetry"))
     testImplementation("io.opentelemetry:opentelemetry-sdk-testing")

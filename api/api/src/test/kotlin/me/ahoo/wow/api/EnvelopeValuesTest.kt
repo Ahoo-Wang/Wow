@@ -18,10 +18,6 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Rejection
-import me.ahoo.wow.api.ledger.LedgerAggregate
-import me.ahoo.wow.api.ledger.LedgerEntry
-import me.ahoo.wow.api.ledger.LedgerResolution
-import me.ahoo.wow.api.ledger.LedgerRetrySpec
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
@@ -64,20 +60,6 @@ class EnvelopeValuesTest {
     private fun event(version: Int = 1) =
         StateEvent(ref, version, "c-1", "r-1", "sales.order.Place", 7L, listOf("placed"), mapOf("total" to 1))
 
-    private fun entry(retries: Int = 0) = LedgerEntry(
-        service = "sales-service",
-        context = "sales",
-        subscription = "OrderSaga.onPlaced",
-        aggregate = LedgerAggregate("sales", "order", "tenant", "o-1"),
-        fromVersion = 1,
-        reason = "down",
-        failedAt = 1,
-        retries = retries,
-        retrySpec = LedgerRetrySpec(3, "PT1M", "PT2M"),
-        status = "SCHEDULED",
-        recordedAt = 2,
-    )
-
     @Test
     fun `an envelope equals another with the same fields, and prints them`() {
         valueSemantics(command(), command(), command("c-9"))
@@ -94,7 +76,6 @@ class EnvelopeValuesTest {
         valueSemantics(committed(), committed(), committed(2))
         valueSemantics(rejected(), rejected(), rejected("c-3"))
         valueSemantics(WaitPlan.of(Hop.committed()), WaitPlan.COMMITTED, WaitPlan.COMMITTED.within(3.seconds))
-        valueSemantics(entry(), entry(), entry(1))
         val hop = Hop.handled("OrderSaga.onPlaced", "sales")
         (hop == Hop.handled("OrderSaga.onPlaced", "sales")).assert().isTrue()
         hop.hashCode().assert().isEqualTo(Hop.handled("OrderSaga.onPlaced", "sales").hashCode())
@@ -131,37 +112,11 @@ class EnvelopeValuesTest {
         event().copyWith(version = 2).assert().isEqualTo(event(2))
         committed().copyWith(version = 2).assert().isEqualTo(committed(2))
         rejected().copyWith(commandId = "c-3").assert().isEqualTo(rejected("c-3"))
-        entry().copyWith(retries = 1).assert().isEqualTo(entry(1))
         Hop.committed().copyWith(context = "sales").assert().isEqualTo(Hop.committed("sales"))
     }
 
-    private fun resolution(outcome: String = LedgerResolution.RESUMED) = LedgerResolution.of(
-        "sales-service",
-        "sales",
-        "OrderSaga.onPlaced",
-        LedgerAggregate("sales", "order", "tenant", "o-1"),
-        1,
-        outcome,
-        3,
-    )
-
     @Test
-    fun `a retry spec, a resolution and a transformed command are values built from their factories`() {
-        valueSemantics(
-            LedgerRetrySpec.of(3, "PT1M", "PT2M"),
-            LedgerRetrySpec(3, "PT1M", "PT2M", false),
-            LedgerRetrySpec.of(3, "PT1M", "PT2M", true),
-        )
-        LedgerRetrySpec.of(3, "PT1M", "PT2M").toString().assert()
-            .isEqualTo("LedgerRetrySpec(maxRetries=3, minBackoff=PT1M, executionTimeout=PT2M, applied=false)")
-        valueSemantics(resolution(), resolution(), resolution(LedgerResolution.SKIPPED))
-        resolution().toString().assert().isEqualTo(
-            "LedgerResolution(service=sales-service, context=sales, subscription=OrderSaga.onPlaced, " +
-                "aggregate=${LedgerAggregate("sales", "order", "tenant", "o-1")}, failedAt=1, outcome=RESUMED, " +
-                "resolvedAt=3)",
-        )
-        LedgerResolution.of("s", "c", "p", LedgerAggregate("c", "a", "t", "1"), null, LedgerResolution.NOT_PARKED, 2)
-            .failedAt.assert().isNull()
+    fun `a transformed command is a value built from its factories`() {
         valueSemantics(
             TransformedFrom.of("sales.order.Import"),
             TransformedFrom("sales.order.Import"),
@@ -171,10 +126,6 @@ class EnvelopeValuesTest {
             .isEqualTo("TransformedFrom(command=sales.order.Import, aggregateId=o-1)")
         (TransformedFrom.of("a.b.C") == TransformedFrom.of("a.b.D")).assert().isFalse()
         TransformedFrom.of("a.b.C", "1").hashCode().assert().isEqualTo(TransformedFrom.of("a.b.C", "1").hashCode())
-        LedgerResolution("s", "c", "p", LedgerAggregate("c", "a", "t", "1"), outcome = "SKIPPED", resolvedAt = 2)
-            .assert().isEqualTo(
-                LedgerResolution.of("s", "c", "p", LedgerAggregate("c", "a", "t", "1"), null, "SKIPPED", 2),
-            )
     }
 
     private fun valueSemantics(value: Any, same: Any, other: Any, name: String = value.javaClass.simpleName) {

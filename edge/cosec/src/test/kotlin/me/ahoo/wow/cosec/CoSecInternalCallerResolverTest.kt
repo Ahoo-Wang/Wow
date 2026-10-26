@@ -16,28 +16,17 @@ package me.ahoo.wow.cosec
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import kotlinx.coroutines.test.runTest
-import me.ahoo.cosec.api.context.request.Request
 import me.ahoo.cosec.api.principal.RoleCapable
-import me.ahoo.cosec.context.SecurityContextParser
-import me.ahoo.cosec.context.request.RequestParser
 import me.ahoo.cosec.jwt.InjectSecurityContextParser
 import me.ahoo.cosec.jwt.JwtTokenVerifier
-import me.ahoo.cosec.token.TokenVerifier
 import me.ahoo.cosec.webflux.ReactiveRemoteIpResolver
 import me.ahoo.cosec.webflux.ReactiveRequestParser
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.http.caller.InternalCallerResolver
 import org.junit.jupiter.api.Test
-import org.springframework.boot.autoconfigure.AutoConfigurations
-import org.springframework.boot.test.context.runner.ApplicationContextRunner
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest
 import org.springframework.mock.web.server.MockServerWebExchange
 import org.springframework.web.reactive.function.server.HandlerStrategies
 import org.springframework.web.reactive.function.server.ServerRequest
-import org.springframework.web.server.ServerWebExchange
 import java.time.Instant
 
 /**
@@ -90,40 +79,5 @@ class CoSecInternalCallerResolverTest {
         resolver.resolve(request(token("basket", listOf("service"), expiresAt = Instant.now().minusSeconds(60))))
             .assert().isNull()
         resolver.resolve(request(null))?.service.assert().isNotEqualTo(true)
-    }
-
-    @Configuration(proxyBeanMethods = false)
-    class Parsers {
-        @Bean
-        fun requestParser(): RequestParser<ServerWebExchange> = object : RequestParser<ServerWebExchange> {
-            override fun parse(request: ServerWebExchange): Request = error("Not parsed here.")
-        }
-
-        // CoSec's inject mode: its parser is the application's SecurityContextParser bean.
-        @Bean
-        fun securityContextParser(): SecurityContextParser = InjectSecurityContextParser
-    }
-
-    @Configuration(proxyBeanMethods = false)
-    class Tokens {
-        @Bean
-        fun tokenVerifier(): TokenVerifier = JwtTokenVerifier(Algorithm.HMAC256("the-service-token-secret"))
-    }
-
-    @Test
-    fun `the internal resolver should be the host's when CoSec's request parser and token verifier are there`() {
-        val runner = ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(CoSecAutoConfiguration::class.java))
-            .withPropertyValues("wow.cosec.service.roles=service")
-        runner.run { context -> context.getBeansOfType(InternalCallerResolver::class.java).assert().isEmpty() }
-        // Parsers alone, as in CoSec's inject mode without a verifier: no resolver that would trust the parser.
-        runner.withUserConfiguration(Parsers::class.java)
-            .run { context -> context.getBeansOfType(InternalCallerResolver::class.java).assert().isEmpty() }
-        runner.withUserConfiguration(Parsers::class.java, Tokens::class.java).run { context ->
-            context.getBean(InternalCallerResolver::class.java)
-                .assert().isInstanceOf(CoSecInternalCallerResolver::class.java)
-            // It is not a CallerResolver: the public port's resolver stays the only one (review X-13).
-            context.getBeansOfType(CallerResolver::class.java).keys.assert().containsExactly("wowCoSecCallerResolver")
-        }
     }
 }

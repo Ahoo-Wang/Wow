@@ -13,7 +13,7 @@ description: 为 Wow 添加一个存储后端：存储要实现的 SPI 端口、
 
 | 端口 | 保存 | 契约 |
 | --- | --- | --- |
-| `EventLog` | 上下文的日志：按分区和位置组织的已提交流，按版本和按请求唯一 | `EventLogSpec` |
+| `EventLog` | 上下文的日志：按分区和位置组织的已提交流，按版本和按请求唯一；每个条目的传输段是不透明的字节，原样保存、原样返回 | `EventLogSpec` |
 | `SnapshotStore` | 每个聚合的最新快照 | `SnapshotStoreSpec` |
 | `CheckpointStore` | 每个订阅在每个分区上的位置 | `CheckpointStoreSpec` |
 | `LeaseStore` | 哪个节点拥有哪个分区 | `LeaseStoreSpec` |
@@ -30,6 +30,12 @@ description: 为 Wow 添加一个存储后端：存储要实现的 SPI 端口、
 后端向宿主提供一个 `StoreProvider`：配置所指明的 `type`（`wow.stores.<name>.type`）、它需要应用提供什么、它是否仅凭应用的资源就可用（`wow.backend: auto` 据此选择），以及 `open`，它为一个配置的实例返回一个 `Store`。`open` 不触碰数据库中的任何东西：存储在每个端口首次使用时才打开它，每个上下文一个日志，并记住由什么创建它的 schema，所以由 `wow.ddl` 决定它们是被创建、被校验还是保持不动。
 
 宿主通过 Java 的 `ServiceLoader` 从模块的 `META-INF/services/me.ahoo.wow.spi.store.StoreProvider` 中找到提供者，也会在应用的 bean 中寻找；bean 会取代类路径上同一类型的提供者。提供者是无状态的：每个存储实例都得到自己的 `Store`，基于它的配置所找到的资源，即一个 `DataSource` 或某个驱动的客户端。
+
+## 传输与 Sink 的提供者 {#transport-and-sink-providers}
+
+topic 传输和 Sink 的发现方式与存储相同。`TransportProvider`（`:spi`，`me.ahoo.wow.spi.transport`）打开承载发布事件流、发往其他上下文的命令及其回执的消息代理：它的 `open` 返回一个 `TopicTransport`，即节点使用的 `TopicProducer`、`PartitionedSource` 和 `TopicAdmin`，并且可以在节点就绪后对节点的命令主题给出警告。`SinkProvider`（`me.ahoo.wow.spi.sink`）打开一个目的地的 Sink：`open` 返回一个 `StreamSinks`，每个发布的事件流一个 `Sink`，其订阅命名为 `<processor>.<aggregate>`。宿主通过 `ServiceLoader` 从 `META-INF/services/me.ahoo.wow.spi.transport.TransportProvider` 和 `META-INF/services/me.ahoo.wow.spi.sink.SinkProvider` 中找到它们，也会在应用的 bean 中寻找；宿主自己不构建任何消息代理或数据仓库专有的东西。Wow 的 Kafka 传输（`kafka`）和 ClickHouse Sink（`clickhouse`）与其他提供者没有区别。
+
+在配置面定稿之前，类型为 `<type>` 的提供者读取 `wow.<type>` 下的键，这些键以相对于该前缀的选项交给它（`bootstrap-servers`、`properties.linger.ms`），由它的 `available` 说明这些键是否配置了它。一个节点最多运行一个传输，并运行所有已配置的 Sink。提供者以 `IllegalArgumentException` 拒绝的设置会使启动失败，并指出对应的键。
 
 ## 契约测试 {#the-contract-tests}
 

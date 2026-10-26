@@ -201,6 +201,24 @@ abstract class LeaseStoreSpec {
         store.members(group).first().assert().isEqualTo(moved)
     }
 
+    /**
+     * Membership is recorded per service, with the lease groups a node serves on its one record (finding R5.B-4): a
+     * heartbeat replaces them, and a record without groups lists none.
+     */
+    @Test
+    fun `a member records the lease groups it serves, and a heartbeat replaces them`(): Unit = runBlocking {
+        val service = group
+        val first = store.heartbeat(service, "node-a", address("node-a"), TTL, setOf("svc/order", "svc/topic:a.b"))
+        first.groups.assert().containsExactly("svc/order", "svc/topic:a.b")
+        store.heartbeat(service, "node-b", address("node-b"), TTL)
+        store.members(service).associate { it.node to it.groups }.assert().isEqualTo(
+            mapOf("node-a" to setOf("svc/order", "svc/topic:a.b"), "node-b" to emptySet()),
+        )
+        val narrowed = store.heartbeat(service, "node-a", address("node-a"), TTL, setOf("svc/topic:a.b"))
+        store.members(service).first().assert().isEqualTo(narrowed)
+        narrowed.groups.assert().containsExactly("svc/topic:a.b")
+    }
+
     protected companion object {
         const val GROUP_SUFFIX = 12
         const val CONTENDERS = 16

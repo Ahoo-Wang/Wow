@@ -31,6 +31,7 @@ import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.tck.EventQueryBackendSpec
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.TransportCodec
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
 import tools.jackson.databind.node.ObjectNode
@@ -43,18 +44,18 @@ import tools.jackson.databind.node.ObjectNode
 class ElasticsearchEventQueryBackendTest : EventQueryBackendSpec() {
     private val queries = ElasticsearchEventQueries(ElasticsearchFixture.client, ElasticsearchFixture.names)
 
-    override suspend fun store(streams: List<EventStreamRecord>) {
+    override suspend fun store(streams: List<Pair<EventStreamRecord, ByteArray?>>) {
         val sink = ElasticsearchEventSinks.of(ElasticsearchFixture.store()).sinkOf(type.context, type.name)
         sink.prepare()
         QueryModelCompiler.of(events = EventsQuerySchemas(manifest))
             .compile(QuerySchemaContext(type, QueryModel.EVENTS), binding(type).storage)
             .schema()
-        val (tagged, untagged) = streams.partition { it.tags != null }
-        sink.write(tagged.map(::recordOf))
+        val (tagged, untagged) = streams.partition { (stream) -> stream.tags != null }
+        sink.write(tagged.map { (stream, transport) -> recordOf(stream, transport) })
         // A stream without tags stands for a document indexed before the index learned them (decision D259).
         val index = ElasticsearchFixture.names.events(type.context, type.name)
-        untagged.forEach { stream ->
-            val document = ElasticsearchEventDocuments.document(recordOf(stream))
+        untagged.forEach { (stream, transport) ->
+            val document = ElasticsearchEventDocuments.document(recordOf(stream, transport))
             document.remove(EventStreamFields.TAGS)
             document.remove(ElasticsearchEventIndex.TAGS_RECORDED)
             ElasticsearchFixture.client.index<ObjectNode> {
@@ -67,8 +68,8 @@ class ElasticsearchEventQueryBackendTest : EventQueryBackendSpec() {
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = queries.binding(type)
 
     companion object {
-        /** [stream] as the sink subscription hands it to a Sink. */
-        fun recordOf(stream: EventStreamRecord): StateEventRecord = StateEventRecord.of(
+        /** [stream] as the sink subscription hands it to a Sink, with the [transport] appended beside it. */
+        fun recordOf(stream: EventStreamRecord, transport: ByteArray? = null): StateEventRecord = StateEventRecord.of(
             stream.ref,
             stream.version,
             commandId = stream.commandId,
@@ -81,6 +82,7 @@ class ElasticsearchEventQueryBackendTest : EventQueryBackendSpec() {
             scope = stream.scope,
             operator = stream.operator,
             tags = stream.tags.orEmpty(),
+            transport = transport?.let(TransportCodec::decode),
         )
     }
 }

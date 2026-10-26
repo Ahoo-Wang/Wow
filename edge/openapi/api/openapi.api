@@ -58,7 +58,6 @@ public final class me/ahoo/wow/openapi/WowHttpContract {
 	public static final field ERROR_EVENT Ljava/lang/String;
 	public static final field ETAG_HEADER Ljava/lang/String;
 	public static final field FROM_PARAMETER Ljava/lang/String;
-	public static final field GLOBAL_ID_PATH Ljava/lang/String;
 	public static final field IF_MATCH_HEADER Ljava/lang/String;
 	public static final field IF_NONE_MATCH_HEADER Ljava/lang/String;
 	public static final field INSTANCE Lme/ahoo/wow/openapi/WowHttpContract;

@@ -21,9 +21,6 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.api.ledger.LedgerAggregate
-import me.ahoo.wow.api.ledger.LedgerEntry
-import me.ahoo.wow.api.ledger.LedgerResolution
 import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.kernel.memory.InMemoryTopics
@@ -52,6 +49,9 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.spi.ledger.LedgerAggregate
+import me.ahoo.wow.spi.ledger.LedgerEntry
+import me.ahoo.wow.spi.ledger.LedgerResolution
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -144,7 +144,7 @@ class LedgerNodeTest {
             // sender, whoever its operator (decision D226).
             ledgerCommand(
                 Ledger.SKIP,
-                SkipParked(CommandIntake.NAME, LedgerAggregate.of(broken.ref)),
+                SkipParked.of(CommandIntake.NAME, broken.ref),
                 broken.ref,
                 "mallory",
                 source = "sales",
@@ -156,7 +156,7 @@ class LedgerNodeTest {
             // The ops context's saga: taken by its source, though the node's authorizer allows no operator.
             ledgerCommand(
                 Ledger.RESUME,
-                ResumeParked(CommandIntake.NAME, LedgerAggregate.of(broken.ref)),
+                ResumeParked.of(CommandIntake.NAME, broken.ref),
                 broken.ref,
                 "alice",
                 source = Ledger.OPS_CONTEXT,

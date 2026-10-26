@@ -226,12 +226,13 @@ object ArchitectureRules {
         // follow a trace from an HTTP request.
         OPENTELEMETRY to setOf("runtime", "query", "http"),
         // postgres and mongo compileOnly: the backend follows the application's classpath (decision D110).
-        // query, kafka, clickhouse and opentelemetry compileOnly too: each is wired when the application has it.
-        // openapi for the springdoc bridge (decision D233).
+        // query, kafka, clickhouse, cosec and opentelemetry compileOnly too: each is wired when the application has it
+        // (cosec as kafka is, review R5.C-12). openapi for the springdoc bridge (decision D233).
         SPRING_BOOT to setOf(
             "runtime",
             "http",
             "client",
+            "cosec",
             "openapi",
             "postgres",
             "mongo",
@@ -358,6 +359,16 @@ object ArchitectureRules {
         name = "wow-client imports no Spring, Reactor, HTTP framework or driver types",
         modules = listOf(CLIENT.dir),
         forbidden = SPRING + REACTOR_TYPES + HTTP_TYPES + DRIVERS,
+    )
+
+    /**
+     * wow-cosec is the Spring-free part of the CoSec integration (review R5.C-12): its resolvers and authorizer read
+     * what CoSec resolved on a WebFlux exchange, and the host wires them, as it wires Kafka, reading `wow.cosec.*` once.
+     */
+    val COSEC_IS_WIRED_BY_THE_HOST = DependencyRule(
+        name = "wow-cosec imports no Spring context, beans or Spring Boot: the host wires it",
+        modules = listOf(COSEC.dir),
+        forbidden = listOf("org.springframework.context", "org.springframework.beans", "org.springframework.boot"),
     )
 
     /**
@@ -540,6 +551,7 @@ object ArchitectureRules {
         CLIENT_IS_FRAMEWORK_FREE,
         TEST_MODULES_ARE_FRAMEWORK_FREE,
         KERNEL_IGNORES_RUNTIME,
+        COSEC_IS_WIRED_BY_THE_HOST,
         HTTP_IGNORES_CLIENT,
         CLIENT_IGNORES_HTTP,
         HTTP_READS_ADAPT_ONLY,

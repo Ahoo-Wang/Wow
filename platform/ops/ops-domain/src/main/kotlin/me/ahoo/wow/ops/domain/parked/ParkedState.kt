@@ -13,13 +13,13 @@
 
 package me.ahoo.wow.ops.domain.parked
 
-import me.ahoo.wow.api.ledger.LedgerAggregate
-import me.ahoo.wow.api.ledger.LedgerEntry
-import me.ahoo.wow.api.ledger.LedgerRetrySpec
 import me.ahoo.wow.api.query.annotation.QueryTemporal
 import me.ahoo.wow.ops.api.parked.ActionRefused
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
+import me.ahoo.wow.ops.api.parked.EntryAggregate
+import me.ahoo.wow.ops.api.parked.EntryRetrySpec
 import me.ahoo.wow.ops.api.parked.MarkRecoverableRequested
+import me.ahoo.wow.ops.api.parked.ParkedEntry
 import me.ahoo.wow.ops.api.parked.ParkedRecorded
 import me.ahoo.wow.ops.api.parked.ParkedResolved
 import me.ahoo.wow.ops.api.parked.ParkedStatus
@@ -28,7 +28,7 @@ import me.ahoo.wow.ops.api.parked.SkipRequested
 
 /**
  * One service's entry of one parked aggregate, as its ledger last published it (decision D141): the ops view, whose
- * snapshot is the read model an operator queries. While parked, it is the entry's [LedgerEntry]; once resolved,
+ * snapshot is the read model an operator queries. While parked, it is the entry's [ParkedEntry]; once resolved,
  * [status] is [ParkedStatus.RESOLVED] with the [outcome]. [requested] is the last action an operator asked of the
  * owning service (`RESUME`, `SKIP`, `MARK_RECOVERABLE` or `APPLY_RETRY_SPEC`), until the service publishes the entry
  * again. [refusedAction], [refusalCode] and [refusalReason] say why the service refused the last request (decision
@@ -44,7 +44,7 @@ class ParkedState {
         private set
     var subscription: String = ""
         private set
-    var aggregate: LedgerAggregate = LedgerAggregate.of("", "", "", "")
+    var aggregate: EntryAggregate = EntryAggregate("", "", "", "")
         private set
     var fromVersion: Int = 0
         private set
@@ -72,9 +72,9 @@ class ParkedState {
     var retryAt: Long? = null
         private set
 
-    var retrySpec: LedgerRetrySpec = LedgerRetrySpec.of(0, "PT0S", "PT0S")
+    var retrySpec: EntryRetrySpec = EntryRetrySpec(0, "PT0S", "PT0S")
         private set
-    var recoverable: String = LedgerEntry.UNKNOWN
+    var recoverable: String = ParkedEntry.UNKNOWN
         private set
     var request: String? = null
         private set
@@ -115,13 +115,13 @@ class ParkedState {
     val resolved: Boolean get() = status == ParkedStatus.RESOLVED
 
     /** Whether [record] says what this state holds already, whenever it was published. */
-    fun holds(record: LedgerEntry): Boolean = !resolved && heldFields(record) == listOf(
+    fun holds(record: ParkedEntry): Boolean = !resolved && heldFields(record) == listOf(
         service, context, subscription, aggregate, fromVersion, fromPosition, reason, failedAt, retries, retryAt,
         retrySpec, recoverable, request, status, nextRetryAt,
     )
 
     /** The fields of [record] this state keeps, in the order [holds] compares them; it never builds an entry. */
-    private fun heldFields(record: LedgerEntry): List<Any?> = with(record) {
+    private fun heldFields(record: ParkedEntry): List<Any?> = with(record) {
         listOf(
             service, context, subscription, aggregate, fromVersion, fromPosition, reason, failedAt, retries, retryAt,
             retrySpec, recoverable, request, status, nextRetryAt,
