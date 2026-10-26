@@ -722,9 +722,11 @@ object ArchitectureRules {
     /**
      * The lines of [USER_PROJECTS]' build scripts and production sources that name `InternalWowApi` (review R2.5-7):
      * an `@OptIn(InternalWowApi::class)` or a compiler `optIn`, which would build an application on a declaration Wow
-     * promises nothing about. Their tests may opt in, to build a fixture as a module does.
+     * promises nothing about. Their tests may opt in, to build a fixture as a module does. A platform server's
+     * declaration in [allowed] (`path#declaration`, with its reason) may opt in on itself, and its file import the
+     * marker: one that reads a host setting no public type gives (design rule K1); a file-level opt-in never may.
      */
-    fun internalOptIns(repositoryRoot: File): List<String> =
+    fun internalOptIns(repositoryRoot: File, allowed: Map<String, String> = emptyMap()): List<String> =
         USER_PROJECTS.flatMap { module ->
             val build = File(repositoryRoot, "${module.dir}/build.gradle.kts")
             val sources = listOf("src/main/kotlin", "src/main/java")
@@ -734,15 +736,47 @@ object ArchitectureRules {
                     root.walkTopDown().filter { it.isFile && (it.extension == "kt" || it.extension == "java") }
                 }
             (listOf(build).filter { it.isFile } + sources).flatMap { file ->
-                file.readLines().mapIndexedNotNull { index, line ->
-                    if (INTERNAL_OPT_IN.containsMatchIn(line)) {
-                        "${file.relativeTo(repositoryRoot).invariantSeparatorsPath}:${index + 1}: ${line.trim()}"
+                val path = file.relativeTo(repositoryRoot).invariantSeparatorsPath
+                val lines = file.readLines()
+                val excused = allowedOptInLines(path, lines, allowed)
+                lines.mapIndexedNotNull { index, line ->
+                    if (INTERNAL_OPT_IN.containsMatchIn(line) && index !in excused) {
+                        "$path:${index + 1}: ${line.trim()}"
                     } else {
                         null
                     }
                 }
             }
         }
+
+    /** The entries of [allowed] whose declaration no longer opts in, so they are stale. */
+    fun staleOptIns(repositoryRoot: File, allowed: Map<String, String>): List<String> = allowed.keys.filter { entry ->
+        val file = File(repositoryRoot, entry.substringBefore('#'))
+        !file.isFile || file.readLines().let { lines ->
+            allowedOptInLines(entry.substringBefore('#'), lines, mapOf(entry to ""))
+                .none { index -> DECLARATION_OPT_IN.matches(lines[index].trim()) }
+        }
+    }
+
+    /**
+     * The indexes of [lines] of the file at [path] that [allowed] excuses: each `@OptIn(InternalWowApi::class)` right
+     * above (annotations between) the declaration an entry names, and the marker's import when every opt-in is excused.
+     */
+    private fun allowedOptInLines(path: String, lines: List<String>, allowed: Map<String, String>): Set<Int> {
+        val names = allowed.keys.filter { it.substringBefore('#') == path }.map { it.substringAfter('#') }.toSet()
+        if (names.isEmpty()) return emptySet()
+        val excused = lines.indices.filter { index ->
+            DECLARATION_OPT_IN.matches(lines[index].trim()) &&
+                lines.drop(index + 1).firstOrNull { !it.trim().startsWith("@") }
+                    ?.let { DECLARED.find(it)?.groupValues?.get(1) } in names
+        }.toSet()
+        val optIns = lines.indices.filter { DECLARATION_OPT_IN.matches(lines[it].trim()) }.toSet()
+        val import = lines.indexOfFirst { it.trim() == "import me.ahoo.wow.api.annotation.InternalWowApi" }
+        return if (optIns.isNotEmpty() && optIns == excused && import >= 0) excused + import else excused
+    }
+
+    private val DECLARATION_OPT_IN = Regex("""@OptIn\(InternalWowApi::class\)""")
+    private val DECLARED = Regex("""\b(?:fun|val|var|class)\s+(\w+)""")
 
     private val WOW_REGION = Regex("""(?ms)^//region wow\b(.*?)^//endregion""")
 

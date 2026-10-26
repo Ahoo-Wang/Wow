@@ -232,9 +232,11 @@ class AnalyticsCatalogConfiguration {
     ): CatalogWatcher = CatalogWatcher(catalog, { commands.getObject() }, properties.refreshInterval)
 
     companion object {
-        /** The switch that takes the callers from the request headers ([AnalyticsCatalogCallers]): the host's key. */
-        @OptIn(InternalWowApi::class)
-        const val TRUST_IDENTITY_HEADERS: String = WowProperties.TRUST_IDENTITY_HEADERS
+        /**
+         * The switch that takes the callers from the request headers ([AnalyticsCatalogCallers]), off by default: a condition only,
+         * the host's `wow.platform.trust-identity-headers` holding its metadata and its default.
+         */
+        const val TRUST_IDENTITY_HEADERS: String = "wow.platform.trust-identity-headers"
         const val PREFIX: String = AnalyticsCatalogProperties.PREFIX
         const val DATASETS: String = "${AnalyticsCatalogProperties.PREFIX}.datasets"
         private const val MILLIS = 1000.0

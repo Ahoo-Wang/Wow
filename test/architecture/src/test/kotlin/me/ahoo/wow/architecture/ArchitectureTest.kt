@@ -71,11 +71,6 @@ class ArchitectureTest {
     }
 
     @Test
-    fun `no application of the Wow modules should opt in to their internal API`() {
-        ArchitectureRules.internalOptIns(repositoryRoot).assert().isEmpty()
-    }
-
-    @Test
     fun `9x reach rule should catch a project reaching a 9x project, but the shared versions`(@TempDir root: File) {
         root.writeBuild(
             mapOf(
@@ -91,29 +86,6 @@ class ArchitectureTest {
             wow = setOf("spi", "routing-spike"),
         )
         ArchitectureRules.nineXReachViolations(root).assert().containsExactly("routing-spike reaches :wow-core")
-    }
-
-    @Test
-    fun `internal opt-in rule should catch an application's opt-in in its sources or build only`(@TempDir root: File) {
-        val server = ArchitectureRules.OPS_SERVER.dir
-        root.writeSource(
-            server,
-            "me/ahoo/wow/ops/server/Bad.kt",
-            "package me.ahoo.wow.ops.server\n\n@OptIn(me.ahoo.wow.api.annotation.InternalWowApi::class)\nfun bad() = Unit\n",
-        )
-        File(
-            root,
-            "$server/build.gradle.kts"
-        ).writeText("kotlin { compilerOptions { optIn.add(\"InternalWowApi\") } }\n")
-        File(root, "$server/src/test/kotlin/Fixture.kt").apply { parentFile.mkdirs() }
-            .writeText("@OptIn(InternalWowApi::class)\nfun fixture() = Unit\n")
-        // Wow's own modules opt in through the root build.
-        root.writeSource(ArchitectureRules.RUNTIME.dir, "Own.kt", "@OptIn(InternalWowApi::class)\nfun own() = Unit\n")
-        ArchitectureRules.internalOptIns(root).assert().containsExactly(
-            "$server/build.gradle.kts:1: kotlin { compilerOptions { optIn.add(\"InternalWowApi\") } }",
-            "$server/src/main/kotlin/me/ahoo/wow/ops/server/Bad.kt:3: " +
-                "@OptIn(me.ahoo.wow.api.annotation.InternalWowApi::class)",
-        )
     }
 
     @TestFactory

@@ -7,7 +7,7 @@ description: "宿主 wow.* 配置的每个键：类型、默认值与含义。"
 
 # 配置项
 
-Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 230 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动；改过名的键会给出新键名。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
+Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 229 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 `wow.*` 键会使节点拒绝启动；改过名的键会给出新键名。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 `Environment`、`@Value` 或 `Binder` 读取键。
 
 ## `wow`
 
@@ -118,14 +118,6 @@ The tenant-level callers, who read and write every aggregate of their tenant.
 | --- | --- | --- | --- |
 | `wow.cosec.tenant-level.policies` | `Set<String>` |  | The CoSec policies of these callers. |
 | `wow.cosec.tenant-level.roles` | `Set<String>` |  | The CoSec roles of these callers. |
-
-## `wow.cosid`
-
-The keys wow-cosid reads (`wow.cosid.*`), bound here as cosec is.
-
-| 键 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `wow.cosid.global-generator` | `String` |  | The CosId generator of the node's global ids (command ids, wait ids); CosId's own `cosid` when not set. |
 
 ## `wow.executor`
 

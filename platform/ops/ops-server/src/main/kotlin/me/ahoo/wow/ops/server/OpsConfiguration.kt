@@ -69,9 +69,11 @@ class OpsConfiguration {
     }
 
     companion object {
-        /** The switch that takes the callers from the request headers ([OpsCallers]): the host's key. */
-        @OptIn(InternalWowApi::class)
-        const val TRUST_IDENTITY_HEADERS: String = WowProperties.TRUST_IDENTITY_HEADERS
+        /**
+         * The switch that takes the callers from the request headers ([OpsCallers]), off by default: a condition only,
+         * the host's `wow.platform.trust-identity-headers` holding its metadata and its default.
+         */
+        const val TRUST_IDENTITY_HEADERS: String = "wow.platform.trust-identity-headers"
 
         private val logger = KotlinLogging.logger {}
     }
