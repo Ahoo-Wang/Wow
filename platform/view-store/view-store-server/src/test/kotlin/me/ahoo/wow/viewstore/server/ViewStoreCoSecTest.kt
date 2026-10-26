@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.viewstore.server
 
+import com.auth0.jwt.algorithms.Algorithm
 import me.ahoo.cosec.api.policy.Policy
 import me.ahoo.cosec.authorization.AppRolePermissionRepository
 import me.ahoo.cosec.authorization.PolicyRepository
+import me.ahoo.cosec.jwt.JwtTokenConverter
 import me.ahoo.cosec.permission.AppPermissionData
 import me.ahoo.cosec.permission.AppRolePermissionData
 import me.ahoo.cosec.permission.PermissionData
@@ -26,6 +28,7 @@ import me.ahoo.cosec.principal.SimplePrincipal
 import me.ahoo.cosec.principal.SimpleTenantPrincipal
 import me.ahoo.cosec.tenant.SimpleTenant
 import me.ahoo.cosec.token.TokenConverter
+import me.ahoo.cosid.jvm.UuidGenerator
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.viewstore.api.ViewStoreContext
@@ -40,13 +43,18 @@ import java.util.UUID
 import me.ahoo.cosec.api.permission.AppRolePermission as CoSecAppRolePermission
 
 /**
- * The view store in its production shape, the `cosec` profile (roadmap P.15), end to end over HTTP: CoSec verifies
- * each request's token, the user is its principal, and every view is kept in the application CoSec authorized the
+ * The view store in its production shape, the `cosec` profile (roadmap P.15), end to end over HTTP: the token is the
+ * gateway's ([tokens]), the user is its principal, and every view is kept in the application CoSec authorized the
  * request in (decisions D232, D236), never in the `CoSec-App-Id` a client merely sends.
  */
 abstract class ViewStoreCoSecContract {
     protected abstract val store: ViewStoreNode
-    private val tokens: TokenConverter by lazy { store.context.getBean(TokenConverter::class.java) }
+
+    /**
+     * The tokens a CoSec deployment issues. Behind the gateway the service holds no secret and verifies none (decision
+     * D296); a service that authorizes its requests itself verifies them with [SECRET].
+     */
+    private val tokens: TokenConverter = JwtTokenConverter(UuidGenerator.INSTANCE, Algorithm.HMAC256(SECRET))
 
     @AfterAll
     fun closeStore() {
@@ -120,11 +128,8 @@ abstract class ViewStoreCoSecContract {
         const val UNAUTHORIZED = 401
         const val FORBIDDEN = 403
 
-        /** The `cosec` profile's settings of a test: its secret, and no callers from headers. */
-        val COSEC: Array<Pair<String, Any>> = arrayOf(
-            ViewStoreConfiguration.TRUST_IDENTITY_HEADERS to false,
-            "cosec.jwt.secret" to SECRET,
-        )
+        /** The `cosec` profile's settings of a test: no callers from headers. */
+        val COSEC: Array<Pair<String, Any>> = arrayOf(ViewStoreConfiguration.TRUST_IDENTITY_HEADERS to false)
     }
 }
 
@@ -165,6 +170,9 @@ class ViewStoreCoSecAuthorizationTest : ViewStoreCoSecContract() {
         *COSEC,
         "cosec.inject.enabled" to false,
         "cosec.authorization.enabled" to true,
+        // Without the gateway, the service verifies each token itself, with CoSec's secret.
+        "cosec.jwt.enabled" to true,
+        "cosec.jwt.secret" to SECRET,
         profiles = listOf("cosec"),
         sources = listOf(AppRoles::class.java),
     )

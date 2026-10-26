@@ -10,7 +10,15 @@ On MongoDB, one database holds what a service stores: its log, its snapshots, it
 
 ## Connect a service
 
-Put `wow-mongo` on the class path and give the application a synchronous driver `MongoClient` bean: the host then chooses MongoDB. Wow's benchmark server defines one in its `mongo` profile:
+Put `wow-mongo` on the class path and set `spring.mongodb.uri`: the host makes a synchronous driver `MongoClient` of it and chooses MongoDB:
+
+```yaml
+spring:
+  mongodb:
+    uri: mongodb://mongo-1,mongo-2,mongo-3/?replicaSet=rs0
+```
+
+An application with Spring Boot's MongoDB module (`spring-boot-starter-mongodb`) gets the client Spring Boot makes of the same property instead. One that needs settings of its own defines a `MongoClient` bean, which the host keeps; Wow's benchmark server does, to add its driver command listeners:
 
 <!-- sample: test/benchmarks/server/src/main/kotlin/me/ahoo/wow/benchmark/transfer/TransferServer.kt#mongo -->
 
@@ -24,8 +32,10 @@ Put `wow-mongo` on the class path and give the application a synchronous driver 
 class TransferServer
 
 /**
- * The `mongo` profile: the application's `MongoClient` on `spring.mongodb.uri`, which selects the MongoDB backend. It
- * takes the application's driver [CommandListener]s: none in the server, the round-trip counter in ComponentBench.
+ * The `mongo` profile: the application's `MongoClient` on `spring.mongodb.uri`, which selects the MongoDB backend. A
+ * bean of its own, not the one the host makes of the property (decision D318), because it takes the application's
+ * driver [CommandListener]s, which no property can add: none in the server, the round-trip counter in ComponentBench.
+ * The `postgres` profile needs no bean: the host makes its pool of `spring.datasource.*` (decision D310).
  */
 @Configuration(proxyBeanMethods = false)
 @Profile("mongo")

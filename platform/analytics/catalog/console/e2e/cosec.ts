@@ -13,9 +13,12 @@
 
 import { createHmac } from "node:crypto";
 
-/** The secret the `cosec` server verifies tokens with, and the suite signs them with. */
+/**
+ * The secret the CoSec gateway signs its tokens with, here the suite. The `cosec` server
+ * holds none: behind the gateway it parses the token the gateway verified
+ * (decision D296).
+ */
 export const COSEC_SECRET =
-  process.env.CATALOG_E2E_COSEC_SECRET ??
   "the-catalog-console-e2e-secret-of-32-chars";
 
 function part(value: object): string {
@@ -24,13 +27,13 @@ function part(value: object): string {
 
 /**
  * A CoSec access token of `sub` with `roles`, in CoSec's default tenant, as
- * the enterprise's CoSec issues it: HS256-signed with `secret`, valid for an
- * hour.
+ * the enterprise's CoSec issues it: HS256-signed, valid for `validFor` seconds
+ * (an hour; a negative one gives a token that has expired).
  */
 export function accessToken(
   sub: string,
   roles: string[],
-  secret: string = COSEC_SECRET,
+  validFor: number = 3600,
 ): string {
   const now = Math.floor(Date.now() / 1000);
   const unsigned = `${part({ alg: "HS256", typ: "JWT" })}.${part({
@@ -39,9 +42,9 @@ export function accessToken(
     tenantId: "(0)",
     roles,
     iat: now,
-    exp: now + 3600,
+    exp: now + validFor,
   })}`;
-  const signature = createHmac("sha256", secret)
+  const signature = createHmac("sha256", COSEC_SECRET)
     .update(unsigned)
     .digest("base64url");
   return `${unsigned}.${signature}`;

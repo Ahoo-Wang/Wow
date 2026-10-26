@@ -49,7 +49,8 @@ dependencies {
     // The `postgres` profile: the host runs on PostgreSQL when the application gives it a DataSource, and serves the
     // snapshot queries there, with the indexes the product's state declares.
     implementation(project(":postgres"))
-    implementation("com.zaxxer:HikariCP")
+    // The pool the host makes of `spring.datasource.*` in the postgres profile (decision D310).
+    runtimeOnly("com.zaxxer:HikariCP")
     // The `mongo` profile: the host runs on MongoDB when the Mongo URI is set (decision D318).
     implementation(project(":mongo"))
     // The `cosec` profile, behind the CoSec gateway (decisions D295, D296): CoSec's inject mode reads the principal
@@ -100,7 +101,7 @@ dependencies {
 
 | `wow.backend` | 节点 |
 | --- | --- |
-| `auto`（默认） | 应用有 `DataSource` Bean 时用 PostgreSQL，有 `MongoClient` Bean 时用 MongoDB |
+| `auto`（默认） | 应用有 `DataSource` 时用 PostgreSQL，有 `MongoClient` 时用 MongoDB：它自己的 Bean，或宿主用 `spring.datasource.url`、`spring.mongodb.uri` 建的那个 |
 | `memory` | 有意把一切放在内存里：一个节点，数据不会比它活得更久 |
 
 在 `auto` 下两个 Bean 都没有时，节点拒绝启动，除非处于开发 profile（`wow.internal.dev-profiles`），或者它的内部端口只绑定在回环网卡上；这时它在内存中运行并发出警告。生产节点绝不会意外地退回到内存。

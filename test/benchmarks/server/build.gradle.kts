@@ -41,7 +41,8 @@ dependencies {
     implementation(project(":mongo"))
     implementation(project(":postgres"))
     implementation(project(":kafka"))
-    implementation("com.zaxxer:HikariCP")
+    // The pool the host makes of `spring.datasource.*` in the postgres profile (decision D310).
+    runtimeOnly("com.zaxxer:HikariCP")
     ksp(project(":compiler"))
     testImplementation(project(":test-dsl"))
 }

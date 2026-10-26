@@ -12,7 +12,6 @@
  */
 
 import { defineConfig } from "@playwright/test";
-import { COSEC_SECRET } from "./e2e/cosec.ts";
 
 const port = process.env.OPS_E2E_PORT ?? "18188";
 
@@ -89,7 +88,7 @@ export default defineConfig({
     : {
         webServer: [
           server(port),
-          server(cosecPort, { OPS_E2E_COSEC_SECRET: COSEC_SECRET }),
+          server(cosecPort, { OPS_E2E_COSEC: "true" }),
         ],
       }),
 });

@@ -27,6 +27,6 @@ class OpsPostgresTest : OpsContract() {
         "spring.datasource.username" to postgres.username,
         "spring.datasource.password" to postgres.password,
         "wow.backend" to "postgres",
-        profiles = listOf(PostgresDataSource.PROFILE),
+        profiles = listOf("postgres"),
     )
 }

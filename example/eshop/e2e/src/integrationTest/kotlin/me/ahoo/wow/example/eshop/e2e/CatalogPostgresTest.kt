@@ -25,7 +25,6 @@ import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
 import me.ahoo.wow.example.eshop.catalog.domain.product.ProductState
 import me.ahoo.wow.example.eshop.catalog.server.CatalogCallers
 import me.ahoo.wow.example.eshop.catalog.server.CatalogServer
-import me.ahoo.wow.example.eshop.catalog.server.PostgresDataSource
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -52,7 +51,7 @@ class CatalogPostgresTest {
     private val postgres = PostgreSQLContainer("postgres:17-alpine").also { it.start() }
     private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
     private val context = SpringApplicationBuilder(CatalogServer::class.java)
-        .profiles(PostgresDataSource.PROFILE)
+        .profiles("postgres")
         .run(
             "--spring.main.banner-mode=off",
             "--spring.application.name=eshop-catalog-service",

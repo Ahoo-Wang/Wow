@@ -70,8 +70,9 @@ wow:
         sources: false
         publications: false
 ---
-# CoSec (roadmap P.15): the service verifies each request's CoSec token (Authorization: Bearer, signed HMAC256 with
-# cosec.jwt.secret, COSEC_JWT_SECRET) and the edge reads the caller from it: its tenant, its id, its roles
+# CoSec (roadmap P.15) behind the CoSec gateway (decision D296): the gateway verifies each request's CoSec token
+# (Authorization: Bearer) and forwards it; CoSec's inject mode here parses it, with no secret, and the edge reads the
+# caller from it: its tenant, its id, its roles
 # (analytics.catalog.admin, analytics.catalog.approver, analytics.catalog.editor, analytics.catalog.viewer). CoSec's
 # inject mode, without CoSec's own authorization of each path: what a caller may do is the service's to say
 # (AnalyticsCatalogAuthorizer).
@@ -81,8 +82,9 @@ spring:
       on-profile: cosec
 cosec:
   enabled: true
+  # The gateway holds CoSec's signing secret; this service neither signs nor verifies a token (decision D296).
   jwt:
-    secret: ${COSEC_JWT_SECRET}
+    enabled: false
   inject:
     enabled: true
   authorization:
