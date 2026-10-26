@@ -18,12 +18,16 @@ import { pathToFileURL } from 'node:url';
 // flag's first real upload, so Codecov may post an early patch status, judged
 // on the base's carried-forward JVM coverage, as soon as another flag (the
 // TypeScript packages') uploads; it posts again once the JVM shards have
-// uploaded. The gate therefore only takes a run that Codecov started after
-// this workflow run's last coverage upload (the reference: the newest
-// completion of an upload step, `UPLOAD_STEP`, in the run's latest attempt),
-// and of those the newest decides. A rerun of ci-gate alone keeps the upload
-// jobs and their times, so it takes a run Codecov started after them, even
-// one started before the rerun. The target (90%, threshold 1%) is the merge
+// uploaded, unless the result is unchanged. The gate therefore weighs a run by
+// whether Codecov started it after this workflow run's last coverage upload
+// (the reference: the newest completion of an upload step, `UPLOAD_STEP`, in
+// the run's latest attempt). The newest run started after it decides. Without
+// one, the newest earlier run decides only if it passed: an early pass, or
+// "Coverage not affected", is not the carried-forward failure, and Codecov
+// does not post an unchanged result again; an early failure waits for a later
+// run. A rerun of ci-gate alone keeps the upload jobs and their times, so it
+// takes a run Codecov started after them, even one started before the rerun.
+// The target (90%, threshold 1%) is the merge
 // rule; "Coverage not affected" is a success. A run of another app with the
 // same name is ignored. The status is a pull request's, so ci.yml waits for it
 // only there.
@@ -56,26 +60,31 @@ export function uploadsDoneAt(jobs) {
 }
 
 /**
- * What the check runs of the head commit say: `pending` until Codecov's
- * newest patch run started after `uploadsDone` is completed, then `passed` or
- * `failed`. A run started at or before `uploadsDone` may lack this run's
- * uploads, so it never decides.
+ * What the check runs of the head commit say. The newest of Codecov's patch
+ * runs started after `uploadsDone` decides: `pending` until it is completed,
+ * then `passed` or `failed`. Without one, the newest run started at or before
+ * `uploadsDone` (which may lack this run's uploads) passes if it passed, and
+ * is `pending` otherwise.
  */
 export function patchVerdict(runs, uploadsDone) {
-  const codecov = runs.filter(
-    run => run.name === CHECK && run.app?.slug === APP,
-  );
-  const fresh = codecov
-    .filter(run => Date.parse(run.started_at) > Date.parse(uploadsDone))
+  const codecov = runs
+    .filter(run => run.name === CHECK && run.app?.slug === APP)
     .sort((a, b) => b.id - a.id);
-  const newest = fresh[0];
-  if (!newest)
+  const isFresh = run => Date.parse(run.started_at) > Date.parse(uploadsDone);
+  const newest = codecov.find(isFresh);
+  if (!newest) {
+    const stale = codecov[0];
+    if (!stale) return { state: 'pending', message: `no ${CHECK} yet` };
+    if (stale.status === 'completed' && stale.conclusion === 'success')
+      return {
+        state: 'passed',
+        message: `${CHECK}: ${stale.output?.title ?? ''} (started before this run's uploads)`,
+      };
     return {
       state: 'pending',
-      message: codecov.length
-        ? `Codecov's ${CHECK} predates this run's uploads (done at ${uploadsDone})`
-        : `no ${CHECK} yet`,
+      message: `Codecov's ${CHECK} (${stale.conclusion ?? stale.status}) predates this run's uploads (done at ${uploadsDone})`,
     };
+  }
   if (newest.status !== 'completed')
     return { state: 'pending', message: `${CHECK} is ${newest.status}` };
   const title = newest.output?.title ?? '';

@@ -1065,11 +1065,12 @@ jobs:
       # Patch coverage is part of the merge signal: on a pull request whose run
       # uploaded coverage (the JVM check or shards, the TypeScript units or
       # view-engine), Codecov's codecov/patch on the head commit must pass
-      # (codecov.yml: 90%, threshold 1%). Only a codecov/patch that Codecov
-      # started after this run's coverage uploads counts; an earlier one may be
-      # judged on carried-forward coverage. A run without coverage leaves it
-      # out, so a required codecov/patch never blocks a change Codecov does not
-      # see.
+      # (codecov.yml: 90%, threshold 1%). The newest codecov/patch that Codecov
+      # started after this run's coverage uploads decides; without one, an
+      # earlier one counts only if it passed (an earlier failure may be judged
+      # on carried-forward coverage, and Codecov does not post an unchanged
+      # result again). A run without coverage leaves it out, so a required
+      # codecov/patch never blocks a change Codecov does not see.
       - name: Check out the gate script
         if: >-
           github.event_name == 'pull_request' &&

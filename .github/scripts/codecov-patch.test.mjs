@@ -65,7 +65,7 @@ test("the newest of Codecov's patch runs decides", () => {
   assert.equal(verdict([run(1, 'completed', 'neutral')]), 'failed');
 });
 
-test("a run Codecov started before this run's uploads were done never decides", () => {
+test("a failure Codecov started before this run's uploads were done never decides", () => {
   const early = patchVerdict(
     [stale(1, 'completed', 'failure', '40.00% of diff hit')],
     UPLOADS_DONE,
@@ -75,7 +75,7 @@ test("a run Codecov started before this run's uploads were done never decides", 
   // Nor does one started in the same second as the last upload's end.
   assert.equal(
     patchVerdict(
-      [run(1, 'completed', 'success', '', 'codecov', UPLOADS_DONE)],
+      [run(1, 'completed', 'failure', '', 'codecov', UPLOADS_DONE)],
       UPLOADS_DONE,
     ).state,
     'pending',
@@ -99,6 +99,40 @@ test("a run Codecov started before this run's uploads were done never decides", 
   );
   assert.equal(failed.state, 'failed');
   assert.match(failed.message, /85\.00% of diff hit/);
+});
+
+test('an earlier success decides until a later run appears', () => {
+  // PR #4907: Codecov's only run, "Coverage not affected", started before the
+  // last upload, and Codecov did not post the unchanged result again.
+  const early = stale(1, 'completed', 'success', 'Coverage not affected');
+  const passed = patchVerdict([early], UPLOADS_DONE);
+  assert.equal(passed.state, 'passed');
+  assert.match(passed.message, /Coverage not affected/);
+  // Only the newest earlier run counts: a later early failure is not passed
+  // by an older early success.
+  assert.equal(
+    patchVerdict(
+      [early, stale(2, 'completed', 'failure', '40.00% of diff hit')],
+      UPLOADS_DONE,
+    ).state,
+    'pending',
+  );
+  assert.equal(
+    patchVerdict([stale(1, 'in_progress', null)], UPLOADS_DONE).state,
+    'pending',
+  );
+  // A later run always wins over an earlier success.
+  assert.equal(
+    patchVerdict(
+      [early, run(2, 'completed', 'failure', '85.00% of diff hit')],
+      UPLOADS_DONE,
+    ).state,
+    'failed',
+  );
+  assert.equal(
+    patchVerdict([early, run(2, 'in_progress', null)], UPLOADS_DONE).state,
+    'pending',
+  );
 });
 
 test('a run of another app with the same name is ignored', () => {
