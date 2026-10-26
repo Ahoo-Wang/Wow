@@ -53,6 +53,7 @@ class AggregateSpecDslTest {
             Decision.events(Opened(body.limit))
         }
         decide<Deposit> { state, body ->
+            if (body.amount == 0) throw UnsupportedOperationException("A deposit of nothing.")
             require(body.amount > 0) { "A deposit is positive, not ${body.amount}." }
             if (state.balance + body.amount > state.limit) {
                 // Decision D259: a local code, which the kernel names bank.account.over-limit.
@@ -162,9 +163,9 @@ class AggregateSpecDslTest {
     @Test
     fun `an exception of the decide function is expected by its type`() = aggregateSpec(model) {
         given(Opened(100))
-        whenCommand(Deposit(-1)) {
-            error.assert().isInstanceOf(IllegalArgumentException::class.java)
-            expectError<IllegalArgumentException> { message.assert().isEqualTo("A deposit is positive, not -1.") }
+        whenCommand(Deposit(0)) {
+            error.assert().isInstanceOf(UnsupportedOperationException::class.java)
+            expectError<UnsupportedOperationException> { message.assert().isEqualTo("A deposit of nothing.") }
             expectState { balance.assert().isZero() }
         }
         whenCommand(Deposit(1)) {
@@ -174,11 +175,22 @@ class AggregateSpecDslTest {
     }
 
     @Test
+    fun `a require or check of the decide function is a rejection, as a returned one is`() = aggregateSpec(model) {
+        given(Opened(100))
+        whenCommand(Deposit(-1)) {
+            expectRejected(
+                FrameworkCodes.COMMAND_INVALID
+            ) { message.assert().isEqualTo("A deposit is positive, not -1.") }
+            expectState { balance.assert().isZero() }
+        }
+    }
+
+    @Test
     fun `an exception nobody expects fails the specification`() {
-        assertThrownBy<IllegalArgumentException> {
+        assertThrownBy<UnsupportedOperationException> {
             aggregateSpec(model) {
                 given(Opened(100))
-                whenCommand(Deposit(-1)) { }
+                whenCommand(Deposit(0)) { }
             }
         }
     }
@@ -188,7 +200,7 @@ class AggregateSpecDslTest {
         assertThrownBy<AssertionError> {
             aggregateSpec(model) {
                 given(Opened(100))
-                whenCommand(Deposit(-1)) { expectError<IllegalStateException>() }
+                whenCommand(Deposit(0)) { expectError<IllegalStateException>() }
             }
         }
         assertThrownBy<AssertionError> {
@@ -200,7 +212,7 @@ class AggregateSpecDslTest {
         assertThrownBy<AssertionError> {
             aggregateSpec(model) {
                 given(Opened(100))
-                whenCommand(Deposit(-1)) { outcome }
+                whenCommand(Deposit(0)) { outcome }
             }
         }
         assertThrownBy<AssertionError> {
@@ -244,7 +256,9 @@ class AggregateSpecDslTest {
                     fork("inner") { whenCommand(Withdraw(1)) { expectEventTypes(Withdrawn::class) } }
                 }
             }
-        }.hasMessageStartingWith("In fork \"outer > inner\": Expected committed events")
+        }.hasMessageStartingWith(
+            "In fork \"outer > inner\", whenCommand(Withdraw) (command-4): Expected committed events"
+        )
     }
 
     @Test

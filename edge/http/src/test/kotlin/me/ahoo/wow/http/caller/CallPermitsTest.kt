@@ -45,7 +45,7 @@ class CallPermitsTest {
         ).forEach { permits.allows(basket, it).assert().describedAs(it).isFalse() }
         permits.refusal(basket, "shop", "cart", Lifecycle.DELETE_AGGREGATE)!!.assert()
             .contains("shop.cart.wow.lifecycle.DeleteAggregate")
-            .contains("wow.http.services.basket-service.commands")
+            .contains("wow.callers.basket-service.commands")
     }
 
     @Test

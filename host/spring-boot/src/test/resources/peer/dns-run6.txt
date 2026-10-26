@@ -1,0 +1,58 @@
+# The DNS answers of the GA end-to-end run 6 on kind (CoreDNS, deploy/ of decision D319): the SRV records of each
+# service's headless Service, port `internal`, and the A records of their targets. The fixture of DnsPeerDiscoveryTest.
+## eshop-catalog-cluster
+_internal._tcp.eshop-catalog-cluster.default.svc.cluster.local.	30 IN SRV 0 50 9091 192-168-131-213.eshop-catalog-cluster.default.svc.cluster.local.
+_internal._tcp.eshop-catalog-cluster.default.svc.cluster.local.	30 IN SRV 0 50 9091 192-168-131-214.eshop-catalog-cluster.default.svc.cluster.local.
+eshop-catalog-cluster.default.svc.cluster.local. 30 IN A 192.168.131.213
+eshop-catalog-cluster.default.svc.cluster.local. 30 IN A 192.168.131.214
+192-168-131-213.eshop-catalog-cluster.default.svc.cluster.local. 30 IN A 192.168.131.213
+192-168-131-214.eshop-catalog-cluster.default.svc.cluster.local. 30 IN A 192.168.131.214
+## eshop-basket-cluster
+_internal._tcp.eshop-basket-cluster.default.svc.cluster.local. 30 IN SRV 0 50 9092 192-168-131-221.eshop-basket-cluster.default.svc.cluster.local.
+_internal._tcp.eshop-basket-cluster.default.svc.cluster.local. 30 IN SRV 0 50 9092 192-168-131-222.eshop-basket-cluster.default.svc.cluster.local.
+eshop-basket-cluster.default.svc.cluster.local.	30 IN A	192.168.131.221
+eshop-basket-cluster.default.svc.cluster.local.	30 IN A	192.168.131.222
+192-168-131-221.eshop-basket-cluster.default.svc.cluster.local.	30 IN A	192.168.131.221
+192-168-131-222.eshop-basket-cluster.default.svc.cluster.local.	30 IN A	192.168.131.222
+## eshop-ordering-cluster
+_internal._tcp.eshop-ordering-cluster.default.svc.cluster.local. 30 IN SRV 0 50 9093 192-168-131-224.eshop-ordering-cluster.default.svc.cluster.local.
+_internal._tcp.eshop-ordering-cluster.default.svc.cluster.local. 30 IN SRV 0 50 9093 192-168-131-225.eshop-ordering-cluster.default.svc.cluster.local.
+eshop-ordering-cluster.default.svc.cluster.local. 30 IN	A 192.168.131.224
+eshop-ordering-cluster.default.svc.cluster.local. 30 IN	A 192.168.131.225
+192-168-131-224.eshop-ordering-cluster.default.svc.cluster.local. 30 IN	A 192.168.131.224
+192-168-131-225.eshop-ordering-cluster.default.svc.cluster.local. 30 IN	A 192.168.131.225
+## eshop-inventory-cluster
+_internal._tcp.eshop-inventory-cluster.default.svc.cluster.local. 30 IN	SRV 0 50 9094 192-168-131-215.eshop-inventory-cluster.default.svc.cluster.local.
+_internal._tcp.eshop-inventory-cluster.default.svc.cluster.local. 30 IN	SRV 0 50 9094 192-168-131-216.eshop-inventory-cluster.default.svc.cluster.local.
+eshop-inventory-cluster.default.svc.cluster.local. 30 IN A 192.168.131.215
+eshop-inventory-cluster.default.svc.cluster.local. 30 IN A 192.168.131.216
+192-168-131-215.eshop-inventory-cluster.default.svc.cluster.local. 30 IN A 192.168.131.215
+192-168-131-216.eshop-inventory-cluster.default.svc.cluster.local. 30 IN A 192.168.131.216
+## eshop-payment-cluster
+_internal._tcp.eshop-payment-cluster.default.svc.cluster.local.	30 IN SRV 0 50 9095 192-168-131-217.eshop-payment-cluster.default.svc.cluster.local.
+_internal._tcp.eshop-payment-cluster.default.svc.cluster.local.	30 IN SRV 0 50 9095 192-168-131-218.eshop-payment-cluster.default.svc.cluster.local.
+eshop-payment-cluster.default.svc.cluster.local. 30 IN A 192.168.131.218
+eshop-payment-cluster.default.svc.cluster.local. 30 IN A 192.168.131.217
+192-168-131-217.eshop-payment-cluster.default.svc.cluster.local. 30 IN A 192.168.131.217
+192-168-131-218.eshop-payment-cluster.default.svc.cluster.local. 30 IN A 192.168.131.218
+## ops-cluster
+_internal._tcp.ops-cluster.default.svc.cluster.local. 30 IN SRV	0 50 9098 192-168-131-207.ops-cluster.default.svc.cluster.local.
+_internal._tcp.ops-cluster.default.svc.cluster.local. 30 IN SRV	0 50 9098 192-168-131-208.ops-cluster.default.svc.cluster.local.
+ops-cluster.default.svc.cluster.local. 30 IN A	192.168.131.207
+ops-cluster.default.svc.cluster.local. 30 IN A	192.168.131.208
+192-168-131-207.ops-cluster.default.svc.cluster.local. 30 IN A 192.168.131.207
+192-168-131-208.ops-cluster.default.svc.cluster.local. 30 IN A 192.168.131.208
+## view-store-cluster
+_internal._tcp.view-store-cluster.default.svc.cluster.local. 30	IN SRV 0 50 9090 192-168-131-210.view-store-cluster.default.svc.cluster.local.
+_internal._tcp.view-store-cluster.default.svc.cluster.local. 30	IN SRV 0 50 9090 192-168-131-209.view-store-cluster.default.svc.cluster.local.
+view-store-cluster.default.svc.cluster.local. 30 IN A 192.168.131.209
+view-store-cluster.default.svc.cluster.local. 30 IN A 192.168.131.210
+192-168-131-210.view-store-cluster.default.svc.cluster.local. 30 IN A 192.168.131.210
+192-168-131-209.view-store-cluster.default.svc.cluster.local. 30 IN A 192.168.131.209
+## analytics-catalog-cluster
+_internal._tcp.analytics-catalog-cluster.default.svc.cluster.local. 30 IN SRV 0 50 9097 192-168-131-211.analytics-catalog-cluster.default.svc.cluster.local.
+_internal._tcp.analytics-catalog-cluster.default.svc.cluster.local. 30 IN SRV 0 50 9097 192-168-131-212.analytics-catalog-cluster.default.svc.cluster.local.
+analytics-catalog-cluster.default.svc.cluster.local. 30	IN A 192.168.131.211
+analytics-catalog-cluster.default.svc.cluster.local. 30	IN A 192.168.131.212
+192-168-131-211.analytics-catalog-cluster.default.svc.cluster.local. 30	IN A 192.168.131.211
+192-168-131-212.analytics-catalog-cluster.default.svc.cluster.local. 30	IN A 192.168.131.212

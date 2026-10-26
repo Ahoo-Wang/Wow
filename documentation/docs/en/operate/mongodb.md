@@ -10,7 +10,15 @@ On MongoDB, one database holds what a service stores: its log, its snapshots, it
 
 ## Connect a service
 
-Put `wow-mongo` on the class path and give the application a synchronous driver `MongoClient` bean: the host then chooses MongoDB. Wow's benchmark server defines one in its `mongo` profile:
+Put `wow-mongo` on the class path and set `spring.mongodb.uri`: the host makes a synchronous driver `MongoClient` of it and chooses MongoDB:
+
+```yaml
+spring:
+  mongodb:
+    uri: mongodb://mongo-1,mongo-2,mongo-3/?replicaSet=rs0
+```
+
+An application with Spring Boot's MongoDB module (`spring-boot-starter-mongodb`) gets the client Spring Boot makes of the same property instead. One that needs settings of its own defines a `MongoClient` bean, which the host keeps; Wow's benchmark server does, to add its driver command listeners:
 
 <!-- sample: test/benchmarks/server/src/main/kotlin/me/ahoo/wow/benchmark/transfer/TransferServer.kt#mongo -->
 
@@ -24,8 +32,10 @@ Put `wow-mongo` on the class path and give the application a synchronous driver 
 class TransferServer
 
 /**
- * The `mongo` profile: the application's `MongoClient` on `spring.mongodb.uri`, which selects the MongoDB backend. It
- * takes the application's driver [CommandListener]s: none in the server, the round-trip counter in ComponentBench.
+ * The `mongo` profile: the application's `MongoClient` on `spring.mongodb.uri`, which selects the MongoDB backend. A
+ * bean of its own, not the one the host makes of the property (decision D318), because it takes the application's
+ * driver [CommandListener]s, which no property can add: none in the server, the round-trip counter in ComponentBench.
+ * The `postgres` profile needs no bean: the host makes its pool of `spring.datasource.*` (decision D310).
  */
 @Configuration(proxyBeanMethods = false)
 @Profile("mongo")
@@ -46,7 +56,7 @@ The connection string names the replica set, `mongodb://mongo-1,mongo-2,mongo-3/
 ## A replica set is required
 
 - **Majority.** Appends are acknowledged by a majority (`w: majority`), and every read, the subscriptions' tails among them, reads what a majority has committed (`readConcern: majority`). A subscription therefore never acts on a commit a failover later rolls back. The cost is about one replication round trip before an entry reaches the tails. A replica set whose majority cannot commit, such as one with an arbiter and a member down, stalls the tails until it can. A standalone server has no majority; even one development node runs as a single-member replica set.
-- **Appends.** An append is one insert, without a transaction. A node takes a block of 256 sequences of a partition from its counter and gives them to its appends in turn; the unique keys refuse a version or a request that is already taken. A sequence a node took and did not write gets a placeholder, which the tails step over, so a partition's sequences increase with gaps. Appends to one partition do not contend; under load, the node gathers a partition's appends into one insert per collection (`wow.log.append-queue.*`, on by default).
+- **Appends.** An append is one insert, without a transaction. A node takes a block of 256 sequences of a partition from its counter and gives them to its appends in turn; the unique keys refuse a version or a request that is already taken. A sequence a node took and did not write gets a placeholder, which the tails step over, so a partition's sequences increase with gaps. Appends to one partition do not contend; under load, the node gathers a partition's appends into one insert per collection.
 
 `wow.mongo.append-timeout` (5 seconds by default) bounds an append's insert, below the default wait timeout, so a command appending during an outage is answered before its wait ends. Every other call of a store is bounded by `wow.mongo.operation-timeout` (30 seconds by default, a store's `options.operation-timeout` overrides it), and the schema's commands (format records, indexes, sharding) by 5 minutes: a reply lost on the way, in a failover or behind a proxy, fails the call as a transient error instead of blocking it. Queries keep their own budget.
 
@@ -116,8 +126,8 @@ Snapshot and `events` queries read the primary by default, beside the appends. A
 
 | Key | Applies to |
 | --- | --- |
-| `wow.query.events.mongo-read-preference` | Every `events` query, such as `secondaryPreferred` |
-| `wow.stores.<name>.query.read-preference` | One store's snapshot and `events` queries |
+| `wow.mongo.query-read-preference` | Every `events` query, such as `secondaryPreferred` |
+| `wow.stores.<name>.options.query-read-preference` | One store's snapshot and `events` queries |
 
 A secondary may lag the primary; a read that must see a write asks for its version instead ([Configuration Keys](../reference/configuration#wow-query)).
 

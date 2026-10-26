@@ -13,10 +13,12 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.runtime.store.BackendSelection
 import me.ahoo.wow.spi.config.WowConfigurationException
+import org.springframework.core.env.Environment
 
 /**
- * Whether the node runs for development: a profile of `wow.internal.dev-profiles` (`dev`, `local`, `test`, `demo`)
+ * Whether the node runs for development: a profile of `wow.dev-profiles` (`dev`, `local`, `test`, `demo`)
  * is active, or its internal port binds a loopback address alone. It is the one exemption the host's safeguards
  * share, so a laptop starts as it is and a deployment cannot: `wow.backend=auto` falls back to memory, the public port
  * serves without a `CallerResolver` bean (decision D301), and a platform service may take its callers from request
@@ -37,7 +39,7 @@ class DevelopmentMode(val reason: String?) {
         throw WowConfigurationException(
             key,
             value,
-            "$key=$value $does: only a node in development may (a profile of wow.internal.dev-profiles, or an " +
+            "$key=$value $does: only a node in development may (a profile of wow.dev-profiles, or an " +
                 "internal port on the loopback interface alone).",
             "Unset $key outside development.",
         )
@@ -49,5 +51,14 @@ class DevelopmentMode(val reason: String?) {
         /** No development: a deployment. */
         @JvmField
         val OFF: DevelopmentMode = DevelopmentMode(null)
+
+        /** Whether a node of [properties] in [environment] runs for development, its internal port bound at [bindHost]. */
+        fun of(
+            properties: WowProperties,
+            environment: Environment,
+            bindHost: String? = NodeIdentity.bindHostOf(properties),
+        ): DevelopmentMode = DevelopmentMode(
+            BackendSelection.memoryOptIn(environment.activeProfiles.toList(), properties.devProfiles, bindHost),
+        )
     }
 }

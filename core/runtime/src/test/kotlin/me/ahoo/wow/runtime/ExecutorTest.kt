@@ -84,7 +84,7 @@ class ExecutorTest {
             delay(body.millis)
             Decision.events(Added(0))
         }
-        decide<Fail>(Creation.ALLOWED) { _, body -> error("failed ${body.reason}") }
+        decide<Fail>(Creation.ALLOWED) { _, body -> throw UnsupportedOperationException("failed ${body.reason}") }
         evolve<Added> { total += it.amount }
     }
     private val cache = LruStateCache(capacity = 16)

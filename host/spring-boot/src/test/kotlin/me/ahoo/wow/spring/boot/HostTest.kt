@@ -52,7 +52,6 @@ import kotlin.time.Duration.Companion.seconds
 class HostTest {
     private val host = startHost(
         "wow.log.partitions" to 8,
-        "wow.log.append-queue.max-batch" to 16,
         "wow.executor.lane-capacity" to 32,
         "wow.executor.max-in-flight" to 512,
         "wow.state-cache.capacity" to 0,
@@ -104,14 +103,12 @@ class HostTest {
         options.routing.assert().isEqualTo(Routing.LOCAL)
         options.cluster.drainTimeout.assert().isEqualTo(1.seconds)
         options.cluster.reconcileInterval.assert().isEqualTo(200.milliseconds)
-        options.maxWaitTimeout.assert().isEqualTo(15.seconds)
-        options.maxWaitHops.assert().isEqualTo(3)
-        options.unknownWaitContexts.assert().isEqualTo(UnknownContexts.REJECT)
-        options.appendQueue.enabled.assert().isTrue()
-        options.appendQueue.maxBatch.assert().isEqualTo(16)
-        options.laneCapacity.assert().isEqualTo(32)
-        options.maxInFlight.assert().isEqualTo(512)
-        options.stateCacheCapacity.assert().isEqualTo(0)
+        options.wait.maxTimeout.assert().isEqualTo(15.seconds)
+        options.wait.maxHops.assert().isEqualTo(3)
+        options.wait.unknownContexts.assert().isEqualTo(UnknownContexts.REJECT)
+        options.executor.laneCapacity.assert().isEqualTo(32)
+        options.executor.maxInFlight.assert().isEqualTo(512)
+        options.stateCache.capacity.assert().isEqualTo(0)
         options.subscription.maxInFlight.assert().isEqualTo(64)
         options.subscription.retry.maxAttempts.assert().isEqualTo(2)
         options.subscription.checkpointInterval.assert().isEqualTo(100.milliseconds)

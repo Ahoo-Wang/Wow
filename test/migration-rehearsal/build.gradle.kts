@@ -42,7 +42,8 @@ dependencies {
     // The CallerResolver that names the driver's tenant and owner.
     implementation(project(":http"))
     implementation(project(":postgres"))
-    implementation("com.zaxxer:HikariCP")
+    // The pool the host makes of `spring.datasource.*` (decision D310).
+    runtimeOnly("com.zaxxer:HikariCP")
     // Actuator's health endpoint, which rehearse.sh waits on.
     implementation("org.springframework.boot:spring-boot-health")
     implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")

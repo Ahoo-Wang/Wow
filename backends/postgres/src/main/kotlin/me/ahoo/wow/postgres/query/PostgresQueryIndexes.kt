@@ -18,11 +18,11 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.postgres.PostgresIdentifiers
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
-import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryCardinality
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.spi.Ddl
 import org.slf4j.LoggerFactory
 import javax.sql.DataSource
 
@@ -100,13 +100,13 @@ object PostgresQueryIndexes {
         return "$column NULLS FIRST"
     }
 
-    /** Manages [indexes] as [mode] says, table by table; see [QueryIndexDdl]. */
+    /** Manages [indexes] as [mode] says, table by table; see [Ddl]. */
     internal fun manage(
         dataSource: DataSource,
-        mode: QueryIndexDdl,
+        mode: Ddl,
         indexes: List<PostgresQueryIndex>
     ): PostgresQueryIndexReport {
-        if (mode == QueryIndexDdl.NONE) return PostgresQueryIndexReport()
+        if (mode == Ddl.NONE) return PostgresQueryIndexReport()
         val reports = indexes.groupBy { it.table }.map { (table, planned) -> manage(dataSource, mode, table, planned) }
         return PostgresQueryIndexReport(
             created = reports.flatMap { it.created },
@@ -117,7 +117,7 @@ object PostgresQueryIndexes {
 
     private fun manage(
         dataSource: DataSource,
-        mode: QueryIndexDdl,
+        mode: Ddl,
         table: String,
         indexes: List<PostgresQueryIndex>,
     ): PostgresQueryIndexReport = dataSource.autoCommitted { connection ->
@@ -133,16 +133,8 @@ object PostgresQueryIndexes {
         }
         val missing = indexes.filter { it.name !in valid }
         val invalid = indexes.filter { valid[it.name] == false }
-        if (mode == QueryIndexDdl.VALIDATE) {
-            if (missing.isNotEmpty() || invalid.isNotEmpty()) {
-                log.warn(
-                    "Query indexes of {} are missing {} and invalid {} ({}=validate).",
-                    table,
-                    missing.map { it.name },
-                    invalid.map { it.name },
-                    QueryIndexDdl.PROPERTY,
-                )
-            }
+        if (mode == Ddl.VALIDATE) {
+            // The host refuses the startup on what is missing or invalid.
             return@autoCommitted PostgresQueryIndexReport(
                 missing = missing.map { it.name },
                 invalid = invalid.map { it.name },

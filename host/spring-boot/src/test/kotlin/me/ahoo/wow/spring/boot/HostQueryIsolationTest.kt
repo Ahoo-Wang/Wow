@@ -30,6 +30,7 @@ import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.wait.WaitOptions
+import me.ahoo.wow.spi.Ddl
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import kotlin.time.Duration.Companion.milliseconds
@@ -200,21 +201,38 @@ class HostQueryIsolationTest {
     @Test
     fun `wow-wait-max-registered should bound the node's waits`() {
         startHost().use { host ->
-            host.node.options.maxRegisteredWaits.assert().isEqualTo(WaitOptions.DEFAULT_MAX_REGISTERED)
+            host.node.options.wait.maxRegistered.assert().isEqualTo(WaitOptions.DEFAULT_MAX_REGISTERED)
         }
         startHost("wow.wait.max-registered" to 7).use { host ->
-            host.node.options.maxRegisteredWaits.assert().isEqualTo(7)
+            host.node.options.wait.maxRegistered.assert().isEqualTo(7)
         }
     }
 
     @Test
-    fun `a store's read preference should be its queries', over the events' own`() {
-        val properties = QueryProperties().apply { events.mongoReadPreference = "secondaryPreferred" }
-        properties.storeQueryOptions().eventsReadPreference.assert().isEqualTo("secondaryPreferred")
-        properties.storeQueryOptions().snapshotsReadPreference.assert().isNull()
-        val store = WowProperties.Store().apply { query.readPreference = "nearest" }
-        properties.storeQueryOptions(store).eventsReadPreference.assert().isEqualTo("nearest")
-        properties.storeQueryOptions(store).snapshotsReadPreference.assert().isEqualTo("nearest")
+    fun `a store's read preference and ddl should be its queries', over the global ones`() {
+        (null as WowProperties?).storeQueryOptions("main").also {
+            it.indexDdl.assert().isEqualTo(Ddl.AUTO)
+            it.eventsReadPreference.assert().isNull()
+            it.snapshotsReadPreference.assert().isNull()
+        }
+        val properties = WowProperties().apply {
+            ddl = Ddl.VALIDATE
+            mongo.queryReadPreference = "secondaryPreferred"
+            stores["other"] = WowProperties.Store().apply {
+                ddl = Ddl.NONE
+                options[WowProperties.QUERY_READ_PREFERENCE] = "nearest"
+            }
+        }
+        properties.storeQueryOptions("main").also {
+            it.indexDdl.assert().isEqualTo(Ddl.VALIDATE)
+            it.eventsReadPreference.assert().isEqualTo("secondaryPreferred")
+            it.snapshotsReadPreference.assert().isEqualTo("secondaryPreferred")
+        }
+        properties.storeQueryOptions("other").also {
+            it.indexDdl.assert().isEqualTo(Ddl.NONE)
+            it.eventsReadPreference.assert().isEqualTo("nearest")
+            it.snapshotsReadPreference.assert().isEqualTo("nearest")
+        }
         WowProperties.Store().apply { queryDataSource = "reads" }.options()["query-data-source"]
             .assert().isEqualTo("reads")
     }

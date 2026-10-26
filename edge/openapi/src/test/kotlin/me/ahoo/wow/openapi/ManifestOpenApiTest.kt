@@ -156,6 +156,7 @@ class ManifestOpenApiTest {
                 FrameworkErrors.AGGREGATE_VERSION_MISMATCH,
                 FrameworkErrors.COMMAND_REQUEST_ID_REUSED,
                 FrameworkErrors.COMMAND_CONTENDED,
+                FrameworkErrors.COMMAND_REFUSED,
                 "shop.cart.full",
             ),
         )

@@ -64,7 +64,7 @@ import org.springframework.web.reactive.function.server.coRouter
  * - `GET /{context}/{aggregate}/{id}/state` (`?version=`, `?at=`) of each aggregate, over [reads];
  * - `POST` and `GET /wow/dataset/{context}/{dataset}/query` of the datasets [queries] has;
  * - `GET /wow/manifest`, the service's Manifest, for a service that calls it by its Manifest alone (decision D257,
- *   `wow.clients.contexts.<context>.contract: manifest`): any service may read it, whatever models [permits] list.
+ *   `wow.peers.<context>.contract: manifest`): any service may read it, whatever models [permits] list.
  *
  * Each request must come from a [service][Caller.service] identity, which [callerResolver] resolves (the service the
  * request names, [me.ahoo.wow.http.caller.DeclaredServices], decision D300), and carry `Wow-Call`, the root context it

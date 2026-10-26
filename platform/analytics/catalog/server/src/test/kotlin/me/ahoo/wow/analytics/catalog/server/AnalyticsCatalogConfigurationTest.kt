@@ -24,16 +24,19 @@ import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetWarehouse
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseTableInfo
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.query.dataset.QueryDatasets
+import me.ahoo.wow.spring.boot.ClickHouseProperties
+import me.ahoo.wow.spring.boot.WowProperties
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.health.contributor.Status
-import org.springframework.mock.env.MockEnvironment
 import java.time.Duration
 
+@OptIn(InternalWowApi::class) // The host's settings, as the configuration reads them.
 class AnalyticsCatalogConfigurationTest {
     private val configuration = AnalyticsCatalogConfiguration()
 
@@ -46,22 +49,22 @@ class AnalyticsCatalogConfigurationTest {
 
     @Test
     fun `the catalog should be ClickHouse's over the configured databases, or none without a client`() {
-        val environment = MockEnvironment().withProperty(AnalyticsCatalogConfiguration.CLICKHOUSE_DATABASE, "wow")
-        configuration.warehouseCatalog(provider<Client>(null), AnalyticsCatalogProperties(), environment)
+        val clickhouse = provider(ClickHouseProperties().apply { database = "wow" })
+        configuration.warehouseCatalog(provider<Client>(null), AnalyticsCatalogProperties(), clickhouse)
             .assert().isSameAs(WarehouseCatalog.NONE)
         val client = mockk<Client>()
-        val defaulted = configuration.warehouseCatalog(provider(client), AnalyticsCatalogProperties(), environment)
+        val defaulted = configuration.warehouseCatalog(provider(client), AnalyticsCatalogProperties(), clickhouse)
         defaulted.databases.assert().containsExactly("wow")
         defaulted.engine.assert().isEqualTo("clickhouse")
         val listed = configuration.warehouseCatalog(
             provider(client),
             AnalyticsCatalogProperties(connection = "dw", databases = mutableListOf("a", " ", "b")),
-            environment,
+            clickhouse,
         )
         listed.connection.assert().isEqualTo("dw")
         listed.databases.assert().containsExactly("a", "b")
         assertThrows<IllegalArgumentException> {
-            configuration.warehouseCatalog(provider(client), AnalyticsCatalogProperties(engine = "trino"), environment)
+            configuration.warehouseCatalog(provider(client), AnalyticsCatalogProperties(engine = "trino"), clickhouse)
         }.message.assert().contains("trino")
     }
 
@@ -102,13 +105,13 @@ class AnalyticsCatalogConfigurationTest {
     @Test
     fun `CoSec's policies should decide only when the authorizer switch is on`(): Unit = runBlocking {
         val policies = mockk<Authorization>()
-        val off = configuration.analyticsCatalogAuthorizer(provider(policies), MockEnvironment())
+        val off = configuration.analyticsCatalogAuthorizer(provider(policies), WowProperties())
         val on = configuration.analyticsCatalogAuthorizer(
             provider(policies),
-            MockEnvironment().withProperty(AnalyticsCatalogConfiguration.COSEC_AUTHORIZER_ENABLED, "true"),
+            WowProperties().apply { cosec.authorizer.enabled = true },
         )
         off.assert().isNotSameAs(on)
-        configuration.analyticsCatalogAuthorizer(provider<Authorization>(null), MockEnvironment())
+        configuration.analyticsCatalogAuthorizer(provider<Authorization>(null), WowProperties())
             .assert().isInstanceOf(AnalyticsCatalogAuthorizer::class.java)
         configuration.trustedWriters(
             AnalyticsCatalogProperties(trustedWriters = mutableMapOf("w" to mutableListOf("c")))

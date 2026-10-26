@@ -49,6 +49,14 @@ internal class PeerProblem(
     /** Whether a command answered so may be sent again with its request id (decision D254 ③): never a 504. */
     val retriesCommand: Boolean get() = hint.retryable && hint.sameRequestId && status != GATEWAY_TIMEOUT
 
+    /**
+     * Whether the node refused the request before handling it, so another node of the peer may take it (decision
+     * D305): a 503 carrying Wow's own code of a node that is shutting down or on standby. A bare 503, or a gateway's,
+     * is no proof that nothing ran.
+     */
+    val refusedBeforeHandling: Boolean
+        get() = status == UNAVAILABLE && code in REFUSED_BEFORE_HANDLING
+
     /** Whether a query answered so may be run again (decision D254 ③): a 429 alone. */
     val retriesQuery: Boolean get() = status == TOO_MANY_REQUESTS
 
@@ -69,6 +77,9 @@ internal class PeerProblem(
         const val TOO_MANY_REQUESTS: Int = 429
         const val UNAVAILABLE: Int = 503
         const val GATEWAY_TIMEOUT: Int = 504
+
+        /** The codes of a node that refused a request before handling it: shutting down, or on standby. */
+        private val REFUSED_BEFORE_HANDLING = setOf(FrameworkErrors.NODE_CLOSING, FrameworkErrors.NODE_STANDBY)
     }
 }
 

@@ -92,7 +92,8 @@ class WaitWithdrawalTest {
         registry,
         directory,
         LocalSignalSender(origin.node, registry),
-        WaitOptions(origin),
+        origin,
+        WaitOptions(),
         observer = observer,
     )
 

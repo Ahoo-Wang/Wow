@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Command
@@ -34,14 +35,13 @@ import me.ahoo.wow.kafka.KafkaTopicAdmin
 import me.ahoo.wow.kafka.KafkaTopicProducer
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommittedBinding
-import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.kernel.ProcessorBinding
+import me.ahoo.wow.kernel.RejectionBinding
+import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
-import me.ahoo.wow.kernel.ProcessorBinding
-import me.ahoo.wow.kernel.RejectionBinding
-import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
@@ -62,11 +62,11 @@ import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.SourceTopics
-import me.ahoo.wow.runtime.node.TopicDdl
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.SignalSender
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.tck.containers.WowContainers
@@ -135,7 +135,7 @@ class KafkaCommandIntakeTest {
 
     private val topicAdmin = KafkaTopicAdmin.create(options)
 
-    private fun topics(prefix: String = PREFIX, intake: Boolean = false, ddl: TopicDdl = TopicDdl.NONE): SourceTopics =
+    private fun topics(prefix: String = PREFIX, intake: Boolean = false, ddl: Ddl = Ddl.NONE): SourceTopics =
         SourceTopics(
             KafkaPartitionedSource.create(options).also { sources += it },
             prefix,
@@ -288,10 +288,10 @@ class KafkaCommandIntakeTest {
     @Test
     fun `the node should create its command topic with the log's partitions, or refuse to start without it`(): Unit =
         runBlocking {
-            assertThrows<IllegalStateException> { runBlocking { stockNode(topics("validate.", true, TopicDdl.VALIDATE)).start() } }
+            assertThrows<IllegalStateException> { runBlocking { stockNode(topics("validate.", true, Ddl.VALIDATE)).start() } }
                 .message.assert().contains("validate.wow.stock.commands does not exist")
             nodes.removeLast().also { channel.unbind(it.address) }
-            val stock = stockNode(topics("auto.", intake = true, ddl = TopicDdl.AUTO)).also { it.start() }
+            val stock = stockNode(topics("auto.", intake = true, ddl = Ddl.AUTO)).also { it.start() }
             stock.isReady.assert().isTrue()
             topicAdmin.partitions(setOf("auto.wow.stock.commands")).assert().isEqualTo(mapOf("auto.wow.stock.commands" to PARTITIONS))
             eventually { checkNotNull(stock.context(STOCK).intake).partitions == (0 until PARTITIONS).toSet() }

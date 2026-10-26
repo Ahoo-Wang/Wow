@@ -51,3 +51,5 @@ A new major version may change formats and protocols. Its nodes do not run besid
 ## From a 10.0.0 pre-release
 
 A 10.0.0 pre-release (`alpha`, `beta`, `rc`) makes no compatibility promise for what it stores: the storage format of a later build may differ in place. Upgrading from a pre-release needs a fresh database; what an earlier pre-release wrote is not migrated or read.
+
+The configuration surface was settled once before 10.0.0, without aliases: a renamed or removed key refuses the node's start, and the refusal names its new key or why it is gone.

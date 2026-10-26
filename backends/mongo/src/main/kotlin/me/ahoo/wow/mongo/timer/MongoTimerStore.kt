@@ -43,7 +43,7 @@ import me.ahoo.wow.mongo.MongoTimeouts
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.timer.Timer
@@ -89,7 +89,7 @@ class MongoTimerStore(
     private val partitions: Int,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
-    private val ddl: StoreDdl = StoreDdl.AUTO,
+    private val ddl: Ddl = Ddl.AUTO,
     /** Whether the store shards its collections on a sharded cluster (decision D308). */
     private val sharding: MongoSharding = MongoSharding.AUTO,
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
@@ -159,7 +159,7 @@ class MongoTimerStore(
         if (sharded) {
             MongoShards.shardTimers(client, database, timers, partitions)
         }
-        if (ddl != StoreDdl.AUTO) {
+        if (ddl != Ddl.AUTO) {
             // The registry is the schema's: a validated or foreign schema registered its collections already.
             return collection
         }
@@ -193,7 +193,7 @@ class MongoTimerStore(
     override suspend fun put(timer: Timer): Boolean = dispatcher.mongo {
         require(timer.partition == partitionOf(timer.owner)) {
             "The timer ${timer.id} is in partition ${timer.partition}, not its owner's ${partitionOf(timer.owner)} " +
-                "of $partitions (decision D308)."
+                "of $partitions."
         }
         val timers = collectionOf(timer.owner.type).timers
         val replaceable = Filters.and(

@@ -21,6 +21,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.clickhouse.sink.SinkFixtures.ORDER
 import me.ahoo.wow.clickhouse.sink.SinkFixtures.recordOf
+import me.ahoo.wow.spi.Ddl
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.time.Duration.Companion.days
@@ -54,7 +55,7 @@ class ClickHouseSinkTest {
 
     @Test
     fun `a batch should be split by the batch size, each part deduplicated by a digest of its ids`(): Unit = runTest {
-        val sink = sinks(ClickHouseSinkOptions(ddl = DdlMode.NONE, batchSize = 2)).sinkOf("shop", "order")
+        val sink = sinks(ClickHouseSinkOptions(ddl = Ddl.NONE, batchSize = 2)).sinkOf("shop", "order")
         val records = (1..5).map { recordOf(version = it) }
         sink.write(records)
         sink.write(records)
@@ -72,7 +73,7 @@ class ClickHouseSinkTest {
     fun `writes queued while an insert runs should go together in the next one, up to the batch size`(): Unit =
         runTest {
             // Finding A2-10: one INSERT per commit, three parts each with the views, overran ClickHouse's merges.
-            val sink = sinks(ClickHouseSinkOptions(ddl = DdlMode.NONE, batchSize = 3)).sinkOf("shop", "order")
+            val sink = sinks(ClickHouseSinkOptions(ddl = Ddl.NONE, batchSize = 3)).sinkOf("shop", "order")
             val gate = CompletableDeferred<Unit>().also { statements.gate = it }
             val first = async { sink.write(listOf(recordOf(version = 1))) }
             statements.waiting.await()
@@ -86,7 +87,7 @@ class ClickHouseSinkTest {
 
     @Test
     fun `a failed insert should fail every write it carried, and the next writes go on`(): Unit = runTest {
-        val sink = sinks(ClickHouseSinkOptions(ddl = DdlMode.NONE)).sinkOf("shop", "order")
+        val sink = sinks(ClickHouseSinkOptions(ddl = Ddl.NONE)).sinkOf("shop", "order")
         val gate = CompletableDeferred<Unit>().also { statements.gate = it }
         val first = async { runCatching { sink.write(listOf(recordOf(version = 1))) } }
         statements.waiting.await()
@@ -103,7 +104,7 @@ class ClickHouseSinkTest {
     @Test
     fun `without the history the sink should insert into the current state`(): Unit = runTest {
         val options = ClickHouseSinkOptions(
-            ddl = DdlMode.NONE,
+            ddl = Ddl.NONE,
             aggregates = mapOf(ORDER to AggregateSinkOptions(history = false)),
         )
         sinks(options).sinkOf("shop", "order").write(listOf(recordOf()))
@@ -112,7 +113,7 @@ class ClickHouseSinkTest {
 
     @Test
     fun `validate should create nothing and pass over the expected tables`(): Unit = runTest {
-        val sink = sinks(ClickHouseSinkOptions(database = "analytics", ddl = DdlMode.VALIDATE)).sinkOf("shop", "order")
+        val sink = sinks(ClickHouseSinkOptions(database = "analytics", ddl = Ddl.VALIDATE)).sinkOf("shop", "order")
         statements.create(sink.schema)
         sink.write(listOf(recordOf()))
         statements.executed.assert().isEmpty()
@@ -121,7 +122,7 @@ class ClickHouseSinkTest {
 
     @Test
     fun `validate should name what is missing or different and write nothing`(): Unit = runTest {
-        val sink = sinks(ClickHouseSinkOptions(ddl = DdlMode.VALIDATE)).sinkOf("shop", "order")
+        val sink = sinks(ClickHouseSinkOptions(ddl = Ddl.VALIDATE)).sinkOf("shop", "order")
         statements.create(sink.schema)
         statements.tables.remove("default.shop_order_events_mv")
         statements.tables.remove("default.shop_order_events")
@@ -141,7 +142,7 @@ class ClickHouseSinkTest {
 
     @Test
     fun `a failed insert should fail the write`(): Unit = runTest {
-        val sink = sinks(ClickHouseSinkOptions(ddl = DdlMode.NONE)).sinkOf("shop", "order")
+        val sink = sinks(ClickHouseSinkOptions(ddl = Ddl.NONE)).sinkOf("shop", "order")
         statements.failInsert = IllegalStateException("down")
         runCatching { sink.write(listOf(recordOf())) }.exceptionOrNull()?.message.assert().isEqualTo("down")
     }
@@ -174,7 +175,7 @@ class ClickHouseSinkTest {
         assertThrows<IllegalArgumentException> { ClickHouseSinkOptions(batchSize = 0) }
         assertThrows<IllegalArgumentException> { ClickHouseSinkOptions(deduplicationWindow = 0) }
         assertThrows<IllegalArgumentException> {
-            ClickHouseSink(sinks().schemaOf(ORDER), statements, DdlMode.NONE, batchSize = 0)
+            ClickHouseSink(sinks().schemaOf(ORDER), statements, Ddl.NONE, batchSize = 0)
         }
         ClickHouseSinkOptions().aggregate(ORDER).assert().isEqualTo(AggregateSinkOptions())
     }

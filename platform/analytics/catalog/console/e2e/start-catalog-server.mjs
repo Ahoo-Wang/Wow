@@ -24,9 +24,10 @@
  *   in memory in place of ClickHouse, and `POST /testing/warehouse/tables`,
  *   which the suite puts the tables it drafts sources of through.
  *
- * With `CATALOG_E2E_COSEC_SECRET` it runs in its `cosec` profile instead, as a
- * deployment does (roadmap P.15): it verifies each request's CoSec token,
- * signed with that secret, and trusts no identity header.
+ * With `CATALOG_E2E_COSEC=true` it runs in its `cosec` profile instead, as a
+ * deployment does behind the CoSec gateway (roadmap P.15, decision D296): it
+ * parses each request's CoSec token, which the gateway verified, holds no
+ * secret, and trusts no identity header.
  *
  * Build them first, from the repository root, with JDK 21:
  *
@@ -49,7 +50,7 @@ const BUILD =
   "./gradlew :analytics-catalog-server:installDist :analytics-catalog-server:testClasses";
 
 const port = process.env.CATALOG_E2E_PORT ?? "18187";
-const cosecSecret = process.env.CATALOG_E2E_COSEC_SECRET;
+const cosec = process.env.CATALOG_E2E_COSEC === "true";
 
 function classPath() {
   const lib = join(SERVER, "install/analytics-catalog-server/lib");
@@ -85,9 +86,9 @@ const server = spawn(
     "--wow.analytics.catalog.refresh-interval=500ms",
     "--wow.analytics.catalog.datasets.refresh-interval=200ms",
     "--wow.query.memory.enabled=true",
-    ...(cosecSecret
+    ...(cosec
       ? // A deployment's callers: CoSec's tokens, verified with the secret they are signed with.
-        ["--spring.profiles.active=cosec", `--cosec.jwt.secret=${cosecSecret}`]
+        ["--spring.profiles.active=cosec"]
       : // The console names its caller in headers, which the server trusts only when told to (a local run).
         ["--wow.platform.trust-identity-headers=true"]),
     `--spring.main.sources=${SOURCES.join(",")}`,

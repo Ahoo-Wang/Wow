@@ -29,6 +29,16 @@ public final class me/ahoo/wow/spring/boot/CoSecAutoConfiguration$Companion {
 	public final fun wowCoSecRequestFacts ()Lorg/springframework/beans/factory/config/BeanPostProcessor;
 }
 
+public final class me/ahoo/wow/spring/boot/DataSourceAutoConfiguration {
+	public static final field Companion Lme/ahoo/wow/spring/boot/DataSourceAutoConfiguration$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public final fun wowDataSource (Lorg/springframework/core/env/Environment;)Lcom/zaxxer/hikari/HikariDataSource;
+}
+
+public final class me/ahoo/wow/spring/boot/DataSourceAutoConfiguration$Companion {
+}
+
 public final class me/ahoo/wow/spring/boot/DevelopmentMode {
 	public static final field Companion Lme/ahoo/wow/spring/boot/DevelopmentMode$Companion;
 	public static final field OFF Lme/ahoo/wow/spring/boot/DevelopmentMode;
@@ -40,6 +50,8 @@ public final class me/ahoo/wow/spring/boot/DevelopmentMode {
 }
 
 public final class me/ahoo/wow/spring/boot/DevelopmentMode$Companion {
+	public final fun of (Lme/ahoo/wow/spring/boot/WowProperties;Lorg/springframework/core/env/Environment;Ljava/lang/String;)Lme/ahoo/wow/spring/boot/DevelopmentMode;
+	public static synthetic fun of$default (Lme/ahoo/wow/spring/boot/DevelopmentMode$Companion;Lme/ahoo/wow/spring/boot/WowProperties;Lorg/springframework/core/env/Environment;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/DevelopmentMode;
 }
 
 public final class me/ahoo/wow/spring/boot/HealthAutoConfiguration {
@@ -63,6 +75,16 @@ public final class me/ahoo/wow/spring/boot/HostBackends$Companion {
 	public final fun memory (ILkotlin/jvm/functions/Function1;)Lme/ahoo/wow/spring/boot/HostBackends;
 	public static synthetic fun memory$default (Lme/ahoo/wow/spring/boot/HostBackends$Companion;ILkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/HostBackends;
 	public final fun of (Lme/ahoo/wow/runtime/node/BackendFactory;)Lme/ahoo/wow/spring/boot/HostBackends;
+}
+
+public final class me/ahoo/wow/spring/boot/MongoClientAutoConfiguration {
+	public static final field Companion Lme/ahoo/wow/spring/boot/MongoClientAutoConfiguration$Companion;
+	public static final field URI Ljava/lang/String;
+	public fun <init> ()V
+	public final fun wowMongoClient (Lorg/springframework/core/env/Environment;)Lcom/mongodb/client/MongoClient;
+}
+
+public final class me/ahoo/wow/spring/boot/MongoClientAutoConfiguration$Companion {
 }
 
 public final class me/ahoo/wow/spring/boot/ObservabilityAutoConfiguration {
@@ -124,7 +146,7 @@ public final class me/ahoo/wow/spring/boot/TransportAutoConfiguration$Companion 
 public final class me/ahoo/wow/spring/boot/TransportAutoConfiguration$Transport {
 	public fun <init> ()V
 	public final fun wowPartitionedSource (Lme/ahoo/wow/spi/transport/TopicTransport;)Lme/ahoo/wow/spi/transport/PartitionedSource;
-	public final fun wowSourceTopics (Lme/ahoo/wow/spi/transport/PartitionedSource;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public final fun wowSourceTopics (Lme/ahoo/wow/spi/transport/PartitionedSource;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spring/boot/KafkaProperties;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/runtime/node/SourceTopics;
 	public final fun wowTopicAdmin (Lme/ahoo/wow/spi/transport/TopicTransport;)Lme/ahoo/wow/spi/transport/TopicAdmin;
 	public final fun wowTopicProducer (Lme/ahoo/wow/spi/transport/TopicTransport;)Lme/ahoo/wow/spi/transport/TopicProducer;
 	public final fun wowTransportSinks (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/runtime/sink/PublishedSinks;
@@ -138,6 +160,7 @@ public final class me/ahoo/wow/spring/boot/TransportAutoConfiguration$TransportM
 public final class me/ahoo/wow/spring/boot/WowAutoConfiguration {
 	public static final field Companion Lme/ahoo/wow/spring/boot/WowAutoConfiguration$Companion;
 	public static final field INTERNAL_HTTP_CLIENT Ljava/lang/String;
+	public static final field PEER_HTTP_CLIENT Ljava/lang/String;
 	public static final field WOW_AGGREGATE_ID_GENERATOR Ljava/lang/String;
 	public static final field WOW_JSON_MAPPER Ljava/lang/String;
 	public fun <init> ()V
@@ -149,12 +172,13 @@ public final class me/ahoo/wow/spring/boot/WowAutoConfiguration {
 	public final fun wowContractDirectory (Lme/ahoo/wow/manifest/Manifest;Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;)Lme/ahoo/wow/runtime/contract/ContractDirectory;
 	public final fun wowDependencies (Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;)Lme/ahoo/wow/kernel/Dependencies;
 	public final fun wowDevelopmentMode (Lme/ahoo/wow/spring/boot/WowProperties;Lorg/springframework/core/env/Environment;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/spring/boot/DevelopmentMode;
-	public final fun wowEndpointResolver (Lme/ahoo/wow/spring/boot/WowProperties;)Lme/ahoo/wow/client/EndpointResolver;
+	public final fun wowEndpointResolver (Lme/ahoo/wow/spring/boot/WowProperties;Lme/ahoo/wow/runtime/contract/ContractDirectory;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/core/env/Environment;Lorg/springframework/context/ApplicationContext;)Lme/ahoo/wow/client/EndpointResolver;
 	public final fun wowGlobalIdGenerator ()Lme/ahoo/wow/spi/id/GlobalIdGenerator;
 	public final fun wowHttpOptions (Lme/ahoo/wow/spring/boot/WowProperties;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/http/WowHttpOptions;
 	public final fun wowInternalHttpClient (Lme/ahoo/wow/spring/boot/WowProperties;)Ljava/net/http/HttpClient;
 	public final fun wowJsonMapper ()Ltools/jackson/databind/json/JsonMapper;
 	public final fun wowParkedRouterFunction (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/runtime/node/ServiceNode;Lme/ahoo/wow/http/caller/CallerResolver;Lme/ahoo/wow/http/WowHttpOptions;Lorg/springframework/beans/factory/ObjectProvider;)Lorg/springframework/web/reactive/function/server/RouterFunction;
+	public final fun wowPeerHttpClient (Lme/ahoo/wow/spring/boot/WowProperties;)Ljava/net/http/HttpClient;
 }
 
 public final class me/ahoo/wow/spring/boot/WowAutoConfiguration$Companion {

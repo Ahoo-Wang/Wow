@@ -64,12 +64,4 @@ class QueryIndexesTest {
         assertThrownBy<IllegalArgumentException> { QueryIndexDeclaration("", listOf("state.name")) }
         assertThrownBy<IllegalArgumentException> { QueryIndexDeclaration("ix", emptyList()) }
     }
-
-    @Test
-    fun `the index mode is read from its setting`() {
-        QueryIndexDdl.of("AUTO").assert().isEqualTo(QueryIndexDdl.AUTO)
-        QueryIndexDdl.of("validate").assert().isEqualTo(QueryIndexDdl.VALIDATE)
-        QueryIndexDdl.of("none").assert().isEqualTo(QueryIndexDdl.NONE)
-        assertThrownBy<IllegalArgumentException> { QueryIndexDdl.of("create") }
-    }
 }

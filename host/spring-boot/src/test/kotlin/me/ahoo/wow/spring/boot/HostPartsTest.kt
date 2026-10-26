@@ -23,7 +23,6 @@ import me.ahoo.wow.kernel.MissingDependencyException
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.ClusterOptions
-import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.ContextNode
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.SubscriptionFactory
@@ -46,6 +45,7 @@ import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 import org.springframework.core.env.MapPropertySource
 import org.springframework.core.env.StandardEnvironment
+import java.net.InetAddress
 import java.time.Duration
 import java.time.Instant
 import javax.sql.DataSource
@@ -234,7 +234,6 @@ class WowPropertiesTest {
         properties.log.partitions.assert().isEqualTo(64)
         properties.cluster.options().assert().isEqualTo(ClusterOptions())
         properties.subscription.options().assert().isEqualTo(SubscriptionOptions())
-        properties.log.appendQueue.options().assert().isEqualTo(AppendQueueOptions())
         properties.tenant.default.assert().isEqualTo("(0)")
         properties.wait.defaultTimeout.assert().isEqualTo(Duration.ofSeconds(10))
         properties.wait.maxTimeout.assert().isEqualTo(Duration.ofSeconds(60))
@@ -255,11 +254,6 @@ class WowPropertiesTest {
             "wow.backend" to "mongo",
             "wow.mongo.database" to "shop",
             "wow.log.partitions" to "16",
-            "wow.log.append-queue.enabled" to "false",
-            "wow.log.append-queue.max-batch" to "32",
-            "wow.log.append-queue.merge" to "false",
-            "wow.log.append-queue.mergers" to "3",
-            "wow.log.append-queue.merge-max" to "128",
             "wow.cluster.router" to "local",
             "wow.cluster.lease-ttl" to "20s",
             "wow.cluster.drain-timeout" to "500ms",
@@ -280,9 +274,6 @@ class WowPropertiesTest {
         properties.backend.assert().isEqualTo("mongo")
         properties.mongo.database.assert().isEqualTo("shop")
         properties.log.partitions.assert().isEqualTo(16)
-        properties.log.appendQueue.options().assert().isEqualTo(
-            AppendQueueOptions(enabled = false, maxBatch = 32, merge = false, mergers = 3, mergeMax = 128),
-        )
         properties.cluster.router.assert().isEqualTo(Routing.LOCAL)
         properties.cluster.options().leaseTtl.assert().isEqualTo(20.seconds)
         properties.cluster.options().drainTimeout.assert().isEqualTo(500.milliseconds)
@@ -440,7 +431,9 @@ class WowPropertiesTest {
         val identity = NodeIdentity.of(properties, environment)
         identity.service.assert().isEqualTo("app")
         identity.node.assert().isNotBlank()
-        identity.address.assert().endsWith(":9300")
+        // Without wow.node.address, the node advertises this host's address: a pod's IP (decision D319).
+        identity.address.assert().isEqualTo("${InetAddress.getLocalHost().hostAddress}:9300")
+        identity.bindHost.assert().isEqualTo(InetAddress.getLocalHost().hostAddress)
         NodeIdentity.of(properties, environment).node.assert().isNotEqualTo(identity.node)
         properties.internal.host = "127.0.0.1"
         NodeIdentity.of(properties, environment).address.assert().isEqualTo("127.0.0.1:9300")

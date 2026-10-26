@@ -17,7 +17,7 @@ Kafka 承载跨越服务边界的东西：上下文发布的事件流、其他�
 - 其他上下文向它发命令；
 - 某个聚合类型的命令经 Kafka 路由，以便持久摄入。
 
-Saga 向另一个上下文发命令的节点，没有命令传输就不会启动。本地开发时，`wow.topics.in-memory: true` 把主题保存在 JVM 里，同一进程中的服务不需要 broker 就能互相访问。这些主题在 JVM 的整个生命周期里保留发给它们的每条记录：持续负载下会占满堆，所以只用于试用服务，不能用于压测或部署。
+`wow.transport` 选择节点的主题传输。默认的 `auto` 取已配置的传输（设置了 `wow.kafka.bootstrap-servers` 就是 Kafka）。没有配置时，开发中的节点（`wow.dev-profiles` 中的某个 profile 处于激活状态，或者内部端口只绑定回环地址）把主题保存在 JVM 里，同一进程中的服务不需要 broker 就能互相访问；其他节点没有主题，并在需要主题时拒绝启动：它发布流、经 Kafka 路由某个聚合类型、发布失败台账或从命令主题接收命令，或者它的 Saga 向另一个上下文发命令。`wow.transport=memory` 有意把主题保存在 JVM 里；开发以外会被拒绝。这些主题在 JVM 的整个生命周期里保留发给它们的每条记录：持续负载下会占满堆，所以只用于试用服务，不能用于压测或部署。
 
 类路径上有 `wow-kafka` 模块并设置了 `wow.kafka.bootstrap-servers` 时，传输会被装配。eShop 的 ordering 服务用它的 `kafka` profile 连接：
 
@@ -26,14 +26,11 @@ Saga 向另一个上下文发命令的节点，没有命令传输就不会启动
 ```yaml
 wow:
   kafka:
-    # Creates the topics the service owns when they are missing, for trying it out; production validates them, the
-    # default (decision D168).
-    topics:
-      ddl: auto
     bootstrap-servers: localhost:9092
     # Execute the commands other contexts send to wow.eshop-ordering.commands (the payment's), which has as many
     # partitions as the context's log (wow.log.partitions, 64 by default).
-    command-intake: true
+    command-intake:
+      enabled: true
 ```
 
 ## 主题 {#topics}
@@ -55,15 +52,15 @@ wow:
 
 ### 创建主题 {#creating-topics}
 
-启动时，节点按 `wow.kafka.topics.ddl` 检查它的上下文拥有的主题：
+启动时，节点按 `wow.kafka.ddl` 检查它的上下文拥有的主题；没有设置时它跟随 `wow.ddl`，存储和主题共用一个设置：
 
 | `ddl` | 启动时 |
 | --- | --- |
-| `validate`（默认） | 只要它的某个主题缺失，或者命令主题的分区数与日志不完全相同，节点就不启动。消息会列出每个这样的主题。 |
-| `auto` | 节点先用日志的分区数、`wow.kafka.topics.replication-factor`、`wow.kafka.topics.min-insync-replicas` 和 `wow.kafka.topics.configs.*` 创建缺失的主题，然后校验。它从不修改已存在的主题。 |
-| `none` | 节点什么都不检查，只检查它读取的命令主题的分区数仍与日志相同。 |
+| `auto`（默认） | 节点先用日志的分区数、`wow.kafka.topics.replication-factor`、`wow.kafka.topics.min-insync-replicas` 和 `wow.kafka.topics.configs.*` 创建缺失的主题，然后校验。它从不修改已存在的主题。 |
+| `validate` | 只要它的某个主题缺失，或者命令主题的分区数与日志不完全相同，节点就不启动。消息会列出每个这样的主题。 |
+| `none` | 节点既不创建也不检查：主题由别人管理。 |
 
-开发和测试用 `auto`。生产环境中自己创建主题并保持 `validate`，它在首次启动时就能发现缺失的主题。对 eShop 的 ordering 上下文：
+开发和测试用 `auto`。生产环境中自己创建主题，并设置 `wow.ddl: validate`（或只设 `wow.kafka.ddl`），它在首次启动时就能发现缺失的主题。对 eShop 的 ordering 上下文：
 
 ```bash
 kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.commands --partitions 64
@@ -89,7 +86,7 @@ kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.o
 
 只有在边缘准入的命令才走这条路。Saga 或定时器发出的命令本来就是持久的，因为发送方会一直重试直到它提交。
 
-有聚合类型经 Kafka 路由的上下文，无论 `wow.kafka.command-intake` 怎么设都会读取它的命令主题。否则，在应当执行其他上下文发来的命令的服务上，设置 `wow.kafka.command-intake: true`。
+有聚合类型经 Kafka 路由的上下文，无论 `wow.kafka.command-intake.enabled` 怎么设都会读取它的命令主题。否则，在应当执行其他上下文发来的命令的服务上，设置 `wow.kafka.command-intake.enabled: true`。
 
 ## 读取其他上下文的事件流 {#reading-other-contexts-streams}
 

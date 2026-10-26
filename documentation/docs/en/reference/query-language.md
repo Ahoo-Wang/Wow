@@ -261,7 +261,7 @@ There is no `NOT`: a `NOR` of one operand negates it.
 
 ### Limits and cost
 
-A filter holds at most `wow.query.http.max-filter-nodes` nodes (128) and `max-filter-values` values (1000) over HTTP (`FILTER_TOO_LARGE`). Some operators cannot use an index: `NOR`, `NE`, `NOT_IN`, `CONTAINS`, `ENDS_WITH`, a case-insensitive or empty `STARTS_WITH`, `IS_EMPTY`, `IS_NOT_EMPTY_STRING`, `IS_NULL`, `IS_NOT_NULL`, `NOT_EXISTS` and `EXPRESSION`. With `wow.query.http.allow-expensive-operators: false` they are refused (`EXPENSIVE_OPERATOR_DISABLED`).
+A filter holds at most `wow.query.budgets.http.max-filter-nodes` nodes (128) and `max-filter-values` values (1000) over HTTP (`FILTER_TOO_LARGE`). Some operators cannot use an index: `NOR`, `NE`, `NOT_IN`, `CONTAINS`, `ENDS_WITH`, a case-insensitive or empty `STARTS_WITH`, `IS_EMPTY`, `IS_NOT_EMPTY_STRING`, `IS_NULL`, `IS_NOT_NULL`, `NOT_EXISTS` and `EXPRESSION`. With `wow.query.budgets.http.allow-expensive-operators: false` they are refused (`EXPENSIVE_OPERATOR_DISABLED`).
 
 ## Sort and projection
 
@@ -295,14 +295,14 @@ A filter holds at most `wow.query.http.max-filter-nodes` nodes (128) and `max-fi
 
 ### `list`
 
-`limit` is the most records returned. `0` or none takes `wow.query.http.default-list-size` (100), and at most `max-list-size` (1000) are allowed (`SIZE_OUT_OF_RANGE`). With `Accept: text/event-stream` each record is an event `row` (`id` its index from 0); a failure after the first record ends the stream with an event `error` holding the problem.
+`limit` is the most records returned. `0` or none takes `wow.query.budgets.http.default-list-size` (100), and at most `max-list-size` (1000) are allowed (`SIZE_OUT_OF_RANGE`). With `Accept: text/event-stream` each record is an event `row` (`id` its index from 0); a failure after the first record ends the stream with an event `error` holding the problem.
 
 ### `paged`
 
 `pagination` is `{"index": 1, "size": 10}` by default: `index` counts from 1, `size` is at most `max-page-size` (100), and `index × size` at most `max-page-window` (10000). `total` says how the total is counted:
 
-- `BOUNDED` (the default): up to `wow.query.http.count-limit` (10000). `exact` is false when there are more, and `total` is the limit, read as "at least" (`10000+`).
-- `EXACT`: every match; refused over HTTP unless `wow.query.http.allow-exact-count` is on.
+- `BOUNDED` (the default): up to `wow.query.budgets.http.count-limit` (10000). `exact` is false when there are more, and `total` is the limit, read as "at least" (`10000+`).
+- `EXACT`: every match; refused over HTTP unless `wow.query.budgets.http.allow-exact-count` is on.
 - `NONE`: not counted; `total` is `null` and `exact` false.
 
 <!-- sample: fragment -->
@@ -419,6 +419,6 @@ The descriptor's `analysis` says which of these the backend runs.
 | `wow.query.malformed` | 400 | The body does not read as a query: `EMPTY_BODY`, `BODY_NOT_OBJECT`, `INVALID_JSON`, `UNKNOWN_PROPERTY`, `UNKNOWN_TYPE` (an unknown `op` or `type`), `UNKNOWN_VALUE`, `INVALID_VALUE`, `INVALID_REQUEST` (a rule of the query type, such as an empty `operands`) |
 | `wow.query.invalid` | 400 | The model refuses it; each violation names its rule, such as `UNKNOWN_FIELD`, `UNSUPPORTED_CAPABILITY`, `VALUE_MISMATCH`, `ELEMENT_SCOPE_REQUIRED`, `SIZE_OUT_OF_RANGE`, `FILTER_TOO_LARGE`, `EXPENSIVE_OPERATOR_DISABLED`, `INVALID_CURSOR`, `STORAGE_UNSUPPORTED` |
 | `wow.query.failed` | 500 | The backend failed |
-| `wow.query.timeout` | 504 | The query ran longer than `wow.query.http.timeout`; not retried |
+| `wow.query.timeout` | 504 | The query ran longer than `wow.query.budgets.http.timeout`; not retried |
 
 Each violation of the problem's `violations` has a `path` (the JSON path in the body, such as `filter.operands`), a `code` and a `message`.

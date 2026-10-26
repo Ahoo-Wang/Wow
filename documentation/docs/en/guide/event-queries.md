@@ -70,4 +70,4 @@ A query that names its aggregates by id is cheap: it reads each aggregate's stre
 | `wow.stores.<name>.query.events.unpinned` | The aggregate types on one store |
 | `wow.aggregates.[<context>.<aggregate>].query.events.unpinned` | One aggregate type |
 
-A refused query answers `400 wow.query.invalid` (`STORAGE_UNSUPPORTED` on `aggregateId`), and the model's descriptor lists the constraint `AGGREGATE_REQUIRED`, so clients know to pin their queries. On MongoDB, `wow.query.events.mongo-read-preference` sends events queries to a secondary instead ([Configuration Keys](../reference/configuration#wow-query-events)).
+A refused query answers `400 wow.query.invalid` (`STORAGE_UNSUPPORTED` on `aggregateId`), and the model's descriptor lists the constraint `AGGREGATE_REQUIRED`, so clients know to pin their queries. On MongoDB, `wow.mongo.query-read-preference` sends events queries to a secondary instead ([Configuration Keys](../reference/configuration#wow-query-events)).

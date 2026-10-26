@@ -42,7 +42,7 @@ class MongoHostTest {
     private val host = startHost(
         "wow.mongo.database" to "host_test",
         "wow.log.partitions" to 4,
-        "wow.query.events.mongo-read-preference" to "secondaryPreferred",
+        "wow.mongo.query-read-preference" to "secondaryPreferred",
         "test.mongo.url" to mongo.replicaSetUrl,
         sources = listOf(HostTestApp::class.java, MongoClientConfiguration::class.java, QueryOutcomes::class.java),
     )
@@ -56,8 +56,6 @@ class MongoHostTest {
     @Test
     fun `the host should run on MongoDB with the append queue`() {
         host.context.getBean(HostBackends::class.java).type.assert().isEqualTo("mongo")
-        // Decision D271: the queue gathers a partition's appends into one insertMany per collection under load.
-        host.node.options.appendQueue.enabled.assert().isTrue()
         host.node.options.routing.assert().isEqualTo(Routing.PARTITIONED)
     }
 

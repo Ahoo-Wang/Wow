@@ -256,12 +256,12 @@ class DatasetQueryGatewayTest {
         )
         datasets.add(orders)
         assertThrows<IllegalArgumentException> { datasets.add(orders) }
-        datasets.replace(orders.copy(title = "Orders"))
+        datasets.replace(orders.with(title = "Orders"))
         datasets[orders.name]!!.title.assert().isEqualTo("Orders")
-        assertThrows<IllegalArgumentException> { datasets.replace(orders.copy(title = "refused")) }
+        assertThrows<IllegalArgumentException> { datasets.replace(orders.with(title = "refused")) }
         datasets[orders.name]!!.title.assert().isEqualTo("Orders")
-        assertThrows<IllegalArgumentException> { datasets.replace(orders.copy(name = OTHER)) }
-        datasets.put(orders.copy(title = "Put"))
+        assertThrows<IllegalArgumentException> { datasets.replace(orders.with(name = OTHER)) }
+        datasets.put(orders.with(title = "Put"))
         datasets[orders.name]!!.title.assert().isEqualTo("Put")
         datasets.remove(orders.name).assert().isTrue()
         datasets.remove(orders.name).assert().isFalse()
@@ -317,7 +317,7 @@ class DatasetQueryGatewayTest {
         schema.field(QueryField("city")).assert().isNull()
         catalog.versions().map { it.aggregate }.assert().contains("analytics.orders")
         catalog.revalidate("analytics.orders", QueryModel.DATASET).single().version.assert().isEqualTo(schema.version)
-        assertThrows<IllegalArgumentException> { datasets.add(orders.copy(name = OTHER)) }
+        assertThrows<IllegalArgumentException> { datasets.add(orders.with(name = OTHER)) }
             .message.assert().contains("aggregate")
         datasets[OTHER].assert().isNull()
         datasets.remove(orders.name)
@@ -347,16 +347,16 @@ class DatasetQueryGatewayTest {
         }
         datasets.add(orders)
         val first = gateways[orders.name]!!
-        datasets.replace(orders.copy(title = "Orders"))
+        datasets.replace(orders.with(title = "Orders"))
         gateways[orders.name].assert().isNotSameAs(first)
         gateways[orders.name]!!.dataset.title.assert().isEqualTo("Orders")
-        factory.create(orders.copy(title = "Orders"))
+        factory.create(orders.with(title = "Orders"))
         created.size.assert().isEqualTo(2)
         factory.evict(orders.name)
-        factory.create(orders.copy(title = "Orders"))
+        factory.create(orders.with(title = "Orders"))
         created.size.assert().isEqualTo(3)
         assertThrows<IllegalArgumentException> {
-            datasets.add(orders.copy(name = OTHER, title = "unservable"))
+            datasets.add(orders.with(name = OTHER, title = "unservable"))
         }
         gateways[OTHER].assert().isNull()
         datasets.remove(orders.name)
@@ -368,7 +368,7 @@ class DatasetQueryGatewayTest {
 
     @Test
     fun `an unavailable dataset is served with its reason, and every query of it answered so`() = runTest {
-        val datasets = QueryDatasets(listOf(orders.copy(unavailable = "needs revision")))
+        val datasets = QueryDatasets(listOf(orders.withUnavailable("needs revision")))
         val gateways = DatasetQueryGateways.of(datasets) { gateway(dataset = it) }
         val gateway = gateways[orders.name]!!
         gateway.dataset.unavailable.assert().isEqualTo("needs revision")
@@ -395,9 +395,9 @@ class DatasetQueryGatewayTest {
         // Available again: an ordinary gateway.
         datasets.put(orders)
         gateways[orders.name].assert().isNotInstanceOf(UnavailableDatasetQueryGateway::class.java)
-        datasets.put(orders.copy(unavailable = "needs revision"))
+        datasets.put(orders.withUnavailable("needs revision"))
         gateways[orders.name].assert().isInstanceOf(UnavailableDatasetQueryGateway::class.java)
-        assertThrows<IllegalArgumentException> { orders.copy(unavailable = " ") }
+        assertThrows<IllegalArgumentException> { orders.withUnavailable(" ") }
     }
 
     @Test
@@ -418,7 +418,7 @@ class DatasetQueryGatewayTest {
             QueryCaller(Caller(tenantId = "t1"), entry = QueryEntry.HTTP)
         )
             .assert().isEqualTo(CountResult(1, exact = true))
-        assertThrows<IllegalArgumentException> { datasets.add(orders.copy(name = OTHER, title = "unbound")) }
+        assertThrows<IllegalArgumentException> { datasets.add(orders.with(name = OTHER, title = "unbound")) }
         gateways[OTHER].assert().isNull()
     }
 
@@ -608,3 +608,7 @@ class DatasetQueryGatewayTest {
         val ADAPTER = InMemoryQueryStorageAdapter
     }
 }
+
+/** This dataset under [name] and with [title]; the dataset's other properties unchanged. */
+private fun QueryDataset.with(name: AggregateType = this.name, title: String? = this.title): QueryDataset =
+    QueryDataset(name, scope, declaration, identity, eventTime, title, storage, unavailable)

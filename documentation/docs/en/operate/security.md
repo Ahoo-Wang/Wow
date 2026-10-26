@@ -21,7 +21,7 @@ A Wow service has two doors: the public port, where callers send commands and qu
 
 ## Authenticate callers
 
-The host turns each request into a caller with its `CallerResolver`. Without one, a node in development (a profile of `wow.internal.dev-profiles`, or an internal port on the loopback interface alone) serves every request as the anonymous caller of the default tenant and logs a warning; any other node refuses to start. A service that is anonymous on purpose says so with a `CallerResolver` bean returning `CallerResolver.ANONYMOUS`.
+The host turns each request into a caller with its `CallerResolver`. Without one, a node in development (a profile of `wow.dev-profiles`, or an internal port on the loopback interface alone) serves every request as the anonymous caller of the default tenant and logs a warning; any other node refuses to start. A service that is anonymous on purpose says so with a `CallerResolver` bean returning `CallerResolver.ANONYMOUS`.
 
 With CoSec on the classpath, its resolver is the host's. It reads the caller from CoSec's security context:
 
@@ -57,6 +57,8 @@ Wow trusts the identity the gateway forwards, so the gateway is a boundary of it
 
 The host cannot see the network, so it does not check either at startup.
 
+Behind the gateway, a service need not verify a token again. Wow's platform services, the ops service, the view store and the analytics catalog, run CoSec's inject mode in their `cosec` profile: the CoSec gateway verifies each request's access token and forwards it, and the service parses the principal from it without a secret of its own (`cosec.jwt.enabled: false`), so CoSec's signing secret stays with the gateway. The parser still refuses a token that has expired.
+
 ## Close the internal port
 
 The internal port carries forwarded commands, wait signals, synchronous calls and reads between the platform's nodes and services. The inside of the platform is trusted: the internal port takes no token, and its boundary is the network. Whoever can send a signal can fake the result of any command, so:
@@ -65,7 +67,7 @@ The internal port carries forwarded commands, wait signals, synchronous calls an
 2. **Bind it to the private interface** with `wow.internal.host`.
 3. **Every request names its service.** A node or service puts its service name, `wow.service` or else `spring.application.name`, in the `Wow-Service` header of each forward, signal, call and read. A service name is letters, digits, `.`, `_` and `-`, at most 253 characters; a node whose service name is not such a name does not start. The header is a statement, not a credential: it catches a misconfiguration, such as a call a service's list does not allow, or a forward sent to another service's node.
 4. **Each route takes the services it serves.** A forward, and the standby and resume routes (`GET /wow/node/standby`, `POST /wow/node/resume`), are taken only from a node of the same service: without the header the answer is 401 `wow.auth.unauthenticated`, from another service 403 `wow.auth.forbidden`. A wait signal is taken from any service that names itself, and 401 without the header. A synchronous call (`Wow-Call`) or a read is taken from any service that names itself, as that service's identity (subject `service:<name>`), and 403 for a request that names none. The public port never reads `Wow-Service`, and refuses `Wow-Call` with 403.
-5. **List what each service may call, where it helps.** Under `wow.http.services.<service>`, keyed by the name the caller declares, `commands` lists the commands that service may call and `reads` the models it may read. Both are optional: without `commands` a service may call every domain command, without `reads` read every model. System commands (`wow.*`, such as delete, restore or rebuild a snapshot) are never called unless listed. The lists catch a mistake; they are no boundary against a pod that lies about its name.
+5. **List what each service may call, where it helps.** Under `wow.callers.<service>`, keyed by the name the caller declares, `commands` lists the commands that service may call and `reads` the models it may read. Both are optional: without `commands` a service may call every domain command, without `reads` read every model. System commands (`wow.*`, such as delete, restore or rebuild a snapshot) are never called unless listed. The lists catch a mistake; they are no boundary against a pod that lies about its name.
 
 The eShop's ordering service puts it together. Its basket service calls one command synchronously, and nothing else; its inventory and payment services signal waits that crossed into them, which needs no entry:
 
@@ -75,24 +77,23 @@ The eShop's ordering service puts it together. Its basket service calls one comm
 wow:
   service: eshop-ordering-service
   # One node, its data in memory, for trying the service out. The `postgres` profile serves it from PostgreSQL; the
-  # `kafka` profile connects it to the other contexts, which the node needs to start: its sagas send the inventory's
-  # commands.
+  # `kafka` profile connects it to the other contexts; without it, the node on this machine keeps its topics in its
+  # JVM (wow.transport), where the inventory does not see the commands its sagas send.
   backend: memory
   internal:
     port: 9093
     # On this machine only, for trying the shop out: the basket service calls the order gateway here.
     host: 127.0.0.1
-  http:
-    # The basket service's checkout calls this command gateway synchronously (decision D193), on the internal port
-    # alone, naming itself (Wow-Service, decision D300): the internal port is reachable by the shop's own pods alone,
-    # so a service that names itself is taken on that network's word, and may name the buyer the order is for.
-    services:
-      eshop-basket-service:
-        # The commands the basket may call (decision D226), a list that catches a misconfiguration: its checkout
-        # submits the order, and nothing else. A system command (wow.*: delete, restore, transfers, tags) is never
-        # called unless listed here.
-        commands:
-          - eshop-ordering.order.SubmitOrder
+  # The basket service's checkout calls this command gateway synchronously (decision D193), on the internal port
+  # alone, naming itself (Wow-Service, decision D300): the internal port is reachable by the shop's own pods alone,
+  # so a service that names itself is taken on that network's word, and may name the buyer the order is for.
+  callers:
+    eshop-basket-service:
+      # The commands the basket may call (decision D226), a list that catches a misconfiguration: its checkout
+      # submits the order, and nothing else. A system command (wow.*: delete, restore, transfers, tags) is never
+      # called unless listed here.
+      commands:
+        - eshop-ordering.order.SubmitOrder
 ```
 
 Its Kubernetes network policies are the boundary. The first lets only the gateway's pods reach the HTTP port; the second lets only the shop's own pods reach the internal port:
@@ -170,7 +171,7 @@ Every other principal gets no `Write` ACL on the topic. With an authorizer and `
 
 ## Mistyped settings
 
-A mistyped security setting would silently leave its default in place, and some defaults allow everything. So the host refuses to start when an unknown key appears under `wow.cosec.*`, `wow.http.services.*`, `wow.calls.*` or `wow.internal.*`; under `wow.http.services` and `wow.calls.contexts`, each entry's keys are checked too. Other unknown `wow.*` keys are logged as warnings.
+A mistyped security setting would silently leave its default in place, and some defaults allow everything. So the host refuses to start when any `wow.*` key is unknown; under `wow.callers` and `wow.peers`, each entry's keys are checked too.
 
 ## Personal data in events
 
@@ -178,7 +179,7 @@ Events are facts. The log keeps them for good, and Wow offers neither erasing ev
 
 - Keep personal data, such as names, addresses, phone numbers and free text about a person, out of events where you can. Keep it in a read model you can delete from, such as a projection's table or another service, and put an opaque id in the event.
 - When decide needs personal data, let it read the data through a domain service instead of carrying it in an event.
-- The operator of a commit is recorded as an opaque id. Request facts are recorded with every commit: the authenticated application and, for requests on the public port, the client's remote address and user agent, `remote_ip` and `user_agent`. An IP address and a user agent are personal data, and once written they cannot be erased. Treat the event log, and the service logs that show these facts, as holding personal data, and set the logs' retention for it. `wow.http.client-facts` (default `true`) switches the address and user agent off: with `false`, the public port records neither. Do not add further personal data to `wow.http.request-facts`.
+- The operator of a commit is recorded as an opaque id. Request facts are recorded with every commit: the authenticated application and, for requests on the public port, the client's remote address and user agent, `remote_ip` and `user_agent`. An IP address and a user agent are personal data, and once written they cannot be erased. Treat the event log, and the service logs that show these facts, as holding personal data, and set the logs' retention for it. `wow.http.client-facts.enabled` (default `true`) switches the address and user agent off: with `false`, the public port records neither. Do not add further personal data to `wow.http.request-facts`.
 - Snapshots, the warehouse and search indexes are derived from the log: deleting a row there does not delete the fact.
 
 ## Tenants

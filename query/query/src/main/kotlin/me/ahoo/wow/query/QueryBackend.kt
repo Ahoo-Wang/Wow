@@ -15,6 +15,7 @@ package me.ahoo.wow.query
 
 import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ICountQuery
@@ -28,10 +29,26 @@ import tools.jackson.databind.node.ObjectNode
  * [storage] adapter that reports its native facts. The [QuerySchemaCatalog][me.ahoo.wow.query.schema.QuerySchemaCatalog]
  * compiles those facts with the model's sources; the storage never builds the schema itself.
  */
-data class QueryBackendBinding<out B : QueryBackend>(
+class QueryBackendBinding<out B : QueryBackend> @InternalWowApi constructor(
     val backend: B,
     val storage: QueryStorageAdapter,
-)
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is QueryBackendBinding<*> && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "QueryBackendBinding(backend=$backend, storage=$storage)"
+
+    private fun valueFields(): List<Any?> = listOf(backend, storage)
+
+    companion object {
+        /** A [QueryBackendBinding] of the given values. */
+        @JvmStatic
+        fun <B : QueryBackend> of(backend: B, storage: QueryStorageAdapter): QueryBackendBinding<B> =
+            QueryBackendBinding(backend, storage)
+    }
+}
 
 /**
  * Aggregate-bound storage port (decision D126): four primitives that only check natively, translate and execute.
@@ -101,7 +118,7 @@ sealed interface PageWindow {
      * [totalLimit] bounds that number (decision D150): the backend may stop counting after `totalLimit + 1` matches,
      * as [QueryBackend.count] does; `null` asks for the exact number.
      */
-    data class Offset(
+    class Offset @InternalWowApi constructor(
         val offset: Int,
         val limit: Int,
         val withTotal: Boolean,
@@ -114,12 +131,49 @@ sealed interface PageWindow {
                 "totalLimit must be at least 1, and only bound a total that is asked for."
             }
         }
+
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Offset && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String =
+            "Offset(offset=$offset, limit=$limit, withTotal=$withTotal, totalLimit=$totalLimit)"
+
+        private fun valueFields(): List<Any?> = listOf(offset, limit, withTotal, totalLimit)
+
+        companion object {
+            /** A [Offset] of the given values. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(
+                offset: Int,
+                limit: Int,
+                withTotal: Boolean,
+                totalLimit: Int? = null,
+            ): Offset = Offset(offset, limit, withTotal, totalLimit)
+        }
     }
 
     /** At most [limit] records strictly after [after] in sort order, from the first when [after] is `null`. */
-    data class Keyset(val after: CursorPosition?, val limit: Int) : PageWindow {
+    class Keyset @InternalWowApi constructor(val after: CursorPosition?, val limit: Int) : PageWindow {
         init {
             require(limit >= 1) { "limit must be greater than or equal to 1." }
+        }
+
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Keyset && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Keyset(after=$after, limit=$limit)"
+
+        private fun valueFields(): List<Any?> = listOf(after, limit)
+
+        companion object {
+            /** A [Keyset] of the given values. */
+            @JvmStatic
+            fun of(after: CursorPosition?, limit: Int): Keyset = Keyset(after, limit)
         }
     }
 }
@@ -127,9 +181,24 @@ sealed interface PageWindow {
 /** Which groups [QueryBackend.aggregate] returns. */
 sealed interface GroupWindow {
     /** The first [limit] groups in the query's effective sort order. */
-    data class First(val limit: Int) : GroupWindow {
+    class First @InternalWowApi constructor(val limit: Int) : GroupWindow {
         init {
             require(limit >= 1) { "limit must be greater than or equal to 1." }
+        }
+
+        override fun equals(other: Any?): Boolean =
+            this === other || other is First && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "First(limit=$limit)"
+
+        private fun valueFields(): List<Any?> = listOf(limit)
+
+        companion object {
+            /** A [First] of the given values. */
+            @JvmStatic
+            fun of(limit: Int): First = First(limit)
         }
     }
 

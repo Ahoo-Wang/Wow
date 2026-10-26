@@ -1,0 +1,14 @@
+{
+  "groups" : [ {
+    "name" : "wow.cosid",
+    "type" : "me.ahoo.wow.cosid.CosIdProperties",
+    "description" : "wow-cosid's settings, `wow.cosid.*`: the one default of each key, and the class its configuration metadata comes from. The module imports no Spring Boot, so WowCosIdAutoConfiguration reads its key from Spring's `Environment`, falling back to the default here; the host knows the key from the metadata this module ships."
+  } ],
+  "properties" : [ {
+    "name" : "wow.cosid.global-generator",
+    "type" : "java.lang.String",
+    "description" : "The CosId generator of the node's global ids (command ids, wait ids): CosId's shared generator, `cosid`, when not set.",
+    "sourceType" : "me.ahoo.wow.cosid.CosIdProperties",
+    "defaultValue" : "cosid"
+  } ]
+}

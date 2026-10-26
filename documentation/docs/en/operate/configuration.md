@@ -42,10 +42,10 @@ Such a failure, and any other value the host cannot start with, is a `WowConfigu
 
 Spring ignores a key no property binds, so a misspelled key would leave its default in place without a word. The host compares every `wow.*` key with the configuration metadata on the class path when it starts:
 
-- An unknown key is logged as a warning that names it.
-- An unknown key under `wow.cosec.`, `wow.http.services.`, `wow.calls.` or `wow.internal.` stops the start. Under `wow.http.services` and `wow.calls.contexts`, each entry's own keys are checked too: a mistyped `commands` would otherwise leave a service allowed to call every command.
+- An unknown key stops the start, naming it, and naming the key that took its place when it is one of an earlier version, or the module that declares it when that module is not on the class path.
+- Under a map of settings (`wow.aggregates`, `wow.stores`, `wow.subscriptions`, `wow.schedules`, `wow.callers`, `wow.peers`, `wow.http.errors`), each entry's own keys are checked to their leaves: a mistyped `commands` would otherwise leave a service allowed to call every command.
 
-Environment variables are not checked, because their names cannot be listed back. Check a deployment's variables against the reference when you set them.
+An environment variable named after a Wow group (`WOW_KAFKA_…`, `WOW_CLUSTER_…`: the first word of a key) is checked as Spring maps it, with underscores as dots and dashes left out, so a stale `WOW_KAFKA_TOPICS_DDL` refuses the start like `wow.kafka.topics.ddl`; give a variable of your own a name outside these groups.
 
 ## What must match across nodes
 
@@ -57,7 +57,7 @@ The nodes of one service form one cluster, so some settings must be the same on 
 
 ## Development and production
 
-A few defaults relax in a development profile, `dev`, `local`, `test` or `demo` (`wow.internal.dev-profiles`), or when the internal port binds the loopback interface alone:
+A few defaults relax in a development profile, `dev`, `local`, `test` or `demo` (`wow.dev-profiles`), or when the internal port binds the loopback interface alone:
 
 | Without | In development | In production |
 | --- | --- | --- |

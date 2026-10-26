@@ -23,7 +23,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AggregateTail
@@ -107,7 +107,7 @@ class PostgresEventLog(
     private val tailBatch: Int = DEFAULT_TAIL_BATCH,
     maxPollInterval: Duration = DEFAULT_MAX_POLL_INTERVAL,
     /** How the log's tables are managed: created when missing by default (review A5-10). */
-    private val ddl: StoreDdl = StoreDdl.AUTO,
+    private val ddl: Ddl = Ddl.AUTO,
 ) : EventLog,
     TagsBackfill {
     private val tables = PostgresEventLogTables(context)
@@ -134,7 +134,7 @@ class PostgresEventLog(
             PostgresFormat.schema(connection, ddl, structures) {
                 connection.createStatement().use { statement -> tables.ddl().forEach { statement.execute(it) } }
             }
-            if (ddl == StoreDdl.AUTO) {
+            if (ddl == Ddl.AUTO) {
                 // A counter table created before the lineage columns (D240) gets them before its counters are written.
                 PostgresFormat.addColumns(
                     connection,
@@ -221,7 +221,7 @@ class PostgresEventLog(
                     "which the aggregate ${holder.second} of ${holder.first} has."
             }
         }
-        if (ddl == StoreDdl.AUTO) {
+        if (ddl == Ddl.AUTO) {
             addColumns(connection, table)
         }
     }

@@ -30,6 +30,7 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.client.ClientMode
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.ForwardedHeaders
+import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.client.NamedCommand
 import me.ahoo.wow.client.PeerClients
 import me.ahoo.wow.client.PeerMode
@@ -265,7 +266,7 @@ class HostClientsTest {
                 service,
                 setOf("mail")
             )
-        }.message.assert().contains("not in wow.clients.contexts")
+        }.message.assert().contains("not in wow.peers")
         assertThrows<WowConfigurationException> {
             PeerClients(
                 mapOf(BANK to service),
@@ -281,38 +282,48 @@ class HostClientsTest {
         }.message.assert().contains("whose contract is on the class path")
         val peers = WowAutoConfiguration().wowPeerClients(
             WowProperties().apply {
-                clients.contexts["mail"] = WowProperties.Clients.ClientTarget().apply {
-                    contract = WowProperties.Clients.Contract.MANIFEST
+                peers["mail"] = WowProperties.PeerTarget().apply {
+                    contract = WowProperties.PeerTarget.Contract.MANIFEST
                 }
             },
             endpoints,
             NodeIdentity(SERVICE, "n-1", null, "127.0.0.1", "127.0.0.1"),
             none,
             GlobalIdGenerator.UUID_V7,
+            HttpCommandCaller.client(),
         )
         peers.described.assert().containsExactly("mail")
     }
 
     @Test
-    fun `the endpoints should merge the clients' with the sagas' calls`(): Unit = runBlocking {
+    fun `the endpoints should be each peer's internal and public URLs`(): Unit = runBlocking {
         val properties = WowProperties().apply {
-            calls.contexts["mail"] = WowProperties.Calls.CallTarget().apply { url = URI.create("http://mail:9090") }
-            clients.contexts["mail"] = WowProperties.Clients.ClientTarget().apply { url = URI.create("http://mail:8080") }
-            clients.contexts["box"] = WowProperties.Clients.ClientTarget().apply {
-                internalUrl = URI.create("http://box:9090")
+            peers["mail"] = WowProperties.PeerTarget().apply {
+                url = URI.create("http://mail:9090")
+                publicUrl = URI.create("http://mail:8080")
+            }
+            peers["box"] = WowProperties.PeerTarget().apply {
+                url = URI.create("http://box:9090")
                 mode = PeerMode.USER
             }
         }
-        val resolver = WowAutoConfiguration().wowEndpointResolver(properties)
+        val resolver = PeerEndpoints.of(
+            properties,
+            PeerDiscoveries.load(javaClass.classLoader),
+            { emptyMap() }
+        ) { null }
         resolver.resolve("mail", Port.PUBLIC).assert().isEqualTo(URI.create("http://mail:8080"))
         resolver.resolve("mail", Port.INTERNAL).assert().isEqualTo(URI.create("http://mail:9090"))
         resolver.resolve("box", Port.INTERNAL).assert().isEqualTo(URI.create("http://box:9090"))
         val peers = WowAutoConfiguration().wowPeerClients(
-            WowProperties().apply { clients.contexts[BANK] = WowProperties.Clients.ClientTarget() },
+            WowProperties().apply {
+                peers[BANK] = WowProperties.PeerTarget().apply { timeout = java.time.Duration.ofSeconds(5) }
+            },
             endpoints,
             NodeIdentity(SERVICE, "n-1", null, "127.0.0.1", "127.0.0.1"),
             contracts,
             GlobalIdGenerator.UUID_V7,
+            HttpCommandCaller.client(),
         )
         peers.contexts.assert().containsExactly(BANK)
         WowAutoConfiguration().wowClient(peers).assert().isSameAs(peers.client)
@@ -321,7 +332,7 @@ class HostClientsTest {
     @Test
     fun `the public requests' credential headers should be in the coroutine context of their handling`() {
         val filter = WowAutoConfiguration().wowForwardedHeadersFilter(
-            WowProperties().apply { clients.forwardedHeaders = mutableListOf("Authorization", " ") },
+            WowProperties().apply { peer.forwardedHeaders = mutableListOf("Authorization", " ") },
         )
         fun contextOf(request: MockServerHttpRequest): CoroutineContext? {
             val exchange = MockServerWebExchange.from(request)

@@ -33,14 +33,30 @@ enum class Port {
 fun interface EndpointResolver {
     suspend fun resolve(context: String, port: Port): URI?
 
+    /**
+     * Every base URL of [context]'s [port], the nodes a request may go to in turn: the client rotates through them and
+     * fails over to the next on a connection that was not made, or on a node that refused before handling (decision
+     * D305). [resolve]'s alone by default.
+     */
+    suspend fun resolveAll(context: String, port: Port): List<URI> = listOfNotNull(resolve(context, port))
+
+    /**
+     * Whether [context]'s [port] may be found, without looking it up: a node checks at startup that its sagas reach
+     * the contexts they call, and a peer found by DNS need not be up then. Whether [resolve] finds one, by default.
+     */
+    suspend fun reaches(context: String, port: Port): Boolean = resolve(context, port) != null
+
+    /** Hears that no base URL of [context]'s [port] took a connection, so a resolver may look again before it would. */
+    fun unreachable(context: String, port: Port) = Unit
+
     companion object {
         /** Resolves nothing: every call fails for want of an address. */
         @JvmField
         val NONE: EndpointResolver = EndpointResolver { _, _ -> null }
 
         /**
-         * The fixed base URLs of each context's public routes ([publicUrls], `wow.clients.contexts.<context>.url`) and
-         * its internal port ([internalUrls], `wow.clients.contexts.<context>.internal-url`), each `http` or `https`.
+         * The fixed base URLs of each context's public routes ([publicUrls], `wow.peers.<context>.public-url`) and
+         * its internal port ([internalUrls], `wow.peers.<context>.url`), each `http` or `https`.
          */
         @JvmStatic
         @JvmOverloads

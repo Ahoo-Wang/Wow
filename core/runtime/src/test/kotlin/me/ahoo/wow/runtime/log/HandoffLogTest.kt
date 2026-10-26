@@ -62,7 +62,7 @@ class HandoffLogTest {
         gapWait: Duration = 10.seconds,
         probeInterval: Duration = 10.seconds,
         log: EventLog = store,
-    ) = HandoffLog(log, "bank", HandoffOptions(true, capacity, gapWait, probeInterval), reads)
+    ) = HandoffLog(log, "bank", HandoffOptions(capacity, gapWait, probeInterval), reads)
 
     /** Aggregate ids that all land in partition 0. */
     private val refs: List<AggregateRef> = generateSequence(0) { it + 1 }
@@ -444,14 +444,6 @@ class HandoffLogTest {
     }
 
     @Test
-    fun `turned off, a tail is the store's`(): Unit = runBlocking {
-        val log = HandoffLog(store, "bank", HandoffOptions(enabled = false))
-        log.append(next(refs[0]))
-        withTimeout(10.seconds) { log.tail(0).takeTwo(1) }.single().position.sequence.assert().isEqualTo(1L)
-        store.tails.get().assert().isEqualTo(1)
-    }
-
-    @Test
     fun `a tail of a partition the log does not have is refused`() {
         assertThrows<IllegalArgumentException> { handoff().tail(PARTITIONS, null) }
     }
@@ -463,7 +455,7 @@ class HandoffLogTest {
         assertThrows<IllegalArgumentException> { HandoffOptions(probeInterval = Duration.ZERO) }
         HandoffOptions().assert().isEqualTo(HandoffOptions())
         HandoffOptions().hashCode().assert().isEqualTo(HandoffOptions().hashCode())
-        HandoffOptions(enabled = false).assert().isNotEqualTo(HandoffOptions())
+        HandoffOptions(capacity = 1).assert().isNotEqualTo(HandoffOptions())
         HandoffOptions().toString().assert().contains("capacity=1024")
     }
 

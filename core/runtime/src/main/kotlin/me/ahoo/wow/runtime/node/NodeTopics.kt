@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.node
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.log.Partitioner
 
 /**
@@ -37,18 +38,18 @@ internal object NodeTopics {
     private val logger = KotlinLogging.logger {}
 
     /**
-     * Prepares [requirements] in [topics]: under [TopicDdl.AUTO], creates the missing ones, then, under it or
-     * [TopicDdl.VALIDATE], fails unless each exists, with exactly its partitions when [TopicRequirement.exact], saying
-     * every topic that is not as [node] needs it. Under [TopicDdl.NONE], does nothing.
+     * Prepares [requirements] in [topics]: under [Ddl.AUTO], creates the missing ones, then, under it or
+     * [Ddl.VALIDATE], fails unless each exists, with exactly its partitions when [TopicRequirement.exact], saying
+     * every topic that is not as [node] needs it. Under [Ddl.NONE], does nothing.
      */
     suspend fun prepare(node: String, topics: SourceTopics, requirements: List<TopicRequirement>) {
-        if (topics.ddl == TopicDdl.NONE || requirements.isEmpty()) {
+        if (topics.ddl == Ddl.NONE || requirements.isEmpty()) {
             return
         }
         val admin = checkNotNull(topics.admin) { "Topics are validated or created through an admin." }
         val names = requirements.mapTo(LinkedHashSet()) { it.topic }
         var found = admin.partitions(names)
-        if (topics.ddl == TopicDdl.AUTO) {
+        if (topics.ddl == Ddl.AUTO) {
             val missing = requirements.filter { it.topic !in found }
             if (missing.isNotEmpty()) {
                 admin.create(missing.associate { it.topic to it.partitions })
@@ -71,11 +72,11 @@ internal object NodeTopics {
         check(problems.isEmpty()) {
             "The topics of node $node are not as it needs them (topic DDL ${topics.ddl.name.lowercase()}): " +
                 "${problems.joinToString("; ")}. " +
-                if (topics.ddl == TopicDdl.AUTO) {
+                if (topics.ddl == Ddl.AUTO) {
                     "A topic that exists is never altered: give it the partitions it needs by hand."
                 } else {
                     "Create them so, or let the node create the missing ones (with Spring Boot, " +
-                        "wow.kafka.topics.ddl=auto)."
+                        "wow.kafka.ddl=auto)."
                 }
         }
     }

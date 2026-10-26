@@ -1,3 +1,8 @@
+// The test fixtures: the generator of the configuration metadata, which the platform services' tests use too.
+plugins {
+    `java-test-fixtures`
+}
+
 description = "Wow Spring Boot: auto-configuration by classpath; wiring only"
 
 dependencies {
@@ -26,6 +31,10 @@ dependencies {
     // against neither the Kafka transport nor the ClickHouse Sink; the ClickHouse dataset backend is wired when the
     // application has it. The query plane comes with wow-http.
     compileOnly(project(":clickhouse"))
+    // The application's DataSource and MongoClient from its properties alone (decisions D310, D318), when it has
+    // HikariCP or wow-mongo and no Spring Boot JDBC or MongoDB of its own.
+    compileOnly("com.zaxxer:HikariCP")
+    compileOnly("org.mongodb:mongodb-driver-sync")
     // CoSec is wired when the application has wow-cosec and CoSec's WebFlux module, as Kafka is (review R5.C-12).
     compileOnly(project(":cosec"))
     compileOnly(libs.cosec.webflux)
@@ -50,6 +59,8 @@ dependencies {
     testImplementation("org.springdoc:springdoc-openapi-starter-webflux-api")
     testImplementation(libs.json.schema.validator)
     testImplementation(testFixtures(project(":manifest")))
+    // The host's DataSource (decision D310).
+    testImplementation("com.zaxxer:HikariCP")
     testImplementation(project(":postgres"))
     testImplementation(project(":mongo"))
     testImplementation(project(":kafka"))

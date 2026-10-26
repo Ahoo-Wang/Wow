@@ -18,8 +18,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.gatewaySchema
-import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
 import org.junit.jupiter.api.Test
@@ -74,11 +74,11 @@ class StoreQueryProviderTest {
         ).isNotEqualTo(QueryIndexReport.NONE)
         report.hashCode().assert().isEqualTo(QueryIndexReport(listOf("a"), listOf("b"), listOf("c")).hashCode())
         report.toString().assert().isEqualTo("QueryIndexReport(created=[a], missing=[b], invalid=[c])")
-        val options = StoreQueryOptions.of(QueryIndexDdl.VALIDATE, "secondaryPreferred")
-        options.indexDdl.assert().isEqualTo(QueryIndexDdl.VALIDATE)
+        val options = StoreQueryOptions.of(Ddl.VALIDATE, "secondaryPreferred")
+        options.indexDdl.assert().isEqualTo(Ddl.VALIDATE)
         options.eventsReadPreference.assert().isEqualTo("secondaryPreferred")
         options.toString().assert().contains("VALIDATE", "secondaryPreferred")
-        StoreQueryOptions.DEFAULT.indexDdl.assert().isEqualTo(QueryIndexDdl.AUTO)
+        StoreQueryOptions.DEFAULT.indexDdl.assert().isEqualTo(Ddl.AUTO)
         StoreQueryOptions.DEFAULT.eventsReadPreference.assert().isNull()
     }
 }

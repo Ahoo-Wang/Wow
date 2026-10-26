@@ -7,24 +7,23 @@ server:
 wow:
   service: eshop-ordering-service
   # One node, its data in memory, for trying the service out. The `postgres` profile serves it from PostgreSQL; the
-  # `kafka` profile connects it to the other contexts, which the node needs to start: its sagas send the inventory's
-  # commands.
+  # `kafka` profile connects it to the other contexts; without it, the node on this machine keeps its topics in its
+  # JVM (wow.transport), where the inventory does not see the commands its sagas send.
   backend: memory
   internal:
     port: 9093
     # On this machine only, for trying the shop out: the basket service calls the order gateway here.
     host: 127.0.0.1
-  http:
-    # The basket service's checkout calls this command gateway synchronously (decision D193), on the internal port
-    # alone, naming itself (Wow-Service, decision D300): the internal port is reachable by the shop's own pods alone,
-    # so a service that names itself is taken on that network's word, and may name the buyer the order is for.
-    services:
-      eshop-basket-service:
-        # The commands the basket may call (decision D226), a list that catches a misconfiguration: its checkout
-        # submits the order, and nothing else. A system command (wow.*: delete, restore, transfers, tags) is never
-        # called unless listed here.
-        commands:
-          - eshop-ordering.order.SubmitOrder
+  # The basket service's checkout calls this command gateway synchronously (decision D193), on the internal port
+  # alone, naming itself (Wow-Service, decision D300): the internal port is reachable by the shop's own pods alone,
+  # so a service that names itself is taken on that network's word, and may name the buyer the order is for.
+  callers:
+    eshop-basket-service:
+      # The commands the basket may call (decision D226), a list that catches a misconfiguration: its checkout
+      # submits the order, and nothing else. A system command (wow.*: delete, restore, transfers, tags) is never
+      # called unless listed here.
+      commands:
+        - eshop-ordering.order.SubmitOrder
 # endregion
 eshop:
   ordering:
@@ -55,14 +54,11 @@ spring:
 # region kafka
 wow:
   kafka:
-    # Creates the topics the service owns when they are missing, for trying it out; production validates them, the
-    # default (decision D168).
-    topics:
-      ddl: auto
     bootstrap-servers: localhost:9092
     # Execute the commands other contexts send to wow.eshop-ordering.commands (the payment's), which has as many
     # partitions as the context's log (wow.log.partitions, 64 by default).
-    command-intake: true
+    command-intake:
+      enabled: true
 # endregion
 ---
 # region clickhouse

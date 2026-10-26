@@ -318,7 +318,8 @@ class SagaCallBindingTest {
                 registry,
                 SubscriptionDirectory.NONE,
                 LocalSignalSender("mail-node-1", registry),
-                WaitOptions(Origin("mail-node-1", "127.0.0.1:9191", "mail-service"), maxTimeout = 5.seconds),
+                Origin("mail-node-1", "127.0.0.1:9191", "mail-service"),
+                WaitOptions(maxTimeout = 5.seconds),
             )
             return CommandGateway(ModelRegistry(listOf(model)), mapOf("mail" to coordinator))
         }

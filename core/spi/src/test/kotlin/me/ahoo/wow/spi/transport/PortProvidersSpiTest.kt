@@ -31,14 +31,14 @@ class PortProvidersSpiTest {
             "kafka",
             "kafka",
             mapOf("bootstrap-servers" to "b:9092", "blank" to " ", "properties.linger.ms" to "5"),
-            profiles = setOf("dev"),
+            development = true,
         )
         config.key.assert().isEqualTo("wow.kafka")
         config.option("bootstrap-servers").assert().isEqualTo("b:9092")
         config.option("blank").assert().isNull()
         config.option("missing").assert().isNull()
         config.options("properties").assert().isEqualTo(mapOf("linger.ms" to "5"))
-        config.profiles.assert().containsExactly("dev")
+        config.development.assert().isTrue()
         config.toString().assert().contains("kafka").doesNotContain("b:9092")
         assertThrows<IllegalArgumentException> { TransportConfig.of(" ", "kafka") }
         assertThrows<IllegalArgumentException> { TransportConfig.of("kafka", " ") }

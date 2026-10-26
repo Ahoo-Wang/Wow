@@ -26,7 +26,7 @@ import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 /**
- * The peers described by their Manifest alone (decision D257, `wow.clients.contexts.<context>.contract: manifest`):
+ * The peers described by their Manifest alone (decision D257, `wow.peers.<context>.contract: manifest`):
  * the [contexts] a [NamedCommand] is sent to, each one's Manifest read from its `GET /wow/manifest` on the port
  * [transport]'s mode calls, as the caller of the command that needs it, and kept for [ttl]. A command it does not
  * declare is read again once, for a peer deployed since, before it is refused.
@@ -47,7 +47,7 @@ internal class ManifestPeers(
     /** The Manifest of [context], read as [caller] asserting [call] in service mode, or kept from a read before. */
     suspend fun manifestOf(context: String, caller: Caller, call: CallWire?): Manifest {
         require(describes(context)) {
-            "$context is not described by its Manifest: list it in wow.clients.contexts with contract: manifest."
+            "$context is not described by its Manifest: list it in wow.peers with contract: manifest."
         }
         return reads[context]?.takeIf { it.at.elapsedNow() < ttl }?.manifest ?: fetch(context, caller, call)
     }

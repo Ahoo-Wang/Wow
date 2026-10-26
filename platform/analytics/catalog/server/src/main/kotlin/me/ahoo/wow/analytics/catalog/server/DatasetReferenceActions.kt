@@ -72,7 +72,7 @@ class ReferenceActionRefusal(val problem: Problem) : RuntimeException(problem.de
  *
  * - [actionsOf]: per REFERENCE field of the version a dataset serves, the commands the owning context's Manifest
  *   declares on the aggregate (read through the [manifests] of the peers [described] by their Manifest,
- *   `wow.clients.contexts.<context>.contract: manifest`) that create nothing and take a flat body, whose properties
+ *   `wow.peers.<context>.contract: manifest`) that create nothing and take a flat body, whose properties
  *   are strings, numbers, booleans or enumerations: what a row's form can ask for. A context without such a client
  *   offers nothing, nor does one whose Manifest cannot be read now.
  * - [send]: a command [actionsOf] offers, sent through the service's [commands] as a [NamedCommand] to the aggregate

@@ -91,7 +91,7 @@ class EshopLedgerOpsTest {
         arguments(PAYMENT_DATABASE) + listOf(
             "--eshop.payment.gateway.outage-file=${outage.path}",
             // The payment context takes the ledger's commands from its command topic, and publishes its ledger.
-            "--wow.kafka.command-intake=true",
+            "--wow.kafka.command-intake.enabled=true",
             "--wow.ops.publish.enabled=true",
             "--wow.ops.publish.interval=500ms",
             // A failing charge parks after two attempts, and waits for an operator.

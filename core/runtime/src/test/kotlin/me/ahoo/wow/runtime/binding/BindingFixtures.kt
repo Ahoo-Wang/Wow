@@ -56,6 +56,7 @@ class CartState {
 }
 
 const val FORBIDDEN_ITEM = "forbidden"
+const val BLANK_ITEM = " "
 const val FORBIDDEN = "cart.forbidden"
 
 fun orderModel(): AggregateModel<OrderState> = aggregate<OrderState>(SHOP, "order") {
@@ -71,6 +72,8 @@ fun cartModel(decided: MutableList<String> = CopyOnWriteArrayList()): AggregateM
         decide<AddItems>(Creation.ALLOWED) { _, body -> Decision.events(ItemsAdded(body.items)) }
         decide<RemoveItems> { state, body ->
             decided += command.id
+            // A require refuses the command as a rejection does (decision D311): wow.command.invalid.
+            require(BLANK_ITEM !in body.items) { "An item has a name." }
             when {
                 FORBIDDEN_ITEM in body.items -> Decision.reject(FORBIDDEN, "$FORBIDDEN_ITEM cannot be removed.")
                 body.items.none { it in state.items } -> Decision.NoOp

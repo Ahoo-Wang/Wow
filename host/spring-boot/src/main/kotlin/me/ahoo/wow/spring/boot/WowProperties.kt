@@ -25,15 +25,16 @@ import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.ops.WebhookNotifier
 import me.ahoo.wow.kernel.HandlerRetry
+import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.query.events.UnpinnedEvents
+import me.ahoo.wow.runtime.ExecutorOptions
 import me.ahoo.wow.runtime.InFlightLimit
+import me.ahoo.wow.runtime.StateCacheOptions
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.health.HealthOptions
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
-import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.log.HandoffOptions
 import me.ahoo.wow.runtime.node.Routing
-import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
@@ -49,11 +50,13 @@ import me.ahoo.wow.runtime.subscription.SystemicFailureOptions
 import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.runtime.wait.WaitOptions
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.TailPolling
 import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.context.properties.bind.Binder
+import org.springframework.core.env.Environment
 import java.net.URI
 import java.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -87,9 +90,17 @@ class WowProperties {
     var contexts: Contexts = Contexts()
 
     /**
+     * The profiles in which the node runs for development, as it does when its internal port binds a loopback address
+     * alone: `wow.backend=auto` falls back to memory when no durable backend is available, the public port serves
+     * without a `CallerResolver` bean, a single Kafka broker gives no durability warning, and a platform service may
+     * take its callers from request headers. None of them is allowed in a deployment.
+     */
+    var devProfiles: MutableSet<String> = linkedSetOf("dev", "local", "test", "demo")
+
+    /**
      * The backend of a node that names no `wow.stores`: `auto` (the default) takes PostgreSQL or MongoDB by the
      * application's `DataSource` or `MongoClient`, and refuses to start without either, so that data is not lost by
-     * mistake, unless a profile of `wow.internal.dev-profiles` is active or the internal port binds the loopback
+     * mistake, unless a profile of `wow.dev-profiles` is active or the internal port binds the loopback
      * interface alone; `memory` keeps the data in memory on purpose, for one node whose data does not outlive it.
      * `postgres`, `mongo` or the type of a community backend's store provider (`me.ahoo.wow.spi.store.StoreProvider`)
      * name one.
@@ -101,7 +112,7 @@ class WowProperties {
      * missing (the default), `validate` creates nothing and refuses a store whose schema is missing or in another
      * format, `none` creates and checks nothing; `wow.stores.<name>.ddl` overrides it for one store.
      */
-    var ddl: StoreDdl = StoreDdl.AUTO
+    var ddl: Ddl = Ddl.AUTO
 
     /** The defaults of the MongoDB stores. */
     var mongo: Mongo = Mongo()
@@ -131,8 +142,23 @@ class WowProperties {
     var schedules: MutableMap<String, Schedule> = LinkedHashMap()
     var tenant: Tenant = Tenant()
     var http: Http = Http()
-    var calls: Calls = Calls()
-    var clients: Clients = Clients()
+
+    /** How the node calls its peers, the services of the other contexts it calls over HTTP: `wow.peer.*`. */
+    var peer: Peer = Peer()
+
+    /**
+     * The peer contexts called over HTTP, by context (`wow.peers.<context>.*`): a saga's synchronous calls to that
+     * context and the typed clients of it go to its service. A context not listed is reached through its topic. A saga
+     * that calls a context without an address fails, then parks.
+     */
+    var peers: MutableMap<String, PeerTarget> = LinkedHashMap()
+
+    /**
+     * What each service that calls this one may call and read on the internal port, by the name it states
+     * (`Wow-Service`, its `spring.application.name`): optional lists that catch a misconfiguration. The internal port
+     * is reachable by the platform's own pods alone; a service that names itself is taken on that network's word.
+     */
+    var callers: MutableMap<String, CallerPermits> = LinkedHashMap()
     var ops: Ops = Ops()
 
     /** Per aggregate type, by `<context>.<aggregate>` (bracketed in a property name: `wow.aggregates.[shop.cart]`). */
@@ -141,17 +167,21 @@ class WowProperties {
     /** The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are. */
     var cosec: CoSec = CoSec()
 
-    /** The keys wow-cosid reads (`wow.cosid.*`), bound here as [cosec] is. */
-    var cosid: CosId = CosId()
+    /** The settings of the platform services that run on the host: `wow.platform.*`. */
+    var platform: Platform = Platform()
+
+    /** The timeout of each peer that sets its own, `wow.peers.<context>.timeout`. */
+    internal fun peerTimeouts(): Map<String, kotlin.time.Duration> =
+        peers.mapNotNull { (context, target) -> target.timeout?.let { context to it.toKotlinDuration() } }.toMap()
 
     /** Where `wow.log`, `wow.snapshot` and `wow.aggregates` place the logs and snapshots. */
     internal fun storePlacements(): StorePlacements = StorePlacements(
         log = log.store,
-        snapshot = snapshot.store,
-        snapshotTargets = snapshot.targets,
+        snapshot = snapshot.stores.firstOrNull { it.isNotBlank() },
+        snapshotTargets = snapshot.stores,
         snapshotPrimary = snapshot.primary,
         aggregates = aggregates.mapValues { (_, aggregate) ->
-            AggregatePlacement(aggregate.log.store, aggregate.snapshot.store, aggregate.snapshot.primary)
+            AggregatePlacement(aggregate.log.store, aggregate.snapshot.stores, aggregate.snapshot.primary)
         },
     )
 
@@ -167,39 +197,34 @@ class WowProperties {
     /** The node's health and its probes, when the application has Spring Boot Actuator: `wow.health.*`. */
     var health: Health = Health()
 
-    /** The node's topics without Kafka, for local development, see [Topics]. */
-    var topics: Topics = Topics()
-
     /**
-     * Whether the node starts on standby: through the dual-run window of a migration's
-     * cut-over it serves reads of what `migrate-data` imports, refuses every command (`wow.node.standby`, 503), and
-     * handles no subscription, retries no parked entry and runs no job, until its operator resumes it on the internal
-     * port (`POST /wow/node/resume` from a node of its service, naming who resumes it). A subscription that starts at the
-     * end of its stream starts where the stream ends at the resume.
+     * The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with
+     * `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a
+     * profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none, which a service whose
+     * Manifest needs topics refuses. `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or
+     * a community provider's type, names the transport.
      */
-    var standby: Boolean = false
-
-    /**
-     * Topics for trying a service out without Kafka. With `wow.topics.in-memory` (false), the node keeps
-     * the topics a Kafka cluster would hold in its JVM: the command topics of its contexts, which it executes, and
-     * their published streams, each with `wow.log.partitions` partitions. A saga's command to another context the
-     * node serves then needs no Kafka, and services in one JVM that share the same in-memory topics bean reach each
-     * other's topics; separate JVMs do not. Nothing survives a restart. The node warns at startup, and does not start
-     * with `wow.kafka.bootstrap-servers` too: for local development and tests only.
-     */
-    @InternalWowApi
-    class Topics {
-        /** Whether the node's topics are in its JVM instead of Kafka. */
-        var inMemory: Boolean = false
-    }
+    var transport: String = TransportSelection.AUTO
 
     @InternalWowApi
     class Node {
         /** This node's id among the nodes of the service; a new one each start when not set. */
         var id: String? = null
 
-        /** The `host:port` of this node's internal port, as the other nodes reach it. */
+        /**
+         * The `host:port` of this node's internal port that it advertises, as the other nodes reach it; the address
+         * the port binds is `wow.internal.host`.
+         */
         var address: String? = null
+
+        /**
+         * Whether the node starts on standby: through the dual-run window of a migration's cut-over it serves reads of
+         * what `migrate-data` imports, refuses every command (the error `wow.node.standby`, 503), and handles no
+         * subscription, retries no parked entry and runs no job, until its operator resumes it on the internal port
+         * (`POST /wow/node/resume` from a node of its service, naming who resumes it). A subscription that starts at
+         * the end of its stream starts where the stream ends at the resume.
+         */
+        var standby: Boolean = false
     }
 
     @InternalWowApi
@@ -224,12 +249,6 @@ class WowProperties {
          * hold the sender's memory.
          */
         var signalQueueCapacity: Int = HttpSignalSender.DEFAULT_QUEUE_CAPACITY
-
-        /**
-         * The development profiles, `dev`, `local`, `test` and `demo`: in them `wow.backend=auto` falls back to memory
-         * when no durable backend is available.
-         */
-        var devProfiles: MutableSet<String> = linkedSetOf("dev", "local", "test", "demo")
     }
 
     /**
@@ -283,6 +302,14 @@ class WowProperties {
          * `options.operation-timeout` overrides it.
          */
         var operationTimeout: Duration = 30.seconds.toJavaDuration()
+
+        /**
+         * The read preference of the snapshot and `events` queries of a MongoDB store (`secondaryPreferred`, say), so
+         * a free filter scans a secondary rather than the primary the log appends to; the primary when not set. A
+         * snapshot read from a secondary may be behind the one a command's wait waited for. A store's
+         * `options.query-read-preference` overrides it.
+         */
+        var queryReadPreference: String? = null
     }
 
     @InternalWowApi
@@ -296,9 +323,6 @@ class WowProperties {
                 field = Partitioner.requirePartitions(value)
             }
 
-        /** How the appends of one partition are queued and grouped into one call: `wow.log.append-queue.*`. */
-        var appendQueue: AppendQueue = AppendQueue()
-
         /** How often the tail of a PostgreSQL or MongoDB log polls while it finds entries. */
         var pollInterval: Duration = TailPolling.DEFAULT.interval.toJavaDuration()
 
@@ -310,18 +334,11 @@ class WowProperties {
             TailPolling(pollInterval.toKotlinDuration(), maxPollInterval.toKotlinDuration())
 
         /**
-         * The hand-over of the node's own commits to its tails in memory: a tail waits its gap wait
-         * for a missing sequence and [maxPollInterval] without a commit before it reads the store.
+         * The hand-over of the node's own commits to its tails in memory, always on: a tail waits
+         * [maxPollInterval] without a commit before it reads the store.
          */
-        var handoff: Handoff = Handoff()
-
-        /** The hand-over these settings give. */
-        internal fun handoffOptions(): HandoffOptions = HandoffOptions(
-            enabled = handoff.enabled,
-            capacity = handoff.capacity,
-            gapWait = handoff.gapWait.toKotlinDuration(),
-            probeInterval = maxPollInterval.toKotlinDuration(),
-        )
+        internal fun handoffOptions(): HandoffOptions =
+            HandoffOptions(probeInterval = maxPollInterval.toKotlinDuration())
 
         /**
          * The store of every aggregate's log that `wow.aggregates.[<context>.<aggregate>].log.store` does not name:
@@ -351,7 +368,7 @@ class WowProperties {
         var options: MutableMap<String, String> = LinkedHashMap()
 
         /** How this store manages the framework's schema, over `wow.ddl`. */
-        var ddl: StoreDdl? = null
+        var ddl: Ddl? = null
 
         /** How the store's snapshot and `events` queries run. */
         var query: StoreQuery = StoreQuery()
@@ -371,27 +388,24 @@ class WowProperties {
      * How one store's queries run (`wow.stores.<name>.query.*`): [maxConcurrent], how many run at once, over
      * `wow.query.max-concurrent` (beyond it a query is `wow.query.busy`, 429; `0` for no bound); [maxWait] and
      * [maxQueued], how long and how many queries beyond it wait for a permit, over `wow.query.max-wait` and
-     * `wow.query.max-queued`; [readPreference], the MongoDB read preference of its snapshot and `events` queries
-     * (`secondaryPreferred`, say), over `wow.query.events.mongo-read-preference` for the events; [events], its `events`
-     * queries; [adaptive], how its bound adapts to its write pressure, over `wow.query.adaptive.*`.
+     * `wow.query.max-queued`; [events], its `events` queries; [adaptive], how its bound adapts to its write pressure,
+     * over `wow.query.adaptive.*`.
      */
     @InternalWowApi
     class StoreQuery {
         var maxConcurrent: Int? = null
         var maxWait: Duration? = null
         var maxQueued: Int? = null
-        var readPreference: String? = null
         var events: QueryEvents = QueryEvents()
         var adaptive: StoreAdaptive = StoreAdaptive()
     }
 
     /**
-     * How one store's query bound adapts to its write pressure (`wow.stores.<name>.query.adaptive.*`):
-     * [enabled], [floor] and [ceiling] over `wow.query.adaptive.*`.
+     * How one store's query bound adapts to its write pressure (`wow.stores.<name>.query.adaptive.*`): [floor] and
+     * [ceiling] over `wow.query.adaptive.*`.
      */
     @InternalWowApi
     class StoreAdaptive {
-        var enabled: Boolean? = null
         var floor: Int? = null
         var ceiling: Int? = null
     }
@@ -423,25 +437,20 @@ class WowProperties {
     }
 
     /**
-     * Where the snapshots are, and how the snapshot maintenance runs. Snapshots may have several target stores; a
-     * store added to the targets is backfilled from the log: switch the primary to it once it caught up, then drop the
-     * old one.
+     * Where the snapshots are, and how the snapshot maintenance runs. Snapshots may be written to several stores; a
+     * store added to them is backfilled from the log: switch the primary to it once it caught up, then drop the old
+     * one.
      */
     @InternalWowApi
     class Snapshot {
         /**
-         * The context's default snapshot store, one of `wow.stores`, whose built-in subscription is `snapshot`;
-         * `wow.log.store` when not set.
+         * The stores of `wow.stores` every aggregate's snapshots are written to, unless its
+         * `wow.aggregates.[<context>.<aggregate>].snapshot.stores` names others; `wow.log.store` alone when empty. The
+         * first one's built-in subscription is `snapshot`, each other one's `snapshot:<store>`.
          */
-        var store: String? = null
+        var stores: MutableList<String> = ArrayList()
 
-        /**
-         * The stores every aggregate's snapshots are written to, unless its
-         * `wow.aggregates.[<context>.<aggregate>].snapshot.store` names others; only `wow.snapshot.store` when empty.
-         */
-        var targets: MutableList<String> = ArrayList()
-
-        /** The one of the targets the write side and the queries read; the first when not set. */
+        /** The one of the stores the write side and the queries read; the first when not set. */
         var primary: String? = null
 
         /** How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks. */
@@ -470,13 +479,12 @@ class WowProperties {
     }
 
     /**
-     * One aggregate type's snapshot targets: [store] lists the stores of `wow.stores` its
-     * snapshots are written to, over `wow.snapshot.targets`; [primary] is the one its write side and queries read, the
-     * first when not set.
+     * One aggregate type's snapshot stores: [stores] lists the stores of `wow.stores` its snapshots are written to,
+     * over `wow.snapshot.stores`; [primary] is the one its write side and queries read, the first when not set.
      */
     @InternalWowApi
     class AggregateSnapshot {
-        var store: MutableList<String> = ArrayList()
+        var stores: MutableList<String> = ArrayList()
         var primary: String? = null
     }
 
@@ -484,61 +492,6 @@ class WowProperties {
     @InternalWowApi
     class AggregateStore {
         var store: String? = null
-    }
-
-    /**
-     * The hand-over of the node's own commits to the tails of its subscriptions in memory: the tails read the store
-     * only to catch up, when no append of the node can fill a missing sequence any more, or when no commit comes for
-     * `wow.log.max-poll-interval`.
-     */
-    @InternalWowApi
-    class Handoff {
-        /** Whether the node hands its own commits to its subscriptions' tails in memory. */
-        var enabled: Boolean = true
-
-        /** The most entries one tail holds that it has not taken; a tail further behind reads the store instead. */
-        var capacity: Int = DEFAULT_HANDOFF.capacity
-
-        /**
-         * The longest a tail waits for a missing sequence that an append of the node still in flight may hold; once
-         * every such append returned without it, the tail reads the store at once.
-         */
-        var gapWait: Duration = DEFAULT_HANDOFF.gapWait.toJavaDuration()
-    }
-
-    /** The partition append queue; each setting not given is the default ([AppendQueueOptions]). */
-    @InternalWowApi
-    class AppendQueue {
-        /**
-         * Whether the appends of one partition are queued and committed in groups, one call a group; on when not set.
-         * A group carries more under load than single appends and costs a few per cent at low concurrency.
-         */
-        var enabled: Boolean? = null
-
-        /** The most appends one group of a partition carries; 64 when not set. */
-        var maxBatch: Int? = null
-
-        /**
-         * Whether the groups of several partitions are merged into one call, on a log that takes several partitions
-         * a call: on by default, for MongoDB and PostgreSQL; a log that does not take them is called per partition.
-         */
-        var merge: Boolean? = null
-
-        /** The committers of the merged groups, each with one call in flight; 2 when not set. */
-        var mergers: Int? = null
-
-        /** The most streams one merged call takes; 512 when not set. */
-        var mergeMax: Int? = null
-
-        fun options(): AppendQueueOptions = AppendQueueOptions().let { default ->
-            AppendQueueOptions(
-                enabled = enabled ?: default.enabled,
-                maxBatch = maxBatch ?: default.maxBatch,
-                merge = merge ?: default.merge,
-                mergers = mergers ?: default.mergers,
-                mergeMax = mergeMax ?: default.mergeMax,
-            )
-        }
     }
 
     /** How the nodes of a service share the partitions of each context's log, and forward commands to their owners. */
@@ -639,25 +592,35 @@ class WowProperties {
          * ACCEPTED is not run and is answered `wow.command.busy` (429, with `Retry-After`), FAILED at ACCEPTED.
          */
         var maxRegistered: Int = WaitOptions.DEFAULT_MAX_REGISTERED
+
+        fun options(): WaitOptions = WaitOptions(
+            maxTimeout.toKotlinDuration(),
+            maxHops,
+            defaultTimeout.toKotlinDuration(),
+            unknownContexts,
+            maxRegistered,
+        )
     }
 
     /** How the node executes commands. */
     @InternalWowApi
     class Executor {
         /** The commands one aggregate may have waiting in the executor. */
-        var laneCapacity: Int = ServiceNodeOptions.DEFAULT_LANE_CAPACITY
+        var laneCapacity: Int = me.ahoo.wow.runtime.Executor.DEFAULT_LANE_CAPACITY
 
         /**
          * The most of one aggregate's queued commands the executor decides in turn and commits with one append; 1
          * runs each alone. It never waits to fill a batch.
          */
-        var maxBatch: Int = ServiceNodeOptions.DEFAULT_MAX_BATCH
+        var maxBatch: Int = me.ahoo.wow.runtime.Executor.DEFAULT_MAX_BATCH
 
         /**
          * The commands the node may have in flight, all contexts together: beyond it a command is
          * refused as `wow.command.busy` (429, with `Retry-After`) instead of queued.
          */
         var maxInFlight: Int = InFlightLimit.DEFAULT_MAX
+
+        fun options(): ExecutorOptions = ExecutorOptions(laneCapacity, maxBatch, maxInFlight)
     }
 
     /**
@@ -697,7 +660,9 @@ class WowProperties {
          * The requests each cached aggregate keeps of those it committed last, derived from the log, so
          * that most commands skip looking their request id up; 0 looks every request id up.
          */
-        var recentRequests: Int = ServiceNodeOptions.DEFAULT_RECENT_REQUESTS
+        var recentRequests: Int = Kernel.DEFAULT_RECENT_REQUESTS
+
+        fun options(): StateCacheOptions = StateCacheOptions(capacity, recentRequests)
     }
 
     /** How the node's subscriptions run, retry their failures and park what keeps failing. */
@@ -849,7 +814,7 @@ class WowProperties {
          * The wait before the first retry after the failure; each next one waits twice as long after the previous one
          * started.
          */
-        var minBackoff: Duration = DEFAULT_PARKED.spec.minBackoff.toJavaDuration()
+        var initialBackoff: Duration = DEFAULT_PARKED.spec.minBackoff.toJavaDuration()
 
         /** How long a retry may run before the partition's next owner may start another. */
         var executionTimeout: Duration = DEFAULT_PARKED.spec.executionTimeout.toJavaDuration()
@@ -858,7 +823,7 @@ class WowProperties {
         var scanInterval: Duration = DEFAULT_PARKED.scanInterval.toJavaDuration()
 
         fun spec(): ParkedRetrySpec =
-            ParkedRetrySpec(maxRetries, minBackoff.toKotlinDuration(), executionTimeout.toKotlinDuration())
+            ParkedRetrySpec(maxRetries, initialBackoff.toKotlinDuration(), executionTimeout.toKotlinDuration())
     }
 
     /**
@@ -867,17 +832,17 @@ class WowProperties {
     @InternalWowApi
     class ParkedSpec {
         var maxRetries: Int? = null
-        var minBackoff: Duration? = null
+        var initialBackoff: Duration? = null
         var executionTimeout: Duration? = null
 
         /** The spec these settings give over [base], null when none is given. */
         fun specOver(base: ParkedRetrySpec): ParkedRetrySpec? {
-            if (maxRetries == null && minBackoff == null && executionTimeout == null) {
+            if (maxRetries == null && initialBackoff == null && executionTimeout == null) {
                 return null
             }
             return ParkedRetrySpec(
                 maxRetries ?: base.maxRetries,
-                minBackoff?.toKotlinDuration() ?: base.minBackoff,
+                initialBackoff?.toKotlinDuration() ?: base.minBackoff,
                 executionTimeout?.toKotlinDuration() ?: base.executionTimeout,
             )
         }
@@ -1100,6 +1065,16 @@ class WowProperties {
         }
     }
 
+    /** The settings of the platform services (ops, view store, analytics catalog) that run on the host. */
+    @InternalWowApi
+    class Platform {
+        /**
+         * Whether a platform service takes its callers from the `X-User`, `X-Tenant` and `X-Role` request headers,
+         * which any client sets: for local runs, demos and tests only, so it is refused outside development.
+         */
+        var trustIdentityHeaders: Boolean = false
+    }
+
     /** The tenants of the callers. */
     @InternalWowApi
     class Tenant {
@@ -1107,7 +1082,7 @@ class WowProperties {
         var default: String = Caller.DEFAULT_TENANT
     }
 
-    /** The HTTP edge: its routes, its error answers and the services the internal port trusts. */
+    /** The HTTP edge: its routes and its error answers. */
     @InternalWowApi
     class Http {
         /**
@@ -1119,21 +1094,14 @@ class WowProperties {
          */
         var requestFacts: MutableSet<String> = LinkedHashSet()
 
-        /**
-         * Whether the public port records each command's client address and `User-Agent` as the request facts
-         * `remote_ip` and `user_agent`, as 9.x did, for audit. They are personal data, and written into the event
-         * stream, which is never deleted: once recorded, they cannot be erased. On by default; off records neither.
-         */
-        var clientFacts: Boolean = true
+        /** The client address and `User-Agent` of each command, recorded as request facts. */
+        var clientFacts: ClientFacts = ClientFacts()
 
         /** The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). */
         var errors: MutableMap<String, Error> = LinkedHashMap()
 
-        /**
-         * Answers what fails on the application's own routes as the framework routes' problem+json, so every route
-         * answers errors alike: on by default; off leaves those errors to Spring's error handling.
-         */
-        var globalErrors: Boolean = true
+        /** The problem+json answers of what fails on the application's own routes. */
+        var globalErrors: GlobalErrors = GlobalErrors()
 
         /** The service's Manifest route. */
         var manifest: Manifest = Manifest()
@@ -1141,25 +1109,26 @@ class WowProperties {
         /** The OpenAPI document of the routes. */
         var openapi: OpenApi = OpenApi()
 
-        /**
-         * What each calling service may call and read on the internal port, by the name it states (`Wow-Service`, its
-         * `spring.application.name`): optional lists that catch a misconfiguration. The internal port is reachable by
-         * the platform's own pods alone; a service that names itself is taken on that network's word.
-         */
-        var services: MutableMap<String, Service> = LinkedHashMap()
-
-        /**
-         * One calling service: the [commands] it may call, names or patterns (`AddItem`, `shop.cart.*`,
-         * `wow.lifecycle.*`): without them, the domain commands alone; a system command (`wow.*`: the lifecycle, the
-         * snapshot rebuild, the schedules) only when an entry naming `wow.` lists it; an entry naming a domain command
-         * narrows the domain commands to those listed. The [reads] narrow the models it may read on the internal port's
-         * read routes, by `context.aggregate.model` (`ordering.order.snapshot`, `.events`, `.state`) or a dataset's
-         * `context.dataset`, patterns with `*`: without them, every model the node serves.
-         */
+        /** The client address and `User-Agent` of each command, recorded as request facts. */
         @InternalWowApi
-        class Service {
-            var commands: MutableList<String> = ArrayList()
-            var reads: MutableList<String> = ArrayList()
+        class ClientFacts {
+            /**
+             * Whether the public port records each command's client address and `User-Agent` as the request facts
+             * `remote_ip` and `user_agent`, as 9.x did, for audit. They are personal data, and written into the event
+             * stream, which is never deleted: once recorded, they cannot be erased. On by default; off records
+             * neither.
+             */
+            var enabled: Boolean = true
+        }
+
+        /** The problem+json answers of what fails on the application's own routes. */
+        @InternalWowApi
+        class GlobalErrors {
+            /**
+             * Whether what fails on the application's own routes is answered as the framework routes' problem+json, so
+             * every route answers errors alike: on by default; off leaves those errors to Spring's error handling.
+             */
+            var enabled: Boolean = true
         }
 
         @InternalWowApi
@@ -1198,44 +1167,32 @@ class WowProperties {
     }
 
     /**
-     * The synchronous calls of the node's sagas to the command gateways of other contexts. A saga that calls a context
-     * without a URL fails, then parks.
+     * One calling service: the [commands] it may call, names or patterns (`AddItem`, `shop.cart.*`, `wow.lifecycle.*`):
+     * without them, the domain commands alone; a system command (`wow.*`: the lifecycle, the snapshot rebuild, the
+     * schedules) only when an entry naming `wow.` lists it; an entry naming a domain command narrows the domain
+     * commands to those listed. The [reads] narrow the models it may read on the internal port's read routes, by
+     * `context.aggregate.model` (`ordering.order.snapshot`, `.events`, `.state`) or a dataset's `context.dataset`,
+     * patterns with `*`: without them, every model the node serves.
      */
     @InternalWowApi
-    class Calls {
-        /**
-         * Each context's base URL, `wow.calls.contexts.<context>.url`: the target's internal port, `http://host:port`
-         * of an address in its internal network, never its public port, which refuses calls.
-         */
-        var contexts: MutableMap<String, CallTarget> = LinkedHashMap()
-
-        /** How long one call may take. */
-        var timeout: Duration = HttpCommandCaller.DEFAULT_TIMEOUT.toJavaDuration()
-
-        /** How long one call may take to connect. */
-        var connectTimeout: Duration = HttpCommandCaller.DEFAULT_CONNECT_TIMEOUT.toJavaDuration()
-
-        /** Where one context's command gateway is: its public port's base [url]. */
-        @InternalWowApi
-        class CallTarget {
-            var url: URI? = null
-        }
+    class CallerPermits {
+        var commands: MutableList<String> = ArrayList()
+        var reads: MutableList<String> = ArrayList()
     }
 
-    /**
-     * The typed clients of the peer contexts over HTTP, `wow-client`'s: a peer context listed in [contexts] is reached
-     * over HTTP by the service's [me.ahoo.wow.api.client.CommandClient] and [me.ahoo.wow.api.read.QueryApi] beans; any
-     * other context as without these clients (its commands through its topic). An application's
-     * [me.ahoo.wow.client.EndpointResolver] bean may resolve where each peer is instead. The service mode names this
-     * node's service (`Wow-Service`).
-     */
+    /** How the node calls its peers over HTTP, whichever peer: one HTTP client, these settings. */
     @InternalWowApi
-    class Clients {
+    class Peer {
         /**
-         * The peer contexts reached over HTTP, by context: one the api jars on the class path declare, or one
-         * described by its Manifest alone (`contract: manifest`), called with [me.ahoo.wow.client.NamedCommand]s.
+         * How the node finds the internal ports of a peer's nodes: `dns` (the default) looks up the DNS SRV records
+         * `dns.name-template` names after the peer's service, as its contract on the class path or its Manifest names
+         * it; `static` takes `wow.peers.<context>.url` alone; another value names a community provider's discovery,
+         * configured under `wow.peer.<type>`. A peer's `url` wins over any discovery.
          */
-        var contexts: MutableMap<String, ClientTarget> = LinkedHashMap()
+        var discovery: String = DnsPeerDiscovery.TYPE
+
+        /** The DNS SRV lookup of the `dns` discovery. */
+        var dns: PeerDns = PeerDns()
 
         /**
          * The mode of a peer that names none: `service`, through its internal port as this service, or `user`,
@@ -1243,7 +1200,10 @@ class WowProperties {
          */
         var mode: PeerMode = PeerMode.SERVICE
 
-        /** How long a request may take to be answered, a command's longer wait aside. */
+        /**
+         * How long a request may take to be answered, a command's longer wait aside; `wow.peers.<context>.timeout`
+         * overrides it for one peer.
+         */
         var timeout: Duration = WowClient.DEFAULT_TIMEOUT.toJavaDuration()
 
         /** How long a request may take to connect. */
@@ -1252,21 +1212,26 @@ class WowProperties {
         /** The headers of the public request it serves that a user-mode request forwards. */
         var forwardedHeaders: MutableList<String> = mutableListOf("Authorization")
 
-        /** How a request a peer answered with a problem a retry may get past is sent again. */
-        var retry: Retry = Retry()
-
         /**
-         * One peer context: its public routes' base [url] (user mode), its internal port's [internalUrl] (service
-         * mode; `wow.calls.contexts.<context>.url` when not set), the [mode] it is called in and where its [contract]
-         * comes from (`jar`, or `manifest` for a peer called by its Manifest alone).
+         * How a typed client's request that a peer answered with a problem a retry may get past is sent again; a
+         * saga's call is not retried here, its subscription's retry budget is the one that counts.
          */
-        @InternalWowApi
-        class ClientTarget {
-            var url: URI? = null
-            var internalUrl: URI? = null
-            var mode: PeerMode? = null
-            var contract: Contract = Contract.JAR
-        }
+        var retry: PeerRetry = PeerRetry()
+    }
+
+    /**
+     * One peer context: its internal port's base [url] (service mode), `http://host:port` of an address in its
+     * internal network, never its public port, which refuses calls; its public routes' base [publicUrl] (user mode);
+     * the [mode] it is called in, over `wow.peer.mode`; where its [contract] comes from (`jar`, or `manifest` for a
+     * peer called by its Manifest alone); and its [timeout], over `wow.peer.timeout`.
+     */
+    @InternalWowApi
+    class PeerTarget {
+        var url: URI? = null
+        var publicUrl: URI? = null
+        var mode: PeerMode? = null
+        var contract: Contract = Contract.JAR
+        var timeout: Duration? = null
 
         /** Where a peer's contract comes from. */
         @InternalWowApi
@@ -1280,22 +1245,34 @@ class WowProperties {
              */
             MANIFEST,
         }
+    }
 
+    /** The DNS SRV lookup of the peers' internal ports. */
+    @InternalWowApi
+    class PeerDns {
         /**
-         * How a problem a retry may get past is retried ([me.ahoo.wow.client.RetryPolicy]): a 429, a command's problem
-         * that keeps the request id, or a connection that could not be made.
+         * The SRV name of a peer service's internal port, `{service}` its name (`spring.application.name`): by
+         * default the headless Service `<service>-cluster` and its port named `internal`, the records Kubernetes
+         * publishes for them. A name without a trailing dot is tried as given, then under each search domain of the
+         * node's `/etc/resolv.conf`, as a resolver does; the records' targets are the nodes and their ports.
          */
-        @InternalWowApi
-        class Retry {
-            /** The most attempts of a request in all; 1 never retries. */
-            var maxAttempts: Int = ClientRetryPolicy.DEFAULT.maxAttempts
+        var nameTemplate: String = DnsPeerDiscovery.DEFAULT_NAME_TEMPLATE
+    }
 
-            /** The longest `Retry-After` of a peer that is waited out; a peer that asks for longer is not retried. */
-            var maxRetryAfter: Duration = ClientRetryPolicy.DEFAULT.maxRetryAfter.toJavaDuration()
+    /**
+     * How a problem a retry may get past is retried ([me.ahoo.wow.client.RetryPolicy]): a 429, a command's problem that
+     * keeps the request id, or a connection that could not be made.
+     */
+    @InternalWowApi
+    class PeerRetry {
+        /** The most attempts of a request in all; 1 never retries. */
+        var maxAttempts: Int = ClientRetryPolicy.DEFAULT.maxAttempts
 
-            /** The wait before the first retry when the peer gives no `Retry-After`; it doubles at each next one. */
-            var backoff: Duration = ClientRetryPolicy.DEFAULT.backoff.toJavaDuration()
-        }
+        /** The wait before the first retry when the peer gives no `Retry-After`; it doubles at each next one. */
+        var initialBackoff: Duration = ClientRetryPolicy.DEFAULT.backoff.toJavaDuration()
+
+        /** The longest `Retry-After` of a peer that is waited out; a peer that asks for longer is not retried. */
+        var maxRetryAfter: Duration = ClientRetryPolicy.DEFAULT.maxRetryAfter.toJavaDuration()
     }
 
     /**
@@ -1321,9 +1298,7 @@ class WowProperties {
         /** The store of the type's log, over `wow.log.store`: the type's log group. */
         var log: AggregateStore = AggregateStore()
 
-        /**
-         * The stores of the type's snapshots, over `wow.snapshot.targets`; its queries read the primary one.
-         */
+        /** The stores of the type's snapshots, over `wow.snapshot.stores`; its queries read the primary one. */
         var snapshot: AggregateSnapshot = AggregateSnapshot()
 
         /**
@@ -1354,9 +1329,8 @@ class WowProperties {
     /**
      * CoSec's settings (wow-cosec), which the host's CoSec configuration reads from here alone, their one reader and
      * their one default (review R5.C-12): they have metadata, and a key of `wow.cosec` that none of these is refuses
-     * the startup
-     * ([ConfigurationKeys]) instead of being ignored, so a mistyped [Authorizer.enabled] cannot leave the authorizer
-     * that allows all in place.
+     * the startup ([ConfigurationKeys]) instead of being ignored, so a mistyped [Authorizer.enabled] cannot leave the
+     * authorizer that allows all in place.
      */
     @InternalWowApi
     class CoSec {
@@ -1493,13 +1467,6 @@ class WowProperties {
         var stallTimeout: Duration = DEFAULT_HEALTH.stallTimeout.toJavaDuration()
     }
 
-    /** CosId's settings (wow-cosid), which that module reads from the environment. */
-    @InternalWowApi
-    class CosId {
-        /** The CosId generator of the node's global ids (command ids, wait ids); CosId's own `cosid` when not set. */
-        var globalGenerator: String? = null
-    }
-
     /** How the commands of an aggregate type are routed (`wow.aggregates.[<context>.<aggregate>].routing`). */
     @InternalWowApi
     enum class AggregateRouting {
@@ -1517,6 +1484,20 @@ class WowProperties {
     @InternalWowApi
     companion object {
         const val PREFIX: String = "wow"
+
+        /** The switch of a platform service that takes its callers from the request headers. */
+        const val TRUST_IDENTITY_HEADERS: String = "wow.platform.trust-identity-headers"
+
+        /**
+         * The `wow.*` settings [environment] gives, bound before the beans are, for a condition or an environment
+         * post-processor: the properties' own defaults are the only ones, as the bean's.
+         */
+        fun of(environment: Environment): WowProperties =
+            Binder.get(environment).bindOrCreate(PREFIX, WowProperties::class.java)
+
+        /** The store option of the MongoDB read preference of its queries, over `wow.mongo.query-read-preference`. */
+        const val QUERY_READ_PREFERENCE: String = "query-read-preference"
+
         const val DEFAULT_INTERNAL_PORT: Int = 9090
         const val DEFAULT_PARTITIONS: Int = 64
         const val DEFAULT_MONGO_DATABASE: String = "wow"
@@ -1527,6 +1508,5 @@ class WowProperties {
         private val DEFAULT_HEALTH = HealthOptions()
         private val DEFAULT_SYSTEMIC = SystemicFailureOptions()
         private val DEFAULT_BACKPRESSURE = BackpressureOptions()
-        private val DEFAULT_HANDOFF = HandoffOptions()
     }
 }

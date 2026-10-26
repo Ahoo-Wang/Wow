@@ -18,11 +18,11 @@ import com.mongodb.client.model.IndexOptions
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
-import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryCardinality
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.spi.Ddl
 import org.bson.Document
 import org.slf4j.LoggerFactory
 
@@ -125,17 +125,17 @@ object MongoQueryIndexes {
     }
 
     /**
-     * Manages [indexes] as [mode] says, collection by collection; see [QueryIndexDdl]. [ensure] makes sure of a
+     * Manages [indexes] as [mode] says, collection by collection; see [Ddl]. [ensure] makes sure of a
      * collection before `auto` creates an index on it, as the snapshot store would, so the collection is never
      * created without its format record.
      */
     internal fun manage(
         database: MongoDatabase,
-        mode: QueryIndexDdl,
+        mode: Ddl,
         indexes: List<MongoQueryIndex>,
         ensure: (index: MongoQueryIndex) -> Unit,
     ): MongoQueryIndexReport {
-        if (mode == QueryIndexDdl.NONE) return MongoQueryIndexReport()
+        if (mode == Ddl.NONE) return MongoQueryIndexReport()
         val reports = indexes.groupBy { it.collection }.map { (collection, planned) ->
             manage(database, mode, collection, planned, ensure)
         }
@@ -148,7 +148,7 @@ object MongoQueryIndexes {
 
     private fun manage(
         database: MongoDatabase,
-        mode: QueryIndexDdl,
+        mode: Ddl,
         collection: String,
         indexes: List<MongoQueryIndex>,
         ensure: (index: MongoQueryIndex) -> Unit,
@@ -161,16 +161,8 @@ object MongoQueryIndexes {
         }
         val missing = indexes.filter { it.name !in existing }
         val invalid = indexes.filter { index -> existing[index.name]?.let { !index.matches(it) } == true }
-        if (mode == QueryIndexDdl.VALIDATE) {
-            if (missing.isNotEmpty() || invalid.isNotEmpty()) {
-                log.warn(
-                    "Query indexes of {} are missing {} and differ {} ({}=validate).",
-                    collection,
-                    missing.map { it.name },
-                    invalid.map { it.name },
-                    QueryIndexDdl.PROPERTY,
-                )
-            }
+        if (mode == Ddl.VALIDATE) {
+            // The host refuses the startup on what is missing or invalid.
             return MongoQueryIndexReport(missing = missing.map { it.name }, invalid = invalid.map { it.name })
         }
         if (missing.isEmpty() && invalid.isEmpty()) return MongoQueryIndexReport()

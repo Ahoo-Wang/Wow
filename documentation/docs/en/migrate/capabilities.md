@@ -207,7 +207,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 
 | 9.x capability | In V10 | Notes |
 | --- | --- | --- |
-| `wow.*` configuration | Replaced | New keys. An unknown `wow.*` key is logged as a warning; an unknown key of a security setting stops the service from starting. |
+| `wow.*` configuration | Replaced | New keys. An unknown `wow.*` key stops the service from starting, naming it. |
 | Graceful shutdown | Kept | — |
 | Failing fast without a durable store | Kept | — |
 | Maven builds | Dropped | V10 needs Gradle for its compile-time binding. |

@@ -1,0 +1,54 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.runtime
+
+import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.kernel.Kernel
+
+/**
+ * What each context's state cache keeps between commands.
+ *
+ * - [capacity]: the aggregate states kept per context; 0 keeps none, null (the default) sizes each context's cache
+ *   from the heap ([StateCacheSizing]).
+ * - [recentRequests]: the requests each cached aggregate keeps of those it committed last (decision D261), derived
+ *   from the log, so that most commands skip looking their request id up; 0 looks every request id up (D46).
+ *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
+ */
+class StateCacheOptions @InternalWowApi constructor(
+    val capacity: Int? = null,
+    val recentRequests: Int = Kernel.DEFAULT_RECENT_REQUESTS,
+) {
+    init {
+        require(capacity == null || capacity >= 0) { "The state cache capacity is never negative." }
+        require(recentRequests >= 0) { "The recent requests kept per aggregate are never negative." }
+    }
+
+    /** This StateCacheOptions with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        capacity: Int? = this.capacity,
+        recentRequests: Int = this.recentRequests,
+    ): StateCacheOptions = StateCacheOptions(capacity, recentRequests)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is StateCacheOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "StateCacheOptions(capacity=$capacity, recentRequests=$recentRequests)"
+
+    private fun valueFields(): List<Any?> = listOf(capacity, recentRequests)
+}

@@ -570,3 +570,4 @@ R5 与安全、配置讨论里定下的语义，要在 GA 前写进用户文档�
 | DG-14 | TCK 接入指南：为自己的后端跑 TCK 的步骤与最小例子，能力声明与跳过；能力对照表写明 9.x 总线与分发器 spec 的去向 | contribute/backends、09 | D196、D315 ⑤ | 文档工作包 |
 | DG-15 | 网关部署细节：CoSec Gateway 的路由与策略示例、网关必须覆盖（而非追加）`X-Forwarded-For` 与身份头的具体配置（Spring Cloud Gateway）、网关 Pod 的标签与 NetworkPolicy 选择器一致（`cosec-gateway`） | operate/security、operate/kubernetes | D296、D297、D317 | eShop 的 example PR（GA E2E 会话） |
 | DG-16 | 示例跑在 MongoDB：只写 URI 的 `mongo` profile | operate/mongodb、eShop README | D318 | 批 4 首个 PR、eShop 的 example PR |
+| DG-17 | 以 `validate` 部署时 ops 需要的 Kafka 主题（commands、receipts、parked.state）；Spring Cloud Gateway 4.1 起不设 `spring.cloud.gateway.server.webflux.trusted-proxies` 就不发 `X-Forwarded-For`（仅 `for-append: false` 无效），网关应信任零个代理以丢弃并替换客户端带来的头；网关启动依赖其 Redis | operate/kafka、operate/security | D297、D317 | GA E2E 会话 |

@@ -42,10 +42,10 @@ wow:
 
 Spring 会忽略没有属性绑定的键，所以拼错的键会一声不响地保留默认值。宿主在启动时把每个 `wow.*` 键与类路径上的配置元数据比较：
 
-- 未知的键记一条警告，并指明它。
-- `wow.cosec.`、`wow.http.services.`、`wow.calls.` 或 `wow.internal.` 下的未知键会阻止启动。在 `wow.http.services` 和 `wow.calls.contexts` 下，每一项自己的键也会检查：否则拼错的 `commands` 会让一个服务可以调用每条命令。
+- 未知的键会阻止启动，并指明它；它是更早版本的键时给出取代它的键，它所属的模块不在类路径上时给出那个模块。
+- 在设置的映射之下（`wow.aggregates`、`wow.stores`、`wow.subscriptions`、`wow.schedules`、`wow.callers`、`wow.peers`、`wow.http.errors`），每一项自己的键会一直检查到叶子：否则拼错的 `commands` 会让一个服务可以调用每条命令。
 
-环境变量不检查，因为它们的名字无法反向列举。设置部署的环境变量时，对照参考检查它们。
+以 Wow 分组命名的环境变量（`WOW_KAFKA_…`、`WOW_CLUSTER_…`：键的第一个词）按 Spring 的映射检查，下划线视为点、忽略连字符，所以过时的 `WOW_KAFKA_TOPICS_DDL` 和 `wow.kafka.topics.ddl` 一样会拒绝启动；你自己的变量请起在这些分组之外的名字。
 
 ## 哪些必须在各节点间一致 {#what-must-match-across-nodes}
 
@@ -57,7 +57,7 @@ Spring 会忽略没有属性绑定的键，所以拼错的键会一声不响地�
 
 ## 开发与生产 {#development-and-production}
 
-在开发 profile（`dev`、`local`、`test` 或 `demo`，即 `wow.internal.dev-profiles`）中，或者内部端口只绑定在回环网卡上时，有几个默认值会放宽：
+在开发 profile（`dev`、`local`、`test` 或 `demo`，即 `wow.dev-profiles`）中，或者内部端口只绑定在回环网卡上时，有几个默认值会放宽：
 
 | 没有 | 开发环境中 | 生产环境中 |
 | --- | --- | --- |

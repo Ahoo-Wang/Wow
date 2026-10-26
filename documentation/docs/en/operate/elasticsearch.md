@@ -25,7 +25,7 @@ wow:
   aggregates:
     "[shop.order]":
       snapshot:
-        store: search
+        stores: [search]
       query:
         events:
           store: search
@@ -38,8 +38,8 @@ wow:
 | `wow.stores.<name>.index-prefix` | A prefix for every index name: `shop_wow_snapshot__…`, `shop_wow_events__…` | None |
 | `wow.stores.<name>.refresh` | When a snapshot write becomes searchable: `wait_for`, `true` or `false` | `wait_for` |
 | `wow.stores.<name>.ddl` | Whether the store creates its indices: `auto`, `validate`, `none` | `wow.ddl` |
-| `wow.query.index.ddl` | Whether it maps the state's and the events' body fields | `auto` |
-| `wow.aggregates.[<context>.<aggregate>].snapshot.store` | The store of an aggregate's snapshots | The log's store |
+| `wow.stores.<name>.ddl` | Whether it creates its indices and maps the state's and the events' body fields | `wow.ddl` |
+| `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | The store of an aggregate's snapshots | The log's store |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | The store its `events` queries read | The log's store |
 
 Each index records its layout in its `_meta` and refuses a store that expects another.

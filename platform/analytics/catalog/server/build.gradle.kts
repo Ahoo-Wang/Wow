@@ -49,9 +49,12 @@ dependencies {
     implementation(libs.cosec.jwt)
     // Traces and metrics on the node's seams (decision D174).
     implementation(project(":opentelemetry"))
-    implementation("com.zaxxer:HikariCP")
+    // The pool the host makes of `spring.datasource.*` in the postgres profile (decision D310).
+    runtimeOnly("com.zaxxer:HikariCP")
     implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation("org.springframework:spring-test")
+    // The generator of the configuration metadata of the service's own keys (design rule K8).
+    testImplementation(testFixtures(project(":spring-boot")))
     // The catalog on ClickHouse in a container (decision D196).
     integrationTestImplementation(sourceSets["test"].output)
     integrationTestImplementation(project(":tck-containers"))

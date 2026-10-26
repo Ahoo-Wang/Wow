@@ -16,6 +16,7 @@ package me.ahoo.wow.clickhouse.sink
 import com.clickhouse.client.api.Client
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.sink.SinkConfig
 import me.ahoo.wow.spi.sink.SinkProvider
@@ -28,9 +29,9 @@ import kotlin.time.Duration.Companion.milliseconds
  * unless `sink.enabled` is `false`. It writes every stream the service's Manifest (a resource of the application)
  * publishes, through the application's ClickHouse [Client] when it has one, else through one of `endpoint`,
  * `username` (`default`) and `password` (empty) it closes with the sinks. Its settings, relative to its
- * configuration (`wow.clickhouse.*`): `database`, `sink.ddl` ([DdlMode], `auto` by default), `sink.batch-size`,
- * `sink.deduplication-window`, and each aggregate type's `history.enabled` and `history.ttl`, under
- * `aggregates.<context>.<aggregate>` over `sink.aggregates.<context>.<aggregate>` ([ClickHouseSinkOptions]).
+ * configuration (`wow.clickhouse.*`): `database`, `ddl` ([Ddl], `auto` by default; the host gives `wow.ddl` when it
+ * is not set), `sink.batch-size`, `sink.deduplication-window`, and each aggregate type's `history.enabled` and
+ * `history.ttl`, under `aggregates.<context>.<aggregate>` ([ClickHouseSinkOptions]).
  */
 class ClickHouseSinkProvider : SinkProvider {
     override val type: String = TYPE
@@ -64,6 +65,7 @@ class ClickHouseSinkProvider : SinkProvider {
 
         private const val ENDPOINT = "endpoint"
         private const val HISTORY = ".history."
+        private const val AGGREGATES = "aggregates"
 
         /** A client of [config]'s endpoint and credentials. */
         fun clientOf(config: SinkConfig): Client = Client.Builder()
@@ -74,9 +76,9 @@ class ClickHouseSinkProvider : SinkProvider {
 
         /** The Sink's options from [config]'s settings. */
         fun options(config: SinkConfig): ClickHouseSinkOptions {
-            val ddlText = config.option("sink.ddl") ?: "auto"
-            val ddl = requireNotNull(DdlMode.entries.firstOrNull { it.name.equals(ddlText, ignoreCase = true) }) {
-                "${config.key}.sink.ddl is $ddlText, which is no DDL mode: set it to auto, validate or none."
+            val ddlText = config.option("ddl") ?: "auto"
+            val ddl = requireNotNull(Ddl.entries.firstOrNull { it.name.equals(ddlText, ignoreCase = true) }) {
+                "${config.key}.ddl is $ddlText, which is no DDL mode: set it to auto, validate or none."
             }
             return ClickHouseSinkOptions(
                 database = config.option("database") ?: ClickHouseSinkOptions.DEFAULT_DATABASE,
@@ -88,26 +90,19 @@ class ClickHouseSinkProvider : SinkProvider {
             )
         }
 
-        /** Each aggregate type's history settings: `aggregates.*` over the older `sink.aggregates.*`. */
-        private fun aggregates(config: SinkConfig): Map<AggregateType, AggregateSinkOptions> {
-            val legacy = histories(config, config.options("sink.aggregates"), "sink.aggregates")
-            val unified = histories(config, config.options("aggregates"), "aggregates")
-            return (legacy.keys + unified.keys).associateWith { type ->
-                val old = legacy[type].orEmpty()
-                val new = unified[type].orEmpty()
-                val enabled = (new["enabled"] ?: old["enabled"])?.toBooleanStrict() ?: true
+        /** Each aggregate type's history settings, `aggregates.<context>.<aggregate>.history.*`. */
+        private fun aggregates(config: SinkConfig): Map<AggregateType, AggregateSinkOptions> =
+            histories(config, config.options(AGGREGATES)).mapValues { (_, history) ->
                 AggregateSinkOptions(
-                    history = enabled,
-                    historyTtl = (new["ttl"] ?: old["ttl"])?.let(::duration),
+                    history = history["enabled"]?.toBooleanStrict() ?: true,
+                    historyTtl = history["ttl"]?.let(::duration),
                 )
             }
-        }
 
         /** `<context>.<aggregate>.history.<name>` settings of [settings], by aggregate type, then name. */
         private fun histories(
             config: SinkConfig,
             settings: Map<String, String>,
-            prefix: String,
         ): Map<AggregateType, Map<String, String>> = settings.entries
             .filter { it.key.contains(HISTORY) && it.value.isNotBlank() }
             .groupBy({ it.key.substringBeforeLast(HISTORY) }, { it.key.substringAfterLast(HISTORY) to it.value })
@@ -115,7 +110,7 @@ class ClickHouseSinkProvider : SinkProvider {
                 val context = key.substringBefore('.', "")
                 val aggregate = key.substringAfter('.', "")
                 require(context.isNotBlank() && aggregate.isNotBlank()) {
-                    "${config.key}.$prefix.$key names no aggregate type: name it <context>.<aggregate>."
+                    "${config.key}.$AGGREGATES.$key names no aggregate type: name it <context>.<aggregate>."
                 }
                 AggregateType(context, aggregate)
             }

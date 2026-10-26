@@ -76,7 +76,7 @@ test("a token the service refuses signs the console out", async ({ page }) => {
     accessToken(
       "mallory",
       ["analytics.catalog.admin"],
-      "not-the-service-secret-of-32-characters",
+      -60,
     ),
   );
   await expect(page.getByText("Sign in to read the catalog")).toBeVisible();

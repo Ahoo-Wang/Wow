@@ -84,11 +84,6 @@ class QueryStoresTest {
             ceiling.assert().isEqualTo(4)
         }
         derived.limits.map { it.bulkhead.store }.assert().containsExactlyInAnyOrder("main", "reports")
-        val off = of(
-            QueryStoreSettings(adaptiveEnabled = false, stores = mapOf("main" to QueryStoreLimits(adaptive = true)))
-        )
-        off.limits.map { it.bulkhead.store }.assert().containsExactly("main")
-        off.bulkheads.getValue("reports").ceiling.assert().isEqualTo(6)
     }
 
     @Test

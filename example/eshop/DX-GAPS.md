@@ -151,12 +151,12 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 
 - **Work package**: 6.3e
 - **Area**: host, backends, docs
-- **What happened**: With `wow.kafka.command-intake`, the node refuses to start unless `wow.<context>.commands` exists with exactly `wow.log.partitions` partitions, 64 by default. Running the inventory locally takes a `kafka-topics --create ... --partitions 64` first, and each test creates the topic itself.
+- **What happened**: With `wow.kafka.command-intake.enabled`, the node refuses to start unless `wow.<context>.commands` exists with exactly `wow.log.partitions` partitions, 64 by default. Running the inventory locally takes a `kafka-topics --create ... --partitions 64` first, and each test creates the topic itself.
 - **Where they looked**: `KafkaProperties`; decision D135.
 - **Workaround**: The README gives the command; the tests create the topic with the Kafka admin client.
 - **Proposed fix**: An opt-in `wow.kafka.create-topics` for development that creates the command topic with the right count. Document the topic DDL (decision D168).
 - **Blocks M7**: no, once the DDL is documented.
-- **Resolved**: by 6.3g (decision D168). `wow.kafka.topics.ddl=auto` creates the topics a service owns at startup, the command topic with exactly `wow.log.partitions` partitions; the default, `validate`, refuses to start and names each topic that is missing or has the wrong count. The eShop's `kafka` profiles use `auto`; the deployment guide documents the topic DDL.
+- **Resolved**: by 6.3g (decision D168). `wow.kafka.ddl=auto` creates the topics a service owns at startup, the command topic with exactly `wow.log.partitions` partitions; the default, `validate`, refuses to start and names each topic that is missing or has the wrong count. The eShop's `kafka` profiles use `auto`; the deployment guide documents the topic DDL.
 
 ### G12. The test DSL's `expectState` cannot follow `expectUnchanged` (resolved)
 
@@ -277,7 +277,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 
 - **Work package**: E.2 to E.4
 - **Area**: host
-- **What happened**: The order flow's end-to-end test first ran the basket, ordering and inventory services in the test's JVM, as `EshopSharedJvmTest` runs two, each selecting its context with `wow.contexts.include`. The inventory node did not start: "peer …/eshop-ordering-server.jar!/META-INF/wow/peers/eshop-inventory-service.json is of service eshop-inventory-service itself", and its context "is declared by service eshop-inventory-service and by its peer". The host reads every `META-INF/wow/peers/` on the class path, so the ordering server's copy of the inventory's Manifest becomes a peer of the inventory itself. `wow.contexts.include` narrows the models, fragments, routes and processors, but not the peers. A second, related trap: with several servers on one class path, Spring Boot reads only the first `application.yaml` on it, whichever server's that is, so each service's own configuration (profiles, `wow.subscriptions.*`, `wow.kafka.command-intake`) has to be passed again as arguments.
+- **What happened**: The order flow's end-to-end test first ran the basket, ordering and inventory services in the test's JVM, as `EshopSharedJvmTest` runs two, each selecting its context with `wow.contexts.include`. The inventory node did not start: "peer …/eshop-ordering-server.jar!/META-INF/wow/peers/eshop-inventory-service.json is of service eshop-inventory-service itself", and its context "is declared by service eshop-inventory-service and by its peer". The host reads every `META-INF/wow/peers/` on the class path, so the ordering server's copy of the inventory's Manifest becomes a peer of the inventory itself. `wow.contexts.include` narrows the models, fragments, routes and processors, but not the peers. A second, related trap: with several servers on one class path, Spring Boot reads only the first `application.yaml` on it, whichever server's that is, so each service's own configuration (profiles, `wow.subscriptions.*`, `wow.kafka.command-intake.enabled`) has to be passed again as arguments.
 - **Minimal reproduction**: one class path with `:eshop-ordering-server` (whose peer is the inventory) and `:eshop-inventory-server`; start `InventoryServer` with `--wow.contexts.include=eshop-inventory`.
 - **Where they looked**: `guide/v10/configuration` (`wow.contexts.include`, which names shared-JVM end-to-end tests as its use); `guide/v10/programming-model` (Peers); `guide/v10/testing`.
 - **Workaround**: `EshopOrderFlowTest` runs each service in a JVM of its own, on its server's runtime class path, as `EshopE2eTest` does. That also lets each service read its own `application.yaml`.

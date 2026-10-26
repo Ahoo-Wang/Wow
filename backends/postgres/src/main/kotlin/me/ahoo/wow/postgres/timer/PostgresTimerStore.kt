@@ -25,7 +25,7 @@ import me.ahoo.wow.postgres.EnsuredTables
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.timer.Timer
@@ -58,7 +58,7 @@ class PostgresTimerStore(
     context: String,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     /** How the store's tables are managed: created when missing by default (review A5-10). */
-    private val ddl: StoreDdl = StoreDdl.AUTO,
+    private val ddl: Ddl = Ddl.AUTO,
 ) : TimerStore {
     private val tables = PostgresTimerTables(context)
     private val ownerContext = context

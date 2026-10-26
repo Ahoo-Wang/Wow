@@ -13,12 +13,12 @@ The job: a context needs another context's facts, or needs it to do something. C
 ## Sending another context commands
 
 - A saga sends with `SagaContext.command(...)` as for its own context; the target's `*-api` module on the class path carries the contract that names the target aggregate.
-- Transport: the command goes to the target's command topic `wow.<target>.commands`; the target runs with `wow.kafka.command-intake: true` and its command topic must exist with exactly `wow.log.partitions` partitions. Rejections and commits return as receipts on `wow.<sender>.receipts`, to `@OnRejected` and `@OnCommitted`.
-- A node without a command transport refuses to start when a saga sends, schedules or handles receipts of another context's commands (`Node … has no command transport …`). Production needs Kafka; tests give an `InMemoryTopics` bean, local runs `wow.topics.in-memory: true`.
+- Transport: the command goes to the target's command topic `wow.<target>.commands`; the target runs with `wow.kafka.command-intake.enabled: true` and its command topic must exist with exactly `wow.log.partitions` partitions. Rejections and commits return as receipts on `wow.<sender>.receipts`, to `@OnRejected` and `@OnCommitted`.
+- A node without a command transport refuses to start when a saga sends, schedules or handles receipts of another context's commands (`Node … has no command transport …`). Production needs Kafka; tests give an `InMemoryTopics` bean, local runs `wow.transport=memory`.
 
 ## Calling another context synchronously
 
-When the saga needs the answer before it goes on (`SagaContext.call`, `suspend`): declare it with `@OnEvent(calls = [SubmitOrder::class])`. The node does not start when a called command is its own context's (derive it instead), when no Manifest decides it, or when its context has no URL: `wow.calls.contexts.<context>.url` (or `wow.clients.contexts.<context>.internal-url`). Prefer an asynchronous command and a receipt; a call couples the two contexts' availability.
+When the saga needs the answer before it goes on (`SagaContext.call`, `suspend`): declare it with `@OnEvent(calls = [SubmitOrder::class])`. The node does not start when a called command is its own context's (derive it instead), when no Manifest decides it, or when its context has no URL: `wow.peers.<context>.url` (or `wow.peers.<context>.url`). Prefer an asynchronous command and a receipt; a call couples the two contexts' availability.
 
 ## One tenant space
 

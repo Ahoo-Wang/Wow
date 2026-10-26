@@ -126,7 +126,7 @@ class KernelStateCacheTest {
             initial { Counter(it.id) }
             decide<Add>(Creation.ALLOWED) { state, _ ->
                 state.total = -1
-                error("boom")
+                throw UnsupportedOperationException("boom")
             }
         }
         runCatching { kernel.execute(failing, Command("c-x", "r-x", ref, Add(1))) }

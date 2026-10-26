@@ -28,7 +28,7 @@ import java.math.BigDecimal
 /**
  * The eShop's payment service on the Wow host: the host finds the payment model and the sagas through
  * `eshop-payment-domain`'s binding index and serves its routes on the public port and the cluster on the internal one.
- * It runs on the memory backend by default and on PostgreSQL with the `postgres` profile ([PostgresDataSource]).
+ * It runs on the memory backend by default and on PostgreSQL with the `postgres` profile (`spring.datasource.*`, decision D310).
  *
  * Its sagas read the ordering's order stream and send the ordering's commands, so the node needs Kafka: the `kafka`
  * profile gives it, and it does not start without a command transport.

@@ -80,10 +80,10 @@ class HostStoresTest {
         val layout = layoutOf(
             properties {
                 log.store = "a"
-                snapshot.store = "b"
+                snapshot.stores = mutableListOf("b")
                 aggregates["$BANK.account"] = WowProperties.Aggregate().apply {
                     log.store = "c"
-                    snapshot.store = mutableListOf("a")
+                    snapshot.stores = mutableListOf("a")
                 }
                 aggregates["$BANK.other"] = WowProperties.Aggregate().apply { tenant = "fixed" }
             },
@@ -102,10 +102,10 @@ class HostStoresTest {
         val layout = layoutOf(
             properties {
                 log.store = "a"
-                snapshot.targets = mutableListOf("a", "b")
+                snapshot.stores = mutableListOf("a", "b")
                 snapshot.primary = "b"
                 aggregates["$BANK.account"] = WowProperties.Aggregate().apply {
-                    snapshot.store = mutableListOf("c", "a")
+                    snapshot.stores = mutableListOf("c", "a")
                 }
             },
             memory("a", "b", "c"),
@@ -116,7 +116,7 @@ class HostStoresTest {
         layout.snapshotStoreOf(account).assert().isEqualTo("c")
         layout.snapshotStores.assert().containsExactlyInAnyOrder("a", "b", "c")
         val stores = memory("a", "b", "c")
-        val targets = checkNotNull(layout.open(BANK, stores, 4).snapshotTargets)
+        val targets = checkNotNull(layout.open(BANK, stores, 4).snapshots)
         targets.default.assert().isEqualTo("a")
         targets.stores.keys.assert().containsExactlyInAnyOrder("a", "b", "c")
         targets.primaryOf(account).assert().isSameAs(stores.getValue("c").snapshots(BANK))
@@ -124,15 +124,15 @@ class HostStoresTest {
         layoutOf(
             properties {
                 log.store = "a"
-                snapshot.targets = mutableListOf("a", "b")
+                snapshot.stores = mutableListOf("a", "b")
                 aggregates["$BANK.account"] = WowProperties.Aggregate().apply { snapshot.primary = "b" }
             },
             memory("a", "b"),
             models,
         ).snapshotPlacementOf(account).assert().isEqualTo(SnapshotPlacement(listOf("a", "b"), "b"))
         assertThrows<IllegalStateException> {
-            layoutOf(properties { snapshot.targets = mutableListOf("z") }, memory("a"), models)
-        }.message.assert().contains("wow.snapshot.targets names the store z")
+            layoutOf(properties { snapshot.stores = mutableListOf("z") }, memory("a"), models)
+        }.message.assert().contains("wow.snapshot.stores names the store z")
         assertThrows<IllegalStateException> {
             layoutOf(
                 properties {
@@ -148,7 +148,7 @@ class HostStoresTest {
                 properties {
                     log.store = "a"
                     aggregates["$BANK.account"] = WowProperties.Aggregate().apply {
-                        snapshot.store = mutableListOf("a")
+                        snapshot.stores = mutableListOf("a")
                         snapshot.primary = "b"
                     }
                 },
@@ -183,12 +183,12 @@ class HostStoresTest {
             layoutOf(
                 properties {
                     log.store = "a"
-                    snapshot.store = "c"
+                    snapshot.stores = mutableListOf("c")
                 },
                 two,
                 models
             )
-        }.message.assert().contains("wow.snapshot.store")
+        }.message.assert().contains("wow.snapshot.stores names the store c")
         assertThrows<IllegalStateException> {
             layoutOf(
                 properties {
@@ -203,12 +203,12 @@ class HostStoresTest {
             layoutOf(
                 properties {
                     log.store = "a"
-                    aggregates["$BANK.account"] = WowProperties.Aggregate().apply { snapshot.store = mutableListOf("z") }
+                    aggregates["$BANK.account"] = WowProperties.Aggregate().apply { snapshot.stores = mutableListOf("z") }
                 },
                 two,
                 models,
             )
-        }.message.assert().contains("wow.aggregates.[$BANK.account].snapshot.store")
+        }.message.assert().contains("wow.aggregates.[$BANK.account].snapshot.stores")
         assertThrows<IllegalArgumentException> { layoutOf(properties(), emptyMap(), models) }
     }
 
@@ -241,7 +241,7 @@ class HostStoresTest {
         layoutOf(
             properties {
                 log.store = "a"
-                snapshot.store = "b"
+                snapshot.stores = mutableListOf("b")
             },
             stores,
             models
@@ -268,8 +268,9 @@ class HostStoresTest {
         bank.groups.single().log.assert().isSameAs(stores.getValue("b").log(BANK, 4))
         bank.groups.single().checkpoints.assert().isSameAs(stores.getValue("b").checkpoints)
         bank.groups.single().timers.assert().isSameAs(stores.getValue("b").timers(BANK, 4))
-        (bank.snapshots as SnapshotStoreRouter).storeOf(account).assert().isSameAs(stores.getValue("c").snapshots(BANK))
-        bank.snapshots.assert().isInstanceOf(SnapshotStoreRouter::class.java)
+        (bank.primarySnapshots as SnapshotStoreRouter).storeOf(account).assert()
+            .isSameAs(stores.getValue("c").snapshots(BANK))
+        bank.snapshots?.primaryOf(account).assert().isSameAs(stores.getValue("c").snapshots(BANK))
         backends.factory.backends("ledger").groups.single().store.assert().isEqualTo("c")
         backends.snapshotStoreOf(account)?.name.assert().isEqualTo("c")
         backends.snapshotStoreOf(other)?.name.assert().isEqualTo("a")
@@ -395,7 +396,7 @@ class HostStoresTest {
             "wow.stores.accounts.type" to "memory",
             "wow.log.store" to "main",
             "wow.aggregates.[bank.account].log.store" to "accounts",
-            "wow.aggregates.[bank.account].snapshot.store" to "accounts",
+            "wow.aggregates.[bank.account].snapshot.stores" to "accounts",
         )
         host.use {
             val opened = host.post("/bank/account/open-account", """{"owner":"store"}""")
