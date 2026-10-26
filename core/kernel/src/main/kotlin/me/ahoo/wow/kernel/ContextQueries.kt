@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventQueries
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.RowQueries
@@ -64,7 +65,7 @@ private class TenantQueries(private val api: QueryApi, override val tenantId: St
     override fun events(type: AggregateType): EventQueries = queries.events(type)
 
     @ExperimentalWowApi
-    override fun <R : Any> datasets(name: AggregateType, rowType: Class<R>): RowQueries<R> =
+    override fun <R : Any> datasets(name: DatasetName, rowType: Class<R>): RowQueries<R> =
         queries.datasets(name, rowType)
 
     override fun trusted(): TrustedQueries = api.trusted()

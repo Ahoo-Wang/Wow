@@ -44,7 +44,9 @@ rows.map { it.state.price }.assert().containsExactly(BigDecimal("5.00"), BigDeci
 | `pagedQuery { }` | 一页（`pagination { index(1); size(20) }`），按 `total(...)` 的要求带上总数 |
 | `cursorQuery { }` | 游标之后的一个键集分页，带下一个游标；需要 `sort` |
 | `countQuery { }` | 有多少个匹配项，以及计数是否精确 |
-| `aggregation { }` | 分组和指标：terms、直方图、日期；计数、求和、平均值等 |
+| `aggregation { }` | 分组和指标：terms、直方图、日期；计数、求和、平均值等。实验性：用 `@OptIn(ExperimentalWowApi::class)` 选择使用 |
+
+Kotlin 用 DSL 构建查询；Java 没有 DSL，用同样类型的工厂方法构建，例如 `ListQuery.of(filter)` 和 `Sort.of(field, Sort.Direction.ASC)`。查询类型是普通的值：可以比较，但要改动时重新构建一个，而不是复制。
 
 整体读取的列表受它的 limit 限制。要读取一个很大的结果的每一行，就流式读取：`stream(query)` 按键集分块读取，每块都是一次独立的查询，并给每一行一个位置，同一个查询可以从这个位置继续，在本节点或另一个节点上都可以。
 

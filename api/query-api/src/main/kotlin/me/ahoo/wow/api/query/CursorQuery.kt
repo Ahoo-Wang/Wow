@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.api.query
 
-data class CursorQuery @JvmOverloads constructor(
+import me.ahoo.wow.api.annotation.InternalWowApi
+
+class CursorQuery @InternalWowApi constructor(
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
@@ -29,13 +31,45 @@ data class CursorQuery @JvmOverloads constructor(
         }
     }
 
-    override fun withFilter(newFilter: FilterExpression): ICursorQuery = copy(filter = newFilter)
+    override fun withFilter(newFilter: FilterExpression): ICursorQuery = CursorQuery(
+        newFilter,
+        projection,
+        sort,
+        size,
+        cursor
+    )
 
-    override fun withProjection(newProjection: Projection): ICursorQuery = copy(projection = newProjection)
+    override fun withProjection(newProjection: Projection): ICursorQuery = CursorQuery(
+        filter,
+        newProjection,
+        sort,
+        size,
+        cursor
+    )
 
     companion object {
         const val DEFAULT_SIZE: Int = 10
+
+        /** A [CursorQuery] of the given values. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            filter: FilterExpression,
+            projection: Projection = Projection.ALL,
+            sort: List<Sort> = emptyList(),
+            size: Int = DEFAULT_SIZE,
+            cursor: String? = null,
+        ): CursorQuery = CursorQuery(filter, projection, sort, size, cursor)
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is CursorQuery && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "CursorQuery(filter=$filter, projection=$projection, sort=$sort, size=$size, cursor=$cursor)"
+
+    private fun valueFields(): List<Any?> = listOf(filter, projection, sort, size, cursor)
 }
 
 interface ICursorQuery : Queryable<ICursorQuery> {

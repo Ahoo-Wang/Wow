@@ -36,6 +36,7 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.ProjectionCapable
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.read.AggregateState
+import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventQueries
 import me.ahoo.wow.api.read.EventStream
 import me.ahoo.wow.api.read.MinVersionNotReachedException
@@ -123,8 +124,10 @@ class InProcessQueryApi @InternalWowApi constructor(
         override fun events(type: AggregateType): EventQueries = Events(type, caller)
 
         @OptIn(ExperimentalWowApi::class)
-        override fun <R : Any> datasets(name: AggregateType, rowType: Class<R>): RowQueries<R> {
-            val gateway = engine.datasets[name]?.takeIf { engine.datasetVisibility.visible(it.dataset, caller) }
+        override fun <R : Any> datasets(name: DatasetName, rowType: Class<R>): RowQueries<R> {
+            val gateway = engine.datasets[AggregateType(name.context, name.name)]?.takeIf {
+                engine.datasetVisibility.visible(it.dataset, caller)
+            }
             requireNotNull(gateway) { "No dataset $name is served." }
             return Rows(gateway, caller) { decode(it, rowType) }
         }

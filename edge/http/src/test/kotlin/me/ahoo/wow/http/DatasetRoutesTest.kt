@@ -23,6 +23,7 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.WowClient
@@ -116,7 +117,9 @@ class DatasetRoutesTest {
                 .build()
                 .queries
             val alice = Caller.of(tenantId = TENANT, scope = Scope("alice"), subject = "alice")
-            queries.of(alice).datasets(sales, Map::class.java).list(ListQuery(MatchAllFilter)).toList()
+            queries.of(
+                alice
+            ).datasets(DatasetName.of(CONTEXT, "sales"), Map::class.java).list(ListQuery(MatchAllFilter)).toList()
                 .map { it["id"] }.assert().containsExactlyInAnyOrder("s-1", "s-2", "s-5")
             val described = WebTestClient.bindToRouterFunction(routes).build().get().uri(SALES)
                 .header(WowHeaders.SERVICE, SERVICE)

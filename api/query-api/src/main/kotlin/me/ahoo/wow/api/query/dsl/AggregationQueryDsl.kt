@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.api.query.dsl
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationElement
@@ -42,6 +43,7 @@ import java.time.ZoneId
  */
 @Suppress("TooManyFunctions")
 @QueryDslMarker
+@ExperimentalWowApi
 class AggregationQueryDsl {
     private var filter: FilterExpression = MatchAllFilter
     private val elements = mutableListOf<AggregationElement>()
@@ -364,6 +366,7 @@ class AggregationQueryDsl {
  * receiver type.
  */
 @QueryDslMarker
+@ExperimentalWowApi
 class DerivedExpressionDsl {
     fun ref(metric: String): DerivedExpression = DerivedExpression.MetricRef(metric)
 
@@ -421,6 +424,7 @@ class DerivedExpressionDsl {
  * type. Each name is a metric alias.
  */
 @QueryDslMarker
+@ExperimentalWowApi
 class HavingDsl {
     infix fun String.eq(value: Double): HavingExpression = condition(ComparisonOperator.EQ, value)
 

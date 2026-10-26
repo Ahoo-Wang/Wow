@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.api.query
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /**
  * Interface for list queries that retrieve multiple items with a limit.
  *
@@ -49,7 +51,7 @@ interface IListQuery : Queryable<IListQuery> {
  * )
  * ```
  */
-data class ListQuery @JvmOverloads constructor(
+class ListQuery @InternalWowApi constructor(
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
@@ -61,7 +63,7 @@ data class ListQuery @JvmOverloads constructor(
      * @param newFilter The new filter to apply.
      * @return A new ListQuery with the updated filter.
      */
-    override fun withFilter(newFilter: FilterExpression): IListQuery = copy(filter = newFilter)
+    override fun withFilter(newFilter: FilterExpression): IListQuery = ListQuery(newFilter, projection, sort, limit)
 
     /**
      * Creates a new ListQuery with the specified projection.
@@ -69,5 +71,26 @@ data class ListQuery @JvmOverloads constructor(
      * @param newProjection The new projection to apply.
      * @return A new ListQuery with the updated projection.
      */
-    override fun withProjection(newProjection: Projection): IListQuery = copy(projection = newProjection)
+    override fun withProjection(newProjection: Projection): IListQuery = ListQuery(filter, newProjection, sort, limit)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ListQuery && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "ListQuery(filter=$filter, projection=$projection, sort=$sort, limit=$limit)"
+
+    private fun valueFields(): List<Any?> = listOf(filter, projection, sort, limit)
+
+    companion object {
+        /** A [ListQuery] of the given values. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            filter: FilterExpression,
+            projection: Projection = Projection.ALL,
+            sort: List<Sort> = emptyList(),
+            limit: Int = 0,
+        ): ListQuery = ListQuery(filter, projection, sort, limit)
+    }
 }

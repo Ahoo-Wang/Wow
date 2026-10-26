@@ -61,7 +61,7 @@ outline: deep
 | `GET /wow/dataset/<context>/<dataset>/query` | 它的能力描述 |
 | `GET /wow/dataset` | 调用方能看到的数据集 |
 
-请求体是一个[查询语言](../reference/query-language)写成的查询：例如某个买家按状态分组的销售额，就是一个按 `status` 分组、对 `totalAmount` 求和的 `aggregate`。每个调用方只读取它自己的租户、所有者和空间的行。在 Kotlin 中，`QueryApi` 的 `datasets(name, rowType)` 执行同样的查询。
+请求体是一个[查询语言](../reference/query-language)写成的查询：例如某个买家按状态分组的销售额，就是一个按 `status` 分组、对 `totalAmount` 求和的 `aggregate`。每个调用方只读取它自己的租户、所有者和空间的行。在 Kotlin 中，`QueryApi` 的 `datasets(DatasetName.of(context, dataset), rowType)` 执行同样的查询；它与它所服务的聚合一样是实验性的（`@OptIn(ExperimentalWowApi::class)`）。
 
 `wow.query.dataset.max-concurrent`（8）限制一个节点同时运行的数据集查询数量，它们在自己的舱壁下运行，所以分析永远不会占满 Sink 正在写入的数仓；超出的查询会短暂等待，然后返回 `429 wow.query.busy`。已提供但当前无法查询的数据集返回 `409 wow.query.dataset-unavailable`，未知的数据集返回 `404 wow.query.dataset-not-found`。
 

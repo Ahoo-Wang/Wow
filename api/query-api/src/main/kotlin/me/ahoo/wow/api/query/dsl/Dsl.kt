@@ -15,6 +15,7 @@
 
 package me.ahoo.wow.api.query.dsl
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CursorQuery
@@ -56,7 +57,8 @@ fun cursorQuery(block: CursorQueryDsl.() -> Unit): CursorQuery = CursorQueryDsl(
 /** A `count` query: the number of matches, bounded. */
 fun countQuery(block: CountQueryDsl.() -> Unit): CountQuery = CountQueryDsl().apply(block).build()
 
-/** An `aggregate` query: grouped metrics of the matches. */
+/** An `aggregate` query: grouped metrics of the matches. Experimental, as the aggregation protocol is. */
+@ExperimentalWowApi
 fun aggregation(block: AggregationQueryDsl.() -> Unit): AggregationQuery = AggregationQueryDsl().apply(block).build()
 
 fun projection(block: ProjectionDsl.() -> Unit): Projection = ProjectionDsl().apply(block).build()

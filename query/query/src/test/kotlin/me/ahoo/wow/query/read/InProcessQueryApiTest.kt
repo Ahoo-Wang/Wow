@@ -35,6 +35,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TotalMode
+import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.MinVersionNotReachedException
 import me.ahoo.wow.api.read.dynamic
 import me.ahoo.wow.api.read.snapshots
@@ -354,7 +355,7 @@ class InProcessQueryApiTest {
         assertThrows<IllegalArgumentException> { api.of(alice).snapshots(order) }
         assertThrows<IllegalArgumentException> { api.of(alice).events(order) }
         assertThrows<IllegalArgumentException> { api.of(alice).snapshots<ItemAdded>() }
-        assertThrows<IllegalArgumentException> { api.of(alice).datasetTrees(AggregateType("shop", "sales")) }
+        assertThrows<IllegalArgumentException> { api.of(alice).datasetTrees(DatasetName.of("shop", "sales")) }
     }
 
     @Test
