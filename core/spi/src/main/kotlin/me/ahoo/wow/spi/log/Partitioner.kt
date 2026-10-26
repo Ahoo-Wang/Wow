@@ -60,7 +60,7 @@ object Partitioner {
     fun requirePartitions(partitions: Int): Int {
         require(isValidPartitions(partitions)) {
             "A log has $partitions partitions, but a partition count must be a power of two that divides $SLOTS " +
-                "(1, 2, 4, …, $SLOTS; decision D240): partitions are the hash slots modulo the count, so that they " +
+                "(1, 2, 4, …, $SLOTS): partitions are the hash slots modulo the count, so that they " +
                 "split online by doubling. Choose one such as 64, the default."
         }
         return partitions

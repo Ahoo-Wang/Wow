@@ -1,4 +1,4 @@
-description = "Wow CosId: CosId's generators as a node's global and aggregate id generators (decision D171)"
+description = "Wow CosId: CosId's generators as a node's global and aggregate id generators"
 
 dependencies {
     api(project(":spi"))

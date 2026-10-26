@@ -271,7 +271,7 @@ class AnnotationSetTest {
         )
         val (_, result) = compileModel("generate", kotlinCommands, javaCommand)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
-        val identity = "which Wow 10 removed (decision D68): a command carries no identity: it is Command.ref"
+        val identity = "which Wow 10 removed: a command carries no identity: it is Command.ref"
         result.messages.assert()
             .contains("command Open's field id is annotated @AggregateId, $identity")
             .contains("command Open's field tenantId is annotated @TenantId, $identity")

@@ -46,10 +46,12 @@ import org.springframework.core.env.Environment
 @InternalWowApi
 class InMemoryTopicsAutoConfiguration(environment: Environment) {
     init {
-        check(environment.getProperty("${KafkaProperties.PREFIX}.bootstrap-servers").isNullOrBlank()) {
-            "wow.topics.in-memory and wow.kafka.bootstrap-servers are both set: the node's topics are either in its " +
-                "JVM, for local development, or on Kafka (DX gap G27)."
-        }
+        configCheck(
+            environment.getProperty("${KafkaProperties.PREFIX}.bootstrap-servers").isNullOrBlank(),
+            "wow.topics.in-memory",
+            true,
+            "Unset one of them: the node's topics are either in its JVM, for local development, or on Kafka.",
+        ) { "wow.topics.in-memory and wow.kafka.bootstrap-servers are both set." }
     }
 
     @Bean
@@ -82,6 +84,6 @@ class InMemoryTopicsAutoConfiguration(environment: Environment) {
         /** What the node warns at startup with in-memory topics. */
         const val WARNING: String = "wow.topics.in-memory: the node's command topics and published streams are in " +
             "its JVM, not on Kafka. Other services do not see them, and nothing survives a restart: for local " +
-            "development and tests only (DX gap G27)."
+            "development and tests only."
     }
 }

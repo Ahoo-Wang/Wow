@@ -211,7 +211,7 @@ class PeerCommandsTest {
             val result = sales.gateway.execute(reserve(1, wait = plan))
             result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
             result.error!!.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)
-            result.error!!.message.assert().contains("command topic").contains("D259")
+            result.error!!.message.assert().contains("command topic")
         }
         topics.messages(COMMANDS).assert().isEmpty()
     }

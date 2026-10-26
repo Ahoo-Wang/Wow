@@ -47,8 +47,7 @@ internal class ManifestPeers(
     /** The Manifest of [context], read as [caller] asserting [call] in service mode, or kept from a read before. */
     suspend fun manifestOf(context: String, caller: Caller, call: CallContext?): Manifest {
         require(describes(context)) {
-            "$context is not described by its Manifest: list it in wow.clients.contexts with contract: manifest " +
-                "(decision D257)."
+            "$context is not described by its Manifest: list it in wow.clients.contexts with contract: manifest."
         }
         return reads[context]?.takeIf { it.at.elapsedNow() < ttl }?.manifest ?: fetch(context, caller, call)
     }
@@ -74,7 +73,7 @@ internal class ManifestPeers(
         return declared(manifest, command, ref)
             ?: fresh?.let { declared(fetch(context, caller, call), command, ref) }
             ?: throw IllegalArgumentException(
-                "The Manifest of $context does not declare the command ${command.name} of $type (decision D257)."
+                "The Manifest of $context does not declare the command ${command.name} of $type."
             )
     }
 

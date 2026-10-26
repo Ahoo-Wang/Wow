@@ -98,6 +98,7 @@ class FrameworkErrorsTest {
 
     private companion object {
         const val MAX_TITLE = 32
+
         /** Read by typescript/wow-client/test/frameworkErrors.test.ts. */
         const val SNAPSHOT = "src/test/resources/framework-errors.json"
         const val UPDATE = "WOW_UPDATE_SNAPSHOTS"

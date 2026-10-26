@@ -41,16 +41,16 @@ data class ContextSelection(val include: Set<String> = emptySet(), val exclude: 
         }
         val available = providers.mapTo(sortedSetOf()) { it.context }
         val unknown = (include + exclude).filterNot { it in available }.sorted()
-        check(unknown.isEmpty()) {
-            "wow.contexts names ${unknown.joinToString()}, which no domain module on the class path declares; the " +
-                "contexts on the class path are $available."
+        configCheck(unknown.isEmpty(), "wow.contexts", unknown.joinToString(), "Name only contexts on the class path: $available.") {
+            "wow.contexts names ${unknown.joinToString()}, which no domain module on the class path declares."
         }
         val both = include.intersect(exclude).sorted()
-        check(both.isEmpty()) { "wow.contexts both includes and excludes ${both.joinToString()}." }
+        configCheck(both.isEmpty(), "wow.contexts", both.joinToString(), "Remove each from the include or the exclude.") {
+            "wow.contexts both includes and excludes ${both.joinToString()}."
+        }
         val selected = providers.filter { (include.isEmpty() || it.context in include) && it.context !in exclude }
-        check(selected.isNotEmpty()) {
-            "wow.contexts selects no context: the include $include, less the exclude $exclude, leaves none of " +
-                "$available."
+        configCheck(selected.isNotEmpty(), "wow.contexts", "include $include, exclude $exclude", "Select one of $available.") {
+            "wow.contexts selects no context: the include, less the exclude, leaves none of the contexts."
         }
         return selected
     }

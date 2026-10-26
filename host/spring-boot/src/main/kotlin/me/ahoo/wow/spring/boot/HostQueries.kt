@@ -200,12 +200,15 @@ internal object HostEventStores {
             val store = aggregate.query.events.store ?: return@mapNotNull null
             val context = key.substringBefore('.', "")
             val name = key.substringAfter('.', "")
-            require(context.isNotBlank() && name.isNotBlank()) {
-                "wow.aggregates.[$key] names no aggregate type: <context>.<aggregate>."
+            configCheck(context.isNotBlank() && name.isNotBlank(), "wow.aggregates.[$key]", key, AGGREGATE_KEY_FIX) {
+                "wow.aggregates.[$key] names no aggregate type."
             }
-            require(store in stores) {
-                "wow.aggregates.[$key].query.events.store is $store, which is none of the stores $stores (wow.stores)."
-            }
+            configCheck(
+                store in stores,
+                "wow.aggregates.[$key].query.events.store",
+                store,
+                "Name one of the stores of wow.stores: $stores.",
+            ) { "wow.aggregates.[$key].query.events.store is $store, which is none of the stores." }
             AggregateType(context, name) to store
         }.toMap()
 }
@@ -252,8 +255,8 @@ internal object HostQueryBulkheads {
     ): Pair<QueryBulkhead, AdaptiveLimitOptions?>? {
         val fixed = own?.maxConcurrent ?: global.maxConcurrent
         val derived = fixed ?: provider.maxConcurrent(store)
-        check(derived >= 0) {
-            "wow.stores.$name.query.max-concurrent (or wow.query.max-concurrent) is $derived: 0 for no bound, or more."
+        configCheck(derived >= 0, "wow.stores.$name.query.max-concurrent", derived, "Set 0 for no bound, or more.") {
+            "wow.stores.$name.query.max-concurrent (or wow.query.max-concurrent) is $derived."
         }
         if (derived == 0) return null
         val adaptive = fixed == null && (own?.adaptive?.enabled ?: global.adaptive.enabled)
@@ -274,7 +277,9 @@ internal object HostQueryBulkheads {
         global: QueryProperties,
         own: WowProperties.StoreQuery?,
     ): Int = (own?.adaptive?.ceiling ?: global.adaptive.ceiling ?: provider.maxConcurrentCeiling(store)).also {
-        check(it >= 1) { "wow.stores.$name.query.adaptive.ceiling (or wow.query.adaptive.ceiling) is $it." }
+        configCheck(it >= 1, "wow.stores.$name.query.adaptive.ceiling", it, "Set 1 or more.") {
+            "wow.stores.$name.query.adaptive.ceiling (or wow.query.adaptive.ceiling) is $it."
+        }
     }
 
     /**

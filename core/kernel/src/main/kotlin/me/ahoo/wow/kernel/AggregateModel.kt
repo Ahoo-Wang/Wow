@@ -314,7 +314,7 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
      */
     fun eventType(name: String): EventType = requireNotNull(findEventType(name)) {
         if (isRetired(name)) {
-            "$type retired the event $name (decision D219): its records are skipped, never read."
+            "$type retired the event $name: its records are skipped, never read."
         } else {
             "$type has no event named $name."
         }

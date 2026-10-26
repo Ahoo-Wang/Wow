@@ -79,7 +79,7 @@ class CallPermits @JvmOverloads constructor(
                 null
             } else {
                 "Service ${service ?: caller.subject} may not call the system command $qualified: list it in " +
-                    "wow.http.services.${service ?: "<service>"}.commands (decision D226)."
+                    "wow.http.services.${service ?: "<service>"}.commands."
             }
         } else {
             if (entries.domain.isEmpty() || entries.domain.any { it.matches(command) || it.matches(qualified) }) {

@@ -102,6 +102,9 @@ import reactor.core.publisher.Mono
  * synchronous calls are taken on the internal port alone ([callRoutes], decision D193). Errors are
  * RFC 9457 problems whose statuses come from the Manifest's error tables ([ErrorStatuses]). The host serves other
  * routes under a context's path only by composing them before these.
+ *
+ * The streamed answers (`text/event-stream`) are produced in [scope], apart from their requests: the host passes one
+ * it cancels as the node stops, so no producer outlives the node.
  */
 @InternalWowApi
 fun wowRoutes(
@@ -112,12 +115,12 @@ fun wowRoutes(
     options: WowHttpOptions = WowHttpOptions(),
     queries: HttpQueries = HttpQueries.NONE,
     masks: PayloadMasks = PayloadMasks(manifest),
+    scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ): RouterFunction<ServerResponse> {
     val statuses = ErrorStatuses(manifest, options.errorStatuses)
     val authenticator = Authenticator(callerResolver, statuses)
     // The public port: its commands carry the default request facts (09 §17 G-10).
     val headers = RequestHeaders(statuses, publicPort = true, clientFacts = options.clientFacts)
-    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val commands = CommandHandler(
         gateway = gateway,
         authenticator = authenticator,
@@ -267,7 +270,8 @@ private fun CoRouterFunctionDsl.document(
  * jobs, whose routes are the public port's too, review R2.3-5) only when listed; any other is answered 403
  * [CallPermits.COMMAND_FORBIDDEN]. A call of a command route the Manifest does not have, in a context it serves, is
  * answered 400 `wow.command.unhandled` with its REJECTED result (review X-5), not 404: the caller's contract names a
- * command this service does not decide, which a retry does not mend.
+ * command this service does not decide, which a retry does not mend. The streamed answers are produced in [scope], as
+ * [wowRoutes]'s are.
  */
 @InternalWowApi
 fun callRoutes(
@@ -276,6 +280,7 @@ fun callRoutes(
     callerResolver: CallerResolver,
     options: WowHttpOptions = WowHttpOptions(),
     permits: CallPermits = CallPermits(emptyMap()),
+    scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ): RouterFunction<ServerResponse> {
     val statuses = ErrorStatuses(manifest, options.errorStatuses)
     val commands = CommandHandler(
@@ -288,7 +293,7 @@ fun callRoutes(
         headers = RequestHeaders(statuses),
         statuses = statuses,
         options = options,
-        scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        scope = scope,
         internal = true,
         permits = permits,
     )

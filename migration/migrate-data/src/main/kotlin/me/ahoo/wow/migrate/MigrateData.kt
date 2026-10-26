@@ -302,7 +302,7 @@ class MigrateData(
             out.println(
                 "Comparison done: ${differing.sumOf { it.differing }} instances of ${differing.map { it.aggregate }} " +
                     "differ. Explain each kind of difference (a known 9.x defect or an intended change) before the " +
-                    "cut-over (design 07 §3 step 4).",
+                    "cut-over.",
             )
         }
         if (differingKeys.isNotEmpty()) {
@@ -421,7 +421,7 @@ class MigrateData(
         if (scans.any { !it.passed }) {
             out.println(
                 "Export refused: 9.x cannot read the V10-only types above, or holds other streams where V10 wrote; " +
-                    "nothing was written (decision D32 covers the event types 9.x already had).",
+                    "nothing was written. An export covers only the event types 9.x already had.",
             )
             return FAILED
         }

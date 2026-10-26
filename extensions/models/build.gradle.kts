@@ -1,4 +1,4 @@
-description = "Wow models: shared capability interfaces, EnumText and the reusable Tree aggregate (decision D187)"
+description = "Wow models: shared capability interfaces, EnumText and the reusable Tree aggregate"
 
 // The port of 9.x wow-models (work package P.8): the same packages, on the 10.x wow-api only. The Tree aggregate's
 // handlers live in its superclasses; a domain's subclass binds them when the compiler processes the domain. The tests

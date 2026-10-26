@@ -85,7 +85,7 @@ class PartitionerTest {
             .forEach { invalid ->
                 Partitioner.isValidPartitions(invalid).assert().isFalse()
                 assertThrows<IllegalArgumentException> { Partitioner.partitionOf(ref, invalid) }
-                    .message.assert().contains("$invalid partitions").contains("power of two").contains("D240")
+                    .message.assert().contains("$invalid partitions").contains("power of two")
             }
         (1..Partitioner.SLOTS).count { Partitioner.isValidPartitions(it) }.assert().isEqualTo(13)
     }

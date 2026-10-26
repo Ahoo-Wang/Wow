@@ -36,6 +36,8 @@ wow:
 
 The host refuses to start on a name that matches nothing it serves, rather than ignoring it: a subscription under `wow.subscriptions` that no handler is, an aggregate type under `wow.aggregates` the node does not serve, a context under `wow.contexts` that is on no class path, an id generator nothing provides.
 
+Such a failure, and any other value the host cannot start with, is a `WowConfigurationException`, which Spring Boot reports at the end of the log as a failure analysis instead of a stack of bean creation errors: what is wrong, the key and its value, and the action to take.
+
 ## Keys are checked
 
 Spring ignores a key no property binds, so a misspelled key would leave its default in place without a word. The host compares every `wow.*` key with the configuration metadata on the class path when it starts:

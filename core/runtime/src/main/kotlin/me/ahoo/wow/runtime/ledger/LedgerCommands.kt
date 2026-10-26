@@ -80,7 +80,7 @@ internal class LedgerCommands(
             logger.warn { "Refused the ${wire.type} ${wire.id} on $ref: it does not come from the $opsContext saga." }
             return ErrorInfo(
                 FrameworkCodes.AUTH_FORBIDDEN,
-                "${wire.type} is taken from the $opsContext context's saga alone (decision D226).",
+                "${wire.type} is taken from the $opsContext context's saga alone.",
             )
         }
         // The scans leave the entry to the action, which publishes what came of it.

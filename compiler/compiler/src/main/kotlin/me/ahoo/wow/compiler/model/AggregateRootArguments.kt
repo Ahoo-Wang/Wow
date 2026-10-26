@@ -70,7 +70,7 @@ internal object AggregateRootArguments {
     fun stateRevision(root: KSClassDeclaration, problems: MutableList<String>): Int {
         val revision = root.getAnnotationsByType(AggregateRoot::class).firstOrNull()?.stateRevision ?: 1
         if (revision < 1) {
-            problems += "@AggregateRoot(stateRevision) is $revision: a state revision starts at 1 (decision D172)"
+            problems += "@AggregateRoot(stateRevision) is $revision: a state revision starts at 1"
         }
         return revision
     }
@@ -120,7 +120,7 @@ internal object AggregateRootArguments {
         // Every one, as by default: a tenant's aggregate has no owner to transfer, so it drops TransferOwner.
         if (names != AggregateBinding.ALL_LIFECYCLE_COMMANDS) {
             problems += "@AggregateRoot(lifecycle) lists TransferOwner, but the aggregate belongs to its tenant " +
-                "(ownership = TENANT): it has no owner to transfer (decision D189)"
+                "(ownership = TENANT): it has no owner to transfer"
         }
         return names - TRANSFER_OWNER
     }

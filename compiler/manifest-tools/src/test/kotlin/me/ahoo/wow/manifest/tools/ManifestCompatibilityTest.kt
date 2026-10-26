@@ -710,7 +710,7 @@ class ManifestCompatibilityTest {
         val failure =
             assertThrows<IllegalStateException> { ManifestTools.checkCompatibility(baseline, current, report) }
         failure.message.assert().contains(
-            "The Manifest has 1 breaking change(s) against its baseline $baseline (decision D76):\n" +
+            "The Manifest has 1 breaking change(s) against its baseline $baseline:\n" +
                 "  - $CART.commands[AddItem]: command removed\n",
             "run updateManifestBaseline",
         )

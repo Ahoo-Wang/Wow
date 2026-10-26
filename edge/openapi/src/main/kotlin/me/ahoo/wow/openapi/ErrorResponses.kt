@@ -104,7 +104,7 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
         const val PROBLEM_JSON: String = "application/problem+json"
         const val RESPONSES: String = "responses"
         private const val DOMAIN_REJECTION =
-            "A rejection by the domain, with the code it chose (decision D121); the problem carries the command's result."
+            "A rejection by the domain, with the code it chose; the problem carries the command's result."
 
         /**
          * The codes a command route answers: every framework code but the query ones and the internal port's call

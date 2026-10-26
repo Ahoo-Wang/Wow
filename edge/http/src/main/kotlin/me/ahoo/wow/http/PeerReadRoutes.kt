@@ -73,7 +73,8 @@ import org.springframework.web.reactive.function.server.coRouter
  * request's facts) as the caller's [app][Caller.app], so the scope policy, ABAC and the application's query policies
  * restrict it as they would the root request's, and it is masked alike. Its command id and causation say nothing
  * here. A `Wow-Scope` is refused, as for any caller that may not act across scopes. None of these routes is in the
- * OpenAPI document (decision D226): they are the services' own.
+ * OpenAPI document (decision D226): they are the services' own. The streamed answers are produced in [scope], as
+ * [wowRoutes]'s are.
  */
 @InternalWowApi
 @Suppress("LongParameterList") // One parameter per part of the routes, as wowRoutes takes them.
@@ -86,13 +87,13 @@ fun peerReadRoutes(
     options: WowHttpOptions = WowHttpOptions(),
     permits: CallPermits = CallPermits(emptyMap()),
     masks: PayloadMasks = PayloadMasks(manifest),
+    scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ): RouterFunction<ServerResponse> {
     val statuses = ErrorStatuses(manifest, options.errorStatuses)
     val roots = PeerRoots(callerResolver, permits, statuses)
     val authenticator =
         Authenticator(CallerResolver { request -> request.attribute(ROOT_CALLER).orElse(null) as Caller? }, statuses)
     val headers = RequestHeaders(statuses)
-    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val queryHandler = QueryHandler(queries, authenticator, headers, statuses, gateway.tenants, scope)
     val ownerships = QueryOwnership.of(manifest)
     val states =
@@ -189,7 +190,7 @@ internal class PeerRoots(
         val value = request.headers().firstHeader(WowHeaders.CALL)
         if (!service.service || value == null) {
             throw forbidden(
-                "The internal port serves only a service identity's read with ${WowHeaders.CALL} (decision D259)."
+                "The internal port serves only a service identity's read with ${WowHeaders.CALL}."
             )
         }
         model?.let { permits.readRefusal(service, it) }?.let { throw forbidden(it) }

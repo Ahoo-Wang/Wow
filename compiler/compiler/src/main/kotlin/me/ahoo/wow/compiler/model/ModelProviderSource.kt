@@ -55,7 +55,7 @@ internal object ModelProviderSource {
             appendLine("package $packageName")
         }
         appendLine()
-        appendLine("/** The binding index of the module of Manifest fragment [fragment] (decision D107). */")
+        appendLine("/** The binding index of the module of Manifest fragment [fragment]. */")
         appendLine("public class $className : $MODEL_PROVIDER {")
         appendLine("    override val context: String = \"${escape(context)}\"")
         appendLine()

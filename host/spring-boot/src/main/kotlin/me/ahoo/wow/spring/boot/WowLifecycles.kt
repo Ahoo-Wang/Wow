@@ -14,6 +14,10 @@
 package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.query.QueryStreams
@@ -37,7 +41,8 @@ import kotlin.time.Duration.Companion.seconds
  *   Spring Boot reports once the application has started;
  * - stops: readiness `REFUSING_TRAFFIC` (Spring Boot, as the context closes) and the public server's graceful
  *   shutdown → [NODE_PHASE] ([ServiceNode.stop]: hand-off, drain, waits, close) → [INTERNAL_SERVER_PHASE], which
- *   serves the other nodes' forwards and signals until then → the backends, closed with their beans.
+ *   serves the other nodes' forwards and signals until then → [ROUTES_SCOPE_PHASE], which cancels what the routes
+ *   still stream → the backends, closed with their beans.
  *
  * Spring Boot bounds each phase's stop by `spring.lifecycle.timeout-per-shutdown-phase`, which the host raises to
  * `wow.wait.max-timeout + wow.cluster.drain-timeout` ([ShutdownTimeoutEnvironmentPostProcessor]).
@@ -51,6 +56,9 @@ internal object WowLifecycles {
 
     /** [InternalServerLifecycle]: before the node starts, after it stops. */
     const val INTERNAL_SERVER_PHASE: Int = NODE_PHASE - 1024
+
+    /** [RoutesScope]: stops after the internal server, before the backends close. */
+    const val ROUTES_SCOPE_PHASE: Int = INTERNAL_SERVER_PHASE - 256
 
     /** [BackendsLifecycle]: first of all. */
     const val BACKENDS_PHASE: Int = INTERNAL_SERVER_PHASE - 1024
@@ -111,8 +119,7 @@ class GracefulShutdownSettled @JvmOverloads constructor(
             if (left > 0) shutdown.join(left)
             if (shutdown.isAlive) {
                 logger.warn {
-                    "The public server's graceful shutdown is still running after $timeout: the server stops it now " +
-                        "(review X-4)."
+                    "The public server's graceful shutdown is still running after $timeout: the server stops it now."
                 }
             }
         }
@@ -156,6 +163,32 @@ class QueryStreamsLifecycle(private val streams: QueryStreams) : SmartLifecycle 
     override fun isRunning(): Boolean = running
 
     override fun getPhase(): Int = WowLifecycles.QUERY_STREAMS_PHASE
+}
+
+/**
+ * The scope the HTTP routes, public and internal, produce their streamed answers in, apart from the requests: cancelled
+ * once the node and the internal port have stopped, so a stream still open then ends instead of outliving the node.
+ */
+@InternalWowApi
+class RoutesScope : SmartLifecycle {
+    /** The routes' scope. */
+    val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    @Volatile
+    private var running = false
+
+    override fun start() {
+        running = true
+    }
+
+    override fun stop() {
+        running = false
+        scope.cancel("The node stopped.")
+    }
+
+    override fun isRunning(): Boolean = running
+
+    override fun getPhase(): Int = WowLifecycles.ROUTES_SCOPE_PHASE
 }
 
 /** Creates the schemas of the backends the node opened, where they are missing, before anything uses them. */

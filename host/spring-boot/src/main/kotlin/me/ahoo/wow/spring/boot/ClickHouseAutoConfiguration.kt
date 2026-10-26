@@ -59,7 +59,11 @@ class ClickHouseAutoConfiguration {
         @Bean(destroyMethod = "close")
         @ConditionalOnMissingBean(Client::class)
         fun wowClickHouseClient(properties: ClickHouseProperties): Client = Client.Builder()
-            .addEndpoint(checkNotNull(properties.endpoint) { "wow.clickhouse.endpoint is not set." })
+            .addEndpoint(
+                configNotNull(properties.endpoint, "wow.clickhouse.endpoint", "Set it to the ClickHouse HTTP endpoint.") {
+                    "wow.clickhouse.endpoint is not set."
+                },
+            )
             .setUsername(properties.username)
             .setPassword(properties.password)
             .build()
@@ -121,7 +125,9 @@ class ClickHouseAutoConfiguration {
         ): ClickHouseSinkOptions {
             val sink = properties.sink
             val ddl = DdlMode.entries.firstOrNull { it.name.equals(sink.ddl, ignoreCase = true) }
-            requireNotNull(ddl) { "wow.clickhouse.sink.ddl is auto, validate or none, not ${sink.ddl}." }
+            configCheck(ddl != null, "wow.clickhouse.sink.ddl", sink.ddl, "Set it to auto, validate or none.") {
+                "wow.clickhouse.sink.ddl is ${sink.ddl}, which is no DDL mode."
+            }
             return ClickHouseSinkOptions(
                 database = properties.database,
                 ddl = ddl,
@@ -145,8 +151,8 @@ class ClickHouseAutoConfiguration {
                 }
                 val context = key.substringBefore('.', "")
                 val name = key.substringAfter('.', "")
-                require(context.isNotBlank() && name.isNotBlank()) {
-                    "wow.aggregates.[$key] names no aggregate type: <context>.<aggregate>."
+                configCheck(context.isNotBlank() && name.isNotBlank(), "wow.aggregates.[$key]", key, AGGREGATE_KEY_FIX) {
+                    "wow.aggregates.[$key] names no aggregate type."
                 }
                 AggregateType(context, name) to history
             }.toMap()

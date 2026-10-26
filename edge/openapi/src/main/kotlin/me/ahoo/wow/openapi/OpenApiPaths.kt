@@ -75,7 +75,7 @@ internal class OpenApiPaths(
             Http.GLOBAL_ID_PATH,
             framework(
                 "wow.id.global",
-                "A new global id (decision D171).",
+                "A new global id.",
                 obj(TEXT to obj("schema" to type("string"))),
                 negotiated = false,
             ),
@@ -108,7 +108,7 @@ internal class OpenApiPaths(
             Http.DATASETS_PATH,
             obj(
                 "tags" to listOf(ManifestOpenApi.FRAMEWORK_TAG),
-                "summary" to "The datasets the caller sees (decision D145).",
+                "summary" to "The datasets the caller sees.",
                 "operationId" to "wow.dataset.list",
                 "parameters" to listOf(OpenApiParameters.ref(Http.SCOPE_HEADER)),
                 "responses" to ok(json(array(schemaRef(WowSchemas.DATASET_ENTRY)))) +
@@ -123,7 +123,7 @@ internal class OpenApiPaths(
             path,
             query(
                 "wow.dataset.query",
-                "Queries a dataset (decision D145), as a snapshot model is queried.",
+                "Queries a dataset, as a snapshot model is queried.",
                 null,
                 type("object"),
                 parameters,
@@ -165,7 +165,7 @@ internal class OpenApiPaths(
                 obj(
                     "tags" to listOf(tag),
                     "summary" to name.substringAfterLast('.'),
-                    "description" to "Sends the job command `$name` (decision D198) to the job the path's id names, " +
+                    "description" to "Sends the job command `$name` to the job the path's id names, " +
                         "in the caller's tenant: ${jobs.joinToString { "`$it`" }}.",
                     "operationId" to "$tag.$name",
                     "parameters" to commandParameters(byId = true),
@@ -190,7 +190,7 @@ internal class OpenApiPaths(
             obj(
                 "tags" to listOf(tag),
                 "summary" to name.substringAfterLast('.'),
-                "description" to "Sends `$name` (decision D172): rebuilds from the log the snapshots of the aggregate " +
+                "description" to "Sends `$name`: rebuilds from the log the snapshots of the aggregate " +
                     "type the path's id names, in the caller's tenant: ${snapshotted.joinToString { "`$it`" }}.",
                 "operationId" to "$tag.$name",
                 "parameters" to commandParameters(byId = true),
@@ -228,7 +228,7 @@ internal class OpenApiPaths(
         add("Sends `$type`.")
         add(
             when {
-                command.mounted -> "A mounted command (decision D182): a transformer turns it into the commands it becomes."
+                command.mounted -> "A mounted command: a transformer turns it into the commands it becomes."
                 command.creation == Creation.REQUIRED -> "Creates the aggregate; one that exists is refused."
                 command.creation == Creation.ALLOWED -> "Creates the aggregate when it does not exist."
                 else -> "Acts on an aggregate that exists."
@@ -243,7 +243,7 @@ internal class OpenApiPaths(
     private fun lifecycle(context: String, tag: String, name: String): Map<String, Any?> = obj(
         "tags" to listOf(tag),
         "summary" to name.substringAfterLast('.'),
-        "description" to "Sends the lifecycle command `$name` (decision D113).",
+        "description" to "Sends the lifecycle command `$name`.",
         "operationId" to "$tag.$name",
         "parameters" to commandParameters(byId = true),
         "requestBody" to body(WowSchemas.lifecycle(name)),
@@ -334,7 +334,7 @@ internal class OpenApiPaths(
                 "tags" to listOf(tag),
                 "summary" to "The aggregate's commits",
                 "description" to "The commits from `from` to `to`, at most `limit`, each with its events and the " +
-                    "state after it (decision D40); the next page starts after the last commit's version.",
+                    "state after it; the next page starts after the last commit's version.",
                 "operationId" to "$tag.state.trace",
                 "parameters" to traceParameters.map(OpenApiParameters::ref),
                 "responses" to ok(json(trace)) +
@@ -357,7 +357,7 @@ internal class OpenApiPaths(
             } else {
                 query(
                     "$operationId.query",
-                    "Queries the ${query.model} model (decision D127).",
+                    "Queries the ${query.model} model.",
                     tag,
                     record,
                     emptyList(),
@@ -389,7 +389,7 @@ internal class OpenApiPaths(
             "summary" to summary,
             "description" to "The body's `kind` is the operation: `list` (an array, or with " +
                 "`Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count` " +
-                "or `aggregate` (an array of groups). A streamed `list` is resumable (decision D253): each `row` " +
+                "or `aggregate` (an array of groups). A streamed `list` is resumable: each `row` " +
                 "event's `id` is the record's position, an opaque cursor token; the stream reads keyset chunks, " +
                 "bounded by time and query permits rather than rows, and ends with an `end` event " +
                 "`{\"reason\", \"resumable\"}` (`complete`, or the resumable `hold-expired`, `permit-reclaimed` " +

@@ -192,7 +192,11 @@ class KafkaAutoConfiguration {
 
         /** The transport's options from [properties]. */
         fun options(properties: KafkaProperties): KafkaOptions = KafkaOptions(
-            bootstrapServers = checkNotNull(properties.bootstrapServers) { "wow.kafka.bootstrap-servers is not set." },
+            bootstrapServers = configNotNull(
+                properties.bootstrapServers,
+                "wow.kafka.bootstrap-servers",
+                "Set it to the Kafka brokers, host:port, separated by commas.",
+            ) { "wow.kafka.bootstrap-servers is not set." },
             properties = properties.properties.toMap(),
             pollTimeout = properties.pollTimeout.toKotlinDuration(),
             metadataMaxAge = properties.topics.partitionRefresh.toKotlinDuration(),

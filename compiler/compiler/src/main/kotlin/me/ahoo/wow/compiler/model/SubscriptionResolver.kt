@@ -596,7 +596,7 @@ internal object SubscriptionResolver {
             add(
                 "$where must take a $STATE_EVENT, a StateTypedEvent or an event first, not " +
                     "${first?.qualifiedName() ?: "nothing"}: a handler receives the committed stream, or each of its " +
-                    "events of a type, with the state after it (decision D264)",
+                    "events of a type, with the state after it",
             )
         }
         val context = parameters.getOrNull(1)?.qualifiedName()

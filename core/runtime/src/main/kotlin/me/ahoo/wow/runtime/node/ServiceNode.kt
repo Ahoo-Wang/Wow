@@ -470,7 +470,7 @@ class ServiceNode @InternalWowApi constructor(
     init {
         require(options.ledger == null || sender != null) {
             "Node $node publishes its failure ledger to ${options.ledger?.context}, through that context's command " +
-                "topic, but has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers; decision D141)."
+                "topic, but has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers)."
         }
     }
 
@@ -490,7 +490,7 @@ class ServiceNode @InternalWowApi constructor(
                 "Node $node has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers), but " +
                     outside.entries.joinToString("; ") { (subscription, contexts) ->
                         "$subscription sends commands to ${contexts.joinToString()}"
-                    } + ": a command across contexts goes through its context's command topic (decision D33)."
+                    } + ": a command across contexts goes through its context's command topic."
             }
         }
     }
@@ -516,7 +516,7 @@ class ServiceNode @InternalWowApi constructor(
             }
         }
         require(problems.isEmpty()) {
-            "Node $node cannot make its sagas' calls (decision D259): ${problems.joinToString("; ")}."
+            "Node $node cannot make its sagas' calls: ${problems.joinToString("; ")}."
         }
     }
 
@@ -531,7 +531,7 @@ class ServiceNode @InternalWowApi constructor(
         }
         require(options.kafkaRouted.isEmpty() || topics?.producer != null) {
             "The Kafka router of ${options.kafkaRouted} writes their commands to their command topics, but node $node " +
-                "has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers; decision D143)."
+                "has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers)."
         }
     }
 

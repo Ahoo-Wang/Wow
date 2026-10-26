@@ -280,7 +280,7 @@ class CommandIntake internal constructor(
             check(count == partitions) {
                 val found = if (count == 0) "does not exist" else "has $count partitions"
                 "The command topic $topic of context $context $found: it must have $partitions partitions, as many " +
-                    "as the context's log (decision D135). Create it so before the service starts."
+                    "as the context's log. Create it so before the service starts."
             }
         }
     }

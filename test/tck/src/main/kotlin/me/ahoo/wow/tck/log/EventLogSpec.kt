@@ -430,7 +430,7 @@ abstract class EventLogSpec {
     fun `a partition count that is not a power of two dividing 4096 is refused`() {
         listOf(0, 3, 6, 100, 8192).forEach { partitions ->
             assertThrows<IllegalArgumentException> { createLog(context, partitions) }
-                .message.assert().contains("D240")
+                .message.assert().contains("a power of two that divides 4096")
         }
     }
 

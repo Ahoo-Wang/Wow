@@ -151,7 +151,7 @@ internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan 
                 return null
             }
             return "Hop $hop follows ${saga.context}/${saga.subscription}, which derives commands of " +
-                "${derived.sorted()} only (decision D138)."
+                "${derived.sorted()} only."
         }
     }
 }

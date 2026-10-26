@@ -142,7 +142,7 @@ class WaitChainTest {
         (rejected(Hop.committed(), Hop.handled("payment.saga", "payment")) as WaitChain.Invalid).reason
             .assert().contains("unknown context")
         (allowed(Hop.committed(), saga, Hop.committed("Payment")) as WaitChain.Invalid).reason
-            .assert().contains("names no context").contains("D169")
+            .assert().contains("names no context")
         (allowed(Hop.committed(), Hop.handled("x.saga", "pay.ment")) as WaitChain.Invalid).reason
             .assert().contains("names no context")
         // A known context's subscriptions are still checked.
