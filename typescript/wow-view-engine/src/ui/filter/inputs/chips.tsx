@@ -119,7 +119,7 @@ export function ValueChips<T extends string | number>({
     <Combobox
       multiple
       items={items}
-      value={values as T[]}
+      value={values}
       onValueChange={next => {
         setDraft(null);
         onChange(next);
