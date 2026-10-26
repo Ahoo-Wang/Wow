@@ -324,7 +324,7 @@
   }, {
     "code" : "wow.query.timeout",
     "status" : 504,
-    "description" : "The query ran longer than its budget allows; narrow it rather than run it again (decision D254 ③)."
+    "description" : "The query ran longer than its budget allows; narrow it rather than run it again."
   }, {
     "code" : "wow.query.min-version-not-reached",
     "status" : 409,

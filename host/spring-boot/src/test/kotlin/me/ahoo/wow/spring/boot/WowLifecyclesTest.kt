@@ -75,7 +75,9 @@ class WowLifecyclesTest {
         val stream = routes.scope.launch { awaitCancellation() }
         routes.start()
         routes.isRunning.assert().isTrue()
-        routes.phase.assert().isLessThan(WowLifecycles.INTERNAL_SERVER_PHASE).isGreaterThan(WowLifecycles.BACKENDS_PHASE)
+        routes.phase.assert().isLessThan(
+            WowLifecycles.INTERNAL_SERVER_PHASE
+        ).isGreaterThan(WowLifecycles.BACKENDS_PHASE)
 
         routes.stop()
 

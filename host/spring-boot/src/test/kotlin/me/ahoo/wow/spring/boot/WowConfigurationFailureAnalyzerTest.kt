@@ -18,6 +18,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.BeanCreationException
 import org.springframework.boot.diagnostics.FailureAnalyzer
+import org.springframework.core.io.UrlResource
+import org.springframework.core.io.support.PropertiesLoaderUtils
 import org.springframework.core.io.support.SpringFactoriesLoader
 
 class WowConfigurationFailureAnalyzerTest {
@@ -31,7 +33,7 @@ class WowConfigurationFailureAnalyzerTest {
     @Test
     fun `a configuration failure should name the key, its value and the fix`() {
         failure.message.assert().isEqualTo("${failure.reason} ${failure.fix}")
-        val analysis = WowConfigurationFailureAnalyzer().analyze(BeanCreationException("wowNode", "failed", failure))
+        val analysis = WowConfigurationFailureAnalyzer().analyze(BeanCreationException("wowNode", "failed", failure))!!
         analysis.description.assert().contains(failure.reason, "Property: wow.cluster.router", "Value: partitioned")
         analysis.action.assert().isEqualTo(failure.fix)
         analysis.cause.assert().isSameAs(failure)
@@ -40,13 +42,15 @@ class WowConfigurationFailureAnalyzerTest {
     @Test
     fun `a key that is not set should have no value line`() {
         val unset = WowConfigurationException("wow.kafka.bootstrap-servers", null, "It is not set.", "Set it.")
-        WowConfigurationFailureAnalyzer().analyze(unset).description.assert().doesNotContain("Value:")
+        WowConfigurationFailureAnalyzer().analyze(unset)!!.description.assert().doesNotContain("Value:")
     }
 
     @Test
     fun `Spring Boot should find the analyzer`() {
-        SpringFactoriesLoader.forDefaultResourceLocation(javaClass.classLoader).load(FailureAnalyzer::class.java)
-            .map { it.javaClass }.assert().contains(WowConfigurationFailureAnalyzer::class.java)
+        // Each jar's spring.factories on its own: merged, one jar's list would replace another's.
+        val analyzers = javaClass.classLoader.getResources(SpringFactoriesLoader.FACTORIES_RESOURCE_LOCATION).toList()
+            .mapNotNull { PropertiesLoaderUtils.loadProperties(UrlResource(it)).getProperty(ANALYZER_KEY) }
+        analyzers.joinToString(",").assert().contains(WowConfigurationFailureAnalyzer::class.java.name)
     }
 
     @Test
@@ -54,7 +58,11 @@ class WowConfigurationFailureAnalyzerTest {
         assertThrows<WowConfigurationException> { configCheck(false, "wow.x", 1, "Fix it.") { "Wrong." } }
             .key.assert().isEqualTo("wow.x")
         configNotNull("set", "wow.x", "Fix it.") { "Wrong." }.assert().isEqualTo("set")
-        assertThrows<WowConfigurationException> { configNotNull(null, "wow.x", "Fix it.", "bad") { "Wrong." } }
+        assertThrows<WowConfigurationException> { configNotNull<String>(null, "wow.x", "Fix it.", "bad") { "Wrong." } }
             .value.assert().isEqualTo("bad")
+    }
+
+    private companion object {
+        val ANALYZER_KEY: String = FailureAnalyzer::class.java.name
     }
 }

@@ -80,7 +80,7 @@ class ClusterTokenTest {
 
     @Test
     fun `a cluster token should not be a service token too`() {
-        assertThrownBy<IllegalArgumentException> {
+        assertThrownBy<WowConfigurationException> {
             WowAutoConfiguration.clusterTokens(properties(CURRENT, serviceToken = CURRENT), environment(), "10.0.0.7")
         }.hasMessageContaining("wow.http.services")
         assertThrownBy<IllegalArgumentException> {

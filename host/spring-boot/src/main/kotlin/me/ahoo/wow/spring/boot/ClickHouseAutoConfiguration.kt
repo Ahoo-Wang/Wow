@@ -60,7 +60,11 @@ class ClickHouseAutoConfiguration {
         @ConditionalOnMissingBean(Client::class)
         fun wowClickHouseClient(properties: ClickHouseProperties): Client = Client.Builder()
             .addEndpoint(
-                configNotNull(properties.endpoint, "wow.clickhouse.endpoint", "Set it to the ClickHouse HTTP endpoint.") {
+                configNotNull(
+                    properties.endpoint,
+                    "wow.clickhouse.endpoint",
+                    "Set it to the ClickHouse HTTP endpoint."
+                ) {
                     "wow.clickhouse.endpoint is not set."
                 },
             )
@@ -151,7 +155,12 @@ class ClickHouseAutoConfiguration {
                 }
                 val context = key.substringBefore('.', "")
                 val name = key.substringAfter('.', "")
-                configCheck(context.isNotBlank() && name.isNotBlank(), "wow.aggregates.[$key]", key, AGGREGATE_KEY_FIX) {
+                configCheck(
+                    context.isNotBlank() && name.isNotBlank(),
+                    "wow.aggregates.[$key]",
+                    key,
+                    AGGREGATE_KEY_FIX
+                ) {
                     "wow.aggregates.[$key] names no aggregate type."
                 }
                 AggregateType(context, name) to history

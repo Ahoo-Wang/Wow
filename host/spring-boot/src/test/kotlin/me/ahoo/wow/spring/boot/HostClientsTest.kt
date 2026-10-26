@@ -167,7 +167,7 @@ class HostClientsTest {
         )
             .of(dave).snapshots<Account>().assert().isSameAs(localQueries.of(dave).snapshots(Account::class.java))
         assertThrows<IllegalStateException> { RoutedQueryApi(localQueries, peers(), emptySet()).tenant("t1") }
-        assertThrows<IllegalArgumentException> {
+        assertThrows<WowConfigurationException> {
             PeerClients(
                 mapOf("ledger" to WowProperties.Clients.Mode.SERVICE),
                 contracts,
@@ -233,10 +233,10 @@ class HostClientsTest {
         val service = WowProperties.Clients.Mode.SERVICE
         PeerClients(mapOf("mail" to service), none, lazy { error("") }, lazy { error("") }, service, setOf("mail"))
             .described.assert().containsExactly("mail")
-        assertThrows<IllegalArgumentException> {
+        assertThrows<WowConfigurationException> {
             PeerClients(emptyMap(), none, lazy { error("") }, lazy { error("") }, service, setOf("mail"))
         }.message.assert().contains("not in wow.clients.contexts")
-        assertThrows<IllegalArgumentException> {
+        assertThrows<WowConfigurationException> {
             PeerClients(mapOf(BANK to service), contracts, lazy { error("") }, lazy { error("") }, service, setOf(BANK))
         }.message.assert().contains("whose contract is on the class path")
         val peers = WowAutoConfiguration().wowPeerClients(

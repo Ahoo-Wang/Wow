@@ -360,7 +360,11 @@ class WowAutoConfiguration {
     @ConditionalOnMissingBean
     fun wowEndpointResolver(properties: WowProperties): EndpointResolver {
         val calls = properties.calls.contexts.mapValues { (context, target) ->
-            configNotNull(target.url, "wow.calls.contexts.$context.url", "Set it to the base URL of the context's service.") {
+            configNotNull(
+                target.url,
+                "wow.calls.contexts.$context.url",
+                "Set it to the base URL of the context's service."
+            ) {
                 "wow.calls.contexts.$context.url is not set."
             }
         }

@@ -224,7 +224,7 @@ class HostRefusalTest {
 
     @Test
     fun `a service without a name should be refused`() {
-        refusal("spring.application.name" to "").assert().contains("Name the service")
+        refusal("spring.application.name" to "").assert().contains("The service has no name")
     }
 }
 

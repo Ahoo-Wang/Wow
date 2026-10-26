@@ -27,7 +27,7 @@ import kotlin.io.path.readText
 import kotlin.io.path.writeText
 
 /**
- * The host's Spring configuration metadata (review A5-9), `META-INF/spring-configuration-metadata.json`, generated
+ * The host's Spring configuration metadata, `META-INF/spring-configuration-metadata.json`, generated
  * from its properties classes and their KDoc without the configuration processor: this test fails when the committed
  * file is not what the classes give, and `WOW_UPDATE_SNAPSHOTS=1` rewrites it.
  */
@@ -60,6 +60,21 @@ class ConfigurationMetadataTest {
         )
     }
 
+    @Test
+    fun `every key should have a plain description`() {
+        val document = WowJson.mapper.readTree(metadata())
+        val undocumented = document["properties"].filter { it["description"]?.asString().isNullOrBlank() }
+            .map { it["name"].asString() }
+        undocumented.assert().describedAs("Write a KDoc on the property of each of these keys.").isEmpty()
+        val withIds = (document["groups"] + document["properties"]).filter { entry ->
+            val description = entry["description"]?.asString().orEmpty()
+            INTERNAL_IDS.any { it.containsMatchIn(description) }
+        }.map { it["name"].asString() }
+        withIds.assert()
+            .describedAs("Users cannot look up decision or review IDs: explain them in plain words instead.")
+            .isEmpty()
+    }
+
     private fun metadata(): String {
         val docs = KDocIndex(SOURCES)
         val groups = ArrayList<Map<String, Any?>>()
@@ -88,7 +103,8 @@ class ConfigurationMetadataTest {
             val name = "$prefix.${kebab(property.name)}"
             val value = property.readMethod.invoke(instance)
             val classifier = property.propertyType
-            val description = docs.propertyDoc(type, property.name)
+            // An inherited property's KDoc is on the class that declares it (QueryProperties.Budget's on Http's).
+            val description = docs.propertyDoc(property.readMethod.declaringClass, property.name)
             if (isGroup(classifier)) {
                 groups += entry(name, classifier.name, type.name, description ?: docs.classDoc(classifier))
                 val nested = value ?: classifier.getDeclaredConstructor().newInstance()
@@ -202,6 +218,13 @@ class ConfigurationMetadataTest {
 
     private companion object {
         const val UPDATE = "WOW_UPDATE_SNAPSHOTS"
+
+        /** Decision IDs, review IDs and the circled numbers of a decision's items. */
+        val INTERNAL_IDS: List<Regex> = listOf(
+            Regex("\\bD\\d{2,3}\\b"),
+            Regex("\\b(R\\d(\\.\\d)?-\\d+|A\\d-\\d+|Q-\\d+|X-\\d+|M-\\d+)\\b"),
+            Regex("[\u2460-\u2473]"),
+        )
         val SOURCES: Path = Path.of("src/main/kotlin")
         val METADATA_FILE: Path = Path.of("src/main/resources/${ConfigurationKeys.METADATA}")
         val ROOTS: List<Pair<Class<*>, String>> = listOf(

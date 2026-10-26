@@ -160,7 +160,11 @@ internal object StoreInstances {
         return properties.stores.mapValues { (name, store) ->
             val key = "wow.stores.$name"
             val type = StoreTypes.of(
-                configNotNull(store.type?.takeIf { it.isNotBlank() }, "$key.type", "Set it to one of ${providers.types}.") {
+                configNotNull(
+                    store.type?.takeIf { it.isNotBlank() },
+                    "$key.type",
+                    "Set it to one of ${providers.types}."
+                ) {
                     "$key.type is not set."
                 },
             )

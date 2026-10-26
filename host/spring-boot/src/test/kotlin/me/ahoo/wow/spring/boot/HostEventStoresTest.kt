@@ -142,7 +142,7 @@ class HostEventStoresTest {
         }
         HostEventStores.configured(properties, setOf("main")).assert()
             .isEqualTo(mapOf(AggregateType(BANK, "account") to "main"))
-        assertThrows<IllegalArgumentException> {
+        assertThrows<WowConfigurationException> {
             HostEventStores.configured(
                 WowProperties().apply {
                     aggregates["bank."] = WowProperties.Aggregate().apply { query.events.store = "main" }
@@ -154,7 +154,7 @@ class HostEventStoresTest {
 
     @Test
     fun `a key that names no aggregate type is refused`() {
-        val failure = assertThrows<IllegalArgumentException> {
+        val failure = assertThrows<WowConfigurationException> {
             HostEventStores.configured(
                 WowProperties().apply {
                     aggregates["account"] = WowProperties.Aggregate().apply { query.events.store = "main" }

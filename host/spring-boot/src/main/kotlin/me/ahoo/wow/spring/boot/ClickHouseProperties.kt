@@ -17,55 +17,76 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 
 /**
- * ClickHouse's configuration, `wow.clickhouse.*` (decisions D110, D142, D164), read when wow-clickhouse is on the
- * classpath ([ClickHouseAutoConfiguration]):
- *
- * - `wow.clickhouse.endpoint`: the server's HTTP endpoint, such as `http://localhost:8123`; ClickHouse is wired only
- *   when it is set. `username` (`default`) and `password` (empty) sign in; `database` (`default`) holds the tables.
- * - `wow.clickhouse.sink.enabled`: whether the Manifest's published streams are written to ClickHouse; on by default.
- * - `wow.clickhouse.sink.ddl`: `auto` (create what is missing, then validate; the default), `validate` or `none`.
- * - `wow.clickhouse.sink.batch-size`: the most records one insert carries (1000).
- * - `wow.clickhouse.sink.deduplication-window`: how many recent inserts each table remembers to drop a retried one
- *   (1000), the `non_replicated_deduplication_window` of the tables `auto` creates.
- * - `wow.clickhouse.sink.aggregates.<context>.<aggregate>.history.enabled`: whether every commit is kept (on by
- *   default); off keeps only the current state. `...history.ttl`: how long the history is kept, forever when unset.
- * - `wow.clickhouse.query.enabled`: whether the datasets are served from ClickHouse (decision D145); on by default.
- * - `wow.clickhouse.query.metadata-ttl`: how long a dataset table's columns and engine are reused before
- *   `system.columns` is read again (1m).
- * - `wow.clickhouse.query.settings.<name>`: server settings every dataset query runs under, such as
- *   `max_memory_usage`; the execution time comes from each query's budget (`wow.query.http.timeout`), not from here.
+ * ClickHouse's configuration, `wow.clickhouse.*`, read when wow-clickhouse is on the classpath
+ * ([ClickHouseAutoConfiguration]): the server, the Sink that writes the published streams, and the dataset queries.
  */
 @ConfigurationProperties(prefix = ClickHouseProperties.PREFIX)
 class ClickHouseProperties {
+    /** The server's HTTP endpoint, such as `http://localhost:8123`; ClickHouse is wired only when it is set. */
     var endpoint: String? = null
+
+    /** The user name to sign in with. */
     var username: String = "default"
+
+    /** The password to sign in with. */
     var password: String = ""
+
+    /** The database that holds the tables. */
     var database: String = "default"
+
+    /** The Sink that writes the Manifest's published streams to ClickHouse. */
     var sink: Sink = Sink()
+
+    /** The datasets served from ClickHouse. */
     var query: Query = Query()
 
+    /** The Sink that writes the Manifest's published streams to ClickHouse. */
     class Sink {
+        /** Whether the Manifest's published streams are written to ClickHouse. */
         var enabled: Boolean = true
+
+        /** How the Sink manages its tables: `auto` creates what is missing, then validates; `validate` or `none`. */
         var ddl: String = "auto"
+
+        /** The most records one insert carries. */
         var batchSize: Int = DEFAULT_BATCH_SIZE
+
+        /**
+         * How many recent inserts each table remembers to drop a retried one: the
+         * `non_replicated_deduplication_window` of the tables `auto` creates.
+         */
         var deduplicationWindow: Int = DEFAULT_DEDUPLICATION_WINDOW
 
         /** By context, then by aggregate name. */
         var aggregates: MutableMap<String, MutableMap<String, Aggregate>> = LinkedHashMap()
     }
 
+    /** The datasets served from ClickHouse. */
     class Query {
+        /** Whether the datasets are served from ClickHouse. */
         var enabled: Boolean = true
+
+        /** How long a dataset table's columns and engine are reused before `system.columns` is read again. */
         var metadataTtl: Duration = DEFAULT_METADATA_TTL
+
+        /**
+         * Server settings every dataset query runs under, such as `max_memory_usage`; the execution time comes from
+         * each query's budget (`wow.query.http.timeout`), not from here.
+         */
         var settings: MutableMap<String, String> = LinkedHashMap()
     }
 
+    /** One aggregate type's settings of the Sink. */
     class Aggregate {
         var history: History = History()
     }
 
+    /** Whether every commit of the type is kept, and how long. */
     class History {
+        /** Whether every commit is kept; off keeps only the current state. */
         var enabled: Boolean = true
+
+        /** How long the history is kept; forever when not set. */
         var ttl: Duration? = null
     }
 

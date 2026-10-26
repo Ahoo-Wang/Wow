@@ -21,56 +21,73 @@ import java.time.Duration
 import kotlin.time.toJavaDuration
 
 /**
- * The Kafka transport's configuration, `wow.kafka.*` (decision D110), read when wow-kafka is on the classpath
- * ([KafkaAutoConfiguration]):
- *
- * - `wow.kafka.bootstrap-servers`: the brokers; the transport, the Kafka Sink and the Kafka-sourced subscriptions are
- *   wired only when it is set.
- * - `wow.kafka.properties.*`: passed to every producer and consumer as they are (`security.protocol`, `client.id`,
- *   `linger.ms`, ...), except the settings the transport's guarantees rest on (`me.ahoo.wow.kafka.KafkaOptions`).
- * - `wow.kafka.topic-prefix`: put before every topic name, such as `staging.` for `staging.wow.shop.order.state`;
- *   none by default, so the topics are the Manifest's (`wow.<context>.<aggregate>.state`, decision D135). The sinks
- *   write under it and the subscriptions of other contexts' streams read under it.
- * - `wow.kafka.poll-timeout`: the longest a consumer's poll waits (200 ms by default); a read that is cancelled, and
- *   a partition that joins or leaves a topic's shared consumer, take effect within it.
- * - `wow.kafka.offset-gap` (finding A2-11): what a read of another context's topic does when its partition no longer
- *   holds the offset it is to read from (the retention deleted it, or the topic was created again): `fail` (the
- *   default) fails the read, so the subscription stays where it is, logging errors; to recover, set `earliest` and
- *   restart the node. `earliest` reads on from the earliest offset retained; the skipped range is lost to that
- *   subscription. Either way the gap is logged as an error and counted (`wow.kafka.offset.gaps`).
- * - `wow.kafka.command-intake`: whether each context the node hosts executes the commands other contexts send to its
- *   command topic, `wow.<context>.commands` (decisions D135, D137); off by default. The topic must exist with as
- *   many partitions as the context's log, and the node checks it at start. Sending commands to other contexts and
- *   reading their receipts need no switch. A context with an aggregate type routed through Kafka
- *   (`wow.aggregates.[<context>.<aggregate>].routing=kafka`, decision D143) takes them whatever this says.
- * - `wow.kafka.topics.ddl` (decision D168): how the node manages the topics its contexts own at its start, see
- *   [Topics]: `validate` (the default) fails the start when one is missing or a command topic does not have exactly
- *   `wow.log.partitions` partitions; `auto` creates the missing ones first; `none` checks only the command topics the
- *   node reads, whose partitions must still be the log's.
- * - `wow.kafka.topics.replication-factor` (the broker's default), `wow.kafka.topics.min-insync-replicas` (the
- *   broker's default) and `wow.kafka.topics.configs.*` (`retention.ms`, ...): what `auto` creates a topic with. A
- *   command accepted on a command topic is durable only when both are at least 2 (decision D143, review A3-15): at
- *   start the node warns when they are below that, as configured or as the command topics of its contexts are, unless a
- *   profile of [Topics.devProfiles] is active (`dev`, `local`, `test`, `demo`).
- * - `wow.kafka.topics.partition-refresh` (30s): how often the node looks for partitions added to the topics it reads
- *   (other contexts' streams, its receipts), and its consumers' `metadata.max.age.ms`; the new partitions are read
- *   within about twice this.
+ * The Kafka transport's configuration, `wow.kafka.*`, read when wow-kafka is on the classpath
+ * ([KafkaAutoConfiguration]): the brokers, the clients' settings and the topics.
  */
 @ConfigurationProperties(prefix = KafkaProperties.PREFIX)
 class KafkaProperties {
+    /**
+     * The brokers; the transport, the Kafka Sink and the Kafka-sourced subscriptions are wired only when it is set.
+     */
     var bootstrapServers: String? = null
+
+    /**
+     * Passed to every producer and consumer as they are (`security.protocol`, `client.id`, `linger.ms`, ...), except
+     * the settings the transport's guarantees rest on (`me.ahoo.wow.kafka.KafkaOptions`).
+     */
     var properties: MutableMap<String, String> = LinkedHashMap()
+
+    /**
+     * Put before every topic name, such as `staging.` for `staging.wow.shop.order.state`; none by default, so the
+     * topics are the Manifest's (`wow.<context>.<aggregate>.state`). The sinks write and the subscriptions read under
+     * it.
+     */
     var topicPrefix: String = ""
+
+    /**
+     * The longest a consumer's poll waits; a read that is cancelled, and a partition that joins or leaves a topic's
+     * shared consumer, take effect within it.
+     */
     var pollTimeout: Duration = Duration.ofMillis(DEFAULT_POLL_TIMEOUT_MILLIS)
+
+    /**
+     * Whether each context the node hosts executes the commands other contexts send to its command topic,
+     * `wow.<context>.commands`. The topic must exist with as many partitions as the context's log. A context with an
+     * aggregate type routed through Kafka takes them whatever this says.
+     */
     var commandIntake: Boolean = false
+
+    /**
+     * What a read of another context's topic does when its partition no longer holds the offset to read from (the
+     * retention deleted it, or the topic was created again): `fail` fails the read, so the subscription stays where it
+     * is; `earliest` reads on from the earliest offset retained, and the skipped range is lost to that subscription.
+     * Either way the gap is logged as an error and counted (`wow.kafka.offset.gaps`).
+     */
     var offsetGap: OffsetGapPolicy = OffsetGapPolicy.FAIL
+
+    /** The topics the node's contexts own, and how `auto` creates them. */
     var topics: Topics = Topics()
 
-    /** The topics the node's contexts own (decision D168): their DDL, and how `auto` creates them. */
+    /**
+     * The topics the node's contexts own: their DDL, and how `auto` creates them. A command accepted on a command topic
+     * is durable only when the replication factor and the minimum in-sync replicas are both at least 2: at start the
+     * node warns when they are below that, unless a profile of [devProfiles] is active.
+     */
     class Topics {
+        /**
+         * How the node manages the topics its contexts own at its start: `validate` fails the start when one is
+         * missing or a command topic does not have exactly `wow.log.partitions` partitions; `auto` creates the
+         * missing ones first; `none` checks only the command topics the node reads.
+         */
         var ddl: TopicDdl = TopicDdl.VALIDATE
+
+        /** The replication factor `auto` creates a topic with; the broker's default when not set. */
         var replicationFactor: Short? = null
+
+        /** The `min.insync.replicas` `auto` creates a topic with; the broker's default when not set. */
         var minInsyncReplicas: Int? = null
+
+        /** Other topic configs `auto` creates a topic with, such as `retention.ms`. */
         var configs: MutableMap<String, String> = LinkedHashMap()
 
         /** The profiles that run without durable topics, a single broker: no warning about it. */
@@ -81,6 +98,11 @@ class KafkaProperties {
             putAll(configs)
             minInsyncReplicas?.let { put(MIN_INSYNC_REPLICAS, it.toString()) }
         }
+
+        /**
+         * How often the node looks for partitions added to the topics it reads, and its consumers'
+         * `metadata.max.age.ms`; new partitions are read within about twice this.
+         */
         var partitionRefresh: Duration = SourceTopics.DEFAULT_PARTITION_REFRESH.toJavaDuration()
     }
 

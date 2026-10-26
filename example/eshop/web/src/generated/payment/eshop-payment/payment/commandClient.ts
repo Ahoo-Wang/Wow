@@ -25,7 +25,7 @@ export class PaymentCommandClient {
   }
 
   /**
-   * The payment gateway's chargeback callback, in the gateway's shape (decision D182): the buyer disputed a payment with their bank, which took the money back. Mounted under the payment's routes, it is no command of the payment's; the payment server's transformer turns it into the `RefundPayment` of the payment merchantReference names (the gateway knows a payment by the reference it was charged under, the payment's id), and keeps disputeId in the command's headers, so the payment's event stream says which dispute refunded it.
+   * The payment gateway's chargeback callback, in the gateway's shape: the buyer disputed a payment with their bank, which took the money back. Mounted under the payment's routes, it is no command of the payment's; the payment server's transformer turns it into the `RefundPayment` of the payment merchantReference names (the gateway knows a payment by the reference it was charged under, the payment's id), and keeps disputeId in the command's headers, so the payment's event stream says which dispute refunded it.
    * `ChargebackNotified`, mounted (a transformer finds its aggregate): `POST /eshop-payment/payment/{id}/chargeback-notified`, `POST /eshop-payment/payment/chargeback-notified`.
    */
   chargebackNotified(body: ChargebackNotified, options?: CreateCommandOptions): Promise<CommandResult> {
