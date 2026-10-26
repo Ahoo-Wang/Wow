@@ -94,7 +94,11 @@ enum class TransportSelection {
 object TransportNeeds {
     private val logger = KotlinLogging.logger {}
 
-    /** What needs a transport in a node of [manifest] serving [contexts], with the settings given; empty for none. */
+    /**
+     * What needs a transport in a node of [manifest] serving [contexts], with the settings given; empty for none.
+     * [ledger] is whether the failure ledger is published: only an explicit `true` counts. Once ledger publishing has
+     * an `auto` setting (publish only when a Kafka transport has the ops command topic), `auto` is no need.
+     */
     fun of(
         manifest: Manifest,
         contexts: Set<String>,

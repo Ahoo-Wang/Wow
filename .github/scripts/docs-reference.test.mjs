@@ -53,9 +53,9 @@ test('a property belongs to the group of its source type, else to the longest gr
       { name: 'wow.empty', type: 'W$Empty' },
     ],
     properties: [
-      { name: 'wow.peer.timeout', sourceType: 'W$Calls' },
+      { name: 'wow.calls.timeout', sourceType: 'W$Calls' },
       { name: 'wow.backend', sourceType: 'W' },
-      { name: 'wow.peers', sourceType: 'Other' },
+      { name: 'wow.calls.contexts', sourceType: 'Other' },
       { name: 'wow.aggregates', sourceType: 'W' },
     ],
   });
@@ -66,7 +66,7 @@ test('a property belongs to the group of its source type, else to the longest gr
     ]),
     [
       ['wow', ['wow.aggregates', 'wow.backend']],
-      ['wow.calls', ['wow.peers', 'wow.peer.timeout']],
+      ['wow.calls', ['wow.calls.contexts', 'wow.calls.timeout']],
     ],
   );
 });
