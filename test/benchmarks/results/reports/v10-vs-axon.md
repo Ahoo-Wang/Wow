@@ -95,7 +95,7 @@ The same sessions, W A A W, K K and one Axon session with 32 connections, on the
 
 **Unlike the local machine, the node's CPU per command at these rates is the same** (E1) or 2–7% higher for Wow (E3), where locally Axon's was 1.3–1.4 times Wow's; PostgreSQL's stays 1.4–1.7 times higher for Axon, and Axon's p50 2.4–3 times Wow's. So the peaks' gap on the M4 Pro is not the node's cost per command at a moderate rate: it is how each scales with concurrency (Axon levels off at 16–64 clients) and the store's cost. Where each node's time goes was not profiled.
 
-The tails at the fixed rates came in single seconds on both servers (Axon's E1 p99 541 ms in one session, Wow's E3 p99 313–408 ms in three), as the snapshot's disk stalls do on this machine.
+Both servers had tails at the fixed rates in some sessions (Axon's E1 p99 541 and 75 ms; Wow's E3 p99 86–408 ms in three of four), not examined here; this machine's disk image stalls on fsync, as its [snapshot](v10-m4pro-snapshot-2.md#the-disks-stalls) found.
 
 ## Limits
 
