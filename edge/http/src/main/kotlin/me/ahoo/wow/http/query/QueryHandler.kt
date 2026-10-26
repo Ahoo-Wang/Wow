@@ -28,12 +28,12 @@ import kotlinx.coroutines.selects.select
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.ICountQuery
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.wire.ScopeHeader
 import me.ahoo.wow.api.wire.WowHeaders
@@ -58,12 +58,11 @@ import me.ahoo.wow.query.QueryError
 import me.ahoo.wow.query.QueryErrors
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryStorageUnavailableException
+import me.ahoo.wow.query.QueryTargetException
+import me.ahoo.wow.query.QueryTargets
 import me.ahoo.wow.query.dataset.DatasetQueryGateway
 import me.ahoo.wow.query.json.QueryJson
 import me.ahoo.wow.query.schema.QueryViolation
-import me.ahoo.wow.runtime.FrameworkCodes
-import me.ahoo.wow.runtime.admission.TenantConflictException
-import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
@@ -103,12 +102,12 @@ internal data class DatasetEntry(
  * - `POST` and `GET /wow/dataset/{context}/{dataset}/query` do the same on a dataset (decision D145), and
  *   `GET /wow/dataset` lists the datasets the caller sees.
  *
- * The caller (decision D129) is the request's [Caller], or the scope `Wow-Scope` names when the caller may act
- * across scopes (403 `wow.auth.forbidden` otherwise): its tenant, decided by [tenants] as for a command (D116), its
- * owner and space as the principal scope, its subject and attributes, on the HTTP entry. Such a caller may also name
- * several tenants, `tenant=*` or `tenant=("t1" "t2")`, while [HttpQueries.crossTenant] is on (decision D254 ⑦; 403
- * `wow.auth.forbidden` while off): a cross-tenant query, audited, of which a type with a fixed tenant reads that tenant
- * alone. A query error is a problem with the query codes (D130): `wow.query.malformed`, `wow.query.invalid` (each
+ * The caller (decision D129) is the request's [Caller] in the scope `Wow-Scope` names, if it names one, as [targets]
+ * decide (review R5.C-1): only a caller that may act across scopes names one (403 `wow.auth.forbidden` otherwise); its
+ * tenant is decided as for a command (D116), its owner and space are the principal scope, on the HTTP entry. Such a
+ * caller may also name several tenants, `tenant=*` or `tenant=("t1" "t2")`, while cross-tenant queries are on
+ * (decision D254 ⑦; 403 `wow.auth.forbidden` while off): a cross-tenant query, audited, of which a type with a fixed
+ * tenant reads that tenant alone. The routes pass on what the request names; they decide none of it. A query error is a problem with the query codes (D130): `wow.query.malformed`, `wow.query.invalid` (each
  * violation with its code), `wow.query.failed`, `wow.query.timeout`; any other failure is `wow.query.failed`, its cause
  * logged and not shown.
  */
@@ -117,7 +116,7 @@ internal class QueryHandler(
     private val authenticator: Authenticator,
     private val headers: RequestHeaders,
     private val statuses: ErrorStatuses,
-    private val tenants: TenantPolicy,
+    private val targets: QueryTargets,
     private val scope: CoroutineScope,
 ) {
     suspend fun query(request: ServerRequest, target: QueryTarget): ServerResponse =
@@ -176,10 +175,11 @@ internal class QueryHandler(
      */
     suspend fun listDatasets(request: ServerRequest): ServerResponse = answering(null) {
         val caller = authenticator.authenticate(request)
-        val named = named(request, caller, null)
+        val named = named(request)
+        targets.admit(caller, named?.target, named?.crossTenant)
         Negotiation.checkAcceptable(request, alsoEventStream = false)
         val listed = queries.datasets.all.map { it.dataset }.sortedBy { it.name.toString() }.filter { dataset ->
-            val queryCaller = queryCaller(dataset.name, caller, named, tenants)
+            val queryCaller = queryCaller(dataset.name, caller, named)
             queryCaller != null && queries.datasetVisibility.visible(dataset, queryCaller)
         }.map { dataset ->
             DatasetEntry(
@@ -237,9 +237,8 @@ internal class QueryHandler(
     /** The query caller of [request] for a query of [type] (decision D129). */
     private suspend fun caller(request: ServerRequest, type: AggregateType): QueryCaller {
         val caller = authenticator.authenticate(request)
-        val named = named(request, caller, type.context)
-        return queryCaller(type, caller, named, tenants)
-            ?: throw problem(FrameworkErrors.QUERY_MALFORMED, "The tenant of $type is fixed.", type)
+        val named = named(request)
+        return targets.of(type, caller, named?.target, named?.crossTenant)
     }
 
     /** The position a resumed stream continues after: the request's `Last-Event-ID` (decision D253). */
@@ -278,7 +277,7 @@ internal class QueryHandler(
 
     private fun ListQuery.withListDefault(budget: QueryBudget): ListQuery {
         val default = budget.listDefault()
-        return if (limit != 0 || default == null) this else copy(limit = default)
+        return if (limit != 0 || default == null) this else ListQuery(filter, projection, sort, default)
     }
 
     private suspend fun json(value: Any, rebuilding: Boolean = false): ServerResponse =
@@ -436,20 +435,16 @@ internal class QueryHandler(
         )
     }
 
-    /**
-     * What `Wow-Scope` names for [caller]'s query (decisions D129, D254 ⑦), or null without it: 403
-     * `wow.auth.forbidden` for a caller that may not act across scopes, and for a cross-tenant query while
-     * [HttpQueries.crossTenant] is off.
-     */
-    private fun named(request: ServerRequest, caller: Caller, context: String?): ScopeHeader.QueryTarget? {
-        val named = headers.queryTarget(request, FrameworkErrors.QUERY_MALFORMED) ?: return null
-        val refusal = when {
-            !caller.crossScope -> "The caller may not query in another scope."
-            named.crossTenant != null && !queries.crossTenant ->
-                "Cross-tenant queries are off (wow.query.cross-tenant.enabled)."
-            else -> return named
-        }
-        throw ProblemException(statuses.problemOf(FrameworkCodes.AUTH_FORBIDDEN, refusal, context))
+    /** What `Wow-Scope` names for the query of [request], or null without it; [targets] decide whether it may. */
+    private fun named(request: ServerRequest): ScopeHeader.QueryTarget? =
+        headers.queryTarget(request, FrameworkErrors.QUERY_MALFORMED)
+
+    /** [caller]'s query caller of the dataset [type] in what it [named], or null when the dataset's tenant is fixed. */
+    private fun queryCaller(type: AggregateType, caller: Caller, named: ScopeHeader.QueryTarget?): QueryCaller? = try {
+        targets.of(type, caller, named?.target, named?.crossTenant)
+    } catch (refused: QueryTargetException) {
+        if (refused.errorCode != QueryErrors.MALFORMED) throw refused
+        null
     }
 
     private fun problem(code: String, detail: String, type: AggregateType) =
@@ -480,35 +475,5 @@ internal class QueryHandler(
 
         private fun matches(ifNoneMatch: String, tag: String): Boolean =
             ifNoneMatch.split(',').map { it.trim().removePrefix("W/") }.any { it == "*" || it == tag }
-
-        /**
-         * The query caller of [caller] querying [type], in the [named] scope of `Wow-Scope` when it names one (decision
-         * D129, D165): [caller] acting in the tenant [tenants] decides and in the named scope's owner and space, on the
-         * HTTP entry. A cross-tenant [named] scope (decision D254 ⑦) reads its tenants instead, but a type whose tenant
-         * is fixed stays in it. Null when [named] names another tenant than [type]'s fixed one, or tenants without it.
-         */
-        fun queryCaller(
-            type: AggregateType,
-            caller: Caller,
-            named: ScopeHeader.QueryTarget?,
-            tenants: TenantPolicy,
-        ): QueryCaller? {
-            val scope = named?.target?.scope ?: caller.scope
-            named?.crossTenant?.let { crossTenant ->
-                val fixed = tenants.fixedTenant(type)
-                if (fixed != null && !crossTenant.covers(fixed)) {
-                    return null
-                }
-                // A fixed tenant narrows the query to itself here, whatever tenant policy the gateway's scope applies.
-                val reads = fixed?.let { CrossTenant(setOf(it)) } ?: crossTenant
-                return QueryCaller(caller.copyWith(scope = scope), QueryEntry.HTTP, crossTenant = reads)
-            }
-            val tenant = try {
-                tenants.tenantOf(type, caller, named?.target)
-            } catch (_: TenantConflictException) {
-                return null
-            }
-            return QueryCaller(caller.copyWith(tenantId = tenant, scope = scope), QueryEntry.HTTP)
-        }
     }
 }

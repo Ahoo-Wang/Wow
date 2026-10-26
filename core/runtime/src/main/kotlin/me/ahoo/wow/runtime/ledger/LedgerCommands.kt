@@ -22,7 +22,7 @@ import me.ahoo.wow.api.ledger.MarkParkedRecoverable
 import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.api.result.ErrorInfo
-import me.ahoo.wow.runtime.FrameworkCodes
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.node.ParkedOps
@@ -59,12 +59,12 @@ internal class LedgerCommands(
     /** Runs [wire], a ledger command; the error of its rejection, or null when it ran. */
     suspend fun execute(wire: CommandWire): ErrorInfo? {
         val type = Ledger.COMMANDS[wire.type]
-            ?: return ErrorInfo(FrameworkCodes.MALFORMED, "${wire.type} is not a ledger command.")
+            ?: return ErrorInfo(FrameworkCodes.COMMAND_MALFORMED, "${wire.type} is not a ledger command.")
         val command = try {
             ClusterCodec.mapper.treeToValue(wire.body, type)
         } catch (malformed: JacksonException) {
             return ErrorInfo(
-                FrameworkCodes.MALFORMED,
+                FrameworkCodes.COMMAND_MALFORMED,
                 "The ${wire.type} ${wire.id} does not read: ${malformed.originalMessage}"
             )
         }
@@ -72,7 +72,7 @@ internal class LedgerCommands(
             command.toRef()
         } catch (invalid: IllegalArgumentException) {
             return ErrorInfo(
-                FrameworkCodes.MALFORMED,
+                FrameworkCodes.COMMAND_MALFORMED,
                 "The ${wire.type} ${wire.id} names no aggregate: ${invalid.message}"
             )
         }
@@ -110,7 +110,7 @@ internal class LedgerCommands(
             is MarkParkedRecoverable -> {
                 val recoverable = Recoverable.entries.firstOrNull { it.name.equals(command.recoverable, ignoreCase = true) }
                     ?: return ErrorInfo(
-                        FrameworkCodes.MALFORMED,
+                        FrameworkCodes.COMMAND_MALFORMED,
                         "Not a recoverable: '${command.recoverable}'; one of ${Recoverable.entries.joinToString()}.",
                     )
                 amended(subscription, ref, context, parked.markRecoverable(subscription, ref, recoverable))
@@ -125,7 +125,7 @@ internal class LedgerCommands(
                 val spec = try {
                     specOf(command, current.spec)
                 } catch (invalid: IllegalArgumentException) {
-                    return ErrorInfo(FrameworkCodes.MALFORMED, invalid.message ?: "Not a retry spec.")
+                    return ErrorInfo(FrameworkCodes.COMMAND_MALFORMED, invalid.message ?: "Not a retry spec.")
                 }
                 amended(subscription, ref, context, parked.applyRetrySpec(subscription, ref, spec))
             }

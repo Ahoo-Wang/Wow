@@ -20,9 +20,6 @@ wow:
       enabled: true
   internal:
     port: 9090
-    # The cluster token of the service's nodes (decision D226): set WOW_INTERNAL_TOKEN, a secret of at least 32
-    # characters, the same on every node. Without one, the node starts only in a development profile
-    # (wow.internal.dev-profiles: dev, local, test, demo) or with its internal port on the loopback interface alone.
   # The calling application, which every view, preference and wording is kept in, is the caller's authenticated one:
   # the edge records it as each command's request fact app_id (decision D232); no request-facts entry is needed.
 ---

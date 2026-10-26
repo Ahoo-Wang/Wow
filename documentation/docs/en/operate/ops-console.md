@@ -46,7 +46,7 @@ The ops service is a Wow service on PostgreSQL and Kafka, behind CoSec, which se
 1. Build the image with the console in it, or use a released image.
 2. Provide PostgreSQL and Kafka.
 3. Create the topics the ops context owns: `wow.ops.commands`, `wow.ops.receipts` and `wow.ops.parked.state`. The command topic has exactly as many partitions as the ops context's log.
-4. Set the cluster token of its internal port and the secret CoSec signs its tokens with.
+4. Set the secret CoSec signs its tokens with.
 
 Then, on **each service** whose ledger it should show, turn on publishing with `wow.ops.publish.enabled: true`. The owning service owns its own command topic, on which the operators' actions arrive.
 

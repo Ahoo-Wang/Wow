@@ -14,9 +14,12 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.http.caller.DeclaredServices
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.config.configCheck
 import org.springframework.core.env.Environment
 import java.net.InetAddress
 import java.util.UUID
@@ -61,6 +64,13 @@ data class NodeIdentity(
                     "The service has no name.",
                     "Set wow.service or spring.application.name.",
                 )
+            // The name it states on the internal port (`Wow-Service`, decision D300), which a peer lists it by.
+            configCheck(
+                DeclaredServices.isName(service),
+                "wow.service",
+                service,
+                "Name it with letters, digits, '.', '_' and '-' alone, such as ordering-service.",
+            ) { "The service's name [$service] is no name its nodes can state on the internal port." }
             val local = InetAddress.getLocalHost()
             val node = properties.node.id?.takeIf { it.isNotBlank() }
                 ?: "${local.hostName}-${UUID.randomUUID().toString().take(SUFFIX_LENGTH)}"

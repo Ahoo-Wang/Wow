@@ -19,6 +19,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
@@ -35,10 +36,7 @@ import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.manifest.copyWith
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
-import me.ahoo.wow.runtime.call.CommandCaller
-import me.ahoo.wow.runtime.call.OutgoingCall
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.InMemoryBackends
@@ -49,6 +47,8 @@ import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.SignalSender
+import me.ahoo.wow.spi.call.CommandCaller
+import me.ahoo.wow.spi.call.OutgoingCall
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -367,7 +367,7 @@ class CrossContextWaitTest {
         began.elapsedNow().assert().isLessThan(5.seconds)
         result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
         result.hop.assert().isEqualTo(Hop.committed(STOCK))
-        result.error!!.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
+        result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
         result.ref.assert().isEqualTo(ITEM.ref(TENANT, "o-v2"))
         result.function.context.assert().isEqualTo(STOCK)
         result.function.processor.assert().isEqualTo("item")

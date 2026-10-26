@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.runtime.health.ComponentHealth
 import me.ahoo.wow.runtime.health.HealthStatus
 import me.ahoo.wow.runtime.health.NodeHealth

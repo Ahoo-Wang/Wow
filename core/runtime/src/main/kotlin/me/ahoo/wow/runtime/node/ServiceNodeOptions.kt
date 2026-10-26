@@ -26,7 +26,6 @@ import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
-import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.command.ReceiptHandler
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
@@ -48,6 +47,7 @@ import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
+import me.ahoo.wow.spi.tenant.TenantPolicy
 import me.ahoo.wow.spi.timer.TimerStore
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicAdmin

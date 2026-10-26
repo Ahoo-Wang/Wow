@@ -36,6 +36,7 @@ import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.ProjectionCapable
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.read.AggregateState
+import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventQueries
 import me.ahoo.wow.api.read.EventStream
 import me.ahoo.wow.api.read.MinVersionNotReachedException
@@ -54,11 +55,15 @@ import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.engine.CommittedStates
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.engine.ReadFacade
+import me.ahoo.wow.query.queryTenantOf
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.StateNotFoundException
 import me.ahoo.wow.query.state.StateNotFoundException.Reason
 import me.ahoo.wow.query.state.StateRead
+import me.ahoo.wow.spi.json.query.decode
+import me.ahoo.wow.spi.json.query.toEventStream
+import me.ahoo.wow.spi.json.query.toSnapshot
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
@@ -119,8 +124,10 @@ class InProcessQueryApi @InternalWowApi constructor(
         override fun events(type: AggregateType): EventQueries = Events(type, caller)
 
         @OptIn(ExperimentalWowApi::class)
-        override fun <R : Any> datasets(name: AggregateType, rowType: Class<R>): RowQueries<R> {
-            val gateway = engine.datasets[name]?.takeIf { engine.datasetVisibility.visible(it.dataset, caller) }
+        override fun <R : Any> datasets(name: DatasetName, rowType: Class<R>): RowQueries<R> {
+            val gateway = engine.datasets[AggregateType(name.context, name.name)]?.takeIf {
+                engine.datasetVisibility.visible(it.dataset, caller)
+            }
             requireNotNull(gateway) { "No dataset $name is served." }
             return Rows(gateway, caller) { decode(it, rowType) }
         }
@@ -263,7 +270,7 @@ class InProcessQueryApi @InternalWowApi constructor(
 
         private fun stateOf(state: JsonNode): S = decode(state, stateType)
 
-        private fun tenantOf(): String? = tenantId ?: engine.tenants.tenantOf(type, caller)
+        private fun tenantOf(): String? = tenantId ?: engine.tenants.queryTenantOf(type, caller)
 
         /** The read of [ref] as the public port's: in the caller's tenant, owner and space, else not found. */
         private fun checkScope(ref: AggregateRef, state: CommittedState) {

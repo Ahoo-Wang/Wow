@@ -21,6 +21,7 @@ import me.ahoo.wow.query.QueryAuditTrail
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryObserver
+import me.ahoo.wow.query.QueryTargets
 import me.ahoo.wow.query.finished
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.started
@@ -79,6 +80,7 @@ class ReadFacade(
     private val visibility: (AggregateType) -> QueryGateway?,
     private val masks: PayloadMasks = PayloadMasks.NONE,
     private val observer: QueryObserver = QueryObserver.NONE,
+    private val targets: QueryTargets = QueryTargets.DEFAULT,
 ) {
     /** What reading a state found: [Missing], [Hidden] from the caller, or [Visible] with its masked tree. */
     @InternalWowApi
@@ -112,9 +114,15 @@ class ReadFacade(
         return Read.Visible(view, state)
     }
 
-    /** The tree of [state] as [caller] may see it, masked, or null when its policies hide it from the caller. */
-    suspend fun admitted(caller: QueryCaller, state: CommittedState): JsonNode? =
-        StateVisibility.admitted(visibility(state.ref.type), caller, state, masks)
+    /**
+     * The tree of [state] as [caller] may see it, masked, or null when its policies hide it from the caller. An HTTP
+     * caller naming a scope or tenants it may not is refused first ([QueryTargets.recheck]).
+     */
+    suspend fun admitted(caller: QueryCaller, state: CommittedState): JsonNode? {
+        // Whoever built the caller, an HTTP one reaches no further than the read side's rules (review R5.C-1).
+        targets.recheck(state.ref.type, caller)
+        return StateVisibility.admitted(visibility(state.ref.type), caller, state, masks)
+    }
 
     /**
      * Runs [read], one state read of [type] for [caller] asking [what], observed as a query is (review R4-Q, Q-7):

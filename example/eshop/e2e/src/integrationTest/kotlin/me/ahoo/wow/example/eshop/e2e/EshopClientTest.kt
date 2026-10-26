@@ -32,7 +32,7 @@ import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 import me.ahoo.wow.example.eshop.ordering.server.OrderingServer
-import me.ahoo.wow.spring.boot.InternalServer
+import me.ahoo.wow.http.internal.InternalPort
 import org.junit.jupiter.api.Test
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
@@ -44,7 +44,7 @@ import java.math.BigDecimal
  * `wow-client`, by the ordering's generated contract (`EshopOrderingContract`), with no path written. Its
  * [CommandClient] and [QueryApi] beans route the ordering context, which `wow.clients.contexts` lists, over HTTP:
  *
- * - **Service mode**: on the ordering's internal port, as the basket service (its token), asserting the buyer as the
+ * - **Service mode**: on the ordering's internal port, as the basket service (`Wow-Service`), asserting the buyer as the
  *   root context: the order is the buyer's, and the buyer's reads see it;
  * - **User mode**: on the ordering's public routes, forwarding the buyer's own credential (`X-User` here), which the
  *   ordering authenticates as its edge does.
@@ -78,7 +78,7 @@ class EshopClientTest {
                 state.scope.ownerId.assert().isEqualTo("alice")
                 (state.state as ObjectNode)["items"].size().assert().isEqualTo(1)
                 // On the memory backend the ordering serves no query model: a list is its 404, never a command.
-                val unserved = runCatching { queries.list(ListQuery(MatchAllFilter)).toList() }.exceptionOrNull()
+                val unserved = runCatching { queries.list(ListQuery.of(MatchAllFilter)).toList() }.exceptionOrNull()
                 (unserved as WowProblemException).status.assert().isEqualTo(NOT_FOUND)
                 // Bob, another buyer, sees none of it.
                 val bob = Caller.of(scope = Scope("bob"), subject = "bob")
@@ -132,7 +132,7 @@ class EshopClientTest {
 
     private class Service(val context: ConfigurableApplicationContext) : AutoCloseable {
         val port: Int = context.environment.getRequiredProperty("local.server.port", Int::class.java)
-        val internalPort: Int = context.getBean(InternalServer::class.java).boundPort
+        val internalPort: Int = context.getBean(InternalPort::class.java).boundPort
 
         inline fun <reified T : Any> bean(): T = context.getBean(T::class.java)
 
@@ -156,7 +156,6 @@ class EshopClientTest {
                 "--wow.internal.host=127.0.0.1",
                 "--wow.internal.port=0",
                 "--wow.contexts.include=eshop-$context",
-                *EshopTokens.arguments(context).toTypedArray(),
             ),
         )
     }

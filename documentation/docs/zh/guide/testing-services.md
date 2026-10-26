@@ -35,7 +35,7 @@ private val context = SpringApplicationBuilder(OrderingServer::class.java, InMem
 )
 ```
 
-- `--server.port=0` 和 `--wow.internal.port=0` 取空闲端口。内部端口只绑定在回环网卡上时，节点不需要集群令牌就能运行；没有存储 Bean 时使用内存后端。
+- `--server.port=0` 和 `--wow.internal.port=0` 取空闲端口。内部端口只绑定在回环网卡上、又没有存储 Bean 时，节点使用内存后端。
 - 较短的超时（`wow.cluster.drain-timeout`、`wow.subscription.stop-timeout`）让测试类之间的关闭很快，`wow.timers.poll-interval=200ms` 让定时命令及时触发。
 - 应用自己的设置缩短测试要等待的东西：这里的支付宽限期是两秒，而不是三十分钟。
 

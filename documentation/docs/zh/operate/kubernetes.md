@@ -14,10 +14,10 @@ Wow 服务在 Kubernetes 上以一个 Deployment 运行：它的 Pod 就是服�
 | --- | --- |
 | `kustomization.yaml` | 这组清单：`kubectl apply -k deploy/eshop-ordering` |
 | `configmap.yaml` | 每个节点共用的设置，以环境变量提供 |
-| `secret.yaml` | 数据库凭据、集群令牌和服务令牌 |
+| `secret.yaml` | 数据库凭据 |
 | `deployment.yaml` | 节点 |
 | `service.yaml` | HTTP 服务，以及内部端口的 headless Service |
-| `networkpolicy.yaml` | 谁可以访问内部端口 |
+| `networkpolicy.yaml` | 谁可以访问每个端口：网关访问 HTTP 端口，商店自己的 Pod 访问内部端口 |
 | `Dockerfile` | 镜像，基于服务的 Gradle 发行包 |
 
 ## 镜像 {#the-image}
@@ -41,8 +41,9 @@ metadata:
   labels:
     app.kubernetes.io/name: eshop-ordering
 data:
-  # The postgres profile wires the DataSource; the kafka profile the transport and the command intake.
-  SPRING_PROFILES_ACTIVE: postgres,kafka
+  # The postgres profile wires the DataSource; the kafka profile the transport and the command intake; the cosec
+  # profile takes the callers from the CoSec gateway in front of the service (decisions D296, D301).
+  SPRING_PROFILES_ACTIVE: postgres,kafka,cosec
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/eshop_ordering
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
   # The topics the service owns are created by the operator; the node only validates them (decision D168). The kafka
@@ -53,7 +54,7 @@ data:
   JAVA_OPTS: -XX:MaxRAMPercentage=75.0
 ```
 
-密钥以同样的方式来自 Secret：数据库密码、集群令牌 `WOW_INTERNAL_TOKEN`，以及 ordering 信任的服务的令牌。替换掉示例值。
+密钥以同样的方式来自一个 Secret：数据库用户名和密码。替换掉示例值。内部端口不需要密钥：网络是它的边界。
 
 ## 节点 {#the-nodes}
 
@@ -133,8 +134,8 @@ spec:
 # The cluster channel and the wait signals (decisions D89, D173): a headless service that gives each node the DNS name
 # it advertises, <pod>.eshop-ordering-cluster.<namespace>.svc.cluster.local. It publishes the nodes that are not
 # ready, so a node that is starting or draining still gets its peers' forwarded commands and signals. Never expose it
-# outside the cluster: its forwards and signals take the cluster token (WOW_INTERNAL_TOKEN, decision D226), its calls a
-# service token, but it is the service's inside.
+# outside the cluster: it takes no token, each node and service names itself on each request (Wow-Service, decision
+# D300), and only the shop's own pods reach it (networkpolicy.yaml).
 apiVersion: v1
 kind: Service
 metadata:
@@ -153,10 +154,10 @@ spec:
       protocol: TCP
 ```
 
-- `eshop-ordering` 向客户端和 Ingress 提供公开端口。
+- `eshop-ordering` 向网关提供公开端口，客户端经网关访问它。
 - `eshop-ordering-cluster` 是 headless 的：它给每个节点一个 DNS 名字。它也发布尚未就绪的节点，所以正在启动或排空的节点仍能收到同伴转发的命令，以及完成等待的信号。
 
-绝不要把内部端口暴露到集群之外。网络策略只允许商店自己的 Pod 访问它，端口本身也用集群令牌或服务令牌认证每个请求（[保护部署](./security#close-the-internal-port)）。不执行 NetworkPolicy 的网络插件会忽略它。
+绝不要把内部端口暴露到集群之外。它不用令牌：每个请求都声明自己的服务（`Wow-Service`），网络策略就是边界。`networkpolicy.yaml` 里有两条：`eshop-ordering-public` 只允许网关的 Pod（任意命名空间中带 `app.kubernetes.io/component: gateway` 标签）访问 HTTP 端口，`eshop-ordering-internal` 只允许商店自己的 Pod（带 `app.kubernetes.io/part-of: eshop` 标签）访问内部端口（[保护部署](./security#close-the-internal-port)）。给你的网关 Pod 打上这个标签，或者修改选择器去匹配它们。不执行 NetworkPolicy 的网络插件会忽略它们；这时要用别的办法让内部端口只在平台的网络上可达。
 
 ## 探针 {#probes}
 

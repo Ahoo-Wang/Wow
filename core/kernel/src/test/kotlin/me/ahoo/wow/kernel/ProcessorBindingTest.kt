@@ -205,6 +205,7 @@ class ProcessorBindingTest {
     fun `a model provider should list no processors unless it declares some`() {
         val provider = object : ModelProvider {
             override val context: String = "shop"
+            override val binding: Int = ModelProvider.BINDING
             override val fragment: String = "META-INF/wow/manifest/shop.json"
 
             override fun models(dependencies: Dependencies): List<AggregateModel<*>> = emptyList()

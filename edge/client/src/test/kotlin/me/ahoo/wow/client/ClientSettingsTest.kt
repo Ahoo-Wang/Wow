@@ -17,16 +17,13 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.CommandIndex
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.StateManifest
-import me.ahoo.wow.runtime.contract.ContractDirectory
 import org.junit.jupiter.api.Test
 import java.net.URI
 import kotlin.time.Duration
@@ -48,17 +45,16 @@ class ClientSettingsTest {
     }
 
     @Test
-    fun `credentials should present a bearer token, or forward the request's headers`(): Unit = runBlocking {
-        ServiceCredential.bearer("token").authorization().assert().isEqualTo("Bearer token")
-        ServiceCredential.NONE.authorization().assert().isNull()
-        assertThrownBy<IllegalArgumentException> { ServiceCredential.bearer(" ") }
+    fun `a service names itself, a user's credential is the request's headers forwarded`(): Unit = runBlocking {
+        assertThrownBy<IllegalArgumentException> { WowClient.builder().service(" ") }
         UserCredential.NONE.headers(Caller.ANONYMOUS).assert().isEmpty()
         UserCredential.FORWARDED.headers(Caller.ANONYMOUS).assert().isEmpty()
         val forwarded = ForwardedHeaders(mapOf("Authorization" to "Bearer u"))
         withContext(forwarded) { UserCredential.FORWARDED.headers(Caller.ANONYMOUS) }
             .assert().isEqualTo(mapOf("Authorization" to "Bearer u"))
         forwarded.toString().assert().isEqualTo("ForwardedHeaders([Authorization])")
-        ClientMode.Service(ServiceCredential.NONE).let {
+        ClientMode.Service("basket-service").let {
+            it.service.assert().isEqualTo("basket-service")
             it.port.assert().isEqualTo(Port.INTERNAL)
             it.toString().assert().isEqualTo("ClientMode.Service")
         }
@@ -120,13 +116,12 @@ class ClientSettingsTest {
                 ),
             ),
         )
-        val contracts =
-            ContractDirectory(Manifest(), listOf(ManifestFragment("mail", Manifest(contexts = listOf(mail)))))
-        val names = ContractCommandTypes(contracts)
-        val box = AggregateType("mail", "box")
-        names.nameOf(box, HttpCommandClientTest.DeliverItems::class.java).assert().isEqualTo("mail.box.DeliverItems")
-        names.nameOf(AggregateType("mail", "other"), HttpCommandClientTest.DeliverItems::class.java).assert().isNull()
-        names.aggregatesOf(HttpCommandClientTest.DeliverItems::class.java).assert().containsExactly(box)
+        // The same naming rule as a node's (decision D293): :manifest's CommandIndex over the peers' contracts.
+        val names = CommandIndex(listOf(Manifest(contexts = listOf(mail))))
+        val deliver = HttpCommandClientTest.DeliverItems::class.java
+        names.commandTypeOf("mail.box", deliver).assert().isEqualTo("mail.box.DeliverItems")
+        names.commandTypeOf("mail.other", deliver).assert().isNull()
+        names.aggregatesOf(Manifest.schemaRef(deliver.name)).assert().containsExactly("mail.box")
     }
 
     private companion object {

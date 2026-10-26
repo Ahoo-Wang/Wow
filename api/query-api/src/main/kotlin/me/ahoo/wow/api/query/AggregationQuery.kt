@@ -13,7 +13,11 @@
 
 package me.ahoo.wow.api.query
 
-data class AggregationQuery(
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
+
+@ExperimentalWowApi
+class AggregationQuery @InternalWowApi constructor(
     override val filter: FilterExpression = MatchAllFilter,
     val elements: List<AggregationElement> = emptyList(),
     val groupBy: List<AggregationGroup> = emptyList(),
@@ -66,7 +70,15 @@ data class AggregationQuery(
         }
     }
 
-    override fun withFilter(newFilter: FilterExpression): AggregationQuery = copy(filter = newFilter)
+    override fun withFilter(newFilter: FilterExpression): AggregationQuery = AggregationQuery(
+        newFilter,
+        elements,
+        groupBy,
+        metrics,
+        sort,
+        limit,
+        having
+    )
 
     fun effectiveSort(): List<Sort> = buildList {
         addAll(sort)
@@ -85,10 +97,45 @@ data class AggregationQuery(
 
         const val MAX_EXPRESSION_DEPTH: Int = 8
         const val MAX_EXPRESSION_NODES: Int = 256
+
+        /** A [AggregationQuery] of the given values. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            filter: FilterExpression = MatchAllFilter,
+            elements: List<AggregationElement> = emptyList(),
+            groupBy: List<AggregationGroup> = emptyList(),
+            metrics: List<AggregationMetric>,
+            sort: List<Sort> = emptyList(),
+            limit: Int = DEFAULT_LIMIT,
+            having: HavingExpression? = null,
+        ): AggregationQuery = AggregationQuery(filter, elements, groupBy, metrics, sort, limit, having)
     }
+
+    /** This AggregationQuery with the given values replaced; for Wow's own query rewriting. */
+    @InternalWowApi
+    fun copy(
+        filter: FilterExpression = this.filter,
+        elements: List<AggregationElement> = this.elements,
+        groupBy: List<AggregationGroup> = this.groupBy,
+        metrics: List<AggregationMetric> = this.metrics,
+        sort: List<Sort> = this.sort,
+        limit: Int = this.limit,
+        having: HavingExpression? = this.having,
+    ): AggregationQuery = AggregationQuery(filter, elements, groupBy, metrics, sort, limit, having)
+
+    override fun equals(other: kotlin.Any?): Boolean =
+        this === other || other is AggregationQuery && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "AggregationQuery(filter=$filter, elements=$elements, groupBy=$groupBy, metrics=$metrics, sort=$sort, limit=$limit, having=$having)"
+
+    private fun valueFields(): List<kotlin.Any?> = listOf(filter, elements, groupBy, metrics, sort, limit, having)
 }
 
-data class AggregationElement(
+@ExperimentalWowApi
+class AggregationElement @InternalWowApi constructor(
     val path: QueryField,
     val filter: FilterExpression = MatchAllFilter,
 ) {
@@ -97,8 +144,28 @@ data class AggregationElement(
             "Aggregation element filter cannot contain root filters."
         }
     }
+
+    override fun equals(other: kotlin.Any?): Boolean =
+        this === other || other is AggregationElement && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "AggregationElement(path=$path, filter=$filter)"
+
+    private fun valueFields(): List<kotlin.Any?> = listOf(path, filter)
+
+    companion object {
+        /** A [AggregationElement] of the given values. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            path: QueryField,
+            filter: FilterExpression = MatchAllFilter,
+        ): AggregationElement = AggregationElement(path, filter)
+    }
 }
 
+@ExperimentalWowApi
 sealed interface AggregationGroup {
     /** The grouped field; `null` only for a TERMS or HISTOGRAM group whose input is an expression. */
     val field: QueryField?
@@ -112,7 +179,7 @@ sealed interface AggregationGroup {
     val scope: AggregationGroupScope?
 
     /** Groups by the value of [field], or of [expression] when the group names one instead. */
-    data class Terms(
+    class Terms @InternalWowApi constructor(
         override val field: QueryField? = null,
         override val alias: String,
         val missingKey: String? = null,
@@ -128,10 +195,42 @@ sealed interface AggregationGroup {
                 require(expression == null) { "terms missingKey requires a field input." }
             }
         }
+
+        /** This Terms with the given values replaced; for Wow's own query rewriting. */
+        @InternalWowApi
+        fun copy(
+            field: QueryField? = this.field,
+            alias: String = this.alias,
+            missingKey: String? = this.missingKey,
+            expression: AggregationExpression? = this.expression,
+            scope: AggregationGroupScope? = this.scope,
+        ): Terms = Terms(field, alias, missingKey, expression, scope)
+
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Terms && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Terms(field=$field, alias=$alias, missingKey=$missingKey, expression=$expression, scope=$scope)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(field, alias, missingKey, expression, scope)
+
+        companion object {
+            /** A [Terms] of the given values. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(
+                field: QueryField? = null,
+                alias: String,
+                missingKey: String? = null,
+                expression: AggregationExpression? = null,
+                scope: AggregationGroupScope? = null,
+            ): Terms = Terms(field, alias, missingKey, expression, scope)
+        }
     }
 
     /** Buckets the numeric value of [field], or of [expression] when the group names one instead. */
-    data class Histogram(
+    class Histogram @InternalWowApi constructor(
         override val field: QueryField? = null,
         override val alias: String,
         val interval: Double,
@@ -146,9 +245,41 @@ sealed interface AggregationGroup {
                 "histogram interval must be finite and greater than 0."
             }
         }
+
+        /** This Histogram with the given values replaced; for Wow's own query rewriting. */
+        @InternalWowApi
+        fun copy(
+            field: QueryField? = this.field,
+            alias: String = this.alias,
+            interval: Double = this.interval,
+            expression: AggregationExpression? = this.expression,
+            scope: AggregationGroupScope? = this.scope,
+        ): Histogram = Histogram(field, alias, interval, expression, scope)
+
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Histogram && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Histogram(field=$field, alias=$alias, interval=$interval, expression=$expression, scope=$scope)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(field, alias, interval, expression, scope)
+
+        companion object {
+            /** A [Histogram] of the given values. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(
+                field: QueryField? = null,
+                alias: String,
+                interval: Double,
+                expression: AggregationExpression? = null,
+                scope: AggregationGroupScope? = null,
+            ): Histogram = Histogram(field, alias, interval, expression, scope)
+        }
     }
 
-    data class DateHistogram(
+    class DateHistogram @InternalWowApi constructor(
         override val field: QueryField,
         override val alias: String,
         val unit: AggregationDateUnit,
@@ -160,6 +291,40 @@ sealed interface AggregationGroup {
             requireAggregationAlias(alias)
             zoneIdOf(timeZone)
         }
+
+        /** This DateHistogram with the given values replaced; for Wow's own query rewriting. */
+        @InternalWowApi
+        fun copy(
+            field: QueryField = this.field,
+            alias: String = this.alias,
+            unit: AggregationDateUnit = this.unit,
+            timeZone: String = this.timeZone,
+            dense: Boolean = this.dense,
+            scope: AggregationGroupScope? = this.scope,
+        ): DateHistogram = DateHistogram(field, alias, unit, timeZone, dense, scope)
+
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is DateHistogram && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "DateHistogram(field=$field, alias=$alias, unit=$unit, timeZone=$timeZone, dense=$dense, scope=$scope)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(field, alias, unit, timeZone, dense, scope)
+
+        companion object {
+            /** A [DateHistogram] of the given values. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(
+                field: QueryField,
+                alias: String,
+                unit: AggregationDateUnit,
+                timeZone: String = "UTC",
+                dense: Boolean = false,
+                scope: AggregationGroupScope? = null,
+            ): DateHistogram = DateHistogram(field, alias, unit, timeZone, dense, scope)
+        }
     }
 
     /**
@@ -167,7 +332,7 @@ sealed interface AggregationGroup {
      * from different days fall into one bucket. Keys are integers from [AggregationDatePart]'s fixed domain; [dense]
      * fills every key of that domain that has no records with the empty value of each metric.
      */
-    data class DatePart(
+    class DatePart @InternalWowApi constructor(
         override val field: QueryField,
         override val alias: String,
         val part: AggregationDatePart,
@@ -179,10 +344,45 @@ sealed interface AggregationGroup {
             requireAggregationAlias(alias)
             zoneIdOf(timeZone)
         }
+
+        /** This DatePart with the given values replaced; for Wow's own query rewriting. */
+        @InternalWowApi
+        fun copy(
+            field: QueryField = this.field,
+            alias: String = this.alias,
+            part: AggregationDatePart = this.part,
+            timeZone: String = this.timeZone,
+            dense: Boolean = this.dense,
+            scope: AggregationGroupScope? = this.scope,
+        ): DatePart = DatePart(field, alias, part, timeZone, dense, scope)
+
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is DatePart && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "DatePart(field=$field, alias=$alias, part=$part, timeZone=$timeZone, dense=$dense, scope=$scope)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(field, alias, part, timeZone, dense, scope)
+
+        companion object {
+            /** A [DatePart] of the given values. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(
+                field: QueryField,
+                alias: String,
+                part: AggregationDatePart,
+                timeZone: String = "UTC",
+                dense: Boolean = false,
+                scope: AggregationGroupScope? = null,
+            ): DatePart = DatePart(field, alias, part, timeZone, dense, scope)
+        }
     }
 }
 
 /** The computed input of a TERMS or HISTOGRAM group in place of its field, or `null`. */
+@ExperimentalWowApi
 val AggregationGroup.inputExpression: AggregationExpression?
     get() = when (this) {
         is AggregationGroup.Terms -> expression
@@ -191,6 +391,7 @@ val AggregationGroup.inputExpression: AggregationExpression?
     }
 
 /** A calendar part of an instant, with its fixed integer domain `[min, max]`. */
+@ExperimentalWowApi
 enum class AggregationDatePart(val min: Int, val max: Int) {
     /** ISO weekday: 1 is Monday, 7 is Sunday. */
     DAY_OF_WEEK(1, 7),
@@ -210,6 +411,7 @@ enum class AggregationDatePart(val min: Int, val max: Int) {
         get() = min..max
 }
 
+@ExperimentalWowApi
 enum class AggregationDateUnit {
     YEAR,
     QUARTER,
@@ -227,37 +429,119 @@ enum class AggregationDateUnit {
  * missing, empty and multi-valued fields do not contribute. Repeated numeric values remain separate values.
  * BINARY computes finite doubles; it does not pair arrays or preserve arbitrary native numeric precision.
  */
+@ExperimentalWowApi
 sealed interface AggregationExpression {
-    data class Field(val field: QueryField) : AggregationExpression
+    class Field @InternalWowApi constructor(val field: QueryField) : AggregationExpression {
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Field && valueFields() == other.valueFields()
 
-    data class Constant(val value: Double) : AggregationExpression {
-        init {
-            require(value.isFinite()) { "aggregation constant must be finite." }
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Field(field=$field)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(field)
+
+        companion object {
+            /** A [Field] of the given values. */
+            @JvmStatic
+            fun of(field: QueryField): Field = Field(field)
         }
     }
 
-    data class Binary(
+    class Constant @InternalWowApi constructor(val value: Double) : AggregationExpression {
+        init {
+            require(value.isFinite()) { "aggregation constant must be finite." }
+        }
+
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Constant && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Constant(value=$value)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(value)
+
+        companion object {
+            /** A [Constant] of the given values. */
+            @JvmStatic
+            fun of(value: Double): Constant = Constant(value)
+        }
+    }
+
+    class Binary @InternalWowApi constructor(
         val operator: AggregationExpressionOperator,
         val left: AggregationExpression,
         val right: AggregationExpression,
-    ) : AggregationExpression
+    ) : AggregationExpression {
+        /** This Binary with the given values replaced; for Wow's own query rewriting. */
+        @InternalWowApi
+        fun copy(
+            operator: AggregationExpressionOperator = this.operator,
+            left: AggregationExpression = this.left,
+            right: AggregationExpression = this.right,
+        ): Binary = Binary(operator, left, right)
+
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Binary && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Binary(operator=$operator, left=$left, right=$right)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(operator, left, right)
+
+        companion object {
+            /** A [Binary] of the given values. */
+            @JvmStatic
+            fun of(
+                operator: AggregationExpressionOperator,
+                left: AggregationExpression,
+                right: AggregationExpression,
+            ): Binary = Binary(operator, left, right)
+        }
+    }
 
     /**
      * The elapsed time from the instant in [from] to the instant in [to], `to − from`, in [unit] as a decimal: negative
      * when [to] is earlier, and no contribution when either instant is absent. Both fields must be single-valued
      * temporal fields; each is read in its own temporal encoding.
      */
-    data class DateDiff(
+    class DateDiff @InternalWowApi constructor(
         val from: QueryField,
         val to: QueryField,
         val unit: DateDiffUnit,
-    ) : AggregationExpression
+    ) : AggregationExpression {
+        /** This DateDiff with the given values replaced; for Wow's own query rewriting. */
+        @InternalWowApi
+        fun copy(
+            from: QueryField = this.from,
+            to: QueryField = this.to,
+            unit: DateDiffUnit = this.unit,
+        ): DateDiff = DateDiff(from, to, unit)
+
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is DateDiff && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "DateDiff(from=$from, to=$to, unit=$unit)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(from, to, unit)
+
+        companion object {
+            /** A [DateDiff] of the given values. */
+            @JvmStatic
+            fun of(from: QueryField, to: QueryField, unit: DateDiffUnit): DateDiff = DateDiff(from, to, unit)
+        }
+    }
 }
 
 /**
  * A fixed-length unit of elapsed time. Calendar units (months, years) have no fixed length and depend on a time zone,
  * so they are not offered; a `DAY` is exactly 24 hours.
  */
+@ExperimentalWowApi
 enum class DateDiffUnit(val millis: Long) {
     SECOND(1_000L),
     MINUTE(60_000L),
@@ -266,6 +550,7 @@ enum class DateDiffUnit(val millis: Long) {
 }
 
 /** The fields an expression reads, in tree order. */
+@ExperimentalWowApi
 val AggregationExpression.fields: List<QueryField>
     get() = when (this) {
         is AggregationExpression.Field -> listOf(field)
@@ -274,6 +559,7 @@ val AggregationExpression.fields: List<QueryField>
         is AggregationExpression.DateDiff -> listOf(from, to)
     }
 
+@ExperimentalWowApi
 enum class AggregationExpressionOperator {
     ADD,
     SUBTRACT,
@@ -281,21 +567,45 @@ enum class AggregationExpressionOperator {
     DIVIDE,
 }
 
+@ExperimentalWowApi
 sealed interface AggregationMetric {
     val alias: String
 
     val filter: FilterExpression
 
-    data class Count(
+    class Count @InternalWowApi constructor(
         override val alias: String,
         override val filter: FilterExpression = MatchAllFilter,
     ) : AggregationMetric {
         init {
             requireAggregationAlias(alias)
         }
+
+        /** This Count with the given values replaced; for Wow's own query rewriting. */
+        @InternalWowApi
+        fun copy(
+            alias: String = this.alias,
+            filter: FilterExpression = this.filter,
+        ): Count = Count(alias, filter)
+
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Count && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Count(alias=$alias, filter=$filter)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(alias, filter)
+
+        companion object {
+            /** A [Count] of the given values. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(alias: String, filter: FilterExpression = MatchAllFilter): Count = Count(alias, filter)
+        }
     }
 
-    data class Numeric(
+    class Numeric @InternalWowApi constructor(
         val function: AggregationFunction,
         val expression: AggregationExpression,
         override val alias: String,
@@ -304,9 +614,39 @@ sealed interface AggregationMetric {
         init {
             requireAggregationAlias(alias)
         }
+
+        /** This Numeric with the given values replaced; for Wow's own query rewriting. */
+        @InternalWowApi
+        fun copy(
+            function: AggregationFunction = this.function,
+            expression: AggregationExpression = this.expression,
+            alias: String = this.alias,
+            filter: FilterExpression = this.filter,
+        ): Numeric = Numeric(function, expression, alias, filter)
+
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Numeric && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Numeric(function=$function, expression=$expression, alias=$alias, filter=$filter)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(function, expression, alias, filter)
+
+        companion object {
+            /** A [Numeric] of the given values. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(
+                function: AggregationFunction,
+                expression: AggregationExpression,
+                alias: String,
+                filter: FilterExpression = MatchAllFilter,
+            ): Numeric = Numeric(function, expression, alias, filter)
+        }
     }
 
-    data class Any(
+    class Any @InternalWowApi constructor(
         val field: QueryField,
         override val alias: String,
         override val filter: FilterExpression = MatchAllFilter,
@@ -314,9 +654,37 @@ sealed interface AggregationMetric {
         init {
             requireAggregationAlias(alias)
         }
+
+        /** This Any with the given values replaced; for Wow's own query rewriting. */
+        @InternalWowApi
+        fun copy(
+            field: QueryField = this.field,
+            alias: String = this.alias,
+            filter: FilterExpression = this.filter,
+        ): Any = Any(field, alias, filter)
+
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Any && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Any(field=$field, alias=$alias, filter=$filter)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(field, alias, filter)
+
+        companion object {
+            /** A [Any] of the given values. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(
+                field: QueryField,
+                alias: String,
+                filter: FilterExpression = MatchAllFilter,
+            ): Any = Any(field, alias, filter)
+        }
     }
 
-    data class DistinctCount(
+    class DistinctCount @InternalWowApi constructor(
         val expression: AggregationExpression,
         override val alias: String,
         override val filter: FilterExpression = MatchAllFilter,
@@ -324,9 +692,37 @@ sealed interface AggregationMetric {
         init {
             requireAggregationAlias(alias)
         }
+
+        /** This DistinctCount with the given values replaced; for Wow's own query rewriting. */
+        @InternalWowApi
+        fun copy(
+            expression: AggregationExpression = this.expression,
+            alias: String = this.alias,
+            filter: FilterExpression = this.filter,
+        ): DistinctCount = DistinctCount(expression, alias, filter)
+
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is DistinctCount && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "DistinctCount(expression=$expression, alias=$alias, filter=$filter)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(expression, alias, filter)
+
+        companion object {
+            /** A [DistinctCount] of the given values. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(
+                expression: AggregationExpression,
+                alias: String,
+                filter: FilterExpression = MatchAllFilter,
+            ): DistinctCount = DistinctCount(expression, alias, filter)
+        }
     }
 
-    data class Percentile(
+    class Percentile @InternalWowApi constructor(
         val expression: AggregationExpression,
         val percentile: Double,
         override val alias: String,
@@ -338,9 +734,39 @@ sealed interface AggregationMetric {
                 "percentile must be finite and within (0, 100)."
             }
         }
+
+        /** This Percentile with the given values replaced; for Wow's own query rewriting. */
+        @InternalWowApi
+        fun copy(
+            expression: AggregationExpression = this.expression,
+            percentile: Double = this.percentile,
+            alias: String = this.alias,
+            filter: FilterExpression = this.filter,
+        ): Percentile = Percentile(expression, percentile, alias, filter)
+
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Percentile && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Percentile(expression=$expression, percentile=$percentile, alias=$alias, filter=$filter)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(expression, percentile, alias, filter)
+
+        companion object {
+            /** A [Percentile] of the given values. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(
+                expression: AggregationExpression,
+                percentile: Double,
+                alias: String,
+                filter: FilterExpression = MatchAllFilter,
+            ): Percentile = Percentile(expression, percentile, alias, filter)
+        }
     }
 
-    data class Derived(
+    class Derived @InternalWowApi constructor(
         override val alias: String,
         val expression: DerivedExpression,
     ) : AggregationMetric {
@@ -348,6 +774,21 @@ sealed interface AggregationMetric {
 
         init {
             requireAggregationAlias(alias)
+        }
+
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Derived && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Derived(alias=$alias, expression=$expression)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(alias, expression)
+
+        companion object {
+            /** A [Derived] of the given values. */
+            @JvmStatic
+            fun of(alias: String, expression: DerivedExpression): Derived = Derived(alias, expression)
         }
     }
 
@@ -363,7 +804,7 @@ sealed interface AggregationMetric {
         val orderBy: QueryField?
     }
 
-    data class First(
+    class First @InternalWowApi constructor(
         override val field: QueryField,
         override val alias: String,
         override val orderBy: QueryField? = null,
@@ -372,9 +813,39 @@ sealed interface AggregationMetric {
         init {
             requireAggregationAlias(alias)
         }
+
+        /** This First with the given values replaced; for Wow's own query rewriting. */
+        @InternalWowApi
+        fun copy(
+            field: QueryField = this.field,
+            alias: String = this.alias,
+            orderBy: QueryField? = this.orderBy,
+            filter: FilterExpression = this.filter,
+        ): First = First(field, alias, orderBy, filter)
+
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is First && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "First(field=$field, alias=$alias, orderBy=$orderBy, filter=$filter)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(field, alias, orderBy, filter)
+
+        companion object {
+            /** A [First] of the given values. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(
+                field: QueryField,
+                alias: String,
+                orderBy: QueryField? = null,
+                filter: FilterExpression = MatchAllFilter,
+            ): First = First(field, alias, orderBy, filter)
+        }
     }
 
-    data class Last(
+    class Last @InternalWowApi constructor(
         override val field: QueryField,
         override val alias: String,
         override val orderBy: QueryField? = null,
@@ -382,24 +853,112 @@ sealed interface AggregationMetric {
     ) : AggregationMetric, Edge {
         init {
             requireAggregationAlias(alias)
+        }
+
+        /** This Last with the given values replaced; for Wow's own query rewriting. */
+        @InternalWowApi
+        fun copy(
+            field: QueryField = this.field,
+            alias: String = this.alias,
+            orderBy: QueryField? = this.orderBy,
+            filter: FilterExpression = this.filter,
+        ): Last = Last(field, alias, orderBy, filter)
+
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Last && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Last(field=$field, alias=$alias, orderBy=$orderBy, filter=$filter)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(field, alias, orderBy, filter)
+
+        companion object {
+            /** A [Last] of the given values. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(
+                field: QueryField,
+                alias: String,
+                orderBy: QueryField? = null,
+                filter: FilterExpression = MatchAllFilter,
+            ): Last = Last(field, alias, orderBy, filter)
         }
     }
 }
 
+@ExperimentalWowApi
 sealed interface DerivedExpression {
-    data class MetricRef(val metric: String) : DerivedExpression
+    class MetricRef @InternalWowApi constructor(val metric: String) : DerivedExpression {
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is MetricRef && valueFields() == other.valueFields()
 
-    data class Constant(val value: Double) : DerivedExpression {
-        init {
-            require(value.isFinite()) { "derived constant must be finite." }
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "MetricRef(metric=$metric)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(metric)
+
+        companion object {
+            /** A [MetricRef] of the given values. */
+            @JvmStatic
+            fun of(metric: String): MetricRef = MetricRef(metric)
         }
     }
 
-    data class Binary(
+    class Constant @InternalWowApi constructor(val value: Double) : DerivedExpression {
+        init {
+            require(value.isFinite()) { "derived constant must be finite." }
+        }
+
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Constant && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Constant(value=$value)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(value)
+
+        companion object {
+            /** A [Constant] of the given values. */
+            @JvmStatic
+            fun of(value: Double): Constant = Constant(value)
+        }
+    }
+
+    class Binary @InternalWowApi constructor(
         val operator: AggregationExpressionOperator,
         val left: DerivedExpression,
         val right: DerivedExpression,
-    ) : DerivedExpression
+    ) : DerivedExpression {
+        /** This Binary with the given values replaced; for Wow's own query rewriting. */
+        @InternalWowApi
+        fun copy(
+            operator: AggregationExpressionOperator = this.operator,
+            left: DerivedExpression = this.left,
+            right: DerivedExpression = this.right,
+        ): Binary = Binary(operator, left, right)
+
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Binary && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Binary(operator=$operator, left=$left, right=$right)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(operator, left, right)
+
+        companion object {
+            /** A [Binary] of the given values. */
+            @JvmStatic
+            fun of(
+                operator: AggregationExpressionOperator,
+                left: DerivedExpression,
+                right: DerivedExpression,
+            ): Binary = Binary(operator, left, right)
+        }
+    }
 
     /**
      * A window over the groups of the aggregation: computed from every group the filter selects, after the row-level
@@ -414,10 +973,26 @@ sealed interface DerivedExpression {
      * The sum of [metric] over the groups that share this group's [within] keys, every group when [within] is empty;
      * `null` when every value is `null`. Only COUNT and SUM add up, so only they are accepted.
      */
-    data class Total(
+    class Total @InternalWowApi constructor(
         override val metric: String,
         val within: List<String> = emptyList(),
-    ) : Window
+    ) : Window {
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Total && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Total(metric=$metric, within=$within)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(metric, within)
+
+        companion object {
+            /** A [Total] of the given values. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(metric: String, within: List<String> = emptyList()): Total = Total(metric, within)
+        }
+    }
 
     /**
      * [metric] accumulated along [order] over the groups that share this group's [within] keys: the [function] of
@@ -425,7 +1000,7 @@ sealed interface DerivedExpression {
      * remaining group keys ascending, in `groupBy` order. `null` when every value in the frame is `null`. SUM accepts
      * only COUNT and SUM; AVG, a moving average with [frame], accepts any numeric metric.
      */
-    data class Running(
+    class Running @InternalWowApi constructor(
         override val metric: String,
         /** A group alias or a non-derived numeric metric alias, with its direction. */
         val order: Sort,
@@ -436,6 +1011,28 @@ sealed interface DerivedExpression {
         init {
             require(frame == null || frame in 1..MAX_FRAME) { "running frame must be between 1 and $MAX_FRAME." }
         }
+
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Running && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Running(metric=$metric, order=$order, within=$within, frame=$frame, function=$function)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(metric, order, within, frame, function)
+
+        companion object {
+            /** A [Running] of the given values. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(
+                metric: String,
+                order: Sort,
+                within: List<String> = emptyList(),
+                frame: Int? = null,
+                function: RunningFunction = RunningFunction.SUM,
+            ): Running = Running(metric, order, within, frame, function)
+        }
     }
 
     /**
@@ -444,7 +1041,7 @@ sealed interface DerivedExpression {
      * earlier groups are read over the query's own range of [along]'s field, shifted. `null` when that group has no
      * records.
      */
-    data class Previous(
+    class Previous @InternalWowApi constructor(
         override val metric: String,
         val along: String,
         val shift: Int = 1,
@@ -453,17 +1050,58 @@ sealed interface DerivedExpression {
         init {
             require(shift in 1..MAX_SHIFT) { "previous shift must be between 1 and $MAX_SHIFT." }
         }
+
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Previous && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Previous(metric=$metric, along=$along, shift=$shift, period=$period)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(metric, along, shift, period)
+
+        companion object {
+            /** A [Previous] of the given values. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(
+                metric: String,
+                along: String,
+                shift: Int = 1,
+                period: AggregationDateUnit? = null,
+            ): Previous = Previous(metric, along, shift, period)
+        }
     }
 
     /**
      * The dense rank of [metric] among the groups that share this group's [within] keys, in [direction]: tied values
      * share a rank and ranks have no gaps. `null` for a group whose value is `null`.
      */
-    data class Rank(
+    class Rank @InternalWowApi constructor(
         override val metric: String,
         val within: List<String> = emptyList(),
         val direction: Sort.Direction = Sort.Direction.DESC,
-    ) : Window
+    ) : Window {
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Rank && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Rank(metric=$metric, within=$within, direction=$direction)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(metric, within, direction)
+
+        companion object {
+            /** A [Rank] of the given values. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(
+                metric: String,
+                within: List<String> = emptyList(),
+                direction: Sort.Direction = Sort.Direction.DESC,
+            ): Rank = Rank(metric, within, direction)
+        }
+    }
 
     companion object {
         /** The most windows one aggregation may compute. */
@@ -474,6 +1112,7 @@ sealed interface DerivedExpression {
 }
 
 /** The window functions of [DerivedExpression.Window], as a storage declares and the descriptor lists them. */
+@ExperimentalWowApi
 enum class WindowFunction {
     TOTAL,
     RUNNING,
@@ -482,12 +1121,14 @@ enum class WindowFunction {
 }
 
 /** What a [DerivedExpression.Running] window computes over its frame. */
+@ExperimentalWowApi
 enum class RunningFunction {
     SUM,
     AVG,
 }
 
 /** The function of this window. */
+@ExperimentalWowApi
 val DerivedExpression.Window.windowFunction: WindowFunction
     get() = when (this) {
         is DerivedExpression.Total -> WindowFunction.TOTAL
@@ -496,27 +1137,128 @@ val DerivedExpression.Window.windowFunction: WindowFunction
         is DerivedExpression.Rank -> WindowFunction.RANK
     }
 
+@ExperimentalWowApi
 sealed interface HavingExpression {
-    data class Condition(val metric: String, val operator: ComparisonOperator, val value: Double) : HavingExpression
+    class Condition @InternalWowApi constructor(
+        val metric: String,
+        val operator: ComparisonOperator,
+        val value: Double
+    ) : HavingExpression {
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Condition && valueFields() == other.valueFields()
 
-    data class Between(val metric: String, val lower: Double, val upper: Double) : HavingExpression
+        override fun hashCode(): Int = valueFields().hashCode()
 
-    data class In(
+        override fun toString(): String = "Condition(metric=$metric, operator=$operator, value=$value)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(metric, operator, value)
+
+        companion object {
+            /** A [Condition] of the given values. */
+            @JvmStatic
+            fun of(
+                metric: String,
+                operator: ComparisonOperator,
+                value: Double,
+            ): Condition = Condition(metric, operator, value)
+        }
+    }
+
+    class Between @InternalWowApi constructor(val metric: String, val lower: Double, val upper: Double) : HavingExpression {
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Between && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Between(metric=$metric, lower=$lower, upper=$upper)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(metric, lower, upper)
+
+        companion object {
+            /** A [Between] of the given values. */
+            @JvmStatic
+            fun of(metric: String, lower: Double, upper: Double): Between = Between(metric, lower, upper)
+        }
+    }
+
+    class In @InternalWowApi constructor(
         val metric: String,
         val values: List<Double>,
-    ) : HavingExpression
+    ) : HavingExpression {
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is In && valueFields() == other.valueFields()
 
-    data class IsNull(val metric: String, val negated: Boolean = false) : HavingExpression
+        override fun hashCode(): Int = valueFields().hashCode()
 
-    data class And(
+        override fun toString(): String = "In(metric=$metric, values=$values)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(metric, values)
+
+        companion object {
+            /** A [In] of the given values. */
+            @JvmStatic
+            fun of(metric: String, values: List<Double>): In = In(metric, values)
+        }
+    }
+
+    class IsNull @InternalWowApi constructor(val metric: String, val negated: Boolean = false) : HavingExpression {
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is IsNull && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "IsNull(metric=$metric, negated=$negated)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(metric, negated)
+
+        companion object {
+            /** A [IsNull] of the given values. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(metric: String, negated: Boolean = false): IsNull = IsNull(metric, negated)
+        }
+    }
+
+    class And @InternalWowApi constructor(
         val operands: List<HavingExpression>,
-    ) : HavingExpression
+    ) : HavingExpression {
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is And && valueFields() == other.valueFields()
 
-    data class Or(
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "And(operands=$operands)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(operands)
+
+        companion object {
+            /** A [And] of the given values. */
+            @JvmStatic
+            fun of(operands: List<HavingExpression>): And = And(operands)
+        }
+    }
+
+    class Or @InternalWowApi constructor(
         val operands: List<HavingExpression>,
-    ) : HavingExpression
+    ) : HavingExpression {
+        override fun equals(other: kotlin.Any?): Boolean =
+            this === other || other is Or && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Or(operands=$operands)"
+
+        private fun valueFields(): List<kotlin.Any?> = listOf(operands)
+
+        companion object {
+            /** A [Or] of the given values. */
+            @JvmStatic
+            fun of(operands: List<HavingExpression>): Or = Or(operands)
+        }
+    }
 }
 
+@ExperimentalWowApi
 enum class ComparisonOperator {
     EQ,
     NE,
@@ -526,6 +1268,7 @@ enum class ComparisonOperator {
     LTE,
 }
 
+@ExperimentalWowApi
 enum class AggregationFunction {
     SUM,
     AVG,
@@ -536,6 +1279,7 @@ enum class AggregationFunction {
 }
 
 /** Where a group reads its field when the query expands elements; see [AggregationGroup.scope]. */
+@ExperimentalWowApi
 enum class AggregationGroupScope {
     /** The innermost element: the field is relative to its container. The meaning of an absent scope. */
     ELEMENT,

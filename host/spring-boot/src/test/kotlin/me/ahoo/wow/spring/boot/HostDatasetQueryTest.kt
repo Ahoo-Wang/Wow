@@ -28,6 +28,7 @@ import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.memory.InMemoryDatasetStorage
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
+import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

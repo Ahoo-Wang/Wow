@@ -17,6 +17,38 @@ public final class me/ahoo/wow/spi/VirtualThreads {
 	public final fun getDispatcher ()Lkotlinx/coroutines/CoroutineDispatcher;
 }
 
+public abstract interface class me/ahoo/wow/spi/call/CommandCaller {
+	public abstract fun call (Lme/ahoo/wow/spi/call/OutgoingCall;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun reaches (Ljava/lang/String;)Z
+}
+
+public final class me/ahoo/wow/spi/call/OutgoingCall {
+	public static final field Companion Lme/ahoo/wow/spi/call/OutgoingCall$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCommand ()Lme/ahoo/wow/api/decide/Command;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getType ()Ljava/lang/String;
+	public final fun getWait ()Lme/ahoo/wow/spi/wait/WaitContext;
+	public fun hashCode ()I
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/decide/Command;)Lme/ahoo/wow/spi/call/OutgoingCall;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/spi/wait/WaitContext;)Lme/ahoo/wow/spi/call/OutgoingCall;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/call/OutgoingCall$Companion {
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/decide/Command;)Lme/ahoo/wow/spi/call/OutgoingCall;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/spi/wait/WaitContext;)Lme/ahoo/wow/spi/call/OutgoingCall;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/call/OutgoingCall$Companion;Ljava/lang/String;Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/spi/wait/WaitContext;ILjava/lang/Object;)Lme/ahoo/wow/spi/call/OutgoingCall;
+}
+
+public final class me/ahoo/wow/spi/config/WowConfigurationException : java/lang/IllegalStateException {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun getFix ()Ljava/lang/String;
+	public final fun getKey ()Ljava/lang/String;
+	public final fun getReason ()Ljava/lang/String;
+	public final fun getValue ()Ljava/lang/Object;
+}
+
 public abstract interface class me/ahoo/wow/spi/id/AggregateIdGenerator {
 	public static final field Companion Lme/ahoo/wow/spi/id/AggregateIdGenerator$Companion;
 	public static final field UUID_V7 Lme/ahoo/wow/spi/id/AggregateIdGenerator;

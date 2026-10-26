@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.api.query
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 data class QueryField(
     val path: String,
 ) {
@@ -171,53 +173,137 @@ data object MatchNoneFilter : FilterExpression {
     override val operator: FilterOperator = FilterOperator.MATCH_NONE
 }
 
-data class AndFilter(val operands: List<FilterExpression>) : FilterExpression {
+class AndFilter @InternalWowApi constructor(val operands: List<FilterExpression>) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.AND
 
     init {
         require(operands.isNotEmpty()) { "AND operands cannot be empty." }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is AndFilter && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "AndFilter(operands=$operands)"
+
+    private fun valueFields(): List<Any?> = listOf(operands)
+
+    companion object {
+        /** A [AndFilter] of the given values. */
+        @JvmStatic
+        fun of(operands: List<FilterExpression>): AndFilter = AndFilter(operands)
+    }
 }
 
-data class OrFilter(val operands: List<FilterExpression>) : FilterExpression {
+class OrFilter @InternalWowApi constructor(val operands: List<FilterExpression>) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.OR
 
     init {
         require(operands.isNotEmpty()) { "OR operands cannot be empty." }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is OrFilter && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "OrFilter(operands=$operands)"
+
+    private fun valueFields(): List<Any?> = listOf(operands)
+
+    companion object {
+        /** A [OrFilter] of the given values. */
+        @JvmStatic
+        fun of(operands: List<FilterExpression>): OrFilter = OrFilter(operands)
+    }
 }
 
-data class NorFilter(val operands: List<FilterExpression>) : FilterExpression {
+class NorFilter @InternalWowApi constructor(val operands: List<FilterExpression>) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.NOR
 
     init {
         require(operands.isNotEmpty()) { "NOR operands cannot be empty." }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is NorFilter && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "NorFilter(operands=$operands)"
+
+    private fun valueFields(): List<Any?> = listOf(operands)
+
+    companion object {
+        /** A [NorFilter] of the given values. */
+        @JvmStatic
+        fun of(operands: List<FilterExpression>): NorFilter = NorFilter(operands)
+    }
 }
 
 /** Filters by deletion state; [deletionState] is written as `state` on the wire. */
-data class DeletionFilter(
+class DeletionFilter @InternalWowApi constructor(
     val deletionState: DeletionState,
 ) : FilterExpression {
     override val operator: FilterOperator = FilterOperator.DELETION
+
+    /** This DeletionFilter with the given values replaced; for Wow's own query rewriting. */
+    @InternalWowApi
+    fun copy(
+        deletionState: DeletionState = this.deletionState,
+    ): DeletionFilter = DeletionFilter(deletionState)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is DeletionFilter && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "DeletionFilter(deletionState=$deletionState)"
+
+    private fun valueFields(): List<Any?> = listOf(deletionState)
+
+    companion object {
+        /** A [DeletionFilter] of the given values. */
+        @JvmStatic
+        fun of(deletionState: DeletionState): DeletionFilter = DeletionFilter(deletionState)
+    }
 }
 
-data class ElementMatchFilter(
+class ElementMatchFilter @InternalWowApi constructor(
     override val field: QueryField,
     val predicate: FilterExpression,
 ) : FieldPredicate {
     override val operator: FilterOperator = FilterOperator.ELEMENT_MATCH
 
-    override fun withField(field: QueryField): ElementMatchFilter = copy(field = field)
+    override fun withField(field: QueryField): ElementMatchFilter = ElementMatchFilter(field, predicate)
 
     init {
         require(predicate.containsElementUnsupportedFilter().not()) {
             "ELEMENT_MATCH predicate cannot contain root filters."
         }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ElementMatchFilter && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "ElementMatchFilter(field=$field, predicate=$predicate)"
+
+    private fun valueFields(): List<Any?> = listOf(field, predicate)
+
+    companion object {
+        /** A [ElementMatchFilter] of the given values. */
+        @JvmStatic
+        fun of(
+            field: QueryField,
+            predicate: FilterExpression,
+        ): ElementMatchFilter = ElementMatchFilter(field, predicate)
+    }
 }
 
-data class SearchFilter(
+class SearchFilter @InternalWowApi constructor(
     val query: String,
     val fields: Set<QueryField> = emptySet(),
     val mode: SearchMode = SearchMode.TERMS,
@@ -226,6 +312,34 @@ data class SearchFilter(
 
     init {
         require(query.isNotBlank()) { "SEARCH query cannot be blank." }
+    }
+
+    /** This SearchFilter with the given values replaced; for Wow's own query rewriting. */
+    @InternalWowApi
+    fun copy(
+        query: String = this.query,
+        fields: Set<QueryField> = this.fields,
+        mode: SearchMode = this.mode,
+    ): SearchFilter = SearchFilter(query, fields, mode)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is SearchFilter && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "SearchFilter(query=$query, fields=$fields, mode=$mode)"
+
+    private fun valueFields(): List<Any?> = listOf(query, fields, mode)
+
+    companion object {
+        /** A [SearchFilter] of the given values. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            query: String,
+            fields: Set<QueryField> = emptySet(),
+            mode: SearchMode = SearchMode.TERMS,
+        ): SearchFilter = SearchFilter(query, fields, mode)
     }
 }
 

@@ -26,13 +26,13 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.api.wire.ScopeHeader
 import me.ahoo.wow.api.wire.WaitHeader
 import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.kernel.CommandTypes
+import me.ahoo.wow.manifest.CommandIndex
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import tools.jackson.core.JacksonException
 import kotlin.time.Duration.Companion.seconds
@@ -62,7 +62,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 class HttpCommandClient internal constructor(
     private val transport: HttpTransport,
-    private val names: CommandTypes,
+    private val names: CommandIndex,
     private val ids: GlobalIdGenerator,
     private val caller: Caller = Caller.ANONYMOUS,
     /** The peers described by their Manifest alone, which take [NamedCommand]s only. */
@@ -176,9 +176,10 @@ class HttpCommandClient internal constructor(
             "${type.context} is described by its Manifest alone (contract: manifest): send it a NamedCommand, not " +
                 "the command object ${command.javaClass.name}."
         }
-        return requireNotNull(names.nameOf(type, command.javaClass)) {
+        return requireNotNull(names.commandTypeOf(type.toString(), command.javaClass)) {
             "No contract names the command ${command.javaClass.name} of $type: depend on the api module of " +
-                "${type.context}, whose jar carries its contract."
+                "${type.context}, whose jar carries its contract, or send a NamedCommand of the full type name to a " +
+                "peer described by its Manifest."
         }
     }
 
@@ -187,15 +188,16 @@ class HttpCommandClient internal constructor(
      * tenant (or the target's) and the caller's scope (or the target's), sent by the caller's operator from its
      * application.
      */
-    private fun rootOf(ref: AggregateRef, options: SendOptions): CallContext =
+    private fun rootOf(ref: AggregateRef, options: SendOptions): CallWire =
         rootOf(options.targetTenant ?: ref.tenantId, options.targetScope ?: caller.scope, options.targeted)
 
-    private fun rootOf(tenantId: String, scope: Scope, actingElsewhere: Boolean): CallContext {
+    private fun rootOf(tenantId: String, scope: Scope, actingElsewhere: Boolean): CallWire {
         val commandId = ids.next()
-        return CallContext.of(
+        return CallWire(
             commandId = commandId,
             tenantId = tenantId,
-            scope = scope,
+            ownerId = scope.ownerId,
+            spaceId = scope.spaceId,
             causation = Causation(commandId, commandId),
             operator = caller.toOperator(actingElsewhere = actingElsewhere),
             facts = caller.app?.let { mapOf(RequestFacts.APP_ID to it) }.orEmpty(),

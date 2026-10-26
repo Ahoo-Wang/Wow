@@ -79,14 +79,14 @@ Each node listens on two ports. The **public port** serves the HTTP API. The **i
 - the cluster channel between the nodes of one service, which forwards commands;
 - the signals that complete waits, which may come from any service of the system;
 - synchronous calls from other services, marked by the `Wow-Call` header;
-- reads from other services: the same query and state routes as the public port, for a service that reads this one with its own service identity.
+- reads from other services: the same query and state routes as the public port, for a service that reads this one as itself.
 
-A signal completes a wait and hands its result to the caller, so whoever can send signals can fake the result of any command. The internal port is therefore never exposed outside the cluster, and no public gateway forwards to it. Inside the cluster, every request to it is authenticated:
+A signal completes a wait and hands its result to the caller, so whoever can send signals can fake the result of any command. The internal port is therefore never exposed outside the platform, and no public gateway forwards to it. The inside of the platform is trusted: the internal port takes no token, and a network policy that lets only the platform's own pods reach it is its boundary. Every request to it names the service it comes from in the `Wow-Service` header, the caller's `wow.service`. The header is a statement, not a credential: it catches a misconfiguration, such as a call the service is not listed for, or a forward that reached another service's node.
 
 | Request | Accepted from |
 | --- | --- |
-| A forwarded command | a node of the same service, with its cluster token |
-| A wait signal | a node of the same service, with its cluster token, or another service with its service identity |
-| A synchronous call or a read | another service, with its service identity; a cluster token cannot call |
+| A forwarded command | a node of the same service |
+| A wait signal | any service that names itself |
+| A synchronous call or a read | any service that names itself, as that service's identity (subject `service:<name>`) |
 
-A synchronous call may invoke only domain commands unless the service is configured to allow more. Lifecycle and system commands, such as delete or rebuild a snapshot, must be listed for the calling service explicitly. A call carries the scope, operator and request facts of the root command it acts for, and the target trusts that claim only from a service identity.
+A synchronous call may invoke every domain command unless the service lists the commands each caller may call (`wow.http.services.<service>.commands`). Lifecycle and system commands, such as delete or rebuild a snapshot, must be listed for the calling service explicitly. A call carries the scope, operator and request facts of the root command it acts for, and the target takes that claim only on its internal port, from a service that names itself.

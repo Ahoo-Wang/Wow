@@ -35,7 +35,7 @@ private val context = SpringApplicationBuilder(OrderingServer::class.java, InMem
 )
 ```
 
-- `--server.port=0` and `--wow.internal.port=0` take free ports. On a loopback-only internal port the node runs without a cluster token and, without a store bean, on the memory backend.
+- `--server.port=0` and `--wow.internal.port=0` take free ports. On a loopback-only internal port and without a store bean, the node runs on the memory backend.
 - Short timeouts (`wow.cluster.drain-timeout`, `wow.subscription.stop-timeout`) keep the shutdown between test classes quick, and `wow.timers.poll-interval=200ms` fires scheduled commands promptly.
 - The application's own settings shorten what the test waits for: here the payment grace period, two seconds instead of thirty minutes.
 

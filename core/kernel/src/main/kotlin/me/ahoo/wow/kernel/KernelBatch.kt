@@ -25,14 +25,17 @@ class QueuedCommand(val command: Command<*>, val wait: WaitContext? = null)
 @InternalWowApi
 sealed interface BatchOutcome {
     /** The command's outcome, as [Kernel.execute] would have answered it. */
+    @InternalWowApi
     class Done(val outcome: CommandOutcome) : BatchOutcome
 
     /** The command failed with [failure], as [Kernel.execute] would have thrown it. */
+    @InternalWowApi
     class Failed(val failure: Throwable) : BatchOutcome
 
     /**
      * Not executed: a stream before it in the batch did not commit, or it could not join the batch. The lane runs it
      * again, in order.
      */
+    @InternalWowApi
     data object Again : BatchOutcome
 }

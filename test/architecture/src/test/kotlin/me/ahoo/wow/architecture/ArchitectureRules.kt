@@ -195,9 +195,11 @@ object ArchitectureRules {
         ANNOTATIONS to emptySet(),
         // The query protocol of the QueryApi (decision D260).
         API to setOf("annotations", "query-api"),
-        MANIFEST to setOf("annotations"),
+        // api for the tests only, which hold the contract's vocabulary to the programming model's (decision D294).
+        MANIFEST to setOf("annotations", "api"),
         QUERY_API to setOf("annotations"),
-        SPI to setOf("api"),
+        // query-api: the query protocol whose JSON :spi holds (decision D293).
+        SPI to setOf("api", "query-api"),
         KERNEL to setOf("spi"),
         // manifest: the node is built from the Manifest (decision D231 ③).
         RUNTIME to setOf("kernel", "manifest"),
@@ -219,8 +221,9 @@ object ArchitectureRules {
         // only, which call the routes as a peer does (the main code shares only `:api`'s wire grammar, decision D286:
         // [HTTP_IGNORES_CLIENT]).
         HTTP to setOf("runtime", "query", "openapi", "client"),
-        // The runtime for the calls' root context and the contracts (decision D234), query for the rows' records.
-        CLIENT to setOf("runtime", "query"),
+        // Wow's contracts and its ports, no engine (decision D293): the wire grammar and read API of :api, the peer
+        // contracts of :manifest, the query protocol and :spi's JSON, ids and saga call port.
+        CLIENT to setOf("api", "manifest", "query-api", "spi"),
         COSEC to setOf("http"),
         // The core's observation seams (decision D174) and the query engine's observer; http for the tests only, which
         // follow a trace from an HTTP request.
@@ -389,6 +392,20 @@ object ArchitectureRules {
         forbidden = listOf("me.ahoo.wow.http"),
     )
 
+    /**
+     * The read side's scope authorization has one home, `:query`'s `QueryTargets` (review R5.C-1): which scope a
+     * caller may name (`Caller.crossScope`), the cross-tenant switch and the fixed tenants. wow-http passes on what a
+     * request names; it reads none of the members those rules rest on, and builds no `QueryCaller` itself: its callers
+     * come from `QueryTargets.of`.
+     */
+    val HTTP_DECIDES_NO_READ_SCOPE = SourceTokenRule(
+        name = "wow-http reads no crossScope, decides no tenant and builds no QueryCaller",
+        modules = listOf(HTTP.dir),
+        forbidden = listOf("crossScope", "fixedTenant", "tenantOf", "QueryCaller("),
+    )
+
+    val SOURCE_TOKEN_RULES = listOf(HTTP_DECIDES_NO_READ_SCOPE)
+
     /** The kernel knows nothing of clusters, subscriptions or waits: those are the runtime's. */
     val KERNEL_IGNORES_RUNTIME = DependencyRule(
         name = "wow-kernel imports nothing from the runtime",
@@ -413,24 +430,41 @@ object ArchitectureRules {
     )
 
     /**
-     * The read side is composed once, in wow-query (decision D237, review R3.1-1): the Spring Boot host maps its
-     * properties and the application's beans onto `QueryEngine.Builder` and decides no query policy itself, so a host
-     * that is not Spring Boot (A10) cannot miss one. Its main code constructs no query gateway, policy, policy gateway
-     * or visibility.
+     * What the Spring Boot host may name of wow-query (decision D237, reviews R3.1-1, R5.C-2), a positive list: the
+     * engine's builder and what it is built of (the application's ports, the settings types), the storage and backend
+     * ports a store provides, the read paths it hands out, and the values it reports. The read side is composed once,
+     * in wow-query: the host maps its properties onto `QueryEngine.Builder` and `QueryStores.of`, and decides no query
+     * policy, gateway, visibility or bound itself, so a host that is not Spring Boot (A10) misses none. A type the
+     * host starts to name must be one of these, or a new port, added here with its reason.
      */
-    val HOST_DECIDES_NO_QUERY_POLICY = DependencyRule(
-        name = "wow-spring-boot composes no query gateway, policy or visibility: QueryEngine.Builder does",
+    private val HOST_QUERY_TYPES: List<String> = listOf(
+        // The engine, its builder's inputs and its outputs.
+        "engine.QueryEngine", "engine.ManifestTypes", "engine.CommittedStates", "engine.ReadFacade",
+        "QueryEntryPolicy", "QueryBudget", "AbacQueryOptions", "QueryCountCache", "QueryCountCacheOptions",
+        "QueryGateway", "QueryModule", "CrossTenantAudit",
+        // The application's ports the engine is built of.
+        "QueryPolicy", "QueryObserver", "filter.QueryFilter", "schema.QuerySchemaSource", "schema.MaskStrategyResolver",
+        "schema.QuerySensitivityPolicy", "dataset.DatasetVisibility", "dataset.DatasetQueryBackendFactory",
+        "dataset.AbstractDatasetQueryBackendFactory",
+        // The stores' query ports and the bounds wow-query composes from the host's settings (review R5.C-2).
+        "store.StoreQueryProvider", "store.StoreQueryOptions", "store.SnapshotQueries", "store.EventQueries",
+        "store.QueryIndexReport", "store.QueryStores", "store.QueryStoreSettings", "store.QueryStoreLimits",
+        "store.DatasetQueryLimits", "QueryBulkhead", "AdaptiveQueryLimit", "AdaptiveQueryLimits", "AdaptiveLimitOptions",
+        "QueryBackend", "QueryBackendFactory", "QueryBackendBinding", "events.UnpinnedEvents",
+        "memory.InMemoryQueryStorage", "memory.InMemoryEventQueryStorage",
+        // The schemas, indexes and datasets the host loads and reports at startup.
+        "schema.QuerySchemaCatalog", "schema.QueryModel", "schema.QueryModelSchema", "index.QueryIndexDdl",
+        "index.QueryIndexDeclaration", "dataset.QueryDatasets", "dataset.QueryDatasetFiles", "dataset.QueryDataset",
+        "dataset.QueryDatasetChange", "dataset.QueryDatasetListener", "dataset.DatasetQueryGateways",
+        // The read paths it hands out.
+        "read.InProcessQueryApi", "read.ReadModels", "state.CommittedState", "mask.PayloadMasks",
+    ).map { "me.ahoo.wow.query.$it" }
+
+    val HOST_ASSEMBLES_THE_READ_SIDE = DependencyRule(
+        name = "wow-spring-boot names of wow-query only the engine's builder, its ports and its settings",
         modules = listOf(SPRING_BOOT.dir),
-        forbidden = listOf(
-            "me.ahoo.wow.query.AbacQueryPolicy",
-            "me.ahoo.wow.query.ScopeQueryPolicy",
-            "me.ahoo.wow.query.QueryOwnership",
-            "me.ahoo.wow.query.DefaultQueryGateway",
-            "me.ahoo.wow.query.state.SnapshotPolicyGateway",
-            "me.ahoo.wow.query.state.StateVisibility",
-            "me.ahoo.wow.query.events.EventVisibility",
-            "me.ahoo.wow.query.events.EventQueryGateways",
-        ),
+        forbidden = listOf("me.ahoo.wow.query"),
+        allowed = HOST_QUERY_TYPES,
     )
 
     /**
@@ -485,11 +519,15 @@ object ArchitectureRules {
         forbidden = listOf("com.github.victools"),
     )
 
-    /** The 9.x parts of 9.x wow-api that the Wow 10 wow-api leaves out (06 §2.1; `query` moves to wow-query-api in M9). */
+    /**
+     * The 9.x parts of 9.x wow-api that the Wow 10 wow-api leaves out (06 §2.1; `query` moves to wow-query-api in M9).
+     * Wow 10 reuses `api.naming` for its naming of model types, so of that package the 9.x types are listed
+     * ([PositiveRules.NINE_X_TYPES]).
+     */
     private val API_9X = listOf(
-        "abac", "command", "event", "exception", "messaging", "modeling", "naming", "query", "serialization",
+        "abac", "command", "event", "exception", "messaging", "modeling", "query", "serialization",
         "Copyable", "Identifier", "Ordered", "Version", "Wow",
-    ).map { "me.ahoo.wow.api.$it" }
+    ).map { "me.ahoo.wow.api.$it" } + PositiveRules.NINE_X_TYPES
 
     /**
      * wow-api depends only on the query protocol and the coroutines' `Flow` (06 §3, decisions D66, D260: the `QueryApi`
@@ -524,7 +562,7 @@ object ArchitectureRules {
         HTTP_IGNORES_CLIENT,
         CLIENT_IGNORES_HTTP,
         HTTP_READS_ADAPT_ONLY,
-        HOST_DECIDES_NO_QUERY_POLICY,
+        HOST_ASSEMBLES_THE_READ_SIDE,
         ENTRIES_READ_THROUGH_FACADE,
         ONLY_OPENTELEMETRY_OBSERVES,
         ONLY_HOST_USES_SPRING_BOOT,
@@ -746,7 +784,7 @@ object ArchitectureRules {
      * construct may gain fields within a format (D59), and a data class's `copy` and `componentN` change their
      * signatures when it does.
      */
-    val PLAIN_CLASS_MODULES: List<WowProject> = listOf(API, SPI, MANIFEST)
+    val PLAIN_CLASS_MODULES: List<WowProject> = listOf(API, SPI, MANIFEST, QUERY_API)
 
     /**
      * The data classes the ABI of [PLAIN_CLASS_MODULES] keeps, by their JVM names, each with why: closed value
@@ -760,6 +798,7 @@ object ArchitectureRules {
         "me/ahoo/wow/api/subscribe/ExecutionId" to "a subscription's execution: its name, aggregate and version",
         "me/ahoo/wow/spi/log/LogPosition" to "a position in the log: a partition and a sequence",
         "me/ahoo/wow/spi/transport/PartitionOffsets" to "a range of offsets: its start and end",
+        "me/ahoo/wow/api/query/QueryField" to "a field path, its identity; generated code builds it (`<State>Properties`)",
     )
 
     private val ABI_CLASS = Regex("""^public (?:final |abstract |open |sealed )*class ([\w/$]+)""")
@@ -785,6 +824,21 @@ object ArchitectureRules {
             }
         }
         return violations + (DATA_CLASS_EXCEPTIONS.keys - dataClasses).map { "stale exception: $it" }
+    }
+
+    private val ABI_ANY_CLASS = Regex("""^public [^{]*?\bclass ([\w/$]+)""")
+
+    /**
+     * The nested classes the ABI dumps of [MODULES] keep while their outer class is left out (finding R5.A-7): an
+     * `@InternalWowApi` outer class does not hide its nested classes or its companion, which then freeze into the
+     * dump on their own, so each one is marked too. As `dump: Outer$Nested`.
+     */
+    fun hiddenOuterViolations(repositoryRoot: File): List<String> = MODULES.flatMap { module ->
+        val dump = File(repositoryRoot, "${module.dir}/api/${module.name}.api")
+        if (!dump.isFile) return@flatMap emptyList()
+        val classes = dump.readLines().mapNotNull { ABI_ANY_CLASS.find(it)?.groupValues?.get(1) }.toSet()
+        classes.filter { '$' in it && it.substringBeforeLast('$') !in classes }.sorted()
+            .map { "${module.dir}/api/${module.name}.api: $it" }
     }
 
     private val COMPATIBILITY_MARKER = Regex("""@Deprecated\b|\bcompat\(""")

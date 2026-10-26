@@ -28,7 +28,7 @@ import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
-import me.ahoo.wow.spring.boot.InternalServer
+import me.ahoo.wow.http.internal.InternalPort
 import org.junit.jupiter.api.Test
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ApplicationContextException
@@ -47,8 +47,8 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * The checkout's synchronous call (roadmap P.12, decision D193): the basket's checkout saga submits the order through
- * the ordering service's command gateway on its internal port, with the basket service's token, for the buyer. The services run in this
- * JVM on the memory backend, as [EshopSharedJvmTest]'s do, so the test controls when the ordering is up.
+ * the ordering service's command gateway on its internal port, naming the basket service (`Wow-Service`, decision
+ * D300), for the buyer. The services run in this JVM on the memory backend, as [EshopSharedJvmTest]'s do, so the test controls when the ordering is up.
  *
  * - **Call.** A checkout whose wait follows the call into the ordering context ends once the order is committed
  *   there; the order belongs to its buyer, who is its operator.
@@ -56,9 +56,9 @@ import java.util.concurrent.atomic.AtomicInteger
  *   service does), the saga is retried within its subscription's budget, then the basket parks. Once the ordering is
  *   back and an operator resumes the basket, the order is submitted, once; the same call again is the same request,
  *   answered with the same order.
- * - **Trust boundary.** Only the basket service, by its token, and only on the ordering's internal port, may assert the
- *   root command a call acts for (`Wow-Call`): the public port refuses it even with that token, and the internal port
- *   refuses a buyer, a caller without a token, and one with a wrong token.
+ * - **Trust boundary.** Only a service that names itself, and only on the ordering's internal port, may assert the
+ *   root command a call acts for (`Wow-Call`): the public port refuses it even naming the basket service, and the
+ *   internal port refuses a buyer and a caller that names no service.
  */
 class EshopSyncCallTest {
     @Test
@@ -116,7 +116,7 @@ class EshopSyncCallTest {
                     "/eshop-ordering/order/bob-1/submit-order",
                     ExecutionId(CHECKOUT_SAGA, BASKET.ref(Caller.DEFAULT_TENANT, "bob"), 2),
                     Scope(ownerId = "bob"),
-                    TOKEN,
+                    SERVICE,
                 )
                 replay.status.assert().describedAs(replay.body).isEqualTo(OK)
                 val again = json.readTree(replay.body)
@@ -131,12 +131,12 @@ class EshopSyncCallTest {
     fun `only the basket service should assert the root command of a call`() {
         ordering().use { ordering ->
             val execution = ExecutionId(CHECKOUT_SAGA, BASKET.ref(Caller.DEFAULT_TENANT, "carol"), 2)
-            // The public port refuses a call, even with the basket service's token.
+            // The public port refuses a call, even naming the basket service.
             val public = ordering.call(
                 "/eshop-ordering/order/carol-1/submit-order",
                 execution,
                 Scope(ownerId = "carol"),
-                TOKEN,
+                SERVICE,
                 internal = false,
             )
             public.status.assert().describedAs(public.body).isEqualTo(FORBIDDEN)
@@ -146,34 +146,34 @@ class EshopSyncCallTest {
                 "/eshop-ordering/order/carol-1/submit-order",
                 execution,
                 Scope(ownerId = "carol"),
-                token = null,
+                service = null,
                 headers = buyer("mallory"),
             )
             buyer.status.assert().describedAs(buyer.body).isEqualTo(FORBIDDEN)
             json.readTree(buyer.body)["code"].asString().assert().isEqualTo("wow.auth.forbidden")
-            // So is a caller without a token, and one whose token is not the basket service's.
+            // So is a caller that names no service, and one whose name is no service name.
             val anonymous = ordering.call(
                 "/eshop-ordering/order/carol-1/submit-order",
                 execution,
                 Scope(ownerId = "carol"),
-                token = null,
+                service = null,
             )
             anonymous.status.assert().describedAs(anonymous.body).isEqualTo(FORBIDDEN)
             val forged = ordering.call(
                 "/eshop-ordering/order/carol-1/submit-order",
                 execution,
                 Scope(ownerId = "carol"),
-                token = "forged-token-of-at-least-thirty-two-characters",
+                service = "basket service",
             )
             forged.status.assert().describedAs(forged.body).isEqualTo(FORBIDDEN)
             ordering.ownerOf("carol-1").assert().isNull()
 
-            // The basket service's token is trusted: the order is carol's.
+            // The basket service names itself: the order is carol's.
             val trusted = ordering.call(
                 "/eshop-ordering/order/carol-1/submit-order",
                 execution,
                 Scope(ownerId = "carol"),
-                TOKEN,
+                SERVICE,
             )
             trusted.status.assert().describedAs(trusted.body).isEqualTo(OK)
             // A call is answered at COMMITTED (D193); the state read is the snapshot's, written right after.
@@ -185,7 +185,7 @@ class EshopSyncCallTest {
     /** A service of this JVM, its public [port] and its [internalPort] on the loopback interface, as bound. */
     private class Service(private val context: ConfigurableApplicationContext) : AutoCloseable {
         val port: Int = context.environment.getRequiredProperty("local.server.port", Int::class.java)
-        val internalPort: Int = context.getBean(InternalServer::class.java).boundPort
+        val internalPort: Int = context.getBean(InternalPort::class.java).boundPort
         private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
 
         fun get(path: String, headers: Map<String, String> = emptyMap()): Answer =
@@ -226,13 +226,13 @@ class EshopSyncCallTest {
 
         /**
          * The call the checkout saga's [execution] makes first, sent to [path] of the internal port (the public one
-         * unless [internal]) with [token] and [headers].
+         * unless [internal]) naming [service] and with [headers].
          */
         fun call(
             path: String,
             execution: ExecutionId,
             scope: Scope,
-            token: String?,
+            service: String?,
             headers: Map<String, String> = emptyMap(),
             internal: Boolean = true,
         ): Answer {
@@ -244,7 +244,7 @@ class EshopSyncCallTest {
                 causation = Causation("root-of-$id", "$execution"),
                 operator = Operator.of(checkNotNull(scope.ownerId), Caller.DEFAULT_TENANT),
             )
-            val authorization = token?.let { mapOf("Authorization" to "Bearer $it") }.orEmpty()
+            val authorization = service?.let { mapOf(WowHeaders.SERVICE to it) }.orEmpty()
             return send(
                 HttpRequest.newBuilder(URI.create("http://127.0.0.1:${if (internal) internalPort else port}$path"))
                     .header("Content-Type", "application/json")
@@ -307,8 +307,8 @@ class EshopSyncCallTest {
         const val CHECKOUT_SAGA = "BasketCheckoutSaga.onBasketCheckedOut"
         const val CHECKOUT_TO_ORDER = EshopStack.CHECKOUT_TO_ORDER
 
-        /** The basket service's token, at least 32 characters, which the ordering trusts in this test. */
-        val TOKEN: String = EshopTokens.service("basket")
+        /** The basket service's name, which it states on the ordering's internal port. */
+        const val SERVICE: String = "eshop-basket-service"
         val BASKET = EshopBasketContract.Basket.TYPE
         val TIMEOUT: Duration = Duration.ofSeconds(30)
         val DEADLINE: Duration = Duration.ofSeconds(30)
@@ -318,7 +318,7 @@ class EshopSyncCallTest {
         fun encode(segment: String): String = URLEncoder.encode(segment, Charsets.UTF_8)
 
         /**
-         * The ordering service, trusting the basket service's [TOKEN] on its [internalPort] (one the system chooses by
+         * The ordering service, taking the basket service's calls on its [internalPort] (one the system chooses by
          * default), where the basket calls it.
          */
         fun ordering(internalPort: Int = 0): Service = start(
@@ -329,7 +329,7 @@ class EshopSyncCallTest {
         )
 
         /**
-         * The basket service, calling the ordering at its internal [orderingPort] with [TOKEN]; its checkout saga makes
+         * The basket service, calling the ordering at its internal [orderingPort] as itself; its checkout saga makes
          * [retries] attempts 50 ms apart, then parks until an operator resumes it.
          */
         fun basket(orderingPort: Int, retries: Int = 5): Service = start(
@@ -384,7 +384,6 @@ class EshopSyncCallTest {
                     "--wow.internal.port=$internalPort",
                     "--wow.contexts.include=eshop-$context",
                     // The services share one class path, so one application.yaml: each is given its own secrets.
-                    *EshopTokens.arguments(context).toTypedArray(),
                 ),
             )
 

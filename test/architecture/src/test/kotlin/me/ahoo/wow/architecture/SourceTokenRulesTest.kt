@@ -1,0 +1,59 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.architecture
+
+import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.DynamicTest
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestFactory
+import org.junit.jupiter.api.io.TempDir
+import java.io.File
+
+/** The rules over what an edge's code does ([ArchitectureRules.SOURCE_TOKEN_RULES]). */
+class SourceTokenRulesTest {
+    private val repositoryRoot: File =
+        File(requireNotNull(System.getProperty(REPOSITORY_ROOT)) { "System property $REPOSITORY_ROOT is not set." })
+
+    @TestFactory
+    fun `production sources should follow the source token rules`(): List<DynamicTest> =
+        ArchitectureRules.SOURCE_TOKEN_RULES.map { rule ->
+            DynamicTest.dynamicTest(rule.name) {
+                rule.violations(repositoryRoot).assert().describedAs("Rule violated: ${rule.name}").isEmpty()
+            }
+        }
+
+    @Test
+    fun `a source token rule should catch a member read in code, not in comments or longer names`(@TempDir root: File) {
+        File(root, "${ArchitectureRules.HTTP.dir}/src/main/kotlin/Edge.kt").apply {
+            parentFile.mkdirs()
+            writeText(
+                """
+                // caller.crossScope decides nothing here
+                /** [Caller.crossScope] */
+                fun a(caller: Caller) = caller.crossScope
+                fun b(caller: Caller) = caller.crossScopeAware
+                fun c(type: Type) = tenants.fixedTenant(type)
+                """.trimIndent(),
+            )
+        }
+        ArchitectureRules.HTTP_DECIDES_NO_READ_SCOPE.violations(root).assert().containsExactly(
+            "${ArchitectureRules.HTTP.dir}/src/main/kotlin/Edge.kt:3: crossScope",
+            "${ArchitectureRules.HTTP.dir}/src/main/kotlin/Edge.kt:5: fixedTenant",
+        )
+    }
+
+    private companion object {
+        const val REPOSITORY_ROOT = "wow.repository.root"
+    }
+}

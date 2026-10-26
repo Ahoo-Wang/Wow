@@ -14,8 +14,8 @@
 package me.ahoo.wow.http
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.CommandType
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CommandInput
 import me.ahoo.wow.runtime.admission.CommandTarget
 import me.ahoo.wow.runtime.admission.CommandTransformer
@@ -73,7 +73,7 @@ class TransformedRoutesTest {
     fun `an aggregate the transformer does not find is a 404 problem with the result`() {
         val answer = node.post("/shop/cart/checkout", """{"note":"missing"}""")
         answer.status.assert().isEqualTo(404)
-        answer.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.NOT_FOUND)
+        answer.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         answer.body!!["result"]["transformedFrom"]["command"].asString().assert().isEqualTo("$CONTEXT.cart.Checkout")
     }
 

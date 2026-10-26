@@ -22,6 +22,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.caller.CallPermits
@@ -39,9 +40,9 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryOwnership
+import me.ahoo.wow.query.QueryTargets
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.mask.PayloadMasks
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.state.StateReads
@@ -65,9 +66,10 @@ import org.springframework.web.reactive.function.server.coRouter
  * - `GET /wow/manifest`, the service's Manifest, for a service that calls it by its Manifest alone (decision D257,
  *   `wow.clients.contexts.<context>.contract: manifest`): any service may read it, whatever models [permits] list.
  *
- * Each request must come from a [service][Caller.service] identity, which [callerResolver] resolves (a service token, or
- * a CoSec service principal), and carry `Wow-Call`, the root context it reads for; any other, one without credentials
- * too, is answered 403 `wow.auth.forbidden`, and so is a model [permits] does not let the service read
+ * Each request must come from a [service][Caller.service] identity, which [callerResolver] resolves (the service the
+ * request names, [me.ahoo.wow.http.caller.DeclaredServices], decision D300), and carry `Wow-Call`, the root context it
+ * reads for; any other, one that names no service too, is answered 403 `wow.auth.forbidden`, and so is a model
+ * [permits] does not let the service read
  * ([CallPermits.readRefusal]). The read then runs as the root context's caller: its tenant (the aggregate type's fixed
  * one, when it has one), its owner and space, its operator as the subject and its application (`app_id` of the root
  * request's facts) as the caller's [app][Caller.app], so the scope policy, ABAC and the application's query policies
@@ -94,10 +96,12 @@ fun peerReadRoutes(
     val authenticator =
         Authenticator(CallerResolver { request -> request.attribute(ROOT_CALLER).orElse(null) as Caller? }, statuses)
     val headers = RequestHeaders(statuses)
-    val queryHandler = QueryHandler(queries, authenticator, headers, statuses, gateway.tenants, scope)
+    // The read side's scope rules are :query's (review R5.C-1), over the tenants commands act in (decision D116).
+    val targets = QueryTargets(gateway.tenants, queries.crossTenant)
+    val queryHandler = QueryHandler(queries, authenticator, headers, statuses, targets, scope)
     val ownerships = QueryOwnership.of(manifest)
     val states =
-        StateHandler(reads, authenticator, headers, statuses, gateway.tenants, ownerships::ownershipOf, queries, masks)
+        StateHandler(reads, authenticator, headers, statuses, targets, ownerships::ownershipOf, queries, masks)
     val document = HttpJson.write(ManifestTree.write(withTransformedRoutes(manifest, gateway)))
     return coRouter {
         GET(WowPaths.MANIFEST) { request ->
@@ -198,7 +202,7 @@ internal class PeerRoots(
             CallHeaders.parse(value)
         } catch (invalid: IllegalArgumentException) {
             throw ProblemException(
-                statuses.problemOf(FrameworkCodes.MALFORMED, invalid.message ?: "Wow-Call does not parse.")
+                statuses.problemOf(FrameworkCodes.COMMAND_MALFORMED, invalid.message ?: "Wow-Call does not parse.")
             )
         }
         return Caller.of(

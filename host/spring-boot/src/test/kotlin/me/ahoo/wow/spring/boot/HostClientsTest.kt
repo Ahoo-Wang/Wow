@@ -22,7 +22,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.SendOptions
-import me.ahoo.wow.api.client.ServiceCredential
+import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.snapshots
@@ -31,13 +31,18 @@ import me.ahoo.wow.client.ClientMode
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.ForwardedHeaders
 import me.ahoo.wow.client.NamedCommand
+import me.ahoo.wow.client.PeerClients
+import me.ahoo.wow.client.PeerMode
 import me.ahoo.wow.client.Port
+import me.ahoo.wow.client.RoutedCommandClient
+import me.ahoo.wow.client.RoutedQueryApi
 import me.ahoo.wow.client.UserCredential
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.runtime.contract.ContractDirectory
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.AfterAll
@@ -58,7 +63,7 @@ import kotlin.coroutines.CoroutineContext
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HostClientsTest {
-    private val bank = startHost("wow.http.services.ledger-service.tokens[0]" to TOKEN)
+    private val bank = startHost()
 
     @AfterAll
     fun close() {
@@ -82,18 +87,19 @@ class HostClientsTest {
     )
 
     private fun client(mode: ClientMode) = lazy {
-        WowClient.builder().endpoints(endpoints).contracts(contracts).apply {
+        WowClient.builder().endpoints(endpoints).contracts(contracts.fragments).apply {
             when (mode) {
-                is ClientMode.Service -> service(mode.credential)
+                is ClientMode.Service -> service(checkNotNull(mode.service))
                 is ClientMode.User -> user(mode.credential)
             }
         }.build()
     }
 
-    private fun peers(mode: WowProperties.Clients.Mode = WowProperties.Clients.Mode.SERVICE) = PeerClients(
+    private fun peers(mode: PeerMode = PeerMode.SERVICE) = PeerClients(
         mapOf(BANK to mode),
-        contracts,
-        client(ClientMode.Service(ServiceCredential.bearer(TOKEN))),
+        contracts.localContexts,
+        contracts.peerContexts,
+        client(ClientMode.Service(SERVICE)),
         client(ClientMode.User(UserCredential.FORWARDED)),
         mode,
     )
@@ -104,7 +110,7 @@ class HostClientsTest {
     @Test
     fun `a command to a listed peer should go over HTTP, in either mode, and be readable there`(): Unit = runBlocking {
         val local = mockk<CommandClient>()
-        listOf(WowProperties.Clients.Mode.SERVICE, WowProperties.Clients.Mode.USER).forEach { mode ->
+        listOf(PeerMode.SERVICE, PeerMode.USER).forEach { mode ->
             val commands: CommandClient = RoutedCommandClient(local, peers(mode)).of(dave)
             val opened = commands.wait(
                 OpenAccount("dave"),
@@ -136,19 +142,20 @@ class HostClientsTest {
         val pinned = mockk<SubscriptionQueries>(relaxed = true)
         val queries = RoutedQueryApi(localQueries, peers(), setOf(Account::class.java)) { pinned }
         val ledger = AggregateType("ledger", "entry")
+        val entries = DatasetName.of("ledger", "entries")
         // The node's own state class, a context not listed and trusted queries stay in process.
         queries.of(dave).snapshots<Account>().assert().isSameAs(localQueries.of(dave).snapshots(Account::class.java))
         queries.of(dave).events(ledger).assert().isSameAs(localQueries.of(dave).events(ledger))
         queries.of(dave).snapshots(ledger).assert().isSameAs(localQueries.of(dave).snapshots(ledger))
         queries.of(
             dave
-        ).datasets(ledger, Map::class.java).assert().isSameAs(localQueries.of(dave).datasets(ledger, Map::class.java))
+        ).datasets(entries, Map::class.java).assert().isSameAs(localQueries.of(dave).datasets(entries, Map::class.java))
         queries.trusted().assert().isSameAs(localQueries.trusted())
         // The listed peer's models go over HTTP, a subscription's as a caller of its commit's tenant.
         queries.of(dave).events(account).javaClass.name.assert().contains("HttpQueryApi")
         queries.of(
             dave
-        ).datasets(AggregateType(BANK, "sales"), Map::class.java).javaClass.name.assert().contains("HttpQueryApi")
+        ).datasets(DatasetName.of(BANK, "sales"), Map::class.java).javaClass.name.assert().contains("HttpQueryApi")
         val tenant = queries.tenant("t1")
         tenant.tenantId.assert().isEqualTo("t1")
         tenant.trusted().assert().isSameAs(pinned.trusted())
@@ -158,10 +165,11 @@ class HostClientsTest {
             localQueries,
             PeerClients(
                 emptyMap(),
-                contracts,
+                contracts.localContexts,
+                contracts.peerContexts,
                 lazy { error("") },
                 lazy { error("") },
-                WowProperties.Clients.Mode.SERVICE
+                PeerMode.SERVICE
             ),
             emptySet()
         )
@@ -169,13 +177,14 @@ class HostClientsTest {
         assertThrows<IllegalStateException> { RoutedQueryApi(localQueries, peers(), emptySet()).tenant("t1") }
         assertThrows<WowConfigurationException> {
             PeerClients(
-                mapOf("ledger" to WowProperties.Clients.Mode.SERVICE),
-                contracts,
+                mapOf("ledger" to PeerMode.SERVICE),
+                contracts.localContexts,
+                contracts.peerContexts,
                 lazy {
                     error("")
                 },
                 lazy { error("") },
-                WowProperties.Clients.Mode.SERVICE
+                PeerMode.SERVICE
             )
         }.message.assert().contains("[ledger]")
     }
@@ -185,18 +194,19 @@ class HostClientsTest {
         // No contract of the bank on the class path: its Manifest, read from the bank, is all the client knows.
         val none = ContractDirectory(Manifest(), emptyList())
         fun client(mode: ClientMode) = lazy {
-            WowClient.builder().endpoints(endpoints).contracts(none).manifestPeers(setOf(BANK)).apply {
+            WowClient.builder().endpoints(endpoints).contracts(none.fragments).manifestPeers(setOf(BANK)).apply {
                 when (mode) {
-                    is ClientMode.Service -> service(mode.credential)
+                    is ClientMode.Service -> service(checkNotNull(mode.service))
                     is ClientMode.User -> user(mode.credential)
                 }
             }.build()
         }
-        listOf(WowProperties.Clients.Mode.SERVICE, WowProperties.Clients.Mode.USER).forEach { mode ->
+        listOf(PeerMode.SERVICE, PeerMode.USER).forEach { mode ->
             val peers = PeerClients(
                 mapOf(BANK to mode),
-                none,
-                client(ClientMode.Service(ServiceCredential.bearer(TOKEN))),
+                none.localContexts,
+                none.peerContexts,
+                client(ClientMode.Service(SERVICE)),
                 client(ClientMode.User(UserCredential.FORWARDED)),
                 mode,
                 described = setOf(BANK),
@@ -230,14 +240,44 @@ class HostClientsTest {
     @Test
     fun `contract manifest should admit a peer without its jar, and only such a peer`() {
         val none = ContractDirectory(Manifest(), emptyList())
-        val service = WowProperties.Clients.Mode.SERVICE
-        PeerClients(mapOf("mail" to service), none, lazy { error("") }, lazy { error("") }, service, setOf("mail"))
+        val service = PeerMode.SERVICE
+        PeerClients(
+            mapOf("mail" to service),
+            none.localContexts,
+            none.peerContexts,
+            lazy {
+                error("")
+            },
+            lazy { error("") },
+            service,
+            setOf("mail")
+        )
             .described.assert().containsExactly("mail")
         assertThrows<WowConfigurationException> {
-            PeerClients(emptyMap(), none, lazy { error("") }, lazy { error("") }, service, setOf("mail"))
+            PeerClients(
+                emptyMap(),
+                none.localContexts,
+                none.peerContexts,
+                lazy {
+                    error("")
+                },
+                lazy { error("") },
+                service,
+                setOf("mail")
+            )
         }.message.assert().contains("not in wow.clients.contexts")
         assertThrows<WowConfigurationException> {
-            PeerClients(mapOf(BANK to service), contracts, lazy { error("") }, lazy { error("") }, service, setOf(BANK))
+            PeerClients(
+                mapOf(BANK to service),
+                contracts.localContexts,
+                contracts.peerContexts,
+                lazy {
+                    error("")
+                },
+                lazy { error("") },
+                service,
+                setOf(BANK)
+            )
         }.message.assert().contains("whose contract is on the class path")
         val peers = WowAutoConfiguration().wowPeerClients(
             WowProperties().apply {
@@ -246,7 +286,7 @@ class HostClientsTest {
                 }
             },
             endpoints,
-            ServiceCredential.NONE,
+            NodeIdentity(SERVICE, "n-1", null, "127.0.0.1", "127.0.0.1"),
             none,
             GlobalIdGenerator.UUID_V7,
         )
@@ -260,7 +300,7 @@ class HostClientsTest {
             clients.contexts["mail"] = WowProperties.Clients.ClientTarget().apply { url = URI.create("http://mail:8080") }
             clients.contexts["box"] = WowProperties.Clients.ClientTarget().apply {
                 internalUrl = URI.create("http://box:9090")
-                mode = WowProperties.Clients.Mode.USER
+                mode = PeerMode.USER
             }
         }
         val resolver = WowAutoConfiguration().wowEndpointResolver(properties)
@@ -270,7 +310,7 @@ class HostClientsTest {
         val peers = WowAutoConfiguration().wowPeerClients(
             WowProperties().apply { clients.contexts[BANK] = WowProperties.Clients.ClientTarget() },
             endpoints,
-            ServiceCredential.NONE,
+            NodeIdentity(SERVICE, "n-1", null, "127.0.0.1", "127.0.0.1"),
             contracts,
             GlobalIdGenerator.UUID_V7,
         )
@@ -301,6 +341,6 @@ class HostClientsTest {
     }
 
     private companion object {
-        const val TOKEN = "ledger-service-token-0123456789abcdef"
+        const val SERVICE = "ledger-service"
     }
 }

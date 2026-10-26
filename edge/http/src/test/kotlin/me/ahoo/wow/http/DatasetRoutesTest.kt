@@ -19,15 +19,16 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.read.DatasetName
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.WowClient
-import me.ahoo.wow.http.caller.ServiceTokens
+import me.ahoo.wow.http.caller.DeclaredServices
 import me.ahoo.wow.http.internal.InternalServer
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -45,7 +46,6 @@ import me.ahoo.wow.query.memory.InMemoryDatasetStorage
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QueryValueType
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.spi.json.WowJson
@@ -108,19 +108,21 @@ class DatasetRoutesTest {
 
     @Test
     fun `a peer should read a dataset through the internal read routes as its root context`(): Unit = runBlocking {
-        val tokens = ServiceTokens(mapOf("basket-service" to listOf(PEER_TOKEN)), TENANT)
-        val routes = peerReadRoutes(node.manifest, node.gateway, tokens.resolver(headerCallers), node.httpQueries)
+        val services = DeclaredServices.resolver(TENANT)
+        val routes = peerReadRoutes(node.manifest, node.gateway, services, node.httpQueries)
         InternalServer(routes).use { server ->
             val queries = WowClient.builder()
                 .endpoints(EndpointResolver.of(emptyMap(), mapOf(CONTEXT to URI.create("http://${server.address}"))))
-                .service(ServiceCredential.bearer(PEER_TOKEN))
+                .service(SERVICE)
                 .build()
                 .queries
             val alice = Caller.of(tenantId = TENANT, scope = Scope("alice"), subject = "alice")
-            queries.of(alice).datasets(sales, Map::class.java).list(ListQuery(MatchAllFilter)).toList()
+            queries.of(
+                alice
+            ).datasets(DatasetName.of(CONTEXT, "sales"), Map::class.java).list(ListQuery(MatchAllFilter)).toList()
                 .map { it["id"] }.assert().containsExactlyInAnyOrder("s-1", "s-2", "s-5")
             val described = WebTestClient.bindToRouterFunction(routes).build().get().uri(SALES)
-                .header("Authorization", "Bearer $PEER_TOKEN")
+                .header(WowHeaders.SERVICE, SERVICE)
                 .header(
                     WowHeaders.CALL,
                     CallHeaders.format(CallContext.of("c", TENANT, Scope("alice"), Causation("c", "c"))),
@@ -366,7 +368,7 @@ class DatasetRoutesTest {
 
     private companion object {
         const val SALES = "/wow/dataset/shop/sales/query"
-        const val PEER_TOKEN = "a-service-token-of-at-least-32-chars"
+        const val SERVICE = "basket-service"
         const val REGIONS = "/wow/dataset/platform/regions/query"
     }
 }

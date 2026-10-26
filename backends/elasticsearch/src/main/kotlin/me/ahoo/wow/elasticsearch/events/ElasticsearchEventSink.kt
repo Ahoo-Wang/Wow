@@ -31,9 +31,9 @@ import me.ahoo.wow.elasticsearch.ElasticsearchStore
 import me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider.Companion.TYPE
 import me.ahoo.wow.elasticsearch.awaitElasticsearch
 import me.ahoo.wow.elasticsearch.whenShardReady
-import me.ahoo.wow.query.schema.EventStreamFields
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.store.Store
@@ -194,6 +194,7 @@ class ElasticsearchEventSink internal constructor(
     }
 
     /** A stream of the Sink's aggregate type: its aggregate and version. */
+    @InternalWowApi
     data class StreamKey(val ref: AggregateRef, val version: Int)
 
     override fun toString(): String = "ElasticsearchEventSink($index)"

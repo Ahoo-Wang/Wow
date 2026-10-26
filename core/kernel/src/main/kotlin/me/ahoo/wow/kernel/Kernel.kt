@@ -34,6 +34,7 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.ReservationTenancy
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.ScheduleCancelled
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleSet
@@ -103,13 +104,13 @@ import kotlin.time.Duration.Companion.seconds
  * Every stream carries the aggregate's scope after it (D56): the creating command's scope, carried forward by every
  * later command and changed only by the lifecycle commands transferring the owner or the space (see [metadataAfter]).
  * The kernel keeps the deleted mark and the tags beside the state too, evolved by the lifecycle events: a deleted
- * aggregate refuses every command but [RestoreAggregate] ([KernelRejections.DELETED]). The keys of the tags the state
+ * aggregate refuses every command but [RestoreAggregate] ([FrameworkCodes.AGGREGATE_DELETED]). The keys of the tags the state
  * derives ([AggregateModel.tagsOf], `@Tags`, decision D220) override the applied ones; the kernel derives them after
  * each stream it evolves, decides or commits, and on every state it loads from a snapshot or is handed, so the tags
  * of every state it gives out (a commit's, a snapshot's, a trace's, a state event's) follow the state.
  *
  * The aggregate's scope also guards it (D94): an existing aggregate refuses a command whose scope names another owner
- * or space ([KernelRejections.FORBIDDEN]). A part absent from the command's scope is not checked: a tenant-level
+ * or space ([FrameworkCodes.AGGREGATE_FORBIDDEN]). A part absent from the command's scope is not checked: a tenant-level
  * caller's (decision D189), or an administrator's acting across scopes, carries no owner. Creating an aggregate is not
  * guarded; it gives the aggregate the creating command's scope. An aggregate that belongs to its tenant
  * ([AggregateModel.ownership], decision D189) neither records nor checks an owner: only the space of a command counts.
@@ -438,7 +439,7 @@ class Kernel(
     ): CommandOutcome {
         val command = admitted.narrowedTo(model)
         val decider = model.decider(command.body.javaClass)
-            ?: return rejected(KernelRejections.UNHANDLED, "${model.type} does not handle ${command.body.javaClass.name}.")
+            ?: return rejected(FrameworkCodes.COMMAND_UNHANDLED, "${model.type} does not handle ${command.body.javaClass.name}.")
         val commandType = model.commandType(command.body.javaClass)
         val lease = currentCoroutineContext()[ExecutionLease]
         val requests = RequestCheck(log, states, recentRequests, model, decider, command, lease) {
@@ -1377,11 +1378,11 @@ fun interface CommandTypes {
         val NONE: CommandTypes = CommandTypes { _, _ -> null }
 
         /**
-         * Names a command by its class's simple name in its target's type (`context.aggregate.Command`), the name a
-         * model gives a command unless it says otherwise: for a saga outside a node, in a domain module's test.
+         * Names a command by its class's `@Name`, else its simple name, in its target's type (`context.aggregate.Command`),
+         * the name a model gives a command unless it says otherwise: for a saga outside a node, in a domain module's test.
          */
         @JvmField
-        val SIMPLE_NAMES: CommandTypes = CommandTypes { target, command -> "$target.${command.simpleName}" }
+        val SIMPLE_NAMES: CommandTypes = CommandTypes { target, command -> "$target.${typeNameOf(command)}" }
     }
 }
 

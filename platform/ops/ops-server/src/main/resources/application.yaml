@@ -20,9 +20,6 @@ wow:
   backend: memory
   internal:
     port: 9098
-    # The cluster token of the service's nodes (decision D226): set WOW_INTERNAL_TOKEN, a secret of at least 32
-    # characters, the same on every node. Without one, the node starts only in a development profile
-    # (wow.internal.dev-profiles: dev, local, test, demo) or with its internal port on the loopback interface alone.
   ops:
     # The operator's routes over this node's own parked entries (/wow/ops/parked): the ops saga's sends to an owning
     # context that failed park here.

@@ -98,8 +98,7 @@ class EshopStack(
     /**
      * The basket, whose checkout saga calls the ordering's command gateway synchronously (decision D193) at the first
      * ordering node's internal port, which a replacement of that node takes over ([startOrdering]), as a deployment
-     * calls a stable internal address in front of the ordering's nodes; the service token is the one both
-     * `application.yaml` share.
+     * calls a stable internal address in front of the ordering's nodes, naming itself (`Wow-Service`).
      */
     val basket: EshopService = start(
         "basket",

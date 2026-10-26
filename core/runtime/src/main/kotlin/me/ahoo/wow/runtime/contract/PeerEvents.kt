@@ -60,6 +60,7 @@ class PeerEvents(
         runCatching { Class.forName(binary, false, classLoader) }.getOrNull()
     }
 
+    @InternalWowApi
     companion object {
         /** Knows no context: every event is a [PublishedEvent]. */
         @JvmField

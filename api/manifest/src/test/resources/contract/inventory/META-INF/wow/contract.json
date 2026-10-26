@@ -1,0 +1,67 @@
+{
+  "format": 1,
+  "contexts": [
+    {
+      "name": "inventory",
+      "aggregates": [
+        {
+          "name": "stock",
+          "state": { "schema": "#/$defs/sample.inventory.StockState" },
+          "commands": [
+            { "name": "ReserveStock", "schema": "#/$defs/sample.inventory.ReserveStock", "creation": "NONE" },
+            { "name": "CreateStock", "schema": "#/$defs/sample.inventory.CreateStock", "creation": "REQUIRED" }
+          ],
+          "events": [{ "name": "StockReserved", "revision": 1, "schema": "#/$defs/sample.inventory.StockReserved" }]
+        },
+        {
+          "name": "bin",
+          "state": { "schema": "#/$defs/sample.inventory.BinState" },
+          "snapshot": { "enabled": false }
+        },
+        {
+          "name": "ledger",
+          "state": { "schema": "#/$defs/sample.inventory.LedgerState" }
+        }
+      ],
+      "subscriptions": [
+        {
+          "name": "StockProjector.onStock",
+          "kind": "PROJECTION",
+          "source": { "context": "inventory", "aggregates": ["stock"] },
+          "function": { "kind": "PROJECT", "context": "inventory", "processor": "StockProjector", "name": "onStock" },
+          "start": "BEGINNING"
+        },
+        {
+          "name": "RestockSaga.onReserved",
+          "kind": "SAGA",
+          "source": { "context": "inventory" },
+          "function": { "kind": "SAGA", "context": "inventory", "processor": "RestockSaga", "name": "onReserved" },
+          "derives": ["inventory.stock.CreateStock"],
+          "start": "END"
+        },
+        {
+          "name": "RestockSaga.onRejected",
+          "kind": "SAGA",
+          "source": {},
+          "function": { "kind": "SAGA", "context": "inventory", "processor": "RestockSaga", "name": "onRejected" },
+          "derives": [],
+          "rejected": []
+        },
+        {
+          "name": "BinWatcher.onBin",
+          "kind": "REACTOR",
+          "source": { "context": "inventory", "aggregates": ["bin"] },
+          "function": { "kind": "REACT", "context": "inventory", "processor": "BinWatcher", "name": "onBin" },
+          "start": "END"
+        }
+      ],
+      "published": [
+        { "aggregate": "stock", "topic": "wow.inventory.stock.state", "includeState": true },
+        { "aggregate": "bin", "topic": "inventory-bins", "includeState": false }
+      ]
+    }
+  ],
+  "$defs": {
+    "sample.inventory.ReserveStock": { "type": "object" }
+  }
+}

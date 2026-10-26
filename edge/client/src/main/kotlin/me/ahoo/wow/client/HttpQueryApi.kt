@@ -41,6 +41,7 @@ import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.ProjectionCapable
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.read.AggregateState
+import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventQueries
 import me.ahoo.wow.api.read.EventStream
 import me.ahoo.wow.api.read.MinVersionNotReachedException
@@ -51,14 +52,14 @@ import me.ahoo.wow.api.read.RowQueries
 import me.ahoo.wow.api.read.Snapshot
 import me.ahoo.wow.api.read.SnapshotQueries
 import me.ahoo.wow.api.read.TrustedQueries
+import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
-import me.ahoo.wow.query.json.QueryJson
-import me.ahoo.wow.query.read.decode
-import me.ahoo.wow.query.read.toEventStream
-import me.ahoo.wow.query.read.toSnapshot
-import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.spi.id.GlobalIdGenerator
+import me.ahoo.wow.spi.json.query.QueryProtocolJson
+import me.ahoo.wow.spi.json.query.decode
+import me.ahoo.wow.spi.json.query.toEventStream
+import me.ahoo.wow.spi.json.query.toSnapshot
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 import java.io.IOException
@@ -109,7 +110,7 @@ class HttpQueryApi internal constructor(
         override fun events(type: AggregateType): EventQueries = Events(type, caller)
 
         @ExperimentalWowApi
-        override fun <R : Any> datasets(name: AggregateType, rowType: Class<R>): RowQueries<R> =
+        override fun <R : Any> datasets(name: DatasetName, rowType: Class<R>): RowQueries<R> =
             Rows(name.context, "/wow/dataset/${name.context}/${name.name}/${QueryRoutes.SEGMENT}", caller) {
                 decode(it, rowType)
             }
@@ -206,7 +207,7 @@ class HttpQueryApi internal constructor(
         }
 
         override suspend fun count(query: ICountQuery): CountResult =
-            QueryJson.mapper.treeToValue(
+            QueryProtocolJson.mapper.treeToValue(
                 ok(post(KIND_COUNT, CountQuery(query.filter, query.limit))),
                 CountResult::class.java
             )
@@ -222,8 +223,15 @@ class HttpQueryApi internal constructor(
             transport.exchange(request(kind, query), PeerProblem::retriesQuery)
 
         private fun request(kind: String, query: Any, headers: Map<String, String> = emptyMap()): PeerRequest {
-            val body = QueryJson.mapper.valueToTree<ObjectNode>(query).put(KIND, kind)
-            return PeerRequest(context, path, caller, rootOf(caller), headers, QueryJson.mapper.writeValueAsBytes(body))
+            val body = QueryProtocolJson.mapper.valueToTree<ObjectNode>(query).put(KIND, kind)
+            return PeerRequest(
+                context,
+                path,
+                caller,
+                rootOf(caller),
+                headers,
+                QueryProtocolJson.mapper.writeValueAsBytes(body)
+            )
         }
 
         fun ok(answer: Answer<ByteArray>): JsonNode = when (answer) {
@@ -307,13 +315,14 @@ class HttpQueryApi internal constructor(
      * The root context a service-mode read asserts (decisions D232, D236): [caller]'s tenant, scope, operator and
      * application, a new id its own root; none in user mode.
      */
-    private fun rootOf(caller: Caller): CallContext? {
+    private fun rootOf(caller: Caller): CallWire? {
         if (transport.mode !is ClientMode.Service) return null
         val id = ids.next()
-        return CallContext.of(
+        return CallWire(
             commandId = id,
             tenantId = caller.tenantId,
-            scope = caller.scope,
+            ownerId = caller.scope.ownerId,
+            spaceId = caller.scope.spaceId,
             causation = Causation(id, id),
             operator = caller.toOperator(),
             facts = caller.app?.let { mapOf(RequestFacts.APP_ID to it) }.orEmpty(),

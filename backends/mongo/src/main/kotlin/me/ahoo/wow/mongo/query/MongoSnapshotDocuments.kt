@@ -19,7 +19,7 @@ import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
-import me.ahoo.wow.query.schema.SnapshotFields
+import me.ahoo.wow.spi.json.query.SnapshotFields
 import org.bson.Document
 import org.bson.conversions.Bson
 import tools.jackson.databind.node.JsonNodeFactory

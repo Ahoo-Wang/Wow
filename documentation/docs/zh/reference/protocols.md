@@ -404,7 +404,7 @@ Wow 写入 Kafka 的每条消息都是一个信封。
 
 ## 集群通道 {#cluster-channel}
 
-一个服务的节点在各自的内部端口上互相转发命令，`Wow-Cluster-Token` 请求头里带着服务的集群令牌。
+一个服务的节点在各自的内部端口上互相转发命令，在 `Wow-Service` 请求头里声明自己的服务。节点只接受本服务节点发来的转发：没有这个请求头时返回 401 `wow.auth.unauthenticated`，来自另一个服务时返回 403 `wow.auth.forbidden`。
 
 | 消息 | 字段 |
 | --- | --- |

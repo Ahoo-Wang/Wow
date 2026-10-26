@@ -16,6 +16,7 @@ package me.ahoo.wow.http.internal
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.future.await
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.cluster.ClusterChannelException
 import me.ahoo.wow.runtime.cluster.ClusterCodec
@@ -54,16 +55,16 @@ import kotlin.time.toJavaDuration
  * peer, refused or not opened in time) is [unsent][ClusterChannelException.unsent], which the router degrades to
  * running the command locally (D71); after the send, its outcome is unknown (decision D223).
  *
- * Each forward carries the service's cluster token, [token], as [InternalHttp.CLUSTER_TOKEN] (decision D226). A peer
- * that answers 401 or 403 did not take the forward, its token being another one: a refusal, which is
- * [unsent][ClusterChannelException.unsent] too (D223), and logged as a warning, as the nodes are configured apart.
+ * Each forward names the node's [service] in `Wow-Service` (decision D300). A peer that answers 401 or 403 did not
+ * take the forward, being a node of another service: a refusal, which is [unsent][ClusterChannelException.unsent] too
+ * (D223), and logged as a warning, as the nodes are configured apart.
  */
 @InternalWowApi
 class HttpClusterChannel(
     private val client: HttpClient = InternalHttp.client(),
     private val clock: () -> Long = System::currentTimeMillis,
     private val connectTimeout: Duration = DEFAULT_CONNECT_TIMEOUT,
-    private val token: String? = null,
+    private val service: String? = null,
 ) : ClusterChannel {
     /** The connections opened or opening, by peer address: completed once the peer answered. */
     private val connections = ConcurrentHashMap<String, CompletableFuture<*>>()
@@ -92,7 +93,7 @@ class HttpClusterChannel(
         val http = HttpRequest.newBuilder(InternalHttp.uri(address, InternalHttp.FORWARD_PATH))
             .timeout(remaining.milliseconds.toJavaDuration())
             .header("Content-Type", InternalHttp.JSON)
-            .apply { token?.let { header(InternalHttp.CLUSTER_TOKEN, it) } }
+            .apply { service?.let { header(WowHeaders.SERVICE, it) } }
             .POST(HttpRequest.BodyPublishers.ofByteArray(ClusterCodec.encode(request)))
             .build()
         val response = try {
@@ -113,10 +114,12 @@ class HttpClusterChannel(
             throw ClusterChannelException("Forwarding to $address failed: $failure", failure)
         }
         if (response.statusCode() in REFUSED) {
-            // The peer refused the cluster token before reading the forward: it surely did not run it (D226).
-            logger.warn { "$address refused the cluster token (HTTP ${response.statusCode()}): check wow.internal.token." }
+            // The peer refused the forward before reading it, as another service's node: it surely did not run it.
+            logger.warn {
+                "$address refused a forward of service $service (HTTP ${response.statusCode()}): it is no node of it."
+            }
             throw ClusterChannelException(
-                "$address refused the forward's cluster token with HTTP ${response.statusCode()}.",
+                "$address refused the forward of service $service with HTTP ${response.statusCode()}.",
                 unsent = true,
             )
         }

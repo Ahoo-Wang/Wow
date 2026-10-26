@@ -42,7 +42,7 @@ outline: deep
 
 ## 不能改变的设置 {#settings-that-must-not-change}
 
-`wow.log.partitions` 在日志有了条目之后就固定了，一个服务的节点共用它们的存储布局和集群令牌（[配置服务](./configuration#what-must-match-across-nodes)）。集群令牌分三次发布轮换：先把新令牌加在第二位，再把它移到第一位，最后删除旧令牌。
+`wow.log.partitions` 在日志有了条目之后就固定了，一个服务的节点共用它们的存储布局（[配置服务](./configuration#what-must-match-across-nodes)）。
 
 ## 主版本 {#a-major-version}
 

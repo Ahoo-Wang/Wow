@@ -16,47 +16,9 @@ package me.ahoo.wow.query.schema
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.spi.json.query.EventFields
+import me.ahoo.wow.spi.json.query.EventStreamFields
 import java.util.Collections
-
-/**
- * The names of an event stream record's fields (decision D235): one record per stream, the commit of one command at
- * one version, as `me.ahoo.wow.spi.log.EventStreamRecord` holds it. [OPERATOR] is `{id, tenantId, crossScope}`, or
- * null for an anonymous caller (decision D163); [TAGS] the tags after the commit, or null when not recorded (decision
- * D259); [EVENTS] holds each event as `{name, revision, body}` ([EventFields]).
- */
-@InternalWowApi
-object EventStreamFields {
-    const val AGGREGATE_ID: String = "aggregateId"
-    const val TENANT_ID: String = "tenantId"
-    const val VERSION: String = "version"
-    const val COMMIT_TIME: String = "commitTime"
-    const val COMMAND_ID: String = "commandId"
-    const val REQUEST_ID: String = "requestId"
-    const val COMMAND_TYPE: String = "commandType"
-    const val OWNER_ID: String = "ownerId"
-    const val SPACE_ID: String = "spaceId"
-    const val OPERATOR: String = "operator"
-
-    /**
-     * The aggregate's tags after the stream's commit, `{key: [values]}` (decision D259): null when the log did not
-     * record them (a stream appended before format 1 learned them, until `migrate-data` backfills it).
-     */
-    const val TAGS: String = "tags"
-    const val EVENTS: String = "events"
-}
-
-/** The properties of one event of [EventStreamFields.EVENTS]. */
-@InternalWowApi
-object EventFields {
-    /** The event's name, `<context>.<aggregate>.<Name>` (decision D55), or a system event's (`wow.ScheduleSet`). */
-    const val NAME: String = "name"
-
-    /** The revision of the event's schema. */
-    const val REVISION: String = "revision"
-
-    /** The event's payload. */
-    const val BODY: String = "body"
-}
 
 /**
  * The event streams of one aggregate type (decision D235): one record per stream, identified by `(aggregateId,

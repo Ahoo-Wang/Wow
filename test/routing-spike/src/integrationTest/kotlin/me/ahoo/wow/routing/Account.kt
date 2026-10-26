@@ -15,7 +15,7 @@ package me.ahoo.wow.routing
 
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.kernel.Creation
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.kernel.aggregate
 
 /** The spike's aggregate: an account whose decide functions read its balance. */

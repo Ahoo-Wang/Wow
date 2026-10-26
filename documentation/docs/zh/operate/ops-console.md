@@ -46,7 +46,7 @@ ops 服务是一个运行在 PostgreSQL 和 Kafka 上、位于 CoSec 之后的 W
 1. 构建包含控制台的镜像，或使用已发布的镜像。
 2. 准备 PostgreSQL 和 Kafka。
 3. 创建 ops 上下文拥有的主题：`wow.ops.commands`、`wow.ops.receipts` 和 `wow.ops.parked.state`。命令主题的分区数与 ops 上下文的日志完全相同。
-4. 设置它内部端口的集群令牌，以及 CoSec 签发令牌所用的密钥。
+4. 设置 CoSec 签发令牌所用的密钥。
 
 然后，在要展示其台账的**每个服务**上，用 `wow.ops.publish.enabled: true` 打开发布。所属服务拥有自己的命令主题，运维人员的操作就从这个主题到达。
 

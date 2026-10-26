@@ -40,6 +40,7 @@ enum class MongoSharding {
     fun shards(client: MongoClient, ddl: StoreDdl): Boolean =
         this == AUTO && ddl == StoreDdl.AUTO && MongoShards.isMongos(client)
 
+    @InternalWowApi
     companion object {
         /** The value of the store option, case-insensitive; [AUTO] when not set. */
         @JvmStatic

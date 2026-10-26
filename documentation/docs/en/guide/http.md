@@ -24,22 +24,26 @@ The routes are on the public port. The internal port serves the cluster and othe
 
 ## Who the caller is
 
-Every route authenticates its request through the application's `CallerResolver` bean, which turns the request's credentials into a caller: its tenant, its owner and space, its subject and attributes. The eShop's ordering service reads two headers, standing in for an identity provider:
+Every route authenticates its request through the application's `CallerResolver` bean, which turns the request's credentials into a caller: its tenant, its owner and space, its subject and attributes. In development, the eShop's ordering service reads two headers, standing in for an identity provider, and refuses them anywhere else:
 
 <!-- sample: example/eshop/ordering/ordering-server/src/main/kotlin/me/ahoo/wow/example/eshop/ordering/server/OrderingCallers.kt#resolver -->
 
 ```kotlin
 @Bean
-fun orderingCallerResolver(): CallerResolver = CallerResolver { request ->
-    val headers = request.headers()
-    val user = headers.firstHeader(USER)?.trim()?.takeIf { it.isNotEmpty() } ?: return@CallerResolver Caller.ANONYMOUS
-    val employee = headers.firstHeader(ROLE)?.trim() == EMPLOYEE
-    Caller.of(
-        tenantId = Caller.DEFAULT_TENANT,
-        scope = if (employee) Scope.NONE else Scope(ownerId = user),
-        subject = user,
-        attributes = if (employee) mapOf(ROLES to listOf(EMPLOYEE)) else emptyMap(),
-    )
+@ConditionalOnProperty(COSEC_ENABLED, havingValue = "false", matchIfMissing = true)
+fun orderingCallerResolver(development: DevelopmentMode): CallerResolver {
+    development.require(COSEC_ENABLED, false, "takes its callers from headers any client sets")
+    return CallerResolver { request ->
+        val headers = request.headers()
+        val user = headers.firstHeader(USER)?.trim()?.takeIf { it.isNotEmpty() } ?: return@CallerResolver Caller.ANONYMOUS
+        val employee = headers.firstHeader(ROLE)?.trim() == EMPLOYEE
+        Caller.of(
+            tenantId = Caller.DEFAULT_TENANT,
+            scope = if (employee) Scope.NONE else Scope(ownerId = user),
+            subject = user,
+            attributes = if (employee) mapOf(ROLES to listOf(EMPLOYEE)) else emptyMap(),
+        )
+    }
 }
 ```
 
@@ -47,7 +51,7 @@ fun orderingCallerResolver(): CallerResolver = CallerResolver { request ->
 - An employee is a **tenant-level** caller: no owner, so it reaches every aggregate of its tenant, and action-level authorization decides what it may do.
 - A resolver that returns `null` answers `401 wow.auth.unauthenticated`. Without a resolver, a node in development (a profile of `wow.internal.dev-profiles`, or an internal port on the loopback interface alone) serves every request as the anonymous caller of the default tenant; any other node refuses to start. A service that is anonymous on purpose declares a resolver bean returning `CallerResolver.ANONYMOUS`.
 
-With `wow-cosec`, CoSec's resolver does this from the authenticated principal and its roles ([Secure a Deployment](../operate/security#authenticate-callers)). The tenant, owner and space always come from the caller, never from the path or the body; a caller allowed to act across scopes names another in `Wow-Scope`.
+With `wow-cosec`, CoSec's resolver does this from the authenticated principal and its roles ([Secure a Deployment](../operate/security#authenticate-callers)). The eShop's services run that way behind the CoSec gateway: their `cosec` profile turns CoSec on, the header resolver above steps aside, and an employee is a principal with the role `employee` (`wow.cosec.tenant-level.roles`). The tenant, owner and space always come from the caller, never from the path or the body; a caller allowed to act across scopes names another in `Wow-Scope`.
 
 ## Send a command
 

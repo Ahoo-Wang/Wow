@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Command
@@ -32,13 +33,12 @@ import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.lifecycle.TransferSpace
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.CommandOutcome
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
-import me.ahoo.wow.kernel.KernelRejections
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
@@ -492,7 +492,10 @@ class SnapshotSubscriptionTest {
         snapshot.deleted.assert().isTrue()
 
         // The kernel caches no state, as after an eviction: it reloads from the snapshot, whose tail is empty.
-        executor.execute(counter, add("a", WaitPlan.COMMITTED)).rejection().assert().isEqualTo(KernelRejections.DELETED)
+        executor.execute(
+            counter,
+            add("a", WaitPlan.COMMITTED)
+        ).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
         log.reads.assert().containsExactly(2)
 
         val restored = executor.execute(counter, command("a", RestoreAggregate)) as CommandOutcome.Committed
@@ -579,7 +582,7 @@ class SnapshotSubscriptionTest {
         elsewhere.execute(
             counter,
             add("a", WaitPlan.COMMITTED)
-        ).rejection().assert().isEqualTo(KernelRejections.DELETED)
+        ).rejection().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
         log.reads.assert().containsExactly(4)
 
         // The restore is written from the stored snapshot evolved with the log's tail.

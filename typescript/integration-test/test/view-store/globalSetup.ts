@@ -29,7 +29,6 @@
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -80,8 +79,6 @@ function start(): Promise<{ url: string; child: ChildProcess }> {
       '--wow.internal.port=0',
       // On this machine alone: a development node, which may take its callers from headers (review S-9).
       '--wow.internal.host=127.0.0.1',
-      // The cluster token of the node's internal port (decision D226), a new secret each run.
-      `--wow.internal.token=${randomBytes(32).toString('base64url')}`,
       // The suites name their callers in headers, which the server trusts only when told to (a local run).
       '--wow.platform.trust-identity-headers=true',
       '--wow.view-store.system-views[0].id=conformance-system-view',

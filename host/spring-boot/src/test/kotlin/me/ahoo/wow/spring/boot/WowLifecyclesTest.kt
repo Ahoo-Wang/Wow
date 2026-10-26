@@ -17,6 +17,8 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.http.internal.InternalPort
+import me.ahoo.wow.http.internal.InternalPortSettings
 import me.ahoo.wow.http.internal.internalRoutes
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.runtime.cluster.ClusterChannel
@@ -119,7 +121,10 @@ class WowLifecyclesTest {
     @Test
     fun `the internal server should bind once and unbind`() {
         val node = node()
-        val server = InternalServer(0, "127.0.0.1", internalRoutes(node.forwardHandler, node.waits))
+        val server = InternalPort.of(
+            InternalPortSettings(0, "127.0.0.1"),
+            internalRoutes(node.forwardHandler, node.waits)
+        )
         val lifecycle = InternalServerLifecycle(server)
         lifecycle.start()
         lifecycle.start()
@@ -133,7 +138,10 @@ class WowLifecyclesTest {
     fun `a node without an address should learn the port the internal server is bound at`() {
         val node = node(address = null)
         node.hasAddress.assert().isFalse()
-        val server = InternalServer(0, "127.0.0.1", internalRoutes(node.forwardHandler, node.waits))
+        val server = InternalPort.of(
+            InternalPortSettings(0, "127.0.0.1"),
+            internalRoutes(node.forwardHandler, node.waits)
+        )
         val lifecycle = InternalServerLifecycle(server) { port -> node.bind("127.0.0.1:$port") }
         lifecycle.start()
         try {

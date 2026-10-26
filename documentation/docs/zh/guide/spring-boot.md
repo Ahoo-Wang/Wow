@@ -42,10 +42,22 @@ dependencies {
     implementation(project(":spring-boot"))
     // A Bean Validation provider: the host checks each command's constraints with it (decision D106).
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    // Actuator's health endpoint, which the host gives the node's readiness and liveness (review R3.5-3): the
+    // deployment's probes read /actuator/health/readiness and /actuator/health/liveness.
+    implementation("org.springframework.boot:spring-boot-health")
+    implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
     // The `postgres` profile: the host runs on PostgreSQL when the application gives it a DataSource, and serves the
     // snapshot queries there, with the indexes the product's state declares.
     implementation(project(":postgres"))
     implementation("com.zaxxer:HikariCP")
+    // The `mongo` profile: the host runs on MongoDB when the Mongo URI is set (decision D318).
+    implementation(project(":mongo"))
+    // The `cosec` profile, behind the CoSec gateway (decisions D295, D296): CoSec's inject mode reads the principal
+    // from the token the gateway verified, and wow-cosec's resolver makes it the caller (decision D301).
+    implementation(project(":cosec"))
+    implementation(libs.cosec.spring.boot.starter)
+    implementation(libs.cosec.webflux)
+    implementation(libs.cosec.jwt)
     testImplementation("org.springframework:spring-test")
     // The springdoc bridge's acceptance (decision D233): the catalog's routes in springdoc's documents and Swagger UI,
     // the document checked against the OpenAPI 3.1 schema.
@@ -109,7 +121,6 @@ dependencies {
 | `CommandTransformer`、`CommandValidator` | 在命令被决定之前改写或检查它 |
 | `GlobalIdGenerator`、`AggregateIdGenerator` | 生成请求 ID 和聚合 ID；按类型由 `wow.aggregates.[<context>.<aggregate>].id-generator` 指定 |
 | `FailureClassifier` | 为订阅处理函数的失败分类（[失败与重试](./failures)） |
-| `ServiceCredential` | 同步调用或类型化客户端向另一个服务出示的凭据 |
 | Bean Validation 实现（`spring-boot-starter-validation`） | 在准入时检查每个命令体的 Jakarta 约束，回答 `wow.command.invalid`（400）（[编写聚合](./aggregates#check-its-shape)） |
 
 ## 配置会被检查 {#configuration-is-checked}

@@ -19,10 +19,10 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.NotEqualFilter
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryPolicy
-import me.ahoo.wow.runtime.FrameworkCodes
 import org.junit.jupiter.api.Test
 
 /**
@@ -54,7 +54,7 @@ class StateVisibilityRoutesTest {
 
     private fun Answer.assertNotFound() {
         status.assert().describedAs(body.toString()).isEqualTo(404)
-        body!!["code"].asString().assert().isEqualTo(FrameworkCodes.NOT_FOUND)
+        body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
 
     @Test

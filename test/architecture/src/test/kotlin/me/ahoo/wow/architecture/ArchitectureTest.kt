@@ -156,7 +156,6 @@ class ArchitectureTest {
         val readersOfOtherJson = mapOf(
             "core/spi/src/main/kotlin/me/ahoo/wow/spi/json/WowJson.kt" to "WowJson itself",
             "core/runtime/src/main/kotlin/me/ahoo/wow/runtime/contract/ContractDirectory.kt" to "a peer's contract",
-            "core/runtime/src/main/kotlin/me/ahoo/wow/runtime/contract/ContractReader.kt" to "a peer's contract",
             "core/runtime/src/main/kotlin/me/ahoo/wow/runtime/manifest/ManifestLoader.kt" to "a Manifest fragment",
             "platform/analytics/catalog/server/src/main/kotlin/me/ahoo/wow/analytics/catalog/server/" +
                 "ClickHouseWarehouseCatalog.kt" to "ClickHouse's own JSON",
@@ -315,6 +314,8 @@ class ArchitectureTest {
 
             import me.ahoo.wow.api.messaging.Message
             import tools.jackson.databind.JsonNode
+            import me.ahoo.wow.api.naming.TypeNames
+            import me.ahoo.wow.api.naming.NamedBoundedContext
             """.trimIndent(),
         )
         root.writeSource(
@@ -335,6 +336,7 @@ class ArchitectureTest {
             "$api/annotation/Old.kt:4: me.ahoo.wow.api.messaging.function.FunctionKind",
             "$api/subscribe/Bad.kt:3: me.ahoo.wow.api.messaging.Message",
             "$api/subscribe/Bad.kt:4: tools.jackson.databind.JsonNode",
+            "$api/subscribe/Bad.kt:6: me.ahoo.wow.api.naming.NamedBoundedContext",
         )
     }
 
@@ -450,7 +452,7 @@ class ArchitectureTest {
     }
 
     @Test
-    fun `host rule should catch a query policy decided in the host`(@TempDir root: File) {
+    fun `host rule should allow only the listed query types, a new composition among the caught`(@TempDir root: File) {
         root.writeSource(
             ArchitectureRules.SPRING_BOOT.dir,
             "me/ahoo/wow/spring/boot/Bad.kt",
@@ -459,14 +461,18 @@ class ArchitectureTest {
 
             import me.ahoo.wow.query.AbacQueryPolicy
             import me.ahoo.wow.query.engine.QueryEngine
+            import me.ahoo.wow.query.store.QueryStores
 
             val gateway = me.ahoo.wow.query.state.SnapshotPolicyGateway::class
+            val builder = QueryEngine.Builder::class
+            val bound = me.ahoo.wow.query.SomeNewBulkheadComposition::class
             """.trimIndent(),
         )
         val bad = "${ArchitectureRules.SPRING_BOOT.dir}/src/main/kotlin/me/ahoo/wow/spring/boot/Bad.kt"
-        ArchitectureRules.HOST_DECIDES_NO_QUERY_POLICY.violations(root).assert().containsExactly(
+        ArchitectureRules.HOST_ASSEMBLES_THE_READ_SIDE.violations(root).assert().containsExactly(
             "$bad:3: me.ahoo.wow.query.AbacQueryPolicy",
-            "$bad:6: me.ahoo.wow.query.state.SnapshotPolicyGateway",
+            "$bad:7: me.ahoo.wow.query.state.SnapshotPolicyGateway",
+            "$bad:9: me.ahoo.wow.query.SomeNewBulkheadComposition",
         )
     }
 

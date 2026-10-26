@@ -24,10 +24,10 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.command.JakartaCommandValidator
-import me.ahoo.wow.runtime.FrameworkCodes
 import org.junit.jupiter.api.Test
 import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
@@ -104,7 +104,7 @@ class CommandRoutesTest {
     @Test
     fun `a blank Wow-Request-Id is malformed`() {
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = mapOf(WowHeaders.REQUEST_ID to " "))
-            .assertProblem(400, FrameworkCodes.MALFORMED, withResult = true)
+            .assertProblem(400, FrameworkCodes.COMMAND_MALFORMED, withResult = true)
     }
 
     @Test
@@ -193,7 +193,7 @@ class CommandRoutesTest {
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = mapOf(WowHeaders.IF_MATCH to "\"1\""))
             .assertSucceeded().body!!["version"].asInt().assert().isEqualTo(2)
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = mapOf(WowHeaders.IF_MATCH to "\"1\""))
-            .assertProblem(412, FrameworkCodes.VERSION_MISMATCH, withResult = true)
+            .assertProblem(412, FrameworkCodes.AGGREGATE_VERSION_MISMATCH, withResult = true)
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = mapOf(WowHeaders.IF_MATCH to "*"))
             .assertSucceeded()
     }
@@ -201,7 +201,7 @@ class CommandRoutesTest {
     @Test
     fun `an If-Match that is not a version is malformed without a result`() {
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = mapOf(WowHeaders.IF_MATCH to "\"abc\""))
-            .assertProblem(400, FrameworkCodes.MALFORMED, withResult = false)
+            .assertProblem(400, FrameworkCodes.COMMAND_MALFORMED, withResult = false)
     }
 
     @Test
@@ -238,7 +238,7 @@ class CommandRoutesTest {
             "/shop/cart/c-1/add-item",
             """{"sku":"apple"}""",
             headers = mapOf(WowHeaders.SCOPE to "region=\"eu\""),
-        ).assertProblem(400, FrameworkCodes.MALFORMED, withResult = false)
+        ).assertProblem(400, FrameworkCodes.COMMAND_MALFORMED, withResult = false)
     }
 
     @Test
@@ -249,7 +249,7 @@ class CommandRoutesTest {
                 """{"sku":"apple"}""",
                 user = "admin",
                 headers = mapOf("X-Admin" to "true", WowHeaders.SCOPE to scope),
-            ).assertProblem(400, FrameworkCodes.MALFORMED, withResult = false)
+            ).assertProblem(400, FrameworkCodes.COMMAND_MALFORMED, withResult = false)
         }
     }
 
@@ -293,7 +293,7 @@ class CommandRoutesTest {
     @Test
     fun `a request without credentials is 401 when a resolver is configured`() {
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", user = null)
-            .assertProblem(401, FrameworkCodes.UNAUTHENTICATED, withResult = false)
+            .assertProblem(401, FrameworkCodes.AUTH_UNAUTHENTICATED, withResult = false)
     }
 
     @Test
@@ -312,7 +312,9 @@ class CommandRoutesTest {
 
     @Test
     fun `a missing aggregate is 404 with its result, a missing route 404 without one`() {
-        node.post("/shop/cart/nobody/checkout").assertProblem(404, FrameworkCodes.NOT_FOUND, withResult = true)
+        node.post(
+            "/shop/cart/nobody/checkout"
+        ).assertProblem(404, FrameworkCodes.AGGREGATE_NOT_FOUND, withResult = true)
         node.post("/shop/cart/c-1/unknown-command").assertProblem(404, code = null, withResult = false)
         node.post("/shop/basket/c-1/add-item").assertProblem(404, code = null, withResult = false)
         node.get("/shop/cart/c-1/add-item").assertProblem(404, code = null, withResult = false)
@@ -324,7 +326,7 @@ class CommandRoutesTest {
         val created = node.post("/shop/cart/c-1/open-cart").assertSucceeded().body!!
         created["ref"]["id"].asString().assert().isEqualTo("c-1")
         created["version"].asInt().assert().isEqualTo(1)
-        node.post("/shop/cart/c-1/open-cart").assertProblem(409, FrameworkCodes.EXISTS, withResult = true)
+        node.post("/shop/cart/c-1/open-cart").assertProblem(409, FrameworkCodes.AGGREGATE_EXISTS, withResult = true)
     }
 
     @Test
@@ -348,7 +350,7 @@ class CommandRoutesTest {
         // Review A3-6: never Spring's bare 500.
         node.post("/shop/cart/c-1/open-cart").assertSucceeded()
         val failed = node.post("/shop/cart/c-1/checkout", """{"note":"throw"}""")
-            .assertProblem(500, FrameworkCodes.FAILED, withResult = true).body!!
+            .assertProblem(500, FrameworkCodes.COMMAND_FAILED, withResult = true).body!!
         failed["result"]["status"].asString().assert().isEqualTo("FAILED")
         failed["result"]["requestId"].asString().assert().isNotBlank()
         failed.toString().assert().doesNotContain("secret")
@@ -372,9 +374,9 @@ class CommandRoutesTest {
     @Test
     fun `a body that is not the command is malformed`() {
         node.post("/shop/cart/c-1/add-item", """{"quantity":1}""")
-            .assertProblem(400, FrameworkCodes.MALFORMED, withResult = true)
+            .assertProblem(400, FrameworkCodes.COMMAND_MALFORMED, withResult = true)
         node.post("/shop/cart/c-1/add-item", """{"sku":""")
-            .assertProblem(400, FrameworkCodes.MALFORMED, withResult = true)
+            .assertProblem(400, FrameworkCodes.COMMAND_MALFORMED, withResult = true)
     }
 
     @Test
@@ -395,7 +397,7 @@ class CommandRoutesTest {
         }
         val node = HttpNode(validators = listOf(JakartaCommandValidator(validator)))
         val problem = node.post("/shop/cart/c-1/add-item", """{"sku":" "}""")
-            .assertProblem(400, FrameworkCodes.INVALID, withResult = true).body!!
+            .assertProblem(400, FrameworkCodes.COMMAND_INVALID, withResult = true).body!!
         problem["violations"].size().assert().isEqualTo(1)
         problem["violations"][0]["path"].asString().assert().isEqualTo("sku")
         problem["violations"][0]["code"].asString().assert().isEqualTo("NotBlank")
@@ -409,7 +411,7 @@ class CommandRoutesTest {
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""").assertSucceeded()
         node.client.delete().uri("/shop/cart/c-1").header("X-User", "alice").answer().assertSucceeded()
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""")
-            .assertProblem(410, FrameworkCodes.DELETED, withResult = true)
+            .assertProblem(410, FrameworkCodes.AGGREGATE_DELETED, withResult = true)
         node.post("/shop/cart/c-1/wow.lifecycle.restore-aggregate", body = null).assertSucceeded()
         node.post("/shop/cart/c-1/wow.lifecycle.apply-tags", """{"tags":{"tier":["gold"]}}""").assertSucceeded()
         node.post("/shop/cart/c-1/wow.lifecycle.transfer-owner", """{"ownerId":"bob"}""").assertSucceeded()

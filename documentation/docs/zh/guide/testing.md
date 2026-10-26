@@ -88,6 +88,7 @@ class AccountSpec {
 | `expectError<T> { … }` | 决定函数抛出了 `T`。 |
 | `expectNoError()` | 没有抛出异常，命令也没有被拒绝。 |
 | `expectState { … }` | 块中的检查在命令之后的状态上成立。 |
+| `expectResult(key, value)`、`results` | 命令已提交，且决定函数为调用方放入了这个值（`putResult`）；`results` 读取全部结果。 |
 | `expectScope(scope)`、`expectTags(tags)` | 命令之后，聚合处于这个作用域，或者恰好带有这些标签。 |
 | `expectScheduled(key, command, rule)`、`expectScheduleCancelled(key)` | 在 `key` 下定时了这条命令，或取消了这个定时。 |
 

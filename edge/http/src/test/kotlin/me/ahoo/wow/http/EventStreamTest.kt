@@ -14,8 +14,8 @@
 package me.ahoo.wow.http
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.runtime.FrameworkCodes
 import org.junit.jupiter.api.Test
 import org.springframework.core.ParameterizedTypeReference
 import org.springframework.http.MediaType
@@ -51,7 +51,7 @@ class EventStreamTest {
         val events = events("/shop/cart/c-1/checkout", """{"note":"throw"}""")
         val last = json.readTree(events.last().data())
         last["status"].asString().assert().isEqualTo("FAILED")
-        last["error"]["code"].asString().assert().isEqualTo(FrameworkCodes.FAILED)
+        last["error"]["code"].asString().assert().isEqualTo(FrameworkCodes.COMMAND_FAILED)
         events.last().data().assert().doesNotContain("secret")
     }
 
@@ -100,7 +100,7 @@ class EventStreamTest {
             .returnResult()
             .responseBody!!
             .let(json::readTree)
-        problem["code"].asString().assert().isEqualTo(FrameworkCodes.MALFORMED)
+        problem["code"].asString().assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         problem["result"]["hop"]["stage"].asString().assert().isEqualTo("ACCEPTED")
         // So is a wait the runtime cannot follow.
         stream("/shop/cart/c-1/add-item", """{"sku":"apple"}""", mapOf(WowHeaders.WAIT to "snapshot"))

@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.spi.config.WowConfigurationException
+
 /**
  * Whether the node runs for development: a profile of `wow.internal.dev-profiles` (`dev`, `local`, `test`, `demo`)
  * is active, or its internal port binds a loopback address alone. It is the one exemption the host's safeguards

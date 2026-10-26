@@ -30,9 +30,9 @@ import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.ScopeQueryPolicy
 import me.ahoo.wow.query.descriptor.ConstraintDescriptor
 import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.schema.EventStreamFields
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryViolation
+import me.ahoo.wow.spi.json.query.EventStreamFields
 
 /**
  * Whether an `events` query that does not pin its aggregates runs (review R3.4-2): on a PostgreSQL or MongoDB log the

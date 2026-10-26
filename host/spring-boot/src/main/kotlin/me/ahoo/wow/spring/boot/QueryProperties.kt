@@ -25,6 +25,9 @@ import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.schema.QuerySensitivityPolicy
+import me.ahoo.wow.query.store.DatasetQueryLimits
+import me.ahoo.wow.query.store.QueryStoreLimits
+import me.ahoo.wow.query.store.QueryStoreSettings
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.runtime.state.KernelStateReads
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -434,6 +437,29 @@ class QueryProperties {
         const val PREFIX: String = "wow.query"
 
         /** How many dataset queries a node runs at once by default. */
-        const val DEFAULT_DATASET_MAX_CONCURRENT: Int = 8
+        const val DEFAULT_DATASET_MAX_CONCURRENT: Int = DatasetQueryLimits.DEFAULT_MAX_CONCURRENT
     }
 }
+
+/** The settings of `wow-query`'s query bounds (review R5.C-2): these properties, and each store's of [stores]. */
+internal fun QueryProperties.storeSettings(stores: Map<String, WowProperties.Store>): QueryStoreSettings =
+    QueryStoreSettings(
+        maxConcurrent = maxConcurrent,
+        maxWait = maxWait.toKotlinDuration(),
+        maxQueued = maxQueued,
+        adaptive = adaptive.options(),
+        adaptiveEnabled = adaptive.enabled,
+        adaptiveCeiling = adaptive.ceiling,
+        stores = stores.mapValues { (_, store) ->
+            val query = store.query
+            QueryStoreLimits(
+                maxConcurrent = query.maxConcurrent,
+                maxWait = query.maxWait?.toKotlinDuration(),
+                maxQueued = query.maxQueued,
+                adaptive = query.adaptive.enabled,
+                floor = query.adaptive.floor,
+                ceiling = query.adaptive.ceiling,
+            )
+        },
+        datasets = DatasetQueryLimits(dataset.maxConcurrent, dataset.maxWait?.toKotlinDuration(), dataset.maxQueued),
+    )

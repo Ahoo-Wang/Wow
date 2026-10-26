@@ -16,9 +16,9 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.caller.Operator
-import me.ahoo.wow.query.schema.OperatorFields
-import me.ahoo.wow.query.schema.SnapshotFields
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.json.query.OperatorFields
+import me.ahoo.wow.spi.json.query.SnapshotFields
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode

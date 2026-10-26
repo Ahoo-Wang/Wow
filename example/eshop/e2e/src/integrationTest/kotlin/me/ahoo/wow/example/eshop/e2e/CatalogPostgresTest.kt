@@ -68,7 +68,6 @@ class CatalogPostgresTest {
             "--wow.internal.port=0",
             // The test's class path holds the basket's domain too (EshopSharedJvmTest).
             "--wow.contexts.include=eshop-catalog",
-            *EshopTokens.arguments("catalog").toTypedArray(),
         )
     private val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
 

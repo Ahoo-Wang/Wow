@@ -88,7 +88,7 @@ interface Queries {
      * @throws IllegalArgumentException when no dataset [name] is served, or the caller does not see it, alike.
      */
     @ExperimentalWowApi
-    fun <R : Any> datasets(name: AggregateType, rowType: Class<R>): RowQueries<R>
+    fun <R : Any> datasets(name: DatasetName, rowType: Class<R>): RowQueries<R>
 }
 
 /**
@@ -147,7 +147,11 @@ interface RowQueries<R : Any> {
     /** How many rows [query] matches, bounded by its limit or the budget's count limit (decision D150). */
     suspend fun count(query: ICountQuery): CountResult
 
-    /** The groups of [query], each decoded as [groupType]: a class of its groups and metrics, or a `Map`. */
+    /**
+     * The groups of [query], each decoded as [groupType]: a class of its groups and metrics, or a `Map`. Experimental,
+     * as the aggregation protocol is.
+     */
+    @ExperimentalWowApi
     fun <G : Any> aggregate(query: AggregationQuery, groupType: Class<G>): Flow<G>
 }
 
@@ -208,12 +212,13 @@ inline fun <reified S : Any> Queries.snapshots(): SnapshotQueries<S> = snapshots
 
 /** The rows of the dataset [name] decoded as [R]; see [Queries.datasets]. */
 @ExperimentalWowApi
-inline fun <reified R : Any> Queries.datasets(name: AggregateType): RowQueries<R> = datasets(name, R::class.java)
+inline fun <reified R : Any> Queries.datasets(name: DatasetName): RowQueries<R> = datasets(name, R::class.java)
 
 /** These queries with each row decoded as [T]; see [ModelQueries.dynamic]. */
 inline fun <reified T : Any> ModelQueries<*>.dynamic(): RowQueries<T> = dynamic(T::class.java)
 
 /** The groups of [query] decoded as [G]; see [RowQueries.aggregate]. */
+@ExperimentalWowApi
 inline fun <reified G : Any> RowQueries<*>.aggregate(query: AggregationQuery): Flow<G> =
     aggregate(query, G::class.java)
 

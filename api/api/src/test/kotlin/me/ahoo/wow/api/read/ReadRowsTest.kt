@@ -57,10 +57,10 @@ class ReadRowsTest {
         val rows = mockk<RowQueries<Map<*, *>>>()
         val queries = mockk<Queries> {
             every { snapshots(String::class.java) } returns snapshots
-            every { datasets(ref.type, Map::class.java) } returns rows
+            every { datasets(DatasetName.of("sales", "orders"), Map::class.java) } returns rows
         }
         queries.snapshots<String>().assert().isSameAs(snapshots)
-        queries.datasets<Map<*, *>>(ref.type).assert().isSameAs(rows)
+        queries.datasets<Map<*, *>>(DatasetName.of("sales", "orders")).assert().isSameAs(rows)
         every { snapshots.dynamic(Map::class.java) } returns rows
         snapshots.dynamic<Map<*, *>>().assert().isSameAs(rows)
         val query = AggregationQuery(metrics = listOf(AggregationMetric.Count("count")))

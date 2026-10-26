@@ -18,7 +18,6 @@ import kotlinx.coroutines.flow.flow
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountResult
-import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.ICountQuery
 import me.ahoo.wow.api.query.ICursorQuery
@@ -27,19 +26,17 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.QueryErrorCodes
-import me.ahoo.wow.api.wire.ScopeHeader
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
-import me.ahoo.wow.runtime.FrameworkCodes
-import me.ahoo.wow.runtime.admission.TenantPolicy
+import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import tools.jackson.databind.node.ObjectNode
@@ -343,8 +340,8 @@ class QueryRoutesTest {
     @Test
     fun `a request without credentials should be 401`() {
         node.query("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""", user = null)
-            .assertQueryProblem(401, FrameworkCodes.UNAUTHENTICATED)
-        node.describe(user = null).assertQueryProblem(401, FrameworkCodes.UNAUTHENTICATED)
+            .assertQueryProblem(401, FrameworkCodes.AUTH_UNAUTHENTICATED)
+        node.describe(user = null).assertQueryProblem(401, FrameworkCodes.AUTH_UNAUTHENTICATED)
     }
 
     @Test
@@ -375,48 +372,6 @@ class QueryRoutesTest {
         none.query("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""").status.assert().isEqualTo(404)
         none.describe().status.assert().isEqualTo(404)
         none.describe(model = "events").status.assert().isEqualTo(200)
-    }
-
-    @Test
-    fun `the HTTP caller should map onto the query caller`() {
-        val caller = me.ahoo.wow.api.caller.Caller(
-            tenantId = TENANT,
-            scope = me.ahoo.wow.api.aggregate.Scope("alice", "s-1"),
-            subject = "alice",
-            crossScope = true,
-            attributes = mapOf("abac.region" to listOf("eu")),
-        )
-        val mapped = me.ahoo.wow.http.query.QueryHandler.queryCaller(cartType, caller, null, TenantPolicy.CALLERS)!!
-        mapped.entry.assert().isEqualTo(QueryEntry.HTTP)
-        mapped.tenantId.assert().isEqualTo(TENANT)
-        mapped.principal.assert().isEqualTo(caller.scope)
-        mapped.subject.assert().isEqualTo("alice")
-        mapped.attributes.assert().isEqualTo(caller.attributes)
-        val named = ScopeHeader.QueryTarget(
-            me.ahoo.wow.api.caller.TargetScope("other", me.ahoo.wow.api.aggregate.Scope("bob")),
-            null,
-        )
-        val across = me.ahoo.wow.http.query.QueryHandler.queryCaller(cartType, caller, named, TenantPolicy.CALLERS)!!
-        across.tenantId.assert().isEqualTo("other")
-        across.principal.ownerId.assert().isEqualTo("bob")
-        me.ahoo.wow.http.query.QueryHandler.queryCaller(
-            cartType,
-            caller,
-            named,
-            TenantPolicy.fixed(mapOf(cartType to "platform")),
-        ).assert().isNull()
-        val all = ScopeHeader.QueryTarget(me.ahoo.wow.api.caller.TargetScope(), CrossTenant.ALL)
-        me.ahoo.wow.http.query.QueryHandler.queryCaller(cartType, caller, all, TenantPolicy.CALLERS)!!.run {
-            crossTenant.assert().isEqualTo(CrossTenant.ALL)
-            tenantId.assert().isNull()
-            principal.assert().isEqualTo(me.ahoo.wow.api.aggregate.Scope.NONE)
-        }
-        me.ahoo.wow.http.query.QueryHandler.queryCaller(
-            cartType,
-            caller,
-            all,
-            TenantPolicy.fixed(mapOf(cartType to "platform")),
-        )!!.crossTenant.assert().isEqualTo(CrossTenant(setOf("platform")))
     }
 }
 

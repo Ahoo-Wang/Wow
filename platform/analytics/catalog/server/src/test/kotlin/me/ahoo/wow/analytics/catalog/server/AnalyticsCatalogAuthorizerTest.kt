@@ -21,10 +21,10 @@ import me.ahoo.wow.analytics.catalog.api.source.DraftSource
 import me.ahoo.wow.analytics.catalog.api.source.MarkSourceReviewed
 import me.ahoo.wow.analytics.catalog.api.source.SyncSource
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.kernel.CommandType
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryRequestException
 import me.ahoo.wow.runtime.admission.Authorization
@@ -93,15 +93,18 @@ class AnalyticsCatalogAuthorizerTest {
             }
         val sources = context(AnalyticsCatalogContext.NAME, me.ahoo.wow.query.schema.QueryModel.SNAPSHOT)
         policy.evaluate(QueryCaller.IN_PROCESS, sources).assert().isEqualTo(me.ahoo.wow.api.query.MatchAllFilter)
-        policy.evaluate(QueryCaller(caller(AnalyticsCatalogCallers.VIEWER)), sources)
+        policy.evaluate(QueryCaller.of(caller(AnalyticsCatalogCallers.VIEWER)), sources)
             .assert().isEqualTo(me.ahoo.wow.api.query.MatchAllFilter)
-        assertThrows<QueryRequestException> { policy.evaluate(QueryCaller(caller("other")), sources) }
+        assertThrows<QueryRequestException> { policy.evaluate(QueryCaller.of(caller("other")), sources) }
             .code.assert().isEqualTo(AnalyticsCatalogQueryPolicy.READER_REQUIRED)
         // A published dataset is the data plane's: its readers need no catalog role.
         val dataset = context(AnalyticsCatalogContext.NAME, me.ahoo.wow.query.schema.QueryModel.DATASET)
-        policy.evaluate(QueryCaller(caller("other")), dataset).assert().isEqualTo(me.ahoo.wow.api.query.MatchAllFilter)
+        policy.evaluate(
+            QueryCaller.of(caller("other")),
+            dataset
+        ).assert().isEqualTo(me.ahoo.wow.api.query.MatchAllFilter)
         val other = context("shop", me.ahoo.wow.query.schema.QueryModel.SNAPSHOT)
-        policy.evaluate(QueryCaller(caller("other")), other).assert().isEqualTo(me.ahoo.wow.api.query.MatchAllFilter)
+        policy.evaluate(QueryCaller.of(caller("other")), other).assert().isEqualTo(me.ahoo.wow.api.query.MatchAllFilter)
         // It hides no row, so the catalog's events queries need not name their aggregates.
         policy.events.assert().isEqualTo(me.ahoo.wow.query.EventsMode.NONE)
     }

@@ -23,7 +23,7 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.http.caller.ServiceTokens
+import me.ahoo.wow.http.caller.DeclaredServices
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.Executor
@@ -65,9 +65,9 @@ class CallWaitOriginTest {
         )
         CommandGateway(ModelRegistry(listOf(cartModel(commands))), mapOf(CONTEXT to coordinator))
     }
-    private val tokens = ServiceTokens(mapOf(CALLER_SERVICE to listOf(TOKEN)), TENANT)
+    private val tokens = DeclaredServices.resolver(TENANT)
     private val calls: WebTestClient =
-        WebTestClient.bindToRouterFunction(callRoutes(cartManifest(), gateway, tokens.resolver(headerCallers))).build()
+        WebTestClient.bindToRouterFunction(callRoutes(cartManifest(), gateway, tokens)).build()
 
     private fun callWith(origin: Origin): Answer {
         val wait = WaitContext("w-1", origin, listOf(Hop.committed(CONTEXT)), System.currentTimeMillis() + 60_000)
@@ -75,7 +75,7 @@ class CallWaitOriginTest {
         val facts = mapOf(RequestFacts.APP_ID to "console")
         val call = CallContext("call-1", TENANT, Scope("alice"), root, Operator("alice", TENANT), wait, facts)
         return calls.post().uri("/shop/cart/open-cart")
-            .header("Authorization", "Bearer $TOKEN")
+            .header(WowHeaders.SERVICE, CALLER_SERVICE)
             .header(WowHeaders.CALL, CallHeaders.format(call))
             .header("Content-Type", "application/json")
             .bodyValue("""{"note":"hi"}""")
@@ -92,7 +92,7 @@ class CallWaitOriginTest {
 
     @Test
     fun `a wait naming the target's own service should be dropped, not signalled to the caller's address`() {
-        // The exfiltration of R2.3-1: the target would sign this signal with its cluster token.
+        // The exfiltration of R2.3-1: the target would signal its own service at an address the caller chose.
         callWith(Origin("n", "attacker.example:80", TARGET_SERVICE)).status.assert().isEqualTo(200)
         commands.assert().hasSize(1)
         sent.assert().isEmpty()
@@ -111,7 +111,6 @@ class CallWaitOriginTest {
     private companion object {
         const val TARGET_SERVICE = "shop-service"
         const val CALLER_SERVICE = "basket-service"
-        const val TOKEN = "basket-service-token-0123456789abcdef"
 
         val NO_SUBSCRIPTIONS = object : SubscriptionDirectory {
             override fun kindOf(context: String, subscription: String): FunctionKind? = null

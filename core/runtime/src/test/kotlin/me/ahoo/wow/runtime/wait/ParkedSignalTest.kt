@@ -16,12 +16,12 @@ package me.ahoo.wow.runtime.wait
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore

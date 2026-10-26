@@ -24,6 +24,7 @@ import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.manifest.ManifestLoader
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.sink.SinkConfig
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.AutoConfigurations

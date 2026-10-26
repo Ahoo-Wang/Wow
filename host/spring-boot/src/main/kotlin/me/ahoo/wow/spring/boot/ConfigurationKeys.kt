@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.json.WowJson
 import org.springframework.beans.BeanUtils
 import org.springframework.boot.context.properties.source.ConfigurationPropertyName
@@ -83,6 +84,7 @@ class ConfigurationKeys(
         return name.numberOfElements > leaf && name.getElement(leaf, ConfigurationPropertyName.Form.UNIFORM) in leaves
     }
 
+    @InternalWowApi
     companion object {
         private val logger = KotlinLogging.logger {}
         private const val ROOT = "wow."

@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.admission
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Causation
@@ -23,17 +24,16 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.ReservationTenancy
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.TransformedFrom
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandType
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryReservationStore
 import me.ahoo.wow.runtime.Executor
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
@@ -177,7 +177,7 @@ class CommandTransformerTest {
     fun `a user name no one holds is not found, and nothing runs`(): Unit = runBlocking {
         val result = gateway().execute(request("ChangePassword", """{"username":"nobody","password":"x"}"""))
         result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
-        result.error!!.code.assert().isEqualTo(FrameworkCodes.NOT_FOUND)
+        result.error!!.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         result.ref.id.assert().isEqualTo(CommandGateway.UNADDRESSED)
         result.transformedFrom.assert().isEqualTo(TransformedFrom("$TYPE.ChangePassword"))
         decided.assert().isEmpty()
@@ -294,14 +294,14 @@ class CommandTransformerTest {
     fun `a result no aggregate decides is unhandled`(): Unit = runBlocking {
         val result = gateway().execute(request("Note", "{}"))
         result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
-        result.error!!.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
+        result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
     }
 
     @Test
     fun `without a transformer, a command that creates nothing still needs an aggregate id`(): Unit = runBlocking {
         val result = gateway(transformers = listOf(importer, callbacks, notes))
             .execute(request("ChangePassword", """{"username":"alice","password":"x"}"""))
-        result.error!!.code.assert().isEqualTo(FrameworkCodes.MALFORMED)
+        result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
     }
 
     @Test

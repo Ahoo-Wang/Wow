@@ -17,6 +17,7 @@ import com.clickhouse.client.api.Client
 import me.ahoo.wow.clickhouse.query.ClickHouseDatasetOptions
 import me.ahoo.wow.clickhouse.query.ClickHouseDatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
+import me.ahoo.wow.spi.config.configNotNull
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean

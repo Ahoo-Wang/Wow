@@ -547,3 +547,26 @@ AGENTS.md 里所有指向旧文档页的链接，由 DI-1 一并改掉。
 - **DI-3（第二部分）** 为 #4696：生成模块与制品、API 级别两页。各 TS 包的符号索引交给 TS 写作线（协调者同意）。
 - **DI-4 改了做法**：不用 victools 从 Kotlin 类型生成 JSON Schema。原因是 Manifest 的线上形状由 `ManifestTree.write` 手写决定（`defs` 写成 `$defs`、默认值省略、枚举写名字、计算属性 `schemaRefs` 不写出），从类型生成的 schema 会描述另一种形状，而且会悄悄漂移。改为解析 `ManifestTree.write`，生成每个对象及其键的提纲（`reference/manifest`）：不需要跑 Gradle，也不新增快照。
 - **W1/W2 收口（用户 2026-10-22）**：A～K 共 13 组中英文已合并（#4755、#4763、#4764、#4771、#4774～#4781），`guide/v10/`、`guide/typescript/` 与 `typescript/MIGRATION.md` 已删除，DI-6 随后上线。用户决定其余页面留到 GA 前补，rc 不等：P0 `start/index`、`start/why-wow`；P1 `start/tutorial`、`start/skills`、`operate/elasticsearch`、`reference/observability`、`reference/api-stability`（先核对 `reference/api-levels` 是否已覆盖）、`contribute/index`、`contribute/testing`；P2 `guide/extensions`、`guide/without-spring`、`operate/backup`、`data/agents`、`contribute/backends`、`contribute/design-records`；另有 CONTRIBUTING.md 的 V10 重写，以及 concepts/*、reference/typescript/*、skills/** 各行的逐条核对。
+
+## 11. GA 前的文档细节完善（用户 2026-10-26）
+
+R5 与安全、配置讨论里定下的语义，要在 GA 前写进用户文档（中英文），写清「何时、为何、不做什么」，而不只是列出 API。跟随工作包的条目由该 PR 写；其余在批 1～4 合并后由一个文档工作包统一写，GA 前再做一次只读的「文档与代码一致性」核对。
+
+| 编号 | 内容 | 页面 | 依据 | 由谁写 |
+| --- | --- | --- | --- | --- |
+| DG-1 | 补偿语义：`onAppendFailure` 在事件确定没有追加时执行（拒绝、版本冲突后重新决定、技术故障），结果未知与进程崩溃时不执行；预留自动放掉本次尝试的持有；`afterAppend` 的失败只记日志；配例子 | guide/aggregates | 01、02 §1 | 文档工作包 |
+| DG-2 | 命令的重试分层：内核（请求 ID 去重、版本冲突重新决定最多 3 次、缓存状态的复核、未知结果读版本槽判定）；按来源（HTTP 与对端客户端、Saga、定时器、Kafka 摄入）；系统性故障暂停分区；停放后的自动重试 | guide/failures | 02 §1、04 §2、D153、D223、D263 | 文档工作包 |
+| DG-3 | 命令失败在哪里看：按来源的对照表；同步调用的失败看指标、日志与追踪 | guide/failures | 04 §2 | 批 1 A-20 |
+| DG-4 | 三种拒绝方式（返回、`scope.reject`、`require`/`check`），只认精确的类，拒绝消息给调用方看 | guide/rejections | D311、D314 | 批 1 A-20 |
+| DG-5 | 决定函数里的远程调用：允许、必须幂等（冲突后会重跑）、异常分类、Wow 客户端的拒绝即本命令的拒绝，推荐先经 `CommandTransformer` 或 Saga 补全 | guide/aggregates、guide/calling-services | D314、D182 | 批 1 A-20 |
+| DG-6 | 按聚合类型的存储组合（如日志 MongoDB、快照 Elasticsearch）：配置、一次往返读取的退回与 `wow.store.fallbacks`、events 查询改读 Elasticsearch 的前提 | operate/elasticsearch、guide/spring-boot | D161、D162、R5.B-9 | 批 4（随事件 Sink 自动启动与宿主组合测试） |
+| DG-7 | 部署安全：网关前置、内部受信、两条 NetworkPolicy、转发头、Kafka 命令主题的写入方 | operate/security | D295～D302 | 批 2 S.1a（#4949） |
+| DG-8 | 配置定稿：改名键的逐条对照与升级说明，推导出的默认值（K9） | reference/configuration、operate/upgrades | D303、D305、D309、D310、D312 | 批 4 |
+| DG-9 | 预发布数据不兼容 | operate/upgrades | D306 | 已写（#4917） |
+| DG-10 | 账本的自动重试由服务自己完成，ops 是汇总与操作面，发布到 ops 自动开启 | operate/ops-console | D141、D312 | 文档工作包 |
+| DG-11 | 唯一性在聚合类型之内，跨类型唯一时建模专门的聚合 | guide/unique-keys | D307 | 批 3 B-18 |
+| DG-12 | MongoDB 分片集群：定时器、调度作业与预留的分片键 | operate/mongodb | D308 | 批 3 B-17、B-18 |
+| DG-13 | 9.x 测试迁移对照表：9.x 每个测试方法在 V10 的对应写法或去掉的依据（`inject` → D315 ①，`Consumer` 重载 → D315 ②，`expectErrorType` → `expectError<T>`/`expectRejected` 等） | guide/testing、migrate | D315 | 文档工作包 |
+| DG-14 | TCK 接入指南：为自己的后端跑 TCK 的步骤与最小例子，能力声明与跳过；能力对照表写明 9.x 总线与分发器 spec 的去向 | contribute/backends、09 | D196、D315 ⑤ | 文档工作包 |
+| DG-15 | 网关部署细节：CoSec Gateway 的路由与策略示例、网关必须覆盖（而非追加）`X-Forwarded-For` 与身份头的具体配置（Spring Cloud Gateway）、网关 Pod 的标签与 NetworkPolicy 选择器一致（`cosec-gateway`） | operate/security、operate/kubernetes | D296、D297、D317 | eShop 的 example PR（GA E2E 会话） |
+| DG-16 | 示例跑在 MongoDB：只写 URI 的 `mongo` profile | operate/mongodb、eShop README | D318 | 批 4 首个 PR、eShop 的 example PR |

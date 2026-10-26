@@ -30,10 +30,10 @@ import me.ahoo.wow.api.query.OrFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.dataset.DatasetQueryModelProfile
 import me.ahoo.wow.query.filter.QueryContext
-import me.ahoo.wow.query.schema.EventStreamFields
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.SnapshotFields
+import me.ahoo.wow.spi.json.query.EventStreamFields
+import me.ahoo.wow.spi.json.query.SnapshotFields
 
 /**
  * The options of [AbacQueryPolicy] (`wow.query.abac.*`). The defaults keep it off; once [enabled], the other two

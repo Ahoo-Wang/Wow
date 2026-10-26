@@ -19,8 +19,6 @@ import co.elastic.clients.elasticsearch._types.mapping.Property
 import co.elastic.clients.elasticsearch.indices.PutMappingRequest
 import me.ahoo.wow.elasticsearch.awaitElasticsearch
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotIndex
-import me.ahoo.wow.query.schema.EventFields
-import me.ahoo.wow.query.schema.EventStreamFields
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
@@ -31,6 +29,8 @@ import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.query.schema.alternativesOrSelf
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.json.query.EventFields
+import me.ahoo.wow.spi.json.query.EventStreamFields
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode
 import java.io.StringReader

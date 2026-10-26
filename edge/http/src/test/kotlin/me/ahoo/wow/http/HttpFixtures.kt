@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.onEach
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Command
@@ -29,7 +30,6 @@ import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
@@ -57,7 +57,6 @@ import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.ModelRegistry
-import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.snapshot.SnapshotRebuildModel
 import me.ahoo.wow.runtime.state.KernelStateReads
 import me.ahoo.wow.runtime.state.ReplayGate
@@ -71,6 +70,7 @@ import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.tenant.TenantPolicy
 import me.ahoo.wow.spi.wait.Origin
 import org.springframework.http.HttpHeaders
 import org.springframework.test.web.reactive.server.WebTestClient

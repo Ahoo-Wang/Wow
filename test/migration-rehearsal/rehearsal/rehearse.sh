@@ -73,9 +73,10 @@ V10_URL="http://localhost:$V10_PORT"
 V10_INTERNAL_URL="http://localhost:$V10_INTERNAL_PORT"
 VIEWS_URL="http://localhost:$VIEWS_PORT"
 VIEWS_INTERNAL_URL="http://localhost:$VIEWS_INTERNAL_PORT"
-# The cluster token of the V10 hosts (wow.internal.token): their internal ports, the resume among their routes, take
-# it. Each service has its own; one is enough here.
-CLUSTER_TOKEN="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+# The services of the V10 hosts: their internal ports, the resume among their routes, take a request that names the
+# node's own service (Wow-Service, decision D300).
+V10_SERVICE=example-service
+VIEWS_SERVICE=view-store-service
 mkdir -p "$WORK"
 STEPS="$WORK/steps.jsonl"
 : >"$STEPS"
@@ -196,7 +197,7 @@ launch_v10() {
   local standby="${1:-}"
   (
     cd "$V10_HOME"
-    env JAVA_OPTS="-Xmx1g" WOW_INTERNAL_TOKEN="$CLUSTER_TOKEN" ./bin/migration-rehearsal \
+    env JAVA_OPTS="-Xmx1g" ./bin/migration-rehearsal \
       --server.port="$V10_PORT" --wow.internal.port="$V10_INTERNAL_PORT" \
       --spring.datasource.url="jdbc:postgresql://localhost:$POSTGRES_PORT/$TARGET_DB" \
       --wow.standby="$([ "$standby" = standby ] && echo true || echo false)" \
@@ -211,7 +212,7 @@ launch_views() {
   local standby="${1:-}"
   (
     cd "$VIEWS_HOME"
-    env JAVA_OPTS="-Xmx1g" WOW_INTERNAL_TOKEN="$CLUSTER_TOKEN" ./bin/view-store-server \
+    env JAVA_OPTS="-Xmx1g" ./bin/view-store-server \
       --spring.profiles.active=postgres --server.port="$VIEWS_PORT" \
       --wow.internal.port="$VIEWS_INTERNAL_PORT" --wow.internal.host=127.0.0.1 \
       --spring.datasource.url="jdbc:postgresql://localhost:$POSTGRES_PORT/$TARGET_DB" \
@@ -232,18 +233,18 @@ start_hosts() {
 }
 stop_hosts() { stop_pid v10; stop_pid views; }
 
-# internal URL METHOD PATH [BODY]: a call to a V10 host's internal port with the cluster token; prints the answer.
+# internal URL SERVICE METHOD PATH [BODY]: a call to a V10 host's internal port as a node of SERVICE; prints the answer.
 internal() {
-  curl -sS -f -X "$2" "$1$3" -H "Wow-Cluster-Token: $CLUSTER_TOKEN" -H "Content-Type: application/json" ${4:+-d "$4"}
+  curl -sS -f -X "$3" "$1$4" -H "Wow-Service: $2" -H "Content-Type: application/json" ${5:+-d "$5"}
 }
 
 # resume_hosts: the operator's resume of both V10 hosts at the cut-over (deployment run book), at once, as an operator
 # resumes every node of every service; prints their status.
 resume_hosts() {
   local body='{"by":"rehearsal","reason":"8c.1 cut-over"}' v10 views
-  internal "$V10_INTERNAL_URL" POST /wow/node/resume "$body" >"$WORK/resume-v10.json" &
+  internal "$V10_INTERNAL_URL" "$V10_SERVICE" POST /wow/node/resume "$body" >"$WORK/resume-v10.json" &
   v10=$!
-  internal "$VIEWS_INTERNAL_URL" POST /wow/node/resume "$body" >"$WORK/resume-views.json" &
+  internal "$VIEWS_INTERNAL_URL" "$VIEWS_SERVICE" POST /wow/node/resume "$body" >"$WORK/resume-views.json" &
   views=$!
   wait "$v10" && wait "$views"
   cat "$WORK/resume-v10.json" "$WORK/resume-views.json"
@@ -253,9 +254,9 @@ resume_hosts() {
 
 # standby_refuses: a command sent to the V10 host on standby is refused with wow.node.standby (503); prints the status.
 standby_refuses() {
-  internal "$V10_INTERNAL_URL" GET /wow/node/standby
+  internal "$V10_INTERNAL_URL" "$V10_SERVICE" GET /wow/node/standby
   echo
-  internal "$VIEWS_INTERNAL_URL" GET /wow/node/standby
+  internal "$VIEWS_INTERNAL_URL" "$VIEWS_SERVICE" GET /wow/node/standby
   echo
   local answer code
   answer="$(curl -sS -o - -w '\n%{http_code}' -X POST "$V10_URL/example/cart/standby-probe/add-cart-item" \

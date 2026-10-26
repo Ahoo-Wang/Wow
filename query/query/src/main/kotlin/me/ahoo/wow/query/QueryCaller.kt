@@ -14,7 +14,9 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -74,11 +76,11 @@ enum class QueryEntry {
 /**
  * Who runs a query, and how (decisions D126, D165): the explicit argument of every gateway operation and of
  * [QueryPolicy], in place of 9.x's Reactor `ContextView`. The identity is the [Caller] commands are admitted with:
- * the HTTP edge resolves one per request and, for a `Wow-Scope` request (decision D129, work package 6.2c), states the
- * tenant and scope it acts in on it; the query adds only its execution context. In-process code passes [IN_PROCESS].
+ * the HTTP edge resolves one per request and, for a `Wow-Scope` request (decision D129, work package 6.2c), has
+ * [QueryTargets] decide the tenant and scope it acts in; the query adds only its execution context. In-process code passes [IN_PROCESS].
  *
  * - [caller]: who; null for trusted in-process code, which is bound to no tenant, owner or space. Policies read it:
- *   [ScopeQueryPolicy] restricts a query to its tenant (through the host's [QueryTenantPolicy]) and its scope, and
+ *   [ScopeQueryPolicy] restricts a query to its tenant (through the host's `TenantPolicy`) and its scope, and
  *   [AbacQueryPolicy] matches its `abac.` attributes against the snapshot tags.
  * - [entry]: where the query came from, which picks its budget.
  * - [selection]: what a route names in its URL (an aggregate id, a version range): an operation constraint, not
@@ -89,13 +91,22 @@ enum class QueryEntry {
  *   appends to the query with what the policies add.
  * - [crossTenant]: the tenants a cross-tenant query reads in place of the caller's own (decision D254 ⑦); see
  *   [CrossTenant].
+ * - [target]: the scope the request named (`Wow-Scope`, decision D95), which [QueryTargets] admitted: the [caller]
+ *   then already acts in it.
+ *
+ * An edge never decides the tenant, the scope or the cross-tenant reach itself: it builds the caller of a request
+ * through [QueryTargets.of], the one home of those rules (review R5.C-1). The constructor that states the cross-tenant
+ * reach and the target is internal, and the engine checks both again for an [HTTP][QueryEntry.HTTP] caller
+ * ([QueryTargets.recheck]), so a caller built otherwise cannot reach further than [QueryTargets] lets it. Other code
+ * builds a plain caller with [of], or uses [IN_PROCESS].
  */
-data class QueryCaller(
+class QueryCaller @InternalWowApi constructor(
     val caller: Caller? = null,
     val entry: QueryEntry = QueryEntry.UNSPECIFIED,
     val selection: FilterExpression = MatchAllFilter,
     val scope: QueryScope = QueryScope.NONE,
     val crossTenant: CrossTenant? = null,
+    val target: TargetScope? = null,
 ) {
     /** The [caller]'s subject, for policies and audit; null for an anonymous or in-process caller. */
     val subject: String? get() = caller?.subject
@@ -126,6 +137,27 @@ data class QueryCaller(
      */
     fun inProcess(): QueryCaller = IN_PROCESS
 
+    /** This caller with the parts given replaced. */
+    @InternalWowApi
+    fun copy(
+        caller: Caller? = this.caller,
+        entry: QueryEntry = this.entry,
+        selection: FilterExpression = this.selection,
+        scope: QueryScope = this.scope,
+        crossTenant: CrossTenant? = this.crossTenant,
+        target: TargetScope? = this.target,
+    ): QueryCaller = QueryCaller(caller, entry, selection, scope, crossTenant, target)
+
+    override fun equals(other: Any?): Boolean = this === other ||
+        other is QueryCaller && caller == other.caller && entry == other.entry && selection == other.selection &&
+        scope == other.scope && crossTenant == other.crossTenant && target == other.target
+
+    override fun hashCode(): Int = listOf(caller, entry, selection, scope, crossTenant, target).hashCode()
+
+    override fun toString(): String =
+        "QueryCaller(caller=$caller, entry=$entry, selection=$selection, scope=$scope, crossTenant=$crossTenant, " +
+            "target=$target)"
+
     companion object {
         /** Trusted in-process code with no caller and no scope. */
         @JvmField
@@ -134,5 +166,13 @@ data class QueryCaller(
         /** A query that states nothing: in-process unless the entry policy requires explicit entries. */
         @JvmField
         val UNSPECIFIED: QueryCaller = QueryCaller()
+
+        /**
+         * A plain caller: [caller]'s identity on [entry], in its own tenant and scope, naming no other scope and no
+         * other tenant. An edge that lets a caller name them builds it through [QueryTargets.of] instead.
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun of(caller: Caller?, entry: QueryEntry = QueryEntry.UNSPECIFIED): QueryCaller = QueryCaller(caller, entry)
     }
 }

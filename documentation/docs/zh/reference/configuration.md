@@ -7,7 +7,7 @@ description: "宿主 wow.* 配置的每个键：类型、默认值与含义。"
 
 # 配置项
 
-Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 240 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性对应的 `wow.*` 键会在节点启动时报告。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`。
+Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 236 个，由宿主的配置元数据（[`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：`max-concurrent`、`maxConcurrent` 与 `MAX_CONCURRENT` 是同一个键。没有任何属性对应的 `wow.*` 键会在节点启动时报告。映射之下的键，若映射的键含点，要放进方括号：`wow.aggregates.[shop.cart].tenant`。
 
 ## `wow`
 
@@ -18,7 +18,7 @@ Spring Boot 宿主读取的 `wow.*` 配置的全部键，共 240 个，由宿主
 | `wow.ddl` | `StoreDdl` | `auto` | How the stores manage the framework's tables, collections and indexes: `auto` creates what is missing (the default), `validate` creates nothing and refuses a store whose schema is missing or in another format, `none` creates and checks nothing; `wow.stores.<name>.ddl` overrides it for one store. |
 | `wow.schedules` | `Map<String,Schedule>` |  | Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` overrides the job's rule. A job no handler of the node runs fails its start. |
 | `wow.service` | `String` |  | The service's name; `spring.application.name` when not set. |
-| `wow.standby` | `Boolean` | `false` | Whether the node starts on standby: through the dual-run window of a migration's cut-over it serves reads of what `migrate-data` imports, refuses every command (`wow.node.standby`, 503), and handles no subscription, retries no parked entry and runs no job, until its operator resumes it on the internal port (`POST /wow/node/resume` with the cluster token, naming who resumes it). A subscription that starts at the end of its stream starts where the stream ends at the resume. |
+| `wow.standby` | `Boolean` | `false` | Whether the node starts on standby: through the dual-run window of a migration's cut-over it serves reads of what `migrate-data` imports, refuses every command (`wow.node.standby`, 503), and handles no subscription, retries no parked entry and runs no job, until its operator resumes it on the internal port (`POST /wow/node/resume` from a node of its service, naming who resumes it). A subscription that starts at the end of its stream starts where the stream ends at the resume. |
 | `wow.stores` | `Map<String,Store>` |  | The named store instances, by name: `wow.stores.<name>.type` and its settings. The aggregates whose logs are on one store form a log group, with its own partition sequences, checkpoints, parked entries and timers. |
 | `wow.subscriptions` | `Map<String,SubscriptionSettings>` |  | Per subscription, by its name (bracketed in a property name: `wow.subscriptions.[CartSaga.onOrderCreated]`). |
 
@@ -31,7 +31,6 @@ The synchronous calls of the node's sagas to the command gateways of other conte
 | `wow.calls.connect-timeout` | `Duration` | `PT2S` | How long one call may take to connect. |
 | `wow.calls.contexts` | `Map<String,CallTarget>` |  | Each context's base URL, `wow.calls.contexts.<context>.url`: the target's internal port, `http://host:port` of an address in its internal network, never its public port, which refuses calls. |
 | `wow.calls.timeout` | `Duration` | `PT10S` | How long one call may take. |
-| `wow.calls.token` | `String` |  | The service token the node presents as `Authorization: Bearer`; an application's me.ahoo.wow.api.client.ServiceCredential bean, such as one that renews a CoSec token, replaces it. |
 
 ## `wow.clickhouse`
 
@@ -68,14 +67,14 @@ The Sink that writes the Manifest's published streams to ClickHouse.
 
 ## `wow.clients`
 
-The typed clients of the peer contexts over HTTP, `wow-client`'s: a peer context listed in contexts is reached over HTTP by the service's me.ahoo.wow.api.client.CommandClient and me.ahoo.wow.api.read.QueryApi beans; any other context as without these clients (its commands through its topic). An application's me.ahoo.wow.client.EndpointResolver bean may resolve where each peer is instead. The service mode presents the me.ahoo.wow.api.client.ServiceCredential bean (`wow.calls.token`).
+The typed clients of the peer contexts over HTTP, `wow-client`'s: a peer context listed in contexts is reached over HTTP by the service's me.ahoo.wow.api.client.CommandClient and me.ahoo.wow.api.read.QueryApi beans; any other context as without these clients (its commands through its topic). An application's me.ahoo.wow.client.EndpointResolver bean may resolve where each peer is instead. The service mode names this node's service (`Wow-Service`).
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.clients.connect-timeout` | `Duration` | `PT2S` | How long a request may take to connect. |
 | `wow.clients.contexts` | `Map<String,ClientTarget>` |  | The peer contexts reached over HTTP, by context: one the api jars on the class path declare, or one described by its Manifest alone (`contract: manifest`), called with me.ahoo.wow.client.NamedCommands. |
 | `wow.clients.forwarded-headers` | `List<String>` | `Authorization` | The headers of the public request it serves that a user-mode request forwards. |
-| `wow.clients.mode` | `Mode` | `service` | The mode of a peer that names none: `service`, through its internal port as this service, or `user`, through its public routes with the end user's credential. |
+| `wow.clients.mode` | `PeerMode` | `service` | The mode of a peer that names none: `service`, through its internal port as this service, or `user`, through its public routes with the end user's credential. |
 | `wow.clients.timeout` | `Duration` | `PT30S` | How long a request may take to be answered, a command's longer wait aside. |
 
 ## `wow.clients.retry`
@@ -140,15 +139,6 @@ The callers that may act across scopes: by CoSec role or policy.
 | --- | --- | --- | --- |
 | `wow.cosec.cross-scope.policies` | `Set<String>` |  | The CoSec policies of these callers. |
 | `wow.cosec.cross-scope.roles` | `Set<String>` |  | The CoSec roles of these callers. |
-
-## `wow.cosec.service`
-
-The service identities, whose synchronous calls the internal port takes.
-
-| 键 | 类型 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `wow.cosec.service.policies` | `Set<String>` |  | The CoSec policies of these callers. |
-| `wow.cosec.service.roles` | `Set<String>` |  | The CoSec roles of these callers. |
 
 ## `wow.cosec.tenant-level`
 
@@ -246,7 +236,7 @@ The HTTP edge: its routes, its error answers and the services the internal port 
 | `wow.http.errors` | `Map<String,Error>` |  | The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). |
 | `wow.http.global-errors` | `Boolean` | `true` | Answers what fails on the application's own routes as the framework routes' problem+json, so every route answers errors alike: on by default; off leaves those errors to Spring's error handling. |
 | `wow.http.request-facts` | `Set<String>` |  | The request headers copied into a command's headers, beside the standard request facts the edge records: `app_id`, the application the caller resolver authenticated, and on the public port `user_agent` and `remote_ip`; none of the three can be listed, and each fact is cut to 512 characters. `remote_ip` is the server's remote address, which the host takes from the gateway's `X-Forwarded-For` (`server.forward-headers-strategy` is `framework` unless the application sets it, `none` included). |
-| `wow.http.services` | `Map<String,Service>` |  | The service identities the internal port trusts by their static tokens, by service name: a call whose `Authorization: Bearer` token is one of them is that service's, which alone may send `Wow-Call`, and only to the internal port. For a deployment without CoSec; with CoSec, `wow.cosec.service.roles` names its service principals. |
+| `wow.http.services` | `Map<String,Service>` |  | What each calling service may call and read on the internal port, by the name it states (`Wow-Service`, its `spring.application.name`): optional lists that catch a misconfiguration. The internal port is reachable by the platform's own pods alone; a service that names itself is taken on that network's word. |
 
 ## `wow.http.manifest`
 
@@ -280,11 +270,10 @@ The internal port: the cluster channel, the wait signals and the calls of other 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.internal.connect-timeout` | `Duration` | `PT1S` | How long a peer has to accept a connection of the cluster channel or the signal sender. |
-| `wow.internal.dev-profiles` | `Set<String>` | `dev, local, test, demo` | The development profiles, `dev`, `local`, `test` and `demo`: in them the internal port may run without token, and `wow.backend=auto` falls back to memory when no durable backend is available. |
+| `wow.internal.dev-profiles` | `Set<String>` | `dev, local, test, demo` | The development profiles, `dev`, `local`, `test` and `demo`: in them `wow.backend=auto` falls back to memory when no durable backend is available. |
 | `wow.internal.host` | `String` |  | The address the internal server binds, `0.0.0.0` for every interface; when not set, the host of the member address the node advertises (`wow.node.address`, else this host's address). |
 | `wow.internal.port` | `Integer` | `9090` | The port of the internal server, which carries the cluster channel and the wait signals; 0 for one the system chooses, which the node advertises once the server is bound. |
 | `wow.internal.signal-queue-capacity` | `Integer` | `1024` | The wait signals queued per origin node before they are dropped, so a slow or unreachable node cannot hold the sender's memory. |
-| `wow.internal.token` | `List<String>` |  | The service's cluster tokens, at least 32 characters each: the secret its nodes share, which alone opens the cluster channel (`/wow/internal/forward`) and the wait signals of the internal port. A node sends the first and takes any, so a token is rotated by adding the new one second, then moving it first on every node, then removing the old one; a comma-separated value (`WOW_INTERNAL_TOKEN`) is a list. A service token of `wow.http.services` opens the call routes, not these, and this token no call route. A node without one starts only in a profile of devProfiles, or with its internal port bound to the loopback interface alone, and warns: its cluster routes then take every request. |
 
 ## `wow.kafka`
 

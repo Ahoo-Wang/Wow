@@ -85,15 +85,15 @@ class StatePropertiesTest {
             sort { ProductStateProperties.STATE__PRICE.asc() }
         }
         query.assert().isEqualTo(
-            ListQuery(
-                AndFilter(
+            ListQuery.of(
+                AndFilter.of(
                     listOf(
-                        EqualFilter(QueryField("state.categoryId"), "mugs"),
-                        EqualFilter(QueryField("state.status"), ProductStatus.PUBLISHED),
-                        GreaterThanOrEqualFilter(QueryField("state.price"), BigDecimal.TEN),
+                        EqualFilter.of(QueryField("state.categoryId"), "mugs"),
+                        EqualFilter.of(QueryField("state.status"), ProductStatus.PUBLISHED),
+                        GreaterThanOrEqualFilter.of(QueryField("state.price"), BigDecimal.TEN),
                     ),
                 ),
-                sort = listOf(Sort(QueryField("state.price"), Sort.Direction.ASC)),
+                sort = listOf(Sort.of(QueryField("state.price"), Sort.Direction.ASC)),
             ),
         )
         // The snapshot's own fields come with them.

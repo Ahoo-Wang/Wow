@@ -19,8 +19,10 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.store.EventQueries
+import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.query.store.StoreQueryProvider
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreProvider
 import org.junit.jupiter.api.Test

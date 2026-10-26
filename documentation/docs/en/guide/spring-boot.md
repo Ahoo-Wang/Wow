@@ -42,10 +42,22 @@ dependencies {
     implementation(project(":spring-boot"))
     // A Bean Validation provider: the host checks each command's constraints with it (decision D106).
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    // Actuator's health endpoint, which the host gives the node's readiness and liveness (review R3.5-3): the
+    // deployment's probes read /actuator/health/readiness and /actuator/health/liveness.
+    implementation("org.springframework.boot:spring-boot-health")
+    implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
     // The `postgres` profile: the host runs on PostgreSQL when the application gives it a DataSource, and serves the
     // snapshot queries there, with the indexes the product's state declares.
     implementation(project(":postgres"))
     implementation("com.zaxxer:HikariCP")
+    // The `mongo` profile: the host runs on MongoDB when the Mongo URI is set (decision D318).
+    implementation(project(":mongo"))
+    // The `cosec` profile, behind the CoSec gateway (decisions D295, D296): CoSec's inject mode reads the principal
+    // from the token the gateway verified, and wow-cosec's resolver makes it the caller (decision D301).
+    implementation(project(":cosec"))
+    implementation(libs.cosec.spring.boot.starter)
+    implementation(libs.cosec.webflux)
+    implementation(libs.cosec.jwt)
     testImplementation("org.springframework:spring-test")
     // The springdoc bridge's acceptance (decision D233): the catalog's routes in springdoc's documents and Swagger UI,
     // the document checked against the OpenAPI 3.1 schema.
@@ -109,7 +121,6 @@ The host takes these from the application when it defines them, and falls back t
 | `CommandTransformer`, `CommandValidator` | Change or check a command before it is decided |
 | `GlobalIdGenerator`, `AggregateIdGenerator` | Generate request ids and aggregate ids; per type by `wow.aggregates.[<context>.<aggregate>].id-generator` |
 | `FailureClassifier` | Classifies the failures of subscription handlers ([Failures and Retries](./failures)) |
-| `ServiceCredential` | The credential a synchronous call or a typed client presents to another service |
 | A Bean Validation provider (`spring-boot-starter-validation`) | Checks the Jakarta constraints of every command body at admission, answering `wow.command.invalid` (400) ([Write an Aggregate](./aggregates#check-its-shape)) |
 
 ## Configuration is checked

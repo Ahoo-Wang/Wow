@@ -196,7 +196,6 @@ class EshopSharedJvmTest {
                 "--wow.internal.port=0",
                 "--wow.contexts.include=eshop-$context",
                 // The services share one class path, so one application.yaml: each is given its own secrets.
-                *EshopTokens.arguments(context).toTypedArray(),
             ),
         )
     }

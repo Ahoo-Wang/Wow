@@ -18,10 +18,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
@@ -77,7 +77,7 @@ class CoSecCallAuthorizationTest {
     fun `a service's call should be authorized by CoSec as its service principal`() {
         // CoSec allows the principal's add-item: the gateway decides it, on a cart that does not exist.
         internal.call("/shop/cart/c-1/add-item", """{"sku":"mug"}""").second.assert()
-            .isEqualTo(FrameworkCodes.NOT_FOUND)
+            .isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         // And denies its open-cart, though the host's own authorizer allows all.
         internal.call("/shop/cart/open-cart", """{"note":"hi"}""").assert()
             .isEqualTo(403 to FrameworkCodes.AUTH_FORBIDDEN)

@@ -21,7 +21,7 @@ import me.ahoo.wow.api.query.dsl.sort
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
-import me.ahoo.wow.query.schema.SnapshotFields
+import me.ahoo.wow.spi.json.query.SnapshotFields
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 

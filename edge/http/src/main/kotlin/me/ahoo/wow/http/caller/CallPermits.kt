@@ -29,8 +29,8 @@ import me.ahoo.wow.manifest.FrameworkErrors
  *   match: the list then narrows the service to an allowlist.
  *
  * An entry matches a command by its name (`AddItem`, `wow.lifecycle.DeleteAggregate`) or by its name qualified with
- * its context and aggregate (`shop.cart.AddItem`); `*` stands for any characters. A service is named by its caller's
- * subject: `service:<name>` for a service token ([ServiceTokens]), the principal's id for a CoSec service principal. A
+ * its context and aggregate (`shop.cart.AddItem`); `*` stands for any characters. A service is the one the request
+ * names (`Wow-Service`, [DeclaredServices], decision D300); the lists catch a misconfiguration, not an attacker. A
  * service without entries calls the domain commands alone.
  *
  * The models each service may read on the internal port's read routes ([reads], `wow.http.services.<service>.reads`,
@@ -105,8 +105,8 @@ class CallPermits @JvmOverloads constructor(
 
         private val NONE = Entries(emptyList())
 
-        /** The service [caller] is: its subject, without the prefix of a service token's subject. */
-        fun serviceOf(caller: Caller): String? = caller.subject?.removePrefix(ServiceTokens.SUBJECT_PREFIX)
+        /** The service [caller] is, by name ([DeclaredServices.serviceOf]). */
+        fun serviceOf(caller: Caller): String? = DeclaredServices.serviceOf(caller)
 
         private fun namesSystem(pattern: String): Boolean =
             pattern.startsWith(SYSTEM_PREFIX) || pattern.contains(".$SYSTEM_PREFIX")

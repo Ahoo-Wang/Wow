@@ -49,7 +49,6 @@ import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryError
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryOwnership
-import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.ScopeQueryPolicy
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.schema.QueryModel
@@ -57,6 +56,7 @@ import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import java.math.BigInteger
@@ -284,7 +284,7 @@ class EventQueryGatewaysTest {
         // The tenant may come from the query itself.
         versions(AndFilter(listOf(AggregateIdFilter("c-1"), TenantIdFilter(TENANT))), gateway, QueryCaller.IN_PROCESS)
             .assert().hasSize(3)
-        val fixed = EventVisibilityPolicy(hidingC2, QueryTenantPolicy { _, _ -> TENANT })
+        val fixed = EventVisibilityPolicy(hidingC2, TenantPolicy { TENANT })
         fixed.order.assert().isEqualTo(ScopeQueryPolicy.ORDER + 1)
         fixed.events.assert().isEqualTo(EventsMode.NONE)
     }

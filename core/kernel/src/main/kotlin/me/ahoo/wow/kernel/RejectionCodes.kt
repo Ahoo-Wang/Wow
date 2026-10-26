@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.result.FrameworkCodes
 
 private val logger = KotlinLogging.logger {}
 
@@ -28,7 +29,7 @@ private val logger = KotlinLogging.logger {}
  *
  * The framework's codes (`wow.*`) carry the framework's meaning: their HTTP status, and whether a client retries
  * them. Only the framework's own commands, whose types are in the `wow.` namespace, decide one; a domain command that
- * rejects with one is answered [KernelRejections.FAILED] instead, with its message and the code it chose
+ * rejects with one is answered [FrameworkCodes.COMMAND_FAILED] instead, with its message and the code it chose
  * ([REJECTED_CODE]). A domain's other full codes stay as they are: a shared model's codes (`tree.node-not-found`) are
  * named after the model rather than the context, and the edge looks a code's status up in the command's own context.
  */
@@ -37,8 +38,6 @@ object RejectionCodes {
     /** The extension of a reserved code's rejection that holds the code the decide function chose. */
     const val REJECTED_CODE: String = "rejectedCode"
 
-    private const val RESERVED_PREFIX = "wow."
-
     /** [code] qualified with [type]: `context.aggregate.code` for a local name, [code] itself when it has a dot. */
     @JvmStatic
     fun qualify(code: String, type: AggregateType): String =
@@ -46,18 +45,18 @@ object RejectionCodes {
 
     /**
      * [rejection], decided for a command of [commandType], as the kernel answers it: its code qualified with [type]
-     * ([qualify]), or [KernelRejections.FAILED] when a domain command chose a framework code; [rejection] itself when
+     * ([qualify]), or [FrameworkCodes.COMMAND_FAILED] when a domain command chose a framework code; [rejection] itself when
      * its code is full and its own.
      */
     @JvmStatic
     fun qualified(rejection: Rejection, type: AggregateType, commandType: String): Rejection {
-        if (rejection.code.startsWith(RESERVED_PREFIX) && !commandType.startsWith(RESERVED_PREFIX)) {
+        if (rejection.code.startsWith(FrameworkCodes.PREFIX) && !commandType.startsWith(FrameworkCodes.PREFIX)) {
             logger.warn {
                 "$type rejected $commandType with ${rejection.code}, a code the framework reserves: answered " +
-                    "${KernelRejections.FAILED} instead. Reject with a code of the aggregate."
+                    "${FrameworkCodes.COMMAND_FAILED} instead. Reject with a code of the aggregate."
             }
             return Rejection(
-                KernelRejections.FAILED,
+                FrameworkCodes.COMMAND_FAILED,
                 rejection.message,
                 rejection.extensions + (REJECTED_CODE to rejection.code),
             )

@@ -170,18 +170,18 @@
 | R5.C-6 | P1 | `:spring-boot`、`:migrate-data`、`:query` schema | 属性 Bean 约占 `spring-boot.api` 八成；`migrate-data` 101 个公开声明无转储；`schema` 包有若干无外部使用者的公开类（补 R3.2-3） | 批 1 | 待修 |
 | R5.B-7 | P2 | `:runtime` `ServiceNode` | 1,473 行，组装、生命周期、门面三合一；`topicSubscriptions` 漏出内部类型 | 批 1（getter）、批 5（拆分） | 待修 |
 | R5.B-12 | P2 | `:runtime` | 测试用 `LoopbackClusterChannel` 在主代码里 | 批 1 | 待修 |
-| R5.C-1 | P1 | `:http` 读路由 | 读侧作用域授权（`crossScope`、跨租户开关、固定租户）在 HTTP 层抄了三份，引擎无法复核 | 批 2 | 待修 |
-| R5.C-2 | P1 | `:spring-boot` | 宿主里有安全底线（无集群令牌拒绝启动）、内部端口服务器、读侧组合、对端路由；守护规则是 8 个类名的黑名单 | 批 2 | 待修 |
-| R5.C-4 | P1 | 发布元数据 | `wow-dependencies` 以 `api(platform)` 进入每个已发布库，把 Spring Boot、测试与 lint 的约束带给所有 Gradle 用户 | 批 2（D287） | 待修 |
-| R5.C-5 | P1 | `:client`、`:http` | `:client` 依赖整个 `:runtime` 与 `:query`；`:http` 为线路语法依赖 `:client` | 批 2（D286、D293） | 待修 |
-| R5.A-4 | P1 | `:api` | 运维线路记录（`api.ledger`、`api.snapshot`，约 500 行 ABI）在领域 API 里，与 `:spi` 同一概念两套模型 | 批 2（D284、D304） | 待修 |
-| R5.C-10 | P2 | `:architecture` | 规则是正则黑名单；06 §3、07 §4 声称的 9.x 名称规则不存在；缺 `:client` 方向等规则 | 批 2 | 待修 |
-| R5.C-12 | P2 | `:cosec`、`:spring-boot` | 可选集成两套装配方式；`wow.cosec.*` 两个读者 | 批 2 | 待修 |
-| R5.B-3 | P1 | `:postgres`、`:mongo`、`:spi`、`:runtime` | 传输段在四处各编码一份，GA 后加字段要改每个后端，漏改即静默丢字段 | 批 3（D291） | 待修 |
-| R5.B-4 | P1 | `:runtime` 租约、`:spi` `LeaseStore` | 控制面约 3.7 次存储操作/租约组/节点/秒，成员关系在每组重复心跳与读取 | 批 3（D291） | 待修 |
-| R5.B-5 | P1 | `:spi`、`:spring-boot` | Sink 与传输没有发现机制，只能由宿主专用自动配置装配 | 批 3（SPI）、批 4（配置）（D288） | 待修 |
-| R5.B-9 | P2 | `:spi` | `EventLog`、`SnapshotStore` 混着必须实现与可选优化；组合读靠向下转型且静默退回 | 批 3（D291） | 待修 |
-| R5.B-16 | P2 | `:postgres` | 组合读失败静默退回，不记日志 | 批 3 | 待修 |
+| R5.C-1 | P1 | `:http` 读路由 | 读侧作用域授权（`crossScope`、跨租户开关、固定租户）在 HTTP 层抄了三份，引擎无法复核 | 批 2 | 已修（#4927） |
+| R5.C-2 | P1 | `:spring-boot` | 宿主里有安全底线（无集群令牌拒绝启动）、内部端口服务器、读侧组合、对端路由；守护规则是 8 个类名的黑名单 | 批 2 | 已修（#4932） |
+| R5.C-4 | P1 | 发布元数据 | `wow-dependencies` 以 `api(platform)` 进入每个已发布库，把 Spring Boot、测试与 lint 的约束带给所有 Gradle 用户 | 批 2（D287） | 已修（#4921） |
+| R5.C-5 | P1 | `:client`、`:http` | `:client` 依赖整个 `:runtime` 与 `:query`；`:http` 为线路语法依赖 `:client` | 批 2（D286、D293） | 已修（#4919、#4941） |
+| R5.A-4 | P1 | `:api` | 运维线路记录（`api.ledger`、`api.snapshot`，约 500 行 ABI）在领域 API 里，与 `:spi` 同一概念两套模型 | 批 2（D284、D304） | 已修（#4942） |
+| R5.C-10 | P2 | `:architecture` | 规则是正则黑名单；06 §3、07 §4 声称的 9.x 名称规则不存在；缺 `:client` 方向等规则 | 批 2 | 已修（#4937） |
+| R5.C-12 | P2 | `:cosec`、`:spring-boot` | 可选集成两套装配方式；`wow.cosec.*` 两个读者 | 批 2 | 已修（#4935） |
+| R5.B-3 | P1 | `:postgres`、`:mongo`、`:spi`、`:runtime` | 传输段在四处各编码一份，GA 后加字段要改每个后端，漏改即静默丢字段 | 批 3（D291） | 已修（#4917） |
+| R5.B-4 | P1 | `:runtime` 租约、`:spi` `LeaseStore` | 控制面约 3.7 次存储操作/租约组/节点/秒，成员关系在每组重复心跳与读取 | 批 3（D291） | 已修（#4931） |
+| R5.B-5 | P1 | `:spi`、`:spring-boot` | Sink 与传输没有发现机制，只能由宿主专用自动配置装配 | 批 3（SPI）、批 4（配置）（D288） | 部分（#4934：SPI；配置随批 4） |
+| R5.B-9 | P2 | `:spi` | `EventLog`、`SnapshotStore` 混着必须实现与可选优化；组合读靠向下转型且静默退回 | 批 3（D291） | 已修（#4923） |
+| R5.B-16 | P2 | `:postgres` | 组合读失败静默退回，不记日志 | 批 3 | 已修（#4923） |
 | R5.B-17 | P1 | `:postgres`、`:mongo`、`:spi` `TimerStore` | 定时器每个上下文一张表（`wow_timer__<context>`），按 `owner_aggregate` 列区分类型；一个聚合类型的日志可以单独放到别的存储，它的定时器却留在上下文共用的表里 | 批 3（D307、D308） | 待修 |
 | R5.B-18 | P1 | `:postgres`、`:mongo`、`:spi` `ReservationStore` | 预留全局一张表（`wow_reservation`），主键（上下文，租户，命名空间，key），连上下文都未拆分；命名空间在上下文内跨类型共享 | 批 3（D307：按聚合类型拆分，唯一性在类型内；D308：MongoDB 分片） | 待修 |
 | R5.A-5 | P1 | `:kernel` DSL | X-6 新角度：DSL 默认名不读 `@Name`，GA 后写进日志的名字只能靠 `@Alias` 迁移 | 批 3（D285） | 待修 |
@@ -194,12 +194,16 @@
 | R5.A-17 | P2 | 06 | §2.1 仍写 `wow-api` 无依赖、6 个包 | 批 1（随文档） | 待修 |
 | R5.A-18 | P2 | `:compiler` | 29 个文件一个包，`ModelSymbolProcessor` 901 行 | 批 5 | 待修 |
 | R5.A-19 | P2 | `:manifest-tools` | 为一个指纹依赖整个 `:kernel` | 批 5 | 待修 |
+| R5.A-20 | P1 | `:api` `DecideScope`、`:kernel` | 决定函数里抛出的任何异常都是技术故障（`wow.command.failed`，500）：`require`/`check` 的业务检查对 Saga 发出的命令会被重试、停放，而决定函数是确定性的，重试注定失败；深层校验只能一层层传回 `Decision` | 批 1（D311） | 待修 |
+| R5.A-21 | P1 | `:test-dsl` | 9.x 的 `inject` 可以在用例中途替换依赖的服务（9.x example `OrderSpec` 用了 5 次）；V10 的服务在构建模型时绑定，分叉复制运行时，同一用例的分叉无法换服务 | 批 1（D315 ①） | 待修 |
+| R5.A-22 | P2 | `:test-dsl` | 没有 `expectEventCount`；`expectEvent<E>` 只见事件体，看不到聚合 ID、版本、请求 ID、请求头 | 批 1（D315 ③） | 待修 |
+| R5.A-23 | P2 | `:test-dsl` | 断言失败是纯字符串（`Expected events [..] but got [..]`），没有差异，不带命令、步骤与分叉路径 | 批 1（D315 ④） | 待修 |
 | R5.B-6 | P2 | 性能 | 每条命令约 80 KB 分配未剖析；事件体与 `trace` 多一次解析加序列化 | 批 5（JFR 后 ABAB） | 待修 |
 | R5.B-13 | P2 | `:runtime`、`:spi` | 52 处手写 `equals`/`hashCode`/`valueFields`，漏字段编译器发现不了 | 批 5 | 待修 |
 | R5.B-15 | P2 | `:mongo` | `MongoEventLog.kt` 1,402 行 | 批 5（B-3 之后） | 待修 |
 | R5.C-19 | P2 | `:query` | 根包 35 个文件混着引擎、策略、缓存、舱壁 | 批 5 | 待修 |
-| R5.C-15 | 提醒 | `:http` | 9.x 遗留的公开路由 `GET /wow/id/global` | 批 2（D292，删除） | 待修 |
-| R5.C-17 | 提醒 | `:http` | `wow.http.client-facts` 默认开启，把 IP 与 UA 写进不可删除的日志 | 维持默认（D297），`remote_ip` 取自网关转发头 | 待修 |
+| R5.C-15 | 提醒 | `:http` | 9.x 遗留的公开路由 `GET /wow/id/global` | 批 2（D292，删除） | 已修（#4939） |
+| R5.C-17 | 提醒 | `:http` | `wow.http.client-facts` 默认开启，把 IP 与 UA 写进不可删除的日志 | 维持默认（D297），`remote_ip` 取自网关转发头 | 已修（#4943：转发头默认打开） |
 
 ## 8. 安全性统一讨论（2026-10-26，基线 `c403da4e4`，只读）
 
@@ -207,16 +211,16 @@
 
 | 编号 | 级别 | 位置 | 现象 | 去向 | 状态 |
 | --- | --- | --- | --- | --- | --- |
-| S-1 | P0 | `:spring-boot` `WowAutoConfiguration` | 没有 `CallerResolver` bean 时以匿名调用方服务全部公开路由，只告警一次 | S.1（D301） | 待修 |
+| S-1 | P0 | `:spring-boot` `WowAutoConfiguration` | 没有 `CallerResolver` bean 时以匿名调用方服务全部公开路由，只告警一次 | S.1（D301） | 已修（#4943） |
 | S-2 | P1 | `:runtime` `HttpSignalSender` | 发往其他服务的信号把服务凭据带给等待来源里写的地址 | D300 删除服务凭据后失效 | 放弃 |
-| S-3 | P1 | `:runtime` `CommandIntake` | Kafka 命令主题不认证：能写主题即可绕过准入与授权 | S.3 文档（D298：内部受信） | 待修 |
-| S-4 | P1 | `:http` `RequestHeaders` | `client-facts` 默认开启；网关之后记下的是网关地址 | S.1（D297：维持默认，取网关转发头；D303 ⑥：转发头策略由 Wow 默认打开） | 待修 |
+| S-3 | P1 | `:runtime` `CommandIntake` | Kafka 命令主题不认证：能写主题即可绕过准入与授权 | S.3 文档（D298：内部受信） | 修复中（#4949 文档） |
+| S-4 | P1 | `:http` `RequestHeaders` | `client-facts` 默认开启；网关之后记下的是网关地址 | S.1（D297：维持默认，取网关转发头；D303 ⑥：转发头策略由 Wow 默认打开） | 已修（#4943） |
 | S-5 | P1 | `:http` `CallPermits` | 不列 `commands`/`reads` 即全部领域命令与全部模型 | 维持现状（D298、D299） | 放弃 |
 | S-6 | P1 | `:spring-boot` `ConfigurationKeys` | 只有 4 个前缀拼错会拒绝启动 | S.2（D302，随批 4） | 待修 |
 | S-7 | P1 | `deploy/*/secret.yaml` | 示例集群令牌满足长度检查 | D300 删除集群令牌后失效 | 放弃 |
-| S-8 | P1 | `:http` `InternalHttp` | 内部端口只能明文 | S.3 文档：服务网格 mTLS（D298） | 待修 |
-| S-9 | P2 | 平台服务 `OpsCallers` | 头部身份开关没有开发 profile 或回环守卫 | S.1 | 待修 |
-| S-10 | P2 | `:http` | 请求事实没有单条大小上限 | S.1（固定常量，D299） | 待修 |
+| S-8 | P1 | `:http` `InternalHttp` | 内部端口只能明文 | S.3 文档：服务网格 mTLS（D298） | 修复中（#4949 文档） |
+| S-9 | P2 | 平台服务 `OpsCallers` | 头部身份开关没有开发 profile 或回环守卫 | S.1 | 已修（#4943） |
+| S-10 | P2 | `:http` | 请求事实没有单条大小上限 | S.1（固定常量，D299） | 已修（#4943） |
 | S-11 | P2 | 平台服务 | 三个平台服务共用一个 HMAC 密钥 | S.1：改用注入模式，删掉共享密钥（D296、D299） | 待修 |
 | S-12 | P2 | `:query` `CrossTenantAudit` | 跨租户查询的审计只是 INFO 日志 | 转 10.x（路线图 §6） | 转 10.x |
-| S-13 | P1 | `:http`、`:client`、`:spring-boot` | 内部端口的集群令牌与服务令牌在受信内网中维护成本高、收益只针对已排除的威胁 | S.1（D300：删除，身份由调用方声明，网络策略作边界） | 待修 |
+| S-13 | P1 | `:http`、`:client`、`:spring-boot` | 内部端口的集群令牌与服务令牌在受信内网中维护成本高、收益只针对已排除的威胁 | S.1（D300：删除，身份由调用方声明，网络策略作边界） | 修复中（#4949） |

@@ -10,10 +10,12 @@ wow:
   backend: memory
   internal:
     port: 9091
-    # The cluster token this service's nodes share (decision D226): it alone opens their forwards and the signals of
-    # their waits. The value is for trying the shop out on one machine; a deployment sets WOW_INTERNAL_TOKEN, a secret
-    # of at least 32 characters, the same on every node of the service.
-    token: ${WOW_INTERNAL_TOKEN:eshop-catalog-local-cluster-token-not-a-secret}
+    # On this machine only, for trying the shop out (a deployment binds the pod's address, WOW_INTERNAL_HOST).
+    host: 127.0.0.1
+# CoSec runs behind the CoSec gateway alone (the `cosec` profile below); without it, a node in development takes its
+# callers from request headers or serves them anonymously, and any other node does not start (decision D301).
+cosec:
+  enabled: false
 ---
 spring:
   config:
@@ -25,3 +27,53 @@ spring:
     password: postgres
 wow:
   backend: postgres
+---
+# region mongo
+# MongoDB, a replica set: the host creates the client from the URI (decision D318) and keeps the service's data in a
+# database of its own.
+spring:
+  config:
+    activate:
+      on-profile: mongo
+  mongodb:
+    uri: mongodb://localhost:27017/?replicaSet=rs0
+wow:
+  backend: mongo
+  mongo:
+    database: eshop_catalog
+# endregion
+---
+# region cosec
+# Behind the CoSec gateway (decisions D295, D296): the gateway verifies each request's CoSec token (Authorization:
+# Bearer) and forwards it; CoSec's inject mode here reads the principal from it, with no secret, and wow-cosec's
+# resolver makes it the caller (decision D301): its tenant, its id, its roles. Only the gateway may reach the public
+# port (the deployment's NetworkPolicy). CoSec does not authorize the paths itself: what a caller may do is the
+# service's to say.
+spring:
+  config:
+    activate:
+      on-profile: cosec
+cosec:
+  enabled: true
+  # The gateway holds CoSec's signing secret; this service neither signs nor verifies a token.
+  jwt:
+    enabled: false
+  inject:
+    enabled: true
+  authorization:
+    enabled: false
+  authentication:
+    enabled: false
+  audit:
+    enabled: false
+  ip2region:
+    enabled: false
+  limiter:
+    enabled: false
+wow:
+  cosec:
+    # An employee is a tenant-level caller (decision D189): no owner, so it reaches every aggregate of the tenant. Any
+    # other principal is a buyer, an owner-level caller that reaches its own.
+    tenant-level:
+      roles: employee
+# endregion

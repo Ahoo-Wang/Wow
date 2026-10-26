@@ -145,7 +145,7 @@ class EshopService private constructor(
 
         /** The loggers of Spring Boot's Reactor Netty web server and of Wow's internal server, and what they log. */
         private const val WEB_SERVER_LOGGER = "org.springframework.boot.reactor.netty.NettyWebServer"
-        private const val INTERNAL_SERVER_LOGGER = "me.ahoo.wow.spring.boot.InternalServer"
+        private const val INTERNAL_SERVER_LOGGER = "me.ahoo.wow.http.internal.InternalPort"
         private val PUBLIC_BOUND = Regex("""Netty started on port (\d+) \(http\)""")
         private val INTERNAL_BOUND = Regex("""Wow internal port bound at \S*:(\d+)\.""")
         private val PORT_TAKEN = Regex("""(?i)already in use""")
@@ -208,7 +208,6 @@ class EshopService private constructor(
                 "--logging.level.$INTERNAL_SERVER_LOGGER=info",
                 "--wow.internal.host=127.0.0.1",
                 "--wow.internal.port=$internalPort",
-                *EshopTokens.arguments(context).toTypedArray(),
                 *arguments.toTypedArray(),
             ).redirectErrorStream(true).redirectOutput(log).start()
             val service = try {

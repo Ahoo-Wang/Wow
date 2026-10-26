@@ -17,8 +17,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.query.schema.SnapshotFields
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.json.query.SnapshotFields
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.JsonNodeFactory

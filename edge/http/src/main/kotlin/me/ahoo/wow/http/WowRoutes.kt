@@ -49,6 +49,7 @@ import me.ahoo.wow.openapi.ManifestOpenApi
 import me.ahoo.wow.openapi.OpenApiOptions
 import me.ahoo.wow.openapi.OpenApiSecurityScheme
 import me.ahoo.wow.query.QueryOwnership
+import me.ahoo.wow.query.QueryTargets
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.runtime.admission.CommandGateway
@@ -127,10 +128,12 @@ fun wowRoutes(
         options = options,
         scope = scope,
     )
-    val queryHandler = QueryHandler(queries, authenticator, headers, statuses, gateway.tenants, scope)
+    // The read side's scope rules are :query's (review R5.C-1), over the tenants commands act in (decision D116).
+    val targets = QueryTargets(gateway.tenants, queries.crossTenant)
+    val queryHandler = QueryHandler(queries, authenticator, headers, statuses, targets, scope)
     val ownerships = QueryOwnership.of(manifest)
     val states =
-        StateHandler(reads, authenticator, headers, statuses, gateway.tenants, ownerships::ownershipOf, queries, masks)
+        StateHandler(reads, authenticator, headers, statuses, targets, ownerships::ownershipOf, queries, masks)
     val served = withTransformedRoutes(manifest, gateway)
     return coRouter {
         if (options.manifestEndpoint) {
@@ -253,8 +256,9 @@ private fun CoRouterFunctionDsl.document(
  * The routes of the services' synchronous calls (decision D193), served on the internal port (decision D173) beside
  * the cluster channel and the wait signals: every command route of [manifest], the same paths and answers as on the
  * public port, sending the command through [gateway]. Each request must come from a
- * [service][me.ahoo.wow.api.caller.Caller.service] identity, which [callerResolver] resolves (a service token, or a
- * CoSec service principal), and carry `Wow-Call`; any other, one without credentials too, is answered 403
+ * [service][me.ahoo.wow.api.caller.Caller.service] identity, which [callerResolver] resolves (the service the request
+ * names, [me.ahoo.wow.http.caller.DeclaredServices], decision D300), and carry `Wow-Call`; any other, one that names no
+ * service too, is answered 403
  * `wow.auth.forbidden`. The public port
  * refuses `Wow-Call` ([wowRoutes]), so the root command a call asserts reaches a node only through its internal
  * network, from a service it trusts. A service calls only the commands [permits] lets it (decision D226, review A3-2):
@@ -277,7 +281,7 @@ fun callRoutes(
     val statuses = ErrorStatuses(manifest, options.errorStatuses)
     val commands = CommandHandler(
         gateway = gateway,
-        // A request without credentials is no service either: 403, as for any other caller.
+        // A request that names no service is no service identity either: 403, as for any other caller.
         authenticator = Authenticator(
             CallerResolver { request -> callerResolver.resolve(request) ?: Caller.ANONYMOUS },
             statuses,

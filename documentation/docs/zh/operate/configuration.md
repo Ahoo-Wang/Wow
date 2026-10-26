@@ -12,14 +12,14 @@ outline: deep
 
 宿主读取 Spring Boot 的环境，所以 Spring Boot 认识的每种来源都有效，并按它的优先级生效：命令行参数优先于环境变量，环境变量优先于 profile 专属的文件，后者又优先于 `application.yaml`。名字按宽松规则绑定：`wow.log.max-poll-interval`、`wow.log.maxPollInterval` 和环境变量 `WOW_LOG_MAXPOLLINTERVAL` 是同一个键。
 
-不要把密钥写进文件。eShop 的配置从环境变量读取每个密钥，并在旁边给出开发用的默认值，例如 `${WOW_INTERNAL_TOKEN:…}`，部署时由它的密钥存储设置这个变量。
+不要把密钥写进文件。部署时由它的密钥存储把每个密钥设成环境变量，例如数据库密码 `SPRING_DATASOURCE_PASSWORD`，eShop 的 Kubernetes 清单从一个 Secret 取得它。
 
 ## 怎样写值 {#write-the-values}
 
 | 值 | 写法 |
 | --- | --- |
 | 时长 | `500ms`、`30s`、`5m`，或 ISO-8601 的 `PT30S` |
-| 列表 | YAML 列表，或者来自环境变量的逗号分隔字符串：`WOW_INTERNAL_TOKEN=a…,b…` |
+| 列表 | YAML 列表，或者来自环境变量的逗号分隔字符串：`WOW_HTTP_REQUESTFACTS=X-Region,X-Channel` |
 | 包含点的 map 的键 | 放在方括号里：`wow.aggregates.[eshop-ordering.order].tenant`、`wow.subscriptions.[OrderSummaryProjection.onEvent].start` |
 
 在 YAML 中，给带方括号的键加上引号，让方括号保留为键的一部分：
@@ -53,7 +53,6 @@ Spring 会忽略没有属性绑定的键，所以拼错的键会一声不响地�
 
 - `wow.service`，服务的名字，默认是 `spring.application.name`。
 - `wow.log.partitions`：能整除 4,096 的 2 的幂（默认 64），日志有了条目之后就固定不变。在首次部署之前选定。
-- `wow.internal.token`：集群令牌。轮换令牌时，先把新令牌加在第二位，再在每个节点上把它移到第一位，最后删除旧令牌。
 - 存储以及每个聚合类型的放置：`wow.backend`、`wow.stores`、`wow.log.store`、`wow.snapshot.*`、`wow.aggregates.*.log`。
 
 ## 开发与生产 {#development-and-production}
@@ -63,9 +62,8 @@ Spring 会忽略没有属性绑定的键，所以拼错的键会一声不响地�
 | 没有 | 开发环境中 | 生产环境中 |
 | --- | --- | --- |
 | `DataSource` 或 `MongoClient` | 在内存中运行，并发出警告 | 拒绝启动 |
-| 集群令牌 | 内部端口不带令牌运行 | 拒绝启动 |
 
-所以笔记本上不需要数据库，也不需要密钥，而生产节点缺少其中任何一样都无法启动。`wow.ddl: validate` 防止生产节点建表（[PostgreSQL](./postgresql#manage-the-schema)）。
+所以笔记本上不需要数据库，而生产节点没有数据库就无法启动。`wow.ddl: validate` 防止生产节点建表（[PostgreSQL](./postgresql#manage-the-schema)）。
 
 ## 查看节点采用了什么 {#see-what-the-node-took}
 

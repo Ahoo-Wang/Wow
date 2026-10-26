@@ -14,10 +14,10 @@ A Wow service runs on Kubernetes as a Deployment: its pods are the service's nod
 | --- | --- |
 | `kustomization.yaml` | The set: `kubectl apply -k deploy/eshop-ordering` |
 | `configmap.yaml` | The settings every node shares, as environment variables |
-| `secret.yaml` | The database credentials, the cluster token and the service tokens |
+| `secret.yaml` | The database credentials |
 | `deployment.yaml` | The nodes |
 | `service.yaml` | The HTTP service, and the headless service of the internal port |
-| `networkpolicy.yaml` | Who may reach the internal port |
+| `networkpolicy.yaml` | Who may reach each port: the gateway the HTTP port, the shop's own pods the internal port |
 | `Dockerfile` | The image, from the service's Gradle distribution |
 
 ## The image
@@ -41,8 +41,9 @@ metadata:
   labels:
     app.kubernetes.io/name: eshop-ordering
 data:
-  # The postgres profile wires the DataSource; the kafka profile the transport and the command intake.
-  SPRING_PROFILES_ACTIVE: postgres,kafka
+  # The postgres profile wires the DataSource; the kafka profile the transport and the command intake; the cosec
+  # profile takes the callers from the CoSec gateway in front of the service (decisions D296, D301).
+  SPRING_PROFILES_ACTIVE: postgres,kafka,cosec
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/eshop_ordering
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
   # The topics the service owns are created by the operator; the node only validates them (decision D168). The kafka
@@ -53,7 +54,7 @@ data:
   JAVA_OPTS: -XX:MaxRAMPercentage=75.0
 ```
 
-The secrets come from Secrets the same way: the database password, the cluster token `WOW_INTERNAL_TOKEN`, and the tokens of the services the ordering trusts. Replace the example values.
+The secrets come from a Secret the same way: the database user and password. Replace the example values. The internal port needs no secret: the network is its boundary.
 
 ## The nodes
 
@@ -133,8 +134,8 @@ spec:
 # The cluster channel and the wait signals (decisions D89, D173): a headless service that gives each node the DNS name
 # it advertises, <pod>.eshop-ordering-cluster.<namespace>.svc.cluster.local. It publishes the nodes that are not
 # ready, so a node that is starting or draining still gets its peers' forwarded commands and signals. Never expose it
-# outside the cluster: its forwards and signals take the cluster token (WOW_INTERNAL_TOKEN, decision D226), its calls a
-# service token, but it is the service's inside.
+# outside the cluster: it takes no token, each node and service names itself on each request (Wow-Service, decision
+# D300), and only the shop's own pods reach it (networkpolicy.yaml).
 apiVersion: v1
 kind: Service
 metadata:
@@ -153,10 +154,10 @@ spec:
       protocol: TCP
 ```
 
-- `eshop-ordering` serves the public port to clients and ingresses.
+- `eshop-ordering` serves the public port to the gateway, through which clients reach it.
 - `eshop-ordering-cluster` is headless: it gives each node its DNS name. It publishes the nodes that are not ready, so a node that is starting or draining still receives the commands its peers forward and the signals that complete waits.
 
-Never expose the internal port outside the cluster. The network policy admits only the shop's own pods to it, and the port itself authenticates every request with the cluster token or a service token ([Secure a Deployment](./security#close-the-internal-port)). A network plugin that does not enforce NetworkPolicy ignores it.
+Never expose the internal port outside the cluster. It takes no token: each request names its service (`Wow-Service`), and the network policies are the boundary. `networkpolicy.yaml` holds two: `eshop-ordering-public` admits only the gateway's pods, labelled `app.kubernetes.io/component: gateway` in any namespace, to the HTTP port, and `eshop-ordering-internal` admits only the shop's own pods, labelled `app.kubernetes.io/part-of: eshop`, to the internal port ([Secure a Deployment](./security#close-the-internal-port)). Label your gateway's pods so, or change the selector to match them. A network plugin that does not enforce NetworkPolicy ignores them; then keep the internal port off every network but the platform's by other means.
 
 ## Probes
 

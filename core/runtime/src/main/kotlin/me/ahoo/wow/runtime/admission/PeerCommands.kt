@@ -14,10 +14,10 @@
 package me.ahoo.wow.runtime.admission
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.kernel.CommandType
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.Manifest

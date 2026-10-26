@@ -16,7 +16,7 @@ A bounded context's log is private to it. Other contexts never read it and never
 | Ask another context to do something and get its answer now | a **synchronous call** to its internal port | the target has committed or rejected the command |
 | Read another context's data | the **typed query client** | the query has answered |
 
-Asynchronous messages between services go only through Kafka. Synchronous calls, reads and wait signals go to the other service's internal port, authenticated by service identity ([Identity, tenancy and access](./identity#the-internal-port)).
+Asynchronous messages between services go only through Kafka. Synchronous calls, reads and wait signals go to the other service's internal port, each naming the service it comes from in `Wow-Service` ([Identity, tenancy and access](./identity#the-internal-port)).
 
 ## Published streams
 
@@ -50,7 +50,7 @@ Sometimes the sender needs the target's answer before it can go on: the number t
 
 - the call goes to the target service's internal port, authenticated as the calling service;
 - it carries a request id derived from the root command, so a retried or replayed call does not commit twice;
-- it carries the root command's scope, operator and request facts, which the target trusts only from a service identity;
+- it carries the root command's scope, operator and request facts, which the target takes only on its internal port, from a service that names itself;
 - it can carry the wait, so a caller still waiting on the chain sees the target's stages;
 - a rejection is returned as a rejection and is not retried; a call that gets no answer fails the handler, which is retried within its budget and then parks the aggregate.
 

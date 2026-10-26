@@ -25,6 +25,7 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.ContractException
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.PublishedManifest

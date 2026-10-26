@@ -6,10 +6,10 @@ Plain manifests for the view store service (`platform/view-store/view-store-serv
 | --- | --- |
 | `kustomization.yaml` | The set: `kubectl apply -k deploy/view-store` |
 | `configmap.yaml` | The settings every node shares, as environment variables: the profiles (`postgres,cosec`), the PostgreSQL URL, the trust in the gateway's application, the log partitions, OpenTelemetry |
-| `secret.yaml` | The PostgreSQL user and password; the cluster token of the internal port (`WOW_INTERNAL_TOKEN`, decision D226) and the secret CoSec signs its tokens with (`COSEC_JWT_SECRET`). These are example values; replace them |
+| `secret.yaml` | The PostgreSQL user and password, and the secret CoSec signs its tokens with (`COSEC_JWT_SECRET`). These are example values; replace them |
 | `deployment.yaml` | The nodes: the HTTP port (`8080`) and the internal port (`9090`); probes, shutdown, and the OpenTelemetry Operator's annotation |
 | `service.yaml` | `view-store`, the HTTP service; `view-store-cluster`, the headless service of the internal port |
-| `networkpolicy.yaml` | Only the CoSec gateway's pods reach the HTTP port, and only the service's own nodes the internal port |
+| `networkpolicy.yaml` | Only the CoSec gateway's pods reach the HTTP port, and only the platform's own pods the internal port (decisions D173, D300) |
 
 ## Before you apply
 
@@ -24,9 +24,9 @@ Plain manifests for the view store service (`platform/view-store/view-store-serv
 
 2. Provide PostgreSQL. `configmap.yaml` expects it at `postgres:5432` (database `view_store`). The host creates its tables at startup. The view store needs no Kafka: its nodes share the partitions through leases in PostgreSQL and forward commands over the internal port.
 
-3. Set `COSEC_JWT_SECRET` to the secret your CoSec signs its access tokens with (HMAC256), and `WOW_INTERNAL_TOKEN` to a random secret of at least 32 characters.
+3. Set `COSEC_JWT_SECRET` to the secret your CoSec signs its access tokens with (HMAC256).
 
-4. Label your CoSec gateway's pods `app.kubernetes.io/component: cosec-gateway`, or change the selector in `networkpolicy.yaml` to match them, and route `/view-store/**` to the `view-store` service.
+4. Label your CoSec gateway's pods `app.kubernetes.io/component: gateway`, or change the selector in `networkpolicy.yaml` to match them, and route `/view-store/**` to the `view-store` service.
 
 ## Apply and check
 

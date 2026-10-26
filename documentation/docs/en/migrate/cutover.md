@@ -78,7 +78,7 @@ From the first import until the switch, 9.x serves and V10 waits: `tail` follows
 4. **Gate**, as offline does. Otherwise go back to 9.x: the V10 nodes are still on standby and have written nothing.
 5. **Probe the standby nodes** against the production target.
 6. **Move the external consumers.**
-7. **Resume every V10 node:** `POST /wow/node/resume` on each node's internal port, with the cluster token and `{"by": "<operator>", "reason": "<why>"}`. The node joins its groups, starts its work and then admits commands. The resume ends the write stop; `GET /wow/node/standby` shows each node's record of it.
+7. **Resume every V10 node:** `POST /wow/node/resume` on each node's internal port, with `Wow-Service: <the node's service>` and `{"by": "<operator>", "reason": "<why>"}`. The node joins its groups, starts its work and then admits commands. The resume ends the write stop; `GET /wow/node/standby` shows each node's record of it.
 8. **Switch traffic to V10**, then scale it out. Keep 9.x stopped.
 9. **Observe**, as offline does.
 

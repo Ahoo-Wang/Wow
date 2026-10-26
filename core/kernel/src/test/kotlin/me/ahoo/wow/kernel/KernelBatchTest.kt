@@ -18,6 +18,7 @@ import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
