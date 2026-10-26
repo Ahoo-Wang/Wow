@@ -59,6 +59,7 @@ class Holding {
  */
 class TreasuryModels : ModelProvider {
     override val context: String = TREASURY
+    override val binding: Int = ModelProvider.BINDING
     override val fragment: String = "META-INF/wow/manifest/host-it-treasury.json"
 
     override fun models(dependencies: Dependencies): List<AggregateModel<*>> = listOf(

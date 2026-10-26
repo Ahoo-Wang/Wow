@@ -38,6 +38,7 @@ class MigrationModelsTest {
 
     private class Provider(val take: (Dependencies) -> Unit) : ModelProvider {
         override val context: String = NineXExample.CONTEXT
+        override val binding: Int = ModelProvider.BINDING
         override val fragment: String = "test.json"
 
         override fun models(dependencies: Dependencies): List<AggregateModel<*>> {

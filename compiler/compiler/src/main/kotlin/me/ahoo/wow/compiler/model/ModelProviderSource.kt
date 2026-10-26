@@ -25,6 +25,13 @@ package me.ahoo.wow.compiler.model
 internal object ModelProviderSource {
     const val MODEL_PROVIDER = "me.ahoo.wow.kernel.ModelProvider"
 
+    /**
+     * The binding this compiler generates against (`ModelProvider.BINDING` of the kernel it is released with): the
+     * kernel refuses at startup a module generated for another, instead of failing on its first command. The
+     * compiler's tests hold it equal to the kernel's.
+     */
+    const val BINDING: Int = 1
+
     /** `shop-domain` gives `ShopDomainModelProvider`. */
     fun className(module: String): String {
         val words = module.split(Regex("[^A-Za-z0-9]+")).filter { it.isNotEmpty() }
@@ -57,6 +64,8 @@ internal object ModelProviderSource {
         appendLine()
         appendLine("/** The binding index of the module of Manifest fragment [fragment]. */")
         appendLine("public class $className : $MODEL_PROVIDER {")
+        appendLine("    override val binding: Int = $BINDING")
+        appendLine()
         appendLine("    override val context: String = \"${escape(context)}\"")
         appendLine()
         appendLine("    override val fragment: String = \"${escape(fragment)}\"")

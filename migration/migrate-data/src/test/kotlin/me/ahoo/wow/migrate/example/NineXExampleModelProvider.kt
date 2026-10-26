@@ -24,6 +24,7 @@ import me.ahoo.wow.kernel.ModelProvider
 class NineXExampleModelProvider : ModelProvider {
     override val context: String = NineXExample.CONTEXT
 
+    override val binding: Int = ModelProvider.BINDING
     override val fragment: String = "META-INF/wow/manifest/ninex-example.json"
 
     override fun models(dependencies: Dependencies): List<AggregateModel<*>> =

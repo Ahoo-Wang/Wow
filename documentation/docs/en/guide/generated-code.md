@@ -36,7 +36,7 @@ With `wow-query-api` on the module's class path, each state gets `<State>Propert
 
 ## The binding index
 
-Each module gets one class implementing `ModelProvider`, registered for `ServiceLoader`, named after the module: `eshop-ordering-domain` gives `EshopOrderingDomainModelProvider`. It names the module's context and fragment, builds its models and its processors from `Dependencies`, and the host loads every one on its class path. A test can load it to check what the module builds ([Test Domain Code](./testing#what-the-compiler-generated)).
+Each module gets one class implementing `ModelProvider`, registered for `ServiceLoader`, named after the module: `eshop-ordering-domain` gives `EshopOrderingDomainModelProvider`. It names the module's context and fragment, builds its models and its processors from `Dependencies`, and the host loads every one on its class path. It also records the binding it was generated for: a module built by a compiler of another Wow version is refused at startup, with a message that says to rebuild it, instead of failing on its first command. A test can load it to check what the module builds ([Test Domain Code](./testing#what-the-compiler-generated)).
 
 ## The Manifest fragment
 

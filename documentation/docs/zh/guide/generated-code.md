@@ -36,7 +36,7 @@ build/generated/ksp/main/
 
 ## 绑定索引 {#the-binding-index}
 
-每个模块得到一个实现 `ModelProvider` 的类，为 `ServiceLoader` 注册，以模块命名：`eshop-ordering-domain` 得到 `EshopOrderingDomainModelProvider`。它指明模块的上下文和片段，用 `Dependencies` 构建它的模型和处理器，宿主加载类路径上的每一个。测试可以加载它，检查模块构建了什么（[测试领域代码](./testing#what-the-compiler-generated)）。
+每个模块得到一个实现 `ModelProvider` 的类，为 `ServiceLoader` 注册，以模块命名：`eshop-ordering-domain` 得到 `EshopOrderingDomainModelProvider`。它指明模块的上下文和片段，用 `Dependencies` 构建它的模型和处理器，宿主加载类路径上的每一个。它还记录生成时所针对的绑定版本：由另一个 Wow 版本的编译器构建的模块会在启动时被拒绝，并提示重新构建，而不是等到第一条命令才失败。测试可以加载它，检查模块构建了什么（[测试领域代码](./testing#what-the-compiler-generated)）。
 
 ## Manifest 片段 {#the-manifest-fragment}
 

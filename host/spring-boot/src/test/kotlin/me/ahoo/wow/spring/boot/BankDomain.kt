@@ -62,6 +62,7 @@ class DecidedCommands {
  */
 class BankModels : ModelProvider {
     override val context: String = BANK
+    override val binding: Int = ModelProvider.BINDING
     override val fragment: String = "META-INF/wow/manifest/host-test-bank.json"
 
     override fun models(dependencies: Dependencies): List<AggregateModel<*>> {
