@@ -195,11 +195,8 @@ class LedgerCommandsTest {
         commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, "unrecoverable"))).assert().isNull()
         lastRecord()["status"].asString().assert().isEqualTo("UNRECOVERABLE")
         commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, "maybe")))!!.code.assert()
-            .isEqualTo(FrameworkCodes.MALFORMED)
-        commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, "RECOVERABLE"))).assert().isNull()
-        commands.execute(wire(MarkParkedRecoverable(NAME, X1, "maybe")))!!.code.assert()
             .isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
-        commands.execute(wire(MarkParkedRecoverable(NAME, X1, "RECOVERABLE"))).assert().isNull()
+        commands.execute(wire(MarkParkedRecoverable.of(NAME, X1, "RECOVERABLE"))).assert().isNull()
         ledger.parked(NAME, cart("x1"))!!.recoverable.assert().isEqualTo(Recoverable.RECOVERABLE)
 
         commands.execute(wire(ApplyParkedRetrySpec.of(NAME, X1, minBackoff = "PT5M", executionTimeout = "30s")))
@@ -210,12 +207,8 @@ class LedgerCommandsTest {
         commands.execute(wire(ApplyParkedRetrySpec.of(NAME, X1, maxRetries = 0))).assert().isNull()
         ledger.parked(NAME, cart("x1"))!!.retrySpec!!.maxRetries.assert().isEqualTo(0)
         commands.execute(wire(ApplyParkedRetrySpec.of(NAME, X1, minBackoff = "soon")))!!.code.assert()
-            .isEqualTo(FrameworkCodes.MALFORMED)
-        commands.execute(wire(ApplyParkedRetrySpec.of(NAME, X1, maxRetries = -1)))!!.code.assert()
-            .isEqualTo(FrameworkCodes.MALFORMED)
-        commands.execute(wire(ApplyParkedRetrySpec(NAME, X1, minBackoff = "soon")))!!.code.assert()
             .isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
-        commands.execute(wire(ApplyParkedRetrySpec(NAME, X1, maxRetries = -1)))!!.code.assert()
+        commands.execute(wire(ApplyParkedRetrySpec.of(NAME, X1, maxRetries = -1)))!!.code.assert()
             .isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
 
         val absent = cart("absent")
@@ -258,13 +251,10 @@ class LedgerCommandsTest {
         commands.execute(wire(Ledger.NAMESPACE + ".Unknown", ClusterCodec.mapper.createObjectNode()))!!.code
             .assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         commands.execute(wire(Ledger.RESUME, ClusterCodec.mapper.createObjectNode()))!!.code
-            .assert().isEqualTo(FrameworkCodes.MALFORMED)
+            .assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         val blank = ClusterCodec.mapper.valueToTree<JsonNode>(
             ResumeParked.of(NAME, X1.type.context, X1.type.name, X1.tenantId, " ")
         )
-        commands.execute(wire(Ledger.RESUME, blank))!!.code.assert().isEqualTo(FrameworkCodes.MALFORMED)
-            .assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
-        val blank = ClusterCodec.mapper.valueToTree<JsonNode>(ResumeParked(NAME, X1.copyWith(id = " ")))
         commands.execute(wire(Ledger.RESUME, blank))!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         // A command from the ops saga is taken by its source, with or without an operator, whatever its roles.
         commands.execute(wire(SkipParked.of(NAME, X1), operator = null)).assert().isNull()
