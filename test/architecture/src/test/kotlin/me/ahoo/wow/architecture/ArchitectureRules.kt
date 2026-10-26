@@ -230,7 +230,8 @@ object ArchitectureRules {
         OBSERVABILITY to setOf("runtime", "query", "http"),
         // postgres and mongo compileOnly: the backend follows the application's classpath (decision D110).
         // query, kafka, clickhouse, cosec and observability compileOnly too: each is wired when the application has it
-        // (cosec as kafka is, review R5.C-12). openapi for the springdoc bridge (decision D233).
+        // (cosec as kafka is, review R5.C-12). openapi for the springdoc bridge (decision D233). elasticsearch for the
+        // integration tests only, which run the store combinations with it (DG-6).
         SPRING_BOOT to setOf(
             "runtime",
             "http",
@@ -243,6 +244,7 @@ object ArchitectureRules {
             "kafka",
             "clickhouse",
             "observability",
+            "elasticsearch",
         ),
         // CosId's generators as the node's (decision D171): the id SPIs only; it wires itself before the host. The host
         // only for the tests, which generate the module's configuration metadata and check the host accepts its keys.
