@@ -60,6 +60,7 @@ public final class me/ahoo/wow/test/Expectations {
 	public final fun expectNoError ()V
 	public final fun expectRejected (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
 	public static synthetic fun expectRejected$default (Lme/ahoo/wow/test/Expectations;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun expectResult (Ljava/lang/String;Ljava/lang/Object;)V
 	public final fun expectScheduleCancelled (Ljava/lang/String;)V
 	public final fun expectScheduled (Ljava/lang/String;Ljava/lang/Object;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/aggregate/AggregateRef;)V
 	public static synthetic fun expectScheduled$default (Lme/ahoo/wow/test/Expectations;Ljava/lang/String;Ljava/lang/Object;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/Object;)V
@@ -70,7 +71,7 @@ public final class me/ahoo/wow/test/Expectations {
 	public final fun fork (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
 	public static synthetic fun fork$default (Lme/ahoo/wow/test/Expectations;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun getError ()Ljava/lang/Throwable;
-	public final fun getOutcome ()Lme/ahoo/wow/kernel/CommandOutcome;
+	public final fun getResults ()Ljava/util/Map;
 }
 
 public final class me/ahoo/wow/test/ForkAssertionError : java/lang/AssertionError {

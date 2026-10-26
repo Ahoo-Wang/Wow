@@ -55,9 +55,9 @@ flowchart LR
 
 - `wow.node.id` 是节点在服务成员中的名字；不设置时每次启动生成一个新的。
 - `wow.internal.host` 是内部端口绑定的网卡。把它绑定到节点的内网地址。
-- `wow.node.address` 是其他节点使用的 `host:port`，用于它与绑定地址不同的情况，例如在 NAT 之后或容器里。
+- `wow.node.address` 是其他节点使用的 `host:port`。默认是绑定的地址（没有时是本机地址）加内部端口；只有同伴要通过别的地址访问节点时才设置它，例如在 NAT 之后、有多块网卡的主机上，或 Pod 有稳定 DNS 名字的 StatefulSet 里。
 
-在 Kubernetes 上，eShop 的 ordering 清单从 Pod 推出这三项：
+在 Kubernetes 上，eShop 的 ordering 清单从 Pod 取得节点 ID 和绑定的地址，并公布这个地址，即 Pod 的 IP：
 
 <!-- sample: deploy/eshop-ordering/deployment.yaml#node -->
 
@@ -67,10 +67,6 @@ env:
     valueFrom:
       fieldRef:
         fieldPath: metadata.name
-  - name: POD_NAMESPACE
-    valueFrom:
-      fieldRef:
-        fieldPath: metadata.namespace
   - name: POD_IP
     valueFrom:
       fieldRef:
@@ -82,14 +78,13 @@ env:
   # The node id is the pod's name: a replaced pod is a new member.
   - name: WOW_NODE_ID
     value: $(POD_NAME)
-  # D173: the internal port binds the pod's private address only, and the node advertises its headless name.
+  # D173: the internal port binds the pod's private address only, and the node advertises that address,
+  # $(POD_IP):9093 (decision D319): a Deployment's pods have no DNS name of their own.
   - name: WOW_INTERNAL_HOST
     value: $(POD_IP)
-  - name: WOW_NODE_ADDRESS
-    value: $(POD_NAME).eshop-ordering-cluster.$(POD_NAMESPACE).svc.cluster.local:9093
 ```
 
-这个地址是 Pod 在一个 headless Service 下的名字，这个 Service 也发布尚未就绪的 Pod，所以正在启动或正在排空的节点仍能收到同伴的转发和信号。[eShop ordering 清单](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering)是一个服务的完整模板。
+Deployment 的 Pod 没有属于自己的 DNS 名字（headless Service 只为设置了 `spec.hostname` 的 Pod 发布 `<pod>.<service>`），所以节点公布它的 IP（决定 D319）。headless Service `eshop-ordering-cluster` 解析到每个节点的地址，包括尚未就绪的节点，供在那里查找其节点的服务使用（D305）。[eShop ordering 清单](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering)是一个服务的完整模板。
 
 ## 服务需要什么 {#what-a-service-needs}
 

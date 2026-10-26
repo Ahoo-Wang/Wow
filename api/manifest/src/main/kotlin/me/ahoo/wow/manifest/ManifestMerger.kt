@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.manifest
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /**
  * Assembles a service's Manifest from its modules' fragments (decision D74). The build merges them into the
  * service's `manifest.json`; the runtime merges the same fragments when it starts. Both refuse a conflict, so a
@@ -209,5 +211,5 @@ object ManifestMerger {
 }
 
 /** The fragments of a service contradict each other; [conflicts] lists every contradiction found. */
-class ManifestConflictException(val conflicts: List<String>) :
+class ManifestConflictException @InternalWowApi constructor(val conflicts: List<String>) :
     IllegalStateException("The Manifest fragments conflict:\n" + conflicts.joinToString("\n") { "- $it" })

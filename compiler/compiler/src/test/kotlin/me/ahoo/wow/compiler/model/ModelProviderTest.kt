@@ -158,6 +158,9 @@ class ModelProviderTest {
         val provider = provider(compilation, result)
         provider.javaClass.name.assert().isEqualTo("sample.BankDomainModelProvider")
         provider.context.assert().isEqualTo("bank")
+        // Generated for the binding of the kernel this compiler is released with (finding R5.A-10).
+        provider.binding.assert().isEqualTo(ModelProvider.BINDING)
+        ModelProviderSource.BINDING.assert().isEqualTo(ModelProvider.BINDING)
         provider.fragment.assert().isEqualTo("${Manifest.FRAGMENT_DIRECTORY}/bank-domain.json")
         val loader = classLoader(compilation, result)
         loader.getResource(provider.fragment).assert().isNotNull()

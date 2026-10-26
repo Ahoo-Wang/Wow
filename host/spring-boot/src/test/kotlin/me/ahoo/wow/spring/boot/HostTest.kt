@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallerResolver
@@ -21,7 +22,6 @@ import me.ahoo.wow.http.command.JakartaCommandValidator
 import me.ahoo.wow.http.internal.HttpClusterChannel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -149,7 +149,7 @@ class HostTest {
         val id = openAccount()
         val answer = host.post("/bank/account/$id/deposit", """{"amount":-1}""")
         answer.status.assert().isEqualTo(400)
-        answer.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.INVALID)
+        answer.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
     }
 
     @Test

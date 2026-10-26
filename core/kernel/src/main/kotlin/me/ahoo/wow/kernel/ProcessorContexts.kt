@@ -41,22 +41,32 @@ import java.util.concurrent.atomic.AtomicInteger
  * The context of a projection's handler for one execution (design 01 §1); its [queries] are [contextQueries]' of the
  * commit's tenant (decision D259).
  */
-data class ExecutionProjectContext(
+class ExecutionProjectContext @InternalWowApi constructor(
     override val executionId: ExecutionId,
-    private val contextQueries: ContextQueries = ContextQueries.NONE,
+    private val contextQueries: ContextQueries,
 ) : ProjectContext {
+    /** The context of the execution [executionId], without queries: a domain module's test calls a projection with it. */
+    constructor(executionId: ExecutionId) : this(executionId, ContextQueries.NONE)
+
     override val queries: SubscriptionQueries get() = contextQueries.of(executionId.ref.tenantId)
+
+    override fun toString(): String = "ExecutionProjectContext(executionId=$executionId)"
 }
 
 /**
  * The context of a reactor's handler for one execution (design 01 §1); its [queries] are [contextQueries]' of the
  * commit's tenant (decision D259).
  */
-data class ExecutionReactContext(
+class ExecutionReactContext @InternalWowApi constructor(
     override val executionId: ExecutionId,
-    private val contextQueries: ContextQueries = ContextQueries.NONE,
+    private val contextQueries: ContextQueries,
 ) : ReactContext {
+    /** The context of the execution [executionId], without queries: a domain module's test calls a reactor with it. */
+    constructor(executionId: ExecutionId) : this(executionId, ContextQueries.NONE)
+
     override val queries: SubscriptionQueries get() = contextQueries.of(executionId.ref.tenantId)
+
+    override fun toString(): String = "ExecutionReactContext(executionId=$executionId)"
 }
 
 /**

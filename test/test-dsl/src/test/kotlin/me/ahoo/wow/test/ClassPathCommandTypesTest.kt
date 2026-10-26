@@ -26,6 +26,7 @@ import java.net.URLClassLoader
 /** The provider of the fixture `commands/local`, whose fragment names the order's commands. */
 class FixtureModelProvider : ModelProvider {
     override val context: String = "shop"
+    override val binding: Int = ModelProvider.BINDING
     override val fragment: String = "META-INF/wow/manifest/fixture.json"
 
     override fun models(dependencies: Dependencies): List<AggregateModel<*>> = emptyList()

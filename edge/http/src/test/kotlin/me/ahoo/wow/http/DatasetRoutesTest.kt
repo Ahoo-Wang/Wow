@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.read.DatasetName
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.WowClient
@@ -45,7 +46,6 @@ import me.ahoo.wow.query.memory.InMemoryDatasetStorage
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QueryValueType
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.spi.json.WowJson

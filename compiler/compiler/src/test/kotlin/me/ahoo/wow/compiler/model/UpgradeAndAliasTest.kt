@@ -243,7 +243,7 @@ class UpgradeAndAliasTest {
 
             val before = aggregate<LedgerState>("bank", "ledger") {
                 initial { LedgerState(it.id) }
-                decide<Enter>(me.ahoo.wow.kernel.Creation.ALLOWED, name = "bank.ledger.Book") { _, command ->
+                decide<Enter>(me.ahoo.wow.api.aggregate.Creation.ALLOWED, name = "bank.ledger.Book") { _, command ->
                     me.ahoo.wow.api.decide.Decision.events(Entered(command.amount, "CNY", "app"))
                 }
                 evolve<Entered> { total += it.amount }

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.query.QueryStreams
 import me.ahoo.wow.query.AbacQueryOptions
@@ -39,6 +40,7 @@ import kotlin.time.toKotlinDuration
  * The query plane's configuration, `wow.query.*`, read by [QueryAutoConfiguration]: the query routes and gateways,
  * the budgets they run under, who may query what, and how many queries each store runs at once.
  */
+@InternalWowApi
 @ConfigurationProperties(prefix = QueryProperties.PREFIX)
 class QueryProperties {
     /** Whether the query routes and gateways are wired at all. */
@@ -143,6 +145,7 @@ class QueryProperties {
      * A query entry's budget ([QueryBudget]) and the limit of a list that names none, under [label]. A limit of `0` is
      * off.
      */
+    @InternalWowApi
     open class Budget internal constructor(private val label: String) {
         /** The most results a list or an aggregation may ask for. */
         var maxListSize: Int = DEFAULT.maxListSize
@@ -210,12 +213,15 @@ class QueryProperties {
     }
 
     /** The budget of the query routes, `wow.query.http.*`. */
+    @InternalWowApi
     class Http : Budget(QueryBudget.HTTP_LABEL)
 
     /** The budget of the in-process [me.ahoo.wow.api.read.QueryApi], `wow.query.in-process.*`: the HTTP defaults. */
+    @InternalWowApi
     class InProcess : Budget(QueryBudget.IN_PROCESS_LABEL)
 
     /** Queries across tenants on the query routes. */
+    @InternalWowApi
     class CrossTenant {
         /**
          * Whether a caller that may act across scopes may query across tenants on the query routes
@@ -227,6 +233,7 @@ class QueryProperties {
     }
 
     /** Attribute-based access control of the queries. */
+    @InternalWowApi
     class Abac {
         /** Whether the queries are filtered by the caller's ABAC tags; off, nothing is restricted. */
         var enabled: Boolean = AbacQueryOptions.DEFAULT.enabled
@@ -250,6 +257,7 @@ class QueryProperties {
     }
 
     /** What the queries may do with sensitive fields. */
+    @InternalWowApi
     class Sensitivity {
         /** Whether filters and sorts may compare a field whose sensitivity is `DISPLAY`. */
         var displayComparable: Boolean = QuerySensitivityPolicy.DEFAULT.displayComparable
@@ -258,6 +266,7 @@ class QueryProperties {
     }
 
     /** The query indexes of the snapshots. */
+    @InternalWowApi
     class Index {
         /**
          * How the snapshot backend manages the indexes of each aggregate's `x-wow-index` at startup: `auto` creates
@@ -269,6 +278,7 @@ class QueryProperties {
     /**
      * The cache of the snapshot counts, valid while the type's snapshot write checkpoint holds and for at most `ttl`.
      */
+    @InternalWowApi
     class CountCache {
         /** Whether the snapshot counts are cached. */
         var enabled: Boolean = true
@@ -306,6 +316,7 @@ class QueryProperties {
     }
 
     /** Queries of the snapshots and logs kept in memory. */
+    @InternalWowApi
     class Memory {
         /**
          * Whether the snapshots on a store in memory are queried, from the in-memory query backend, and the events of
@@ -319,6 +330,7 @@ class QueryProperties {
      * calm period in which a query waited or was refused raises it by one, up to `ceiling`.
      * `wow.stores.<name>.query.adaptive.*` overrides `enabled`, `floor` and `ceiling` for one store.
      */
+    @InternalWowApi
     class Adaptive {
         /** Whether a store's query bound adapts to its write pressure. */
         var enabled: Boolean = true
@@ -363,6 +375,7 @@ class QueryProperties {
      * `http.max-list-size` nor `http.default-list-size` bounds such a stream. A list whose sort cannot order a cursor
      * streams without positions, under those bounds, and cannot be resumed.
      */
+    @InternalWowApi
     class Stream {
         /** The records of one keyset chunk; each chunk takes a query permit. */
         var chunkSize: Int = QueryGateway.DEFAULT_STREAM_CHUNK_SIZE
@@ -377,6 +390,7 @@ class QueryProperties {
     }
 
     /** The `events` model's queries. */
+    @InternalWowApi
     class Events {
         /**
          * The MongoDB read preference of the `events` queries (`secondaryPreferred`, say), so a free filter scans a
@@ -394,6 +408,7 @@ class QueryProperties {
     }
 
     /** The reads of an aggregate's state at a version or a point in time. */
+    @InternalWowApi
     class State {
         /**
          * The most commits a state read at a version or an instant replays from the aggregate's snapshot, or from
@@ -409,6 +424,7 @@ class QueryProperties {
     }
 
     /** The datasets, and the bound of their queries. */
+    @InternalWowApi
     class Dataset {
         /**
          * The working directory whose `wow/dataset/` holds dataset files, `{context}.{dataset}.json`; each takes
@@ -433,6 +449,7 @@ class QueryProperties {
         var maxQueued: Int? = null
     }
 
+    @InternalWowApi
     companion object {
         const val PREFIX: String = "wow.query"
 

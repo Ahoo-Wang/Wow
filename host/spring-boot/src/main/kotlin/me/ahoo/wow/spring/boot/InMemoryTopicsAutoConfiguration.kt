@@ -74,6 +74,7 @@ class InMemoryTopicsAutoConfiguration(environment: Environment) {
         logger.warn { WARNING }
     }
 
+    @InternalWowApi
     companion object {
         private val logger = KotlinLogging.logger {}
 

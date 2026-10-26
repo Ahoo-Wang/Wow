@@ -34,7 +34,7 @@ import kotlin.time.Duration.Companion.seconds
  * it migrates ([covers]): the contexts of its aggregates and of its subscription mappings. The others are another
  * run's.
  */
-class CompensationPlan(
+internal class CompensationPlan(
     val mappings: List<SubscriptionMapping>,
     private val manifest: Manifest,
     private val aggregates: Map<NineXAggregate, AggregatePlan>,
@@ -165,7 +165,7 @@ class CompensationPlan(
 }
 
 /** The V10 parked entry of a 9.x execution, or why it has none. */
-sealed interface ParkedTarget {
+internal sealed interface ParkedTarget {
     data class Parked(val entry: ParkedAggregate) : ParkedTarget
 
     /** Not imported, for [reason]. */
@@ -176,7 +176,7 @@ sealed interface ParkedTarget {
  * The import of the 9.x executions since it started: those [imported] as parked entries, those [already] parked in
  * V10, and the [unresolved] ones not imported; [others] are of the 9.x contexts another run migrates.
  */
-data class CompensationProgress(
+internal data class CompensationProgress(
     val imported: Long,
     val already: Long,
     val unresolved: Long,
@@ -216,7 +216,7 @@ data class CompensationProgress(
  *   run reads and resolves every execution and writes nothing; it does not look in the log, which it left empty.
  */
 @Suppress("LongParameterList")
-class CompensationImporter(
+internal class CompensationImporter(
     private val source: NineXCompensationSource,
     private val plan: MigrationPlan,
     private val logOf: (String) -> EventLog,
@@ -322,7 +322,7 @@ class CompensationImporter(
  * [differ] and those [unresolved] (not imported, as the import reported them: no mapping or subscription that parks
  * them, or a version the log does not hold), and the imported entries that are [stale].
  */
-data class CompensationComparisonResult(
+internal data class CompensationComparisonResult(
     val compared: Long,
     val differ: Long,
     val unresolved: Long,
@@ -336,7 +336,7 @@ data class CompensationComparisonResult(
 }
 
 /** Compares the unresolved 9.x executions with the V10 parked entries, every execution on every run. */
-class CompensationComparison(
+internal class CompensationComparison(
     private val source: NineXCompensationSource,
     private val plan: MigrationPlan,
     private val logOf: (String) -> EventLog,

@@ -14,7 +14,7 @@
 package me.ahoo.wow.example.eshop.ordering.server
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.runtime.FrameworkCodes
+import me.ahoo.wow.api.result.FrameworkCodes
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -66,7 +66,7 @@ class OrderLifecycleTest {
 
         val refused = confirm(id, "mug", alice)
         refused.first.assert().isEqualTo(GONE)
-        refused.second["code"].asString().assert().isEqualTo(FrameworkCodes.DELETED)
+        refused.second["code"].asString().assert().isEqualTo(FrameworkCodes.AGGREGATE_DELETED)
 
         lifecycle(id, "restore-aggregate", alice).first.assert().isEqualTo(OK)
         read(id, alice).second["deleted"].asBoolean().assert().isFalse()
@@ -88,7 +88,7 @@ class OrderLifecycleTest {
         // kernel's scope guard refuses its commands (decision D94).
         read(id, second).let { (status, problem) ->
             status.assert().isEqualTo(NOT_FOUND)
-            problem["code"].asString().assert().isEqualTo(FrameworkCodes.NOT_FOUND)
+            problem["code"].asString().assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
         }
         confirm(id, "mug", second).second["code"].asString().assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
         confirm(id, "mug", main).first.assert().isEqualTo(OK)

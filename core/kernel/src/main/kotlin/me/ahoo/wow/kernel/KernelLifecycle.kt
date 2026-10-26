@@ -14,6 +14,7 @@
 package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.Rejection
@@ -28,6 +29,7 @@ import me.ahoo.wow.api.lifecycle.SpaceTransferred
 import me.ahoo.wow.api.lifecycle.TagsApplied
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.lifecycle.TransferSpace
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.ScheduleCancelled
 import me.ahoo.wow.api.schedule.ScheduleJobs
@@ -43,7 +45,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
  * metadata. The events leave the user's state as it is unless the model declares an evolve function for them.
  *
  * `wow.schedule.Set` sets the schedule of its key on the aggregate it is sent to, which must exist and must decide the
- * command type it names (review X-7): a name it does not know is rejected as [KernelRejections.UNHANDLED] when the
+ * command type it names (review X-7): a name it does not know is rejected as [FrameworkCodes.COMMAND_UNHANDLED] when the
  * schedule is set, not found when it fires, which may be months later for a cron. `wow.schedule.Cancel` cancels it, a
  * no-op when the aggregate keeps no schedule of that key.
  */
@@ -107,7 +109,7 @@ internal object KernelLifecycle {
         } else {
             Decision.Rejected(
                 Rejection(
-                    KernelRejections.UNHANDLED,
+                    FrameworkCodes.COMMAND_UNHANDLED,
                     "${ref.type} has no command type ${body.commandType}, which the schedule ${body.key} would send.",
                 ),
             )

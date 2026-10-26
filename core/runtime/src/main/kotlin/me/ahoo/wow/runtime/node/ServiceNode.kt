@@ -633,8 +633,9 @@ class ServiceNode @InternalWowApi constructor(
 
     /**
      * The subscriptions of other contexts' published streams (decision D134), by the topic they read: one runtime
-     * per topic on this node.
+     * per topic on this node. Wow's own: health, pauses and tests read it; its type is internal to Wow.
      */
+    @InternalWowApi
     val topicSubscriptions: Map<String, TopicSubscriptions> = topicSubscriptions(subscriptions) + receipts(subscriptions)
 
     /**

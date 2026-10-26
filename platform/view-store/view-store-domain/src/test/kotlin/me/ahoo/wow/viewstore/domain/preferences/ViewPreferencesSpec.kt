@@ -14,7 +14,7 @@
 package me.ahoo.wow.viewstore.domain.preferences
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.kernel.KernelRejections
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.test.aggregateSpec
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import me.ahoo.wow.viewstore.api.preferences.SetViewPreferences
@@ -57,13 +57,13 @@ class ViewPreferencesSpec {
         whenCommand(first, scope = alice, headers = APP_HEADERS) { expectUnchanged() }
         // "Never written" against written preferences is a stale version.
         whenCommand(first.copy(order = listOf("v1")), expectedVersion = 0, scope = alice, headers = APP_HEADERS) {
-            expectRejected(KernelRejections.VERSION_MISMATCH)
+            expectRejected(FrameworkCodes.AGGREGATE_VERSION_MISMATCH)
         }
         whenCommand(SetViewPreferences("orders"), expectedVersion = 1, scope = alice, headers = APP_HEADERS) {
             expectEvents(ViewPreferencesSet("orders", APP, emptyList(), null, null, null))
         }
         whenCommand(SetViewPreferences("orders"), scope = owner(BOB), headers = APP_HEADERS) {
-            expectRejected(KernelRejections.FORBIDDEN)
+            expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN)
         }
     }
 

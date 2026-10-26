@@ -41,6 +41,7 @@ dependencies {
     compileOnly("org.springdoc:springdoc-openapi-starter-common")
     compileOnly(libs.swagger.core)
     testImplementation("org.springframework.boot:spring-boot-test")
+    testImplementation(testFixtures(project(":runtime")))
     testImplementation("org.springframework.boot:spring-boot-health")
     testImplementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
     testImplementation("org.springframework.boot:spring-boot-starter-validation")

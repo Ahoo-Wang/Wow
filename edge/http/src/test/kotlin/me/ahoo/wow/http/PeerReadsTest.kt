@@ -33,6 +33,7 @@ import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.read.dynamic
 import me.ahoo.wow.api.read.snapshots
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.ForwardedHeaders
@@ -46,7 +47,6 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.copyWith
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.contract.ContractDirectory
@@ -226,7 +226,7 @@ class PeerReadsTest {
         post("/shop/cart/events/query", mapOf("X-User" to "alice", WowHeaders.CALL to root)).problemCode().assert()
             .isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         post("/shop/cart/events/query", service + (WowHeaders.CALL to "!")).problemCode().assert()
-            .isEqualTo(FrameworkCodes.MALFORMED)
+            .isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         post("/shop/cart/events/query", service + (WowHeaders.CALL to root) + (WowHeaders.SCOPE to "owner=\"bob\""))
             .problemCode().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         routes.get().uri("/shop/cart/events/query").headers {

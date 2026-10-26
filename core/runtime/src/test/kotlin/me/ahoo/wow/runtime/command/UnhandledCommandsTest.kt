@@ -18,13 +18,13 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.Executor
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.binding.AddItems
 import me.ahoo.wow.runtime.binding.CART
 import me.ahoo.wow.runtime.binding.SHOP
@@ -83,7 +83,7 @@ class UnhandledCommandsTest {
             val result = signalled.single().result
             result.hop.assert().isEqualTo(Hop.committed(SHOP))
             result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
-            result.error!!.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
+            result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
             // A command no saga derived is its own chain's root.
             result.correlationId.assert().isEqualTo("c-1")
             result.function.name.assert().isEqualTo("AddItemsV2")
@@ -105,7 +105,7 @@ class UnhandledCommandsTest {
         intake.execute(wire(), wait(Hop.committed(SHOP), deadline = NOW - 1))
         signalled.assert().isEmpty()
         CommandMessages.rejectedOf(EnvelopeCodec.decode(receipts().single().value))
-            .error.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
+            .error.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
     }
 
     private companion object {

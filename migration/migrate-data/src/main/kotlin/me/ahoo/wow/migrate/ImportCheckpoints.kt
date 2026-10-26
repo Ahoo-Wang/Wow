@@ -36,7 +36,7 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * Resuming repeats at most one page of instances, whose streams the import finds already in the log and skips.
  */
-data class AggregateCheckpoint(
+internal data class AggregateCheckpoint(
     val startedAt: Long,
     val after: NineXAggregateId? = null,
     val completed: Boolean = false,
@@ -50,7 +50,7 @@ data class AggregateCheckpoint(
  * it started, so a resumed comparison reports, and exits on, the differences an earlier run found. [sample] is the
  * percentage of the instances it compares; another sample starts it over.
  */
-data class CompareCheckpoint(
+internal data class CompareCheckpoint(
     val sample: Int = 100,
     val after: NineXAggregateId? = null,
     val completed: Boolean = false,
@@ -64,7 +64,7 @@ data class CompareCheckpoint(
  * Where the snapshot writing of one 9.x aggregate stands (`snapshot`, `import --snapshots`): [after] is the last
  * instance whose V10 snapshot is written, in the import's id order, and [completed] is set once every one is.
  */
-data class SnapshotCheckpoint(
+internal data class SnapshotCheckpoint(
     val after: NineXAggregateId? = null,
     val completed: Boolean = false,
     val written: Long = 0,
@@ -77,7 +77,7 @@ data class SnapshotCheckpoint(
  * since it started; [released] counts the imported keys released before the walk started, 9.x no longer confirming
  * them to their owner (finding R2.4-2).
  */
-data class ReservationCheckpoint(
+internal data class ReservationCheckpoint(
     val after: String? = null,
     val completed: Boolean = false,
     val imported: Long = 0,
@@ -94,7 +94,7 @@ data class ReservationCheckpoint(
  * those of every run since it started; [resolved] counts the imported entries resolved before the walk started,
  * their executions no longer unresolved in 9.x (finding R2.4-1).
  */
-data class CompensationCheckpoint(
+internal data class CompensationCheckpoint(
     val after: String? = null,
     val completed: Boolean = false,
     val imported: Long = 0,
@@ -108,7 +108,7 @@ data class CompensationCheckpoint(
  * Where the rollback export of one V10 context stands ([EventStreamExporter], decision D32): [partitions] holds the
  * last log sequence exported of each partition, and the counts are those of every run since it started.
  */
-data class ExportCheckpoint(
+internal data class ExportCheckpoint(
     val partitions: Map<Int, Long> = emptyMap(),
     val exported: Long = 0,
     val already: Long = 0,
@@ -122,7 +122,7 @@ data class ExportCheckpoint(
  * decision D32). The last six joined format 1 as optional properties (roadmap 8b.2, 8b.4, 8c.1, finding A4-8, R4-Q2c):
  * a file without them reads as before.
  */
-data class ImportCheckpoints(
+internal data class ImportCheckpoints(
     val format: Int = FORMAT,
     val aggregates: Map<String, AggregateCheckpoint> = emptyMap(),
     val compared: Map<String, CompareCheckpoint> = emptyMap(),
@@ -174,7 +174,7 @@ data class ImportCheckpoints(
 }
 
 /** Keeps a migration's [ImportCheckpoints]. */
-interface CheckpointRepository {
+internal interface CheckpointRepository {
     fun load(): ImportCheckpoints
 
     fun save(checkpoints: ImportCheckpoints)
@@ -192,7 +192,7 @@ interface CheckpointRepository {
 }
 
 /** In memory: a dry run's, and the tests'. */
-class InMemoryCheckpointRepository(private var checkpoints: ImportCheckpoints = ImportCheckpoints()) :
+internal class InMemoryCheckpointRepository(private var checkpoints: ImportCheckpoints = ImportCheckpoints()) :
     CheckpointRepository {
     private val lock = Any()
 
@@ -219,7 +219,7 @@ class InMemoryCheckpointRepository(private var checkpoints: ImportCheckpoints = 
  *
  * The lock file stays: it is empty and the next run takes it again.
  */
-class FileCheckpointRepository(path: Path) : CheckpointRepository {
+internal class FileCheckpointRepository(path: Path) : CheckpointRepository {
     private val file: Path = path.toAbsolutePath().normalize()
     private val lockFile: Path = file.resolveSibling("${file.fileName}.lock")
 

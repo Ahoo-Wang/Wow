@@ -92,6 +92,7 @@ class TypedEventsTest {
             .isTrue()
         val plain = object : SubscriptionContext {
             override val executionId = context.executionId
+            override val queries get() = context.queries
         }
         invocationOf<SubscriptionContext>(
             plain,

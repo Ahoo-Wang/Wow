@@ -20,6 +20,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
@@ -35,7 +36,6 @@ import me.ahoo.wow.http.headerCallers
 import me.ahoo.wow.http.wowRoutes
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.junit.jupiter.api.Test
@@ -96,18 +96,18 @@ class StatusTableTest {
     @Test
     fun `version mismatch is 412 with If-Match, 409 without`() {
         val statuses = ErrorStatuses(cartManifest())
-        statuses.status(FrameworkCodes.VERSION_MISMATCH).assert().isEqualTo(409)
-        statuses.status(FrameworkCodes.VERSION_MISMATCH, CONTEXT, ifMatch = true).assert().isEqualTo(412)
-        statuses.status(FrameworkCodes.EXISTS, CONTEXT, ifMatch = true).assert().isEqualTo(409)
+        statuses.status(FrameworkCodes.AGGREGATE_VERSION_MISMATCH).assert().isEqualTo(409)
+        statuses.status(FrameworkCodes.AGGREGATE_VERSION_MISMATCH, CONTEXT, ifMatch = true).assert().isEqualTo(412)
+        statuses.status(FrameworkCodes.AGGREGATE_EXISTS, CONTEXT, ifMatch = true).assert().isEqualTo(409)
     }
 
     @Test
     fun `domain codes take their context's status, else 422, and the host's above all`() {
-        val statuses = ErrorStatuses(cartManifest(), mapOf(FrameworkCodes.BUSY to 503))
+        val statuses = ErrorStatuses(cartManifest(), mapOf(FrameworkCodes.COMMAND_BUSY to 503))
         statuses.status(CART_EMPTY, CONTEXT).assert().isEqualTo(409)
         statuses.status(CART_EMPTY, "other").assert().isEqualTo(422)
         statuses.status(CART_CLOSED, CONTEXT).assert().isEqualTo(422)
-        statuses.status(FrameworkCodes.BUSY).assert().isEqualTo(503)
+        statuses.status(FrameworkCodes.COMMAND_BUSY).assert().isEqualTo(503)
         statuses.status("wow.not.a.code").assert().isEqualTo(500)
         statuses.title(CART_EMPTY, CONTEXT, 409).assert().isEqualTo("The cart has no item.")
         statuses.title(CART_CLOSED, CONTEXT, 422).assert().isEqualTo("Unprocessable Content")
@@ -125,18 +125,18 @@ class StatusTableTest {
         fun rows(): List<Arguments> = listOf(
             Arguments.of(FrameworkCodes.AUTH_FORBIDDEN, 403),
             Arguments.of(FrameworkCodes.AGGREGATE_FORBIDDEN, 403),
-            Arguments.of(FrameworkCodes.MALFORMED, 400),
-            Arguments.of(FrameworkCodes.INVALID, 400),
+            Arguments.of(FrameworkCodes.COMMAND_MALFORMED, 400),
+            Arguments.of(FrameworkCodes.COMMAND_INVALID, 400),
             Arguments.of(FrameworkCodes.WAIT_INVALID, 400),
-            Arguments.of(FrameworkCodes.UNHANDLED, 400),
-            Arguments.of(FrameworkCodes.NOT_FOUND, 404),
-            Arguments.of(FrameworkCodes.EXISTS, 409),
-            Arguments.of(FrameworkCodes.VERSION_MISMATCH, 409),
-            Arguments.of(FrameworkCodes.REQUEST_ID_REUSED, 409),
-            Arguments.of(FrameworkCodes.CONTENDED, 409),
-            Arguments.of(FrameworkCodes.DELETED, 410),
-            Arguments.of(FrameworkCodes.BUSY, 429),
-            Arguments.of(FrameworkCodes.UNKNOWN, 503),
+            Arguments.of(FrameworkCodes.COMMAND_UNHANDLED, 400),
+            Arguments.of(FrameworkCodes.AGGREGATE_NOT_FOUND, 404),
+            Arguments.of(FrameworkCodes.AGGREGATE_EXISTS, 409),
+            Arguments.of(FrameworkCodes.AGGREGATE_VERSION_MISMATCH, 409),
+            Arguments.of(FrameworkCodes.COMMAND_REQUEST_ID_REUSED, 409),
+            Arguments.of(FrameworkCodes.COMMAND_CONTENDED, 409),
+            Arguments.of(FrameworkCodes.AGGREGATE_DELETED, 410),
+            Arguments.of(FrameworkCodes.COMMAND_BUSY, 429),
+            Arguments.of(FrameworkCodes.COMMAND_UNKNOWN, 503),
             Arguments.of(FrameworkCodes.NODE_CLOSING, 503),
             Arguments.of(FrameworkCodes.SUBSCRIPTION_PARKED, 500),
             Arguments.of(FrameworkCodes.WAIT_TIMEOUT, 504),

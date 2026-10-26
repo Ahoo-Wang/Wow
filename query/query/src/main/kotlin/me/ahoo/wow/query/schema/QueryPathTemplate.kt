@@ -19,8 +19,13 @@ import me.ahoo.wow.api.query.QueryField
 /** Schema path parts; keys are captured by logical lookup, items describe array traversal. */
 @InternalWowApi
 sealed interface QueryPathSegment {
+    @InternalWowApi
     data class Property(val name: String) : QueryPathSegment
+
+    @InternalWowApi
     data class Key(val slot: Int) : QueryPathSegment
+
+    @InternalWowApi
     data object Item : QueryPathSegment
 }
 

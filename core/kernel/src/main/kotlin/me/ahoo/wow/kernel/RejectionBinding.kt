@@ -21,6 +21,7 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.read.SubscriptionQueries
+import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.SetSchedule
@@ -172,6 +173,10 @@ class ReceiptSagaContext(
     private val calls = AtomicInteger()
 
     override val queries: SubscriptionQueries get() = contextQueries.of(executionId.ref.tenantId)
+
+    /** A receipt's handler derives its compensation; it does not call another context synchronously. */
+    override suspend fun call(command: Command<*>): CommandResult =
+        throw UnsupportedOperationException("A receipt's handler cannot call another context synchronously.")
 
     /**
      * A command to the aggregate [id] of the type that decides [body]'s class ([CommandTypes.aggregatesOf]), in the

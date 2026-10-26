@@ -31,7 +31,7 @@ import java.nio.file.StandardOpenOption
  * context. The V10 reservation store keeps no origin, so the import records what it confirmed here, and a later import
  * releases what 9.x has released or given to another owner since, and nothing V10 took itself.
  */
-data class ImportedKey(
+internal data class ImportedKey(
     val name: String,
     val context: String,
     val tenantId: String,
@@ -63,7 +63,7 @@ data class ImportedKey(
 }
 
 /** The keys the reservation import confirmed in V10 ([ImportedKey]), kept beside the checkpoints. */
-interface ImportedKeys {
+internal interface ImportedKeys {
     /** Records [keys], before they are confirmed, so a key the import confirms is never unrecorded. */
     suspend fun add(keys: List<ImportedKey>)
 
@@ -75,7 +75,7 @@ interface ImportedKeys {
 }
 
 /** In memory: a dry run's, which records nothing it would keep, and the tests'. */
-class InMemoryImportedKeys : ImportedKeys {
+internal class InMemoryImportedKeys : ImportedKeys {
     private val keys = mutableListOf<ImportedKey>()
 
     val all: List<ImportedKey> get() = synchronized(keys) { keys.toList() }
@@ -102,7 +102,7 @@ class InMemoryImportedKeys : ImportedKeys {
  * kept keys to a sibling file and replaces this one atomically, so a run stopped mid-write leaves the last one whole.
  * A last line cut short by a stop while appending is ignored: its keys were not confirmed yet.
  */
-class FileImportedKeys(private val path: Path) : ImportedKeys {
+internal class FileImportedKeys(private val path: Path) : ImportedKeys {
     override suspend fun add(keys: List<ImportedKey>) {
         if (keys.isEmpty()) {
             return

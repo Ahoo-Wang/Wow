@@ -108,7 +108,16 @@ class StateViewsTest {
             try {
                 repeat(RACES) { race ->
                     val ref = CART.ref(TENANT, "race-$race")
-                    val outcome = committed.copy(stream = committed.stream.copyWith(ref = ref))
+                    val outcome = CommandOutcome.Committed(
+                        committed.stream.copyWith(ref = ref),
+                        committed.position,
+                        committed.state,
+                        committed.results,
+                        committed.deleted,
+                        committed.tags,
+                        committed.schedules,
+                        committed.first,
+                    )
                     views.expect(cartModel(), outcome.stream, state)
                     val start = CyclicBarrier(2)
                     val reader = pool.submit {

@@ -1,3 +1,8 @@
+// The test fixtures: the in-process cluster channel the tests of Wow's modules run nodes over (LoopbackClusterChannel).
+plugins {
+    `java-test-fixtures`
+}
+
 description = "Wow Runtime: gateway, router, cluster channel, executor, subscriptions, waits and lifecycle"
 
 dependencies {

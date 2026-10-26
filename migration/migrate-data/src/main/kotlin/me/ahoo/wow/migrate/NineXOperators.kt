@@ -27,7 +27,7 @@ import me.ahoo.wow.api.caller.Operator
  *
  * A snapshot is rebuilt from the imported log, so its `operator` and `firstOperator` follow from the streams.
  */
-object NineXOperators {
+internal object NineXOperators {
     /** The 9.x header that holds a stream's operator. */
     const val HEADER: String = "command_operator"
 
