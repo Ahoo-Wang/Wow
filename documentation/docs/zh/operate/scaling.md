@@ -45,10 +45,10 @@ outline: deep
 
 | 负载增长时 | 关注 | 然后 |
 | --- | --- | --- |
-| 命令延迟上升 | `wow.command.commit`、存储的追加延迟 | 存储跟得上就增加节点；否则扩容存储 |
-| 命令被拒绝 | 带 `wow.command.busy` 的 `wow.command.refused` | 增加节点，或者找出缓慢的存储或聚合 |
+| 命令延迟上升 | `wow.command.duration`、存储的追加延迟 | 存储跟得上就增加节点；否则扩容存储 |
+| 命令被拒绝 | `error.type=wow.command.busy` 的 `wow.command.refusals` | 增加节点，或者找出缓慢的存储或聚合 |
 | 某个聚合很热 | 它的车道上的拒绝 | 把它的工作拆分到多个聚合：一个聚合的命令按设计就是串行的 |
 | 订阅落后 | `wow.subscription.backlog`、`wow.subscription.lag` | 加快处理函数，增加节点 |
-| 查询被拒绝 | `wow.query.limit`、`wow.query` | 查询连接池或只读副本、更窄的查询、索引 |
+| 查询被拒绝 | `wow.query.limit.current`、`wow.query.duration` | 查询连接池或只读副本、更窄的查询、索引 |
 
 指标见[健康、指标与追踪](./observability)。

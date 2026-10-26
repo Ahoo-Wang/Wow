@@ -181,6 +181,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '迁移数据', link: 'data'},
                 {text: '切换', link: 'cutover'},
                 {text: '平台服务', link: 'platform'},
+                {text: '指标与 Span', link: 'metrics'},
                 {text: 'migrate-data 命令行', base: '/zh/reference/', link: 'migrate-data'},
             ],
         },

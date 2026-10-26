@@ -45,10 +45,10 @@ A partition's subscriptions run on its owner, each at most `wow.subscription.max
 
 | As load grows | Watch | Then |
 | --- | --- | --- |
-| Command latency rises | `wow.command.commit`, the store's append latency | Add nodes if the store keeps up; otherwise scale the store |
-| Commands are refused | `wow.command.refused` with `wow.command.busy` | Add nodes, or find the slow store or aggregate |
+| Command latency rises | `wow.command.duration`, the store's append latency | Add nodes if the store keeps up; otherwise scale the store |
+| Commands are refused | `wow.command.refusals` with `error.type=wow.command.busy` | Add nodes, or find the slow store or aggregate |
 | One aggregate is hot | Its lane's refusals | Split its work across aggregates: one aggregate's commands are serial by design |
 | Subscriptions fall behind | `wow.subscription.backlog`, `wow.subscription.lag` | Speed up the handler, add nodes |
-| Queries are refused | `wow.query.limit`, `wow.query` | A query pool or replica, narrower queries, indexes |
+| Queries are refused | `wow.query.limit.current`, `wow.query.duration` | A query pool or replica, narrower queries, indexes |
 
 [Health, Metrics and Tracing](./observability) lists the metrics.

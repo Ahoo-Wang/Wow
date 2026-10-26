@@ -123,7 +123,13 @@ internal class MongoStore(
         ).also { schema(it::createSchema) }
 
     override fun openReservations(): ReservationStore =
-        MongoReservationStore(client, database, ddl = ddl, operationTimeout = operationTimeout).also {
+        MongoReservationStore(
+            client,
+            database,
+            ddl = ddl,
+            sharding = sharding,
+            operationTimeout = operationTimeout
+        ).also {
             schema(it::createSchema)
         }
 

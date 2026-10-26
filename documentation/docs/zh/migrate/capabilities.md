@@ -43,7 +43,7 @@ outline: deep
 | 命令总线：内存、本地优先、Kafka | 替代 | 默认经集群通道分区路由；需要持久摄入时按聚合类型经 Kafka 路由。 |
 | Redis 命令总线 | 放弃 | — |
 | 单一命令端点（`/wow/command/send`） | 替代 | 每条命令一个路由。 |
-| 命令过滤器与埋点 | 替代 | 一个观测端口，由 OpenTelemetry 模块实现。 |
+| 命令过滤器与埋点 | 替代 | 一个观测端口，由观测模块（`wow-observability`）实现。 |
 | 错误码到 HTTP 状态的映射 | 保留 | 用 `@ErrorCode` 声明，或按错误码配置。 |
 | 领域异常转换为 `ErrorInfo` | 替代 | 决定结果返回一个带已声明错误码的拒绝。 |
 
@@ -161,7 +161,7 @@ outline: deep
 
 | 9.x 能力 | V10 中 | 说明 |
 | --- | --- | --- |
-| OpenTelemetry 追踪 | 保留 | — |
+| OpenTelemetry 追踪 | 保留 | 每个指标和 Span 都改了名：[指标与 Span](./metrics)。 |
 | 指标 | 保留 | — |
 | 健康指示器 | 保留 | V10 新增：Actuator 的就绪与存活分组。 |
 

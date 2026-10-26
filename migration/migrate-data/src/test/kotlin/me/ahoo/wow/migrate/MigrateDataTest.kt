@@ -284,7 +284,7 @@ class MigrateDataTest {
         val config = config(map)
         run("import", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
         printed.assert().contains("PrepareKey order_no reservations done: 1 keys, 1 imported")
-        val scope = ReservationScope.of(NineXExample.CONTEXT, id.tenantId, "order.no")
+        val scope = ReservationScope.of(NineXExample.orderModel.type, id.tenantId, "order.no")
         val owner = NineXExample.orderModel.type.ref(id.tenantId, id.id)
         reservationStore.find(scope, "NO-1")!!.owner.assert().isEqualTo(owner)
         run("compare", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)

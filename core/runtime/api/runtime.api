@@ -512,6 +512,7 @@ public final class me/ahoo/wow/runtime/node/LogGroupBackends {
 	public final fun getCheckpoints ()Lme/ahoo/wow/spi/subscription/CheckpointStore;
 	public final fun getLedger ()Lme/ahoo/wow/spi/ledger/FailureLedger;
 	public final fun getLog ()Lme/ahoo/wow/spi/log/EventLog;
+	public final fun getReservations ()Lme/ahoo/wow/spi/reservation/ReservationStore;
 	public final fun getStore ()Ljava/lang/String;
 	public final fun getTimers ()Lme/ahoo/wow/spi/timer/TimerStore;
 	public final fun getTypes ()Ljava/util/Set;

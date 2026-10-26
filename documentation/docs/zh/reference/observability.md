@@ -5,59 +5,60 @@ description: Wow 节点记录的每个指标及其类型和标签，每个 Span 
 
 # 指标、Span 与健康
 
-Wow 节点向监控报告的每个名字。类路径上有 `wow-opentelemetry` 时，指标进入应用的 Micrometer 注册表，Span 进入它的 `OpenTelemetry`；健康状态通过 Spring Boot Actuator 报告。[健康、指标与追踪](../operate/observability)说明怎样接入它们，以及对什么设置告警。一个测试让本页的每个名字与报告它的代码保持一致。
+Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` 时，指标进入应用的 Micrometer 注册表，Span 进入它的 `OpenTelemetry`；健康状态通过 Spring Boot Actuator 报告。[健康、指标与追踪](../operate/observability)说明怎样接入它们，以及对什么设置告警。一个测试让本页的每个名字与报告它的代码保持一致。9.x 的名字与这些名字的对照见[指标与 Span](../migrate/metrics)。
 
 ## 指标 {#metrics}
 
-标签写作 `name=value`；没有写值的标签，取其名字所说明的值。
+标签写作 `name=value`；没有写值的标签，取其名字所说明的值。标签与 Span 的属性同名（`wow.*`，有语义约定时用约定的名字：`error.type`、`messaging.destination.name`），取值有界：指标从不带聚合 ID、请求 ID 这类标识。分区标签 `wow.partition` 只出现在订阅位置的三个 Gauge 上。
 
 ### 命令 {#commands}
 
 | 指标 | 类型 | 标签 | 度量 |
 | --- | --- | --- | --- |
-| `wow.command.commit` | Timer | `context`, `aggregate`, `outcome` | 命令的执行，从接手它到得出结果 |
-| `wow.command.refused` | Counter | `context`, `aggregate`, `code` | 在内核接手之前就结束的命令，按 problem 错误码 |
-| `wow.command.forward.failed` | Counter | `context`, `outcome` | 转发给分区所有者却没有得到结论的命令：`local`（在本地运行，从未到达所有者）、`busy`（所有者在途的转发已达上限；在本地运行）、`unknown`（可能已到达） |
-| `wow.wait.timeout` | Counter | `context`, `aggregate`, `stage` | 超时的等待，按所等待的阶段 |
-| `wow.wait.signal.dropped` | Counter | `reason` | 发往其他节点、未发送就被丢弃的等待信号 |
-| `wow.executor.in-flight` | Gauge | `context` | 上下文执行器中在途的命令 |
-| `wow.executor.lanes` | Gauge | `context` | 在执行器中有命令的聚合 |
-| `wow.log.append-queue.depth` | Gauge | `context` | 在日志追加队列中等待的提交 |
-| `wow.log.tail.reads` | Counter | `context`, `reason` | 因为内存无法接续而读取存储的 tail：`start`、`gap`、`overflow`、`idle` |
-| `wow.state-cache` | Counter | `context`, `outcome` | 状态缓存的查找和逐出：`hit`、`miss`（一次快照读取和一次 tail 读取）、`evicted` |
-| `wow.store.fallbacks` | Counter | `context`, `capability`, `reason` | 存储放弃某项可选能力、改用所有存储都支持的方式完成工作的次数。`capability`：`snapshot-tail-read`（日志在一次往返中读出快照及其后的尾部）、`snapshot-rebuild`（快照存储的原地重建）。`reason`：`failed`（该能力失败；第一次失败记为 warning 日志）、`unavailable`（该能力不适用于这种情况，例如快照存储与日志不在同一个数据库）、`unsupported`（存储没有这项能力） |
-| `wow.reservation.lost` | Counter | `context` | 待定预留过期后被另一个所有者占用、已提交事实丢失的唯一键（决策 D50）：来自追加后内核的确认，或 `reservation` 订阅的确认 |
+| `wow.command.duration` | Timer | `wow.context`, `wow.aggregate`, `wow.outcome` | 命令的执行，从接手它到得出结果 |
+| `wow.command.refusals` | Counter | `wow.context`, `wow.aggregate`, `error.type` | 在内核接手之前就结束的命令，按 problem 错误码 |
+| `wow.command.forward.failures` | Counter | `wow.context`, `wow.outcome` | 转发给分区所有者却没有得到结论的命令：`local`（在本地运行，从未到达所有者）、`busy`（所有者在途的转发已达上限；在本地运行）、`unknown`（可能已到达） |
+| `wow.wait.timeouts` | Counter | `wow.context`, `wow.aggregate`, `wow.stage` | 超时的等待，按所等待的阶段 |
+| `wow.wait.signal.drops` | Counter | `wow.reason` | 发往其他节点、未发送就被丢弃的等待信号 |
+| `wow.executor.in_flight` | Gauge | `wow.context` | 上下文执行器中在途的命令 |
+| `wow.executor.lanes` | Gauge | `wow.context` | 在执行器中有命令的聚合 |
+| `wow.log.append_queue.depth` | Gauge | `wow.context` | 在日志追加队列中等待的提交 |
+| `wow.log.tail.reads` | Counter | `wow.context`, `wow.reason` | 因为内存无法接续而读取存储的 tail：`start`、`gap`、`overflow`、`idle` |
+| `wow.state_cache.lookups` | Counter | `wow.context`, `wow.outcome` | 状态缓存的查找：`hit`、`miss`（一次快照读取和一次 tail 读取） |
+| `wow.state_cache.evictions` | Counter | `wow.context` | 从状态缓存逐出的状态 |
+| `wow.store.fallbacks` | Counter | `wow.context`, `wow.capability`, `wow.reason` | 存储放弃某项可选能力、改用所有存储都支持的方式完成工作的次数。`wow.capability`：`snapshot-tail-read`（日志在一次往返中读出快照及其后的尾部）、`snapshot-rebuild`（快照存储的原地重建）。`wow.reason`：`failed`（该能力失败；第一次失败记为 warning 日志）、`unavailable`（该能力不适用于这种情况，例如快照存储与日志不在同一个数据库）、`unsupported`（存储没有这项能力） |
+| `wow.reservation.losses` | Counter | `wow.context` | 待定预留过期后被另一个所有者占用、已提交事实丢失的唯一键（决策 D50）：来自追加后内核的确认，或 `reservation` 订阅的确认 |
 
 ### 订阅 {#subscriptions}
 
 | 指标 | 类型 | 标签 | 度量 |
 | --- | --- | --- | --- |
-| `wow.subscription.lag` | Timer | `context`, `subscription` | 从提交到订阅处理它 |
-| `wow.subscription.position` | Gauge | `group`, `subscription`, `partition` | 订阅已处理到的日志位置 |
-| `wow.subscription.backlog` | Gauge | `group`, `subscription`, `partition` | 分区中该位置之后的条目 |
-| `wow.subscription.progress` | Gauge | `group`, `subscription`, `partition` | 该位置与日志头的比值，0 到 1：重建的进度 |
-| `wow.subscription.parked` | Gauge | `subscription` | 订阅当前停放的聚合 |
-| `wow.subscription.parked.notices` | Counter | `subscription`, `kind` | 被停放的条目（`kind=parked`），以及自动重试已用尽的条目（`kind=exhausted`） |
-| `wow.subscription.paused` | Gauge | `group`, `subscription`, `partition` | 分区因系统性失败暂停期间为 1 |
-| `wow.subscription.paused.notices` | Counter | `group`, `subscription`, `partition`, `kind` | 暂停（`kind=paused`）和恢复（`kind=resumed`） |
-| `wow.subscription.throttled` | Gauge | `group`, `subscription`, `partition` | 分区因背压被限速期间为 1 |
-| `wow.subscription.throttled.notices` | Counter | `group`, `subscription`, `partition`, `kind` | 限速（`kind=throttled`）和恢复全速（`kind=unthrottled`） |
-| `wow.subscription.backpressure` | Counter | `group`, `subscription`, `code` | 因背压被拒绝的处理尝试，按 problem 错误码 |
-| `wow.subscription.undecodable` | Counter | `topic`, `outcome` | 某个 topic 中当前版本无法解码的消息，被停放（`outcome=parked`）或跳过（`outcome=skipped`） |
-| `wow.timer.delay` | Timer | `context` | 定时器在到期时间之后多晚触发 |
+| `wow.subscription.lag` | Timer | `wow.context`, `wow.subscription` | 从提交到订阅处理它 |
+| `wow.subscription.position` | Gauge | `wow.group`, `wow.subscription`, `wow.partition` | 订阅已处理到的日志位置 |
+| `wow.subscription.backlog` | Gauge | `wow.group`, `wow.subscription`, `wow.partition` | 分区中该位置之后的条目 |
+| `wow.subscription.progress` | Gauge | `wow.group`, `wow.subscription`, `wow.partition` | 该位置与日志头的比值，0 到 1：重建的进度 |
+| `wow.subscription.parked.aggregates` | Gauge | `wow.subscription` | 订阅当前停放的聚合 |
+| `wow.subscription.parked.notices` | Counter | `wow.subscription`, `wow.kind` | 被停放的条目（`wow.kind=parked`），以及自动重试已用尽的条目（`wow.kind=exhausted`） |
+| `wow.subscription.paused.partitions` | Gauge | `wow.group`, `wow.subscription` | 该节点上订阅因系统性失败暂停的分区数，全部运行时为 0 |
+| `wow.subscription.paused.notices` | Counter | `wow.group`, `wow.subscription`, `wow.kind` | 暂停（`wow.kind=paused`）和恢复（`wow.kind=resumed`） |
+| `wow.subscription.throttled.partitions` | Gauge | `wow.group`, `wow.subscription` | 该节点上订阅因背压被限速的分区数，全速运行时为 0 |
+| `wow.subscription.throttled.notices` | Counter | `wow.group`, `wow.subscription`, `wow.kind` | 限速（`wow.kind=throttled`）和恢复全速（`wow.kind=unthrottled`） |
+| `wow.subscription.backpressure.refusals` | Counter | `wow.group`, `wow.subscription`, `error.type` | 因背压被拒绝的处理尝试，按 problem 错误码 |
+| `wow.subscription.undecodable.messages` | Counter | `messaging.destination.name`, `wow.outcome` | 某个 topic 中当前版本无法解码的消息，被停放（`wow.outcome=parked`）或跳过（`wow.outcome=skipped`） |
+| `wow.timer.delay` | Timer | `wow.context` | 定时器在到期时间之后多晚触发 |
 | `wow.kafka.offset.gaps` | Counter | | 读取其他上下文的 topic 时遇到的 offset 空缺 |
 
 ### 查询 {#queries}
 
 | 指标 | 类型 | 标签 | 度量 |
 | --- | --- | --- | --- |
-| `wow.query` | Timer | `context`, `aggregate`, `query.type`, `outcome` | 一次查询，从准入到结束 |
-| `wow.query.events.pinned` | Counter | `context`, `aggregate`, `read` | 限定到其聚合的事件查询，按批读取（`read=batch`）或按点读取（`read=point`） |
-| `wow.query.limit` | Gauge | `store` | 存储当前的并发查询上限 |
-| `wow.query.pressure` | Gauge | `store` | 自适应上限处于压力之下期间为 1 |
-| `wow.query.limit.decreases` | Counter | `store` | 自适应上限下调的次数 |
+| `wow.query.duration` | Timer | `wow.context`, `wow.aggregate`, `wow.query.type`, `wow.outcome` | 一次查询，从准入到结束 |
+| `wow.query.events.pinned` | Counter | `wow.context`, `wow.aggregate`, `wow.read` | 限定到其聚合的事件查询，按批读取（`wow.read=batch`）或按点读取（`wow.read=point`） |
+| `wow.query.limit.current` | Gauge | `wow.store` | 存储当前的并发查询上限 |
+| `wow.query.pressure` | Gauge | `wow.store` | 自适应上限处于压力之下期间为 1 |
+| `wow.query.limit.decreases` | Counter | `wow.store` | 自适应上限下调的次数 |
 
-Gauge 每隔 `wow.opentelemetry.sample-interval`（15 s）采样一次；对象已不存在的 Gauge，例如已经移到另一个节点的订阅，会被移除。
+Gauge 每隔 `wow.observability.sample-interval`（15 s）采样一次；对象已不存在的 Gauge，例如已经移到另一个节点的订阅，会被移除。
 
 ## Span {#spans}
 

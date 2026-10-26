@@ -88,6 +88,7 @@ class ConfigurationKeysTest {
         ConfigurationKeys.renamed("wow.stores.main.query.adaptive.enabled").assert().contains("max-concurrent")
         ConfigurationKeys.renamed("wow.query.adaptive.latency-factor").assert().contains("max-concurrent")
         ConfigurationKeys.renamed("wow.query.adaptive.ceiling").assert().isNull()
+        ConfigurationKeys.renamed("wow.opentelemetry.sample-interval").assert().isEqualTo("renamed wow.observability")
     }
 
     @Test

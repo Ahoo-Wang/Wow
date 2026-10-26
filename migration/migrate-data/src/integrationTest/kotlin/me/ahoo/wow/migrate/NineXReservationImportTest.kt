@@ -71,7 +71,7 @@ class NineXReservationImportTest {
     private fun run(vararg args: String): Int = MigrateData(PrintStream(output, true)).run(args.toList())
 
     private fun scope(tenantId: String, namespace: String = "order.no") =
-        ReservationScope.of(NineXExample.CONTEXT, tenantId, namespace)
+        ReservationScope.of(NineXExample.orderModel.type, tenantId, namespace)
 
     @Test
     fun `the confirmed 9x PrepareKey keys import as V10 reservations of their owners`(): Unit = runBlocking {

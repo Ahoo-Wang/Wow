@@ -192,7 +192,7 @@ class RuntimeValuesTest {
         )
         group.toString().assert().isEqualTo(
             "LogGroupBackends(store=other, types=${group.types}, log=${group.log}, checkpoints=$checkpoints, " +
-                "ledger=$ledger, timers=null)",
+                "ledger=$ledger, timers=null, reservations=null)",
         )
     }
 

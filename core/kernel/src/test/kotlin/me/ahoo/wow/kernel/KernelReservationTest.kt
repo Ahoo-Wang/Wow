@@ -102,13 +102,19 @@ class KernelReservationTest {
         execute(user, Register(name, refuse), tenant)
 
     private suspend fun find(name: String, tenant: String = "t"): Reservation? =
-        reservations.find(ReservationScope("test", tenant, NAMES), name)
+        reservations.find(ReservationScope(model.type, tenant, NAMES), name)
 
     @Test
     fun `a committed command confirms its reservation`() = runTest {
         register("u-1", "ahoo").assert().isInstanceOf(CommandOutcome.Committed::class.java)
         find("ahoo").assert().isEqualTo(
-            Reservation(ReservationScope("test", "t", NAMES), "ahoo", model.type.ref("t", "u-1"), null, version = 1),
+            Reservation(
+                ReservationScope(model.type, "t", NAMES),
+                "ahoo",
+                model.type.ref("t", "u-1"),
+                null,
+                version = 1
+            ),
         )
     }
 
@@ -181,7 +187,7 @@ class KernelReservationTest {
         (execute("u-2", Register("root", system = true), "tenant-b") as CommandOutcome.Rejected)
             .rejection.code.assert().isEqualTo("name.taken")
         register("u-2", "root", tenant = "tenant-b").assert().isInstanceOf(CommandOutcome.Committed::class.java)
-        reservations.find(ReservationScope("test", ReservationScope.SYSTEM_TENANT, NAMES), "root")?.owner
+        reservations.find(ReservationScope(model.type, ReservationScope.SYSTEM_TENANT, NAMES), "root")?.owner
             .assert().isEqualTo(model.type.ref("tenant-a", "u-1"))
         log.tail(0).take(1).toList().single().decodedTransport
             .assert().isEqualTo(Transport(reservations = listOf(ReservationKey(NAMES, "root", system = true))))
@@ -206,7 +212,13 @@ class KernelReservationTest {
         // Decided again on the committed rename: nothing left to do.
         slow.await().assert().isInstanceOf(CommandOutcome.Unchanged::class.java)
         find("ahoo").assert().isEqualTo(
-            Reservation(ReservationScope("test", "t", NAMES), "ahoo", model.type.ref("t", "u-1"), null, version = 2),
+            Reservation(
+                ReservationScope(model.type, "t", NAMES),
+                "ahoo",
+                model.type.ref("t", "u-1"),
+                null,
+                version = 2
+            ),
         )
         register("u-2", "ahoo").assert().isInstanceOf(CommandOutcome.Rejected::class.java)
     }

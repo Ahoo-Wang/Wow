@@ -16,7 +16,7 @@ Wow 仓库包含框架的 JVM 模块、TypeScript 包、平台服务、eShop 示
 | `core/` | `:spi`，后端实现的端口；`:kernel`，decide、evolve 和 append 循环；`:runtime`，节点（准入、路由、集群通道、执行器、订阅、等待）；`:reactor`，Reactor 适配器 |
 | `query/` | `:query`，查询引擎；`:query-tck`，每个查询后端都要通过的契约 |
 | `backends/` | 每种技术一个模块：`:postgres`、`:mongo`、`:elasticsearch`、`:clickhouse`、`:kafka` |
-| `edge/` | `:http`，来自 Manifest 的路由；`:openapi`；`:client`，类型化的 HTTP 客户端；`:cosec`；`:opentelemetry` |
+| `edge/` | `:http`，来自 Manifest 的路由；`:openapi`；`:client`，类型化的 HTTP 客户端；`:cosec`；`:observability` |
 | `host/` | `:spring-boot`，组合节点的自动配置 |
 | `extensions/` | `:cosid`、`:models` |
 | `migration/` | `:migrate-data`，导入 9.x 事件流 |

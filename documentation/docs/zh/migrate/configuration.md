@@ -38,7 +38,7 @@ V10 的配置项也在 `wow.*` 之下，但 9.x 的配置项一个都不沿用�
 | --- | --- |
 | `wow.kafka.bootstrap-servers` | `wow.kafka.bootstrap-servers`，现在只用于发布的事件流和发往其他上下文的命令 |
 | `wow.kafka.properties`、`producer`、`consumer`、`close-timeout` | V10 的 `wow.kafka.*`（[Kafka](../operate/kafka)） |
-| `wow.kafka.decode-failure-strategy` | 已移除：订阅无法解码的记录会让它停放（`wow.subscription.undecodable` 对它们计数） |
+| `wow.kafka.decode-failure-strategy` | 已移除：订阅无法解码的记录会让它停放（`wow.subscription.undecodable.messages` 对它们计数） |
 | 按约定命名的 topic | `wow.<context>.commands` 和 `wow.<context>.<aggregate>.state`，按 `wow.kafka.ddl` 的设置创建 |
 
 ## HTTP 与查询 {#http-and-queries}

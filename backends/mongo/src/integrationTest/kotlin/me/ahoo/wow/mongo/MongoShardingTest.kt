@@ -14,6 +14,11 @@
 package me.ahoo.wow.mongo
 
 import com.mongodb.client.model.Filters
+import com.mongodb.ConnectionString
+import com.mongodb.client.MongoClients
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -23,19 +28,23 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.log.MongoLogFixture
+import me.ahoo.wow.mongo.reservation.MongoReservationStore
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.tck.containers.WowContainers
 import org.bson.Document
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.minutes
 
 /**
- * The log and the snapshots on a sharded cluster (decision D277), when `wow.mongo.url` names a mongos
+ * The log, the snapshots and the reservations on a sharded cluster (decisions D277, D307), when `wow.mongo.url` names a mongos
  * (`test/mongo-cluster/cluster.sh test sharded`); skipped otherwise.
  */
 class MongoShardingTest {
@@ -100,6 +109,54 @@ class MongoShardingTest {
     }
 
     @Test
+    fun `a new reservation collection is sharded by tenant and the key's hash, a key read on one shard`(): Unit =
+        runBlocking {
+            val type = AggregateType(MongoLogFixture.newContext(), "user")
+            val store = MongoReservationStore(client, MongoLogFixture.DATABASE)
+            val scope = ReservationScope.of(type, "tenant", "name")
+            store.reserve(scope, "ahoo", type.ref("tenant", "u-1"), "h", TTL).assert().isNotNull()
+            val name = MongoNames.of("wow_reservation", type.context, type.name)
+            keyOf("${MongoLogFixture.DATABASE}.$name").assert()
+                .isEqualTo(Document("tenant_id", 1).append("key", "hashed"))
+            val collection = client.getDatabase(MongoLogFixture.DATABASE).getCollection(name)
+            val byKey = Filters.and(
+                Filters.eq("_id", Document("t", "tenant").append("n", "name").append("k", "ahoo")),
+                Filters.eq("tenant_id", "tenant"),
+                Filters.eq("key", "ahoo"),
+            )
+            shardsOf(collection.find(byKey).explain()).assert().hasSize(1)
+        }
+
+    @Test
+    fun `concurrent reserves of the same keys through two routers leave each key one owner`(): Unit = runBlocking {
+        val hosts = ConnectionString(WowContainers.mongoUrl).hosts
+        assumeTrue(hosts.size > 1, "Needs two mongos routers in wow.mongo.url.")
+        val routers = hosts.take(2).map { MongoClients.create("mongodb://$it/") }
+        try {
+            val type = AggregateType(MongoLogFixture.newContext(), "user")
+            val stores = routers.map { MongoReservationStore(it, MongoLogFixture.DATABASE) }
+            val scope = ReservationScope.of(type, "tenant", "name")
+            val keys = (1..KEYS).map { "key-$it" }
+            val won = keys.flatMap { key ->
+                (1..OWNERS).map { owner ->
+                    async(Dispatchers.IO) {
+                        val ref = type.ref("tenant", "u-$owner")
+                        val held = stores[owner % stores.size].reserve(scope, key, ref, "h-$owner", TTL)
+                        if (held?.owner == ref) key to ref else null
+                    }
+                }
+            }.awaitAll().filterNotNull()
+            won.groupBy({ it.first }, { it.second }).forEach { (key, owners) ->
+                owners.assert().hasSize(1)
+                stores.forEach { it.find(scope, key)?.owner.assert().isEqualTo(owners.single()) }
+            }
+            won.map { it.first }.toSet().assert().isEqualTo(keys.toSet())
+        } finally {
+            routers.forEach { it.close() }
+        }
+    }
+
+    @Test
     fun `with sharding off a store leaves its collections unsharded`(): Unit = runBlocking {
         val context = MongoLogFixture.newContext()
         MongoEventLog(client, MongoLogFixture.DATABASE, context, PARTITIONS, sharding = MongoSharding.OFF)
@@ -145,5 +202,8 @@ class MongoShardingTest {
 
     private companion object {
         const val PARTITIONS = 8
+        const val KEYS = 32
+        const val OWNERS = 4
+        val TTL = 1.minutes
     }
 }

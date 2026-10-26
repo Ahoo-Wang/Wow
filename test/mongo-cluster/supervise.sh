@@ -18,7 +18,8 @@
 # restart. Roadmap §6 item 18.
 #
 #   supervise.sh rs        three members of the replica set rs0 on 27101-27103
-#   supervise.sh sharded   mongos on 27200; the config server cfg on 27201; shards sh1 (27211-27213), sh2 (27221-27223)
+#   supervise.sh sharded   mongos routers on 27200 and 27202; the config server cfg on 27201; shards sh1 (27211-27213),
+#                          sh2 (27221-27223)
 set -euo pipefail
 
 MODE=${1:?rs or sharded}
@@ -92,6 +93,9 @@ case $MODE in
     initiate sh1 false 27211 27212 27213
     initiate sh2 false 27221 27222 27223
     member mongos 27200 mongos --configdb cfg/localhost:27201
+    start "${MEMBERS[-1]}"
+    # A second router: the tests reserve the same keys through both at once (decision D307).
+    member mongos2 27202 mongos --configdb cfg/localhost:27201
     start "${MEMBERS[-1]}"
     mongosh --quiet --port 27200 --eval "
       sh.addShard('sh1/localhost:27211,localhost:27212,localhost:27213');

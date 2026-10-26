@@ -63,7 +63,7 @@ dependencies {
     implementation(project(":wow-mongo"))
     implementation(project(":wow-mock"))
     implementation(project(":wow-kafka"))
-    implementation(project(":wow-opentelemetry"))
+    implementation(project(":wow-observability"))
     implementation(project(":wow-apiclient"))
     implementation(project(":wow-webflux"))
     implementation(project(":wow-bi"))
