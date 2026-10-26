@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.ScopeHeader
 import me.ahoo.wow.api.wire.WaitHeader
@@ -25,7 +26,6 @@ import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CallHeaders
 import org.springframework.http.HttpHeaders
@@ -70,7 +70,7 @@ internal class RequestHeaders(
      * The target scope of `Wow-Scope`, or null without it; one that does not parse, or names several tenants (a query
      * route's alone, [queryTarget]), is a problem with [malformed].
      */
-    fun target(request: ServerRequest, malformed: String = FrameworkCodes.MALFORMED): TargetScope? =
+    fun target(request: ServerRequest, malformed: String = FrameworkCodes.COMMAND_MALFORMED): TargetScope? =
         scope(request, malformed, ScopeHeader::parse)
 
     /**
@@ -100,7 +100,7 @@ internal class RequestHeaders(
         }
         val tag = value.removeSurrounding("\"")
         return tag.toIntOrNull()?.takeIf { it >= 0 }
-            ?: throw problem(FrameworkCodes.MALFORMED, "If-Match is one version as an entity tag, such as \"3\".")
+            ?: throw problem(FrameworkCodes.COMMAND_MALFORMED, "If-Match is one version as an entity tag, such as \"3\".")
     }
 
     /**
@@ -108,7 +108,7 @@ internal class RequestHeaders(
      * it is answered 403 `wow.auth.forbidden` whatever its credential: a call is taken on the internal port alone
      * (decision D173). On the internal port every request is a call: one without it, or from a caller that is not a
      * [service][Caller.service] identity, is answered 403 too. One that does not parse is a problem with
-     * [FrameworkCodes.MALFORMED]; null on the public port without it.
+     * [FrameworkCodes.COMMAND_MALFORMED]; null on the public port without it.
      *
      * A call's wait context goes on only when its origin is a node of the calling service (review R2.3-1): the target
      * sends the wait's signals, with a credential, to the origin's address, so a caller must not point them at another
@@ -151,7 +151,7 @@ internal class RequestHeaders(
     private fun parseCall(value: String): CallContext = try {
         CallHeaders.parse(value)
     } catch (invalid: IllegalArgumentException) {
-        throw problem(FrameworkCodes.MALFORMED, invalid.message ?: "${WowHeaders.CALL} does not parse.")
+        throw problem(FrameworkCodes.COMMAND_MALFORMED, invalid.message ?: "${WowHeaders.CALL} does not parse.")
     }
 
     /** The request id of `Wow-Request-Id`, or null without it. */

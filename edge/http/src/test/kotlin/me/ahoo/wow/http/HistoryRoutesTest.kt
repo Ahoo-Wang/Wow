@@ -18,10 +18,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.http.read.StateHandler
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.FrameworkErrors
-import me.ahoo.wow.runtime.FrameworkCodes
 import org.junit.jupiter.api.Test
 
 /** `GET …/{id}/state?at=` and `GET …/{id}/state/trace` (decision D40). */
@@ -83,7 +83,7 @@ class HistoryRoutesTest {
     @Test
     fun `a time before the first commit is 404, one that is not an instant 400`() {
         history()
-        at("1970-01-01T00:00:00.999Z").assertCode(404, FrameworkCodes.NOT_FOUND)
+        at("1970-01-01T00:00:00.999Z").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
         at("yesterday").assertCode(400, FrameworkErrors.QUERY_INVALID)
         at("1970-01-01T00:00:01").assertCode(400, FrameworkErrors.QUERY_INVALID)
         node.get(
@@ -94,8 +94,8 @@ class HistoryRoutesTest {
     @Test
     fun `a state at a time outside the caller's scope is not found (Q-5)`() {
         history()
-        at("1970-01-01T00:00:02Z", user = "bob").assertCode(404, FrameworkCodes.NOT_FOUND)
-        at("1970-01-01T00:00:02Z", user = null).assertCode(401, FrameworkCodes.UNAUTHENTICATED)
+        at("1970-01-01T00:00:02Z", user = "bob").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
+        at("1970-01-01T00:00:02Z", user = null).assertCode(401, FrameworkCodes.AUTH_UNAUTHENTICATED)
     }
 
     @Test
@@ -147,8 +147,8 @@ class HistoryRoutesTest {
     @Test
     fun `a trace with no commit is 404, a parameter that is not one 400`() {
         history()
-        node.get("/shop/cart/c-1/state/trace?from=4").assertCode(404, FrameworkCodes.NOT_FOUND)
-        node.get("/shop/cart/c-2/state/trace").assertCode(404, FrameworkCodes.NOT_FOUND)
+        node.get("/shop/cart/c-1/state/trace?from=4").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
+        node.get("/shop/cart/c-2/state/trace").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
         listOf(
             "from=0",
             "from=one",
@@ -164,17 +164,17 @@ class HistoryRoutesTest {
     @Test
     fun `a trace is read in the caller's scope, every commit`() {
         history()
-        node.get("/shop/cart/c-1/state/trace", user = "bob").assertCode(404, FrameworkCodes.NOT_FOUND)
-        node.get("/shop/cart/c-1/state/trace", user = null).assertCode(401, FrameworkCodes.UNAUTHENTICATED)
+        node.get("/shop/cart/c-1/state/trace", user = "bob").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
+        node.get("/shop/cart/c-1/state/trace", user = null).assertCode(401, FrameworkCodes.AUTH_UNAUTHENTICATED)
         node.now = { 4000 }
         node.post("/shop/cart/c-1/wow.lifecycle.transfer-owner", """{"ownerId":"bob"}""").status.assert().isEqualTo(200)
         // Bob holds the cart from version 4 on: its earlier commits stay alice's.
         node.get("/shop/cart/c-1/state/trace?from=4", user = "bob").status.assert().isEqualTo(200)
-        node.get("/shop/cart/c-1/state/trace?from=3", user = "bob").assertCode(404, FrameworkCodes.NOT_FOUND)
+        node.get("/shop/cart/c-1/state/trace?from=3", user = "bob").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
         // Alice no longer sees the cart: she is checked on its latest state before its log is replayed (review R4-Q,
         // Q-1), so even the commits she held are not found for her.
-        node.get("/shop/cart/c-1/state/trace?to=3").assertCode(404, FrameworkCodes.NOT_FOUND)
-        node.get("/shop/cart/c-1/state/trace").assertCode(404, FrameworkCodes.NOT_FOUND)
+        node.get("/shop/cart/c-1/state/trace?to=3").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
+        node.get("/shop/cart/c-1/state/trace").assertCode(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
         val trace = node.get("/shop/cart/c-1/state/trace?from=4", user = "bob").body!!["commits"][0]
         trace["events"][0]["name"].asString().assert().isEqualTo(Lifecycle.OWNER_TRANSFERRED)
         trace["events"][0]["body"]["ownerId"].asString().assert().isEqualTo("bob")

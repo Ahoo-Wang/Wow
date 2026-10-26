@@ -33,6 +33,7 @@ import java.util.concurrent.ConcurrentHashMap
 fun interface QueryStorageLocator {
     fun storage(aggregateType: AggregateType, model: QueryModel): QueryStorageAdapter?
 
+    @InternalWowApi
     companion object {
         /** Locates no storage: every model of the Catalog is unavailable. */
         @JvmField
@@ -106,6 +107,7 @@ class QuerySchemaCatalog(
     )
 
     /** The state of one schema: its content-hash [version], or the [error] that kept it from loading. */
+    @InternalWowApi
     data class Status(
         val aggregate: String,
         val model: QueryModel,
@@ -229,6 +231,7 @@ fun interface QuerySchemaRefreshListener {
      */
     fun refreshed(status: QuerySchemaCatalog.Status, changed: Boolean, elapsed: Duration)
 
+    @InternalWowApi
     companion object {
         @JvmField
         val NONE: QuerySchemaRefreshListener = QuerySchemaRefreshListener { _, _, _ -> }
@@ -240,6 +243,7 @@ fun interface QuerySchemaRefreshListener {
 fun interface QueryModelCompiler {
     fun compile(context: QuerySchemaContext, storage: QueryStorageAdapter): QueryModelSchemaProvider
 
+    @InternalWowApi
     companion object {
         /**
          * Merges the declarations of [sources] into the logical model under [sensitivity] and compiles the storage's

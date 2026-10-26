@@ -16,7 +16,7 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.kernel.Creation
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.aggregate
@@ -59,6 +59,7 @@ class Holding {
  */
 class TreasuryModels : ModelProvider {
     override val context: String = TREASURY
+    override val binding: Int = ModelProvider.BINDING
     override val fragment: String = "META-INF/wow/manifest/host-it-treasury.json"
 
     override fun models(dependencies: Dependencies): List<AggregateModel<*>> = listOf(

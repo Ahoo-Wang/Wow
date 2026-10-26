@@ -61,6 +61,7 @@ data class QueryStorageFamilyRules(
      */
     val strictValueTypes: Boolean = true,
 ) {
+    @InternalWowApi
     companion object {
         /** The strict table: every rule on. */
         @JvmField

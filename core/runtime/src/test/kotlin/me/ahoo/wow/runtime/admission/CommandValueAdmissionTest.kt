@@ -16,19 +16,19 @@ package me.ahoo.wow.runtime.admission
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.Executor
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.LruStateCache
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
@@ -140,7 +140,7 @@ class CommandValueAdmissionTest {
         val refused = gateway().execute(
             CommandRequest.builder(Unwritable(), cart.unassigned(TENANT)).caller(alice).build()
         )
-        refused.error!!.code.assert().isEqualTo(FrameworkCodes.MALFORMED)
+        refused.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
     }
 
     @Test
@@ -155,14 +155,14 @@ class CommandValueAdmissionTest {
             .aggregateId("cart-1")
             .build()
         val result = gateway().execute(mismatched)
-        result.error!!.code.assert().isEqualTo(FrameworkCodes.MALFORMED)
+        result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         result.error!!.message.assert().contains("shop.cart.AddItem")
     }
 
     @Test
     fun `a class the aggregate does not decide is unhandled, as is an aggregate not served`(): Unit = runBlocking {
         val unknown = gateway().execute(request(Unknown()))
-        unknown.error!!.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
+        unknown.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
         unknown.error!!.message.assert().contains(Unknown::class.java.name)
         val elsewhere = gateway().execute(
             CommandRequest.builder(
@@ -170,13 +170,13 @@ class CommandValueAdmissionTest {
                 AggregateType("elsewhere", "cart").ref(TENANT, "c")
             ).caller(alice).build()
         )
-        elsewhere.error!!.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
+        elsewhere.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
     }
 
     @Test
     fun `a ref in another tenant than the caller's is malformed`(): Unit = runBlocking {
         val result = gateway().execute(request(AddItem("apple"), tenant = "other"))
-        result.error!!.code.assert().isEqualTo(FrameworkCodes.MALFORMED)
+        result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         result.error!!.message.assert().contains("tenant other").contains("tenant $TENANT")
         bodies.assert().isEmpty()
     }
@@ -185,9 +185,9 @@ class CommandValueAdmissionTest {
     fun `a command object that writes a NUL character, or that is not written as JSON, is malformed`(): Unit =
         runBlocking {
             gateway().execute(request(AddItem("ap\u0000ple"))).error!!.code.assert()
-                .isEqualTo(FrameworkCodes.MALFORMED)
+                .isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
             val unwritable = gateway().execute(request(Unwritable()))
-            unwritable.error!!.code.assert().isEqualTo(FrameworkCodes.MALFORMED)
+            unwritable.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
             unwritable.error!!.message.assert().contains("not written as JSON")
             bodies.assert().isEmpty()
         }
@@ -203,7 +203,7 @@ class CommandValueAdmissionTest {
             if ((body as AddItem).quantity > 0) emptyList() else listOf(Violation("quantity", "Min", "At least 1."))
         }
         val invalid = gateway(authorizer, listOf(positive)).execute(request(AddItem("apple", 0)))
-        invalid.error!!.code.assert().isEqualTo(FrameworkCodes.INVALID)
+        invalid.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
         seen.single().type.name.assert().isEqualTo("shop.cart.AddItem")
         val doubled = object : CommandTransformer {
             override val input = model.commandType(AddItem::class.java)

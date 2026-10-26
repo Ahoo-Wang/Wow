@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.decide
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.result.FrameworkCodes
 
 /**
  * What a decide function concluded about a command: the events it produces, that it changes nothing, or that it
@@ -125,8 +126,6 @@ class Rejection @InternalWowApi constructor(
     private fun valueFields(): List<Any?> = listOf(code, message, extensions)
 
     companion object {
-        /** The prefix of the framework's codes, which a domain does not reject with. */
-        private const val RESERVED_PREFIX = "wow."
 
         /**
          * The rejection [code] with [message] and the structured [extensions]. [code] is not one of the framework's
@@ -135,8 +134,8 @@ class Rejection @InternalWowApi constructor(
         @JvmStatic
         @JvmOverloads
         fun of(code: String, message: String, extensions: Map<String, Any?> = emptyMap()): Rejection {
-            require(!code.startsWith(RESERVED_PREFIX)) {
-                "The rejection code $code starts with $RESERVED_PREFIX, which the framework reserves for its own codes: " +
+            require(!code.startsWith(FrameworkCodes.PREFIX)) {
+                "The rejection code $code starts with ${FrameworkCodes.PREFIX}, which the framework reserves for its own codes: " +
                     "reject with a code of the aggregate."
             }
             return Rejection(code, message, extensions)

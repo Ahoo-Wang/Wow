@@ -21,10 +21,12 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.ScheduleCancelled
 import me.ahoo.wow.api.schedule.ScheduleContext
@@ -246,7 +248,7 @@ class KernelScheduleTest {
         send(Place())
         val wrong = send(SetSchedule("ping", ScheduleRule.cron("0 0 3 * * *"), "test.order.CancelOrdr", "{}"))
         val rejection = (wrong as CommandOutcome.Rejected).rejection
-        rejection.code.assert().isEqualTo(KernelRejections.UNHANDLED)
+        rejection.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
         rejection.message.assert().contains("test.order.CancelOrdr").contains("ping")
         // Another aggregate's command is not this one's either.
         send(SetSchedule("ping", ScheduleRule.At(NOW + 9), "test.shipment.Notify", "{}"))
@@ -262,7 +264,7 @@ class KernelScheduleTest {
     @Test
     fun `a schedule's system command to an aggregate that does not exist is rejected`(): Unit = runTest {
         val outcome = send(SetSchedule("ping", ScheduleRule.At(NOW), "test.order.CancelOrder", "{}"))
-        (outcome as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(KernelRejections.NOT_FOUND)
+        (outcome as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
 
     @Test

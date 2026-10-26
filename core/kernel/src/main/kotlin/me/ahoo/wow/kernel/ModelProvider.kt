@@ -23,6 +23,13 @@ import java.util.ServiceLoader
  * service with [load], without scanning or reflecting (decision D37).
  */
 interface ModelProvider {
+    /**
+     * The binding the module was generated for: [BINDING] of the kernel its compiler was released with. [load] refuses
+     * a module of another binding, so a module built by another Wow version fails at startup, not with a
+     * `NoSuchMethodError` on its first command. A provider written by hand says [BINDING].
+     */
+    val binding: Int
+
     /** The bounded context of the module's aggregates. */
     val context: String
 
@@ -44,10 +51,35 @@ interface ModelProvider {
     fun processors(dependencies: Dependencies): List<ProcessorBinding<*>> = emptyList()
 
     companion object {
-        /** The model providers registered on [classLoader], ordered by [fragment]. */
+        /**
+         * The binding between the code the compiler generates and this kernel: raised whenever what the generated
+         * code calls changes (the model builder, the processor bindings, [Dependencies]).
+         */
+        const val BINDING: Int = 1
+
+        /**
+         * The model providers registered on [classLoader], ordered by [fragment]; an [IllegalStateException] when one
+         * was generated for another [binding].
+         */
         @JvmStatic
         @JvmOverloads
         fun load(classLoader: ClassLoader? = Thread.currentThread().contextClassLoader): List<ModelProvider> =
-            ServiceLoader.load(ModelProvider::class.java, classLoader).sortedBy { it.fragment }
+            ServiceLoader.load(ModelProvider::class.java, classLoader).sortedBy { it.fragment }.onEach(::checkBinding)
+
+        /** Fails unless [provider] was generated for this kernel's [BINDING]. */
+        @JvmStatic
+        fun checkBinding(provider: ModelProvider) {
+            // A module generated before the handshake has no binding at all: its class lacks the member.
+            val binding = try {
+                provider.binding
+            } catch (_: AbstractMethodError) {
+                null
+            }
+            check(binding == BINDING) {
+                "${provider.javaClass.name} (${provider.fragment}) was generated for binding ${binding ?: "none"} " +
+                    "of wow-kernel, which reads binding $BINDING: build the module with the wow-compiler of this " +
+                    "Wow version."
+            }
+        }
     }
 }

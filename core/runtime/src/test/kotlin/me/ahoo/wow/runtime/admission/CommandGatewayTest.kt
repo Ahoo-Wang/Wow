@@ -23,6 +23,7 @@ import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
@@ -30,16 +31,15 @@ import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.TransformedFrom
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.Executor
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
@@ -326,7 +326,7 @@ class CommandGatewayTest {
         )
             .status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         val conflict = gateway.execute(request(caller = admin, target = TargetScope("ops", Scope("admin"))))
-        conflict.assertRefused(FrameworkCodes.MALFORMED)
+        conflict.assertRefused(FrameworkCodes.COMMAND_MALFORMED)
         conflict.error!!.message.assert().contains("fixed to t0")
         conflict.ref.tenantId.assert().isEqualTo("t0")
         gateway.execute(request(caller = bob, target = target)).assertRefused(FrameworkCodes.AUTH_FORBIDDEN)
@@ -367,13 +367,13 @@ class CommandGatewayTest {
     fun `conflicting or missing identity sources are refused as malformed`(): Unit = runBlocking {
         val gateway = gateway()
         gateway.execute(request(headers = mapOf("Wow-Tenant-Id" to "other")))
-            .assertRefused(FrameworkCodes.MALFORMED)
-        gateway.execute(request(headers = mapOf("wow.owner" to "bob"))).assertRefused(FrameworkCodes.MALFORMED)
-        gateway.execute(request(requestId = " ")).assertRefused(FrameworkCodes.MALFORMED)
-        gateway.execute(request(aggregateId = " ")).assertRefused(FrameworkCodes.MALFORMED)
-        gateway.execute(request().copyWith(expectedVersion = -1)).assertRefused(FrameworkCodes.MALFORMED)
+            .assertRefused(FrameworkCodes.COMMAND_MALFORMED)
+        gateway.execute(request(headers = mapOf("wow.owner" to "bob"))).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
+        gateway.execute(request(requestId = " ")).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
+        gateway.execute(request(aggregateId = " ")).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
+        gateway.execute(request().copyWith(expectedVersion = -1)).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
         val missing = gateway.execute(request(command = "Checkout", body = "{}", aggregateId = null))
-        missing.assertRefused(FrameworkCodes.MALFORMED)
+        missing.assertRefused(FrameworkCodes.COMMAND_MALFORMED)
         missing.ref.id.assert().isEqualTo(CommandGateway.UNADDRESSED)
         decided.assert().isEmpty()
         // A request fact outside the framework's namespace travels with the command.
@@ -404,10 +404,12 @@ class CommandGatewayTest {
     @Test
     fun `a body that does not decode as the command is malformed`(): Unit = runBlocking {
         val gateway = gateway()
-        gateway.execute(request(body = "{not json")).assertRefused(FrameworkCodes.MALFORMED)
-        gateway.execute(request(body = """{"quantity":2}""")).assertRefused(FrameworkCodes.MALFORMED)
-        gateway.execute(request(body = """{"sku":"apple","quantity":"many"}""")).assertRefused(FrameworkCodes.MALFORMED)
-        gateway.execute(request(body = "null")).assertRefused(FrameworkCodes.MALFORMED)
+        gateway.execute(request(body = "{not json")).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
+        gateway.execute(request(body = """{"quantity":2}""")).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
+        gateway.execute(
+            request(body = """{"sku":"apple","quantity":"many"}""")
+        ).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
+        gateway.execute(request(body = "null")).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
         decided.assert().isEmpty()
         val tree = JsonMapper.builder().build().readTree("""{"sku":"pear","quantity":3}""")
         gateway.execute(request().copyWith(body = CommandBody.Tree(tree))).status
@@ -418,13 +420,19 @@ class CommandGatewayTest {
     fun `a body that writes a NUL character in a string or a key is malformed`(): Unit = runBlocking {
         // Finding A2-7: PostgreSQL's jsonb refuses it and MongoDB keeps it; no backend sees it now.
         val gateway = gateway()
-        gateway.execute(request(body = """{"sku":"a\u0000b"}""")).assertRefused(FrameworkCodes.MALFORMED)
-        gateway.execute(request(body = """{"sku":"apple","x\u0000":1}""")).assertRefused(FrameworkCodes.MALFORMED)
+        gateway.execute(request(body = """{"sku":"a\u0000b"}""")).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
+        gateway.execute(
+            request(body = """{"sku":"apple","x\u0000":1}""")
+        ).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
         val mapper = JsonMapper.builder().build()
         val nested = mapper.readTree("""{"sku":"apple","tags":[{"k":"\u0000"}]}""")
-        gateway.execute(request().copyWith(body = CommandBody.Tree(nested))).assertRefused(FrameworkCodes.MALFORMED)
+        gateway.execute(
+            request().copyWith(body = CommandBody.Tree(nested))
+        ).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
         val key = mapper.readTree("""{"sku":"apple","meta":{"\u0000":1}}""")
-        gateway.execute(request().copyWith(body = CommandBody.Tree(key))).assertRefused(FrameworkCodes.MALFORMED)
+        gateway.execute(
+            request().copyWith(body = CommandBody.Tree(key))
+        ).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
         decided.assert().isEmpty()
         // An escaped backslash before u0000 is the text "\u0000", not the character.
         gateway.execute(request(body = """{"sku":"a\\u0000b"}""", wait = WaitPlan.COMMITTED)).status
@@ -440,7 +448,7 @@ class CommandGatewayTest {
         // Finding A3-10: PostgreSQL's index refused it, and the append was answered as unknown, retried for ever.
         val gateway = gateway()
         val long = "x".repeat(AdmissionLimits.MAX_ID_LENGTH + 1)
-        gateway.execute(request(requestId = long)).assertRefused(FrameworkCodes.MALFORMED)
+        gateway.execute(request(requestId = long)).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
         gateway.execute(request(aggregateId = long)).error!!.message.assert().contains("aggregate id")
         val tenant = Caller(long, Scope("eve"), subject = "eve")
         gateway.execute(request(caller = tenant)).error!!.message.assert().contains("tenant id")
@@ -460,16 +468,16 @@ class CommandGatewayTest {
             override suspend fun transform(input: CommandInput): CommandTarget =
                 CommandTarget(input.type, "z".repeat(AdmissionLimits.MAX_ID_LENGTH + 1), input.body, input.headers)
         }
-        gateway(transformers = listOf(long)).execute(request()).assertRefused(FrameworkCodes.MALFORMED)
+        gateway(transformers = listOf(long)).execute(request()).assertRefused(FrameworkCodes.COMMAND_MALFORMED)
         decided.assert().isEmpty()
     }
 
     @Test
     fun `an unknown aggregate or command is unhandled`(): Unit = runBlocking {
         val gateway = gateway()
-        gateway.execute(request(command = "RemoveItem")).assertRefused(FrameworkCodes.UNHANDLED)
+        gateway.execute(request(command = "RemoveItem")).assertRefused(FrameworkCodes.COMMAND_UNHANDLED)
         val unknown = gateway.execute(request().copyWith(aggregate = "wishlist", aggregateId = null))
-        unknown.assertRefused(FrameworkCodes.UNHANDLED)
+        unknown.assertRefused(FrameworkCodes.COMMAND_UNHANDLED)
         unknown.ref.id.assert().isEqualTo(CommandGateway.UNADDRESSED)
         unknown.function.name.assert().isEqualTo("AddItem")
         gateway.execute(request(command = "Remove.")).function.name.assert().isEqualTo("Remove.")
@@ -489,7 +497,7 @@ class CommandGatewayTest {
         }
         val result = gateway(validators = listOf(positive, known))
             .execute(request(body = """{"sku":"kiwi","quantity":0}"""))
-        result.assertRefused(FrameworkCodes.INVALID)
+        result.assertRefused(FrameworkCodes.COMMAND_INVALID)
         result.error!!.violations.map { it.path }.assert().containsExactly("quantity", "sku")
         decided.assert().isEmpty()
     }
@@ -534,7 +542,7 @@ class CommandGatewayTest {
         eventually { decided.size == 1 }
         val busy = gateway.execute(request())
         busy.status.assert().isEqualTo(CommandResult.Status.FAILED)
-        busy.error!!.code.assert().isEqualTo(FrameworkCodes.BUSY)
+        busy.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_BUSY)
         busy.hop.assert().isEqualTo(Hop.committed(CONTEXT))
         gate.complete(Unit)
         held.await().status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
@@ -650,30 +658,6 @@ class CommandGatewayTest {
         }
         CommandBody.of("{}").toString().assert().isEqualTo("Bytes(2)")
         Caller.ANONYMOUS.tenantId.assert().isEqualTo(Caller.DEFAULT_TENANT)
-    }
-
-    @Test
-    fun `the framework codes are listed once each, in the wow namespace`() {
-        // Every code FrameworkCodes declares is in ALL, once: a code added without listing it fails here.
-        val declared = FrameworkCodes::class.java.declaredFields
-            .filter { java.lang.reflect.Modifier.isStatic(it.modifiers) && it.type == String::class.java }
-            .map { it.get(null) as String }
-        declared.assert().doesNotHaveDuplicates()
-        FrameworkCodes.ALL.assert().containsExactlyInAnyOrderElementsOf(declared)
-        FrameworkCodes.ALL.forEach { it.assert().startsWith("wow.") }
-        FrameworkCodes.ALL.assert().contains(
-            FrameworkCodes.MALFORMED,
-            FrameworkCodes.INVALID,
-            FrameworkCodes.UNAUTHENTICATED,
-            FrameworkCodes.AUTH_FORBIDDEN,
-            FrameworkCodes.AGGREGATE_FORBIDDEN,
-            FrameworkCodes.BUSY,
-            FrameworkCodes.NODE_CLOSING,
-            FrameworkCodes.NODE_STANDBY,
-            FrameworkCodes.STORAGE_UNAVAILABLE,
-            FrameworkCodes.SCHEDULE_NOT_DUE,
-            FrameworkCodes.SCHEDULE_JOB_INVALID,
-        )
     }
 
     @Test

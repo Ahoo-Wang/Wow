@@ -16,6 +16,7 @@ package me.ahoo.wow.kernel
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 
@@ -67,7 +68,10 @@ class CartSpec {
     @Test
     fun `the cart refuses a command from another owner`() = aggregateSpec(cartModel) {
         given(CartCreated("ahoo"), scope = Scope("ahoo", "home"))
-        whenCommand(AddItem("apple", 1), scope = Scope("bob", "home")) { expectRejected(KernelRejections.FORBIDDEN) }
+        whenCommand(
+            AddItem("apple", 1),
+            scope = Scope("bob", "home")
+        ) { expectRejected(FrameworkCodes.AGGREGATE_FORBIDDEN) }
     }
 
     @Test

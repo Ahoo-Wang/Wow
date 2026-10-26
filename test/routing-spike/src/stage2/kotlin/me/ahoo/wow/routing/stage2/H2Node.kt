@@ -34,6 +34,7 @@ const val H2_SERVICE = "h2-stage2"
 /** Stage 1's account model (a small state: no operations kept), served by the host. */
 class H2Models : ModelProvider {
     override val context: String = H2_CONTEXT
+    override val binding: Int = ModelProvider.BINDING
     override val fragment: String = "META-INF/wow/manifest/h2-stage2.json"
 
     override fun models(dependencies: Dependencies): List<AggregateModel<*>> = listOf(accountModel(H2_CONTEXT, 0))

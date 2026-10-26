@@ -108,6 +108,7 @@ class ScopeQueryPolicy(
         }
     }
 
+    @InternalWowApi
     companion object {
         /** Before every other policy, so a scope failure is reported first. */
         const val ORDER: Int = Int.MIN_VALUE

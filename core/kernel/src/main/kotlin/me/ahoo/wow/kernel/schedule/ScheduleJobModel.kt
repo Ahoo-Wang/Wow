@@ -14,12 +14,14 @@
 package me.ahoo.wow.kernel.schedule
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.schedule.DisableJob
 import me.ahoo.wow.api.schedule.EnableJob
 import me.ahoo.wow.api.schedule.JobDisabled
@@ -33,7 +35,6 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.TickJob
 import me.ahoo.wow.api.schedule.Ticked
 import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.spi.log.Partitioner
 
@@ -91,12 +92,10 @@ class JobState {
  *
  * An Enable that names an unknown job, a job of another scope (a SYSTEM job outside the default tenant), another
  * instance's id, or an invalid rule, and a Reschedule of an instance that is not enabled, are rejected with
- * [JOB_INVALID].
+ * [FrameworkCodes.SCHEDULE_JOB_INVALID].
  */
 @InternalWowApi
 object ScheduleJobModel {
-    /** The rejection of a job command that does not fit its job or instance. */
-    const val JOB_INVALID: String = "wow.schedule.job-invalid"
 
     /** The model of [context]'s job aggregate, deciding for [jobs]. */
     @JvmStatic
@@ -241,5 +240,7 @@ object ScheduleJobModel {
         return runCatching { ScheduleSlots.validate(rule) }.map { rule }.getOrNull()
     }
 
-    private fun invalid(message: String): Decision = Decision.Rejected(Rejection(JOB_INVALID, message))
+    private fun invalid(message: String): Decision = Decision.Rejected(
+        Rejection(FrameworkCodes.SCHEDULE_JOB_INVALID, message)
+    )
 }

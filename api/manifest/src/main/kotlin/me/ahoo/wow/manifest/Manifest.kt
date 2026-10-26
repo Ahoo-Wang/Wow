@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.manifest
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /**
  * The contract of a service (design 05 §2, decisions D17, D73, D74): its bounded contexts, their aggregates with the
  * commands and events they speak, and their subscriptions, with the JSON Schema 2020-12 of every payload in [defs]
@@ -36,7 +38,7 @@ package me.ahoo.wow.manifest
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-class Manifest(
+class Manifest @InternalWowApi constructor(
     val format: Int = FORMAT,
     val service: ServiceInfo? = null,
     val contexts: List<ContextManifest> = emptyList(),
@@ -104,7 +106,7 @@ class Manifest(
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-class ServiceInfo(val name: String, val version: String? = null) {
+class ServiceInfo @InternalWowApi constructor(val name: String, val version: String? = null) {
     override fun equals(other: Any?): Boolean =
         this === other || other is ServiceInfo && valueFields() == other.valueFields()
 
@@ -122,7 +124,7 @@ class ServiceInfo(val name: String, val version: String? = null) {
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-class ContextManifest(
+class ContextManifest @InternalWowApi constructor(
     val name: String,
     val description: String? = null,
     val aggregates: List<AggregateManifest> = emptyList(),
@@ -168,7 +170,7 @@ class ContextManifest(
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-class AggregateManifest(
+class AggregateManifest @InternalWowApi constructor(
     val name: String,
     val description: String? = null,
     val state: StateManifest,
@@ -269,7 +271,7 @@ enum class Ownership {
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-class StateManifest(val schema: String, val fingerprint: String? = null) {
+class StateManifest @InternalWowApi constructor(val schema: String, val fingerprint: String? = null) {
     override fun equals(other: Any?): Boolean =
         this === other || other is StateManifest && valueFields() == other.valueFields()
 
@@ -291,7 +293,7 @@ class StateManifest(val schema: String, val fingerprint: String? = null) {
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-class SnapshotManifest(val enabled: Boolean = true, val stateRevision: Int = 1) {
+class SnapshotManifest @InternalWowApi constructor(val enabled: Boolean = true, val stateRevision: Int = 1) {
     init {
         require(stateRevision >= 1) { "A state revision starts at 1." }
     }
@@ -315,7 +317,7 @@ class SnapshotManifest(val enabled: Boolean = true, val stateRevision: Int = 1) 
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-class QueryManifest(val model: String, val routes: List<RouteManifest> = emptyList()) {
+class QueryManifest @InternalWowApi constructor(val model: String, val routes: List<RouteManifest> = emptyList()) {
     override fun equals(other: Any?): Boolean =
         this === other || other is QueryManifest && valueFields() == other.valueFields()
 
@@ -344,7 +346,7 @@ class QueryManifest(val model: String, val routes: List<RouteManifest> = emptyLi
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-class CommandManifest(
+class CommandManifest @InternalWowApi constructor(
     val name: String,
     val aliases: List<String> = emptyList(),
     val schema: String,
@@ -387,7 +389,7 @@ class CommandManifest(
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-class RouteManifest(val method: String, val path: String) {
+class RouteManifest @InternalWowApi constructor(val method: String, val path: String) {
     override fun equals(other: Any?): Boolean =
         this === other || other is RouteManifest && valueFields() == other.valueFields()
 
@@ -405,7 +407,7 @@ class RouteManifest(val method: String, val path: String) {
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-class ErrorManifest(val code: String, val status: Int, val description: String? = null) {
+class ErrorManifest @InternalWowApi constructor(val code: String, val status: Int, val description: String? = null) {
     override fun equals(other: Any?): Boolean =
         this === other || other is ErrorManifest && valueFields() == other.valueFields()
 
@@ -434,7 +436,7 @@ enum class Creation {
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-class EventManifest(
+class EventManifest @InternalWowApi constructor(
     val name: String,
     val aliases: List<String> = emptyList(),
     val revision: Int = 1,
@@ -482,7 +484,7 @@ class EventManifest(
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-class SubscriptionManifest(
+class SubscriptionManifest @InternalWowApi constructor(
     val name: String,
     val kind: SubscriptionKind,
     val source: SubscriptionSource,
@@ -531,7 +533,7 @@ class SubscriptionManifest(
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-class JobManifest(
+class JobManifest @InternalWowApi constructor(
     val name: String,
     val cron: String,
     val zone: String = "UTC",
@@ -557,7 +559,7 @@ class JobManifest(
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-class RetryManifest(
+class RetryManifest @InternalWowApi constructor(
     val maxAttempts: Int? = null,
     val initialBackoff: String? = null,
     val maxBackoff: String? = null,
@@ -609,7 +611,7 @@ enum class SubscriptionStart {
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-class SubscriptionSource(
+class SubscriptionSource @InternalWowApi constructor(
     val context: String? = null,
     val aggregates: List<String> = emptyList(),
     val events: List<String> = emptyList(),
@@ -634,7 +636,7 @@ class SubscriptionSource(
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-class PublishedManifest(
+class PublishedManifest @InternalWowApi constructor(
     val aggregate: String,
     val topic: String,
     val includeState: Boolean = true,
@@ -660,7 +662,7 @@ class PublishedManifest(
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-class FunctionManifest(
+class FunctionManifest @InternalWowApi constructor(
     val kind: FunctionKind,
     val context: String,
     val processor: String,
@@ -684,7 +686,7 @@ enum class FunctionKind { COMMAND, PROJECT, REACT, SAGA }
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-class ManifestFragment(val source: String, val manifest: Manifest) {
+class ManifestFragment @InternalWowApi constructor(val source: String, val manifest: Manifest) {
     override fun equals(other: Any?): Boolean =
         this === other || other is ManifestFragment && valueFields() == other.valueFields()
 

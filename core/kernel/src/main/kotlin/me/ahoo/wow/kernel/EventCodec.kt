@@ -73,7 +73,7 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         // A tree of the Wow mapper keeps every number as written (WowJson): `2.50` reaches the event as `2.50`.
         var payload = mapper.readTree(record.payload)
         for (revision in record.revision until type.revision) {
-            payload = type.upgrades.getValue(revision)(payload)
+            payload = type.upgrades.getValue(revision).upgrade(payload)
         }
         // Bound from its text, as a record of the current revision is, so the upgrade path reads every value the same
         // way, whatever nodes an upgrade put in the tree.
@@ -96,7 +96,7 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         }
         var payload = mapper.readTree(record.payload)
         for (revision in record.revision until type.revision) {
-            payload = type.upgrades.getValue(revision)(payload)
+            payload = type.upgrades.getValue(revision).upgrade(payload)
         }
         return EventRecord(type.name, type.revision, mapper.writeValueAsString(payload))
     }

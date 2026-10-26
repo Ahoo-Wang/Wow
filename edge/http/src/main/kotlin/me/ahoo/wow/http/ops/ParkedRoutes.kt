@@ -17,10 +17,12 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WaitHeader
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowHttpOptions
@@ -32,10 +34,8 @@ import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.problem.tooLargeProblem
 import me.ahoo.wow.kernel.CommandType
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
@@ -340,7 +340,7 @@ private class ParkedHandler(
     )
 
     private fun badRequest(detail: String) = ProblemException(
-        statuses.problemOf(FrameworkCodes.MALFORMED, detail),
+        statuses.problemOf(FrameworkCodes.COMMAND_MALFORMED, detail),
     )
 
     private suspend fun ok(body: Any): ServerResponse = respond(HttpStatus.OK, body)

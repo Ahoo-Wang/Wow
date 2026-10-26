@@ -21,13 +21,13 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.memory.InMemoryTopics
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CommandAction
@@ -219,7 +219,7 @@ class PeerCommandsTest {
     @Test
     fun `a peer's command is refused as a command of the node is`(): Unit = runBlocking {
         val sales = started()
-        sales.gateway.execute(reserve(0)).error!!.code.assert().isEqualTo(FrameworkCodes.INVALID)
+        sales.gateway.execute(reserve(0)).error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_INVALID)
         sales.gateway.execute(reserve(1, caller = Caller(TENANT, Scope("m"), subject = "mallory")))
             .error!!.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         sales.gateway.execute(
@@ -230,15 +230,15 @@ class PeerCommandsTest {
                 .build(),
         ).error!!.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         sales.gateway.execute(CommandRequest.builder(Reserve(1), ITEM.ref("other", "i")).caller(clerk).build())
-            .error!!.code.assert().isEqualTo(FrameworkCodes.MALFORMED)
+            .error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         sales.gateway.execute(
             CommandRequest.builder(STOCK, "item", "Reserve", CommandBody.of("""{"quantity":"many"}"""))
                 .caller(clerk).aggregateId("i").build(),
-        ).error!!.code.assert().isEqualTo(FrameworkCodes.MALFORMED)
+        ).error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         val call = CallContext.of("c-1", TENANT, Scope.NONE, me.ahoo.wow.api.decide.Causation("r", "r"))
         sales.gateway.execute(
             CommandRequest(STOCK, "item", "Reserve", CommandBody.Value(Reserve(1)), clerk, "i", call = call),
-        ).error!!.code.assert().isEqualTo(FrameworkCodes.MALFORMED)
+        ).error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
         topics.messages(COMMANDS).assert().isEmpty()
     }
 
@@ -253,7 +253,7 @@ class PeerCommandsTest {
                 CommandBody.of("{}")
             ).caller(clerk).aggregateId("i").build(),
         )
-        unknownCommand.error!!.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
+        unknownCommand.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
         unknownCommand.error!!.message.assert().contains("has no command Release")
         val unknownContext = sales.gateway.execute(
             CommandRequest.builder(
@@ -261,13 +261,13 @@ class PeerCommandsTest {
                 AggregateType("billing", "invoice").ref(TENANT, "x")
             ).caller(clerk).build(),
         )
-        unknownContext.error!!.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
+        unknownContext.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
         unknownContext.error!!.message.assert().contains("No aggregate billing.invoice is served here")
         // A command class of another aggregate is not this one's.
         val misdirected = sales.gateway.execute(
             CommandRequest.builder(PlaceOrder(1), ITEM.ref(TENANT, "x")).caller(clerk).build(),
         )
-        misdirected.error!!.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
+        misdirected.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
     }
 
     @Test
@@ -275,7 +275,7 @@ class PeerCommandsTest {
         val sales = salesNode(transport = false).also { it.start() }
         val result = sales.gateway.execute(reserve(1))
         result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
-        result.error!!.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
+        result.error!!.code.assert().isEqualTo(FrameworkCodes.COMMAND_UNHANDLED)
         result.error!!.message.assert().contains("no command transport").contains("wow.kafka.bootstrap-servers")
     }
 

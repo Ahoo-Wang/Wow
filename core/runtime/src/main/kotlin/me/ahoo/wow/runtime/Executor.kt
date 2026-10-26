@@ -427,6 +427,7 @@ class InFlightLimit(val max: Int = DEFAULT_MAX) {
         progressedAt = System.nanoTime()
     }
 
+    @InternalWowApi
     companion object {
         const val DEFAULT_MAX: Int = 4_096
     }

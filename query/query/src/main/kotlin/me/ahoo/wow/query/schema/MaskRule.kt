@@ -112,6 +112,7 @@ data class QuerySensitivityPolicy(val displayComparable: Boolean = true) {
         SensitivityLevel.CONFIDENTIAL -> false
     }
 
+    @InternalWowApi
     companion object {
         @JvmField
         val DEFAULT = QuerySensitivityPolicy()

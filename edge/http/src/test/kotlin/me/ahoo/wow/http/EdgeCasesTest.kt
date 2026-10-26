@@ -19,10 +19,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.kernel.EventCodec
-import me.ahoo.wow.runtime.FrameworkCodes
 import org.junit.jupiter.api.Test
 import org.springframework.test.web.reactive.server.WebTestClient
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -50,7 +50,7 @@ class EdgeCasesTest {
         client.post().uri("/shop/cart/c-1/add-item").header("Content-Type", "application/json")
             .bodyValue("""{"sku":"apple"}""").answer()
             .assertStatus(200).body!!["ref"]["tenantId"].asString().assert().isEqualTo(Caller.DEFAULT_TENANT)
-        client.get().uri("/shop/cart/c-1/state").answer().assertStatus(404, FrameworkCodes.NOT_FOUND)
+        client.get().uri("/shop/cart/c-1/state").answer().assertStatus(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
 
     @Test
@@ -74,7 +74,7 @@ class EdgeCasesTest {
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = mapOf(WowHeaders.IF_MATCH to "1"))
             .assertStatus(200).body!!["version"].asInt().assert().isEqualTo(2)
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = mapOf(WowHeaders.IF_MATCH to "\"-1\""))
-            .assertStatus(400, FrameworkCodes.MALFORMED).body!!.has("result").assert().isFalse()
+            .assertStatus(400, FrameworkCodes.COMMAND_MALFORMED).body!!.has("result").assert().isFalse()
     }
 
     @Test
@@ -109,7 +109,7 @@ class EdgeCasesTest {
     fun `a reader in a space reads only the states of that space`() {
         val inHome = mapOf("X-Spaces" to "home", WowHeaders.SPACE to "home")
         snapshot(Scope("alice"))
-        node.get("/shop/cart/c-1/state", headers = inHome).assertStatus(404, FrameworkCodes.NOT_FOUND)
+        node.get("/shop/cart/c-1/state", headers = inHome).assertStatus(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
 
     @Test
@@ -121,7 +121,7 @@ class EdgeCasesTest {
             .assertStatus(200).body!!["scope"]["spaceId"].asString().assert().isEqualTo("home")
         // A reader that names no space reads it too: Scope.NONE fields are not checked.
         node.get("/shop/cart/c-1/state").assertStatus(200)
-        node.get("/shop/cart/c-1/state", user = "bob").assertStatus(404, FrameworkCodes.NOT_FOUND)
+        node.get("/shop/cart/c-1/state", user = "bob").assertStatus(404, FrameworkCodes.AGGREGATE_NOT_FOUND)
     }
 
     @Test
@@ -129,6 +129,6 @@ class EdgeCasesTest {
         node.client.post().uri("/shop/cart/c-1/add-item").header("X-User", "alice")
             .header("Accept", "text/event-stream").header(WowHeaders.IF_MATCH, "\"0\"")
             .header("Content-Type", "application/json").bodyValue("""{"sku":1""").answer()
-            .assertStatus(400, FrameworkCodes.MALFORMED)
+            .assertStatus(400, FrameworkCodes.COMMAND_MALFORMED)
     }
 }

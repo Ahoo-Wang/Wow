@@ -18,9 +18,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.cluster.CONTEXT
 import me.ahoo.wow.runtime.cluster.FROZEN_LEASES
 import me.ahoo.wow.runtime.cluster.Hrw

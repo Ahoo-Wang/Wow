@@ -25,6 +25,7 @@ import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
@@ -32,7 +33,6 @@ import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.cluster.ClusterCodec
@@ -81,7 +81,7 @@ import kotlin.time.Duration.Companion.seconds
  *
  * An aggregate type or command type the context does not know is the sender's mistake, or a contract the sender has
  * and this service does not yet (review X-5): it is not this aggregate's failure, and parking it would hold its
- * later commands for an operator. Such a command is rejected as [FrameworkCodes.UNHANDLED], with its receipt as in 2
+ * later commands for an operator. Such a command is rejected as [FrameworkCodes.COMMAND_UNHANDLED], with its receipt as in 2
  * ([unhandled]).
  *
  * A command the node refuses as busy (decision D228 ②) is backpressure, not a failure (review R2.1-1): the intake
@@ -158,7 +158,7 @@ class CommandIntake internal constructor(
 
     /**
      * Refuses [wire], of an aggregate type or a command type this context does not know, as
-     * [FrameworkCodes.UNHANDLED] (review X-5): a sender's mistake, or a contract the sender has and this service does
+     * [FrameworkCodes.COMMAND_UNHANDLED] (review X-5): a sender's mistake, or a contract the sender has and this service does
      * not yet, which no retry here mends. It is the sender's rejection, not a failure of the aggregate it names, so
      * that aggregate's later commands go on: the node waiting on [wait] is signalled the rejection at the context's
      * COMMITTED hop, and the receipt goes where [wire] says, as for a decide function's rejection; the sender's saga
@@ -166,7 +166,7 @@ class CommandIntake internal constructor(
      */
     private suspend fun unhandled(wire: CommandWire, wait: WaitContext?, message: String) {
         logger.warn { "Command ${wire.id} (${wire.type}) on ${wire.ref} is refused: $message" }
-        val error = ErrorInfo(FrameworkCodes.UNHANDLED, message)
+        val error = ErrorInfo(FrameworkCodes.COMMAND_UNHANDLED, message)
         wait?.takeUnless { it.expiredAt(clock()) }?.let { coordinator.signal(it, unhandledResult(wire, it, error)) }
         reply(wire, error, null)
     }

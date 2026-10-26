@@ -93,6 +93,7 @@ data class AggregationSupport(
     /** How the storage supports [function]. */
     fun window(function: WindowFunction): SupportMode = windows[function] ?: SupportMode.NONE
 
+    @InternalWowApi
     companion object {
         /** Every window computed by the core, which any storage that groups supports. */
         @JvmField
@@ -138,6 +139,7 @@ data class StorageSupport(
         require(arrayEquality != SupportMode.RESIDUAL) { "Array equality has no residual implementation." }
     }
 
+    @InternalWowApi
     companion object {
         /** Everything native: the default for a schema whose storage declares nothing else. */
         @JvmField
