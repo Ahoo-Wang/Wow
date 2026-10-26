@@ -18,10 +18,10 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
-import me.ahoo.wow.client.wire.CallHeader
-import me.ahoo.wow.client.wire.WowHeaders
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.runtime.admission.CallContext
+import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.spi.json.WowJson
 import java.net.InetSocketAddress
 import java.time.Duration
@@ -40,7 +40,7 @@ class FakeOrdering : AutoCloseable {
     private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
         createContext("/") { exchange ->
             exchange.use {
-                val call = CallHeader.parse(exchange.requestHeaders.getFirst(WowHeaders.CALL))
+                val call = CallHeaders.parse(exchange.requestHeaders.getFirst(WowHeaders.CALL))
                 calls += Call(
                     exchange.requestURI.path,
                     exchange.requestHeaders.getFirst("Authorization"),

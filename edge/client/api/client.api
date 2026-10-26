@@ -3,8 +3,8 @@ public abstract interface class me/ahoo/wow/client/ClientMode {
 }
 
 public final class me/ahoo/wow/client/ClientMode$Service : me/ahoo/wow/client/ClientMode {
-	public fun <init> (Lme/ahoo/wow/client/ServiceCredential;)V
-	public final fun getCredential ()Lme/ahoo/wow/client/ServiceCredential;
+	public fun <init> (Lme/ahoo/wow/api/client/ServiceCredential;)V
+	public final fun getCredential ()Lme/ahoo/wow/api/client/ServiceCredential;
 	public fun getPort ()Lme/ahoo/wow/client/Port;
 	public fun toString ()Ljava/lang/String;
 }
@@ -102,17 +102,6 @@ public final class me/ahoo/wow/client/RetryPolicy$Companion {
 	public final fun of-HG0u8IE (IJ)Lme/ahoo/wow/client/RetryPolicy;
 }
 
-public abstract interface class me/ahoo/wow/client/ServiceCredential {
-	public static final field Companion Lme/ahoo/wow/client/ServiceCredential$Companion;
-	public static final field NONE Lme/ahoo/wow/client/ServiceCredential;
-	public abstract fun authorization (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static fun bearer (Ljava/lang/String;)Lme/ahoo/wow/client/ServiceCredential;
-}
-
-public final class me/ahoo/wow/client/ServiceCredential$Companion {
-	public final fun bearer (Ljava/lang/String;)Lme/ahoo/wow/client/ServiceCredential;
-}
-
 public abstract interface class me/ahoo/wow/client/UserCredential {
 	public static final field Companion Lme/ahoo/wow/client/UserCredential$Companion;
 	public static final field FORWARDED Lme/ahoo/wow/client/UserCredential;
@@ -140,7 +129,7 @@ public final class me/ahoo/wow/client/WowClient$Builder {
 	public final fun httpClient (Ljava/net/http/HttpClient;)Lme/ahoo/wow/client/WowClient$Builder;
 	public final fun manifestPeers (Ljava/util/Set;)Lme/ahoo/wow/client/WowClient$Builder;
 	public final fun retry (Lme/ahoo/wow/client/RetryPolicy;)Lme/ahoo/wow/client/WowClient$Builder;
-	public final fun service (Lme/ahoo/wow/client/ServiceCredential;)Lme/ahoo/wow/client/WowClient$Builder;
+	public final fun service (Lme/ahoo/wow/api/client/ServiceCredential;)Lme/ahoo/wow/client/WowClient$Builder;
 	public final fun timeout (Ljava/time/Duration;)Lme/ahoo/wow/client/WowClient$Builder;
 	public final fun timeout-LRDsOJo (J)Lme/ahoo/wow/client/WowClient$Builder;
 	public final fun user (Lme/ahoo/wow/client/UserCredential;)Lme/ahoo/wow/client/WowClient$Builder;
@@ -238,48 +227,5 @@ public final class me/ahoo/wow/client/java/JavaSnapshotQueries : me/ahoo/wow/cli
 
 public final class me/ahoo/wow/client/java/JavaTrustedQueries : me/ahoo/wow/client/java/JavaQueries {
 	public final fun unbounded ()Lme/ahoo/wow/client/java/JavaQueries;
-}
-
-public final class me/ahoo/wow/client/wire/CallHeader {
-	public static final field INSTANCE Lme/ahoo/wow/client/wire/CallHeader;
-	public final fun format (Lme/ahoo/wow/runtime/admission/CallContext;)Ljava/lang/String;
-	public final fun parse (Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/CallContext;
-}
-
-public final class me/ahoo/wow/client/wire/ScopeHeader {
-	public static final field ALL_TENANTS Ljava/lang/String;
-	public static final field INSTANCE Lme/ahoo/wow/client/wire/ScopeHeader;
-	public static final field OWNER Ljava/lang/String;
-	public static final field SPACE Ljava/lang/String;
-	public static final field TENANT Ljava/lang/String;
-	public final fun format (Lme/ahoo/wow/runtime/admission/TargetScope;)Ljava/lang/String;
-	public final fun parse (Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/TargetScope;
-	public final fun parseQuery (Ljava/lang/String;)Lme/ahoo/wow/client/wire/ScopeHeader$QueryTarget;
-}
-
-public final class me/ahoo/wow/client/wire/ScopeHeader$QueryTarget {
-	public fun <init> (Lme/ahoo/wow/runtime/admission/TargetScope;Lme/ahoo/wow/query/CrossTenant;)V
-	public final fun component1 ()Lme/ahoo/wow/runtime/admission/TargetScope;
-	public final fun component2 ()Lme/ahoo/wow/query/CrossTenant;
-	public final fun copy (Lme/ahoo/wow/runtime/admission/TargetScope;Lme/ahoo/wow/query/CrossTenant;)Lme/ahoo/wow/client/wire/ScopeHeader$QueryTarget;
-	public static synthetic fun copy$default (Lme/ahoo/wow/client/wire/ScopeHeader$QueryTarget;Lme/ahoo/wow/runtime/admission/TargetScope;Lme/ahoo/wow/query/CrossTenant;ILjava/lang/Object;)Lme/ahoo/wow/client/wire/ScopeHeader$QueryTarget;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getCrossTenant ()Lme/ahoo/wow/query/CrossTenant;
-	public final fun getTarget ()Lme/ahoo/wow/runtime/admission/TargetScope;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/client/wire/WowHeaders {
-	public static final field CALL Ljava/lang/String;
-	public static final field ETAG Ljava/lang/String;
-	public static final field IF_MATCH Ljava/lang/String;
-	public static final field INSTANCE Lme/ahoo/wow/client/wire/WowHeaders;
-	public static final field REBUILDING Ljava/lang/String;
-	public static final field REQUEST_ID Ljava/lang/String;
-	public static final field SCOPE Ljava/lang/String;
-	public static final field SPACE Ljava/lang/String;
-	public static final field WAIT Ljava/lang/String;
-	public static final field WAIT_TIMEOUT Ljava/lang/String;
 }
 

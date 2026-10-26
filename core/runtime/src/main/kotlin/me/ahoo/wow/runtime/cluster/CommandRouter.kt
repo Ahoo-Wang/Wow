@@ -35,6 +35,8 @@ import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.subscription.Member
 import me.ahoo.wow.spi.wait.WaitContext
+import me.ahoo.wow.spi.wait.toContext
+import me.ahoo.wow.spi.wait.toWire
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.EmptyCoroutineContext
@@ -182,7 +184,7 @@ class PartitionedRouter(
         withTimeoutOrNull(waitLeft) { channel.connect(peer.address) } ?: return null
         return ForwardCommand(
             command = ClusterCodec.wire(model, command),
-            wait = wait?.let(WaitWire::of),
+            wait = wait?.toWire(),
             deadline = minOf(clock() + options.forwardTimeout.inWholeMilliseconds, wait?.deadline ?: Long.MAX_VALUE),
             trace = currentCoroutineContext().trace,
         )

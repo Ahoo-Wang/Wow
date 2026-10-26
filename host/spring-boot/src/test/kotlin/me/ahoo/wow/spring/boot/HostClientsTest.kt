@@ -22,6 +22,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.SendOptions
+import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.snapshots
@@ -31,7 +32,6 @@ import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.ForwardedHeaders
 import me.ahoo.wow.client.NamedCommand
 import me.ahoo.wow.client.Port
-import me.ahoo.wow.client.ServiceCredential
 import me.ahoo.wow.client.UserCredential
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.manifest.Manifest

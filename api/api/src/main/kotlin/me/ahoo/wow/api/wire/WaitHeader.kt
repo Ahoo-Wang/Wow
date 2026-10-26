@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.client.wire
+package me.ahoo.wow.api.wire
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.Hop

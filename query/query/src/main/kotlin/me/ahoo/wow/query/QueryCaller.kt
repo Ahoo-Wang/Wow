@@ -15,6 +15,7 @@ package me.ahoo.wow.query
 
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 
@@ -133,28 +134,5 @@ data class QueryCaller(
         /** A query that states nothing: in-process unless the entry policy requires explicit entries. */
         @JvmField
         val UNSPECIFIED: QueryCaller = QueryCaller()
-    }
-}
-
-/**
- * The tenants a cross-tenant query reads (decision D254 ⑦): every tenant when [tenantIds] is null ([ALL]), else those.
- * Only the HTTP edge states one, for a caller that may act across scopes and names `Wow-Scope: tenant=*` or
- * `tenant=("t1" "t2")` while `wow.query.cross-tenant.enabled` is on; trusted in-process code that must read every
- * tenant uses `QueryApi.trusted()`. A type whose tenant is fixed is still read in that tenant alone, and every
- * cross-tenant query is audited, whether or not a [QueryObserver] audits.
- */
-data class CrossTenant(val tenantIds: Set<String>? = null) {
-    init {
-        require(tenantIds == null || tenantIds.isNotEmpty()) { "A cross-tenant query names its tenants, or every one." }
-        require(tenantIds.orEmpty().none { it.isBlank() }) { "A cross-tenant query names no blank tenant." }
-    }
-
-    /** Whether the query reads [tenantId]. */
-    fun covers(tenantId: String): Boolean = tenantIds?.contains(tenantId) ?: true
-
-    companion object {
-        /** Every tenant: `tenant=*`. */
-        @JvmField
-        val ALL: CrossTenant = CrossTenant()
     }
 }

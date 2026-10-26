@@ -16,6 +16,7 @@ package me.ahoo.wow.spi.wait
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
+import me.ahoo.wow.api.wire.WaitWire
 
 /**
  * The node a wait started on (decision D65): its [node] id, its internal [address] (`host:port` of the internal
@@ -107,3 +108,13 @@ class WaitContext @InternalWowApi constructor(
             WaitContext(waitId, origin, remaining, deadline)
     }
 }
+
+/** This context on the wire, as `Wow-Call` and the cluster channel carry it. */
+@InternalWowApi
+fun WaitContext.toWire(): WaitWire =
+    WaitWire(waitId, WaitWire.Origin(origin.node, origin.address, origin.service), remaining, deadline)
+
+/** The context this wire form carries. */
+@InternalWowApi
+fun WaitWire.toContext(): WaitContext =
+    WaitContext(waitId, Origin(origin.node, origin.address, origin.service), remaining, deadline)

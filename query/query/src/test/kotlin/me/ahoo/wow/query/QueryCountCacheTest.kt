@@ -21,6 +21,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CountResult
+import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ICountQuery
 import me.ahoo.wow.api.query.MatchAllFilter

@@ -19,21 +19,20 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.client.EndpointResolver
-import me.ahoo.wow.client.ServiceCredential
 import me.ahoo.wow.client.WowClient
-import me.ahoo.wow.client.wire.CallHeader
-import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.caller.ServiceTokens
 import me.ahoo.wow.http.internal.InternalServer
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.AbacQueryOptions
 import me.ahoo.wow.query.AbacQueryPolicy
-import me.ahoo.wow.query.CrossTenant
 import me.ahoo.wow.query.QueryBackendStorages
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
@@ -48,6 +47,7 @@ import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CallContext
+import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
@@ -123,7 +123,7 @@ class DatasetRoutesTest {
                 .header("Authorization", "Bearer $PEER_TOKEN")
                 .header(
                     WowHeaders.CALL,
-                    CallHeader.format(CallContext.of("c", TENANT, Scope("alice"), Causation("c", "c"))),
+                    CallHeaders.format(CallContext.of("c", TENANT, Scope("alice"), Causation("c", "c"))),
                 )
                 .answer()
             described.status.assert().isEqualTo(200)

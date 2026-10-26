@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.admission
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.caller.TargetScope
 
 /**
  * Which tenant the aggregates of a type are in (decision D116, replacing 9.x `@StaticTenantId`): by default the
