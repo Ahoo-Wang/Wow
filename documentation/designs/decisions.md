@@ -15,7 +15,8 @@
 
 | # | 问题 | 推荐 | 状态 | 最晚 | 文档 |
 |---|---|---|---|---|---|
-| T4 | `wow.http.client-facts` 默认 `true`（D267 ⑯）把客户端 IP 与 UA 写进不可删除的日志；GA 后再改默认值属于行为变更（R5.C-17） | 默认改为 `false`；用户 2026-10-26：并入 Wow 10 安全性的统一讨论 | 待定 | rc | [R5](2026-10-26-r5-ga-architecture-review-design.md) |
+| T4 | `wow.http.client-facts` 默认 `true`（D267 ⑯）把客户端 IP 与 UA 写进不可删除的日志；GA 后再改默认值属于行为变更（R5.C-17） | 默认改为 `false`；用户 2026-10-26：并入 Wow 10 安全性的统一讨论 | 待定 | rc | [安全讨论](2026-10-26-security-review-design.md) SQ2 |
+| T5 | Wow 10 安全性的统一讨论：生产须显式认证与授权（SQ1）、服务身份最小权限（SQ3，原「只允许信号」）、凭据只发给已知对端（SQ4）、Kafka 命令入口的边界（SQ5）、未知 `wow.*` 键一律拒绝（SQ6）、内部端口加密（SQ7） | 见设计 §4 各项推荐 | 待定 | rc | [安全讨论](2026-10-26-security-review-design.md) |
 
 ## 2. 待验证的假设
 
