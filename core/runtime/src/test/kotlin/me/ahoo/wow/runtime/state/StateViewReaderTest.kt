@@ -42,7 +42,6 @@ import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
-import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.junit.jupiter.api.Test
@@ -67,7 +66,7 @@ class StateViewReaderTest {
         override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
             delegate.read(ref, fromVersion, toVersion).onEach { streamsRead++ }
 
-        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+        override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
             appended = stream
             return refuse ?: delegate.append(stream, transport).also {
                 if (it is AppendOutcome.Committed) {

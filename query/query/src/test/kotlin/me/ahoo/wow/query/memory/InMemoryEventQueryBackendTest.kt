@@ -25,8 +25,9 @@ class InMemoryEventQueryBackendTest : EventQueryBackendSpec() {
     private val streams = CopyOnWriteArrayList<EventStreamRecord>()
     private val storage = InMemoryEventQueryStorage({ type -> streams.filter { it.ref.type == type } })
 
-    override suspend fun store(streams: List<EventStreamRecord>) {
-        this.streams += streams
+    /** The memory backend reads streams, which hold no transport: it is left out. */
+    override suspend fun store(streams: List<Pair<EventStreamRecord, ByteArray?>>) {
+        this.streams += streams.map { it.first }
     }
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = storage.create(type)

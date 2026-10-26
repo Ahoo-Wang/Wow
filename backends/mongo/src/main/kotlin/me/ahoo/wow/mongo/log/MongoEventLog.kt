@@ -42,8 +42,6 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Causation
-import me.ahoo.wow.api.result.Hop
-import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.mongo.EnsuredCollections
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoFailures
@@ -69,12 +67,8 @@ import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.log.TailPacer
-import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.log.notAppendedAfter
 import me.ahoo.wow.spi.log.requireChains
-import me.ahoo.wow.spi.reservation.ReservationKey
-import me.ahoo.wow.spi.wait.Origin
-import me.ahoo.wow.spi.wait.WaitContext
 import org.bson.BsonArray
 import org.bson.BsonDocument
 import org.bson.BsonInt32
@@ -83,6 +77,7 @@ import org.bson.BsonString
 import org.bson.BsonType
 import org.bson.Document
 import org.bson.conversions.Bson
+import org.bson.types.Binary
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
@@ -136,7 +131,8 @@ import kotlin.time.Duration.Companion.seconds
  * every aggregate collection this log knows.
  *
  * A stream's facts are fields of its document; the document has no aggregate name, the collection is the aggregate
- * type. The transport is a field of its own, `transport` (decision D25), which only [tail] and [readEntries] read:
+ * type. The transport is a field of its own, `transport` (decision D25), binary data holding the bytes the runtime
+ * encoded, stored and given back unchanged (finding R5.B-3), which only [tail] and [readEntries] read:
  * [read] and [findByRequestId] leave it out of their projection. Each event's payload is a BSON document whose
  * decimals are `Decimal128`, exact ([ExactBson]); an append whose payload holds a number MongoDB cannot store exactly
  * is refused with an [IllegalArgumentException].
@@ -349,12 +345,12 @@ class MongoEventLog(
             .toList()
             .also { registered = it }
 
-    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
         dispatcher.mongo { appendNow(stream, transport) }.also { outcome ->
             if (outcome is AppendOutcome.Committed) pacer.committed(outcome.position.partition)
         }
 
-    private fun appendNow(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+    private fun appendNow(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
         require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
         val collection = collectionOf(stream.ref.type)
         val partition = Partitioner.partitionOf(stream.ref, partitions)
@@ -380,7 +376,7 @@ class MongoEventLog(
      * stream whose position another node sealed is appended again alone. A group whose write is unknown is unknown for
      * each stream it held (finding A2-6).
      */
-    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
         if (streams.size <= 1) {
             return streams.map { (stream, transport) -> append(stream, transport) }
         }
@@ -408,7 +404,7 @@ class MongoEventLog(
      * aggregate's later streams follow the sequence its previous one in the group took, and are not appended once one
      * did not commit ([EventLog.appendAll]).
      */
-    private fun appendGroup(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+    private fun appendGroup(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
         val outcomes = arrayOfNulls<AppendOutcome>(streams.size)
         val failed = HashMap<AggregateRef, AppendOutcome>()
         val previous = HashMap<AggregateRef, Long>()
@@ -679,7 +675,7 @@ class MongoEventLog(
      * beyond MongoDB's size limit is only known when the driver writes it, and [insert] refuses it then (finding
      * R2.2-2).
      */
-    private fun encode(partition: Int, stream: EventStreamRecord, transport: Transport?): Result<Document> = try {
+    private fun encode(partition: Int, stream: EventStreamRecord, transport: ByteArray?): Result<Document> = try {
         Result.success(documentOf(partition, stream, transport))
     } catch (refused: IllegalArgumentException) {
         Result.failure(refused)
@@ -1083,7 +1079,7 @@ class MongoEventLog(
     )
 
     /** [stream]'s document, its sequence set when it is inserted. */
-    private fun documentOf(partition: Int, stream: EventStreamRecord, transport: Transport?) = Document()
+    private fun documentOf(partition: Int, stream: EventStreamRecord, transport: ByteArray?) = Document()
         .append(PARTITION, partition)
         .append(SEQUENCE, 0L)
         .append(TENANT_ID, stream.ref.tenantId)
@@ -1109,55 +1105,14 @@ class MongoEventLog(
         .apply { MongoOperators.document(stream.operator)?.let { append(OPERATOR, it) } }
         // The tags after the commit (decision D259): absent when not recorded, an empty document for none.
         .apply { stream.tags?.let { append(TAGS, Document(it)) } }
-        .apply { transport?.let { append(TRANSPORT, transportDocument(it)) } }
+        .apply { transport?.let { append(TRANSPORT, Binary(it)) } }
 
-    private fun transportDocument(transport: Transport) = Document()
-        .apply { transport.wait?.let { append(WAIT, waitDocument(it)) } }
-        .append(RESERVATIONS, transport.reservations.map(::keyDocument))
-        .append(TRACE, Document(transport.trace))
-        // Added within format 1 (finding A2-4): left out when empty, so an older reader never meets it.
-        .apply { if (transport.releases.isNotEmpty()) append(RELEASES, transport.releases.map(::keyDocument)) }
-
-    /** A reserved key; a system key (added within format 1) is marked, a tenant's is not. */
-    private fun keyDocument(key: ReservationKey) = Document(NAMESPACE, key.namespace).append(KEY, key.key)
-        .apply { if (key.system) append(SYSTEM, true) }
-
-    private fun keysOf(documents: List<Document>?) = documents.orEmpty().map {
-        ReservationKey(it.getString(NAMESPACE), it.getString(KEY), it.getBoolean(SYSTEM) ?: false)
-    }
-
-    private fun transportOf(document: Document) = Transport(
-        wait = document.get(WAIT, Document::class.java)?.let(::waitOf),
-        reservations = keysOf(document.getList(RESERVATIONS, Document::class.java)),
-        trace = strings(document.get(TRACE, Document::class.java)),
-        releases = keysOf(document.getList(RELEASES, Document::class.java)),
-    )
-
-    private fun waitDocument(wait: WaitContext) = Document(WAIT_ID, wait.waitId)
-        .append(
-            ORIGIN,
-            Document(NODE, wait.origin.node).append(ADDRESS, wait.origin.address).append(SERVICE, wait.origin.service),
-        )
-        .append(
-            REMAINING,
-            wait.remaining.map { hop ->
-                Document(STAGE, hop.stage.name)
-                    .apply { hop.context?.let { append(CONTEXT, it) } }
-                    .apply { hop.subscription?.let { append(SUBSCRIPTION, it) } }
-            },
-        )
-        .append(DEADLINE, wait.deadline)
-
-    private fun waitOf(document: Document): WaitContext {
-        val origin = document.get(ORIGIN, Document::class.java)
-        return WaitContext(
-            waitId = document.getString(WAIT_ID),
-            origin = Origin(origin.getString(NODE), origin.getString(ADDRESS), origin.getString(SERVICE)),
-            remaining = document.getList(REMAINING, Document::class.java).map {
-                Hop(Stage.valueOf(it.getString(STAGE)), it.getString(CONTEXT), it.getString(SUBSCRIPTION))
-            },
-            deadline = document.getLong(DEADLINE),
-        )
+    /** The transport bytes as stored: the driver reads generic binary data as a byte array, other subtypes as [Binary]. */
+    private fun transportOf(document: Document): ByteArray? = when (val stored = document[TRANSPORT]) {
+        null -> null
+        is ByteArray -> stored
+        is Binary -> stored.data
+        else -> error("The transport of a stream is binary data, not ${stored::class.java.name}.")
     }
 
     private fun strings(document: Document): Map<String, String> = document.keys.associateWith {
@@ -1169,7 +1124,7 @@ class MongoEventLog(
     private fun entryOf(aggregate: String, document: Document) = LogEntry(
         LogPosition(document.getInteger(PARTITION), document.getLong(SEQUENCE)),
         streamOf(aggregate, document),
-        document.get(TRANSPORT, Document::class.java)?.let(::transportOf),
+        transportOf(document),
     )
 
     private fun streamOf(aggregate: String, document: Document) = EventStreamRecord(
@@ -1316,23 +1271,7 @@ class MongoEventLog(
         const val OPERATOR = "operator"
         const val TAGS = "tags"
         const val TRANSPORT = "transport"
-        const val WAIT = "wait"
-        const val WAIT_ID = "wait_id"
-        const val ORIGIN = "origin"
-        const val NODE = "node"
-        const val ADDRESS = "address"
-        const val SERVICE = "service"
-        const val REMAINING = "remaining"
-        const val STAGE = "stage"
         const val CONTEXT = "context"
-        const val SUBSCRIPTION = "subscription"
-        const val DEADLINE = "deadline"
-        const val RESERVATIONS = "reservations"
-        const val RELEASES = "releases"
-        const val SYSTEM = "system"
-        const val NAMESPACE = "namespace"
-        const val KEY = "key"
-        const val TRACE = "trace"
         const val EVENTS = "events"
         const val NAME = "name"
         const val REVISION = "revision"

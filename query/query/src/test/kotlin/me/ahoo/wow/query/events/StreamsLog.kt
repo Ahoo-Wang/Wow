@@ -22,7 +22,6 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
-import me.ahoo.wow.spi.log.Transport
 
 /** The streams [add] gives, read by [read]: what the events model reads of a log; it writes and tails nothing. */
 class StreamsLog : EventLog {
@@ -37,7 +36,7 @@ class StreamsLog : EventLog {
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
         streams.filter { it.ref == ref && it.version in fromVersion..toVersion }.sortedBy { it.version }.asFlow()
 
-    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome = unused()
+    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome = unused()
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = unused()
 

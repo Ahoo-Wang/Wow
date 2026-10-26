@@ -51,7 +51,6 @@ import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
-import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -234,7 +233,7 @@ class SpikeNode(val name: String, private val cluster: SpikeCluster, private val
 
 /** An [EventLog] that counts the appends that lost the version slot. */
 class CountingLog(private val delegate: EventLog, private val timeline: Timeline) : EventLog by delegate {
-    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
         delegate.append(stream, transport).also {
             if (it is AppendOutcome.Conflict) {
                 timeline.now().conflicts.increment()

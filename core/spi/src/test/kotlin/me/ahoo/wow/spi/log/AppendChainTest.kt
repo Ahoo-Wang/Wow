@@ -27,7 +27,7 @@ class AppendChainTest {
     private val a = type.ref("tenant", "a")
     private val b = type.ref("tenant", "b")
 
-    private fun stream(ref: AggregateRef, version: Int): Pair<EventStreamRecord, Transport?> = EventStreamRecord.of(
+    private fun stream(ref: AggregateRef, version: Int): Pair<EventStreamRecord, ByteArray?> = EventStreamRecord.of(
         ref,
         version,
         "command-$version",

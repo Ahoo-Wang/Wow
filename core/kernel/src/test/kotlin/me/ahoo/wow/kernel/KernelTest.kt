@@ -30,7 +30,6 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
-import me.ahoo.wow.spi.log.Transport
 import org.junit.jupiter.api.Test
 
 class KernelTest {
@@ -358,7 +357,7 @@ class KernelTest {
         Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
         // Another command carrying the same request id commits the slot first, say the caller's retry elsewhere.
         val racing = object : EventLog by log {
-            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
                 log.append(stream.copyWith(commandId = "elsewhere"), transport)
                 return AppendOutcome.Unknown(IllegalStateException("timeout"))
             }
@@ -373,7 +372,7 @@ class KernelTest {
         Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
         // The backend retried the append internally: its second try met the stream its first one committed.
         val retrying = object : EventLog by log {
-            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
                 log.append(stream, transport)
                 return log.append(stream, transport)
             }
@@ -388,7 +387,7 @@ class KernelTest {
         Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
         // The request's earlier append committed the slot at another time: this attempt is its duplicate.
         val earlier = object : EventLog by log {
-            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
                 val committed = stream.copyWith(commitTime = stream.commitTime - 1)
                 log.append(committed, transport)
                 return AppendOutcome.AlreadyCommitted(committed)
@@ -405,7 +404,7 @@ class KernelTest {
         var appends = 0
         // Another attempt of the request committed the same version first; the backend compared the version first.
         val racing = object : EventLog by log {
-            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
                 appends++
                 log.append(stream.copyWith(commandId = "elsewhere"), transport)
                 return AppendOutcome.Conflict(stream.version)
@@ -421,7 +420,7 @@ class KernelTest {
         val log = InMemoryEventLog()
         Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
         val retrying = object : EventLog by log {
-            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
                 log.append(stream, transport)
                 return AppendOutcome.Conflict(stream.version)
             }
@@ -436,7 +435,7 @@ class KernelTest {
         Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
         var raced = false
         val racing = object : EventLog by log {
-            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
                 if (raced) {
                     return log.append(stream, transport)
                 }
@@ -457,7 +456,7 @@ class KernelTest {
         val log = InMemoryEventLog()
         Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
         val refusing = object : EventLog by log {
-            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
                 AppendOutcome.Rejected(IllegalArgumentException("unsupported Unicode escape sequence"))
         }
         runCatching { Kernel(refusing).execute(cartModel, command(AddItem("apple", 1))) }.exceptionOrNull()
@@ -471,7 +470,7 @@ class KernelTest {
         Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
         var failing = true
         val retrying = object : EventLog by log {
-            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
                 log.append(stream, transport)
                 return log.append(stream, transport)
             }
@@ -491,7 +490,7 @@ class KernelTest {
         val log = InMemoryEventLog()
         Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
         val unreadable = object : EventLog by log {
-            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
                 AppendOutcome.Unknown(IllegalStateException("timeout"))
 
             override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
@@ -517,7 +516,7 @@ class KernelTest {
     ) : EventLog by log {
         private var raced = false
 
-        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+        override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
             if (every || !raced) {
                 raced = true
                 race()
@@ -528,7 +527,7 @@ class KernelTest {
 
     /** Reports every append as unknown, after committing it when [commit]. */
     private class UnknownLog(private val log: EventLog, private val commit: Boolean) : EventLog by log {
-        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+        override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
             if (commit) log.append(stream, transport)
             return AppendOutcome.Unknown(IllegalStateException("timeout"))
         }

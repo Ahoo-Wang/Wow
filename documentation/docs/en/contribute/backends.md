@@ -13,7 +13,7 @@ A store holds a node's durable state. Its ports are in `:spi`:
 
 | Port | Holds | Contract |
 | --- | --- | --- |
-| `EventLog` | A context's log: committed streams by partition and position, unique by version and by request | `EventLogSpec` |
+| `EventLog` | A context's log: committed streams by partition and position, unique by version and by request; each entry's transport data as opaque bytes, stored and given back unchanged | `EventLogSpec` |
 | `SnapshotStore` | The latest snapshot of each aggregate | `SnapshotStoreSpec` |
 | `CheckpointStore` | Where each subscription stands, per partition | `CheckpointStoreSpec` |
 | `LeaseStore` | Which node owns which partition | `LeaseStoreSpec` |
