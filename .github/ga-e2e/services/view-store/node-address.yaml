@@ -1,0 +1,15 @@
+# The node advertises its pod's address (finding F9): deploy/view-store advertises
+# $(POD_NAME).view-store-cluster.$(POD_NAMESPACE).svc.cluster.local, but a Deployment's pods have no spec.hostname, so the
+# headless Service publishes no record of that name and the node's peers cannot reach it (forwards, wait signals).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: view-store
+spec:
+  template:
+    spec:
+      containers:
+        - name: view-store
+          env:
+            - name: WOW_NODE_ADDRESS
+              value: $(POD_IP):9090

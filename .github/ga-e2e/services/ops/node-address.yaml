@@ -1,0 +1,15 @@
+# The node advertises its pod's address (finding F9): deploy/ops advertises
+# $(POD_NAME).ops-cluster.$(POD_NAMESPACE).svc.cluster.local, but a Deployment's pods have no spec.hostname, so the
+# headless Service publishes no record of that name and the node's peers cannot reach it (forwards, wait signals).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ops
+spec:
+  template:
+    spec:
+      containers:
+        - name: ops
+          env:
+            - name: WOW_NODE_ADDRESS
+              value: $(POD_IP):9098

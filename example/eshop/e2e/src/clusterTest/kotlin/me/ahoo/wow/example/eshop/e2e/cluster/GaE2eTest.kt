@@ -74,6 +74,7 @@ class GaE2eTest {
     }
     private val verdict = ClusterVerdict(flows, postgres) { println("[ga-e2e] $it") }
     private val health = HealthWatch(kube, report)
+    private val network = PodNetwork(kube, report)
     private val probes = AtomicInteger()
     private val probeFailures = AtomicInteger()
     private val partitions = System.getProperty("ga.partitions", "8").toInt()
@@ -184,7 +185,7 @@ class GaE2eTest {
         val outsider = checkNotNull(kube.pods("outsider").single().ip)
         // From a pod, so the client's address is known: the gateway's node port would show the node's.
         val body = """{"productId":"mug","unitPrice":${flows.price("mug")},"quantity":1}"""
-        val sent = http(
+        val sent = network.http(
             "outsider",
             "cosec-gateway",
             80,
@@ -230,8 +231,8 @@ class GaE2eTest {
         "public ports behind the gateway"
     ) {
         val blocked = PUBLIC.map { (service, port) ->
-            val outsider = reach("outsider", service, port)
-            val insider = reach("insider", service, port)
+            val outsider = network.reach("outsider", service, port)
+            val insider = network.reach("insider", service, port)
             check(outsider.startsWith("000")) { "the outsider reached $service's public port: $outsider" }
             check(
                 insider.startsWith("000")
@@ -245,12 +246,12 @@ class GaE2eTest {
     @Order(11)
     fun `the internal ports are reachable from the platform's pods alone`() = scenario("security", "internal ports") {
         INTERNAL.forEach { (service, port) ->
-            val outsider = reach("outsider", "$service-cluster", port)
+            val outsider = network.reach("outsider", "$service-cluster", port)
             check(outsider.startsWith("000")) { "the outsider reached $service's internal port: $outsider" }
         }
         // The positive control: a pod of the shop reaches them, so the refusals are the policies'.
         INTERNAL.filter { it.first.startsWith("eshop-") }.forEach { (service, port) ->
-            val insider = reach("insider", "$service-cluster", port)
+            val insider = network.reach("insider", "$service-cluster", port)
             check(!insider.startsWith("000")) { "the shop's own pod did not reach $service's internal port: $insider" }
         }
         "outsider refused on ${INTERNAL.size} internal ports; the shop's pod served on the eShop's"
@@ -283,7 +284,7 @@ class GaE2eTest {
     @Test
     @Order(13)
     fun `the shop's nodes reach each other's internal ports, within and across services`() =
-        scenario("security", "internal mesh (steady)") { mesh("steady") }
+        scenario("security", "internal mesh (steady)") { network.mesh("steady") }
 
     @Test
     @Order(20)
@@ -489,7 +490,7 @@ class GaE2eTest {
     @Test
     @Order(39)
     fun `after the faults the shop's nodes still reach each other's internal ports`() =
-        scenario("cluster", "internal mesh (after faults)") { mesh("after faults") }
+        scenario("cluster", "internal mesh (after faults)") { network.mesh("after faults") }
 
     @Test
     @Order(40)
@@ -551,47 +552,6 @@ class GaE2eTest {
         report.failed.map { "${it.scenario} / ${it.name}: ${it.detail}" }.assert().isEmpty()
         verdict.all.sumOf { it.violated }.assert().isEqualTo(0L)
         passed.assert().isTrue()
-    }
-
-    /**
-     * From every eShop node, a TCP connection to every eShop node's internal port, by the address it advertises
-     * (`<pod>.<service>-cluster`): within a service (forwards, wait signals) and across services (the basket's calls,
-     * the signals of waits that cross contexts), as the internal NetworkPolicies admit the shop's own pods (D298).
-     * Each connection is classified as served, refused (nothing listening), timed out (dropped on the way, as a
-     * NetworkPolicy drops) or unresolved, with its time; the evidence for dropped wait signals (F8).
-     */
-    private fun mesh(phase: String): String {
-        val nodes = MESH.flatMap { (service, port) ->
-            kube.pods(service).filter { it.ready && !it.deleting }.map { Triple(service, port, it.name) }
-        }
-        val outcomes = nodes.flatMap { (_, _, from) ->
-            nodes.filter { it.third != from }.map { (service, port, to) ->
-                val script = "s=\$(date +%s%3N); r=\$(timeout 3 bash -c 'exec 3<>/dev/tcp/$to.$service-cluster/$port' 2>&1); " +
-                    "e=\$?; echo \"\$e \$(( \$(date +%s%3N) - s )) \$r\""
-                val out = kube.exec(from, "bash", "-c", script).out.trim()
-                val exit = out.substringBefore(' ').toIntOrNull()
-                val millis = out.substringAfter(' ').substringBefore(' ').toLongOrNull() ?: -1
-                val outcome = when {
-                    exit == 0 -> "served"
-                    exit == TIMEOUT_EXIT -> "timed out"
-                    "refused" in out -> "refused"
-                    "not known" in out || "resolve" in out -> "unresolved"
-                    else -> "failed: $out"
-                }
-                Triple("$from -> $to:$port", outcome, millis)
-            }
-        }
-        val failed = outcomes.filter { it.second != "served" }
-        val slowest = outcomes.maxByOrNull { it.third }
-        report.note(
-            "internal mesh ($phase): ${outcomes.size - failed.size} of ${outcomes.size} connections served, the " +
-                "slowest ${slowest?.third} ms (${slowest?.first}); not served: " +
-                failed.take(LISTED).joinToString { "${it.first} ${it.second} after ${it.third} ms" },
-        )
-        check(
-            failed.isEmpty()
-        ) { "${failed.size} of ${outcomes.size} internal connections not served: ${failed.take(LISTED)}" }
-        return "${outcomes.size} connections across ${nodes.size} nodes served, the slowest in ${slowest?.third} ms"
     }
 
     /** A checkout until its order is committed in the ordering context: whether it was. */
@@ -675,33 +635,6 @@ class GaE2eTest {
         ) { "GET the ops view of $id answered ${answer.status}: ${answer.body.take(ShopFlows.BODY)}" }
         return json.readTree(answer.body)["state"]
     }
-
-    /**
-     * One HTTP/1.1 request from [pod] to [host]:[port], written with bash's /dev/tcp (the probe pods have no HTTP
-     * client): the status code, then the response; `000` when no connection was made within 5 seconds.
-     */
-    private fun http(
-        pod: String,
-        host: String,
-        port: Int,
-        method: String,
-        path: String,
-        body: String = "",
-        vararg headers: Pair<String, String>,
-    ): String {
-        val request = buildString {
-            append("$method $path HTTP/1.1\r\nHost: $host\r\nConnection: close\r\n")
-            headers.forEach { (name, value) -> append("$name: $value\r\n") }
-            append("Content-Length: ${body.toByteArray().size}\r\n\r\n$body")
-        }
-        val script = "exec 3<>/dev/tcp/$host/$port && printf '%s' \"\$REQUEST\" >&3 && cat <&3"
-        val result = kube.exec(pod, "env", "REQUEST=$request", "timeout", "5", "bash", "-c", script)
-        val status = result.out.lineSequence().firstOrNull()?.split(' ')?.getOrNull(1)
-        return if (result.ok && status != null) "$status ${result.out}" else "000 ${result.err.trim()}"
-    }
-
-    /** Whether [pod] gets any response from [host]:[port] within 5 seconds: its status, `000` when none. */
-    private fun reach(pod: String, host: String, port: Int): String = http(pod, host, port, "GET", "/wow/manifest")
 
     /** Full-chain checkouts on a thread of their own while a fault runs, so it happens mid-checkout. */
     private class Load(private val flows: ShopFlows) {

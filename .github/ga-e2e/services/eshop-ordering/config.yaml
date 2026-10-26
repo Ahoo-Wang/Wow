@@ -20,5 +20,3 @@ data:
   # thread, two cores' worth of default pools; the log's partitions (64 in the base), fewer leases and polls per node.
   JAVA_OPTS: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2
   WOW_LOG_PARTITIONS: "8"
-  # Diagnostics: every dropped wait signal, not only the first per origin (logging.level.<logger>).
-  LOGGING_LEVEL_ME_AHOO_WOW_HTTP_INTERNAL_HTTPSIGNALSENDER: DEBUG

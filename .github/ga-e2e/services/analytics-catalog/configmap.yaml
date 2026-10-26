@@ -18,5 +18,3 @@ data:
   # capacity, so every node fits one runner: the heap within the pod's memory limit, one GC thread, two cores' worth
   # of default pools
   JAVA_OPTS: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2
-  # diagnostics: every dropped wait signal, not only the first per origin (logging.level.<logger>)
-  LOGGING_LEVEL_ME_AHOO_WOW_HTTP_INTERNAL_HTTPSIGNALSENDER: DEBUG
