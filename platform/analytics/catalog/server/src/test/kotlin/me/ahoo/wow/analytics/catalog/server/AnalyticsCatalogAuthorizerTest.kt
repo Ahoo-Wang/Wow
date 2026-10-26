@@ -21,10 +21,10 @@ import me.ahoo.wow.analytics.catalog.api.source.DraftSource
 import me.ahoo.wow.analytics.catalog.api.source.MarkSourceReviewed
 import me.ahoo.wow.analytics.catalog.api.source.SyncSource
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.kernel.CommandType
-import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryRequestException
 import me.ahoo.wow.runtime.admission.Authorization
