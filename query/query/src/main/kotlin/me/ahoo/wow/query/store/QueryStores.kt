@@ -73,11 +73,10 @@ class QueryStores(
          * `max-wait`, else the global one, in a queue of at most its `max-queued`, else the global one, else 4 per
          * permit.
          *
-         * A bound neither setting fixes adapts to the store's write pressure (decision D252, [pressures]) unless the
-         * store's, else the global, `adaptive.enabled` is off: it starts at the provider's and moves between the floor
-         * and the ceiling (store over global, the ceiling else the provider's
-         * [StoreQueryProvider.maxConcurrentCeiling]). A bound below zero, or a ceiling below one, is refused with the
-         * configuration key at fault.
+         * A bound neither setting fixes always adapts to the store's write pressure (decision D252, [pressures]): it
+         * starts at the provider's and moves between the floor and the ceiling (store over global, the ceiling else the
+         * provider's [StoreQueryProvider.maxConcurrentCeiling]). A bound below zero, or a ceiling below one, is refused
+         * with the configuration key at fault.
          */
         @JvmStatic
         fun of(
