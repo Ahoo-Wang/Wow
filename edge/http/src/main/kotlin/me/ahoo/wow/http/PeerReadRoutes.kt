@@ -22,6 +22,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.caller.CallPermits
@@ -42,7 +43,6 @@ import me.ahoo.wow.query.QueryOwnership
 import me.ahoo.wow.query.QueryTargets
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.mask.PayloadMasks
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.state.StateReads
@@ -202,7 +202,7 @@ internal class PeerRoots(
             CallHeaders.parse(value)
         } catch (invalid: IllegalArgumentException) {
             throw ProblemException(
-                statuses.problemOf(FrameworkCodes.MALFORMED, invalid.message ?: "Wow-Call does not parse.")
+                statuses.problemOf(FrameworkCodes.COMMAND_MALFORMED, invalid.message ?: "Wow-Call does not parse.")
             )
         }
         return Caller.of(

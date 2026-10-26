@@ -19,10 +19,12 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.spi.log.AggregateTail
@@ -167,7 +169,7 @@ class KernelRecentRequestsTest {
         log.appends.assert().isZero()
         // Another command type reusing the request id is refused as before (D55), and the state stays cached.
         val reused = kernel.execute(cartModel, command(ClearCart("x"), requestId = "same")) as CommandOutcome.Rejected
-        reused.rejection.code.assert().isEqualTo(KernelRejections.REQUEST_ID_REUSED)
+        reused.rejection.code.assert().isEqualTo(FrameworkCodes.COMMAND_REQUEST_ID_REUSED)
         log.lookups.assert().isZero()
         log.reads.assert().containsExactly(2..2, 2..2)
         states.states.getValue(ref).version.assert().isEqualTo(2)
@@ -179,7 +181,7 @@ class KernelRecentRequestsTest {
         kernel.commit(command(CreateCart("ahoo"), scope = owned))
         kernel.commit(command(AddItem("apple", 1), requestId = "same", scope = owned))
         val outsider = kernel.execute(cartModel, command(AddItem("apple", 1), requestId = "same", scope = Scope("bob")))
-        (outsider as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(KernelRejections.FORBIDDEN)
+        (outsider as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
     }
 
     @Test
@@ -261,7 +263,7 @@ class KernelRecentRequestsTest {
                 cartModel,
                 command(AddItem("apple", 1), requestId = "reused", target = other, scope = Scope("bob")),
             )
-            (reused as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(KernelRejections.FORBIDDEN)
+            (reused as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
         }
 
     @Test

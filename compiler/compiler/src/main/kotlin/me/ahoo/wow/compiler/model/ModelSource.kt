@@ -69,7 +69,7 @@ internal object ModelSource {
         val call = "${receiver(binding)}.${command.function}($arguments)"
         val name = command.commandName?.let { ", name = \"\$type.$it\"" }.orEmpty()
         appendLine(
-            "        $dsl<${command.command}>(me.ahoo.wow.kernel.Creation.${command.creation}$name) { state, command ->",
+            "        $dsl<${command.command}>(me.ahoo.wow.api.aggregate.Creation.${command.creation}$name) { state, command ->",
         )
         appendLine("            me.ahoo.wow.kernel.decisionOf(${awaited(call, command.reactor)})")
         appendLine("        }")

@@ -88,12 +88,6 @@ public final class me/ahoo/wow/spring/boot/CoSecAutoConfiguration$Companion {
 	public final fun wowCoSecRequestFacts ()Lorg/springframework/beans/factory/config/BeanPostProcessor;
 }
 
-public final class me/ahoo/wow/spring/boot/ConfigurationKeys$Companion {
-	public final fun getSTRICT_PREFIXES ()Ljava/util/List;
-	public final fun of (Ljava/lang/ClassLoader;Ljava/util/Collection;)Lme/ahoo/wow/spring/boot/ConfigurationKeys;
-	public static synthetic fun of$default (Lme/ahoo/wow/spring/boot/ConfigurationKeys$Companion;Ljava/lang/ClassLoader;Ljava/util/Collection;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/ConfigurationKeys;
-}
-
 public final class me/ahoo/wow/spring/boot/DataSourceAutoConfiguration {
 	public static final field Companion Lme/ahoo/wow/spring/boot/DataSourceAutoConfiguration$Companion;
 	public static final field PREFIX Ljava/lang/String;
@@ -138,9 +132,6 @@ public final class me/ahoo/wow/spring/boot/HostBackends$Companion {
 	public final fun memory (ILkotlin/jvm/functions/Function1;)Lme/ahoo/wow/spring/boot/HostBackends;
 	public static synthetic fun memory$default (Lme/ahoo/wow/spring/boot/HostBackends$Companion;ILkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/HostBackends;
 	public final fun of (Lme/ahoo/wow/runtime/node/BackendFactory;)Lme/ahoo/wow/spring/boot/HostBackends;
-}
-
-public final class me/ahoo/wow/spring/boot/InMemoryTopicsAutoConfiguration$Companion {
 }
 
 public final class me/ahoo/wow/spring/boot/KafkaProperties {

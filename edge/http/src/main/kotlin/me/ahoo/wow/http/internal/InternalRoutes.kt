@@ -19,12 +19,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.caller.DeclaredServices
 import me.ahoo.wow.http.problem.Problem
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.ForwardCommand
@@ -113,7 +113,7 @@ fun internalRoutes(
                     HttpStatus.BAD_REQUEST.value(),
                     HttpStatus.BAD_REQUEST.reasonPhrase,
                     "A resume names who resumes the node, for the audit: {\"by\": \"…\", \"reason\": \"…\"}.",
-                    FrameworkCodes.MALFORMED,
+                    FrameworkCodes.COMMAND_MALFORMED,
                 ).respond()
             val reason = body.get("reason")?.takeIf { it.isString }?.stringValue()
             ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(standby.resume(by, reason))
@@ -167,7 +167,7 @@ private fun ServerRequest.refusal(service: String?, anyService: Boolean): Proble
             HttpStatus.UNAUTHORIZED.value(),
             HttpStatus.UNAUTHORIZED.reasonPhrase,
             "The internal port takes this request from a service that names itself (${WowHeaders.SERVICE}).",
-            FrameworkCodes.UNAUTHENTICATED,
+            FrameworkCodes.AUTH_UNAUTHENTICATED,
         )
     }
     if (anyService || named == service) {

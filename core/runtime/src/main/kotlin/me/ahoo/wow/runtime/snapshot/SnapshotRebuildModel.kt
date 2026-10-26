@@ -13,14 +13,14 @@
 
 package me.ahoo.wow.runtime.snapshot
 
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.aggregate
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.spi.snapshot.RebuildSnapshot
 import me.ahoo.wow.spi.snapshot.SnapshotRebuildRequested
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
@@ -37,7 +37,7 @@ class RebuildState {
  * tenant (no owner), has no lifecycle commands and no snapshots of its own, and decides `wow.snapshot.Rebuild(ids)`:
  * it commits `wow.SnapshotRebuildRequested(ids)`, each id once, which the built-in rebuild subscription
  * ([SnapshotMaintenance.REBUILD_SUBSCRIPTION]) carries out. A request to an instance that is no snapshotted aggregate
- * type of the context is rejected with [FrameworkCodes.INVALID].
+ * type of the context is rejected with [FrameworkCodes.COMMAND_INVALID].
  */
 @InternalWowApi
 object SnapshotRebuildModel {
@@ -59,7 +59,7 @@ object SnapshotRebuildModel {
                 } else {
                     Decision.Rejected(
                         Rejection(
-                            FrameworkCodes.INVALID,
+                            FrameworkCodes.COMMAND_INVALID,
                             "$context.$aggregate keeps no snapshots to rebuild; the context's are ${aggregates.sorted()}.",
                         ),
                     )

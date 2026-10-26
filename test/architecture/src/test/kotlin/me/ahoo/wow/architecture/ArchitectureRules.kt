@@ -195,7 +195,8 @@ object ArchitectureRules {
         ANNOTATIONS to emptySet(),
         // The query protocol of the QueryApi (decision D260).
         API to setOf("annotations", "query-api"),
-        MANIFEST to setOf("annotations"),
+        // api for the tests only, which hold the contract's vocabulary to the programming model's (decision D294).
+        MANIFEST to setOf("annotations", "api"),
         QUERY_API to setOf("annotations"),
         // query-api: the query protocol whose JSON :spi holds (decision D293).
         SPI to setOf("api", "query-api"),
@@ -823,6 +824,21 @@ object ArchitectureRules {
             }
         }
         return violations + (DATA_CLASS_EXCEPTIONS.keys - dataClasses).map { "stale exception: $it" }
+    }
+
+    private val ABI_ANY_CLASS = Regex("""^public [^{]*?\bclass ([\w/$]+)""")
+
+    /**
+     * The nested classes the ABI dumps of [MODULES] keep while their outer class is left out (finding R5.A-7): an
+     * `@InternalWowApi` outer class does not hide its nested classes or its companion, which then freeze into the
+     * dump on their own, so each one is marked too. As `dump: Outer$Nested`.
+     */
+    fun hiddenOuterViolations(repositoryRoot: File): List<String> = MODULES.flatMap { module ->
+        val dump = File(repositoryRoot, "${module.dir}/api/${module.name}.api")
+        if (!dump.isFile) return@flatMap emptyList()
+        val classes = dump.readLines().mapNotNull { ABI_ANY_CLASS.find(it)?.groupValues?.get(1) }.toSet()
+        classes.filter { '$' in it && it.substringBeforeLast('$') !in classes }.sorted()
+            .map { "${module.dir}/api/${module.name}.api: $it" }
     }
 
     private val COMPATIBILITY_MARKER = Regex("""@Deprecated\b|\bcompat\(""")

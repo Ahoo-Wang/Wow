@@ -347,6 +347,7 @@ class HandoffLog(
         }
     }
 
+    @InternalWowApi
     companion object {
         /** A tail opened: it reads what is committed before it continues from memory. */
         const val START = "start"

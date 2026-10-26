@@ -1,7 +1,3 @@
-public final class me/ahoo/wow/mongo/MongoSharding$Companion {
-	public final fun of (Ljava/lang/String;)Lme/ahoo/wow/mongo/MongoSharding;
-}
-
 public final class me/ahoo/wow/mongo/query/MongoQueryOptions {
 	public static final field Companion Lme/ahoo/wow/mongo/query/MongoQueryOptions$Companion;
 	public static final field DEFAULT_FETCH_SIZE I

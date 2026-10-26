@@ -22,12 +22,10 @@ package me.ahoo.wow.manifest
  * The call code ([CALL_COMMAND_FORBIDDEN], decision D226) is answered by the internal port alone, to a service's
  * synchronous call (decision D193).
  *
- * This table is the one source of truth of the framework's codes (review R2.5-4): the runtime's codes (`FrameworkCodes`,
- * `ResultCodes`), the query's (`QueryErrors`) and the edge's (`CallPermits`) are its constants; the kernel, which does
- * not depend on this module, repeats its strings (`KernelRejections`, `ScheduleJobModel.JOB_INVALID`). A test of
- * `wow-http` (`FrameworkErrorTableTest`) fails when a code one of them produces is missing here, or a code here is
- * produced by none of them. A domain rejection's code is not here: it is answered with [DOMAIN_REJECTION_STATUS]
- * unless the host configures another status for it.
+ * This table is the framework's codes as the JSON contract states them, each with its HTTP status and description; the
+ * codes the modules produce are `wow-api`'s `FrameworkCodes`, which this module cannot depend on, and a test of this
+ * module checks that the two name the same set (decision D294). A domain rejection's code is not here: it is answered
+ * with [DOMAIN_REJECTION_STATUS] unless the host configures another status for it.
  *
  * The TypeScript client's code table (`@ahoo-wang/wow-client`, `FrameworkErrorCodes`) is checked against this one
  * through the snapshot `framework-errors.json` of this module's tests (review A5-8): changing a code or a status here

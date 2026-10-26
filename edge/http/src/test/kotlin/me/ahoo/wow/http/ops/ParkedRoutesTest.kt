@@ -20,6 +20,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.result.FrameworkCodes
 import me.ahoo.wow.http.Answer
 import me.ahoo.wow.http.TENANT
 import me.ahoo.wow.http.answer
@@ -29,7 +30,6 @@ import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.manifest.FrameworkErrors
-import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
@@ -284,7 +284,7 @@ class ParkedRoutesTest {
 
         val anonymous = client.post().uri("${entry("a")}/${OpsPaths.RESUME}").answer()
         anonymous.status.assert().isEqualTo(401)
-        anonymous.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.UNAUTHENTICATED)
+        anonymous.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AUTH_UNAUTHENTICATED)
         client.post().uri("${OpsPaths.PARKED}/$NAME/shop/cart/$TENANT/a/${OpsPaths.RESUME}")
             .header("X-User", "alice").header("Accept", "text/html").answer().status.assert().isEqualTo(406)
         // Without an authorizer every action is refused, never allowed by default (review A3-3).
@@ -365,7 +365,7 @@ class ParkedRoutesTest {
 
     private fun Answer.assertMalformed() {
         status.assert().isEqualTo(400)
-        body!!["code"].asString().assert().isEqualTo(FrameworkCodes.MALFORMED)
+        body!!["code"].asString().assert().isEqualTo(FrameworkCodes.COMMAND_MALFORMED)
     }
 
     private suspend fun eventually(condition: suspend () -> Boolean) {

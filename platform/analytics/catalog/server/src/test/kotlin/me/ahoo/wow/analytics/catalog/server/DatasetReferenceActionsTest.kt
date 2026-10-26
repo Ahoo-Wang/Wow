@@ -31,13 +31,8 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.RetryHint
 import me.ahoo.wow.api.client.WowProblemException
-import me.ahoo.wow.manifest.AggregateManifest
-import me.ahoo.wow.manifest.CommandManifest
-import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import java.io.IOException
@@ -88,7 +83,7 @@ class DatasetReferenceActionsTest {
         actions(described = emptySet()).actionsOf("shop.invoices", caller)!!.fields.single().commands.assert().isEmpty()
         actions(manifest = { throw IOException("down") }).actionsOf("shop.invoices", caller)!!
             .fields.single().commands.assert().isEmpty()
-        actions(manifest = { Manifest() }).actionsOf("shop.invoices", caller)!!
+        actions(manifest = { manifest() }).actionsOf("shop.invoices", caller)!!
             .fields.single().commands.assert().isEmpty()
     }
 
@@ -105,9 +100,9 @@ class DatasetReferenceActionsTest {
 
     @Test
     fun `a rejection's status is the peer's, the framework's or a domain rejection's`() {
-        val manifest = Manifest(
-            errors = listOf(ErrorManifest("crm.top", 409)),
-            contexts = listOf(ContextManifest("crm", errors = listOf(ErrorManifest("crm.member.gone", 410)))),
+        val manifest = manifest(
+            errors = listOf(error("crm.top", 409)),
+            contexts = listOf(context("crm", errors = listOf(error("crm.member.gone", 410)))),
         )
         DatasetReferenceActions.statusOf(manifest, "crm.top").assert().isEqualTo(409)
         DatasetReferenceActions.statusOf(manifest, "crm.member.gone").assert().isEqualTo(410)
@@ -145,21 +140,21 @@ class DatasetReferenceActionsTest {
     }
 
     private companion object {
-        val MANIFEST = Manifest(
+        val MANIFEST = manifest(
             contexts = listOf(
-                ContextManifest(
+                context(
                     name = "crm",
                     aggregates = listOf(
-                        AggregateManifest(
+                        aggregate(
                             name = "member",
-                            state = StateManifest("#/\$defs/crm.State"),
+                            state = "#/\$defs/crm.State",
                             commands = listOf(
-                                CommandManifest(name = "Bare", schema = "#/\$defs/crm.Bare"),
-                                CommandManifest(name = "Text", schema = "#/\$defs/crm.Text"),
-                                CommandManifest(name = "Untyped", schema = "#/\$defs/crm.Untyped"),
-                                CommandManifest(name = "Odd", schema = "#/\$defs/crm.Odd"),
-                                CommandManifest(name = "Two", schema = "#/\$defs/crm.Two"),
-                                CommandManifest(name = "Mounted", schema = "#/\$defs/crm.Bare", mounted = true),
+                                command(name = "Bare", schema = "#/\$defs/crm.Bare"),
+                                command(name = "Text", schema = "#/\$defs/crm.Text"),
+                                command(name = "Untyped", schema = "#/\$defs/crm.Untyped"),
+                                command(name = "Odd", schema = "#/\$defs/crm.Odd"),
+                                command(name = "Two", schema = "#/\$defs/crm.Two"),
+                                command(name = "Mounted", schema = "#/\$defs/crm.Bare", mounted = true),
                             ),
                         ),
                     ),

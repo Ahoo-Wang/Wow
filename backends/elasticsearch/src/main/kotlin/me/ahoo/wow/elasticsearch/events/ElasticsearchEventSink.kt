@@ -194,6 +194,7 @@ class ElasticsearchEventSink internal constructor(
     }
 
     /** A stream of the Sink's aggregate type: its aggregate and version. */
+    @InternalWowApi
     data class StreamKey(val ref: AggregateRef, val version: Int)
 
     override fun toString(): String = "ElasticsearchEventSink($index)"

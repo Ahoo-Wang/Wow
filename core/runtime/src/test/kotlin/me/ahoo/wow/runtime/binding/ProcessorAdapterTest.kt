@@ -46,6 +46,7 @@ class ProcessorAdapterTest {
     /** A binding index as the compiler generates one for a module with [processors]. */
     private fun provider(context: String, vararg processors: ProcessorBinding<*>) = object : ModelProvider {
         override val context: String = context
+        override val binding: Int = ModelProvider.BINDING
         override val fragment: String = "META-INF/wow/manifest/$context.json"
 
         override fun models(dependencies: Dependencies): List<AggregateModel<*>> = emptyList()
