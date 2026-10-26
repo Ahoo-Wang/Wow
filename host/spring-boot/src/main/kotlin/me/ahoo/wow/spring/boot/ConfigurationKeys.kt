@@ -20,6 +20,7 @@ import org.springframework.beans.BeanUtils
 import org.springframework.boot.context.properties.source.ConfigurationPropertyName
 import org.springframework.core.env.ConfigurableEnvironment
 import org.springframework.core.env.EnumerablePropertySource
+import org.springframework.core.env.SystemEnvironmentPropertySource
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver
 
 /**
@@ -29,7 +30,13 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver
  * property, such as `wow.aggregates`), or when it is under the prefix of another `@ConfigurationProperties` bean of the
  * application that no metadata describes (its `owned` prefixes), whose keys this check cannot tell. Names compare as
  * Spring's relaxed binding does (`laneCapacity` is `lane-capacity`); only property sources that list their names are
- * read, so environment variables are not checked.
+ * read.
+ *
+ * Environment variables are checked too, those named `WOW_…` ([ENV_PREFIX]), as Spring maps them: lower case,
+ * an underscore a dot, a number an index (`WOW_CALLERS_BASKET_COMMANDS_0` is `wow.callers.basket.commands[0]`), and
+ * dashes lost, which the comparison ignores (`WOW_KAFKA_COMMANDINTAKE_ENABLED` is `wow.kafka.command-intake.enabled`).
+ * An entry of a checked map may span several elements there, since a variable cannot write its brackets or dashes:
+ * one is known when the elements after some part of it name a property of the value.
  *
  * [check] refuses the startup for every unknown key: a mistyped `wow.cosec.authorizer.enabled` would otherwise leave
  * the authorizer that allows all in place, and a key of an earlier version would do nothing. A key that was renamed or
@@ -46,11 +53,17 @@ class ConfigurationKeys(
     private val known: List<ConfigurationPropertyName>,
     private val owned: List<ConfigurationPropertyName> = emptyList(),
 ) {
-    /** The `wow.*` keys of [environment] no property names, in the order the environment lists them. */
+    /**
+     * The `wow.*` keys and `WOW_…` environment variables of [environment] no property names, in the order the
+     * environment lists them.
+     */
     fun unknown(environment: ConfigurableEnvironment): List<String> = environment.propertySources
         .filterIsInstance<EnumerablePropertySource<*>>()
-        .flatMap { it.propertyNames.asList() }
-        .filter { it.startsWith(ROOT) }
+        .flatMap { source ->
+            source.propertyNames.filter {
+                it.startsWith(ROOT) || source is SystemEnvironmentPropertySource && it.startsWith(ENV_PREFIX)
+            }
+        }
         .distinct()
         .filterNot { key -> isKnown(key) }
 
@@ -60,7 +73,10 @@ class ConfigurationKeys(
         if (unknown.isEmpty()) {
             return
         }
-        val lines = unknown.map { key -> (renamed(key) ?: moduleOf(key))?.let { "$key ($it)" } ?: key }
+        val lines = unknown.map { key ->
+            val dotted = nameOf(key).toString()
+            (renamed(dotted) ?: moduleOf(dotted))?.let { "$key ($it)" } ?: key
+        }
         throw WowConfigurationException(
             unknown.first(),
             null,
@@ -70,9 +86,9 @@ class ConfigurationKeys(
     }
 
     private fun isKnown(key: String): Boolean {
-        val name = ConfigurationPropertyName.adapt(key, '.')
+        val name = nameOf(key)
         CHECKED_MAPS.entries.firstOrNull { (map, _) -> map.isAncestorOf(name) }?.let { (map, type) ->
-            return isLeafOf(map, type, name)
+            return if (key.startsWith(ENV_PREFIX)) isLeafOfAnyEntry(map, type, name) else isLeafOf(map, type, name)
         }
         return known.any { it == name || it.isAncestorOf(name) } || owned.any { it == name || it.isAncestorOf(name) }
     }
@@ -88,6 +104,21 @@ class ConfigurationKeys(
         return isPropertyOf(type, elements)
     }
 
+    /**
+     * Whether [name], an environment variable's, is a property of an entry of [map] that spans one or more of its
+     * elements: the variable cannot tell where the entry ends.
+     */
+    private fun isLeafOfAnyEntry(
+        map: ConfigurationPropertyName,
+        type: Class<*>,
+        name: ConfigurationPropertyName,
+    ): Boolean {
+        val elements = (map.numberOfElements until name.numberOfElements).map {
+            name.getElement(it, ConfigurationPropertyName.Form.UNIFORM)
+        }
+        return (1 until elements.size).any { entry -> isPropertyOf(type, elements.drop(entry)) }
+    }
+
     private fun isPropertyOf(type: Class<*>, elements: List<String>): Boolean {
         val property = elements.firstOrNull()?.let { propertiesOf(type)[it] } ?: return false
         return !isSettings(property) || isPropertyOf(property, elements.drop(1))
@@ -96,6 +127,27 @@ class ConfigurationKeys(
     @InternalWowApi
     companion object {
         private const val ROOT = "wow."
+
+        /** The prefix of the environment variables checked: Spring maps `WOW_X_Y` to `wow.x.y`. */
+        const val ENV_PREFIX: String = "WOW_"
+
+        /**
+         * The property name [key] stands for: a `wow.*` key as written, an environment variable as Spring maps it
+         * (lower case, `_` a dot, a number an index).
+         */
+        fun nameOf(key: String): ConfigurationPropertyName {
+            if (!key.startsWith(ENV_PREFIX)) {
+                return ConfigurationPropertyName.adapt(key, '.')
+            }
+            val mapped = key.lowercase().split('_').filter { it.isNotEmpty() }.fold(StringBuilder()) { name, element ->
+                when {
+                    element.all { it.isDigit() } -> name.append('[').append(element).append(']')
+                    name.isEmpty() -> name.append(element)
+                    else -> name.append('.').append(element)
+                }
+            }
+            return ConfigurationPropertyName.adapt(mapped, '.')
+        }
 
         /** The metadata Spring Boot's tooling reads, in the host's jar and any module's. */
         const val METADATA: String = "META-INF/spring-configuration-metadata.json"
