@@ -16,7 +16,7 @@
 | # | 问题 | 推荐 | 状态 | 最晚 | 文档 |
 |---|---|---|---|---|---|
 | T4 | `wow.http.client-facts` 默认 `true`（D267 ⑯）把客户端 IP 与 UA 写进不可删除的日志；GA 后再改默认值属于行为变更（R5.C-17） | 默认改为 `false`；用户 2026-10-26：并入 Wow 10 安全性的统一讨论 | 待定 | rc | [安全讨论](2026-10-26-security-review-design.md) SQ2 |
-| T5 | Wow 10 安全性的统一讨论：生产须显式认证与授权（SQ1）、服务身份最小权限（SQ3，原「只允许信号」）、凭据只发给已知对端（SQ4）、Kafka 命令入口的边界（SQ5）、未知 `wow.*` 键一律拒绝（SQ6）、内部端口加密（SQ7） | 见设计 §4 各项推荐 | 待定 | rc | [安全讨论](2026-10-26-security-review-design.md) |
+| T5 | Wow 10 安全性的统一讨论（基本原则 D295）：网关到服务的信任（SQ0）、生产须显式身份映射（SQ1）、服务身份最小权限（SQ3，原「只允许信号」）、凭据只发给已知对端（SQ4）、Kafka 命令入口的边界（SQ5）、未知 `wow.*` 键一律拒绝（SQ6）、内部端口加密（SQ7） | 见设计 §4 各项推荐 | 待定 | rc | [安全讨论](2026-10-26-security-review-design.md) |
 
 ## 2. 待验证的假设
 
@@ -328,3 +328,4 @@
 | D292 | **删除 9.x 遗留的公开路由 `GET /wow/id/global`**（R5.C-15，原待决 T3）：任何已认证调用方都能取全局 ID，没有 Wow 10 的使用者；不提供替代路由或别名（D1）。`GlobalIdGenerator` 仍是 `:spi` 的消息级 ID 抽象（D171） | 2026-10-26，用户按推荐 | [R5](2026-10-26-r5-ga-architecture-review-design.md)、[09](09-capability-parity.md) |
 | D293 | **`:client` 依赖 `:spi`；调用端口与查询协议 JSON 下沉到 `:spi`**（修订 D286，R5.C-5）：`:query-api` 与 `:manifest` 刻意零依赖（不带 Jackson），`:spi` 是 Wow 的 JSON 配置与端口、不含引擎，所以 `:client` 的终态是 `:api`、`:manifest`、`:query-api`、`:spi`。① `CommandCaller`/`OutgoingCall` 移到 `spi.call`（`@WowSpi`）；② 查询协议 JSON（过滤、聚合、分页）与读记录解码移到 `:spi` 的独立包，金样用例随之移动，描述符 JSON 留在 `:query`；③ 命令命名经 `:manifest` 读 class path 上的契约，`contract.json` 只有一个加载器（`ContractDirectory` 也用它），客户端不另写命名规则，没有契约时报错并给出修法；删除 `WowClient.Builder.commandTypes` | 2026-10-26，用户按推荐 | [R5](2026-10-26-r5-ga-architecture-review-design.md)、[06](06-modules.md) |
 | D294 | **编程模型的类型在 `:api`，契约的词汇在 `:manifest`，两者由双向测试对齐**（R5.A-9、A-12）：`Creation` 移到 `:api`（与 `Ownership` 同包），删除 `:kernel` 的副本；框架错误码常量在 `:api`（`FrameworkCodes`），删除 `KernelRejections`；`:manifest` 保留 JSON 契约的 `Creation`、`Ownership` 与错误码表 `FrameworkErrors`，各只有一处映射，并由 `:manifest` 的测试（只在测试范围依赖 `:api`）双向校验。`:annotations` 只放稳定性注解；`:manifest` 不依赖 `:api` | 2026-10-26，协调者，用户按推荐 | [R5](2026-10-26-r5-ga-architecture-review-design.md)、[06](06-modules.md) |
+| D295 | **Wow 服务的公开 API 前置安全网关**（安全讨论的基本原则）：终端用户的认证、粗粒度授权、限流、CORS 与对外 TLS 由网关负责；Wow 服务把网关断言的身份映射成 `Caller`，并负责领域内的授权（租户、所有者、空间、`Wow-Scope`、跨租户、遮罩）。内部端口、Kafka 与存储不经网关，不在本原则内。推论与据此修订的问题见安全讨论 §2.1、§4（SQ0～SQ2） | 2026-10-26，用户 | [安全讨论](2026-10-26-security-review-design.md) |
