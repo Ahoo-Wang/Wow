@@ -39,25 +39,51 @@ class QueryValuesTest {
                 sample.equals(Any()).assert().isFalse()
                 rebuilt.hashCode().assert().isEqualTo(sample.hashCode())
                 rebuilt.toString().assert().isEqualTo(sample.toString())
+                other(factory, values, sample)?.assert()?.isNotEqualTo(sample)
+                // Every overload of the factory, the rest of the arguments their defaults.
+                sample.javaClass.methods.filter { Modifier.isStatic(it.modifiers) && it.name == "of" }.forEach { of ->
+                    runCatching { of.invoke(null, *of.parameters.map { property(sample, it.name) }.toTypedArray()) }
+                }
                 sample.javaClass.methods.singleOrNull { it.name == "copy" && !Modifier.isStatic(it.modifiers) }
                     ?.invoke(sample, *values)?.assert()?.isEqualTo(sample)
-                // Every default: Wow's copy of nothing is the value itself; the shortest factory takes the rest.
+                // The synthetic default-argument forms, with every argument given and with none: Wow's copy of
+                // nothing is the value itself; the factory of nothing takes the defaults, or refuses them.
                 sample.javaClass.declaredMethods.singleOrNull { it.name == "copy\$default" }?.let { copy ->
-                    val arguments = copy.parameterTypes.drop(1).dropLast(2).map(::zero)
-                    copy.invoke(null, sample, *arguments.toTypedArray(), (1 shl arguments.size) - 1, null)
+                    copy.invoke(null, sample, *values, 0, null).assert().isEqualTo(sample)
+                    val zeros = copy.parameterTypes.drop(1).dropLast(2).map(::zero)
+                    copy.invoke(null, sample, *zeros.toTypedArray(), (1 shl zeros.size) - 1, null)
                         .assert().isEqualTo(sample)
                 }
-                val shortest = sample.javaClass.methods
-                    .filter { Modifier.isStatic(it.modifiers) && it.name == "of" }
-                    .minBy { it.parameterCount }
-                runCatching {
-                    shortest.invoke(
-                        null,
-                        *shortest.parameters.map { property(sample, it.name) }.toTypedArray()
-                    )
+                val companion = sample.javaClass.getField("Companion").get(null)
+                companion.javaClass.declaredMethods.singleOrNull { it.name == "of\$default" }?.let { of ->
+                    of.invoke(null, companion, *values, 0, null).assert().isEqualTo(sample)
+                    val zeros = of.parameterTypes.drop(1).dropLast(2).map(::zero)
+                    runCatching { of.invoke(null, companion, *zeros.toTypedArray(), (1 shl zeros.size) - 1, null) }
                 }
             }
         }
+
+    /** A value of the same type that differs from the one [values] build: one property changed, the first that can be. */
+    private fun other(
+        factory: Method,
+        values: Array<Any?>,
+        sample: Any
+    ): Any? = values.indices.firstNotNullOfOrNull { index ->
+        val changed = when (val value = values[index]) {
+            is String -> "$value-other"
+            is Int -> value + 1
+            is Long -> value + 1
+            is Double -> value + 1
+            is Boolean -> !value
+            is QueryField -> QueryField("${value.path}x")
+            is Enum<*> -> value.javaClass.enumConstants.firstOrNull { it != value } ?: return@firstNotNullOfOrNull null
+            is List<*> -> value + value
+            null -> return@firstNotNullOfOrNull null
+            else -> return@firstNotNullOfOrNull null
+        }
+        runCatching { factory.invoke(null, *values.copyOf().also { it[index] = changed }) }.getOrNull()
+            ?.takeIf { it != sample }
+    }
 
     private fun zero(type: Class<*>): Any? = when (type) {
         Int::class.javaPrimitiveType -> 0
