@@ -145,15 +145,15 @@
 
 | 编号 | 级别 | 位置 | 现象 | 去向 | 状态 |
 | --- | --- | --- | --- | --- | --- |
-| R5.B-1 | P0 活性 | `:runtime` `Executor` | 批取走的跟随命令的调用方被取消后，批提前结束时它被放回队首并接手车道，但无人领取，`leading` 停在 true，车道永久卡住（热点聚合停写，内部来源永久挂起） | 批 0 | 修复中 |
-| R5.B-2 | P1 | `:runtime` `ServiceNode` 停机 | `EXECUTIONS_ENDED` 超时后 `executor.close()` 无界等待，排在会取消执行的 `coordinator.close()` 之前 | 批 0 | 修复中 |
-| R5.B-10 | P2 | `:runtime`、02 | 默认常量两处定义（`laneCapacity`、`maxBatch`、`recentRequests`）；02 仍写 256（D278 为 32） | 批 0 | 修复中 |
-| R5.C-8 | P2 | `:api`、`:kernel`、`:http` | 领域拒绝可用 `wow.*` 码（答 429 加 `Retry-After`，客户端自动重试）或别的上下文的完整码 | 批 0 | 修复中 |
-| R5.C-7 | P2 | 横切 | 决定与审查编号进入用户可见的文字：108 个异常与拒绝消息、错误码描述（problem 的 `title`、Manifest、TS 快照）、54 行配置元数据、生成代码；主代码含编号 3,575 行（R3.2-2 登记时 439 处；B-14、A 组的分模块计数并入本项） | 批 0（用户可见部分）、批 5（注释）（D290） | 修复中 |
-| R5.C-18 | P2 | `:http` problem | `title` 用错误码的长描述，不是 RFC 9457 的简短摘要 | 批 0 | 修复中 |
-| R5.C-11 | P2 | `:spring-boot` | 31 处配置检查以普通异常埋在 `BeanCreationException` 里，没有 `FailureAnalyzer`；240 个键中 171 个没有描述 | 批 0 | 修复中 |
-| R5.C-13 | P2 | `:spring-boot` | `WowAutoConfiguration` 连续两段 KDoc，前一段是残留 | 批 0 | 修复中 |
-| R5.C-14 | P2 | `:http` 路由 | 每次构造路由新建一个从不取消的 `CoroutineScope`，停机后 SSE 生产者仍在（待核实） | 批 0 | 修复中 |
+| R5.B-1 | P0 活性 | `:runtime` `Executor` | 批取走的跟随命令的调用方被取消后，批提前结束时它被放回队首并接手车道，但无人领取，`leading` 停在 true，车道永久卡住（热点聚合停写，内部来源永久挂起） | 批 0 | 已修（#4905） |
+| R5.B-2 | P1 | `:runtime` `ServiceNode` 停机 | `EXECUTIONS_ENDED` 超时后 `executor.close()` 无界等待，排在会取消执行的 `coordinator.close()` 之前 | 批 0 | 已修（#4905） |
+| R5.B-10 | P2 | `:runtime`、02 | 默认常量两处定义（`laneCapacity`、`maxBatch`、`recentRequests`）；02 仍写 256（D278 为 32） | 批 0 | 已修（#4905） |
+| R5.C-8 | P2 | `:api`、`:kernel`、`:http` | 领域拒绝可用 `wow.*` 码（答 429 加 `Retry-After`，客户端自动重试）或别的上下文的完整码 | 批 0 | 已修（#4906；外上下文的完整码有意保留：共享模型如 `tree.*`，边缘只按命令自己的上下文查状态） |
+| R5.C-7 | P2 | 横切 | 决定与审查编号进入用户可见的文字：108 个异常与拒绝消息、错误码描述（problem 的 `title`、Manifest、TS 快照）、54 行配置元数据、生成代码；主代码含编号 3,575 行（R3.2-2 登记时 439 处；B-14、A 组的分模块计数并入本项） | 批 0（用户可见部分）、批 5（注释）（D290） | 部分（#4906：用户可见的 110 处字符串、配置元数据与生成代码已清零，架构规则禁止字符串字面量带编号；注释改写随批 5） |
+| R5.C-18 | P2 | `:http` problem | `title` 用错误码的长描述，不是 RFC 9457 的简短摘要 | 批 0 | 已修（#4906） |
+| R5.C-11 | P2 | `:spring-boot` | 31 处配置检查以普通异常埋在 `BeanCreationException` 里，没有 `FailureAnalyzer`；240 个键中 171 个没有描述 | 批 0 | 已修（#4906：`WowConfigurationException` 与 `FailureAnalyzer`，240 个键都有描述） |
+| R5.C-13 | P2 | `:spring-boot` | `WowAutoConfiguration` 连续两段 KDoc，前一段是残留 | 批 0 | 已修（#4906） |
+| R5.C-14 | P2 | `:http` 路由 | 每次构造路由新建一个从不取消的 `CoroutineScope`，停机后 SSE 生产者仍在（待核实） | 批 0 | 已修（#4906：路由作用域随节点停止取消） |
 | R5.A-1 | P1 | `:query-api` | 查询协议 94 个公开 `data class`（`copy`、`componentN` 冻结）；根因：`:query-api` 用不了 `@InternalWowApi` | 批 1（D282） | 待修 |
 | R5.A-2 | P1 | `:manifest` | 38 个公开构造函数冻结进 ABI，只有 Wow 自己构造，近一个月转储改了 14 次 | 批 1（D283） | 待修 |
 | R5.A-3 | P1 | `:test-dsl`、`:kernel` | 测 `putResult` 只能强转内核的 `CommandOutcome`，`LogPosition` 等成了用户依赖 | 批 1 | 待修 |
