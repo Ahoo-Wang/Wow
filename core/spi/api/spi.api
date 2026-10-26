@@ -794,10 +794,14 @@ public final class me/ahoo/wow/spi/sink/SinkConfig {
 	public final fun getName ()Ljava/lang/String;
 	public final fun getOptions ()Ljava/util/Map;
 	public final fun getResources ()Lme/ahoo/wow/spi/store/StoreResources;
+	public final fun getStore ()Lme/ahoo/wow/spi/store/Store;
+	public final fun getStreams ()Ljava/util/Set;
 	public final fun getType ()Ljava/lang/String;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/sink/SinkConfig;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/spi/sink/SinkConfig;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/sink/SinkConfig;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;Ljava/util/Set;)Lme/ahoo/wow/spi/sink/SinkConfig;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;Ljava/util/Set;Lme/ahoo/wow/spi/store/Store;)Lme/ahoo/wow/spi/sink/SinkConfig;
 	public final fun option (Ljava/lang/String;)Ljava/lang/String;
 	public final fun options (Ljava/lang/String;)Ljava/util/Map;
 	public fun toString ()Ljava/lang/String;
@@ -807,7 +811,9 @@ public final class me/ahoo/wow/spi/sink/SinkConfig$Companion {
 	public final fun of (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/sink/SinkConfig;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/spi/sink/SinkConfig;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/sink/SinkConfig;
-	public static synthetic fun of$default (Lme/ahoo/wow/spi/sink/SinkConfig$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;ILjava/lang/Object;)Lme/ahoo/wow/spi/sink/SinkConfig;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;Ljava/util/Set;)Lme/ahoo/wow/spi/sink/SinkConfig;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;Ljava/util/Set;Lme/ahoo/wow/spi/store/Store;)Lme/ahoo/wow/spi/sink/SinkConfig;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/sink/SinkConfig$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;Ljava/util/Set;Lme/ahoo/wow/spi/store/Store;ILjava/lang/Object;)Lme/ahoo/wow/spi/sink/SinkConfig;
 }
 
 public abstract interface class me/ahoo/wow/spi/sink/SinkProvider {

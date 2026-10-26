@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.spi.sink
 
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreResources
 
 /**
@@ -62,6 +64,10 @@ interface StreamSinks : AutoCloseable {
  * What a [SinkProvider] opens its sinks from: their [name] and [type], their own settings ([options], each key relative
  * to the sink's configuration, `endpoint` say), and the application's [resources].
  *
+ * A Sink that writes into one of the node's stores, as an event search index written into an Elasticsearch store is,
+ * has that opened [store], and writes the [streams] the host names, the aggregate types whose events that store is to
+ * serve; a Sink of a destination of its own has neither, and writes the streams the Manifest publishes.
+ *
  * Fields may be added (decision D216): the host builds it, so the constructor is internal to Wow; a provider's test
  * builds one with [of].
  */
@@ -71,6 +77,10 @@ class SinkConfig @InternalWowApi constructor(
     val type: String,
     val options: Map<String, String> = emptyMap(),
     val resources: StoreResources = StoreResources.NONE,
+    /** The aggregate types this Sink writes, null for the streams the Manifest publishes. */
+    val streams: Set<AggregateType>? = null,
+    /** The node's opened store this Sink writes into, null for a destination of its own. */
+    val store: Store? = null,
 ) {
     init {
         require(name.isNotBlank()) { "A sink needs a name." }
@@ -98,6 +108,8 @@ class SinkConfig @InternalWowApi constructor(
             type: String,
             options: Map<String, String> = emptyMap(),
             resources: StoreResources = StoreResources.NONE,
-        ): SinkConfig = SinkConfig(name, type, options, resources)
+            streams: Set<AggregateType>? = null,
+            store: Store? = null,
+        ): SinkConfig = SinkConfig(name, type, options, resources, streams, store)
     }
 }

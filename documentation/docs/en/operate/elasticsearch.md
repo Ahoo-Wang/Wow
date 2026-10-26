@@ -19,7 +19,8 @@ wow:
     main: { type: postgres }
     search:
       type: elasticsearch
-      index-prefix: shop
+      options:
+        index-prefix: shop
   log:
     store: main
   aggregates:
@@ -34,10 +35,9 @@ wow:
 | Key | Sets | Default |
 | --- | --- | --- |
 | `wow.stores.<name>.client` | The `Rest5Client` bean the store writes through | The only `Rest5Client` |
-| `wow.stores.<name>.query-client` | A second `Rest5Client`, a connection pool of the queries' own | The store's `client` |
-| `wow.stores.<name>.index-prefix` | A prefix for every index name: `shop_wow_snapshot__…`, `shop_wow_events__…` | None |
-| `wow.stores.<name>.refresh` | When a snapshot write becomes searchable: `wait_for`, `true` or `false` | `wait_for` |
-| `wow.stores.<name>.ddl` | Whether the store creates its indices: `auto`, `validate`, `none` | `wow.ddl` |
+| `wow.stores.<name>.options.query-client` | A second `Rest5Client`, a connection pool of the queries' own | The store's `client` |
+| `wow.stores.<name>.options.index-prefix` | A prefix for every index name: `shop_wow_snapshot__…`, `shop_wow_events__…` | None |
+| `wow.stores.<name>.options.refresh` | When a snapshot write becomes searchable: `wait_for`, `true` or `false` | `wait_for` |
 | `wow.stores.<name>.ddl` | Whether it creates its indices and maps the state's and the events' body fields | `wow.ddl` |
 | `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | The store of an aggregate's snapshots | The log's store |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | The store its `events` queries read | The log's store |
@@ -54,7 +54,14 @@ The event search sink writes each commit as one document of `[<prefix>_]wow_even
 
 An aggregate whose `query.events.store` names the Elasticsearch store has its `events` queries served from that index: an event condition is a nested query, an `expand("events")` aggregation a nested aggregation, and a query that names no aggregate searches the index instead of scanning the log. The index shows what the sink has written, a commit becoming searchable once the sink has written it and the index refreshed, one second by default.
 
-Each sink runs as a subscription named `elasticsearch-sink.<aggregate>`, so it resumes from its checkpoint and can start again from the beginning of the log. In 10.0 the Spring Boot host does not start the event search sinks by itself: an application that needs event search starts them.
+Each sink runs as a subscription named `elasticsearch-sink.<aggregate>`, so it resumes from its checkpoint and can start again from the beginning of the log. The host starts the sinks by itself, with no setting of their own: for each Elasticsearch store that an aggregate's `query.events.store` names, it writes exactly those aggregates' streams into that store, whether or not the service publishes them.
+
+## Store combinations
+
+Each aggregate type picks its stores: its log on PostgreSQL or MongoDB (`wow.log.store`, `wow.aggregates.[<context>.<aggregate>].log.store`), its snapshots and its events search on Elasticsearch, as the sample above sets them. Two consequences:
+
+- **A cache miss reads twice.** A command whose aggregate is not in the state cache reads its snapshot and the log after it. PostgreSQL's log reads both in one round trip when the snapshots are in its own database; with the snapshots on Elasticsearch it reads them apart, and counts each such read in `wow.store.fallbacks` (`wow.capability=snapshot-tail-read`, `wow.reason=unavailable`). MongoDB's log always reads them apart and counts nothing. A large state cache keeps these reads rare.
+- **Events queries follow the sink.** An aggregate's `events` queries read Elasticsearch once its `query.events.store` names the store, so they see what the sink has written: a commit is searchable shortly after it commits, not at once. Its snapshots may stay on the log's store; the two settings are independent.
 
 ## Rebuild
 
