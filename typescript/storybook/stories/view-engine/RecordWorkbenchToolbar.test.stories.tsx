@@ -255,7 +255,7 @@ export const AutoRefresh: Story = {
     // for all but its first second, so either is the right answer here.
     await waitFor(() =>
       expect([minutes, say('label.refresh.minutes', { count: 4 })]).toContain(
-        cadence()?.textContent,
+        cadence()?.getAttribute('data-reading'),
       ),
     );
     await expect(canvas.getByText(zhCN['label.header.unsaved'])).toBeVisible();
