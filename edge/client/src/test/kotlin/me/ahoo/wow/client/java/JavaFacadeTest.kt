@@ -102,7 +102,10 @@ class JavaFacadeTest {
         queries.events(type).type.assert().isEqualTo(type)
         queries.events(type).dynamic(String::class.java).list(ListQuery(all)).assert().containsExactly("a", "b")
         @OptIn(me.ahoo.wow.api.annotation.ExperimentalWowApi::class)
-        queries.datasets(DatasetName.of("shop", "sales"), String::class.java).single(SingleQuery(all)).assert().isEqualTo("one")
+        queries.datasets(
+            DatasetName.of("shop", "sales"),
+            String::class.java
+        ).single(SingleQuery(all)).assert().isEqualTo("one")
         queries.unbounded().assert().isNotNull()
     }
 

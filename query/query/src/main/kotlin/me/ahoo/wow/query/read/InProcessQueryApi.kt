@@ -125,7 +125,9 @@ class InProcessQueryApi @InternalWowApi constructor(
 
         @OptIn(ExperimentalWowApi::class)
         override fun <R : Any> datasets(name: DatasetName, rowType: Class<R>): RowQueries<R> {
-            val gateway = engine.datasets[AggregateType(name.context, name.name)]?.takeIf { engine.datasetVisibility.visible(it.dataset, caller) }
+            val gateway = engine.datasets[AggregateType(name.context, name.name)]?.takeIf {
+                engine.datasetVisibility.visible(it.dataset, caller)
+            }
             requireNotNull(gateway) { "No dataset $name is served." }
             return Rows(gateway, caller) { decode(it, rowType) }
         }
