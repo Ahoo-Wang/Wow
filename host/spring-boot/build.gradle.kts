@@ -23,6 +23,9 @@ dependencies {
     // with wow-http.
     compileOnly(project(":kafka"))
     compileOnly(project(":clickhouse"))
+    // CoSec is wired when the application has wow-cosec and CoSec's WebFlux module, as Kafka is (review R5.C-12).
+    compileOnly(project(":cosec"))
+    compileOnly(libs.cosec.webflux)
     // Tracing and metrics are wired when the application has wow-opentelemetry (decision D174).
     compileOnly(project(":opentelemetry"))
     // Activated only when the application has it: a Bean Validation provider (D106). CosId's ids come from wow-cosid,
@@ -46,6 +49,8 @@ dependencies {
     testImplementation(project(":postgres"))
     testImplementation(project(":mongo"))
     testImplementation(project(":kafka"))
+    testImplementation(project(":cosec"))
+    testImplementation(libs.cosec.webflux)
     testImplementation(project(":clickhouse"))
     testImplementation(project(":opentelemetry"))
     testImplementation("io.opentelemetry:opentelemetry-sdk-testing")

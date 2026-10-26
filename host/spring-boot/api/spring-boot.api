@@ -76,6 +76,24 @@ public final class me/ahoo/wow/spring/boot/ClickHouseProperties$Sink {
 	public final fun setEnabled (Z)V
 }
 
+public final class me/ahoo/wow/spring/boot/CoSecAutoConfiguration {
+	public static final field AUTHORIZER_ENABLED Ljava/lang/String;
+	public static final field COSEC_AUTHORIZATION_ENABLED Ljava/lang/String;
+	public static final field COSEC_INJECT_ENABLED Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/spring/boot/CoSecAutoConfiguration$Companion;
+	public static final field TRUST_INJECTED_APP Ljava/lang/String;
+	public fun <init> ()V
+	public final fun wowCoSecCallAuthorizer (Lme/ahoo/cosec/api/authorization/Authorization;Lme/ahoo/wow/spring/boot/WowProperties;)Lme/ahoo/wow/http/caller/CallAuthorizer;
+	public final fun wowCoSecCallerResolver (Lme/ahoo/wow/spring/boot/WowProperties;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/cosec/CoSecCallerResolver;
+	public final fun wowCoSecCommandAuthorizer (Lme/ahoo/cosec/api/authorization/Authorization;Lme/ahoo/wow/spring/boot/WowProperties;)Lme/ahoo/wow/cosec/CoSecCommandAuthorizer;
+	public final fun wowCoSecInternalCallerResolver (Lme/ahoo/cosec/context/request/RequestParser;Lme/ahoo/cosec/token/TokenVerifier;Lme/ahoo/wow/spring/boot/WowProperties;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/cosec/CoSecInternalCallerResolver;
+	public static final fun wowCoSecRequestFacts ()Lorg/springframework/beans/factory/config/BeanPostProcessor;
+}
+
+public final class me/ahoo/wow/spring/boot/CoSecAutoConfiguration$Companion {
+	public final fun wowCoSecRequestFacts ()Lorg/springframework/beans/factory/config/BeanPostProcessor;
+}
+
 public final class me/ahoo/wow/spring/boot/ConfigurationKeys$Companion {
 	public final fun getSTRICT_PREFIXES ()Ljava/util/List;
 	public final fun of (Ljava/lang/ClassLoader;Ljava/util/Collection;)Lme/ahoo/wow/spring/boot/ConfigurationKeys;
