@@ -259,6 +259,17 @@ class LedgerPublisherTest {
             gated.refresh { deployed.get() }
             gated.open.assert().isTrue()
             sent.map { it.record["aggregate"]["id"].asString() }.assert().containsExactlyInAnyOrder("x1", "x2")
+            // A scan that fails on opening is logged; the gate stays open, and the loop scans again.
+            val unreadable = LedgerPublisher(
+                SERVICE,
+                LedgerPublishing(automatic = true),
+                ParkedOps { error("The ledger is unreachable.") },
+                { sent += it },
+                clock,
+                available = { true },
+            )
+            unreadable.refresh { true }
+            unreadable.open.assert().isTrue()
             // A failed check keeps the gate as it is; one that finds the topic gone closes it.
             gated.refresh { error("The broker is unreachable.") }
             gated.open.assert().isTrue()

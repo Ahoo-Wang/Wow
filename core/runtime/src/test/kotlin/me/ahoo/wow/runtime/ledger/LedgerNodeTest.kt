@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.ledger
 
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -183,6 +184,45 @@ class LedgerNodeTest {
             )
         }
     }
+
+    @Test
+    fun `an automatic publishing opens once the ops command topic exists, and stays shut without an admin to ask`(): Unit =
+        runBlocking {
+            // Decision D312: the ops service creates its command topic, so it existing means ops is deployed.
+            val broker = InMemoryTopics(2).also { it.create(COMMANDS, PARTITIONS) }
+            val publishing = LedgerPublishing(interval = 20.milliseconds, automatic = true)
+            val automatic = fastNodeOptions().copyWith(ledger = publishing)
+            fun nodeOver(topics: SourceTopics) = ServiceNode(
+                STOCK_SERVICE,
+                "stock-3",
+                "stock-3.internal:9090",
+                listOf(StockItems().model),
+                stockManifest(),
+                InMemoryBackends(PARTITIONS),
+                LoopbackClusterChannel(),
+                options = automatic,
+                contracts = ContractDirectory(stockManifest()),
+                topics = topics.copy(partitionRefresh = 20.milliseconds),
+            )
+            val asking = nodeOver(SourceTopics(broker, PREFIX, broker, admin = broker))
+            asking.start()
+            try {
+                val publisher = checkNotNull(asking.ledgerPublisher)
+                publisher.open.assert().isFalse()
+                broker.create(OPS_COMMANDS, 2)
+                eventually { publisher.open }
+            } finally {
+                asking.stop()
+            }
+            val blind = nodeOver(SourceTopics(broker, PREFIX, broker))
+            blind.start()
+            try {
+                delay(100)
+                checkNotNull(blind.ledgerPublisher).open.assert().isFalse()
+            } finally {
+                blind.stop()
+            }
+        }
 
     private companion object {
         const val PARTITIONS = 4
