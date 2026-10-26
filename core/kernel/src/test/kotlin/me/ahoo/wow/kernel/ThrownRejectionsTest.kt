@@ -30,12 +30,14 @@ import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FrameworkCodes
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
 import java.io.IOException
 import java.util.concurrent.CancellationException
+import kotlin.time.Duration.Companion.minutes
 
 /** What a decide function throws: a refusal answered as the rejection it stands for, or a failure (D311, D314). */
 class ThrownRejectionsTest {
@@ -60,6 +62,7 @@ class ThrownRejectionsTest {
             when (body.label) {
                 "scope" -> reject("insufficient-funds", "Only 5 left.")
                 "timeout" -> withTimeout(1) { delay(1_000) }
+                "blank schedule key" -> schedule(" ", ScheduleRule.after(1.minutes), Open("x"))
                 else -> throwing.getValue(body.label)()
             }
             Decision.events(Opened(body.label))
@@ -109,6 +112,8 @@ class ThrownRejectionsTest {
         Triple("NumberFormatException", { throw NumberFormatException("x") }, null),
         Triple("IOException", { throw IOException("connection reset") }, null),
         Triple("UnsupportedOperationException", { throw UnsupportedOperationException("no") }, null),
+        // The kernel's own guards inside the scope are faults, not refusals.
+        Triple("blank schedule key", { error("unreachable") }, null),
     )
 
     @TestFactory
@@ -153,6 +158,19 @@ class ThrownRejectionsTest {
         runCatching { Kernel(log).execute(model, command(Throw("timeout"))) }.exceptionOrNull()
             .assert().isInstanceOf(TimeoutCancellationException::class.java)
         ThrownRejections.rejectionOf(CancellationException("x")).assert().isNull()
+    }
+
+    @Test
+    fun `a refusal without a message, or a remote rejection without an error, should still be classified`() {
+        ThrownRejections.rejectionOf(IllegalArgumentException())!!.message.assert().isEmpty()
+        ThrownRejections.rejectionOf(IllegalStateException())!!.message.assert().isEmpty()
+        val bare = CommandRejectedException(
+            mockk<CommandResult>(relaxed = true) {
+                every { status } returns CommandResult.Status.REJECTED
+                every { error } returns null
+            },
+        )
+        ThrownRejections.rejectionOf(bare).assert().isNull()
     }
 
     @Test
