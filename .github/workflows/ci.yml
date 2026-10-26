@@ -104,6 +104,7 @@ jobs:
       matrix:
         include:
           - shard: host
+          - shard: apps
           - shard: tooling
           - shard: rest
             publications: true

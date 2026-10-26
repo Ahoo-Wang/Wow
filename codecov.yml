@@ -36,7 +36,7 @@ coverage:
 # `integration` flag the integration shards' (their container-backed tests). The reports name each source file by
 # its repository path (test/code-coverage-report).
 #
-# A full run uploads `jvm-unit` once per shard of ci.yml's `check` matrix (3) and `integration` once per shard of its
+# A full run uploads `jvm-unit` once per shard of ci.yml's `check` matrix (4) and `integration` once per shard of its
 # `integration` matrix (4). Codecov judges a status that reads a flag
 # (the components', and patch and project above) only once the flag has `after_n_builds` sessions of this commit.
 # Carried-forward sessions satisfy `after_n_builds` until the flag's first real upload replaces them: a pull request
@@ -63,7 +63,7 @@ flag_management:
     carryforward: true
   individual_flags:
     - name: jvm-unit
-      after_n_builds: 3
+      after_n_builds: 4
     - name: integration
       after_n_builds: 4
     - name: v10
