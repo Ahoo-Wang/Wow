@@ -39,7 +39,7 @@ catalog:
   '@ahoo-wang/fetcher-react': '^6.0.1'
   axe-core: ^4.14.0
   babel-plugin-react-compiler: 1.0.0
-  '@base-ui/react': ^1.8.0
+  '@base-ui/react': ^1.9.0
   canvas-confetti: ^1.9.4
   '@chromatic-com/storybook': ^5.4.0
   class-variance-authority: ^0.7.1
