@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import java.io.File
 import org.springframework.core.env.SystemEnvironmentPropertySource
 import org.springframework.mock.env.MockEnvironment
 
@@ -25,6 +26,8 @@ import org.springframework.mock.env.MockEnvironment
  * version with what took its place.
  */
 class ConfigurationKeysTest {
+    private val MANIFEST_VARIABLE = Regex("""^\s*(?:- name:\s*)?(WOW_[A-Z0-9_]+)\s*:?""")
+
     private val keys = ConfigurationKeys.of(javaClass.classLoader, listOf("wow.view-store", "wow", "spring.foo"))
 
     private fun environment(vararg properties: Pair<String, String>) = MockEnvironment().apply {
@@ -109,6 +112,34 @@ class ConfigurationKeysTest {
         )
         keys.unknown(environment).assert().isEmpty()
         keys.check(environment)
+    }
+
+    @Test
+    fun `a WOW_ variable in Spring's legacy form, dashes as underscores, should be known as Spring binds it`() {
+        val environment = variables(
+            "WOW_COSEC_TRUST_INJECTED_APP" to "true",
+            "WOW_LOG_MAX_POLL_INTERVAL" to "5s",
+            "WOW_STATE_CACHE_CAPACITY" to "100",
+            "WOW_PEERS_ESHOP_ORDERING_PUBLIC_URL" to "http://ordering",
+            "WOW_CALLERS_BASKET_COMMANDS_0" to "shop.cart.Add",
+        )
+        keys.unknown(environment).assert().isEmpty()
+        ConfigurationKeys.namesOf("WOW_COSEC_TRUST_INJECTED_APP").map { it.toString() }
+            .assert().contains("wow.cosec.trust.injected.app", "wow.cosec.trust-injected-app")
+        // A stale key in the legacy form is named with what took its place.
+        assertThrows<WowConfigurationException> { keys.check(variables("WOW_KAFKA_COMMAND_INTAKE" to "true")) }
+            .message.assert().contains("WOW_KAFKA_COMMAND_INTAKE (renamed wow.kafka.command-intake.enabled)")
+    }
+
+    @Test
+    fun `the WOW_ variables of the shipped Kubernetes manifests should be known`() {
+        // Finding F12: every variable a manifest of deploy/ sets, in a ConfigMap or a container's env, as the host reads it.
+        val deploy = File("../../deploy").canonicalFile
+        val variables = deploy.walkTopDown().filter { it.isFile && it.extension == "yaml" }.flatMap { manifest ->
+            manifest.readLines().mapNotNull { MANIFEST_VARIABLE.find(it)?.groupValues?.get(1) }
+        }.toSet()
+        variables.assert().contains("WOW_COSEC_TRUST_INJECTED_APP", "WOW_KAFKA_BOOTSTRAPSERVERS", "WOW_INTERNAL_HOST")
+        keys.unknown(variables(*variables.map { it to "x" }.toTypedArray())).assert().isEmpty()
     }
 
     @Test
