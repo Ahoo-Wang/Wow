@@ -15,13 +15,14 @@ package me.ahoo.wow.viewstore.server.system
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 
-/**
- * The view store service's settings (`wow.view-store`, the 9.x starter's prefix).
- *
- * @property systemViews the read-only system views the service serves ([ConfiguredSystemViews]).
- */
+/** The view store service's settings (`wow.view-store`, the 9.x starter's prefix). */
 @ConfigurationProperties(prefix = ViewStoreProperties.PREFIX)
 class ViewStoreProperties(
+    /**
+     * The read-only system views the service serves ([ConfiguredSystemViews]), each with its `tenant-id` and `app-id`
+     * (blank for every one), its `id` (not starting with `system:`), its `definition-id`, its `title` and its
+     * `config`, the engine's view configuration as JSON text.
+     */
     var systemViews: MutableList<SystemViewProperties> = mutableListOf(),
 ) {
     companion object {

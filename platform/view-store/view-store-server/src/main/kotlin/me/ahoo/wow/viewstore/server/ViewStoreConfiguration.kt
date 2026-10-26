@@ -101,7 +101,10 @@ class ViewStoreConfiguration {
         SystemViewRoutes(views, callers).routes()
 
     companion object {
-        /** The switch that takes the callers from the request headers ([ViewStoreCallers]): off by default. */
+        /**
+         * The switch that takes the callers from the request headers ([ViewStoreCallers]), off by default: a condition only,
+         * the host's `wow.platform.trust-identity-headers` holding its metadata and its default.
+         */
         const val TRUST_IDENTITY_HEADERS: String = "wow.platform.trust-identity-headers"
 
         /** Puts CoSec's callers behind the view store's reserved owners ([ReservedScopeCallers]). */

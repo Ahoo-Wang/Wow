@@ -7,7 +7,7 @@ description: "Every key of the host's wow.* configuration, its type, default and
 
 # Configuration Keys
 
-Every key of the `wow.*` configuration a Spring Boot host reads, 229 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property names is reported when the node starts. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
+Every key of the `wow.*` configuration a Spring Boot host reads, 229 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property of the host or of a module on the class path names refuses the node's start, naming the new key of a renamed one. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
 
 ## `wow`
 
@@ -118,14 +118,6 @@ The tenant-level callers, who read and write every aggregate of their tenant.
 | --- | --- | --- | --- |
 | `wow.cosec.tenant-level.policies` | `Set<String>` |  | The CoSec policies of these callers. |
 | `wow.cosec.tenant-level.roles` | `Set<String>` |  | The CoSec roles of these callers. |
-
-## `wow.cosid`
-
-The keys wow-cosid reads (`wow.cosid.*`), bound here as cosec is.
-
-| Key | Type | Default | Description |
-| --- | --- | --- | --- |
-| `wow.cosid.global-generator` | `String` |  | The CosId generator of the node's global ids (command ids, wait ids); CosId's own `cosid` when not set. |
 
 ## `wow.executor`
 
@@ -403,6 +395,14 @@ How a typed client's request that a peer answered with a problem a retry may get
 | `wow.peer.retry.initial-backoff` | `Duration` | `PT0.2S` | The wait before the first retry when the peer gives no `Retry-After`; it doubles at each next one. |
 | `wow.peer.retry.max-attempts` | `Integer` | `3` | The most attempts of a request in all; 1 never retries. |
 | `wow.peer.retry.max-retry-after` | `Duration` | `PT5S` | The longest `Retry-After` of a peer that is waited out; a peer that asks for longer is not retried. |
+
+## `wow.platform`
+
+The settings of the platform services that run on the host: `wow.platform.*`.
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `wow.platform.trust-identity-headers` | `Boolean` | `false` | Whether a platform service takes its callers from the `X-User`, `X-Tenant` and `X-Role` request headers, which any client sets: for local runs, demos and tests only, so it is refused outside development. |
 
 ## `wow.postgres`
 

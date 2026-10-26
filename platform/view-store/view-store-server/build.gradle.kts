@@ -40,6 +40,8 @@ dependencies {
     runtimeOnly("com.zaxxer:HikariCP")
     implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation("org.springframework:spring-test")
+    // The generator of the configuration metadata of the service's own keys (design rule K8).
+    testImplementation(testFixtures(project(":spring-boot")))
     // The same contract on PostgreSQL in a container (decision D196).
     integrationTestImplementation(sourceSets["test"].output)
     integrationTestImplementation(project(":tck-containers"))

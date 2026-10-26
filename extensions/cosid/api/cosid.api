@@ -18,6 +18,18 @@ public final class me/ahoo/wow/cosid/CosIdGlobalIdGenerator : me/ahoo/wow/spi/id
 	public fun next ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/cosid/CosIdProperties {
+	public static final field Companion Lme/ahoo/wow/cosid/CosIdProperties$Companion;
+	public static final field GLOBAL_GENERATOR Ljava/lang/String;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public final fun getGlobalGenerator ()Ljava/lang/String;
+	public final fun setGlobalGenerator (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/cosid/CosIdProperties$Companion {
+}
+
 public final class me/ahoo/wow/cosid/WowCosIdAutoConfiguration {
 	public static final field AGGREGATE_ID_GENERATOR Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/cosid/WowCosIdAutoConfiguration$Companion;

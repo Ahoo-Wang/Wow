@@ -54,7 +54,7 @@ outline: deep
 
 ### 10.0.0 之前改名的配置键 {#configuration-keys-renamed-before-10-0-0}
 
-配置面在 10.0.0 之前一次定稿，不保留别名：更早预发布版的键不再绑定任何设置。每一行写明取代它的是什么。
+配置面在 10.0.0 之前一次定稿，不保留别名：更早预发布版的键会使节点拒绝启动，拒绝的消息写明取代它的键，与这里的每一行相同。宿主或类路径上的模块都没有对应属性的其他 `wow.*` 键同样拒绝启动。
 
 | 预发布版的键 | 10.0.0 |
 | --- | --- |
@@ -85,3 +85,4 @@ outline: deep
 | `wow.clients.retry.max-attempts`、`.backoff`、`.max-retry-after` | `wow.peer.retry.max-attempts`、`.initial-backoff`、`.max-retry-after` |
 | `wow.http.services.<service>.commands`、`.reads` | `wow.callers.<service>.commands`、`.reads` |
 | `wow.topics.in-memory` | `wow.transport`：默认的 `auto` 在开发中把主题保存在 JVM 里；`memory` 显式要求，只在开发中允许 |
+| `wow.analytics.catalog.watch` | `wow.analytics.catalog.watch.enabled` |

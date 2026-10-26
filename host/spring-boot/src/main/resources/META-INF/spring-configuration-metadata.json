@@ -48,11 +48,6 @@
     "description" : "The tenant-level callers, who read and write every aggregate of their tenant.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec"
   }, {
-    "name" : "wow.cosid",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$CosId",
-    "description" : "The keys wow-cosid reads (`wow.cosid.*`), bound here as cosec is.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
-  }, {
     "name" : "wow.executor",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Executor",
     "description" : "How the node executes commands.",
@@ -195,6 +190,11 @@
     "type" : "me.ahoo.wow.spring.boot.WowProperties$PeerRetry",
     "description" : "How a typed client's request that a peer answered with a problem a retry may get past is sent again; a saga's call is not retried here, its subscription's retry budget is the one that counts.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Peer"
+  }, {
+    "name" : "wow.platform",
+    "type" : "me.ahoo.wow.spring.boot.WowProperties$Platform",
+    "description" : "The settings of the platform services that run on the host: `wow.platform.*`.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.postgres",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Postgres",
@@ -526,11 +526,6 @@
     "description" : "Whether a service in CoSec's inject mode, behind a CoSec gateway (`cosec.inject.enabled=true` with `cosec.authorization.enabled=false`), records the application of the requests the gateway forwards, their `CoSec-App-Id`, as the caller's app and the request fact `app_id`: it trusts the gateway, so it is off by default; in any other mode it fails the startup.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec",
     "defaultValue" : false
-  }, {
-    "name" : "wow.cosid.global-generator",
-    "type" : "java.lang.String",
-    "description" : "The CosId generator of the node's global ids (command ids, wait ids); CosId's own `cosid` when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CosId"
   }, {
     "name" : "wow.ddl",
     "type" : "me.ahoo.wow.spi.Ddl",
@@ -972,6 +967,12 @@
     "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$PeerTarget>",
     "description" : "The peer contexts called over HTTP, by context (`wow.peers.<context>.*`): a saga's synchronous calls to that context and the typed clients of it go to its service. A context not listed is reached through its topic. A saga that calls a context without an address fails, then parks.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
+  }, {
+    "name" : "wow.platform.trust-identity-headers",
+    "type" : "java.lang.Boolean",
+    "description" : "Whether a platform service takes its callers from the `X-User`, `X-Tenant` and `X-Role` request headers, which any client sets: for local runs, demos and tests only, so it is refused outside development.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Platform",
+    "defaultValue" : false
   }, {
     "name" : "wow.postgres.operation-timeout",
     "type" : "java.time.Duration",

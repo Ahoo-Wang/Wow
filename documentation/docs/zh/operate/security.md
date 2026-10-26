@@ -171,7 +171,7 @@ kafka-acls.sh --bootstrap-server kafka:9092 --add --allow-principal User:ops --o
 
 ## 写错的设置 {#mistyped-settings}
 
-写错的安全设置会悄悄保留默认值，而有些默认值允许一切。所以当 `wow.cosec.*`、`wow.callers.*`、`wow.calls.*` 或 `wow.internal.*` 下出现未知的键时，宿主拒绝启动；`wow.callers` 和 `wow.peers` 下每一项的键也会检查。其他未知的 `wow.*` 键记一条警告。
+写错的安全设置会悄悄保留默认值，而有些默认值允许一切。所以任何 `wow.*` 键未知时，宿主都拒绝启动；`wow.callers` 和 `wow.peers` 下每一项的键也会检查。
 
 ## 事件中的个人数据 {#personal-data-in-events}
 

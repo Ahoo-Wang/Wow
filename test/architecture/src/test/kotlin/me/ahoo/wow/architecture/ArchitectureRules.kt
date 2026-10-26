@@ -244,8 +244,9 @@ object ArchitectureRules {
             "clickhouse",
             "opentelemetry",
         ),
-        // CosId's generators as the node's (decision D171): the id SPIs only; it wires itself before the host.
-        COSID to setOf("spi"),
+        // CosId's generators as the node's (decision D171): the id SPIs only; it wires itself before the host. The host
+        // only for the tests, which generate the module's configuration metadata and check the host accepts its keys.
+        COSID to setOf("spi", "spring-boot"),
         // Domain code's API only (decision D187); the compiler only for the tests, which compile a sample tree.
         MODELS to setOf("api", "compiler"),
         // The event log on either first-class backend, which the import writes to (roadmap 8b.1); runtime only for the
@@ -721,9 +722,11 @@ object ArchitectureRules {
     /**
      * The lines of [USER_PROJECTS]' build scripts and production sources that name `InternalWowApi` (review R2.5-7):
      * an `@OptIn(InternalWowApi::class)` or a compiler `optIn`, which would build an application on a declaration Wow
-     * promises nothing about. Their tests may opt in, to build a fixture as a module does.
+     * promises nothing about. Their tests may opt in, to build a fixture as a module does. A platform server's
+     * declaration in [allowed] (`path#declaration`, with its reason) may opt in on itself, and its file import the
+     * marker: one that reads a host setting no public type gives (design rule K1); a file-level opt-in never may.
      */
-    fun internalOptIns(repositoryRoot: File): List<String> =
+    fun internalOptIns(repositoryRoot: File, allowed: Map<String, String> = emptyMap()): List<String> =
         USER_PROJECTS.flatMap { module ->
             val build = File(repositoryRoot, "${module.dir}/build.gradle.kts")
             val sources = listOf("src/main/kotlin", "src/main/java")
@@ -733,15 +736,47 @@ object ArchitectureRules {
                     root.walkTopDown().filter { it.isFile && (it.extension == "kt" || it.extension == "java") }
                 }
             (listOf(build).filter { it.isFile } + sources).flatMap { file ->
-                file.readLines().mapIndexedNotNull { index, line ->
-                    if (INTERNAL_OPT_IN.containsMatchIn(line)) {
-                        "${file.relativeTo(repositoryRoot).invariantSeparatorsPath}:${index + 1}: ${line.trim()}"
+                val path = file.relativeTo(repositoryRoot).invariantSeparatorsPath
+                val lines = file.readLines()
+                val excused = allowedOptInLines(path, lines, allowed)
+                lines.mapIndexedNotNull { index, line ->
+                    if (INTERNAL_OPT_IN.containsMatchIn(line) && index !in excused) {
+                        "$path:${index + 1}: ${line.trim()}"
                     } else {
                         null
                     }
                 }
             }
         }
+
+    /** The entries of [allowed] whose declaration no longer opts in, so they are stale. */
+    fun staleOptIns(repositoryRoot: File, allowed: Map<String, String>): List<String> = allowed.keys.filter { entry ->
+        val file = File(repositoryRoot, entry.substringBefore('#'))
+        !file.isFile || file.readLines().let { lines ->
+            allowedOptInLines(entry.substringBefore('#'), lines, mapOf(entry to ""))
+                .none { index -> DECLARATION_OPT_IN.matches(lines[index].trim()) }
+        }
+    }
+
+    /**
+     * The indexes of [lines] of the file at [path] that [allowed] excuses: each `@OptIn(InternalWowApi::class)` right
+     * above (annotations between) the declaration an entry names, and the marker's import when every opt-in is excused.
+     */
+    private fun allowedOptInLines(path: String, lines: List<String>, allowed: Map<String, String>): Set<Int> {
+        val names = allowed.keys.filter { it.substringBefore('#') == path }.map { it.substringAfter('#') }.toSet()
+        if (names.isEmpty()) return emptySet()
+        val excused = lines.indices.filter { index ->
+            DECLARATION_OPT_IN.matches(lines[index].trim()) &&
+                lines.drop(index + 1).firstOrNull { !it.trim().startsWith("@") }
+                    ?.let { DECLARED.find(it)?.groupValues?.get(1) } in names
+        }.toSet()
+        val optIns = lines.indices.filter { DECLARATION_OPT_IN.matches(lines[it].trim()) }.toSet()
+        val import = lines.indexOfFirst { it.trim() == "import me.ahoo.wow.api.annotation.InternalWowApi" }
+        return if (optIns.isNotEmpty() && optIns == excused && import >= 0) excused + import else excused
+    }
+
+    private val DECLARATION_OPT_IN = Regex("""@OptIn\(InternalWowApi::class\)""")
+    private val DECLARED = Regex("""\b(?:fun|val|var|class)\s+(\w+)""")
 
     private val WOW_REGION = Regex("""(?ms)^//region wow\b(.*?)^//endregion""")
 
@@ -874,6 +909,45 @@ object ArchitectureRules {
         }
         return end
     }
+
+    /**
+     * The production lines that read a `wow.*` key past its properties bean (design rule K1, one reader per key): an
+     * `Environment` or `Binder` read (`getProperty`, `getRequiredProperty`, `containsProperty`, `bind`,
+     * `bindOrCreate`) of a `"wow.` literal or of a constant whose value is one, and any `${'$'}{wow.` placeholder, such
+     * as an `@Value` or a SpEL expression's. Each is `path:line: text`; [allowed] maps a path to the reason it may.
+     */
+    fun wowKeyReaders(repositoryRoot: File, allowed: Map<String, String> = emptyMap()): List<String> {
+        val sources = productionSources(repositoryRoot)
+        // A constant counts in its own file, or qualified by the class of the file that declares it.
+        val qualified = sources.flatMap { file ->
+            WOW_CONSTANT.findAll(file.readText()).map { "${file.nameWithoutExtension}.${it.groupValues[1]}" }.toList()
+        }
+        return sources.flatMap { file ->
+            val path = file.relativeTo(repositoryRoot).invariantSeparatorsPath
+            if (path in allowed) return@flatMap emptyList()
+            val text = file.readText()
+            val own = WOW_CONSTANT.findAll(text).map { it.groupValues[1] }.toList()
+            val names = (own + qualified).map { Regex.escape(it) }
+            val constantRead = names.takeIf { it.isNotEmpty() }
+                ?.let { Regex("(?<![\\w.])(" + it.joinToString("|") + ")\\b") }
+            text.lines().mapIndexedNotNull { index, line ->
+                val code = line.substringBefore("//").trim()
+                val reads = ENVIRONMENT_READ.containsMatchIn(code) && !code.contains("System.getProperty") &&
+                    (code.contains("\"wow.") || constantRead?.containsMatchIn(code) == true)
+                if (reads || code.contains("${'$'}{wow.") && !code.startsWith("*")) "$path:${index + 1}: $code" else null
+            }
+        }
+    }
+
+    /** The paths of [allowed] that no longer read a `wow.*` key past its bean, so their entries are stale. */
+    fun staleKeyReaders(repositoryRoot: File, allowed: Map<String, String>): List<String> =
+        wowKeyReaders(repositoryRoot).let { readers ->
+            allowed.keys.filter { path -> readers.none { it.startsWith("$path:") } }
+        }
+
+    private val WOW_CONSTANT = Regex("const val (\\w+)\\s*(?::\\s*String)?\\s*=\\s*\"wow\\.")
+    private val ENVIRONMENT_READ =
+        Regex("\\.(getProperty|getRequiredProperty|containsProperty|bind|bindOrCreate)\\(|\\bgetProperty\\(")
 
     /** The Kotlin and Java production sources of [MODULES]. */
     private fun productionSources(repositoryRoot: File): List<File> =
