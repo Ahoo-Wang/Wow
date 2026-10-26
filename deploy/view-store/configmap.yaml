@@ -17,8 +17,8 @@ data:
   # D232). Trusted only because nothing but the gateway reaches the HTTP port (networkpolicy.yaml): turn it off, and
   # every query is refused for want of an application, unless the service authorizes its requests itself
   # (cosec.authorization.enabled, with CoSec's policy and app role permission repositories). The property is
-  # wow.cosec.trust-injected-app, read as it is named: the variable keeps the dashes as underscores.
-  WOW_COSEC_TRUST_INJECTED_APP: "true"
+  # wow.cosec.trust-injected-app; its variable drops the dashes, as Spring maps a key to a variable.
+  WOW_COSEC_TRUSTINJECTEDAPP: "true"
   # Fixed once the context's log holds entries.
   WOW_LOG_PARTITIONS: "64"
   JAVA_OPTS: -XX:MaxRAMPercentage=75.0
