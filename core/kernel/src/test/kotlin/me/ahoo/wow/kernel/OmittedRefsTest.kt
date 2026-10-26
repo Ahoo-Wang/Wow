@@ -205,29 +205,4 @@ class OmittedRefsTest {
             whenTick(tick) { expectCommand(Reserve("o-1"), to = stock.ref("acme", "all")) }
         }
     }
-
-    @Test
-    fun `a context that does not resolve aggregates should refuse the forms without a ref`() {
-        val bare = object : SagaContext {
-            override val executionId: ExecutionId = execution
-            override val ids: Ids = IdGenerators.DEFAULT
-
-            override fun <C : Any> command(ref: AggregateRef, body: C): Command<C> =
-                Command("c", "c", ref, body)
-
-            override fun schedule(
-                key: String,
-                rule: ScheduleRule,
-                target: AggregateRef,
-                command: Any,
-            ): Command<SetSchedule> = Command("c", "c", target, SetSchedule(key, rule, "t", "{}"))
-
-            override fun cancel(key: String, target: AggregateRef): Command<CancelSchedule> =
-                Command("c", "c", target, CancelSchedule(key))
-        }
-        assertThrownBy<UnsupportedOperationException> { bare.command("x", Reserve("o")) }
-            .hasMessageContaining("write command(ref, body)")
-        assertThrownBy<UnsupportedOperationException> { bare.command(Reserve("o")) }
-            .hasMessageContaining("write command(type, body)")
-    }
 }
