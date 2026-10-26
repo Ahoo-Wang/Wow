@@ -128,3 +128,57 @@ class LogScan(private val kube: Kube, faults: List<Fault>) {
         const val LINE = 500
     }
 }
+
+/**
+ * Evidence for an outage the logs alone would lose (finding F10, PostgreSQL out of connections after a node's
+ * crash), kept in [directory]: every 30 s, PostgreSQL's connections by client address and state (`pg_stat_activity`,
+ * through psql inside its pod, which a full server still admits on its local socket for the superuser); every 60 s,
+ * the last minute of each ordering node's log, before the kubelet rotates a log a flood of stack traces fills.
+ */
+class Evidence(private val kube: Kube, private val directory: File) {
+    @Volatile
+    private var running = false
+    private var worker: Thread? = null
+
+    fun start() {
+        directory.mkdirs()
+        running = true
+        worker = thread(name = "evidence", isDaemon = true) {
+            var round = 0L
+            while (running) {
+                runCatching { connections() }
+                if (round % LOGS_EVERY == 0L) runCatching { orderingLogs() }
+                round++
+                Thread.sleep(SAMPLE.toMillis())
+            }
+        }
+    }
+
+    fun stop() {
+        running = false
+        worker?.join(SAMPLE.multipliedBy(2).toMillis())
+    }
+
+    private fun connections() {
+        val query = "SELECT coalesce(host(client_addr), 'local'), coalesce(state, '-'), count(*) FROM pg_stat_activity " +
+            "WHERE backend_type = 'client backend' GROUP BY 1, 2 ORDER BY 3 DESC"
+        val result = kube.exec("postgres-0", "psql", "-U", "postgres", "-tA", "-F", " ", "-c", query)
+        File(directory, "pg-connections.log").appendText("${Instant.now()}\n${result.out.ifBlank { result.err }}\n")
+    }
+
+    private fun orderingLogs() {
+        kube.pods("eshop-ordering").forEach { pod ->
+            val log = kube.run("logs", pod.name, "--timestamps=true", "--since=70s", "--limit-bytes=$LOG_BYTES")
+            File(directory, "${pod.name}.log").appendText(log.out)
+        }
+        File(directory, "pods.log").appendText(
+            "${Instant.now()}\n${kube.run("get", "pods", "-o", "wide").out}\n",
+        )
+    }
+
+    private companion object {
+        val SAMPLE: Duration = Duration.ofSeconds(30)
+        const val LOGS_EVERY = 2L
+        const val LOG_BYTES = 2_000_000
+    }
+}

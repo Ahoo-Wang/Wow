@@ -30,7 +30,6 @@ import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestMethodOrder
 import java.io.File
 import java.time.Duration
-import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 
@@ -75,6 +74,8 @@ class GaE2eTest {
     private val verdict = ClusterVerdict(flows, postgres) { println("[ga-e2e] $it") }
     private val health = HealthWatch(kube, report)
     private val network = PodNetwork(kube, report)
+    private val ops = OpsDesk(kube, report, shop)
+    private val evidence = Evidence(kube, File(System.getProperty("ga.report", "build/ga-e2e"), "evidence"))
     private val probes = AtomicInteger()
     private val probeFailures = AtomicInteger()
     private val partitions = System.getProperty("ga.partitions", "8").toInt()
@@ -83,11 +84,13 @@ class GaE2eTest {
         flows.onLate = { report.note(it) }
         verdict.startSampling()
         health.start()
+        evidence.start()
     }
 
     @AfterAll
     fun close() {
         health.stop()
+        evidence.stop()
         verdict.stopSampling()
     }
 
@@ -299,7 +302,7 @@ class GaE2eTest {
     @Order(20)
     fun `a parked payment reaches ops and is resumed there`() = scenario("ops", "parked, resumed from ops") {
         val started = System.currentTimeMillis()
-        outage(true)
+        ops.outage(true)
         flows.addItem("olga", "mug", flows.price("mug"), 1)
         flows.checkout("olga").status.assert().isEqualTo(ShopFlows.OK)
         val id = Ledger.parkedId(
@@ -307,11 +310,11 @@ class GaE2eTest {
             GATEWAY_SAGA,
             EshopPaymentContract.Payment.ref(Caller.DEFAULT_TENANT, "olga-1")
         )
-        flows.eventually("the parked payment listed by ops", OPS_BOUND) { exhausted(started).contains(id) }
+        flows.eventually("the parked payment listed by ops", OPS_BOUND) { ops.exhausted(started).contains(id) }
         val received = System.currentTimeMillis() - started
         flows.orderStatus("olga-1").assert().isEqualTo("STOCK_CONFIRMED")
         shop.post("/ops/parked/$id/resume", "{}", Who.VIEWER).status.assert().isEqualTo(FORBIDDEN)
-        outage(false)
+        ops.outage(false)
         with(flows) {
             shop.post(
                 "/ops/parked/$id/resume",
@@ -322,9 +325,9 @@ class GaE2eTest {
         flows.eventually(
             "the entry resolved in ops",
             OPS_BOUND
-        ) { opsEntry(id)?.get("status")?.asString() == "RESOLVED" }
+        ) { ops.entry(id)?.get("status")?.asString() == "RESOLVED" }
         flows.eventually("olga-1 paid") { flows.orderStatus("olga-1") == "PAID" }
-        exhausted(started).assert().doesNotContain(id)
+        ops.exhausted(started).assert().doesNotContain(id)
         if (postgres != null) {
             verdict.connect("payment").use { SoakDatabase(it, "payment").parked() }.keys
                 .filter { "olga-1" in it }.assert().isEmpty()
@@ -339,7 +342,7 @@ class GaE2eTest {
         "grace period (timer)"
     ) {
         val started = System.currentTimeMillis()
-        outage(true)
+        ops.outage(true)
         flows.addItem("gus", "mug", flows.price("mug"), 1)
         flows.checkout("gus").status.assert().isEqualTo(ShopFlows.OK)
         val id = Ledger.parkedId(
@@ -347,13 +350,13 @@ class GaE2eTest {
             GATEWAY_SAGA,
             EshopPaymentContract.Payment.ref(Caller.DEFAULT_TENANT, "gus-1")
         )
-        flows.eventually("the parked payment of gus-1 in ops", OPS_BOUND) { exhausted(started).contains(id) }
+        flows.eventually("the parked payment of gus-1 in ops", OPS_BOUND) { ops.exhausted(started).contains(id) }
         flows.eventually(
             "gus-1 cancelled by its grace period",
             GRACE.plusSeconds(90)
         ) { flows.orderStatus("gus-1") == "CANCELLED" }
         val cancelled = System.currentTimeMillis() - started
-        outage(false)
+        ops.outage(false)
         // The charge the gateway never made is skipped: the order it was for is cancelled.
         with(flows) {
             shop.post(
@@ -365,7 +368,7 @@ class GaE2eTest {
         flows.eventually(
             "the entry of gus-1 resolved in ops",
             OPS_BOUND
-        ) { opsEntry(id)?.get("status")?.asString() == "RESOLVED" }
+        ) { ops.entry(id)?.get("status")?.asString() == "RESOLVED" }
         val events = flows.trace("/eshop-ordering/order/gus-1").flatMap { it.events }
         events.assert().contains("ScheduleSet")
         "gus-1 cancelled ${cancelled / MILLIS} s after its checkout (grace ${GRACE.seconds} s): ${events.joinToString(
@@ -558,8 +561,24 @@ class GaE2eTest {
     @Test
     @Order(99)
     fun `the soak invariants hold with zero violations`() {
-        verdict.settle()
-        verdict.judge()
+        // Bounded: a shop that does not recover would keep the reads timing out for hours, and the report unwritten.
+        var failure: Throwable? = null
+        val judging = thread(name = "verdict", isDaemon = true) {
+            runCatching {
+                verdict.settle()
+                verdict.judge()
+            }.onFailure { failure = it }
+        }
+        judging.join(VERDICT_BUDGET.toMillis())
+        if (judging.isAlive) {
+            report.check(
+                "verdict",
+                "judged in time",
+                false,
+                "not judged within $VERDICT_BUDGET: the shop did not answer"
+            )
+        }
+        failure?.let { report.check("verdict", "judged", false, "${it.javaClass.simpleName}: ${it.message}") }
         val passed = report.write(verdict.all)
         verdict.all.filter { it.violated > 0 }.forEach {
             println(
@@ -663,89 +682,15 @@ class GaE2eTest {
         return checkNotNull(owner)
     }
 
-    /**
-     * Creates ([down]) or removes the simulated payment gateway's outage file in every payment pod; the outage is a
-     * fault of the report, so the errors it causes are allowed.
-     */
-    private fun outage(down: Boolean) {
-        if (down) {
-            synchronized(report) { report.faults += Fault("payment gateway outage", Instant.now()) }
-        } else {
-            synchronized(report) { report.faults.last { it.name == "payment gateway outage" }.end = Instant.now() }
-        }
-        val command = if (down) arrayOf("touch", OUTAGE_FILE) else arrayOf("rm", "-f", OUTAGE_FILE)
-        kube.pods("eshop-payment").filter { !it.deleting }.forEach { pod ->
-            kube.exec(
-                pod.name,
-                *command
-            ).let { check(it.ok) { "${command.joinToString(" ")} in ${pod.name}: ${it.err}" } }
-        }
-    }
-
-    /** The ids of the entries ops lists as exhausted that failed since [since], as an operator queries them. */
-    private fun exhausted(since: Long): List<String> {
-        val filter = """{"op":"AND","operands":[{"op":"EQ","field":"state.context","value":"eshop-payment"},""" +
-            """{"op":"EQ","field":"state.status","value":"EXHAUSTED"},{"op":"GTE","field":"state.failedAt","value":$since}]}"""
-        val answer = shop.post("/ops/parked/snapshot/query", """{"kind":"list","filter":$filter}""", Who.OPERATOR)
-        check(
-            answer.status == ShopFlows.OK
-        ) { "the ops query answered ${answer.status}: ${answer.body.take(ShopFlows.BODY)}" }
-        return json.readTree(answer.body).values().map { it["aggregateId"].asString() }
-    }
-
-    private fun opsEntry(id: String): tools.jackson.databind.JsonNode? {
-        val answer = shop.get("/ops/parked/$id/state", Who.OPERATOR)
-        if (answer.status == ShopFlows.NOT_FOUND) return null
-        check(
-            answer.status == ShopFlows.OK
-        ) { "GET the ops view of $id answered ${answer.status}: ${answer.body.take(ShopFlows.BODY)}" }
-        return json.readTree(answer.body)["state"]
-    }
-
-    /** Full-chain checkouts on a thread of their own while a fault runs, so it happens mid-checkout. */
-    private class Load(private val flows: ShopFlows) {
-        @Volatile
-        private var running = false
-        private var worker: Thread? = null
-        private val count = AtomicInteger()
-        val sent: Int get() = count.get()
-
-        fun start(): Load = apply {
-            running = true
-            worker = thread(name = "load", isDaemon = true) {
-                while (running) {
-                    val buyer = "load-${LOADS.incrementAndGet()}"
-                    runCatching {
-                        if (flows.addItem(buyer, "sock", "5.00", 1).status == ShopFlows.OK) {
-                            flows.checkout(buyer, mapOf(ShopFlows.WAIT to ShopFlows.FULL_CHAIN, ShopFlows.WAIT_TIMEOUT to "20s"))
-                            count.incrementAndGet()
-                        }
-                    }
-                    Thread.sleep(LOAD_PAUSE.toMillis())
-                }
-            }
-        }
-
-        fun stop() {
-            running = false
-            worker?.join(Outages.JOIN.toMillis())
-        }
-
-        private companion object {
-            val LOADS = AtomicInteger()
-            val LOAD_PAUSE: Duration = Duration.ofMillis(200)
-        }
-    }
-
     private companion object {
         const val FORGED = "203.0.113.9"
+        val VERDICT_BUDGET: Duration = Duration.ofMinutes(15)
         const val SECRET = "ga-e2e-not-a-secret-only-for-the-kind-cluster-0123456789"
         const val FORBIDDEN = 403
         const val UNAUTHORIZED = 401
         const val MILLIS = 1000
         const val LISTED = 10
         const val GATEWAY_SAGA = "PaymentGatewaySaga.onPaymentRequested"
-        const val OUTAGE_FILE = "/tmp/gateway.down"
         const val ORDERING_GROUP = "eshop-ordering-service/eshop-ordering"
         val ORDER = EshopOrderingContract.Order.TYPE
         val PRODUCTS = mapOf(
@@ -771,15 +716,6 @@ class GaE2eTest {
             "analytics-catalog",
         ).map { it to 80 }
 
-        /** The eShop's internal ports, the mesh of its nodes. */
-        val MESH = listOf(
-            "eshop-catalog" to 9091,
-            "eshop-basket" to 9092,
-            "eshop-ordering" to 9093,
-            "eshop-inventory" to 9094,
-            "eshop-payment" to 9095,
-        )
-        const val TIMEOUT_EXIT = 124
         val INTERNAL = listOf(
             "eshop-catalog" to 9091,
             "eshop-basket" to 9092,
