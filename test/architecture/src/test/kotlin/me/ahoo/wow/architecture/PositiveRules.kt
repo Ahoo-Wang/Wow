@@ -127,8 +127,14 @@ object PositiveRules {
      * `v10-9x-baseline` (`a67ece66`).
      */
     val NINE_X_TYPES: List<String> = listOf(
-        "Named", "NamedBoundedContext", "QualifiedNamed", "Materialized", "CompletedCapable", "DescriptionCapable",
-        "EnabledCapable", "SummaryCapable",
+        "Named",
+        "NamedBoundedContext",
+        "QualifiedNamed",
+        "Materialized",
+        "CompletedCapable",
+        "DescriptionCapable",
+        "EnabledCapable",
+        "SummaryCapable",
     ).map { "$WOW.api.naming.$it" }
 
     /**
