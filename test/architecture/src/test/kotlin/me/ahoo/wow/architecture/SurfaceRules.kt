@@ -106,7 +106,6 @@ object SurfaceRules {
         "me/ahoo/wow/query/PageWindow${'$'}Offset",
         "me/ahoo/wow/query/QueryBackendBinding",
         "me/ahoo/wow/query/QueryBindingError",
-        "me/ahoo/wow/query/QueryCaller",
         "me/ahoo/wow/query/QueryEntryPolicy",
         "me/ahoo/wow/query/QueryScope",
         "me/ahoo/wow/query/dataset/QueryDataset",
