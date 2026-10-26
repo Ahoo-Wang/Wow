@@ -623,14 +623,18 @@ class GaE2eTest {
         return owners.size == replicas
     }
 
-    /** The node holding the ordering's command lease of [order]'s partition, once one does. */
+    /**
+     * The node holding the ordering's command lease of [order]'s partition, once one of the current pods does: right
+     * after a rolling restart, a replaced pod's lease lives until it expires.
+     */
     private fun partitionOwner(order: String): String {
         val partition = Partitioner.partitionOf(AggregateRef(ORDER, Caller.DEFAULT_TENANT, order), partitions)
         var owner: String? = null
-        flows.eventually("an owner of partition $partition") {
+        flows.eventually("a running owner of partition $partition", ShopFlows.DEADLINE.multipliedBy(2)) {
+            val running = kube.pods("eshop-ordering").filter { it.ready && !it.deleting }.map { it.name }
             owner = verdict.connect("ordering").use { SoakDatabase(it, "ordering").leases() }["$ORDERING_GROUP|$partition"]
                 ?.takeIf { (_, expires) -> expires > System.currentTimeMillis() }?.first
-            owner != null
+            owner in running
         }
         return checkNotNull(owner)
     }
