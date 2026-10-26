@@ -131,7 +131,7 @@ Spring binds the keys it knows and ignores the rest, so a misspelled key would s
 - An unknown key stops the start, naming it: a mistyped setting would leave a default in place, and some defaults allow everything. A key of an earlier version is named with the key that took its place, and a key of a module that is not on the class path (`wow.cosid.*` without wow-cosid) with that module.
 - Under a map of settings, such as `wow.aggregates`, `wow.stores`, `wow.callers` and `wow.peers`, each entry's own keys are checked to their leaves.
 
-Environment variables are not checked, since their names cannot be listed. [Configuration Keys](../reference/configuration) lists every key.
+An environment variable under a Wow group, such as `WOW_KAFKA_…`, is checked the same way. [Configuration Keys](../reference/configuration) lists every key.
 
 ## Run it
 

@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.core.env.SystemEnvironmentPropertySource
 import org.springframework.mock.env.MockEnvironment
 
 /**
@@ -28,6 +29,11 @@ class ConfigurationKeysTest {
 
     private fun environment(vararg properties: Pair<String, String>) = MockEnvironment().apply {
         properties.forEach { (key, value) -> setProperty(key, value) }
+    }
+
+    /** An environment whose [variables] come as the operating system's do. */
+    private fun variables(vararg variables: Pair<String, String>) = MockEnvironment().apply {
+        propertySources.addLast(SystemEnvironmentPropertySource("systemEnvironment", mapOf<String, Any>(*variables)))
     }
 
     @Test
@@ -82,6 +88,74 @@ class ConfigurationKeysTest {
         ConfigurationKeys.renamed("wow.stores.main.query.adaptive.enabled").assert().contains("max-concurrent")
         ConfigurationKeys.renamed("wow.query.adaptive.latency-factor").assert().contains("max-concurrent")
         ConfigurationKeys.renamed("wow.query.adaptive.ceiling").assert().isNull()
+    }
+
+    @Test
+    fun `the WOW_ environment variables are checked as Spring maps them, others are left alone`() {
+        val environment = variables(
+            "WOW_EXECUTOR_MAXINFLIGHT" to "8",
+            "WOW_KAFKA_COMMANDINTAKE_ENABLED" to "true",
+            "WOW_CALLERS_BASKET_COMMANDS_0" to "shop.cart.Add",
+            "WOW_PEERS_ESHOPORDERING_URL" to "http://ordering:9090",
+            "WOW_AGGREGATES_SHOP_CART_TENANT" to "acme",
+            "WOW_COSEC_CROSSSCOPE_ROLES_0" to "admin",
+            "WOWZA_ANYTHING" to "x",
+            "JAVA_HOME" to "/jdk",
+            // Outside Wow's groups: a tool's or the application's own variables.
+            "WOW_BENCH_PG_PRELOAD" to "pg_stat_statements",
+            "WOW_UPDATE_SNAPSHOTS" to "1",
+            "WOW_PG_PASSWORD" to "secret",
+        )
+        keys.unknown(environment).assert().isEmpty()
+        keys.check(environment)
+    }
+
+    @Test
+    fun `a stale or mistyped WOW_ environment variable refuses the startup, naming its new key`() {
+        val environment = variables(
+            "WOW_KAFKA_TOPICS_DDL" to "auto",
+            "WOW_KAFKA_COMMANDINTAKE" to "true",
+            "WOW_SUBSCRIPTION_PARKED_MINBACKOFF" to "1s",
+            "WOW_CALLERS_BASKET_COMMAND_0" to "shop.cart.Add",
+            "WOW_CLUSTER_FORWARDTIMOUT" to "30s",
+        )
+        keys.unknown(environment).assert().containsExactlyInAnyOrder(
+            "WOW_KAFKA_TOPICS_DDL",
+            "WOW_KAFKA_COMMANDINTAKE",
+            "WOW_SUBSCRIPTION_PARKED_MINBACKOFF",
+            "WOW_CALLERS_BASKET_COMMAND_0",
+            "WOW_CLUSTER_FORWARDTIMOUT",
+        )
+        val failure = assertThrows<WowConfigurationException> { keys.check(environment) }
+        failure.message.assert().contains(
+            "WOW_KAFKA_TOPICS_DDL (renamed wow.kafka.ddl)",
+            "WOW_KAFKA_COMMANDINTAKE (renamed wow.kafka.command-intake.enabled)",
+            "WOW_SUBSCRIPTION_PARKED_MINBACKOFF (renamed wow.subscription.parked.initial-backoff)",
+            "WOW_CALLERS_BASKET_COMMAND_0",
+        )
+        failure.message.assert().contains(ConfigurationKeys.VARIABLES)
+        ConfigurationKeys.nameOf("WOW_CALLERS_BASKET_COMMANDS_0").toString()
+            .assert().isEqualTo("wow.callers.basket.commands[0]")
+    }
+
+    @Test
+    fun `a variable of the application's own under a Wow group is refused, saying to rename it`() {
+        val failure = assertThrows<WowConfigurationException> { keys.check(variables("WOW_KAFKA_PASSWORD" to "s")) }
+        failure.message.assert().contains(
+            "WOW_KAFKA_PASSWORD",
+            "An environment variable under a Wow group is read as configuration; rename a variable of your own " +
+                "outside these groups",
+        )
+        assertThrows<WowConfigurationException> { keys.check(environment("wow.kafka.pasword" to "s")) }
+            .message.assert().doesNotContain(ConfigurationKeys.VARIABLES)
+    }
+
+    @Test
+    fun `a WOW_ environment variable of an absent module names the module`() {
+        val failure = assertThrows<WowConfigurationException> {
+            ConfigurationKeys(emptyList()).check(variables("WOW_COSID_GLOBALGENERATOR" to "cosid"))
+        }
+        failure.message.assert().contains("WOW_COSID_GLOBALGENERATOR (needs wow-cosid on the class path)")
     }
 
     @Test
