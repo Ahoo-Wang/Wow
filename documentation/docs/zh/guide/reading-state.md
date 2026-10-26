@@ -56,7 +56,7 @@ val state = queries.state("client-alice-1")!!
 state.scope.ownerId.assert().isEqualTo("alice")
 (state.state as ObjectNode)["items"].size().assert().isEqualTo(1)
 // On the memory backend the ordering serves no query model: a list is its 404, never a command.
-val unserved = runCatching { queries.list(ListQuery(MatchAllFilter)).toList() }.exceptionOrNull()
+val unserved = runCatching { queries.list(ListQuery.of(MatchAllFilter)).toList() }.exceptionOrNull()
 (unserved as WowProblemException).status.assert().isEqualTo(NOT_FOUND)
 // Bob, another buyer, sees none of it.
 val bob = Caller.of(scope = Scope("bob"), subject = "bob")

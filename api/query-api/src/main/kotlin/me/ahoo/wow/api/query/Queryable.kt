@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.api.query
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /**
  * Data class representing a sorting criterion for query results.
  *
@@ -27,7 +29,7 @@ package me.ahoo.wow.api.query
  * val sortByDate = Sort(QueryField("createdDate"), Sort.Direction.DESC)
  * ```
  */
-data class Sort(
+class Sort @InternalWowApi constructor(
     val field: QueryField,
     val direction: Direction
 ) {
@@ -52,7 +54,27 @@ data class Sort(
          * is bounded by it, and the published contract states it as `maxItems`.
          */
         const val MAX_FIELDS: Int = 32
+
+        /** A [Sort] of the given values. */
+        @JvmStatic
+        fun of(field: QueryField, direction: Direction): Sort = Sort(field, direction)
     }
+
+    /** This Sort with the given values replaced; for Wow's own query rewriting. */
+    @InternalWowApi
+    fun copy(
+        field: QueryField = this.field,
+        direction: Direction = this.direction,
+    ): Sort = Sort(field, direction)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Sort && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "Sort(field=$field, direction=$direction)"
+
+    private fun valueFields(): List<Any?> = listOf(field, direction)
 }
 
 /**
@@ -69,7 +91,7 @@ data class Sort(
  * val secondPage = Pagination(index = 2, size = 20) // Items 21-40
  * ```
  */
-data class Pagination(
+class Pagination @InternalWowApi constructor(
     val index: Int = 1,
     val size: Int = 10,
 ) {
@@ -90,6 +112,11 @@ data class Pagination(
             index: Int,
             size: Int
         ) = (index - 1) * size
+
+        /** A [Pagination] of the given values. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(index: Int = 1, size: Int = 10): Pagination = Pagination(index, size)
     }
 
     /**
@@ -98,6 +125,15 @@ data class Pagination(
      * @return The offset value for database queries.
      */
     fun offset() = offset(index, size)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Pagination && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "Pagination(index=$index, size=$size)"
+
+    private fun valueFields(): List<Any?> = listOf(index, size)
 }
 
 /**
@@ -121,7 +157,7 @@ data class Pagination(
  * val allFields = Projection.ALL  // Return all fields
  * ```
  */
-data class Projection(
+class Projection @InternalWowApi constructor(
     val include: List<QueryField> = emptyList(),
     val exclude: List<QueryField> = emptyList()
 ) {
@@ -130,7 +166,24 @@ data class Projection(
          * Projection that includes all fields (no filtering).
          */
         val ALL = Projection()
+
+        /** A [Projection] of the given values. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            include: List<QueryField> = emptyList(),
+            exclude: List<QueryField> = emptyList(),
+        ): Projection = Projection(include, exclude)
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Projection && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "Projection(include=$include, exclude=$exclude)"
+
+    private fun valueFields(): List<Any?> = listOf(include, exclude)
 }
 
 /**

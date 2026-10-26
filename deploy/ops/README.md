@@ -35,7 +35,7 @@ Plain manifests for the ops service (`platform/ops/ops-server`): every service's
 
    Every service whose ledger the console shows publishes its entries to `wow.ops.commands` (`wow.ops.publish.enabled` on that service); an operator's action goes to that service's own command topic, `wow.<context>.commands`, which it owns. On a cluster for trying it out, set `WOW_KAFKA_TOPICS_DDL=auto` instead.
 
-4. Set `COSEC_JWT_SECRET` to the secret your CoSec signs its access tokens with (HMAC256), and label your CoSec gateway's pods `app.kubernetes.io/component: cosec-gateway`, or change the selector in `networkpolicy.yaml` to match them.
+4. Set `COSEC_JWT_SECRET` to the secret your CoSec signs its access tokens with (HMAC256), and label your CoSec gateway's pods `app.kubernetes.io/component: gateway`, or change the selector in `networkpolicy.yaml` to match them.
 
 ## Apply and sign in
 

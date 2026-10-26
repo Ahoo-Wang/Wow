@@ -981,7 +981,7 @@ public final class me/ahoo/wow/query/read/InProcessQueryApi$Companion {
 }
 
 public final class me/ahoo/wow/query/read/QueryApiTrees {
-	public static final fun datasetTrees (Lme/ahoo/wow/api/read/Queries;Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/api/read/RowQueries;
+	public static final fun datasetTrees (Lme/ahoo/wow/api/read/Queries;Lme/ahoo/wow/api/read/DatasetName;)Lme/ahoo/wow/api/read/RowQueries;
 	public static final fun groupTrees (Lme/ahoo/wow/api/read/RowQueries;Lme/ahoo/wow/api/query/AggregationQuery;)Lkotlinx/coroutines/flow/Flow;
 	public static final fun trees (Lme/ahoo/wow/api/read/ModelQueries;)Lme/ahoo/wow/api/read/RowQueries;
 }

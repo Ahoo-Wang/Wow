@@ -22,6 +22,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.SendOptions
+import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.snapshots
@@ -141,19 +142,20 @@ class HostClientsTest {
         val pinned = mockk<SubscriptionQueries>(relaxed = true)
         val queries = RoutedQueryApi(localQueries, peers(), setOf(Account::class.java)) { pinned }
         val ledger = AggregateType("ledger", "entry")
+        val entries = DatasetName.of("ledger", "entries")
         // The node's own state class, a context not listed and trusted queries stay in process.
         queries.of(dave).snapshots<Account>().assert().isSameAs(localQueries.of(dave).snapshots(Account::class.java))
         queries.of(dave).events(ledger).assert().isSameAs(localQueries.of(dave).events(ledger))
         queries.of(dave).snapshots(ledger).assert().isSameAs(localQueries.of(dave).snapshots(ledger))
         queries.of(
             dave
-        ).datasets(ledger, Map::class.java).assert().isSameAs(localQueries.of(dave).datasets(ledger, Map::class.java))
+        ).datasets(entries, Map::class.java).assert().isSameAs(localQueries.of(dave).datasets(entries, Map::class.java))
         queries.trusted().assert().isSameAs(localQueries.trusted())
         // The listed peer's models go over HTTP, a subscription's as a caller of its commit's tenant.
         queries.of(dave).events(account).javaClass.name.assert().contains("HttpQueryApi")
         queries.of(
             dave
-        ).datasets(AggregateType(BANK, "sales"), Map::class.java).javaClass.name.assert().contains("HttpQueryApi")
+        ).datasets(DatasetName.of(BANK, "sales"), Map::class.java).javaClass.name.assert().contains("HttpQueryApi")
         val tenant = queries.tenant("t1")
         tenant.tenantId.assert().isEqualTo("t1")
         tenant.trusted().assert().isSameAs(pinned.trusted())

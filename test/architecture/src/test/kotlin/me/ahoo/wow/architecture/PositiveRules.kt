@@ -50,7 +50,12 @@ object PositiveRules {
             listOf(API.dir),
             listOf("$WOW.api", "$COROUTINES.flow")
         ),
-        ImportAllowList("wow-query-api imports only its own packages", listOf(QUERY_API.dir), listOf("$WOW.api.query")),
+        // The stability markers of wow-annotations (decision D282).
+        ImportAllowList(
+            "wow-query-api imports only its own packages and the stability markers",
+            listOf(QUERY_API.dir),
+            listOf("$WOW.api.query", "$WOW.api.annotation"),
+        ),
         // And the stability markers of wow-annotations (D282), its one dependency.
         ImportAllowList(
             "wow-manifest imports only its own packages and the stability markers",

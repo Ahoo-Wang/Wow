@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.api.query
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /**
  * Interface for paginated queries that retrieve items in pages.
  *
@@ -52,7 +54,7 @@ interface IPagedQuery : Queryable<IPagedQuery> {
  * )
  * ```
  */
-data class PagedQuery @JvmOverloads constructor(
+class PagedQuery @InternalWowApi constructor(
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList(),
@@ -65,7 +67,9 @@ data class PagedQuery @JvmOverloads constructor(
      * @param newFilter The new filter to apply.
      * @return A new PagedQuery with the updated filter.
      */
-    override fun withFilter(newFilter: FilterExpression): IPagedQuery = copy(filter = newFilter)
+    override fun withFilter(
+        newFilter: FilterExpression
+    ): IPagedQuery = PagedQuery(newFilter, projection, sort, pagination, total)
 
     /**
      * Creates a new PagedQuery with the specified projection.
@@ -73,5 +77,29 @@ data class PagedQuery @JvmOverloads constructor(
      * @param newProjection The new projection to apply.
      * @return A new PagedQuery with the updated projection.
      */
-    override fun withProjection(newProjection: Projection): IPagedQuery = copy(projection = newProjection)
+    override fun withProjection(
+        newProjection: Projection
+    ): IPagedQuery = PagedQuery(filter, newProjection, sort, pagination, total)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is PagedQuery && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "PagedQuery(filter=$filter, projection=$projection, sort=$sort, pagination=$pagination, total=$total)"
+
+    private fun valueFields(): List<Any?> = listOf(filter, projection, sort, pagination, total)
+
+    companion object {
+        /** A [PagedQuery] of the given values. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            filter: FilterExpression,
+            projection: Projection = Projection.ALL,
+            sort: List<Sort> = emptyList(),
+            pagination: Pagination = Pagination.DEFAULT,
+            total: TotalMode = TotalMode.BOUNDED,
+        ): PagedQuery = PagedQuery(filter, projection, sort, pagination, total)
+    }
 }

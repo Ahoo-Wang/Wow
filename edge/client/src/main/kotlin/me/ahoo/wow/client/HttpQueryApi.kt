@@ -41,6 +41,7 @@ import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.ProjectionCapable
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.read.AggregateState
+import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventQueries
 import me.ahoo.wow.api.read.EventStream
 import me.ahoo.wow.api.read.MinVersionNotReachedException
@@ -109,7 +110,7 @@ class HttpQueryApi internal constructor(
         override fun events(type: AggregateType): EventQueries = Events(type, caller)
 
         @ExperimentalWowApi
-        override fun <R : Any> datasets(name: AggregateType, rowType: Class<R>): RowQueries<R> =
+        override fun <R : Any> datasets(name: DatasetName, rowType: Class<R>): RowQueries<R> =
             Rows(name.context, "/wow/dataset/${name.context}/${name.name}/${QueryRoutes.SEGMENT}", caller) {
                 decode(it, rowType)
             }

@@ -135,13 +135,13 @@ class JavaClientSmokeTest {
         String record = "{\"tenantId\":\"t1\",\"aggregateId\":\"p-1\",\"version\":1,\"deleted\":false,"
             + "\"firstEventTime\":1,\"lastEventTime\":2,\"state\":{\"to\":\"bob\"}}";
         peer.reply(new Reply(200, Map.of("Content-Type", "application/json"), ("[" + record + "]").getBytes(), null, false));
-        List<Snapshot<ParcelState>> listed = parcels.list(new ListQuery(MatchAllFilter.INSTANCE));
+        List<Snapshot<ParcelState>> listed = parcels.list(ListQuery.of(MatchAllFilter.INSTANCE));
         assertEquals("bob", listed.get(0).getState().getTo());
-        assertEquals("bob", parcels.listAsync(new ListQuery(MatchAllFilter.INSTANCE)).join().get(0).getState().getTo());
+        assertEquals("bob", parcels.listAsync(ListQuery.of(MatchAllFilter.INSTANCE)).join().get(0).getState().getTo());
 
         peer.reply(Reply.Companion.events("event: row\nid: x-1\ndata: " + record + "\n\n",
             "event: end\ndata: {\"reason\":\"complete\",\"resumable\":false}\n\n"));
-        try (Stream<Positioned<Snapshot<ParcelState>>> rows = parcels.stream(new ListQuery(MatchAllFilter.INSTANCE))) {
+        try (Stream<Positioned<Snapshot<ParcelState>>> rows = parcels.stream(ListQuery.of(MatchAllFilter.INSTANCE))) {
             assertEquals("x-1", rows.findFirst().orElseThrow().getPosition());
         }
 
