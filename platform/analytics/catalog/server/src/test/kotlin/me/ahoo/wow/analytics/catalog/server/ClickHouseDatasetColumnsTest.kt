@@ -52,17 +52,17 @@ class ClickHouseDatasetColumnsTest {
     ) {
         ClickHouseDatasetColumns.servable(type).assert().isTrue()
         val field = declared(type)
-        field.kind.assert().isEqualTo(DeclarationValue.Set(QueryValueKind.SCALAR))
-        field.valueTypes.assert().isEqualTo(DeclarationValue.Set(setOf(value)))
-        field.nullable.assert().isEqualTo(DeclarationValue.Set(nullable))
+        field.kind.assert().isEqualTo(DeclarationValue.Set.of(QueryValueKind.SCALAR))
+        field.valueTypes.assert().isEqualTo(DeclarationValue.Set.of(setOf(value)))
+        field.nullable.assert().isEqualTo(DeclarationValue.Set.of(nullable))
     }
 
     @Test
     fun `dates should be text of a date, arrays of text arrays, and other types not served`() {
-        declared("DateTime64(3, 'UTC')").semanticType.assert().isEqualTo(DeclarationValue.Set(Temporal.Date))
-        declared("Date32").semanticType.assert().isEqualTo(DeclarationValue.Set(Temporal.Date))
+        declared("DateTime64(3, 'UTC')").semanticType.assert().isEqualTo(DeclarationValue.Set.of(Temporal.Date))
+        declared("Date32").semanticType.assert().isEqualTo(DeclarationValue.Set.of(Temporal.Date))
         val array = declared("Array(LowCardinality(String))")
-        array.kind.assert().isEqualTo(DeclarationValue.Set(QueryValueKind.ARRAY))
+        array.kind.assert().isEqualTo(DeclarationValue.Set.of(QueryValueKind.ARRAY))
         ClickHouseDatasetColumns.servable("Array(FixedString(2))").assert().isTrue()
         listOf("Map(String, String)", "Array(Int64)", "Tuple(a String)", "JSON").forEach {
             ClickHouseDatasetColumns.servable(it).assert().describedAs(it).isFalse()

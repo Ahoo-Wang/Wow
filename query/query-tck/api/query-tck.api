@@ -1,17 +1,19 @@
 public final class me/ahoo/wow/query/tck/DatasetColumn {
-	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/query/tck/DatasetColumn$Type;Z)V
-	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/query/tck/DatasetColumn$Type;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Lme/ahoo/wow/query/tck/DatasetColumn$Type;
-	public final fun component3 ()Z
-	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/query/tck/DatasetColumn$Type;Z)Lme/ahoo/wow/query/tck/DatasetColumn;
-	public static synthetic fun copy$default (Lme/ahoo/wow/query/tck/DatasetColumn;Ljava/lang/String;Lme/ahoo/wow/query/tck/DatasetColumn$Type;ZILjava/lang/Object;)Lme/ahoo/wow/query/tck/DatasetColumn;
+	public static final field Companion Lme/ahoo/wow/query/tck/DatasetColumn$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getName ()Ljava/lang/String;
 	public final fun getNullable ()Z
 	public final fun getType ()Lme/ahoo/wow/query/tck/DatasetColumn$Type;
 	public fun hashCode ()I
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/query/tck/DatasetColumn$Type;)Lme/ahoo/wow/query/tck/DatasetColumn;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/query/tck/DatasetColumn$Type;Z)Lme/ahoo/wow/query/tck/DatasetColumn;
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/query/tck/DatasetColumn$Companion {
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/query/tck/DatasetColumn$Type;)Lme/ahoo/wow/query/tck/DatasetColumn;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/query/tck/DatasetColumn$Type;Z)Lme/ahoo/wow/query/tck/DatasetColumn;
+	public static synthetic fun of$default (Lme/ahoo/wow/query/tck/DatasetColumn$Companion;Ljava/lang/String;Lme/ahoo/wow/query/tck/DatasetColumn$Type;ZILjava/lang/Object;)Lme/ahoo/wow/query/tck/DatasetColumn;
 }
 
 public final class me/ahoo/wow/query/tck/DatasetColumn$Type : java/lang/Enum {
@@ -72,18 +74,18 @@ protected final class me/ahoo/wow/query/tck/DatasetQueryBackendSpec$Target {
 }
 
 public final class me/ahoo/wow/query/tck/DatasetTable {
-	public fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/util/List;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/util/List;
-	public final fun component3 ()Ljava/util/List;
-	public final fun copy (Ljava/lang/String;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/query/tck/DatasetTable;
-	public static synthetic fun copy$default (Lme/ahoo/wow/query/tck/DatasetTable;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/query/tck/DatasetTable;
+	public static final field Companion Lme/ahoo/wow/query/tck/DatasetTable$Companion;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getColumns ()Ljava/util/List;
 	public final fun getName ()Ljava/lang/String;
 	public final fun getRows ()Ljava/util/List;
 	public fun hashCode ()I
+	public static final fun of (Ljava/lang/String;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/query/tck/DatasetTable;
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/query/tck/DatasetTable$Companion {
+	public final fun of (Ljava/lang/String;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/query/tck/DatasetTable;
 }
 
 public abstract class me/ahoo/wow/query/tck/EventQueryBackendSpec {

@@ -360,7 +360,6 @@ class QueryDatasetTest {
         dataset.profile.toString().assert().contains("analytics")
         dataset.profile.hashCode().assert().isEqualTo(dataset.hashCode())
         dataset.profile.assert().isNotEqualTo(orders().profile).isNotEqualTo(SnapshotQueryModelProfile)
-        dataset.copy(title = null).title.assert().isNull()
         assertThrows<IllegalArgumentException> {
             QueryDataset(ORDERS, QueryDatasetScope(QueryField("tenant_id")), QuerySchemaDeclaration(emptyMap()))
         }

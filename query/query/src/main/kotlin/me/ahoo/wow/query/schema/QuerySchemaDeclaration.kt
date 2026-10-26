@@ -24,7 +24,22 @@ import tools.jackson.databind.JsonNode
 sealed interface DeclarationValue<out T> {
     data object Unset : DeclarationValue<Nothing>
 
-    data class Set<T>(val value: T) : DeclarationValue<T>
+    class Set<T> @InternalWowApi constructor(val value: T) : DeclarationValue<T> {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Set<*> && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Set(value=$value)"
+
+        private fun valueFields(): List<Any?> = listOf(value)
+
+        companion object {
+            /** A [Set] of the given values. */
+            @JvmStatic
+            fun <T> of(value: T): Set<T> = Set(value)
+        }
+    }
 }
 
 /** The read model of one aggregate type a schema is compiled for. */
@@ -43,9 +58,24 @@ data class QuerySchemaRegistration(
 
 /** What one source declares about a model's fields, by logical field. */
 @ExperimentalWowApi
-data class QuerySchemaDeclaration(
+class QuerySchemaDeclaration @InternalWowApi constructor(
     val fields: Map<QueryField, QueryFieldDeclaration>,
-)
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is QuerySchemaDeclaration && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "QuerySchemaDeclaration(fields=$fields)"
+
+    private fun valueFields(): List<Any?> = listOf(fields)
+
+    companion object {
+        /** A [QuerySchemaDeclaration] of the given values. */
+        @JvmStatic
+        fun of(fields: Map<QueryField, QueryFieldDeclaration>): QuerySchemaDeclaration = QuerySchemaDeclaration(fields)
+    }
+}
 
 /**
  * What one source declares about one logical value, in the capability descriptor's vocabulary; each fact may be left
@@ -53,7 +83,7 @@ data class QuerySchemaDeclaration(
  * a sensitivity a lower one declares: replacing a protected structure keeps its masks, or fails.
  */
 @ExperimentalWowApi
-data class QueryFieldDeclaration(
+class QueryFieldDeclaration @InternalWowApi constructor(
     val title: DeclarationValue<String?> = DeclarationValue.Unset,
     val description: DeclarationValue<String?> = DeclarationValue.Unset,
     val enumValues: DeclarationValue<List<JsonNode>?> = DeclarationValue.Unset,
@@ -79,7 +109,122 @@ data class QueryFieldDeclaration(
     val aliases: DeclarationValue<Set<QueryField>> = DeclarationValue.Unset,
     /** Set when the field is kept only for existing callers. */
     val deprecated: DeclarationValue<QueryDeprecation?> = DeclarationValue.Unset,
-)
+) {
+    /** This QueryFieldDeclaration with the given values replaced; for Wow's own query rewriting. */
+    @InternalWowApi
+    fun copy(
+        title: DeclarationValue<String?> = this.title,
+        description: DeclarationValue<String?> = this.description,
+        enumValues: DeclarationValue<List<JsonNode>?> = this.enumValues,
+        enumDescriptions: DeclarationValue<Map<JsonNode, String>> = this.enumDescriptions,
+        valueTypes: DeclarationValue<Set<QueryValueType>> = this.valueTypes,
+        nullable: DeclarationValue<Boolean> = this.nullable,
+        required: DeclarationValue<Boolean> = this.required,
+        kind: DeclarationValue<QueryValueKind> = this.kind,
+        properties: DeclarationValue<Map<String, QueryFieldDeclaration>> = this.properties,
+        items: DeclarationValue<QueryFieldDeclaration?> = this.items,
+        additionalProperties: DeclarationValue<QueryFieldDeclaration?> = this.additionalProperties,
+        alternatives: DeclarationValue<List<QueryFieldDeclaration>> = this.alternatives,
+        semanticType: DeclarationValue<QuerySemanticType?> = this.semanticType,
+        maskRule: DeclarationValue<MaskRule> = this.maskRule,
+        variant: DeclarationValue<String?> = this.variant,
+        aliases: DeclarationValue<Set<QueryField>> = this.aliases,
+        deprecated: DeclarationValue<QueryDeprecation?> = this.deprecated,
+    ): QueryFieldDeclaration = QueryFieldDeclaration(
+        title,
+        description,
+        enumValues,
+        enumDescriptions,
+        valueTypes,
+        nullable,
+        required,
+        kind,
+        properties,
+        items,
+        additionalProperties,
+        alternatives,
+        semanticType,
+        maskRule,
+        variant,
+        aliases,
+        deprecated,
+    )
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is QueryFieldDeclaration && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "QueryFieldDeclaration(title=$title, description=$description, enumValues=$enumValues, " +
+            "enumDescriptions=$enumDescriptions, valueTypes=$valueTypes, nullable=$nullable, required=$required, " +
+            "kind=$kind, properties=$properties, items=$items, additionalProperties=$additionalProperties, " +
+            "alternatives=$alternatives, semanticType=$semanticType, maskRule=$maskRule, variant=$variant, " +
+            "aliases=$aliases, deprecated=$deprecated)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        title,
+        description,
+        enumValues,
+        enumDescriptions,
+        valueTypes,
+        nullable,
+        required,
+        kind,
+        properties,
+        items,
+        additionalProperties,
+        alternatives,
+        semanticType,
+        maskRule,
+        variant,
+        aliases,
+        deprecated,
+    )
+
+    companion object {
+        /** A [QueryFieldDeclaration] of the given values. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            title: DeclarationValue<String?> = DeclarationValue.Unset,
+            description: DeclarationValue<String?> = DeclarationValue.Unset,
+            enumValues: DeclarationValue<List<JsonNode>?> = DeclarationValue.Unset,
+            enumDescriptions: DeclarationValue<Map<JsonNode, String>> = DeclarationValue.Unset,
+            valueTypes: DeclarationValue<Set<QueryValueType>> = DeclarationValue.Unset,
+            nullable: DeclarationValue<Boolean> = DeclarationValue.Unset,
+            required: DeclarationValue<Boolean> = DeclarationValue.Unset,
+            kind: DeclarationValue<QueryValueKind> = DeclarationValue.Unset,
+            properties: DeclarationValue<Map<String, QueryFieldDeclaration>> = DeclarationValue.Unset,
+            items: DeclarationValue<QueryFieldDeclaration?> = DeclarationValue.Unset,
+            additionalProperties: DeclarationValue<QueryFieldDeclaration?> = DeclarationValue.Unset,
+            alternatives: DeclarationValue<List<QueryFieldDeclaration>> = DeclarationValue.Unset,
+            semanticType: DeclarationValue<QuerySemanticType?> = DeclarationValue.Unset,
+            maskRule: DeclarationValue<MaskRule> = DeclarationValue.Unset,
+            variant: DeclarationValue<String?> = DeclarationValue.Unset,
+            aliases: DeclarationValue<Set<QueryField>> = DeclarationValue.Unset,
+            deprecated: DeclarationValue<QueryDeprecation?> = DeclarationValue.Unset,
+        ): QueryFieldDeclaration = QueryFieldDeclaration(
+            title,
+            description,
+            enumValues,
+            enumDescriptions,
+            valueTypes,
+            nullable,
+            required,
+            kind,
+            properties,
+            items,
+            additionalProperties,
+            alternatives,
+            semanticType,
+            maskRule,
+            variant,
+            aliases,
+            deprecated,
+        )
+    }
+}
 
 /**
  * Where a model's field declarations come from (design §5.2): the Manifest's state schema (`$defs` plus `x-wow-*`,

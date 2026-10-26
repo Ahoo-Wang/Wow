@@ -13,13 +13,14 @@
 
 package me.ahoo.wow.query.index
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
 
 /**
  * One `x-wow-index` entry of an aggregate's state schema (decision D151): its name and its keys, logical paths. Each
  * snapshot query backend plans its own index from it.
  */
-data class QueryIndexDeclaration(val name: String, val keys: List<String>) {
+class QueryIndexDeclaration @InternalWowApi constructor(val name: String, val keys: List<String>) {
     init {
         require(name.isNotEmpty()) { "An index needs a name." }
         require(keys.isNotEmpty()) { "Index [$name] needs at least one key." }
@@ -47,4 +48,13 @@ data class QueryIndexDeclaration(val name: String, val keys: List<String>) {
             }
         }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is QueryIndexDeclaration && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "QueryIndexDeclaration(name=$name, keys=$keys)"
+
+    private fun valueFields(): List<Any?> = listOf(name, keys)
 }

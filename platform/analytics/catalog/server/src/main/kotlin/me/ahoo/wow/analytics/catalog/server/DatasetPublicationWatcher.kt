@@ -218,7 +218,7 @@ class DatasetPublicationWatcher(
                     }
                     val sensitivity = column?.sensitivity ?: return@forEach
                     val level = sensitivity.level ?: return@forEach
-                    sensitive(name, level, QueryMask.Keep(sensitivity.keepPrefix, sensitivity.keepSuffix))
+                    sensitive(name, level, QueryMask.Keep.of(sensitivity.keepPrefix, sensitivity.keepSuffix))
                 }
             }
     }

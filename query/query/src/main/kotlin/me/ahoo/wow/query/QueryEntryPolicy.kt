@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
@@ -44,7 +45,7 @@ import kotlin.time.Duration
  * every in-process query when [inProcess] is `null`; decision D150: every query has one); `null` runs such a query
  * without one.
  */
-data class QueryEntryPolicy(
+class QueryEntryPolicy @InternalWowApi constructor(
     val requireExplicitEntry: Boolean = false,
     val requireAuthenticatedScope: Boolean = false,
     val http: QueryBudget = QueryBudget.HTTP_DEFAULT,
@@ -88,7 +89,42 @@ data class QueryEntryPolicy(
 
     companion object {
         val DEFAULT = QueryEntryPolicy()
+
+        /** A [QueryEntryPolicy] of the given values. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            requireExplicitEntry: Boolean = false,
+            requireAuthenticatedScope: Boolean = false,
+            http: QueryBudget = QueryBudget.HTTP_DEFAULT,
+            inProcess: QueryBudget? = null,
+            inProcessTimeout: Duration? = QueryBudget.DEFAULT_TIMEOUT,
+        ): QueryEntryPolicy = QueryEntryPolicy(
+            requireExplicitEntry,
+            requireAuthenticatedScope,
+            http,
+            inProcess,
+            inProcessTimeout
+        )
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is QueryEntryPolicy && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "QueryEntryPolicy(requireExplicitEntry=$requireExplicitEntry, " +
+            "requireAuthenticatedScope=$requireAuthenticatedScope, http=$http, inProcess=$inProcess, " +
+            "inProcessTimeout=$inProcessTimeout)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        requireExplicitEntry,
+        requireAuthenticatedScope,
+        http,
+        inProcess,
+        inProcessTimeout
+    )
 }
 
 /**
