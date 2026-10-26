@@ -1333,9 +1333,8 @@ class ServiceNode @InternalWowApi constructor(
         fun withLog(log: EventLog) = GroupParts(store, types, log, checkpoints, ledger, timers)
     }
 
-    /** [log] handing this node's commits to its tails in memory, unless [ServiceNodeOptions.handoff] turns it off. */
-    private fun handoffOf(context: String, log: EventLog): EventLog =
-        if (options.handoff.enabled) HandoffLog(log, context, options.handoff, observer) else log
+    /** [log] handing this node's commits to its tails in memory, as [ServiceNodeOptions.handoff] says. */
+    private fun handoffOf(context: String, log: EventLog): EventLog = HandoffLog(log, context, options.handoff, observer)
 
     /**
      * The state consumers of [context] (decision D133): the subscription of each snapshot target, of the types it

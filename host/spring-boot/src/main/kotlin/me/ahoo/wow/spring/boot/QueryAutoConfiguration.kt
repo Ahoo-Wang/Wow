@@ -23,6 +23,7 @@ import me.ahoo.wow.client.RoutedQueryApi
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.query.AdaptiveLimitOptions
 import me.ahoo.wow.query.AdaptiveQueryLimits
 import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.QueryCountCache
@@ -304,13 +305,13 @@ class QueryAutoConfiguration {
         }
 
         /**
-         * Evaluates the adaptive query bounds of the stores (decision D252) every `wow.query.adaptive.interval`, from
-         * the bean's start to its end.
+         * Evaluates the adaptive query bounds of the stores (decision D252) every period of their options, from the
+         * bean's start to its end.
          */
         @Bean(initMethod = "start", destroyMethod = "close")
         @InternalWowApi
-        fun wowAdaptiveQueryLimits(stores: QueryStores, properties: QueryProperties): AdaptiveQueryLimits =
-            AdaptiveQueryLimits(stores.limits, properties.adaptive.interval.toKotlinDuration())
+        fun wowAdaptiveQueryLimits(stores: QueryStores): AdaptiveQueryLimits =
+            AdaptiveQueryLimits(stores.limits, AdaptiveLimitOptions.DEFAULT_INTERVAL)
 
         /**
          * How the state reads replay the log of an aggregate without a snapshot (decision D246 ⑥): under the query

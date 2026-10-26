@@ -530,7 +530,6 @@ class WowAutoConfiguration {
                 unknownWaitContexts = properties.wait.unknownContexts,
                 maxRegisteredWaits = properties.wait.maxRegistered,
                 subscription = properties.subscription.options(properties.subscriptions),
-                appendQueue = properties.log.appendQueue.options(),
                 handoff = properties.log.handoffOptions(),
                 laneCapacity = properties.executor.laneCapacity,
                 maxBatch = properties.executor.maxBatch,
