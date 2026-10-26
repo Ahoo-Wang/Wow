@@ -360,8 +360,13 @@ class HttpSignalSenderTest {
             sender.send(origin(origin.address), signal(2), deadline())
             eventually { sender.dropped == 2L }
             requests.get().assert().isEqualTo(4)
+            // A lone signal refused as malformed has nothing to split: it is dropped, not sent again.
+            status = 400
+            sender.send(origin(origin.address), signal(3), deadline())
+            eventually { sender.dropped == 3L }
+            requests.get().assert().isEqualTo(5)
         }
-        reasons.assert().containsExactly(HttpSignalSender.REFUSED, HttpSignalSender.REFUSED)
+        reasons.assert().containsExactly(HttpSignalSender.REFUSED, HttpSignalSender.REFUSED, HttpSignalSender.REFUSED)
     }
 
     @Test
@@ -380,6 +385,7 @@ class HttpSignalSenderTest {
     fun `a failure that passes is told from one that does not`() {
         java.io.IOException(java.nio.channels.UnresolvedAddressException()).isTransient().assert().isTrue()
         java.net.ConnectException("refused").isTransient().assert().isTrue()
+        java.net.UnknownHostException("node-2").isTransient().assert().isTrue()
         java.net.http.HttpConnectTimeoutException("connect").isTransient().assert().isTrue()
         java.net.http.HttpTimeoutException("request").isTransient().assert().isFalse()
         IllegalStateException("bug").isTransient().assert().isFalse()

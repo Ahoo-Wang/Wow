@@ -77,6 +77,39 @@ class PeerGreetingsTest {
         }
     }
 
+    @Test
+    fun `a greeting that keeps failing past the member TTL is still tried each round`(): Unit = runBlocking {
+        val leases = InMemoryLeaseStore()
+        val calls = AtomicInteger()
+        val greeter = PartitionOwnership(
+            GROUP,
+            "node-1",
+            "node-1:9090",
+            PARTITIONS,
+            leases,
+            fastOptions(),
+            context = Dispatchers.Default,
+            peers = { member ->
+                if (member.node == "node-2") {
+                    calls.incrementAndGet()
+                    throw UnresolvedAddressException()
+                }
+            },
+        )
+        val other = PartitionOwnership(GROUP, "node-2", "node-2:9090", PARTITIONS, leases, fastOptions())
+        greeter.start()
+        other.start()
+        try {
+            // The member TTL of fastOptions is 1.5 s: the rounds after it warn, and go on trying.
+            val started = System.nanoTime()
+            eventually { System.nanoTime() - started > 2_000_000_000L && calls.get() > 10 }
+            ("node-2@node-2:9090" in greeter.knownPeers).assert().isFalse()
+        } finally {
+            greeter.stop()
+            other.stop()
+        }
+    }
+
     private companion object {
         val GROUP = LeaseGroup("greet-service", "greet")
         const val PARTITIONS = 4
