@@ -34,7 +34,9 @@ import java.net.http.HttpConnectTimeoutException
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.nio.ByteBuffer
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Flow.Publisher
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 
@@ -84,9 +86,9 @@ internal class HttpTransport(
 
     /** [request] answered as bytes, retried while [retries] says so of its problem. */
     suspend fun exchange(request: PeerRequest, retries: (PeerProblem) -> Boolean): Answer<ByteArray> =
-        withRetries(retries) {
+        withRetries(request, retries) { base ->
             val response = client.sendAsync(
-                build(request, JSON_ACCEPT),
+                build(request, base, JSON_ACCEPT),
                 HttpResponse.BodyHandlers.ofByteArray()
             ).await()
             val status = response.statusCode()
@@ -103,9 +105,9 @@ internal class HttpTransport(
      * is its body read whole, as the data of one event.
      */
     suspend fun stream(request: PeerRequest, retries: (PeerProblem) -> Boolean): Answer<Flow<String>> =
-        withRetries(retries) {
+        withRetries(request, retries) { base ->
             val response = client.sendAsync(
-                build(request, EVENT_STREAM),
+                build(request, base, EVENT_STREAM),
                 HttpResponse.BodyHandlers.ofPublisher()
             ).await()
             val status = response.statusCode()
@@ -119,11 +121,22 @@ internal class HttpTransport(
             }
         }
 
-    private suspend fun <T> withRetries(retries: (PeerProblem) -> Boolean, attempt: suspend () -> Answer<T>): Answer<T> {
+    /**
+     * [attempt] at [request]'s targets, retried as [retry] says: each attempt goes through the targets of its context
+     * ([EndpointResolver.resolveAll]) from the next one in turn, and fails over to the next target on a connection
+     * that was not made or on a node that refused before handling ([PeerProblem.refusedBeforeHandling]), each target at
+     * most once, without spending a retry (decision D305). When every target failed to connect, the resolver hears it
+     * ([EndpointResolver.unreachable]). What the last target answered is then retried while [retries] says so.
+     */
+    private suspend fun <T> withRetries(
+        request: PeerRequest,
+        retries: (PeerProblem) -> Boolean,
+        attempt: suspend (base: String) -> Answer<T>,
+    ): Answer<T> {
         var attempts = 1
         while (true) {
             val answer = try {
-                attempt()
+                failover(request, attempt)
             } catch (failure: IOException) {
                 // A connection that was not made sent nothing: refused, or not answered in time.
                 if (!failure.unsent()) throw failure
@@ -141,13 +154,47 @@ internal class HttpTransport(
         }
     }
 
-    private suspend fun build(request: PeerRequest, accept: String): HttpRequest {
-        val base = endpoints.resolve(request.context, mode.port)?.toString()?.trimEnd('/')
-            ?: throw IllegalStateException(
-                "No URL calls context ${request.context} on its ${mode.port.name.lowercase()} port: set " +
-                    "wow.peers.${request.context}.${if (mode.port == Port.PUBLIC) "public-url" else "url"}, " +
-                    "or give the client an EndpointResolver that finds it.",
-            )
+    /** One attempt at [request]'s targets, in turn, failing over as [withRetries] says. */
+    private suspend fun <T> failover(request: PeerRequest, attempt: suspend (base: String) -> Answer<T>): Answer<T> {
+        val targets = targetsOf(request.context)
+        var unsent: IOException? = null
+        var refused: Answer<T>? = null
+        for (base in targets) {
+            val answer = try {
+                attempt(base)
+            } catch (failure: IOException) {
+                if (!failure.unsent()) throw failure
+                unsent = failure
+                continue
+            }
+            if (answer is Answer.Problem && answer.problem.refusedBeforeHandling) {
+                refused = answer
+                continue
+            }
+            return answer
+        }
+        refused?.let { return it }
+        endpoints.unreachable(request.context, mode.port)
+        throw checkNotNull(unsent)
+    }
+
+    /** The targets of [context], each a base URL without its trailing slash, from the next one in turn. */
+    private suspend fun targetsOf(context: String): List<String> {
+        val targets = endpoints.resolveAll(context, mode.port).map { it.toString().trimEnd('/') }
+        check(targets.isNotEmpty()) {
+            "No URL calls context $context on its ${mode.port.name.lowercase()} port: set " +
+                "wow.peers.$context.${if (mode.port == Port.PUBLIC) "public-url" else "url"}, " +
+                "or give the client an EndpointResolver that finds it."
+        }
+        if (targets.size == 1) return targets
+        val first = Math.floorMod(turns.computeIfAbsent(context) { AtomicInteger() }.getAndIncrement(), targets.size)
+        return targets.drop(first) + targets.take(first)
+    }
+
+    /** The next target of each context, so the requests rotate through its targets. */
+    private val turns = ConcurrentHashMap<String, AtomicInteger>()
+
+    private suspend fun build(request: PeerRequest, base: String, accept: String): HttpRequest {
         val builder = HttpRequest.newBuilder(URI.create(base + request.path))
             .timeout((request.timeout ?: timeoutOf(request.context)).toJavaDuration())
             .header(ACCEPT, accept)

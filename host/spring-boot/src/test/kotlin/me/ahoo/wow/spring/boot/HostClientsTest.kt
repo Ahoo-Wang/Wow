@@ -307,7 +307,7 @@ class HostClientsTest {
                 mode = PeerMode.USER
             }
         }
-        val resolver = WowAutoConfiguration().wowEndpointResolver(properties)
+        val resolver = PeerEndpoints.of(properties, PeerDiscoveries.load(javaClass.classLoader), { emptyMap() }) { null }
         resolver.resolve("mail", Port.PUBLIC).assert().isEqualTo(URI.create("http://mail:8080"))
         resolver.resolve("mail", Port.INTERNAL).assert().isEqualTo(URI.create("http://mail:9090"))
         resolver.resolve("box", Port.INTERNAL).assert().isEqualTo(URI.create("http://box:9090"))
