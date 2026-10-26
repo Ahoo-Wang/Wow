@@ -353,11 +353,9 @@ class ManifestOpenApiTest {
         paths().keys.assert().contains(
             "/wow/manifest",
             "/wow/openapi",
-            "/wow/id/global",
             "/wow/dataset",
             "/wow/dataset/{context}/{dataset}/query",
         )
-        responses(operation("get", "/wow/id/global")).keys.assert().containsExactly("200", "401")
         responses(operation("post", "/wow/dataset/{context}/{dataset}/query"))["404"]
             .assert().isEqualTo(ref("responses", "wow.dataset-query.404"))
         // A dataset backend has no query bulkhead: its queries are never `wow.query.busy`.
@@ -376,7 +374,7 @@ class ManifestOpenApiTest {
             it.startsWith(
                 "/wow"
             )
-        }.assert().containsExactly("/wow/id/global")
+        }.assert().isEmpty()
         none["servers"].assert().isEqualTo(listOf(mapOf("url" to "https://shop.example")))
     }
 

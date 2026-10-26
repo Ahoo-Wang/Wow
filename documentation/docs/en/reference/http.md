@@ -44,7 +44,6 @@ Only the lifecycle commands an aggregate lists in `@AggregateRoot(lifecycle)` ge
 | --- | --- |
 | `GET /wow/manifest` | The service's merged Manifest (`wow.http.manifest.enabled`) |
 | `GET /wow/openapi` | The OpenAPI 3.1 document of these routes (`wow.http.openapi.enabled`) |
-| `GET /wow/id/global` | A new global id, as `text/plain` |
 
 Any other request under a context's path is a `404` problem.
 
