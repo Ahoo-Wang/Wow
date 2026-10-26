@@ -87,7 +87,6 @@
     "@vitest/ui": "catalog:",
     "eslint": "catalog:",
     "globals": "catalog:",
-    "prettier": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
     "unplugin-dts": "catalog:",

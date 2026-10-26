@@ -127,7 +127,7 @@ html.dark body {
   margin: 0;
 }
 
-.story-scene .story-stack button:not(.ant-btn) {
+.story-scene .story-stack button {
   align-self: flex-start;
   width: fit-content;
   min-height: 36px;
@@ -148,24 +148,24 @@ html.dark body {
     transform 160ms ease;
 }
 
-.story-scene .story-stack button:not(.ant-btn):hover:not(:disabled) {
+.story-scene .story-stack button:hover:not(:disabled) {
   border-color: #003eb3;
   background: #003eb3;
   box-shadow: 0 4px 10px rgb(5 47 122 / 24%);
   transform: translateY(-1px);
 }
 
-.story-scene .story-stack button:not(.ant-btn):active:not(:disabled) {
+.story-scene .story-stack button:active:not(:disabled) {
   box-shadow: 0 1px 3px rgb(5 47 122 / 18%);
   transform: translateY(0);
 }
 
-.story-scene .story-stack button:not(.ant-btn):focus-visible {
+.story-scene .story-stack button:focus-visible {
   outline: 3px solid #0958d9;
   outline-offset: 2px;
 }
 
-.story-scene .story-stack button:not(.ant-btn):disabled {
+.story-scene .story-stack button:disabled {
   border-color: #d9d9d9;
   background: #f5f5f5;
   box-shadow: none;
@@ -175,14 +175,6 @@ html.dark body {
 
 .story-stack a {
   color: #003a8c;
-}
-
-.story-antd .ant-empty-description {
-  color: #595959 !important;
-}
-
-.story-antd .ant-tag-green {
-  color: #135200 !important;
 }
 
 .story-output {

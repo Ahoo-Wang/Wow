@@ -20,7 +20,6 @@
     "@ahoo-wang/wow-react": "workspace:*",
     "@ahoo-wang/wow-view-engine": "workspace:*",
     "@ahoo-wang/wow-view-store": "workspace:*",
-    "antd": "catalog:",
     "@chromatic-com/storybook": "catalog:",
     "culori": "catalog:",
     "d3-random": "catalog:",
