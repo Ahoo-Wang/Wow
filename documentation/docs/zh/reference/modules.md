@@ -33,7 +33,7 @@ description: "Wow 每次发布到 Maven Central 的每个制品，以及它包�
 | `me.ahoo.wow:wow-http` | [`edge/http`](https://github.com/Ahoo-Wang/Wow/tree/main/edge/http) | Routes materialized from the Manifest, problem+json, SSE and the signal entry |
 | `me.ahoo.wow:wow-client` | [`edge/client`](https://github.com/Ahoo-Wang/Wow/tree/main/edge/client) | The typed command and query clients of a peer's HTTP routes, on the JDK HttpClient |
 | `me.ahoo.wow:wow-cosec` | [`edge/cosec`](https://github.com/Ahoo-Wang/Wow/tree/main/edge/cosec) | The caller from CoSec's security context, and command authorization |
-| `me.ahoo.wow:wow-opentelemetry` | [`edge/opentelemetry`](https://github.com/Ahoo-Wang/Wow/tree/main/edge/opentelemetry) | Tracing and Micrometer metrics on the core's observation seams |
+| `me.ahoo.wow:wow-observability` | [`edge/observability`](https://github.com/Ahoo-Wang/Wow/tree/main/edge/observability) | Tracing and Micrometer metrics on the core's observation seams |
 | `me.ahoo.wow:wow-spring-boot` | [`host/spring-boot`](https://github.com/Ahoo-Wang/Wow/tree/main/host/spring-boot) | Auto-configuration by classpath; wiring only |
 | `me.ahoo.wow:wow-cosid` | [`extensions/cosid`](https://github.com/Ahoo-Wang/Wow/tree/main/extensions/cosid) | CosId's generators as a node's global and aggregate id generators |
 | `me.ahoo.wow:wow-models` | [`extensions/models`](https://github.com/Ahoo-Wang/Wow/tree/main/extensions/models) | Shared capability interfaces, EnumText and the reusable Tree aggregate |

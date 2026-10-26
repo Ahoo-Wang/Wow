@@ -753,19 +753,19 @@ public final class me/ahoo/wow/spi/reservation/ReservationScope {
 	public static final field Companion Lme/ahoo/wow/spi/reservation/ReservationScope$Companion;
 	public static final field SYSTEM_TENANT Ljava/lang/String;
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getContext ()Ljava/lang/String;
 	public final fun getNamespace ()Ljava/lang/String;
 	public final fun getTenantId ()Ljava/lang/String;
+	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
 	public fun hashCode ()I
 	public final fun isSystem ()Z
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/reservation/ReservationScope;
 	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/spi/reservation/ReservationKey;)Lme/ahoo/wow/spi/reservation/ReservationScope;
+	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/reservation/ReservationScope;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/spi/reservation/ReservationScope$Companion {
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/reservation/ReservationScope;
 	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/spi/reservation/ReservationKey;)Lme/ahoo/wow/spi/reservation/ReservationScope;
+	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/reservation/ReservationScope;
 }
 
 public abstract interface class me/ahoo/wow/spi/reservation/ReservationStore {

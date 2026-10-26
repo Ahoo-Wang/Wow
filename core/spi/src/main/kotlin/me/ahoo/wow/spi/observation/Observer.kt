@@ -26,7 +26,7 @@ import kotlin.coroutines.EmptyCoroutineContext
 
 /**
  * The observation seams of the core (decision D174): where the kernel and the runtime tell an observer, such as
- * wow-opentelemetry's tracing and metrics, that a stage of their work starts. The core knows no tracing or metrics
+ * wow-observability's tracing and metrics, that a stage of their work starts. The core knows no tracing or metrics
  * library; an observer only watches and never changes what the work does (06-modules §3).
  *
  * Each method starts an [Observation] of one stage, which the core ends when the stage does. The default methods, and

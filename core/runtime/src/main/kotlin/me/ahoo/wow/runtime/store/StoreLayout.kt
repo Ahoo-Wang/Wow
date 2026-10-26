@@ -57,7 +57,7 @@ class StoreLayout(
     /**
      * The stores of [context] among [stores], each opened as this layout says: its default log group on [log], with
      * the checkpoints, leases, failure ledger, reservations and timers of that store; a log group per other store its
-     * aggregates' logs are on; its snapshot targets, each type's as its placement says.
+     * aggregates' logs are on, with that store's reservations and timers (decision D307); its snapshot targets, each type's as its placement says.
      */
     fun open(context: String, stores: Map<String, Store>, partitions: Int): ContextBackends {
         val default = stores.getValue(log)
@@ -72,6 +72,7 @@ class StoreLayout(
                     store.checkpoints,
                     store.ledger,
                     store.timers(context, partitions),
+                    store.reservations,
                 )
             }
         val placed = placements.filterKeys { it.context == context }

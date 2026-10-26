@@ -16,16 +16,14 @@ package me.ahoo.wow.postgres.reservation
 import me.ahoo.wow.postgres.PostgresIdentifiers
 
 /**
- * The reservations' table and statements. The column layout is part of the format, version [FORMAT] (decision D59):
- * format 2 keys a reservation by `(context, tenant_id, namespace, key)` (finding A1-3; the system tenant is the empty
- * string), names its owner by three columns (finding A1-10; the owner's context is the key's) and records the holds of
- * a pending reservation (finding A1-2). Format 1 (`(namespace, key)`, one `owner` text) had no format record, so a
- * table of it is refused: drop it.
+ * The reservations' table of one aggregate type, `wow_reservation__<context>__<aggregate>` (decision D307: the type is
+ * the unit of placement, so its reservations follow its log's store), and its statements. The column layout is part of
+ * the format, version [FORMAT] (decision D59): a reservation is keyed by `(tenant_id, namespace, key)` (finding A1-3;
+ * the system tenant is the empty string), names its owner by two columns (the owner's type is the table's) and records
+ * the holds of a pending reservation (finding A1-2).
  */
-internal class PostgresReservationTables(val name: String) {
-    init {
-        require(IDENTIFIER.matches(name)) { "A reservation table name is a lower-case SQL identifier: $name." }
-    }
+internal class PostgresReservationTables(context: String, aggregate: String) {
+    val name: String = PostgresIdentifiers.of(PREFIX, context, aggregate)
 
     val table = "\"$name\""
     private val ownerIndex = PostgresIdentifiers.limited("${name}_owner")
@@ -38,20 +36,18 @@ internal class PostgresReservationTables(val name: String) {
     val ddl = listOf(
         """
         CREATE TABLE IF NOT EXISTS $table (
-            context text NOT NULL,
             tenant_id text NOT NULL,
             namespace text NOT NULL,
             key text NOT NULL,
-            owner_aggregate text NOT NULL,
             owner_tenant_id text NOT NULL,
             owner_id text NOT NULL,
             expires_at bigint,
             holds text[] NOT NULL DEFAULT '{}',
             version integer NOT NULL DEFAULT 0,
-            PRIMARY KEY (context, tenant_id, namespace, key)
+            PRIMARY KEY (tenant_id, namespace, key)
         )
         """.trimIndent(),
-        "CREATE INDEX IF NOT EXISTS \"$ownerIndex\" ON $table (context, owner_aggregate, owner_tenant_id, owner_id)",
+        "CREATE INDEX IF NOT EXISTS \"$ownerIndex\" ON $table (owner_tenant_id, owner_id)",
     )
 
     /**
@@ -62,13 +58,12 @@ internal class PostgresReservationTables(val name: String) {
      * its expired pending one starts afresh, its old holds dropped. Returns a row only when the owner now holds the
      * key.
      *
-     * Parameters: the key's four columns, the owner's three, the expiry, the hold, then now three times.
+     * Parameters: the key's three columns, the owner's two, the expiry, the hold, then now three times.
      */
     val reserve = """
-        INSERT INTO $table AS held ($COLUMNS) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ARRAY[?]::text[], 0)
-        ON CONFLICT (context, tenant_id, namespace, key) DO UPDATE
-        SET owner_aggregate = excluded.owner_aggregate, owner_tenant_id = excluded.owner_tenant_id,
-            owner_id = excluded.owner_id,
+        INSERT INTO $table AS held ($COLUMNS) VALUES (?, ?, ?, ?, ?, ?, ARRAY[?]::text[], 0)
+        ON CONFLICT (tenant_id, namespace, key) DO UPDATE
+        SET owner_tenant_id = excluded.owner_tenant_id, owner_id = excluded.owner_id,
             expires_at = CASE
                 WHEN $SAME_OWNER AND held.expires_at IS NULL THEN NULL
                 WHEN $SAME_OWNER AND held.expires_at > ? THEN greatest(held.expires_at, excluded.expires_at)
@@ -96,13 +91,12 @@ internal class PostgresReservationTables(val name: String) {
      * in one statement as [reserve] does, keeping the greater version (a pending row's is 0). Returns a row only when
      * the owner now holds the key confirmed.
      *
-     * Parameters: the key's four columns, the owner's three, the version, then now.
+     * Parameters: the key's three columns, the owner's two, the version, then now.
      */
     val confirm = """
-        INSERT INTO $table AS held ($COLUMNS) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, '{}', ?)
-        ON CONFLICT (context, tenant_id, namespace, key) DO UPDATE
-        SET owner_aggregate = excluded.owner_aggregate, owner_tenant_id = excluded.owner_tenant_id,
-            owner_id = excluded.owner_id, expires_at = NULL, holds = '{}',
+        INSERT INTO $table AS held ($COLUMNS) VALUES (?, ?, ?, ?, ?, NULL, '{}', ?)
+        ON CONFLICT (tenant_id, namespace, key) DO UPDATE
+        SET owner_tenant_id = excluded.owner_tenant_id, owner_id = excluded.owner_id, expires_at = NULL, holds = '{}',
             version = greatest(held.version, excluded.version)
         WHERE $SAME_OWNER OR held.expires_at <= ?
         RETURNING expires_at
@@ -121,13 +115,13 @@ internal class PostgresReservationTables(val name: String) {
         /** The version of this layout (decision D59). */
         const val FORMAT = 2
 
-        private val IDENTIFIER = Regex("[a-z_][a-z0-9_]{0,62}")
-        private const val COLUMNS =
-            "context, tenant_id, namespace, key, owner_aggregate, owner_tenant_id, owner_id, expires_at, holds, version"
-        private const val OWNER_COLUMNS = "owner_aggregate, owner_tenant_id, owner_id, expires_at, holds, version"
-        private const val KEY = "context = ? AND tenant_id = ? AND namespace = ? AND key = ?"
-        private const val OWNER = "owner_aggregate = ? AND owner_tenant_id = ? AND owner_id = ?"
-        private const val SAME_OWNER = "(held.owner_aggregate = excluded.owner_aggregate " +
-            "AND held.owner_tenant_id = excluded.owner_tenant_id AND held.owner_id = excluded.owner_id)"
+        /** The prefix of the tables' names, `wow_reservation__<context>__<aggregate>`. */
+        const val PREFIX = "wow_reservation"
+        private const val COLUMNS = "tenant_id, namespace, key, owner_tenant_id, owner_id, expires_at, holds, version"
+        private const val OWNER_COLUMNS = "owner_tenant_id, owner_id, expires_at, holds, version"
+        private const val KEY = "tenant_id = ? AND namespace = ? AND key = ?"
+        private const val OWNER = "owner_tenant_id = ? AND owner_id = ?"
+        private const val SAME_OWNER =
+            "(held.owner_tenant_id = excluded.owner_tenant_id AND held.owner_id = excluded.owner_id)"
     }
 }

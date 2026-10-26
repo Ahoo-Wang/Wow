@@ -132,6 +132,16 @@ class MongoShardsTest {
     }
 
     @Test
+    fun `a reservation collection is sharded by tenant and the key's hash, and left to the balancer`() {
+        MongoShards.shardReservations(client, database, collection)
+        index.captured.toBsonDocument().assert()
+            .isEqualTo(BsonDocument("tenant_id", BsonInt32(1)).append("key", BsonString("hashed")))
+        commands.single { it.containsKey("shardCollection") }["key"].assert()
+            .isEqualTo(Document("tenant_id", 1).append("key", "hashed"))
+        commands.filter { it.containsKey("split") || it.containsKey("moveChunk") }.assert().isEmpty()
+    }
+
+    @Test
     fun `a collection with documents, chunks already or one shard is not spread again`() {
         documents = 5
         MongoShards.shardLog(client, database, collection, 4)

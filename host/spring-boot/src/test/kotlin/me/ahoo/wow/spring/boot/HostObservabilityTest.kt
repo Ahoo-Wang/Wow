@@ -29,12 +29,12 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.memory.InMemoryTopics
-import me.ahoo.wow.opentelemetry.NodeMetrics
-import me.ahoo.wow.opentelemetry.OtelObserver
-import me.ahoo.wow.opentelemetry.OtelQueryObserver
-import me.ahoo.wow.opentelemetry.ParkedMetrics
-import me.ahoo.wow.opentelemetry.TracingTopicProducer
-import me.ahoo.wow.opentelemetry.WowMetrics
+import me.ahoo.wow.observability.NodeMetrics
+import me.ahoo.wow.observability.OtelObserver
+import me.ahoo.wow.observability.OtelQueryObserver
+import me.ahoo.wow.observability.ParkedMetrics
+import me.ahoo.wow.observability.TracingTopicProducer
+import me.ahoo.wow.observability.WowMetrics
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.node.ContextBackends
@@ -53,7 +53,7 @@ import java.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Tracing and metrics wired by [ObservabilityAutoConfiguration] (decision D174): with wow-opentelemetry on the class
+ * Tracing and metrics wired by [ObservabilityAutoConfiguration] (decision D174): with wow-observability on the class
  * path, the node's work is traced through the application's [OpenTelemetry] and measured in its [MeterRegistry].
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -87,7 +87,8 @@ class HostObservabilityTest {
         admit.parentSpanId.assert().isEqualTo(caller)
         beans.spans.finishedSpanItems.single { it.name == "execute $BANK.account" }.parentSpanId
             .assert().isEqualTo(admit.spanId)
-        beans.meters.find(WowMetrics.COMMIT).tags(WowMetrics.CONTEXT, BANK, WowMetrics.OUTCOME, "committed").timer()!!
+        beans.meters.find(WowMetrics.COMMAND_DURATION)
+            .tags(WowMetrics.CONTEXT, BANK, WowMetrics.OUTCOME, "committed").timer()!!
             .count().assert().isEqualTo(1L)
         host.context.getBean(Observer::class.java).assert().isInstanceOf(OtelObserver::class.java)
         host.context.getBeansOfType(QueryObserver::class.java).values.filterIsInstance<OtelQueryObserver>()
@@ -97,7 +98,7 @@ class HostObservabilityTest {
         host.context.getBean(NodeMetrics::class.java).assert().isNotNull()
         // The default store's query bulkhead (decision D252): its limit, write pressure and decreases.
         val store = Tags.of(WowMetrics.STORE, ContextBackends.DEFAULT_STORE)
-        beans.meters.find(WowMetrics.QUERY_LIMIT).tags(store).gauge()!!.value()
+        beans.meters.find(WowMetrics.QUERY_LIMIT_CURRENT).tags(store).gauge()!!.value()
             .assert().isEqualTo(StoreQueryProvider.DEFAULT_MAX_CONCURRENT.toDouble())
         beans.meters.find(WowMetrics.QUERY_PRESSURE).tags(store).gauge()!!.value().assert().isZero()
         beans.meters.find(WowMetrics.QUERY_LIMIT_DECREASES).tags(store).functionCounter()!!.count().assert().isZero()
@@ -107,7 +108,7 @@ class HostObservabilityTest {
     fun `without an OpenTelemetry or a registry of the application's, the global ones should serve`() {
         ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(ObservabilityAutoConfiguration::class.java))
-            .withPropertyValues("wow.opentelemetry.sample-interval=2s")
+            .withPropertyValues("wow.observability.sample-interval=2s")
             .withBean("producer", TopicProducer::class.java, { RecordingProducer() })
             .run { context ->
                 context.getBean(Observer::class.java).assert().isInstanceOf(OtelObserver::class.java)
@@ -144,7 +145,7 @@ class HostObservabilityTest {
     fun `switched off, nothing should be wired`() {
         ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(ObservabilityAutoConfiguration::class.java))
-            .withPropertyValues("wow.opentelemetry.enabled=false")
+            .withPropertyValues("wow.observability.enabled=false")
             .run { context -> context.getBeansOfType(Observer::class.java).assert().isEmpty() }
     }
 

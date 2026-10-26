@@ -314,14 +314,14 @@ This node's identity among the nodes of the service, and where they reach it.
 | `wow.node.id` | `String` |  | This node's id among the nodes of the service; a new one each start when not set. |
 | `wow.node.standby` | `Boolean` | `false` | Whether the node starts on standby: through the dual-run window of a migration's cut-over it serves reads of what `migrate-data` imports, refuses every command (the error `wow.node.standby`, 503), and handles no subscription, retries no parked entry and runs no job, until its operator resumes it on the internal port (`POST /wow/node/resume` from a node of its service, naming who resumes it). A subscription that starts at the end of its stream starts where the stream ends at the resume. |
 
-## `wow.opentelemetry`
+## `wow.observability`
 
-Observability's configuration, `wow.opentelemetry.*`, read when wow-opentelemetry is on the classpath (ObservabilityAutoConfiguration).
+Observability's configuration, `wow.observability.*`, read when wow-observability is on the classpath (ObservabilityAutoConfiguration).
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `wow.opentelemetry.enabled` | `Boolean` | `true` | Whether the node is traced and measured. |
-| `wow.opentelemetry.sample-interval` | `Duration` | `PT15S` | How often the gauges that are read, not heard, are sampled: the parked entries, the subscriptions' positions and a rebuild's progress. |
+| `wow.observability.enabled` | `Boolean` | `true` | Whether the node is traced and measured. |
+| `wow.observability.sample-interval` | `Duration` | `PT15S` | How often the gauges that are read, not heard, are sampled: the parked entries, the subscriptions' positions and a rebuild's progress. |
 
 ## `wow.ops`
 

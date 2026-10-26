@@ -45,7 +45,7 @@ object ArchitectureRules {
     /** The typed command and query clients over HTTP (decisions D257, D259), on the JDK's HttpClient alone. */
     val CLIENT = WowProject("client", "edge/client")
     val COSEC = WowProject("cosec", "edge/cosec")
-    val OPENTELEMETRY = WowProject("opentelemetry", "edge/opentelemetry")
+    val OBSERVABILITY = WowProject("observability", "edge/observability")
     val SPRING_BOOT = WowProject("spring-boot", "host/spring-boot")
     val COSID = WowProject("cosid", "extensions/cosid")
 
@@ -115,7 +115,7 @@ object ArchitectureRules {
 
     val MODULES = listOf(
         ANNOTATIONS, API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, ELASTICSEARCH,
-        OPENAPI, HTTP, CLIENT, COSEC, OPENTELEMETRY, SPRING_BOOT, COSID, MODELS, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
+        OPENAPI, HTTP, CLIENT, COSEC, OBSERVABILITY, SPRING_BOOT, COSID, MODELS, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
     ) + TEST_MODULES + PLATFORM_MODULES
 
     /** The eShop's five contexts (decision D158), each an `-api`, a `-domain` and a `-server` project. */
@@ -227,9 +227,9 @@ object ArchitectureRules {
         COSEC to setOf("http"),
         // The core's observation seams (decision D174) and the query engine's observer; http for the tests only, which
         // follow a trace from an HTTP request.
-        OPENTELEMETRY to setOf("runtime", "query", "http"),
+        OBSERVABILITY to setOf("runtime", "query", "http"),
         // postgres and mongo compileOnly: the backend follows the application's classpath (decision D110).
-        // query, kafka, clickhouse, cosec and opentelemetry compileOnly too: each is wired when the application has it
+        // query, kafka, clickhouse, cosec and observability compileOnly too: each is wired when the application has it
         // (cosec as kafka is, review R5.C-12). openapi for the springdoc bridge (decision D233).
         SPRING_BOOT to setOf(
             "runtime",
@@ -242,7 +242,7 @@ object ArchitectureRules {
             "query",
             "kafka",
             "clickhouse",
-            "opentelemetry",
+            "observability",
         ),
         // CosId's generators as the node's (decision D171): the id SPIs only; it wires itself before the host. The host
         // only for the tests, which generate the module's configuration metadata and check the host accepts its keys.
@@ -285,8 +285,8 @@ object ArchitectureRules {
      * fixtures for its tests.
      */
     val ALLOWED_SERVER_DEPENDENCIES: Map<WowProject, Set<String>> = mapOf(
-        OPS_SERVER to setOf("ops-domain", "spring-boot", "kafka", "postgres", "query", "cosec", "opentelemetry"),
-        VIEW_STORE_SERVER to setOf("view-store-domain", "spring-boot", "postgres", "query", "cosec", "opentelemetry"),
+        OPS_SERVER to setOf("ops-domain", "spring-boot", "kafka", "postgres", "query", "cosec", "observability"),
+        VIEW_STORE_SERVER to setOf("view-store-domain", "spring-boot", "postgres", "query", "cosec", "observability"),
         // ClickHouse: the warehouse its catalog reads (decision D241), whose client the host builds.
         ANALYTICS_CATALOG_SERVER to setOf(
             "analytics-catalog-domain",
@@ -295,7 +295,7 @@ object ArchitectureRules {
             "clickhouse",
             "query",
             "cosec",
-            "opentelemetry",
+            "observability",
         ),
     )
 
@@ -475,17 +475,17 @@ object ArchitectureRules {
      */
     val ENTRIES_READ_THROUGH_FACADE = DependencyRule(
         name = "the entries admit a state only through wow-query's ReadFacade",
-        modules = listOf(RUNTIME, HTTP, COSEC, OPENTELEMETRY, SPRING_BOOT).map { it.dir },
+        modules = listOf(RUNTIME, HTTP, COSEC, OBSERVABILITY, SPRING_BOOT).map { it.dir },
         forbidden = listOf("me.ahoo.wow.query.state.StateVisibility", "me.ahoo.wow.query.events.EventVisibility"),
     )
 
     /**
-     * Observability is wired at fixed seams (decision D174, 06 §3): only wow-opentelemetry and the host that wires it
+     * Observability is wired at fixed seams (decision D174, 06 §3): only wow-observability and the host that wires it
      * import OpenTelemetry or Micrometer; the core exposes ports instead.
      */
-    val ONLY_OPENTELEMETRY_OBSERVES = DependencyRule(
-        name = "only wow-opentelemetry and wow-spring-boot import OpenTelemetry or Micrometer",
-        modules = (MODULES - OPENTELEMETRY - SPRING_BOOT).map { it.dir },
+    val ONLY_OBSERVABILITY_OBSERVES = DependencyRule(
+        name = "only wow-observability and wow-spring-boot import OpenTelemetry or Micrometer",
+        modules = (MODULES - OBSERVABILITY - SPRING_BOOT).map { it.dir },
         forbidden = listOf("io.opentelemetry", "io.micrometer"),
     )
 
@@ -565,7 +565,7 @@ object ArchitectureRules {
         HTTP_READS_ADAPT_ONLY,
         HOST_ASSEMBLES_THE_READ_SIDE,
         ENTRIES_READ_THROUGH_FACADE,
-        ONLY_OPENTELEMETRY_OBSERVES,
+        ONLY_OBSERVABILITY_OBSERVES,
         ONLY_HOST_USES_SPRING_BOOT,
         MANIFEST_IS_PLAIN_DATA,
         QUERY_API_IS_PLAIN_DATA,
@@ -631,7 +631,7 @@ object ArchitectureRules {
     val DELETED_9X: Set<String> = setOf(
         "wow-bom", "wow-api", "wow-metadata", "wow-rest-contract", "wow-core", "wow-openapi", "wow-cocache",
         "wow-apiclient", "wow-compiler", "wow-kafka", "wow-mongo", "wow-redis", "wow-elasticsearch", "wow-spring",
-        "wow-webflux", "wow-spring-boot-starter", "wow-opentelemetry", "wow-bi", "wow-clickhouse", "wow-query",
+        "wow-webflux", "wow-spring-boot-starter", "wow-observability", "wow-bi", "wow-clickhouse", "wow-query",
         "wow-models", "wow-schema", "wow-cosec", "wow-benchmarks",
         "wow-test", "wow-tck", "wow-mock", "wow-it",
         "wow-compensation-api", "wow-compensation-core", "wow-compensation-domain", "wow-compensation-server",
@@ -944,6 +944,33 @@ object ArchitectureRules {
         wowKeyReaders(repositoryRoot).let { readers ->
             allowed.keys.filter { path -> readers.none { it.startsWith("$path:") } }
         }
+
+    /**
+     * The meters production code registers under a name it spells out (a string literal or template) instead of a
+     * constant of the metric catalog, `me.ahoo.wow.observability.WowMetrics` (decision D289): `path:line: code`, minus
+     * the files [allowed].
+     */
+    fun literalMeterNames(repositoryRoot: File, allowed: Map<String, String> = emptyMap()): List<String> =
+        productionSources(repositoryRoot).flatMap { file ->
+            val path = file.relativeTo(repositoryRoot).invariantSeparatorsPath
+            if (path in allowed) return@flatMap emptyList()
+            file.readLines().mapIndexedNotNull { index, line ->
+                val code = line.substringBefore("//").trim()
+                code.takeIf { METER_NAMED.find(it)?.groupValues?.get(1)?.trimStart()?.startsWith("\"") == true }
+                    ?.let { "$path:${index + 1}: $it" }
+            }
+        }
+
+    /** The paths of [allowed] that no longer name a meter by a literal, so their entries are stale. */
+    fun staleLiteralMeterNames(repositoryRoot: File, allowed: Map<String, String>): List<String> =
+        literalMeterNames(repositoryRoot).let { found ->
+            allowed.keys.filter { path -> found.none { it.startsWith("$path:") } }
+        }
+
+    private val METER_NAMED = Regex(
+        "(?:\\b(?:Gauge|Counter|Timer|FunctionCounter|FunctionTimer|DistributionSummary|LongTaskTimer|TimeGauge)" +
+            "\\.builder|\\.(?:counter|timer|gauge|summary))\\(([^,)]*)",
+    )
 
     private val WOW_CONSTANT = Regex("const val (\\w+)\\s*(?::\\s*String)?\\s*=\\s*\"wow\\.")
     private val ENVIRONMENT_READ =

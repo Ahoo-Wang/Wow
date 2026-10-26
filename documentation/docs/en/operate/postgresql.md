@@ -46,7 +46,7 @@ The stores create their tables on first use. Names derive from the context and t
 | `wow_timer_aggregate` | Which timer tables each context has; the due read unions them in one statement |
 | `wow_checkpoint`, `wow_lease`, `wow_lease_member` | Where each subscription stands, and which node owns which partition |
 | `wow_failure_ledger` | The parked aggregates |
-| `wow_reservation` | The reserved unique keys |
+| `wow_reservation__<context>__<aggregate>` | The unique keys aggregates of one type reserved: one row per (tenant, namespace, key), with its owner |
 | `wow_format` | The format version of each structure |
 
 A log table's keys are the position (`partition`, `sequence`), the version (`aggregate_id`, `tenant_id`, `version`) and the request (`tenant_id`, `request_id`): the database itself refuses a second commit of the same version or the same request.
@@ -99,7 +99,7 @@ wow:
         store: archive
 ```
 
-Each store runs on the `DataSource` bean it names, and two log stores may not share one database. An aggregate type placed on another store keeps its log, its subscriptions' checkpoints, its failure ledger and its timers there; the leases and the reservations stay on the default log store.
+Each store runs on the `DataSource` bean it names, and two log stores may not share one database. An aggregate type placed on another store keeps its log, its subscriptions' checkpoints, its failure ledger, its timers and its reservations there; the leases stay on the default log store.
 
 ## Backups
 

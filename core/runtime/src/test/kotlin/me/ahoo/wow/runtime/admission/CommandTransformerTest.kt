@@ -365,8 +365,10 @@ class CommandTransformerTest {
 
     @Test
     fun `the resolver finds only an aggregate of its type in the command's tenant`(): Unit = runBlocking {
-        val scope = ReservationScope(CONTEXT, TENANT, USERNAMES)
-        reservations.reserve(scope, "frank", AggregateType(CONTEXT, "other").ref(TENANT, "x"), "h", 10.seconds)
+        val scope = ReservationScope(TYPE, TENANT, USERNAMES)
+        // Another aggregate type's key of the same namespace is its own (decision D307): not found.
+        val other = AggregateType(CONTEXT, "other")
+        reservations.reserve(scope.copyWith(type = other), "frank", other.ref(TENANT, "x"), "h", 10.seconds)
         val input = CommandInput(changePassword, ChangePassword("frank", "x"), null, emptyMap(), "r", alice)
         input.tenantId.assert().isEqualTo(TENANT)
         byUsername.transform(input).aggregateId.assert().isNull()
@@ -388,7 +390,7 @@ class CommandTransformerTest {
 
     @Test
     fun `a system key resolves only to an aggregate of the command's tenant`(): Unit = runBlocking {
-        val system = ReservationScope(CONTEXT, ReservationScope.SYSTEM_TENANT, USERNAMES)
+        val system = ReservationScope(TYPE, ReservationScope.SYSTEM_TENANT, USERNAMES)
         val bySystemName = ReservationTargetResolver(
             changePassword,
             TYPE,

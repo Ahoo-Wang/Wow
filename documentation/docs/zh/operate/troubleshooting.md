@@ -46,7 +46,7 @@ outline: deep
 
 ## 订阅停放聚合 {#a-subscription-parks-aggregates}
 
-`wow.subscription.parked` 大于零，ops 控制台会列出这些聚合。每个条目都带着错误，以及订阅停下时的版本。
+`wow.subscription.parked.aggregates` 大于零，ops 控制台会列出这些聚合。每个条目都带着错误，以及订阅停下时的版本。
 
 - 先修复原因：部署修正后的处理函数，或者让它调用的外部系统恢复。
 - 然后恢复这些聚合：订阅从每个聚合停下的地方重新读取它的流（[ops 服务与控制台](./ops-console)）。
@@ -54,7 +54,7 @@ outline: deep
 
 ## 订阅对每个聚合都停下了 {#a-subscription-stops-for-every-aggregate}
 
-某个分区的 `wow.subscription.paused` 为 1：订阅把一次失败判定为每个聚合都依赖的东西（某个存储或下游服务）发生了故障，于是暂停这个分区，直到它恢复。期间不会停放任何东西。从订阅的日志中找出是什么不可用；分区会自行恢复。
+`wow.subscription.paused.partitions` 大于零：订阅把一次失败判定为每个聚合都依赖的东西（某个存储或下游服务）发生了故障，于是暂停这个分区，直到它恢复。期间不会停放任何东西。从订阅的日志中找出是什么不可用；分区会自行恢复。
 
 ## 订阅落后 {#a-subscription-falls-behind}
 
@@ -73,7 +73,7 @@ ownership 健康组件为 `DOWN`，或者在某个节点离开期间，某些聚
 | --- | --- | --- |
 | 节点启动后一直未就绪 | 它读取的某个主题仍在加入它的租约组 | 等待；或者设置 `wow.health.topics.required: false` |
 | `wow.kafka.offset.gaps` 大于零 | 保留策略删除了某个订阅尚未读取的偏移量 | 提高主题的保留期；决定 `wow.kafka.offset-gap` 怎么设（[Kafka](./kafka#reading-other-contexts-streams)） |
-| `wow.subscription.undecodable` 大于零 | 这个版本无法解码的消息 | 升级读取方服务的 api，或者是写入方发送了未知的格式 |
+| `wow.subscription.undecodable.messages` 大于零 | 这个版本无法解码的消息 | 升级读取方服务的 api，或者是写入方发送了未知的格式 |
 
 ## 查询被拒绝或很慢 {#queries-are-refused-or-slow}
 

@@ -29,7 +29,7 @@ class ImportedKeysTest {
     lateinit var directory: Path
 
     private val owner = AggregateType("example", "order").ref("(0)", "o-1")
-    private val scope = ReservationScope.of("example", ReservationScope.SYSTEM_TENANT, "order.no")
+    private val scope = ReservationScope.of(owner.type, ReservationScope.SYSTEM_TENANT, "order.no")
 
     private fun key(name: String, key: String) = ImportedKey.of(name, key, scope, owner)
 

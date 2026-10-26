@@ -25,7 +25,7 @@ import me.ahoo.wow.api.schedule.ScheduleRule
  * when the command's events are surely not appended: the decision rejects, the version conflicts and the command is
  * decided again, or deciding fails. It does not run when whether the append committed is unknown, and it cannot run
  * if the process dies; an act that must not leak then needs its own expiry. Reserved keys ([reserve], [release]) are
- * unique within the aggregate's bounded context and tenant unless reserved with [ReservationTenancy.SYSTEM].
+ * unique within the aggregate's type and tenant unless reserved with [ReservationTenancy.SYSTEM].
  *
  * A decide function may also schedule a command for later (decisions D166, D198): [schedule] and [cancelSchedule] add
  * the system events `wow.ScheduleSet` and `wow.ScheduleCancelled` to the events the command commits, atomically with
@@ -63,8 +63,11 @@ interface DecideScope {
 
     /**
      * Reserves [key] in [namespace] for this command's aggregate, such as a unique user name (decision D38); false
-     * when another aggregate holds it. The key is unique within the aggregate's bounded context and tenant
-     * ([ReservationTenancy.TENANT]): another tenant may hold the same key.
+     * when another aggregate holds it. The key is unique among the aggregates of this aggregate's type, within its
+     * tenant ([ReservationTenancy.TENANT]): another tenant, or an aggregate of another type, may hold the same key
+     * (decision D307: a type's reservations live with its log). A key unique across types, such as an e-mail address
+     * that users and organizations share, is modelled as an aggregate of its own that holds the keys, which the other
+     * aggregates claim through it.
      *
      * The reservation is pending, with an expiry, until the events are appended; then it is confirmed. When they are
      * surely not appended this attempt gives its reservation up, without touching another attempt's of the same
@@ -79,7 +82,7 @@ interface DecideScope {
 
     /**
      * Reserves [key] in [namespace] for this command's aggregate as [reserve] does, unique among the aggregates
-     * [tenancy] says: [ReservationTenancy.SYSTEM] makes it unique across the context's tenants.
+     * [tenancy] says: [ReservationTenancy.SYSTEM] makes it unique across the type's tenants.
      */
     suspend fun reserve(namespace: String, key: String, tenancy: ReservationTenancy): Boolean
 
