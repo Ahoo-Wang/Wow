@@ -53,7 +53,7 @@ class DataSourceAutoConfiguration {
         environment.getProperty("$PREFIX.username")?.let { dataSource.username = it }
         environment.getProperty("$PREFIX.password")?.let { dataSource.password = it }
         environment.getProperty("$PREFIX.driver-class-name")?.let { dataSource.driverClassName = it }
-        logger.info { "The host's DataSource connects to ${dataSource.jdbcUrl} (spring.datasource.url, decision D310)." }
+        logger.info { "The host's DataSource connects to ${dataSource.jdbcUrl} (spring.datasource.url)." }
         return dataSource
     }
 
@@ -80,7 +80,7 @@ class MongoClientAutoConfiguration {
     @ConditionalOnMissingBean(MongoClient::class)
     fun wowMongoClient(environment: Environment): MongoClient {
         val uri = ConnectionString(environment.getRequiredProperty(URI))
-        logger.info { "The host's MongoClient connects to ${uri.hosts} ($URI, decision D318)." }
+        logger.info { "The host's MongoClient connects to ${uri.hosts} ($URI)." }
         return MongoClients.create(uri)
     }
 
