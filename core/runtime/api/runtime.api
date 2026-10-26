@@ -529,7 +529,6 @@ public final class me/ahoo/wow/runtime/node/ServiceNode {
 	public final fun getService ()Ljava/lang/String;
 	public final fun getState ()Lme/ahoo/wow/runtime/node/ServiceNode$State;
 	public final fun getTopicRequirements ()Ljava/util/List;
-	public final fun getTopicSubscriptions ()Ljava/util/Map;
 	public final fun isReady ()Z
 	public final fun start (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public final fun start (ZLkotlin/coroutines/Continuation;)Ljava/lang/Object;

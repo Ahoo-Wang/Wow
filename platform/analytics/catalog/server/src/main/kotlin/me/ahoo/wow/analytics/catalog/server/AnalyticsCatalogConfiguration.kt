@@ -40,10 +40,11 @@ import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spring.boot.DevelopmentMode
-import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.boot.context.properties.bind.Bindable
+import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.health.contributor.Health
 import org.springframework.boot.health.contributor.HealthIndicator
 import org.springframework.context.annotation.Bean
@@ -149,13 +150,22 @@ class AnalyticsCatalogConfiguration {
         queries: ObjectProvider<QueryApi>,
         client: ObjectProvider<WowClient>,
         commands: CommandClient,
-        wow: WowProperties,
+        environment: Environment,
     ): DatasetReferenceActions = DatasetReferenceActions(
         datasets = { id -> queries.getObject().trusted().snapshots<DatasetState>().state(id)?.state },
         manifests = { context, caller -> client.getObject().manifestOf(context, caller) },
-        described = wow.clients.contexts.filterValues { it.contract == WowProperties.Clients.Contract.MANIFEST }.keys,
+        described = manifestPeers(environment),
         commands = commands,
     )
+
+    /** The peer contexts `wow.clients.contexts.<context>.contract: manifest` describes by their Manifest alone. */
+    private fun manifestPeers(environment: Environment): Set<String> =
+        Binder.get(environment)
+            .bind("wow.clients.contexts", Bindable.mapOf(String::class.java, Map::class.java))
+            .orElse(null)
+            .orEmpty()
+            .filterValues { it["contract"]?.toString().equals("manifest", ignoreCase = true) }
+            .keys
 
     /** The routes of the reference actions, on the public port as the callers [callers] resolves. */
     @Bean
