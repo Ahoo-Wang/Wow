@@ -409,9 +409,15 @@ class FlakyLeases(private val delegate: LeaseStore) : LeaseStore by delegate {
         }
     }
 
-    override suspend fun heartbeat(group: String, node: String, address: String, ttl: Duration): Member {
+    override suspend fun heartbeat(
+        group: String,
+        node: String,
+        address: String,
+        ttl: Duration,
+        groups: Set<String>,
+    ): Member {
         failIf(heartbeats, "heartbeat")
-        return delegate.heartbeat(group, node, address, ttl)
+        return delegate.heartbeat(group, node, address, ttl, groups)
     }
 
     override suspend fun members(group: String): List<Member> {

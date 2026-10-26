@@ -36,6 +36,8 @@ flowchart LR
 
 The nodes of a service share the work through **partitions**. Each context's log has a fixed number of partitions, 64 by default, and each partition has one owner at a time. Ownership is a lease kept in the service's own store: there is no ZooKeeper, no Kafka consumer group and no registry. Every node computes the same assignment from the list of live members and takes or releases leases to match it. When a node joins or leaves, about one partition in N moves.
 
+A node keeps one membership record per service, listing the contexts and topics it takes part in, and reads the service's members once for all of them; only the leases are per context. The store work of this coordination therefore grows with the number of nodes and, for the leases, with the contexts each runs: with the defaults, about 1.3 operations a second per node plus 1.3 per context a node runs (15 contexts on 10 nodes: about 210 a second), whatever the command traffic.
+
 The owner of a partition executes the commands for its aggregates and runs every subscription over it. A command that arrives at another node is forwarded to the owner. When no owner can be reached, for example while a partition changes hands, the receiving node runs the command itself, and the aggregate's version keeps the result correct. [Writing: admission to append](../concepts/write-path#routing) explains the rules.
 
 ## Two ports

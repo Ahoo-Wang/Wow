@@ -41,7 +41,8 @@ import kotlin.time.Duration
 
 /**
  * The [LeaseStore] on MongoDB: one document per (group, partition) in `wow_lease` and one per (group, node), with the
- * node's internal address, in `wow_lease_member`, each keyed by a unique index.
+ * node's internal address and the lease groups it serves, in `wow_lease_member` (one per service and node, its key
+ * field holding the service, finding R5.B-4), each keyed by a unique index.
  *
  * Every operation is one single-document write. An acquisition is a conditional upsert (see [conditionalUpsert])
  * whose filter admits only an expired lease or the acquirer's own, and whose pipeline update keeps the epoch when the
@@ -145,29 +146,47 @@ class MongoLeaseStore(
             .toList()
     }
 
-    override suspend fun heartbeat(group: String, node: String, address: String, ttl: Duration): Member =
-        dispatcher.mongo {
-            val expiresAt = clock.millis() + ttl.inWholeMilliseconds
-            conditionalUpsert { upsert ->
-                members.updateOne(
-                    memberFilter(group, node),
-                    Updates.combine(Updates.set(ADDRESS, address), Updates.set(EXPIRES_AT, expiresAt)),
-                    UpdateOptions().upsert(upsert)
+    override suspend fun heartbeat(
+        service: String,
+        node: String,
+        address: String,
+        ttl: Duration,
+        groups: Set<String>,
+    ): Member = dispatcher.mongo {
+        val expiresAt = clock.millis() + ttl.inWholeMilliseconds
+        val sorted = groups.toSortedSet()
+        conditionalUpsert { upsert ->
+            members.updateOne(
+                memberFilter(service, node),
+                Updates.combine(
+                    Updates.set(ADDRESS, address),
+                    Updates.set(EXPIRES_AT, expiresAt),
+                    Updates.set(GROUPS, sorted.toList()),
+                ),
+                UpdateOptions().upsert(upsert)
+            )
+        }
+        Member(service, node, address, expiresAt, sorted)
+    }
+
+    override suspend fun members(service: String): List<Member> = dispatcher.mongo {
+        // MongoDB compares strings by their UTF-8 bytes when no collation is set: node order is code point order.
+        members.find(Filters.and(Filters.eq(GROUP, service), Filters.gt(EXPIRES_AT, clock.millis())))
+            .sort(Sorts.ascending(NODE))
+            .map {
+                Member(
+                    it.getString(GROUP),
+                    it.getString(NODE),
+                    it.getString(ADDRESS),
+                    it.getLong(EXPIRES_AT),
+                    it.getList(GROUPS, String::class.java).orEmpty().toSortedSet(),
                 )
             }
-            Member(group, node, address, expiresAt)
-        }
-
-    override suspend fun members(group: String): List<Member> = dispatcher.mongo {
-        // MongoDB compares strings by their UTF-8 bytes when no collation is set: node order is code point order.
-        members.find(Filters.and(Filters.eq(GROUP, group), Filters.gt(EXPIRES_AT, clock.millis())))
-            .sort(Sorts.ascending(NODE))
-            .map { Member(it.getString(GROUP), it.getString(NODE), it.getString(ADDRESS), it.getLong(EXPIRES_AT)) }
             .toList()
     }
 
-    override suspend fun leave(group: String, node: String) {
-        dispatcher.mongo { members.deleteOne(memberFilter(group, node)) }
+    override suspend fun leave(service: String, node: String) {
+        dispatcher.mongo { members.deleteOne(memberFilter(service, node)) }
     }
 
     private fun leaseFilter(group: String, partition: Int): Bson =
@@ -202,6 +221,9 @@ class MongoLeaseStore(
         const val LEASE_KEY = "lease_key"
         const val MEMBER_KEY = "member_key"
         const val GROUP = "subscription_group"
+
+        /** A member's lease groups (finding R5.B-4): the member collection's key field holds its service. */
+        const val GROUPS = "groups"
         const val PARTITION = "partition"
         const val OWNER = "owner"
         const val EPOCH = "epoch"

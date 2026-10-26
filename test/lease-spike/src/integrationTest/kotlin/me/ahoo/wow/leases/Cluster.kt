@@ -306,8 +306,14 @@ class CountingLeases(
 
     override suspend fun owners(group: String): List<Lease> = timed("owners") { delegate.owners(group) }
 
-    override suspend fun heartbeat(group: String, node: String, address: String, ttl: Duration): Member =
-        timed("heartbeat") { delegate.heartbeat(group, node, address, ttl) }
+    override suspend fun heartbeat(
+        group: String,
+        node: String,
+        address: String,
+        ttl: Duration,
+        groups: Set<String>,
+    ): Member =
+        timed("heartbeat") { delegate.heartbeat(group, node, address, ttl, groups) }
 
     override suspend fun members(group: String): List<Member> = timed("members") { delegate.members(group) }
 

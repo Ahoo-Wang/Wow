@@ -1036,7 +1036,8 @@ public final class me/ahoo/wow/spi/subscription/Lease$Companion {
 
 public abstract interface class me/ahoo/wow/spi/subscription/LeaseStore {
 	public abstract fun acquire-zkXUZaI (Ljava/lang/String;ILjava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun heartbeat-zkXUZaI (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun heartbeat-gwCluXo (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Set;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun heartbeat-gwCluXo$default (Lme/ahoo/wow/spi/subscription/LeaseStore;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Set;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public abstract fun leave (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun members (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun owners (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -1049,15 +1050,19 @@ public final class me/ahoo/wow/spi/subscription/Member {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAddress ()Ljava/lang/String;
 	public final fun getExpiresAt ()J
-	public final fun getGroup ()Ljava/lang/String;
+	public final fun getGroups ()Ljava/util/Set;
 	public final fun getNode ()Ljava/lang/String;
+	public final fun getService ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)Lme/ahoo/wow/spi/subscription/Member;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Set;)Lme/ahoo/wow/spi/subscription/Member;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/spi/subscription/Member$Companion {
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)Lme/ahoo/wow/spi/subscription/Member;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Set;)Lme/ahoo/wow/spi/subscription/Member;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/subscription/Member$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/Set;ILjava/lang/Object;)Lme/ahoo/wow/spi/subscription/Member;
 }
 
 public final class me/ahoo/wow/spi/timer/Timer {
