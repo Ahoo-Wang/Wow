@@ -1,6 +1,6 @@
 # 配置面定稿（R5 批 4）
 
-日期：2026-10-26。基线：`origin/main`（安全讨论 D295～D302 之后）。状态：**待讨论**：D288 规定先与用户过一遍本表，再改代码。范围：R5.C-3、B-8、C-16、C-12、B-5 的配置部分、B-11，以及安全讨论的 D300（删除令牌键）、D302（未知键一律拒绝）。
+日期：2026-10-26。基线：`origin/main`（安全讨论 D295～D302 之后）。状态：**已采纳**（2026-10-26，用户按推荐定 CQ1～CQ5，并定配置原则「低维护成本，能自动的尽可能自动」，即 D303）。范围：R5.C-3、B-8、C-16、C-12、B-5 的配置部分、B-11，以及安全讨论的 D300（删除令牌键）、D302（未知键一律拒绝）。
 
 上位文档：[R5 设计](2026-10-26-r5-ga-architecture-review-design.md) §3.5、[安全讨论](2026-10-26-security-review-design.md)、[决策台账](decisions.md)（D288、D299、D300、D302）。
 
@@ -22,6 +22,7 @@
 | K6 | **后端专有的键只在后端自己的组里**：全局默认 `wow.<backend>.*`，单个存储 `wow.stores.<store>.options.<同名叶子>`，只作用于该类型的存储 | Mongo 读偏好不在 `wow.query.*` 里 |
 | K7 | **已实测、默认开启的优化不留总开关**；只保留有部署差异的容量参数，内部常量不做成键（D299） | 删 `wow.log.append-queue.*` |
 | K8 | **每个键都有元数据与描述**，包括平台服务的键；默认值只在属性类里写一次 | `wow.analytics.catalog.*` 补元数据 |
+| K9 | **能推导的不配置**（用户 2026-10-26：低维护成本，能自动的尽可能自动）：默认值从已有的事实推导（应用名、类路径上的契约、连接池与堆的大小、已配置的后端与 Kafka、部署前提 D295），键只作覆盖；推导出的值在启动时各记一行 INFO，便于排查 | 对端地址由契约里的服务名推导；网关后的转发头策略由 Wow 默认打开 |
 
 ## 3. 定稿表
 
@@ -46,7 +47,7 @@
 
 | 概念 | 现在 | 定稿 | 类型 | 默认 | 变化 |
 | --- | --- | --- | --- | --- | --- |
-| 对端的内部端口地址 | `wow.calls.contexts.<ctx>.url`、`wow.clients.contexts.<ctx>.internal-url` | `wow.peers.<ctx>.url` | `URI` | — | 并 |
+| 对端的内部端口地址 | `wow.calls.contexts.<ctx>.url`、`wow.clients.contexts.<ctx>.internal-url` | `wow.peer.url-template`；`wow.peers.<ctx>.url` 只作覆盖 | `String`（模板）、`URI` | 模板的默认与随附部署清单里内部端口 Service 的命名一致，服务名取自类路径上该上下文契约的 `service`（K9） | 并、自动 |
 | 对端的公开地址（用户模式） | `wow.clients.contexts.<ctx>.url` | `wow.peers.<ctx>.public-url` | `URI` | — | 改 |
 | 调用模式 | `wow.clients.mode`、`…contexts.<ctx>.mode` | `wow.peer.mode`、`wow.peers.<ctx>.mode` | `service`/`user` | `service` | 改 |
 | 契约来源 | `wow.clients.contexts.<ctx>.contract` | `wow.peers.<ctx>.contract` | `jar`/`manifest` | `jar` | 改 |
@@ -118,7 +119,21 @@
 
 **规模**：约 300 个键减到约 255 个，删除约 35 个、合并约 10 个；改名的键都有静态对照，升级说明逐条列出。
 
-## 4. 需要你定的问题
+### 3.9 自动推导（K9）
+
+| 值 | 推导自 | 覆盖键 | 状态 |
+| --- | --- | --- | --- |
+| 服务名 | `spring.application.name` | `wow.service` | 已有 |
+| 节点 ID、对外公布的地址、内部端口的绑定地址 | 每次启动生成；本机地址 | `wow.node.id`、`wow.node.address`、`wow.internal.host` | 已有 |
+| 状态缓存容量 | 堆大小（B.O-3） | `wow.state-cache.capacity` | 已有 |
+| 每个存储的查询并发 | 连接池大小 | `wow.query.max-concurrent`、`wow.stores.<n>.query.max-concurrent` | 已有 |
+| Kafka 主题的分区、副本数 | 日志的分区数；broker 的默认 | `wow.kafka.topics.*` | 已有 |
+| 后端、传输 | 已有的 DataSource、MongoClient；是否设置了 Kafka | `wow.backend`、`wow.transport` | 传输为新（CQ3） |
+| 快照存放 | 日志所在的存储 | `wow.snapshot.stores` | 已有 |
+| **对端的内部地址** | 类路径上对方契约的服务名，套用 `wow.peer.url-template` | `wow.peers.<ctx>.url` | 新 |
+| **网关后的客户端地址** | 部署前提 D295、D296：公开端口前总有网关，Wow 以默认属性源提供 `server.forward-headers-strategy=framework`（同 `ShutdownTimeoutEnvironmentPostProcessor` 的做法），取代 D297 的启动告警 | `server.forward-headers-strategy` | 新，修订 D297 的实现 |
+
+## 4. 用户的决定（D303）
 
 | 编号 | 问题 | 选项 | 推荐与理由 |
 | --- | --- | --- | --- |

@@ -19,29 +19,6 @@ import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
 /**
- * The credential a service presents on its synchronous calls and peer reads (decision D193): the value of the
- * `Authorization` header, such as `Bearer <token>`, asked for on every call so that one issued for a while (a CoSec
- * service principal's token) can be renewed; null sends none.
- */
-fun interface ServiceCredential {
-    suspend fun authorization(): String?
-
-    companion object {
-        /** Presents no credential: the target serves the call only if it trusts its network. */
-        @JvmField
-        val NONE: ServiceCredential = ServiceCredential { null }
-
-        /** Presents `Bearer <token>`, a service token the targets trust (`wow.http.services.<service>.tokens`). */
-        @JvmStatic
-        fun bearer(token: String): ServiceCredential {
-            require(token.isNotBlank()) { "A service token is not blank." }
-            val authorization = "Bearer $token"
-            return ServiceCredential { authorization }
-        }
-    }
-}
-
-/**
  * The credential a client forwards in user mode (decision D259): the request headers that make the peer's public port
  * authenticate the end user a call acts for, its caller, as its own edge did (`Authorization`, and CoSec's
  * `CoSec-App-Id` when the application is part of what it authorizes, decision D236). The peer decides the caller's

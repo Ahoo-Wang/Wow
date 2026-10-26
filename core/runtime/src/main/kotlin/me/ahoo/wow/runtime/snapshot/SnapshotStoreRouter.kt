@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.snapshot
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -46,28 +47,40 @@ class SnapshotStoreRouter(
 
     override suspend fun load(ref: AggregateRef): SnapshotRecord? = storeOf(ref.type).load(ref)
 
-    override suspend fun rewrite(snapshot: SnapshotRecord): Boolean = storeOf(snapshot.ref.type).rewrite(snapshot)
+    /**
+     * The rebuild control plane of each type's store: a router over the stores that have one, null when none has. A
+     * type whose store has none is refused, as the node's maintenance never asks it (it rebuilds per named store).
+     */
+    override val rebuilds: SnapshotRebuildStore? =
+        if ((stores.values + default).none { it.rebuilds != null }) null else Rebuilds()
 
-    override suspend fun markStale(ref: AggregateRef): Boolean = storeOf(ref.type).markStale(ref)
+    private inner class Rebuilds : SnapshotRebuildStore {
+        private fun of(type: AggregateType): SnapshotRebuildStore =
+            requireNotNull(storeOf(type).rebuilds) { "The snapshot store of $type cannot rebuild its snapshots." }
 
-    override suspend fun pending(
-        type: AggregateType,
-        revision: Int,
-        after: AggregateRef?,
-        limit: Int,
-    ): List<AggregateRef> = storeOf(type).pending(type, revision, after, limit)
+        override suspend fun rewrite(snapshot: SnapshotRecord): Boolean = of(snapshot.ref.type).rewrite(snapshot)
 
-    override suspend fun table(type: AggregateType): SnapshotTable? = storeOf(type).table(type)
+        override suspend fun markStale(ref: AggregateRef): Boolean = of(ref.type).markStale(ref)
 
-    override suspend fun claim(type: AggregateType, revision: Int, lower: Boolean): SnapshotTable =
-        storeOf(type).claim(type, revision, lower)
+        override suspend fun pending(
+            type: AggregateType,
+            revision: Int,
+            after: AggregateRef?,
+            limit: Int,
+        ): List<AggregateRef> = of(type).pending(type, revision, after, limit)
 
-    override suspend fun mark(
-        type: AggregateType,
-        revision: Int,
-        rebuilding: Boolean?,
-        backfilled: Boolean?,
-    ): SnapshotTable? = storeOf(type).mark(type, revision, rebuilding, backfilled)
+        override suspend fun table(type: AggregateType): SnapshotTable? = of(type).table(type)
+
+        override suspend fun claim(type: AggregateType, revision: Int, lower: Boolean): SnapshotTable =
+            of(type).claim(type, revision, lower)
+
+        override suspend fun mark(
+            type: AggregateType,
+            revision: Int,
+            rebuilding: Boolean?,
+            backfilled: Boolean?,
+        ): SnapshotTable? = of(type).mark(type, revision, rebuilding, backfilled)
+    }
 
     @InternalWowApi
     companion object {

@@ -172,6 +172,9 @@ class Kernel(
     /** The snapshots a cache miss reads with the log's tail, a failing load read as none (decision D268). */
     private val loading: SnapshotStore? = snapshots?.let(::TolerantSnapshots)
 
+    /** How a cache miss reads the snapshot with the tail: in one round trip where the log can (finding R5.B-9). */
+    private val snapshotTails = SnapshotTailReads(log, observer)
+
     /**
      * Executes [admitted] on [model]'s aggregate, its scope narrowed to what the model's ownership keeps
      * ([me.ahoo.wow.api.aggregate.Ownership.scopeOf], decision D189).
@@ -750,7 +753,7 @@ class Kernel(
             return it to true
         }
         observer.stateCache(ref.type.context, StateCacheOutcome.MISS)
-        val read = loading?.let { log.readWithSnapshot(ref, it, requests.earlier) }
+        val read = loading?.let { snapshotTails.read(ref, it, requests.earlier) }
         read?.snapshot?.let { snapshot ->
             codec.fitting(model, snapshot)?.let { state ->
                 fromSnapshot(model, snapshot, state, read.tail.streams.asFlow())?.let { loaded ->

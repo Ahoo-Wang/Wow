@@ -14,6 +14,7 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.FieldPredicate
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.Projection

@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregationMetric
@@ -33,13 +34,11 @@ import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.read.dynamic
 import me.ahoo.wow.api.read.snapshots
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.client.EndpointResolver
 import me.ahoo.wow.client.ForwardedHeaders
-import me.ahoo.wow.client.ServiceCredential
 import me.ahoo.wow.client.UserCredential
 import me.ahoo.wow.client.WowClient
-import me.ahoo.wow.client.wire.CallHeader
-import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.ServiceTokens
 import me.ahoo.wow.http.internal.InternalServer
@@ -50,6 +49,7 @@ import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CallContext
+import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -212,7 +212,7 @@ class PeerReadsTest {
                 peerRoutes(CallPermits(emptyMap(), mapOf("basket-service" to listOf("shop.cart.events"))))
             )
             .build()
-        val root = CallHeader.format(
+        val root = CallHeaders.format(
             CallContext.of("c", TENANT, Scope("alice"), me.ahoo.wow.api.decide.Causation("c", "c")),
         )
         val body = """{"kind":"list","filter":{"op":"MATCH_ALL"}}"""
@@ -266,7 +266,7 @@ class PeerReadsTest {
                 peerRoutes(CallPermits(emptyMap(), mapOf("basket-service" to listOf("shop.cart.events"))))
             )
             .build()
-        val root = CallHeader.format(
+        val root = CallHeaders.format(
             CallContext.of("c", TENANT, Scope("alice"), me.ahoo.wow.api.decide.Causation("c", "c")),
         )
         val answer = routes.get().uri("/wow/manifest").headers {

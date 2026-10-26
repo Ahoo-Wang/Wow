@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.client
 
+import me.ahoo.wow.api.client.ServiceCredential
+
 /**
  * How a client calls a peer, and as whom (decisions D193, D232, D236, D259):
  *

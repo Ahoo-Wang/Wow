@@ -23,6 +23,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.SendOptions
+import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
@@ -30,9 +31,9 @@ import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.client.wire.CallHeader
-import me.ahoo.wow.client.wire.WowHeaders
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.kernel.CommandTypes
+import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -95,7 +96,7 @@ class HttpCommandClientTest {
             request.headers[WowHeaders.REQUEST_ID].assert().isNotBlank()
             request.headers.containsKey(WowHeaders.WAIT).assert().isFalse()
             WowJson.mapper.readTree(request.body)["items"][0].asString().assert().isEqualTo("mug")
-            val root = CallHeader.parse(request.headers.getValue(WowHeaders.CALL))
+            val root = CallHeaders.parse(request.headers.getValue(WowHeaders.CALL))
             root.tenantId.assert().isEqualTo("t1")
             root.scope.assert().isEqualTo(Scope("alice"))
             root.operator.assert().isEqualTo(Operator("alice", "t1", false))
@@ -117,7 +118,7 @@ class HttpCommandClientTest {
         request.headers[WowHeaders.REQUEST_ID].assert().isEqualTo("r-9")
         request.headers[WowHeaders.IF_MATCH].assert().isEqualTo("\"4\"")
         request.headers.containsKey(WowHeaders.SCOPE).assert().isFalse()
-        val root = CallHeader.parse(request.headers.getValue(WowHeaders.CALL))
+        val root = CallHeaders.parse(request.headers.getValue(WowHeaders.CALL))
         root.tenantId.assert().isEqualTo("t2")
         root.scope.assert().isEqualTo(Scope("bob"))
         root.operator!!.crossScope.assert().isTrue()

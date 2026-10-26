@@ -22,8 +22,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.RequestFacts
-import me.ahoo.wow.client.wire.CallHeader
-import me.ahoo.wow.client.wire.WowHeaders
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.CallerResolver
@@ -43,6 +42,7 @@ import me.ahoo.wow.query.QueryOwnership
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.runtime.FrameworkCodes
+import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.state.StateReads
 import org.springframework.http.HttpStatus
@@ -195,7 +195,7 @@ internal class PeerRoots(
         }
         model?.let { permits.readRefusal(service, it) }?.let { throw forbidden(it) }
         val call = try {
-            CallHeader.parse(value)
+            CallHeaders.parse(value)
         } catch (invalid: IllegalArgumentException) {
             throw ProblemException(
                 statuses.problemOf(FrameworkCodes.MALFORMED, invalid.message ?: "Wow-Call does not parse.")

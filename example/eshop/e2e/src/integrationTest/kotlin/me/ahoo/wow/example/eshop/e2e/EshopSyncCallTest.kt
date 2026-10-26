@@ -23,8 +23,8 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.example.eshop.basket.api.basket.EshopBasketContract
 import me.ahoo.wow.example.eshop.basket.server.BasketServer
 import me.ahoo.wow.example.eshop.ordering.server.OrderingServer
-import me.ahoo.wow.client.wire.WowHeaders
-import me.ahoo.wow.client.wire.CallHeader
+import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
@@ -250,7 +250,7 @@ class EshopSyncCallTest {
                     .header("Content-Type", "application/json")
                     .apply {
                         val all = headers + authorization +
-                            mapOf(WowHeaders.REQUEST_ID to id, WowHeaders.CALL to CallHeader.format(call))
+                            mapOf(WowHeaders.REQUEST_ID to id, WowHeaders.CALL to CallHeaders.format(call))
                         all.forEach { (name, value) -> header(name, value) }
                     }
                     .POST(

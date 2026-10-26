@@ -11,7 +11,7 @@ Wow 仓库包含框架的 JVM 模块、TypeScript 包、平台服务、eShop 示
 
 | 目录 | 包含 |
 | --- | --- |
-| `api/` | `:api`，编程模型（注解、`Decision`、`DecideScope`、`StateEvent`）；`:manifest`，以普通数据表示的契约；`:query-api`，查询协议及其 Kotlin DSL |
+| `api/` | `:annotations`，稳定性标记（`@InternalWowApi`、`@ExperimentalWowApi`、`@WowSpi`）；`:api`，编程模型（注解、`Decision`、`DecideScope`、`StateEvent`）；`:manifest`，以普通数据表示的契约；`:query-api`，查询协议及其 Kotlin DSL |
 | `compiler/` | `:compiler`，写出模型和 Manifest 片段的 KSP 处理器；`:gradle-plugin`，插件 `me.ahoo.wow`；`:manifest-tools`，补全并合并片段 |
 | `core/` | `:spi`，后端实现的端口；`:kernel`，decide、evolve 和 append 循环；`:runtime`，节点（准入、路由、集群通道、执行器、订阅、等待）；`:reactor`，Reactor 适配器 |
 | `query/` | `:query`，查询引擎；`:query-tck`，每个查询后端都要通过的契约 |
@@ -34,9 +34,10 @@ Gradle 项目名不带 `wow-` 前缀（`core/kernel` 中的 `:kernel`）；构�
 
 ```mermaid
 flowchart BT
-    API[api]
-    QAPI[query-api]
-    MAN[manifest]
+    ANN[annotations]
+    API[api] --> ANN
+    QAPI[query-api] --> ANN
+    MAN[manifest] --> ANN
     COMP[compiler] --> API & MAN
     SPI[spi] --> API
     KER[kernel] --> SPI & MAN
@@ -54,7 +55,7 @@ flowchart BT
 
 权威的列表是 `:architecture` 中的 `ArchitectureRules.ALLOWED_PROJECT_DEPENDENCIES`。它的测试保证的规则包括：
 
-- `:api`、`:query-api` 和 `:manifest` 没有运行时依赖，`:api` 不使用任何 JSON 库。
+- `:api`、`:query-api` 和 `:manifest` 除了本身无依赖的 `:annotations` 之外没有运行时依赖，`:api` 不使用任何 JSON 库。
 - 内核对集群、订阅、等待或驱动一无所知；运行时只依赖协程和 Jackson，不依赖 Spring、Reactor 或驱动。
 - 后端依赖 `:spi`，提供查询时还依赖 `:query`；后端之间从不相互依赖。
 - Reactor 只出现在 `:reactor` 和 WebFlux 边缘，只有 `:spring-boot` 依赖 Spring Boot。

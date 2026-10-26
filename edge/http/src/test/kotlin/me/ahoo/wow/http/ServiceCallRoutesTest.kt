@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
@@ -27,15 +28,14 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.subscribe.CallFailedException
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.client.HttpCommandCaller
-import me.ahoo.wow.client.ServiceCredential
-import me.ahoo.wow.client.wire.CallHeader
-import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.ServiceTokens
 import me.ahoo.wow.http.internal.InternalServer
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.admission.CallContext
+import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.call.OutgoingCall
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
@@ -90,7 +90,7 @@ class ServiceCallRoutesTest {
         return OutgoingCall("$type.${body.javaClass.simpleName}", command)
     }
 
-    private fun callHeader(owner: String = "alice", facts: Map<String, String> = emptyMap()) = CallHeader.format(
+    private fun callHeader(owner: String = "alice", facts: Map<String, String> = emptyMap()) = CallHeaders.format(
         CallContext("call-x", TENANT, Scope(owner), root, Operator(owner, TENANT), facts = facts),
     )
 
@@ -326,12 +326,14 @@ class ServiceCallRoutesTest {
     fun `a call header should carry the root command and the wait`() {
         val wait = WaitContext("w-1", Origin("n-1", "127.0.0.1:9191", "basket"), listOf(Hop.committed(CONTEXT)), 9L)
         val call = CallContext("c-1", TENANT, Scope("alice", "s-1"), root, Operator("alice", TENANT, true), wait)
-        CallHeader.parse(CallHeader.format(call)).assert().isEqualTo(call)
+        CallHeaders.parse(CallHeaders.format(call)).assert().isEqualTo(call)
         val bare = CallContext("c-2", Caller.DEFAULT_TENANT, Scope.NONE, root)
-        CallHeader.parse(" ${CallHeader.format(bare)} ").assert().isEqualTo(bare)
+        CallHeaders.parse(" ${CallHeaders.format(bare)} ").assert().isEqualTo(bare)
         val withFacts =
             CallContext("c-3", TENANT, Scope("alice"), root, facts = mapOf(RequestFacts.APP_ID to "console"))
-        CallHeader.parse(CallHeader.format(withFacts)).facts.assert().isEqualTo(mapOf(RequestFacts.APP_ID to "console"))
+        CallHeaders.parse(
+            CallHeaders.format(withFacts)
+        ).facts.assert().isEqualTo(mapOf(RequestFacts.APP_ID to "console"))
         // Only the facts that propagate are taken from the header, whatever a caller puts in it.
         val encoder = java.util.Base64.getUrlEncoder().withoutPadding()
         val stuffed = encoder.encodeToString(
@@ -340,15 +342,15 @@ class ServiceCallRoutesTest {
                     """"facts":{"app_id":"console","remote_ip":"10.0.0.1","user_agent":"x","X-Trace":"t"}}"""
                 ).toByteArray()
         )
-        CallHeader.parse(stuffed).facts.assert().isEqualTo(mapOf(RequestFacts.APP_ID to "console"))
-        assertThrownBy<IllegalArgumentException> { CallHeader.parse("%%%") }
-        assertThrownBy<IllegalArgumentException> { CallHeader.parse("bm90LWpzb24") }
+        CallHeaders.parse(stuffed).facts.assert().isEqualTo(mapOf(RequestFacts.APP_ID to "console"))
+        assertThrownBy<IllegalArgumentException> { CallHeaders.parse("%%%") }
+        assertThrownBy<IllegalArgumentException> { CallHeaders.parse("bm90LWpzb24") }
         // A call of a blank command id does not parse.
         val blank = java.util.Base64.getUrlEncoder().withoutPadding()
             .encodeToString(
                 """{"commandId":" ","tenantId":"t","causation":{"correlationId":"a","causationId":"b"}}""".toByteArray()
             )
-        assertThrownBy<IllegalArgumentException> { CallHeader.parse(blank) }
+        assertThrownBy<IllegalArgumentException> { CallHeaders.parse(blank) }
     }
 
     private companion object {

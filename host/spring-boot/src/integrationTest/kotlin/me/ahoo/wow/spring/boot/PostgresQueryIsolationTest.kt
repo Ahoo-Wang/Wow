@@ -16,7 +16,7 @@ package me.ahoo.wow.spring.boot
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.client.wire.WowHeaders
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.tck.containers.WowContainers

@@ -1181,7 +1181,7 @@ class WowProperties {
 
         /**
          * The service token the node presents as `Authorization: Bearer`; an application's
-         * [me.ahoo.wow.client.ServiceCredential] bean, such as one that renews a CoSec token, replaces it.
+         * [me.ahoo.wow.api.client.ServiceCredential] bean, such as one that renews a CoSec token, replaces it.
          */
         var token: String? = null
 
@@ -1202,7 +1202,7 @@ class WowProperties {
      * over HTTP by the service's [me.ahoo.wow.api.client.CommandClient] and [me.ahoo.wow.api.read.QueryApi] beans; any
      * other context as without these clients (its commands through its topic). An application's
      * [me.ahoo.wow.client.EndpointResolver] bean may resolve where each peer is instead. The service mode presents the
-     * [me.ahoo.wow.client.ServiceCredential] bean (`wow.calls.token`).
+     * [me.ahoo.wow.api.client.ServiceCredential] bean (`wow.calls.token`).
      */
     class Clients {
         /**

@@ -35,6 +35,9 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.observation.StoreFallbacks
+import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
@@ -51,12 +54,12 @@ class LogProgress(val group: String, val log: EventLog, val checkpoints: Checkpo
  * every [SnapshotOptions.interval]:
  *
  * - **State revision claims**: each node is a member of its state revision of each snapshotted type (in the lease
- *   group `<group>#snapshot/<aggregate>@<revision>`), and claims each target's table ([SnapshotStore.claim]) at its
+ *   group `<group>#snapshot/<aggregate>@<revision>`), and claims each target's table ([SnapshotRebuildStore.claim]) at its
  *   revision: a higher revision at once (a new deployment, the start of a rolling upgrade), a lower one only once no
  *   member of the claimed revision is left (a rollback). Its snapshot subscriptions write at its revision whatever the
  *   claim; the store keeps a node of a lower revision from overwriting the higher one and marks those snapshots stale.
  * - **In-place rebuild**: a node whose revision a table is claimed at, and which holds the table's rebuild lease (the
- *   lease group `<group>#snapshot-rebuild/<store>/<aggregate>`, so one node rebuilds), rewrites its pending snapshots ([SnapshotStore.pending])
+ *   lease group `<group>#snapshot-rebuild/<store>/<aggregate>`, so one node rebuilds), rewrites its pending snapshots ([SnapshotRebuildStore.pending])
  *   from the log, page by page, at their latest version, and marks the table rebuilt once none is left. A node of
  *   another revision marks the table rebuilding on each run, so the stale marks its refused saves leave are rewritten.
  * - **Backfill**: a target that has not caught up with the log since it was first claimed is filled from the beginning
@@ -70,6 +73,10 @@ class LogProgress(val group: String, val log: EventLog, val checkpoints: Checkpo
  *   a node of the claimed revision, else marked stale (or written at its own revision when missing) for the rebuild.
  *
  * It answers [rebuilding] for a type while the table of its primary target is rebuilding or not backfilled.
+ *
+ * The claims, rebuilds and backfill checks need a target store's rebuild control plane ([SnapshotStore.rebuilds]): a
+ * store without one is left out of them, with a warning when the node prepares and a count of the fallback (the
+ * observer's `storeFellBack`, finding R5.B-9), and so is its share of a rebuild request.
  */
 @Suppress("LongParameterList", "TooManyFunctions")
 @InternalWowApi
@@ -86,12 +93,16 @@ class SnapshotMaintenance(
     private val progress: List<LogProgress>,
     private val options: SnapshotOptions = SnapshotOptions(),
     private val address: () -> String = { node },
+    private val observer: Observer = Observer.NONE,
 ) : SnapshotStatus {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
 
     /** The snapshotted aggregate types of the context. */
     val types: Set<AggregateType> get() = models.keys
-    private val placed: Map<String, Set<AggregateType>> = targets.storesOf(this.models.keys)
+    private val stored: Map<String, Set<AggregateType>> = targets.storesOf(this.models.keys)
+
+    /** The target stores that have a rebuild control plane, and their types: the stores this maintenance keeps. */
+    private val placed: Map<String, Set<AggregateType>> = stored.filterKeys { storeOf(it).rebuilds != null }
     private val tables = ConcurrentHashMap<Pair<String, AggregateType>, SnapshotTable>()
     private val tracked = ConcurrentHashMap<Pair<String, AggregateType>, String>()
     private val caughtUp: MutableSet<Pair<String, AggregateType>> = ConcurrentHashMap.newKeySet()
@@ -117,7 +128,9 @@ class SnapshotMaintenance(
         if (type !in models) {
             return false
         }
-        return tables[targets.placementOf(type).primary to type]?.catchingUp ?: true
+        val primary = targets.placementOf(type).primary
+        // A store without a rebuild control plane records no table: it never answers as catching up.
+        return tables[primary to type]?.catchingUp ?: (primary in placed)
     }
 
     /**
@@ -126,6 +139,14 @@ class SnapshotMaintenance(
      */
     suspend fun prepare(): List<SnapshotSubscription> {
         heartbeat()
+        (stored - placed.keys).forEach { (store, types) ->
+            logger.warn {
+                "The snapshot store $store cannot rebuild its snapshots in place: the snapshots of ${types.joinToString()} " +
+                    "it holds of another state revision stay until a commit replaces them, and a target added later " +
+                    "is not backfilled from the log."
+            }
+            types.forEach { fellBack() }
+        }
         val backfills = ArrayList<SnapshotSubscription>()
         placed.forEach { (store, types) ->
             types.forEach { type ->
@@ -177,7 +198,7 @@ class SnapshotMaintenance(
         tables.forEach { (key, table) ->
             val (store, type) = key
             if (table.revision != revisionOf(type)) {
-                storeOf(store).mark(type, table.revision, rebuilding = true)
+                rebuildsOf(store).mark(type, table.revision, rebuilding = true)
             }
         }
         models.values.forEach { leases.leave(memberGroup(it.type, it.stateRevision), node) }
@@ -200,7 +221,7 @@ class SnapshotMaintenance(
                     }
                 } else if (!table.rebuilding) {
                     // This node's refused saves may mark snapshots stale: the node of the claimed revision rewrites them.
-                    storeOf(store).mark(type, table.revision, rebuilding = true)?.let { tables[store to type] = it }
+                    rebuildsOf(store).mark(type, table.revision, rebuilding = true)?.let { tables[store to type] = it }
                 }
                 if (!table.backfilled) {
                     checkBackfill(store, type, table)
@@ -219,14 +240,20 @@ class SnapshotMaintenance(
         val model = models[ref.type] ?: return
         targets.placementOf(ref.type).targets.forEach { name ->
             val store = storeOf(name)
-            val table = store.table(ref.type)
+            val rebuilds = store.rebuilds
+            if (rebuilds == null) {
+                logger.debug { "The snapshot store $name cannot rebuild the snapshot of $ref: it is left as it is." }
+                fellBack()
+                return@forEach
+            }
+            val table = rebuilds.table(ref.type)
             if (table == null || table.revision == model.stateRevision) {
-                recordOf(model, ref)?.let { store.rewrite(it) }
+                recordOf(model, ref)?.let { rebuilds.rewrite(it) }
             } else {
-                if (!store.markStale(ref)) {
+                if (!rebuilds.markStale(ref)) {
                     recordOf(model, ref)?.let { store.save(it) }
                 }
-                store.mark(ref.type, table.revision, rebuilding = true)?.let { tables[name to ref.type] = it }
+                rebuilds.mark(ref.type, table.revision, rebuilding = true)?.let { tables[name to ref.type] = it }
             }
         }
     }
@@ -255,7 +282,7 @@ class SnapshotMaintenance(
     /** Claims [type]'s table in [store] at this node's revision, as the class says; the record after. */
     private suspend fun claim(store: String, type: AggregateType): SnapshotTable {
         val revision = revisionOf(type)
-        val snapshots = storeOf(store)
+        val snapshots = rebuildsOf(store)
         val table = snapshots.table(type)
         val claimed = when {
             table == null || revision > table.revision -> snapshots.claim(type, revision)
@@ -274,7 +301,7 @@ class SnapshotMaintenance(
     private suspend fun rebuild(store: String, type: AggregateType, revision: Int) {
         val lease = rebuildGroup(store, type)
         leases.acquire(lease, 0, node, options.leaseTtl) ?: return
-        val snapshots = storeOf(store)
+        val snapshots = rebuildsOf(store)
         val model = models.getValue(type)
         var after: AggregateRef? = null
         repeat(options.pages) {
@@ -316,7 +343,7 @@ class SnapshotMaintenance(
         if (!reached) {
             return
         }
-        storeOf(store).mark(type, table.revision, backfilled = true)?.let {
+        rebuildsOf(store).mark(type, table.revision, backfilled = true)?.let {
             tables[store to type] = it
             caughtUp += store to type
             logger.info { "The snapshots of $type in $store caught up with the log." }
@@ -372,6 +399,12 @@ class SnapshotMaintenance(
     }
 
     private fun storeOf(name: String): SnapshotStore = targets.stores.getValue(name)
+
+    /** The rebuild control plane of [name], one of the stores this maintenance keeps ([placed]). */
+    private fun rebuildsOf(name: String): SnapshotRebuildStore = checkNotNull(storeOf(name).rebuilds)
+
+    private fun fellBack() =
+        observer.storeFellBack(context, StoreFallbacks.SNAPSHOT_REBUILD, StoreFallbacks.UNSUPPORTED)
 
     private fun revisionOf(type: AggregateType): Int = models.getValue(type).stateRevision
 
