@@ -18,19 +18,24 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
+import me.ahoo.wow.spring.boot.DevelopmentMode
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * Who calls the catalog service: the two caller levels of decision D189, read from two request headers. It stands in
- * for CoSec (`wow-cosec`), whose resolver gives the same callers from a principal and its roles
- * (`wow.cosec.tenant-level.roles`); the example keeps to headers so it runs without an identity provider.
+ * Who calls the catalog service, in development: the two caller levels of decision D189, read from two request headers,
+ * so the service runs without an identity provider on a laptop and in its tests. Behind the CoSec gateway (the `cosec`
+ * profile, decisions D295, D296), this resolver steps aside: wow-cosec's resolver gives the same callers from the
+ * principal the gateway verified and its roles (`wow.cosec.tenant-level.roles: employee`), and a deployment's request
+ * cannot choose its caller. The headers are refused outside development ([DevelopmentMode], review S-9), so a node
+ * that would take them from any client does not start.
  *
  * - `X-User: <id>`: a buyer, an owner-level caller whose owner is the user: it reads and writes only its own
  *   aggregates.
  * - `X-User: <id>` with `X-Role: employee`: an employee, a tenant-level caller without an owner: it reads and writes
  *   every aggregate of the tenant, each action left to action-level authorization.
- * - Neither: the anonymous caller of the default tenant, as without a resolver, for trying the service out.
+ * - Neither: the anonymous caller of the default tenant, for trying the service out.
  *
  * The catalog's aggregates belong to the tenant (decision D189): a buyer reads every product, and the
  * [catalogAuthorizer] keeps the buyers from changing them.
@@ -38,16 +43,20 @@ import org.springframework.context.annotation.Configuration
 @Configuration(proxyBeanMethods = false)
 class CatalogCallers {
     @Bean
-    fun catalogCallerResolver(): CallerResolver = CallerResolver { request ->
-        val headers = request.headers()
-        val user = headers.firstHeader(USER)?.trim()?.takeIf { it.isNotEmpty() } ?: return@CallerResolver Caller.ANONYMOUS
-        val employee = headers.firstHeader(ROLE)?.trim() == EMPLOYEE
-        Caller.of(
-            tenantId = Caller.DEFAULT_TENANT,
-            scope = if (employee) Scope.NONE else Scope(ownerId = user),
-            subject = user,
-            attributes = if (employee) mapOf(ROLES to listOf(EMPLOYEE)) else emptyMap(),
-        )
+    @ConditionalOnProperty(COSEC_ENABLED, havingValue = "false", matchIfMissing = true)
+    fun catalogCallerResolver(development: DevelopmentMode): CallerResolver {
+        development.require(COSEC_ENABLED, false, "takes its callers from headers any client sets")
+        return CallerResolver { request ->
+            val headers = request.headers()
+            val user = headers.firstHeader(USER)?.trim()?.takeIf { it.isNotEmpty() } ?: return@CallerResolver Caller.ANONYMOUS
+            val employee = headers.firstHeader(ROLE)?.trim() == EMPLOYEE
+            Caller.of(
+                tenantId = Caller.DEFAULT_TENANT,
+                scope = if (employee) Scope.NONE else Scope(ownerId = user),
+                subject = user,
+                attributes = if (employee) mapOf(ROLES to listOf(EMPLOYEE)) else emptyMap(),
+            )
+        }
     }
 
     /** Only an employee, or the anonymous caller of a service tried out, changes the catalog: a buyer reads it. */
@@ -61,6 +70,9 @@ class CatalogCallers {
     }
 
     companion object {
+        /** CoSec's switch: off in development, where the headers name the caller; on behind the gateway. */
+        const val COSEC_ENABLED: String = "cosec.enabled"
+
         /** The header naming the user. */
         const val USER: String = "X-User"
 

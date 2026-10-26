@@ -1,5 +1,5 @@
 # The public port: reachable from the gateway's pods alone (decisions D296, D300), in any namespace, labelled
-# app.kubernetes.io/component: cosec-gateway. The service trusts the application the gateway authorized
+# app.kubernetes.io/component: gateway. The service trusts the application the gateway authorized
 # (WOW_COSEC_TRUST_INJECTED_APP, configmap.yaml), so a client that reached it around the gateway could name any
 # application; where the policy is not enforced, do not trust the injected application. Label your gateway's pods so, or
 # change the selector to match them. Enforced where the cluster's network plugin enforces NetworkPolicy.
@@ -20,7 +20,7 @@ spec:
         - namespaceSelector: {}
           podSelector:
             matchLabels:
-              app.kubernetes.io/component: cosec-gateway
+              app.kubernetes.io/component: gateway
       ports:
         - port: http
           protocol: TCP

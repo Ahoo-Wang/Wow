@@ -1,5 +1,5 @@
 # The public port: reachable from the gateway's pods alone (decisions D296, D300), in any namespace, labelled
-# app.kubernetes.io/component: cosec-gateway. The gateway verifies each operator's CoSec token. Label your gateway's
+# app.kubernetes.io/component: gateway. The gateway verifies each operator's CoSec token. Label your gateway's
 # pods so, or change the selector to match them. Enforced where the cluster's network plugin enforces NetworkPolicy.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -18,7 +18,7 @@ spec:
         - namespaceSelector: {}
           podSelector:
             matchLabels:
-              app.kubernetes.io/component: cosec-gateway
+              app.kubernetes.io/component: gateway
       ports:
         - port: http
           protocol: TCP
