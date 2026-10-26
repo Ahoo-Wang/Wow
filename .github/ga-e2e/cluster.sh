@@ -135,6 +135,8 @@ service() {
 services() {
   local arm=$1 wave name failed=0
   for wave in "${WAVES[@]}"; do
+    # GA_EXCLUDED: services a run leaves out, for a reason its report states (the runner reads the same list).
+    for name in ${GA_EXCLUDED:-}; do wave=${wave//$name/}; done
     for name in $wave; do service "$name" "$arm"; done
     for name in $wave; do
       if ! kubectl rollout status "deployment/$name" --timeout=600s; then

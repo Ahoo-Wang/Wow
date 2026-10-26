@@ -14,14 +14,11 @@
 package me.ahoo.wow.example.eshop.e2e.cluster
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.example.eshop.e2e.json
 import me.ahoo.wow.example.eshop.e2e.soak.SoakDatabase
-import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
-import me.ahoo.wow.spi.log.Partitioner
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.MethodOrderer
 import org.junit.jupiter.api.Order
@@ -34,7 +31,6 @@ import java.util.concurrent.ExecutionException
 import java.util.concurrent.FutureTask
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 
 /**
@@ -80,12 +76,19 @@ class GaE2eTest {
     private val network = PodNetwork(kube, report)
     private val ops = OpsDesk(kube, report, shop)
     private val evidence = Evidence(kube, File(System.getProperty("ga.report", "build/ga-e2e"), "evidence"))
-    private val probes = AtomicInteger()
-    private val probeFailures = AtomicInteger()
     private val partitions = System.getProperty("ga.partitions", "8").toInt()
+
+    /** The services this run left out of the deployment (`ga.excluded`), for the reason its report states. */
+    private val excluded = System.getProperty("ga.excluded", "").split(' ', ',').filter { it.isNotBlank() }.toSet()
+    private val probes = ClusterProbes(kube, report, flows, verdict, network, partitions, postgres != null)
 
     init {
         flows.onLate = { report.note(it) }
+        if (excluded.isNotEmpty()) {
+            report.note(
+                "excluded from this run: ${excluded.joinToString()} (${System.getProperty("ga.excluded-reason", "")})"
+            )
+        }
         verdict.startSampling()
         health.start()
         evidence.start()
@@ -123,9 +126,9 @@ class GaE2eTest {
     @Test
     @Order(1)
     fun `the catalog and the stock are filed through the gateway`() = scenario("functional", "catalog and stock") {
-        PRODUCTS.forEach { (id, price) -> flows.product(id, "Wow $id", price) }
-        STOCK.forEach { (id, quantity) -> flows.receive(id, quantity) }
-        "${PRODUCTS.size} products published, ${STOCK.size} stocks received"
+        Deployment.PRODUCTS.forEach { (id, price) -> flows.product(id, "Wow $id", price) }
+        Deployment.STOCK.forEach { (id, quantity) -> flows.receive(id, quantity) }
+        "${Deployment.PRODUCTS.size} products published, ${Deployment.STOCK.size} stocks received"
     }
 
     @Test
@@ -190,9 +193,9 @@ class GaE2eTest {
         checkNotNull(flows.order("bob-1"))["cancelReason"].asString().assert().contains("pen")
         // The compensation: the pad reserved for bob-1 is released.
         flows.eventually("the pad released") {
-            flows.stock("pad")["available"].asInt() == STOCK.getValue("pad") && flows.stock("pad")["reservations"]["bob-1"] == null
+            flows.stock("pad")["available"].asInt() == Deployment.STOCK.getValue("pad") && flows.stock("pad")["reservations"]["bob-1"] == null
         }
-        flows.stock("pen")["available"].asInt().assert().isEqualTo(STOCK.getValue("pen"))
+        flows.stock("pen")["available"].asInt().assert().isEqualTo(Deployment.STOCK.getValue("pen"))
         flows.payment("bob-1").assert().isNull()
         "bob-1 cancelled for the pen, the pad's reservation released, no payment requested"
     }
@@ -232,7 +235,7 @@ class GaE2eTest {
             )
             return@scenario "sent from $outsider"
         }
-        serviceSideEvidence(body, tokens)
+        probes.serviceSideEvidence(body, tokens)
         val node = kube.require(
             "get",
             "nodes",
@@ -240,9 +243,9 @@ class GaE2eTest {
             "jsonpath={.items[0].status.addresses[?(@.type==\"InternalIP\")].address}",
         ).trim()
         val recorded = mapOf(
-            "ivy" to lastHeaders("ivy"),
-            "ivy-forged" to lastHeaders("ivy-forged"),
-            "ivy-node-port" to lastHeaders("ivy-node-port"),
+            "ivy" to probes.lastHeaders("ivy"),
+            "ivy-forged" to probes.lastHeaders("ivy-forged"),
+            "ivy-node-port" to probes.lastHeaders("ivy-node-port"),
         ).mapValues { (_, headers) -> headers["remote_ip"]?.asString() }
         report.note("remote_ip recorded: $recorded (outsider $outsider, node $node, claimed $FORGED)")
         recorded.assert().isEqualTo(mapOf("ivy" to outsider, "ivy-forged" to outsider, "ivy-node-port" to node))
@@ -256,7 +259,7 @@ class GaE2eTest {
         "security",
         "public ports behind the gateway"
     ) {
-        val blocked = PUBLIC.map { (service, port) ->
+        val blocked = Deployment.PUBLIC.filter { it.first !in excluded }.map { (service, port) ->
             val outsider = network.reach("outsider", service, port)
             val insider = network.reach("insider", service, port)
             check(outsider.startsWith("000")) { "the outsider reached $service's public port: $outsider" }
@@ -271,16 +274,16 @@ class GaE2eTest {
     @Test
     @Order(11)
     fun `the internal ports are reachable from the platform's pods alone`() = scenario("security", "internal ports") {
-        INTERNAL.forEach { (service, port) ->
+        Deployment.INTERNAL.filter { it.first !in excluded }.forEach { (service, port) ->
             val outsider = network.reach("outsider", "$service-cluster", port)
             check(outsider.startsWith("000")) { "the outsider reached $service's internal port: $outsider" }
         }
         // The positive control: a pod of the shop reaches them, so the refusals are the policies'.
-        INTERNAL.filter { it.first.startsWith("eshop-") }.forEach { (service, port) ->
+        Deployment.INTERNAL.filter { it.first.startsWith("eshop-") && it.first !in excluded }.forEach { (service, port) ->
             val insider = network.reach("insider", "$service-cluster", port)
             check(!insider.startsWith("000")) { "the shop's own pod did not reach $service's internal port: $insider" }
         }
-        "outsider refused on ${INTERNAL.size} internal ports; the shop's pod served on the eShop's"
+        "outsider refused on ${Deployment.INTERNAL.size} internal ports; the shop's pod served on the eShop's"
     }
 
     @Test
@@ -401,8 +404,8 @@ class GaE2eTest {
                     "scale eshop-ordering to $replicas",
                     SCALE_BOUND,
                     "checkout to the ordering",
-                    ::probeToOrdering,
-                    settled = { kube.pods("eshop-ordering").count { it.ready && !it.deleting } == replicas && rebalanced(replicas) },
+                    probes::probeToOrdering,
+                    settled = { kube.pods("eshop-ordering").count { it.ready && !it.deleting } == replicas && probes.rebalanced(replicas) },
                 ) { kube.scale("eshop-ordering", replicas) }
             }
         } finally {
@@ -421,7 +424,7 @@ class GaE2eTest {
                 "rolling restart of eshop-ordering",
                 ROLLING_BOUND,
                 "checkout to the ordering",
-                ::probeToOrdering,
+                probes::probeToOrdering,
                 settled = { kube.awaitRollout("deployment/eshop-ordering") },
             ) { kube.rolloutRestart("eshop-ordering") }
         } finally {
@@ -449,7 +452,7 @@ class GaE2eTest {
     private fun deleteOwnerMidCheckout(buyer: String): String {
         val order = "$buyer-1"
         flows.addItem(buyer, "kite", flows.price("kite"), 2)
-        val owner = postgres?.let { partitionOwner(order) } ?: kube.pods("eshop-ordering").first().name
+        val owner = postgres?.let { probes.partitionOwner(order) } ?: kube.pods("eshop-ordering").first().name
         if (postgres == null) {
             report.note(
                 "mongo arm: the lease store is MongoDB; deleted the first ordering pod, $owner"
@@ -462,7 +465,7 @@ class GaE2eTest {
                 "delete the owner of $order's partition ($owner)",
                 TAKEOVER_BOUND,
                 "checkout to the ordering",
-                ::probeToOrdering,
+                probes::probeToOrdering,
                 settled = { kube.pods("eshop-ordering").count { it.ready && !it.deleting } == 2 },
             ) {
                 val checkout = thread { flows.checkoutWaiting(buyer, ShopFlows.TO_ORDERING) }
@@ -493,7 +496,7 @@ class GaE2eTest {
                 "restart the Kafka broker",
                 KAFKA_BOUND,
                 "checkout through the full chain",
-                ::probeFullChain,
+                probes::probeFullChain,
                 settled = { kube.pods("kafka").all { it.ready && !it.deleting } && kube.awaitRollout("statefulset/kafka") },
             ) { kube.deletePod("kafka-0") }
         } finally {
@@ -516,7 +519,7 @@ class GaE2eTest {
                     "step down the primary $pod",
                     STEP_DOWN_BOUND,
                     "checkout to the ordering",
-                    ::probeToOrdering,
+                    probes::probeToOrdering,
                     settled = {
                         val now = kube.exec(
                             "mongo-0",
@@ -618,98 +621,6 @@ class GaE2eTest {
         passed.assert().isTrue()
     }
 
-    /**
-     * The service's side of remote_ip alone, as evidence: from a gateway pod (the only pods the public port admits)
-     * straight to the basket, with an X-Forwarded-For the service takes as the client's address.
-     */
-    private fun serviceSideEvidence(body: String, tokens: Tokens) {
-        val gateway = kube.pods("cosec-gateway").first { it.ready }.name
-        val direct = network.http(
-            gateway,
-            "eshop-basket",
-            80,
-            "POST",
-            "/eshop-basket/basket/ivy-direct/add-basket-item",
-            body,
-            "Content-Type" to "application/json",
-            "Authorization" to "Bearer ${tokens.of(Who.buyer("ivy-direct"))}",
-            "X-Forwarded-For" to "198.51.100.7",
-        )
-        report.note(
-            "remote_ip, the service alone: $gateway -> eshop-basket with X-Forwarded-For 198.51.100.7 answered " +
-                "${direct.take(3)} and recorded ${lastHeaders("ivy-direct")}",
-        )
-    }
-
-    /** The headers (request facts) of the last commit of [basket] in the basket's log, read from PostgreSQL. */
-    private fun lastHeaders(basket: String): tools.jackson.databind.JsonNode = verdict.connect(
-        "basket"
-    ).use { connection ->
-        val table = SoakDatabase(connection, "basket").logTables().getValue("basket")
-        connection.prepareStatement(
-            "SELECT headers FROM \"$table\" WHERE aggregate_id = ? ORDER BY version DESC LIMIT 1"
-        )
-            .use { statement ->
-                statement.setString(1, basket)
-                statement.executeQuery().use { rows ->
-                    if (rows.next()) {
-                        json.readTree(
-                            rows.getString(1)
-                        )
-                    } else {
-                        json.nullNode()
-                    }
-                }
-            }
-    }
-
-    /** A checkout until its order is committed in the ordering context: whether it was. */
-    private fun probeToOrdering(): Boolean = probe(ShopFlows.TO_ORDERING, "10s")
-
-    /** A checkout through the full chain, the inventory's Kafka hops included: whether its order was paid. */
-    private fun probeFullChain(): Boolean = probe(ShopFlows.FULL_CHAIN, "20s")
-
-    private fun probe(chain: String, timeout: String): Boolean {
-        val buyer = "probe-${probes.incrementAndGet()}"
-        val added = flows.addItem(buyer, "sock", "5.00", 1)
-        val answer = if (added.status == ShopFlows.OK) {
-            flows.checkout(buyer, mapOf(ShopFlows.WAIT to chain, ShopFlows.WAIT_TIMEOUT to timeout))
-        } else {
-            added
-        }
-        val served = answer.status == ShopFlows.OK && json.readTree(answer.body)["status"]?.asString() == "SUCCEEDED"
-        // The first failures, with why, for the report: a window is only as meaningful as its probes.
-        if (!served && probeFailures.incrementAndGet() <= LISTED * 2) {
-            report.note("probe $buyer failed: ${answer.status} ${answer.body.take(ShopFlows.BODY)}")
-        }
-        return served
-    }
-
-    /** Whether every one of the ordering's [replicas] nodes holds some of its command partitions' leases. */
-    private fun rebalanced(replicas: Int): Boolean {
-        if (postgres == null) return true
-        val owners = verdict.connect("ordering").use { SoakDatabase(it, "ordering").leases() }
-            .filterKeys { it.startsWith("$ORDERING_GROUP|") }
-            .values.filter { (_, expires) -> expires > System.currentTimeMillis() }.map { it.first }.toSet()
-        return owners.size == replicas
-    }
-
-    /**
-     * The node holding the ordering's command lease of [order]'s partition, once one of the current pods does: right
-     * after a rolling restart, a replaced pod's lease lives until it expires.
-     */
-    private fun partitionOwner(order: String): String {
-        val partition = Partitioner.partitionOf(AggregateRef(ORDER, Caller.DEFAULT_TENANT, order), partitions)
-        var owner: String? = null
-        flows.eventually("a running owner of partition $partition", ShopFlows.DEADLINE.multipliedBy(2)) {
-            val running = kube.pods("eshop-ordering").filter { it.ready && !it.deleting }.map { it.name }
-            owner = verdict.connect("ordering").use { SoakDatabase(it, "ordering").leases() }["$ORDERING_GROUP|$partition"]
-                ?.takeIf { (_, expires) -> expires > System.currentTimeMillis() }?.first
-            owner in running
-        }
-        return checkNotNull(owner)
-    }
-
     private companion object {
         const val FORGED = "203.0.113.9"
         val VERDICT_BUDGET: Duration = Duration.ofMinutes(15)
@@ -721,41 +632,6 @@ class GaE2eTest {
         const val MILLIS = 1000
         const val LISTED = 10
         const val GATEWAY_SAGA = "PaymentGatewaySaga.onPaymentRequested"
-        const val ORDERING_GROUP = "eshop-ordering-service/eshop-ordering"
-        val ORDER = EshopOrderingContract.Order.TYPE
-        val PRODUCTS = mapOf(
-            "mug" to "8.50",
-            "cap" to "12.00",
-            "tv" to "1500.00",
-            "pen" to "2.00",
-            "pad" to "3.00",
-            "kite" to "20.00",
-            "sock" to "5.00",
-        )
-        val STOCK = mapOf("mug" to 50, "cap" to 5, "tv" to 2, "pen" to 1, "pad" to 10, "kite" to 20, "sock" to 100_000)
-
-        /** The public and internal ports, by Service name. */
-        val PUBLIC = listOf(
-            "eshop-catalog",
-            "eshop-basket",
-            "eshop-ordering",
-            "eshop-inventory",
-            "eshop-payment",
-            "ops",
-            "view-store",
-            "analytics-catalog",
-        ).map { it to 80 }
-
-        val INTERNAL = listOf(
-            "eshop-catalog" to 9091,
-            "eshop-basket" to 9092,
-            "eshop-ordering" to 9093,
-            "eshop-inventory" to 9094,
-            "eshop-payment" to 9095,
-            "ops" to 9098,
-            "view-store" to 9090,
-            "analytics-catalog" to 9097,
-        )
 
         /** The ordering's payment grace period in this deployment (services/eshop-ordering/config.yaml). */
         val GRACE: Duration = Duration.ofSeconds(120)
