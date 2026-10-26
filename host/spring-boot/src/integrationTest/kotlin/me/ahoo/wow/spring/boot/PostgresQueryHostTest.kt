@@ -62,26 +62,23 @@ class PostgresQueryHostTest {
                 .executeQuery().use { rows -> buildList { while (rows.next()) add(rows.getString(1)) } }
         }.assert().contains("wow_snapshot__bank__account_ix_account_owner")
         validatingHost().use { validating ->
-            val validated = validating.context.getBean(QueryIndexesLifecycle::class.java).reports.getValue(account)
-            validated.assert().isEqualTo(QueryIndexReport.NONE)
-        }
-    }
-
-    @Test
-    fun `a validating start should be refused while a declared index is missing`() {
-        val index = "wow_snapshot__bank__account_ix_account_owner"
-        host.context.getBean(DataSource::class.java).connection.use { connection ->
-            connection.createStatement().use { it.execute("DROP INDEX $index") }
-        }
-        try {
-            val refused = assertThrows<Exception> { validatingHost().close() }
-            generateSequence<Throwable>(refused) { it.cause }.filterIsInstance<WowConfigurationException>().first()
-                .also { it.key.assert().isEqualTo("wow.ddl") }
-                .message.assert().contains(index)
-        } finally {
-            host.context.getBean(QueryIndexesLifecycle::class.java).apply {
-                stop()
-                start()
+            val lifecycle = validating.context.getBean(QueryIndexesLifecycle::class.java)
+            lifecycle.reports.getValue(account).assert().isEqualTo(QueryIndexReport.NONE)
+            // A validating start is refused while a declared index is missing.
+            val index = "wow_snapshot__bank__account_ix_account_owner"
+            host.context.getBean(DataSource::class.java).connection.use { connection ->
+                connection.createStatement().use { it.execute("DROP INDEX $index") }
+            }
+            try {
+                lifecycle.stop()
+                assertThrows<WowConfigurationException> { lifecycle.start() }
+                    .also { it.key.assert().isEqualTo("wow.ddl") }
+                    .message.assert().contains(index)
+            } finally {
+                host.context.getBean(QueryIndexesLifecycle::class.java).apply {
+                    stop()
+                    start()
+                }
             }
         }
     }
