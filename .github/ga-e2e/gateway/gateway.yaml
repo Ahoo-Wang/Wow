@@ -18,6 +18,9 @@ data:
   application.yaml: |
     server:
       port: 8080
+      # The gateway is the edge: it never takes a client's Forwarded or X-Forwarded-For as its remote address. Spring
+      # Boot defaults to the native strategy on Kubernetes, which would (run 7 recorded the claimed 203.0.113.9).
+      forward-headers-strategy: none
     spring:
       data:
         redis:
@@ -33,6 +36,10 @@ data:
               trusted-proxies: "(?!)"
               x-forwarded:
                 for-append: false
+              # Only X-Forwarded-For carries the client's address on: a Forwarded header the services would prefer over
+              # it is not sent.
+              forwarded:
+                enabled: false
               routes:
                 - id: eshop-catalog
                   uri: http://eshop-catalog
