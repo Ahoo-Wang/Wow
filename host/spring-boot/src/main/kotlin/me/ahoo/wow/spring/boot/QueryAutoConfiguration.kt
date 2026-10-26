@@ -236,6 +236,7 @@ class QueryAutoConfiguration {
             .masks(masks)
             // The tenants commands and state reads act in (decision D116).
             .tenants(node.gateway.tenants)
+            .crossTenant(properties.crossTenant.enabled)
             .abac(properties.abac.options())
             .policies(beans.policies.orderedStream().toList())
             .filters(beans.filters.orderedStream().toList())
@@ -386,10 +387,7 @@ class QueryAutoConfiguration {
             properties.countCache.options(),
         )
 
-        /**
-         * The query models the public routes serve: the engine's, `wow.query.http.default-list-size`,
-         * `wow.query.cross-tenant.enabled`.
-         */
+        /** The query models the public routes serve: the engine's, `wow.query.http.default-list-size`. */
         @Bean
         @ConditionalOnMissingBean
         @InternalWowApi
@@ -399,7 +397,6 @@ class QueryAutoConfiguration {
                 properties.http.defaultListSize,
                 node.snapshotStatus,
                 properties.stream.streams(),
-                properties.crossTenant.enabled,
             )
 
         /**

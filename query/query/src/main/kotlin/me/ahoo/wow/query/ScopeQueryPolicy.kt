@@ -74,7 +74,8 @@ fun interface QueryOwnership {
  *   own deletion filter. Admission's step 3 would add the same default; stating it here keeps the whole scope one
  *   audited policy.
  *
- * A caller without a tenant, owner or space (trusted in-process code) is restricted by none of them. A model that does
+ * An HTTP caller is first checked again against the read side's rules over [tenants] and [crossTenant]
+ * ([QueryTargets.recheck], review R5.C-1), whoever built it. A caller without a tenant, owner or space (trusted in-process code) is restricted by none of them. A model that does
  * not carry one of these fields rejects the filter at validation, so the scope fails closed rather than being dropped.
  */
 @InternalWowApi
@@ -82,12 +83,17 @@ class ScopeQueryPolicy(
     private val tenants: TenantPolicy = TenantPolicy.CALLERS,
     override val order: Int = ORDER,
     private val ownerships: QueryOwnership = QueryOwnership.OWNERS,
+    crossTenant: Boolean = false,
 ) : QueryPolicy {
+    /** The read side's scope rules, which an HTTP caller is checked against again (review R5.C-1). */
+    private val targets = QueryTargets(tenants, crossTenant)
+
     /** The tenant, owner and space are recorded with each stream at its commit (decision D56). */
     override val events: EventsMode
         get() = EventsMode.PUSHDOWN
 
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
+        targets.recheck(context.aggregateType, caller)
         val owned = ownerships.ownershipOf(context.aggregateType) == Ownership.OWNER
         val restrictions = listOfNotNull(
             tenants.queryTenantOf(context.aggregateType, caller)?.let(::TenantIdFilter) ?: caller.crossTenant?.filter(),

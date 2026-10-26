@@ -33,6 +33,7 @@ import me.ahoo.wow.query.QueryLogObserver
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.QueryOwnership
 import me.ahoo.wow.query.QueryPolicy
+import me.ahoo.wow.query.QueryTargets
 import me.ahoo.wow.query.ScopeQueryPolicy
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
@@ -86,7 +87,16 @@ class QueryEngine private constructor(
     val tenants: TenantPolicy,
     /** Who each aggregate type belongs to besides its tenant (decision D189), as the Manifest says. */
     val ownerships: QueryOwnership,
+    /** Whether a caller that may act across scopes may query across tenants (decision D254 ⑦). */
+    val crossTenant: Boolean,
 ) {
+    /**
+     * The read side's scope rules over [tenants] and [crossTenant] (review R5.C-1): an edge builds its callers with
+     * them, and every gateway and state read checks an HTTP caller against them again ([QueryTargets.recheck]).
+     */
+    @InternalWowApi
+    val targets: QueryTargets = QueryTargets(tenants, crossTenant)
+
     private val snapshotGateways = snapshots.associateBy { it.aggregateType }
     private val eventGateways = events.associateBy { it.aggregateType }
     private val policyGateways = policies.associateBy { it.aggregateType }
@@ -110,7 +120,7 @@ class QueryEngine private constructor(
     fun visibility(type: AggregateType): QueryGateway? = snapshotGateways[type] ?: policyGateways[type]
 
     /** Every entry's state reads: read, check against [visibility], mask, observed as the queries are. */
-    val reads: ReadFacade = ReadFacade(::visibility, masks, observer)
+    val reads: ReadFacade = ReadFacade(::visibility, masks, observer, targets)
 
     /**
      * What a host gives the engine of [manifest], each from its configuration or the application: the [contexts] the
@@ -132,6 +142,7 @@ class QueryEngine private constructor(
         private var sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT
         private var masks: PayloadMasks? = null
         private var tenants: TenantPolicy = TenantPolicy.CALLERS
+        private var crossTenant: Boolean = false
         private var abac: AbacQueryOptions = AbacQueryOptions.DEFAULT
         private var policies: List<QueryPolicy> = emptyList()
         private var filters: List<QueryFilter> = emptyList()
@@ -180,6 +191,12 @@ class QueryEngine private constructor(
 
         /** The tenant a caller queries an aggregate type in (decision D116). */
         fun tenants(tenants: TenantPolicy) = apply { this.tenants = tenants }
+
+        /**
+         * Whether a caller that may act across scopes may query across tenants (decision D254 ⑦,
+         * `wow.query.cross-tenant.enabled`); off by default.
+         */
+        fun crossTenant(enabled: Boolean) = apply { crossTenant = enabled }
 
         /** The ABAC options (`wow.query.abac`, decision D129). */
         fun abac(abac: AbacQueryOptions) = apply { this.abac = abac }
@@ -278,6 +295,7 @@ class QueryEngine private constructor(
                 observer,
                 tenants,
                 ownerships,
+                crossTenant,
             )
         }
 
@@ -354,7 +372,7 @@ class QueryEngine private constructor(
          * the Manifest says belong to their owners (decision D189).
          */
         private fun scopePolicies(ownerships: QueryOwnership): List<QueryPolicy> = listOf(
-            ScopeQueryPolicy(tenants, ownerships = ownerships),
+            ScopeQueryPolicy(tenants, ownerships = ownerships, crossTenant = crossTenant),
             AbacQueryPolicy(abac),
         )
     }
