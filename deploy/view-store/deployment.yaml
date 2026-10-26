@@ -25,8 +25,6 @@ spec:
         # The OpenTelemetry Operator injects its Java agent (decision D174; configmap.yaml): ignored without it.
         instrumentation.opentelemetry.io/inject-java: "true"
     spec:
-      # With the headless service of this name, each pod has the DNS name <pod>.view-store-cluster.<namespace>...
-      subdomain: view-store-cluster
       # The host's shutdown: the public server finishes its requests, the waits among them (wow.wait.max-timeout,
       # 60s); the node then hands its partitions off after their commands in flight (wow.cluster.drain-timeout, 10s)
       # and saves its checkpoints. 5s of preStop, 60s and 10s, with room to spare: raise it with those settings.
@@ -57,10 +55,6 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
             - name: POD_IP
               valueFrom:
                 fieldRef:
@@ -72,11 +66,10 @@ spec:
             # The node id is the pod's name: a replaced pod is a new member.
             - name: WOW_NODE_ID
               value: $(POD_NAME)
-            # D173: the internal port binds the pod's private address only, and the node advertises its headless name.
+            # D173: the internal port binds the pod's private address only, and the node advertises that address,
+            # $(POD_IP):9090 (decision D319): a Deployment's pods have no DNS name of their own.
             - name: WOW_INTERNAL_HOST
               value: $(POD_IP)
-            - name: WOW_NODE_ADDRESS
-              value: $(POD_NAME).view-store-cluster.$(POD_NAMESPACE).svc.cluster.local:9090
           # Actuator's probe groups on the HTTP port (review R3.5-3); the internal port stays cluster-only (D226). The
           # readiness fails until the node runs, while its log or lease store is down, while it owns none of its
           # partitions past the hand-over grace, or while a topic it reads is still joining. The liveness fails only

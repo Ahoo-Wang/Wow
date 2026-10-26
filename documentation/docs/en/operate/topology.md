@@ -55,9 +55,9 @@ Each node advertises the address other nodes reach its internal port at:
 
 - `wow.node.id` names the node among the service's members; a new one is generated at each start unless set.
 - `wow.internal.host` is the interface the internal port binds. Bind it to the node's private address.
-- `wow.node.address` is the `host:port` other nodes use, when it differs from the bound address, as behind NAT or in a container.
+- `wow.node.address` is the `host:port` other nodes use. By default it is the bound address, else this host's address, with the internal port; set it only when the peers reach the node at another address, as behind NAT, on a host with several interfaces, or in a StatefulSet whose pods have stable DNS names.
 
-On Kubernetes, the eShop's ordering manifests derive all three from the pod:
+On Kubernetes, the eShop's ordering manifests take the node id and the bound address from the pod, and advertise that address, the pod's IP:
 
 <!-- sample: deploy/eshop-ordering/deployment.yaml#node -->
 
@@ -67,10 +67,6 @@ env:
     valueFrom:
       fieldRef:
         fieldPath: metadata.name
-  - name: POD_NAMESPACE
-    valueFrom:
-      fieldRef:
-        fieldPath: metadata.namespace
   - name: POD_IP
     valueFrom:
       fieldRef:
@@ -82,14 +78,13 @@ env:
   # The node id is the pod's name: a replaced pod is a new member.
   - name: WOW_NODE_ID
     value: $(POD_NAME)
-  # D173: the internal port binds the pod's private address only, and the node advertises its headless name.
+  # D173: the internal port binds the pod's private address only, and the node advertises that address,
+  # $(POD_IP):9093 (decision D319): a Deployment's pods have no DNS name of their own.
   - name: WOW_INTERNAL_HOST
     value: $(POD_IP)
-  - name: WOW_NODE_ADDRESS
-    value: $(POD_NAME).eshop-ordering-cluster.$(POD_NAMESPACE).svc.cluster.local:9093
 ```
 
-The address is the pod's name under a headless service that also publishes pods that are not ready, so a node that is starting or draining still receives its peers' forwards and signals. The [eShop ordering manifests](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering) are a complete template for one service.
+A Deployment's pods have no DNS name of their own (a headless service publishes `<pod>.<service>` only for pods with `spec.hostname`), so the node advertises its IP (decision D319). The headless service `eshop-ordering-cluster` resolves to every node's address, the nodes that are not ready included, for the services that find its nodes there (D305). The [eShop ordering manifests](https://github.com/Ahoo-Wang/Wow/tree/main/deploy/eshop-ordering) are a complete template for one service.
 
 ## What a service needs
 

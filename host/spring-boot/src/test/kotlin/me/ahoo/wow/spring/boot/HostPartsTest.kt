@@ -46,6 +46,7 @@ import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.context.properties.source.MapConfigurationPropertySource
 import org.springframework.core.env.MapPropertySource
 import org.springframework.core.env.StandardEnvironment
+import java.net.InetAddress
 import java.time.Duration
 import java.time.Instant
 import javax.sql.DataSource
@@ -440,7 +441,9 @@ class WowPropertiesTest {
         val identity = NodeIdentity.of(properties, environment)
         identity.service.assert().isEqualTo("app")
         identity.node.assert().isNotBlank()
-        identity.address.assert().endsWith(":9300")
+        // Without wow.node.address, the node advertises this host's address: a pod's IP (decision D319).
+        identity.address.assert().isEqualTo("${InetAddress.getLocalHost().hostAddress}:9300")
+        identity.bindHost.assert().isEqualTo(InetAddress.getLocalHost().hostAddress)
         NodeIdentity.of(properties, environment).node.assert().isNotEqualTo(identity.node)
         properties.internal.host = "127.0.0.1"
         NodeIdentity.of(properties, environment).address.assert().isEqualTo("127.0.0.1:9300")
