@@ -78,7 +78,7 @@ The modules ([modules design](documentation/designs/06-modules.md) §4):
 
 ```text
 bom/bom/                    :bom            The BOM, artifact `wow-bom`
-bom/dependencies/           :wow-dependencies Centralized dependency versions, which every POM imports
+bom/dependencies/           :wow-dependencies The slim platform every POM imports: Jackson, coroutines, kotlin-logging, SLF4J (D287)
 api/api/                    :api            The programming model: annotations, Decision, DecideScope, StateEvent, Scope
 api/manifest/               :manifest       The Manifest every projection reads; plain data
 api/query-api/              :query-api      Query protocol: filters, aggregation, windows
@@ -112,7 +112,7 @@ example/eshop/e2e/          :eshop-e2e: the eShop's services end to end on Postg
 ## Code Style
 
 - Kotlin and KSP versions come from `gradle/libs.versions.toml`; JVM toolchain 21 is configured in `build.gradle.kts` (decision D29), and `kotlin.code.style=official` in `gradle.properties`.
-- Spring Boot dependency management is centralized through `wow-dependencies`, which imports the BOM version from `gradle/libs.versions.toml`.
+- Published modules import only the slim `wow-dependencies` (D287); the Spring Boot BOM is `wow-spring-boot`'s `api(platform)`. The repository build resolves every classpath through `wowBuildPlatform` in the root build (the Spring Boot BOM, the test and lint platforms), which is never published; a published POM names the versions it resolved (`versionMapping`), and `publicationCheck` rejects any other platform import.
 - All JVM packages live under `me.ahoo.wow`; examples use `me.ahoo.wow.example`.
 - Source files use the Apache 2.0 copyright header already present in the repository.
 - The core is coroutines (`suspend`, `Flow`); a domain's handlers are `suspend`, synchronous, or Reactor through `:reactor`. Do not block a thread in the core's paths: a blocking handler is marked `@Blocking` and runs on a virtual thread, and a blocking driver runs on its backend's own dispatcher.
@@ -138,7 +138,7 @@ The apps (`platform/ops/console`, `example/eshop/web`) use React, TypeScript, Vi
 
 ## Version Management
 
-The project version is the `version` property in `gradle.properties`. Maven and npm release together under that version and one `v<version>` tag. Third-party versions are centralized in `gradle/libs.versions.toml` and the `wow-dependencies` module.
+The project version is the `version` property in `gradle.properties`. Maven and npm release together under that version and one `v<version>` tag. Third-party versions are centralized in `gradle/libs.versions.toml`, the build platform `wowBuildPlatform` and the `wow-dependencies` module.
 
 A release is prepared in one pull request (`chore(release): prepare <version>`):
 

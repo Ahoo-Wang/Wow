@@ -1,6 +1,9 @@
 description = "Wow Spring Boot: auto-configuration by classpath; wiring only"
 
 dependencies {
+    // The Spring Boot BOM goes with the host alone (D287): an application on wow-spring-boot is a Spring Boot
+    // application and takes its versions; a module that depends on another Wow module does not.
+    api(platform(libs.spring.boot.dependencies))
     api(project(":runtime"))
     api(project(":http"))
     // The typed clients of the peers (decision D257) and the sagas' synchronous calls (decision D193).

@@ -262,10 +262,49 @@ fun Project.registerJvmTestLayer(
     }
 }
 
+// The repository build's platform (`allprojects` below): never published.
+val BUILD_PLATFORM = "wowBuildPlatform"
+
+// The classpaths the build resolves for Wow's own code: every resolvable configuration (the source sets' compile and
+// runtime classpaths, KSP's, the fixtures', `wowManifestTools`, detekt's plugins, ...) but the tools' own (the Kotlin
+// compiler's, Dokka's, JaCoCo's, the detekt CLI's, the TestKit's plugin classpath), whose versions are theirs. A
+// publication reads none of them (`apiElements` and `runtimeElements` are consumable, not resolvable).
+val TOOL_CLASSPATH = Regex("""^(kotlin|dokka|jacoco|detekt$|functionalPluginClasspath).*""")
+fun String.isBuildClasspath(): Boolean = !TOOL_CLASSPATH.matches(this)
+
 allprojects {
     repositories {
         mavenLocal()
         mavenCentral()
+    }
+    // The repository build's own platform (R5.C-4, D287): the versions Wow is built, tested and linted with, the
+    // Spring Boot BOM, the test and lint platforms among them. Only the classpaths the build resolves extend from it,
+    // never a configuration a publication reads, so no published POM or module metadata carries it: a published
+    // module imports the slim :wow-dependencies alone, and its POM names the versions this platform resolved.
+    val buildPlatform = configurations.create(BUILD_PLATFORM) {
+        isCanBeConsumed = false
+        isCanBeResolved = false
+    }
+    dependencies {
+        buildPlatform(platform(dependenciesProject))
+        buildPlatform(platform(rootProject.libs.spring.boot.dependencies))
+        buildPlatform(platform(rootProject.libs.jsonschema.generator.bom))
+        buildPlatform(platform(rootProject.libs.cosid.bom))
+        buildPlatform(platform(rootProject.libs.opentelemetry.bom))
+        buildPlatform(platform(rootProject.libs.opentelemetry.instrumentation.bom))
+        buildPlatform(platform(rootProject.libs.springdoc.bom))
+        buildPlatform(platform(rootProject.libs.fluent.assert.bom))
+        buildPlatform(platform(rootProject.libs.testcontainers.bom))
+        buildPlatform(platform(rootProject.libs.junit.bom))
+        constraints {
+            buildPlatform(rootProject.libs.swagger.annotations)
+            buildPlatform(rootProject.libs.swagger.core)
+            buildPlatform(rootProject.libs.mockk)
+            buildPlatform(rootProject.libs.detekt.formatting)
+        }
+    }
+    configurations.matching { it.isCanBeResolved && it.name.isBuildClasspath() }.configureEach {
+        extendsFrom(buildPlatform)
     }
     apply<DetektPlugin>()
     configure<DetektExtension> {
@@ -274,7 +313,6 @@ allprojects {
         autoCorrect = true
     }
     dependencies {
-        detektPlugins(dependenciesProject)
         detektPlugins("io.gitlab.arturbosch.detekt:detekt-formatting")
     }
     tasks.withType<Jar> {
@@ -365,8 +403,9 @@ configure(libraryProjects) {
         }
     }
     dependencies {
+        // The slim platform every published module imports (D287); the build's own versions come from
+        // `wowBuildPlatform` above.
         api(platform(dependenciesProject))
-        testImplementation(platform(rootProject.libs.junit.bom))
         implementation("org.slf4j:slf4j-api")
         testImplementation("io.micrometer:micrometer-core")
         testImplementation("ch.qos.logback:logback-classic")
@@ -503,6 +542,15 @@ configure(publishProjects) {
                 // The plugin marker's coordinates are the plugin id's; every other publication is the module's artifact.
                 if (name in setOf("mavenBom", "mavenLibrary", "pluginMaven")) {
                     artifactId = project.artifactName()
+                }
+                // A library's POM and module metadata name the versions the build resolved (D287): the build's
+                // platform is not published, and the slim :wow-dependencies does not manage every library.
+                if (name in setOf("mavenLibrary", "pluginMaven")) {
+                    versionMapping {
+                        allVariants {
+                            fromResolutionResult()
+                        }
+                    }
                 }
                 pom {
                     name.set(rootProject.name)
@@ -642,6 +690,11 @@ tasks.register("publicationCheck") {
     val platforms = publicationProjects.filter { it in bomProjects }.map { it.artifactName() }.toSortedSet()
     val bomArtifactId = bomProject.artifactName()
     val bomConstrained = bomConstrainedProjects.map { it.artifactName() }.toSortedSet()
+    // D287: a published module imports the slim :wow-dependencies, and the host the Spring Boot BOM too; no other
+    // platform (the build's test and lint platforms above all) reaches a POM.
+    val dependenciesArtifactId = dependenciesProject.artifactName()
+    val hostArtifactId = project(":spring-boot").artifactName()
+    val springBootBom = "org.springframework.boot:spring-boot-dependencies"
     val deployRepository = deployCheckRepository.get().asFile
     val rootDirectory = rootDir
     val offline = gradle.startParameter.isOffline
@@ -768,6 +821,22 @@ tasks.register("publicationCheck") {
                 if (dependencyVersion != releaseVersion) {
                     problems += "$artifactId: depends on $groupId:$dependencyId:$dependencyVersion, not $releaseVersion"
                 }
+            }
+            val imports = managed.filter { it.text("scope") == "import" }
+                .map { "${it.text("groupId")}:${it.text("artifactId")}" }
+                .filterNot { it == "$groupId:$dependenciesArtifactId" }
+                .toSortedSet()
+            val allowedImports = when (artifactId) {
+                hostArtifactId -> setOf(springBootBom)
+                dependenciesArtifactId -> setOf("org.jetbrains.kotlinx:kotlinx-coroutines-bom")
+                else -> emptySet()
+            }
+            if (!allowedImports.containsAll(imports)) {
+                problems += "$artifactId: imports the platforms ${imports - allowedImports}, beyond $allowedImports"
+            }
+            pom.dependencies().filter { it.text("version").isNullOrEmpty() }.forEach { dependency ->
+                problems += "$artifactId: depends on ${dependency.text("groupId")}:${dependency.text("artifactId")} " +
+                    "without a version"
             }
             if (artifactId == bomArtifactId) {
                 val constrained = managed.mapNotNull { it.text("artifactId") }.toSortedSet()

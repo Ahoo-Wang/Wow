@@ -5,6 +5,10 @@ dependencies {
     api(project(":spi"))
     api(project(":query"))
     api(libs.clickhouse.client.v2)
+    constraints {
+        // Guava reaches the runtime through com.clickhouse:client-v2 (33.4.6); this lifts it, for the applications too.
+        implementation(libs.guava)
+    }
     implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     testImplementation(project(":query-tck"))
