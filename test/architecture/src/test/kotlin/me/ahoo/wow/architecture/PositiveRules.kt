@@ -99,11 +99,12 @@ object PositiveRules {
     /**
      * The packages only 9.x has (07 §4): each package of 9.x's `wow-*` modules that no Wow 10 package is, or
      * contains, taken at its shortest. Listed from `v10-9x-baseline` (`a67ece66`, the last commit with both lines,
-     * decision D262); 9.x itself lives on `v9`.
+     * decision D262); 9.x itself lives on `v9`. A package Wow 10 reuses with a meaning of its own is not listed: its
+     * 9.x types are, in [NINE_X_TYPES].
      */
     val NINE_X_PACKAGES: List<String> = listOf(
         "annotation", "api.abac", "api.command", "api.event", "api.exception", "api.messaging", "api.modeling",
-        "api.naming", "api.query.descriptor", "api.query.mask", "api.query.schema", "api.query.spec",
+        "api.query.descriptor", "api.query.mask", "api.query.schema", "api.query.spec",
         "api.serialization", "apiclient", "batch", "benchmark.fixture", "benchmark.infrastructure",
         "benchmark.workload", "bi", "cache", "command", "compiler.aggregate", "compiler.metadata", "compiler.query",
         "configuration", "cosec.abac", "cosec.appender", "cosec.identity", "cosec.propagation",
@@ -121,6 +122,16 @@ object PositiveRules {
     ).map { "$WOW.$it" }
 
     /**
+     * The 9.x types of the packages Wow 10 reuses with a meaning of its own, which [NINE_X_PACKAGES] so cannot list:
+     * `api.naming`, Wow 10's naming of model types (`TypeNames`), was 9.x's naming capabilities. Listed from
+     * `v10-9x-baseline` (`a67ece66`).
+     */
+    val NINE_X_TYPES: List<String> = listOf(
+        "Named", "NamedBoundedContext", "QualifiedNamed", "Materialized", "CompletedCapable", "DescriptionCapable",
+        "EnabledCapable", "SummaryCapable",
+    ).map { "$WOW.api.naming.$it" }
+
+    /**
      * The sources that name 9.x packages on purpose, to refuse 9.x leftovers in an application's build: the compiler's
      * check that a model uses no 9.x framework type, and the Gradle plugin's refusal of 9.x's KSP processors.
      */
@@ -133,7 +144,7 @@ object PositiveRules {
     val NINE_X_NAMES = DependencyRule(
         name = "no module but wow-migrate-data names a 9.x type",
         modules = (MODULES - MIGRATE_DATA).map { it.dir },
-        forbidden = NINE_X_PACKAGES,
+        forbidden = NINE_X_PACKAGES + NINE_X_TYPES,
     )
 
     /** The violations of [NINE_X_NAMES] outside [NINE_X_DETECTORS]. */

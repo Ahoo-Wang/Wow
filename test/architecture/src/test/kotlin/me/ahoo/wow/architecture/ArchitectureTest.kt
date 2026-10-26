@@ -315,6 +315,8 @@ class ArchitectureTest {
 
             import me.ahoo.wow.api.messaging.Message
             import tools.jackson.databind.JsonNode
+            import me.ahoo.wow.api.naming.TypeNames
+            import me.ahoo.wow.api.naming.NamedBoundedContext
             """.trimIndent(),
         )
         root.writeSource(
@@ -335,6 +337,7 @@ class ArchitectureTest {
             "$api/annotation/Old.kt:4: me.ahoo.wow.api.messaging.function.FunctionKind",
             "$api/subscribe/Bad.kt:3: me.ahoo.wow.api.messaging.Message",
             "$api/subscribe/Bad.kt:4: tools.jackson.databind.JsonNode",
+            "$api/subscribe/Bad.kt:6: me.ahoo.wow.api.naming.NamedBoundedContext",
         )
     }
 
