@@ -60,6 +60,6 @@ class DerivedTagsSpecTest {
             aggregateSpec(shipmentModel) {
                 whenCommand(Ship("CN")) { expectTags(mapOf("country" to listOf("US"))) }
             }
-        }.hasMessage("Expected tags {country=[US]} but got {country=[CN]}.")
+        }.hasMessageEndingWith(": Expected tags {country=[US]} but got {country=[CN]}.")
     }
 }

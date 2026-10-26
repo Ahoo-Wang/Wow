@@ -237,7 +237,7 @@ class AggregateSpec<S : Any> private constructor(
             val last = fired.lastOrNull() ?: throw AssertionError(
                 "No command the aggregate scheduled was due by $now: expectNothingDue checks that none is.",
             )
-            verify(last, expect)
+            verify(last, "advanceTime($duration)", "command-$sequence", expect)
         }
     }
 
@@ -388,9 +388,10 @@ class AggregateSpec<S : Any> private constructor(
         operator: Operator? = null,
         expect: Expectations<S>.() -> Unit,
     ) = step("whenCommand(${command.javaClass.simpleName})") {
+        val commandId = "command-${++sequence}"
         val result = send(
             Command(
-                "command-${++sequence}",
+                commandId,
                 requestId,
                 ref,
                 command,
@@ -400,7 +401,7 @@ class AggregateSpec<S : Any> private constructor(
                 operator = operator,
             ),
         )
-        verify(result, expect)
+        verify(result, "whenCommand(${command.javaClass.simpleName})", commandId, expect)
     }
 
     /**
@@ -421,11 +422,25 @@ class AggregateSpec<S : Any> private constructor(
 
     private fun send(command: Command<*>): Result<CommandOutcome> = runBlocking { execute(command) }
 
-    private fun verify(result: Result<CommandOutcome>, expect: Expectations<S>.() -> Unit) {
-        val forker: (String, AggregateSpec<S>.() -> Unit) -> Unit = { name, block -> fork(name, null, block) }
+    /**
+     * Checks [result] of the command [commandId], sent by the step [step], with [expect]: a failing check names the
+     * step, the command and the fork it is in (finding R5.A-23), in a single run as in a tree of tests.
+     */
+    private fun verify(
+        result: Result<CommandOutcome>,
+        step: String,
+        commandId: String,
+        expect: Expectations<S>.() -> Unit,
+    ) {
+        val forker: (String, AggregateModel<S>?, AggregateSpec<S>.() -> Unit) -> Unit =
+            { name, model, block -> fork(name, null, model ?: this.model, block) }
         val expectations = Expectations(model, codec, result, currentVersion(), ::currentState, ::currentTags, forker)
-        expectations.expect()
-        expectations.verify()
+        try {
+            expectations.expect()
+            expectations.verify()
+        } catch (failure: AssertionError) {
+            throw located(failure, "$step ($commandId)")
+        }
     }
 
     /** Runs [action], one step of the specification: a test of its own in a [tree], which reports its failure. */
@@ -460,7 +475,20 @@ class AggregateSpec<S : Any> private constructor(
      * }
      * ```
      */
-    fun fork(name: String = "", from: String? = null, block: AggregateSpec<S>.() -> Unit) {
+    fun fork(name: String = "", from: String? = null, block: AggregateSpec<S>.() -> Unit) =
+        fork(name, from, model, block)
+
+    /**
+     * Runs [block] on a copy of the aggregate as [fork] does, with [model] deciding from there on (finding R5.A-21):
+     * the same aggregate built with other services, as a domain module's generated factory builds it
+     * (`orderModel(name, OutOfStockInventory)`), so that one branch of a scenario sees a service answer otherwise.
+     * The copy keeps the log, which [model] reads as its own, so [model] is of the same aggregate type; the services
+     * the commands before the fork called are not called again.
+     */
+    fun fork(name: String = "", from: String? = null, model: AggregateModel<S>, block: AggregateSpec<S>.() -> Unit) {
+        require(model.type == this.model.type) {
+            "A fork's model decides ${this.model.type}, the aggregate of the specification, not ${model.type}."
+        }
         val origin = if (from == null) {
             snapshot()
         } else {
@@ -470,6 +498,14 @@ class AggregateSpec<S : Any> private constructor(
         val path = forkName?.let { "$it > $label" } ?: label
         val fork = { branch: TestTree? -> AggregateSpec(model, ref, start, origin, branch).also { it.forkName = path } }
         runFork(tree, label, path, fork, block)
+    }
+
+    /** [failure] of the step [where], naming it and the fork it is in; a fork's own failure as it is. */
+    private fun located(failure: AssertionError, where: String): AssertionError {
+        if (failure is ForkAssertionError) return failure
+        val message = "$where: ${failure.message}"
+        val fork = forkName ?: return AssertionError(message, failure)
+        return ForkAssertionError("In fork \"$fork\", $message", failure)
     }
 
     /** A copy of everything the specification holds now, which a fork starts from. */
@@ -545,7 +581,10 @@ class AggregateSpec<S : Any> private constructor(
     )
 }
 
-/** A failure in a [AggregateSpec.fork], which names the fork. */
+/**
+ * A failure in a [AggregateSpec.fork], which names the fork and, for a failing check of a command, the step and the
+ * command: `In fork "paid", whenCommand(ShipOrder) (command-4): Expected …` (finding R5.A-23).
+ */
 class ForkAssertionError(message: String, cause: Throwable) : AssertionError(message, cause)
 
 /** The timers of a specification live in one partition. */

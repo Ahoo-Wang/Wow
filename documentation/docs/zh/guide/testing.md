@@ -83,11 +83,14 @@ class AccountSpec {
 | `expectEvents(vararg events)` | 命令恰好按顺序提交了这些事件。 |
 | `expectEventTypes(vararg types)` | 恰好按顺序提交了这些类的事件。 |
 | `expectEvent<E> { … }` | 恰好提交了一个事件，它是 `E`，且块中的检查在它上面成立。 |
+| `expectEventEnvelope<E> { … }` | 同上，并在事件（`body`）旁给出事件流的信封：`aggregateId`、`tenantId`、`version`、`commandId`、`requestId`、`headers`。 |
+| `expectEventCount(n)` | 恰好提交了 `n` 个事件。 |
 | `expectUnchanged()` | 被接受，且没有改变任何东西。 |
 | `expectRejected(code) { … }` | 以这个错误码被拒绝，无论是返回的还是抛出的（`reject`、`require`、`check`）；块检查这个拒绝。 |
 | `expectError<T> { … }` | 决定函数抛出了 `T`。 |
 | `expectNoError()` | 没有抛出异常，命令也没有被拒绝。 |
 | `expectState { … }` | 块中的检查在命令之后的状态上成立。 |
+| `expectState(expected)` | 命令之后的状态逐字段等于 `expected`；不一致时列出每一处差异。 |
 | `expectResult(key, value)`、`results` | 命令已提交，且决定函数为调用方放入了这个值（`putResult`）；`results` 读取全部结果。 |
 | `expectScope(scope)`、`expectTags(tags)` | 命令之后，聚合处于这个作用域，或者恰好带有这些标签。 |
 | `expectScheduled(key, command, rule)`、`expectScheduleCancelled(key)` | 在 `key` 下定时了这条命令，或取消了这个定时。 |
@@ -151,7 +154,25 @@ fun `a requested payment should end confirmed and refunded, or failed`() = payme
 }
 ```
 
-分叉里的失败会写明是哪个分叉：`In fork "failed": …`。分叉可以嵌套，名字会连在一起。
+fork 内部的失败会说明它所在的 fork，以及它检查的步骤和命令：`In fork "failed", whenCommand(ConfirmPayment) (command-4): …`。fork 可以嵌套，名字会连起来。在 fork 之外，失败的检查同样会说明它的步骤和命令；`expectEvents` 和 `expectState(expected)` 会按路径列出每一处差异（`[0].quantity: expected 3, was 2`），而不是打印两个完整的值。
+
+fork 还可以换一套服务来运行：给它同一个模型、用编译器生成的工厂和另一个领域服务构建，这样一条分支就能看到服务给出不同的回答。聚合的副本由这个模型读取，它必须是同一个聚合类型：
+
+<!-- sample: example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/order/OrderSpec.kt#fork-model -->
+
+```kotlin
+// One branch runs with another payment policy: the same model the compiler generated, built with other
+// services, on a copy of the order so far.
+fork("express", model = orderModel(EshopOrderingContract.NAME, PaymentPolicy(EXPRESS_GRACE))) {
+    whenCommand(ConfirmOrderStock(CAP)) {
+        expectScheduled(
+            Order.PAYMENT_GRACE_PERIOD,
+            CancelOrder(Order.PAYMENT_TIMEOUT),
+            ScheduleRule.after(EXPRESS_GRACE),
+        )
+    }
+}
+```
 
 ### 测试树 {#a-tree-of-tests}
 

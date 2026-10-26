@@ -102,6 +102,27 @@ class OrderSpec {
     }
 
     @Test
+    fun `the grace period should follow the payment policy the order is built with`() = orderSpec {
+        given(submitted, OrderAwaitingValidation, OrderStockItemConfirmed(MUG))
+        // region fork-model
+        // One branch runs with another payment policy: the same model the compiler generated, built with other
+        // services, on a copy of the order so far.
+        fork("express", model = orderModel(EshopOrderingContract.NAME, PaymentPolicy(EXPRESS_GRACE))) {
+            whenCommand(ConfirmOrderStock(CAP)) {
+                expectScheduled(
+                    Order.PAYMENT_GRACE_PERIOD,
+                    CancelOrder(Order.PAYMENT_TIMEOUT),
+                    ScheduleRule.after(EXPRESS_GRACE),
+                )
+            }
+        }
+        // endregion
+        whenCommand(ConfirmOrderStock(CAP)) {
+            expectScheduled(Order.PAYMENT_GRACE_PERIOD, CancelOrder(Order.PAYMENT_TIMEOUT), ScheduleRule.after(GRACE))
+        }
+    }
+
+    @Test
     fun `a confirmation for a cancelled order should change nothing`() = orderSpec {
         given(submitted, OrderAwaitingValidation, OrderCancelled("cap cannot be reserved"))
         whenCommand(ConfirmOrderStock(MUG)) {
@@ -215,6 +236,7 @@ class OrderSpec {
         const val CAP = "cap"
         const val PAYMENT = "payment-1"
         val GRACE = 30.minutes
+        val EXPRESS_GRACE = 5.minutes
         val MUG_PRICE = BigDecimal("8.50")
         val CAP_PRICE = BigDecimal("12.00")
         val items = listOf(OrderItem(MUG, MUG_PRICE, 2), OrderItem(CAP, CAP_PRICE, 1))
