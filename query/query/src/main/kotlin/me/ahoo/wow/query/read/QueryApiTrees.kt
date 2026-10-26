@@ -16,9 +16,9 @@
 package me.ahoo.wow.query.read
 
 import kotlinx.coroutines.flow.Flow
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.ModelQueries
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.RowQueries
@@ -35,7 +35,8 @@ fun ModelQueries<*>.trees(): RowQueries<ObjectNode> = dynamic(ObjectNode::class.
 
 /** The rows of the dataset [name] as stored; see [Queries.datasets]. */
 @ExperimentalWowApi
-fun Queries.datasetTrees(name: AggregateType): RowQueries<ObjectNode> = datasets(name, ObjectNode::class.java)
+fun Queries.datasetTrees(name: DatasetName): RowQueries<ObjectNode> = datasets(name, ObjectNode::class.java)
 
 /** The groups of [query] as computed; see [RowQueries.aggregate]. */
+@ExperimentalWowApi
 fun RowQueries<*>.groupTrees(query: AggregationQuery): Flow<ObjectNode> = aggregate(query, ObjectNode::class.java)

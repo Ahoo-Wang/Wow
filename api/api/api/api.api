@@ -762,6 +762,20 @@ public final class me/ahoo/wow/api/read/CommittedEvent$Companion {
 	public final fun of (Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/read/CommittedEvent;
 }
 
+public final class me/ahoo/wow/api/read/DatasetName {
+	public static final field Companion Lme/ahoo/wow/api/read/DatasetName$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getContext ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public fun hashCode ()I
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/read/DatasetName;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/read/DatasetName$Companion {
+	public final fun of (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/read/DatasetName;
+}
+
 public abstract interface class me/ahoo/wow/api/read/EventQueries : me/ahoo/wow/api/read/ModelQueries {
 }
 
@@ -818,7 +832,7 @@ public final class me/ahoo/wow/api/read/Positioned$Companion {
 }
 
 public abstract interface class me/ahoo/wow/api/read/Queries {
-	public abstract fun datasets (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/Class;)Lme/ahoo/wow/api/read/RowQueries;
+	public abstract fun datasets (Lme/ahoo/wow/api/read/DatasetName;Ljava/lang/Class;)Lme/ahoo/wow/api/read/RowQueries;
 	public abstract fun events (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/api/read/EventQueries;
 	public abstract fun snapshots (Ljava/lang/Class;)Lme/ahoo/wow/api/read/SnapshotQueries;
 	public abstract fun snapshots (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/api/read/SnapshotQueries;

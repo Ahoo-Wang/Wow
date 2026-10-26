@@ -35,7 +35,7 @@ Plain manifests for the ops service (`platform/ops/ops-server`): every service's
 
    Every service whose ledger the console shows publishes its entries to `wow.ops.commands` (`wow.ops.publish.enabled` on that service); an operator's action goes to that service's own command topic, `wow.<context>.commands`, which it owns. On a cluster for trying it out, set `WOW_KAFKA_TOPICS_DDL=auto` instead.
 
-4. Put the CoSec gateway in front: it verifies each request's access token, and the service parses the token it forwards and holds no secret (decision D296). Label the gateway's pods `app.kubernetes.io/component: cosec-gateway`, or change the selector in `networkpolicy.yaml` to match them.
+4. Put the CoSec gateway in front: it verifies each request's access token, and the service parses the token it forwards and holds no secret (decision D296). Label the gateway's pods `app.kubernetes.io/component: gateway`, or change the selector in `networkpolicy.yaml` to match them.
 
 ## Apply and sign in
 

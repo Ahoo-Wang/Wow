@@ -28,6 +28,7 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.read.AggregateState
+import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventStream
 import me.ahoo.wow.api.read.ModelQueries
 import me.ahoo.wow.api.read.Positioned
@@ -80,7 +81,7 @@ open class JavaQueries internal constructor(private val delegate: Queries) {
 
     /** The rows of the dataset [name] as [rowType] ([Queries.datasets]). */
     @ExperimentalWowApi
-    fun <R : Any> datasets(name: AggregateType, rowType: Class<R>): JavaRowQueries<R> =
+    fun <R : Any> datasets(name: DatasetName, rowType: Class<R>): JavaRowQueries<R> =
         JavaRowQueries(delegate.datasets(name, rowType))
 }
 

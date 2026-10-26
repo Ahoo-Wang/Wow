@@ -61,7 +61,7 @@ Datasets are served when a dataset backend is wired; in 10.0, ClickHouse's: `wow
 | `GET /wow/dataset/<context>/<dataset>/query` | Its capability descriptor |
 | `GET /wow/dataset` | The datasets the caller sees |
 
-The body is a query of the [Query Language](../reference/query-language): a buyer's sales by status, say, is an `aggregate` grouped by `status` with a sum of `totalAmount`. Each caller reads only the rows of its own tenant, owner and space. In Kotlin, `QueryApi`'s `datasets(name, rowType)` runs the same queries.
+The body is a query of the [Query Language](../reference/query-language): a buyer's sales by status, say, is an `aggregate` grouped by `status` with a sum of `totalAmount`. Each caller reads only the rows of its own tenant, owner and space. In Kotlin, `QueryApi`'s `datasets(DatasetName.of(context, dataset), rowType)` runs the same queries; like the aggregation it serves, it is experimental (`@OptIn(ExperimentalWowApi::class)`).
 
 `wow.query.dataset.max-concurrent` (8) bounds how many dataset queries a node runs at once, under a bulkhead of their own, so analytics never take the warehouse the sink is writing to; a query beyond it waits briefly, then answers `429 wow.query.busy`. A dataset that is served but cannot be queried now answers `409 wow.query.dataset-unavailable`, and an unknown one `404 wow.query.dataset-not-found`.
 

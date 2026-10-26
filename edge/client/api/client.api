@@ -191,7 +191,7 @@ public class me/ahoo/wow/client/java/JavaModelQueries : me/ahoo/wow/client/java/
 }
 
 public class me/ahoo/wow/client/java/JavaQueries {
-	public final fun datasets (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/Class;)Lme/ahoo/wow/client/java/JavaRowQueries;
+	public final fun datasets (Lme/ahoo/wow/api/read/DatasetName;Ljava/lang/Class;)Lme/ahoo/wow/client/java/JavaRowQueries;
 	public final fun events (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/client/java/JavaModelQueries;
 	public final fun snapshots (Ljava/lang/Class;)Lme/ahoo/wow/client/java/JavaSnapshotQueries;
 	public final fun snapshots (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/client/java/JavaSnapshotQueries;

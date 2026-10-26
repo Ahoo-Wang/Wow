@@ -41,8 +41,9 @@ metadata:
   labels:
     app.kubernetes.io/name: eshop-ordering
 data:
-  # The postgres profile wires the DataSource; the kafka profile the transport and the command intake.
-  SPRING_PROFILES_ACTIVE: postgres,kafka
+  # The postgres profile wires the DataSource; the kafka profile the transport and the command intake; the cosec
+  # profile takes the callers from the CoSec gateway in front of the service (decisions D296, D301).
+  SPRING_PROFILES_ACTIVE: postgres,kafka,cosec
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/eshop_ordering
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
   # The topics the service owns are created by the operator; the node only validates them (decision D168). The kafka

@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.api.query
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /**
  * A bounded count of the matches of [filter]; the result is a [CountResult].
  */
@@ -34,7 +36,7 @@ interface ICountQuery : FilterCapable<ICountQuery> {
  * val query = CountQuery(EqualFilter(QueryField("state.status"), value), limit = 1000)
  * ```
  */
-data class CountQuery @JvmOverloads constructor(
+class CountQuery @InternalWowApi constructor(
     override val filter: FilterExpression,
     override val limit: Int? = null,
 ) : ICountQuery {
@@ -44,5 +46,21 @@ data class CountQuery @JvmOverloads constructor(
         }
     }
 
-    override fun withFilter(newFilter: FilterExpression): ICountQuery = copy(filter = newFilter)
+    override fun withFilter(newFilter: FilterExpression): ICountQuery = CountQuery(newFilter, limit)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is CountQuery && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "CountQuery(filter=$filter, limit=$limit)"
+
+    private fun valueFields(): List<Any?> = listOf(filter, limit)
+
+    companion object {
+        /** A [CountQuery] of the given values. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(filter: FilterExpression, limit: Int? = null): CountQuery = CountQuery(filter, limit)
+    }
 }

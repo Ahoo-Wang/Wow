@@ -277,7 +277,7 @@ internal class QueryHandler(
 
     private fun ListQuery.withListDefault(budget: QueryBudget): ListQuery {
         val default = budget.listDefault()
-        return if (limit != 0 || default == null) this else copy(limit = default)
+        return if (limit != 0 || default == null) this else ListQuery(filter, projection, sort, default)
     }
 
     private suspend fun json(value: Any, rebuilding: Boolean = false): ServerResponse =
