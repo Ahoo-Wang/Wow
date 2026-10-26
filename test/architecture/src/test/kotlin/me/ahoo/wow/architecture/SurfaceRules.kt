@@ -38,6 +38,10 @@ object SurfaceRules {
      * context's are, whose fields their Manifest's compatibility check governs, not the ABI.
      */
     private val PLATFORM_MESSAGES = listOf(
+        "me/ahoo/wow/ops/api/parked/EntryAggregate",
+        "me/ahoo/wow/ops/api/parked/EntryRetrySpec",
+        "me/ahoo/wow/ops/api/parked/ParkedEntry",
+        "me/ahoo/wow/ops/api/parked/ParkedResolution",
         "me/ahoo/wow/ops/api/parked/ActionRefused",
         "me/ahoo/wow/ops/api/parked/ApplyRetrySpec",
         "me/ahoo/wow/ops/api/parked/ApplyRetrySpecRequested",
