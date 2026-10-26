@@ -21,8 +21,12 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.postgres.subscription.PostgresCheckpointStore
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.Test
+import java.sql.Connection
 import java.sql.SQLException
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 
 class PostgresTimeoutsTest {
     @Test
@@ -82,8 +86,93 @@ class PostgresTimeoutsTest {
         first.isWrapperFor(com.zaxxer.hikari.HikariDataSource::class.java).assert().isTrue()
     }
 
+    @Test
+    fun `a statement its client gave up on should be cancelled by the server, keeping the connection`() {
+        onePooled { pool ->
+            val timed = PostgresTimeouts.timed(pool, 3.seconds)
+            timed.connection.use { connection ->
+                val started = TimeSource.Monotonic.markNow()
+                val failure = assertThrownBy<SQLException> {
+                    connection.createStatement().use { it.execute("SELECT pg_sleep(10)") }
+                }.actual()
+                // The query timeout (2 s) cancels the statement on the server before the socket times out (3 s).
+                failure.sqlState.assert().isEqualTo(QUERY_CANCELED)
+                started.elapsedNow().assert().isLessThan(3.seconds)
+                connection.createStatement().use { it.execute("SELECT 1") }
+            }
+        }
+    }
+
+    @Test
+    fun `a Wow transaction's bounds should end with it, leaving the pooled connection at the server's defaults`() {
+        onePooled { pool ->
+            val defaults = pool.connection.use { settings(it) }
+            PostgresTimeouts.timed(pool, 3.seconds).connection.use { connection ->
+                inTransaction(connection) {
+                    settings(connection).assert().isEqualTo(listOf("2s", "2s", "6s"))
+                }
+            }
+            // The pool's one connection, borrowed by the application itself: nothing of Wow's stayed on it.
+            pool.connection.use { settings(it) }.assert().isEqualTo(defaults)
+        }
+    }
+
+    @Test
+    fun `a transaction left idle, as a crashed node leaves it, should be ended by the server`() {
+        onePooled { pool ->
+            val timed = PostgresTimeouts.timed(pool, 2.seconds)
+            val pid = AtomicInteger()
+            assertThrownBy<SQLException> {
+                timed.connection.use { connection ->
+                    inTransaction(connection) {
+                        pid.set(pid(connection))
+                        // Idle past twice the network timeout (4 s): the server ends the session.
+                        Thread.sleep(5_000)
+                        connection.createStatement().use { it.execute("SELECT 1") }
+                    }
+                }
+            }
+            PostgresFixture.dataSource.connection.use { other ->
+                other.prepareStatement("SELECT count(*) FROM pg_stat_activity WHERE pid = ?").use { query ->
+                    query.setInt(1, pid.get())
+                    query.executeQuery().use { rows ->
+                        rows.next()
+                        rows.getInt(1).assert().isZero()
+                    }
+                }
+            }
+        }
+    }
+
+    /** Runs [block] on a pool of one connection, so every borrow is the same physical connection. */
+    private fun onePooled(block: (HikariDataSource) -> Unit) {
+        val container = WowContainers.postgres
+        HikariDataSource(
+            HikariConfig().apply {
+                jdbcUrl = container.jdbcUrl
+                username = container.username
+                password = container.password
+                maximumPoolSize = 1
+            },
+        ).use(block)
+    }
+
+    private fun settings(connection: Connection): List<String> = listOf(
+        "statement_timeout",
+        "lock_timeout",
+        "idle_in_transaction_session_timeout",
+    ).map { name -> connection.createStatement().use { it.executeQuery("SHOW $name").use { rows -> rows.next(); rows.getString(1) } } }
+
+    private fun pid(connection: Connection): Int = connection.createStatement().use { statement ->
+        statement.executeQuery("SELECT pg_backend_pid()").use { rows ->
+            rows.next()
+            rows.getInt(1)
+        }
+    }
+
     private companion object {
         val SHORT = 300.milliseconds
         const val TIGHT_MS = 1_000
+        const val QUERY_CANCELED = "57014"
     }
 }
