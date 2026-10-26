@@ -23,6 +23,7 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.postgres.EnsuredTables
 import me.ahoo.wow.postgres.PostgresFormat
+import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.Ddl
@@ -77,7 +78,7 @@ class PostgresTimerStore(
     fun createSchema() {
         dataSource.autoCommitted { connection ->
             PostgresFormat.schema(connection, ddl, listOf(PostgresTimerTables.REGISTRY to PostgresTimerTables.FORMAT)) {
-                connection.createStatement().use { statement -> tables.ddl().forEach { statement.execute(it) } }
+                PostgresSchema.execute(connection, tables.ddl())
             }
         }
         registered = null
@@ -95,7 +96,7 @@ class PostgresTimerStore(
      */
     private fun ensure(connection: Connection, table: AggregateTimerTable): AggregateTimerTable = table.also {
         PostgresFormat.schema(connection, ddl, listOf(table.base to PostgresTimerTables.FORMAT)) {
-            connection.createStatement().use { statement -> table.ddl().forEach { statement.execute(it) } }
+            PostgresSchema.execute(connection, table.ddl())
             connection.prepareStatement(tables.register).use { register ->
                 register.setString(1, ownerContext)
                 register.setString(2, table.aggregate)
