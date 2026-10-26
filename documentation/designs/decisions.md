@@ -15,8 +15,7 @@
 
 | # | 问题 | 推荐 | 状态 | 最晚 | 文档 |
 |---|---|---|---|---|---|
-| T3 | 9.x 遗留的公开路由 `GET /wow/id/global`（任何已认证调用方都能取全局 ID，雪花 ID 暴露机器号与时间）保留还是删除（R5.C-15） | 删除，或保留并写进 OpenAPI 说明用途 | 待定 | rc | [R5](2026-10-26-r5-ga-architecture-review-design.md) |
-| T4 | `wow.http.client-facts` 默认 `true`（D267 ⑯）把客户端 IP 与 UA 写进不可删除的日志；GA 后再改默认值属于行为变更，请用户再确认（R5.C-17） | 用户再确认 | 待定 | rc | [R5](2026-10-26-r5-ga-architecture-review-design.md) |
+| T4 | `wow.http.client-facts` 默认 `true`（D267 ⑯）把客户端 IP 与 UA 写进不可删除的日志；GA 后再改默认值属于行为变更（R5.C-17） | 默认改为 `false`；用户 2026-10-26：并入 Wow 10 安全性的统一讨论 | 待定 | rc | [R5](2026-10-26-r5-ga-architecture-review-design.md) |
 
 ## 2. 待验证的假设
 
@@ -325,3 +324,4 @@
 | D289 | **观测名采用 OpenTelemetry 语义约定的形式**（R5 Q8）：指标 `wow.<域>.<名词>`，不与错误码同名，标签命名统一，由测试守住；与 M-7 的 9.x 对照表一起交付；`:opentelemetry` 改名 `:observability`（R5.C-9） | 2026-10-26，用户按推荐 | [R5](2026-10-26-r5-ga-architecture-review-design.md) |
 | D290 | **编号清理分两步**（R5 Q9）：用户可见的文字（异常与拒绝消息、错误码描述、配置元数据、生成代码）GA 前清零，并由架构规则禁止主代码字符串字面量里出现决定与审查编号；注释按模块改写成理由，不阻塞 rc（R5.C-7、R3.2-2） | 2026-10-26，用户按推荐 | [R5](2026-10-26-r5-ga-architecture-review-design.md) |
 | D291 | **存储与 SPI 的改动在 RC 前做，格式号保持为 1**（R5 Q10）：传输段改为运行时的不透明字节（R5.B-3）、成员关系按服务记（R5.B-4）、`EventLog` 与 `SnapshotStore` 的能力拆分（R5.B-9） | 2026-10-26，用户按推荐 | [R5](2026-10-26-r5-ga-architecture-review-design.md) |
+| D292 | **删除 9.x 遗留的公开路由 `GET /wow/id/global`**（R5.C-15，原待决 T3）：任何已认证调用方都能取全局 ID，没有 Wow 10 的使用者；不提供替代路由或别名（D1）。`GlobalIdGenerator` 仍是 `:spi` 的消息级 ID 抽象（D171） | 2026-10-26，用户按推荐 | [R5](2026-10-26-r5-ga-architecture-review-design.md)、[09](09-capability-parity.md) |
