@@ -20,6 +20,9 @@
 # every night main moved; it can also be dispatched by hand.
 name: GA end-to-end
 on:
+  # SCRATCH ONLY (ci-repro/ga-e2e-*): never merged.
+  push:
+    branches: ['ci-repro/ga-e2e-*']
   workflow_dispatch:
     inputs:
       backend:
