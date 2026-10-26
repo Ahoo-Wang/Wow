@@ -228,6 +228,8 @@ class GaE2eTest {
                 "${direct.take(3)} and recorded $directly",
         )
         val recorded = lastHeaders("ivy")
+        // ... and a request through the gateway's node port, the runner's, for comparison.
+        report.note("remote_ip, the runner through the node port: alice's basket recorded ${lastHeaders("alice")}")
         recorded["remote_ip"]?.asString().assert().describedAs(recorded.toString()).isEqualTo(outsider)
         "the commit recorded remote_ip $outsider, the client pod's, not the claimed 203.0.113.9"
     }
