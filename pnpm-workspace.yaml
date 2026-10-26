@@ -37,7 +37,6 @@ catalog:
   '@ahoo-wang/fetcher-eventstream': '^6.0.1'
   '@ahoo-wang/fetcher-openapi': '^6.0.1'
   '@ahoo-wang/fetcher-react': '^6.0.1'
-  antd: ^6.6.7
   axe-core: ^4.14.0
   babel-plugin-react-compiler: 1.0.0
   '@base-ui/react': ^1.8.0

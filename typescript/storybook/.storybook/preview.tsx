@@ -194,8 +194,6 @@ const preview: Preview = {
     a11y: {
       context: {
         exclude: [
-          ['.ant-select-dropdown'],
-          ['.ant-table-measure-row'],
           // Base UI puts a pair of focus sentinels around every open popup —
           // `aria-hidden` and `tabindex="0"`, which is exactly the shape
           // `aria-hidden-focus` is written to catch. They are how the popup

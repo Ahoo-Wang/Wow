@@ -35,7 +35,6 @@
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "globals": "catalog:",
-    "prettier": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
     "vitest": "catalog:"

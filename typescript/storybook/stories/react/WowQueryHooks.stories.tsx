@@ -10,7 +10,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import { AntdProvider } from '../shared/AntdProvider.js';
 import { ScenarioFrame } from '../shared/ScenarioFrame.js';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { Fetcher } from '@ahoo-wang/fetcher';
@@ -126,11 +125,9 @@ const meta = {
   parameters: { docs: { story: { inline: false, height: '480px' } } },
   decorators: [
     (Story, context) => (
-      <AntdProvider>
-        <ScenarioFrame title={context.name} {...scene}>
-          <Story />
-        </ScenarioFrame>
-      </AntdProvider>
+      <ScenarioFrame title={context.name} {...scene}>
+        <Story />
+      </ScenarioFrame>
     ),
   ],
   title: 'React Hooks/Wow Queries',
