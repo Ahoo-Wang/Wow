@@ -643,10 +643,10 @@ class Kernel(
         val type = if (target.type == model.type) {
             model.commandType(body.javaClass).name
         } else {
-            requireNotNull(commandTypes.nameOf(target.type, body.javaClass)) {
+            commandTypes.nameOf(target.type, body.javaClass) ?: throw ScopeMisuse.Argument(
                 "${model.type} schedules ${body.javaClass.name} for $target, a command no Manifest of the service or " +
-                    "its peers names."
-            }
+                    "its peers names.",
+            )
         }
         return type to codec.commandText(body)
     }
@@ -1125,18 +1125,25 @@ class Kernel(
         return if (domain.isEmpty()) Decision.NoOp else Decision.Events(domain)
     }
 
+    /** The decision of [decider], a thrown refusal answered as a returned one ([ThrownRejections], D311, D314). */
     private suspend fun <S : Any> decide(
         decider: DecideFunction<S>,
         scope: DecideScope,
         state: S,
         body: Any,
-    ): Decision = when (decider) {
-        is DecideFunction.Sync -> decider.decide(scope, state, body)
-        is DecideFunction.Suspending -> if (decider.blocking) {
-            withContext(blocking) { decider.decide(scope, state, body) }
-        } else {
-            decider.decide(scope, state, body)
+    ): Decision = try {
+        when (decider) {
+            is DecideFunction.Sync -> decider.decide(scope, state, body)
+            is DecideFunction.Suspending -> if (decider.blocking) {
+                withContext(blocking) { decider.decide(scope, state, body) }
+            } else {
+                decider.decide(scope, state, body)
+            }
         }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (@Suppress("TooGenericExceptionCaught") thrown: Exception) {
+        ThrownRejections.rejectionOf(thrown)?.let(Decision::Rejected) ?: throw thrown
     }
 
     private suspend fun <S : Any> after(
@@ -1184,7 +1191,7 @@ class Kernel(
         private var scheduled: LinkedHashMap<String, Any>? = null
 
         override fun schedule(key: String, rule: ScheduleRule, command: Any, target: AggregateRef) {
-            require(key.isNotBlank()) { "A schedule needs a key." }
+            if (key.isBlank()) throw ScopeMisuse.Argument("A schedule needs a key.")
             val (type, body) = encode(target, command)
             changes().apply {
                 remove(key)
@@ -1193,7 +1200,7 @@ class Kernel(
         }
 
         override fun cancelSchedule(key: String) {
-            require(key.isNotBlank()) { "A schedule needs a key." }
+            if (key.isBlank()) throw ScopeMisuse.Argument("A schedule needs a key.")
             changes().apply {
                 // A key set earlier in this decision and not kept before: the set is undone, nothing to cancel.
                 val undone = remove(key) is ScheduleSet && key !in loaded.schedules
@@ -1236,7 +1243,7 @@ class Kernel(
             reserve(namespace, key, ReservationTenancy.TENANT)
 
         override suspend fun reserve(namespace: String, key: String, tenancy: ReservationTenancy): Boolean {
-            val store = checkNotNull(reservations) { "Reserving a key needs a kernel with a ReservationStore." }
+            val store = reservations ?: throw ScopeMisuse.State("Reserving a key needs a kernel with a ReservationStore.")
             val reservation = ReservationKey(namespace, key, tenancy == ReservationTenancy.SYSTEM)
             if (reserved?.contains(reservation) == true) {
                 return true
@@ -1259,7 +1266,7 @@ class Kernel(
         override fun release(namespace: String, key: String) = release(namespace, key, ReservationTenancy.TENANT)
 
         override fun release(namespace: String, key: String, tenancy: ReservationTenancy) {
-            val store = checkNotNull(reservations) { "Releasing a key needs a kernel with a ReservationStore." }
+            val store = reservations ?: throw ScopeMisuse.State("Releasing a key needs a kernel with a ReservationStore.")
             val reservation = ReservationKey(namespace, key, tenancy == ReservationTenancy.SYSTEM)
             if (released?.contains(reservation) == true) {
                 return

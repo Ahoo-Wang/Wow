@@ -84,7 +84,7 @@ Time stands still at `start`, 2026-01-01T00:00:00Z by default, until `advanceTim
 | `expectEventTypes(vararg types)` | It committed events of exactly these classes, in order. |
 | `expectEvent<E> { … }` | It committed exactly one event, an `E`, and the block's checks hold on it. |
 | `expectUnchanged()` | It was accepted and changed nothing. |
-| `expectRejected(code) { … }` | It was rejected with this error code; the block checks the rejection. |
+| `expectRejected(code) { … }` | It was rejected with this error code, returned or thrown (`reject`, `require`, `check`); the block checks the rejection. |
 | `expectError<T> { … }` | Its decide function threw a `T`. |
 | `expectNoError()` | Nothing was thrown, and the command was not rejected. |
 | `expectState { … }` | The block's checks hold on the state after the command. |

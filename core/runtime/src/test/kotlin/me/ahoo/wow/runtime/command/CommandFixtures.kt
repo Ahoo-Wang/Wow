@@ -120,7 +120,12 @@ class StockItems {
         initial { ItemState() }
         decideSuspending<Reserve>(Creation.ALLOWED) { _, body ->
             gates[command.ref.id]?.await()
-            check(!(broken && body.quantity == BREAKING)) { "The stock store is unreachable." }
+            // A failure of the handling, not a refusal (a check would refuse the command, decision D311).
+            if (broken && body.quantity == BREAKING) {
+                throw UnsupportedOperationException(
+                    "The stock store is unreachable."
+                )
+            }
             decided += command.id
             if (body.quantity > AVAILABLE) {
                 Decision.reject(INSUFFICIENT, "Only $AVAILABLE left.")

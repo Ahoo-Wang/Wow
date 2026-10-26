@@ -38,6 +38,7 @@ object FrameworkCodes {
     const val COMMAND_BUSY: String = "wow.command.busy"
     const val COMMAND_UNKNOWN: String = "wow.command.unknown"
     const val COMMAND_FAILED: String = "wow.command.failed"
+    const val COMMAND_REFUSED: String = "wow.command.refused"
     const val NODE_CLOSING: String = "wow.node.closing"
     const val NODE_STANDBY: String = "wow.node.standby"
     const val STORAGE_UNAVAILABLE: String = "wow.storage.unavailable"
@@ -78,6 +79,7 @@ object FrameworkCodes {
         COMMAND_BUSY,
         COMMAND_UNKNOWN,
         COMMAND_FAILED,
+        COMMAND_REFUSED,
         NODE_CLOSING,
         NODE_STANDBY,
         STORAGE_UNAVAILABLE,

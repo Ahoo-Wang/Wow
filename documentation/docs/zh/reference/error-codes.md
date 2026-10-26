@@ -29,6 +29,7 @@ description: "框架的错误码与 HTTP 状态，以及查询请求被拒时的
 | `wow.command.busy` | 429 | Command busy | The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; retry later. |
 | `wow.command.unknown` | 503 | Command outcome unknown | Whether the command committed is unknown; retrying with the same request id is safe. |
 | `wow.command.failed` | 500 | Command failed | The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike. |
+| `wow.command.refused` | 409 | Command refused | The aggregate's current state refuses the command (a check of its decide function); the message says why. |
 | `wow.node.closing` | 503 | Node closing | The node is shutting down; retry on another node. |
 | `wow.node.standby` | 503 | Node on standby | The node is on standby until the cut-over: it serves reads only. |
 | `wow.storage.unavailable` | 503 | Storage unavailable | A store could not be reached or did not answer in time; retry later, a command with the same request id. |
