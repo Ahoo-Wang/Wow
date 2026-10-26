@@ -13,12 +13,14 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition
 
-/** How the kernel finished a command. */
+/** How the kernel finished a command; the runtime reads it, an application never does. */
+@InternalWowApi
 sealed interface CommandOutcome {
     /**
      * The command's events are committed as [stream] at [position]; [state] is the state after them. [results] are
@@ -26,7 +28,8 @@ sealed interface CommandOutcome {
      * kept, so a duplicate of the command is answered without them. [deleted], [tags] and [schedules] are the metadata the kernel
      * keeps beside the state after the stream ([CachedState]); its scope is the [stream]'s.
      */
-    data class Committed(
+    @InternalWowApi
+    class Committed(
         val stream: EventStreamRecord,
         val position: LogPosition,
         val state: Any,
@@ -36,22 +39,84 @@ sealed interface CommandOutcome {
         val schedules: Map<String, ScheduleRule> = emptyMap(),
         /** What the aggregate's first stream recorded, when the kernel knows it (work package B.O-4). */
         val first: FirstCommit? = null,
-    ) : CommandOutcome
+    ) : CommandOutcome {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Committed && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String =
+            "Committed(stream=$stream, position=$position, state=$state, results=$results, deleted=$deleted, " +
+                "tags=$tags, schedules=$schedules, first=$first)"
+
+        private fun valueFields(): List<Any?> =
+            listOf(stream, position, state, results, deleted, tags, schedules, first)
+    }
 
     /** The same command was already committed as [stream]: it was not decided again. */
-    data class AlreadyCommitted(val stream: EventStreamRecord) : CommandOutcome
+    @InternalWowApi
+    class AlreadyCommitted(val stream: EventStreamRecord) : CommandOutcome {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is AlreadyCommitted && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "AlreadyCommitted(stream=$stream)"
+
+        private fun valueFields(): List<Any?> = listOf(stream)
+    }
 
     /** The command was accepted and changed nothing; the aggregate stays at [version]. */
-    data class Unchanged(val version: Int) : CommandOutcome
+    @InternalWowApi
+    class Unchanged(val version: Int) : CommandOutcome {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Unchanged && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Unchanged(version=$version)"
+
+        private fun valueFields(): List<Any?> = listOf(version)
+    }
 
     /** The command was refused; nothing was written. */
-    data class Rejected(val rejection: Rejection) : CommandOutcome
+    @InternalWowApi
+    class Rejected(val rejection: Rejection) : CommandOutcome {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Rejected && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Rejected(rejection=$rejection)"
+
+        private fun valueFields(): List<Any?> = listOf(rejection)
+    }
 
     /** Concurrent writers kept winning the version slot for [attempts] attempts. */
-    data class Contended(val attempts: Int) : CommandOutcome
+    @InternalWowApi
+    class Contended(val attempts: Int) : CommandOutcome {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Contended && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Contended(attempts=$attempts)"
+
+        private fun valueFields(): List<Any?> = listOf(attempts)
+    }
 
     /** Whether the command committed could not be established. */
-    data class Unknown(val cause: Throwable) : CommandOutcome
+    @InternalWowApi
+    class Unknown(val cause: Throwable) : CommandOutcome {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Unknown && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Unknown(cause=$cause)"
+
+        private fun valueFields(): List<Any?> = listOf(cause)
+    }
 }
 
 /** The rejection codes the kernel itself produces. */

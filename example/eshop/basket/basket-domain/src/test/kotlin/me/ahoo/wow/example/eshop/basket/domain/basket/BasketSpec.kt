@@ -27,7 +27,6 @@ import me.ahoo.wow.example.eshop.basket.api.basket.CheckoutBasket
 import me.ahoo.wow.example.eshop.basket.api.basket.ClearBasket
 import me.ahoo.wow.example.eshop.basket.api.basket.EshopBasketContract
 import me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem
-import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.test.AggregateSpec
 import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
@@ -107,7 +106,7 @@ class BasketSpec {
         val items = listOf(BasketItem(MUG, MUG_PRICE, 2), BasketItem(CAP, CAP_PRICE, 1))
         whenCommand(CheckoutBasket) {
             expectEvents(BasketCheckedOut("$BUYER-1", items))
-            (outcome as CommandOutcome.Committed).results.assert().containsEntry(Basket.ORDER_ID_RESULT, "$BUYER-1")
+            expectResult(Basket.ORDER_ID_RESULT, "$BUYER-1")
             expectState {
                 this.items.assert().isEmpty()
                 checkouts.assert().isEqualTo(1)

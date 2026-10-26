@@ -38,8 +38,10 @@ import kotlin.reflect.KClass
  * [expectScheduled] and [expectScheduleCancelled].
  *
  * A rejection is a value, not an exception, so a scenario that does not look at it would pass whatever the command
- * did (finding A4-14): a rejected command fails the scenario unless [expectRejected] checks it, or the scenario reads
- * the [outcome] itself.
+ * did (finding A4-14): a rejected command fails the scenario unless [expectRejected] checks it.
+ *
+ * What the decide function put for the caller ([me.ahoo.wow.api.decide.DecideScope.putResult]) is checked by
+ * [expectResult], or read from [results].
  */
 @Suppress("TooManyFunctions") // The DSL's expectations.
 class Expectations<S : Any> @InternalWowApi constructor(
@@ -54,12 +56,31 @@ class Expectations<S : Any> @InternalWowApi constructor(
     private var errorChecked = false
     private var outcomeChecked = false
 
-    /** The command's outcome (`Committed`, `Unchanged`, `Rejected`, …); a failure when its decide function threw. */
+    /**
+     * The kernel's outcome of the command (`Committed`, `Unchanged`, `Rejected`, …), for Wow's own tests; a failure
+     * when its decide function threw. A domain's scenario checks it through the `expect*` functions and [results].
+     */
+    @InternalWowApi
     val outcome: CommandOutcome
         get() = decidedOutcome.also { outcomeChecked = true }
 
     private val decidedOutcome: CommandOutcome
         get() = result.getOrElse { throw AssertionError("Expected an outcome but the command threw $it.", it) }
+
+    /**
+     * What the command's decide function put for the caller ([me.ahoo.wow.api.decide.DecideScope.putResult]), by key;
+     * a failure when the command committed nothing, since only a committed command answers with results.
+     */
+    val results: Map<String, Any>
+        get() = committed().results
+
+    /** The command committed and its decide function put [value] for the caller under [key]. */
+    fun expectResult(key: String, value: Any) {
+        val results = results
+        if (results[key] != value) {
+            throw AssertionError("Expected the result $key = $value but got ${results[key]} (results: $results).")
+        }
+    }
 
     /** What the command's decide function threw; null when it returned a decision. */
     val error: Throwable? get() = result.exceptionOrNull()
@@ -239,7 +260,7 @@ class Expectations<S : Any> @InternalWowApi constructor(
 
     /**
      * Fails with what the decide function threw when no [expectError] checked it, and on a rejection that neither
-     * [expectRejected] checked nor the scenario read from [outcome].
+     * [expectRejected] checked nor Wow's own test read from [outcome].
      */
     internal fun verify() {
         val thrown = error

@@ -88,6 +88,7 @@ Time stands still at `start`, 2026-01-01T00:00:00Z by default, until `advanceTim
 | `expectError<T> { … }` | Its decide function threw a `T`. |
 | `expectNoError()` | Nothing was thrown, and the command was not rejected. |
 | `expectState { … }` | The block's checks hold on the state after the command. |
+| `expectResult(key, value)`, `results` | It committed, and its decide function put this value for the caller (`putResult`); `results` reads them all. |
 | `expectScope(scope)`, `expectTags(tags)` | The aggregate is in this scope, or has exactly these tags, after the command. |
 | `expectScheduled(key, command, rule)`, `expectScheduleCancelled(key)` | It scheduled this command under `key`, or cancelled the schedule. |
 

@@ -84,17 +84,27 @@ sealed interface AfterFunction<S : Any> {
 }
 
 /**
+ * Turns an event's payload of one revision into the next revision's (decision D22), as an `@Upgrade` function does:
+ * the tree of a record as stored, numbers exact, in and out.
+ */
+fun interface EventUpgrade {
+    fun upgrade(payload: JsonNode): JsonNode
+}
+
+/**
  * How an event type is named in the log and which schema revision the model reads it as.
  *
- * Records of an older revision are read through [upgrades]: the function at key `n` turns a revision `n` payload into
- * a revision `n + 1` one, so every revision from 1 up to [revision] needs one (decision D22). [aliases] are names the
- * type had before, so renaming it keeps its history readable.
+ * Records of an older revision are read through its upgrades: the one from revision `n` turns a revision `n` payload
+ * into a revision `n + 1` one, so every revision from 1 up to [revision] needs one (decision D22). [aliases] are names
+ * the type had before, so renaming it keeps its history readable. Two event types are equal when they name, revise and
+ * read the same way and upgrade from the same revisions; the upgrades themselves are functions, compared by none.
  */
-data class EventType(
+class EventType @InternalWowApi constructor(
     val name: String,
     val revision: Int,
     val type: Class<*>,
-    val upgrades: Map<Int, (JsonNode) -> JsonNode> = emptyMap(),
+    @property:InternalWowApi
+    val upgrades: Map<Int, EventUpgrade> = emptyMap(),
     val aliases: Set<String> = emptySet(),
 ) {
     init {
@@ -103,6 +113,16 @@ data class EventType(
         require(missing.isEmpty()) { "$name revision $revision lacks upgrades from revisions $missing." }
         require(upgrades.keys.all { it in 1 until revision }) { "$name has an upgrade beyond its revision." }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is EventType && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "EventType(name=$name, revision=$revision, type=${type.name}, upgrades=${upgrades.keys}, aliases=$aliases)"
+
+    private fun valueFields(): List<Any?> = listOf(name, revision, type, upgrades.keys, aliases)
 }
 
 /**
