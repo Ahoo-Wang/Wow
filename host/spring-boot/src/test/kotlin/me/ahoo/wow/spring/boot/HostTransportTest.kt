@@ -23,8 +23,11 @@ import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
+import org.springframework.boot.test.system.CapturedOutput
+import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.mock.env.MockEnvironment
 
 /**
@@ -70,10 +73,12 @@ class HostTransportTest {
                 ContextManifest("other", published = listOf(PublishedManifest("x", "wow.other.x.state"))),
             ),
         )
-        val needs = TransportNeeds.of(manifest, setOf(BANK), setOf(AggregateType(BANK, "account")), true, true)
-        needs.assert().hasSize(4)
-        needs.first().assert().contains("$BANK.account").doesNotContain("other.x")
-        TransportNeeds.of(manifest, setOf("none"), emptySet(), ledger = false, intake = false).assert().isEmpty()
+        val needs = TransportNeeds.of(setOf(AggregateType(BANK, "account")), ledger = true, intake = true)
+        needs.assert().hasSize(3)
+        needs.first().assert().contains("routes $BANK.account through Kafka")
+        // Decision D322: a published stream is no need; the node without a transport names those it does not publish.
+        TransportNeeds.of(emptySet(), ledger = false, intake = false).assert().isEmpty()
+        TransportNeeds.unpublished(manifest, setOf(BANK)).assert().containsExactly("$BANK.account")
         TransportNeeds.check(emptyList(), "auto")
         assertThrows<WowConfigurationException> { TransportNeeds.check(needs, "auto") }.also {
             it.key.assert().isEqualTo("wow.transport")
@@ -82,20 +87,39 @@ class HostTransportTest {
     }
 
     @Test
-    fun `a node outside development whose Manifest publishes a stream should refuse to start without a transport`() {
+    @ExtendWith(OutputCaptureExtension::class)
+    fun `a node outside development whose aggregates are published should start without a transport, saying so`(
+        output: CapturedOutput,
+    ) {
+        // Decision D322: every aggregate is published by default (D156), which needs no transport.
+        startHost(
+            *DEPLOYED,
+            sources = listOf(
+                HostTestApp::class.java,
+                AnonymousCallers::class.java,
+                HostClickHouseSinkTest.PublishingManifest::class.java,
+            ),
+        ).use { host ->
+            host.context.getBeanProvider(SourceTopics::class.java).ifAvailable.assert().isNull()
+        }
+        output.out.assert().contains(
+            "runs without a topic transport, so it does not publish its streams [$BANK.account",
+            "configure Kafka (wow.kafka.bootstrap-servers)",
+        )
+    }
+
+    @Test
+    fun `a node outside development that routes commands through Kafka should refuse to start without a transport`() {
         val failure = assertThrows<Exception> {
             startHost(
                 *DEPLOYED,
-                sources = listOf(
-                    HostTestApp::class.java,
-                    AnonymousCallers::class.java,
-                    HostClickHouseSinkTest.PublishingManifest::class.java,
-                ),
+                "wow.aggregates.[$BANK.account].routing" to "kafka",
+                sources = listOf(HostTestApp::class.java, AnonymousCallers::class.java),
             ).close()
         }
         generateSequence<Throwable>(failure) { it.cause }.filterIsInstance<WowConfigurationException>().first().also {
             it.key.assert().isEqualTo("wow.transport")
-            it.message.assert().contains("publishes the streams")
+            it.message.assert().contains("routes $BANK.account through Kafka")
         }
     }
 

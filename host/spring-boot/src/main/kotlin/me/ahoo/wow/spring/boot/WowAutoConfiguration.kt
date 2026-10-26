@@ -500,15 +500,15 @@ class WowAutoConfiguration {
         checkShutdownTimeout(environment)
         val sourceTopics = topics.ifAvailable
         if (sourceTopics == null) {
+            val contexts = models.models.mapTo(HashSet()) { it.type.context }
             TransportNeeds.check(
                 TransportNeeds.of(
-                    manifest,
-                    models.models.mapTo(HashSet()) { it.type.context },
                     kafkaRouted(properties, models.models),
                     properties.ops.publish.enabled,
                     kafka.ifAvailable?.commandIntake?.enabled == true,
                 ),
                 properties.transport,
+                TransportNeeds.unpublished(manifest, contexts),
             )
         }
         val routing = routing(properties, backends.local)
