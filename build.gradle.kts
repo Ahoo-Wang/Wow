@@ -174,22 +174,24 @@ val integrationShardProjects = providers.gradleProperty("wow.integration.project
 
 // ci.yml runs `:check` in shards (its `check` matrix): `-Pwow.check.shard=<name>` narrows `:check`, and the test data
 // `coverageReport` reads, to the shard's modules. The named shards list theirs and `rest` takes every other module, so
-// each module is checked in exactly one shard. They are balanced by task time (a local `--profile` of `:check`,
-// 2026-10-22, about 37 task-minutes): the host's tests about 5 minutes, the Gradle plugin's 4, the compiler's 3¼; the
-// host and the applications on it share one compilation, as do the tools. A module whose code other modules' tests
-// exercise sits with them (CoSec, the HTTP edge and the client with the host, the analytics catalog's domain with its
-// server): Codecov merges the shards' reports line by line but not branch by branch, so a branch covered half in one
-// shard and half in another would count as partly covered.
+// each module is checked in exactly one shard. They are balanced by the CI jobs' task timings (ubuntu-latest, the
+// uncached pull request runs of 2026-10-25 and 26): `:spring-boot:test` runs about 5¼ minutes on its own and the
+// compiler's and the Gradle plugin's tests about 6 side by side, so the host and the tools each take a shard with
+// little else, and the applications on the host (their tests ½ to 1¼ minutes each) take one of their own; with them
+// beside it, the host's tests waited 3 to 4½ minutes for its test classes behind theirs. A module whose code other
+// modules' tests exercise sits with them (CoSec, the HTTP edge and the client with the host, the analytics catalog's
+// domain with its server, the query engine with the services that query): Codecov merges the shards' reports line by
+// line but not branch by branch, so a branch covered half in one shard and half in another would count as partly
+// covered.
 val checkShards = mapOf(
-    "host" to includedProjects(
-        ":spring-boot", ":cosec", ":http", ":client", ":ops-server", ":view-store-server", ":analytics-catalog-server",
-        ":analytics-catalog-domain", ":eshop-catalog-server", ":eshop-basket-server", ":eshop-ordering-server",
-        ":eshop-inventory-server", ":eshop-payment-server", ":quickstart", ":java-smoke",
+    "host" to includedProjects(":spring-boot", ":cosec", ":http", ":client"),
+    "apps" to includedProjects(
+        ":ops-server", ":view-store-server", ":analytics-catalog-server", ":analytics-catalog-domain",
+        ":eshop-catalog-server", ":eshop-basket-server", ":eshop-ordering-server", ":eshop-inventory-server",
+        ":eshop-payment-server", ":quickstart", ":java-smoke", ":query", ":query-api", ":query-tck",
+        ":elasticsearch", ":migrate-data",
     ),
-    "tooling" to includedProjects(
-        ":compiler", ":gradle-plugin", ":manifest-tools", ":models", ":query", ":query-api", ":query-tck",
-        ":migrate-data", ":elasticsearch",
-    ),
+    "tooling" to includedProjects(":compiler", ":gradle-plugin", ":manifest-tools", ":models"),
 )
 checkShards.forEach { (name, projects) ->
     val strays = projects - moduleProjects
