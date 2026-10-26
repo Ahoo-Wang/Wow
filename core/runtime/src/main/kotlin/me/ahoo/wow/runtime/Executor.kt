@@ -32,6 +32,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.wait.WaitContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -59,7 +60,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * nobody waits for, and a retry with the same request id runs it afresh.
  *
  * [close] stops taking commands at once (a late command fails instead of waiting on a lane nobody will run) and
- * returns when the commands already taken have finished.
+ * returns when the commands already taken have finished, or its timeout passed.
  *
  * When [views] are given, each commit's state view is recorded in them before the lane moves on to the aggregate's
  * next batch, while nothing can change the state (design 01 §2): the context's state consumers (the snapshot
@@ -232,13 +233,23 @@ class Executor(
         }
     }
 
-    /** Refuses new commands from now on, and returns once the commands in flight have finished. */
-    suspend fun close() {
+    /**
+     * Refuses new commands from now on, and returns once the commands in flight have finished: true, or false when
+     * [timeout] passed first, logging the lanes still busy.
+     */
+    suspend fun close(timeout: Duration): Boolean {
         closed = true
         if (inFlight.get() == 0) {
             drained.complete(Unit)
         }
-        drained.await()
+        if (withTimeoutOrNull(timeout) { drained.await() } != null) {
+            return true
+        }
+        logger.warn {
+            "The executor closes with ${inFlight.get()} commands still in flight, in ${lanes.size} lanes: " +
+                lanes.keys.take(LOGGED_LANES).joinToString() + if (lanes.size > LOGGED_LANES) ", ..." else ""
+        }
+        return false
     }
 
     private fun enter(ref: AggregateRef): Lane {
@@ -307,10 +318,14 @@ class Executor(
         var abandoned = false
     }
 
-    private companion object {
-        const val DEFAULT_LANE_CAPACITY = 1_024
-        const val DEFAULT_MAX_BATCH = 32
-        val logger = KotlinLogging.logger {}
+    companion object {
+        /** The commands one aggregate may have waiting by default (`wow.executor.lane-capacity`). */
+        const val DEFAULT_LANE_CAPACITY: Int = 1_024
+
+        /** A batch's commands decide on the same state one after another: 32 take well under a millisecond. */
+        const val DEFAULT_MAX_BATCH: Int = 32
+        private const val LOGGED_LANES = 10
+        private val logger = KotlinLogging.logger {}
     }
 }
 

@@ -34,6 +34,7 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
+import kotlin.time.Duration.Companion.seconds
 
 /** How a command ended, as the caller sees it. */
 enum class Result { COMMITTED, REJECTED, CONTENDED, BUSY, FAILED }
@@ -97,7 +98,7 @@ class Node(
     }
 
     suspend fun close() {
-        executor.close()
+        executor.close(10.seconds)
         dataSource.close()
     }
 }

@@ -540,7 +540,7 @@ class CommandGatewayTest {
 
     @Test
     fun `a closed executor answers node closing, as a result`(): Unit = runBlocking {
-        executor.close()
+        executor.close(10.seconds)
         val result = gateway().execute(request())
         result.status.assert().isEqualTo(CommandResult.Status.FAILED)
         result.error!!.code.assert().isEqualTo(FrameworkCodes.NODE_CLOSING)

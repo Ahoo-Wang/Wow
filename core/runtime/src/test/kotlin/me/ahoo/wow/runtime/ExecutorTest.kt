@@ -44,6 +44,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
 
 class ExecutorTest {
     data class Add(val amount: Int)
@@ -210,7 +211,7 @@ class ExecutorTest {
         val gate = CompletableDeferred<Unit>().also { gates["close"] = it }
         val held = async(Dispatchers.Default) { executor.execute(model, command("y", Hold("close"))) }
         while (executor.activeLanes == 0) yield()
-        val closing = async(Dispatchers.Default) { executor.close() }
+        val closing = async(Dispatchers.Default) { executor.close(TIMEOUT_MS.milliseconds) }
         while (runCatching { executor.execute(model, command("z", Add(1))) }.isSuccess) yield()
         runCatching { executor.execute(model, command("z", Add(1))) }.exceptionOrNull()
             .assert().isInstanceOf(ExecutorClosedException::class.java)
@@ -218,6 +219,18 @@ class ExecutorTest {
         gate.complete(Unit)
         held.await().assert().isInstanceOf(CommandOutcome.Committed::class.java)
         withTimeout(TIMEOUT_MS) { closing.await() }
+    }
+
+    @Test
+    fun `close gives up waiting once its timeout passes`(): Unit = runBlocking {
+        val gate = CompletableDeferred<Unit>().also { gates["stuck"] = it }
+        val held = async(Dispatchers.Default) { executor.execute(model, command("stuck", Hold("stuck"))) }
+        withTimeout(TIMEOUT_MS) { holding.computeIfAbsent("stuck") { CompletableDeferred() }.await() }
+        executor.close(50.milliseconds).assert().isFalse()
+        executor.commandsInFlight.assert().isEqualTo(1)
+        gate.complete(Unit)
+        held.await().assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        executor.close(TIMEOUT_MS.milliseconds).assert().isTrue()
     }
 
     /** Records the size of each appendAll. */
@@ -368,7 +381,7 @@ class ExecutorTest {
                 while (batching.commandsInFlight > 0) yield()
             }
             batching.activeLanes.assert().isEqualTo(0)
-            batching.close()
+            batching.close(TIMEOUT_MS.milliseconds).assert().isTrue()
         }
     }
 

@@ -1311,21 +1311,24 @@ class Kernel(
         }
     }
 
-    private companion object {
-        const val DEFAULT_MAX_ATTEMPTS = 3
+    companion object {
+        /**
+         * The requests kept per cached aggregate by default: at most 384 bytes each (decisions D261, D278). A full ring
+         * of 256 took 3 KB, and on a node that served sustained traffic the rings crowded the states out of the cache
+         * by its bytes.
+         */
+        const val DEFAULT_RECENT_REQUESTS: Int = 32
+        private const val DEFAULT_MAX_ATTEMPTS = 3
 
         /** [this] in epoch milliseconds, the unit of commit times; an instant beyond them is the first or the last. */
-        fun Instant.epochMillis(): Long = try {
+        private fun Instant.epochMillis(): Long = try {
             toEpochMilli()
         } catch (_: ArithmeticException) {
             if (isBefore(Instant.EPOCH)) Long.MIN_VALUE else Long.MAX_VALUE
         }
-        val DEFAULT_RESERVATION_TTL = 30.seconds
-        val DEFAULT_MAX_EARLY_WAIT = 5.seconds
-
-        /** The requests kept per cached aggregate by default (decisions D261, D278): at most 384 bytes each. */
-        const val DEFAULT_RECENT_REQUESTS = 32
-        val logger = KotlinLogging.logger {}
+        private val DEFAULT_RESERVATION_TTL = 30.seconds
+        private val DEFAULT_MAX_EARLY_WAIT = 5.seconds
+        private val logger = KotlinLogging.logger {}
     }
 }
 
