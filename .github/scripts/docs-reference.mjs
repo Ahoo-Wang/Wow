@@ -51,7 +51,7 @@ const WORDS = {
       description:
         "Every key of the host's wow.* configuration, its type, default and meaning.",
       intro: count =>
-        `Every key of the \`wow.*\` configuration a Spring Boot host reads, ${count} in all, generated from the host's configuration metadata ([\`spring-configuration-metadata.json\`](${SOURCE}${METADATA})). Spring Boot binds them relaxed: \`max-concurrent\`, \`maxConcurrent\` and \`MAX_CONCURRENT\` are one key. A \`wow.*\` key that no property of the host or of a module on the class path names refuses the node's start, naming the new key of a renamed one. A key below a map takes the map's key in brackets when it holds a dot: \`wow.aggregates.[shop.cart].tenant\`. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's \`Environment\`, \`@Value\` or a \`Binder\`.`,
+        `Every key of the \`wow.*\` configuration a Spring Boot host reads, ${count} in all, generated from the host's configuration metadata ([\`spring-configuration-metadata.json\`](${SOURCE}${METADATA})). Spring Boot binds them relaxed: \`max-concurrent\`, \`maxConcurrent\` and \`MAX_CONCURRENT\` are one key. A \`wow.*\` key that no property of the host or of a module on the class path names refuses the node's start, naming the new key of a renamed one. So does an environment variable under a Wow group (\`WOW_KAFKA_…\`: the first word of a key), read as Spring maps it; give a variable of your own a name outside these groups. A key below a map takes the map's key in brackets when it holds a dot: \`wow.aggregates.[shop.cart].tenant\`. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's \`Environment\`, \`@Value\` or a \`Binder\`.`,
       head: '| Key | Type | Default | Description |',
     },
     errors: {
@@ -125,7 +125,7 @@ const WORDS = {
       title: '配置项',
       description: '宿主 wow.* 配置的每个键：类型、默认值与含义。',
       intro: count =>
-        `Spring Boot 宿主读取的 \`wow.*\` 配置的全部键，共 ${count} 个，由宿主的配置元数据（[\`spring-configuration-metadata.json\`](${SOURCE}${METADATA})）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：\`max-concurrent\`、\`maxConcurrent\` 与 \`MAX_CONCURRENT\` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 \`wow.*\` 键会使节点拒绝启动；改过名的键会给出新键名。映射之下的键，若映射的键含点，要放进方括号：\`wow.aggregates.[shop.cart].tenant\`。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 \`Environment\`、\`@Value\` 或 \`Binder\` 读取键。`,
+        `Spring Boot 宿主读取的 \`wow.*\` 配置的全部键，共 ${count} 个，由宿主的配置元数据（[\`spring-configuration-metadata.json\`](${SOURCE}${METADATA})）生成；说明取自源码，为英文。Spring Boot 按宽松规则绑定：\`max-concurrent\`、\`maxConcurrent\` 与 \`MAX_CONCURRENT\` 是同一个键。没有任何属性（宿主的或类路径上某个模块的）对应的 \`wow.*\` 键会使节点拒绝启动；改过名的键会给出新键名。Wow 分组下的环境变量（\`WOW_KAFKA_…\`：键的第一个词）按 Spring 的映射读取，同样如此；你自己的变量请起在这些分组之外的名字。映射之下的键，若映射的键含点，要放进方括号：\`wow.aggregates.[shop.cart].tenant\`。契约是这些键，而不是宿主的属性类，后者属于 Wow 内部：应用通过 Spring 的 \`Environment\`、\`@Value\` 或 \`Binder\` 读取键。`,
       head: '| 键 | 类型 | 默认值 | 说明 |',
     },
     errors: {
