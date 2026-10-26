@@ -34,11 +34,11 @@ CALICO_SHA256=a8c828a06a87c629a282ebbc424895b77f3a030251993e41ea400a743675bb02
 
 # image | Gradle distribution directory | Dockerfile (empty: the context's own)
 IMAGES=(
-  "wow-eshop-catalog-server:local|example/eshop/catalog/catalog-server|.github/ga-e2e/services/temporary/Dockerfile"
-  "wow-eshop-basket-server:local|example/eshop/basket/basket-server|.github/ga-e2e/services/temporary/Dockerfile"
+  "wow-eshop-catalog-server:local|example/eshop/catalog/catalog-server|deploy/eshop-catalog/Dockerfile"
+  "wow-eshop-basket-server:local|example/eshop/basket/basket-server|deploy/eshop-basket/Dockerfile"
   "wow-eshop-ordering-server:local|example/eshop/ordering/ordering-server|deploy/eshop-ordering/Dockerfile"
-  "wow-eshop-inventory-server:local|example/eshop/inventory/inventory-server|.github/ga-e2e/services/temporary/Dockerfile"
-  "wow-eshop-payment-server:local|example/eshop/payment/payment-server|.github/ga-e2e/services/temporary/Dockerfile"
+  "wow-eshop-inventory-server:local|example/eshop/inventory/inventory-server|deploy/eshop-inventory/Dockerfile"
+  "wow-eshop-payment-server:local|example/eshop/payment/payment-server|deploy/eshop-payment/Dockerfile"
   "wow-ops-server:local|platform/ops/ops-server|"
   "wow-view-store-server:local|platform/view-store/view-store-server|"
   "wow-analytics-catalog-server:local|platform/analytics/catalog/server|"
@@ -56,15 +56,14 @@ WAVES=(
 log() { echo "[ga-e2e] $*"; }
 
 images() {
-  local entry image context dockerfile app
+  local entry image context dockerfile
   for entry in "${IMAGES[@]}"; do
     IFS='|' read -r image context dockerfile <<<"$entry"
-    app=$(ls "$root/$context/build/install")
-    log "image $image from $context ($app)"
+    log "image $image from $context"
     if [ -z "$dockerfile" ]; then
       docker build -q -t "$image" "$root/$context"
     else
-      docker build -q -f "$root/$dockerfile" --build-arg APP_NAME="$app" -t "$image" "$root/$context"
+      docker build -q -f "$root/$dockerfile" -t "$image" "$root/$context"
     fi
   done
 }

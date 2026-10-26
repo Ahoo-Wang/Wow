@@ -14,17 +14,6 @@ patches:
       - op: replace
         path: /stringData/COSEC_JWT_SECRET
         value: ga-e2e-not-a-secret-only-for-the-kind-cluster-0123456789
-  # deploy/view-store admits the gateway's pods by app.kubernetes.io/component: cosec-gateway, deploy/eshop-ordering by
-  # component: gateway; one gateway's pods cannot carry both, so this overlay admits component: gateway (a gap the PR
-  # reports).
-  - target:
-      kind: NetworkPolicy
-      name: view-store-public
-    patch: |-
-      - op: replace
-        path: /spec/ingress/0/from/0/podSelector/matchLabels
-        value:
-          app.kubernetes.io/component: gateway
   # The arm's keys (postgres.env or mongo.env, the ConfigMap view-store-backend) override the base's; optional, as a
   # platform service has none. The requests are lowered so every node and backend fits one GitHub runner, and the startup
   # gets five minutes on its shared four cores.

@@ -191,7 +191,6 @@ class GaE2eTest {
             body,
             "Content-Type" to "application/json",
             "Authorization" to "Bearer ${Tokens(System.getProperty("ga.secret", SECRET)).of(Who.buyer("ivy"))}",
-            "X-User" to "ivy",
             // A client's own claim, which the gateway overwrites (D296).
             "X-Forwarded-For" to "203.0.113.9",
         )

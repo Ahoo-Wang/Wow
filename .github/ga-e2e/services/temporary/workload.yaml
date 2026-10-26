@@ -1,0 +1,177 @@
+# TEMPORARY (G.1 replaces it with deploy/<service>/): the Deployment, Services and NetworkPolicies of a service that has
+# no deploy/ manifests yet, copied from deploy/eshop-ordering with its names and ports as ${...} placeholders, which
+# ga-e2e.yml fills with envsubst for each such service (services/<service>/workload.env). The settings are in
+# services/<service>/configmap.yaml. Differences from deploy/eshop-ordering:
+# - the probes read READY_PATH and LIVE_PATH (Actuator's readiness and liveness groups, as deploy/eshop-ordering's);
+# - the requests are lowered so every node and the backends fit one GitHub runner (4 cores, 16 GB), and the startup
+#   gets five minutes on its shared cores.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${NAME}
+  labels:
+    app.kubernetes.io/name: ${NAME}
+    app.kubernetes.io/part-of: ${PART_OF}
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ${NAME}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ${NAME}
+        app.kubernetes.io/part-of: ${PART_OF}
+    spec:
+      subdomain: ${NAME}-cluster
+      terminationGracePeriodSeconds: 90
+      containers:
+        - name: ${NAME}
+          image: ${IMAGE}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: ${HTTP_PORT}
+              protocol: TCP
+            - name: internal
+              containerPort: ${INTERNAL_PORT}
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: ${NAME}-config
+            - secretRef:
+                name: ${NAME}-secret
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: SERVER_PORT
+              value: "${HTTP_PORT}"
+            - name: WOW_INTERNAL_PORT
+              value: "${INTERNAL_PORT}"
+            - name: WOW_NODE_ID
+              value: $(POD_NAME)
+            - name: WOW_INTERNAL_HOST
+              value: $(POD_IP)
+            - name: WOW_NODE_ADDRESS
+              value: $(POD_NAME).${NAME}-cluster.$(POD_NAMESPACE).svc.cluster.local:${INTERNAL_PORT}
+          startupProbe:
+            httpGet:
+              path: ${READY_PATH}
+              port: http
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: ${READY_PATH}
+              port: http
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet:
+              path: ${LIVE_PATH}
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "5"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 384Mi
+            limits:
+              memory: 640Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${NAME}
+  labels:
+    app.kubernetes.io/name: ${NAME}
+spec:
+  selector:
+    app.kubernetes.io/name: ${NAME}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${NAME}-cluster
+  labels:
+    app.kubernetes.io/name: ${NAME}
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/name: ${NAME}
+  ports:
+    - name: internal
+      port: ${INTERNAL_PORT}
+      targetPort: internal
+      protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ${NAME}-public
+  labels:
+    app.kubernetes.io/name: ${NAME}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ${NAME}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: gateway
+      ports:
+        - port: http
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ${NAME}-internal
+  labels:
+    app.kubernetes.io/name: ${NAME}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ${NAME}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: ${PART_OF}
+      ports:
+        - port: internal
+          protocol: TCP
