@@ -1,0 +1,75 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 100000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 5439.533333333334,
+  "saturationConcurrency": 1024,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 902.2333333333333,
+      "ok": 27067,
+      "errors": {},
+      "p50Ms": 1.039,
+      "p99Ms": 1.927
+    },
+    {
+      "concurrency": 4,
+      "throughput": 2228.0,
+      "ok": 66840,
+      "errors": {},
+      "p50Ms": 1.719,
+      "p99Ms": 2.735
+    },
+    {
+      "concurrency": 16,
+      "throughput": 3956.0333333333333,
+      "ok": 118681,
+      "errors": {},
+      "p50Ms": 3.871,
+      "p99Ms": 6.879
+    },
+    {
+      "concurrency": 64,
+      "throughput": 5254.433333333333,
+      "ok": 157633,
+      "errors": {},
+      "p50Ms": 11.647,
+      "p99Ms": 39.167
+    },
+    {
+      "concurrency": 256,
+      "throughput": 5372.366666666667,
+      "ok": 161171,
+      "errors": {},
+      "p50Ms": 46.335,
+      "p99Ms": 90.623
+    },
+    {
+      "concurrency": 1024,
+      "throughput": 5439.533333333334,
+      "ok": 163186,
+      "errors": {},
+      "p50Ms": 187.391,
+      "p99Ms": 378.879
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.13\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "primed": "true",
+    "primeSeconds": "20",
+    "settleSeconds": "4",
+    "accounts": "100000",
+    "session": "/tmp/wow-bench-m5pro/vs-axon-pool/1-A-postgres/up"
+  }
+}
