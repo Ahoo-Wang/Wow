@@ -106,6 +106,7 @@ abstract class QueryModelProfile internal constructor(val model: QueryModel) {
     internal open val masksResponses: Boolean
         get() = true
 
+    @InternalWowApi
     companion object {
         /** The record metadata field of [field], common to every model; the identity is the model's own. */
         internal fun metadataField(field: SystemField): QueryField = when (field) {

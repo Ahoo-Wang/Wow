@@ -70,23 +70,6 @@ public final class me/ahoo/wow/kernel/AggregateModelDslKt {
 	public static final fun aggregate (Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/kernel/AggregateModel;
 }
 
-public final class me/ahoo/wow/kernel/BatchOutcome$Again : me/ahoo/wow/kernel/BatchOutcome {
-	public static final field INSTANCE Lme/ahoo/wow/kernel/BatchOutcome$Again;
-	public fun equals (Ljava/lang/Object;)Z
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/kernel/BatchOutcome$Done : me/ahoo/wow/kernel/BatchOutcome {
-	public fun <init> (Lme/ahoo/wow/kernel/CommandOutcome;)V
-	public final fun getOutcome ()Lme/ahoo/wow/kernel/CommandOutcome;
-}
-
-public final class me/ahoo/wow/kernel/BatchOutcome$Failed : me/ahoo/wow/kernel/BatchOutcome {
-	public fun <init> (Ljava/lang/Throwable;)V
-	public final fun getFailure ()Ljava/lang/Throwable;
-}
-
 public abstract interface class me/ahoo/wow/kernel/CommandOutcome {
 }
 

@@ -26,9 +26,6 @@ public final class me/ahoo/wow/runtime/FrameworkCodes {
 	public final fun getALL ()Ljava/util/Set;
 }
 
-public final class me/ahoo/wow/runtime/InFlightLimit$Companion {
-}
-
 public abstract interface class me/ahoo/wow/runtime/admission/Authorization {
 }
 
@@ -422,11 +419,6 @@ public final class me/ahoo/wow/runtime/contract/ContractDirectory$Companion {
 	public static synthetic fun load$default (Lme/ahoo/wow/runtime/contract/ContractDirectory$Companion;Lme/ahoo/wow/manifest/Manifest;Ljava/lang/ClassLoader;Ltools/jackson/databind/json/JsonMapper;Ljava/util/Set;ILjava/lang/Object;)Lme/ahoo/wow/runtime/contract/ContractDirectory;
 }
 
-public final class me/ahoo/wow/runtime/contract/PeerEvents$Companion {
-	public final fun of (Lme/ahoo/wow/runtime/contract/ContractDirectory;Ljava/lang/ClassLoader;)Lme/ahoo/wow/runtime/contract/PeerEvents;
-	public static synthetic fun of$default (Lme/ahoo/wow/runtime/contract/PeerEvents$Companion;Lme/ahoo/wow/runtime/contract/ContractDirectory;Ljava/lang/ClassLoader;ILjava/lang/Object;)Lme/ahoo/wow/runtime/contract/PeerEvents;
-}
-
 public final class me/ahoo/wow/runtime/ledger/LedgerPublisher {
 	public static final field Companion Lme/ahoo/wow/runtime/ledger/LedgerPublisher$Companion;
 	public static final field OPERATOR Lme/ahoo/wow/api/caller/Operator;
@@ -478,9 +470,6 @@ public final class me/ahoo/wow/runtime/log/AppendQueueOptions {
 }
 
 public final class me/ahoo/wow/runtime/log/AppendQueueOptions$Companion {
-}
-
-public final class me/ahoo/wow/runtime/log/HandoffLog$Companion {
 }
 
 public final class me/ahoo/wow/runtime/log/HandoffOptions {

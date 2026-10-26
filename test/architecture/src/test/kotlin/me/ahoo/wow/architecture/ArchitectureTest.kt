@@ -218,6 +218,31 @@ class ArchitectureTest {
     }
 
     @Test
+    fun `a nested class should not outlive its hidden outer class in an ABI dump`() {
+        ArchitectureRules.hiddenOuterViolations(repositoryRoot).assert().isEmpty()
+    }
+
+    @Test
+    fun `hidden outer rule should catch a nested class whose outer class is left out`(@TempDir root: File) {
+        val module = ArchitectureRules.KERNEL
+        File(root, "${module.dir}/api").mkdirs()
+        File(root, "${module.dir}/api/${module.name}.api").writeText(
+            """
+            public final class me/ahoo/wow/kernel/Shown {
+            }
+
+            public final class me/ahoo/wow/kernel/Shown${'$'}Companion {
+            }
+
+            public abstract interface class me/ahoo/wow/kernel/Hidden${'$'}Nested : me/ahoo/wow/kernel/Hidden {
+            }
+            """.trimIndent(),
+        )
+        ArchitectureRules.hiddenOuterViolations(root).assert()
+            .containsExactly("${module.dir}/api/${module.name}.api: me/ahoo/wow/kernel/Hidden${'$'}Nested")
+    }
+
+    @Test
     fun `data class rule should catch a copy or componentN and a stale exception`(@TempDir root: File) {
         val exceptions = ArchitectureRules.DATA_CLASS_EXCEPTIONS.keys.toList()
         ArchitectureRules.PLAIN_CLASS_MODULES.forEach { module ->
