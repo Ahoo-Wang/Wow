@@ -19,6 +19,7 @@ import me.ahoo.wow.example.eshop.e2e.json
 import tools.jackson.databind.JsonNode
 import java.math.BigDecimal
 import java.time.Duration
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -86,9 +87,30 @@ class ShopFlows(val shop: Shop) {
     }
 
     fun ship(order: String) {
-        shop.post("/eshop-ordering/order/$order/ship-order", "{}", Who.EMPLOYEE).committed("ship $order")
+        command("/eshop-ordering/order/$order/ship-order", "{}", Who.EMPLOYEE).committed("ship $order")
         shipped += order
     }
+
+    /**
+     * Sends a command as a client should: with a request id of its own, sent again with the same id when the gateway
+     * could not deliver it (no answer, or a 502, 503 or the 500 it gives for a connection a crashed pod reset), so a
+     * command that did land is not executed twice (Wow deduplicates by request id). Each resend goes to [onLate].
+     */
+    fun command(path: String, body: String, who: Who): Answer {
+        val headers = mapOf(REQUEST_ID to UUID.randomUUID().toString())
+        var answer = shop.post(path, body, who, headers)
+        var attempt = 1
+        while (answer.undelivered() && attempt < RESENDS) {
+            onLate("$path not delivered (${answer.status} ${answer.body.take(BODY)}); sent again, same request id")
+            Thread.sleep(POLL.toMillis())
+            answer = shop.post(path, body, who, headers)
+            attempt++
+        }
+        return answer
+    }
+
+    private fun Answer.undelivered(): Boolean =
+        status == Shop.UNREACHABLE || status in GATEWAY_FAILURES && !body.startsWith("{\"type\":\"urn:wow:")
 
     /**
      * Accepts this answer as the command committed: 200, or the default wait's 504 that reached `committed` (the
@@ -169,6 +191,11 @@ class ShopFlows(val shop: Shop) {
         const val OK = 200
         const val NOT_FOUND = 404
         const val GATEWAY_TIMEOUT = 504
+        const val REQUEST_ID = "Wow-Request-Id"
+        const val RESENDS = 3
+
+        /** What the gateway answers itself when it could not reach the service (not a service's problem+json). */
+        val GATEWAY_FAILURES = setOf(500, 502, 503)
         const val BODY = 600
         const val TRACE_PAGE = 1000
         const val WAIT = "Wow-Wait"

@@ -333,7 +333,7 @@ class GaE2eTest {
         shop.post("/ops/parked/$id/resume", "{}", Who.VIEWER).status.assert().isEqualTo(FORBIDDEN)
         ops.outage(false)
         with(flows) {
-            shop.post(
+            command(
                 "/ops/parked/$id/resume",
                 """{"reason":"The gateway is back."}""",
                 Who.OPERATOR
@@ -376,7 +376,7 @@ class GaE2eTest {
         ops.outage(false)
         // The charge the gateway never made is skipped: the order it was for is cancelled.
         with(flows) {
-            shop.post(
+            command(
                 "/ops/parked/$id/skip",
                 """{"reason":"Its order was cancelled."}""",
                 Who.OPERATOR
