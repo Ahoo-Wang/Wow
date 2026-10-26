@@ -191,6 +191,13 @@ The basket, ordering, inventory and payment services talk over Kafka. The basket
 
 The ordering has a third profile, **`clickhouse`**: the Sink writes its order stream to ClickHouse on `localhost:8123`, and it serves the sales dataset (see [Sales](#sales)).
 
+Every server has two more:
+
+- **`cosec`** is how the services are deployed, behind the CoSec gateway ([Secure a Deployment](https://wow.ahoo.me/operate/security)). The gateway verifies each request's CoSec token and forwards it; the service reads the principal from it in CoSec's inject mode, without a secret, and wow-cosec's resolver makes it the caller. A principal with the role `employee` is an employee (`wow.cosec.tenant-level.roles`), any other a buyer. The headers above name nobody there.
+- **`mongo`** puts the service on a MongoDB replica set (`spring.mongodb.uri`, `localhost:27017` by default), its database `eshop_catalog`, `eshop_basket`, … like the PostgreSQL ones. The host creates the client from the URI (decision D318, with R5 batch 4; until then the profile does not start a node).
+
+Each server's image is built from its Gradle distribution with `deploy/eshop-<context>/Dockerfile`.
+
 With the `kafka` profile, each service creates the topics it owns when they are missing (decision D168): its command topic with exactly as many partitions as its log (`wow.log.partitions`, 64 by default), its receipts topic and its state topics. A service that reads another's topic waits until that service has created it. In production, leave `wow.kafka.topics.ddl` at its default, `validate`, and create the topics beforehand ([Deployment](https://wow.ahoo.me/operate/kafka)):
 
 ```bash
@@ -200,7 +207,7 @@ With the `kafka` profile, each service creates the topics it owns when they are 
 ./gradlew :eshop-payment-server:run --args='--spring.profiles.active=kafka'
 ```
 
-The catalog, basket and ordering servers read the caller from the `X-User` and `X-Role` headers (`CatalogCallers`, `BasketCallers`, `OrderingCallers`). A request without them is the anonymous caller, and the inventory and payment servers serve every request so. For example:
+In development (their internal ports bind the loopback interface, or a profile of `wow.internal.dev-profiles` is active), the catalog, basket and ordering servers read the caller from the `X-User` and `X-Role` headers (`CatalogCallers`, `BasketCallers`, `OrderingCallers`). A request without them is the anonymous caller, and the inventory and payment servers serve every request so. Anywhere else, a server without CoSec does not start, since any client could name its caller. For example:
 
 ```bash
 curl -s localhost:8081/wow/manifest
