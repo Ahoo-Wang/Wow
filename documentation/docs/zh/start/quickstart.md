@@ -9,7 +9,7 @@ outline: deep
 在 Wow 中，你用普通的 Kotlin 编写领域：命令、事件、一个状态，以及一个做出决定的聚合。编译器把它们变成模型和契约，Spring Boot 宿主经 HTTP 提供它们，不需要写控制器或仓储。本页在一个 Gradle 模块中构建一个小的银行服务：一个 `account` 聚合、它的测试，以及一个把数据放在内存中的服务器。
 
 ::: warning 预发布版本
-Wow 10.0.0-alpha.4 是预发布版本。在 10.0.0 之前，它的 API、配置和存储格式仍可能改变。
+Wow 10.0.0-alpha.5 是预发布版本。在 10.0.0 之前，它的 API、配置和存储格式仍可能改变。
 :::
 
 ## 你需要什么 {#what-you-need}
@@ -44,7 +44,7 @@ rootProject.name = "bank"
 plugins {
     kotlin("jvm") version "2.4.21"
     // Applies KSP with wow-compiler of the same version, and assembles the service's Manifest.
-    id("me.ahoo.wow") version "10.0.0-alpha.4"
+    id("me.ahoo.wow") version "10.0.0-alpha.5"
     application
 }
 
@@ -58,7 +58,7 @@ application {
 
 dependencies {
     // The V10 BOM: one version for every Wow module.
-    implementation(platform("me.ahoo.wow:wow-bom:10.0.0-alpha.4"))
+    implementation(platform("me.ahoo.wow:wow-bom:10.0.0-alpha.5"))
     // The kernel the generated models build on.
     implementation("me.ahoo.wow:wow-kernel")
     // The Spring Boot host: auto-configuration, the HTTP routes, the memory backend.
@@ -78,7 +78,7 @@ tasks.test {
 }
 ```
 
-插件连同它的 marker 一起发布到 Maven Central，所以 `pluginManagement` 需要 `mavenCentral()`。预发布版本在那里只有确切的版本号：要写 `10.0.0-alpha.4`，不能写范围。真实的服务会拆成 api、domain 和 server 三个模块（[在已有服务中引入 Wow](./existing-project)）；试用时一个模块就够了。
+插件连同它的 marker 一起发布到 Maven Central，所以 `pluginManagement` 需要 `mavenCentral()`。预发布版本在那里只有确切的版本号：要写 `10.0.0-alpha.5`，不能写范围。真实的服务会拆成 api、domain 和 server 三个模块（[在已有服务中引入 Wow](./existing-project)）；试用时一个模块就够了。
 
 ## 编写命令和事件 {#write-the-commands-and-events}
 
