@@ -123,6 +123,6 @@ internal class PostgresStore(
     override fun openSnapshots(context: String): SnapshotStore =
         PostgresSnapshotStore(timed, context, ddl = ddl).also { schema(it::createSchema) }
 
-    override fun openTimers(context: String): TimerStore =
+    override fun openTimers(context: String, partitions: Int): TimerStore =
         PostgresTimerStore(timed, context, ddl = ddl).also { schema(it::createSchema) }
 }

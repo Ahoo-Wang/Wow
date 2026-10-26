@@ -129,7 +129,7 @@ class PostgresNonAutoCommitTest {
 
     @Nested
     inner class Timers : TimerStoreSpec() {
-        override val context: String = "non-autocommit-timer"
+        override val context: String = PostgresFixture.newContext("non-autocommit-timer")
 
         override fun createStore(): TimerStore = PostgresTimerStore(dataSource, context).also { it.createSchema() }
 

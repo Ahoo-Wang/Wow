@@ -21,21 +21,24 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
+import me.ahoo.wow.mongo.timer.MongoTimerStore
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.timer.Timer
 import org.bson.Document
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 /**
- * The log and the snapshots on a sharded cluster (decision D277), when `wow.mongo.url` names a mongos
+ * The log, the snapshots and the timers on a sharded cluster (decisions D277, D308), when `wow.mongo.url` names a mongos
  * (`test/mongo-cluster/cluster.sh test sharded`); skipped otherwise.
  */
 class MongoShardingTest {
@@ -100,6 +103,37 @@ class MongoShardingTest {
     }
 
     @Test
+    fun `a type's timer collection is sharded by partition, its reads by owner on one shard, its due read on all`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            val store = MongoTimerStore(client, MongoLogFixture.DATABASE, context, PARTITIONS).also { it.createSchema() }
+            val type = AggregateType(context, "order")
+            // An owner in each partition, so the timers are on both shards.
+            val owners = (1..PARTITIONS * 8).map { type.ref("tenant", "o-$it") }
+                .distinctBy { Partitioner.partitionOf(it, PARTITIONS) }
+            owners.size.assert().isEqualTo(PARTITIONS)
+            owners.forEach { store.put(timer(it)).assert().isTrue() }
+            val namespace = "${MongoLogFixture.DATABASE}.${store.collectionName("order")}"
+            keyOf(namespace).assert().isEqualTo(Document("partition", 1))
+            chunksOf(namespace).groupingBy { it.getString("shard") }.eachCount().values.assert()
+                .containsOnly(PARTITIONS / 2)
+            // Decision D308: the due read of every partition takes the timers of both shards, in one aggregation.
+            store.due((0 until PARTITIONS).toSet(), Long.MAX_VALUE, 100).map { it.owner }.assert()
+                .containsExactlyInAnyOrderElementsOf(owners)
+            owners.forEach { store.find(it, "k")?.owner.assert().isEqualTo(it) }
+            // A read by owner names the owner's partition: it targets one shard.
+            val timers = client.getDatabase(MongoLogFixture.DATABASE).getCollection(store.collectionName("order"))
+            val owner = owners.first()
+            val byOwner = Filters.and(
+                Filters.eq("partition", Partitioner.partitionOf(owner, PARTITIONS)),
+                Filters.eq("owner.tenant_id", owner.tenantId),
+                Filters.eq("owner.id", owner.id),
+                Filters.eq("key", "k"),
+            )
+            shardsOf(timers.find(byOwner).explain()).assert().hasSize(1)
+        }
+
+    @Test
     fun `with sharding off a store leaves its collections unsharded`(): Unit = runBlocking {
         val context = MongoLogFixture.newContext()
         MongoEventLog(client, MongoLogFixture.DATABASE, context, PARTITIONS, sharding = MongoSharding.OFF)
@@ -108,6 +142,9 @@ class MongoShardingTest {
             .createCollection("order")
         keyOf("${MongoLogFixture.DATABASE}.${MongoNames.of("wow_log", context, "order")}").assert().isNull()
         keyOf("${MongoLogFixture.DATABASE}.${MongoSnapshotStore.collectionName(context, "order")}").assert().isNull()
+        val timers = MongoTimerStore(client, MongoLogFixture.DATABASE, context, PARTITIONS, sharding = MongoSharding.OFF)
+        timers.put(timer(AggregateType(context, "order").ref("tenant", "o-1"))).assert().isTrue()
+        keyOf("${MongoLogFixture.DATABASE}.${timers.collectionName("order")}").assert().isNull()
     }
 
     private fun keyOf(namespace: String): Document? =
@@ -132,6 +169,19 @@ class MongoShardingTest {
         commitTime = 1L,
         events = listOf(EventRecord("${type.context}.order.Created", 1, "{}")),
         scope = Scope.NONE,
+    )
+
+    private fun timer(owner: AggregateRef) = Timer(
+        id = "$owner#k@1",
+        owner = owner,
+        key = "k",
+        version = 1,
+        partition = Partitioner.partitionOf(owner, PARTITIONS),
+        rule = ScheduleRule.At(5),
+        dueAt = 5,
+        target = owner,
+        commandType = "${owner.type.context}.order.Cancel",
+        body = "{}",
     )
 
     private fun snapshot(ref: AggregateRef, version: Int) = SnapshotRecord(

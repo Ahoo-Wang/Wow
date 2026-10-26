@@ -149,7 +149,7 @@ class MongoFailuresTest {
                 MongoFailureLedger(unreachable, "wow", dispatcher = Dispatchers.IO)
                     .parked("projection", cart.ref("t", "c"))
             },
-            { MongoTimerStore(unreachable, "wow", "shop", Dispatchers.IO).find(cart.ref("t", "c"), "remind") },
+            { MongoTimerStore(unreachable, "wow", "shop", 4, Dispatchers.IO).find(cart.ref("t", "c"), "remind") },
         )
         calls.forEach { call ->
             assertThrows<StorageUnavailableException> { runBlocking { call() } }

@@ -78,9 +78,10 @@ class MongoBackend {
 | --- | --- | --- |
 | `wow_log__<context>__<aggregate>` | `{partition: 1}` | 一个分区的条目是一段连续范围；版本键与请求键都以分区开头，因此仍然唯一，按聚合的读取和尾随都只访问一个分片 |
 | `wow_snapshot__<context>__<aggregate>` | `{tenant_id: 1, aggregate_id: "hashed"}` | 快照的 `_id` 就是它的键；新聚合分散到各分片，加载只访问一个，单租户的查询只访问该租户的数据块 |
+| `wow_timer__<context>__<aggregate>` | `{partition: 1}` | 定时器位于其属主的分区；键（分区，属主，key）以分区开头，所以保持唯一，按属主的读写只访问一个分片，节点的到期读取只访问其分区所在的分片。恢复时读取一个目标的停放定时器会访问所有分片 |
 
-- 新的日志集合在为空时按每个分区切块，并把各块轮流分到各分片；新的快照集合从一个数据块开始，由均衡器按数据量分散。
-- 计数器、注册表、检查点、租约、台账、预留和定时器都很小，不分片，留在数据库的主分片上。
+- 新的日志或定时器集合在为空时按每个分区切块，并把各块轮流分到各分片；新的快照集合从一个数据块开始，由均衡器按数据量分散。
+- 计数器、各注册表、检查点、租约、台账和预留都很小，不分片，留在数据库的主分片上。
 - 连接所用的用户需要分片权限：`clusterManager` 角色，或该数据库上的 `enableSharding` 以及 `splitChunk`、`moveChunk`。
 - `wow.mongo.sharding: off`（或某个存储的 `options.sharding: off`）不给集合分片，留给自行分片的运维；`wow.ddl: validate` 和 `none` 也不分片。
 - **分区是迁移的最小单位。** 它的数据块不能再切分，分区增长到超过块大小后，均衡器不再移动它。增加分片时，用 `moveChunk`（带 `forceJumbo`）迁移分区，或打开均衡器的 `attemptToBalanceJumboChunks`。默认 64 个分区时，S 个分片各得约 64 / S 个；热点分区就是热点分片。
@@ -99,7 +100,8 @@ class MongoBackend {
 | `wow_log_aggregate` | 每个上下文的日志有哪些聚合集合 |
 | `wow_snapshot__<context>__<aggregate>` | 每个聚合一个文档：它最新的快照，`_id` 为 `{t: 租户, a: 聚合 ID}` |
 | `wow_snapshot_table` | 每个快照集合保存的状态修订号 |
-| `wow_timer__<context>` | 上下文的定时命令 |
+| `wow_timer__<context>__<aggregate>` | 一种聚合类型的定时命令，每个定时器一个文档，位于其属主的分区 |
+| `wow_timer_aggregate` | 每个上下文有哪些定时器集合；到期读取在一次聚合中合并它们 |
 | `wow_checkpoint`、`wow_lease`、`wow_lease_member` | 每个订阅进行到哪里，以及哪个节点拥有哪个分区 |
 | `wow_failure_ledger`、`wow_reservation` | 停放的聚合，以及预留的唯一键 |
 | `wow_format` | 每个结构的格式版本 |

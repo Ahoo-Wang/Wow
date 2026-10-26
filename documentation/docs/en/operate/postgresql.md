@@ -77,7 +77,8 @@ The stores create their tables on first use. Names derive from the context and t
 | `wow_log_aggregate` | Which aggregate tables each context's log has |
 | `wow_snapshot__<context>__<aggregate>` | One row per aggregate: its latest snapshot, state and tags as `jsonb`, queried in place |
 | `wow_snapshot_table` | The state revision each snapshot table holds |
-| `wow_timer__<context>` | The context's scheduled commands |
+| `wow_timer__<context>__<aggregate>` | The scheduled commands of one aggregate type, one row per timer, each in its owner's partition |
+| `wow_timer_aggregate` | Which timer tables each context has; the due read unions them in one statement |
 | `wow_checkpoint`, `wow_lease`, `wow_lease_member` | Where each subscription stands, and which node owns which partition |
 | `wow_failure_ledger` | The parked aggregates |
 | `wow_reservation` | The reserved unique keys |

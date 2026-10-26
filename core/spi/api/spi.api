@@ -1004,11 +1004,11 @@ public abstract class me/ahoo/wow/spi/store/Store {
 	protected abstract fun openLog (Ljava/lang/String;I)Lme/ahoo/wow/spi/log/EventLog;
 	protected abstract fun openReservations ()Lme/ahoo/wow/spi/reservation/ReservationStore;
 	protected abstract fun openSnapshots (Ljava/lang/String;)Lme/ahoo/wow/spi/snapshot/SnapshotStore;
-	protected abstract fun openTimers (Ljava/lang/String;)Lme/ahoo/wow/spi/timer/TimerStore;
+	protected abstract fun openTimers (Ljava/lang/String;I)Lme/ahoo/wow/spi/timer/TimerStore;
 	public final fun openedLog (Ljava/lang/String;)Lme/ahoo/wow/spi/log/EventLog;
 	protected final fun schema (Lkotlin/jvm/functions/Function0;)V
 	public final fun snapshots (Ljava/lang/String;)Lme/ahoo/wow/spi/snapshot/SnapshotStore;
-	public final fun timers (Ljava/lang/String;)Lme/ahoo/wow/spi/timer/TimerStore;
+	public final fun timers (Ljava/lang/String;I)Lme/ahoo/wow/spi/timer/TimerStore;
 	public fun toString ()Ljava/lang/String;
 	public fun waitingForConnection ()Ljava/lang/Integer;
 }

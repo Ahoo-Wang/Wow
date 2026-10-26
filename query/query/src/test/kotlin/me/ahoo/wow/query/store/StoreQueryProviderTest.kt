@@ -48,7 +48,7 @@ class StoreQueryProviderTest {
 
             override fun openSnapshots(context: String) = error("unused")
 
-            override fun openTimers(context: String) = error("unused")
+            override fun openTimers(context: String, partitions: Int) = error("unused")
         }
         provider.snapshots(store, StoreQueryOptions.DEFAULT).assert().isNull()
         provider.events(store, StoreQueryOptions.DEFAULT).assert().isNull()

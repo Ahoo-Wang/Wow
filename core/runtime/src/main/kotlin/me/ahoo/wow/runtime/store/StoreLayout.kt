@@ -71,7 +71,7 @@ class StoreLayout(
                     store.log(context, partitions),
                     store.checkpoints,
                     store.ledger,
-                    store.timers(context),
+                    store.timers(context, partitions),
                 )
             }
         val placed = placements.filterKeys { it.context == context }
@@ -93,7 +93,7 @@ class StoreLayout(
             ledger = default.ledger,
             snapshots = targets.primary,
             reservations = default.reservations,
-            timers = default.timers(context),
+            timers = default.timers(context, partitions),
             store = log,
             groups = groups,
             snapshotTargets = targets,

@@ -267,7 +267,7 @@ class HostStoresTest {
         bank.groups.single().types.assert().containsExactly(account)
         bank.groups.single().log.assert().isSameAs(stores.getValue("b").log(BANK, 4))
         bank.groups.single().checkpoints.assert().isSameAs(stores.getValue("b").checkpoints)
-        bank.groups.single().timers.assert().isSameAs(stores.getValue("b").timers(BANK))
+        bank.groups.single().timers.assert().isSameAs(stores.getValue("b").timers(BANK, 4))
         (bank.snapshots as SnapshotStoreRouter).storeOf(account).assert().isSameAs(stores.getValue("c").snapshots(BANK))
         bank.snapshots.assert().isInstanceOf(SnapshotStoreRouter::class.java)
         backends.factory.backends("ledger").groups.single().store.assert().isEqualTo("c")
@@ -434,7 +434,7 @@ class HostStoresTest {
 
         override fun openSnapshots(context: String): SnapshotStore = InMemorySnapshotStore()
 
-        override fun openTimers(context: String): TimerStore = error("unused")
+        override fun openTimers(context: String, partitions: Int): TimerStore = error("unused")
     }
 
     /** A `DataSource` bean that is never connected. */

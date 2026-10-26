@@ -133,7 +133,7 @@ internal class ElasticsearchStore(
 
     override fun openLog(context: String, partitions: Int): EventLog = throw noLog()
 
-    override fun openTimers(context: String): TimerStore = throw noLog()
+    override fun openTimers(context: String, partitions: Int): TimerStore = throw noLog()
 
     private fun noLog(): UnsupportedOperationException =
         UnsupportedOperationException(

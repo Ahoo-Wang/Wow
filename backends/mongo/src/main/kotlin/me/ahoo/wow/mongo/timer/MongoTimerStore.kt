@@ -13,9 +13,12 @@
 
 package me.ahoo.wow.mongo.timer
 
+import com.mongodb.MongoWriteException
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoCollection
+import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.BulkWriteOptions
+import com.mongodb.client.model.Field
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.IndexOptions
 import com.mongodb.client.model.Indexes
@@ -29,15 +32,20 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.mongo.EnsuredCollections
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.MongoRules
+import me.ahoo.wow.mongo.MongoSharding
+import me.ahoo.wow.mongo.MongoShards
 import me.ahoo.wow.mongo.MongoTimeouts
 import me.ahoo.wow.mongo.conditionalUpsert
+import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
@@ -47,49 +55,92 @@ import org.bson.conversions.Bson
 import kotlin.time.Duration
 
 /**
- * The [TimerStore] of one bounded context on MongoDB (decisions D166, D198): the collection `wow_timer__<context>`,
- * named by the rule of the log's collections, one document per timer, keyed by a unique index on its owner
- * (`owner: {aggregate, tenant_id, id}`, its context the collection's; finding A2-12) and `key`.
+ * The [TimerStore] of one bounded context on MongoDB (decisions D166, D198, D307, D308): a collection per aggregate
+ * type, `wow_timer__<context>__<aggregate>`, named by the rule of the log's collections, created on the type's first
+ * use and recorded in the registry `wow_timer_aggregate`. One document per timer, keyed by a unique index on its
+ * partition, its owner's tenant and id (`owner: {tenant_id, id}`, its context and aggregate the collection's; finding
+ * A2-12) and `key`.
+ *
+ * A timer is in its owner's partition, among the [partitions] of the context's log ([Timer.partition]). On a sharded
+ * cluster each collection is sharded by `{partition: 1}`, one chunk per partition, spread over the shards while it is
+ * new (decision D308, as the log is, D277): every filter by owner carries the owner's partition, so the reads and
+ * writes by owner and the due read of a node's partitions reach the shards of those partitions alone, and the key
+ * stays unique across the shards. A resume's read of a target's parked timers ([parked]) asks every shard.
  *
  * Every write is one single-document operation, but for [cancelAll] and [settle]. A put is a conditional upsert (see
  * [conditionalUpsert]) whose filter admits only another timer at the same or a later version; a cancel is a
- * conditional update; a settle is one unordered bulk write of conditional updates, each on the document as it was
- * loaded. A partial index on `(partition, due_at, timer_id)` of the PENDING and FIRING (claimed) timers serves the due read of every
- * partition asked, one on the target of the PARKED timers a resume. The body is kept as the command's JSON text, the
- * rule as a subdocument (`{type, ...}`, as Wow's JSON writes it). Format 2 added the rule and the slot, format 3 the
- * slot's due time (`slot_due_at`), kept apart from `due_at`, which a claim or a retry moves, and, within format 3, the
- * count of the slots a recurring timer coalesced before its current one (`skipped`, absent read as none), format 4
- * the structured owner instead of its joined name. The timers are a view rebuilt from the log: a collection of format
- * 3 is refused, dropped and rebuilt.
+ * conditional update; a settle is one unordered bulk write of conditional updates per collection, each on the document
+ * as it was loaded. The due read is one aggregation over the registry: the count of the context's collections, then,
+ * through `$unionWith`, each collection's first due timers over its partial index on `(partition, due_at, timer_id)`
+ * of the PENDING and FIRING (claimed) timers, merged by due time. A count other than the collections read tells the
+ * store to read the registry again, so a collection another node created is read at once. The body is kept as the
+ * command's JSON text, the rule as a subdocument (`{type, ...}`, as Wow's JSON writes it). Format 5 is the layout per
+ * aggregate type; the timers are a view rebuilt from the log, so a collection of an earlier format is refused, dropped
+ * and rebuilt (decisions D291, D306).
  *
  * Calls run on [dispatcher], virtual threads by default (decision D29).
  */
 @InternalWowApi
 class MongoTimerStore(
-    client: MongoClient,
+    private val client: MongoClient,
     databaseName: String,
     private val context: String,
+    /** The partitions of the context's log: a timer is in its owner's. */
+    private val partitions: Int,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
     private val ddl: StoreDdl = StoreDdl.AUTO,
+    /** Whether the store shards its collections on a sharded cluster (decision D308). */
+    private val sharding: MongoSharding = MongoSharding.AUTO,
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
     operationTimeout: Duration = MongoTimeouts.OPERATION,
 ) : TimerStore {
-    /** The collection's name, `wow_timer__<context>`. */
-    val collectionName: String = MongoNames.limited("${PREFIX}__${MongoNames.part(context)}")
+    init {
+        Partitioner.requirePartitions(partitions)
+    }
 
     private val database = MongoTimeouts.database(client, databaseName, operationTimeout)
-    private val timers: MongoCollection<Document> = database.getCollection(collectionName)
+    private val registry: MongoCollection<Document> = database.getCollection(REGISTRY)
+    private val sharded by lazy { sharding.shards(client, ddl) }
+
+    /** The timer collections whose creation and registration this store has made sure of, each once. */
+    private val ensured = EnsuredCollections<TimerCollection>()
+
+    /** The timer collections of the context, as of the last read of the registry. */
+    @Volatile
+    private var registered: List<TimerCollection>? = null
+
+    /** The name of [aggregate]'s timer collection, `wow_timer__<context>__<aggregate>`. */
+    fun collectionName(aggregate: String): String = MongoNames.of(PREFIX, context, aggregate)
 
     /**
-     * Creates the key index and the partial indexes of the due and the parked timers when missing; refuses a collection
-     * recorded in another format version ([MongoFormat], decision D59).
+     * Claims the registry's format; refuses one recorded in another format version ([MongoFormat], decision D59).
+     * Each aggregate type's collection is created on its first use.
      */
     fun createSchema() {
-        MongoFormat.claim(database, collectionName, FORMAT, ddl)
+        MongoFormat.claim(database, REGISTRY, FORMAT, ddl)
+        registered = null
+    }
+
+    /** The collection of [type]'s timers, created and registered when this store has not yet made sure it is. */
+    private fun collectionOf(type: AggregateType): TimerCollection {
+        require(type.context == context) { "$type keeps its timers in its own context, not $context." }
+        return ensured.get(type.name) { ensure(type.name) }
+    }
+
+    /**
+     * Claims the format of [aggregate]'s collection, creates its indexes, shards it on a sharded cluster and records
+     * it in the registry. Each step is idempotent, so nodes creating one collection at once agree; two aggregates that
+     * take one name are refused.
+     */
+    private fun ensure(aggregate: String): TimerCollection {
+        val collection = TimerCollection(aggregate, database.getCollection(collectionName(aggregate)))
+        val timers = collection.timers
+        MongoFormat.claim(database, collection.name, FORMAT, ddl)
+        // The key leads with the partition, so it stays unique on a collection sharded by it (decision D308).
         MongoFormat.index(
             timers,
-            Indexes.ascending(OWNER_AGGREGATE, OWNER_TENANT_ID, OWNER_AGGREGATE_ID, KEY),
+            Indexes.ascending(PARTITION, OWNER_TENANT_ID, OWNER_AGGREGATE_ID, KEY),
             IndexOptions().unique(true).name(TIMER_KEY),
             ddl,
         )
@@ -105,10 +156,46 @@ class MongoTimerStore(
             IndexOptions().name(PARKED_INDEX).partialFilterExpression(Filters.eq(STATUS, TimerStatus.PARKED.name)),
             ddl,
         )
+        if (sharded) {
+            MongoShards.shardTimers(client, database, timers, partitions)
+        }
+        if (ddl != StoreDdl.AUTO) {
+            // The registry is the schema's: a validated or foreign schema registered its collections already.
+            return collection
+        }
+        try {
+            registry.insertOne(
+                Document(REGISTRY_ID, collection.name).append(CONTEXT, context).append(AGGREGATE, aggregate),
+            )
+        } catch (failure: MongoWriteException) {
+            if (!failure.isDuplicateKey()) {
+                throw failure
+            }
+        }
+        val holder = registry.find(Filters.eq(REGISTRY_ID, collection.name)).first()!!
+        check(holder.getString(CONTEXT) == context && holder.getString(AGGREGATE) == aggregate) {
+            "The aggregate $aggregate of $context takes the timer collection ${collection.name}, " +
+                "which the aggregate ${holder.getString(AGGREGATE)} of ${holder.getString(CONTEXT)} has."
+        }
+        return collection
     }
 
+    /** Reads the registry again: the timer collections of the context. */
+    private fun register(): List<TimerCollection> =
+        registry.find(Filters.eq(CONTEXT, context)).sort(Sorts.ascending(AGGREGATE))
+            .map { TimerCollection(it.getString(AGGREGATE), database.getCollection(it.getString(REGISTRY_ID))) }
+            .toList()
+            .also { registered = it }
+
+    /** The collections this store knows: the registry as last read, and the ones it made sure of since. */
+    private fun known(): List<TimerCollection> = ((registered ?: register()) + ensured.values).distinctBy { it.name }
+
     override suspend fun put(timer: Timer): Boolean = dispatcher.mongo {
-        require(timer.owner.type.context == context) { "${timer.owner} keeps its timers in its own context." }
+        require(timer.partition == partitionOf(timer.owner)) {
+            "The timer ${timer.id} is in partition ${timer.partition}, not its owner's ${partitionOf(timer.owner)} " +
+                "of $partitions (decision D308)."
+        }
+        val timers = collectionOf(timer.owner.type).timers
         val replaceable = Filters.and(
             keyFilter(timer.owner, timer.key),
             Filters.ne(TIMER_ID, timer.id),
@@ -117,7 +204,6 @@ class MongoTimerStore(
         val write = Updates.combine(
             Updates.set(TIMER_ID, timer.id),
             Updates.set(VERSION, timer.version),
-            Updates.set(PARTITION, timer.partition),
             Updates.set(RULE, MongoRules.document(timer.rule)),
             Updates.set(SLOT, timer.slot),
             Updates.set(DUE_AT, timer.dueAt),
@@ -146,19 +232,21 @@ class MongoTimerStore(
     }
 
     override suspend fun cancel(owner: AggregateRef, key: String, version: Long): Boolean = dispatcher.mongo {
-        timers.updateOne(
+        collectionOf(owner.type).timers.updateOne(
             Filters.and(keyFilter(owner, key), cancellable(version)),
             cancelled(version),
         ).matchedCount == 1L
     }
 
     override suspend fun cancelAll(owner: AggregateRef, version: Long): Int = dispatcher.mongo {
-        timers.updateMany(Filters.and(ownerFilter(owner), cancellable(version)), cancelled(version))
+        collectionOf(owner.type).timers
+            .updateMany(Filters.and(ownerFilter(owner), cancellable(version)), cancelled(version))
             .matchedCount.toInt()
     }
 
     override suspend fun find(owner: AggregateRef, key: String): Timer? = dispatcher.mongo {
-        timers.find(keyFilter(owner, key)).firstOrNull()?.let(::timerOf)
+        collectionOf(owner.type).timers.find(keyFilter(owner, key)).firstOrNull()
+            ?.let { timerOf(it, owner.type.name) }
     }
 
     override suspend fun due(partitions: Set<Int>, until: Long, limit: Int): List<Timer> {
@@ -166,14 +254,72 @@ class MongoTimerStore(
         if (partitions.isEmpty()) {
             return emptyList()
         }
-        return dispatcher.mongo {
-            timers.find(
-                Filters.and(
-                    Filters.`in`(PARTITION, partitions),
-                    Filters.`in`(STATUS, DUE_STATUSES),
-                    Filters.lte(DUE_AT, until),
-                ),
-            ).sort(DUE_ORDER).limit(limit).map(::timerOf).toList()
+        return dispatcher.mongo { unioned(dueBranch(partitions, until), limit) }
+    }
+
+    /** Each collection's share of the due read: its due timers of [partitions] by [until], earliest first. */
+    private fun dueBranch(partitions: Set<Int>, until: Long): List<Bson> = listOf(
+        Aggregates.match(
+            Filters.and(
+                Filters.`in`(PARTITION, partitions),
+                Filters.`in`(STATUS, DUE_STATUSES),
+                Filters.lte(DUE_AT, until),
+            ),
+        ),
+        Aggregates.sort(DUE_ORDER),
+    )
+
+    /**
+     * The due read's aggregation over [known]: the registry's count of the context's collections, then each
+     * collection's first timers by [branch] (and [limit]), each tagged with the collection's index in [known], merged
+     * by due time. A test asserts its plan: each branch over the collection's partial index.
+     */
+    private fun pipeline(known: List<TimerCollection>, branch: List<Bson>, limit: Int?): List<Bson> = buildList {
+        add(Aggregates.match(Filters.eq(CONTEXT, context)))
+        add(Aggregates.count(REGISTERED))
+        known.forEachIndexed { index, collection ->
+            val read = branch + listOfNotNull(limit?.let(Aggregates::limit)) +
+                Aggregates.set(Field(BRANCH, index))
+            add(Aggregates.unionWith(collection.name, read))
+        }
+        // The count has no due time: it sorts first.
+        add(Aggregates.sort(DUE_ORDER))
+        limit?.let { add(Aggregates.limit(it + 1)) }
+    }
+
+    /** The due read's aggregation as this store runs it now, for [partitions] and [until]: a test explains it. */
+    internal fun duePipeline(partitions: Set<Int>, until: Long, limit: Int): List<Bson> =
+        pipeline(known(), dueBranch(partitions, until), limit)
+
+    /** The registry, which the due read aggregates over: a test explains it. */
+    internal val registryCollection: MongoCollection<Document> get() = registry
+
+    /**
+     * Runs [branch] over every timer collection of the context in one aggregation; when the registry holds other
+     * collections than those read, reads the registry and runs it once more.
+     */
+    private fun unioned(branch: List<Bson>, limit: Int?): List<Timer> {
+        var known = known()
+        while (true) {
+            var count = 0
+            val timers = buildList {
+                registry.aggregate(pipeline(known, branch, limit)).forEach { document ->
+                    val branchIndex = document.getInteger(BRANCH)
+                    if (branchIndex == null) {
+                        count = document.getInteger(REGISTERED)
+                    } else {
+                        add(timerOf(document, known[branchIndex].aggregate))
+                    }
+                }
+            }
+            if (count == known.size) {
+                return timers
+            }
+            val read = register()
+            if (read.map { it.name }.toSet() == known.map { it.name }.toSet()) {
+                return timers
+            }
+            known = read
         }
     }
 
@@ -182,48 +328,52 @@ class MongoTimerStore(
             return 0
         }
         return dispatcher.mongo {
-            val writes = changes.map { change ->
-                val loaded = change.loaded
-                val next = change.next
-                UpdateOneModel<Document>(
-                    Filters.and(
-                        keyFilter(loaded.owner, loaded.key),
-                        Filters.eq(TIMER_ID, loaded.id),
-                        Filters.eq(STATUS, loaded.status.name),
-                        Filters.eq(SLOT, loaded.slot),
-                        Filters.eq(SLOT_DUE_AT, loaded.slotDueAt),
-                        Filters.eq(ATTEMPTS, loaded.attempts),
-                        Filters.eq(DUE_AT, loaded.dueAt),
-                    ),
-                    Updates.combine(
-                        Updates.set(STATUS, next.status.name),
-                        Updates.set(SLOT, next.slot),
-                        Updates.set(SLOT_DUE_AT, next.slotDueAt),
-                        Updates.set(SKIPPED, next.skipped),
-                        Updates.set(DUE_AT, next.dueAt),
-                        Updates.set(ATTEMPTS, next.attempts),
-                        Updates.set(OUTCOME, next.outcome),
-                    ),
-                )
+            changes.groupBy { it.loaded.owner.type }.entries.sumOf { (type, ofType) ->
+                val writes = ofType.map { change ->
+                    val loaded = change.loaded
+                    val next = change.next
+                    UpdateOneModel<Document>(
+                        Filters.and(
+                            keyFilter(loaded.owner, loaded.key),
+                            Filters.eq(TIMER_ID, loaded.id),
+                            Filters.eq(STATUS, loaded.status.name),
+                            Filters.eq(SLOT, loaded.slot),
+                            Filters.eq(SLOT_DUE_AT, loaded.slotDueAt),
+                            Filters.eq(ATTEMPTS, loaded.attempts),
+                            Filters.eq(DUE_AT, loaded.dueAt),
+                        ),
+                        Updates.combine(
+                            Updates.set(STATUS, next.status.name),
+                            Updates.set(SLOT, next.slot),
+                            Updates.set(SLOT_DUE_AT, next.slotDueAt),
+                            Updates.set(SKIPPED, next.skipped),
+                            Updates.set(DUE_AT, next.dueAt),
+                            Updates.set(ATTEMPTS, next.attempts),
+                            Updates.set(OUTCOME, next.outcome),
+                        ),
+                    )
+                }
+                collectionOf(type).timers.bulkWrite(writes, BulkWriteOptions().ordered(false)).matchedCount
             }
-            timers.bulkWrite(writes, BulkWriteOptions().ordered(false)).matchedCount
         }
     }
 
     override suspend fun parked(target: AggregateRef): List<Timer> = dispatcher.mongo {
-        timers.find(
-            Filters.and(
-                Filters.eq(TARGET_CONTEXT, target.type.context),
-                Filters.eq(TARGET_AGGREGATE, target.type.name),
-                Filters.eq(TARGET_TENANT_ID, target.tenantId),
-                Filters.eq(TARGET_ID, target.id),
-                Filters.eq(STATUS, TimerStatus.PARKED.name),
-            ),
-        ).sort(DUE_ORDER).map(::timerOf).toList()
+        val filter = Filters.and(
+            Filters.eq(TARGET_CONTEXT, target.type.context),
+            Filters.eq(TARGET_AGGREGATE, target.type.name),
+            Filters.eq(TARGET_TENANT_ID, target.tenantId),
+            Filters.eq(TARGET_ID, target.id),
+            Filters.eq(STATUS, TimerStatus.PARKED.name),
+        )
+        unioned(listOf(Aggregates.match(filter)), null)
     }
 
+    private fun partitionOf(owner: AggregateRef): Int = Partitioner.partitionOf(owner, partitions)
+
+    /** The owner's timers: by its partition first, so a sharded collection reads the one shard holding them. */
     private fun ownerFilter(owner: AggregateRef): Bson = Filters.and(
-        Filters.eq(OWNER_AGGREGATE, owner.type.name),
+        Filters.eq(PARTITION, partitionOf(owner)),
         Filters.eq(OWNER_TENANT_ID, owner.tenantId),
         Filters.eq(OWNER_AGGREGATE_ID, owner.id),
     )
@@ -241,10 +391,10 @@ class MongoTimerStore(
     private fun cancelled(version: Long): Bson =
         Updates.combine(Updates.set(STATUS, TimerStatus.CANCELLED.name), Updates.max(VERSION, version))
 
-    private fun timerOf(document: Document) = Timer(
+    private fun timerOf(document: Document, aggregate: String) = Timer(
         id = document.getString(TIMER_ID),
         owner = document.get(OWNER, Document::class.java).let { owner ->
-            AggregateType(context, owner.getString(AGGREGATE)).ref(owner.getString(TENANT_ID), owner.getString(ID))
+            AggregateType(context, aggregate).ref(owner.getString(TENANT_ID), owner.getString(ID))
         },
         key = document.getString(KEY),
         version = document.getLong(VERSION),
@@ -270,10 +420,22 @@ class MongoTimerStore(
         skipped = document.getLong(SKIPPED) ?: 0L,
     )
 
+    /** The timer collection of one aggregate type. */
+    internal class TimerCollection(val aggregate: String, val timers: MongoCollection<Document>) {
+        val name: String get() = timers.namespace.collectionName
+    }
+
     private companion object {
         /** The version of this layout (decision D59). */
-        const val FORMAT = 4
+        const val FORMAT = 5
         const val PREFIX = "wow_timer"
+
+        /** The registry of timer collections, shared by every context. */
+        const val REGISTRY = "wow_timer_aggregate"
+        const val REGISTRY_ID = "_id"
+        const val CONTEXT = "context"
+        const val REGISTERED = "registered"
+        const val BRANCH = "branch"
         const val TIMER_KEY = "timer_key"
         const val DUE_INDEX = "timer_due"
         const val PARKED_INDEX = "timer_parked"
@@ -282,7 +444,6 @@ class MongoTimerStore(
         const val AGGREGATE = "aggregate"
         const val TENANT_ID = "tenant_id"
         const val ID = "id"
-        const val OWNER_AGGREGATE = "$OWNER.$AGGREGATE"
         const val OWNER_TENANT_ID = "$OWNER.$TENANT_ID"
         const val OWNER_AGGREGATE_ID = "$OWNER.$ID"
         const val KEY = "key"

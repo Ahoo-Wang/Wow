@@ -52,11 +52,13 @@ class PostgresStoreDdlTest {
     @Test
     fun `validate refuses a structure recorded in another format`() {
         val context = PostgresFixture.newContext("ddl")
-        PostgresTimerStore(dataSource, context).createSchema()
-        val table = PostgresTimerTables(context).base
-        PostgresFixture.bumpFormat(table)
+        PostgresEventLog(dataSource, context, 2).also {
+            it.createSchema()
+            it.createTable("order")
+        }
+        PostgresFixture.bumpFormat(PostgresEventLogTables(context).aggregate("order").base)
         assertThrows<IllegalStateException> {
-            PostgresTimerStore(dataSource, context, ddl = StoreDdl.VALIDATE).createSchema()
+            PostgresEventLog(dataSource, context, 2, ddl = StoreDdl.VALIDATE).createTable("order")
         }.message.assert().contains("Migrate it")
     }
 
@@ -65,6 +67,6 @@ class PostgresStoreDdlTest {
         val context = PostgresFixture.newContext("ddl")
         PostgresTimerStore(dataSource, context, ddl = StoreDdl.NONE).createSchema()
         PostgresEventLog(dataSource, context, 2, ddl = StoreDdl.NONE).createTable("order")
-        tableExists(PostgresTimerTables(context).base).assert().isFalse()
+        tableExists(PostgresTimerTables(context).aggregate("order").base).assert().isFalse()
     }
 }

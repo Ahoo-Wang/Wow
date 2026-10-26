@@ -83,6 +83,20 @@ internal object MongoShards {
         )
 
     /**
+     * Shards the timer collection [collection] of a log of [partitions] partitions by partition (decision D308), as the
+     * log is: a timer is in its owner's partition, so the reads and writes by owner, and a node's due read, reach the
+     * shards of their partitions; the timers' unique key leads with the partition. The shard key's index is
+     * `(partition, _id)`, as the log's.
+     */
+    fun shardTimers(
+        client: MongoClient,
+        database: MongoDatabase,
+        collection: MongoCollection<Document>,
+        partitions: Int
+    ) =
+        shardLog(client, database, collection, partitions)
+
+    /**
      * Shards the snapshot collection [collection] by tenant, then the aggregate id's hash (decision D277): new
      * aggregates spread over the shards, a load reads one, a query of one tenant that tenant's chunks.
      */
