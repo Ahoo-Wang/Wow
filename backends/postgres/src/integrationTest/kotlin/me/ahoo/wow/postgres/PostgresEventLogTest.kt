@@ -42,6 +42,7 @@ import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.log.readSnapshotTailApart
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.log.EventLogSpec
@@ -251,10 +252,10 @@ class PostgresEventLogTest : EventLogSpec() {
         val reader = PostgresEventLog(counted.dataSource, context, 1).also { it.createSchema() }
         val snapshots = PostgresSnapshotStore(counted.dataSource, context)
         val ref = type.ref("tenant", "a")
-        reader.readWithSnapshot(ref, snapshots, 1)
+        reader.snapshotTails.readWithSnapshot(ref, snapshots, 1)
         snapshots.save(snapshot(ref, 2))
         val mark = counted.begin()
-        val read = reader.readWithSnapshot(ref, snapshots, 1)
+        val read = reader.snapshotTails.readWithSnapshot(ref, snapshots, 1)!!
         counted.since(mark).size.assert().isEqualTo(1)
         read.snapshot?.version.assert().isEqualTo(2)
         read.tail.streams.map { it.version }.assert().containsExactly(2, 3)
@@ -262,7 +263,7 @@ class PostgresEventLogTest : EventLogSpec() {
     }
 
     @Test
-    fun `a snapshot in another database is read apart from the tail`(): Unit = runBlocking {
+    fun `a snapshot in another database is not read with the tail, but apart`(): Unit = runBlocking {
         val context = PostgresFixture.newContext()
         val type = AggregateType(context, "order")
         val log = PostgresFixture.log(1, context)
@@ -270,13 +271,14 @@ class PostgresEventLogTest : EventLogSpec() {
         val elsewhere = PostgresSnapshotStore(CountedDataSource(PostgresFixture.dataSource).dataSource, context)
         val ref = type.ref("tenant", "a")
         elsewhere.save(snapshot(ref, 2))
-        val read = log.readWithSnapshot(ref, elsewhere, 1)
+        log.snapshotTails.readWithSnapshot(ref, elsewhere, 1).assert().isNull()
+        val read = log.readSnapshotTailApart(ref, elsewhere, 1)
         read.snapshot?.version.assert().isEqualTo(2)
         read.tail.streams.map { it.version }.assert().containsExactly(2, 3)
     }
 
     @Test
-    fun `snapshots of another kind or another context are read apart from the tail`(): Unit = runBlocking {
+    fun `snapshots of another kind or another context are not read with the tail`(): Unit = runBlocking {
         val context = PostgresFixture.newContext()
         val type = AggregateType(context, "order")
         val log = PostgresFixture.log(1, context)
@@ -287,15 +289,17 @@ class PostgresEventLogTest : EventLogSpec() {
         val wrapped = object : SnapshotStore by store {
             override fun storeOf(type: AggregateType): SnapshotStore = this
         }
-        log.readWithSnapshot(ref, wrapped, 1).tail.streams.map { it.version }.assert().containsExactly(2, 3)
+        log.snapshotTails.readWithSnapshot(ref, wrapped, 1).assert().isNull()
+        log.readSnapshotTailApart(ref, wrapped, 1).tail.streams.map { it.version }.assert().containsExactly(2, 3)
         val otherContext = PostgresSnapshotStore(PostgresFixture.dataSource, PostgresFixture.newContext())
         // Not read together: the other context's store refuses the aggregate, as its load alone does.
-        runCatching { log.readWithSnapshot(ref, otherContext, 1) }.exceptionOrNull()
+        runCatching { log.snapshotTails.readWithSnapshot(ref, otherContext, 1) ?: log.readSnapshotTailApart(ref, otherContext, 1) }
+            .exceptionOrNull()
             .assert().isInstanceOf(IllegalArgumentException::class.java)
     }
 
     @Test
-    fun `a failing statement falls back to reading the snapshot and the tail apart`(): Unit = runBlocking {
+    fun `a failing statement is thrown, never swallowed, so that the kernel reads apart and counts it`(): Unit = runBlocking {
         val context = PostgresFixture.newContext()
         val type = AggregateType(context, "order")
         val log = PostgresFixture.log(1, context)
@@ -306,13 +310,8 @@ class PostgresEventLogTest : EventLogSpec() {
         PostgresFixture.dataSource.connection.use { connection ->
             connection.createStatement().use { it.execute("DROP TABLE ${PostgresSnapshotTables(context, "order").snapshot}") }
         }
-        // The snapshot store still believes its table is there; a load that fails is read as none, as the kernel does.
-        val tolerant = object : SnapshotStore by store {
-            override suspend fun load(ref: AggregateRef): SnapshotRecord? = null
-        }
-        val read = log.readWithSnapshot(ref, tolerant, 1)
-        read.snapshot.assert().isNull()
-        read.tail.streams.map { it.version }.assert().containsExactly(1, 2, 3)
+        // The snapshot store still believes its table is there: the one statement fails, and says so (finding R5.B-16).
+        runCatching { log.snapshotTails.readWithSnapshot(ref, store, 1) }.exceptionOrNull().assert().isNotNull()
     }
 
     private fun snapshot(ref: AggregateRef, version: Int) = SnapshotRecord(

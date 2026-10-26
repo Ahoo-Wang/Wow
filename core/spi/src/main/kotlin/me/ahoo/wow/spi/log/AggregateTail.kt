@@ -76,7 +76,7 @@ class AggregateTail @InternalWowApi constructor(
 }
 
 /**
- * What [EventLog.readWithSnapshot] reads of one aggregate (decision D268): its [snapshot], null when it has none, and
+ * What [SnapshotTailReader.readWithSnapshot] reads of one aggregate (decision D268): its [snapshot], null when it has none, and
  * the [tail] after it, every stream of the aggregate when there is no snapshot.
  *
  * Fields may be added: construct one with [of]; the constructor is internal to Wow.

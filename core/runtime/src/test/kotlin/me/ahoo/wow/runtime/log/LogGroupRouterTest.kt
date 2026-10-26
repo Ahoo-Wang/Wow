@@ -22,10 +22,14 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.snapshot.SnapshotStoreRouter
+import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.SnapshotTail
+import me.ahoo.wow.spi.log.SnapshotTailReader
+import me.ahoo.wow.spi.log.readSnapshotTailApart
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -50,6 +54,23 @@ class LogGroupRouterTest {
     )
 
     @Test
+    fun `a snapshot tail read goes to the reader of the aggregate's group's log, or apart without one`(): Unit =
+        runBlocking {
+            // Finding R5.B-9: only the group's log knows whether it can read the snapshot with the tail.
+            val served = SnapshotTail.of(null, AggregateTail.of(emptyList(), emptyList()))
+            val reading = object : EventLog by grouped {
+                override val snapshotTails = SnapshotTailReader { _, _, _ -> served }
+            }
+            LogGroupRouter(default, mapOf(invoices to grouped)).snapshotTails.assert().isNull()
+            val routed = LogGroupRouter(default, mapOf(invoices to reading))
+            val snapshots = InMemorySnapshotStore()
+            routed.append(stream(orders.ref("t", "o-1")), null)
+            val reader = routed.snapshotTails!!
+            reader.readWithSnapshot(invoices.ref("t", "i-1"), snapshots, 1).assert().isSameAs(served)
+            reader.readWithSnapshot(orders.ref("t", "o-1"), snapshots, 1)!!.tail.streams.assert().hasSize(1)
+        }
+
+    @Test
     fun `each aggregate is appended to and read from its group's log`(): Unit = runBlocking {
         val order = orders.ref("t", "o-1")
         val invoice = invoices.ref("t", "i-1")
@@ -60,7 +81,7 @@ class LogGroupRouterTest {
         router.read(invoice).toList().assert().hasSize(1)
         router.readEntries(order).toList().assert().hasSize(1)
         router.readTail(invoice, 1, 1).streams.assert().hasSize(1)
-        router.readWithSnapshot(invoice, me.ahoo.wow.kernel.memory.InMemorySnapshotStore(), 1).tail.streams
+        router.readSnapshotTailApart(invoice, me.ahoo.wow.kernel.memory.InMemorySnapshotStore(), 1).tail.streams
             .assert().hasSize(1)
         router.positionOf(invoice, 1)?.sequence.assert().isEqualTo(1L)
         router.findByRequestId(invoices, "t", "i-1-1")?.ref.assert().isEqualTo(invoice)

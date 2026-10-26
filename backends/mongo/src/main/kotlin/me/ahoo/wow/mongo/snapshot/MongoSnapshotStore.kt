@@ -51,6 +51,7 @@ import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.VirtualThreads
+import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -103,7 +104,10 @@ class MongoSnapshotStore(
     sharding: MongoSharding = MongoSharding.AUTO,
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
     operationTimeout: Duration = MongoTimeouts.OPERATION,
-) : SnapshotStore {
+) : SnapshotStore, SnapshotRebuildStore {
+    /** This store rewrites its snapshots in place: it is its own rebuild control plane. */
+    override val rebuilds: SnapshotRebuildStore get() = this
+
     private val database = MongoTimeouts.database(client, databaseName, operationTimeout)
 
     /** Whether this store shards its collections: asked of the server on the first collection it makes sure of. */

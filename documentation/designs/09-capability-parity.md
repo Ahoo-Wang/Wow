@@ -1,6 +1,6 @@
 # V10 与 9.x 的能力对照
 
-日期：2026-10-22（上一版 2026-10-17，基线 `facbe4e83`）。2026-10-22 按代码审计更正 17 行（客户端事实、平台服务、补偿迁移、处理函数内查询、analytics 控制台、TS 路径、JVM 客户端、Java 体验等），汇总改为 A 77、B 44、C 25、D 6、E 8；文件行号不再写，只写文件。2026-10-21 按 W0 文档写作对照代码更新 10 行（Elasticsearch、跨上下文解码、`@Retry` 分类、测试 fork、数据集注册与分析、健康、快速失败），并重新计数。状态：持续维护。上位文档：[路线图](roadmap.md)（6.0i，D183；复核 D229）。
+日期：2026-10-22（上一版 2026-10-17，基线 `facbe4e83`）。2026-10-22 按代码审计更正 17 行（客户端事实、平台服务、补偿迁移、处理函数内查询、analytics 控制台、TS 路径、JVM 客户端、Java 体验等），汇总改为 A 77、B 44、C 25、D 6、E 8（2026-10-26 D292 删除全局 ID 路由后 A 76、C 26）；文件行号不再写，只写文件。2026-10-21 按 W0 文档写作对照代码更新 10 行（Elasticsearch、跨上下文解码、`@Retry` 分类、测试 fork、数据集注册与分析、健康、快速失败），并重新计数。状态：持续维护。上位文档：[路线图](roadmap.md)（6.0i，D183；复核 D229）。
 
 本文逐项列出 9.x 面向用户的能力在 V10 中的状态；迁移 Skill 的已知缺口表以本文为准。2026-10-17 按当时代码全面复核（上一版为 2026-10-13，基线 `f71209eda`），两侧都给出代码位置。
 
@@ -10,9 +10,9 @@
 
 | 类 | 数量 |
 |---|---|
-| A 已有 | 77 |
+| A 已有 | 76 |
 | B 替代 | 44 |
-| C 放弃 | 25 |
+| C 放弃 | 26 |
 | D 推迟或计划 | 6 |
 | E 无决定（D229 已定去向） | 8 |
 | 合计 | 160 |
@@ -44,7 +44,7 @@
 | 请求头别名 | `IdentityHeaderAliases` | E | G-13 |
 | 操作人 | `CommandOperator` | A | `api/.../caller/Operator.kt`（D163） |
 | 全局/按聚合 ID 生成、CosId、领域内取 ID | `id/*` | A | `core/spi/.../id/IdGenerators.kt`、`extensions/cosid`、`DecideScope.ids`（D171、D191） |
-| `GET /wow/id/global` | `GlobalIdHandlerFunction` | A | `edge/http/.../WowRoutes.kt` |
+| `GET /wow/id/global` | `GlobalIdHandlerFunction` | C | 删除（D292）：没有 Wow 10 的使用者，任何已认证调用方都能取全局 ID |
 | 批量准入与车道 | `batch/*` | B | 追加队列与组提交（D11，`wow.log.append-queue.*`） |
 | 命令结果 | `CommandResultAccessor` | B | `DecideScope.putResult`（D49、D51） |
 | 跨聚合唯一键 | `PrepareKey`/`@PreparableKey` | B | `DecideScope.reserve`/`release`（D38、D225）；数据 8b.3（D227 ③）；Skill 覆盖 |

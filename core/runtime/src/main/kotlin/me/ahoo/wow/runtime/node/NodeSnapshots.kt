@@ -21,9 +21,10 @@ import me.ahoo.wow.runtime.snapshot.SnapshotAssembly
 import me.ahoo.wow.runtime.snapshot.SnapshotRebuildModel
 import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.observation.Observer
 
 /** Which aggregates of a node keep snapshots, as its [manifest] says, and what that gives each context (decision D172). */
-internal class NodeSnapshots(private val manifest: Manifest) {
+internal class NodeSnapshots(private val manifest: Manifest, private val observer: Observer = Observer.NONE) {
     /**
      * Whether the Manifest enables [model]'s snapshots; a built-in job aggregate, not in it, keeps them, and a built-in
      * rebuild aggregate does not (decision D172).
@@ -60,6 +61,6 @@ internal class NodeSnapshots(private val manifest: Manifest) {
     ): SnapshotAssembly {
         val targets = backends.snapshotTargets ?: backends.snapshots?.let { SnapshotTargets.single(it) }
         val snapshotted = if (targets == null) emptyList() else models.filter { enabled(it) }
-        return SnapshotAssembly(context, targets, snapshotted, kernel, log, codec)
+        return SnapshotAssembly(context, targets, snapshotted, kernel, log, codec, observer)
     }
 }

@@ -367,6 +367,7 @@ public abstract interface class me/ahoo/wow/spi/log/EventLog {
 	public abstract fun findByRequestId (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun getAppendsAcrossPartitions ()Z
 	public abstract fun getPartitions ()I
+	public fun getSnapshotTails ()Lme/ahoo/wow/spi/log/SnapshotTailReader;
 	public abstract fun head (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun lineage (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun positionOf (Lme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -375,7 +376,6 @@ public abstract interface class me/ahoo/wow/spi/log/EventLog {
 	public abstract fun readEntries (Lme/ahoo/wow/api/aggregate/AggregateRef;II)Lkotlinx/coroutines/flow/Flow;
 	public static synthetic fun readEntries$default (Lme/ahoo/wow/spi/log/EventLog;Lme/ahoo/wow/api/aggregate/AggregateRef;IIILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
 	public fun readTail (Lme/ahoo/wow/api/aggregate/AggregateRef;IILkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public fun readWithSnapshot (Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/spi/snapshot/SnapshotStore;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun tail (ILjava/lang/Long;)Lkotlinx/coroutines/flow/Flow;
 	public static synthetic fun tail$default (Lme/ahoo/wow/spi/log/EventLog;ILjava/lang/Long;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
 }
@@ -499,6 +499,10 @@ public final class me/ahoo/wow/spi/log/SnapshotTail$Companion {
 	public final fun of (Lme/ahoo/wow/spi/snapshot/SnapshotRecord;Lme/ahoo/wow/spi/log/AggregateTail;)Lme/ahoo/wow/spi/log/SnapshotTail;
 }
 
+public abstract interface class me/ahoo/wow/spi/log/SnapshotTailReader {
+	public abstract fun readWithSnapshot (Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/spi/snapshot/SnapshotStore;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
 public final class me/ahoo/wow/spi/log/TailPacer {
 	public synthetic fun <init> (IJJLkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun await-gwCluXo (IJZJZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -591,6 +595,7 @@ public abstract interface class me/ahoo/wow/spi/observation/Observer {
 	public fun resuming (Ljava/util/Map;)Lkotlin/coroutines/CoroutineContext;
 	public fun signalDropped (Ljava/lang/String;Ljava/lang/String;)V
 	public fun stateCache (Ljava/lang/String;Ljava/lang/String;)V
+	public fun storeFellBack (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
 	public fun tailRead (Ljava/lang/String;ILjava/lang/String;)V
 	public fun undecodable (Ljava/lang/String;IJZ)V
 	public fun waitTimedOut (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/result/Stage;)V
@@ -603,6 +608,15 @@ public final class me/ahoo/wow/spi/observation/ObserverKt {
 	public static final fun getTrace (Lkotlin/coroutines/CoroutineContext;)Ljava/util/Map;
 	public static final fun getTraceContext (Lkotlin/coroutines/CoroutineContext;)Lkotlin/coroutines/CoroutineContext;
 	public static final fun observe (Lme/ahoo/wow/spi/observation/Observation;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/spi/observation/StoreFallbacks {
+	public static final field FAILED Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/spi/observation/StoreFallbacks;
+	public static final field SNAPSHOT_REBUILD Ljava/lang/String;
+	public static final field SNAPSHOT_TAIL_READ Ljava/lang/String;
+	public static final field UNAVAILABLE Ljava/lang/String;
+	public static final field UNSUPPORTED Ljava/lang/String;
 }
 
 public abstract class me/ahoo/wow/spi/observation/TraceContext : kotlin/coroutines/AbstractCoroutineContextElement {
@@ -719,6 +733,18 @@ public abstract interface class me/ahoo/wow/spi/sink/Sink {
 	public abstract fun write (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
+public abstract interface class me/ahoo/wow/spi/snapshot/SnapshotRebuildStore {
+	public abstract fun claim (Lme/ahoo/wow/api/aggregate/AggregateType;IZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun claim$default (Lme/ahoo/wow/spi/snapshot/SnapshotRebuildStore;Lme/ahoo/wow/api/aggregate/AggregateType;IZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public abstract fun mark (Lme/ahoo/wow/api/aggregate/AggregateType;ILjava/lang/Boolean;Ljava/lang/Boolean;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun mark$default (Lme/ahoo/wow/spi/snapshot/SnapshotRebuildStore;Lme/ahoo/wow/api/aggregate/AggregateType;ILjava/lang/Boolean;Ljava/lang/Boolean;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public abstract fun markStale (Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun pending (Lme/ahoo/wow/api/aggregate/AggregateType;ILme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun pending$default (Lme/ahoo/wow/spi/snapshot/SnapshotRebuildStore;Lme/ahoo/wow/api/aggregate/AggregateType;ILme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public abstract fun rewrite (Lme/ahoo/wow/spi/snapshot/SnapshotRecord;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun table (Lme/ahoo/wow/api/aggregate/AggregateType;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
 public final class me/ahoo/wow/spi/snapshot/SnapshotRecord {
 	public static final field Companion Lme/ahoo/wow/spi/snapshot/SnapshotRecord$Companion;
 	public fun equals (Ljava/lang/Object;)Z
@@ -794,19 +820,11 @@ public final class me/ahoo/wow/spi/snapshot/SnapshotSaveOutcome$Written : me/aho
 }
 
 public abstract interface class me/ahoo/wow/spi/snapshot/SnapshotStore {
-	public abstract fun claim (Lme/ahoo/wow/api/aggregate/AggregateType;IZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun claim$default (Lme/ahoo/wow/spi/snapshot/SnapshotStore;Lme/ahoo/wow/api/aggregate/AggregateType;IZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public fun getRebuilds ()Lme/ahoo/wow/spi/snapshot/SnapshotRebuildStore;
 	public abstract fun load (Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun mark (Lme/ahoo/wow/api/aggregate/AggregateType;ILjava/lang/Boolean;Ljava/lang/Boolean;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun mark$default (Lme/ahoo/wow/spi/snapshot/SnapshotStore;Lme/ahoo/wow/api/aggregate/AggregateType;ILjava/lang/Boolean;Ljava/lang/Boolean;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public abstract fun markStale (Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun pending (Lme/ahoo/wow/api/aggregate/AggregateType;ILme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static synthetic fun pending$default (Lme/ahoo/wow/spi/snapshot/SnapshotStore;Lme/ahoo/wow/api/aggregate/AggregateType;ILme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
-	public abstract fun rewrite (Lme/ahoo/wow/spi/snapshot/SnapshotRecord;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun save (Lme/ahoo/wow/spi/snapshot/SnapshotRecord;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun saveAll (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun storeOf (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/spi/snapshot/SnapshotStore;
-	public abstract fun table (Lme/ahoo/wow/api/aggregate/AggregateType;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/spi/snapshot/SnapshotTable {

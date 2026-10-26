@@ -18,12 +18,13 @@ import kotlinx.coroutines.flow.toList
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.WowSpi
-import me.ahoo.wow.spi.snapshot.SnapshotStore
 
 /**
  * The log of one bounded context: the only place a fact is written (axiom A1).
  *
- * The contract every backend keeps, checked by the TCK:
+ * What a backend must implement are the abstract members; the members with a default are optional optimizations
+ * whose default is correct ([appendAll], [readTail], [lineage]), and [snapshotTails] is an optional capability
+ * (finding R5.B-9). The contract every backend keeps, checked by the TCK:
  * - unique keys are (`ref`, `version`) and (`tenantId`, `requestId`) within each aggregate type; `ref` includes the
  *   tenant. Each aggregate type is stored apart (decision D162), so a request id reused by two aggregate types of
  *   the context commits twice (decision D55 makes the reuse the caller's error);
@@ -110,20 +111,10 @@ interface EventLog {
     }
 
     /**
-     * What a kernel loads of [ref] when its state is not cached (decision D268): its snapshot in [snapshots] and the
-     * tail after it with the request keys before it, as [readTail] reads them from the snapshot's version; with no
-     * snapshot, every stream of [ref] (a replay) and no earlier keys. A backend reads both in one round trip where
-     * [snapshots] holds [ref]'s snapshots in its own database ([SnapshotStore.storeOf]), with the tail read at the
-     * snapshot's version as one statement sees it, and otherwise as the default does: [SnapshotStore.load], then
-     * [readTail] or [read]. A failure of the one-round-trip read falls back to the default, so a snapshot that cannot
-     * be read fails only as [snapshots] fails it.
+     * The log's one-round-trip read of an aggregate's snapshot with its tail (decision D268): an optional capability,
+     * null by default, when the kernel reads them apart ([readSnapshotTailApart]).
      */
-    suspend fun readWithSnapshot(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail {
-        require(earlier >= 0) { "At most a non-negative number of earlier requests." }
-        val snapshot = snapshots.load(ref)
-            ?: return SnapshotTail(null, AggregateTail(read(ref).toList(), emptyList()))
-        return SnapshotTail(snapshot, readTail(ref, snapshot.version, earlier))
-    }
+    val snapshotTails: SnapshotTailReader? get() = null
 
     /**
      * The entries of [ref] with versions in [fromVersion]..[toVersion], in version order, each with its position and
