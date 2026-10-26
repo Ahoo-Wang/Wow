@@ -57,7 +57,7 @@ Spring 会忽略没有属性绑定的键，所以拼错的键会一声不响地�
 
 ## 开发与生产 {#development-and-production}
 
-在开发 profile（`dev`、`local`、`test` 或 `demo`，即 `wow.internal.dev-profiles`）中，或者内部端口只绑定在回环网卡上时，有几个默认值会放宽：
+在开发 profile（`dev`、`local`、`test` 或 `demo`，即 `wow.dev-profiles`）中，或者内部端口只绑定在回环网卡上时，有几个默认值会放宽：
 
 | 没有 | 开发环境中 | 生产环境中 |
 | --- | --- | --- |

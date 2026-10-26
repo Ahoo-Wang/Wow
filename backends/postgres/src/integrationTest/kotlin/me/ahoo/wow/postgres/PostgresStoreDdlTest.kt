@@ -16,7 +16,7 @@ package me.ahoo.wow.postgres
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.postgres.timer.PostgresTimerStore
 import me.ahoo.wow.postgres.timer.PostgresTimerTables
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -36,7 +36,7 @@ class PostgresStoreDdlTest {
     @Test
     fun `validate refuses a missing log, and passes once auto created it`() {
         val context = PostgresFixture.newContext("ddl")
-        val validating = PostgresEventLog(dataSource, context, 2, ddl = StoreDdl.VALIDATE)
+        val validating = PostgresEventLog(dataSource, context, 2, ddl = Ddl.VALIDATE)
         assertThrows<IllegalStateException> { validating.createSchema() }.message.assert().contains("no format record")
 
         PostgresEventLog(dataSource, context, 2).also {
@@ -56,15 +56,15 @@ class PostgresStoreDdlTest {
         val table = PostgresTimerTables(context).base
         PostgresFixture.bumpFormat(table)
         assertThrows<IllegalStateException> {
-            PostgresTimerStore(dataSource, context, ddl = StoreDdl.VALIDATE).createSchema()
+            PostgresTimerStore(dataSource, context, ddl = Ddl.VALIDATE).createSchema()
         }.message.assert().contains("Migrate it")
     }
 
     @Test
     fun `none creates and checks nothing`() {
         val context = PostgresFixture.newContext("ddl")
-        PostgresTimerStore(dataSource, context, ddl = StoreDdl.NONE).createSchema()
-        PostgresEventLog(dataSource, context, 2, ddl = StoreDdl.NONE).createTable("order")
+        PostgresTimerStore(dataSource, context, ddl = Ddl.NONE).createSchema()
+        PostgresEventLog(dataSource, context, 2, ddl = Ddl.NONE).createTable("order")
         tableExists(PostgresTimerTables(context).base).assert().isFalse()
     }
 }

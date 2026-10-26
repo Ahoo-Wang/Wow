@@ -30,7 +30,7 @@ The problem's `code` in the response (`application/problem+json`) or in the comm
 | 429 `wow.query.busy` | The store's query bulkhead is full | `wow.query.max-concurrent`, the adaptive bound, the append latency |
 | 503 `wow.command.unknown` | A forward or append whose outcome is unknown | Retry with the same request id; the cluster's health |
 | 503 `wow.storage.unavailable` | A store unreachable | Health `wow` group, the store |
-| 503 `wow.node.standby` | The node runs with `wow.standby=true` (a migration's dual-run) | `GET /wow/node/standby` on the internal port |
+| 503 `wow.node.standby` | The node runs with `wow.node.standby=true` (a migration's dual-run) | `GET /wow/node/standby` on the internal port |
 | A derived command is rejected and the aggregate parks | No `@OnRejected` for an expected rejection | The saga's handlers; the parked entry's reason |
 | A handler never runs | Subscription start (`end` for a reactor or saga of the own log), wrong `aggregates`, a typed handler skipped for a `PublishedEvent`, no Kafka for another context | The subscription's start, checkpoint and the Manifest's `subscriptions` |
 | Startup fails: unknown `wow.*` key | A typo or a key of another version | The configuration metadata of the pinned version |

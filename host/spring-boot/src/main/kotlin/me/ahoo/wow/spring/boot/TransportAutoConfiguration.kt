@@ -22,6 +22,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.sink.PublishedSinks
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.transport.PartitionedSource
@@ -58,7 +59,7 @@ import kotlin.time.toKotlinDuration
  * - **Sink**: [PublishedSinks.topics] over the producer, one subscription per stream the Manifest publishes, each
  *   written to its topic after `wow.kafka.topic-prefix`.
  * - **Source**: the [SourceTopics] over the source, the producer and the admin, after the same prefix, with
- *   `wow.kafka.command-intake`, `wow.kafka.topics.ddl` and `wow.kafka.topics.partition-refresh`: the subscriptions
+ *   `wow.kafka.command-intake.enabled`, `wow.kafka.ddl` and `wow.kafka.topics.partition-refresh`: the subscriptions
  *   of other contexts' streams read through it, and a saga's commands to other contexts go through it.
  * - **Warnings**: once the application is ready, what the transport warns about the node's command topics
  *   ([TopicTransport.warnings]), such as one that does not survive the loss of a broker (decision D143).
@@ -87,9 +88,14 @@ class TransportAutoConfiguration {
             providers: PortProviders,
             environment: Environment,
             beanFactory: ListableBeanFactory,
+            development: ObjectProvider<DevelopmentMode>,
         ): TopicTransport {
             val (provider, config) = configNotNull(
-                providers.transportConfig(environment, BeanStoreResources(beanFactory)),
+                providers.transportConfig(
+                    environment,
+                    BeanStoreResources(beanFactory),
+                    development.ifAvailable?.active == true,
+                ),
                 "wow.<transport>",
                 "Configure the transport of a provider: ${providers.transports.keys.joinToString { "wow.$it.*" }}.",
             ) { "A transport provider is declared, but no transport is configured." }
@@ -125,13 +131,14 @@ class TransportAutoConfiguration {
             producer: TopicProducer,
             admin: TopicAdmin,
             properties: KafkaProperties,
+            wow: ObjectProvider<WowProperties>,
         ): SourceTopics = SourceTopics(
             source,
             properties.topicPrefix,
             producer,
-            properties.commandIntake,
+            properties.commandIntake.enabled,
             admin,
-            properties.topics.ddl,
+            properties.ddl ?: wow.ifAvailable?.ddl ?: Ddl.AUTO,
             properties.topics.partitionRefresh.toKotlinDuration(),
         )
 

@@ -125,7 +125,7 @@ class InProcessQueryApiTest {
         val engine = QueryEngine.Builder(manifest)
             .snapshots(storage) { it == cart }
             .events { type -> events.create(type).takeIf { type == cart } }
-            // The host's default (`wow.query.in-process.*`): the HTTP defaults.
+            // The host's default (`wow.query.budgets.in-process.*`): the HTTP defaults.
             .entryPolicy(QueryEntryPolicy(inProcess = QueryBudget.IN_PROCESS_DEFAULT))
             .build()
         return InProcessQueryApi(

@@ -46,8 +46,8 @@ class ClickHouseSinkProviderTest {
     fun `unset settings take the Sink's defaults`() {
         val options = ClickHouseSinkProvider.options(config("endpoint" to "http://c:8123"))
         options.assert().isEqualTo(ClickHouseSinkOptions())
-        assertThrows<IllegalArgumentException> { ClickHouseSinkProvider.options(config("sink.ddl" to "drop")) }
-            .message.assert().contains("wow.clickhouse.sink.ddl", "auto, validate or none")
+        assertThrows<IllegalArgumentException> { ClickHouseSinkProvider.options(config("ddl" to "drop")) }
+            .message.assert().contains("wow.clickhouse.ddl", "auto, validate or none")
     }
 
     @Test

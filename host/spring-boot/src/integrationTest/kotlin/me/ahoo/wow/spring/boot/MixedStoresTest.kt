@@ -49,7 +49,7 @@ class MixedStoresTest {
             "wow.stores.mongo.database" to DATABASE,
             "wow.log.store" to "pg",
             "wow.aggregates.[treasury.ledger].log.store" to "mongo",
-            "wow.aggregates.[treasury.ledger].snapshot.store" to "mongo",
+            "wow.aggregates.[treasury.ledger].snapshot.stores" to "mongo",
             "wow.timers.poll-interval" to "100ms",
             "spring.datasource.url" to postgres.jdbcUrl,
             "spring.datasource.username" to postgres.username,

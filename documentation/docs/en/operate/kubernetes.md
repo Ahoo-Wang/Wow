@@ -48,7 +48,7 @@ data:
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
   # The topics the service owns are created by the operator; the node only validates them (decision D168). The kafka
   # profile's auto is for trying the service out.
-  WOW_KAFKA_TOPICS_DDL: validate
+  WOW_KAFKA_DDL: validate
   # Fixed once the context's log holds entries; the command topic wow.eshop-ordering.commands has as many partitions.
   WOW_LOG_PARTITIONS: "64"
   JAVA_OPTS: -XX:MaxRAMPercentage=75.0
@@ -218,7 +218,7 @@ Add replicas to spread the partitions over more nodes; remove them to gather the
 
 1. Build the image and push it, or load it into a local cluster.
 2. Provide the database and, when the service uses it, Kafka.
-3. Create the Kafka topics the service owns, since the ConfigMap sets `WOW_KAFKA_TOPICS_DDL=validate`: a command topic needs exactly as many partitions as the log ([Kafka](./kafka#creating-topics)).
+3. Create the Kafka topics the service owns, since the ConfigMap sets `WOW_KAFKA_DDL=validate`: a command topic needs exactly as many partitions as the log ([Kafka](./kafka#creating-topics)).
 4. Replace the example secrets.
 
 Then `kubectl apply -k deploy/eshop-ordering` and `kubectl rollout status deployment/eshop-ordering`.

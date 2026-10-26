@@ -106,6 +106,7 @@ import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.call.CommandCaller
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.ledger.FailureLedger
@@ -703,7 +704,7 @@ class ServiceNode @InternalWowApi constructor(
      * The topics the node's contexts own and use (decision D168), which [start] validates or creates as
      * [SourceTopics.ddl] says: the command topic of each context that takes commands from it, with exactly its log's
      * partitions; the receipts topic of each context that reads its rejections; with a producer, the topic of each
-     * stream its contexts publish, and, under [TopicDdl.VALIDATE], the command topic of each peer context whose
+     * stream its contexts publish, and, under [Ddl.VALIDATE], the command topic of each peer context whose
      * contract lists commands, where the gateway sends them (decision D259, review M-1): that topic is the peer's, so
      * it is checked, never created. None without [topics].
      */
@@ -742,7 +743,7 @@ class ServiceNode @InternalWowApi constructor(
                 }
             }
         }
-        if (sources.producer != null && sources.ddl == TopicDdl.VALIDATE) {
+        if (sources.producer != null && sources.ddl == Ddl.VALIDATE) {
             contracts.peers.flatMap { it.manifest.contexts }
                 .filter { context -> context.aggregates.any { aggregate -> aggregate.commands.any { !it.mounted } } }
                 .forEach { peer ->

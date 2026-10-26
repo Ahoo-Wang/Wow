@@ -132,7 +132,7 @@ import jakarta.validation.Validator as JakartaValidator
  *   `MongoClient`, in memory (one node, with a warning) when `wow.backend=memory`, or when it has neither and runs in
  *   a development profile or on a loopback-only internal port (it refuses to start otherwise, review R3.5-1), or the
  *   application's own [BackendFactory] bean. With `wow.stores`, the named store instances instead ([StoreInstances]), each aggregate's
- *   log and snapshots on the store `wow.log.store`, `wow.snapshot.store` and its `wow.aggregates.*` name
+ *   log and snapshots on the store `wow.log.store`, `wow.snapshot.stores` and its `wow.aggregates.*` name
  *   ([StoreLayout], decision D177).
  * - **Admission**: the application's [CommandAuthorizer], [CommandTransformer]s (D182) and [CommandValidator]s, the Jakarta
  *   validator when it has a Bean Validation provider (D106), the id generators (D171): the [GlobalIdGenerator] bean
@@ -641,7 +641,7 @@ class WowAutoConfiguration {
         events: ApplicationEventPublisher,
         availability: ObjectProvider<ApplicationAvailability>,
         properties: WowProperties,
-    ): ServiceNodeLifecycle = ServiceNodeLifecycle(node, events, properties.standby) { availability.ifAvailable }
+    ): ServiceNodeLifecycle = ServiceNodeLifecycle(node, events, properties.node.standby) { availability.ifAvailable }
 
     /**
      * The node's command gateway (decision D92), through which the application sends commands in process. The node
@@ -692,7 +692,7 @@ class WowAutoConfiguration {
     }
 
     /**
-     * Whether the node runs for development (a profile of `wow.internal.dev-profiles`, or a loopback internal port):
+     * Whether the node runs for development (a profile of `wow.dev-profiles`, or a loopback internal port):
      * the one exemption of the host's safeguards ([DevelopmentMode]).
      */
     @Bean
@@ -703,7 +703,7 @@ class WowAutoConfiguration {
     ): DevelopmentMode = DevelopmentMode(
         BackendSelection.memoryOptIn(
             environment.activeProfiles.toList(),
-            properties.internal.devProfiles,
+            properties.devProfiles,
             identity.ifAvailable?.bindHost,
         ),
     )
@@ -719,12 +719,12 @@ class WowAutoConfiguration {
     fun wowCallerResolver(properties: WowProperties, development: DevelopmentMode): CallerResolver {
         configCheck(
             development.active,
-            "wow.internal.dev-profiles",
+            "wow.dev-profiles",
             null,
             "Declare a CallerResolver bean that maps the identity your gateway asserts (wow-cosec's, or your own); " +
                 "an intentionally anonymous service declares one returning CallerResolver.ANONYMOUS.",
         ) {
-            "No CallerResolver bean: outside development (a profile of wow.internal.dev-profiles, or a loopback " +
+            "No CallerResolver bean: outside development (a profile of wow.dev-profiles, or a loopback " +
                 "internal port), the public port would serve every request as the anonymous caller."
         }
         val tenant = properties.tenant.default
@@ -752,18 +752,18 @@ class WowAutoConfiguration {
             errorStatuses = properties.http.errors.mapValues { it.value.status },
             manifestEndpoint = properties.http.manifest.enabled,
             openApiEndpoint = properties.http.openapi.enabled,
-            clientFacts = properties.http.clientFacts,
+            clientFacts = properties.http.clientFacts.enabled,
         )
     }
 
     /**
      * The error handling of the application's own routes (review M-3, decision D259): their failures answered as the
-     * framework routes' problem+json, unless `wow.http.global-errors` is off.
+     * framework routes' problem+json, unless `wow.http.global-errors.enabled` is off.
      */
     @Bean
     @ConditionalOnProperty(
         prefix = "${WowProperties.PREFIX}.http",
-        name = ["global-errors"],
+        name = ["global-errors.enabled"],
         havingValue = "true",
         matchIfMissing = true,
     )

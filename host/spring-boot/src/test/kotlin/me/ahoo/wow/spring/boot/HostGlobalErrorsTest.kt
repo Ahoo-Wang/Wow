@@ -24,7 +24,7 @@ import org.springframework.web.reactive.function.server.coRouter
 
 /**
  * The application's own routes answer what fails on them as the framework routes' problem+json (review M-3, decision
- * D259), unless `wow.http.global-errors` is off.
+ * D259), unless `wow.http.global-errors.enabled` is off.
  */
 class HostGlobalErrorsTest {
     @Test
@@ -41,7 +41,7 @@ class HostGlobalErrorsTest {
     @Test
     fun `turned off, an application route's failure should be Spring's`() {
         startHost(
-            "wow.http.global-errors" to false,
+            "wow.http.global-errors.enabled" to false,
             sources = listOf(HostTestApp::class.java, AppRoutes::class.java),
         ).use { host ->
             val down = host.client.get().uri("/app/down").exchange().expectBody(String::class.java).returnResult()

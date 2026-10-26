@@ -19,7 +19,7 @@ import me.ahoo.wow.clickhouse.sink.AggregateSinkOptions
 import me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.sink.SinkConfig
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -41,14 +41,14 @@ class HostOptionsTest {
 
     @Test
     fun `the stores' DDL should be auto by default, set for all and per store`() {
-        WowProperties().ddl.assert().isEqualTo(StoreDdl.AUTO)
+        WowProperties().ddl.assert().isEqualTo(Ddl.AUTO)
         val properties = wow(
             "wow.ddl" to "validate",
             "wow.stores.audit.type" to "postgres",
             "wow.stores.audit.ddl" to "none"
         )
-        properties.ddl.assert().isEqualTo(StoreDdl.VALIDATE)
-        properties.stores.getValue("audit").ddl.assert().isEqualTo(StoreDdl.NONE)
+        properties.ddl.assert().isEqualTo(Ddl.VALIDATE)
+        properties.stores.getValue("audit").ddl.assert().isEqualTo(Ddl.NONE)
     }
 
     @Test
@@ -74,25 +74,20 @@ class HostOptionsTest {
     }
 
     @Test
-    fun `an aggregate's ClickHouse history should take the one per-type style over the older keys`() {
+    fun `an aggregate's ClickHouse history should be its per-type keys`() {
         val wow = wow(
             "wow.aggregates.[bank.account].clickhouse.history.ttl" to "7d",
             "wow.aggregates.[bank.audit].clickhouse.history.enabled" to "false",
             "wow.aggregates.[bank.card].tenant" to "t0",
         )
-        val legacy = mapOf(
-            "endpoint" to "http://127.0.0.1:1",
-            "sink.aggregates.bank.account.history.ttl" to "30d",
-            "sink.aggregates.bank.ledger.history.enabled" to "false",
-        )
         SinkAutoConfiguration.aggregateOptions("kafka", wow.aggregates).assert().isEmpty()
-        val options = legacy + SinkAutoConfiguration.aggregateOptions("clickhouse", wow.aggregates)
+        val options = mapOf("endpoint" to "http://127.0.0.1:1") +
+            SinkAutoConfiguration.aggregateOptions("clickhouse", wow.aggregates)
         ClickHouseSinkProvider.options(
             SinkConfig.of("clickhouse", "clickhouse", options)
         ).aggregates.assert().isEqualTo(
             mapOf(
                 AggregateType("bank", "account") to AggregateSinkOptions(historyTtl = 7.days),
-                AggregateType("bank", "ledger") to AggregateSinkOptions(history = false),
                 AggregateType("bank", "audit") to AggregateSinkOptions(history = false),
             ),
         )

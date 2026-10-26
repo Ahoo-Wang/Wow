@@ -25,7 +25,7 @@ wow:
   aggregates:
     "[shop.order]":
       snapshot:
-        store: search
+        stores: [search]
       query:
         events:
           store: search
@@ -38,8 +38,8 @@ wow:
 | `wow.stores.<name>.index-prefix` | 每个索引名的前缀：`shop_wow_snapshot__…`、`shop_wow_events__…` | 无 |
 | `wow.stores.<name>.refresh` | 快照写入何时变得可检索：`wait_for`、`true` 或 `false` | `wait_for` |
 | `wow.stores.<name>.ddl` | 存储是否创建它的索引：`auto`、`validate`、`none` | `wow.ddl` |
-| `wow.query.index.ddl` | 是否为状态和事件的 body 字段建立映射 | `auto` |
-| `wow.aggregates.[<context>.<aggregate>].snapshot.store` | 聚合快照所在的存储 | 日志的存储 |
+| `wow.stores.<name>.ddl` | 是否创建索引，并为状态和事件的 body 字段建立映射 | `wow.ddl` |
+| `wow.aggregates.[<context>.<aggregate>].snapshot.stores` | 聚合快照所在的存储 | 日志的存储 |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | 它的 `events` 查询所读取的存储 | 日志的存储 |
 
 每个索引都在它的 `_meta` 中记录自己的布局，并拒绝期望另一种布局的存储。

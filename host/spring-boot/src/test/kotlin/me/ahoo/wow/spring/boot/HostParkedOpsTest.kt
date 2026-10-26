@@ -58,7 +58,7 @@ class HostParkedOpsTest {
     private val host = startHost(
         "wow.subscription.retry.max-attempts" to 1,
         "wow.subscription.parked.max-retries" to 5,
-        "wow.subscription.parked.min-backoff" to "200ms",
+        "wow.subscription.parked.initial-backoff" to "200ms",
         "wow.subscription.parked.execution-timeout" to "100ms",
         "wow.subscription.parked.scan-interval" to "50ms",
         "wow.subscriptions.[$BROKEN].parked.max-retries" to 1,

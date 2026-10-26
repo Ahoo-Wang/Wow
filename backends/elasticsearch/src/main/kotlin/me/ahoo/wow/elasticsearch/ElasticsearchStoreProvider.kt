@@ -33,8 +33,8 @@ import me.ahoo.wow.spi.timer.TimerStore
 
 /**
  * The Elasticsearch stores (`wow.stores.<name>.type: elasticsearch`, work package 6.7): snapshots only, never a log
- * (decision D13), so a store of this type serves `wow.snapshot.store`, `wow.snapshot.targets` and an aggregate's
- * `snapshot.store`, never `wow.log.store`. Each store opens over the application's low-level `Rest5Client` that its
+ * (decision D13), so a store of this type serves `wow.snapshot.stores` and an aggregate's `snapshot.stores`, never
+ * `wow.log.store`. Each store opens over the application's low-level `Rest5Client` that its
  * `client` option names (else the only one), with the settings:
  *
  * - `index-prefix`: a prefix of every index name (`<prefix>_wow_snapshot__<context>__<aggregate>`), for a cluster

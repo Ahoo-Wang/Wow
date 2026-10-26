@@ -51,3 +51,28 @@ A new major version may change formats and protocols. Its nodes do not run besid
 ## From a 10.0.0 pre-release
 
 A 10.0.0 pre-release (`alpha`, `beta`, `rc`) makes no compatibility promise for what it stores: the storage format of a later build may differ in place. Upgrading from a pre-release needs a fresh database; what an earlier pre-release wrote is not migrated or read.
+
+### Configuration keys renamed before 10.0.0
+
+The configuration surface was settled once before 10.0.0, without aliases: a key of an earlier pre-release binds to nothing. Each row names what took its place.
+
+| Pre-release key | 10.0.0 |
+| --- | --- |
+| `wow.query.index.ddl` | Removed: the query indexes follow the `ddl` of their store (`wow.stores.<store>.ddl`, else `wow.ddl`), and `validate` refuses to start while one is missing |
+| `wow.kafka.topics.ddl` | `wow.kafka.ddl`, which follows `wow.ddl` (`auto`) when not set; it was `validate` by default |
+| `wow.clickhouse.sink.ddl` | `wow.clickhouse.ddl`, which follows `wow.ddl` when not set |
+| `wow.clickhouse.sink.aggregates.<context>.<aggregate>.history.*` | `wow.aggregates.[<context>.<aggregate>].clickhouse.history.*` |
+| `wow.kafka.command-intake` | `wow.kafka.command-intake.enabled` |
+| `wow.internal.dev-profiles`, `wow.kafka.topics.dev-profiles` | `wow.dev-profiles` |
+| `wow.query.http.*` | `wow.query.budgets.http.*` |
+| `wow.query.in-process.*` | `wow.query.budgets.in-process.*` |
+| `wow.query.in-process-timeout` | `wow.query.unbounded-timeout` |
+| `wow.query.events.mongo-read-preference` | `wow.mongo.query-read-preference`, for the snapshot queries too |
+| `wow.stores.<store>.query.read-preference` | `wow.stores.<store>.options.query-read-preference` |
+| `wow.query.count-cache.events-enabled` | `wow.query.count-cache.events.enabled` |
+| `wow.snapshot.store`, `wow.snapshot.targets` | `wow.snapshot.stores`; the first one's subscription is `snapshot` |
+| `wow.aggregates.[<context>.<aggregate>].snapshot.store` | `wow.aggregates.[<context>.<aggregate>].snapshot.stores` |
+| `wow.subscription.parked.min-backoff`, `wow.subscriptions.[<subscription>].parked.min-backoff` | `…parked.initial-backoff` |
+| `wow.http.client-facts` | `wow.http.client-facts.enabled` |
+| `wow.http.global-errors` | `wow.http.global-errors.enabled` |
+| `wow.standby` | `wow.node.standby` |

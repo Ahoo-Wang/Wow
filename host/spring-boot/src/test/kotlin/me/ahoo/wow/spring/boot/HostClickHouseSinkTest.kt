@@ -15,15 +15,13 @@ package me.ahoo.wow.spring.boot
 
 import com.clickhouse.client.api.Client
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.clickhouse.sink.AggregateSinkOptions
 import me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider
-import me.ahoo.wow.clickhouse.sink.DdlMode
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.manifest.ManifestLoader
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.sink.SinkConfig
 import org.junit.jupiter.api.Test
@@ -31,7 +29,6 @@ import org.springframework.boot.autoconfigure.AutoConfigurations
 import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import kotlin.time.Duration.Companion.days
 
 /**
  * The ClickHouse Sink, found as the Sink provider of type `clickhouse` (decisions D142, D164, finding R5.B-5): with
@@ -83,11 +80,9 @@ class HostClickHouseSinkTest {
         runner.withPropertyValues(
             "wow.clickhouse.endpoint=http://127.0.0.1:1",
             "wow.clickhouse.database=analytics",
-            "wow.clickhouse.sink.ddl=validate",
+            "wow.clickhouse.ddl=validate",
             "wow.clickhouse.sink.batch-size=50",
             "wow.clickhouse.sink.deduplication-window=200",
-            "wow.clickhouse.sink.aggregates.bank.account.history.ttl=30d",
-            "wow.clickhouse.sink.aggregates.bank.audit.history.enabled=false",
         ).run { context ->
             val config = SinkConfig.of(
                 "clickhouse",
@@ -96,17 +91,14 @@ class HostClickHouseSinkTest {
             )
             val options = ClickHouseSinkProvider.options(config)
             options.database.assert().isEqualTo("analytics")
-            options.ddl.assert().isEqualTo(DdlMode.VALIDATE)
+            options.ddl.assert().isEqualTo(Ddl.VALIDATE)
             options.batchSize.assert().isEqualTo(50)
             options.deduplicationWindow.assert().isEqualTo(200)
-            options.aggregates.assert().isEqualTo(
-                mapOf(
-                    AggregateType(BANK, "account") to AggregateSinkOptions(historyTtl = 30.days),
-                    AggregateType(BANK, "audit") to AggregateSinkOptions(history = false),
-                ),
-            )
         }
-        runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1", "wow.clickhouse.sink.ddl=drop")
+        runner.withPropertyValues(
+            "wow.clickhouse.endpoint=http://127.0.0.1:1",
+            "wow.aggregates.[account].clickhouse.history.enabled=false",
+        )
             .run { context ->
                 // A setting the provider refuses fails the startup naming its key (finding R5.B-5).
                 context.startupFailure.assert().hasRootCauseInstanceOf(IllegalArgumentException::class.java)
@@ -119,7 +111,7 @@ class HostClickHouseSinkTest {
     fun `a host should run a ClickHouse sink subscription per published aggregate`() {
         startHost(
             "wow.clickhouse.endpoint" to "http://127.0.0.1:1",
-            "wow.clickhouse.sink.ddl" to "none",
+            "wow.clickhouse.ddl" to "none",
             sources = listOf(HostTestApp::class.java, PublishingManifest::class.java),
         ).use { host ->
             host.node.context(BANK).views.readers.keys.assert().contains("clickhouse-sink.account")

@@ -43,10 +43,6 @@ spring:
       on-profile: kafka
 wow:
   kafka:
-    # Creates the topics the service owns when they are missing, for trying it out; production validates them, the
-    # default (decision D168).
-    topics:
-      ddl: auto
     bootstrap-servers: localhost:9092
 ---
 # region mongo

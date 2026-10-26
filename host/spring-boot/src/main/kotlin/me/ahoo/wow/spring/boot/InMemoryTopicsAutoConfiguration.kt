@@ -18,8 +18,8 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.SourceTopics
-import me.ahoo.wow.runtime.node.TopicDdl
 import me.ahoo.wow.runtime.sink.PublishedSinks
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.config.configCheck
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -36,7 +36,7 @@ import org.springframework.core.env.Environment
  * give them on Kafka:
  *
  * - the [SourceTopics] with the producer and the intake, so each context the node hosts executes its command topic,
- *   whose topics the node creates at its start ([TopicDdl.AUTO]);
+ *   whose topics the node creates at its start ([Ddl.AUTO]);
  * - the [PublishedSinks] of the streams the Manifest publishes.
  *
  * It warns at startup that nothing leaves the JVM, and fails with `wow.kafka.bootstrap-servers` set too.
@@ -62,7 +62,7 @@ class InMemoryTopicsAutoConfiguration(environment: Environment) {
     @Bean
     @ConditionalOnMissingBean
     fun wowInMemorySourceTopics(topics: InMemoryTopics): SourceTopics =
-        SourceTopics(topics, producer = topics, intake = true, admin = topics, ddl = TopicDdl.AUTO)
+        SourceTopics(topics, producer = topics, intake = true, admin = topics, ddl = Ddl.AUTO)
 
     @Bean(IN_MEMORY_SINKS)
     fun wowInMemorySinks(manifest: Manifest, topics: InMemoryTopics): PublishedSinks =

@@ -49,7 +49,7 @@ import me.ahoo.wow.runtime.subscription.SystemicFailureOptions
 import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.runtime.wait.WaitOptions
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.TailPolling
@@ -87,9 +87,17 @@ class WowProperties {
     var contexts: Contexts = Contexts()
 
     /**
+     * The profiles in which the node runs for development, as it does when its internal port binds a loopback address
+     * alone: `wow.backend=auto` falls back to memory when no durable backend is available, the public port serves
+     * without a `CallerResolver` bean, a single Kafka broker gives no durability warning, and a platform service may
+     * take its callers from request headers. None of them is allowed in a deployment.
+     */
+    var devProfiles: MutableSet<String> = linkedSetOf("dev", "local", "test", "demo")
+
+    /**
      * The backend of a node that names no `wow.stores`: `auto` (the default) takes PostgreSQL or MongoDB by the
      * application's `DataSource` or `MongoClient`, and refuses to start without either, so that data is not lost by
-     * mistake, unless a profile of `wow.internal.dev-profiles` is active or the internal port binds the loopback
+     * mistake, unless a profile of `wow.dev-profiles` is active or the internal port binds the loopback
      * interface alone; `memory` keeps the data in memory on purpose, for one node whose data does not outlive it.
      * `postgres`, `mongo` or the type of a community backend's store provider (`me.ahoo.wow.spi.store.StoreProvider`)
      * name one.
@@ -101,7 +109,7 @@ class WowProperties {
      * missing (the default), `validate` creates nothing and refuses a store whose schema is missing or in another
      * format, `none` creates and checks nothing; `wow.stores.<name>.ddl` overrides it for one store.
      */
-    var ddl: StoreDdl = StoreDdl.AUTO
+    var ddl: Ddl = Ddl.AUTO
 
     /** The defaults of the MongoDB stores. */
     var mongo: Mongo = Mongo()
@@ -147,11 +155,11 @@ class WowProperties {
     /** Where `wow.log`, `wow.snapshot` and `wow.aggregates` place the logs and snapshots. */
     internal fun storePlacements(): StorePlacements = StorePlacements(
         log = log.store,
-        snapshot = snapshot.store,
-        snapshotTargets = snapshot.targets,
+        snapshot = snapshot.stores.firstOrNull { it.isNotBlank() },
+        snapshotTargets = snapshot.stores,
         snapshotPrimary = snapshot.primary,
         aggregates = aggregates.mapValues { (_, aggregate) ->
-            AggregatePlacement(aggregate.log.store, aggregate.snapshot.store, aggregate.snapshot.primary)
+            AggregatePlacement(aggregate.log.store, aggregate.snapshot.stores, aggregate.snapshot.primary)
         },
     )
 
@@ -169,15 +177,6 @@ class WowProperties {
 
     /** The node's topics without Kafka, for local development, see [Topics]. */
     var topics: Topics = Topics()
-
-    /**
-     * Whether the node starts on standby: through the dual-run window of a migration's
-     * cut-over it serves reads of what `migrate-data` imports, refuses every command (`wow.node.standby`, 503), and
-     * handles no subscription, retries no parked entry and runs no job, until its operator resumes it on the internal
-     * port (`POST /wow/node/resume` from a node of its service, naming who resumes it). A subscription that starts at the
-     * end of its stream starts where the stream ends at the resume.
-     */
-    var standby: Boolean = false
 
     /**
      * Topics for trying a service out without Kafka. With `wow.topics.in-memory` (false), the node keeps
@@ -198,8 +197,20 @@ class WowProperties {
         /** This node's id among the nodes of the service; a new one each start when not set. */
         var id: String? = null
 
-        /** The `host:port` of this node's internal port, as the other nodes reach it. */
+        /**
+         * The `host:port` of this node's internal port that it advertises, as the other nodes reach it; the address
+         * the port binds is `wow.internal.host`.
+         */
         var address: String? = null
+
+        /**
+         * Whether the node starts on standby: through the dual-run window of a migration's cut-over it serves reads of
+         * what `migrate-data` imports, refuses every command (the error `wow.node.standby`, 503), and handles no
+         * subscription, retries no parked entry and runs no job, until its operator resumes it on the internal port
+         * (`POST /wow/node/resume` from a node of its service, naming who resumes it). A subscription that starts at
+         * the end of its stream starts where the stream ends at the resume.
+         */
+        var standby: Boolean = false
     }
 
     @InternalWowApi
@@ -224,12 +235,6 @@ class WowProperties {
          * hold the sender's memory.
          */
         var signalQueueCapacity: Int = HttpSignalSender.DEFAULT_QUEUE_CAPACITY
-
-        /**
-         * The development profiles, `dev`, `local`, `test` and `demo`: in them `wow.backend=auto` falls back to memory
-         * when no durable backend is available.
-         */
-        var devProfiles: MutableSet<String> = linkedSetOf("dev", "local", "test", "demo")
     }
 
     /**
@@ -283,6 +288,14 @@ class WowProperties {
          * `options.operation-timeout` overrides it.
          */
         var operationTimeout: Duration = 30.seconds.toJavaDuration()
+
+        /**
+         * The read preference of the snapshot and `events` queries of a MongoDB store (`secondaryPreferred`, say), so
+         * a free filter scans a secondary rather than the primary the log appends to; the primary when not set. A
+         * snapshot read from a secondary may be behind the one a command's wait waited for. A store's
+         * `options.query-read-preference` overrides it.
+         */
+        var queryReadPreference: String? = null
     }
 
     @InternalWowApi
@@ -351,7 +364,7 @@ class WowProperties {
         var options: MutableMap<String, String> = LinkedHashMap()
 
         /** How this store manages the framework's schema, over `wow.ddl`. */
-        var ddl: StoreDdl? = null
+        var ddl: Ddl? = null
 
         /** How the store's snapshot and `events` queries run. */
         var query: StoreQuery = StoreQuery()
@@ -371,16 +384,14 @@ class WowProperties {
      * How one store's queries run (`wow.stores.<name>.query.*`): [maxConcurrent], how many run at once, over
      * `wow.query.max-concurrent` (beyond it a query is `wow.query.busy`, 429; `0` for no bound); [maxWait] and
      * [maxQueued], how long and how many queries beyond it wait for a permit, over `wow.query.max-wait` and
-     * `wow.query.max-queued`; [readPreference], the MongoDB read preference of its snapshot and `events` queries
-     * (`secondaryPreferred`, say), over `wow.query.events.mongo-read-preference` for the events; [events], its `events`
-     * queries; [adaptive], how its bound adapts to its write pressure, over `wow.query.adaptive.*`.
+     * `wow.query.max-queued`; [events], its `events` queries; [adaptive], how its bound adapts to its write pressure,
+     * over `wow.query.adaptive.*`.
      */
     @InternalWowApi
     class StoreQuery {
         var maxConcurrent: Int? = null
         var maxWait: Duration? = null
         var maxQueued: Int? = null
-        var readPreference: String? = null
         var events: QueryEvents = QueryEvents()
         var adaptive: StoreAdaptive = StoreAdaptive()
     }
@@ -423,25 +434,20 @@ class WowProperties {
     }
 
     /**
-     * Where the snapshots are, and how the snapshot maintenance runs. Snapshots may have several target stores; a
-     * store added to the targets is backfilled from the log: switch the primary to it once it caught up, then drop the
-     * old one.
+     * Where the snapshots are, and how the snapshot maintenance runs. Snapshots may be written to several stores; a
+     * store added to them is backfilled from the log: switch the primary to it once it caught up, then drop the old
+     * one.
      */
     @InternalWowApi
     class Snapshot {
         /**
-         * The context's default snapshot store, one of `wow.stores`, whose built-in subscription is `snapshot`;
-         * `wow.log.store` when not set.
+         * The stores of `wow.stores` every aggregate's snapshots are written to, unless its
+         * `wow.aggregates.[<context>.<aggregate>].snapshot.stores` names others; `wow.log.store` alone when empty. The
+         * first one's built-in subscription is `snapshot`, each other one's `snapshot:<store>`.
          */
-        var store: String? = null
+        var stores: MutableList<String> = ArrayList()
 
-        /**
-         * The stores every aggregate's snapshots are written to, unless its
-         * `wow.aggregates.[<context>.<aggregate>].snapshot.store` names others; only `wow.snapshot.store` when empty.
-         */
-        var targets: MutableList<String> = ArrayList()
-
-        /** The one of the targets the write side and the queries read; the first when not set. */
+        /** The one of the stores the write side and the queries read; the first when not set. */
         var primary: String? = null
 
         /** How often the snapshot maintenance runs: state revision claims, in-place rebuilds and backfill checks. */
@@ -470,13 +476,12 @@ class WowProperties {
     }
 
     /**
-     * One aggregate type's snapshot targets: [store] lists the stores of `wow.stores` its
-     * snapshots are written to, over `wow.snapshot.targets`; [primary] is the one its write side and queries read, the
-     * first when not set.
+     * One aggregate type's snapshot stores: [stores] lists the stores of `wow.stores` its snapshots are written to,
+     * over `wow.snapshot.stores`; [primary] is the one its write side and queries read, the first when not set.
      */
     @InternalWowApi
     class AggregateSnapshot {
-        var store: MutableList<String> = ArrayList()
+        var stores: MutableList<String> = ArrayList()
         var primary: String? = null
     }
 
@@ -849,7 +854,7 @@ class WowProperties {
          * The wait before the first retry after the failure; each next one waits twice as long after the previous one
          * started.
          */
-        var minBackoff: Duration = DEFAULT_PARKED.spec.minBackoff.toJavaDuration()
+        var initialBackoff: Duration = DEFAULT_PARKED.spec.minBackoff.toJavaDuration()
 
         /** How long a retry may run before the partition's next owner may start another. */
         var executionTimeout: Duration = DEFAULT_PARKED.spec.executionTimeout.toJavaDuration()
@@ -858,7 +863,7 @@ class WowProperties {
         var scanInterval: Duration = DEFAULT_PARKED.scanInterval.toJavaDuration()
 
         fun spec(): ParkedRetrySpec =
-            ParkedRetrySpec(maxRetries, minBackoff.toKotlinDuration(), executionTimeout.toKotlinDuration())
+            ParkedRetrySpec(maxRetries, initialBackoff.toKotlinDuration(), executionTimeout.toKotlinDuration())
     }
 
     /**
@@ -867,17 +872,17 @@ class WowProperties {
     @InternalWowApi
     class ParkedSpec {
         var maxRetries: Int? = null
-        var minBackoff: Duration? = null
+        var initialBackoff: Duration? = null
         var executionTimeout: Duration? = null
 
         /** The spec these settings give over [base], null when none is given. */
         fun specOver(base: ParkedRetrySpec): ParkedRetrySpec? {
-            if (maxRetries == null && minBackoff == null && executionTimeout == null) {
+            if (maxRetries == null && initialBackoff == null && executionTimeout == null) {
                 return null
             }
             return ParkedRetrySpec(
                 maxRetries ?: base.maxRetries,
-                minBackoff?.toKotlinDuration() ?: base.minBackoff,
+                initialBackoff?.toKotlinDuration() ?: base.minBackoff,
                 executionTimeout?.toKotlinDuration() ?: base.executionTimeout,
             )
         }
@@ -1119,21 +1124,14 @@ class WowProperties {
          */
         var requestFacts: MutableSet<String> = LinkedHashSet()
 
-        /**
-         * Whether the public port records each command's client address and `User-Agent` as the request facts
-         * `remote_ip` and `user_agent`, as 9.x did, for audit. They are personal data, and written into the event
-         * stream, which is never deleted: once recorded, they cannot be erased. On by default; off records neither.
-         */
-        var clientFacts: Boolean = true
+        /** The client address and `User-Agent` of each command, recorded as request facts. */
+        var clientFacts: ClientFacts = ClientFacts()
 
         /** The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). */
         var errors: MutableMap<String, Error> = LinkedHashMap()
 
-        /**
-         * Answers what fails on the application's own routes as the framework routes' problem+json, so every route
-         * answers errors alike: on by default; off leaves those errors to Spring's error handling.
-         */
-        var globalErrors: Boolean = true
+        /** The problem+json answers of what fails on the application's own routes. */
+        var globalErrors: GlobalErrors = GlobalErrors()
 
         /** The service's Manifest route. */
         var manifest: Manifest = Manifest()
@@ -1160,6 +1158,28 @@ class WowProperties {
         class Service {
             var commands: MutableList<String> = ArrayList()
             var reads: MutableList<String> = ArrayList()
+        }
+
+        /** The client address and `User-Agent` of each command, recorded as request facts. */
+        @InternalWowApi
+        class ClientFacts {
+            /**
+             * Whether the public port records each command's client address and `User-Agent` as the request facts
+             * `remote_ip` and `user_agent`, as 9.x did, for audit. They are personal data, and written into the event
+             * stream, which is never deleted: once recorded, they cannot be erased. On by default; off records
+             * neither.
+             */
+            var enabled: Boolean = true
+        }
+
+        /** The problem+json answers of what fails on the application's own routes. */
+        @InternalWowApi
+        class GlobalErrors {
+            /**
+             * Whether what fails on the application's own routes is answered as the framework routes' problem+json, so
+             * every route answers errors alike: on by default; off leaves those errors to Spring's error handling.
+             */
+            var enabled: Boolean = true
         }
 
         @InternalWowApi
@@ -1321,9 +1341,7 @@ class WowProperties {
         /** The store of the type's log, over `wow.log.store`: the type's log group. */
         var log: AggregateStore = AggregateStore()
 
-        /**
-         * The stores of the type's snapshots, over `wow.snapshot.targets`; its queries read the primary one.
-         */
+        /** The stores of the type's snapshots, over `wow.snapshot.stores`; its queries read the primary one. */
         var snapshot: AggregateSnapshot = AggregateSnapshot()
 
         /**
@@ -1517,6 +1535,10 @@ class WowProperties {
     @InternalWowApi
     companion object {
         const val PREFIX: String = "wow"
+
+        /** The store option of the MongoDB read preference of its queries, over `wow.mongo.query-read-preference`. */
+        const val QUERY_READ_PREFERENCE: String = "query-read-preference"
+
         const val DEFAULT_INTERNAL_PORT: Int = 9090
         const val DEFAULT_PARTITIONS: Int = 64
         const val DEFAULT_MONGO_DATABASE: String = "wow"

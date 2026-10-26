@@ -21,6 +21,7 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Creation
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
@@ -31,12 +32,11 @@ import me.ahoo.wow.kafka.KafkaPartitionedSource
 import me.ahoo.wow.kafka.KafkaTopicAdmin
 import me.ahoo.wow.kafka.KafkaTopicProducer
 import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.api.aggregate.Creation
+import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
-import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
@@ -53,9 +53,9 @@ import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.SourceTopics
-import me.ahoo.wow.runtime.node.TopicDdl
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.subscription.CheckpointStore
@@ -110,7 +110,7 @@ class KafkaRouterTest {
             KafkaPartitionedSource.create(options).also { sources += it },
             producer = producer,
             admin = admin,
-            ddl = TopicDdl.AUTO,
+            ddl = Ddl.AUTO,
         ),
     ).also { channel.bind(it.address, it.forwardHandler) }
 

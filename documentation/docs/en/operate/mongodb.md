@@ -124,8 +124,8 @@ Snapshot and `events` queries read the primary by default, beside the appends. A
 
 | Key | Applies to |
 | --- | --- |
-| `wow.query.events.mongo-read-preference` | Every `events` query, such as `secondaryPreferred` |
-| `wow.stores.<name>.query.read-preference` | One store's snapshot and `events` queries |
+| `wow.mongo.query-read-preference` | Every `events` query, such as `secondaryPreferred` |
+| `wow.stores.<name>.options.query-read-preference` | One store's snapshot and `events` queries |
 
 A secondary may lag the primary; a read that must see a write asks for its version instead ([Configuration Keys](../reference/configuration#wow-query)).
 

@@ -42,7 +42,7 @@ class MongoHostTest {
     private val host = startHost(
         "wow.mongo.database" to "host_test",
         "wow.log.partitions" to 4,
-        "wow.query.events.mongo-read-preference" to "secondaryPreferred",
+        "wow.mongo.query-read-preference" to "secondaryPreferred",
         "test.mongo.url" to mongo.replicaSetUrl,
         sources = listOf(HostTestApp::class.java, MongoClientConfiguration::class.java, QueryOutcomes::class.java),
     )

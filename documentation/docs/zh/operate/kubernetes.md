@@ -48,7 +48,7 @@ data:
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
   # The topics the service owns are created by the operator; the node only validates them (decision D168). The kafka
   # profile's auto is for trying the service out.
-  WOW_KAFKA_TOPICS_DDL: validate
+  WOW_KAFKA_DDL: validate
   # Fixed once the context's log holds entries; the command topic wow.eshop-ordering.commands has as many partitions.
   WOW_LOG_PARTITIONS: "64"
   JAVA_OPTS: -XX:MaxRAMPercentage=75.0
@@ -218,7 +218,7 @@ lifecycle:
 
 1. 构建镜像并推送，或者把它加载到本地集群。
 2. 准备数据库；服务用到 Kafka 时，也准备 Kafka。
-3. 创建服务拥有的 Kafka 主题，因为 ConfigMap 设置了 `WOW_KAFKA_TOPICS_DDL=validate`：命令主题的分区数必须与日志完全相同（[Kafka](./kafka#creating-topics)）。
+3. 创建服务拥有的 Kafka 主题，因为 ConfigMap 设置了 `WOW_KAFKA_DDL=validate`：命令主题的分区数必须与日志完全相同（[Kafka](./kafka#creating-topics)）。
 4. 替换示例密钥。
 
 然后执行 `kubectl apply -k deploy/eshop-ordering` 和 `kubectl rollout status deployment/eshop-ordering`。

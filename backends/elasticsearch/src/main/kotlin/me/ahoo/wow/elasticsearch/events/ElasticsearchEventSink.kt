@@ -31,8 +31,8 @@ import me.ahoo.wow.elasticsearch.ElasticsearchStore
 import me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider.Companion.TYPE
 import me.ahoo.wow.elasticsearch.awaitElasticsearch
 import me.ahoo.wow.elasticsearch.whenShardReady
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.StorageUnavailableException
-import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.state.StateEventRecord
@@ -68,7 +68,7 @@ class ElasticsearchEventSink internal constructor(
     private val client: ElasticsearchAsyncClient,
     names: ElasticsearchNames,
     val type: AggregateType,
-    private val ddl: StoreDdl,
+    private val ddl: Ddl,
     private val refresh: Refresh?,
 ) : Sink {
     /** The type's events index. */
@@ -237,7 +237,7 @@ class ElasticsearchEventSinks internal constructor(private val store: Elasticsea
         fun of(
             restClient: Rest5Client,
             indexPrefix: String = "",
-            ddl: StoreDdl = StoreDdl.AUTO
+            ddl: Ddl = Ddl.AUTO
         ): ElasticsearchEventSinks =
             ElasticsearchEventSinks(
                 ElasticsearchStore(

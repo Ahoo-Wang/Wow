@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.Ddl
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 
@@ -36,6 +37,12 @@ class ClickHouseProperties {
     /** The database that holds the tables. */
     var database: String = "default"
 
+    /**
+     * How the Sink manages its tables: `auto` creates what is missing, then validates; `validate` creates nothing and
+     * refuses a table that is missing or has other columns; `none` creates and checks nothing. `wow.ddl` when not set.
+     */
+    var ddl: Ddl? = null
+
     /** The Sink that writes the Manifest's published streams to ClickHouse. */
     var sink: Sink = Sink()
 
@@ -48,9 +55,6 @@ class ClickHouseProperties {
         /** Whether the Manifest's published streams are written to ClickHouse. */
         var enabled: Boolean = true
 
-        /** How the Sink manages its tables: `auto` creates what is missing, then validates; `validate` or `none`. */
-        var ddl: String = "auto"
-
         /** The most records one insert carries. */
         var batchSize: Int = DEFAULT_BATCH_SIZE
 
@@ -59,9 +63,6 @@ class ClickHouseProperties {
          * `non_replicated_deduplication_window` of the tables `auto` creates.
          */
         var deduplicationWindow: Int = DEFAULT_DEDUPLICATION_WINDOW
-
-        /** By context, then by aggregate name. */
-        var aggregates: MutableMap<String, MutableMap<String, Aggregate>> = LinkedHashMap()
     }
 
     /** The datasets served from ClickHouse. */
@@ -75,25 +76,9 @@ class ClickHouseProperties {
 
         /**
          * Server settings every dataset query runs under, such as `max_memory_usage`; the execution time comes from
-         * each query's budget (`wow.query.http.timeout`), not from here.
+         * each query's budget (`wow.query.budgets.http.timeout`), not from here.
          */
         var settings: MutableMap<String, String> = LinkedHashMap()
-    }
-
-    /** One aggregate type's settings of the Sink. */
-    @InternalWowApi
-    class Aggregate {
-        var history: History = History()
-    }
-
-    /** Whether every commit of the type is kept, and how long. */
-    @InternalWowApi
-    class History {
-        /** Whether every commit is kept; off keeps only the current state. */
-        var enabled: Boolean = true
-
-        /** How long the history is kept; forever when not set. */
-        var ttl: Duration? = null
     }
 
     @InternalWowApi

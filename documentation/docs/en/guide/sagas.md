@@ -52,7 +52,7 @@ Every derived command is deterministic:
 | This context | The node decides it within the saga's handling | It is committed |
 | Another context | Its command topic, `wow.<context>.commands` | The broker has it |
 
-A service that executes the commands of other contexts sets `wow.kafka.command-intake: true`. A node whose sagas send another context's commands needs a command transport, Kafka (`wow.kafka.bootstrap-servers`) in production, and does not start without one. [Kafka](../operate/kafka) describes the topics.
+A service that executes the commands of other contexts sets `wow.kafka.command-intake.enabled: true`. A node whose sagas send another context's commands needs a command transport, Kafka (`wow.kafka.bootstrap-servers`) in production, and does not start without one. [Kafka](../operate/kafka) describes the topics.
 
 ## Act on a command's success
 

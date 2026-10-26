@@ -124,8 +124,8 @@ class MongoBackend {
 
 | 键 | 适用于 |
 | --- | --- |
-| `wow.query.events.mongo-read-preference` | 每个 `events` 查询，例如 `secondaryPreferred` |
-| `wow.stores.<name>.query.read-preference` | 一个存储的快照查询和 `events` 查询 |
+| `wow.mongo.query-read-preference` | 每个 `events` 查询，例如 `secondaryPreferred` |
+| `wow.stores.<name>.options.query-read-preference` | 一个存储的快照查询和 `events` 查询 |
 
 从节点可能落后于主节点；必须看到某次写入的读取，要改为指定它的版本（[配置项](../reference/configuration#wow-query)）。
 

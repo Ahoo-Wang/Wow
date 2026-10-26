@@ -24,9 +24,6 @@ wow:
     host: 127.0.0.1
   kafka:
     bootstrap-servers: localhost:9092
-    topics:
-      # Creates the state topic the service owns when it is missing; production validates it, the default.
-      ddl: auto
 ---
 spring:
   config:

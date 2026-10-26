@@ -453,7 +453,7 @@ object ArchitectureRules {
         "QueryBackend", "QueryBackendFactory", "QueryBackendBinding", "events.UnpinnedEvents",
         "memory.InMemoryQueryStorage", "memory.InMemoryEventQueryStorage",
         // The schemas, indexes and datasets the host loads and reports at startup.
-        "schema.QuerySchemaCatalog", "schema.QueryModel", "schema.QueryModelSchema", "index.QueryIndexDdl",
+        "schema.QuerySchemaCatalog", "schema.QueryModel", "schema.QueryModelSchema",
         "index.QueryIndexDeclaration", "dataset.QueryDatasets", "dataset.QueryDatasetFiles", "dataset.QueryDataset",
         "dataset.QueryDatasetChange", "dataset.QueryDatasetListener", "dataset.DatasetQueryGateways",
         // The read paths it hands out.

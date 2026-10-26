@@ -70,7 +70,7 @@ The first such write in production ends the rollback window. Either accept that 
 
 ## The online switch
 
-From the first import until the switch, 9.x serves and V10 waits: `tail` follows what 9.x writes, and every V10 node starts with `wow.standby=true`. A node on standby serves reads and queries of what the import writes, refuses every command with 503 `wow.node.standby`, and runs no subscription, parked retry, job or snapshot maintenance, so nothing V10 does can write. It reports ready, so the read side can be checked against production data before the switch.
+From the first import until the switch, 9.x serves and V10 waits: `tail` follows what 9.x writes, and every V10 node starts with `wow.node.standby=true`. A node on standby serves reads and queries of what the import writes, refuses every command with 503 `wow.node.standby`, and runs no subscription, parked retry, job or snapshot maintenance, so nothing V10 does can write. It reports ready, so the read side can be checked against production data before the switch.
 
 1. **Announce the window, stop 9.x's writes**, as offline does.
 2. **Take and verify the final backup.**

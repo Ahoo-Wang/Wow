@@ -16,7 +16,7 @@ data:
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
   # The topics the service owns are created by the operator; the node only validates them (decision D168). The kafka
   # profile's auto is for trying the service out.
-  WOW_KAFKA_TOPICS_DDL: validate
+  WOW_KAFKA_DDL: validate
   # Fixed once the context's log holds entries; wow.ops.commands, which every service's ledger publishes to
   # (wow.ops.publish.enabled), has as many partitions.
   WOW_LOG_PARTITIONS: "64"

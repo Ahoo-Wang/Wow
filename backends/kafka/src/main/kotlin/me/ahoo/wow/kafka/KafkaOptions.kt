@@ -37,7 +37,7 @@ import kotlin.time.Duration.Companion.seconds
  *   (`auto.offset.reset=none`): a read whose offset is no longer retained is an offset gap, which the source handles
  *   by its [OffsetGapPolicy] (finding A2-11);
  *   asking about a topic never creates it (`allow.auto.create.topics=false`), so a topic is made only by its owner,
- *   by an operator or by `wow.kafka.topics.ddl=auto` (decision D168), with the partitions it needs;
+ *   by an operator or by `wow.kafka.ddl=auto` (decision D168), with the partitions it needs;
  * - keys are strings, values bytes.
  *
  * [pollTimeout] bounds one poll of a source's read, so a cancelled read stops within it. [metadataMaxAge] is the

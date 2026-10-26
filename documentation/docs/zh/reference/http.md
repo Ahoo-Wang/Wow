@@ -108,4 +108,4 @@ hop  := "accepted" ["(" context ")"]
 | `result` | 命令产生了结果时，命令完整的结果 |
 | 其他任何成员 | 拒绝的结构化扩展，按名字 |
 
-领域错误码的状态是它的 `@ErrorCode(status)`，默认 422，可以用 `wow.http.errors.[<code>].status` 按错误码覆盖。框架的错误码见[错误码](./error-codes)。应用自己的路由也以 problem 回答它们的失败（`wow.http.global-errors`，默认打开）。
+领域错误码的状态是它的 `@ErrorCode(status)`，默认 422，可以用 `wow.http.errors.[<code>].status` 按错误码覆盖。框架的错误码见[错误码](./error-codes)。应用自己的路由也以 problem 回答它们的失败（`wow.http.global-errors.enabled`，默认打开）。

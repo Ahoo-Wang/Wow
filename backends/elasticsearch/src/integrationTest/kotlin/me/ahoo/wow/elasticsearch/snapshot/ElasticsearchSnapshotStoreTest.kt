@@ -23,7 +23,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.elasticsearch.ElasticsearchFixture
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.snapshot.SnapshotStoreSpec
@@ -42,10 +42,10 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
     @Test
     fun `validate refuses a missing index and none touches nothing`(): Unit = runBlocking {
         val context = ElasticsearchFixture.newContext()
-        val validating = ElasticsearchFixture.store(StoreDdl.VALIDATE).snapshots(context)
+        val validating = ElasticsearchFixture.store(Ddl.VALIDATE).snapshots(context)
         val ref = AggregateType(context, "aggregate").ref("tenant", "a")
         assertThrownBy<IllegalStateException> { runBlocking { validating.load(ref) } }
-        ElasticsearchFixture.store(StoreDdl.NONE).snapshots(context).load(ref).assert().isNull()
+        ElasticsearchFixture.store(Ddl.NONE).snapshots(context).load(ref).assert().isNull()
         // Created once, a validating store reads it.
         (ElasticsearchFixture.store().snapshots(context) as ElasticsearchSnapshotStore).createIndex("aggregate")
         validating.load(ref).assert().isNull()

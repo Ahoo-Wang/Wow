@@ -52,7 +52,7 @@ fun onOrderSubmitted(
 | 本上下文 | 节点在 Saga 的处理之内决定它 | 它被提交时 |
 | 另一个上下文 | 它的命令主题 `wow.<context>.commands` | broker 收到它时 |
 
-执行其他上下文的命令的服务要设置 `wow.kafka.command-intake: true`。Saga 发出其他上下文命令的节点需要命令传输，生产环境中是 Kafka（`wow.kafka.bootstrap-servers`），没有它就不会启动。主题见 [Kafka](../operate/kafka)。
+执行其他上下文的命令的服务要设置 `wow.kafka.command-intake.enabled: true`。Saga 发出其他上下文命令的节点需要命令传输，生产环境中是 Kafka（`wow.kafka.bootstrap-servers`），没有它就不会启动。主题见 [Kafka](../operate/kafka)。
 
 ## 在命令成功后行动 {#act-on-a-command-s-success}
 

@@ -19,7 +19,7 @@ The host refuses to start rather than run with a setting that would quietly do t
 | Unknown security configuration keys | A mistyped key under `wow.cosec.`, `wow.http.services.`, `wow.calls.` or `wow.internal.` | Fix the key ([Configure a Service](./configuration#keys-are-checked)) |
 | A subscription, aggregate or context the node does not serve | A name under `wow.subscriptions`, `wow.aggregates` or `wow.contexts` that matches nothing | Fix the name, or remove the entry |
 | No command transport | A saga sends commands to another context and the node has neither Kafka nor in-memory topics | Set `wow.kafka.bootstrap-servers` |
-| A missing topic, or a command topic with the wrong number of partitions | `wow.kafka.topics.ddl: validate`, and the operator has not created the topic as the log needs it | Create the topic: a command topic has exactly `wow.log.partitions` partitions ([Kafka](./kafka#creating-topics)) |
+| A missing topic, or a command topic with the wrong number of partitions | `wow.kafka.ddl: validate`, and the operator has not created the topic as the log needs it | Create the topic: a command topic has exactly `wow.log.partitions` partitions ([Kafka](./kafka#creating-topics)) |
 | A structure of another format | A table created by an incompatible build of Wow | Run the migration of that major version; never edit `wow_format` |
 
 ## Commands time out

@@ -113,6 +113,16 @@
     "description" : "The HTTP edge: its routes, its error answers and the services the internal port trusts.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
+    "name" : "wow.http.client-facts",
+    "type" : "me.ahoo.wow.spring.boot.WowProperties$Http$ClientFacts",
+    "description" : "The client address and `User-Agent` of each command, recorded as request facts.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http"
+  }, {
+    "name" : "wow.http.global-errors",
+    "type" : "me.ahoo.wow.spring.boot.WowProperties$Http$GlobalErrors",
+    "description" : "The problem+json answers of what fails on the application's own routes.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http"
+  }, {
     "name" : "wow.http.manifest",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Http$Manifest",
     "description" : "The service's Manifest route.",
@@ -135,7 +145,12 @@
   }, {
     "name" : "wow.kafka",
     "type" : "me.ahoo.wow.spring.boot.KafkaProperties",
-    "description" : "The Kafka transport's configuration, `wow.kafka.*`: the brokers, the clients' settings and the topics, which the transport provider of type `kafka` reads (`me.ahoo.wow.kafka.KafkaTransportProvider`, finding R5.B-5), and the topic prefix, the command intake and the topics' DDL and partition refresh, which the node reads whatever transport carries them (TransportAutoConfiguration). The keys stay until the configuration surface is final."
+    "description" : "The Kafka transport's configuration, `wow.kafka.*`: the brokers, the clients' settings and the topics, which the transport provider of type `kafka` reads (`me.ahoo.wow.kafka.KafkaTransportProvider`, finding R5.B-5), and the topic prefix, the command intake and the topics' DDL and partition refresh, which the node reads whatever transport carries them (TransportAutoConfiguration)."
+  }, {
+    "name" : "wow.kafka.command-intake",
+    "type" : "me.ahoo.wow.spring.boot.KafkaProperties$CommandIntake",
+    "description" : "The commands other contexts send to the command topics of the contexts the node hosts.",
+    "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties"
   }, {
     "name" : "wow.kafka.topics",
     "type" : "me.ahoo.wow.spring.boot.KafkaProperties$Topics",
@@ -205,10 +220,30 @@
     "description" : "How the bound of a store adapts to its write pressure, when neither `wow.query.max-concurrent` nor `wow.stores.<name>.query.max-concurrent` fixes it.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
   }, {
+    "name" : "wow.query.budgets",
+    "type" : "me.ahoo.wow.spring.boot.QueryProperties$Budgets",
+    "description" : "The budget (QueryBudget) each query entry runs under: the query routes' and the in-process queries'.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
+  }, {
+    "name" : "wow.query.budgets.http",
+    "type" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
+    "description" : "The budget every query route runs under; a limit of `0` is off.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Budgets"
+  }, {
+    "name" : "wow.query.budgets.in-process",
+    "type" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
+    "description" : "The budget of the in-process queries, the typed me.ahoo.wow.api.read.QueryApi's, trusted code's too.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Budgets"
+  }, {
     "name" : "wow.query.count-cache",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties$CountCache",
     "description" : "The cache of the snapshot counts.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
+  }, {
+    "name" : "wow.query.count-cache.events",
+    "type" : "me.ahoo.wow.spring.boot.QueryProperties$CountCache$Events",
+    "description" : "The cache of the `events` counts.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$CountCache"
   }, {
     "name" : "wow.query.cross-tenant",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties$CrossTenant",
@@ -223,21 +258,6 @@
     "name" : "wow.query.events",
     "type" : "me.ahoo.wow.spring.boot.QueryProperties$Events",
     "description" : "The `events` model, served from each aggregate's log store, or the store its `wow.aggregates.[<context>.<aggregate>].query.events.store` names.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
-  }, {
-    "name" : "wow.query.http",
-    "type" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
-    "description" : "The budget every query route runs under (QueryBudget); a limit of `0` is off.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
-  }, {
-    "name" : "wow.query.in-process",
-    "type" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
-    "description" : "The budget of in-process queries, the typed me.ahoo.wow.api.read.QueryApi's, trusted code's too: the same keys and defaults as `wow.query.http.*`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
-  }, {
-    "name" : "wow.query.index",
-    "type" : "me.ahoo.wow.spring.boot.QueryProperties$Index",
-    "description" : "The indexes of each aggregate's `x-wow-index`.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties"
   }, {
     "name" : "wow.query.memory",
@@ -333,7 +353,7 @@
   }, {
     "name" : "wow.backend",
     "type" : "java.lang.String",
-    "description" : "The backend of a node that names no `wow.stores`: `auto` (the default) takes PostgreSQL or MongoDB by the application's `DataSource` or `MongoClient`, and refuses to start without either, so that data is not lost by mistake, unless a profile of `wow.internal.dev-profiles` is active or the internal port binds the loopback interface alone; `memory` keeps the data in memory on purpose, for one node whose data does not outlive it. `postgres`, `mongo` or the type of a community backend's store provider (`me.ahoo.wow.spi.store.StoreProvider`) name one.",
+    "description" : "The backend of a node that names no `wow.stores`: `auto` (the default) takes PostgreSQL or MongoDB by the application's `DataSource` or `MongoClient`, and refuses to start without either, so that data is not lost by mistake, unless a profile of `wow.dev-profiles` is active or the internal port binds the loopback interface alone; `memory` keeps the data in memory on purpose, for one node whose data does not outlive it. `postgres`, `mongo` or the type of a community backend's store provider (`me.ahoo.wow.spi.store.StoreProvider`) name one.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
     "defaultValue" : "auto"
   }, {
@@ -360,6 +380,11 @@
     "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties",
     "defaultValue" : "default"
   }, {
+    "name" : "wow.clickhouse.ddl",
+    "type" : "me.ahoo.wow.spi.Ddl",
+    "description" : "How the Sink manages its tables: `auto` creates what is missing, then validates; `validate` creates nothing and refuses a table that is missing or has other columns; `none` creates and checks nothing. `wow.ddl` when not set.",
+    "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties"
+  }, {
     "name" : "wow.clickhouse.endpoint",
     "type" : "java.lang.String",
     "description" : "The server's HTTP endpoint, such as `http://localhost:8123`; ClickHouse is wired only when it is set.",
@@ -385,25 +410,14 @@
   }, {
     "name" : "wow.clickhouse.query.settings",
     "type" : "java.util.Map<java.lang.String,java.lang.String>",
-    "description" : "Server settings every dataset query runs under, such as `max_memory_usage`; the execution time comes from each query's budget (`wow.query.http.timeout`), not from here.",
+    "description" : "Server settings every dataset query runs under, such as `max_memory_usage`; the execution time comes from each query's budget (`wow.query.budgets.http.timeout`), not from here.",
     "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Query"
-  }, {
-    "name" : "wow.clickhouse.sink.aggregates",
-    "type" : "java.util.Map<java.lang.String,java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.ClickHouseProperties$Aggregate>>",
-    "description" : "By context, then by aggregate name.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Sink"
   }, {
     "name" : "wow.clickhouse.sink.batch-size",
     "type" : "java.lang.Integer",
     "description" : "The most records one insert carries.",
     "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Sink",
     "defaultValue" : 1000
-  }, {
-    "name" : "wow.clickhouse.sink.ddl",
-    "type" : "java.lang.String",
-    "description" : "How the Sink manages its tables: `auto` creates what is missing, then validates; `validate` or `none`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Sink",
-    "defaultValue" : "auto"
   }, {
     "name" : "wow.clickhouse.sink.deduplication-window",
     "type" : "java.lang.Integer",
@@ -588,10 +602,16 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CosId"
   }, {
     "name" : "wow.ddl",
-    "type" : "me.ahoo.wow.spi.StoreDdl",
+    "type" : "me.ahoo.wow.spi.Ddl",
     "description" : "How the stores manage the framework's tables, collections and indexes: `auto` creates what is missing (the default), `validate` creates nothing and refuses a store whose schema is missing or in another format, `none` creates and checks nothing; `wow.stores.<name>.ddl` overrides it for one store.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
     "defaultValue" : "auto"
+  }, {
+    "name" : "wow.dev-profiles",
+    "type" : "java.util.Set<java.lang.String>",
+    "description" : "The profiles in which the node runs for development, as it does when its internal port binds a loopback address alone: `wow.backend=auto` falls back to memory when no durable backend is available, the public port serves without a `CallerResolver` bean, a single Kafka broker gives no durability warning, and a platform service may take its callers from request headers. None of them is allowed in a deployment.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
+    "defaultValue" : [ "dev", "local", "test", "demo" ]
   }, {
     "name" : "wow.executor.lane-capacity",
     "type" : "java.lang.Integer",
@@ -671,10 +691,10 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$HealthTopics",
     "defaultValue" : true
   }, {
-    "name" : "wow.http.client-facts",
+    "name" : "wow.http.client-facts.enabled",
     "type" : "java.lang.Boolean",
     "description" : "Whether the public port records each command's client address and `User-Agent` as the request facts `remote_ip` and `user_agent`, as 9.x did, for audit. They are personal data, and written into the event stream, which is never deleted: once recorded, they cannot be erased. On by default; off records neither.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http$ClientFacts",
     "defaultValue" : true
   }, {
     "name" : "wow.http.errors",
@@ -682,10 +702,10 @@
     "description" : "The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`).",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http"
   }, {
-    "name" : "wow.http.global-errors",
+    "name" : "wow.http.global-errors.enabled",
     "type" : "java.lang.Boolean",
-    "description" : "Answers what fails on the application's own routes as the framework routes' problem+json, so every route answers errors alike: on by default; off leaves those errors to Spring's error handling.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http",
+    "description" : "Whether what fails on the application's own routes is answered as the framework routes' problem+json, so every route answers errors alike: on by default; off leaves those errors to Spring's error handling.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http$GlobalErrors",
     "defaultValue" : true
   }, {
     "name" : "wow.http.manifest.enabled",
@@ -728,12 +748,6 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Internal",
     "defaultValue" : "PT1S"
   }, {
-    "name" : "wow.internal.dev-profiles",
-    "type" : "java.util.Set<java.lang.String>",
-    "description" : "The development profiles, `dev`, `local`, `test` and `demo`: in them `wow.backend=auto` falls back to memory when no durable backend is available.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Internal",
-    "defaultValue" : [ "dev", "local", "test", "demo" ]
-  }, {
     "name" : "wow.internal.host",
     "type" : "java.lang.String",
     "description" : "The address the internal server binds, `0.0.0.0` for every interface; when not set, the host of the member address the node advertises (`wow.node.address`, else this host's address).",
@@ -756,11 +770,16 @@
     "description" : "The brokers; the transport, the Kafka Sink and the Kafka-sourced subscriptions are wired only when it is set.",
     "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties"
   }, {
-    "name" : "wow.kafka.command-intake",
+    "name" : "wow.kafka.command-intake.enabled",
     "type" : "java.lang.Boolean",
     "description" : "Whether each context the node hosts executes the commands other contexts send to its command topic, `wow.<context>.commands`. The topic must exist with as many partitions as the context's log. A context with an aggregate type routed through Kafka takes them whatever this says.",
-    "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties",
+    "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties$CommandIntake",
     "defaultValue" : false
+  }, {
+    "name" : "wow.kafka.ddl",
+    "type" : "me.ahoo.wow.spi.Ddl",
+    "description" : "How the node manages the topics its contexts own at its start: `auto` creates the missing ones, then validates them; `validate` creates none and refuses the start when one is missing or a command topic does not have exactly `wow.log.partitions` partitions; `none` creates and checks nothing. `wow.ddl` when not set.",
+    "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties"
   }, {
     "name" : "wow.kafka.offset-gap",
     "type" : "java.lang.String",
@@ -789,18 +808,6 @@
     "type" : "java.util.Map<java.lang.String,java.lang.String>",
     "description" : "Other topic configs `auto` creates a topic with, such as `retention.ms`.",
     "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties$Topics"
-  }, {
-    "name" : "wow.kafka.topics.ddl",
-    "type" : "me.ahoo.wow.runtime.node.TopicDdl",
-    "description" : "How the node manages the topics its contexts own at its start: `validate` fails the start when one is missing or a command topic does not have exactly `wow.log.partitions` partitions; `auto` creates the missing ones first; `none` checks only the command topics the node reads.",
-    "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties$Topics",
-    "defaultValue" : "validate"
-  }, {
-    "name" : "wow.kafka.topics.dev-profiles",
-    "type" : "java.util.Set<java.lang.String>",
-    "description" : "The profiles that run without durable topics, a single broker: no warning about it.",
-    "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties$Topics",
-    "defaultValue" : [ "dev", "local", "test", "demo" ]
   }, {
     "name" : "wow.kafka.topics.min-insync-replicas",
     "type" : "java.lang.Integer",
@@ -902,6 +909,11 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Mongo",
     "defaultValue" : "PT30S"
   }, {
+    "name" : "wow.mongo.query-read-preference",
+    "type" : "java.lang.String",
+    "description" : "The read preference of the snapshot and `events` queries of a MongoDB store (`secondaryPreferred`, say), so a free filter scans a secondary rather than the primary the log appends to; the primary when not set. A snapshot read from a secondary may be behind the one a command's wait waited for. A store's `options.query-read-preference` overrides it.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Mongo"
+  }, {
     "name" : "wow.mongo.sharding",
     "type" : "java.lang.String",
     "description" : "Whether a store on a sharded cluster shards its log and snapshot collections when it creates them: `auto` when connected to a mongos with `ddl: auto`, `off` for a cluster its operators shard; a store's `options.sharding` overrides it.",
@@ -910,13 +922,19 @@
   }, {
     "name" : "wow.node.address",
     "type" : "java.lang.String",
-    "description" : "The `host:port` of this node's internal port, as the other nodes reach it.",
+    "description" : "The `host:port` of this node's internal port that it advertises, as the other nodes reach it; the address the port binds is `wow.internal.host`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Node"
   }, {
     "name" : "wow.node.id",
     "type" : "java.lang.String",
     "description" : "This node's id among the nodes of the service; a new one each start when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Node"
+  }, {
+    "name" : "wow.node.standby",
+    "type" : "java.lang.Boolean",
+    "description" : "Whether the node starts on standby: through the dual-run window of a migration's cut-over it serves reads of what `migrate-data` imports, refuses every command (the error `wow.node.standby`, 503), and handles no subscription, retries no parked entry and runs no job, until its operator resumes it on the internal port (`POST /wow/node/resume` from a node of its service, naming who resumes it). A subscription that starts at the end of its stream starts where the stream ends at the resume.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Node",
+    "defaultValue" : false
   }, {
     "name" : "wow.opentelemetry.enabled",
     "type" : "java.lang.Boolean",
@@ -1059,16 +1077,160 @@
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Adaptive",
     "defaultValue" : 2
   }, {
+    "name" : "wow.query.budgets.http.allow-exact-count",
+    "type" : "java.lang.Boolean",
+    "description" : "Whether a paged query may ask for an exact total, beyond `count-limit`.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
+    "defaultValue" : false
+  }, {
+    "name" : "wow.query.budgets.http.allow-expensive-operators",
+    "type" : "java.lang.Boolean",
+    "description" : "Whether a query may use the expensive operators, those an index serves poorly, such as a negation or a suffix match; off also refuses a counting query without a filter.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
+    "defaultValue" : true
+  }, {
+    "name" : "wow.query.budgets.http.count-limit",
+    "type" : "java.lang.Integer",
+    "description" : "The default and the largest limit of a count, and the bound of a paged query's total.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
+    "defaultValue" : 10000
+  }, {
+    "name" : "wow.query.budgets.http.default-list-size",
+    "type" : "java.lang.Integer",
+    "description" : "The limit of a list that names none, at most `max-list-size`.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
+    "defaultValue" : 100
+  }, {
+    "name" : "wow.query.budgets.http.max-filter-nodes",
+    "type" : "java.lang.Integer",
+    "description" : "The most nodes a query's filter may have, the caller's scope included.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
+    "defaultValue" : 128
+  }, {
+    "name" : "wow.query.budgets.http.max-filter-values",
+    "type" : "java.lang.Integer",
+    "description" : "The most values one node of a query's filter may list, such as those of an `in`.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
+    "defaultValue" : 1000
+  }, {
+    "name" : "wow.query.budgets.http.max-list-size",
+    "type" : "java.lang.Integer",
+    "description" : "The most results a list or an aggregation may ask for.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
+    "defaultValue" : 1000
+  }, {
+    "name" : "wow.query.budgets.http.max-page-size",
+    "type" : "java.lang.Integer",
+    "description" : "The largest page of a paged or cursor query.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
+    "defaultValue" : 100
+  }, {
+    "name" : "wow.query.budgets.http.max-page-window",
+    "type" : "java.lang.Long",
+    "description" : "How deep a paged query may go: the most of its page index times its page size.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
+    "defaultValue" : 10000
+  }, {
+    "name" : "wow.query.budgets.http.max-residual-groups",
+    "type" : "java.lang.Integer",
+    "description" : "The most groups an aggregation may read when the storage cannot run its HAVING or metric sort itself and the groups are computed in the node.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
+    "defaultValue" : 10000
+  }, {
+    "name" : "wow.query.budgets.http.timeout",
+    "type" : "java.time.Duration",
+    "description" : "The execution timeout of every query of the entry; `0` runs without one.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
+    "defaultValue" : "PT30S"
+  }, {
+    "name" : "wow.query.budgets.http.unindexed-sort-expensive",
+    "type" : "java.lang.Boolean",
+    "description" : "Whether a sort the storage runs without an index counts as an expensive operator, so that `allow-expensive-operators: false` refuses it too.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
+    "defaultValue" : false
+  }, {
+    "name" : "wow.query.budgets.in-process.allow-exact-count",
+    "type" : "java.lang.Boolean",
+    "description" : "Whether a paged query may ask for an exact total, beyond `count-limit`.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
+    "defaultValue" : false
+  }, {
+    "name" : "wow.query.budgets.in-process.allow-expensive-operators",
+    "type" : "java.lang.Boolean",
+    "description" : "Whether a query may use the expensive operators, those an index serves poorly, such as a negation or a suffix match; off also refuses a counting query without a filter.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
+    "defaultValue" : true
+  }, {
+    "name" : "wow.query.budgets.in-process.count-limit",
+    "type" : "java.lang.Integer",
+    "description" : "The default and the largest limit of a count, and the bound of a paged query's total.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
+    "defaultValue" : 10000
+  }, {
+    "name" : "wow.query.budgets.in-process.default-list-size",
+    "type" : "java.lang.Integer",
+    "description" : "The limit of a list that names none, at most `max-list-size`.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
+    "defaultValue" : 100
+  }, {
+    "name" : "wow.query.budgets.in-process.max-filter-nodes",
+    "type" : "java.lang.Integer",
+    "description" : "The most nodes a query's filter may have, the caller's scope included.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
+    "defaultValue" : 128
+  }, {
+    "name" : "wow.query.budgets.in-process.max-filter-values",
+    "type" : "java.lang.Integer",
+    "description" : "The most values one node of a query's filter may list, such as those of an `in`.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
+    "defaultValue" : 1000
+  }, {
+    "name" : "wow.query.budgets.in-process.max-list-size",
+    "type" : "java.lang.Integer",
+    "description" : "The most results a list or an aggregation may ask for.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
+    "defaultValue" : 1000
+  }, {
+    "name" : "wow.query.budgets.in-process.max-page-size",
+    "type" : "java.lang.Integer",
+    "description" : "The largest page of a paged or cursor query.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
+    "defaultValue" : 100
+  }, {
+    "name" : "wow.query.budgets.in-process.max-page-window",
+    "type" : "java.lang.Long",
+    "description" : "How deep a paged query may go: the most of its page index times its page size.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
+    "defaultValue" : 10000
+  }, {
+    "name" : "wow.query.budgets.in-process.max-residual-groups",
+    "type" : "java.lang.Integer",
+    "description" : "The most groups an aggregation may read when the storage cannot run its HAVING or metric sort itself and the groups are computed in the node.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
+    "defaultValue" : 10000
+  }, {
+    "name" : "wow.query.budgets.in-process.timeout",
+    "type" : "java.time.Duration",
+    "description" : "The execution timeout of every query of the entry; `0` runs without one.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
+    "defaultValue" : "PT30S"
+  }, {
+    "name" : "wow.query.budgets.in-process.unindexed-sort-expensive",
+    "type" : "java.lang.Boolean",
+    "description" : "Whether a sort the storage runs without an index counts as an expensive operator, so that `allow-expensive-operators: false` refuses it too.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
+    "defaultValue" : false
+  }, {
     "name" : "wow.query.count-cache.enabled",
     "type" : "java.lang.Boolean",
     "description" : "Whether the snapshot counts are cached.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$CountCache",
     "defaultValue" : true
   }, {
-    "name" : "wow.query.count-cache.events-enabled",
+    "name" : "wow.query.count-cache.events.enabled",
     "type" : "java.lang.Boolean",
     "description" : "Whether the events' counts are cached too; the log runs ahead of the snapshot checkpoint, so a cached events count may lag the streams for up to `ttl`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$CountCache",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$CountCache$Events",
     "defaultValue" : false
   }, {
     "name" : "wow.query.count-cache.max-entries",
@@ -1123,172 +1285,11 @@
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties",
     "defaultValue" : true
   }, {
-    "name" : "wow.query.events.mongo-read-preference",
-    "type" : "java.lang.String",
-    "description" : "The MongoDB read preference of the `events` queries (`secondaryPreferred`, say), so a free filter scans a secondary rather than the primary the log appends to; the primary when not set. `wow.stores.<name>.query.read-preference` overrides it for one store.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Events"
-  }, {
     "name" : "wow.query.events.unpinned",
     "type" : "me.ahoo.wow.query.events.UnpinnedEvents",
     "description" : "Whether an `events` query that names no `aggregateId` runs: `allow` or `refuse`; refused, it is `wow.query.invalid`. `wow.stores.<name>.query.events.unpinned` and `wow.aggregates.[<context>.<aggregate>].query.events.unpinned` override it.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Events",
     "defaultValue" : "allow"
-  }, {
-    "name" : "wow.query.http.allow-exact-count",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether a paged query may ask for an exact total, beyond `count-limit`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
-    "defaultValue" : false
-  }, {
-    "name" : "wow.query.http.allow-expensive-operators",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether a query may use the expensive operators, those an index serves poorly, such as a negation or a suffix match; off also refuses a counting query without a filter.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
-    "defaultValue" : true
-  }, {
-    "name" : "wow.query.http.count-limit",
-    "type" : "java.lang.Integer",
-    "description" : "The default and the largest limit of a count, and the bound of a paged query's total.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
-    "defaultValue" : 10000
-  }, {
-    "name" : "wow.query.http.default-list-size",
-    "type" : "java.lang.Integer",
-    "description" : "The limit of a list that names none, at most `max-list-size`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
-    "defaultValue" : 100
-  }, {
-    "name" : "wow.query.http.max-filter-nodes",
-    "type" : "java.lang.Integer",
-    "description" : "The most nodes a query's filter may have, the caller's scope included.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
-    "defaultValue" : 128
-  }, {
-    "name" : "wow.query.http.max-filter-values",
-    "type" : "java.lang.Integer",
-    "description" : "The most values one node of a query's filter may list, such as those of an `in`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
-    "defaultValue" : 1000
-  }, {
-    "name" : "wow.query.http.max-list-size",
-    "type" : "java.lang.Integer",
-    "description" : "The most results a list or an aggregation may ask for.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
-    "defaultValue" : 1000
-  }, {
-    "name" : "wow.query.http.max-page-size",
-    "type" : "java.lang.Integer",
-    "description" : "The largest page of a paged or cursor query.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
-    "defaultValue" : 100
-  }, {
-    "name" : "wow.query.http.max-page-window",
-    "type" : "java.lang.Long",
-    "description" : "How deep a paged query may go: the most of its page index times its page size.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
-    "defaultValue" : 10000
-  }, {
-    "name" : "wow.query.http.max-residual-groups",
-    "type" : "java.lang.Integer",
-    "description" : "The most groups an aggregation may read when the storage cannot run its HAVING or metric sort itself and the groups are computed in the node.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
-    "defaultValue" : 10000
-  }, {
-    "name" : "wow.query.http.timeout",
-    "type" : "java.time.Duration",
-    "description" : "The execution timeout of every query of the entry; `0` runs without one.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
-    "defaultValue" : "PT30S"
-  }, {
-    "name" : "wow.query.http.unindexed-sort-expensive",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether a sort the storage runs without an index counts as an expensive operator, so that `allow-expensive-operators: false` refuses it too.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Http",
-    "defaultValue" : false
-  }, {
-    "name" : "wow.query.in-process-timeout",
-    "type" : "java.time.Duration",
-    "description" : "The timeout of an in-process query that has no budget, trusted code's that dropped it (`QueryApi.trusted().unbounded()`); `0` for none.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties",
-    "defaultValue" : "PT30S"
-  }, {
-    "name" : "wow.query.in-process.allow-exact-count",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether a paged query may ask for an exact total, beyond `count-limit`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
-    "defaultValue" : false
-  }, {
-    "name" : "wow.query.in-process.allow-expensive-operators",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether a query may use the expensive operators, those an index serves poorly, such as a negation or a suffix match; off also refuses a counting query without a filter.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
-    "defaultValue" : true
-  }, {
-    "name" : "wow.query.in-process.count-limit",
-    "type" : "java.lang.Integer",
-    "description" : "The default and the largest limit of a count, and the bound of a paged query's total.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
-    "defaultValue" : 10000
-  }, {
-    "name" : "wow.query.in-process.default-list-size",
-    "type" : "java.lang.Integer",
-    "description" : "The limit of a list that names none, at most `max-list-size`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
-    "defaultValue" : 100
-  }, {
-    "name" : "wow.query.in-process.max-filter-nodes",
-    "type" : "java.lang.Integer",
-    "description" : "The most nodes a query's filter may have, the caller's scope included.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
-    "defaultValue" : 128
-  }, {
-    "name" : "wow.query.in-process.max-filter-values",
-    "type" : "java.lang.Integer",
-    "description" : "The most values one node of a query's filter may list, such as those of an `in`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
-    "defaultValue" : 1000
-  }, {
-    "name" : "wow.query.in-process.max-list-size",
-    "type" : "java.lang.Integer",
-    "description" : "The most results a list or an aggregation may ask for.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
-    "defaultValue" : 1000
-  }, {
-    "name" : "wow.query.in-process.max-page-size",
-    "type" : "java.lang.Integer",
-    "description" : "The largest page of a paged or cursor query.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
-    "defaultValue" : 100
-  }, {
-    "name" : "wow.query.in-process.max-page-window",
-    "type" : "java.lang.Long",
-    "description" : "How deep a paged query may go: the most of its page index times its page size.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
-    "defaultValue" : 10000
-  }, {
-    "name" : "wow.query.in-process.max-residual-groups",
-    "type" : "java.lang.Integer",
-    "description" : "The most groups an aggregation may read when the storage cannot run its HAVING or metric sort itself and the groups are computed in the node.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
-    "defaultValue" : 10000
-  }, {
-    "name" : "wow.query.in-process.timeout",
-    "type" : "java.time.Duration",
-    "description" : "The execution timeout of every query of the entry; `0` runs without one.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
-    "defaultValue" : "PT30S"
-  }, {
-    "name" : "wow.query.in-process.unindexed-sort-expensive",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether a sort the storage runs without an index counts as an expensive operator, so that `allow-expensive-operators: false` refuses it too.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$InProcess",
-    "defaultValue" : false
-  }, {
-    "name" : "wow.query.index.ddl",
-    "type" : "me.ahoo.wow.query.index.QueryIndexDdl",
-    "description" : "How the snapshot backend manages the indexes of each aggregate's `x-wow-index` at startup: `auto` creates what is missing, `validate` refuses to start when one is missing, `none` does nothing.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Index",
-    "defaultValue" : "auto"
   }, {
     "name" : "wow.query.max-concurrent",
     "type" : "java.lang.Integer",
@@ -1354,6 +1355,12 @@
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Stream",
     "defaultValue" : "PT30S"
   }, {
+    "name" : "wow.query.unbounded-timeout",
+    "type" : "java.time.Duration",
+    "description" : "The timeout of a trusted in-process query that dropped its budget (`QueryApi.trusted().unbounded()`); `0` for none.",
+    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties",
+    "defaultValue" : "PT30S"
+  }, {
     "name" : "wow.schedules",
     "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$Schedule>",
     "description" : "Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` overrides the job's rule. A job no handler of the node runs fails its start.",
@@ -1384,17 +1391,12 @@
   }, {
     "name" : "wow.snapshot.primary",
     "type" : "java.lang.String",
-    "description" : "The one of the targets the write side and the queries read; the first when not set.",
+    "description" : "The one of the stores the write side and the queries read; the first when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot"
   }, {
-    "name" : "wow.snapshot.store",
-    "type" : "java.lang.String",
-    "description" : "The context's default snapshot store, one of `wow.stores`, whose built-in subscription is `snapshot`; `wow.log.store` when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot"
-  }, {
-    "name" : "wow.snapshot.targets",
+    "name" : "wow.snapshot.stores",
     "type" : "java.util.List<java.lang.String>",
-    "description" : "The stores every aggregate's snapshots are written to, unless its `wow.aggregates.[<context>.<aggregate>].snapshot.store` names others; only `wow.snapshot.store` when empty.",
+    "description" : "The stores of `wow.stores` every aggregate's snapshots are written to, unless its `wow.aggregates.[<context>.<aggregate>].snapshot.stores` names others; `wow.log.store` alone when empty. The first one's built-in subscription is `snapshot`, each other one's `snapshot:<store>`.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot"
   }, {
     "name" : "wow.snapshot.write-batch",
@@ -1402,12 +1404,6 @@
     "description" : "How many snapshots of a partition the snapshot subscriptions write together at most.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Snapshot",
     "defaultValue" : 256
-  }, {
-    "name" : "wow.standby",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether the node starts on standby: through the dual-run window of a migration's cut-over it serves reads of what `migrate-data` imports, refuses every command (`wow.node.standby`, 503), and handles no subscription, retries no parked entry and runs no job, until its operator resumes it on the internal port (`POST /wow/node/resume` from a node of its service, naming who resumes it). A subscription that starts at the end of its stream starts where the stream ends at the resume.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
-    "defaultValue" : false
   }, {
     "name" : "wow.state-cache.capacity",
     "type" : "java.lang.Integer",
@@ -1491,17 +1487,17 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Parked",
     "defaultValue" : "PT2M"
   }, {
+    "name" : "wow.subscription.parked.initial-backoff",
+    "type" : "java.time.Duration",
+    "description" : "The wait before the first retry after the failure; each next one waits twice as long after the previous one started.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Parked",
+    "defaultValue" : "PT3M"
+  }, {
     "name" : "wow.subscription.parked.max-retries",
     "type" : "java.lang.Integer",
     "description" : "The most automatic retries of a parked entry; 0 turns them off.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Parked",
     "defaultValue" : 10
-  }, {
-    "name" : "wow.subscription.parked.min-backoff",
-    "type" : "java.time.Duration",
-    "description" : "The wait before the first retry after the failure; each next one waits twice as long after the previous one started.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Parked",
-    "defaultValue" : "PT3M"
   }, {
     "name" : "wow.subscription.parked.scan-interval",
     "type" : "java.time.Duration",

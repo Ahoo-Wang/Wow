@@ -57,7 +57,7 @@ The nodes of one service form one cluster, so some settings must be the same on 
 
 ## Development and production
 
-A few defaults relax in a development profile, `dev`, `local`, `test` or `demo` (`wow.internal.dev-profiles`), or when the internal port binds the loopback interface alone:
+A few defaults relax in a development profile, `dev`, `local`, `test` or `demo` (`wow.dev-profiles`), or when the internal port binds the loopback interface alone:
 
 | Without | In development | In production |
 | --- | --- | --- |

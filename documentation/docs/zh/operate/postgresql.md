@@ -91,7 +91,7 @@ wow:
   log:
     store: orders
   snapshot:
-    store: orders
+    stores: [orders]
   aggregates:
     "[shop.invoice]":
       log:

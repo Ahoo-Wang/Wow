@@ -15,7 +15,7 @@ package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.node.SourceTopics
-import me.ahoo.wow.runtime.node.TopicDdl
+import me.ahoo.wow.spi.Ddl
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 import kotlin.time.toJavaDuration
@@ -24,7 +24,7 @@ import kotlin.time.toJavaDuration
  * The Kafka transport's configuration, `wow.kafka.*`: the brokers, the clients' settings and the topics, which the
  * transport provider of type `kafka` reads (`me.ahoo.wow.kafka.KafkaTransportProvider`, finding R5.B-5), and the
  * topic prefix, the command intake and the topics' DDL and partition refresh, which the node reads whatever transport
- * carries them ([TransportAutoConfiguration]). The keys stay until the configuration surface is final.
+ * carries them ([TransportAutoConfiguration]).
  */
 @InternalWowApi
 @ConfigurationProperties(prefix = KafkaProperties.PREFIX)
@@ -54,11 +54,14 @@ class KafkaProperties {
     var pollTimeout: Duration = Duration.ofMillis(DEFAULT_POLL_TIMEOUT_MILLIS)
 
     /**
-     * Whether each context the node hosts executes the commands other contexts send to its command topic,
-     * `wow.<context>.commands`. The topic must exist with as many partitions as the context's log. A context with an
-     * aggregate type routed through Kafka takes them whatever this says.
+     * How the node manages the topics its contexts own at its start: `auto` creates the missing ones, then validates
+     * them; `validate` creates none and refuses the start when one is missing or a command topic does not have exactly
+     * `wow.log.partitions` partitions; `none` creates and checks nothing. `wow.ddl` when not set.
      */
-    var commandIntake: Boolean = false
+    var ddl: Ddl? = null
+
+    /** The commands other contexts send to the command topics of the contexts the node hosts. */
+    var commandIntake: CommandIntake = CommandIntake()
 
     /**
      * What a read of another context's topic does when its partition no longer holds the offset to read from (the
@@ -71,20 +74,24 @@ class KafkaProperties {
     /** The topics the node's contexts own, and how `auto` creates them. */
     var topics: Topics = Topics()
 
+    /** The commands other contexts send to the command topics of the contexts the node hosts. */
+    @InternalWowApi
+    class CommandIntake {
+        /**
+         * Whether each context the node hosts executes the commands other contexts send to its command topic,
+         * `wow.<context>.commands`. The topic must exist with as many partitions as the context's log. A context with
+         * an aggregate type routed through Kafka takes them whatever this says.
+         */
+        var enabled: Boolean = false
+    }
+
     /**
-     * The topics the node's contexts own: their DDL, and how `auto` creates them. A command accepted on a command topic
-     * is durable only when the replication factor and the minimum in-sync replicas are both at least 2: at start the
-     * node warns when they are below that, unless a profile of [devProfiles] is active.
+     * How `auto` creates the topics the node's contexts own. A command accepted on a command topic is durable only when
+     * the replication factor and the minimum in-sync replicas are both at least 2: at start the node warns when they
+     * are below that, unless it runs for development (a profile of `wow.dev-profiles`, or a loopback internal port).
      */
     @InternalWowApi
     class Topics {
-        /**
-         * How the node manages the topics its contexts own at its start: `validate` fails the start when one is
-         * missing or a command topic does not have exactly `wow.log.partitions` partitions; `auto` creates the
-         * missing ones first; `none` checks only the command topics the node reads.
-         */
-        var ddl: TopicDdl = TopicDdl.VALIDATE
-
         /** The replication factor `auto` creates a topic with; the broker's default when not set. */
         var replicationFactor: Short? = null
 
@@ -93,9 +100,6 @@ class KafkaProperties {
 
         /** Other topic configs `auto` creates a topic with, such as `retention.ms`. */
         var configs: MutableMap<String, String> = LinkedHashMap()
-
-        /** The profiles that run without durable topics, a single broker: no warning about it. */
-        var devProfiles: MutableSet<String> = linkedSetOf("dev", "local", "test", "demo")
 
         /** The configs `auto` creates a topic with: [configs], and [minInsyncReplicas] when it is set. */
         fun creationConfigs(): Map<String, String> = buildMap {

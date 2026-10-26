@@ -51,3 +51,28 @@ outline: deep
 ## 从 10.0.0 预发布版升级 {#from-a-10-0-0-pre-release}
 
 10.0.0 的预发布版（`alpha`、`beta`、`rc`）对它存储的数据不做兼容承诺：之后版本的存储格式可能在原地改变。从预发布版升级需要一个全新的数据库；更早的预发布版写下的数据既不迁移，也不读取。
+
+### 10.0.0 之前改名的配置键 {#configuration-keys-renamed-before-10-0-0}
+
+配置面在 10.0.0 之前一次定稿，不保留别名：更早预发布版的键不再绑定任何设置。每一行写明取代它的是什么。
+
+| 预发布版的键 | 10.0.0 |
+| --- | --- |
+| `wow.query.index.ddl` | 删除：查询索引跟随所在存储的 `ddl`（`wow.stores.<store>.ddl`，否则 `wow.ddl`），`validate` 下缺少索引会拒绝启动 |
+| `wow.kafka.topics.ddl` | `wow.kafka.ddl`，未设置时跟随 `wow.ddl`（`auto`）；原来默认是 `validate` |
+| `wow.clickhouse.sink.ddl` | `wow.clickhouse.ddl`，未设置时跟随 `wow.ddl` |
+| `wow.clickhouse.sink.aggregates.<context>.<aggregate>.history.*` | `wow.aggregates.[<context>.<aggregate>].clickhouse.history.*` |
+| `wow.kafka.command-intake` | `wow.kafka.command-intake.enabled` |
+| `wow.internal.dev-profiles`、`wow.kafka.topics.dev-profiles` | `wow.dev-profiles` |
+| `wow.query.http.*` | `wow.query.budgets.http.*` |
+| `wow.query.in-process.*` | `wow.query.budgets.in-process.*` |
+| `wow.query.in-process-timeout` | `wow.query.unbounded-timeout` |
+| `wow.query.events.mongo-read-preference` | `wow.mongo.query-read-preference`，对快照查询同样生效 |
+| `wow.stores.<store>.query.read-preference` | `wow.stores.<store>.options.query-read-preference` |
+| `wow.query.count-cache.events-enabled` | `wow.query.count-cache.events.enabled` |
+| `wow.snapshot.store`、`wow.snapshot.targets` | `wow.snapshot.stores`；第一个存储的订阅名为 `snapshot` |
+| `wow.aggregates.[<context>.<aggregate>].snapshot.store` | `wow.aggregates.[<context>.<aggregate>].snapshot.stores` |
+| `wow.subscription.parked.min-backoff`、`wow.subscriptions.[<subscription>].parked.min-backoff` | `…parked.initial-backoff` |
+| `wow.http.client-facts` | `wow.http.client-facts.enabled` |
+| `wow.http.global-errors` | `wow.http.global-errors.enabled` |
+| `wow.standby` | `wow.node.standby` |

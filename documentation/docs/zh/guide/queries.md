@@ -89,11 +89,11 @@ streamed.assert().containsExactlyInAnyOrderElementsOf(filed)
 
 ## 上限 {#bounds}
 
-每个查询都在一个预算下运行：HTTP 用 `wow.query.http.*`，Kotlin 中用 `wow.query.in-process.*`。列表至多返回 `max-list-size`（1,000）行，不指明 limit 时为 100；一页至多 `max-page-size`（100）行；计数在 `count-limit` 处停止，并说明是否精确；查询至多运行 `timeout`（30 秒）。超出上限的查询会被拒绝，而不是不声不响地截断。超时的查询返回 `504 wow.query.timeout`：收窄它，而不是再运行一次。存储上运行的查询已达到允许的数量时，返回 `429 wow.query.busy` 并带上 `Retry-After`。
+每个查询都在一个预算下运行：HTTP 用 `wow.query.budgets.http.*`，Kotlin 中用 `wow.query.budgets.in-process.*`。列表至多返回 `max-list-size`（1,000）行，不指明 limit 时为 100；一页至多 `max-page-size`（100）行；计数在 `count-limit` 处停止，并说明是否精确；查询至多运行 `timeout`（30 秒）。超出上限的查询会被拒绝，而不是不声不响地截断。超时的查询返回 `504 wow.query.timeout`：收窄它，而不是再运行一次。存储上运行的查询已达到允许的数量时，返回 `429 wow.query.busy` 并带上 `Retry-After`。
 
 ## 声明索引 {#declare-indexes}
 
-按没有索引的字段过滤或排序的查询，会扫描存储。状态字段上的 `@QueryIndex` 声明后端在启动时建立的索引（`wow.query.index.ddl`）；`with` 添加跟在它后面的字段，用于常见的过滤与排序组合。店面按分类、品牌和状态过滤商品，并按价格排序：
+按没有索引的字段过滤或排序的查询，会扫描存储。状态字段上的 `@QueryIndex` 声明后端在启动时建立的索引，按所在存储的 `ddl` 管理（默认 `wow.ddl`；`validate` 下缺失索引会拒绝启动）；`with` 添加跟在它后面的字段，用于常见的过滤与排序组合。店面按分类、品牌和状态过滤商品，并按价格排序：
 
 <!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/product/ProductState.kt#indexes -->
 

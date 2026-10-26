@@ -45,7 +45,6 @@ import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryRequestException
 import me.ahoo.wow.query.engine.ManifestStateSchemas
 import me.ahoo.wow.query.engine.QueryEngine
-import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.schema.QueryModel
@@ -54,10 +53,12 @@ import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.state.SnapshotPolicyGateway
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.time.Duration
@@ -234,12 +235,11 @@ class HostQueryTest {
     @Test
     fun `an application's query backend should serve the snapshots under the configured budget`() {
         startHost(
-            "wow.query.http.max-list-size" to 7,
-            "wow.query.http.default-list-size" to 2,
-            "wow.query.http.count-limit" to 50,
-            "wow.query.http.timeout" to "5s",
+            "wow.query.budgets.http.max-list-size" to 7,
+            "wow.query.budgets.http.default-list-size" to 2,
+            "wow.query.budgets.http.count-limit" to 50,
+            "wow.query.budgets.http.timeout" to "5s",
             "wow.query.abac.enabled" to true,
-            "wow.query.index.ddl" to "validate",
             // The events of the log in memory are scanned (review R3.4-1).
             "wow.query.memory.enabled" to true,
             sources = listOf(HostTestApp::class.java, MemorySnapshotQueries::class.java),
@@ -272,7 +272,6 @@ class HostQueryTest {
             policy.http.maxListSize.assert().isEqualTo(7)
             policy.http.countLimit.assert().isEqualTo(50)
             policy.http.timeout.assert().isEqualTo(Duration.ofSeconds(5).toKotlinDuration())
-            host.context.getBean(QueryProperties::class.java).index.ddl.assert().isEqualTo(QueryIndexDdl.VALIDATE)
             // The application's backend manages its own indexes.
             host.context.getBean(QueryIndexesLifecycle::class.java).reports.assert().isEmpty()
             host.context.getBean(QuerySchemaCatalog::class.java).let { catalog ->
@@ -380,7 +379,7 @@ class HostQueryTest {
 
     @Test
     fun `the node's QueryApi should read the snapshots, events and states of its models as a caller`() {
-        startHost("wow.query.memory.enabled" to true, "wow.query.in-process.max-list-size" to 5).use { host ->
+        startHost("wow.query.memory.enabled" to true, "wow.query.budgets.in-process.max-list-size" to 5).use { host ->
             val id = host.openAccount("mona")
             host.post("/bank/account/$id/deposit", """{"amount":3}""").status.assert().isEqualTo(200)
             val api = host.context.getBean(QueryApi::class.java)
@@ -394,7 +393,7 @@ class HostQueryTest {
                 api.of(Caller.of(tenantId = "other")).snapshots<Account>().state(id).assert().isNull()
                 val events = api.trusted().events(ACCOUNT).list(ListQuery(AggregateIdFilter(id))).toList()
                 events.map { it.events.single().body }.assert().containsExactly(AccountOpened("mona"), Deposited(3))
-                // wow.query.in-process.*: the in-process budget, trusted code's too.
+                // wow.query.budgets.in-process.*: the in-process budget, trusted code's too.
                 runCatching { api.trusted().snapshots(ACCOUNT).list(ListQuery(MatchAllFilter, limit = 6)).toList() }
                     .exceptionOrNull().assert().isInstanceOf(QueryRequestException::class.java)
                 api.trusted().unbounded().snapshots(ACCOUNT).list(ListQuery(MatchAllFilter, limit = 6)).toList()
@@ -459,13 +458,12 @@ class HostQueryTest {
         policy.requireExplicitEntry.assert().isFalse()
         properties.abac.options().assert().isEqualTo(AbacQueryOptions.DEFAULT)
         properties.sensitivity.policy().displayComparable.assert().isTrue()
-        properties.index.ddl.assert().isEqualTo(QueryIndexDdl.AUTO)
         properties.memory.enabled.assert().isFalse()
-        properties.http.defaultListSize.assert().isEqualTo(HttpQueries.DEFAULT_LIST_SIZE)
-        policy.inProcess!!.maxListSize.assert().isEqualTo(QueryBudget.HTTP_DEFAULT.maxListSize)
+        properties.budgets.http.defaultListSize.assert().isEqualTo(HttpQueries.DEFAULT_LIST_SIZE)
+        policy.inProcess!!.maxListSize.assert().isEqualTo(QueryBudget.IN_PROCESS_DEFAULT.maxListSize)
         policy.inProcess!!.label.assert().isEqualTo(QueryBudget.IN_PROCESS_LABEL)
-        properties.inProcess.defaultListSize.assert().isEqualTo(HttpQueries.DEFAULT_LIST_SIZE)
-        properties.inProcessTimeout = Duration.ZERO
+        properties.budgets.inProcess.defaultListSize.assert().isEqualTo(HttpQueries.DEFAULT_LIST_SIZE)
+        properties.unboundedTimeout = Duration.ZERO
         properties.entryPolicy().inProcessTimeout.assert().isNull()
     }
 
@@ -479,6 +477,35 @@ class HostQueryTest {
                 runBlocking { catalogSchema() },
                 emptyList()
             ).assert().isEqualTo(QueryIndexReport.NONE)
+    }
+
+    @Test
+    fun `an index that validate finds missing or invalid should refuse the start, naming the store's ddl`() {
+        val account = AggregateManifest("account", state = StateManifest("#/\$defs/Account"))
+        val manifest = Manifest(contexts = listOf(ContextManifest(BANK, aggregates = listOf(account))))
+        val catalog = QuerySchemaCatalog(QueryBackendStorages(InMemoryQueryStorage()))
+        fun backend(report: QueryIndexReport) = SnapshotQueryBackend(
+            SnapshotQueryBackend(InMemoryQueryStorage()).factory,
+            indexes = { _, _, _ -> report },
+            store = { "reads" },
+        )
+        val validated = QueryIndexReport(missing = listOf("ix_a"), invalid = listOf("ix_b"))
+        val refused = assertThrows<WowConfigurationException> {
+            QueryIndexesLifecycle(manifest, listOf(ACCOUNT), backend(validated), catalog) { "wow.stores.$it.ddl" }
+                .start()
+        }
+        refused.key.assert().isEqualTo("wow.stores.reads.ddl")
+        refused.message.assert().contains("ix_a", "ix_b", "$ACCOUNT")
+        assertThrows<WowConfigurationException> {
+            QueryIndexesLifecycle(manifest, listOf(ACCOUNT), backend(validated), catalog).start()
+        }.key.assert().isEqualTo("wow.ddl")
+        // What auto created is not missing any more.
+        val created = QueryIndexReport(created = listOf("ix_a"), missing = listOf("ix_a"))
+        QueryIndexesLifecycle(manifest, listOf(ACCOUNT), backend(created), catalog).apply {
+            start()
+            isRunning.assert().isTrue()
+            reports.getValue(ACCOUNT).assert().isEqualTo(created)
+        }
     }
 
     @Test

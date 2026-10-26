@@ -14,7 +14,7 @@
 package me.ahoo.wow.spi.store
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.TailPacer
@@ -36,7 +36,7 @@ class StoreSpiTest {
         val config = StoreConfig.of(
             "orders",
             "acme",
-            ddl = StoreDdl.VALIDATE,
+            ddl = Ddl.VALIDATE,
             options = mapOf("region" to "eu-1", "blank" to " "),
             service = "orders-service",
         )
@@ -44,7 +44,7 @@ class StoreSpiTest {
         config.option("region").assert().isEqualTo("eu-1")
         config.option("blank").assert().isNull()
         config.option("missing").assert().isNull()
-        config.ddl.assert().isEqualTo(StoreDdl.VALIDATE)
+        config.ddl.assert().isEqualTo(Ddl.VALIDATE)
         config.polling.assert().isEqualTo(TailPolling.DEFAULT)
         config.service.assert().isEqualTo("orders-service")
         config.resources.assert().isSameAs(StoreResources.NONE)
