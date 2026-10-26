@@ -198,7 +198,7 @@ internal data class EventMapping(
  *   at the dotted path [ownerId] in it (`userId`, `owner.id`). 9.x keys have no tenant, so the owner's tenant is the
  *   one its 9.x streams record;
  * - [tenancy] is where the key is unique in V10: [ReservationTenancy.TENANT], within the owner's tenant (the default
- *   of `DecideScope.reserve`), or [ReservationTenancy.SYSTEM], across the context's tenants, as every 9.x key was. It
+ *   of `DecideScope.reserve`), or [ReservationTenancy.SYSTEM], across the owner type's tenants, as every 9.x key was. It
  *   must be the tenancy the V10 decide function reserves the key with.
  */
 internal data class ReservationMapping(

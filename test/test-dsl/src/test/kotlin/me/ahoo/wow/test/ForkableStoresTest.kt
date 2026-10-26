@@ -65,7 +65,7 @@ class ForkableStoresTest {
     @Test
     fun `a copy of the reservations holds what they held, expiring when they did`() = runBlocking {
         val reservations = ForkableReservationStore()
-        val scope = ReservationScope.of("bank", "tenant", "handle")
+        val scope = ReservationScope.of(owner.type, "tenant", "handle")
         reservations.reserve(scope, "held", owner, "h1", 1.hours).assert().isNotNull()
         reservations.reserve(scope, "brief", owner, "h1", 1.milliseconds).assert().isNotNull()
         reservations.reserve(scope, "abandoned", owner, "h1", 1.hours).assert().isNotNull()

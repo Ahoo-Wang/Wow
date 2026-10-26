@@ -47,7 +47,7 @@ abstract class ReservationStoreSpec {
     protected val clock = MutableClock()
 
     private val namespace = "ns-" + UUID.randomUUID()
-    private val scope = ReservationScope(CONTEXT, TENANT, namespace)
+    private val scope = ReservationScope(USER, TENANT, namespace)
     private val user1 = owner("user-1")
     private val user2 = owner("user-2")
 
@@ -281,14 +281,35 @@ abstract class ReservationStoreSpec {
         store.find(otherTenant, "alice").assert().isNull()
     }
 
+    /**
+     * The aggregate type is where a key is unique (decision D307): two types, of one context or of two, that use the same
+     * namespace each hold the key, and one's releases and confirms never touch the other's.
+     */
     @Test
-    fun `contexts are separate`(): Unit = runBlocking {
-        val otherContext = scope.copyWith(context = "$CONTEXT-other")
-        val elsewhere = AggregateType("$CONTEXT-other", "user").ref(TENANT, "user-1")
+    fun `aggregate types are separate, even with the same namespace`(): Unit = runBlocking {
         val mine = store.reserve(scope, "alice", user1, H1, TTL)
-        store.reserve(otherContext, "alice", elsewhere, H1, TTL)?.owner.assert().isEqualTo(elsewhere)
-        store.release(otherContext, "alice", elsewhere, 2).assert().isTrue()
+        listOf(AggregateType(CONTEXT, "account"), AggregateType("$CONTEXT-other", "user")).forEach { type ->
+            val other = scope.copyWith(type = type)
+            val elsewhere = type.ref(TENANT, "user-1")
+            store.reserve(other, "alice", elsewhere, H1, TTL)?.owner.assert().isEqualTo(elsewhere)
+            store.confirm(other, "alice", elsewhere, 1).assert().isEqualTo(ConfirmOutcome.Confirmed)
+            store.find(other, "alice").assert().isEqualTo(Reservation(other, "alice", elsewhere, null, version = 1))
+            store.release(other, "alice", elsewhere, 2).assert().isTrue()
+        }
         store.find(scope, "alice").assert().isEqualTo(mine)
+    }
+
+    @Test
+    fun `a key is unique within its aggregate type, however many owners of it ask`(): Unit = runBlocking {
+        val owners = (1..CONTENDERS).map { owner("user-$it") }
+        val taken = owners.map { owner ->
+            async(Dispatchers.Default) { store.reserve(scope, "carol", owner, H1, TTL)?.owner }
+        }.awaitAll().filterNotNull()
+        taken.assert().hasSize(1)
+        store.find(scope, "carol")?.owner.assert().isEqualTo(taken.single())
+        val account = scope.copyWith(type = AggregateType(CONTEXT, "account"))
+        val accountOwner = account.type.ref(TENANT, "account-1")
+        store.reserve(account, "carol", accountOwner, H1, TTL)?.owner.assert().isEqualTo(accountOwner)
     }
 
     @Test
@@ -296,7 +317,7 @@ abstract class ReservationStoreSpec {
         // `t` / `x/y` and `t/x` / `y` join to the same `context.user/t/x/y` (finding A1-10).
         val slashed = AggregateType(CONTEXT, "user").ref("t", "x/y")
         val tenantSlashed = AggregateType(CONTEXT, "user").ref("t/x", "y")
-        val dotted = AggregateType(CONTEXT, "user.v2").ref("t.\$x", "#id ✓")
+        val dotted = USER.ref("t.\$x", "#id ✓")
         val reserved = store.reserve(scope, "alice", slashed, H1, TTL)
         reserved?.owner.assert().isEqualTo(slashed)
         store.reserve(scope, "alice", tenantSlashed, H2, TTL).assert().isNull()
@@ -353,25 +374,28 @@ abstract class ReservationStoreSpec {
     }
 
     @Test
-    fun `a reservation is refused a time to live that is not positive and an owner of another context`() {
+    fun `a reservation is refused a time to live that is not positive and an owner of another type`() {
         assertThrownBy<IllegalArgumentException> {
             runBlocking { store.reserve(scope, "alice", user1, H1, Duration.ZERO) }
         }
         assertThrownBy<IllegalArgumentException> {
             runBlocking { store.reserve(scope, "alice", AggregateType("elsewhere", "user").ref(TENANT, "u"), H1, TTL) }
         }
+        assertThrownBy<IllegalArgumentException> {
+            runBlocking { store.reserve(scope, "alice", AggregateType(CONTEXT, "account").ref(TENANT, "u"), H1, TTL) }
+        }
     }
 
-    private fun owner(id: String, tenant: String = TENANT): AggregateRef = AggregateType(
-        CONTEXT,
-        "user"
-    ).ref(tenant, id)
+    private fun owner(id: String, tenant: String = TENANT): AggregateRef = USER.ref(tenant, id)
 
     protected companion object {
         val TTL = 30.seconds
         val LONG_AFTER = 3650.days
         const val CONTENDERS = 16
         const val CONTEXT = "tck"
+
+        /** The aggregate type whose keys most cases reserve. */
+        val USER = AggregateType(CONTEXT, "user")
         const val TENANT = "tenant-a"
         const val H1 = "hold-1"
         const val H2 = "hold-2"

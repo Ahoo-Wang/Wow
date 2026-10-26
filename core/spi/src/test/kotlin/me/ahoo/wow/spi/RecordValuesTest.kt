@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
@@ -136,7 +137,7 @@ class RecordValuesTest {
     )
 
     private fun reservation(key: String = "a@b.c") =
-        Reservation.of(ReservationScope.of("sales", "tenant", "email"), key, ref, 9L, setOf("c-1"))
+        Reservation.of(ReservationScope.of(ref.type, "tenant", "email"), key, ref, 9L, setOf("c-1"))
 
     @Test
     fun `the log records are values`() {
@@ -204,14 +205,22 @@ class RecordValuesTest {
         valueSemantics({ reservation() }, reservation("d@e.f"))
         reservation().copyWith(key = "d@e.f").assert().isEqualTo(reservation("d@e.f"))
         valueSemantics(
-            { ReservationScope.of("sales", "tenant", "email") },
-            ReservationScope.of("sales", "other", "email")
+            { ReservationScope.of(ref.type, "tenant", "email") },
+            ReservationScope.of(ref.type, "other", "email")
         )
         ReservationScope.of(
-            "sales",
+            ref.type,
             "tenant",
             "email"
         ).copyWith(tenantId = "other").tenantId.assert().isEqualTo("other")
+        val other = AggregateType(ref.type.context, "other")
+        ReservationScope.of(ref.type, "tenant", "email").copyWith(type = other).type.assert().isEqualTo(other)
+        ReservationScope.of(other, "tenant", "email").toString().assert()
+            .isEqualTo("ReservationScope(type=$other, tenantId=tenant, namespace=email)")
+        // Decision D307: a key is reserved by an aggregate of the scope's type.
+        assertThrownBy<IllegalArgumentException> {
+            Reservation.of(ReservationScope.of(other, "tenant", "email"), "a@b.c", ref, 9L)
+        }
         valueSemantics({ ReservationKey.of("email", "a@b.c") }, ReservationKey.of("email", "a@b.c", system = true))
         valueSemantics({ ConfirmOutcome.Taken.of(reservation()) }, ConfirmOutcome.Taken.of(reservation("d@e.f")))
         valueSemantics({ parked() }, parked(1))

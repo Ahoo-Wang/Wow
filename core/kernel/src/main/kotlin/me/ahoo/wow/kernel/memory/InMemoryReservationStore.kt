@@ -25,7 +25,7 @@ import java.time.Clock
 import kotlin.time.Duration
 
 /**
- * A [ReservationStore] in memory, for tests and samples: one entry per `(context, tenant, namespace, key)`. Every
+ * A [ReservationStore] in memory, for tests and samples: one entry per `(aggregate type, tenant, namespace, key)`. Every
  * operation is serialized by one lock; expiry follows [clock].
  */
 @InternalWowApi
@@ -42,7 +42,7 @@ class InMemoryReservationStore(private val clock: Clock = Clock.systemUTC()) : R
     ): Reservation? {
         require(ttl.isPositive()) { "A reservation's time to live is positive." }
         require(hold.isNotBlank()) { "A reservation's hold is not blank." }
-        require(owner.type.context == scope.context) { "$owner reserves keys of its own context only." }
+        require(owner.type == scope.type) { "$owner reserves keys of its own aggregate type only." }
         return lock.withLock {
             val now = clock.millis()
             val expiresAt = now + ttl.inWholeMilliseconds

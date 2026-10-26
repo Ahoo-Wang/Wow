@@ -13,11 +13,14 @@
 
 package me.ahoo.wow.api.decide
 
-/** Among which aggregates a reserved key is unique ([DecideScope.reserve]); always within one bounded context. */
+/**
+ * Among which aggregates a reserved key is unique ([DecideScope.reserve]); always among the aggregates of one type
+ * (decision D307).
+ */
 enum class ReservationTenancy {
     /** Unique within the aggregate's tenant: two tenants may each hold the key (axiom A6). The default. */
     TENANT,
 
-    /** Unique across the tenants of the context, such as a global login name: say so explicitly. */
+    /** Unique across the tenants of the aggregate type, such as a global login name: say so explicitly. */
     SYSTEM,
 }

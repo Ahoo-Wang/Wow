@@ -178,7 +178,8 @@ class ContextBackends @InternalWowApi constructor(
 /**
  * One log group of a context other than its default one (decision D177): the aggregate [types] whose log is [log], on
  * the store instance [store]; the checkpoints, parked entries and timers of the subscriptions reading it are in
- * [checkpoints], [ledger] and [timers], on the same store.
+ * [checkpoints], [ledger] and [timers], on the same store, and so are its types' [reservations] (decision D307: an
+ * aggregate type's reservations follow its log; a group without its own uses the context's).
  *
  * Fields may be added (decision D216): Wow builds the groups from the host's configuration, so the constructor is
  * internal to Wow.
@@ -190,6 +191,7 @@ class LogGroupBackends @InternalWowApi constructor(
     val checkpoints: CheckpointStore,
     val ledger: FailureLedger,
     val timers: TimerStore? = null,
+    val reservations: ReservationStore? = null,
 ) {
     init {
         require(store.isNotBlank()) { "A log group names its store." }
@@ -205,7 +207,8 @@ class LogGroupBackends @InternalWowApi constructor(
         checkpoints: CheckpointStore = this.checkpoints,
         ledger: FailureLedger = this.ledger,
         timers: TimerStore? = this.timers,
-    ): LogGroupBackends = LogGroupBackends(store, types, log, checkpoints, ledger, timers)
+        reservations: ReservationStore? = this.reservations,
+    ): LogGroupBackends = LogGroupBackends(store, types, log, checkpoints, ledger, timers, reservations)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is LogGroupBackends && valueFields() == other.valueFields()
@@ -214,9 +217,9 @@ class LogGroupBackends @InternalWowApi constructor(
 
     override fun toString(): String =
         "LogGroupBackends(store=$store, types=$types, log=$log, checkpoints=$checkpoints, ledger=$ledger, " +
-            "timers=$timers)"
+            "timers=$timers, reservations=$reservations)"
 
-    private fun valueFields(): List<Any?> = listOf(store, types, log, checkpoints, ledger, timers)
+    private fun valueFields(): List<Any?> = listOf(store, types, log, checkpoints, ledger, timers, reservations)
 }
 
 /** Opens the [ContextBackends] of each bounded context the node hosts; the host closes what it opened. */

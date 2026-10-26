@@ -79,6 +79,7 @@ import me.ahoo.wow.runtime.log.HandoffLog
 import me.ahoo.wow.runtime.log.LogGroupRouter
 import me.ahoo.wow.runtime.log.PartitionAppendQueue
 import me.ahoo.wow.runtime.manifest.ManifestCheck
+import me.ahoo.wow.runtime.reservation.ReservationRouter
 import me.ahoo.wow.runtime.reservation.ReservationSubscription
 import me.ahoo.wow.runtime.schedule.ScheduleJobRuntime
 import me.ahoo.wow.runtime.snapshot.LogProgress
@@ -111,6 +112,7 @@ import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.FailureClassifier
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -1143,11 +1145,12 @@ class ServiceNode @InternalWowApi constructor(
         val log = PartitionAppendQueue(routed, options.appendQueue, capacity = options.executor.maxInFlight)
         val names = ContextCommandTypes(models, contracts)
         val states = stateCacheOf(context, codec)
-        val kernel = kernelOf(log, backends, codec, names, states)
+        val reserved = reservationsOf(backends, groups)
+        val kernel = kernelOf(log, backends, reserved, codec, names, states)
         val snaps = nodeSnapshots.assembly(context, models, backends, kernel, routed, codec)
         val views = StateViews(codec, stateReaders(context, models, snaps.readers, application), options.stateViews)
         val snapshots = snaps.subscriptions(views, options.snapshots.writeBatch)
-        val reservations = backends.reservations?.let { ReservationSubscription(context, it, observer) }
+        val reservations = reserved?.let { ReservationSubscription(context, it, observer) }
         val firing = LateFirer()
         val group = LeaseGroup(service, context)
         val progress = progressOf(group, groups)
@@ -1266,11 +1269,24 @@ class ServiceNode @InternalWowApi constructor(
             backends.checkpoints,
             backends.ledger,
             backends.timers,
+            backends.reservations,
         )
         return listOf(default) + backends.groups.map {
-            GroupParts(it.store, it.types, it.log, it.checkpoints, it.ledger, it.timers)
+            GroupParts(it.store, it.types, it.log, it.checkpoints, it.ledger, it.timers, it.reservations)
         }
     }
+
+    /**
+     * The context's reservations, each aggregate type's in its log group's store (decision D307); a group without one
+     * uses the default group's.
+     */
+    private fun reservationsOf(backends: ContextBackends, groups: List<GroupParts>): ReservationStore? =
+        ReservationRouter.of(
+            backends.reservations,
+            groups.drop(1).flatMap { group ->
+                group.reservations?.let { store -> group.types.map { it to store } }.orEmpty()
+            }.toMap(),
+        )
 
     /** The context's log, each aggregate type's streams read from its log group's (decision D177). */
     private fun routedLog(groups: List<GroupParts>): EventLog = LogGroupRouter.of(
@@ -1291,6 +1307,7 @@ class ServiceNode @InternalWowApi constructor(
     private fun kernelOf(
         log: PartitionAppendQueue,
         backends: ContextBackends,
+        reservations: ReservationStore?,
         codec: EventCodec,
         names: CommandTypes,
         states: StateCache,
@@ -1298,7 +1315,7 @@ class ServiceNode @InternalWowApi constructor(
         Kernel(
             log,
             codec = codec,
-            reservations = backends.reservations,
+            reservations = reservations,
             states = states,
             recentRequests = options.stateCache.recentRequests,
             snapshots = backends.primarySnapshots,
@@ -1327,8 +1344,9 @@ class ServiceNode @InternalWowApi constructor(
         val checkpoints: CheckpointStore,
         val ledger: FailureLedger,
         val timers: TimerStore?,
+        val reservations: ReservationStore?,
     ) {
-        fun withLog(log: EventLog) = GroupParts(store, types, log, checkpoints, ledger, timers)
+        fun withLog(log: EventLog) = GroupParts(store, types, log, checkpoints, ledger, timers, reservations)
     }
 
     /** [log] handing this node's commits to its tails in memory, as [ServiceNodeOptions.handoff] says. */
