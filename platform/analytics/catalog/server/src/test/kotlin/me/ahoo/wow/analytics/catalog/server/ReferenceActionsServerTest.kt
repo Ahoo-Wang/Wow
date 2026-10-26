@@ -23,13 +23,8 @@ import me.ahoo.wow.analytics.catalog.domain.warehouse.CatalogTrust
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseTable
 import me.ahoo.wow.analytics.catalog.testing.MemoryWarehouse
 import me.ahoo.wow.analytics.catalog.testing.MemoryWarehouseConfiguration
-import me.ahoo.wow.manifest.AggregateManifest
-import me.ahoo.wow.manifest.CommandManifest
-import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
-import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -265,22 +260,22 @@ class ReferenceActionsServerTest {
 
         private const val DEFS = "#/\$defs/"
 
-        val MANIFEST = Manifest(
+        val MANIFEST = manifest(
             contexts = listOf(
-                ContextManifest(
+                context(
                     name = "crm",
                     aggregates = listOf(
-                        AggregateManifest(
+                        aggregate(
                             name = "member",
-                            state = StateManifest("${DEFS}crm.MemberState"),
+                            state = "${DEFS}crm.MemberState",
                             commands = listOf(
-                                CommandManifest(name = "SuspendMember", schema = "${DEFS}crm.SuspendMember"),
-                                CommandManifest(
+                                command(name = "SuspendMember", schema = "${DEFS}crm.SuspendMember"),
+                                command(
                                     name = "CreateMember",
                                     schema = "${DEFS}crm.CreateMember",
-                                    creation = Creation.REQUIRED,
+                                    creation = "REQUIRED",
                                 ),
-                                CommandManifest(name = "TagMember", schema = "${DEFS}crm.TagMember"),
+                                command(name = "TagMember", schema = "${DEFS}crm.TagMember"),
                             ),
                         ),
                     ),
