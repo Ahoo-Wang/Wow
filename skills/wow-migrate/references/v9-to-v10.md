@@ -30,6 +30,7 @@ Status: first draft. V10 is still moving: verify every annotation, signature, ro
 | `wow-redis`, `wow-bi` | Removed (no Redis backend; ClickHouse sink replaces BI sync) |
 | `wow-apiclient`, `wow-cocache` | Removed (decision D187); see [Clients of other services](#clients-of-other-services) |
 | `wow-compensation-*` (the 9.x compensation service) | Retired: each node's failure ledger and its operator routes, see [Compensation and failed executions](#compensation-and-failed-executions) |
+| `wow-opentelemetry` (the per-component instrumenters, the `wow.operation` meters) | `wow-observability`, settings under `wow.observability.*`: every metric and span is renamed, with no alias, so rebuild dashboards and alerts from the docs page Migrate › Metrics and Spans (`/migrate/metrics`) |
 | `wow-query` (protocol, DSL and engine) | `wow-query-api` (query types, the Kotlin DSL `me.ahoo.wow.api.query.dsl`, the field annotations) for domain and client code; `wow-query` (the engine, `QueryGateway`), which `wow-http` brings to a server; see [Queries](#queries) |
 | `wow-bom` 9.x | `wow-bom` of the V10 version, which constrains the V10 modules only |
 | `wow-models` (`EnumText`, `StatusCapable`, the `*Capable` interfaces, the `Tree` aggregate) | `wow-models` of the V10 version (the project `:models`, `extensions/models`, decision D187): the same packages (`me.ahoo.wow.models.common`, `me.ahoo.wow.models.tree`), so imports stay; a `Tree` subclass binds through the compiler (annotate its concrete create command `@AllowCreate`) |

@@ -35,3 +35,27 @@ for (const locale of ['en', 'zh']) {
         assert.deepEqual(missing, [], `Not a string literal in ${REPORTERS.join(', ')}: ${missing.join(', ')}`)
     })
 }
+
+// The other way: every metric of the catalog is on the page, so a new metric is documented before it ships.
+const catalog = readFileSync(
+    join(repository, 'edge/observability/src/main/kotlin/me/ahoo/wow/observability/WowAttributes.kt'),
+    'utf8',
+)
+const metrics = [
+    ...catalog
+        .slice(catalog.indexOf('object WowMetrics'), catalog.indexOf('val NAMES'))
+        .matchAll(/const val \w+: String = "(wow\.[^"]+)"/g),
+].map(([, name]) => name)
+
+for (const locale of ['en', 'zh']) {
+    const page = join(repository, `documentation/docs/${locale}/reference/observability.md`)
+    test(`every metric of the catalog is on the ${locale} observability reference`, {skip: !existsSync(page)}, () => {
+        assert.ok(metrics.length > 30, `Only ${metrics.length} metrics found; the catalog's shape changed`)
+        const text = readFileSync(page, 'utf8')
+        assert.deepEqual(
+            metrics.filter((name) => !text.includes(`\`${name}\``)),
+            [],
+            'Not on the page',
+        )
+    })
+}

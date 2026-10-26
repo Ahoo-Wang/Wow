@@ -52,23 +52,23 @@ Put `wow-observability` on the class path. The spans go through the application'
 
 The spans carry the context, aggregate, tenant, command and subscription as attributes (`wow.context`, `wow.aggregate`, `wow.tenant.id`, `wow.command`, `wow.subscription`, …), so a trace follows a command through its sagas across services.
 
-**Metrics.** The main ones, tagged by context, aggregate, subscription or partition:
+**Metrics.** The main ones, tagged with the spans' attributes (`wow.context`, `wow.aggregate`, `wow.subscription`, …):
 
 | Metric | Type | Measures |
 | --- | --- | --- |
-| `wow.command.commit` | Timer | A command's execution, from taking it to its outcome, by outcome |
-| `wow.command.refused` | Counter | Commands that ended before the kernel took them: refusals, busy lanes or nodes, unavailable stores |
+| `wow.command.duration` | Timer | A command's execution, from taking it to its outcome, by outcome |
+| `wow.command.refusals` | Counter | Commands that ended before the kernel took them: refusals, busy lanes or nodes, unavailable stores |
 | `wow.subscription.lag` | Timer | From a commit to a subscription handling it |
 | `wow.subscription.backlog` | Gauge | The entries of a partition after a subscription's position |
 | `wow.subscription.progress` | Gauge | A subscription's position over the log's head, 0 to 1: a rebuild's progress |
-| `wow.subscription.parked` | Gauge | The aggregates a subscription has parked |
-| `wow.subscription.paused` | Gauge | 1 while a subscription has paused a partition on a systemic failure |
-| `wow.subscription.throttled` | Gauge | 1 while a subscription throttles a partition on backpressure |
-| `wow.subscription.undecodable` | Counter | Messages of a topic this version cannot decode |
-| `wow.reservation.lost` | Counter | Unique keys a committed fact lost to another owner after its pending reservation expired |
+| `wow.subscription.parked.aggregates` | Gauge | The aggregates a subscription has parked |
+| `wow.subscription.paused.partitions` | Gauge | The partitions a subscription has paused on a systemic failure |
+| `wow.subscription.throttled.partitions` | Gauge | The partitions a subscription throttles on backpressure |
+| `wow.subscription.undecodable.messages` | Counter | Messages of a topic this version cannot decode |
+| `wow.reservation.losses` | Counter | Unique keys a committed fact lost to another owner after its pending reservation expired |
 | `wow.timer.delay` | Timer | How late a timer fires after its due time |
-| `wow.query` | Timer | A query, from its admission to its end |
-| `wow.query.limit` | Gauge | A store's current bound on concurrent queries |
+| `wow.query.duration` | Timer | A query, from its admission to its end |
+| `wow.query.limit.current` | Gauge | A store's current bound on concurrent queries |
 | `wow.kafka.offset.gaps` | Counter | Offset gaps on another context's topic ([Kafka](./kafka#reading-other-contexts-streams)) |
 
 `wow.observability.sample-interval` (15 s) is how often the sampled gauges, the parked entries and the subscriptions' positions, are read.
@@ -78,10 +78,10 @@ The spans carry the context, aggregate, tenant, command and subscription as attr
 | Signal | Means | Look at |
 | --- | --- | --- |
 | Readiness down on a node for minutes | A store down, or a node that lost its partitions | `/actuator/health/wow` |
-| `wow.subscription.parked` above 0 | An aggregate waits for a fix and an operator | [The Ops Service and Console](./ops-console) |
-| `wow.subscription.paused` at 1 for long | A downstream store or service is down | The subscription's logs, the store |
+| `wow.subscription.parked.aggregates` above 0 | An aggregate waits for a fix and an operator | [The Ops Service and Console](./ops-console) |
+| `wow.subscription.paused.partitions` above 0 for long | A downstream store or service is down | The subscription's logs, the store |
 | `wow.subscription.backlog` growing | A subscription falls behind | Its lag, its handler's latency, the node's executor |
 | `wow.timer.delay` growing | Timers fire late | The node's load, the timers' store |
 | `wow.kafka.offset.gaps` above 0 | A subscription skipped or stopped at retained data | The topic's retention |
-| `wow.reservation.lost` above 0 | A unique key two aggregates now both rely on | The error log naming the key and its holder; the reservation time to live |
-| `wow.command.refused` with `wow.command.busy` | Nodes refuse commands under load | The number of nodes, the store's latency |
+| `wow.reservation.losses` above 0 | A unique key two aggregates now both rely on | The error log naming the key and its holder; the reservation time to live |
+| `wow.command.refusals` with `error.type=wow.command.busy` | Nodes refuse commands under load | The number of nodes, the store's latency |

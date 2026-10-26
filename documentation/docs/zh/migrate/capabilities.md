@@ -161,7 +161,7 @@ outline: deep
 
 | 9.x 能力 | V10 中 | 说明 |
 | --- | --- | --- |
-| OpenTelemetry 追踪 | 保留 | — |
+| OpenTelemetry 追踪 | 保留 | 每个指标和 Span 都改了名：[指标与 Span](./metrics)。 |
 | 指标 | 保留 | — |
 | 健康指示器 | 保留 | V10 新增：Actuator 的就绪与存活分组。 |
 

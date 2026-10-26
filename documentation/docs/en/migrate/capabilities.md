@@ -161,7 +161,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 
 | 9.x capability | In V10 | Notes |
 | --- | --- | --- |
-| OpenTelemetry tracing | Kept | — |
+| OpenTelemetry tracing | Kept | Every metric and span is renamed: [Metrics and Spans](./metrics). |
 | Metrics | Kept | — |
 | Health indicators | Kept | New in V10: readiness and liveness groups for Actuator. |
 

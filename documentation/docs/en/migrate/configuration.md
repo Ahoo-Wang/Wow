@@ -38,7 +38,7 @@ V10's keys live under `wow.*` too, but none of the 9.x keys carry over: a 9.x ke
 | --- | --- |
 | `wow.kafka.bootstrap-servers` | `wow.kafka.bootstrap-servers`, now for published streams and commands to other contexts only |
 | `wow.kafka.properties`, `producer`, `consumer`, `close-timeout` | `wow.kafka.*` of V10 ([Kafka](../operate/kafka)) |
-| `wow.kafka.decode-failure-strategy` | Removed: a record a subscription cannot decode parks it (`wow.subscription.undecodable` counts them) |
+| `wow.kafka.decode-failure-strategy` | Removed: a record a subscription cannot decode parks it (`wow.subscription.undecodable.messages` counts them) |
 | Topic names by convention | `wow.<context>.commands` and `wow.<context>.<aggregate>.state`, created as `wow.kafka.ddl` says |
 
 ## HTTP and queries
