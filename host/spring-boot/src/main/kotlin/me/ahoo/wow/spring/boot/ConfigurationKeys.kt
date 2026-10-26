@@ -60,7 +60,7 @@ class ConfigurationKeys(
         if (unknown.isEmpty()) {
             return
         }
-        val lines = unknown.map { key -> renamed(key)?.let { "$key ($it)" } ?: key }
+        val lines = unknown.map { key -> (renamed(key) ?: moduleOf(key))?.let { "$key ($it)" } ?: key }
         throw WowConfigurationException(
             unknown.first(),
             null,
@@ -99,6 +99,21 @@ class ConfigurationKeys(
 
         /** The metadata Spring Boot's tooling reads, in the host's jar and any module's. */
         const val METADATA: String = "META-INF/spring-configuration-metadata.json"
+
+        /** The metadata a module adds by hand to what its properties classes give. */
+        const val ADDITIONAL_METADATA: String = "META-INF/additional-spring-configuration-metadata.json"
+
+        /**
+         * The modules whose own metadata declares the keys under a prefix: a key there is unknown when the module is
+         * not on the class path, and the refusal names it.
+         */
+        val MODULES: Map<String, String> = mapOf(
+            "wow.cosid." to "wow-cosid",
+        )
+
+        /** The module that declares [key], when its prefix is one of [MODULES]. */
+        fun moduleOf(key: String): String? =
+            MODULES.entries.firstOrNull { key.startsWith(it.key) }?.let { "needs ${it.value} on the class path" }
 
         /**
          * The maps of beans whose keys are checked to the value's properties (review R2.5-3), by the map's name: the
@@ -199,11 +214,13 @@ class ConfigurationKeys(
             type.name.startsWith(WowProperties::class.java.packageName + ".") && !type.isEnum
 
         /**
-         * The keys of every [METADATA] resource of [classLoader], with the prefixes of the application's other
-         * properties beans ([prefixes]) that no metadata describes.
+         * The keys of every [METADATA] and [ADDITIONAL_METADATA] resource of [classLoader], each module's, with the
+         * prefixes of the application's other properties beans ([prefixes]) that no metadata describes.
          */
         fun of(classLoader: ClassLoader?, prefixes: Collection<String> = emptyList()): ConfigurationKeys {
-            val resources = PathMatchingResourcePatternResolver(classLoader).getResources("classpath*:$METADATA")
+            val resolver = PathMatchingResourcePatternResolver(classLoader)
+            val resources = resolver.getResources("classpath*:$METADATA") +
+                resolver.getResources("classpath*:$ADDITIONAL_METADATA")
             val names = resources.flatMap { resource ->
                 resource.inputStream.use { WowJson.mapper.readTree(it) }["properties"]
                     ?.mapNotNull { it["name"]?.asString() }
