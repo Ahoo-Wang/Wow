@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -28,6 +29,7 @@ import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.StoreFallbacks
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.io.IOException
 
 /**
@@ -100,5 +102,12 @@ class SnapshotTailReadsTest {
             Triple("shop", StoreFallbacks.SNAPSHOT_TAIL_READ, StoreFallbacks.FAILED),
             Triple("shop", StoreFallbacks.SNAPSHOT_TAIL_READ, StoreFallbacks.FAILED),
         )
+    }
+
+    @Test
+    fun `a cancelled read is cancelled, never read apart`() = runTest {
+        val reads = SnapshotTailReads(reading { _, _, _ -> throw CancellationException("cancelled") }, observer)
+        assertThrows<CancellationException> { reads.read(ref, snapshots, 2) }
+        fallbacks.assert().isEmpty()
     }
 }
