@@ -278,7 +278,7 @@ class ScopeQueryPolicyTest {
                 ManifestFixtures.ORDER,
                 storage.create(ManifestFixtures.ORDER).backend,
                 FixedQueryModelSchemaProvider(schema),
-                policies = listOf(ScopeQueryPolicy(tenants)),
+                policies = listOf(ScopeQueryPolicy(tenants, crossTenant = true)),
             )
             val sorted = ListQuery(
                 MatchAllFilter,

@@ -87,6 +87,34 @@ class QueryTargets(
         }
     }
 
+    /**
+     * Checks again, as the engine admits [caller]'s read of [type], what [of] decided for an
+     * [HTTP][QueryEntry.HTTP] caller (review R5.C-1): the [target][QueryCaller.target] and the
+     * [tenants it reads][QueryCaller.crossTenant] are refused unless its identity may name them ([admit]), and a type
+     * whose tenant is fixed is read in it alone. A caller [of] built passes; one built otherwise reaches no further. An
+     * in-process caller is trusted by its entry.
+     */
+    fun recheck(type: AggregateType, caller: QueryCaller) {
+        if (caller.entry != QueryEntry.HTTP) {
+            return
+        }
+        val target = caller.target
+        val reads = caller.crossTenant
+        val identity = caller.caller
+        if (identity == null) {
+            if (target != null || reads != null) {
+                throw QueryTargetException(QueryErrors.FORBIDDEN, "The caller may not read in another scope.")
+            }
+            return
+        }
+        admit(identity, target, reads)
+        val fixed = tenants.fixedTenant(type) ?: return
+        val outside = if (reads != null) !reads.covers(fixed) else target?.tenantId.let { it != null && it != fixed }
+        if (outside) {
+            throw QueryTargetException(QueryErrors.MALFORMED, "The tenant of $type is fixed.")
+        }
+    }
+
     @InternalWowApi
     companion object {
         /** Every type in its caller's tenant, and no cross-tenant read. */

@@ -96,6 +96,7 @@ fun cartEvents(
     visibility: EventVisibility = EventVisibility.ALL,
     masks: PayloadMasks = PayloadMasks.NONE,
     storage: QueryBackendFactory<*> = InMemoryEventQueryStorage.of(log),
+    crossTenant: Boolean = false,
 ): QueryGateway {
     val schemas = EventsQuerySchemas(manifest)
     val catalog = QuerySchemaCatalog(
@@ -106,7 +107,9 @@ fun cartEvents(
         cartType,
         storage.create(cartType).backend,
         catalog.provider(cartType, QueryModel.EVENTS),
-        policies = listOf(ScopeQueryPolicy(tenants, ownerships = QueryOwnership.of(manifest))),
+        policies = listOf(
+            ScopeQueryPolicy(tenants, ownerships = QueryOwnership.of(manifest), crossTenant = crossTenant),
+        ),
         entryPolicy = entryPolicy,
         visibility = visibility,
         tenants = tenants,
@@ -121,6 +124,7 @@ fun cartSnapshots(
     tenants: TenantPolicy = TenantPolicy.CALLERS,
     policies: List<QueryPolicy> = emptyList(),
     manifest: Manifest = queryManifest(),
+    crossTenant: Boolean = false,
 ): QueryGateway {
     val catalog = QuerySchemaCatalog(
         QueryBackendStorages(storage),
@@ -130,7 +134,7 @@ fun cartSnapshots(
         cartType,
         storage.create(cartType).backend,
         catalog.provider(cartType, QueryModel.SNAPSHOT),
-        policies = listOf(ScopeQueryPolicy(tenants)) + policies,
+        policies = listOf(ScopeQueryPolicy(tenants, crossTenant = crossTenant)) + policies,
         entryPolicy = entryPolicy,
     )
 }
@@ -155,7 +159,8 @@ class QueryNode(
     /** Whether queries may cross tenants (`wow.query.cross-tenant.enabled`). */
     crossTenant: Boolean = false,
 ) {
-    private val gateway = snapshots(cartSnapshots(storage, entryPolicy, policies = policies, manifest = manifest))
+    private val gateway =
+        snapshots(cartSnapshots(storage, entryPolicy, policies = policies, manifest = manifest, crossTenant = crossTenant))
 
     /** As the host builds one (review R3.3-3): the policies of a cart whose snapshots are not queried. */
     private val policyGateway = if (gateway == null && policies.isNotEmpty()) {
@@ -188,6 +193,7 @@ class QueryNode(
                         }
                     },
                     masks = PayloadMasks(manifest),
+                    crossTenant = crossTenant,
                 ),
             ),
             defaultListSize = defaultListSize,

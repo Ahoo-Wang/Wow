@@ -16,6 +16,7 @@ package me.ahoo.wow.query
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AndFilter
+import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
@@ -91,5 +92,22 @@ class QueryCallerTest {
         caller.withSelection(MatchAllFilter).assert().isSameAs(caller)
         caller.withSelection(OwnerIdFilter("o1")).selection
             .assert().isEqualTo(AndFilter(listOf(IdFilter("a1"), OwnerIdFilter("o1"))))
+    }
+
+    @Test
+    fun `a plain caller names no other scope and compares by value`() {
+        val alice = Caller(tenantId = "t1", subject = "alice")
+        val plain = QueryCaller.of(alice, QueryEntry.HTTP)
+        plain.caller.assert().isSameAs(alice)
+        plain.entry.assert().isEqualTo(QueryEntry.HTTP)
+        plain.crossTenant.assert().isNull()
+        plain.target.assert().isNull()
+        QueryCaller.of(alice).entry.assert().isEqualTo(QueryEntry.UNSPECIFIED)
+        plain.assert().isEqualTo(QueryCaller.of(alice, QueryEntry.HTTP))
+        plain.hashCode().assert().isEqualTo(QueryCaller.of(alice, QueryEntry.HTTP).hashCode())
+        plain.assert().isNotEqualTo(plain.copy(crossTenant = CrossTenant.ALL))
+        plain.assert().isNotEqualTo(alice)
+        plain.copy(entry = QueryEntry.IN_PROCESS).entry.assert().isEqualTo(QueryEntry.IN_PROCESS)
+        plain.toString().assert().contains("alice").contains("HTTP")
     }
 }
