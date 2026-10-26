@@ -60,36 +60,36 @@ class ConfigurationKeysTest {
     @Test
     fun `the keys of a calling service and a call target are checked to their properties (R2_5-3)`() {
         val known = environment(
-            "wow.http.services.basket.commands[0]" to "shop.order.SubmitOrder",
-            "wow.http.services.[ordering.v2].commands" to "Checkout",
-            "wow.http.services.ordering.reads" to "shop.order.snapshot",
-            "wow.calls.contexts.ordering.url" to "http://ordering:9090",
+            "wow.callers.basket.commands[0]" to "shop.order.SubmitOrder",
+            "wow.callers.[ordering.v2].commands" to "Checkout",
+            "wow.callers.ordering.reads" to "shop.order.snapshot",
+            "wow.peers.ordering.url" to "http://ordering:9090",
         )
         keys.unknown(known).assert().isEmpty()
         keys.check(known)
         // The map holds the entry, but its value has no such property: commands stays empty, which opens every
         // domain command to the service (D226), so the typo refuses the startup.
         val mistyped = environment(
-            "wow.http.services.basket.command[0]" to "shop.order.SubmitOrder",
-            "wow.http.services.basket" to "t",
-            "wow.calls.contexts.ordering.uri" to "http://ordering:9090",
+            "wow.callers.basket.command[0]" to "shop.order.SubmitOrder",
+            "wow.callers.basket" to "t",
+            "wow.peers.ordering.uri" to "http://ordering:9090",
             // The tokens D300 removed are unknown keys now: a deployment that still sets one does not start.
-            "wow.http.services.ordering.tokens" to "a,b",
+            "wow.callers.ordering.tokens" to "a,b",
             "wow.calls.token" to "t",
             "wow.internal.token" to "t",
             "wow.cosec.service.roles" to "service",
         )
         keys.unknown(mistyped).assert().containsExactlyInAnyOrder(
-            "wow.http.services.basket.command[0]",
-            "wow.http.services.basket",
-            "wow.calls.contexts.ordering.uri",
-            "wow.http.services.ordering.tokens",
+            "wow.callers.basket.command[0]",
+            "wow.callers.basket",
+            "wow.peers.ordering.uri",
+            "wow.callers.ordering.tokens",
             "wow.calls.token",
             "wow.internal.token",
             "wow.cosec.service.roles",
         )
         val failure = assertThrows<IllegalStateException> { keys.check(mistyped) }
-        failure.message.assert().contains("wow.http.services.basket.command[0]")
+        failure.message.assert().contains("wow.callers.basket.command[0]")
     }
 
     @Test
@@ -101,7 +101,7 @@ class ConfigurationKeysTest {
 
     @Test
     fun `a host whose service's commands are mistyped does not start`() {
-        val key = "wow.http.services.basket.command[0]"
+        val key = "wow.callers.basket.command[0]"
         val failure = runCatching { startHost(key to "shop.order.SubmitOrder").close() }.exceptionOrNull()
         generateSequence(failure) { it.cause }.any { it.message.orEmpty().contains(key) }.assert().isTrue()
     }

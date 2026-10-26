@@ -40,14 +40,15 @@ internal class PortProviders(
 ) {
     /**
      * The transports [environment] configures, each opened from [resources] for a node that runs for [development] or
-     * not; more than one is ambiguous.
+     * not, of the [type] alone when it names one; more than one is ambiguous.
      */
     fun transportConfigs(
         environment: Environment,
         resources: StoreResources,
         development: Boolean = false,
+        type: String? = null,
     ): List<Pair<TransportProvider, TransportConfig>> =
-        transports.values.map { provider ->
+        transports.values.filter { type == null || it.type == type }.map { provider ->
             provider to TransportConfig.of(
                 provider.type,
                 provider.type,
@@ -62,8 +63,9 @@ internal class PortProviders(
         environment: Environment,
         resources: StoreResources,
         development: Boolean = false,
+        type: String? = null,
     ): Pair<TransportProvider, TransportConfig>? {
-        val configured = transportConfigs(environment, resources, development)
+        val configured = transportConfigs(environment, resources, development, type)
         configCheck(
             configured.size <= 1,
             "wow.<transport>",

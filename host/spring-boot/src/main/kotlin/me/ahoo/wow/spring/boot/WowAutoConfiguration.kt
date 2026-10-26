@@ -377,7 +377,8 @@ class WowAutoConfiguration {
     /**
      * The peer contexts reached over HTTP, `wow.peers` (decisions D257, D259), and their clients in either mode, each
      * built when first used: the service mode naming this node's service, the user mode forwarding the request's
-     * `wow.peer.forwarded-headers`.
+     * `wow.peer.forwarded-headers`. A context of `wow.peers` the node serves itself is reached by its sagas' calls
+     * alone: its commands and queries stay in the node.
      */
     @Bean
     @InternalWowApi
@@ -416,7 +417,8 @@ class WowAutoConfiguration {
             builder.build()
         }
         return PeerClients(
-            properties.peers.mapValues { (_, target) -> target.mode ?: peer.mode },
+            properties.peers.filterKeys { it !in contracts.localContexts }
+                .mapValues { (_, target) -> target.mode ?: peer.mode },
             contracts.localContexts,
             contracts.peerContexts,
             client(ClientMode.Service(identity.service)),
@@ -472,6 +474,7 @@ class WowAutoConfiguration {
         providedSinks: ObjectProvider<ProvidedSinks>,
         listeners: ObjectProvider<ServiceNodeListener>,
         topics: ObjectProvider<SourceTopics>,
+        kafka: ObjectProvider<KafkaProperties>,
         notifiers: ObjectProvider<ParkedNotifier>,
         observers: ObjectProvider<Observer>,
         callers: ObjectProvider<CommandCaller>,
@@ -479,6 +482,19 @@ class WowAutoConfiguration {
         queries: ObjectProvider<ContextQueries>,
     ): ServiceNode {
         checkShutdownTimeout(environment)
+        val sourceTopics = topics.ifAvailable
+        if (sourceTopics == null) {
+            TransportNeeds.check(
+                TransportNeeds.of(
+                    manifest,
+                    models.models.mapTo(HashSet()) { it.type.context },
+                    kafkaRouted(properties, models.models),
+                    properties.ops.publish.enabled,
+                    kafka.ifAvailable?.commandIntake?.enabled == true,
+                ),
+                properties.transport,
+            )
+        }
         val routing = routing(properties, backends.local)
         val stepListeners = listeners.orderedStream().toList()
         return ServiceNode(
@@ -539,7 +555,7 @@ class WowAutoConfiguration {
             ),
             listener = { step -> stepListeners.forEach { it.onStep(step) } },
             contracts = contracts,
-            topics = topics.ifAvailable,
+            topics = sourceTopics,
             parkedNotifier = ParkedNotifier.of(notifiers.orderedStream().toList()),
             observer = observers.getIfUnique { Observer.NONE },
             caller = callers.ifAvailable,
@@ -696,13 +712,7 @@ class WowAutoConfiguration {
         properties: WowProperties,
         environment: Environment,
         identity: ObjectProvider<NodeIdentity>,
-    ): DevelopmentMode = DevelopmentMode(
-        BackendSelection.memoryOptIn(
-            environment.activeProfiles.toList(),
-            properties.devProfiles,
-            identity.ifAvailable?.bindHost,
-        ),
-    )
+    ): DevelopmentMode = DevelopmentMode.of(properties, environment, identity.ifAvailable?.bindHost)
 
     /**
      * The anonymous caller, for development alone (decision D301): a deployment maps the identity its gateway asserts

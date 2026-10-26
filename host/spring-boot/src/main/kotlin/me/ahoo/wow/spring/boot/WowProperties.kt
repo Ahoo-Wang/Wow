@@ -54,6 +54,8 @@ import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.TailPolling
 import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.boot.context.properties.bind.Binder
+import org.springframework.core.env.Environment
 import java.net.URI
 import java.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -194,22 +196,14 @@ class WowProperties {
     /** The node's health and its probes, when the application has Spring Boot Actuator: `wow.health.*`. */
     var health: Health = Health()
 
-    /** The node's topics without Kafka, for local development, see [Topics]. */
-    var topics: Topics = Topics()
-
     /**
-     * Topics for trying a service out without Kafka. With `wow.topics.in-memory` (false), the node keeps
-     * the topics a Kafka cluster would hold in its JVM: the command topics of its contexts, which it executes, and
-     * their published streams, each with `wow.log.partitions` partitions. A saga's command to another context the
-     * node serves then needs no Kafka, and services in one JVM that share the same in-memory topics bean reach each
-     * other's topics; separate JVMs do not. Nothing survives a restart. The node warns at startup, and does not start
-     * with `wow.kafka.bootstrap-servers` too: for local development and tests only.
+     * The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with
+     * `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a
+     * profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none, which a service whose
+     * Manifest needs topics refuses. `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or
+     * a community provider's type, names the transport.
      */
-    @InternalWowApi
-    class Topics {
-        /** Whether the node's topics are in its JVM instead of Kafka. */
-        var inMemory: Boolean = false
-    }
+    var transport: String = TransportSelection.AUTO
 
     @InternalWowApi
     class Node {
@@ -1517,6 +1511,13 @@ class WowProperties {
     @InternalWowApi
     companion object {
         const val PREFIX: String = "wow"
+
+        /**
+         * The `wow.*` settings [environment] gives, bound before the beans are, for a condition or an environment
+         * post-processor: the properties' own defaults are the only ones, as the bean's.
+         */
+        fun of(environment: Environment): WowProperties =
+            Binder.get(environment).bindOrCreate(PREFIX, WowProperties::class.java)
 
         /** The store option of the MongoDB read preference of its queries, over `wow.mongo.query-read-preference`. */
         const val QUERY_READ_PREFERENCE: String = "query-read-preference"

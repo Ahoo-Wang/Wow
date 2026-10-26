@@ -33,7 +33,7 @@ Requirements: Gradle (there is no Maven build), JDK 21, Kotlin with KSP, Spring 
 - `wow.internal.port` (9090), `wow.internal.host`, `wow.internal.token` (the cluster token; a node without one starts only in a development profile or on loopback).
 - `wow.log.partitions` (64; a power of two dividing 4096): set once, before the log holds entries.
 - `wow.cluster.router`, `wow.wait.default-timeout`, `wow.subscriptions.[<name>].start`, `wow.subscription.retry.*`, `wow.subscription.parked.*`, `wow.aggregates.[<context>.<aggregate>].tenant`.
-- `wow.kafka.bootstrap-servers`, `wow.kafka.command-intake.enabled` (`cross-context.md`); `wow.topics.in-memory` for local runs without Kafka.
+- `wow.kafka.bootstrap-servers`, `wow.kafka.command-intake.enabled` (`cross-context.md`); `wow.transport` for local runs without Kafka.
 - `wow.ops.enabled`, `wow.ops.webhook.*`, `wow.ops.publish.enabled` (`processes.md`).
 - `wow.health.*`: the node's health under Actuator's `wow`, `readiness` and `liveness` groups.
 

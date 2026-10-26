@@ -35,7 +35,7 @@
 #          --heap=1g --jfr (a flight recording per server) --settle=<s> (after the nodes are up), --install=<dir> (the
 #          server's installed distribution, by default this tree's server/build/install/benchmark-server: another
 #          build, such as a baseline's, or test/benchmarks/axon-server/build/install/axon-server for the Axon
-#          comparison), --server-args="<args>" (more arguments for every server, such as --wow.topics.in-memory=true),
+#          comparison), --server-args="<args>" (more arguments for every server, such as --wow.transport=memory),
 #          --seed-concurrency=32 (accounts opened at once),
 #          --load-cpus=<list> and --server-cpus=<list> (Linux, taskset lists: the load generator on its own CPUs, the
 #          servers and the containers on the others), --prime (an untimed pass over every account before the run,
@@ -174,7 +174,7 @@ start_node() {
   install=$(opt install "$REPO/test/benchmarks/server/build/install/benchmark-server")
   local launcher
   launcher=$(server_launcher "$install")
-  # --server-args: more arguments for every server, separated by spaces (--wow.topics.in-memory=true).
+  # --server-args: more arguments for every server, separated by spaces (--wow.transport=memory).
   local extra
   read -r -a extra <<<"$(opt server-args "")"
   pin server-cpus

@@ -129,7 +129,7 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 - The handler declares the classes it calls in `@OnEvent(calls = [...])`. The Manifest lists them, a wait follows the call, and `call` refuses any other class.
 - `call` returns the command's result once it is committed on the target. Build the command with `context.command` first: its request id makes every retry the same request, which the target decides once.
 - A refusal throws `CallRejectedException`, a business outcome that is not retried. A call that reaches no result throws `CallFailedException`: the handler fails and is retried, then parks the aggregate.
-- The node reaches the target on its internal port, at `wow.calls.contexts.<context>.url`, and does not start when a handler calls a context without one. A command of the saga's own context is derived, never called.
+- The node reaches the target on its internal port, at `wow.peers.<context>.url`, and does not start when a handler calls a context without one. A command of the saga's own context is derived, never called.
 - `call` is a `suspend` function, so a saga written in Java derives its commands instead.
 
 ## Schedule a command

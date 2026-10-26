@@ -96,7 +96,13 @@ class ConfigurationKeys(
          * The prefixes whose unknown keys refuse the startup: the authorization settings, the service identities and
          * the synchronous calls (review R2.5-3), and the cluster's tokens.
          */
-        val STRICT_PREFIXES: List<String> = listOf("wow.cosec.", "wow.callers.", "wow.peer.", "wow.peers.", "wow.internal.")
+        val STRICT_PREFIXES: List<String> = listOf(
+            "wow.cosec.",
+            "wow.callers.",
+            "wow.peer.",
+            "wow.peers.",
+            "wow.internal."
+        )
 
         /**
          * The maps of beans whose keys are checked to the value's properties (review R2.5-3), by the map's name: the

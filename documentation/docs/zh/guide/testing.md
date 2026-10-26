@@ -360,5 +360,5 @@ fun `the binding index should name the context and the fragment and build the or
 - 在内存后端上运行，公开服务器和内部服务器使用随机端口，内部端口绑定在回环网卡上。
 - 给测试一个自己的调用方解析器，读取一个测试用的请求头，让每个请求都有租户和所有者。
 - 在内存后端上，只有设置 `wow.query.memory.enabled: true` 时快照查询才会回答。
-- Saga 向另一个上下文发命令的服务需要命令传输：容器里的 Kafka，或者 `wow.topics.in-memory: true`。
+- Saga 向另一个上下文发命令的服务需要命令传输：容器里的 Kafka，或者 `wow.transport=memory`。
 - 针对 PostgreSQL、MongoDB、Kafka 或 ClickHouse 的测试在容器里运行，放在模块的 `integrationTest` 源集中，`check` 不会运行它们。

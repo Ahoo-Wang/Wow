@@ -17,7 +17,7 @@ A service needs Kafka when one of these holds:
 - other contexts send commands to it;
 - an aggregate type's commands are routed through Kafka for durable intake.
 
-A node whose sagas send commands to another context does not start without a command transport. For local development, `wow.topics.in-memory: true` keeps the topics in the JVM instead, so services in one process reach each other without a broker. Those topics keep every record they are sent for the life of the JVM: under sustained load they fill the heap, so they are for trying a service out, never for a load test or a deployment.
+`wow.transport` selects the node's topic transport. With `auto`, the default, a node takes the transport it finds configured (Kafka, once `wow.kafka.bootstrap-servers` is set). Without one, a node in development (a profile of `wow.dev-profiles`, or an internal port on the loopback interface alone) keeps its topics in its JVM, so services in one process reach each other without a broker; any other node runs without topics, and refuses to start when it needs them: when it publishes a stream, routes an aggregate type through Kafka, publishes its failure ledger or takes commands from its command topic, and when its sagas send commands to another context. `wow.transport=memory` asks for the topics in the JVM, outside development too it is refused. Those topics keep every record they are sent for the life of the JVM: under sustained load they fill the heap, so they are for trying a service out, never for a load test or a deployment.
 
 The transport is wired when the `wow-kafka` module is on the classpath and `wow.kafka.bootstrap-servers` is set. The eShop's ordering service connects with its `kafka` profile:
 

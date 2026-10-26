@@ -29,7 +29,6 @@ import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicAdmin
 import me.ahoo.wow.spi.transport.TopicProducer
 import me.ahoo.wow.spi.transport.TopicTransport
-import me.ahoo.wow.spi.transport.TransportConfig
 import me.ahoo.wow.spi.transport.TransportProvider
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.ObjectProvider
@@ -89,16 +88,23 @@ class TransportAutoConfiguration {
             environment: Environment,
             beanFactory: ListableBeanFactory,
             development: ObjectProvider<DevelopmentMode>,
+            properties: ObjectProvider<WowProperties>,
         ): TopicTransport {
+            val named = (properties.ifAvailable?.transport ?: TransportSelection.AUTO).trim().lowercase()
+                .takeUnless { it == TransportSelection.AUTO }
             val (provider, config) = configNotNull(
                 providers.transportConfig(
                     environment,
                     BeanStoreResources(beanFactory),
                     development.ifAvailable?.active == true,
+                    named,
                 ),
-                "wow.<transport>",
+                named?.let { "wow.$it" } ?: "wow.<transport>",
                 "Configure the transport of a provider: ${providers.transports.keys.joinToString { "wow.$it.*" }}.",
-            ) { "A transport provider is declared, but no transport is configured." }
+            ) {
+                named?.let { "wow.transport is $it, but no transport of that type is configured." }
+                    ?: "A transport provider is declared, but no transport is configured."
+            }
             logger.info { "The node's topic transport is ${provider.type} (${config.key})." }
             return PortProviders.configured(config.key) { provider.open(config) }
         }
@@ -177,28 +183,16 @@ class TransportAutoConfiguration {
     }
 
     /**
-     * Whether a topic transport is configured: a provider on the classpath finds its settings under `wow.<type>`, or
-     * the application declares a [TransportProvider] bean. The in-memory topics (`wow.topics.in-memory`) are not one.
+     * Whether `wow.transport` selects a provider's transport ([TransportSelection.PROVIDER]): one a provider on the
+     * classpath finds configured under `wow.<type>`, a [TransportProvider] bean of the application, or the type it names.
      */
     internal class OnTransport : SpringBootCondition() {
         override fun getMatchOutcome(context: ConditionContext, metadata: AnnotatedTypeMetadata): ConditionOutcome {
-            val providers = PortProviders.load(context.classLoader)
-            val configured = providers.transports.values.filter { provider ->
-                provider.available(
-                    TransportConfig.of(
-                        provider.type,
-                        provider.type,
-                        PortProviders.optionsOf(context.environment, provider.type)
-                    ),
-                )
-            }
-            val beans = context.beanFactory?.getBeanNamesForType(TransportProvider::class.java, true, false).orEmpty()
-            return when {
-                configured.isNotEmpty() -> ConditionOutcome.match(
-                    "the transport ${configured.map { it.type }} is configured"
-                )
-                beans.isNotEmpty() -> ConditionOutcome.match("the transport providers ${beans.toList()} are declared")
-                else -> ConditionOutcome.noMatch("no topic transport is configured")
+            val selection = TransportSelection.of(context)
+            return if (selection == TransportSelection.PROVIDER) {
+                ConditionOutcome.match("wow.transport selects a provider's transport")
+            } else {
+                ConditionOutcome.noMatch("wow.transport selects $selection")
             }
         }
     }

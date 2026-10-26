@@ -51,7 +51,7 @@ class EshopSharedJvmTest {
         start(CatalogServer::class.java, "catalog").use { catalog ->
             // The checkout saga calls the ordering (decision D259): the node checks it has its address, which no
             // checkout here uses.
-            val ordering = "--wow.calls.contexts.eshop-ordering.url=http://127.0.0.1:$UNUSED_PORT"
+            val ordering = "--wow.peers.eshop-ordering.url=http://127.0.0.1:$UNUSED_PORT"
             start(BasketServer::class.java, "basket", InMemoryTopicsBeans::class.java, arguments = listOf(ordering)).use { basket ->
                 catalog.contexts().assert().containsExactly("eshop-catalog")
                 basket.contexts().assert().containsExactly("eshop-basket")

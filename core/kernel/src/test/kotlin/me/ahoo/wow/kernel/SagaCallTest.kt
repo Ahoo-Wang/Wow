@@ -128,7 +128,7 @@ class SagaCallTest {
         val missing = thrown<CallFailedException> {
             runBlocking { unconfigured.call(unconfigured.command(stock.ref("t", "mug"), "reserve")) }
         }
-        missing.message!!.assert().contains("wow.calls.contexts.inventory.url")
+        missing.message!!.assert().contains("wow.peers.inventory.url")
         missing.result.assert().isNull()
     }
 

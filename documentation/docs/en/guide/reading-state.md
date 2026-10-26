@@ -67,7 +67,7 @@ basket.bean<QueryApi>().of(bob).snapshots(EshopOrderingContract.Order.TYPE).stat
 - `snapshots(type)` reads the aggregate type of another service, its state as JSON; `snapshots<ProductState>()` reads a type of this service, its state decoded as the class.
 - `state(id)` answers `null` for a state the caller may not see, alike to a missing one. `state(id, minVersion)` reads your own write, and throws `MinVersionNotReachedException` when the version is not reached in time.
 - `trusted()` reads as trusted code: no tenant, owner or space restricts it. Use it for system jobs, never for a request that has a caller.
-- A peer listed under `wow.clients.contexts` is read over HTTP with the same calls ([Call Other Services](./calling-services#configure-a-peer-over-http)).
+- A peer listed under `wow.peers` is read over HTTP with the same calls ([Call Other Services](./calling-services#configure-a-peer-over-http)).
 - In a saga, a projection or a reactor, `context.queries` reads the whole tenant of the commit being handled.
 
 The same `QueryApi` runs the snapshot queries: [Query Snapshots](./queries).

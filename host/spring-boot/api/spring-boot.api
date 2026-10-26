@@ -50,6 +50,8 @@ public final class me/ahoo/wow/spring/boot/DevelopmentMode {
 }
 
 public final class me/ahoo/wow/spring/boot/DevelopmentMode$Companion {
+	public final fun of (Lme/ahoo/wow/spring/boot/WowProperties;Lorg/springframework/core/env/Environment;Ljava/lang/String;)Lme/ahoo/wow/spring/boot/DevelopmentMode;
+	public static synthetic fun of$default (Lme/ahoo/wow/spring/boot/DevelopmentMode$Companion;Lme/ahoo/wow/spring/boot/WowProperties;Lorg/springframework/core/env/Environment;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/DevelopmentMode;
 }
 
 public final class me/ahoo/wow/spring/boot/HealthAutoConfiguration {
@@ -158,6 +160,7 @@ public final class me/ahoo/wow/spring/boot/TransportAutoConfiguration$TransportM
 public final class me/ahoo/wow/spring/boot/WowAutoConfiguration {
 	public static final field Companion Lme/ahoo/wow/spring/boot/WowAutoConfiguration$Companion;
 	public static final field INTERNAL_HTTP_CLIENT Ljava/lang/String;
+	public static final field PEER_HTTP_CLIENT Ljava/lang/String;
 	public static final field WOW_AGGREGATE_ID_GENERATOR Ljava/lang/String;
 	public static final field WOW_JSON_MAPPER Ljava/lang/String;
 	public fun <init> ()V
@@ -175,6 +178,7 @@ public final class me/ahoo/wow/spring/boot/WowAutoConfiguration {
 	public final fun wowInternalHttpClient (Lme/ahoo/wow/spring/boot/WowProperties;)Ljava/net/http/HttpClient;
 	public final fun wowJsonMapper ()Ltools/jackson/databind/json/JsonMapper;
 	public final fun wowParkedRouterFunction (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/runtime/node/ServiceNode;Lme/ahoo/wow/http/caller/CallerResolver;Lme/ahoo/wow/http/WowHttpOptions;Lorg/springframework/beans/factory/ObjectProvider;)Lorg/springframework/web/reactive/function/server/RouterFunction;
+	public final fun wowPeerHttpClient (Lme/ahoo/wow/spring/boot/WowProperties;)Ljava/net/http/HttpClient;
 }
 
 public final class me/ahoo/wow/spring/boot/WowAutoConfiguration$Companion {

@@ -129,7 +129,7 @@ dependencies {
 Spring 绑定它认识的键、忽略其余的键，所以拼错的键会悄悄什么都不做。宿主在启动时把环境中的每个 `wow.*` 键与类路径上的配置元数据比较：
 
 - 未知的键记一条警告，并指明它。
-- `wow.cosec.`、`wow.http.services.`、`wow.calls.` 或 `wow.internal.` 下的未知键会阻止启动：写错的安全设置会保留默认值，而默认值可能允许一切。
+- `wow.cosec.`、`wow.callers.`、`wow.calls.` 或 `wow.internal.` 下的未知键会阻止启动：写错的安全设置会保留默认值，而默认值可能允许一切。
 
 环境变量不检查，因为它们的名字无法列举。所有的键见[配置项](../reference/configuration)。
 

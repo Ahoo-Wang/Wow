@@ -17,7 +17,7 @@ Kafka 承载跨越服务边界的东西：上下文发布的事件流、其他�
 - 其他上下文向它发命令；
 - 某个聚合类型的命令经 Kafka 路由，以便持久摄入。
 
-Saga 向另一个上下文发命令的节点，没有命令传输就不会启动。本地开发时，`wow.topics.in-memory: true` 把主题保存在 JVM 里，同一进程中的服务不需要 broker 就能互相访问。这些主题在 JVM 的整个生命周期里保留发给它们的每条记录：持续负载下会占满堆，所以只用于试用服务，不能用于压测或部署。
+`wow.transport` 选择节点的主题传输。默认的 `auto` 取已配置的传输（设置了 `wow.kafka.bootstrap-servers` 就是 Kafka）。没有配置时，开发中的节点（`wow.dev-profiles` 中的某个 profile 处于激活状态，或者内部端口只绑定回环地址）把主题保存在 JVM 里，同一进程中的服务不需要 broker 就能互相访问；其他节点没有主题，并在需要主题时拒绝启动：它发布流、经 Kafka 路由某个聚合类型、发布失败台账或从命令主题接收命令，或者它的 Saga 向另一个上下文发命令。`wow.transport=memory` 显式要求 JVM 内的主题，开发以外会被拒绝。这些主题在 JVM 的整个生命周期里保留发给它们的每条记录：持续负载下会占满堆，所以只用于试用服务，不能用于压测或部署。
 
 类路径上有 `wow-kafka` 模块并设置了 `wow.kafka.bootstrap-servers` 时，传输会被装配。eShop 的 ordering 服务用它的 `kafka` profile 连接：
 

@@ -15,10 +15,10 @@ outline: deep
 | 日志说 | 原因 | 处置 |
 | --- | --- | --- |
 | 没有持久后端 | 没有 `DataSource` 或 `MongoClient` Bean，又不在开发 profile 中，且内部端口不只绑定在回环网卡上 | 设置 `spring.datasource.url`（类路径上要有 HikariCP）或 `spring.mongodb.uri`，给应用提供它的存储 Bean，或者有意设置 `wow.backend: memory` |
-| 服务名不是节点能在内部端口上声明的名字 | `wow.service`（没有时为 `spring.application.name`）含有字母、数字、`.`、`_` 和 `-` 之外的字符，或者超过 253 个字符 | 重命名服务，每个节点以及对端的 `wow.http.services` 里都一致 |
-| 未知的安全配置键 | `wow.cosec.`、`wow.http.services.`、`wow.calls.` 或 `wow.internal.` 下有拼错的键 | 修正这个键（[配置服务](./configuration#keys-are-checked)） |
+| 服务名不是节点能在内部端口上声明的名字 | `wow.service`（没有时为 `spring.application.name`）含有字母、数字、`.`、`_` 和 `-` 之外的字符，或者超过 253 个字符 | 重命名服务，每个节点以及对端的 `wow.callers` 里都一致 |
+| 未知的安全配置键 | `wow.cosec.`、`wow.callers.`、`wow.calls.` 或 `wow.internal.` 下有拼错的键 | 修正这个键（[配置服务](./configuration#keys-are-checked)） |
 | 节点不提供的订阅、聚合或上下文 | `wow.subscriptions`、`wow.aggregates` 或 `wow.contexts` 下有一个什么都不匹配的名字 | 修正名字，或删除这一项 |
-| 没有命令传输 | 某个 Saga 向另一个上下文发命令，而节点既没有 Kafka 也没有内存主题 | 设置 `wow.kafka.bootstrap-servers` |
+| 没有命令传输 | 某个 Saga 向另一个上下文发命令，而节点既没有 Kafka 也没有内存主题 | 设置 `wow.kafka.bootstrap-servers`，或在开发中运行，主题保存在它的 JVM 里（`wow.transport`） |
 | 缺少主题，或命令主题的分区数不对 | `wow.kafka.ddl: validate`，而运维人员没有按日志的需要创建主题 | 创建主题：命令主题的分区数恰好是 `wow.log.partitions`（[Kafka](./kafka#creating-topics)） |
 | 另一种格式的结构 | 一张由不兼容的 Wow 构建创建的表 | 运行那个主版本的迁移；绝不要编辑 `wow_format` |
 
@@ -40,7 +40,7 @@ outline: deep
 | `wow.command.request-id-reused`（409） | 这个请求 ID 已被另一条命令使用 | 给每条命令自己的请求 ID |
 | `wow.aggregate.forbidden`（403） | 聚合属于与调用方不同的所有者或空间 | 检查调用方的作用域（[保护部署](./security)） |
 | `wow.auth.forbidden`（403） | 授权器拒绝调用方执行这条命令 | 检查调用方的角色或策略 |
-| `wow.call.command-forbidden`（403） | 某个服务调用了它在 `wow.http.services` 下的那一项没有列出的命令 | 在目标服务上为这个服务列出这条命令 |
+| `wow.call.command-forbidden`（403） | 某个服务调用了它在 `wow.callers` 下的那一项没有列出的命令 | 在目标服务上为这个服务列出这条命令 |
 | `wow.storage.unavailable`（503） | 访问不到某个存储 | 检查数据库；用同一个请求 ID 重试 |
 | `wow.node.standby`（503） | 节点正为迁移切换处于待机 | 在切换时恢复它（[部署模型](./topology#standby-for-a-migrations-cut-over)） |
 

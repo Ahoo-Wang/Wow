@@ -76,3 +76,12 @@ outline: deep
 | `wow.http.client-facts` | `wow.http.client-facts.enabled` |
 | `wow.http.global-errors` | `wow.http.global-errors.enabled` |
 | `wow.standby` | `wow.node.standby` |
+| `wow.calls.contexts.<context>.url`、`wow.clients.contexts.<context>.internal-url` | `wow.peers.<context>.url` |
+| `wow.clients.contexts.<context>.url` | `wow.peers.<context>.public-url` |
+| `wow.clients.contexts.<context>.mode`、`.contract` | `wow.peers.<context>.mode`、`.contract` |
+| `wow.clients.mode`、`wow.clients.forwarded-headers` | `wow.peer.mode`、`wow.peer.forwarded-headers` |
+| `wow.calls.timeout`（10 秒）、`wow.clients.timeout`（30 秒） | `wow.peer.timeout`（30 秒），单个对端用 `wow.peers.<context>.timeout` |
+| `wow.calls.connect-timeout`、`wow.clients.connect-timeout` | `wow.peer.connect-timeout` |
+| `wow.clients.retry.max-attempts`、`.backoff`、`.max-retry-after` | `wow.peer.retry.max-attempts`、`.initial-backoff`、`.max-retry-after` |
+| `wow.http.services.<service>.commands`、`.reads` | `wow.callers.<service>.commands`、`.reads` |
+| `wow.topics.in-memory` | `wow.transport`：默认的 `auto` 在开发中把主题保存在 JVM 里；`memory` 显式要求，只在开发中允许 |
