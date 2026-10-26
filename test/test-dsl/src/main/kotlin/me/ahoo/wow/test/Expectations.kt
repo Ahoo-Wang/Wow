@@ -51,7 +51,7 @@ class Expectations<S : Any> @InternalWowApi constructor(
     private val version: Int,
     private val stateAt: (Int) -> S,
     private val tagsAt: (Int) -> Map<String, List<String>> = { emptyMap() },
-    private val forker: ((String, AggregateSpec<S>.() -> Unit) -> Unit)? = null,
+    private val forker: ((String, AggregateModel<S>?, AggregateSpec<S>.() -> Unit) -> Unit)? = null,
 ) {
     private var errorChecked = false
     private var outcomeChecked = false
@@ -101,14 +101,31 @@ class Expectations<S : Any> @InternalWowApi constructor(
      */
     fun fork(name: String = "", block: AggregateSpec<S>.() -> Unit) {
         val forker = checkNotNull(forker) { "These expectations were not made by an AggregateSpec: nothing to fork." }
-        forker(name, block)
+        forker(name, null, block)
     }
 
-    /** The command committed exactly [events], in order. */
+    /**
+     * Runs [block] on a copy of the aggregate as this command left it, as [fork] does, with [model] deciding from
+     * there on: the same aggregate built with other services ([AggregateSpec.fork] of a model).
+     */
+    fun fork(name: String = "", model: AggregateModel<S>, block: AggregateSpec<S>.() -> Unit) {
+        val forker = checkNotNull(forker) { "These expectations were not made by an AggregateSpec: nothing to fork." }
+        forker(name, model, block)
+    }
+
+    /** The command committed exactly [events], in order; a mismatch lists each difference by its path. */
     fun expectEvents(vararg events: Any) {
         val committed = decided()
         if (committed != events.toList()) {
-            throw AssertionError("Expected events ${events.toList()} but got $committed.")
+            throw AssertionError("The committed events differ:${StructuralDiff.describe(events.toList(), committed)}")
+        }
+    }
+
+    /** The command committed exactly [count] events, its schedules' system events aside. */
+    fun expectEventCount(count: Int) {
+        val committed = decided()
+        if (committed.size != count) {
+            throw AssertionError("Expected $count events but got ${committed.size}: $committed.")
         }
     }
 
@@ -138,6 +155,30 @@ class Expectations<S : Any> @InternalWowApi constructor(
         }
         @Suppress("UNCHECKED_CAST")
         return (event as E).apply(check)
+    }
+
+    /**
+     * The command committed exactly one event, an [E], which [check] checks with its envelope: the stream's aggregate,
+     * version, command and request ids, and request facts beside the event itself ([EventEnvelope.body]).
+     */
+    inline fun <reified E : Any> expectEventEnvelope(
+        noinline check: EventEnvelope<E>.() -> Unit = {}
+    ): EventEnvelope<E> =
+        expectEventEnvelope(E::class, check)
+
+    /** The command committed exactly one event, of [type], which [check] checks with its envelope. */
+    fun <E : Any> expectEventEnvelope(type: KClass<E>, check: EventEnvelope<E>.() -> Unit = {}): EventEnvelope<E> {
+        val body = expectEvent(type)
+        val stream = committed().stream
+        return EventEnvelope(
+            body,
+            stream.ref.id,
+            stream.ref.tenantId,
+            stream.version,
+            stream.commandId,
+            stream.requestId,
+            stream.headers,
+        ).apply(check)
     }
 
     /** The command was accepted and changed nothing. */
@@ -230,6 +271,20 @@ class Expectations<S : Any> @InternalWowApi constructor(
         val committed = committed().stream.scope
         if (committed != scope) {
             throw AssertionError("Expected scope $scope but got $committed.")
+        }
+    }
+
+    /**
+     * The aggregate's state after the command is [expected], field by field as Wow writes it to JSON: a mismatch lists
+     * each difference by its path. As [expectState] of a check, after a command that committed nothing the state is
+     * the one the aggregate is in.
+     */
+    fun expectState(expected: S) {
+        var actual: S? = null
+        expectState { actual = this }
+        val differences = StructuralDiff.of(expected, actual)
+        if (differences.isNotEmpty()) {
+            throw AssertionError("The state differs:${StructuralDiff.describe(expected, actual)}")
         }
     }
 

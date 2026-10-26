@@ -197,7 +197,7 @@ class AggregateForkTest {
                     fork("outer") { fork { whenCommand(Close("x")) { expectEventTypes(Deposited::class) } } }
                 }
             }
-        }.hasMessageStartingWith("In fork \"outer > fork 1\": ")
+        }.hasMessageStartingWith("In fork \"outer > fork 1\", whenCommand(Close) (command-4): ")
     }
 
     @Test
