@@ -206,7 +206,7 @@ fun main(args: Array<String>) {
 }
 ```
 
-Domain services the command functions take are beans of the application. A `DataSource` or `MongoClient` bean chooses the backend; without either, the host runs in memory only in a development profile or on a loopback-only internal port ([Host on Spring Boot](../guide/spring-boot#choose-a-backend)). A `CallerResolver` bean authenticates callers ([Serve and Call the HTTP API](../guide/http#who-the-caller-is)).
+Domain services the command functions take are beans of the application. A `DataSource` or `MongoClient` bean chooses the backend; without either, the host runs in memory only in a development profile or on a loopback-only internal port ([Host on Spring Boot](../guide/spring-boot#choose-a-backend)). A `CallerResolver` bean authenticates callers, and outside development the host does not start without one ([Serve and Call the HTTP API](../guide/http#who-the-caller-is)).
 
 ## Run it
 

@@ -45,7 +45,7 @@ fun orderingCallerResolver(): CallerResolver = CallerResolver { request ->
 
 - 买家是**所有者级**调用方：它的作用域有所有者，所以只能接触它自己的聚合。
 - 员工是**租户级**调用方：没有所有者，所以能接触它租户的每个聚合，由动作级授权决定它能做什么。
-- 返回 `null` 的解析器对应 `401 wow.auth.unauthenticated`。没有解析器时，每个请求都是默认租户的匿名调用方。
+- 返回 `null` 的解析器对应 `401 wow.auth.unauthenticated`。没有解析器时，开发中的节点（`wow.internal.dev-profiles` 中的某个 profile 生效，或内部端口只绑定回环接口）把每个请求当作默认租户的匿名调用方；其他节点拒绝启动。有意匿名的服务声明一个返回 `CallerResolver.ANONYMOUS` 的解析器 Bean。
 
 有 `wow-cosec` 时，CoSec 的解析器从已认证的主体及其角色完成这件事（[保护部署](../operate/security#authenticate-callers)）。租户、所有者和空间总是来自调用方，从不来自路径或请求体；被允许跨作用域行事的调用方，在 `Wow-Scope` 中指明另一个作用域。
 

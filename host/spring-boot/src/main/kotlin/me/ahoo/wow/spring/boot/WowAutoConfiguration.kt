@@ -278,7 +278,7 @@ class WowAutoConfiguration {
         providers: StoreProviders,
         models: WowModels,
         identity: ObjectProvider<NodeIdentity>,
-        environment: Environment,
+        development: DevelopmentMode,
     ): HostBackends {
         factories.ifAvailable?.let { return HostBackends.of(it) }
         val node = identity.ifAvailable
@@ -287,11 +287,7 @@ class WowAutoConfiguration {
             providers,
             BeanStoreResources(beanFactory),
             node?.service.orEmpty(),
-            BackendSelection.memoryOptIn(
-                environment.activeProfiles.toList(),
-                properties.internal.devProfiles,
-                node?.bindHost
-            ),
+            development.reason,
         )
         val layout = StoreLayout.of(properties.storePlacements(), stores, models.models.map { it.type })
         val memory = (layout.logStores + layout.snapshotStores).filterNot { stores.getValue(it).durable }
@@ -713,13 +709,46 @@ class WowAutoConfiguration {
         )
     }
 
+    /**
+     * Whether the node runs for development (a profile of `wow.internal.dev-profiles`, or a loopback internal port):
+     * the one exemption of the host's safeguards ([DevelopmentMode]).
+     */
+    @Bean
+    fun wowDevelopmentMode(
+        properties: WowProperties,
+        environment: Environment,
+        identity: ObjectProvider<NodeIdentity>,
+    ): DevelopmentMode = DevelopmentMode(
+        BackendSelection.memoryOptIn(
+            environment.activeProfiles.toList(),
+            properties.internal.devProfiles,
+            identity.ifAvailable?.bindHost,
+        ),
+    )
+
+    /**
+     * The anonymous caller, for development alone (decision D301): a deployment maps the identity its gateway asserts
+     * through a `CallerResolver` bean (CoSec's, with wow-cosec, or the application's), and an intentionally anonymous
+     * service declares one that returns [CallerResolver.ANONYMOUS]. Without one, a node outside development refuses
+     * to start.
+     */
     @Bean
     @ConditionalOnMissingBean
-    fun wowCallerResolver(properties: WowProperties): CallerResolver {
+    fun wowCallerResolver(properties: WowProperties, development: DevelopmentMode): CallerResolver {
+        configCheck(
+            development.active,
+            "wow.internal.dev-profiles",
+            null,
+            "Declare a CallerResolver bean that maps the identity your gateway asserts (wow-cosec's, or your own); " +
+                "an intentionally anonymous service declares one returning CallerResolver.ANONYMOUS.",
+        ) {
+            "No CallerResolver bean: outside development (a profile of wow.internal.dev-profiles, or a loopback " +
+                "internal port), the public port would serve every request as the anonymous caller."
+        }
         val tenant = properties.tenant.default
         logger.warn {
             "No CallerResolver bean: every request to the public port is served as the anonymous caller " +
-                "(tenant $tenant, no scope)."
+                "(tenant $tenant, no scope), as for development (${development.reason})."
         }
         if (tenant == Caller.DEFAULT_TENANT) {
             return CallerResolver.ANONYMOUS
@@ -730,13 +759,20 @@ class WowAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun wowHttpOptions(properties: WowProperties): WowHttpOptions = WowHttpOptions(
-        requestFacts = properties.http.requestFacts.toSet(),
-        errorStatuses = properties.http.errors.mapValues { it.value.status },
-        manifestEndpoint = properties.http.manifest.enabled,
-        openApiEndpoint = properties.http.openapi.enabled,
-        clientFacts = properties.http.clientFacts,
-    )
+    fun wowHttpOptions(properties: WowProperties, environment: Environment): WowHttpOptions {
+        val strategy = environment.getProperty(ForwardHeadersEnvironmentPostProcessor.FORWARD_HEADERS_STRATEGY)
+        logger.info {
+            "The public port reads the client's address with server.forward-headers-strategy=$strategy: " +
+                "the gateway in front of it must overwrite X-Forwarded-For."
+        }
+        return WowHttpOptions(
+            requestFacts = properties.http.requestFacts.toSet(),
+            errorStatuses = properties.http.errors.mapValues { it.value.status },
+            manifestEndpoint = properties.http.manifest.enabled,
+            openApiEndpoint = properties.http.openapi.enabled,
+            clientFacts = properties.http.clientFacts,
+        )
+    }
 
     /**
      * The error handling of the application's own routes (review M-3, decision D259): their failures answered as the

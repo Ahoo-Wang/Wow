@@ -23,6 +23,7 @@ import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
+import me.ahoo.wow.spring.boot.DevelopmentMode
 import me.ahoo.wow.viewstore.domain.view.SharedBoardReferences
 import me.ahoo.wow.viewstore.server.system.ConfiguredSystemViews
 import me.ahoo.wow.viewstore.server.system.StoredSystemViews
@@ -50,17 +51,19 @@ import org.springframework.web.reactive.function.server.ServerResponse
  * CoSec authorized the request in (decisions D232, D236) from the security context CoSec put on the request, which the
  * `cosec` profile has it verify from the request's token ([securityContextParser]), behind the view store's reserved
  * owners ([ReservedScopeCallers]); without CoSec (`cosec.enabled=false`, the default profile) no request has one, and
- * each is answered 401, never served on a client's word.
+ * each is answered 401, never served on a client's word. The header switch is refused outside development
+ * ([DevelopmentMode], review S-9).
  */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(ViewStoreProperties::class)
 class ViewStoreConfiguration {
     @Bean
     @ConditionalOnProperty(TRUST_IDENTITY_HEADERS, havingValue = "true")
-    fun viewStoreCallers(): CallerResolver {
+    fun viewStoreCallers(development: DevelopmentMode): CallerResolver {
+        development.require(TRUST_IDENTITY_HEADERS, true, "takes the callers from headers any client sets")
         logger.warn {
             "$TRUST_IDENTITY_HEADERS=true: the view store takes its callers from the X-User, X-Tenant and X-Role " +
-                "headers, which any client sets. For local runs, demos and tests only, never a deployment."
+                "headers, which any client sets: for local runs, demos and tests only (${development.reason})."
         }
         return ViewStoreCallers()
     }
