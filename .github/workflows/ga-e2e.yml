@@ -112,8 +112,10 @@ jobs:
           GA_EXCLUDED: ${{ inputs.excluded-services }}
           GA_EXCLUDED_REASON: ${{ inputs.excluded-reason }}
         # ga.partitions: the overlays' WOW_LOG_PARTITIONS, for the partition of an order.
-        run: ./gradlew :eshop-e2e:clusterTest -Pga.backend="$BACKEND" -Pga.partitions=8 -Pga.owner-deletions="$OWNER_DELETIONS" \
-          -Pga.excluded="$GA_EXCLUDED" -Pga.excluded-reason="$GA_EXCLUDED_REASON" --stacktrace
+        run: |
+          ./gradlew :eshop-e2e:clusterTest -Pga.backend="$BACKEND" -Pga.partitions=8 \
+            -Pga.owner-deletions="$OWNER_DELETIONS" -Pga.excluded="$GA_EXCLUDED" \
+            -Pga.excluded-reason="$GA_EXCLUDED_REASON" --stacktrace
       - name: Record the internal Services' DNS answers (for D305)
         if: always()
         run: .github/ga-e2e/cluster.sh dns example/eshop/e2e/build/ga-e2e/dns.txt
