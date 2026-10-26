@@ -228,7 +228,7 @@ class WowProperties {
          * it first on every node, then removing the old one; a comma-separated value (`WOW_INTERNAL_TOKEN`) is a list.
          * A service token of `wow.http.services` opens the call routes, not these, and this token no call route.
          *
-         * A node without one starts all the same: the internal side is a trusted environment (decision D298), and its
+         * A node without one starts all the same: the internal side is a trusted network, and its
          * cluster routes then take every request.
          */
         var token: MutableList<String> = ArrayList()
