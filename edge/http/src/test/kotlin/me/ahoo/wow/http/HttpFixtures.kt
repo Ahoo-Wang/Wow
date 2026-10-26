@@ -130,7 +130,7 @@ fun cartModel(commands: MutableList<Command<*>>, mounted: Boolean = false) = agg
         commands += command
         when {
             body.note == "closed" -> Decision.reject(CART_CLOSED, "The cart is closed.")
-            body.note == "throw" -> error("secret jdbc:postgresql://db-internal:5432")
+            body.note == "throw" -> throw UnsupportedOperationException("secret jdbc:postgresql://db-internal:5432")
             state.items == 0 -> Decision.reject(CART_EMPTY, "The cart is empty.")
             else -> Decision.NoOp
         }

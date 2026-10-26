@@ -218,7 +218,7 @@ class HttpNode(val name: String, private val cluster: HttpCluster) {
         decideSuspending<Deposit>(Creation.ALLOWED) { _, body ->
             decided += command.id
             hold?.await()
-            check(!failing) { "secret jdbc:postgresql://db-internal:5432" }
+            if (failing) throw UnsupportedOperationException("secret jdbc:postgresql://db-internal:5432")
             Decision.events(Deposited(body.amount))
         }
         evolve<Deposited> { balance += it.amount }

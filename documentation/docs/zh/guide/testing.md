@@ -84,7 +84,7 @@ class AccountSpec {
 | `expectEventTypes(vararg types)` | 恰好按顺序提交了这些类的事件。 |
 | `expectEvent<E> { … }` | 恰好提交了一个事件，它是 `E`，且块中的检查在它上面成立。 |
 | `expectUnchanged()` | 被接受，且没有改变任何东西。 |
-| `expectRejected(code) { … }` | 以这个错误码被拒绝；块检查这个拒绝。 |
+| `expectRejected(code) { … }` | 以这个错误码被拒绝，无论是返回的还是抛出的（`reject`、`require`、`check`）；块检查这个拒绝。 |
 | `expectError<T> { … }` | 决定函数抛出了 `T`。 |
 | `expectNoError()` | 没有抛出异常，命令也没有被拒绝。 |
 | `expectState { … }` | 块中的检查在命令之后的状态上成立。 |

@@ -28,8 +28,9 @@ private val logger = KotlinLogging.logger {}
  * anything else sees it; a code with a dot is full, and stays as it is.
  *
  * The framework's codes (`wow.*`) carry the framework's meaning: their HTTP status, and whether a client retries
- * them. Only the framework's own commands, whose types are in the `wow.` namespace, decide one; a domain command that
- * rejects with one is answered [FrameworkCodes.COMMAND_FAILED] instead, with its message and the code it chose
+ * them. Only the framework's own commands, whose types are in the `wow.` namespace, decide one, and a domain command's
+ * thrown `require` and `check` are answered with [FrameworkCodes.COMMAND_INVALID] and [FrameworkCodes.COMMAND_REFUSED]
+ * ([ThrownRejections]); a domain command that rejects with another is answered [FrameworkCodes.COMMAND_FAILED] instead, with its message and the code it chose
  * ([REJECTED_CODE]). A domain's other full codes stay as they are: a shared model's codes (`tree.node-not-found`) are
  * named after the model rather than the context, and the edge looks a code's status up in the command's own context.
  */
@@ -50,7 +51,10 @@ object RejectionCodes {
      */
     @JvmStatic
     fun qualified(rejection: Rejection, type: AggregateType, commandType: String): Rejection {
-        if (rejection.code.startsWith(FrameworkCodes.PREFIX) && !commandType.startsWith(FrameworkCodes.PREFIX)) {
+        if (rejection.code.startsWith(FrameworkCodes.PREFIX) &&
+            !commandType.startsWith(FrameworkCodes.PREFIX) &&
+            rejection.code !in ThrownRejections.CODES
+        ) {
             logger.warn {
                 "$type rejected $commandType with ${rejection.code}, a code the framework reserves: answered " +
                     "${FrameworkCodes.COMMAND_FAILED} instead. Reject with a code of the aggregate."

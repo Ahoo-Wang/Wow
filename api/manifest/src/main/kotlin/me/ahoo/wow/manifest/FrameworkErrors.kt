@@ -48,6 +48,7 @@ object FrameworkErrors {
     const val COMMAND_BUSY: String = "wow.command.busy"
     const val COMMAND_UNKNOWN: String = "wow.command.unknown"
     const val COMMAND_FAILED: String = "wow.command.failed"
+    const val COMMAND_REFUSED: String = "wow.command.refused"
     const val NODE_CLOSING: String = "wow.node.closing"
     const val NODE_STANDBY: String = "wow.node.standby"
     const val STORAGE_UNAVAILABLE: String = "wow.storage.unavailable"
@@ -110,6 +111,11 @@ object FrameworkErrors {
             COMMAND_FAILED,
             500,
             "The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.",
+        ),
+        ErrorManifest(
+            COMMAND_REFUSED,
+            409,
+            "The aggregate's current state refuses the command (a check of its decide function); the message says why.",
         ),
         ErrorManifest(NODE_CLOSING, 503, "The node is shutting down; retry on another node."),
         ErrorManifest(NODE_STANDBY, 503, "The node is on standby until the cut-over: it serves reads only."),
@@ -200,6 +206,7 @@ object FrameworkErrors {
         COMMAND_BUSY to "Command busy",
         COMMAND_UNKNOWN to "Command outcome unknown",
         COMMAND_FAILED to "Command failed",
+        COMMAND_REFUSED to "Command refused",
         NODE_CLOSING to "Node closing",
         NODE_STANDBY to "Node on standby",
         STORAGE_UNAVAILABLE to "Storage unavailable",

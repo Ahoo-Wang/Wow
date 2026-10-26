@@ -10,12 +10,19 @@ outline: deep
 
 ## 拒绝，还是失败 {#reject-or-fail}
 
-| 决定 | 会发生什么 |
-| --- | --- |
-| `Decision.reject(code, message)` | 命令被**拒绝**：什么都不写，调用方拿到错误码和消息。用同一个请求 ID 再发一次，仍会被拒绝。 |
-| 函数抛出异常 | 命令以 `wow.command.failed`（500）**失败**：什么都不写，重试也同样失败。失败是一个缺陷，绝不是对调用方请求的回答。 |
+决定函数可以用三种方式拒绝命令，结果都一样：什么都不写，用 `onAppendFailure` 登记的补偿会执行，调用方拿到错误码和消息，用同一个请求 ID 再发一次仍会被拒绝。无论命令从哪里来，拒绝都不会重试，也不会停放任何东西。消息会展示给调用方，要写给他们看。
 
-请求在聚合的当前状态下、或对它的调用方无法满足时拒绝：结账时为空的购物车、要发货却未支付的订单、库存不足、不拥有该购物车的买家。只有程序或它的服务出了问题时，才让函数抛出异常。
+| 决定函数 | 调用方得到 |
+| --- | --- |
+| 返回 `Decision.reject(code, message)` | 该错误码及其状态（默认 422） |
+| 调用作用域的 `reject(code, message)`，或抛出 `RejectedException(Rejection.of(code, message))`（Java） | 与返回拒绝相同 |
+| 调用 `require`、`requireNotNull`（`IllegalArgumentException`） | `wow.command.invalid`（400） |
+| 调用 `check`、`checkNotNull` 或 `error`（`IllegalStateException`） | `wow.command.refused`（409）：聚合的当前状态拒绝该命令 |
+| 抛出其他任何异常 | 命令以 `wow.command.failed`（500）**失败**：什么都不写，重试也同样失败 |
+
+只有这两个类本身才算拒绝：它们的子类，例如 `NumberFormatException` 或某个库自己的异常，是失败，取消也是。失败是程序或它的服务的缺陷，绝不是对调用方请求的回答。不要用 `catch (e: Exception)` 包住 `reject`、`require` 或 `check`：那会吞掉拒绝，命令照常继续。
+
+请求在聚合的当前状态下、或对它的调用方无法满足时拒绝：结账时为空的购物车、要发货却未支付的订单、库存不足、不拥有该购物车的买家。调用方要根据原因行动时，优先使用声明过的错误码（`Decision.reject` 或 `reject`）；消息就足够的守卫条件适合 `require` 和 `check`。
 
 只关乎命令本身形状的规则，例如数量不为正、名称为空白、订单没有条目，不是拒绝：它是命令类上的 Jakarta 约束，网关在聚合决定之前以 `wow.command.invalid`（400）拒绝该命令（[编写聚合](./aggregates#check-its-shape)）。于是聚合只为需要它状态的规则声明错误码。
 
@@ -95,6 +102,21 @@ rejected.result.error!!.violations.single().path.assert().isEqualTo("items")
 **发出这条命令的 Saga** 在它的 `@OnRejected` 处理函数中收到拒绝，并决定怎样补偿：见[编写 Saga](./sagas#handle-a-rejection)。
 
 **测试**用 `expectRejected(code)` 期望它，本地名或完整名都可以：见[测试领域代码](./testing#expect)。`aggregateSpec` 运行内核而不经过准入，所以命令的约束在服务器上测试：违反约束的请求回答 400 `wow.command.invalid`，带违反项的路径和约束。
+
+## 命令的失败记录在哪里 {#where-a-commands-failure-is-recorded}
+
+拒绝是一种回答，绝不是失败：无论命令从哪里来，都不会重试或停放。失败由发出命令的一方记录：
+
+| 命令来自 | 失败时 |
+| --- | --- |
+| Saga（派生的命令） | 在该聚合上停放 Saga 的订阅，直到被恢复或跳过 |
+| Kafka 命令摄入 | 在命令所在的偏移量处，把目标聚合停放在摄入之下 |
+| 定时器 | 把聚合停放在 `wow.timers` 之下 |
+| HTTP 请求或同步调用（`Wow-Call`） | 作为 problem 返回调用方；指标、日志和链路追踪会记录，失败台账不记录 |
+
+## 决定函数里的远程调用 {#remote-calls-in-a-decide-function}
+
+版本冲突后决定函数会再执行一次，所以其中的远程调用必须是幂等的。Wow 的客户端从正在决定的命令的 ID 推导所发命令的请求 ID，所以重复的调用是同一个请求；第三方调用需要自己的幂等键，撤销通过 `onAppendFailure` 完成。通常更好的做法是在决定之前把远程的事实带进来：用 `CommandTransformer` 补全命令，或者让 Saga 调用后再发送结果。Wow 客户端调用抛出的 `CommandRejectedException` 会被当作本命令的拒绝，带上目标的错误码；目标失败、超时或返回未知结果则是失败，任何客户端的 I/O 错误和超时也是。如果第三方库在瞬时错误时抛出普通的 `IllegalStateException`，要把调用包起来，免得它被当成拒绝。
 
 ## 框架用来拒绝的错误码 {#codes-the-framework-rejects-with}
 
