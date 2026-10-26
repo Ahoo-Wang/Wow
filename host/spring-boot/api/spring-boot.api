@@ -79,10 +79,8 @@ public final class me/ahoo/wow/spring/boot/CoSecAutoConfiguration {
 	public static final field Companion Lme/ahoo/wow/spring/boot/CoSecAutoConfiguration$Companion;
 	public static final field TRUST_INJECTED_APP Ljava/lang/String;
 	public fun <init> ()V
-	public final fun wowCoSecCallAuthorizer (Lme/ahoo/cosec/api/authorization/Authorization;Lme/ahoo/wow/spring/boot/WowProperties;)Lme/ahoo/wow/http/caller/CallAuthorizer;
 	public final fun wowCoSecCallerResolver (Lme/ahoo/wow/spring/boot/WowProperties;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/cosec/CoSecCallerResolver;
 	public final fun wowCoSecCommandAuthorizer (Lme/ahoo/cosec/api/authorization/Authorization;Lme/ahoo/wow/spring/boot/WowProperties;)Lme/ahoo/wow/cosec/CoSecCommandAuthorizer;
-	public final fun wowCoSecInternalCallerResolver (Lme/ahoo/cosec/context/request/RequestParser;Lme/ahoo/cosec/token/TokenVerifier;Lme/ahoo/wow/spring/boot/WowProperties;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/cosec/CoSecInternalCallerResolver;
 	public static final fun wowCoSecRequestFacts ()Lorg/springframework/beans/factory/config/BeanPostProcessor;
 }
 
@@ -673,11 +671,9 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Calls {
 	public final fun getConnectTimeout ()Ljava/time/Duration;
 	public final fun getContexts ()Ljava/util/Map;
 	public final fun getTimeout ()Ljava/time/Duration;
-	public final fun getToken ()Ljava/lang/String;
 	public final fun setConnectTimeout (Ljava/time/Duration;)V
 	public final fun setContexts (Ljava/util/Map;)V
 	public final fun setTimeout (Ljava/time/Duration;)V
-	public final fun setToken (Ljava/lang/String;)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Calls$CallTarget {
@@ -766,12 +762,10 @@ public final class me/ahoo/wow/spring/boot/WowProperties$CoSec {
 	public fun <init> ()V
 	public final fun getAuthorizer ()Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Authorizer;
 	public final fun getCrossScope ()Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Principals;
-	public final fun getService ()Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Principals;
 	public final fun getTenantLevel ()Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Principals;
 	public final fun getTrustInjectedApp ()Z
 	public final fun setAuthorizer (Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Authorizer;)V
 	public final fun setCrossScope (Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Principals;)V
-	public final fun setService (Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Principals;)V
 	public final fun setTenantLevel (Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Principals;)V
 	public final fun setTrustInjectedApp (Z)V
 }
@@ -929,10 +923,8 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Http$Service {
 	public fun <init> ()V
 	public final fun getCommands ()Ljava/util/List;
 	public final fun getReads ()Ljava/util/List;
-	public final fun getTokens ()Ljava/util/List;
 	public final fun setCommands (Ljava/util/List;)V
 	public final fun setReads (Ljava/util/List;)V
-	public final fun setTokens (Ljava/util/List;)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Http$Springdoc {
@@ -950,13 +942,11 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Internal {
 	public final fun getHost ()Ljava/lang/String;
 	public final fun getPort ()I
 	public final fun getSignalQueueCapacity ()I
-	public final fun getToken ()Ljava/util/List;
 	public final fun setConnectTimeout (Ljava/time/Duration;)V
 	public final fun setDevProfiles (Ljava/util/Set;)V
 	public final fun setHost (Ljava/lang/String;)V
 	public final fun setPort (I)V
 	public final fun setSignalQueueCapacity (I)V
-	public final fun setToken (Ljava/util/List;)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Log {

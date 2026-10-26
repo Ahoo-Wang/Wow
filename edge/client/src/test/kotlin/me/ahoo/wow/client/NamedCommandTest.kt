@@ -19,7 +19,6 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.SendOptions
-import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.WaitPlan
@@ -49,7 +48,7 @@ class NamedCommandTest {
 
     private fun client(
         mode: ClientMode = ClientMode.Service(
-            ServiceCredential.bearer(TOKEN)
+            SERVICE
         ),
         described: Set<String> = setOf("mail")
     ) =
@@ -57,7 +56,7 @@ class NamedCommandTest {
             .endpoints(EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)))
             .apply {
                 when (mode) {
-                    is ClientMode.Service -> service(mode.credential)
+                    is ClientMode.Service -> service(checkNotNull(mode.service))
                     is ClientMode.User -> user(mode.credential)
                 }
             }
@@ -162,7 +161,7 @@ class NamedCommandTest {
         peer.reply(Reply.json(ManifestTree.write(MANIFEST)))
         val client = WowClient.builder()
             .endpoints(EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)))
-            .service(ServiceCredential.bearer(TOKEN))
+            .service(SERVICE)
             .contracts(contractOf(BOX, HttpCommandClientTest.DeliverItems::class.java))
             .manifestPeers(setOf("mail"))
             .build()
@@ -207,7 +206,7 @@ class NamedCommandTest {
     }
 
     private companion object {
-        const val TOKEN = "a-service-token-of-at-least-32-chars"
+        const val SERVICE = "basket-service"
 
         val MANIFEST = Manifest(
             contexts = listOf(

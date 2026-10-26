@@ -20,7 +20,6 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
-import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.RequestFacts
@@ -31,7 +30,7 @@ import me.ahoo.wow.api.subscribe.CallFailedException
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.http.caller.CallPermits
-import me.ahoo.wow.http.caller.ServiceTokens
+import me.ahoo.wow.http.caller.DeclaredServices
 import me.ahoo.wow.http.internal.InternalServer
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.admission.CallContext
@@ -46,19 +45,19 @@ import java.net.URI
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * A service's synchronous call (decision D193): the client of another context's gateway, the service identity its
- * token makes it, and `Wow-Call`, which only the internal port's call routes take, from a service identity alone; the
- * public port refuses it whatever the credential.
+ * A service's synchronous call (decision D193): the client of another context's gateway, the service it names
+ * (`Wow-Service`, decision D300), and `Wow-Call`, which only the internal port's call routes take, from a service that
+ * names itself alone; the public port refuses it whatever the request carries.
  */
 class ServiceCallRoutesTest {
-    private val tokens = ServiceTokens(mapOf("basket-service" to listOf(TOKEN, ROTATED)), TENANT)
-    private val node = HttpNode(callers = tokens.resolver(headerCallers))
-    private val calls = callRoutes(cartManifest(), node.gateway, tokens.resolver(headerCallers))
+    private val services = DeclaredServices.resolver(TENANT)
+    private val node = HttpNode(callers = headerCallers)
+    private val calls = callRoutes(cartManifest(), node.gateway, services)
     private val server = InternalServer(calls)
     private val internal: WebTestClient = WebTestClient.bindToRouterFunction(calls).build()
     private val caller = HttpCommandCaller(
         mapOf(CONTEXT to URI.create("http://${server.address}/")),
-        ServiceCredential.bearer(TOKEN),
+        SERVICE,
         timeout = 5.seconds,
     )
 
@@ -134,7 +133,7 @@ class ServiceCallRoutesTest {
         // A service's call carries the root request's application in its Wow-Call alone: no header sets it.
         internalPost(
             path,
-            mapOf("Authorization" to "Bearer $TOKEN", WowHeaders.CALL to callHeader(), RequestFacts.APP_ID to "forged"),
+            mapOf(WowHeaders.SERVICE to SERVICE, WowHeaders.CALL to callHeader(), RequestFacts.APP_ID to "forged"),
         ).status.assert().isEqualTo(200)
         node.commands.single().headers.keys.assert().doesNotContain(RequestFacts.APP_ID)
     }
@@ -174,11 +173,8 @@ class ServiceCallRoutesTest {
         }
 
     @Test
-    fun `a call with a token the target does not trust should fail`(): Unit = runBlocking {
-        val untrusted = HttpCommandCaller(
-            mapOf(CONTEXT to URI.create("http://${server.address}")),
-            ServiceCredential.bearer("an-untrusted-token-of-at-least-32-characters"),
-        )
+    fun `a call that names no service should fail`(): Unit = runBlocking {
+        val untrusted = HttpCommandCaller(mapOf(CONTEXT to URI.create("http://${server.address}")), service = null)
         val failed = assertThrownBy<CallFailedException> { runBlocking { untrusted.call(call()) } }
         failed.assert().isNotNull()
         node.commands.assert().isEmpty()
@@ -197,36 +193,29 @@ class ServiceCallRoutesTest {
     }
 
     @Test
-    fun `the public port should refuse Wow-Call whatever the credential`() {
+    fun `the public port should refuse Wow-Call whatever the request carries`() {
         node.post("/shop/cart/cart-1/add-item", """{"sku":"mug"}""", "mallory", mapOf(WowHeaders.CALL to callHeader()))
             .assertForbidden()
-        // Even the service's own token: a call is taken on the internal port alone.
+        // Even naming a service: a call is taken on the internal port alone.
         node.post(
             "/shop/cart/cart-1/add-item",
             """{"sku":"mug"}""",
-            user = null,
-            headers = mapOf("Authorization" to "Bearer $TOKEN", WowHeaders.CALL to callHeader()),
+            user = "alice",
+            headers = mapOf(WowHeaders.SERVICE to SERVICE, WowHeaders.CALL to callHeader()),
         ).assertForbidden()
         node.commands.assert().isEmpty()
     }
 
     @Test
-    fun `the internal port should take a call from a service identity alone`() {
+    fun `the internal port should take a call from a service that names itself alone`() {
         val path = "/shop/cart/cart-1/add-item"
-        // A buyer, a forged token and no credentials at all are no service.
+        // A buyer, a value that is no service name, and a request that names none are no service.
         internalPost(path, mapOf("X-User" to "mallory", WowHeaders.CALL to callHeader())).assertForbidden()
-        internalPost(
-            path,
-            mapOf("Authorization" to "Bearer $FORGED", WowHeaders.CALL to callHeader())
-        ).assertForbidden()
+        internalPost(path, mapOf(WowHeaders.SERVICE to "basket service", WowHeaders.CALL to callHeader()))
+            .assertForbidden()
         internalPost(path, mapOf(WowHeaders.CALL to callHeader())).assertForbidden()
-        // Nor is a node's cluster token, which opens the cluster routes alone (decision D226).
-        internalPost(
-            path,
-            mapOf("Wow-Cluster-Token" to "cluster-token-of-this-service-0123456789", WowHeaders.CALL to callHeader()),
-        ).assertForbidden()
         // A service's request that is no call is not taken either.
-        internalPost(path, mapOf("Authorization" to "Bearer $TOKEN")).assertForbidden()
+        internalPost(path, mapOf(WowHeaders.SERVICE to SERVICE)).assertForbidden()
         node.commands.assert().isEmpty()
     }
 
@@ -234,7 +223,7 @@ class ServiceCallRoutesTest {
     fun `a service's Wow-Call that does not parse should be malformed`() {
         val answer = internalPost(
             "/shop/cart/cart-1/add-item",
-            mapOf("Authorization" to "Bearer $ROTATED", WowHeaders.CALL to "%%%"),
+            mapOf(WowHeaders.SERVICE to SERVICE, WowHeaders.CALL to "%%%"),
         )
         answer.status.assert().isEqualTo(400)
         answer.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_MALFORMED)
@@ -245,7 +234,7 @@ class ServiceCallRoutesTest {
         val answer = internalPost(
             "/shop/cart/cart-1/add-item",
             mapOf(
-                "Authorization" to "Bearer $TOKEN",
+                WowHeaders.SERVICE to SERVICE,
                 "Accept" to "text/event-stream",
                 WowHeaders.CALL to callHeader(owner = "bob"),
             ),
@@ -256,29 +245,27 @@ class ServiceCallRoutesTest {
     }
 
     @Test
-    fun `a service identity without a call should send a command of its own on the public port`() {
+    fun `the public port should take no service's name for an identity (D300)`() {
         val answer = node.post(
             "/shop/cart/cart-9/add-item",
             """{"sku":"mug"}""",
             user = null,
-            headers = mapOf("Authorization" to "Bearer $TOKEN"),
+            headers = mapOf(WowHeaders.SERVICE to SERVICE),
         )
-        answer.status.assert().isEqualTo(200)
-        val command = node.commands.single()
-        command.operator.assert().isEqualTo(Operator("service:basket-service", TENANT))
-        command.causation.assert().isNull()
+        answer.status.assert().isEqualTo(401)
+        node.commands.assert().isEmpty()
     }
 
     /** The internal port's call routes, with [permits], called by the basket service with its call. */
     private fun permitted(permits: CallPermits): WebTestClient =
         WebTestClient.bindToRouterFunction(
-            callRoutes(cartManifest(), node.gateway, tokens.resolver(headerCallers), permits = permits)
+            callRoutes(cartManifest(), node.gateway, services, permits = permits)
         )
             .build()
 
     private fun WebTestClient.call(method: String, path: String, body: String? = """{"sku":"mug"}"""): Answer =
         method(org.springframework.http.HttpMethod.valueOf(method)).uri(path)
-            .header("Authorization", "Bearer $TOKEN")
+            .header(WowHeaders.SERVICE, SERVICE)
             .header(WowHeaders.CALL, callHeader())
             .header("Content-Type", "application/json")
             .let { if (body == null) it else it.bodyValue(body) }
@@ -354,8 +341,6 @@ class ServiceCallRoutesTest {
     }
 
     private companion object {
-        const val TOKEN = "basket-service-token-0123456789abcdef"
-        const val ROTATED = "basket-service-next-token-0123456789"
-        const val FORGED = "a-forged-token-of-at-least-32-characters"
+        const val SERVICE = "basket-service"
     }
 }

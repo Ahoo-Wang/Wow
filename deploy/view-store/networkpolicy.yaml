@@ -1,12 +1,12 @@
-# Decision D173: only the service's own nodes reach the internal port. The HTTP port takes only the CoSec gateway's
-# pods, in any namespace, labelled app.kubernetes.io/component: cosec-gateway: the service trusts the application the
-# gateway authorized (WOW_COSEC_TRUST_INJECTED_APP, configmap.yaml), so a client that reached it around the gateway
-# could name any application. Label your gateway's pods so, or change the selector to match them. Enforced where the
-# cluster's network plugin enforces NetworkPolicy; where it is not, do not trust the injected application.
+# The public port: reachable from the gateway's pods alone (decisions D296, D300), in any namespace, labelled
+# app.kubernetes.io/component: cosec-gateway. The service trusts the application the gateway authorized
+# (WOW_COSEC_TRUST_INJECTED_APP, configmap.yaml), so a client that reached it around the gateway could name any
+# application; where the policy is not enforced, do not trust the injected application. Label your gateway's pods so, or
+# change the selector to match them. Enforced where the cluster's network plugin enforces NetworkPolicy.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: view-store
+  name: view-store-public
   labels:
     app.kubernetes.io/name: view-store
 spec:
@@ -24,10 +24,28 @@ spec:
       ports:
         - port: http
           protocol: TCP
+---
+# The internal port: reachable from the platform's own pods alone, labelled app.kubernetes.io/part-of: wow-platform
+# (decisions D173, D298, D300). It takes no token: a node names its service on each request (Wow-Service), and this
+# policy is the boundary. Only the service's own nodes use it. Enforced where the cluster's network plugin enforces
+# NetworkPolicy; where it is not, keep the internal port off every network but the platform's.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: view-store-internal
+  labels:
+    app.kubernetes.io/name: view-store
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: view-store
+  policyTypes:
+    - Ingress
+  ingress:
     - from:
         - podSelector:
             matchLabels:
-              app.kubernetes.io/name: view-store
+              app.kubernetes.io/part-of: wow-platform
       ports:
         - port: internal
           protocol: TCP

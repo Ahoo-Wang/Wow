@@ -1,6 +1,6 @@
 ---
 title: Secure a Deployment
-description: How to authenticate callers, authorize commands, close the internal port to everyone but the system's own services, and keep personal data out of a log that is never changed.
+description: How to authenticate callers, authorize commands, close the internal port, Kafka and the stores to everyone but the system's own services, and keep personal data out of a log that is never changed.
 ---
 
 # Secure a Deployment
@@ -9,11 +9,14 @@ A Wow service has two doors: the public port, where callers send commands and qu
 
 ## Checklist
 
+- The public port is reachable from the gateway alone.
+- The internal port, Kafka and the stores are never reachable from outside the platform: network policies, as in `deploy/`, let only the platform's own pods reach them.
+- The gateway overwrites the forwarded headers and the identity headers it injects; it never passes a client's on.
 - A caller resolver authenticates every request to the public port; CoSec provides one.
 - Commands are authorized per action, not only per route, where routes alone are not enough.
-- The internal port is unreachable from outside the cluster, and every service has a cluster token of at least 32 characters.
-- Each service lists the services it trusts on its internal port, and the commands each may call.
-- Tokens and database passwords are secrets, managed like each other.
+- Each service lists the system commands other services may call on its internal port, and, where it helps catch a mistake, the domain commands and models.
+- Only a service's own nodes, the services that send it commands, and ops write its command topic.
+- Database and broker passwords are secrets.
 - Events hold no personal data you may have to erase.
 
 ## Authenticate callers
@@ -26,7 +29,7 @@ With CoSec on the classpath, its resolver is the host's. It reads the caller fro
 - **Owner.** A principal is an owner-level caller, acting on its own aggregates, unless it has one of the roles or policies of `wow.cosec.tenant-level`: then it is a tenant-level caller, acting on every aggregate of its tenant, such as a member of staff who ships every buyer's orders.
 - **Space.** A principal's spaced roles (`role@space`) are the spaces it belongs to. The `Wow-Space` header picks one; without it, a principal acts in its only space, or in none.
 - **Acting elsewhere.** Only a principal with a role or policy of `wow.cosec.cross-scope` may name another tenant or scope in `Wow-Scope`.
-- **Services.** Only a principal with a role or policy of `wow.cosec.service` is a service identity, which may make synchronous calls.
+- **Services.** A CoSec principal is never a service identity. A service names itself on the internal port alone ([Close the internal port](#close-the-internal-port)).
 - **Application.** The request's `CoSec-App-Id` becomes the caller's application, and the commit's `app_id` fact, only when CoSec authorized the request through that application's role permissions. A header the client sets is not trusted on its own. Behind a CoSec gateway in inject mode, `wow.cosec.trust-injected-app` trusts the application the gateway forwards; it is off by default, and only safe when nothing but the gateway reaches the service.
 
 ## Record the client address
@@ -45,17 +48,26 @@ Commands a saga sends, compensations and scheduled commands inherit the scope an
 
 The operator's routes over parked aggregates, `/wow/ops/parked`, are off by default (`wow.ops.enabled`). Turned on, their actions are authorized as the system commands `wow.ledger.*`, and the host warns when no command authorizer would check them.
 
+## Put the gateway in front
+
+Wow trusts the identity the gateway forwards, so the gateway is a boundary of its own. Two requirements hold for every deployment:
+
+1. **The public port is reachable from the gateway alone.** A client that reached the public port around the gateway could send the headers the gateway would have injected, and be anyone. The deploy manifests' network policies let only the gateway's pods reach it.
+2. **The gateway overwrites the headers the service trusts.** It sets the forwarded headers, `X-Forwarded-For` and `Forwarded`, from the connection it accepted, instead of passing a client's on or appending to them, and it sets the identity headers it injects, such as CoSec inject mode's headers and `CoSec-App-Id`, removing any the client sent. Otherwise a client chooses its own address or identity.
+
+The host cannot see the network, so it does not check either at startup.
+
 ## Close the internal port
 
-The internal port carries forwarded commands, wait signals, synchronous calls and reads between services. Whoever can send a signal can fake the result of any command, so:
+The internal port carries forwarded commands, wait signals, synchronous calls and reads between the platform's nodes and services. The inside of the platform is trusted: the internal port takes no token, and its boundary is the network. Whoever can send a signal can fake the result of any command, so:
 
-1. **Keep it inside the cluster.** No public load balancer, ingress or port mapping points at it, and a network policy lets only the system's own pods reach it.
+1. **Keep it inside the platform.** No public load balancer, ingress or port mapping points at it, and a network policy lets only the platform's own pods reach it. The same holds for Kafka and the stores.
 2. **Bind it to the private interface** with `wow.internal.host`.
-3. **Give every service a cluster token** in `wow.internal.token`: a random secret of at least 32 characters, the same on all the service's nodes. Forwards and signals between them must carry it. A node without one starts only in a development profile, or with its internal port on the loopback interface alone.
-4. **Name the services you trust.** Another service reaches the internal port with its service identity: a static token listed under `wow.http.services`, or a CoSec principal with a role of `wow.cosec.service`. A service identity can send signals and make calls and reads; it cannot forward commands, and a cluster token cannot make calls.
-5. **List the commands each service may call.** A synchronous call may invoke the target's domain commands. Lifecycle and system commands, such as delete or rebuild a snapshot, must be listed for the calling service, and the list can narrow the domain commands too. With CoSec, every call is authorized as its service principal by CoSec's policies, whatever `wow.cosec.authorizer.enabled` says.
+3. **Every request names its service.** A node or service puts its service name, `wow.service` or else `spring.application.name`, in the `Wow-Service` header of each forward, signal, call and read. A service name is letters, digits, `.`, `_` and `-`, at most 253 characters; a node whose service name is not such a name does not start. The header is a statement, not a credential: it catches a misconfiguration, such as a call a service's list does not allow, or a forward sent to another service's node.
+4. **Each route takes the services it serves.** A forward, and the standby and resume routes (`GET /wow/node/standby`, `POST /wow/node/resume`), are taken only from a node of the same service: without the header the answer is 401 `wow.auth.unauthenticated`, from another service 403 `wow.auth.forbidden`. A wait signal is taken from any service that names itself, and 401 without the header. A synchronous call (`Wow-Call`) or a read is taken from any service that names itself, as that service's identity (subject `service:<name>`), and 403 for a request that names none. The public port never reads `Wow-Service`, and refuses `Wow-Call` with 403.
+5. **List what each service may call, where it helps.** Under `wow.http.services.<service>`, keyed by the name the caller declares, `commands` lists the commands that service may call and `reads` the models it may read. Both are optional: without `commands` a service may call every domain command, without `reads` read every model. System commands (`wow.*`, such as delete, restore or rebuild a snapshot) are never called unless listed. The lists catch a mistake; they are no boundary against a pod that lies about its name.
 
-The eShop's ordering service puts it together. Its basket service calls one command synchronously; its inventory and payment services signal waits that crossed into them:
+The eShop's ordering service puts it together. Its basket service calls one command synchronously, and nothing else; its inventory and payment services signal waits that crossed into them, which needs no entry:
 
 <!-- sample: example/eshop/ordering/ordering-server/src/main/resources/application.yaml#internal-port -->
 
@@ -70,48 +82,31 @@ wow:
     port: 9093
     # On this machine only, for trying the shop out: the basket service calls the order gateway here.
     host: 127.0.0.1
-    # The cluster token this service's nodes share (decision D226): it alone opens their forwards and the signals of
-    # their waits. The value is for trying the shop out on one machine; a deployment sets WOW_INTERNAL_TOKEN, a secret
-    # of at least 32 characters, the same on every node of the service.
-    token: ${WOW_INTERNAL_TOKEN:eshop-ordering-local-cluster-token-not-a-secret}
-  # This service's identity where it signals the waits that crossed into it from another service (decision D226).
-  calls:
-    token: ${ESHOP_ORDERING_SERVICE_TOKEN:eshop-ordering-local-service-token-not-a-secret}
   http:
     # The basket service's checkout calls this command gateway synchronously (decision D193), on the internal port
-    # alone: a request with its service token is that service's identity, which alone may name the buyer the order is
-    # for. The inventory and the payment services signal, with theirs, the waits that started here and crossed into
-    # them (decision D226). The tokens are for trying the shop out on one machine; a deployment sets
-    # ESHOP_BASKET_SERVICE_TOKEN, ESHOP_INVENTORY_SERVICE_TOKEN and ESHOP_PAYMENT_SERVICE_TOKEN, here and in those
-    # services.
+    # alone, naming itself (Wow-Service, decision D300): the internal port is reachable by the shop's own pods alone,
+    # so a service that names itself is taken on that network's word, and may name the buyer the order is for.
     services:
       eshop-basket-service:
-        tokens:
-          - ${ESHOP_BASKET_SERVICE_TOKEN:eshop-basket-local-service-token-not-a-secret}
-        # The commands the basket may call (decision D226): its checkout submits the order, and nothing else. A system
-        # command (wow.*: delete, restore, transfers, tags) is never called unless listed here.
+        # The commands the basket may call (decision D226), a list that catches a misconfiguration: its checkout
+        # submits the order, and nothing else. A system command (wow.*: delete, restore, transfers, tags) is never
+        # called unless listed here.
         commands:
           - eshop-ordering.order.SubmitOrder
-      eshop-inventory-service:
-        tokens:
-          - ${ESHOP_INVENTORY_SERVICE_TOKEN:eshop-inventory-local-service-token-not-a-secret}
-      eshop-payment-service:
-        tokens:
-          - ${ESHOP_PAYMENT_SERVICE_TOKEN:eshop-payment-local-service-token-not-a-secret}
 ```
 
-Its Kubernetes network policy lets anyone the cluster admits reach the HTTP port, and only the shop's own pods reach the internal port:
+Its Kubernetes network policies are the boundary. The first lets only the gateway's pods reach the HTTP port; the second lets only the shop's own pods reach the internal port:
 
 <!-- sample: deploy/eshop-ordering/networkpolicy.yaml -->
 
 ```yaml
-# Decision D173: only the eShop's own pods reach the internal port (this service's nodes, and the services whose waits
-# cross into it); anyone the cluster lets in reaches the HTTP port. Enforced where the cluster's network plugin
-# enforces NetworkPolicy.
+# The public port: reachable from the gateway's pods alone (decisions D296, D300), in any namespace, labelled
+# app.kubernetes.io/component: gateway. The shop's clients reach the service through it alone. Label your gateway's pods
+# so, or change the selector to match them. Enforced where the cluster's network plugin enforces NetworkPolicy.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: eshop-ordering
+  name: eshop-ordering-public
   labels:
     app.kubernetes.io/name: eshop-ordering
 spec:
@@ -121,9 +116,33 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    - ports:
+    - from:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/component: gateway
+      ports:
         - port: http
           protocol: TCP
+---
+# The internal port: reachable from the platform's own pods alone, labelled app.kubernetes.io/part-of: eshop (decisions
+# D173, D298, D300). It takes no token: a node names its service on each request (Wow-Service), and this policy is the
+# boundary. The shop's services reach it there: this service's nodes, the basket's calls and the signals of the waits
+# that cross into it. Enforced where the cluster's network plugin enforces NetworkPolicy; where it is not, keep the
+# internal port off every network but the platform's.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: eshop-ordering-internal
+  labels:
+    app.kubernetes.io/name: eshop-ordering
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: eshop-ordering
+  policyTypes:
+    - Ingress
+  ingress:
     - from:
         - podSelector:
             matchLabels:
@@ -133,9 +152,21 @@ spec:
           protocol: TCP
 ```
 
-A network plugin that does not enforce network policies ignores this one; the tokens still hold.
+A network plugin that does not enforce network policies ignores them. Then keep the internal port off every network but the platform's by other means, such as the nodes' firewall, because nothing else closes it.
 
-**Rotating the cluster token.** `wow.internal.token` takes several tokens, comma-separated. A node sends the first and accepts any. To rotate, give `old,new` and roll the nodes, then `new,old` and roll, then `new` alone.
+**Encryption.** The internal port speaks plaintext HTTP/2 (h2c) by design. When traffic inside the platform must be encrypted, run the services in a service mesh with mutual TLS, such as Istio or Linkerd. Wow has no native TLS on the internal port, and none is planned.
+
+## Restrict the command topics
+
+Kafka is inside the platform too, and a command topic is an entrance: a record on `wow.<context>.commands` is executed without admission, so whoever can write it can name any operator, tenant and scope. Records are not signed. Use Kafka's own authentication and ACLs so that only the services that send the context commands write its command topic: its own nodes, the contexts whose sagas and timers send it commands, and ops, which sends the operators' actions. For the eShop's ordering context, whose payment service sends it commands:
+
+```bash
+kafka-acls.sh --bootstrap-server kafka:9092 --add --allow-principal User:ordering --operation Write --topic wow.eshop-ordering.commands
+kafka-acls.sh --bootstrap-server kafka:9092 --add --allow-principal User:payment --operation Write --topic wow.eshop-ordering.commands
+kafka-acls.sh --bootstrap-server kafka:9092 --add --allow-principal User:ops --operation Write --topic wow.eshop-ordering.commands
+```
+
+Every other principal gets no `Write` ACL on the topic. With an authorizer and `allow.everyone.if.no.acl.found=false`, the broker's default, a principal without an ACL is refused. [Kafka](kafka#topics) lists the topics each context owns and who writes them.
 
 ## Mistyped settings
 
@@ -147,7 +178,7 @@ Events are facts. The log keeps them for good, and Wow offers neither erasing ev
 
 - Keep personal data, such as names, addresses, phone numbers and free text about a person, out of events where you can. Keep it in a read model you can delete from, such as a projection's table or another service, and put an opaque id in the event.
 - When decide needs personal data, let it read the data through a domain service instead of carrying it in an event.
-- The operator of a commit is recorded as an opaque id. Request facts are recorded with every commit: the authenticated application and, for requests on the public port, the client's remote address and user agent. An IP address and a user agent are personal data, and once written they cannot be erased. `wow.http.client-facts` (default `true`) switches the address and user agent off: with `false`, the public port records neither. Do not add further personal data to `wow.http.request-facts`.
+- The operator of a commit is recorded as an opaque id. Request facts are recorded with every commit: the authenticated application and, for requests on the public port, the client's remote address and user agent, `remote_ip` and `user_agent`. An IP address and a user agent are personal data, and once written they cannot be erased. Treat the event log, and the service logs that show these facts, as holding personal data, and set the logs' retention for it. `wow.http.client-facts` (default `true`) switches the address and user agent off: with `false`, the public port records neither. Do not add further personal data to `wow.http.request-facts`.
 - Snapshots, the warehouse and search indexes are derived from the log: deleting a row there does not delete the fact.
 
 ## Tenants

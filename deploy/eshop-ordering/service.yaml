@@ -17,8 +17,8 @@ spec:
 # The cluster channel and the wait signals (decisions D89, D173): a headless service that gives each node the DNS name
 # it advertises, <pod>.eshop-ordering-cluster.<namespace>.svc.cluster.local. It publishes the nodes that are not
 # ready, so a node that is starting or draining still gets its peers' forwarded commands and signals. Never expose it
-# outside the cluster: its forwards and signals take the cluster token (WOW_INTERNAL_TOKEN, decision D226), its calls a
-# service token, but it is the service's inside.
+# outside the cluster: it takes no token, each node and service names itself on each request (Wow-Service, decision
+# D300), and only the shop's own pods reach it (networkpolicy.yaml).
 apiVersion: v1
 kind: Service
 metadata:

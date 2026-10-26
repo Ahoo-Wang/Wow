@@ -36,10 +36,19 @@ object WowHeaders {
 
     /**
      * The root command a service's synchronous call acts for (decision D193), in the form of
-     * [CallHeader]: taken on the internal port alone, from a service identity
-     * (the call routes of `wow-http`); refused (403) on the public port whatever the credential.
+     * [CallHeader]: taken on the internal port alone, from a service that names itself in [SERVICE] (the call
+     * routes of `wow-http`); refused (403) on the public port whatever else the request carries.
      */
     const val CALL: String = "Wow-Call"
+
+    /**
+     * The service a request to the internal port comes from, by name (decision D300): every node states its own,
+     * `spring.application.name`, on its forwards, wait signals, synchronous calls and peer reads. It is a statement,
+     * not a credential: the internal port is reachable by the platform's own pods alone (a NetworkPolicy), and the
+     * name serves to catch a misconfiguration, such as a call a service does not list or a forward to another
+     * service's node. The public port never reads it.
+     */
+    const val SERVICE: String = "Wow-Service"
 
     /** The expected version of the aggregate, as an entity tag: `If-Match: "3"`. */
     const val IF_MATCH: String = "If-Match"

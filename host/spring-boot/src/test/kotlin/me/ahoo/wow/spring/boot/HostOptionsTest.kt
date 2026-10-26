@@ -105,13 +105,4 @@ class HostOptionsTest {
         assertThrows<IllegalArgumentException> { ClickHouseSinkProvider.options(refused) }
             .message.assert().contains("names no aggregate type")
     }
-
-    @Test
-    fun `static service tokens and CoSec service principals should not both be configured`() {
-        WowAutoConfiguration.serviceTokens(wow("wow.http.services.ordering.tokens[0]" to "t".repeat(32)))
-        WowAutoConfiguration.serviceTokens(wow("wow.cosec.service.roles" to "service"))
-        val both = wow("wow.http.services.ordering.tokens[0]" to "t".repeat(32), "wow.cosec.service.policies" to "svc")
-        assertThrows<IllegalStateException> { WowAutoConfiguration.serviceTokens(both) }
-            .message.assert().contains("not both")
-    }
 }

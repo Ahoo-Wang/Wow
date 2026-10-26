@@ -30,7 +30,6 @@ import me.ahoo.wow.viewstore.server.system.StoredSystemViews
 import me.ahoo.wow.viewstore.server.system.SystemViewRoutes
 import me.ahoo.wow.viewstore.server.system.ViewStoreProperties
 import org.springframework.beans.factory.ObjectProvider
-import org.springframework.beans.factory.config.BeanFactoryPostProcessor
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
@@ -123,11 +122,6 @@ class ViewStoreConfiguration {
 
         /** CoSec's inject mode: the security context from the request's token, no authorization of CoSec's own. */
         const val COSEC_INJECT_ENABLED: String = "cosec.inject.enabled"
-
-        /** The public port's resolver first, beside CoSec's internal one ([PublicCallersFirst]). */
-        @Bean
-        @JvmStatic
-        fun publicCallersFirst(): BeanFactoryPostProcessor = PublicCallersFirst()
 
         /** Puts CoSec's callers behind the view store's reserved owners ([ReservedScopeCallers]). */
         @Bean

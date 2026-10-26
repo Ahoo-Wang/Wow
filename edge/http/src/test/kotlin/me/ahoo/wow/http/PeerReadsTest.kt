@@ -19,7 +19,6 @@ import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregationMetric
@@ -40,7 +39,7 @@ import me.ahoo.wow.client.ForwardedHeaders
 import me.ahoo.wow.client.UserCredential
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.http.caller.CallPermits
-import me.ahoo.wow.http.caller.ServiceTokens
+import me.ahoo.wow.http.caller.DeclaredServices
 import me.ahoo.wow.http.internal.InternalServer
 import me.ahoo.wow.http.query.QueryStreams
 import me.ahoo.wow.manifest.Manifest
@@ -62,14 +61,14 @@ import kotlin.time.Duration.Companion.milliseconds
  * service mode and the public routes in user mode, over real servers.
  */
 class PeerReadsTest {
-    private val tokens = ServiceTokens(mapOf("basket-service" to listOf(TOKEN)), TENANT)
+    private val services = DeclaredServices.resolver(TENANT)
     private val node = QueryNode(streams = QueryStreams(chunkSize = 1, maxHold = 1.milliseconds))
     private val manifest = node.http.manifest
 
     private fun peerRoutes(permits: CallPermits = CallPermits(emptyMap())) = peerReadRoutes(
         manifest,
         node.http.gateway,
-        tokens.resolver(headerCallers),
+        services,
         node.http.httpQueries,
         node.http.reads,
         permits = permits,
@@ -110,7 +109,7 @@ class PeerReadsTest {
                 mapOf(CONTEXT to URI.create("http://${internal.address}")),
             ),
         )
-        .apply { if (user) user(UserCredential.FORWARDED) else service(ServiceCredential.bearer(TOKEN)) }
+        .apply { if (user) user(UserCredential.FORWARDED) else service(SERVICE) }
         .contracts(contracts.fragments)
         .build()
         .queries
@@ -219,7 +218,7 @@ class PeerReadsTest {
         fun post(path: String, headers: Map<String, String>) = routes.post().uri(path)
             .headers { http -> headers.forEach { (name, value) -> http.set(name, value) } }
             .header("Content-Type", "application/json").bodyValue(body).answer()
-        val service = mapOf("Authorization" to "Bearer $TOKEN")
+        val service = mapOf(WowHeaders.SERVICE to SERVICE)
         post("/shop/cart/snapshot/query", service + (WowHeaders.CALL to root)).problemCode().assert()
             .isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         post("/shop/cart/events/query", service + (WowHeaders.CALL to root)).status.assert().isEqualTo(200)
@@ -231,29 +230,29 @@ class PeerReadsTest {
         post("/shop/cart/events/query", service + (WowHeaders.CALL to root) + (WowHeaders.SCOPE to "owner=\"bob\""))
             .problemCode().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         routes.get().uri("/shop/cart/events/query").headers {
-            it.set("Authorization", "Bearer $TOKEN")
+            it.set(WowHeaders.SERVICE, SERVICE)
             it.set(WowHeaders.CALL, root)
         }
             .answer().status.assert().isEqualTo(200)
         // A model this node does not serve is its 404, as on the public port.
         val unserved = QueryNode(snapshots = { null })
         val unservedRoutes = org.springframework.test.web.reactive.server.WebTestClient.bindToRouterFunction(
-            peerReadRoutes(manifest, unserved.http.gateway, tokens.resolver(headerCallers), unserved.http.httpQueries),
+            peerReadRoutes(manifest, unserved.http.gateway, services, unserved.http.httpQueries),
         ).build()
         unservedRoutes.post().uri("/shop/cart/snapshot/query")
             .headers {
-                it.set("Authorization", "Bearer $TOKEN")
+                it.set(WowHeaders.SERVICE, SERVICE)
                 it.set(WowHeaders.CALL, root)
             }
             .header("Content-Type", "application/json").bodyValue(body).answer().status.assert().isEqualTo(404)
         unservedRoutes.get().uri("/shop/cart/snapshot/query")
             .headers {
-                it.set("Authorization", "Bearer $TOKEN")
+                it.set(WowHeaders.SERVICE, SERVICE)
                 it.set(WowHeaders.CALL, root)
             }
             .answer().status.assert().isEqualTo(404)
         routes.get().uri("/shop/cart/c-1/state").headers {
-            it.set("Authorization", "Bearer $TOKEN")
+            it.set(WowHeaders.SERVICE, SERVICE)
             it.set(WowHeaders.CALL, root)
         }
             .answer().problemCode().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
@@ -270,7 +269,7 @@ class PeerReadsTest {
             CallContext.of("c", TENANT, Scope("alice"), me.ahoo.wow.api.decide.Causation("c", "c")),
         )
         val answer = routes.get().uri("/wow/manifest").headers {
-            it.set("Authorization", "Bearer $TOKEN")
+            it.set(WowHeaders.SERVICE, SERVICE)
             it.set(WowHeaders.CALL, root)
         }.answer()
         answer.status.assert().isEqualTo(200)
@@ -297,7 +296,6 @@ class PeerReadsTest {
     fun `a refused service-mode read should be a problem, and trusted queries are not served`() {
         val client = WowClient.builder()
             .endpoints(EndpointResolver.of(emptyMap(), mapOf(CONTEXT to URI.create("http://${internal.address}"))))
-            .service(ServiceCredential.NONE)
             .contracts(contracts.fragments)
             .build()
             .queries
@@ -312,6 +310,6 @@ class PeerReadsTest {
     private fun Answer.problemCode(): String? = body?.get("code")?.asString()
 
     private companion object {
-        const val TOKEN = "a-service-token-of-at-least-32-chars"
+        const val SERVICE = "basket-service"
     }
 }

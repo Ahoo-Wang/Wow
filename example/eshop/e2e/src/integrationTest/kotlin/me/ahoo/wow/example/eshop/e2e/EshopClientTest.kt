@@ -44,7 +44,7 @@ import java.math.BigDecimal
  * `wow-client`, by the ordering's generated contract (`EshopOrderingContract`), with no path written. Its
  * [CommandClient] and [QueryApi] beans route the ordering context, which `wow.clients.contexts` lists, over HTTP:
  *
- * - **Service mode**: on the ordering's internal port, as the basket service (its token), asserting the buyer as the
+ * - **Service mode**: on the ordering's internal port, as the basket service (`Wow-Service`), asserting the buyer as the
  *   root context: the order is the buyer's, and the buyer's reads see it;
  * - **User mode**: on the ordering's public routes, forwarding the buyer's own credential (`X-User` here), which the
  *   ordering authenticates as its edge does.
@@ -156,7 +156,6 @@ class EshopClientTest {
                 "--wow.internal.host=127.0.0.1",
                 "--wow.internal.port=0",
                 "--wow.contexts.include=eshop-$context",
-                *EshopTokens.arguments(context).toTypedArray(),
             ),
         )
     }

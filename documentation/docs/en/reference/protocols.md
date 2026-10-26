@@ -404,7 +404,7 @@ A node may send several signals to one node as a JSON array of them. The receivi
 
 ## Cluster channel
 
-The nodes of one service forward commands to each other on their internal ports, with the service's cluster token in the `Wow-Cluster-Token` header.
+The nodes of one service forward commands to each other on their internal ports, naming their service in the `Wow-Service` header. A node takes a forward only from a node of its own service: without the header it answers 401 `wow.auth.unauthenticated`, from another service 403 `wow.auth.forbidden`.
 
 | Message | Fields |
 | --- | --- |

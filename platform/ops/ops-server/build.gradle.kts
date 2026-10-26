@@ -62,7 +62,6 @@ dependencies {
 // only with wow.platform.trust-identity-headers (review A3-4); a deployment uses CoSec instead.
 tasks.named<JavaExec>("run") {
     systemProperty("wow.platform.trust-identity-headers", "true")
-    // The internal port on this machine alone, which runs without a cluster token (decision D226); a deployment sets
-    // wow.internal.token (WOW_INTERNAL_TOKEN).
+    // The internal port on this machine alone, a development node; a deployment puts it behind a NetworkPolicy (D300).
     systemProperty("wow.internal.host", "127.0.0.1")
 }

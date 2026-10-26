@@ -18,7 +18,7 @@ Wow's runtime does not depend on Spring: the kernel, the runtime and the backend
 ```kotlin
 val client = WowClient.builder()
     .endpoints(EndpointResolver.of(emptyMap(), mapOf("ordering" to URI.create("http://ordering:9090"))))
-    .service(ServiceCredential.bearer(token))
+    .service("basket-service")
     .build()
 client.commands.of(caller).wait(SubmitOrder(items), OrderingContract.Order.ref(tenant, orderId))
 ```

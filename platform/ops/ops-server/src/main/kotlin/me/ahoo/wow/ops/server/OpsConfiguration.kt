@@ -24,7 +24,6 @@ import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spring.boot.DevelopmentMode
 import org.springframework.beans.factory.ObjectProvider
-import org.springframework.beans.factory.config.BeanFactoryPostProcessor
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -93,11 +92,6 @@ class OpsConfiguration {
 
         /** Wow's default tenant, which CoSec's policies see as CoSec's default one. */
         const val DEFAULT_TENANT: String = "wow.tenant.default"
-
-        /** The public port's resolver first, beside CoSec's internal one ([PublicCallersFirst]). */
-        @Bean
-        @JvmStatic
-        fun publicCallersFirst(): BeanFactoryPostProcessor = PublicCallersFirst()
 
         private val logger = KotlinLogging.logger {}
     }

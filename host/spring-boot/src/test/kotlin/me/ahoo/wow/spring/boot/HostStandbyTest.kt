@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.internal.InternalHttp
 import org.junit.jupiter.api.Test
 import org.springframework.http.MediaType
@@ -33,7 +34,9 @@ class HostStandbyTest {
                 it.status.assert().isEqualTo(503)
                 it.body!!.get("code").asString().assert().isEqualTo("wow.node.standby")
             }
+            // A node of the service resumes it (Wow-Service, decision D300).
             val internal = WebTestClient.bindToServer().baseUrl("http://127.0.0.1:${host.internalPort}")
+                .defaultHeader(WowHeaders.SERVICE, "bank-service")
                 .responseTimeout(Duration.ofSeconds(30)).build()
             internal.get().uri(InternalHttp.STANDBY_PATH).answer().body!!.get("standby").asBoolean().assert().isTrue()
             internal.post().uri(InternalHttp.RESUME_PATH).contentType(MediaType.APPLICATION_JSON)

@@ -49,7 +49,7 @@ Each node listens on two ports:
 | Public (`server.port`) | The HTTP API: commands, queries, state reads, the Manifest, OpenAPI; Actuator's health endpoint | Clients, gateways, ingresses |
 | Internal (`wow.internal.port`, 9090 by default) | The cluster channel between the service's own nodes; wait signals from any service; synchronous calls and reads from other services | Nodes of the system only |
 
-The internal port is HTTP/2 without TLS (h2c). It must never be reachable from outside the cluster: no public load balancer, ingress or port mapping points at it. Every request to it is authenticated, with the service's cluster token or another service's identity ([Secure a deployment](./security)).
+The internal port is HTTP/2 without TLS (h2c). It must never be reachable from outside the platform: no public load balancer, ingress or port mapping points at it, and a network policy lets only the platform's own pods reach it. It takes no token: every request to it names the service it comes from in the `Wow-Service` header, and the network is its boundary ([Secure a deployment](./security#close-the-internal-port)).
 
 Each node advertises the address other nodes reach its internal port at:
 
@@ -188,14 +188,14 @@ Through the dual-run window of an [online 9.x cut-over](../migrate/data#online-c
 - They refuse every command with `wow.node.standby` (503), so nothing writes to V10 before the cut-over.
 - They join no lease group: no subscription handles anything, no parked entry is retried, no job or schedule runs. A saga or a reactor that starts at the end of its stream starts where the stream ends at the resume, so it never acts on the imported 9.x history.
 
-At the cut-over, once 9.x has stopped and the final pass, `compare`, `snapshot` and `backfill-tags` have run, resume each node on its internal port with the cluster token. The body names who resumes it and why, for the audit:
+At the cut-over, once 9.x has stopped and the final pass, `compare`, `snapshot` and `backfill-tags` have run, resume each node on its internal port, naming the node's service in `Wow-Service`. The body names who resumes it and why, for the audit:
 
 ```bash
 curl -X POST "http://<node>:9090/wow/node/resume" \
-  -H "Wow-Cluster-Token: $WOW_INTERNAL_TOKEN" -H "Content-Type: application/json" \
+  -H "Wow-Service: <the node's service>" -H "Content-Type: application/json" \
   -d '{"by": "<operator>", "reason": "cut-over <ticket>"}'
 ```
 
 The node joins its lease groups, starts its subscriptions, its parked-entry retries, its jobs and its snapshot maintenance, then admits commands. It answers its standby status, `standby: false`, `resumedAt`, `resumedBy` and `reason`, and logs the same at `WARN`.
 
-`GET /wow/node/standby`, with the cluster token, answers that status at any time. Resuming a node that is not on standby changes nothing and answers when it was resumed. Resume every node of the service: one left on standby keeps refusing commands and takes no partition.
+`GET /wow/node/standby`, with the same header, answers that status at any time. Resuming a node that is not on standby changes nothing and answers when it was resumed. Both routes are taken only from the node's own service: without the header they answer 401, from another service 403. Resume every node of the service: one left on standby keeps refusing commands and takes no partition.

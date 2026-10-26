@@ -15,7 +15,7 @@ The host refuses to start rather than run with a setting that would quietly do t
 | The log says | Cause | Do |
 | --- | --- | --- |
 | No durable backend | No `DataSource` or `MongoClient` bean, outside a development profile and with an internal port that binds more than loopback | Give the application its store, or set `wow.backend: memory` on purpose |
-| No cluster token | `wow.internal.token` is missing outside a development profile | Set `WOW_INTERNAL_TOKEN` to a secret of at least 32 characters, the same on every node |
+| The service's name is no name its nodes can state on the internal port | `wow.service`, or `spring.application.name` without it, holds a character other than letters, digits, `.`, `_` and `-`, or more than 253 | Rename the service, the same on every node and in the peers' `wow.http.services` |
 | Unknown security configuration keys | A mistyped key under `wow.cosec.`, `wow.http.services.`, `wow.calls.` or `wow.internal.` | Fix the key ([Configure a Service](./configuration#keys-are-checked)) |
 | A subscription, aggregate or context the node does not serve | A name under `wow.subscriptions`, `wow.aggregates` or `wow.contexts` that matches nothing | Fix the name, or remove the entry |
 | No command transport | A saga sends commands to another context and the node has neither Kafka nor in-memory topics | Set `wow.kafka.bootstrap-servers` |

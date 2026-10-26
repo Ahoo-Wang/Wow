@@ -30,7 +30,6 @@ import me.ahoo.wow.client.FakePeer;
 import me.ahoo.wow.client.FakePeerKt;
 import me.ahoo.wow.client.Reply;
 import me.ahoo.wow.client.RetryPolicy;
-import me.ahoo.wow.api.client.ServiceCredential;
 import me.ahoo.wow.client.WowClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -61,7 +60,7 @@ class JavaClientSmokeTest {
 
     private final WowClient client = WowClient.builder()
         .endpoints(EndpointResolver.of(Map.<String, URI>of("post", peer.getBase()), Map.of("post", peer.getBase())))
-        .service(ServiceCredential.bearer("a-service-token-of-at-least-32-chars"))
+        .service("basket-service")
         .timeout(Duration.ofSeconds(5))
         .connectTimeout(Duration.ofSeconds(1))
         .retry(RetryPolicy.of(1, Duration.ZERO, Duration.ofMillis(1)))

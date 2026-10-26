@@ -19,7 +19,6 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
-import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
@@ -48,29 +47,26 @@ import java.net.http.HttpResponse
 
 /**
  * The host's synchronous calls (decision D193): `wow.calls.*` gives the node its client of the other contexts'
- * gateways, at their internal ports, and its service token; `wow.http.services.*` the service identities its internal
- * port trusts. The [host] here calls the internal port of a [target] that trusts its token, as another service
+ * gateways, at their internal ports, naming its service (`Wow-Service`, decision D300); `wow.http.services.*` what
+ * each calling service may call there. The [host] here calls the internal port of a [target], as another service
  * would, at the port the target bound; the target's public port refuses calls.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HostCallsTest {
-    private val target = startHost("wow.http.services.ledger-service.tokens[0]" to TOKEN)
+    private val target = startHost()
     private val host = startHost(
         "wow.calls.contexts.bank.url" to "http://127.0.0.1:${target.internalPort}",
-        "wow.calls.token" to TOKEN,
         "wow.calls.timeout" to "5s",
     )
 
     /** A target whose list narrows the service's calls (decision D226). */
     private val narrowed = startHost(
-        "wow.http.services.ledger-service.tokens[0]" to TOKEN,
         "wow.http.services.ledger-service.commands[0]" to "wow.lifecycle.*",
         "wow.http.services.ledger-service.commands[1]" to "bank.account.Deposit",
     )
 
     /** A target with a call authorizer bean (CoSec's, say) that denies every call (decision D226). */
     private val denying = startHost(
-        "wow.http.services.ledger-service.tokens[0]" to TOKEN,
         sources = listOf(HostTestApp::class.java, DenyingCalls::class.java),
     )
 
@@ -85,7 +81,7 @@ class HostCallsTest {
     private val root = Causation("root-1", "ledger/(0)/l-1@1")
 
     @Test
-    fun `the node's client should call a gateway with the service's token, trusted there`(): Unit = runBlocking {
+    fun `the node's client should call a gateway as its service`(): Unit = runBlocking {
         val caller = host.context.getBean(CommandCaller::class.java)
         val command = Command(
             id = "call-1",
@@ -103,27 +99,23 @@ class HostCallsTest {
         val again = caller.call(OutgoingCall("bank.account.OpenAccount", command))
         again.ref.assert().isEqualTo(result.ref)
         again.duplicate.assert().isTrue()
-        host.context.getBean(ServiceCredential::class.java).authorization().assert().isEqualTo("Bearer $TOKEN")
     }
 
     @Test
-    fun `the public port should refuse Wow-Call, even with the service's token`() {
+    fun `the public port should refuse Wow-Call, even naming a service`() {
         val call = CallHeaders.format(CallContext("call-2", Caller.DEFAULT_TENANT, Scope("dave"), root))
         target.post("/bank/account/open-account", """{"owner":"mallory"}""", mapOf(WowHeaders.CALL to call))
             .status.assert().isEqualTo(403)
         target.post(
             "/bank/account/open-account",
             """{"owner":"mallory"}""",
-            mapOf(WowHeaders.CALL to call, "Authorization" to "Bearer $TOKEN"),
+            mapOf(WowHeaders.CALL to call, WowHeaders.SERVICE to SERVICE),
         ).status.assert().isEqualTo(403)
     }
 
     @Test
-    fun `the internal port should refuse a call without the service's token`(): Unit = runBlocking {
-        val forged = HttpCommandCaller(
-            mapOf(BANK to URI.create("http://127.0.0.1:${target.internalPort}")),
-            ServiceCredential.bearer("a-forged-token-of-at-least-32-characters"),
-        )
+    fun `the internal port should refuse a call that names no service`(): Unit = runBlocking {
+        val forged = HttpCommandCaller(mapOf(BANK to URI.create("http://127.0.0.1:${target.internalPort}")), null)
         val command = Command(
             "call-3",
             "request-3",
@@ -136,14 +128,14 @@ class HostCallsTest {
         }.message.assert().contains("403")
     }
 
-    /** A call of [path] on [host]'s internal port, from the trusted service: its status and its problem's code. */
+    /** A call of [path] on [host]'s internal port, from the ledger service: its status and its problem's code. */
     private fun internalCall(host: Host, path: String, body: String): Pair<Int, String?> {
         val call = CallHeaders.format(
             CallContext("call-${path.hashCode()}", Caller.DEFAULT_TENANT, Scope("dave"), root)
         )
         val request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:${host.internalPort}$path"))
             .header("Content-Type", "application/json")
-            .header("Authorization", "Bearer $TOKEN")
+            .header(WowHeaders.SERVICE, SERVICE)
             .header(WowHeaders.CALL, call)
             .POST(HttpRequest.BodyPublishers.ofString(body))
             .build()
@@ -187,13 +179,8 @@ class HostCallsTest {
         }.message.assert().contains("wow.calls.contexts.mail.url")
     }
 
-    @Test
-    fun `no token should present no credential`(): Unit = runBlocking {
-        WowAutoConfiguration().wowServiceCredential(WowProperties()).authorization().assert().isNull()
-    }
-
     private companion object {
-        const val TOKEN = "ledger-service-token-0123456789abcdef"
+        const val SERVICE = "ledger-service"
     }
 }
 

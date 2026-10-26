@@ -13,14 +13,13 @@
 
 package me.ahoo.wow.client
 
-import me.ahoo.wow.api.client.ServiceCredential
-
 /**
  * How a client calls a peer, and as whom (decisions D193, D232, D236, D259):
  *
- * - [Service]: on the peer's internal port ([Port.INTERNAL]), as this service's identity ([ServiceCredential]),
- *   asserting the caller it acts for as the root context of `Wow-Call`: its tenant, scope, operator and the request
- *   facts that propagate (the application, `app_id`). The peer trusts that assertion from a service identity alone,
+ * - [Service]: on the peer's internal port ([Port.INTERNAL]), as this service, which it names in `Wow-Service`
+ *   (decision D300), asserting the caller it acts for as the root context of `Wow-Call`: its tenant, scope, operator
+ *   and the request facts that propagate (the application, `app_id`). The peer takes that assertion from a service
+ *   that names itself alone, its internal port being reachable by the platform's own pods only,
  *   and lets it call the commands and read the models its `wow.http.services.<service>` entries permit. A command is
  *   answered once committed, whatever its wait plan: the internal port does not stream.
  * - [User]: on the peer's public routes ([Port.PUBLIC]), forwarding the end user's credential ([UserCredential]): the
@@ -31,8 +30,11 @@ sealed interface ClientMode {
     /** The port of the peer this mode calls. */
     val port: Port
 
-    /** Calls the internal port as this service, asserting the root context ([ClientMode]). */
-    class Service(val credential: ServiceCredential) : ClientMode {
+    /**
+     * Calls the internal port as the service named [service], asserting the root context ([ClientMode]); a client
+     * that names no service is refused by every peer.
+     */
+    class Service(val service: String?) : ClientMode {
         override val port: Port get() = Port.INTERNAL
 
         override fun toString(): String = "ClientMode.Service"

@@ -26,7 +26,6 @@ description: Wow 的术语，每条一句定义，附英文原词和解释它的
 | Chain | 等待链 | 由多跳组成、可能跨上下文的等待计划，只有 Saga 那一跳后面才能接别的跳。见[等待结果](../concepts/waits#waiting-for-a-chain)。 |
 | Checkpoint | 检查点 | 订阅已处理完一个分区中所有条目的那个位置。见[订阅](../concepts/subscriptions#how-subscriptions-read-the-log)。 |
 | Cluster channel | 集群通道 | 一个服务的节点之间的内部通道，把命令转发给其分区的属主。见[写](../concepts/write-path#the-cluster-channel)。 |
-| Cluster token | 集群令牌 | 一个服务的节点在彼此的内部端口上出示的密钥。见[身份](../concepts/identity#the-internal-port)。 |
 | Command | 命令 | 改变一个聚合的请求，只承载业务数据；它的身份来自准入。 |
 | Command function | 命令函数 | 聚合针对一种命令类型的决定函数。 |
 | Command topic | 命令主题 | Kafka 主题 `wow.<context>.commands`，命令经它异步到达一个上下文。见[上下文之间](../concepts/cross-context#commands-to-another-context)。 |
@@ -40,6 +39,7 @@ description: Wow 的术语，每条一句定义，附英文原词和解释它的
 | Decide scope | 决定作用域 | 一次决定的上下文，决定函数通过它预留键、登记补偿、定时命令和返回额外结果。见[决定与演化](../concepts/programming-model#what-decide-can-reach)。 |
 | Decider DSL | Decider DSL | 用 Kotlin 代码而不是注解来写聚合模型的方式；它编译成同一个模型。 |
 | Decision | 决定结果 | 决定函数返回的值：事件、无变化或拒绝。 |
+| Declared service | 声明的服务 | 发往内部端口的请求在 `Wow-Service` 请求头里指明的服务，即调用方的 `wow.service`。它是声明，不是凭据：边界是网络。见[身份](../concepts/identity#the-internal-port)。 |
 | Derived command | 派生命令 | Saga 在处理一次提交时发出的命令；它的请求 ID 由那次提交推出，所以只提交一次。 |
 | Duplicate | 重复请求 | 请求 ID 已经提交过的请求；用第一次的结果回答，不再决定。见[写](../concepts/write-path#duplicates-are-found-before-deciding)。 |
 | Error code | 错误码 | 拒绝或失败的稳定名字，框架的错误码是 `wow.*`；在 Manifest 中连同 HTTP 状态一起声明。 |
@@ -80,7 +80,7 @@ description: Wow 的术语，每条一句定义，附英文原词和解释它的
 | Revision | 修订号 | 事件结构的版本；升级函数把旧修订号升到下一个。 |
 | Saga | Saga | 把提交变成命令（发往自己的上下文或其他上下文）的处理器。 |
 | Scope | 作用域 | 聚合的所有者和空间，或调用方所代表的所有者和空间。见[身份](../concepts/identity#who-an-aggregate-belongs-to)。 |
-| Service identity | 服务身份 | 系统里一个服务调用另一个服务的内部端口时使用的凭据。 |
+| Service identity | 服务身份 | 内部端口上同步调用或读的身份：它声明的服务，主体为 `service:<name>`。 |
 | Sink | Sink | 把提交复制到服务之外（Kafka、ClickHouse 或 Elasticsearch）的订阅。见[订阅](../concepts/subscriptions#sinks)。 |
 | Slot | 槽位 | 聚合哈希到的 4,096 个固定桶之一；槽位映射到分区。见[日志就是总线](../concepts/event-log#partitions)。 |
 | Snapshot | 快照 | 一个聚合最新的已提交状态及其元数据；默认读模型。见[读模型](../concepts/read-models)。 |

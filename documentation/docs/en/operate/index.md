@@ -29,7 +29,7 @@ A Wow service is a Spring Boot application that runs as one or more nodes. Its n
 
 **The cluster**
 
-- Every node of a service has the same `wow.service`, partitions, stores and cluster tokens.
+- Every node of a service has the same `wow.service`, partitions and stores.
 - Nodes reach each other's internal port, and nothing outside the cluster does.
 - The platform's termination grace period covers the node's shutdown ([Deployment Model](./topology#starting-and-stopping)).
 - Readiness and liveness probes read the node's health groups.

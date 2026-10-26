@@ -256,8 +256,9 @@ private fun CoRouterFunctionDsl.document(
  * The routes of the services' synchronous calls (decision D193), served on the internal port (decision D173) beside
  * the cluster channel and the wait signals: every command route of [manifest], the same paths and answers as on the
  * public port, sending the command through [gateway]. Each request must come from a
- * [service][me.ahoo.wow.api.caller.Caller.service] identity, which [callerResolver] resolves (a service token, or a
- * CoSec service principal), and carry `Wow-Call`; any other, one without credentials too, is answered 403
+ * [service][me.ahoo.wow.api.caller.Caller.service] identity, which [callerResolver] resolves (the service the request
+ * names, [me.ahoo.wow.http.caller.DeclaredServices], decision D300), and carry `Wow-Call`; any other, one that names no
+ * service too, is answered 403
  * `wow.auth.forbidden`. The public port
  * refuses `Wow-Call` ([wowRoutes]), so the root command a call asserts reaches a node only through its internal
  * network, from a service it trusts. A service calls only the commands [permits] lets it (decision D226, review A3-2):
@@ -280,7 +281,7 @@ fun callRoutes(
     val statuses = ErrorStatuses(manifest, options.errorStatuses)
     val commands = CommandHandler(
         gateway = gateway,
-        // A request without credentials is no service either: 403, as for any other caller.
+        // A request that names no service is no service identity either: 403, as for any other caller.
         authenticator = Authenticator(
             CallerResolver { request -> callerResolver.resolve(request) ?: Caller.ANONYMOUS },
             statuses,

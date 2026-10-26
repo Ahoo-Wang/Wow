@@ -61,9 +61,9 @@ internal sealed interface Answer<out T> {
 
 /**
  * The HTTP exchanges of the clients with the peers (decision D257), on the JDK [client]: each request goes to the base
- * URL [endpoints] gives its context on the [mode]'s port, asked again for every attempt; it carries the [mode]'s
- * credential (`Authorization` of the service, or the end user's forwarded headers), the root context in service mode
- * (`Wow-Call`), and the trace the coroutine runs in (decision D174); it is answered within [timeout] (the response's
+ * URL [endpoints] gives its context on the [mode]'s port, asked again for every attempt; it carries, in service mode,
+ * the service's name (`Wow-Service`, decision D300) and the root context (`Wow-Call`), in user mode the end user's
+ * forwarded credential headers, and the trace the coroutine runs in (decision D174); it is answered within [timeout] (the response's
  * head, for a stream) and retried as [retry] says.
  */
 internal class HttpTransport(
@@ -148,7 +148,7 @@ internal class HttpTransport(
             .header(ACCEPT, accept)
         when (val mode = mode) {
             is ClientMode.Service -> {
-                mode.credential.authorization()?.let { builder.header(AUTHORIZATION, it) }
+                mode.service?.let { builder.header(WowHeaders.SERVICE, it) }
                 request.call?.let { builder.header(WowHeaders.CALL, CallWires.encode(it)) }
             }
             is ClientMode.User -> mode.credential.headers(
@@ -172,7 +172,6 @@ internal class HttpTransport(
         const val JSON_ACCEPT: String = "$JSON, $PROBLEM_JSON"
         const val CONTENT_TYPE: String = "Content-Type"
         const val ACCEPT: String = "Accept"
-        const val AUTHORIZATION: String = "Authorization"
         private val SUCCESS = 200..299
 
         /** Whether this failure is of a connection that was never made, so the request was not sent. */

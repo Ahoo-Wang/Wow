@@ -25,14 +25,10 @@ import org.junit.jupiter.api.assertThrows
  * an intentionally anonymous service says so with a bean returning [CallerResolver.ANONYMOUS] ([AnonymousCallers]).
  */
 class HostCallerResolverRequiredTest {
-    /**
-     * A node bound to every interface, in memory on purpose and with a cluster token, so that neither is what it
-     * refuses.
-     */
+    /** A node bound to every interface, in memory on purpose, so that the backend is not what it refuses. */
     private val deployed = arrayOf(
         "wow.internal.host" to "0.0.0.0",
         "wow.backend" to "memory",
-        "wow.internal.token" to "a-cluster-token-of-the-host-tests",
     )
 
     @Test

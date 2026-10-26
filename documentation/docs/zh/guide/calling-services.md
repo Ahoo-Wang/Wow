@@ -60,26 +60,24 @@ ref 来自上下文生成的契约 `EshopOrderingContract.Order.ref(tenant, id)`
 
 | 模式 | 访问 | 身份 |
 | --- | --- | --- |
-| `service`，默认 | 对端的内部端口，地址是 `internal-url` | 本服务，带它的服务凭据，代表它发送时指明的调用方 |
+| `service`，默认 | 对端的内部端口，地址是 `internal-url` | 本服务，声明自己，代表它发送时指明的调用方 |
 | `user` | 对端的公开路由，地址是 `url` | 终端用户，转发当前正在处理的请求的请求头（`wow.clients.forwarded-headers`，默认是 `Authorization`） |
 
-在 service 模式下，客户端出示服务令牌 `wow.calls.token`，对端在它的 `wow.http.services` 中为本服务列出这个令牌；于是对端信任本服务指明的调用方。`internal-url` 默认取 Saga 同步调用所用的地址 `wow.calls.contexts.<context>.url`。basket 服务就是这样访问 ordering 的内部端口的：
+在 service 模式下，客户端在 `Wow-Service` 请求头里声明本服务，即它的 `wow.service`。内部端口只有平台自己的 Pod 能访问，所以对端接受本服务指明的调用方；对端如果在它的 `wow.http.services` 中为本服务列出了命令和模型，这些列表限制本服务可以调用和读取什么。`internal-url` 默认取 Saga 同步调用所用的地址 `wow.calls.contexts.<context>.url`。basket 服务就是这样访问 ordering 的内部端口的：
 
 <!-- sample: example/eshop/basket/basket-server/src/main/resources/application.yaml#calls -->
 
 ```yaml
 # The checkout saga submits the order to the ordering service synchronously (decision D193), through its command
-# gateway on its internal port (wow.internal.port there; its public port refuses a call), with this service's
-# credential, which the ordering service trusts (wow.http.services.eshop-basket-service.tokens there). The token below is for trying the shop out on one machine:
-# a deployment sets ESHOP_BASKET_SERVICE_TOKEN, a secret of at least 32 characters, and rotates it there and here.
+# gateway on its internal port (wow.internal.port there; its public port refuses a call), naming this service
+# (Wow-Service, decision D300), which the ordering service lists the commands of (wow.http.services there).
 calls:
   contexts:
     eshop-ordering:
       url: http://127.0.0.1:9093
-  token: ${ESHOP_BASKET_SERVICE_TOKEN:eshop-basket-local-service-token-not-a-secret}
 ```
 
-`wow.clients.timeout` 限制每个请求的时间（默认 30 秒，等待更长的命令会更长），`wow.clients.retry.*` 重试那些重试能够越过的故障。对端接受哪些服务身份，见[保护部署](../operate/security#close-the-internal-port)。
+`wow.clients.timeout` 限制每个请求的时间（默认 30 秒，等待更长的命令会更长），`wow.clients.retry.*` 重试那些重试能够越过的故障。对端从声明了自己的服务那里接受什么，见[保护部署](../operate/security#close-the-internal-port)。
 
 ## 按名字调用命令 {#call-a-command-by-name}
 
@@ -87,7 +85,7 @@ calls:
 
 ## 在 Wow 宿主之外 {#outside-a-wow-host}
 
-不是 Wow 服务的应用用 `WowClient.builder()` 自己构建客户端：每个上下文的服务在哪里（`endpoints`）、模式和凭据（`service` 或 `user`），以及超时。`client.commands` 是同一个 `CommandClient`，对端的契约来自类路径上的 api jar。
+不是 Wow 服务的应用用 `WowClient.builder()` 自己构建客户端：每个上下文的服务在哪里（`endpoints`）、模式（`service` 带上它以哪个服务的名字调用，或者 `user` 带上终端用户的凭据），以及超时。`client.commands` 是同一个 `CommandClient`，对端的契约来自类路径上的 api jar。
 
 ## 在 Java 中 {#from-java}
 

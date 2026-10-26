@@ -96,4 +96,4 @@ A planned hand-over, during scaling, a rolling upgrade or a graceful shutdown, i
 
 A partition's owner might pause, lose its lease and wake up still believing it owns the partition. That is safe without fencing: its commands are held by the version key, and its subscriptions' effects are idempotent ([Subscriptions, failures and replay](./subscriptions)).
 
-The channel stays within one service. Requests on it must carry the service's cluster token, and the internal port is never exposed outside the cluster ([Identity, tenancy and access](./identity#the-internal-port)).
+The channel stays within one service. A request on it names its service (`Wow-Service`), and a node takes a forward only from a node of its own service. The internal port is never exposed outside the platform ([Identity, tenancy and access](./identity#the-internal-port)).

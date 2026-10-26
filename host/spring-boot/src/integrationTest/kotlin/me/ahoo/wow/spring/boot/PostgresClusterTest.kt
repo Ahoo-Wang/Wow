@@ -57,17 +57,14 @@ class PostgresDataSource {
  * internal port, so a command sent to one node runs on the owner of its partition, forwarded over real h2c, and the
  * owner's snapshot subscription signals the wait back to the node the command arrived at.
  *
- * The nodes share a cluster token being rotated (decision D226): each sends the first of its `wow.internal.token` and
- * takes either, so the forwards one way and the signals the other carry different tokens.
+ * Each node names its service on every request between them (`Wow-Service`, decision D300), no token.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PostgresClusterTest {
     private val postgres = WowContainers.newPostgres().also { it.start() }
-    private val hosts = listOf("node-a" to "$OLD_TOKEN,$NEW_TOKEN", "node-b" to "$NEW_TOKEN,$OLD_TOKEN").map {
-        val (node, tokens) = it
+    private val hosts = listOf("node-a", "node-b").map { node ->
         startHost(
             "wow.node.id" to node,
-            "wow.internal.token" to tokens,
             "wow.log.partitions" to PARTITIONS,
             "test.postgres.url" to postgres.jdbcUrl,
             "test.postgres.username" to postgres.username,
@@ -150,7 +147,7 @@ class PostgresClusterTest {
         val client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build()
         val request = HttpRequest.newBuilder(InternalHttp.uri("127.0.0.1:${second.internalPort}", InternalHttp.SIGNALS_PATH))
             .header("Content-Type", InternalHttp.JSON)
-            .header(InternalHttp.CLUSTER_TOKEN, OLD_TOKEN)
+            .header(WowHeaders.SERVICE, "bank-service")
             .POST(HttpRequest.BodyPublishers.ofString("{}"))
             .build()
         val response = client.send(request, HttpResponse.BodyHandlers.discarding())
@@ -159,20 +156,20 @@ class PostgresClusterTest {
     }
 
     @Test
-    fun `the cluster channel should refuse a forward without the service's cluster token`() {
+    fun `the cluster channel should refuse a forward of another service, or of none`() {
         val client = HttpClient.newBuilder().version(HttpClient.Version.HTTP_2).build()
-        fun forward(token: String?): Int {
+        fun forward(service: String?): Int {
             val request = HttpRequest.newBuilder(InternalHttp.uri("127.0.0.1:${second.internalPort}", InternalHttp.FORWARD_PATH))
                 .header("Content-Type", InternalHttp.JSON)
-                .apply { token?.let { header(InternalHttp.CLUSTER_TOKEN, it) } }
+                .apply { service?.let { header(WowHeaders.SERVICE, it) } }
                 .POST(HttpRequest.BodyPublishers.ofString("{}"))
                 .build()
             return client.send(request, HttpResponse.BodyHandlers.discarding()).statusCode()
         }
         forward(null).assert().isEqualTo(401)
-        forward("not-this-service-cluster-token-0123456789").assert().isEqualTo(403)
-        // With either token, the forward is read: this body is no forward.
-        forward(NEW_TOKEN).assert().isEqualTo(400)
+        forward("ordering-service").assert().isEqualTo(403)
+        // From a node of this service, the forward is read: this body is no forward.
+        forward("bank-service").assert().isEqualTo(400)
     }
 
     /** [count] aggregate ids whose partitions the second node owns and the first forwards to it, once they agree. */
@@ -199,7 +196,5 @@ class PostgresClusterTest {
         const val CANDIDATES = 200
         const val OWNERSHIP_TIMEOUT = 30_000L
         const val POLL = 100L
-        const val OLD_TOKEN = "cluster-token-old-0123456789abcdefghij"
-        const val NEW_TOKEN = "cluster-token-new-0123456789abcdefghij"
     }
 }

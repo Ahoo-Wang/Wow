@@ -109,7 +109,6 @@ dependencies {
 | `CommandTransformer`、`CommandValidator` | 在命令被决定之前改写或检查它 |
 | `GlobalIdGenerator`、`AggregateIdGenerator` | 生成请求 ID 和聚合 ID；按类型由 `wow.aggregates.[<context>.<aggregate>].id-generator` 指定 |
 | `FailureClassifier` | 为订阅处理函数的失败分类（[失败与重试](./failures)） |
-| `ServiceCredential` | 同步调用或类型化客户端向另一个服务出示的凭据 |
 | Bean Validation 实现（`spring-boot-starter-validation`） | 在准入时检查每个命令体的 Jakarta 约束，回答 `wow.command.invalid`（400）（[编写聚合](./aggregates#check-its-shape)） |
 
 ## 配置会被检查 {#configuration-is-checked}

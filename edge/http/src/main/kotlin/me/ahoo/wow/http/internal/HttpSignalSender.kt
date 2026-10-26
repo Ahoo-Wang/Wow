@@ -25,8 +25,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.result.WaitSignal
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.observation.Observer
@@ -67,14 +67,9 @@ import kotlin.time.toJavaDuration
  * An origin's queue goes away after [idleTimeout] without signals, so the origins of nodes long gone do not
  * accumulate. [close] stops sending; what is queued then is dropped.
  *
- * A signal is authenticated as the origin's signal entry takes it (decision D226): to a node of this [service], with
- * the service's cluster token, [clusterToken], as [InternalHttp.CLUSTER_TOKEN]; to a node of another service, the
- * origin of a wait that crossed into this one, with the service's [credential] as `Authorization`, the identity it
- * calls other services with (decision D208), which that service trusts. The cluster token never leaves the service:
- * an origin's service and address come from whoever started or carried the wait, so the token goes only to an
- * address [members] knows as a member of this service's cluster (review R2.3-1). An origin that names this service at
- * any other address is sent the signal without a credential, and refuses it. Without a [service], every origin is
- * taken for one of this service.
+ * Every signal names this node's [service] in `Wow-Service` (decision D300), whether its origin is a node of this
+ * service or of another one, the origin of a wait that crossed into this one: the signal entry takes a signal from a
+ * service that names itself, the internal port being reachable by the platform's own pods alone.
  */
 @InternalWowApi
 class HttpSignalSender(
@@ -83,14 +78,10 @@ class HttpSignalSender(
     private val concurrency: Int = DEFAULT_CONCURRENCY,
     private val idleTimeout: Duration = DEFAULT_IDLE_TIMEOUT,
     private val service: String? = null,
-    private val clusterToken: String? = null,
-    private val credential: ServiceCredential = ServiceCredential.NONE,
     /** The most signals one request carries to an origin (review A5-12). */
     private val maxBatch: Int = DEFAULT_MAX_BATCH,
     /** Counts the dropped signals by reason (review A5-11). */
     private val observer: Observer = Observer.NONE,
-    /** The addresses of this service's nodes, the only ones sent the [clusterToken] (review R2.3-1). */
-    private val members: ClusterMembers = ClusterMembers.NONE,
     /** The time the waits' deadlines are read against, in epoch milliseconds. */
     private val clock: () -> Long = System::currentTimeMillis,
 ) : SignalSender, AutoCloseable {
@@ -113,7 +104,7 @@ class HttpSignalSender(
 
     override suspend fun send(origin: Origin, signal: WaitSignal, deadline: Long) {
         while (!closed) {
-            val outbox = outboxes.computeIfAbsent(origin.address) { Outbox(it, origin.service) }
+            val outbox = outboxes.computeIfAbsent(origin.address) { Outbox(it) }
             val offered = outbox.queue.trySend(Pending(signal, deadline))
             when {
                 offered.isSuccess -> return
@@ -143,7 +134,7 @@ class HttpSignalSender(
     private class Pending(val signal: WaitSignal, val deadline: Long)
 
     /** The queue of one origin and the coroutine that sends from it. */
-    private inner class Outbox(val address: String, val originService: String) {
+    private inner class Outbox(val address: String) {
         val queue = Channel<Pending>(queueCapacity) { drop(address, it.signal, CLOSED) }
         private val permits = Semaphore(concurrency)
 
@@ -239,16 +230,7 @@ class HttpSignalSender(
         val builder = HttpRequest.newBuilder(InternalHttp.uri(outbox.address, InternalHttp.SIGNALS_PATH))
             .timeout(timeoutMillis.milliseconds.toJavaDuration())
             .header("Content-Type", InternalHttp.JSON)
-        when {
-            service != null && service != outbox.originService ->
-                credential.authorization()?.let { builder.header(AUTHORIZATION, it) }
-
-            members.contains(outbox.address) -> clusterToken?.let { builder.header(InternalHttp.CLUSTER_TOKEN, it) }
-
-            else -> logger.debug {
-                "${outbox.address} is no member of this service's cluster: its signals go without the cluster token."
-            }
-        }
+        service?.let { builder.header(WowHeaders.SERVICE, it) }
         val request = builder.POST(HttpRequest.BodyPublishers.ofByteArray(body)).build()
         client.sendAsync(request, HttpResponse.BodyHandlers.discarding()).await().statusCode()
     } catch (cancelled: CancellationException) {
@@ -276,7 +258,6 @@ class HttpSignalSender(
         const val FAILED: String = "failed"
         private const val BAD_REQUEST = 400
         private val SUCCESS = 200..299
-        private const val AUTHORIZATION = "Authorization"
         private val logger = KotlinLogging.logger {}
     }
 }

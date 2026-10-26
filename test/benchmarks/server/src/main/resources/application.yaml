@@ -22,8 +22,6 @@ wow:
     port: 9090
     # The nodes of the benchmark's cluster share this machine; a deployment binds an address the nodes reach.
     host: 127.0.0.1
-    # The cluster token the service's nodes share (decision D226); a deployment sets WOW_INTERNAL_TOKEN, a secret.
-    token: ${WOW_INTERNAL_TOKEN:transfer-benchmark-local-cluster-token-not-a-secret}
   kafka:
     bootstrap-servers: localhost:9092
     topics:

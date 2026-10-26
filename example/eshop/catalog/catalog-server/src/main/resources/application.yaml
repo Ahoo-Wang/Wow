@@ -10,10 +10,6 @@ wow:
   backend: memory
   internal:
     port: 9091
-    # The cluster token this service's nodes share (decision D226): it alone opens their forwards and the signals of
-    # their waits. The value is for trying the shop out on one machine; a deployment sets WOW_INTERNAL_TOKEN, a secret
-    # of at least 32 characters, the same on every node of the service.
-    token: ${WOW_INTERNAL_TOKEN:eshop-catalog-local-cluster-token-not-a-secret}
 ---
 spring:
   config:
