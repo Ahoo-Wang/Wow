@@ -1,11 +1,11 @@
 # CoSec Gateway in front of every public port (decisions D295, D296): it verifies each request's CoSec token
 # (Authorization: Bearer, HMAC256 with COSEC_JWT_SECRET), authorizes it by its global policy (policy.json: any
 # authenticated principal), and forwards it with the token, which the services read in CoSec's inject mode without
-# verifying it again. It routes by the context prefix (decision D313). It overwrites X-Forwarded-For with the address
-# it accepted (trusted-proxies, for-append: false) instead of passing a client's on, so a service's remote_ip is the client's
-# (D297, D303 ⑥). Its pods carry app.kubernetes.io/component: gateway, which deploy/eshop-ordering's public
-# NetworkPolicy admits (deploy/ops and deploy/view-store name cosec-gateway; their overlays are patched, a gap the PR
-# reports). The gateway keeps its policies in Redis (cocache), which it requires.
+# verifying it again. It routes by the context prefix (decision D313). It writes the TCP peer it accepted as the one
+# X-Forwarded-For (trusted-proxies, for-append: false), never believing a client's (forward-headers-strategy: none),
+# so a service's remote_ip is the client's (D297, D303 ⑥; verified in run 10). Its pods carry
+# app.kubernetes.io/component: gateway, which every service's public NetworkPolicy admits. The gateway keeps its
+# policies in Redis (cocache), which it requires; no Wow service connects to it.
 apiVersion: v1
 kind: ConfigMap
 metadata:
