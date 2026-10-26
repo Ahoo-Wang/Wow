@@ -11,16 +11,16 @@ metadata:
 data:
   # the brokers (wow.kafka.bootstrap-servers)
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
-  # the operator created the topics (backends/kafka-topics.yaml, D168)
-  WOW_KAFKA_TOPICS_DDL: validate
+  # the operator created the topics (backends/kafka-topics.yaml, D168; wow.kafka.ddl)
+  WOW_KAFKA_DDL: validate
   # capacity: the log's partitions (64 in deploy/); wow.eshop-inventory.commands has as many
   WOW_LOG_PARTITIONS: "8"
   # publishes the ledger to ops (wow.ops.publish.enabled; D312 makes it auto)
   WOW_OPS_PUBLISH_ENABLED: "true"
   # wow.ops.publish.interval, for the ops loop's bound
   WOW_OPS_PUBLISH_INTERVAL: 5s
-  # wow.subscription.parked.min-backoff: a fault's parked entries retry before the verdict
-  WOW_SUBSCRIPTION_PARKED_MINBACKOFF: 20s
+  # wow.subscription.parked.initial-backoff: a fault's parked entries retry before the verdict
+  WOW_SUBSCRIPTION_PARKED_INITIALBACKOFF: 20s
   # capacity, so every node fits one runner: the heap within the pod's memory limit, one GC thread, two cores' worth
   # of default pools
   JAVA_OPTS: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2

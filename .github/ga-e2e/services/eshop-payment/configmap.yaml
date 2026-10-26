@@ -11,19 +11,19 @@ metadata:
 data:
   # the brokers (wow.kafka.bootstrap-servers)
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
-  # the operator created the topics (backends/kafka-topics.yaml, D168)
-  WOW_KAFKA_TOPICS_DDL: validate
-  # wow.kafka.command-intake: ops' resume arrives on wow.eshop-payment.commands (the payment's kafka profile leaves it
+  # the operator created the topics (backends/kafka-topics.yaml, D168; wow.kafka.ddl)
+  WOW_KAFKA_DDL: validate
+  # wow.kafka.command-intake.enabled: ops' resume arrives on wow.eshop-payment.commands (the payment's kafka profile leaves it
   # off)
-  WOW_KAFKA_COMMANDINTAKE: "true"
+  WOW_KAFKA_COMMANDINTAKE_ENABLED: "true"
   # capacity: the log's partitions (64 in deploy/); wow.eshop-payment.commands has as many
   WOW_LOG_PARTITIONS: "8"
   # publishes the ledger to ops (wow.ops.publish.enabled; D312 makes it auto)
   WOW_OPS_PUBLISH_ENABLED: "true"
   # wow.ops.publish.interval, for the ops loop's bound
   WOW_OPS_PUBLISH_INTERVAL: 5s
-  # wow.subscription.parked.min-backoff: a fault's parked entries retry before the verdict
-  WOW_SUBSCRIPTION_PARKED_MINBACKOFF: 20s
+  # wow.subscription.parked.initial-backoff: a fault's parked entries retry before the verdict
+  WOW_SUBSCRIPTION_PARKED_INITIALBACKOFF: 20s
   # eshop.payment.gateway.outage-file: the ops loop creates it in every payment pod to fail the charges
   ESHOP_PAYMENT_GATEWAY_OUTAGEFILE: /tmp/gateway.down
   # wow.subscriptions.[PaymentGatewaySaga.onPaymentRequested].parked.max-retries=0: a failed charge waits for an

@@ -1,7 +1,7 @@
 # Kafka in KRaft mode, one broker that is its own controller, as operate/kafka.md's services expect it at kafka:9092.
 # Its log is on a volume, so the broker-restart scenario restarts the same broker with its topics and offsets. Topics
 # are never created by a read (auto.create.topics.enable=false): kafka-topics.yaml creates every topic the eShop and
-# ops own, and the nodes validate them (WOW_KAFKA_TOPICS_DDL=validate, decision D168).
+# ops own, and the nodes validate them (WOW_KAFKA_DDL=validate, decision D168).
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
