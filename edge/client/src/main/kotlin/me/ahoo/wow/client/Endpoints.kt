@@ -39,8 +39,8 @@ fun interface EndpointResolver {
         val NONE: EndpointResolver = EndpointResolver { _, _ -> null }
 
         /**
-         * The fixed base URLs of each context's public routes ([publicUrls], `wow.clients.contexts.<context>.url`) and
-         * its internal port ([internalUrls], `wow.clients.contexts.<context>.internal-url`), each `http` or `https`.
+         * The fixed base URLs of each context's public routes ([publicUrls], `wow.peers.<context>.public-url`) and
+         * its internal port ([internalUrls], `wow.peers.<context>.url`), each `http` or `https`.
          */
         @JvmStatic
         @JvmOverloads

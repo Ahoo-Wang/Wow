@@ -30,6 +30,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.snapshots
+import me.ahoo.wow.client.PeerClients
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
@@ -134,35 +135,21 @@ class AnalyticsCatalogConfiguration {
 
     /**
      * The reference actions of the datasets' rows (decisions D238 ⑤, D257): the commands of the peers
-     * `wow.clients.contexts` describes by their Manifest (`contract: manifest`), read with the service's [WowClient]
-     * in `wow.clients.mode` and sent with its [CommandClient], each context in its own mode.
+     * `wow.peers` describes by their Manifest (`contract: manifest`), read with the service's [WowClient]
+     * in `wow.peer.mode` and sent with its [CommandClient], each context in its own mode.
      */
     @Bean
     fun datasetReferenceActions(
         queries: ObjectProvider<QueryApi>,
         client: ObjectProvider<WowClient>,
         commands: CommandClient,
-        environment: Environment,
+        peers: PeerClients,
     ): DatasetReferenceActions = DatasetReferenceActions(
         datasets = { id -> queries.getObject().trusted().snapshots<DatasetState>().state(id)?.state },
         manifests = { context, caller -> client.getObject().manifestOf(context, caller) },
-        described = manifestPeers(environment),
+        described = peers.described,
         commands = commands,
     )
-
-    /** The peer contexts `wow.clients.contexts.<context>.contract: manifest` describes by their Manifest alone. */
-    private fun manifestPeers(environment: Environment): Set<String> =
-        Binder.get(environment)
-            .bind("wow.clients.contexts", Bindable.mapOf(String::class.java, PeerContract::class.java))
-            .orElse(null)
-            .orEmpty()
-            .filterValues { it.contract.equals("manifest", ignoreCase = true) }
-            .keys
-
-    /** The one setting of a `wow.clients.contexts.<context>` entry these actions read; the others are the host's. */
-    class PeerContract {
-        var contract: String? = null
-    }
 
     /** The routes of the reference actions, on the public port as the callers [callers] resolves. */
     @Bean

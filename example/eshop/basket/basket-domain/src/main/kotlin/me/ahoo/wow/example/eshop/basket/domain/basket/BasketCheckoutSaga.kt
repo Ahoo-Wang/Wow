@@ -25,7 +25,7 @@ import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 /**
  * Submits a checked-out basket to the ordering context as an order, the classic eShop's checkout, synchronously
  * (decision D193): the checkout is done only once the ordering context has the order, so the saga calls the ordering
- * service's command gateway (`wow.calls.contexts.eshop-ordering.url`) instead of sending to its command topic, the
+ * service's command gateway (`wow.peers.eshop-ordering.url`) instead of sending to its command topic, the
  * default for the rest of the shop (decision D33). The order's number is the checkout's (`alice-1`), fixed by the
  * basket's commit, and the request id comes from the commit too, so handling the commit again, after a retry or a
  * replay, is the same request: the ordering context decides it once and answers with the same order.

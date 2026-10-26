@@ -19,7 +19,7 @@ import me.ahoo.wow.manifest.FrameworkErrors
 
 /**
  * The commands each service may call on the internal port's call routes (decision D226, review A3-2), by service
- * name: `wow.http.services.<service>.commands`, command names or patterns.
+ * name: `wow.callers.<service>.commands`, command names or patterns.
  *
  * - A **system command**, one in the framework's namespace (`wow.*`: the lifecycle's delete, restore, owner and space
  *   transfers and tags, the snapshot rebuild, the schedules and the jobs), is refused unless an entry that names the
@@ -33,7 +33,7 @@ import me.ahoo.wow.manifest.FrameworkErrors
  * names (`Wow-Service`, [DeclaredServices], decision D300); the lists catch a misconfiguration, not an attacker. A
  * service without entries calls the domain commands alone.
  *
- * The models each service may read on the internal port's read routes ([reads], `wow.http.services.<service>.reads`,
+ * The models each service may read on the internal port's read routes ([reads], `wow.callers.<service>.reads`,
  * decision D259): by `context.aggregate.model` (`ordering.order.snapshot`, `ordering.order.events`, and
  * `ordering.order.state` for the state reads) or a dataset's `context.dataset`, `*` standing for any characters. A
  * service without entries reads every model the node serves; with entries, only those they match.
@@ -44,12 +44,12 @@ class CallPermits @JvmOverloads constructor(
     reads: Map<String, Collection<String>> = emptyMap(),
 ) {
     private val entries: Map<String, Entries> = services.mapValues { (service, patterns) ->
-        require(patterns.none { it.isBlank() }) { "A command of service $service (wow.http.services) is blank." }
+        require(patterns.none { it.isBlank() }) { "A command of service $service (wow.callers) is blank." }
         Entries(patterns.map(String::trim))
     }
 
     private val reads: Map<String, List<Regex>> = reads.mapValues { (service, patterns) ->
-        require(patterns.none { it.isBlank() }) { "A read of service $service (wow.http.services) is blank." }
+        require(patterns.none { it.isBlank() }) { "A read of service $service (wow.callers) is blank." }
         patterns.map { regexOf(it.trim()) }
     }
 
@@ -63,7 +63,7 @@ class CallPermits @JvmOverloads constructor(
         return if (entries.isEmpty() || entries.any { it.matches(model) }) {
             null
         } else {
-            "Service $service may not read $model: its wow.http.services.$service.reads do not list it."
+            "Service $service may not read $model: its wow.callers.$service.reads do not list it."
         }
     }
 
@@ -79,13 +79,13 @@ class CallPermits @JvmOverloads constructor(
                 null
             } else {
                 "Service ${service ?: caller.subject} may not call the system command $qualified: list it in " +
-                    "wow.http.services.${service ?: "<service>"}.commands."
+                    "wow.callers.${service ?: "<service>"}.commands."
             }
         } else {
             if (entries.domain.isEmpty() || entries.domain.any { it.matches(command) || it.matches(qualified) }) {
                 null
             } else {
-                "Service $service may not call $qualified: its wow.http.services.$service.commands do not list it."
+                "Service $service may not call $qualified: its wow.callers.$service.commands do not list it."
             }
         }
     }

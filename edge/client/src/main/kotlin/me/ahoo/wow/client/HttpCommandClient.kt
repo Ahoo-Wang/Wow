@@ -143,14 +143,14 @@ class HttpCommandClient internal constructor(
             call = if (transport.mode is ClientMode.Service) rootOf(ref, options) else null,
             headers = headers,
             body = if (command is NamedCommand) ClientJson.write(command.body) else ClientJson.write(command),
-            timeout = plan?.timeout?.let { it + RESPONSE_GRACE }?.takeIf { it > transport.timeout },
+            timeout = plan?.timeout?.let { it + RESPONSE_GRACE }?.takeIf { it > transport.timeoutOf(type.context) },
         )
     }
 
     /** The Manifest of [context], a peer described by its Manifest alone, read as this client's caller. */
     internal suspend fun manifestOf(context: String): Manifest {
         val peers = requireNotNull(described) {
-            "$context is not described by its Manifest: list it in wow.clients.contexts with contract: manifest."
+            "$context is not described by its Manifest: list it in wow.peers with contract: manifest."
         }
         val call = if (transport.mode is ClientMode.Service) rootOf(caller.tenantId, caller.scope, false) else null
         return peers.manifestOf(context, caller, call)
@@ -167,7 +167,7 @@ class HttpCommandClient internal constructor(
         if (command is NamedCommand) {
             require(manifestPeer) {
                 "${type.context} is not described by its Manifest: a named command goes only to a context of " +
-                    "wow.clients.contexts with contract: manifest."
+                    "wow.peers with contract: manifest."
             }
             val call = if (transport.mode is ClientMode.Service) rootOf(ref, options) else null
             return "$type.${described.commandOf(command, ref, caller, call).name}"

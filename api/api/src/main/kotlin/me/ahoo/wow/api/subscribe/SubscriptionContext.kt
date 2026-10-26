@@ -152,7 +152,7 @@ interface SagaContext : SubscriptionContext {
      *
      * The default is D33's: derive the command (return it), which its context's command topic delivers. Call only
      * where the target being online is a precondition and the saga needs the result now; the target's address is the
-     * host's configuration (`wow.calls.contexts.<context>.url`). The handler declares the class of [command] in its
+     * host's configuration (`wow.peers.<context>.url`). The handler declares the class of [command] in its
      * `@OnEvent(calls)` (decision D259), which puts it in the Manifest; a command of a class it does not declare is
      * refused with an [IllegalArgumentException].
      *
