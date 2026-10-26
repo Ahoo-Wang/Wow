@@ -84,6 +84,8 @@ data:
     logging:
       level:
         root: info
+        # Evidence for remote_ip: whether the X-Forwarded headers filter trusts and writes (TRACE).
+        org.springframework.cloud.gateway.filter.headers: trace
   # Any authenticated principal passes; what it may do is each service's to say (D295: the gateway authorizes coarsely).
   policy.json: |
     {

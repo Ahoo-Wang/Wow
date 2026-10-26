@@ -80,6 +80,7 @@ class GaE2eTest {
     private val partitions = System.getProperty("ga.partitions", "8").toInt()
 
     init {
+        flows.onLate = { report.note(it) }
         verdict.startSampling()
         health.start()
     }
@@ -207,19 +208,26 @@ class GaE2eTest {
             )
             return@scenario "sent from $outsider"
         }
-        val recorded = verdict.connect("basket").use { connection ->
-            val table = SoakDatabase(connection, "basket").logTables().getValue("basket")
-            connection.prepareStatement(
-                "SELECT headers FROM \"$table\" WHERE aggregate_id = ? ORDER BY version DESC LIMIT 1"
-            )
-                .use { statement ->
-                    statement.setString(1, "ivy")
-                    statement.executeQuery().use { rows ->
-                        rows.next()
-                        json.readTree(rows.getString(1))
-                    }
-                }
-        }
+        // The service's side alone, as evidence: from a gateway pod (the only pods the public port admits) straight to
+        // the basket, with an X-Forwarded-For the service should take as the client's address.
+        val gateway = kube.pods("cosec-gateway").first { it.ready }.name
+        val direct = network.http(
+            gateway,
+            "eshop-basket",
+            80,
+            "POST",
+            "/eshop-basket/basket/ivy-direct/add-basket-item",
+            body,
+            "Content-Type" to "application/json",
+            "Authorization" to "Bearer ${Tokens(System.getProperty("ga.secret", SECRET)).of(Who.buyer("ivy-direct"))}",
+            "X-Forwarded-For" to "198.51.100.7",
+        )
+        val directly = lastHeaders("ivy-direct")
+        report.note(
+            "remote_ip, the service alone: $gateway -> eshop-basket with X-Forwarded-For 198.51.100.7 answered " +
+                "${direct.take(3)} and recorded $directly",
+        )
+        val recorded = lastHeaders("ivy")
         recorded["remote_ip"]?.asString().assert().describedAs(recorded.toString()).isEqualTo(outsider)
         "the commit recorded remote_ip $outsider, the client pod's, not the claimed 203.0.113.9"
     }
@@ -303,8 +311,12 @@ class GaE2eTest {
         flows.orderStatus("olga-1").assert().isEqualTo("STOCK_CONFIRMED")
         shop.post("/ops/parked/$id/resume", "{}", Who.VIEWER).status.assert().isEqualTo(FORBIDDEN)
         outage(false)
-        shop.post("/ops/parked/$id/resume", """{"reason":"The gateway is back."}""", Who.OPERATOR).let { resumed ->
-            resumed.status.assert().describedAs(resumed.body).isEqualTo(ShopFlows.OK)
+        with(flows) {
+            shop.post(
+                "/ops/parked/$id/resume",
+                """{"reason":"The gateway is back."}""",
+                Who.OPERATOR
+            ).committed("resume $id")
         }
         flows.eventually(
             "the entry resolved in ops",
@@ -342,8 +354,12 @@ class GaE2eTest {
         val cancelled = System.currentTimeMillis() - started
         outage(false)
         // The charge the gateway never made is skipped: the order it was for is cancelled.
-        shop.post("/ops/parked/$id/skip", """{"reason":"Its order was cancelled."}""", Who.OPERATOR).let { skipped ->
-            skipped.status.assert().describedAs(skipped.body).isEqualTo(ShopFlows.OK)
+        with(flows) {
+            shop.post(
+                "/ops/parked/$id/skip",
+                """{"reason":"Its order was cancelled."}""",
+                Who.OPERATOR
+            ).committed("skip $id")
         }
         flows.eventually(
             "the entry of gus-1 resolved in ops",
@@ -552,6 +568,28 @@ class GaE2eTest {
         report.failed.map { "${it.scenario} / ${it.name}: ${it.detail}" }.assert().isEmpty()
         verdict.all.sumOf { it.violated }.assert().isEqualTo(0L)
         passed.assert().isTrue()
+    }
+
+    /** The headers (request facts) of the last commit of [basket] in the basket's log, read from PostgreSQL. */
+    private fun lastHeaders(basket: String): tools.jackson.databind.JsonNode = verdict.connect(
+        "basket"
+    ).use { connection ->
+        val table = SoakDatabase(connection, "basket").logTables().getValue("basket")
+        connection.prepareStatement(
+            "SELECT headers FROM \"$table\" WHERE aggregate_id = ? ORDER BY version DESC LIMIT 1"
+        )
+            .use { statement ->
+                statement.setString(1, basket)
+                statement.executeQuery().use { rows ->
+                    if (rows.next()) {
+                        json.readTree(
+                            rows.getString(1)
+                        )
+                    } else {
+                        json.nullNode()
+                    }
+                }
+            }
     }
 
     /** A checkout until its order is committed in the ordering context: whether it was. */

@@ -181,11 +181,23 @@ class ClusterVerdict(private val flows: ShopFlows, private val postgres: String?
         if (paid > 1) noDuplicateEffects.violate(mapOf("order" to id, "orderPaid" to paid))
     }
 
+    /**
+     * Each product's stock: on hand is what it received less what the shipped orders took; reserved is exactly what the
+     * paid orders not shipped yet hold (a reservation is committed when its order ships), each by its order id; and
+     * available is on hand less reserved. A cancelled order holds nothing.
+     */
     private fun checkStock(orders: Map<String, tools.jackson.databind.JsonNode>) {
         val taken = mutableMapOf<String, Int>()
-        orders.filterKeys { it in flows.shipped }.values.forEach { order ->
+        val held = mutableMapOf<String, MutableMap<String, Int>>()
+        orders.forEach { (id, order) ->
+            val status = order["status"].asString()
             order["items"].values().forEach { item ->
-                taken.merge(item["productId"].asString(), item["quantity"].asInt(), Int::plus)
+                val product = item["productId"].asString()
+                val quantity = item["quantity"].asInt()
+                when {
+                    status == "SHIPPED" -> taken.merge(product, quantity, Int::plus)
+                    status == "PAID" -> held.getOrPut(product) { mutableMapOf() }.merge(id, quantity, Int::plus)
+                }
             }
         }
         flows.received.forEach { (product, received) ->
@@ -193,9 +205,10 @@ class ClusterVerdict(private val flows: ShopFlows, private val postgres: String?
             val stock = flows.stock(product)
             val onHand = stock["onHand"].asInt()
             val available = stock["available"].asInt()
-            val reservations = stock["reservations"]?.size() ?: 0
-            val expected = received - (taken[product] ?: 0)
-            if (onHand != expected || available != onHand || reservations != 0) {
+            val reserved = stock["reservations"]?.properties()?.associate { (id, quantity) -> id to quantity.asInt() }.orEmpty()
+            val expectedHeld = held[product].orEmpty()
+            val expectedOnHand = received - (taken[product] ?: 0)
+            if (onHand != expectedOnHand || reserved != expectedHeld || available != onHand - reserved.values.sum()) {
                 stockConserved.violate(
                     mapOf(
                         "product" to product,
@@ -203,7 +216,8 @@ class ClusterVerdict(private val flows: ShopFlows, private val postgres: String?
                         "shipped" to (taken[product] ?: 0),
                         "onHand" to onHand,
                         "available" to available,
-                        "reservations" to stock["reservations"]?.toString(),
+                        "unexpectedReservations" to (reserved - expectedHeld.keys).toString().take(EVIDENCE),
+                        "missingReservations" to (expectedHeld - reserved.keys).toString().take(EVIDENCE),
                     ),
                 )
             }
@@ -229,6 +243,7 @@ class ClusterVerdict(private val flows: ShopFlows, private val postgres: String?
     }
 
     companion object {
+        const val EVIDENCE = 500
         val CONTEXTS = listOf("catalog", "basket", "ordering", "inventory", "payment")
         val SETTLED = setOf("PAID", "SHIPPED", "CANCELLED")
         val PAID = setOf("PAID", "SHIPPED")

@@ -86,9 +86,24 @@ class ShopFlows(val shop: Shop) {
     }
 
     fun ship(order: String) {
-        shop.post("/eshop-ordering/order/$order/ship-order", "{}", Who.EMPLOYEE).require("ship $order")
+        shop.post("/eshop-ordering/order/$order/ship-order", "{}", Who.EMPLOYEE).committed("ship $order")
         shipped += order
     }
+
+    /**
+     * Accepts this answer as the command committed: 200, or the default wait's 504 that reached `committed` (the
+     * snapshot hop did not come in time, the command took effect), which [onLate] records; anything else fails.
+     */
+    fun Answer.committed(what: String): Answer {
+        if (status == GATEWAY_TIMEOUT && "after reaching committed" in body) {
+            onLate("$what: committed, but its default wait (the snapshot) timed out: ${body.take(BODY)}")
+            return this
+        }
+        return require(what)
+    }
+
+    /** Where a command that committed but whose wait timed out is recorded (the report's notes). */
+    var onLate: (String) -> Unit = {}
 
     /** The state at [path], read by [who] (an employee by default), or null while there is none. */
     fun state(path: String, who: Who = Who.EMPLOYEE): JsonNode? = view(path, who)?.get("state")
@@ -153,6 +168,7 @@ class ShopFlows(val shop: Shop) {
     companion object {
         const val OK = 200
         const val NOT_FOUND = 404
+        const val GATEWAY_TIMEOUT = 504
         const val BODY = 600
         const val TRACE_PAGE = 1000
         const val WAIT = "Wow-Wait"
