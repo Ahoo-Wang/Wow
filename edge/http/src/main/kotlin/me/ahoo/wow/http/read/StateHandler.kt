@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.read.MinVersionNotReachedException
 import me.ahoo.wow.api.result.Violation
@@ -42,7 +43,6 @@ import me.ahoo.wow.query.state.StateNotFoundException
 import me.ahoo.wow.query.state.StateNotFoundException.Reason
 import me.ahoo.wow.query.state.StateRead
 import me.ahoo.wow.runtime.FrameworkCodes
-import me.ahoo.wow.runtime.admission.TargetScope
 import me.ahoo.wow.runtime.admission.TenantConflictException
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.state.CommitView

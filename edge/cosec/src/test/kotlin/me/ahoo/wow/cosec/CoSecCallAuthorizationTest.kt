@@ -18,12 +18,12 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Causation
-import me.ahoo.wow.client.wire.CallHeader
-import me.ahoo.wow.client.wire.WowHeaders
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CallContext
+import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import org.junit.jupiter.api.Test
 import org.springframework.boot.autoconfigure.AutoConfigurations
@@ -65,7 +65,7 @@ class CoSecCallAuthorizationTest {
     private val internal = node.calls(CallerResolver { service })
 
     private fun WebTestClient.call(path: String, body: String): Pair<Int, String?> {
-        val call = CallHeader.format(CallContext("call-${path.hashCode()}", "t-1", Scope("alice"), ROOT))
+        val call = CallHeaders.format(CallContext("call-${path.hashCode()}", "t-1", Scope("alice"), ROOT))
         val result = post().uri(path)
             .header(WowHeaders.CALL, call)
             .header("Content-Type", "application/json")

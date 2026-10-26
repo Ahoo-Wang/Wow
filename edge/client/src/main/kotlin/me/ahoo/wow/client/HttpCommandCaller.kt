@@ -17,9 +17,10 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.subscribe.CallFailedException
-import me.ahoo.wow.client.wire.WowHeaders
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.call.CommandCaller
@@ -41,7 +42,7 @@ import kotlin.time.toJavaDuration
  * - the command's body as JSON, and its expected version as `If-Match`;
  * - its deterministic request id as `Wow-Request-Id`, so every retry and replay is the same request, which the target
  *   decides once and answers with the same aggregate (decision D191);
- * - `Wow-Call` ([me.ahoo.wow.client.wire.CallHeader]): its command id, the root command's tenant, scope, operator
+ * - `Wow-Call` ([me.ahoo.wow.api.wire.CallHeader]): its command id, the root command's tenant, scope, operator
  *   and causation (decisions D163, D189, D199), the root request's facts that propagate (decision D236 ③), and the
  *   wait context a wait that follows the saga goes on with (decision D190);
  * - the service's credential as `Authorization`, which makes the target trust `Wow-Call`;

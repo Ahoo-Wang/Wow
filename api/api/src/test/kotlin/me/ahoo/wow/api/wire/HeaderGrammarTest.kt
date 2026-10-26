@@ -11,15 +11,15 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.client.wire
+package me.ahoo.wow.api.wire
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.TargetScope
+import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.query.CrossTenant
-import me.ahoo.wow.runtime.admission.TargetScope
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource

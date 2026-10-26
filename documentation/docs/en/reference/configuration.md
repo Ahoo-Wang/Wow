@@ -31,7 +31,7 @@ The synchronous calls of the node's sagas to the command gateways of other conte
 | `wow.calls.connect-timeout` | `Duration` | `PT2S` | How long one call may take to connect. |
 | `wow.calls.contexts` | `Map<String,CallTarget>` |  | Each context's base URL, `wow.calls.contexts.<context>.url`: the target's internal port, `http://host:port` of an address in its internal network, never its public port, which refuses calls. |
 | `wow.calls.timeout` | `Duration` | `PT10S` | How long one call may take. |
-| `wow.calls.token` | `String` |  | The service token the node presents as `Authorization: Bearer`; an application's me.ahoo.wow.client.ServiceCredential bean, such as one that renews a CoSec token, replaces it. |
+| `wow.calls.token` | `String` |  | The service token the node presents as `Authorization: Bearer`; an application's me.ahoo.wow.api.client.ServiceCredential bean, such as one that renews a CoSec token, replaces it. |
 
 ## `wow.clickhouse`
 
@@ -68,7 +68,7 @@ The Sink that writes the Manifest's published streams to ClickHouse.
 
 ## `wow.clients`
 
-The typed clients of the peer contexts over HTTP, `wow-client`'s: a peer context listed in contexts is reached over HTTP by the service's me.ahoo.wow.api.client.CommandClient and me.ahoo.wow.api.read.QueryApi beans; any other context as without these clients (its commands through its topic). An application's me.ahoo.wow.client.EndpointResolver bean may resolve where each peer is instead. The service mode presents the me.ahoo.wow.client.ServiceCredential bean (`wow.calls.token`).
+The typed clients of the peer contexts over HTTP, `wow-client`'s: a peer context listed in contexts is reached over HTTP by the service's me.ahoo.wow.api.client.CommandClient and me.ahoo.wow.api.read.QueryApi beans; any other context as without these clients (its commands through its topic). An application's me.ahoo.wow.client.EndpointResolver bean may resolve where each peer is instead. The service mode presents the me.ahoo.wow.api.client.ServiceCredential bean (`wow.calls.token`).
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |

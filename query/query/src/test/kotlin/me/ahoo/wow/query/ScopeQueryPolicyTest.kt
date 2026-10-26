@@ -27,6 +27,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.CountQuery
+import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.DeletionFilter
 import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.FilterExpression

@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.flow
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountResult
+import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.api.query.CursorPage
 import me.ahoo.wow.api.query.ICountQuery
 import me.ahoo.wow.api.query.ICursorQuery
@@ -26,11 +27,10 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.QueryErrorCodes
-import me.ahoo.wow.client.wire.ScopeHeader
-import me.ahoo.wow.client.wire.WowHeaders
+import me.ahoo.wow.api.wire.ScopeHeader
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.FrameworkErrors
-import me.ahoo.wow.query.CrossTenant
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
@@ -393,7 +393,7 @@ class QueryRoutesTest {
         mapped.subject.assert().isEqualTo("alice")
         mapped.attributes.assert().isEqualTo(caller.attributes)
         val named = ScopeHeader.QueryTarget(
-            me.ahoo.wow.runtime.admission.TargetScope("other", me.ahoo.wow.api.aggregate.Scope("bob")),
+            me.ahoo.wow.api.caller.TargetScope("other", me.ahoo.wow.api.aggregate.Scope("bob")),
             null,
         )
         val across = me.ahoo.wow.http.query.QueryHandler.queryCaller(cartType, caller, named, TenantPolicy.CALLERS)!!
@@ -405,7 +405,7 @@ class QueryRoutesTest {
             named,
             TenantPolicy.fixed(mapOf(cartType to "platform")),
         ).assert().isNull()
-        val all = ScopeHeader.QueryTarget(me.ahoo.wow.runtime.admission.TargetScope(), CrossTenant.ALL)
+        val all = ScopeHeader.QueryTarget(me.ahoo.wow.api.caller.TargetScope(), CrossTenant.ALL)
         me.ahoo.wow.http.query.QueryHandler.queryCaller(cartType, caller, all, TenantPolicy.CALLERS)!!.run {
             crossTenant.assert().isEqualTo(CrossTenant.ALL)
             tenantId.assert().isNull()
