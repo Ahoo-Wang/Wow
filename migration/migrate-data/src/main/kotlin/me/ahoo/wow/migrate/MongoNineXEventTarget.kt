@@ -33,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap
  * A stream is written only into a collection that has 9.x's unique `(aggregateId, version)` index, which 9.x's schema
  * initializer creates: the index is what makes a stream the store already holds a duplicate instead of a second copy.
  */
-class MongoNineXEventTarget(private val database: MongoDatabase) : NineXEventTarget {
+internal class MongoNineXEventTarget(private val database: MongoDatabase) : NineXEventTarget {
     private val bodyTypes = ConcurrentHashMap<NineXAggregate, Map<NineXEventType, String>>()
     private val indexed = ConcurrentHashMap.newKeySet<NineXAggregate>()
 

@@ -35,7 +35,7 @@ import kotlin.time.TimeSource
  * on PostgreSQL and MongoDB in containers: the per-aggregate cost the coordinator asked for. Not a test: run with
  * `./gradlew :migrate-data:integrationTest --tests '*TagsBackfillCostSpike*' -Dwow.spike.tags=true`.
  */
-class TagsBackfillCostSpike {
+internal class TagsBackfillCostSpike {
     class Parcel(var region: String = "")
 
     class Moved(val region: String)

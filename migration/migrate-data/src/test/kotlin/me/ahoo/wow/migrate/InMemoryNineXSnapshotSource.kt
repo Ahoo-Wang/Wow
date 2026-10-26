@@ -16,7 +16,7 @@ package me.ahoo.wow.migrate
 import java.util.concurrent.CopyOnWriteArrayList
 
 /** 9.x snapshots in memory, ordered as the MongoDB store reads them: by aggregate id; instances from [events]. */
-class InMemoryNineXSnapshotSource(
+internal class InMemoryNineXSnapshotSource(
     snapshots: Collection<NineXSnapshot> = emptyList(),
     private val events: NineXEventSource = InMemoryNineXEventSource(),
 ) : NineXSnapshotSource {

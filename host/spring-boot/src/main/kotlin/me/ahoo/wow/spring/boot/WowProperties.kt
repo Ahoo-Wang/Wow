@@ -71,6 +71,7 @@ import me.ahoo.wow.client.RetryPolicy as ClientRetryPolicy
  * Every key is in the host's configuration metadata (`META-INF/spring-configuration-metadata.json`), and a `wow.*` key
  * that no property of the host or of a module names is reported at startup ([ConfigurationKeys]).
  */
+@InternalWowApi
 @ConfigurationProperties(prefix = WowProperties.PREFIX)
 class WowProperties {
     /** The service's name; `spring.application.name` when not set. */
@@ -186,11 +187,13 @@ class WowProperties {
      * other's topics; separate JVMs do not. Nothing survives a restart. The node warns at startup, and does not start
      * with `wow.kafka.bootstrap-servers` too: for local development and tests only.
      */
+    @InternalWowApi
     class Topics {
         /** Whether the node's topics are in its JVM instead of Kafka. */
         var inMemory: Boolean = false
     }
 
+    @InternalWowApi
     class Node {
         /** This node's id among the nodes of the service; a new one each start when not set. */
         var id: String? = null
@@ -199,6 +202,7 @@ class WowProperties {
         var address: String? = null
     }
 
+    @InternalWowApi
     class Internal {
         /**
          * The port of the internal server, which carries the cluster channel and the wait signals; 0 for one the
@@ -232,6 +236,7 @@ class WowProperties {
      * The bounded contexts the node serves among the domain modules on the class path ([ContextSelection]), all of
      * them by default. A name that is no context on the class path is refused at startup.
      */
+    @InternalWowApi
     class Contexts {
         /** The contexts the node serves; every context on the class path when empty. */
         var include: MutableSet<String> = LinkedHashSet()
@@ -243,6 +248,7 @@ class WowProperties {
         fun selection(): ContextSelection = ContextSelection(include.toSet(), exclude.toSet())
     }
 
+    @InternalWowApi
     class Postgres {
         /**
          * How long each call of a PostgreSQL store may wait for a reply besides the schema's statements (5 minutes)
@@ -252,6 +258,7 @@ class WowProperties {
         var operationTimeout: Duration = 30.seconds.toJavaDuration()
     }
 
+    @InternalWowApi
     class Mongo {
         /** The database of the log and the stores on the MongoDB backend, for a store that names none. */
         var database: String = DEFAULT_MONGO_DATABASE
@@ -278,6 +285,7 @@ class WowProperties {
         var operationTimeout: Duration = 30.seconds.toJavaDuration()
     }
 
+    @InternalWowApi
     class Log {
         /**
          * The partitions of each context's log: fixed once the log holds entries, a power of two that divides 4096,
@@ -331,6 +339,7 @@ class WowProperties {
      * stores may not share one. On PostgreSQL, [queryDataSource] names the `DataSource` bean its queries read through,
      * so they do not take the appends' connections, [dataSource]'s when not set; [query] bounds and places its queries.
      */
+    @InternalWowApi
     class Store {
         var type: String? = null
         var dataSource: String? = null
@@ -366,6 +375,7 @@ class WowProperties {
      * (`secondaryPreferred`, say), over `wow.query.events.mongo-read-preference` for the events; [events], its `events`
      * queries; [adaptive], how its bound adapts to its write pressure, over `wow.query.adaptive.*`.
      */
+    @InternalWowApi
     class StoreQuery {
         var maxConcurrent: Int? = null
         var maxWait: Duration? = null
@@ -379,6 +389,7 @@ class WowProperties {
      * How one store's query bound adapts to its write pressure (`wow.stores.<name>.query.adaptive.*`):
      * [enabled], [floor] and [ceiling] over `wow.query.adaptive.*`.
      */
+    @InternalWowApi
     class StoreAdaptive {
         var enabled: Boolean? = null
         var floor: Int? = null
@@ -389,11 +400,13 @@ class WowProperties {
      * The `events` queries of a store or an aggregate type: [unpinned], whether one that names no
      * aggregate runs, over the store's and `wow.query.events.unpinned`.
      */
+    @InternalWowApi
     class QueryEvents {
         var unpinned: UnpinnedEvents? = null
     }
 
     /** An aggregate type's queries (`wow.aggregates.[<context>.<aggregate>].query.*`). */
+    @InternalWowApi
     class AggregateQuery {
         var events: AggregateQueryEvents = AggregateQueryEvents()
     }
@@ -403,6 +416,7 @@ class WowProperties {
      * over its events store's and `wow.query.events.unpinned`; [store], the store they read (one of `wow.stores`), its
      * log store when not set: an Elasticsearch store whose event search Sink writes the type's streams, say.
      */
+    @InternalWowApi
     class AggregateQueryEvents {
         var unpinned: UnpinnedEvents? = null
         var store: String? = null
@@ -413,6 +427,7 @@ class WowProperties {
      * store added to the targets is backfilled from the log: switch the primary to it once it caught up, then drop the
      * old one.
      */
+    @InternalWowApi
     class Snapshot {
         /**
          * The context's default snapshot store, one of `wow.stores`, whose built-in subscription is `snapshot`;
@@ -459,12 +474,14 @@ class WowProperties {
      * snapshots are written to, over `wow.snapshot.targets`; [primary] is the one its write side and queries read, the
      * first when not set.
      */
+    @InternalWowApi
     class AggregateSnapshot {
         var store: MutableList<String> = ArrayList()
         var primary: String? = null
     }
 
     /** One aggregate type's store of its log or of its snapshots: one of `wow.stores`. */
+    @InternalWowApi
     class AggregateStore {
         var store: String? = null
     }
@@ -474,6 +491,7 @@ class WowProperties {
      * only to catch up, when no append of the node can fill a missing sequence any more, or when no commit comes for
      * `wow.log.max-poll-interval`.
      */
+    @InternalWowApi
     class Handoff {
         /** Whether the node hands its own commits to its subscriptions' tails in memory. */
         var enabled: Boolean = true
@@ -489,6 +507,7 @@ class WowProperties {
     }
 
     /** The partition append queue; each setting not given is the default ([AppendQueueOptions]). */
+    @InternalWowApi
     class AppendQueue {
         /**
          * Whether the appends of one partition are queued and committed in groups, one call a group; on when not set.
@@ -523,6 +542,7 @@ class WowProperties {
     }
 
     /** How the nodes of a service share the partitions of each context's log, and forward commands to their owners. */
+    @InternalWowApi
     class Cluster {
         /**
          * Where commands run: `partitioned`, on the owner of the aggregate's partition, or `local`, here. `local` on
@@ -594,6 +614,7 @@ class WowProperties {
     }
 
     /** How long and how far the commands' waits go. */
+    @InternalWowApi
     class Wait {
         /**
          * How long a command whose request names no timeout waits (`Wow-Wait-Timeout`), whichever edge it came
@@ -621,6 +642,7 @@ class WowProperties {
     }
 
     /** How the node executes commands. */
+    @InternalWowApi
     class Executor {
         /** The commands one aggregate may have waiting in the executor. */
         var laneCapacity: Int = ServiceNodeOptions.DEFAULT_LANE_CAPACITY
@@ -641,6 +663,7 @@ class WowProperties {
     /**
      * The bounds of each context's state views, the states its consumers share after each commit.
      */
+    @InternalWowApi
     class StateViews {
         /** The most state views a context keeps. */
         var capacity: Int = StateViewOptions.DEFAULT_CAPACITY
@@ -655,6 +678,7 @@ class WowProperties {
     }
 
     /** The cache of aggregate states each context keeps between commands. */
+    @InternalWowApi
     class StateCache {
         /**
          * The aggregate states kept per context between commands; 0 keeps none. Not set (the default), each context's
@@ -677,6 +701,7 @@ class WowProperties {
     }
 
     /** How the node's subscriptions run, retry their failures and park what keeps failing. */
+    @InternalWowApi
     class Subscription {
         /**
          * The entries one subscription may hold in one partition between its checkpoint and the last entry it took:
@@ -755,6 +780,7 @@ class WowProperties {
      * its aggregate parks; it never pauses the partition. Meanwhile each backpressure halves the handlings the
      * partition runs at once, and each success raises them again.
      */
+    @InternalWowApi
     class Backpressure {
         /** The most attempts of an entry that meets backpressure before its aggregate parks. */
         var maxAttempts: Int = DEFAULT_BACKPRESSURE.maxAttempts
@@ -788,6 +814,7 @@ class WowProperties {
      * attempt at a time probes until a handling succeeds. A handler's failures are classified by its
      * `@Retry(recoverable, unrecoverable)`, then the `FailureClassifier` beans, the backends' and the runtime's own.
      */
+    @InternalWowApi
     class Systemic {
         /** How many different aggregates failing within `window` pause the partition; 0 turns that off. */
         var failingAggregates: Int = DEFAULT_SYSTEMIC.failingAggregates
@@ -813,6 +840,7 @@ class WowProperties {
      * The automatic retries of parked entries over minutes and hours, as 9.x's `@Retry` and `CompensationScheduler`
      * did; per subscription, `wow.subscriptions.[<subscription>].parked.*` overrides them.
      */
+    @InternalWowApi
     class Parked {
         /** The most automatic retries of a parked entry; 0 turns them off. */
         var maxRetries: Int = DEFAULT_PARKED.spec.maxRetries
@@ -836,6 +864,7 @@ class WowProperties {
     /**
      * One subscription's retry spec of its parked entries, each setting not given being `wow.subscription.parked`'s.
      */
+    @InternalWowApi
     class ParkedSpec {
         var maxRetries: Int? = null
         var minBackoff: Duration? = null
@@ -862,6 +891,7 @@ class WowProperties {
      * [retry] is its in-process retry budget before it parks, over its handler's `@Retry` and `wow.subscription.retry`.
      * A name the node has no subscription of is refused at startup.
      */
+    @InternalWowApi
     class SubscriptionSettings {
         var start: String? = null
         var parked: ParkedSpec = ParkedSpec()
@@ -873,6 +903,7 @@ class WowProperties {
      * one, each one not given is the handler's, else `wow.subscription.retry`'s. [timeout] bounds one attempt: one
      * that runs longer is cancelled and counts as failed.
      */
+    @InternalWowApi
     class RetrySpec {
         var maxAttempts: Int? = null
         var initialBackoff: Duration? = null
@@ -894,6 +925,7 @@ class WowProperties {
      * The operator's side of the parked entries: their routes, the webhook told when an entry parks, and the failure
      * ledger published to the ops context.
      */
+    @InternalWowApi
     class Ops {
         /**
          * Whether the operator's routes of the parked entries are served under `/wow/ops/parked` on the public port.
@@ -912,6 +944,7 @@ class WowProperties {
      * entry goes to the `parked` aggregate of the ops context through its command topic. The node needs the Kafka
      * transport.
      */
+    @InternalWowApi
     class Publish {
         /** Whether the node publishes its failure ledger to the ops context. */
         var enabled: Boolean = false
@@ -930,6 +963,7 @@ class WowProperties {
     /**
      * The webhook of the parked entries, told when an entry parks or spends its retries.
      */
+    @InternalWowApi
     class Webhook {
         /** The URL the webhook posts to; none is posted when not set. */
         var url: URI? = null
@@ -952,6 +986,7 @@ class WowProperties {
     /**
      * The node's firing loop of the timers, which sends the scheduled commands when they are due.
      */
+    @InternalWowApi
     class Timers {
         /**
          * How often the loop reads the timers due within `lookahead`, with one query per timer store over every
@@ -1009,6 +1044,7 @@ class WowProperties {
      * [zone] and its [misfire] policy, each unset to keep the annotation's; [enabled] false disables a SYSTEM job's
      * instances at startup. A tenant's own rule of a TENANT job comes before it.
      */
+    @InternalWowApi
     class Schedule {
         var expression: String? = null
         var zone: String? = null
@@ -1021,6 +1057,7 @@ class WowProperties {
     /**
      * A retry policy: the wait grows from `initial-backoff` by `multiplier` at each failure, up to `max-backoff`.
      */
+    @InternalWowApi
     class Retry {
         /**
          * The most attempts of a call in all, the first included; for `read-retry`, the attempts after which each
@@ -1051,6 +1088,7 @@ class WowProperties {
             timeout = timeout?.toKotlinDuration() ?: kotlin.time.Duration.INFINITE,
         )
 
+        @InternalWowApi
         companion object {
             fun of(policy: RetryPolicy): Retry = Retry().apply {
                 maxAttempts = policy.maxAttempts
@@ -1063,12 +1101,14 @@ class WowProperties {
     }
 
     /** The tenants of the callers. */
+    @InternalWowApi
     class Tenant {
         /** The tenant of a caller that has none, such as the anonymous one. */
         var default: String = Caller.DEFAULT_TENANT
     }
 
     /** The HTTP edge: its routes, its error answers and the services the internal port trusts. */
+    @InternalWowApi
     class Http {
         /**
          * The request headers copied into a command's headers, beside the standard request facts the edge records:
@@ -1116,20 +1156,24 @@ class WowProperties {
          * read routes, by `context.aggregate.model` (`ordering.order.snapshot`, `.events`, `.state`) or a dataset's
          * `context.dataset`, patterns with `*`: without them, every model the node serves.
          */
+        @InternalWowApi
         class Service {
             var commands: MutableList<String> = ArrayList()
             var reads: MutableList<String> = ArrayList()
         }
 
+        @InternalWowApi
         class Error {
             var status: Int = 0
         }
 
+        @InternalWowApi
         class Manifest {
             /** Serves `GET /wow/manifest`. */
             var enabled: Boolean = true
         }
 
+        @InternalWowApi
         class OpenApi {
             /** Serves `GET /wow/openapi`, the OpenAPI 3.1 document of the routes. */
             var enabled: Boolean = true
@@ -1143,6 +1187,7 @@ class WowProperties {
          * document of the public routes joins springdoc's default document (`/v3/api-docs` and Swagger UI) beside the
          * application's own controllers, and the [group] lists the Wow routes alone.
          */
+        @InternalWowApi
         class Springdoc {
             /** Merges the Wow routes into springdoc's documents. */
             var enabled: Boolean = true
@@ -1156,6 +1201,7 @@ class WowProperties {
      * The synchronous calls of the node's sagas to the command gateways of other contexts. A saga that calls a context
      * without a URL fails, then parks.
      */
+    @InternalWowApi
     class Calls {
         /**
          * Each context's base URL, `wow.calls.contexts.<context>.url`: the target's internal port, `http://host:port`
@@ -1170,6 +1216,7 @@ class WowProperties {
         var connectTimeout: Duration = HttpCommandCaller.DEFAULT_CONNECT_TIMEOUT.toJavaDuration()
 
         /** Where one context's command gateway is: its public port's base [url]. */
+        @InternalWowApi
         class CallTarget {
             var url: URI? = null
         }
@@ -1182,6 +1229,7 @@ class WowProperties {
      * [me.ahoo.wow.client.EndpointResolver] bean may resolve where each peer is instead. The service mode names this
      * node's service (`Wow-Service`).
      */
+    @InternalWowApi
     class Clients {
         /**
          * The peer contexts reached over HTTP, by context: one the api jars on the class path declare, or one
@@ -1212,6 +1260,7 @@ class WowProperties {
          * mode; `wow.calls.contexts.<context>.url` when not set), the [mode] it is called in and where its [contract]
          * comes from (`jar`, or `manifest` for a peer called by its Manifest alone).
          */
+        @InternalWowApi
         class ClientTarget {
             var url: URI? = null
             var internalUrl: URI? = null
@@ -1220,6 +1269,7 @@ class WowProperties {
         }
 
         /** Where a peer's contract comes from. */
+        @InternalWowApi
         enum class Contract {
             /** Its api jar on the class path: its command objects are sent. */
             JAR,
@@ -1235,6 +1285,7 @@ class WowProperties {
          * How a problem a retry may get past is retried ([me.ahoo.wow.client.RetryPolicy]): a 429, a command's problem
          * that keeps the request id, or a connection that could not be made.
          */
+        @InternalWowApi
         class Retry {
             /** The most attempts of a request in all; 1 never retries. */
             var maxAttempts: Int = ClientRetryPolicy.DEFAULT.maxAttempts
@@ -1256,6 +1307,7 @@ class WowProperties {
      * come from the `wowAggregateIdGenerator` bean otherwise. A type the node does not serve, or a name nothing gives
      * a generator of, is refused at startup.
      */
+    @InternalWowApi
     class Aggregate {
         var tenant: String? = null
         var idGenerator: String? = null
@@ -1285,6 +1337,7 @@ class WowProperties {
     }
 
     /** An aggregate type's ClickHouse settings: `wow.aggregates.[<context>.<aggregate>].clickhouse.*`. */
+    @InternalWowApi
     class AggregateClickHouse {
         var history: AggregateHistory = AggregateHistory()
     }
@@ -1292,6 +1345,7 @@ class WowProperties {
     /**
      * Whether every commit of the type is kept ([enabled], on by default), and how long ([ttl], forever by default).
      */
+    @InternalWowApi
     class AggregateHistory {
         var enabled: Boolean? = null
         var ttl: Duration? = null
@@ -1304,6 +1358,7 @@ class WowProperties {
      * ([ConfigurationKeys]) instead of being ignored, so a mistyped [Authorizer.enabled] cannot leave the authorizer
      * that allows all in place.
      */
+    @InternalWowApi
     class CoSec {
         /** CoSec's authorization of the commands. */
         var authorizer: Authorizer = Authorizer()
@@ -1322,6 +1377,7 @@ class WowProperties {
          */
         var trustInjectedApp: Boolean = false
 
+        @InternalWowApi
         class Authorizer {
             /**
              * Whether CoSec authorizes every command as its caller (`CoSecCommandAuthorizer`), not only the public
@@ -1331,6 +1387,7 @@ class WowProperties {
         }
 
         /** Callers by their CoSec roles or policies, comma-separated or as a list. */
+        @InternalWowApi
         class Principals {
             /** The CoSec roles of these callers. */
             var roles: MutableSet<String> = LinkedHashSet()
@@ -1347,6 +1404,7 @@ class WowProperties {
      * the application configures their members itself. The thresholds are conservative: a probe that fails too soon
      * takes nodes out of service, or restarts them, for what a retry would have absorbed.
      */
+    @InternalWowApi
     class Health {
         /** Whether the host contributes the node's health to Actuator and its probe groups. */
         var enabled: Boolean = true
@@ -1378,6 +1436,7 @@ class WowProperties {
     }
 
     /** The node's event logs, as its own calls and a probe of their heads see them. */
+    @InternalWowApi
     class HealthStores {
         /**
          * How long a log must keep failing, with no success since, before it is down and the node not ready: a failed
@@ -1391,6 +1450,7 @@ class WowProperties {
     }
 
     /** The node's share of each lease group's partitions. */
+    @InternalWowApi
     class HealthOwnership {
         /**
          * How long the owned partitions may differ from the node's share (a hand-over) before the group is degraded,
@@ -1400,18 +1460,21 @@ class WowProperties {
     }
 
     /** The topics of other contexts the node reads. */
+    @InternalWowApi
     class HealthTopics {
         /** Whether a topic the node is still joining makes it not ready; degraded only when false. */
         var required: Boolean = DEFAULT_HEALTH.topicsRequired
     }
 
     /** The node's command executors. */
+    @InternalWowApi
     class HealthExecutor {
         /** The share of `wow.executor.max-in-flight` in flight at which the executor is degraded. */
         var saturation: Double = DEFAULT_HEALTH.executorSaturation
     }
 
     /** The node's subscriptions, never a reason to take it out of service. */
+    @InternalWowApi
     class HealthSubscriptions {
         /** The entries a subscription may be behind the log's head before it is degraded. */
         var lagDegradedAt: Long = DEFAULT_HEALTH.lagDegradedAt
@@ -1421,6 +1484,7 @@ class WowProperties {
     }
 
     /** Whether the node is stuck, so a restart helps; a storage outage never fails it. */
+    @InternalWowApi
     class HealthLiveness {
         /**
          * How long the node's dispatcher may not tick, or commands in flight not finish while every log answers,
@@ -1430,12 +1494,14 @@ class WowProperties {
     }
 
     /** CosId's settings (wow-cosid), which that module reads from the environment. */
+    @InternalWowApi
     class CosId {
         /** The CosId generator of the node's global ids (command ids, wait ids); CosId's own `cosid` when not set. */
         var globalGenerator: String? = null
     }
 
     /** How the commands of an aggregate type are routed (`wow.aggregates.[<context>.<aggregate>].routing`). */
+    @InternalWowApi
     enum class AggregateRouting {
         /** By the node's router, `wow.cluster.router`: on the owner of the aggregate's partition, or here. */
         CLUSTER,
@@ -1448,6 +1514,7 @@ class WowProperties {
         KAFKA,
     }
 
+    @InternalWowApi
     companion object {
         const val PREFIX: String = "wow"
         const val DEFAULT_INTERNAL_PORT: Int = 9090

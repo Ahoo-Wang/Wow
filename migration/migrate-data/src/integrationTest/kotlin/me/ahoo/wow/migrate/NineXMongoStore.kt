@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * document of `<aggregateName>_event_stream`, its `id` as `_id`, a `size` field, and its decimals as `Decimal128`
  * (9.x reads floats as `BigDecimal`, which the driver stores as `Decimal128`).
  */
-object NineXMongoStore {
+internal object NineXMongoStore {
     val client: MongoClient by lazy { MongoClients.create(WowContainers.mongo.replicaSetUrl) }
 
     private val databases = AtomicInteger()

@@ -14,7 +14,7 @@
 package me.ahoo.wow.migrate
 
 /** The 9.x store of [source] written in memory, keyed as 9.x keys streams: by instance id and version. */
-class InMemoryNineXEventTarget(private val source: InMemoryNineXEventSource) : NineXEventTarget {
+internal class InMemoryNineXEventTarget(private val source: InMemoryNineXEventSource) : NineXEventTarget {
     /** The streams written, in order. */
     val written = mutableListOf<NineXStream>()
 

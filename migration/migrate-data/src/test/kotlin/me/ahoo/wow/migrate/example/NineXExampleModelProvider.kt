@@ -21,7 +21,7 @@ import me.ahoo.wow.kernel.ModelProvider
  * The binding index of the 9.x example's V10 port, as the compiler would generate it for its domain module, and
  * registered as a service in the test resources: what the command line finds on the class path to rebuild states.
  */
-class NineXExampleModelProvider : ModelProvider {
+internal class NineXExampleModelProvider : ModelProvider {
     override val context: String = NineXExample.CONTEXT
 
     override val binding: Int = ModelProvider.BINDING

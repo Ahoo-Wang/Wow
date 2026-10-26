@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.TopicDdl
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -25,6 +26,7 @@ import kotlin.time.toJavaDuration
  * topic prefix, the command intake and the topics' DDL and partition refresh, which the node reads whatever transport
  * carries them ([TransportAutoConfiguration]). The keys stay until the configuration surface is final.
  */
+@InternalWowApi
 @ConfigurationProperties(prefix = KafkaProperties.PREFIX)
 class KafkaProperties {
     /**
@@ -74,6 +76,7 @@ class KafkaProperties {
      * is durable only when the replication factor and the minimum in-sync replicas are both at least 2: at start the
      * node warns when they are below that, unless a profile of [devProfiles] is active.
      */
+    @InternalWowApi
     class Topics {
         /**
          * How the node manages the topics its contexts own at its start: `validate` fails the start when one is
@@ -106,6 +109,8 @@ class KafkaProperties {
          */
         var partitionRefresh: Duration = SourceTopics.DEFAULT_PARTITION_REFRESH.toJavaDuration()
     }
+
+    @InternalWowApi
 
     companion object {
         const val PREFIX: String = "wow.kafka"

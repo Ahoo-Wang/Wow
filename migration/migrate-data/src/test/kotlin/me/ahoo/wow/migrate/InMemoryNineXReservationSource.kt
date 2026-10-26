@@ -16,7 +16,7 @@ package me.ahoo.wow.migrate
 import java.util.concurrent.CopyOnWriteArrayList
 
 /** 9.x `PrepareKey`s in memory, ordered as the MongoDB store reads them: by key. */
-class InMemoryNineXReservationSource(keys: Collection<NineXPreparedKey> = emptyList()) : NineXReservationSource {
+internal class InMemoryNineXReservationSource(keys: Collection<NineXPreparedKey> = emptyList()) : NineXReservationSource {
     private val keys = CopyOnWriteArrayList(keys)
 
     fun add(key: NineXPreparedKey) {

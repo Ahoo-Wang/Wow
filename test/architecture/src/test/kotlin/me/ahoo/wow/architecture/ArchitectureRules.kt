@@ -841,6 +841,27 @@ object ArchitectureRules {
             .map { "${module.dir}/api/${module.name}.api: $it" }
     }
 
+    private val TOP_LEVEL_DECLARATION =
+        Regex("""^(?:(?:data|sealed|enum|abstract|open|inline|suspend|const|value|annotation|fun) )*(?:class|interface|object|fun|val|var|typealias)\b""")
+
+    /**
+     * The top-level declarations of `:migrate-data` that are not `internal` or `private`, but its entry point `main`
+     * (finding R5.C-6): the tool is published to run, its contract is its arguments and configuration, so none of its
+     * JVM signatures is a promise. As `file:line: declaration`.
+     */
+    fun migrateDataPublicDeclarations(repositoryRoot: File): List<String> {
+        val root = File(repositoryRoot, "${MIGRATE_DATA.dir}/src/main/kotlin")
+        return root.walkTopDown().filter { it.isFile && it.extension == "kt" }.sortedBy { it.path }.flatMap { file ->
+            file.readLines().mapIndexedNotNull { index, line ->
+                if (TOP_LEVEL_DECLARATION.containsMatchIn(line) && !line.startsWith("fun main(")) {
+                    "${file.relativeTo(repositoryRoot).invariantSeparatorsPath}:${index + 1}: ${line.trim()}"
+                } else {
+                    null
+                }
+            }
+        }.toList()
+    }
+
     private val COMPATIBILITY_MARKER = Regex("""@Deprecated\b|\bcompat\(""")
 
     /**

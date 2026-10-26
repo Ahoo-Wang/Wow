@@ -18,11 +18,19 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 
-/** The rules the ABI dumps are held to, read from the dumps the build checks (`<module>/api/<module>.api`). */
-class AbiDumpRulesTest {
+/**
+ * The rules that keep the public surface what Wow promises: the ABI dumps the build checks
+ * (`<module>/api/<module>.api`), and the modules that keep no dump.
+ */
+class SurfaceRulesTest {
     private val repositoryRoot: File =
         File(requireNotNull(System.getProperty(REPOSITORY_ROOT)) { "System property $REPOSITORY_ROOT is not set." })
             .canonicalFile
+
+    @Test
+    fun `the migration tool should declare nothing public but its entry point`() {
+        ArchitectureRules.migrateDataPublicDeclarations(repositoryRoot).assert().isEmpty()
+    }
 
     @Test
     fun `a nested class should not outlive its hidden outer class in an ABI dump`() {

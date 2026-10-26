@@ -31,7 +31,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  * The snapshot writing of one 9.x aggregate since it started: [written] V10 snapshots written, [skipped] already in the
  * store at their version.
  */
-data class SnapshotProgress(val aggregate: NineXAggregate, val written: Long, val skipped: Long, val done: Boolean) {
+internal data class SnapshotProgress(val aggregate: NineXAggregate, val written: Long, val skipped: Long, val done: Boolean) {
     fun render(): String =
         "$aggregate snapshots${if (done) " done" else ""}: ${written + skipped} instances, $written V10 snapshots " +
             "written, $skipped already there"
@@ -55,7 +55,7 @@ data class SnapshotProgress(val aggregate: NineXAggregate, val written: Long, va
  * (decision D172): its snapshot subscription then finds each snapshot written and passes over it.
  */
 @Suppress("LongParameterList")
-class SnapshotWriter(
+internal class SnapshotWriter(
     private val source: NineXEventSource,
     private val plan: MigrationPlan,
     private val models: MigrationModels,
