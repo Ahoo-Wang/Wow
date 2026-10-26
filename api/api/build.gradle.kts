@@ -1,8 +1,10 @@
 description = "Wow API: what domain code imports (the annotations, Decision, DecideScope, StateEvent, Scope), " +
     "the value types of the wire contract (Command, CommandResult, WaitPlan) and the typed QueryApi"
 
-// The query protocol and the coroutines' Flow the QueryApi streams its rows with (decision D260); nothing else.
+// The stability markers, the query protocol and the coroutines' Flow the QueryApi streams its rows with (decision
+// D260); nothing else.
 dependencies {
+    api(project(":annotations"))
     api(project(":query-api"))
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core")
 }

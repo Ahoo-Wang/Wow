@@ -20,9 +20,9 @@ import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.fold
 import kotlinx.coroutines.future.await
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.client.wire.CallHeader
-import me.ahoo.wow.client.wire.WowHeaders
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.runtime.admission.CallContext
+import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.spi.observation.trace
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -149,7 +149,7 @@ internal class HttpTransport(
         when (val mode = mode) {
             is ClientMode.Service -> {
                 mode.credential.authorization()?.let { builder.header(AUTHORIZATION, it) }
-                request.call?.let { builder.header(WowHeaders.CALL, CallHeader.format(it)) }
+                request.call?.let { builder.header(WowHeaders.CALL, CallHeaders.format(it)) }
             }
             is ClientMode.User -> mode.credential.headers(
                 request.caller

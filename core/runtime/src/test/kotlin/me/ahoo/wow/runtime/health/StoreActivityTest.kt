@@ -26,6 +26,7 @@ import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.LogGroupBackends
 import me.ahoo.wow.runtime.subscription.Appender
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.log.readSnapshotTailApart
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.time.Duration.Companion.minutes
@@ -66,17 +67,23 @@ class StoreActivityTest {
 
     @Test
     fun `a tracked log should record a read with the snapshot as the store's`(): Unit = runBlocking {
+        val memory = InMemoryEventLog(2)
+        val reading = object : me.ahoo.wow.spi.log.EventLog by memory {
+            override val snapshotTails = me.ahoo.wow.spi.log.SnapshotTailReader { ref, snapshots, earlier ->
+                memory.readSnapshotTailApart(ref, snapshots, earlier)
+            }
+        }
+        val untracked = NodeStores.track(
+            "bank",
+            ContextBackends(memory, InMemoryCheckpointStore(), InMemoryLeaseStore(), InMemoryFailureLedger()),
+        ).log
+        untracked.snapshotTails.assert().isNull()
         val log = NodeStores.track(
             "bank",
-            ContextBackends(
-                InMemoryEventLog(2),
-                InMemoryCheckpointStore(),
-                InMemoryLeaseStore(),
-                InMemoryFailureLedger()
-            ),
+            ContextBackends(reading, InMemoryCheckpointStore(), InMemoryLeaseStore(), InMemoryFailureLedger()),
         ).log
         val activity = activityOf(log)!!
-        log.readWithSnapshot(me.ahoo.wow.runtime.subscription.cart("c-1"), InMemorySnapshotStore(), 1)
+        log.snapshotTails!!.readWithSnapshot(me.ahoo.wow.runtime.subscription.cart("c-1"), InMemorySnapshotStore(), 1)!!
             .tail.streams.assert().isEmpty()
         activity.lastSuccess.assert().isNotEqualTo(StoreActivity.NONE)
     }

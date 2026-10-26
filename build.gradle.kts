@@ -75,7 +75,7 @@ val e2eBenchmarkProjects = includedProjects(":benchmark-server", ":benchmark-loa
 // incubating until their API settles; :architecture (Wow's dependency rules), :routing-spike (spike H2), :lease-spike
 // (spike H6) and the examples (:eshop-*, :quickstart, :java-smoke) are never published.
 val moduleProjects = listOf(
-    "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query", "query-tck",
+    "annotations", "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query", "query-tck",
     "postgres", "mongo", "kafka", "clickhouse", "elasticsearch", "openapi", "http", "client", "cosec",
     "opentelemetry", "spring-boot", "cosid",
     "models", "migrate-data", "architecture",
@@ -91,7 +91,7 @@ val moduleProjects = listOf(
 // application) and :manifest-tools (run in an isolated worker by the same-version Gradle plugin, D83) keep no dump:
 // their contract is not a JVM signature.
 val abiProjects = includedProjects(
-    ":api", ":manifest", ":query-api", ":spi", ":kernel", ":runtime", ":reactor", ":query",
+    ":annotations", ":api", ":manifest", ":query-api", ":spi", ":kernel", ":runtime", ":reactor", ":query",
     ":postgres", ":mongo", ":kafka", ":clickhouse", ":elasticsearch", ":openapi", ":http", ":client", ":cosec",
     ":opentelemetry", ":spring-boot",
     ":cosid", ":models", ":test-dsl", ":tck", ":query-tck", ":tck-containers", ":ops-api", ":view-store-api",

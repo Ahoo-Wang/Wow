@@ -90,7 +90,7 @@ const WORDS = {
       title: 'API Levels',
       description:
         'What each level of the public API promises, and the declarations that are experimental or SPI.',
-      intro: `Every public declaration of a published module has one of four levels. The ABI dumps (\`<module>/api/<module>.api\`) record the signatures of the first three, so a change to them shows in review.`,
+      intro: `Every public declaration of a published module has one of four levels. The ABI dumps (\`<module>/api/<module>.api\`) record the signatures of the first three, so a change to them shows in review. The markers are in \`me.ahoo.wow.api.annotation\` of \`wow-annotations\`, which every Wow artifact brings along.`,
       table: [
         '| Level | Marker | Promise |',
         '| --- | --- | --- |',
@@ -159,7 +159,7 @@ const WORDS = {
     levels: {
       title: 'API 级别',
       description: '公开 API 每个级别的承诺，以及实验性与 SPI 的声明。',
-      intro: `已发布模块的每个公开声明都属于四个级别之一。ABI 转储（\`<module>/api/<module>.api\`）记录前三个级别的签名，所以对它们的改动会在审阅中显现。`,
+      intro: `已发布模块的每个公开声明都属于四个级别之一。ABI 转储（\`<module>/api/<module>.api\`）记录前三个级别的签名，所以对它们的改动会在审阅中显现。标记位于 \`wow-annotations\` 的 \`me.ahoo.wow.api.annotation\`，每个 Wow 制品都会带上它。`,
       table: [
         '| 级别 | 标记 | 承诺 |',
         '| --- | --- | --- |',
@@ -809,12 +809,7 @@ export function referencePages(root = ROOT) {
       file,
       annotation: annotationOf(read(`${ANNOTATIONS}/${file}`)),
     }))
-    // The API levels are not part of the programming model.
-    .filter(
-      ({ annotation }) =>
-        annotation &&
-        !/^(?:InternalWowApi|ExperimentalWowApi|WowSpi)$/.test(annotation.name),
-    );
+    .filter(({ annotation }) => annotation);
   const modules = publishedModules(read);
   const experimental = marked(root, read, modules, 'ExperimentalWowApi');
   const spi = marked(root, read, modules, 'WowSpi');

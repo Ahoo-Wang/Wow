@@ -15,10 +15,10 @@ package me.ahoo.wow.viewstore.server
 
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.client.wire.ScopeHeader
-import me.ahoo.wow.client.wire.WowHeaders
+import me.ahoo.wow.api.caller.TargetScope
+import me.ahoo.wow.api.wire.ScopeHeader
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.runtime.admission.TargetScope
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import org.springframework.web.reactive.function.server.ServerRequest
 
@@ -90,9 +90,9 @@ class ViewStoreCallers : CallerResolver {
         const val SYSTEM_WRITER: String = "view-store.system-writer"
 
         /** The `Wow-Scope` of the shared views and of the stored system views. */
-        val SHARED: TargetScope = TargetScope(scope = Scope(ownerId = ViewStoreContext.SHARED_OWNER_ID))
+        val SHARED: TargetScope = TargetScope.of(scope = Scope(ownerId = ViewStoreContext.SHARED_OWNER_ID))
         val SYSTEM: TargetScope =
-            TargetScope(ViewStoreContext.SYSTEM_TENANT_ID, Scope(ownerId = ViewStoreContext.SYSTEM_OWNER_ID))
+            TargetScope.of(ViewStoreContext.SYSTEM_TENANT_ID, Scope(ownerId = ViewStoreContext.SYSTEM_OWNER_ID))
         private val RESERVED = setOf(SHARED, SYSTEM)
     }
 }

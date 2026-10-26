@@ -20,6 +20,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
@@ -28,8 +29,8 @@ import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.subscribe.CallFailedException
-import me.ahoo.wow.client.wire.CallHeader
-import me.ahoo.wow.client.wire.WowHeaders
+import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.call.OutgoingCall
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.observation.TraceContext
@@ -136,7 +137,7 @@ class HttpCommandCallerTest {
             request.headers[WowHeaders.IF_MATCH].assert().isEqualTo("\"3\"")
             request.headers["traceparent"].assert().isEqualTo("00-trace-span-01")
             WowJson.mapper.readTree(request.body)["items"][0].asString().assert().isEqualTo("mug")
-            val context = CallHeader.parse(request.headers.getValue(WowHeaders.CALL))
+            val context = CallHeaders.parse(request.headers.getValue(WowHeaders.CALL))
             context.commandId.assert().isEqualTo("c-1")
             context.scope.assert().isEqualTo(Scope("alice"))
             context.causation.assert().isEqualTo(ROOT)

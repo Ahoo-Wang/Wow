@@ -11,17 +11,34 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.runtime.admission
+package me.ahoo.wow.api.caller
 
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
  * The tenant and scope a caller with [me.ahoo.wow.api.caller.Caller.crossScope] asks to act in instead of its own
  * (decision D95; the `Wow-Scope` header): [tenantId], when given, replaces the caller's tenant, and [scope] replaces
  * the caller's scope as a whole, so a part it leaves out is not checked against the aggregate (decision D94).
+ *
+ * Fields may be added: construct one with [of]; the constructor is internal to Wow.
  */
-data class TargetScope(val tenantId: String? = null, val scope: Scope = Scope.NONE) {
+class TargetScope @InternalWowApi constructor(val tenantId: String? = null, val scope: Scope = Scope.NONE) {
     init {
         require(tenantId == null || tenantId.isNotBlank()) { "A target tenant, when present, is not blank." }
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is TargetScope && tenantId == other.tenantId && scope == other.scope
+
+    override fun hashCode(): Int = 31 * tenantId.hashCode() + scope.hashCode()
+
+    override fun toString(): String = "TargetScope(tenantId=$tenantId, scope=$scope)"
+
+    companion object {
+        /** The target [tenantId], when given, and [scope]; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(tenantId: String? = null, scope: Scope = Scope.NONE): TargetScope = TargetScope(tenantId, scope)
     }
 }

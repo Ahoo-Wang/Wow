@@ -79,6 +79,7 @@ The modules ([modules design](documentation/designs/06-modules.md) §4):
 ```text
 bom/bom/                    :bom            The BOM, artifact `wow-bom`
 bom/dependencies/           :wow-dependencies The slim platform every POM imports: Jackson, coroutines, kotlin-logging, SLF4J (D287)
+api/annotations/            :annotations    The stability markers: InternalWowApi, ExperimentalWowApi, WowSpi; no dependencies
 api/api/                    :api            The programming model: annotations, Decision, DecideScope, StateEvent, Scope
 api/manifest/               :manifest       The Manifest every projection reads; plain data
 api/query-api/              :query-api      Query protocol: filters, aggregation, windows

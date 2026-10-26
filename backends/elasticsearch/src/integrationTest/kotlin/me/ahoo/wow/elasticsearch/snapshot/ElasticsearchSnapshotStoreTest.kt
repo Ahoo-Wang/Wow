@@ -71,7 +71,7 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
         store.save(newer).assert().isTrue()
         store.save(snapshot("a", 5, aggregate = type)).assert().isFalse()
         store.save(snapshot("a", 4, aggregate = type)).assert().isFalse()
-        store.pending(type, 2, limit = 10).assert().containsExactly(newer.ref)
+        store.rebuilds!!.pending(type, 2, limit = 10).assert().containsExactly(newer.ref)
         ElasticsearchFixture.client.indices().delete { it.index(ElasticsearchFixture.names.snapshots(context, "aggregate")) }.get()
         store.load(newer.ref).assert().isNull()
     }

@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.SendOptions
@@ -25,14 +26,13 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.client.wire.ScopeHeader
-import me.ahoo.wow.client.wire.WaitHeader
-import me.ahoo.wow.client.wire.WowHeaders
+import me.ahoo.wow.api.wire.ScopeHeader
+import me.ahoo.wow.api.wire.WaitHeader
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.admission.CallContext
-import me.ahoo.wow.runtime.admission.TargetScope
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import tools.jackson.core.JacksonException
 import kotlin.time.Duration.Companion.seconds

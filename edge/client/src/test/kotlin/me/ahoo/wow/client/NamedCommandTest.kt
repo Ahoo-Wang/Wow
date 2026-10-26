@@ -19,11 +19,11 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.SendOptions
+import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.client.wire.CallHeader
-import me.ahoo.wow.client.wire.WowHeaders
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
@@ -31,6 +31,7 @@ import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -77,10 +78,10 @@ class NamedCommandTest {
         val (manifest, command) = peer.taken
         manifest.method.assert().isEqualTo("GET")
         manifest.path.assert().isEqualTo("/wow/manifest")
-        CallHeader.parse(manifest.headers.getValue(WowHeaders.CALL)).operator?.id.assert().isEqualTo("alice")
+        CallHeaders.parse(manifest.headers.getValue(WowHeaders.CALL)).operator?.id.assert().isEqualTo("alice")
         command.path.assert().isEqualTo("/mail/box/b-1/deliver-items")
         command.body.assert().isEqualTo("""{"items":["mug"]}""")
-        CallHeader.parse(command.headers.getValue(WowHeaders.CALL)).operator?.id.assert().isEqualTo("alice")
+        CallHeaders.parse(command.headers.getValue(WowHeaders.CALL)).operator?.id.assert().isEqualTo("alice")
     }
 
     @Test
@@ -169,7 +170,9 @@ class NamedCommandTest {
         client.manifestOf("mail", alice).assert().isEqualTo(MANIFEST)
         client.manifestOf("mail", alice).assert().isEqualTo(MANIFEST)
         peer.taken.single().path.assert().isEqualTo("/wow/manifest")
-        CallHeader.parse(peer.taken.single().headers.getValue(WowHeaders.CALL)).operator?.id.assert().isEqualTo("alice")
+        CallHeaders.parse(
+            peer.taken.single().headers.getValue(WowHeaders.CALL)
+        ).operator?.id.assert().isEqualTo("alice")
         assertThrownBy<IllegalArgumentException> { runBlocking { client.manifestOf("other", alice) } }
             .hasMessageContaining("not described by its Manifest")
         val plain = WowClient.builder().endpoints(EndpointResolver.NONE).build()

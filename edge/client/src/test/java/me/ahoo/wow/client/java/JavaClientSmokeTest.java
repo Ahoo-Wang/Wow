@@ -30,7 +30,7 @@ import me.ahoo.wow.client.FakePeer;
 import me.ahoo.wow.client.FakePeerKt;
 import me.ahoo.wow.client.Reply;
 import me.ahoo.wow.client.RetryPolicy;
-import me.ahoo.wow.client.ServiceCredential;
+import me.ahoo.wow.api.client.ServiceCredential;
 import me.ahoo.wow.client.WowClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;

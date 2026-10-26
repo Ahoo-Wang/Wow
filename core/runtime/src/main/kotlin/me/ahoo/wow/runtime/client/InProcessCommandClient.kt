@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.RetryHint
@@ -28,7 +29,6 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandRequest
-import me.ahoo.wow.runtime.admission.TargetScope
 import me.ahoo.wow.runtime.wait.ResultCodes
 import kotlin.time.Duration.Companion.seconds
 

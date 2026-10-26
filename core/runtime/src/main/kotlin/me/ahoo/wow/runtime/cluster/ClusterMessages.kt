@@ -20,13 +20,11 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.api.subscribe.ExecutionId
+import me.ahoo.wow.api.wire.WaitWire
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.spi.json.WowJson
-import me.ahoo.wow.spi.wait.Origin
-import me.ahoo.wow.spi.wait.WaitContext
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
@@ -83,17 +81,6 @@ data class ReplyTo(
         /** The reply to [execution], a saga's of [context], asking for the success receipt too when [committed]. */
         fun of(context: String, execution: ExecutionId, committed: Boolean = false): ReplyTo =
             ReplyTo(context, execution.subscription, execution.ref, execution.version, committed)
-    }
-}
-
-/** A wait context (design 04 §6.2) in its wire form. */
-@InternalWowApi
-data class WaitWire(val waitId: String, val origin: Origin, val remaining: List<Hop>, val deadline: Long) {
-    fun toContext(): WaitContext = WaitContext(waitId, origin, remaining, deadline)
-
-    @InternalWowApi
-    companion object {
-        fun of(wait: WaitContext): WaitWire = WaitWire(wait.waitId, wait.origin, wait.remaining, wait.deadline)
     }
 }
 

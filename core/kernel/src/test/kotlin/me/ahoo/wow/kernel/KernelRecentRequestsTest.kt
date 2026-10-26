@@ -31,9 +31,7 @@ import me.ahoo.wow.spi.log.CommittedRequest
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
-import me.ahoo.wow.spi.log.SnapshotTail
 import me.ahoo.wow.spi.log.Transport
-import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.junit.jupiter.api.Test
 import java.io.IOException
 
@@ -107,10 +105,6 @@ class KernelRecentRequestsTest {
             tails += fromVersion to earlier
             return delegate.readTail(ref, fromVersion, earlier)
         }
-
-        /** Read through [read] and [readTail], so that they count it. */
-        override suspend fun readWithSnapshot(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail =
-            super.readWithSnapshot(ref, snapshots, earlier)
 
         override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
             if (loseNext) {

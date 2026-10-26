@@ -149,6 +149,13 @@ object WowMetrics {
      */
     const val RESERVATION_LOST: String = "wow.reservation.lost"
 
+    /**
+     * Counter: the times a store fell back from an optional capability (finding R5.B-9) and did the work the way every
+     * store can; tags context, capability (`snapshot-tail-read`, `snapshot-rebuild`), reason (`failed`, `unavailable`,
+     * `unsupported`). A `failed` one is a store that failed where it should not: look at the warning it logged first.
+     */
+    const val STORE_FALLBACKS: String = "wow.store.fallbacks"
+
     /** Gauge: the commands in a context's executor, waiting in their lanes or in the kernel; tag context. */
     const val EXECUTOR_IN_FLIGHT: String = "wow.executor.in-flight"
 
@@ -175,6 +182,7 @@ object WowMetrics {
     const val CODE: String = "code"
     const val STAGE: String = "stage"
     const val REASON: String = "reason"
+    const val CAPABILITY: String = "capability"
     const val KIND: String = "kind"
     const val QUERY_TYPE: String = "query.type"
     const val GROUP: String = "group"

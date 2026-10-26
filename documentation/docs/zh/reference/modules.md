@@ -15,9 +15,10 @@ description: "Wow 每次发布到 Maven Central 的每个制品，以及它包�
 | --- | --- | --- |
 | `me.ahoo.wow:wow-bom` | [`bom/bom`](https://github.com/Ahoo-Wang/Wow/tree/main/bom/bom) | BOM：下列每个制品的版本，构建以 platform 导入。 |
 | `me.ahoo.wow:wow-dependencies` | [`bom/dependencies`](https://github.com/Ahoo-Wang/Wow/tree/main/bom/dependencies) | Wow 运行时放到应用类路径上的那些库的版本（Jackson、协程、kotlin-logging、SLF4J），每个发布的 POM 都导入它；除此之外不管别的，依赖 Wow 的模块对 Wow 不用的库保留自己的版本。Spring Boot BOM 只随 `wow-spring-boot` 而来。 |
+| `me.ahoo.wow:wow-annotations` | [`api/annotations`](https://github.com/Ahoo-Wang/Wow/tree/main/api/annotations) | The stability markers of Wow's API (InternalWowApi, ExperimentalWowApi, WowSpi), which every Wow module builds on; no dependencies |
 | `me.ahoo.wow:wow-api` | [`api/api`](https://github.com/Ahoo-Wang/Wow/tree/main/api/api) | What domain code imports (the annotations, Decision, DecideScope, StateEvent, Scope), the value types of the wire contract (Command, CommandResult, WaitPlan) and the typed QueryApi |
 | `me.ahoo.wow:wow-manifest` | [`api/manifest`](https://github.com/Ahoo-Wang/Wow/tree/main/api/manifest) | The contract every projection reads (REST, OpenAPI, clients, views, Skills); plain data |
-| `me.ahoo.wow:wow-query-api` | [`api/query-api`](https://github.com/Ahoo-Wang/Wow/tree/main/api/query-api) | The query protocol (filters, sort, pagination, projection, aggregation) and the query field annotations, as plain data; no dependencies |
+| `me.ahoo.wow:wow-query-api` | [`api/query-api`](https://github.com/Ahoo-Wang/Wow/tree/main/api/query-api) | The query protocol (filters, sort, pagination, projection, aggregation) and the query field annotations, as plain data; nothing but the stability markers |
 | `me.ahoo.wow:wow-spi` | [`core/spi`](https://github.com/Ahoo-Wang/Wow/tree/main/core/spi) | The ports a backend implements (log, snapshots, checkpoints, leases, failure ledger, reservations, sinks) |
 | `me.ahoo.wow:wow-kernel` | [`core/kernel`](https://github.com/Ahoo-Wang/Wow/tree/main/core/kernel) | The aggregate model and the decide, evolve, append loop |
 | `me.ahoo.wow:wow-runtime` | [`core/runtime`](https://github.com/Ahoo-Wang/Wow/tree/main/core/runtime) | Gateway, router, cluster channel, executor, subscriptions, waits and lifecycle |
