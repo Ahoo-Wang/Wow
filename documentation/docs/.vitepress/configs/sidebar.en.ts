@@ -177,6 +177,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'Migrate the Data', link: 'data'},
                 {text: 'Cut Over', link: 'cutover'},
                 {text: 'Platform Services', link: 'platform'},
+                {text: 'Metrics and Spans', link: 'metrics'},
                 {text: 'migrate-data CLI', base: '/reference/', link: 'migrate-data'},
             ],
         },

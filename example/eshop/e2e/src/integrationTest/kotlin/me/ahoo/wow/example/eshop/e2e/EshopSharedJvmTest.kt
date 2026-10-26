@@ -102,7 +102,7 @@ class EshopSharedJvmTest {
     }
 
     /**
-     * A request's trace (decision D174): with wow-opentelemetry on the class path, the catalog's admission of a
+     * A request's trace (decision D174): with wow-observability on the class path, the catalog's admission of a
      * request is the child of the span its `traceparent` names, and its execution and the snapshot subscription's
      * handling of the commit go on in the same trace.
      */

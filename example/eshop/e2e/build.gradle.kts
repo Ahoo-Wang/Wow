@@ -69,7 +69,7 @@ dependencies {
     // EshopFullChainTest and EshopLoad: the ordering's order stream in ClickHouse, for the sales dataset (E.6).
     integrationTestImplementation("org.testcontainers:testcontainers-clickhouse")
     // EshopSharedJvmTest: a request's trace through a service (decision D174), its spans exported to memory.
-    integrationTestImplementation(project(":opentelemetry"))
+    integrationTestImplementation(project(":observability"))
     integrationTestImplementation("io.opentelemetry:opentelemetry-sdk-testing")
     // EshopLedgerOpsTest: the statuses of the ops view (work package 6.3f, D141).
     integrationTestImplementation(project(":ops-api"))

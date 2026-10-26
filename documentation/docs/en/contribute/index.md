@@ -16,7 +16,7 @@ The Wow repository holds the framework's JVM modules, its TypeScript packages, t
 | `core/` | `:spi`, the ports a backend implements; `:kernel`, the decide, evolve and append loop; `:runtime`, the node (admission, routing, the cluster channel, the executor, subscriptions, waits); `:reactor`, the Reactor adapter |
 | `query/` | `:query`, the query engine; `:query-tck`, the contract every query backend passes |
 | `backends/` | One module per technology: `:postgres`, `:mongo`, `:elasticsearch`, `:clickhouse`, `:kafka` |
-| `edge/` | `:http`, the routes from the Manifest; `:openapi`; `:client`, the typed HTTP clients; `:cosec`; `:opentelemetry` |
+| `edge/` | `:http`, the routes from the Manifest; `:openapi`; `:client`, the typed HTTP clients; `:cosec`; `:observability` |
 | `host/` | `:spring-boot`, the auto-configuration that composes a node |
 | `extensions/` | `:cosid`, `:models` |
 | `migration/` | `:migrate-data`, which imports 9.x event streams |
