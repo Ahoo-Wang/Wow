@@ -112,7 +112,12 @@ internal data class ExportProgress(
 }
 
 /** The streams of a 9.x [aggregate] once the export is done: as many as V10 holds of its type, or not. */
-internal data class ExportCount(val aggregate: NineXAggregate, val type: AggregateType, val v10: Long, val nineX: Long) {
+internal data class ExportCount(
+    val aggregate: NineXAggregate,
+    val type: AggregateType,
+    val v10: Long,
+    val nineX: Long
+) {
     val passed: Boolean
         get() = v10 == nineX
 

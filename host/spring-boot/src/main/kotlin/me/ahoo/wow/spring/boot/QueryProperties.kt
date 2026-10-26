@@ -450,7 +450,6 @@ class QueryProperties {
     }
 
     @InternalWowApi
-
     companion object {
         const val PREFIX: String = "wow.query"
 

@@ -111,7 +111,6 @@ class KafkaProperties {
     }
 
     @InternalWowApi
-
     companion object {
         const val PREFIX: String = "wow.kafka"
         private const val MIN_INSYNC_REPLICAS = "min.insync.replicas"

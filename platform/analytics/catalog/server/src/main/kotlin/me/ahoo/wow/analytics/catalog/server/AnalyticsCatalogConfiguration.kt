@@ -161,11 +161,16 @@ class AnalyticsCatalogConfiguration {
     /** The peer contexts `wow.clients.contexts.<context>.contract: manifest` describes by their Manifest alone. */
     private fun manifestPeers(environment: Environment): Set<String> =
         Binder.get(environment)
-            .bind("wow.clients.contexts", Bindable.mapOf(String::class.java, Map::class.java))
+            .bind("wow.clients.contexts", Bindable.mapOf(String::class.java, PeerContract::class.java))
             .orElse(null)
             .orEmpty()
-            .filterValues { it["contract"]?.toString().equals("manifest", ignoreCase = true) }
+            .filterValues { it.contract.equals("manifest", ignoreCase = true) }
             .keys
+
+    /** The one setting of a `wow.clients.contexts.<context>` entry these actions read; the others are the host's. */
+    class PeerContract {
+        var contract: String? = null
+    }
 
     /** The routes of the reference actions, on the public port as the callers [callers] resolves. */
     @Bean

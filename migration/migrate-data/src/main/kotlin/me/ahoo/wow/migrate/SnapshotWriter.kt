@@ -31,7 +31,12 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  * The snapshot writing of one 9.x aggregate since it started: [written] V10 snapshots written, [skipped] already in the
  * store at their version.
  */
-internal data class SnapshotProgress(val aggregate: NineXAggregate, val written: Long, val skipped: Long, val done: Boolean) {
+internal data class SnapshotProgress(
+    val aggregate: NineXAggregate,
+    val written: Long,
+    val skipped: Long,
+    val done: Boolean
+) {
     fun render(): String =
         "$aggregate snapshots${if (done) " done" else ""}: ${written + skipped} instances, $written V10 snapshots " +
             "written, $skipped already there"

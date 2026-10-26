@@ -34,7 +34,6 @@ class ObservabilityProperties {
     var sampleInterval: Duration = DEFAULT_SAMPLE_INTERVAL
 
     @InternalWowApi
-
     companion object {
         const val PREFIX: String = "wow.opentelemetry"
         private val DEFAULT_SAMPLE_INTERVAL: Duration = Duration.ofSeconds(15)

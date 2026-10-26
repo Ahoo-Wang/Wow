@@ -86,7 +86,9 @@ class PaymentJoinsLaterTest {
     @Test
     fun `an order confirmed before the payment service first started should still have its payment requested`() {
         // The server's configuration sets no start: the saga's default for another context's stream is the beginning.
-        Binder.get(payment.context.environment).bind("wow.subscriptions", Bindable.mapOf(String::class.java, Any::class.java))
+        Binder.get(
+            payment.context.environment
+        ).bind("wow.subscriptions", Bindable.mapOf(String::class.java, Any::class.java))
             .isBound.assert().isFalse()
         val deadline = System.nanoTime() + DEADLINE.toNanos()
         while (!succeeded()) {

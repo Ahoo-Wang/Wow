@@ -97,7 +97,6 @@ class ClickHouseProperties {
     }
 
     @InternalWowApi
-
     companion object {
         const val PREFIX: String = "wow.clickhouse"
         private const val DEFAULT_BATCH_SIZE = 1000
