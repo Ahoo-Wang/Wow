@@ -15,7 +15,8 @@
 
 | # | 问题 | 推荐 | 状态 | 最晚 | 文档 |
 |---|---|---|---|---|---|
-| — | 当前无待决项（T1 由 D192、D193 决定，T2 由 D197 决定） | | | | |
+| T3 | 9.x 遗留的公开路由 `GET /wow/id/global`（任何已认证调用方都能取全局 ID，雪花 ID 暴露机器号与时间）保留还是删除（R5.C-15） | 删除，或保留并写进 OpenAPI 说明用途 | 待定 | rc | [R5](2026-10-26-r5-ga-architecture-review-design.md) |
+| T4 | `wow.http.client-facts` 默认 `true`（D267 ⑯）把客户端 IP 与 UA 写进不可删除的日志；GA 后再改默认值属于行为变更，请用户再确认（R5.C-17） | 用户再确认 | 待定 | rc | [R5](2026-10-26-r5-ga-architecture-review-design.md) |
 
 ## 2. 待验证的假设
 
@@ -314,3 +315,13 @@
 | D279 | **MongoDB 存储的每次调用都有超时**（用户 2026-10-25 按推荐）：驱动的读超时默认无限，一次在途中丢失的回应（故障切换、代理）会让调用方永久挂住（本机一次启动在首次建集合时挂了 38 分钟）。各存储的数据库句柄带客户端操作超时 `timeoutMS`：默认 `wow.mongo.operation-timeout = 30s`（存储选项 `operation-timeout` 可覆盖）；追加仍用自己的 `append-timeout`（D261，5 秒）；建表类命令（格式记录、索引、分片）5 分钟，因为在大集合上建索引可能要几分钟；查询保持自己的预算（`maxTimeMS`，D150）。超时按现有分类：暂时性故障，写入的结局未知。PostgreSQL 同样对齐（2026-10-25）：存储借出的连接设 JDBC 网络超时（pgjdbc 的套接字读超时），默认 `wow.postgres.operation-timeout = 30s`，建表类语句执行期间临时 5 分钟，连接池驱动已设更短的 `socketTimeout` 时保留；同一数据源与超时只给一个包装实例，D268 按数据源识别同库的日志与快照不受影响；查询的连接不加，保留 `statement_timeout` | 2026-10-25，用户 | [03](03-log-and-snapshot.md) |
 | D280 | **PostgreSQL 的跨分区组提交：一条语句提交多个分区的组，默认开启**（路线图 §6 第 15 项，用户 2026-10-25 按草案：先 L1 原型，收益明显再实现并在磁盘上 ABAB）。PostgreSQL 日志声明 `appendsAcrossPartitions`，沿用 D275 的合并器（K = 2，M = 512，`wow.log.append-queue.merge`）。语句先按分区号依次锁住各分区的计数行（`ORDER BY partition FOR UPDATE`），再各自加上本分区放得下的流数、按组内顺序写入：每个分区的序号仍连续（D10、D250），所有语句都先锁计数器、再按原顺序锁请求键，不成环。整句因冲突或拒绝中止时按分区退回为单分区组提交，结局未知时整组未知。分区号是绑定参数，语句文本只取决于组的形状、每种形状只规划一次（初版把分区号写成字面量，几乎每次都重新解析规划，中等负载下 PostgreSQL CPU 翻倍、p50 涨 4～5 倍）。实测（本机，磁盘）：L1 每命令往返 −55～60%、提交 −42～47%、WAL 落盘 −45～70%；端到端定速与 `main` 相当；闭环 E1 在并发 64～256 时 +34～42%，E3 顶档峰值 +57%、p99 −34%。[报告](../../test/benchmarks/results/reports/v10-pg-cross-partition.md) | 2026-10-25，用户 | [03](03-log-and-snapshot.md)、[roadmap](roadmap.md) |
 | D281 | **预留的释放带版本守卫**（用户 2026-10-25 按推荐，GA 前评审遗留第 1 项）：内置订阅 `reservation` 落后很多时重放「A→B」再「B→A」两次改名，旧条目的释放会放掉聚合此刻依赖的键 A，窗口里别人可能拿走它。`ReservationStore.confirm` 与 `release` 加参数 `version`（事实的流版本）：确认后的预留记录最后确认它的版本（取较大者，待确认的为 0），释放只放掉待确认的、或确认版本不高于本事实的；后来的事实再次确认过的键保留。同一事实先预留后释放同一键时释放生效；9.x 导入的确认用 `UNVERSIONED`（0），迁移收敛的释放用 `ANY_VERSION`。旧键在重放到后一条目前可能被短暂占回，随后释放。PostgreSQL 表加列 `version`，MongoDB 文档加字段 `version`，格式号不变（RC 前）。同时：键被别人拿走时计数 `wow.reservation.lost`（按上下文）；`Timer.id` 各名字百分号转义（D166） | 2026-10-25，用户 | [01](01-programming-model.md)、[roadmap](roadmap.md) |
+| D282 | **稳定性注解移到零依赖模块 `:annotations`（构件 `wow-annotations`）**（R5 Q1）：`InternalWowApi`、`ExperimentalWowApi`、`WowSpi` 由 `:api`、`:query-api`、`:manifest` 共同依赖；`:query-api` 与 `:manifest` 由此可以收窄公开面（R5.A-1、A-2、A-12）。修订 D216 中注解所在的模块 | 2026-10-26，用户按推荐 | [R5](2026-10-26-r5-ga-architecture-review-design.md) |
+| D283 | **Manifest 的契约是 JSON 加 `format`，Kotlin 构造函数标 `@InternalWowApi`**（R5 Q2）：读者 API（属性、`ManifestTree.read`、`ManifestMerger`）保持公开，`:manifest` 留在 `abiProjects`（R5.A-2） | 2026-10-26，用户按推荐 | [R5](2026-10-26-r5-ga-architecture-review-design.md) |
+| D284 | **运维线路记录移出 `:api`**（R5 Q3）：`api.ledger`、`api.snapshot` 移到运行时一侧并标 `@InternalWowApi`；ops 服务按 08 §3 的 JSON 契约自己定义读者类型；平台服务仍不 opt in `InternalWowApi`（维持 D216 ③）（R5.A-4） | 2026-10-26，用户按推荐 | [R5](2026-10-26-r5-ga-architecture-review-design.md) |
+| D285 | **X-6 的命名分叉拉回 GA 前**（R5 Q4）：DSL 的名字与 `@Name` 不一致即失败，GA 前没有存量数据（R5.A-5）；修订 D242 对 X-6 的划分 | 2026-10-26，用户按推荐 | [R5](2026-10-26-r5-ga-architecture-review-design.md) |
+| D286 | **线路语法下沉到 `:api` 的 `wire` 包**（R5 Q5）：请求头的编解码与 `WaitWire` 是两端共享的对外线路契约；`:client` 只依赖 `:api`、`:manifest`、`:query-api`（与查询 JSON），`:http` 不再依赖 `:client`（R5.C-5） | 2026-10-26，用户按推荐 | [R5](2026-10-26-r5-ga-architecture-review-design.md) |
+| D287 | **已发布库只带精简平台**（R5 Q6）：Jackson、协程、kotlin-logging 等 Wow 运行时真正用到的库；Spring Boot BOM 只给 `wow-spring-boot`；测试与 lint 工具的平台只在仓库内部构建中使用。先用只依赖 `wow-api` 的小项目跑 `dependencyInsight` 确认影响（R5.C-4） | 2026-10-26，用户按推荐 | [R5](2026-10-26-r5-ga-architecture-review-design.md) |
+| D288 | **配置面 GA 前一次定稿**（R5 Q7）：先写「概念 → 唯一键 → 唯一类型」表与用户过一遍再改；范围 R5.C-3、B-8、C-16、C-12 与 B-5 的配置部分 | 2026-10-26，用户按推荐 | [R5](2026-10-26-r5-ga-architecture-review-design.md) |
+| D289 | **观测名采用 OpenTelemetry 语义约定的形式**（R5 Q8）：指标 `wow.<域>.<名词>`，不与错误码同名，标签命名统一，由测试守住；与 M-7 的 9.x 对照表一起交付；`:opentelemetry` 改名 `:observability`（R5.C-9） | 2026-10-26，用户按推荐 | [R5](2026-10-26-r5-ga-architecture-review-design.md) |
+| D290 | **编号清理分两步**（R5 Q9）：用户可见的文字（异常与拒绝消息、错误码描述、配置元数据、生成代码）GA 前清零，并由架构规则禁止主代码字符串字面量里出现决定与审查编号；注释按模块改写成理由，不阻塞 rc（R5.C-7、R3.2-2） | 2026-10-26，用户按推荐 | [R5](2026-10-26-r5-ga-architecture-review-design.md) |
+| D291 | **存储与 SPI 的改动在 RC 前做，格式号保持为 1**（R5 Q10）：传输段改为运行时的不透明字节（R5.B-3）、成员关系按服务记（R5.B-4）、`EventLog` 与 `SnapshotStore` 的能力拆分（R5.B-9） | 2026-10-26，用户按推荐 | [R5](2026-10-26-r5-ga-architecture-review-design.md) |
