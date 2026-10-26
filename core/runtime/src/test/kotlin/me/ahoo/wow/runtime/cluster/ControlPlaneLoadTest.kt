@@ -133,6 +133,34 @@ class ControlPlaneLoadTest {
         store.members(SERVICE).assert().isEmpty()
     }
 
+    @Test
+    fun `a membership that aborts leaves its record to expire, and refuses a group twice`(): Unit =
+        runTest(timeout = 1.minutes) {
+            val store = InMemoryLeaseStore(virtualClock())
+            val membership = ServiceMembership(
+                SERVICE,
+                "node-1",
+                { "node-1.internal:7070" },
+                store,
+                context = StandardTestDispatcher(testScheduler),
+            )
+            var reads = 0
+            membership.join("$SERVICE/a") { reads++ }
+            org.junit.jupiter.api.assertThrows<IllegalStateException> { membership.join("$SERVICE/a") {} }
+            membership.join("$SERVICE/b") {}
+            delay(5.seconds)
+            reads.assert().isGreaterThan(1)
+            membership.abort("$SERVICE/b")
+            membership.abort("$SERVICE/b")
+            membership.abort("$SERVICE/a")
+            // As a crash: no leave, the record stays until it expires.
+            store.members(SERVICE).single().node.assert().isEqualTo("node-1")
+            delay(ClusterOptions().memberTtl + 1.seconds)
+            store.members(SERVICE).assert().isEmpty()
+            membership.leave("$SERVICE/a")
+            membership.stuck("$SERVICE/a", true)
+        }
+
     private fun within(fraction: Double) = org.assertj.core.data.Percentage.withPercentage(fraction * 100)
 
     /** The store's clock follows the test's virtual time. */
