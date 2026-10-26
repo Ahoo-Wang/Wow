@@ -438,12 +438,8 @@ class AggregateSpec<S : Any> private constructor(
         try {
             expectations.expect()
             expectations.verify()
-        } catch (failure: ForkAssertionError) {
-            throw failure
         } catch (failure: AssertionError) {
-            val message = "$step ($commandId): ${failure.message}"
-            val fork = forkName ?: throw AssertionError(message, failure)
-            throw ForkAssertionError("In fork \"$fork\", $message", failure)
+            throw located(failure, "$step ($commandId)")
         }
     }
 
@@ -502,6 +498,14 @@ class AggregateSpec<S : Any> private constructor(
         val path = forkName?.let { "$it > $label" } ?: label
         val fork = { branch: TestTree? -> AggregateSpec(model, ref, start, origin, branch).also { it.forkName = path } }
         runFork(tree, label, path, fork, block)
+    }
+
+    /** [failure] of the step [where], naming it and the fork it is in; a fork's own failure as it is. */
+    private fun located(failure: AssertionError, where: String): AssertionError {
+        if (failure is ForkAssertionError) return failure
+        val message = "$where: ${failure.message}"
+        val fork = forkName ?: return AssertionError(message, failure)
+        return ForkAssertionError("In fork \"$fork\", $message", failure)
     }
 
     /** A copy of everything the specification holds now, which a fork starts from. */

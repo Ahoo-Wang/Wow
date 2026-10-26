@@ -256,7 +256,9 @@ class AggregateSpecDslTest {
                     fork("inner") { whenCommand(Withdraw(1)) { expectEventTypes(Withdrawn::class) } }
                 }
             }
-        }.hasMessageStartingWith("In fork \"outer > inner\", whenCommand(Withdraw) (command-4): Expected committed events")
+        }.hasMessageStartingWith(
+            "In fork \"outer > inner\", whenCommand(Withdraw) (command-4): Expected committed events"
+        )
     }
 
     @Test
