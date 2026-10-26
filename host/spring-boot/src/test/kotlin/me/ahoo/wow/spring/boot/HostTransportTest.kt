@@ -18,10 +18,13 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PublishedManifest
+import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.boot.autoconfigure.AutoConfigurations
+import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.mock.env.MockEnvironment
 
 /**
@@ -121,6 +124,33 @@ class HostTransportTest {
         }
         generateSequence<Throwable>(failure) { it.cause }.filterIsInstance<WowConfigurationException>().first()
             .key.assert().isEqualTo("wow.transport")
+    }
+
+    @Test
+    fun `development should be derived from the profiles or a loopback internal port`() {
+        val loopback = WowProperties().apply { internal.host = "127.0.0.1" }
+        DevelopmentMode.of(loopback, environment()).reason.assert().contains("127.0.0.1")
+        val everywhere = WowProperties().apply { internal.host = "0.0.0.0" }
+        DevelopmentMode.of(everywhere, environment()).active.assert().isFalse()
+        DevelopmentMode.of(everywhere, environment(profiles = arrayOf("local"))).reason
+            .assert().isEqualTo("profile local")
+        NodeIdentity.bindHostOf(WowProperties().apply { node.address = "[::1]:9090" }).assert().isEqualTo("::1")
+        NodeIdentity.bindHostOf(WowProperties().apply { node.address = "10.0.0.1:9090" })
+            .assert().isEqualTo("10.0.0.1")
+        NodeIdentity.bindHostOf(WowProperties()).assert().isNotBlank()
+    }
+
+    @Test
+    fun `a named transport that is not configured should fail the start, naming it`() {
+        ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(TransportAutoConfiguration::class.java))
+            .withPropertyValues("wow.transport=kafka")
+            .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
+            .withBean(WowProperties::class.java, { WowProperties().apply { transport = "kafka" } })
+            .run { context ->
+                generateSequence(context.startupFailure) { it.cause }.mapNotNull { it.message }.joinToString()
+                    .assert().contains("wow.transport is kafka, but no transport of that type is configured")
+            }
     }
 
     private companion object {
