@@ -22,7 +22,7 @@ import me.ahoo.wow.query.AdaptiveQueryLimit
 import me.ahoo.wow.query.QueryBulkhead
 
 /**
- * The query bulkheads' meters (decision D252), read live: [WowMetrics.QUERY_LIMIT] of every bulkhead, and, of those
+ * The query bulkheads' meters (decision D252), read live: [WowMetrics.QUERY_LIMIT_CURRENT] of every bulkhead, and, of those
  * whose limit adapts, [WowMetrics.QUERY_PRESSURE] and [WowMetrics.QUERY_LIMIT_DECREASES]; each tagged with its store.
  */
 @InternalWowApi
@@ -30,7 +30,7 @@ object QueryLimitMetrics {
     /** Registers the meters of [bulkheads] and of their adaptive [limits] in [meters]. */
     fun register(bulkheads: Collection<QueryBulkhead>, limits: Collection<AdaptiveQueryLimit>, meters: MeterRegistry) {
         bulkheads.forEach { bulkhead ->
-            Gauge.builder(WowMetrics.QUERY_LIMIT, bulkhead) { it.limit.toDouble() }
+            Gauge.builder(WowMetrics.QUERY_LIMIT_CURRENT, bulkhead) { it.limit.toDouble() }
                 .tags(tagsOf(bulkhead))
                 .register(meters)
         }

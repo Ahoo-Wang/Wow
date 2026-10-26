@@ -40,7 +40,7 @@ import kotlin.time.Duration.Companion.seconds
 /**
  * The gauges of a [node] that are read, not heard (decision D174), sampled every [interval] into [meters]:
  *
- * - [WowMetrics.PARKED]: how many entries each subscription has parked, as the node's ledgers list them
+ * - [WowMetrics.PARKED_AGGREGATES]: how many entries each subscription has parked, as the node's ledgers list them
  *   ([ServiceNode.parked]), counted up to [maxParked] per subscription. The ledgers are the service's, shared by its
  *   nodes, so one node reports them ([reportsParked]): the one that runs partition 0 of the service's first log group
  *   (by context name), or every node of a service without one. Summed across nodes, the count is the service's once.
@@ -48,9 +48,11 @@ import kotlin.time.Duration.Companion.seconds
  *   in each partition it runs on this node ([me.ahoo.wow.runtime.subscription.SubscriptionRuntime.positions]), its
  *   watermark, the entries of the log after it, and the watermark over the log's head: how far a rebuild (a
  *   subscription under a new name, from the beginning) has come.
- * - [WowMetrics.PAUSED] and [WowMetrics.THROTTLED]: for the same, 1 while the subscription has paused the partition on
- *   a systemic failure (decision D243), or throttles it on backpressure (decision D263), else 0; 1 too for each such
- *   partition of an intake or another context's topic (`ServiceNode.pauses`, `ServiceNode.throttled`), removed once it runs again.
+ * - [WowMetrics.PAUSED_PARTITIONS] and [WowMetrics.THROTTLED_PARTITIONS]: for each subscription of each log group
+ *   that runs here, and each intake or other context's topic that has one (`ServiceNode.pauses`,
+ *   `ServiceNode.throttled`), how many of its partitions on this node it has paused on a systemic failure (decision
+ *   D243), or throttles on backpressure (decision D263): 0 while it runs them all, so one series per subscription,
+ *   not one per partition.
  *
  * - [WowMetrics.EXECUTOR_IN_FLIGHT], [WowMetrics.EXECUTOR_LANES] and [WowMetrics.APPEND_QUEUE_DEPTH], per context: the
  *   commands in its executor, the aggregates with commands in flight, and the appends queued on its partitions (review
@@ -103,7 +105,7 @@ class NodeMetrics(
         if (reportsParked()) {
             node.parked.subscriptions.forEach { subscription ->
                 taken += gauge(
-                    WowMetrics.PARKED,
+                    WowMetrics.PARKED_AGGREGATES,
                     Tags.of(WowMetrics.SUBSCRIPTION, subscription),
                     countParked(subscription).toDouble()
                 )
@@ -115,8 +117,9 @@ class NodeMetrics(
             taken += gauge(WowMetrics.EXECUTOR_LANES, tags, context.executor.activeLanes.toDouble())
             taken += gauge(WowMetrics.APPEND_QUEUE_DEPTH, tags, context.log.queued.toDouble())
         }
-        val paused = node.pauses.paused().mapTo(HashSet()) { partitionTags(it.group, it.subscription, it.partition) }
-        val throttled = node.throttled.mapTo(HashSet()) { partitionTags(it.group, it.subscription, it.partition) }
+        val paused = node.pauses.paused().groupingBy { subscriptionTags(it.group, it.subscription) }.eachCount()
+        val throttled = node.throttled.groupingBy { subscriptionTags(it.group, it.subscription) }.eachCount()
+        val subscriptions = HashSet<Tags>(paused.keys + throttled.keys)
         node.contexts.values.flatMap { it.logGroups }.forEach { group ->
             val runtime = group.subscriptions
             val heads = HashMap<Int, Long>()
@@ -133,13 +136,14 @@ class NodeMetrics(
                 taken += gauge(WowMetrics.POSITION, tags, position.watermark.toDouble())
                 taken += gauge(WowMetrics.BACKLOG, tags, (head - position.watermark).coerceAtLeast(0).toDouble())
                 taken += gauge(WowMetrics.PROGRESS, tags, progress(position.watermark, head))
-                taken += gauge(WowMetrics.PAUSED, tags, if (tags in paused) 1.0 else 0.0)
-                taken += gauge(WowMetrics.THROTTLED, tags, if (tags in throttled) 1.0 else 0.0)
+                subscriptions += subscriptionTags(runtime.group, position.subscription)
             }
         }
-        // The paused and throttled partitions of the intakes and of other contexts' topics, which have no position here.
-        paused.forEach { taken += gauge(WowMetrics.PAUSED, it, 1.0) }
-        throttled.forEach { taken += gauge(WowMetrics.THROTTLED, it, 1.0) }
+        // The intakes and other contexts' topics have no position here: they count while they pause or throttle.
+        subscriptions.forEach { tags ->
+            taken += gauge(WowMetrics.PAUSED_PARTITIONS, tags, (paused[tags] ?: 0).toDouble())
+            taken += gauge(WowMetrics.THROTTLED_PARTITIONS, tags, (throttled[tags] ?: 0).toDouble())
+        }
         (gauges.keys - taken).forEach { key -> gauges.remove(key)?.let { (_, gauge) -> meters.remove(gauge) } }
     }
 
@@ -186,15 +190,8 @@ class NodeMetrics(
         return key
     }
 
-    private fun partitionTags(group: String, subscription: String, partition: Int): Tags =
-        Tags.of(
-            WowMetrics.GROUP,
-            group,
-            WowMetrics.SUBSCRIPTION,
-            subscription,
-            WowMetrics.PARTITION,
-            partition.toString()
-        )
+    private fun subscriptionTags(group: String, subscription: String): Tags =
+        Tags.of(WowMetrics.GROUP, group, WowMetrics.SUBSCRIPTION, subscription)
 
     /** Stops sampling. */
     override fun close() {

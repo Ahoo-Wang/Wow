@@ -19,6 +19,7 @@ import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Metrics
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.observability.WowMetrics
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.sink.PublishedSinks
@@ -63,7 +64,7 @@ import kotlin.time.toKotlinDuration
  * - **Warnings**: once the application is ready, what the transport warns about the node's command topics
  *   ([TopicTransport.warnings]), such as one that does not survive the loss of a broker (decision D143).
  * - **Offset gaps**: the reads that started past their partition's retention ([PartitionedSource.offsetGaps]), as the
- *   counter [OFFSET_GAPS] when the application has Micrometer: each is an error to alert on.
+ *   counter [WowMetrics.OFFSET_GAPS] when the application has Micrometer: each is an error to alert on.
  */
 @AutoConfiguration(after = [InMemoryTopicsAutoConfiguration::class])
 @EnableConfigurationProperties(KafkaProperties::class)
@@ -162,7 +163,7 @@ class TransportAutoConfiguration {
     }
 
     /**
-     * The offset gaps the node's source met (finding A2-11), as the counter [OFFSET_GAPS], when the application has
+     * The offset gaps the node's source met (finding A2-11), as the counter [WowMetrics.OFFSET_GAPS], when the application has
      * Micrometer.
      *
      * The counting function captures [sources], so the meter holds it strongly (finding R2.3-4): Micrometer only
@@ -177,7 +178,7 @@ class TransportAutoConfiguration {
             sources: ObjectProvider<PartitionedSource>,
             meters: ObjectProvider<MeterRegistry>
         ): FunctionCounter =
-            FunctionCounter.builder(OFFSET_GAPS, sources) { _ -> sources.getIfUnique()?.offsetGaps?.toDouble() ?: 0.0 }
+            FunctionCounter.builder(WowMetrics.OFFSET_GAPS, sources) { _ -> sources.getIfUnique()?.offsetGaps?.toDouble() ?: 0.0 }
                 .description("Offsets a read was to start from that its partition no longer holds.")
                 .register(meters.getIfUnique { Metrics.globalRegistry })
     }
@@ -199,9 +200,6 @@ class TransportAutoConfiguration {
 
     companion object {
         private val logger = KotlinLogging.logger {}
-
-        /** The counter of the offset gaps the node's source met. */
-        const val OFFSET_GAPS: String = "wow.kafka.offset.gaps"
 
         private const val MICROMETER = "io.micrometer.core.instrument.MeterRegistry"
 

@@ -46,7 +46,7 @@ class MetricsTest {
         val (list, paged) = telemetry.named("query $ORDER")
         list.attr(WowAttributes.QUERY_TYPE).assert().isEqualTo("LIST")
         paged.status.statusCode.assert().isEqualTo(StatusCode.ERROR)
-        fun count(type: QueryType, outcome: String) = telemetry.meters.find(WowMetrics.QUERY)
+        fun count(type: QueryType, outcome: String) = telemetry.meters.find(WowMetrics.QUERY_DURATION)
             .tags(
                 WowMetrics.CONTEXT,
                 SALES,
@@ -127,7 +127,7 @@ class MetricsTest {
         telemetry.observer.undecodable("orders", 0, 7, parked = true)
         telemetry.observer.undecodable("orders", 1, 8, parked = false)
         telemetry.observer.undecodable("orders", 1, 9, parked = false)
-        fun count(outcome: String) = telemetry.meters.find(WowMetrics.UNDECODABLE)
+        fun count(outcome: String) = telemetry.meters.find(WowMetrics.UNDECODABLE_MESSAGES)
             .tags(WowMetrics.TOPIC, "orders", WowMetrics.OUTCOME, outcome).counter()!!.count()
         count(WowMetrics.PARKED_OUTCOME).assert().isEqualTo(1.0)
         count(WowMetrics.SKIPPED_OUTCOME).assert().isEqualTo(2.0)

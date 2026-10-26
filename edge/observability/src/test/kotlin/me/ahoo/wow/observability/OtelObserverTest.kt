@@ -102,7 +102,7 @@ class OtelObserverTest {
             execute.attr(WowAttributes.AGGREGATE_ID).assert().isEqualTo("o-1")
             telemetry.single("decide $ORDER").parentSpanId.assert().isEqualTo(execute.spanId)
             telemetry.single("append $ORDER").parentSpanId.assert().isEqualTo(execute.spanId)
-            val committed = telemetry.meters.find(WowMetrics.COMMIT)
+            val committed = telemetry.meters.find(WowMetrics.COMMAND_DURATION)
                 .tags(
                     WowMetrics.CONTEXT,
                     SALES,
@@ -113,7 +113,7 @@ class OtelObserverTest {
                 ).timer()!!
             committed.count().assert().isEqualTo(1L)
             // An execution that names no outcome ends `ok`.
-            telemetry.meters.find(WowMetrics.COMMIT).tags(WowMetrics.OUTCOME, OtelObservation.OK).timer()!!
+            telemetry.meters.find(WowMetrics.COMMAND_DURATION).tags(WowMetrics.OUTCOME, OtelObservation.OK).timer()!!
                 .count().assert().isEqualTo(1L)
         }
 
@@ -135,6 +135,7 @@ class OtelObserverTest {
         observer.forwardFailed(ORDER, "unknown")
         observer.tailRead(SALES, 3, "gap")
         observer.stateCache(SALES, "miss")
+        observer.stateCache(SALES, "evicted")
         observer.reservationLost(SALES)
         observer.storeFellBack(SALES, StoreFallbacks.SNAPSHOT_TAIL_READ, StoreFallbacks.FAILED)
         val meters = telemetry.meters
@@ -147,19 +148,23 @@ class OtelObserverTest {
             "failed",
         ).counter().count().assert().isEqualTo(1.0)
         meters.get(
-            WowMetrics.RESERVATION_LOST
+            WowMetrics.RESERVATION_LOSSES
         ).tags(WowMetrics.CONTEXT, SALES).counter().count().assert().isEqualTo(1.0)
-        meters.get(WowMetrics.STATE_CACHE).tags(WowMetrics.CONTEXT, SALES, WowMetrics.OUTCOME, "miss").counter().count()
+        meters.get(WowMetrics.STATE_CACHE_LOOKUPS).tags(WowMetrics.CONTEXT, SALES, WowMetrics.OUTCOME, "miss")
+            .counter().count().assert().isEqualTo(1.0)
+        // An eviction is not a lookup: it counts on its own.
+        meters.get(WowMetrics.STATE_CACHE_EVICTIONS).tags(WowMetrics.CONTEXT, SALES).counter().count()
             .assert().isEqualTo(1.0)
+        meters.find(WowMetrics.STATE_CACHE_LOOKUPS).tags(WowMetrics.OUTCOME, "evicted").counter().assert().isNull()
         meters.get(WowMetrics.TAIL_READS).tags(WowMetrics.CONTEXT, SALES, WowMetrics.REASON, "gap").counter().count()
             .assert().isEqualTo(1.0)
-        meters.get(WowMetrics.REFUSED).tags(WowMetrics.CONTEXT, SALES, WowMetrics.CODE, "wow.command.busy")
+        meters.get(WowMetrics.COMMAND_REFUSALS).tags(WowMetrics.CONTEXT, SALES, WowMetrics.ERROR_TYPE, "wow.command.busy")
             .counter().count().assert().isEqualTo(2.0)
-        meters.get(WowMetrics.WAIT_TIMEOUT).tags(WowMetrics.AGGREGATE, "order", WowMetrics.STAGE, "committed")
+        meters.get(WowMetrics.WAIT_TIMEOUTS).tags(WowMetrics.AGGREGATE, "order", WowMetrics.STAGE, "committed")
             .counter().count().assert().isEqualTo(1.0)
-        meters.get(WowMetrics.SIGNAL_DROPPED).tags(WowMetrics.REASON, "queue-full").counter().count()
+        meters.get(WowMetrics.SIGNAL_DROPS).tags(WowMetrics.REASON, "queue-full").counter().count()
             .assert().isEqualTo(1.0)
-        meters.get(WowMetrics.FORWARD_FAILED).tags(WowMetrics.OUTCOME, "unknown").counter().count()
+        meters.get(WowMetrics.FORWARD_FAILURES).tags(WowMetrics.OUTCOME, "unknown").counter().count()
             .assert().isEqualTo(1.0)
     }
 
@@ -173,12 +178,12 @@ class OtelObserverTest {
         listOf(WowMetrics.THROTTLED_KIND, WowMetrics.UNTHROTTLED_KIND).forEach {
             telemetry.meters.get(
                 WowMetrics.THROTTLED_NOTICES
-            ).tags(*board, WowMetrics.PARTITION, "3", WowMetrics.KIND, it)
+            ).tags(*board, WowMetrics.KIND, it)
                 .counter().count().assert().isEqualTo(1.0)
         }
         telemetry.meters.get(
-            WowMetrics.BACKPRESSURE
-        ).tags(*board, WowMetrics.CODE, "wow.wait.timeout").counter().count()
+            WowMetrics.BACKPRESSURE_REFUSALS
+        ).tags(*board, WowMetrics.ERROR_TYPE, "wow.wait.timeout").counter().count()
             .assert().isEqualTo(2.0)
     }
 
@@ -192,8 +197,6 @@ class OtelObserverTest {
             "sales",
             WowMetrics.SUBSCRIPTION,
             "Board.onEvent",
-            WowMetrics.PARTITION,
-            "3"
         )
         telemetry.meters.get(WowMetrics.PAUSED_NOTICES).tags(*board, WowMetrics.KIND, WowMetrics.PAUSED_KIND)
             .counter().count().assert().isEqualTo(2.0)
@@ -216,7 +219,7 @@ class OtelObserverTest {
         cancelled.status.statusCode.assert().isEqualTo(StatusCode.UNSET)
         cancelled.attr(WowAttributes.OUTCOME).assert().isEqualTo(OtelObservation.CANCELLED)
         listOf(OtelObservation.ERROR, OtelObservation.CANCELLED).forEach { outcome ->
-            telemetry.meters.find(WowMetrics.COMMIT).tags(WowMetrics.OUTCOME, outcome).timer()!!
+            telemetry.meters.find(WowMetrics.COMMAND_DURATION).tags(WowMetrics.OUTCOME, outcome).timer()!!
                 .count().assert().isEqualTo(1L)
         }
     }

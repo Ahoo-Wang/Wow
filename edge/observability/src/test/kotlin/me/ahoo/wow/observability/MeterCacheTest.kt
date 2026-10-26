@@ -38,24 +38,24 @@ class MeterCacheTest {
     fun `a timer is registered once per name and tags, and the same instance is returned after`() {
         val registry = CountingRegistry()
         val cache = MeterCache(registry)
-        val first = cache.timer(WowMetrics.COMMIT, "context", "shop", "outcome", "committed")
-        val again = cache.timer(WowMetrics.COMMIT, "context", "shop", "outcome", "committed")
-        val other = cache.timer(WowMetrics.COMMIT, "context", "shop", "outcome", "rejected")
+        val first = cache.timer(WowMetrics.COMMAND_DURATION, "context", "shop", "outcome", "committed")
+        val again = cache.timer(WowMetrics.COMMAND_DURATION, "context", "shop", "outcome", "committed")
+        val other = cache.timer(WowMetrics.COMMAND_DURATION, "context", "shop", "outcome", "rejected")
         again.assert().isSameAs(first)
         other.assert().isNotSameAs(first)
         registry.lookups.get().assert().isEqualTo(2)
         first.record(1, TimeUnit.MILLISECONDS)
-        registry.get(WowMetrics.COMMIT).tag("outcome", "committed").timer().count().assert().isEqualTo(1L)
+        registry.get(WowMetrics.COMMAND_DURATION).tag("outcome", "committed").timer().count().assert().isEqualTo(1L)
     }
 
     @Test
     fun `a counter is registered once per name and tags`() {
         val registry = SimpleMeterRegistry()
         val cache = MeterCache(registry)
-        cache.counter(WowMetrics.UNDECODABLE, "topic", "t").increment()
-        cache.counter(WowMetrics.UNDECODABLE, "topic", "t").increment()
-        cache.counter(WowMetrics.UNDECODABLE, "topic", "t")
-            .assert().isSameAs(cache.counter(WowMetrics.UNDECODABLE, "topic", "t"))
-        registry.get(WowMetrics.UNDECODABLE).counter().count().assert().isEqualTo(2.0)
+        cache.counter(WowMetrics.UNDECODABLE_MESSAGES, "topic", "t").increment()
+        cache.counter(WowMetrics.UNDECODABLE_MESSAGES, "topic", "t").increment()
+        cache.counter(WowMetrics.UNDECODABLE_MESSAGES, "topic", "t")
+            .assert().isSameAs(cache.counter(WowMetrics.UNDECODABLE_MESSAGES, "topic", "t"))
+        registry.get(WowMetrics.UNDECODABLE_MESSAGES).counter().count().assert().isEqualTo(2.0)
     }
 }

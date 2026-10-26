@@ -264,7 +264,7 @@ class Telemetry {
         .setTracerProvider(SdkTracerProvider.builder().addSpanProcessor(SimpleSpanProcessor.create(spans)).build())
         .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
         .build()
-    val meters = SimpleMeterRegistry()
+    val meters = SimpleMeterRegistry().apply { config().meterFilter(MetricNamingTest.CATALOG_ONLY) }
     var now: Long = 0
     val observer = OtelObserver(sdk, meters) { now }
 

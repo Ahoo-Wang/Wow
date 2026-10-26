@@ -17,6 +17,7 @@ import io.micrometer.core.instrument.FunctionCounter
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.observability.WowMetrics
 import me.ahoo.wow.spi.transport.PartitionedSource
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.ObjectProvider
@@ -36,7 +37,7 @@ class TransportAutoConfigurationTest {
         counter.count()
         // Finding R2.3-4: a weakly held provider is gone after the collection, and the counter freezes.
         reads.get().assert().isGreaterThan(before)
-        registry.get(TransportAutoConfiguration.OFFSET_GAPS).functionCounter().count().assert().isEqualTo(0.0)
+        registry.get(WowMetrics.OFFSET_GAPS).functionCounter().count().assert().isEqualTo(0.0)
     }
 
     /** Registers the counter over a provider only the meter can hold, counting the provider's reads in [reads]. */

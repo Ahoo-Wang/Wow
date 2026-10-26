@@ -23,6 +23,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.Stage
+import me.ahoo.wow.kernel.StateCacheOutcome
 import me.ahoo.wow.observability.WowAttributes.AGGREGATE
 import me.ahoo.wow.observability.WowAttributes.AGGREGATE_ID
 import me.ahoo.wow.observability.WowAttributes.COMMAND
@@ -50,7 +51,7 @@ import kotlin.coroutines.EmptyCoroutineContext
  * | Stage | Span | Kind | Metric |
  * |---|---|---|---|
  * | admission | `admit <context>.<aggregate>` | SERVER | |
- * | execution | `execute <context>.<aggregate>` | INTERNAL | [WowMetrics.COMMIT] |
+ * | execution | `execute <context>.<aggregate>` | INTERNAL | [WowMetrics.COMMAND_DURATION] |
  * | decision | `decide <context>.<aggregate>` | INTERNAL | |
  * | append | `append <context>.<aggregate>` | INTERNAL | |
  * | handling, of the log | `handle <subscription>` | INTERNAL | [WowMetrics.SUBSCRIPTION_LAG] |
@@ -58,9 +59,9 @@ import kotlin.coroutines.EmptyCoroutineContext
  * | timer firing | `fire <command type>` | INTERNAL | [WowMetrics.TIMER_DELAY] |
  *
  * A subscription's partition paused on a systemic failure, and resumed (decision D243), counts in
- * [WowMetrics.PAUSED_NOTICES]; [NodeMetrics] samples [WowMetrics.PAUSED]. One throttled on backpressure, and back at
- * full speed, counts in [WowMetrics.THROTTLED_NOTICES], each backpressured attempt in [WowMetrics.BACKPRESSURE]
- * (decision D263); [NodeMetrics] samples [WowMetrics.THROTTLED].
+ * [WowMetrics.PAUSED_NOTICES]; [NodeMetrics] samples [WowMetrics.PAUSED_PARTITIONS]. One throttled on backpressure, and back at
+ * full speed, counts in [WowMetrics.THROTTLED_NOTICES], each backpressured attempt in [WowMetrics.BACKPRESSURE_REFUSALS]
+ * (decision D263); [NodeMetrics] samples [WowMetrics.THROTTLED_PARTITIONS].
  *
  * A stage that starts from what arrived (a request's trace, an entry's or a message's [me.ahoo.wow.spi.log.Transport.trace])
  * is the child of the span those propagation fields name, as [openTelemetry]'s propagators extract them; any other is
@@ -105,7 +106,7 @@ class OtelObserver(
             .setAttribute(COMMAND, commandType)
         return observation(Context.current(), span) { outcome, nanos ->
             cached.timer(
-                WowMetrics.COMMIT,
+                WowMetrics.COMMAND_DURATION,
                 WowMetrics.CONTEXT,
                 type.context,
                 WowMetrics.AGGREGATE,
@@ -118,7 +119,7 @@ class OtelObserver(
 
     override fun undecodable(topic: String, partition: Int, offset: Long, parked: Boolean) {
         cached.counter(
-            WowMetrics.UNDECODABLE,
+            WowMetrics.UNDECODABLE_MESSAGES,
             WowMetrics.TOPIC,
             topic,
             WowMetrics.OUTCOME,
@@ -141,8 +142,6 @@ class OtelObserver(
             group,
             WowMetrics.SUBSCRIPTION,
             subscription,
-            WowMetrics.PARTITION,
-            partition.toString(),
             WowMetrics.KIND,
             if (throttled) WowMetrics.THROTTLED_KIND else WowMetrics.UNTHROTTLED_KIND,
         ).increment()
@@ -150,12 +149,12 @@ class OtelObserver(
 
     override fun backpressured(group: String, subscription: String, partition: Int, code: String) {
         cached.counter(
-            WowMetrics.BACKPRESSURE,
+            WowMetrics.BACKPRESSURE_REFUSALS,
             WowMetrics.GROUP,
             group,
             WowMetrics.SUBSCRIPTION,
             subscription,
-            WowMetrics.CODE,
+            WowMetrics.ERROR_TYPE,
             code,
         ).increment()
     }
@@ -167,8 +166,6 @@ class OtelObserver(
             group,
             WowMetrics.SUBSCRIPTION,
             subscription,
-            WowMetrics.PARTITION,
-            partition.toString(),
             WowMetrics.KIND,
             kind,
         ).increment()
@@ -176,19 +173,19 @@ class OtelObserver(
 
     override fun refused(type: AggregateType, code: String) {
         cached.counter(
-            WowMetrics.REFUSED,
+            WowMetrics.COMMAND_REFUSALS,
             WowMetrics.CONTEXT,
             type.context,
             WowMetrics.AGGREGATE,
             type.name,
-            WowMetrics.CODE,
+            WowMetrics.ERROR_TYPE,
             code,
         ).increment()
     }
 
     override fun waitTimedOut(type: AggregateType, stage: Stage) {
         cached.counter(
-            WowMetrics.WAIT_TIMEOUT,
+            WowMetrics.WAIT_TIMEOUTS,
             WowMetrics.CONTEXT,
             type.context,
             WowMetrics.AGGREGATE,
@@ -199,20 +196,25 @@ class OtelObserver(
     }
 
     override fun signalDropped(origin: String, reason: String) {
-        cached.counter(WowMetrics.SIGNAL_DROPPED, WowMetrics.REASON, reason).increment()
+        cached.counter(WowMetrics.SIGNAL_DROPS, WowMetrics.REASON, reason).increment()
     }
 
     override fun forwardFailed(type: AggregateType, outcome: String) {
-        cached.counter(WowMetrics.FORWARD_FAILED, WowMetrics.CONTEXT, type.context, WowMetrics.OUTCOME, outcome)
+        cached.counter(WowMetrics.FORWARD_FAILURES, WowMetrics.CONTEXT, type.context, WowMetrics.OUTCOME, outcome)
             .increment()
     }
 
     override fun stateCache(context: String, outcome: String) {
-        cached.counter(WowMetrics.STATE_CACHE, WowMetrics.CONTEXT, context, WowMetrics.OUTCOME, outcome).increment()
+        if (outcome == StateCacheOutcome.EVICTED) {
+            cached.counter(WowMetrics.STATE_CACHE_EVICTIONS, WowMetrics.CONTEXT, context).increment()
+        } else {
+            cached.counter(WowMetrics.STATE_CACHE_LOOKUPS, WowMetrics.CONTEXT, context, WowMetrics.OUTCOME, outcome)
+                .increment()
+        }
     }
 
     override fun reservationLost(context: String) {
-        cached.counter(WowMetrics.RESERVATION_LOST, WowMetrics.CONTEXT, context).increment()
+        cached.counter(WowMetrics.RESERVATION_LOSSES, WowMetrics.CONTEXT, context).increment()
     }
 
     override fun storeFellBack(context: String, capability: String, reason: String) {

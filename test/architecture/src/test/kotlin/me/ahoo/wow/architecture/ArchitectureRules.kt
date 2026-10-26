@@ -945,6 +945,33 @@ object ArchitectureRules {
             allowed.keys.filter { path -> readers.none { it.startsWith("$path:") } }
         }
 
+    /**
+     * The meters production code registers under a name it spells out (a string literal or template) instead of a
+     * constant of the metric catalog, `me.ahoo.wow.observability.WowMetrics` (decision D289): `path:line: code`, minus
+     * the files [allowed].
+     */
+    fun literalMeterNames(repositoryRoot: File, allowed: Map<String, String> = emptyMap()): List<String> =
+        productionSources(repositoryRoot).flatMap { file ->
+            val path = file.relativeTo(repositoryRoot).invariantSeparatorsPath
+            if (path in allowed) return@flatMap emptyList()
+            file.readLines().mapIndexedNotNull { index, line ->
+                val code = line.substringBefore("//").trim()
+                code.takeIf { METER_NAMED.find(it)?.groupValues?.get(1)?.trimStart()?.startsWith("\"") == true }
+                    ?.let { "$path:${index + 1}: $it" }
+            }
+        }
+
+    /** The paths of [allowed] that no longer name a meter by a literal, so their entries are stale. */
+    fun staleLiteralMeterNames(repositoryRoot: File, allowed: Map<String, String>): List<String> =
+        literalMeterNames(repositoryRoot).let { found ->
+            allowed.keys.filter { path -> found.none { it.startsWith("$path:") } }
+        }
+
+    private val METER_NAMED = Regex(
+        "(?:\\b(?:Gauge|Counter|Timer|FunctionCounter|FunctionTimer|DistributionSummary|LongTaskTimer|TimeGauge)" +
+            "\\.builder|\\.(?:counter|timer|gauge|summary))\\(([^,)]*)",
+    )
+
     private val WOW_CONSTANT = Regex("const val (\\w+)\\s*(?::\\s*String)?\\s*=\\s*\"wow\\.")
     private val ENVIRONMENT_READ =
         Regex("\\.(getProperty|getRequiredProperty|containsProperty|bind|bindOrCreate)\\(|\\bgetProperty\\(")
