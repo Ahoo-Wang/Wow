@@ -22,7 +22,6 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
-import me.ahoo.wow.spi.log.Transport
 
 /** The streams [add] gives, read by [read]: what the events model reads of a log; it writes and tails nothing. */
 class StreamsLog : EventLog {

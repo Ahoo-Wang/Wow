@@ -31,10 +31,10 @@ import me.ahoo.wow.runtime.wait.commandFunction
 import me.ahoo.wow.runtime.wait.failed
 import me.ahoo.wow.runtime.wait.reachedResult
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.subscription.Member
-import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.wait.WaitContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger

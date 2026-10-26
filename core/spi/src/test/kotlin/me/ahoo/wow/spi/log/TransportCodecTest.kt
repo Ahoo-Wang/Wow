@@ -20,6 +20,7 @@ import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.ObjectNode
 
 /** The one form of a transport (finding R5.B-3): the bytes a log stores and the object a message embeds. */
 class TransportCodecTest {
@@ -56,14 +57,14 @@ class TransportCodecTest {
 
     @Test
     fun `a field a newer version adds is ignored by this one, at every level`() {
-        val newer = """
-            {"wait":{"waitId":"w-1","origin":{"node":"node-1","address":"10.0.0.1:9090","service":"bank-service",
-            "zone":"z"},"remaining":[{"stage":"HANDLED","context":"bank","subscription":"bank.projector","group":"g"},
-            {"stage":"SNAPSHOT"}],"deadline":1000,"hops":3},"reservations":[{"namespace":"email","key":"a@b ü",
-            "ttl":5},{"namespace":"login","key":"x","system":true}],"trace":{"traceparent":"00-1-2-01"},
-            "releases":[{"namespace":"email","key":"old"}],"priority":7}
-        """.trimIndent().replace("\n", "")
-        TransportCodec.decode(newer.encodeToByteArray()).assert().isEqualTo(full)
+        val newer = WowJson.mapper.readTree(TransportCodec.encode(full)) as ObjectNode
+        newer.put("priority", 7)
+        val wait = newer["wait"] as ObjectNode
+        wait.put("hops", 3)
+        (wait["origin"] as ObjectNode).put("zone", "z")
+        (wait["remaining"][0] as ObjectNode).put("group", "g")
+        (newer["reservations"][0] as ObjectNode).put("ttl", 5)
+        TransportCodec.decode(WowJson.mapper.writeValueAsBytes(newer)).assert().isEqualTo(full)
     }
 
     @Test

@@ -155,7 +155,7 @@ internal class PostgresEventLogTables(val context: String) {
     fun appendGroup(partition: Int, tables: List<AggregateLogTable>, branches: List<Int>): String {
         val values = branches.withIndex().joinToString(", ") { (ord, branch) ->
             "($ord, $branch, ?::text, ?::text, ?::integer, ?::text, ?::text, ?::text, ?::bigint, ?::jsonb, ?::text, " +
-                "?::text, ?::text, ?::text, ?::jsonb, ?::jsonb, ?::text, ?::text, ?::boolean, ?::jsonb)"
+                "?::text, ?::text, ?::text, ?::jsonb, ?::bytea, ?::text, ?::text, ?::boolean, ?::jsonb)"
         }
         val current = tables.withIndex().joinToString(" UNION ALL ") { (branch, table) ->
             "SELECT input.ord, coalesce((SELECT max(log.version) FROM ${table.log} AS log " +
@@ -213,7 +213,7 @@ internal class PostgresEventLogTables(val context: String) {
     fun appendGroupAcross(tables: List<AggregateLogTable>, branches: List<Int>): String {
         val values = branches.withIndex().joinToString(", ") { (ord, branch) ->
             "($ord, $branch, ?::integer, ?::text, ?::text, ?::integer, ?::text, ?::text, ?::text, ?::bigint, " +
-                "?::jsonb, ?::text, ?::text, ?::text, ?::text, ?::jsonb, ?::jsonb, ?::text, ?::text, ?::boolean, ?::jsonb)"
+                "?::jsonb, ?::text, ?::text, ?::text, ?::text, ?::jsonb, ?::bytea, ?::text, ?::text, ?::boolean, ?::jsonb)"
         }
         val current = tables.withIndex().joinToString(" UNION ALL ") { (branch, table) ->
             "SELECT input.ord, coalesce((SELECT max(log.version) FROM ${table.log} AS log " +
@@ -352,7 +352,7 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
         INSERT INTO $log (partition, sequence, tenant_id, aggregate_id, version, command_id, request_id,
             command_type, commit_time, events, owner_id, space_id, correlation_id, causation_id, headers, transport,
             operator_id, operator_tenant_id, operator_cross_scope, tags)
-        SELECT ?, bump.sequence, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?, ?::jsonb
+        SELECT ?, bump.sequence, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?::bytea, ?, ?, ?, ?::jsonb
         FROM bump
         RETURNING sequence
     """.trimIndent()

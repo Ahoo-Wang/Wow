@@ -71,7 +71,6 @@ import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
-import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.wait.Origin
 import org.springframework.http.HttpHeaders
 import org.springframework.test.web.reactive.server.WebTestClient
