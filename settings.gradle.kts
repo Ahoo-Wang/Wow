@@ -53,6 +53,9 @@ project(":code-coverage-report").projectDir = file("test/code-coverage-report")
 // The BOM (artifact wow-bom, D87; release configuration R.1).
 include(":bom")
 project(":bom").projectDir = file("bom/bom")
+// The stability markers every module builds on (decision D282): InternalWowApi, ExperimentalWowApi, WowSpi.
+include(":annotations")
+project(":annotations").projectDir = file("api/annotations")
 include(":api")
 project(":api").projectDir = file("api/api")
 include(":manifest")
