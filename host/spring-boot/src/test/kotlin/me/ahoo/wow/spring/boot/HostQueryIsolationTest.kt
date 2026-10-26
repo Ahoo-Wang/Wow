@@ -118,7 +118,12 @@ class HostQueryIsolationTest {
             host.context.getBean(ReplayGate::class.java).assert().isSameAs(ReplayGate.OPEN)
         }
         startHost().use { host ->
-            host.context.getBean(ReplayGate::class.java).assert().isNotSameAs(ReplayGate.OPEN)
+            val gate = host.context.getBean(ReplayGate::class.java)
+            gate.assert().isNotSameAs(ReplayGate.OPEN)
+            gate.toString().assert().startsWith("ReplayGate(")
+            // A read of a type whose log store is not the node's runs under no bulkhead: at once.
+            runBlocking { gate.replay(AggregateType("elsewhere", "thing").ref("t", "x")) { "read" } }.assert()
+                .isEqualTo("read")
         }
     }
 
