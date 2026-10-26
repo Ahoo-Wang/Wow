@@ -159,10 +159,10 @@
 | R5.A-3 | P1 | `:test-dsl`、`:kernel` | 测 `putResult` 只能强转内核的 `CommandOutcome`，`LogPosition` 等成了用户依赖 | 批 1 | 待修 |
 | R5.A-7 | P2 | ABI 转储 | sealed 父类型上的 `@InternalWowApi` 挡不住嵌套子类（`BatchOutcome$*`、`QueryPathSegment$*` 等 5 处） | 批 1 | 待修 |
 | R5.A-8 | P2 | `:api` `SubscriptionContext` | 冻结接口用「默认抛异常」表达能力 | 批 1 | 待修 |
-| R5.A-9 | P2 | `:kernel`、`:manifest` | 错误码字符串两份，只靠 `:http` 的一个测试对齐 | 批 1 | 待修 |
+| R5.A-9 | P2 | `:kernel`、`:manifest` | 错误码字符串两份，只靠 `:http` 的一个测试对齐 | 批 1（D294） | 待修 |
 | R5.A-10 | P2 | `:kernel` `ModelProvider` | 生成代码与内核没有绑定版本握手，不匹配要到首条命令才 `NoSuchMethodError` | 批 1 | 待修 |
 | R5.A-11 | P2 | `:kernel` | `ExecutionProjectContext` 等内部执行上下文是公开 `data class` | 批 1 | 待修 |
-| R5.A-12 | P2 | `:manifest`、`:kernel` | `Creation`、`Ownership` 两套同值枚举 | 批 1（D282） | 待修 |
+| R5.A-12 | P2 | `:manifest`、`:kernel` | `Creation`、`Ownership` 两套同值枚举 | 批 1（D294） | 待修 |
 | R5.A-13 | P2 | `:kernel` `EventType` | `data class` 的 `equals` 落在 lambda 身份上；`JsonNode` 进冻结面 | 批 1 | 待修 |
 | R5.A-14 | P2 | `:api` `Command` | `schedule` 每次访问都解析 headers | 批 1 | 待修 |
 | R5.A-15 | P2 | `:api` `QueryApi` | 数据集用 `AggregateType` 命名 | 批 1 | 待修 |
@@ -173,7 +173,7 @@
 | R5.C-1 | P1 | `:http` 读路由 | 读侧作用域授权（`crossScope`、跨租户开关、固定租户）在 HTTP 层抄了三份，引擎无法复核 | 批 2 | 待修 |
 | R5.C-2 | P1 | `:spring-boot` | 宿主里有安全底线（无集群令牌拒绝启动）、内部端口服务器、读侧组合、对端路由；守护规则是 8 个类名的黑名单 | 批 2 | 待修 |
 | R5.C-4 | P1 | 发布元数据 | `wow-dependencies` 以 `api(platform)` 进入每个已发布库，把 Spring Boot、测试与 lint 的约束带给所有 Gradle 用户 | 批 2（D287） | 待修 |
-| R5.C-5 | P1 | `:client`、`:http` | `:client` 依赖整个 `:runtime` 与 `:query`；`:http` 为线路语法依赖 `:client` | 批 2（D286） | 待修 |
+| R5.C-5 | P1 | `:client`、`:http` | `:client` 依赖整个 `:runtime` 与 `:query`；`:http` 为线路语法依赖 `:client` | 批 2（D286、D293） | 待修 |
 | R5.A-4 | P1 | `:api` | 运维线路记录（`api.ledger`、`api.snapshot`，约 500 行 ABI）在领域 API 里，与 `:spi` 同一概念两套模型 | 批 2（D284） | 待修 |
 | R5.C-10 | P2 | `:architecture` | 规则是正则黑名单；06 §3、07 §4 声称的 9.x 名称规则不存在；缺 `:client` 方向等规则 | 批 2 | 待修 |
 | R5.C-12 | P2 | `:cosec`、`:spring-boot` | 可选集成两套装配方式；`wow.cosec.*` 两个读者 | 批 2 | 待修 |
