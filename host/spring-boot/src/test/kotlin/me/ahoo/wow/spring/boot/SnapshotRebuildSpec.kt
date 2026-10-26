@@ -23,7 +23,6 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.api.snapshot.SnapshotRebuilds
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.aggregate
@@ -50,6 +49,7 @@ import me.ahoo.wow.runtime.snapshot.SnapshotPlacement
 import me.ahoo.wow.runtime.store.StoreLayout
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
+import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore

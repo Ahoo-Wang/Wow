@@ -18,9 +18,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.api.ledger.LedgerAggregate
-import me.ahoo.wow.api.ledger.LedgerEntry
-import me.ahoo.wow.api.ledger.LedgerResolution
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
@@ -36,6 +33,9 @@ import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.subscription.cart
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
+import me.ahoo.wow.spi.ledger.LedgerAggregate
+import me.ahoo.wow.spi.ledger.LedgerEntry
+import me.ahoo.wow.spi.ledger.LedgerResolution
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
 import org.junit.jupiter.api.Test

@@ -15,17 +15,17 @@ package me.ahoo.wow.ops.domain.parked
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.api.ledger.LedgerAggregate
-import me.ahoo.wow.api.ledger.LedgerEntry
-import me.ahoo.wow.api.ledger.LedgerResolution
-import me.ahoo.wow.api.ledger.LedgerRetrySpec
 import me.ahoo.wow.ops.api.OpsContext
 import me.ahoo.wow.ops.api.parked.ActionRefused
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpec
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
+import me.ahoo.wow.ops.api.parked.EntryAggregate
+import me.ahoo.wow.ops.api.parked.EntryRetrySpec
 import me.ahoo.wow.ops.api.parked.MarkRecoverable
 import me.ahoo.wow.ops.api.parked.MarkRecoverableRequested
+import me.ahoo.wow.ops.api.parked.ParkedEntry
 import me.ahoo.wow.ops.api.parked.ParkedRecorded
+import me.ahoo.wow.ops.api.parked.ParkedResolution
 import me.ahoo.wow.ops.api.parked.ParkedResolved
 import me.ahoo.wow.ops.api.parked.ParkedStatus
 import me.ahoo.wow.ops.api.parked.RecordActionRefused
@@ -63,7 +63,7 @@ class ParkedSpec {
                     retries.assert().isEqualTo(0)
                     retryAt.assert().isNull()
                     retrySpec.maxRetries.assert().isEqualTo(10)
-                    recoverable.assert().isEqualTo(LedgerEntry.UNKNOWN)
+                    recoverable.assert().isEqualTo(ParkedEntry.UNKNOWN)
                     request.assert().isNull()
                     status.assert().isEqualTo(ParkedStatus.SCHEDULED)
                     nextRetryAt.assert().isEqualTo(280L)
@@ -90,15 +90,15 @@ class ParkedSpec {
             // The resolution of an earlier parking of the aggregate.
             whenCommand(RecordResolved(resolution(failedAt = 50))) { expectUnchanged() }
             whenCommand(RecordResolved(RESOLUTION)) {
-                expectEvents(ParkedResolved(LedgerResolution.RESUMED, 100, 400))
+                expectEvents(ParkedResolved(ParkedResolution.RESUMED, 100, 400))
                 expectState {
                     resolved.assert().isTrue()
                     status.assert().isEqualTo(ParkedStatus.RESOLVED)
-                    outcome.assert().isEqualTo(LedgerResolution.RESUMED)
+                    outcome.assert().isEqualTo(ParkedResolution.RESUMED)
                     resolvedAt.assert().isEqualTo(400L)
                 }
             }
-            whenCommand(RecordResolved(resolution(outcome = LedgerResolution.RESOLVED))) { expectUnchanged() }
+            whenCommand(RecordResolved(resolution(outcome = ParkedResolution.RESOLVED))) { expectUnchanged() }
             whenCommand(RecordParked(entry("recordedAt" to 500))) { expectUnchanged() }
             whenCommand(Resume()) { expectRejected(ParkedRejections.RESOLVED) }
             // The aggregate parks again: a new parking.
@@ -133,8 +133,8 @@ class ParkedSpec {
     fun `a resolution its service did not date resolves the entry`() {
         parkedSpec {
             given(ParkedRecorded(ENTRY))
-            whenCommand(RecordResolved(resolution(failedAt = null, outcome = LedgerResolution.NOT_PARKED))) {
-                expectEvents(ParkedResolved(LedgerResolution.NOT_PARKED, null, 400))
+            whenCommand(RecordResolved(resolution(failedAt = null, outcome = ParkedResolution.NOT_PARKED))) {
+                expectEvents(ParkedResolved(ParkedResolution.NOT_PARKED, null, 400))
             }
         }
     }
@@ -204,7 +204,7 @@ class ParkedSpec {
     @Test
     fun `a refusal of a resolved entry changes nothing`() {
         parkedSpec {
-            given(ParkedRecorded(ENTRY), ParkedResolved(LedgerResolution.RESUMED, 100, 400))
+            given(ParkedRecorded(ENTRY), ParkedResolved(ParkedResolution.RESUMED, 100, 400))
             whenCommand(RecordActionRefused(Ledger.SKIP, "wow.auth.forbidden", "No.")) { expectUnchanged() }
         }
         // A resolution clears a refusal.
@@ -218,11 +218,11 @@ class ParkedSpec {
 
     companion object {
         const val SUBSCRIPTION = "PaymentGatewaySaga.onPaymentRequested"
-        val AGGREGATE = LedgerAggregate.of("eshop-payment", "payment", "(0)", "alice-1")
+        val AGGREGATE = EntryAggregate("eshop-payment", "payment", "(0)", "alice-1")
         const val ID = "eshop-payment-service:$SUBSCRIPTION:eshop-payment.payment:(0):alice-1"
 
         /**
-         * The fields of the entry the tests record. A [LedgerEntry] is a wire record whose constructor is Wow's own
+         * The fields of the entry the tests record. A [ParkedEntry] is a wire record whose constructor is Wow's own
          * (decision D216): the tests read it from its JSON, as the ops context receives it.
          */
         private val ENTRY_FIELDS: Map<String, Any?> = mapOf(
@@ -233,19 +233,19 @@ class ParkedSpec {
             "fromVersion" to 1,
             "reason" to "java.net.ConnectException: The gateway is down.",
             "failedAt" to 100,
-            "retrySpec" to LedgerRetrySpec.of(10, "PT3M", "PT2M"),
+            "retrySpec" to EntryRetrySpec(10, "PT3M", "PT2M"),
             "status" to ParkedStatus.SCHEDULED,
             "nextRetryAt" to 280,
             "recordedAt" to 110,
         )
 
         /** The entry with [changes] to its fields. */
-        fun entry(vararg changes: Pair<String, Any?>): LedgerEntry =
-            WowJson.mapper.convertValue(ENTRY_FIELDS + changes, LedgerEntry::class.java)
+        fun entry(vararg changes: Pair<String, Any?>): ParkedEntry =
+            WowJson.mapper.convertValue(ENTRY_FIELDS + changes, ParkedEntry::class.java)
 
         val ENTRY = entry()
-        fun resolution(failedAt: Long? = 100, outcome: String = LedgerResolution.RESUMED): LedgerResolution =
-            LedgerResolution.of(
+        fun resolution(failedAt: Long? = 100, outcome: String = ParkedResolution.RESUMED): ParkedResolution =
+            ParkedResolution(
                 service = "eshop-payment-service",
                 context = "eshop-payment",
                 subscription = SUBSCRIPTION,
