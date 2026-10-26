@@ -75,7 +75,8 @@ data:
       ip2region:
         enabled: false
       # CoSec's Redis rate limiter registers a bean named redisRateLimiter, as Spring Cloud Gateway's Redis
-      # auto-configuration does: with Redis configured, the image does not start unless one of them is off (finding F7).
+      # auto-configuration does: with Redis configured, the image does not start unless one of them is off (finding F7,
+      # https://github.com/Ahoo-Wang/CoSec/issues/1063).
       limiter:
         enabled: false
       jwt:
