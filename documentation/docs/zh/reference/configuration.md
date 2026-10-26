@@ -31,7 +31,7 @@ The synchronous calls of the node's sagas to the command gateways of other conte
 | `wow.calls.connect-timeout` | `Duration` | `PT2S` | How long one call may take to connect. |
 | `wow.calls.contexts` | `Map<String,CallTarget>` |  | Each context's base URL, `wow.calls.contexts.<context>.url`: the target's internal port, `http://host:port` of an address in its internal network, never its public port, which refuses calls. |
 | `wow.calls.timeout` | `Duration` | `PT10S` | How long one call may take. |
-| `wow.calls.token` | `String` |  | The service token the node presents as `Authorization: Bearer`; an application's me.ahoo.wow.client.ServiceCredential bean, such as one that renews a CoSec token, replaces it. |
+| `wow.calls.token` | `String` |  | The service token the node presents as `Authorization: Bearer`; an application's me.ahoo.wow.api.client.ServiceCredential bean, such as one that renews a CoSec token, replaces it. |
 
 ## `wow.clickhouse`
 
@@ -68,7 +68,7 @@ The Sink that writes the Manifest's published streams to ClickHouse.
 
 ## `wow.clients`
 
-The typed clients of the peer contexts over HTTP, `wow-client`'s: a peer context listed in contexts is reached over HTTP by the service's me.ahoo.wow.api.client.CommandClient and me.ahoo.wow.api.read.QueryApi beans; any other context as without these clients (its commands through its topic). An application's me.ahoo.wow.client.EndpointResolver bean may resolve where each peer is instead. The service mode presents the me.ahoo.wow.client.ServiceCredential bean (`wow.calls.token`).
+The typed clients of the peer contexts over HTTP, `wow-client`'s: a peer context listed in contexts is reached over HTTP by the service's me.ahoo.wow.api.client.CommandClient and me.ahoo.wow.api.read.QueryApi beans; any other context as without these clients (its commands through its topic). An application's me.ahoo.wow.client.EndpointResolver bean may resolve where each peer is instead. The service mode presents the me.ahoo.wow.api.client.ServiceCredential bean (`wow.calls.token`).
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
@@ -288,13 +288,13 @@ The internal port: the cluster channel, the wait signals and the calls of other 
 
 ## `wow.kafka`
 
-The Kafka transport's configuration, `wow.kafka.*`, read when wow-kafka is on the classpath (KafkaAutoConfiguration): the brokers, the clients' settings and the topics.
+The Kafka transport's configuration, `wow.kafka.*`: the brokers, the clients' settings and the topics, which the transport provider of type `kafka` reads, and the topic prefix, the command intake and the topics' DDL and partition refresh, which the node reads whatever transport carries them (TransportAutoConfiguration). The keys stay until the configuration surface is final.
 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.kafka.bootstrap-servers` | `String` |  | The brokers; the transport, the Kafka Sink and the Kafka-sourced subscriptions are wired only when it is set. |
 | `wow.kafka.command-intake` | `Boolean` | `false` | Whether each context the node hosts executes the commands other contexts send to its command topic, `wow.<context>.commands`. The topic must exist with as many partitions as the context's log. A context with an aggregate type routed through Kafka takes them whatever this says. |
-| `wow.kafka.offset-gap` | `OffsetGapPolicy` | `fail` | What a read of another context's topic does when its partition no longer holds the offset to read from (the retention deleted it, or the topic was created again): `fail` fails the read, so the subscription stays where it is; `earliest` reads on from the earliest offset retained, and the skipped range is lost to that subscription. Either way the gap is logged as an error and counted (`wow.kafka.offset.gaps`). |
+| `wow.kafka.offset-gap` | `String` | `fail` | What a read of another context's topic does when its partition no longer holds the offset to read from (the retention deleted it, or the topic was created again): `fail` fails the read, so the subscription stays where it is; `earliest` reads on from the earliest offset retained, and the skipped range is lost to that subscription. Either way the gap is logged as an error and counted (`wow.kafka.offset.gaps`). |
 | `wow.kafka.poll-timeout` | `Duration` | `PT0.2S` | The longest a consumer's poll waits; a read that is cancelled, and a partition that joins or leaves a topic's shared consumer, take effect within it. |
 | `wow.kafka.properties` | `Map<String,String>` |  | Passed to every producer and consumer as they are (`security.protocol`, `client.id`, `linger.ms`,...), except the settings the transport's guarantees rest on (`me.ahoo.wow.kafka.KafkaOptions`). |
 | `wow.kafka.topic-prefix` | `String` | `""` | Put before every topic name, such as `staging.` for `staging.wow.shop.order.state`; none by default, so the topics are the Manifest's (`wow.<context>.<aggregate>.state`). The sinks write and the subscriptions read under it. |

@@ -53,6 +53,42 @@ public final class me/ahoo/wow/ops/api/parked/ApplyRetrySpecRequested {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/ops/api/parked/EntryAggregate {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/ops/api/parked/EntryAggregate;
+	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/EntryAggregate;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/EntryAggregate;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getContext ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getTenantId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun toRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/ops/api/parked/EntryRetrySpec {
+	public fun <init> (ILjava/lang/String;Ljava/lang/String;Z)V
+	public synthetic fun <init> (ILjava/lang/String;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Z
+	public final fun copy (ILjava/lang/String;Ljava/lang/String;Z)Lme/ahoo/wow/ops/api/parked/EntryRetrySpec;
+	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/EntryRetrySpec;ILjava/lang/String;Ljava/lang/String;ZILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/EntryRetrySpec;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getApplied ()Z
+	public final fun getExecutionTimeout ()Ljava/lang/String;
+	public final fun getMaxRetries ()I
+	public final fun getMinBackoff ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/ops/api/parked/MarkRecoverable {
 	public fun <init> (Ljava/lang/String;)V
 	public final fun component1 ()Ljava/lang/String;
@@ -75,15 +111,94 @@ public final class me/ahoo/wow/ops/api/parked/MarkRecoverableRequested {
 	public fun toString ()Ljava/lang/String;
 }
 
-public final class me/ahoo/wow/ops/api/parked/ParkedRecorded {
-	public fun <init> (Lme/ahoo/wow/api/ledger/LedgerEntry;)V
-	public final fun component1 ()Lme/ahoo/wow/api/ledger/LedgerEntry;
-	public final fun copy (Lme/ahoo/wow/api/ledger/LedgerEntry;)Lme/ahoo/wow/ops/api/parked/ParkedRecorded;
-	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/ParkedRecorded;Lme/ahoo/wow/api/ledger/LedgerEntry;ILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/ParkedRecorded;
+public final class me/ahoo/wow/ops/api/parked/ParkedEntry {
+	public static final field Companion Lme/ahoo/wow/ops/api/parked/ParkedEntry$Companion;
+	public static final field UNKNOWN Ljava/lang/String;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/ops/api/parked/EntryAggregate;ILjava/lang/Long;Ljava/lang/String;JILjava/lang/Long;Lme/ahoo/wow/ops/api/parked/EntryRetrySpec;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;J)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/ops/api/parked/EntryAggregate;ILjava/lang/Long;Ljava/lang/String;JILjava/lang/Long;Lme/ahoo/wow/ops/api/parked/EntryRetrySpec;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()Ljava/lang/Long;
+	public final fun component11 ()Lme/ahoo/wow/ops/api/parked/EntryRetrySpec;
+	public final fun component12 ()Ljava/lang/String;
+	public final fun component13 ()Ljava/lang/String;
+	public final fun component14 ()Ljava/lang/String;
+	public final fun component15 ()Ljava/lang/Long;
+	public final fun component16 ()J
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Lme/ahoo/wow/ops/api/parked/EntryAggregate;
+	public final fun component5 ()I
+	public final fun component6 ()Ljava/lang/Long;
+	public final fun component7 ()Ljava/lang/String;
+	public final fun component8 ()J
+	public final fun component9 ()I
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/ops/api/parked/EntryAggregate;ILjava/lang/Long;Ljava/lang/String;JILjava/lang/Long;Lme/ahoo/wow/ops/api/parked/EntryRetrySpec;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;J)Lme/ahoo/wow/ops/api/parked/ParkedEntry;
+	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/ParkedEntry;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/ops/api/parked/EntryAggregate;ILjava/lang/Long;Ljava/lang/String;JILjava/lang/Long;Lme/ahoo/wow/ops/api/parked/EntryRetrySpec;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;JILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/ParkedEntry;
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getEntry ()Lme/ahoo/wow/api/ledger/LedgerEntry;
+	public final fun getAggregate ()Lme/ahoo/wow/ops/api/parked/EntryAggregate;
+	public final fun getContext ()Ljava/lang/String;
+	public final fun getFailedAt ()J
+	public final fun getFromPosition ()Ljava/lang/Long;
+	public final fun getFromVersion ()I
+	public final fun getNextRetryAt ()Ljava/lang/Long;
+	public final fun getReason ()Ljava/lang/String;
+	public final fun getRecordedAt ()J
+	public final fun getRecoverable ()Ljava/lang/String;
+	public final fun getRequest ()Ljava/lang/String;
+	public final fun getRetries ()I
+	public final fun getRetryAt ()Ljava/lang/Long;
+	public final fun getRetrySpec ()Lme/ahoo/wow/ops/api/parked/EntryRetrySpec;
+	public final fun getService ()Ljava/lang/String;
+	public final fun getStatus ()Ljava/lang/String;
+	public final fun getSubscription ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/ops/api/parked/ParkedEntry$Companion {
+}
+
+public final class me/ahoo/wow/ops/api/parked/ParkedRecorded {
+	public fun <init> (Lme/ahoo/wow/ops/api/parked/ParkedEntry;)V
+	public final fun component1 ()Lme/ahoo/wow/ops/api/parked/ParkedEntry;
+	public final fun copy (Lme/ahoo/wow/ops/api/parked/ParkedEntry;)Lme/ahoo/wow/ops/api/parked/ParkedRecorded;
+	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/ParkedRecorded;Lme/ahoo/wow/ops/api/parked/ParkedEntry;ILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/ParkedRecorded;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEntry ()Lme/ahoo/wow/ops/api/parked/ParkedEntry;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/ops/api/parked/ParkedResolution {
+	public static final field Companion Lme/ahoo/wow/ops/api/parked/ParkedResolution$Companion;
+	public static final field NOT_PARKED Ljava/lang/String;
+	public static final field RESOLVED Ljava/lang/String;
+	public static final field RESUMED Ljava/lang/String;
+	public static final field SKIPPED Ljava/lang/String;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/ops/api/parked/EntryAggregate;Ljava/lang/Long;Ljava/lang/String;J)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/ops/api/parked/EntryAggregate;Ljava/lang/Long;Ljava/lang/String;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Lme/ahoo/wow/ops/api/parked/EntryAggregate;
+	public final fun component5 ()Ljava/lang/Long;
+	public final fun component6 ()Ljava/lang/String;
+	public final fun component7 ()J
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/ops/api/parked/EntryAggregate;Ljava/lang/Long;Ljava/lang/String;J)Lme/ahoo/wow/ops/api/parked/ParkedResolution;
+	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/ParkedResolution;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/ops/api/parked/EntryAggregate;Ljava/lang/Long;Ljava/lang/String;JILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/ParkedResolution;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAggregate ()Lme/ahoo/wow/ops/api/parked/EntryAggregate;
+	public final fun getContext ()Ljava/lang/String;
+	public final fun getFailedAt ()Ljava/lang/Long;
+	public final fun getOutcome ()Ljava/lang/String;
+	public final fun getResolvedAt ()J
+	public final fun getService ()Ljava/lang/String;
+	public final fun getSubscription ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/ops/api/parked/ParkedResolution$Companion {
 }
 
 public final class me/ahoo/wow/ops/api/parked/ParkedResolved {
@@ -126,23 +241,23 @@ public final class me/ahoo/wow/ops/api/parked/RecordActionRefused {
 }
 
 public final class me/ahoo/wow/ops/api/parked/RecordParked {
-	public fun <init> (Lme/ahoo/wow/api/ledger/LedgerEntry;)V
-	public final fun component1 ()Lme/ahoo/wow/api/ledger/LedgerEntry;
-	public final fun copy (Lme/ahoo/wow/api/ledger/LedgerEntry;)Lme/ahoo/wow/ops/api/parked/RecordParked;
-	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/RecordParked;Lme/ahoo/wow/api/ledger/LedgerEntry;ILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/RecordParked;
+	public fun <init> (Lme/ahoo/wow/ops/api/parked/ParkedEntry;)V
+	public final fun component1 ()Lme/ahoo/wow/ops/api/parked/ParkedEntry;
+	public final fun copy (Lme/ahoo/wow/ops/api/parked/ParkedEntry;)Lme/ahoo/wow/ops/api/parked/RecordParked;
+	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/RecordParked;Lme/ahoo/wow/ops/api/parked/ParkedEntry;ILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/RecordParked;
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getEntry ()Lme/ahoo/wow/api/ledger/LedgerEntry;
+	public final fun getEntry ()Lme/ahoo/wow/ops/api/parked/ParkedEntry;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/ops/api/parked/RecordResolved {
-	public fun <init> (Lme/ahoo/wow/api/ledger/LedgerResolution;)V
-	public final fun component1 ()Lme/ahoo/wow/api/ledger/LedgerResolution;
-	public final fun copy (Lme/ahoo/wow/api/ledger/LedgerResolution;)Lme/ahoo/wow/ops/api/parked/RecordResolved;
-	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/RecordResolved;Lme/ahoo/wow/api/ledger/LedgerResolution;ILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/RecordResolved;
+	public fun <init> (Lme/ahoo/wow/ops/api/parked/ParkedResolution;)V
+	public final fun component1 ()Lme/ahoo/wow/ops/api/parked/ParkedResolution;
+	public final fun copy (Lme/ahoo/wow/ops/api/parked/ParkedResolution;)Lme/ahoo/wow/ops/api/parked/RecordResolved;
+	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/RecordResolved;Lme/ahoo/wow/ops/api/parked/ParkedResolution;ILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/RecordResolved;
 	public fun equals (Ljava/lang/Object;)Z
-	public final fun getResolution ()Lme/ahoo/wow/api/ledger/LedgerResolution;
+	public final fun getResolution ()Lme/ahoo/wow/ops/api/parked/ParkedResolution;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

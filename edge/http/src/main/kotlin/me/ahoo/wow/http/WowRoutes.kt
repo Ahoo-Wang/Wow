@@ -23,7 +23,6 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.schedule.ScheduleJobs
-import me.ahoo.wow.api.snapshot.SnapshotRebuilds
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.CallerResolver
@@ -55,6 +54,7 @@ import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.state.StateReads
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -93,8 +93,6 @@ import reactor.core.publisher.Mono
  * - `GET /wow/manifest` answers [manifest], unless [WowHttpOptions.manifestEndpoint] is off;
  * - `GET /wow/openapi` answers the OpenAPI 3.1 document of these routes ([openApiOf], roadmap 5a.2), unless
  *   [WowHttpOptions.openApiEndpoint] is off;
- * - `GET /wow/id/global` answers a new global id of the gateway's [generator][CommandGateway.ids] (decision D171) as
- *   `text/plain`;
  * - any other request under a context of the Manifest is a 404 problem.
  *
  * Every route is authenticated by [callerResolver] (401 `wow.auth.unauthenticated` when it returns null). A command
@@ -140,12 +138,6 @@ fun wowRoutes(
         }
         if (options.openApiEndpoint) {
             document(WowPaths.OPENAPI, HttpJson.write(openApiOf(served, options, queries)), statuses, authenticator)
-        }
-        GET(WowPaths.GLOBAL_ID) { request ->
-            statuses.answering {
-                authenticator.authenticate(request)
-                ServerResponse.ok().contentType(MediaType.TEXT_PLAIN).bodyValueAndAwait(gateway.ids.global.next())
-            }
         }
         if (queries.datasets !== DatasetQueryGateways.NONE) {
             datasetRoutes(queryHandler)

@@ -174,7 +174,7 @@ class TagsBackfillerTest {
         private val recorded = HashMap<Pair<AggregateRef, Int>, Map<String, List<String>>>()
         var gap = false
 
-        override suspend fun append(stream: EventStreamRecord, transport: me.ahoo.wow.spi.log.Transport?) =
+        override suspend fun append(stream: EventStreamRecord, transport: ByteArray?) =
             log.append(stream, transport).also { refs += stream.ref }
 
         override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =

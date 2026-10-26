@@ -34,9 +34,11 @@ import org.junit.jupiter.api.Test
 
 /** The events backend contract against MongoDB (decision D235): each test's fresh context is a fresh log. */
 class MongoEventQueryBackendTest : EventQueryBackendSpec() {
-    override suspend fun store(streams: List<EventStreamRecord>) {
+    override suspend fun store(streams: List<Pair<EventStreamRecord, ByteArray?>>) {
         val log = MongoLogFixture.log(PARTITIONS, type.context, listOf(type.name))
-        streams.forEach { (log.append(it) is AppendOutcome.Committed).assert().isTrue() }
+        streams.forEach { (stream, transport) ->
+            (log.append(stream, transport) is AppendOutcome.Committed).assert().isTrue()
+        }
     }
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> =

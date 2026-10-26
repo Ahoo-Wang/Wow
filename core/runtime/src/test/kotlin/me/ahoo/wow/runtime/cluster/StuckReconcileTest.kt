@@ -80,11 +80,15 @@ class StuckReconcileTest {
                 delay(30.seconds)
                 stuck.accepts(partition).assert().isFalse()
                 other.accepts(partition).assert().isFalse()
-                store.members(GROUP.name).map { it.node }.assert().containsExactly(OTHER, STUCK)
+                store.members(
+                    GROUP.service
+                ).filter { GROUP.name in it.groups }.map { it.node }.assert().containsExactly(OTHER, STUCK)
 
                 // Past the reconcile timeout: the stuck node is no member, and the other runs the partition.
                 delay(ClusterOptions().reconcileTimeout)
-                store.members(GROUP.name).map { it.node }.assert().containsExactly(OTHER)
+                store.members(
+                    GROUP.service
+                ).filter { GROUP.name in it.groups }.map { it.node }.assert().containsExactly(OTHER)
                 other.accepts(partition).assert().isTrue()
                 stuck.owned.assert().doesNotContain(partition)
 
@@ -92,7 +96,9 @@ class StuckReconcileTest {
                 leases.losing = false
                 log.release.complete(Unit)
                 delay(30.seconds)
-                store.members(GROUP.name).map { it.node }.assert().containsExactly(OTHER, STUCK)
+                store.members(
+                    GROUP.service
+                ).filter { GROUP.name in it.groups }.map { it.node }.assert().containsExactly(OTHER, STUCK)
                 stuck.accepts(partition).assert().isTrue()
                 other.accepts(partition).assert().isFalse()
             } finally {

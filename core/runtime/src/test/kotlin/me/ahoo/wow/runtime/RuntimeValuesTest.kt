@@ -18,10 +18,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.caller.TargetScope
 import me.ahoo.wow.api.decide.Causation
-import me.ahoo.wow.api.ledger.LedgerAggregate
-import me.ahoo.wow.api.ledger.LedgerResolution
-import me.ahoo.wow.api.ledger.LedgerRetrySpec
 import me.ahoo.wow.api.result.TransformedFrom
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
@@ -31,7 +29,6 @@ import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandRequest
-import me.ahoo.wow.runtime.admission.TargetScope
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.ContextBackends
@@ -45,6 +42,9 @@ import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.ledger.LedgerAggregate
+import me.ahoo.wow.spi.ledger.LedgerResolution
+import me.ahoo.wow.spi.ledger.LedgerRetrySpec
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.seconds

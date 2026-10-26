@@ -7,7 +7,7 @@ description: "What each level of the public API promises, and the declarations t
 
 # API Levels
 
-Every public declaration of a published module has one of four levels. The ABI dumps (`<module>/api/<module>.api`) record the signatures of the first three, so a change to them shows in review.
+Every public declaration of a published module has one of four levels. The ABI dumps (`<module>/api/<module>.api`) record the signatures of the first three, so a change to them shows in review. The markers are in `me.ahoo.wow.api.annotation` of `wow-annotations`, which every Wow artifact brings along.
 
 | Level | Marker | Promise |
 | --- | --- | --- |
@@ -68,11 +68,16 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.spi.VirtualThreads` | object | `wow-spi` |
 | `me.ahoo.wow.spi.ledger.FailureLedger` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.log.EventLog` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.log.SnapshotTailReader` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.log.TailPacer` | class | `wow-spi` |
 | `me.ahoo.wow.spi.log.TailPolling` | class | `wow-spi` |
 | `me.ahoo.wow.spi.observation.Observer` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.reservation.ReservationStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.sink.Sink` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.sink.SinkProvider` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.sink.StreamSinks` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.sink.SinkConfig` | class | `wow-spi` |
+| `me.ahoo.wow.spi.snapshot.SnapshotRebuildStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.snapshot.SnapshotStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.store.Store` | class | `wow-spi` |
 | `me.ahoo.wow.spi.store.StoreConfig` | class | `wow-spi` |
@@ -85,6 +90,9 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.spi.transport.PartitionedSource` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TopicAdmin` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TopicProducer` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.transport.TransportProvider` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.transport.TopicTransport` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.transport.TransportConfig` | class | `wow-spi` |
 | `me.ahoo.wow.query.QueryBackend` | interface | `wow-query` |
 | `me.ahoo.wow.query.QueryBackendFactory` | interface | `wow-query` |
 | `me.ahoo.wow.query.schema.QueryStorageAdapter` | interface | `wow-query` |

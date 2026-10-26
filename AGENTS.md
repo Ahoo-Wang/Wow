@@ -78,7 +78,8 @@ The modules ([modules design](documentation/designs/06-modules.md) §4):
 
 ```text
 bom/bom/                    :bom            The BOM, artifact `wow-bom`
-bom/dependencies/           :wow-dependencies Centralized dependency versions, which every POM imports
+bom/dependencies/           :wow-dependencies The slim platform every POM but the contract modules imports: Jackson, coroutines, kotlin-logging, SLF4J (D287)
+api/annotations/            :annotations    The stability markers: InternalWowApi, ExperimentalWowApi, WowSpi; no dependencies
 api/api/                    :api            The programming model: annotations, Decision, DecideScope, StateEvent, Scope
 api/manifest/               :manifest       The Manifest every projection reads; plain data
 api/query-api/              :query-api      Query protocol: filters, aggregation, windows
@@ -103,7 +104,7 @@ example/eshop/e2e/          :eshop-e2e: the eShop's services end to end on Postg
 ```
 
 - Gradle project names and directories carry no `wow-` prefix (`:kernel` in `core/kernel`); the root build sets their jar name and Maven artifactId to `wow-<name>` (D87). `:architecture` forbids including or depending on a deleted 9.x project (`DELETED_9X`).
-- A release publishes the modules (R.1; see Releasing): `abiProjects` plus `:migrate-data` and `:manifest-tools`, the BOM `:bom` (`bom/bom`, artifact `wow-bom`, constraining exactly those) and `:wow-dependencies` (`bom/dependencies`), which every POM imports; the platform services, `:architecture`, the spikes and the eShop stay unpublished (`incubatingProjects`). Their ABI is frozen at the M7 exit (D88, D147, D216): `abiProjects` in `build.gradle.kts` (every published Wow module except `:migrate-data` and `:manifest-tools`) joins the `abiValidation` block, keeps its dump in `<module>/api/<module>.api` (recorded by D216 F.5), and `:check` runs its `checkKotlinAbi`; `./gradlew updateKotlinAbi` rewrites the dumps. Between the M7 exit and 10.0.0 GA a dump is a review tool, see Binary Compatibility.
+- A release publishes the modules (R.1; see Releasing): `abiProjects` plus `:migrate-data` and `:manifest-tools`, the BOM `:bom` (`bom/bom`, artifact `wow-bom`, constraining exactly those) and `:wow-dependencies` (`bom/dependencies`), which every POM but the contract modules' imports; the platform services, `:architecture`, the spikes and the eShop stay unpublished (`incubatingProjects`). Their ABI is frozen at the M7 exit (D88, D147, D216): `abiProjects` in `build.gradle.kts` (every published Wow module except `:migrate-data` and `:manifest-tools`) joins the `abiValidation` block, keeps its dump in `<module>/api/<module>.api` (recorded by D216 F.5), and `:check` runs its `checkKotlinAbi`; `./gradlew updateKotlinAbi` rewrites the dumps. Between the M7 exit and 10.0.0 GA a dump is a review tool, see Binary Compatibility.
 - API levels (D216): a declaration only its own module uses is `internal`; one Wow's modules share but promise nothing about is `@InternalWowApi` (an `ERROR`-level opt-in, left out of the dumps; mark a constructor to hide only how a public class is built); a surface 10.x may still change (dataset queries, the HTTP ops routes and webhooks, ABAC query policies) is `@ExperimentalWowApi` (a `WARNING`-level opt-in, kept in the dumps). Only Wow's own modules opt in to both; the eShop, the platform services' domains and servers and `:architecture` (`userProjects`) do not, so they compile against the public API as a user does: opt in with `@OptIn(ExperimentalWowApi::class)` where they use an experimental surface, and never opt in to `InternalWowApi`. Wow modules compile with `-jvm-default=no-compatibility` (no `DefaultImpls` classes).
 - Building them requires JDK 21 (D29).
 - `./gradlew :check` compiles the modules, runs their unit tests (`:architecture:test` included), detekt and the ABI checks, and `./gradlew :integrationTest` runs their container-backed tests; `:code-coverage-report:coverageReport` and `integrationCoverageReport` are their coverage. The build scope `-Pwow.scope` is gone with the 9.x projects.
@@ -112,7 +113,7 @@ example/eshop/e2e/          :eshop-e2e: the eShop's services end to end on Postg
 ## Code Style
 
 - Kotlin and KSP versions come from `gradle/libs.versions.toml`; JVM toolchain 21 is configured in `build.gradle.kts` (decision D29), and `kotlin.code.style=official` in `gradle.properties`.
-- Spring Boot dependency management is centralized through `wow-dependencies`, which imports the BOM version from `gradle/libs.versions.toml`.
+- Published modules import only the slim `wow-dependencies` (D287), and the contract modules (`coreContractProjects`: `:annotations`, `:api`, `:query-api`, `:manifest`) not even that: no platform but the coroutines BOM, and no SLF4J; the Spring Boot BOM is `wow-spring-boot`'s `api(platform)`. The repository build resolves every classpath through `wowBuildPlatform` in the root build (the Spring Boot BOM, the test and lint platforms), which is never published; a published POM names the versions it resolved (`versionMapping`), and `publicationCheck` rejects any other platform import.
 - All JVM packages live under `me.ahoo.wow`; examples use `me.ahoo.wow.example`.
 - Source files use the Apache 2.0 copyright header already present in the repository.
 - The core is coroutines (`suspend`, `Flow`); a domain's handlers are `suspend`, synchronous, or Reactor through `:reactor`. Do not block a thread in the core's paths: a blocking handler is marked `@Blocking` and runs on a virtual thread, and a blocking driver runs on its backend's own dispatcher.
@@ -138,7 +139,7 @@ The apps (`platform/ops/console`, `example/eshop/web`) use React, TypeScript, Vi
 
 ## Version Management
 
-The project version is the `version` property in `gradle.properties`. Maven and npm release together under that version and one `v<version>` tag. Third-party versions are centralized in `gradle/libs.versions.toml` and the `wow-dependencies` module.
+The project version is the `version` property in `gradle.properties`. Maven and npm release together under that version and one `v<version>` tag. Third-party versions are centralized in `gradle/libs.versions.toml`, the build platform `wowBuildPlatform` and the `wow-dependencies` module.
 
 A release is prepared in one pull request (`chore(release): prepare <version>`):
 

@@ -34,8 +34,8 @@ export interface ApplyRetrySpecRequested {
 }
 
 
-/** - key: `me.ahoo.wow.api.ledger.LedgerAggregate` */
-export interface LedgerAggregate {
+/** - key: `me.ahoo.wow.ops.api.parked.EntryAggregate` */
+export interface EntryAggregate {
   context: string;
   id: string;
   name: string;
@@ -43,29 +43,8 @@ export interface LedgerAggregate {
 }
 
 
-/** - key: `me.ahoo.wow.api.ledger.LedgerEntry` */
-export interface LedgerEntry {
-  aggregate: LedgerAggregate;
-  context: string;
-  failedAt: string;
-  fromPosition?: string | null;
-  fromVersion: number;
-  nextRetryAt?: string | null;
-  reason: string;
-  recordedAt: string;
-  recoverable?: string;
-  request?: string | null;
-  retries?: number;
-  retryAt?: string | null;
-  retrySpec: LedgerRetrySpec;
-  service: string;
-  status: string;
-  subscription: string;
-}
-
-
-/** - key: `me.ahoo.wow.api.ledger.LedgerRetrySpec` */
-export interface LedgerRetrySpec {
+/** - key: `me.ahoo.wow.ops.api.parked.EntryRetrySpec` */
+export interface EntryRetrySpec {
   applied?: boolean;
   executionTimeout: string;
   maxRetries: number;
@@ -91,12 +70,33 @@ export interface MarkRecoverableRequested {
 }
 
 
+/** - key: `me.ahoo.wow.ops.api.parked.ParkedEntry` */
+export interface ParkedEntry {
+  aggregate: EntryAggregate;
+  context: string;
+  failedAt: string;
+  fromPosition?: string | null;
+  fromVersion: number;
+  nextRetryAt?: string | null;
+  reason: string;
+  recordedAt: string;
+  recoverable?: string;
+  request?: string | null;
+  retries?: number;
+  retryAt?: string | null;
+  retrySpec: EntryRetrySpec;
+  service: string;
+  status: string;
+  subscription: string;
+}
+
+
 /**
  * A parked entry was recorded
  * - key: `me.ahoo.wow.ops.api.parked.ParkedRecorded`
  */
 export interface ParkedRecorded {
-  entry: LedgerEntry;
+  entry: ParkedEntry;
 }
 
 
@@ -113,7 +113,7 @@ export interface ParkedResolved {
 
 /** - key: `me.ahoo.wow.ops.domain.parked.ParkedState` */
 export interface ParkedState {
-  aggregate: LedgerAggregate;
+  aggregate: EntryAggregate;
   context: string;
   errorType: string;
   failedAt: string;
@@ -132,7 +132,7 @@ export interface ParkedState {
   resolvedAt?: string | null;
   retries: number;
   retryAt?: string | null;
-  retrySpec: LedgerRetrySpec;
+  retrySpec: EntryRetrySpec;
   service: string;
   status: string;
   subscription: string;
@@ -155,7 +155,7 @@ export interface RecordActionRefused {
  * - key: `me.ahoo.wow.ops.api.parked.RecordParked`
  */
 export interface RecordParked {
-  entry: LedgerEntry;
+  entry: ParkedEntry;
 }
 
 
@@ -164,7 +164,7 @@ export interface RecordParked {
  * - key: `me.ahoo.wow.ops.api.parked.RecordResolved`
  */
 export interface RecordResolved {
-  resolution: { aggregate: LedgerAggregate; context: string; failedAt?: string | null; outcome: string; resolvedAt: string; service: string; subscription: string; };
+  resolution: { aggregate: EntryAggregate; context: string; failedAt?: string | null; outcome: string; resolvedAt: string; service: string; subscription: string; };
 }
 
 

@@ -62,6 +62,7 @@ import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
 import me.ahoo.wow.runtime.cluster.PartitionedRouter
 import me.ahoo.wow.runtime.cluster.Refusal
+import me.ahoo.wow.runtime.cluster.ServiceMembership
 import me.ahoo.wow.runtime.cluster.TopicRouter
 import me.ahoo.wow.runtime.command.CommandIntake
 import me.ahoo.wow.runtime.command.CommandSender
@@ -72,6 +73,7 @@ import me.ahoo.wow.runtime.contract.PeerEvents
 import me.ahoo.wow.runtime.health.NodeStores
 import me.ahoo.wow.runtime.health.StoreWritePressure
 import me.ahoo.wow.runtime.health.WritePressures
+import me.ahoo.wow.runtime.health.untracked
 import me.ahoo.wow.runtime.ledger.LedgerCommands
 import me.ahoo.wow.runtime.ledger.LedgerPublisher
 import me.ahoo.wow.runtime.log.HandoffLog
@@ -111,6 +113,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.FailureClassifier
+import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerStore
 import me.ahoo.wow.spi.wait.Origin
@@ -425,7 +428,19 @@ class ServiceNode @InternalWowApi constructor(
     @InternalWowApi
     fun writePressure(store: String): StoreWritePressure? = pressures.find(store)
 
-    private val nodeSnapshots = NodeSnapshots(manifest)
+    private val nodeSnapshots = NodeSnapshots(manifest, observer)
+
+    /**
+     * The node's membership in its service on each lease store its contexts use (finding R5.B-4): one record and one
+     * read of the members per store, which every lease group on that store shares.
+     */
+    private val memberships = HashMap<LeaseStore, ServiceMembership>()
+
+    private fun membershipOf(leases: LeaseStore): ServiceMembership = synchronized(memberships) {
+        memberships.getOrPut(untracked(leases)) {
+            ServiceMembership(service, node, { address }, leases, options.cluster)
+        }
+    }
 
     /** The other contexts' published events, decoded into their api classes by the [contracts] (DX-1c). */
     private val peerEvents = PeerEvents.of(contracts)
@@ -1035,6 +1050,7 @@ class ServiceNode @InternalWowApi constructor(
                 source = topics!!.source,
                 checkpoints = backends.checkpoints,
                 leases = backends.leases,
+                membership = membershipOf(backends.leases),
                 ledger = backends.ledger,
                 subscriptions = read.map { it.second },
                 options = options.subscription,
@@ -1067,6 +1083,7 @@ class ServiceNode @InternalWowApi constructor(
                 source = sources.source,
                 checkpoints = context.backends.checkpoints,
                 leases = context.backends.leases,
+                membership = membershipOf(context.backends.leases),
                 ledger = context.backends.ledger,
                 subscriptions = listOf(receipts.subscription),
                 options = options.subscription,
@@ -1148,21 +1165,7 @@ class ServiceNode @InternalWowApi constructor(
         }
         val subscriptions = logGroups.first().subscriptions
         val intake = intakeOf(context, group, backends)
-        val ownership = PartitionOwnership(
-            group,
-            node,
-            { this.address },
-            backends.log.partitions,
-            backends.leases,
-            options.cluster,
-            subscriptions,
-            // Connected ahead of the first forward, so its timeout is not spent opening a connection (D80).
-            peers = { peer -> if (options.routing == Routing.PARTITIONED) channel.connect(peer.address) },
-            intake = intake,
-            timers = logGroups.mapNotNull { it.timers?.runner },
-            groups = logGroups.drop(1).map { it.subscriptions },
-            partitionChanged = { partition -> states.invalidate(partition, backends.log.partitions) },
-        )
+        val ownership = ownershipOf(group, backends, logGroups, intake, states)
         val executor = Executor(kernel, options.laneCapacity, options.maxBatch, views.forExecutor(), inFlight)
         return Parts(
             context,
@@ -1186,6 +1189,33 @@ class ServiceNode @InternalWowApi constructor(
             names,
         )
     }
+
+    /**
+     * This node's share of the partitions of [group], whose log groups [logGroups] read them, the first the context's
+     * own, with its command [intake]; [states] drops the states of each partition that changes hands.
+     */
+    private fun ownershipOf(
+        group: LeaseGroup,
+        backends: ContextBackends,
+        logGroups: List<LogGroupNode>,
+        intake: SubscriptionRuntime?,
+        states: StateCache,
+    ): PartitionOwnership = PartitionOwnership(
+        group,
+        node,
+        { this.address },
+        backends.log.partitions,
+        backends.leases,
+        options.cluster,
+        logGroups.first().subscriptions,
+        // Connected ahead of the first forward, so its timeout is not spent opening a connection (D80).
+        peers = { peer -> if (options.routing == Routing.PARTITIONED) channel.connect(peer.address) },
+        intake = intake,
+        timers = logGroups.mapNotNull { it.timers?.runner },
+        groups = logGroups.drop(1).map { it.subscriptions },
+        partitionChanged = { partition -> states.invalidate(partition, backends.log.partitions) },
+        membership = membershipOf(backends.leases),
+    )
 
     /**
      * A log group [part] of a context on this node: the runtime [name]d of its subscriptions, the [builtIns] and its

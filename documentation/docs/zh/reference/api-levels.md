@@ -7,7 +7,7 @@ description: "公开 API 每个级别的承诺，以及实验性与 SPI 的声�
 
 # API 级别
 
-已发布模块的每个公开声明都属于四个级别之一。ABI 转储（`<module>/api/<module>.api`）记录前三个级别的签名，所以对它们的改动会在审阅中显现。
+已发布模块的每个公开声明都属于四个级别之一。ABI 转储（`<module>/api/<module>.api`）记录前三个级别的签名，所以对它们的改动会在审阅中显现。标记位于 `wow-annotations` 的 `me.ahoo.wow.api.annotation`，每个 Wow 制品都会带上它。
 
 | 级别 | 标记 | 承诺 |
 | --- | --- | --- |
@@ -68,11 +68,16 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.spi.VirtualThreads` | object | `wow-spi` |
 | `me.ahoo.wow.spi.ledger.FailureLedger` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.log.EventLog` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.log.SnapshotTailReader` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.log.TailPacer` | class | `wow-spi` |
 | `me.ahoo.wow.spi.log.TailPolling` | class | `wow-spi` |
 | `me.ahoo.wow.spi.observation.Observer` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.reservation.ReservationStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.sink.Sink` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.sink.SinkProvider` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.sink.StreamSinks` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.sink.SinkConfig` | class | `wow-spi` |
+| `me.ahoo.wow.spi.snapshot.SnapshotRebuildStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.snapshot.SnapshotStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.store.Store` | class | `wow-spi` |
 | `me.ahoo.wow.spi.store.StoreConfig` | class | `wow-spi` |
@@ -85,6 +90,9 @@ API 只是升级要保持兼容的三样东西之一。在同一个主版本内�
 | `me.ahoo.wow.spi.transport.PartitionedSource` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TopicAdmin` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.transport.TopicProducer` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.transport.TransportProvider` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.transport.TopicTransport` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.transport.TransportConfig` | class | `wow-spi` |
 | `me.ahoo.wow.query.QueryBackend` | interface | `wow-query` |
 | `me.ahoo.wow.query.QueryBackendFactory` | interface | `wow-query` |
 | `me.ahoo.wow.query.schema.QueryStorageAdapter` | interface | `wow-query` |

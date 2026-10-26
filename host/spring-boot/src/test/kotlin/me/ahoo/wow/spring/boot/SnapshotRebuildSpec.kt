@@ -23,7 +23,6 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.api.snapshot.SnapshotRebuilds
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.aggregate
@@ -50,6 +49,7 @@ import me.ahoo.wow.runtime.snapshot.SnapshotPlacement
 import me.ahoo.wow.runtime.store.StoreLayout
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
+import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -209,7 +209,7 @@ abstract class SnapshotRebuildSpec {
         IDS.forEach { add(node, it, 2) }
         eventually { IDS.all { snapshot(A, it)?.version == 1 } }
         val broken = snapshot(A, IDS.first())!!.copyWith(state = """{"total":999,"adds":0}""")
-        snapshots(A).rewrite(broken).assert().isTrue()
+        snapshots(A).rebuilds!!.rewrite(broken).assert().isTrue()
 
         rebuild(node, COUNTER, IDS.first(), "missing").status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         eventually { snapshot(A, IDS.first())?.state?.replace(" ", "")?.contains("\"total\":2") == true }
@@ -234,7 +234,7 @@ abstract class SnapshotRebuildSpec {
             table(A).revision.assert().isEqualTo(2)
             rebuild(old, COUNTER, IDS.first()).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             // The request marks the snapshot stale, then the table rebuilding, in that order.
-            eventually { snapshots(A).pending(type, 2, limit = 10).contains(type.ref(TENANT, IDS.first())) }
+            eventually { snapshots(A).rebuilds!!.pending(type, 2, limit = 10).contains(type.ref(TENANT, IDS.first())) }
             eventually { table(A).rebuilding }
             snapshot(A, IDS.first())!!.stateRevision.assert().isEqualTo(2)
         }
@@ -250,7 +250,7 @@ abstract class SnapshotRebuildSpec {
     private suspend fun snapshot(store: String, id: String): SnapshotRecord? =
         snapshots(store).load(type.ref(TENANT, id))
 
-    private suspend fun table(store: String): SnapshotTable = checkNotNull(snapshots(store).table(type))
+    private suspend fun table(store: String): SnapshotTable = checkNotNull(snapshots(store).rebuilds!!.table(type))
 
     private suspend fun maintain(node: ServiceNode) {
         maintenanceOf(node).maintain()

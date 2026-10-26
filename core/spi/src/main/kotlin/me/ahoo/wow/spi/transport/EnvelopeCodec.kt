@@ -17,14 +17,11 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
-import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.state.StateView
-import me.ahoo.wow.spi.wait.Origin
-import me.ahoo.wow.spi.wait.WaitContext
 import tools.jackson.databind.JsonNode
 
 /**
@@ -33,8 +30,9 @@ import tools.jackson.databind.JsonNode
  * modules are fixed, so the wire form does not depend on what a host brings (decision D48).
  *
  * - **Value**: `{"format":1,"kind":"state-event","id":…,"type":…,"payload":{…},"transport":{…}}`; `transport` is
- *   null when there is none, and holds the `wait` context and the `trace` only: the reservations of a log entry
- *   (decision D50) stay in the context.
+ *   null when there is none, and holds the `wait` context and the `trace` only, in the one form of a transport
+ *   ([me.ahoo.wow.spi.log.TransportCodec], finding R5.B-3): the reservations of a log entry (decision D50) stay in the
+ *   context.
  * - **Reading**: unknown fields are ignored at every level, so this version reads what the next minor one writes
  *   (decision D48); a format other than [Envelope.FORMAT], or a kind this version does not know, is refused with an
  *   [IllegalArgumentException].
@@ -54,7 +52,7 @@ object EnvelopeCodec {
             id = envelope.id,
             type = envelope.type,
             payload = envelope.payload,
-            transport = envelope.transport?.let(TransportWire::of),
+            transport = envelope.transport?.let(::delivered),
         ),
     )
 
@@ -65,7 +63,7 @@ object EnvelopeCodec {
             "Envelope format ${wire.format} is not the format ${Envelope.FORMAT} this version reads."
         }
         val kind = requireNotNull(EnvelopeKind.of(wire.kind)) { "Unknown envelope kind ${wire.kind}." }
-        return Envelope(kind, wire.id, wire.type, wire.payload, wire.transport?.toTransport(), wire.format)
+        return Envelope(kind, wire.id, wire.type, wire.payload, wire.transport, wire.format)
     }
 
     /** The headers of a message holding [envelope] ([EnvelopeHeaders]). */
@@ -91,7 +89,7 @@ object EnvelopeCodec {
                 id = record.id,
                 type = type,
                 payload = wireOf(record),
-                transport = record.transport?.let(TransportWire::of),
+                transport = record.transport?.let(::delivered),
             ),
         )
         val headers = mapOf(
@@ -160,7 +158,7 @@ object EnvelopeCodec {
         val id: String,
         val type: String,
         val payload: JsonNode,
-        val transport: TransportWire? = null,
+        val transport: Transport? = null,
     )
 
     /** [EnvelopeWire] with the state event's payload as itself, for writing (decision D269): the same fields, in order. */
@@ -170,26 +168,11 @@ object EnvelopeCodec {
         val id: String,
         val type: String,
         val payload: StateEventWire,
-        val transport: TransportWire? = null,
+        val transport: Transport? = null,
     )
 
-    private data class TransportWire(val wait: WaitWire? = null, val trace: Map<String, String> = emptyMap()) {
-        fun toTransport(): Transport = Transport(wait = wait?.toContext(), trace = trace)
-
-        companion object {
-            fun of(
-                transport: Transport
-            ): TransportWire = TransportWire(transport.wait?.let(WaitWire::of), transport.trace)
-        }
-    }
-
-    private data class WaitWire(val waitId: String, val origin: Origin, val remaining: List<Hop>, val deadline: Long) {
-        fun toContext(): WaitContext = WaitContext(waitId, origin, remaining, deadline)
-
-        companion object {
-            fun of(wait: WaitContext): WaitWire = WaitWire(wait.waitId, wait.origin, wait.remaining, wait.deadline)
-        }
-    }
+    /** What of [transport] a message carries: the wait context and the trace, never a log entry's reservations. */
+    private fun delivered(transport: Transport): Transport = Transport(wait = transport.wait, trace = transport.trace)
 
     private data class StateEventWire(
         val ref: AggregateRef,

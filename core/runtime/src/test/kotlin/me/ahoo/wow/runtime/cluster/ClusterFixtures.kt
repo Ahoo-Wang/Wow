@@ -56,7 +56,6 @@ import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
-import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.Lease
@@ -353,7 +352,7 @@ class TestNode(val name: String, private val cluster: TestCluster) {
 
 /** An [EventLog] that records each commit as `append <aggregate id>`. */
 class RecordingLog(private val delegate: EventLog, private val events: MutableList<String>) : EventLog by delegate {
-    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
         delegate.append(stream, transport).also {
             if (it is AppendOutcome.Committed) {
                 events += "append ${stream.ref.id}"
@@ -409,9 +408,15 @@ class FlakyLeases(private val delegate: LeaseStore) : LeaseStore by delegate {
         }
     }
 
-    override suspend fun heartbeat(group: String, node: String, address: String, ttl: Duration): Member {
+    override suspend fun heartbeat(
+        group: String,
+        node: String,
+        address: String,
+        ttl: Duration,
+        groups: Set<String>,
+    ): Member {
         failIf(heartbeats, "heartbeat")
-        return delegate.heartbeat(group, node, address, ttl)
+        return delegate.heartbeat(group, node, address, ttl, groups)
     }
 
     override suspend fun members(group: String): List<Member> {

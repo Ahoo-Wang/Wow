@@ -16,16 +16,16 @@ package me.ahoo.wow.http
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
-import me.ahoo.wow.api.snapshot.SnapshotRebuilds
-import me.ahoo.wow.client.wire.CallHeader
-import me.ahoo.wow.client.wire.WowHeaders
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.ServiceTokens
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.SnapshotManifest
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.admission.CallContext
+import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
+import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import org.junit.jupiter.api.Test
 import org.springframework.test.web.reactive.server.WebTestClient
 
@@ -50,7 +50,7 @@ class SnapshotRebuildRoutesTest {
     fun `a service calls the rebuild route on the internal port when its permits list it (R2_3-5)`() {
         val node = HttpNode(rebuilds = true)
         val tokens = ServiceTokens(mapOf("ops-service" to listOf(TOKEN)), TENANT)
-        val call = CallHeader.format(CallContext("call-1", TENANT, Scope.NONE, Causation("root-1", "ops/acme/r@1")))
+        val call = CallHeaders.format(CallContext("call-1", TENANT, Scope.NONE, Causation("root-1", "ops/acme/r@1")))
         fun rebuild(permits: CallPermits): Answer = WebTestClient
             .bindToRouterFunction(
                 callRoutes(cartManifest(), node.gateway, tokens.resolver(headerCallers), permits = permits)

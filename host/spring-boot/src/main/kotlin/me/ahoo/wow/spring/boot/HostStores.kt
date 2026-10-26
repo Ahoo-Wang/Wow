@@ -27,6 +27,7 @@ import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
+import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -100,8 +101,13 @@ internal class QueriedSnapshotStore(private val store: SnapshotStore, private va
             outcomes.forEachIndexed { index, outcome -> if (outcome.written) queries.save(snapshots[index]) }
         }
 
-    override suspend fun rewrite(snapshot: SnapshotRecord): Boolean =
-        store.rewrite(snapshot).also { written -> if (written) queries.rewrite(snapshot) }
+    /** The store's rebuild control plane, whose rewrites reach [queries] too. */
+    override val rebuilds: SnapshotRebuildStore? = store.rebuilds?.let { rebuilds ->
+        object : SnapshotRebuildStore by rebuilds {
+            override suspend fun rewrite(snapshot: SnapshotRecord): Boolean =
+                rebuilds.rewrite(snapshot).also { written -> if (written) queries.rewrite(snapshot) }
+        }
+    }
 }
 
 /** Opens the node's store instances (decision D177) through the store providers ([StoreProviders]). */

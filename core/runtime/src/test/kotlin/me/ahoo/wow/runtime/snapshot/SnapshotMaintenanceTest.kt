@@ -35,6 +35,8 @@ import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
@@ -72,6 +74,7 @@ class SnapshotMaintenanceTest {
         node: String = "node",
         options: SnapshotOptions = SnapshotOptions(interval = 1.hours, leaseTtl = 2.hours, memberTtl = 2.hours),
         progressLog: EventLog = log,
+        observer: Observer = Observer.NONE,
     ) = SnapshotMaintenance(
         CONTEXT,
         GROUP,
@@ -84,6 +87,7 @@ class SnapshotMaintenanceTest {
         leases,
         listOf(LogProgress(GROUP, progressLog, checkpoints)),
         options,
+        observer = observer,
     )
 
     private suspend fun commit(id: String, amount: Int = 1): AggregateRef {
@@ -104,6 +108,33 @@ class SnapshotMaintenanceTest {
         maintenance.rebuild(type.ref("tenant", "nothing"))
         store.load(type.ref("tenant", "nothing")).assert().isNull()
     }
+
+    @Test
+    fun `a store without a rebuild control plane is left out of the maintenance, its fallbacks counted`(): Unit =
+        runBlocking {
+            // Finding R5.B-9: the rebuild control plane is an optional capability of a snapshot store.
+            val fallbacks = ArrayList<String>()
+            val observer = object : Observer {
+                override fun storeFellBack(context: String, capability: String, reason: String) {
+                    fallbacks += "$context $capability $reason"
+                }
+            }
+            val memory = InMemorySnapshotStore()
+            val plain = object : SnapshotStore by memory {
+                override val rebuilds: SnapshotRebuildStore? = null
+            }
+            val maintenance = maintenance(2, plain, observer = observer)
+            maintenance.prepare().assert().isEmpty()
+            fallbacks.assert().containsExactly("$CONTEXT snapshot-rebuild unsupported")
+            maintenance.rebuilding(type).assert().isFalse()
+            maintenance.maintain()
+            memory.table(type).assert().isNull()
+            val ref = commit("a")
+            maintenance.rebuild(ref)
+            memory.load(ref).assert().isNull()
+            fallbacks.assert().hasSize(2)
+            maintenance.stop()
+        }
 
     @Test
     fun `a rebuild request on a node of another revision writes a missing snapshot at its own`(): Unit = runBlocking {
@@ -168,16 +199,19 @@ class SnapshotMaintenanceTest {
         maintenance.prepare()
         maintenance.maintain()
         store.load(ghost.ref).assert().isEqualTo(ghost)
-        store.table(type)!!.rebuilding.assert().isTrue()
+        store.rebuilds!!.table(type)!!.rebuilding.assert().isTrue()
     }
 
     @Test
     fun `the runs go on after one fails, until the maintenance stops`(): Unit = runBlocking {
         val tables = AtomicInteger()
-        val failing = object : SnapshotStore by InMemorySnapshotStore() {
-            override suspend fun table(type: AggregateType): SnapshotTable? {
-                tables.incrementAndGet()
-                error("The store is down.")
+        val memory = InMemorySnapshotStore()
+        val failing = object : SnapshotStore by memory {
+            override val rebuilds = object : SnapshotRebuildStore by memory {
+                override suspend fun table(type: AggregateType): SnapshotTable? {
+                    tables.incrementAndGet()
+                    error("The store is down.")
+                }
             }
         }
         val maintenance = maintenance(

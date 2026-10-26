@@ -242,7 +242,7 @@ value    = { "format": 1, "kind": "state-event" | "command" | "command-receipt",
 
 **集群通道的命令转发**（D78，Ahoo-Wang/Wow#4251，格式 1）：
 
-- 请求：`{v, command: {type, id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, replyTo}, wait: {waitId, origin, remaining, deadline}, deadline, trace}`，请求头带本服务的集群令牌 `Wow-Cluster-Token`（D226）；`wait` 只在有等待时出现，`origin` 始终是发起节点。
+- 请求：`{v, command: {type, id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, replyTo}, wait: {waitId, origin, remaining, deadline}, deadline, trace}`，请求头声明发送方的服务名（D300，不带令牌）；`wait` 只在有等待时出现，`origin` 始终是发起节点。
 - 响应：`{v, result, reached, refused}`。`reached` 是属主当场就能定下的后续跳（命令无变化时空转的 `HANDLED`、重复请求按检查点补查到的结果，D63），否则发起方分不清无变化与已提交；`refused` 为 `not-owner`、`expired`、`unknown-type`、`too-large` 之一，发起方据此在本地执行；请求已发出后超时或失败，发起方返回结果不确定，不在本地执行（D223）。
 - 编解码器的 Jackson 模块集合固定（只有 Kotlin 模块），不从类路径自动发现，保证不同宿主的线上形式一致（D48）。
 

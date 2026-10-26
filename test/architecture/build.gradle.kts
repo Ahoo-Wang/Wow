@@ -3,7 +3,7 @@ description = "Wow V10 architecture rules: module graph, forbidden dependencies 
 // The rules scan the build scripts and production sources of the V10 modules, and the settings and every build script
 // for the module graph; declare them as inputs so a change there re-runs the tests instead of reusing a cached result.
 val moduleDirs = listOf(
-    "api/api", "api/manifest", "api/query-api", "core/spi", "core/kernel", "core/runtime",
+    "api/annotations", "api/api", "api/manifest", "api/query-api", "core/spi", "core/kernel", "core/runtime",
     "core/reactor", "query/query", "backends/postgres", "backends/mongo", "backends/kafka", "backends/clickhouse",
     "backends/elasticsearch",
     "edge/openapi", "edge/http", "edge/client", "edge/cosec", "edge/opentelemetry", "host/spring-boot", "extensions/cosid", "extensions/models", "migration/migrate-data", "compiler/compiler",
@@ -11,6 +11,8 @@ val moduleDirs = listOf(
 ) + listOf("catalog", "basket", "ordering", "inventory", "payment").flatMap { context ->
     listOf("api", "domain", "server").map { "example/eshop/$context/$context-$it" }
 } + listOf("example/eshop/e2e", "example/quickstart", "example/java-smoke", "test/benchmarks/server") +
+    // The migration rehearsal's host, whose configuration the 9.x-key rule reads too (review R5.C-10).
+    listOf("test/migration-rehearsal") +
     listOf("ops-api", "ops-domain", "ops-server").map { "platform/ops/$it" } +
     listOf("api", "domain", "server").map { "platform/view-store/view-store-$it" } +
     listOf("api", "domain", "server").map { "platform/analytics/catalog/$it" }

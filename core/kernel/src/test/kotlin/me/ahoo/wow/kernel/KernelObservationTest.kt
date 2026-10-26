@@ -74,7 +74,7 @@ class KernelObservationTest {
                 "execute duplicate",
                 "execute rejected",
             )
-            log.readEntries(ref).toList().single().transport!!.trace.assert()
+            log.readEntries(ref).toList().single().decodedTransport!!.trace.assert()
                 .isEqualTo(mapOf("traceparent" to "append"))
         }
 

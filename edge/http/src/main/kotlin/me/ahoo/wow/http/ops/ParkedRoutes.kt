@@ -21,7 +21,7 @@ import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
-import me.ahoo.wow.client.wire.WaitHeader
+import me.ahoo.wow.api.wire.WaitHeader
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.Authenticator

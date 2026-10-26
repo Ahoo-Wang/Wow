@@ -16,9 +16,15 @@ package me.ahoo.wow.kernel
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.SnapshotTail
+import me.ahoo.wow.spi.log.readSnapshotTailApart
+import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.observation.StoreFallbacks
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import tools.jackson.core.JacksonException
+import java.util.concurrent.atomic.AtomicBoolean
 
 // How the kernel reads an aggregate's snapshot: only a cache, so a store that fails or a snapshot that does not fit
 // costs a replay of the log, never the command.
@@ -45,7 +51,51 @@ internal suspend fun SnapshotStore?.loadOrNull(ref: AggregateRef): SnapshotRecor
 }
 
 /**
- * [store] as a cache-miss load reads it with the log ([me.ahoo.wow.spi.log.EventLog.readWithSnapshot], decision D268):
+ * How a cache miss reads an aggregate's snapshot and the tail after it (decision D268): in one round trip through the
+ * log's [EventLog.snapshotTails] when it has that capability, else apart ([readSnapshotTailApart]). When the reader
+ * cannot serve the aggregate's snapshot store, or fails, the read is done apart: the first time logged (a failure as a
+ * warning), every time counted with [Observer.storeFellBack] (finding R5.B-16).
+ */
+internal class SnapshotTailReads(private val log: EventLog, private val observer: Observer) {
+    private val unavailableLogged = AtomicBoolean()
+    private val failedLogged = AtomicBoolean()
+
+    suspend fun read(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail {
+        val reader = log.snapshotTails ?: return log.readSnapshotTailApart(ref, snapshots, earlier)
+        try {
+            reader.readWithSnapshot(ref, snapshots, earlier)?.let { return it }
+            fellBack(ref, StoreFallbacks.UNAVAILABLE)
+            if (unavailableLogged.compareAndSet(false, true)) {
+                logger.info {
+                    "The log of ${ref.type.context} cannot read the snapshots of ${ref.type} with their tails in one " +
+                        "round trip, as they are in another database: it reads them apart."
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (
+            @Suppress("TooGenericExceptionCaught") // Whatever the one read throws, the reads apart decide the outcome.
+            failure: Exception,
+        ) {
+            fellBack(ref, StoreFallbacks.FAILED)
+            if (failedLogged.compareAndSet(false, true)) {
+                logger.warn(failure) {
+                    "Reading the snapshot of $ref with its tail in one round trip failed: reading them apart. Later " +
+                        "failures are counted (wow.store.fallbacks), and logged at debug level."
+                }
+            } else {
+                logger.debug(failure) { "Reading the snapshot of $ref with its tail in one round trip failed." }
+            }
+        }
+        return log.readSnapshotTailApart(ref, snapshots, earlier)
+    }
+
+    private fun fellBack(ref: AggregateRef, reason: String) =
+        observer.storeFellBack(ref.type.context, StoreFallbacks.SNAPSHOT_TAIL_READ, reason)
+}
+
+/**
+ * [store] as a cache-miss load reads it with the log ([SnapshotTailReads], decision D268):
  * a snapshot that fails to load is none ([loadOrNull]), so only the log's failure fails the command.
  */
 internal class TolerantSnapshots(private val store: SnapshotStore) : SnapshotStore by store {

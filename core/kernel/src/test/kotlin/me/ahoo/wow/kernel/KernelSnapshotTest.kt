@@ -28,7 +28,6 @@ import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
-import me.ahoo.wow.spi.log.SnapshotTail
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.junit.jupiter.api.Test
@@ -47,10 +46,6 @@ class KernelSnapshotTest {
 
         override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail =
             delegate.readTail(ref, fromVersion, earlier).also { streamsRead += it.streams.size }
-
-        /** Read through [read] and [readTail], so that they count it. */
-        override suspend fun readWithSnapshot(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail =
-            super.readWithSnapshot(ref, snapshots, earlier)
     }
 
     private val codec = EventCodec()

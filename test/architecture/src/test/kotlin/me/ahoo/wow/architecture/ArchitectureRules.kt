@@ -22,6 +22,8 @@ data class WowProject(val name: String, val dir: String)
  * The architecture rules (documentation/designs/06-modules.md §3 and 07-migration.md §4).
  */
 object ArchitectureRules {
+    /** The stability markers (decision D282): `InternalWowApi`, `ExperimentalWowApi`, `WowSpi`; no dependencies. */
+    val ANNOTATIONS = WowProject("annotations", "api/annotations")
     val API = WowProject("api", "api/api")
     val MANIFEST = WowProject("manifest", "api/manifest")
     val QUERY_API = WowProject("query-api", "api/query-api")
@@ -112,7 +114,7 @@ object ArchitectureRules {
     val PLATFORM_SERVERS = listOf(VIEW_STORE_SERVER, OPS_SERVER, ANALYTICS_CATALOG_SERVER)
 
     val MODULES = listOf(
-        API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, ELASTICSEARCH,
+        ANNOTATIONS, API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, ELASTICSEARCH,
         OPENAPI, HTTP, CLIENT, COSEC, OPENTELEMETRY, SPRING_BOOT, COSID, MODELS, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
     ) + TEST_MODULES + PLATFORM_MODULES
 
@@ -189,10 +191,12 @@ object ArchitectureRules {
      * none names a 9.x module ([nineXReachViolations] checks the transitive graph too).
      */
     val ALLOWED_PROJECT_DEPENDENCIES: Map<WowProject, Set<String>> = mapOf(
+        // The stability markers (decision D282) every module below builds on, through these three.
+        ANNOTATIONS to emptySet(),
         // The query protocol of the QueryApi (decision D260).
-        API to setOf("query-api"),
-        MANIFEST to emptySet(),
-        QUERY_API to emptySet(),
+        API to setOf("annotations", "query-api"),
+        MANIFEST to setOf("annotations"),
+        QUERY_API to setOf("annotations"),
         SPI to setOf("api"),
         KERNEL to setOf("spi"),
         // manifest: the node is built from the Manifest (decision D231 ③).
@@ -211,8 +215,9 @@ object ArchitectureRules {
         ELASTICSEARCH to setOf("spi", "query"),
         // The Manifest only (roadmap 5a.2); the eShop's domains only for the snapshot tests, which document its services.
         OPENAPI to setOf("manifest") + ESHOP_CONTEXTS.map { "eshop-$it-domain" },
-        // query for the query routes (06 §3, decisions D118, D127); openapi for GET /wow/openapi; client for the wire
-        // grammar both ends share (the Wow headers, `Wow-Call`) and the service credential (decisions D193, D257).
+        // query for the query routes (06 §3, decisions D118, D127); openapi for GET /wow/openapi; client for the tests
+        // only, which call the routes as a peer does (the main code shares only `:api`'s wire grammar, decision D286:
+        // [HTTP_IGNORES_CLIENT]).
         HTTP to setOf("runtime", "query", "openapi", "client"),
         // The runtime for the calls' root context and the contracts (decision D234), query for the rows' records.
         CLIENT to setOf("runtime", "query"),
@@ -221,12 +226,13 @@ object ArchitectureRules {
         // follow a trace from an HTTP request.
         OPENTELEMETRY to setOf("runtime", "query", "http"),
         // postgres and mongo compileOnly: the backend follows the application's classpath (decision D110).
-        // query, kafka, clickhouse and opentelemetry compileOnly too: each is wired when the application has it.
-        // openapi for the springdoc bridge (decision D233).
+        // query, kafka, clickhouse, cosec and opentelemetry compileOnly too: each is wired when the application has it
+        // (cosec as kafka is, review R5.C-12). openapi for the springdoc bridge (decision D233).
         SPRING_BOOT to setOf(
             "runtime",
             "http",
             "client",
+            "cosec",
             "openapi",
             "postgres",
             "mongo",
@@ -353,6 +359,34 @@ object ArchitectureRules {
         name = "wow-client imports no Spring, Reactor, HTTP framework or driver types",
         modules = listOf(CLIENT.dir),
         forbidden = SPRING + REACTOR_TYPES + HTTP_TYPES + DRIVERS,
+    )
+
+    /**
+     * wow-cosec is the Spring-free part of the CoSec integration (review R5.C-12): its resolvers and authorizer read
+     * what CoSec resolved on a WebFlux exchange, and the host wires them, as it wires Kafka, reading `wow.cosec.*` once.
+     */
+    val COSEC_IS_WIRED_BY_THE_HOST = DependencyRule(
+        name = "wow-cosec imports no Spring context, beans or Spring Boot: the host wires it",
+        modules = listOf(COSEC.dir),
+        forbidden = listOf("org.springframework.context", "org.springframework.beans", "org.springframework.boot"),
+    )
+
+    /**
+     * The server does not build on its client (decision D286): the wire grammar both ends share, the Wow headers,
+     * `Wow-Wait`, `Wow-Scope` and `Wow-Call`'s framing, and the service credential are `:api`'s (`me.ahoo.wow.api.wire`,
+     * `me.ahoo.wow.api.client`).
+     */
+    val HTTP_IGNORES_CLIENT = DependencyRule(
+        name = "wow-http imports nothing from wow-client",
+        modules = listOf(HTTP.dir),
+        forbidden = listOf("me.ahoo.wow.client"),
+    )
+
+    /** Nor does the client build on the server: it speaks the routes' wire grammar from `:api` (decision D286). */
+    val CLIENT_IGNORES_HTTP = DependencyRule(
+        name = "wow-client imports nothing from wow-http",
+        modules = listOf(CLIENT.dir),
+        forbidden = listOf("me.ahoo.wow.http"),
     )
 
     /** The kernel knows nothing of clusters, subscriptions or waits: those are the runtime's. */
@@ -486,6 +520,9 @@ object ArchitectureRules {
         CLIENT_IS_FRAMEWORK_FREE,
         TEST_MODULES_ARE_FRAMEWORK_FREE,
         KERNEL_IGNORES_RUNTIME,
+        COSEC_IS_WIRED_BY_THE_HOST,
+        HTTP_IGNORES_CLIENT,
+        CLIENT_IGNORES_HTTP,
         HTTP_READS_ADAPT_ONLY,
         HOST_DECIDES_NO_QUERY_POLICY,
         ENTRIES_READ_THROUGH_FACADE,
@@ -513,6 +550,25 @@ object ArchitectureRules {
     private val TEST_SCOPED_MANIFEST_FIXTURES = Regex(
         """\b(?:test\w*|\w+Test\w*)\(\s*(?:testFixtures\(\s*)?project\(\s*":${MANIFEST.name}"\s*\)\s*\)?\s*\)""",
     )
+
+    /**
+     * The project dependencies some modules' main code may declare, narrower than [ALLOWED_PROJECT_DEPENDENCIES], which
+     * also covers their tests: the server's main code does not build on its client (decision D286).
+     */
+    val ALLOWED_MAIN_PROJECT_DEPENDENCIES: Map<WowProject, Set<String>> = mapOf(
+        HTTP to setOf("runtime", "query", "openapi"),
+    )
+
+    private val CONFIGURED_PROJECT_DEPENDENCY =
+        Regex("""\b(\w+)\(\s*(?:testFixtures\(\s*)?project\(\s*":([\w-]+)"\s*\)""")
+    private val TEST_CONFIGURATION = Regex("""test\w*|\w+Test\w*""")
+
+    /** The projects [module]'s build script depends on in a configuration of its main code, not of its tests. */
+    fun mainProjectDependencies(repositoryRoot: File, module: WowProject): Set<String> =
+        CONFIGURED_PROJECT_DEPENDENCY.findAll(File(repositoryRoot, "${module.dir}/build.gradle.kts").readText())
+            .filterNot { TEST_CONFIGURATION.matches(it.groupValues[1]) }
+            .map { it.groupValues[2] }
+            .toSet()
 
     /**
      * The projects [module]'s build script depends on, in any configuration but for a test module its tests use

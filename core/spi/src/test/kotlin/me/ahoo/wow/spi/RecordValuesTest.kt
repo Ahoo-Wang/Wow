@@ -34,6 +34,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.log.TransportCodec
 import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.Reservation
 import me.ahoo.wow.spi.reservation.ReservationKey
@@ -149,8 +150,12 @@ class RecordValuesTest {
         stream().copyWith(version = 2).assert().isEqualTo(stream(2))
         valueSemantics(
             { LogEntry.of(LogPosition(0, 1), stream()) },
-            LogEntry.of(LogPosition(0, 1), stream(), Transport.of())
+            LogEntry.of(LogPosition(0, 1), stream(), TransportCodec.encode(Transport.of()))
         )
+        // The transport is compared by its bytes, not their identity.
+        LogEntry.of(LogPosition(0, 1), stream(), byteArrayOf(1)).assert()
+            .isEqualTo(LogEntry.of(LogPosition(0, 1), stream(), byteArrayOf(1)))
+            .hasSameHashCodeAs(LogEntry.of(LogPosition(0, 1), stream(), byteArrayOf(1)))
         LogEntry.of(LogPosition(0, 1), stream()).copyWith(stream = stream(2)).stream.assert().isEqualTo(stream(2))
         valueSemantics({ Transport.of(wait, listOf(key), mapOf("traceparent" to "t"), listOf(key)) }, Transport.of())
         valueSemantics({ AppendOutcome.Committed.of(LogPosition(0, 1)) }, AppendOutcome.Committed.of(LogPosition(0, 2)))

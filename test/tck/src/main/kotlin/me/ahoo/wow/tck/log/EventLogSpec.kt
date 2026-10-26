@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
@@ -37,8 +38,11 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.SnapshotTail
+import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.log.TransportCodec
+import me.ahoo.wow.spi.log.readSnapshotTailApart
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -74,10 +78,21 @@ abstract class EventLogSpec {
 
     /**
      * A new, empty snapshot store of bounded context [context] that this backend's log reads with its tails
-     * ([EventLog.readWithSnapshot], decision D268): one in the log's database where the backend has one. Null, the
-     * default, skips those cases.
+     * (decision D268): one in the log's database where the backend has one. Null, the default, skips those cases. A
+     * log with a [SnapshotTailReader] must read this store's snapshots through it (finding R5.B-9).
      */
     protected open fun createSnapshots(context: String): SnapshotStore? = null
+
+    /**
+     * What a cache miss reads: through the log's [EventLog.snapshotTails] when it has one, which must serve the store of
+     * [createSnapshots], else apart, as the kernel does.
+     */
+    private suspend fun EventLog.snapshotTail(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail {
+        val reader = snapshotTails ?: return readSnapshotTailApart(ref, snapshots, earlier)
+        return checkNotNull(reader.readWithSnapshot(ref, snapshots, earlier)) {
+            "The log's snapshot tail reader does not serve the snapshot store of its own backend."
+        }
+    }
 
     private fun snapshot(id: String, version: Int) = SnapshotRecord(
         ref = type.ref("tenant", id),
@@ -302,18 +317,42 @@ abstract class EventLogSpec {
             releases = listOf(ReservationKey("user-name", "old"), ReservationKey("login", "\$old.name", system = true)),
         )
         val carried = stream("a", 1)
-        log.append(carried, transport)
+        log.append(carried, TransportCodec.encode(transport))
         log.append(stream("a", 2))
-        log.append(stream("a", 3), Transport(trace = mapOf("traceparent" to "t")))
+        log.append(stream("a", 3), TransportCodec.encode(Transport(trace = mapOf("traceparent" to "t"))))
         val entries = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(3).toList() }
-        entries[0].transport.assert().isEqualTo(transport)
+        entries[0].decodedTransport.assert().isEqualTo(transport)
         entries[0].stream.assertSameAs(carried)
         entries[1].transport.assert().isNull()
-        entries[2].transport.assert().isEqualTo(Transport(trace = mapOf("traceparent" to "t")))
-        log.readEntries(carried.ref).toList().map { it.transport }.assert().isEqualTo(entries.map { it.transport })
+        entries[2].decodedTransport.assert().isEqualTo(Transport(trace = mapOf("traceparent" to "t")))
+        log.readEntries(carried.ref).toList().map { it.decodedTransport }
+            .assert().isEqualTo(entries.map { it.decodedTransport })
         // read and findByRequestId return facts only: an EventStreamRecord has no place for the transport.
         log.read(carried.ref, 1, 1).toList().single().assertSameAs(carried)
         checkNotNull(log.findByRequestId("tenant", carried.requestId)).assertSameAs(carried)
+    }
+
+    /**
+     * The transport is the runtime's opaque bytes (finding R5.B-3): a backend gives them back unchanged, so a field a
+     * newer version adds survives a backend that does not know it, and the runtime of that version reads it.
+     */
+    @Test
+    fun `an unknown future transport field round-trips unchanged through tail and readEntries`(): Unit = runBlocking {
+        val log = createLog(partitions = 1)
+        val known = TransportCodec.encode(Transport(trace = mapOf("traceparent" to "t")))
+        val future = (
+            known.decodeToString().removeSuffix("}") +
+                ",\"future\":{\"priority\":7,\"note\":\"ü\\u0000\",\"amount\":2.50}}"
+            ).encodeToByteArray()
+        val ref = stream("a", 1).ref
+        log.append(stream("a", 1), future)
+        log.appendAll(listOf(stream("a", 2) to future))
+        val tailed = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }
+        tailed.forEach { entry ->
+            entry.transport.assert().isEqualTo(future)
+            entry.decodedTransport.assert().isEqualTo(Transport(trace = mapOf("traceparent" to "t")))
+        }
+        log.readEntries(ref).toList().forEach { it.transport.assert().isEqualTo(future) }
     }
 
     @Test
@@ -324,13 +363,13 @@ abstract class EventLogSpec {
             val appended = listOf(stream("a", 1), stream("a", 2), stream("a", 3), stream("a", 4))
             val positions = appended.mapIndexed { index, stream ->
                 log.append(stream("b", index + 1))
-                val outcome = log.append(stream, transport.takeIf { index % 2 == 1 })
+                val outcome = log.append(stream, TransportCodec.encode(transport).takeIf { index % 2 == 1 })
                 (outcome as AppendOutcome.Committed).position
             }
             val entries = log.readEntries(type.ref("tenant", "a"), 2, 3).toList()
             entries.map { it.stream.version }.assert().containsExactly(2, 3)
             entries.map { it.position }.assert().containsExactly(positions[1], positions[2])
-            entries.map { it.transport }.assert().containsExactly(transport, null)
+            entries.map { it.decodedTransport }.assert().containsExactly(transport, null)
             entries[0].stream.assertSameAs(appended[1])
             log.readEntries(type.ref("tenant", "a")).toList().map { it.position }.assert().isEqualTo(positions)
             log.readEntries(type.ref("tenant", "missing")).toList().assert().isEmpty()
@@ -354,10 +393,10 @@ abstract class EventLogSpec {
         val log = createLog(partitions = 4)
         val (first, second) = idsInPartitionZero(2, 4)
         val transport = Transport(reservations = listOf(ReservationKey("ns", "k")))
-        log.appendAll(listOf(stream(first, 1) to transport, stream(second, 1) to null))
+        log.appendAll(listOf(stream(first, 1) to TransportCodec.encode(transport), stream(second, 1) to null))
             .forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
         val entries = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }
-        entries.associate { it.stream.ref.id to it.transport }
+        entries.associate { it.stream.ref.id to it.decodedTransport }
             .assert().isEqualTo(mapOf(first to transport, second to null))
     }
 
@@ -388,16 +427,17 @@ abstract class EventLogSpec {
         ).let {
             it.copyWith(events = listOf(EventRecord("$context.aggregate.Priced", 1, ExactJson.NUMBERS)) + it.events)
         }
-        val grouped = listOf(stream(second, 1) to null, stream(third, 1) to transport)
+        val encoded = TransportCodec.encode(transport)
+        val grouped = listOf(stream(second, 1) to null, stream(third, 1) to encoded)
         val handed = buildList {
-            add(single to transport to log.append(single, transport))
+            add(single to encoded to log.append(single, encoded))
             grouped.zip(log.appendAll(grouped)).forEach { (appended, outcome) -> add(appended to outcome) }
         }.map { (appended, outcome) ->
             Triple((outcome as AppendOutcome.Committed).position, appended.first, appended.second)
         }
         val read = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(3).toList() }
         read.map { it.position }.assert().isEqualTo(handed.map { it.first })
-        read.map { it.transport }.assert().isEqualTo(handed.map { it.third })
+        read.map { it.decodedTransport }.assert().isEqualTo(handed.map { it.third?.let(TransportCodec::decode) })
         read.zip(handed).forEach { (entry, expected) -> entry.stream.assertSameAs(expected.second) }
     }
 
@@ -479,7 +519,7 @@ abstract class EventLogSpec {
     }
 
     @Test
-    fun `readWithSnapshot gives the snapshot and the tail from its version with the earlier request keys`(): Unit =
+    fun `a snapshot tail read gives the snapshot and the tail from its version with the earlier request keys`(): Unit =
         runBlocking {
             val snapshots = createSnapshots(context)
             Assumptions.assumeTrue(snapshots != null, "This backend has no snapshot store to read with the log.")
@@ -491,7 +531,7 @@ abstract class EventLogSpec {
             val saved = snapshot("a", 4)
             snapshots.save(saved).assert().isTrue()
             snapshots.save(snapshot("a", 2).copyWith(ref = type.ref("other", "a"))).assert().isTrue()
-            val read = log.readWithSnapshot(type.ref("tenant", "a"), snapshots, 2)
+            val read = log.snapshotTail(type.ref("tenant", "a"), snapshots, 2)
             val loaded = checkNotNull(read.snapshot)
             ExactJson.of(loaded.state).assert().isEqualTo(ExactJson.of(saved.state))
             loaded.copyWith(state = saved.state).assert().isEqualTo(saved)
@@ -501,23 +541,23 @@ abstract class EventLogSpec {
                 CommittedRequest.of(appended[2]),
                 CommittedRequest.of(appended[1])
             )
-            log.readWithSnapshot(type.ref("tenant", "a"), snapshots, 0).tail.earlier.assert().isEmpty()
+            log.snapshotTail(type.ref("tenant", "a"), snapshots, 0).tail.earlier.assert().isEmpty()
         }
 
     @Test
-    fun `readWithSnapshot without a snapshot gives every stream and no earlier request keys`(): Unit = runBlocking {
+    fun `a snapshot tail read without a snapshot gives every stream and no earlier request keys`(): Unit = runBlocking {
         val snapshots = createSnapshots(context)
         Assumptions.assumeTrue(snapshots != null, "This backend has no snapshot store to read with the log.")
         checkNotNull(snapshots)
         val log = createLog()
         val appended = (1..3).map { stream("a", it) }
         appended.forEach { log.append(it) }
-        val read = log.readWithSnapshot(type.ref("tenant", "a"), snapshots, 5)
+        val read = log.snapshotTail(type.ref("tenant", "a"), snapshots, 5)
         read.snapshot.assert().isNull()
         read.tail.streams.map { it.version }.assert().containsExactly(1, 2, 3)
         read.tail.streams.last().assertSameAs(appended[2])
         read.tail.earlier.assert().isEmpty()
-        log.readWithSnapshot(type.ref("tenant", "missing"), snapshots, 5)
+        log.snapshotTail(type.ref("tenant", "missing"), snapshots, 5)
             .assert().isEqualTo(SnapshotTail.of(null, AggregateTail.of(emptyList(), emptyList())))
     }
 
@@ -963,7 +1003,7 @@ abstract class EventLogSpec {
     fun `the lookup by aggregate type returns facts only, as appended`(): Unit = runBlocking {
         val log = createLog()
         val appended = stream("a", 1, causation = Causation("root", "$context.aggregate/tenant/b@3"))
-        log.append(appended, Transport(trace = mapOf("traceparent" to "t")))
+        log.append(appended, TransportCodec.encode(Transport(trace = mapOf("traceparent" to "t"))))
         checkNotNull(log.findByRequestId(type, "tenant", appended.requestId)).assertSameAs(appended)
         log.findByRequestId(AggregateType(context, "untouched"), "tenant", appended.requestId).assert().isNull()
     }

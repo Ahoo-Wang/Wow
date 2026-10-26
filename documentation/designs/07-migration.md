@@ -62,7 +62,7 @@ TS 侧（D20）：`wow-generator` 按 Manifest 重新生成客户端；应用代
 
 ## 4. 清洁度守护
 
-- 架构测试：`migration/` 之外不依赖它，不出现 9.x 类型名与配置键；9.x 源码知识只在 Skill 参考里。
+- 架构测试：`migration/` 之外不依赖它，不出现 9.x 类型名与配置键，拒绝 9.x 遗留物的两处检测器除外（架构测试 `NINE_X_DETECTORS`）；名单取自 `v10-9x-baseline` `a67ece66`，不再变化。
 - Wow 10（`main`）禁止 `@Deprecated` 与 `compat(...)` 标记；`docs/compat-debt.md` 与 `check:compat-debt` 删除，换成禁止标记的检查。
 - 以后的演进（D22）：框架格式只在下一次迁移层里变化；领域事件 revision 属于用户模型（[01](01-programming-model.md) §8）。
 

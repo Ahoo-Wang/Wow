@@ -31,9 +31,6 @@ import me.ahoo.wow.spi.log.CommittedRequest
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
-import me.ahoo.wow.spi.log.SnapshotTail
-import me.ahoo.wow.spi.log.Transport
-import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.junit.jupiter.api.Test
 import java.io.IOException
 
@@ -108,10 +105,6 @@ class KernelRecentRequestsTest {
             return delegate.readTail(ref, fromVersion, earlier)
         }
 
-        /** Read through [read] and [readTail], so that they count it. */
-        override suspend fun readWithSnapshot(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail =
-            super.readWithSnapshot(ref, snapshots, earlier)
-
         override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
             if (loseNext) {
                 throw IOException(
@@ -121,7 +114,7 @@ class KernelRecentRequestsTest {
                 delegate.readEntries(ref, fromVersion, toVersion)
             }
 
-        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+        override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
             appends++
             if (hideRequests) {
                 val current = delegate.read(stream.ref).toList().size
@@ -426,7 +419,7 @@ class KernelRecentRequestsTest {
             evolve<CartCreated> { owner = it.owner }
         }
         val failing = object : EventLog by log {
-            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
                 throw IOException("The store is unreachable.")
         }
         val outcome = runCatching { Kernel(failing).execute(model, command(CreateCart("ahoo"))) }

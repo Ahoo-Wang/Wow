@@ -29,9 +29,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
-import me.ahoo.wow.spi.log.SnapshotTail
-import me.ahoo.wow.spi.log.Transport
-import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
@@ -173,6 +171,9 @@ internal fun activityOf(log: EventLog): StoreActivity? = (log as? TrackedEventLo
 /** The record of [leases]' calls, when it is tracked. */
 internal fun activityOf(leases: LeaseStore): StoreActivity? = (leases as? TrackedLeaseStore)?.activity
 
+/** The lease store [leases] tracks, or [leases] itself: what two contexts' tracked lease stores share. */
+internal fun untracked(leases: LeaseStore): LeaseStore = (leases as? TrackedLeaseStore)?.leases ?: leases
+
 private class TrackedEventLog(
     private val log: EventLog,
     val activity: StoreActivity,
@@ -182,10 +183,10 @@ private class TrackedEventLog(
 
     override val appendsAcrossPartitions: Boolean get() = log.appendsAcrossPartitions
 
-    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
         timed { activity.call(::unavailable) { log.append(stream, transport) } }.also(::record)
 
-    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> =
+    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> =
         timed {
             activity.call(
                 ::unavailable
@@ -216,8 +217,11 @@ private class TrackedEventLog(
     override suspend fun readTail(ref: AggregateRef, fromVersion: Int, earlier: Int): AggregateTail =
         activity.call(::unavailable) { log.readTail(ref, fromVersion, earlier) }
 
-    override suspend fun readWithSnapshot(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail =
-        activity.call(::unavailable) { log.readWithSnapshot(ref, snapshots, earlier) }
+    override val snapshotTails: SnapshotTailReader? = log.snapshotTails?.let { reader ->
+        SnapshotTailReader { ref, snapshots, earlier ->
+            activity.call(::unavailable) { reader.readWithSnapshot(ref, snapshots, earlier) }
+        }
+    }
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
         log.readEntries(ref, fromVersion, toVersion).tracked()
@@ -254,7 +258,7 @@ private class TrackedEventLog(
     override fun toString(): String = log.toString()
 }
 
-private class TrackedLeaseStore(private val leases: LeaseStore, val activity: StoreActivity) : LeaseStore {
+private class TrackedLeaseStore(val leases: LeaseStore, val activity: StoreActivity) : LeaseStore {
     override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? =
         activity.call(::anyFailure) { leases.acquire(group, partition, owner, ttl) }
 
@@ -266,12 +270,19 @@ private class TrackedLeaseStore(private val leases: LeaseStore, val activity: St
 
     override suspend fun owners(group: String): List<Lease> = activity.call(::anyFailure) { leases.owners(group) }
 
-    override suspend fun heartbeat(group: String, node: String, address: String, ttl: Duration): Member =
-        activity.call(::anyFailure) { leases.heartbeat(group, node, address, ttl) }
+    override suspend fun heartbeat(
+        service: String,
+        node: String,
+        address: String,
+        ttl: Duration,
+        groups: Set<String>,
+    ): Member = activity.call(::anyFailure) { leases.heartbeat(service, node, address, ttl, groups) }
 
-    override suspend fun members(group: String): List<Member> = activity.call(::anyFailure) { leases.members(group) }
+    override suspend fun members(service: String): List<Member> =
+        activity.call(::anyFailure) { leases.members(service) }
 
-    override suspend fun leave(group: String, node: String) = activity.call(::anyFailure) { leases.leave(group, node) }
+    override suspend fun leave(service: String, node: String) =
+        activity.call(::anyFailure) { leases.leave(service, node) }
 
     override fun toString(): String = leases.toString()
 }

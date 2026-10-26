@@ -378,10 +378,9 @@ class TopicSubscriptionsTest {
 
     @Test
     fun `a join that fails should be retried until the node reads the topic`(): Unit = runBlocking {
-        // Review R2.1-8: the heartbeat fails twice, then the first reconcile once.
+        // Review R2.1-8: the heartbeat fails twice, then the membership's read of the members once (finding R5.B-4).
         val flaky = FlakyLeases(leases).apply {
             heartbeats.set(2)
-            memberReadsFirst.set(1)
             memberReads.set(1)
         }
         val subscriptions = topicSubscriptions(flaky)
@@ -410,7 +409,7 @@ class TopicSubscriptionsTest {
         subscriptions.runtime.assert().isNull()
         subscriptions.stop()
         subscriptions.joinState.assert().isEqualTo(TopicSubscriptions.JoinState.STOPPED)
-        leases.members(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name).assert().isEmpty()
+        leases.members(SERVICE).assert().isEmpty()
         // Started again once the store is back, it joins.
         flaky.heartbeats.set(0)
         subscriptions.start()

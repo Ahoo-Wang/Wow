@@ -16,8 +16,8 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.query.CrossTenant
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import org.junit.jupiter.api.Test

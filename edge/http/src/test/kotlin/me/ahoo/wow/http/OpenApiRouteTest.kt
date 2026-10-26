@@ -19,7 +19,7 @@ import com.networknt.schema.SpecificationVersion
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.client.wire.WowHeaders
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.command.CommandHandler
 import me.ahoo.wow.http.query.QueryHandler
 import me.ahoo.wow.http.read.StateHandler
@@ -56,7 +56,6 @@ class OpenApiRouteTest {
         paths.assert().contains(
             WowPaths.MANIFEST,
             WowPaths.OPENAPI,
-            WowPaths.GLOBAL_ID,
             "/shop/cart/{id}/open-cart",
             "/shop/cart/open-cart",
             "/shop/cart/{id}",
@@ -175,7 +174,6 @@ class OpenApiRouteTest {
     fun `the names the document gives should be the edge's`() {
         WowHttpContract.MANIFEST_PATH.assert().isEqualTo(WowPaths.MANIFEST)
         WowHttpContract.OPENAPI_PATH.assert().isEqualTo(WowPaths.OPENAPI)
-        WowHttpContract.GLOBAL_ID_PATH.assert().isEqualTo(WowPaths.GLOBAL_ID)
         WowHttpContract.DATASETS_PATH.assert().isEqualTo(WowPaths.DATASETS)
         WowHttpContract.STATE_SEGMENT.assert().isEqualTo(WowPaths.STATE)
         WowHttpContract.TRACE_SEGMENT.assert().isEqualTo(WowPaths.TRACE)

@@ -67,6 +67,7 @@ class ObserverTest {
             observer.firing(timer),
         ).forEach { it.assert().isSameAs(Observation.NONE) }
         observer.resuming(mapOf("traceparent" to "t")).assert().isSameAs(EmptyCoroutineContext)
+        observer.storeFellBack("shop", StoreFallbacks.SNAPSHOT_TAIL_READ, StoreFallbacks.FAILED)
         Observation.NONE.context.assert().isSameAs(EmptyCoroutineContext)
         Observation.NONE.trace.assert().isEmpty()
         Observation.NONE.outcome("ok")

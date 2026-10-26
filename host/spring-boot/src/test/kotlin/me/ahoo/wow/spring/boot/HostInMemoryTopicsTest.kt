@@ -63,11 +63,11 @@ class HostInMemoryTopicsTest {
 
     @Test
     fun `a blank Kafka address should not count as Kafka`() {
-        runner.withConfiguration(AutoConfigurations.of(KafkaAutoConfiguration::class.java))
+        runner.withConfiguration(AutoConfigurations.of(TransportAutoConfiguration::class.java))
             .withPropertyValues("wow.topics.in-memory=true", "wow.kafka.bootstrap-servers= ").run { context ->
                 context.startupFailure.assert().isNull()
                 context.getBean(InMemoryTopics::class.java).assert().isNotNull()
-                context.containsBean(KafkaAutoConfiguration.KAFKA_SINKS).assert().isFalse()
+                context.containsBean(TransportAutoConfiguration.TRANSPORT_SINKS).assert().isFalse()
                 context.getBeansOfType(PublishedSinks::class.java).keys.assert()
                     .containsExactly(InMemoryTopicsAutoConfiguration.IN_MEMORY_SINKS)
             }

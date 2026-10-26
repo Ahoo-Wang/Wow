@@ -24,9 +24,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
-import me.ahoo.wow.spi.log.SnapshotTail
-import me.ahoo.wow.spi.log.Transport
-import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.log.SnapshotTailReader
 
 /**
  * The log of an [AggregateSpec] whose aggregate starts in a given state ([AggregateSpec.givenState]) at version
@@ -37,7 +35,7 @@ internal class GivenStateLog(private val delegate: EventLog) : EventLog by deleg
     /** The version of the given state; 0 without one. */
     var offset: Int = 0
 
-    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
         if (stream.version <= offset) {
             return AppendOutcome.Conflict(offset)
         }
@@ -48,15 +46,14 @@ internal class GivenStateLog(private val delegate: EventLog) : EventLog by deleg
         }
     }
 
-    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> =
+    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> =
         streams.map { (stream, transport) -> append(stream, transport) }
 
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
         delegate.read(ref, from(fromVersion), to(toVersion)).map { it.shifted(offset) }
 
-    /** Read as [read] shifts it, never in one round trip by the delegate, which keeps the streams unshifted. */
-    override suspend fun readWithSnapshot(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail =
-        super.readWithSnapshot(ref, snapshots, earlier)
+    /** None: read apart, as [read] shifts it, never in one round trip by the delegate, which keeps it unshifted. */
+    override val snapshotTails: SnapshotTailReader? get() = null
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
         delegate.readEntries(ref, from(fromVersion), to(toVersion)).map { it.shifted(offset) }

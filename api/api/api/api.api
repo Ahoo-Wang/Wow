@@ -106,12 +106,6 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/ErrorCode 
 	public abstract fun status ()I
 }
 
-public abstract interface annotation class me/ahoo/wow/api/annotation/ExperimentalWowApi : java/lang/annotation/Annotation {
-}
-
-public abstract interface annotation class me/ahoo/wow/api/annotation/InternalWowApi : java/lang/annotation/Annotation {
-}
-
 public abstract interface annotation class me/ahoo/wow/api/annotation/MountedCommand : java/lang/annotation/Annotation {
 	public abstract fun aggregate ()Ljava/lang/String;
 	public abstract fun transformsTo ()[Ljava/lang/String;
@@ -198,9 +192,6 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/Upgrade : 
 	public abstract fun from ()I
 }
 
-public abstract interface annotation class me/ahoo/wow/api/annotation/WowSpi : java/lang/annotation/Annotation {
-}
-
 public final class me/ahoo/wow/api/caller/Caller {
 	public static final field ANONYMOUS Lme/ahoo/wow/api/caller/Caller;
 	public static final field APP Ljava/lang/String;
@@ -260,6 +251,25 @@ public final class me/ahoo/wow/api/caller/Operator$Companion {
 	public final fun system (Ljava/lang/String;)Lme/ahoo/wow/api/caller/Operator;
 	public final fun system (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/caller/Operator;
 	public static synthetic fun system$default (Lme/ahoo/wow/api/caller/Operator$Companion;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/caller/Operator;
+}
+
+public final class me/ahoo/wow/api/caller/TargetScope {
+	public static final field Companion Lme/ahoo/wow/api/caller/TargetScope$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun getTenantId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public static final fun of ()Lme/ahoo/wow/api/caller/TargetScope;
+	public static final fun of (Ljava/lang/String;)Lme/ahoo/wow/api/caller/TargetScope;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;)Lme/ahoo/wow/api/caller/TargetScope;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/caller/TargetScope$Companion {
+	public final fun of ()Lme/ahoo/wow/api/caller/TargetScope;
+	public final fun of (Ljava/lang/String;)Lme/ahoo/wow/api/caller/TargetScope;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;)Lme/ahoo/wow/api/caller/TargetScope;
+	public static synthetic fun of$default (Lme/ahoo/wow/api/caller/TargetScope$Companion;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ILjava/lang/Object;)Lme/ahoo/wow/api/caller/TargetScope;
 }
 
 public abstract interface class me/ahoo/wow/api/client/CommandClient {
@@ -328,6 +338,17 @@ public final class me/ahoo/wow/api/client/SendOptions$Companion {
 	public final fun of-hhJSO8g (Lme/ahoo/wow/api/result/WaitPlan;Lkotlin/time/Duration;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/api/client/SendOptions;
 	public final fun of-i8z2VEo (Lme/ahoo/wow/api/result/WaitPlan;Lkotlin/time/Duration;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;)Lme/ahoo/wow/api/client/SendOptions;
 	public static synthetic fun of-i8z2VEo$default (Lme/ahoo/wow/api/client/SendOptions$Companion;Lme/ahoo/wow/api/result/WaitPlan;Lkotlin/time/Duration;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ILjava/lang/Object;)Lme/ahoo/wow/api/client/SendOptions;
+}
+
+public abstract interface class me/ahoo/wow/api/client/ServiceCredential {
+	public static final field Companion Lme/ahoo/wow/api/client/ServiceCredential$Companion;
+	public static final field NONE Lme/ahoo/wow/api/client/ServiceCredential;
+	public abstract fun authorization (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static fun bearer (Ljava/lang/String;)Lme/ahoo/wow/api/client/ServiceCredential;
+}
+
+public final class me/ahoo/wow/api/client/ServiceCredential$Companion {
+	public final fun bearer (Ljava/lang/String;)Lme/ahoo/wow/api/client/ServiceCredential;
 }
 
 public final class me/ahoo/wow/api/client/WowProblemException : java/lang/RuntimeException {
@@ -476,25 +497,37 @@ public abstract interface class me/ahoo/wow/api/id/Ids {
 public final class me/ahoo/wow/api/ledger/ApplyParkedRetrySpec : me/ahoo/wow/api/ledger/LedgerCommand {
 	public static final field Companion Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec$Companion;
 	public fun equals (Ljava/lang/Object;)Z
-	public fun getAggregate ()Lme/ahoo/wow/api/ledger/LedgerAggregate;
+	public fun getAggregate ()Ljava/lang/String;
+	public fun getContext ()Ljava/lang/String;
 	public final fun getExecutionTimeout ()Ljava/lang/String;
+	public fun getId ()Ljava/lang/String;
 	public final fun getMaxRetries ()Ljava/lang/Integer;
 	public final fun getMinBackoff ()Ljava/lang/String;
 	public fun getSubscription ()Ljava/lang/String;
+	public fun getTenantId ()Ljava/lang/String;
 	public fun hashCode ()I
-	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/ledger/LedgerAggregate;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
-	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/ledger/LedgerAggregate;Ljava/lang/Integer;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
-	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/ledger/LedgerAggregate;Ljava/lang/Integer;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
-	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/ledger/LedgerAggregate;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Integer;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Integer;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/api/ledger/ApplyParkedRetrySpec$Companion {
-	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/ledger/LedgerAggregate;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
-	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/ledger/LedgerAggregate;Ljava/lang/Integer;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
-	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/ledger/LedgerAggregate;Ljava/lang/Integer;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
-	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/ledger/LedgerAggregate;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
-	public static synthetic fun of$default (Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec$Companion;Ljava/lang/String;Lme/ahoo/wow/api/ledger/LedgerAggregate;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Integer;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Integer;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
+	public static synthetic fun of$default (Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
+	public static synthetic fun of$default (Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec$Companion;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/ledger/ApplyParkedRetrySpec;
 }
 
 public final class me/ahoo/wow/api/ledger/Ledger {
@@ -516,140 +549,71 @@ public final class me/ahoo/wow/api/ledger/Ledger {
 	public static final fun targetOf (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/aggregate/AggregateRef;
 }
 
-public final class me/ahoo/wow/api/ledger/LedgerAggregate {
-	public static final field Companion Lme/ahoo/wow/api/ledger/LedgerAggregate$Companion;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getContext ()Ljava/lang/String;
-	public final fun getId ()Ljava/lang/String;
-	public final fun getName ()Ljava/lang/String;
-	public final fun getTenantId ()Ljava/lang/String;
-	public fun hashCode ()I
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/LedgerAggregate;
-	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/ledger/LedgerAggregate;
-	public final fun toRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/api/ledger/LedgerAggregate$Companion {
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/LedgerAggregate;
-	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/ledger/LedgerAggregate;
-}
-
 public abstract interface class me/ahoo/wow/api/ledger/LedgerCommand {
-	public abstract fun getAggregate ()Lme/ahoo/wow/api/ledger/LedgerAggregate;
+	public abstract fun getAggregate ()Ljava/lang/String;
+	public abstract fun getContext ()Ljava/lang/String;
+	public abstract fun getId ()Ljava/lang/String;
 	public abstract fun getSubscription ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/api/ledger/LedgerEntry {
-	public static final field Companion Lme/ahoo/wow/api/ledger/LedgerEntry$Companion;
-	public static final field UNKNOWN Ljava/lang/String;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getAggregate ()Lme/ahoo/wow/api/ledger/LedgerAggregate;
-	public final fun getContext ()Ljava/lang/String;
-	public final fun getFailedAt ()J
-	public final fun getFromPosition ()Ljava/lang/Long;
-	public final fun getFromVersion ()I
-	public final fun getNextRetryAt ()Ljava/lang/Long;
-	public final fun getReason ()Ljava/lang/String;
-	public final fun getRecordedAt ()J
-	public final fun getRecoverable ()Ljava/lang/String;
-	public final fun getRequest ()Ljava/lang/String;
-	public final fun getRetries ()I
-	public final fun getRetryAt ()Ljava/lang/Long;
-	public final fun getRetrySpec ()Lme/ahoo/wow/api/ledger/LedgerRetrySpec;
-	public final fun getService ()Ljava/lang/String;
-	public final fun getStatus ()Ljava/lang/String;
-	public final fun getSubscription ()Ljava/lang/String;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/api/ledger/LedgerEntry$Companion {
-}
-
-public final class me/ahoo/wow/api/ledger/LedgerResolution {
-	public static final field Companion Lme/ahoo/wow/api/ledger/LedgerResolution$Companion;
-	public static final field NOT_PARKED Ljava/lang/String;
-	public static final field RESOLVED Ljava/lang/String;
-	public static final field RESUMED Ljava/lang/String;
-	public static final field SKIPPED Ljava/lang/String;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getAggregate ()Lme/ahoo/wow/api/ledger/LedgerAggregate;
-	public final fun getContext ()Ljava/lang/String;
-	public final fun getFailedAt ()Ljava/lang/Long;
-	public final fun getOutcome ()Ljava/lang/String;
-	public final fun getResolvedAt ()J
-	public final fun getService ()Ljava/lang/String;
-	public final fun getSubscription ()Ljava/lang/String;
-	public fun hashCode ()I
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/ledger/LedgerAggregate;Ljava/lang/Long;Ljava/lang/String;J)Lme/ahoo/wow/api/ledger/LedgerResolution;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/api/ledger/LedgerResolution$Companion {
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/ledger/LedgerAggregate;Ljava/lang/Long;Ljava/lang/String;J)Lme/ahoo/wow/api/ledger/LedgerResolution;
-}
-
-public final class me/ahoo/wow/api/ledger/LedgerRetrySpec {
-	public static final field Companion Lme/ahoo/wow/api/ledger/LedgerRetrySpec$Companion;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getApplied ()Z
-	public final fun getExecutionTimeout ()Ljava/lang/String;
-	public final fun getMaxRetries ()I
-	public final fun getMinBackoff ()Ljava/lang/String;
-	public fun hashCode ()I
-	public static final fun of (ILjava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/LedgerRetrySpec;
-	public static final fun of (ILjava/lang/String;Ljava/lang/String;Z)Lme/ahoo/wow/api/ledger/LedgerRetrySpec;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/api/ledger/LedgerRetrySpec$Companion {
-	public final fun of (ILjava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/LedgerRetrySpec;
-	public final fun of (ILjava/lang/String;Ljava/lang/String;Z)Lme/ahoo/wow/api/ledger/LedgerRetrySpec;
-	public static synthetic fun of$default (Lme/ahoo/wow/api/ledger/LedgerRetrySpec$Companion;ILjava/lang/String;Ljava/lang/String;ZILjava/lang/Object;)Lme/ahoo/wow/api/ledger/LedgerRetrySpec;
+	public abstract fun getTenantId ()Ljava/lang/String;
+	public fun toRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 }
 
 public final class me/ahoo/wow/api/ledger/MarkParkedRecoverable : me/ahoo/wow/api/ledger/LedgerCommand {
 	public static final field Companion Lme/ahoo/wow/api/ledger/MarkParkedRecoverable$Companion;
 	public fun equals (Ljava/lang/Object;)Z
-	public fun getAggregate ()Lme/ahoo/wow/api/ledger/LedgerAggregate;
+	public fun getAggregate ()Ljava/lang/String;
+	public fun getContext ()Ljava/lang/String;
+	public fun getId ()Ljava/lang/String;
 	public final fun getRecoverable ()Ljava/lang/String;
 	public fun getSubscription ()Ljava/lang/String;
+	public fun getTenantId ()Ljava/lang/String;
 	public fun hashCode ()I
-	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/ledger/LedgerAggregate;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/MarkParkedRecoverable;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/MarkParkedRecoverable;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/MarkParkedRecoverable;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/api/ledger/MarkParkedRecoverable$Companion {
-	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/ledger/LedgerAggregate;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/MarkParkedRecoverable;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/MarkParkedRecoverable;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/MarkParkedRecoverable;
 }
 
 public final class me/ahoo/wow/api/ledger/ResumeParked : me/ahoo/wow/api/ledger/LedgerCommand {
 	public static final field Companion Lme/ahoo/wow/api/ledger/ResumeParked$Companion;
 	public fun equals (Ljava/lang/Object;)Z
-	public fun getAggregate ()Lme/ahoo/wow/api/ledger/LedgerAggregate;
+	public fun getAggregate ()Ljava/lang/String;
+	public fun getContext ()Ljava/lang/String;
+	public fun getId ()Ljava/lang/String;
 	public fun getSubscription ()Ljava/lang/String;
+	public fun getTenantId ()Ljava/lang/String;
 	public fun hashCode ()I
-	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/ledger/LedgerAggregate;)Lme/ahoo/wow/api/ledger/ResumeParked;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ResumeParked;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/ledger/ResumeParked;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/api/ledger/ResumeParked$Companion {
-	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/ledger/LedgerAggregate;)Lme/ahoo/wow/api/ledger/ResumeParked;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/ResumeParked;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/ledger/ResumeParked;
 }
 
 public final class me/ahoo/wow/api/ledger/SkipParked : me/ahoo/wow/api/ledger/LedgerCommand {
 	public static final field Companion Lme/ahoo/wow/api/ledger/SkipParked$Companion;
 	public fun equals (Ljava/lang/Object;)Z
-	public fun getAggregate ()Lme/ahoo/wow/api/ledger/LedgerAggregate;
+	public fun getAggregate ()Ljava/lang/String;
+	public fun getContext ()Ljava/lang/String;
+	public fun getId ()Ljava/lang/String;
 	public fun getSubscription ()Ljava/lang/String;
+	public fun getTenantId ()Ljava/lang/String;
 	public fun hashCode ()I
-	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/ledger/LedgerAggregate;)Lme/ahoo/wow/api/ledger/SkipParked;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/SkipParked;
+	public static final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/ledger/SkipParked;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/api/ledger/SkipParked$Companion {
-	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/ledger/LedgerAggregate;)Lme/ahoo/wow/api/ledger/SkipParked;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/ledger/SkipParked;
+	public final fun of (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/ledger/SkipParked;
 }
 
 public final class me/ahoo/wow/api/lifecycle/AggregateDeleted {
@@ -1492,45 +1456,6 @@ public final class me/ahoo/wow/api/schedule/Ticked$Companion {
 	public final fun of (Ljava/lang/String;JJJ)Lme/ahoo/wow/api/schedule/Ticked;
 }
 
-public final class me/ahoo/wow/api/snapshot/RebuildSnapshot {
-	public static final field Companion Lme/ahoo/wow/api/snapshot/RebuildSnapshot$Companion;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getIds ()Ljava/util/List;
-	public fun hashCode ()I
-	public static final fun of (Ljava/util/List;)Lme/ahoo/wow/api/snapshot/RebuildSnapshot;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/api/snapshot/RebuildSnapshot$Companion {
-	public final fun of (Ljava/util/List;)Lme/ahoo/wow/api/snapshot/RebuildSnapshot;
-}
-
-public final class me/ahoo/wow/api/snapshot/SnapshotRebuildRequested {
-	public static final field Companion Lme/ahoo/wow/api/snapshot/SnapshotRebuildRequested$Companion;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getIds ()Ljava/util/List;
-	public fun hashCode ()I
-	public static final fun of (Ljava/util/List;)Lme/ahoo/wow/api/snapshot/SnapshotRebuildRequested;
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/api/snapshot/SnapshotRebuildRequested$Companion {
-	public final fun of (Ljava/util/List;)Lme/ahoo/wow/api/snapshot/SnapshotRebuildRequested;
-}
-
-public final class me/ahoo/wow/api/snapshot/SnapshotRebuilds {
-	public static final field AGGREGATE Ljava/lang/String;
-	public static final field COMMANDS Ljava/util/Map;
-	public static final field COMPONENT Ljava/lang/String;
-	public static final field EVENTS Ljava/util/Map;
-	public static final field INSTANCE Lme/ahoo/wow/api/snapshot/SnapshotRebuilds;
-	public static final field MAX_IDS I
-	public static final field REBUILD Ljava/lang/String;
-	public static final field REBUILD_REQUESTED Ljava/lang/String;
-	public static final fun nameOf (Ljava/lang/Class;)Ljava/lang/String;
-	public static final fun typeOf (Ljava/lang/String;)Lme/ahoo/wow/api/aggregate/AggregateType;
-}
-
 public final class me/ahoo/wow/api/subscribe/CallFailedException : java/lang/RuntimeException {
 	public fun <init> (Ljava/lang/String;)V
 	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
@@ -1659,5 +1584,37 @@ public abstract interface class me/ahoo/wow/api/subscribe/SubscriptionContext {
 	public abstract fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
 	public fun getInvocationKey ()Ljava/lang/String;
 	public fun getQueries ()Lme/ahoo/wow/api/read/SubscriptionQueries;
+}
+
+public final class me/ahoo/wow/api/wire/ScopeHeader {
+	public static final field ALL_TENANTS Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/api/wire/ScopeHeader;
+	public static final field OWNER Ljava/lang/String;
+	public static final field SPACE Ljava/lang/String;
+	public static final field TENANT Ljava/lang/String;
+	public final fun format (Lme/ahoo/wow/api/caller/TargetScope;)Ljava/lang/String;
+	public final fun parse (Ljava/lang/String;)Lme/ahoo/wow/api/caller/TargetScope;
+	public final fun parseQuery (Ljava/lang/String;)Lme/ahoo/wow/api/wire/ScopeHeader$QueryTarget;
+}
+
+public final class me/ahoo/wow/api/wire/ScopeHeader$QueryTarget {
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCrossTenant ()Lme/ahoo/wow/api/query/CrossTenant;
+	public final fun getTarget ()Lme/ahoo/wow/api/caller/TargetScope;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/wire/WowHeaders {
+	public static final field CALL Ljava/lang/String;
+	public static final field ETAG Ljava/lang/String;
+	public static final field IF_MATCH Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/api/wire/WowHeaders;
+	public static final field REBUILDING Ljava/lang/String;
+	public static final field REQUEST_ID Ljava/lang/String;
+	public static final field SCOPE Ljava/lang/String;
+	public static final field SPACE Ljava/lang/String;
+	public static final field WAIT Ljava/lang/String;
+	public static final field WAIT_TIMEOUT Ljava/lang/String;
 }
 

@@ -429,7 +429,7 @@ class ServiceNodeTest {
         assertThrows<IllegalStateException> { node.bind("127.0.0.1:41235") }
         channel.bind(node.address, node.forwardHandler)
         node.start()
-        backends.opened.getValue(BANK).leases.members("$NODE_SERVICE/$BANK").single().address
+        backends.opened.getValue(BANK).leases.members(NODE_SERVICE).single().address
             .assert().isEqualTo("127.0.0.1:41234")
         assertThrows<IllegalStateException> { node.bind("127.0.0.1:41236") }
         node.gateway.execute(deposit(id = "a-1")).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
@@ -579,7 +579,13 @@ class ServiceNodeTest {
     fun `a start that fails stops what it started`(): Unit = runBlocking {
         val inMemory = InMemoryBackends()
         val down = object : LeaseStore by InMemoryLeaseStore() {
-            override suspend fun heartbeat(group: String, node: String, address: String, ttl: Duration): Member =
+            override suspend fun heartbeat(
+                group: String,
+                node: String,
+                address: String,
+                ttl: Duration,
+                groups: Set<String>,
+            ): Member =
                 error("The lease store is down.")
         }
         val node = node(

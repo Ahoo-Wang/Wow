@@ -29,6 +29,7 @@ import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -61,7 +62,10 @@ class PostgresSnapshotStore(
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     /** How the store's tables are managed: created when missing by default (review A5-10). */
     private val ddl: StoreDdl = StoreDdl.AUTO,
-) : SnapshotStore {
+) : SnapshotStore, SnapshotRebuildStore {
+    /** This store rewrites its snapshots in place: it is its own rebuild control plane. */
+    override val rebuilds: SnapshotRebuildStore get() = this
+
     private val created = EnsuredTables<PostgresSnapshotTables>()
 
     /**

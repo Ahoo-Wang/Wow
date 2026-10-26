@@ -608,6 +608,25 @@ public final class me/ahoo/wow/api/query/CountResult {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/api/query/CrossTenant {
+	public static final field ALL Lme/ahoo/wow/api/query/CrossTenant;
+	public static final field Companion Lme/ahoo/wow/api/query/CrossTenant$Companion;
+	public fun <init> ()V
+	public fun <init> (Ljava/util/Set;)V
+	public synthetic fun <init> (Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/util/Set;
+	public final fun copy (Ljava/util/Set;)Lme/ahoo/wow/api/query/CrossTenant;
+	public static synthetic fun copy$default (Lme/ahoo/wow/api/query/CrossTenant;Ljava/util/Set;ILjava/lang/Object;)Lme/ahoo/wow/api/query/CrossTenant;
+	public final fun covers (Ljava/lang/String;)Z
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getTenantIds ()Ljava/util/Set;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/query/CrossTenant$Companion {
+}
+
 public final class me/ahoo/wow/api/query/CursorPage {
 	public fun <init> (Ljava/util/List;Ljava/lang/String;)V
 	public final fun component1 ()Ljava/util/List;

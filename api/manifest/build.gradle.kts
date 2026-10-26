@@ -5,6 +5,8 @@ plugins {
 description = "Wow Manifest: the contract every projection reads (REST, OpenAPI, clients, views, Skills); plain data"
 
 dependencies {
+    // The stability markers (decision D282), so the Manifest can hide what it promises nothing about.
+    api(project(":annotations"))
     // Only to show that the plain tree of ManifestTree is what a JSON library writes and reads back.
     testImplementation("tools.jackson.module:jackson-module-kotlin")
 }

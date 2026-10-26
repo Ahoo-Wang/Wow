@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.postgres
 
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -23,8 +22,6 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
-import me.ahoo.wow.api.result.Hop
-import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.VirtualThreads
@@ -39,21 +36,14 @@ import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
-import me.ahoo.wow.spi.log.SnapshotTail
+import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.log.TailPacer
-import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.log.notAppendedAfter
 import me.ahoo.wow.spi.log.requireChains
-import me.ahoo.wow.spi.reservation.ReservationKey
-import me.ahoo.wow.spi.snapshot.SnapshotStore
-import me.ahoo.wow.spi.wait.Origin
-import me.ahoo.wow.spi.wait.WaitContext
 import org.postgresql.util.PSQLException
-import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.node.ArrayNode
-import tools.jackson.databind.node.ObjectNode
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
@@ -76,7 +66,8 @@ import kotlin.time.Duration.Companion.seconds
  * if the aggregate is exactly one version behind. Because the lock is held until commit, the sequence order is the
  * order commits become visible, whichever table they land in; a failed append rolls its sequence back too, so a
  * partition's sequences have no gaps. A group commit ([appendAll]) is the same statement for many streams: one
- * round trip per group. The transport is stored in its own column and read back only by [tail] and [readEntries].
+ * round trip per group. The transport is stored in its own `bytea` column as the bytes the runtime encoded, never read
+ * (finding R5.B-3), and given back only by [tail] and [readEntries].
  *
  * **Aggregate tables.** As the snapshot tables ([me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore]), an aggregate
  * type's table is created the first time this log touches the type, or up front by [createTable]; a new aggregate
@@ -248,7 +239,7 @@ class PostgresEventLog(
         return names.map { tables.aggregate(it) }.also { registered = it }
     }
 
-    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
         dispatcher.jdbc {
             require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
             val partition = Partitioner.partitionOf(stream.ref, partitions)
@@ -269,7 +260,7 @@ class PostgresEventLog(
         table: AggregateLogTable,
         partition: Int,
         stream: EventStreamRecord,
-        transport: Transport?,
+        transport: ByteArray?,
     ): AppendOutcome {
         try {
             val sequence = connection.prepareStatement(table.append).use { append ->
@@ -301,7 +292,7 @@ class PostgresEventLog(
     }
 
     /** Binds [stream] and [transport] to [statement] from parameter [first] on: one per [AggregateLogTable.COLUMNS]. */
-    private fun bindStream(statement: PreparedStatement, first: Int, stream: EventStreamRecord, transport: Transport?) {
+    private fun bindStream(statement: PreparedStatement, first: Int, stream: EventStreamRecord, transport: ByteArray?) {
         var index = first
         statement.setString(index++, stream.ref.tenantId)
         statement.setString(index++, stream.ref.id)
@@ -316,7 +307,7 @@ class PostgresEventLog(
         statement.setNullableString(index++, stream.causation?.correlationId)
         statement.setNullableString(index++, stream.causation?.causationId)
         statement.setString(index++, json.writeValueAsString(stream.headers))
-        statement.setNullableString(index++, transport?.let { encodeTransport(it) })
+        statement.setBytes(index++, transport)
         val operator = stream.operator
         statement.setNullableString(index++, operator?.id)
         statement.setNullableString(index++, operator?.tenantId)
@@ -360,7 +351,7 @@ class PostgresEventLog(
      * A group of more than [MAX_GROUP] streams is committed [MAX_GROUP] at a time, keeping a statement's parameters
      * within the protocol's limit.
      */
-    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
         if (streams.size <= 1) {
             return streams.map { (stream, transport) -> append(stream, transport) }
         }
@@ -390,7 +381,7 @@ class PostgresEventLog(
      * One statement's [group], each stream of the partition in [parts] beside it: their outcomes, every one the same
      * when the statement's outcome is a failure.
      */
-    private fun appendChunk(parts: List<Int>, group: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+    private fun appendChunk(parts: List<Int>, group: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
         var sent = false
         return try {
             dataSource.autoCommitted { connection ->
@@ -421,7 +412,7 @@ class PostgresEventLog(
     private fun appendGroupsIn(
         connection: Connection,
         parts: List<Int>,
-        group: List<Pair<EventStreamRecord, Transport?>>,
+        group: List<Pair<EventStreamRecord, ByteArray?>>,
     ): List<AppendOutcome> {
         val across = parts.distinct().size > 1
         val tablesOf = group.map { (stream) -> tableOf(connection, stream.ref.type) }
@@ -483,7 +474,7 @@ class PostgresEventLog(
     private fun appendByPartition(
         connection: Connection,
         parts: List<Int>,
-        group: List<Pair<EventStreamRecord, Transport?>>,
+        group: List<Pair<EventStreamRecord, ByteArray?>>,
     ): List<AppendOutcome> {
         val outcomes = arrayOfNulls<AppendOutcome>(group.size)
         group.indices.groupBy { parts[it] }.values.forEach { indexes ->
@@ -505,7 +496,7 @@ class PostgresEventLog(
     private fun appendAlone(
         connection: Connection,
         partition: Int,
-        group: List<Pair<EventStreamRecord, Transport?>>,
+        group: List<Pair<EventStreamRecord, ByteArray?>>,
         tablesOf: List<AggregateLogTable>,
     ): List<AppendOutcome> {
         val failed = HashMap<AggregateRef, AppendOutcome>()
@@ -635,33 +626,25 @@ class PostgresEventLog(
     }
 
     /**
-     * One statement when [snapshots] keeps [ref]'s snapshots in this log's database (decision D268): the snapshot, the
-     * tail from its version and the request keys before it, as one snapshot of the database sees them. Otherwise, or
-     * when that statement fails, the snapshot and the tail are read apart, as the port's default does.
+     * One statement when the snapshots keep [AggregateRef]'s snapshots in this log's database (decision D268): the
+     * snapshot, the tail from its version and the request keys before it, as one snapshot of the database sees them.
+     * Null when they are kept elsewhere; a failure of the statement is thrown, for the kernel to read apart, warn and
+     * count it (finding R5.B-16).
      */
-    @Suppress("TooGenericExceptionCaught") // Whatever the one statement throws, the reads apart decide the outcome.
-    override suspend fun readWithSnapshot(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail {
+    override val snapshotTails: SnapshotTailReader = SnapshotTailReader { ref, snapshots, earlier ->
         require(earlier >= 0) { "At most a non-negative number of earlier requests." }
-        val store = snapshots.storeOf(ref.type) as? PostgresSnapshotStore
-            ?: return super.readWithSnapshot(ref, snapshots, earlier)
-        val read = try {
-            dispatcher.jdbc {
-                dataSource.autoCommitted { connection ->
-                    store.sharedTable(dataSource, context, ref.type.name)?.let { snapshot ->
-                        withTable(connection, ref.type) { table ->
-                            connection.readSnapshotTail(table.tailWithSnapshot(snapshot), store, ref, earlier) {
-                                streamOf(table.aggregate, it)
-                            }
+        val store = snapshots.storeOf(ref.type) as? PostgresSnapshotStore ?: return@SnapshotTailReader null
+        dispatcher.jdbc {
+            dataSource.autoCommitted { connection ->
+                store.sharedTable(dataSource, context, ref.type.name)?.let { snapshot ->
+                    withTable(connection, ref.type) { table ->
+                        connection.readSnapshotTail(table.tailWithSnapshot(snapshot), store, ref, earlier) {
+                            streamOf(table.aggregate, it)
                         }
                     }
                 }
             }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            null
         }
-        return read ?: super.readWithSnapshot(ref, snapshots, earlier)
     }
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {
@@ -868,7 +851,7 @@ class PostgresEventLog(
     private fun entryOf(partition: Int, aggregate: String, row: ResultSet) = LogEntry(
         LogPosition(partition, row.getLong("sequence")),
         streamOf(aggregate, row),
-        row.getString("transport")?.let(::decodeTransport),
+        row.getBytes("transport"),
     )
 
     private fun streamOf(aggregate: String, row: ResultSet) = EventStreamRecord(
@@ -939,114 +922,12 @@ class PostgresEventLog(
             return json.writeValueAsString(array)
         }
 
-        /** A transport as one JSON object; an absent wait is left out. */
-        fun encodeTransport(transport: Transport): String {
-            val node = json.createObjectNode()
-            transport.wait?.let { wait -> encodeWait(node.putObject(WAIT), wait) }
-            encodeKeys(node.putArray(RESERVATIONS), transport.reservations)
-            node.set(TRACE, json.valueToTree(transport.trace))
-            // Added within format 1 (finding A2-4): left out when empty, so an older reader never meets it.
-            if (transport.releases.isNotEmpty()) {
-                encodeKeys(node.putArray(RELEASES), transport.releases)
-            }
-            return json.writeValueAsString(node)
-        }
-
-        /** Reserved keys as objects; a system key (added within format 1) is marked, a tenant's is not. */
-        private fun encodeKeys(array: ArrayNode, keys: List<ReservationKey>) {
-            keys.forEach { key ->
-                val node = array.addObject().put(NAMESPACE, key.namespace).put(KEY, key.key)
-                if (key.system) {
-                    node.put(SYSTEM, true)
-                }
-            }
-        }
-
-        private fun decodeKeys(array: JsonNode?): List<ReservationKey> {
-            val keys = ArrayList<ReservationKey>()
-            // ArrayNode has a map member of its own, so iterate rather than map.
-            for (key in array ?: return keys) {
-                keys += ReservationKey(
-                    key.get(NAMESPACE).asString(),
-                    key.get(KEY).asString(),
-                    key.get(SYSTEM)?.asBoolean() ?: false,
-                )
-            }
-            return keys
-        }
-
-        fun decodeTransport(text: String): Transport {
-            val node = json.readTree(text)
-            return Transport(
-                wait = node.get(WAIT)?.let(::decodeWait),
-                reservations = decodeKeys(node.get(RESERVATIONS)),
-                trace = decodeStrings(json.writeValueAsString(node.get(TRACE))),
-                releases = decodeKeys(node.get(RELEASES)),
-            )
-        }
-
-        /** A wait context's fields into [node]; a hop leaves out its absent context and subscription. */
-        fun encodeWait(node: ObjectNode, wait: WaitContext) {
-            node.put(WAIT_ID, wait.waitId).put(DEADLINE, wait.deadline)
-            node.putObject(ORIGIN)
-                .put(NODE, wait.origin.node)
-                .put(ADDRESS, wait.origin.address)
-                .put(SERVICE, wait.origin.service)
-            val remaining = node.putArray(REMAINING)
-            wait.remaining.forEach { hop ->
-                val encoded = remaining.addObject().put(STAGE, hop.stage.name)
-                hop.context?.let { encoded.put(CONTEXT, it) }
-                hop.subscription?.let { encoded.put(SUBSCRIPTION, it) }
-            }
-        }
-
-        fun decodeWait(node: JsonNode): WaitContext {
-            val origin = node.get(ORIGIN)
-            val remaining = ArrayList<Hop>()
-            // ArrayNode has a map member of its own, so iterate rather than map.
-            for (hop in node.get(REMAINING)) {
-                remaining += Hop(
-                    Stage.valueOf(hop.get(STAGE).asString()),
-                    hop.get(CONTEXT)?.asString(),
-                    hop.get(SUBSCRIPTION)?.asString(),
-                )
-            }
-            return WaitContext(
-                waitId = node.get(WAIT_ID).asString(),
-                origin = Origin(
-                    origin.get(NODE).asString(),
-                    origin.get(ADDRESS).asString(),
-                    origin.get(SERVICE).asString(),
-                ),
-                remaining = remaining,
-                deadline = node.get(DEADLINE).asLong(),
-            )
-        }
-
         /** A JSON object of strings, such as the headers. */
         fun decodeStrings(text: String): Map<String, String> = buildMap {
             for ((name, value) in json.readTree(text).properties()) {
                 put(name, value.asString())
             }
         }
-
-        const val WAIT = "wait"
-        const val WAIT_ID = "wait_id"
-        const val ORIGIN = "origin"
-        const val NODE = "node"
-        const val ADDRESS = "address"
-        const val SERVICE = "service"
-        const val REMAINING = "remaining"
-        const val STAGE = "stage"
-        const val CONTEXT = "context"
-        const val SUBSCRIPTION = "subscription"
-        const val DEADLINE = "deadline"
-        const val RESERVATIONS = "reservations"
-        const val RELEASES = "releases"
-        const val SYSTEM = "system"
-        const val NAMESPACE = "namespace"
-        const val KEY = "key"
-        const val TRACE = "trace"
 
         fun decodeEvents(text: String): List<EventRecord> = buildList {
             // ArrayNode has a map member of its own, so iterate rather than map.
@@ -1064,7 +945,7 @@ class PostgresEventLog(
 }
 
 /** A stream with its transport, as [EventLog.appendAll] takes it. */
-private typealias Appended = Pair<EventStreamRecord, Transport?>
+private typealias Appended = Pair<EventStreamRecord, ByteArray?>
 
 /**
  * [streams] cut into groups of about [size] each, with their places in [streams]: an aggregate's streams go into the

@@ -101,8 +101,8 @@ class HostCustomizationTest {
         answer.status.assert().isEqualTo(200)
         answer.body!!["ref"]["id"].asString().assert().startsWith("acct-")
         answer.body!!["commandId"].asString().assert().startsWith("g-")
-        host.client.get().uri("/wow/id/global").exchange().expectBody(String::class.java).returnResult()
-            .responseBody!!.assert().startsWith("g-")
+        // No route hands the global ids out (R5.C-15): they are the node's own.
+        host.get("/wow/id/global").status.assert().isEqualTo(404)
     }
 
     @Test
