@@ -141,11 +141,13 @@ class Executor(
         }
     }
 
-    /** [own]'s caller was cancelled: it leaves the queue, and hands the lane on when it was handed it. */
+    /**
+     * [own]'s caller was cancelled: it leaves the queue, and hands the lane on when it was handed it. A batch that took
+     * it gives its outcome to nobody, and does not put it back when it did not finish it: nobody would lead it.
+     */
     private fun abandon(lane: Lane, own: Queued) = synchronized(lane) {
         if (!own.turn.isCompleted) {
-            // Unless a batch took it: its outcome then goes to nobody.
-            lane.queue.remove(own)
+            if (!lane.queue.remove(own)) own.abandoned = true
         } else if (own.turn.getCompleted() is BatchOutcome.Again) {
             lane.queue.remove(own)
             handOff(lane)
@@ -154,7 +156,8 @@ class Executor(
 
     /**
      * Runs a batch from the head of [lane]'s queue, [own] first, then hands the lane on: [own]'s outcome. The others
-     * get theirs, or go back to the head of the queue, in order, when the batch did not finish them (or threw).
+     * get theirs, or go back to the head of the queue, in order, when the batch did not finish them (or threw); those
+     * whose callers were cancelled meanwhile are dropped instead, as unfinished means nothing of theirs committed.
      */
     private suspend fun lead(lane: Lane, own: Queued): BatchOutcome {
         val batch = synchronized(lane) {
@@ -184,7 +187,7 @@ class Executor(
             synchronized(lane) {
                 for (at in batch.indices.reversed()) {
                     val again = outcomes == null || outcomes[at] is BatchOutcome.Again
-                    if (at > 0 && again) lane.queue.addFirst(batch[at])
+                    if (at > 0 && again && !batch[at].abandoned) lane.queue.addFirst(batch[at])
                 }
                 handOff(lane)
             }
@@ -286,7 +289,8 @@ class Executor(
 
     /**
      * [commands] changes only inside [ConcurrentHashMap.compute]; [queue] and [leading] only under the lane's monitor.
-     * The lane has a leader while its queue is not empty.
+     * The lane has a leader while its queue is not empty, and its queue never holds an abandoned command: one is
+     * abandoned only once a batch took it ([abandon]), and the batch never puts it back ([lead]).
      */
     private class Lane {
         var commands = 0
@@ -294,9 +298,13 @@ class Executor(
         var leading = false
     }
 
-    /** A command in its lane: [turn] is its outcome, or [BatchOutcome.Again] when it is handed the lane to lead. */
+    /**
+     * A command in its lane: [turn] is its outcome, or [BatchOutcome.Again] when it is handed the lane to lead.
+     * [abandoned], under the lane's monitor: its caller was cancelled while a batch had taken it.
+     */
     private class Queued(val model: AggregateModel<*>, val command: Command<*>, val wait: WaitContext?) {
         val turn = CompletableDeferred<BatchOutcome>()
+        var abandoned = false
     }
 
     private companion object {
