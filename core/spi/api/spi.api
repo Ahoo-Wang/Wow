@@ -92,30 +92,12 @@ public final class me/ahoo/wow/spi/ledger/FailureLedgerKt {
 	public static final fun amended (Lme/ahoo/wow/spi/ledger/ParkedAggregate;Lme/ahoo/wow/spi/ledger/ParkedAmendment;)Lme/ahoo/wow/spi/ledger/ParkedAggregate;
 }
 
-public final class me/ahoo/wow/spi/ledger/LedgerAggregate$Companion {
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/ledger/LedgerAggregate;
-	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/spi/ledger/LedgerAggregate;
-}
-
-public final class me/ahoo/wow/spi/ledger/LedgerEntry$Companion {
-}
-
 public final class me/ahoo/wow/spi/ledger/LedgerRequest : java/lang/Enum {
 	public static final field RESUME Lme/ahoo/wow/spi/ledger/LedgerRequest;
 	public static final field SKIP Lme/ahoo/wow/spi/ledger/LedgerRequest;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spi/ledger/LedgerRequest;
 	public static fun values ()[Lme/ahoo/wow/spi/ledger/LedgerRequest;
-}
-
-public final class me/ahoo/wow/spi/ledger/LedgerResolution$Companion {
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/ledger/LedgerAggregate;Ljava/lang/Long;Ljava/lang/String;J)Lme/ahoo/wow/spi/ledger/LedgerResolution;
-}
-
-public final class me/ahoo/wow/spi/ledger/LedgerRetrySpec$Companion {
-	public final fun of (ILjava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/ledger/LedgerRetrySpec;
-	public final fun of (ILjava/lang/String;Ljava/lang/String;Z)Lme/ahoo/wow/spi/ledger/LedgerRetrySpec;
-	public static synthetic fun of$default (Lme/ahoo/wow/spi/ledger/LedgerRetrySpec$Companion;ILjava/lang/String;Ljava/lang/String;ZILjava/lang/Object;)Lme/ahoo/wow/spi/ledger/LedgerRetrySpec;
 }
 
 public final class me/ahoo/wow/spi/ledger/ParkedAggregate {
@@ -741,14 +723,6 @@ public final class me/ahoo/wow/spi/reservation/ReservationStore$Companion {
 
 public abstract interface class me/ahoo/wow/spi/sink/Sink {
 	public abstract fun write (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-}
-
-public final class me/ahoo/wow/spi/snapshot/RebuildSnapshot$Companion {
-	public final fun of (Ljava/util/List;)Lme/ahoo/wow/spi/snapshot/RebuildSnapshot;
-}
-
-public final class me/ahoo/wow/spi/snapshot/SnapshotRebuildRequested$Companion {
-	public final fun of (Ljava/util/List;)Lme/ahoo/wow/spi/snapshot/SnapshotRebuildRequested;
 }
 
 public abstract interface class me/ahoo/wow/spi/snapshot/SnapshotRebuildStore {

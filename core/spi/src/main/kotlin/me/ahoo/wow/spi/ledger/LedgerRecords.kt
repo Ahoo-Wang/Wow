@@ -116,6 +116,7 @@ class LedgerEntry @InternalWowApi constructor(
         retrySpec, recoverable, request, status, nextRetryAt, recordedAt
     )
 
+    @InternalWowApi
     companion object {
         const val UNKNOWN: String = "UNKNOWN"
     }
@@ -146,6 +147,7 @@ class LedgerRetrySpec @InternalWowApi constructor(
 
     private fun valueFields(): List<Any?> = listOf(maxRetries, minBackoff, executionTimeout, applied)
 
+    @InternalWowApi
     companion object {
         /** At most [maxRetries] retries, the first [minBackoff] after the failure, each allowed [executionTimeout]. */
         @JvmStatic
@@ -189,6 +191,7 @@ class LedgerResolution @InternalWowApi constructor(
     private fun valueFields(): List<Any?> =
         listOf(service, context, subscription, aggregate, failedAt, outcome, resolvedAt)
 
+    @InternalWowApi
     companion object {
         const val RESUMED: String = "RESUMED"
         const val SKIPPED: String = "SKIPPED"
@@ -246,6 +249,7 @@ class LedgerAggregate @InternalWowApi constructor(
 
     private fun valueFields(): List<Any?> = listOf(context, name, tenantId, id)
 
+    @InternalWowApi
     companion object {
         /** [ref] as the ledger's commands name it. */
         @JvmStatic

@@ -41,6 +41,7 @@ class RebuildSnapshot @InternalWowApi constructor(val ids: List<String>) {
 
     private fun valueFields(): List<Any?> = listOf(ids)
 
+    @InternalWowApi
     companion object {
         /** A RebuildSnapshot of the given fields; parameters added later come last, with a default. */
         @JvmStatic
@@ -64,6 +65,7 @@ class SnapshotRebuildRequested @InternalWowApi constructor(val ids: List<String>
 
     private fun valueFields(): List<Any?> = listOf(ids)
 
+    @InternalWowApi
     companion object {
         /** A SnapshotRebuildRequested of the given fields; parameters added later come last, with a default. */
         @JvmStatic
