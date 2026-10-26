@@ -3,7 +3,7 @@ description = "Wow V10 architecture rules: module graph, forbidden dependencies 
 // The rules scan the build scripts and production sources of the V10 modules, and the settings and every build script
 // for the module graph; declare them as inputs so a change there re-runs the tests instead of reusing a cached result.
 val moduleDirs = listOf(
-    "api/api", "api/manifest", "api/query-api", "core/spi", "core/kernel", "core/runtime",
+    "api/annotations", "api/api", "api/manifest", "api/query-api", "core/spi", "core/kernel", "core/runtime",
     "core/reactor", "query/query", "backends/postgres", "backends/mongo", "backends/kafka", "backends/clickhouse",
     "backends/elasticsearch",
     "edge/openapi", "edge/http", "edge/client", "edge/cosec", "edge/opentelemetry", "host/spring-boot", "extensions/cosid", "extensions/models", "migration/migrate-data", "compiler/compiler",

@@ -24,11 +24,13 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.spi.snapshot.SnapshotRebuildStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
 import me.ahoo.wow.tck.ExactJson
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import java.util.UUID
 
@@ -45,6 +47,10 @@ abstract class SnapshotStoreSpec {
     private val type = AggregateType(context, "aggregate")
 
     private fun createStore(): SnapshotStore = createStore(context)
+
+    /** The store's rebuild control plane: a store without one skips the tests of it (finding R5.B-9). */
+    private val SnapshotStore.rebuild: SnapshotRebuildStore
+        get() = rebuilds.also { assumeTrue(it != null, "The store has no rebuild control plane.") }!!
 
     protected fun snapshot(
         id: String,
@@ -212,8 +218,8 @@ abstract class SnapshotStoreSpec {
         store.load(batch[3].ref).assertSameAs(snapshot("d", 4))
         store.load(batch[4].ref).assertSameAs(batch[4])
         store.load(batch[5].ref).assertSameAs(batch[5])
-        store.pending(type, 2, limit = 10).assert().contains(batch[2].ref)
-        store.pending(type, 1, limit = 10).assert().containsExactly(batch[2].ref)
+        store.rebuild.pending(type, 2, limit = 10).assert().contains(batch[2].ref)
+        store.rebuild.pending(type, 1, limit = 10).assert().containsExactly(batch[2].ref)
     }
 
     @Test
@@ -242,7 +248,7 @@ abstract class SnapshotStoreSpec {
         store.load(batch[2].ref).assertSameAs(batch[2])
         store.load(batch[5].ref).assertSameAs(batch[5])
         // A revision 2 snapshot is pending at revision 2 only when marked stale.
-        store.pending(type, 2, limit = 10).assert().contains(batch[5].ref)
+        store.rebuild.pending(type, 2, limit = 10).assert().contains(batch[5].ref)
     }
 
     @Test
@@ -254,11 +260,11 @@ abstract class SnapshotStoreSpec {
         store.save(snapshot("c", 6)).assert().isFalse()
         val b = type.ref("tenant", "b")
         val c = type.ref("tenant", "c")
-        store.pending(type, 2, limit = 10).assert().containsExactly(b, c)
+        store.rebuild.pending(type, 2, limit = 10).assert().containsExactly(b, c)
         val batch = listOf(snapshot("b", 6).copyWith(stateRevision = 2), snapshot("c", 4).copyWith(stateRevision = 2))
         store.saveAll(batch).assert().containsExactly(SnapshotSaveOutcome.Written, SnapshotSaveOutcome.Written)
         // B's mark of version 5 is cleared by version 6; c's of version 6 stays over version 4.
-        store.pending(type, 2, limit = 10).assert().containsExactly(c)
+        store.rebuild.pending(type, 2, limit = 10).assert().containsExactly(c)
         store.load(c).assertSameAs(batch[1])
     }
 
@@ -350,16 +356,16 @@ abstract class SnapshotStoreSpec {
         val store = createStore()
         val newer = snapshot("a", 2).copyWith(stateRevision = 2)
         store.save(newer).assert().isTrue()
-        store.pending(type, 2, limit = 10).assert().isEmpty()
+        store.rebuild.pending(type, 2, limit = 10).assert().isEmpty()
         // An old node of revision 1 commits version 3 and cannot write it over the revision 2 snapshot.
         store.save(snapshot("a", 3)).assert().isFalse()
         store.load(newer.ref).assertSameAs(newer)
-        store.pending(type, 2, limit = 10).assert().containsExactly(newer.ref)
+        store.rebuild.pending(type, 2, limit = 10).assert().containsExactly(newer.ref)
         // A save that is not newer marks nothing.
         val other = snapshot("b", 2).copyWith(stateRevision = 2)
         store.save(other).assert().isTrue()
         store.save(snapshot("b", 1)).assert().isFalse()
-        store.pending(type, 2, limit = 10).assert().containsExactly(newer.ref)
+        store.rebuild.pending(type, 2, limit = 10).assert().containsExactly(newer.ref)
         // A higher state revision replaces a lower one at a higher version.
         val upgraded = snapshot("c", 1)
         store.save(upgraded).assert().isTrue()
@@ -375,15 +381,15 @@ abstract class SnapshotStoreSpec {
         store.save(stored).assert().isTrue()
         // A rollback rebuilds at revision 1, in place, at the same version.
         val rebuilt = snapshot("a", 4).copyWith(state = """{"rebuilt":true}""")
-        store.rewrite(rebuilt).assert().isTrue()
+        store.rebuild.rewrite(rebuilt).assert().isTrue()
         store.load(rebuilt.ref).assertSameAs(rebuilt)
-        store.rewrite(snapshot("a", 3).copyWith(stateRevision = 2)).assert().isFalse()
+        store.rebuild.rewrite(snapshot("a", 3).copyWith(stateRevision = 2)).assert().isFalse()
         store.load(rebuilt.ref).assertSameAs(rebuilt)
         val later = snapshot("a", 5).copyWith(stateRevision = 2)
-        store.rewrite(later).assert().isTrue()
+        store.rebuild.rewrite(later).assert().isTrue()
         store.load(later.ref).assertSameAs(later)
         val missing = snapshot("b", 2)
-        store.rewrite(missing).assert().isTrue()
+        store.rebuild.rewrite(missing).assert().isTrue()
         store.load(missing.ref).assertSameAs(missing)
     }
 
@@ -392,29 +398,29 @@ abstract class SnapshotStoreSpec {
         val store = createStore()
         val stored = snapshot("a", 2)
         store.save(stored).assert().isTrue()
-        store.pending(type, 1, limit = 10).assert().isEmpty()
-        store.markStale(stored.ref).assert().isTrue()
+        store.rebuild.pending(type, 1, limit = 10).assert().isEmpty()
+        store.rebuild.markStale(stored.ref).assert().isTrue()
         store.load(stored.ref).assertSameAs(stored)
-        store.pending(type, 1, limit = 10).assert().containsExactly(stored.ref)
-        store.rewrite(stored).assert().isTrue()
-        store.pending(type, 1, limit = 10).assert().isEmpty()
-        store.markStale(type.ref("tenant", "missing")).assert().isFalse()
+        store.rebuild.pending(type, 1, limit = 10).assert().containsExactly(stored.ref)
+        store.rebuild.rewrite(stored).assert().isTrue()
+        store.rebuild.pending(type, 1, limit = 10).assert().isEmpty()
+        store.rebuild.markStale(type.ref("tenant", "missing")).assert().isFalse()
         // A refused save of version 5 over a higher revision: only a rewrite of version 5 or later clears it.
         val newer = snapshot("b", 3).copyWith(stateRevision = 2)
         store.save(newer).assert().isTrue()
         store.save(snapshot("b", 5)).assert().isFalse()
-        store.rewrite(snapshot("b", 4)).assert().isTrue()
-        store.pending(type, 1, limit = 10).assert().containsExactly(newer.ref)
-        store.rewrite(snapshot("b", 5)).assert().isTrue()
-        store.pending(type, 1, limit = 10).assert().isEmpty()
+        store.rebuild.rewrite(snapshot("b", 4)).assert().isTrue()
+        store.rebuild.pending(type, 1, limit = 10).assert().containsExactly(newer.ref)
+        store.rebuild.rewrite(snapshot("b", 5)).assert().isTrue()
+        store.rebuild.pending(type, 1, limit = 10).assert().isEmpty()
         // A save of a higher version keeps a mark of a version above it.
         store.save(snapshot("c", 2).copyWith(stateRevision = 2)).assert().isTrue()
         store.save(snapshot("c", 6)).assert().isFalse()
         store.save(snapshot("c", 4).copyWith(stateRevision = 2)).assert().isTrue()
         val c = type.ref("tenant", "c")
-        store.pending(type, 2, limit = 10).assert().contains(c)
+        store.rebuild.pending(type, 2, limit = 10).assert().contains(c)
         store.save(snapshot("c", 6).copyWith(stateRevision = 2)).assert().isTrue()
-        store.pending(type, 2, limit = 10).assert().doesNotContain(c)
+        store.rebuild.pending(type, 2, limit = 10).assert().doesNotContain(c)
     }
 
     @Test
@@ -429,43 +435,43 @@ abstract class SnapshotStoreSpec {
         val expected = listOf("t1" to "a", "t1" to "a~", "t1" to "aé", "t1" to "b", "t2" to "a").map { (tenant, id) ->
             type.ref(tenant, id)
         }
-        store.pending(type, 2, limit = 10).assert().isEqualTo(expected)
-        val first = store.pending(type, 2, limit = 2)
+        store.rebuild.pending(type, 2, limit = 10).assert().isEqualTo(expected)
+        val first = store.rebuild.pending(type, 2, limit = 2)
         first.assert().isEqualTo(expected.take(2))
-        val second = store.pending(type, 2, first.last(), limit = 2)
+        val second = store.rebuild.pending(type, 2, first.last(), limit = 2)
         second.assert().isEqualTo(expected.subList(2, 4))
-        store.pending(type, 2, second.last(), limit = 2).assert().isEqualTo(expected.subList(4, 5))
-        store.pending(type, 2, expected.last(), limit = 2).assert().isEmpty()
-        store.pending(type, 1, limit = 10).assert().containsExactly(type.ref("t1", "current"))
-        store.pending(AggregateType(context, "none"), 1, limit = 10).assert().isEmpty()
+        store.rebuild.pending(type, 2, second.last(), limit = 2).assert().isEqualTo(expected.subList(4, 5))
+        store.rebuild.pending(type, 2, expected.last(), limit = 2).assert().isEmpty()
+        store.rebuild.pending(type, 1, limit = 10).assert().containsExactly(type.ref("t1", "current"))
+        store.rebuild.pending(AggregateType(context, "none"), 1, limit = 10).assert().isEmpty()
     }
 
     @Test
     fun `a table's first claim records it at the revision, not yet backfilled`(): Unit = runBlocking {
         val store = createStore()
         val other = AggregateType(context, "other")
-        store.table(type).assert().isNull()
-        store.claim(type, 1).assert().isEqualTo(SnapshotTable(1, rebuilding = false, backfilled = false))
-        store.table(type).assert().isEqualTo(SnapshotTable(1, rebuilding = false, backfilled = false))
-        store.claim(other, 2).assert().isEqualTo(SnapshotTable(2, rebuilding = true, backfilled = false))
-        store.claim(type, 1).assert().isEqualTo(SnapshotTable(1, rebuilding = false, backfilled = false))
+        store.rebuild.table(type).assert().isNull()
+        store.rebuild.claim(type, 1).assert().isEqualTo(SnapshotTable(1, rebuilding = false, backfilled = false))
+        store.rebuild.table(type).assert().isEqualTo(SnapshotTable(1, rebuilding = false, backfilled = false))
+        store.rebuild.claim(other, 2).assert().isEqualTo(SnapshotTable(2, rebuilding = true, backfilled = false))
+        store.rebuild.claim(type, 1).assert().isEqualTo(SnapshotTable(1, rebuilding = false, backfilled = false))
     }
 
     @Test
     fun `a claim raises the revision, and lowers it only for a rollback`(): Unit = runBlocking {
         val store = createStore()
-        store.claim(type, 1)
-        store.mark(type, 1, backfilled = true).assert().isEqualTo(SnapshotTable(1, rebuilding = false))
-        store.claim(type, 2).assert().isEqualTo(SnapshotTable(2, rebuilding = true))
-        store.mark(type, 1, rebuilding = false).assert().isNull()
-        store.mark(type, 2, rebuilding = false).assert().isEqualTo(SnapshotTable(2))
-        store.mark(type, 2).assert().isEqualTo(SnapshotTable(2))
-        store.mark(type, 1).assert().isNull()
-        store.claim(type, 1).assert().isEqualTo(SnapshotTable(2))
-        store.claim(type, 2, lower = true).assert().isEqualTo(SnapshotTable(2))
-        store.claim(type, 1, lower = true).assert().isEqualTo(SnapshotTable(1, rebuilding = true))
-        store.table(type).assert().isEqualTo(SnapshotTable(1, rebuilding = true))
-        store.mark(AggregateType(context, "unclaimed"), 1, rebuilding = false).assert().isNull()
+        store.rebuild.claim(type, 1)
+        store.rebuild.mark(type, 1, backfilled = true).assert().isEqualTo(SnapshotTable(1, rebuilding = false))
+        store.rebuild.claim(type, 2).assert().isEqualTo(SnapshotTable(2, rebuilding = true))
+        store.rebuild.mark(type, 1, rebuilding = false).assert().isNull()
+        store.rebuild.mark(type, 2, rebuilding = false).assert().isEqualTo(SnapshotTable(2))
+        store.rebuild.mark(type, 2).assert().isEqualTo(SnapshotTable(2))
+        store.rebuild.mark(type, 1).assert().isNull()
+        store.rebuild.claim(type, 1).assert().isEqualTo(SnapshotTable(2))
+        store.rebuild.claim(type, 2, lower = true).assert().isEqualTo(SnapshotTable(2))
+        store.rebuild.claim(type, 1, lower = true).assert().isEqualTo(SnapshotTable(1, rebuilding = true))
+        store.rebuild.table(type).assert().isEqualTo(SnapshotTable(1, rebuilding = true))
+        store.rebuild.mark(AggregateType(context, "unclaimed"), 1, rebuilding = false).assert().isNull()
     }
 
     @Test
@@ -473,12 +479,12 @@ abstract class SnapshotStoreSpec {
         val store = createStore()
         val claimed = coroutineScope {
             (1..CONCURRENT_VERSIONS).map { index ->
-                async(Dispatchers.Default) { store.claim(type, index % 3 + 1) }
+                async(Dispatchers.Default) { store.rebuild.claim(type, index % 3 + 1) }
             }.awaitAll()
         }
         claimed.forEach { it.revision.assert().isBetween(1, 3) }
-        store.table(type)!!.revision.assert().isEqualTo(3)
-        store.claim(type, 3).revision.assert().isEqualTo(3)
+        store.rebuild.table(type)!!.revision.assert().isEqualTo(3)
+        store.rebuild.claim(type, 3).revision.assert().isEqualTo(3)
     }
 
     protected companion object {

@@ -28,6 +28,7 @@ import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.observation.StoreFallbacks
 import me.ahoo.wow.spi.observation.TraceContext
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.observation.trace
@@ -126,7 +127,7 @@ class OtelObserverTest {
         }
 
     @Test
-    fun `refusals, wait timeouts, dropped signals, failed forwards and tail reads should be counted`() {
+    fun `refusals, wait timeouts, dropped signals, failed forwards, tail reads and store fallbacks should be counted`() {
         observer.refused(ORDER, "wow.command.busy")
         observer.refused(ORDER, "wow.command.busy")
         observer.waitTimedOut(ORDER, Stage.COMMITTED)
@@ -135,7 +136,16 @@ class OtelObserverTest {
         observer.tailRead(SALES, 3, "gap")
         observer.stateCache(SALES, "miss")
         observer.reservationLost(SALES)
+        observer.storeFellBack(SALES, StoreFallbacks.SNAPSHOT_TAIL_READ, StoreFallbacks.FAILED)
         val meters = telemetry.meters
+        meters.get(WowMetrics.STORE_FALLBACKS).tags(
+            WowMetrics.CONTEXT,
+            SALES,
+            WowMetrics.CAPABILITY,
+            "snapshot-tail-read",
+            WowMetrics.REASON,
+            "failed",
+        ).counter().count().assert().isEqualTo(1.0)
         meters.get(
             WowMetrics.RESERVATION_LOST
         ).tags(WowMetrics.CONTEXT, SALES).counter().count().assert().isEqualTo(1.0)

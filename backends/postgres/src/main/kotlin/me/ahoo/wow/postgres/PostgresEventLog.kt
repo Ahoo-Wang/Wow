@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.postgres
 
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -37,12 +36,11 @@ import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
-import me.ahoo.wow.spi.log.SnapshotTail
+import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.log.TailPacer
 import me.ahoo.wow.spi.log.notAppendedAfter
 import me.ahoo.wow.spi.log.requireChains
-import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.postgresql.util.PSQLException
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.node.ArrayNode
@@ -628,33 +626,25 @@ class PostgresEventLog(
     }
 
     /**
-     * One statement when [snapshots] keeps [ref]'s snapshots in this log's database (decision D268): the snapshot, the
-     * tail from its version and the request keys before it, as one snapshot of the database sees them. Otherwise, or
-     * when that statement fails, the snapshot and the tail are read apart, as the port's default does.
+     * One statement when the snapshots keep [AggregateRef]'s snapshots in this log's database (decision D268): the
+     * snapshot, the tail from its version and the request keys before it, as one snapshot of the database sees them.
+     * Null when they are kept elsewhere; a failure of the statement is thrown, for the kernel to read apart, warn and
+     * count it (finding R5.B-16).
      */
-    @Suppress("TooGenericExceptionCaught") // Whatever the one statement throws, the reads apart decide the outcome.
-    override suspend fun readWithSnapshot(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail {
+    override val snapshotTails: SnapshotTailReader = SnapshotTailReader { ref, snapshots, earlier ->
         require(earlier >= 0) { "At most a non-negative number of earlier requests." }
-        val store = snapshots.storeOf(ref.type) as? PostgresSnapshotStore
-            ?: return super.readWithSnapshot(ref, snapshots, earlier)
-        val read = try {
-            dispatcher.jdbc {
-                dataSource.autoCommitted { connection ->
-                    store.sharedTable(dataSource, context, ref.type.name)?.let { snapshot ->
-                        withTable(connection, ref.type) { table ->
-                            connection.readSnapshotTail(table.tailWithSnapshot(snapshot), store, ref, earlier) {
-                                streamOf(table.aggregate, it)
-                            }
+        val store = snapshots.storeOf(ref.type) as? PostgresSnapshotStore ?: return@SnapshotTailReader null
+        dispatcher.jdbc {
+            dataSource.autoCommitted { connection ->
+                store.sharedTable(dataSource, context, ref.type.name)?.let { snapshot ->
+                    withTable(connection, ref.type) { table ->
+                        connection.readSnapshotTail(table.tailWithSnapshot(snapshot), store, ref, earlier) {
+                            streamOf(table.aggregate, it)
                         }
                     }
                 }
             }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            null
         }
-        return read ?: super.readWithSnapshot(ref, snapshots, earlier)
     }
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {

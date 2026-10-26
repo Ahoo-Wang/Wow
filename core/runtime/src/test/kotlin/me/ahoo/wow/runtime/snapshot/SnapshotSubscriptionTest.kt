@@ -59,7 +59,6 @@ import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition
-import me.ahoo.wow.spi.log.SnapshotTail
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -136,10 +135,6 @@ class SnapshotSubscriptionTest {
             reads += fromVersion
             return delegate.readTail(ref, fromVersion, earlier)
         }
-
-        /** Read through [read] and [readTail], so that they count it. */
-        override suspend fun readWithSnapshot(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail =
-            super.readWithSnapshot(ref, snapshots, earlier)
     }
 
     /** Records each save asked of it, and the size of each batch; while [gate] is set, a save waits for it first. */

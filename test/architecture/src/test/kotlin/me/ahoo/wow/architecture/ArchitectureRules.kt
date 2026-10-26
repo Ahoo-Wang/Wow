@@ -22,6 +22,8 @@ data class WowProject(val name: String, val dir: String)
  * The architecture rules (documentation/designs/06-modules.md §3 and 07-migration.md §4).
  */
 object ArchitectureRules {
+    /** The stability markers (decision D282): `InternalWowApi`, `ExperimentalWowApi`, `WowSpi`; no dependencies. */
+    val ANNOTATIONS = WowProject("annotations", "api/annotations")
     val API = WowProject("api", "api/api")
     val MANIFEST = WowProject("manifest", "api/manifest")
     val QUERY_API = WowProject("query-api", "api/query-api")
@@ -112,7 +114,7 @@ object ArchitectureRules {
     val PLATFORM_SERVERS = listOf(VIEW_STORE_SERVER, OPS_SERVER, ANALYTICS_CATALOG_SERVER)
 
     val MODULES = listOf(
-        API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, ELASTICSEARCH,
+        ANNOTATIONS, API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, ELASTICSEARCH,
         OPENAPI, HTTP, CLIENT, COSEC, OPENTELEMETRY, SPRING_BOOT, COSID, MODELS, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
     ) + TEST_MODULES + PLATFORM_MODULES
 
@@ -189,10 +191,12 @@ object ArchitectureRules {
      * none names a 9.x module ([nineXReachViolations] checks the transitive graph too).
      */
     val ALLOWED_PROJECT_DEPENDENCIES: Map<WowProject, Set<String>> = mapOf(
+        // The stability markers (decision D282) every module below builds on, through these three.
+        ANNOTATIONS to emptySet(),
         // The query protocol of the QueryApi (decision D260).
-        API to setOf("query-api"),
-        MANIFEST to emptySet(),
-        QUERY_API to emptySet(),
+        API to setOf("annotations", "query-api"),
+        MANIFEST to setOf("annotations"),
+        QUERY_API to setOf("annotations"),
         SPI to setOf("api"),
         KERNEL to setOf("spi"),
         // manifest: the node is built from the Manifest (decision D231 ③).
