@@ -181,10 +181,10 @@ component_management:
       name: cosec
       paths:
         - edge/cosec/src/main/**
-    - component_id: opentelemetry
-      name: opentelemetry
+    - component_id: observability
+      name: observability
       paths:
-        - edge/opentelemetry/src/main/**
+        - edge/observability/src/main/**
     - component_id: spring-boot
       name: spring-boot
       paths:

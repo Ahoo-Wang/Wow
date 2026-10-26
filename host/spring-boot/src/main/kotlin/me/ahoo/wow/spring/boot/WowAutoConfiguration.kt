@@ -162,7 +162,7 @@ import jakarta.validation.Validator as JakartaValidator
  * - **Parked entries** (roadmap P.1): retried over the long horizon by `wow.subscription.parked.*`; every
  *   [me.ahoo.wow.runtime.subscription.ParkedNotifier] bean, the webhook of `wow.ops.webhook.*` among them, hears when
  *   one parks or spends its retries; `wow.ops.enabled` serves the operator's routes ([parkedRoutes]).
- * - **Observation** (decision D174): the [Observer] bean, when there is one (wow-opentelemetry's,
+ * - **Observation** (decision D174): the [Observer] bean, when there is one (wow-observability's,
  *   [ObservabilityAutoConfiguration]), sees the node's work; nothing does otherwise.
  * - **Lifecycle**: [WowLifecycles].
  */

@@ -29,12 +29,12 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.memory.InMemoryTopics
-import me.ahoo.wow.opentelemetry.NodeMetrics
-import me.ahoo.wow.opentelemetry.OtelObserver
-import me.ahoo.wow.opentelemetry.OtelQueryObserver
-import me.ahoo.wow.opentelemetry.ParkedMetrics
-import me.ahoo.wow.opentelemetry.TracingTopicProducer
-import me.ahoo.wow.opentelemetry.WowMetrics
+import me.ahoo.wow.observability.NodeMetrics
+import me.ahoo.wow.observability.OtelObserver
+import me.ahoo.wow.observability.OtelQueryObserver
+import me.ahoo.wow.observability.ParkedMetrics
+import me.ahoo.wow.observability.TracingTopicProducer
+import me.ahoo.wow.observability.WowMetrics
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.node.ContextBackends
@@ -53,7 +53,7 @@ import java.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Tracing and metrics wired by [ObservabilityAutoConfiguration] (decision D174): with wow-opentelemetry on the class
+ * Tracing and metrics wired by [ObservabilityAutoConfiguration] (decision D174): with wow-observability on the class
  * path, the node's work is traced through the application's [OpenTelemetry] and measured in its [MeterRegistry].
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -107,7 +107,7 @@ class HostObservabilityTest {
     fun `without an OpenTelemetry or a registry of the application's, the global ones should serve`() {
         ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(ObservabilityAutoConfiguration::class.java))
-            .withPropertyValues("wow.opentelemetry.sample-interval=2s")
+            .withPropertyValues("wow.observability.sample-interval=2s")
             .withBean("producer", TopicProducer::class.java, { RecordingProducer() })
             .run { context ->
                 context.getBean(Observer::class.java).assert().isInstanceOf(OtelObserver::class.java)
@@ -144,7 +144,7 @@ class HostObservabilityTest {
     fun `switched off, nothing should be wired`() {
         ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(ObservabilityAutoConfiguration::class.java))
-            .withPropertyValues("wow.opentelemetry.enabled=false")
+            .withPropertyValues("wow.observability.enabled=false")
             .run { context -> context.getBeansOfType(Observer::class.java).assert().isEmpty() }
     }
 

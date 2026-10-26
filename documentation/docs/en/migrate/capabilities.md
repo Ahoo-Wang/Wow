@@ -43,7 +43,7 @@ Use this page to find out, before you migrate, what happens to each 9.x capabili
 | Command buses: in-memory, local-first, Kafka | Replaced | Partitioned routing over the cluster channel by default; Kafka routing per aggregate type for durable intake. |
 | Redis command bus | Dropped | — |
 | One command endpoint (`/wow/command/send`) | Replaced | One route per command. |
-| Command filters and instrumentation | Replaced | An observation port, implemented by the OpenTelemetry module. |
+| Command filters and instrumentation | Replaced | An observation port, implemented by the observability module (`wow-observability`). |
 | Error code to HTTP status mapping | Kept | Declared with `@ErrorCode`, or configured per code. |
 | Domain exceptions converted to `ErrorInfo` | Replaced | A decision returns a rejection with a declared error code. |
 

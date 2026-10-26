@@ -77,7 +77,7 @@ val e2eBenchmarkProjects = includedProjects(":benchmark-server", ":benchmark-loa
 val moduleProjects = listOf(
     "annotations", "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query", "query-tck",
     "postgres", "mongo", "kafka", "clickhouse", "elasticsearch", "openapi", "http", "client", "cosec",
-    "opentelemetry", "spring-boot", "cosid",
+    "observability", "spring-boot", "cosid",
     "models", "migrate-data", "architecture",
     "test-dsl", "tck", "tck-containers", "ops-api", "ops-domain", "ops-server",
     "view-store-api", "view-store-domain", "view-store-server",
@@ -98,7 +98,7 @@ val coreContractProjects = includedProjects(":annotations", ":api", ":query-api"
 val abiProjects = includedProjects(
     ":annotations", ":api", ":manifest", ":query-api", ":spi", ":kernel", ":runtime", ":reactor", ":query",
     ":postgres", ":mongo", ":kafka", ":clickhouse", ":elasticsearch", ":openapi", ":http", ":client", ":cosec",
-    ":opentelemetry", ":spring-boot",
+    ":observability", ":spring-boot",
     ":cosid", ":models", ":test-dsl", ":tck", ":query-tck", ":tck-containers", ":ops-api", ":view-store-api",
     ":compiler", ":gradle-plugin",
 )

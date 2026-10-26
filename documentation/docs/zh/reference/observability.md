@@ -5,7 +5,7 @@ description: Wow 节点记录的每个指标及其类型和标签，每个 Span 
 
 # 指标、Span 与健康
 
-Wow 节点向监控报告的每个名字。类路径上有 `wow-opentelemetry` 时，指标进入应用的 Micrometer 注册表，Span 进入它的 `OpenTelemetry`；健康状态通过 Spring Boot Actuator 报告。[健康、指标与追踪](../operate/observability)说明怎样接入它们，以及对什么设置告警。一个测试让本页的每个名字与报告它的代码保持一致。
+Wow 节点向监控报告的每个名字。类路径上有 `wow-observability` 时，指标进入应用的 Micrometer 注册表，Span 进入它的 `OpenTelemetry`；健康状态通过 Spring Boot Actuator 报告。[健康、指标与追踪](../operate/observability)说明怎样接入它们，以及对什么设置告警。一个测试让本页的每个名字与报告它的代码保持一致。
 
 ## 指标 {#metrics}
 
@@ -57,7 +57,7 @@ Wow 节点向监控报告的每个名字。类路径上有 `wow-opentelemetry` �
 | `wow.query.pressure` | Gauge | `store` | 自适应上限处于压力之下期间为 1 |
 | `wow.query.limit.decreases` | Counter | `store` | 自适应上限下调的次数 |
 
-Gauge 每隔 `wow.opentelemetry.sample-interval`（15 s）采样一次；对象已不存在的 Gauge，例如已经移到另一个节点的订阅，会被移除。
+Gauge 每隔 `wow.observability.sample-interval`（15 s）采样一次；对象已不存在的 Gauge，例如已经移到另一个节点的订阅，会被移除。
 
 ## Span {#spans}
 

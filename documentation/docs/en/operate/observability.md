@@ -1,12 +1,12 @@
 ---
 title: Health, Metrics and Tracing
-description: The node's health in Actuator's readiness and liveness groups, the metrics and spans wow-opentelemetry records, and what to alert on.
+description: The node's health in Actuator's readiness and liveness groups, the metrics and spans wow-observability records, and what to alert on.
 outline: deep
 ---
 
 # Health, Metrics and Tracing
 
-A node tells the platform whether to send it traffic and whether to restart it, through Spring Boot Actuator's health groups. With `wow-opentelemetry`, it also records a span for each stage of its work, in the trace of the request, entry or message that started it, and metrics of commits, subscriptions, timers and queries. This page describes both and lists what to alert on.
+A node tells the platform whether to send it traffic and whether to restart it, through Spring Boot Actuator's health groups. With `wow-observability`, it also records a span for each stage of its work, in the trace of the request, entry or message that started it, and metrics of commits, subscriptions, timers and queries. This page describes both and lists what to alert on.
 
 ## Health
 
@@ -36,7 +36,7 @@ What a response shows beyond the status follows Actuator's own settings (`manage
 
 ## Metrics and traces
 
-Put `wow-opentelemetry` on the class path. The spans go through the application's `OpenTelemetry` bean, such as Spring Boot's with an SDK and its exporters, else the global one, such as the Java agent's. The metrics go to the application's Micrometer `MeterRegistry`, such as Actuator's with a Prometheus or OTLP registry, else Micrometer's global registry. `wow.opentelemetry.enabled: false` turns both off.
+Put `wow-observability` on the class path. The spans go through the application's `OpenTelemetry` bean, such as Spring Boot's with an SDK and its exporters, else the global one, such as the Java agent's. The metrics go to the application's Micrometer `MeterRegistry`, such as Actuator's with a Prometheus or OTLP registry, else Micrometer's global registry. `wow.observability.enabled: false` turns both off.
 
 **Spans.** Each stage of a command and of a subscription is a span, in the trace its request, log entry or Kafka message carries:
 
@@ -71,7 +71,7 @@ The spans carry the context, aggregate, tenant, command and subscription as attr
 | `wow.query.limit` | Gauge | A store's current bound on concurrent queries |
 | `wow.kafka.offset.gaps` | Counter | Offset gaps on another context's topic ([Kafka](./kafka#reading-other-contexts-streams)) |
 
-`wow.opentelemetry.sample-interval` (15 s) is how often the sampled gauges, the parked entries and the subscriptions' positions, are read.
+`wow.observability.sample-interval` (15 s) is how often the sampled gauges, the parked entries and the subscriptions' positions, are read.
 
 ## What to alert on
 

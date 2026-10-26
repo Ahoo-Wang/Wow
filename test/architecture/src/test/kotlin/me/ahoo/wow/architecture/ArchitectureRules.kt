@@ -45,7 +45,7 @@ object ArchitectureRules {
     /** The typed command and query clients over HTTP (decisions D257, D259), on the JDK's HttpClient alone. */
     val CLIENT = WowProject("client", "edge/client")
     val COSEC = WowProject("cosec", "edge/cosec")
-    val OPENTELEMETRY = WowProject("opentelemetry", "edge/opentelemetry")
+    val OPENTELEMETRY = WowProject("opentelemetry", "edge/observability")
     val SPRING_BOOT = WowProject("spring-boot", "host/spring-boot")
     val COSID = WowProject("cosid", "extensions/cosid")
 
@@ -480,11 +480,11 @@ object ArchitectureRules {
     )
 
     /**
-     * Observability is wired at fixed seams (decision D174, 06 §3): only wow-opentelemetry and the host that wires it
+     * Observability is wired at fixed seams (decision D174, 06 §3): only wow-observability and the host that wires it
      * import OpenTelemetry or Micrometer; the core exposes ports instead.
      */
     val ONLY_OPENTELEMETRY_OBSERVES = DependencyRule(
-        name = "only wow-opentelemetry and wow-spring-boot import OpenTelemetry or Micrometer",
+        name = "only wow-observability and wow-spring-boot import OpenTelemetry or Micrometer",
         modules = (MODULES - OPENTELEMETRY - SPRING_BOOT).map { it.dir },
         forbidden = listOf("io.opentelemetry", "io.micrometer"),
     )
@@ -631,7 +631,7 @@ object ArchitectureRules {
     val DELETED_9X: Set<String> = setOf(
         "wow-bom", "wow-api", "wow-metadata", "wow-rest-contract", "wow-core", "wow-openapi", "wow-cocache",
         "wow-apiclient", "wow-compiler", "wow-kafka", "wow-mongo", "wow-redis", "wow-elasticsearch", "wow-spring",
-        "wow-webflux", "wow-spring-boot-starter", "wow-opentelemetry", "wow-bi", "wow-clickhouse", "wow-query",
+        "wow-webflux", "wow-spring-boot-starter", "wow-observability", "wow-bi", "wow-clickhouse", "wow-query",
         "wow-models", "wow-schema", "wow-cosec", "wow-benchmarks",
         "wow-test", "wow-tck", "wow-mock", "wow-it",
         "wow-compensation-api", "wow-compensation-core", "wow-compensation-domain", "wow-compensation-server",

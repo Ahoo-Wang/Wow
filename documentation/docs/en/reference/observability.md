@@ -5,7 +5,7 @@ description: Every metric a Wow node records, with its type and tags, every span
 
 # Metrics, Spans and Health
 
-Every name a Wow node reports to its monitoring. With `wow-opentelemetry` on the class path, the metrics go to the application's Micrometer registry and the spans to its `OpenTelemetry`; health is reported through Spring Boot Actuator. [Health, Metrics and Tracing](../operate/observability) explains how to wire them and what to alert on. A test holds each name on this page to the code that reports it.
+Every name a Wow node reports to its monitoring. With `wow-observability` on the class path, the metrics go to the application's Micrometer registry and the spans to its `OpenTelemetry`; health is reported through Spring Boot Actuator. [Health, Metrics and Tracing](../operate/observability) explains how to wire them and what to alert on. A test holds each name on this page to the code that reports it.
 
 ## Metrics
 
@@ -57,7 +57,7 @@ Tags are written as `name=value`; a tag without a value takes the value its name
 | `wow.query.pressure` | Gauge | `store` | 1 while an adaptive bound is under pressure |
 | `wow.query.limit.decreases` | Counter | `store` | The times an adaptive bound went down |
 
-Gauges are sampled every `wow.opentelemetry.sample-interval` (15 s), and a gauge whose subject is gone, a subscription that moved to another node say, is removed.
+Gauges are sampled every `wow.observability.sample-interval` (15 s), and a gauge whose subject is gone, a subscription that moved to another node say, is removed.
 
 ## Spans
 

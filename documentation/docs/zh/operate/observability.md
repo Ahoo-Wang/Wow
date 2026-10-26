@@ -1,12 +1,12 @@
 ---
 title: 健康、指标与追踪
-description: 节点在 Actuator 就绪和存活分组中的健康状况、wow-opentelemetry 记录的指标和 span，以及应当对什么报警。
+description: 节点在 Actuator 就绪和存活分组中的健康状况、wow-observability 记录的指标和 span，以及应当对什么报警。
 outline: deep
 ---
 
 # 健康、指标与追踪
 
-节点通过 Spring Boot Actuator 的健康分组告诉平台是否该给它发流量、是否该重启它。有了 `wow-opentelemetry`，它还为工作的每个阶段记录一个 span，放在发起这项工作的请求、条目或消息的追踪中，并记录提交、订阅、定时器和查询的指标。本页说明两者，并列出应当对什么报警。
+节点通过 Spring Boot Actuator 的健康分组告诉平台是否该给它发流量、是否该重启它。有了 `wow-observability`，它还为工作的每个阶段记录一个 span，放在发起这项工作的请求、条目或消息的追踪中，并记录提交、订阅、定时器和查询的指标。本页说明两者，并列出应当对什么报警。
 
 ## 健康 {#health}
 
@@ -36,7 +36,7 @@ outline: deep
 
 ## 指标与追踪 {#metrics-and-traces}
 
-把 `wow-opentelemetry` 放到类路径上。span 通过应用的 `OpenTelemetry` Bean 输出，例如 Spring Boot 带 SDK 及其导出器的那个，否则使用全局的，例如 Java agent 的。指标输出到应用的 Micrometer `MeterRegistry`，例如带 Prometheus 或 OTLP registry 的 Actuator，否则使用 Micrometer 的全局 registry。`wow.opentelemetry.enabled: false` 同时关闭两者。
+把 `wow-observability` 放到类路径上。span 通过应用的 `OpenTelemetry` Bean 输出，例如 Spring Boot 带 SDK 及其导出器的那个，否则使用全局的，例如 Java agent 的。指标输出到应用的 Micrometer `MeterRegistry`，例如带 Prometheus 或 OTLP registry 的 Actuator，否则使用 Micrometer 的全局 registry。`wow.observability.enabled: false` 同时关闭两者。
 
 **Span。** 命令和订阅的每个阶段都是一个 span，位于它的请求、日志条目或 Kafka 消息所携带的追踪中：
 
@@ -71,7 +71,7 @@ span 以属性的形式带着上下文、聚合、租户、命令和订阅（`wo
 | `wow.query.limit` | Gauge | 存储当前的并发查询上限 |
 | `wow.kafka.offset.gaps` | Counter | 另一个上下文主题上的偏移量缺口（[Kafka](./kafka#reading-other-contexts-streams)） |
 
-`wow.opentelemetry.sample-interval`（15 秒）是读取采样型 gauge（停放条目和订阅的位置）的频率。
+`wow.observability.sample-interval`（15 秒）是读取采样型 gauge（停放条目和订阅的位置）的频率。
 
 ## 应当对什么报警 {#what-to-alert-on}
 
