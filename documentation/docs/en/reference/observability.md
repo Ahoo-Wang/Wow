@@ -25,6 +25,7 @@ Tags are written as `name=value`; a tag without a value takes the value its name
 | `wow.log.append-queue.depth` | Gauge | `context` | Commits waiting in the log's append queue |
 | `wow.log.tail.reads` | Counter | `context`, `reason` | Tails that read the store because memory could not continue them: `start`, `gap`, `overflow`, `idle` |
 | `wow.state-cache` | Counter | `context`, `outcome` | State cache lookups and evictions: `hit`, `miss` (a snapshot and a tail read), `evicted` |
+| `wow.store.fallbacks` | Counter | `context`, `capability`, `reason` | Times a store fell back from an optional capability and did the work the way every store can. `capability`: `snapshot-tail-read` (a log's one-round-trip read of a snapshot with its tail), `snapshot-rebuild` (a snapshot store's in-place rebuild). `reason`: `failed` (the capability failed; the first failure is logged as a warning), `unavailable` (it cannot serve this case, such as a snapshot store in another database than the log), `unsupported` (the store has no such capability) |
 | `wow.reservation.lost` | Counter | `context` | Unique keys a committed fact lost to another owner after its pending reservation expired (decision D50): the kernel's confirm after an append, or the `reservation` subscription's |
 
 ### Subscriptions

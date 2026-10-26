@@ -21,6 +21,8 @@ description: 为 Wow 添加一个存储后端：存储要实现的 SPI 端口、
 | `ReservationStore` | 已预留的唯一键 | `ReservationStoreSpec` |
 | `TimerStore` | 为稍后安排的命令 | `TimerStoreSpec` |
 
+端口的抽象成员是后端必须实现的；带默认实现的成员是可选优化，默认实现本身是正确的，例如 `EventLog.appendAll` 和 `SnapshotStore.saveAll`。有两项能力是可选的，并且显式提供：能在一次往返中同时读出聚合的快照和其后尾部的日志，从 `EventLog.snapshotTails` 返回一个 `SnapshotTailReader`；能原地重建快照的快照存储，从 `SnapshotStore.rebuilds` 返回一个 `SnapshotRebuildStore`（状态修订号变化时的表声明、过期标记与重写）。没有这些能力时，节点分开读取快照和尾部，并保留其他状态修订号的快照，直到有新的提交替换它们。某项能力无法适用或失败时，节点以同样的方式退回，第一次记日志，每次都计数（`wow.store.fallbacks`）。
+
 存储可以保存日志、快照或两者：Elasticsearch 存储保存快照，从不保存日志。在存储之外，`Sink` 把提交复制到别处（`SinkSpec`），topic 传输在上下文之间传递发布的事件流和命令（`TopicTransportSpec`），查询后端提供某个模型的查询（`:query-tck` 中的 `QueryBackendSpec`、`EventQueryBackendSpec` 和 `DatasetQueryBackendSpec`）。
 
 ## 提供者 {#the-provider}

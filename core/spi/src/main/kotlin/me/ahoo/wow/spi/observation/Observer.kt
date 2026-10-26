@@ -89,6 +89,12 @@ interface Observer {
      */
     fun reservationLost(context: String) = Unit
 
+    /**
+     * A store fell back from an optional capability (finding R5.B-9): [capability] is one of [StoreFallbacks]'s
+     * capabilities, [reason] why ([StoreFallbacks]); the work went on the way every store can. Counted, never failing.
+     */
+    fun storeFellBack(context: String, capability: String, reason: String) = Unit
+
     /** One decision of [command]: its decide function and its after hooks. */
     fun deciding(command: Command<*>): Observation = Observation.NONE
 
@@ -226,3 +232,21 @@ val CoroutineContext.trace: Map<String, String>
 /** The [TraceContext] of this context alone, to start another coroutine of the same work in; empty when none. */
 val CoroutineContext.traceContext: CoroutineContext
     get() = this[TraceContext] ?: EmptyCoroutineContext
+
+/** The optional store capabilities an [Observer.storeFellBack] names, and why one fell back (finding R5.B-9). */
+object StoreFallbacks {
+    /** A log's one-round-trip read of a snapshot with its tail ([me.ahoo.wow.spi.log.SnapshotTailReader]). */
+    const val SNAPSHOT_TAIL_READ: String = "snapshot-tail-read"
+
+    /** A snapshot store's rebuild control plane ([me.ahoo.wow.spi.snapshot.SnapshotRebuildStore]). */
+    const val SNAPSHOT_REBUILD: String = "snapshot-rebuild"
+
+    /** The capability failed; the work was done the other way. */
+    const val FAILED: String = "failed"
+
+    /** The capability cannot serve this case, such as a snapshot store in another database than the log. */
+    const val UNAVAILABLE: String = "unavailable"
+
+    /** The store does not have the capability. */
+    const val UNSUPPORTED: String = "unsupported"
+}

@@ -371,9 +371,9 @@ class HostQueryTest {
             store.save(record(2, "mona")).assert().isTrue()
             store.save(record(1, "older")).assert().isFalse()
             owner().assert().isEqualTo("mona")
-            store.rewrite(record(2, "rebuilt")).assert().isTrue()
+            store.rebuilds!!.rewrite(record(2, "rebuilt")).assert().isTrue()
             owner().assert().isEqualTo("rebuilt")
-            store.rewrite(record(1, "older")).assert().isFalse()
+            store.rebuilds!!.rewrite(record(1, "older")).assert().isFalse()
             owner().assert().isEqualTo("rebuilt")
             MemoryStore("plain").snapshots(BANK).assert().isInstanceOf(InMemorySnapshotStore::class.java)
         }

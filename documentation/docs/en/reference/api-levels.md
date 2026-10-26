@@ -68,11 +68,13 @@ The two lists below are generated from the sources of the published modules: the
 | `me.ahoo.wow.spi.VirtualThreads` | object | `wow-spi` |
 | `me.ahoo.wow.spi.ledger.FailureLedger` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.log.EventLog` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.log.SnapshotTailReader` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.log.TailPacer` | class | `wow-spi` |
 | `me.ahoo.wow.spi.log.TailPolling` | class | `wow-spi` |
 | `me.ahoo.wow.spi.observation.Observer` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.reservation.ReservationStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.sink.Sink` | interface | `wow-spi` |
+| `me.ahoo.wow.spi.snapshot.SnapshotRebuildStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.snapshot.SnapshotStore` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.store.Store` | class | `wow-spi` |
 | `me.ahoo.wow.spi.store.StoreConfig` | class | `wow-spi` |

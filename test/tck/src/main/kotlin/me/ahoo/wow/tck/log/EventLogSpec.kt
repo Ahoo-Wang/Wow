@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
@@ -37,8 +38,10 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.SnapshotTail
+import me.ahoo.wow.spi.log.SnapshotTailReader
 import me.ahoo.wow.spi.log.TagsBackfill
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.log.readSnapshotTailApart
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -74,10 +77,21 @@ abstract class EventLogSpec {
 
     /**
      * A new, empty snapshot store of bounded context [context] that this backend's log reads with its tails
-     * ([EventLog.readWithSnapshot], decision D268): one in the log's database where the backend has one. Null, the
-     * default, skips those cases.
+     * (decision D268): one in the log's database where the backend has one. Null, the default, skips those cases. A
+     * log with a [SnapshotTailReader] must read this store's snapshots through it (finding R5.B-9).
      */
     protected open fun createSnapshots(context: String): SnapshotStore? = null
+
+    /**
+     * What a cache miss reads: through the log's [EventLog.snapshotTails] when it has one, which must serve the store of
+     * [createSnapshots], else apart, as the kernel does.
+     */
+    private suspend fun EventLog.snapshotTail(ref: AggregateRef, snapshots: SnapshotStore, earlier: Int): SnapshotTail {
+        val reader = snapshotTails ?: return readSnapshotTailApart(ref, snapshots, earlier)
+        return checkNotNull(reader.readWithSnapshot(ref, snapshots, earlier)) {
+            "The log's snapshot tail reader does not serve the snapshot store of its own backend."
+        }
+    }
 
     private fun snapshot(id: String, version: Int) = SnapshotRecord(
         ref = type.ref("tenant", id),
@@ -479,7 +493,7 @@ abstract class EventLogSpec {
     }
 
     @Test
-    fun `readWithSnapshot gives the snapshot and the tail from its version with the earlier request keys`(): Unit =
+    fun `a snapshot tail read gives the snapshot and the tail from its version with the earlier request keys`(): Unit =
         runBlocking {
             val snapshots = createSnapshots(context)
             Assumptions.assumeTrue(snapshots != null, "This backend has no snapshot store to read with the log.")
@@ -491,7 +505,7 @@ abstract class EventLogSpec {
             val saved = snapshot("a", 4)
             snapshots.save(saved).assert().isTrue()
             snapshots.save(snapshot("a", 2).copyWith(ref = type.ref("other", "a"))).assert().isTrue()
-            val read = log.readWithSnapshot(type.ref("tenant", "a"), snapshots, 2)
+            val read = log.snapshotTail(type.ref("tenant", "a"), snapshots, 2)
             val loaded = checkNotNull(read.snapshot)
             ExactJson.of(loaded.state).assert().isEqualTo(ExactJson.of(saved.state))
             loaded.copyWith(state = saved.state).assert().isEqualTo(saved)
@@ -501,23 +515,23 @@ abstract class EventLogSpec {
                 CommittedRequest.of(appended[2]),
                 CommittedRequest.of(appended[1])
             )
-            log.readWithSnapshot(type.ref("tenant", "a"), snapshots, 0).tail.earlier.assert().isEmpty()
+            log.snapshotTail(type.ref("tenant", "a"), snapshots, 0).tail.earlier.assert().isEmpty()
         }
 
     @Test
-    fun `readWithSnapshot without a snapshot gives every stream and no earlier request keys`(): Unit = runBlocking {
+    fun `a snapshot tail read without a snapshot gives every stream and no earlier request keys`(): Unit = runBlocking {
         val snapshots = createSnapshots(context)
         Assumptions.assumeTrue(snapshots != null, "This backend has no snapshot store to read with the log.")
         checkNotNull(snapshots)
         val log = createLog()
         val appended = (1..3).map { stream("a", it) }
         appended.forEach { log.append(it) }
-        val read = log.readWithSnapshot(type.ref("tenant", "a"), snapshots, 5)
+        val read = log.snapshotTail(type.ref("tenant", "a"), snapshots, 5)
         read.snapshot.assert().isNull()
         read.tail.streams.map { it.version }.assert().containsExactly(1, 2, 3)
         read.tail.streams.last().assertSameAs(appended[2])
         read.tail.earlier.assert().isEmpty()
-        log.readWithSnapshot(type.ref("tenant", "missing"), snapshots, 5)
+        log.snapshotTail(type.ref("tenant", "missing"), snapshots, 5)
             .assert().isEqualTo(SnapshotTail.of(null, AggregateTail.of(emptyList(), emptyList())))
     }
 
