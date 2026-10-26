@@ -1,0 +1,77 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "hot",
+    "accounts": 100000,
+    "hotFraction": 0.5,
+    "hotKeys": 1
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 8804.066666666668,
+  "saturationConcurrency": 256,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 923.0666666666667,
+      "ok": 27692,
+      "errors": {},
+      "p50Ms": 0.987,
+      "p99Ms": 2.287
+    },
+    {
+      "concurrency": 4,
+      "throughput": 1750.3,
+      "ok": 52509,
+      "errors": {},
+      "p50Ms": 1.887,
+      "p99Ms": 6.879
+    },
+    {
+      "concurrency": 16,
+      "throughput": 4288.166666666667,
+      "ok": 128645,
+      "errors": {},
+      "p50Ms": 3.231,
+      "p99Ms": 15.999
+    },
+    {
+      "concurrency": 64,
+      "throughput": 7811.0,
+      "ok": 234330,
+      "errors": {},
+      "p50Ms": 7.615,
+      "p99Ms": 18.943
+    },
+    {
+      "concurrency": 256,
+      "throughput": 8804.066666666668,
+      "ok": 264122,
+      "errors": {},
+      "p50Ms": 34.559,
+      "p99Ms": 73.727
+    },
+    {
+      "concurrency": 1024,
+      "throughput": 8582.066666666668,
+      "ok": 257462,
+      "errors": {},
+      "p50Ms": 157.695,
+      "p99Ms": 497.663
+    }
+  ],
+  "meta": {
+    "backend": "mongo",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.13\" 2026-10-20 LTS OpenJDK Runtime Environment Temurin-21.0.13+9 (build 21.0.13+9-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.13+9 (build 21.0.13+9-LTS, mixed mode, sharing)",
+    "stores": "kafka mongo",
+    "primed": "true",
+    "primeSeconds": "8",
+    "settleSeconds": "20",
+    "accounts": "100000",
+    "session": "/Users/noahji/workspace/code/github/Wow-m5pro-bench-1026/test/benchmarks/results/e2e/20261025-223313-run-mongo-n1-saturation"
+  }
+}
