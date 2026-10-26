@@ -17,21 +17,13 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.http.caller.CallerResolver
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
 
 /**
  * The public port without a `CallerResolver` bean (decision D301): a node outside development refuses to start, one in
  * development (a profile of `wow.internal.dev-profiles`, or a loopback internal port) serves the anonymous caller, and
- * an intentionally anonymous service says so with a bean returning [CallerResolver.ANONYMOUS].
+ * an intentionally anonymous service says so with a bean returning [CallerResolver.ANONYMOUS] ([AnonymousCallers]).
  */
 class HostCallerResolverRequiredTest {
-    @Configuration(proxyBeanMethods = false)
-    class Anonymous {
-        @Bean
-        fun anonymousCallers(): CallerResolver = CallerResolver.ANONYMOUS
-    }
-
     /**
      * A node bound to every interface, in memory on purpose and with a cluster token, so that neither is what it
      * refuses.
@@ -69,7 +61,7 @@ class HostCallerResolverRequiredTest {
 
     @Test
     fun `an intentionally anonymous service starts outside development`() {
-        startHost(*deployed, sources = listOf(HostTestApp::class.java, Anonymous::class.java)).use { host ->
+        startHost(*deployed, sources = listOf(HostTestApp::class.java, AnonymousCallers::class.java)).use { host ->
             host.context.getBean(DevelopmentMode::class.java).active.assert().isFalse()
             host.post("/bank/account/open-account", """{"owner":"gina"}""").status.assert().isEqualTo(200)
         }

@@ -18,8 +18,11 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.spring.boot.DevelopmentMode
+import me.ahoo.wow.spring.boot.WowConfigurationException
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 
 /** The callers the view store's headers name, and the reserved scopes `Wow-Scope` opens. */
@@ -79,5 +82,15 @@ class ViewStoreCallersTest {
             resolve(ViewStoreCallers.USER to "alice", WowHeaders.SCOPE to it).crossScope.assert().describedAs(it)
                 .isFalse()
         }
+    }
+
+    @Test
+    fun `the header callers should be for development alone (S-9)`() {
+        val configuration = ViewStoreConfiguration()
+        configuration.viewStoreCallers(
+            DevelopmentMode("profile dev")
+        ).assert().isInstanceOf(ViewStoreCallers::class.java)
+        val refusal = assertThrows<WowConfigurationException> { configuration.viewStoreCallers(DevelopmentMode.OFF) }
+        refusal.key.assert().isEqualTo(ViewStoreConfiguration.TRUST_IDENTITY_HEADERS)
     }
 }

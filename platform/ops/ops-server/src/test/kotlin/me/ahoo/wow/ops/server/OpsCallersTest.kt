@@ -17,7 +17,10 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.spring.boot.DevelopmentMode
+import me.ahoo.wow.spring.boot.WowConfigurationException
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.springframework.mock.web.reactive.function.server.MockServerRequest
 
 class OpsCallersTest {
@@ -52,5 +55,13 @@ class OpsCallersTest {
     fun `a request without a user should have no caller`() {
         resolve().assert().isNull()
         resolve(OpsCallers.USER to "  ").assert().isNull()
+    }
+
+    @Test
+    fun `the header callers should be for development alone (S-9)`() {
+        val configuration = OpsConfiguration()
+        configuration.opsCallers(DevelopmentMode("profile dev")).assert().isInstanceOf(OpsCallers::class.java)
+        val refusal = assertThrows<WowConfigurationException> { configuration.opsCallers(DevelopmentMode.OFF) }
+        refusal.key.assert().isEqualTo(OpsConfiguration.TRUST_IDENTITY_HEADERS)
     }
 }

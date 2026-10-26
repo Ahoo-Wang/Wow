@@ -24,6 +24,23 @@ class DevelopmentMode(val reason: String?) {
     /** Whether the node runs for development. */
     val active: Boolean get() = reason != null
 
+    /**
+     * Refuses a setting meant for development alone outside it: a [WowConfigurationException] of [key] set to [value],
+     * which [does] what no deployment may.
+     */
+    fun require(key: String, value: Any?, does: String) {
+        if (active) {
+            return
+        }
+        throw WowConfigurationException(
+            key,
+            value,
+            "$key=$value $does: only a node in development may (a profile of wow.internal.dev-profiles, or an " +
+                "internal port on the loopback interface alone).",
+            "Unset $key outside development.",
+        )
+    }
+
     override fun toString(): String = "DevelopmentMode(${reason ?: "off"})"
 
     companion object {

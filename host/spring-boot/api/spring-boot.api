@@ -96,6 +96,19 @@ public final class me/ahoo/wow/spring/boot/ConfigurationKeys$Companion {
 	public static synthetic fun of$default (Lme/ahoo/wow/spring/boot/ConfigurationKeys$Companion;Ljava/lang/ClassLoader;Ljava/util/Collection;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/ConfigurationKeys;
 }
 
+public final class me/ahoo/wow/spring/boot/DevelopmentMode {
+	public static final field Companion Lme/ahoo/wow/spring/boot/DevelopmentMode$Companion;
+	public static final field OFF Lme/ahoo/wow/spring/boot/DevelopmentMode;
+	public fun <init> (Ljava/lang/String;)V
+	public final fun getActive ()Z
+	public final fun getReason ()Ljava/lang/String;
+	public final fun require (Ljava/lang/String;Ljava/lang/Object;Ljava/lang/String;)V
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/DevelopmentMode$Companion {
+}
+
 public final class me/ahoo/wow/spring/boot/HealthAutoConfiguration {
 	public static final field LIVENESS_INDICATOR Ljava/lang/String;
 	public static final field QUERIES Ljava/lang/String;
@@ -460,15 +473,16 @@ public final class me/ahoo/wow/spring/boot/WowAutoConfiguration {
 	public static final field WOW_JSON_MAPPER Ljava/lang/String;
 	public fun <init> ()V
 	public final fun wowAggregateIdGenerator (Lme/ahoo/wow/spi/id/GlobalIdGenerator;)Lme/ahoo/wow/spi/id/AggregateIdGenerator;
-	public final fun wowCallerResolver (Lme/ahoo/wow/spring/boot/WowProperties;)Lme/ahoo/wow/http/caller/CallerResolver;
+	public final fun wowCallerResolver (Lme/ahoo/wow/spring/boot/WowProperties;Lme/ahoo/wow/spring/boot/DevelopmentMode;)Lme/ahoo/wow/http/caller/CallerResolver;
 	public final fun wowClient (Lme/ahoo/wow/spring/boot/PeerClients;)Lme/ahoo/wow/client/WowClient;
 	public final fun wowCommandClient (Lme/ahoo/wow/runtime/admission/CommandGateway;Lme/ahoo/wow/spring/boot/PeerClients;)Lme/ahoo/wow/api/client/CommandClient;
 	public final fun wowCommandGateway (Lme/ahoo/wow/runtime/node/ServiceNode;)Lme/ahoo/wow/runtime/admission/CommandGateway;
 	public final fun wowContractDirectory (Lme/ahoo/wow/manifest/Manifest;Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;)Lme/ahoo/wow/runtime/contract/ContractDirectory;
 	public final fun wowDependencies (Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;)Lme/ahoo/wow/kernel/Dependencies;
+	public final fun wowDevelopmentMode (Lme/ahoo/wow/spring/boot/WowProperties;Lorg/springframework/core/env/Environment;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/spring/boot/DevelopmentMode;
 	public final fun wowEndpointResolver (Lme/ahoo/wow/spring/boot/WowProperties;)Lme/ahoo/wow/client/EndpointResolver;
 	public final fun wowGlobalIdGenerator ()Lme/ahoo/wow/spi/id/GlobalIdGenerator;
-	public final fun wowHttpOptions (Lme/ahoo/wow/spring/boot/WowProperties;)Lme/ahoo/wow/http/WowHttpOptions;
+	public final fun wowHttpOptions (Lme/ahoo/wow/spring/boot/WowProperties;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/http/WowHttpOptions;
 	public final fun wowInternalHttpClient (Lme/ahoo/wow/spring/boot/WowProperties;)Ljava/net/http/HttpClient;
 	public final fun wowJsonMapper ()Ltools/jackson/databind/json/JsonMapper;
 	public final fun wowParkedRouterFunction (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/runtime/node/ServiceNode;Lme/ahoo/wow/http/caller/CallerResolver;Lme/ahoo/wow/http/WowHttpOptions;Lorg/springframework/beans/factory/ObjectProvider;)Lorg/springframework/web/reactive/function/server/RouterFunction;

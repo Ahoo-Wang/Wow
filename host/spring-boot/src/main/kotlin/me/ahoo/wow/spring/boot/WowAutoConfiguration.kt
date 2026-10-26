@@ -755,7 +755,7 @@ class WowAutoConfiguration {
         val strategy = environment.getProperty(ForwardHeadersEnvironmentPostProcessor.FORWARD_HEADERS_STRATEGY)
         logger.info {
             "The public port reads the client's address with server.forward-headers-strategy=$strategy: " +
-                "the gateway in front of it must overwrite X-Forwarded-For (decision D303)."
+                "the gateway in front of it must overwrite X-Forwarded-For."
         }
         return WowHttpOptions(
             requestFacts = properties.http.requestFacts.toSet(),
