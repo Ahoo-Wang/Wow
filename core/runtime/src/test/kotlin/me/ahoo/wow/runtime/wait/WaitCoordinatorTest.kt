@@ -187,12 +187,12 @@ class WaitCoordinatorTest {
         signals = signals,
     )
     private val executor = Executor(Kernel(log))
-    private val coordinator = coordinator(WaitOptions(origin))
+    private val coordinator = coordinator(WaitOptions())
 
     private fun coordinator(
         options: WaitOptions,
         directory: SubscriptionDirectory = runtime,
-    ) = WaitCoordinator(executor, registry, directory, signals, options)
+    ) = WaitCoordinator(executor, registry, directory, signals, origin, options)
 
     private fun place(
         id: String = "o-${sequence.incrementAndGet()}",
@@ -248,7 +248,7 @@ class WaitCoordinatorTest {
     fun `a wait beyond the node's bound is refused busy before its command runs (R3-4-3)`(): Unit = runBlocking {
         started()
         val gate = CompletableDeferred<Unit>().also { snapshotGate = it }
-        val capped = coordinator(WaitOptions(origin, maxRegistered = 1))
+        val capped = coordinator(WaitOptions(maxRegistered = 1))
         val first = place()
         val held = async { capped.execute(order, first) }
         eventually { registry.size == 1 }
@@ -265,8 +265,8 @@ class WaitCoordinatorTest {
         withTimeout(5.seconds) { held.await() }.hop.assert().isEqualTo(Hop.snapshot("shop"))
         registry.size.assert().isEqualTo(0)
         capped.execute(order, second).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-        assertThrows<IllegalArgumentException> { WaitOptions(origin, maxRegistered = 0) }
-        WaitOptions(origin).maxRegistered.assert().isEqualTo(WaitOptions.DEFAULT_MAX_REGISTERED)
+        assertThrows<IllegalArgumentException> { WaitOptions(maxRegistered = 0) }
+        WaitOptions().maxRegistered.assert().isEqualTo(WaitOptions.DEFAULT_MAX_REGISTERED)
     }
 
     @Test
@@ -284,7 +284,7 @@ class WaitCoordinatorTest {
 
     @Test
     fun `without a snapshot subscription the default wait is COMMITTED`(): Unit = runBlocking {
-        val result = coordinator(WaitOptions(origin), SubscriptionDirectory.NONE).execute(order, place())
+        val result = coordinator(WaitOptions(), SubscriptionDirectory.NONE).execute(order, place())
         result.hop.assert().isEqualTo(Hop.committed("shop"))
         result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
     }
@@ -292,7 +292,7 @@ class WaitCoordinatorTest {
     @Test
     fun `an explicit snapshot wait without a snapshot subscription is rejected without executing`(): Unit =
         runBlocking {
-            val coordinator = coordinator(WaitOptions(origin), SubscriptionDirectory.NONE)
+            val coordinator = coordinator(WaitOptions(), SubscriptionDirectory.NONE)
             listOf(WaitPlan.SNAPSHOT, WaitPlan.of(Hop.committed(), Hop.snapshot("shop"))).forEach { wait ->
                 val command = place(wait = wait)
                 val result = coordinator.execute(order, command)
@@ -312,7 +312,7 @@ class WaitCoordinatorTest {
             override fun covers(subscription: String, type: me.ahoo.wow.api.aggregate.AggregateType): Boolean =
                 type != order.type && runtime.covers(subscription, type)
         }
-        val coordinator = coordinator(WaitOptions(origin), ordersUnsnapshotted)
+        val coordinator = coordinator(WaitOptions(), ordersUnsnapshotted)
         val explicit = place(wait = WaitPlan.SNAPSHOT.within(5.seconds))
         coordinator.execute(order, explicit).error!!.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)
         log.findByRequestId("t", explicit.requestId).assert().isNull()
@@ -518,8 +518,8 @@ class WaitCoordinatorTest {
 
     @Test
     fun `the default timeout is positive, and only capped by the maximum`() {
-        WaitOptions(origin, maxTimeout = 5.seconds).defaultTimeout.assert().isEqualTo(WaitPlan.DEFAULT_TIMEOUT)
-        assertThrows<IllegalArgumentException> { WaitOptions(origin, defaultTimeout = 0.seconds) }
+        WaitOptions(maxTimeout = 5.seconds).defaultTimeout.assert().isEqualTo(WaitPlan.DEFAULT_TIMEOUT)
+        assertThrows<IllegalArgumentException> { WaitOptions(defaultTimeout = 0.seconds) }
     }
 
     @Test
@@ -569,7 +569,8 @@ class WaitCoordinatorTest {
                 registry,
                 runtime,
                 signals,
-                WaitOptions(origin),
+                origin,
+                WaitOptions(),
                 router = { _, _, _, local ->
                     owner.await()
                     local()
@@ -608,7 +609,8 @@ class WaitCoordinatorTest {
             registry,
             SubscriptionDirectory.NONE,
             signals,
-            WaitOptions(origin),
+            origin,
+            WaitOptions(),
             router = { _, _, _, _ ->
                 try {
                     failing.await()
@@ -629,7 +631,8 @@ class WaitCoordinatorTest {
             registry,
             SubscriptionDirectory.NONE,
             signals,
-            WaitOptions(origin),
+            origin,
+            WaitOptions(),
             router = { _, _, _, _ -> error("The owner is gone.") },
         )
         runCatching { failingNow.execute(order, place(wait = WaitPlan.COMMITTED)) }
@@ -641,7 +644,7 @@ class WaitCoordinatorTest {
     fun `the server caps the timeout a caller asks for`(): Unit = runBlocking {
         started()
         snapshotGate = CompletableDeferred()
-        val capped = coordinator(WaitOptions(origin, maxTimeout = 150.milliseconds))
+        val capped = coordinator(WaitOptions(maxTimeout = 150.milliseconds))
         val result = withTimeout(
             5.seconds
         ) { capped.execute(order, place(wait = WaitPlan.SNAPSHOT.within(60.seconds))) }
@@ -745,11 +748,11 @@ class WaitCoordinatorTest {
             // The saga's commands are the shop's: a chain that expects them in the payment context is wrong.
             val unknown = Hop.committed("payment")
             val plan = WaitPlan.of(Hop.committed(), Hop.handled("order.saga"), unknown).within(1.seconds)
-            val result = coordinator(WaitOptions(origin), shopOnly).execute(order, place(wait = plan, items = 1))
+            val result = coordinator(WaitOptions(), shopOnly).execute(order, place(wait = plan, items = 1))
             result.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
             result.hop.assert().isEqualTo(Hop.handled("order.saga", "shop"))
             // With unknown contexts rejected, the plan is invalid and the command does not run.
-            val strict = coordinator(WaitOptions(origin, unknownContexts = UnknownContexts.REJECT), shopOnly)
+            val strict = coordinator(WaitOptions(unknownContexts = UnknownContexts.REJECT), shopOnly)
             strict.execute(order, place(wait = plan)).error!!.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)
         }
 

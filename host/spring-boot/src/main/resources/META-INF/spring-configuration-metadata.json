@@ -142,16 +142,6 @@
     "description" : "The aggregates' logs: their partitions, their store, and how their appends and tails run.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
-    "name" : "wow.log.append-queue",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$AppendQueue",
-    "description" : "How the appends of one partition are queued and grouped into one call: `wow.log.append-queue.*`.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Log"
-  }, {
-    "name" : "wow.log.handoff",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$Handoff",
-    "description" : "The hand-over of the node's own commits to its tails in memory: a tail waits its gap wait for a missing sequence and maxPollInterval without a commit before it reads the store.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Log"
-  }, {
     "name" : "wow.mongo",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Mongo",
     "description" : "The defaults of the MongoDB stores.",
@@ -751,49 +741,6 @@
     "description" : "The replication factor `auto` creates a topic with; the broker's default when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.KafkaProperties$Topics"
   }, {
-    "name" : "wow.log.append-queue.enabled",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether the appends of one partition are queued and committed in groups, one call a group; on when not set. A group carries more under load than single appends and costs a few per cent at low concurrency.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$AppendQueue"
-  }, {
-    "name" : "wow.log.append-queue.max-batch",
-    "type" : "java.lang.Integer",
-    "description" : "The most appends one group of a partition carries; 64 when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$AppendQueue"
-  }, {
-    "name" : "wow.log.append-queue.merge",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether the groups of several partitions are merged into one call, on a log that takes several partitions a call: on by default, for MongoDB and PostgreSQL; a log that does not take them is called per partition.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$AppendQueue"
-  }, {
-    "name" : "wow.log.append-queue.merge-max",
-    "type" : "java.lang.Integer",
-    "description" : "The most streams one merged call takes; 512 when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$AppendQueue"
-  }, {
-    "name" : "wow.log.append-queue.mergers",
-    "type" : "java.lang.Integer",
-    "description" : "The committers of the merged groups, each with one call in flight; 2 when not set.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$AppendQueue"
-  }, {
-    "name" : "wow.log.handoff.capacity",
-    "type" : "java.lang.Integer",
-    "description" : "The most entries one tail holds that it has not taken; a tail further behind reads the store instead.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Handoff",
-    "defaultValue" : 1024
-  }, {
-    "name" : "wow.log.handoff.enabled",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether the node hands its own commits to its subscriptions' tails in memory.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Handoff",
-    "defaultValue" : true
-  }, {
-    "name" : "wow.log.handoff.gap-wait",
-    "type" : "java.time.Duration",
-    "description" : "The longest a tail waits for a missing sequence that an append of the node still in flight may hold; once every such append returned without it, the tail reads the store at once.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Handoff",
-    "defaultValue" : "PT1S"
-  }, {
     "name" : "wow.log.max-poll-interval",
     "type" : "java.time.Duration",
     "description" : "The longest a tail waits between polls that find nothing: an idle tail backs off up to it.",
@@ -1026,47 +973,11 @@
     "description" : "The highest bound the adaptation raises up to; not set, the provider's: PostgreSQL half a pool the appends share, or all of a `query-data-source`'s.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Adaptive"
   }, {
-    "name" : "wow.query.adaptive.connection-waits",
-    "type" : "java.lang.Integer",
-    "description" : "A period presses when at least this many callers wait for a connection of the store's pool.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Adaptive",
-    "defaultValue" : 1
-  }, {
-    "name" : "wow.query.adaptive.enabled",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether a store's query bound adapts to its write pressure.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Adaptive",
-    "defaultValue" : true
-  }, {
     "name" : "wow.query.adaptive.floor",
     "type" : "java.lang.Integer",
     "description" : "The lowest bound the adaptation halves down to.",
     "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Adaptive",
     "defaultValue" : 1
-  }, {
-    "name" : "wow.query.adaptive.interval",
-    "type" : "java.time.Duration",
-    "description" : "The length of one period over which the write pressure is evaluated.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Adaptive",
-    "defaultValue" : "PT1S"
-  }, {
-    "name" : "wow.query.adaptive.latency-factor",
-    "type" : "java.lang.Double",
-    "description" : "A period presses when the appends' p90 latency is above this many times its baseline.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Adaptive",
-    "defaultValue" : 1.5
-  }, {
-    "name" : "wow.query.adaptive.min-latency",
-    "type" : "java.time.Duration",
-    "description" : "The p90 append latency below which a period never presses, so the noise of fast appends is no pressure.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Adaptive",
-    "defaultValue" : "PT0.005S"
-  }, {
-    "name" : "wow.query.adaptive.periods",
-    "type" : "java.lang.Integer",
-    "description" : "How many pressing periods in a row halve the bound.",
-    "sourceType" : "me.ahoo.wow.spring.boot.QueryProperties$Adaptive",
-    "defaultValue" : 2
   }, {
     "name" : "wow.query.budgets.http.allow-exact-count",
     "type" : "java.lang.Boolean",

@@ -52,37 +52,4 @@ outline: deep
 
 10.0.0 的预发布版（`alpha`、`beta`、`rc`）对它存储的数据不做兼容承诺：之后版本的存储格式可能在原地改变。从预发布版升级需要一个全新的数据库；更早的预发布版写下的数据既不迁移，也不读取。
 
-### 10.0.0 之前改名的配置键 {#configuration-keys-renamed-before-10-0-0}
-
-配置面在 10.0.0 之前一次定稿，不保留别名：更早预发布版的键会使节点拒绝启动，拒绝的消息写明取代它的键，与这里的每一行相同。宿主或类路径上的模块都没有对应属性的其他 `wow.*` 键同样拒绝启动。
-
-| 预发布版的键 | 10.0.0 |
-| --- | --- |
-| `wow.query.index.ddl` | 删除：查询索引跟随所在存储的 `ddl`（`wow.stores.<store>.ddl`，否则 `wow.ddl`），`validate` 下缺少索引会拒绝启动 |
-| `wow.kafka.topics.ddl` | `wow.kafka.ddl`，未设置时跟随 `wow.ddl`（`auto`）；原来默认是 `validate` |
-| `wow.clickhouse.sink.ddl` | `wow.clickhouse.ddl`，未设置时跟随 `wow.ddl` |
-| `wow.clickhouse.sink.aggregates.<context>.<aggregate>.history.*` | `wow.aggregates.[<context>.<aggregate>].clickhouse.history.*` |
-| `wow.kafka.command-intake` | `wow.kafka.command-intake.enabled` |
-| `wow.internal.dev-profiles`、`wow.kafka.topics.dev-profiles` | `wow.dev-profiles` |
-| `wow.query.http.*` | `wow.query.budgets.http.*` |
-| `wow.query.in-process.*` | `wow.query.budgets.in-process.*` |
-| `wow.query.in-process-timeout` | `wow.query.unbounded-timeout` |
-| `wow.query.events.mongo-read-preference` | `wow.mongo.query-read-preference`，对快照查询同样生效 |
-| `wow.stores.<store>.query.read-preference` | `wow.stores.<store>.options.query-read-preference` |
-| `wow.query.count-cache.events-enabled` | `wow.query.count-cache.events.enabled` |
-| `wow.snapshot.store`、`wow.snapshot.targets` | `wow.snapshot.stores`；第一个存储的订阅名为 `snapshot` |
-| `wow.aggregates.[<context>.<aggregate>].snapshot.store` | `wow.aggregates.[<context>.<aggregate>].snapshot.stores` |
-| `wow.subscription.parked.min-backoff`、`wow.subscriptions.[<subscription>].parked.min-backoff` | `…parked.initial-backoff` |
-| `wow.http.client-facts` | `wow.http.client-facts.enabled` |
-| `wow.http.global-errors` | `wow.http.global-errors.enabled` |
-| `wow.standby` | `wow.node.standby` |
-| `wow.calls.contexts.<context>.url`、`wow.clients.contexts.<context>.internal-url` | `wow.peers.<context>.url` |
-| `wow.clients.contexts.<context>.url` | `wow.peers.<context>.public-url` |
-| `wow.clients.contexts.<context>.mode`、`.contract` | `wow.peers.<context>.mode`、`.contract` |
-| `wow.clients.mode`、`wow.clients.forwarded-headers` | `wow.peer.mode`、`wow.peer.forwarded-headers` |
-| `wow.calls.timeout`（10 秒）、`wow.clients.timeout`（30 秒） | `wow.peer.timeout`（30 秒），单个对端用 `wow.peers.<context>.timeout` |
-| `wow.calls.connect-timeout`、`wow.clients.connect-timeout` | `wow.peer.connect-timeout` |
-| `wow.clients.retry.max-attempts`、`.backoff`、`.max-retry-after` | `wow.peer.retry.max-attempts`、`.initial-backoff`、`.max-retry-after` |
-| `wow.http.services.<service>.commands`、`.reads` | `wow.callers.<service>.commands`、`.reads` |
-| `wow.topics.in-memory` | `wow.transport`：默认的 `auto` 在开发中把主题保存在 JVM 里；`memory` 显式要求，只在开发中允许 |
-| `wow.analytics.catalog.watch` | `wow.analytics.catalog.watch.enabled` |
+配置面在 10.0.0 之前一次定稿，不保留别名：改名或移除的键会使节点拒绝启动，拒绝的消息写明它的新键，或它被移除的原因。

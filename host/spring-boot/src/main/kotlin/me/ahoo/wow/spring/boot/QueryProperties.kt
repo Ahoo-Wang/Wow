@@ -311,15 +311,13 @@ class QueryProperties {
     }
 
     /**
-     * How a store's query bound adapts to its write pressure: pressing periods in a row halve it, down to `floor`; a
-     * calm period in which a query waited or was refused raises it by one, up to `ceiling`.
-     * `wow.stores.<name>.query.adaptive.*` overrides `enabled`, `floor` and `ceiling` for one store.
+     * How a store's query bound adapts to its write pressure, when neither `wow.query.max-concurrent` nor
+     * `wow.stores.<name>.query.max-concurrent` fixes it: pressing periods in a row halve it, down to `floor`; a calm
+     * period in which a query waited or was refused raises it by one, up to `ceiling`.
+     * `wow.stores.<name>.query.adaptive.*` overrides `floor` and `ceiling` for one store.
      */
     @InternalWowApi
     class Adaptive {
-        /** Whether a store's query bound adapts to its write pressure. */
-        var enabled: Boolean = true
-
         /** The lowest bound the adaptation halves down to. */
         var floor: Int = AdaptiveLimitOptions.DEFAULT_FLOOR
 
@@ -329,30 +327,8 @@ class QueryProperties {
          */
         var ceiling: Int? = null
 
-        /** The length of one period over which the write pressure is evaluated. */
-        var interval: Duration = AdaptiveLimitOptions.DEFAULT_INTERVAL.toJavaDuration()
-
-        /** A period presses when the appends' p90 latency is above this many times its baseline. */
-        var latencyFactor: Double = AdaptiveLimitOptions.DEFAULT_LATENCY_FACTOR
-
-        /** The p90 append latency below which a period never presses, so the noise of fast appends is no pressure. */
-        var minLatency: Duration = AdaptiveLimitOptions.DEFAULT_MIN_LATENCY.toJavaDuration()
-
-        /** A period presses when at least this many callers wait for a connection of the store's pool. */
-        var connectionWaits: Int = AdaptiveLimitOptions.DEFAULT_CONNECTION_WAITS
-
-        /** How many pressing periods in a row halve the bound. */
-        var periods: Int = AdaptiveLimitOptions.DEFAULT_PERIODS
-
-        /** The options of a store whose floor is [floor]. */
-        internal fun options(floor: Int = this.floor): AdaptiveLimitOptions = AdaptiveLimitOptions(
-            floor = floor,
-            interval = interval.toKotlinDuration(),
-            latencyFactor = latencyFactor,
-            minLatency = minLatency.toKotlinDuration(),
-            connectionWaits = connectionWaits,
-            periods = periods,
-        )
+        /** The options of a store whose floor is [floor]; the period and the pressure's thresholds are constants. */
+        internal fun options(floor: Int = this.floor): AdaptiveLimitOptions = AdaptiveLimitOptions(floor = floor)
     }
 
     /**
@@ -443,7 +419,6 @@ internal fun QueryProperties.storeSettings(stores: Map<String, WowProperties.Sto
         maxWait = maxWait.toKotlinDuration(),
         maxQueued = maxQueued,
         adaptive = adaptive.options(),
-        adaptiveEnabled = adaptive.enabled,
         adaptiveCeiling = adaptive.ceiling,
         stores = stores.mapValues { (_, store) ->
             val query = store.query
@@ -451,7 +426,6 @@ internal fun QueryProperties.storeSettings(stores: Map<String, WowProperties.Sto
                 maxConcurrent = query.maxConcurrent,
                 maxWait = query.maxWait?.toKotlinDuration(),
                 maxQueued = query.maxQueued,
-                adaptive = query.adaptive.enabled,
                 floor = query.adaptive.floor,
                 ceiling = query.adaptive.ceiling,
             )

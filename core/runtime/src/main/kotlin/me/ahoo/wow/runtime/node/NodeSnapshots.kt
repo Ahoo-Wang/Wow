@@ -19,7 +19,6 @@ import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.snapshot.SnapshotAssembly
 import me.ahoo.wow.runtime.snapshot.SnapshotRebuildModel
-import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.observation.Observer
 
@@ -59,7 +58,7 @@ internal class NodeSnapshots(private val manifest: Manifest, private val observe
         log: EventLog,
         codec: EventCodec,
     ): SnapshotAssembly {
-        val targets = backends.snapshotTargets ?: backends.snapshots?.let { SnapshotTargets.single(it) }
+        val targets = backends.snapshots
         val snapshotted = if (targets == null) emptyList() else models.filter { enabled(it) }
         return SnapshotAssembly(context, targets, snapshotted, kernel, log, codec, observer)
     }

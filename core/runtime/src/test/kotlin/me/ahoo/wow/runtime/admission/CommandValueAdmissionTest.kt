@@ -89,7 +89,8 @@ class CommandValueAdmissionTest {
         registry,
         SubscriptionDirectory.NONE,
         LocalSignalSender(origin.node, registry),
-        WaitOptions(origin, maxTimeout = 30.seconds),
+        origin,
+        WaitOptions(maxTimeout = 30.seconds),
     )
 
     private fun gateway(
@@ -226,7 +227,8 @@ class CommandValueAdmissionTest {
                 registry,
                 SubscriptionDirectory.NONE,
                 LocalSignalSender(origin.node, registry),
-                WaitOptions(origin, maxTimeout = 30.seconds),
+                origin,
+                WaitOptions(maxTimeout = 30.seconds),
             )
             val gateway = CommandGateway(ModelRegistry(listOf(model)), mapOf(CONTEXT to warm))
             fun retried(body: Any, requestId: String) =

@@ -102,7 +102,7 @@ class WaitAnswerTest {
         testOptions(),
         signals = signals,
     )
-    private val coordinator = WaitCoordinator(Executor(Kernel(log)), registry, runtime, signals, WaitOptions(origin))
+    private val coordinator = WaitCoordinator(Executor(Kernel(log)), registry, runtime, signals, origin, WaitOptions())
 
     private fun <C : Any> command(body: C, wait: WaitPlan = WaitPlan.DEFAULT): Command<C> {
         val id = "o-${sequence.incrementAndGet()}"

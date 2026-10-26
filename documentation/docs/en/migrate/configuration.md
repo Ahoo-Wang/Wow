@@ -27,7 +27,7 @@ V10's keys live under `wow.*` too, but none of the 9.x keys carry over: a 9.x ke
 | `wow.eventsourcing.snapshot.strategy`, `version-offset` | `wow.snapshot.*`: snapshots are written by the built-in `snapshot` subscription, in batches (`interval`, `batch`) |
 | `wow.mongo.event-stream-database`, `snapshot-database`, `prepare-database` | `wow.mongo.database`, one database for the log and every store |
 | `wow.mongo.auto-init-schema` | `wow.ddl` (`auto`, `validate`, `none`) for the framework's tables, collections, indexes and query indexes, and the Kafka topics |
-| `wow.mongo.*-batch.*`, `wow.elasticsearch.*-batch.*` | Removed: the log appends in batches of its own (`wow.log.append-queue.*`) |
+| `wow.mongo.*-batch.*`, `wow.elasticsearch.*-batch.*` | Removed: the log appends in batches of its own |
 | `wow.prepare.*` | Removed: reservations live in the backend, taken in decide |
 | `wow.redis.*` | Removed with the Redis backend |
 | `wow.elasticsearch.*` (event store) | Removed as an event store; in V10 Elasticsearch is a query backend |

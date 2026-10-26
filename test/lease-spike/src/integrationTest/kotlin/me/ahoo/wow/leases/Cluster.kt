@@ -182,7 +182,7 @@ class SpikeNode(val name: String, private val cluster: SpikeCluster, private val
         registry,
         subscriptions,
         signals,
-        WaitOptions(Origin(name, address, SERVICE)),
+        Origin(name, address, SERVICE), WaitOptions(),
         router = router,
     )
     private val endpoint = ForwardEndpoint(coordinator, listOf(model), listOf(ownership))

@@ -201,10 +201,10 @@ class HostQueryIsolationTest {
     @Test
     fun `wow-wait-max-registered should bound the node's waits`() {
         startHost().use { host ->
-            host.node.options.maxRegisteredWaits.assert().isEqualTo(WaitOptions.DEFAULT_MAX_REGISTERED)
+            host.node.options.wait.maxRegistered.assert().isEqualTo(WaitOptions.DEFAULT_MAX_REGISTERED)
         }
         startHost("wow.wait.max-registered" to 7).use { host ->
-            host.node.options.maxRegisteredWaits.assert().isEqualTo(7)
+            host.node.options.wait.maxRegistered.assert().isEqualTo(7)
         }
     }
 

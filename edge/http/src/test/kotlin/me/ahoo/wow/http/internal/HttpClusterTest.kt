@@ -256,7 +256,8 @@ class HttpNode(val name: String, private val cluster: HttpCluster) {
         registry,
         subscriptions,
         signals,
-        WaitOptions(Origin(name, server.address, SERVICE)),
+        Origin(name, server.address, SERVICE),
+        WaitOptions(),
         router = PartitionedRouter(listOf(ownership), HttpClusterChannel(client), cluster.options),
     )
 

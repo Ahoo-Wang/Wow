@@ -73,11 +73,10 @@ class QueryStores(
          * `max-wait`, else the global one, in a queue of at most its `max-queued`, else the global one, else 4 per
          * permit.
          *
-         * A bound neither setting fixes adapts to the store's write pressure (decision D252, [pressures]) unless the
-         * store's, else the global, `adaptive.enabled` is off: it starts at the provider's and moves between the floor
-         * and the ceiling (store over global, the ceiling else the provider's
-         * [StoreQueryProvider.maxConcurrentCeiling]). A bound below zero, or a ceiling below one, is refused with the
-         * configuration key at fault.
+         * A bound neither setting fixes always adapts to the store's write pressure (decision D252, [pressures]): it
+         * starts at the provider's and moves between the floor and the ceiling (store over global, the ceiling else the
+         * provider's [StoreQueryProvider.maxConcurrentCeiling]). A bound below zero, or a ceiling below one, is refused
+         * with the configuration key at fault.
          */
         @JvmStatic
         fun of(
@@ -132,7 +131,8 @@ class QueryStores(
                 "wow.stores.$name.query.max-concurrent (or wow.query.max-concurrent) is $derived."
             }
             if (derived == 0) return null
-            val adaptive = fixed == null && (own?.adaptive ?: global.adaptiveEnabled)
+            // A bound no setting fixes adapts to the store's write pressure; a fixed one does not.
+            val adaptive = fixed == null
             val ceiling = if (adaptive) ceilingOf(name, store, provider, global, own) else derived
             val max = minOf(derived, ceiling)
             val wait = own?.maxWait ?: global.maxWait
@@ -162,8 +162,8 @@ class QueryStores(
 
 /**
  * What [QueryStores.of] bounds the queries by: `wow.query.max-concurrent` ([maxConcurrent], null to let each store's
- * provider derive it), `max-wait` and `max-queued`, the adaptive bounds' options (`wow.query.adaptive.*`: [adaptive],
- * its floor the default one, [adaptiveEnabled], [adaptiveCeiling]), each store's own (`wow.stores.<name>.query.*`,
+ * provider derive it), `max-wait` and `max-queued`, the adaptive bounds' options ([adaptive], its floor
+ * `wow.query.adaptive.floor`, the others constants; [adaptiveCeiling]), each store's own (`wow.stores.<name>.query.*`,
  * [stores]) and the dataset queries' ([datasets]).
  */
 @InternalWowApi
@@ -172,7 +172,6 @@ class QueryStoreSettings(
     val maxWait: Duration = QueryBulkhead.DEFAULT_MAX_WAIT,
     val maxQueued: Int? = null,
     val adaptive: AdaptiveLimitOptions = AdaptiveLimitOptions(),
-    val adaptiveEnabled: Boolean = true,
     val adaptiveCeiling: Int? = null,
     val stores: Map<String, QueryStoreLimits> = emptyMap(),
     val datasets: DatasetQueryLimits = DatasetQueryLimits(),
@@ -184,7 +183,6 @@ class QueryStoreLimits(
     val maxConcurrent: Int? = null,
     val maxWait: Duration? = null,
     val maxQueued: Int? = null,
-    val adaptive: Boolean? = null,
     val floor: Int? = null,
     val ceiling: Int? = null,
 )

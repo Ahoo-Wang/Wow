@@ -525,20 +525,12 @@ class WowAutoConfiguration {
             options = ServiceNodeOptions(
                 cluster = properties.cluster.options(properties.wait.defaultTimeout),
                 routing = routing,
-                maxWaitTimeout = properties.wait.maxTimeout.toKotlinDuration(),
-                maxWaitHops = properties.wait.maxHops,
-                unknownWaitContexts = properties.wait.unknownContexts,
-                maxRegisteredWaits = properties.wait.maxRegistered,
+                wait = properties.wait.options(),
                 subscription = properties.subscription.options(properties.subscriptions),
-                appendQueue = properties.log.appendQueue.options(),
                 handoff = properties.log.handoffOptions(),
-                laneCapacity = properties.executor.laneCapacity,
-                maxBatch = properties.executor.maxBatch,
-                maxInFlight = properties.executor.maxInFlight,
-                stateCacheCapacity = properties.stateCache.capacity,
-                recentRequests = properties.stateCache.recentRequests,
+                executor = properties.executor.options(),
+                stateCache = properties.stateCache.options(),
                 stateViews = properties.stateViews.options(),
-                defaultWaitTimeout = properties.wait.defaultTimeout.toKotlinDuration(),
                 timers = properties.timers.options(),
                 schedules = properties.schedules.mapValues { it.value.options() },
                 kafkaRouted = kafkaRouted(properties, models.models),
@@ -702,7 +694,7 @@ class WowAutoConfiguration {
     ): StateReads {
         val opened = backends.contexts
         val contexts = node.contexts.mapNotNull { (name, context) ->
-            opened[name]?.snapshots?.let { name to KernelStateReads.ContextReads(context.kernel, it) }
+            opened[name]?.primarySnapshots?.let { name to KernelStateReads.ContextReads(context.kernel, it) }
         }.toMap()
         // The query plane's gate runs a state read's replay under its log store's bulkhead (decision D246 ⑥, review
         // R4-Q Q-1), and `wow.query.state.max-replay` bounds it.

@@ -69,9 +69,8 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The tuning of waits on one node.
+ * The tuning of waits on one node; the node itself, as signals address it, is its [WaitCoordinator]'s origin.
  *
- * - [origin] is this node, as signals address it (decision D65).
  * - [maxTimeout] caps the timeout a caller asks for (decision D64).
  * - [maxHops] is the longest chain a wait may follow (decisions D62, D190): [DEFAULT_MAX_HOPS] by default, at most
  *   [MAX_HOPS_CAP]. Each saga a chain follows adds two hops, its `handled` and the next `committed`.
@@ -88,7 +87,6 @@ import kotlin.time.Duration.Companion.seconds
  * to Wow.
  */
 class WaitOptions @InternalWowApi constructor(
-    val origin: Origin,
     val maxTimeout: Duration = DEFAULT_MAX_TIMEOUT,
     val maxHops: Int = DEFAULT_MAX_HOPS,
     val defaultTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT,
@@ -106,13 +104,12 @@ class WaitOptions @InternalWowApi constructor(
     /** This WaitOptions with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi
     fun copyWith(
-        origin: Origin = this.origin,
         maxTimeout: Duration = this.maxTimeout,
         maxHops: Int = this.maxHops,
         defaultTimeout: Duration = this.defaultTimeout,
         unknownContexts: UnknownContexts = this.unknownContexts,
         maxRegistered: Int = this.maxRegistered,
-    ): WaitOptions = WaitOptions(origin, maxTimeout, maxHops, defaultTimeout, unknownContexts, maxRegistered)
+    ): WaitOptions = WaitOptions(maxTimeout, maxHops, defaultTimeout, unknownContexts, maxRegistered)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is WaitOptions && valueFields() == other.valueFields()
@@ -120,11 +117,11 @@ class WaitOptions @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "WaitOptions(origin=$origin, maxTimeout=$maxTimeout, maxHops=$maxHops, " +
+        "WaitOptions(maxTimeout=$maxTimeout, maxHops=$maxHops, " +
             "defaultTimeout=$defaultTimeout, unknownContexts=$unknownContexts, maxRegistered=$maxRegistered)"
 
     private fun valueFields(): List<Any?> =
-        listOf(origin, maxTimeout, maxHops, defaultTimeout, unknownContexts, maxRegistered)
+        listOf(maxTimeout, maxHops, defaultTimeout, unknownContexts, maxRegistered)
 
     companion object {
         val DEFAULT_MAX_TIMEOUT: Duration = 60.seconds
@@ -217,7 +214,9 @@ class WaitCoordinator(
     private val registry: WaitRegistry,
     private val directory: SubscriptionDirectory,
     private val signals: SignalSender,
-    options: WaitOptions,
+    origin: Origin,
+    /** The tuning of the waits started here. */
+    val options: WaitOptions = WaitOptions(),
     private val clock: () -> Long = System::currentTimeMillis,
     private val waitIds: () -> String = GlobalIdGenerator.UUID_V7::next,
     private val router: CommandRouter = CommandRouter.LOCAL,
@@ -231,11 +230,11 @@ class WaitCoordinator(
     private val executions = CoroutineScope(SupervisorJob() + executionContext)
 
     /**
-     * The tuning of the waits started here. A [me.ahoo.wow.runtime.node.ServiceNode] that learns its internal address
-     * only once its internal port is bound sets the origin's address then, before it starts.
+     * This node, as signals address it (decision D65). A [me.ahoo.wow.runtime.node.ServiceNode] that learns its
+     * internal address only once its internal port is bound sets the origin's address then, before it starts.
      */
     @Volatile
-    var options: WaitOptions = options
+    var origin: Origin = origin
         internal set
 
     /** The commands executing in this coordinator's scope, their waits ended or not. */
@@ -388,7 +387,7 @@ class WaitCoordinator(
             if (relay != null) {
                 // A command topic (D143, M-1): ACCEPTED once durable; the owner signals the rest.
                 val remaining = chain.hops.dropWhile { it.stage == Stage.ACCEPTED }
-                val wait = WaitContext(waitId, options.origin, remaining, deadline).takeIf { remaining.isNotEmpty() }
+                val wait = WaitContext(waitId, origin, remaining, deadline).takeIf { remaining.isNotEmpty() }
                 sendThrough(relay, command, function, wait, deadline)?.let { failed ->
                     emit(failed)
                     return
@@ -403,7 +402,7 @@ class WaitCoordinator(
             waiting.offer(reachedResult(command, function, Hop.accepted(context), clock()))
             // Once ACCEPTED is reached: a timeout answers at the last hop reached.
             expiry = expireAt(deadline, waiting, settled)
-            val wait = WaitContext(waitId, options.origin, chain.hops, deadline)
+            val wait = WaitContext(waitId, origin, chain.hops, deadline)
             settle(checkNotNull(model), command, wait, waiting)?.let { settlement ->
                 if (withdrawn(settlement)) {
                     // Withdrawn because the deadline passed (review X-12): the wait ends as the deadline ends it,
@@ -638,7 +637,7 @@ class WaitCoordinator(
             logger.warn(unavailable) { "Command ${command.id} on ${command.ref} failed: a store is unavailable." }
             return refused(command, function, hop, ResultCodes.STORAGE_UNAVAILABLE, unavailable.message!!)
         } catch (early: ScheduleNotDueException) {
-            logger.warn { "Clock skew at node ${options.origin.node}: ${early.message}" }
+            logger.warn { "Clock skew at node ${origin.node}: ${early.message}" }
             return Settlement(
                 reachedResult(command, function, hop, clock()).failed(ResultCodes.SCHEDULE_NOT_DUE, early.message!!),
             )

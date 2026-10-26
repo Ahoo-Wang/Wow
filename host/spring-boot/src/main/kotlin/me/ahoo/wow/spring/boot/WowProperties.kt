@@ -25,15 +25,16 @@ import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.ops.WebhookNotifier
 import me.ahoo.wow.kernel.HandlerRetry
+import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.query.events.UnpinnedEvents
+import me.ahoo.wow.runtime.ExecutorOptions
 import me.ahoo.wow.runtime.InFlightLimit
+import me.ahoo.wow.runtime.StateCacheOptions
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.health.HealthOptions
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
-import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.log.HandoffOptions
 import me.ahoo.wow.runtime.node.Routing
-import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
@@ -322,9 +323,6 @@ class WowProperties {
                 field = Partitioner.requirePartitions(value)
             }
 
-        /** How the appends of one partition are queued and grouped into one call: `wow.log.append-queue.*`. */
-        var appendQueue: AppendQueue = AppendQueue()
-
         /** How often the tail of a PostgreSQL or MongoDB log polls while it finds entries. */
         var pollInterval: Duration = TailPolling.DEFAULT.interval.toJavaDuration()
 
@@ -336,18 +334,11 @@ class WowProperties {
             TailPolling(pollInterval.toKotlinDuration(), maxPollInterval.toKotlinDuration())
 
         /**
-         * The hand-over of the node's own commits to its tails in memory: a tail waits its gap wait
-         * for a missing sequence and [maxPollInterval] without a commit before it reads the store.
+         * The hand-over of the node's own commits to its tails in memory, always on: a tail waits
+         * [maxPollInterval] without a commit before it reads the store.
          */
-        var handoff: Handoff = Handoff()
-
-        /** The hand-over these settings give. */
-        internal fun handoffOptions(): HandoffOptions = HandoffOptions(
-            enabled = handoff.enabled,
-            capacity = handoff.capacity,
-            gapWait = handoff.gapWait.toKotlinDuration(),
-            probeInterval = maxPollInterval.toKotlinDuration(),
-        )
+        internal fun handoffOptions(): HandoffOptions =
+            HandoffOptions(probeInterval = maxPollInterval.toKotlinDuration())
 
         /**
          * The store of every aggregate's log that `wow.aggregates.[<context>.<aggregate>].log.store` does not name:
@@ -410,12 +401,11 @@ class WowProperties {
     }
 
     /**
-     * How one store's query bound adapts to its write pressure (`wow.stores.<name>.query.adaptive.*`):
-     * [enabled], [floor] and [ceiling] over `wow.query.adaptive.*`.
+     * How one store's query bound adapts to its write pressure (`wow.stores.<name>.query.adaptive.*`): [floor] and
+     * [ceiling] over `wow.query.adaptive.*`.
      */
     @InternalWowApi
     class StoreAdaptive {
-        var enabled: Boolean? = null
         var floor: Int? = null
         var ceiling: Int? = null
     }
@@ -502,61 +492,6 @@ class WowProperties {
     @InternalWowApi
     class AggregateStore {
         var store: String? = null
-    }
-
-    /**
-     * The hand-over of the node's own commits to the tails of its subscriptions in memory: the tails read the store
-     * only to catch up, when no append of the node can fill a missing sequence any more, or when no commit comes for
-     * `wow.log.max-poll-interval`.
-     */
-    @InternalWowApi
-    class Handoff {
-        /** Whether the node hands its own commits to its subscriptions' tails in memory. */
-        var enabled: Boolean = true
-
-        /** The most entries one tail holds that it has not taken; a tail further behind reads the store instead. */
-        var capacity: Int = DEFAULT_HANDOFF.capacity
-
-        /**
-         * The longest a tail waits for a missing sequence that an append of the node still in flight may hold; once
-         * every such append returned without it, the tail reads the store at once.
-         */
-        var gapWait: Duration = DEFAULT_HANDOFF.gapWait.toJavaDuration()
-    }
-
-    /** The partition append queue; each setting not given is the default ([AppendQueueOptions]). */
-    @InternalWowApi
-    class AppendQueue {
-        /**
-         * Whether the appends of one partition are queued and committed in groups, one call a group; on when not set.
-         * A group carries more under load than single appends and costs a few per cent at low concurrency.
-         */
-        var enabled: Boolean? = null
-
-        /** The most appends one group of a partition carries; 64 when not set. */
-        var maxBatch: Int? = null
-
-        /**
-         * Whether the groups of several partitions are merged into one call, on a log that takes several partitions
-         * a call: on by default, for MongoDB and PostgreSQL; a log that does not take them is called per partition.
-         */
-        var merge: Boolean? = null
-
-        /** The committers of the merged groups, each with one call in flight; 2 when not set. */
-        var mergers: Int? = null
-
-        /** The most streams one merged call takes; 512 when not set. */
-        var mergeMax: Int? = null
-
-        fun options(): AppendQueueOptions = AppendQueueOptions().let { default ->
-            AppendQueueOptions(
-                enabled = enabled ?: default.enabled,
-                maxBatch = maxBatch ?: default.maxBatch,
-                merge = merge ?: default.merge,
-                mergers = mergers ?: default.mergers,
-                mergeMax = mergeMax ?: default.mergeMax,
-            )
-        }
     }
 
     /** How the nodes of a service share the partitions of each context's log, and forward commands to their owners. */
@@ -657,25 +592,35 @@ class WowProperties {
          * ACCEPTED is not run and is answered `wow.command.busy` (429, with `Retry-After`), FAILED at ACCEPTED.
          */
         var maxRegistered: Int = WaitOptions.DEFAULT_MAX_REGISTERED
+
+        fun options(): WaitOptions = WaitOptions(
+            maxTimeout.toKotlinDuration(),
+            maxHops,
+            defaultTimeout.toKotlinDuration(),
+            unknownContexts,
+            maxRegistered,
+        )
     }
 
     /** How the node executes commands. */
     @InternalWowApi
     class Executor {
         /** The commands one aggregate may have waiting in the executor. */
-        var laneCapacity: Int = ServiceNodeOptions.DEFAULT_LANE_CAPACITY
+        var laneCapacity: Int = me.ahoo.wow.runtime.Executor.DEFAULT_LANE_CAPACITY
 
         /**
          * The most of one aggregate's queued commands the executor decides in turn and commits with one append; 1
          * runs each alone. It never waits to fill a batch.
          */
-        var maxBatch: Int = ServiceNodeOptions.DEFAULT_MAX_BATCH
+        var maxBatch: Int = me.ahoo.wow.runtime.Executor.DEFAULT_MAX_BATCH
 
         /**
          * The commands the node may have in flight, all contexts together: beyond it a command is
          * refused as `wow.command.busy` (429, with `Retry-After`) instead of queued.
          */
         var maxInFlight: Int = InFlightLimit.DEFAULT_MAX
+
+        fun options(): ExecutorOptions = ExecutorOptions(laneCapacity, maxBatch, maxInFlight)
     }
 
     /**
@@ -715,7 +660,9 @@ class WowProperties {
          * The requests each cached aggregate keeps of those it committed last, derived from the log, so
          * that most commands skip looking their request id up; 0 looks every request id up.
          */
-        var recentRequests: Int = ServiceNodeOptions.DEFAULT_RECENT_REQUESTS
+        var recentRequests: Int = Kernel.DEFAULT_RECENT_REQUESTS
+
+        fun options(): StateCacheOptions = StateCacheOptions(capacity, recentRequests)
     }
 
     /** How the node's subscriptions run, retry their failures and park what keeps failing. */
@@ -1561,6 +1508,5 @@ class WowProperties {
         private val DEFAULT_HEALTH = HealthOptions()
         private val DEFAULT_SYSTEMIC = SystemicFailureOptions()
         private val DEFAULT_BACKPRESSURE = BackpressureOptions()
-        private val DEFAULT_HANDOFF = HandoffOptions()
     }
 }
