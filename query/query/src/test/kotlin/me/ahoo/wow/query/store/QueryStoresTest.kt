@@ -139,6 +139,6 @@ class QueryStoresTest {
 
         override fun openSnapshots(context: String) = error("unused")
 
-        override fun openTimers(context: String) = error("unused")
+        override fun openTimers(context: String, partitions: Int) = error("unused")
     }
 }

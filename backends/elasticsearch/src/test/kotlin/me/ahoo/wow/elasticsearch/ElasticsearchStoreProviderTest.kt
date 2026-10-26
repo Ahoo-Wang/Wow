@@ -78,7 +78,7 @@ class ElasticsearchStoreProviderTest {
         store.names.snapshots("ctx", "Order").assert().isEqualTo("prod_a_wow_snapshot__ctx__order")
         store.snapshots("ctx").assert().isNotNull()
         assertThrownBy<UnsupportedOperationException> { store.log("ctx", 4) }
-        assertThrownBy<UnsupportedOperationException> { store.timers("ctx") }
+        assertThrownBy<UnsupportedOperationException> { store.timers("ctx", 4) }
         assertThrownBy<UnsupportedOperationException> { store.checkpoints }
         assertThrownBy<UnsupportedOperationException> { store.leases }
         assertThrownBy<UnsupportedOperationException> { store.ledger }

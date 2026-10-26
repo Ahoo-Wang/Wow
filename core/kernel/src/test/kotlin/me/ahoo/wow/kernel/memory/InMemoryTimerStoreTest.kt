@@ -17,5 +17,8 @@ import me.ahoo.wow.spi.timer.TimerStore
 import me.ahoo.wow.tck.timer.TimerStoreSpec
 
 class InMemoryTimerStoreTest : TimerStoreSpec() {
-    override fun createStore(): TimerStore = InMemoryTimerStore()
+    private val store = InMemoryTimerStore()
+
+    /** The one store of this test: memory is not shared between stores. */
+    override fun createStore(): TimerStore = store
 }
