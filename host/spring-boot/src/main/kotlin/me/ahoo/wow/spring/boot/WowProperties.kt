@@ -933,6 +933,7 @@ class WowProperties {
         }
 
         /** A switch that may also be left to the node (decision D312). */
+        @InternalWowApi
         enum class Switch {
             /** The node decides from what it finds: see the key. */
             AUTO,

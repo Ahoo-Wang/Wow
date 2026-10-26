@@ -149,10 +149,14 @@ class LedgerPublisher internal constructor(
         context: String?,
         outcome: String,
         failedAt: Long? = null,
-    ): Unit = if (!open) Unit else lock.withLock {
-        val key = ParkedKey(subscription, ref)
-        val known = published.remove(key)?.record
-        publishResolved(key, context ?: known?.context ?: ref.type.context, failedAt ?: known?.failedAt, outcome)
+    ): Unit = if (!open) {
+        Unit
+    } else {
+        lock.withLock {
+            val key = ParkedKey(subscription, ref)
+            val known = published.remove(key)?.record
+            publishResolved(key, context ?: known?.context ?: ref.type.context, failedAt ?: known?.failedAt, outcome)
+        }
     }
 
     /**
@@ -174,29 +178,33 @@ class LedgerPublisher internal constructor(
      * Publishes every entry whose partition this node runs, and as resolved each one it published before that has
      * left the ledger since; an entry an operator's action is acting on is the action's to publish.
      */
-    suspend fun scan(): Unit = if (!open) Unit else lock.withLock {
-        val seen = HashSet<ParkedKey>()
-        var after: ParkedKey? = null
-        do {
-            val page = parked.list(after = after, limit = ParkedOps.MAX_LIMIT)
-            page.entries.forEach { view ->
-                val key = ParkedKey(view.entry.subscription, view.entry.ref)
-                if (parked.owns(key.subscription, key.ref)) {
-                    seen += key
-                    if (!acting.containsKey(key)) {
-                        publishParked(view)
+    suspend fun scan(): Unit = if (!open) {
+        Unit
+    } else {
+        lock.withLock {
+            val seen = HashSet<ParkedKey>()
+            var after: ParkedKey? = null
+            do {
+                val page = parked.list(after = after, limit = ParkedOps.MAX_LIMIT)
+                page.entries.forEach { view ->
+                    val key = ParkedKey(view.entry.subscription, view.entry.ref)
+                    if (parked.owns(key.subscription, key.ref)) {
+                        seen += key
+                        if (!acting.containsKey(key)) {
+                            publishParked(view)
+                        }
                     }
                 }
+                after = page.next
+            } while (after != null)
+            (published.keys - seen - acting.keys).forEach { key ->
+                val gone = published.getValue(key).record
+                // An entry whose partition moved to another node is that node's to publish now.
+                if (parked.get(key.subscription, key.ref) == null) {
+                    publishResolved(key, gone.context, gone.failedAt, LedgerResolution.RESOLVED)
+                }
+                published.remove(key)
             }
-            after = page.next
-        } while (after != null)
-        (published.keys - seen - acting.keys).forEach { key ->
-            val gone = published.getValue(key).record
-            // An entry whose partition moved to another node is that node's to publish now.
-            if (parked.get(key.subscription, key.ref) == null) {
-                publishResolved(key, gone.context, gone.failedAt, LedgerResolution.RESOLVED)
-            }
-            published.remove(key)
         }
     }
 

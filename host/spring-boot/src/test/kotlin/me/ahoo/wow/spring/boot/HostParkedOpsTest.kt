@@ -111,7 +111,8 @@ class HostParkedOpsTest {
         }
         publish.enabled.assert().isEqualTo(WowProperties.Publish.Switch.AUTO)
         publish.options(transport = false).assert().isNull()
-        publish.options(transport = true).assert().isEqualTo(LedgerPublishing("platform-ops", 5.seconds, automatic = true))
+        val automatic = LedgerPublishing("platform-ops", 5.seconds, automatic = true)
+        publish.options(transport = true).assert().isEqualTo(automatic)
         publish.enabled = WowProperties.Publish.Switch.TRUE
         publish.options(transport = false).assert().isEqualTo(LedgerPublishing("platform-ops", 5.seconds))
         publish.enabled = WowProperties.Publish.Switch.FALSE

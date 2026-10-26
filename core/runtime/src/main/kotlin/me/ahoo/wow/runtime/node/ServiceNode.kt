@@ -648,15 +648,15 @@ class ServiceNode @InternalWowApi constructor(
     /**
      * Publishes the node's failure ledger to the ops context (decision D141) when [ServiceNodeOptions.ledger] says
      * where: the entries whose partitions the node runs, through that context's command topic. An
-     * [automatic][LedgerPublishing.automatic] one publishes while that topic exists (decision D312), asked of the
-     * topics' admin at start and every [SourceTopics.partitionRefresh].
+     * automatic one ([LedgerPublishing.automatic]) publishes while that topic exists (decision D312), asked of the
+     * topics' admin at start and every partition refresh of the node's source topics.
      */
     val ledgerPublisher: LedgerPublisher? = options.ledger?.let { publishing ->
         val sender = checkNotNull(sender)
         val available: (suspend () -> Boolean)? = if (publishing.automatic) {
-            val topics = checkNotNull(topics)
-            val topic = topics.commandsOf(publishing.context)
-            val admin = topics.admin
+            val source = checkNotNull(topics)
+            val topic = source.commandsOf(publishing.context)
+            val admin = source.admin
             suspend { admin != null && topic in admin.partitions(setOf(topic)) }
         } else {
             null
