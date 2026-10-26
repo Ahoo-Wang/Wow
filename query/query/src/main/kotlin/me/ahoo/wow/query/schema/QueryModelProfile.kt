@@ -24,6 +24,8 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.spec.SystemField
 import me.ahoo.wow.query.spec.spec
+import me.ahoo.wow.spi.json.query.OperatorFields
+import me.ahoo.wow.spi.json.query.SnapshotFields
 import java.util.Collections
 import java.util.concurrent.TimeUnit
 
@@ -148,40 +150,6 @@ sealed class BuiltInQueryModelProfile(model: QueryModel) : QueryModelProfile(mod
         SystemField.IDENTITY -> identityField
         else -> metadataField(field)
     }
-}
-
-/**
- * The names of a snapshot record's fields as the query side reads them (decision D128): one record per aggregate, the
- * columns of `me.ahoo.wow.spi.snapshot.SnapshotRecord` with the state under [STATE]. 9.x's `contextName`,
- * `aggregateName`, `eventId` and `snapshotTime` are gone, and 9.x's `eventTime` is [LAST_EVENT_TIME]: a snapshot query
- * is always of one aggregate type, which the backend adds itself (decision D131). [OPERATOR] and [FIRST_OPERATOR] keep
- * 9.x's names (decision D163) but are objects, `{id, tenantId, crossScope}` ([OperatorFields]), or null for an
- * anonymous caller: filter on `operator.id`.
- */
-@InternalWowApi
-object SnapshotFields {
-    const val TENANT_ID: String = "tenantId"
-    const val AGGREGATE_ID: String = "aggregateId"
-    const val VERSION: String = "version"
-    const val OWNER_ID: String = "ownerId"
-    const val SPACE_ID: String = "spaceId"
-    const val DELETED: String = "deleted"
-    const val TAGS: String = "tags"
-    const val FIRST_EVENT_TIME: String = "firstEventTime"
-    const val LAST_EVENT_TIME: String = "lastEventTime"
-    const val OPERATOR: String = "operator"
-    const val FIRST_OPERATOR: String = "firstOperator"
-
-    /** The schedules the aggregate keeps (decision D198): each rule, `{type, ...}`, by its key. */
-    const val SCHEDULES: String = "schedules"
-    const val STATE: String = "state"
-}
-
-/** The properties of an operator system field ([SnapshotFields.OPERATOR], [SnapshotFields.FIRST_OPERATOR]). */
-internal object OperatorFields {
-    const val ID: String = "id"
-    const val TENANT_ID: String = "tenantId"
-    const val CROSS_SCOPE: String = "crossScope"
 }
 
 /** Aggregate snapshots: one record per aggregate, the payload under `state` (decision D128). */

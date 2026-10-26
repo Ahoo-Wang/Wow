@@ -31,9 +31,9 @@ import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.ScopeQueryPolicy
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.queryTenantOf
-import me.ahoo.wow.query.schema.EventStreamFields
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryViolation
+import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.spi.tenant.TenantPolicy
 
 /**

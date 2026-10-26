@@ -197,7 +197,8 @@ object ArchitectureRules {
         API to setOf("annotations", "query-api"),
         MANIFEST to setOf("annotations"),
         QUERY_API to setOf("annotations"),
-        SPI to setOf("api"),
+        // query-api: the query protocol whose JSON :spi holds (decision D293).
+        SPI to setOf("api", "query-api"),
         KERNEL to setOf("spi"),
         // manifest: the node is built from the Manifest (decision D231 ③).
         RUNTIME to setOf("kernel", "manifest"),
@@ -219,8 +220,9 @@ object ArchitectureRules {
         // only, which call the routes as a peer does (the main code shares only `:api`'s wire grammar, decision D286:
         // [HTTP_IGNORES_CLIENT]).
         HTTP to setOf("runtime", "query", "openapi", "client"),
-        // The runtime for the calls' root context and the contracts (decision D234), query for the rows' records.
-        CLIENT to setOf("runtime", "query"),
+        // Wow's contracts and its ports, no engine (decision D293): the wire grammar and read API of :api, the peer
+        // contracts of :manifest, the query protocol and :spi's JSON, ids and saga call port.
+        CLIENT to setOf("api", "manifest", "query-api", "spi"),
         COSEC to setOf("http"),
         // The core's observation seams (decision D174) and the query engine's observer; http for the tests only, which
         // follow a trace from an HTTP request.

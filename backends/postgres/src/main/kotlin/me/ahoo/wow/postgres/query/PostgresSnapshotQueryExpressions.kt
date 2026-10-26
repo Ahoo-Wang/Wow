@@ -19,8 +19,8 @@ import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.QueryValueType
-import me.ahoo.wow.query.schema.SnapshotFields
 import me.ahoo.wow.query.schema.operationValues
+import me.ahoo.wow.spi.json.query.SnapshotFields
 
 /**
  * The SQL type a query field is compared, sorted and aggregated as: the storage type of its bindings

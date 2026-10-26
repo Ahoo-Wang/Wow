@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.json
+package me.ahoo.wow.spi.json.query
 
 import com.fasterxml.jackson.annotation.JsonCreator
 import com.fasterxml.jackson.annotation.JsonIgnore

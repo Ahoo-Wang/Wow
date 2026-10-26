@@ -32,9 +32,8 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.kernel.CommandTypes
-import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.wire.CallWires
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.io.IOException
@@ -74,7 +73,7 @@ class HttpCommandClientTest {
             }
         }
         .retry(retry)
-        .commandTypes(CommandTypes.SIMPLE_NAMES)
+        .contracts(contractOf(BOX, DeliverItems::class.java))
         .build()
         .commands
 
@@ -96,9 +95,9 @@ class HttpCommandClientTest {
             request.headers[WowHeaders.REQUEST_ID].assert().isNotBlank()
             request.headers.containsKey(WowHeaders.WAIT).assert().isFalse()
             WowJson.mapper.readTree(request.body)["items"][0].asString().assert().isEqualTo("mug")
-            val root = CallHeaders.parse(request.headers.getValue(WowHeaders.CALL))
+            val root = CallWires.decode(request.headers.getValue(WowHeaders.CALL))
             root.tenantId.assert().isEqualTo("t1")
-            root.scope.assert().isEqualTo(Scope("alice"))
+            Scope(root.ownerId, root.spaceId).assert().isEqualTo(Scope("alice"))
             root.operator.assert().isEqualTo(Operator("alice", "t1", false))
             root.facts.assert().isEqualTo(mapOf(RequestFacts.APP_ID to "console"))
             root.causation.correlationId.assert().isEqualTo(root.commandId)
@@ -118,9 +117,9 @@ class HttpCommandClientTest {
         request.headers[WowHeaders.REQUEST_ID].assert().isEqualTo("r-9")
         request.headers[WowHeaders.IF_MATCH].assert().isEqualTo("\"4\"")
         request.headers.containsKey(WowHeaders.SCOPE).assert().isFalse()
-        val root = CallHeaders.parse(request.headers.getValue(WowHeaders.CALL))
+        val root = CallWires.decode(request.headers.getValue(WowHeaders.CALL))
         root.tenantId.assert().isEqualTo("t2")
-        root.scope.assert().isEqualTo(Scope("bob"))
+        Scope(root.ownerId, root.spaceId).assert().isEqualTo(Scope("bob"))
         root.operator!!.crossScope.assert().isTrue()
     }
 
@@ -241,7 +240,7 @@ class HttpCommandClientTest {
             val down = EndpointResolver.of(emptyMap(), mapOf("mail" to URI.create("http://127.0.0.1:$closed")))
             val client = WowClient.builder().endpoints(down).connectTimeout(200.milliseconds)
                 .retry(RetryPolicy.of(maxAttempts = 2, backoff = 1.milliseconds))
-                .commandTypes(CommandTypes.SIMPLE_NAMES).build().commands
+                .contracts(contractOf(BOX, DeliverItems::class.java)).build().commands
             // Refused, or never answered, as the platform has it: either way the connection was not made.
             caught<IOException> { runBlocking { client.wait(DeliverItems(emptyList()), ref) } }
         }
@@ -258,7 +257,7 @@ class HttpCommandClientTest {
                     .wait(DeliverItems(emptyList()), ref)
             }
         }.message.assert().contains("wow.clients.contexts.mail.url")
-        val unnamed = WowClient.builder().commandTypes(CommandTypes.NONE).build().commands
+        val unnamed = WowClient.builder().contracts(emptyList()).build().commands
         assertThrownBy<IllegalArgumentException> { runBlocking { unnamed.wait(DeliverItems(emptyList()), ref) } }
         peer.taken.assert().isEmpty()
     }

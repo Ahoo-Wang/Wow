@@ -257,28 +257,6 @@ public abstract interface class me/ahoo/wow/runtime/admission/CommandValidator {
 	public abstract fun validate (Lme/ahoo/wow/kernel/CommandType;Ljava/lang/Object;)Ljava/util/List;
 }
 
-public abstract interface class me/ahoo/wow/runtime/call/CommandCaller {
-	public abstract fun call (Lme/ahoo/wow/runtime/call/OutgoingCall;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public fun reaches (Ljava/lang/String;)Z
-}
-
-public final class me/ahoo/wow/runtime/call/OutgoingCall {
-	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/spi/wait/WaitContext;)V
-	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/spi/wait/WaitContext;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Lme/ahoo/wow/api/decide/Command;
-	public final fun component3 ()Lme/ahoo/wow/spi/wait/WaitContext;
-	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/spi/wait/WaitContext;)Lme/ahoo/wow/runtime/call/OutgoingCall;
-	public static synthetic fun copy$default (Lme/ahoo/wow/runtime/call/OutgoingCall;Ljava/lang/String;Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/spi/wait/WaitContext;ILjava/lang/Object;)Lme/ahoo/wow/runtime/call/OutgoingCall;
-	public fun equals (Ljava/lang/Object;)Z
-	public final fun getCommand ()Lme/ahoo/wow/api/decide/Command;
-	public final fun getName ()Ljava/lang/String;
-	public final fun getType ()Ljava/lang/String;
-	public final fun getWait ()Lme/ahoo/wow/spi/wait/WaitContext;
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
 public final class me/ahoo/wow/runtime/client/InProcessCommandClient : me/ahoo/wow/api/client/CommandClient {
 	public fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/client/CommandClient;
 	public fun send (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -409,6 +387,7 @@ public final class me/ahoo/wow/runtime/command/CommandSender {
 
 public final class me/ahoo/wow/runtime/contract/ContractDirectory : me/ahoo/wow/runtime/wait/SubscriptionDirectory {
 	public static final field Companion Lme/ahoo/wow/runtime/contract/ContractDirectory$Companion;
+	public static final field LOCAL_SOURCE Ljava/lang/String;
 	public static final field UNKNOWN_CONTEXT Ljava/lang/String;
 	public fun <init> (Lme/ahoo/wow/manifest/Manifest;Ljava/util/List;Ljava/util/Set;)V
 	public synthetic fun <init> (Lme/ahoo/wow/manifest/Manifest;Ljava/util/List;Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
@@ -421,8 +400,12 @@ public final class me/ahoo/wow/runtime/contract/ContractDirectory : me/ahoo/wow/
 	public fun covers (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateType;)Z
 	public fun derivedContextsOf (Ljava/lang/String;Ljava/lang/String;)Ljava/util/Set;
 	public final fun getAllContexts ()Ljava/util/List;
+	public final fun getCommands ()Lme/ahoo/wow/manifest/CommandIndex;
+	public final fun getFragments ()Ljava/util/List;
 	public final fun getLocal ()Lme/ahoo/wow/manifest/Manifest;
+	public final fun getLocalContexts ()Ljava/util/Set;
 	public final fun getNullableStates ()Ljava/util/Set;
+	public final fun getPeerContexts ()Ljava/util/Set;
 	public final fun getPeers ()Ljava/util/List;
 	public fun hasContext (Ljava/lang/String;)Z
 	public fun hasHandled (Ljava/lang/String;Lme/ahoo/wow/spi/log/EventStreamRecord;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;

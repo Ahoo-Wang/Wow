@@ -22,7 +22,7 @@ import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.CursorPosition
 import me.ahoo.wow.query.PageWindow
 import me.ahoo.wow.query.schema.QueryViolation
-import me.ahoo.wow.query.schema.SnapshotFields
+import me.ahoo.wow.spi.json.query.SnapshotFields
 import java.math.BigDecimal
 
 /**

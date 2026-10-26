@@ -17,16 +17,14 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.CommandIndex
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.StateManifest
-import me.ahoo.wow.runtime.contract.ContractDirectory
 import org.junit.jupiter.api.Test
 import java.net.URI
 import kotlin.time.Duration
@@ -120,13 +118,12 @@ class ClientSettingsTest {
                 ),
             ),
         )
-        val contracts =
-            ContractDirectory(Manifest(), listOf(ManifestFragment("mail", Manifest(contexts = listOf(mail)))))
-        val names = ContractCommandTypes(contracts)
-        val box = AggregateType("mail", "box")
-        names.nameOf(box, HttpCommandClientTest.DeliverItems::class.java).assert().isEqualTo("mail.box.DeliverItems")
-        names.nameOf(AggregateType("mail", "other"), HttpCommandClientTest.DeliverItems::class.java).assert().isNull()
-        names.aggregatesOf(HttpCommandClientTest.DeliverItems::class.java).assert().containsExactly(box)
+        // The same naming rule as a node's (decision D293): :manifest's CommandIndex over the peers' contracts.
+        val names = CommandIndex(listOf(Manifest(contexts = listOf(mail))))
+        val deliver = HttpCommandClientTest.DeliverItems::class.java
+        names.commandTypeOf("mail.box", deliver).assert().isEqualTo("mail.box.DeliverItems")
+        names.commandTypeOf("mail.other", deliver).assert().isNull()
+        names.aggregatesOf(Manifest.schemaRef(deliver.name)).assert().containsExactly("mail.box")
     }
 
     private companion object {

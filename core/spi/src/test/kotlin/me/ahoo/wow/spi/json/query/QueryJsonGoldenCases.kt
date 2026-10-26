@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.json
+package me.ahoo.wow.spi.json.query
 
 import me.ahoo.wow.api.query.AfterNowFilter
 import me.ahoo.wow.api.query.AggregateIdFilter

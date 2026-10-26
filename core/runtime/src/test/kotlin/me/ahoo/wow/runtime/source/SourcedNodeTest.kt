@@ -24,6 +24,7 @@ import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.ContractException
 import me.ahoo.wow.manifest.FunctionKind
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
@@ -38,7 +39,6 @@ import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.Deposit
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
-import me.ahoo.wow.runtime.contract.ContractException
 import me.ahoo.wow.runtime.health.HealthOptions
 import me.ahoo.wow.runtime.health.HealthStatus
 import me.ahoo.wow.runtime.health.NodeHealth

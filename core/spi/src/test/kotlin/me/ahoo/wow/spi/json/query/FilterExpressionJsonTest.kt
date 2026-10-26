@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.query.json
+package me.ahoo.wow.spi.json.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.AfterNowFilter
@@ -56,7 +56,7 @@ import java.time.format.DateTimeFormatter
 
 /** The JSON half of 9.x `FilterExpressionTest`, with the legacy `Condition` cases turned into rejections. */
 class FilterExpressionJsonTest {
-    private val mapper = QueryJson.mapper
+    private val mapper = QueryProtocolJson.mapper
 
     private fun read(json: String): FilterExpression = mapper.readValue(json, FilterExpression::class.java)
 

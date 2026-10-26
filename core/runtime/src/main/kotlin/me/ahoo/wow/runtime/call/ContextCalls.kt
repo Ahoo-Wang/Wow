@@ -16,44 +16,12 @@ package me.ahoo.wow.runtime.call
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
-import me.ahoo.wow.api.subscribe.CallFailedException
 import me.ahoo.wow.kernel.CommandCalls
 import me.ahoo.wow.kernel.CommandTypes
+import me.ahoo.wow.spi.call.CommandCaller
+import me.ahoo.wow.spi.call.OutgoingCall
 import me.ahoo.wow.spi.wait.WaitContext
 import java.util.Collections
-
-/**
- * One synchronous call to another context's command gateway (decision D193): [command], of the full type name [type]
- * (`context.aggregate.Command`), with the [wait] context a wait that follows the calling saga goes on with, or null.
- * The command carries the root command's scope, operator and causation, which the client asserts with the service's
- * credential.
- */
-data class OutgoingCall(val type: String, val command: Command<*>, val wait: WaitContext? = null) {
-    init {
-        require(type.startsWith("${command.ref.type}.")) { "$type is not a command of ${command.ref.type}." }
-        require(command.causation != null) { "A call is derived: it carries its causation." }
-    }
-
-    /** The command's name within its aggregate type (`SubmitOrder` of `ordering.order.SubmitOrder`). */
-    val name: String get() = type.removePrefix("${command.ref.type}.")
-}
-
-/**
- * The client of the other contexts' HTTP command gateways (decision D193), which the host gives a node: it sends a
- * call to the gateway of its command's context, at the address the host configures for it, and returns the result
- * the target answers, at COMMITTED: SUCCEEDED, REJECTED or FAILED. It throws a [CallFailedException] when it reaches
- * no result (the target down, unreachable or late, a credential it refuses, no address for the context).
- */
-fun interface CommandCaller {
-    suspend fun call(call: OutgoingCall): CommandResult
-
-    /**
-     * Whether it knows where to call [context]'s gateway (decision D259): a node whose sagas call a context its caller
-     * does not reach is not built. The default answers true; the host's HTTP caller (`wow-client`'s
-     * `HttpCommandCaller`) answers whether its endpoints give [context] an internal URL.
-     */
-    fun reaches(context: String): Boolean = true
-}
 
 /**
  * The synchronous calls of one execution of a saga's handler in [contexts], the contexts of its node (decision D193):

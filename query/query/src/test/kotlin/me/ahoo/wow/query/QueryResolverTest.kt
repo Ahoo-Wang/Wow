@@ -72,7 +72,6 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueSchema
 import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.QueryViolation
-import me.ahoo.wow.query.schema.SnapshotFields
 import me.ahoo.wow.query.schema.SnapshotQueryModelProfile
 import me.ahoo.wow.query.schema.StorageSupport
 import me.ahoo.wow.query.schema.SupportMode
@@ -83,6 +82,7 @@ import me.ahoo.wow.query.schema.objectFixture
 import me.ahoo.wow.query.schema.scalarFixture
 import me.ahoo.wow.query.schema.systemField
 import me.ahoo.wow.query.spec.SystemField
+import me.ahoo.wow.spi.json.query.SnapshotFields
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.TimeUnit

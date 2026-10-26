@@ -30,13 +30,13 @@ import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
-import me.ahoo.wow.query.schema.SnapshotFields
 import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.json.query.SnapshotFields
 import me.ahoo.wow.spi.store.Store
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentHashMap

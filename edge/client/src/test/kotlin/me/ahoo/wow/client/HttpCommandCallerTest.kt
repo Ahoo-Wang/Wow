@@ -30,10 +30,10 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.subscribe.CallFailedException
 import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.runtime.admission.CallHeaders
-import me.ahoo.wow.runtime.call.OutgoingCall
+import me.ahoo.wow.spi.call.OutgoingCall
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.observation.TraceContext
+import me.ahoo.wow.spi.wire.CallWires
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
@@ -137,9 +137,9 @@ class HttpCommandCallerTest {
             request.headers[WowHeaders.IF_MATCH].assert().isEqualTo("\"3\"")
             request.headers["traceparent"].assert().isEqualTo("00-trace-span-01")
             WowJson.mapper.readTree(request.body)["items"][0].asString().assert().isEqualTo("mug")
-            val context = CallHeaders.parse(request.headers.getValue(WowHeaders.CALL))
+            val context = CallWires.decode(request.headers.getValue(WowHeaders.CALL))
             context.commandId.assert().isEqualTo("c-1")
-            context.scope.assert().isEqualTo(Scope("alice"))
+            Scope(context.ownerId, context.spaceId).assert().isEqualTo(Scope("alice"))
             context.causation.assert().isEqualTo(ROOT)
         }
 

@@ -14,8 +14,8 @@
 package me.ahoo.wow.elasticsearch.events
 
 import me.ahoo.wow.api.caller.Operator
-import me.ahoo.wow.query.schema.EventFields
-import me.ahoo.wow.query.schema.EventStreamFields
+import me.ahoo.wow.spi.json.query.EventFields
+import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.spi.state.StateEventRecord
 import tools.jackson.databind.node.JsonNodeFactory
 import tools.jackson.databind.node.ObjectNode

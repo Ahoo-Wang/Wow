@@ -87,7 +87,7 @@ class HostClientsTest {
     )
 
     private fun client(mode: ClientMode) = lazy {
-        WowClient.builder().endpoints(endpoints).contracts(contracts).apply {
+        WowClient.builder().endpoints(endpoints).contracts(contracts.fragments).apply {
             when (mode) {
                 is ClientMode.Service -> service(mode.credential)
                 is ClientMode.User -> user(mode.credential)
@@ -97,7 +97,8 @@ class HostClientsTest {
 
     private fun peers(mode: PeerMode = PeerMode.SERVICE) = PeerClients(
         mapOf(BANK to mode),
-        contracts,
+        contracts.localContexts,
+        contracts.peerContexts,
         client(ClientMode.Service(ServiceCredential.bearer(TOKEN))),
         client(ClientMode.User(UserCredential.FORWARDED)),
         mode,
@@ -163,7 +164,8 @@ class HostClientsTest {
             localQueries,
             PeerClients(
                 emptyMap(),
-                contracts,
+                contracts.localContexts,
+                contracts.peerContexts,
                 lazy { error("") },
                 lazy { error("") },
                 PeerMode.SERVICE
@@ -175,7 +177,8 @@ class HostClientsTest {
         assertThrows<WowConfigurationException> {
             PeerClients(
                 mapOf("ledger" to PeerMode.SERVICE),
-                contracts,
+                contracts.localContexts,
+                contracts.peerContexts,
                 lazy {
                     error("")
                 },
@@ -190,7 +193,7 @@ class HostClientsTest {
         // No contract of the bank on the class path: its Manifest, read from the bank, is all the client knows.
         val none = ContractDirectory(Manifest(), emptyList())
         fun client(mode: ClientMode) = lazy {
-            WowClient.builder().endpoints(endpoints).contracts(none).manifestPeers(setOf(BANK)).apply {
+            WowClient.builder().endpoints(endpoints).contracts(none.fragments).manifestPeers(setOf(BANK)).apply {
                 when (mode) {
                     is ClientMode.Service -> service(mode.credential)
                     is ClientMode.User -> user(mode.credential)
@@ -200,7 +203,8 @@ class HostClientsTest {
         listOf(PeerMode.SERVICE, PeerMode.USER).forEach { mode ->
             val peers = PeerClients(
                 mapOf(BANK to mode),
-                none,
+                none.localContexts,
+                none.peerContexts,
                 client(ClientMode.Service(ServiceCredential.bearer(TOKEN))),
                 client(ClientMode.User(UserCredential.FORWARDED)),
                 mode,
@@ -236,13 +240,43 @@ class HostClientsTest {
     fun `contract manifest should admit a peer without its jar, and only such a peer`() {
         val none = ContractDirectory(Manifest(), emptyList())
         val service = PeerMode.SERVICE
-        PeerClients(mapOf("mail" to service), none, lazy { error("") }, lazy { error("") }, service, setOf("mail"))
+        PeerClients(
+            mapOf("mail" to service),
+            none.localContexts,
+            none.peerContexts,
+            lazy {
+                error("")
+            },
+            lazy { error("") },
+            service,
+            setOf("mail")
+        )
             .described.assert().containsExactly("mail")
         assertThrows<WowConfigurationException> {
-            PeerClients(emptyMap(), none, lazy { error("") }, lazy { error("") }, service, setOf("mail"))
+            PeerClients(
+                emptyMap(),
+                none.localContexts,
+                none.peerContexts,
+                lazy {
+                    error("")
+                },
+                lazy { error("") },
+                service,
+                setOf("mail")
+            )
         }.message.assert().contains("not in wow.clients.contexts")
         assertThrows<WowConfigurationException> {
-            PeerClients(mapOf(BANK to service), contracts, lazy { error("") }, lazy { error("") }, service, setOf(BANK))
+            PeerClients(
+                mapOf(BANK to service),
+                contracts.localContexts,
+                contracts.peerContexts,
+                lazy {
+                    error("")
+                },
+                lazy { error("") },
+                service,
+                setOf(BANK)
+            )
         }.message.assert().contains("whose contract is on the class path")
         val peers = WowAutoConfiguration().wowPeerClients(
             WowProperties().apply {

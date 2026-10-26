@@ -22,9 +22,9 @@ import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.index.QueryIndexDdl
-import me.ahoo.wow.query.schema.EventStreamFields
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.store.EventQueries
+import me.ahoo.wow.spi.json.query.EventStreamFields
 import tools.jackson.databind.node.ObjectNode
 import java.util.concurrent.ConcurrentHashMap
 

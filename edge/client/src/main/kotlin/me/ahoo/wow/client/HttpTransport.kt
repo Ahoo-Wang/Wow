@@ -20,10 +20,10 @@ import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.fold
 import kotlinx.coroutines.future.await
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.wire.CallWire
 import me.ahoo.wow.api.wire.WowHeaders
-import me.ahoo.wow.runtime.admission.CallContext
-import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.spi.observation.trace
+import me.ahoo.wow.spi.wire.CallWires
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.net.ConnectException
@@ -46,7 +46,7 @@ internal class PeerRequest(
     val context: String,
     val path: String,
     val caller: Caller,
-    val call: CallContext?,
+    val call: CallWire?,
     val headers: Map<String, String> = emptyMap(),
     val body: ByteArray? = null,
     val timeout: Duration? = null,
@@ -149,7 +149,7 @@ internal class HttpTransport(
         when (val mode = mode) {
             is ClientMode.Service -> {
                 mode.credential.authorization()?.let { builder.header(AUTHORIZATION, it) }
-                request.call?.let { builder.header(WowHeaders.CALL, CallHeaders.format(it)) }
+                request.call?.let { builder.header(WowHeaders.CALL, CallWires.encode(it)) }
             }
             is ClientMode.User -> mode.credential.headers(
                 request.caller

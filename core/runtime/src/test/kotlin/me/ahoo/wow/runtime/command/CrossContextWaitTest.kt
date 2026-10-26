@@ -37,8 +37,6 @@ import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
-import me.ahoo.wow.runtime.call.CommandCaller
-import me.ahoo.wow.runtime.call.OutgoingCall
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.InMemoryBackends
@@ -49,6 +47,8 @@ import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.SignalSender
+import me.ahoo.wow.spi.call.CommandCaller
+import me.ahoo.wow.spi.call.OutgoingCall
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test

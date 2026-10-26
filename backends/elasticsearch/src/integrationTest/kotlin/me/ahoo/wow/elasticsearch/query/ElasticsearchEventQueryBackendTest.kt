@@ -23,7 +23,7 @@ import me.ahoo.wow.elasticsearch.events.ElasticsearchEventIndex
 import me.ahoo.wow.elasticsearch.events.ElasticsearchEventSinks
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.schema.EventStreamFields
+import me.ahoo.wow.spi.json.query.EventStreamFields
 import me.ahoo.wow.query.schema.EventsQuerySchemas
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler

@@ -13,16 +13,17 @@
 
 package me.ahoo.wow.client
 
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.read.QueryApi
-import me.ahoo.wow.kernel.CommandTypes
+import me.ahoo.wow.manifest.ClassPathContracts
+import me.ahoo.wow.manifest.CommandIndex
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.runtime.contract.ContractDirectory
+import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.spi.id.GlobalIdGenerator
+import me.ahoo.wow.spi.json.WowJson
 import java.net.http.HttpClient
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -70,8 +71,7 @@ class WowClient private constructor(
         private var timeout: Duration = DEFAULT_TIMEOUT
         private var retry: RetryPolicy = RetryPolicy.DEFAULT
         private var classLoader: ClassLoader? = null
-        private var commandTypes: CommandTypes? = null
-        private var contracts: ContractDirectory? = null
+        private var contracts: List<ManifestFragment>? = null
         private var ids: GlobalIdGenerator = GlobalIdGenerator.UUID_V7
         private var manifestPeers: Set<String> = emptySet()
 
@@ -122,13 +122,12 @@ class WowClient private constructor(
          */
         fun manifestPeers(contexts: Set<String>): Builder = apply { manifestPeers = contexts.toSet() }
 
-        /** Names the commands as a node does, from its models and the contracts it knows: Wow's host gives its own. */
+        /**
+         * The peers' contracts, which name their commands and models: those on [classLoader] by default; Wow's host
+         * gives the ones its node read.
+         */
         @InternalWowApi
-        fun commandTypes(commandTypes: CommandTypes): Builder = apply { this.commandTypes = commandTypes }
-
-        /** The contracts the node knows, its peers' among them: Wow's host gives its own. */
-        @InternalWowApi
-        fun contracts(contracts: ContractDirectory): Builder = apply { this.contracts = contracts }
+        fun contracts(contracts: List<ManifestFragment>): Builder = apply { this.contracts = contracts.toList() }
 
         /** The ids of new request ids and root commands: UUIDs of version 7 by default. */
         @InternalWowApi
@@ -142,9 +141,12 @@ class WowClient private constructor(
                 timeout,
                 retry,
             )
-            val contracts = contracts
-                ?: ContractDirectory.load(Manifest(), classLoader ?: Thread.currentThread().contextClassLoader)
-            val names = commandTypes ?: ContractCommandTypes(contracts)
+            // The class path's contracts through :manifest's one reader, named by its one rule (decision D293).
+            val contracts = contracts ?: ClassPathContracts.load(
+                classLoader ?: Thread.currentThread().contextClassLoader,
+            ) { bytes -> WowJson.mapper.readValue(bytes, Map::class.java) }
+            val manifests = contracts.map { it.manifest }
+            val names = CommandIndex(manifests)
             return WowClient(
                 HttpCommandClient(
                     transport,
@@ -152,7 +154,7 @@ class WowClient private constructor(
                     ids,
                     described = manifestPeers.takeIf { it.isNotEmpty() }?.let { ManifestPeers(it, transport) },
                 ),
-                HttpQueryApi(transport, PeerModels.of(contracts.peers.map { it.manifest }), ids),
+                HttpQueryApi(transport, PeerModels.of(manifests), ids),
             )
         }
     }
@@ -164,13 +166,4 @@ class WowClient private constructor(
         @JvmStatic
         fun builder(): Builder = Builder()
     }
-}
-
-/** Names the commands of the peers by the contracts on the class path (decision D234), as a node names them. */
-internal class ContractCommandTypes(private val contracts: ContractDirectory) : CommandTypes {
-    override fun nameOf(target: AggregateType, command: Class<*>): String? =
-        contracts.commandTypeOf(Manifest.schemaRef(command.name))?.takeIf { it.startsWith("$target.") }
-
-    override fun aggregatesOf(command: Class<*>): List<AggregateType> =
-        contracts.aggregatesOf(Manifest.schemaRef(command.name))
 }

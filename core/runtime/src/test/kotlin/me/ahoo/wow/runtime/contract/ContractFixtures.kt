@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.contract
 
 import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.ClassPathContracts
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.FunctionKind
@@ -25,6 +26,7 @@ import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
+import tools.jackson.databind.json.JsonMapper
 import java.net.URLClassLoader
 
 const val SHOP_SERVICE = "shop-service"
@@ -38,7 +40,11 @@ fun contractsLoader(vararg names: String): ClassLoader = URLClassLoader(
 
 object ContractFixtures {
     /** The fixture peer contracts of `contract/inventory` (context inventory) and `contract/payment`. */
-    val peers by lazy { ContractReader(contractsLoader("inventory", "payment")).read() }
+    val peers by lazy {
+        ClassPathContracts.load(contractsLoader("inventory", "payment")) {
+            JsonMapper.builder().build().readValue(it, Map::class.java)
+        }
+    }
 
     fun subscription(
         name: String,

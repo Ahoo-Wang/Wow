@@ -111,7 +111,7 @@ class PeerReadsTest {
             ),
         )
         .apply { if (user) user(UserCredential.FORWARDED) else service(ServiceCredential.bearer(TOKEN)) }
-        .contracts(contracts)
+        .contracts(contracts.fragments)
         .build()
         .queries
 
@@ -298,7 +298,7 @@ class PeerReadsTest {
         val client = WowClient.builder()
             .endpoints(EndpointResolver.of(emptyMap(), mapOf(CONTEXT to URI.create("http://${internal.address}"))))
             .service(ServiceCredential.NONE)
-            .contracts(contracts)
+            .contracts(contracts.fragments)
             .build()
             .queries
         val problem = runCatching { runBlocking { client.of(alice).snapshots<Cart>().list(ListQuery(all)).toList() } }
