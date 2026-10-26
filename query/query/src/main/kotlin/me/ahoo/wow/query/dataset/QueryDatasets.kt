@@ -15,6 +15,7 @@ package me.ahoo.wow.query.dataset
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelProfile
 import me.ahoo.wow.query.schema.QuerySchemaContext
@@ -29,11 +30,59 @@ sealed interface QueryDatasetChange {
     /** The dataset the change leaves in place, or the one it removed. */
     val dataset: QueryDataset
 
-    data class Added(override val dataset: QueryDataset) : QueryDatasetChange
+    class Added @InternalWowApi constructor(override val dataset: QueryDataset) : QueryDatasetChange {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Added && valueFields() == other.valueFields()
 
-    data class Replaced(val previous: QueryDataset, override val dataset: QueryDataset) : QueryDatasetChange
+        override fun hashCode(): Int = valueFields().hashCode()
 
-    data class Removed(override val dataset: QueryDataset) : QueryDatasetChange
+        override fun toString(): String = "Added(dataset=$dataset)"
+
+        private fun valueFields(): List<Any?> = listOf(dataset)
+
+        companion object {
+            /** A [Added] of the given values. */
+            @JvmStatic
+            fun of(dataset: QueryDataset): Added = Added(dataset)
+        }
+    }
+
+    class Replaced @InternalWowApi constructor(
+        val previous: QueryDataset,
+        override val dataset: QueryDataset,
+    ) : QueryDatasetChange {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Replaced && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Replaced(previous=$previous, dataset=$dataset)"
+
+        private fun valueFields(): List<Any?> = listOf(previous, dataset)
+
+        companion object {
+            /** A [Replaced] of the given values. */
+            @JvmStatic
+            fun of(previous: QueryDataset, dataset: QueryDataset): Replaced = Replaced(previous, dataset)
+        }
+    }
+
+    class Removed @InternalWowApi constructor(override val dataset: QueryDataset) : QueryDatasetChange {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Removed && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Removed(dataset=$dataset)"
+
+        private fun valueFields(): List<Any?> = listOf(dataset)
+
+        companion object {
+            /** A [Removed] of the given values. */
+            @JvmStatic
+            fun of(dataset: QueryDataset): Removed = Removed(dataset)
+        }
+    }
 }
 
 /**
