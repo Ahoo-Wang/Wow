@@ -30,6 +30,13 @@ import kotlin.time.Duration.Companion.seconds
  * as an index built over a large table may take minutes. A call that times out loses its connection (pgjdbc closes
  * it, the pool replaces it) and fails as an I/O error: a transient failure, a write's outcome unknown. The queries
  * keep their own budget (`statement_timeout`, decision D150) on the connections of their own data source.
+ *
+ * Each transaction a store opens tells the server the same bound (finding F10) with `SET LOCAL` ([boundTransaction]):
+ * its statements and lock waits stop a margin before the client gives up ([serverMillis]), and it may sit idle at most
+ * twice as long, so a crashed node's open transaction is ended by the server. `SET LOCAL` ends with the transaction:
+ * nothing stays on a connection the application's own pool lends again. An autocommitted statement carries no server
+ * bound: a client-side query timeout would have pgjdbc open a connection to cancel it, which, against a database that
+ * stopped answering, holds the caller past its own timeout.
  */
 @InternalWowApi
 object PostgresTimeouts {
@@ -62,6 +69,40 @@ object PostgresTimeouts {
 
     /** pgjdbc applies a network timeout to its socket; the executor, for drivers that abort with one, runs inline. */
     internal val DIRECT = Executor { it.run() }
+
+    /** How much earlier than its client the server gives up a statement, so that it cancels it first. */
+    private const val MARGIN_MILLIS: Int = 1_000
+
+    /**
+     * The server's bound of a statement on a connection whose client waits [networkMillis]: [MARGIN_MILLIS] less, at
+     * least a second; 0 (none) on a connection without a network timeout.
+     */
+    fun serverMillis(networkMillis: Int): Int =
+        if (networkMillis <= 0) 0 else maxOf(networkMillis - MARGIN_MILLIS, MARGIN_MILLIS)
+
+    /**
+     * Bounds the transaction [connection] has just opened by its network timeout (finding F10): its statements and its
+     * lock waits by [serverMillis], its idle time, between two statements, by twice the network timeout. A query's
+     * transaction gives its own budget instead ([statementMillis], decision D150) and is [readOnly]. One round trip,
+     * before the transaction's first statement; nothing on a connection without a network timeout that is given
+     * neither.
+     */
+    fun boundTransaction(connection: Connection, statementMillis: Long? = null, readOnly: Boolean = false) {
+        val network = connection.networkTimeout
+        val server = serverMillis(network)
+        val settings = buildList {
+            if (readOnly) add("SET TRANSACTION READ ONLY")
+            (statementMillis ?: server.toLong().takeIf { it > 0 })?.let { add("SET LOCAL statement_timeout = $it") }
+            if (server > 0) {
+                add("SET LOCAL lock_timeout = $server")
+                add("SET LOCAL idle_in_transaction_session_timeout = ${2L * network}")
+            }
+        }
+        if (settings.isEmpty()) {
+            return
+        }
+        connection.createStatement().use { it.execute(settings.joinToString("; ")) }
+    }
 }
 
 /**

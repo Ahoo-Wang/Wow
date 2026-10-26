@@ -16,6 +16,7 @@ package me.ahoo.wow.postgres.subscription
 import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.PostgresFormat
+import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.inTransaction
 import me.ahoo.wow.postgres.jdbc
@@ -44,7 +45,7 @@ class PostgresCheckpointStore(
     fun createSchema() {
         dataSource.autoCommitted { connection ->
             PostgresFormat.schema(connection, ddl, listOf(TABLE to FORMAT)) {
-                connection.createStatement().use { it.execute(DDL) }
+                PostgresSchema.execute(connection, listOf(DDL))
             }
         }
     }
@@ -104,7 +105,7 @@ class PostgresCheckpointStore(
         }
     }
 
-    private companion object {
+    internal companion object {
         const val TABLE = "wow_checkpoint"
 
         /** The layout version of the table (finding A2-13). */
