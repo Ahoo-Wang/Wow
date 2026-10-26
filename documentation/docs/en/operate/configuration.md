@@ -12,14 +12,14 @@ A service is configured as any Spring Boot application is: `application.yaml`, p
 
 The host reads Spring Boot's environment, so every source Spring Boot knows works, in its order of precedence: command-line arguments over environment variables over profile-specific files over `application.yaml`. Names bind relaxed: `wow.log.max-poll-interval`, `wow.log.maxPollInterval` and the environment variable `WOW_LOG_MAXPOLLINTERVAL` are one key.
 
-Keep secrets out of the files. The eShop's configuration reads each one from an environment variable with a development default beside it, such as `${WOW_INTERNAL_TOKEN:…}`, and a deployment sets the variable from its secret store.
+Keep secrets out of the files. A deployment sets each one as an environment variable from its secret store, such as the database password, `SPRING_DATASOURCE_PASSWORD`, which the eShop's Kubernetes manifests take from a Secret.
 
 ## Write the values
 
 | Value | Written as |
 | --- | --- |
 | A duration | `500ms`, `30s`, `5m`, or ISO-8601 `PT30S` |
-| A list | A YAML list, or a comma-separated string from an environment variable: `WOW_INTERNAL_TOKEN=a…,b…` |
+| A list | A YAML list, or a comma-separated string from an environment variable: `WOW_HTTP_REQUESTFACTS=X-Region,X-Channel` |
 | A key of a map that holds dots | In brackets: `wow.aggregates.[eshop-ordering.order].tenant`, `wow.subscriptions.[OrderSummaryProjection.onEvent].start` |
 
 In YAML, quote a bracketed key so the brackets stay part of it:
@@ -53,7 +53,6 @@ The nodes of one service form one cluster, so some settings must be the same on 
 
 - `wow.service`, the service's name, `spring.application.name` by default.
 - `wow.log.partitions`: a power of two that divides 4,096 (64 by default), fixed once the log holds entries. Choose it before the first deployment.
-- `wow.internal.token`: the cluster tokens. Rotate a token by adding the new one second, then moving it first on every node, then removing the old one.
 - The stores and the placement of each aggregate type: `wow.backend`, `wow.stores`, `wow.log.store`, `wow.snapshot.*`, `wow.aggregates.*.log`.
 
 ## Development and production

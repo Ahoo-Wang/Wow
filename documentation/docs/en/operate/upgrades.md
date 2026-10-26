@@ -42,7 +42,7 @@ A partition moves to a new node with its checkpoints, and the new node's subscri
 
 ## Settings that must not change
 
-`wow.log.partitions` is fixed once the log holds entries, and the nodes of one service share their store layout and cluster tokens ([Configure a Service](./configuration#what-must-match-across-nodes)). Rotate a cluster token in three rollouts: add the new token second, move it first, remove the old one.
+`wow.log.partitions` is fixed once the log holds entries, and the nodes of one service share their store layout ([Configure a Service](./configuration#what-must-match-across-nodes)).
 
 ## A major version
 

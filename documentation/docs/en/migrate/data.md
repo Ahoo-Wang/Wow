@@ -163,7 +163,7 @@ Through this dual run, start the V10 service's nodes on standby, with [`wow.stan
 2. Run the final pass. If `tail` followed 9.x until it stopped, run `import --final`: one tail pass from the tail's checkpoint, then the reserved keys and the compensation executions walked again, since the tail follows neither. It refuses, writing nothing, when an aggregate's tail did not run continuously. Otherwise, or after it refuses, run `import --restart`: a complete pass from the first instance, which takes as long as the whole history.
 3. Run `compare` and review the result (step 5).
 4. Run `snapshot` and `backfill-tags` (steps 6 and 7).
-5. Resume every V10 node: `POST /wow/node/resume` on its internal port, with the cluster token and a JSON body naming who resumes it and why (`by`, `reason`). The node joins its lease groups, starts its subscriptions, retries and jobs, then admits commands; the resume ends the write stop. `GET /wow/node/standby` answers a node's status. A node left on standby keeps refusing commands and takes no partition.
+5. Resume every V10 node: `POST /wow/node/resume` on its internal port, with `Wow-Service: <the node's service>` and a JSON body naming who resumes it and why (`by`, `reason`). The node joins its lease groups, starts its subscriptions, retries and jobs, then admits commands; the resume ends the write stop. `GET /wow/node/standby` answers a node's status. A node left on standby keeps refusing commands and takes no partition.
 6. Switch traffic to V10, and move every external consumer of 9.x topics to the V10 published streams.
 
 ## Roll back

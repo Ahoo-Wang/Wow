@@ -26,7 +26,6 @@ Each term has one meaning across these pages. The second column is the term the 
 | Chain | 等待链 | A wait plan of several hops, possibly across contexts, where only a saga hop can be followed by another hop. See [Waiting for outcomes](../concepts/waits#waiting-for-a-chain). |
 | Checkpoint | 检查点 | The position up to which a subscription has handled every entry of a partition. See [Subscriptions](../concepts/subscriptions#how-subscriptions-read-the-log). |
 | Cluster channel | 集群通道 | The internal channel between the nodes of one service, which forwards commands to the owners of their partitions. See [Writing](../concepts/write-path#the-cluster-channel). |
-| Cluster token | 集群令牌 | The secret the nodes of one service present to each other on their internal ports. See [Identity](../concepts/identity#the-internal-port). |
 | Command | 命令 | A request to change one aggregate, carrying business data only; its identity comes from admission. |
 | Command function | 命令函数 | The decide function of an aggregate for one command type. |
 | Command topic | 命令主题 | The Kafka topic `wow.<context>.commands` through which commands reach a context asynchronously. See [Between contexts](../concepts/cross-context#commands-to-another-context). |
@@ -40,6 +39,7 @@ Each term has one meaning across these pages. The second column is the term the 
 | Decide scope | 决定作用域 | The context of one decision, through which decide reserves keys, registers compensations, schedules commands and returns extra results. See [Deciding and evolving](../concepts/programming-model#what-decide-can-reach). |
 | Decider DSL | Decider DSL | The Kotlin way of writing an aggregate model as code instead of annotations; it compiles to the same model. |
 | Decision | 决定结果 | The value decide returns: events, no change, or a rejection. |
+| Declared service | 声明的服务 | The service a request to the internal port names in its `Wow-Service` header, the caller's `wow.service`. A statement, not a credential: the network is the boundary. See [Identity](../concepts/identity#the-internal-port). |
 | Derived command | 派生命令 | A command a saga sends while handling a commit; its request id is derived from that commit, so it commits once. |
 | Duplicate | 重复请求 | A request whose request id has already committed; it is answered with the first result and not decided again. See [Writing](../concepts/write-path#duplicates-are-found-before-deciding). |
 | Error code | 错误码 | The stable name of a rejection or failure, `wow.*` for the framework's, declared in the Manifest with its HTTP status. |
@@ -80,7 +80,7 @@ Each term has one meaning across these pages. The second column is the term the 
 | Revision | 修订号 | The version of an event's structure; an upgrade function moves an old revision to the next. |
 | Saga | Saga | A processor that turns commits into commands, in its own context or others. |
 | Scope | 作用域 | The owner and space of an aggregate, or the owner and space a caller acts in. See [Identity](../concepts/identity#who-an-aggregate-belongs-to). |
-| Service identity | 服务身份 | The credential with which one service of the system calls another's internal port. |
+| Service identity | 服务身份 | The identity a synchronous call or a read on the internal port has: the service it declares, subject `service:<name>`. |
 | Sink | Sink | A subscription that copies commits out of the service, to Kafka, ClickHouse or Elasticsearch. See [Subscriptions](../concepts/subscriptions#sinks). |
 | Slot | 槽位 | One of 4,096 fixed buckets an aggregate hashes to; a slot maps to a partition. See [The log is the bus](../concepts/event-log#partitions). |
 | Snapshot | 快照 | The latest committed state of an aggregate with its metadata; the default read model. See [Read models](../concepts/read-models). |

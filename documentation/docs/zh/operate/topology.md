@@ -49,7 +49,7 @@ flowchart LR
 | 公开（`server.port`） | HTTP API：命令、查询、状态读取、Manifest、OpenAPI；Actuator 的健康端点 | 客户端、网关、Ingress |
 | 内部（`wow.internal.port`，默认 9090） | 服务自己的节点之间的集群通道；来自任何服务的等待信号；来自其他服务的同步调用和读 | 只有系统里的节点 |
 
-内部端口是不带 TLS 的 HTTP/2（h2c）。绝不能让集群外部访问到它：不能有公网负载均衡、Ingress 或端口映射指向它。发往它的每个请求都要认证，用服务的集群令牌或另一个服务的身份（[保护部署](./security)）。
+内部端口是不带 TLS 的 HTTP/2（h2c）。绝不能让平台外部访问到它：不能有公网负载均衡、Ingress 或端口映射指向它，并用网络策略只让平台自己的 Pod 访问它。它不用令牌：发往它的每个请求都在 `Wow-Service` 请求头里声明自己来自哪个服务，网络是它的边界（[保护部署](./security#close-the-internal-port)）。
 
 每个节点公布其他节点访问它内部端口所用的地址：
 
@@ -188,14 +188,14 @@ livenessProbe:
 - 它们以 `wow.node.standby`（503）拒绝每条命令，所以切换之前没有任何东西写入 V10。
 - 它们不加入任何租约组：没有订阅处理任何东西，没有停放条目被重试，也没有任务或定时运行。从流末尾开始的 Saga 或反应器，在恢复时从流的末尾开始，所以永远不会对导入的 9.x 历史采取行动。
 
-切换时，在 9.x 停止、并且最后一次遍历、`compare`、`snapshot` 和 `backfill-tags` 都已运行之后，在每个节点的内部端口上带集群令牌恢复它。请求体写明由谁恢复、为什么恢复，供审计：
+切换时，在 9.x 停止、并且最后一次遍历、`compare`、`snapshot` 和 `backfill-tags` 都已运行之后，在每个节点的内部端口上恢复它，并在 `Wow-Service` 里写明节点的服务。请求体写明由谁恢复、为什么恢复，供审计：
 
 ```bash
 curl -X POST "http://<node>:9090/wow/node/resume" \
-  -H "Wow-Cluster-Token: $WOW_INTERNAL_TOKEN" -H "Content-Type: application/json" \
+  -H "Wow-Service: <节点的服务>" -H "Content-Type: application/json" \
   -d '{"by": "<operator>", "reason": "cut-over <ticket>"}'
 ```
 
 节点加入它的租约组，启动订阅、停放条目的重试、任务和快照维护，然后开始接收命令。它返回自己的待机状态：`standby: false`、`resumedAt`、`resumedBy` 和 `reason`，并以 `WARN` 级别记录同样的内容。
 
-`GET /wow/node/standby`（带集群令牌）随时返回这个状态。恢复一个不在待机的节点不会改变任何东西，只返回它是何时被恢复的。要恢复服务的每个节点：仍处于待机的节点会继续拒绝命令，也不接管任何分区。
+`GET /wow/node/standby`（带同样的请求头）随时返回这个状态。恢复一个不在待机的节点不会改变任何东西，只返回它是何时被恢复的。这两条路由只接受节点自己的服务：没有这个请求头时返回 401，来自另一个服务时返回 403。要恢复服务的每个节点：仍处于待机的节点会继续拒绝命令，也不接管任何分区。

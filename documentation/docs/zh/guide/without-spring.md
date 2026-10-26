@@ -18,7 +18,7 @@ Wow 的运行时不依赖 Spring：内核、运行时和后端都是纯 Kotlin�
 ```kotlin
 val client = WowClient.builder()
     .endpoints(EndpointResolver.of(emptyMap(), mapOf("ordering" to URI.create("http://ordering:9090"))))
-    .service(ServiceCredential.bearer(token))
+    .service("basket-service")
     .build()
 client.commands.of(caller).wait(SubmitOrder(items), OrderingContract.Order.ref(tenant, orderId))
 ```

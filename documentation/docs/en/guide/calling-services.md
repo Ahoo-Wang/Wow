@@ -60,26 +60,24 @@ A peer listed under `wow.clients.contexts.<context>` is reached over HTTP, in on
 
 | Mode | Reaches | As |
 | --- | --- | --- |
-| `service`, the default | The peer's internal port, at `internal-url` | This service, with its service credential, acting for the caller it sends as |
+| `service`, the default | The peer's internal port, at `internal-url` | This service, naming itself, acting for the caller it sends as |
 | `user` | The peer's public routes, at `url` | The end user, forwarding the headers of the request being served (`wow.clients.forwarded-headers`, `Authorization` by default) |
 
-In service mode the client presents the service token, `wow.calls.token`, which the peer lists for this service under its `wow.http.services`; the peer then trusts the caller this service names. `internal-url` defaults to the URL the sagas' synchronous calls use, `wow.calls.contexts.<context>.url`. The basket service reaches the ordering's internal port this way:
+In service mode the client names this service, its `wow.service`, in the `Wow-Service` header. The internal port is reachable from the platform's own pods alone, so the peer takes the caller this service names; the commands and models the peer lists for this service under its `wow.http.services`, if any, limit what it may call and read. `internal-url` defaults to the URL the sagas' synchronous calls use, `wow.calls.contexts.<context>.url`. The basket service reaches the ordering's internal port this way:
 
 <!-- sample: example/eshop/basket/basket-server/src/main/resources/application.yaml#calls -->
 
 ```yaml
 # The checkout saga submits the order to the ordering service synchronously (decision D193), through its command
-# gateway on its internal port (wow.internal.port there; its public port refuses a call), with this service's
-# credential, which the ordering service trusts (wow.http.services.eshop-basket-service.tokens there). The token below is for trying the shop out on one machine:
-# a deployment sets ESHOP_BASKET_SERVICE_TOKEN, a secret of at least 32 characters, and rotates it there and here.
+# gateway on its internal port (wow.internal.port there; its public port refuses a call), naming this service
+# (Wow-Service, decision D300), which the ordering service lists the commands of (wow.http.services there).
 calls:
   contexts:
     eshop-ordering:
       url: http://127.0.0.1:9093
-  token: ${ESHOP_BASKET_SERVICE_TOKEN:eshop-basket-local-service-token-not-a-secret}
 ```
 
-`wow.clients.timeout` bounds each request (30 seconds by default, longer for a command whose wait is longer), and `wow.clients.retry.*` retries what a retry may get past. [Secure a Deployment](../operate/security#close-the-internal-port) explains the service identities a peer accepts.
+`wow.clients.timeout` bounds each request (30 seconds by default, longer for a command whose wait is longer), and `wow.clients.retry.*` retries what a retry may get past. [Secure a Deployment](../operate/security#close-the-internal-port) explains what a peer accepts from a service that names itself.
 
 ## Call a command by name
 
@@ -87,7 +85,7 @@ A console, a gateway or a tool may call a peer without its api jar. It lists the
 
 ## Outside a Wow host
 
-An application that is not a Wow service builds the clients itself with `WowClient.builder()`: where each context's service is (`endpoints`), the mode and credential (`service` or `user`), and timeouts. `client.commands` is the same `CommandClient`, and the peers' contracts come from the api jars on the class path.
+An application that is not a Wow service builds the clients itself with `WowClient.builder()`: where each context's service is (`endpoints`), the mode (`service` with the name of the service it calls as, or `user` with the end user's credential), and timeouts. `client.commands` is the same `CommandClient`, and the peers' contracts come from the api jars on the class path.
 
 ## From Java
 

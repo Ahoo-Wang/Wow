@@ -15,7 +15,7 @@ outline: deep
 | 日志说 | 原因 | 处置 |
 | --- | --- | --- |
 | 没有持久后端 | 没有 `DataSource` 或 `MongoClient` Bean，又不在开发 profile 中，且内部端口不只绑定在回环网卡上 | 给应用提供它的存储，或者有意设置 `wow.backend: memory` |
-| 没有集群令牌 | 不在开发 profile 中，却缺少 `wow.internal.token` | 把 `WOW_INTERNAL_TOKEN` 设为一个至少 32 个字符的密钥，每个节点相同 |
+| 服务名不是节点能在内部端口上声明的名字 | `wow.service`（没有时为 `spring.application.name`）含有字母、数字、`.`、`_` 和 `-` 之外的字符，或者超过 253 个字符 | 重命名服务，每个节点以及对端的 `wow.http.services` 里都一致 |
 | 未知的安全配置键 | `wow.cosec.`、`wow.http.services.`、`wow.calls.` 或 `wow.internal.` 下有拼错的键 | 修正这个键（[配置服务](./configuration#keys-are-checked)） |
 | 节点不提供的订阅、聚合或上下文 | `wow.subscriptions`、`wow.aggregates` 或 `wow.contexts` 下有一个什么都不匹配的名字 | 修正名字，或删除这一项 |
 | 没有命令传输 | 某个 Saga 向另一个上下文发命令，而节点既没有 Kafka 也没有内存主题 | 设置 `wow.kafka.bootstrap-servers` |
