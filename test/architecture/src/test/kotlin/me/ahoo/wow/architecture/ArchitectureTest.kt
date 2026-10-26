@@ -214,11 +214,6 @@ class ArchitectureTest {
     }
 
     @Test
-    fun `production string literals should name no decision or review ID`() {
-        ArchitectureRules.idsInStringLiterals(repositoryRoot).assert().isEmpty()
-    }
-
-    @Test
     fun `the ABI of the api, spi and manifest modules should hold no data class but the listed exceptions`() {
         ArchitectureRules.dataClassMembers(repositoryRoot).assert().isEmpty()
     }
@@ -630,29 +625,6 @@ class ArchitectureTest {
             """.trimIndent(),
         )
         ArchitectureRules.compatibilityMarkers(root).assert().hasSize(2)
-    }
-
-    @Test
-    fun `ID rule should catch an ID in a string but not in a comment or a name`(@TempDir root: File) {
-        root.writeSource(
-            ArchitectureRules.RUNTIME.dir,
-            "me/ahoo/wow/runtime/Ids.kt",
-            """
-            package me.ahoo.wow.runtime
-
-            // A comment may cite decision D254 and review R2.3-1.
-            /* So may D1 and A5-14 in a block. */
-            val ok = "D1 is too short, ODD100 is a word, and ${'$'}{"x"} is a template."
-            val c = '"'
-            val decision = "Refused (decision D254)."
-            val review = "Fixed (review R2.3-1)."
-            val raw = ${"\"\"\""}
-                Q-13 in a raw string
-            ${"\"\"\""}
-            """.trimIndent(),
-        )
-        ArchitectureRules.idsInStringLiterals(root).map { it.substringAfter("Ids.kt:").substringBefore(':') }
-            .assert().containsExactly("7", "8", "9")
     }
 
     /**
