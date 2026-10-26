@@ -11,32 +11,38 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.cosec
+package me.ahoo.wow.spring.boot
 
 import me.ahoo.cosec.context.request.RequestParser
 import me.ahoo.cosec.token.TokenVerifier
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.cosec.CoSecCallerOptions
+import me.ahoo.wow.cosec.CoSecCallerResolver
+import me.ahoo.wow.cosec.CoSecCommandAuthorizer
+import me.ahoo.wow.cosec.CoSecInternalCallerResolver
+import me.ahoo.wow.cosec.CoSecRequestFacts
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.caller.InternalCallerResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import org.springframework.beans.factory.config.BeanPostProcessor
+import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
+import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Condition
 import org.springframework.context.annotation.ConditionContext
 import org.springframework.context.annotation.Conditional
-import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
 import org.springframework.core.type.AnnotatedTypeMetadata
 import org.springframework.web.server.ServerWebExchange
 import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
 
 /**
- * Wires CoSec into the Wow host when CoSec is on the classpath. The host lists it in
- * `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`; its ordering (before the host's
- * `WowAutoConfiguration`) and its classpath condition are in `META-INF/spring-autoconfigure-metadata.properties`, so
- * that this module imports no Spring Boot type (only the host does).
+ * Wires CoSec into the host when the application has wow-cosec and CoSec's WebFlux module (review R5.C-12): the host
+ * wires its optional integrations as it wires Kafka, and wow-cosec keeps the Spring-free part, the resolvers and the
+ * authorizer. It reads `wow.cosec.*` once, through [WowProperties.cosec], the keys' one reader and one default.
  *
  * - [CoSecCallerResolver] is the host's [CallerResolver] unless the application has one: the host's anonymous
  *   default steps aside. Its options are `wow.tenant.default`, `wow.cosec.cross-scope.roles` /
@@ -59,12 +65,14 @@ import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
  *   whatever `wow.cosec.authorizer.enabled` says (decision D226, review A3-2): the internal port runs no WebFilter, so
  *   a call is authorized as its service principal by CoSec's policies, never by the host's default that allows all.
  */
-@Configuration(proxyBeanMethods = false)
+@AutoConfiguration(before = [WowAutoConfiguration::class])
+@ConditionalOnClass(name = [COSEC_MODULE, COSEC_WEBFLUX])
+@EnableConfigurationProperties(WowProperties::class)
 class CoSecAutoConfiguration {
     @Bean
     @Conditional(NoCallerResolver::class)
-    fun wowCoSecCallerResolver(environment: Environment): CoSecCallerResolver =
-        CoSecCallerResolver(callerOptions(environment))
+    fun wowCoSecCallerResolver(properties: WowProperties, environment: Environment): CoSecCallerResolver =
+        CoSecCallerResolver(callerOptions(properties, environment))
 
     /**
      * The callers of the internal port's call routes (decision D193): CoSec's service principals, from their tokens
@@ -77,27 +85,31 @@ class CoSecAutoConfiguration {
     fun wowCoSecInternalCallerResolver(
         requests: RequestParser<ServerWebExchange>,
         tokens: TokenVerifier,
+        properties: WowProperties,
         environment: Environment,
     ): CoSecInternalCallerResolver =
         CoSecInternalCallerResolver(
             requests,
             tokens,
             // A service's call is never an injected request: it has the application its Wow-Call carries (D236).
-            CoSecCallerResolver(callerOptions(environment, injectedApps = false)),
+            CoSecCallerResolver(callerOptions(properties, environment, injectedApps = false)),
         )
 
     /** The authorizer of the services' calls (decision D226): CoSec's policies, as the service principal. */
     @Bean
     @Conditional(CallAuthorizerAvailable::class)
-    fun wowCoSecCallAuthorizer(authorization: CoSecAuthorization, environment: Environment): CallAuthorizer {
-        val authorizer = CoSecCommandAuthorizer(authorization, defaultTenant(environment))
+    fun wowCoSecCallAuthorizer(authorization: CoSecAuthorization, properties: WowProperties): CallAuthorizer {
+        val authorizer = CoSecCommandAuthorizer(authorization, defaultTenant(properties))
         return CallAuthorizer(authorizer::authorize)
     }
 
     @Bean
     @Conditional(AuthorizerEnabled::class)
-    fun wowCoSecCommandAuthorizer(authorization: CoSecAuthorization, environment: Environment): CoSecCommandAuthorizer =
-        CoSecCommandAuthorizer(authorization, defaultTenant(environment))
+    fun wowCoSecCommandAuthorizer(
+        authorization: CoSecAuthorization,
+        properties: WowProperties
+    ): CoSecCommandAuthorizer =
+        CoSecCommandAuthorizer(authorization, defaultTenant(properties))
 
     /** No [CallerResolver] is defined yet: the application's own one wins over CoSec's. */
     internal class NoCallerResolver : Condition {
@@ -127,33 +139,29 @@ class CoSecAutoConfiguration {
         }
     }
 
-    /** `wow.cosec.authorizer.enabled` is true, the application has CoSec's `Authorization` and no authorizer. */
+    /**
+     * `wow.cosec.authorizer.enabled` is true, the application has CoSec's `Authorization` and no authorizer. A
+     * condition reads the environment before the properties are bound, with the bound properties' default (false).
+     */
     internal class AuthorizerEnabled : Condition {
         override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean {
             val beans = context.beanFactory ?: return false
-            return context.environment.getProperty(AUTHORIZER_ENABLED, Boolean::class.java, false) &&
+            val enabled = WowProperties.CoSec.Authorizer().enabled
+            return context.environment.getProperty(AUTHORIZER_ENABLED, Boolean::class.java, enabled) &&
                 beans.getBeanNamesForType(CoSecAuthorization::class.java, true, false).isNotEmpty() &&
                 beans.getBeanNamesForType(CommandAuthorizer::class.java, true, false).isEmpty()
         }
     }
 
     companion object {
-        const val PREFIX: String = "wow.cosec"
-        const val CROSS_SCOPE_ROLES: String = "$PREFIX.cross-scope.roles"
-        const val CROSS_SCOPE_POLICIES: String = "$PREFIX.cross-scope.policies"
-        const val TENANT_ROLES: String = "$PREFIX.tenant-level.roles"
-        const val TENANT_POLICIES: String = "$PREFIX.tenant-level.policies"
-        const val SERVICE_ROLES: String = "$PREFIX.service.roles"
-        const val SERVICE_POLICIES: String = "$PREFIX.service.policies"
-        const val AUTHORIZER_ENABLED: String = "$PREFIX.authorizer.enabled"
-        const val TRUST_INJECTED_APP: String = "$PREFIX.trust-injected-app"
+        const val AUTHORIZER_ENABLED: String = "wow.cosec.authorizer.enabled"
+        const val TRUST_INJECTED_APP: String = "wow.cosec.trust-injected-app"
 
         /** CoSec's inject mode (`ReactiveInjectSecurityContextWebFilter`), off by default. */
         const val COSEC_INJECT_ENABLED: String = "cosec.inject.enabled"
 
         /** CoSec's own authorization filter, on by default. */
         const val COSEC_AUTHORIZATION_ENABLED: String = "cosec.authorization.enabled"
-        const val DEFAULT_TENANT: String = "wow.tenant.default"
 
         /** Adds the CoSec request facts to the edge's options, whoever defines them. */
         @Bean
@@ -163,47 +171,53 @@ class CoSecAutoConfiguration {
                 if (bean is WowHttpOptions) CoSecRequestFacts.addTo(bean) else bean
         }
 
-        internal fun callerOptions(environment: Environment, injectedApps: Boolean = true) = CoSecCallerOptions(
-            defaultTenant = defaultTenant(environment),
-            crossScopeRoles = environment.list(CROSS_SCOPE_ROLES),
-            crossScopePolicies = environment.list(CROSS_SCOPE_POLICIES),
-            tenantRoles = environment.list(TENANT_ROLES),
-            tenantPolicies = environment.list(TENANT_POLICIES),
-            serviceRoles = environment.list(SERVICE_ROLES),
-            servicePolicies = environment.list(SERVICE_POLICIES),
-            trustInjectedApp = injectedApps && trustInjectedApp(environment),
-        )
+        /** The caller options of [properties] (`wow.cosec.*`, `wow.tenant.default`). */
+        internal fun callerOptions(properties: WowProperties, environment: Environment, injectedApps: Boolean = true) =
+            with(properties.cosec) {
+                CoSecCallerOptions(
+                    defaultTenant = defaultTenant(properties),
+                    crossScopeRoles = crossScope.roles.names(),
+                    crossScopePolicies = crossScope.policies.names(),
+                    tenantRoles = tenantLevel.roles.names(),
+                    tenantPolicies = tenantLevel.policies.names(),
+                    serviceRoles = service.roles.names(),
+                    servicePolicies = service.policies.names(),
+                    trustInjectedApp = injectedApps && trustInjectedApp(properties, environment),
+                )
+            }
 
         /**
          * Whether the host trusts the application of a request CoSec's inject mode injected (decision D236 ②,
-         * [TRUST_INJECTED_APP], off by default). It applies to that mode alone, [COSEC_INJECT_ENABLED] with CoSec's own
-         * authorization off ([COSEC_AUTHORIZATION_ENABLED]): a service that authorizes its requests itself records the
-         * application CoSec authorized them in, never the header a client sent. Turned on in any other mode, it fails
-         * the startup rather than be ignored.
+         * [TRUST_INJECTED_APP], off by default). It applies to that mode alone, CoSec's [COSEC_INJECT_ENABLED] with its
+         * own authorization off ([COSEC_AUTHORIZATION_ENABLED]): a service that authorizes its requests itself records
+         * the application CoSec authorized them in, never the header a client sent. Turned on in any other mode, it
+         * fails the startup rather than be ignored.
          */
-        internal fun trustInjectedApp(environment: Environment): Boolean {
-            if (!environment.getProperty(TRUST_INJECTED_APP, Boolean::class.java, false)) {
+        internal fun trustInjectedApp(properties: WowProperties, environment: Environment): Boolean {
+            if (!properties.cosec.trustInjectedApp) {
                 return false
             }
             val injectMode = environment.getProperty(COSEC_INJECT_ENABLED, Boolean::class.java, false) &&
                 !environment.getProperty(COSEC_AUTHORIZATION_ENABLED, Boolean::class.java, true)
-            check(injectMode) {
+            configCheck(injectMode, TRUST_INJECTED_APP, true, "Turn it off, or run behind a CoSec gateway.") {
                 "$TRUST_INJECTED_APP applies to CoSec's inject mode alone, behind a CoSec gateway " +
                     "($COSEC_INJECT_ENABLED=true, $COSEC_AUTHORIZATION_ENABLED=false)."
             }
             return true
         }
 
-        private fun defaultTenant(environment: Environment): String =
-            environment.getProperty(DEFAULT_TENANT)?.takeIf { it.isNotBlank() } ?: Caller.DEFAULT_TENANT
+        /** `wow.tenant.default`, the default tenant when it is blank. */
+        private fun defaultTenant(properties: WowProperties): String =
+            properties.tenant.default.takeIf { it.isNotBlank() } ?: Caller.DEFAULT_TENANT
 
-        /** A list property, as `key=a,b` or as `key[0]=a`, `key[1]=b` (a YAML list). */
-        internal fun Environment.list(key: String): Set<String> {
-            val indexed = generateSequence(0) { it + 1 }.map { getProperty("$key[$it]") }.takeWhile { it != null }
-            return (indexed.filterNotNull() + getProperty(key)?.split(',').orEmpty())
-                .map(String::trim)
-                .filter(String::isNotEmpty)
-                .toCollection(LinkedHashSet())
-        }
+        /** The names of a list property, trimmed, blanks dropped (`key=a,b,` or `key[0]=a`). */
+        private fun Set<String>.names(): Set<String> =
+            map(String::trim).filter(String::isNotEmpty).toCollection(LinkedHashSet())
     }
 }
+
+/** A class of wow-cosec, present only when the application has the module. */
+internal const val COSEC_MODULE = "me.ahoo.wow.cosec.CoSecCallerResolver"
+
+/** A class of CoSec's WebFlux module, which wow-cosec reads the resolved security context from. */
+internal const val COSEC_WEBFLUX = "me.ahoo.cosec.webflux.ServerWebExchanges"

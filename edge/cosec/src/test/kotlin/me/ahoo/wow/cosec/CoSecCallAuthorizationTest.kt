@@ -26,10 +26,6 @@ import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import org.junit.jupiter.api.Test
-import org.springframework.boot.autoconfigure.AutoConfigurations
-import org.springframework.boot.test.context.runner.ApplicationContextRunner
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
 import org.springframework.test.web.reactive.server.WebTestClient
 import reactor.core.publisher.Mono
 import java.util.concurrent.CopyOnWriteArrayList
@@ -49,10 +45,10 @@ class CoSecCallAuthorizationTest {
         Mono.just(if (allowed) AuthorizeResult.ALLOW else AuthorizeResult.deny("Not this service's."))
     }
 
-    private val calls = CoSecAutoConfiguration().wowCoSecCallAuthorizer(
+    private val calls = CoSecCommandAuthorizer(
         authorization,
-        org.springframework.mock.env.MockEnvironment()
-    )
+        Caller.DEFAULT_TENANT
+    ).let { CallAuthorizer(it::authorize) }
     private val node = CoSecNode(
         callers = CoSecCallerResolver(CoSecCallerOptions()),
         authorizer = calls.over(CommandAuthorizer.ALLOW_ALL),
@@ -96,38 +92,7 @@ class CoSecCallAuthorizationTest {
         asked.assert().isEmpty()
     }
 
-    @Configuration(proxyBeanMethods = false)
-    class CoSec {
-        @Bean
-        fun authorization(): CoSecAuthorization = CoSecAuthorization { _, _ -> Mono.just(AuthorizeResult.ALLOW) }
-    }
-
-    @Configuration(proxyBeanMethods = false)
-    class OwnCallAuthorizer {
-        @Bean
-        fun callAuthorizer(): CallAuthorizer = OWN
-    }
-
-    @Test
-    fun `the CoSec call authorizer should be there with CoSec's authorization, whatever the authorizer flag`() {
-        val runner = ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(CoSecAutoConfiguration::class.java))
-        runner.run { context -> context.getBeansOfType(CallAuthorizer::class.java).assert().isEmpty() }
-        runner.withUserConfiguration(CoSec::class.java).run { context ->
-            context.getBeansOfType(CallAuthorizer::class.java).assert().hasSize(1)
-            // The host's own authorizer stays opt-in.
-            context.getBeansOfType(CommandAuthorizer::class.java).assert().isEmpty()
-        }
-        runner.withUserConfiguration(CoSec::class.java)
-            .withPropertyValues("wow.cosec.authorizer.enabled=false")
-            .run { context -> context.getBeansOfType(CallAuthorizer::class.java).assert().hasSize(1) }
-        runner.withUserConfiguration(CoSec::class.java, OwnCallAuthorizer::class.java).run { context ->
-            context.getBean(CallAuthorizer::class.java).assert().isSameAs(OWN)
-        }
-    }
-
     private companion object {
         val ROOT = Causation("root-1", "basket/t-1/b-1@1")
-        val OWN = CallAuthorizer { _, _ -> me.ahoo.wow.runtime.admission.Authorization.Allowed }
     }
 }
