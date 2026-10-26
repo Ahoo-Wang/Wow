@@ -101,8 +101,8 @@ class MixedStoresTest {
         mongoCount("wow_log__treasury__vault").assert().isZero()
         pgCount("SELECT count(*) FROM wow_snapshot__treasury__vault").assert().isEqualTo(1)
         mongoCount("wow_snapshot__treasury__ledger").assert().isEqualTo(1)
-        pgCount("SELECT count(*) FROM wow_timer__treasury WHERE status = 'FIRED'").assert().isEqualTo(1)
-        mongoCount("wow_timer__treasury", Filters.eq("status", "FIRED")).assert().isEqualTo(1)
+        pgCount("SELECT count(*) FROM wow_timer__treasury__vault WHERE status = 'FIRED'").assert().isEqualTo(1)
+        mongoCount("wow_timer__treasury__ledger", Filters.eq("status", "FIRED")).assert().isEqualTo(1)
         // Each group's partition sequence starts on its own: the first entry of each log is at 1.
         val ledgerPartition = Partitioner.partitionOf(LEDGER.ref(Caller.DEFAULT_TENANT, "l-1"), PARTITIONS)
         mongoCount("wow_log__treasury__ledger", Filters.and(Filters.eq("partition", ledgerPartition), Filters.eq("sequence", 1L)))

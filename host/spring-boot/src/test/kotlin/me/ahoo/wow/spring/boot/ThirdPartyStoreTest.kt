@@ -77,7 +77,7 @@ class AcmeStore(config: StoreConfig) : Store(config) {
 
     override fun openSnapshots(context: String): SnapshotStore = QueriedSnapshotStore(InMemorySnapshotStore(), queries)
 
-    override fun openTimers(context: String): TimerStore = InMemoryTimerStore()
+    override fun openTimers(context: String, partitions: Int): TimerStore = InMemoryTimerStore()
 }
 
 /** The queries of the `acme` stores, counting the bindings it gives. */

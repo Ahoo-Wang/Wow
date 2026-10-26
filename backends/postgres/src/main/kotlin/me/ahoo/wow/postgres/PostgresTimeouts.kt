@@ -14,7 +14,10 @@
 package me.ahoo.wow.postgres
 
 import me.ahoo.wow.api.annotation.InternalWowApi
+import java.sql.CallableStatement
 import java.sql.Connection
+import java.sql.PreparedStatement
+import java.sql.Statement
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executor
 import javax.sql.DataSource
@@ -30,6 +33,13 @@ import kotlin.time.Duration.Companion.seconds
  * as an index built over a large table may take minutes. A call that times out loses its connection (pgjdbc closes
  * it, the pool replaces it) and fails as an I/O error: a transient failure, a write's outcome unknown. The queries
  * keep their own budget (`statement_timeout`, decision D150) on the connections of their own data source.
+ *
+ * The server learns the same bound (finding F10), so a statement its client gave up on stops instead of waiting on in
+ * a lock queue, where every later reader of its table would queue behind it: each statement a store creates carries a
+ * query timeout ([serverMillis], a margin under the client's), whose expiry makes pgjdbc ask the server to cancel it;
+ * each transaction a store opens bounds itself with `SET LOCAL` ([boundTransaction]), including how long it may sit
+ * idle, so a crashed node's open transaction is ended by the server. `SET LOCAL` ends with the transaction and a query
+ * timeout with its statement: nothing stays on a connection the application's own pool lends again.
  */
 @InternalWowApi
 object PostgresTimeouts {
@@ -62,6 +72,35 @@ object PostgresTimeouts {
 
     /** pgjdbc applies a network timeout to its socket; the executor, for drivers that abort with one, runs inline. */
     internal val DIRECT = Executor { it.run() }
+
+    /** How much earlier than its client the server gives up a statement, so that it cancels it first. */
+    private const val MARGIN_MILLIS: Int = 1_000
+
+    /**
+     * The server's bound of a statement on a connection whose client waits [networkMillis]: [MARGIN_MILLIS] less, at
+     * least a second; 0 (none) on a connection without a network timeout.
+     */
+    fun serverMillis(networkMillis: Int): Int =
+        if (networkMillis <= 0) 0 else maxOf(networkMillis - MARGIN_MILLIS, MARGIN_MILLIS)
+
+    /**
+     * Bounds the transaction [connection] has just opened by its network timeout (finding F10): its statements and its
+     * lock waits by [serverMillis], its idle time, between two statements, by twice the network timeout. One round
+     * trip, before the transaction's first statement; nothing on a connection without a network timeout.
+     */
+    fun boundTransaction(connection: Connection) {
+        val network = connection.networkTimeout
+        val server = serverMillis(network)
+        if (server == 0) {
+            return
+        }
+        connection.createStatement().use {
+            it.execute(
+                "SET LOCAL statement_timeout = $server; SET LOCAL lock_timeout = $server; " +
+                    "SET LOCAL idle_in_transaction_session_timeout = ${2L * network}",
+            )
+        }
+    }
 }
 
 /**
@@ -78,11 +117,65 @@ private class TimedDataSource(private val delegate: DataSource, timeout: Duratio
     override fun getConnection(username: String?, password: String?): Connection =
         delegate.getConnection(username, password).bounded()
 
-    /** Bounded by [millis], unless the pool's driver already bounds it tighter (its own `socketTimeout`). */
-    private fun Connection.bounded(): Connection = also {
-        val current = it.networkTimeout
-        if (current == 0 || current > millis) it.setNetworkTimeout(PostgresTimeouts.DIRECT, millis)
+    /**
+     * Bounded by [millis], unless the pool's driver already bounds it tighter (its own `socketTimeout`); its statements
+     * carry a query timeout under it ([BoundedConnection]).
+     */
+    private fun Connection.bounded(): Connection {
+        val current = networkTimeout
+        if (current == 0 || current > millis) setNetworkTimeout(PostgresTimeouts.DIRECT, millis)
+        return BoundedConnection(this)
     }
+
+    override fun <T : Any?> unwrap(iface: Class<T>): T =
+        if (iface.isInstance(this)) iface.cast(this) else delegate.unwrap(iface)
+
+    override fun isWrapperFor(iface: Class<*>): Boolean = iface.isInstance(this) || delegate.isWrapperFor(iface)
+}
+
+/**
+ * A lent connection whose statements carry a query timeout of [PostgresTimeouts.serverMillis] under its network
+ * timeout at the time each is created (the schema's is longer, [PostgresTimeouts.ddl]): on its expiry pgjdbc asks the
+ * server to cancel the statement (finding F10), which an autocommitted statement has no `SET LOCAL` to bound.
+ */
+private class BoundedConnection(private val delegate: Connection) : Connection by delegate {
+    private fun <S : Statement> S.bounded(): S = also {
+        val seconds = (PostgresTimeouts.serverMillis(delegate.networkTimeout) + 999) / 1_000
+        if (seconds > 0) it.queryTimeout = seconds
+    }
+
+    override fun createStatement(): Statement = delegate.createStatement().bounded()
+
+    override fun createStatement(resultSetType: Int, resultSetConcurrency: Int): Statement =
+        delegate.createStatement(resultSetType, resultSetConcurrency).bounded()
+
+    override fun createStatement(type: Int, concurrency: Int, holdability: Int): Statement =
+        delegate.createStatement(type, concurrency, holdability).bounded()
+
+    override fun prepareStatement(sql: String): PreparedStatement = delegate.prepareStatement(sql).bounded()
+
+    override fun prepareStatement(sql: String, autoGeneratedKeys: Int): PreparedStatement =
+        delegate.prepareStatement(sql, autoGeneratedKeys).bounded()
+
+    override fun prepareStatement(sql: String, columnIndexes: IntArray): PreparedStatement =
+        delegate.prepareStatement(sql, columnIndexes).bounded()
+
+    override fun prepareStatement(sql: String, columnNames: Array<out String>): PreparedStatement =
+        delegate.prepareStatement(sql, columnNames).bounded()
+
+    override fun prepareStatement(sql: String, type: Int, concurrency: Int): PreparedStatement =
+        delegate.prepareStatement(sql, type, concurrency).bounded()
+
+    override fun prepareStatement(sql: String, type: Int, concurrency: Int, holdability: Int): PreparedStatement =
+        delegate.prepareStatement(sql, type, concurrency, holdability).bounded()
+
+    override fun prepareCall(sql: String): CallableStatement = delegate.prepareCall(sql).bounded()
+
+    override fun prepareCall(sql: String, type: Int, concurrency: Int): CallableStatement =
+        delegate.prepareCall(sql, type, concurrency).bounded()
+
+    override fun prepareCall(sql: String, type: Int, concurrency: Int, holdability: Int): CallableStatement =
+        delegate.prepareCall(sql, type, concurrency, holdability).bounded()
 
     override fun <T : Any?> unwrap(iface: Class<T>): T =
         if (iface.isInstance(this)) iface.cast(this) else delegate.unwrap(iface)

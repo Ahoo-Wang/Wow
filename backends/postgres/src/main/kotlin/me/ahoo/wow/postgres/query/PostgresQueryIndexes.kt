@@ -16,6 +16,7 @@ package me.ahoo.wow.postgres.query
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.postgres.PostgresIdentifiers
+import me.ahoo.wow.postgres.PostgresSchema
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
 import me.ahoo.wow.query.index.QueryIndexDeclaration
@@ -140,12 +141,18 @@ object PostgresQueryIndexes {
                 invalid = invalid.map { it.name },
             )
         }
-        // CONCURRENTLY runs outside a transaction and does not block the snapshot writes while it builds.
-        connection.createStatement().use { statement ->
-            invalid.forEach { statement.execute("DROP INDEX CONCURRENTLY IF EXISTS \"${it.name}\"") }
-            (invalid + missing).forEach { index ->
-                log.info("Creating the query index {} on {}.", index.name, table)
-                statement.execute(index.ddl)
+        // CONCURRENTLY runs outside a transaction and does not block the snapshot writes while it builds. It still
+        // waits for the transactions on the table, at most the lock wait (finding F10), then tries again: an attempt
+        // that timed out leaves an invalid index, which the next one drops first.
+        (invalid + missing).forEach { index ->
+            log.info("Creating the query index {} on {}.", index.name, table)
+            PostgresSchema.retrying(connection, table, PostgresSchema.LockWait.DEFAULT) {
+                PostgresSchema.boundSessionLockWaits(connection, PostgresSchema.LockWait.DEFAULT) {
+                    connection.createStatement().use { statement ->
+                        statement.execute("DROP INDEX CONCURRENTLY IF EXISTS \"${index.name}\"")
+                        statement.execute(index.ddl)
+                    }
+                }
             }
         }
         PostgresQueryIndexReport(
