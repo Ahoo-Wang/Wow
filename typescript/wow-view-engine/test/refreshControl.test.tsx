@@ -117,10 +117,11 @@ const left = (seconds: number): string =>
           String(seconds),
         );
 
-/** The text on the key, which is the countdown while one is running. */
+/** The reading on the key, which is the countdown while one is running. */
 const reading = (container: HTMLElement): string | undefined =>
-  container.querySelector('[data-slot="refresh-cadence"]')?.textContent ??
-  undefined;
+  container
+    .querySelector('[data-slot="refresh-cadence"]')
+    ?.getAttribute('data-reading') ?? undefined;
 
 /**
  * A view whose timer is armed, counting on the same fake clock the ticker
@@ -517,7 +518,9 @@ describe('RefreshControl', () => {
     rerender(<RefreshControl refresh={refreshController({ interval: 300 })} />);
 
     expect(
-      container.querySelector('[data-slot="refresh-cadence"]')!.textContent,
+      container
+        .querySelector('[data-slot="refresh-cadence"]')!
+        .getAttribute('data-reading'),
     ).toBe(every(300));
     expect(
       describedText(screen.getByRole('button', { name: new RegExp(REFRESH) })),
@@ -658,7 +661,9 @@ describe('RefreshControl', () => {
     );
 
     expect(
-      container.querySelector('[data-slot="refresh-cadence"]')!.textContent,
+      container
+        .querySelector('[data-slot="refresh-cadence"]')!
+        .getAttribute('data-reading'),
     ).toBe(every(30));
 
     const menu = await openIntervals(user);
@@ -683,7 +688,9 @@ describe('RefreshControl', () => {
     );
 
     expect(
-      container.querySelector('[data-slot="refresh-cadence"]')!.textContent,
+      container
+        .querySelector('[data-slot="refresh-cadence"]')!
+        .getAttribute('data-reading'),
     ).toBe(every(30));
   });
 

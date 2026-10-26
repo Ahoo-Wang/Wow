@@ -773,12 +773,12 @@ describe('FilterValueEditor', () => {
     // Shown as the day it names, whatever zone the browser is in — and in
     // the surface's own wording for a date, the one the applied bar and the
     // cells beside it use, rather than the browser's `toLocaleDateString`.
-    expect(screen.getByLabelText('amount').textContent).toContain(
+    expect(screen.getByLabelText(/^amount: /).textContent).toContain(
       'Sep 16, 2026',
     );
 
     const user = userEvent.setup();
-    await user.click(screen.getByLabelText('amount'));
+    await user.click(screen.getByLabelText(/^amount: /));
     const day = await screen.findByRole('button', { name: /September 20/ });
     await user.click(day);
 
@@ -811,7 +811,7 @@ describe('FilterValueEditor', () => {
         />
       </ViewSurface>,
     );
-    await user.click(screen.getByLabelText('创建时间'));
+    await user.click(screen.getByLabelText(/^创建时间：/));
 
     // Everything that is a date comes from `Intl` in the surface's language,
     // so the expectations are built the same way rather than typed out: what
@@ -868,7 +868,7 @@ describe('FilterValueEditor', () => {
       type: 'absolute',
       from: '2026-09-16',
     } as unknown as FilterValue);
-    await user.click(screen.getByLabelText('amount'));
+    await user.click(screen.getByLabelText(/^amount: /));
     expect(
       await screen.findByRole('grid', { name: 'September 2026' }),
     ).toBeTruthy();
@@ -881,7 +881,7 @@ describe('FilterValueEditor', () => {
       from: '2026-03-30',
       to: '2026-04-02',
     } as unknown as FilterValue);
-    await user.click(screen.getByLabelText('amount'));
+    await user.click(screen.getByLabelText(/^amount: /));
     expect(
       await screen.findByRole('grid', { name: 'March 2026' }),
     ).toBeTruthy();
@@ -901,7 +901,7 @@ describe('FilterValueEditor', () => {
     } as unknown as FilterValue);
 
     const user = userEvent.setup();
-    await user.click(screen.getByLabelText('amount'));
+    await user.click(screen.getByLabelText(/^amount: /));
     const twentieth = await screen.findByRole('button', {
       name: /September 20/,
     });
@@ -924,7 +924,7 @@ describe('FilterValueEditor', () => {
     );
 
     const user = userEvent.setup();
-    await user.click(screen.getByLabelText('amount'));
+    await user.click(screen.getByLabelText(/^amount: /));
     await user.click(
       await screen.findByRole('button', { name: /September 20/ }),
     );
@@ -950,7 +950,7 @@ describe('FilterValueEditor', () => {
     } as unknown as FilterValue);
 
     const user = userEvent.setup();
-    await user.click(screen.getByLabelText('amount'));
+    await user.click(screen.getByLabelText(/^amount: /));
     await user.click(
       await screen.findByRole('button', { name: /September 20/ }),
     );
@@ -971,7 +971,7 @@ describe('FilterValueEditor', () => {
     pinClock();
     const day = editor({ input: 'dateRange', range: true, withTime: false });
 
-    const trigger = screen.getByLabelText('amount');
+    const trigger = screen.getByLabelText(/^amount: /);
     expect(trigger.textContent).toContain('Pick a date – Pick a date');
     expect(trigger.textContent).not.toMatch(/\d/);
     expect(day.changes).toEqual([]);
@@ -1012,7 +1012,7 @@ describe('FilterValueEditor', () => {
     expect(screen.getByLabelText('amount kind').textContent).toContain(
       'Specific dates',
     );
-    expect(screen.getByLabelText('amount').textContent).toContain(
+    expect(screen.getByLabelText(/^amount: /).textContent).toContain(
       'Pick a date',
     );
   });
@@ -1025,7 +1025,7 @@ describe('FilterValueEditor', () => {
     } as unknown as FilterValue);
 
     const user = userEvent.setup();
-    await user.click(screen.getByLabelText('amount'));
+    await user.click(screen.getByLabelText(/^amount: /));
     await user.click(
       await screen.findByRole('button', { name: /September 20/ }),
     );

@@ -137,21 +137,29 @@ export function AbsoluteDate({
   // the starting month only, so the user still pages freely; with nothing
   // picked the library opens on today.
   const opensOn = range ? (days.from ?? days.to) : day;
+  // What the trigger shows. A range of one day is that day: 「9月21日 –
+  // 9月21日」 said it twice, and read as a span.
+  const shown =
+    formatDate(value.from, withTime, blank, display) +
+    (range && !(value.from !== '' && value.to === value.from)
+      ? ` – ${formatDate(value.to, withTime, blank, display)}`
+      : '');
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         render={<Button variant="outline" size="sm" disabled={disabled} />}
-        aria-label={label}
+        // The field, then what the button shows: a name of the field alone
+        // left out the value a reader sees on it, and the name has to hold
+        // the visible text (WCAG 2.5.3) — 「创建时间：9月21日 – 9月28日」.
+        aria-label={messages.label('label.date.picked', {
+          field: label,
+          value: shown,
+        })}
         aria-invalid={invalid}
       >
         <CalendarIcon data-icon="inline-start" />
-        {formatDate(value.from, withTime, blank, display)}
-        {/* A range of one day is that day: 「9月21日 – 9月21日」 said it
-            twice, and read as a span. */}
-        {range && !(value.from !== '' && value.to === value.from)
-          ? ` – ${formatDate(value.to, withTime, blank, display)}`
-          : ''}
+        {shown}
       </PopoverTrigger>
       {/* Base UI gives a popover `role="dialog"`, and a dialog with no name
           is one axe reports and a screen reader announces as nothing at all.

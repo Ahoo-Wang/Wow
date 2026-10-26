@@ -404,10 +404,14 @@ describe('the states behind a click pass axe', () => {
   it('the calendar open on a field that carries a time of day', async () => {
     const user = await openEditor(createdBetween, timedOrdersDefinition());
     await user.click(
+      // The picker is named for its field and then the date it shows.
       screen.getByRole('button', {
-        name: formatMessage(defaultMessages, 'label.filter.value-of', {
-          field: 'Created',
-        }),
+        name: name =>
+          name.startsWith(
+            formatMessage(defaultMessages, 'label.filter.value-of', {
+              field: 'Created',
+            }),
+          ),
       }),
     );
     // Folded to the whole day, and open to an hour and a minute a bound.

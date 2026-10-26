@@ -187,7 +187,8 @@ export const AutoRefresh: Story = {
       canvasElement.querySelector<HTMLElement>('[data-slot="refresh-cadence"]');
     const seconds = say('label.refresh.seconds', { count: 30 });
     /** The number on the key, whatever second of the count it is. */
-    const count = () => Number(cadence()?.textContent?.replace(/\D/g, ''));
+    const count = () =>
+      Number(cadence()?.getAttribute('data-reading')?.replace(/\D/g, ''));
 
     // The saved view already refreshes itself, so the credential is on the
     // button before anything is pressed — and it is counting down to the

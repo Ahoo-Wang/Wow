@@ -209,13 +209,19 @@ export function RefreshControl({
             {/* Not a dot: the dot is "edited, not applied", and this is not
                 that. A number says which cadence as well as that there is
                 one, which a mark alone never could. Right-aligned, so the
-                unit word stays put while the digits in front of it shrink. */}
+                unit word stays put while the digits in front of it shrink.
+                Drawn from the attribute rather than written as text: text
+                inside the button is its visible label, which its name must
+                hold (WCAG 2.5.3), and a name that changed every second
+                would be the countdown read out again. The description
+                says the cadence once, in words. */}
             <span
               data-slot="refresh-cadence"
-              className="fve:col-start-1 fve:row-start-1 fve:justify-self-end"
-            >
-              {reading === null ? cadence : remainingLabel(reading, messages)}
-            </span>
+              data-reading={
+                reading === null ? cadence : remainingLabel(reading, messages)
+              }
+              className="fve:col-start-1 fve:row-start-1 fve:justify-self-end fve:after:content-[attr(data-reading)]"
+            />
           </span>
         )}
       </IconButton>

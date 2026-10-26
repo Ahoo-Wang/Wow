@@ -327,9 +327,10 @@ export const recordMessages = {
   // own `label.sort.none`, which already says exactly that.
   'label.sort.title': 'Sort',
   // The name of the toolbar's button once something is sorted, where its
-  // words are the sort itself and nothing on it says what it is. Visible
-  // text unchanged: this is the same string said the other way (D12).
-  'label.sort.button': 'Sort: {field} {direction}',
+  // words are the sort itself and nothing on it says what it is. It leads
+  // with the visible text — the field and any `+{count}` after it, handed in
+  // as `{field}` — so the name holds what the button shows (WCAG 2.5.3, D12).
+  'label.sort.button': '{field}, sorted {direction}',
   'label.sort.hint': 'Rows are ordered by the first field, then by the next.',
   'label.sort.unsorted': 'These rows are in no particular order.',
   'label.sort.asc': 'Ascending',

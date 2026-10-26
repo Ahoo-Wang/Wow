@@ -1,4 +1,4 @@
-# Message keys — 2196.
+# Message keys — 2197.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface (README「Wording and language」, docs/design/decisions.md D29).
 analysis.alias.duplicate
@@ -1234,6 +1234,7 @@ label.date.future
 label.date.past
 label.date.period-of
 label.date.pick
+label.date.picked
 label.date.preset
 label.date.relative
 label.date.shape-of

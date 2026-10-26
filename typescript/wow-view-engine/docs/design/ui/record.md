@@ -62,7 +62,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 
 ## SortSettings：按钮上读得出的排序
 
-- 表头一次只表达一列，说不清谁先谁后。排序按钮把当前排序读成话——"订单编号 ↓"，多于一条加 `+{n}`；有排序时它的可及名字是 `label.sort.button`「排序：{字段} {方向}」（接法同 `label.sort.at`），屏幕文字不变——否则读屏只听到字段与方向，不知道这是排序控件（D12）。方向只在名字里说，不在内容里另放 sr-only 副本（`aria-label` 会盖掉内容）（test/sortSettings.test.tsx「what the sort button says」）；
+- 表头一次只表达一列，说不清谁先谁后。排序按钮把当前排序读成话——"订单编号 ↓"，多于一条加 `+{n}`；有排序时它的可及名字是 `label.sort.button`「{字段}，{方向}排序」，屏幕文字不变——否则读屏只听到字段与方向，不知道这是排序控件（D12）。名字以屏幕上的文字开头，`+{n}` 紧跟字段、作为 `{field}` 一起传进去（「发运日期 +2，降序排序」）：可及名字要把看得见的文字当作连续的一串词含住（WCAG 2.5.3），从前的「排序：发运日期 降序 +2」把方向夹在了两者中间。方向只在名字里说，不在内容里另放 sr-only 副本（`aria-label` 会盖掉内容）（test/sortSettings.test.tsx「what the sort button says」）；
 - **按钮上只有一枚箭头**：中性的 `↕` 只在没排序时戴，排了序由方向箭头接替，与表头（`SortableHeader`）同一朝向；它不占 `data-icon` 槽位（会收紧内边距，而多条时结尾是 `+{n}`）；
 - 编辑器逐条列出手柄、序号、字段与方向，方向可翻、条目可删；字段选择器只列**可排序且未用到**的字段，用完即禁用。新字段追加在末尾、升序——它是并列打破者，插在别处等于悄悄改了主排序；
 - **顺序可拖**（`label.sort.hint`「先按第一个字段排序，相同时再按下一个」），接列设置同一套（`@dnd-kit`，`OptimisticSortingPlugin` 关掉，播报用 `label.sort.*`）。**按位置认身份**（`sort-entry-{i}`）：重复字段是内核会拒的（`record.sort.duplicate`），编辑器仍列出两条好删掉一条。落点算出整份顺序，经 `table.setSort([...])` 一次写出。只有一条时手柄禁用。每条是一个 `Item`（D16 裁定三：`ItemMedia` 手柄与序号、`ItemContent` 字段名、`ItemActions` 方向与移除）；
@@ -183,7 +183,7 @@ Record 工作台的结果区组件。三种视图共用的骨架、状态条、�
 - 点击表头在**升序 → 降序 → 取消**间循环（`toggleSort`）。**平击独占，Shift 追加**（legacy 的规矩）：平击是 `toggleSort(field, { exclusive: true })`，按住 Shift／Ctrl／⌘ 才追加；键盘 Shift+Enter／Shift+Space 走同一处理器。规矩由 `label.sort.additive`「按住 Shift 追加排序」说出：`<table>` 外一个 `sr-only` 句子，按钮 `aria-describedby` 指它——不放进 `<th>`（读屏会在每个值旁重念），不用 `aria-description`（只有 Chromium 的草案）。独占是控制器的入口而不是 UI 模拟：模拟要对每列反复 `toggleSort`，每次都是一次查询；
 - **按下去当场跑，除非草稿里另有待应用的修改**（与分析表头的 `sortNow` 同一条规矩，判法是 `runtime/pending.ts` 的 `pendingBesides`）：排序是问题的一员，对着结果按表头却什么也没变，读起来就是表头坏了，所以平时当场应用；但范围里还有没应用的条件、或别的修改等着「应用」时，跑就连那条修改一起替用户应用了——这一下只并进待应用，「应用」上亮起那颗点，按「应用」时一起跑。先前被拦下、还没跑的排序不算「别的修改」：下一下正是替换它，只剩它时照跑（test/recordTableCommands.test.tsx「a sort never applies what else waits」、test/recordWorkbenchInteraction.test.tsx「holds a header press back while a condition waits for Apply」；故事 `HeaderSortWaitsForApply`）；
 - **两种读法，各有其主**：箭头、`aria-sort` 与位次按**跑过的那份配置**的排序画（`table.ranSort`）——它们说的是屏幕上这些行的次序，排序等着「应用」时指向下的箭头压在升序的行上就是在撒谎；下一下按**草稿**的排序算（`table.sort`），没有东西等着时两者是同一个，等着时连按两下仍是先升序、再降序。工具栏的排序按钮与编辑器是编辑草稿的地方，读草稿——等着时它说的正是「应用」将要跑的次序；
-- `aria-sort` **只落在主排序那一格**：ARIA 里"按哪列排"只有一列。次级位次由可及名字说：多于一列时每个表头带序号，并把 `label.sort.at`（第几个、共几个）接在名字后；
+- `aria-sort` **只落在主排序那一格**：ARIA 里"按哪列排"只有一列。次级位次由可及名字说：多于一列时每个表头带序号，并把 `label.sort.at`（第几个、共几个）接在名字后。序号与箭头一样是记号：`aria-hidden`，由 CSS 从 `data-position` 画出（`::after`），不是按钮里的文字——按钮里的文字是它看得见的标签，名字必须把它连着列名含住（WCAG 2.5.3），而列名后面跟一个光秃秃的数字，名字只能重复一遍才含得住；
 - 按钮的可及名字说**点下去会发生什么**（`label.sort.ascending`／`descending`／`none`），列名在句首、以逗号隔开，可及名字以眼前的文字开头（WCAG 2.5.3；分词器曾把「取消按下单时间排序」切成「按下／单」）。它按**下一下实际按的那份**算——草稿的排序（`SortableHeader` 的 `drafted`，记录表给 `table.sort`；分析表另给 `upcoming`，见 [analysis.md](analysis.md)）——而不是按箭头：等着「应用」时两者不同，从前名字按箭头说「升序」，按下去却是按草稿算出的降序。这一列在草稿里的方向与箭头不同时，名字后面接一句待应用的是什么（「订单号，降序排序 · 升序待应用」，`label.sort.waiting.asc`／`desc`／`none`），读屏听到的名字与眼前的箭头对得上（2026-09-23 审查 P2；test/recordWorkbenchInteraction.test.tsx「holds a header press back while a condition waits for Apply」，故事 `HeaderSortWaitsForApply`）；
 - **一枚箭头，跟在列名内侧**：数字列右对齐（`NUMERIC_CELL`），整行反过来——名字守对齐的那条边，标记朝里。表头右缘的列宽手柄（`ColumnResizer`）不画字形，所以表头里每个 `svg` 都是这枚标记；
 - **可排序没排序的列一直带中性的 ↕**（`muted-foreground/60`）：用过之后才出现的可供性不是可供性，悬停淡入在触屏上等于不存在；
