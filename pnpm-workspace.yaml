@@ -56,7 +56,6 @@ catalog:
   echarts: ^6.1.0
   eslint: ^10.13.0
   eslint-plugin-import-x: ^4.17.1
-  eslint-plugin-react-compiler: 19.1.0-rc.2
   eslint-plugin-react-hooks: ^7.1.1
   eslint-plugin-react-refresh: ^0.5.7
   eslint-plugin-storybook: ^10.6.3
@@ -83,7 +82,7 @@ catalog:
   react-markdown: 10.1.0
   react-router: ^8.4.0
   '@rolldown/plugin-babel': ^0.2.4
-  shadcn: ^4.21.4
+  shadcn: ^4.22.1
   storybook: ^10.6.3
   '@storybook/addon-a11y': ^10.6.3
   '@storybook/addon-docs': ^10.6.3
