@@ -50,38 +50,37 @@ ref 来自上下文生成的契约 `EshopOrderingContract.Order.ref(tenant, id)`
 | --- | --- |
 | 本服务的 | 在进程内，不编码命令 |
 | 对端上下文的，默认 | 经对端的命令主题 `wow.<context>.commands`；主题收到后 `send` 就返回 |
-| 列在 `wow.clients.contexts` 下的对端的 | 经 HTTP 发往对端的服务 |
+| 列在 `wow.peers` 下的对端的 | 经 HTTP 发往对端的服务 |
 
 客户端从对端 api jar 携带的契约认识对端，所以应用只需依赖对端的 `*-api` 模块。
 
 ## 配置经 HTTP 访问的对端 {#configure-a-peer-over-http}
 
-列在 `wow.clients.contexts.<context>` 下的对端经 HTTP 访问，有两种模式：
+列在 `wow.peers.<context>` 下的对端经 HTTP 访问，有两种模式：
 
 | 模式 | 访问 | 身份 |
 | --- | --- | --- |
-| `service`，默认 | 对端的内部端口，地址是 `internal-url` | 本服务，声明自己，代表它发送时指明的调用方 |
-| `user` | 对端的公开路由，地址是 `url` | 终端用户，转发当前正在处理的请求的请求头（`wow.clients.forwarded-headers`，默认是 `Authorization`） |
+| `service`，默认 | 对端的内部端口，地址是 `url` | 本服务，声明自己，代表它发送时指明的调用方 |
+| `user` | 对端的公开路由，地址是 `public-url` | 终端用户，转发当前正在处理的请求的请求头（`wow.peer.forwarded-headers`，默认是 `Authorization`） |
 
-在 service 模式下，客户端在 `Wow-Service` 请求头里声明本服务，即它的 `wow.service`。内部端口只有平台自己的 Pod 能访问，所以对端接受本服务指明的调用方；对端如果在它的 `wow.http.services` 中为本服务列出了命令和模型，这些列表限制本服务可以调用和读取什么。`internal-url` 默认取 Saga 同步调用所用的地址 `wow.calls.contexts.<context>.url`。basket 服务就是这样访问 ordering 的内部端口的：
+在 service 模式下，客户端在 `Wow-Service` 请求头里声明本服务，即它的 `wow.service`。内部端口只有平台自己的 Pod 能访问，所以对端接受本服务指明的调用方；对端如果在它的 `wow.callers` 中为本服务列出了命令和模型，这些列表限制本服务可以调用和读取什么。Saga 的同步调用也发往这个 `url`，模式由 `wow.peer.mode`（或对端自己的 `mode`）决定。basket 服务就是这样访问 ordering 的内部端口的：
 
 <!-- sample: example/eshop/basket/basket-server/src/main/resources/application.yaml#calls -->
 
 ```yaml
 # The checkout saga submits the order to the ordering service synchronously (decision D193), through its command
 # gateway on its internal port (wow.internal.port there; its public port refuses a call), naming this service
-# (Wow-Service, decision D300), which the ordering service lists the commands of (wow.http.services there).
-calls:
-  contexts:
-    eshop-ordering:
-      url: http://127.0.0.1:9093
+# (Wow-Service, decision D300), which the ordering service lists the commands of (wow.callers there).
+peers:
+  eshop-ordering:
+    url: http://127.0.0.1:9093
 ```
 
-`wow.clients.timeout` 限制每个请求的时间（默认 30 秒，等待更长的命令会更长），`wow.clients.retry.*` 重试那些重试能够越过的故障。对端从声明了自己的服务那里接受什么，见[保护部署](../operate/security#close-the-internal-port)。
+`wow.peer.timeout` 限制每个请求的时间（默认 30 秒，等待更长的命令会更长），`wow.peer.retry.*` 重试那些重试能够越过的故障。对端从声明了自己的服务那里接受什么，见[保护部署](../operate/security#close-the-internal-port)。
 
 ## 按名字调用命令 {#call-a-command-by-name}
 
-控制台、网关或工具可以在没有对端 api jar 的情况下调用对端。它用 `wow.clients.contexts.<context>.contract: manifest` 列出对端，并发送一个 `NamedCommand`：命令的完整类型名 `context.aggregate.Command` 及其 JSON 命令体。客户端从 `GET /wow/manifest` 读取对端的 Manifest，在发送任何东西之前拒绝 Manifest 没有声明的命令。
+控制台、网关或工具可以在没有对端 api jar 的情况下调用对端。它用 `wow.peers.<context>.contract: manifest` 列出对端，并发送一个 `NamedCommand`：命令的完整类型名 `context.aggregate.Command` 及其 JSON 命令体。客户端从 `GET /wow/manifest` 读取对端的 Manifest，在发送任何东西之前拒绝 Manifest 没有声明的命令。
 
 ## 在 Wow 宿主之外 {#outside-a-wow-host}
 

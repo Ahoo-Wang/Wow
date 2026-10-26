@@ -46,7 +46,7 @@ description: "框架的错误码与 HTTP 状态，以及查询请求被拒时的
 | `wow.query.min-version-not-reached` | 409 | Version not reached | The state read asked for a version the aggregate has not reached within the wait; the problem carries its current version: retry later. |
 | `wow.query.busy` | 429 | Query busy | The query was not run: its store has as many queries running as it allows; retry later. |
 | `wow.query.dataset-unavailable` | 409 | Dataset unavailable | The dataset is served but cannot be queried now, for the reason the problem names (it needs revision). |
-| `wow.call.command-forbidden` | 403 | Call forbidden | The calling service may not call this command: its wow.http.services.&lt;service&gt;.commands do not list it. |
+| `wow.call.command-forbidden` | 403 | Call forbidden | The calling service may not call this command: its wow.callers.&lt;service&gt;.commands do not list it. |
 
 ## 查询请求的代码
 

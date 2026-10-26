@@ -43,7 +43,7 @@ Such a failure, and any other value the host cannot start with, is a `WowConfigu
 Spring ignores a key no property binds, so a misspelled key would leave its default in place without a word. The host compares every `wow.*` key with the configuration metadata on the class path when it starts:
 
 - An unknown key is logged as a warning that names it.
-- An unknown key under `wow.cosec.`, `wow.http.services.`, `wow.calls.` or `wow.internal.` stops the start. Under `wow.http.services` and `wow.calls.contexts`, each entry's own keys are checked too: a mistyped `commands` would otherwise leave a service allowed to call every command.
+- An unknown key under `wow.cosec.`, `wow.callers.`, `wow.calls.` or `wow.internal.` stops the start. Under `wow.callers` and `wow.peers`, each entry's own keys are checked too: a mistyped `commands` would otherwise leave a service allowed to call every command.
 
 Environment variables are not checked, because their names cannot be listed back. Check a deployment's variables against the reference when you set them.
 

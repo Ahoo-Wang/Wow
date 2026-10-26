@@ -28,7 +28,7 @@ import kotlin.system.exitProcess
  * The whole eShop in this one JVM, on the memory backend and without Kafka, for the web UI (work package E.7) and for
  * trying the shop out: `./gradlew :eshop-e2e:eshopLocal`. The five services share one class path, each
  * serving its own context (`wow.contexts.include`, as [EshopSharedJvmTest] runs them), and one [InMemoryTopics] in
- * place of Kafka, which `wow.topics.in-memory` wires into each (DX gap G27): each one's sagas send other contexts'
+ * place of Kafka, which `wow.transport` wires into each (DX gap G27): each one's sagas send other contexts'
  * commands to it, its published streams are written to it, and it executes the commands sent to its own command
  * topic. So the checkout's whole chain runs, to the payment, as it does on Kafka.
  *
@@ -82,7 +82,7 @@ class EshopLocal(private val randomPorts: Boolean) : AutoCloseable {
         start(
             BasketServer::class.java,
             "basket",
-            "--wow.calls.contexts.eshop-ordering.url=http://127.0.0.1:$orderingGateway",
+            "--wow.peers.eshop-ordering.url=http://127.0.0.1:$orderingGateway",
         )
         start(CatalogServer::class.java, "catalog")
     }
@@ -101,8 +101,6 @@ class EshopLocal(private val randomPorts: Boolean) : AutoCloseable {
                 "--wow.service=eshop-$name-service",
                 "--wow.backend=memory",
                 "--wow.log.partitions=$PARTITIONS",
-                // The node's topics on the shared InMemoryTopics, which each service takes as its own (DX gap G27).
-                "--wow.topics.in-memory=true",
                 // The storefront's and the orders' snapshot queries, from memory (decision D209).
                 "--wow.query.memory.enabled=true",
                 "--wow.internal.host=127.0.0.1",

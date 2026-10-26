@@ -431,7 +431,7 @@ class QueryAutoConfiguration {
                 defaultListSize = properties.budgets.inProcess.defaultListSize,
                 chunkSize = properties.stream.chunkSize,
             )
-            // The peer contexts of wow.clients.contexts are read over HTTP (decision D259).
+            // The peer contexts of wow.peers are read over HTTP (decision D259).
             return if (peers.contexts.isEmpty()) {
                 local
             } else {

@@ -19,7 +19,7 @@ The package's version is the framework's (`gradle.properties`), set by hand: it 
 
 The catalog server serves the console's build as static files (`spring.web.resources.static-locations`, `platform/analytics/catalog/server/src/main/resources/application.yaml`): the distribution (`./gradlew :analytics-catalog-server:installDist`) copies `dist/` into its `ui/` folder, and `./gradlew :analytics-catalog-server:run` serves `../console/dist/` from the project directory. Build the console first. The console uses a hash router (`/#/sources`, `/#/datasets`), so the server needs no fallback for its pages.
 
-A dataset's rows act on aggregates of other services only where the catalog has a client of the owning context described by its Manifest: `wow.clients.contexts.<context>.url` (or `internal-url`) with `contract: manifest`, and `mode: user` to send the commands with the data owner's own credential. A context without one offers no actions.
+A dataset's rows act on aggregates of other services only where the catalog has a client of the owning context described by its Manifest: `wow.peers.<context>.public-url` (or `url`) with `contract: manifest`, and `mode: user` to send the commands with the data owner's own credential. A context without one offers no actions.
 
 ## Development
 

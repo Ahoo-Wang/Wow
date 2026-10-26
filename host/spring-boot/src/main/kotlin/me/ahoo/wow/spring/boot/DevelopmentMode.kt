@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.runtime.store.BackendSelection
 import me.ahoo.wow.spi.config.WowConfigurationException
+import org.springframework.core.env.Environment
 
 /**
  * Whether the node runs for development: a profile of `wow.dev-profiles` (`dev`, `local`, `test`, `demo`)
@@ -49,5 +51,14 @@ class DevelopmentMode(val reason: String?) {
         /** No development: a deployment. */
         @JvmField
         val OFF: DevelopmentMode = DevelopmentMode(null)
+
+        /** Whether a node of [properties] in [environment] runs for development, its internal port bound at [bindHost]. */
+        fun of(
+            properties: WowProperties,
+            environment: Environment,
+            bindHost: String? = NodeIdentity.bindHostOf(properties),
+        ): DevelopmentMode = DevelopmentMode(
+            BackendSelection.memoryOptIn(environment.activeProfiles.toList(), properties.devProfiles, bindHost),
+        )
     }
 }

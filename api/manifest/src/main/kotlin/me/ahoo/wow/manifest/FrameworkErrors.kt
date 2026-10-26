@@ -181,7 +181,7 @@ object FrameworkErrors {
         ErrorManifest(
             CALL_COMMAND_FORBIDDEN,
             403,
-            "The calling service may not call this command: its wow.http.services.<service>.commands do not list it.",
+            "The calling service may not call this command: its wow.callers.<service>.commands do not list it.",
         ),
     )
 

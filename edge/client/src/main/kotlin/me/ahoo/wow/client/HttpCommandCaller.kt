@@ -36,7 +36,7 @@ import kotlin.time.toJavaDuration
 /**
  * The synchronous calls of a node's sagas to the HTTP command gateways of other contexts (decision D193): the service
  * mode of the command client ([ClientMode.Service], decision D257), at the base URL [endpoints] gives each context's
- * **internal port** (`wow.clients.contexts.<context>.internal-url`, or `wow.calls.contexts.<context>.url`), the only
+ * **internal port** (`wow.peers.<context>.url`), the only
  * one that takes a call; its public port refuses `Wow-Call`. Each call goes to the command's route, as the
  * [HttpCommandClient] sends one, and carries:
  *
@@ -69,13 +69,18 @@ class HttpCommandCaller internal constructor(private val transport: HttpTranspor
         timeout: Duration = DEFAULT_TIMEOUT,
     ) : this(EndpointResolver.of(emptyMap(), endpoints), service, client, timeout)
 
-    /** The caller of the contexts' internal ports [endpoints] finds, as the service named [service]. */
+    /**
+     * The caller of the contexts' internal ports [endpoints] finds, as the service named [service], each call answered
+     * within its context's timeout of [timeouts], else [timeout].
+     */
+    @JvmOverloads
     constructor(
         endpoints: EndpointResolver,
         service: String?,
         client: HttpClient,
         timeout: Duration,
-    ) : this(HttpTransport(endpoints, ClientMode.Service(service), client, timeout, RetryPolicy.NONE))
+        timeouts: Map<String, Duration> = emptyMap(),
+    ) : this(HttpTransport(endpoints, ClientMode.Service(service), client, timeout, RetryPolicy.NONE, timeouts))
 
     /**
      * Whether the endpoints give [context] an internal URL (decision D259): the node does not start when a saga calls

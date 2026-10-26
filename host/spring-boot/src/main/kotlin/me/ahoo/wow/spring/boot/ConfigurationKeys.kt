@@ -35,9 +35,9 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver
  * [check] warns of the unknown keys, and refuses the startup for an unknown key of [STRICT_PREFIXES]: a mistyped
  * `wow.cosec.authorizer.enabled` would otherwise leave the authorizer that allows all in place.
  *
- * A map of the security settings whose values are beans ([CHECKED_MAPS]: `wow.http.services`, `wow.calls.contexts`)
+ * A map of the security settings whose values are beans ([CHECKED_MAPS]: `wow.callers`, `wow.peers`)
  * is checked to its leaves (review R2.5-3): a key under one of its entries is known only when it names a property of
- * the value, so `wow.http.services.basket.command` is unknown, and refused, instead of leaving `commands` empty, which
+ * the value, so `wow.callers.basket.command` is unknown, and refused, instead of leaving `commands` empty, which
  * lets the service call every domain command (decision D226).
  */
 @InternalWowApi
@@ -96,15 +96,21 @@ class ConfigurationKeys(
          * The prefixes whose unknown keys refuse the startup: the authorization settings, the service identities and
          * the synchronous calls (review R2.5-3), and the cluster's tokens.
          */
-        val STRICT_PREFIXES: List<String> = listOf("wow.cosec.", "wow.http.services.", "wow.calls.", "wow.internal.")
+        val STRICT_PREFIXES: List<String> = listOf(
+            "wow.cosec.",
+            "wow.callers.",
+            "wow.peer.",
+            "wow.peers.",
+            "wow.internal."
+        )
 
         /**
          * The maps of beans whose keys are checked to the value's properties (review R2.5-3), by the map's name: the
          * service identities of the internal port and the targets of the synchronous calls.
          */
         private val CHECKED_MAPS: Map<ConfigurationPropertyName, Set<String>> = mapOf(
-            "wow.http.services" to WowProperties.Http.Service::class.java,
-            "wow.calls.contexts" to WowProperties.Calls.CallTarget::class.java,
+            "wow.callers" to WowProperties.CallerPermits::class.java,
+            "wow.peers" to WowProperties.PeerTarget::class.java,
         ).entries.associate { (map, type) -> ConfigurationPropertyName.of(map) to leavesOf(type) }
 
         /** The properties of [type], as the uniform elements of their names (`connect-timeout` is `connecttimeout`). */

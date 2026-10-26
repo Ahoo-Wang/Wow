@@ -4,11 +4,6 @@
     "type" : "me.ahoo.wow.spring.boot.WowProperties",
     "description" : "The host's configuration, the `wow.*` namespace: the node, its internal port, its stores and logs, the cluster, the commands' waits and execution, the subscriptions, the timers and schedules, the HTTP edge and the calls to other contexts. No key keeps a 9.x meaning; the defaults are the runtime's own. The query plane, Kafka, ClickHouse and OpenTelemetry have their own classes (QueryProperties, KafkaProperties, ClickHouseProperties, ObservabilityProperties). Every key is in the host's configuration metadata (`META-INF/spring-configuration-metadata.json`), and a `wow.*` key that no property of the host or of a module names is reported at startup (ConfigurationKeys)."
   }, {
-    "name" : "wow.calls",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$Calls",
-    "description" : "The synchronous calls of the node's sagas to the command gateways of other contexts. A saga that calls a context without a URL fails, then parks.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
-  }, {
     "name" : "wow.clickhouse",
     "type" : "me.ahoo.wow.spring.boot.ClickHouseProperties",
     "description" : "ClickHouse's configuration, `wow.clickhouse.*`, read when wow-clickhouse is on the classpath (ClickHouseAutoConfiguration): the server, the Sink that writes the published streams, and the dataset queries."
@@ -22,16 +17,6 @@
     "type" : "me.ahoo.wow.spring.boot.ClickHouseProperties$Sink",
     "description" : "The Sink that writes the Manifest's published streams to ClickHouse.",
     "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties"
-  }, {
-    "name" : "wow.clients",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$Clients",
-    "description" : "The typed clients of the peer contexts over HTTP, `wow-client`'s: a peer context listed in contexts is reached over HTTP by the service's me.ahoo.wow.api.client.CommandClient and me.ahoo.wow.api.read.QueryApi beans; any other context as without these clients (its commands through its topic). An application's me.ahoo.wow.client.EndpointResolver bean may resolve where each peer is instead. The service mode names this node's service (`Wow-Service`).",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
-  }, {
-    "name" : "wow.clients.retry",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$Clients$Retry",
-    "description" : "How a request a peer answered with a problem a retry may get past is sent again.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Clients"
   }, {
     "name" : "wow.cluster",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Cluster",
@@ -110,7 +95,7 @@
   }, {
     "name" : "wow.http",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Http",
-    "description" : "The HTTP edge: its routes, its error answers and the services the internal port trusts.",
+    "description" : "The HTTP edge: its routes and its error answers.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.http.client-facts",
@@ -200,6 +185,16 @@
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Webhook",
     "description" : "The webhook told when an entry parks or spends its retries.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Ops"
+  }, {
+    "name" : "wow.peer",
+    "type" : "me.ahoo.wow.spring.boot.WowProperties$Peer",
+    "description" : "How the node calls its peers, the services of the other contexts it calls over HTTP: `wow.peer.*`.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
+  }, {
+    "name" : "wow.peer.retry",
+    "type" : "me.ahoo.wow.spring.boot.WowProperties$PeerRetry",
+    "description" : "How a typed client's request that a peer answered with a problem a retry may get past is sent again; a saga's call is not retried here, its subscription's retry budget is the one that counts.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Peer"
   }, {
     "name" : "wow.postgres",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Postgres",
@@ -335,11 +330,6 @@
     "description" : "The node's firing loop of the timers, which sends the scheduled commands when they are due.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
-    "name" : "wow.topics",
-    "type" : "me.ahoo.wow.spring.boot.WowProperties$Topics",
-    "description" : "The node's topics without Kafka, for local development, see Topics.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
-  }, {
     "name" : "wow.wait",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Wait",
     "description" : "How long and how far the commands' waits go.",
@@ -357,22 +347,10 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
     "defaultValue" : "auto"
   }, {
-    "name" : "wow.calls.connect-timeout",
-    "type" : "java.time.Duration",
-    "description" : "How long one call may take to connect.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Calls",
-    "defaultValue" : "PT2S"
-  }, {
-    "name" : "wow.calls.contexts",
-    "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$Calls$CallTarget>",
-    "description" : "Each context's base URL, `wow.calls.contexts.<context>.url`: the target's internal port, `http://host:port` of an address in its internal network, never its public port, which refuses calls.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Calls"
-  }, {
-    "name" : "wow.calls.timeout",
-    "type" : "java.time.Duration",
-    "description" : "How long one call may take.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Calls",
-    "defaultValue" : "PT10S"
+    "name" : "wow.callers",
+    "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$CallerPermits>",
+    "description" : "What each service that calls this one may call and read on the internal port, by the name it states (`Wow-Service`, its `spring.application.name`): optional lists that catch a misconfiguration. The internal port is reachable by the platform's own pods alone; a service that names itself is taken on that network's word.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.clickhouse.database",
     "type" : "java.lang.String",
@@ -436,53 +414,6 @@
     "description" : "The user name to sign in with.",
     "sourceType" : "me.ahoo.wow.spring.boot.ClickHouseProperties",
     "defaultValue" : "default"
-  }, {
-    "name" : "wow.clients.connect-timeout",
-    "type" : "java.time.Duration",
-    "description" : "How long a request may take to connect.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Clients",
-    "defaultValue" : "PT2S"
-  }, {
-    "name" : "wow.clients.contexts",
-    "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$Clients$ClientTarget>",
-    "description" : "The peer contexts reached over HTTP, by context: one the api jars on the class path declare, or one described by its Manifest alone (`contract: manifest`), called with me.ahoo.wow.client.NamedCommands.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Clients"
-  }, {
-    "name" : "wow.clients.forwarded-headers",
-    "type" : "java.util.List<java.lang.String>",
-    "description" : "The headers of the public request it serves that a user-mode request forwards.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Clients",
-    "defaultValue" : [ "Authorization" ]
-  }, {
-    "name" : "wow.clients.mode",
-    "type" : "me.ahoo.wow.client.PeerMode",
-    "description" : "The mode of a peer that names none: `service`, through its internal port as this service, or `user`, through its public routes with the end user's credential.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Clients",
-    "defaultValue" : "service"
-  }, {
-    "name" : "wow.clients.retry.backoff",
-    "type" : "java.time.Duration",
-    "description" : "The wait before the first retry when the peer gives no `Retry-After`; it doubles at each next one.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Clients$Retry",
-    "defaultValue" : "PT0.2S"
-  }, {
-    "name" : "wow.clients.retry.max-attempts",
-    "type" : "java.lang.Integer",
-    "description" : "The most attempts of a request in all; 1 never retries.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Clients$Retry",
-    "defaultValue" : 3
-  }, {
-    "name" : "wow.clients.retry.max-retry-after",
-    "type" : "java.time.Duration",
-    "description" : "The longest `Retry-After` of a peer that is waited out; a peer that asks for longer is not retried.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Clients$Retry",
-    "defaultValue" : "PT5S"
-  }, {
-    "name" : "wow.clients.timeout",
-    "type" : "java.time.Duration",
-    "description" : "How long a request may take to be answered, a command's longer wait aside.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Clients",
-    "defaultValue" : "PT30S"
   }, {
     "name" : "wow.cluster.drain-timeout",
     "type" : "java.time.Duration",
@@ -735,11 +666,6 @@
     "name" : "wow.http.request-facts",
     "type" : "java.util.Set<java.lang.String>",
     "description" : "The request headers copied into a command's headers, beside the standard request facts the edge records: `app_id`, the application the caller resolver authenticated, and on the public port `user_agent` and `remote_ip`; none of the three can be listed, and each fact is cut to 512 characters. `remote_ip` is the server's remote address, which the host takes from the gateway's `X-Forwarded-For` (`server.forward-headers-strategy` is `framework` unless the application sets it, `none` included).",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http"
-  }, {
-    "name" : "wow.http.services",
-    "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$Http$Service>",
-    "description" : "What each calling service may call and read on the internal port, by the name it states (`Wow-Service`, its `spring.application.name`): optional lists that catch a misconfiguration. The internal port is reachable by the platform's own pods alone; a service that names itself is taken on that network's word.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http"
   }, {
     "name" : "wow.internal.connect-timeout",
@@ -999,6 +925,53 @@
     "type" : "java.net.URI",
     "description" : "The URL the webhook posts to; none is posted when not set.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Webhook"
+  }, {
+    "name" : "wow.peer.connect-timeout",
+    "type" : "java.time.Duration",
+    "description" : "How long a request may take to connect.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Peer",
+    "defaultValue" : "PT2S"
+  }, {
+    "name" : "wow.peer.forwarded-headers",
+    "type" : "java.util.List<java.lang.String>",
+    "description" : "The headers of the public request it serves that a user-mode request forwards.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Peer",
+    "defaultValue" : [ "Authorization" ]
+  }, {
+    "name" : "wow.peer.mode",
+    "type" : "me.ahoo.wow.client.PeerMode",
+    "description" : "The mode of a peer that names none: `service`, through its internal port as this service, or `user`, through its public routes with the end user's credential.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Peer",
+    "defaultValue" : "service"
+  }, {
+    "name" : "wow.peer.retry.initial-backoff",
+    "type" : "java.time.Duration",
+    "description" : "The wait before the first retry when the peer gives no `Retry-After`; it doubles at each next one.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$PeerRetry",
+    "defaultValue" : "PT0.2S"
+  }, {
+    "name" : "wow.peer.retry.max-attempts",
+    "type" : "java.lang.Integer",
+    "description" : "The most attempts of a request in all; 1 never retries.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$PeerRetry",
+    "defaultValue" : 3
+  }, {
+    "name" : "wow.peer.retry.max-retry-after",
+    "type" : "java.time.Duration",
+    "description" : "The longest `Retry-After` of a peer that is waited out; a peer that asks for longer is not retried.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$PeerRetry",
+    "defaultValue" : "PT5S"
+  }, {
+    "name" : "wow.peer.timeout",
+    "type" : "java.time.Duration",
+    "description" : "How long a request may take to be answered, a command's longer wait aside; `wow.peers.<context>.timeout` overrides it for one peer.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Peer",
+    "defaultValue" : "PT30S"
+  }, {
+    "name" : "wow.peers",
+    "type" : "java.util.Map<java.lang.String,me.ahoo.wow.spring.boot.WowProperties$PeerTarget>",
+    "description" : "The peer contexts called over HTTP, by context (`wow.peers.<context>.*`): a saga's synchronous calls to that context and the typed clients of it go to its service. A context not listed is reached through its topic. A saga that calls a context without an address fails, then parks.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
     "name" : "wow.postgres.operation-timeout",
     "type" : "java.time.Duration",
@@ -1650,11 +1623,11 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Timers",
     "defaultValue" : "PT1S"
   }, {
-    "name" : "wow.topics.in-memory",
-    "type" : "java.lang.Boolean",
-    "description" : "Whether the node's topics are in its JVM instead of Kafka.",
-    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Topics",
-    "defaultValue" : false
+    "name" : "wow.transport",
+    "type" : "java.lang.String",
+    "description" : "The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none, which a service whose Manifest needs topics refuses. `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type, names the transport.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
+    "defaultValue" : "auto"
   }, {
     "name" : "wow.wait.default-timeout",
     "type" : "java.time.Duration",

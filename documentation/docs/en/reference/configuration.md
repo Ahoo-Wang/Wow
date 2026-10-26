@@ -7,7 +7,7 @@ description: "Every key of the host's wow.* configuration, its type, default and
 
 # Configuration Keys
 
-Every key of the `wow.*` configuration a Spring Boot host reads, 232 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property names is reported when the node starts. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
+Every key of the `wow.*` configuration a Spring Boot host reads, 229 in all, generated from the host's configuration metadata ([`spring-configuration-metadata.json`](https://github.com/Ahoo-Wang/Wow/blob/main/host/spring-boot/src/main/resources/META-INF/spring-configuration-metadata.json)). Spring Boot binds them relaxed: `max-concurrent`, `maxConcurrent` and `MAX_CONCURRENT` are one key. A `wow.*` key that no property names is reported when the node starts. A key below a map takes the map's key in brackets when it holds a dot: `wow.aggregates.[shop.cart].tenant`. The keys are the contract, not the host's property classes, which are Wow's own: an application reads a key through Spring's `Environment`, `@Value` or a `Binder`.
 
 ## `wow`
 
@@ -15,22 +15,15 @@ Every key of the `wow.*` configuration a Spring Boot host reads, 232 in all, gen
 | --- | --- | --- | --- |
 | `wow.aggregates` | `Map<String,Aggregate>` |  | Per aggregate type, by `<context>.<aggregate>` (bracketed in a property name: `wow.aggregates.[shop.cart]`). |
 | `wow.backend` | `String` | `auto` | The backend of a node that names no `wow.stores`: `auto` (the default) takes PostgreSQL or MongoDB by the application's `DataSource` or `MongoClient`, and refuses to start without either, so that data is not lost by mistake, unless a profile of `wow.dev-profiles` is active or the internal port binds the loopback interface alone; `memory` keeps the data in memory on purpose, for one node whose data does not outlive it. `postgres`, `mongo` or the type of a community backend's store provider (`me.ahoo.wow.spi.store.StoreProvider`) name one. |
+| `wow.callers` | `Map<String,CallerPermits>` |  | What each service that calls this one may call and read on the internal port, by the name it states (`Wow-Service`, its `spring.application.name`): optional lists that catch a misconfiguration. The internal port is reachable by the platform's own pods alone; a service that names itself is taken on that network's word. |
 | `wow.ddl` | `Ddl` | `auto` | How the stores manage the framework's tables, collections and indexes: `auto` creates what is missing (the default), `validate` creates nothing and refuses a store whose schema is missing or in another format, `none` creates and checks nothing; `wow.stores.<name>.ddl` overrides it for one store. |
 | `wow.dev-profiles` | `Set<String>` | `dev, local, test, demo` | The profiles in which the node runs for development, as it does when its internal port binds a loopback address alone: `wow.backend=auto` falls back to memory when no durable backend is available, the public port serves without a `CallerResolver` bean, a single Kafka broker gives no durability warning, and a platform service may take its callers from request headers. None of them is allowed in a deployment. |
+| `wow.peers` | `Map<String,PeerTarget>` |  | The peer contexts called over HTTP, by context (`wow.peers.<context>.*`): a saga's synchronous calls to that context and the typed clients of it go to its service. A context not listed is reached through its topic. A saga that calls a context without an address fails, then parks. |
 | `wow.schedules` | `Map<String,Schedule>` |  | Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` overrides the job's rule. A job no handler of the node runs fails its start. |
 | `wow.service` | `String` |  | The service's name; `spring.application.name` when not set. |
 | `wow.stores` | `Map<String,Store>` |  | The named store instances, by name: `wow.stores.<name>.type` and its settings. The aggregates whose logs are on one store form a log group, with its own partition sequences, checkpoints, parked entries and timers. |
 | `wow.subscriptions` | `Map<String,SubscriptionSettings>` |  | Per subscription, by its name (bracketed in a property name: `wow.subscriptions.[CartSaga.onOrderCreated]`). |
-
-## `wow.calls`
-
-The synchronous calls of the node's sagas to the command gateways of other contexts. A saga that calls a context without a URL fails, then parks.
-
-| Key | Type | Default | Description |
-| --- | --- | --- | --- |
-| `wow.calls.connect-timeout` | `Duration` | `PT2S` | How long one call may take to connect. |
-| `wow.calls.contexts` | `Map<String,CallTarget>` |  | Each context's base URL, `wow.calls.contexts.<context>.url`: the target's internal port, `http://host:port` of an address in its internal network, never its public port, which refuses calls. |
-| `wow.calls.timeout` | `Duration` | `PT10S` | How long one call may take. |
+| `wow.transport` | `String` | `auto` | The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none, which a service whose Manifest needs topics refuses. `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type, names the transport. |
 
 ## `wow.clickhouse`
 
@@ -63,28 +56,6 @@ The Sink that writes the Manifest's published streams to ClickHouse.
 | `wow.clickhouse.sink.batch-size` | `Integer` | `1000` | The most records one insert carries. |
 | `wow.clickhouse.sink.deduplication-window` | `Integer` | `1000` | How many recent inserts each table remembers to drop a retried one: the `non_replicated_deduplication_window` of the tables `auto` creates. |
 | `wow.clickhouse.sink.enabled` | `Boolean` | `true` | Whether the Manifest's published streams are written to ClickHouse. |
-
-## `wow.clients`
-
-The typed clients of the peer contexts over HTTP, `wow-client`'s: a peer context listed in contexts is reached over HTTP by the service's me.ahoo.wow.api.client.CommandClient and me.ahoo.wow.api.read.QueryApi beans; any other context as without these clients (its commands through its topic). An application's me.ahoo.wow.client.EndpointResolver bean may resolve where each peer is instead. The service mode names this node's service (`Wow-Service`).
-
-| Key | Type | Default | Description |
-| --- | --- | --- | --- |
-| `wow.clients.connect-timeout` | `Duration` | `PT2S` | How long a request may take to connect. |
-| `wow.clients.contexts` | `Map<String,ClientTarget>` |  | The peer contexts reached over HTTP, by context: one the api jars on the class path declare, or one described by its Manifest alone (`contract: manifest`), called with me.ahoo.wow.client.NamedCommands. |
-| `wow.clients.forwarded-headers` | `List<String>` | `Authorization` | The headers of the public request it serves that a user-mode request forwards. |
-| `wow.clients.mode` | `PeerMode` | `service` | The mode of a peer that names none: `service`, through its internal port as this service, or `user`, through its public routes with the end user's credential. |
-| `wow.clients.timeout` | `Duration` | `PT30S` | How long a request may take to be answered, a command's longer wait aside. |
-
-## `wow.clients.retry`
-
-How a request a peer answered with a problem a retry may get past is sent again.
-
-| Key | Type | Default | Description |
-| --- | --- | --- | --- |
-| `wow.clients.retry.backoff` | `Duration` | `PT0.2S` | The wait before the first retry when the peer gives no `Retry-After`; it doubles at each next one. |
-| `wow.clients.retry.max-attempts` | `Integer` | `3` | The most attempts of a request in all; 1 never retries. |
-| `wow.clients.retry.max-retry-after` | `Duration` | `PT5S` | The longest `Retry-After` of a peer that is waited out; a peer that asks for longer is not retried. |
 
 ## `wow.cluster`
 
@@ -227,13 +198,12 @@ The topics of other contexts the node reads.
 
 ## `wow.http`
 
-The HTTP edge: its routes, its error answers and the services the internal port trusts.
+The HTTP edge: its routes and its error answers.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `wow.http.errors` | `Map<String,Error>` |  | The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). |
 | `wow.http.request-facts` | `Set<String>` |  | The request headers copied into a command's headers, beside the standard request facts the edge records: `app_id`, the application the caller resolver authenticated, and on the public port `user_agent` and `remote_ip`; none of the three can be listed, and each fact is cut to 512 characters. `remote_ip` is the server's remote address, which the host takes from the gateway's `X-Forwarded-For` (`server.forward-headers-strategy` is `framework` unless the application sets it, `none` included). |
-| `wow.http.services` | `Map<String,Service>` |  | What each calling service may call and read on the internal port, by the name it states (`Wow-Service`, its `spring.application.name`): optional lists that catch a misconfiguration. The internal port is reachable by the platform's own pods alone; a service that names itself is taken on that network's word. |
 
 ## `wow.http.client-facts`
 
@@ -412,6 +382,27 @@ The webhook told when an entry parks or spends its retries.
 | `wow.ops.webhook.headers` | `Map<String,String>` |  | The headers added to each post, such as a token the receiver checks. |
 | `wow.ops.webhook.timeout` | `Duration` | `PT5S` | How long one post may take. |
 | `wow.ops.webhook.url` | `java.net.URI` |  | The URL the webhook posts to; none is posted when not set. |
+
+## `wow.peer`
+
+How the node calls its peers, the services of the other contexts it calls over HTTP: `wow.peer.*`.
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `wow.peer.connect-timeout` | `Duration` | `PT2S` | How long a request may take to connect. |
+| `wow.peer.forwarded-headers` | `List<String>` | `Authorization` | The headers of the public request it serves that a user-mode request forwards. |
+| `wow.peer.mode` | `PeerMode` | `service` | The mode of a peer that names none: `service`, through its internal port as this service, or `user`, through its public routes with the end user's credential. |
+| `wow.peer.timeout` | `Duration` | `PT30S` | How long a request may take to be answered, a command's longer wait aside; `wow.peers.<context>.timeout` overrides it for one peer. |
+
+## `wow.peer.retry`
+
+How a typed client's request that a peer answered with a problem a retry may get past is sent again; a saga's call is not retried here, its subscription's retry budget is the one that counts.
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `wow.peer.retry.initial-backoff` | `Duration` | `PT0.2S` | The wait before the first retry when the peer gives no `Retry-After`; it doubles at each next one. |
+| `wow.peer.retry.max-attempts` | `Integer` | `3` | The most attempts of a request in all; 1 never retries. |
+| `wow.peer.retry.max-retry-after` | `Duration` | `PT5S` | The longest `Retry-After` of a peer that is waited out; a peer that asks for longer is not retried. |
 
 ## `wow.postgres`
 
@@ -701,14 +692,6 @@ The node's firing loop of the timers, which sends the scheduled commands when th
 | `wow.timers.max-fire-rate` | `Double` |  | The most commands of timers a partition sends a second, so a backlog of overdue timers drains at that rate; not set, as fast as `parallelism` allows. |
 | `wow.timers.parallelism` | `Integer` | `64` | The most commands of timers a partition sends at once. |
 | `wow.timers.poll-interval` | `Duration` | `PT1S` | How often the loop reads the timers due within `lookahead`, with one query per timer store over every partition the node owns; a timer is sent up to this late. |
-
-## `wow.topics`
-
-The node's topics without Kafka, for local development, see Topics.
-
-| Key | Type | Default | Description |
-| --- | --- | --- | --- |
-| `wow.topics.in-memory` | `Boolean` | `false` | Whether the node's topics are in its JVM instead of Kafka. |
 
 ## `wow.wait`
 

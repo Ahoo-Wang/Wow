@@ -50,38 +50,37 @@ A command always has an accountable caller: the client sends as the anonymous ca
 | --- | --- |
 | Of this service | In process, without encoding the command |
 | Of a peer context, by default | Through the peer's command topic, `wow.<context>.commands`; `send` answers once the topic has it |
-| Of a peer listed under `wow.clients.contexts` | Over HTTP, to the peer's service |
+| Of a peer listed under `wow.peers` | Over HTTP, to the peer's service |
 
 The client knows a peer from the contract its api jar carries, so the application depends on the peer's `*-api` module and nothing more.
 
 ## Configure a peer over HTTP
 
-A peer listed under `wow.clients.contexts.<context>` is reached over HTTP, in one of two modes:
+A peer listed under `wow.peers.<context>` is reached over HTTP, in one of two modes:
 
 | Mode | Reaches | As |
 | --- | --- | --- |
-| `service`, the default | The peer's internal port, at `internal-url` | This service, naming itself, acting for the caller it sends as |
-| `user` | The peer's public routes, at `url` | The end user, forwarding the headers of the request being served (`wow.clients.forwarded-headers`, `Authorization` by default) |
+| `service`, the default | The peer's internal port, at `url` | This service, naming itself, acting for the caller it sends as |
+| `user` | The peer's public routes, at `public-url` | The end user, forwarding the headers of the request being served (`wow.peer.forwarded-headers`, `Authorization` by default) |
 
-In service mode the client names this service, its `wow.service`, in the `Wow-Service` header. The internal port is reachable from the platform's own pods alone, so the peer takes the caller this service names; the commands and models the peer lists for this service under its `wow.http.services`, if any, limit what it may call and read. `internal-url` defaults to the URL the sagas' synchronous calls use, `wow.calls.contexts.<context>.url`. The basket service reaches the ordering's internal port this way:
+In service mode the client names this service, its `wow.service`, in the `Wow-Service` header. The internal port is reachable from the platform's own pods alone, so the peer takes the caller this service names; the commands and models the peer lists for this service under its `wow.callers`, if any, limit what it may call and read. The sagas' synchronous calls go to the same `url`, and `wow.peer.mode` (or a peer's own `mode`) picks the mode. The basket service reaches the ordering's internal port this way:
 
 <!-- sample: example/eshop/basket/basket-server/src/main/resources/application.yaml#calls -->
 
 ```yaml
 # The checkout saga submits the order to the ordering service synchronously (decision D193), through its command
 # gateway on its internal port (wow.internal.port there; its public port refuses a call), naming this service
-# (Wow-Service, decision D300), which the ordering service lists the commands of (wow.http.services there).
-calls:
-  contexts:
-    eshop-ordering:
-      url: http://127.0.0.1:9093
+# (Wow-Service, decision D300), which the ordering service lists the commands of (wow.callers there).
+peers:
+  eshop-ordering:
+    url: http://127.0.0.1:9093
 ```
 
-`wow.clients.timeout` bounds each request (30 seconds by default, longer for a command whose wait is longer), and `wow.clients.retry.*` retries what a retry may get past. [Secure a Deployment](../operate/security#close-the-internal-port) explains what a peer accepts from a service that names itself.
+`wow.peer.timeout` bounds each request (30 seconds by default, longer for a command whose wait is longer), and `wow.peer.retry.*` retries what a retry may get past. [Secure a Deployment](../operate/security#close-the-internal-port) explains what a peer accepts from a service that names itself.
 
 ## Call a command by name
 
-A console, a gateway or a tool may call a peer without its api jar. It lists the peer with `wow.clients.contexts.<context>.contract: manifest` and sends a `NamedCommand`: the command's full type name, `context.aggregate.Command`, and its JSON body. The client reads the peer's Manifest from `GET /wow/manifest` and refuses a command the Manifest does not declare before sending anything.
+A console, a gateway or a tool may call a peer without its api jar. It lists the peer with `wow.peers.<context>.contract: manifest` and sends a `NamedCommand`: the command's full type name, `context.aggregate.Command`, and its JSON body. The client reads the peer's Manifest from `GET /wow/manifest` and refuses a command the Manifest does not declare before sending anything.
 
 ## Outside a Wow host
 

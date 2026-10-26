@@ -139,6 +139,7 @@ public final class me/ahoo/wow/client/WowClient$Builder {
 	public final fun retry (Lme/ahoo/wow/client/RetryPolicy;)Lme/ahoo/wow/client/WowClient$Builder;
 	public final fun service (Ljava/lang/String;)Lme/ahoo/wow/client/WowClient$Builder;
 	public final fun timeout (Ljava/time/Duration;)Lme/ahoo/wow/client/WowClient$Builder;
+	public final fun timeout-HG0u8IE (Ljava/lang/String;J)Lme/ahoo/wow/client/WowClient$Builder;
 	public final fun timeout-LRDsOJo (J)Lme/ahoo/wow/client/WowClient$Builder;
 	public final fun user (Lme/ahoo/wow/client/UserCredential;)Lme/ahoo/wow/client/WowClient$Builder;
 }

@@ -34,7 +34,7 @@ The problem's `code` in the response (`application/problem+json`) or in the comm
 | A derived command is rejected and the aggregate parks | No `@OnRejected` for an expected rejection | The saga's handlers; the parked entry's reason |
 | A handler never runs | Subscription start (`end` for a reactor or saga of the own log), wrong `aggregates`, a typed handler skipped for a `PublishedEvent`, no Kafka for another context | The subscription's start, checkpoint and the Manifest's `subscriptions` |
 | Startup fails: unknown `wow.*` key | A typo or a key of another version | The configuration metadata of the pinned version |
-| Startup fails: `Node … has no command transport …` | A saga sends to another context without Kafka | `wow-kafka` and its keys, or `wow.topics.in-memory` locally |
+| Startup fails: `Node … has no command transport …` | A saga sends to another context without Kafka | `wow-kafka` and its keys, or `wow.transport` locally |
 | A state read shows an old state | Read before the snapshot caught up | `?minVersion=<the command result's version>`, or a `snapshot` wait |
 
 ## Read-only evidence

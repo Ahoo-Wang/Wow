@@ -76,3 +76,12 @@ The configuration surface was settled once before 10.0.0, without aliases: a key
 | `wow.http.client-facts` | `wow.http.client-facts.enabled` |
 | `wow.http.global-errors` | `wow.http.global-errors.enabled` |
 | `wow.standby` | `wow.node.standby` |
+| `wow.calls.contexts.<context>.url`, `wow.clients.contexts.<context>.internal-url` | `wow.peers.<context>.url` |
+| `wow.clients.contexts.<context>.url` | `wow.peers.<context>.public-url` |
+| `wow.clients.contexts.<context>.mode`, `.contract` | `wow.peers.<context>.mode`, `.contract` |
+| `wow.clients.mode`, `wow.clients.forwarded-headers` | `wow.peer.mode`, `wow.peer.forwarded-headers` |
+| `wow.calls.timeout` (10 seconds), `wow.clients.timeout` (30 seconds) | `wow.peer.timeout` (30 seconds), and `wow.peers.<context>.timeout` for one peer |
+| `wow.calls.connect-timeout`, `wow.clients.connect-timeout` | `wow.peer.connect-timeout` |
+| `wow.clients.retry.max-attempts`, `.backoff`, `.max-retry-after` | `wow.peer.retry.max-attempts`, `.initial-backoff`, `.max-retry-after` |
+| `wow.http.services.<service>.commands`, `.reads` | `wow.callers.<service>.commands`, `.reads` |
+| `wow.topics.in-memory` | `wow.transport`: `auto` (the default) keeps the topics in the JVM in development; `memory` asks for them, in development alone |

@@ -63,8 +63,8 @@ internal sealed interface Answer<out T> {
  * The HTTP exchanges of the clients with the peers (decision D257), on the JDK [client]: each request goes to the base
  * URL [endpoints] gives its context on the [mode]'s port, asked again for every attempt; it carries, in service mode,
  * the service's name (`Wow-Service`, decision D300) and the root context (`Wow-Call`), in user mode the end user's
- * forwarded credential headers, and the trace the coroutine runs in (decision D174); it is answered within [timeout] (the response's
- * head, for a stream) and retried as [retry] says.
+ * forwarded credential headers, and the trace the coroutine runs in (decision D174); it is answered within its
+ * context's timeout of [timeouts], else [timeout] (the response's head, for a stream), and retried as [retry] says.
  */
 internal class HttpTransport(
     val endpoints: EndpointResolver,
@@ -72,10 +72,15 @@ internal class HttpTransport(
     val client: HttpClient,
     val timeout: Duration,
     val retry: RetryPolicy,
+    val timeouts: Map<String, Duration> = emptyMap(),
 ) {
     init {
         require(timeout.isPositive()) { "A request's timeout is positive." }
+        require(timeouts.values.all { it.isPositive() }) { "A request's timeout is positive: $timeouts." }
     }
+
+    /** How long a request to [context] may take until its peer answers it. */
+    fun timeoutOf(context: String): Duration = timeouts[context] ?: timeout
 
     /** [request] answered as bytes, retried while [retries] says so of its problem. */
     suspend fun exchange(request: PeerRequest, retries: (PeerProblem) -> Boolean): Answer<ByteArray> =
@@ -140,11 +145,11 @@ internal class HttpTransport(
         val base = endpoints.resolve(request.context, mode.port)?.toString()?.trimEnd('/')
             ?: throw IllegalStateException(
                 "No URL calls context ${request.context} on its ${mode.port.name.lowercase()} port: set " +
-                    "wow.clients.contexts.${request.context}.${if (mode.port == Port.PUBLIC) "url" else "internal-url"}, " +
+                    "wow.peers.${request.context}.${if (mode.port == Port.PUBLIC) "public-url" else "url"}, " +
                     "or give the client an EndpointResolver that finds it.",
             )
         val builder = HttpRequest.newBuilder(URI.create(base + request.path))
-            .timeout((request.timeout ?: timeout).toJavaDuration())
+            .timeout((request.timeout ?: timeoutOf(request.context)).toJavaDuration())
             .header(ACCEPT, accept)
         when (val mode = mode) {
             is ClientMode.Service -> {

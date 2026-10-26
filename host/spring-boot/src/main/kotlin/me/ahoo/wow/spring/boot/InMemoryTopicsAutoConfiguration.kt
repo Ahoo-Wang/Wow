@@ -20,18 +20,22 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.spi.Ddl
-import me.ahoo.wow.spi.config.configCheck
 import org.springframework.boot.autoconfigure.AutoConfiguration
+import org.springframework.boot.autoconfigure.condition.ConditionOutcome
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.autoconfigure.condition.SpringBootCondition
 import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.ApplicationListener
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.ConditionContext
+import org.springframework.context.annotation.Conditional
 import org.springframework.core.env.Environment
+import org.springframework.core.type.AnnotatedTypeMetadata
 
 /**
- * The node's topics in its JVM, for trying a service out without Kafka (`wow.topics.in-memory`, DX gap G27): one
+ * The node's topics in its JVM, for trying a service out without Kafka (DX gap G27), when `wow.transport` selects them
+ * ([TransportSelection.MEMORY]: `memory`, or `auto` in development without a configured transport): one
  * [InMemoryTopics] of `wow.log.partitions` partitions, unless the application has one of its own, as wow-kafka's beans
  * give them on Kafka:
  *
@@ -39,20 +43,20 @@ import org.springframework.core.env.Environment
  *   whose topics the node creates at its start ([Ddl.AUTO]);
  * - the [PublishedSinks] of the streams the Manifest publishes.
  *
- * It warns at startup that nothing leaves the JVM, and fails with `wow.kafka.bootstrap-servers` set too.
+ * It warns at startup that nothing leaves the JVM. `wow.transport=memory` outside development is refused.
  */
 @AutoConfiguration
-@ConditionalOnProperty(prefix = InMemoryTopicsAutoConfiguration.PREFIX, name = ["in-memory"], havingValue = "true")
+@Conditional(InMemoryTopicsAutoConfiguration.OnMemory::class)
 @EnableConfigurationProperties(WowProperties::class)
 @InternalWowApi
 class InMemoryTopicsAutoConfiguration(environment: Environment) {
     init {
-        configCheck(
-            environment.getProperty("${KafkaProperties.PREFIX}.bootstrap-servers").isNullOrBlank(),
-            "wow.topics.in-memory",
-            true,
-            "Unset one of them: the node's topics are either in its JVM, for local development, or on Kafka.",
-        ) { "wow.topics.in-memory and wow.kafka.bootstrap-servers are both set." }
+        val properties = WowProperties.of(environment)
+        DevelopmentMode.of(properties, environment).require(
+            "wow.transport",
+            properties.transport,
+            "keeps the node's topics in its JVM, where other services do not see them and nothing survives a restart",
+        )
     }
 
     @Bean
@@ -74,17 +78,27 @@ class InMemoryTopicsAutoConfiguration(environment: Environment) {
         logger.warn { WARNING }
     }
 
+    /** Whether `wow.transport` keeps the node's topics in its JVM ([TransportSelection.MEMORY]). */
+    internal class OnMemory : SpringBootCondition() {
+        override fun getMatchOutcome(context: ConditionContext, metadata: AnnotatedTypeMetadata): ConditionOutcome {
+            val selection = TransportSelection.of(context)
+            return if (selection == TransportSelection.MEMORY) {
+                ConditionOutcome.match("wow.transport selects the topics in the JVM")
+            } else {
+                ConditionOutcome.noMatch("wow.transport selects $selection")
+            }
+        }
+    }
+
     @InternalWowApi
     companion object {
         private val logger = KotlinLogging.logger {}
-
-        const val PREFIX: String = "wow.topics"
 
         /** The name of the in-memory sinks' [PublishedSinks] bean. */
         const val IN_MEMORY_SINKS: String = "wowInMemorySinks"
 
         /** What the node warns at startup with in-memory topics. */
-        const val WARNING: String = "wow.topics.in-memory: the node's command topics and published streams are in " +
+        const val WARNING: String = "wow.transport=memory: the node's command topics and published streams are in " +
             "its JVM, not on Kafka. Other services do not see them, and nothing survives a restart: for local " +
             "development and tests only."
     }

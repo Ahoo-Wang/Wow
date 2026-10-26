@@ -436,7 +436,7 @@
   }, {
     "code" : "wow.call.command-forbidden",
     "status" : 403,
-    "description" : "The calling service may not call this command: its wow.http.services.<service>.commands do not list it."
+    "description" : "The calling service may not call this command: its wow.callers.<service>.commands do not list it."
   } ],
   "$defs" : {
     "me.ahoo.wow.example.eshop.catalog.api.brand.BrandCreated" : {
