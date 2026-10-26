@@ -20,6 +20,7 @@ import com.mongodb.client.MongoClients
 import com.mongodb.event.CommandListener
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import me.ahoo.wow.http.caller.CallerResolver
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
@@ -36,7 +37,11 @@ import javax.sql.DataSource
  * and node id from the command line (test/benchmarks/README.md).
  */
 @SpringBootApplication(proxyBeanMethods = false)
-class TransferServer
+class TransferServer {
+    /** The benchmark's clients are anonymous; outside development the host wants that said in a bean (decision D301). */
+    @Bean
+    fun anonymousCallers(): CallerResolver = CallerResolver.ANONYMOUS
+}
 
 /**
  * The `mongo` profile: the application's `MongoClient` on `spring.mongodb.uri`, which selects the MongoDB backend. It
