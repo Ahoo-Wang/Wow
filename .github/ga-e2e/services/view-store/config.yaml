@@ -8,3 +8,5 @@ data:
   # partitions (64 in deploy/), fewer leases and polls per node.
   JAVA_OPTS: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2
   WOW_LOG_PARTITIONS: "8"
+  # diagnostics (F10): HikariCP's configuration at startup and its pool stats every 30 s (logging.level.com.zaxxer.hikari)
+  LOGGING_LEVEL_COM_ZAXXER_HIKARI: DEBUG

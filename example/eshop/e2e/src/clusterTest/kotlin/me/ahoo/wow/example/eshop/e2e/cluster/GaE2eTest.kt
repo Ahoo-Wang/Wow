@@ -30,6 +30,10 @@ import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.TestMethodOrder
 import java.io.File
 import java.time.Duration
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.FutureTask
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 
@@ -94,12 +98,22 @@ class GaE2eTest {
         verdict.stopSampling()
     }
 
-    /** Runs a scenario's [body], recording a failure in the report before JUnit sees it. */
+    /**
+     * Runs a scenario's [body] within its [budget], recording a failure in the report before JUnit sees it: a scenario
+     * that runs out of time fails and lets the next one run, instead of running into the job's limit (F10).
+     */
     @Suppress("TooGenericExceptionCaught") // Any failure is recorded, then thrown on.
-    private fun scenario(scenario: String, name: String, body: () -> String) {
+    private fun scenario(scenario: String, name: String, budget: Duration = SCENARIO_BUDGET, body: () -> String) {
+        val task = FutureTask(body)
+        thread(name = "scenario-$name", isDaemon = true) { task.run() }
         val detail = try {
-            body()
-        } catch (failure: Throwable) {
+            task.get(budget.toMillis(), TimeUnit.MILLISECONDS)
+        } catch (timedOut: TimeoutException) {
+            task.cancel(true)
+            report.check(scenario, name, false, "exceeded its budget of $budget")
+            throw AssertionError("$scenario / $name exceeded its budget of $budget", timedOut)
+        } catch (failed: ExecutionException) {
+            val failure = failed.cause ?: failed
             report.check(scenario, name, false, "${failure.javaClass.simpleName}: ${failure.message}")
             throw failure
         }
@@ -439,6 +453,9 @@ class GaE2eTest {
                 ) {
                     val checkout = thread { flows.checkoutWaiting("carol", ShopFlows.TO_ORDERING) }
                     Thread.sleep(MID_CHECKOUT.toMillis())
+                    report.note(
+                        "force-deleting $owner, at ${kube.pods("eshop-ordering").find { it.name == owner }?.ip}"
+                    )
                     kube.deletePod(owner, force = true)
                     checkout.join()
                 }
@@ -685,6 +702,7 @@ class GaE2eTest {
     private companion object {
         const val FORGED = "203.0.113.9"
         val VERDICT_BUDGET: Duration = Duration.ofMinutes(15)
+        val SCENARIO_BUDGET: Duration = Duration.ofMinutes(15)
         const val SECRET = "ga-e2e-not-a-secret-only-for-the-kind-cluster-0123456789"
         const val FORBIDDEN = 403
         const val UNAUTHORIZED = 401

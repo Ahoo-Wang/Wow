@@ -27,3 +27,5 @@ data:
   # capacity, so every node fits one runner: the heap within the pod's memory limit, one GC thread, two cores' worth
   # of default pools
   JAVA_OPTS: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2
+  # diagnostics (F10): HikariCP's configuration at startup and its pool stats every 30 s (logging.level.com.zaxxer.hikari)
+  LOGGING_LEVEL_COM_ZAXXER_HIKARI: DEBUG

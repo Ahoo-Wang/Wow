@@ -20,3 +20,5 @@ data:
   # thread, two cores' worth of default pools; the log's partitions (64 in the base), fewer leases and polls per node.
   JAVA_OPTS: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2
   WOW_LOG_PARTITIONS: "8"
+  # diagnostics (F10): HikariCP's configuration at startup and its pool stats every 30 s (logging.level.com.zaxxer.hikari)
+  LOGGING_LEVEL_COM_ZAXXER_HIKARI: DEBUG
