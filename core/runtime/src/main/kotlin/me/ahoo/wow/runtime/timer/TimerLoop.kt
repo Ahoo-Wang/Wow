@@ -48,7 +48,7 @@ import kotlin.time.TimeSource
  * so a backlog after an outage drains at that rate. It sleeps until the next poll, the next due timer or the next
  * permitted firing, and wakes early when a firing ends or a partition starts.
  *
- * Firing only by the owner of the target's partition: a runner holds the partitions the node owns, from their
+ * Firing only by the owner of the timer's partition, its owner's: a runner holds the partitions the node owns, from their
  * acquisition until their hand-off ([me.ahoo.wow.runtime.cluster.PartitionOwnership]).
  *
  * [rounds] counts the rounds that read the stores, for the tests of the one query per round.

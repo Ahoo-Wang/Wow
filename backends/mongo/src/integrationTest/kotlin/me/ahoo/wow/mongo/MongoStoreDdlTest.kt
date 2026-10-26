@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.mongo
 
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.mongo.timer.MongoTimerStore
@@ -42,19 +44,21 @@ class MongoStoreDdlTest {
     @Test
     fun `validate refuses a missing index`() {
         val context = MongoLogFixture.newContext("ddl")
-        val timers = MongoTimerStore(client, database, context)
+        val ref = AggregateType(context, "order").ref("t", "o-1")
+        val timers = MongoTimerStore(client, database, context, 4)
         timers.createSchema()
-        client.getDatabase(database).getCollection(timers.collectionName).dropIndexes()
+        runBlocking { timers.find(ref, "k") }
+        client.getDatabase(database).getCollection(timers.collectionName("order")).dropIndexes()
         assertThrows<IllegalStateException> {
-            MongoTimerStore(client, database, context, ddl = Ddl.VALIDATE).createSchema()
+            runBlocking { MongoTimerStore(client, database, context, 4, ddl = Ddl.VALIDATE).find(ref, "k") }
         }.message.assert().contains("is missing")
     }
 
     @Test
     fun `none creates and checks nothing`() {
         val context = MongoLogFixture.newContext("ddl")
-        val timers = MongoTimerStore(client, database, context, ddl = Ddl.NONE)
+        val timers = MongoTimerStore(client, database, context, 4, ddl = Ddl.NONE)
         timers.createSchema()
-        (timers.collectionName in client.getDatabase(database).listCollectionNames()).assert().isFalse()
+        (timers.collectionName("order") in client.getDatabase(database).listCollectionNames()).assert().isFalse()
     }
 }
