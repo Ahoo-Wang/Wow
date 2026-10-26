@@ -18,8 +18,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.wire.WowHeaders
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spring.boot.DevelopmentMode
-import me.ahoo.wow.spring.boot.WowConfigurationException
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

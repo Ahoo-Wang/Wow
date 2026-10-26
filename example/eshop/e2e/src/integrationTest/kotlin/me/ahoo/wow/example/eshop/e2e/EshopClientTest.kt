@@ -32,7 +32,7 @@ import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 import me.ahoo.wow.example.eshop.ordering.server.OrderingServer
-import me.ahoo.wow.spring.boot.InternalServer
+import me.ahoo.wow.http.internal.InternalPort
 import org.junit.jupiter.api.Test
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
@@ -132,7 +132,7 @@ class EshopClientTest {
 
     private class Service(val context: ConfigurableApplicationContext) : AutoCloseable {
         val port: Int = context.environment.getRequiredProperty("local.server.port", Int::class.java)
-        val internalPort: Int = context.getBean(InternalServer::class.java).boundPort
+        val internalPort: Int = context.getBean(InternalPort::class.java).boundPort
 
         inline fun <reified T : Any> bean(): T = context.getBean(T::class.java)
 

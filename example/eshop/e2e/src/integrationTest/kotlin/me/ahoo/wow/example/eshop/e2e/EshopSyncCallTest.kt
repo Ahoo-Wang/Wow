@@ -28,7 +28,7 @@ import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
-import me.ahoo.wow.spring.boot.InternalServer
+import me.ahoo.wow.http.internal.InternalPort
 import org.junit.jupiter.api.Test
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ApplicationContextException
@@ -185,7 +185,7 @@ class EshopSyncCallTest {
     /** A service of this JVM, its public [port] and its [internalPort] on the loopback interface, as bound. */
     private class Service(private val context: ConfigurableApplicationContext) : AutoCloseable {
         val port: Int = context.environment.getRequiredProperty("local.server.port", Int::class.java)
-        val internalPort: Int = context.getBean(InternalServer::class.java).boundPort
+        val internalPort: Int = context.getBean(InternalPort::class.java).boundPort
         private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
 
         fun get(path: String, headers: Map<String, String> = emptyMap()): Answer =

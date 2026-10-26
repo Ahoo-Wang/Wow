@@ -15,6 +15,8 @@ package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.http.internal.InternalHttp
+import me.ahoo.wow.http.internal.InternalPort
+import me.ahoo.wow.http.internal.InternalPortSettings
 import me.ahoo.wow.http.internal.internalRoutes
 import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
 import me.ahoo.wow.runtime.cluster.ClusterCodec
@@ -37,7 +39,7 @@ class InternalMessageLimitTest {
     /** A JSON body of [size] bytes, which is no forward: read whole, it is malformed. */
     private fun body(size: Int): ByteArray = ("{\"x\":\"" + "a".repeat(size) + "\"}").toByteArray()
 
-    private fun post(server: InternalServer, path: String, body: ByteArray): HttpResponse<ByteArray> =
+    private fun post(server: InternalPort, path: String, body: ByteArray): HttpResponse<ByteArray> =
         HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build().send(
             HttpRequest.newBuilder(URI.create("http://127.0.0.1:${server.boundPort}$path"))
                 .header("Content-Type", "application/json")
@@ -46,7 +48,7 @@ class InternalMessageLimitTest {
             HttpResponse.BodyHandlers.ofByteArray(),
         )
 
-    private fun <T> serving(server: InternalServer, block: (InternalServer) -> T): T {
+    private fun <T> serving(server: InternalPort, block: (InternalPort) -> T): T {
         server.start()
         try {
             return block(server)
@@ -71,7 +73,7 @@ class InternalMessageLimitTest {
 
     @Test
     fun `a forward over the internal port's limit should be refused, so its sender runs it`() {
-        val server = InternalServer(0, "127.0.0.1", internalRoutes(handler, {}))
+        val server = InternalPort.of(InternalPortSettings(0, "127.0.0.1"), internalRoutes(handler, {}))
         serving(server) {
             val answer = post(it, InternalHttp.FORWARD_PATH, body(300 * 1024))
             answer.statusCode().assert().isEqualTo(200)
@@ -83,7 +85,10 @@ class InternalMessageLimitTest {
     @Test
     fun `a larger limit should take a forward the default one refuses`() {
         val limit = InternalHttp.messageLimit(1024 * 1024)
-        val server = InternalServer(0, "127.0.0.1", internalRoutes(handler, {}), limit)
+        val server = InternalPort.of(
+            InternalPortSettings(0, "127.0.0.1", maxMessageSize = limit),
+            internalRoutes(handler, {})
+        )
         serving(server) {
             // Read whole: no forward, so malformed.
             post(it, InternalHttp.FORWARD_PATH, body(300 * 1024)).statusCode().assert().isEqualTo(400)

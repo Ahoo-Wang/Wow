@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.sink.SinkConfig
 import me.ahoo.wow.spi.sink.SinkProvider
 import me.ahoo.wow.spi.store.StoreResources

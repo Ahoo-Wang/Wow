@@ -68,6 +68,14 @@ public final class me/ahoo/wow/client/NamedCommand {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/client/PeerMode : java/lang/Enum {
+	public static final field SERVICE Lme/ahoo/wow/client/PeerMode;
+	public static final field USER Lme/ahoo/wow/client/PeerMode;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/client/PeerMode;
+	public static fun values ()[Lme/ahoo/wow/client/PeerMode;
+}
+
 public final class me/ahoo/wow/client/Port : java/lang/Enum {
 	public static final field INTERNAL Lme/ahoo/wow/client/Port;
 	public static final field PUBLIC Lme/ahoo/wow/client/Port;

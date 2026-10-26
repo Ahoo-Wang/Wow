@@ -11,10 +11,10 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.spring.boot
+package me.ahoo.wow.http.internal
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.wow.http.internal.InternalHttp
+import me.ahoo.wow.api.annotation.InternalWowApi
 import org.springframework.http.server.reactive.ReactorHttpHandlerAdapter
 import org.springframework.web.reactive.function.server.HandlerStrategies
 import org.springframework.web.reactive.function.server.RouterFunction
@@ -26,22 +26,20 @@ import reactor.netty.http.server.HttpServer
 
 /**
  * The internal port of the node (decisions D89, D109): a Reactor Netty server of its own, apart from the public
- * WebFlux server, serving [routes] (the cluster channel and the wait signals) over HTTP/1.1 and h2c. Its codecs take
- * messages of up to [maxMessageSize] bytes, which the host derives from the public port's codec limit
- * ([InternalHttp.messageLimit], review A3-9), and the server takes an upgrade request of up to that size too, as the
- * JDK client reaches HTTP/2 by upgrading the first request of a connection. Its cluster routes take the service's cluster token, its call routes a service identity
- * (decision D226); bind it to [host] where only the cluster reaches it all the same.
+ * WebFlux server, serving its routes (the cluster channel, the wait signals, the services' calls and peer reads) over
+ * HTTP/1.1 and h2c. Its codecs take messages of up to [InternalPortSettings.maxMessageSize] bytes, which a host derives
+ * from the public port's codec limit ([InternalHttp.messageLimit], review A3-9), and the server takes an upgrade
+ * request of up to that size too, as the JDK client reaches HTTP/2 by upgrading the first request of a connection.
+ *
+ * The internal side is a trusted environment (decision D298): the network keeps it apart, so building the port checks
+ * no credential. An application reads where it is bound ([boundPort]); building and running it is the host's ([of]).
  */
-class InternalServer(
+class InternalPort private constructor(
     private val port: Int,
     private val host: String?,
     routes: RouterFunction<ServerResponse>,
     private val maxMessageSize: Int,
 ) {
-    /** The internal port with the default codec limit, [InternalHttp.MAX_UPGRADE_BODY]. */
-    constructor(port: Int, host: String?, routes: RouterFunction<ServerResponse>) :
-        this(port, host, routes, InternalHttp.MAX_UPGRADE_BODY)
-
     private val adapter = ReactorHttpHandlerAdapter(
         RouterFunctions.toHttpHandler(
             routes,
@@ -59,6 +57,7 @@ class InternalServer(
     val boundPort: Int get() = checkNotNull(server) { "The internal server is not bound." }.port()
 
     /** Binds the server, at once. */
+    @InternalWowApi
     @Synchronized
     fun start() {
         if (server != null) {
@@ -74,6 +73,7 @@ class InternalServer(
     }
 
     /** Unbinds the server. */
+    @InternalWowApi
     @Synchronized
     fun stop() {
         server?.disposeNow()
@@ -81,7 +81,24 @@ class InternalServer(
         logger.info { "Wow internal port stopped." }
     }
 
-    private companion object {
-        val logger = KotlinLogging.logger {}
+    companion object {
+        private val logger = KotlinLogging.logger {}
+
+        /** The internal port of [settings], serving [routes]. */
+        @InternalWowApi
+        @JvmStatic
+        fun of(settings: InternalPortSettings, routes: RouterFunction<ServerResponse>): InternalPort =
+            InternalPort(settings.port, settings.bindHost, routes, settings.maxMessageSize)
     }
 }
+
+/**
+ * What an [InternalPort] is built of: the [port] it binds (0 for one the system chooses) on [bindHost], and the
+ * [maxMessageSize] of its codecs.
+ */
+@InternalWowApi
+class InternalPortSettings(
+    val port: Int,
+    val bindHost: String,
+    val maxMessageSize: Int = InternalHttp.MAX_UPGRADE_BODY,
+)

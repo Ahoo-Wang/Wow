@@ -24,6 +24,8 @@ import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.store.BackendSelection
 import me.ahoo.wow.runtime.store.StoreTypes
+import me.ahoo.wow.spi.config.configCheck
+import me.ahoo.wow.spi.config.configNotNull
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore

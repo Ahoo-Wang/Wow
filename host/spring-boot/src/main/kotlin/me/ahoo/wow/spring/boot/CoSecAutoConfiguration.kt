@@ -26,6 +26,7 @@ import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.caller.InternalCallerResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
+import me.ahoo.wow.spi.config.configCheck
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass

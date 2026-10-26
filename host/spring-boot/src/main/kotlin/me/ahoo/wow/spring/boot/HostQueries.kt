@@ -15,16 +15,12 @@ package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.runBlocking
-import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.query.AdaptiveLimitOptions
-import me.ahoo.wow.query.AdaptiveQueryLimit
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryBackendFactory
-import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.index.QueryIndexDeclaration
@@ -34,17 +30,17 @@ import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.QueryIndexReport
+import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.node.ServiceNode
-import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.store.StoreTypes
+import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.WritePressure
 import org.springframework.context.SmartLifecycle
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.time.toKotlinDuration
 
 /**
  * The snapshot query backend of the node (decision D110): the [factory] of each aggregate type's backend and storage
@@ -201,74 +197,10 @@ internal object HostEventStores {
 }
 
 /**
- * The query bulkheads of the node's [stores] (review R3.4-2), by store name: each store's bound is
- * `wow.stores.<name>.query.max-concurrent` ([settings]), else `wow.query.max-concurrent` ([global]), else its query
- * provider's ([StoreQueryProvider.maxConcurrent], from its pool); `0` sets none. A store whose type has no query
- * provider has no queries to bound. A query beyond the bound waits (decision D247) at most
- * `wow.stores.<name>.query.max-wait`, else `wow.query.max-wait` (200ms), in a queue of at most
- * `wow.stores.<name>.query.max-queued`, else `wow.query.max-queued` (4 per permit).
- *
- * A bound neither setting fixes adapts to the store's write pressure (decision D252) unless
- * `wow.stores.<name>.query.adaptive.enabled`, else `wow.query.adaptive.enabled`, is off: it starts at the provider's,
- * moves between the floor and the ceiling (`adaptive.floor`, `adaptive.ceiling`, store over global, the ceiling else
- * the provider's [StoreQueryProvider.maxConcurrentCeiling]), and reads the store's [pressures].
+ * What the host gives `wow-query`'s query bounds ([me.ahoo.wow.query.store.QueryStores], review R5.C-2): each store's
+ * write pressure as the node measures it, and whether an aggregate type's events queries that name no aggregate run.
  */
 internal object HostQueryBulkheads {
-    fun of(
-        stores: Map<String, Store>,
-        providers: StoreProviders,
-        global: QueryProperties,
-        settings: Map<String, WowProperties.Store>,
-        pressures: (String) -> WritePressure = { WritePressure.NONE },
-    ): QueryStoreBulkheads {
-        val limits = ArrayList<AdaptiveQueryLimit>()
-        val bulkheads = stores.mapNotNull { (name, store) ->
-            val provider = providers.queriesOf(store.type) ?: return@mapNotNull null
-            val (bulkhead, adaptive) = bulkheadOf(name, store, provider, global, settings[name]?.query)
-                ?: return@mapNotNull null
-            adaptive?.let { limits += AdaptiveQueryLimit(bulkhead, pressures(name), it) }
-            name to bulkhead
-        }.toMap()
-        return QueryStoreBulkheads(bulkheads, limits)
-    }
-
-    /** The bulkhead of the store [name], and its adaptive options when its bound adapts; null for no bound. */
-    private fun bulkheadOf(
-        name: String,
-        store: Store,
-        provider: StoreQueryProvider,
-        global: QueryProperties,
-        own: WowProperties.StoreQuery?,
-    ): Pair<QueryBulkhead, AdaptiveLimitOptions?>? {
-        val fixed = own?.maxConcurrent ?: global.maxConcurrent
-        val derived = fixed ?: provider.maxConcurrent(store)
-        configCheck(derived >= 0, "wow.stores.$name.query.max-concurrent", derived, "Set 0 for no bound, or more.") {
-            "wow.stores.$name.query.max-concurrent (or wow.query.max-concurrent) is $derived."
-        }
-        if (derived == 0) return null
-        val adaptive = fixed == null && (own?.adaptive?.enabled ?: global.adaptive.enabled)
-        val ceiling = if (adaptive) ceilingOf(name, store, provider, global, own) else derived
-        val max = minOf(derived, ceiling)
-        val wait = own?.maxWait ?: global.maxWait
-        val queued = own?.maxQueued ?: global.maxQueued ?: (max * QueryBulkhead.DEFAULT_QUEUE_FACTOR)
-        val bulkhead = QueryBulkhead(name, max, wait.toKotlinDuration(), queued, maxOf(max, ceiling))
-        val options = if (adaptive) global.adaptive.options(own?.adaptive?.floor ?: global.adaptive.floor) else null
-        return bulkhead to options
-    }
-
-    /** The ceiling of the store [name]'s adaptive bound: its own, else the global one, else its provider's. */
-    private fun ceilingOf(
-        name: String,
-        store: Store,
-        provider: StoreQueryProvider,
-        global: QueryProperties,
-        own: WowProperties.StoreQuery?,
-    ): Int = (own?.adaptive?.ceiling ?: global.adaptive.ceiling ?: provider.maxConcurrentCeiling(store)).also {
-        configCheck(it >= 1, "wow.stores.$name.query.adaptive.ceiling", it, "Set 1 or more.") {
-            "wow.stores.$name.query.adaptive.ceiling (or wow.query.adaptive.ceiling) is $it."
-        }
-    }
-
     /**
      * The write pressure of [store] (decision D252): its appends' latency as [node] measures it, when a log of the
      * node is on it, and the callers waiting for a connection of its pool, when it says.
@@ -278,24 +210,6 @@ internal object HostQueryBulkheads {
         if (store == null) return latency
         return WritePressure { latency.sample().waiting(store.waitingForConnection() ?: 0) }
     }
-
-    /**
-     * The state reads' replays (decision D246 ⑥), each under the bulkhead of its aggregate type's log store
-     * ([logStoreOf]) among [bulkheads]; one of a store without a bulkhead runs at once.
-     */
-    fun replays(bulkheads: Map<String, QueryBulkhead>, logStoreOf: (AggregateType) -> String?): ReplayGate =
-        if (bulkheads.isEmpty()) {
-            ReplayGate.OPEN
-        } else {
-            object : ReplayGate {
-                override suspend fun <T> replay(ref: AggregateRef, read: suspend () -> T): T {
-                    val bulkhead = logStoreOf(ref.type)?.let(bulkheads::get) ?: return read()
-                    return bulkhead.run(read)
-                }
-
-                override fun toString(): String = "ReplayGate(${bulkheads.values})"
-            }
-        }
 
     /**
      * Whether [type]'s events queries that name no aggregate run (review R3.4-2): its

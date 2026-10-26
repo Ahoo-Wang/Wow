@@ -19,6 +19,7 @@ import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.client.HttpCommandCaller
+import me.ahoo.wow.client.PeerMode
 import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
@@ -227,14 +228,14 @@ class WowProperties {
          * it first on every node, then removing the old one; a comma-separated value (`WOW_INTERNAL_TOKEN`) is a list.
          * A service token of `wow.http.services` opens the call routes, not these, and this token no call route.
          *
-         * A node without one starts only in a profile of [devProfiles], or with its internal port bound to the
-         * loopback interface alone, and warns: its cluster routes then take every request.
+         * A node without one starts all the same: the internal side is a trusted network, and its
+         * cluster routes then take every request.
          */
         var token: MutableList<String> = ArrayList()
 
         /**
-         * The development profiles, `dev`, `local`, `test` and `demo`: in them the internal port may run without
-         * [token], and `wow.backend=auto` falls back to memory when no durable backend is available.
+         * The development profiles, `dev`, `local`, `test` and `demo`: in them `wow.backend=auto` falls back to memory
+         * when no durable backend is available.
          */
         var devProfiles: MutableSet<String> = linkedSetOf("dev", "local", "test", "demo")
     }
@@ -1215,7 +1216,7 @@ class WowProperties {
          * The mode of a peer that names none: `service`, through its internal port as this service, or `user`,
          * through its public routes with the end user's credential.
          */
-        var mode: Mode = Mode.SERVICE
+        var mode: PeerMode = PeerMode.SERVICE
 
         /** How long a request may take to be answered, a command's longer wait aside. */
         var timeout: Duration = WowClient.DEFAULT_TIMEOUT.toJavaDuration()
@@ -1237,7 +1238,7 @@ class WowProperties {
         class ClientTarget {
             var url: URI? = null
             var internalUrl: URI? = null
-            var mode: Mode? = null
+            var mode: PeerMode? = null
             var contract: Contract = Contract.JAR
         }
 
@@ -1266,15 +1267,6 @@ class WowProperties {
 
             /** The wait before the first retry when the peer gives no `Retry-After`; it doubles at each next one. */
             var backoff: Duration = ClientRetryPolicy.DEFAULT.backoff.toJavaDuration()
-        }
-
-        /** The mode of a client ([me.ahoo.wow.client.ClientMode]). */
-        enum class Mode {
-            /** The internal port, as this service asserting the caller as the root context. */
-            SERVICE,
-
-            /** The public routes, forwarding the end user's credential. */
-            USER,
         }
     }
 

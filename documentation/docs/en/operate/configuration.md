@@ -63,9 +63,8 @@ A few defaults relax in a development profile, `dev`, `local`, `test` or `demo` 
 | Without | In development | In production |
 | --- | --- | --- |
 | A `DataSource` or `MongoClient` | Runs in memory, with a warning | Refuses to start |
-| A cluster token | The internal port runs without one | Refuses to start |
 
-So a laptop needs no database and no secret, and a production node cannot start with either missing. `wow.ddl: validate` keeps a production node from creating tables ([PostgreSQL](./postgresql#manage-the-schema)).
+So a laptop needs no database, and a production node cannot start without one. `wow.ddl: validate` keeps a production node from creating tables ([PostgreSQL](./postgresql#manage-the-schema)).
 
 ## See what the node took
 

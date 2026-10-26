@@ -19,7 +19,7 @@ import me.ahoo.wow.example.eshop.inventory.server.InventoryServer
 import me.ahoo.wow.example.eshop.ordering.server.OrderingServer
 import me.ahoo.wow.example.eshop.payment.server.PaymentServer
 import me.ahoo.wow.kernel.memory.InMemoryTopics
-import me.ahoo.wow.spring.boot.InternalServer
+import me.ahoo.wow.http.internal.InternalPort
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
 import kotlin.system.exitProcess
@@ -78,7 +78,7 @@ class EshopLocal(private val randomPorts: Boolean) : AutoCloseable {
             "--eshop.ordering.payment-grace-period=30m",
         )
         start(PaymentServer::class.java, "payment", "--eshop.payment.gateway.limit=1000.00")
-        val orderingGateway = ordering.getBean(InternalServer::class.java).boundPort
+        val orderingGateway = ordering.getBean(InternalPort::class.java).boundPort
         start(
             BasketServer::class.java,
             "basket",

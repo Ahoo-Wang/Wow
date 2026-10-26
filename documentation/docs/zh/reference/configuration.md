@@ -75,7 +75,7 @@ The typed clients of the peer contexts over HTTP, `wow-client`'s: a peer context
 | `wow.clients.connect-timeout` | `Duration` | `PT2S` | How long a request may take to connect. |
 | `wow.clients.contexts` | `Map<String,ClientTarget>` |  | The peer contexts reached over HTTP, by context: one the api jars on the class path declare, or one described by its Manifest alone (`contract: manifest`), called with me.ahoo.wow.client.NamedCommands. |
 | `wow.clients.forwarded-headers` | `List<String>` | `Authorization` | The headers of the public request it serves that a user-mode request forwards. |
-| `wow.clients.mode` | `Mode` | `service` | The mode of a peer that names none: `service`, through its internal port as this service, or `user`, through its public routes with the end user's credential. |
+| `wow.clients.mode` | `PeerMode` | `service` | The mode of a peer that names none: `service`, through its internal port as this service, or `user`, through its public routes with the end user's credential. |
 | `wow.clients.timeout` | `Duration` | `PT30S` | How long a request may take to be answered, a command's longer wait aside. |
 
 ## `wow.clients.retry`
@@ -280,11 +280,11 @@ The internal port: the cluster channel, the wait signals and the calls of other 
 | 键 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `wow.internal.connect-timeout` | `Duration` | `PT1S` | How long a peer has to accept a connection of the cluster channel or the signal sender. |
-| `wow.internal.dev-profiles` | `Set<String>` | `dev, local, test, demo` | The development profiles, `dev`, `local`, `test` and `demo`: in them the internal port may run without token, and `wow.backend=auto` falls back to memory when no durable backend is available. |
+| `wow.internal.dev-profiles` | `Set<String>` | `dev, local, test, demo` | The development profiles, `dev`, `local`, `test` and `demo`: in them `wow.backend=auto` falls back to memory when no durable backend is available. |
 | `wow.internal.host` | `String` |  | The address the internal server binds, `0.0.0.0` for every interface; when not set, the host of the member address the node advertises (`wow.node.address`, else this host's address). |
 | `wow.internal.port` | `Integer` | `9090` | The port of the internal server, which carries the cluster channel and the wait signals; 0 for one the system chooses, which the node advertises once the server is bound. |
 | `wow.internal.signal-queue-capacity` | `Integer` | `1024` | The wait signals queued per origin node before they are dropped, so a slow or unreachable node cannot hold the sender's memory. |
-| `wow.internal.token` | `List<String>` |  | The service's cluster tokens, at least 32 characters each: the secret its nodes share, which alone opens the cluster channel (`/wow/internal/forward`) and the wait signals of the internal port. A node sends the first and takes any, so a token is rotated by adding the new one second, then moving it first on every node, then removing the old one; a comma-separated value (`WOW_INTERNAL_TOKEN`) is a list. A service token of `wow.http.services` opens the call routes, not these, and this token no call route. A node without one starts only in a profile of devProfiles, or with its internal port bound to the loopback interface alone, and warns: its cluster routes then take every request. |
+| `wow.internal.token` | `List<String>` |  | The service's cluster tokens, at least 32 characters each: the secret its nodes share, which alone opens the cluster channel (`/wow/internal/forward`) and the wait signals of the internal port. A node sends the first and takes any, so a token is rotated by adding the new one second, then moving it first on every node, then removing the old one; a comma-separated value (`WOW_INTERNAL_TOKEN`) is a list. A service token of `wow.http.services` opens the call routes, not these, and this token no call route. A node without one starts all the same: the internal side is a trusted network, and its cluster routes then take every request. |
 
 ## `wow.kafka`
 
