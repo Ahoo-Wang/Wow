@@ -47,7 +47,7 @@ import kotlin.time.TimeSource
  * Fires the timers of one log group of one bounded [context] (decisions D166, D177, D198) in the partitions this node
  * owns: the node's [TimerLoop] reads them from [store] and sends them, the runner holds what it loaded and what is
  * being sent per partition ([startPartition], [stopPartition], driven by the partition leases,
- * [me.ahoo.wow.runtime.cluster.PartitionOwnership]), so a timer is sent by the owner of its target's partition. A new
+ * [me.ahoo.wow.runtime.cluster.PartitionOwnership]), so a timer is sent by the owner of its owner's partition (decision D308). A new
  * owner reads the store again: nothing is handed over.
  *
  * **Sending one**: from the row as loaded, with no read of it again. One due longer ago than
