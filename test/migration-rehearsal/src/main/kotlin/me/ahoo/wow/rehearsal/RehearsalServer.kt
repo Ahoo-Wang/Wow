@@ -13,32 +13,20 @@
 
 package me.ahoo.wow.rehearsal
 
-import com.zaxxer.hikari.HikariConfig
-import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.caller.CallerResolver
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
-import org.springframework.core.env.Environment
-import javax.sql.DataSource
 
 /**
  * The V10 side of the blue-green rehearsal (roadmap 8c.1): the 9.x example ported, on the Spring Boot host, its log
- * and snapshots on the PostgreSQL database `spring.datasource.*` names, the one migrate-data imported the 9.x data into.
+ * and snapshots on the PostgreSQL database `spring.datasource.*` names, the one migrate-data imported the 9.x data into:
+ * the host makes its pool of those properties (decision D310).
  */
 @SpringBootApplication(proxyBeanMethods = false)
 class RehearsalServer {
-    @Bean(destroyMethod = "close")
-    fun dataSource(environment: Environment): DataSource = HikariDataSource(
-        HikariConfig().apply {
-            jdbcUrl = environment.getRequiredProperty("spring.datasource.url")
-            username = environment.getProperty("spring.datasource.username")
-            password = environment.getProperty("spring.datasource.password")
-        },
-    )
-
     /**
      * The rehearsal's driver names the tenant it acts in, and the owner a created order or cart belongs to, as the 9.x
      * routes named them in their paths: `X-Rehearsal-Tenant` and `X-Rehearsal-Owner`. A request without the tenant is

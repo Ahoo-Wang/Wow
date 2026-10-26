@@ -10,7 +10,15 @@ outline: deep
 
 ## 连接服务 {#connect-a-service}
 
-把 `wow-mongo` 放到类路径上，并给应用一个同步驱动的 `MongoClient` Bean：宿主随后选择 MongoDB。Wow 的基准测试服务在它的 `mongo` profile 中定义了一个：
+把 `wow-mongo` 放到类路径上，并设置 `spring.mongodb.uri`：宿主用它建一个同步驱动的 `MongoClient`，并选择 MongoDB：
+
+```yaml
+spring:
+  mongodb:
+    uri: mongodb://mongo-1,mongo-2,mongo-3/?replicaSet=rs0
+```
+
+引入了 Spring Boot MongoDB 模块（`spring-boot-starter-mongodb`）的应用，改用 Spring Boot 用同样属性建的客户端。需要自己设置的应用定义一个 `MongoClient` Bean，宿主保留它；Wow 的基准测试服务就这样做，用来加上它的驱动命令监听器：
 
 <!-- sample: test/benchmarks/server/src/main/kotlin/me/ahoo/wow/benchmark/transfer/TransferServer.kt#mongo -->
 
@@ -24,8 +32,10 @@ outline: deep
 class TransferServer
 
 /**
- * The `mongo` profile: the application's `MongoClient` on `spring.mongodb.uri`, which selects the MongoDB backend. It
- * takes the application's driver [CommandListener]s: none in the server, the round-trip counter in ComponentBench.
+ * The `mongo` profile: the application's `MongoClient` on `spring.mongodb.uri`, which selects the MongoDB backend. A
+ * bean of its own, not the one the host makes of the property (decision D318), because it takes the application's
+ * driver [CommandListener]s, which no property can add: none in the server, the round-trip counter in ComponentBench.
+ * The `postgres` profile needs no bean: the host makes its pool of `spring.datasource.*` (decision D310).
  */
 @Configuration(proxyBeanMethods = false)
 @Profile("mongo")

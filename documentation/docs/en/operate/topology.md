@@ -106,8 +106,8 @@ A node keeps its log, snapshots, checkpoints, leases, failure ledger, reserved k
 
 | Backend | Module | The application provides |
 | --- | --- | --- |
-| `postgres` | `wow-postgres` | a `javax.sql.DataSource` bean |
-| `mongo` | `wow-mongo` | a `com.mongodb.client.MongoClient` bean, on a replica set; the database is `wow.mongo.database` |
+| `postgres` | `wow-postgres` | a `javax.sql.DataSource`: the host's of `spring.datasource.url` (with HikariCP), or the application's bean |
+| `mongo` | `wow-mongo` | a `com.mongodb.client.MongoClient` on a replica set: the host's of `spring.mongodb.uri`, or the application's bean; the database is `wow.mongo.database` |
 | `memory` | none | nothing: one node, whose data does not outlive it |
 
 `auto`, the default, takes PostgreSQL or MongoDB by the bean the application has. Without either, a node refuses to start, unless a development profile is active or its internal port binds the loopback interface alone; then it runs in memory and says so. The eShop's ordering service moves to PostgreSQL with its `postgres` profile:

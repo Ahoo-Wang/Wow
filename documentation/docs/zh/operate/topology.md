@@ -106,8 +106,8 @@ env:
 
 | 后端 | 模块 | 应用提供 |
 | --- | --- | --- |
-| `postgres` | `wow-postgres` | 一个 `javax.sql.DataSource` Bean |
-| `mongo` | `wow-mongo` | 一个连接副本集的 `com.mongodb.client.MongoClient` Bean；数据库由 `wow.mongo.database` 指定 |
+| `postgres` | `wow-postgres` | 一个 `javax.sql.DataSource`：宿主用 `spring.datasource.url` 建的（需要 HikariCP），或应用自己的 Bean |
+| `mongo` | `wow-mongo` | 一个连接副本集的 `com.mongodb.client.MongoClient`：宿主用 `spring.mongodb.uri` 建的，或应用自己的 Bean；数据库由 `wow.mongo.database` 指定 |
 | `memory` | 无 | 什么都不用：一个节点，数据不会比它活得更久 |
 
 默认的 `auto` 按应用提供的 Bean 选择 PostgreSQL 或 MongoDB。两者都没有时节点拒绝启动，除非处于开发 profile，或者它的内部端口只绑定在回环网卡上；这时它在内存中运行，并说明这一点。eShop 的 ordering 服务用它的 `postgres` profile 切换到 PostgreSQL：

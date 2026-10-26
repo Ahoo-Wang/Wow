@@ -18,8 +18,6 @@ import com.mongodb.MongoClientSettings
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.mongodb.event.CommandListener
-import com.zaxxer.hikari.HikariConfig
-import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.wow.http.caller.CallerResolver
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.SpringBootApplication
@@ -28,7 +26,6 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Profile
 import org.springframework.core.env.Environment
-import javax.sql.DataSource
 
 // region mongo
 /**
@@ -40,8 +37,10 @@ import javax.sql.DataSource
 class TransferServer
 
 /**
- * The `mongo` profile: the application's `MongoClient` on `spring.mongodb.uri`, which selects the MongoDB backend. It
- * takes the application's driver [CommandListener]s: none in the server, the round-trip counter in ComponentBench.
+ * The `mongo` profile: the application's `MongoClient` on `spring.mongodb.uri`, which selects the MongoDB backend. A
+ * bean of its own, not the one the host makes of the property (decision D318), because it takes the application's
+ * driver [CommandListener]s, which no property can add: none in the server, the round-trip counter in ComponentBench.
+ * The `postgres` profile needs no bean: the host makes its pool of `spring.datasource.*` (decision D310).
  */
 @Configuration(proxyBeanMethods = false)
 @Profile("mongo")
@@ -62,20 +61,6 @@ class MongoBackend {
 class AnonymousCallers {
     @Bean
     fun anonymousCallerResolver(): CallerResolver = CallerResolver.ANONYMOUS
-}
-
-/** The `postgres` profile: a pooled `DataSource` on `spring.datasource.*`, which selects the PostgreSQL backend. */
-@Configuration(proxyBeanMethods = false)
-@Profile("postgres")
-class PostgresBackend {
-    @Bean(destroyMethod = "close")
-    fun dataSource(environment: Environment): DataSource = HikariDataSource(
-        HikariConfig().apply {
-            jdbcUrl = environment.getRequiredProperty("spring.datasource.url")
-            username = environment.getProperty("spring.datasource.username")
-            password = environment.getProperty("spring.datasource.password")
-        },
-    )
 }
 
 fun main(args: Array<String>) {
