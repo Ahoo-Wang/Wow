@@ -281,6 +281,11 @@ class GaE2eTest {
     }
 
     @Test
+    @Order(13)
+    fun `the shop's nodes reach each other's internal ports, within and across services`() =
+        scenario("security", "internal mesh (steady)") { mesh("steady") }
+
+    @Test
     @Order(20)
     fun `a parked payment reaches ops and is resumed there`() = scenario("ops", "parked, resumed from ops") {
         val started = System.currentTimeMillis()
@@ -482,6 +487,11 @@ class GaE2eTest {
     }
 
     @Test
+    @Order(39)
+    fun `after the faults the shop's nodes still reach each other's internal ports`() =
+        scenario("cluster", "internal mesh (after faults)") { mesh("after faults") }
+
+    @Test
     @Order(40)
     fun `the probes stayed green outside the faults and nothing restarted`() = scenario("observability", "probes") {
         health.stop()
@@ -541,6 +551,47 @@ class GaE2eTest {
         report.failed.map { "${it.scenario} / ${it.name}: ${it.detail}" }.assert().isEmpty()
         verdict.all.sumOf { it.violated }.assert().isEqualTo(0L)
         passed.assert().isTrue()
+    }
+
+    /**
+     * From every eShop node, a TCP connection to every eShop node's internal port, by the address it advertises
+     * (`<pod>.<service>-cluster`): within a service (forwards, wait signals) and across services (the basket's calls,
+     * the signals of waits that cross contexts), as the internal NetworkPolicies admit the shop's own pods (D298).
+     * Each connection is classified as served, refused (nothing listening), timed out (dropped on the way, as a
+     * NetworkPolicy drops) or unresolved, with its time; the evidence for dropped wait signals (F8).
+     */
+    private fun mesh(phase: String): String {
+        val nodes = MESH.flatMap { (service, port) ->
+            kube.pods(service).filter { it.ready && !it.deleting }.map { Triple(service, port, it.name) }
+        }
+        val outcomes = nodes.flatMap { (_, _, from) ->
+            nodes.filter { it.third != from }.map { (service, port, to) ->
+                val script = "s=\$(date +%s%3N); r=\$(timeout 3 bash -c 'exec 3<>/dev/tcp/$to.$service-cluster/$port' 2>&1); " +
+                    "e=\$?; echo \"\$e \$(( \$(date +%s%3N) - s )) \$r\""
+                val out = kube.exec(from, "bash", "-c", script).out.trim()
+                val exit = out.substringBefore(' ').toIntOrNull()
+                val millis = out.substringAfter(' ').substringBefore(' ').toLongOrNull() ?: -1
+                val outcome = when {
+                    exit == 0 -> "served"
+                    exit == TIMEOUT_EXIT -> "timed out"
+                    "refused" in out -> "refused"
+                    "not known" in out || "resolve" in out -> "unresolved"
+                    else -> "failed: $out"
+                }
+                Triple("$from -> $to:$port", outcome, millis)
+            }
+        }
+        val failed = outcomes.filter { it.second != "served" }
+        val slowest = outcomes.maxByOrNull { it.third }
+        report.note(
+            "internal mesh ($phase): ${outcomes.size - failed.size} of ${outcomes.size} connections served, the " +
+                "slowest ${slowest?.third} ms (${slowest?.first}); not served: " +
+                failed.take(LISTED).joinToString { "${it.first} ${it.second} after ${it.third} ms" },
+        )
+        check(
+            failed.isEmpty()
+        ) { "${failed.size} of ${outcomes.size} internal connections not served: ${failed.take(LISTED)}" }
+        return "${outcomes.size} connections across ${nodes.size} nodes served, the slowest in ${slowest?.third} ms"
     }
 
     /** A checkout until its order is committed in the ordering context: whether it was. */
@@ -719,6 +770,16 @@ class GaE2eTest {
             "view-store",
             "analytics-catalog",
         ).map { it to 80 }
+
+        /** The eShop's internal ports, the mesh of its nodes. */
+        val MESH = listOf(
+            "eshop-catalog" to 9091,
+            "eshop-basket" to 9092,
+            "eshop-ordering" to 9093,
+            "eshop-inventory" to 9094,
+            "eshop-payment" to 9095,
+        )
+        const val TIMEOUT_EXIT = 124
         val INTERNAL = listOf(
             "eshop-catalog" to 9091,
             "eshop-basket" to 9092,
