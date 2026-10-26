@@ -566,4 +566,5 @@ R5 与安全、配置讨论里定下的语义，要在 GA 前写进用户文档�
 | DG-10 | 账本的自动重试由服务自己完成，ops 是汇总与操作面，发布到 ops 自动开启 | operate/ops-console | D141、D312 | 文档工作包 |
 | DG-11 | 唯一性在聚合类型之内，跨类型唯一时建模专门的聚合 | guide/unique-keys | D307 | 批 3 B-18 |
 | DG-12 | MongoDB 分片集群：定时器、调度作业与预留的分片键 | operate/mongodb | D308 | 批 3 B-17、B-18 |
-
+| DG-13 | 9.x 测试迁移对照表：9.x 每个测试方法在 V10 的对应写法或去掉的依据（`inject` → D315 ①，`Consumer` 重载 → D315 ②，`expectErrorType` → `expectError<T>`/`expectRejected` 等） | guide/testing、migrate | D315 | 文档工作包 |
+| DG-14 | TCK 接入指南：为自己的后端跑 TCK 的步骤与最小例子，能力声明与跳过；能力对照表写明 9.x 总线与分发器 spec 的去向 | contribute/backends、09 | D196、D315 ⑤ | 文档工作包 |
