@@ -23,8 +23,9 @@ wow:
   # The calling application, which every view, preference and wording is kept in, is the caller's authenticated one:
   # the edge records it as each command's request fact app_id (decision D232); no request-facts entry is needed.
 ---
-# CoSec (roadmap P.15): the service verifies each request's CoSec token (Authorization: Bearer, signed HMAC256 with
-# cosec.jwt.secret, COSEC_JWT_SECRET) and the edge reads the user from it: its tenant, its id (the owner of its views),
+# CoSec (roadmap P.15) behind the CoSec gateway (decision D296): the gateway verifies each request's CoSec token
+# (Authorization: Bearer) and forwards it; CoSec's inject mode here parses it, with no secret, and the edge reads the
+# user from it: its tenant, its id (the owner of its views),
 # its roles (view-store.shared-writer, view-store.system-writer). CoSec's inject mode, without CoSec's own
 # authorization of each path, so no application is authorized here (decision D236): set wow.cosec.trust-injected-app
 # (WOW_COSEC_TRUSTINJECTEDAPP) behind a CoSec gateway that authorizes each request's CoSec-App-Id by the application's
@@ -37,8 +38,9 @@ spring:
       on-profile: cosec
 cosec:
   enabled: true
+  # The gateway holds CoSec's signing secret; this service neither signs nor verifies a token (decision D296).
   jwt:
-    secret: ${COSEC_JWT_SECRET}
+    enabled: false
   inject:
     enabled: true
   authorization:

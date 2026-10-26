@@ -57,6 +57,8 @@ Wow trusts the identity the gateway forwards, so the gateway is a boundary of it
 
 The host cannot see the network, so it does not check either at startup.
 
+Behind the gateway, a service need not verify a token again. Wow's platform services, the ops service, the view store and the analytics catalog, run CoSec's inject mode in their `cosec` profile: the CoSec gateway verifies each request's access token and forwards it, and the service parses the principal from it without a secret of its own (`cosec.jwt.enabled: false`), so CoSec's signing secret stays with the gateway. The parser still refuses a token that has expired.
+
 ## Close the internal port
 
 The internal port carries forwarded commands, wait signals, synchronous calls and reads between the platform's nodes and services. The inside of the platform is trusted: the internal port takes no token, and its boundary is the network. Whoever can send a signal can fake the result of any command, so:

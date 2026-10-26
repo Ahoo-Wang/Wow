@@ -9,8 +9,8 @@ metadata:
     app.kubernetes.io/name: ops
 data:
   # The postgres profile keeps the entries on PostgreSQL and serves their snapshot queries; the kafka profile records
-  # the entries the services publish and sends the operators' actions to them; the cosec profile verifies each
-  # request's CoSec token (COSEC_JWT_SECRET, secret.yaml).
+  # the entries the services publish and sends the operators' actions to them; the cosec profile parses each
+  # request's CoSec token, which the CoSec gateway verified (CoSec's inject mode, decision D296: no secret here).
   SPRING_PROFILES_ACTIVE: postgres,kafka,cosec
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/wow_ops
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092

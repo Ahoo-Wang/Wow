@@ -47,9 +47,6 @@ spec:
                 name: ops-config
             - secretRef:
                 name: ops-postgres
-            # CoSec's token secret.
-            - secretRef:
-                name: ops-tokens
           env:
             - name: POD_NAME
               valueFrom:
