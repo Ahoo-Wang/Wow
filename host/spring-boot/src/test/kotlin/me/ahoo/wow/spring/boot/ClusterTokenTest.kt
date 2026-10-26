@@ -14,7 +14,6 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.http.internal.InternalHttp
 import org.junit.jupiter.api.Test
 import java.net.http.HttpClient
@@ -23,7 +22,7 @@ import java.net.http.HttpResponse
 
 /**
  * The cluster token of the internal port (`wow.internal.token`, decision D226) on the host: its cluster routes take it
- * alone, and a node without one fails to start where `InternalPort.of` refuses it (its rules: `InternalPortTest`).
+ * alone.
  */
 class ClusterTokenTest {
     private fun properties(vararg tokens: String, serviceToken: String? = null) = WowProperties().apply {
@@ -36,13 +35,6 @@ class ClusterTokenTest {
         WowAutoConfiguration.clusterTokenOf(properties(CURRENT, " $PREVIOUS ")).assert().isEqualTo(CURRENT)
         WowAutoConfiguration.clusterTokenOf(properties(" ")).assert().isNull()
         WowAutoConfiguration.clusterTokenOf(properties()).assert().isNull()
-    }
-
-    @Test
-    fun `a host on every interface without a cluster token should fail to start`() {
-        // In memory on purpose: on every interface, auto would refuse the missing durable backend first (R3.5-1).
-        assertThrownBy<Exception> { startHost("wow.internal.host" to "0.0.0.0", "wow.backend" to "memory").close() }
-            .hasStackTraceContaining("wow.internal.token")
     }
 
     @Test

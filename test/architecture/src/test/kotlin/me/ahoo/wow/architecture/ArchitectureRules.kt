@@ -445,16 +445,6 @@ object ArchitectureRules {
         "read.InProcessQueryApi", "read.ReadModels", "state.CommittedState", "mask.PayloadMasks",
     ).map { "me.ahoo.wow.query.$it" }
 
-    /**
-     * The internal port's security floor is wow-http's (decision D226, review R5.C-2): only `InternalPort.of` builds
-     * the cluster tokens its routes take, after it checked them, so the host never names them.
-     */
-    val HOST_LEAVES_THE_PORT_FLOOR = DependencyRule(
-        name = "wow-spring-boot builds no cluster tokens: InternalPort.of does",
-        modules = listOf(SPRING_BOOT.dir),
-        forbidden = listOf("me.ahoo.wow.http.internal.ClusterTokens"),
-    )
-
     val HOST_ASSEMBLES_THE_READ_SIDE = DependencyRule(
         name = "wow-spring-boot names of wow-query only the engine's builder, its ports and its settings",
         modules = listOf(SPRING_BOOT.dir),
@@ -553,7 +543,6 @@ object ArchitectureRules {
         CLIENT_IGNORES_HTTP,
         HTTP_READS_ADAPT_ONLY,
         HOST_ASSEMBLES_THE_READ_SIDE,
-        HOST_LEAVES_THE_PORT_FLOOR,
         ENTRIES_READ_THROUGH_FACADE,
         ONLY_OPENTELEMETRY_OBSERVES,
         ONLY_HOST_USES_SPRING_BOOT,

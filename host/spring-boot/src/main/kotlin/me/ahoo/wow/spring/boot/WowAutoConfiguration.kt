@@ -35,6 +35,7 @@ import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.caller.InternalCallerResolver
 import me.ahoo.wow.http.caller.ServiceTokens
 import me.ahoo.wow.http.command.JakartaCommandValidator
+import me.ahoo.wow.http.internal.ClusterTokens
 import me.ahoo.wow.http.internal.HttpClusterChannel
 import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
@@ -147,9 +148,9 @@ import jakarta.validation.Validator as JakartaValidator
  *   [CallerResolver] (anonymous otherwise, D97); the cluster channel and the wait signals ([internalRoutes]) on an
  *   [InternalPort] of their own at `wow.internal.port`, never on the public server, the node's address learned once
  *   it is bound when the port is 0; [HttpClusterChannel] and [HttpSignalSender] share one JDK client. The cluster
- *   routes take the service's cluster token (`wow.internal.token`, decision D226; [InternalPort.of] refuses to start without one), and the signals
- *   also a service identity, the origin of a wait that crossed services; a node without a cluster token starts only in
- *   a development profile or on a loopback-only internal port.
+ *   routes take the service's cluster token (`wow.internal.token`, decision D226), and the signals
+ *   also a service identity, the origin of a wait that crossed services; the internal side is a trusted environment
+ *   (decision D298), so a node starts without a cluster token too.
  * - **Synchronous calls** (decision D193): the sagas call other contexts' gateways through the [CommandCaller] bean,
  *   by default an [HttpCommandCaller] at `wow.calls.contexts.<context>.url`, the target's internal port, presenting
  *   the [ServiceCredential] bean (`wow.calls.token` as a bearer). The internal port serves the command routes of the
@@ -605,22 +606,18 @@ class WowAutoConfiguration {
         val internal = internalCallers.ifAvailable?.let { resolver -> CallerResolver { resolver.resolve(it) } }
         val services = serviceTokens(properties).resolver(internal ?: callers)
         val permits = callPermits(properties)
-        // The port's security floor is wow-http's (review R5.C-2): the host only maps its configuration onto it.
         val settings = InternalPortSettings(
             port = properties.internal.port,
             bindHost = identity.bindHost,
-            clusterTokens = properties.internal.token,
-            serviceTokens = properties.http.services.values.flatMapTo(HashSet()) { it.tokens },
-            development = environment.activeProfiles.filter { it in properties.internal.devProfiles },
-            devProfiles = properties.internal.devProfiles,
             maxMessageSize = InternalHttp.messageLimit(publicCodecLimit(environment)),
         )
-        return InternalPort.of(settings) { tokens ->
+        return InternalPort.of(
+            settings,
             internalRoutes(
                 node.forwardHandler,
                 node.waits,
                 scope = routes.scope,
-                tokens = tokens,
+                tokens = ClusterTokens(clusterTokenList(properties)),
                 services = services,
                 standby = NodeStandby(node),
             )
@@ -639,8 +636,8 @@ class WowAutoConfiguration {
                         routes.scope,
                     ),
                 )
-                .and(callRoutes(manifest, node.gateway, services, options, permits, routes.scope))
-        }
+                .and(callRoutes(manifest, node.gateway, services, options, permits, routes.scope)),
+        )
     }
 
     /** Binds the internal port, then gives a node without a configured address the one it is bound at. */

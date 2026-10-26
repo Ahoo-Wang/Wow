@@ -73,7 +73,7 @@ class InternalMessageLimitTest {
 
     @Test
     fun `a forward over the internal port's limit should be refused, so its sender runs it`() {
-        val server = InternalPort.of(InternalPortSettings(0, "127.0.0.1")) { internalRoutes(handler, {}) }
+        val server = InternalPort.of(InternalPortSettings(0, "127.0.0.1"), internalRoutes(handler, {}))
         serving(server) {
             val answer = post(it, InternalHttp.FORWARD_PATH, body(300 * 1024))
             answer.statusCode().assert().isEqualTo(200)
@@ -86,8 +86,9 @@ class InternalMessageLimitTest {
     fun `a larger limit should take a forward the default one refuses`() {
         val limit = InternalHttp.messageLimit(1024 * 1024)
         val server = InternalPort.of(
-            InternalPortSettings(0, "127.0.0.1", maxMessageSize = limit)
-        ) { internalRoutes(handler, {}) }
+            InternalPortSettings(0, "127.0.0.1", maxMessageSize = limit),
+            internalRoutes(handler, {})
+        )
         serving(server) {
             // Read whole: no forward, so malformed.
             post(it, InternalHttp.FORWARD_PATH, body(300 * 1024)).statusCode().assert().isEqualTo(400)

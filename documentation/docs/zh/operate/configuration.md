@@ -63,9 +63,8 @@ Spring 会忽略没有属性绑定的键，所以拼错的键会一声不响地�
 | 没有 | 开发环境中 | 生产环境中 |
 | --- | --- | --- |
 | `DataSource` 或 `MongoClient` | 在内存中运行，并发出警告 | 拒绝启动 |
-| 集群令牌 | 内部端口不带令牌运行 | 拒绝启动 |
 
-所以笔记本上不需要数据库，也不需要密钥，而生产节点缺少其中任何一样都无法启动。`wow.ddl: validate` 防止生产节点建表（[PostgreSQL](./postgresql#manage-the-schema)）。
+所以笔记本上不需要数据库，而生产节点没有数据库就无法启动。`wow.ddl: validate` 防止生产节点建表（[PostgreSQL](./postgresql#manage-the-schema)）。
 
 ## 查看节点采用了什么 {#see-what-the-node-took}
 

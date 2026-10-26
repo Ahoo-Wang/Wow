@@ -750,7 +750,7 @@
   }, {
     "name" : "wow.internal.dev-profiles",
     "type" : "java.util.Set<java.lang.String>",
-    "description" : "The development profiles, `dev`, `local`, `test` and `demo`: in them the internal port may run without token, and `wow.backend=auto` falls back to memory when no durable backend is available.",
+    "description" : "The development profiles, `dev`, `local`, `test` and `demo`: in them `wow.backend=auto` falls back to memory when no durable backend is available.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Internal",
     "defaultValue" : [ "dev", "local", "test", "demo" ]
   }, {
@@ -773,7 +773,7 @@
   }, {
     "name" : "wow.internal.token",
     "type" : "java.util.List<java.lang.String>",
-    "description" : "The service's cluster tokens, at least 32 characters each: the secret its nodes share, which alone opens the cluster channel (`/wow/internal/forward`) and the wait signals of the internal port. A node sends the first and takes any, so a token is rotated by adding the new one second, then moving it first on every node, then removing the old one; a comma-separated value (`WOW_INTERNAL_TOKEN`) is a list. A service token of `wow.http.services` opens the call routes, not these, and this token no call route. A node without one starts only in a profile of devProfiles, or with its internal port bound to the loopback interface alone, and warns: its cluster routes then take every request.",
+    "description" : "The service's cluster tokens, at least 32 characters each: the secret its nodes share, which alone opens the cluster channel (`/wow/internal/forward`) and the wait signals of the internal port. A node sends the first and takes any, so a token is rotated by adding the new one second, then moving it first on every node, then removing the old one; a comma-separated value (`WOW_INTERNAL_TOKEN`) is a list. A service token of `wow.http.services` opens the call routes, not these, and this token no call route. A node without one starts all the same: the internal side is a trusted environment (decision D298), and its cluster routes then take every request.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Internal"
   }, {
     "name" : "wow.kafka.bootstrap-servers",

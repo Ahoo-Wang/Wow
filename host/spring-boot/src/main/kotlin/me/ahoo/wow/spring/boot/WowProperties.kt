@@ -228,14 +228,14 @@ class WowProperties {
          * it first on every node, then removing the old one; a comma-separated value (`WOW_INTERNAL_TOKEN`) is a list.
          * A service token of `wow.http.services` opens the call routes, not these, and this token no call route.
          *
-         * A node without one starts only in a profile of [devProfiles], or with its internal port bound to the
-         * loopback interface alone, and warns: its cluster routes then take every request.
+         * A node without one starts all the same: the internal side is a trusted environment (decision D298), and its
+         * cluster routes then take every request.
          */
         var token: MutableList<String> = ArrayList()
 
         /**
-         * The development profiles, `dev`, `local`, `test` and `demo`: in them the internal port may run without
-         * [token], and `wow.backend=auto` falls back to memory when no durable backend is available.
+         * The development profiles, `dev`, `local`, `test` and `demo`: in them `wow.backend=auto` falls back to memory
+         * when no durable backend is available.
          */
         var devProfiles: MutableSet<String> = linkedSetOf("dev", "local", "test", "demo")
     }

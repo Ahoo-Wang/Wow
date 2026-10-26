@@ -122,8 +122,9 @@ class WowLifecyclesTest {
     fun `the internal server should bind once and unbind`() {
         val node = node()
         val server = InternalPort.of(
-            InternalPortSettings(0, "127.0.0.1")
-        ) { internalRoutes(node.forwardHandler, node.waits) }
+            InternalPortSettings(0, "127.0.0.1"),
+            internalRoutes(node.forwardHandler, node.waits)
+        )
         val lifecycle = InternalServerLifecycle(server)
         lifecycle.start()
         lifecycle.start()
@@ -138,8 +139,9 @@ class WowLifecyclesTest {
         val node = node(address = null)
         node.hasAddress.assert().isFalse()
         val server = InternalPort.of(
-            InternalPortSettings(0, "127.0.0.1")
-        ) { internalRoutes(node.forwardHandler, node.waits) }
+            InternalPortSettings(0, "127.0.0.1"),
+            internalRoutes(node.forwardHandler, node.waits)
+        )
         val lifecycle = InternalServerLifecycle(server) { port -> node.bind("127.0.0.1:$port") }
         lifecycle.start()
         try {

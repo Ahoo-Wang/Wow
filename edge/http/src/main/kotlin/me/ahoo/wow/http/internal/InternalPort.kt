@@ -15,7 +15,6 @@ package me.ahoo.wow.http.internal
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.spi.config.configCheck
 import org.springframework.http.server.reactive.ReactorHttpHandlerAdapter
 import org.springframework.web.reactive.function.server.HandlerStrategies
 import org.springframework.web.reactive.function.server.RouterFunction
@@ -24,8 +23,6 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.netty.DisposableServer
 import reactor.netty.http.HttpProtocol
 import reactor.netty.http.server.HttpServer
-import java.net.InetAddress
-import java.net.UnknownHostException
 
 /**
  * The internal port of the node (decisions D89, D109): a Reactor Netty server of its own, apart from the public
@@ -34,10 +31,8 @@ import java.net.UnknownHostException
  * from the public port's codec limit ([InternalHttp.messageLimit], review A3-9), and the server takes an upgrade
  * request of up to that size too, as the JDK client reaches HTTP/2 by upgrading the first request of a connection.
  *
- * Built only by [of], which holds the port's security floor (decision D226, reviews A3-1, R5.C-2), so every host
- * gets it, Spring Boot or not: its cluster routes take the service's cluster tokens, and a port without one is refused
- * unless it runs for development or binds the loopback interface alone. An application reads where it is bound
- * ([boundPort]); building and running it is the host's.
+ * The internal side is a trusted environment (decision D298): the network keeps it apart, so building the port checks
+ * no credential. An application reads where it is bound ([boundPort]); building and running it is the host's ([of]).
  */
 class InternalPort private constructor(
     private val port: Int,
@@ -89,76 +84,21 @@ class InternalPort private constructor(
     companion object {
         private val logger = KotlinLogging.logger {}
 
-        /**
-         * The internal port of [settings], serving the routes [routes] builds over its cluster tokens. It refuses to
-         * be built, with a `WowConfigurationException` of `wow.internal.token`:
-         *
-         * - when a cluster token is also a service token: one secret would open both the cluster routes and the
-         *   call routes;
-         * - without a cluster token, unless [InternalPortSettings.development] names an active development profile
-         *   or the port binds [InternalPortSettings.bindHost], a loopback address, alone: a cluster route that takes
-         *   every request is open to whatever reaches the port, other services too. Such a port is logged.
-         */
+        /** The internal port of [settings], serving [routes]. */
         @InternalWowApi
         @JvmStatic
-        fun of(
-            settings: InternalPortSettings,
-            routes: (ClusterTokens) -> RouterFunction<ServerResponse>
-        ): InternalPort {
-            val tokens = settings.clusterTokens.map(String::trim).filter(String::isNotEmpty)
-            configCheck(tokens.none { it in settings.serviceTokens }, KEY, null, "Use another secret.") {
-                "A cluster token (wow.internal.token) is also a service token of wow.http.services."
-            }
-            if (tokens.isEmpty()) {
-                val bindHost = settings.bindHost
-                configCheck(
-                    settings.development.isNotEmpty() || isLoopback(bindHost),
-                    KEY,
-                    null,
-                    "Set wow.internal.token. Only a profile of wow.internal.dev-profiles " +
-                        "${settings.devProfiles}, or an internal port bound to the loopback interface " +
-                        "alone, runs without a cluster token.",
-                ) {
-                    "wow.internal.token is not set: the internal port at $bindHost would take forwards and signals " +
-                        "from anyone who reaches it."
-                }
-                logger.warn {
-                    "No cluster token (wow.internal.token): the internal port at $bindHost takes every forward and " +
-                        "signal, as for development (${settings.development.ifEmpty { listOf("loopback") }.joinToString()})."
-                }
-            }
-            return InternalPort(
-                settings.port,
-                settings.bindHost,
-                routes(ClusterTokens(tokens)),
-                settings.maxMessageSize
-            )
-        }
-
-        private const val KEY = "wow.internal.token"
-
-        private fun isLoopback(host: String): Boolean = try {
-            InetAddress.getByName(host).isLoopbackAddress
-        } catch (_: UnknownHostException) {
-            false
-        }
+        fun of(settings: InternalPortSettings, routes: RouterFunction<ServerResponse>): InternalPort =
+            InternalPort(settings.port, settings.bindHost, routes, settings.maxMessageSize)
     }
 }
 
 /**
- * What an [InternalPort] is built of: the [port] it binds (0 for one the system chooses) on [bindHost], the
- * [clusterTokens] its cluster routes take (`wow.internal.token`, the first the one the node sends), the
- * [serviceTokens] of the services' call routes, none of which may be a cluster token, the [development] profiles
- * active among [devProfiles] (`wow.internal.dev-profiles`), under which a port may run without a cluster token, and
- * the [maxMessageSize] of its codecs.
+ * What an [InternalPort] is built of: the [port] it binds (0 for one the system chooses) on [bindHost], and the
+ * [maxMessageSize] of its codecs.
  */
 @InternalWowApi
 class InternalPortSettings(
     val port: Int,
     val bindHost: String,
-    val clusterTokens: List<String> = emptyList(),
-    val serviceTokens: Set<String> = emptySet(),
-    val development: List<String> = emptyList(),
-    val devProfiles: Collection<String> = emptyList(),
     val maxMessageSize: Int = InternalHttp.MAX_UPGRADE_BODY,
 )
