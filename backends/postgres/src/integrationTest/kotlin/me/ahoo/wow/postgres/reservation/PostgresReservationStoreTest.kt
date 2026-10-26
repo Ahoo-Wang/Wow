@@ -37,7 +37,7 @@ class PostgresReservationStoreTest : ReservationStoreSpec() {
         val type = AggregateType(PostgresFixture.newContext("reservation"), "user")
         touch(PostgresReservationStore(PostgresFixture.dataSource), type).assert().isNotNull()
         PostgresReservationTables(type.context, type.name).name.assert()
-            .isEqualTo("wow_reservation__${type.context}__user")
+            .isEqualTo("wow_reservation__${type.context.replace('-', '_')}__user")
         touch(PostgresReservationStore(PostgresFixture.dataSource), type).assert().isNotNull()
     }
 
