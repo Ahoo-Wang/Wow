@@ -116,6 +116,6 @@ class StoreSpiTest {
 
         override fun openSnapshots(context: String): SnapshotStore = error("unused")
 
-        override fun openTimers(context: String): TimerStore = error("unused")
+        override fun openTimers(context: String, partitions: Int): TimerStore = error("unused")
     }
 }

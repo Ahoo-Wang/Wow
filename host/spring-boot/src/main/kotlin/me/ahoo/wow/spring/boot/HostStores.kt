@@ -76,7 +76,7 @@ internal class MemoryStore(
     override fun openSnapshots(context: String): SnapshotStore =
         snapshotsOf(context).let { store -> queries?.let { QueriedSnapshotStore(store, it) } ?: store }
 
-    override fun openTimers(context: String): TimerStore = InMemoryTimerStore()
+    override fun openTimers(context: String, partitions: Int): TimerStore = InMemoryTimerStore()
 }
 
 /**

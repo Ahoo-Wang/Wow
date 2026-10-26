@@ -42,8 +42,10 @@ import me.ahoo.wow.spi.log.Partitioner
  *   timer: the slot's due time at first, then the claim's deadline while it is sent, or the next attempt after a
  *   technical failure. Every send of the slot, retried or claimed anew, carries [slotDueAt] ([context]), so its
  *   target never decides it before then; it moves only with the slot.
- * - [partition] is the partition of the [target] among the scheduling context's log partitions: the owner of that
- *   partition fires the timer, so a target of the same context runs where its aggregate's commands run.
+ * - [partition] is the partition of the [owner] among its context's log partitions (decision D308): the owner of that
+ *   partition writes the timer from the owner's events and fires it, and a sharded store shards the timers by it, so
+ *   the due read and every read or write by owner reach one shard. The command reaches a [target] owned elsewhere
+ *   through the cluster channel.
  * - [causation] links the command to the commit that set the schedule; [headers] and [operator] are the setting
  *   command's, which the command inherits (decisions D163, D166), and [scope] the setting commit's, the owner and space
  *   the command is sent in (decision D189).
@@ -298,7 +300,7 @@ object Timers {
         owner = ownerOf(stream.ref),
         key = set.key,
         version = stream.version.toLong(),
-        partition = Partitioner.partitionOf(set.target, partitions),
+        partition = Partitioner.partitionOf(stream.ref, partitions),
         rule = set.rule,
         dueAt = set.rule.firstDue(stream.commitTime) ?: NOT_EVALUATED,
         target = set.target,

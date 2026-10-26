@@ -95,7 +95,11 @@ class GatedDataSource(private val pool: HikariDataSource) : DataSource by pool, 
         } as T
 
     private companion object {
-        const val QUERY_START = "SET LOCAL statement_timeout"
+        /**
+         * How a query's transaction starts (finding F10): read-only, with its bounds in one batch. Every transaction of
+         * the stores bounds itself (`SET LOCAL statement_timeout`), so only a query's starts read-only.
+         */
+        const val QUERY_START = "SET TRANSACTION READ ONLY"
         const val HOLD_SECONDS = 30L
     }
 }

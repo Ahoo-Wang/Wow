@@ -157,8 +157,14 @@ internal class MongoStore(
             operationTimeout = operationTimeout,
         ).also { schema(it::createSchema) }
 
-    override fun openTimers(context: String): TimerStore =
-        MongoTimerStore(client, database, context, ddl = ddl, operationTimeout = operationTimeout).also {
-            schema(it::createSchema)
-        }
+    override fun openTimers(context: String, partitions: Int): TimerStore =
+        MongoTimerStore(
+            client,
+            database,
+            context,
+            partitions,
+            ddl = ddl,
+            sharding = sharding,
+            operationTimeout = operationTimeout,
+        ).also { schema(it::createSchema) }
 }

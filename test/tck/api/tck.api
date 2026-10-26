@@ -258,6 +258,7 @@ public abstract class me/ahoo/wow/tck/timer/TimerStoreSpec {
 	public final fun a claim that lapses is due again and claimed anew ()V
 	public final fun a later version reschedules, an earlier one is ignored ()V
 	public final fun a monthly timer advances slot after slot, each written from the claim of the one before ()V
+	public final fun a store finds the timers of a type another store of the context wrote first ()V
 	public final fun a timer cancelled between the poll and its claim is not claimed ()V
 	public final fun a timer is claimed once, and its outcome is written from the claim ()V
 	public final fun a timer put is found and due once its time comes ()V
@@ -272,9 +273,11 @@ public abstract class me/ahoo/wow/tck/timer/TimerStoreSpec {
 	public final fun due timers of one time come by id ()V
 	public final fun firing a slot moves the timer to its next slot in one write ()V
 	protected fun getContext ()Ljava/lang/String;
+	protected fun getLogPartitions ()I
 	public final fun owners whose tenant and id join alike keep their timers apart ()V
 	public final fun parked timers are found by their target and leave the due ones ()V
 	public final fun putting the same timer again changes nothing, and never revives it ()V
+	public final fun the timers of every aggregate type of the context are due together, earliest first ()V
 	public final fun two writers of one loaded timer change it once ()V
 }
 

@@ -42,7 +42,7 @@ import me.ahoo.wow.spi.timer.Timers
  * Register [subscription] in the runtime of the log group whose timers [store] keeps (decision D177): it runs on each
  * partition's owner, checkpoints and parks like any subscription, and takes the streams that only change schedules.
  *
- * - **Set**: the timer `ref#key@version`, of the partition of its target among the log's [partitions], its first slot
+ * - **Set**: the timer `ref#key@version`, of its owner's partition among the log's [partitions] (decision D308), its first slot
  *   due as its rule says ([ScheduleSlots.timerOf]: a cron rule's first time after the commit); it replaces what the
  *   aggregate scheduled under the key before. A job instance's own tick (`<context>.schedule`, decision D198) is sent
  *   as `system:schedule` in its tenant, without the setting command's headers and scope.
