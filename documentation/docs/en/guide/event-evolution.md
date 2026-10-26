@@ -79,7 +79,7 @@ Records are upgraded wherever the log is read: when an aggregate is loaded, and 
 
 ## Rename a command or an event
 
-A command or an event is stored and routed by its name, the class's simple name unless `@Name` gives another. To rename the class and keep reading what was written under the old name, list the old name with `@Alias("OldName")`. A value without a dot is a former name in the same aggregate; a value with dots is a full type name, `context.aggregate.Name`, for a class that moved from another aggregate.
+A command or an event is stored and routed by its name, the class's simple name unless `@Name` gives another. A model written by hand with the kernel DSL names it the same way, and a name it gives that disagrees with the class's `@Name` fails when the model is built, so the log never holds a name the Manifest does not. To rename the class and keep reading what was written under the old name, list the old name with `@Alias("OldName")`. A value without a dot is a former name in the same aggregate; a value with dots is a full type name, `context.aggregate.Name`, for a class that moved from another aggregate.
 
 ## Retire an event
 

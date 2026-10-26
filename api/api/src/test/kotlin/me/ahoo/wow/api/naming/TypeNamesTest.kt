@@ -11,28 +11,43 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.compiler.model
+package me.ahoo.wow.api.naming
 
 import me.ahoo.test.asserts.assert
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 
-class NamesTest {
+/** The one naming rule of aggregates and their types (decision D55, finding R5.A-5). */
+class TypeNamesTest {
     /** The results of 9.x's `NamingConverter.PASCAL_TO_SNAKE` (wow-metadata), which aggregate names must keep. */
     @ParameterizedTest
     @CsvSource(
         "Cart, cart",
         "CartItem, cart_item",
         "BankAccount, bank_account",
-        "cart, cart",
         "cartItem, cart_item",
         "OrderID, order_i_d",
-        "HTTPServer, h_t_t_p_server",
+        "HTTPOrder, h_t_t_p_order",
         "Cart2Item, cart2_item",
-        "A, a",
         "'', ''",
+        "Order2Item, order2_item",
+        "Item2, item2",
+        "A, a",
+        "a, a",
+        "cart_item, cart_item",
+        "already_Snake, already__snake",
     )
-    fun `pascalToSnake should name as 9x does`(pascal: String, snake: String) {
-        pascal.pascalToSnake().assert().isEqualTo(snake)
+    fun `a simple name in PascalCase is the aggregate's name in snake_case`(simpleName: String, expected: String) {
+        TypeNames.pascalToSnake(simpleName).assert().isEqualTo(expected)
+        TypeNames.aggregateName(simpleName, null).assert().isEqualTo(expected)
+    }
+
+    @Test
+    fun `an annotated name wins over the simple name, kept as it is`() {
+        TypeNames.aggregateName("CartItem", "basket").assert().isEqualTo("basket")
+        TypeNames.aggregateName("CartItem", "ShoppingCart").assert().isEqualTo("ShoppingCart")
+        TypeNames.typeName("AddItem", "PutItem").assert().isEqualTo("PutItem")
+        TypeNames.typeName("AddItem", null).assert().isEqualTo("AddItem")
     }
 }

@@ -78,12 +78,15 @@ class PositiveRulesTest {
                 import me.ahoo.wow.api.aggregate.AggregateRef
                 import me.ahoo.wow.query.engine.QueryEngine
                 val bus = "me.ahoo.wow.command.CommandBus"
+                import me.ahoo.wow.api.naming.TypeNames
+                import me.ahoo.wow.api.naming.NamedBoundedContext
                 """.trimIndent(),
             )
         }
         PositiveRules.nineXNameViolations(root).assert().containsExactly(
             "${ArchitectureRules.RUNTIME.dir}/src/main/kotlin/Old.kt:1: me.ahoo.wow.modeling.state.StateAggregate",
             "${ArchitectureRules.RUNTIME.dir}/src/main/kotlin/Old.kt:4: me.ahoo.wow.command.CommandBus",
+            "${ArchitectureRules.RUNTIME.dir}/src/main/kotlin/Old.kt:6: me.ahoo.wow.api.naming.NamedBoundedContext",
         )
     }
 

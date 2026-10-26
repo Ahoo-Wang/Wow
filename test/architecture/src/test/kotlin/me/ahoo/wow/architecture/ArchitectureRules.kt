@@ -518,11 +518,15 @@ object ArchitectureRules {
         forbidden = listOf("com.github.victools"),
     )
 
-    /** The 9.x parts of 9.x wow-api that the Wow 10 wow-api leaves out (06 §2.1; `query` moves to wow-query-api in M9). */
+    /**
+     * The 9.x parts of 9.x wow-api that the Wow 10 wow-api leaves out (06 §2.1; `query` moves to wow-query-api in M9).
+     * Wow 10 reuses `api.naming` for its naming of model types, so of that package the 9.x types are listed
+     * ([PositiveRules.NINE_X_TYPES]).
+     */
     private val API_9X = listOf(
-        "abac", "command", "event", "exception", "messaging", "modeling", "naming", "query", "serialization",
+        "abac", "command", "event", "exception", "messaging", "modeling", "query", "serialization",
         "Copyable", "Identifier", "Ordered", "Version", "Wow",
-    ).map { "me.ahoo.wow.api.$it" }
+    ).map { "me.ahoo.wow.api.$it" } + PositiveRules.NINE_X_TYPES
 
     /**
      * wow-api depends only on the query protocol and the coroutines' `Flow` (06 §3, decisions D66, D260: the `QueryApi`
