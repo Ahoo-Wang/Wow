@@ -13,8 +13,9 @@
 
 /*
  * The platform every published Wow module imports (R5.C-4, D287): the versions of the libraries the Wow runtime itself
- * puts on an application's class path, and nothing else, so that a domain module that depends on wow-api keeps its own
- * versions of everything Wow does not use. The Spring Boot BOM goes with wow-spring-boot alone; the test and lint
+ * puts on an application's class path, and nothing else. The contract modules (wow-annotations, wow-api,
+ * wow-query-api, wow-manifest) do not import it: a domain module that depends on them alone keeps its own versions of
+ * everything, Jackson included. The Spring Boot BOM goes with wow-spring-boot alone; the test and lint
  * platforms (Testcontainers, springdoc, fluent-assert, MockK, detekt) are the repository build's (`wowBuildPlatform`
  * in the root build), never published.
  *

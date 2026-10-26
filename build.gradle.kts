@@ -86,6 +86,11 @@ val moduleProjects = listOf(
     "routing-spike", "lease-spike", "benchmark-server", "migration-rehearsal",
 ).plus(exampleNames).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
 
+// The contract modules without a third-party runtime dependency of their own (R5.C-4, G8): they import no platform
+// but the coroutines BOM :api's coroutines dependency takes its version from, and leave out the SLF4J every other
+// module logs with, so an application's domain module that depends on them keeps its own versions of everything.
+val coreContractProjects = includedProjects(":annotations", ":api", ":query-api", ":manifest")
+
 // The modules a 10.x release publishes (06-modules.md §6; R.1 turns their publication on). Their ABI is kept in
 // `api/<module>.api` (D88, D147, D216; see `abiValidation` below). :migrate-data (a CLI
 // application) and :manifest-tools (run in an isolated worker by the same-version Gradle plugin, D83) keep no dump:
@@ -297,6 +302,9 @@ allprojects {
         buildPlatform(platform(rootProject.libs.testcontainers.bom))
         buildPlatform(platform(rootProject.libs.junit.bom))
         constraints {
+            // The Guava com.clickhouse:client-v2 brings to :clickhouse (33.4.6), lifted for the build alone: a 9.x
+            // carry-over (wow-core used Guava), for no advisory, so a wow-clickhouse application keeps client-v2's.
+            buildPlatform(rootProject.libs.guava)
             buildPlatform(rootProject.libs.swagger.annotations)
             buildPlatform(rootProject.libs.swagger.core)
             buildPlatform(rootProject.libs.mockk)
@@ -403,10 +411,12 @@ configure(libraryProjects) {
         }
     }
     dependencies {
-        // The slim platform every published module imports (D287); the build's own versions come from
-        // `wowBuildPlatform` above.
-        api(platform(dependenciesProject))
-        implementation("org.slf4j:slf4j-api")
+        // The slim platform every published module imports (D287), but the contract modules (`coreContractProjects`);
+        // the build's own versions come from `wowBuildPlatform` above.
+        if (project !in coreContractProjects) {
+            api(platform(dependenciesProject))
+            implementation("org.slf4j:slf4j-api")
+        }
         testImplementation("io.micrometer:micrometer-core")
         testImplementation("ch.qos.logback:logback-classic")
         testImplementation("me.ahoo.test:fluent-assert-core")
@@ -693,6 +703,8 @@ tasks.register("publicationCheck") {
     // D287: a published module imports the slim :wow-dependencies, and the host the Spring Boot BOM too; no other
     // platform (the build's test and lint platforms above all) reaches a POM.
     val dependenciesArtifactId = dependenciesProject.artifactName()
+    val contractArtifactIds = coreContractProjects.map { it.artifactName() }.toSortedSet()
+    val coroutinesBom = "org.jetbrains.kotlinx:kotlinx-coroutines-bom"
     val hostArtifactId = project(":spring-boot").artifactName()
     val springBootBom = "org.springframework.boot:spring-boot-dependencies"
     val deployRepository = deployCheckRepository.get().asFile
@@ -822,14 +834,21 @@ tasks.register("publicationCheck") {
                     problems += "$artifactId: depends on $groupId:$dependencyId:$dependencyVersion, not $releaseVersion"
                 }
             }
+            // A contract module imports the coroutines BOM at most, not even :wow-dependencies (G8).
+            val contract = artifactId in contractArtifactIds
             val imports = managed.filter { it.text("scope") == "import" }
                 .map { "${it.text("groupId")}:${it.text("artifactId")}" }
-                .filterNot { it == "$groupId:$dependenciesArtifactId" }
+                .filterNot { !contract && it == "$groupId:$dependenciesArtifactId" }
                 .toSortedSet()
             val allowedImports = when (artifactId) {
                 hostArtifactId -> setOf(springBootBom)
-                dependenciesArtifactId -> setOf("org.jetbrains.kotlinx:kotlinx-coroutines-bom")
+                dependenciesArtifactId -> setOf(coroutinesBom)
+                in contractArtifactIds -> setOf(coroutinesBom)
                 else -> emptySet()
+            }
+            val metadata = file(artifactId, ".module")
+            if (contract && metadata.isFile && "\"module\": \"$dependenciesArtifactId\"" in metadata.readText()) {
+                problems += "$artifactId: its module metadata depends on the platform $dependenciesArtifactId (G8)"
             }
             if (!allowedImports.containsAll(imports)) {
                 problems += "$artifactId: imports the platforms ${imports - allowedImports}, beyond $allowedImports"

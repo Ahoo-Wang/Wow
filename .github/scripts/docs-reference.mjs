@@ -84,7 +84,7 @@ const WORDS = {
       bomRow:
         'The BOM: the versions of every artifact below, which a build imports as a platform.',
       dependenciesRow:
-        "The versions of the libraries the Wow runtime puts on an application's class path (Jackson, the coroutines, kotlin-logging, SLF4J), which every published POM imports; nothing else, so a module that depends on Wow keeps its own versions of everything Wow does not use. The Spring Boot BOM comes with `wow-spring-boot` alone.",
+        "The versions of the libraries the Wow runtime puts on an application's class path (Jackson, the coroutines, kotlin-logging, SLF4J), which every published POM from `wow-spi` up imports; nothing else, so a module that depends on Wow keeps its own versions of everything Wow does not use. The contract modules (`wow-annotations`, `wow-api`, `wow-query-api`, `wow-manifest`) import none of it: a domain module that depends on them alone keeps its own versions of everything. The Spring Boot BOM comes with `wow-spring-boot` alone.",
     },
     levels: {
       title: 'API Levels',
@@ -154,7 +154,7 @@ const WORDS = {
       head: '| 制品 | 目录 | 内容 |',
       bomRow: 'BOM：下列每个制品的版本，构建以 platform 导入。',
       dependenciesRow:
-        'Wow 运行时放到应用类路径上的那些库的版本（Jackson、协程、kotlin-logging、SLF4J），每个发布的 POM 都导入它；除此之外不管别的，依赖 Wow 的模块对 Wow 不用的库保留自己的版本。Spring Boot BOM 只随 `wow-spring-boot` 而来。',
+        'Wow 运行时放到应用类路径上的那些库的版本（Jackson、协程、kotlin-logging、SLF4J），从 `wow-spi` 起每个发布的 POM 都导入它；除此之外不管别的，依赖 Wow 的模块对 Wow 不用的库保留自己的版本。契约模块（`wow-annotations`、`wow-api`、`wow-query-api`、`wow-manifest`）不导入它：只依赖它们的领域模块对所有库都保留自己的版本。Spring Boot BOM 只随 `wow-spring-boot` 而来。',
     },
     levels: {
       title: 'API 级别',
