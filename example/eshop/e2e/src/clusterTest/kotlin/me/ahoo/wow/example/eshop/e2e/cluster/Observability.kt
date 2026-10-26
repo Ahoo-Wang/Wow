@@ -163,10 +163,10 @@ class Evidence(private val kube: Kube, private val directory: File) {
     private fun connections() {
         // Grouped by client and state, with when the oldest backend started, the last state change, what it waits on
         // and the start of its last query: a dead pod's backends linger, unchanged, until TCP keepalive drops them.
-        val query = "SELECT coalesce(host(client_addr), 'local') AS client, coalesce(state, '-') AS state, count(*), " +
-            "min(backend_start)::timestamp(0), max(state_change)::timestamp(0), " +
-            "string_agg(DISTINCT coalesce(wait_event, '-'), ','), left(max(query), 60) FROM pg_stat_activity " +
-            "WHERE backend_type = 'client backend' GROUP BY 1, 2 ORDER BY 3 DESC"
+        val query = "SELECT coalesce(host(client_addr), 'local') AS client, coalesce(application_name, '-'), " +
+            "coalesce(state, '-') AS state, left(query, 60), count(*), min(backend_start)::timestamp(0), " +
+            "max(state_change)::timestamp(0), string_agg(DISTINCT coalesce(wait_event, '-'), ',') FROM pg_stat_activity " +
+            "WHERE backend_type = 'client backend' GROUP BY 1, 2, 3, 4 ORDER BY 1, 5 DESC"
         val result = kube.exec("postgres-0", "psql", "-U", "postgres", "-tA", "-F", " | ", "-c", query)
         File(directory, "pg-connections.log").appendText("${Instant.now()}\n${result.out.ifBlank { result.err }}\n")
     }
