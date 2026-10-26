@@ -19,6 +19,7 @@ import java.beans.PropertyDescriptor
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Duration
+import kotlin.io.path.createDirectories
 import kotlin.io.path.extension
 import kotlin.io.path.readLines
 import kotlin.io.path.readText
@@ -59,6 +60,7 @@ class ConfigurationMetadata(
     fun committed(file: Path = FILE): Pair<String, String> {
         val expected = document()
         if (System.getenv(UPDATE) != null) {
+            file.parent?.createDirectories()
             file.writeText(expected)
         }
         return file.readText() to expected

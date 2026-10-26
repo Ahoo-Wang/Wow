@@ -1,0 +1,13 @@
+{
+  "groups" : [ {
+    "name" : "wow.view-store",
+    "type" : "me.ahoo.wow.viewstore.server.system.ViewStoreProperties",
+    "description" : "The view store service's settings (`wow.view-store`, the 9.x starter's prefix)."
+  } ],
+  "properties" : [ {
+    "name" : "wow.view-store.system-views",
+    "type" : "java.util.List<me.ahoo.wow.viewstore.server.system.SystemViewProperties>",
+    "description" : "The read-only system views the service serves (ConfiguredSystemViews), each with its `tenant-id` and `app-id` (blank for every one), its `id` (not starting with `system:`), its `definition-id`, its `title` and its `config`, the engine's view configuration as JSON text.",
+    "sourceType" : "me.ahoo.wow.viewstore.server.system.ViewStoreProperties"
+  } ]
+}

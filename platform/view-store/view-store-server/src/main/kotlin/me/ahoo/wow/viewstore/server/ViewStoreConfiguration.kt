@@ -14,6 +14,7 @@
 package me.ahoo.wow.viewstore.server
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
@@ -21,6 +22,7 @@ import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.spring.boot.DevelopmentMode
+import me.ahoo.wow.spring.boot.WowProperties
 import me.ahoo.wow.viewstore.domain.view.SharedBoardReferences
 import me.ahoo.wow.viewstore.server.system.ConfiguredSystemViews
 import me.ahoo.wow.viewstore.server.system.StoredSystemViews
@@ -101,8 +103,9 @@ class ViewStoreConfiguration {
         SystemViewRoutes(views, callers).routes()
 
     companion object {
-        /** The switch that takes the callers from the request headers ([ViewStoreCallers]): off by default. */
-        const val TRUST_IDENTITY_HEADERS: String = "wow.platform.trust-identity-headers"
+        /** The switch that takes the callers from the request headers ([ViewStoreCallers]): the host's key. */
+        @OptIn(InternalWowApi::class)
+        const val TRUST_IDENTITY_HEADERS: String = WowProperties.TRUST_IDENTITY_HEADERS
 
         /** Puts CoSec's callers behind the view store's reserved owners ([ReservedScopeCallers]). */
         @Bean
