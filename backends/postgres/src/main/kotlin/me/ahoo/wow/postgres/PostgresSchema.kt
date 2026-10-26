@@ -57,9 +57,11 @@ internal object PostgresSchema {
         data class Columns(override val table: String, val columns: List<String>) : Target
     }
 
-    private val CREATE_TABLE = Regex("""^\s*CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+("[^"]+"|[\w.]+)""", RegexOption.IGNORE_CASE)
+    private val CREATE_TABLE =
+        Regex("""^\s*CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+("[^"]+"|[\w.]+)""", RegexOption.IGNORE_CASE)
+    private const val NAME = """("[^"]+"|[\w.]+)"""
     private val CREATE_INDEX = Regex(
-        """^\s*CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:CONCURRENTLY\s+)?IF\s+NOT\s+EXISTS\s+("[^"]+"|[\w.]+)\s+ON\s+("[^"]+"|[\w.]+)""",
+        """^\s*CREATE\s+(?:UNIQUE\s+)?INDEX\s+(?:CONCURRENTLY\s+)?IF\s+NOT\s+EXISTS\s+$NAME\s+ON\s+$NAME""",
         RegexOption.IGNORE_CASE,
     )
     private val ALTER_TABLE = Regex("""^\s*ALTER\s+TABLE\s+("[^"]+"|[\w.]+)\s""", RegexOption.IGNORE_CASE)
@@ -70,7 +72,10 @@ internal object PostgresSchema {
      * `CREATE [UNIQUE] INDEX [CONCURRENTLY] IF NOT EXISTS … ON`, and `ALTER TABLE … ADD COLUMN IF NOT EXISTS …`.
      */
     fun target(statement: String): Target {
-        CREATE_TABLE.find(statement)?.let { val table = it.groupValues[1]; return Target.Relation(table, table) }
+        CREATE_TABLE.find(statement)?.let {
+            val table = it.groupValues[1]
+            return Target.Relation(table, table)
+        }
         CREATE_INDEX.find(statement)?.let { return Target.Relation(it.groupValues[1], it.groupValues[2]) }
         ALTER_TABLE.find(statement)?.let { alter ->
             val columns = ADD_COLUMN.findAll(statement).map { unquoted(it.groupValues[1]) }.toList()
@@ -118,7 +123,8 @@ internal object PostgresSchema {
 
     /** Bounds the lock waits of the transaction [connection] is in by [wait] (`SET LOCAL lock_timeout`). */
     fun boundLockWaits(connection: Connection, wait: LockWait) {
-        connection.createStatement().use { it.execute("SET LOCAL lock_timeout = '${wait.timeout.inWholeMilliseconds}ms'") }
+        val millis = wait.timeout.inWholeMilliseconds
+        connection.createStatement().use { it.execute("SET LOCAL lock_timeout = '${millis}ms'") }
     }
 
     /**
@@ -142,26 +148,24 @@ internal object PostgresSchema {
     fun <T> retrying(connection: Connection, table: String, wait: LockWait, attempt: () -> T): T {
         val started = TimeSource.Monotonic.markNow()
         var backoff = wait.backoff
-        repeat(wait.attempts - 1) {
-            try {
+        var attempts = 0
+        while (true) {
+            attempts++
+            val timedOut = try {
                 return attempt()
             } catch (failure: SQLException) {
                 if (failure.sqlState != LOCK_NOT_AVAILABLE) throw failure
+                failure
             }
-            Thread.sleep(backoff.inWholeMilliseconds)
-            backoff *= 2
-        }
-        try {
-            return attempt()
-        } catch (failure: SQLException) {
-            if (failure.sqlState != LOCK_NOT_AVAILABLE) throw failure
-            throw IllegalStateException(
+            check(attempts < wait.attempts) {
                 "The schema step of $table could not take its lock in ${wait.attempts} attempts of " +
                     "${wait.timeout} over ${started.elapsedNow().inWholeSeconds}s: ${holders(connection, table)}. " +
                     "A session idle in transaction is often a crashed node's: it ends when its backend is reaped " +
-                    "(idle_in_transaction_session_timeout, TCP keepalives), or terminate it with pg_terminate_backend.",
-                failure,
-            )
+                    "(idle_in_transaction_session_timeout, TCP keepalives), or terminate it with pg_terminate_backend. " +
+                    "Last: ${timedOut.message}"
+            }
+            Thread.sleep(backoff.inWholeMilliseconds)
+            backoff *= 2
         }
     }
 
