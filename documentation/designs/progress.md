@@ -31,6 +31,7 @@
 - **安全性统一讨论**（路线图 9.3e，[设计](2026-10-26-security-review-design.md)，已采纳）：三条基本原则——公开 API 前置安全网关（D295）、服务内部是受信环境（D298）、低维护成本（D299）；由此信任网关的注入模式（D296）、`client-facts` 维持开启并取网关转发头（D297）、**内部端口不再使用令牌**（D300）、生产须显式身份映射（D301）、未知 `wow.*` 键一律拒绝（D302）。落地 S.1 交给批 2 会话随 C-2 做，S.2 随批 4。
 - **GA 前**：行业对比 Axon Framework 4 + PostgreSQL 本机已测（[报告](../../test/benchmarks/results/reports/v10-vs-axon.md)：单节点 E1 峰值 Wow 关闭 Kafka 为 Axon 的 4.2～4.5 倍、开启 Kafka 3.4～3.5 倍，E3 约 5 倍；Axon 连接池加到 32 后仍为 3.2～3.4 倍与 4.1～4.3 倍；M4 Pro 复测：E1 峰值 4.3～4.9 倍、E3 4.5～5.6 倍，定速下节点每条命令的 CPU 两者相同、PostgreSQL 的 Axon 高 1.4～1.7 倍）；M4 Pro 第二次快照已测（[报告](../../test/benchmarks/results/reports/v10-m4pro-snapshot-2.md)：E3 峰值 PostgreSQL ≥ 7,099/s（+62%）、MongoDB ≥ 5,781/s（+82%），扫描后缓存不再失效，定速的失败是 Docker 磁盘镜像 fsync 停顿后的 `wow.command.busy`）；rc 前在 Actions 上重跑 L3、L4（第 19 项）。
 - **GA 前的文档细节完善**（路线图 9.3f，[文档方案](docs-plan.md) §11）：DG-1～DG-12，跟随工作包的随 PR 写，其余在批 1～4 合并后统一写，GA 前核对文档与代码一致。
+- **GA 前的 eShop 集群端到端验证**（路线图 9.3g，D317）：在 Actions 的 kind 集群上按文档部署，G.2、G.3 进行中，G.1 清单在批 4 之后。
 - **基准**：日常改动只对当前 `main` 做 ABAB（长期运行的效应用老化后的定速段）；里程碑时 M4 Pro 快照与 Actions L3、L4。
 - **之后**：rc 的时间由用户决定（9.4）。
 
