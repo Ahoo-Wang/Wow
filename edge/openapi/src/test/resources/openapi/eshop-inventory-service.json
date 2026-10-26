@@ -70,28 +70,6 @@
         }
       }
     },
-    "/wow/id/global" : {
-      "get" : {
-        "tags" : [ "wow" ],
-        "summary" : "A new global id.",
-        "operationId" : "wow.id.global",
-        "responses" : {
-          "200" : {
-            "description" : "OK",
-            "content" : {
-              "text/plain" : {
-                "schema" : {
-                  "type" : "string"
-                }
-              }
-            }
-          },
-          "401" : {
-            "$ref" : "#/components/responses/wow.framework.401"
-          }
-        }
-      }
-    },
     "/wow/dataset" : {
       "get" : {
         "tags" : [ "wow" ],
