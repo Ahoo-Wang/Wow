@@ -163,7 +163,7 @@ class QueryDslJsonTest {
              "sort":[{"field":"state.amount","direction":"DESC"}]}
         """
         val decoded = decode<SingleQuery>(json)
-        dsl.copy(filter = decoded.filter).assert().isEqualTo(decoded)
+        dsl.withFilter(decoded.filter).assert().isEqualTo(decoded)
         runBlocking {
             val record = gateway.single(dsl, CALLER)
             record.assert().isEqualTo(gateway.single(decoded, CALLER))

@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.api.query
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /**
  * Interface for single-item queries that retrieve at most one result.
  *
@@ -39,7 +41,7 @@ interface ISingleQuery : Queryable<ISingleQuery>
  * )
  * ```
  */
-data class SingleQuery @JvmOverloads constructor(
+class SingleQuery @InternalWowApi constructor(
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList()
@@ -50,7 +52,7 @@ data class SingleQuery @JvmOverloads constructor(
      * @param newFilter The new filter to apply.
      * @return A new SingleQuery with the updated filter.
      */
-    override fun withFilter(newFilter: FilterExpression): ISingleQuery = copy(filter = newFilter)
+    override fun withFilter(newFilter: FilterExpression): ISingleQuery = SingleQuery(newFilter, projection, sort)
 
     /**
      * Creates a new SingleQuery with the specified projection.
@@ -58,5 +60,25 @@ data class SingleQuery @JvmOverloads constructor(
      * @param newProjection The new projection to apply.
      * @return A new SingleQuery with the updated projection.
      */
-    override fun withProjection(newProjection: Projection): ISingleQuery = copy(projection = newProjection)
+    override fun withProjection(newProjection: Projection): ISingleQuery = SingleQuery(filter, newProjection, sort)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is SingleQuery && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "SingleQuery(filter=$filter, projection=$projection, sort=$sort)"
+
+    private fun valueFields(): List<Any?> = listOf(filter, projection, sort)
+
+    companion object {
+        /** A [SingleQuery] of the given values. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            filter: FilterExpression,
+            projection: Projection = Projection.ALL,
+            sort: List<Sort> = emptyList(),
+        ): SingleQuery = SingleQuery(filter, projection, sort)
+    }
 }

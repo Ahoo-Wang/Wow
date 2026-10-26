@@ -44,7 +44,9 @@ rows.map { it.state.price }.assert().containsExactly(BigDecimal("5.00"), BigDeci
 | `pagedQuery { }` | One page (`pagination { index(1); size(20) }`), with a total as `total(...)` asks |
 | `cursorQuery { }` | A keyset page after a cursor, with the next cursor; needs a `sort` |
 | `countQuery { }` | How many match, with whether the count is exact |
-| `aggregation { }` | Groups and metrics: terms, histograms, dates; count, sum, average, … |
+| `aggregation { }` | Groups and metrics: terms, histograms, dates; count, sum, average, … Experimental: opt in with `@OptIn(ExperimentalWowApi::class)` |
+
+The DSL is how Kotlin builds a query; Java, which has no DSL, builds the same types with their factories, such as `ListQuery.of(filter)` and `Sort.of(field, Sort.Direction.ASC)`. The query types are plain values: compare them, but build a changed one anew rather than copying it.
 
 A list read whole is bounded by its limit. To read every row of a large result, stream it: `stream(query)` reads keyset chunks, each its own query, and gives each row a position from which the same query can go on, on this node or another.
 

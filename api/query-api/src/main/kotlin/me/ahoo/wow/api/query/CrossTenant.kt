@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.api.query
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /**
  * The tenants a cross-tenant query reads (decision D254 ⑦): every tenant when [tenantIds] is null ([ALL]), else those.
  * Only the HTTP edge states one, for a caller that may act across scopes and names `Wow-Scope: tenant=*` or
@@ -20,7 +22,7 @@ package me.ahoo.wow.api.query
  * tenant uses `QueryApi.trusted()`. A type whose tenant is fixed is still read in that tenant alone, and every
  * cross-tenant query is audited, whether or not a `QueryObserver` audits.
  */
-data class CrossTenant(val tenantIds: Set<String>? = null) {
+class CrossTenant @InternalWowApi constructor(val tenantIds: Set<String>? = null) {
     init {
         require(tenantIds == null || tenantIds.isNotEmpty()) { "A cross-tenant query names its tenants, or every one." }
         require(tenantIds.orEmpty().none { it.isBlank() }) { "A cross-tenant query names no blank tenant." }
@@ -33,5 +35,19 @@ data class CrossTenant(val tenantIds: Set<String>? = null) {
         /** Every tenant: `tenant=*`. */
         @JvmField
         val ALL: CrossTenant = CrossTenant()
+
+        /** A [CrossTenant] of the given values. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(tenantIds: Set<String>? = null): CrossTenant = CrossTenant(tenantIds)
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is CrossTenant && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "CrossTenant(tenantIds=$tenantIds)"
+
+    private fun valueFields(): List<Any?> = listOf(tenantIds)
 }

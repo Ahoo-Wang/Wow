@@ -783,7 +783,7 @@ object ArchitectureRules {
      * construct may gain fields within a format (D59), and a data class's `copy` and `componentN` change their
      * signatures when it does.
      */
-    val PLAIN_CLASS_MODULES: List<WowProject> = listOf(API, SPI, MANIFEST)
+    val PLAIN_CLASS_MODULES: List<WowProject> = listOf(API, SPI, MANIFEST, QUERY_API)
 
     /**
      * The data classes the ABI of [PLAIN_CLASS_MODULES] keeps, by their JVM names, each with why: closed value
@@ -797,6 +797,7 @@ object ArchitectureRules {
         "me/ahoo/wow/api/subscribe/ExecutionId" to "a subscription's execution: its name, aggregate and version",
         "me/ahoo/wow/spi/log/LogPosition" to "a position in the log: a partition and a sequence",
         "me/ahoo/wow/spi/transport/PartitionOffsets" to "a range of offsets: its start and end",
+        "me/ahoo/wow/api/query/QueryField" to "a field path, its identity; generated code builds it (`<State>Properties`)",
     )
 
     private val ABI_CLASS = Regex("""^public (?:final |abstract |open |sealed )*class ([\w/$]+)""")
