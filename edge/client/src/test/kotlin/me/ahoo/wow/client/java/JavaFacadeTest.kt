@@ -31,6 +31,7 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventQueries
 import me.ahoo.wow.api.read.Positioned
 import me.ahoo.wow.api.read.Queries
@@ -94,14 +95,14 @@ class JavaFacadeTest {
             every { events(type) } returns events
             every { unbounded() } returns unbounded
             @OptIn(me.ahoo.wow.api.annotation.ExperimentalWowApi::class)
-            every { datasets(type, String::class.java) } returns rows
+            every { datasets(DatasetName.of("shop", "sales"), String::class.java) } returns rows
         }
         val api = JavaQueryApi.of(mockk<QueryApi> { every { trusted() } returns trusted })
         val queries = api.trusted()
         queries.events(type).type.assert().isEqualTo(type)
         queries.events(type).dynamic(String::class.java).list(ListQuery(all)).assert().containsExactly("a", "b")
         @OptIn(me.ahoo.wow.api.annotation.ExperimentalWowApi::class)
-        queries.datasets(type, String::class.java).single(SingleQuery(all)).assert().isEqualTo("one")
+        queries.datasets(DatasetName.of("shop", "sales"), String::class.java).single(SingleQuery(all)).assert().isEqualTo("one")
         queries.unbounded().assert().isNotNull()
     }
 

@@ -46,7 +46,7 @@ class QueriedBoardReferencesTest {
                 val from = query.cursor?.toInt() ?: 0
                 val until = minOf(total, from + query.size)
                 val list = (from until until).map { board(it, referencing = if (it == total - 1) "v-1" else "v-other") }
-                CursorPage(list, until.takeIf { it < total }?.toString())
+                CursorPage.of(list, until.takeIf { it < total }?.toString())
             }
         }
         return mockk { every { trusted().snapshots(view).dynamic(ObjectNode::class.java) } returns rows }

@@ -21,6 +21,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.SendOptions
+import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventQueries
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
@@ -175,7 +176,7 @@ class RoutedQueryApi(
         override fun events(type: AggregateType): EventQueries = peerOf(type.context)?.events(type) ?: local.events(type)
 
         @ExperimentalWowApi
-        override fun <R : Any> datasets(name: AggregateType, rowType: Class<R>): RowQueries<R> =
+        override fun <R : Any> datasets(name: DatasetName, rowType: Class<R>): RowQueries<R> =
             peerOf(name.context)?.datasets(name, rowType) ?: local.datasets(name, rowType)
 
         private fun peerOf(context: String): Queries? =

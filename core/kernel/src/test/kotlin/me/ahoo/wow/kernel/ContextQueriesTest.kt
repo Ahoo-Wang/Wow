@@ -23,6 +23,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.read.DatasetName
 import me.ahoo.wow.api.read.EventQueries
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
@@ -55,13 +56,14 @@ class ContextQueriesTest {
     private val typed = mockk<SnapshotQueries<String>>()
     private val events = mockk<EventQueries>()
     private val rows = mockk<RowQueries<Map<*, *>>>()
+    private val sales = DatasetName.of("shop", "sales")
     private val trusted = mockk<TrustedQueries>()
     private val caller = slot<Caller>()
     private val tenantQueries = mockk<Queries> {
         every { snapshots(order) } returns snapshots
         every { snapshots(String::class.java) } returns typed
         every { events(order) } returns events
-        every { datasets(order, Map::class.java) } returns rows
+        every { datasets(sales, Map::class.java) } returns rows
     }
     private val api = mockk<QueryApi> {
         every { of(capture(caller)) } returns tenantQueries
@@ -78,7 +80,7 @@ class ContextQueriesTest {
             read.snapshots(order).assert().isSameAs(snapshots)
             read.snapshots(String::class.java).assert().isSameAs(typed)
             read.events(order).assert().isSameAs(events)
-            read.datasets(order, Map::class.java).assert().isSameAs(rows)
+            read.datasets(sales, Map::class.java).assert().isSameAs(rows)
             read.trusted().assert().isSameAs(trusted)
         }
         caller.captured.assert().isEqualTo(Caller.of(tenantId = "acme"))

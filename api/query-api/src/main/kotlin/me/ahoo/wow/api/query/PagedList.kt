@@ -1,5 +1,7 @@
 package me.ahoo.wow.api.query
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /**
  * Interface representing a paginated list of items with its total, counted as the query's [TotalMode] asks.
  *
@@ -38,7 +40,7 @@ interface IPagedList<out T> {
  * val uncounted = PagedList(total = null, list = page)
  * ```
  */
-data class PagedList<out T>(
+class PagedList<out T> @InternalWowApi constructor(
     override val total: Long?,
     override val list: List<T>,
     override val exact: Boolean = total != null,
@@ -62,5 +64,31 @@ data class PagedList<out T>(
          * @return An empty PagedList with an exact total of 0 and an empty list.
          */
         fun <T> empty(): PagedList<T> = EMPTY
+
+        /** A [PagedList] of the given values. */
+        @JvmStatic
+        @JvmOverloads
+        fun <T> of(
+            total: Long?,
+            list: List<T>,
+            exact: Boolean = total != null,
+        ): PagedList<T> = PagedList(total, list, exact)
     }
+
+    /** This PagedList with the given values replaced; for Wow's own query rewriting. */
+    @InternalWowApi
+    fun copy(
+        total: Long? = this.total,
+        list: List<@UnsafeVariance T> = this.list,
+        exact: Boolean = this.exact,
+    ): PagedList<T> = PagedList(total, list, exact)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is PagedList<*> && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "PagedList(total=$total, list=$list, exact=$exact)"
+
+    private fun valueFields(): List<Any?> = listOf(total, list, exact)
 }
