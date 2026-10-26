@@ -18,7 +18,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 
 /**
- * Observability's configuration, `wow.opentelemetry.*`, read when wow-opentelemetry is on the classpath
+ * Observability's configuration, `wow.observability.*`, read when wow-observability is on the classpath
  * ([ObservabilityAutoConfiguration]).
  */
 @InternalWowApi
@@ -35,7 +35,7 @@ class ObservabilityProperties {
 
     @InternalWowApi
     companion object {
-        const val PREFIX: String = "wow.opentelemetry"
+        const val PREFIX: String = "wow.observability"
         private val DEFAULT_SAMPLE_INTERVAL: Duration = Duration.ofSeconds(15)
     }
 }

@@ -60,7 +60,7 @@ dependencies {
     ksp(project(":wow-compiler"))
     implementation("io.netty:netty-all")
     implementation(project(":example-transfer-domain"))
-    implementation(project(":wow-opentelemetry"))
+    implementation(project(":wow-observability"))
     implementation(project(":wow-webflux"))
     implementation(project(":wow-spring-boot-starter"))
     api("io.projectreactor.kotlin:reactor-kotlin-extensions")

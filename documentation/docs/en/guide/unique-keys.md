@@ -24,9 +24,9 @@ private suspend fun take(name: String, scope: DecideScope): Decision? =
     }
 ```
 
-- **The namespace** names what is unique: `eshop-catalog.brand-name`. Brands and categories reserve in two namespaces, so a brand and a category may share a name.
+- **The namespace** names what is unique: `eshop-catalog.brand-name`.
 - **The key** is the value, normalized the way uniqueness is meant: the catalog trims and lowercases a name, so "Contoso" and " contoso " are one name.
-- **The scope** of uniqueness is the aggregate's bounded context and tenant: another tenant may hold the same key. `reserve(namespace, key, ReservationTenancy.SYSTEM)` makes a key unique across the context's tenants.
+- **The scope** of uniqueness is the aggregate's type and tenant: another tenant may hold the same key, and so may an aggregate of another type, so a brand and a category may share a name. `reserve(namespace, key, ReservationTenancy.SYSTEM)` makes a key unique across the type's tenants.
 - `reserve` is a `suspend` function, so a decide function that reserves keys is written in Kotlin.
 
 ## What happens to a reservation
@@ -58,9 +58,13 @@ suspend fun onCommand(command: RenameBrand, scope: DecideScope): Decision {
 
 Deleting an aggregate releases none of its keys, so a restored aggregate still holds them. A delete that should give a key up releases it in the aggregate's own command before the delete.
 
+## A key unique across aggregate types
+
+A key is unique among the aggregates of one type. When a value must be unique across types, such as an email address that users and organizations share, model the uniqueness as an aggregate of its own: an aggregate whose id is the key (or one that holds the keys) is claimed by the others through its commands, and its own decisions say who holds each key.
+
 ## Where reservations are kept
 
-The reservations are kept in the service's store, beside its log, so a confirmation is as durable as the commit it belongs to. They replace 9.x's `PrepareKey`; migrate-data imports what 9.x confirmed ([Migrate the Data](../migrate/data)).
+An aggregate type's reservations are kept with its log, in the store `wow.aggregates.<context>.<aggregate>.log.store` names (or the default log store), in a table or collection of their own per type: `wow_reservation__<context>__<aggregate>`. A confirmation is so as durable as the commit it belongs to. They replace 9.x's `PrepareKey`; migrate-data imports what 9.x confirmed ([Migrate the Data](../migrate/data)).
 
 ## Test it
 

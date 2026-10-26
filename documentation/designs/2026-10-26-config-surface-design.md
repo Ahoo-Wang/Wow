@@ -117,6 +117,8 @@
 
 `ConfigurationKeys` 对所有未知的 `wow.*` 键拒绝启动。平台服务的 `wow.analytics.*`、`wow.view-store.*`、`wow.platform.*` 补上元数据，作为它们模块自有的前缀登记，以免被误拒。错误消息对本表改名的键给出新键名，这只是一张静态对照表，不是别名：旧键仍然拒绝启动。
 
+**落地**（D324 ②，#4972、#4975）：检查合并类路径上所有模块的元数据；不引入 Spring Boot 的模块自带普通属性类与元数据（wow-cosid）。环境变量里组为 Wow 配置组的 `WOW_<组>_…` 一并检查，其他 `WOW_*` 不查。改名与删除只在 `ConfigurationKeys.RENAMED` 一处，升级文档只写一句规则。
+
 **规模**：约 300 个键减到约 255 个，删除约 35 个、合并约 10 个；改名的键都有静态对照，升级说明逐条列出。
 
 ### 3.9 自动推导（K9）
@@ -130,8 +132,19 @@
 | Kafka 主题的分区、副本数 | 日志的分区数；broker 的默认 | `wow.kafka.topics.*` | 已有 |
 | 后端、传输 | 已有的 DataSource、MongoClient；是否设置了 Kafka | `wow.backend`、`wow.transport` | 传输为新（CQ3） |
 | 快照存放 | 日志所在的存储 | `wow.snapshot.stores` | 已有 |
-| **对端的内部地址** | 参照 Elasticsearch 的发现：种子由 DNS SRV 查询得到（地址与端口），来源可插拔（`PeerDiscovery`：`dns`、`static`）；解析出的多个节点在客户端轮询，连接失败或 503 时换下一个（D305） | `wow.peer.discovery`、`wow.peers.<ctx>.url` | 新 |
+| **对端的内部地址** | 参照 Elasticsearch 的发现：种子由 DNS SRV 查询得到（地址与端口），来源可插拔（`PeerDiscovery`：`dns`、`static`）；解析出的多个节点在客户端轮询，连接失败或带 Wow 下线、待机错误码的 503 时换下一个（D305、D325） | `wow.peer.discovery`、`wow.peers.<ctx>.url` | 新 |
 | **网关后的客户端地址** | 部署前提 D295、D296：公开端口前总有网关，Wow 以默认属性源提供 `server.forward-headers-strategy=framework`（同 `ShutdownTimeoutEnvironmentPostProcessor` 的做法），取代 D297 的启动告警 | `server.forward-headers-strategy` | 新，修订 D297 的实现 |
+
+### 3.10 规则的放行清单（#4972 落地，测试守住）
+
+每一项都写明理由；清单里的键或声明不再存在时测试失败。
+
+| 规则 | 测试 | 放行项与理由 |
+| --- | --- | --- |
+| K1 每个键一个读者 | `ConfigurationReadersTest.ALLOWED` | `PortProviders`：传输或 Sink 自己的 `wow.<type>.*` 以映射交给提供者；`WowCosIdAutoConfiguration`：模块不引入 Spring Boot（D118），读自己的键，默认只在 `CosIdProperties` |
+| K1 平台服务读宿主设置 | `InternalOptInTest.HOST_SETTING_READERS` | 运维与分析目录的授权器读 `wow.cosec.authorizer.enabled`、`wow.tenant.default`（宿主不交出 CoSec 的命令授权器，后续改为注入）；`warehouseCatalog` 读 `wow.clickhouse.database`、`datasetReferenceActions` 与 `manifestPeers` 读 `wow.peers.<ctx>.contract`（都没有公开类型给出） |
+| K4 布尔以 `.enabled` 结尾 | `KeyNamingTest.BOOLEANS` | `wow.health.topics.required`（健康检查的严格程度）、`wow.node.standby`（启动状态）、`wow.query.abac.match-missing-tag-key`（ABAC 的匹配规则）、`wow.query.budgets.*.unindexed-sort-expensive`（预算的计法）、`wow.query.count-cache.paged-totals`（计数缓存的覆盖面）、`wow.query.sensitivity.display-comparable`（敏感字段的策略）；`wow.ops.publish.enabled` 是三态（D324 ⑤） |
+| K5 重试的叶子名 | `KeyNamingTest.RETRIES` | 叶子只能是 `max-attempts`、`initial-backoff`、`max-backoff`、`multiplier`、`jitter`、`max-retry-after`；`wow.subscription.parked.max-retries` 数的是停放之后的重试 |
 
 ## 4. 用户的决定（D303）
 

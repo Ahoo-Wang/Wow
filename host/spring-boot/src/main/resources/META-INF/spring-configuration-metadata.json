@@ -152,9 +152,9 @@
     "description" : "This node's identity among the nodes of the service, and where they reach it.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties"
   }, {
-    "name" : "wow.opentelemetry",
+    "name" : "wow.observability",
     "type" : "me.ahoo.wow.spring.boot.ObservabilityProperties",
-    "description" : "Observability's configuration, `wow.opentelemetry.*`, read when wow-opentelemetry is on the classpath (ObservabilityAutoConfiguration)."
+    "description" : "Observability's configuration, `wow.observability.*`, read when wow-observability is on the classpath (ObservabilityAutoConfiguration)."
   }, {
     "name" : "wow.ops",
     "type" : "me.ahoo.wow.spring.boot.WowProperties$Ops",
@@ -809,13 +809,13 @@
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Node",
     "defaultValue" : false
   }, {
-    "name" : "wow.opentelemetry.enabled",
+    "name" : "wow.observability.enabled",
     "type" : "java.lang.Boolean",
     "description" : "Whether the node is traced and measured.",
     "sourceType" : "me.ahoo.wow.spring.boot.ObservabilityProperties",
     "defaultValue" : true
   }, {
-    "name" : "wow.opentelemetry.sample-interval",
+    "name" : "wow.observability.sample-interval",
     "type" : "java.time.Duration",
     "description" : "How often the gauges that are read, not heard, are sampled: the parked entries, the subscriptions' positions and a rebuild's progress.",
     "sourceType" : "me.ahoo.wow.spring.boot.ObservabilityProperties",
@@ -1554,7 +1554,7 @@
   }, {
     "name" : "wow.transport",
     "type" : "java.lang.String",
-    "description" : "The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none, which a service whose Manifest needs topics refuses. `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type, names the transport.",
+    "description" : "The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none: the node then publishes no stream, and refuses to start when it needs topics (Kafka routing, command intake, ledger publishing set to true). `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type, names the transport.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
     "defaultValue" : "auto"
   }, {

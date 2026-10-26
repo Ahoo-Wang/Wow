@@ -23,7 +23,7 @@ Every key of the `wow.*` configuration a Spring Boot host reads, 217 in all, gen
 | `wow.service` | `String` |  | The service's name; `spring.application.name` when not set. |
 | `wow.stores` | `Map<String,Store>` |  | The named store instances, by name: `wow.stores.<name>.type` and its settings. The aggregates whose logs are on one store form a log group, with its own partition sequences, checkpoints, parked entries and timers. |
 | `wow.subscriptions` | `Map<String,SubscriptionSettings>` |  | Per subscription, by its name (bracketed in a property name: `wow.subscriptions.[CartSaga.onOrderCreated]`). |
-| `wow.transport` | `String` | `auto` | The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none, which a service whose Manifest needs topics refuses. `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type, names the transport. |
+| `wow.transport` | `String` | `auto` | The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none: the node then publishes no stream, and refuses to start when it needs topics (Kafka routing, command intake, ledger publishing set to true). `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type, names the transport. |
 
 ## `wow.clickhouse`
 
@@ -314,14 +314,14 @@ This node's identity among the nodes of the service, and where they reach it.
 | `wow.node.id` | `String` |  | This node's id among the nodes of the service; a new one each start when not set. |
 | `wow.node.standby` | `Boolean` | `false` | Whether the node starts on standby: through the dual-run window of a migration's cut-over it serves reads of what `migrate-data` imports, refuses every command (the error `wow.node.standby`, 503), and handles no subscription, retries no parked entry and runs no job, until its operator resumes it on the internal port (`POST /wow/node/resume` from a node of its service, naming who resumes it). A subscription that starts at the end of its stream starts where the stream ends at the resume. |
 
-## `wow.opentelemetry`
+## `wow.observability`
 
-Observability's configuration, `wow.opentelemetry.*`, read when wow-opentelemetry is on the classpath (ObservabilityAutoConfiguration).
+Observability's configuration, `wow.observability.*`, read when wow-observability is on the classpath (ObservabilityAutoConfiguration).
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `wow.opentelemetry.enabled` | `Boolean` | `true` | Whether the node is traced and measured. |
-| `wow.opentelemetry.sample-interval` | `Duration` | `PT15S` | How often the gauges that are read, not heard, are sampled: the parked entries, the subscriptions' positions and a rebuild's progress. |
+| `wow.observability.enabled` | `Boolean` | `true` | Whether the node is traced and measured. |
+| `wow.observability.sample-interval` | `Duration` | `PT15S` | How often the gauges that are read, not heard, are sampled: the parked entries, the subscriptions' positions and a rebuild's progress. |
 
 ## `wow.ops`
 

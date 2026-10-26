@@ -135,7 +135,7 @@
 | M-4 | P2 | `:clickhouse` Sink | 没有集群拓扑（9.x 默认 `ON CLUSTER`、复制表与分布式表）也没有命令表；集群用户须手写与 Sink 列一致的 DDL | 文档与公布列 DDL；集群 DDL 生成 10.x | 待修（文档：公布 Sink 列 DDL 与集群说明；集群 DDL 生成 10.x） |
 | M-5 | P2 | 迁移 | ES 用户没有迁移指引：`migrate-data` 只支持 PostgreSQL、MongoDB，Skill 不提 ES，重建能否填满 ES 快照目标未核实 | 文档；`migrate-data` 的 ES 支持 10.x | 部分（ES 事件存储先迁到 MongoDB 已写明；`migrate-data` 直接读 ES 10.x） |
 | M-6 | P3 | 迁移 | Kafka 命令主题与线路格式变了（`wow.<ctx>.commands`、`CommandWire`），外部命令生产者的切换没有文档 | 文档（与 M-1 相关） | 部分（命令主题已写明；外部生产者的线路格式待写） |
-| M-7 | P3 | 可观测性 | 指标与 span 名称全部改名，Skill 与 07 没有对照，告警与看板会静默失效 | 文档（对照表） | 待修（文档：指标与 span 的 9.x 对照表） |
+| M-7 | P3 | 可观测性 | 指标与 span 名称全部改名，Skill 与 07 没有对照，告警与看板会静默失效 | 文档（对照表） | 已修（#4976） |
 | M-8 | P3 | 迁移 | `wow-cocache` 放弃但没有替代写法 | 文档 | 待修（文档：`wow-cocache` 的替代写法） |
 | M-9 | P3 | 设计文档 | 09 多处过时或有误（D149 误引、ES 已实现、R3-H 与 R3-D 已合并、Skill 已覆盖的条目、`wow-apiclient` 应指向 D257） | 协调者刷新 09 | 部分（09 第 25、134 行的出处与状态待更正） |
 
@@ -179,27 +179,27 @@
 | R5.C-12 | P2 | `:cosec`、`:spring-boot` | 可选集成两套装配方式；`wow.cosec.*` 两个读者 | 批 2 | 已修（#4935） |
 | R5.B-3 | P1 | `:postgres`、`:mongo`、`:spi`、`:runtime` | 传输段在四处各编码一份，GA 后加字段要改每个后端，漏改即静默丢字段 | 批 3（D291） | 已修（#4917） |
 | R5.B-4 | P1 | `:runtime` 租约、`:spi` `LeaseStore` | 控制面约 3.7 次存储操作/租约组/节点/秒，成员关系在每组重复心跳与读取 | 批 3（D291） | 已修（#4931） |
-| R5.B-5 | P1 | `:spi`、`:spring-boot` | Sink 与传输没有发现机制，只能由宿主专用自动配置装配 | 批 3（SPI）、批 4（配置）（D288） | 部分（#4934：SPI；配置随批 4） |
+| R5.B-5 | P1 | `:spi`、`:spring-boot` | Sink 与传输没有发现机制，只能由宿主专用自动配置装配 | 批 3（SPI）、批 4（配置）（D288） | 部分（#4934：SPI；ES 事件 Sink 随批 4e-2） |
 | R5.B-9 | P2 | `:spi` | `EventLog`、`SnapshotStore` 混着必须实现与可选优化；组合读靠向下转型且静默退回 | 批 3（D291） | 已修（#4923） |
 | R5.B-16 | P2 | `:postgres` | 组合读失败静默退回，不记日志 | 批 3 | 已修（#4923） |
-| R5.B-17 | P1 | `:postgres`、`:mongo`、`:spi` `TimerStore` | 定时器每个上下文一张表（`wow_timer__<context>`），按 `owner_aggregate` 列区分类型；一个聚合类型的日志可以单独放到别的存储，它的定时器却留在上下文共用的表里 | 批 3（D307、D308） | 待修 |
-| R5.B-18 | P1 | `:postgres`、`:mongo`、`:spi` `ReservationStore` | 预留全局一张表（`wow_reservation`），主键（上下文，租户，命名空间，key），连上下文都未拆分；命名空间在上下文内跨类型共享 | 批 3（D307：按聚合类型拆分，唯一性在类型内；D308：MongoDB 分片） | 待修 |
+| R5.B-17 | P1 | `:postgres`、`:mongo`、`:spi` `TimerStore` | 定时器每个上下文一张表（`wow_timer__<context>`），按 `owner_aggregate` 列区分类型；一个聚合类型的日志可以单独放到别的存储，它的定时器却留在上下文共用的表里 | 批 3（D307、D308） | 进行中（#4967） |
+| R5.B-18 | P1 | `:postgres`、`:mongo`、`:spi` `ReservationStore` | 预留全局一张表（`wow_reservation`），主键（上下文，租户，命名空间，key），连上下文都未拆分；命名空间在上下文内跨类型共享 | 批 3（D307：按聚合类型拆分，唯一性在类型内；D308：MongoDB 分片） | 已修（#4946） |
 | R5.A-5 | P1 | `:kernel` DSL | X-6 新角度：DSL 默认名不读 `@Name`，GA 后写进日志的名字只能靠 `@Alias` 迁移 | 批 3（D285） | 已修（#4914） |
-| R5.C-3 | P1 | 配置 | DDL 5 键 4 枚举语义不一；对端分 `calls`/`clients`；`in-process-timeout` 与 `in-process.timeout`；Mongo 读偏好进中立 SPI；两份开发 profile | 批 4（D288、D303） | 待修 |
-| R5.B-8 | P2 | 配置 | 已实测默认开启的优化仍留总开关；`ServiceNodeOptions` 21 个平铺字段 | 批 4（D288、D303） | 待修 |
-| R5.C-16 | P2 | 配置 | `wow.query.http.*` 与 `in-process.*` 两组相同的 12 个键 | 批 4（D288、D303） | 待修 |
-| R5.C-9 | P2 | 观测 | 指标与错误码同名、分隔符混用、标签不一致；`:opentelemetry` 名实不符 | 批 4（D289） | 待修 |
-| R5.B-11 | P2 | `:runtime` `ContextBackends` | `snapshots` 与 `snapshotTargets` 两种写法 | 批 4 | 待修 |
+| R5.C-3 | P1 | 配置 | DDL 5 键 4 枚举语义不一；对端分 `calls`/`clients`；`in-process-timeout` 与 `in-process.timeout`；Mongo 读偏好进中立 SPI；两份开发 profile | 批 4（D288、D303） | 已修（#4969、#4971） |
+| R5.B-8 | P2 | 配置 | 已实测默认开启的优化仍留总开关；`ServiceNodeOptions` 21 个平铺字段 | 批 4（D288、D303） | 已修（#4974） |
+| R5.C-16 | P2 | 配置 | `wow.query.http.*` 与 `in-process.*` 两组相同的 12 个键 | 批 4（D288、D303） | 已修（#4969） |
+| R5.C-9 | P2 | 观测 | 指标与错误码同名、分隔符混用、标签不一致；`:opentelemetry` 名实不符 | 批 4（D289） | 已修（#4976，D326） |
+| R5.B-11 | P2 | `:runtime` `ContextBackends` | `snapshots` 与 `snapshotTargets` 两种写法 | 批 4 | 已修（#4974） |
 | R5.A-6 | P2 | `:kernel` | `Kernel.kt` 1,403 行装着写、批、历史读与副作用作用域；`maxReplay` 默认 `Int.MAX_VALUE` | 批 5 | 待修 |
 | R5.A-17 | P2 | 06 | §2.1 仍写 `wow-api` 无依赖、6 个包 | 批 1（随文档） | 待修 |
 | R5.A-18 | P2 | `:compiler` | 29 个文件一个包，`ModelSymbolProcessor` 901 行 | 批 5 | 待修 |
 | R5.A-19 | P2 | `:manifest-tools` | 为一个指纹依赖整个 `:kernel` | 批 5 | 待修 |
-| R5.A-20 | P1 | `:api` `DecideScope`、`:kernel` | 决定函数里抛出的任何异常都是技术故障（`wow.command.failed`，500）：`require`/`check` 的业务检查对 Saga 发出的命令会被重试、停放，而决定函数是确定性的，重试注定失败；深层校验只能一层层传回 `Decision` | 批 1（D311） | 待修 |
-| R5.A-21 | P1 | `:test-dsl` | 9.x 的 `inject` 可以在用例中途替换依赖的服务（9.x example `OrderSpec` 用了 5 次）；V10 的服务在构建模型时绑定，分叉复制运行时，同一用例的分叉无法换服务 | 批 1（D315 ①） | 待修 |
-| R5.A-22 | P2 | `:test-dsl` | 没有 `expectEventCount`；`expectEvent<E>` 只见事件体，看不到聚合 ID、版本、请求 ID、请求头 | 批 1（D315 ③） | 待修 |
-| R5.A-23 | P2 | `:test-dsl` | 断言失败是纯字符串（`Expected events [..] but got [..]`），没有差异，不带命令、步骤与分叉路径 | 批 1（D315 ④） | 待修 |
-| R5.A-24 | P1 | 横切（`SurfaceRules` 的允许清单） | #4929 留下的 80 个公开 `data class`（`:query` 59、`:runtime` 15、`:kernel` 3、其他 3），其 `copy`、`componentN` 仍在冻结面；清单只许缩小 | 批 1（rc 前：逐个改为普通类加工厂，或在清单里写明保留的理由） | 待修 |
-| R5.C-20 | P2 | `:http`/`:runtime` 集群通道 | 启动时对端 Pod 的 DNS 名尚未发布，问候失败按 WARN 打出完整堆栈（`UnresolvedAddressException`），是例行竞态 | 批 5（INFO、不带堆栈，持续失败才 WARN） | 待修 |
+| R5.A-20 | P1 | `:api` `DecideScope`、`:kernel` | 决定函数里抛出的任何异常都是技术故障（`wow.command.failed`，500）：`require`/`check` 的业务检查对 Saga 发出的命令会被重试、停放，而决定函数是确定性的，重试注定失败；深层校验只能一层层传回 `Decision` | 批 1（D311） | 已修（#4965） |
+| R5.A-21 | P1 | `:test-dsl` | 9.x 的 `inject` 可以在用例中途替换依赖的服务（9.x example `OrderSpec` 用了 5 次）；V10 的服务在构建模型时绑定，分叉复制运行时，同一用例的分叉无法换服务 | 批 1（D315 ①） | 已修（#4968） |
+| R5.A-22 | P2 | `:test-dsl` | 没有 `expectEventCount`；`expectEvent<E>` 只见事件体，看不到聚合 ID、版本、请求 ID、请求头 | 批 1（D315 ③） | 已修（#4968） |
+| R5.A-23 | P2 | `:test-dsl` | 断言失败是纯字符串（`Expected events [..] but got [..]`），没有差异，不带命令、步骤与分叉路径 | 批 1（D315 ④） | 已修（#4968） |
+| R5.A-24 | P1 | 横切（`SurfaceRules` 的允许清单） | #4929 留下的 80 个公开 `data class`（`:query` 59、`:runtime` 15、`:kernel` 3、其他 3），其 `copy`、`componentN` 仍在冻结面；清单只许缩小 | 批 1（rc 前：逐个改为普通类加工厂，或在清单里写明保留的理由） | 部分（#4970：`:query`；`SurfaceRules.PLAIN_CLASS_BACKLOG` 余 20 个，在 `:kernel`、`:runtime`、`:kafka`、`:http`、`:models`，随批 5） |
+| R5.C-20 | P2 | `:http`/`:runtime` 集群通道 | 启动时对端 Pod 的 DNS 名尚未发布，问候失败按 WARN 打出完整堆栈（`UnresolvedAddressException`），是例行竞态 | 批 5（INFO、不带堆栈，持续失败才 WARN） | 进行中（#4977） |
 | R5.B-6 | P2 | 性能 | 每条命令约 80 KB 分配未剖析；事件体与 `trace` 多一次解析加序列化 | 批 5（JFR 后 ABAB） | 待修 |
 | R5.B-13 | P2 | `:runtime`、`:spi` | 52 处手写 `equals`/`hashCode`/`valueFields`，漏字段编译器发现不了 | 批 5 | 待修 |
 | R5.B-15 | P2 | `:mongo` | `MongoEventLog.kt` 1,402 行 | 批 5（B-3 之后） | 待修 |
@@ -218,11 +218,27 @@
 | S-3 | P1 | `:runtime` `CommandIntake` | Kafka 命令主题不认证：能写主题即可绕过准入与授权 | S.3 文档（D298：内部受信） | 已修（#4949 文档） |
 | S-4 | P1 | `:http` `RequestHeaders` | `client-facts` 默认开启；网关之后记下的是网关地址 | S.1（D297：维持默认，取网关转发头；D303 ⑥：转发头策略由 Wow 默认打开） | 已修（#4943） |
 | S-5 | P1 | `:http` `CallPermits` | 不列 `commands`/`reads` 即全部领域命令与全部模型 | 维持现状（D298、D299） | 放弃 |
-| S-6 | P1 | `:spring-boot` `ConfigurationKeys` | 只有 4 个前缀拼错会拒绝启动 | S.2（D302，随批 4） | 待修 |
+| S-6 | P1 | `:spring-boot` `ConfigurationKeys` | 只有 4 个前缀拼错会拒绝启动 | S.2（D302，随批 4） | 已修（#4972、#4975，D324 ②） |
 | S-7 | P1 | `deploy/*/secret.yaml` | 示例集群令牌满足长度检查 | D300 删除集群令牌后失效 | 放弃 |
 | S-8 | P1 | `:http` `InternalHttp` | 内部端口只能明文 | S.3 文档：服务网格 mTLS（D298） | 已修（#4949 文档） |
 | S-9 | P2 | 平台服务 `OpsCallers` | 头部身份开关没有开发 profile 或回环守卫 | S.1 | 已修（#4943） |
 | S-10 | P2 | `:http` | 请求事实没有单条大小上限 | S.1（固定常量，D299） | 已修（#4943） |
-| S-11 | P2 | 平台服务 | 三个平台服务共用一个 HMAC 密钥 | S.1：改用注入模式，删掉共享密钥（D296、D299） | 待修 |
+| S-11 | P2 | 平台服务 | 三个平台服务共用一个 HMAC 密钥 | S.1：改用注入模式，删掉共享密钥（D296、D299） | 已修（S.1，平台服务不再持有密钥） |
 | S-12 | P2 | `:query` `CrossTenantAudit` | 跨租户查询的审计只是 INFO 日志 | 转 10.x（路线图 §6） | 转 10.x |
 | S-13 | P1 | `:http`、`:client`、`:spring-boot` | 内部端口的集群令牌与服务令牌在受信内网中维护成本高、收益只针对已排除的威胁 | S.1（D300：删除，身份由调用方声明，网络策略作边界） | 已修（#4949） |
+
+## 9. GA 前的集群端到端验证（D317，#4961，Actions 上的 kind）
+
+按文档部署 eShop、ops、view-store 与分析目录，CoSec Gateway 在前。发现的问题按此登记；修复由各自的工作包做，E2E 不打补丁绕过。
+
+| 编号 | 级别 | 位置 | 现象 | 去向 | 状态 |
+| --- | --- | --- | --- | --- | --- |
+| F1 | P1 | eShop | 不能跑在 MongoDB | eShop 的 example PR；宿主侧 D318 | 已修（#4963、#4962） |
+| F2～F4 | P1 | eShop | 四个服务没有 CoSec、Actuator 健康检查与 Dockerfile | eShop 的 example PR | 已修（#4963） |
+| F5 | P3 | CI | CoSec Gateway 依赖 Redis | 用户批准仅在 CI 使用 `redis:7.4-alpine` | 已处理 |
+| F6 | P2 | eShop | 没有 Wow 的指标（未依赖 `wow-observability`，未暴露指标端点） | G.1：示例按最佳实践带上可观测性 | 待修 |
+| F7 | P2 | CoSec Gateway 6.1.2 | 配置 Redis 时限流 bean 冲突而不能启动 | 绕过：`cosec.limiter.enabled=false`；上游 issue 草稿待用户决定是否提交 | 待用户 |
+| F8 | P1 | `:http` `HttpSignalSender` | 一次丢失的等待信号让已提交的命令变成 504 | D320 | 进行中（#4977） |
+| F9 | P0 | 部署清单 | Deployment 的 Pod 没有逐 Pod 的 DNS，公布的节点地址解析不到，转发与跨节点信号全部失败 | D319 | 已修（#4966） |
+| F10 | P0 | `:postgres` | 强删属主后，死事务的表锁、启动时无条件的 DDL 与只在客户端的超时连成一串，`max_connections` 用尽，替补节点反复重启 | D321 | 进行中 |
+| F11 | P1 | `:spring-boot` | 4a-2 后没有 Kafka 的 view-store 与分析目录在开发环境之外拒绝启动 | D322 | 进行中（#4978） |

@@ -46,7 +46,7 @@ The host refuses to start rather than run with a setting that would quietly do t
 
 ## A subscription parks aggregates
 
-`wow.subscription.parked` is above zero, and the ops console lists the aggregates. Each entry carries the error and the version the subscription stopped at.
+`wow.subscription.parked.aggregates` is above zero, and the ops console lists the aggregates. Each entry carries the error and the version the subscription stopped at.
 
 - Fix the cause first: deploy the corrected handler, or bring back the outside system it calls.
 - Then resume the aggregates: the subscription reads each one's stream again from where it stopped ([The Ops Service and Console](./ops-console)).
@@ -54,7 +54,7 @@ The host refuses to start rather than run with a setting that would quietly do t
 
 ## A subscription stops for every aggregate
 
-`wow.subscription.paused` is 1 for a partition: the subscription took a failure for an outage of something every aggregate needs, a store or a downstream service, and pauses the partition until it is back. Nothing is parked meanwhile. Find what is down from the subscription's log; the partition resumes by itself.
+`wow.subscription.paused.partitions` is above zero: the subscription took a failure for an outage of something every aggregate needs, a store or a downstream service, and pauses the partition until it is back. Nothing is parked meanwhile. Find what is down from the subscription's log; the partition resumes by itself.
 
 ## A subscription falls behind
 
@@ -73,7 +73,7 @@ The ownership health component is `DOWN`, or commands for some aggregates are sl
 | --- | --- | --- |
 | A node stays not ready after it starts | A topic it reads is still joining its lease group | Wait; or set `wow.health.topics.required: false` |
 | `wow.kafka.offset.gaps` is above zero | Retention deleted offsets a subscription had not read | Raise the topic's retention; decide on `wow.kafka.offset-gap` ([Kafka](./kafka#reading-other-contexts-streams)) |
-| `wow.subscription.undecodable` is above zero | Messages this version cannot decode | Upgrade the reading service's api, or the writer sends an unknown format |
+| `wow.subscription.undecodable.messages` is above zero | Messages this version cannot decode | Upgrade the reading service's api, or the writer sends an unknown format |
 
 ## Queries are refused or slow
 

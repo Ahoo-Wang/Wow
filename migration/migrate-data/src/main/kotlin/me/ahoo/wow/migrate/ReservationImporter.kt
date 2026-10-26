@@ -48,7 +48,7 @@ internal class ReservationPlan(val aggregate: AggregatePlan, val mapping: Reserv
         )
         val owner = aggregate.target.ref(tenantId, id)
         val scopeTenant = if (mapping.tenancy == ReservationTenancy.SYSTEM) ReservationScope.SYSTEM_TENANT else tenantId
-        return KeyOwner.Found(owner, ReservationScope.of(aggregate.target.context, scopeTenant, mapping.namespace))
+        return KeyOwner.Found(owner, ReservationScope.of(aggregate.target, scopeTenant, mapping.namespace))
     }
 }
 

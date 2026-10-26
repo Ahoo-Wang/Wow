@@ -84,40 +84,49 @@ enum class TransportSelection {
 }
 
 /**
- * What needs a topic transport in a node without one ([TransportSelection.NONE]), in words: the streams its contexts
- * publish (each to its topic), its aggregate types routed through Kafka (`wow.aggregates.[..].routing=kafka`), its
- * failure ledger published to the ops context (`wow.ops.publish.enabled`), and the command intake
- * (`wow.kafka.command-intake.enabled`). A sourced subscription or a saga's receipts need it too, which the node itself
- * refuses when it is built.
+ * What needs a topic transport in a node without one ([TransportSelection.NONE]), in words: its aggregate types routed
+ * through Kafka (`wow.aggregates.[..].routing=kafka`), its failure ledger published to the ops context
+ * (`wow.ops.publish.enabled`), and the command intake (`wow.kafka.command-intake.enabled`). A sourced subscription or a
+ * saga's commands to another context need it too, which the node itself refuses when it is built.
+ *
+ * The streams its contexts publish are no need (decision D322): every aggregate is published by default (D156), so a
+ * published stream says nothing of whether anyone reads it. A node without a transport publishes none of them, and
+ * says so once ([unpublished], [check]).
  */
 @InternalWowApi
 object TransportNeeds {
     private val logger = KotlinLogging.logger {}
 
     /**
-     * What needs a transport in a node of [manifest] serving [contexts], with the settings given; empty for none.
+     * What needs a transport in a node with the settings given; empty for none.
      * [ledger] is whether the failure ledger is published: only an explicit `true` counts. Once ledger publishing has
      * an `auto` setting (publish only when a Kafka transport has the ops command topic), `auto` is no need.
      */
-    fun of(
-        manifest: Manifest,
-        contexts: Set<String>,
-        kafkaRouted: Set<AggregateType>,
-        ledger: Boolean,
-        intake: Boolean,
-    ): List<String> = buildList {
-        val published = manifest.contexts.filter { it.name in contexts }
-            .flatMap { context -> context.published.map { "${context.name}.${it.aggregate}" } }
-        if (published.isNotEmpty()) add("it publishes the streams $published")
+    fun of(kafkaRouted: Set<AggregateType>, ledger: Boolean, intake: Boolean): List<String> = buildList {
         if (kafkaRouted.isNotEmpty()) add("it routes ${kafkaRouted.joinToString()} through Kafka")
         if (ledger) add("it publishes its failure ledger (wow.ops.publish.enabled)")
         if (intake) add("it takes commands from its command topics (wow.kafka.command-intake.enabled)")
     }
 
-    /** Refuses a node without a transport whose [needs] are not empty; logs that it needs none otherwise. */
-    fun check(needs: List<String>, transport: String) {
+    /** The streams the contexts of [manifest] among [contexts] publish, `context.aggregate`, in the Manifest's order. */
+    fun unpublished(manifest: Manifest, contexts: Set<String>): List<String> =
+        manifest.contexts.filter { it.name in contexts }
+            .flatMap { context -> context.published.map { "${context.name}.${it.aggregate}" } }
+
+    /**
+     * Refuses a node without a transport whose [needs] are not empty. Otherwise logs once that it runs without one: the
+     * streams it then does not publish ([unpublished]), and how to publish them, or that it needs none.
+     */
+    fun check(needs: List<String>, transport: String, unpublished: List<String> = emptyList()) {
         if (needs.isEmpty()) {
-            logger.info { "This service needs no topic transport: it publishes no stream and takes no topic." }
+            if (unpublished.isEmpty()) {
+                logger.info { "This service needs no topic transport: it publishes no stream and takes no topic." }
+            } else {
+                logger.info {
+                    "This service runs without a topic transport, so it does not publish its streams $unpublished. " +
+                        "To publish them, configure Kafka (wow.kafka.bootstrap-servers) or another transport provider."
+                }
+            }
             return
         }
         throw WowConfigurationException(

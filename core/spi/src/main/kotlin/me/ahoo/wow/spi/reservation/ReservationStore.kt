@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.reservation
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 import kotlin.time.Duration
@@ -22,9 +23,11 @@ import kotlin.time.Duration
  * Reserved keys: uniqueness across aggregate instances, such as a user name unique within a tenant
  * (documentation/designs/01-programming-model.md §7, decisions D38, D50; 9.x `PrepareKey`).
  *
- * A key is unique within its [ReservationScope]: one bounded context, one tenant (or [ReservationScope.SYSTEM_TENANT]
- * for keys unique across the context's tenants) and one namespace. It is held by at most one owner, an aggregate
- * ([AggregateRef], compared field by field). A decision reserves it **pending** with a short time to live, and confirms
+ * A key is unique within its [ReservationScope]: one aggregate type, one tenant (or [ReservationScope.SYSTEM_TENANT]
+ * for keys unique across the type's tenants) and one namespace. It is held by at most one owner, an aggregate of that
+ * type ([AggregateRef], compared field by field). The aggregate type is the unit of placement (decision D307): its
+ * reservations live with its log, so two aggregate types that use the same namespace never conflict; a key that must be
+ * unique across aggregate types is modelled as an aggregate of its own that holds those keys. A decision reserves it **pending** with a short time to live, and confirms
  * it once its events are appended (finding R8): a process that crashes between reserving and appending leaves only a
  * pending reservation that expires, never a key held for good. A confirmed reservation never expires; it ends only
  * when its owner releases it.
@@ -104,15 +107,19 @@ interface ReservationStore {
 }
 
 /**
- * Where a reserved key is unique: the bounded [context] of its owners, the [tenantId] (axiom A6: every unique key
- * includes the tenant) and the [namespace], such as `user.name`. A key unique across the context's tenants has the
- * tenant [SYSTEM_TENANT], which no aggregate's tenant ever is.
+ * Where a reserved key is unique: the aggregate [type] of its owners (decision D307: within the type, not the bounded
+ * context), the [tenantId] (axiom A6: every unique key includes the tenant) and the [namespace], such as `user.name`.
+ * A key unique across the type's tenants has the tenant [SYSTEM_TENANT], which no aggregate's tenant ever is. The
+ * scope names the type, not only its owner, because some reads have no owner: [ReservationStore.find] looks a key up.
  *
  * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
-class ReservationScope @InternalWowApi constructor(val context: String, val tenantId: String, val namespace: String) {
+class ReservationScope @InternalWowApi constructor(
+    val type: AggregateType,
+    val tenantId: String,
+    val namespace: String,
+) {
     init {
-        require(context.isNotBlank()) { "A reservation needs a context." }
         require(tenantId == SYSTEM_TENANT || tenantId.isNotBlank()) { "A reservation's tenant is not blank." }
         require(namespace.isNotBlank()) { "A reservation needs a namespace." }
     }
@@ -123,39 +130,39 @@ class ReservationScope @InternalWowApi constructor(val context: String, val tena
     /** This ReservationScope with the given fields replaced: Wow's own copy, left out of the ABI. */
     @InternalWowApi
     fun copyWith(
-        context: String = this.context,
+        type: AggregateType = this.type,
         tenantId: String = this.tenantId,
         namespace: String = this.namespace,
-    ): ReservationScope = ReservationScope(context, tenantId, namespace)
+    ): ReservationScope = ReservationScope(type, tenantId, namespace)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is ReservationScope && valueFields() == other.valueFields()
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "ReservationScope(context=$context, tenantId=$tenantId, namespace=$namespace)"
+    override fun toString(): String = "ReservationScope(type=$type, tenantId=$tenantId, namespace=$namespace)"
 
-    private fun valueFields(): List<Any?> = listOf(context, tenantId, namespace)
+    private fun valueFields(): List<Any?> = listOf(type, tenantId, namespace)
 
     companion object {
         /**
-         * The tenant of keys unique across the tenants of a context: empty, which no aggregate's tenant is (an
+         * The tenant of keys unique across the tenants of an aggregate type: empty, which no aggregate's tenant is (an
          * [AggregateRef]'s tenant is never blank), so it never meets a tenant's own keys.
          */
         const val SYSTEM_TENANT: String = ""
 
-        /** The scope of [key] as [owner] reserves it: its context, and its tenant unless the key is a system one. */
+        /** The scope of [key] as [owner] reserves it: its type, and its tenant unless the key is a system one. */
         @JvmStatic
         fun of(owner: AggregateRef, key: ReservationKey): ReservationScope = ReservationScope(
-            owner.type.context,
+            owner.type,
             if (key.system) SYSTEM_TENANT else owner.tenantId,
             key.namespace,
         )
 
         /** A ReservationScope of the given fields; parameters added later come last, with a default. */
         @JvmStatic
-        fun of(context: String, tenantId: String, namespace: String): ReservationScope =
-            ReservationScope(context, tenantId, namespace)
+        fun of(type: AggregateType, tenantId: String, namespace: String): ReservationScope =
+            ReservationScope(type, tenantId, namespace)
     }
 }
 
@@ -163,7 +170,7 @@ class ReservationScope @InternalWowApi constructor(val context: String, val tena
  * [owner]'s reservation of [key] in [scope]. A pending reservation expires at [expiresAt] (epoch milliseconds) and is
  * held by the attempts in [holds]; a confirmed one has no expiry and no holds, and [version] is the version of the
  * owner's fact that last confirmed it ([ReservationStore.UNVERSIONED] for a pending one). Its owner is an aggregate of
- * the scope's context.
+ * the scope's type.
  *
  * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
@@ -177,8 +184,8 @@ class Reservation @InternalWowApi constructor(
 ) {
     init {
         require(key.isNotEmpty()) { "A reservation needs a key." }
-        require(owner.type.context == scope.context) {
-            "A key of ${scope.context} is reserved by an aggregate of that context, not $owner."
+        require(owner.type == scope.type) {
+            "A key of ${scope.type} is reserved by an aggregate of that type, not $owner."
         }
         require(expiresAt != null || holds.isEmpty()) { "A confirmed reservation has no holds." }
         require(
@@ -258,7 +265,7 @@ sealed interface ConfirmOutcome {
 
 /**
  * A reserved or released [key] in [namespace], without its owner or expiry: what an append records (decision D50).
- * Its scope follows from the entry's aggregate ([ReservationScope.of]): its context and its tenant, or no tenant when
+ * Its scope follows from the entry's aggregate ([ReservationScope.of]): its type and its tenant, or no tenant when
  * the key is a [system] one, unique across tenants.
  *
  * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.

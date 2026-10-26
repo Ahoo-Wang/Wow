@@ -18,12 +18,12 @@ import io.micrometer.core.instrument.Metrics
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.OpenTelemetry
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.opentelemetry.NodeMetrics
-import me.ahoo.wow.opentelemetry.OtelObserver
-import me.ahoo.wow.opentelemetry.OtelQueryObserver
-import me.ahoo.wow.opentelemetry.ParkedMetrics
-import me.ahoo.wow.opentelemetry.QueryLimitMetrics
-import me.ahoo.wow.opentelemetry.TracingTopicProducer
+import me.ahoo.wow.observability.NodeMetrics
+import me.ahoo.wow.observability.OtelObserver
+import me.ahoo.wow.observability.OtelQueryObserver
+import me.ahoo.wow.observability.ParkedMetrics
+import me.ahoo.wow.observability.QueryLimitMetrics
+import me.ahoo.wow.observability.TracingTopicProducer
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.store.QueryStores
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -45,8 +45,8 @@ import org.springframework.context.annotation.Bean
 import kotlin.time.toKotlinDuration
 
 /**
- * Tracing and metrics (wow-opentelemetry, decision D174), active when the application has wow-opentelemetry on its
- * classpath, unless `wow.opentelemetry.enabled=false` ([ObservabilityProperties]).
+ * Tracing and metrics (wow-observability, decision D174), active when the application has wow-observability on its
+ * classpath, unless `wow.observability.enabled=false` ([ObservabilityProperties]).
  *
  * The spans go through the application's [OpenTelemetry] bean (Spring Boot's, with an SDK and its exporters), else
  * [GlobalOpenTelemetry] (the Java agent's, or a no-op one); the metrics go to the application's [MeterRegistry] bean
@@ -60,12 +60,12 @@ import kotlin.time.toKotlinDuration
  *   and the stores' query bulkheads ([QueryLimitMetrics], decision D252): their limits, write pressure and decreases.
  * - **Kafka produce**: every [TopicProducer] bean (Kafka's) is wrapped in a [TracingTopicProducer]: a span per send.
  * - **Parked entries**: a [ParkedMetrics] among the [ParkedNotifier]s the node takes; and [NodeMetrics], which samples
- *   every `wow.opentelemetry.sample-interval` how many entries each subscription has parked and where each
+ *   every `wow.observability.sample-interval` how many entries each subscription has parked and where each
  *   subscription of the log stands (its position, backlog and progress: a rebuild's), from the node's start to its
  *   end, when there is a node.
  */
 @AutoConfiguration(after = [WowAutoConfiguration::class])
-@ConditionalOnClass(name = [OPENTELEMETRY_MODULE])
+@ConditionalOnClass(name = [OBSERVABILITY_MODULE])
 @ConditionalOnProperty(prefix = ObservabilityProperties.PREFIX, name = ["enabled"], matchIfMissing = true)
 @EnableConfigurationProperties(ObservabilityProperties::class)
 class ObservabilityAutoConfiguration {
@@ -133,5 +133,5 @@ class ObservabilityAutoConfiguration {
     }
 }
 
-/** A class of wow-opentelemetry, present only when the application has the module. */
-internal const val OPENTELEMETRY_MODULE = "me.ahoo.wow.opentelemetry.OtelObserver"
+/** A class of wow-observability, present only when the application has the module. */
+internal const val OBSERVABILITY_MODULE = "me.ahoo.wow.observability.OtelObserver"

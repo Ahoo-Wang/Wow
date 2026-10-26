@@ -200,9 +200,10 @@ class WowProperties {
     /**
      * The node's topic transport: `auto` (the default) takes the transport a provider finds configured (Kafka with
      * `wow.kafka.bootstrap-servers`); without one, the topics are in the node's JVM when it runs for development (a
-     * profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none, which a service whose
-     * Manifest needs topics refuses. `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or
-     * a community provider's type, names the transport.
+     * profile of `wow.dev-profiles`, or a loopback internal port), and otherwise it has none: the node then publishes no
+     * stream, and refuses to start when it needs topics (Kafka routing, command intake, ledger publishing set to true).
+     * `memory` keeps the topics in the JVM on purpose, for development alone; `kafka`, or a community provider's type,
+     * names the transport.
      */
     var transport: String = TransportSelection.AUTO
 

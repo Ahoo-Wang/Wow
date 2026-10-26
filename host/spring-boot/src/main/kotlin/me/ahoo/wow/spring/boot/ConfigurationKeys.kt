@@ -257,6 +257,7 @@ class ConfigurationKeys(
             "wow.analytics.catalog.watch" to "renamed wow.analytics.catalog.watch.enabled",
             "wow.log.append-queue" to "removed: appends are always queued, sized by their log's backend",
             "wow.log.handoff" to "removed: the hand-over is always on, probing at wow.log.max-poll-interval",
+            "wow.opentelemetry" to "renamed wow.observability",
             "wow.query.adaptive.enabled" to ADAPTIVE_REMOVED,
             "wow.query.adaptive.interval" to ADAPTIVE_REMOVED,
             "wow.query.adaptive.latency-factor" to ADAPTIVE_REMOVED,
