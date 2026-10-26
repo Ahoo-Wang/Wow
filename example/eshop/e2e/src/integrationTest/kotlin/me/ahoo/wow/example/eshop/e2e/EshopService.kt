@@ -208,7 +208,6 @@ class EshopService private constructor(
                 "--logging.level.$INTERNAL_SERVER_LOGGER=info",
                 "--wow.internal.host=127.0.0.1",
                 "--wow.internal.port=$internalPort",
-                *EshopTokens.arguments(context).toTypedArray(),
                 *arguments.toTypedArray(),
             ).redirectErrorStream(true).redirectOutput(log).start()
             val service = try {
