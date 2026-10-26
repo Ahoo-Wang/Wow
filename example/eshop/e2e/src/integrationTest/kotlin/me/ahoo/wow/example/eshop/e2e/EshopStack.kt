@@ -287,7 +287,7 @@ class EshopStack(
          * The basket's argument that has its checkout saga call the ordering's gateway on the internal [port] of an
          * ordering node (decision D193): the public port refuses a call.
          */
-        fun callOrdering(port: Int): String = "--wow.calls.contexts.eshop-ordering.url=http://127.0.0.1:$port"
+        fun callOrdering(port: Int): String = "--wow.peers.eshop-ordering.url=http://127.0.0.1:$port"
 
         /** The headers of the buyer [id]: an owner-level caller whose owner is [id]. */
         fun buyer(id: String): Map<String, String> = mapOf("X-User" to id)

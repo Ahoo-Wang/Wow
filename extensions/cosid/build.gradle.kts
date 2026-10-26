@@ -11,4 +11,6 @@ dependencies {
     // ApplicationContextRunner, and the import selector that reads this module's auto-configuration metadata.
     testImplementation("org.springframework.boot:spring-boot-autoconfigure")
     testImplementation("org.springframework.boot:spring-boot-test")
+    // The generator of this module's configuration metadata, and the host's check of the keys against it (D302).
+    testImplementation(testFixtures(project(":spring-boot")))
 }

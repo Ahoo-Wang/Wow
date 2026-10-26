@@ -21,7 +21,10 @@ public abstract interface class me/ahoo/wow/client/EndpointResolver {
 	public static final field NONE Lme/ahoo/wow/client/EndpointResolver;
 	public static fun of (Ljava/util/Map;)Lme/ahoo/wow/client/EndpointResolver;
 	public static fun of (Ljava/util/Map;Ljava/util/Map;)Lme/ahoo/wow/client/EndpointResolver;
+	public fun reaches (Ljava/lang/String;Lme/ahoo/wow/client/Port;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun resolve (Ljava/lang/String;Lme/ahoo/wow/client/Port;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun resolveAll (Ljava/lang/String;Lme/ahoo/wow/client/Port;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun unreachable (Ljava/lang/String;Lme/ahoo/wow/client/Port;)V
 }
 
 public final class me/ahoo/wow/client/EndpointResolver$Companion {
@@ -139,6 +142,7 @@ public final class me/ahoo/wow/client/WowClient$Builder {
 	public final fun retry (Lme/ahoo/wow/client/RetryPolicy;)Lme/ahoo/wow/client/WowClient$Builder;
 	public final fun service (Ljava/lang/String;)Lme/ahoo/wow/client/WowClient$Builder;
 	public final fun timeout (Ljava/time/Duration;)Lme/ahoo/wow/client/WowClient$Builder;
+	public final fun timeout-HG0u8IE (Ljava/lang/String;J)Lme/ahoo/wow/client/WowClient$Builder;
 	public final fun timeout-LRDsOJo (J)Lme/ahoo/wow/client/WowClient$Builder;
 	public final fun user (Lme/ahoo/wow/client/UserCredential;)Lme/ahoo/wow/client/WowClient$Builder;
 }

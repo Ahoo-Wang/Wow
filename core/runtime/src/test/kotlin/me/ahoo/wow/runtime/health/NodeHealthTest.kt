@@ -34,6 +34,7 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
+import me.ahoo.wow.runtime.ExecutorOptions
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandRequest
 import me.ahoo.wow.runtime.cluster.Account
@@ -48,6 +49,7 @@ import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.node.accountsManifest
 import me.ahoo.wow.runtime.node.fastNodeOptions
+import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.runtime.subscription.PausedPartition
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
@@ -97,7 +99,7 @@ class NodeHealthTest {
             checkpoints = InMemoryCheckpointStore(),
             leases = leases,
             ledger = InMemoryFailureLedger(),
-            snapshots = InMemorySnapshotStore(),
+            snapshots = SnapshotTargets.single(InMemorySnapshotStore()),
         )
     }
 
@@ -365,7 +367,7 @@ class NodeHealthTest {
     @Test
     fun `a kernel stuck while the stores answer should fail the liveness`(): Unit = runBlocking {
         val gate = CompletableDeferred<Unit>()
-        val node = node(account(gate), fastNodeOptions().copyWith(maxInFlight = 1))
+        val node = node(account(gate), fastNodeOptions().copyWith(executor = ExecutorOptions(maxInFlight = 1)))
         val health = health(node, HealthOptions(storeDownAfter = Duration.ZERO, stallTimeout = 100.milliseconds))
         node.start()
         health.start()

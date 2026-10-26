@@ -89,4 +89,4 @@ A signal completes a wait and hands its result to the caller, so whoever can sen
 | A wait signal | any service that names itself |
 | A synchronous call or a read | any service that names itself, as that service's identity (subject `service:<name>`) |
 
-A synchronous call may invoke every domain command unless the service lists the commands each caller may call (`wow.http.services.<service>.commands`). Lifecycle and system commands, such as delete or rebuild a snapshot, must be listed for the calling service explicitly. A call carries the scope, operator and request facts of the root command it acts for, and the target takes that claim only on its internal port, from a service that names itself.
+A synchronous call may invoke every domain command unless the service lists the commands each caller may call (`wow.callers.<service>.commands`). Lifecycle and system commands, such as delete or rebuild a snapshot, must be listed for the calling service explicitly. A call carries the scope, operator and request facts of the root command it acts for, and the target takes that claim only on its internal port, from a service that names itself.

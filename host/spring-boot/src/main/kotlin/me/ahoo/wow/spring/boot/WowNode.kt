@@ -83,6 +83,11 @@ data class NodeIdentity(
             return NodeIdentity(service, node, address, host, bindHost)
         }
 
+        /** The interface the internal server of a node of [properties] binds, as [of] gives it. */
+        fun bindHostOf(properties: WowProperties): String = properties.internal.host?.takeIf { it.isNotBlank() }
+            ?: properties.node.address?.takeIf { it.isNotBlank() }?.let(::hostOf)
+            ?: InetAddress.getLocalHost().hostAddress
+
         /** The host of [address], `host:port` or `[ipv6]:port`, without the brackets of an IPv6 literal. */
         internal fun hostOf(address: String): String =
             if (address.startsWith("[")) {

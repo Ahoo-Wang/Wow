@@ -13,38 +13,14 @@
 
 package me.ahoo.wow.query.index
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
-
-/**
- * How a snapshot query backend manages the indexes the Manifest declares (`x-wow-index`, decision D151), the setting
- * `wow.query.index.ddl`. Every backend reads the same setting; what makes an index broken is the backend's to say.
- */
-enum class QueryIndexDdl(val value: String) {
-    /** Creates the missing indexes, and rebuilds one the backend finds broken (left invalid, or defined otherwise). */
-    AUTO("auto"),
-
-    /** Reports the missing and broken indexes, and changes nothing. */
-    VALIDATE("validate"),
-
-    /** Does nothing. */
-    NONE("none"),
-    ;
-
-    companion object {
-        /** The setting's name. */
-        const val PROPERTY: String = "wow.query.index.ddl"
-
-        /** The mode named [value] (`auto`, `validate` or `none`, in any case). */
-        fun of(value: String): QueryIndexDdl = entries.firstOrNull { it.value.equals(value, ignoreCase = true) }
-            ?: throw IllegalArgumentException("$PROPERTY must be one of auto, validate or none, not [$value].")
-    }
-}
 
 /**
  * One `x-wow-index` entry of an aggregate's state schema (decision D151): its name and its keys, logical paths. Each
  * snapshot query backend plans its own index from it.
  */
-data class QueryIndexDeclaration(val name: String, val keys: List<String>) {
+class QueryIndexDeclaration @InternalWowApi constructor(val name: String, val keys: List<String>) {
     init {
         require(name.isNotEmpty()) { "An index needs a name." }
         require(keys.isNotEmpty()) { "Index [$name] needs at least one key." }
@@ -72,4 +48,13 @@ data class QueryIndexDeclaration(val name: String, val keys: List<String>) {
             }
         }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is QueryIndexDeclaration && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "QueryIndexDeclaration(name=$name, keys=$keys)"
+
+    private fun valueFields(): List<Any?> = listOf(name, keys)
 }

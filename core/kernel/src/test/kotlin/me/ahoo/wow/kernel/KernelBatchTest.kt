@@ -194,7 +194,9 @@ class KernelBatchTest {
     private fun tallyModel() = aggregate<Tally>("example", "tally") {
         initial { Tally(it.id) }
         decide<TallyAdd>(Creation.ALLOWED) { _, command -> Decision.events(TallyAdded(command.amount)) }
-        decide<TallyBoom>(Creation.ALLOWED) { _, command -> error("boom ${command.reason}") }
+        decide<TallyBoom>(
+            Creation.ALLOWED
+        ) { _, command -> throw UnsupportedOperationException("boom ${command.reason}") }
         evolve<TallyAdded> { total += it.amount }
     }
 

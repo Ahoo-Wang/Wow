@@ -31,7 +31,7 @@ import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoTimeouts
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.mongo
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.LedgerRequest
@@ -72,7 +72,7 @@ class MongoFailureLedger(
     /** The service whose ledger this is: its entries alone are seen. */
     private val service: String = DEFAULT_SERVICE,
     /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
-    private val ddl: StoreDdl = StoreDdl.AUTO,
+    private val ddl: Ddl = Ddl.AUTO,
     /** How long each of its calls may take (`wow.mongo.operation-timeout`, [MongoTimeouts]). */
     operationTimeout: Duration = MongoTimeouts.OPERATION,
 ) : FailureLedger {

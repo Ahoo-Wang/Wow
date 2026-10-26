@@ -54,7 +54,7 @@ class InMemoryOrderingTopics {
 }
 ```
 
-`wow.topics.in-memory: true` 从配置做到同样的事，用于在一台机器上试用服务。
+`wow.transport=memory` 从配置做到同样的事，用于在一台机器上试用服务。
 
 然后测试像客户端那样驱动服务，并等待异步发生的事情。库存已确认却没有支付的订单，在它的定时命令到期时会取消自己：
 

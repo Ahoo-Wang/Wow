@@ -108,7 +108,7 @@ class InProcessCommandClientTest {
                 registry,
                 SubscriptionDirectory.NONE,
                 LocalSignalSender(origin.node, registry),
-                WaitOptions(origin, maxTimeout = 30.seconds),
+                origin, WaitOptions(maxTimeout = 30.seconds),
             ),
         ),
     )

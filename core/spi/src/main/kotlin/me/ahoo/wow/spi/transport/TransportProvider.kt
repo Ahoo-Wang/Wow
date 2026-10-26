@@ -66,8 +66,9 @@ interface TopicTransport : AutoCloseable {
 
 /**
  * What a [TransportProvider] opens a transport from: its [name] and [type], its own settings ([options], each key
- * relative to the transport's configuration, `bootstrap-servers` say), the application's [resources], and the
- * application's active [profiles] (a provider may say less in a development profile).
+ * relative to the transport's configuration, `bootstrap-servers` say), the application's [resources], and whether the
+ * node runs for [development] (a profile of `wow.dev-profiles` is active, or its internal port binds a loopback address
+ * alone): a provider may say less then.
  *
  * Fields may be added (decision D216): the host builds it, so the constructor is internal to Wow; a provider's test
  * builds one with [of].
@@ -78,7 +79,7 @@ class TransportConfig @InternalWowApi constructor(
     val type: String,
     val options: Map<String, String> = emptyMap(),
     val resources: StoreResources = StoreResources.NONE,
-    val profiles: Set<String> = emptySet(),
+    val development: Boolean = false,
 ) {
     init {
         require(name.isNotBlank()) { "A transport needs a name." }
@@ -106,7 +107,7 @@ class TransportConfig @InternalWowApi constructor(
             type: String,
             options: Map<String, String> = emptyMap(),
             resources: StoreResources = StoreResources.NONE,
-            profiles: Set<String> = emptySet(),
-        ): TransportConfig = TransportConfig(name, type, options, resources, profiles)
+            development: Boolean = false,
+        ): TransportConfig = TransportConfig(name, type, options, resources, development)
     }
 }

@@ -104,9 +104,9 @@ dependencies {
 | `auto`（默认） | 应用有 `DataSource` 时用 PostgreSQL，有 `MongoClient` 时用 MongoDB：它自己的 Bean，或宿主用 `spring.datasource.url`、`spring.mongodb.uri` 建的那个 |
 | `memory` | 有意把一切放在内存里：一个节点，数据不会比它活得更久 |
 
-在 `auto` 下两个 Bean 都没有时，节点拒绝启动，除非处于开发 profile（`wow.internal.dev-profiles`），或者它的内部端口只绑定在回环网卡上；这时它在内存中运行并发出警告。生产节点绝不会意外地退回到内存。
+在 `auto` 下两个 Bean 都没有时，节点拒绝启动，除非处于开发 profile（`wow.dev-profiles`），或者它的内部端口只绑定在回环网卡上；这时它在内存中运行并发出警告。生产节点绝不会意外地退回到内存。
 
-聚合把数据放在不同存储里的服务，在 `wow.stores.<name>` 下命名存储实例（每个带它的 `type`，例如 `postgres`、`mongo`、`elasticsearch` 或 `memory`，以及它运行所基于的 Bean），并把每个聚合类型的日志和快照放到这些实例上：`wow.log.store`、`wow.snapshot.store`，以及按类型的 `wow.aggregates.[<context>.<aggregate>].log.store`。布局示例见 [PostgreSQL](../operate/postgresql)。
+聚合把数据放在不同存储里的服务，在 `wow.stores.<name>` 下命名存储实例（每个带它的 `type`，例如 `postgres`、`mongo`、`elasticsearch` 或 `memory`，以及它运行所基于的 Bean），并把每个聚合类型的日志和快照放到这些实例上：`wow.log.store`、`wow.snapshot.stores`，以及按类型的 `wow.aggregates.[<context>.<aggregate>].log.store`。布局示例见 [PostgreSQL](../operate/postgresql)。
 
 `wow.ddl` 决定存储是创建它们的表、集合和索引（`auto`，默认），只检查它们（`validate`），还是两者都不做（`none`）。
 
@@ -128,10 +128,10 @@ dependencies {
 
 Spring 绑定它认识的键、忽略其余的键，所以拼错的键会悄悄什么都不做。宿主在启动时把环境中的每个 `wow.*` 键与类路径上的配置元数据比较：
 
-- 未知的键记一条警告，并指明它。
-- `wow.cosec.`、`wow.http.services.`、`wow.calls.` 或 `wow.internal.` 下的未知键会阻止启动：写错的安全设置会保留默认值，而默认值可能允许一切。
+- 未知的键会阻止启动，并指明它：写错的设置会保留默认值，而有些默认值允许一切。更早版本的键会给出取代它的键；不在类路径上的模块的键（没有 wow-cosid 时的 `wow.cosid.*`）会给出那个模块。
+- 在设置的映射之下，例如 `wow.aggregates`、`wow.stores`、`wow.callers` 和 `wow.peers`，每一项自己的键会一直检查到叶子。
 
-环境变量不检查，因为它们的名字无法列举。所有的键见[配置项](../reference/configuration)。
+Wow 分组下的环境变量（如 `WOW_KAFKA_…`）也按同样方式检查。所有的键见[配置项](../reference/configuration)。
 
 ## 运行 {#run-it}
 

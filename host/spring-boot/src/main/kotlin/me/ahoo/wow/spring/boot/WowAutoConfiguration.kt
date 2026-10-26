@@ -87,6 +87,7 @@ import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.peer.PeerDiscovery
 import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.subscription.FailureClassifier
 import me.ahoo.wow.spi.tenant.TenantPolicy
@@ -132,7 +133,7 @@ import jakarta.validation.Validator as JakartaValidator
  *   `MongoClient`, in memory (one node, with a warning) when `wow.backend=memory`, or when it has neither and runs in
  *   a development profile or on a loopback-only internal port (it refuses to start otherwise, review R3.5-1), or the
  *   application's own [BackendFactory] bean. With `wow.stores`, the named store instances instead ([StoreInstances]), each aggregate's
- *   log and snapshots on the store `wow.log.store`, `wow.snapshot.store` and its `wow.aggregates.*` name
+ *   log and snapshots on the store `wow.log.store`, `wow.snapshot.stores` and its `wow.aggregates.*` name
  *   ([StoreLayout], decision D177).
  * - **Admission**: the application's [CommandAuthorizer], [CommandTransformer]s (D182) and [CommandValidator]s, the Jakarta
  *   validator when it has a Bean Validation provider (D106), the id generators (D171): the [GlobalIdGenerator] bean
@@ -149,10 +150,10 @@ import jakarta.validation.Validator as JakartaValidator
  *   service alone, a signal from any service, the origin of a wait that crossed services. No token: the internal port
  *   is reachable by the platform's own pods alone (decision D298), a NetworkPolicy's boundary.
  * - **Synchronous calls** (decision D193): the sagas call other contexts' gateways through the [CommandCaller] bean,
- *   by default an [HttpCommandCaller] at `wow.calls.contexts.<context>.url`, the target's internal port, naming this
+ *   by default an [HttpCommandCaller] at `wow.peers.<context>.url`, the target's internal port, naming this
  *   node's service. The internal port serves the command routes of the calls ([callRoutes]) to the service each call
  *   names ([DeclaredServices], decision D300); the public port refuses `Wow-Call`. A service may call the commands
- *   `wow.http.services.<service>.commands` lets it ([CallPermits], decision D226), an optional list that catches a
+ *   `wow.callers.<service>.commands` lets it ([CallPermits], decision D226), an optional list that catches a
  *   misconfiguration, each authorized by the [CallAuthorizer] bean when there is one, else by the [CommandAuthorizer].
  * - **Subscriptions**: the annotated processors' handlers the binding indexes list ([ModelProvider.processors], built
  *   from the application's beans), then every [SubscriptionFactory] bean, the application's and the modules', in their order,
@@ -176,7 +177,7 @@ import jakarta.validation.Validator as JakartaValidator
 class WowAutoConfiguration {
     /**
      * Checks the environment's `wow.*` keys against the configuration metadata at startup (review A5-9): warns of the
-     * unknown ones, and refuses an unknown `wow.cosec.*` key ([ConfigurationKeys]).
+     * unknown ones, and refuses an unknown key of the security settings ([ConfigurationKeys]).
      */
     @Bean
     @InternalWowApi
@@ -336,33 +337,42 @@ class WowAutoConfiguration {
     )
 
     /**
-     * Where the peers' services are (decision D259): each context's public routes at `wow.clients.contexts.<context>.url`,
-     * its internal port at `wow.clients.contexts.<context>.internal-url`, else `wow.calls.contexts.<context>.url`. An
+     * Where the peers' services are (decisions D259, D305): each context's public routes at
+     * `wow.peers.<context>.public-url`; its internal port at `wow.peers.<context>.url`, else at the nodes
+     * `wow.peer.discovery` finds of the service its contract on the class path names (`dns` by default, DNS SRV). An
      * application's own bean, a resolver that discovers them, replaces it for the sagas' calls and the clients alike.
      */
     @Bean
     @ConditionalOnMissingBean
-    fun wowEndpointResolver(properties: WowProperties): EndpointResolver {
-        val calls = properties.calls.contexts.mapValues { (context, target) ->
-            configNotNull(
-                target.url,
-                "wow.calls.contexts.$context.url",
-                "Set it to the base URL of the context's service."
-            ) {
-                "wow.calls.contexts.$context.url is not set."
+    fun wowEndpointResolver(
+        properties: WowProperties,
+        contracts: ContractDirectory,
+        discoveries: ObjectProvider<PeerDiscovery>,
+        environment: Environment,
+        context: ApplicationContext,
+    ): EndpointResolver = PeerEndpoints.of(
+        properties,
+        PeerDiscoveries.load(context.classLoader, discoveries.orderedStream().toList()),
+        { type ->
+            if (type == DnsPeerDiscovery.TYPE) {
+                mapOf(DnsPeerDiscovery.NAME_TEMPLATE to properties.peer.dns.nameTemplate)
+            } else {
+                PortProviders.optionsOf(environment, "peer.$type")
             }
-        }
-        val clients = properties.clients.contexts
-        return EndpointResolver.of(
-            clients.mapNotNull { (context, target) -> target.url?.let { context to it } }.toMap(),
-            calls + clients.mapNotNull { (context, target) -> target.internalUrl?.let { context to it } }.toMap(),
-        )
-    }
+        },
+        { peer -> serviceOf(contracts, peer) },
+    )
+
+    /** The one HTTP client the node calls its peers with, the sagas' calls and the typed clients alike. */
+    @Bean(PEER_HTTP_CLIENT, defaultCandidate = false)
+    @ConditionalOnMissingBean(name = [PEER_HTTP_CLIENT])
+    fun wowPeerHttpClient(properties: WowProperties): HttpClient =
+        HttpCommandCaller.client(properties.peer.connectTimeout.toKotlinDuration())
 
     /**
      * The client of the other contexts' command gateways the sagas call (decision D193): the service mode of
      * `wow-client` at the internal ports [endpoints] resolves, as this node's service, each call bounded by
-     * `wow.calls.timeout`.
+     * `wow.peer.timeout` or its peer's own.
      */
     @Bean
     @ConditionalOnMissingBean
@@ -371,48 +381,51 @@ class WowAutoConfiguration {
         properties: WowProperties,
         identity: NodeIdentity,
         endpoints: EndpointResolver,
-    ): CommandCaller {
-        val calls = properties.calls
-        return HttpCommandCaller(
-            endpoints,
-            identity.service,
-            HttpCommandCaller.client(calls.connectTimeout.toKotlinDuration()),
-            calls.timeout.toKotlinDuration(),
-        )
-    }
+        @Qualifier(PEER_HTTP_CLIENT) client: HttpClient,
+    ): CommandCaller = HttpCommandCaller(
+        endpoints,
+        identity.service,
+        client,
+        properties.peer.timeout.toKotlinDuration(),
+        properties.peerTimeouts(),
+    )
 
     /**
-     * The peer contexts reached over HTTP, `wow.clients.contexts` (decisions D257, D259), and their clients in either
-     * mode, each built when first used: the service mode naming this node's service, the user mode
-     * forwarding the request's `wow.clients.forwarded-headers`.
+     * The peer contexts reached over HTTP, `wow.peers` (decisions D257, D259), and their clients in either mode, each
+     * built when first used: the service mode naming this node's service, the user mode forwarding the request's
+     * `wow.peer.forwarded-headers`. A context of `wow.peers` the node serves itself is reached by its sagas' calls
+     * alone: its commands and queries stay in the node.
      */
     @Bean
     @InternalWowApi
+    @Suppress("LongParameterList") // One parameter per input of the clients, each a bean of the node.
     fun wowPeerClients(
         properties: WowProperties,
         endpoints: EndpointResolver,
         identity: NodeIdentity,
         contracts: ContractDirectory,
         globalIds: GlobalIdGenerator,
+        @Qualifier(PEER_HTTP_CLIENT) httpClient: HttpClient,
     ): PeerClients {
-        val clients = properties.clients
-        val described = clients.contexts
-            .filterValues { it.contract == WowProperties.Clients.Contract.MANIFEST }.keys
+        val peer = properties.peer
+        val described = properties.peers
+            .filterValues { it.contract == WowProperties.PeerTarget.Contract.MANIFEST }.keys
         fun client(mode: ClientMode) = lazy {
             val builder = WowClient.builder()
                 .endpoints(endpoints)
-                .connectTimeout(clients.connectTimeout.toKotlinDuration())
-                .timeout(clients.timeout.toKotlinDuration())
+                .httpClient(httpClient)
+                .timeout(peer.timeout.toKotlinDuration())
                 .retry(
                     RetryPolicy.of(
-                        clients.retry.maxAttempts,
-                        clients.retry.maxRetryAfter.toKotlinDuration(),
-                        clients.retry.backoff.toKotlinDuration(),
+                        peer.retry.maxAttempts,
+                        peer.retry.maxRetryAfter.toKotlinDuration(),
+                        peer.retry.initialBackoff.toKotlinDuration(),
                     ),
                 )
                 .contracts(contracts.fragments)
                 .ids(globalIds)
                 .manifestPeers(described)
+            properties.peerTimeouts().forEach { (context, timeout) -> builder.timeout(context, timeout) }
             when (mode) {
                 is ClientMode.Service -> mode.service?.let(builder::service)
                 is ClientMode.User -> builder.user(mode.credential)
@@ -420,18 +433,19 @@ class WowAutoConfiguration {
             builder.build()
         }
         return PeerClients(
-            clients.contexts.mapValues { (_, target) -> target.mode ?: clients.mode },
+            properties.peers.filterKeys { it !in contracts.localContexts }
+                .mapValues { (_, target) -> target.mode ?: peer.mode },
             contracts.localContexts,
             contracts.peerContexts,
             client(ClientMode.Service(identity.service)),
             client(ClientMode.User(UserCredential.FORWARDED)),
-            clients.mode,
+            peer.mode,
             described,
         )
     }
 
     /**
-     * The typed clients of the peers over HTTP in `wow.clients.mode` (decision D257), for the application that calls a
+     * The typed clients of the peers over HTTP in `wow.peer.mode` (decision D257), for the application that calls a
      * peer explicitly; the [CommandClient] and [me.ahoo.wow.api.read.QueryApi] beans route to them on their own.
      */
     @Bean
@@ -439,13 +453,13 @@ class WowAutoConfiguration {
     fun wowClient(peers: PeerClients): WowClient = peers.client
 
     /**
-     * Puts the `wow.clients.forwarded-headers` of each public request in its handling's coroutine context
+     * Puts the `wow.peer.forwarded-headers` of each public request in its handling's coroutine context
      * ([me.ahoo.wow.client.ForwardedHeaders]), which a user-mode client forwards to a peer (decision D259).
      */
     @Bean
     @InternalWowApi
     fun wowForwardedHeadersFilter(properties: WowProperties): WebFilter =
-        ForwardedHeadersFilter(properties.clients.forwardedHeaders.map(String::trim).filter(String::isNotEmpty))
+        ForwardedHeadersFilter(properties.peer.forwardedHeaders.map(String::trim).filter(String::isNotEmpty))
 
     @Bean
     @ConditionalOnMissingBean
@@ -476,6 +490,7 @@ class WowAutoConfiguration {
         providedSinks: ObjectProvider<ProvidedSinks>,
         listeners: ObjectProvider<ServiceNodeListener>,
         topics: ObjectProvider<SourceTopics>,
+        kafka: ObjectProvider<KafkaProperties>,
         notifiers: ObjectProvider<ParkedNotifier>,
         observers: ObjectProvider<Observer>,
         callers: ObjectProvider<CommandCaller>,
@@ -483,6 +498,19 @@ class WowAutoConfiguration {
         queries: ObjectProvider<ContextQueries>,
     ): ServiceNode {
         checkShutdownTimeout(environment)
+        val sourceTopics = topics.ifAvailable
+        if (sourceTopics == null) {
+            TransportNeeds.check(
+                TransportNeeds.of(
+                    manifest,
+                    models.models.mapTo(HashSet()) { it.type.context },
+                    kafkaRouted(properties, models.models),
+                    properties.ops.publish.enabled,
+                    kafka.ifAvailable?.commandIntake?.enabled == true,
+                ),
+                properties.transport,
+            )
+        }
         val routing = routing(properties, backends.local)
         val stepListeners = listeners.orderedStream().toList()
         return ServiceNode(
@@ -497,20 +525,12 @@ class WowAutoConfiguration {
             options = ServiceNodeOptions(
                 cluster = properties.cluster.options(properties.wait.defaultTimeout),
                 routing = routing,
-                maxWaitTimeout = properties.wait.maxTimeout.toKotlinDuration(),
-                maxWaitHops = properties.wait.maxHops,
-                unknownWaitContexts = properties.wait.unknownContexts,
-                maxRegisteredWaits = properties.wait.maxRegistered,
+                wait = properties.wait.options(),
                 subscription = properties.subscription.options(properties.subscriptions),
-                appendQueue = properties.log.appendQueue.options(),
                 handoff = properties.log.handoffOptions(),
-                laneCapacity = properties.executor.laneCapacity,
-                maxBatch = properties.executor.maxBatch,
-                maxInFlight = properties.executor.maxInFlight,
-                stateCacheCapacity = properties.stateCache.capacity,
-                recentRequests = properties.stateCache.recentRequests,
+                executor = properties.executor.options(),
+                stateCache = properties.stateCache.options(),
                 stateViews = properties.stateViews.options(),
-                defaultWaitTimeout = properties.wait.defaultTimeout.toKotlinDuration(),
                 timers = properties.timers.options(),
                 schedules = properties.schedules.mapValues { it.value.options() },
                 kafkaRouted = kafkaRouted(properties, models.models),
@@ -543,7 +563,7 @@ class WowAutoConfiguration {
             ),
             listener = { step -> stepListeners.forEach { it.onStep(step) } },
             contracts = contracts,
-            topics = topics.ifAvailable,
+            topics = sourceTopics,
             parkedNotifier = ParkedNotifier.of(notifiers.orderedStream().toList()),
             observer = observers.getIfUnique { Observer.NONE },
             caller = callers.ifAvailable,
@@ -641,7 +661,7 @@ class WowAutoConfiguration {
         events: ApplicationEventPublisher,
         availability: ObjectProvider<ApplicationAvailability>,
         properties: WowProperties,
-    ): ServiceNodeLifecycle = ServiceNodeLifecycle(node, events, properties.standby) { availability.ifAvailable }
+    ): ServiceNodeLifecycle = ServiceNodeLifecycle(node, events, properties.node.standby) { availability.ifAvailable }
 
     /**
      * The node's command gateway (decision D92), through which the application sends commands in process. The node
@@ -653,7 +673,7 @@ class WowAutoConfiguration {
     /**
      * The service's [CommandClient] (decisions D257, D258, D259): command objects sent through the node's gateway, in
      * process to the aggregates it serves, to its peers' command topics for the contexts their api jars declare, and
-     * over HTTP to the peer contexts `wow.clients.contexts` lists ([PeerClients]). It sends as an anonymous caller;
+     * over HTTP to the peer contexts `wow.peers` lists ([PeerClients]). It sends as an anonymous caller;
      * [CommandClient.of] gives it another.
      */
     @Bean
@@ -674,7 +694,7 @@ class WowAutoConfiguration {
     ): StateReads {
         val opened = backends.contexts
         val contexts = node.contexts.mapNotNull { (name, context) ->
-            opened[name]?.snapshots?.let { name to KernelStateReads.ContextReads(context.kernel, it) }
+            opened[name]?.primarySnapshots?.let { name to KernelStateReads.ContextReads(context.kernel, it) }
         }.toMap()
         // The query plane's gate runs a state read's replay under its log store's bulkhead (decision D246 ⑥, review
         // R4-Q Q-1), and `wow.query.state.max-replay` bounds it.
@@ -692,7 +712,7 @@ class WowAutoConfiguration {
     }
 
     /**
-     * Whether the node runs for development (a profile of `wow.internal.dev-profiles`, or a loopback internal port):
+     * Whether the node runs for development (a profile of `wow.dev-profiles`, or a loopback internal port):
      * the one exemption of the host's safeguards ([DevelopmentMode]).
      */
     @Bean
@@ -700,13 +720,7 @@ class WowAutoConfiguration {
         properties: WowProperties,
         environment: Environment,
         identity: ObjectProvider<NodeIdentity>,
-    ): DevelopmentMode = DevelopmentMode(
-        BackendSelection.memoryOptIn(
-            environment.activeProfiles.toList(),
-            properties.internal.devProfiles,
-            identity.ifAvailable?.bindHost,
-        ),
-    )
+    ): DevelopmentMode = DevelopmentMode.of(properties, environment, identity.ifAvailable?.bindHost)
 
     /**
      * The anonymous caller, for development alone (decision D301): a deployment maps the identity its gateway asserts
@@ -719,12 +733,12 @@ class WowAutoConfiguration {
     fun wowCallerResolver(properties: WowProperties, development: DevelopmentMode): CallerResolver {
         configCheck(
             development.active,
-            "wow.internal.dev-profiles",
+            "wow.dev-profiles",
             null,
             "Declare a CallerResolver bean that maps the identity your gateway asserts (wow-cosec's, or your own); " +
                 "an intentionally anonymous service declares one returning CallerResolver.ANONYMOUS.",
         ) {
-            "No CallerResolver bean: outside development (a profile of wow.internal.dev-profiles, or a loopback " +
+            "No CallerResolver bean: outside development (a profile of wow.dev-profiles, or a loopback " +
                 "internal port), the public port would serve every request as the anonymous caller."
         }
         val tenant = properties.tenant.default
@@ -752,18 +766,18 @@ class WowAutoConfiguration {
             errorStatuses = properties.http.errors.mapValues { it.value.status },
             manifestEndpoint = properties.http.manifest.enabled,
             openApiEndpoint = properties.http.openapi.enabled,
-            clientFacts = properties.http.clientFacts,
+            clientFacts = properties.http.clientFacts.enabled,
         )
     }
 
     /**
      * The error handling of the application's own routes (review M-3, decision D259): their failures answered as the
-     * framework routes' problem+json, unless `wow.http.global-errors` is off.
+     * framework routes' problem+json, unless `wow.http.global-errors.enabled` is off.
      */
     @Bean
     @ConditionalOnProperty(
         prefix = "${WowProperties.PREFIX}.http",
-        name = ["global-errors"],
+        name = ["global-errors.enabled"],
         havingValue = "true",
         matchIfMissing = true,
     )
@@ -864,8 +878,16 @@ class WowAutoConfiguration {
     }
 
     companion object {
+        /** The service of the peer [context], as its contract on the class path names it. */
+        internal fun serviceOf(contracts: ContractDirectory, context: String): String? = contracts.peers
+            .firstOrNull { fragment -> fragment.manifest.contexts.any { it.name == context } }
+            ?.manifest?.service?.name?.takeIf { it.isNotBlank() }
+
         const val WOW_JSON_MAPPER: String = "wowJsonMapper"
         const val INTERNAL_HTTP_CLIENT: String = "wowInternalHttpClient"
+
+        /** The name of the HTTP client the node calls its peers with. */
+        const val PEER_HTTP_CLIENT: String = "wowPeerHttpClient"
 
         /** The default [AggregateIdGenerator] bean's name: the generator of the types no `id-generator` names. */
         const val WOW_AGGREGATE_ID_GENERATOR: String = "wowAggregateIdGenerator"
@@ -893,11 +915,11 @@ class WowAutoConfiguration {
         internal fun authorizerOf(base: CommandAuthorizer, calls: CallAuthorizer?): CommandAuthorizer =
             calls?.over(base) ?: base
 
-        /** The commands each service may call on the internal port (`wow.http.services.*.commands`, decision D226). */
+        /** The commands each service may call on the internal port (`wow.callers.*.commands`, decision D226). */
         internal fun callPermits(properties: WowProperties): CallPermits =
             CallPermits(
-                properties.http.services.mapValues { it.value.commands.toList() },
-                properties.http.services.mapValues { it.value.reads.toList() },
+                properties.callers.mapValues { it.value.commands.toList() },
+                properties.callers.mapValues { it.value.reads.toList() },
             )
 
         private fun servedFix(served: Set<String>): String = "Name one of the aggregate types this node serves: $served."

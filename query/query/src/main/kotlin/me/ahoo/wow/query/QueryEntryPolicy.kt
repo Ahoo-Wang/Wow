@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterExpression
@@ -38,13 +39,13 @@ import kotlin.time.Duration
  * say) still filters the query but never satisfies this check. Off by default: the declared scope is trusted.
  * @property http the budget of [QueryEntry.HTTP] queries.
  * @property inProcess the budget of [QueryEntry.IN_PROCESS] and [QueryEntry.UNSPECIFIED] queries; `null`, the
- * default, checks nothing. A host gives it [QueryBudget.IN_PROCESS_DEFAULT] by default (`wow.query.in-process.*`,
+ * default, checks nothing. A host gives it [QueryBudget.IN_PROCESS_DEFAULT] by default (`wow.query.budgets.in-process.*`,
  * review R4-Q, Q-3), so in-process code is bounded as a request is.
  * @property inProcessTimeout the execution timeout of a query whose entry has no budget ([QueryEntry.UNBOUNDED], or
  * every in-process query when [inProcess] is `null`; decision D150: every query has one); `null` runs such a query
  * without one.
  */
-data class QueryEntryPolicy(
+class QueryEntryPolicy @InternalWowApi constructor(
     val requireExplicitEntry: Boolean = false,
     val requireAuthenticatedScope: Boolean = false,
     val http: QueryBudget = QueryBudget.HTTP_DEFAULT,
@@ -88,7 +89,42 @@ data class QueryEntryPolicy(
 
     companion object {
         val DEFAULT = QueryEntryPolicy()
+
+        /** A [QueryEntryPolicy] of the given values. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            requireExplicitEntry: Boolean = false,
+            requireAuthenticatedScope: Boolean = false,
+            http: QueryBudget = QueryBudget.HTTP_DEFAULT,
+            inProcess: QueryBudget? = null,
+            inProcessTimeout: Duration? = QueryBudget.DEFAULT_TIMEOUT,
+        ): QueryEntryPolicy = QueryEntryPolicy(
+            requireExplicitEntry,
+            requireAuthenticatedScope,
+            http,
+            inProcess,
+            inProcessTimeout
+        )
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is QueryEntryPolicy && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "QueryEntryPolicy(requireExplicitEntry=$requireExplicitEntry, " +
+            "requireAuthenticatedScope=$requireAuthenticatedScope, http=$http, inProcess=$inProcess, " +
+            "inProcessTimeout=$inProcessTimeout)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        requireExplicitEntry,
+        requireAuthenticatedScope,
+        http,
+        inProcess,
+        inProcessTimeout
+    )
 }
 
 /**

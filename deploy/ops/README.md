@@ -25,7 +25,7 @@ Plain manifests for the ops service (`platform/ops/ops-server`): every service's
 
 2. Provide PostgreSQL and Kafka. `configmap.yaml` expects them at `postgres:5432` (database `wow_ops`) and `kafka:9092`. The host creates its tables at startup.
 
-3. Create the Kafka topics the ops service owns. `WOW_KAFKA_TOPICS_DDL=validate` (decision D168): a node does not start while one is missing, or while its command topic does not have exactly `WOW_LOG_PARTITIONS` partitions, and its log names each such topic:
+3. Create the Kafka topics the ops service owns. `WOW_KAFKA_DDL=validate` (decision D168): a node does not start while one is missing, or while its command topic does not have exactly `WOW_LOG_PARTITIONS` partitions, and its log names each such topic:
 
    ```bash
    kafka-topics --bootstrap-server kafka:9092 --create --topic wow.ops.commands --partitions 64
@@ -33,7 +33,7 @@ Plain manifests for the ops service (`platform/ops/ops-server`): every service's
    kafka-topics --bootstrap-server kafka:9092 --create --topic wow.ops.parked.state --partitions 64
    ```
 
-   Every service whose ledger the console shows publishes its entries to `wow.ops.commands` (`wow.ops.publish.enabled` on that service); an operator's action goes to that service's own command topic, `wow.<context>.commands`, which it owns. On a cluster for trying it out, set `WOW_KAFKA_TOPICS_DDL=auto` instead.
+   Every service whose ledger the console shows publishes its entries to `wow.ops.commands` (`wow.ops.publish.enabled` on that service); an operator's action goes to that service's own command topic, `wow.<context>.commands`, which it owns. On a cluster for trying it out, set `WOW_KAFKA_DDL=auto` instead.
 
 4. Put the CoSec gateway in front: it verifies each request's access token, and the service parses the token it forwards and holds no secret (decision D296). Label the gateway's pods `app.kubernetes.io/component: gateway`, or change the selector in `networkpolicy.yaml` to match them.
 

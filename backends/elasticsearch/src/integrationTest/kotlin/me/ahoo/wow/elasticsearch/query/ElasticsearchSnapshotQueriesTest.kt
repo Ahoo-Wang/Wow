@@ -23,20 +23,19 @@ import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CursorQuery
-import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.Pagination
 import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.elasticsearch.ElasticsearchFixture
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotStore
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.countBounded
 import me.ahoo.wow.query.cursor
-import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.list
 import me.ahoo.wow.query.paged
 import me.ahoo.wow.query.schema.BeanQuerySchemaSource
@@ -49,6 +48,7 @@ import me.ahoo.wow.query.schema.QuerySchemaRegistration
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.tck.QueryBackendSpec
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.tck.ExactJson
 import org.junit.jupiter.api.Test
@@ -59,7 +59,7 @@ class ElasticsearchSnapshotQueriesTest {
     private val type = AggregateType(ElasticsearchFixture.newContext(), "order")
     private val index = ElasticsearchFixture.names.snapshots(type.context, type.name)
 
-    private fun queries(ddl: QueryIndexDdl = QueryIndexDdl.AUTO) =
+    private fun queries(ddl: Ddl = Ddl.AUTO) =
         ElasticsearchSnapshotQueries(ElasticsearchFixture.client, ElasticsearchFixture.names, ddl)
 
     private suspend fun schema(queries: ElasticsearchSnapshotQueries): QueryModelSchema {
@@ -131,7 +131,7 @@ class ElasticsearchSnapshotQueriesTest {
         store.save(snapshot("early", """{"name":"Early","amount":1.10,"quantity":1,"big":123456789012345678901234567890}"""))
             .assert().isTrue()
         // A schema compiled without mapping anything (`none`), as the host compiles one before it manages the indexes.
-        val report = queries.manageIndexes(type, schema(queries(QueryIndexDdl.NONE)), emptyList())
+        val report = queries.manageIndexes(type, schema(queries(Ddl.NONE)), emptyList())
         report.created.assert().contains("state.name", "state.lines", "state.lines.sku")
         queries.manageIndexes(type, schema(queries), emptyList()).assert().isEqualTo(QueryIndexReport.NONE)
         val schema = schema(queries)
@@ -161,13 +161,13 @@ class ElasticsearchSnapshotQueriesTest {
                 it.index(index).withJson(StringReader("""{"properties":{"state":{"properties":{"name":{"type":"long"}}}}}"""))
             },
         ).get()
-        val validating = queries(QueryIndexDdl.VALIDATE)
+        val validating = queries(Ddl.VALIDATE)
         validating.prepare(type)
         val report = validating.manageIndexes(type, schema(validating), emptyList())
         report.created.assert().isEmpty()
         report.missing.assert().contains("state.status")
         report.invalid.assert().containsExactly("state.name")
-        val none = queries(QueryIndexDdl.NONE)
+        val none = queries(Ddl.NONE)
         none.managesIndexes.assert().isFalse()
         none.prepare(type)
         schema(none).field(QueryField("state.status"))?.binding(QueryCapability.EXACT_MATCH).assert().isNull()

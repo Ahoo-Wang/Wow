@@ -18,9 +18,9 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
-import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.store.Store
 
 /**
@@ -123,19 +123,19 @@ class QueryIndexReport(
 }
 
 /**
- * The query settings a store's queries are opened with: [indexDdl] (`wow.query.index.ddl`, decision D151),
- * [eventsReadPreference] (`wow.stores.<name>.query.read-preference`, else `wow.query.events.mongo-read-preference`), the
- * replica a backend with replicas reads the `events` queries from (MongoDB's `secondaryPreferred`, say), null for its
- * primary, and [snapshotsReadPreference] (`wow.stores.<name>.query.read-preference`), the one it reads the snapshot
- * queries from (review R3.4-2): a snapshot read from a secondary may be behind the snapshot a command's default wait
- * waited for, so it is the primary unless the store says otherwise.
+ * The query settings a store's queries are opened with: [indexDdl], how the indexes the Manifest declares are managed
+ * (decision D151), the `ddl` of the store (`wow.stores.<name>.ddl`, else `wow.ddl`); and [eventsReadPreference] and
+ * [snapshotsReadPreference], the replica a backend with replicas reads the `events` and the snapshot queries from
+ * (MongoDB's `secondaryPreferred`, say; `wow.stores.<name>.options.query-read-preference`, else
+ * `wow.mongo.query-read-preference`), null for its primary. A snapshot read from a secondary may be behind the snapshot
+ * a command's default wait waited for (review R3.4-2).
  *
  * Fields may be added (decision D216): the host builds it, so the constructor is internal to Wow; a provider's test
  * builds one with [of].
  */
 @WowSpi
 class StoreQueryOptions @InternalWowApi constructor(
-    val indexDdl: QueryIndexDdl = QueryIndexDdl.AUTO,
+    val indexDdl: Ddl = Ddl.AUTO,
     val eventsReadPreference: String? = null,
     val snapshotsReadPreference: String? = null,
 ) {
@@ -151,13 +151,13 @@ class StoreQueryOptions @InternalWowApi constructor(
         /** Options of the given fields; parameters added later come last, with a default. */
         @JvmStatic
         @JvmOverloads
-        fun of(indexDdl: QueryIndexDdl = QueryIndexDdl.AUTO, eventsReadPreference: String? = null): StoreQueryOptions =
+        fun of(indexDdl: Ddl = Ddl.AUTO, eventsReadPreference: String? = null): StoreQueryOptions =
             StoreQueryOptions(indexDdl, eventsReadPreference)
 
         /** Options of the given fields, the snapshot queries' read preference among them. */
         @JvmStatic
         fun of(
-            indexDdl: QueryIndexDdl,
+            indexDdl: Ddl,
             eventsReadPreference: String?,
             snapshotsReadPreference: String?,
         ): StoreQueryOptions = StoreQueryOptions(indexDdl, eventsReadPreference, snapshotsReadPreference)

@@ -5347,7 +5347,7 @@
         }
       },
       "eshop-catalog.command.409" : {
-        "description" : "`wow.aggregate.exists`: The aggregate already exists.\n`wow.aggregate.version-mismatch`: The aggregate is not at the expected version (412 when the request carried If-Match).\n`wow.command.request-id-reused`: The request id was used by another command.\n`wow.command.contended`: Concurrent writers kept winning the version; retrying with the same request id is safe.\n`eshop-catalog.brand.name-taken`: Another brand has this name.\n`eshop-catalog.category.name-taken`: Another category has this name.\n`eshop-catalog.product.incomplete`: A published product has a brand and a category.\n`eshop-catalog.product.not-published`: Only a published product can be delisted.",
+        "description" : "`wow.aggregate.exists`: The aggregate already exists.\n`wow.aggregate.version-mismatch`: The aggregate is not at the expected version (412 when the request carried If-Match).\n`wow.command.request-id-reused`: The request id was used by another command.\n`wow.command.contended`: Concurrent writers kept winning the version; retrying with the same request id is safe.\n`wow.command.refused`: The aggregate's current state refuses the command (a check of its decide function); the message says why.\n`eshop-catalog.brand.name-taken`: Another brand has this name.\n`eshop-catalog.category.name-taken`: Another category has this name.\n`eshop-catalog.product.incomplete`: A published product has a brand and a category.\n`eshop-catalog.product.not-published`: Only a published product can be delisted.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -5355,7 +5355,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.aggregate.exists", "wow.aggregate.version-mismatch", "wow.command.request-id-reused", "wow.command.contended", "eshop-catalog.brand.name-taken", "eshop-catalog.category.name-taken", "eshop-catalog.product.incomplete", "eshop-catalog.product.not-published" ]
+        "x-wow-error-codes" : [ "wow.aggregate.exists", "wow.aggregate.version-mismatch", "wow.command.request-id-reused", "wow.command.contended", "wow.command.refused", "eshop-catalog.brand.name-taken", "eshop-catalog.category.name-taken", "eshop-catalog.product.incomplete", "eshop-catalog.product.not-published" ]
       },
       "eshop-catalog.command.410" : {
         "description" : "`wow.aggregate.deleted`: The aggregate is deleted; only RestoreAggregate applies.",
@@ -5503,7 +5503,7 @@
         }
       },
       "wow.command.409" : {
-        "description" : "`wow.aggregate.exists`: The aggregate already exists.\n`wow.aggregate.version-mismatch`: The aggregate is not at the expected version (412 when the request carried If-Match).\n`wow.command.request-id-reused`: The request id was used by another command.\n`wow.command.contended`: Concurrent writers kept winning the version; retrying with the same request id is safe.",
+        "description" : "`wow.aggregate.exists`: The aggregate already exists.\n`wow.aggregate.version-mismatch`: The aggregate is not at the expected version (412 when the request carried If-Match).\n`wow.command.request-id-reused`: The request id was used by another command.\n`wow.command.contended`: Concurrent writers kept winning the version; retrying with the same request id is safe.\n`wow.command.refused`: The aggregate's current state refuses the command (a check of its decide function); the message says why.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -5511,7 +5511,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.aggregate.exists", "wow.aggregate.version-mismatch", "wow.command.request-id-reused", "wow.command.contended" ]
+        "x-wow-error-codes" : [ "wow.aggregate.exists", "wow.aggregate.version-mismatch", "wow.command.request-id-reused", "wow.command.contended", "wow.command.refused" ]
       },
       "wow.command.410" : {
         "description" : "`wow.aggregate.deleted`: The aggregate is deleted; only RestoreAggregate applies.",

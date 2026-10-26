@@ -50,7 +50,6 @@ import me.ahoo.wow.query.QueryTimeoutException
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.countBounded
 import me.ahoo.wow.query.cursor
-import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.list
 import me.ahoo.wow.query.paged
@@ -58,6 +57,7 @@ import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation
+import me.ahoo.wow.spi.Ddl
 import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.util.UUID
@@ -180,21 +180,21 @@ class PostgresSnapshotQueryStorageTest {
         val schema = schema(type)
         val declared = listOf(QueryIndexDeclaration("ix_order_state_status", listOf("state.status", "state.amount")))
         val indexes = PostgresQueryIndexes.plan(type.context, type.name, schema, declared)
-        storage(type, PostgresQueryOptions(QueryIndexDdl.NONE)).manageIndexes(indexes).assert().isEqualTo(PostgresQueryIndexReport())
+        storage(type, PostgresQueryOptions(Ddl.NONE)).manageIndexes(indexes).assert().isEqualTo(PostgresQueryIndexReport())
         val name = indexes.single().name
-        storage(type, PostgresQueryOptions(QueryIndexDdl.VALIDATE)).manageIndexes(indexes)
+        storage(type, PostgresQueryOptions(Ddl.VALIDATE)).manageIndexes(indexes)
             .assert().isEqualTo(PostgresQueryIndexReport(missing = listOf(name)))
         storage(type).manageIndexes(indexes).assert().isEqualTo(PostgresQueryIndexReport(created = listOf(name), missing = listOf(name)))
         storage(type).manageIndexes(indexes).assert().isEqualTo(PostgresQueryIndexReport())
-        storage(type, PostgresQueryOptions(QueryIndexDdl.VALIDATE)).manageIndexes(indexes).assert().isEqualTo(PostgresQueryIndexReport())
+        storage(type, PostgresQueryOptions(Ddl.VALIDATE)).manageIndexes(indexes).assert().isEqualTo(PostgresQueryIndexReport())
         storage(type).manageIndexes(emptyList()).assert().isEqualTo(PostgresQueryIndexReport())
 
         // An index a failed concurrent build left invalid is reported, and rebuilt by auto.
         invalidate(name)
-        storage(type, PostgresQueryOptions(QueryIndexDdl.VALIDATE)).manageIndexes(indexes)
+        storage(type, PostgresQueryOptions(Ddl.VALIDATE)).manageIndexes(indexes)
             .assert().isEqualTo(PostgresQueryIndexReport(invalid = listOf(name)))
         storage(type).manageIndexes(indexes).assert().isEqualTo(PostgresQueryIndexReport(created = listOf(name), invalid = listOf(name)))
-        storage(type, PostgresQueryOptions(QueryIndexDdl.VALIDATE)).manageIndexes(indexes).assert().isEqualTo(PostgresQueryIndexReport())
+        storage(type, PostgresQueryOptions(Ddl.VALIDATE)).manageIndexes(indexes).assert().isEqualTo(PostgresQueryIndexReport())
     }
 
     @Test

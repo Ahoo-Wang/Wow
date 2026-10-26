@@ -56,7 +56,7 @@ class MongoBackend {
 ## 必须使用副本集 {#a-replica-set-is-required}
 
 - **多数派。** 追加由多数派确认（`w: majority`），每次读取，包括订阅的尾随读，都只读取多数派已提交的内容（`readConcern: majority`）。所以订阅永远不会对一次之后因故障切换而回滚的提交采取行动。代价是条目到达尾随读之前，大约要多一次复制往返。多数派无法提交的副本集（例如带仲裁节点且有一个成员宕机），会让尾随读停滞，直到能够提交为止。单机服务器没有多数派；即使是一个开发节点，也要以单成员副本集运行。
-- **追加。** 一次追加就是一次插入，不开事务。节点从分区的计数器一次取一段 256 个序号，依次分给它的追加；唯一键拒绝已被占用的版本或请求。节点取了却没有写入的序号会写上占位，尾随读越过它们，所以分区的序号递增、但有空号。同一分区的追加之间没有争用；负载高时，节点把一个分区的追加按集合合成一次插入（`wow.log.append-queue.*`，默认开启）。
+- **追加。** 一次追加就是一次插入，不开事务。节点从分区的计数器一次取一段 256 个序号，依次分给它的追加；唯一键拒绝已被占用的版本或请求。节点取了却没有写入的序号会写上占位，尾随读越过它们，所以分区的序号递增、但有空号。同一分区的追加之间没有争用；负载高时，节点把一个分区的追加按集合合成一次插入。
 
 `wow.mongo.append-timeout`（默认 5 秒）限制一次追加的插入时长，它低于默认的等待超时，所以在故障期间追加的命令会在它的等待结束之前得到回答。存储的其他每次调用由 `wow.mongo.operation-timeout` 限制（默认 30 秒，单个存储的 `options.operation-timeout` 可覆盖），建表类命令（格式记录、索引、分片）为 5 分钟：在故障切换中或代理之后丢失的回应会让调用以暂时性错误失败，而不是一直挂住。查询保留自己的超时预算。
 
@@ -124,8 +124,8 @@ class MongoBackend {
 
 | 键 | 适用于 |
 | --- | --- |
-| `wow.query.events.mongo-read-preference` | 每个 `events` 查询，例如 `secondaryPreferred` |
-| `wow.stores.<name>.query.read-preference` | 一个存储的快照查询和 `events` 查询 |
+| `wow.mongo.query-read-preference` | 每个 `events` 查询，例如 `secondaryPreferred` |
+| `wow.stores.<name>.options.query-read-preference` | 一个存储的快照查询和 `events` 查询 |
 
 从节点可能落后于主节点；必须看到某次写入的读取，要改为指定它的版本（[配置项](../reference/configuration#wow-query)）。
 

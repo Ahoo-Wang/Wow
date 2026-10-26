@@ -68,6 +68,7 @@ class WowClient private constructor(
         private var httpClient: HttpClient? = null
         private var connectTimeout: Duration = HttpCommandCaller.DEFAULT_CONNECT_TIMEOUT
         private var timeout: Duration = DEFAULT_TIMEOUT
+        private val timeouts = LinkedHashMap<String, Duration>()
         private var retry: RetryPolicy = RetryPolicy.DEFAULT
         private var classLoader: ClassLoader? = null
         private var contracts: List<ManifestFragment>? = null
@@ -115,6 +116,12 @@ class WowClient private constructor(
             this.timeout = timeout
         }
 
+        /** How long a request to the peer [context] may take until it answers, over [timeout]. */
+        fun timeout(context: String, timeout: Duration): Builder = apply {
+            require(timeout.isPositive()) { "A request's timeout is positive." }
+            timeouts[context] = timeout
+        }
+
         /** How a problem a retry may get past is retried ([RetryPolicy.DEFAULT] by default). */
         fun retry(retry: RetryPolicy): Builder = apply { this.retry = retry }
 
@@ -145,6 +152,7 @@ class WowClient private constructor(
                 httpClient ?: HttpCommandCaller.client(connectTimeout),
                 timeout,
                 retry,
+                timeouts.toMap(),
             )
             // The class path's contracts through :manifest's one reader, named by its one rule (decision D293).
             val contracts = contracts ?: ClassPathContracts.load(

@@ -1,3 +1,8 @@
+// The test fixtures: the generator of the configuration metadata, which the platform services' tests use too.
+plugins {
+    `java-test-fixtures`
+}
+
 description = "Wow Spring Boot: auto-configuration by classpath; wiring only"
 
 dependencies {

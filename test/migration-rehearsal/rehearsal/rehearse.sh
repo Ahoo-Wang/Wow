@@ -24,7 +24,7 @@
 #                compare, snapshot and backfill-tags, and the V10 hosts start and serve (the write stop ends); their
 #                sampled states equal 9.x's before it stopped. They stop and 9.x starts again for the online cut-over
 #   2. import    migrate-data check and import into the V10 log on PostgreSQL (database example)
-#   3. dual-run  the V10 hosts start on standby (wow.standby): they serve reads and refuse commands while 9.x keeps
+#   3. dual-run  the V10 hosts start on standby (wow.node.standby): they serve reads and refuse commands while 9.x keeps
 #                taking writes (orders, carts, view renames) for DUAL_RUN_SECONDS and migrate-data tail follows them;
 #                the lag is how long V10 takes to read what 9.x last wrote once the writes stop
 #   4. cut-over  9.x stops (the write stop starts); the final pass (import --final: the tail from its checkpoint,
@@ -192,7 +192,7 @@ start_ninex() {
   await_http "$NINEX_URL" ninex
 }
 
-# launch_v10 [standby]: the V10 host on TARGET_DB; on standby (wow.standby) when asked, until resume_hosts.
+# launch_v10 [standby]: the V10 host on TARGET_DB; on standby (wow.node.standby) when asked, until resume_hosts.
 launch_v10() {
   local standby="${1:-}"
   (
@@ -200,7 +200,7 @@ launch_v10() {
     env JAVA_OPTS="-Xmx1g" ./bin/migration-rehearsal \
       --server.port="$V10_PORT" --wow.internal.port="$V10_INTERNAL_PORT" \
       --spring.datasource.url="jdbc:postgresql://localhost:$POSTGRES_PORT/$TARGET_DB" \
-      --wow.standby="$([ "$standby" = standby ] && echo true || echo false)" \
+      --wow.node.standby="$([ "$standby" = standby ] && echo true || echo false)" \
       >>"$WORK/v10.out" 2>&1 &
     echo $! >"$WORK/v10.pid"
   )
@@ -217,7 +217,7 @@ launch_views() {
       --wow.internal.port="$VIEWS_INTERNAL_PORT" --wow.internal.host=127.0.0.1 \
       --spring.datasource.url="jdbc:postgresql://localhost:$POSTGRES_PORT/$TARGET_DB" \
       --wow.platform.trust-identity-headers=true \
-      --wow.standby="$([ "$standby" = standby ] && echo true || echo false)" \
+      --wow.node.standby="$([ "$standby" = standby ] && echo true || echo false)" \
       --logging.level.root=warn \
       >>"$WORK/views.out" 2>&1 &
     echo $! >"$WORK/views.pid"

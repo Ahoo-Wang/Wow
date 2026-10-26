@@ -53,7 +53,7 @@ import me.ahoo.wow.mongo.MongoShards
 import me.ahoo.wow.mongo.MongoTimeouts
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.log.AggregateTail
 import me.ahoo.wow.spi.log.AppendOutcome
@@ -157,7 +157,7 @@ class MongoEventLog(
     private val tailBatch: Int = DEFAULT_TAIL_BATCH,
     maxPollInterval: Duration = DEFAULT_MAX_POLL_INTERVAL,
     /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
-    private val ddl: StoreDdl = StoreDdl.AUTO,
+    private val ddl: Ddl = Ddl.AUTO,
     /**
      * How long an append's insert may take (decision D261): a server that does not answer fails it, so a command
      * appending during an outage is answered before its wait ends, as unknown. Below the default wait timeout.
@@ -305,7 +305,7 @@ class MongoEventLog(
             // Decision D277: by partition, one chunk each, spread over the shards while the collection is new.
             MongoShards.shardLog(client, database, log, partitions)
         }
-        if (ddl != StoreDdl.AUTO) {
+        if (ddl != Ddl.AUTO) {
             // The registry is the schema's: a validated or foreign schema registered its collections already.
             return collection
         }

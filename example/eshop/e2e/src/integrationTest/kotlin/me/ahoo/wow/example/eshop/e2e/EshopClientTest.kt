@@ -42,7 +42,7 @@ import java.math.BigDecimal
 /**
  * The typed clients of a peer (decisions D257, D259): the basket service calls and reads the ordering service through
  * `wow-client`, by the ordering's generated contract (`EshopOrderingContract`), with no path written. Its
- * [CommandClient] and [QueryApi] beans route the ordering context, which `wow.clients.contexts` lists, over HTTP:
+ * [CommandClient] and [QueryApi] beans route the ordering context, which `wow.peers` lists, over HTTP:
  *
  * - **Service mode**: on the ordering's internal port, as the basket service (`Wow-Service`), asserting the buyer as the
  *   root context: the order is the buyer's, and the buyer's reads see it;
@@ -61,7 +61,7 @@ class EshopClientTest {
             val basket = start(
                 BasketServer::class.java,
                 "basket",
-                "--wow.clients.contexts.eshop-ordering.internal-url=http://127.0.0.1:${ordering.internalPort}",
+                "--wow.peers.eshop-ordering.url=http://127.0.0.1:${ordering.internalPort}",
             )
             basket.use {
                 // region send
@@ -106,11 +106,11 @@ class EshopClientTest {
                 val basket = start(
                     BasketServer::class.java,
                     "basket",
-                    "--wow.clients.contexts.eshop-ordering.url=http://127.0.0.1:${ordering.port}",
+                    "--wow.peers.eshop-ordering.public-url=http://127.0.0.1:${ordering.port}",
                     // The checkout saga's synchronous call, which the node checks it reaches (decision D259).
-                    "--wow.clients.contexts.eshop-ordering.internal-url=http://127.0.0.1:${ordering.internalPort}",
-                    "--wow.clients.contexts.eshop-ordering.mode=user",
-                    "--wow.clients.forwarded-headers=X-User",
+                    "--wow.peers.eshop-ordering.url=http://127.0.0.1:${ordering.internalPort}",
+                    "--wow.peers.eshop-ordering.mode=user",
+                    "--wow.peer.forwarded-headers=X-User",
                 )
                 basket.use {
                     val ref = EshopOrderingContract.Order.ref(Caller.DEFAULT_TENANT, "client-bob-1")

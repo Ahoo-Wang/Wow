@@ -36,13 +36,14 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Whether a node hands its own commits to its tails in memory ([enabled], decision D249), and how:
+ * How a node hands its own commits to its tails in memory (decision D249), always: the constants of the hand-off,
+ * not settings:
  *
  * - [capacity]: the most entries one tail holds that it has not taken yet; a tail that falls further behind drops what
  *   comes next and reads the store instead, so the append path never waits for it;
  * - [gapWait]: the longest a tail waits for a missing sequence that an append of this node still in flight may
- *   hold, before it reads the store from its position (`wow.log.handoff.gap-wait`). Appends without a queue
- *   (PostgreSQL's preset) hand their commits over in the order their callers return, so a sequence is often missing
+ *   hold, before it reads the store from its position. Appends
+ *   hand their commits over in the order their callers return, so a sequence is often missing
  *   for a moment, and a pause of the process (a GC, a starved CPU) stretches that moment past any timer (work package
  *   OV-2). So a tail does not wait on the clock: it waits for the appends that may hold the missing sequence, those
  *   in flight when the gap appeared, and reads the store as soon as every one of them returned without it (another
@@ -55,7 +56,6 @@ import kotlin.time.Duration.Companion.seconds
  * to Wow.
  */
 class HandoffOptions @InternalWowApi constructor(
-    val enabled: Boolean = true,
     val capacity: Int = DEFAULT_CAPACITY,
     val gapWait: Duration = 1.seconds,
     val probeInterval: Duration = 1.seconds,
@@ -72,9 +72,9 @@ class HandoffOptions @InternalWowApi constructor(
     override fun hashCode(): Int = valueFields().hashCode()
 
     override fun toString(): String =
-        "HandoffOptions(enabled=$enabled, capacity=$capacity, gapWait=$gapWait, probeInterval=$probeInterval)"
+        "HandoffOptions(capacity=$capacity, gapWait=$gapWait, probeInterval=$probeInterval)"
 
-    private fun valueFields(): List<Any?> = listOf(enabled, capacity, gapWait, probeInterval)
+    private fun valueFields(): List<Any?> = listOf(capacity, gapWait, probeInterval)
 
     companion object {
         private const val DEFAULT_CAPACITY = 1_024
@@ -174,9 +174,6 @@ class HandoffLog(
     }
 
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> {
-        if (!options.enabled) {
-            return log.tail(partition, after)
-        }
         require(partition in 0 until log.partitions) { "No partition $partition among ${log.partitions}." }
         return flow {
             val listener = Listener(options.capacity)

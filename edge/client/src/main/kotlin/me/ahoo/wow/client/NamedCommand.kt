@@ -17,7 +17,7 @@ import tools.jackson.databind.JsonNode
 
 /**
  * A command named by its [type] rather than by its class (decision D257): a command to a peer described by its
- * Manifest alone (`wow.clients.contexts.<context>.contract: manifest`), which a console, a gateway or a tool calls
+ * Manifest alone (`wow.peers.<context>.contract: manifest`), which a console, a gateway or a tool calls
  * without the peer's api jar. [type] is its full type name, `context.aggregate.Command` (the aggregate's type and the
  * command's name in the peer's Manifest, or one of its aliases), and [body] its JSON, sent as is.
  *

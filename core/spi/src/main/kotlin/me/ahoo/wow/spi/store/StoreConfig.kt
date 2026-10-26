@@ -15,7 +15,7 @@ package me.ahoo.wow.spi.store
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.log.TailPolling
 
 /**
@@ -31,7 +31,7 @@ import me.ahoo.wow.spi.log.TailPolling
 class StoreConfig @InternalWowApi constructor(
     val name: String,
     val type: String,
-    val ddl: StoreDdl = StoreDdl.AUTO,
+    val ddl: Ddl = Ddl.AUTO,
     val options: Map<String, String> = emptyMap(),
     val polling: TailPolling = TailPolling.DEFAULT,
     val service: String = "",
@@ -57,7 +57,7 @@ class StoreConfig @InternalWowApi constructor(
         fun of(
             name: String,
             type: String,
-            ddl: StoreDdl = StoreDdl.AUTO,
+            ddl: Ddl = Ddl.AUTO,
             options: Map<String, String> = emptyMap(),
             polling: TailPolling = TailPolling.DEFAULT,
             service: String = "",

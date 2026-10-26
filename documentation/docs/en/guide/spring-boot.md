@@ -104,9 +104,9 @@ Spring Boot Actuator on the class path gives the node's health to the readiness 
 | `auto`, the default | Takes PostgreSQL when the application has a `DataSource`, MongoDB when it has a `MongoClient`: its own bean, or the one the host makes of `spring.datasource.url` or `spring.mongodb.uri` |
 | `memory` | Keeps everything in memory, on purpose: one node, whose data does not outlive it |
 
-With `auto` and neither bean, the node refuses to start, unless a development profile is active (`wow.internal.dev-profiles`) or its internal port binds the loopback interface alone; it then runs in memory and warns. A production node never falls back to memory by accident.
+With `auto` and neither bean, the node refuses to start, unless a development profile is active (`wow.dev-profiles`) or its internal port binds the loopback interface alone; it then runs in memory and warns. A production node never falls back to memory by accident.
 
-A service whose aggregates keep their data in different stores names store instances under `wow.stores.<name>` (each with its `type`, such as `postgres`, `mongo`, `elasticsearch` or `memory`, and the bean it runs on) and places each aggregate type's log and snapshots on them: `wow.log.store`, `wow.snapshot.store`, and per type `wow.aggregates.[<context>.<aggregate>].log.store`. [PostgreSQL](../operate/postgresql) shows a layout.
+A service whose aggregates keep their data in different stores names store instances under `wow.stores.<name>` (each with its `type`, such as `postgres`, `mongo`, `elasticsearch` or `memory`, and the bean it runs on) and places each aggregate type's log and snapshots on them: `wow.log.store`, `wow.snapshot.stores`, and per type `wow.aggregates.[<context>.<aggregate>].log.store`. [PostgreSQL](../operate/postgresql) shows a layout.
 
 `wow.ddl` decides whether the stores create their tables, collections and indexes (`auto`, the default), only check them (`validate`), or neither (`none`).
 
@@ -128,10 +128,10 @@ The host takes these from the application when it defines them, and falls back t
 
 Spring binds the keys it knows and ignores the rest, so a misspelled key would silently do nothing. The host compares every `wow.*` key of the environment with the configuration metadata on the class path when it starts:
 
-- An unknown key is logged as a warning, naming it.
-- An unknown key under `wow.cosec.`, `wow.http.services.`, `wow.calls.` or `wow.internal.` stops the start: a mistyped security setting would leave a default in place that may allow everything.
+- An unknown key stops the start, naming it: a mistyped setting would leave a default in place, and some defaults allow everything. A key of an earlier version is named with the key that took its place, and a key of a module that is not on the class path (`wow.cosid.*` without wow-cosid) with that module.
+- Under a map of settings, such as `wow.aggregates`, `wow.stores`, `wow.callers` and `wow.peers`, each entry's own keys are checked to their leaves.
 
-Environment variables are not checked, since their names cannot be listed. [Configuration Keys](../reference/configuration) lists every key.
+An environment variable under a Wow group, such as `WOW_KAFKA_…`, is checked the same way. [Configuration Keys](../reference/configuration) lists every key.
 
 ## Run it
 

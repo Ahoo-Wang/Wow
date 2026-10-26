@@ -289,7 +289,7 @@ class CrossContextWaitTest {
         assertThrows<IllegalArgumentException> { salesNode(contracts, null) }.message.assert()
             .contains("Node sales-1 cannot make its sagas' calls")
             .contains("$SALES/$SAGA calls $STOCK, which the node's caller does not reach")
-            .contains("wow.calls.contexts.$STOCK.url")
+            .contains("wow.peers.$STOCK.url")
         val elsewhere = object : CommandCaller {
             override suspend fun call(call: OutgoingCall): CommandResult = error("not called")
 

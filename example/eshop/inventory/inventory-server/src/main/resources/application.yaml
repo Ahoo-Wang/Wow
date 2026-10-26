@@ -34,14 +34,11 @@ spring:
       on-profile: kafka
 wow:
   kafka:
-    # Creates the topics the service owns when they are missing, for trying it out; production validates them, the
-    # default (decision D168).
-    topics:
-      ddl: auto
     bootstrap-servers: localhost:9092
     # Execute the commands the ordering context sends to wow.eshop-inventory.commands, which has as many partitions as
     # the context's log (wow.log.partitions, 64 by default).
-    command-intake: true
+    command-intake:
+      enabled: true
 ---
 # region mongo
 # MongoDB, a replica set: the host creates the client from the URI (decision D318) and keeps the service's data in a

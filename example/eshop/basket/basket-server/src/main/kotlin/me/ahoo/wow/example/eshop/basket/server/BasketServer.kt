@@ -21,7 +21,7 @@ import org.springframework.boot.runApplication
  * index and serves its routes on the public port and the cluster on the internal one. It runs on the memory backend by
  * default and on PostgreSQL with the `postgres` profile (`spring.datasource.*`, decision D310).
  *
- * Its checkout saga calls the ordering service's command gateway (decision D193, `wow.calls.contexts.eshop-ordering.url`)
+ * Its checkout saga calls the ordering service's command gateway (decision D193, `wow.peers.eshop-ordering.url`)
  * and sends no command through a topic, so it needs no command transport; the `kafka` profile publishes the basket
  * stream.
  */

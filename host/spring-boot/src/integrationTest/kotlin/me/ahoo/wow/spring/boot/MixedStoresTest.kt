@@ -49,7 +49,7 @@ class MixedStoresTest {
             "wow.stores.mongo.database" to DATABASE,
             "wow.log.store" to "pg",
             "wow.aggregates.[treasury.ledger].log.store" to "mongo",
-            "wow.aggregates.[treasury.ledger].snapshot.store" to "mongo",
+            "wow.aggregates.[treasury.ledger].snapshot.stores" to "mongo",
             "wow.timers.poll-interval" to "100ms",
             "spring.datasource.url" to postgres.jdbcUrl,
             "spring.datasource.username" to postgres.username,
@@ -91,7 +91,6 @@ class MixedStoresTest {
     @Order(1)
     fun `each aggregate's log, snapshots, timers and checkpoints are on its store`() {
         first.node.context(TREASURY).logGroups.map { it.store }.assert().containsExactly("pg", "mongo")
-        first.node.options.appendQueue.enabled.assert().isTrue()
         first.post("/treasury/vault/v-1/open-vault", """{"sealAfterMillis":300}""").status.assert().isEqualTo(200)
         first.post("/treasury/ledger/l-1/open-ledger", """{"closeAfterMillis":300}""").status.assert().isEqualTo(200)
         eventually { first.sealed("vault", "v-1") && first.sealed("ledger", "l-1") }

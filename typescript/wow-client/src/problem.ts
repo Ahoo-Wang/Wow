@@ -52,6 +52,8 @@ export const FrameworkErrorCodes = {
   COMMAND_UNKNOWN: 'wow.command.unknown',
   /** 500: the command's handling failed with an unexpected error; it committed nothing, and a retry fails alike. */
   COMMAND_FAILED: 'wow.command.failed',
+  /** 409: the aggregate's current state refuses the command (a check of its decide function); the message says why. */
+  COMMAND_REFUSED: 'wow.command.refused',
   /** 503: the node is shutting down; retry on another node. */
   NODE_CLOSING: 'wow.node.closing',
   /** 503: the node is on standby until a migration's cut-over; it serves reads only. */

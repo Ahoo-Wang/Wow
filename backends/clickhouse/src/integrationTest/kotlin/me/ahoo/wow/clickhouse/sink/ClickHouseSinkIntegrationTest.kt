@@ -19,6 +19,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.clickhouse.sink.SinkFixtures.ORDER
 import me.ahoo.wow.clickhouse.sink.SinkFixtures.recordOf
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
@@ -97,7 +98,7 @@ class ClickHouseSinkIntegrationTest {
         flat.getString("status").assert().isEqualTo("CREATED")
         flat.getString("owner_id").assert().isEqualTo("owner-1")
         // What the view reads, the Sink validates.
-        sinks(ClickHouseSinkOptions(database = database, ddl = DdlMode.VALIDATE)).sinkOf("shop", "order").prepare()
+        sinks(ClickHouseSinkOptions(database = database, ddl = Ddl.VALIDATE)).sinkOf("shop", "order").prepare()
     }
 
     @Test
@@ -155,7 +156,7 @@ class ClickHouseSinkIntegrationTest {
 
     @Test
     fun `validate should refuse tables that are not there`(): Unit = runTest {
-        val sink = sinks(ClickHouseSinkOptions(database = database, ddl = DdlMode.VALIDATE)).sinkOf("shop", "order")
+        val sink = sinks(ClickHouseSinkOptions(database = database, ddl = Ddl.VALIDATE)).sinkOf("shop", "order")
         val error = runCatching { sink.write(listOf(recordOf())) }.exceptionOrNull()
         error?.message.assert().contains("shop_order_state_events does not exist")
     }

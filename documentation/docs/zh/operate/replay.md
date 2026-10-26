@@ -41,7 +41,7 @@ curl -X POST "http://<service>/<context>/snapshot/<aggregate>/wow.snapshot.rebui
 
 ## 新的快照存储 {#a-new-snapshot-store}
 
-给某个聚合类型增加一个快照目标（`wow.snapshot.targets`，或 `wow.aggregates.[<context>.<aggregate>].snapshot.*`），例如在 PostgreSQL 旁边加一个 Elasticsearch 索引，会由一个它自己的订阅从日志开头填充它，目标追平后这个订阅就停止。切换主目标（即查询读取的那个）不会移动任何检查点。
+给某个聚合类型增加一个快照目标（`wow.snapshot.stores`，或 `wow.aggregates.[<context>.<aggregate>].snapshot.*`），例如在 PostgreSQL 旁边加一个 Elasticsearch 索引，会由一个它自己的订阅从日志开头填充它，目标追平后这个订阅就停止。切换主目标（即查询读取的那个）不会移动任何检查点。
 
 ## 标签 {#tags}
 

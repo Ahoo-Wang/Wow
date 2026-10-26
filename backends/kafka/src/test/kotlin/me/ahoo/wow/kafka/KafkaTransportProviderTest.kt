@@ -26,8 +26,8 @@ import kotlin.time.Duration.Companion.seconds
 class KafkaTransportProviderTest {
     private val provider = KafkaTransportProvider()
 
-    private fun config(vararg options: Pair<String, String>, profiles: Set<String> = emptySet()) =
-        TransportConfig.of("kafka", "kafka", options.toMap(), profiles = profiles)
+    private fun config(vararg options: Pair<String, String>, development: Boolean = false) =
+        TransportConfig.of("kafka", "kafka", options.toMap(), development = development)
 
     @Test
     fun `the transport is available once its brokers are set, and reads its clients' settings`() {
@@ -81,7 +81,7 @@ class KafkaTransportProviderTest {
     fun `a configuration below two replicas should be warned about outside a dev profile`() {
         val low = arrayOf("topics.replication-factor" to "1", "topics.min-insync-replicas" to "1")
         KafkaTransportProvider.durability(config(*low)).configured().size.assert().isEqualTo(2)
-        KafkaTransportProvider.durability(config("topics.configs.min.insync.replicas" to "1", profiles = setOf("prod")))
+        KafkaTransportProvider.durability(config("topics.configs.min.insync.replicas" to "1", development = false))
             .configured().single().assert().contains("min-insync-replicas is 1")
         KafkaTransportProvider.durability(
             config("topics.replication-factor" to "3", "topics.min-insync-replicas" to "2")
@@ -89,12 +89,7 @@ class KafkaTransportProviderTest {
             .configured().assert().isEmpty()
         // The broker's defaults are not known here: the topics themselves are checked.
         KafkaTransportProvider.durability(config()).configured().assert().isEmpty()
-        KafkaTransportProvider.durability(config(*low, profiles = setOf("dev"))).configured().assert().isEmpty()
-        KafkaTransportProvider.durability(
-            config(*low, "topics.dev-profiles[0]" to "sandbox", profiles = setOf("sandbox"))
-        )
-            .configured().assert().isEmpty()
-        KafkaTransportProvider.devProfiles(config("topics.dev-profiles" to "a, b")).assert().containsExactly("a", "b")
+        KafkaTransportProvider.durability(config(*low, development = true)).configured().assert().isEmpty()
     }
 
     @Test
@@ -107,7 +102,7 @@ class KafkaTransportProviderTest {
         val warnings = KafkaTransportProvider.durability(config()).warnings(durability)
         warnings.size.assert().isEqualTo(2)
         warnings.first().assert().contains("wow.shop.commands", "replication factor 1", "min.insync.replicas 1")
-        KafkaTransportProvider.durability(config(profiles = setOf("test"))).warnings(durability).assert().isEmpty()
+        KafkaTransportProvider.durability(config(development = true)).warnings(durability).assert().isEmpty()
         TopicDurability(2, 2).survivesOneBroker.assert().isTrue()
         TopicDurability(2, 1).survivesOneBroker.assert().isFalse()
     }
@@ -118,7 +113,7 @@ class KafkaTransportProviderTest {
         durability.checkQuietly { error("The broker is down.") }.assert().isEmpty()
         durability.checkQuietly(50.milliseconds) { awaitCancellation() }.assert().isEmpty()
         durability.checkQuietly { mapOf("t" to TopicDurability(1, 1)) }.size.assert().isEqualTo(1)
-        KafkaTransportProvider.durability(config(profiles = setOf("local")))
+        KafkaTransportProvider.durability(config(development = true))
             .checkQuietly { error("not asked") }.assert().isEmpty()
     }
 

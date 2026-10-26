@@ -21,14 +21,14 @@ import com.mongodb.client.model.Filters
 import com.mongodb.client.model.IndexOptions
 import com.mongodb.client.model.Indexes
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import org.bson.Document
 import org.bson.conversions.Bson
 import org.slf4j.LoggerFactory
 
 /**
  * Whether a store shards the collections it creates on a sharded cluster (decision D277): [AUTO] when it is connected
- * to a mongos and creates its schema ([StoreDdl.AUTO]), [OFF] for a cluster whose operators shard it themselves. The
+ * to a mongos and creates its schema ([Ddl.AUTO]), [OFF] for a cluster whose operators shard it themselves. The
  * option `sharding` of a MongoDB store (`wow.mongo.sharding`), `auto` or `off`.
  */
 @InternalWowApi
@@ -37,8 +37,8 @@ enum class MongoSharding {
     OFF;
 
     /** Whether a store over [client] with [ddl] shards its collections: asks the server only when it may. */
-    fun shards(client: MongoClient, ddl: StoreDdl): Boolean =
-        this == AUTO && ddl == StoreDdl.AUTO && MongoShards.isMongos(client)
+    fun shards(client: MongoClient, ddl: Ddl): Boolean =
+        this == AUTO && ddl == Ddl.AUTO && MongoShards.isMongos(client)
 
     @InternalWowApi
     companion object {
@@ -107,7 +107,7 @@ internal object MongoShards {
         index: Bson,
         chunks: List<Document> = emptyList(),
     ) {
-        MongoFormat.index(collection, index, IndexOptions().name(SHARD_KEY), StoreDdl.AUTO)
+        MongoFormat.index(collection, index, IndexOptions().name(SHARD_KEY), Ddl.AUTO)
         val namespace = collection.namespace.fullName
         val admin = MongoTimeouts.ddl(client.getDatabase(ADMIN))
         try {

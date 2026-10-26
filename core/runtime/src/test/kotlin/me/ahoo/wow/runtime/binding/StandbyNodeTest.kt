@@ -36,6 +36,7 @@ import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.fastNodeOptions
+import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
@@ -80,7 +81,7 @@ class StandbyNodeTest {
             checkpoints = InMemoryCheckpointStore(),
             leases = leases,
             ledger = InMemoryFailureLedger(),
-            snapshots = InMemorySnapshotStore(),
+            snapshots = SnapshotTargets.single(InMemorySnapshotStore()),
             reservations = InMemoryReservationStore(),
         )
     }

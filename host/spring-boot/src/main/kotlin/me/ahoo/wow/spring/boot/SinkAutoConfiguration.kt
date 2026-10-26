@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.sink.PublishedSinks
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.sink.StreamSinks
 import org.springframework.beans.factory.ListableBeanFactory
 import org.springframework.beans.factory.ObjectProvider
@@ -43,9 +44,9 @@ class SinkAutoConfiguration {
         manifest: Manifest,
         properties: ObjectProvider<WowProperties>,
     ): ProvidedSinks {
-        val aggregates = properties.ifAvailable?.aggregates.orEmpty()
+        val wow = properties.ifAvailable
         val configs = providers.sinkConfigs(environment, BeanStoreResources(beanFactory)) { type ->
-            aggregateOptions(type, aggregates)
+            mapOf(DDL to (wow?.ddl ?: Ddl.AUTO).name.lowercase()) + aggregateOptions(type, wow?.aggregates.orEmpty())
         }
         val published = PublishedSinks.publishedOf(manifest)
         return ProvidedSinks(
@@ -80,6 +81,9 @@ class SinkAutoConfiguration {
             }
 
         private const val CLICKHOUSE = "clickhouse"
+
+        /** The option of a Sink's DDL, `wow.ddl` unless `wow.<type>.ddl` sets its own. */
+        private const val DDL = "ddl"
     }
 }
 

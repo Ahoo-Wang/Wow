@@ -112,6 +112,7 @@ public final class me/ahoo/wow/manifest/FrameworkErrors {
 	public static final field COMMAND_FAILED Ljava/lang/String;
 	public static final field COMMAND_INVALID Ljava/lang/String;
 	public static final field COMMAND_MALFORMED Ljava/lang/String;
+	public static final field COMMAND_REFUSED Ljava/lang/String;
 	public static final field COMMAND_REQUEST_ID_REUSED Ljava/lang/String;
 	public static final field COMMAND_UNHANDLED Ljava/lang/String;
 	public static final field COMMAND_UNKNOWN Ljava/lang/String;

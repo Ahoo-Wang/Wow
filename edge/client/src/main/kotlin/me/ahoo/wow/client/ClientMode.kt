@@ -20,7 +20,7 @@ package me.ahoo.wow.client
  *   (decision D300), asserting the caller it acts for as the root context of `Wow-Call`: its tenant, scope, operator
  *   and the request facts that propagate (the application, `app_id`). The peer takes that assertion from a service
  *   that names itself alone, its internal port being reachable by the platform's own pods only,
- *   and lets it call the commands and read the models its `wow.http.services.<service>` entries permit. A command is
+ *   and lets it call the commands and read the models its `wow.callers.<service>` entries permit. A command is
  *   answered once committed, whatever its wait plan: the internal port does not stream.
  * - [User]: on the peer's public routes ([Port.PUBLIC]), forwarding the end user's credential ([UserCredential]): the
  *   peer authenticates the user as its own edge would, and the caller a client was given ([me.ahoo.wow.api.client.

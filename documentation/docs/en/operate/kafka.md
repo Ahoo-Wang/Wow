@@ -17,7 +17,7 @@ A service needs Kafka when one of these holds:
 - other contexts send commands to it;
 - an aggregate type's commands are routed through Kafka for durable intake.
 
-A node whose sagas send commands to another context does not start without a command transport. For local development, `wow.topics.in-memory: true` keeps the topics in the JVM instead, so services in one process reach each other without a broker. Those topics keep every record they are sent for the life of the JVM: under sustained load they fill the heap, so they are for trying a service out, never for a load test or a deployment.
+`wow.transport` selects the node's topic transport. With `auto`, the default, a node takes the transport it finds configured (Kafka, once `wow.kafka.bootstrap-servers` is set). Without one, a node in development (a profile of `wow.dev-profiles`, or an internal port on the loopback interface alone) keeps its topics in its JVM, so services in one process reach each other without a broker; any other node runs without topics, and refuses to start when it needs them: when it publishes a stream, routes an aggregate type through Kafka, publishes its failure ledger or takes commands from its command topic, and when its sagas send commands to another context. `wow.transport=memory` keeps the topics in the JVM on purpose; outside development it is refused. Those topics keep every record they are sent for the life of the JVM: under sustained load they fill the heap, so they are for trying a service out, never for a load test or a deployment.
 
 The transport is wired when the `wow-kafka` module is on the classpath and `wow.kafka.bootstrap-servers` is set. The eShop's ordering service connects with its `kafka` profile:
 
@@ -26,14 +26,11 @@ The transport is wired when the `wow-kafka` module is on the classpath and `wow.
 ```yaml
 wow:
   kafka:
-    # Creates the topics the service owns when they are missing, for trying it out; production validates them, the
-    # default (decision D168).
-    topics:
-      ddl: auto
     bootstrap-servers: localhost:9092
     # Execute the commands other contexts send to wow.eshop-ordering.commands (the payment's), which has as many
     # partitions as the context's log (wow.log.partitions, 64 by default).
-    command-intake: true
+    command-intake:
+      enabled: true
 ```
 
 ## Topics
@@ -55,15 +52,15 @@ An aggregate is published by default; it can stay unpublished, publish without i
 
 ### Creating topics
 
-At startup, a node checks the topics its contexts own, as `wow.kafka.topics.ddl` says:
+At startup, a node checks the topics its contexts own, as `wow.kafka.ddl` says; it follows `wow.ddl` when not set, so the stores and the topics share one setting:
 
 | `ddl` | At startup |
 | --- | --- |
-| `validate` (default) | The node does not start while one of its topics is missing, or its command topic does not have exactly the log's partitions. The message names each such topic. |
-| `auto` | The node first creates the missing topics, with the log's partition count, `wow.kafka.topics.replication-factor`, `wow.kafka.topics.min-insync-replicas` and `wow.kafka.topics.configs.*`, then validates. It never alters an existing topic. |
-| `none` | The node checks nothing, except that a command topic it reads still has the log's partition count. |
+| `auto` (default) | The node first creates the missing topics, with the log's partition count, `wow.kafka.topics.replication-factor`, `wow.kafka.topics.min-insync-replicas` and `wow.kafka.topics.configs.*`, then validates. It never alters an existing topic. |
+| `validate` | The node does not start while one of its topics is missing, or its command topic does not have exactly the log's partitions. The message names each such topic. |
+| `none` | The node creates and checks nothing: the topics are someone else's. |
 
-Use `auto` for development and tests. In production, create the topics yourself and keep `validate`, which catches a missing one at the first start. For the eShop's ordering context:
+`auto` suits development and tests. In production, create the topics yourself and set `wow.ddl: validate` (or `wow.kafka.ddl` alone), which catches a missing one at the first start. For the eShop's ordering context:
 
 ```bash
 kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.commands --partitions 64
@@ -89,7 +86,7 @@ By default a command is routed over the cluster channel to the owner of its aggr
 
 Only commands admitted at the edge take this route. A command a saga or a timer sends is already durable, because its sender retries until it commits.
 
-A context whose aggregate types are routed through Kafka reads its command topic whatever `wow.kafka.command-intake` says. Otherwise, set `wow.kafka.command-intake: true` on a service that should execute the commands other contexts send it.
+A context whose aggregate types are routed through Kafka reads its command topic whatever `wow.kafka.command-intake.enabled` says. Otherwise, set `wow.kafka.command-intake.enabled: true` on a service that should execute the commands other contexts send it.
 
 ## Reading other contexts' streams
 

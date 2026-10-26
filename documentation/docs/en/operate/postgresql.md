@@ -6,7 +6,7 @@ outline: deep
 
 # PostgreSQL
 
-On PostgreSQL, one database holds everything a service stores: its log, its snapshots, its timers, and its checkpoints, leases, failure ledger and reservations. The log appends with one autocommitted statement per commit; under load the node gathers a partition's appends into one statement (`wow.log.append-queue.*`, on by default). This page connects a service, describes the tables, and sizes the pools.
+On PostgreSQL, one database holds everything a service stores: its log, its snapshots, its timers, and its checkpoints, leases, failure ledger and reservations. The log appends with one autocommitted statement per commit; under load the node gathers a partition's appends into one statement. This page connects a service, describes the tables, and sizes the pools.
 
 ## Connect a service
 
@@ -91,7 +91,7 @@ wow:
   log:
     store: orders
   snapshot:
-    store: orders
+    stores: [orders]
   aggregates:
     "[shop.invoice]":
       log:

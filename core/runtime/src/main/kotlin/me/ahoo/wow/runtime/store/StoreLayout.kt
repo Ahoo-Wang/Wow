@@ -24,9 +24,9 @@ import me.ahoo.wow.spi.store.Store
 /**
  * Where each aggregate's log and snapshots are (decisions D172, D177): its log on the store [log] names
  * (`wow.log.store`) unless the logs map names another for its type (`wow.aggregates.[<context>.<aggregate>].log.store`);
- * its snapshots on the targets of its placement (`.snapshot.store`, `.snapshot.primary`), else of [snapshotDefault]
- * (`wow.snapshot.targets`, `wow.snapshot.primary`, the [snapshot] store alone by default). The [snapshot] store
- * (`wow.snapshot.store`) is each context's default one, whose subscription is `snapshot`.
+ * its snapshots on the stores of its placement (`.snapshot.stores`, `.snapshot.primary`), else of [snapshotDefault]
+ * (`wow.snapshot.stores`, `wow.snapshot.primary`, the [snapshot] store alone by default). The [snapshot] store (the
+ * first of `wow.snapshot.stores`) is each context's default one, whose subscription is `snapshot`.
  */
 @InternalWowApi
 class StoreLayout(
@@ -91,12 +91,11 @@ class StoreLayout(
             checkpoints = default.checkpoints,
             leases = default.leases,
             ledger = default.ledger,
-            snapshots = targets.primary,
+            snapshots = targets,
             reservations = default.reservations,
             timers = default.timers(context),
             store = log,
             groups = groups,
-            snapshotTargets = targets,
         )
     }
 
@@ -120,10 +119,10 @@ class StoreLayout(
                 )
             val snapshot = placements.snapshot?.takeIf { it.isNotBlank() } ?: log
             stores.checked("wow.log.store", log, Store::holdsLogs, "log")
-            stores.checked("wow.snapshot.store", snapshot, Store::holdsSnapshots, "snapshots")
+            stores.checked("wow.snapshot.stores", snapshot, Store::holdsSnapshots, "snapshots")
             val fallback = stores.placement(
                 "wow.snapshot",
-                "targets",
+                "stores",
                 placements.snapshotTargets,
                 placements.snapshotPrimary,
                 listOf(snapshot),
@@ -144,7 +143,7 @@ class StoreLayout(
                 if (placed) {
                     snapshotPlacements[type] = stores.placement(
                         "wow.aggregates.[$key].snapshot",
-                        "store",
+                        "stores",
                         aggregate.snapshots,
                         aggregate.snapshotPrimary,
                         fallback.targets,
@@ -202,9 +201,9 @@ class StoreLayout(
 
 /**
  * Where a host's configuration places the logs and snapshots (decisions D172, D177), as the `wow.*` keys say: the
- * default [log] store (`wow.log.store`), the default [snapshot] store (`wow.snapshot.store`), the snapshot targets of
- * every aggregate ([snapshotTargets], `wow.snapshot.targets`, and [snapshotPrimary], `wow.snapshot.primary`), and each
- * aggregate's own, by `<context>.<aggregate>` ([aggregates], `wow.aggregates.[<context>.<aggregate>]`).
+ * default [log] store (`wow.log.store`), the default [snapshot] store (the first of `wow.snapshot.stores`), the snapshot
+ * stores of every aggregate ([snapshotTargets], `wow.snapshot.stores`, and [snapshotPrimary], `wow.snapshot.primary`),
+ * and each aggregate's own, by `<context>.<aggregate>` ([aggregates], `wow.aggregates.[<context>.<aggregate>]`).
  */
 @InternalWowApi
 class StorePlacements(
@@ -216,7 +215,7 @@ class StorePlacements(
 )
 
 /**
- * One aggregate type's stores (decision D177): its [log] store (`.log.store`), its [snapshots] targets (`.snapshot.store`)
+ * One aggregate type's stores (decision D177): its [log] store (`.log.store`), its [snapshots] stores (`.snapshot.stores`)
  * and their [snapshotPrimary] (`.snapshot.primary`); none set, the defaults.
  */
 @InternalWowApi

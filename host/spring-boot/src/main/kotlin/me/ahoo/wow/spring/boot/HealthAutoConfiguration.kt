@@ -174,7 +174,7 @@ internal class HealthGroupsEnvironmentPostProcessor : EnvironmentPostProcessor {
         if (!ClassUtils.isPresent(HEALTH_INDICATOR, classLoader) || !ClassUtils.isPresent(ENDPOINT, classLoader)) {
             return
         }
-        if (environment.getProperty(ENABLED, Boolean::class.java, true) == false ||
+        if (!WowProperties.of(environment).health.enabled ||
             environment.getProperty(PROBES, Boolean::class.java, true) == false
         ) {
             return

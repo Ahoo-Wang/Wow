@@ -29,6 +29,7 @@ description: "框架的错误码与 HTTP 状态，以及查询请求被拒时的
 | `wow.command.busy` | 429 | Command busy | The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; retry later. |
 | `wow.command.unknown` | 503 | Command outcome unknown | Whether the command committed is unknown; retrying with the same request id is safe. |
 | `wow.command.failed` | 500 | Command failed | The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike. |
+| `wow.command.refused` | 409 | Command refused | The aggregate's current state refuses the command (a check of its decide function); the message says why. |
 | `wow.node.closing` | 503 | Node closing | The node is shutting down; retry on another node. |
 | `wow.node.standby` | 503 | Node on standby | The node is on standby until the cut-over: it serves reads only. |
 | `wow.storage.unavailable` | 503 | Storage unavailable | A store could not be reached or did not answer in time; retry later, a command with the same request id. |
@@ -45,7 +46,7 @@ description: "框架的错误码与 HTTP 状态，以及查询请求被拒时的
 | `wow.query.min-version-not-reached` | 409 | Version not reached | The state read asked for a version the aggregate has not reached within the wait; the problem carries its current version: retry later. |
 | `wow.query.busy` | 429 | Query busy | The query was not run: its store has as many queries running as it allows; retry later. |
 | `wow.query.dataset-unavailable` | 409 | Dataset unavailable | The dataset is served but cannot be queried now, for the reason the problem names (it needs revision). |
-| `wow.call.command-forbidden` | 403 | Call forbidden | The calling service may not call this command: its wow.http.services.&lt;service&gt;.commands do not list it. |
+| `wow.call.command-forbidden` | 403 | Call forbidden | The calling service may not call this command: its wow.callers.&lt;service&gt;.commands do not list it. |
 
 ## 查询请求的代码
 

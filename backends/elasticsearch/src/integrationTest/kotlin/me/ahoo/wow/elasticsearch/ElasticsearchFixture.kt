@@ -16,7 +16,7 @@ package me.ahoo.wow.elasticsearch
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient
 import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.transport.rest5_client.low_level.Rest5Client
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.tck.containers.WowContainers
@@ -36,7 +36,7 @@ internal object ElasticsearchFixture {
 
     /** The configuration of a store over the container, refreshing on every write so a search sees it at once. */
     fun config(
-        ddl: StoreDdl = StoreDdl.AUTO,
+        ddl: Ddl = Ddl.AUTO,
         options: Map<String, String> = mapOf(ElasticsearchStoreProvider.REFRESH to "true"),
     ): StoreConfig = StoreConfig.of(
         name = "search",
@@ -46,7 +46,7 @@ internal object ElasticsearchFixture {
         resources = StoreResources.of(mapOf("elasticsearch" to restClient)),
     )
 
-    fun store(ddl: StoreDdl = StoreDdl.AUTO): ElasticsearchStore =
+    fun store(ddl: Ddl = Ddl.AUTO): ElasticsearchStore =
         ElasticsearchStoreProvider().open(config(ddl)) as ElasticsearchStore
 
     val names: ElasticsearchNames = ElasticsearchNames()

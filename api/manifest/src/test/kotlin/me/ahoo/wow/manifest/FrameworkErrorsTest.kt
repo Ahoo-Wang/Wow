@@ -40,6 +40,7 @@ class FrameworkErrorsTest {
                 "wow.command.busy" to 429,
                 "wow.command.unknown" to 503,
                 "wow.command.failed" to 500,
+                "wow.command.refused" to 409,
                 "wow.node.closing" to 503,
                 "wow.node.standby" to 503,
                 "wow.storage.unavailable" to 503,

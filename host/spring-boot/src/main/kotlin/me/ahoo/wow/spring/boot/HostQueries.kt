@@ -22,7 +22,6 @@ import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.events.UnpinnedEvents
-import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.schema.QueryModel
@@ -36,6 +35,8 @@ import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.store.StoreTypes
+import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.spi.config.configCheck
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.WritePressure
@@ -69,7 +70,7 @@ class SnapshotQueryBackend(
     /** The store [type]'s snapshot queries run on (review R3.4-2), or null when the host does not know it. */
     fun storeOf(type: AggregateType): String? = store.invoke(type)
 
-    /** Manages [declarations], [type]'s indexes on its query model [schema], as `wow.query.index.ddl` says. */
+    /** Manages [declarations], [type]'s indexes on its query model [schema], as the `ddl` of its store says. */
     fun manageIndexes(
         type: AggregateType,
         schema: QueryModelSchema,
@@ -228,8 +229,9 @@ internal object HostQueryBulkheads {
 /**
  * Manages the indexes of every aggregate type in [types] at startup (decision D151), after the backends' schemas
  * exist ([BackendsLifecycle]) and before the node starts: each aggregate's storage is prepared, its query model
- * compiled from [catalog], and its Manifest's `x-wow-index` planned and managed by [backend] as [ddl] says. A key
- * the model cannot index fails the start.
+ * compiled from [catalog], and its Manifest's `x-wow-index` planned and managed by [backend] as the `ddl` of the store
+ * it is on says (`wow.stores.<store>.ddl`, else `wow.ddl`). A key the model cannot index fails the start, and so does
+ * an index that `validate` finds missing or invalid: a query it would serve scans the whole collection.
  */
 @InternalWowApi
 class QueryIndexesLifecycle(
@@ -237,7 +239,8 @@ class QueryIndexesLifecycle(
     private val types: List<AggregateType>,
     private val backend: SnapshotQueryBackend,
     private val catalog: QuerySchemaCatalog,
-    private val ddl: QueryIndexDdl,
+    /** The key of the `ddl` that applies to a store, by the store's name: `wow.ddl` unless the store sets its own. */
+    private val ddlKeyOf: (store: String?) -> String = { DDL },
 ) : SmartLifecycle {
     @Volatile
     private var running = false
@@ -248,7 +251,7 @@ class QueryIndexesLifecycle(
         private set
 
     override fun start() {
-        if (ddl != QueryIndexDdl.NONE && backend.managesIndexes) {
+        if (backend.managesIndexes) {
             reports = types.filter(backend::serves).associateWith { type ->
                 backend.prepare(type)
                 val schema = runBlocking { catalog.schema(type, QueryModel.SNAPSHOT) }
@@ -260,7 +263,27 @@ class QueryIndexesLifecycle(
                 }
             }
         }
+        refuseUnmanaged()
         running = true
+    }
+
+    /** Refuses the start when an index is still missing or invalid: what `validate` reports and does not create. */
+    private fun refuseUnmanaged() {
+        val unmanaged = reports.mapNotNull { (type, report) ->
+            val left = (report.missing + report.invalid).distinct() - report.created.toSet()
+            left.takeIf { it.isNotEmpty() }?.let { type to it }
+        }
+        if (unmanaged.isEmpty()) {
+            return
+        }
+        val key = ddlKeyOf(backend.storeOf(unmanaged.first().first))
+        throw WowConfigurationException(
+            key,
+            Ddl.VALIDATE.name.lowercase(),
+            "The query indexes ${unmanaged.joinToString { (type, indexes) -> "$indexes of $type" }} are missing " +
+                "or invalid, and $key=validate creates none.",
+            "Create them (a run with $key=auto creates them), or drop their x-wow-index declarations.",
+        )
     }
 
     override fun stop() {
@@ -273,5 +296,6 @@ class QueryIndexesLifecycle(
 
     private companion object {
         val logger = KotlinLogging.logger {}
+        const val DDL = "wow.ddl"
     }
 }

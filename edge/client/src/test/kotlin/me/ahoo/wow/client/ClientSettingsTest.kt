@@ -65,6 +65,41 @@ class ClientSettingsTest {
     }
 
     @Test
+    fun `a peer's own timeout should bound its requests over the default`() {
+        val transport = HttpTransport(
+            EndpointResolver.NONE,
+            ClientMode.Service("basket-service"),
+            HttpCommandCaller.client(),
+            30.seconds,
+            RetryPolicy.NONE,
+            mapOf("mail" to 5.seconds),
+        )
+        transport.timeoutOf("mail").assert().isEqualTo(5.seconds)
+        transport.timeoutOf("box").assert().isEqualTo(30.seconds)
+        assertThrownBy<IllegalArgumentException> {
+            HttpTransport(
+                EndpointResolver.NONE,
+                ClientMode.Service(null),
+                HttpCommandCaller.client(),
+                30.seconds,
+                RetryPolicy.NONE,
+                mapOf("mail" to Duration.ZERO),
+            )
+        }
+        assertThrownBy<IllegalArgumentException> { WowClient.builder().timeout("mail", Duration.ZERO) }
+        WowClient.builder().timeout("mail", 5.seconds).contracts(emptyList()).build().assert().isNotNull()
+        HttpCommandCaller(EndpointResolver.NONE, "basket-service", HttpCommandCaller.client(), 10.seconds)
+            .reaches("mail").assert().isFalse()
+        HttpCommandCaller(
+            EndpointResolver.of(emptyMap(), mapOf("mail" to URI.create("http://mail:9090"))),
+            "basket-service",
+            HttpCommandCaller.client(),
+            10.seconds,
+            mapOf("mail" to 2.seconds),
+        ).reaches("mail").assert().isTrue()
+    }
+
+    @Test
     fun `a retry policy should wait Retry-After within its bound, else its doubling backoff`() {
         val policy = RetryPolicy.of(maxAttempts = 4, maxRetryAfter = 2.seconds, backoff = 100.milliseconds)
         policy.delayBefore(1, null).assert().isEqualTo(100.milliseconds)

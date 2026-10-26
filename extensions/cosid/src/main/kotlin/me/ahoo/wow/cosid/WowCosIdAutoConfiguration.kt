@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.cosid
 
-import me.ahoo.cosid.CosId
 import me.ahoo.cosid.provider.IdGeneratorProvider
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import org.springframework.context.annotation.Bean
@@ -72,14 +71,19 @@ class WowCosIdAutoConfiguration {
     }
 
     companion object {
-        /** The name of the CosId generator of the global ids. */
-        const val GLOBAL_GENERATOR: String = "wow.cosid.global-generator"
+        /** The name of the CosId generator of the global ids, [CosIdProperties.GLOBAL_GENERATOR]. */
+        const val GLOBAL_GENERATOR: String = CosIdProperties.GLOBAL_GENERATOR
 
         /** The host's bean of the aggregate types no `id-generator` names (`WowAutoConfiguration`'s). */
         const val AGGREGATE_ID_GENERATOR: String = "wowAggregateIdGenerator"
 
+        /**
+         * The CosId generator of the global ids: `wow.cosid.global-generator`, read from the environment since the
+         * module imports no Spring Boot (decision D118), else [CosIdProperties]' default, its one default.
+         */
         internal fun globalName(environment: Environment): String =
-            environment.getProperty(GLOBAL_GENERATOR)?.takeIf { it.isNotBlank() } ?: CosId.COSID
+            environment.getProperty(CosIdProperties.GLOBAL_GENERATOR)?.takeIf { it.isNotBlank() }
+                ?: CosIdProperties().globalGenerator
 
         private fun runsCosId(context: ConditionContext): Boolean =
             context.beanFactory?.getBeanNamesForType(IdGeneratorProvider::class.java, true, false)

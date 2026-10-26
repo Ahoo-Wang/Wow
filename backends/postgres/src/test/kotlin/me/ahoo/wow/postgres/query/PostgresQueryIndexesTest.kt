@@ -18,8 +18,8 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.postgres.PostgresIdentifiers
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
-import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.index.QueryIndexDeclaration
+import me.ahoo.wow.spi.Ddl
 import org.junit.jupiter.api.Test
 
 class PostgresQueryIndexesTest {
@@ -68,7 +68,7 @@ class PostgresQueryIndexesTest {
 
     @Test
     fun `the options default to managing the indexes`() {
-        PostgresQueryOptions().indexDdl.assert().isEqualTo(QueryIndexDdl.AUTO)
+        PostgresQueryOptions().indexDdl.assert().isEqualTo(Ddl.AUTO)
         assertThrownBy<IllegalArgumentException> { PostgresQueryOptions(fetchSize = 0) }
     }
 }

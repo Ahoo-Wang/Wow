@@ -77,7 +77,8 @@ internal class PostgresStoreProvider : StoreProvider {
 /**
  * A store on PostgreSQL over [dataSource]: each context its own log, snapshot and timer tables; the checkpoints,
  * leases, failure ledger and reservations shared. Its log appends straight to the database (decision D10): one
- * autocommit statement allocates the sequence, so the append queue is off by default. Its queries read through
+ * autocommit statement allocates the sequence; under load the node's append queue gathers a partition's appends
+ * into one statement. Its queries read through
  * [queryDataSource], [dataSource] unless the store names another (review R3.4-2).
  */
 internal class PostgresStore(

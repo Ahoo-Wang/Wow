@@ -43,7 +43,7 @@ interface QueryApi {
     /**
      * The queries [caller] may run: restricted to its tenant (or the fixed tenant of an aggregate type that has one),
      * its owner and space, and to the rows its attributes see (ABAC and the application's query policies), under the
-     * in-process budget (`wow.query.in-process.*`, the HTTP defaults).
+     * in-process budget (`wow.query.budgets.in-process.*`, the HTTP defaults).
      */
     fun of(caller: Caller): Queries
 
@@ -109,7 +109,7 @@ interface SubscriptionQueries : Queries {
 interface TrustedQueries : Queries {
     /**
      * These queries without a budget: no list, page or count bound, exact counts; only the in-process timeout
-     * (`wow.query.in-process-timeout`) applies. For jobs that read a whole model, not for anything a request drives.
+     * (`wow.query.unbounded-timeout`) applies. For jobs that read a whole model, not for anything a request drives.
      */
     fun unbounded(): Queries
 }

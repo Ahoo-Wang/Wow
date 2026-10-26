@@ -18,7 +18,7 @@ import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.IndexOptions
-import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.Ddl
 import org.bson.Document
 import org.bson.conversions.Bson
 
@@ -33,18 +33,18 @@ import org.bson.conversions.Bson
  */
 internal object MongoFormat {
     /**
-     * Makes sure of [structure] as [ddl] says (review A5-10): [claim]s it under [StoreDdl.AUTO], checks its record
-     * under [StoreDdl.VALIDATE] ([validate]), does nothing under [StoreDdl.NONE].
+     * Makes sure of [structure] as [ddl] says (review A5-10): [claim]s it under [Ddl.AUTO], checks its record
+     * under [Ddl.VALIDATE] ([validate]), does nothing under [Ddl.NONE].
      */
-    fun claim(database: MongoDatabase, structure: String, version: Int, ddl: StoreDdl) {
+    fun claim(database: MongoDatabase, structure: String, version: Int, ddl: Ddl) {
         when (ddl) {
-            StoreDdl.AUTO -> claim(MongoTimeouts.ddl(database), structure, version)
-            StoreDdl.VALIDATE -> validate(MongoTimeouts.ddl(database), structure, version)
-            StoreDdl.NONE -> Unit
+            Ddl.AUTO -> claim(MongoTimeouts.ddl(database), structure, version)
+            Ddl.VALIDATE -> validate(MongoTimeouts.ddl(database), structure, version)
+            Ddl.NONE -> Unit
         }
     }
 
-    /** Checks that [structure] is recorded at [version], creating nothing ([StoreDdl.VALIDATE]). */
+    /** Checks that [structure] is recorded at [version], creating nothing ([Ddl.VALIDATE]). */
     fun validate(database: MongoDatabase, structure: String, version: Int) {
         val stored = database.getCollection(COLLECTION).find(Filters.eq(ID, structure)).first()?.getInteger(VERSION)
         checkNotNull(stored) {
@@ -58,13 +58,13 @@ internal object MongoFormat {
     }
 
     /**
-     * Makes sure of the index [options] names on [collection] as [ddl] says: creates it under [StoreDdl.AUTO], checks
-     * it exists under [StoreDdl.VALIDATE], does nothing under [StoreDdl.NONE].
+     * Makes sure of the index [options] names on [collection] as [ddl] says: creates it under [Ddl.AUTO], checks
+     * it exists under [Ddl.VALIDATE], does nothing under [Ddl.NONE].
      */
-    fun index(collection: MongoCollection<Document>, keys: Bson, options: IndexOptions, ddl: StoreDdl) {
+    fun index(collection: MongoCollection<Document>, keys: Bson, options: IndexOptions, ddl: Ddl) {
         when (ddl) {
-            StoreDdl.AUTO -> MongoTimeouts.ddl(collection).createIndex(keys, options)
-            StoreDdl.VALIDATE -> {
+            Ddl.AUTO -> MongoTimeouts.ddl(collection).createIndex(keys, options)
+            Ddl.VALIDATE -> {
                 val names = MongoTimeouts.ddl(collection).listIndexes().mapNotNull { it.getString("name") }.toSet()
                 check(options.name in names) {
                     "The index ${options.name} of ${collection.namespace.collectionName} is missing, and the store " +
@@ -72,7 +72,7 @@ internal object MongoFormat {
                 }
             }
 
-            StoreDdl.NONE -> Unit
+            Ddl.NONE -> Unit
         }
     }
 

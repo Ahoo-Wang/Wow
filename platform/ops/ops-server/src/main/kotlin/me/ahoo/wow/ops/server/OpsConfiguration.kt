@@ -15,16 +15,17 @@ package me.ahoo.wow.ops.server
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.cosec.api.authorization.Authorization
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spring.boot.DevelopmentMode
+import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.core.env.Environment
 
 /**
  * The ops service's beans: who calls it, and what each caller may send.
@@ -54,24 +55,25 @@ class OpsConfiguration {
         return OpsCallers()
     }
 
+    /**
+     * What each caller may send: CoSec's policies decide who is an operator when CoSec authorizes the requests itself
+     * (`wow.cosec.authorizer.enabled`), CoSec's default tenant being Wow's (`wow.tenant.default`), both read from the
+     * host's settings, their one reader.
+     */
     @Bean
-    fun opsAuthorizer(authorization: ObjectProvider<Authorization>, environment: Environment): CommandAuthorizer {
-        val policies = authorization.ifUnique
-            ?.takeIf { environment.getProperty(COSEC_AUTHORIZER_ENABLED, Boolean::class.java, false) }
-            ?: return OpsAuthorizer()
-        val defaultTenant = environment.getProperty(DEFAULT_TENANT).orEmpty().ifBlank { Caller.DEFAULT_TENANT }
+    @OptIn(InternalWowApi::class)
+    fun opsAuthorizer(authorization: ObjectProvider<Authorization>, wow: WowProperties): CommandAuthorizer {
+        val policies = authorization.ifUnique?.takeIf { wow.cosec.authorizer.enabled } ?: return OpsAuthorizer()
+        val defaultTenant = wow.tenant.default.ifBlank { Caller.DEFAULT_TENANT }
         return OpsAuthorizer(CoSecCommandAuthorizer(policies, defaultTenant))
     }
 
     companion object {
-        /** The switch that takes the callers from the request headers ([OpsCallers]): off by default. */
+        /**
+         * The switch that takes the callers from the request headers ([OpsCallers]), off by default: a condition only,
+         * the host's `wow.platform.trust-identity-headers` holding its metadata and its default.
+         */
         const val TRUST_IDENTITY_HEADERS: String = "wow.platform.trust-identity-headers"
-
-        /** Whether CoSec's policies decide who is an operator, where CoSec authorizes the requests itself. */
-        const val COSEC_AUTHORIZER_ENABLED: String = "wow.cosec.authorizer.enabled"
-
-        /** Wow's default tenant, which CoSec's policies see as CoSec's default one. */
-        const val DEFAULT_TENANT: String = "wow.tenant.default"
 
         private val logger = KotlinLogging.logger {}
     }

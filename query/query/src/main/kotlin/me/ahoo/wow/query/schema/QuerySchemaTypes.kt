@@ -26,7 +26,7 @@ private fun requireQuerySchemaIdentifier(value: String) {
  * A read model a query runs against: [SNAPSHOT], a [DATASET] ([QueryDataset][me.ahoo.wow.query.dataset.QueryDataset]), or a custom model. The `events` model of an
  * aggregate's log (decision D131) is not a record set a backend filters freely, so it is not one of these (6.2c).
  */
-data class QueryModel(
+class QueryModel @InternalWowApi constructor(
     val value: String,
 ) {
     init {
@@ -51,6 +51,13 @@ data class QueryModel(
         @JvmStatic
         fun from(value: String): QueryModel = QueryModel(value)
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is QueryModel && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    private fun valueFields(): List<Any?> = listOf(value)
 }
 
 /**
@@ -74,7 +81,7 @@ enum class QueryCapability {
 }
 
 @ExperimentalWowApi
-data class QueryValueType(
+class QueryValueType @InternalWowApi constructor(
     val value: String,
 ) {
     init {
@@ -93,6 +100,13 @@ data class QueryValueType(
         @JvmStatic
         fun from(value: String): QueryValueType = QueryValueType(value)
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is QueryValueType && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    private fun valueFields(): List<Any?> = listOf(value)
 }
 
 @InternalWowApi

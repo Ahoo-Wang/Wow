@@ -47,7 +47,7 @@ import java.net.http.HttpResponse
 
 /**
  * The host's synchronous calls (decision D193): `wow.calls.*` gives the node its client of the other contexts'
- * gateways, at their internal ports, naming its service (`Wow-Service`, decision D300); `wow.http.services.*` what
+ * gateways, at their internal ports, naming its service (`Wow-Service`, decision D300); `wow.callers.*` what
  * each calling service may call there. The [host] here calls the internal port of a [target], as another service
  * would, at the port the target bound; the target's public port refuses calls.
  */
@@ -55,14 +55,14 @@ import java.net.http.HttpResponse
 class HostCallsTest {
     private val target = startHost()
     private val host = startHost(
-        "wow.calls.contexts.bank.url" to "http://127.0.0.1:${target.internalPort}",
-        "wow.calls.timeout" to "5s",
+        "wow.peers.bank.url" to "http://127.0.0.1:${target.internalPort}",
+        "wow.peer.timeout" to "5s",
     )
 
     /** A target whose list narrows the service's calls (decision D226). */
     private val narrowed = startHost(
-        "wow.http.services.ledger-service.commands[0]" to "wow.lifecycle.*",
-        "wow.http.services.ledger-service.commands[1]" to "bank.account.Deposit",
+        "wow.callers.ledger-service.commands[0]" to "wow.lifecycle.*",
+        "wow.callers.ledger-service.commands[1]" to "bank.account.Deposit",
     )
 
     /** A target with a call authorizer bean (CoSec's, say) that denies every call (decision D226). */
@@ -172,11 +172,11 @@ class HostCallsTest {
     }
 
     @Test
-    fun `a context without a URL should be refused`() {
-        val properties = WowProperties().apply { calls.contexts["mail"] = WowProperties.Calls.CallTarget() }
+    fun `a listed peer without a URL or a service to look up should refuse the start`() {
+        val properties = WowProperties().apply { peers["mail"] = WowProperties.PeerTarget() }
         assertThrows<IllegalStateException> {
-            WowAutoConfiguration().wowEndpointResolver(properties)
-        }.message.assert().contains("wow.calls.contexts.mail.url")
+            PeerEndpoints.of(properties, PeerDiscoveries.load(javaClass.classLoader), { emptyMap() }) { null }
+        }.message.assert().contains("Peer mail has no url")
     }
 
     private companion object {

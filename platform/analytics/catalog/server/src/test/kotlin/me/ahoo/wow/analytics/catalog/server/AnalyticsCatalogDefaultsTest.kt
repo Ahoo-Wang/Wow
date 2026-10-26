@@ -25,7 +25,7 @@ class AnalyticsCatalogDefaultsTest {
     fun `without the header switch no request should be served on its headers' word`() {
         startCatalog(
             AnalyticsCatalogConfiguration.TRUST_IDENTITY_HEADERS to false,
-            "wow.analytics.catalog.watch" to false,
+            "wow.analytics.catalog.watch.enabled" to false,
         ).use { other ->
             other.context.getBean(CallerResolver::class.java).assert().isInstanceOf(CoSecCallerResolver::class.java)
             // No ClickHouse client: the catalog has no table.

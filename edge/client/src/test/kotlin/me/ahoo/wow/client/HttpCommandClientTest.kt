@@ -249,13 +249,13 @@ class HttpCommandClientTest {
     fun `a context without a URL or a command without a contract should not be sent`() {
         caught<IllegalStateException> {
             runBlocking { client(endpoints = EndpointResolver.NONE).wait(DeliverItems(emptyList()), ref) }
-        }.message.assert().contains("wow.clients.contexts.mail.internal-url")
+        }.message.assert().contains("wow.peers.mail.url")
         caught<IllegalStateException> {
             runBlocking {
                 client(ClientMode.User(UserCredential.NONE), endpoints = EndpointResolver.NONE)
                     .wait(DeliverItems(emptyList()), ref)
             }
-        }.message.assert().contains("wow.clients.contexts.mail.url")
+        }.message.assert().contains("wow.peers.mail.public-url")
         val unnamed = WowClient.builder().contracts(emptyList()).build().commands
         assertThrownBy<IllegalArgumentException> { runBlocking { unnamed.wait(DeliverItems(emptyList()), ref) } }
         peer.taken.assert().isEmpty()
