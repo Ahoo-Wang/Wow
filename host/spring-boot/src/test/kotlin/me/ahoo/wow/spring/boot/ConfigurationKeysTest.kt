@@ -58,15 +58,12 @@ class ConfigurationKeysTest {
     }
 
     @Test
-    fun `the keys of a service identity and a call target are checked to their properties (R2_5-3)`() {
+    fun `the keys of a calling service and a call target are checked to their properties (R2_5-3)`() {
         val known = environment(
-            "wow.http.services.basket.tokens[0]" to "t",
             "wow.http.services.basket.commands[0]" to "shop.order.SubmitOrder",
             "wow.http.services.[ordering.v2].commands" to "Checkout",
-            "wow.http.services.ordering.tokens" to "a,b",
+            "wow.http.services.ordering.reads" to "shop.order.snapshot",
             "wow.calls.contexts.ordering.url" to "http://ordering:9090",
-            "wow.calls.token" to "t",
-            "wow.internal.token" to "t",
         )
         keys.unknown(known).assert().isEmpty()
         keys.check(known)
@@ -76,15 +73,20 @@ class ConfigurationKeysTest {
             "wow.http.services.basket.command[0]" to "shop.order.SubmitOrder",
             "wow.http.services.basket" to "t",
             "wow.calls.contexts.ordering.uri" to "http://ordering:9090",
-            "wow.calls.tokens" to "t",
-            "wow.internal.tokens" to "t",
+            // The tokens D300 removed are unknown keys now: a deployment that still sets one does not start.
+            "wow.http.services.ordering.tokens" to "a,b",
+            "wow.calls.token" to "t",
+            "wow.internal.token" to "t",
+            "wow.cosec.service.roles" to "service",
         )
         keys.unknown(mistyped).assert().containsExactlyInAnyOrder(
             "wow.http.services.basket.command[0]",
             "wow.http.services.basket",
             "wow.calls.contexts.ordering.uri",
-            "wow.calls.tokens",
-            "wow.internal.tokens",
+            "wow.http.services.ordering.tokens",
+            "wow.calls.token",
+            "wow.internal.token",
+            "wow.cosec.service.roles",
         )
         val failure = assertThrows<IllegalStateException> { keys.check(mistyped) }
         failure.message.assert().contains("wow.http.services.basket.command[0]")

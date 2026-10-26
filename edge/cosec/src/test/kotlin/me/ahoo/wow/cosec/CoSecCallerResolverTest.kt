@@ -97,14 +97,9 @@ class CoSecCallerResolverTest {
     }
 
     @Test
-    fun `only a principal of a configured service role or policy is a service identity`() {
-        val services = CoSecCallerResolver(
-            CoSecCallerOptions(serviceRoles = setOf("service"), servicePolicies = setOf("wow-service")),
-        )
-        services.callerOf(securityContext("basket", roles = setOf("service")))!!.service.assert().isTrue()
-        services.callerOf(securityContext("basket", policies = setOf("wow-service")))!!.service.assert().isTrue()
-        services.callerOf(securityContext("mallory", roles = setOf("service@s1")))!!.service.assert().isFalse()
+    fun `no principal is a service identity, a service names itself on the internal port (D300)`() {
         resolver.callerOf(securityContext("basket", roles = setOf("service")))!!.service.assert().isFalse()
+        resolver.callerOf(securityContext("basket", policies = setOf("wow-service")))!!.service.assert().isFalse()
     }
 
     @Test

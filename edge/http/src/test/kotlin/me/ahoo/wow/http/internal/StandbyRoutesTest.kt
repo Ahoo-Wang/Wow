@@ -14,6 +14,7 @@
 package me.ahoo.wow.http.internal
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
 import me.ahoo.wow.runtime.cluster.ForwardReply
 import org.junit.jupiter.api.AfterEach
@@ -22,7 +23,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
 /**
- * The operator routes of a node on standby (design 07 §3): its status and its resume, with the cluster token only,
+ * The operator routes of a node on standby (design 07 §3): its status and its resume, from a node of its service only,
  * the resume naming who resumes it for the audit.
  */
 class StandbyRoutesTest {
@@ -47,7 +48,7 @@ class StandbyRoutesTest {
         internalRoutes(
             ClusterChannelHandler { ForwardReply(result = committed(it.command.id)) },
             {},
-            tokens = ClusterTokens(listOf(TOKEN)),
+            service = SERVICE,
             standby = control,
         ),
     )
@@ -56,9 +57,9 @@ class StandbyRoutesTest {
     @AfterEach
     fun close() = server.close()
 
-    private fun send(path: String, body: String? = null, token: String? = TOKEN): HttpResponse<String> {
+    private fun send(path: String, body: String? = null, service: String? = SERVICE): HttpResponse<String> {
         val request = HttpRequest.newBuilder(InternalHttp.uri(server.address, path))
-        token?.let { request.header(InternalHttp.CLUSTER_TOKEN, it) }
+        service?.let { request.header(WowHeaders.SERVICE, it) }
         if (body == null) {
             request.GET()
         } else {
@@ -71,13 +72,14 @@ class StandbyRoutesTest {
     }
 
     @Test
-    fun `the status and the resume take the cluster token, and the resume names who resumes`() {
-        send(InternalHttp.STANDBY_PATH, token = null).statusCode().assert().isEqualTo(401)
+    fun `the status and the resume take a node of the service, and the resume names who resumes`() {
+        send(InternalHttp.STANDBY_PATH, service = null).statusCode().assert().isEqualTo(401)
+        send(InternalHttp.STANDBY_PATH, service = "ordering-service").statusCode().assert().isEqualTo(403)
         send(InternalHttp.STANDBY_PATH).also {
             it.statusCode().assert().isEqualTo(200)
             it.body().assert().contains("\"standby\":true").contains("\"resumedBy\":null")
         }
-        send(InternalHttp.RESUME_PATH, """{"by":"op"}""", token = null).statusCode().assert().isEqualTo(401)
+        send(InternalHttp.RESUME_PATH, """{"by":"op"}""", service = null).statusCode().assert().isEqualTo(401)
         send(InternalHttp.RESUME_PATH, """{"reason":"cut-over"}""").also {
             it.statusCode().assert().isEqualTo(400)
             it.body().assert().contains("names who resumes the node")
@@ -110,6 +112,6 @@ class StandbyRoutesTest {
     }
 
     private companion object {
-        const val TOKEN = "cluster-token-standby-0123456789abcdef"
+        const val SERVICE = "bank-service"
     }
 }

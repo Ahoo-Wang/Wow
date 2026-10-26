@@ -22,7 +22,6 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.client.SendOptions
-import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.SubscriptionQueries
 import me.ahoo.wow.api.read.snapshots
@@ -63,7 +62,7 @@ import kotlin.coroutines.CoroutineContext
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HostClientsTest {
-    private val bank = startHost("wow.http.services.ledger-service.tokens[0]" to TOKEN)
+    private val bank = startHost()
 
     @AfterAll
     fun close() {
@@ -89,7 +88,7 @@ class HostClientsTest {
     private fun client(mode: ClientMode) = lazy {
         WowClient.builder().endpoints(endpoints).contracts(contracts.fragments).apply {
             when (mode) {
-                is ClientMode.Service -> service(mode.credential)
+                is ClientMode.Service -> service(checkNotNull(mode.service))
                 is ClientMode.User -> user(mode.credential)
             }
         }.build()
@@ -99,7 +98,7 @@ class HostClientsTest {
         mapOf(BANK to mode),
         contracts.localContexts,
         contracts.peerContexts,
-        client(ClientMode.Service(ServiceCredential.bearer(TOKEN))),
+        client(ClientMode.Service(SERVICE)),
         client(ClientMode.User(UserCredential.FORWARDED)),
         mode,
     )
@@ -195,7 +194,7 @@ class HostClientsTest {
         fun client(mode: ClientMode) = lazy {
             WowClient.builder().endpoints(endpoints).contracts(none.fragments).manifestPeers(setOf(BANK)).apply {
                 when (mode) {
-                    is ClientMode.Service -> service(mode.credential)
+                    is ClientMode.Service -> service(checkNotNull(mode.service))
                     is ClientMode.User -> user(mode.credential)
                 }
             }.build()
@@ -205,7 +204,7 @@ class HostClientsTest {
                 mapOf(BANK to mode),
                 none.localContexts,
                 none.peerContexts,
-                client(ClientMode.Service(ServiceCredential.bearer(TOKEN))),
+                client(ClientMode.Service(SERVICE)),
                 client(ClientMode.User(UserCredential.FORWARDED)),
                 mode,
                 described = setOf(BANK),
@@ -285,7 +284,7 @@ class HostClientsTest {
                 }
             },
             endpoints,
-            ServiceCredential.NONE,
+            NodeIdentity(SERVICE, "n-1", null, "127.0.0.1", "127.0.0.1"),
             none,
             GlobalIdGenerator.UUID_V7,
         )
@@ -309,7 +308,7 @@ class HostClientsTest {
         val peers = WowAutoConfiguration().wowPeerClients(
             WowProperties().apply { clients.contexts[BANK] = WowProperties.Clients.ClientTarget() },
             endpoints,
-            ServiceCredential.NONE,
+            NodeIdentity(SERVICE, "n-1", null, "127.0.0.1", "127.0.0.1"),
             contracts,
             GlobalIdGenerator.UUID_V7,
         )
@@ -340,6 +339,6 @@ class HostClientsTest {
     }
 
     private companion object {
-        const val TOKEN = "ledger-service-token-0123456789abcdef"
+        const val SERVICE = "ledger-service"
     }
 }

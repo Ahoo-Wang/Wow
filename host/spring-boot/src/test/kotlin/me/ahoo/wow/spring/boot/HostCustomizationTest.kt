@@ -152,10 +152,6 @@ class HostCustomizationTest {
 
 /** The host refuses a configuration it cannot serve, before anything starts. */
 class HostRefusalTest {
-    private companion object {
-        const val CLUSTER_TOKEN = "bank-cluster-token-0123456789abcdef"
-    }
-
     private fun refusal(vararg properties: Pair<String, Any>): String {
         val failure = runCatching { startHost(*properties).close() }.exceptionOrNull()
         checkNotNull(failure) { "The host started." }
@@ -175,15 +171,14 @@ class HostRefusalTest {
     @Test
     fun `auto without a durable backend should be refused outside a development node`() {
         // Review R3.5-1: the node started in memory with a warning, and lost its commands on a restart.
-        refusal("wow.internal.host" to "0.0.0.0", "wow.internal.token" to CLUSTER_TOKEN).assert()
+        refusal("wow.internal.host" to "0.0.0.0").assert()
             .contains("No durable backend").contains("wow.backend=memory")
         startHost(
             "wow.internal.host" to "0.0.0.0",
-            "wow.internal.token" to CLUSTER_TOKEN,
             "wow.backend" to "memory"
         ).use { it.context.getBean(HostBackends::class.java).type.assert().isEqualTo("memory") }
         SpringApplicationBuilder(HostTestApp::class.java)
-            .properties(hostProperties + mapOf("wow.internal.host" to "0.0.0.0", "wow.internal.token" to CLUSTER_TOKEN))
+            .properties(hostProperties + mapOf("wow.internal.host" to "0.0.0.0"))
             .profiles("dev")
             .run()
             .use { it.getBean(HostBackends::class.java).type.assert().isEqualTo("memory") }

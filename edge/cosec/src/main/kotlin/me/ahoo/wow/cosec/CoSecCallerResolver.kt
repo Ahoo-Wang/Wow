@@ -40,9 +40,6 @@ import org.springframework.web.reactive.function.server.ServerRequest
  *   [tenantPolicies], compared whole: its caller has no owner, so it reads and writes every aggregate of its tenant,
  *   each action still authorized by CoSec. Any other principal is an owner-level caller, its own owner.
  * - The principal's attributes whose key starts with [attributePrefix] are its ABAC attributes.
- * - A principal is a service identity (decision D193) when it has one of [serviceRoles] or one of [servicePolicies],
- *   compared whole: another service of the system, authenticated by the token CoSec issued to its service account,
- *   which alone may assert the root command of a synchronous call (`Wow-Call`).
  * - [trustInjectedApp] (decision D236 ②, `wow.cosec.trust-injected-app`, off by default) takes the application of a
  *   security context CoSec's inject mode injected as the caller's ([CoSecCallerResolver]): a trust decision the host
  *   makes for a service behind a CoSec gateway, which [CoSecAutoConfiguration] allows in that mode alone.
@@ -57,8 +54,6 @@ class CoSecCallerOptions @InternalWowApi constructor(
     val attributePrefix: String = ABAC_PREFIX,
     val tenantRoles: Set<String> = emptySet(),
     val tenantPolicies: Set<String> = emptySet(),
-    val serviceRoles: Set<String> = emptySet(),
-    val servicePolicies: Set<String> = emptySet(),
     val trustInjectedApp: Boolean = false,
 ) {
     init {
@@ -74,8 +69,7 @@ class CoSecCallerOptions @InternalWowApi constructor(
     override fun toString(): String =
         "CoSecCallerOptions(defaultTenant=$defaultTenant, crossScopeRoles=$crossScopeRoles, " +
             "crossScopePolicies=$crossScopePolicies, attributePrefix=$attributePrefix, tenantRoles=$tenantRoles, " +
-            "tenantPolicies=$tenantPolicies, serviceRoles=$serviceRoles, servicePolicies=$servicePolicies, " +
-            "trustInjectedApp=$trustInjectedApp)"
+            "tenantPolicies=$tenantPolicies, trustInjectedApp=$trustInjectedApp)"
 
     private fun valueFields(): List<Any?> = listOf(
         defaultTenant,
@@ -84,8 +78,6 @@ class CoSecCallerOptions @InternalWowApi constructor(
         attributePrefix,
         tenantRoles,
         tenantPolicies,
-        serviceRoles,
-        servicePolicies,
         trustInjectedApp,
     )
 
@@ -110,8 +102,8 @@ class CoSecCallerOptions @InternalWowApi constructor(
  *   none when it belongs to none or to several. A `Wow-Space` the principal does not belong to leaves the caller in
  *   that default, so the edge answers 403 `wow.auth.forbidden`.
  * - **Cross scope**: [CoSecCallerOptions.crossScopeRoles] and [CoSecCallerOptions.crossScopePolicies].
- * - **Service identity** (decision D193): [CoSecCallerOptions.serviceRoles] and [CoSecCallerOptions.servicePolicies];
- *   no other principal is one, whatever headers its request carries.
+ * - **Never a service identity**: a service names itself on the internal port (`Wow-Service`, decision D300), never
+ *   through CoSec, so no principal asserts a synchronous call's root command, whatever headers its request carries.
  * - **Attributes**: the principal's roles ([ROLES]), its policies ([POLICIES]), and its ABAC attributes, keyed with
  *   their prefix (`abac.dept`); a value is a list, an array or a comma-separated string.
  * - **Application** ([Caller.app], decision D232): the request's `CoSec-App-Id` only when CoSec's authorization of
@@ -160,8 +152,6 @@ class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerO
             attributes = attributesOf(principal) + appOf(context, options.trustInjectedApp)?.let {
                 mapOf(Caller.APP to listOf(it))
             }.orEmpty(),
-            service = principal.roles.any { it in options.serviceRoles } ||
-                principal.policies.any { it in options.servicePolicies },
         )
     }
 

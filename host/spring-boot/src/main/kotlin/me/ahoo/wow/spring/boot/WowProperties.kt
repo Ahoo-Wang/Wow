@@ -173,7 +173,7 @@ class WowProperties {
      * Whether the node starts on standby: through the dual-run window of a migration's
      * cut-over it serves reads of what `migrate-data` imports, refuses every command (`wow.node.standby`, 503), and
      * handles no subscription, retries no parked entry and runs no job, until its operator resumes it on the internal
-     * port (`POST /wow/node/resume` with the cluster token, naming who resumes it). A subscription that starts at the
+     * port (`POST /wow/node/resume` from a node of its service, naming who resumes it). A subscription that starts at the
      * end of its stream starts where the stream ends at the resume.
      */
     var standby: Boolean = false
@@ -220,18 +220,6 @@ class WowProperties {
          * hold the sender's memory.
          */
         var signalQueueCapacity: Int = HttpSignalSender.DEFAULT_QUEUE_CAPACITY
-
-        /**
-         * The service's cluster tokens, at least 32 characters each: the secret its nodes
-         * share, which alone opens the cluster channel (`/wow/internal/forward`) and the wait signals of the internal
-         * port. A node sends the first and takes any, so a token is rotated by adding the new one second, then moving
-         * it first on every node, then removing the old one; a comma-separated value (`WOW_INTERNAL_TOKEN`) is a list.
-         * A service token of `wow.http.services` opens the call routes, not these, and this token no call route.
-         *
-         * A node without one starts all the same: the internal side is a trusted network, and its
-         * cluster routes then take every request.
-         */
-        var token: MutableList<String> = ArrayList()
 
         /**
          * The development profiles, `dev`, `local`, `test` and `demo`: in them `wow.backend=auto` falls back to memory
@@ -1114,26 +1102,21 @@ class WowProperties {
         var openapi: OpenApi = OpenApi()
 
         /**
-         * The service identities the internal port trusts by their static tokens, by service name: a call whose
-         * `Authorization: Bearer` token is one of them is that service's, which alone may send `Wow-Call`, and only to
-         * the internal port. For a deployment without CoSec; with CoSec, `wow.cosec.service.roles` names its service
-         * principals.
+         * What each calling service may call and read on the internal port, by the name it states (`Wow-Service`, its
+         * `spring.application.name`): optional lists that catch a misconfiguration. The internal port is reachable by
+         * the platform's own pods alone; a service that names itself is taken on that network's word.
          */
         var services: MutableMap<String, Service> = LinkedHashMap()
 
         /**
-         * One trusted service: the [tokens] it may present, at least 32 characters each, several while one is rotated
-         * (add the new one here, switch the caller's `wow.calls.token`, then remove the old one), and the [commands]
-         * it may call, names or patterns (`AddItem`, `shop.cart.*`, `wow.lifecycle.*`):
-         * without them, the domain commands alone; a system command (`wow.*`: the lifecycle, the snapshot rebuild, the
-         * schedules) only when an entry naming `wow.` lists it; an entry naming a domain command narrows the domain
-         * commands to those listed. A CoSec service principal is configured here by its id, with [commands] alone.
-         * The [reads] narrow the models it may read on the internal port's read routes, by
-         * `context.aggregate.model` (`ordering.order.snapshot`, `.events`, `.state`) or a dataset's `context.dataset`,
-         * patterns with `*`: without them, every model the node serves.
+         * One calling service: the [commands] it may call, names or patterns (`AddItem`, `shop.cart.*`,
+         * `wow.lifecycle.*`): without them, the domain commands alone; a system command (`wow.*`: the lifecycle, the
+         * snapshot rebuild, the schedules) only when an entry naming `wow.` lists it; an entry naming a domain command
+         * narrows the domain commands to those listed. The [reads] narrow the models it may read on the internal port's
+         * read routes, by `context.aggregate.model` (`ordering.order.snapshot`, `.events`, `.state`) or a dataset's
+         * `context.dataset`, patterns with `*`: without them, every model the node serves.
          */
         class Service {
-            var tokens: MutableList<String> = ArrayList()
             var commands: MutableList<String> = ArrayList()
             var reads: MutableList<String> = ArrayList()
         }
@@ -1180,12 +1163,6 @@ class WowProperties {
          */
         var contexts: MutableMap<String, CallTarget> = LinkedHashMap()
 
-        /**
-         * The service token the node presents as `Authorization: Bearer`; an application's
-         * [me.ahoo.wow.api.client.ServiceCredential] bean, such as one that renews a CoSec token, replaces it.
-         */
-        var token: String? = null
-
         /** How long one call may take. */
         var timeout: Duration = HttpCommandCaller.DEFAULT_TIMEOUT.toJavaDuration()
 
@@ -1202,8 +1179,8 @@ class WowProperties {
      * The typed clients of the peer contexts over HTTP, `wow-client`'s: a peer context listed in [contexts] is reached
      * over HTTP by the service's [me.ahoo.wow.api.client.CommandClient] and [me.ahoo.wow.api.read.QueryApi] beans; any
      * other context as without these clients (its commands through its topic). An application's
-     * [me.ahoo.wow.client.EndpointResolver] bean may resolve where each peer is instead. The service mode presents the
-     * [me.ahoo.wow.api.client.ServiceCredential] bean (`wow.calls.token`).
+     * [me.ahoo.wow.client.EndpointResolver] bean may resolve where each peer is instead. The service mode names this
+     * node's service (`Wow-Service`).
      */
     class Clients {
         /**
@@ -1336,9 +1313,6 @@ class WowProperties {
 
         /** The tenant-level callers, who read and write every aggregate of their tenant. */
         var tenantLevel: Principals = Principals()
-
-        /** The service identities, whose synchronous calls the internal port takes. */
-        var service: Principals = Principals()
 
         /**
          * Whether a service in CoSec's inject mode, behind a CoSec gateway (`cosec.inject.enabled=true` with

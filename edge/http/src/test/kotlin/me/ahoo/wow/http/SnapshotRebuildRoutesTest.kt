@@ -18,7 +18,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallPermits
-import me.ahoo.wow.http.caller.ServiceTokens
+import me.ahoo.wow.http.caller.DeclaredServices
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.SnapshotManifest
 import me.ahoo.wow.manifest.copyWith
@@ -49,15 +49,15 @@ class SnapshotRebuildRoutesTest {
     @Test
     fun `a service calls the rebuild route on the internal port when its permits list it (R2_3-5)`() {
         val node = HttpNode(rebuilds = true)
-        val tokens = ServiceTokens(mapOf("ops-service" to listOf(TOKEN)), TENANT)
+        val tokens = DeclaredServices.resolver(TENANT)
         val call = CallHeaders.format(CallContext("call-1", TENANT, Scope.NONE, Causation("root-1", "ops/acme/r@1")))
         fun rebuild(permits: CallPermits): Answer = WebTestClient
             .bindToRouterFunction(
-                callRoutes(cartManifest(), node.gateway, tokens.resolver(headerCallers), permits = permits)
+                callRoutes(cartManifest(), node.gateway, tokens, permits = permits)
             )
             .build()
             .post().uri("/shop/snapshot/cart/wow.snapshot.rebuild")
-            .header("Authorization", "Bearer $TOKEN")
+            .header(WowHeaders.SERVICE, "ops-service")
             .header(WowHeaders.CALL, call)
             .header("Content-Type", "application/json")
             .bodyValue("""{"ids":["c-1"]}""")
@@ -102,6 +102,5 @@ class SnapshotRebuildRoutesTest {
     }
 
     private companion object {
-        const val TOKEN = "ops-service-token-0123456789abcdef0123"
     }
 }

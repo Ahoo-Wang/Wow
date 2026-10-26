@@ -41,7 +41,6 @@ import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.beans.factory.ObjectProvider
-import org.springframework.beans.factory.config.BeanFactoryPostProcessor
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.health.contributor.Health
@@ -235,11 +234,6 @@ class AnalyticsCatalogConfiguration {
         const val PREFIX: String = AnalyticsCatalogProperties.PREFIX
         const val DATASETS: String = "${AnalyticsCatalogProperties.PREFIX}.datasets"
         private const val MILLIS = 1000.0
-
-        /** The public port's resolver first, beside CoSec's internal one ([PublicCallersFirst]). */
-        @Bean
-        @JvmStatic
-        fun publicCallersFirst(): BeanFactoryPostProcessor = PublicCallersFirst()
 
         private val logger = KotlinLogging.logger {}
     }

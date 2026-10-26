@@ -23,7 +23,6 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.client.CommandRejectedException
 import me.ahoo.wow.api.client.SendOptions
-import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.client.WowProblemException
 import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
@@ -61,14 +60,14 @@ class HttpCommandClientTest {
     )
 
     private fun client(
-        mode: ClientMode = ClientMode.Service(ServiceCredential.bearer(TOKEN)),
+        mode: ClientMode = ClientMode.Service(SERVICE),
         retry: RetryPolicy = RetryPolicy.of(backoff = 1.milliseconds),
         endpoints: EndpointResolver = EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)),
     ) = WowClient.builder()
         .endpoints(endpoints)
         .apply {
             when (mode) {
-                is ClientMode.Service -> service(mode.credential)
+                is ClientMode.Service -> service(checkNotNull(mode.service))
                 is ClientMode.User -> user(mode.credential)
             }
         }
@@ -91,7 +90,7 @@ class HttpCommandClientTest {
             val request = peer.taken.single()
             request.method.assert().isEqualTo("POST")
             request.path.assert().isEqualTo("/mail/box/a%20b/deliver-items")
-            request.headers["Authorization"].assert().isEqualTo("Bearer $TOKEN")
+            request.headers[WowHeaders.SERVICE].assert().isEqualTo(SERVICE)
             request.headers[WowHeaders.REQUEST_ID].assert().isNotBlank()
             request.headers.containsKey(WowHeaders.WAIT).assert().isFalse()
             WowJson.mapper.readTree(request.body)["items"][0].asString().assert().isEqualTo("mug")
@@ -317,6 +316,6 @@ class HttpCommandClientTest {
     }
 
     private companion object {
-        const val TOKEN = "a-service-token-of-at-least-32-chars"
+        const val SERVICE = "basket-service"
     }
 }

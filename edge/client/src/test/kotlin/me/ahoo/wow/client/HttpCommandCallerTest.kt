@@ -20,7 +20,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
@@ -117,11 +116,11 @@ class HttpCommandCallerTest {
         results = results,
     )
 
-    private fun caller(credential: ServiceCredential = ServiceCredential.bearer(TOKEN), timeout: Duration = 5.seconds) =
-        HttpCommandCaller(mapOf("mail" to base), credential, timeout = timeout)
+    private fun caller(service: String? = SERVICE, timeout: Duration = 5.seconds) =
+        HttpCommandCaller(mapOf("mail" to base), service, timeout = timeout)
 
     @Test
-    fun `a call should be the command's route with its request id, its call and the service's credential`(): Unit =
+    fun `a call should be the command's route with its request id, its call and the service's name`(): Unit =
         runBlocking {
             val call = call(expectedVersion = 3)
             answer = Triple(200, "application/json", WowJson.mapper.writeValueAsBytes(result(call)))
@@ -132,7 +131,7 @@ class HttpCommandCallerTest {
             result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             val request = taken.single()
             request.path.assert().isEqualTo("/mail/box/a%20b%2Fc/deliver-items")
-            request.headers["Authorization"].assert().isEqualTo("Bearer $TOKEN")
+            request.headers[WowHeaders.SERVICE].assert().isEqualTo(SERVICE)
             request.headers[WowHeaders.REQUEST_ID].assert().isEqualTo("r-1")
             request.headers[WowHeaders.IF_MATCH].assert().isEqualTo("\"3\"")
             request.headers["traceparent"].assert().isEqualTo("00-trace-span-01")
@@ -147,10 +146,10 @@ class HttpCommandCallerTest {
     fun `a creation that leaves its id to the target should take the route without an id`(): Unit = runBlocking {
         val call = call(id = "")
         answer = Triple(200, "application/json", WowJson.mapper.writeValueAsBytes(result(call)))
-        caller(ServiceCredential.NONE).call(call)
+        caller(service = null).call(call)
         val request = taken.single()
         request.path.assert().isEqualTo("/mail/box/deliver-items")
-        request.headers.containsKey("Authorization").assert().isFalse()
+        request.headers.containsKey(WowHeaders.SERVICE).assert().isFalse()
         request.headers.containsKey(WowHeaders.IF_MATCH).assert().isFalse()
     }
 
@@ -213,14 +212,14 @@ class HttpCommandCallerTest {
         fixed.reaches("box").assert().isFalse()
         val publicOnly = HttpCommandCaller(
             EndpointResolver.of(mapOf("box" to base)),
-            ServiceCredential.NONE,
+            null,
             HttpCommandCaller.client(),
             5.seconds,
         )
         publicOnly.reaches("box").assert().isFalse()
         val discovered = HttpCommandCaller(
             EndpointResolver { context, port -> base.takeIf { context == "mail" && port == Port.INTERNAL } },
-            ServiceCredential.NONE,
+            null,
             HttpCommandCaller.client(),
             5.seconds,
         )
@@ -229,16 +228,14 @@ class HttpCommandCallerTest {
     }
 
     @Test
-    fun `a caller should take http URLs and a positive timeout, and a credential a token`(): Unit = runBlocking {
+    fun `a caller should take http URLs and a positive timeout, `(): Unit = runBlocking {
         assertThrownBy<IllegalArgumentException> { HttpCommandCaller(mapOf("mail" to URI.create("ftp://host"))) }
         assertThrownBy<IllegalArgumentException> { HttpCommandCaller(mapOf("mail" to base), timeout = Duration.ZERO) }
-        assertThrownBy<IllegalArgumentException> { ServiceCredential.bearer(" ") }
-        ServiceCredential.NONE.authorization().assert().isNull()
         HttpCommandCaller(mapOf("mail" to URI.create("https://mail.example"))).assert().isNotNull()
     }
 
     private companion object {
-        const val TOKEN = "a-service-token-of-at-least-32-chars"
+        const val SERVICE = "basket-service"
         val ROOT = Causation("root", "basket/t/alice@2")
     }
 }

@@ -18,7 +18,6 @@ import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.client.ServiceCredential
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandIndex
 import me.ahoo.wow.manifest.CommandManifest
@@ -46,17 +45,16 @@ class ClientSettingsTest {
     }
 
     @Test
-    fun `credentials should present a bearer token, or forward the request's headers`(): Unit = runBlocking {
-        ServiceCredential.bearer("token").authorization().assert().isEqualTo("Bearer token")
-        ServiceCredential.NONE.authorization().assert().isNull()
-        assertThrownBy<IllegalArgumentException> { ServiceCredential.bearer(" ") }
+    fun `a service names itself, a user's credential is the request's headers forwarded`(): Unit = runBlocking {
+        assertThrownBy<IllegalArgumentException> { WowClient.builder().service(" ") }
         UserCredential.NONE.headers(Caller.ANONYMOUS).assert().isEmpty()
         UserCredential.FORWARDED.headers(Caller.ANONYMOUS).assert().isEmpty()
         val forwarded = ForwardedHeaders(mapOf("Authorization" to "Bearer u"))
         withContext(forwarded) { UserCredential.FORWARDED.headers(Caller.ANONYMOUS) }
             .assert().isEqualTo(mapOf("Authorization" to "Bearer u"))
         forwarded.toString().assert().isEqualTo("ForwardedHeaders([Authorization])")
-        ClientMode.Service(ServiceCredential.NONE).let {
+        ClientMode.Service("basket-service").let {
+            it.service.assert().isEqualTo("basket-service")
             it.port.assert().isEqualTo(Port.INTERNAL)
             it.toString().assert().isEqualTo("ClientMode.Service")
         }
