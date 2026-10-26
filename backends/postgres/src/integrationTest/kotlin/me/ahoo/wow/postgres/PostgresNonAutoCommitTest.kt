@@ -207,6 +207,7 @@ class PostgresNonAutoCommitTest {
             ),
         )
 
-        const val POOL_SIZE = 16
+        // Each lease store pins one connection for its lifetime (decision D270), and the lease specs open one per case.
+        const val POOL_SIZE = 32
     }
 }
