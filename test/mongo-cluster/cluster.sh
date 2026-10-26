@@ -30,7 +30,7 @@ IMAGE=${MONGO_IMAGE:-mongo:7.0}
 url() {
   case $1 in
     rs) echo "mongodb://localhost:27101,localhost:27102,localhost:27103/?replicaSet=rs0" ;;
-    sharded) echo "mongodb://localhost:27200/" ;;
+    sharded) echo "mongodb://localhost:27200,localhost:27202/" ;;
     *) echo "unknown mode $1" >&2; exit 2 ;;
   esac
 }
@@ -41,7 +41,7 @@ up() {
   down
   case $mode in
     rs) ports=(-p 27101-27103:27101-27103) ;;
-    sharded) ports=(-p 27200:27200) ;;
+    sharded) ports=(-p 27200:27200 -p 27202:27202) ;;
   esac
   # --init reaps the members that stop, so the supervisor sees them gone and starts them again.
   docker run -d --init --name "$NAME" "${ports[@]}" -v "$HERE/supervise.sh:/supervise.sh:ro" \

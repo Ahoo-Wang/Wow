@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.reservation
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.FunctionKind
@@ -323,7 +324,7 @@ class ReservationSubscriptionTest {
 
     private companion object {
         const val NAMES = "user.name"
-        val SCOPE = ReservationScope("shop", "t", NAMES)
+        val SCOPE = ReservationScope(AggregateType("shop", "user"), "t", NAMES)
         val TTL = 1.seconds
     }
 }

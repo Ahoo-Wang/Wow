@@ -95,6 +95,19 @@ internal object MongoShards {
         )
 
     /**
+     * Shards the reservation collection [collection] by tenant, then the key's hash (decision D307), as the snapshots
+     * are: every write names both, with the `_id` they derive from, so it routes to the one shard the key lives on.
+     */
+    fun shardReservations(client: MongoClient, database: MongoDatabase, collection: MongoCollection<Document>) =
+        shard(
+            client,
+            database,
+            collection,
+            Document(TENANT_ID, 1).append(KEY, HASHED),
+            Indexes.compoundIndex(Indexes.ascending(TENANT_ID), Indexes.hashed(KEY)),
+        )
+
+    /**
      * Shards [collection] by [key], whose index [index] it creates first; when [chunks] are given and the collection
      * is new (empty, one chunk), splits it at each of them and spreads the chunks over the shards in turn.
      */
@@ -158,6 +171,7 @@ internal object MongoShards {
     private const val PARTITION = "partition"
     private const val TENANT_ID = "tenant_id"
     private const val AGGREGATE_ID = "aggregate_id"
+    private const val KEY = "key"
     private const val HASHED = "hashed"
     private const val ADMIN = "admin"
     private const val CONFIG = "config"

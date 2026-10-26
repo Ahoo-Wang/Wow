@@ -149,7 +149,7 @@ class PostgresNonAutoCommitTest {
     @Nested
     inner class Reservations : ReservationStoreSpec() {
         override fun createStore(clock: Clock): ReservationStore =
-            PostgresReservationStore(dataSource, "reservation_non_autocommit", clock).also { it.createSchema() }
+            PostgresReservationStore(dataSource, clock).also { it.createSchema() }
 
         @AfterEach
         fun restored() = returned.assertRestored()

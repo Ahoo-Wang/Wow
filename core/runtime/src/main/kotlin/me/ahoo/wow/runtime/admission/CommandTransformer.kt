@@ -117,7 +117,7 @@ internal class ReservationTargetResolver(
     override suspend fun transform(input: CommandInput): CommandTarget {
         val id = input.aggregateId ?: key(input)?.let { key ->
             val tenantId = if (tenancy == ReservationTenancy.SYSTEM) ReservationScope.SYSTEM_TENANT else input.tenantId
-            reservations.find(ReservationScope(aggregate.context, tenantId, namespace), key)?.owner
+            reservations.find(ReservationScope(aggregate, tenantId, namespace), key)?.owner
                 ?.takeIf { it.type == aggregate && it.tenantId == input.tenantId }?.id
         }
         return CommandTarget(input.type, id, input.body, input.headers)

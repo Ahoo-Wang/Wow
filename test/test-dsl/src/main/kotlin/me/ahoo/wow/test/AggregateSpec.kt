@@ -207,9 +207,10 @@ class AggregateSpec<S : Any> private constructor(
         }
 
     /**
-     * Gives [key] in [namespace] (decision D38), reserved with [tenancy], to [owner], another aggregate of the same
-     * context (one of this type, `another-aggregate`, by default), as a command of it that committed would: a
-     * command reserving it is then refused (finding A4-14), and [holds] says the aggregate does not hold it.
+     * Gives [key] in [namespace] (decision D38), reserved with [tenancy], to [owner], another aggregate of this type
+     * (`another-aggregate` by default: a key is unique within its aggregate type, decision D307), as a command of it
+     * that committed would: a command reserving it is then refused (finding A4-14), and [holds] says the aggregate
+     * does not hold it.
      */
     fun givenReservation(
         namespace: String,
@@ -218,7 +219,7 @@ class AggregateSpec<S : Any> private constructor(
         tenancy: ReservationTenancy = ReservationTenancy.TENANT,
     ) {
         require(owner != ref) { "$owner is the aggregate under test: a command of it reserves the key." }
-        require(owner.type.context == ref.type.context) { "$owner reserves keys of its own context only." }
+        require(owner.type == ref.type) { "$owner holds keys of its own type only: they do not block ${ref.type}'s." }
         runBlocking {
             val scope = ReservationScope.of(owner, ReservationKey(namespace, key, tenancy == ReservationTenancy.SYSTEM))
             reservations.confirm(scope, key, owner, ReservationStore.UNVERSIONED)

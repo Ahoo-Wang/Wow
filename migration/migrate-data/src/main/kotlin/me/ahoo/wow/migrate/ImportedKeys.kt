@@ -27,8 +27,8 @@ import java.nio.file.StandardOpenOption
 
 /**
  * A key of the 9.x `PrepareKey` [name] that the reservation import confirmed in V10 (finding R2.4-2): [key] in the
- * scope ([context], [tenantId], [namespace]) for the instance ([aggregate], [ownerTenantId], [ownerId]) of that
- * context. The V10 reservation store keeps no origin, so the import records what it confirmed here, and a later import
+ * scope ([context] and [aggregate], the owner's type, [tenantId], [namespace]) for the instance ([ownerTenantId],
+ * [ownerId]) of that type. The V10 reservation store keeps no origin, so the import records what it confirmed here, and a later import
  * releases what 9.x has released or given to another owner since, and nothing V10 took itself.
  */
 data class ImportedKey(
@@ -41,7 +41,8 @@ data class ImportedKey(
     val ownerTenantId: String,
     val ownerId: String,
 ) {
-    fun scope(): ReservationScope = ReservationScope.of(context, tenantId, namespace)
+    /** The scope the key is unique in: its owner's aggregate type (decision D307), tenant and namespace. */
+    fun scope(): ReservationScope = ReservationScope.of(AggregateType(context, aggregate), tenantId, namespace)
 
     fun owner(): AggregateRef = AggregateType(context, aggregate).ref(ownerTenantId, ownerId)
 
@@ -51,7 +52,7 @@ data class ImportedKey(
         fun of(name: String, key: String, scope: ReservationScope, owner: AggregateRef): ImportedKey =
             ImportedKey(
                 name,
-                scope.context,
+                scope.type.context,
                 scope.tenantId,
                 scope.namespace,
                 key,

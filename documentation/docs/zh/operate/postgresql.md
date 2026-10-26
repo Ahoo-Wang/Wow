@@ -80,7 +80,7 @@ wow:
 | `wow_timer__<context>` | 上下文的定时命令 |
 | `wow_checkpoint`、`wow_lease`、`wow_lease_member` | 每个订阅进行到哪里，以及哪个节点拥有哪个分区 |
 | `wow_failure_ledger` | 停放的聚合 |
-| `wow_reservation` | 预留的唯一键 |
+| `wow_reservation__<context>__<aggregate>` | 一种类型的聚合预留的唯一键：每个（租户、命名空间、键）一行，带着它的所有者 |
 | `wow_format` | 每个结构的格式版本 |
 
 日志表的键是位置（`partition`、`sequence`）、版本（`aggregate_id`、`tenant_id`、`version`）和请求（`tenant_id`、`request_id`）：数据库本身就会拒绝同一版本或同一请求的第二次提交。
@@ -133,7 +133,7 @@ wow:
         store: archive
 ```
 
-每个存储运行在它指定的 `DataSource` Bean 上，两个日志存储不能共用一个数据库。放到另一个存储上的聚合类型，把它的日志、它的订阅的检查点、它的失败台账和定时器都放在那里；租约和预留仍留在默认的日志存储上。
+每个存储运行在它指定的 `DataSource` Bean 上，两个日志存储不能共用一个数据库。放到另一个存储上的聚合类型，把它的日志、它的订阅的检查点、它的失败台账、定时器和预留都放在那里；租约仍留在默认的日志存储上。
 
 ## 备份 {#backups}
 

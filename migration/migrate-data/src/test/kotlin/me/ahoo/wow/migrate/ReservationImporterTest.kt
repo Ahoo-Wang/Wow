@@ -74,7 +74,7 @@ class ReservationImporterTest {
         NineXPreparedKey(name, key, WowJson.mapper.readTree(value), ttlAt)
 
     private fun scope(tenantId: String, namespace: String = "order.no") =
-        ReservationScope.of(NineXExample.CONTEXT, tenantId, namespace)
+        ReservationScope.of(NineXExample.orderModel.type, tenantId, namespace)
 
     private val imported = InMemoryImportedKeys()
 

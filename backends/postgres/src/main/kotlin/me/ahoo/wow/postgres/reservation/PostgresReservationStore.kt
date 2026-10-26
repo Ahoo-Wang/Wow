@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.postgres.EnsuredTables
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.inTransaction
@@ -36,8 +37,10 @@ import kotlin.time.Duration
 
 /**
  * The [ReservationStore] on PostgreSQL (documentation/designs/01-programming-model.md §7, decision D38), in the
- * same database as the log: one row per reserved key, keyed by `(context, tenant_id, namespace, key)`, its owner in
- * three columns and the holds of a pending reservation in a `text[]` ([PostgresReservationTables]).
+ * same database as the log: one table per aggregate type, `wow_reservation__<context>__<aggregate>` (decision D307),
+ * created with its format record on the type's first use, as the log's and the snapshots' tables are; in it one row per
+ * reserved key, keyed by `(tenant_id, namespace, key)`, its owner in two columns and the holds of a pending reservation
+ * in a `text[]` ([PostgresReservationTables]).
  *
  * A reserve, a confirm and a release are each one autocommitted statement; a reserve or a confirm is an upsert whose
  * conflict condition admits only the key's owner or an expired pending reservation. An abandon removes its hold and
@@ -49,22 +52,29 @@ import kotlin.time.Duration
 @InternalWowApi
 class PostgresReservationStore(
     private val dataSource: DataSource,
-    table: String = DEFAULT_TABLE,
     private val clock: Clock = Clock.systemUTC(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     /** How the store's tables are managed: created when missing by default (review A5-10). */
     private val ddl: StoreDdl = StoreDdl.AUTO,
 ) : ReservationStore {
-    private val tables = PostgresReservationTables(table)
+    private val created = EnsuredTables<PostgresReservationTables>()
 
     /**
-     * Creates the reservations' table and its owner index when missing; refuses one recorded in another format, or
-     * one without a record ([PostgresFormat], decision D59).
+     * Nothing to create up front: each aggregate type's table is created on its first use, since the store does not
+     * know the aggregate types. Kept for the host, which calls it at startup.
      */
-    fun createSchema() {
-        dataSource.autoCommitted { connection ->
-            PostgresFormat.schema(connection, ddl, listOf(tables.name to PostgresReservationTables.FORMAT)) {
-                connection.createStatement().use { statement -> tables.ddl.forEach { statement.execute(it) } }
+    fun createSchema() = Unit
+
+    /**
+     * The table of [type]'s reservations, created with its owner index when this store has not yet made sure of it;
+     * refuses one recorded in another format, or one without a record ([PostgresFormat], decision D59).
+     */
+    private fun tablesOf(type: AggregateType): PostgresReservationTables = created.get(type.toString()) {
+        PostgresReservationTables(type.context, type.name).also { tables ->
+            dataSource.autoCommitted { connection ->
+                PostgresFormat.schema(connection, ddl, listOf(tables.name to PostgresReservationTables.FORMAT)) {
+                    connection.createStatement().use { statement -> tables.ddl.forEach { statement.execute(it) } }
+                }
             }
         }
     }
@@ -78,10 +88,10 @@ class PostgresReservationStore(
     ): Reservation? {
         require(ttl.isPositive()) { "A reservation's time to live is positive." }
         require(hold.isNotBlank()) { "A reservation's hold is not blank." }
-        requireOwnContext(scope, owner)
+        requireOwnType(scope, owner)
         return jdbc { connection ->
             val now = clock.millis()
-            connection.prepareStatement(tables.reserve).use { reserve ->
+            connection.prepareStatement(tablesOf(scope.type).reserve).use { reserve ->
                 var index = reserve.setKey(1, scope, key)
                 index = reserve.setOwner(index, owner)
                 reserve.setLong(index++, now + ttl.inWholeMilliseconds)
@@ -95,14 +105,14 @@ class PostgresReservationStore(
     override suspend fun abandon(scope: ReservationScope, key: String, owner: AggregateRef, hold: String): Boolean =
         jdbc { connection ->
             inTransaction(connection) {
-                val left = connection.prepareStatement(tables.abandon).use { abandon ->
+                val left = connection.prepareStatement(tablesOf(scope.type).abandon).use { abandon ->
                     abandon.setString(1, hold)
                     val index = abandon.setOwner(abandon.setKey(2, scope, key), owner)
                     abandon.setString(index, hold)
                     abandon.executeQuery().use { rows -> if (rows.next()) rows.getInt(1) else null }
                 }
                 if (left == 0) {
-                    connection.prepareStatement(tables.abandoned).use { free ->
+                    connection.prepareStatement(tablesOf(scope.type).abandoned).use { free ->
                         free.setOwner(free.setKey(1, scope, key), owner)
                         free.executeUpdate()
                     }
@@ -117,12 +127,12 @@ class PostgresReservationStore(
         owner: AggregateRef,
         version: Int,
     ): ConfirmOutcome {
-        requireOwnContext(scope, owner)
+        requireOwnType(scope, owner)
         return jdbc { connection ->
             // A holder that went away between the upsert and the read is retried: the next upsert takes the key.
             repeat(CONFIRM_ATTEMPTS) {
                 val now = clock.millis()
-                val confirmed = connection.prepareStatement(tables.confirm).use { confirm ->
+                val confirmed = connection.prepareStatement(tablesOf(scope.type).confirm).use { confirm ->
                     val index = confirm.setOwner(confirm.setKey(1, scope, key), owner)
                     confirm.setInt(index, version)
                     confirm.setLong(index + 1, now)
@@ -131,7 +141,7 @@ class PostgresReservationStore(
                 if (confirmed) {
                     return@jdbc ConfirmOutcome.Confirmed
                 }
-                val holder = connection.prepareStatement(tables.held).use { held ->
+                val holder = connection.prepareStatement(tablesOf(scope.type).held).use { held ->
                     held.setKey(1, scope, key)
                     held.executeQuery().use { rows -> if (rows.next()) reservationOf(scope, key, rows) else null }
                 }
@@ -145,14 +155,14 @@ class PostgresReservationStore(
 
     override suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef, version: Int): Boolean =
         jdbc { connection ->
-            connection.prepareStatement(tables.release).use { release ->
+            connection.prepareStatement(tablesOf(scope.type).release).use { release ->
                 release.setInt(release.setOwner(release.setKey(1, scope, key), owner), version)
                 release.executeUpdate() == 1
             }
         }
 
     override suspend fun find(scope: ReservationScope, key: String): Reservation? = jdbc { connection ->
-        connection.prepareStatement(tables.find).use { query ->
+        connection.prepareStatement(tablesOf(scope.type).find).use { query ->
             query.setLong(query.setKey(1, scope, key), clock.millis())
             query.executeQuery().use { rows -> if (rows.next()) reservationOf(scope, key, rows) else null }
         }
@@ -162,28 +172,25 @@ class PostgresReservationStore(
         dispatcher.jdbc { dataSource.autoCommitted(block) }
 
     private companion object {
-        const val DEFAULT_TABLE = "wow_reservation"
         const val NOW_PARAMETERS = 3
         const val CONFIRM_ATTEMPTS = 8
 
-        fun requireOwnContext(scope: ReservationScope, owner: AggregateRef) =
-            require(owner.type.context == scope.context) { "$owner reserves keys of its own context only." }
+        fun requireOwnType(scope: ReservationScope, owner: AggregateRef) =
+            require(owner.type == scope.type) { "$owner reserves keys of its own aggregate type only." }
 
-        /** Sets the key's four columns from [index]; the index after them. */
+        /** Sets the key's three columns from [index]; the index after them. */
         fun PreparedStatement.setKey(index: Int, scope: ReservationScope, key: String): Int {
-            setString(index, scope.context)
-            setString(index + 1, scope.tenantId)
-            setString(index + 2, scope.namespace)
-            setString(index + 3, key)
-            return index + 4
+            setString(index, scope.tenantId)
+            setString(index + 1, scope.namespace)
+            setString(index + 2, key)
+            return index + 3
         }
 
-        /** Sets the owner's three columns from [index]; the index after them. */
+        /** Sets the owner's two columns from [index]; the index after them (its type is the table's). */
         fun PreparedStatement.setOwner(index: Int, owner: AggregateRef): Int {
-            setString(index, owner.type.name)
-            setString(index + 1, owner.tenantId)
-            setString(index + 2, owner.id)
-            return index + 3
+            setString(index, owner.tenantId)
+            setString(index + 1, owner.id)
+            return index + 2
         }
 
         fun reservationOf(scope: ReservationScope, key: String, row: ResultSet): Reservation {
@@ -192,8 +199,7 @@ class PostgresReservationStore(
             return Reservation(
                 scope = scope,
                 key = key,
-                owner = AggregateType(scope.context, row.getString("owner_aggregate"))
-                    .ref(row.getString("owner_tenant_id"), row.getString("owner_id")),
+                owner = scope.type.ref(row.getString("owner_tenant_id"), row.getString("owner_id")),
                 expiresAt = row.getObject("expires_at") as Long?,
                 holds = holds.toSet(),
                 version = row.getInt("version"),

@@ -32,6 +32,7 @@ import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
+import me.ahoo.wow.kernel.memory.InMemoryReservationStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.kernel.memory.InMemoryTimerStore
 import me.ahoo.wow.manifest.AggregateManifest
@@ -47,6 +48,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.Timers
@@ -167,6 +169,24 @@ class LogGroupsTest {
     }
 
     @Test
+    fun `each type's reservations are in its group's store, unique within the type`(): Unit = runBlocking {
+        val node = node("node-1").also { it.start() }
+        node.send(ORDER.ref(TENANT, "o-6"), Place(60_000, "n-1")).status.assert()
+            .isEqualTo(CommandResult.Status.SUCCEEDED)
+        // The same key in another type's scope: no conflict (decision D307).
+        node.send(INVOICE.ref(TENANT, "i-6"), Issue(60_000, "n-1")).status.assert()
+            .isEqualTo(CommandResult.Status.SUCCEEDED)
+        node.send(INVOICE.ref(TENANT, "i-7"), Issue(60_000, "n-1")).error?.code.assert().isEqualTo("number.taken")
+        val orders = ReservationScope.of(ORDER, TENANT, NUMBERS)
+        val invoices = ReservationScope.of(INVOICE, TENANT, NUMBERS)
+        eventually { stores.invoices.reservations.find(invoices, "n-1")?.confirmed == true }
+        eventually { stores.default.reservations.find(orders, "n-1")?.confirmed == true }
+        stores.invoices.reservations.find(invoices, "n-1")?.owner.assert().isEqualTo(INVOICE.ref(TENANT, "i-6"))
+        stores.default.reservations.find(invoices, "n-1").assert().isNull()
+        stores.invoices.reservations.find(orders, "n-1").assert().isNull()
+    }
+
+    @Test
     fun `each group's timers are in its store, and sent`(): Unit = runBlocking {
         val node = node("node-1").also { it.start() }
         node.send(ORDER.ref(TENANT, "o-3"), Place(delayMillis = 100))
@@ -255,6 +275,7 @@ class LogGroupsTest {
         val checkpoints = InMemoryCheckpointStore()
         val ledger = InMemoryFailureLedger()
         val timers = InMemoryTimerStore()
+        val reservations = InMemoryReservationStore()
     }
 
     /** The context's orders on the default store, its invoices on a store of their own; one lease store. */
@@ -272,6 +293,7 @@ class LogGroupsTest {
                 leases = leases,
                 ledger = default.ledger,
                 snapshots = snapshots,
+                reservations = default.reservations,
                 timers = default.timers,
                 store = DEFAULT_STORE,
                 groups = listOf(
@@ -282,14 +304,15 @@ class LogGroupsTest {
                         invoices.checkpoints,
                         invoices.ledger,
                         invoices.timers,
+                        invoices.reservations,
                     ),
                 ),
             )
         }
     }
 
-    data class Place(val delayMillis: Long)
-    data class Issue(val delayMillis: Long)
+    data class Place(val delayMillis: Long, val number: String? = null)
+    data class Issue(val delayMillis: Long, val number: String? = null)
     data class Close(val reason: String = "due")
     data class Placed(val delayMillis: Long)
     data class Issued(val delayMillis: Long)
@@ -309,6 +332,7 @@ class LogGroupsTest {
         const val PROJECTOR = "Projector.onEvent"
         const val POISON = "poison"
         const val DUE = "due"
+        const val NUMBERS = "number"
         val ORDER = AggregateType(CONTEXT, "order")
         val INVOICE = AggregateType(CONTEXT, "invoice")
 
@@ -316,10 +340,13 @@ class LogGroupsTest {
         inline fun <reified C : Any, reified E : Any> item(
             name: String,
             crossinline delay: (C) -> Long,
+            crossinline number: (C) -> String?,
             crossinline created: (C) -> E,
         ): AggregateModel<Item> = aggregate<Item>(CONTEXT, name) {
             initial { Item() }
-            decide<C>(Creation.REQUIRED) { _, body ->
+            decideSuspending<C>(Creation.REQUIRED) { _, body ->
+                val key = number(body)
+                if (key != null && !reserve(NUMBERS, key)) return@decideSuspending Decision.reject("number.taken", key)
                 schedule(DUE, ScheduleRule.after(delay(body).milliseconds), Close())
                 Decision.events(created(body))
             }
@@ -332,12 +359,14 @@ class LogGroupsTest {
 
         fun orderModel(): AggregateModel<Item> = item<Place, Placed>(
             "order",
-            { it.delayMillis }
+            { it.delayMillis },
+            { it.number },
         ) { Placed(it.delayMillis) }
 
         fun invoiceModel(): AggregateModel<Item> = item<Issue, Issued>(
             "invoice",
-            { it.delayMillis }
+            { it.delayMillis },
+            { it.number },
         ) { Issued(it.delayMillis) }
 
         fun manifest(): Manifest = Manifest(

@@ -136,7 +136,7 @@ class RecordValuesTest {
     )
 
     private fun reservation(key: String = "a@b.c") =
-        Reservation.of(ReservationScope.of("sales", "tenant", "email"), key, ref, 9L, setOf("c-1"))
+        Reservation.of(ReservationScope.of(ref.type, "tenant", "email"), key, ref, 9L, setOf("c-1"))
 
     @Test
     fun `the log records are values`() {
@@ -204,11 +204,11 @@ class RecordValuesTest {
         valueSemantics({ reservation() }, reservation("d@e.f"))
         reservation().copyWith(key = "d@e.f").assert().isEqualTo(reservation("d@e.f"))
         valueSemantics(
-            { ReservationScope.of("sales", "tenant", "email") },
-            ReservationScope.of("sales", "other", "email")
+            { ReservationScope.of(ref.type, "tenant", "email") },
+            ReservationScope.of(ref.type, "other", "email")
         )
         ReservationScope.of(
-            "sales",
+            ref.type,
             "tenant",
             "email"
         ).copyWith(tenantId = "other").tenantId.assert().isEqualTo("other")
