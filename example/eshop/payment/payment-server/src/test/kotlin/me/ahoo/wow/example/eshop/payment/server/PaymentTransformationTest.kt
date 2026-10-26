@@ -31,6 +31,7 @@ import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Primary
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.net.URI
@@ -228,7 +229,9 @@ class PaymentTransformationAuthorizationTest {
      * the [GATEWAY] refund a payment. No `@Configuration`: only the test that names it.
      */
     class RefundsOnlyFromTheGateway {
+        // Over the server's anonymous resolver (decision D301).
         @Bean
+        @Primary
         fun headerCallers(): CallerResolver = CallerResolver { request ->
             request.headers().firstHeader(PaymentNode.USER)?.let { user ->
                 Caller.of(tenantId = Caller.DEFAULT_TENANT, scope = Scope.NONE, subject = user)
