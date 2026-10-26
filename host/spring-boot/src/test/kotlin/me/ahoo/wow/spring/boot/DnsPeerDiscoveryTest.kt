@@ -16,11 +16,21 @@ package me.ahoo.wow.spring.boot
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.client.Port
+import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.ManifestFragment
+import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.peer.PeerDiscovery
 import me.ahoo.wow.spi.peer.PeerDiscoveryConfig
+import me.ahoo.wow.spi.peer.PeerTargets
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
+import org.springframework.beans.factory.support.StaticListableBeanFactory
+import org.springframework.context.support.StaticApplicationContext
+import org.springframework.mock.env.MockEnvironment
 import java.net.URI
 import java.nio.file.Path
 import java.util.concurrent.atomic.AtomicInteger
@@ -148,6 +158,59 @@ class DnsPeerDiscoveryTest {
             endpoints.resolveAll("eshop-payment", Port.INTERNAL).assert().isEmpty()
         }
     }
+
+    @Test
+    fun `the JDK's DNS should find no record of a name that does not exist`() {
+        // The `.invalid` top-level domain never resolves (RFC 6761); without a DNS server the lookup fails alike.
+        JndiSrvLookup.records("_internal._tcp.nothing.invalid.").assert().isEmpty()
+        JndiSrvLookup().srv("_internal._tcp.nothing.invalid.").assert().isEmpty()
+    }
+
+    @Test
+    fun `the host's resolver should find a peer's service by its contract, and a provider by its type`(): Unit =
+        runBlocking {
+            val contracts = ContractDirectory(
+                Manifest(service = ServiceInfo("bank-service"), contexts = listOf(ContextManifest(BANK))),
+                listOf(
+                    ManifestFragment(
+                        "mail-api",
+                        Manifest(service = ServiceInfo("mail-service"), contexts = listOf(ContextManifest("mail"))),
+                    ),
+                ),
+            )
+            WowAutoConfiguration.serviceOf(contracts, "mail").assert().isEqualTo("mail-service")
+            WowAutoConfiguration.serviceOf(contracts, "box").assert().isNull()
+            val custom = object : PeerDiscovery {
+                override val type: String = "custom"
+
+                override fun open(config: PeerDiscoveryConfig): PeerTargets = object : PeerTargets {
+                    override suspend fun targetsOf(service: String, context: String): List<URI> =
+                        listOf(URI.create("http://$service.${config.option("domain")}:9090"))
+                }
+            }
+            val beans = StaticListableBeanFactory().apply { addBean("custom", custom) }
+            val environment = MockEnvironment().withProperty("wow.peer.custom.domain", "internal")
+            val properties = WowProperties().apply { peer.discovery = "custom" }
+            val resolver = WowAutoConfiguration().wowEndpointResolver(
+                properties,
+                contracts,
+                beans.getBeanProvider(PeerDiscovery::class.java),
+                environment,
+                StaticApplicationContext(),
+            )
+            resolver.resolveAll("mail", Port.INTERNAL).assert()
+                .containsExactly(URI.create("http://mail-service.internal:9090"))
+            resolver.reaches("mail", Port.INTERNAL).assert().isTrue()
+            (resolver as AutoCloseable).close()
+            val dns = WowAutoConfiguration().wowEndpointResolver(
+                WowProperties(),
+                contracts,
+                StaticListableBeanFactory().getBeanProvider(PeerDiscovery::class.java),
+                environment,
+                StaticApplicationContext(),
+            )
+            dns.reaches("mail", Port.INTERNAL).assert().isTrue()
+        }
 
     @Test
     fun `a listed peer nothing can find, or an unknown discovery, should refuse the start`(@TempDir dir: Path) {
