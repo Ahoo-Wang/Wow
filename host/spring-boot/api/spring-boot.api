@@ -135,7 +135,6 @@ public final class me/ahoo/wow/spring/boot/SpringdocAutoConfiguration$Companion 
 
 public final class me/ahoo/wow/spring/boot/TransportAutoConfiguration {
 	public static final field Companion Lme/ahoo/wow/spring/boot/TransportAutoConfiguration$Companion;
-	public static final field OFFSET_GAPS Ljava/lang/String;
 	public static final field TRANSPORT_SINKS Ljava/lang/String;
 	public fun <init> ()V
 }
