@@ -84,7 +84,7 @@ const WORDS = {
       bomRow:
         'The BOM: the versions of every artifact below, which a build imports as a platform.',
       dependenciesRow:
-        'The versions of the third-party dependencies, which every published POM imports.',
+        "The versions of the libraries the Wow runtime puts on an application's class path (Jackson, the coroutines, kotlin-logging, SLF4J), which every published POM imports; nothing else, so a module that depends on Wow keeps its own versions of everything Wow does not use. The Spring Boot BOM comes with `wow-spring-boot` alone.",
     },
     levels: {
       title: 'API Levels',
@@ -153,7 +153,8 @@ const WORDS = {
       bom: `\`implementation(platform("${GROUP}:wow-bom:<version>"))\`，然后 \`implementation("${GROUP}:wow-spring-boot")\` 等都不带版本。Gradle 插件 \`${GROUP}\` 接好编译器（KSP）并汇总服务的 Manifest。`,
       head: '| 制品 | 目录 | 内容 |',
       bomRow: 'BOM：下列每个制品的版本，构建以 platform 导入。',
-      dependenciesRow: '第三方依赖的版本，每个发布的 POM 都导入它。',
+      dependenciesRow:
+        'Wow 运行时放到应用类路径上的那些库的版本（Jackson、协程、kotlin-logging、SLF4J），每个发布的 POM 都导入它；除此之外不管别的，依赖 Wow 的模块对 Wow 不用的库保留自己的版本。Spring Boot BOM 只随 `wow-spring-boot` 而来。',
     },
     levels: {
       title: 'API 级别',
