@@ -192,3 +192,4 @@ Wow 10 是 Wow 的一次整体重新设计：从第一性原理推出理想的�
 | 2026-10-26 | 用户定 D308：定时器、调度作业与预留支持 MongoDB 分片集群（定时器按分区，预留按（租户，key 哈希），沿用 D277）；06 §3、07 §4 按 #4937 更正 9.x 名称规则的两处例外 |
 | 2026-10-26 | 用户定 D309（追加队列完全按需：删开关，加直通快路径，批 5 以 ABAB 验证）与 D310（宿主自动配置数据源，示例只写推荐的最小配置，批 4） |
 | 2026-10-26 | 用户定 D311：拒绝可以抛出（`RejectedException`、`DecideScope.reject`），决定函数里 `require` → `wow.command.invalid`（400）、`check`/`error()` → 新码 `wow.command.refused`（409），排除 `CancellationException`；登记 R5.A-20（批 1） |
+| 2026-10-26 | 更正 D298 与安全讨论 SQ5 的 Kafka ACL 范围：命令主题的写入方是本服务的节点、经 Saga 向它发命令的上下文与 ops（与 `operate/kafka.md` 一致，#4949） |
