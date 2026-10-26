@@ -1370,11 +1370,11 @@ fun interface CommandTypes {
         val NONE: CommandTypes = CommandTypes { _, _ -> null }
 
         /**
-         * Names a command by its class's simple name in its target's type (`context.aggregate.Command`), the name a
-         * model gives a command unless it says otherwise: for a saga outside a node, in a domain module's test.
+         * Names a command by its class's `@Name`, else its simple name, in its target's type (`context.aggregate.Command`),
+         * the name a model gives a command unless it says otherwise: for a saga outside a node, in a domain module's test.
          */
         @JvmField
-        val SIMPLE_NAMES: CommandTypes = CommandTypes { target, command -> "$target.${command.simpleName}" }
+        val SIMPLE_NAMES: CommandTypes = CommandTypes { target, command -> "$target.${typeNameOf(command)}" }
     }
 }
 

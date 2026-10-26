@@ -16,6 +16,8 @@ package me.ahoo.wow.kernel
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Ownership
+import me.ahoo.wow.api.annotation.AggregateRoot
+import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
@@ -38,9 +40,20 @@ fun <S : Any> aggregate(
 
 /**
  * The Kotlin DSL of an aggregate model. Command and event types are named `context.aggregate.Name` after their class's
- * simple name unless a name is given (decision D55).
+ * `@Name`, else its simple name, unless a name is given (decision D55): the name the compiler gives them, so a model
+ * written by hand stores what the Manifest says. A name given that disagrees with the class's `@Name`, or an aggregate
+ * named otherwise than its `@AggregateRoot` state class, fails here: the log would hold names the Manifest does not.
  */
 class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Class<S>) {
+    init {
+        annotatedAggregateName(stateType)?.let { declared ->
+            require(type.name == declared) {
+                "The aggregate ${type.context}.${type.name} has the state ${stateType.name}, whose annotations name " +
+                    "it $declared: name the aggregate $declared, or change the class's @Name."
+            }
+        }
+    }
+
     private var initial: ((AggregateRef) -> S)? = null
     private val deciders = LinkedHashMap<Class<*>, DecideFunction<S>>()
     private val commandNames = LinkedHashMap<Class<*>, String>()
@@ -243,9 +256,10 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
      * The name of a command or event type declared without one: `context.aggregate.SimpleName`, or the system name of
      * a lifecycle command or event ([Lifecycle]).
      */
-    fun defaultName(typeClass: Class<*>): String = Lifecycle.nameOf(typeClass) ?: "$type.${typeClass.simpleName}"
+    fun defaultName(typeClass: Class<*>): String = Lifecycle.nameOf(typeClass) ?: "$type.${typeNameOf(typeClass)}"
 
     fun addDecider(commandType: Class<*>, name: String, decider: DecideFunction<S>) {
+        requireAnnotatedName("command", commandType, name)
         require(deciders.putIfAbsent(commandType, decider) == null) {
             "$type declares two decide functions for ${commandType.name}."
         }
@@ -253,10 +267,12 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     fun addMounted(commandType: Class<*>, name: String) {
+        requireAnnotatedName("command", commandType, name)
         require(mounted.putIfAbsent(commandType, name) == null) { "$type mounts ${commandType.name} twice." }
     }
 
     fun addEvolver(eventClass: Class<*>, name: String, revision: Int, evolver: (S, Any) -> S) {
+        requireAnnotatedName("event", eventClass, name)
         require(evolvers.putIfAbsent(eventClass, evolver) == null) {
             "$type declares two evolve functions for ${eventClass.name}."
         }
@@ -311,6 +327,16 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         tags = tags,
     )
 
+    /** A [name] given for a class that has a `@Name` must be the one that `@Name` gives. */
+    private fun requireAnnotatedName(kind: String, typeClass: Class<*>, name: String) {
+        val annotated = typeClass.getDeclaredAnnotation(Name::class.java)?.value ?: return
+        val expected = Lifecycle.nameOf(typeClass) ?: "$type.$annotated"
+        require(name == expected) {
+            "$type names the $kind ${typeClass.name} $name, but its @Name names it $expected: leave the name out, " +
+                "or give the one its @Name gives."
+        }
+    }
+
     private fun applies(include: Set<Class<*>>, exclude: Set<Class<*>>): (Class<*>) -> Boolean = { command ->
         val included = if (include.isEmpty()) command !in SYSTEM_COMMANDS else command in include
         included && command !in exclude
@@ -319,5 +345,29 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     private companion object {
         /** The commands the kernel decides for every model, which an after hook runs after only when it names them. */
         val SYSTEM_COMMANDS: Set<Class<*>> = KernelLifecycle.COMMANDS + KernelLifecycle.SCHEDULE_COMMANDS
+    }
+}
+
+/**
+ * The last part of the name of a command or event type, as the compiler names it (decision D55): its class's own
+ * `@Name`, else its simple name.
+ */
+internal fun typeNameOf(typeClass: Class<*>): String =
+    typeClass.getDeclaredAnnotation(Name::class.java)?.value ?: typeClass.simpleName
+
+/** Splits before every upper-case letter, as the compiler's `pascalToSnake` does. */
+private val UPPERCASE_SEPARATOR = Regex("(?=[A-Z])")
+
+/**
+ * The aggregate name the compiler gives [stateType] when it is an `@AggregateRoot` (its `@Name`, else its simple name in
+ * `snake_case`), its `@Name` when it carries only that, or null when it carries neither.
+ */
+private fun annotatedAggregateName(stateType: Class<*>): String? {
+    val annotated = stateType.getDeclaredAnnotation(Name::class.java)?.value
+    if (annotated != null || !stateType.isAnnotationPresent(AggregateRoot::class.java)) {
+        return annotated
+    }
+    return stateType.simpleName.split(UPPERCASE_SEPARATOR).filter { it.isNotEmpty() }.joinToString("_") {
+        it.lowercase()
     }
 }
