@@ -28,7 +28,6 @@ import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryOwnership
 import me.ahoo.wow.query.QueryPolicy
-import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.ScopeQueryPolicy
 import me.ahoo.wow.query.events.EventQueryGateways
 import me.ahoo.wow.query.events.EventVisibility
@@ -42,10 +41,10 @@ import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.SnapshotPolicyGateway
-import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.springframework.http.MediaType
 
 val cartType = AggregateType(CONTEXT, "cart")
@@ -92,7 +91,7 @@ fun queryManifest(): Manifest {
 fun cartEvents(
     log: EventLog,
     entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
-    tenants: QueryTenantPolicy = QueryTenantPolicy.CALLERS,
+    tenants: TenantPolicy = TenantPolicy.CALLERS,
     manifest: Manifest = queryManifest(),
     visibility: EventVisibility = EventVisibility.ALL,
     masks: PayloadMasks = PayloadMasks.NONE,
@@ -119,7 +118,7 @@ fun cartEvents(
 fun cartSnapshots(
     storage: QueryBackendFactory<*>,
     entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
-    tenants: QueryTenantPolicy = QueryTenantPolicy.CALLERS,
+    tenants: TenantPolicy = TenantPolicy.CALLERS,
     policies: List<QueryPolicy> = emptyList(),
     manifest: Manifest = queryManifest(),
 ): QueryGateway {
@@ -164,7 +163,7 @@ class QueryNode(
         SnapshotPolicyGateway(
             cartType,
             catalog.policyProvider(cartType),
-            listOf(ScopeQueryPolicy(QueryTenantPolicy.CALLERS)) + policies,
+            listOf(ScopeQueryPolicy(TenantPolicy.CALLERS)) + policies,
             entryPolicy,
         )
     } else {

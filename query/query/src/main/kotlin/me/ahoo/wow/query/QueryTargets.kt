@@ -1,0 +1,101 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.query
+
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.caller.TargetScope
+import me.ahoo.wow.api.query.CrossTenant
+import me.ahoo.wow.spi.tenant.TenantConflictException
+import me.ahoo.wow.spi.tenant.TenantPolicy
+
+/**
+ * Where a read decides the tenant and scope its caller reads in (review R5.C-1): the one home of the read side's
+ * scope authorization, which every edge asks instead of deciding it itself. A query route, a state read and the
+ * dataset listing all read through [of].
+ *
+ * - A caller names another scope (`Wow-Scope`, decision D95) only when it may act across scopes
+ *   ([Caller.crossScope]); any other caller naming one is refused, [QueryErrors.FORBIDDEN].
+ * - A cross-tenant read (decision D254 ⑦) is refused while [crossTenant] is off (`wow.query.cross-tenant.enabled`),
+ *   [QueryErrors.FORBIDDEN] too.
+ * - The tenant follows [tenants] (decision D116): a type whose tenant is fixed is read in that tenant alone, so a
+ *   cross-tenant read of it is narrowed to it, and one whose tenants leave it out, or a target naming another
+ *   tenant, is refused, [QueryErrors.MALFORMED].
+ */
+@InternalWowApi
+class QueryTargets(
+    private val tenants: TenantPolicy = TenantPolicy.CALLERS,
+    private val crossTenant: Boolean = false,
+) {
+    /**
+     * The query caller [caller] reads [type] as on [entry], in the [target] scope and across the [tenants][reads] it
+     * names, when it names them: the caller's identity acting in the decided tenant and scope, carrying the [target]
+     * and, for a cross-tenant read, the tenants it reads. Throws the [QueryError] that refuses it.
+     */
+    fun of(
+        type: AggregateType,
+        caller: Caller,
+        target: TargetScope? = null,
+        reads: CrossTenant? = null,
+        entry: QueryEntry = QueryEntry.HTTP,
+    ): QueryCaller {
+        admit(caller, target, reads)
+        val scope = target?.scope ?: caller.scope
+        if (reads != null) {
+            val fixed = tenants.fixedTenant(type)
+            if (fixed != null && !reads.covers(fixed)) {
+                throw QueryTargetException(QueryErrors.MALFORMED, "The tenant of $type is fixed.")
+            }
+            // A fixed tenant narrows the read to itself, whatever else the caller names.
+            val narrowed = fixed?.let { CrossTenant(setOf(it)) } ?: reads
+            return QueryCaller(caller.copyWith(scope = scope), entry, target = target, crossTenant = narrowed)
+        }
+        val tenant = try {
+            tenants.tenantOf(type, caller, target)
+        } catch (conflict: TenantConflictException) {
+            throw QueryTargetException(QueryErrors.MALFORMED, conflict.message!!)
+        }
+        return QueryCaller(caller.copyWith(tenantId = tenant, scope = scope), entry, target = target)
+    }
+
+    /**
+     * Whether [caller] may name [target] and the tenants it [reads] at all, whatever it reads: only a caller that may
+     * act across scopes names either, and the tenants only while cross-tenant queries are on. Throws the
+     * [QueryErrors.FORBIDDEN] [QueryError] that refuses it.
+     */
+    fun admit(caller: Caller, target: TargetScope? = null, reads: CrossTenant? = null) {
+        if ((target != null || reads != null) && !caller.crossScope) {
+            throw QueryTargetException(QueryErrors.FORBIDDEN, "The caller may not read in another scope.")
+        }
+        if (reads != null && !crossTenant) {
+            throw QueryTargetException(
+                QueryErrors.FORBIDDEN,
+                "Cross-tenant queries are off (wow.query.cross-tenant.enabled).",
+            )
+        }
+    }
+
+    @InternalWowApi
+    companion object {
+        /** Every type in its caller's tenant, and no cross-tenant read. */
+        @JvmField
+        val DEFAULT: QueryTargets = QueryTargets()
+    }
+}
+
+/** A read [QueryTargets] refuses: the scope or the tenants it names. */
+@InternalWowApi
+class QueryTargetException(override val errorCode: String, override val errorMsg: String) :
+    RuntimeException(errorMsg), QueryError

@@ -25,8 +25,6 @@ import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.QueryBulkhead
-import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.index.QueryIndexDeclaration
@@ -39,7 +37,6 @@ import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.query.store.StoreQueryProvider
-import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.store.StoreTypes
@@ -48,16 +45,6 @@ import me.ahoo.wow.spi.store.WritePressure
 import org.springframework.context.SmartLifecycle
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.toKotlinDuration
-
-/**
- * The query tenant policy over the host's [TenantPolicy] (decision D116): a query of an aggregate type whose tenant
- * `wow.aggregates.[<context>.<aggregate>].tenant` fixes is restricted to that tenant, any other to its caller's, as a
- * command or a state read of it is.
- */
-internal class HostQueryTenants(private val tenants: TenantPolicy) : QueryTenantPolicy {
-    override fun tenantOf(type: AggregateType, caller: QueryCaller): String? =
-        tenants.fixedTenant(type) ?: caller.tenantId
-}
 
 /**
  * The snapshot query backend of the node (decision D110): the [factory] of each aggregate type's backend and storage

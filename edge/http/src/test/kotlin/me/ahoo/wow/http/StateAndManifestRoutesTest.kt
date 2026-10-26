@@ -24,7 +24,7 @@ import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.FrameworkCodes
-import me.ahoo.wow.runtime.admission.TenantPolicy
+import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.junit.jupiter.api.Test
 
 /** `GET …/{id}/state`, `?version=` (decision D112) and `GET /wow/manifest`. */

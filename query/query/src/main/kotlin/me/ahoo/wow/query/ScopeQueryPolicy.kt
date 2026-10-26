@@ -28,26 +28,8 @@ import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.spi.tenant.TenantPolicy
 import me.ahoo.wow.manifest.Ownership as ManifestOwnership
-
-/**
- * Which tenant a caller's queries of an aggregate type are restricted to (decision D129): the port through which the
- * host's `TenantPolicy` (decision D116, the one state reads use) decides it, so a query sees the tenant a command
- * would act in. The host implements it in 6.2c, typically as the type's fixed tenant when it has one, else
- * [QueryCaller.tenantId].
- */
-@InternalWowApi
-fun interface QueryTenantPolicy {
-    /** The tenant [caller]'s queries of [type] are restricted to, or `null` to restrict them to none. */
-    fun tenantOf(type: AggregateType, caller: QueryCaller): String?
-
-    @InternalWowApi
-    companion object {
-        /** Every query is restricted to its caller's tenant; a caller without one is restricted to none. */
-        @JvmField
-        val CALLERS: QueryTenantPolicy = QueryTenantPolicy { _, caller -> caller.tenantId }
-    }
-}
 
 /**
  * Who each aggregate type belongs to besides its tenant (decision D189), as the Manifest's
@@ -97,7 +79,7 @@ fun interface QueryOwnership {
  */
 @InternalWowApi
 class ScopeQueryPolicy(
-    private val tenants: QueryTenantPolicy = QueryTenantPolicy.CALLERS,
+    private val tenants: TenantPolicy = TenantPolicy.CALLERS,
     override val order: Int = ORDER,
     private val ownerships: QueryOwnership = QueryOwnership.OWNERS,
 ) : QueryPolicy {
@@ -108,7 +90,7 @@ class ScopeQueryPolicy(
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
         val owned = ownerships.ownershipOf(context.aggregateType) == Ownership.OWNER
         val restrictions = listOfNotNull(
-            tenants.tenantOf(context.aggregateType, caller)?.let(::TenantIdFilter) ?: caller.crossTenant?.filter(),
+            tenants.queryTenantOf(context.aggregateType, caller)?.let(::TenantIdFilter) ?: caller.crossTenant?.filter(),
             caller.principal.ownerId?.takeIf { owned }?.let(::OwnerIdFilter),
             caller.principal.spaceId?.let(::SpaceIdFilter),
             context.schema.profile?.defaultScope(context.filter)?.takeUnless { it === MatchAllFilter },
@@ -135,3 +117,10 @@ private fun CrossTenant.filter(): FilterExpression? {
 /** The filter of the query being admitted: every gateway operation's query carries one. */
 internal val QueryContext<*>.filter: FilterExpression
     get() = (query as FilterCapable<*>).filter
+
+/**
+ * The tenant [caller]'s queries of [type] are restricted to (decision D129): the type's fixed tenant (decision D116),
+ * as a command or a state read of it is, else the caller's; null for a caller bound to no tenant.
+ */
+internal fun TenantPolicy.queryTenantOf(type: AggregateType, caller: QueryCaller): String? =
+    fixedTenant(type) ?: caller.tenantId

@@ -54,6 +54,8 @@ import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
+import me.ahoo.wow.spi.tenant.TenantConflictException
+import me.ahoo.wow.spi.tenant.TenantPolicy
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.json.JsonMapper
 import kotlin.coroutines.CoroutineContext

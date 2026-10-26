@@ -54,6 +54,7 @@ import me.ahoo.wow.query.QueryScope
 import me.ahoo.wow.query.engine.CommittedStates
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.engine.ReadFacade
+import me.ahoo.wow.query.queryTenantOf
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.StateNotFoundException
@@ -263,7 +264,7 @@ class InProcessQueryApi @InternalWowApi constructor(
 
         private fun stateOf(state: JsonNode): S = decode(state, stateType)
 
-        private fun tenantOf(): String? = tenantId ?: engine.tenants.tenantOf(type, caller)
+        private fun tenantOf(): String? = tenantId ?: engine.tenants.queryTenantOf(type, caller)
 
         /** The read of [ref] as the public port's: in the caller's tenant, owner and space, else not found. */
         private fun checkScope(ref: AggregateRef, state: CommittedState) {

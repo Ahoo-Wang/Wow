@@ -50,6 +50,7 @@ import me.ahoo.wow.openapi.ManifestOpenApi
 import me.ahoo.wow.openapi.OpenApiOptions
 import me.ahoo.wow.openapi.OpenApiSecurityScheme
 import me.ahoo.wow.query.QueryOwnership
+import me.ahoo.wow.query.QueryTargets
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.runtime.admission.CommandGateway
@@ -129,10 +130,12 @@ fun wowRoutes(
         options = options,
         scope = scope,
     )
-    val queryHandler = QueryHandler(queries, authenticator, headers, statuses, gateway.tenants, scope)
+    // The read side's scope rules are :query's (review R5.C-1), over the tenants commands act in (decision D116).
+    val targets = QueryTargets(gateway.tenants, queries.crossTenant)
+    val queryHandler = QueryHandler(queries, authenticator, headers, statuses, targets, scope)
     val ownerships = QueryOwnership.of(manifest)
     val states =
-        StateHandler(reads, authenticator, headers, statuses, gateway.tenants, ownerships::ownershipOf, queries, masks)
+        StateHandler(reads, authenticator, headers, statuses, targets, ownerships::ownershipOf, queries, masks)
     val served = withTransformedRoutes(manifest, gateway)
     return coRouter {
         if (options.manifestEndpoint) {

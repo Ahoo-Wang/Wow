@@ -55,6 +55,7 @@ import me.ahoo.wow.query.schema.boundSchemaFixture
 import me.ahoo.wow.query.schema.objectFixture
 import me.ahoo.wow.query.schema.scalarFixture
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.junit.jupiter.api.Test
 import org.slf4j.LoggerFactory
 import me.ahoo.wow.manifest.Ownership as ManifestOwnership
@@ -157,15 +158,15 @@ class ScopeQueryPolicyTest {
     @Test
     fun `the tenant comes from the host's tenant policy`() {
         runTest {
-            val fixed =
-                QueryTenantPolicy { type, caller -> if (type == ManifestFixtures.ORDER) "fixed" else caller.tenantId }
+            val fixed = TenantPolicy.fixed(mapOf(ManifestFixtures.ORDER to "fixed"))
             val policy = ScopeQueryPolicy(fixed)
             policy.order.assert().isEqualTo(ScopeQueryPolicy.ORDER)
             policy.evaluate(QueryCaller(Caller(tenantId = "t1")), context(DeletionFilter(DeletionState.ALL))).assert()
                 .isEqualTo(TenantIdFilter("fixed"))
-            QueryTenantPolicy.CALLERS.tenantOf(AggregateType("a", "b"), QueryCaller(Caller(tenantId = "t2")))
+            TenantPolicy.CALLERS.queryTenantOf(AggregateType("a", "b"), QueryCaller(Caller(tenantId = "t2")))
                 .assert().isEqualTo("t2")
-            QueryTenantPolicy.CALLERS.tenantOf(AggregateType("a", "b"), QueryCaller.IN_PROCESS).assert().isNull()
+            TenantPolicy.CALLERS.queryTenantOf(AggregateType("a", "b"), QueryCaller.IN_PROCESS).assert().isNull()
+            fixed.queryTenantOf(AggregateType("a", "b"), QueryCaller(Caller(tenantId = "t2"))).assert().isEqualTo("t2")
         }
     }
 
@@ -251,7 +252,7 @@ class ScopeQueryPolicyTest {
                         ),
                     ),
                 )
-            val fixed = QueryTenantPolicy { _, queryCaller -> "fixed".takeIf { queryCaller.tenantId == null } }
+            val fixed = TenantPolicy.fixed(mapOf(ManifestFixtures.ORDER to "fixed"))
             ScopeQueryPolicy(fixed).evaluate(QueryCaller(caller, crossTenant = CrossTenant.ALL), context()).assert()
                 .isEqualTo(AndFilter(listOf(TenantIdFilter("fixed"), OwnerIdFilter("o1"), active)))
             QueryCaller(caller, crossTenant = CrossTenant.ALL).tenantId.assert().isNull()
@@ -273,7 +274,7 @@ class ScopeQueryPolicyTest {
                 snapshot("c", "fixed", Scope.NONE),
             ).forEach(storage::save)
             val schema = ManifestFixtures.orderSchema()
-            fun gateway(tenants: QueryTenantPolicy) = DefaultQueryGateway(
+            fun gateway(tenants: TenantPolicy) = DefaultQueryGateway(
                 ManifestFixtures.ORDER,
                 storage.create(ManifestFixtures.ORDER).backend,
                 FixedQueryModelSchemaProvider(schema),
@@ -291,13 +292,13 @@ class ScopeQueryPolicyTest {
             logger.addAppender(appender)
             try {
                 // No observer audits: the gateway's observer is none.
-                val callers = gateway(QueryTenantPolicy.CALLERS)
+                val callers = gateway(TenantPolicy.CALLERS)
                 callers.list(sorted, all).toList().map { it.path("aggregateId").stringValue() }
                     .assert().containsExactly("a", "b", "c")
                 callers.list(sorted, all.copy(crossTenant = CrossTenant(setOf("t2", "fixed")))).toList()
                     .map { it.path("aggregateId").stringValue() }.assert().containsExactly("b", "c")
                 callers.count(CountQuery(MatchAllFilter), all).count.assert().isEqualTo(3L)
-                val pinned = gateway { _, caller -> "fixed".takeIf { caller.tenantId == null } ?: caller.tenantId }
+                val pinned = gateway(TenantPolicy.fixed(mapOf(ManifestFixtures.ORDER to "fixed")))
                 pinned.list(sorted, all).toList().map { it.path("aggregateId").stringValue() }
                     .assert().containsExactly("c")
                 pinned.count(CountQuery(MatchAllFilter), all).count.assert().isEqualTo(1L)

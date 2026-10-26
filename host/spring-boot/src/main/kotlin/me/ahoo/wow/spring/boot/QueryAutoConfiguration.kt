@@ -29,7 +29,6 @@ import me.ahoo.wow.query.QueryCountCache
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.QueryPolicy
-import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.DatasetVisibility
@@ -98,11 +97,6 @@ class QueryAutoConfiguration {
         @Bean
         @ConditionalOnMissingBean
         fun wowQueryEntryPolicy(properties: QueryProperties): QueryEntryPolicy = properties.entryPolicy()
-
-        @Bean
-        @ConditionalOnMissingBean
-        @InternalWowApi
-        fun wowQueryTenantPolicy(node: ServiceNode): QueryTenantPolicy = HostQueryTenants(node.gateway.tenants)
 
         @Bean
         @ConditionalOnMissingBean
@@ -224,7 +218,6 @@ class QueryAutoConfiguration {
             events: EventQueryBackend,
             datasets: QueryDatasets,
             entryPolicy: QueryEntryPolicy,
-            tenants: QueryTenantPolicy,
             beans: QueryBeans,
             counts: ObjectProvider<QueryCountCache>,
             reads: ObjectProvider<StateReads>,
@@ -240,7 +233,8 @@ class QueryAutoConfiguration {
             .maskStrategies(beans.strategies.getIfAvailable { MaskStrategyResolver.NONE })
             .sensitivity(properties.sensitivity.policy())
             .masks(masks)
-            .tenants(tenants)
+            // The tenants commands and state reads act in (decision D116).
+            .tenants(node.gateway.tenants)
             .abac(properties.abac.options())
             .policies(beans.policies.orderedStream().toList())
             .filters(beans.filters.orderedStream().toList())

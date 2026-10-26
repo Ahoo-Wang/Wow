@@ -39,6 +39,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryOwnership
+import me.ahoo.wow.query.QueryTargets
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.runtime.FrameworkCodes
@@ -94,10 +95,12 @@ fun peerReadRoutes(
     val authenticator =
         Authenticator(CallerResolver { request -> request.attribute(ROOT_CALLER).orElse(null) as Caller? }, statuses)
     val headers = RequestHeaders(statuses)
-    val queryHandler = QueryHandler(queries, authenticator, headers, statuses, gateway.tenants, scope)
+    // The read side's scope rules are :query's (review R5.C-1), over the tenants commands act in (decision D116).
+    val targets = QueryTargets(gateway.tenants, queries.crossTenant)
+    val queryHandler = QueryHandler(queries, authenticator, headers, statuses, targets, scope)
     val ownerships = QueryOwnership.of(manifest)
     val states =
-        StateHandler(reads, authenticator, headers, statuses, gateway.tenants, ownerships::ownershipOf, queries, masks)
+        StateHandler(reads, authenticator, headers, statuses, targets, ownerships::ownershipOf, queries, masks)
     val document = HttpJson.write(ManifestTree.write(withTransformedRoutes(manifest, gateway)))
     return coRouter {
         GET(WowPaths.MANIFEST) { request ->

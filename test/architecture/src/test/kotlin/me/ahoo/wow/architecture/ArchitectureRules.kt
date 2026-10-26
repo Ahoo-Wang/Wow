@@ -374,6 +374,19 @@ object ArchitectureRules {
         forbidden = listOf("me.ahoo.wow.http"),
     )
 
+    /**
+     * The read side's scope authorization has one home, `:query`'s `QueryTargets` (review R5.C-1): which scope a
+     * caller may name (`Caller.crossScope`), the cross-tenant switch and the fixed tenants. wow-http passes on what a
+     * request names; it reads none of the members those rules rest on.
+     */
+    val HTTP_DECIDES_NO_READ_SCOPE = SourceTokenRule(
+        name = "wow-http reads no crossScope and decides no tenant",
+        modules = listOf(HTTP.dir),
+        forbidden = listOf("crossScope", "fixedTenant", "tenantOf"),
+    )
+
+    val SOURCE_TOKEN_RULES = listOf(HTTP_DECIDES_NO_READ_SCOPE)
+
     /** The kernel knows nothing of clusters, subscriptions or waits: those are the runtime's. */
     val KERNEL_IGNORES_RUNTIME = DependencyRule(
         name = "wow-kernel imports nothing from the runtime",

@@ -18,8 +18,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.CrossTenant
 import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.runtime.admission.TenantPolicy
+import me.ahoo.wow.query.QueryTargets
+import me.ahoo.wow.spi.tenant.TenantPolicy
 import org.junit.jupiter.api.Test
 
 /** `wow.query.cross-tenant.enabled` (decision D254 ⑦) and the query tenant of a cross-tenant caller. */
@@ -38,10 +38,17 @@ class HostCrossTenantQueryTest {
     @Test
     fun `a cross-tenant caller's query of a fixed-tenant type stays in that tenant`() {
         val fixed = AggregateType("shop", "catalog")
-        val tenants = HostQueryTenants(TenantPolicy.fixed(mapOf(fixed to "platform")))
-        val caller = QueryCaller(Caller(tenantId = "t1", crossScope = true), crossTenant = CrossTenant.ALL)
-        tenants.tenantOf(fixed, caller).assert().isEqualTo("platform")
-        tenants.tenantOf(AggregateType("shop", "cart"), caller).assert().isNull()
-        tenants.tenantOf(AggregateType("shop", "cart"), caller.copy(crossTenant = null)).assert().isEqualTo("t1")
+        val targets = QueryTargets(TenantPolicy.fixed(mapOf(fixed to "platform")), crossTenant = true)
+        val caller = Caller(tenantId = "t1", crossScope = true)
+        targets.of(
+            fixed,
+            caller,
+            reads = CrossTenant.ALL
+        ).crossTenant.assert().isEqualTo(CrossTenant(setOf("platform")))
+        targets.of(AggregateType("shop", "cart"), caller, reads = CrossTenant.ALL).run {
+            crossTenant.assert().isEqualTo(CrossTenant.ALL)
+            tenantId.assert().isNull()
+        }
+        targets.of(AggregateType("shop", "cart"), caller).tenantId.assert().isEqualTo("t1")
     }
 }
