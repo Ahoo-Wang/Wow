@@ -16,24 +16,22 @@ package me.ahoo.wow.example.eshop.e2e.cluster
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.example.eshop.e2e.json
-import me.ahoo.wow.example.eshop.e2e.soak.SoakDatabase
 import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
 import me.ahoo.wow.spi.log.Partitioner
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * The cluster scenarios' probes and lookups: the checkouts that measure a fault's window, the ordering's leases (who
- * owns a partition, whether every node holds some), and remote_ip's evidence on the service's side.
+ * owns a partition, whether every node holds some) and a commit's request facts, from the arm's store ([StoreReads]),
+ * and remote_ip's evidence on the service's side.
  */
 class ClusterProbes(
     private val kube: Kube,
     private val report: ClusterReport,
     private val flows: ShopFlows,
-    private val verdict: ClusterVerdict,
+    private val reads: StoreReads,
     private val network: PodNetwork,
     private val partitions: Int,
-    /** Whether the arm is PostgreSQL, whose leases the runner reads. */
-    private val postgres: Boolean,
 ) {
     private val probes = AtomicInteger()
     private val probeFailures = AtomicInteger()
@@ -61,27 +59,8 @@ class ClusterProbes(
         )
     }
 
-    /** The headers (request facts) of the last commit of [basket] in the basket's log, read from PostgreSQL. */
-    fun lastHeaders(basket: String): tools.jackson.databind.JsonNode = verdict.connect(
-        "basket"
-    ).use { connection ->
-        val table = SoakDatabase(connection, "basket").logTables().getValue("basket")
-        connection.prepareStatement(
-            "SELECT headers FROM \"$table\" WHERE aggregate_id = ? ORDER BY version DESC LIMIT 1"
-        )
-            .use { statement ->
-                statement.setString(1, basket)
-                statement.executeQuery().use { rows ->
-                    if (rows.next()) {
-                        json.readTree(
-                            rows.getString(1)
-                        )
-                    } else {
-                        json.nullNode()
-                    }
-                }
-            }
-    }
+    /** The headers (request facts) of the last commit of [basket] in the basket's log. */
+    fun lastHeaders(basket: String): tools.jackson.databind.JsonNode = reads.lastHeaders("basket", "basket", basket)
 
     /** A checkout until its order is committed in the ordering context: whether it was. */
     fun probeToOrdering(): Boolean = probe(ShopFlows.TO_ORDERING, "10s")
@@ -107,8 +86,7 @@ class ClusterProbes(
 
     /** Whether every one of the ordering's [replicas] nodes holds some of its command partitions' leases. */
     fun rebalanced(replicas: Int): Boolean {
-        if (!postgres) return true
-        val owners = verdict.connect("ordering").use { SoakDatabase(it, "ordering").leases() }
+        val owners = reads.leases("ordering")
             .filterKeys { it.startsWith("$ORDERING_GROUP|") }
             .values.filter { (_, expires) -> expires > System.currentTimeMillis() }.map { it.first }.toSet()
         return owners.size == replicas
@@ -123,7 +101,7 @@ class ClusterProbes(
         var owner: String? = null
         flows.eventually("a running owner of partition $partition", ShopFlows.DEADLINE.multipliedBy(2)) {
             val running = kube.pods("eshop-ordering").filter { it.ready && !it.deleting }.map { it.name }
-            owner = verdict.connect("ordering").use { SoakDatabase(it, "ordering").leases() }["$ORDERING_GROUP|$partition"]
+            owner = reads.leases("ordering")["$ORDERING_GROUP|$partition"]
                 ?.takeIf { (_, expires) -> expires > System.currentTimeMillis() }?.first
             owner in running
         }

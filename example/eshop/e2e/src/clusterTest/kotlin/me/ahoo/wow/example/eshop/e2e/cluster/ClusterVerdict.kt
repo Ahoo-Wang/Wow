@@ -15,25 +15,22 @@ package me.ahoo.wow.example.eshop.e2e.cluster
 
 import me.ahoo.wow.example.eshop.e2e.soak.Invariant
 import me.ahoo.wow.example.eshop.e2e.soak.Invariants
-import me.ahoo.wow.example.eshop.e2e.soak.SoakDatabase
-import java.sql.Connection
-import java.sql.DriverManager
 import java.time.Duration
 import kotlin.concurrent.thread
 
 /**
- * The verdict (G.3): the soak's invariants over what the run did, read back through the gateway on both arms, and
- * from the logs themselves on the postgres arm (SoakDatabase, through PostgreSQL's node port `ga.postgres`):
+ * The verdict (G.3): the soak's invariants over what the run did, read back through the gateway and from the stores
+ * themselves ([StoreReads]: PostgreSQL's tables or MongoDB's collections), the same on both arms:
  *
- * - each event once: every aggregate's commits are its versions 1..n, each request id once; on PostgreSQL, every
- *   partition's sequences and every aggregate's versions are contiguous (`log.contiguous`);
+ * - each event once: every aggregate's commits are its versions 1..n, each request id once; in the store, every
+ *   aggregate's versions and every partition's sequences are taken once each (`log.contiguous`);
  * - stock conserved: each product's stock on hand is what it received less what the shipped orders took, nothing
  *   reserved once the orders settled;
  * - payment exactly once: an order paid has one payment, succeeded, of its total; a cancelled one none succeeded;
  * - every order settles; the failure ledgers are empty; the checkpoints never move backwards; the snapshots reach
  *   their logs' last versions.
  */
-class ClusterVerdict(private val flows: ShopFlows, private val postgres: String?, private val log: (String) -> Unit) {
+class ClusterVerdict(private val flows: ShopFlows, private val reads: StoreReads, private val log: (String) -> Unit) {
     private val soak = Invariants()
     val eventsOnce = soak.logContiguous
     val stockConserved = Invariant(
@@ -68,12 +65,8 @@ class ClusterVerdict(private val flows: ShopFlows, private val postgres: String?
     private var sampling = false
     private val lastCheckpoints = mutableMapOf<String, Long>()
 
-    fun connect(context: String): Connection =
-        DriverManager.getConnection("$postgres/eshop_$context", "postgres", "postgres")
-
-    /** Samples every eShop database's checkpoints every few seconds until [stopSampling] (postgres arm). */
+    /** Samples every eShop database's checkpoints every few seconds until [stopSampling]. */
     fun startSampling() {
-        if (postgres == null) return
         sampling = true
         thread(name = "checkpoint-sampler", isDaemon = true) {
             while (sampling) {
@@ -89,17 +82,15 @@ class ClusterVerdict(private val flows: ShopFlows, private val postgres: String?
 
     private fun sampleCheckpoints() {
         CONTEXTS.forEach { context ->
-            connect(context).use { connection ->
-                SoakDatabase(connection, context).checkpoints().forEach { (key, position) ->
-                    val id = "$context|$key"
-                    checkpoints.check()
-                    synchronized(lastCheckpoints) {
-                        val last = lastCheckpoints[id]
-                        if (last != null && position < last) {
-                            checkpoints.violate(mapOf("checkpoint" to id, "from" to last, "to" to position))
-                        }
-                        lastCheckpoints[id] = position
+            reads.checkpoints(context).forEach { (key, position) ->
+                val id = "$context|$key"
+                checkpoints.check()
+                synchronized(lastCheckpoints) {
+                    val last = lastCheckpoints[id]
+                    if (last != null && position < last) {
+                        checkpoints.violate(mapOf("checkpoint" to id, "from" to last, "to" to position))
                     }
+                    lastCheckpoints[id] = position
                 }
             }
         }
@@ -130,7 +121,7 @@ class ClusterVerdict(private val flows: ShopFlows, private val postgres: String?
             checkPayment(id, status, order)
         }
         checkStock(orders)
-        if (postgres != null) checkLogs()
+        checkLogs()
     }
 
     private fun checkTrace(kind: String, path: String) {
@@ -226,19 +217,12 @@ class ClusterVerdict(private val flows: ShopFlows, private val postgres: String?
 
     private fun checkLogs() {
         CONTEXTS.forEach { context ->
-            connect(context).use { connection ->
-                val database = SoakDatabase(connection, context)
-                val tables = database.logTables().values
-                eventsOnce.check()
-                database.partitionGaps(tables).forEach(eventsOnce::violate)
-                tables.forEach { table ->
-                    database.versionGaps(table).forEach(eventsOnce::violate)
-                    snapshots.check()
-                    database.snapshotsBehind(table).forEach(snapshots::violate)
-                }
-                parked.check()
-                database.parked().values.forEach(parked::violate)
-            }
+            eventsOnce.check()
+            reads.logViolations(context).forEach(eventsOnce::violate)
+            snapshots.check()
+            reads.snapshotsBehind(context).forEach(snapshots::violate)
+            parked.check()
+            reads.parked(context).forEach(parked::violate)
         }
     }
 

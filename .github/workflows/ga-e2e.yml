@@ -59,10 +59,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Both arms unless the dispatch names one (nightly.yml dispatches both). The mongo arm waits for the host to
-        # create the MongoDB client from the URI (D318, R5 batch 4): until then `both` runs PostgreSQL alone, and
-        # `mongo` runs the arm on its own, to try it.
-        backend: ${{ fromJSON(inputs.backend == 'mongo' && '["mongo"]' || '["postgres"]') }}
+        # Both arms unless the dispatch names one (nightly.yml dispatches both): MongoDB first, the recommended
+        # backend and the GA gate's primary arm (D327), then PostgreSQL.
+        backend: ${{ fromJSON(inputs.backend == 'mongo' && '["mongo"]' || inputs.backend == 'postgres' && '["postgres"]' || '["mongo","postgres"]') }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -17,7 +17,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.example.eshop.e2e.json
-import me.ahoo.wow.example.eshop.e2e.soak.SoakDatabase
 import me.ahoo.wow.example.eshop.payment.api.payment.EshopPaymentContract
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.MethodOrderer
@@ -63,15 +62,14 @@ class GaE2eTest {
         ),
     )
     private val shop = flows.shop
-    private val postgres = if (backend == "postgres") {
-        System.getProperty(
-            "ga.postgres",
-            "jdbc:postgresql://localhost:30432"
-        )
-    } else {
-        null
-    }
-    private val verdict = ClusterVerdict(flows, postgres) { println("[ga-e2e] $it") }
+
+    /** The arm's store, read for the verdict: PostgreSQL through its node port, or MongoDB through mongosh. */
+    private val reads = StoreReads.of(
+        backend,
+        kube,
+        System.getProperty("ga.postgres", "jdbc:postgresql://localhost:30432")
+    )
+    private val verdict = ClusterVerdict(flows, reads) { println("[ga-e2e] $it") }
     private val health = HealthWatch(kube, report)
     private val network = PodNetwork(kube, report)
     private val ops = OpsDesk(kube, report, shop)
@@ -80,7 +78,7 @@ class GaE2eTest {
 
     /** The services this run left out of the deployment (`ga.excluded`), for the reason its report states. */
     private val excluded = System.getProperty("ga.excluded", "").split(' ', ',').filter { it.isNotBlank() }.toSet()
-    private val probes = ClusterProbes(kube, report, flows, verdict, network, partitions, postgres != null)
+    private val probes = ClusterProbes(kube, report, flows, reads, network, partitions)
 
     init {
         flows.onLate = { report.note(it) }
@@ -226,15 +224,6 @@ class GaE2eTest {
         }
         // Through the node port, the runner's path: the gateway sees the kind node's address.
         flows.addItem("ivy-node-port", "mug", flows.price("mug"), 1).status.assert().isEqualTo(ShopFlows.OK)
-        if (postgres == null) {
-            report.gap(
-                "functional",
-                "remote_ip from the log",
-                "F1",
-                "the mongo arm reads no log rows; the requests were served"
-            )
-            return@scenario "sent from $outsider"
-        }
         probes.serviceSideEvidence(body, tokens)
         val node = kube.require(
             "get",
@@ -345,10 +334,7 @@ class GaE2eTest {
         ) { ops.entry(id)?.get("status")?.asString() == "RESOLVED" }
         flows.eventually("olga-1 paid") { flows.orderStatus("olga-1") == "PAID" }
         ops.exhausted(started).assert().doesNotContain(id)
-        if (postgres != null) {
-            verdict.connect("payment").use { SoakDatabase(it, "payment").parked() }.keys
-                .filter { "olga-1" in it }.assert().isEmpty()
-        }
+        reads.parked("payment").filter { it["aggregateId"] == "olga-1" }.assert().isEmpty()
         "parked, seen in ops after $received ms, resumed by an operator, resolved and paid; the ledger entry is gone"
     }
 
@@ -452,12 +438,7 @@ class GaE2eTest {
     private fun deleteOwnerMidCheckout(buyer: String): String {
         val order = "$buyer-1"
         flows.addItem(buyer, "kite", flows.price("kite"), 2)
-        val owner = postgres?.let { probes.partitionOwner(order) } ?: kube.pods("eshop-ordering").first().name
-        if (postgres == null) {
-            report.note(
-                "mongo arm: the lease store is MongoDB; deleted the first ordering pod, $owner"
-            )
-        }
+        val owner = probes.partitionOwner(order)
         val load = Load(flows).start()
         try {
             Outages.measure(
