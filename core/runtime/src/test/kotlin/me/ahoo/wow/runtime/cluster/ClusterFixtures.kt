@@ -169,7 +169,7 @@ class TestCluster(
     val leases = RecordingLeases(InMemoryLeaseStore(leaseClock), events)
     val checkpoints = RecordingCheckpoints(EventCheckpoints(events))
     val ledger = InMemoryFailureLedger()
-    val backends = ContextBackends(log, checkpoints, leases, ledger, snapshots)
+    val backends = ContextBackends.of(log, checkpoints, leases, ledger, snapshots)
     val group = LeaseGroup(SERVICE, CONTEXT)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val latencies = ConcurrentHashMap<String, Duration>()
@@ -303,7 +303,7 @@ class TestNode(val name: String, private val cluster: TestCluster) {
         options = ServiceNodeOptions(
             cluster = cluster.options,
             subscription = testOptions(checkpointInterval = 1.hours),
-            appendQueue = AppendQueueOptions(enabled = false),
+            appendQueue = AppendQueueOptions(maxBatch = 1),
             stateCacheCapacity = 0,
         ),
         subscriptions = { context ->

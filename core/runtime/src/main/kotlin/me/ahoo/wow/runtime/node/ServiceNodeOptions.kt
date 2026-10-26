@@ -78,27 +78,22 @@ class ContextBackends @InternalWowApi constructor(
     val checkpoints: CheckpointStore,
     val leases: LeaseStore,
     val ledger: FailureLedger,
-    val snapshots: SnapshotStore? = null,
+    /**
+     * The context's snapshot stores (decision D172): every store its aggregate types' snapshots are written to, with
+     * each type's primary one; [SnapshotTargets.single] for one store. None, its snapshots are not kept.
+     */
+    val snapshots: SnapshotTargets? = null,
     val reservations: ReservationStore? = null,
     val timers: TimerStore? = null,
     /** The store instance of the default log group, as the host names it (`wow.log.store`). */
     val store: String = DEFAULT_STORE,
     /** The context's other log groups, each on a store of its own (decision D177). */
     val groups: List<LogGroupBackends> = emptyList(),
-    /**
-     * The context's snapshot targets (decision D172): every store its aggregate types' snapshots are written to, with
-     * each type's primary one. Without them, [snapshots] is every type's only target. With them, [snapshots] is null
-     * or their [primary][SnapshotTargets.primary] snapshots.
-     */
-    val snapshotTargets: SnapshotTargets? = null,
 ) {
     /** The snapshots the write side and the state readers read: each type's primary target. */
-    val primarySnapshots: SnapshotStore? get() = snapshotTargets?.primary ?: snapshots
+    val primarySnapshots: SnapshotStore? get() = snapshots?.primary
 
     init {
-        require(snapshotTargets == null || snapshots == null || snapshots === snapshotTargets.primary) {
-            "The snapshots of a context with snapshot targets are their primary ones."
-        }
         require(store.isNotBlank()) { "A log group names its store." }
         val stores = groups.map { it.store }
         require(store !in stores && stores.toSet().size == stores.size) {
@@ -123,12 +118,11 @@ class ContextBackends @InternalWowApi constructor(
         checkpoints: CheckpointStore = this.checkpoints,
         leases: LeaseStore = this.leases,
         ledger: FailureLedger = this.ledger,
-        snapshots: SnapshotStore? = this.snapshots,
+        snapshots: SnapshotTargets? = this.snapshots,
         reservations: ReservationStore? = this.reservations,
         timers: TimerStore? = this.timers,
         store: String = this.store,
         groups: List<LogGroupBackends> = this.groups,
-        snapshotTargets: SnapshotTargets? = this.snapshotTargets,
     ): ContextBackends = ContextBackends(
         log,
         checkpoints,
@@ -139,7 +133,6 @@ class ContextBackends @InternalWowApi constructor(
         timers,
         store,
         groups,
-        snapshotTargets,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -149,11 +142,10 @@ class ContextBackends @InternalWowApi constructor(
 
     override fun toString(): String =
         "ContextBackends(log=$log, checkpoints=$checkpoints, leases=$leases, ledger=$ledger, snapshots=$snapshots, " +
-            "reservations=$reservations, timers=$timers, store=$store, groups=$groups, " +
-            "snapshotTargets=$snapshotTargets)"
+            "reservations=$reservations, timers=$timers, store=$store, groups=$groups)"
 
     private fun valueFields(): List<Any?> =
-        listOf(log, checkpoints, leases, ledger, snapshots, reservations, timers, store, groups, snapshotTargets)
+        listOf(log, checkpoints, leases, ledger, snapshots, reservations, timers, store, groups)
 
     companion object {
         /** The name of the store of a context's default log group when the host names none. */
@@ -161,7 +153,8 @@ class ContextBackends @InternalWowApi constructor(
 
         /**
          * The stores of a context with one log group, on the store [DEFAULT_STORE]: its [log], [checkpoints],
-         * [leases] and failure [ledger], and optionally its [snapshots], [reservations] and [timers].
+         * [leases] and failure [ledger], and optionally its one snapshot store [snapshots] (as
+         * [SnapshotTargets.single]), [reservations] and [timers].
          */
         @JvmStatic
         @JvmOverloads
@@ -173,7 +166,15 @@ class ContextBackends @InternalWowApi constructor(
             snapshots: SnapshotStore? = null,
             reservations: ReservationStore? = null,
             timers: TimerStore? = null,
-        ): ContextBackends = ContextBackends(log, checkpoints, leases, ledger, snapshots, reservations, timers)
+        ): ContextBackends = ContextBackends(
+            log,
+            checkpoints,
+            leases,
+            ledger,
+            snapshots?.let { SnapshotTargets.single(it) },
+            reservations,
+            timers,
+        )
     }
 }
 

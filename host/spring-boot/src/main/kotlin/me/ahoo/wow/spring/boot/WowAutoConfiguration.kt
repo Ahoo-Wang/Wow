@@ -701,7 +701,7 @@ class WowAutoConfiguration {
     ): StateReads {
         val opened = backends.contexts
         val contexts = node.contexts.mapNotNull { (name, context) ->
-            opened[name]?.snapshots?.let { name to KernelStateReads.ContextReads(context.kernel, it) }
+            opened[name]?.primarySnapshots?.let { name to KernelStateReads.ContextReads(context.kernel, it) }
         }.toMap()
         // The query plane's gate runs a state read's replay under its log store's bulkhead (decision D246 ⑥, review
         // R4-Q Q-1), and `wow.query.state.max-replay` bounds it.

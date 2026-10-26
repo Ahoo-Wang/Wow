@@ -67,7 +67,7 @@ class RuntimeValuesTest {
         valueSemantics(StateViewOptions(), StateViewOptions(), StateViewOptions(capacity = 1))
         valueSemantics(SubscriptionOptions(), SubscriptionOptions(), SubscriptionOptions(maxInFlight = 1))
         valueSemantics(ParkedRetryOptions(), ParkedRetryOptions(), ParkedRetryOptions(scanInterval = 1.seconds))
-        valueSemantics(AppendQueueOptions(), AppendQueueOptions(), AppendQueueOptions(enabled = false))
+        valueSemantics(AppendQueueOptions(), AppendQueueOptions(), AppendQueueOptions(maxBatch = 1))
         valueSemantics(ServiceNodeOptions(), ServiceNodeOptions(), ServiceNodeOptions(laneCapacity = 1))
         val request = CommandRequest.of("sales", "order", "Place", body)
         valueSemantics(request, CommandRequest.of("sales", "order", "Place", body), request.copyWith(command = "Pay"))

@@ -26,7 +26,6 @@ class QueryStoreSettingsTest {
             maxConcurrent = 12
             maxWait = Duration.ofSeconds(2)
             maxQueued = 30
-            adaptive.enabled = false
             adaptive.ceiling = 64
             dataset.maxConcurrent = 3
             dataset.maxWait = Duration.ofSeconds(4)
@@ -36,7 +35,6 @@ class QueryStoreSettingsTest {
             query.maxConcurrent = 5
             query.maxWait = Duration.ofSeconds(1)
             query.maxQueued = 7
-            query.adaptive.enabled = true
             query.adaptive.floor = 2
             query.adaptive.ceiling = 20
         }
@@ -44,19 +42,16 @@ class QueryStoreSettingsTest {
         settings.maxConcurrent.assert().isEqualTo(12)
         settings.maxWait.assert().isEqualTo(2.seconds)
         settings.maxQueued.assert().isEqualTo(30)
-        settings.adaptiveEnabled.assert().isFalse()
         settings.adaptiveCeiling.assert().isEqualTo(64)
         val main = settings.stores.getValue("main")
         main.maxConcurrent.assert().isEqualTo(5)
         main.maxWait.assert().isEqualTo(1.seconds)
         main.maxQueued.assert().isEqualTo(7)
-        main.adaptive.assert().isEqualTo(true)
         main.floor.assert().isEqualTo(2)
         main.ceiling.assert().isEqualTo(20)
         val plain = settings.stores.getValue("plain")
         plain.maxConcurrent.assert().isNull()
         plain.maxWait.assert().isNull()
-        plain.adaptive.assert().isNull()
         settings.datasets.maxConcurrent.assert().isEqualTo(3)
         settings.datasets.maxWait.assert().isEqualTo(4.seconds)
         settings.datasets.maxQueued.assert().isEqualTo(9)

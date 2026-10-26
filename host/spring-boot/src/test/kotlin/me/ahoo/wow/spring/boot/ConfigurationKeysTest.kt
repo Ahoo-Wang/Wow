@@ -77,6 +77,11 @@ class ConfigurationKeysTest {
         ConfigurationKeys.renamed("wow.query.inProcess.max-list-size").assert()
             .isEqualTo("renamed wow.query.budgets.in-process")
         ConfigurationKeys.renamed("wow.cluster.router").assert().isNull()
+        ConfigurationKeys.renamed("wow.log.append-queue.max-batch").assert().startsWith("removed: appends are always")
+        ConfigurationKeys.renamed("wow.log.handoff.enabled").assert().startsWith("removed: the hand-over")
+        ConfigurationKeys.renamed("wow.stores.main.query.adaptive.enabled").assert().contains("max-concurrent")
+        ConfigurationKeys.renamed("wow.query.adaptive.latency-factor").assert().contains("max-concurrent")
+        ConfigurationKeys.renamed("wow.query.adaptive.ceiling").assert().isNull()
     }
 
     @Test

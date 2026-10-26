@@ -91,12 +91,11 @@ class StoreLayout(
             checkpoints = default.checkpoints,
             leases = default.leases,
             ledger = default.ledger,
-            snapshots = targets.primary,
+            snapshots = targets,
             reservations = default.reservations,
             timers = default.timers(context),
             store = log,
             groups = groups,
-            snapshotTargets = targets,
         )
     }
 

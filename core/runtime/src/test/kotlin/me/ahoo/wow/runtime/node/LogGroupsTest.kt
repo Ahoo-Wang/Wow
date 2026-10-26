@@ -42,6 +42,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
+import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.eventually
@@ -271,7 +272,7 @@ class LogGroupsTest {
                 checkpoints = default.checkpoints,
                 leases = leases,
                 ledger = default.ledger,
-                snapshots = snapshots,
+                snapshots = SnapshotTargets.single(snapshots),
                 timers = default.timers,
                 store = DEFAULT_STORE,
                 groups = listOf(

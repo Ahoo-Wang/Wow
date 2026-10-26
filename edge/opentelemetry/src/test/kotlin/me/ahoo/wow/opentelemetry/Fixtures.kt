@@ -53,6 +53,7 @@ import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
+import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import java.util.concurrent.ConcurrentHashMap
@@ -218,7 +219,7 @@ class InMemoryBackends(private val partitions: Int = 2) : BackendFactory {
             checkpoints = InMemoryCheckpointStore(),
             leases = InMemoryLeaseStore(),
             ledger = InMemoryFailureLedger(),
-            snapshots = InMemorySnapshotStore(),
+            snapshots = SnapshotTargets.single(InMemorySnapshotStore()),
             timers = InMemoryTimerStore(),
         )
     }

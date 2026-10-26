@@ -180,7 +180,19 @@ class ConfigurationKeys(
                 ".initial-backoff",
             "wow.topics.in-memory" to "renamed wow.transport (memory)",
             "wow.analytics.catalog.watch" to "renamed wow.analytics.catalog.watch.enabled",
+            "wow.log.append-queue" to "removed: appends are always queued, sized by their log's backend",
+            "wow.log.handoff" to "removed: the hand-over is always on, probing at wow.log.max-poll-interval",
+            "wow.query.adaptive.enabled" to ADAPTIVE_REMOVED,
+            "wow.query.adaptive.interval" to ADAPTIVE_REMOVED,
+            "wow.query.adaptive.latency-factor" to ADAPTIVE_REMOVED,
+            "wow.query.adaptive.min-latency" to ADAPTIVE_REMOVED,
+            "wow.query.adaptive.connection-waits" to ADAPTIVE_REMOVED,
+            "wow.query.adaptive.periods" to ADAPTIVE_REMOVED,
+            "wow.stores.*.query.adaptive.enabled" to ADAPTIVE_REMOVED,
         )
+
+        private const val ADAPTIVE_REMOVED =
+            "removed: a constant of the adaptation; set max-concurrent for a fixed bound"
 
         private val RENAMED_NAMES: List<Pair<List<String>, String>> = RENAMED.map { (pattern, message) ->
             pattern.split('.').map { if (it == "*") it else uniform(it) } to message

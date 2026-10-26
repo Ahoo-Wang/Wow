@@ -116,7 +116,7 @@ class HostStoresTest {
         layout.snapshotStoreOf(account).assert().isEqualTo("c")
         layout.snapshotStores.assert().containsExactlyInAnyOrder("a", "b", "c")
         val stores = memory("a", "b", "c")
-        val targets = checkNotNull(layout.open(BANK, stores, 4).snapshotTargets)
+        val targets = checkNotNull(layout.open(BANK, stores, 4).snapshots)
         targets.default.assert().isEqualTo("a")
         targets.stores.keys.assert().containsExactlyInAnyOrder("a", "b", "c")
         targets.primaryOf(account).assert().isSameAs(stores.getValue("c").snapshots(BANK))

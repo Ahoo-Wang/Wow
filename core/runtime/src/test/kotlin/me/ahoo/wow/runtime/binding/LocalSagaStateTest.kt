@@ -42,6 +42,7 @@ import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.fastNodeOptions
+import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.runtime.state.StateViewOptions
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.EventLog
@@ -73,7 +74,7 @@ class LocalSagaStateTest {
             checkpoints = InMemoryCheckpointStore(),
             leases = InMemoryLeaseStore(),
             ledger = InMemoryFailureLedger(),
-            snapshots = snapshots,
+            snapshots = SnapshotTargets.single(snapshots),
             reservations = InMemoryReservationStore(),
         )
     }
@@ -176,8 +177,8 @@ class LocalSagaStateTest {
     }
 
     @Test
-    fun `a saga chain should read no store for the state of the node's own commits, without a queue`() {
-        steadyChains(AppendQueueOptions(enabled = false))
+    fun `a saga chain should read no store for the state of the node's own commits, one append per batch`() {
+        steadyChains(AppendQueueOptions(maxBatch = 1))
     }
 
     private companion object {

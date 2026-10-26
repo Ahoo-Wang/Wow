@@ -110,7 +110,7 @@ class SnapshotOptOutTest {
                 placed.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
                 placed.hop.stage.assert().isEqualTo(Stage.HANDLED)
             }
-            val snapshots = backends.opened.getValue(SHOP).snapshots!!
+            val snapshots = backends.opened.getValue(SHOP).primarySnapshots!!
             eventually { snapshots.load(ORDER.ref(TENANT, "o-1")) != null }
             snapshots.load(CART.ref(TENANT, "c-1")).assert().isNull()
             backends.opened.getValue(SHOP).log.read(CART.ref(TENANT, "c-2")).toList().assert().isEmpty()

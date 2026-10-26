@@ -48,6 +48,7 @@ import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.node.accountsManifest
 import me.ahoo.wow.runtime.node.fastNodeOptions
+import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.runtime.subscription.PausedPartition
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
@@ -97,7 +98,7 @@ class NodeHealthTest {
             checkpoints = InMemoryCheckpointStore(),
             leases = leases,
             ledger = InMemoryFailureLedger(),
-            snapshots = InMemorySnapshotStore(),
+            snapshots = SnapshotTargets.single(InMemorySnapshotStore()),
         )
     }
 

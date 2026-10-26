@@ -169,7 +169,7 @@ class ServiceNodeTest {
         created.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         created.hop.assert().isEqualTo(Hop.snapshot(BANK))
         created.version.assert().isEqualTo(1)
-        backends.opened.getValue(BANK).snapshots!!.load(created.ref)!!.state.assert().isEqualTo("""{"balance":5}""")
+        backends.opened.getValue(BANK).primarySnapshots!!.load(created.ref)!!.state.assert().isEqualTo("""{"balance":5}""")
 
         val second = node.gateway.execute(deposit(id = created.ref.id, amount = 2))
         second.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
