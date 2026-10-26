@@ -230,6 +230,9 @@ class PartitionOwnership internal constructor(
     /** The other members' addresses handed to [peers] so far, as `node@address`. */
     private val seenPeers = ConcurrentHashMap.newKeySet<String>()
 
+    /** The greetings that fail, and since when (finding C-20). */
+    private val greetings = PeerGreetings(timeSource, options.memberTtl)
+
     /** The members greeted and still members, as `node@address`. */
     internal val knownPeers: Set<String> get() = seenPeers
 
@@ -330,6 +333,7 @@ class PartitionOwnership internal constructor(
         } finally {
             running = null
             seenPeers.clear()
+            greetings.retain(emptySet())
             lastMembers = emptySet()
             run?.root?.cancelAndJoin()
         }
@@ -456,13 +460,44 @@ class PartitionOwnership internal constructor(
         }
     }
 
-    /** Hands each other member of [members] at an address not seen before to [peers], in its own coroutine. */
+    /**
+     * Hands each other member of [members] at an address not seen before to [peers], in its own coroutine. A greeting
+     * that fails is tried again on the next read of the routes (finding C-20): logged at INFO, without its trace, while
+     * it fails for less than the member TTL, as a new member's address that does not resolve yet does, and at WARN
+     * with its trace after.
+     */
     private fun greetNew(members: List<Member>) {
         val run = running ?: return
         // The members that left are forgotten (review A5-14): one that comes back is greeted again.
-        seenPeers.retainAll(members.mapTo(HashSet()) { "${it.node}@${it.address}" })
+        val current = members.mapTo(HashSet()) { "${it.node}@${it.address}" }
+        seenPeers.retainAll(current)
+        greetings.retain(current)
         members.filter { it.node != node && seenPeers.add("${it.node}@${it.address}") }.forEach { member ->
-            run.upkeep.launch { quietly("greet ${member.node} at ${member.address}") { peers(member) } }
+            run.upkeep.launch { greet(member) }
+        }
+    }
+
+    private suspend fun greet(member: Member) {
+        val peer = "${member.node}@${member.address}"
+        try {
+            peers(member)
+            greetings.greeted(peer)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
+            // Greeted again on the next read of the routes.
+            seenPeers.remove(peer)
+            if (greetings.failed(peer)) {
+                logger.warn(failure) {
+                    "$node failed to greet ${member.node} at ${member.address} in $group for " +
+                        "${greetings.failingFor(peer)}; retrying on the next round."
+                }
+            } else {
+                logger.info {
+                    "$node could not greet ${member.node} at ${member.address} in $group yet ($failure); " +
+                        "retrying on the next round."
+                }
+            }
         }
     }
 
