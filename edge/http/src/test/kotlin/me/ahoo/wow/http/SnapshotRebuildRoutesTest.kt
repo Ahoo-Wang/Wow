@@ -16,7 +16,6 @@ package me.ahoo.wow.http
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
-import me.ahoo.wow.api.snapshot.SnapshotRebuilds
 import me.ahoo.wow.api.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.ServiceTokens
@@ -26,6 +25,7 @@ import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CallHeaders
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
+import me.ahoo.wow.spi.snapshot.SnapshotRebuilds
 import org.junit.jupiter.api.Test
 import org.springframework.test.web.reactive.server.WebTestClient
 

@@ -26,7 +26,6 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.Partitioner
-import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.observation.Observer
 import java.util.TreeMap
 import java.util.concurrent.ConcurrentSkipListSet
@@ -122,7 +121,7 @@ class HandoffLog(
     /** The entries the tails delivered from memory, not read from the store. */
     val delivered: Long get() = handedOver.get()
 
-    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
         val partition = Partitioner.partitionOf(stream.ref, log.partitions)
         val ticket = inFlight[partition].open()
         var handed = false
@@ -133,7 +132,7 @@ class HandoffLog(
         }
     }
 
-    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
         val tickets = streams.map { (stream) -> Partitioner.partitionOf(stream.ref, log.partitions) }.distinct()
             .map { it to inFlight[it].open() }
         var handed = false
@@ -162,7 +161,7 @@ class HandoffLog(
     }
 
     /** Hands [outcome] over when it is a commit; whether it was one. */
-    private fun handOver(outcome: AppendOutcome, stream: EventStreamRecord, transport: Transport?): Boolean {
+    private fun handOver(outcome: AppendOutcome, stream: EventStreamRecord, transport: ByteArray?): Boolean {
         if (outcome !is AppendOutcome.Committed) {
             return false
         }

@@ -37,7 +37,6 @@ import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
-import me.ahoo.wow.spi.log.Transport
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicLong
@@ -151,7 +150,7 @@ class KernelScheduleTest {
     @Test
     fun `an append that does not commit takes the schedules with it`(): Unit = runTest {
         val failing = object : EventLog by log {
-            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
                 AppendOutcome.Unknown(IllegalStateException("down"))
         }
         Kernel(failing, clock = { NOW }).execute(model, Command("c-1", "r-1", ref, Place()))

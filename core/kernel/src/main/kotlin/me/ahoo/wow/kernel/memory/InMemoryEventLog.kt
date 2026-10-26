@@ -33,7 +33,6 @@ import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.TagsBackfill
-import me.ahoo.wow.spi.log.Transport
 
 /**
  * An [EventLog] in memory, for tests and samples. Appends are serialized by one lock, so the sequence within a
@@ -92,7 +91,7 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) :
             recorded
         }
 
-    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome = lock.withLock {
+    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome = lock.withLock {
         val request = stream.ref.tenantId to stream.requestId
         requests[request]?.firstOrNull { it.ref.type == stream.ref.type }
             ?.let { return AppendOutcome.AlreadyCommitted(it) }

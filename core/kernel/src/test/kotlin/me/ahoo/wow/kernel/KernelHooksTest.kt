@@ -24,7 +24,6 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
-import me.ahoo.wow.spi.log.Transport
 import org.junit.jupiter.api.Test
 
 class KernelHooksTest {
@@ -166,7 +165,7 @@ class KernelHooksTest {
         val log = opened()
         val racing = object : EventLog by log {
             var raced = false
-            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
                 if (!raced) {
                     raced = true
                     Kernel(log).execute(model, Command("other", "other", ref, Touch("other")))
@@ -183,7 +182,7 @@ class KernelHooksTest {
     fun `an unknown outcome runs no compensation, for the events may be committed`() = runTest {
         val log = opened()
         val unknown = object : EventLog by log {
-            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome =
                 AppendOutcome.Unknown(IllegalStateException("timeout"))
         }
         Kernel(unknown).execute(model, command(Touch("x"))).assert().isInstanceOf(CommandOutcome.Unknown::class.java)

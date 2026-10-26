@@ -18,6 +18,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.spi.log.TransportCodec
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.cfg.JsonNodeFeature
 import tools.jackson.databind.json.JsonMapper
@@ -27,8 +28,10 @@ import tools.jackson.module.kotlin.KotlinModule
  * The one JSON mapper configuration of Wow (decision D122): the kernel's event codec, the cluster codec and every
  * backend build their mappers from [builder], so a value means the same thing wherever it is read.
  *
- * - It registers a fixed set of modules, the Kotlin module only, and never discovers others on the class path
+ * - It registers a fixed set of modules, the Kotlin module and Wow's own, and never discovers others on the class path
  *   (decision D48): what Wow stores and sends must not depend on what a host happens to bring.
+ * - A [me.ahoo.wow.spi.log.Transport] is written in its one form ([TransportCodec], finding R5.B-3), wherever a
+ *   message embeds one.
  * - JSON numbers keep their exact value. A decimal read into an untyped value (`Any`, `Map<String, Any?>`) or a tree
  *   is a [java.math.BigDecimal] with all its digits and its scale, never a `Double`, so `2.50` stays `2.50`; trees keep
  *   trailing zeros. An integer is an `Int`, a `Long` or, beyond `Long`, a [java.math.BigInteger], whichever holds it,
@@ -46,6 +49,7 @@ object WowJson {
         .addModule(KotlinModule.Builder().build())
         .addMixIn(ScheduleRule::class.java, ScheduleRuleJson::class.java)
         .addMixIn(AggregateRef::class.java, AggregateRefJson::class.java)
+        .addModule(TransportCodec.module)
         .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
         .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
         .disable(JsonNodeFeature.STRIP_TRAILING_BIGDECIMAL_ZEROES)

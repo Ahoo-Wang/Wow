@@ -8,6 +8,6 @@
     "ops/parked/commandClient.ts": "f957e952327f897d3cdb7f0b81dfaba1147c8ac4b3fe47d8da8a7556d616d236",
     "ops/parked/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "ops/parked/queryClient.ts": "dcaa07dccdb85a1379dcbe2f8a5b05cdfcc52b15e1b7dceaa70a24a7568f000e",
-    "ops/types.ts": "9c58de750fbef72ed74c3a383dd6581cf6a2413b52c939b397b7c7882853c5f7"
+    "ops/types.ts": "f17479d04a504e9e97a51cfc9aaded012b00903fb6f4a411f8b997d3401d19de"
   }
 }

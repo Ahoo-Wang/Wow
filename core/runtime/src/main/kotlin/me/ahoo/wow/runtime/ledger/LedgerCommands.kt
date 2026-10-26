@@ -18,7 +18,6 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerCommand
-import me.ahoo.wow.api.ledger.LedgerResolution
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
 import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.ledger.SkipParked
@@ -28,6 +27,7 @@ import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.ParkedView
+import me.ahoo.wow.spi.ledger.LedgerResolution
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
 import tools.jackson.core.JacksonException
@@ -69,7 +69,7 @@ internal class LedgerCommands(
             )
         }
         val ref = try {
-            command.aggregate.toRef()
+            command.toRef()
         } catch (invalid: IllegalArgumentException) {
             return ErrorInfo(
                 FrameworkCodes.MALFORMED,

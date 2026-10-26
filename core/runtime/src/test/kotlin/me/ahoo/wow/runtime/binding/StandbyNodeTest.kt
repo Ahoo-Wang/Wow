@@ -63,9 +63,15 @@ class StandbyNodeTest {
     /** The lease store, down once [leasesDown] is set: the node's join at the resume fails. */
     private val store = InMemoryLeaseStore()
     private val leases = object : LeaseStore by store {
-        override suspend fun heartbeat(group: String, node: String, address: String, ttl: Duration): Member {
+        override suspend fun heartbeat(
+            group: String,
+            node: String,
+            address: String,
+            ttl: Duration,
+            groups: Set<String>,
+        ): Member {
             check(!leasesDown) { "The lease store is down." }
-            return store.heartbeat(group, node, address, ttl)
+            return store.heartbeat(group, node, address, ttl, groups)
         }
     }
     private val backends = BackendFactory {

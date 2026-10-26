@@ -26,6 +26,7 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.log.TransportCodec
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.util.concurrent.ConcurrentHashMap
@@ -72,7 +73,7 @@ class Appender(private val log: EventLog) {
         val version = versions.computeIfAbsent(ref) { AtomicInteger() }.incrementAndGet()
         val n = requests.incrementAndGet()
         val stream = EventStreamRecord(ref, version, "c-$n", "r-$n", "$type.Act", 0L, events, Scope.NONE)
-        val outcome = log.append(stream, transport)
+        val outcome = log.append(stream, transport?.let(TransportCodec::encode))
         val position = (outcome as AppendOutcome.Committed).position
         ends.merge(position.partition, position.sequence, ::maxOf)
         return position.sequence

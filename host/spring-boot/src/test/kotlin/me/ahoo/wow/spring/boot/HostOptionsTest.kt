@@ -16,10 +16,11 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.clickhouse.sink.AggregateSinkOptions
+import me.ahoo.wow.clickhouse.sink.ClickHouseSinkProvider
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
 import me.ahoo.wow.spi.StoreDdl
-import me.ahoo.wow.spi.config.WowConfigurationException
+import me.ahoo.wow.spi.sink.SinkConfig
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.boot.context.properties.bind.Binder
@@ -74,18 +75,21 @@ class HostOptionsTest {
 
     @Test
     fun `an aggregate's ClickHouse history should take the one per-type style over the older keys`() {
-        val clickhouse = bind(
-            ClickHouseProperties.PREFIX,
-            ClickHouseProperties::class.java,
-            "wow.clickhouse.sink.aggregates.bank.account.history.ttl" to "30d",
-            "wow.clickhouse.sink.aggregates.bank.ledger.history.enabled" to "false",
-        )
         val wow = wow(
             "wow.aggregates.[bank.account].clickhouse.history.ttl" to "7d",
             "wow.aggregates.[bank.audit].clickhouse.history.enabled" to "false",
             "wow.aggregates.[bank.card].tenant" to "t0",
         )
-        ClickHouseAutoConfiguration.options(clickhouse, wow.aggregates).aggregates.assert().isEqualTo(
+        val legacy = mapOf(
+            "endpoint" to "http://127.0.0.1:1",
+            "sink.aggregates.bank.account.history.ttl" to "30d",
+            "sink.aggregates.bank.ledger.history.enabled" to "false",
+        )
+        SinkAutoConfiguration.aggregateOptions("kafka", wow.aggregates).assert().isEmpty()
+        val options = legacy + SinkAutoConfiguration.aggregateOptions("clickhouse", wow.aggregates)
+        ClickHouseSinkProvider.options(
+            SinkConfig.of("clickhouse", "clickhouse", options)
+        ).aggregates.assert().isEqualTo(
             mapOf(
                 AggregateType("bank", "account") to AggregateSinkOptions(historyTtl = 7.days),
                 AggregateType("bank", "ledger") to AggregateSinkOptions(history = false),
@@ -93,9 +97,13 @@ class HostOptionsTest {
             ),
         )
         val malformed = wow("wow.aggregates.[account].clickhouse.history.enabled" to "false")
-        assertThrows<WowConfigurationException> {
-            ClickHouseAutoConfiguration.options(ClickHouseProperties(), malformed.aggregates)
-        }
+        val refused = SinkConfig.of(
+            "clickhouse",
+            "clickhouse",
+            SinkAutoConfiguration.aggregateOptions("clickhouse", malformed.aggregates)
+        )
+        assertThrows<IllegalArgumentException> { ClickHouseSinkProvider.options(refused) }
+            .message.assert().contains("names no aggregate type")
     }
 
     @Test

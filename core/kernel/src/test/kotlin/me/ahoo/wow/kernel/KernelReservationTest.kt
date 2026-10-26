@@ -160,7 +160,7 @@ class KernelReservationTest {
         register("u-1", "ahoo")
         val entries = log.tail(0).take(2).toList()
         // The first attempt reserved the key pending; the second found it confirmed and had nothing to confirm.
-        entries[0].transport.assert().isEqualTo(Transport(reservations = listOf(ReservationKey(NAMES, "ahoo"))))
+        entries[0].decodedTransport.assert().isEqualTo(Transport(reservations = listOf(ReservationKey(NAMES, "ahoo"))))
         entries[1].transport.assert().isNull()
     }
 
@@ -182,7 +182,7 @@ class KernelReservationTest {
         register("u-2", "root", tenant = "tenant-b").assert().isInstanceOf(CommandOutcome.Committed::class.java)
         reservations.find(ReservationScope("test", ReservationScope.SYSTEM_TENANT, NAMES), "root")?.owner
             .assert().isEqualTo(model.type.ref("tenant-a", "u-1"))
-        log.tail(0).take(1).toList().single().transport
+        log.tail(0).take(1).toList().single().decodedTransport
             .assert().isEqualTo(Transport(reservations = listOf(ReservationKey(NAMES, "root", system = true))))
     }
 
@@ -216,7 +216,7 @@ class KernelReservationTest {
         execute("u-1", Rename("new")).assert().isInstanceOf(CommandOutcome.Committed::class.java)
         find("old").assert().isNull()
         find("new")!!.confirmed.assert().isTrue()
-        log.tail(0).take(2).toList()[1].transport.assert().isEqualTo(
+        log.tail(0).take(2).toList()[1].decodedTransport.assert().isEqualTo(
             Transport(
                 reservations = listOf(ReservationKey(NAMES, "new")),
                 releases = listOf(ReservationKey(NAMES, "old"))
@@ -249,7 +249,7 @@ class KernelReservationTest {
     fun `an unknown append the version slot shows committed confirms its key and compensates nothing`() = runTest {
         // Finding A1-1: the backend commits, then reports the outcome unknown (a timeout after the write).
         val unknownAfterCommit = object : EventLog by log {
-            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+            override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
                 log.append(stream, transport)
                 return AppendOutcome.Unknown(IllegalStateException("timed out"))
             }

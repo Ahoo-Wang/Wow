@@ -147,7 +147,7 @@ fun notAppendedAfter(failed: EventStreamRecord, outcome: AppendOutcome): AppendO
  * Checks what [EventLog.appendAll] takes of one aggregate: its streams in consecutive versions, in order. A backend
  * that commits a group in one write relies on it to commit them as a prefix.
  */
-fun requireChains(streams: List<Pair<EventStreamRecord, Transport?>>) {
+fun requireChains(streams: List<Pair<EventStreamRecord, ByteArray?>>) {
     val last = HashMap<AggregateRef, Int>()
     streams.forEach { (stream) ->
         last.put(stream.ref, stream.version)?.let { previous ->

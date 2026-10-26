@@ -62,6 +62,7 @@ public abstract class me/ahoo/wow/tck/log/EventLogSpec {
 	public final fun a stream the backend refuses is rejected, and in appendAll fails alone ()V
 	public final fun an aggregate's first stream is version 1 and each next one exactly one more ()V
 	public final fun an entry lands in its ref's partition, sequenced from 1 ()V
+	public final fun an unknown future transport field round-trips unchanged through tail and readEntries ()V
 	public final fun appendAll across partitions sequences each partition on its own, and one's conflict stops none of the others ()V
 	public final fun appendAll appends none of an aggregate's streams after its first conflicts ()V
 	public final fun appendAll commits a request id repeated in a group once, the repeat is a duplicate ()V
@@ -225,6 +226,7 @@ public abstract class me/ahoo/wow/tck/subscription/LeaseStoreSpec {
 	public fun <init> ()V
 	public final fun a free partition is acquired at epoch 1 until now plus the ttl ()V
 	public final fun a live lease cannot be taken, an expired one can ()V
+	public final fun a member records the lease groups it serves, and a heartbeat replaces them ()V
 	public final fun a node that leaves is no longer a member but keeps its leases ()V
 	public final fun a released lease can be acquired at once ()V
 	public final fun a renewal renews the live leases the owner holds and leaves the others out ()V

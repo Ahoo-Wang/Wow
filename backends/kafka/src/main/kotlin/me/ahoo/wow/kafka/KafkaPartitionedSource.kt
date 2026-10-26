@@ -73,7 +73,7 @@ class KafkaPartitionedSource @InternalWowApi constructor(
     private val gaps = OffsetGaps(offsetGap)
 
     /** The offset gaps this source's reads met (finding A2-11), each logged as an error: a counter to alert on. */
-    val offsetGaps: Long get() = gaps.count
+    override val offsetGaps: Long get() = gaps.count
 
     private val lock = Mutex()
     private var metadata: Consumer<String, ByteArray>? = null

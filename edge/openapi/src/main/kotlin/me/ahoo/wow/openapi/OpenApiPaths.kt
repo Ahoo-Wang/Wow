@@ -70,35 +70,20 @@ internal class OpenApiPaths(
         if (options.openApiEndpoint) {
             add(GET, Http.OPENAPI_PATH, framework("wow.openapi", "This document.", json(type("object"))))
         }
-        add(
-            GET,
-            Http.GLOBAL_ID_PATH,
-            framework(
-                "wow.id.global",
-                "A new global id.",
-                obj(TEXT to obj("schema" to type("string"))),
-                negotiated = false,
-            ),
-        )
         if (options.datasets) {
             datasetRoutes()
         }
     }
 
-    /** A framework endpoint answering [content]; one that is [negotiated] answers 406 for an Accept it cannot. */
-    private fun framework(
-        operationId: String,
-        summary: String,
-        content: Map<String, Any?>,
-        negotiated: Boolean = true,
-    ): Map<String, Any?> = obj(
+    /** A framework endpoint answering [content], 406 for an Accept it cannot. */
+    private fun framework(operationId: String, summary: String, content: Map<String, Any?>): Map<String, Any?> = obj(
         "tags" to listOf(ManifestOpenApi.FRAMEWORK_TAG),
         "summary" to summary,
         "operationId" to operationId,
         "responses" to ok(content) + errors.of(
             "framework",
             ErrorResponses.FRAMEWORK,
-            http = listOfNotNull(ErrorResponses.NOT_ACCEPTABLE.takeIf { negotiated }).toMap(),
+            http = mapOf(ErrorResponses.NOT_ACCEPTABLE),
         ),
     )
 

@@ -39,6 +39,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.log.TransportCodec
 import me.ahoo.wow.spi.observation.Observer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -84,7 +85,7 @@ class HandoffLogTest {
         )
     }
 
-    private fun transport(n: Int) = Transport(trace = mapOf("traceparent" to "trace-$n"))
+    private fun transport(n: Int) = TransportCodec.encode(Transport(trace = mapOf("traceparent" to "trace-$n")))
 
     /** Collects partition 0's tail of [log] from [after] into a channel, on another dispatcher. */
     private fun CoroutineScope.collect(log: EventLog, after: Long? = null): Pair<Channel<LogEntry>, Job> {
@@ -119,7 +120,8 @@ class HandoffLogTest {
 
         entries.map { it.position.sequence }.assert().isEqualTo((1L..20L).toList())
         entries.map { it.stream }.assert().isEqualTo(appended)
-        entries.map { it.transport }.assert().isEqualTo((1..20).map(::transport))
+        entries.map { it.decodedTransport?.trace }.assert()
+            .isEqualTo((1..20).map { mapOf("traceparent" to "trace-$it") })
         store.tails.get().assert().isEqualTo(0)
         log.storeReads.assert().isEqualTo(0L)
         log.delivered.assert().isEqualTo(20L)
@@ -492,7 +494,7 @@ private class UnknownOnce(private val delegate: EventLog) : EventLog by delegate
     @Volatile
     var next = false
 
-    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
         val outcome = delegate.append(stream, transport)
         if (next) {
             next = false
@@ -508,7 +510,7 @@ private class HoldFirst(private val delegate: EventLog) : EventLog by delegate {
     val release = CompletableDeferred<Unit>()
     private val calls = AtomicInteger()
 
-    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
         val outcome = delegate.append(stream, transport)
         if (calls.incrementAndGet() == 1) {
             committed.complete(Unit)
@@ -545,12 +547,12 @@ private class GateFirst(private val delegate: EventLog, armed: Boolean = true) :
         }
     }
 
-    override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+    override suspend fun append(stream: EventStreamRecord, transport: ByteArray?): AppendOutcome {
         gate()
         return delegate.append(stream, transport)
     }
 
-    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
+    override suspend fun appendAll(streams: List<Pair<EventStreamRecord, ByteArray?>>): List<AppendOutcome> {
         gate()
         return delegate.appendAll(streams)
     }

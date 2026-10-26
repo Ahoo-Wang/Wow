@@ -64,6 +64,8 @@ The event stream is the fact: the events one command produced, committed by one 
 
 Beside the facts, a log entry has a **position**, its sequence number within its partition, and may have **transport data**: the wait context of an open wait, reservations to confirm, trace context.
 
+Transport data has one form wherever it goes, the JSON object `{wait, reservations, trace, releases}` the envelope and the cluster channel embed; an absent wait, an empty list and an empty trace are left out. A log stores it as the bytes the node wrote and gives them back unchanged, without reading them, so a field a newer version adds needs no change to any backend.
+
 ## State event
 
 A state event is a commit together with the aggregate's state after it. Handlers receive it in process, and published streams carry it on Kafka. Its fields are the event stream's, plus:
@@ -241,8 +243,7 @@ The topic's partition is the one the target context's log assigns to `ref`, so t
         }
       ],
       "deadline": 1760950810000
-    },
-    "trace": {}
+    }
   }
 }
 ```
@@ -407,7 +408,7 @@ The nodes of one service forward commands to each other on their internal ports,
 
 | Message | Fields |
 | --- | --- |
-| Forward | `{v, command, wait, deadline, trace}`: the [command](#commands-on-a-topic) in its wire form, the wait context of an open wait, the absolute deadline and the trace propagation fields. |
+| Forward | `{v, command, transport, deadline}`: the [command](#commands-on-a-topic) in its wire form, the transport data (the wait context of an open wait and the trace propagation fields, null when there is neither) and the absolute deadline. |
 | Reply | `{v, result, reached, refused}`: either the owner's `result` at `COMMITTED` with the later hops it `reached` at once, or `refused` with one of `not-owner`, `expired`, `unknown-type`, `too-large`. |
 
 A refused forward is executed by the sending node itself. A forward that was sent and then timed out is not: the sender answers that the outcome is unknown, and the caller retries with the same request id.

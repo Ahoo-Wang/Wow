@@ -41,6 +41,21 @@ public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkOptions {
 public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkOptions$Companion {
 }
 
+public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkProvider : me/ahoo/wow/spi/sink/SinkProvider {
+	public static final field Companion Lme/ahoo/wow/clickhouse/sink/ClickHouseSinkProvider$Companion;
+	public static final field TYPE Ljava/lang/String;
+	public fun <init> ()V
+	public fun available (Lme/ahoo/wow/spi/sink/SinkConfig;)Z
+	public fun getRequirement ()Ljava/lang/String;
+	public fun getType ()Ljava/lang/String;
+	public fun open (Lme/ahoo/wow/spi/sink/SinkConfig;)Lme/ahoo/wow/spi/sink/StreamSinks;
+}
+
+public final class me/ahoo/wow/clickhouse/sink/ClickHouseSinkProvider$Companion {
+	public final fun clientOf (Lme/ahoo/wow/spi/sink/SinkConfig;)Lcom/clickhouse/client/api/Client;
+	public final fun options (Lme/ahoo/wow/spi/sink/SinkConfig;)Lme/ahoo/wow/clickhouse/sink/ClickHouseSinkOptions;
+}
+
 public final class me/ahoo/wow/clickhouse/sink/DdlMode : java/lang/Enum {
 	public static final field AUTO Lme/ahoo/wow/clickhouse/sink/DdlMode;
 	public static final field NONE Lme/ahoo/wow/clickhouse/sink/DdlMode;

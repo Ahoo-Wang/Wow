@@ -159,8 +159,9 @@ class QueryNode(
     /** Whether queries may cross tenants (`wow.query.cross-tenant.enabled`). */
     crossTenant: Boolean = false,
 ) {
-    private val gateway =
-        snapshots(cartSnapshots(storage, entryPolicy, policies = policies, manifest = manifest, crossTenant = crossTenant))
+    private val cart =
+        cartSnapshots(storage, entryPolicy, policies = policies, manifest = manifest, crossTenant = crossTenant)
+    private val gateway = snapshots(cart)
 
     /** As the host builds one (review R3.3-3): the policies of a cart whose snapshots are not queried. */
     private val policyGateway = if (gateway == null && policies.isNotEmpty()) {
