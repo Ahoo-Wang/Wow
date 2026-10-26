@@ -1,0 +1,12 @@
+# The keys this overlay changes in deploy/view-store/configmap.yaml, for G.1 to carry or map (D303):
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: view-store-config
+data:
+  # Capacity, so every node fits one runner: the heap, one GC thread, two cores' worth of default pools; the log's
+  # partitions (64 in deploy/), fewer leases and polls per node.
+  JAVA_OPTS: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2
+  WOW_LOG_PARTITIONS: "8"
+  # Diagnostics: every dropped wait signal, not only the first per origin (logging.level.<logger>).
+  LOGGING_LEVEL_ME_AHOO_WOW_HTTP_INTERNAL_HTTPSIGNALSENDER: DEBUG

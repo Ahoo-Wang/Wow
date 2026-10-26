@@ -95,7 +95,8 @@ jobs:
       - name: Run the scenarios
         env:
           BACKEND: ${{ matrix.backend }}
-        run: ./gradlew :eshop-e2e:clusterTest -Pga.backend="$BACKEND" --stacktrace
+        # ga.partitions: the overlays' WOW_LOG_PARTITIONS, for the partition of an order.
+        run: ./gradlew :eshop-e2e:clusterTest -Pga.backend="$BACKEND" -Pga.partitions=8 --stacktrace
       - name: Collect the cluster's diagnostics
         if: always()
         run: .github/ga-e2e/cluster.sh diagnostics example/eshop/e2e/build/ga-e2e/cluster

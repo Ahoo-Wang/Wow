@@ -75,6 +75,8 @@ class GaE2eTest {
     private val verdict = ClusterVerdict(flows, postgres) { println("[ga-e2e] $it") }
     private val health = HealthWatch(kube, report)
     private val probes = AtomicInteger()
+    private val probeFailures = AtomicInteger()
+    private val partitions = System.getProperty("ga.partitions", "8").toInt()
 
     init {
         verdict.startSampling()
@@ -489,7 +491,7 @@ class GaE2eTest {
         check(
             restarted.isEmpty()
         ) { "restarted (liveness or crash): ${restarted.map { "${it.name} ×${it.restarts}" }}" }
-        "${health.samples} samples, every pod ready outside the faults, no container restarted"
+        "${health.samples} samples, every pod ready outside the faults, no container restarted; ${health.load()}"
     }
 
     @Test
@@ -549,9 +551,18 @@ class GaE2eTest {
 
     private fun probe(chain: String, timeout: String): Boolean {
         val buyer = "probe-${probes.incrementAndGet()}"
-        if (flows.addItem(buyer, "sock", "5.00", 1).status != ShopFlows.OK) return false
-        val answer = flows.checkout(buyer, mapOf(ShopFlows.WAIT to chain, ShopFlows.WAIT_TIMEOUT to timeout))
-        return answer.status == ShopFlows.OK && json.readTree(answer.body)["status"]?.asString() == "SUCCEEDED"
+        val added = flows.addItem(buyer, "sock", "5.00", 1)
+        val answer = if (added.status == ShopFlows.OK) {
+            flows.checkout(buyer, mapOf(ShopFlows.WAIT to chain, ShopFlows.WAIT_TIMEOUT to timeout))
+        } else {
+            added
+        }
+        val served = answer.status == ShopFlows.OK && json.readTree(answer.body)["status"]?.asString() == "SUCCEEDED"
+        // The first failures, with why, for the report: a window is only as meaningful as its probes.
+        if (!served && probeFailures.incrementAndGet() <= LISTED * 2) {
+            report.note("probe $buyer failed: ${answer.status} ${answer.body.take(ShopFlows.BODY)}")
+        }
+        return served
     }
 
     /** Whether every one of the ordering's [replicas] nodes holds some of its command partitions' leases. */
@@ -565,7 +576,7 @@ class GaE2eTest {
 
     /** The node holding the ordering's command lease of [order]'s partition, once one does. */
     private fun partitionOwner(order: String): String {
-        val partition = Partitioner.partitionOf(AggregateRef(ORDER, Caller.DEFAULT_TENANT, order), PARTITIONS)
+        val partition = Partitioner.partitionOf(AggregateRef(ORDER, Caller.DEFAULT_TENANT, order), partitions)
         var owner: String? = null
         flows.eventually("an owner of partition $partition") {
             owner = verdict.connect("ordering").use { SoakDatabase(it, "ordering").leases() }["$ORDERING_GROUP|$partition"]
@@ -682,7 +693,6 @@ class GaE2eTest {
         const val UNAUTHORIZED = 401
         const val MILLIS = 1000
         const val LISTED = 10
-        const val PARTITIONS = 64
         const val GATEWAY_SAGA = "PaymentGatewaySaga.onPaymentRequested"
         const val OUTAGE_FILE = "/tmp/gateway.down"
         const val ORDERING_GROUP = "eshop-ordering-service/eshop-ordering"

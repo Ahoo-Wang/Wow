@@ -86,7 +86,7 @@ network() {
 backends() {
   local arm=$1
   kubectl apply -f "$here/backends/postgres.yaml" -f "$here/backends/kafka.yaml" -f "$here/backends/clickhouse.yaml" \
-    -f "$here/gateway/gateway.yaml" -f "$here/backends/probes.yaml"
+    -f "$here/gateway/redis.yaml" -f "$here/backends/probes.yaml"
   if [ "$arm" = mongo ]; then
     kubectl apply -f "$here/backends/mongo.yaml"
   fi
@@ -102,6 +102,8 @@ backends() {
     kubectl wait --for=condition=complete job/mongo-init --timeout=300s
     kubectl logs job/mongo-init | tail -5
   fi
+  # The gateway does not start without its Redis.
+  kubectl apply -f "$here/gateway/gateway.yaml"
   kubectl rollout status deployment/cosec-gateway --timeout=420s
   kubectl wait --for=condition=Ready pod/outsider pod/insider --timeout=120s
 }

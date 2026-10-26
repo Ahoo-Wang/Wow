@@ -2,7 +2,7 @@
 # (Authorization: Bearer, HMAC256 with COSEC_JWT_SECRET), authorizes it by its global policy (policy.json: any
 # authenticated principal), and forwards it with the token, which the services read in CoSec's inject mode without
 # verifying it again. It routes by the context prefix (decision D313). It overwrites X-Forwarded-For with the address
-# it accepted (for-append: false) instead of passing a client's on, so a service's remote_ip is the client's
+# it accepted (trusted-proxies, for-append: false) instead of passing a client's on, so a service's remote_ip is the client's
 # (D297, D303 ⑥). Its pods carry app.kubernetes.io/component: gateway, which deploy/eshop-ordering's public
 # NetworkPolicy admits (deploy/ops and deploy/view-store name cosec-gateway; their overlays are patched, a gap the PR
 # reports). The gateway keeps its policies in Redis (cocache), which it requires.
@@ -27,6 +27,10 @@ data:
         gateway:
           server:
             webflux:
+              # The X-Forwarded headers filter runs only when trusted-proxies is set (Spring Cloud Gateway 4.1+): without
+              # it, the service sees the gateway's own address. No proxy before the gateway is trusted, so a client's
+              # X-Forwarded-For is dropped and replaced by the address the gateway accepted (D296).
+              trusted-proxies: "(?!)"
               x-forwarded:
                 for-append: false
               routes:
@@ -183,49 +187,3 @@ spec:
       port: 80
       targetPort: http
       nodePort: 30080
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: redis
-  labels:
-    app.kubernetes.io/name: redis
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: redis
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: redis
-        app.kubernetes.io/component: backend
-    spec:
-      containers:
-        - name: redis
-          image: redis:7.4-alpine@sha256:d9436322172a5b482c187bf1f363d3c4fea086fcca6b9c8a94de8f0f39ed3193
-          ports:
-            - name: redis
-              containerPort: 6379
-          readinessProbe:
-            exec:
-              command: ["redis-cli", "ping"]
-            periodSeconds: 5
-          resources:
-            requests:
-              cpu: 20m
-              memory: 64Mi
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: redis
-  labels:
-    app.kubernetes.io/name: redis
-spec:
-  selector:
-    app.kubernetes.io/name: redis
-  ports:
-    - name: redis
-      port: 6379
-      targetPort: redis

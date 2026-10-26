@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.eshop.e2e.cluster
 
+import java.io.File
 import java.time.Duration
 import java.time.Instant
 import kotlin.concurrent.thread
@@ -47,6 +48,16 @@ class HealthWatch(private val kube: Kube, private val report: ClusterReport) {
     var samples = 0
         private set
 
+    /** The runner's 1-minute load average at each sample: the kind node shares the runner's kernel and cores. */
+    private val loads = mutableListOf<Double>()
+
+    /** The load averages seen, for the report: their maximum and median over the run. */
+    fun load(): String = synchronized(loads) {
+        if (loads.isEmpty()) return "no load samples"
+        val sorted = loads.sorted()
+        "load average max ${sorted.last()}, median ${sorted[sorted.size / 2]} on ${Runtime.getRuntime().availableProcessors()} cores"
+    }
+
     fun start() {
         running = true
         worker = thread(name = "health-watch", isDaemon = true) {
@@ -56,6 +67,8 @@ class HealthWatch(private val kube: Kube, private val report: ClusterReport) {
                     kube.allPods().filter { platform(it.name) && !it.ready && !it.deleting }
                         .forEach { synchronized(unready) { unready += now to it.name } }
                     samples++
+                    File("/proc/loadavg").takeIf { it.exists() }?.readText()?.substringBefore(' ')?.toDoubleOrNull()
+                        ?.let { synchronized(loads) { loads += it } }
                 }
                 Thread.sleep(SAMPLE.toMillis())
             }

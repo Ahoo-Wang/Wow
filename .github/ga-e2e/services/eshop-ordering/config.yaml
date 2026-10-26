@@ -16,5 +16,9 @@ data:
   WOW_OPS_PUBLISH_INTERVAL: 5s
   # wow.subscription.parked.min-backoff: a fault's parked entries retry before the verdict.
   WOW_SUBSCRIPTION_PARKED_MINBACKOFF: 20s
-  # The heap within the lowered memory limit (the base sets 75%).
-  JAVA_OPTS: -XX:MaxRAMPercentage=70.0
+  # Capacity, so every node fits one runner: the heap within the lowered memory limit (the base sets 75%), one GC
+  # thread, two cores' worth of default pools; the log's partitions (64 in the base), fewer leases and polls per node.
+  JAVA_OPTS: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2
+  WOW_LOG_PARTITIONS: "8"
+  # Diagnostics: every dropped wait signal, not only the first per origin (logging.level.<logger>).
+  LOGGING_LEVEL_ME_AHOO_WOW_HTTP_INTERNAL_HTTPSIGNALSENDER: DEBUG

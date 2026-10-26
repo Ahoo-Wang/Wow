@@ -13,7 +13,10 @@ data:
   WOW_CLICKHOUSE_ENDPOINT: http://clickhouse:8123
   # wow.clickhouse.username
   WOW_CLICKHOUSE_USERNAME: wow
-  # the log's partitions
-  WOW_LOG_PARTITIONS: "64"
-  # the heap within the pod's memory limit
-  JAVA_OPTS: -XX:MaxRAMPercentage=70.0
+  # capacity: the log's partitions (64 in deploy/)
+  WOW_LOG_PARTITIONS: "8"
+  # capacity, so every node fits one runner: the heap within the pod's memory limit, one GC thread, two cores' worth
+  # of default pools
+  JAVA_OPTS: -XX:MaxRAMPercentage=70.0 -XX:+UseSerialGC -XX:ActiveProcessorCount=2
+  # diagnostics: every dropped wait signal, not only the first per origin (logging.level.<logger>)
+  LOGGING_LEVEL_ME_AHOO_WOW_HTTP_INTERNAL_HTTPSIGNALSENDER: DEBUG
