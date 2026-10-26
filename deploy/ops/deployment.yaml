@@ -47,7 +47,7 @@ spec:
                 name: ops-config
             - secretRef:
                 name: ops-postgres
-            # The cluster token of the internal port (decision D226) and CoSec's token secret.
+            # CoSec's token secret.
             - secretRef:
                 name: ops-tokens
           env:

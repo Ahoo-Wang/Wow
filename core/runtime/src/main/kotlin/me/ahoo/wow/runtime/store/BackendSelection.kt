@@ -86,7 +86,7 @@ object BackendSelection {
     /**
      * Why a node may fall back to memory when `wow.backend` is auto and no durable backend is available, or null when
      * it may not: an active profile of [devProfiles] (`wow.internal.dev-profiles`), or an internal port bound to
-     * [bindHost], a loopback address, alone, the rule a node without a cluster token follows (decision D226).
+     * [bindHost], a loopback address, alone, the development exemption the host's safeguards share.
      */
     fun memoryOptIn(activeProfiles: Collection<String>, devProfiles: Set<String>, bindHost: String?): String? {
         val dev = activeProfiles.filter { it in devProfiles }

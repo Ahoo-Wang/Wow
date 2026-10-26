@@ -33,8 +33,8 @@ import java.util.concurrent.TimeUnit
  * each call and answers that the order was committed at version 1.
  */
 class FakeOrdering : AutoCloseable {
-    /** A call the gateway took: its [path], the [authorization] it presented, its [call] context and its [body]. */
-    data class Call(val path: String, val authorization: String?, val call: CallContext, val body: ByteArray)
+    /** A call the gateway took: its [path], the [service] it named, its [call] context and its [body]. */
+    data class Call(val path: String, val service: String?, val call: CallContext, val body: ByteArray)
 
     private val calls = LinkedBlockingQueue<Call>()
     private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
@@ -43,7 +43,7 @@ class FakeOrdering : AutoCloseable {
                 val call = CallHeaders.parse(exchange.requestHeaders.getFirst(WowHeaders.CALL))
                 calls += Call(
                     exchange.requestURI.path,
-                    exchange.requestHeaders.getFirst("Authorization"),
+                    exchange.requestHeaders.getFirst(WowHeaders.SERVICE),
                     call,
                     exchange.requestBody.readAllBytes(),
                 )

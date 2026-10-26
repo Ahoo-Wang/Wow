@@ -13,9 +13,8 @@ application {
     mainClass.set("me.ahoo.wow.example.quickstart.BankServerKt")
 }
 
-// `./gradlew :quickstart:run` is one node on this machine: its internal port on the loopback interface alone, which runs
-// without a cluster token (decision D226). A service of several nodes binds an address they reach and sets
-// wow.internal.token.
+// `./gradlew :quickstart:run` is one node on this machine: its internal port on the loopback interface alone. A service of
+// several nodes binds an address they reach, behind a NetworkPolicy that lets only the platform's own pods in (D300).
 tasks.named<JavaExec>("run") {
     systemProperty("wow.internal.host", "127.0.0.1")
 }

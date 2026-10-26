@@ -92,7 +92,7 @@ class CallWaitOriginTest {
 
     @Test
     fun `a wait naming the target's own service should be dropped, not signalled to the caller's address`() {
-        // The exfiltration of R2.3-1: the target would sign this signal with its cluster token.
+        // The exfiltration of R2.3-1: the target would signal its own service at an address the caller chose.
         callWith(Origin("n", "attacker.example:80", TARGET_SERVICE)).status.assert().isEqualTo(200)
         commands.assert().hasSize(1)
         sent.assert().isEmpty()

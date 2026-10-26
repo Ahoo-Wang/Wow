@@ -65,7 +65,6 @@ class BasketServerTest {
         "--wow.subscription.stop-timeout=2s",
         "--wow.wait.max-timeout=15s",
         "--wow.calls.contexts.eshop-ordering.url=${ordering.url}",
-        "--wow.calls.token=$TOKEN",
     )
     private val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
     private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
@@ -117,7 +116,7 @@ class BasketServerTest {
         // The saga calls the ordering service with its service credential, for the buyer: the order belongs to the
         // buyer, the call carrying the basket's scope and the buyer as its operator (decisions D163, D189, D193).
         val call = ordering.called("/eshop-ordering/order/alice-1/submit-order")
-        call.authorization.assert().isEqualTo("Bearer $TOKEN")
+        call.service.assert().isEqualTo("eshop-basket-service")
         call.call.scope.assert().isEqualTo(Scope(ownerId = "alice"))
         call.call.operator?.id.assert().isEqualTo("alice")
         json.readTree(call.body)["items"].single()["productId"].asString().assert().isEqualTo("mug")
@@ -219,7 +218,6 @@ class BasketServerTest {
         const val FORBIDDEN = 403
         const val NOT_FOUND = 404
         const val UNPROCESSABLE = 422
-        const val TOKEN = "basket-test-service-token-0123456789abcdef"
         val TIMEOUT: Duration = Duration.ofSeconds(30)
     }
 }
