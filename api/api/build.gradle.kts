@@ -6,5 +6,7 @@ description = "Wow API: what domain code imports (the annotations, Decision, Dec
 dependencies {
     api(project(":annotations"))
     api(project(":query-api"))
+    // The one platform a contract module imports (R5.C-4): the version of its one third-party dependency.
+    api(platform(libs.kotlinx.coroutines.bom))
     api("org.jetbrains.kotlinx:kotlinx-coroutines-core")
 }
