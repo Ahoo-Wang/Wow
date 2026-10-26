@@ -87,15 +87,15 @@ class PostgresTimeoutsTest {
     }
 
     @Test
-    fun `a statement its client gave up on should be cancelled by the server, keeping the connection`() {
+    fun `a transaction's statement past the server bound should be cancelled by the server, keeping the connection`() {
         onePooled { pool ->
             val timed = PostgresTimeouts.timed(pool, 3.seconds)
             timed.connection.use { connection ->
                 val started = TimeSource.Monotonic.markNow()
                 val failure = assertThrownBy<SQLException> {
-                    connection.createStatement().use { it.execute("SELECT pg_sleep(10)") }
+                    inTransaction(connection) { connection.createStatement().use { it.execute("SELECT pg_sleep(10)") } }
                 }.actual()
-                // The query timeout (2 s) cancels the statement on the server before the socket times out (3 s).
+                // The server's statement_timeout (2 s) stops it before the socket times out (3 s).
                 failure.sqlState.assert().isEqualTo(QUERY_CANCELED)
                 started.elapsedNow().assert().isLessThan(3.seconds)
                 connection.createStatement().use { it.execute("SELECT 1") }
