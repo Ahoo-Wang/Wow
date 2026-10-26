@@ -94,6 +94,16 @@ public final class me/ahoo/wow/spring/boot/ConfigurationKeys$Companion {
 	public static synthetic fun of$default (Lme/ahoo/wow/spring/boot/ConfigurationKeys$Companion;Ljava/lang/ClassLoader;Ljava/util/Collection;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/ConfigurationKeys;
 }
 
+public final class me/ahoo/wow/spring/boot/DataSourceAutoConfiguration {
+	public static final field Companion Lme/ahoo/wow/spring/boot/DataSourceAutoConfiguration$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public final fun wowDataSource (Lorg/springframework/core/env/Environment;)Lcom/zaxxer/hikari/HikariDataSource;
+}
+
+public final class me/ahoo/wow/spring/boot/DataSourceAutoConfiguration$Companion {
+}
+
 public final class me/ahoo/wow/spring/boot/DevelopmentMode {
 	public static final field Companion Lme/ahoo/wow/spring/boot/DevelopmentMode$Companion;
 	public static final field OFF Lme/ahoo/wow/spring/boot/DevelopmentMode;
@@ -171,6 +181,16 @@ public final class me/ahoo/wow/spring/boot/KafkaProperties$Topics {
 	public final fun setMinInsyncReplicas (Ljava/lang/Integer;)V
 	public final fun setPartitionRefresh (Ljava/time/Duration;)V
 	public final fun setReplicationFactor (Ljava/lang/Short;)V
+}
+
+public final class me/ahoo/wow/spring/boot/MongoClientAutoConfiguration {
+	public static final field Companion Lme/ahoo/wow/spring/boot/MongoClientAutoConfiguration$Companion;
+	public static final field URI Ljava/lang/String;
+	public fun <init> ()V
+	public final fun wowMongoClient (Lorg/springframework/core/env/Environment;)Lcom/mongodb/client/MongoClient;
+}
+
+public final class me/ahoo/wow/spring/boot/MongoClientAutoConfiguration$Companion {
 }
 
 public final class me/ahoo/wow/spring/boot/ObservabilityAutoConfiguration {

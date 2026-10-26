@@ -24,7 +24,7 @@ import kotlin.time.toKotlinDuration
 /**
  * The eShop's ordering service on the Wow host: the host finds the order model and the sagas through
  * `eshop-ordering-domain`'s binding index and serves its routes on the public port and the cluster on the internal
- * one. It runs on the memory backend by default and on PostgreSQL with the `postgres` profile ([PostgresDataSource]).
+ * one. It runs on the memory backend by default and on PostgreSQL with the `postgres` profile (`spring.datasource.*`, decision D310).
  *
  * Its sagas send the inventory's commands, so the node needs a command transport: the `kafka` profile gives it Kafka,
  * and it does not start without one.

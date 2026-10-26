@@ -45,7 +45,8 @@ dependencies {
     // The `postgres` profile: the host runs on PostgreSQL when the application gives it a DataSource, and serves the
     // snapshot queries there, with the indexes the product's state declares.
     implementation(project(":postgres"))
-    implementation("com.zaxxer:HikariCP")
+    // The pool the host makes of `spring.datasource.*` in the postgres profile (decision D310).
+    runtimeOnly("com.zaxxer:HikariCP")
     testImplementation("org.springframework:spring-test")
     // The springdoc bridge's acceptance (decision D233): the catalog's routes in springdoc's documents and Swagger UI,
     // the document checked against the OpenAPI 3.1 schema.
@@ -88,7 +89,7 @@ Spring Boot Actuator on the class path gives the node's health to the readiness 
 
 | `wow.backend` | The node |
 | --- | --- |
-| `auto`, the default | Takes PostgreSQL when the application has a `DataSource` bean, MongoDB when it has a `MongoClient` bean |
+| `auto`, the default | Takes PostgreSQL when the application has a `DataSource`, MongoDB when it has a `MongoClient`: its own bean, or the one the host makes of `spring.datasource.url` or `spring.mongodb.uri` |
 | `memory` | Keeps everything in memory, on purpose: one node, whose data does not outlive it |
 
 With `auto` and neither bean, the node refuses to start, unless a development profile is active (`wow.internal.dev-profiles`) or its internal port binds the loopback interface alone; it then runs in memory and warns. A production node never falls back to memory by accident.

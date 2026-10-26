@@ -51,11 +51,12 @@ class MixedStoresTest {
             "wow.aggregates.[treasury.ledger].log.store" to "mongo",
             "wow.aggregates.[treasury.ledger].snapshot.store" to "mongo",
             "wow.timers.poll-interval" to "100ms",
-            "test.postgres.url" to postgres.jdbcUrl,
-            "test.postgres.username" to postgres.username,
-            "test.postgres.password" to postgres.password,
+            "spring.datasource.url" to postgres.jdbcUrl,
+            "spring.datasource.username" to postgres.username,
+            "spring.datasource.password" to postgres.password,
+            "spring.datasource.hikari.maximum-pool-size" to 8,
             "test.mongo.url" to mongo.replicaSetUrl,
-            sources = listOf(TreasuryApp::class.java, PostgresDataSource::class.java, MongoClientConfiguration::class.java),
+            sources = listOf(TreasuryApp::class.java, MongoClientConfiguration::class.java),
         )
     }
     private val first = hosts[0]

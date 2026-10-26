@@ -206,7 +206,7 @@ fun main(args: Array<String>) {
 }
 ```
 
-命令函数接收的领域服务是应用的 Bean。`DataSource` 或 `MongoClient` Bean 决定后端；两者都没有时，宿主只在开发 profile 中或内部端口只绑定回环网卡时才在内存中运行（[在 Spring Boot 上运行](../guide/spring-boot#choose-a-backend)）。`CallerResolver` Bean 认证调用方，开发环境之外没有它宿主不会启动（[提供和调用 HTTP API](../guide/http#who-the-caller-is)）。
+命令函数接收的领域服务是应用的 Bean。`DataSource` 或 `MongoClient` 决定后端，可以是宿主用 `spring.datasource.url` 或 `spring.mongodb.uri` 建的，也可以是应用自己的 Bean；两者都没有时，宿主只在开发 profile 中或内部端口只绑定回环网卡时才在内存中运行（[在 Spring Boot 上运行](../guide/spring-boot#choose-a-backend)）。`CallerResolver` Bean 认证调用方，开发环境之外没有它宿主不会启动（[提供和调用 HTTP API](../guide/http#who-the-caller-is)）。
 
 ## 运行 {#run-it}
 

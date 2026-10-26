@@ -26,7 +26,8 @@ dependencies {
     // The `postgres` profile: the host runs on PostgreSQL when the application gives it a DataSource, and serves the
     // snapshot queries there, with the indexes the product's state declares.
     implementation(project(":postgres"))
-    implementation("com.zaxxer:HikariCP")
+    // The pool the host makes of `spring.datasource.*` in the postgres profile (decision D310).
+    runtimeOnly("com.zaxxer:HikariCP")
     testImplementation("org.springframework:spring-test")
     // The springdoc bridge's acceptance (decision D233): the catalog's routes in springdoc's documents and Swagger UI,
     // the document checked against the OpenAPI 3.1 schema.

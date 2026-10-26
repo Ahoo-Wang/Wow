@@ -29,6 +29,6 @@ class ViewStorePostgresTest : ViewStoreContract() {
         "wow.backend" to "postgres",
         "wow.log.partitions" to 4,
         *SYSTEM_VIEWS,
-        profiles = listOf(PostgresDataSource.PROFILE),
+        profiles = listOf("postgres"),
     )
 }

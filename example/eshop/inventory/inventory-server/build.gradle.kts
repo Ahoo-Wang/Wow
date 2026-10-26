@@ -26,5 +26,6 @@ dependencies {
     implementation(project(":kafka"))
     // The `postgres` profile: the host runs on PostgreSQL when the application gives it a DataSource.
     implementation(project(":postgres"))
-    implementation("com.zaxxer:HikariCP")
+    // The pool the host makes of `spring.datasource.*` in the postgres profile (decision D310).
+    runtimeOnly("com.zaxxer:HikariCP")
 }
