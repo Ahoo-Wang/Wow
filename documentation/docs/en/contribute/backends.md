@@ -29,6 +29,12 @@ A backend gives the host a `StoreProvider`: the `type` a configuration names (`w
 
 The host finds providers through Java's `ServiceLoader`, from the module's `META-INF/services/me.ahoo.wow.spi.store.StoreProvider`, and among the application's beans; a bean takes the place of a provider of the same type on the class path. A provider is stateless: each store instance gets its own `Store`, over the resources its configuration finds, a `DataSource` or a driver's client.
 
+## Transport and Sink providers
+
+A topic transport and a Sink are found the same way as stores. A `TransportProvider` (`:spi`, `me.ahoo.wow.spi.transport`) opens the broker that carries published streams, commands to other contexts and their receipts: its `open` returns a `TopicTransport`, the `TopicProducer`, `PartitionedSource` and `TopicAdmin` the node takes, and may warn about the node's command topics once it is ready. A `SinkProvider` (`me.ahoo.wow.spi.sink`) opens the Sinks of one destination: `open` returns a `StreamSinks`, one `Sink` per published stream, whose subscriptions are named `<processor>.<aggregate>`. The host finds them through `ServiceLoader`, from `META-INF/services/me.ahoo.wow.spi.transport.TransportProvider` and `META-INF/services/me.ahoo.wow.spi.sink.SinkProvider`, and among the application's beans; it builds nothing of a broker's or a warehouse's own. Wow's Kafka transport (`kafka`) and ClickHouse Sink (`clickhouse`) are providers like any other.
+
+Until the configuration surface is final, a provider of type `<type>` reads the keys under `wow.<type>`, handed to it as options relative to that prefix (`bootstrap-servers`, `properties.linger.ms`), and says with `available` whether they configure it. A node runs at most one transport and every Sink that is configured. A setting a provider refuses with an `IllegalArgumentException` fails the startup naming the key.
+
 ## The contract tests
 
 A backend's correctness is the contract. Its container tests extend each spec of the ports it implements and supply a fresh, empty store:

@@ -288,13 +288,13 @@ The internal port: the cluster channel, the wait signals and the calls of other 
 
 ## `wow.kafka`
 
-The Kafka transport's configuration, `wow.kafka.*`, read when wow-kafka is on the classpath (KafkaAutoConfiguration): the brokers, the clients' settings and the topics.
+The Kafka transport's configuration, `wow.kafka.*`: the brokers, the clients' settings and the topics, which the transport provider of type `kafka` reads, and the topic prefix, the command intake and the topics' DDL and partition refresh, which the node reads whatever transport carries them (TransportAutoConfiguration). The keys stay until the configuration surface is final.
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `wow.kafka.bootstrap-servers` | `String` |  | The brokers; the transport, the Kafka Sink and the Kafka-sourced subscriptions are wired only when it is set. |
 | `wow.kafka.command-intake` | `Boolean` | `false` | Whether each context the node hosts executes the commands other contexts send to its command topic, `wow.<context>.commands`. The topic must exist with as many partitions as the context's log. A context with an aggregate type routed through Kafka takes them whatever this says. |
-| `wow.kafka.offset-gap` | `OffsetGapPolicy` | `fail` | What a read of another context's topic does when its partition no longer holds the offset to read from (the retention deleted it, or the topic was created again): `fail` fails the read, so the subscription stays where it is; `earliest` reads on from the earliest offset retained, and the skipped range is lost to that subscription. Either way the gap is logged as an error and counted (`wow.kafka.offset.gaps`). |
+| `wow.kafka.offset-gap` | `String` | `fail` | What a read of another context's topic does when its partition no longer holds the offset to read from (the retention deleted it, or the topic was created again): `fail` fails the read, so the subscription stays where it is; `earliest` reads on from the earliest offset retained, and the skipped range is lost to that subscription. Either way the gap is logged as an error and counted (`wow.kafka.offset.gaps`). |
 | `wow.kafka.poll-timeout` | `Duration` | `PT0.2S` | The longest a consumer's poll waits; a read that is cancelled, and a partition that joins or leaves a topic's shared consumer, take effect within it. |
 | `wow.kafka.properties` | `Map<String,String>` |  | Passed to every producer and consumer as they are (`security.protocol`, `client.id`, `linger.ms`,...), except the settings the transport's guarantees rest on (`me.ahoo.wow.kafka.KafkaOptions`). |
 | `wow.kafka.topic-prefix` | `String` | `""` | Put before every topic name, such as `staging.` for `staging.wow.shop.order.state`; none by default, so the topics are the Manifest's (`wow.<context>.<aggregate>.state`). The sinks write and the subscriptions read under it. |

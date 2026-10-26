@@ -24,7 +24,7 @@ import org.springframework.beans.factory.support.DefaultListableBeanFactory
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicInteger
 
-class KafkaAutoConfigurationTest {
+class TransportAutoConfigurationTest {
 
     @Test
     fun `the offset gaps counter should keep reading its source after a garbage collection`() {
@@ -36,7 +36,7 @@ class KafkaAutoConfigurationTest {
         counter.count()
         // Finding R2.3-4: a weakly held provider is gone after the collection, and the counter freezes.
         reads.get().assert().isGreaterThan(before)
-        registry.get(KafkaAutoConfiguration.OFFSET_GAPS).functionCounter().count().assert().isEqualTo(0.0)
+        registry.get(TransportAutoConfiguration.OFFSET_GAPS).functionCounter().count().assert().isEqualTo(0.0)
     }
 
     /** Registers the counter over a provider only the meter can hold, counting the provider's reads in [reads]. */
@@ -51,7 +51,7 @@ class KafkaAutoConfigurationTest {
         }
         val meters = factory.getBeanProvider(MeterRegistry::class.java)
         factory.registerSingleton("registry", registry)
-        return KafkaAutoConfiguration.KafkaMetrics().wowKafkaOffsetGaps(sources, meters)
+        return TransportAutoConfiguration.TransportMetrics().wowOffsetGaps(sources, meters)
     }
 
     private fun collectGarbage() {
