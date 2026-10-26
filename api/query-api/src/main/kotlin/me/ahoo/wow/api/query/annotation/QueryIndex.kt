@@ -24,8 +24,9 @@ package me.ahoo.wow.api.query.annotation
  * expressions match, character for character, the casts the SQL compiler emits for each key; on MongoDB it is a
  * compound index. Every index always starts with the tenant and the aggregate name, which admission adds to every
  * query, and is partial on not-deleted snapshots. `manifest-tools` writes both forms into the Manifest's
- * `x-wow-index` as `{name, keys: [...]}`. The `wow.query.index.ddl` setting manages the indexes: `auto` creates
- * missing ones, `validate` only reports them, and `none` leaves the schema alone.
+ * `x-wow-index` as `{name, keys: [...]}`. The `ddl` of the store the snapshots are on (`wow.ddl` by default) manages
+ * the indexes: `auto` creates missing ones, `validate` refuses to start while one is missing, and `none` leaves the
+ * schema alone.
  *
  * The annotation itself does not check that [on] and [with] name existing paths, or that [on] is set on a class:
  * `manifest-tools` and query-model admission check those.

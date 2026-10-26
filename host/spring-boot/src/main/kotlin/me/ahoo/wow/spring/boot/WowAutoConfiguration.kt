@@ -132,7 +132,7 @@ import jakarta.validation.Validator as JakartaValidator
  *   `MongoClient`, in memory (one node, with a warning) when `wow.backend=memory`, or when it has neither and runs in
  *   a development profile or on a loopback-only internal port (it refuses to start otherwise, review R3.5-1), or the
  *   application's own [BackendFactory] bean. With `wow.stores`, the named store instances instead ([StoreInstances]), each aggregate's
- *   log and snapshots on the store `wow.log.store`, `wow.snapshot.store` and its `wow.aggregates.*` name
+ *   log and snapshots on the store `wow.log.store`, `wow.snapshot.stores` and its `wow.aggregates.*` name
  *   ([StoreLayout], decision D177).
  * - **Admission**: the application's [CommandAuthorizer], [CommandTransformer]s (D182) and [CommandValidator]s, the Jakarta
  *   validator when it has a Bean Validation provider (D106), the id generators (D171): the [GlobalIdGenerator] bean

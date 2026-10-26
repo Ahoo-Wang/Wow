@@ -17,10 +17,12 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.query.store.QueryIndexReport
+import me.ahoo.wow.spi.config.WowConfigurationException
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.assertThrows
 import javax.sql.DataSource
 
 /**
@@ -59,19 +61,40 @@ class PostgresQueryHostTest {
             connection.prepareStatement("SELECT indexname FROM pg_indexes WHERE tablename = 'wow_snapshot__bank__account'")
                 .executeQuery().use { rows -> buildList { while (rows.next()) add(rows.getString(1)) } }
         }.assert().contains("wow_snapshot__bank__account_ix_account_owner")
-        startHost(
-            "wow.log.partitions" to 4,
-            "wow.query.index.ddl" to "validate",
-            "spring.datasource.url" to postgres.jdbcUrl,
-            "spring.datasource.username" to postgres.username,
-            "spring.datasource.password" to postgres.password,
-            "spring.datasource.hikari.maximum-pool-size" to 8,
-            sources = listOf(HostTestApp::class.java),
-        ).use { validating ->
+        validatingHost().use { validating ->
             val validated = validating.context.getBean(QueryIndexesLifecycle::class.java).reports.getValue(account)
             validated.assert().isEqualTo(QueryIndexReport.NONE)
         }
     }
+
+    @Test
+    fun `a validating start should be refused while a declared index is missing`() {
+        val index = "wow_snapshot__bank__account_ix_account_owner"
+        host.context.getBean(DataSource::class.java).connection.use { connection ->
+            connection.createStatement().use { it.execute("DROP INDEX $index") }
+        }
+        try {
+            val refused = assertThrows<Exception> { validatingHost().close() }
+            generateSequence<Throwable>(refused) { it.cause }.filterIsInstance<WowConfigurationException>().first()
+                .also { it.key.assert().isEqualTo("wow.ddl") }
+                .message.assert().contains(index)
+        } finally {
+            host.context.getBean(QueryIndexesLifecycle::class.java).apply {
+                stop()
+                start()
+            }
+        }
+    }
+
+    private fun validatingHost() = startHost(
+        "wow.log.partitions" to 4,
+        "wow.ddl" to "validate",
+        "spring.datasource.url" to postgres.jdbcUrl,
+        "spring.datasource.username" to postgres.username,
+        "spring.datasource.password" to postgres.password,
+        "spring.datasource.hikari.maximum-pool-size" to 8,
+        sources = listOf(HostTestApp::class.java),
+    )
 
     @Test
     fun `counts should be cached on PostgreSQL until a snapshot is written`() {

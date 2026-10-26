@@ -42,7 +42,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The queries of an Elasticsearch store (work package 6.7): its snapshot indices (decision D131), each aggregate
- * type's state fields mapped from its state schema ([ElasticsearchStateMappings]) as `wow.query.index.ddl` says, and
+ * type's state fields mapped from its state schema ([ElasticsearchStateMappings]) as the store's `ddl` says, and
  * its events indices (decision D235, [ElasticsearchEventQueries]).
  * Found by `ServiceLoader`.
  */

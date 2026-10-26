@@ -21,7 +21,7 @@ A Wow service has two doors: the public port, where callers send commands and qu
 
 ## Authenticate callers
 
-The host turns each request into a caller with its `CallerResolver`. Without one, a node in development (a profile of `wow.internal.dev-profiles`, or an internal port on the loopback interface alone) serves every request as the anonymous caller of the default tenant and logs a warning; any other node refuses to start. A service that is anonymous on purpose says so with a `CallerResolver` bean returning `CallerResolver.ANONYMOUS`.
+The host turns each request into a caller with its `CallerResolver`. Without one, a node in development (a profile of `wow.dev-profiles`, or an internal port on the loopback interface alone) serves every request as the anonymous caller of the default tenant and logs a warning; any other node refuses to start. A service that is anonymous on purpose says so with a `CallerResolver` bean returning `CallerResolver.ANONYMOUS`.
 
 With CoSec on the classpath, its resolver is the host's. It reads the caller from CoSec's security context:
 
@@ -180,7 +180,7 @@ Events are facts. The log keeps them for good, and Wow offers neither erasing ev
 
 - Keep personal data, such as names, addresses, phone numbers and free text about a person, out of events where you can. Keep it in a read model you can delete from, such as a projection's table or another service, and put an opaque id in the event.
 - When decide needs personal data, let it read the data through a domain service instead of carrying it in an event.
-- The operator of a commit is recorded as an opaque id. Request facts are recorded with every commit: the authenticated application and, for requests on the public port, the client's remote address and user agent, `remote_ip` and `user_agent`. An IP address and a user agent are personal data, and once written they cannot be erased. Treat the event log, and the service logs that show these facts, as holding personal data, and set the logs' retention for it. `wow.http.client-facts` (default `true`) switches the address and user agent off: with `false`, the public port records neither. Do not add further personal data to `wow.http.request-facts`.
+- The operator of a commit is recorded as an opaque id. Request facts are recorded with every commit: the authenticated application and, for requests on the public port, the client's remote address and user agent, `remote_ip` and `user_agent`. An IP address and a user agent are personal data, and once written they cannot be erased. Treat the event log, and the service logs that show these facts, as holding personal data, and set the logs' retention for it. `wow.http.client-facts.enabled` (default `true`) switches the address and user agent off: with `false`, the public port records neither. Do not add further personal data to `wow.http.request-facts`.
 - Snapshots, the warehouse and search indexes are derived from the log: deleting a row there does not delete the fact.
 
 ## Tenants

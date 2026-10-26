@@ -108,4 +108,4 @@ Every error is `application/problem+json`:
 | `result` | A command's whole result, when the command produced one |
 | Any other member | A rejection's structured extensions, by name |
 
-A domain code's status is its `@ErrorCode(status)`, 422 by default, overridable per code with `wow.http.errors.[<code>].status`. [Error Codes](./error-codes) lists the framework's codes. The application's own routes answer their failures as problems too (`wow.http.global-errors`, on by default).
+A domain code's status is its `@ErrorCode(status)`, 422 by default, overridable per code with `wow.http.errors.[<code>].status`. [Error Codes](./error-codes) lists the framework's codes. The application's own routes answer their failures as problems too (`wow.http.global-errors.enabled`, on by default).

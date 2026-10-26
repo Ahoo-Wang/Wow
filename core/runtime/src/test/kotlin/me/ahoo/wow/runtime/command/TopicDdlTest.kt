@@ -96,7 +96,7 @@ class TopicDdlTest {
             ),
         )
         assertThrows<IllegalStateException> { runBlocking { node.start() } }.message.assert()
-            .contains("$COMMANDS does not exist").contains("wow.kafka.topics.ddl=auto").contains("validate")
+            .contains("$COMMANDS does not exist").contains("wow.kafka.ddl=auto").contains("validate")
         topics.partitions(setOf(COMMANDS)).assert().isEmpty()
     }
 

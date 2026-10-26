@@ -49,7 +49,7 @@ fun orderingCallerResolver(development: DevelopmentMode): CallerResolver {
 
 - A buyer is an **owner-level** caller: its scope has an owner, so it reaches only its own aggregates.
 - An employee is a **tenant-level** caller: no owner, so it reaches every aggregate of its tenant, and action-level authorization decides what it may do.
-- A resolver that returns `null` answers `401 wow.auth.unauthenticated`. Without a resolver, a node in development (a profile of `wow.internal.dev-profiles`, or an internal port on the loopback interface alone) serves every request as the anonymous caller of the default tenant; any other node refuses to start. A service that is anonymous on purpose declares a resolver bean returning `CallerResolver.ANONYMOUS`.
+- A resolver that returns `null` answers `401 wow.auth.unauthenticated`. Without a resolver, a node in development (a profile of `wow.dev-profiles`, or an internal port on the loopback interface alone) serves every request as the anonymous caller of the default tenant; any other node refuses to start. A service that is anonymous on purpose declares a resolver bean returning `CallerResolver.ANONYMOUS`.
 
 With `wow-cosec`, CoSec's resolver does this from the authenticated principal and its roles ([Secure a Deployment](../operate/security#authenticate-callers)). The eShop's services run that way behind the CoSec gateway: their `cosec` profile turns CoSec on, the header resolver above steps aside, and an employee is a principal with the role `employee` (`wow.cosec.tenant-level.roles`). The tenant, owner and space always come from the caller, never from the path or the body; a caller allowed to act across scopes names another in `Wow-Scope`.
 

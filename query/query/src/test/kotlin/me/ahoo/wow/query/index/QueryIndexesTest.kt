@@ -64,5 +64,4 @@ class QueryIndexesTest {
         assertThrownBy<IllegalArgumentException> { QueryIndexDeclaration("", listOf("state.name")) }
         assertThrownBy<IllegalArgumentException> { QueryIndexDeclaration("ix", emptyList()) }
     }
-
 }

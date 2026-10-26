@@ -74,25 +74,20 @@ class HostOptionsTest {
     }
 
     @Test
-    fun `an aggregate's ClickHouse history should take the one per-type style over the older keys`() {
+    fun `an aggregate's ClickHouse history should be its per-type keys`() {
         val wow = wow(
             "wow.aggregates.[bank.account].clickhouse.history.ttl" to "7d",
             "wow.aggregates.[bank.audit].clickhouse.history.enabled" to "false",
             "wow.aggregates.[bank.card].tenant" to "t0",
         )
-        val legacy = mapOf(
-            "endpoint" to "http://127.0.0.1:1",
-            "sink.aggregates.bank.account.history.ttl" to "30d",
-            "sink.aggregates.bank.ledger.history.enabled" to "false",
-        )
         SinkAutoConfiguration.aggregateOptions("kafka", wow.aggregates).assert().isEmpty()
-        val options = legacy + SinkAutoConfiguration.aggregateOptions("clickhouse", wow.aggregates)
+        val options = mapOf("endpoint" to "http://127.0.0.1:1") +
+            SinkAutoConfiguration.aggregateOptions("clickhouse", wow.aggregates)
         ClickHouseSinkProvider.options(
             SinkConfig.of("clickhouse", "clickhouse", options)
         ).aggregates.assert().isEqualTo(
             mapOf(
                 AggregateType("bank", "account") to AggregateSinkOptions(historyTtl = 7.days),
-                AggregateType("bank", "ledger") to AggregateSinkOptions(history = false),
                 AggregateType("bank", "audit") to AggregateSinkOptions(history = false),
             ),
         )

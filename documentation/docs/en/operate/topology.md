@@ -176,7 +176,7 @@ livenessProbe:
 
 ## Standby for a migration's cut-over {#standby-for-a-migrations-cut-over}
 
-Through the dual-run window of an [online 9.x cut-over](../migrate/data#online-cut-over-for-large-systems), `migrate-data tail` imports what 9.x keeps writing while the V10 service serves reads. Start its nodes with `wow.standby: true`:
+Through the dual-run window of an [online 9.x cut-over](../migrate/data#online-cut-over-for-large-systems), `migrate-data tail` imports what 9.x keeps writing while the V10 service serves reads. Start its nodes with `wow.node.standby: true`:
 
 - They serve state reads and queries of what the tail imports.
 - They report ready (`/actuator/health/readiness` is `UP`, with their lease groups and topics marked `standby`), so the load balancer sends them those reads.

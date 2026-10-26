@@ -89,11 +89,11 @@ A query is admitted as its caller:
 
 ## Bounds
 
-Every query runs under a budget: `wow.query.http.*` for HTTP, `wow.query.in-process.*` in Kotlin. A list returns at most `max-list-size` (1,000), 100 when it names no limit; a page at most `max-page-size` (100) rows; a count stops at `count-limit` and says whether it is exact; a query runs at most `timeout` (30 s). A query over the bound is refused, not truncated without notice. A query that runs out of time answers `504 wow.query.timeout`: narrow it rather than run it again. A store that has as many queries running as it allows answers `429 wow.query.busy` with `Retry-After`.
+Every query runs under a budget: `wow.query.budgets.http.*` for HTTP, `wow.query.budgets.in-process.*` in Kotlin. A list returns at most `max-list-size` (1,000), 100 when it names no limit; a page at most `max-page-size` (100) rows; a count stops at `count-limit` and says whether it is exact; a query runs at most `timeout` (30 s). A query over the bound is refused, not truncated without notice. A query that runs out of time answers `504 wow.query.timeout`: narrow it rather than run it again. A store that has as many queries running as it allows answers `429 wow.query.busy` with `Retry-After`.
 
 ## Declare indexes
 
-A query that filters or sorts by a field without an index scans the store. `@QueryIndex` on a state field declares the index the backend builds at startup (`wow.query.index.ddl`); `with` adds the fields that follow it, for the usual filter and sort together. The storefront filters products by category, brand and status, and sorts them by price:
+A query that filters or sorts by a field without an index scans the store. `@QueryIndex` on a state field declares the index the backend builds at startup, as the `ddl` of its store says (`wow.ddl` by default; `validate` refuses to start while one is missing); `with` adds the fields that follow it, for the usual filter and sort together. The storefront filters products by category, brand and status, and sorts them by price:
 
 <!-- sample: example/eshop/catalog/catalog-domain/src/main/kotlin/me/ahoo/wow/example/eshop/catalog/domain/product/ProductState.kt#indexes -->
 

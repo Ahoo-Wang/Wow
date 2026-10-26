@@ -34,7 +34,7 @@ import java.util.concurrent.ConcurrentHashMap
  * The filters, sorts, pages and aggregations are the snapshot queries' ([ElasticsearchQueryBackend]); an event
  * condition is a `nested` query on `events`, an expanded aggregation a `nested` aggregation.
  *
- * Under `wow.query.index.ddl=auto` the fields of the events' bodies are mapped from their schemas as the aggregate's
+ * Under the store's `ddl=auto` the fields of the events' bodies are mapped from their schemas as the aggregate's
  * schema is first loaded ([ElasticsearchPayload.EventBodies]): a field the events declare alike is mapped once, one
  * they declare with different types is not; under `validate` and `none` nothing is mapped. The index itself is the
  * Sink's to create: before its first write every query answers nothing.

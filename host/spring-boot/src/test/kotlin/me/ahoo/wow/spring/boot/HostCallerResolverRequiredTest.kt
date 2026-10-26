@@ -21,7 +21,7 @@ import org.junit.jupiter.api.assertThrows
 
 /**
  * The public port without a `CallerResolver` bean (decision D301): a node outside development refuses to start, one in
- * development (a profile of `wow.internal.dev-profiles`, or a loopback internal port) serves the anonymous caller, and
+ * development (a profile of `wow.dev-profiles`, or a loopback internal port) serves the anonymous caller, and
  * an intentionally anonymous service says so with a bean returning [CallerResolver.ANONYMOUS] ([AnonymousCallers]).
  */
 class HostCallerResolverRequiredTest {
@@ -36,7 +36,7 @@ class HostCallerResolverRequiredTest {
         val failure = assertThrows<Exception> { startHost(*deployed).close() }
         val cause = generateSequence<Throwable>(failure) { it.cause }.filterIsInstance<WowConfigurationException>()
             .first()
-        cause.key.assert().isEqualTo("wow.internal.dev-profiles")
+        cause.key.assert().isEqualTo("wow.dev-profiles")
         cause.message.assert().contains("CallerResolver.ANONYMOUS")
     }
 

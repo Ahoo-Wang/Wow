@@ -186,7 +186,7 @@ Use JDK 21. Start a service from the repository root. Each one runs on the memor
 
 The basket, ordering, inventory and payment services talk over Kafka. The basket, ordering and payment services do not start without it, because their sagas send other contexts' commands, unless `--wow.topics.in-memory=true` keeps a service's topics in its own JVM to try it out (other services do not see them); `./gradlew :eshop-e2e:eshopLocal` runs all five in one JVM that way. Each of the four has two profiles:
 
-- **`kafka`** sets Kafka on `localhost:9092`, and `wow.kafka.topics.ddl: auto`: each service creates the topics it owns at startup. On ordering and inventory it also turns on the command intake. On payment it starts `OrderPaymentSaga.onOrderStockConfirmed` at the beginning of the order stream.
+- **`kafka`** sets Kafka on `localhost:9092`: each service creates the topics it owns at startup (`wow.kafka.ddl` follows `wow.ddl`, `auto` by default). On ordering and inventory it also turns on the command intake. On payment it starts `OrderPaymentSaga.onOrderStockConfirmed` at the beginning of the order stream.
 - **`postgres`** puts the service on PostgreSQL. Its database is `eshop_basket`, `eshop_ordering`, `eshop_inventory` or `eshop_payment` on `localhost:5432`.
 
 The ordering has a third profile, **`clickhouse`**: the Sink writes its order stream to ClickHouse on `localhost:8123`, and it serves the sales dataset (see [Sales](#sales)).
@@ -198,7 +198,7 @@ Every server has two more:
 
 Each server's image is built from its Gradle distribution with `deploy/eshop-<context>/Dockerfile`.
 
-With the `kafka` profile, each service creates the topics it owns when they are missing (decision D168): its command topic with exactly as many partitions as its log (`wow.log.partitions`, 64 by default), its receipts topic and its state topics. A service that reads another's topic waits until that service has created it. In production, leave `wow.kafka.topics.ddl` at its default, `validate`, and create the topics beforehand ([Deployment](https://wow.ahoo.me/operate/kafka)):
+With the `kafka` profile, each service creates the topics it owns when they are missing (decision D168): its command topic with exactly as many partitions as its log (`wow.log.partitions`, 64 by default), its receipts topic and its state topics. A service that reads another's topic waits until that service has created it. In production, set `wow.ddl: validate` (or `wow.kafka.ddl` alone) and create the topics beforehand ([Deployment](https://wow.ahoo.me/operate/kafka)):
 
 ```bash
 ./gradlew :eshop-inventory-server:run --args='--spring.profiles.active=kafka'
@@ -207,7 +207,7 @@ With the `kafka` profile, each service creates the topics it owns when they are 
 ./gradlew :eshop-payment-server:run --args='--spring.profiles.active=kafka'
 ```
 
-In development (their internal ports bind the loopback interface, or a profile of `wow.internal.dev-profiles` is active), the catalog, basket and ordering servers read the caller from the `X-User` and `X-Role` headers (`CatalogCallers`, `BasketCallers`, `OrderingCallers`). A request without them is the anonymous caller, and the inventory and payment servers serve every request so. Anywhere else, a server without CoSec does not start, since any client could name its caller. For example:
+In development (their internal ports bind the loopback interface, or a profile of `wow.dev-profiles` is active), the catalog, basket and ordering servers read the caller from the `X-User` and `X-Role` headers (`CatalogCallers`, `BasketCallers`, `OrderingCallers`). A request without them is the anonymous caller, and the inventory and payment servers serve every request so. Anywhere else, a server without CoSec does not start, since any client could name its caller. For example:
 
 ```bash
 curl -s localhost:8081/wow/manifest

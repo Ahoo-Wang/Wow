@@ -600,21 +600,21 @@ public final class me/ahoo/wow/runtime/node/ServiceNodeOptions$Companion {
 
 public final class me/ahoo/wow/runtime/node/SourceTopics {
 	public static final field Companion Lme/ahoo/wow/runtime/node/SourceTopics$Companion;
-	public synthetic fun <init> (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/runtime/node/TopicDdl;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/runtime/node/TopicDdl;JLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spi/Ddl;JILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spi/Ddl;JLkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun commandsOf (Ljava/lang/String;)Ljava/lang/String;
 	public final fun component1 ()Lme/ahoo/wow/spi/transport/PartitionedSource;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Lme/ahoo/wow/spi/transport/TopicProducer;
 	public final fun component4 ()Z
 	public final fun component5 ()Lme/ahoo/wow/spi/transport/TopicAdmin;
-	public final fun component6 ()Lme/ahoo/wow/runtime/node/TopicDdl;
+	public final fun component6 ()Lme/ahoo/wow/spi/Ddl;
 	public final fun component7-UwyO8pc ()J
-	public final fun copy-B8UsjHI (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/runtime/node/TopicDdl;J)Lme/ahoo/wow/runtime/node/SourceTopics;
-	public static synthetic fun copy-B8UsjHI$default (Lme/ahoo/wow/runtime/node/SourceTopics;Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/runtime/node/TopicDdl;JILjava/lang/Object;)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public final fun copy-B8UsjHI (Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spi/Ddl;J)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public static synthetic fun copy-B8UsjHI$default (Lme/ahoo/wow/runtime/node/SourceTopics;Lme/ahoo/wow/spi/transport/PartitionedSource;Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicProducer;ZLme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spi/Ddl;JILjava/lang/Object;)Lme/ahoo/wow/runtime/node/SourceTopics;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAdmin ()Lme/ahoo/wow/spi/transport/TopicAdmin;
-	public final fun getDdl ()Lme/ahoo/wow/runtime/node/TopicDdl;
+	public final fun getDdl ()Lme/ahoo/wow/spi/Ddl;
 	public final fun getIntake ()Z
 	public final fun getPartitionRefresh-UwyO8pc ()J
 	public final fun getPrefix ()Ljava/lang/String;
@@ -628,15 +628,6 @@ public final class me/ahoo/wow/runtime/node/SourceTopics {
 
 public final class me/ahoo/wow/runtime/node/SourceTopics$Companion {
 	public final fun getDEFAULT_PARTITION_REFRESH-UwyO8pc ()J
-}
-
-public final class me/ahoo/wow/runtime/node/TopicDdl : java/lang/Enum {
-	public static final field AUTO Lme/ahoo/wow/runtime/node/TopicDdl;
-	public static final field NONE Lme/ahoo/wow/runtime/node/TopicDdl;
-	public static final field VALIDATE Lme/ahoo/wow/runtime/node/TopicDdl;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/runtime/node/TopicDdl;
-	public static fun values ()[Lme/ahoo/wow/runtime/node/TopicDdl;
 }
 
 public final class me/ahoo/wow/runtime/schedule/JobOptions {

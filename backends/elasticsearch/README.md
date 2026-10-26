@@ -19,7 +19,7 @@ wow:
   aggregates:
     "[shop.order]":
       snapshot:
-        store: search
+        stores: [search]
       query:
         events:
           store: search # the order's events queries read the Sink's index, not the log
@@ -32,7 +32,7 @@ wow:
 | `wow.stores.<name>.index-prefix` | prefix of every index name | none |
 | `wow.stores.<name>.refresh` | `wait_for`, `true`, `false`: when a snapshot write is searchable | `wait_for` |
 | `wow.stores.<name>.ddl` | `auto`, `validate`, `none`: the indices themselves | `wow.ddl` |
-| `wow.query.index.ddl` | `auto`, `validate`, `none`: the state and event body fields | `auto` |
+| `wow.stores.<name>.ddl` | `auto`, `validate`, `none`: the indices and the state and event body fields | `wow.ddl` |
 | `wow.aggregates.[<context>.<aggregate>].query.events.store` | the store an aggregate's `events` queries read | its log store |
 
 The queries of a store run under its query bulkhead (decision D247): unless `wow.stores.<name>.query.max-concurrent` says otherwise, a quarter of the per-route connections of the writes' pool (at least 2), or the whole pool of a `query-client`.

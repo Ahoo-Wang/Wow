@@ -104,9 +104,9 @@ Spring Boot Actuator on the class path gives the node's health to the readiness 
 | `auto`, the default | Takes PostgreSQL when the application has a `DataSource`, MongoDB when it has a `MongoClient`: its own bean, or the one the host makes of `spring.datasource.url` or `spring.mongodb.uri` |
 | `memory` | Keeps everything in memory, on purpose: one node, whose data does not outlive it |
 
-With `auto` and neither bean, the node refuses to start, unless a development profile is active (`wow.internal.dev-profiles`) or its internal port binds the loopback interface alone; it then runs in memory and warns. A production node never falls back to memory by accident.
+With `auto` and neither bean, the node refuses to start, unless a development profile is active (`wow.dev-profiles`) or its internal port binds the loopback interface alone; it then runs in memory and warns. A production node never falls back to memory by accident.
 
-A service whose aggregates keep their data in different stores names store instances under `wow.stores.<name>` (each with its `type`, such as `postgres`, `mongo`, `elasticsearch` or `memory`, and the bean it runs on) and places each aggregate type's log and snapshots on them: `wow.log.store`, `wow.snapshot.store`, and per type `wow.aggregates.[<context>.<aggregate>].log.store`. [PostgreSQL](../operate/postgresql) shows a layout.
+A service whose aggregates keep their data in different stores names store instances under `wow.stores.<name>` (each with its `type`, such as `postgres`, `mongo`, `elasticsearch` or `memory`, and the bean it runs on) and places each aggregate type's log and snapshots on them: `wow.log.store`, `wow.snapshot.stores`, and per type `wow.aggregates.[<context>.<aggregate>].log.store`. [PostgreSQL](../operate/postgresql) shows a layout.
 
 `wow.ddl` decides whether the stores create their tables, collections and indexes (`auto`, the default), only check them (`validate`), or neither (`none`).
 

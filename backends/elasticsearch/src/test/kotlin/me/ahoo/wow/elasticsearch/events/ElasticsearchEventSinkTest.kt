@@ -33,8 +33,8 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.elasticsearch.ElasticsearchNames
 import me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider
-import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord

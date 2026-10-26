@@ -22,11 +22,11 @@ V10 的配置项也在 `wow.*` 之下，但 9.x 的配置项一个都不沿用�
 
 | 9.x | V10 |
 | --- | --- |
-| `wow.eventsourcing.store.storage`、`wow.eventsourcing.snapshot.storage` | `wow.backend`：PostgreSQL 或 MongoDB，默认由应用的 `DataSource` 或 `MongoClient` 选定；`wow.log.store` 和 `wow.snapshot.store` 指明 `wow.stores` 中的存储 |
+| `wow.eventsourcing.store.storage`、`wow.eventsourcing.snapshot.storage` | `wow.backend`：PostgreSQL 或 MongoDB，默认由应用的 `DataSource` 或 `MongoClient` 选定；`wow.log.store` 和 `wow.snapshot.stores` 指明 `wow.stores` 中的存储 |
 | `wow.eventsourcing.storage-routing.*` | `wow.aggregates.[<context>.<aggregate>]` 为聚合的日志和快照指明的存储，例如 `log.store` |
 | `wow.eventsourcing.snapshot.strategy`、`version-offset` | `wow.snapshot.*`：快照由内置的 `snapshot` 订阅分批写出（`interval`、`batch`） |
 | `wow.mongo.event-stream-database`、`snapshot-database`、`prepare-database` | `wow.mongo.database`，日志和每个存储共用一个数据库 |
-| `wow.mongo.auto-init-schema` | `wow.ddl`（`auto`、`validate`）用于框架的表、集合和索引，`wow.query.index.ddl` 用于查询索引 |
+| `wow.mongo.auto-init-schema` | `wow.ddl`（`auto`、`validate`、`none`）用于框架的表、集合、索引和查询索引，以及 Kafka 主题 |
 | `wow.mongo.*-batch.*`、`wow.elasticsearch.*-batch.*` | 已移除：日志有自己的批量追加（`wow.log.append-queue.*`） |
 | `wow.prepare.*` | 已移除：预留保存在后端中，在 decide 中获取 |
 | `wow.redis.*` | 随 Redis 后端一起移除 |
@@ -39,15 +39,15 @@ V10 的配置项也在 `wow.*` 之下，但 9.x 的配置项一个都不沿用�
 | `wow.kafka.bootstrap-servers` | `wow.kafka.bootstrap-servers`，现在只用于发布的事件流和发往其他上下文的命令 |
 | `wow.kafka.properties`、`producer`、`consumer`、`close-timeout` | V10 的 `wow.kafka.*`（[Kafka](../operate/kafka)） |
 | `wow.kafka.decode-failure-strategy` | 已移除：订阅无法解码的记录会让它停放（`wow.subscription.undecodable` 对它们计数） |
-| 按约定命名的 topic | `wow.<context>.commands` 和 `wow.<context>.<aggregate>.state`，按 `wow.kafka.topics.ddl` 的设置创建 |
+| 按约定命名的 topic | `wow.<context>.commands` 和 `wow.<context>.<aggregate>.state`，按 `wow.kafka.ddl` 的设置创建 |
 
 ## HTTP 与查询 {#http-and-queries}
 
 | 9.x | V10 |
 | --- | --- |
-| `wow.webflux.*`（`global-error`、`batch`、`query.default-list-size`、`state.*`） | 路由用 `wow.http.*`，它们的查询用 `wow.query.http.*`：`default-list-size`、`max-list-size`、`max-page-size`、`timeout` |
+| `wow.webflux.*`（`global-error`、`batch`、`query.default-list-size`、`state.*`） | 路由用 `wow.http.*`，它们的查询用 `wow.query.budgets.http.*`：`default-list-size`、`max-list-size`、`max-page-size`、`timeout` |
 | `wow.webflux.command.request.appender.*` | `wow.http.request-facts`：命令保留的请求头 |
-| `wow.query.http.*`（`max-list-size`、`max-page-size`、`max-filter-nodes`、`allow-expensive-operators`……） | `wow.query.http.*`，名字相同 |
+| `wow.query.budgets.http.*`（`max-list-size`、`max-page-size`、`max-filter-nodes`、`allow-expensive-operators`……） | `wow.query.budgets.http.*`，名字相同 |
 | `wow.query.abac.*`、`wow.query.sensitivity.*` | `wow.query.abac.*`、`wow.query.sensitivity.*` |
 | `wow.query.schema.*`、`legacy-declarations`、`require-explicit-entry` | 已移除：查询模型来自 Manifest |
 | `wow.query.datasets`、`wow.query.clickhouse.*` | `wow.query.dataset.*` 和 `wow.clickhouse.*`（[发布数据集](../guide/datasets)） |
@@ -62,4 +62,4 @@ V10 的配置项也在 `wow.*` 之下，但 9.x 的配置项一个都不沿用�
 | `wow.bi.script.*` | 随 BI 同步一起移除：改用 ClickHouse Sink，`wow.clickhouse.sink.*`（[ClickHouse](../operate/clickhouse)） |
 | 代码中每个聚合固定的租户 | `wow.aggregates.[<context>.<aggregate>].tenant` |
 
-V10 新增、没有 9.x 对应项的：`wow.log.partitions`（日志有了条目之后就固定）、`wow.internal.*`（内部端口，默认 9090）、`wow.node.*`、`wow.wait.*`、`wow.tenant.default`、`wow.health.*`、`wow.timers.*` 和 `wow.standby`。
+V10 新增、没有 9.x 对应项的：`wow.log.partitions`（日志有了条目之后就固定）、`wow.internal.*`（内部端口，默认 9090）、`wow.node.*`、`wow.wait.*`、`wow.tenant.default`、`wow.health.*`、`wow.timers.*` 和 `wow.node.standby`。

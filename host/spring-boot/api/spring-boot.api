@@ -144,7 +144,7 @@ public final class me/ahoo/wow/spring/boot/TransportAutoConfiguration$Companion 
 public final class me/ahoo/wow/spring/boot/TransportAutoConfiguration$Transport {
 	public fun <init> ()V
 	public final fun wowPartitionedSource (Lme/ahoo/wow/spi/transport/TopicTransport;)Lme/ahoo/wow/spi/transport/PartitionedSource;
-	public final fun wowSourceTopics (Lme/ahoo/wow/spi/transport/PartitionedSource;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public final fun wowSourceTopics (Lme/ahoo/wow/spi/transport/PartitionedSource;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spring/boot/KafkaProperties;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/runtime/node/SourceTopics;
 	public final fun wowTopicAdmin (Lme/ahoo/wow/spi/transport/TopicTransport;)Lme/ahoo/wow/spi/transport/TopicAdmin;
 	public final fun wowTopicProducer (Lme/ahoo/wow/spi/transport/TopicTransport;)Lme/ahoo/wow/spi/transport/TopicProducer;
 	public final fun wowTransportSinks (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/runtime/sink/PublishedSinks;

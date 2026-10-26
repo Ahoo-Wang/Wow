@@ -1,15 +1,15 @@
+public final class me/ahoo/wow/spi/Ddl : java/lang/Enum {
+	public static final field AUTO Lme/ahoo/wow/spi/Ddl;
+	public static final field NONE Lme/ahoo/wow/spi/Ddl;
+	public static final field VALIDATE Lme/ahoo/wow/spi/Ddl;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spi/Ddl;
+	public static fun values ()[Lme/ahoo/wow/spi/Ddl;
+}
+
 public final class me/ahoo/wow/spi/StorageUnavailableException : java/lang/RuntimeException {
 	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-}
-
-public final class me/ahoo/wow/spi/StoreDdl : java/lang/Enum {
-	public static final field AUTO Lme/ahoo/wow/spi/StoreDdl;
-	public static final field NONE Lme/ahoo/wow/spi/StoreDdl;
-	public static final field VALIDATE Lme/ahoo/wow/spi/StoreDdl;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spi/StoreDdl;
-	public static fun values ()[Lme/ahoo/wow/spi/StoreDdl;
 }
 
 public final class me/ahoo/wow/spi/VirtualThreads {
@@ -1015,7 +1015,7 @@ public abstract class me/ahoo/wow/spi/store/Store {
 
 public final class me/ahoo/wow/spi/store/StoreConfig {
 	public static final field Companion Lme/ahoo/wow/spi/store/StoreConfig$Companion;
-	public final fun getDdl ()Lme/ahoo/wow/spi/StoreDdl;
+	public final fun getDdl ()Lme/ahoo/wow/spi/Ddl;
 	public final fun getKey ()Ljava/lang/String;
 	public final fun getName ()Ljava/lang/String;
 	public final fun getOptions ()Ljava/util/Map;
@@ -1024,23 +1024,23 @@ public final class me/ahoo/wow/spi/store/StoreConfig {
 	public final fun getService ()Ljava/lang/String;
 	public final fun getType ()Ljava/lang/String;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/store/StoreConfig;
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;)Lme/ahoo/wow/spi/store/StoreConfig;
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;Ljava/util/Map;)Lme/ahoo/wow/spi/store/StoreConfig;
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;)Lme/ahoo/wow/spi/store/StoreConfig;
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;)Lme/ahoo/wow/spi/store/StoreConfig;
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/store/StoreConfig;
 	public final fun option (Ljava/lang/String;)Ljava/lang/String;
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/spi/store/StoreConfig$Companion {
 	public final fun of (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/store/StoreConfig;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;)Lme/ahoo/wow/spi/store/StoreConfig;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;Ljava/util/Map;)Lme/ahoo/wow/spi/store/StoreConfig;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;)Lme/ahoo/wow/spi/store/StoreConfig;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;)Lme/ahoo/wow/spi/store/StoreConfig;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/store/StoreConfig;
-	public static synthetic fun of$default (Lme/ahoo/wow/spi/store/StoreConfig$Companion;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;ILjava/lang/Object;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/store/StoreConfig$Companion;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/Ddl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;ILjava/lang/Object;)Lme/ahoo/wow/spi/store/StoreConfig;
 }
 
 public abstract interface class me/ahoo/wow/spi/store/StoreProvider {
@@ -1379,16 +1379,16 @@ public abstract interface class me/ahoo/wow/spi/transport/TopicTransport : java/
 
 public final class me/ahoo/wow/spi/transport/TransportConfig {
 	public static final field Companion Lme/ahoo/wow/spi/transport/TransportConfig$Companion;
+	public final fun getDevelopment ()Z
 	public final fun getKey ()Ljava/lang/String;
 	public final fun getName ()Ljava/lang/String;
 	public final fun getOptions ()Ljava/util/Map;
-	public final fun getProfiles ()Ljava/util/Set;
 	public final fun getResources ()Lme/ahoo/wow/spi/store/StoreResources;
 	public final fun getType ()Ljava/lang/String;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/transport/TransportConfig;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/spi/transport/TransportConfig;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/transport/TransportConfig;
-	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;Ljava/util/Set;)Lme/ahoo/wow/spi/transport/TransportConfig;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;Z)Lme/ahoo/wow/spi/transport/TransportConfig;
 	public final fun option (Ljava/lang/String;)Ljava/lang/String;
 	public final fun options (Ljava/lang/String;)Ljava/util/Map;
 	public fun toString ()Ljava/lang/String;
@@ -1398,8 +1398,8 @@ public final class me/ahoo/wow/spi/transport/TransportConfig$Companion {
 	public final fun of (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/transport/TransportConfig;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/spi/transport/TransportConfig;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/transport/TransportConfig;
-	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;Ljava/util/Set;)Lme/ahoo/wow/spi/transport/TransportConfig;
-	public static synthetic fun of$default (Lme/ahoo/wow/spi/transport/TransportConfig$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;Ljava/util/Set;ILjava/lang/Object;)Lme/ahoo/wow/spi/transport/TransportConfig;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;Z)Lme/ahoo/wow/spi/transport/TransportConfig;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/transport/TransportConfig$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;Lme/ahoo/wow/spi/store/StoreResources;ZILjava/lang/Object;)Lme/ahoo/wow/spi/transport/TransportConfig;
 }
 
 public abstract interface class me/ahoo/wow/spi/transport/TransportProvider {

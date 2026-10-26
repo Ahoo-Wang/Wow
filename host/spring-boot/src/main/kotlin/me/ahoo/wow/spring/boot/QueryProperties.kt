@@ -300,7 +300,6 @@ class QueryProperties {
         }
     }
 
-
     /** Queries of the snapshots and logs kept in memory. */
     @InternalWowApi
     class Memory {

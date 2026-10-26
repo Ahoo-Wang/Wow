@@ -122,7 +122,7 @@ description: 用 Wow 查询语言回答分析人员的问题：计数、按时�
 每个查询都在提供它的服务的预算之内运行：
 
 - 通过 HTTP，一个过滤至多 128 个节点、1,000 个值；除非 `limit` 另行指定，聚合回答 100 个分组。
-- 有些操作符无法使用索引，例如 `NE`、`NOT_IN`、`CONTAINS` 和 `EXPRESSION`。服务可以拒绝它们（`wow.query.http.allow-expensive-operators: false`）。
+- 有些操作符无法使用索引，例如 `NE`、`NOT_IN`、`CONTAINS` 和 `EXPRESSION`。服务可以拒绝它们（`wow.query.budgets.http.allow-expensive-operators: false`）。
 - 运行时间超出预算的查询以 504 `wow.query.timeout` 回答，超出存储并发查询数的查询以 429 `wow.query.busy` 回答，并带有 `Retry-After`。数据集查询有自己的舱壁（`wow.query.dataset.max-concurrent`，8），所以分析永远不会挤占服务自己的读取。
 
 能力描述符，即对同一路由的 `GET`，说明每个字段接受什么以及适用的上限（[能力描述](../reference/query-language#the-capability-descriptor)）：在构建模型可能拒绝的查询之前先读它。

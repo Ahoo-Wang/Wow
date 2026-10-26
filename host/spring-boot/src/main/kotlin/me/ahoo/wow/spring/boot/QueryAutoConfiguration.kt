@@ -81,7 +81,7 @@ import kotlin.time.toKotlinDuration
  *   every rule of the read side: the Catalog, the gateways of the three models and their policies, the policy gateways
  *   of the types whose snapshots are not queried (review R3.3-3), the events' visibility and the state reads'
  *   [me.ahoo.wow.query.engine.ReadFacade]. The host decides no query policy itself (an architecture rule holds it);
- * - the node's typed [QueryApi] (decision D259), in process over the same engine, under `wow.query.in-process.*`;
+ * - the node's typed [QueryApi] (decision D259), in process over the same engine, under `wow.query.budgets.in-process.*`;
  * - [HttpQueries], which the public routes serve (the datasets under `/wow/dataset`, seen as [DatasetVisibility]
  *   says: the application's bean, else by scope and `wow.query.abac`), and [QueryIndexesLifecycle], which manages
  *   the `x-wow-index` indexes at startup as each store's `ddl` says.
@@ -138,7 +138,7 @@ class QueryAutoConfiguration {
          * `wow.aggregates.[<context>.<aggregate>].query.events.store` names (an Elasticsearch store its event search
          * Sink writes, say), else the store its log is on (D177). The application's own [EventQueryBackend] bean when it
          * has one, else the one of the query provider of the store's type (review R3.3-1): PostgreSQL's or MongoDB's over
-         * the log in place (`wow.query.events.mongo-read-preference`), Elasticsearch's over the Sink's events index, and a
+         * the log in place (`wow.mongo.query-read-preference`), Elasticsearch's over the Sink's events index, and a
          * log in memory scanned in memory when `wow.query.memory.enabled` is on, as its snapshots are queried then
          * (review R3.4-1). Any other log, in memory without it, on a store whose type has no query provider, or the
          * application's own, is not queried: its `events` model is not served, and an info log says so. A store named
@@ -387,7 +387,7 @@ class QueryAutoConfiguration {
             properties.countCache.options(),
         )
 
-        /** The query models the public routes serve: the engine's, `wow.query.http.default-list-size`. */
+        /** The query models the public routes serve: the engine's, `wow.query.budgets.http.default-list-size`. */
         @Bean
         @ConditionalOnMissingBean
         @InternalWowApi
@@ -402,7 +402,7 @@ class QueryAutoConfiguration {
         /**
          * The node's typed [QueryApi] (decisions D254 ②, D259): the [engine]'s gateways and read facade, each aggregate
          * type found by its model's state class, its states read as the public port's state reads, its lists defaulted
-         * by `wow.query.in-process.default-list-size` and its streams read in `wow.query.stream.chunk-size` chunks.
+         * by `wow.query.budgets.in-process.default-list-size` and its streams read in `wow.query.stream.chunk-size` chunks.
          */
         @Bean
         @ConditionalOnMissingBean

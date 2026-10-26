@@ -33,7 +33,7 @@ Requirements: Gradle (there is no Maven build), JDK 21, Kotlin with KSP, Spring 
 - `wow.internal.port` (9090), `wow.internal.host`, `wow.internal.token` (the cluster token; a node without one starts only in a development profile or on loopback).
 - `wow.log.partitions` (64; a power of two dividing 4096): set once, before the log holds entries.
 - `wow.cluster.router`, `wow.wait.default-timeout`, `wow.subscriptions.[<name>].start`, `wow.subscription.retry.*`, `wow.subscription.parked.*`, `wow.aggregates.[<context>.<aggregate>].tenant`.
-- `wow.kafka.bootstrap-servers`, `wow.kafka.command-intake` (`cross-context.md`); `wow.topics.in-memory` for local runs without Kafka.
+- `wow.kafka.bootstrap-servers`, `wow.kafka.command-intake.enabled` (`cross-context.md`); `wow.topics.in-memory` for local runs without Kafka.
 - `wow.ops.enabled`, `wow.ops.webhook.*`, `wow.ops.publish.enabled` (`processes.md`).
 - `wow.health.*`: the node's health under Actuator's `wow`, `readiness` and `liveness` groups.
 
@@ -41,7 +41,7 @@ Requirements: Gradle (there is no Maven build), JDK 21, Kotlin with KSP, Spring 
 
 - A `CallerResolver` bean (`me.ahoo.wow.http.caller`) returns the `Caller` (`me.ahoo.wow.api.caller`) of each request; without one, every request is anonymous in tenant `(0)`. With `wow-cosec`, CoSec's resolver reads the caller from the token; `Caller.app` is the application CoSec authorized (`wow.cosec.trust-injected-app` only behind a gateway that authorizes `CoSec-App-Id`).
 - Authorization of commands: a `CommandAuthorizer` bean decides per caller and command.
-- Request facts: the edge records `app_id`, `remote_ip` and `user_agent` itself (`wow.http.client-facts: false` records neither: they are personal data that cannot be erased once written); other headers become facts only when listed in `wow.http.request-facts`. A derived command inherits `app_id` only.
+- Request facts: the edge records `app_id`, `remote_ip` and `user_agent` itself (`wow.http.client-facts.enabled: false` records neither: they are personal data that cannot be erased once written); other headers become facts only when listed in `wow.http.request-facts`. A derived command inherits `app_id` only.
 
 ## Safety of a deployment
 

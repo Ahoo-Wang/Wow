@@ -56,7 +56,7 @@ class HostRequestFactsTest {
 
     @Test
     fun `a host with client facts off records neither (D267)`() {
-        startHost("wow.http.client-facts" to false).use { host ->
+        startHost("wow.http.client-facts.enabled" to false).use { host ->
             val headers = host.opened()
             headers.containsKey("user_agent").assert().isFalse()
             headers.containsKey("remote_ip").assert().isFalse()

@@ -22,8 +22,8 @@ import co.elastic.clients.elasticsearch.indices.CreateIndexRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
 import co.elastic.clients.elasticsearch.indices.PutMappingRequest
 import kotlinx.coroutines.delay
-import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.Ddl
+import me.ahoo.wow.spi.StorageUnavailableException
 import java.io.StringReader
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
