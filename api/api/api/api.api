@@ -340,17 +340,6 @@ public final class me/ahoo/wow/api/client/SendOptions$Companion {
 	public static synthetic fun of-i8z2VEo$default (Lme/ahoo/wow/api/client/SendOptions$Companion;Lme/ahoo/wow/api/result/WaitPlan;Lkotlin/time/Duration;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ILjava/lang/Object;)Lme/ahoo/wow/api/client/SendOptions;
 }
 
-public abstract interface class me/ahoo/wow/api/client/ServiceCredential {
-	public static final field Companion Lme/ahoo/wow/api/client/ServiceCredential$Companion;
-	public static final field NONE Lme/ahoo/wow/api/client/ServiceCredential;
-	public abstract fun authorization (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public static fun bearer (Ljava/lang/String;)Lme/ahoo/wow/api/client/ServiceCredential;
-}
-
-public final class me/ahoo/wow/api/client/ServiceCredential$Companion {
-	public final fun bearer (Ljava/lang/String;)Lme/ahoo/wow/api/client/ServiceCredential;
-}
-
 public final class me/ahoo/wow/api/client/WowProblemException : java/lang/RuntimeException {
 	public fun <init> (Ljava/lang/String;ILme/ahoo/wow/api/client/RetryHint;Ljava/lang/String;)V
 	public fun <init> (Ljava/lang/String;ILme/ahoo/wow/api/client/RetryHint;Ljava/lang/String;Lme/ahoo/wow/api/result/CommandResult;)V
@@ -1613,6 +1602,7 @@ public final class me/ahoo/wow/api/wire/WowHeaders {
 	public static final field REBUILDING Ljava/lang/String;
 	public static final field REQUEST_ID Ljava/lang/String;
 	public static final field SCOPE Ljava/lang/String;
+	public static final field SERVICE Ljava/lang/String;
 	public static final field SPACE Ljava/lang/String;
 	public static final field WAIT Ljava/lang/String;
 	public static final field WAIT_TIMEOUT Ljava/lang/String;

@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.spring.boot
 
-import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
 import me.ahoo.cosec.api.authorization.AuthorizeResult
 import me.ahoo.cosec.webflux.ServerWebExchanges
 import me.ahoo.test.asserts.assert
@@ -35,6 +34,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import reactor.core.publisher.Mono
+import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
 
 class CoSecAutoConfigurationTest {
     private val runner = ApplicationContextRunner()

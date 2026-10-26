@@ -66,6 +66,8 @@ The two lists below are generated from the sources of the published modules: the
 | Declaration | Kind | Module |
 | --- | --- | --- |
 | `me.ahoo.wow.spi.VirtualThreads` | object | `wow-spi` |
+| `me.ahoo.wow.spi.call.OutgoingCall` | class | `wow-spi` |
+| `me.ahoo.wow.spi.call.CommandCaller` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.ledger.FailureLedger` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.log.EventLog` | interface | `wow-spi` |
 | `me.ahoo.wow.spi.log.SnapshotTailReader` | interface | `wow-spi` |

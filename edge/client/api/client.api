@@ -3,9 +3,9 @@ public abstract interface class me/ahoo/wow/client/ClientMode {
 }
 
 public final class me/ahoo/wow/client/ClientMode$Service : me/ahoo/wow/client/ClientMode {
-	public fun <init> (Lme/ahoo/wow/api/client/ServiceCredential;)V
-	public final fun getCredential ()Lme/ahoo/wow/api/client/ServiceCredential;
+	public fun <init> (Ljava/lang/String;)V
 	public fun getPort ()Lme/ahoo/wow/client/Port;
+	public final fun getService ()Ljava/lang/String;
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -137,7 +137,7 @@ public final class me/ahoo/wow/client/WowClient$Builder {
 	public final fun httpClient (Ljava/net/http/HttpClient;)Lme/ahoo/wow/client/WowClient$Builder;
 	public final fun manifestPeers (Ljava/util/Set;)Lme/ahoo/wow/client/WowClient$Builder;
 	public final fun retry (Lme/ahoo/wow/client/RetryPolicy;)Lme/ahoo/wow/client/WowClient$Builder;
-	public final fun service (Lme/ahoo/wow/api/client/ServiceCredential;)Lme/ahoo/wow/client/WowClient$Builder;
+	public final fun service (Ljava/lang/String;)Lme/ahoo/wow/client/WowClient$Builder;
 	public final fun timeout (Ljava/time/Duration;)Lme/ahoo/wow/client/WowClient$Builder;
 	public final fun timeout-LRDsOJo (J)Lme/ahoo/wow/client/WowClient$Builder;
 	public final fun user (Lme/ahoo/wow/client/UserCredential;)Lme/ahoo/wow/client/WowClient$Builder;

@@ -52,7 +52,6 @@ class ConfigurationMetadataTest {
             "wow.cosec.authorizer.enabled",
             "wow.cosec.cross-scope.roles",
             "wow.cosec.tenant-level.policies",
-            "wow.cosec.service.roles",
             "wow.cosec.trust-injected-app",
             "wow.cosid.global-generator",
             "wow.tenant.default",

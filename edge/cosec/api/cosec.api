@@ -6,8 +6,6 @@ public final class me/ahoo/wow/cosec/CoSecCallerOptions {
 	public final fun getCrossScopePolicies ()Ljava/util/Set;
 	public final fun getCrossScopeRoles ()Ljava/util/Set;
 	public final fun getDefaultTenant ()Ljava/lang/String;
-	public final fun getServicePolicies ()Ljava/util/Set;
-	public final fun getServiceRoles ()Ljava/util/Set;
 	public final fun getTenantPolicies ()Ljava/util/Set;
 	public final fun getTenantRoles ()Ljava/util/Set;
 	public final fun getTrustInjectedApp ()Z
@@ -52,10 +50,5 @@ public final class me/ahoo/wow/cosec/CoSecCommandAuthorizer : me/ahoo/wow/runtim
 
 public final class me/ahoo/wow/cosec/CoSecCommandAuthorizer$Companion {
 	public final fun requestOf (Lme/ahoo/wow/runtime/admission/CommandAction;)Lme/ahoo/cosec/api/context/request/Request;
-}
-
-public final class me/ahoo/wow/cosec/CoSecInternalCallerResolver : me/ahoo/wow/http/caller/InternalCallerResolver {
-	public fun <init> (Lme/ahoo/cosec/context/request/RequestParser;Lme/ahoo/cosec/token/TokenVerifier;Lme/ahoo/wow/cosec/CoSecCallerResolver;)V
-	public fun resolve (Lorg/springframework/web/reactive/function/server/ServerRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
