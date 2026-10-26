@@ -79,9 +79,11 @@ data class RenewalRound(
  * context's log, or another context's published topic that the service's subscriptions read (decision D134), whose
  * [subscriptions] runtime then reads the topic instead of the log:
  *
- * - **Membership**: the node heartbeats its [address] every [ClusterOptions.heartbeatInterval], as long as it can
- *   reconcile: a reconcile that runs longer than [ClusterOptions.reconcileTimeout], stuck stopping or starting a
- *   partition, makes it leave the members until the reconcile ends, so the others take the partitions it cannot run
+ * - **Membership** is the node's in its service ([ServiceMembership], finding R5.B-4), shared by all its groups: one
+ *   record listing the groups it takes part in, heartbeated every [ClusterOptions.heartbeatInterval], and one read of
+ *   the members per interval, which this group's reconcile and routes reuse. The group's members are those listing
+ *   it. A reconcile that runs longer than [ClusterOptions.reconcileTimeout], stuck stopping or starting a partition,
+ *   takes the group off the node's record until the reconcile ends, so the others take the partitions it cannot run
  *   instead of handing them back to it (finding C.1 F1).
  * - **Reconciling**: every [ClusterOptions.reconcileInterval], and at once when it notices the members changed, the
  *   node computes its target, the partitions HRW ([Hrw]) gives it among the live members, hands off the partitions it
@@ -101,7 +103,7 @@ data class RenewalRound(
  *   State caches are not handed over: the new owner loads from the snapshot and the log's tail, and each node drops
  *   the partition's cached states whenever it acquires, hands off or loses it ([partitionChanged], decision D261).
  * - **Routes**: every [ClusterOptions.routeRefreshInterval], and at once on [refreshSoon], the node reads the owners
- *   and members into its [routes]. Each other member they show at an address not seen before is handed to [peers],
+ *   into its [routes], beside the members its membership read last. Each other member they show at an address not seen before is handed to [peers],
  *   apart from the refresh: the node connects to it there ([ClusterChannel.connect]) before forwarding to it.
  *
  * Acquiring a partition starts its subscriptions in [subscriptions] and its other log [groups]
@@ -150,6 +152,11 @@ class PartitionOwnership internal constructor(
      * stopped: the context's state cache drops the partition's states (decision D261, C4).
      */
     private val partitionChanged: (Int) -> Unit = {},
+    /**
+     * The node's membership in its service on [leases] (finding R5.B-4), which every ownership of the node shares: one
+     * record and one read of the members per node, whatever the number of groups. One of its own when not given.
+     */
+    membership: ServiceMembership? = null,
 ) {
     @Suppress("LongParameterList") // The parts of an ownership, as the primary constructor takes them.
     constructor(
@@ -181,6 +188,15 @@ class PartitionOwnership internal constructor(
         renewalRounds,
         peers,
     )
+
+    private val membership: ServiceMembership =
+        membership ?: ServiceMembership(group.service, node, addressOf, leases, options, context)
+
+    init {
+        require(this.membership.service == group.service && this.membership.node == node) {
+            "The ownership of $group on $node needs the membership of ${group.service} on $node."
+        }
+    }
 
     /** The runtimes reading the partitions this node holds: the context's (or the topic's), then its other groups'. */
     private val runtimes: List<SubscriptionRuntime> = listOfNotNull(subscriptions) + groups
@@ -267,7 +283,6 @@ class PartitionOwnership internal constructor(
             started += intake
             intake.start()
         }
-        leases.heartbeat(group.name, node, address, options.memberTtl)
         val root = SupervisorJob()
         val run = Running(root, CoroutineScope(context + root))
         running = run
@@ -279,9 +294,10 @@ class PartitionOwnership internal constructor(
                 delay(options.renewInterval - started.elapsedNow())
             }
         }
+        membership.join(group.name, ::membersRead)
         refreshRoutes()
         reconcile()
-        run.membership.launch { every(options.heartbeatInterval, "heartbeat") { heartbeat() } }
+        run.membership.launch { every(options.heartbeatInterval, "check the reconcile") { checkStuck() } }
         run.membership.launch {
             while (true) {
                 quietly("reconcile") { reconcile() }
@@ -304,7 +320,7 @@ class PartitionOwnership internal constructor(
         val run = running
         try {
             run?.membershipJob?.cancelAndJoin()
-            quietly("leave $group") { leases.leave(group.name, node) }
+            quietly("leave $group") { membership.leave(group.name) }
             reconcileLock.withLock {
                 target = emptySet()
                 handOff(gates.keys.toList())
@@ -327,7 +343,7 @@ class PartitionOwnership internal constructor(
         val run = running ?: return@withLock
         try {
             run.membershipJob.cancelAndJoin()
-            quietly("leave $group") { leases.leave(group.name, node) }
+            quietly("leave $group") { membership.leave(group.name) }
             reconcileLock.withLock {
                 target = emptySet()
                 handOff(gates.keys.toList())
@@ -349,6 +365,7 @@ class PartitionOwnership internal constructor(
         val run = running ?: return@withLock
         running = null
         run.root.cancelAndJoin()
+        membership.abort(group.name)
         gates.clear()
         timers.forEach { it.stop() }
         intake?.stop()
@@ -406,7 +423,8 @@ class PartitionOwnership internal constructor(
         reconciling = timeSource.markNow()
         try {
             dropLost()
-            val members = leases.members(group.name).map { it.node }.toSet()
+            // The members the membership read last (finding R5.B-4): no read of its own.
+            val members = membership.membersOf(group.name).mapTo(HashSet()) { it.node }
             lastMembers = members
             val goal = Hrw.partitionsOf(node, members + node, partitions)
             target = goal
@@ -420,9 +438,12 @@ class PartitionOwnership internal constructor(
         }
     }
 
-    /** Reads the owners and members into [routes]; a change of the members wakes the reconciler. */
+    /**
+     * Reads the owners into [routes], beside the members the membership read last; a change of the members wakes the
+     * reconciler.
+     */
     suspend fun refreshRoutes() {
-        val members = leases.members(group.name)
+        val members = membership.membersOf(group.name)
         val byNode = members.associateBy { it.node }
         val leased = leases.owners(group.name)
         val owners = leased.mapNotNull { lease -> byNode[lease.owner]?.let { lease.partition to it } }.toMap()
@@ -445,12 +466,21 @@ class PartitionOwnership internal constructor(
         }
     }
 
+    /** After each read of the service's members: a change of this group's members wakes the reconciler. */
+    private fun membersRead() {
+        val nodes = membership.membersOf(group.name).mapTo(HashSet()) { it.node }
+        if (running != null && nodes != lastMembers) {
+            lastMembers = nodes
+            wakeReconcile.trySend(Unit)
+        }
+    }
+
     /**
-     * Heartbeats, unless the reconcile running now outlasted [ClusterOptions.reconcileTimeout]: the node then cannot
-     * take or stop partitions, so it leaves the members rather than keep claiming its share by HRW, and heartbeats
-     * again once the reconcile ends.
+     * Leaves the group's members while the reconcile running now outlasts [ClusterOptions.reconcileTimeout]: the node
+     * then cannot take or stop partitions, so it stops claiming its share by HRW, and takes part again once the
+     * reconcile ends. The membership heartbeats the change at once.
      */
-    private suspend fun heartbeat() {
+    private suspend fun checkStuck() {
         val started = reconciling
         if (started != null && started.elapsedNow() > options.reconcileTimeout) {
             if (!stuck) {
@@ -458,13 +488,13 @@ class PartitionOwnership internal constructor(
                     "$node has been reconciling $group for more than ${options.reconcileTimeout}; it leaves the " +
                         "members until the reconcile ends, so the others take the partitions it cannot run."
                 }
-                leases.leave(group.name, node)
+                membership.stuck(group.name, true)
                 stuck = true
             }
             return
         }
-        leases.heartbeat(group.name, node, address, options.memberTtl)
         if (stuck) {
+            membership.stuck(group.name, false)
             stuck = false
             logger.warn { "$node reconciles $group again and is back among its members." }
         }

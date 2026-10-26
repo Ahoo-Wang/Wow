@@ -225,6 +225,7 @@ public abstract class me/ahoo/wow/tck/subscription/LeaseStoreSpec {
 	public fun <init> ()V
 	public final fun a free partition is acquired at epoch 1 until now plus the ttl ()V
 	public final fun a live lease cannot be taken, an expired one can ()V
+	public final fun a member records the lease groups it serves, and a heartbeat replaces them ()V
 	public final fun a node that leaves is no longer a member but keeps its leases ()V
 	public final fun a released lease can be acquired at once ()V
 	public final fun a renewal renews the live leases the owner holds and leaves the others out ()V

@@ -608,9 +608,15 @@ class NodeHealthTest {
             return leases.owners(group)
         }
 
-        override suspend fun heartbeat(group: String, node: String, address: String, ttl: Duration): Member {
+        override suspend fun heartbeat(
+            group: String,
+            node: String,
+            address: String,
+            ttl: Duration,
+            groups: Set<String>,
+        ): Member {
             check()
-            return leases.heartbeat(group, node, address, ttl)
+            return leases.heartbeat(group, node, address, ttl, groups)
         }
 
         override suspend fun members(group: String): List<Member> {
