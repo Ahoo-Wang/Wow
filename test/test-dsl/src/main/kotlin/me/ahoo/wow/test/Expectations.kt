@@ -51,7 +51,7 @@ class Expectations<S : Any> @InternalWowApi constructor(
     private val version: Int,
     private val stateAt: (Int) -> S,
     private val tagsAt: (Int) -> Map<String, List<String>> = { emptyMap() },
-    private val forker: ((String, AggregateModel<S>?, AggregateSpec<S>.() -> Unit) -> Unit)? = null,
+    private val forker: (String, AggregateModel<S>?, AggregateSpec<S>.() -> Unit) -> Unit,
 ) {
     private var errorChecked = false
     private var outcomeChecked = false
@@ -100,7 +100,6 @@ class Expectations<S : Any> @InternalWowApi constructor(
      * A check that fails before it ends the block, so the forks after it do not run.
      */
     fun fork(name: String = "", block: AggregateSpec<S>.() -> Unit) {
-        val forker = checkNotNull(forker) { "These expectations were not made by an AggregateSpec: nothing to fork." }
         forker(name, null, block)
     }
 
@@ -109,7 +108,6 @@ class Expectations<S : Any> @InternalWowApi constructor(
      * there on: the same aggregate built with other services ([AggregateSpec.fork] of a model).
      */
     fun fork(name: String = "", model: AggregateModel<S>, block: AggregateSpec<S>.() -> Unit) {
-        val forker = checkNotNull(forker) { "These expectations were not made by an AggregateSpec: nothing to fork." }
         forker(name, model, block)
     }
 

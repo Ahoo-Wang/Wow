@@ -71,6 +71,21 @@ class ScenarioDslTest {
     }
 
     @Test
+    fun `an unnamed fork should run with the services of another model`() = aggregateSpec(plenty) {
+        whenCommand(Open("alice")) {
+            fork(model = model { 0 }) {
+                whenCommand(Reserve("mug", 1)) { expectRejected("out-of-stock") }
+            }
+        }
+        fork(model = model { 0 }) {
+            whenCommand(Reserve("cap", 1)) { expectRejected("out-of-stock") }
+        }
+        whenCommand(Reserve("mug", 1)) {
+            expectEventEnvelope(Reserved::class).body.assert().isEqualTo(Reserved("mug", 1))
+        }
+    }
+
+    @Test
     fun `a fork's model should decide the aggregate of the specification`() {
         val other = aggregate<Basket>("shop", "other") { initial { Basket(it.id) } }
         assertThrownBy<IllegalArgumentException> { aggregateSpec(plenty) { fork("x", model = other) { } } }
