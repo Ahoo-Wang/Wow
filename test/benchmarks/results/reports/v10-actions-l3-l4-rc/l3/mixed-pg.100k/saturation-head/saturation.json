@@ -1,0 +1,88 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1:50,E4-state:40,E4-list:10",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 100000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 2403.625,
+  "saturationConcurrency": 64,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 532.375,
+      "ok": 4259,
+      "errors": {},
+      "p50Ms": 1.495,
+      "p99Ms": 6.271
+    },
+    {
+      "concurrency": 2,
+      "throughput": 879.5,
+      "ok": 7036,
+      "errors": {},
+      "p50Ms": 1.943,
+      "p99Ms": 6.015
+    },
+    {
+      "concurrency": 4,
+      "throughput": 1312.625,
+      "ok": 10501,
+      "errors": {},
+      "p50Ms": 2.639,
+      "p99Ms": 8.447
+    },
+    {
+      "concurrency": 8,
+      "throughput": 1577.25,
+      "ok": 12618,
+      "errors": {},
+      "p50Ms": 4.543,
+      "p99Ms": 15.295
+    },
+    {
+      "concurrency": 16,
+      "throughput": 1976.5,
+      "ok": 15812,
+      "errors": {},
+      "p50Ms": 7.391,
+      "p99Ms": 23.039
+    },
+    {
+      "concurrency": 32,
+      "throughput": 2125.25,
+      "ok": 17002,
+      "errors": {
+        "read-http-429": 15
+      },
+      "p50Ms": 13.439,
+      "p99Ms": 50.175
+    },
+    {
+      "concurrency": 64,
+      "throughput": 2403.625,
+      "ok": 19229,
+      "errors": {
+        "read-http-429": 211
+      },
+      "p50Ms": 23.807,
+      "p99Ms": 78.335
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "primed": "true",
+    "primeSeconds": "54",
+    "settleSeconds": "4",
+    "accounts": "100000",
+    "tmpfs": "false",
+    "mongoCacheGb": "2"
+  }
+}

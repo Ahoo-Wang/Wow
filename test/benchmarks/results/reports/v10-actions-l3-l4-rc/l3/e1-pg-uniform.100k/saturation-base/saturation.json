@@ -1,0 +1,92 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 100000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 2487.0,
+  "saturationConcurrency": 32,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 685.75,
+      "ok": 5486,
+      "errors": {},
+      "p50Ms": 1.311,
+      "p99Ms": 4.287
+    },
+    {
+      "concurrency": 2,
+      "throughput": 1192.875,
+      "ok": 9543,
+      "errors": {},
+      "p50Ms": 1.471,
+      "p99Ms": 4.191
+    },
+    {
+      "concurrency": 4,
+      "throughput": 1739.25,
+      "ok": 13914,
+      "errors": {},
+      "p50Ms": 2.063,
+      "p99Ms": 5.535
+    },
+    {
+      "concurrency": 8,
+      "throughput": 2079.0,
+      "ok": 16632,
+      "errors": {},
+      "p50Ms": 3.295,
+      "p99Ms": 14.591
+    },
+    {
+      "concurrency": 16,
+      "throughput": 2309.625,
+      "ok": 18477,
+      "errors": {},
+      "p50Ms": 5.951,
+      "p99Ms": 19.455
+    },
+    {
+      "concurrency": 32,
+      "throughput": 2487.0,
+      "ok": 19896,
+      "errors": {},
+      "p50Ms": 11.967,
+      "p99Ms": 40.703
+    },
+    {
+      "concurrency": 64,
+      "throughput": 2381.625,
+      "ok": 19053,
+      "errors": {},
+      "p50Ms": 26.367,
+      "p99Ms": 61.695
+    },
+    {
+      "concurrency": 128,
+      "throughput": 2327.375,
+      "ok": 18619,
+      "errors": {},
+      "p50Ms": 51.455,
+      "p99Ms": 186.367
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "primed": "true",
+    "primeSeconds": "47",
+    "settleSeconds": "3",
+    "accounts": "100000",
+    "tmpfs": "false",
+    "mongoCacheGb": "2"
+  }
+}

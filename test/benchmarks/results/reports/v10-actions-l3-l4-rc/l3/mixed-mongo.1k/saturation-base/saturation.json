@@ -1,0 +1,96 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1:50,E4-state:40,E4-list:10",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 1000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 1588.5,
+  "saturationConcurrency": 128,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 225.0,
+      "ok": 1800,
+      "errors": {},
+      "p50Ms": 3.919,
+      "p99Ms": 22.527
+    },
+    {
+      "concurrency": 2,
+      "throughput": 480.625,
+      "ok": 3845,
+      "errors": {},
+      "p50Ms": 3.631,
+      "p99Ms": 23.423
+    },
+    {
+      "concurrency": 4,
+      "throughput": 692.25,
+      "ok": 5538,
+      "errors": {},
+      "p50Ms": 4.735,
+      "p99Ms": 27.519
+    },
+    {
+      "concurrency": 8,
+      "throughput": 1020.375,
+      "ok": 8163,
+      "errors": {},
+      "p50Ms": 6.143,
+      "p99Ms": 39.935
+    },
+    {
+      "concurrency": 16,
+      "throughput": 1151.375,
+      "ok": 9211,
+      "errors": {},
+      "p50Ms": 9.727,
+      "p99Ms": 84.991
+    },
+    {
+      "concurrency": 32,
+      "throughput": 1401.875,
+      "ok": 11215,
+      "errors": {},
+      "p50Ms": 16.639,
+      "p99Ms": 97.791
+    },
+    {
+      "concurrency": 64,
+      "throughput": 1486.875,
+      "ok": 11895,
+      "errors": {
+        "read-http-429": 52
+      },
+      "p50Ms": 28.031,
+      "p99Ms": 210.943
+    },
+    {
+      "concurrency": 128,
+      "throughput": 1588.5,
+      "ok": 12708,
+      "errors": {
+        "read-http-429": 658
+      },
+      "p50Ms": 50.687,
+      "p99Ms": 292.863
+    }
+  ],
+  "meta": {
+    "backend": "mongo",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+    "stores": "kafka mongo",
+    "primed": "false",
+    "primeSeconds": "0",
+    "settleSeconds": "0",
+    "accounts": "1000",
+    "tmpfs": "false",
+    "mongoCacheGb": "2"
+  }
+}

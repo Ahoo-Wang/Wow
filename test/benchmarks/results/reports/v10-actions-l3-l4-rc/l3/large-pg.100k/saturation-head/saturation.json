@@ -1,0 +1,108 @@
+{
+  "schema": "wow-e2e-bench/saturation/1",
+  "scenario": "E1-large",
+  "keys": {
+    "distribution": "uniform",
+    "accounts": 100000
+  },
+  "targets": ["http://127.0.0.1:18080"],
+  "saturationThroughput": 1355.75,
+  "saturationConcurrency": 128,
+  "note": "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
+  "steps": [
+    {
+      "concurrency": 1,
+      "throughput": 346.625,
+      "ok": 2773,
+      "errors": {},
+      "p50Ms": 2.463,
+      "p99Ms": 8.255
+    },
+    {
+      "concurrency": 2,
+      "throughput": 602.0,
+      "ok": 4816,
+      "errors": {},
+      "p50Ms": 2.911,
+      "p99Ms": 8.511
+    },
+    {
+      "concurrency": 4,
+      "throughput": 735.75,
+      "ok": 5886,
+      "errors": {},
+      "p50Ms": 4.767,
+      "p99Ms": 16.383
+    },
+    {
+      "concurrency": 8,
+      "throughput": 915.0,
+      "ok": 7320,
+      "errors": {},
+      "p50Ms": 8.383,
+      "p99Ms": 21.375
+    },
+    {
+      "concurrency": 16,
+      "throughput": 974.125,
+      "ok": 7793,
+      "errors": {},
+      "p50Ms": 15.039,
+      "p99Ms": 49.919
+    },
+    {
+      "concurrency": 32,
+      "throughput": 974.875,
+      "ok": 7799,
+      "errors": {},
+      "p50Ms": 27.007,
+      "p99Ms": 217.087
+    },
+    {
+      "concurrency": 64,
+      "throughput": 1155.25,
+      "ok": 9242,
+      "errors": {},
+      "p50Ms": 50.431,
+      "p99Ms": 144.383
+    },
+    {
+      "concurrency": 128,
+      "throughput": 1355.75,
+      "ok": 10846,
+      "errors": {},
+      "p50Ms": 88.063,
+      "p99Ms": 232.447
+    },
+    {
+      "concurrency": 256,
+      "throughput": 1151.0,
+      "ok": 9208,
+      "errors": {},
+      "p50Ms": 201.727,
+      "p99Ms": 1343.487
+    },
+    {
+      "concurrency": 512,
+      "throughput": 1343.125,
+      "ok": 10745,
+      "errors": {},
+      "p50Ms": 430.079,
+      "p99Ms": 700.415
+    }
+  ],
+  "meta": {
+    "backend": "postgres",
+    "nodes": "1",
+    "heap": "1g",
+    "gc": "G1",
+    "serverJvm": "openjdk version \"21.0.12.1\" 2026-08-18 LTS OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+    "stores": "kafka postgres",
+    "primed": "true",
+    "primeSeconds": "55",
+    "settleSeconds": "5",
+    "accounts": "100000",
+    "tmpfs": "false",
+    "mongoCacheGb": "2"
+  }
+}
