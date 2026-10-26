@@ -214,9 +214,13 @@ class JndiSrvLookup(
         @JvmField
         val RESOLV_CONF: Path = Path.of("/etc/resolv.conf")
 
-        /** The SRV records of the absolute [name], as the JDK's DNS provider finds them; none when it finds none. */
-        fun records(name: String): List<SrvRecord> = try {
-            val context = InitialDirContext(Hashtable(mapOf("java.naming.factory.initial" to DNS_FACTORY)))
+        /**
+         * The SRV records of the absolute [name], as the JDK's DNS provider finds them, from the node's DNS servers
+         * unless [settings] names others (`java.naming.provider.url`); none when it finds none.
+         */
+        @JvmOverloads
+        fun records(name: String, settings: Map<String, String> = emptyMap()): List<SrvRecord> = try {
+            val context = InitialDirContext(Hashtable(mapOf("java.naming.factory.initial" to DNS_FACTORY) + settings))
             try {
                 val values = context.getAttributes(name, arrayOf(SRV)).get(SRV) ?: return emptyList()
                 (0 until values.size()).mapNotNull { parse(values.get(it).toString()) }

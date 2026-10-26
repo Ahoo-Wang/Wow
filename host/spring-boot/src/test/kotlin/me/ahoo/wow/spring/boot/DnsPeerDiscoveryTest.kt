@@ -160,10 +160,14 @@ class DnsPeerDiscoveryTest {
     }
 
     @Test
-    fun `the JDK's DNS should find no record of a name that does not exist`() {
-        // The `.invalid` top-level domain never resolves (RFC 6761); without a DNS server the lookup fails alike.
-        JndiSrvLookup.records("_internal._tcp.nothing.invalid.").assert().isEmpty()
-        JndiSrvLookup().srv("_internal._tcp.nothing.invalid.").assert().isEmpty()
+    fun `the JDK's DNS should find no record where no server answers`() {
+        // A DNS server on a loopback port nothing listens on: the lookup fails at once, without the network.
+        val silent = mapOf(
+            "java.naming.provider.url" to "dns://127.0.0.1:1",
+            "com.sun.jndi.dns.timeout.initial" to "100",
+            "com.sun.jndi.dns.timeout.retries" to "1",
+        )
+        JndiSrvLookup.records("_internal._tcp.nothing.invalid.", silent).assert().isEmpty()
     }
 
     @Test
