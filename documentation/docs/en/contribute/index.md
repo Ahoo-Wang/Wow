@@ -11,7 +11,7 @@ The Wow repository holds the framework's JVM modules, its TypeScript packages, t
 
 | Directory | Holds |
 | --- | --- |
-| `api/` | `:api`, the programming model (annotations, `Decision`, `DecideScope`, `StateEvent`); `:manifest`, the contract as plain data; `:query-api`, the query protocol and its Kotlin DSL |
+| `api/` | `:annotations`, the stability markers (`@InternalWowApi`, `@ExperimentalWowApi`, `@WowSpi`); `:api`, the programming model (annotations, `Decision`, `DecideScope`, `StateEvent`); `:manifest`, the contract as plain data; `:query-api`, the query protocol and its Kotlin DSL |
 | `compiler/` | `:compiler`, the KSP processor that writes the models and Manifest fragments; `:gradle-plugin`, the plugin `me.ahoo.wow`; `:manifest-tools`, which completes and merges fragments |
 | `core/` | `:spi`, the ports a backend implements; `:kernel`, the decide, evolve and append loop; `:runtime`, the node (admission, routing, the cluster channel, the executor, subscriptions, waits); `:reactor`, the Reactor adapter |
 | `query/` | `:query`, the query engine; `:query-tck`, the contract every query backend passes |
@@ -34,9 +34,10 @@ Gradle project names carry no `wow-` prefix (`:kernel` in `core/kernel`); the bu
 
 ```mermaid
 flowchart BT
-    API[api]
-    QAPI[query-api]
-    MAN[manifest]
+    ANN[annotations]
+    API[api] --> ANN
+    QAPI[query-api] --> ANN
+    MAN[manifest] --> ANN
     COMP[compiler] --> API & MAN
     SPI[spi] --> API
     KER[kernel] --> SPI & MAN
@@ -54,7 +55,7 @@ flowchart BT
 
 The authoritative list is `ArchitectureRules.ALLOWED_PROJECT_DEPENDENCIES` in `:architecture`. Its tests hold, among others:
 
-- `:api`, `:query-api` and `:manifest` have no runtime dependencies, and `:api` uses no JSON library.
+- `:api`, `:query-api` and `:manifest` have no runtime dependencies but `:annotations`, which has none, and `:api` uses no JSON library.
 - The kernel knows nothing of the cluster, subscriptions, waits or drivers; the runtime depends on coroutines and Jackson only, not on Spring, Reactor or a driver.
 - A backend depends on `:spi`, and on `:query` when it serves queries; backends never depend on each other.
 - Reactor appears only in `:reactor` and the WebFlux edge, and only `:spring-boot` depends on Spring Boot.
