@@ -93,6 +93,7 @@ const val DECIDED_BY = "decidedBy"
 fun fastOptions(
     forwardTimeout: Duration = 1.seconds,
     maxInFlightPerPeer: Int = 1_024,
+    drainTimeout: Duration = 5.seconds,
 ): ClusterOptions = ClusterOptions(
     leaseTtl = 1_500.milliseconds,
     renewInterval = 300.milliseconds,
@@ -102,7 +103,7 @@ fun fastOptions(
     routeRefreshInterval = 100.milliseconds,
     forwardTimeout = forwardTimeout,
     maxInFlightPerPeer = maxInFlightPerPeer,
-    drainTimeout = 5.seconds,
+    drainTimeout = drainTimeout,
 )
 
 /**

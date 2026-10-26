@@ -19,7 +19,9 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.schedule.ScheduleJob
+import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
@@ -377,16 +379,14 @@ class ServiceNodeOptions @InternalWowApi constructor(
     )
 
     companion object {
-        const val DEFAULT_LANE_CAPACITY: Int = 1_024
+        /** [Executor.DEFAULT_LANE_CAPACITY]. */
+        const val DEFAULT_LANE_CAPACITY: Int = Executor.DEFAULT_LANE_CAPACITY
 
-        /** A batch's commands decide on the same state one after another: 32 take well under a millisecond. */
-        const val DEFAULT_MAX_BATCH: Int = 32
+        /** [Executor.DEFAULT_MAX_BATCH]. */
+        const val DEFAULT_MAX_BATCH: Int = Executor.DEFAULT_MAX_BATCH
 
-        /**
-         * At most 384 bytes per cached aggregate (decisions D261, D278): a full ring of 256 took 3 KB, and on a node
-         * that served sustained traffic the rings crowded the states out of the cache by its bytes.
-         */
-        const val DEFAULT_RECENT_REQUESTS: Int = 32
+        /** [Kernel.DEFAULT_RECENT_REQUESTS]. */
+        const val DEFAULT_RECENT_REQUESTS: Int = Kernel.DEFAULT_RECENT_REQUESTS
     }
 }
 

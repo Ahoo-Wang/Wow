@@ -62,6 +62,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.intrinsics.suspendCoroutineUninterceptedOrReturn
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 data class Deposit(val amount: Int = 1)
 data class Deposited(val amount: Int)
@@ -213,7 +214,7 @@ class SpikeNode(val name: String, private val cluster: SpikeCluster, private val
         Command(commandId, "r-$commandId", cluster.ref(id), Deposit(), wait = WaitPlan.COMMITTED)
 
     suspend fun close() {
-        executor.close()
+        executor.close(10.seconds)
         stores.close()
     }
 

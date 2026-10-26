@@ -19,6 +19,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
@@ -41,12 +43,15 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.random.Random
+import kotlin.time.Duration.Companion.milliseconds
 
 class ExecutorTest {
     data class Add(val amount: Int)
     data class Hold(val gate: String)
     data class Push(val amount: Int)
     data class Fail(val reason: String)
+    data class Sleep(val millis: Long)
     data class Added(val amount: Int)
 
     class Counter(val id: String) {
@@ -76,6 +81,10 @@ class ExecutorTest {
             Decision.events(Added(0))
         }
         decide<Push>(Creation.ALLOWED) { _, body -> Decision.events(Added(body.amount)) }
+        decideSuspending<Sleep>(Creation.ALLOWED) { _, body ->
+            delay(body.millis)
+            Decision.events(Added(0))
+        }
         decide<Fail>(Creation.ALLOWED) { _, body -> error("failed ${body.reason}") }
         evolve<Added> { total += it.amount }
     }
@@ -202,7 +211,7 @@ class ExecutorTest {
         val gate = CompletableDeferred<Unit>().also { gates["close"] = it }
         val held = async(Dispatchers.Default) { executor.execute(model, command("y", Hold("close"))) }
         while (executor.activeLanes == 0) yield()
-        val closing = async(Dispatchers.Default) { executor.close() }
+        val closing = async(Dispatchers.Default) { executor.close(TIMEOUT_MS.milliseconds) }
         while (runCatching { executor.execute(model, command("z", Add(1))) }.isSuccess) yield()
         runCatching { executor.execute(model, command("z", Add(1))) }.exceptionOrNull()
             .assert().isInstanceOf(ExecutorClosedException::class.java)
@@ -210,6 +219,18 @@ class ExecutorTest {
         gate.complete(Unit)
         held.await().assert().isInstanceOf(CommandOutcome.Committed::class.java)
         withTimeout(TIMEOUT_MS) { closing.await() }
+    }
+
+    @Test
+    fun `close gives up waiting once its timeout passes`(): Unit = runBlocking {
+        val gate = CompletableDeferred<Unit>().also { gates["stuck"] = it }
+        val held = async(Dispatchers.Default) { executor.execute(model, command("stuck", Hold("stuck"))) }
+        withTimeout(TIMEOUT_MS) { holding.computeIfAbsent("stuck") { CompletableDeferred() }.await() }
+        executor.close(50.milliseconds).assert().isFalse()
+        executor.commandsInFlight.assert().isEqualTo(1)
+        gate.complete(Unit)
+        held.await().assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        executor.close(TIMEOUT_MS.milliseconds).assert().isTrue()
     }
 
     /** Records the size of each appendAll. */
@@ -308,7 +329,66 @@ class ExecutorTest {
         (cache.take(model.type.ref("t", id))!!.state as Counter).total.assert().isEqualTo(1)
     }
 
+    @Test
+    fun `a batched command whose caller is cancelled does not stall the lane`(): Unit = runBlocking {
+        val id = "batched"
+        val batching = Executor(Kernel(InMemoryEventLog(), states = LruStateCache(capacity = 16)), maxBatch = 4)
+        val first = CompletableDeferred<Unit>().also { gates["$id-0"] = it }
+        val io = CompletableDeferred<Unit>().also { gates["$id-1"] = it }
+        val held = async(Dispatchers.Default) { batching.execute(model, command(id, Hold("$id-0"))) }
+        withTimeout(TIMEOUT_MS) { holding.computeIfAbsent("$id-0") { CompletableDeferred() }.await() }
+        // Queued behind "held", then taken as one batch: its first command does I/O, so the others come back Again.
+        val leading = async(Dispatchers.Default) { batching.execute(model, command(id, Hold("$id-1"))) }
+        withTimeout(TIMEOUT_MS) { while (batching.commandsInFlight < 2) yield() }
+        val cancelled = async(Dispatchers.Default) { batching.execute(model, command(id, Push(100))) }
+        withTimeout(TIMEOUT_MS) { while (batching.commandsInFlight < 3) yield() }
+        val kept = async(Dispatchers.Default) { batching.execute(model, command(id, Push(1))) }
+        withTimeout(TIMEOUT_MS) { while (batching.commandsInFlight < 4) yield() }
+        first.complete(Unit)
+        held.await()
+        withTimeout(TIMEOUT_MS) { holding.computeIfAbsent("$id-1") { CompletableDeferred() }.await() }
+        // The batch [leading, cancelled, kept] runs: "cancelled" is no longer queued when its caller goes.
+        cancelled.cancelAndJoin()
+        io.complete(Unit)
+        (leading.await() as CommandOutcome.Committed).stream.version.assert().isEqualTo(2)
+        (withTimeout(TIMEOUT_MS) { kept.await() } as CommandOutcome.Committed).stream.version.assert().isEqualTo(3)
+        batching.activeLanes.assert().isEqualTo(0)
+        batching.commandsInFlight.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `lanes empty whichever commands are cancelled, wherever they are`(): Unit = runBlocking {
+        repeat(SEEDS) { seed ->
+            val random = Random(seed)
+            val batching = Executor(
+                Kernel(InMemoryEventLog(), states = LruStateCache(capacity = 16)),
+                maxBatch = random.nextInt(2, 9),
+            )
+            val callers = (1..COMMANDS).map { n ->
+                val body: Any = if (random.nextInt(3) == 0) Sleep(random.nextLong(0, 3)) else Push(n)
+                val id = "p-${random.nextInt(AGGREGATES)}"
+                async(Dispatchers.Default) { runCatching { batching.execute(model, command(id, body)) } }
+            }
+            callers.filter { random.nextInt(3) == 0 }.forEach { caller ->
+                val after = random.nextLong(0, 5)
+                launch(Dispatchers.Default) {
+                    delay(after)
+                    caller.cancel()
+                }
+            }
+            withTimeout(TIMEOUT_MS) {
+                callers.forEach { it.join() }
+                while (batching.commandsInFlight > 0) yield()
+            }
+            batching.activeLanes.assert().isEqualTo(0)
+            batching.close(TIMEOUT_MS.milliseconds).assert().isTrue()
+        }
+    }
+
     private companion object {
         const val TIMEOUT_MS = 5_000L
+        const val SEEDS = 50
+        const val COMMANDS = 200
+        const val AGGREGATES = 4
     }
 }

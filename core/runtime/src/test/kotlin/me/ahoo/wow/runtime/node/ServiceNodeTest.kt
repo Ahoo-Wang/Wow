@@ -15,28 +15,36 @@ package me.ahoo.wow.runtime.node
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.HandlerRetry
+import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.StateCacheSizing
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.cluster.Account
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.Deposit
+import me.ahoo.wow.runtime.cluster.Deposited
 import me.ahoo.wow.runtime.cluster.ForwardCommand
 import me.ahoo.wow.runtime.cluster.Hrw
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
@@ -90,6 +98,7 @@ class ServiceNodeTest {
         vararg contexts: String = arrayOf(BANK),
         backends: BackendFactory = InMemoryBackends(),
         decided: MutableList<String> = CopyOnWriteArrayList(),
+        model: (String) -> AggregateModel<*> = { accountModel(it, decided) },
         options: ServiceNodeOptions = fastNodeOptions(),
         subscriptions: SubscriptionFactory = SubscriptionFactory.NONE,
         listener: (ServiceNode.Step) -> Unit = {},
@@ -99,7 +108,7 @@ class ServiceNodeTest {
         NODE_SERVICE,
         name,
         address,
-        contexts.map { accountModel(it, decided) },
+        contexts.map(model),
         accountsManifest(*contexts),
         backends,
         channel,
@@ -349,6 +358,58 @@ class ServiceNodeTest {
         )
         one.context(BANK).coordinator.executing.assert().isEqualTo(0)
         decided.assert().hasSize(1)
+    }
+
+    /** A node whose deposits never finish deciding, by [decide]: its stop still returns, past the drain timeout. */
+    private fun stopsPastStuckDecide(decide: suspend () -> Unit): Unit = runBlocking {
+        val deciding = CompletableDeferred<Unit>()
+        val stuck = { context: String ->
+            aggregate<Account>(context, "account") {
+                initial { Account() }
+                decideSuspending<Deposit>(Creation.ALLOWED) { _, body ->
+                    deciding.complete(Unit)
+                    decide()
+                    Decision.events(Deposited(body.amount))
+                }
+                evolve<Deposited> { balance += it.amount }
+            }
+        }
+        val drain = 200.milliseconds
+        val options = fastNodeOptions().copyWith(
+            cluster = fastOptions(drainTimeout = drain),
+            maxWaitTimeout = 1.seconds,
+        )
+        val steps = CopyOnWriteArrayList<ServiceNode.Step>()
+        val node = node("node-1", model = stuck, options = options, listener = { steps += it })
+        node.start()
+        val result = node.gateway.execute(deposit(id = "a-1", wait = WaitPlan.COMMITTED.within(100.milliseconds)))
+        result.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
+        deciding.await()
+        node.context(BANK).coordinator.executing.assert().isEqualTo(1)
+
+        // Before, the executors waited without a bound for the very commands the coordinators cancel after them.
+        withTimeout(10.seconds) { node.stop() }
+        steps.takeLast(3).assert().containsExactly(
+            ServiceNode.Step.EXECUTIONS_ENDED,
+            ServiceNode.Step.EXECUTORS_CLOSED,
+            ServiceNode.Step.LOGS_CLOSED,
+        )
+        node.state.assert().isEqualTo(ServiceNode.State.STOPPED)
+    }
+
+    @Test
+    fun `a node stops past a decide still running at the drain timeout, cancelling it`() {
+        stopsPastStuckDecide { CompletableDeferred<Unit>().await() }
+    }
+
+    @Test
+    fun `a node stops past a decide that ignores its cancellation, once the drain timeout passes again`() {
+        val release = CompletableDeferred<Unit>()
+        try {
+            stopsPastStuckDecide { withContext(NonCancellable) { release.await() } }
+        } finally {
+            release.complete(Unit)
+        }
     }
 
     @Test
