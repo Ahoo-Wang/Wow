@@ -18,23 +18,12 @@ import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
 import me.ahoo.wow.api.annotation.Name
-import java.util.regex.Pattern
+import me.ahoo.wow.api.naming.TypeNames
 
-/** Splits before every upper-case letter, as 9.x's `PascalCaseStrategy` does (wow-metadata). */
-private val UPPERCASE_SEPARATOR: Pattern = Pattern.compile("(?=[A-Z])")
-
-/**
- * `PascalCase` to `snake_case` (`CartItem` → `cart_item`), the result of 9.x's `NamingConverter.PASCAL_TO_SNAKE`, so an
- * aggregate keeps the name 9.x gave it. Ported here so the compiler does not depend on wow-metadata (decision D85).
- */
-internal fun String.pascalToSnake(): String =
-    UPPERCASE_SEPARATOR.split(this).joinToString(separator = "_") { it.lowercase() }
-
-/** The aggregate's name: its `@Name`, else its simple name in `snake_case`, as 9.x's `AggregateRootResolver` names it. */
+/** The aggregate's name: its `@Name`, else its simple name in `snake_case` ([TypeNames.aggregateName]). */
 @OptIn(KspExperimental::class)
 internal fun KSClassDeclaration.toName(): String =
-    getAnnotationsByType(Name::class).firstOrNull()?.value
-        ?: simpleName.asString().pascalToSnake()
+    TypeNames.aggregateName(simpleName.asString(), getAnnotationsByType(Name::class).firstOrNull()?.value)
 
 /** The JVM binary name of the class (`sample.Commands$Clear`), which keys its schema in the Manifest fragment. */
 internal fun KSDeclaration.binaryName(): String {

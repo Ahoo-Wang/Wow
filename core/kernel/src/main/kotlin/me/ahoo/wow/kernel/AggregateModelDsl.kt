@@ -21,6 +21,7 @@ import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.naming.TypeNames
 import tools.jackson.databind.JsonNode
 
 /** Builds an [AggregateModel] of state [S] for the aggregate [name] of bounded context [context]. */
@@ -349,25 +350,20 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
 }
 
 /**
- * The last part of the name of a command or event type, as the compiler names it (decision D55): its class's own
- * `@Name`, else its simple name.
+ * The last part of the name of a command or event type, as the compiler names it ([TypeNames.typeName]): its class's
+ * own `@Name`, else its simple name.
  */
 internal fun typeNameOf(typeClass: Class<*>): String =
-    typeClass.getDeclaredAnnotation(Name::class.java)?.value ?: typeClass.simpleName
-
-/** Splits before every upper-case letter, as the compiler's `pascalToSnake` does. */
-private val UPPERCASE_SEPARATOR = Regex("(?=[A-Z])")
+    TypeNames.typeName(typeClass.simpleName, typeClass.getDeclaredAnnotation(Name::class.java)?.value)
 
 /**
- * The aggregate name the compiler gives [stateType] when it is an `@AggregateRoot` (its `@Name`, else its simple name in
- * `snake_case`), its `@Name` when it carries only that, or null when it carries neither.
+ * The aggregate name the compiler gives [stateType] when it is an `@AggregateRoot` ([TypeNames.aggregateName]), its
+ * `@Name` when it carries only that, or null when it carries neither.
  */
 private fun annotatedAggregateName(stateType: Class<*>): String? {
     val annotated = stateType.getDeclaredAnnotation(Name::class.java)?.value
     if (annotated != null || !stateType.isAnnotationPresent(AggregateRoot::class.java)) {
         return annotated
     }
-    return stateType.simpleName.split(UPPERCASE_SEPARATOR).filter { it.isNotEmpty() }.joinToString("_") {
-        it.lowercase()
-    }
+    return TypeNames.aggregateName(stateType.simpleName, null)
 }
