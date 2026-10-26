@@ -166,6 +166,9 @@ class WowProperties {
     /** The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are. */
     var cosec: CoSec = CoSec()
 
+    /** The settings of the platform services that run on the host: `wow.platform.*`. */
+    var platform: Platform = Platform()
+
     /** The keys wow-cosid reads (`wow.cosid.*`), bound here as [cosec] is. */
     var cosid: CosId = CosId()
 
@@ -1118,6 +1121,16 @@ class WowProperties {
         }
     }
 
+    /** The settings of the platform services (ops, view store, analytics catalog) that run on the host. */
+    @InternalWowApi
+    class Platform {
+        /**
+         * Whether a platform service takes its callers from the `X-User`, `X-Tenant` and `X-Role` request headers,
+         * which any client sets: for local runs, demos and tests only, so it is refused outside development.
+         */
+        var trustIdentityHeaders: Boolean = false
+    }
+
     /** The tenants of the callers. */
     @InternalWowApi
     class Tenant {
@@ -1511,6 +1524,9 @@ class WowProperties {
     @InternalWowApi
     companion object {
         const val PREFIX: String = "wow"
+
+        /** The switch of a platform service that takes its callers from the request headers. */
+        const val TRUST_IDENTITY_HEADERS: String = "wow.platform.trust-identity-headers"
 
         /**
          * The `wow.*` settings [environment] gives, bound before the beans are, for a condition or an environment

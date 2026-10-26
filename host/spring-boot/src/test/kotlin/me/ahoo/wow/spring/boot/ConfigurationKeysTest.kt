@@ -14,11 +14,15 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.spi.config.WowConfigurationException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.mock.env.MockEnvironment
 
-/** The `wow.*` keys no property names (review A5-9): warned of, and refused under `wow.cosec`. */
+/**
+ * The `wow.*` keys no property names (review A5-9): every one refuses the startup (decision D302), a key of an earlier
+ * version with what took its place.
+ */
 class ConfigurationKeysTest {
     private val keys = ConfigurationKeys.of(javaClass.classLoader, listOf("wow.view-store", "wow", "spring.foo"))
 
@@ -44,10 +48,36 @@ class ConfigurationKeysTest {
     }
 
     @Test
-    fun `a mistyped key is warned of, not refused`() {
+    fun `a mistyped key refuses the startup, naming each`() {
         val environment = environment("wow.cluster.forward-timout" to "30s", "wow.clustr.router" to "local")
         keys.unknown(environment).assert().containsExactlyInAnyOrder("wow.cluster.forward-timout", "wow.clustr.router")
-        keys.check(environment)
+        val failure = assertThrows<WowConfigurationException> { keys.check(environment) }
+        failure.key.assert().isIn("wow.cluster.forward-timout", "wow.clustr.router")
+        failure.message.assert().contains("wow.cluster.forward-timout", "wow.clustr.router")
+    }
+
+    @Test
+    fun `a key of an earlier version refuses the startup with what took its place`() {
+        val environment = environment(
+            "wow.calls.contexts.ordering.url" to "http://ordering:9090",
+            "wow.clients.retry.backoff" to "1s",
+            "wow.aggregates.[shop.cart].snapshot.store" to "search",
+            "wow.query.in-process-timeout" to "5s",
+            "wow.topics.in-memory" to "true",
+            "wow.subscriptions.[shop.cart.projection].parked.min-backoff" to "1s",
+        )
+        val failure = assertThrows<WowConfigurationException> { keys.check(environment) }
+        failure.message.assert().contains(
+            "wow.calls.contexts.ordering.url (renamed wow.peers.<context>.url)",
+            "wow.clients.retry.backoff (renamed wow.peer.retry.initial-backoff)",
+            "(renamed wow.aggregates.[<context>.<aggregate>].snapshot.stores)",
+            "wow.query.in-process-timeout (renamed wow.query.unbounded-timeout)",
+            "wow.topics.in-memory (renamed wow.transport (memory))",
+            "parked.min-backoff (renamed wow.subscriptions.[<subscription>].parked.initial-backoff)",
+        )
+        ConfigurationKeys.renamed("wow.query.inProcess.max-list-size").assert()
+            .isEqualTo("renamed wow.query.budgets.in-process")
+        ConfigurationKeys.renamed("wow.cluster.router").assert().isNull()
     }
 
     @Test

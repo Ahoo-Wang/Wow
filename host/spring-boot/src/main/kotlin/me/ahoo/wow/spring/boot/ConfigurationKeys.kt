@@ -35,10 +35,11 @@ import org.springframework.core.io.support.PathMatchingResourcePatternResolver
  * the authorizer that allows all in place, and a key of an earlier version would do nothing. A key that was renamed or
  * removed ([RENAMED]) is refused with its new name or the reason it is gone: a table of messages, not an alias.
  *
- * A map whose values are beans ([CHECKED_MAPS]: `wow.callers`, `wow.peers`) is checked to its leaves (review R2.5-3):
- * a key under one of its entries is known only when it names a property of the value, so `wow.callers.basket.command`
- * is unknown, and refused, instead of leaving `commands` empty, which lets the service call every domain command
- * (decision D226).
+ * A map whose values are beans ([CHECKED_MAPS]: `wow.callers`, `wow.peers`, `wow.aggregates`, `wow.stores`, ...) is
+ * checked to its leaves (review R2.5-3): a key under one of its entries is known only when it names a property of the
+ * value, down its nested settings, so `wow.callers.basket.command` is unknown, and refused, instead of leaving
+ * `commands` empty, which lets the service call every domain command (decision D226), and so is an aggregate's
+ * `snapshot.store` of an earlier version.
  */
 @InternalWowApi
 class ConfigurationKeys(
@@ -70,20 +71,26 @@ class ConfigurationKeys(
 
     private fun isKnown(key: String): Boolean {
         val name = ConfigurationPropertyName.adapt(key, '.')
-        CHECKED_MAPS.entries.firstOrNull { (map, _) -> map.isAncestorOf(name) }?.let { (map, leaves) ->
-            return isLeafOf(map, leaves, name)
+        CHECKED_MAPS.entries.firstOrNull { (map, _) -> map.isAncestorOf(name) }?.let { (map, type) ->
+            return isLeafOf(map, type, name)
         }
         return known.any { it == name || it.isAncestorOf(name) } || owned.any { it == name || it.isAncestorOf(name) }
     }
 
-    /** Whether [name] is a property, one of [leaves], of an entry of [map]: `<map>.<entry>.<leaf>`, or under it. */
-    private fun isLeafOf(
-        map: ConfigurationPropertyName,
-        leaves: Set<String>,
-        name: ConfigurationPropertyName
-    ): Boolean {
-        val leaf = map.numberOfElements + 1
-        return name.numberOfElements > leaf && name.getElement(leaf, ConfigurationPropertyName.Form.UNIFORM) in leaves
+    /**
+     * Whether [name] is a property of an entry of [map], whose values are of [type]: `<map>.<entry>.<property>`, a
+     * nested setting's down to its leaf, or a key under a leaf that is itself a map or a list.
+     */
+    private fun isLeafOf(map: ConfigurationPropertyName, type: Class<*>, name: ConfigurationPropertyName): Boolean {
+        val elements = (map.numberOfElements + 1 until name.numberOfElements).map {
+            name.getElement(it, ConfigurationPropertyName.Form.UNIFORM)
+        }
+        return isPropertyOf(type, elements)
+    }
+
+    private fun isPropertyOf(type: Class<*>, elements: List<String>): Boolean {
+        val property = elements.firstOrNull()?.let { propertiesOf(type)[it] } ?: return false
+        return !isSettings(property) || isPropertyOf(property, elements.drop(1))
     }
 
     @InternalWowApi
@@ -95,12 +102,18 @@ class ConfigurationKeys(
 
         /**
          * The maps of beans whose keys are checked to the value's properties (review R2.5-3), by the map's name: the
-         * permits of the calling services and the peers this one calls.
+         * permits of the calling services, the peers this one calls, and each aggregate's, store's, subscription's,
+         * schedule's and error code's settings.
          */
-        private val CHECKED_MAPS: Map<ConfigurationPropertyName, Set<String>> = mapOf(
+        private val CHECKED_MAPS: Map<ConfigurationPropertyName, Class<*>> = mapOf(
             "wow.callers" to WowProperties.CallerPermits::class.java,
             "wow.peers" to WowProperties.PeerTarget::class.java,
-        ).entries.associate { (map, type) -> ConfigurationPropertyName.of(map) to leavesOf(type) }
+            "wow.aggregates" to WowProperties.Aggregate::class.java,
+            "wow.stores" to WowProperties.Store::class.java,
+            "wow.subscriptions" to WowProperties.SubscriptionSettings::class.java,
+            "wow.schedules" to WowProperties.Schedule::class.java,
+            "wow.http.errors" to WowProperties.Http.Error::class.java,
+        ).entries.associate { (map, type) -> ConfigurationPropertyName.of(map) to type }
 
         /**
          * The keys of earlier versions, each with what took its place: a pattern whose `*` stands for one element (a
@@ -173,10 +186,17 @@ class ConfigurationKeys(
         private fun uniform(element: String): String =
             ConfigurationPropertyName.adapt(element, '.').getElement(0, ConfigurationPropertyName.Form.UNIFORM)
 
-        /** The properties of [type], as the uniform elements of their names (`connect-timeout` is `connecttimeout`). */
-        private fun leavesOf(type: Class<*>): Set<String> = BeanUtils.getPropertyDescriptors(type)
+        /**
+         * The settable properties of [type] by the uniform element of their names (`connect-timeout` is
+         * `connecttimeout`), each with its type.
+         */
+        private fun propertiesOf(type: Class<*>): Map<String, Class<*>> = BeanUtils.getPropertyDescriptors(type)
             .filter { it.writeMethod != null }
-            .mapTo(HashSet()) { uniform(it.name) }
+            .associate { uniform(it.name) to it.propertyType }
+
+        /** Whether [type] is a class of nested settings, walked to its leaves; a value, a map or a list is a leaf. */
+        private fun isSettings(type: Class<*>): Boolean =
+            type.name.startsWith(WowProperties::class.java.packageName + ".") && !type.isEnum
 
         /**
          * The keys of every [METADATA] resource of [classLoader], with the prefixes of the application's other
