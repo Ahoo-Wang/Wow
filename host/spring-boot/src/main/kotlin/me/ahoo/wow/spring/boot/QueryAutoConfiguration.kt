@@ -105,7 +105,6 @@ class QueryAutoConfiguration {
         fun wowSnapshotQueryBackend(
             manifest: Manifest,
             node: ServiceNode,
-            properties: QueryProperties,
             backends: HostBackends,
             providers: StoreProviders,
             factories: ObjectProvider<QueryBackendFactory<*>>,
@@ -150,7 +149,6 @@ class QueryAutoConfiguration {
         fun wowEventQueryBackend(
             manifest: Manifest,
             node: ServiceNode,
-            properties: QueryProperties,
             backends: HostBackends,
             providers: StoreProviders,
             wow: ObjectProvider<WowProperties>,
