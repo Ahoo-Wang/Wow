@@ -244,10 +244,12 @@ export const zhCN: Readonly<Record<string, string>> = {
   'label.value.mixed-currencies': '多种货币',
   'label.value.untitled': '未命名',
   'label.value.more': '+{count}',
-  'label.sort.ascending': '按{field}升序排序',
-  'label.sort.descending': '按{field}降序排序',
-  'label.sort.none': '取消按{field}排序',
-  'label.sort.restore': '恢复按{field}排序之前的顺序',
+  // The column's label leads, set off by a comma, so a word segmenter never merges it with the verb before it:
+  // 「取消按下单时间排序」 split as 按下／单, and the button's name lost the label it shows (WCAG 2.5.3, axe 4.14).
+  'label.sort.ascending': '{field}，升序排序',
+  'label.sort.descending': '{field}，降序排序',
+  'label.sort.none': '{field}，取消排序',
+  'label.sort.restore': '{field}，恢复排序前的顺序',
   'label.sort.waiting.asc': '升序待应用',
   'label.sort.waiting.desc': '降序待应用',
   'label.sort.waiting.none': '取消排序待应用',

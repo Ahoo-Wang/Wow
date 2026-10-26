@@ -203,7 +203,7 @@ export function SortableHeader({
       data-numeric={numeric ? '' : undefined}
       {...head}
       // The column's name is its label. Computed from the content it was
-      // the sort button's action and the width handle's, 「按订单号升序排序
+      // the sort button's action and the width handle's, 「订单号，升序排序
       // 调整 订单号 宽度」, said as the column's name in every cell a reader
       // walked into (second-round review). The order is `aria-sort`'s.
       aria-label={said}
