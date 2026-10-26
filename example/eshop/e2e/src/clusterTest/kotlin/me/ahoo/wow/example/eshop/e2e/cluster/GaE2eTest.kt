@@ -181,16 +181,19 @@ class GaE2eTest {
     fun `remote_ip is the client's address, not one the client claims`() = scenario("functional", "remote_ip") {
         val outsider = checkNotNull(kube.pods("outsider").single().ip)
         // From a pod, so the client's address is known: the gateway's node port would show the node's.
-        val sent = curl(
+        val body = """{"productId":"mug","unitPrice":${flows.price("mug")},"quantity":1}"""
+        val sent = http(
             "outsider",
-            "http://cosec-gateway/eshop-basket/basket/ivy/add-basket-item",
-            "-X", "POST",
-            "-H", "Content-Type: application/json",
-            "-H", "Authorization: Bearer ${Tokens(System.getProperty("ga.secret", SECRET)).of(Who.buyer("ivy"))}",
-            "-H", "X-User: ivy",
+            "cosec-gateway",
+            80,
+            "POST",
+            "/eshop-basket/basket/ivy/add-basket-item",
+            body,
+            "Content-Type" to "application/json",
+            "Authorization" to "Bearer ${Tokens(System.getProperty("ga.secret", SECRET)).of(Who.buyer("ivy"))}",
+            "X-User" to "ivy",
             // A client's own claim, which the gateway overwrites (D296).
-            "-H", "X-Forwarded-For: 203.0.113.9",
-            "-d", """{"productId":"mug","unitPrice":${flows.price("mug")},"quantity":1}""",
+            "X-Forwarded-For" to "203.0.113.9",
         )
         sent.assert().describedAs(sent).startsWith("200")
         if (postgres == null) {
@@ -226,8 +229,8 @@ class GaE2eTest {
         "public ports behind the gateway"
     ) {
         val blocked = PUBLIC.map { (service, port) ->
-            val outsider = reach("outsider", "http://$service:$port/wow/manifest")
-            val insider = reach("insider", "http://$service:$port/wow/manifest")
+            val outsider = reach("outsider", service, port)
+            val insider = reach("insider", service, port)
             check(outsider.startsWith("000")) { "the outsider reached $service's public port: $outsider" }
             check(
                 insider.startsWith("000")
@@ -241,12 +244,12 @@ class GaE2eTest {
     @Order(11)
     fun `the internal ports are reachable from the platform's pods alone`() = scenario("security", "internal ports") {
         INTERNAL.forEach { (service, port) ->
-            val outsider = reach("outsider", "http://$service-cluster:$port/")
+            val outsider = reach("outsider", "$service-cluster", port)
             check(outsider.startsWith("000")) { "the outsider reached $service's internal port: $outsider" }
         }
         // The positive control: a pod of the shop reaches them, so the refusals are the policies'.
         INTERNAL.filter { it.first.startsWith("eshop-") }.forEach { (service, port) ->
-            val insider = reach("insider", "http://$service-cluster:$port/")
+            val insider = reach("insider", "$service-cluster", port)
             check(!insider.startsWith("000")) { "the shop's own pod did not reach $service's internal port: $insider" }
         }
         "outsider refused on ${INTERNAL.size} internal ports; the shop's pod served on the eShop's"
@@ -612,13 +615,32 @@ class GaE2eTest {
         return json.readTree(answer.body)["state"]
     }
 
-    /** `curl` from [pod] to [url] with [options]: the status code, then the body; `000…` when it got no response. */
-    private fun curl(pod: String, url: String, vararg options: String): String =
-        kube.exec(pod, "curl", "-s", "-m", "5", "-o", "/dev/stdout", "-w", "\n%{http_code}", *options, url).out
-            .trim().let { output -> output.substringAfterLast('\n') + " " + output.substringBeforeLast('\n') }
+    /**
+     * One HTTP/1.1 request from [pod] to [host]:[port], written with bash's /dev/tcp (the probe pods have no HTTP
+     * client): the status code, then the response; `000` when no connection was made within 5 seconds.
+     */
+    private fun http(
+        pod: String,
+        host: String,
+        port: Int,
+        method: String,
+        path: String,
+        body: String = "",
+        vararg headers: Pair<String, String>,
+    ): String {
+        val request = buildString {
+            append("$method $path HTTP/1.1\r\nHost: $host\r\nConnection: close\r\n")
+            headers.forEach { (name, value) -> append("$name: $value\r\n") }
+            append("Content-Length: ${body.toByteArray().size}\r\n\r\n$body")
+        }
+        val script = "exec 3<>/dev/tcp/$host/$port && printf '%s' \"\$REQUEST\" >&3 && cat <&3"
+        val result = kube.exec(pod, "env", "REQUEST=$request", "timeout", "5", "bash", "-c", script)
+        val status = result.out.lineSequence().firstOrNull()?.split(' ')?.getOrNull(1)
+        return if (result.ok && status != null) "$status ${result.out}" else "000 ${result.err.trim()}"
+    }
 
-    /** Whether [pod] gets any response from [url] within 5 seconds: its status, `000` when none. */
-    private fun reach(pod: String, url: String): String = curl(pod, url)
+    /** Whether [pod] gets any response from [host]:[port] within 5 seconds: its status, `000` when none. */
+    private fun reach(pod: String, host: String, port: Int): String = http(pod, host, port, "GET", "/wow/manifest")
 
     /** Full-chain checkouts on a thread of their own while a fault runs, so it happens mid-checkout. */
     private class Load(private val flows: ShopFlows) {

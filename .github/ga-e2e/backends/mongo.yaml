@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
         - name: mongo
-          image: mongo:7.0
+          image: mongo:7.0@sha256:c53852c00c23ca9f23fc39690350ffa9a80e3642fe8f96879726d8da0abe80a7
           args: ["--replSet", "rs0", "--bind_ip_all", "--wiredTigerCacheSizeGB", "0.25"]
           ports:
             - name: mongo
@@ -66,7 +66,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: init
-          image: mongo:7.0
+          image: mongo:7.0@sha256:c53852c00c23ca9f23fc39690350ffa9a80e3642fe8f96879726d8da0abe80a7
           command: ["mongosh", "--host", "mongo-0.mongo:27017", "--quiet", "--eval"]
           args:
             - |

@@ -15,7 +15,8 @@
 # The GA end-to-end cluster (roadmap 9.3g, decision D317), driven by ga-e2e.yml, one command per step:
 #
 #   cluster.sh images             build every service's image from its Gradle distribution (installDist done)
-#   cluster.sh create             a kind cluster with Calico (NetworkPolicy enforced), the images loaded into it
+#   cluster.sh network            Calico on the kind cluster helm/kind-action created without a CNI (NetworkPolicy
+#                                 enforced), and the images loaded into it
 #   cluster.sh backends <arm>     PostgreSQL, Kafka and its topics, ClickHouse, the CoSec gateway and Redis, the probe
 #                                 pods, and on the mongo arm the replica set
 #   cluster.sh services <arm>     the services in waves, each with its overlay (services/<service>), until ready
@@ -28,8 +29,6 @@ here=$(cd "$(dirname "$0")" && pwd)
 root=$(cd "$here/../.." && pwd)
 cluster=wow-ga-e2e
 
-KIND_VERSION=v0.33.0
-KIND_SHA256=aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
 CALICO_VERSION=v3.32.2
 CALICO_SHA256=a8c828a06a87c629a282ebbc424895b77f3a030251993e41ea400a743675bb02
 
@@ -54,17 +53,6 @@ WAVES=(
   "eshop-basket"
 )
 
-# The third-party images, pulled once on the runner and loaded, so the node pulls none of them.
-THIRD_PARTY=(
-  postgres:17-alpine
-  apache/kafka:3.9.1
-  clickhouse/clickhouse-server:24.8.14.39-alpine
-  mongo:7.0
-  redis:7.4-alpine
-  curlimages/curl:8.11.1
-  ahoowang/cosec-gateway:6.1.2
-)
-
 log() { echo "[ga-e2e] $*"; }
 
 images() {
@@ -75,32 +63,22 @@ images() {
     log "image $image from $context ($app)"
     if [ -z "$dockerfile" ]; then
       docker build -q -t "$image" "$root/$context"
-    elif [ "$dockerfile" = deploy/eshop-ordering/Dockerfile ]; then
-      docker build -q -f "$root/$dockerfile" --build-arg BASE_IMAGE=eclipse-temurin:21-jre -t "$image" "$root/$context"
     else
       docker build -q -f "$root/$dockerfile" --build-arg APP_NAME="$app" -t "$image" "$root/$context"
     fi
   done
 }
 
-create() {
-  local bin=/usr/local/bin/kind entry image
-  if ! command -v kind >/dev/null; then
-    curl -fsSLo /tmp/kind "https://github.com/kubernetes-sigs/kind/releases/download/$KIND_VERSION/kind-linux-amd64"
-    echo "$KIND_SHA256  /tmp/kind" | sha256sum -c -
-    sudo install -m 0755 /tmp/kind "$bin"
-  fi
-  kind create cluster --name "$cluster" --config "$here/kind.yaml" --wait 0s
+# The third-party images are not loaded: the node pulls each by its digest, as the manifests pin them.
+network() {
+  local entry image
   curl -fsSLo /tmp/calico.yaml "https://raw.githubusercontent.com/projectcalico/calico/$CALICO_VERSION/manifests/calico.yaml"
   echo "$CALICO_SHA256  /tmp/calico.yaml" | sha256sum -c -
   kubectl apply -f /tmp/calico.yaml >/dev/null
-  for image in "${THIRD_PARTY[@]}"; do docker pull -q "$image" >/dev/null & done
-  wait
   for entry in "${IMAGES[@]}"; do
     image=${entry%%|*}
     kind load docker-image --name "$cluster" "$image"
   done
-  kind load docker-image --name "$cluster" "${THIRD_PARTY[@]}"
   kubectl -n kube-system rollout status daemonset/calico-node --timeout=300s
   kubectl -n kube-system rollout status deployment/calico-kube-controllers --timeout=300s
   kubectl wait --for=condition=Ready node --all --timeout=300s
@@ -184,6 +162,6 @@ diagnostics() {
   done
 }
 
-command=${1:?usage: cluster.sh images|create|backends <arm>|services <arm>|diagnostics <dir>}
+command=${1:?usage: cluster.sh images|network|backends <arm>|services <arm>|diagnostics <dir>}
 shift
 "$command" "$@"

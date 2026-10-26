@@ -121,7 +121,7 @@ spec:
     spec:
       containers:
         - name: cosec-gateway
-          image: ahoowang/cosec-gateway:6.1.2
+          image: ahoowang/cosec-gateway:6.1.2@sha256:ef6f76c93b8230bca3e31eb3e603699d7af326a6d451fe3e9268e43fa9fd007f
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
@@ -199,7 +199,7 @@ spec:
     spec:
       containers:
         - name: redis
-          image: redis:7.4-alpine
+          image: redis:7.4-alpine@sha256:d9436322172a5b482c187bf1f363d3c4fea086fcca6b9c8a94de8f0f39ed3193
           ports:
             - name: redis
               containerPort: 6379

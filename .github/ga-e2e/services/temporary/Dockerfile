@@ -3,7 +3,7 @@
 #   ./gradlew :eshop-<context>-server:installDist
 #   docker build -f .github/ga-e2e/services/temporary/Dockerfile --build-arg APP_NAME=eshop-<context>-server \
 #     -t wow-eshop-<context>-server:local example/eshop/<context>/<context>-server
-ARG BASE_IMAGE=eclipse-temurin:21-jre
+ARG BASE_IMAGE=dragonwell-registry.cn-hangzhou.cr.aliyuncs.com/dragonwell/dragonwell:21-ubuntu
 ARG APP_NAME
 ARG WORK_HOME=/opt/${APP_NAME}
 

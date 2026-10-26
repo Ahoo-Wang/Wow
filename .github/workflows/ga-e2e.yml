@@ -71,8 +71,16 @@ jobs:
             :eshop-e2e:clusterTestClasses
       - name: Build the images
         run: .github/ga-e2e/cluster.sh images
-      - name: Create the kind cluster with Calico
-        run: .github/ga-e2e/cluster.sh create
+      # No CNI yet (kind.yaml): the control plane is not ready until Calico runs, so the action does not wait for it.
+      - name: Create the kind cluster
+        uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+        with:
+          version: v0.33.0
+          cluster_name: wow-ga-e2e
+          config: .github/ga-e2e/kind.yaml
+          wait: 0s
+      - name: Install Calico and load the images
+        run: .github/ga-e2e/cluster.sh network
       - name: Deploy the backends and the gateway
         env:
           BACKEND: ${{ matrix.backend }}
