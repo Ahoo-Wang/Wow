@@ -11,6 +11,8 @@ val moduleDirs = listOf(
 ) + listOf("catalog", "basket", "ordering", "inventory", "payment").flatMap { context ->
     listOf("api", "domain", "server").map { "example/eshop/$context/$context-$it" }
 } + listOf("example/eshop/e2e", "example/quickstart", "example/java-smoke", "test/benchmarks/server") +
+    // The migration rehearsal's host, whose configuration the 9.x-key rule reads too (review R5.C-10).
+    listOf("test/migration-rehearsal") +
     listOf("ops-api", "ops-domain", "ops-server").map { "platform/ops/$it" } +
     listOf("api", "domain", "server").map { "platform/view-store/view-store-$it" } +
     listOf("api", "domain", "server").map { "platform/analytics/catalog/$it" }
